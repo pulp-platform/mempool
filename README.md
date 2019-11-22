@@ -33,6 +33,11 @@ source scripts/env.sh
 make toolchain
 ```
 
+After the toolchain, or more specifically the pulp-sdk, is built, the environment needs to be reconfigured before compiling applications. The easies way is to source the environment script once more:
+```bash
+source scripts/env.sh
+```
+
 An example application can be run by either calling
 ```bash
 make app
