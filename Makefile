@@ -1,28 +1,25 @@
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SHELL = bash
 
-INSTALL_PREFIX     ?= install
-INSTALL_DIR        ?= ${ROOT_DIR}/${INSTALL_PREFIX}
-LLVM_INSTALL_DIR   ?= ${INSTALL_DIR}/llvm
-HALIDE_INSTALL_DIR ?= ${INSTALL_DIR}/halide
-GCC_INSTALL_DIR    ?= ${INSTALL_DIR}/riscv-gcc
+INSTALL_PREFIX ?= install
+INSTALL_DIR    ?= ${ROOT_DIR}/${INSTALL_PREFIX}
 
-CMAKE ?= cmake
-CC    ?= gcc
-CXX   ?= g++
+CMAKE ?= cmake-3.7.1
+CC    ?= gcc-8.2.0
+CXX   ?= g++-8.2.0
 
 # Toolchain
-.PHONY: riscv-gcc llvm
+.PHONY: tc-riscv-gcc tc-llvm
 
-riscv-gcc:
-	mkdir -p ${GCC_INSTALL_DIR}
-	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && git submodule update --init --recursive && ./configure --prefix=${GCC_INSTALL_DIR} --enable-multilib && $(MAKE)
+tc-riscv-gcc:
+	mkdir -p ${INSTALL_DIR}
+	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && git submodule update --init --recursive && ./configure --prefix=${INSTALL_DIR} --with-arch=rv32im --with-cmodel=medlow --enable-multilib && $(MAKE) -j4
 
-llvm:
-	mkdir -p ${LLVM_INSTALL_DIR}
+tc-llvm:
+	mkdir -p ${INSTALL_DIR}
 	cd $(CURDIR)/toolchain/llvm-project && mkdir -p build && cd build; pwd; \
 	$(CMAKE) \
-		-DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALL_DIR) \
+		-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) \
 		-DCMAKE_CXX_COMPILER=$(CXX) \
 		-DCMAKE_C_COMPILER=$(CC) \
 		-DLLVM_ENABLE_PROJECTS="clang" \
@@ -32,9 +29,8 @@ llvm:
 		-DLLVM_ENABLE_ASSERTIONS=ON \
 		-DCMAKE_BUILD_TYPE=Release \
 		../llvm && \
-	make -j7 all && \
+	make -j4 all && \
 	make install
-
 
 # Helper targets
 .PHONY: clean
