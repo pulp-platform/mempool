@@ -8,8 +8,22 @@ CMAKE ?= cmake-3.7.1
 CC    ?= gcc-8.2.0
 CXX   ?= g++-8.2.0
 
+# Halide
+halide: toolchain
+	mkdir -p $(INSTALL_DIR)
+	cd toolchain/halide && mkdir -p build && cd build; \
+	$(CMAKE) \
+		-DLLVM_DIR=$(INSTALL_DIR)/lib/cmake/llvm \
+		-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) \
+		-DCMAKE_CXX_COMPILER=$(CXX) \
+		-DCMAKE_C_COMPILER=$(CC) \
+		-DCMAKE_BUILD_TYPE=Release \
+		.. && \
+	make -j4 all && \
+	make install
+
 # Toolchain
-.PHONY: tc-riscv-gcc tc-llvm
+toolchain: tc-riscv-gcc tc-llvm
 
 tc-riscv-gcc:
 	mkdir -p ${INSTALL_DIR}
@@ -17,7 +31,7 @@ tc-riscv-gcc:
 
 tc-llvm:
 	mkdir -p ${INSTALL_DIR}
-	cd $(CURDIR)/toolchain/llvm-project && mkdir -p build && cd build; pwd; \
+	cd $(CURDIR)/toolchain/llvm-project && mkdir -p build && cd build; \
 	$(CMAKE) \
 		-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) \
 		-DCMAKE_CXX_COMPILER=$(CXX) \
