@@ -1,29 +1,27 @@
 package:
-  name: mempool_cluster
+  name: mempool
 
 dependencies:
-  apb:                  { git: "git@github.com:pulp-platform/apb.git",                          rev: release-0.2 }
-  axi:                  { git: "git@github.com:pulp-platform/axi.git",                          rev: v0.9.0      }
-  axi2apb:              { git: "https://github.com/pulp-platform/axi2apb.git",                  rev: atop        }
-  axi_mem_if:           { git: "git@github.com:pulp-platform/axi_mem_if.git",                   rev: master      }
-  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git",     rev: dev         }
-  snitch:               { git: "git@iis-git.ee.ethz.ch:sriedel/snitch.git",                     rev: mempool     }
+  axi:                  { git: "git@github.com:pulp-platform/axi.git",                      version: 0.9.1   }
+  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", rev:     dev     }
+  snitch:               { git: "git@iis-git.ee.ethz.ch:sriedel/snitch.git",                 rev:     mempool }
 
 workspace:
   checkout_dir: "./deps"
 
 sources:
   # Level 0
-  - src/common/lfsr.sv
-  - src/common/mempool_pkg.sv
-  - src/tile/snitch_address_demux.sv
-  - src/tile/tcdm_shim.sv
+  - src/mempool_pkg.sv
+  - src/snitch_address_demux.sv
+  - src/tcdm_shim.sv
   # Level 1
-  - src/soc/soc_registers.sv
-  - src/tile/tile.sv
+  - src/mempool_tile.sv
   # Level 2
-  - src/cluster/mempool_cluster.sv
+  - src/mempool.sv
 
   - target: mempool_test
     files:
+      # Level 1
+      - tb/soc_registers.sv
+      # Level 2
       - tb/mempool_tb.sv

@@ -8,11 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-import mempool_pkg::*     ;
-import snitch_pkg::dreq_t ;
-import snitch_pkg::dresp_t;
+import mempool_pkg::NumCoresPerTile;
 
-module tile #(
+module mempool_tile #(
     // Boot address
     parameter logic [31:0] BootAddr        = 32'h0000_1000         ,
     // Instruction cache
@@ -63,6 +61,14 @@ module tile #(
     input  logic                             refill_plast_i,
     output logic                             refill_pready_o
   );
+
+  /*************
+   *  Imports  *
+   *************/
+
+  import mempool_pkg::*     ;
+  import snitch_pkg::dreq_t ;
+  import snitch_pkg::dresp_t;
 
   /***********
    *  Cores  *
@@ -433,105 +439,21 @@ module tile #(
     .axi_resp_i   ( axi_mst_resp     )
   );
 
-  axi_slice #(
-    .AXI_ADDR_WIDTH(AddrWidth    ),
-    .AXI_DATA_WIDTH(DataWidth    ),
-    .AXI_ID_WIDTH  (AxiMstIdWidth),
-    .AXI_USER_WIDTH(1            )
+  axi_cut #(
+    .aw_chan_t(axi_aw_t  ),
+    .w_chan_t (axi_w_t   ),
+    .b_chan_t (axi_b_t   ),
+    .ar_chan_t(axi_ar_t  ),
+    .r_chan_t (axi_r_t   ),
+    .req_t    (axi_req_t ),
+    .resp_t   (axi_resp_t)
   ) axi_mst_slice (
-    .clk_i                 (clk_i                  ),
-    .rst_ni                (rst_ni                 ),
-    .test_en_i             (1'b0                   ),
-    .axi_slave_aw_valid_i  (axi_mst_req.aw_valid   ),
-    .axi_slave_aw_addr_i   (axi_mst_req.aw.addr    ),
-    .axi_slave_aw_prot_i   (axi_mst_req.aw.prot    ),
-    .axi_slave_aw_region_i (axi_mst_req.aw.region  ),
-    .axi_slave_aw_len_i    (axi_mst_req.aw.len     ),
-    .axi_slave_aw_size_i   (axi_mst_req.aw.size    ),
-    .axi_slave_aw_burst_i  (axi_mst_req.aw.burst   ),
-    .axi_slave_aw_lock_i   (axi_mst_req.aw.lock    ),
-    .axi_slave_aw_atop_i   (axi_mst_req.aw.atop    ),
-    .axi_slave_aw_cache_i  (axi_mst_req.aw.cache   ),
-    .axi_slave_aw_qos_i    (axi_mst_req.aw.qos     ),
-    .axi_slave_aw_id_i     (axi_mst_req.aw.id      ),
-    .axi_slave_aw_user_i   (axi_mst_req.aw.user    ),
-    .axi_slave_aw_ready_o  (axi_mst_resp.aw_ready  ),
-    .axi_slave_ar_valid_i  (axi_mst_req.ar_valid   ),
-    .axi_slave_ar_addr_i   (axi_mst_req.ar.addr    ),
-    .axi_slave_ar_prot_i   (axi_mst_req.ar.prot    ),
-    .axi_slave_ar_region_i (axi_mst_req.ar.region  ),
-    .axi_slave_ar_len_i    (axi_mst_req.ar.len     ),
-    .axi_slave_ar_size_i   (axi_mst_req.ar.size    ),
-    .axi_slave_ar_burst_i  (axi_mst_req.ar.burst   ),
-    .axi_slave_ar_lock_i   (axi_mst_req.ar.lock    ),
-    .axi_slave_ar_cache_i  (axi_mst_req.ar.cache   ),
-    .axi_slave_ar_qos_i    (axi_mst_req.ar.qos     ),
-    .axi_slave_ar_id_i     (axi_mst_req.ar.id      ),
-    .axi_slave_ar_user_i   (axi_mst_req.ar.user    ),
-    .axi_slave_ar_ready_o  (axi_mst_resp.ar_ready  ),
-    .axi_slave_w_valid_i   (axi_mst_req.w_valid    ),
-    .axi_slave_w_data_i    (axi_mst_req.w.data     ),
-    .axi_slave_w_strb_i    (axi_mst_req.w.strb     ),
-    .axi_slave_w_user_i    (axi_mst_req.w.user     ),
-    .axi_slave_w_last_i    (axi_mst_req.w.last     ),
-    .axi_slave_w_ready_o   (axi_mst_resp.w_ready   ),
-    .axi_slave_r_valid_o   (axi_mst_resp.r_valid   ),
-    .axi_slave_r_data_o    (axi_mst_resp.r.data    ),
-    .axi_slave_r_resp_o    (axi_mst_resp.r.resp    ),
-    .axi_slave_r_last_o    (axi_mst_resp.r.last    ),
-    .axi_slave_r_id_o      (axi_mst_resp.r.id      ),
-    .axi_slave_r_user_o    (axi_mst_resp.r.user    ),
-    .axi_slave_r_ready_i   (axi_mst_req.r_ready    ),
-    .axi_slave_b_valid_o   (axi_mst_resp.b_valid   ),
-    .axi_slave_b_resp_o    (axi_mst_resp.b.resp    ),
-    .axi_slave_b_id_o      (axi_mst_resp.b.id      ),
-    .axi_slave_b_user_o    (axi_mst_resp.b.user    ),
-    .axi_slave_b_ready_i   (axi_mst_req.b_ready    ),
-    .axi_master_aw_valid_o (axi_mst_req_o.aw_valid ),
-    .axi_master_aw_addr_o  (axi_mst_req_o.aw.addr  ),
-    .axi_master_aw_prot_o  (axi_mst_req_o.aw.prot  ),
-    .axi_master_aw_region_o(axi_mst_req_o.aw.region),
-    .axi_master_aw_len_o   (axi_mst_req_o.aw.len   ),
-    .axi_master_aw_size_o  (axi_mst_req_o.aw.size  ),
-    .axi_master_aw_burst_o (axi_mst_req_o.aw.burst ),
-    .axi_master_aw_lock_o  (axi_mst_req_o.aw.lock  ),
-    .axi_master_aw_atop_o  (axi_mst_req_o.aw.atop  ),
-    .axi_master_aw_cache_o (axi_mst_req_o.aw.cache ),
-    .axi_master_aw_qos_o   (axi_mst_req_o.aw.qos   ),
-    .axi_master_aw_id_o    (axi_mst_req_o.aw.id    ),
-    .axi_master_aw_user_o  (axi_mst_req_o.aw.user  ),
-    .axi_master_aw_ready_i (axi_mst_resp_i.aw_ready),
-    .axi_master_ar_valid_o (axi_mst_req_o.ar_valid ),
-    .axi_master_ar_addr_o  (axi_mst_req_o.ar.addr  ),
-    .axi_master_ar_prot_o  (axi_mst_req_o.ar.prot  ),
-    .axi_master_ar_region_o(axi_mst_req_o.ar.region),
-    .axi_master_ar_len_o   (axi_mst_req_o.ar.len   ),
-    .axi_master_ar_size_o  (axi_mst_req_o.ar.size  ),
-    .axi_master_ar_burst_o (axi_mst_req_o.ar.burst ),
-    .axi_master_ar_lock_o  (axi_mst_req_o.ar.lock  ),
-    .axi_master_ar_cache_o (axi_mst_req_o.ar.cache ),
-    .axi_master_ar_qos_o   (axi_mst_req_o.ar.qos   ),
-    .axi_master_ar_id_o    (axi_mst_req_o.ar.id    ),
-    .axi_master_ar_user_o  (axi_mst_req_o.ar.user  ),
-    .axi_master_ar_ready_i (axi_mst_resp_i.ar_ready),
-    .axi_master_w_valid_o  (axi_mst_req_o.w_valid  ),
-    .axi_master_w_data_o   (axi_mst_req_o.w.data   ),
-    .axi_master_w_strb_o   (axi_mst_req_o.w.strb   ),
-    .axi_master_w_user_o   (axi_mst_req_o.w.user   ),
-    .axi_master_w_last_o   (axi_mst_req_o.w.last   ),
-    .axi_master_w_ready_i  (axi_mst_resp_i.w_ready ),
-    .axi_master_r_valid_i  (axi_mst_resp_i.r_valid ),
-    .axi_master_r_data_i   (axi_mst_resp_i.r.data  ),
-    .axi_master_r_resp_i   (axi_mst_resp_i.r.resp  ),
-    .axi_master_r_last_i   (axi_mst_resp_i.r.last  ),
-    .axi_master_r_id_i     (axi_mst_resp_i.r.id    ),
-    .axi_master_r_user_i   (axi_mst_resp_i.r.user  ),
-    .axi_master_r_ready_o  (axi_mst_req_o.r_ready  ),
-    .axi_master_b_valid_i  (axi_mst_resp_i.b_valid ),
-    .axi_master_b_resp_i   (axi_mst_resp_i.b.resp  ),
-    .axi_master_b_id_i     (axi_mst_resp_i.b.id    ),
-    .axi_master_b_user_i   (axi_mst_resp_i.b.user  ),
-    .axi_master_b_ready_o  (axi_mst_req_o.b_ready  )
+    .clk_i     (clk_i         ),
+    .rst_ni    (rst_ni        ),
+    .slv_req_i (axi_mst_req   ),
+    .slv_resp_o(axi_mst_resp  ),
+    .mst_req_o (axi_mst_req_o ),
+    .mst_resp_i(axi_mst_resp_i)
   );
 
   /******************
@@ -541,15 +463,12 @@ module tile #(
   `ifndef SYNTHESIS
   `ifndef VERILATOR
   // Check invariants.
-  initial begin
-    assert (BootAddr[1:0] == 2'b00);
+  if (BootAddr[1:0] != 2'b00)
+    $fatal(1, "[mempool_tile] Boot address should be aligned in a 4-byte boundary.");
 
-    assert (2**$clog2(NumCoresPerTile) == NumCoresPerTile || NumCoresPerTile == 1) else
-      $fatal(1, "Number of cores must be a power of two");
-
-    assert (2**$clog2(ICacheSizeByte) == ICacheSizeByte);
-  end
+  if (NumCoresPerTile != 2**$clog2(NumCoresPerTile))
+    $fatal(1, "[mempool_tile] Number of cores must be a power of two");
   `endif
   `endif
 
-endmodule : tile
+endmodule : mempool_tile

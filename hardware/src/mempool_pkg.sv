@@ -8,8 +8,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-`include "axi/typedef.svh"
-
 package mempool_pkg;
 
   /*************
@@ -38,6 +36,8 @@ package mempool_pkg;
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
+
+  `include "axi/typedef.svh"
 
   typedef logic [AddrWidth-1:0] addr_t                                    ;
   typedef logic [DataWidth-1:0] data_t                                    ;

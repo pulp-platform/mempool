@@ -1,5 +1,8 @@
 /// Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
 /// Demux based on address
+
+import mempool_pkg::address_map_t;
+
 module snitch_addr_demux #(
     parameter int unsigned NrOutput            = 2    ,
     parameter int unsigned AddressWidth        = 32   ,
@@ -10,28 +13,25 @@ module snitch_addr_demux #(
     /// Dependent parameters, DO NOT OVERRIDE!
     localparam integer LogNrOutput             = $clog2(NrOutput)
   ) (
-    input  logic                    clk_i,
-    input  logic                    rst_ni,
+    input  logic                            clk_i,
+    input  logic                            rst_ni,
     // request port
-    input  logic [AddressWidth-1:0] req_addr_i,
-    input  logic                    req_write_i,
-    input  req_t                    req_payload_i,
-    input  logic                    req_valid_i,
-    output logic                    req_ready_o,
-
-    output resp_t                resp_payload_o,
-    output logic                 resp_valid_o,
-    input  logic                 resp_ready_i,
+    input  logic         [AddressWidth-1:0] req_addr_i,
+    input  logic                            req_write_i,
+    input  req_t                            req_payload_i,
+    input  logic                            req_valid_i,
+    output logic                            req_ready_o,
+    output resp_t                           resp_payload_o,
+    output logic                            resp_valid_o,
+    input  logic                            resp_ready_i,
     // response port
-    output req_t  [NrOutput-1:0] req_payload_o,
-    output logic  [NrOutput-1:0] req_valid_o,
-    input  logic  [NrOutput-1:0] req_ready_i,
-
-    input  resp_t [NrOutput-1:0] resp_payload_i,
-    input  logic  [NrOutput-1:0] resp_valid_i,
-    output logic  [NrOutput-1:0] resp_ready_o,
-
-    input mempool_pkg::address_map_t [NumRules-1:0] address_map_i
+    output req_t         [NrOutput-1:0]     req_payload_o,
+    output logic         [NrOutput-1:0]     req_valid_o,
+    input  logic         [NrOutput-1:0]     req_ready_i,
+    input  resp_t        [NrOutput-1:0]     resp_payload_i,
+    input  logic         [NrOutput-1:0]     resp_valid_i,
+    output logic         [NrOutput-1:0]     resp_ready_o,
+    input  address_map_t [NumRules-1:0]     address_map_i
   );
 
   logic [NrOutput-1:0] fwd;
@@ -80,7 +80,7 @@ module snitch_addr_demux #(
   end
 
   assign push_id_fifo = req_valid & req_ready_o & ~req_write_i ;
-  assign pop_id_fifo  = resp_valid_o & resp_ready_i;
+  assign pop_id_fifo  = resp_valid_o & resp_ready_i            ;
   // Remember IDs for correct forwarding of read data
   fifo_v3 #(
     .DATA_WIDTH ( NrOutput            ),
@@ -135,6 +135,6 @@ module snitch_addr_demux #(
   assert property (@(posedge clk_i) disable iff (!rst_ni) push_id_fifo |-> !req_write_i);
   // check that we never underflow the fifo
   assert property (@(posedge clk_i) disable iff (!rst_ni) pop_id_fifo |-> !id_empty);
-/* pragma translate_on */
+  /* pragma translate_on */
 
 endmodule

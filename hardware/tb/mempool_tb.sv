@@ -89,7 +89,7 @@ module mempool_tb;
    *  DUT  *
    *********/
 
-  mempool_cluster #(
+  mempool #(
     .BootAddr ( 32'h8001_0000 )
   ) dut (
     .clk_i          ( clk            ),
@@ -258,11 +258,11 @@ module mempool_tb;
           axi_mem_resp[EOC].aw_ready <= @(posedge clk) 1'b0;
         end
         begin
-          wait(axi_mem_req[EOC].w_valid)  ;
+          wait(axi_mem_req[EOC].w_valid)                                                          ;
           // Finish simulation
-          $timeformat(-9, 2, " ns", 0);
+          $timeformat(-9, 2, " ns", 0)                                                            ;
           $display("[EOC] Simulation ended at %t (retval = %0d).", $time, axi_mem_req[EOC].w.data);
-          $finish(0);
+          $finish(0)                                                                              ;
         end
       join
     end
