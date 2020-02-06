@@ -3,7 +3,7 @@
 .section .text;
 
 _start:
-    ; Initialize global pointer
+    # Initialize global pointer
     .option push
     .option norelax
     1:auipc gp, %pcrel_hi(__global_pointer$)
@@ -43,16 +43,16 @@ reset_vector:
     li      x29, 0
     li      x30, 0
     li      x31, 0
-    la      sp, tcdm_end_address_reg ; load stack top from peripheral register
+    la      sp, tcdm_end_address_reg # load stack top from peripheral register
     lw      sp, 0(sp)
-    csrr    a0, mhartid              ; get hart id
-    la      a1, nr_cores_address_reg ; get the number of cores per cluster
+    csrr    a0, mhartid              # get hart id
+    la      a1, nr_cores_address_reg # get the number of cores per cluster
     lw      a1, 0(a1)
-    li      t0, -1                   ; generate a all 1 bitmask
+    li      t0, -1                   # generate a all 1 bitmask
     sll     t0, t0, a1
     neg     t0, t0
-    and     t0, a0, t0               ; generate a core id which starts at 0 for each cluster
-    slli    t0, t0, 8                ; set some stack-space aside for each hart
+    and     t0, a0, t0               # generate a core id which starts at 0 for each cluster
+    slli    t0, t0, 8                # set some stack-space aside for each hart
     sub     sp, sp, t0
     call    main
 

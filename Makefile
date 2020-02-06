@@ -27,13 +27,16 @@ CMAKE ?= cmake-3.7.1
 CC    ?= gcc-8.2.0
 CXX   ?= g++-8.2.0
 
+# Default target
+all: halide
+
 # Halide
 halide: toolchain
 	mkdir -p $(HALIDE_INSTALL_DIR)
 	cd toolchain/halide && mkdir -p build && cd build; \
 	$(CMAKE) \
 		-DLLVM_DIR=$(LLVM_INSTALL_DIR)/lib/cmake/llvm \
-		-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)/halide \
+		-DCMAKE_INSTALL_PREFIX=$(HALIDE_INSTALL_DIR) \
 		-DCMAKE_CXX_COMPILER=$(CXX) \
 		-DCMAKE_C_COMPILER=$(CC) \
 		-DCMAKE_BUILD_TYPE=Release \
@@ -46,7 +49,7 @@ toolchain: tc-riscv-gcc tc-llvm
 
 tc-riscv-gcc:
 	mkdir -p $(GCC_INSTALL_DIR)
-	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && git submodule update --init --recursive && ./configure --prefix=$(GCC_INSTALL_DIR)/riscv-gcc --with-arch=rv32im --with-cmodel=medlow --enable-multilib && $(MAKE) -j4
+	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && git submodule update --init --recursive && ./configure --prefix=$(GCC_INSTALL_DIR) --with-arch=rv32im --with-cmodel=medlow --enable-multilib && $(MAKE) -j4
 
 tc-llvm:
 	mkdir -p $(LLVM_INSTALL_DIR)
