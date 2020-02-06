@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+import mempool_pkg::*;
+
 module mempool #(
     parameter int unsigned NumCores         = 0                         ,
     parameter int unsigned NumCoresPerTile  = 0                         ,
@@ -28,7 +30,7 @@ module mempool #(
     parameter int unsigned NumTiles         = NumCores / NumCoresPerTile,
     parameter int unsigned NumBanks         = NumCores * BankingFactor  ,
     parameter int unsigned NumBanksPerTile  = NumBanks / NumTiles       ,
-    parameter int unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth)
+    parameter int unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / BeWidth)
   ) (
     // Clock andreset
     input  logic                     clk_i ,
@@ -45,8 +47,6 @@ module mempool #(
   /*****************
    *  Definitions  *
    *****************/
-
-  import mempool_pkg::*;
 
   typedef logic [$clog2(NumCores)-1:0] core_addr_t                          ;
   typedef logic [TCDMAddrMemWidth + $clog2(NumBanksPerTile)-1:0] tile_addr_t;

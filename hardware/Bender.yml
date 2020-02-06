@@ -22,6 +22,7 @@ sources:
   - target: mempool_test
     files:
       # Level 1
-      - tb/soc_registers.sv
+      - tb/axi2mem.sv
+      - tb/ctrl_registers.sv
       # Level 2
       - tb/mempool_tb.sv

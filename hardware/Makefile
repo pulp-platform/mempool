@@ -14,7 +14,7 @@ questa_version ?= -2019.3
 questa_cmd     ?=
 
 ifndef QUESTASIM_HOME
-	QUESTASIM_HOME = /usr/pack/modelsim-10.6b-kgf/questasim
+	QUESTASIM_HOME = /usr/pack/questa-2019.3-kgf/questasim
 # 	$(error QUESTASIM_HOME not set - please point your QUESTASIM_HOME variable to your QuestaSim installation)
 endif
 
@@ -30,8 +30,8 @@ trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.log,$(wildcard ${buildpat
 
 VLOG_ARGS += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 
-build: lib ${buildpath}/${dpi_library}/mempool_dpi.so
-	bender script vsim --vlog-arg="$(VLOG_ARGS)" -t rtl -t asic -t mempool_test > ${buildpath}/compile.tcl
+build: bender lib ${buildpath}/${dpi_library}/mempool_dpi.so
+	./bender script vsim --vlog-arg="$(VLOG_ARGS)" -t rtl -t asic -t mempool_test > ${buildpath}/compile.tcl
 	echo "exit" >> ${buildpath}/compile.tcl
 	cd ${buildpath} && questa${questa_version} vsim -c -do compile.tcl
 
@@ -52,8 +52,13 @@ ${buildpath}/%.log: ${buildpath}/%.dasm
 	mkdir -p ${buildpath}
 	../riscv-isa-sim/build/spike-dasm < $< > $@
 
-# DPIs
+# Bender
+bender: Makefile
+	curl --proto '=https' --tlsv1.2 -sSf https://iis-people.ee.ethz.ch/~andkurt/bender-init \
+		| sh -s -- 0.13.3
+	touch bender
 
+# DPIs
 ${buildpath}/${dpi_library}/%.o: tb/dpi/%.cpp
 	mkdir -p ${buildpath}/${dpi_library}
 	$(CXX) -shared -fPIC -std=c++11 -Bsymbolic -c $< -I${QUESTASIM_HOME}/include -o $@
@@ -65,4 +70,4 @@ ${buildpath}/${dpi_library}/mempool_dpi.so: $(dpi)
 clean:
 	rm -rf ${buildpath}
 
-.PHONY: build lib sim simc clean
+.PHONY: build lib sim simc clean bender

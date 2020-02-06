@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+import mempool_pkg::*;
+
 module mempool_tile #(
     parameter int unsigned NumCoresPerTile  = 0                                             ,
     parameter int unsigned NumBanksPerTile  = 0                                             ,
@@ -84,7 +86,6 @@ module mempool_tile #(
    *  Definitions  *
    *****************/
 
-  import mempool_pkg::*     ;
   import snitch_pkg::dreq_t ;
   import snitch_pkg::dresp_t;
 
@@ -326,7 +327,7 @@ module mempool_tile #(
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_core_mux
     // Remove tile index from local_xbar_addr_int, since it will not be used for routing.
     addr_t local_xbar_addr_int;
-    assign local_xbar_addr[c] = addr_t'({local_xbar_addr_int[AddrWidth:ByteOffset+$clog2(NumBanks)], local_xbar_addr_int[0 +: ByteOffset + $clog2(NumBanksPerTile)]});
+    assign local_xbar_addr[c] = addr_t'({local_xbar_addr_int[AddrWidth:ByteOffset+$clog2(NumBanksPerTile)], local_xbar_addr_int[0 +: ByteOffset + $clog2(NumBanksPerTile)]});
 
     tcdm_shim #(
       .AddrWidth          (AddrWidth),

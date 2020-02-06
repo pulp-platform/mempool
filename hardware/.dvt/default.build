@@ -152,5 +152,6 @@ src/tcdm_shim.sv
 src/mempool_tile.sv
 src/mempool.sv
 
-tb/soc_registers.sv
+tb/axi2mem.sv
+tb/ctrl_registers.sv
 tb/mempool_tb.sv

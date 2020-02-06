@@ -1,5 +1,7 @@
 *.log
 *.lock
 *.project
+bender
 .bender/*
 .dvt/*
+build/*

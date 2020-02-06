@@ -8,23 +8,30 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-`include "axi/assign.svh"
-`include "axi/typedef.svh"
-
-import mempool_pkg::*;
-
-import "DPI-C" function void read_elf (input string filename)                                 ;
-import "DPI-C" function byte get_section (output longint address, output longint len)         ;
-import "DPI-C" context function byte read_section(input longint address, inout byte buffer[]) ;
+import "DPI-C" function void read_elf (input string filename)                                ;
+import "DPI-C" function byte get_section (output longint address, output longint len)        ;
+import "DPI-C" context function byte read_section(input longint address, inout byte buffer[]);
 
 module mempool_tb;
+
+  /*****************
+   *  Definitions  *
+   *****************/
 
   timeunit      1ns;
   timeprecision 1ps;
 
-  /****************
-   *  LOCALPARAM  *
-   ****************/
+  import mempool_pkg::*         ;
+  import axi_pkg::xbar_cfg_t    ;
+  import axi_pkg::xbar_rule_32_t;
+
+  localparam NumCores        = 32;
+  localparam NumCoresPerTile = 4;
+  localparam BankingFactor   = 4;
+  localparam TCDMSizePerBank = 1024 /* [B] */;
+  localparam NumTiles        = NumCores / NumCoresPerTile;
+  localparam NumBanks        = NumCores * BankingFactor;
+  localparam TCDMSize        = NumBanks * TCDMSizePerBank;
 
   localparam ClockPeriod = 1ns;
   localparam TA          = 0.2ns;
@@ -32,15 +39,43 @@ module mempool_tb;
 
   localparam L2AddrWidth = 18;
 
-  localparam NumAXISlaves = 4;
+  /*********
+   *  AXI  *
+   *********/
+
+  `include "axi/assign.svh"
+  `include "axi/typedef.svh"
+
+  localparam AxiMstIdWidth = $clog2(NumCoresPerTile);
+  localparam AxiSlvIdWidth = $clog2(NumCores);
+
+  typedef logic [AxiMstIdWidth-1:0] axi_mst_id_t;
+  typedef logic [AxiSlvIdWidth-1:0] axi_slv_id_t;
+
+  `AXI_TYPEDEF_AW_CHAN_T(axi_aw_t, addr_t, axi_mst_id_t, logic)         ;
+  `AXI_TYPEDEF_W_CHAN_T(axi_w_t, data_t, strb_t, logic)                 ;
+  `AXI_TYPEDEF_B_CHAN_T(axi_b_t, axi_mst_id_t, logic)                   ;
+  `AXI_TYPEDEF_AR_CHAN_T(axi_ar_t, addr_t, axi_mst_id_t, logic)         ;
+  `AXI_TYPEDEF_R_CHAN_T(axi_r_t, data_t, axi_mst_id_t, logic)           ;
+  `AXI_TYPEDEF_REQ_T(axi_req_t, axi_aw_t, axi_w_t, axi_ar_t)            ;
+  `AXI_TYPEDEF_RESP_T(axi_resp_t, axi_b_t, axi_r_t )                    ;
+  `AXI_TYPEDEF_AW_CHAN_T(axi_slv_aw_t, addr_t, axi_slv_id_t, logic)     ;
+  `AXI_TYPEDEF_B_CHAN_T(axi_slv_b_t, axi_slv_id_t, logic)               ;
+  `AXI_TYPEDEF_AR_CHAN_T(axi_slv_ar_t, addr_t, axi_slv_id_t, logic)     ;
+  `AXI_TYPEDEF_R_CHAN_T(axi_slv_r_t, data_t, axi_slv_id_t, logic)       ;
+  `AXI_TYPEDEF_REQ_T(axi_slv_req_t, axi_slv_aw_t, axi_w_t, axi_slv_ar_t);
+  `AXI_TYPEDEF_RESP_T(axi_slv_resp_t, axi_slv_b_t, axi_slv_r_t)         ;
+
+  localparam NumAXIMasters = NumTiles;
+  localparam NumAXISlaves  = 4;
   typedef enum logic [$clog2(NumAXISlaves)-1:0] {
-    Peripherals,
-    L2Memory   ,
-    UART       ,
+    CtrlRegisters,
+    L2Memory     ,
+    UART         ,
     EOC
   } axi_slave_target;
 
-  localparam axi_pkg::xbar_cfg_t XBarCfg = '{
+  localparam xbar_cfg_t XBarCfg = '{
     NoSlvPorts        : NumAXIMasters         ,
     NoMstPorts        : NumAXISlaves          ,
     MaxMstTrans       : 4                     ,
@@ -54,18 +89,13 @@ module mempool_tb;
     NoAddrRules       : NumAXISlaves
   };
 
-  /**********************
-   *  INTERNAL SIGNALS  *
-   **********************/
-
-  axi_req_t [NumAXIMasters-1:0] axi_mst_req_o;
-  axi_resp_t[NumAXIMasters-1:0] axi_mst_resp_i;
-
-  axi_slv_req_t [NumAXISlaves-1:0] axi_mem_req;
-  axi_slv_resp_t[NumAXISlaves-1:0] axi_mem_resp;
+  axi_req_t     [NumAXIMasters-1:0] axi_mst_req_o;
+  axi_resp_t    [NumAXIMasters-1:0] axi_mst_resp_i;
+  axi_slv_req_t [NumAXISlaves-1:0]  axi_mem_req;
+  axi_slv_resp_t[NumAXISlaves-1:0]  axi_mem_resp;
 
   /********************************
-   *  CLOCK AND RESET GENERATION  *
+   *  Clock and Reset Generation  *
    ********************************/
 
   logic clk ;
@@ -90,70 +120,85 @@ module mempool_tb;
    *********/
 
   mempool #(
-    .BootAddr ( 32'h8001_0000 )
+    .NumCores       (NumCores       ),
+    .NumCoresPerTile(NumCoresPerTile),
+    .BankingFactor  (BankingFactor  ),
+    .TCDMSizePerBank(TCDMSizePerBank),
+    .BootAddr       (32'h8001_0000  ),
+    .axi_aw_t       (axi_aw_t       ),
+    .axi_w_t        (axi_w_t        ),
+    .axi_b_t        (axi_b_t        ),
+    .axi_ar_t       (axi_ar_t       ),
+    .axi_r_t        (axi_r_t        ),
+    .axi_req_t      (axi_req_t      ),
+    .axi_resp_t     (axi_resp_t     )
   ) dut (
-    .clk_i          ( clk            ),
-    .rst_ni         ( rst_n          ),
-    .axi_mst_req_o  ( axi_mst_req_o  ),
-    .axi_mst_resp_i ( axi_mst_resp_i ),
-    .scan_enable_i  ( 1'b0           ),
-    .scan_data_i    ( 1'b0           ),
-    .scan_data_o    (                )
+    .clk_i          (clk           ),
+    .rst_ni         (rst_n         ),
+    .axi_mst_req_o  (axi_mst_req_o ),
+    .axi_mst_resp_i (axi_mst_resp_i),
+    .scan_enable_i  (1'b0          ),
+    .scan_data_i    (1'b0          ),
+    .scan_data_o    (/* Unused */  )
   );
 
   /**********************
-   *  AXI INTERCONNECT  *
+   *  AXI Interconnect  *
    **********************/
 
-  localparam addr_t PeripheralsBaseAddr = 32'h4000_0000;
-  localparam addr_t PeripheralsEndAddr  = 32'h4000_FFFF;
-  localparam addr_t L2MemoryBaseAddr    = 32'h8000_0000;
-  localparam addr_t L2MemoryEndAddr     = 32'hBFFF_FFFF;
-  localparam addr_t UARTBaseAddr        = 32'hC000_0000;
-  localparam addr_t UARTEndAddr         = 32'hC000_FFFF;
-  localparam addr_t EOCBaseAddr         = 32'hD000_0000;
-  localparam addr_t EOCEndAddr          = 32'hD000_FFFF;
+  localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
+  localparam addr_t CtrlRegistersEndAddr  = 32'h4000_FFFF;
+  localparam addr_t L2MemoryBaseAddr      = 32'h8000_0000;
+  localparam addr_t L2MemoryEndAddr       = 32'hBFFF_FFFF;
+  localparam addr_t UARTBaseAddr          = 32'hC000_0000;
+  localparam addr_t UARTEndAddr           = 32'hC000_FFFF;
+  localparam addr_t EOCBaseAddr           = 32'hD000_0000;
+  localparam addr_t EOCEndAddr            = 32'hD000_FFFF;
 
-  axi_pkg::xbar_rule_32_t [NumAXISlaves-1:0] tb_xbar_routing_rules = '{
-    '{idx: Peripherals, start_addr: PeripheralsBaseAddr, end_addr: PeripheralsEndAddr},
-    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}         ,
-    '{idx: UART, start_addr: UARTBaseAddr, end_addr: UARTEndAddr}                     ,
+  xbar_rule_32_t [NumAXISlaves-1:0] tb_xbar_routing_rules = '{
+    '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
+    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}               ,
+    '{idx: UART, start_addr: UARTBaseAddr, end_addr: UARTEndAddr}                           ,
     '{idx: EOC, start_addr: EOCBaseAddr, end_addr: EOCEndAddr}};
 
   axi_xbar #(
-    .Cfg           ( XBarCfg                 ),
-    .slv_aw_chan_t ( axi_aw_t                ),
-    .mst_aw_chan_t ( axi_slv_aw_t            ),
-    .w_chan_t      ( axi_w_t                 ),
-    .slv_b_chan_t  ( axi_b_t                 ),
-    .mst_b_chan_t  ( axi_slv_b_t             ),
-    .slv_ar_chan_t ( axi_ar_t                ),
-    .mst_ar_chan_t ( axi_slv_ar_t            ),
-    .slv_r_chan_t  ( axi_r_t                 ),
-    .mst_r_chan_t  ( axi_slv_r_t             ),
-    .slv_req_t     ( axi_req_t               ),
-    .slv_resp_t    ( axi_resp_t              ),
-    .mst_req_t     ( axi_slv_req_t           ),
-    .mst_resp_t    ( axi_slv_resp_t          ),
-    .rule_t        ( axi_pkg::xbar_rule_32_t )
+    .Cfg           (XBarCfg       ),
+    .slv_aw_chan_t (axi_aw_t      ),
+    .mst_aw_chan_t (axi_slv_aw_t  ),
+    .w_chan_t      (axi_w_t       ),
+    .slv_b_chan_t  (axi_b_t       ),
+    .mst_b_chan_t  (axi_slv_b_t   ),
+    .slv_ar_chan_t (axi_ar_t      ),
+    .mst_ar_chan_t (axi_slv_ar_t  ),
+    .slv_r_chan_t  (axi_r_t       ),
+    .mst_r_chan_t  (axi_slv_r_t   ),
+    .slv_req_t     (axi_req_t     ),
+    .slv_resp_t    (axi_resp_t    ),
+    .mst_req_t     (axi_slv_req_t ),
+    .mst_resp_t    (axi_slv_resp_t),
+    .rule_t        (xbar_rule_32_t)
   ) i_tesbench_xbar (
-    .clk_i                 ( clk                   ),
-    .rst_ni                ( rst_n                 ),
-    .test_i                ( 1'b0                  ),
-    .slv_ports_req_i       ( axi_mst_req_o         ),
-    .slv_ports_resp_o      ( axi_mst_resp_i        ),
-    .mst_ports_req_o       ( axi_mem_req           ),
-    .mst_ports_resp_i      ( axi_mem_resp          ),
-    .addr_map_i            ( tb_xbar_routing_rules ),
-    .en_default_mst_port_i ( '0                    ),
-    .default_mst_port_i    ( '0                    )
+    .clk_i                 (clk                  ),
+    .rst_ni                (rst_n                ),
+    .test_i                (1'b0                 ),
+    .slv_ports_req_i       (axi_mst_req_o        ),
+    .slv_ports_resp_o      (axi_mst_resp_i       ),
+    .mst_ports_req_o       (axi_mem_req          ),
+    .mst_ports_resp_i      (axi_mem_resp         ),
+    .addr_map_i            (tb_xbar_routing_rules),
+    .en_default_mst_port_i ('0                   ),
+    .default_mst_port_i    ('0                   )
   );
 
+  /********
+   *  L2  *
+   ********/
+
   AXI_BUS #(
-    .AXI_ADDR_WIDTH ( AddrWidth     ),
-    .AXI_DATA_WIDTH ( DataWidth     ),
-    .AXI_ID_WIDTH   ( AxiSlvIdWidth ),
-    .AXI_USER_WIDTH ( 1             )
+    .AXI_ADDR_WIDTH (AddrWidth    ),
+    .AXI_DATA_WIDTH (DataWidth    ),
+    .AXI_ID_WIDTH   (AxiSlvIdWidth),
+    .AXI_USER_WIDTH (1            )
   ) axi_l2memory_slave ();
 
   // Assign slave
@@ -164,16 +209,16 @@ module mempool_tb;
   logic  mem_req;
   addr_t mem_addr;
   data_t mem_wdata;
-  strb_t   mem_strb;
+  strb_t mem_strb;
   data_t mem_strb_int;
   logic  mem_we;
   data_t mem_rdata;
 
   axi2mem #(
-    .AXI_ADDR_WIDTH( AddrWidth     ),
-    .AXI_DATA_WIDTH( DataWidth     ),
-    .AXI_ID_WIDTH  ( AxiSlvIdWidth ),
-    .AXI_USER_WIDTH( 1             )
+    .AXI_ADDR_WIDTH(AddrWidth    ),
+    .AXI_DATA_WIDTH(DataWidth    ),
+    .AXI_ID_WIDTH  (AxiSlvIdWidth),
+    .AXI_USER_WIDTH(1            )
   ) i_axi2mem (
     .clk_i (clk               ),
     .rst_ni(rst_n             ),
@@ -191,16 +236,16 @@ module mempool_tb;
   end
 
   sram #(
-    .DATA_WIDTH ( DataWidth      ),
-    .NUM_WORDS  ( 2**L2AddrWidth )
+    .DATA_WIDTH(DataWidth     ),
+    .NUM_WORDS (2**L2AddrWidth)
   ) l2_mem (
-    .clk_i  ( clk                                 ),
-    .req_i  ( mem_req                             ),
-    .we_i   ( mem_we                              ),
-    .addr_i ( mem_addr[ByteOffset +: L2AddrWidth] ),
-    .wdata_i( mem_wdata                           ),
-    .be_i   ( mem_strb_int                        ),
-    .rdata_o( mem_rdata                           )
+    .clk_i  (clk                                ),
+    .req_i  (mem_req                            ),
+    .we_i   (mem_we                             ),
+    .addr_i (mem_addr[ByteOffset +: L2AddrWidth]),
+    .wdata_i(mem_wdata                          ),
+    .be_i   (mem_strb_int                       ),
+    .rdata_o(mem_rdata                          )
   );
 
   /**********
@@ -268,48 +313,35 @@ module mempool_tb;
     end
   end
 
-  /*****************
-   *  PERIPHERALS  *
-   *****************/
+  /***********************
+   *  Control Registers  *
+   ***********************/
 
   AXI_BUS #(
-    .AXI_ADDR_WIDTH ( AddrWidth     ),
-    .AXI_DATA_WIDTH ( DataWidth     ),
-    .AXI_ID_WIDTH   ( AxiSlvIdWidth ),
-    .AXI_USER_WIDTH ( 1             )
-  ) axi_peripherals_slave ();
-
-  APB apb_peripherals_master ();
+    .AXI_ADDR_WIDTH(AddrWidth    ),
+    .AXI_DATA_WIDTH(DataWidth    ),
+    .AXI_ID_WIDTH  (AxiSlvIdWidth),
+    .AXI_USER_WIDTH(1            )
+  ) axi_ctrl_registers_slave ();
 
   // Assign slave
-  `AXI_ASSIGN_FROM_REQ(axi_peripherals_slave, axi_mem_req[Peripherals] );
-  `AXI_ASSIGN_TO_RESP (axi_mem_resp[Peripherals], axi_peripherals_slave);
+  `AXI_ASSIGN_FROM_REQ(axi_ctrl_registers_slave, axi_mem_req[CtrlRegisters] );
+  `AXI_ASSIGN_TO_RESP (axi_mem_resp[CtrlRegisters], axi_ctrl_registers_slave);
 
-  axi2apb_wrap #(
-    .AXI_ADDR_WIDTH (AddrWidth    ),
-    .AXI_ID_WIDTH   (AxiSlvIdWidth),
-    .AXI_DATA_WIDTH (DataWidth    ),
-    .AXI_USER_WIDTH (1            ),
-    .APB_ADDR_WIDTH (AddrWidth    )
-  ) i_axi2apb_ctrl_regs (
-    .clk_i     ( clk                    ),
-    .rst_ni    ( rst_n                  ),
-    .test_en_i ( 1'b0                   ),
-    .axi_slave ( axi_peripherals_slave  ),
-    .apb_master( apb_peripherals_master )
-  );
-
-  soc_registers i_soc_registers (
-    .clk_i               ( clk                    ),
-    .rst_ni              ( rst_n                  ),
-    .apb                 ( apb_peripherals_master ),
-    .tcdm_start_address_o( /* Unused */           ),
-    .tcdm_end_address_o  ( /* Unused */           ),
-    .num_cores_o         ( /* Unused */           )
+  ctrl_registers #(
+    .TCDMSize(TCDMSize),
+    .NumCores(NumCores)
+  ) i_ctrl_registers (
+    .clk_i               (clk                     ),
+    .rst_ni              (rst_n                   ),
+    .slave               (axi_ctrl_registers_slave),
+    .tcdm_start_address_o(/* Unused */            ),
+    .tcdm_end_address_o  (/* Unused */            ),
+    .num_cores_o         (/* Unused */            )
   );
 
   /************************
-   *  INSTRUCTION MEMORY  *
+   *  Instruction Memory  *
    ************************/
 
   localparam addr_t ICacheLineWidth   = dut.gen_tiles[0].tile.i_snitch_icache.LINE_WIDTH;
@@ -364,10 +396,10 @@ module mempool_tb;
   end
 
   /***************************
-   *  MEMORY INITIALIZATION  *
+   *  Memory Initialization  *
    ***************************/
 
-  initial begin
+  initial begin : instr_memory_init
     automatic logic [ICacheLineWidth-1:0] mem_row;
     byte buffer []                               ;
     addr_t address                               ;
@@ -392,15 +424,13 @@ module mempool_tb;
           for (int b = 0; b < ICacheBytes; b++) begin
             mem_row[8 * b +: 8] = buffer[w * ICacheBytes + b];
           end
-          //$display("Address=%x w=%x mem_row=%x, buffer=%x", address, w, mem_row, buffer[w] );
-          //$display("writing %x in position %x", mem_row, address + (w << ICacheByteOffset) );
           instr_memory[address + (w << ICacheByteOffset)] = mem_row;
         end
       end
     end
-  end
+  end : instr_memory_init
 
-  initial begin
+  initial begin : l2_init
     automatic data_t mem_row;
     byte buffer []          ;
     addr_t address          ;
@@ -425,8 +455,6 @@ module mempool_tb;
           for (int b = 0; b < BeWidth; b++) begin
             mem_row[8 * b +: 8] = buffer[w * BeWidth + b];
           end
-          //$display("Address=%x w=%x mem_row=%x, buffer=%x", address, w, mem_row, buffer[w] );
-          // $display("writing %x in position %x", mem_row, address + (w << ByteOffset));
           if (address >= L2MemoryBaseAddr && address < L2MemoryEndAddr)
             l2_mem.ram[(address - L2MemoryBaseAddr + (w << ByteOffset)) >> ByteOffset] = mem_row;
           else
@@ -434,6 +462,6 @@ module mempool_tb;
         end
       end
     end
-  end
+  end : l2_init
 
 endmodule : mempool_tb

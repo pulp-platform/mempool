@@ -8,21 +8,24 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-import mempool_pkg::*;
-
-module soc_registers (
-    input     logic        clk_i,
-    input     logic        rst_ni,
+module ctrl_registers #(
+    parameter int unsigned TCDMSize = 0,
+    parameter int unsigned NumCores = 0
+  ) (
+    input         logic        clk_i,
+    input         logic        rst_ni,
     // APB Bus
-    APB.Slave              apb,
+    AXI_BUS.Slave              slave,
     // Control registers
-    output    logic [31:0] tcdm_start_address_o,
-    output    logic [31:0] tcdm_end_address_o,
-    output    logic [31:0] num_cores_o
+    output        logic [31:0] tcdm_start_address_o,
+    output        logic [31:0] tcdm_end_address_o,
+    output        logic [31:0] num_cores_o
   );
 
+  import mempool_pkg::*;
+
   /***************
-   *   SIGNALS   *
+   *   Signals   *
    ***************/
 
   struct packed {
@@ -44,7 +47,7 @@ module soc_registers (
    *   RW REGS   *
    ***************/
 
-  apb_rw_regs #(
+  /*apb_rw_regs #(
     .N_REGS(3)
   ) i_apb_soc_registers (
     .pclk_i   ( clk_i                ),
@@ -61,6 +64,6 @@ module soc_registers (
     .pwrite_i ( apb.pwrite           ),
     .init_i   ( ctrl_regs_init       ),
     .q_o      ( ctrl_regs_q          )
-  );
+    );*/
 
-endmodule : soc_registers
+endmodule : ctrl_registers
