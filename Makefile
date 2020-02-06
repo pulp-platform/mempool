@@ -1,8 +1,11 @@
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SHELL = bash
 
-INSTALL_PREFIX ?= install
-INSTALL_DIR    ?= ${ROOT_DIR}/${INSTALL_PREFIX}
+INSTALL_PREFIX     ?= install
+INSTALL_DIR        ?= ${ROOT_DIR}/${INSTALL_PREFIX}
+GCC_INSTALL_DIR    ?= ${INSTALL_DIR}/riscv-gcc
+LLVM_INSTALL_DIR   ?= ${INSTALL_DIR}/llvm
+HALIDE_INSTALL_DIR ?= ${INSTALL_DIR}/halide
 
 CMAKE ?= cmake-3.7.1
 CC    ?= gcc-8.2.0
@@ -10,11 +13,11 @@ CXX   ?= g++-8.2.0
 
 # Halide
 halide: toolchain
-	mkdir -p $(INSTALL_DIR)
+	mkdir -p $(HALIDE_INSTALL_DIR)
 	cd toolchain/halide && mkdir -p build && cd build; \
 	$(CMAKE) \
-		-DLLVM_DIR=$(INSTALL_DIR)/lib/cmake/llvm \
-		-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) \
+		-DLLVM_DIR=$(LLVM_INSTALL_DIR)/lib/cmake/llvm \
+		-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)/halide \
 		-DCMAKE_CXX_COMPILER=$(CXX) \
 		-DCMAKE_C_COMPILER=$(CC) \
 		-DCMAKE_BUILD_TYPE=Release \
@@ -26,14 +29,14 @@ halide: toolchain
 toolchain: tc-riscv-gcc tc-llvm
 
 tc-riscv-gcc:
-	mkdir -p ${INSTALL_DIR}
-	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && git submodule update --init --recursive && ./configure --prefix=${INSTALL_DIR} --with-arch=rv32im --with-cmodel=medlow --enable-multilib && $(MAKE) -j4
+	mkdir -p $(GCC_INSTALL_DIR)
+	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && git submodule update --init --recursive && ./configure --prefix=$(GCC_INSTALL_DIR)/riscv-gcc --with-arch=rv32im --with-cmodel=medlow --enable-multilib && $(MAKE) -j4
 
 tc-llvm:
-	mkdir -p ${INSTALL_DIR}
+	mkdir -p $(LLVM_INSTALL_DIR)
 	cd $(CURDIR)/toolchain/llvm-project && mkdir -p build && cd build; \
 	$(CMAKE) \
-		-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) \
+		-DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALL_DIR) \
 		-DCMAKE_CXX_COMPILER=$(CXX) \
 		-DCMAKE_C_COMPILER=$(CC) \
 		-DLLVM_ENABLE_PROJECTS="clang" \
@@ -50,4 +53,4 @@ tc-llvm:
 .PHONY: clean
 
 clean:
-	rm -rf ${INSTALL_DIR}
+	rm -rf $(INSTALL_DIR)

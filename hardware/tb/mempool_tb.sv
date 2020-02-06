@@ -164,7 +164,7 @@ module mempool_tb;
   logic  mem_req;
   addr_t mem_addr;
   data_t mem_wdata;
-  be_t   mem_strb;
+  strb_t   mem_strb;
   data_t mem_strb_int;
   logic  mem_we;
   data_t mem_rdata;

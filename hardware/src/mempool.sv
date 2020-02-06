@@ -8,11 +8,27 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-import mempool_pkg::NumTiles;
-
 module mempool #(
+    parameter int unsigned NumCores         = 0                         ,
+    parameter int unsigned NumCoresPerTile  = 0                         ,
+    parameter int unsigned BankingFactor    = 0                         ,
+    // TCDM
+    parameter int unsigned TCDMSizePerBank  = 1024 /* [B] */            ,
     // Boot address
-    parameter logic [31:0] BootAddr = 32'h0000_0000
+    parameter logic [31:0] BootAddr         = 32'h0000_0000             ,
+    // AXI
+    parameter type axi_aw_t                 = logic                     ,
+    parameter type axi_w_t                  = logic                     ,
+    parameter type axi_b_t                  = logic                     ,
+    parameter type axi_ar_t                 = logic                     ,
+    parameter type axi_r_t                  = logic                     ,
+    parameter type axi_req_t                = logic                     ,
+    parameter type axi_resp_t               = logic                     ,
+    // Dependent parameters. DO NOT CHANGE!
+    parameter int unsigned NumTiles         = NumCores / NumCoresPerTile,
+    parameter int unsigned NumBanks         = NumCores * BankingFactor  ,
+    parameter int unsigned NumBanksPerTile  = NumBanks / NumTiles       ,
+    parameter int unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth)
   ) (
     // Clock andreset
     input  logic                     clk_i ,
@@ -26,7 +42,14 @@ module mempool #(
     output logic                     scan_data_o
   );
 
+  /*****************
+   *  Definitions  *
+   *****************/
+
   import mempool_pkg::*;
+
+  typedef logic [$clog2(NumCores)-1:0] core_addr_t                          ;
+  typedef logic [TCDMAddrMemWidth + $clog2(NumBanksPerTile)-1:0] tile_addr_t;
 
   /***********
    *  Tiles  *
@@ -42,7 +65,7 @@ module mempool #(
   data_t      [NumCores-1:0] tcdm_master_rdata;
   logic       [NumCores-1:0] tcdm_master_wen;
   data_t      [NumCores-1:0] tcdm_master_wdata;
-  be_t        [NumCores-1:0] tcdm_master_be;
+  strb_t      [NumCores-1:0] tcdm_master_be;
   logic       [NumCores-1:0] tcdm_slave_req;
   logic       [NumCores-1:0] tcdm_slave_gnt;
   tile_addr_t [NumCores-1:0] tcdm_slave_addr;
@@ -52,12 +75,24 @@ module mempool #(
   data_t      [NumCores-1:0] tcdm_slave_rdata;
   logic       [NumCores-1:0] tcdm_slave_wen;
   data_t      [NumCores-1:0] tcdm_slave_wdata;
-  be_t        [NumCores-1:0] tcdm_slave_be;
+  strb_t      [NumCores-1:0] tcdm_slave_be;
 
   for (genvar t = 0; unsigned'(t) < NumTiles; t++) begin: gen_tiles
 
     mempool_tile #(
-      .BootAddr(BootAddr)
+      .NumCoresPerTile(NumCoresPerTile),
+      .NumBanksPerTile(NumBanksPerTile),
+      .NumTiles       (NumTiles       ),
+      .NumBanks       (NumBanks       ),
+      .TCDMSizePerBank(TCDMSizePerBank),
+      .BootAddr       (BootAddr       ),
+      .axi_aw_t       (axi_aw_t       ),
+      .axi_w_t        (axi_w_t        ),
+      .axi_b_t        (axi_b_t        ),
+      .axi_ar_t       (axi_ar_t       ),
+      .axi_r_t        (axi_r_t        ),
+      .axi_req_t      (axi_req_t      ),
+      .axi_resp_t     (axi_resp_t     )
     ) tile (
       .clk_i              (clk_i                                                     ),
       .rst_ni             (rst_ni                                                    ),
@@ -149,8 +184,17 @@ module mempool #(
 
   `ifndef SYNTHESIS
   `ifndef VERILATOR
-  if (NumTiles > 1024)
-    $fatal(1, "MemPool is currently limited to 1024 cores.");
+  if (NumCores > 1024)
+    $fatal(1, "[mempool] MemPool is currently limited to 1024 cores.");
+
+  if (NumCores != NumTiles * NumCoresPerTile)
+    $fatal(1, "[mempool] The number of cores is not divisible by the number of cores per tile.");
+
+  if (BankingFactor < 1)
+    $fatal(1, "[mempool] The banking factor must be a positive integer.");
+
+  if (BankingFactor != 2**$clog2(BankingFactor))
+    $fatal(1, "[mempool] The banking factor must be a power of two.");
   `endif
   `endif
 

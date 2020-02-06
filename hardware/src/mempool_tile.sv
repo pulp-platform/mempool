@@ -8,15 +8,33 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-import mempool_pkg::NumCoresPerTile;
-
 module mempool_tile #(
+    parameter int unsigned NumCoresPerTile  = 0                                             ,
+    parameter int unsigned NumBanksPerTile  = 0                                             ,
+    parameter int unsigned NumTiles         = 0                                             ,
+    parameter int unsigned NumBanks         = 0                                             ,
+    // TCDM
+    parameter int unsigned TCDMSizePerBank  = 1024 /* [B] */                                ,
     // Boot address
-    parameter logic [31:0] BootAddr        = 32'h0000_1000         ,
+    parameter logic [31:0] BootAddr         = 32'h0000_1000                                 ,
     // Instruction cache
-    parameter int unsigned ICacheSizeByte  = 1024 * NumCoresPerTile, // Total Size of instruction cache in bytes
-    parameter int unsigned ICacheSets      = NumCoresPerTile       ,
-    parameter int unsigned ICacheLineWidth = NumCoresPerTile * 32
+    parameter int unsigned ICacheSizeByte   = 1024 * NumCoresPerTile                        , // Total Size of instruction cache in bytes
+    parameter int unsigned ICacheSets       = NumCoresPerTile                               ,
+    parameter int unsigned ICacheLineWidth  = NumCoresPerTile * 32                          ,
+    // AXI
+    parameter type axi_aw_t                 = logic                                         ,
+    parameter type axi_w_t                  = logic                                         ,
+    parameter type axi_b_t                  = logic                                         ,
+    parameter type axi_ar_t                 = logic                                         ,
+    parameter type axi_r_t                  = logic                                         ,
+    parameter type axi_req_t                = logic                                         ,
+    parameter type axi_resp_t               = logic                                         ,
+    // Dependent parameters. DO NOT CHANGE.
+    parameter int unsigned NumCores         = NumCoresPerTile * NumTiles                    ,
+    parameter int unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth),
+    parameter type core_id_t                = logic [$clog2(NumCores)-1:0]                  ,
+    parameter type tcdm_addr_t              = logic [TCDMAddrMemWidth-1:0]                  ,
+    parameter type tile_addr_t              = logic [TCDMAddrMemWidth + $clog2(NumBanksPerTile)-1:0]
   ) (
     // Clock and reset
     input  logic                             clk_i,
@@ -32,20 +50,20 @@ module mempool_tile #(
     output addr_t      [NumCoresPerTile-1:0] tcdm_master_addr_o,
     output logic       [NumCoresPerTile-1:0] tcdm_master_wen_o,
     output data_t      [NumCoresPerTile-1:0] tcdm_master_wdata_o,
-    output be_t        [NumCoresPerTile-1:0] tcdm_master_be_o,
+    output strb_t      [NumCoresPerTile-1:0] tcdm_master_be_o,
     input  logic       [NumCoresPerTile-1:0] tcdm_master_gnt_i,
     input  logic       [NumCoresPerTile-1:0] tcdm_master_vld_i,
     input  data_t      [NumCoresPerTile-1:0] tcdm_master_rdata_i,
     // TCDM banks interface
     input  logic       [NumCoresPerTile-1:0] mem_req_i,
-    input  core_addr_t [NumCoresPerTile-1:0] mem_ret_addr_i,
+    input  core_id_t   [NumCoresPerTile-1:0] mem_ret_addr_i,
     output logic       [NumCoresPerTile-1:0] mem_gnt_o,
     input  tile_addr_t [NumCoresPerTile-1:0] mem_addr_i,
     input  logic       [NumCoresPerTile-1:0] mem_wen_i,
     input  data_t      [NumCoresPerTile-1:0] mem_wdata_i,
-    input  be_t        [NumCoresPerTile-1:0] mem_be_i,
+    input  strb_t      [NumCoresPerTile-1:0] mem_be_i,
     output logic       [NumCoresPerTile-1:0] mem_vld_o,
-    output core_addr_t [NumCoresPerTile-1:0] mem_resp_addr_o,
+    output core_id_t   [NumCoresPerTile-1:0] mem_resp_addr_o,
     output data_t      [NumCoresPerTile-1:0] mem_rdata_o,
     // AXI Interface
     output axi_req_t                         axi_mst_req_o ,
@@ -62,13 +80,19 @@ module mempool_tile #(
     output logic                             refill_pready_o
   );
 
-  /*************
-   *  Imports  *
-   *************/
+  /*****************
+   *  Definitions  *
+   *****************/
 
   import mempool_pkg::*     ;
   import snitch_pkg::dreq_t ;
   import snitch_pkg::dresp_t;
+
+  // TCDM Memory Region
+  localparam addr_t TCDMSize     = NumBanks * TCDMSizePerBank;
+  localparam addr_t TCDMMask     = ~(TCDMSize - 1);
+  localparam addr_t TCDMBaseAddr = '0;
+  localparam addr_t TCDMEndAddr  = TCDMBaseAddr + TCDMSize;
 
   /***********
    *  Cores  *
@@ -85,7 +109,7 @@ module mempool_tile #(
   logic  [NumCoresPerTile-1:0] data_qwrite;
   amo_t  [NumCoresPerTile-1:0] data_qamo;
   data_t [NumCoresPerTile-1:0] data_qdata;
-  be_t   [NumCoresPerTile-1:0] data_qstrb;
+  strb_t [NumCoresPerTile-1:0] data_qstrb;
   logic  [NumCoresPerTile-1:0] data_qvalid;
   logic  [NumCoresPerTile-1:0] data_qready;
   data_t [NumCoresPerTile-1:0] data_pdata;
@@ -98,31 +122,31 @@ module mempool_tile #(
     assign hart_id = {tile_id_i, c[$clog2(NumCoresPerTile)-1:0]};
 
     mempool_cc #(
-      .BootAddr ( BootAddr )
+      .BootAddr (BootAddr)
     ) riscv_core (
-      .clk_i          ( clk_i          ),
-      .rst_i          ( ~rst_ni        ),
-      .hart_id_i      ( hart_id        ),
+      .clk_i         (clk_i         ),
+      .rst_i         (!rst_ni       ),
+      .hart_id_i     (hart_id       ),
       // IMEM Port
-      .inst_addr_o    ( inst_addr[c]   ),
-      .inst_data_i    ( inst_data[c]   ),
-      .inst_valid_o   ( inst_valid[c]  ),
-      .inst_ready_i   ( inst_ready[c]  ),
+      .inst_addr_o   (inst_addr[c]  ),
+      .inst_data_i   (inst_data[c]  ),
+      .inst_valid_o  (inst_valid[c] ),
+      .inst_ready_i  (inst_ready[c] ),
       // Data Ports
-      .data_qaddr_o   ( data_qaddr[c]  ),
-      .data_qwrite_o  ( data_qwrite[c] ),
-      .data_qamo_o    ( data_qamo[c]   ),
-      .data_qdata_o   ( data_qdata[c]  ),
-      .data_qstrb_o   ( data_qstrb[c]  ),
-      .data_qvalid_o  ( data_qvalid[c] ),
-      .data_qready_i  ( data_qready[c] ),
-      .data_pdata_i   ( data_pdata[c]  ),
-      .data_perror_i  ( data_perror[c] ),
-      .data_pvalid_i  ( data_pvalid[c] ),
-      .data_pready_o  ( data_pready[c] ),
-      .wake_up_sync_i ( '0             ),
+      .data_qaddr_o  (data_qaddr[c] ),
+      .data_qwrite_o (data_qwrite[c]),
+      .data_qamo_o   (data_qamo[c]  ),
+      .data_qdata_o  (data_qdata[c] ),
+      .data_qstrb_o  (data_qstrb[c] ),
+      .data_qvalid_o (data_qvalid[c]),
+      .data_qready_i (data_qready[c]),
+      .data_pdata_i  (data_pdata[c] ),
+      .data_perror_i (data_perror[c]),
+      .data_pvalid_i (data_pvalid[c]),
+      .data_pready_o (data_pready[c]),
+      .wake_up_sync_i('0            ),
       // Core Events
-      .core_events_o  ( /* Unused */   )
+      .core_events_o (/* Unused */  )
     );
   end
 
@@ -131,41 +155,41 @@ module mempool_tile #(
    ***********************/
 
   snitch_icache #(
-    .NR_FETCH_PORTS    ( NumCoresPerTile                                          ),
+    .NR_FETCH_PORTS    (NumCoresPerTile                                         ),
     /// Cache Line Width
-    .L0_LINE_COUNT     ( 4                                                        ),
-    .LINE_WIDTH        ( ICacheLineWidth                                          ),
-    .LINE_COUNT        ( ICacheSizeByte / (NumCoresPerTile * NumCoresPerTile * 4) ),
-    .SET_COUNT         ( ICacheSets                                               ),
-    .FETCH_AW          ( AddrWidth                                                ),
-    .FETCH_DW          ( DataWidth                                                ),
-    .FILL_AW           ( AddrWidth                                                ),
-    .FILL_DW           ( ICacheLineWidth                                          ),
-    .EARLY_ENABLED     ( 1                                                        ),
+    .L0_LINE_COUNT     (4                                                       ),
+    .LINE_WIDTH        (ICacheLineWidth                                         ),
+    .LINE_COUNT        (ICacheSizeByte / (NumCoresPerTile * NumCoresPerTile * 4)),
+    .SET_COUNT         (ICacheSets                                              ),
+    .FETCH_AW          (AddrWidth                                               ),
+    .FETCH_DW          (DataWidth                                               ),
+    .FILL_AW           (AddrWidth                                               ),
+    .FILL_DW           (ICacheLineWidth                                         ),
+    .EARLY_ENABLED     (1                                                       ),
     /// Make the early cache latch-based. This reduces latency at the cost of
     /// increased combinatorial path lengths and the hassle of having latches in
     /// the design.
-    .EARLY_LATCH       ( 0                                                        ),
+    .EARLY_LATCH       (0                                                       ),
     /// Make the early cache serve responses combinatorially if possible. Set
     /// this to 0 to cut combinatorial paths into the fetch interface.
-    .EARLY_FALLTHROUGH ( 0                                                        )
+    .EARLY_FALLTHROUGH (0                                                       )
   ) i_snitch_icache (
-    .clk_i           ( clk_i           ),
-    .rst_ni          ( rst_ni          ),
-    .inst_addr_i     ( inst_addr       ),
-    .inst_data_o     ( inst_data       ),
-    .inst_valid_i    ( inst_valid      ),
-    .inst_ready_o    ( inst_ready      ),
-    .inst_error_o    ( /* Unused */    ),
-    .refill_qaddr_o  ( refill_qaddr_o  ),
-    .refill_qlen_o   ( refill_qlen_o   ),
-    .refill_qvalid_o ( refill_qvalid_o ),
-    .refill_qready_i ( refill_qready_i ),
-    .refill_pdata_i  ( refill_pdata_i  ),
-    .refill_perror_i ( refill_perror_i ),
-    .refill_pvalid_i ( refill_pvalid_i ),
-    .refill_plast_i  ( refill_plast_i  ),
-    .refill_pready_o ( refill_pready_o )
+    .clk_i           (clk_i          ),
+    .rst_ni          (rst_ni         ),
+    .inst_addr_i     (inst_addr      ),
+    .inst_data_o     (inst_data      ),
+    .inst_valid_i    (inst_valid     ),
+    .inst_ready_o    (inst_ready     ),
+    .inst_error_o    (/* Unused */   ),
+    .refill_qaddr_o  (refill_qaddr_o ),
+    .refill_qlen_o   (refill_qlen_o  ),
+    .refill_qvalid_o (refill_qvalid_o),
+    .refill_qready_i (refill_qready_i),
+    .refill_pdata_i  (refill_pdata_i ),
+    .refill_perror_i (refill_perror_i),
+    .refill_pvalid_i (refill_pvalid_i),
+    .refill_plast_i  (refill_plast_i ),
+    .refill_pready_o (refill_pready_o)
   );
 
   /***********************
@@ -177,7 +201,7 @@ module mempool_tile #(
   tcdm_addr_t [NumBanksPerTile-1:0] tile_mem_addr;
   logic       [NumBanksPerTile-1:0] tile_mem_wen;
   data_t      [NumBanksPerTile-1:0] tile_mem_wdata;
-  be_t        [NumBanksPerTile-1:0] tile_mem_be;
+  strb_t      [NumBanksPerTile-1:0] tile_mem_be;
   data_t      [NumBanksPerTile-1:0] tile_mem_rdata;
 
   for (genvar b = 0; b < NumBanksPerTile; b++) begin: gen_banks
@@ -212,7 +236,7 @@ module mempool_tile #(
   data_t [NumCoresPerTile-1:0] local_xbar_rdata;
   logic  [NumCoresPerTile-1:0] local_xbar_wen;
   data_t [NumCoresPerTile-1:0] local_xbar_wdata;
-  be_t   [NumCoresPerTile-1:0] local_xbar_be;
+  strb_t [NumCoresPerTile-1:0] local_xbar_be;
 
   addr_t [NumCoresPerTile-1:0] mem_addr;
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_mem_addr
@@ -220,31 +244,31 @@ module mempool_tile #(
   end
 
   tcdm_interconnect #(
-    .NumIn       ( 2*NumCoresPerTile          ),
-    .NumOut      ( NumBanksPerTile            ),
-    .AddrWidth   ( AddrWidth                  ),
-    .AddrMemWidth( TCDMAddrMemWidth           ),
-    .RespLat     ( 1                          ),
-    .WriteRespOn ( 1'b0                       ),
-    .Topology    ( tcdm_interconnect_pkg::LIC )
+    .NumIn       (2*NumCoresPerTile         ),
+    .NumOut      (NumBanksPerTile           ),
+    .AddrWidth   (AddrWidth                 ),
+    .AddrMemWidth(TCDMAddrMemWidth          ),
+    .RespLat     (1                         ),
+    .WriteRespOn (1'b0                      ),
+    .Topology    (tcdm_interconnect_pkg::LIC)
   ) local_xbar (
-    .clk_i  (clk_i                           ),
-    .rst_ni (rst_ni                          ),
-    .req_i  ({local_xbar_req, mem_req_i}     ),
-    .add_i  ({local_xbar_addr, mem_addr}     ),
-    .wen_i  ({local_xbar_wen, mem_wen_i}     ),
-    .wdata_i({local_xbar_wdata, mem_wdata_i} ),
-    .be_i   ({local_xbar_be, mem_be_i}       ),
-    .gnt_o  ({local_xbar_gnt, mem_gnt_o}     ),
-    .vld_o  ({local_xbar_vld, mem_vld_o}     ),
-    .rdata_o({local_xbar_rdata, mem_rdata_o} ),
-    .req_o  (tile_mem_req                    ),
-    .gnt_i  (tile_mem_req                    ), // Memories always grant the requests
-    .add_o  (tile_mem_addr                   ),
-    .wen_o  (tile_mem_wen                    ),
-    .wdata_o(tile_mem_wdata                  ),
-    .be_o   (tile_mem_be                     ),
-    .rdata_i(tile_mem_rdata                  )
+    .clk_i  (clk_i                          ),
+    .rst_ni (rst_ni                         ),
+    .req_i  ({local_xbar_req, mem_req_i}    ),
+    .add_i  ({local_xbar_addr, mem_addr}    ),
+    .wen_i  ({local_xbar_wen, mem_wen_i}    ),
+    .wdata_i({local_xbar_wdata, mem_wdata_i}),
+    .be_i   ({local_xbar_be, mem_be_i}      ),
+    .gnt_o  ({local_xbar_gnt, mem_gnt_o}    ),
+    .vld_o  ({local_xbar_vld, mem_vld_o}    ),
+    .rdata_o({local_xbar_rdata, mem_rdata_o}),
+    .req_o  (tile_mem_req                   ),
+    .gnt_i  (tile_mem_req                   ), // Memories always grant the requests
+    .add_o  (tile_mem_addr                  ),
+    .wen_o  (tile_mem_wen                   ),
+    .wdata_o(tile_mem_wdata                 ),
+    .be_o   (tile_mem_be                    ),
+    .rdata_i(tile_mem_rdata                 )
   );
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -272,7 +296,7 @@ module mempool_tile #(
   addr_t [NumCoresPerTile-1:0] tcdm_master_addr;
   logic  [NumCoresPerTile-1:0] tcdm_master_wen;
   data_t [NumCoresPerTile-1:0] tcdm_master_wdata;
-  be_t   [NumCoresPerTile-1:0] tcdm_master_be;
+  strb_t [NumCoresPerTile-1:0] tcdm_master_be;
   logic  [NumCoresPerTile-1:0] tcdm_master_gnt;
 
   // Address map
@@ -364,14 +388,14 @@ module mempool_tile #(
     spill_register #(
       .T(logic[AddrWidth + 1 + DataWidth + BeWidth - 1:0])
     ) i_register_tcdm_req (
-      .clk_i  (clk_i                                                                                      ),
-      .rst_ni (rst_ni                                                                                     ),
-      .data_i ({tcdm_master_addr_int, tcdm_master_wen[c], tcdm_master_wdata[c], tcdm_master_be[c] }       ),
-      .valid_i(tcdm_master_req[c]                                                                         ),
-      .ready_o(tcdm_master_gnt[c]                                                                         ),
-      .data_o ({tcdm_master_addr_o[c], tcdm_master_wen_o[c], tcdm_master_wdata_o[c], tcdm_master_be_o[c]} ),
-      .valid_o(tcdm_master_req_o[c]                                                                       ),
-      .ready_i(tcdm_master_gnt_i[c]                                                                       )
+      .clk_i  (clk_i                                                                                     ),
+      .rst_ni (rst_ni                                                                                    ),
+      .data_i ({tcdm_master_addr_int, tcdm_master_wen[c], tcdm_master_wdata[c], tcdm_master_be[c] }      ),
+      .valid_i(tcdm_master_req[c]                                                                        ),
+      .ready_o(tcdm_master_gnt[c]                                                                        ),
+      .data_o ({tcdm_master_addr_o[c], tcdm_master_wen_o[c], tcdm_master_wdata_o[c], tcdm_master_be_o[c]}),
+      .valid_o(tcdm_master_req_o[c]                                                                      ),
+      .ready_i(tcdm_master_gnt_i[c]                                                                      )
     );
   end
 
@@ -392,24 +416,24 @@ module mempool_tile #(
     .req_t   (snitch_pkg::dreq_t ),
     .resp_t  (snitch_pkg::dresp_t)
   ) i_snitch_demux_data (
-    .clk_i         ( clk_i          ),
-    .rst_ni        ( rst_ni         ),
+    .clk_i         (clk_i          ),
+    .rst_ni        (rst_ni         ),
     // Inputs
-    .req_payload_i ( soc_data_q     ),
-    .req_valid_i   ( soc_data_qvalid),
-    .req_ready_o   ( soc_data_qready),
-    .resp_payload_o( soc_data_p     ),
-    .resp_last_o   (                ),
-    .resp_valid_o  ( soc_data_pvalid),
-    .resp_ready_i  ( soc_data_pready),
+    .req_payload_i (soc_data_q     ),
+    .req_valid_i   (soc_data_qvalid),
+    .req_ready_o   (soc_data_qready),
+    .resp_payload_o(soc_data_p     ),
+    .resp_last_o   (/* Unused */   ),
+    .resp_valid_o  (soc_data_pvalid),
+    .resp_ready_i  (soc_data_pready),
     // Output
-    .req_payload_o ( soc_req_o      ),
-    .req_valid_o   ( soc_qvalid     ),
-    .req_ready_i   ( soc_qready     ),
-    .resp_payload_i( soc_resp_i     ),
-    .resp_last_i   ( 1'b1           ),
-    .resp_valid_i  ( soc_pvalid     ),
-    .resp_ready_o  ( soc_pready     )
+    .req_payload_o (soc_req_o      ),
+    .req_valid_o   (soc_qvalid     ),
+    .req_ready_i   (soc_qready     ),
+    .resp_payload_i(soc_resp_i     ),
+    .resp_last_i   (1'b1           ),
+    .resp_valid_i  (soc_pvalid     ),
+    .resp_ready_o  (soc_pready     )
   );
 
   // Core request
@@ -417,26 +441,26 @@ module mempool_tile #(
   axi_resp_t axi_mst_resp;
 
   snitch_axi_adapter #(
-    .axi_mst_req_t  ( axi_req_t  ),
-    .axi_mst_resp_t ( axi_resp_t )
+    .axi_mst_req_t  (axi_req_t ),
+    .axi_mst_resp_t (axi_resp_t)
   ) i_snitch_core_axi_adapter (
-    .clk_i        ( clk_i            ),
-    .rst_ni       ( rst_ni           ),
-    .slv_qaddr_i  ( soc_req_o.addr   ),
-    .slv_qwrite_i ( soc_req_o.write  ),
-    .slv_qamo_i   ( soc_req_o.amo    ),
-    .slv_qdata_i  ( soc_req_o.data   ),
-    .slv_qstrb_i  ( soc_req_o.strb   ),
-    .slv_qrlen_i  ( '0               ),
-    .slv_qvalid_i ( soc_qvalid       ),
-    .slv_qready_o ( soc_qready       ),
-    .slv_pdata_o  ( soc_resp_i.data  ),
-    .slv_perror_o ( soc_resp_i.error ),
-    .slv_plast_o  (                  ),
-    .slv_pvalid_o ( soc_pvalid       ),
-    .slv_pready_i ( soc_pready       ),
-    .axi_req_o    ( axi_mst_req      ),
-    .axi_resp_i   ( axi_mst_resp     )
+    .clk_i        (clk_i           ),
+    .rst_ni       (rst_ni          ),
+    .slv_qaddr_i  (soc_req_o.addr  ),
+    .slv_qwrite_i (soc_req_o.write ),
+    .slv_qamo_i   (soc_req_o.amo   ),
+    .slv_qdata_i  (soc_req_o.data  ),
+    .slv_qstrb_i  (soc_req_o.strb  ),
+    .slv_qrlen_i  ('0              ),
+    .slv_qvalid_i (soc_qvalid      ),
+    .slv_qready_o (soc_qready      ),
+    .slv_pdata_o  (soc_resp_i.data ),
+    .slv_perror_o (soc_resp_i.error),
+    .slv_plast_o  (/* Unused */    ),
+    .slv_pvalid_o (soc_pvalid      ),
+    .slv_pready_i (soc_pready      ),
+    .axi_req_o    (axi_mst_req     ),
+    .axi_resp_i   (axi_mst_resp    )
   );
 
   axi_cut #(
@@ -467,7 +491,10 @@ module mempool_tile #(
     $fatal(1, "[mempool_tile] Boot address should be aligned in a 4-byte boundary.");
 
   if (NumCoresPerTile != 2**$clog2(NumCoresPerTile))
-    $fatal(1, "[mempool_tile] Number of cores must be a power of two");
+    $fatal(1, "[mempool_tile] The number of cores per tile must be a power of two.");
+
+  if (NumCores != 2**$clog2(NumCores))
+    $fatal(1, "[mempool_tile] The number of cores must be a power of two.");
   `endif
   `endif
 
