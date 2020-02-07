@@ -1,0 +1,10 @@
+---
+packages:
+  axi:
+    revision: 8e9d4569c9ff00370543b8a10d844874fa89e713
+    version: 0.9.1
+    source:
+      Git: "git@github.com:pulp-platform/axi.git"
+    dependencies:
+      - common_cells
+      - common_verification
