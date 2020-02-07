@@ -1,0 +1,52 @@
+package:
+  name: cluster_interconnect
+
+dependencies:
+  common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 1.16.2 }
+
+workspace:
+  checkout_dir: "./deps"
+
+sources:
+  # Source files grouped in levels. Files in level 0 have no dependencies on files in this
+  # package. Files in level 1 only depend on files in level 0, files in level 2 on files in
+  # levels 1 and 0, etc. Files within a level are ordered alphabetically.
+  # Level 0
+  - rtl/tcdm_interconnect/tcdm_interconnect_pkg.sv
+  - rtl/tcdm_interconnect/addr_dec_resp_mux.sv
+  - rtl/tcdm_interconnect/amo_shim.sv
+  # Level 1
+  - rtl/numa_interconnect/unidirectional_xbar.sv
+  - rtl/tcdm_interconnect/xbar.sv
+  # Level 2
+  - rtl/numa_interconnect/numa_xbar.sv
+  - rtl/tcdm_interconnect/clos_net.sv
+  - rtl/tcdm_interconnect/bfly_net.sv
+  # Level 3
+  - rtl/numa_interconnect/numa_bfly_net.sv
+  - rtl/numa_interconnect/numa_interconnect.sv
+  - rtl/tcdm_interconnect/tcdm_interconnect.sv
+
+  - target: tcdm_test
+    include_dirs:
+      - tb/common/
+      - tb/tb_tcdm_interconnect/hdl
+    files:
+      # Level 0
+      - tb/tb_tcdm_interconnect/hdl/tb_pkg.sv
+      # Level 2
+      - tb/tb_tcdm_interconnect/hdl/tcdm_interconnect_wrap.sv
+      # Level 2
+      - tb/tb_tcdm_interconnect/hdl/tb.sv
+
+  - target: numa_test
+    include_dirs:
+      - tb/common/
+      - tb/tb_numa_interconnect/hdl
+    files:
+      # Level 0
+      - tb/tb_numa_interconnect/hdl/tb_pkg.sv
+      # Level 2
+      - tb/tb_numa_interconnect/hdl/numa_interconnect_wrap.sv
+      # Level 2
+      - tb/tb_numa_interconnect/hdl/numa_tb.sv
