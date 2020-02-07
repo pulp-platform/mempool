@@ -35,3 +35,9 @@ packages:
     source:
       Git: "git@iis-git.ee.ethz.ch:sriedel/snitch.git"
     dependencies: []
+  tech_cells_generic:
+    revision: 04b7b2735d42e4715c1bc9227027a3d8fb770c08
+    version: 0.1.16
+    source:
+      Git: "https://github.com/pulp-platform/tech_cells_generic.git"
+    dependencies: []
