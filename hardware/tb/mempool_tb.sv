@@ -53,14 +53,16 @@ module mempool_tb;
   typedef logic [AxiMstIdWidth-1:0] axi_mst_id_t;
   typedef logic [AxiSlvIdWidth-1:0] axi_slv_id_t;
 
-  `AXI_TYPEDEF_AW_CHAN_T(axi_aw_t, addr_t, axi_mst_id_t, logic)         ;
-  `AXI_TYPEDEF_W_CHAN_T(axi_w_t, data_t, strb_t, logic)                 ;
-  `AXI_TYPEDEF_B_CHAN_T(axi_b_t, axi_mst_id_t, logic)                   ;
-  `AXI_TYPEDEF_AR_CHAN_T(axi_ar_t, addr_t, axi_mst_id_t, logic)         ;
-  `AXI_TYPEDEF_R_CHAN_T(axi_r_t, data_t, axi_mst_id_t, logic)           ;
-  `AXI_TYPEDEF_REQ_T(axi_req_t, axi_aw_t, axi_w_t, axi_ar_t)            ;
-  `AXI_TYPEDEF_RESP_T(axi_resp_t, axi_b_t, axi_r_t )                    ;
+  `AXI_TYPEDEF_AW_CHAN_T(axi_aw_t, addr_t, axi_mst_id_t, logic);
+  `AXI_TYPEDEF_W_CHAN_T(axi_w_t, data_t, strb_t, logic)        ;
+  `AXI_TYPEDEF_B_CHAN_T(axi_b_t, axi_mst_id_t, logic)          ;
+  `AXI_TYPEDEF_AR_CHAN_T(axi_ar_t, addr_t, axi_mst_id_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_r_t, data_t, axi_mst_id_t, logic)  ;
+  `AXI_TYPEDEF_REQ_T(axi_req_t, axi_aw_t, axi_w_t, axi_ar_t)   ;
+  `AXI_TYPEDEF_RESP_T(axi_resp_t, axi_b_t, axi_r_t )           ;
+
   `AXI_TYPEDEF_AW_CHAN_T(axi_slv_aw_t, addr_t, axi_slv_id_t, logic)     ;
+  `AXI_TYPEDEF_W_CHAN_T(axi_slv_w_t, data_t, strb_t, logic)             ;
   `AXI_TYPEDEF_B_CHAN_T(axi_slv_b_t, axi_slv_id_t, logic)               ;
   `AXI_TYPEDEF_AR_CHAN_T(axi_slv_ar_t, addr_t, axi_slv_id_t, logic)     ;
   `AXI_TYPEDEF_R_CHAN_T(axi_slv_r_t, data_t, axi_slv_id_t, logic)       ;
@@ -320,11 +322,19 @@ module mempool_tb;
    ***********************/
 
   ctrl_registers #(
-    .TCDMBaseAddr(TCDMBaseAddr  ),
-    .TCDMSize    (TCDMSize      ),
-    .NumCores    (NumCores      ),
-    .axi_req_t   (axi_slv_req_t ),
-    .axi_resp_t  (axi_slv_resp_t)
+    .NumRegs              (3                    ),
+    .TCDMBaseAddr         (TCDMBaseAddr         ),
+    .TCDMSize             (TCDMSize             ),
+    .NumCores             (NumCores             ),
+    .CtrlRegistersBaseAddr(CtrlRegistersBaseAddr),
+    .CtrlRegistersEndAddr (CtrlRegistersEndAddr ),
+    .axi_aw_chan_t        (axi_slv_aw_t         ),
+    .axi_w_chan_t         (axi_w_t              ),
+    .axi_b_chan_t         (axi_slv_b_t          ),
+    .axi_ar_chan_t        (axi_slv_ar_t         ),
+    .axi_r_chan_t         (axi_slv_r_t          ),
+    .axi_req_t            (axi_slv_req_t        ),
+    .axi_resp_t           (axi_slv_resp_t       )
   ) i_ctrl_registers (
     .clk_i               (clk                        ),
     .rst_ni              (rst_n                      ),

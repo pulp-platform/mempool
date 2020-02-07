@@ -26,7 +26,9 @@ module ctrl_registers #(
     parameter type axi_ar_chan_t                 = logic,
     parameter type axi_r_chan_t                  = logic,
     parameter type axi_req_t                     = logic,
-    parameter type axi_resp_t                    = logic
+    parameter type axi_resp_t                    = logic,
+    // Dependent parameters
+    parameter addr_t CtrlRegistersMask           = CtrlRegistersEndAddr - CtrlRegistersBaseAddr
   ) (
     input  logic                      clk_i,
     input  logic                      rst_ni,
@@ -45,23 +47,19 @@ module ctrl_registers #(
    *   Signals   *
    ***************/
 
-  localparam CtrlRegistersMask = CtrlRegistersEndAddr - CtrlRegistersBaseAddr;
+  logic [NumRegs-1:0][DataWidth-1:0] ctrl_regs;
 
-  struct packed {
-    logic [DataWidth-1:0] num_cores         ;
-    logic [DataWidth-1:0] tcdm_end_address  ;
-    logic [DataWidth-1:0] tcdm_start_address;
-  } ctrl_regs;
+  // Control registers
+  assign ctrl_regs[0]         = TCDMBaseAddr;
+  assign tcdm_start_address_o = ctrl_regs[0];
 
-  assign tcdm_start_address_o = ctrl_regs.tcdm_start_address;
-  assign tcdm_end_address_o   = ctrl_regs.tcdm_end_address  ;
-  assign num_cores_o          = ctrl_regs.num_cores         ;
-  assign ctrl_regs            = '{
-    tcdm_start_address: TCDMBaseAddr,
-    tcdm_end_address  : TCDMSize    ,
-    num_cores         : NumCores
-  };
+  assign ctrl_regs[1]       = TCDMBaseAddr + TCDMSize;
+  assign tcdm_end_address_o = ctrl_regs[1]           ;
 
+  assign ctrl_regs[2] = NumCores    ;
+  assign num_cores_o  = ctrl_regs[2];
+
+  // AXI Signals
   axi_req_t  axi_req;
   axi_resp_t axi_resp;
 
@@ -117,12 +115,12 @@ module ctrl_registers #(
 
       if (word_addr >= NumRegs) begin
         // Invalid address
-        axi_resp.resp = axi_pkg::RESP_SLVERR;
+        axi_resp.r.resp = axi_pkg::RESP_SLVERR;
       end else begin
-        axi_resp.data = ctrl_regs[word_addr];
+        axi_resp.r.data = ctrl_regs[word_addr];
       end
 
-      if (axi_resp.r_ready)
+      if (axi_req.r_ready)
         axi_resp.ar_ready = 1'b1;
     end
   end
@@ -139,5 +137,8 @@ module ctrl_registers #(
 
   if (2**$clog2(CtrlRegistersMask + 1) != CtrlRegistersMask + 1)
     $fatal(1, "[ctrl_registers] The length of the CtrlRegisters memory zone should be a power of two.");
+
+  if (CtrlRegistersMask == 0)
+    $warning(1, "[ctrl_registers] The CtrlRegisters memory zone probably should not be empty.");
 
 endmodule : ctrl_registers
