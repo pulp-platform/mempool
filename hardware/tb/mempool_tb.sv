@@ -25,13 +25,14 @@ module mempool_tb;
   import axi_pkg::xbar_cfg_t    ;
   import axi_pkg::xbar_rule_32_t;
 
-  localparam NumCores        = 32;
-  localparam NumCoresPerTile = 4;
-  localparam BankingFactor   = 4;
-  localparam TCDMSizePerBank = 1024 /* [B] */;
-  localparam NumTiles        = NumCores / NumCoresPerTile;
-  localparam NumBanks        = NumCores * BankingFactor;
-  localparam TCDMSize        = NumBanks * TCDMSizePerBank;
+  localparam        NumCores        = 32;
+  localparam        NumCoresPerTile = 4;
+  localparam        BankingFactor   = 4;
+  localparam addr_t TCDMBaseAddr    = '0;
+  localparam        TCDMSizePerBank = 1024 /* [B] */;
+  localparam        NumTiles        = NumCores / NumCoresPerTile;
+  localparam        NumBanks        = NumCores * BankingFactor;
+  localparam        TCDMSize        = NumBanks * TCDMSizePerBank;
 
   localparam ClockPeriod = 1ns;
   localparam TA          = 0.2ns;
@@ -123,6 +124,7 @@ module mempool_tb;
     .NumCores       (NumCores       ),
     .NumCoresPerTile(NumCoresPerTile),
     .BankingFactor  (BankingFactor  ),
+    .TCDMBaseAddr   (TCDMBaseAddr   ),
     .TCDMSizePerBank(TCDMSizePerBank),
     .BootAddr       (32'h8001_0000  ),
     .axi_aw_t       (axi_aw_t       ),
@@ -317,27 +319,20 @@ module mempool_tb;
    *  Control Registers  *
    ***********************/
 
-  AXI_BUS #(
-    .AXI_ADDR_WIDTH(AddrWidth    ),
-    .AXI_DATA_WIDTH(DataWidth    ),
-    .AXI_ID_WIDTH  (AxiSlvIdWidth),
-    .AXI_USER_WIDTH(1            )
-  ) axi_ctrl_registers_slave ();
-
-  // Assign slave
-  `AXI_ASSIGN_FROM_REQ(axi_ctrl_registers_slave, axi_mem_req[CtrlRegisters] );
-  `AXI_ASSIGN_TO_RESP (axi_mem_resp[CtrlRegisters], axi_ctrl_registers_slave);
-
   ctrl_registers #(
-    .TCDMSize(TCDMSize),
-    .NumCores(NumCores)
+    .TCDMBaseAddr(TCDMBaseAddr  ),
+    .TCDMSize    (TCDMSize      ),
+    .NumCores    (NumCores      ),
+    .axi_req_t   (axi_slv_req_t ),
+    .axi_resp_t  (axi_slv_resp_t)
   ) i_ctrl_registers (
-    .clk_i               (clk                     ),
-    .rst_ni              (rst_n                   ),
-    .slave               (axi_ctrl_registers_slave),
-    .tcdm_start_address_o(/* Unused */            ),
-    .tcdm_end_address_o  (/* Unused */            ),
-    .num_cores_o         (/* Unused */            )
+    .clk_i               (clk                        ),
+    .rst_ni              (rst_n                      ),
+    .axi_slave_req_i     (axi_mem_req[CtrlRegisters] ),
+    .axi_slave_resp_o    (axi_mem_resp[CtrlRegisters]),
+    .tcdm_start_address_o(/* Unused */               ),
+    .tcdm_end_address_o  (/* Unused */               ),
+    .num_cores_o         (/* Unused */               )
   );
 
   /************************

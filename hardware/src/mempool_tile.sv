@@ -16,6 +16,7 @@ module mempool_tile #(
     parameter int unsigned NumTiles         = 0                                             ,
     parameter int unsigned NumBanks         = 0                                             ,
     // TCDM
+    parameter addr_t TCDMBaseAddr           = 32'b0                                         ,
     parameter int unsigned TCDMSizePerBank  = 1024 /* [B] */                                ,
     // Boot address
     parameter logic [31:0] BootAddr         = 32'h0000_1000                                 ,
@@ -92,7 +93,6 @@ module mempool_tile #(
   // TCDM Memory Region
   localparam addr_t TCDMSize     = NumBanks * TCDMSizePerBank;
   localparam addr_t TCDMMask     = ~(TCDMSize - 1);
-  localparam addr_t TCDMBaseAddr = '0;
   localparam addr_t TCDMEndAddr  = TCDMBaseAddr + TCDMSize;
 
   /***********

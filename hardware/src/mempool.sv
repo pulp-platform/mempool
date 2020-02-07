@@ -15,6 +15,7 @@ module mempool #(
     parameter int unsigned NumCoresPerTile  = 0                         ,
     parameter int unsigned BankingFactor    = 0                         ,
     // TCDM
+    parameter addr_t TCDMBaseAddr           = 32'b0                     ,
     parameter int unsigned TCDMSizePerBank  = 1024 /* [B] */            ,
     // Boot address
     parameter logic [31:0] BootAddr         = 32'h0000_0000             ,
@@ -84,6 +85,7 @@ module mempool #(
       .NumBanksPerTile(NumBanksPerTile),
       .NumTiles       (NumTiles       ),
       .NumBanks       (NumBanks       ),
+      .TCDMBaseAddr   (TCDMBaseAddr   ),
       .TCDMSizePerBank(TCDMSizePerBank),
       .BootAddr       (BootAddr       ),
       .axi_aw_t       (axi_aw_t       ),
