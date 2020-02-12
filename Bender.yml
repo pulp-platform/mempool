@@ -7,22 +7,22 @@ dependencies:
   snitch:               { git: "git@iis-git.ee.ethz.ch:sriedel/snitch.git",                 rev:     mempool }
 
 workspace:
-  checkout_dir: "./deps"
+  checkout_dir: "./hardware/deps"
 
 sources:
   # Level 0
-  - src/mempool_pkg.sv
-  - src/snitch_address_demux.sv
-  - src/tcdm_shim.sv
+  - hardware/src/mempool_pkg.sv
+  - hardware/src/snitch_address_demux.sv
+  - hardware/src/tcdm_shim.sv
   # Level 1
-  - src/mempool_tile.sv
+  - hardware/src/mempool_tile.sv
   # Level 2
-  - src/mempool.sv
+  - hardware/src/mempool.sv
 
   - target: mempool_test
     files:
       # Level 1
-      - tb/axi2mem.sv
-      - tb/ctrl_registers.sv
+      - hardware/tb/axi2mem.sv
+      - hardware/tb/ctrl_registers.sv
       # Level 2
-      - tb/mempool_tb.sv
+      - hardware/tb/mempool_tb.sv
