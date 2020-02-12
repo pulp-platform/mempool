@@ -1,23 +1,23 @@
 ---
 packages:
   axi:
-    revision: 8e9d4569c9ff00370543b8a10d844874fa89e713
-    version: 0.9.1
+    revision: f5458924697b89b60b203c25b1863156df2113a7
+    version: 0.9.2
     source:
       Git: "git@github.com:pulp-platform/axi.git"
     dependencies:
       - common_cells
       - common_verification
   cluster_interconnect:
-    revision: 3680c9603179137a2828f1aef1445124e1640088
+    revision: 06de8541cd1adb6beeb6a41be49ecf11a23c5453
     version: ~
     source:
       Git: "https://github.com/pulp-platform/cluster_interconnect.git"
     dependencies:
       - common_cells
   common_cells:
-    revision: 46b3907d9ac97861ab5dee27d177b76530fdd038
-    version: 1.16.2
+    revision: bbc0bf4699eb2c6babafce5924d86810507189a2
+    version: 1.16.3
     source:
       Git: "https://github.com/pulp-platform/common_cells.git"
     dependencies:

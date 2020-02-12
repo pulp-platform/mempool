@@ -70,8 +70,8 @@ module mempool #(
   logic       [NumCores-1:0] tcdm_slave_req;
   logic       [NumCores-1:0] tcdm_slave_gnt;
   tile_addr_t [NumCores-1:0] tcdm_slave_addr;
-  core_addr_t [NumCores-1:0] tcdm_slave_ret_addr;
-  core_addr_t [NumCores-1:0] tcdm_slave_resp_addr;
+  core_addr_t [NumCores-1:0] tcdm_slave_ini_addr;
+  core_addr_t [NumCores-1:0] tcdm_slave_resp_ini_addr;
   logic       [NumCores-1:0] tcdm_slave_rvalid;
   data_t      [NumCores-1:0] tcdm_slave_rdata;
   logic       [NumCores-1:0] tcdm_slave_wen;
@@ -95,46 +95,46 @@ module mempool #(
       .axi_r_t        (axi_r_t        ),
       .axi_req_t      (axi_req_t      ),
       .axi_resp_t     (axi_resp_t     )
-    ) tile (
-      .clk_i              (clk_i                                                     ),
-      .rst_ni             (rst_ni                                                    ),
-      .scan_enable_i      (1'b0                                                      ),
-      .scan_data_i        (1'b0                                                      ),
-      .scan_data_o        (/* Unused */                                              ),
-      .tile_id_i          (t                                                         ),
+    ) i_tile (
+      .clk_i              (clk_i                                                         ),
+      .rst_ni             (rst_ni                                                        ),
+      .scan_enable_i      (1'b0                                                          ),
+      .scan_data_i        (1'b0                                                          ),
+      .scan_data_o        (/* Unused */                                                  ),
+      .tile_id_i          (t                                                             ),
       // TCDM Master interfaces
-      .tcdm_master_req_o  (tcdm_master_req[NumCoresPerTile*t +: NumCoresPerTile]     ),
-      .tcdm_master_addr_o (tcdm_master_addr[NumCoresPerTile*t +: NumCoresPerTile]    ),
-      .tcdm_master_wen_o  (tcdm_master_wen[NumCoresPerTile*t +: NumCoresPerTile]     ),
-      .tcdm_master_wdata_o(tcdm_master_wdata[NumCoresPerTile*t +: NumCoresPerTile]   ),
-      .tcdm_master_be_o   (tcdm_master_be[NumCoresPerTile*t +: NumCoresPerTile]      ),
-      .tcdm_master_gnt_i  (tcdm_master_gnt[NumCoresPerTile*t +: NumCoresPerTile]     ),
-      .tcdm_master_vld_i  (tcdm_master_rvalid[NumCoresPerTile*t +: NumCoresPerTile]  ),
-      .tcdm_master_rdata_i(tcdm_master_rdata[NumCoresPerTile*t +: NumCoresPerTile]   ),
+      .tcdm_master_req_o  (tcdm_master_req[NumCoresPerTile*t +: NumCoresPerTile]         ),
+      .tcdm_master_addr_o (tcdm_master_addr[NumCoresPerTile*t +: NumCoresPerTile]        ),
+      .tcdm_master_wen_o  (tcdm_master_wen[NumCoresPerTile*t +: NumCoresPerTile]         ),
+      .tcdm_master_wdata_o(tcdm_master_wdata[NumCoresPerTile*t +: NumCoresPerTile]       ),
+      .tcdm_master_be_o   (tcdm_master_be[NumCoresPerTile*t +: NumCoresPerTile]          ),
+      .tcdm_master_gnt_i  (tcdm_master_gnt[NumCoresPerTile*t +: NumCoresPerTile]         ),
+      .tcdm_master_vld_i  (tcdm_master_rvalid[NumCoresPerTile*t +: NumCoresPerTile]      ),
+      .tcdm_master_rdata_i(tcdm_master_rdata[NumCoresPerTile*t +: NumCoresPerTile]       ),
       // TCDM banks interface
-      .mem_req_i          (tcdm_slave_req[NumCoresPerTile*t +: NumCoresPerTile]      ),
-      .mem_ret_addr_i     (tcdm_slave_ret_addr[NumCoresPerTile*t +: NumCoresPerTile] ),
-      .mem_gnt_o          (tcdm_slave_gnt[NumCoresPerTile*t +: NumCoresPerTile]      ),
-      .mem_addr_i         (tcdm_slave_addr[NumCoresPerTile*t +: NumCoresPerTile]     ),
-      .mem_wen_i          (tcdm_slave_wen[NumCoresPerTile*t +: NumCoresPerTile]      ),
-      .mem_wdata_i        (tcdm_slave_wdata[NumCoresPerTile*t +: NumCoresPerTile]    ),
-      .mem_be_i           (tcdm_slave_be[NumCoresPerTile*t +: NumCoresPerTile]       ),
-      .mem_vld_o          (tcdm_slave_rvalid[NumCoresPerTile*t +: NumCoresPerTile]   ),
-      .mem_resp_addr_o    (tcdm_slave_resp_addr[NumCoresPerTile*t +: NumCoresPerTile]),
-      .mem_rdata_o        (tcdm_slave_rdata[NumCoresPerTile*t +: NumCoresPerTile]    ),
+      .mem_req_i          (tcdm_slave_req[NumCoresPerTile*t +: NumCoresPerTile]          ),
+      .mem_core_addr_i    (tcdm_slave_ini_addr[NumCoresPerTile*t +: NumCoresPerTile]     ),
+      .mem_gnt_o          (tcdm_slave_gnt[NumCoresPerTile*t +: NumCoresPerTile]          ),
+      .mem_addr_i         (tcdm_slave_addr[NumCoresPerTile*t +: NumCoresPerTile]         ),
+      .mem_wen_i          (tcdm_slave_wen[NumCoresPerTile*t +: NumCoresPerTile]          ),
+      .mem_wdata_i        (tcdm_slave_wdata[NumCoresPerTile*t +: NumCoresPerTile]        ),
+      .mem_be_i           (tcdm_slave_be[NumCoresPerTile*t +: NumCoresPerTile]           ),
+      .mem_vld_o          (tcdm_slave_rvalid[NumCoresPerTile*t +: NumCoresPerTile]       ),
+      .mem_core_addr_o    (tcdm_slave_resp_ini_addr[NumCoresPerTile*t +: NumCoresPerTile]),
+      .mem_rdata_o        (tcdm_slave_rdata[NumCoresPerTile*t +: NumCoresPerTile]        ),
       // AXI interface
-      .axi_mst_req_o      (axi_mst_req_o[t]                                          ),
-      .axi_mst_resp_i     (axi_mst_resp_i[t]                                         ),
+      .axi_mst_req_o      (axi_mst_req_o[t]                                              ),
+      .axi_mst_resp_i     (axi_mst_resp_i[t]                                             ),
       // Instruction refill interface
-      .refill_qaddr_o     (/* Not yet implemented */                                 ),
-      .refill_qlen_o      (/* Not yet implemented */                                 ), // AXI signal
-      .refill_qvalid_o    (/* Not yet implemented */                                 ),
-      .refill_qready_i    (/* Not yet implemented */ 1'b0                            ),
-      .refill_pdata_i     (/* Not yet implemented */ '0                              ),
-      .refill_perror_i    (/* Not yet implemented */ '0                              ),
-      .refill_pvalid_i    (/* Not yet implemented */ 1'b0                            ),
-      .refill_plast_i     (/* Not yet implemented */ 1'b0                            ),
-      .refill_pready_o    (/* Not yet implemented */                                 )
+      .refill_qaddr_o     (/* Not yet implemented */                                     ),
+      .refill_qlen_o      (/* Not yet implemented */                                     ), // AXI signal
+      .refill_qvalid_o    (/* Not yet implemented */                                     ),
+      .refill_qready_i    (/* Not yet implemented */ 1'b0                                ),
+      .refill_pdata_i     (/* Not yet implemented */ '0                                  ),
+      .refill_perror_i    (/* Not yet implemented */ '0                                  ),
+      .refill_pvalid_i    (/* Not yet implemented */ 1'b0                                ),
+      .refill_plast_i     (/* Not yet implemented */ 1'b0                                ),
+      .refill_pready_o    (/* Not yet implemented */                                     )
     );
 
     // The TCDM master port is always ready to accept the responses
@@ -147,7 +147,7 @@ module mempool #(
    ******************/
 
   // Interconnect
-  numa_interconnect #(
+  variable_latency_interconnect #(
     .NumIn         (NumCores                                  ),
     .NumOut        (NumCores                                  ),
     .AddrWidth     (AddrWidth                                 ),
@@ -156,36 +156,34 @@ module mempool #(
     .NumOutstanding(2                                         ),
     .WriteRespOn   (1'b0                                      ),
     .Topology      (tcdm_interconnect_pkg::BFLY4              )
-  ) interco (
-    .clk_i  (clk_i               ),
-    .rst_ni (rst_ni              ),
-    .req_i  (tcdm_master_req     ),
-    .add_i  (tcdm_master_addr    ),
-    .wen_i  (tcdm_master_wen     ),
-    .wdata_i(tcdm_master_wdata   ),
-    .be_i   (tcdm_master_be      ),
-    .gnt_o  (tcdm_master_gnt     ),
-    .vld_o  (tcdm_master_rvalid  ),
-    .rdy_i  (tcdm_master_rready  ),
-    .rdata_o(tcdm_master_rdata   ),
-    .req_o  (tcdm_slave_req      ),
-    .gnt_i  (tcdm_slave_gnt      ),
-    .idx_o  (tcdm_slave_ret_addr ),
-    .add_o  (tcdm_slave_addr     ),
-    .wen_o  (tcdm_slave_wen      ),
-    .wdata_o(tcdm_slave_wdata    ),
-    .be_o   (tcdm_slave_be       ),
-    .vld_i  (tcdm_slave_rvalid   ),
-    .idx_i  (tcdm_slave_resp_addr),
-    .rdata_i(tcdm_slave_rdata    )
+  ) i_interco (
+    .clk_i    (clk_i                   ),
+    .rst_ni   (rst_ni                  ),
+    .req_i    (tcdm_master_req         ),
+    .add_i    (tcdm_master_addr        ),
+    .wen_i    (tcdm_master_wen         ),
+    .wdata_i  (tcdm_master_wdata       ),
+    .be_i     (tcdm_master_be          ),
+    .gnt_o    (tcdm_master_gnt         ),
+    .vld_o    (tcdm_master_rvalid      ),
+    .rdy_i    (tcdm_master_rready      ),
+    .rdata_o  (tcdm_master_rdata       ),
+    .req_o    (tcdm_slave_req          ),
+    .gnt_i    (tcdm_slave_gnt          ),
+    .ini_add_o(tcdm_slave_ini_addr     ),
+    .add_o    (tcdm_slave_addr         ),
+    .wen_o    (tcdm_slave_wen          ),
+    .wdata_o  (tcdm_slave_wdata        ),
+    .be_o     (tcdm_slave_be           ),
+    .vld_i    (tcdm_slave_rvalid       ),
+    .ini_add_i(tcdm_slave_resp_ini_addr),
+    .rdata_i  (tcdm_slave_rdata        )
   );
 
   /****************
    *  Assertions  *
    ****************/
 
-  `ifndef SYNTHESIS
-  `ifndef VERILATOR
   if (NumCores > 1024)
     $fatal(1, "[mempool] MemPool is currently limited to 1024 cores.");
 
@@ -197,7 +195,5 @@ module mempool #(
 
   if (BankingFactor != 2**$clog2(BankingFactor))
     $fatal(1, "[mempool] The banking factor must be a power of two.");
-  `endif
-  `endif
 
 endmodule : mempool

@@ -12,7 +12,6 @@
 // Date: 15.08.2018
 // Description: testbench package with some helper functions.
 
-
 package tb_pkg;
 
   // // for abs(double) function

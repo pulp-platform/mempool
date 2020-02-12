@@ -59,14 +59,14 @@ module mempool_tile #(
     input  data_t      [NumCoresPerTile-1:0] tcdm_master_rdata_i,
     // TCDM banks interface
     input  logic       [NumCoresPerTile-1:0] mem_req_i,
-    input  core_id_t   [NumCoresPerTile-1:0] mem_ret_addr_i,
+    input  core_id_t   [NumCoresPerTile-1:0] mem_core_addr_i,
     output logic       [NumCoresPerTile-1:0] mem_gnt_o,
     input  tile_addr_t [NumCoresPerTile-1:0] mem_addr_i,
     input  logic       [NumCoresPerTile-1:0] mem_wen_i,
     input  data_t      [NumCoresPerTile-1:0] mem_wdata_i,
     input  strb_t      [NumCoresPerTile-1:0] mem_be_i,
     output logic       [NumCoresPerTile-1:0] mem_vld_o,
-    output core_id_t   [NumCoresPerTile-1:0] mem_resp_addr_o,
+    output core_id_t   [NumCoresPerTile-1:0] mem_core_addr_o,
     output data_t      [NumCoresPerTile-1:0] mem_rdata_o,
     // AXI Interface
     output axi_req_t                         axi_mst_req_o ,
@@ -91,9 +91,9 @@ module mempool_tile #(
   import snitch_pkg::dresp_t;
 
   // TCDM Memory Region
-  localparam addr_t TCDMSize     = NumBanks * TCDMSizePerBank;
-  localparam addr_t TCDMMask     = ~(TCDMSize - 1);
-  localparam addr_t TCDMEndAddr  = TCDMBaseAddr + TCDMSize;
+  localparam addr_t TCDMSize    = NumBanks * TCDMSizePerBank;
+  localparam addr_t TCDMMask    = ~(TCDMSize - 1);
+  localparam addr_t TCDMEndAddr = TCDMBaseAddr + TCDMSize;
 
   /***********
    *  Cores  *
@@ -274,9 +274,9 @@ module mempool_tile #(
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
-      mem_resp_addr_o <= '0;
+      mem_core_addr_o <= '0;
     end else begin
-      mem_resp_addr_o <= mem_ret_addr_i;
+      mem_core_addr_o <= mem_core_addr_i;
     end
   end
 
@@ -485,8 +485,6 @@ module mempool_tile #(
    *   Assertions   *
    ******************/
 
-  `ifndef SYNTHESIS
-  `ifndef VERILATOR
   // Check invariants.
   if (BootAddr[1:0] != 2'b00)
     $fatal(1, "[mempool_tile] Boot address should be aligned in a 4-byte boundary.");
@@ -496,7 +494,5 @@ module mempool_tile #(
 
   if (NumCores != 2**$clog2(NumCores))
     $fatal(1, "[mempool_tile] The number of cores must be a power of two.");
-  `endif
-  `endif
 
 endmodule : mempool_tile

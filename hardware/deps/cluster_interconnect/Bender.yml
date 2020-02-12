@@ -15,17 +15,19 @@ sources:
   - rtl/tcdm_interconnect/tcdm_interconnect_pkg.sv
   - rtl/tcdm_interconnect/addr_dec_resp_mux.sv
   - rtl/tcdm_interconnect/amo_shim.sv
+  - rtl/variable_latency_interconnect/addr_decoder.sv
   # Level 1
-  - rtl/numa_interconnect/unidirectional_xbar.sv
   - rtl/tcdm_interconnect/xbar.sv
+  - rtl/variable_latency_interconnect/simplex_xbar.sv
   # Level 2
-  - rtl/numa_interconnect/numa_xbar.sv
   - rtl/tcdm_interconnect/clos_net.sv
   - rtl/tcdm_interconnect/bfly_net.sv
+  - rtl/variable_latency_interconnect/full_duplex_xbar.sv
   # Level 3
-  - rtl/numa_interconnect/numa_bfly_net.sv
-  - rtl/numa_interconnect/numa_interconnect.sv
   - rtl/tcdm_interconnect/tcdm_interconnect.sv
+  - rtl/variable_latency_interconnect/variable_latency_bfly_net.sv
+  # Level 4
+  - rtl/variable_latency_interconnect/variable_latency_interconnect.sv
 
   - target: tcdm_test
     include_dirs:
@@ -39,14 +41,14 @@ sources:
       # Level 2
       - tb/tb_tcdm_interconnect/hdl/tb.sv
 
-  - target: numa_test
+  - target: variable_latency_test
     include_dirs:
       - tb/common/
-      - tb/tb_numa_interconnect/hdl
+      - tb/tb_variable_latency_interconnect/hdl
     files:
       # Level 0
-      - tb/tb_numa_interconnect/hdl/tb_pkg.sv
+      - tb/tb_variable_latency_interconnect/hdl/tb_pkg.sv
       # Level 2
-      - tb/tb_numa_interconnect/hdl/numa_interconnect_wrap.sv
+      - tb/tb_variable_latency_interconnect/hdl/variable_latency_interconnect_wrap.sv
       # Level 2
-      - tb/tb_numa_interconnect/hdl/numa_tb.sv
+      - tb/tb_variable_latency_interconnect/hdl/variable_latency_interconnect_tb.sv

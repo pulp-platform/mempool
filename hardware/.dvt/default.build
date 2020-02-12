@@ -116,14 +116,15 @@ deps/axi/src/axi_test.sv
 deps/cluster_interconnect/rtl/tcdm_interconnect/tcdm_interconnect_pkg.sv
 deps/cluster_interconnect/rtl/tcdm_interconnect/addr_dec_resp_mux.sv
 deps/cluster_interconnect/rtl/tcdm_interconnect/amo_shim.sv
-deps/cluster_interconnect/rtl/numa_interconnect/unidirectional_xbar.sv
+deps/cluster_interconnect/rtl/variable_latency_interconnect/addr_decoder.sv
 deps/cluster_interconnect/rtl/tcdm_interconnect/xbar.sv
-deps/cluster_interconnect/rtl/numa_interconnect/numa_xbar.sv
+deps/cluster_interconnect/rtl/variable_latency_interconnect/simplex_xbar.sv
 deps/cluster_interconnect/rtl/tcdm_interconnect/clos_net.sv
 deps/cluster_interconnect/rtl/tcdm_interconnect/bfly_net.sv
-deps/cluster_interconnect/rtl/numa_interconnect/numa_bfly_net.sv
-deps/cluster_interconnect/rtl/numa_interconnect/numa_interconnect.sv
+deps/cluster_interconnect/rtl/variable_latency_interconnect/full_duplex_xbar.sv
 deps/cluster_interconnect/rtl/tcdm_interconnect/tcdm_interconnect.sv
+deps/cluster_interconnect/rtl/variable_latency_interconnect/variable_latency_bfly_net.sv
+deps/cluster_interconnect/rtl/variable_latency_interconnect/variable_latency_interconnect.sv
 
 deps/snitch/src/riscv_instr.sv
 deps/snitch/src/fpnew/src/fpnew_pkg.sv
