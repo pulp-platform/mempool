@@ -11,9 +11,9 @@
 import mempool_pkg::*;
 
 module mempool #(
-    parameter int unsigned NumCores         = 0                         ,
-    parameter int unsigned NumCoresPerTile  = 0                         ,
-    parameter int unsigned BankingFactor    = 0                         ,
+    parameter int unsigned NumCores         = 1                         ,
+    parameter int unsigned NumCoresPerTile  = 1                         ,
+    parameter int unsigned BankingFactor    = 1                         ,
     // TCDM
     parameter addr_t TCDMBaseAddr           = 32'b0                     ,
     parameter int unsigned TCDMSizePerBank  = 1024 /* [B] */            ,
@@ -34,14 +34,14 @@ module mempool #(
     parameter int unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / BeWidth)
   ) (
     // Clock andreset
-    input  logic                     clk_i ,
-    input  logic                     rst_ni ,
+    input  logic                     clk_i,
+    input  logic                     rst_ni,
     // AXI Plugs for testbench
-    output axi_req_t  [NumTiles-1:0] axi_mst_req_o ,
+    output axi_req_t  [NumTiles-1:0] axi_mst_req_o,
     input  axi_resp_t [NumTiles-1:0] axi_mst_resp_i,
     // Scan chain
-    input  logic                     scan_enable_i ,
-    input  logic                     scan_data_i ,
+    input  logic                     scan_enable_i,
+    input  logic                     scan_data_i,
     output logic                     scan_data_o
   );
 

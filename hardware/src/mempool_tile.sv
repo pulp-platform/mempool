@@ -11,10 +11,10 @@
 import mempool_pkg::*;
 
 module mempool_tile #(
-    parameter int unsigned NumCoresPerTile  = 0                                             ,
-    parameter int unsigned NumBanksPerTile  = 0                                             ,
-    parameter int unsigned NumTiles         = 0                                             ,
-    parameter int unsigned NumBanks         = 0                                             ,
+    parameter int unsigned NumCoresPerTile  = 1                                             ,
+    parameter int unsigned NumBanksPerTile  = 1                                             ,
+    parameter int unsigned NumTiles         = 1                                             ,
+    parameter int unsigned NumBanks         = 1                                             ,
     // TCDM
     parameter addr_t TCDMBaseAddr           = 32'b0                                         ,
     parameter int unsigned TCDMSizePerBank  = 1024 /* [B] */                                ,

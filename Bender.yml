@@ -18,6 +18,8 @@ sources:
   - hardware/src/mempool_tile.sv
   # Level 2
   - hardware/src/mempool.sv
+  # Level 3
+  - hardware/src/mempool_wrap.sv
 
   - target: mempool_test
     files:
