@@ -86,10 +86,10 @@ module variable_latency_interconnect #(
 
   for (genvar j = 0; unsigned'(j) < NumIn; j++) begin : gen_inputs
     // Extract bank index
-    assign bank_sel[j] = add_i[j][ByteOffWidth + NumOutLog2 - 1 : ByteOffWidth];
+    assign bank_sel[j] = add_i[j][ByteOffWidth +: NumOutLog2];
 
     // Aggregate data to be routed to slaves
-    assign data_agg_in[j] = {wen_i[j], be_i[j], add_i[j][ByteOffWidth + NumOutLog2 + AddrMemWidth - 1 : ByteOffWidth + NumOutLog2], wdata_i[j]};
+    assign data_agg_in[j] = {wen_i[j], be_i[j], add_i[j][ByteOffWidth + NumOutLog2 +: AddrMemWidth], wdata_i[j]};
   end
 
   // Disaggregate data
@@ -138,15 +138,6 @@ module variable_latency_interconnect #(
   else if (Topology == tcdm_interconnect_pkg::BFLY2 || Topology == tcdm_interconnect_pkg::BFLY4) begin: gen_bfly
     localparam int unsigned Radix = 2**Topology;
 
-    logic [NumOut-1:0][AggDataWidth-1:0] data1;
-    logic [NumOut-1:0][DataWidth-1:0] rdata1  ;
-    logic [NumOut-1:0] gnt1, req1;
-
-    logic [NumOut-1:0][AggDataWidth-1:0] data1_trsp;
-    logic [NumOut-1:0][DataWidth-1:0] rdata1_trsp  ;
-    logic [NumOut-1:0] gnt1_trsp                   ;
-    logic [NumOut-1:0] req1_trsp                   ;
-
     logic [$clog2(NumOut)-1:0] req_rr ;
     logic [$clog2(NumOut)-1:0] resp_rr;
 
@@ -156,15 +147,27 @@ module variable_latency_interconnect #(
     // pseudo random sequence with good randomness. the block cipher layers
     // are used to break shift register linearity.
     lfsr #(
-      .LfsrWidth   (64              ),
-      .OutWidth    (2*$clog2(NumOut)),
-      .CipherLayers(3               ),
-      .CipherReg   (1'b1            )
-    ) lfsr_i (
-      .clk_i (clk_i            ),
-      .rst_ni(rst_ni           ),
-      .en_i  (|(gnt_i & req_o) ),
-      .out_o ({resp_rr, req_rr})
+      .LfsrWidth   (64            ),
+      .OutWidth    ($clog2(NumOut)),
+      .CipherLayers(3             ),
+      .CipherReg   (1'b1          )
+    ) lfsr_req_i (
+      .clk_i (clk_i           ),
+      .rst_ni(rst_ni          ),
+      .en_i  (|(gnt_i & req_o)),
+      .out_o (req_rr          )
+    );
+
+    lfsr #(
+      .LfsrWidth   (64            ),
+      .OutWidth    ($clog2(NumOut)),
+      .CipherLayers(3             ),
+      .CipherReg   (1'b1          )
+    ) lfsr_resp_i (
+      .clk_i (clk_i           ),
+      .rst_ni(rst_ni          ),
+      .en_i  (|(vld_o & rdy_i)),
+      .out_o (resp_rr         )
     );
 
     variable_latency_bfly_net #(
@@ -227,8 +230,8 @@ module variable_latency_interconnect #(
     // Generate request signal
 
     // Only request if the corresponding queue is not full
-    assign req_o[k]         = tgt_xbar_req[k] & ~tgt_fifo_full[k];
-    assign tgt_fifo_full[k] = (usage_q[k] == NumOutstanding)     ;
+    assign tgt_fifo_full[k] = (usage_q[k] == NumOutstanding)      ;
+    assign req_o[k]         = tgt_xbar_req[k] && !tgt_fifo_full[k];
 
     // Target response queue
     fifo_v3 #(

@@ -9,7 +9,7 @@ packages:
       - common_cells
       - common_verification
   cluster_interconnect:
-    revision: 06de8541cd1adb6beeb6a41be49ecf11a23c5453
+    revision: 2250ad0ceefa5996d535906284d0040bceb7abc2
     version: ~
     source:
       Git: "https://github.com/pulp-platform/cluster_interconnect.git"
