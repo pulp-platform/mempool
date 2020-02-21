@@ -73,6 +73,7 @@ module mempool #(
   core_addr_t [NumCores-1:0] tcdm_slave_ini_addr;
   core_addr_t [NumCores-1:0] tcdm_slave_resp_ini_addr;
   logic       [NumCores-1:0] tcdm_slave_rvalid;
+  logic       [NumCores-1:0] tcdm_slave_rready;
   data_t      [NumCores-1:0] tcdm_slave_rdata;
   logic       [NumCores-1:0] tcdm_slave_wen;
   data_t      [NumCores-1:0] tcdm_slave_wdata;
@@ -120,6 +121,7 @@ module mempool #(
       .mem_wdata_i        (tcdm_slave_wdata[NumCoresPerTile*t +: NumCoresPerTile]        ),
       .mem_be_i           (tcdm_slave_be[NumCoresPerTile*t +: NumCoresPerTile]           ),
       .mem_vld_o          (tcdm_slave_rvalid[NumCoresPerTile*t +: NumCoresPerTile]       ),
+      .mem_rdy_i          (tcdm_slave_rready[NumCoresPerTile*t +: NumCoresPerTile]       ),
       .mem_core_addr_o    (tcdm_slave_resp_ini_addr[NumCoresPerTile*t +: NumCoresPerTile]),
       .mem_rdata_o        (tcdm_slave_rdata[NumCoresPerTile*t +: NumCoresPerTile]        ),
       // AXI interface
@@ -148,14 +150,12 @@ module mempool #(
 
   // Interconnect
   variable_latency_interconnect #(
-    .NumIn         (NumCores                                  ),
-    .NumOut        (NumCores                                  ),
-    .AddrWidth     (AddrWidth                                 ),
-    .DataWidth     (DataWidth                                 ),
-    .AddrMemWidth  (TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
-    .NumOutstanding(2                                         ),
-    .WriteRespOn   (1'b0                                      ),
-    .Topology      (tcdm_interconnect_pkg::BFLY4              )
+    .NumIn        (NumCores                                  ),
+    .NumOut       (NumCores                                  ),
+    .AddrWidth    (AddrWidth                                 ),
+    .DataWidth    (DataWidth                                 ),
+    .AddrMemWidth (TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
+    .Topology     (tcdm_interconnect_pkg::BFLY4              )
   ) i_interco (
     .clk_i    (clk_i                   ),
     .rst_ni   (rst_ni                  ),
@@ -176,6 +176,7 @@ module mempool #(
     .wdata_o  (tcdm_slave_wdata        ),
     .be_o     (tcdm_slave_be           ),
     .vld_i    (tcdm_slave_rvalid       ),
+    .rdy_o    (tcdm_slave_rready       ),
     .ini_add_i(tcdm_slave_resp_ini_addr),
     .rdata_i  (tcdm_slave_rdata        )
   );

@@ -37,6 +37,7 @@ module variable_latency_interconnect_wrap (
     output logic [`NUM_MASTER * `BANK_FACT-1:0][`DATA_WIDTH-1:0]         wdata_o,   // Write data
     output logic [`NUM_MASTER * `BANK_FACT-1:0][`DATA_WIDTH/8-1:0]       be_o,      // Byte enable
     input  logic [`NUM_MASTER * `BANK_FACT-1:0]                          vld_i,     // Response valid
+    output logic [`NUM_MASTER * `BANK_FACT-1:0]                          rdy_o,     // Response ready
     input  logic [`NUM_MASTER * `BANK_FACT-1:0][$clog2(`NUM_MASTER)-1:0] ini_add_i, // Initiator address (response)
     input  logic [`NUM_MASTER * `BANK_FACT-1:0][`DATA_WIDTH-1:0]         rdata_i    // Data response (for load commands)
   );
@@ -69,6 +70,7 @@ module variable_latency_interconnect_wrap (
       .wdata_o  (wdata_o  ),
       .be_o     (be_o     ),
       .vld_i    (vld_i    ),
+      .rdy_o    (rdy_o    ),
       .ini_add_i(ini_add_i),
       .rdata_i  (rdata_i  )
     );
@@ -100,6 +102,7 @@ module variable_latency_interconnect_wrap (
       .wdata_o  (wdata_o  ),
       .be_o     (be_o     ),
       .vld_i    (vld_i    ),
+      .rdy_o    (rdy_o    ),
       .ini_add_i(ini_add_i),
       .rdata_i  (rdata_i  )
     );
@@ -131,6 +134,7 @@ module variable_latency_interconnect_wrap (
       .wdata_o  (wdata_o  ),
       .be_o     (be_o     ),
       .vld_i    (vld_i    ),
+      .rdy_o    (rdy_o    ),
       .ini_add_i(ini_add_i),
       .rdata_i  (rdata_i  )
     );

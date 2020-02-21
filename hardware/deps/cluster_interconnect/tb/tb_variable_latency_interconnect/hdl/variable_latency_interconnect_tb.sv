@@ -292,6 +292,7 @@ module variable_latency_interconnect_tb;
     .wdata_o  (wdata_o  ),
     .be_o     (be_o     ),
     .vld_i    (vld_i    ),
+    .rdy_o    (         ),
     .ini_add_i(ini_add_i),
     .rdata_i  (rdata_i  )
   );
@@ -309,7 +310,7 @@ module variable_latency_interconnect_tb;
 
     // print some info
     $display("---------------------------------------");
-    $display("Network Traffic Simulation"             );
+    $display("Network Traffic Simulation" )            ;
     $display("---------------------------------------");
     $display("Current configuration:" )                ;
     $display("Network:        %s", mut_name )          ;

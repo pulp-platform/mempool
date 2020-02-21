@@ -22,20 +22,22 @@ import tcdm_interconnect_pkg::topo_e;
 
 module variable_latency_interconnect #(
     // Global parameters
-    parameter int unsigned NumIn                  = 32                   , // Number of Initiators. Must be aligned with a power of 2 for butterflies.
-    parameter int unsigned NumOut                 = 64                   , // Number of Targets. Must be aligned with a power of 2 for butterflies.
-    parameter int unsigned AddrWidth              = 32                   , // Address Width on the Initiator Side
-    parameter int unsigned DataWidth              = 32                   , // Data Word Width
-    parameter int unsigned BeWidth                = DataWidth/8          , // Byte Strobe Width
-    parameter int unsigned AddrMemWidth           = 12                   , // Number of Address bits per Target
-    parameter bit unsigned WriteRespOn            = 1'b1                 , // Do writes return a response?
-    parameter int unsigned NumOutstanding         = 4                    , // Number of Outstanding Transactions per Target
-    parameter bit unsigned TargetQueueFallThrough = 1'b0                 , // Are the target queues are fall-through?
+    parameter int unsigned NumIn              = 32                   , // Number of Initiators. Must be aligned with a power of 2 for butterflies.
+    parameter int unsigned NumOut             = 64                   , // Number of Targets. Must be aligned with a power of 2 for butterflies.
+    parameter int unsigned AddrWidth          = 32                   , // Address Width on the Initiator Side
+    parameter int unsigned DataWidth          = 32                   , // Data Word Width
+    parameter int unsigned BeWidth            = DataWidth/8          , // Byte Strobe Width
+    parameter int unsigned AddrMemWidth       = 12                   , // Number of Address bits per Target
+    // Registers
+    parameter bit unsigned SpillInitiatorReq  = 1'b1                 ,
+    parameter bit unsigned SpillInitiatorResp = 1'b0                 ,
+    parameter bit unsigned SpillTargetReq     = 1'b0                 ,
+    parameter bit unsigned SpillTargetResp    = 1'b1                 ,
     // Determines the width of the byte offset in a memory word. Normally this can be left at the default value,
     // but sometimes it needs to be overridden (e.g., when metadata is supplied to the memory via the wdata signal).
-    parameter int unsigned ByteOffWidth           = $clog2(DataWidth-1)-3,
+    parameter int unsigned ByteOffWidth       = $clog2(DataWidth-1)-3,
     // Topology can be: LIC, BFLY2, BFLY4, CLOS
-    parameter topo_e Topology                     = tcdm_interconnect_pkg::LIC
+    parameter topo_e Topology                 = tcdm_interconnect_pkg::LIC
   ) (
     input  logic                                 clk_i,
     input  logic                                 rst_ni,
@@ -58,6 +60,7 @@ module variable_latency_interconnect #(
     output logic [NumOut-1:0][DataWidth-1:0]     wdata_o,   // Write data
     output logic [NumOut-1:0][BeWidth-1:0]       be_o,      // Byte enable
     input  logic [NumOut-1:0]                    vld_i,     // Response valid
+    output logic [NumOut-1:0]                    rdy_o,     // Response ready
     input  logic [NumOut-1:0][$clog2(NumIn)-1:0] ini_add_i, // Initiator address (response)
     input  logic [NumOut-1:0][DataWidth-1:0]     rdata_i    // Data response (for load commands)
   );
@@ -68,33 +71,129 @@ module variable_latency_interconnect #(
 
   // localparams and aggregation of address, wen and payload data
 
-  localparam int unsigned NumOutLog2     = $clog2(NumOut);
-  localparam int unsigned AggDataWidth   = 1 + BeWidth + AddrMemWidth + DataWidth;
-  localparam int unsigned TransactionIdx = NumOutstanding > 1 ? $clog2(NumOutstanding) : 1;
+  localparam int unsigned NumOutLog2      = $clog2(NumOut);
+  localparam int unsigned NumInLog2       = $clog2(NumIn);
+  localparam int unsigned IniAggDataWidth = 1 + BeWidth + AddrMemWidth + DataWidth;
 
-  logic [NumIn-1:0][AggDataWidth-1:0]  data_agg_in;
-  logic [NumOut-1:0][AggDataWidth-1:0] data_agg_out;
-  logic [NumIn-1:0][NumOutLog2-1:0]    bank_sel;
+  /************************************
+   *  Initiator side spill registers  *
+   ************************************/
 
-  logic [NumOut-1:0][DataWidth-1:0]     tgt_fifo_rdata;
-  logic [NumOut-1:0][$clog2(NumIn)-1:0] tgt_fifo_ini_add;
-  logic [NumOut-1:0]                    tgt_fifo_full;
-  logic [NumOut-1:0]                    tgt_fifo_empty;
-  logic [NumOut-1:0]                    tgt_fifo_pop;
+  // Request
+  logic [NumIn-1:0]                ini_req;
+  logic [NumIn-1:0]                ini_gnt;
+  logic [NumIn-1:0][AddrWidth-1:0] ini_add;
+  logic [NumIn-1:0]                ini_wen;
+  logic [NumIn-1:0][DataWidth-1:0] ini_wdata;
+  logic [NumIn-1:0][BeWidth-1:0]   ini_be;
 
-  logic [NumOut-1:0] tgt_xbar_req;
+  for (genvar i = 0; i < NumIn; i++) begin: gen_initiator_req_spill_registers
+    spill_register #(
+      .Bypass(!SpillInitiatorReq                      ),
+      .T     (logic[AddrWidth+1+DataWidth+BeWidth-1:0])
+    ) i_initiator_req_spill_reg (
+      .clk_i  (clk_i                                            ),
+      .rst_ni (rst_ni                                           ),
+      .data_i ({add_i[i], wen_i[i], wdata_i[i], be_i[i]}        ),
+      .valid_i(req_i[i]                                         ),
+      .ready_o(gnt_o[i]                                         ),
+      .data_o ({ini_add[i], ini_wen[i], ini_wdata[i], ini_be[i]}),
+      .valid_o(ini_req[i]                                       ),
+      .ready_i(ini_gnt[i]                                       )
+    );
+  end: gen_initiator_req_spill_registers
+
+  // Response
+  logic [NumIn-1:0]                ini_vld;
+  logic [NumIn-1:0]                ini_rdy;
+  logic [NumIn-1:0][DataWidth-1:0] ini_rdata;
+
+  for (genvar i = 0; i < NumIn; i++) begin: gen_initiator_resp_spill_registers
+    spill_register #(
+      .Bypass(!SpillInitiatorResp ),
+      .T     (logic[DataWidth-1:0])
+    ) i_initiator_resp_spill_reg (
+      .clk_i  (clk_i       ),
+      .rst_ni (rst_ni      ),
+      .data_o (rdata_o[i]  ),
+      .valid_o(vld_o[i]    ),
+      .ready_i(rdy_i[i]    ),
+      .data_i (ini_rdata[i]),
+      .valid_i(ini_vld[i]  ),
+      .ready_o(ini_rdy[i]  )
+    );
+  end: gen_initiator_resp_spill_registers
+
+  /*********************************
+   *  Target side spill registers  *
+   *********************************/
+
+  // Request
+  logic [NumOut-1:0]                   tgt_req;
+  logic [NumOut-1:0][NumInLog2-1:0]    tgt_ini_add_o;
+  logic [NumOut-1:0]                   tgt_gnt;
+  logic [NumOut-1:0][AddrMemWidth-1:0] tgt_add;
+  logic [NumOut-1:0]                   tgt_wen;
+  logic [NumOut-1:0][DataWidth-1:0]    tgt_wdata;
+  logic [NumOut-1:0][BeWidth-1:0]      tgt_be;
+
+  for (genvar t = 0; t < NumOut; t++) begin: gen_target_req_spill_registers
+    spill_register #(
+      .Bypass(!SpillTargetReq                                      ),
+      .T     (logic[NumInLog2+AddrMemWidth+1+DataWidth+BeWidth-1:0])
+    ) i_target_req_spill_reg (
+      .clk_i  (clk_i                                                              ),
+      .rst_ni (rst_ni                                                             ),
+      .data_o ({ini_add_o[t], add_o[t], wen_o[t], wdata_o[t], be_o[t]}            ),
+      .valid_o(req_o[t]                                                           ),
+      .ready_i(gnt_i[t]                                                           ),
+      .data_i ({tgt_ini_add_o[t], tgt_add[t], tgt_wen[t], tgt_wdata[t], tgt_be[t]}),
+      .valid_i(tgt_req[t]                                                         ),
+      .ready_o(tgt_gnt[t]                                                         )
+    );
+  end: gen_target_req_spill_registers
+
+  // Response
+  logic [NumOut-1:0]                tgt_vld;
+  logic [NumOut-1:0]                tgt_rdy;
+  logic [NumOut-1:0][NumInLog2-1:0] tgt_ini_add_i;
+  logic [NumOut-1:0][DataWidth-1:0] tgt_rdata;
+
+  for (genvar t = 0; t < NumOut; t++) begin: gen_target_resp_spill_registers
+    spill_register #(
+      .Bypass(!SpillTargetResp              ),
+      .T     (logic[NumInLog2+DataWidth-1:0])
+    ) i_target_resp_spill_reg (
+      .clk_i  (clk_i                           ),
+      .rst_ni (rst_ni                          ),
+      .data_i ({ini_add_i[t], rdata_i[t]}      ),
+      .valid_i(vld_i[t]                        ),
+      .ready_o(rdy_o[t]                        ),
+      .data_o ({tgt_ini_add_i[t], tgt_rdata[t]}),
+      .valid_o(tgt_vld[t]                      ),
+      .ready_i(tgt_rdy[t]                      )
+    );
+  end: gen_target_resp_spill_registers
+
+  /*************
+   *  Signals  *
+   *************/
+
+  logic [NumIn-1:0][IniAggDataWidth-1:0]  data_agg_in;
+  logic [NumOut-1:0][IniAggDataWidth-1:0] data_agg_out;
+  logic [NumIn-1:0][NumOutLog2-1:0]       bank_sel;
 
   for (genvar j = 0; unsigned'(j) < NumIn; j++) begin : gen_inputs
     // Extract bank index
-    assign bank_sel[j] = add_i[j][ByteOffWidth +: NumOutLog2];
+    assign bank_sel[j] = ini_add[j][ByteOffWidth +: NumOutLog2];
 
     // Aggregate data to be routed to slaves
-    assign data_agg_in[j] = {wen_i[j], be_i[j], add_i[j][ByteOffWidth + NumOutLog2 +: AddrMemWidth], wdata_i[j]};
+    assign data_agg_in[j] = {ini_wen[j], ini_be[j], ini_add[j][ByteOffWidth + NumOutLog2 +: AddrMemWidth], ini_wdata[j]};
   end
 
   // Disaggregate data
   for (genvar k = 0; unsigned'(k) < NumOut; k++) begin : gen_outputs
-    assign {wen_o[k], be_o[k], add_o[k], wdata_o[k]} = data_agg_out[k];
+    assign {tgt_wen[k], tgt_be[k], tgt_add[k], tgt_wdata[k]} = data_agg_out[k];
   end
 
   /****************
@@ -104,33 +203,33 @@ module variable_latency_interconnect #(
   // Tuned logarithmic interconnect architecture, based on rr_arb_tree primitives
   if (Topology == tcdm_interconnect_pkg::LIC) begin : gen_lic
     full_duplex_xbar #(
-      .NumIn        (NumIn       ),
-      .NumOut       (NumOut      ),
-      .ReqDataWidth (AggDataWidth),
-      .RespDataWidth(DataWidth   )
+      .NumIn        (NumIn          ),
+      .NumOut       (NumOut         ),
+      .ReqDataWidth (IniAggDataWidth),
+      .RespDataWidth(DataWidth      )
     ) i_xbar (
-      .clk_i    (clk_i           ),
-      .rst_ni   (rst_ni          ),
+      .clk_i    (clk_i        ),
+      .rst_ni   (rst_ni       ),
       // Extern priority flags
-      .req_rr_i ('0              ),
-      .resp_rr_i('0              ),
+      .req_rr_i ('0           ),
+      .resp_rr_i('0           ),
       // Initiator side
-      .req_i    (req_i           ),
-      .gnt_o    (gnt_o           ),
-      .add_i    (bank_sel        ),
-      .wdata_i  (data_agg_in     ),
-      .vld_o    (vld_o           ),
-      .rdata_o  (rdata_o         ),
-      .rdy_i    (rdy_i           ),
+      .req_i    (ini_req      ),
+      .gnt_o    (ini_gnt      ),
+      .add_i    (bank_sel     ),
+      .wdata_i  (data_agg_in  ),
+      .vld_o    (ini_vld      ),
+      .rdata_o  (ini_rdata    ),
+      .rdy_i    (ini_rdy      ),
       // Target side
-      .req_o    (tgt_xbar_req    ),
-      .ini_add_o(ini_add_o       ),
-      .gnt_i    (gnt_i           ),
-      .wdata_o  (data_agg_out    ),
-      .vld_i    (~tgt_fifo_empty ),
-      .rdy_o    (tgt_fifo_pop    ),
-      .ini_add_i(tgt_fifo_ini_add),
-      .rdata_i  (tgt_fifo_rdata  )
+      .req_o    (tgt_req      ),
+      .ini_add_o(tgt_ini_add_o),
+      .gnt_i    (tgt_gnt      ),
+      .wdata_o  (data_agg_out ),
+      .vld_i    (tgt_vld      ),
+      .rdy_o    (tgt_rdy      ),
+      .ini_add_i(tgt_ini_add_i),
+      .rdata_i  (tgt_rdata    )
     );
   end
 
@@ -152,10 +251,10 @@ module variable_latency_interconnect #(
       .CipherLayers(3             ),
       .CipherReg   (1'b1          )
     ) lfsr_req_i (
-      .clk_i (clk_i           ),
-      .rst_ni(rst_ni          ),
-      .en_i  (|(gnt_i & req_o)),
-      .out_o (req_rr          )
+      .clk_i (clk_i               ),
+      .rst_ni(rst_ni              ),
+      .en_i  (|(tgt_gnt & tgt_req)),
+      .out_o (req_rr              )
     );
 
     lfsr #(
@@ -164,118 +263,48 @@ module variable_latency_interconnect #(
       .CipherLayers(3             ),
       .CipherReg   (1'b1          )
     ) lfsr_resp_i (
-      .clk_i (clk_i           ),
-      .rst_ni(rst_ni          ),
-      .en_i  (|(vld_o & rdy_i)),
-      .out_o (resp_rr         )
+      .clk_i (clk_i               ),
+      .rst_ni(rst_ni              ),
+      .en_i  (|(tgt_vld & tgt_rdy)),
+      .out_o (resp_rr             )
     );
 
     variable_latency_bfly_net #(
-      .NumIn        (NumIn       ),
-      .NumOut       (NumOut      ),
-      .ReqDataWidth (AggDataWidth),
-      .RespDataWidth(DataWidth   ),
-      .Radix        (Radix       ),
-      .ExtPrio      (1'b1        )
+      .NumIn        (NumIn          ),
+      .NumOut       (NumOut         ),
+      .ReqDataWidth (IniAggDataWidth),
+      .RespDataWidth(DataWidth      ),
+      .Radix        (Radix          ),
+      .ExtPrio      (1'b1           )
     ) i_bfly_net (
-      .clk_i    (clk_i           ),
-      .rst_ni   (rst_ni          ),
+      .clk_i    (clk_i        ),
+      .rst_ni   (rst_ni       ),
       // Extern priority flags
-      .req_rr_i (req_rr          ),
-      .resp_rr_i(resp_rr         ),
+      .req_rr_i (req_rr       ),
+      .resp_rr_i(resp_rr      ),
       // Initiator side
-      .req_i    (req_i           ),
-      .gnt_o    (gnt_o           ),
-      .add_i    (bank_sel        ),
-      .wdata_i  (data_agg_in     ),
-      .vld_o    (vld_o           ),
-      .rdy_i    (rdy_i           ),
-      .rdata_o  (rdata_o         ),
+      .req_i    (ini_req      ),
+      .gnt_o    (ini_gnt      ),
+      .add_i    (bank_sel     ),
+      .wdata_i  (data_agg_in  ),
+      .vld_o    (ini_vld      ),
+      .rdy_i    (ini_rdy      ),
+      .rdata_o  (ini_rdata    ),
       // Target side
-      .req_o    (tgt_xbar_req    ),
-      .ini_add_o(ini_add_o       ),
-      .gnt_i    (gnt_i           ),
-      .wdata_o  (data_agg_out    ),
-      .vld_i    (~tgt_fifo_empty ),
-      .rdy_o    (tgt_fifo_pop    ),
-      .ini_add_i(tgt_fifo_ini_add),
-      .rdata_i  (tgt_fifo_rdata  )
+      .req_o    (tgt_req      ),
+      .ini_add_o(tgt_ini_add_o),
+      .gnt_i    (tgt_gnt      ),
+      .wdata_o  (data_agg_out ),
+      .vld_i    (tgt_vld      ),
+      .rdy_o    (tgt_rdy      ),
+      .ini_add_i(tgt_ini_add_i),
+      .rdata_i  (tgt_rdata    )
     );
   end
 
   // Unknown network
   else begin: gen_unknown
     $fatal(1, "[variable_latency_interconnect] Unknown TCDM configuration %d.", Topology);
-  end
-
-  /******************************
-   *   Target response queues   *
-   ******************************/
-
-  logic [NumOut-1:0][TransactionIdx:0] usage_d, usage_q;
-  logic [NumOut-1:0]                   tgt_fifo_pop_q;
-
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-      tgt_fifo_pop_q <= '0;
-      usage_q        <= '0;
-    end else begin
-      tgt_fifo_pop_q <= tgt_fifo_pop;
-      usage_q        <= usage_d     ;
-    end
-  end
-
-  for (genvar k = 0; k < NumOut; k++) begin: gen_target_queues
-
-    // Generate request signal
-
-    // Only request if the corresponding queue is not full
-    assign tgt_fifo_full[k] = (usage_q[k] == NumOutstanding)      ;
-    assign req_o[k]         = tgt_xbar_req[k] && !tgt_fifo_full[k];
-
-    // Target response queue
-    fifo_v3 #(
-      .DATA_WIDTH  (DataWidth + $clog2(NumIn)),
-      .DEPTH       (NumOutstanding           ),
-      .FALL_THROUGH(TargetQueueFallThrough   )
-    ) i_target_queue (
-      .clk_i     (clk_i                                   ),
-      .rst_ni    (rst_ni                                  ),
-      .flush_i   (1'b0                                    ),
-      .testmode_i(1'b0                                    ),
-      .data_i    ({rdata_i[k], ini_add_i[k]}              ),
-      .push_i    (vld_i[k]                                ),
-      .full_o    (/* Unused */                            ),
-      .data_o    ({tgt_fifo_rdata[k], tgt_fifo_ini_add[k]}),
-      .pop_i     (tgt_fifo_pop[k]                         ),
-      .empty_o   (tgt_fifo_empty[k]                       ),
-      .usage_o   (/* Unused */                            )
-    );
-
-    // Count inflight transactions
-    always_comb begin
-      usage_d[k] = usage_q[k];
-
-      if (gnt_i[k] & (~wen_o[k] | WriteRespOn))
-        usage_d[k] = usage_d[k] + 1'b1;
-
-      if (TargetQueueFallThrough) begin
-        // The position in the FIFO is freed at the same cycle
-        if (tgt_fifo_pop[k])
-          usage_d[k] = usage_d[k] - 1'b1;
-      end else begin
-        // Must wait a cycle before freeing the position
-        if (tgt_fifo_pop_q[k])
-          usage_d[k] = usage_d[k] - 1'b1;
-      end
-    end
-
-    `ifndef SYNTHESIS
-    `ifndef VERILATOR
-    assert property (@(posedge clk_i) disable iff (!rst_ni) (usage_q[k] <= NumOutstanding)) else
-      $fatal(1, "Accepted more outstanding requests than actually supported.");
-    `endif
-    `endif
   end
 
   /******************

@@ -66,6 +66,7 @@ module mempool_tile #(
     input  data_t      [NumCoresPerTile-1:0] mem_wdata_i,
     input  strb_t      [NumCoresPerTile-1:0] mem_be_i,
     output logic       [NumCoresPerTile-1:0] mem_vld_o,
+    input  logic       [NumCoresPerTile-1:0] mem_rdy_i,
     output core_id_t   [NumCoresPerTile-1:0] mem_core_addr_o,
     output data_t      [NumCoresPerTile-1:0] mem_rdata_o,
     // AXI Interface
@@ -91,9 +92,8 @@ module mempool_tile #(
   import snitch_pkg::dresp_t;
 
   // TCDM Memory Region
-  localparam addr_t TCDMSize    = NumBanks * TCDMSizePerBank;
-  localparam addr_t TCDMMask    = ~(TCDMSize - 1);
-  localparam addr_t TCDMEndAddr = TCDMBaseAddr + TCDMSize;
+  localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
+  localparam addr_t TCDMMask = ~(TCDMSize - 1);
 
   /***********
    *  Cores  *
@@ -253,23 +253,23 @@ module mempool_tile #(
     .WriteRespOn (1'b0                      ),
     .Topology    (tcdm_interconnect_pkg::LIC)
   ) local_xbar (
-    .clk_i  (clk_i                          ),
-    .rst_ni (rst_ni                         ),
-    .req_i  ({local_xbar_req, mem_req_i}    ),
-    .add_i  ({local_xbar_addr, mem_addr}    ),
-    .wen_i  ({local_xbar_wen, mem_wen_i}    ),
-    .wdata_i({local_xbar_wdata, mem_wdata_i}),
-    .be_i   ({local_xbar_be, mem_be_i}      ),
-    .gnt_o  ({local_xbar_gnt, mem_gnt_o}    ),
-    .vld_o  ({local_xbar_vld, mem_vld_o}    ),
-    .rdata_o({local_xbar_rdata, mem_rdata_o}),
-    .req_o  (tile_mem_req                   ),
-    .gnt_i  (tile_mem_req                   ), // Memories always grant the requests
-    .add_o  (tile_mem_addr                  ),
-    .wen_o  (tile_mem_wen                   ),
-    .wdata_o(tile_mem_wdata                 ),
-    .be_o   (tile_mem_be                    ),
-    .rdata_i(tile_mem_rdata                 )
+    .clk_i  (clk_i                                  ),
+    .rst_ni (rst_ni                                 ),
+    .req_i  ({local_xbar_req, mem_req_i & mem_rdy_i}), // Only accept the memory requests if the corresponding spill register is not full (NOTE: replace by a queue?)
+    .add_i  ({local_xbar_addr, mem_addr}            ),
+    .wen_i  ({local_xbar_wen, mem_wen_i}            ),
+    .wdata_i({local_xbar_wdata, mem_wdata_i}        ),
+    .be_i   ({local_xbar_be, mem_be_i}              ),
+    .gnt_o  ({local_xbar_gnt, mem_gnt_o}            ),
+    .vld_o  ({local_xbar_vld, mem_vld_o}            ),
+    .rdata_o({local_xbar_rdata, mem_rdata_o}        ),
+    .req_o  (tile_mem_req                           ),
+    .gnt_i  (tile_mem_req                           ), // Memories always grant the requests
+    .add_o  (tile_mem_addr                          ),
+    .wen_o  (tile_mem_wen                           ),
+    .wdata_o(tile_mem_wdata                         ),
+    .be_o   (tile_mem_be                            ),
+    .rdata_i(tile_mem_rdata                         )
   );
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -291,14 +291,6 @@ module mempool_tile #(
   dresp_t [NumCoresPerTile-1:0] soc_data_p;
   logic   [NumCoresPerTile-1:0] soc_data_pvalid;
   logic   [NumCoresPerTile-1:0] soc_data_pready;
-
-  // Signals for FFing tile boundaries
-  logic  [NumCoresPerTile-1:0] tcdm_master_req;
-  addr_t [NumCoresPerTile-1:0] tcdm_master_addr;
-  logic  [NumCoresPerTile-1:0] tcdm_master_wen;
-  data_t [NumCoresPerTile-1:0] tcdm_master_wdata;
-  strb_t [NumCoresPerTile-1:0] tcdm_master_be;
-  logic  [NumCoresPerTile-1:0] tcdm_master_gnt;
 
   // Address map
   typedef enum int unsigned {
@@ -329,6 +321,15 @@ module mempool_tile #(
     addr_t local_xbar_addr_int;
     assign local_xbar_addr[c] = addr_t'({local_xbar_addr_int[AddrWidth-1:ByteOffset+$clog2(NumBanksPerTile)], local_xbar_addr_int[0 +: ByteOffset + $clog2(NumBanksPerTile)]});
 
+    // Switch tile and bank indexes for correct upper level routing
+    addr_t local_tcdm_master_addr;
+    assign tcdm_master_addr_o[c] =
+      addr_t'({local_tcdm_master_addr[ByteOffset + $clog2(NumBanksPerTile) +: TCDMAddrMemWidth] , // Bank address
+          local_tcdm_master_addr[ByteOffset +: $clog2(NumBanksPerTile)]                         , // Bank
+          local_tcdm_master_addr[ByteOffset + $clog2(NumBanksPerTile) +: $clog2(NumTiles)]      , // Tile
+          c[$clog2(NumCoresPerTile)-1:0]                                                        , // TCDM slave port
+          local_tcdm_master_addr[0 +: ByteOffset]});
+
     tcdm_shim #(
       .AddrWidth          (AddrWidth),
       .DataWidth          (DataWidth),
@@ -338,65 +339,42 @@ module mempool_tile #(
       .NrSoC              (1        ),
       .NumRules           (3        )
     ) i_tcdm_shim (
-      .clk_i        (clk_i                                        ),
-      .rst_i        (!rst_ni                                      ),
+      .clk_i        (clk_i                                         ),
+      .rst_i        (!rst_ni                                       ),
       // to TCDM --> FF Connection to outside of tile
-      .tcdm_req_o   ({local_xbar_req[c], tcdm_master_req[c]}      ),
-      .tcdm_add_o   ({local_xbar_addr_int, tcdm_master_addr[c]}   ),
-      .tcdm_wen_o   ({local_xbar_wen[c], tcdm_master_wen[c]}      ),
-      .tcdm_wdata_o ({local_xbar_wdata[c], tcdm_master_wdata[c]}  ),
-      .tcdm_be_o    ({local_xbar_be[c], tcdm_master_be[c]}        ),
-      .tcdm_gnt_i   ({local_xbar_gnt[c], tcdm_master_gnt[c]}      ),
-      .tcdm_vld_i   ({local_xbar_vld[c], tcdm_master_vld_i[c]}    ),
-      .tcdm_rdata_i ({local_xbar_rdata[c], tcdm_master_rdata_i[c]}),
+      .tcdm_req_o   ({local_xbar_req[c], tcdm_master_req_o[c]}     ),
+      .tcdm_add_o   ({local_xbar_addr_int, local_tcdm_master_addr} ),
+      .tcdm_wen_o   ({local_xbar_wen[c], tcdm_master_wen_o[c]}     ),
+      .tcdm_wdata_o ({local_xbar_wdata[c], tcdm_master_wdata_o[c]} ),
+      .tcdm_be_o    ({local_xbar_be[c], tcdm_master_be_o[c]}       ),
+      .tcdm_gnt_i   ({local_xbar_gnt[c], tcdm_master_gnt_i[c]}     ),
+      .tcdm_vld_i   ({local_xbar_vld[c], tcdm_master_vld_i[c]}     ),
+      .tcdm_rdata_i ({local_xbar_rdata[c], tcdm_master_rdata_i[c]} ),
       // to SoC
-      .soc_qaddr_o  (soc_data_q[c].addr                           ),
-      .soc_qwrite_o (soc_data_q[c].write                          ),
-      .soc_qamo_o   (soc_data_q[c].amo                            ),
-      .soc_qdata_o  (soc_data_q[c].data                           ),
-      .soc_qstrb_o  (soc_data_q[c].strb                           ),
-      .soc_qvalid_o (soc_data_qvalid[c]                           ),
-      .soc_qready_i (soc_data_qready[c]                           ),
-      .soc_pdata_i  (soc_data_p[c].data                           ),
-      .soc_perror_i (soc_data_p[c].error                          ),
-      .soc_pvalid_i (soc_data_pvalid[c]                           ),
-      .soc_pready_o (soc_data_pready[c]                           ),
+      .soc_qaddr_o  (soc_data_q[c].addr                            ),
+      .soc_qwrite_o (soc_data_q[c].write                           ),
+      .soc_qamo_o   (soc_data_q[c].amo                             ),
+      .soc_qdata_o  (soc_data_q[c].data                            ),
+      .soc_qstrb_o  (soc_data_q[c].strb                            ),
+      .soc_qvalid_o (soc_data_qvalid[c]                            ),
+      .soc_qready_i (soc_data_qready[c]                            ),
+      .soc_pdata_i  (soc_data_p[c].data                            ),
+      .soc_perror_i (soc_data_p[c].error                           ),
+      .soc_pvalid_i (soc_data_pvalid[c]                            ),
+      .soc_pready_o (soc_data_pready[c]                            ),
       // from core
-      .data_qaddr_i (data_qaddr[c]                                ),
-      .data_qwrite_i(data_qwrite[c]                               ),
-      .data_qamo_i  (data_qamo[c]                                 ),
-      .data_qdata_i (data_qdata[c]                                ),
-      .data_qstrb_i (data_qstrb[c]                                ),
-      .data_qvalid_i(data_qvalid[c]                               ),
-      .data_qready_o(data_qready[c]                               ),
-      .data_pdata_o (data_pdata[c]                                ),
-      .data_perror_o(data_perror[c]                               ),
-      .data_pvalid_o(data_pvalid[c]                               ),
-      .data_pready_i(data_pready[c]                               ),
-      .address_map_i(mask_map                                     )
-    );
-
-    // Switch tile and bank indexes for correct upper level routing
-    addr_t tcdm_master_addr_int;
-    assign tcdm_master_addr_int =
-      addr_t'({tcdm_master_addr[c][ByteOffset + $clog2(NumBanksPerTile) +: TCDMAddrMemWidth] , // Bank address
-          tcdm_master_addr[c][ByteOffset +: $clog2(NumBanksPerTile)]                         , // Bank
-          tcdm_master_addr[c][ByteOffset + $clog2(NumBanksPerTile) +: $clog2(NumTiles)]      , // Tile
-          c[$clog2(NumCoresPerTile)-1:0]                                                     , // TCDM slave port
-          tcdm_master_addr[c][0 +: ByteOffset]});
-
-    // Register request to the TCDM interconnect
-    spill_register #(
-      .T(logic[AddrWidth + 1 + DataWidth + BeWidth - 1:0])
-    ) i_register_tcdm_req (
-      .clk_i  (clk_i                                                                                     ),
-      .rst_ni (rst_ni                                                                                    ),
-      .data_i ({tcdm_master_addr_int, tcdm_master_wen[c], tcdm_master_wdata[c], tcdm_master_be[c] }      ),
-      .valid_i(tcdm_master_req[c]                                                                        ),
-      .ready_o(tcdm_master_gnt[c]                                                                        ),
-      .data_o ({tcdm_master_addr_o[c], tcdm_master_wen_o[c], tcdm_master_wdata_o[c], tcdm_master_be_o[c]}),
-      .valid_o(tcdm_master_req_o[c]                                                                      ),
-      .ready_i(tcdm_master_gnt_i[c]                                                                      )
+      .data_qaddr_i (data_qaddr[c]                                 ),
+      .data_qwrite_i(data_qwrite[c]                                ),
+      .data_qamo_i  (data_qamo[c]                                  ),
+      .data_qdata_i (data_qdata[c]                                 ),
+      .data_qstrb_i (data_qstrb[c]                                 ),
+      .data_qvalid_i(data_qvalid[c]                                ),
+      .data_qready_o(data_qready[c]                                ),
+      .data_pdata_o (data_pdata[c]                                 ),
+      .data_perror_o(data_perror[c]                                ),
+      .data_pvalid_o(data_pvalid[c]                                ),
+      .data_pready_i(data_pready[c]                                ),
+      .address_map_i(mask_map                                      )
     );
   end
 
