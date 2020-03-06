@@ -25,7 +25,7 @@ module mempool_tb;
   import axi_pkg::xbar_cfg_t    ;
   import axi_pkg::xbar_rule_32_t;
 
-  localparam        NumCores        = 32;
+  localparam        NumCores        = 16;
   localparam        NumCoresPerTile = 4;
   localparam        BankingFactor   = 4;
   localparam addr_t TCDMBaseAddr    = '0;
@@ -109,7 +109,7 @@ module mempool_tb;
 
   // Controlling the reset
   initial begin
-    clk   = 1'b0;
+    clk   = 1'b1;
     rst_n = 1'b0;
 
     repeat (5)
