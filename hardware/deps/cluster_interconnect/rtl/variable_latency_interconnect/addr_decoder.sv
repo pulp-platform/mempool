@@ -17,16 +17,17 @@
 
 module addr_decoder #(
     parameter int unsigned NumOut    = 32,
-    parameter int unsigned DataWidth = 32
+    parameter int unsigned DataWidth = 32,
+    parameter bit AxiVldRdy          = 1'b1
   ) (
     // Initiator side
-    input  logic                             req_i,  // Request from this initiator
-    input  logic [$clog2(NumOut)-1:0]        add_i,  // Bank selection index to be decoded
-    input  logic [DataWidth-1:0]             data_i, // Data to be transported to the targets
-    output logic                             gnt_o,  // Grant to the initiator
-    // slave side
-    output logic [NumOut-1:0]                req_o,  // Request signals after decoding
-    input  logic [NumOut-1:0]                gnt_i,  // Grants from targets
+    input  logic                             valid_i, // Request valid from this initiator
+    input  logic [$clog2(NumOut)-1:0]        addr_i,  // Target selection index to be decoded
+    input  logic [DataWidth-1:0]             data_i,  // Data to be transported to the targets
+    output logic                             ready_o, // Ready to the initiator
+    // Target side
+    output logic [NumOut-1:0]                valid_o, // Request valid to this target
+    input  logic [NumOut-1:0]                ready_i, // Targets ready to accept data
     output logic [NumOut-1:0][DataWidth-1:0] data_o
   );
 
@@ -35,9 +36,9 @@ module addr_decoder #(
    **********************/
 
   if (NumOut == 1) begin: gen_one_output
-    assign req_o[0]  = req_i   ;
-    assign gnt_o     = gnt_i[0];
-    assign data_o[0] = data_i  ;
+    assign valid_o[0] = valid_i   ;
+    assign ready_o    = ready_i[0];
+    assign data_o[0]  = data_i    ;
   end
 
   /*****************
@@ -46,16 +47,20 @@ module addr_decoder #(
 
   else begin: gen_several_outputs
     // Address decoder
-    always_comb begin : p_addr_dec
-      req_o        = '0   ;
-      req_o[add_i] = req_i;
+    always_comb begin : p_addr_decoder
+      valid_o         = '0     ;
+      valid_o[addr_i] = valid_i;
     end
 
-    // Connect data outputs
+    // Broadcast data outputs
     assign data_o = {NumOut{data_i}};
 
-    // Aggregate grant signals
-    assign gnt_o = |gnt_i ;
+    if (AxiVldRdy)
+      // Demux ready signal
+      assign ready_o = ready_i[addr_i];
+    else
+      // Aggregate grant signals
+      assign ready_o = |ready_i;
   end
 
   /****************

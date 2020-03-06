@@ -17,11 +17,14 @@
 // memory access latency.
 
 module full_duplex_xbar #(
-    parameter int unsigned NumIn         = 4  , // Number of Initiators
-    parameter int unsigned NumOut        = 4  , // Number of Targets
-    parameter int unsigned ReqDataWidth  = 32 , // Request Data Width
-    parameter int unsigned RespDataWidth = 32 , // Response Data Width
-    parameter bit ExtPrio                = 1'b0 // Use external arbiter priority flags
+    parameter int unsigned NumIn         = 4   , // Number of Initiators
+    parameter int unsigned NumOut        = 4   , // Number of Targets
+    parameter int unsigned ReqDataWidth  = 32  , // Request Data Width
+    parameter int unsigned RespDataWidth = 32  , // Response Data Width
+    parameter bit ExtPrio                = 1'b0, // Use external arbiter priority flags
+    parameter bit SpillRegisterReq       = 1'b0, // Insert a spill register on the request path (after arbitration)
+    parameter bit SpillRegisterResp      = 1'b0, // Insert a spill register on the response path (after arbitration)
+    parameter bit AxiVldRdy              = 1'b1
   ) (
     input  logic                                 clk_i,
     input  logic                                 rst_ni,
@@ -29,22 +32,22 @@ module full_duplex_xbar #(
     input  logic [NumOut-1:0][$clog2(NumIn)-1:0] req_rr_i,
     input  logic [NumIn-1:0][$clog2(NumOut)-1:0] resp_rr_i,
     // Initiator side
-    input  logic [NumIn-1:0]                     req_i,     // Request signal
-    output logic [NumIn-1:0]                     gnt_o,     // Grant signal
-    input  logic [NumIn-1:0][$clog2(NumOut)-1:0] add_i,     // Target address
-    input  logic [NumIn-1:0][ReqDataWidth-1:0]   wdata_i,   // Write data
-    output logic [NumIn-1:0]                     vld_o,     // Response valid
-    input  logic [NumIn-1:0]                     rdy_i,     // Response ready
-    output logic [NumIn-1:0][RespDataWidth-1:0]  rdata_o,   // Data response (for load commands)
+    input  logic [NumIn-1:0]                     req_valid_i,     // Request valid
+    output logic [NumIn-1:0]                     req_ready_o,     // Request ready
+    input  logic [NumIn-1:0][$clog2(NumOut)-1:0] req_tgt_addr_i,  // Target address
+    input  logic [NumIn-1:0][ReqDataWidth-1:0]   req_wdata_i,     // Write data
+    output logic [NumIn-1:0]                     resp_valid_o,    // Response valid
+    input  logic [NumIn-1:0]                     resp_ready_i,    // Response ready
+    output logic [NumIn-1:0][RespDataWidth-1:0]  resp_rdata_o,    // Data response (for load commands)
     // Target side
-    output logic [NumOut-1:0]                    req_o,     // Request signal
-    output logic [NumOut-1:0][$clog2(NumIn)-1:0] ini_add_o, // Initiador address
-    input  logic [NumOut-1:0]                    gnt_i,     // Grant signal
-    output logic [NumOut-1:0][ReqDataWidth-1:0]  wdata_o,   // Write data
-    input  logic [NumOut-1:0]                    vld_i,     // Response valid
-    output logic [NumOut-1:0]                    rdy_o,     // Response ready
-    input  logic [NumOut-1:0][$clog2(NumIn)-1:0] ini_add_i, // Initiator address (response path)
-    input  logic [NumOut-1:0][RespDataWidth-1:0] rdata_i    // Data response (for load commands)
+    output logic [NumOut-1:0]                    req_valid_o,     // Request valid
+    input  logic [NumOut-1:0]                    req_ready_i,     // Request ready
+    output logic [NumOut-1:0][$clog2(NumIn)-1:0] req_ini_addr_o,  // Initiator address
+    output logic [NumOut-1:0][ReqDataWidth-1:0]  req_wdata_o,     // Write data
+    input  logic [NumOut-1:0]                    resp_valid_i,    // Response valid
+    output logic [NumOut-1:0]                    resp_ready_o,    // Response ready
+    input  logic [NumOut-1:0][$clog2(NumIn)-1:0] resp_ini_addr_i, // Initiator address
+    input  logic [NumOut-1:0][RespDataWidth-1:0] resp_rdata_i     // Data response (for load commands)
   );
 
   /****************
@@ -54,41 +57,45 @@ module full_duplex_xbar #(
   // Instantiate two simplex crossbars, one for the requests and one for the responses.
 
   simplex_xbar #(
-    .NumIn    (NumIn       ),
-    .NumOut   (NumOut      ),
-    .DataWidth(ReqDataWidth),
-    .ExtPrio  (ExtPrio     )
+    .NumIn        (NumIn           ),
+    .NumOut       (NumOut          ),
+    .DataWidth    (ReqDataWidth    ),
+    .ExtPrio      (ExtPrio         ),
+    .SpillRegister(SpillRegisterReq),
+    .AxiVldRdy    (AxiVldRdy       )
   ) req_xbar (
-    .clk_i    (clk_i    ),
-    .rst_ni   (rst_ni   ),
-    .rr_i     (req_rr_i ),
-    .req_i    (req_i    ),
-    .gnt_o    (gnt_o    ),
-    .add_i    (add_i    ),
-    .wdata_i  (wdata_i  ),
-    .req_o    (req_o    ),
-    .ini_add_o(ini_add_o),
-    .gnt_i    (gnt_i    ),
-    .wdata_o  (wdata_o  )
+    .clk_i        (clk_i         ),
+    .rst_ni       (rst_ni        ),
+    .rr_i         (req_rr_i      ),
+    .valid_i      (req_valid_i   ),
+    .ready_o      (req_ready_o   ),
+    .tgt_address_i(req_tgt_addr_i),
+    .wdata_i      (req_wdata_i   ),
+    .valid_o      (req_valid_o   ),
+    .ini_address_o(req_ini_addr_o),
+    .ready_i      (req_ready_i   ),
+    .wdata_o      (req_wdata_o   )
   );
 
   simplex_xbar #(
-    .NumIn    (NumOut       ),
-    .NumOut   (NumIn        ),
-    .DataWidth(RespDataWidth),
-    .ExtPrio  (ExtPrio      )
+    .NumIn        (NumOut           ),
+    .NumOut       (NumIn            ),
+    .DataWidth    (RespDataWidth    ),
+    .ExtPrio      (ExtPrio          ),
+    .SpillRegister(SpillRegisterResp),
+    .AxiVldRdy    (AxiVldRdy        )
   ) resp_xbar (
-    .clk_i    (clk_i       ),
-    .rst_ni   (rst_ni      ),
-    .rr_i     (resp_rr_i   ),
-    .req_i    (vld_i       ),
-    .gnt_o    (rdy_o       ),
-    .add_i    (ini_add_i   ),
-    .wdata_i  (rdata_i     ),
-    .req_o    (vld_o       ),
-    .ini_add_o(/* Unused */),
-    .gnt_i    (rdy_i       ),
-    .wdata_o  (rdata_o     )
+    .clk_i        (clk_i          ),
+    .rst_ni       (rst_ni         ),
+    .rr_i         (resp_rr_i      ),
+    .valid_i      (resp_valid_i   ),
+    .ready_o      (resp_ready_o   ),
+    .tgt_address_i(resp_ini_addr_i),
+    .wdata_i      (resp_rdata_i   ),
+    .valid_o      (resp_valid_o   ),
+    .ini_address_o(/* Unused */   ),
+    .ready_i      (resp_ready_i   ),
+    .wdata_o      (resp_rdata_o   )
   );
 
   /******************

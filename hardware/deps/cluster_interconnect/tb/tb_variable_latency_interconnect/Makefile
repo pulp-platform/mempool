@@ -48,7 +48,8 @@ batch-config := $(shell cat $(batch-list) | grep -v '\#' | cut -d - -f 1-)
 
 build: clean
 	${questa-ver} vlib $(library)
-	bender vsim -t rtl -t asic -t variable_latency_test --flag "\-timescale=1ps/1ps" -b .
+	bender script vsim -t rtl -t asic -t variable_latency_test --vlog-arg "\-timescale=1ps/1ps" > compile.tcl
+	${questa-ver} vsim -c -do "do compile.tcl; exit"
 
 # this starts modelsim with gui
 sim: build

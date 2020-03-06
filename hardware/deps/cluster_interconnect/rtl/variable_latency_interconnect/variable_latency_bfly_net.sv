@@ -23,12 +23,18 @@
 // non-power-of-radix parameterizations.
 
 module variable_latency_bfly_net #(
-    parameter int unsigned NumIn         = 32  , // Number of Initiators. Needs to be a power of 2
-    parameter int unsigned NumOut        = 32  , // Number of Targets. Needs to be a power of 2
-    parameter int unsigned ReqDataWidth  = 32  , // Request Data Width
-    parameter int unsigned RespDataWidth = 32  , // Response Data Width
-    parameter bit ExtPrio                = 1'b0, // Use external arbiter priority flags
-    parameter int unsigned Radix         = 2     // Butterfly Radix. Currently supported: 2 or 4.
+    parameter int unsigned NumIn             = 32   , // Number of Initiators. Needs to be a power of 2
+    parameter int unsigned NumOut            = 32   , // Number of Targets. Needs to be a power of 2
+    parameter int unsigned ReqDataWidth      = 32   , // Request Data Width
+    parameter int unsigned RespDataWidth     = 32   , // Response Data Width
+    parameter bit ExtPrio                    = 1'b0 , // Use external arbiter priority flags
+    parameter int unsigned Radix             = 2    , // Butterfly Radix. Currently supported: 2 or 4.
+    parameter bit AxiVldRdy                  = 1'b1 , // Valid/ready signaling
+    // Spill registers
+    // A bit set at position i indicates a spill register at the i-th crossbar layer.
+    // The layers are counted starting at 0 from the initiator, for the requests, and from the target, for the responses.
+    parameter logic [63:0] SpillRegisterReq  = 64'h0,
+    parameter logic [63:0] SpillRegisterResp = 64'h0
   ) (
     input  logic                                 clk_i,
     input  logic                                 rst_ni,
@@ -36,22 +42,22 @@ module variable_latency_bfly_net #(
     input  logic [$clog2(NumOut)-1:0]            req_rr_i,
     input  logic [$clog2(NumOut)-1:0]            resp_rr_i,
     // Initiator side
-    input  logic [NumIn-1:0]                     req_i,     // Request signal
-    output logic [NumIn-1:0]                     gnt_o,     // Grant signal
-    input  logic [NumIn-1:0][$clog2(NumOut)-1:0] add_i,     // Target address
-    input  logic [NumIn-1:0][ReqDataWidth-1:0]   wdata_i,   // Write data
-    output logic [NumIn-1:0]                     vld_o,     // Response valid
-    input  logic [NumIn-1:0]                     rdy_i,     // Response ready
-    output logic [NumIn-1:0][RespDataWidth-1:0]  rdata_o,   // Data response (for load commands)
+    input  logic [NumIn-1:0]                     req_valid_i,     // Request valid
+    output logic [NumIn-1:0]                     req_ready_o,     // Request ready
+    input  logic [NumIn-1:0][$clog2(NumOut)-1:0] req_tgt_addr_i,  // Target address
+    input  logic [NumIn-1:0][ReqDataWidth-1:0]   req_wdata_i,     // Write data
+    output logic [NumIn-1:0]                     resp_valid_o,    // Response valid
+    input  logic [NumIn-1:0]                     resp_ready_i,    // Response ready
+    output logic [NumIn-1:0][RespDataWidth-1:0]  resp_rdata_o,    // Data response (for load commands)
     // Target side
-    output logic [NumOut-1:0]                    req_o,     // Request signal
-    output logic [NumOut-1:0][$clog2(NumIn)-1:0] ini_add_o, // Initiator address
-    input  logic [NumOut-1:0]                    gnt_i,     // Grant signal
-    output logic [NumOut-1:0][ReqDataWidth-1:0]  wdata_o,   // Write data
-    input  logic [NumOut-1:0]                    vld_i,     // Response valid
-    output logic [NumOut-1:0]                    rdy_o,     // Response ready
-    input  logic [NumOut-1:0][$clog2(NumIn)-1:0] ini_add_i, // Initiator address (response path)
-    input  logic [NumOut-1:0][RespDataWidth-1:0] rdata_i    // Data response (for load commands)
+    output logic [NumOut-1:0]                    req_valid_o,     // Request valid
+    input  logic [NumOut-1:0]                    req_ready_i,     // Request ready
+    output logic [NumOut-1:0][$clog2(NumIn)-1:0] req_ini_addr_o,  // Initiator address
+    output logic [NumOut-1:0][ReqDataWidth-1:0]  req_wdata_o,     // Write data
+    input  logic [NumOut-1:0]                    resp_valid_i,    // Response valid
+    output logic [NumOut-1:0]                    resp_ready_o,    // Response ready
+    input  logic [NumOut-1:0][$clog2(NumIn)-1:0] resp_ini_addr_i, // Initiator address
+    input  logic [NumOut-1:0][RespDataWidth-1:0] resp_rdata_i     // Data response (for load commands)
   );
 
   /*******************
@@ -69,22 +75,22 @@ module variable_latency_bfly_net #(
   localparam bit NeedsR2Stage = (Radix == 4) && (AddWidth[0] == 1'b1);
 
   /* verilator lint_off UNOPTFLAT */
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_req_in ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_req_out ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_gnt_in ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_gnt_out ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][AddWidth-1:0]        router_add_in ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][AddWidth-1:0]        router_add_out ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_vld_in;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_vld_out;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_rdy_in;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_rdy_out;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][ReqDataWidth-1:0]    router_data_in ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][ReqDataWidth-1:0]    router_data_out ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][IniAddWidth-1:0]     router_ini_add_in;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][IniAddWidth-1:0]     router_ini_add_out;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][RespDataWidth-1:0]   router_resp_data_in ;
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][RespDataWidth-1:0]   router_resp_data_out;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_req_valid_in;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_req_valid_out;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_req_ready_in;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_req_ready_out;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][AddWidth-1:0]        router_req_tgt_addr_in;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][AddWidth-1:0]        router_req_tgt_addr_out;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][ReqDataWidth-1:0]    router_req_wdata_in;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][ReqDataWidth-1:0]    router_req_wdata_out;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_resp_valid_in;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_resp_valid_out;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_resp_ready_in;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0]                      router_resp_ready_out;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][IniAddWidth-1:0]     router_req_ini_add_in;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][IniAddWidth-1:0]     router_req_ini_add_out;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][RespDataWidth-1:0]   router_resp_rdata_in;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][RespDataWidth-1:0]   router_resp_rdata_out;
   logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][RespIniAddWidth-1:0] router_resp_ini_add_in;
   logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][RespIniAddWidth-1:0] router_resp_ini_add_out;
   /* verilator lint_on UNOPTFLAT */
@@ -113,10 +119,10 @@ module variable_latency_bfly_net #(
       .CipherLayers(3             ),
       .CipherReg   (1'b1          )
     ) lfsr_req_i (
-      .clk_i (clk_i           ),
-      .rst_ni(rst_ni          ),
-      .en_i  (|(gnt_i & req_o)),
-      .out_o (req_rr          )
+      .clk_i (clk_i                       ),
+      .rst_ni(rst_ni                      ),
+      .en_i  (|(req_ready_i & req_valid_o)),
+      .out_o (req_rr                      )
     );
 
     lfsr #(
@@ -125,10 +131,10 @@ module variable_latency_bfly_net #(
       .CipherLayers(3             ),
       .CipherReg   (1'b1          )
     ) lfsr_resp_i (
-      .clk_i (clk_i           ),
-      .rst_ni(rst_ni          ),
-      .en_i  (|(rdy_i & vld_o)),
-      .out_o (resp_rr         )
+      .clk_i (clk_i                         ),
+      .rst_ni(rst_ni                        ),
+      .en_i  (|(resp_ready_i & resp_valid_o)),
+      .out_o (resp_rr                       )
     );
   end
 
@@ -143,23 +149,23 @@ module variable_latency_bfly_net #(
     if (BankFact < Radix) begin : gen_interleaved
       if ((j % BankFact) == 0) begin : gen_connect
         // Req
-        assign router_req_in[0][j/Radix][j%Radix]     = req_i[j/BankFact]                  ;
-        assign gnt_o[j/BankFact]                      = router_gnt_out[0][j/Radix][j%Radix];
-        assign router_add_in[0][j/Radix][j%Radix]     = add_i[j/BankFact]                  ;
-        assign router_data_in[0][j/Radix][j%Radix]    = wdata_i[j/BankFact]                ;
-        assign router_ini_add_in[0][j/Radix][j%Radix] = j/BankFact                         ;
-        assign router_rdy_in[0][j/Radix][j%Radix]     = rdy_i[j/BankFact]                  ;
+        assign router_req_valid_in[0][j/Radix][j%Radix]    = req_valid_i[j/BankFact]                  ;
+        assign req_ready_o[j/BankFact]                     = router_req_ready_out[0][j/Radix][j%Radix];
+        assign router_req_tgt_addr_in[0][j/Radix][j%Radix] = req_tgt_addr_i[j/BankFact]               ;
+        assign router_req_wdata_in[0][j/Radix][j%Radix]    = req_wdata_i[j/BankFact]                  ;
+        assign router_req_ini_add_in[0][j/Radix][j%Radix]  = j/BankFact                               ; // Constant
+        assign router_resp_ready_in[0][j/Radix][j%Radix]   = resp_ready_i[j/BankFact]                 ;
 
         // Resp
-        assign rdata_o[j/BankFact] = router_resp_data_out[0][j/Radix][j%Radix];
-        assign vld_o[j/BankFact]   = router_vld_out[0][j/Radix][j%Radix]      ;
+        assign resp_rdata_o[j/BankFact] = router_resp_rdata_out[0][j/Radix][j%Radix] ;
+        assign resp_valid_o[j/BankFact] = router_resp_valid_out[0][j/Radix][j%Radix] ;
       end else begin : gen_tie_off
         // Req
-        assign router_req_in[0][j/Radix][j%Radix]     = 1'b0;
-        assign router_ini_add_in[0][j/Radix][j%Radix] = '0  ;
-        assign router_add_in[0][j/Radix][j%Radix]     = '0  ;
-        assign router_data_in[0][j/Radix][j%Radix]    = '0  ;
-        assign router_rdy_in[0][j/Radix][j%Radix]     = 1'b0;
+        assign router_req_valid_in[0][j/Radix][j%Radix]    = 1'b0;
+        assign router_req_ini_add_in[0][j/Radix][j%Radix]  = '0  ;
+        assign router_req_tgt_addr_in[0][j/Radix][j%Radix] = '0  ;
+        assign router_req_wdata_in[0][j/Radix][j%Radix]    = '0  ;
+        assign router_resp_ready_in[0][j/Radix][j%Radix]   = '1  ;
       end
     // We only enter this case if each input switchbox has 1 or zero connections.
     // Only connect to lower portion of switchboxes and tie off upper portion. This allows
@@ -167,23 +173,23 @@ module variable_latency_bfly_net #(
     end else begin : gen_linear
       if (((j % Radix) == 0) && (j/Radix < NumIn)) begin : gen_connect
         // Req
-        assign router_req_in[0][j/Radix][j%Radix]     = req_i[j/Radix]                     ;
-        assign router_ini_add_in[0][j/Radix][j%Radix] = j/Radix                            ;
-        assign gnt_o[j/Radix]                         = router_gnt_out[0][j/Radix][j%Radix];
-        assign router_add_in[0][j/Radix][j%Radix]     = add_i[j/Radix]                     ;
-        assign router_data_in[0][j/Radix][j%Radix]    = wdata_i[j/Radix]                   ;
-        assign router_rdy_in[0][j/Radix][j%Radix]     = rdy_i[j/Radix]                     ;
+        assign router_req_valid_in[0][j/Radix][j%Radix]    = req_valid_i[j/Radix]                     ;
+        assign router_req_ini_add_in[0][j/Radix][j%Radix]  = j/Radix                                  ;
+        assign req_ready_o[j/Radix]                        = router_req_ready_out[0][j/Radix][j%Radix];
+        assign router_req_tgt_addr_in[0][j/Radix][j%Radix] = req_tgt_addr_i[j/Radix]                  ;
+        assign router_req_wdata_in[0][j/Radix][j%Radix]    = req_wdata_i[j/Radix]                     ;
+        assign router_resp_ready_in[0][j/Radix][j%Radix]   = resp_ready_i[j/Radix]                    ;
 
         // Resp
-        assign rdata_o[j/Radix] = router_resp_data_out[0][j/Radix][j%Radix];
-        assign vld_o[j/Radix]   = router_vld_out[0][j/Radix][j%Radix]      ;
+        assign resp_rdata_o[j/Radix] = router_resp_rdata_out[0][j/Radix][j%Radix] ;
+        assign resp_valid_o[j/Radix] = router_resp_valid_out[0][j/Radix][j%Radix] ;
       end else begin : gen_tie_off
         // Req
-        assign router_req_in[0][j/Radix][j%Radix]     = 1'b0;
-        assign router_ini_add_in[0][j/Radix][j%Radix] = '0  ;
-        assign router_add_in[0][j/Radix][j%Radix]     = '0  ;
-        assign router_data_in[0][j/Radix][j%Radix]    = '0  ;
-        assign router_rdy_in[0][j/Radix][j%Radix]     = 1'b0;
+        assign router_req_valid_in[0][j/Radix][j%Radix]    = 1'b0;
+        assign router_req_ini_add_in[0][j/Radix][j%Radix]  = '0  ;
+        assign router_req_tgt_addr_in[0][j/Radix][j%Radix] = '0  ;
+        assign router_req_wdata_in[0][j/Radix][j%Radix]    = '0  ;
+        assign router_resp_ready_in[0][j/Radix][j%Radix]   = '1  ;
       end
     end
   end
@@ -192,34 +198,34 @@ module variable_latency_bfly_net #(
   for (genvar j = 0; j < Radix*NumRouters; j++) begin : gen_outputs
     if (j < NumOut) begin : gen_connect
       // Req
-      assign req_o[j]                                     = router_req_out[NumStages-1][j/Radix][j%Radix]    ;
-      assign ini_add_o[j]                                 = router_ini_add_out[NumStages-1][j/Radix][j%Radix];
-      assign router_gnt_in[NumStages-1][j/Radix][j%Radix] = gnt_i[j]                                         ;
-      assign wdata_o[j]                                   = router_data_out[NumStages-1][j/Radix][j%Radix]   ;
-      assign rdy_o[j]                                     = router_rdy_out[NumStages-1][j/Radix][j%Radix]    ;
+      assign req_valid_o[j]                                     = router_req_valid_out[NumStages-1][j/Radix][j%Radix]   ;
+      assign req_ini_addr_o[j]                                  = router_req_ini_add_out[NumStages-1][j/Radix][j%Radix] ;
+      assign router_req_ready_in[NumStages-1][j/Radix][j%Radix] = req_ready_i[j]                                        ;
+      assign req_wdata_o[j]                                     = router_req_wdata_out[NumStages-1][j/Radix][j%Radix]   ;
+      assign resp_ready_o[j]                                    = router_resp_ready_out[NumStages-1][j/Radix][j%Radix]  ;
 
       // Resp
-      assign router_resp_data_in[NumStages-1][j/Radix][j%Radix] = rdata_i[j];
-      assign router_vld_in[NumStages-1][j/Radix][j%Radix]       = vld_i[j]  ;
+      assign router_resp_rdata_in[NumStages-1][j/Radix][j%Radix] = resp_rdata_i[j] ;
+      assign router_resp_valid_in[NumStages-1][j/Radix][j%Radix] = resp_valid_i[j] ;
 
       if (BankFact < Radix) begin : gen_interleaved
         // How many bits are used to address the first level routers?
         localparam FirstLevelBits                                    = NumRouters*Radix > NumIn ? $clog2(NumRouters*Radix/NumIn) : $clog2(Radix);
         // If the first level routers are not fully connected, how many extra bits does this stage need?
-        localparam FirstLevelPadBits                                 = RespIniAddWidth - IniAddWidth - NeedsR2Stage                                                                                                             ;
+        localparam FirstLevelPadBits                                 = RespIniAddWidth - IniAddWidth - NeedsR2Stage                                                                                                                               ;
         // If there is an R2 stage, we need to add an extra bit at stage 1 indicating which Radix-2 router at stage 0 will receive this request
-        assign router_resp_ini_add_in[NumStages-1][j/Radix][j%Radix] = {ini_add_i[j][FirstLevelBits-1:0], {FirstLevelPadBits{1'b0}}, {NeedsR2Stage{ini_add_i[j][FirstLevelBits-1]}}, ini_add_i[j][IniAddWidth-1:FirstLevelBits]};
+        assign router_resp_ini_add_in[NumStages-1][j/Radix][j%Radix] = {resp_ini_addr_i[j][FirstLevelBits-1:0], {FirstLevelPadBits{1'b0}}, {NeedsR2Stage{resp_ini_addr_i[j][FirstLevelBits-1]}}, resp_ini_addr_i[j][IniAddWidth-1:FirstLevelBits]};
       end else begin: gen_linear
         // If we are here, the first level switch box has a single connection. Zero-padding should route the data back to the initiator.
-        assign router_resp_ini_add_in[NumStages-1][j/Radix][j%Radix] = ini_add_i[j];
+        assign router_resp_ini_add_in[NumStages-1][j/Radix][j%Radix] = resp_ini_addr_i[j];
       end
     end else begin : gen_tie_off
       // Req
-      assign router_gnt_in[NumStages-1][j/Radix][j%Radix] = 1'b0;
+      assign router_req_ready_in[NumStages-1][j/Radix][j%Radix] = '1;
 
       // Resp
-      assign router_resp_data_in[NumStages-1][j/Radix][j%Radix]    = '0  ;
-      assign router_vld_in[NumStages-1][j/Radix][j%Radix]          = 1'b0;
+      assign router_resp_rdata_in[NumStages-1][j/Radix][j%Radix]   = '0  ;
+      assign router_resp_valid_in[NumStages-1][j/Radix][j%Radix]   = 1'b0;
       assign router_resp_ini_add_in[NumStages-1][j/Radix][j%Radix] = '0  ;
     end
   end
@@ -235,15 +241,15 @@ module variable_latency_bfly_net #(
           localparam int unsigned k = pow * s + (r % pow) + (r / pow / 2) * pow * 2;
           localparam int unsigned j = (r / pow) % 2                                ;
 
-          assign router_req_in[l+1][k/2][(k%2)*2+j]        = router_req_out[l][r/2][(r%2)*2+s]            ;
-          assign router_ini_add_in[l+1][k/2][(k%2)*2+j]    = router_ini_add_out[l][r/2][(r%2)*2+s]        ;
-          assign router_rdy_in[l+1][k/2][(k%2)*2+j]        = router_rdy_out[l][r/2][(r%2)*2+s]            ;
-          assign router_add_in[l+1][k/2][(k%2)*2+j]        = router_add_out[l][r/2][(r%2)*2+s]            ;
-          assign router_data_in[l+1][k/2][(k%2)*2+j]       = router_data_out[l][r/2][(r%2)*2+s]           ;
-          assign router_gnt_in[l][r/2][(r%2)*2+s]          = router_gnt_out[l+1][k/2][(k%2)*2+j]          ;
-          assign router_resp_data_in[l][r/2][(r%2)*2+s]    = router_resp_data_out[l+1][k/2][(k%2)*2+j]    ;
-          assign router_resp_ini_add_in[l][r/2][(r%2)*2+s] = router_resp_ini_add_out[l+1][k/2][(k%2)*2+j] ;
-          assign router_vld_in[l][r/2][(r%2)*2+s]          = router_vld_out[l+1][k/2][(k%2)*2+j]          ;
+          assign router_req_valid_in[l+1][k/2][(k%2)*2+j]    = router_req_valid_out[l][r/2][(r%2)*2+s]      ;
+          assign router_req_ini_add_in[l+1][k/2][(k%2)*2+j]  = router_req_ini_add_out[l][r/2][(r%2)*2+s]    ;
+          assign router_resp_ready_in[l+1][k/2][(k%2)*2+j]   = router_resp_ready_out[l][r/2][(r%2)*2+s]     ;
+          assign router_req_tgt_addr_in[l+1][k/2][(k%2)*2+j] = router_req_tgt_addr_out[l][r/2][(r%2)*2+s]   ;
+          assign router_req_wdata_in[l+1][k/2][(k%2)*2+j]    = router_req_wdata_out[l][r/2][(r%2)*2+s]      ;
+          assign router_req_ready_in[l][r/2][(r%2)*2+s]      = router_req_ready_out[l+1][k/2][(k%2)*2+j]    ;
+          assign router_resp_rdata_in[l][r/2][(r%2)*2+s]     = router_resp_rdata_out[l+1][k/2][(k%2)*2+j]   ;
+          assign router_resp_ini_add_in[l][r/2][(r%2)*2+s]   = router_resp_ini_add_out[l+1][k/2][(k%2)*2+j] ;
+          assign router_resp_valid_in[l][r/2][(r%2)*2+s]     = router_resp_valid_out[l+1][k/2][(k%2)*2+j]   ;
         end
       end
     end else begin : gen_std_stage
@@ -254,15 +260,15 @@ module variable_latency_bfly_net #(
           localparam int unsigned k = pow * s + (r % pow) + (r / pow / Radix) * pow * Radix;
           localparam int unsigned j = (r / pow) % Radix                                    ;
 
-          assign router_req_in[l+1][k][j]        = router_req_out[l][r][s]            ;
-          assign router_ini_add_in[l+1][k][j]    = router_ini_add_out[l][r][s]        ;
-          assign router_rdy_in[l+1][k][j]        = router_rdy_out[l][r][s]            ;
-          assign router_add_in[l+1][k][j]        = router_add_out[l][r][s]            ;
-          assign router_data_in[l+1][k][j]       = router_data_out[l][r][s]           ;
-          assign router_gnt_in[l][r][s]          = router_gnt_out[l+1][k][j]          ;
-          assign router_resp_data_in[l][r][s]    = router_resp_data_out[l+1][k][j]    ;
-          assign router_vld_in[l][r][s]          = router_vld_out[l+1][k][j]          ;
-          assign router_resp_ini_add_in[l][r][s] = router_resp_ini_add_out[l+1][k][j] ;
+          assign router_req_valid_in[l+1][k][j]    = router_req_valid_out[l][r][s]      ;
+          assign router_req_ini_add_in[l+1][k][j]  = router_req_ini_add_out[l][r][s]    ;
+          assign router_resp_ready_in[l+1][k][j]   = router_resp_ready_out[l][r][s]     ;
+          assign router_req_tgt_addr_in[l+1][k][j] = router_req_tgt_addr_out[l][r][s]   ;
+          assign router_req_wdata_in[l+1][k][j]    = router_req_wdata_out[l][r][s]      ;
+          assign router_req_ready_in[l][r][s]      = router_req_ready_out[l+1][k][j]    ;
+          assign router_resp_rdata_in[l][r][s]     = router_resp_rdata_out[l+1][k][j]   ;
+          assign router_resp_valid_in[l][r][s]     = router_resp_valid_out[l+1][k][j]   ;
+          assign router_resp_ini_add_in[l][r][s]   = router_resp_ini_add_out[l+1][k][j] ;
         end
       end
     end
@@ -272,7 +278,7 @@ module variable_latency_bfly_net #(
    *   Crossbars   *
    *****************/
 
-  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][AddWidth+IniAddWidth+ReqDataWidth-1:0] data_in , data_out ;
+  logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][AddWidth+IniAddWidth+ReqDataWidth-1:0] req_data_in , req_data_out ;
   logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][RespIniAddWidth+RespDataWidth-1:0]     resp_data_in, resp_data_out;
 
   for (genvar l = 0; l < NumStages; l++) begin : gen_routers1
@@ -286,46 +292,49 @@ module variable_latency_bfly_net #(
         logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][0:0] resp_prio   ;
 
         for (genvar k = 0; k < Radix; k++) begin : gen_map
-          assign add[l][r][k]                                                                     = router_add_in[l][r][k][AddWidth-1]                                              ;
-          assign resp_ini_add[l][r][k]                                                            = router_resp_ini_add_in[l][r][k][0]                                              ;
-          assign data_in[l][r][k]                                                                 = {router_add_in[l][r][k]<<1, router_ini_add_in[l][r][k], router_data_in[l][r][k]};
-          assign {router_add_out[l][r][k], router_ini_add_out[l][r][k], router_data_out[l][r][k]} = data_out[l][r][k]                                                               ;
-          assign resp_data_in[l][r][k]                                                            = {router_resp_ini_add_in[l][r][k]>>1, router_resp_data_in[l][r][k]}              ;
-          assign {router_resp_ini_add_out[l][r][k], router_resp_data_out[l][r][k]}                = resp_data_out[l][r][k]                                                          ;
-          assign req_prio[l][r][k]                                                                = req_rr[$clog2(NumOut)-1]                                                        ;
-          assign resp_prio[l][r][k]                                                               = resp_rr[$clog2(NumOut)-1]                                                       ;
+          assign add[l][r][k]                                                                                       = router_req_tgt_addr_in[l][r][k][AddWidth-1]                                                       ;
+          assign resp_ini_add[l][r][k]                                                                              = router_resp_ini_add_in[l][r][k][0]                                                                ;
+          assign req_data_in[l][r][k]                                                                               = {router_req_tgt_addr_in[l][r][k]<<1, router_req_ini_add_in[l][r][k], router_req_wdata_in[l][r][k]};
+          assign {router_req_tgt_addr_out[l][r][k], router_req_ini_add_out[l][r][k], router_req_wdata_out[l][r][k]} = req_data_out[l][r][k]                                                                             ;
+          assign resp_data_in[l][r][k]                                                                              = {router_resp_ini_add_in[l][r][k]>>1, router_resp_rdata_in[l][r][k]}                               ;
+          assign {router_resp_ini_add_out[l][r][k], router_resp_rdata_out[l][r][k]}                                 = resp_data_out[l][r][k]                                                                            ;
+          assign req_prio[l][r][k]                                                                                  = req_rr[$clog2(NumOut)-1]                                                                          ;
+          assign resp_prio[l][r][k]                                                                                 = resp_rr[$clog2(NumOut)-1]                                                                         ;
         end
 
         for (genvar k = 0; k < 2; k++) begin: gen_xbar
           full_duplex_xbar #(
-            .NumIn        (2                                    ),
-            .NumOut       (2                                    ),
-            .ReqDataWidth (AddWidth + IniAddWidth + ReqDataWidth),
-            .RespDataWidth(RespDataWidth + RespIniAddWidth      ),
-            .ExtPrio      (1'b1                                 )
+            .NumIn            (2                                    ),
+            .NumOut           (2                                    ),
+            .ReqDataWidth     (AddWidth + IniAddWidth + ReqDataWidth),
+            .RespDataWidth    (RespDataWidth + RespIniAddWidth      ),
+            .ExtPrio          (1'b1                                 ),
+            .SpillRegisterReq (SpillRegisterReq[l]                  ),
+            .SpillRegisterResp(SpillRegisterResp[NumStages-l-1]     ),
+            .AxiVldRdy        (AxiVldRdy                            )
           ) i_xbar (
-            .clk_i    (clk_i                         ),
-            .rst_ni   (rst_ni                        ),
+            .clk_i          (clk_i                                ),
+            .rst_ni         (rst_ni                               ),
             // External priority flags
-            .req_rr_i (req_prio[l][r][k*2 +: 2]      ),
-            .resp_rr_i(resp_prio[l][r][k*2 +: 2]     ),
+            .req_rr_i       (req_prio[l][r][k*2 +: 2]             ),
+            .resp_rr_i      (resp_prio[l][r][k*2 +: 2]            ),
             // Initiator side
-            .req_i    (router_req_in[l][r][k*2 +: 2] ),
-            .gnt_o    (router_gnt_out[l][r][k*2 +: 2]),
-            .add_i    (add[l][r][k*2 +: 2]           ),
-            .wdata_i  (data_in[l][r][k*2 +: 2]       ),
-            .vld_o    (router_vld_out[l][r][k*2 +: 2]),
-            .rdy_i    (router_rdy_in[l][r][k*2 +: 2] ),
-            .rdata_o  (resp_data_out[l][r][k*2 +: 2] ),
+            .req_valid_i    (router_req_valid_in[l][r][k*2 +: 2]  ),
+            .req_ready_o    (router_req_ready_out[l][r][k*2 +: 2] ),
+            .req_tgt_addr_i (add[l][r][k*2 +: 2]                  ),
+            .req_wdata_i    (req_data_in[l][r][k*2 +: 2]          ),
+            .resp_valid_o   (router_resp_valid_out[l][r][k*2 +: 2]),
+            .resp_ready_i   (router_resp_ready_in[l][r][k*2 +: 2] ),
+            .resp_rdata_o   (resp_data_out[l][r][k*2 +: 2]        ),
             // Target side
-            .req_o    (router_req_out[l][r][k*2 +: 2]),
-            .ini_add_o(/* Unused */                  ),
-            .gnt_i    (router_gnt_in[l][r][k*2 +: 2] ),
-            .wdata_o  (data_out[l][r][k*2 +: 2]      ),
-            .vld_i    (router_vld_in[l][r][k*2 +: 2] ),
-            .rdy_o    (router_rdy_out[l][r][k*2 +: 2]),
-            .ini_add_i(resp_ini_add[l][r][k*2 +: 2]  ),
-            .rdata_i  (resp_data_in[l][r][k*2 +: 2]  )
+            .req_valid_o    (router_req_valid_out[l][r][k*2 +: 2] ),
+            .req_ini_addr_o (/* Unused */                         ),
+            .req_ready_i    (router_req_ready_in[l][r][k*2 +: 2]  ),
+            .req_wdata_o    (req_data_out[l][r][k*2 +: 2]         ),
+            .resp_valid_i   (router_resp_valid_in[l][r][k*2 +: 2] ),
+            .resp_ready_o   (router_resp_ready_out[l][r][k*2 +: 2]),
+            .resp_ini_addr_i(resp_ini_add[l][r][k*2 +: 2]         ),
+            .resp_rdata_i   (resp_data_in[l][r][k*2 +: 2]         )
           );
         end
 
@@ -337,12 +346,12 @@ module variable_latency_bfly_net #(
         logic [NumStages-1:0][NumRouters-1:0][Radix-1:0][$clog2(Radix)-1:0] resp_prio   ;
 
         for (genvar k = 0; k < Radix; k++) begin : gen_map
-          assign add[l][r][k]                                                                     = router_add_in[l][r][k][AddWidth-1 -: $clog2(Radix)]                                         ;
-          assign resp_ini_add[l][r][k]                                                            = router_resp_ini_add_in[l][r][k][$clog2(Radix)-1:0]                                          ;
-          assign data_in[l][r][k]                                                                 = {router_add_in[l][r][k]<<$clog2(Radix), router_ini_add_in[l][r][k], router_data_in[l][r][k]};
-          assign {router_add_out[l][r][k], router_ini_add_out[l][r][k], router_data_out[l][r][k]} = data_out[l][r][k]                                                                           ;
-          assign resp_data_in[l][r][k]                                                            = {router_resp_ini_add_in[l][r][k]>>$clog2(Radix), router_resp_data_in[l][r][k]}              ;
-          assign {router_resp_ini_add_out[l][r][k], router_resp_data_out[l][r][k]}                = resp_data_out[l][r][k]                                                                      ;
+          assign add[l][r][k]                                                                                       = router_req_tgt_addr_in[l][r][k][AddWidth-1 -: $clog2(Radix)]                                                  ;
+          assign resp_ini_add[l][r][k]                                                                              = router_resp_ini_add_in[l][r][k][$clog2(Radix)-1:0]                                                            ;
+          assign req_data_in[l][r][k]                                                                               = {router_req_tgt_addr_in[l][r][k]<<$clog2(Radix), router_req_ini_add_in[l][r][k], router_req_wdata_in[l][r][k]};
+          assign {router_req_tgt_addr_out[l][r][k], router_req_ini_add_out[l][r][k], router_req_wdata_out[l][r][k]} = req_data_out[l][r][k]                                                                                         ;
+          assign resp_data_in[l][r][k]                                                                              = {router_resp_ini_add_in[l][r][k]>>$clog2(Radix), router_resp_rdata_in[l][r][k]}                               ;
+          assign {router_resp_ini_add_out[l][r][k], router_resp_rdata_out[l][r][k]}                                 = resp_data_out[l][r][k]                                                                                        ;
 
           // depending on where the requests are connected in the radix 4 case, we have to flip the priority vector
           // this is needed because one of the bits may be constantly set to zero
@@ -360,34 +369,37 @@ module variable_latency_bfly_net #(
         end
 
         full_duplex_xbar #(
-          .NumIn        (Radix                                ),
-          .NumOut       (Radix                                ),
-          .ReqDataWidth (AddWidth + IniAddWidth + ReqDataWidth),
-          .RespDataWidth(RespDataWidth + RespIniAddWidth      ),
-          .ExtPrio      (1'b1                                 )
+          .NumIn            (Radix                                ),
+          .NumOut           (Radix                                ),
+          .ReqDataWidth     (AddWidth + IniAddWidth + ReqDataWidth),
+          .RespDataWidth    (RespDataWidth + RespIniAddWidth      ),
+          .ExtPrio          (1'b1                                 ),
+          .SpillRegisterReq (SpillRegisterReq[l]                  ),
+          .SpillRegisterResp(SpillRegisterResp[NumStages-l-1]     ),
+          .AxiVldRdy        (AxiVldRdy                            )
         ) i_xbar (
-          .clk_i    (clk_i               ),
-          .rst_ni   (rst_ni              ),
+          .clk_i          (clk_i                      ),
+          .rst_ni         (rst_ni                     ),
           // External priority flags
-          .req_rr_i (req_prio[l][r]      ),
-          .resp_rr_i(resp_prio[l][r]     ),
+          .req_rr_i       (req_prio[l][r]             ),
+          .resp_rr_i      (resp_prio[l][r]            ),
           // Initiator side
-          .req_i    (router_req_in[l][r] ),
-          .gnt_o    (router_gnt_out[l][r]),
-          .add_i    (add[l][r]           ),
-          .wdata_i  (data_in[l][r]       ),
-          .vld_o    (router_vld_out[l][r]),
-          .rdy_i    (router_rdy_in[l][r] ),
-          .rdata_o  (resp_data_out[l][r] ),
+          .req_valid_i    (router_req_valid_in[l][r]  ),
+          .req_ready_o    (router_req_ready_out[l][r] ),
+          .req_tgt_addr_i (add[l][r]                  ),
+          .req_wdata_i    (req_data_in[l][r]          ),
+          .resp_valid_o   (router_resp_valid_out[l][r]),
+          .resp_ready_i   (router_resp_ready_in[l][r] ),
+          .resp_rdata_o   (resp_data_out[l][r]        ),
           // Target side
-          .req_o    (router_req_out[l][r]),
-          .ini_add_o(/* Unused */        ),
-          .gnt_i    (router_gnt_in[l][r] ),
-          .wdata_o  (data_out[l][r]      ),
-          .vld_i    (router_vld_in[l][r] ),
-          .rdy_o    (router_rdy_out[l][r]),
-          .ini_add_i(resp_ini_add[l][r]  ),
-          .rdata_i  (resp_data_in[l][r]  )
+          .req_valid_o    (router_req_valid_out[l][r] ),
+          .req_ini_addr_o (/* Unused */               ),
+          .req_ready_i    (router_req_ready_in[l][r]  ),
+          .req_wdata_o    (req_data_out[l][r]         ),
+          .resp_valid_i   (router_resp_valid_in[l][r] ),
+          .resp_ready_o   (router_resp_ready_out[l][r]),
+          .resp_ini_addr_i(resp_ini_add[l][r]         ),
+          .resp_rdata_i   (resp_data_in[l][r]         )
         );
 
       end
