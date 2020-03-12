@@ -97,46 +97,46 @@ module mempool #(
       .axi_req_t      (axi_req_t      ),
       .axi_resp_t     (axi_resp_t     )
     ) i_tile (
-      .clk_i                (clk_i                                                          ),
-      .rst_ni               (rst_ni                                                         ),
-      .scan_enable_i        (1'b0                                                           ),
-      .scan_data_i          (1'b0                                                           ),
-      .scan_data_o          (/* Unused */                                                   ),
-      .tile_id_i            (t[$clog2(NumTiles)-1:0]                                        ),
+      .clk_i                      (clk_i                                                          ),
+      .rst_ni                     (rst_ni                                                         ),
+      .scan_enable_i              (1'b0                                                           ),
+      .scan_data_i                (1'b0                                                           ),
+      .scan_data_o                (/* Unused */                                                   ),
+      .tile_id_i                  (t[$clog2(NumTiles)-1:0]                                        ),
       // TCDM Master interfaces
-      .tcdm_req_valid_o     (tcdm_master_req_valid[NumCoresPerTile*t +: NumCoresPerTile]    ),
-      .tcdm_req_tgt_addr_o  (tcdm_master_req_tgt_addr[NumCoresPerTile*t +: NumCoresPerTile] ),
-      .tcdm_req_wen_o       (tcdm_master_req_wen[NumCoresPerTile*t +: NumCoresPerTile]      ),
-      .tcdm_req_wdata_o     (tcdm_master_req_wdata[NumCoresPerTile*t +: NumCoresPerTile]    ),
-      .tcdm_req_be_o        (tcdm_master_req_be[NumCoresPerTile*t +: NumCoresPerTile]       ),
-      .tcdm_req_ready_i     (tcdm_master_req_ready[NumCoresPerTile*t +: NumCoresPerTile]    ),
-      .tcdm_resp_valid_i    (tcdm_master_resp_valid[NumCoresPerTile*t +: NumCoresPerTile]   ),
-      .tcdm_resp_rdata_i    (tcdm_master_resp_rdata[NumCoresPerTile*t +: NumCoresPerTile]   ),
+      .tcdm_master_req_valid_o    (tcdm_master_req_valid[NumCoresPerTile*t +: NumCoresPerTile]    ),
+      .tcdm_master_req_tgt_addr_o (tcdm_master_req_tgt_addr[NumCoresPerTile*t +: NumCoresPerTile] ),
+      .tcdm_master_req_wen_o      (tcdm_master_req_wen[NumCoresPerTile*t +: NumCoresPerTile]      ),
+      .tcdm_master_req_wdata_o    (tcdm_master_req_wdata[NumCoresPerTile*t +: NumCoresPerTile]    ),
+      .tcdm_master_req_be_o       (tcdm_master_req_be[NumCoresPerTile*t +: NumCoresPerTile]       ),
+      .tcdm_master_req_ready_i    (tcdm_master_req_ready[NumCoresPerTile*t +: NumCoresPerTile]    ),
+      .tcdm_master_resp_valid_i   (tcdm_master_resp_valid[NumCoresPerTile*t +: NumCoresPerTile]   ),
+      .tcdm_master_resp_rdata_i   (tcdm_master_resp_rdata[NumCoresPerTile*t +: NumCoresPerTile]   ),
       // TCDM banks interface
-      .tcdm_req_valid_i     (tcdm_slave_req_valid[NumCoresPerTile*t +: NumCoresPerTile]     ),
-      .tcdm_req_ready_o     (tcdm_slave_req_ready[NumCoresPerTile*t +: NumCoresPerTile]     ),
-      .tcdm_req_tgt_addr_i  (tcdm_slave_req_tgt_addr[NumCoresPerTile*t +: NumCoresPerTile]  ),
-      .tcdm_req_be_i        (tcdm_slave_req_be[NumCoresPerTile*t +: NumCoresPerTile]        ),
-      .tcdm_req_wen_i       (tcdm_slave_req_wen[NumCoresPerTile*t +: NumCoresPerTile]       ),
-      .tcdm_req_wdata_i     (tcdm_slave_req_wdata[NumCoresPerTile*t +: NumCoresPerTile]     ),
-      .tcdm_req_ini_addr_i  (tcdm_slave_req_ini_addr[NumCoresPerTile*t +: NumCoresPerTile]  ),
-      .tcdm_resp_ini_addr_o (tcdm_slave_resp_ini_addr[NumCoresPerTile*t +: NumCoresPerTile] ),
-      .tcdm_resp_rdata_o    (tcdm_slave_resp_rdata[NumCoresPerTile*t +: NumCoresPerTile]    ),
-      .tcdm_resp_valid_o    (tcdm_slave_resp_valid[NumCoresPerTile*t +: NumCoresPerTile]    ),
-      .tcdm_resp_ready_i    (tcdm_slave_resp_ready[NumCoresPerTile*t +: NumCoresPerTile]    ),
+      .tcdm_slave_req_valid_i     (tcdm_slave_req_valid[NumCoresPerTile*t +: NumCoresPerTile]     ),
+      .tcdm_slave_req_ready_o     (tcdm_slave_req_ready[NumCoresPerTile*t +: NumCoresPerTile]     ),
+      .tcdm_slave_req_tgt_addr_i  (tcdm_slave_req_tgt_addr[NumCoresPerTile*t +: NumCoresPerTile]  ),
+      .tcdm_slave_req_be_i        (tcdm_slave_req_be[NumCoresPerTile*t +: NumCoresPerTile]        ),
+      .tcdm_slave_req_wen_i       (tcdm_slave_req_wen[NumCoresPerTile*t +: NumCoresPerTile]       ),
+      .tcdm_slave_req_wdata_i     (tcdm_slave_req_wdata[NumCoresPerTile*t +: NumCoresPerTile]     ),
+      .tcdm_slave_req_ini_addr_i  (tcdm_slave_req_ini_addr[NumCoresPerTile*t +: NumCoresPerTile]  ),
+      .tcdm_slave_resp_ini_addr_o (tcdm_slave_resp_ini_addr[NumCoresPerTile*t +: NumCoresPerTile] ),
+      .tcdm_slave_resp_rdata_o    (tcdm_slave_resp_rdata[NumCoresPerTile*t +: NumCoresPerTile]    ),
+      .tcdm_slave_resp_valid_o    (tcdm_slave_resp_valid[NumCoresPerTile*t +: NumCoresPerTile]    ),
+      .tcdm_slave_resp_ready_i    (tcdm_slave_resp_ready[NumCoresPerTile*t +: NumCoresPerTile]    ),
       // AXI interface
-      .axi_mst_req_o        (axi_mst_req_o[t]                                               ),
-      .axi_mst_resp_i       (axi_mst_resp_i[t]                                              ),
+      .axi_mst_req_o              (axi_mst_req_o[t]                                               ),
+      .axi_mst_resp_i             (axi_mst_resp_i[t]                                              ),
       // Instruction refill interface
-      .refill_qaddr_o       (/* Not yet implemented */                                      ),
-      .refill_qlen_o        (/* Not yet implemented */                                      ), // AXI signal
-      .refill_qvalid_o      (/* Not yet implemented */                                      ),
-      .refill_qready_i      (/* Not yet implemented */ 1'b0                                 ),
-      .refill_pdata_i       (/* Not yet implemented */ '0                                   ),
-      .refill_perror_i      (/* Not yet implemented */ '0                                   ),
-      .refill_pvalid_i      (/* Not yet implemented */ 1'b0                                 ),
-      .refill_plast_i       (/* Not yet implemented */ 1'b0                                 ),
-      .refill_pready_o      (/* Not yet implemented */                                      )
+      .refill_qaddr_o             (/* Not yet implemented */                                      ),
+      .refill_qlen_o              (/* Not yet implemented */                                      ), // AXI signal
+      .refill_qvalid_o            (/* Not yet implemented */                                      ),
+      .refill_qready_i            (/* Not yet implemented */ 1'b0                                 ),
+      .refill_pdata_i             (/* Not yet implemented */ '0                                   ),
+      .refill_perror_i            (/* Not yet implemented */ '0                                   ),
+      .refill_pvalid_i            (/* Not yet implemented */ 1'b0                                 ),
+      .refill_plast_i             (/* Not yet implemented */ 1'b0                                 ),
+      .refill_pready_o            (/* Not yet implemented */                                      )
     );
 
     assign tcdm_master_resp_ready[NumCoresPerTile*t +: NumCoresPerTile] = '1;
@@ -156,7 +156,7 @@ module mempool #(
     .Topology         (tcdm_interconnect_pkg::BFLY4              ),
     // One spill register every two levels of arbitration
     .SpillRegisterReq ({32{2'b01}}                               ),
-    .SpillRegisterResp({32{2'b10}}                               )
+    .SpillRegisterResp({32{2'b01}}                               )
   ) i_interco (
     .clk_i          (clk_i                   ),
     .rst_ni         (rst_ni                  ),
