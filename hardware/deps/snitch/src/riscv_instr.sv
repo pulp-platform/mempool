@@ -1,0 +1,1 @@
+../riscv-opcodes/inst.sverilog

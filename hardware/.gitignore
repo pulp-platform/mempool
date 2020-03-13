@@ -1,5 +1,4 @@
 *.log
-*.lock
 *.project
 bender
 .bender/*
