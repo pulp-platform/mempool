@@ -33,7 +33,7 @@ module mempool #(
     parameter int unsigned NumBanksPerTile  = NumBanks / NumTiles       ,
     parameter int unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / BeWidth)
   ) (
-    // Clock andreset
+    // Clock and reset
     input  logic                     clk_i,
     input  logic                     rst_ni,
     // AXI Plugs for testbench
@@ -154,9 +154,8 @@ module mempool #(
     .DataWidth        (DataWidth                                 ),
     .AddrMemWidth     (TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
     .Topology         (tcdm_interconnect_pkg::BFLY4              ),
-    // One spill register every two levels of arbitration
-    .SpillRegisterReq ({32{2'b01}}                               ),
-    .SpillRegisterResp({32{2'b01}}                               )
+    .SpillRegisterReq (64'b0110                                  ),
+    .SpillRegisterResp(64'b0110                                  )
   ) i_interco (
     .clk_i          (clk_i                   ),
     .rst_ni         (rst_ni                  ),
