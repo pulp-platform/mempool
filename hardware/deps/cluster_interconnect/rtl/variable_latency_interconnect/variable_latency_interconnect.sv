@@ -191,45 +191,13 @@ module variable_latency_interconnect #(
   else if (Topology == tcdm_interconnect_pkg::BFLY2 || Topology == tcdm_interconnect_pkg::BFLY4) begin: gen_bfly
     localparam int unsigned Radix = 2**Topology;
 
-    logic [$clog2(NumOut)-1:0] req_rr ;
-    logic [$clog2(NumOut)-1:0] resp_rr;
-
-    // Although round robin arbitration works in some cases, it
-    // it is quite likely that it interferes with linear access patterns
-    // hence we use a relatively long LFSR + block cipher here to create a
-    // pseudo random sequence with good randomness. the block cipher layers
-    // are used to break shift register linearity.
-    lfsr #(
-      .LfsrWidth   (64            ),
-      .OutWidth    ($clog2(NumOut)),
-      .CipherLayers(3             ),
-      .CipherReg   (1'b1          )
-    ) lfsr_req_i (
-      .clk_i (clk_i                           ),
-      .rst_ni(rst_ni                          ),
-      .en_i  (|(ini_req_ready & ini_req_valid)),
-      .out_o (req_rr                          )
-    );
-
-    lfsr #(
-      .LfsrWidth   (64            ),
-      .OutWidth    ($clog2(NumOut)),
-      .CipherLayers(3             ),
-      .CipherReg   (1'b1          )
-    ) lfsr_resp_i (
-      .clk_i (clk_i                             ),
-      .rst_ni(rst_ni                            ),
-      .en_i  (|(tgt_resp_valid & tgt_resp_ready)),
-      .out_o (resp_rr                           )
-    );
-
     variable_latency_bfly_net #(
       .NumIn            (NumIn                 ),
       .NumOut           (NumOut                ),
       .ReqDataWidth     (IniAggDataWidth       ),
       .RespDataWidth    (DataWidth             ),
       .Radix            (Radix                 ),
-      .ExtPrio          (1'b1                  ),
+      .ExtPrio          (1'b0                  ),
       .SpillRegisterReq (SpillRegisterReq >> 1 ),
       .SpillRegisterResp(SpillRegisterResp >> 1),
       .AxiVldRdy        (AxiVldRdy             )
@@ -237,8 +205,8 @@ module variable_latency_interconnect #(
       .clk_i          (clk_i            ),
       .rst_ni         (rst_ni           ),
       // Extern priority flags
-      .req_rr_i       (req_rr           ),
-      .resp_rr_i      (resp_rr          ),
+      .req_rr_i       ('0               ),
+      .resp_rr_i      ('0               ),
       // Initiator side
       .req_valid_i    (ini_req_valid    ),
       .req_ready_o    (ini_req_ready    ),

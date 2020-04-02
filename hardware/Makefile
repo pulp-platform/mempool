@@ -23,12 +23,12 @@ dpi_library    ?= work-dpi
 # Top level module to compile
 top_level      ?= mempool_tb
 # QuestaSim Version
-questa_version ?= -2019.3
+questa_version ?= -2020.1
 # QuestaSim Commands
 questa_cmd     ?=
 
 ifndef QUESTASIM_HOME
-	QUESTASIM_HOME = /usr/pack/questa-2019.3-kgf/questasim
+	QUESTASIM_HOME = /usr/pack/questa-2020.1-kgf/questasim
 # 	$(error QUESTASIM_HOME not set - please point your QUESTASIM_HOME variable to your QuestaSim installation)
 endif
 
