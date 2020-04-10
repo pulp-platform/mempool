@@ -1,9 +1,6 @@
 # Init
 +dvt_init
 
-# UVM
--uvm
-
 # Defines
 +define+TARGET_SIMULATION
 +define+TARGET_VSIM

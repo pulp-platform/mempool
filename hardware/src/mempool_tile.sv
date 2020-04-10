@@ -59,6 +59,7 @@ module mempool_tile #(
     output data_t      [NumCoresPerTile-1:0]  tcdm_master_req_wdata_o,
     output strb_t      [NumCoresPerTile-1:0]  tcdm_master_req_be_o,
     input  logic       [NumCoresPerTile-1:0]  tcdm_master_resp_valid_i,
+    output logic       [NumCoresPerTile-1:0]  tcdm_master_resp_ready_o,
     input  data_t      [NumCoresPerTile-1:0]  tcdm_master_resp_rdata_i,
     // TCDM banks interface
     input  logic       [NumCoresPerTile-1:0]  tcdm_slave_req_valid_i,
@@ -321,6 +322,7 @@ module mempool_tile #(
   local_xbar_payload_t [NumCoresPerTile-1:0] local_xbar_req_payload ;
   strb_t               [NumCoresPerTile-1:0] local_xbar_req_be ;
   logic                [NumCoresPerTile-1:0] local_xbar_resp_valid ;
+  logic                [NumCoresPerTile-1:0] local_xbar_resp_ready ;
   local_xbar_payload_t [NumCoresPerTile-1:0] local_xbar_resp_payload;
 
   addr_t [NumCoresPerTile-1:0] postreg_req_tgt_addr_int;
@@ -349,7 +351,7 @@ module mempool_tile #(
     .req_wdata_i    ({local_xbar_req_payload, postreg_tcdm_req_payload} ),
     .resp_valid_o   ({local_xbar_resp_valid, prereg_tcdm_resp_valid}    ),
     .resp_rdata_o   ({local_xbar_resp_payload, prereg_tcdm_resp_payload}),
-    .resp_ready_i   ({{NumCoresPerTile{1'b1}}, prereg_tcdm_resp_ready}  ), // Local cores are always ready to receive a response
+    .resp_ready_i   ({local_xbar_resp_ready, prereg_tcdm_resp_ready}    ),
     .req_valid_o    (bank_req_valid                                     ),
     .req_ready_i    (bank_req_ready                                     ),
     .req_tgt_addr_o (bank_req_tgt_addr                                  ),
@@ -428,7 +430,7 @@ module mempool_tile #(
       .NumRules           (3        )
     ) i_tcdm_shim (
       .clk_i        (clk_i                                                         ),
-      .rst_i        (!rst_ni                                                       ),
+      .rst_ni       (rst_ni                                                        ),
       // to TCDM --> FF Connection to outside of tile
       .tcdm_req_o   ({local_xbar_req_valid[c], tcdm_master_req_valid_o[c]}         ),
       .tcdm_add_o   ({local_xbar_addr_int, prescramble_tcdm_req_tgt_addr}          ),
@@ -437,6 +439,7 @@ module mempool_tile #(
       .tcdm_be_o    ({local_xbar_req_be[c], tcdm_master_req_be_o[c]}               ),
       .tcdm_gnt_i   ({local_xbar_req_ready[c], tcdm_master_req_ready_i[c]}         ),
       .tcdm_vld_i   ({local_xbar_resp_valid[c], tcdm_master_resp_valid_i[c]}       ),
+      .tcdm_rdy_o   ({local_xbar_resp_ready[c], tcdm_master_resp_ready_o[c]}       ),
       .tcdm_rdata_i ({local_xbar_resp_payload[c].data, tcdm_master_resp_rdata_i[c]}),
       // to SoC
       .soc_qaddr_o  (soc_data_q[c].addr                                            ),

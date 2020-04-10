@@ -17,7 +17,7 @@ module tcdm_shim #(
     localparam int unsigned NumOutput          = NrTCDM + NrSoC
   ) (
     input  logic                                     clk_i,
-    input  logic                                     rst_i,
+    input  logic                                     rst_ni,
     // to TCDM
     output logic         [NrTCDM-1:0]                tcdm_req_o,
     output logic         [NrTCDM-1:0][AddrWidth-1:0] tcdm_add_o,
@@ -26,6 +26,7 @@ module tcdm_shim #(
     output logic         [NrTCDM-1:0][StrbWidth-1:0] tcdm_be_o,
     input  logic         [NrTCDM-1:0]                tcdm_gnt_i,
     input  logic         [NrTCDM-1:0]                tcdm_vld_i,
+    output logic         [NrTCDM-1:0]                tcdm_rdy_o,
     input  logic         [NrTCDM-1:0][DataWidth-1:0] tcdm_rdata_i,
     // to SoC
     output logic         [NrSoC-1:0] [AddrWidth-1:0] soc_qaddr_o,
@@ -70,53 +71,6 @@ module tcdm_shim #(
   dresp_t [NrSoC-1:0]  soc_ppayload ;
   dresp_t [NrTCDM-1:0] tcdm_ppayload;
 
-
-  logic [NrTCDM-1:0] tcdm_qvalid;
-  logic [NrTCDM-1:0] tcdm_pvalid;
-  logic [NrTCDM-1:0] tcdm_pready;
-
-
-  // Since the TCDM interconnect lacks a full handshake, we need to ensure that we do
-  // not issue more TCDM requests that we can later buffer responses.
-  for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_fifo
-    logic empty        ;
-    logic tcdm_fifo_pop;
-    logic [$clog2(MaxOutStandingReads):0] credits_q, credits_d;
-    `FFSR(credits_q, credits_d, MaxOutStandingReads, clk_i, rst_i)
-
-    fifo #(
-      .FALL_THROUGH ( 1'b1                ),
-      .DATA_WIDTH   ( DataWidth           ),
-      .DEPTH        ( MaxOutStandingReads )
-    ) i_resp_fifo (
-      .clk_i,
-      .rst_ni      ( ~rst_i                ),
-      .flush_i     ( 1'b0                  ),
-      .testmode_i  ( 1'b0                  ),
-      .full_o      (                       ),
-      .empty_o     ( empty                 ),
-      .threshold_o (                       ),
-      .data_i      ( tcdm_rdata_i[i]       ),
-      .push_i      ( tcdm_vld_i[i]         ),
-      .data_o      ( tcdm_ppayload[i].data ),
-      .pop_i       ( tcdm_fifo_pop         )
-    );
-    // track credits
-    always_comb begin
-      automatic logic [$clog2(MaxOutStandingReads):0] credits;
-      credits = credits_q;
-      if (tcdm_req_o[i] && tcdm_gnt_i[i] && !tcdm_qpayload[i].write) credits--;
-      if (tcdm_pvalid[i] && tcdm_pready[i]) credits++                         ;
-      credits_d = credits;
-    end
-    // we need space in the return FIFO for reads
-    assign tcdm_req_o[i] = tcdm_qvalid[i] & (credits_q != '0 | tcdm_qpayload[i].write);
-
-    assign tcdm_pvalid[i]         = ~empty                         ;
-    assign tcdm_fifo_pop          = tcdm_pvalid[i] & tcdm_pready[i];
-    assign tcdm_ppayload[i].error = 1'b0                           ;
-  end
-
   // Demux according to address
   if (InclDemux) begin : gen_addr_demux
     snitch_addr_demux #(
@@ -127,8 +81,8 @@ module tcdm_shim #(
       .req_t               ( dreq_t    ),
       .resp_t              ( dresp_t   )
     ) i_snitch_addr_demux (
-      .clk_i,
-      .rst_ni         ( ~rst_i                        ),
+      .clk_i          ( clk_i                         ),
+      .rst_ni         ( rst_ni                        ),
       .req_addr_i     ( data_qaddr_i                  ),
       .req_write_i    ( data_qwrite_i                 ),
       .req_payload_i  ( data_qpayload                 ),
@@ -138,38 +92,40 @@ module tcdm_shim #(
       .resp_valid_o   ( data_pvalid_o                 ),
       .resp_ready_i   ( data_pready_i                 ),
       .req_payload_o  ( {soc_qpayload, tcdm_qpayload} ),
-      .req_valid_o    ( {soc_qvalid_o, tcdm_qvalid }  ),
+      .req_valid_o    ( {soc_qvalid_o, tcdm_req_o }   ),
       .req_ready_i    ( {soc_qready_i, tcdm_gnt_i }   ),
       .resp_payload_i ( {soc_ppayload, tcdm_ppayload} ),
-      .resp_valid_i   ( {soc_pvalid_i, tcdm_pvalid }  ),
-      .resp_ready_o   ( {soc_pready_o, tcdm_pready }  ),
+      .resp_valid_i   ( {soc_pvalid_i, tcdm_vld_i }   ),
+      .resp_ready_o   ( {soc_pready_o, tcdm_rdy_o }   ),
       .address_map_i  ( address_map_i                 )
     );
   end else begin : gen_no_addr_demux
     always_comb begin
       // tie-off unused TCDM and SoC ports
       tcdm_qpayload    = '0              ;
-      tcdm_qvalid      = '0              ;
-      tcdm_pready      = '0              ;
+      tcdm_req_o       = '0              ;
+      tcdm_rdy_o       = '0              ;
       soc_qpayload     = '0              ;
       soc_qvalid_o     = '0              ;
       soc_pready_o     = '0              ;
       // directly connect first TCDM port
       tcdm_qpayload[0] = data_qpayload   ;
-      tcdm_qvalid[0]   = data_qvalid_i   ;
+      tcdm_req_o[0]    = data_qvalid_i   ;
       data_qready_o    = tcdm_gnt_i[0]   ;
       data_ppayload    = tcdm_ppayload[0];
-      data_pvalid_o    = tcdm_pvalid[0]  ;
-      tcdm_pready[0]   = data_pready_i   ;
+      data_pvalid_o    = tcdm_vld_i[0]   ;
+      tcdm_rdy_o[0]    = data_pready_i   ;
     end
   end
 
   // Connect output ports
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_con
-    assign tcdm_add_o[i]   = tcdm_qpayload[i].addr ;
-    assign tcdm_wdata_o[i] = tcdm_qpayload[i].data ;
-    assign tcdm_wen_o[i]   = tcdm_qpayload[i].write;
-    assign tcdm_be_o[i]    = tcdm_qpayload[i].strb ;
+    assign tcdm_add_o[i]          = tcdm_qpayload[i].addr ;
+    assign tcdm_wdata_o[i]        = tcdm_qpayload[i].data ;
+    assign tcdm_wen_o[i]          = tcdm_qpayload[i].write;
+    assign tcdm_be_o[i]           = tcdm_qpayload[i].strb ;
+    assign tcdm_ppayload[i].data  = tcdm_rdata_i[i]       ;
+    assign tcdm_ppayload[i].error = 1'b0                  ;
   end
 
   // Request interface

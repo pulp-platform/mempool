@@ -99,7 +99,7 @@ module mempool #(
     ) i_tile (
       .clk_i                      (clk_i                                                          ),
       .rst_ni                     (rst_ni                                                         ),
-      .scan_enable_i              (1'b0                                                           ),
+      .scan_enable_i              (scan_enable_i                                                  ),
       .scan_data_i                (1'b0                                                           ),
       .scan_data_o                (/* Unused */                                                   ),
       .tile_id_i                  (t[$clog2(NumTiles)-1:0]                                        ),
@@ -111,6 +111,7 @@ module mempool #(
       .tcdm_master_req_be_o       (tcdm_master_req_be[NumCoresPerTile*t +: NumCoresPerTile]       ),
       .tcdm_master_req_ready_i    (tcdm_master_req_ready[NumCoresPerTile*t +: NumCoresPerTile]    ),
       .tcdm_master_resp_valid_i   (tcdm_master_resp_valid[NumCoresPerTile*t +: NumCoresPerTile]   ),
+      .tcdm_master_resp_ready_o   (tcdm_master_resp_ready[NumCoresPerTile*t +: NumCoresPerTile]   ),
       .tcdm_master_resp_rdata_i   (tcdm_master_resp_rdata[NumCoresPerTile*t +: NumCoresPerTile]   ),
       // TCDM banks interface
       .tcdm_slave_req_valid_i     (tcdm_slave_req_valid[NumCoresPerTile*t +: NumCoresPerTile]     ),
@@ -138,8 +139,6 @@ module mempool #(
       .refill_plast_i             (/* Not yet implemented */ 1'b0                                 ),
       .refill_pready_o            (/* Not yet implemented */                                      )
     );
-
-    assign tcdm_master_resp_ready[NumCoresPerTile*t +: NumCoresPerTile] = '1;
   end : gen_tiles
 
   /******************
@@ -154,8 +153,8 @@ module mempool #(
     .DataWidth        (DataWidth                                 ),
     .AddrMemWidth     (TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
     .Topology         (tcdm_interconnect_pkg::BFLY4              ),
-    .SpillRegisterReq (64'b0110                                  ),
-    .SpillRegisterResp(64'b0110                                  )
+    .SpillRegisterReq (64'b1010                                  ),
+    .SpillRegisterResp(64'b1010                                  )
   ) i_interco (
     .clk_i          (clk_i                   ),
     .rst_ni         (rst_ni                  ),
