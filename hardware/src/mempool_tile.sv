@@ -402,12 +402,14 @@ module mempool_tile #(
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_core_mux
     // Remove tile index from local_xbar_addr_int, since it will not be used for routing.
     addr_t local_xbar_addr_int;
-    assign local_xbar_req_addr[c] = addr_t'({local_xbar_addr_int[AddrWidth-1:ByteOffset+$clog2(NumBanksPerTile)], local_xbar_addr_int[0 +: ByteOffset + $clog2(NumBanksPerTile)]});
+    assign local_xbar_req_addr[c] = 
+      addr_t'({local_xbar_addr_int[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
+               local_xbar_addr_int[0 +: ByteOffset + $clog2(NumBanksPerTile)]});                                 // Bank
 
     addr_t prescramble_tcdm_req_tgt_addr;
     // Switch tile and bank indexes for correct upper level routing
     assign tcdm_master_req_tgt_addr_o[c] =
-      addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) +: TCDMAddrMemWidth] , // Bank address
+      addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth] , // Bank address
           prescramble_tcdm_req_tgt_addr[ByteOffset +: $clog2(NumBanksPerTile)]                         , // Bank
           prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) +: $clog2(NumTiles)]      , // Tile
           c[$clog2(NumCoresPerTile)-1:0]                                                               , // TCDM slave port
