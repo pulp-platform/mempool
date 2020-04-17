@@ -1,9 +1,28 @@
+// Copyright 2020 ETH Zurich and University of Bologna.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Author: Samuel Riedel, ETH Zurich
+//         Matheus Cavalcante, ETH Zurich
+
 .globl _start
-.section .text.init;
 .section .text;
+.section .text.init;
 
 _start:
-    # Initialize global pointer
+    // Initialize global pointer
     .option push
     .option norelax
     1:auipc gp, %pcrel_hi(__global_pointer$)
@@ -43,16 +62,13 @@ reset_vector:
     li      x29, 0
     li      x30, 0
     li      x31, 0
-    la      sp, tcdm_end_address_reg # load stack top from peripheral register
+    la      sp, tcdm_end_address_reg   // load stack top from peripheral register
     lw      sp, 0(sp)
-    csrr    a0, mhartid              # get hart id
-    la      a1, nr_cores_address_reg # get the number of cores per cluster
+    csrr    a0, mhartid                // get hart id
+    la      a1, nr_cores_address_reg   // get the number of cores per cluster
     lw      a1, 0(a1)
-    li      t0, -1                   # generate a all 1 bitmask
-    sll     t0, t0, a1
-    neg     t0, t0
-    and     t0, a0, t0               # generate a core id which starts at 0 for each cluster
-    slli    t0, t0, 8                # set some stack-space aside for each hart
+    mv      t0, a0
+    slli    t0, t0, 10                 // set some stack-space aside for each hart
     sub     sp, sp, t0
     call    main
 
