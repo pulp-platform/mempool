@@ -124,7 +124,7 @@ module snitch_addr_demux #(
   assume property (@(posedge clk_i) !f_past_valid |-> !rst_ni);
   // make sure that we get a response for each read we issued
   for (genvar i = 0; i < NrOutput; i++) begin
-    assume property (@(posedge clk_i) disable iff (!rst_ni) (resp_valid_i[i] & resp_ready_o[i]) |-> $past(req_valid_o[i] & req_ready_i[i] & !req_write_i));
+    assume property (@(posedge clk_i) disable iff (!rst_ni) (resp_valid_i[i] & resp_ready_o[i]) |-> $past(valid_o[i] & ready_i[i] & !req_write_i));
   end
   `endif
   // check that we propagate a downstream request directly (e.g. combinatorial)

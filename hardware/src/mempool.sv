@@ -99,7 +99,7 @@ module mempool #(
     ) i_tile (
       .clk_i                      (clk_i                                                          ),
       .rst_ni                     (rst_ni                                                         ),
-      .scan_enable_i              (scan_enable_i                                                  ),
+      .scan_enable_i              (1'b0                                                           ),
       .scan_data_i                (1'b0                                                           ),
       .scan_data_o                (/* Unused */                                                   ),
       .tile_id_i                  (t[$clog2(NumTiles)-1:0]                                        ),
@@ -147,14 +147,17 @@ module mempool #(
 
   // Interconnect
   variable_latency_interconnect #(
-    .NumIn            (NumCores                                  ),
-    .NumOut           (NumCores                                  ),
-    .AddrWidth        (AddrWidth                                 ),
-    .DataWidth        (DataWidth                                 ),
-    .AddrMemWidth     (TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
-    .Topology         (tcdm_interconnect_pkg::BFLY4              ),
-    .SpillRegisterReq (64'b1010                                  ),
-    .SpillRegisterResp(64'b1010                                  )
+    .NumIn               (NumCores                                  ),
+    .NumOut              (NumCores                                  ),
+    .AddrWidth           (AddrWidth                                 ),
+    .DataWidth           (DataWidth                                 ),
+    .AddrMemWidth        (TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
+    .Topology            (tcdm_interconnect_pkg::BFLY4              ),
+    .SpillRegisterReq    (64'b0101                                  ),
+    .SpillRegisterResp   (64'b0101                                  ),
+    .AxiVldRdy           (1'b1                                      ),
+    .CreditBasedHandshake(1'b1                                      ),
+    .NumCredits          (mempool_pkg::NumCredits                   )
   ) i_interco (
     .clk_i          (clk_i                   ),
     .rst_ni         (rst_ni                  ),

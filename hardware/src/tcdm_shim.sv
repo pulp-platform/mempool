@@ -19,15 +19,15 @@ module tcdm_shim #(
     input  logic                                     clk_i,
     input  logic                                     rst_ni,
     // to TCDM
-    output logic         [NrTCDM-1:0]                tcdm_req_o,
-    output logic         [NrTCDM-1:0][AddrWidth-1:0] tcdm_add_o,
-    output logic         [NrTCDM-1:0]                tcdm_wen_o,
-    output logic         [NrTCDM-1:0][DataWidth-1:0] tcdm_wdata_o,
-    output logic         [NrTCDM-1:0][StrbWidth-1:0] tcdm_be_o,
-    input  logic         [NrTCDM-1:0]                tcdm_gnt_i,
-    input  logic         [NrTCDM-1:0]                tcdm_vld_i,
-    output logic         [NrTCDM-1:0]                tcdm_rdy_o,
-    input  logic         [NrTCDM-1:0][DataWidth-1:0] tcdm_rdata_i,
+    output logic         [NrTCDM-1:0]                tcdm_req_valid_o,
+    output logic         [NrTCDM-1:0][AddrWidth-1:0] tcdm_req_tgt_addr_o,
+    output logic         [NrTCDM-1:0]                tcdm_req_wen_o,
+    output logic         [NrTCDM-1:0][DataWidth-1:0] tcdm_req_wdata_o,
+    output logic         [NrTCDM-1:0][StrbWidth-1:0] tcdm_req_be_o,
+    input  logic         [NrTCDM-1:0]                tcdm_req_ready_i,
+    input  logic         [NrTCDM-1:0]                tcdm_resp_valid_i,
+    output logic         [NrTCDM-1:0]                tcdm_resp_ready_o,
+    input  logic         [NrTCDM-1:0][DataWidth-1:0] tcdm_resp_rdata_i,
     // to SoC
     output logic         [NrSoC-1:0] [AddrWidth-1:0] soc_qaddr_o,
     output logic         [NrSoC-1:0]                 soc_qwrite_o,
@@ -71,61 +71,113 @@ module tcdm_shim #(
   dresp_t [NrSoC-1:0]  soc_ppayload ;
   dresp_t [NrTCDM-1:0] tcdm_ppayload;
 
+  logic [NrTCDM-1:0] tcdm_qvalid;
+  logic [NrTCDM-1:0] tcdm_qready;
+  logic [NrTCDM-1:0] tcdm_pvalid;
+  logic [NrTCDM-1:0] tcdm_pready;
+
+  for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_credits
+    // TCDM Request credits
+    mempool_pkg::credit_t tcdm_req_credits_q, tcdm_req_credits_d;
+    `FF(tcdm_req_credits_q, tcdm_req_credits_d, 0)
+
+    always_comb begin
+      tcdm_req_credits_d = tcdm_req_credits_q;
+      if (tcdm_req_ready_i[i]) tcdm_req_credits_d++ ;
+      if (tcdm_req_valid_o[i]) tcdm_req_credits_d-- ;
+    end
+    assign tcdm_req_valid_o[i] = tcdm_qvalid[i] & (tcdm_req_credits_q != '0);
+    assign tcdm_qready[i]      = (tcdm_req_credits_q != '0)                 ;
+
+    // TCDM Response credits
+    logic [$clog2(MaxOutStandingReads):0] tcdm_resp_credits_q, tcdm_resp_credits_d;
+    logic tcdm_resp_fifo_empty ;
+    logic tcdm_resp_fifo_pop   ;
+
+    `FF(tcdm_resp_credits_q, tcdm_resp_credits_d, MaxOutStandingReads)
+    `FF(tcdm_resp_ready_o[i], (tcdm_resp_credits_d != '0), 1'b0)
+    always_comb begin
+      tcdm_resp_credits_d = tcdm_resp_credits_q;
+      if (tcdm_resp_ready_o[i]) tcdm_resp_credits_d-- ;
+      if (tcdm_resp_fifo_pop) tcdm_resp_credits_d++   ;
+    end
+
+    fifo_v3 #(
+      .DATA_WIDTH  (DataWidth          ),
+      .DEPTH       (MaxOutStandingReads),
+      .FALL_THROUGH(1'b1               )
+    ) i_resp_fifo (
+      .clk_i     (clk_i                ),
+      .rst_ni    (rst_ni               ),
+      .flush_i   (1'b0                 ),
+      .testmode_i(1'b0                 ),
+      .data_i    (tcdm_resp_rdata_i[i] ),
+      .push_i    (tcdm_resp_valid_i[i] ),
+      .full_o    (/* Unused */         ),
+      .data_o    (tcdm_ppayload[i].data),
+      .pop_i     (tcdm_resp_fifo_pop   ),
+      .empty_o   (tcdm_resp_fifo_empty ),
+      .usage_o   (/* Unused */         )
+    );
+
+    assign tcdm_ppayload[i].error = 1'b0                           ;
+    assign tcdm_pvalid[i]         = ~tcdm_resp_fifo_empty          ;
+    assign tcdm_resp_fifo_pop     = tcdm_pvalid[i] & tcdm_pready[i];
+  end
+
   // Demux according to address
   if (InclDemux) begin : gen_addr_demux
     snitch_addr_demux #(
-      .NrOutput            ( NumOutput ),
-      .AddressWidth        ( AddrWidth ),
-      .NumRules            ( NumRules  ), // TODO
-      .MaxOutStandingReads ( NumOutput ), // TODO
-      .req_t               ( dreq_t    ),
-      .resp_t              ( dresp_t   )
+      .NrOutput           (NumOutput),
+      .AddressWidth       (AddrWidth),
+      .NumRules           (NumRules ), // TODO
+      .MaxOutStandingReads(NumOutput), // TODO
+      .req_t              (dreq_t   ),
+      .resp_t             (dresp_t  )
     ) i_snitch_addr_demux (
-      .clk_i          ( clk_i                         ),
-      .rst_ni         ( rst_ni                        ),
-      .req_addr_i     ( data_qaddr_i                  ),
-      .req_write_i    ( data_qwrite_i                 ),
-      .req_payload_i  ( data_qpayload                 ),
-      .req_valid_i    ( data_qvalid_i                 ),
-      .req_ready_o    ( data_qready_o                 ),
-      .resp_payload_o ( data_ppayload                 ),
-      .resp_valid_o   ( data_pvalid_o                 ),
-      .resp_ready_i   ( data_pready_i                 ),
-      .req_payload_o  ( {soc_qpayload, tcdm_qpayload} ),
-      .req_valid_o    ( {soc_qvalid_o, tcdm_req_o }   ),
-      .req_ready_i    ( {soc_qready_i, tcdm_gnt_i }   ),
-      .resp_payload_i ( {soc_ppayload, tcdm_ppayload} ),
-      .resp_valid_i   ( {soc_pvalid_i, tcdm_vld_i }   ),
-      .resp_ready_o   ( {soc_pready_o, tcdm_rdy_o }   ),
-      .address_map_i  ( address_map_i                 )
+      .clk_i         (clk_i                        ),
+      .rst_ni        (rst_ni                       ),
+      .req_addr_i    (data_qaddr_i                 ),
+      .req_write_i   (data_qwrite_i                ),
+      .req_payload_i (data_qpayload                ),
+      .req_valid_i   (data_qvalid_i                ),
+      .req_ready_o   (data_qready_o                ),
+      .resp_payload_o(data_ppayload                ),
+      .resp_valid_o  (data_pvalid_o                ),
+      .resp_ready_i  (data_pready_i                ),
+      .req_payload_o ({soc_qpayload, tcdm_qpayload}),
+      .req_valid_o   ({soc_qvalid_o, tcdm_qvalid}  ),
+      .req_ready_i   ({soc_qready_i, tcdm_qready}  ),
+      .resp_payload_i({soc_ppayload, tcdm_ppayload}),
+      .resp_valid_i  ({soc_pvalid_i, tcdm_pvalid}  ),
+      .resp_ready_o  ({soc_pready_o, tcdm_pready}  ),
+      .address_map_i (address_map_i                )
     );
   end else begin : gen_no_addr_demux
     always_comb begin
       // tie-off unused TCDM and SoC ports
       tcdm_qpayload    = '0              ;
-      tcdm_req_o       = '0              ;
-      tcdm_rdy_o       = '0              ;
+      tcdm_qvalid      = '0              ;
+      tcdm_pready      = '0              ;
       soc_qpayload     = '0              ;
       soc_qvalid_o     = '0              ;
       soc_pready_o     = '0              ;
       // directly connect first TCDM port
       tcdm_qpayload[0] = data_qpayload   ;
-      tcdm_req_o[0]    = data_qvalid_i   ;
-      data_qready_o    = tcdm_gnt_i[0]   ;
+      tcdm_qvalid[0]   = data_qvalid_i   ;
+      data_qready_o    = tcdm_qready[0]  ;
       data_ppayload    = tcdm_ppayload[0];
-      data_pvalid_o    = tcdm_vld_i[0]   ;
-      tcdm_rdy_o[0]    = data_pready_i   ;
+      data_pvalid_o    = tcdm_pvalid[0]  ;
+      tcdm_pready[0]   = data_pready_i   ;
     end
   end
 
   // Connect output ports
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_con
-    assign tcdm_add_o[i]          = tcdm_qpayload[i].addr ;
-    assign tcdm_wdata_o[i]        = tcdm_qpayload[i].data ;
-    assign tcdm_wen_o[i]          = tcdm_qpayload[i].write;
-    assign tcdm_be_o[i]           = tcdm_qpayload[i].strb ;
-    assign tcdm_ppayload[i].data  = tcdm_rdata_i[i]       ;
-    assign tcdm_ppayload[i].error = 1'b0                  ;
+    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr ;
+    assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data ;
+    assign tcdm_req_wen_o[i]      = tcdm_qpayload[i].write;
+    assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb ;
   end
 
   // Request interface
