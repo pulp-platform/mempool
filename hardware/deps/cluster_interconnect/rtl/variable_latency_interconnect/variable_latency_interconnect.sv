@@ -28,7 +28,12 @@ module variable_latency_interconnect #(
     parameter int unsigned DataWidth         = 32                   , // Data Word Width
     parameter int unsigned BeWidth           = DataWidth/8          , // Byte Strobe Width
     parameter int unsigned AddrMemWidth      = 12                   , // Number of Address bits per Target
-    parameter bit AxiVldRdy                  = 1'b1                 , // Valid/ready signaling
+    parameter bit AxiVldRdy                  = 1'b0                 , // Valid/ready signaling.
+    // Credit-based handshake. ready_o is a "credit grant" signal.
+    // Initiators can only send requests if they have a credit.
+    // Each request consumes a credit. A credit cannot be used on the same cycle it is issued.
+    parameter bit CreditBasedHandshake       = 1'b0                 ,
+    parameter int unsigned NumCredits        = 2                    , // Number of credits at each initiator port.
     // Spill registers
     // A bit set at position i indicates a spill register at the i-th crossbar layer.
     // The layers are counted starting at 0 from the initiator, for the requests, and from the target, for the responses.
@@ -73,58 +78,7 @@ module variable_latency_interconnect #(
   // localparams and aggregation of address, wen and payload data
 
   localparam int unsigned NumOutLog2      = $clog2(NumOut);
-  localparam int unsigned NumInLog2       = $clog2(NumIn);
   localparam int unsigned IniAggDataWidth = 1 + BeWidth + AddrMemWidth + DataWidth;
-
-  /*********************
-   *  Spill registers  *
-   *********************/
-
-  // Request
-  logic [NumIn-1:0]                ini_req_valid;
-  logic [NumIn-1:0]                ini_req_ready;
-  logic [NumIn-1:0][AddrWidth-1:0] ini_req_tgt_addr;
-  logic [NumIn-1:0]                ini_req_wen;
-  logic [NumIn-1:0][DataWidth-1:0] ini_req_wdata;
-  logic [NumIn-1:0][BeWidth-1:0]   ini_req_be;
-
-  for (genvar i = 0; i < NumIn; i++) begin: gen_req_spill_registers
-    spill_register #(
-      .Bypass(!SpillRegisterReq[0]                    ),
-      .T     (logic[AddrWidth+1+DataWidth+BeWidth-1:0])
-    ) i_req_spill_reg (
-      .clk_i  (clk_i                                                                 ),
-      .rst_ni (rst_ni                                                                ),
-      .data_i ({req_tgt_addr_i[i], req_wen_i[i], req_wdata_i[i], req_be_i[i]}        ),
-      .valid_i(req_valid_i[i]                                                        ),
-      .ready_o(req_ready_o[i]                                                        ),
-      .data_o ({ini_req_tgt_addr[i], ini_req_wen[i], ini_req_wdata[i], ini_req_be[i]}),
-      .valid_o(ini_req_valid[i]                                                      ),
-      .ready_i(ini_req_ready[i]                                                      )
-    );
-  end: gen_req_spill_registers
-
-  // Response
-  logic [NumOut-1:0]                tgt_resp_valid;
-  logic [NumOut-1:0]                tgt_resp_ready;
-  logic [NumOut-1:0][NumInLog2-1:0] tgt_resp_ini_addr;
-  logic [NumOut-1:0][DataWidth-1:0] tgt_resp_rdata;
-
-  for (genvar t = 0; t < NumOut; t++) begin: gen_resp_spill_registers
-    spill_register #(
-      .Bypass(!SpillRegisterResp[0]         ),
-      .T     (logic[NumInLog2+DataWidth-1:0])
-    ) i_resp_spill_reg (
-      .clk_i  (clk_i                                    ),
-      .rst_ni (rst_ni                                   ),
-      .data_i ({resp_ini_addr_i[t], resp_rdata_i[t]}    ),
-      .valid_i(resp_valid_i[t]                          ),
-      .ready_o(resp_ready_o[t]                          ),
-      .data_o ({tgt_resp_ini_addr[t], tgt_resp_rdata[t]}),
-      .valid_o(tgt_resp_valid[t]                        ),
-      .ready_i(tgt_resp_ready[t]                        )
-    );
-  end: gen_resp_spill_registers
 
   /*************
    *  Signals  *
@@ -136,10 +90,10 @@ module variable_latency_interconnect #(
 
   for (genvar j = 0; unsigned'(j) < NumIn; j++) begin : gen_inputs
     // Extract target index
-    assign tgt_sel[j] = ini_req_tgt_addr[j][ByteOffWidth +: NumOutLog2];
+    assign tgt_sel[j] = req_tgt_addr_i[j][ByteOffWidth +: NumOutLog2];
 
     // Aggregate data to be routed to targets
-    assign data_agg_in[j] = {ini_req_wen[j], ini_req_be[j], ini_req_tgt_addr[j][ByteOffWidth + NumOutLog2 +: AddrMemWidth], ini_req_wdata[j]};
+    assign data_agg_in[j] = {req_wen_i[j], req_be_i[j], req_tgt_addr_i[j][ByteOffWidth + NumOutLog2 +: AddrMemWidth], req_wdata_i[j]};
   end
 
   // Disaggregate data
@@ -154,36 +108,38 @@ module variable_latency_interconnect #(
   // Tuned logarithmic interconnect architecture, based on rr_arb_tree primitives
   if (Topology == tcdm_interconnect_pkg::LIC) begin : gen_lic
     full_duplex_xbar #(
-      .NumIn            (NumIn               ),
-      .NumOut           (NumOut              ),
-      .ReqDataWidth     (IniAggDataWidth     ),
-      .RespDataWidth    (DataWidth           ),
-      .SpillRegisterReq (SpillRegisterReq[1] ),
-      .SpillRegisterResp(SpillRegisterResp[1]),
-      .AxiVldRdy        (AxiVldRdy           )
+      .NumIn               (NumIn               ),
+      .NumOut              (NumOut              ),
+      .ReqDataWidth        (IniAggDataWidth     ),
+      .RespDataWidth       (DataWidth           ),
+      .SpillRegisterReq    (SpillRegisterReq[0] ),
+      .SpillRegisterResp   (SpillRegisterResp[0]),
+      .AxiVldRdy           (AxiVldRdy           ),
+      .CreditBasedHandshake(CreditBasedHandshake),
+      .NumCredits          (NumCredits          )
     ) i_xbar (
-      .clk_i          (clk_i            ),
-      .rst_ni         (rst_ni           ),
+      .clk_i          (clk_i          ),
+      .rst_ni         (rst_ni         ),
       // Extern priority flags
-      .req_rr_i       ('0               ),
-      .resp_rr_i      ('0               ),
+      .req_rr_i       ('0             ),
+      .resp_rr_i      ('0             ),
       // Initiator side
-      .req_valid_i    (ini_req_valid    ),
-      .req_ready_o    (ini_req_ready    ),
-      .req_tgt_addr_i (tgt_sel          ),
-      .req_wdata_i    (data_agg_in      ),
-      .resp_valid_o   (resp_valid_o     ),
-      .resp_rdata_o   (resp_rdata_o     ),
-      .resp_ready_i   (resp_ready_i     ),
+      .req_valid_i    (req_valid_i    ),
+      .req_ready_o    (req_ready_o    ),
+      .req_tgt_addr_i (tgt_sel        ),
+      .req_wdata_i    (data_agg_in    ),
+      .resp_valid_o   (resp_valid_o   ),
+      .resp_rdata_o   (resp_rdata_o   ),
+      .resp_ready_i   (resp_ready_i   ),
       // Target side
-      .req_valid_o    (req_valid_o      ),
-      .req_ini_addr_o (req_ini_addr_o   ),
-      .req_ready_i    (req_ready_i      ),
-      .req_wdata_o    (data_agg_out     ),
-      .resp_valid_i   (tgt_resp_valid   ),
-      .resp_ready_o   (tgt_resp_ready   ),
-      .resp_ini_addr_i(tgt_resp_ini_addr),
-      .resp_rdata_i   (tgt_resp_rdata   )
+      .req_valid_o    (req_valid_o    ),
+      .req_ini_addr_o (req_ini_addr_o ),
+      .req_ready_i    (req_ready_i    ),
+      .req_wdata_o    (data_agg_out   ),
+      .resp_valid_i   (resp_valid_i   ),
+      .resp_ready_o   (resp_ready_o   ),
+      .resp_ini_addr_i(resp_ini_addr_i),
+      .resp_rdata_i   (resp_rdata_i   )
     );
   end
 
@@ -192,38 +148,57 @@ module variable_latency_interconnect #(
     localparam int unsigned Radix = 2**Topology;
 
     variable_latency_bfly_net #(
-      .NumIn            (NumIn                 ),
-      .NumOut           (NumOut                ),
-      .ReqDataWidth     (IniAggDataWidth       ),
-      .RespDataWidth    (DataWidth             ),
-      .Radix            (Radix                 ),
-      .ExtPrio          (1'b0                  ),
-      .SpillRegisterReq (SpillRegisterReq >> 1 ),
-      .SpillRegisterResp(SpillRegisterResp >> 1),
-      .AxiVldRdy        (AxiVldRdy             )
-    ) i_bfly_net (
-      .clk_i          (clk_i            ),
-      .rst_ni         (rst_ni           ),
+      .NumIn               (NumIn               ),
+      .NumOut              (NumOut              ),
+      .DataWidth           (IniAggDataWidth     ),
+      .Radix               (Radix               ),
+      .ExtPrio             (1'b0                ),
+      .SpillRegister       (SpillRegisterReq    ),
+      .AxiVldRdy           (AxiVldRdy           ),
+      .CreditBasedHandshake(CreditBasedHandshake),
+      .NumCredits          (NumCredits          )
+    ) i_req_bfly_net (
+      .clk_i     (clk_i          ),
+      .rst_ni    (rst_ni         ),
       // Extern priority flags
-      .req_rr_i       ('0               ),
-      .resp_rr_i      ('0               ),
+      .rr_i      ('0             ),
       // Initiator side
-      .req_valid_i    (ini_req_valid    ),
-      .req_ready_o    (ini_req_ready    ),
-      .req_tgt_addr_i (tgt_sel          ),
-      .req_wdata_i    (data_agg_in      ),
-      .resp_valid_o   (resp_valid_o     ),
-      .resp_ready_i   (resp_ready_i     ),
-      .resp_rdata_o   (resp_rdata_o     ),
+      .valid_i   (req_valid_i    ),
+      .ready_o   (req_ready_o    ),
+      .tgt_addr_i(tgt_sel        ),
+      .wdata_i   (data_agg_in    ),
       // Target side
-      .req_valid_o    (req_valid_o      ),
-      .req_ini_addr_o (req_ini_addr_o   ),
-      .req_ready_i    (req_ready_i      ),
-      .req_wdata_o    (data_agg_out     ),
-      .resp_valid_i   (tgt_resp_valid   ),
-      .resp_ready_o   (tgt_resp_ready   ),
-      .resp_ini_addr_i(tgt_resp_ini_addr),
-      .resp_rdata_i   (tgt_resp_rdata   )
+      .valid_o   (req_valid_o    ),
+      .ini_addr_o(req_ini_addr_o ),
+      .ready_i   (req_ready_i    ),
+      .wdata_o   (data_agg_out   )
+    );
+
+    variable_latency_bfly_net #(
+      .NumIn               (NumOut              ),
+      .NumOut              (NumIn               ),
+      .DataWidth           (DataWidth           ),
+      .Radix               (Radix               ),
+      .ExtPrio             (1'b0                ),
+      .SpillRegister       (SpillRegisterResp   ),
+      .AxiVldRdy           (AxiVldRdy           ),
+      .CreditBasedHandshake(CreditBasedHandshake),
+      .NumCredits          (NumCredits          )
+    ) i_resp_bfly_net (
+      .clk_i     (clk_i          ),
+      .rst_ni    (rst_ni         ),
+      // Extern priority flags
+      .rr_i      ('0             ),
+      // Target side
+      .valid_i   (resp_valid_i   ),
+      .ready_o   (resp_ready_o   ),
+      .tgt_addr_i(resp_ini_addr_i),
+      .wdata_i   (resp_rdata_i   ),
+      // Initiator side
+      .valid_o   (resp_valid_o   ),
+      .ready_i   (resp_ready_i   ),
+      .ini_addr_o(/* Unused */   ),
+      .wdata_o   (resp_rdata_o   )
     );
   end
 

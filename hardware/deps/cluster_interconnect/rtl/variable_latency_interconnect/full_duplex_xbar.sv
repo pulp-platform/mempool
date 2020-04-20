@@ -24,7 +24,12 @@ module full_duplex_xbar #(
     parameter bit ExtPrio                = 1'b0, // Use external arbiter priority flags
     parameter bit SpillRegisterReq       = 1'b0, // Insert a spill register on the request path (after arbitration)
     parameter bit SpillRegisterResp      = 1'b0, // Insert a spill register on the response path (after arbitration)
-    parameter bit AxiVldRdy              = 1'b1
+    parameter bit AxiVldRdy              = 1'b0, // Valid/ready signaling.
+    // Credit-based handshake. ready_o is a "credit grant" signal.
+    // Initiators can only send requests if they have a credit.
+    // Each request consumes a credit. A credit cannot be used on the same cycle it is issued.
+    parameter bit CreditBasedHandshake   = 1'b0,
+    parameter int unsigned NumCredits    = 2 // Number of credits at each initiator port.
   ) (
     input  logic                                 clk_i,
     input  logic                                 rst_ni,
@@ -57,45 +62,49 @@ module full_duplex_xbar #(
   // Instantiate two simplex crossbars, one for the requests and one for the responses.
 
   simplex_xbar #(
-    .NumIn        (NumIn           ),
-    .NumOut       (NumOut          ),
-    .DataWidth    (ReqDataWidth    ),
-    .ExtPrio      (ExtPrio         ),
-    .SpillRegister(SpillRegisterReq),
-    .AxiVldRdy    (AxiVldRdy       )
+    .NumIn               (NumIn                ),
+    .NumOut              (NumOut               ),
+    .DataWidth           (ReqDataWidth         ),
+    .ExtPrio             (ExtPrio              ),
+    .SpillRegister       (SpillRegisterReq     ),
+    .AxiVldRdy           (AxiVldRdy            ),
+    .CreditBasedHandshake(CreditBasedHandshake ),
+    .NumCredits          (NumCredits           )
   ) req_xbar (
-    .clk_i        (clk_i         ),
-    .rst_ni       (rst_ni        ),
-    .rr_i         (req_rr_i      ),
-    .valid_i      (req_valid_i   ),
-    .ready_o      (req_ready_o   ),
-    .tgt_address_i(req_tgt_addr_i),
-    .wdata_i      (req_wdata_i   ),
-    .valid_o      (req_valid_o   ),
-    .ini_address_o(req_ini_addr_o),
-    .ready_i      (req_ready_i   ),
-    .wdata_o      (req_wdata_o   )
+    .clk_i     (clk_i         ),
+    .rst_ni    (rst_ni        ),
+    .rr_i      (req_rr_i      ),
+    .valid_i   (req_valid_i   ),
+    .ready_o   (req_ready_o   ),
+    .tgt_addr_i(req_tgt_addr_i),
+    .data_i    (req_wdata_i   ),
+    .valid_o   (req_valid_o   ),
+    .ini_addr_o(req_ini_addr_o),
+    .ready_i   (req_ready_i   ),
+    .data_o    (req_wdata_o   )
   );
 
   simplex_xbar #(
-    .NumIn        (NumOut           ),
-    .NumOut       (NumIn            ),
-    .DataWidth    (RespDataWidth    ),
-    .ExtPrio      (ExtPrio          ),
-    .SpillRegister(SpillRegisterResp),
-    .AxiVldRdy    (AxiVldRdy        )
+    .NumIn               (NumOut               ),
+    .NumOut              (NumIn                ),
+    .DataWidth           (RespDataWidth        ),
+    .ExtPrio             (ExtPrio              ),
+    .SpillRegister       (SpillRegisterResp    ),
+    .AxiVldRdy           (AxiVldRdy            ),
+    .CreditBasedHandshake(CreditBasedHandshake ),
+    .NumCredits          (NumCredits           )
   ) resp_xbar (
-    .clk_i        (clk_i          ),
-    .rst_ni       (rst_ni         ),
-    .rr_i         (resp_rr_i      ),
-    .valid_i      (resp_valid_i   ),
-    .ready_o      (resp_ready_o   ),
-    .tgt_address_i(resp_ini_addr_i),
-    .wdata_i      (resp_rdata_i   ),
-    .valid_o      (resp_valid_o   ),
-    .ini_address_o(/* Unused */   ),
-    .ready_i      (resp_ready_i   ),
-    .wdata_o      (resp_rdata_o   )
+    .clk_i     (clk_i          ),
+    .rst_ni    (rst_ni         ),
+    .rr_i      (resp_rr_i      ),
+    .valid_i   (resp_valid_i   ),
+    .ready_o   (resp_ready_o   ),
+    .tgt_addr_i(resp_ini_addr_i),
+    .data_i    (resp_rdata_i   ),
+    .valid_o   (resp_valid_o   ),
+    .ini_addr_o(/* Unused */   ),
+    .ready_i   (resp_ready_i   ),
+    .data_o    (resp_rdata_o   )
   );
 
   /******************
