@@ -13,6 +13,11 @@
 # limitations under the License.
 
 # Author: Matheus Cavalcante, ETH Zurich
+#         Samuel Riedel, ETH Zurich
+
+ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
+SHELL = /usr/bin/env bash
 
 # build path
 buildpath      ?= build
@@ -40,7 +45,7 @@ questa_cmd += -sv_lib ${dpi_library}/mempool_dpi
 
 # DPI source files
 dpi   := $(patsubst tb/dpi/%.cpp,${buildpath}/${dpi_library}/%.o,$(wildcard tb/dpi/*.cpp))
-trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.log,$(wildcard ${buildpath}/*.dasm))
+trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.trace,$(wildcard ${buildpath}/*.dasm))
 
 VLOG_ARGS += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 
@@ -62,9 +67,10 @@ simc: build
 
 trace: $(trace)
 
-${buildpath}/%.log: ${buildpath}/%.dasm
+${buildpath}/%.trace: ${buildpath}/%.dasm
 	mkdir -p ${buildpath}
-	../riscv-isa-sim/build/spike-dasm < $< > $@
+	$(INSTALL_DIR)/riscv-gcc/bin/spike-dasm < $< > $(buildpath)/tmp
+	$(ROOT_DIR)/deps/snitch/scripts/gen_trace.py $(buildpath)/tmp > $@
 
 # Bender
 bender: Makefile
