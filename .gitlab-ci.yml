@@ -29,5 +29,3 @@ all:
     - env
     - make -C hardware
     - make all
-  tags:
-    - dolent2
