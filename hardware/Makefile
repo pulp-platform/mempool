@@ -54,7 +54,7 @@ trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.trace,$(wildcard ${buildp
 
 VLOG_ARGS += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 
-build: lib ${buildpath}/${dpi_library}/mempool_dpi.so
+build: bender lib ${buildpath}/${dpi_library}/mempool_dpi.so
 	./bender script vsim --vlog-arg="$(VLOG_ARGS)" -t rtl -t asic -t mempool_test > ${buildpath}/compile.tcl
 	echo "exit" >> ${buildpath}/compile.tcl
 	cd ${buildpath} && $(questa_cmd) vsim -c -do compile.tcl
@@ -79,9 +79,12 @@ ${buildpath}/%.trace: ${buildpath}/%.dasm
 
 # Bender
 bender: Makefile
+	@[ -x ./bender ] && echo "Bender already exists." || \
+	(command -v bender >/dev/null 2>&1 && ln -sf $$(command -v bender) ./bender || \
 	curl --proto '=https' --tlsv1.2 -sSf https://iis-people.ee.ethz.ch/~andkurt/bender-init \
-		| sh -s -- 0.13.3
-	touch bender
+		| bash -s -- 0.19.0)
+	@touch bender
+	@echo "$$(./bender --version) available."
 
 # DPIs
 ${buildpath}/${dpi_library}/%.o: tb/dpi/%.cpp
@@ -95,4 +98,4 @@ ${buildpath}/${dpi_library}/mempool_dpi.so: $(dpi)
 clean:
 	rm -rf ${buildpath}
 
-.PHONY: build lib sim simc clean bender
+.PHONY: build lib sim simc clean
