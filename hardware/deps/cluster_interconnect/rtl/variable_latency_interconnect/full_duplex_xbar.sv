@@ -24,12 +24,7 @@ module full_duplex_xbar #(
     parameter bit ExtPrio                = 1'b0, // Use external arbiter priority flags
     parameter bit SpillRegisterReq       = 1'b0, // Insert a spill register on the request path (after arbitration)
     parameter bit SpillRegisterResp      = 1'b0, // Insert a spill register on the response path (after arbitration)
-    parameter bit AxiVldRdy              = 1'b0, // Valid/ready signaling.
-    // Credit-based handshake. ready_o is a "credit grant" signal.
-    // Initiators can only send requests if they have a credit.
-    // Each request consumes a credit. A credit cannot be used on the same cycle it is issued.
-    parameter bit CreditBasedHandshake   = 1'b0,
-    parameter int unsigned NumCredits    = 2 // Number of credits at each initiator port.
+    parameter bit AxiVldRdy              = 1'b0  // Valid/ready signaling.
   ) (
     input  logic                                 clk_i,
     input  logic                                 rst_ni,
@@ -62,14 +57,12 @@ module full_duplex_xbar #(
   // Instantiate two simplex crossbars, one for the requests and one for the responses.
 
   simplex_xbar #(
-    .NumIn               (NumIn                ),
-    .NumOut              (NumOut               ),
-    .DataWidth           (ReqDataWidth         ),
-    .ExtPrio             (ExtPrio              ),
-    .SpillRegister       (SpillRegisterReq     ),
-    .AxiVldRdy           (AxiVldRdy            ),
-    .CreditBasedHandshake(CreditBasedHandshake ),
-    .NumCredits          (NumCredits           )
+    .NumIn        (NumIn           ),
+    .NumOut       (NumOut          ),
+    .DataWidth    (ReqDataWidth    ),
+    .ExtPrio      (ExtPrio         ),
+    .AxiVldRdy    (AxiVldRdy       ),
+    .SpillRegister(SpillRegisterReq)
   ) req_xbar (
     .clk_i     (clk_i         ),
     .rst_ni    (rst_ni        ),
@@ -85,14 +78,12 @@ module full_duplex_xbar #(
   );
 
   simplex_xbar #(
-    .NumIn               (NumOut               ),
-    .NumOut              (NumIn                ),
-    .DataWidth           (RespDataWidth        ),
-    .ExtPrio             (ExtPrio              ),
-    .SpillRegister       (SpillRegisterResp    ),
-    .AxiVldRdy           (AxiVldRdy            ),
-    .CreditBasedHandshake(CreditBasedHandshake ),
-    .NumCredits          (NumCredits           )
+    .NumIn        (NumOut           ),
+    .NumOut       (NumIn            ),
+    .DataWidth    (RespDataWidth    ),
+    .ExtPrio      (ExtPrio          ),
+    .AxiVldRdy    (AxiVldRdy        ),
+    .SpillRegister(SpillRegisterResp)
   ) resp_xbar (
     .clk_i     (clk_i          ),
     .rst_ni    (rst_ni         ),

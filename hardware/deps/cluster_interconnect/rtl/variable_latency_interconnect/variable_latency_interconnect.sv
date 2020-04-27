@@ -29,11 +29,6 @@ module variable_latency_interconnect #(
     parameter int unsigned BeWidth           = DataWidth/8          , // Byte Strobe Width
     parameter int unsigned AddrMemWidth      = 12                   , // Number of Address bits per Target
     parameter bit AxiVldRdy                  = 1'b0                 , // Valid/ready signaling.
-    // Credit-based handshake. ready_o is a "credit grant" signal.
-    // Initiators can only send requests if they have a credit.
-    // Each request consumes a credit. A credit cannot be used on the same cycle it is issued.
-    parameter bit CreditBasedHandshake       = 1'b0                 ,
-    parameter int unsigned NumCredits        = 2                    , // Number of credits at each initiator port.
     // Spill registers
     // A bit set at position i indicates a spill register at the i-th crossbar layer.
     // The layers are counted starting at 0 from the initiator, for the requests, and from the target, for the responses.
@@ -108,15 +103,13 @@ module variable_latency_interconnect #(
   // Tuned logarithmic interconnect architecture, based on rr_arb_tree primitives
   if (Topology == tcdm_interconnect_pkg::LIC) begin : gen_lic
     full_duplex_xbar #(
-      .NumIn               (NumIn               ),
-      .NumOut              (NumOut              ),
-      .ReqDataWidth        (IniAggDataWidth     ),
-      .RespDataWidth       (DataWidth           ),
-      .SpillRegisterReq    (SpillRegisterReq[0] ),
-      .SpillRegisterResp   (SpillRegisterResp[0]),
-      .AxiVldRdy           (AxiVldRdy           ),
-      .CreditBasedHandshake(CreditBasedHandshake),
-      .NumCredits          (NumCredits          )
+      .NumIn            (NumIn               ),
+      .NumOut           (NumOut              ),
+      .ReqDataWidth     (IniAggDataWidth     ),
+      .RespDataWidth    (DataWidth           ),
+      .AxiVldRdy        (AxiVldRdy           ),
+      .SpillRegisterReq (SpillRegisterReq[0] ),
+      .SpillRegisterResp(SpillRegisterResp[0])
     ) i_xbar (
       .clk_i          (clk_i          ),
       .rst_ni         (rst_ni         ),
@@ -148,15 +141,13 @@ module variable_latency_interconnect #(
     localparam int unsigned Radix = 2**Topology;
 
     variable_latency_bfly_net #(
-      .NumIn               (NumIn               ),
-      .NumOut              (NumOut              ),
-      .DataWidth           (IniAggDataWidth     ),
-      .Radix               (Radix               ),
-      .ExtPrio             (1'b0                ),
-      .SpillRegister       (SpillRegisterReq    ),
-      .AxiVldRdy           (AxiVldRdy           ),
-      .CreditBasedHandshake(CreditBasedHandshake),
-      .NumCredits          (NumCredits          )
+      .NumIn        (NumIn            ),
+      .NumOut       (NumOut           ),
+      .DataWidth    (IniAggDataWidth  ),
+      .Radix        (Radix            ),
+      .ExtPrio      (1'b0             ),
+      .SpillRegister(SpillRegisterReq ),
+      .AxiVldRdy    (AxiVldRdy        )
     ) i_req_bfly_net (
       .clk_i     (clk_i          ),
       .rst_ni    (rst_ni         ),
@@ -175,15 +166,13 @@ module variable_latency_interconnect #(
     );
 
     variable_latency_bfly_net #(
-      .NumIn               (NumOut              ),
-      .NumOut              (NumIn               ),
-      .DataWidth           (DataWidth           ),
-      .Radix               (Radix               ),
-      .ExtPrio             (1'b0                ),
-      .SpillRegister       (SpillRegisterResp   ),
-      .AxiVldRdy           (AxiVldRdy           ),
-      .CreditBasedHandshake(CreditBasedHandshake),
-      .NumCredits          (NumCredits          )
+      .NumIn        (NumOut            ),
+      .NumOut       (NumIn             ),
+      .DataWidth    (DataWidth         ),
+      .Radix        (Radix             ),
+      .ExtPrio      (1'b0              ),
+      .SpillRegister(SpillRegisterResp ),
+      .AxiVldRdy    (AxiVldRdy         )
     ) i_resp_bfly_net (
       .clk_i     (clk_i          ),
       .rst_ni    (rst_ni         ),
@@ -212,7 +201,7 @@ module variable_latency_interconnect #(
    ******************/
 
   if (AddrMemWidth + NumOutLog2 > AddrWidth)
-    $fatal(1, "[variable_latency_interconnect] Address is not wide enough to accomodate the requested TCDM configuration.");
+    $fatal(1, "[variable_latency_interconnect] Address is not wide enough to accommodate the requested TCDM configuration.");
 
   if (Topology != tcdm_interconnect_pkg::LIC && NumOut < NumIn)
     $fatal(1, "[variable_latency_interconnect] NumOut < NumIn is not supported with the chosen TCDM configuration.");

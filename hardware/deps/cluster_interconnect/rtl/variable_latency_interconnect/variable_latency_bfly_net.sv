@@ -23,17 +23,12 @@
 // non-power-of-radix parameterizations.
 
 module variable_latency_bfly_net #(
-    parameter int unsigned NumIn         = 32   , // Number of Initiators. Needs to be a power of 2
-    parameter int unsigned NumOut        = 32   , // Number of Targets. Needs to be a power of 2
-    parameter int unsigned DataWidth     = 32   , // Request Data Width
-    parameter bit ExtPrio                = 1'b0 , // Use external arbiter priority flags
-    parameter int unsigned Radix         = 2    , // Butterfly Radix. Currently supported: 2 or 4.
-    parameter bit AxiVldRdy              = 1'b0 , // Valid/ready signaling.
-    // Credit-based handshake. ready_o is a "credit grant" signal.
-    // Initiators can only send requests if they have a credit.
-    // Each request consumes a credit. A credit cannot be used on the same cycle it is issued.
-    parameter bit CreditBasedHandshake   = 1'b0 ,
-    parameter int unsigned NumCredits    = 2    , // Number of credits at each initiator port.
+    parameter int unsigned NumIn         = 32  , // Number of Initiators. Needs to be a power of 2
+    parameter int unsigned NumOut        = 32  , // Number of Targets. Needs to be a power of 2
+    parameter int unsigned DataWidth     = 32  , // Request Data Width
+    parameter bit ExtPrio                = 1'b0, // Use external arbiter priority flags
+    parameter int unsigned Radix         = 2   , // Butterfly Radix. Currently supported: 2 or 4.
+    parameter bit AxiVldRdy              = 1'b0, // Valid/ready signaling.
     // Spill registers
     // A bit set at position i indicates a spill register at the i-th crossbar layer.
     // The layers are counted starting at 0 from the initiator.
@@ -125,7 +120,7 @@ module variable_latency_bfly_net #(
       end
     // We only enter this case if each input switchbox has 1 or zero connections.
     // Only connect to lower portion of switchboxes and tie off upper portion. This allows
-    // us to reduce arbitration confligs on the first network layers.
+    // us to reduce arbitration conflicts on the first network layers.
     end else begin : gen_linear
       if (((j % Radix) == 0) && (j/Radix < NumIn)) begin : gen_connect
         // Req
@@ -147,10 +142,10 @@ module variable_latency_bfly_net #(
   // Outputs are on the last stage.
   for (genvar j = 0; j < Radix*NumRouters; j++) begin : gen_outputs
     if (j < NumOut) begin : gen_connect
-      assign valid_o[j]                                     = router_valid_out[NumStages-1][j/Radix][j%Radix]   ;
-      assign ini_addr_o[j]                                  = router_ini_add_out[NumStages-1][j/Radix][j%Radix] ;
-      assign router_ready_in[NumStages-1][j/Radix][j%Radix] = ready_i[j]                                        ;
-      assign wdata_o[j]                                     = router_data_out[NumStages-1][j/Radix][j%Radix]    ;
+      assign valid_o[j]                                     = router_valid_out[NumStages-1][j/Radix][j%Radix]  ;
+      assign ini_addr_o[j]                                  = router_ini_add_out[NumStages-1][j/Radix][j%Radix];
+      assign router_ready_in[NumStages-1][j/Radix][j%Radix] = ready_i[j]                                       ;
+      assign wdata_o[j]                                     = router_data_out[NumStages-1][j/Radix][j%Radix]   ;
     end else begin : gen_tie_off
       assign router_ready_in[NumStages-1][j/Radix][j%Radix] = '1;
     end
@@ -215,14 +210,12 @@ module variable_latency_bfly_net #(
 
         for (genvar k = 0; k < 2; k++) begin: gen_xbar
           simplex_xbar #(
-            .NumIn               (2                                 ),
-            .NumOut              (2                                 ),
-            .DataWidth           (AddWidth + IniAddWidth + DataWidth),
-            .ExtPrio             (ExtPrio                           ),
-            .SpillRegister       (SpillRegister[l]                  ),
-            .AxiVldRdy           (AxiVldRdy                         ),
-            .CreditBasedHandshake(CreditBasedHandshake              ),
-            .NumCredits          (NumCredits                        )
+            .NumIn        (2                                 ),
+            .NumOut       (2                                 ),
+            .DataWidth    (AddWidth + IniAddWidth + DataWidth),
+            .ExtPrio      (ExtPrio                           ),
+            .AxiVldRdy    (AxiVldRdy                         ),
+            .SpillRegister(SpillRegister[l]                  )
           ) i_xbar (
             .clk_i     (clk_i                           ),
             .rst_ni    (rst_ni                          ),
@@ -265,14 +258,12 @@ module variable_latency_bfly_net #(
         end
 
         simplex_xbar #(
-          .NumIn               (Radix                             ),
-          .NumOut              (Radix                             ),
-          .DataWidth           (AddWidth + IniAddWidth + DataWidth),
-          .ExtPrio             (ExtPrio                           ),
-          .SpillRegister       (SpillRegister[l]                  ),
-          .AxiVldRdy           (AxiVldRdy                         ),
-          .CreditBasedHandshake(CreditBasedHandshake              ),
-          .NumCredits          (NumCredits                        )
+          .NumIn        (Radix                             ),
+          .NumOut       (Radix                             ),
+          .DataWidth    (AddWidth + IniAddWidth + DataWidth),
+          .ExtPrio      (ExtPrio                           ),
+          .AxiVldRdy    (AxiVldRdy                         ),
+          .SpillRegister(SpillRegister[l]                  )
         ) i_xbar (
           .clk_i     (clk_i                 ),
           .rst_ni    (rst_ni                ),
