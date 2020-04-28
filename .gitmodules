@@ -3,7 +3,7 @@
 	url = https://github.com/riscv/riscv-gnu-toolchain.git
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
-	url = https://github.com/llvm/llvm-project
+	url = git@iis-git.ee.ethz.ch:mempool/llvm-project.git
 [submodule "toolchain/halide"]
 	path = toolchain/halide
 	url = https://github.com/halide/Halide.git
