@@ -198,8 +198,8 @@ module mempool #(
       .DataWidth        (DataWidth                                 ),
       .AddrMemWidth     (TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
       .Topology         (tcdm_interconnect_pkg::BFLY4              ),
-      .SpillRegisterReq (64'b101                                   ),
-      .SpillRegisterResp(64'b101                                   ),
+      .SpillRegisterReq (64'b0101                                  ),
+      .SpillRegisterResp(64'b0101                                  ),
       .AxiVldRdy        (1'b1                                      )
     ) i_interco (
       .clk_i          (clk_i              ),
