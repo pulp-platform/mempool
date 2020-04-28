@@ -1,6 +1,6 @@
 [submodule "toolchain/riscv-gnu-toolchain"]
 	path = toolchain/riscv-gnu-toolchain
-	url = https://github.com/riscv/riscv-gnu-toolchain.git
+	url = git@iis-git.ee.ethz.ch:mempool/riscv-gnu-toolchain.git
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
 	url = git@iis-git.ee.ethz.ch:mempool/llvm-project.git
