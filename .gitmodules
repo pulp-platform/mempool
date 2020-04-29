@@ -7,3 +7,6 @@
 [submodule "toolchain/halide"]
 	path = toolchain/halide
 	url = ../Halide.git
+[submodule "toolchain/riscv-isa-sim"]
+	path = toolchain/riscv-isa-sim
+	url = ../riscv-isa-sim.git
