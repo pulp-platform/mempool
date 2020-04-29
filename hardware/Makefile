@@ -28,20 +28,25 @@ dpi_library    ?= work-dpi
 # Top level module to compile
 top_level      ?= mempool_tb
 # QuestaSim Version
-questa_version ?= -2020.1
-# QuestaSim Commands
-questa_cmd     ?=
+questa_version ?= 2020.1
+# QuestaSim command
+questa_cmd     ?= questa-$(questa_version)
+# QuestaSim arguments
+questa_args    ?=
 
-ifndef QUESTASIM_HOME
-	QUESTASIM_HOME = /usr/pack/questa-2019.3-kgf/questasim
-# 	$(error QUESTASIM_HOME not set - please point your QUESTASIM_HOME variable to your QuestaSim installation)
+# Check if the specified QuestaSim version exists
+ifeq (, $(shell which $(questa_cmd)))
+ 	$(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
+	questa_cmd =
 endif
 
-questa_cmd += -voptargs=+acc
+QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)-kgf/questasim
+
+questa_args += -voptargs=+acc
 ifdef preload
-	questa_cmd += +PRELOAD=$(preload)
+	questa_args += +PRELOAD=$(preload)
 endif
-questa_cmd += -sv_lib ${dpi_library}/mempool_dpi
+questa_args += -sv_lib ${dpi_library}/mempool_dpi
 
 # DPI source files
 dpi   := $(patsubst tb/dpi/%.cpp,${buildpath}/${dpi_library}/%.o,$(wildcard tb/dpi/*.cpp))
@@ -49,21 +54,21 @@ trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.trace,$(wildcard ${buildp
 
 VLOG_ARGS += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 
-build: bender lib ${buildpath}/${dpi_library}/mempool_dpi.so
+build: lib ${buildpath}/${dpi_library}/mempool_dpi.so
 	./bender script vsim --vlog-arg="$(VLOG_ARGS)" -t rtl -t asic -t mempool_test > ${buildpath}/compile.tcl
 	echo "exit" >> ${buildpath}/compile.tcl
-	cd ${buildpath} && questa${questa_version} vsim -c -do compile.tcl
+	cd ${buildpath} && $(questa_cmd) vsim -c -do compile.tcl
 
 lib:
 	mkdir -p ${buildpath}
 	mkdir -p ${buildpath}/${library}
-	cd ${buildpath} && questa${questa_version} vlib work && questa${questa_version} vmap work work
+	cd ${buildpath} && $(questa_cmd) vlib work && $(questa_cmd) vmap work work
 
 sim: build
-	cd ${buildpath} && questa${questa_version} vsim $(questa_cmd) ${library}.${top_level}
+	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level}
 
 simc: build
-	cd ${buildpath} && questa${questa_version} vsim -c $(questa_cmd) ${library}.${top_level}
+	cd ${buildpath} && $(questa_cmd) vsim -c $(questa_args) ${library}.${top_level}
 
 trace: $(trace)
 
