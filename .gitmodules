@@ -1,9 +1,9 @@
 [submodule "toolchain/riscv-gnu-toolchain"]
 	path = toolchain/riscv-gnu-toolchain
-	url = https://github.com/riscv/riscv-gnu-toolchain.git
+	url = ../riscv-gnu-toolchain.git
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
-	url = https://github.com/llvm/llvm-project
+	url = ../llvm-project.git
 [submodule "toolchain/halide"]
 	path = toolchain/halide
-	url = https://github.com/halide/Halide.git
+	url = ../Halide.git
