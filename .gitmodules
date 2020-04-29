@@ -1,9 +1,9 @@
 [submodule "toolchain/riscv-gnu-toolchain"]
 	path = toolchain/riscv-gnu-toolchain
-	url = git@iis-git.ee.ethz.ch:mempool/riscv-gnu-toolchain.git
+	url = ../riscv-gnu-toolchain.git
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
-	url = git@iis-git.ee.ethz.ch:mempool/llvm-project.git
+	url = ../llvm-project.git
 [submodule "toolchain/halide"]
 	path = toolchain/halide
-	url = git@iis-git.ee.ethz.ch:mempool/Halide.git
+	url = ../Halide.git
