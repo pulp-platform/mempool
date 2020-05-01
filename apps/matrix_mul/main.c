@@ -82,7 +82,9 @@ void barrier(uint32_t coreid, uint32_t num_cores) {
   while (atomic != num_cores);
 }
 
-int main(uint32_t coreid, uint32_t num_cores) {
+int main(int argc, char **argv) {
+  uint32_t coreid = (uint32_t) argc;
+  uint32_t num_cores = (uint32_t) argv;
   //TODO(sriedel): This is a hack, to be fixed when MemPool has a fence mechanism.
   atomic = 0;
 
