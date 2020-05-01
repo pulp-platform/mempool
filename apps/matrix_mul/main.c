@@ -48,6 +48,34 @@ void matrix_multiplication(uint32_t coreid, uint32_t num_cores) {
   asm volatile ("nop"::);
 }
 
+void matrix_multiplication_unrolled(uint32_t coreid, uint32_t num_cores) {
+  asm volatile ("nop"::);
+  for (int i=coreid; i<N; i += num_cores) {
+    uint32_t sum0 = 0;
+    uint32_t sum1 = 0;
+    uint32_t sum2 = 0;
+    uint32_t sum3 = 0;
+    for (int j=0; j<N; j += 4) {
+      for (int k=0; k<M; k++) {
+        uint32_t val_a  = a[i][k];
+        uint32_t val_b0 = b[k][j+0];
+        uint32_t val_b1 = b[k][j+1];
+        uint32_t val_b2 = b[k][j+2];
+        uint32_t val_b3 = b[k][j+3];
+        sum0 += val_a * val_b0;
+        sum1 += val_a * val_b1;
+        sum2 += val_a * val_b2;
+        sum3 += val_a * val_b3;
+      }
+      c[i][j+0] = sum0;
+      c[i][j+1] = sum1;
+      c[i][j+2] = sum2;
+      c[i][j+3] = sum3;
+    }
+  }
+  asm volatile ("nop"::);
+}
+
 void barrier(uint32_t coreid, uint32_t num_cores) {
   while (atomic % num_cores != coreid);
   atomic = coreid+1;
@@ -102,7 +130,7 @@ int main(uint32_t coreid, uint32_t num_cores) {
 #endif
 
   // Matrices are initialized --> Start calculating
-  matrix_multiplication(coreid, num_cores);
+  matrix_multiplication_unrolled(coreid, num_cores);
 
 #ifdef VERBOSE
   if (coreid == 0) {
