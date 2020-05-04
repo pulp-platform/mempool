@@ -61,6 +61,11 @@ endif
 RISCV_CCFLAGS  ?= $(RISCV_FLAGS)
 RISCV_CXXFLAGS ?= $(RISCV_FLAGS)
 RISCV_LDFLAGS  ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS)
+ifeq ($(COMPILER),gcc)
+	RISCV_OBJDUMP_FLAGS ?=
+else
+	RISCV_OBJDUMP_FLAGS ?= --triple=$(RISCV_TARGET) --mcpu=generic-rv32 -mattr=m,a
+endif
 
 RUNTIME ?= common/crt0.S.o common/printf.c.o common/string.c.o common/serial.c.o common/arch.ld
 HDR ?=     common/runtime.h
