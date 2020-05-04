@@ -38,12 +38,14 @@ module mempool_cc #(
   snitch_pkg::dresp_t data_resp_d, data_resp_q;
 
   logic data_req_d_valid, data_req_d_ready, data_resp_d_valid, data_resp_d_ready;
+  logic data_req_q_valid, data_req_q_ready, data_resp_q_valid, data_resp_q_ready;
 
   // Accelerator signals
   snitch_pkg::acc_req_t  acc_req_d,  acc_req_q;
   snitch_pkg::acc_resp_t acc_resp_d, acc_resp_q;
 
   logic acc_req_d_valid, acc_req_d_ready, acc_resp_d_valid, acc_resp_d_ready;
+  logic acc_req_q_valid, acc_req_q_ready, acc_resp_q_valid, acc_resp_q_ready;
 
   // Snitch Integer Core
   snitch #(
@@ -200,9 +202,6 @@ module mempool_cc #(
   typedef enum logic [1:0] {SrcSnitch =  0, SrcFpu = 1, SrcFpuSeq = 2} trace_src_e;
 
   longint extras_snitch       [string];
-  longint extras_fpu          [string];
-  longint extras_fpu_seq_in   [string];
-  longint extras_fpu_seq_out  [string];
 
   assign extras_snitch = '{
     // State

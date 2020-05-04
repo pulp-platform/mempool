@@ -45,7 +45,7 @@ package snitch_pkg;
   } inst_req_t;
 
   localparam int NumFPOutstandingLoads = 4;
-  localparam int NumIntOutstandingLoads = 1;
+  localparam int NumIntOutstandingLoads = 4;
   // Number of instructions the sequencer can hold
   localparam int FPUSequencerInstr = 16;
   // SSRs

@@ -23,7 +23,7 @@ dpi_library    ?= work-dpi
 # Top level module to compile
 top_level      ?= mempool_tb
 # QuestaSim Version
-questa_version ?= -2019.3
+questa_version ?= -2020.1
 # QuestaSim Commands
 questa_cmd     ?=
 
@@ -52,7 +52,7 @@ build: bender lib ${buildpath}/${dpi_library}/mempool_dpi.so
 lib:
 	mkdir -p ${buildpath}
 	mkdir -p ${buildpath}/${library}
-	cd ${buildpath} && questa${questa_version} vlib work && chmod +w modelsim.ini && questa${questa_version} vmap work work
+	cd ${buildpath} && questa${questa_version} vlib work && questa${questa_version} vmap work work
 
 sim: build
 	cd ${buildpath} && questa${questa_version} vsim $(questa_cmd) ${library}.${top_level}
