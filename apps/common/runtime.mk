@@ -51,7 +51,7 @@ RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RI
 
 RISCV_FLAGS_COMMON ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf
 RISCV_FLAGS_GCC    ?= -mcmodel=medany
-RISCV_FLAGS_LLVM   ?= -mcmodel=small
+RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -enable-misched
 ifeq ($(COMPILER),gcc)
 	RISCV_FLAGS    ?= $(RISCV_FLAGS_GCC)  $(RISCV_FLAGS_COMMON)
 else
