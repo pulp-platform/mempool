@@ -33,6 +33,8 @@ questa_version ?= 2020.1
 questa_cmd     ?= questa-$(questa_version)
 # QuestaSim arguments
 questa_args    ?=
+# Path to the binaries
+app_path       ?= $(abspath $(ROOT_DIR)/../apps/bin)
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -43,6 +45,9 @@ endif
 QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)-kgf/questasim
 
 questa_args += -voptargs=+acc
+ifdef app
+	preload ?= "$(app_path)/$(app)"
+endif
 ifdef preload
 	questa_args += +PRELOAD=$(preload)
 endif
@@ -69,6 +74,9 @@ sim: build
 
 simc: build
 	cd ${buildpath} && $(questa_cmd) vsim -c $(questa_args) ${library}.${top_level}
+
+run: build
+	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level} -do ../scripts/run.do
 
 trace: $(trace)
 
