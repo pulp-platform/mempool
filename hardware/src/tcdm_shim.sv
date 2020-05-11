@@ -103,7 +103,7 @@ module tcdm_shim #(
     .valid_o  (data_pvalid_o),
     .pop_i    (data_pready_i),
     // ID request
-    .id_req_i (data_qvalid_i & data_qready_o),
+    .id_req_i (data_qvalid_i & data_qready_o & !data_qwrite_i),
     .id_o     (rob_id),
     .full_o   (rob_full)
   );
