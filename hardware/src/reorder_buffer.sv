@@ -47,8 +47,8 @@ module reorder_buffer #(
   logic  [NumWords-1:0] valid_n, valid_q;
 
   // Status flags
-  assign full_o = (status_cnt_q == IdWidth) ;
-  assign id_o   = write_pointer_q           ;
+  assign full_o = (status_cnt_q == NumWords-1);
+  assign id_o   = write_pointer_q;
 
   // Read and Write logic
   always_comb begin: read_write_comb
@@ -66,7 +66,7 @@ module reorder_buffer #(
     // Request an ID.
     if (id_req_i && !full_o) begin
       // Increment the write pointer
-      if (write_pointer_q == IdWidth-1)
+      if (write_pointer_q == NumWords-1)
         write_pointer_n = 0;
       else
         write_pointer_n = write_pointer_q + 1;
@@ -86,7 +86,7 @@ module reorder_buffer #(
       valid_n[read_pointer_q] = 1'b0;
 
       // Increment the read pointer
-      if (read_pointer_q == IdWidth-1)
+      if (read_pointer_q == NumWords-1)
         read_pointer_n = '0;
       else
         read_pointer_n = read_pointer_q + 1;
