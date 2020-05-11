@@ -12,6 +12,7 @@ workspace:
 sources:
   # Level 0
   - hardware/src/mempool_pkg.sv
+  - hardware/src/reorder_buffer.sv
   - hardware/src/snitch_address_demux.sv
   - hardware/src/tcdm_shim.sv
   # Level 1
