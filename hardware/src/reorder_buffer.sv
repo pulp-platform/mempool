@@ -80,6 +80,15 @@ module reorder_buffer #(
       valid_n[id_i] = 1'b1  ;
     end
 
+    // ROB is in fall-through mode -> do not change the pointers
+    if (FallThrough && push_i && (id_i == read_pointer_q)) begin
+      data_o  = data_i;
+      valid_o = 1'b1  ;
+      if (pop_i) begin
+        valid_n[id_i] = 1'b0;
+      end
+    end
+
     // Pop data
     if (pop_i && valid_o) begin
       // Word was consumed
@@ -94,20 +103,9 @@ module reorder_buffer #(
       status_cnt_n = status_cnt_q - 1;
     end
 
-    // Keep the overall counter stable if we push and pop at the same time
-    if (push_i && pop_i && ~full_o && valid_o)
+    // Keep the overall counter stable if we request new ID and pop at the same time
+    if ((id_req_i && !full_o) && (pop_i && valid_o)) begin
       status_cnt_n = status_cnt_q;
-
-    // ROB is in fall-through mode -> do not change the pointers
-    if (FallThrough && push_i && (id_i == read_pointer_q)) begin
-      data_o  = data_i;
-      valid_o = 1'b1  ;
-      if (pop_i) begin
-        status_cnt_n    = status_cnt_q   ;
-        read_pointer_n  = read_pointer_q ;
-        write_pointer_n = write_pointer_q;
-        valid_n[id_i]   = 1'b0           ;
-      end
     end
   end: read_write_comb
 
