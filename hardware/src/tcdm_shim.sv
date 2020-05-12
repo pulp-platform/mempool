@@ -116,7 +116,7 @@ module tcdm_shim #(
       .NrOutput           (NumOutput),
       .AddressWidth       (AddrWidth),
       .NumRules           (NumRules ), // TODO
-      .MaxOutStandingReads(NumOutput), // TODO
+      .MaxOutStandingReads(MaxOutStandingReads),
       .req_t              (dreq_t   ),
       .resp_t             (dresp_t  )
     ) i_snitch_addr_demux (
