@@ -247,7 +247,7 @@ module mempool_cc #(
     output string extras_str
   );
     extras_str = "{";
-    foreach(extras[key]) extras_str = $sformatf("%s'%s': 0x%0x, ", extras_str, key, extras[key]);
+    foreach(extras[key]) extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, key, extras[key]);
     extras_str = $sformatf("%s}", extras_str);
   endtask
 

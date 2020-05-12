@@ -13,6 +13,11 @@
 # limitations under the License.
 
 # Author: Matheus Cavalcante, ETH Zurich
+#         Samuel Riedel, ETH Zurich
+
+ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
+SHELL = /usr/bin/env bash
 
 # build path
 buildpath      ?= build
@@ -23,54 +28,71 @@ dpi_library    ?= work-dpi
 # Top level module to compile
 top_level      ?= mempool_tb
 # QuestaSim Version
-questa_version ?= -2020.1
-# QuestaSim Commands
-questa_cmd     ?=
+questa_version ?= 2020.1
+# QuestaSim command
+questa_cmd     ?= questa-$(questa_version)
+# QuestaSim arguments
+questa_args    ?=
+# Path to the binaries
+app_path       ?= $(abspath $(ROOT_DIR)/../apps/bin)
 
-ifndef QUESTASIM_HOME
-	QUESTASIM_HOME = /usr/pack/questa-2019.3-kgf/questasim
-# 	$(error QUESTASIM_HOME not set - please point your QUESTASIM_HOME variable to your QuestaSim installation)
+# Check if the specified QuestaSim version exists
+ifeq (, $(shell which $(questa_cmd)))
+ 	$(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
+	questa_cmd =
 endif
 
-questa_cmd += -voptargs=+acc
+QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)-kgf/questasim
+
+questa_args += -voptargs=+acc
+ifdef app
+	preload ?= "$(app_path)/$(app)"
+endif
 ifdef preload
-	questa_cmd += +PRELOAD=$(preload)
+	questa_args += +PRELOAD=$(preload)
 endif
-questa_cmd += -sv_lib ${dpi_library}/mempool_dpi
+questa_args += -sv_lib ${dpi_library}/mempool_dpi
 
 # DPI source files
 dpi   := $(patsubst tb/dpi/%.cpp,${buildpath}/${dpi_library}/%.o,$(wildcard tb/dpi/*.cpp))
-trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.log,$(wildcard ${buildpath}/*.dasm))
+trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.trace,$(wildcard ${buildpath}/*.dasm))
 
 VLOG_ARGS += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 
 build: bender lib ${buildpath}/${dpi_library}/mempool_dpi.so
 	./bender script vsim --vlog-arg="$(VLOG_ARGS)" -t rtl -t asic -t mempool_test > ${buildpath}/compile.tcl
 	echo "exit" >> ${buildpath}/compile.tcl
-	cd ${buildpath} && questa${questa_version} vsim -c -do compile.tcl
+	cd ${buildpath} && $(questa_cmd) vsim -c -do compile.tcl
 
 lib:
 	mkdir -p ${buildpath}
 	mkdir -p ${buildpath}/${library}
-	cd ${buildpath} && questa${questa_version} vlib work && questa${questa_version} vmap work work
+	cd ${buildpath} && $(questa_cmd) vlib work && $(questa_cmd) vmap work work
 
 sim: build
-	cd ${buildpath} && questa${questa_version} vsim $(questa_cmd) ${library}.${top_level}
+	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level}
 
 simc: build
-	cd ${buildpath} && questa${questa_version} vsim -c $(questa_cmd) ${library}.${top_level}
+	cd ${buildpath} && $(questa_cmd) vsim -c $(questa_args) ${library}.${top_level}
+
+run: build
+	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level} -do ../scripts/run.do
 
 trace: $(trace)
 
-${buildpath}/%.log: ${buildpath}/%.dasm
+${buildpath}/%.trace: ${buildpath}/%.dasm
 	mkdir -p ${buildpath}
-	../riscv-isa-sim/build/spike-dasm < $< > $@
+	$(INSTALL_DIR)/riscv-gcc/bin/spike-dasm < $< > $(buildpath)/tmp
+	$(ROOT_DIR)/deps/snitch/scripts/gen_trace.py $(buildpath)/tmp > $@
 
 # Bender
 bender: Makefile
+	@[ -x ./bender ] && echo "Bender already exists." || \
+	(command -v bender >/dev/null 2>&1 && ln -sf $$(command -v bender) ./bender || \
 	curl --proto '=https' --tlsv1.2 -sSf https://iis-people.ee.ethz.ch/~andkurt/bender-init \
-		| sh -s -- 0.13.3
-	touch bender
+		| bash -s -- 0.19.0)
+	@touch bender
+	@echo "$$(./bender --version) available."
 
 # DPIs
 ${buildpath}/${dpi_library}/%.o: tb/dpi/%.cpp
@@ -84,4 +106,4 @@ ${buildpath}/${dpi_library}/mempool_dpi.so: $(dpi)
 clean:
 	rm -rf ${buildpath}
 
-.PHONY: build lib sim simc clean bender
+.PHONY: build lib sim simc clean

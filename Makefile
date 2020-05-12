@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # Author: Matheus Cavalcante, ETH Zurich
+#         Samuel Riedel, ETH Zurich
 
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SHELL = bash
@@ -73,6 +74,10 @@ tc-llvm:
 		../llvm && \
 	make -j4 all && \
 	make install
+
+riscv-isa-sim:
+	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
+	../configure --prefix=$(GCC_INSTALL_DIR) && make && make install
 
 # Helper targets
 .PHONY: clean
