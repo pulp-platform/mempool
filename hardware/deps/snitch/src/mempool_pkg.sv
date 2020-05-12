@@ -3,6 +3,7 @@ package snitch_pkg;
 
   localparam DataWidth = 32;
   localparam StrbWidth = DataWidth/8;
+  localparam ReorderIdWidth = $clog2(NumIntOutstandingLoads);
 
   typedef struct packed {
     logic [31:0] BootAddress;
@@ -11,6 +12,7 @@ package snitch_pkg;
 
   typedef struct packed {
     logic [31:0]          addr;
+    logic [ReorderIdWidth-1:0]  id;
     logic [3:0]           amo;
     logic                 write;
     logic [DataWidth-1:0] data;
@@ -19,6 +21,7 @@ package snitch_pkg;
 
   typedef struct packed {
     logic [DataWidth-1:0] data;
+    logic [ReorderIdWidth-1:0]  id;
     logic                 error;
   } dresp_t;
 
@@ -45,7 +48,7 @@ package snitch_pkg;
   } inst_req_t;
 
   localparam int NumFPOutstandingLoads = 4;
-  localparam int NumIntOutstandingLoads = 4;
+  localparam int NumIntOutstandingLoads = 8;
   // Number of instructions the sequencer can hold
   localparam int FPUSequencerInstr = 16;
   // SSRs

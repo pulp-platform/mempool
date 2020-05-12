@@ -51,6 +51,10 @@ module mempool #(
 
   typedef logic [$clog2(NumTiles)-1:0] tile_id_t                            ;
   typedef logic [TCDMAddrMemWidth + $clog2(NumBanksPerTile)-1:0] tile_addr_t;
+  typedef struct packed {
+    reorder_id_t id;
+    data_t data;
+  } tcdm_payload_t;
 
   /***********
    *  Tiles  *
@@ -62,9 +66,9 @@ module mempool #(
   logic       [NumCores-1:0] tcdm_master_req_ready;
   addr_t      [NumCores-1:0] tcdm_master_req_tgt_addr;
   logic       [NumCores-1:0] tcdm_master_req_wen;
-  data_t      [NumCores-1:0] tcdm_master_req_wdata;
+  tcdm_payload_t [NumCores-1:0] tcdm_master_req_wdata;
   strb_t      [NumCores-1:0] tcdm_master_req_be;
-  data_t      [NumCores-1:0] tcdm_master_resp_rdata;
+  tcdm_payload_t [NumCores-1:0] tcdm_master_resp_rdata;
   logic       [NumCores-1:0] tcdm_master_resp_valid;
   logic       [NumCores-1:0] tcdm_master_resp_ready;
   logic       [NumCores-1:0] tcdm_slave_req_valid;
@@ -72,12 +76,12 @@ module mempool #(
   tile_addr_t [NumCores-1:0] tcdm_slave_req_tgt_addr;
   tile_id_t   [NumCores-1:0] tcdm_slave_req_ini_addr;
   logic       [NumCores-1:0] tcdm_slave_req_wen;
-  data_t      [NumCores-1:0] tcdm_slave_req_wdata;
+  tcdm_payload_t [NumCores-1:0] tcdm_slave_req_wdata;
   strb_t      [NumCores-1:0] tcdm_slave_req_be;
   tile_id_t   [NumCores-1:0] tcdm_slave_resp_ini_addr;
   logic       [NumCores-1:0] tcdm_slave_resp_valid;
   logic       [NumCores-1:0] tcdm_slave_resp_ready;
-  data_t      [NumCores-1:0] tcdm_slave_resp_rdata;
+  tcdm_payload_t [NumCores-1:0] tcdm_slave_resp_rdata;
 
   for (genvar t = 0; unsigned'(t) < NumTiles; t++) begin: gen_tiles
 
@@ -150,9 +154,9 @@ module mempool #(
     logic [NumTiles-1:0] master_req_ready         ;
     addr_t [NumTiles-1:0] master_req_tgt_addr     ;
     logic [NumTiles-1:0] master_req_wen           ;
-    data_t [NumTiles-1:0] master_req_wdata        ;
+    tcdm_payload_t [NumTiles-1:0] master_req_wdata;
     strb_t [NumTiles-1:0] master_req_be           ;
-    data_t [NumTiles-1:0] master_resp_rdata       ;
+    tcdm_payload_t [NumTiles-1:0] master_resp_rdata;
     logic [NumTiles-1:0] master_resp_valid        ;
     logic [NumTiles-1:0] master_resp_ready        ;
     logic [NumTiles-1:0] slave_req_valid          ;
@@ -160,12 +164,12 @@ module mempool #(
     tile_addr_t [NumTiles-1:0] slave_req_tgt_addr ;
     tile_id_t [NumTiles-1:0] slave_req_ini_addr   ;
     logic [NumTiles-1:0] slave_req_wen            ;
-    data_t [NumTiles-1:0] slave_req_wdata         ;
+    tcdm_payload_t [NumTiles-1:0] slave_req_wdata ;
     strb_t [NumTiles-1:0] slave_req_be            ;
     tile_id_t [NumTiles-1:0] slave_resp_ini_addr  ;
     logic [NumTiles-1:0] slave_resp_valid         ;
     logic [NumTiles-1:0] slave_resp_ready         ;
-    data_t [NumTiles-1:0] slave_resp_rdata        ;
+    tcdm_payload_t [NumTiles-1:0] slave_resp_rdata;
 
     for (genvar t = 0; t < NumTiles; t++) begin: gen_connections
       assign master_req_valid[t]                            = tcdm_master_req_valid[NumCoresPerTile*t + c]   ;
@@ -195,7 +199,8 @@ module mempool #(
       .NumIn            (NumTiles                                  ),
       .NumOut           (NumTiles                                  ),
       .AddrWidth        (AddrWidth                                 ),
-      .DataWidth        (DataWidth                                 ),
+      .DataWidth        ($bits(tcdm_payload_t)                     ),
+      .ByteOffWidth     (ByteOffset                                ),
       .AddrMemWidth     (TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
       .Topology         (tcdm_interconnect_pkg::BFLY4              ),
       .SpillRegisterReq (64'b0101                                  ),
