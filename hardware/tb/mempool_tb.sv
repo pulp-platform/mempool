@@ -47,8 +47,8 @@ module mempool_tb;
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
-  localparam AxiMstIdWidth = $clog2(NumCoresPerTile);
-  localparam AxiSlvIdWidth = $clog2(NumCores);
+  localparam AxiMstIdWidth = $clog2(NumCoresPerTile)+8; // TODO: Account for outstanding transactions
+  localparam AxiSlvIdWidth = $clog2(NumCores)+8;
 
   typedef logic [AxiMstIdWidth-1:0] axi_mst_id_t;
   typedef logic [AxiSlvIdWidth-1:0] axi_slv_id_t;
