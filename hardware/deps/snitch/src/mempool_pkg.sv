@@ -1,9 +1,11 @@
 /// Snitch Configuration.
 package snitch_pkg;
 
-  localparam DataWidth      = 32                            ;
-  localparam StrbWidth      = DataWidth/8                   ;
-  localparam ReorderIdWidth = $clog2(NumIntOutstandingLoads);
+  localparam DataWidth                  = 32                            ;
+  localparam StrbWidth                  = DataWidth/8                   ;
+  localparam int NumFPOutstandingLoads  = 4                             ;
+  localparam int NumIntOutstandingLoads = 8                             ;
+  localparam ReorderIdWidth             = $clog2(NumIntOutstandingLoads);
 
   typedef struct packed {
     logic [31:0] BootAddress;
@@ -47,8 +49,6 @@ package snitch_pkg;
     logic [StrbWidth-1:0] strb;
   } inst_req_t;
 
-  localparam int NumFPOutstandingLoads  = 4            ;
-  localparam int NumIntOutstandingLoads = 8            ;
   // Number of instructions the sequencer can hold
   localparam int FPUSequencerInstr      = 16           ;
   // SSRs

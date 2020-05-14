@@ -446,9 +446,9 @@ module mempool_tile #(
        prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) +: $clog2(NumTiles)]                          , // Tile
        prescramble_tcdm_req_tgt_addr[0 +: ByteOffset]});
 
-    // Initialize request ini_addr
-    assign local_xbar_req_payload[c].ini_addr = '0;
-    assign soc_data_q[c].id                   = '0;
+    // We don't care about these
+    assign local_xbar_req_payload[c].ini_addr = 'x;
+    assign soc_data_q[c].id                   = 'x;
 
     tcdm_shim #(
       .AddrWidth(AddrWidth),
@@ -511,8 +511,8 @@ module mempool_tile #(
   logic soc_pvalid;
   logic soc_pready;
 
-  // Tie the response id to zero
-  assign soc_resp_i.id = '0;
+  // We don't care about this
+  assign soc_resp_i.id = 'x;
 
   snitch_demux #(
     .NrPorts (NumCoresPerTile    ),
