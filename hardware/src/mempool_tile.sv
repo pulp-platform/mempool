@@ -61,7 +61,6 @@ module mempool_tile #(
     output tcdm_payload_t [NumCoresPerTile-1:0]  tcdm_master_req_wdata_o,
     output strb_t         [NumCoresPerTile-1:0]  tcdm_master_req_be_o,
     input  logic          [NumCoresPerTile-1:0]  tcdm_master_resp_valid_i,
-    output logic          [NumCoresPerTile-1:0]  tcdm_master_resp_ready_o,
     input  tcdm_payload_t [NumCoresPerTile-1:0]  tcdm_master_resp_rdata_i,
     // TCDM banks interface
     input  logic          [NumCoresPerTile-1:0]  tcdm_slave_req_valid_i,
@@ -277,9 +276,6 @@ module mempool_tile #(
    ***************/
 
   // These are required to break dependencies between request and response, establishing a correct valid/ready handshake.
-  logic          [NumCoresPerTile-1:0] postreg_tcdm_master_resp_valid;
-  logic          [NumCoresPerTile-1:0] postreg_tcdm_master_resp_ready;
-  tcdm_payload_t [NumCoresPerTile-1:0] postreg_tcdm_master_resp_rdata;
   logic          [NumCoresPerTile-1:0] postreg_tcdm_slave_req_valid;
   logic          [NumCoresPerTile-1:0] postreg_tcdm_slave_req_ready;
   tile_addr_t    [NumCoresPerTile-1:0] postreg_tcdm_slave_req_tgt_addr;
@@ -294,21 +290,6 @@ module mempool_tile #(
 
   // Break paths between request and response with registers
   for (genvar c = 0; c < unsigned'(NumCoresPerTile); c++) begin: gen_tcdm_registers
-    fall_through_register #(
-      .T(logic[$bits(tcdm_payload_t)-1:0])
-    ) i_tcdm_master_resp_register (
-      .clk_i     (clk_i                            ),
-      .rst_ni    (rst_ni                           ),
-      .clr_i     (1'b0                             ),
-      .testmode_i(1'b0                             ),
-      .data_i    (tcdm_master_resp_rdata_i[c]      ),
-      .valid_i   (tcdm_master_resp_valid_i[c]      ),
-      .ready_o   (tcdm_master_resp_ready_o[c]      ),
-      .data_o    (postreg_tcdm_master_resp_rdata[c]),
-      .valid_o   (postreg_tcdm_master_resp_valid[c]),
-      .ready_i   (postreg_tcdm_master_resp_ready[c])
-    );
-
     fall_through_register #(
       .T(logic[TileAddrWidth + BeWidth + 1 + $bits(tcdm_payload_t) + $clog2(NumTiles) - 1:0])
     ) i_tcdm_slave_req_register (
@@ -422,6 +403,9 @@ module mempool_tile #(
   logic   [NumCoresPerTile-1:0] soc_data_pvalid;
   logic   [NumCoresPerTile-1:0] soc_data_pready;
 
+  // Unused ready signals for the remote TCDM response
+  logic [NumCoresPerTile-1:0] tcdm_master_resp_ready;
+
   // Address map
   typedef enum int unsigned {
     TCDM_EXTERNAL = 0, TCDM_LOCAL, SOC
@@ -463,57 +447,55 @@ module mempool_tile #(
        prescramble_tcdm_req_tgt_addr[0 +: ByteOffset]});
 
     // Initialize request ini_addr
-    assign local_xbar_req_payload[c].ini_addr = 'x;
+    assign local_xbar_req_payload[c].ini_addr = '0;
+    assign soc_data_q[c].id                   = '0;
 
     tcdm_shim #(
       .AddrWidth(AddrWidth),
       .DataWidth(DataWidth),
-      .InclDemux(1'b1     ),
       .NrTCDM   (2        ),
       .NrSoC    (1        ),
       .NumRules (3        )
     ) i_tcdm_shim (
-      .clk_i              (clk_i                                                                    ),
-      .rst_ni             (rst_ni                                                                   ),
+      .clk_i              (clk_i                                                              ),
+      .rst_ni             (rst_ni                                                             ),
       // to TCDM --> FF Connection to outside of tile
-      .tcdm_req_valid_o   ({local_xbar_req_valid[c], tcdm_master_req_valid_o[c]}                    ),
-      .tcdm_req_tgt_addr_o({local_xbar_addr_int, prescramble_tcdm_req_tgt_addr}                     ),
-      .tcdm_req_wen_o     ({local_xbar_req_wen[c], tcdm_master_req_wen_o[c]}                        ),
-      .tcdm_req_wdata_o   ({local_xbar_req_payload[c].data, tcdm_master_req_wdata_o[c].data}        ),
-      .tcdm_req_id_o      ({local_xbar_req_payload[c].id, tcdm_master_req_wdata_o[c].id}            ),
-      .tcdm_req_be_o      ({local_xbar_req_be[c], tcdm_master_req_be_o[c]}                          ),
-      .tcdm_req_ready_i   ({local_xbar_req_ready[c], tcdm_master_req_ready_i[c]}                    ),
-      .tcdm_resp_valid_i  ({local_xbar_resp_valid[c], postreg_tcdm_master_resp_valid[c]}            ),
-      .tcdm_resp_ready_o  ({local_xbar_resp_ready[c], postreg_tcdm_master_resp_ready[c]}            ),
-      .tcdm_resp_rdata_i  ({local_xbar_resp_payload[c].data, postreg_tcdm_master_resp_rdata[c].data}),
-      .tcdm_resp_id_i     ({local_xbar_resp_payload[c].id, postreg_tcdm_master_resp_rdata[c].id}    ),
+      .tcdm_req_valid_o   ({local_xbar_req_valid[c], tcdm_master_req_valid_o[c]}              ),
+      .tcdm_req_tgt_addr_o({local_xbar_addr_int, prescramble_tcdm_req_tgt_addr}               ),
+      .tcdm_req_wen_o     ({local_xbar_req_wen[c], tcdm_master_req_wen_o[c]}                  ),
+      .tcdm_req_wdata_o   ({local_xbar_req_payload[c].data, tcdm_master_req_wdata_o[c].data}  ),
+      .tcdm_req_id_o      ({local_xbar_req_payload[c].id, tcdm_master_req_wdata_o[c].id}      ),
+      .tcdm_req_be_o      ({local_xbar_req_be[c], tcdm_master_req_be_o[c]}                    ),
+      .tcdm_req_ready_i   ({local_xbar_req_ready[c], tcdm_master_req_ready_i[c]}              ),
+      .tcdm_resp_valid_i  ({local_xbar_resp_valid[c], tcdm_master_resp_valid_i[c]}            ),
+      .tcdm_resp_ready_o  ({local_xbar_resp_ready[c], tcdm_master_resp_ready[c]}              ),
+      .tcdm_resp_rdata_i  ({local_xbar_resp_payload[c].data, tcdm_master_resp_rdata_i[c].data}),
+      .tcdm_resp_id_i     ({local_xbar_resp_payload[c].id, tcdm_master_resp_rdata_i[c].id}    ),
       // to SoC
-      .soc_qaddr_o        (soc_data_q[c].addr                                                       ),
-      .soc_qwrite_o       (soc_data_q[c].write                                                      ),
-      .soc_qamo_o         (soc_data_q[c].amo                                                        ),
-      .soc_qdata_o        (soc_data_q[c].data                                                       ),
-      .soc_id_o           (soc_data_q[c].id                                                         ),
-      .soc_qstrb_o        (soc_data_q[c].strb                                                       ),
-      .soc_qvalid_o       (soc_data_qvalid[c]                                                       ),
-      .soc_qready_i       (soc_data_qready[c]                                                       ),
-      .soc_pdata_i        (soc_data_p[c].data                                                       ),
-      .soc_id_i           (soc_data_p[c].id                                                         ),
-      .soc_perror_i       (soc_data_p[c].error                                                      ),
-      .soc_pvalid_i       (soc_data_pvalid[c]                                                       ),
-      .soc_pready_o       (soc_data_pready[c]                                                       ),
+      .soc_qaddr_o        (soc_data_q[c].addr                                                 ),
+      .soc_qwrite_o       (soc_data_q[c].write                                                ),
+      .soc_qamo_o         (soc_data_q[c].amo                                                  ),
+      .soc_qdata_o        (soc_data_q[c].data                                                 ),
+      .soc_qstrb_o        (soc_data_q[c].strb                                                 ),
+      .soc_qvalid_o       (soc_data_qvalid[c]                                                 ),
+      .soc_qready_i       (soc_data_qready[c]                                                 ),
+      .soc_pdata_i        (soc_data_p[c].data                                                 ),
+      .soc_perror_i       (soc_data_p[c].error                                                ),
+      .soc_pvalid_i       (soc_data_pvalid[c]                                                 ),
+      .soc_pready_o       (soc_data_pready[c]                                                 ),
       // from core
-      .data_qaddr_i       (snitch_data_qaddr[c]                                                     ),
-      .data_qwrite_i      (snitch_data_qwrite[c]                                                    ),
-      .data_qamo_i        (snitch_data_qamo[c]                                                      ),
-      .data_qdata_i       (snitch_data_qdata[c]                                                     ),
-      .data_qstrb_i       (snitch_data_qstrb[c]                                                     ),
-      .data_qvalid_i      (snitch_data_qvalid[c]                                                    ),
-      .data_qready_o      (snitch_data_qready[c]                                                    ),
-      .data_pdata_o       (snitch_data_pdata[c]                                                     ),
-      .data_perror_o      (snitch_data_perror[c]                                                    ),
-      .data_pvalid_o      (snitch_data_pvalid[c]                                                    ),
-      .data_pready_i      (snitch_data_pready[c]                                                    ),
-      .address_map_i      (mask_map                                                                 )
+      .data_qaddr_i       (snitch_data_qaddr[c]                                               ),
+      .data_qwrite_i      (snitch_data_qwrite[c]                                              ),
+      .data_qamo_i        (snitch_data_qamo[c]                                                ),
+      .data_qdata_i       (snitch_data_qdata[c]                                               ),
+      .data_qstrb_i       (snitch_data_qstrb[c]                                               ),
+      .data_qvalid_i      (snitch_data_qvalid[c]                                              ),
+      .data_qready_o      (snitch_data_qready[c]                                              ),
+      .data_pdata_o       (snitch_data_pdata[c]                                               ),
+      .data_perror_o      (snitch_data_perror[c]                                              ),
+      .data_pvalid_o      (snitch_data_pvalid[c]                                              ),
+      .data_pready_i      (snitch_data_pready[c]                                              ),
+      .address_map_i      (mask_map                                                           )
     );
   end
 
@@ -528,6 +510,9 @@ module mempool_tile #(
   logic soc_qready;
   logic soc_pvalid;
   logic soc_pready;
+
+  // Tie the response id to zero
+  assign soc_resp_i.id = '0;
 
   snitch_demux #(
     .NrPorts (NumCoresPerTile    ),
@@ -562,25 +547,23 @@ module mempool_tile #(
     .axi_mst_req_t  (axi_req_t ),
     .axi_mst_resp_t (axi_resp_t)
   ) i_snitch_core_axi_adapter (
-    .clk_i        (clk_i           ),
-    .rst_ni       (rst_ni          ),
-    .slv_qaddr_i  (soc_req_o.addr  ),
-    .slv_qwrite_i (soc_req_o.write ),
-    .slv_qamo_i   (soc_req_o.amo   ),
-    .slv_qdata_i  (soc_req_o.data  ),
-    .slv_qstrb_i  (soc_req_o.strb  ),
-    .slv_qrlen_i  ('0              ),
-    .slv_qid_i    (soc_req_o.id    ),
-    .slv_qvalid_i (soc_qvalid      ),
-    .slv_qready_o (soc_qready      ),
-    .slv_pdata_o  (soc_resp_i.data ),
-    .slv_pid_o    (soc_resp_i.id   ),
-    .slv_perror_o (soc_resp_i.error),
-    .slv_plast_o  (/* Unused */    ),
-    .slv_pvalid_o (soc_pvalid      ),
-    .slv_pready_i (soc_pready      ),
-    .axi_req_o    (axi_mst_req     ),
-    .axi_resp_i   (axi_mst_resp    )
+    .clk_i       (clk_i           ),
+    .rst_ni      (rst_ni          ),
+    .slv_qaddr_i (soc_req_o.addr  ),
+    .slv_qwrite_i(soc_req_o.write ),
+    .slv_qamo_i  (soc_req_o.amo   ),
+    .slv_qdata_i (soc_req_o.data  ),
+    .slv_qstrb_i (soc_req_o.strb  ),
+    .slv_qrlen_i ('0              ),
+    .slv_qvalid_i(soc_qvalid      ),
+    .slv_qready_o(soc_qready      ),
+    .slv_pdata_o (soc_resp_i.data ),
+    .slv_perror_o(soc_resp_i.error),
+    .slv_plast_o (/* Unused */    ),
+    .slv_pvalid_o(soc_pvalid      ),
+    .slv_pready_i(soc_pready      ),
+    .axi_req_o   (axi_mst_req     ),
+    .axi_resp_i  (axi_mst_resp    )
   );
 
   axi_cut #(
@@ -613,5 +596,13 @@ module mempool_tile #(
 
   if (NumCores != 2**$clog2(NumCores))
     $fatal(1, "[mempool_tile] The number of cores must be a power of two.");
+
+  for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_tcdm_resp_ready_assertion
+    `ifndef VERILATOR
+    tcdm_resp_ready_assertion : assert property (
+        @(posedge clk_i) disable iff (!rst_ni) (tcdm_master_resp_valid_i[c] |-> tcdm_master_resp_ready[c]))
+    else $fatal (1, "[mempool_tile] Remote TCDM response was not accepted.");
+    `endif
+  end
 
 endmodule : mempool_tile

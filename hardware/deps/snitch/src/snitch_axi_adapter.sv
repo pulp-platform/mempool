@@ -32,11 +32,9 @@ module snitch_axi_adapter #(
   input  logic [$bits(axi_req_o.w.data)-1:0]  slv_qdata_i,
   input  logic [$bits(axi_req_o.w.strb)-1:0]  slv_qstrb_i,
   input  logic [7:0]                          slv_qrlen_i,
-  input  logic [snitch_pkg::ReorderIdWidth-1:0] slv_qid_i,
   input  logic                                slv_qvalid_i,
   output logic                                slv_qready_o,
   output logic [$bits(axi_req_o.w.data)-1:0]  slv_pdata_o,
-  output logic [snitch_pkg::ReorderIdWidth-1:0] slv_pid_o,
   output logic                                slv_perror_o,
   output logic                                slv_plast_o,
   output logic                                slv_pvalid_o,
@@ -77,7 +75,7 @@ module snitch_axi_adapter #(
   assign axi_req_o.aw.lock   = 1'b0;
   assign axi_req_o.aw.cache  = 4'b0;
   assign axi_req_o.aw.qos    = 4'b0;
-  assign axi_req_o.aw.id     = slv_qid_i;
+  assign axi_req_o.aw.id     = '0;
   assign axi_req_o.aw.user   = '0;
   assign axi_req_o.aw_valid  = ~write_full & slv_qvalid_i & slv_qwrite_i;
 
@@ -138,12 +136,11 @@ module snitch_axi_adapter #(
   assign axi_req_o.ar.lock   = 1'b0;
   assign axi_req_o.ar.cache  = 4'b0;
   assign axi_req_o.ar.qos    = 4'b0;
-  assign axi_req_o.ar.id     = slv_qid_i;
+  assign axi_req_o.ar.id     = '0;
   assign axi_req_o.ar.user   = '0;
   assign axi_req_o.ar_valid  = slv_qvalid_i & ~slv_qwrite_i;
 
   assign slv_pdata_o       = axi_resp_i.r.data;
-  assign slv_pid_o         = axi_resp_i.r.id;
   assign slv_perror_o      = (axi_resp_i.r.resp inside {axi_pkg::RESP_EXOKAY, axi_pkg::RESP_OKAY}) ? 1'b0 : 1'b1;
   assign slv_plast_o       = axi_resp_i.r.last;
   assign slv_pvalid_o      = axi_resp_i.r_valid;

@@ -112,7 +112,6 @@ module mempool #(
       .tcdm_master_req_be_o      (tcdm_master_req_be[NumCoresPerTile*t +: NumCoresPerTile]      ),
       .tcdm_master_req_ready_i   (tcdm_master_req_ready[NumCoresPerTile*t +: NumCoresPerTile]   ),
       .tcdm_master_resp_valid_i  (tcdm_master_resp_valid[NumCoresPerTile*t +: NumCoresPerTile]  ),
-      .tcdm_master_resp_ready_o  (tcdm_master_resp_ready[NumCoresPerTile*t +: NumCoresPerTile]  ),
       .tcdm_master_resp_rdata_i  (tcdm_master_resp_rdata[NumCoresPerTile*t +: NumCoresPerTile]  ),
       // TCDM banks interface
       .tcdm_slave_req_valid_i    (tcdm_slave_req_valid[NumCoresPerTile*t +: NumCoresPerTile]    ),
@@ -140,6 +139,9 @@ module mempool #(
       .refill_plast_i            (/* Not yet implemented */ 1'b0                                ),
       .refill_pready_o           (/* Not yet implemented */                                     )
     );
+
+    // Tile always accepts remote answers
+    assign tcdm_master_resp_ready[NumCoresPerTile*t +: NumCoresPerTile] = {NumCoresPerTile{1'b1}};
   end : gen_tiles
 
   /*******************
@@ -205,28 +207,28 @@ module mempool #(
       .SpillRegisterResp(64'b0101                                  ),
       .AxiVldRdy        (1'b1                                      )
     ) i_interco (
-      .clk_i          (clk_i              ),
-      .rst_ni         (rst_ni             ),
-      .req_valid_i    (master_req_valid   ),
-      .req_ready_o    (master_req_ready   ),
-      .req_tgt_addr_i (master_req_tgt_addr),
-      .req_wen_i      (master_req_wen     ),
-      .req_wdata_i    (master_req_wdata   ),
-      .req_be_i       (master_req_be      ),
-      .resp_valid_o   (master_resp_valid  ),
-      .resp_ready_i   (master_resp_ready  ),
-      .resp_rdata_o   (master_resp_rdata  ),
-      .req_valid_o    (slave_req_valid    ),
-      .req_ready_i    (slave_req_ready    ),
-      .req_be_o       (slave_req_be       ),
-      .req_wdata_o    (slave_req_wdata    ),
-      .req_wen_o      (slave_req_wen      ),
-      .req_ini_addr_o (slave_req_ini_addr ),
-      .req_tgt_addr_o (slave_req_tgt_addr ),
-      .resp_ini_addr_i(slave_resp_ini_addr),
-      .resp_rdata_i   (slave_resp_rdata   ),
-      .resp_valid_i   (slave_resp_valid   ),
-      .resp_ready_o   (slave_resp_ready   )
+      .clk_i          (clk_i                 ),
+      .rst_ni         (rst_ni                ),
+      .req_valid_i    (master_req_valid[c]   ),
+      .req_ready_o    (master_req_ready[c]   ),
+      .req_tgt_addr_i (master_req_tgt_addr[c]),
+      .req_wen_i      (master_req_wen[c]     ),
+      .req_wdata_i    (master_req_wdata[c]   ),
+      .req_be_i       (master_req_be[c]      ),
+      .resp_valid_o   (master_resp_valid[c]  ),
+      .resp_ready_i   (master_resp_ready[c]  ),
+      .resp_rdata_o   (master_resp_rdata[c]  ),
+      .req_valid_o    (slave_req_valid[c]    ),
+      .req_ready_i    (slave_req_ready[c]    ),
+      .req_be_o       (slave_req_be[c]       ),
+      .req_wdata_o    (slave_req_wdata[c]    ),
+      .req_wen_o      (slave_req_wen[c]      ),
+      .req_ini_addr_o (slave_req_ini_addr[c] ),
+      .req_tgt_addr_o (slave_req_tgt_addr[c] ),
+      .resp_ini_addr_i(slave_resp_ini_addr[c]),
+      .resp_rdata_i   (slave_resp_rdata[c]   ),
+      .resp_valid_i   (slave_resp_valid[c]   ),
+      .resp_ready_o   (slave_resp_ready[c]   )
     );
   end
 

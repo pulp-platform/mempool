@@ -69,19 +69,26 @@ module snitch_addr_demux #(
   end
 
   // Merge the response streams
-  stream_arbiter #(
-    .DATA_T  ( resp_t   ),
-    .N_INP   ( NrOutput ),
-    .ARBITER ( "rr"     )
+  logic [$clog2(NrOutput)-1:0] rr_prio;
+  assign rr_prio = 0;
+
+  rr_arb_tree #(
+    .DataType (resp_t  ),
+    .NumIn    (NrOutput),
+    .AxiVldRdy(1'b1    ),
+    .ExtPrio  (1'b1    )
   ) i_resp_stream_arbiter (
-    .clk_i       ( clk_i          ),
-    .rst_ni      ( rst_ni         ),
-    .inp_data_i  ( resp_payload_i ),
-    .inp_valid_i ( resp_valid_i   ),
-    .inp_ready_o ( resp_ready_o   ),
-    .oup_data_o  ( resp_payload_o ),
-    .oup_valid_o ( resp_valid_o   ),
-    .oup_ready_i ( resp_ready_i   )
+    .clk_i  (clk_i         ),
+    .rst_ni (rst_ni        ),
+    .flush_i(1'b0          ),
+    .rr_i   (rr_prio       ),
+    .req_i  (resp_valid_i  ),
+    .data_i (resp_payload_i),
+    .gnt_o  (resp_ready_o  ),
+    .req_o  (resp_valid_o  ),
+    .data_o (resp_payload_o),
+    .gnt_i  (resp_ready_i  ),
+    .idx_o  (/* Unused */  )
   );
 
   /* pragma translate_off */
