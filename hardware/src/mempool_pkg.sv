@@ -10,6 +10,8 @@
 
 package mempool_pkg;
 
+  import snitch_pkg::ReorderIdWidth;
+
   /***********************
    *  MEMORY PARAMETERS  *
    ***********************/
@@ -23,11 +25,15 @@ package mempool_pkg;
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
 
-  typedef logic [AddrWidth-1:0] addr_t;
-  typedef logic [DataWidth-1:0] data_t;
-  typedef logic [snitch_pkg::ReorderIdWidth-1:0] reorder_id_t;
-  typedef logic [BeWidth-1:0] strb_t  ;
-  typedef logic [3:0] amo_t           ;
+  typedef logic [AddrWidth-1:0] addr_t           ;
+  typedef logic [DataWidth-1:0] data_t           ;
+  typedef logic [ReorderIdWidth-1:0] reorder_id_t;
+  typedef logic [BeWidth-1:0] strb_t             ;
+  typedef logic [3:0] amo_t                      ;
+  typedef struct packed {
+    reorder_id_t id;
+    data_t data    ;
+  } tcdm_payload_t;
 
   /*****************
    *  ADDRESS MAP  *

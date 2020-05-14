@@ -4,20 +4,18 @@
 import mempool_pkg::address_map_t;
 
 module snitch_addr_demux #(
-    parameter int unsigned NrOutput            = 2    ,
-    parameter int unsigned AddressWidth        = 32   ,
-    parameter int unsigned NumRules            = 1    , // Routing rules
-    parameter int unsigned MaxOutStandingReads = 8    ,
-    parameter type req_t                       = logic,
-    parameter type resp_t                      = logic,
+    parameter int unsigned NrOutput     = 2    ,
+    parameter int unsigned AddressWidth = 32   ,
+    parameter int unsigned NumRules     = 1    , // Routing rules
+    parameter type req_t                = logic,
+    parameter type resp_t               = logic,
     /// Dependent parameters, DO NOT OVERRIDE!
-    localparam integer LogNrOutput             = $clog2(NrOutput)
+    localparam integer LogNrOutput      = $clog2(NrOutput)
   ) (
     input  logic                            clk_i,
     input  logic                            rst_ni,
     // request port
     input  logic         [AddressWidth-1:0] req_addr_i,
-    input  logic                            req_write_i,
     input  req_t                            req_payload_i,
     input  logic                            req_valid_i,
     output logic                            req_ready_o,
