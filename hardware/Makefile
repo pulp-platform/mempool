@@ -36,9 +36,12 @@ questa_args    ?=
 # Path to the binaries
 app_path       ?= $(abspath $(ROOT_DIR)/../apps/bin)
 
+# Python
+python         ?= python3.6
+
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
- 	$(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
+	$(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
 	questa_cmd =
 endif
 
@@ -83,7 +86,7 @@ trace: $(trace)
 ${buildpath}/%.trace: ${buildpath}/%.dasm
 	mkdir -p ${buildpath}
 	$(INSTALL_DIR)/riscv-gcc/bin/spike-dasm < $< > $(buildpath)/tmp
-	$(ROOT_DIR)/deps/snitch/scripts/gen_trace.py $(buildpath)/tmp > $@
+	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py $(buildpath)/tmp > $@
 
 # Bender
 bender: Makefile
