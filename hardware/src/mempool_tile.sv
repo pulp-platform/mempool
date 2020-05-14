@@ -414,13 +414,13 @@ module mempool_tile #(
   address_map_t [2:0] mask_map;
   assign mask_map = '{
         // Lowest priority: send request through the SoC port
-        '{slave_idx: SOC ,
-          mask     : '0  ,
+        '{slave_idx: SOC,
+          mask     : '0 ,
           value    : '0
         },
         // Send request through the external TCDM port
-        '{slave_idx: TCDM_EXTERNAL ,
-          mask     : TCDMMask      ,
+        '{slave_idx: TCDM_EXTERNAL,
+          mask     : TCDMMask     ,
           value    : TCDMBaseAddr
         },
         // Highest priority: send request through the local TCDM port

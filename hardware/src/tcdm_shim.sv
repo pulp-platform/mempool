@@ -114,17 +114,17 @@ module tcdm_shim #(
       .DEPTH     (MaxOutStandingReads),
       .DATA_WIDTH(ReorderIdWidth     )
     ) i_soc_rob_id_fifo (
-      .clk_i     (clk_i                            ),
-      .rst_ni    (rst_ni                           ),
-      .flush_i   (1'b0                             ),
-      .testmode_i(1'b0                             ),
-      .data_i    (rob_id                           ),
-      .push_i    (soc_qvalid_o[i] & soc_qready_i[i]),
-      .full_o    (/* Unused */                     ),
-      .data_o    (soc_rob_id[i]                    ),
-      .pop_i     (soc_pvalid_i[i] & soc_pready_o[i]),
-      .empty_o   (/* Unused */                     ),
-      .usage_o   (/* Unused */                     )
+      .clk_i     (clk_i                                              ),
+      .rst_ni    (rst_ni                                             ),
+      .flush_i   (1'b0                                               ),
+      .testmode_i(1'b0                                               ),
+      .data_i    (rob_id                                             ),
+      .push_i    (soc_qvalid_o[i] & soc_qready_i[i] &!soc_qwrite_o[i]),
+      .full_o    (/* Unused */                                       ),
+      .data_o    (soc_rob_id[i]                                      ),
+      .pop_i     (soc_pvalid_i[i] & soc_pready_o[i]                  ),
+      .empty_o   (/* Unused */                                       ),
+      .usage_o   (/* Unused */                                       )
     );
   end: gen_soc_rob_id_fifo
 
