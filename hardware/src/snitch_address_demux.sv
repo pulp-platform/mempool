@@ -4,20 +4,18 @@
 import mempool_pkg::address_map_t;
 
 module snitch_addr_demux #(
-    parameter int unsigned NrOutput            = 2    ,
-    parameter int unsigned AddressWidth        = 32   ,
-    parameter int unsigned NumRules            = 1    , // Routing rules
-    parameter int unsigned MaxOutStandingReads = 8    ,
-    parameter type req_t                       = logic,
-    parameter type resp_t                      = logic,
+    parameter int unsigned NrOutput     = 2    ,
+    parameter int unsigned AddressWidth = 32   ,
+    parameter int unsigned NumRules     = 1    , // Routing rules
+    parameter type req_t                = logic,
+    parameter type resp_t               = logic,
     /// Dependent parameters, DO NOT OVERRIDE!
-    localparam integer LogNrOutput             = $clog2(NrOutput)
+    localparam integer LogNrOutput      = $clog2(NrOutput)
   ) (
     input  logic                            clk_i,
     input  logic                            rst_ni,
     // request port
     input  logic         [AddressWidth-1:0] req_addr_i,
-    input  logic                            req_write_i,
     input  req_t                            req_payload_i,
     input  logic                            req_valid_i,
     output logic                            req_ready_o,
@@ -71,19 +69,26 @@ module snitch_addr_demux #(
   end
 
   // Merge the response streams
-  stream_arbiter #(
-    .DATA_T  ( resp_t   ),
-    .N_INP   ( NrOutput ),
-    .ARBITER ( "rr"     )
+  logic [$clog2(NrOutput)-1:0] rr_prio;
+  assign rr_prio = 0;
+
+  rr_arb_tree #(
+    .DataType (resp_t  ),
+    .NumIn    (NrOutput),
+    .AxiVldRdy(1'b1    ),
+    .ExtPrio  (1'b1    )
   ) i_resp_stream_arbiter (
-    .clk_i       ( clk_i          ),
-    .rst_ni      ( rst_ni         ),
-    .inp_data_i  ( resp_payload_i ),
-    .inp_valid_i ( resp_valid_i   ),
-    .inp_ready_o ( resp_ready_o   ),
-    .oup_data_o  ( resp_payload_o ),
-    .oup_valid_o ( resp_valid_o   ),
-    .oup_ready_i ( resp_ready_i   )
+    .clk_i  (clk_i         ),
+    .rst_ni (rst_ni        ),
+    .flush_i(1'b0          ),
+    .rr_i   (rr_prio       ),
+    .req_i  (resp_valid_i  ),
+    .data_i (resp_payload_i),
+    .gnt_o  (resp_ready_o  ),
+    .req_o  (resp_valid_o  ),
+    .data_o (resp_payload_o),
+    .gnt_i  (resp_ready_i  ),
+    .idx_o  (/* Unused */  )
   );
 
   /* pragma translate_off */
