@@ -1,7 +1,11 @@
 SECTIONS {
     ROM_BASE = 0x80000000; /* ... but actually position independent */
-    . = 0x0;
 
+    . = 0x0;
+    .l1_seq : { *(.l1_seq) }
+    l1__seq_alloc_base = ALIGN(0x10);
+
+    . = 0x8000;
     .l1 : { *(.l1) }
     l1_alloc_base = ALIGN(0x10);
 
