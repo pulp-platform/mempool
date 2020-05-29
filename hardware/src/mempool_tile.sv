@@ -230,45 +230,68 @@ module mempool_tile #(
   local_xbar_addr_t    [NumBanksPerTile-1:0] bank_resp_ini_addr;
 
   for (genvar b = 0; b < unsigned'(NumBanksPerTile); b++) begin: gen_banks
-    // Expand byte-enable into bit-enable
-    data_t bank_req_be_expanded;
-    for (genvar be_byte = 0; be_byte < unsigned'(BeWidth); be_byte++) begin: gen_mem_be
-      assign bank_req_be_expanded[8*be_byte+:8] = {8{bank_req_be[b][be_byte]}};
-    end
+    typedef struct packed {
+      local_xbar_addr_t ini_addr;
+      core_id_t payload_ini_addr;
+      reorder_id_t payload_id;
+    } metadata_t;
 
-    // Banks are ready if they are idle, or if their answer was received
-    assign bank_req_ready[b] = !bank_resp_valid[b] || (bank_resp_valid[b] && bank_resp_ready[b]);
+    metadata_t  meta_in, meta_out;
+    logic       req_valid, req_write;
+    tcdm_addr_t req_addr;
+    data_t      req_wdata, resp_rdata, req_be;
 
-    // Metadata
-    always_ff @(posedge clk_i or negedge rst_ni) begin
-      if (!rst_ni) begin
-        bank_resp_valid[b]            <= 1'b0;
-        bank_resp_ini_addr[b]         <= '0  ;
-        bank_resp_payload[b].ini_addr <= '0  ;
-        bank_resp_payload[b].id       <= '0  ;
-      end else begin
-        // One cycle latency
-        if (bank_req_ready[b]) begin
-          bank_resp_payload[b].ini_addr <= bank_req_payload[b].ini_addr         ;
-          bank_resp_payload[b].id       <= bank_req_payload[b].id               ;
-          bank_resp_valid[b]            <= bank_req_valid[b] && !bank_req_wen[b];
-          bank_resp_ini_addr[b]         <= bank_req_ini_addr[b]                 ;
-        end
-      end
-    end
+    // Un/Pack metadata
+    assign meta_in = '{
+      ini_addr        : bank_req_ini_addr[b],
+      payload_ini_addr: bank_req_payload[b].ini_addr,
+      payload_id      : bank_req_payload[b].id
+    };
+
+    assign bank_resp_ini_addr[b]         = meta_out.ini_addr;
+    assign bank_resp_payload[b].ini_addr = meta_out.payload_ini_addr;
+    assign bank_resp_payload[b].id       = meta_out.payload_id;
+
+    tcdm_adapter #(
+      .AddrWidth   ($bits(tcdm_addr_t)),
+      .DataWidth   (DataWidth         ),
+      .metadata_t  (logic[$bits(metadata_t)-1:0]),
+      .RegisterAmo (1'b0              )
+    ) i_tcdm_adapter (
+      .clk_i        (clk_i                    ),
+      .rst_ni       (rst_ni                   ),
+      .in_valid_i   (bank_req_valid[b]        ),
+      .in_ready_o   (bank_req_ready[b]        ),
+      .in_address_i (bank_req_tgt_addr[b]     ),
+      .in_amo_i     (bank_req_payload[b].amo  ),
+      .in_write_i   (bank_req_wen[b]          ),
+      .in_wdata_i   (bank_req_payload[b].data ),
+      .in_meta_i    (meta_in                  ),
+      .in_be_i      (bank_req_be[b]           ),
+      .in_valid_o   (bank_resp_valid[b]       ),
+      .in_ready_i   (bank_resp_ready[b]       ),
+      .in_rdata_o   (bank_resp_payload[b].data),
+      .in_meta_o    (meta_out                 ),
+      .out_req_o    (req_valid                ),
+      .out_add_o    (req_addr                 ),
+      .out_write_o  (req_write                ),
+      .out_wdata_o  (req_wdata                ),
+      .out_be_o     (req_be                   ),
+      .out_rdata_i  (resp_rdata               )
+    );
 
     // Bank
     sram #(
       .DATA_WIDTH(DataWidth          ),
       .NUM_WORDS (2**TCDMAddrMemWidth)
     ) mem_bank (
-      .clk_i  (clk_i                                ),
-      .req_i  (bank_req_valid[b] & bank_req_ready[b]),
-      .we_i   (bank_req_wen[b]                      ),
-      .addr_i (bank_req_tgt_addr[b]                 ),
-      .wdata_i(bank_req_payload[b].data             ),
-      .be_i   (bank_req_be_expanded                 ),
-      .rdata_o(bank_resp_payload[b].data            )
+      .clk_i  (clk_i     ),
+      .req_i  (req_valid ),
+      .we_i   (req_write ),
+      .addr_i (req_addr  ),
+      .wdata_i(req_wdata ),
+      .be_i   (req_be    ),
+      .rdata_o(resp_rdata)
     );
   end
 

@@ -87,3 +87,7 @@ add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/soc_pva
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/soc_pready
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/axi_mst_req
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/axi_mst_resp
+
+for {set i 0} {$i < 16} {incr i} {
+	add wave -noupdate -group Tile_[$1] -group tcdm_adapter[$i] /mempool_tb/dut/gen_tiles[$1]/i_tile/gen_banks[$i]/i_tcdm_adapter/*
+}
