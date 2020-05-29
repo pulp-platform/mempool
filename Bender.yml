@@ -15,6 +15,7 @@ sources:
   - hardware/src/reorder_buffer.sv
   - hardware/src/snitch_address_demux.sv
   - hardware/src/tcdm_shim.sv
+  - hardware/src/tcdm_adapter.sv
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 2
