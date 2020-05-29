@@ -1826,8 +1826,8 @@ module snitch #(
 
   // pragma translate_off
   always_ff @(posedge clk_i) begin
-    if (!rst_i && (ld_addr_misaligned || st_addr_misaligned) && inst_valid_o && inst_ready_i) begin
-      $display("[Misaligned Load/Store Core %0d] PC: %h Data: %h", hart_id_i, inst_addr_o, inst_data_i);
+    if (!rst_i && (ld_addr_misaligned || st_addr_misaligned) && valid_instr && inst_ready_i) begin
+      $display("%t: [Misaligned Load/Store Core %0d] PC: %h Address: %h Data: %h", $time, hart_id_i, inst_addr_o, alu_result, inst_data_i);
     end
   end
   // pragma translate_on
