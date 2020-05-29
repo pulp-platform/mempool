@@ -23,6 +23,7 @@ module tcdm_shim #(
     output logic         [NrTCDM-1:0][AddrWidth-1:0]      tcdm_req_tgt_addr_o,
     output logic         [NrTCDM-1:0]                     tcdm_req_wen_o,
     output logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_req_wdata_o,
+    output logic         [NrTCDM-1:0][3:0]                tcdm_req_amo_o,
     output logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_req_id_o,
     output logic         [NrTCDM-1:0][StrbWidth-1:0]      tcdm_req_be_o,
     input  logic         [NrTCDM-1:0]                     tcdm_req_ready_i,
@@ -158,6 +159,7 @@ module tcdm_shim #(
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_con
     assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr ;
     assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data ;
+    assign tcdm_req_amo_o[i]      = tcdm_qpayload[i].amo  ;
     assign tcdm_req_id_o[i]       = tcdm_qpayload[i].id   ;
     assign tcdm_req_wen_o[i]      = tcdm_qpayload[i].write;
     assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb ;
@@ -166,6 +168,7 @@ module tcdm_shim #(
   // Request interface
   assign data_qpayload.addr  = data_qaddr_i       ;
   assign data_qpayload.write = data_qwrite_i      ;
+  assign data_qpayload.amo   = data_qamo_i        ;
   assign data_qpayload.data  = data_qdata_i       ;
   assign data_qpayload.id    = rob_id             ;
   assign data_qpayload.strb  = data_qstrb_i       ;
@@ -174,7 +177,7 @@ module tcdm_shim #(
   for (genvar i = 0; i < NrSoC; i++) begin : gen_soc_con
     assign soc_qaddr_o[i]        = soc_qpayload[i].addr ;
     assign soc_qwrite_o[i]       = soc_qpayload[i].write;
-    assign soc_qamo_o[i]         = '0                   ;
+    assign soc_qamo_o[i]         = soc_qpayload[i].amo  ;
     assign soc_qdata_o[i]        = soc_qpayload[i].data ;
     assign soc_qstrb_o[i]        = soc_qpayload[i].strb ;
     assign soc_ppayload[i].data  = soc_pdata_i[i]       ;

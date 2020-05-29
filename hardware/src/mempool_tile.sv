@@ -109,6 +109,7 @@ module mempool_tile #(
   // Local crossbar payload
   typedef struct packed {
     reorder_id_t id   ;
+    amo_t amo         ;
     data_t data       ;
     core_id_t ini_addr;
   } local_xbar_payload_t;
@@ -347,6 +348,7 @@ module mempool_tile #(
   for (genvar c = 0; c < unsigned'(NumCoresPerTile); c++) begin: gen_tcdm_slave_payload
     assign postreg_tcdm_slave_req_payload[c] = '{
       data    : postreg_tcdm_slave_req_wdata[c].data,
+      amo     : postreg_tcdm_slave_req_wdata[c].amo,
       id      : postreg_tcdm_slave_req_wdata[c].id  ,
       ini_addr: {postreg_tcdm_slave_req_ini_addr[c], c[$clog2(NumCoresPerTile)-1:0]}
     };
@@ -464,6 +466,7 @@ module mempool_tile #(
       .tcdm_req_tgt_addr_o({local_xbar_addr_int, prescramble_tcdm_req_tgt_addr}               ),
       .tcdm_req_wen_o     ({local_xbar_req_wen[c], tcdm_master_req_wen_o[c]}                  ),
       .tcdm_req_wdata_o   ({local_xbar_req_payload[c].data, tcdm_master_req_wdata_o[c].data}  ),
+      .tcdm_req_amo_o     ({local_xbar_req_payload[c].amo, tcdm_master_req_wdata_o[c].amo}    ),
       .tcdm_req_id_o      ({local_xbar_req_payload[c].id, tcdm_master_req_wdata_o[c].id}      ),
       .tcdm_req_be_o      ({local_xbar_req_be[c], tcdm_master_req_be_o[c]}                    ),
       .tcdm_req_ready_i   ({local_xbar_req_ready[c], tcdm_master_req_ready_i[c]}              ),

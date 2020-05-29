@@ -24,27 +24,9 @@ add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/scan_da
 add wave -noupdate -group Tile_[$1] -radix unsigned /mempool_tb/dut/gen_tiles[$1]/i_tile/tile_id_i
 
 add wave -noupdate -group Tile_[$1] -divider TCDM
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_req_valid_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_req_ready_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_req_tgt_addr_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_req_wen_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_req_wdata_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_req_be_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_resp_valid_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_resp_rdata_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_req_valid_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_req_ready_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_req_ini_addr_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_req_tgt_addr_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_req_wen_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_req_wdata_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_req_be_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_resp_valid_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_resp_ready_i
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_resp_ini_addr_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_resp_rdata_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/axi_mst_req_o
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/axi_mst_resp_i
+add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_master_*
+add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/tcdm_slave_*
+add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/axi_*
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/refill_qaddr_o
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/refill_qlen_o
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/refill_qvalid_o
@@ -89,14 +71,7 @@ add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/postreg
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/prereg_tcdm_slave_resp_valid
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/prereg_tcdm_slave_resp_ready
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/prereg_tcdm_slave_resp_payload
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_req_valid
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_req_ready
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_req_addr
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_req_wen
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_req_payload
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_req_be
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_resp_valid
-add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_resp_payload
+add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/local_xbar_*
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/soc_data_q
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/soc_data_qvalid
 add wave -noupdate -group Tile_[$1] /mempool_tb/dut/gen_tiles[$1]/i_tile/soc_data_qready
