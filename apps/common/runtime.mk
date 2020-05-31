@@ -67,7 +67,7 @@ else
 	RISCV_OBJDUMP_FLAGS ?= --triple=$(RISCV_TARGET) --mcpu=generic-rv32 -mattr=m,a
 endif
 
-RUNTIME ?= common/crt0.S.o common/printf.c.o common/string.c.o common/serial.c.o common/arch.ld
+RUNTIME ?= common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o common/arch.ld
 HDR ?=     common/runtime.h
 
 %.S.o: %.S
