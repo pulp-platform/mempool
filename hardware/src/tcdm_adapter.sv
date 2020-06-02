@@ -8,7 +8,7 @@
 module tcdm_adapter #(
   parameter int unsigned AddrWidth    = 32,
   parameter int unsigned DataWidth    = 32,
-  parameter type metadata_t           = logic,
+  parameter type         metadata_t   = logic,
   parameter bit          RegisterAmo  = 1'b0, // Cut path between request and response at the cost of increased AMO latency
   // Dependent parameters. DO NOT CHANGE.
   localparam int unsigned BeWidth     = DataWidth/8
@@ -71,33 +71,33 @@ module tcdm_adapter #(
 
   // Store the metadata at handshake
   spill_register #(
-    .T      (metadata_t),
-    .Bypass (1'b0      )
+    .T     (metadata_t),
+    .Bypass(1'b0      )
   ) i_metadata_register (
-    .clk_i   (clk_i                  ),
-    .rst_ni  (rst_ni                 ),
-    .valid_i (in_valid_i & in_ready_o & !in_write_i),
-    .ready_o (meta_ready             ),
-    .data_i  (in_meta_i              ),
-    .valid_o (meta_valid             ),
-    .ready_i (pop_resp               ),
-    .data_o  (in_meta_o              )
+    .clk_i  (clk_i                                ),
+    .rst_ni (rst_ni                               ),
+    .valid_i(in_valid_i & in_ready_o & !in_write_i),
+    .ready_o(meta_ready                           ),
+    .data_i (in_meta_i                            ),
+    .valid_o(meta_valid                           ),
+    .ready_i(pop_resp                             ),
+    .data_o (in_meta_o                            )
   );
 
   // Store response if it's not accepted immediately
   fall_through_register #(
-    .T (logic [DataWidth-1:0])
+    .T(logic[DataWidth-1:0])
   ) i_rdata_register (
-    .clk_i      (clk_i      ),
-    .rst_ni     (rst_ni     ),
-    .clr_i      (1'b0       ),
-    .testmode_i (1'b0       ),
-    .data_i     (out_rdata_i),
-    .valid_i    (out_gnt    ),
-    .ready_o    (rdata_ready),
-    .data_o     (in_rdata_o ),
-    .valid_o    (rdata_valid),
-    .ready_i    (pop_resp   )
+    .clk_i     (clk_i      ),
+    .rst_ni    (rst_ni     ),
+    .clr_i     (1'b0       ),
+    .testmode_i(1'b0       ),
+    .data_i    (out_rdata_i),
+    .valid_i   (out_gnt    ),
+    .ready_o   (rdata_ready),
+    .data_o    (in_rdata_o ),
+    .valid_o   (rdata_valid),
+    .ready_i   (pop_resp   )
   );
 
   // Ready to output data if both meta and read data are available (the read data will always be last)
@@ -220,7 +220,7 @@ module tcdm_adapter #(
   end
 
   // pragma translate_off
-  // Check for unsopported parameters
+  // Check for unsupported parameters
   if (DataWidth != 32) begin
     $error($sformatf("Module currently only supports DataWidth = 32. DataWidth is currently set to: %0d", DataWidth));
   end

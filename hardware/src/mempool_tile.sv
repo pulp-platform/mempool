@@ -216,6 +216,13 @@ module mempool_tile #(
    *  TCDM Memory Banks  *
    ***********************/
 
+  // Bank metadata
+  typedef struct packed {
+    local_xbar_addr_t ini_addr  ;
+    core_id_t payload_ini_addr  ;
+    reorder_id_t      payload_id;
+  } bank_metadata_t;
+
   // Memory interfaces
   logic                [NumBanksPerTile-1:0] bank_req_valid;
   logic                [NumBanksPerTile-1:0] bank_req_ready;
@@ -230,16 +237,10 @@ module mempool_tile #(
   local_xbar_addr_t    [NumBanksPerTile-1:0] bank_resp_ini_addr;
 
   for (genvar b = 0; b < unsigned'(NumBanksPerTile); b++) begin: gen_banks
-    typedef struct packed {
-      local_xbar_addr_t ini_addr;
-      core_id_t payload_ini_addr;
-      reorder_id_t payload_id;
-    } metadata_t;
-
-    metadata_t  meta_in, meta_out;
-    logic       req_valid, req_write;
-    tcdm_addr_t req_addr;
-    data_t      req_wdata, resp_rdata, req_be;
+    bank_metadata_t meta_in, meta_out;
+    logic           req_valid, req_write;
+    tcdm_addr_t     req_addr;
+    data_t          req_wdata, resp_rdata, req_be;
 
     // Un/Pack metadata
     assign meta_in = '{
@@ -253,31 +254,31 @@ module mempool_tile #(
     assign bank_resp_payload[b].id       = meta_out.payload_id;
 
     tcdm_adapter #(
-      .AddrWidth   ($bits(tcdm_addr_t)),
-      .DataWidth   (DataWidth         ),
-      .metadata_t  (logic[$bits(metadata_t)-1:0]),
-      .RegisterAmo (1'b0              )
+      .AddrWidth  ($bits(tcdm_addr_t)               ),
+      .DataWidth  (DataWidth                        ),
+      .metadata_t (logic[$bits(bank_metadata_t)-1:0]),
+      .RegisterAmo(1'b0                             )
     ) i_tcdm_adapter (
-      .clk_i        (clk_i                    ),
-      .rst_ni       (rst_ni                   ),
-      .in_valid_i   (bank_req_valid[b]        ),
-      .in_ready_o   (bank_req_ready[b]        ),
-      .in_address_i (bank_req_tgt_addr[b]     ),
-      .in_amo_i     (bank_req_payload[b].amo  ),
-      .in_write_i   (bank_req_wen[b]          ),
-      .in_wdata_i   (bank_req_payload[b].data ),
-      .in_meta_i    (meta_in                  ),
-      .in_be_i      (bank_req_be[b]           ),
-      .in_valid_o   (bank_resp_valid[b]       ),
-      .in_ready_i   (bank_resp_ready[b]       ),
-      .in_rdata_o   (bank_resp_payload[b].data),
-      .in_meta_o    (meta_out                 ),
-      .out_req_o    (req_valid                ),
-      .out_add_o    (req_addr                 ),
-      .out_write_o  (req_write                ),
-      .out_wdata_o  (req_wdata                ),
-      .out_be_o     (req_be                   ),
-      .out_rdata_i  (resp_rdata               )
+      .clk_i       (clk_i                    ),
+      .rst_ni      (rst_ni                   ),
+      .in_valid_i  (bank_req_valid[b]        ),
+      .in_ready_o  (bank_req_ready[b]        ),
+      .in_address_i(bank_req_tgt_addr[b]     ),
+      .in_amo_i    (bank_req_payload[b].amo  ),
+      .in_write_i  (bank_req_wen[b]          ),
+      .in_wdata_i  (bank_req_payload[b].data ),
+      .in_meta_i   (meta_in                  ),
+      .in_be_i     (bank_req_be[b]           ),
+      .in_valid_o  (bank_resp_valid[b]       ),
+      .in_ready_i  (bank_resp_ready[b]       ),
+      .in_rdata_o  (bank_resp_payload[b].data),
+      .in_meta_o   (meta_out                 ),
+      .out_req_o   (req_valid                ),
+      .out_add_o   (req_addr                 ),
+      .out_write_o (req_write                ),
+      .out_wdata_o (req_wdata                ),
+      .out_be_o    (req_be                   ),
+      .out_rdata_i (resp_rdata               )
     );
 
     // Bank
