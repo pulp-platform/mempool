@@ -486,6 +486,7 @@ module mempool_tile #(
       .NumBanksPerTile   (NumBanksPerTile  ),
       .SeqMemSizePerTile (SeqMemSizePerTile)
     ) i_address_scrambler (
+      .bypass_i  (1'b0                       ),
       .address_i (snitch_data_qaddr[c]       ),
       .address_o (snitch_data_qaddr_scrambled)
     );

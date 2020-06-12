@@ -11,28 +11,42 @@ module address_scrambler #(
   parameter int unsigned NumBanksPerTile   = 2,
   parameter int unsigned SeqMemSizePerTile = 4*1024
 ) (
+  input  logic                 bypass_i,
   input  logic [AddrWidth-1:0] address_i,
   output logic [AddrWidth-1:0] address_o
 );
-  localparam int unsigned BankOffsetBits  = $clog2(NumBanksPerTile);
-  localparam int unsigned TileIdBits      = $clog2(NumTiles);
-  localparam int unsigned ScrambleBits    = $clog2(SeqMemSizePerTile)-BankOffsetBits-ByteOffset;
-  localparam int unsigned InterleavedBits = AddrWidth-$clog2(SeqMemSizePerTile)+TileIdBits;
+  localparam int unsigned BankOffsetBits    = $clog2(NumBanksPerTile);
+  localparam int unsigned TileIdBits        = $clog2(NumTiles);
+  localparam int unsigned SeqPerTileBits    = $clog2(SeqMemSizePerTile);
+  localparam int unsigned SeqTotalBits      = SeqPerTileBits+TileIdBits;
+  localparam int unsigned ConstantBitsLSB   = ByteOffset + BankOffsetBits;
+  localparam int unsigned ScrambleBits      = SeqPerTileBits-ConstantBitsLSB;
 
-  logic [ByteOffset-1:0]      byte_offset;
-  logic [BankOffsetBits-1:0]  bank_offset; // Offset of Bank inside Tile
   logic [ScrambleBits-1:0]    scramble;    // Address bits that have to be shuffled around
   logic [TileIdBits-1:0]      tile_id;     // Which tile does  this address region belong to
-  logic [InterleavedBits-1:0] interleaved; // MSB address bits that stay unchanged
 
-  // Pick correct chunks from input address
-  assign byte_offset = address_i[0                         +: ByteOffset                                         ];
-  assign bank_offset = address_i[ByteOffset                +: BankOffsetBits                                     ];
-  assign scramble    = address_i[ByteOffset+BankOffsetBits +: $clog2(SeqMemSizePerTile)-BankOffsetBits-ByteOffset];
-  assign tile_id     = address_i[$clog2(SeqMemSizePerTile) +: TileIdBits                                         ];
-  assign interleaved = address_i[AddrWidth-1                : $clog2(SeqMemSizePerTile)+TileIdBits               ];
-  // Scramble the address back together
-  assign address_o   = address_i < SeqMemSizePerTile*NumTiles ? {interleaved, scramble, tile_id, bank_offset, byte_offset} : address_i;
+  // Leave this part of the address unchanged
+  // The LSBs that correspond to the offset inside a tile. These are the byte offset (bank width)
+  // and the Bank offset (Number of Banks in tile)
+  assign address_o[ConstantBitsLSB-1:0] = address_i[ConstantBitsLSB-1:0];
+  // The MSBs that are outside of the sequential memory size. Currently the sequential memory size
+  // always starts at 0. These are all the MSBs up to SeqMemSizePerTile*NumTiles
+  assign address_o[AddrWidth-1:SeqTotalBits] = address_i[AddrWidth-1:SeqTotalBits];
+
+  // Scramble the middle part
+  // Bits that would have gone to different tiles but now go to increasing lines in the same tile
+  assign scramble = address_i[SeqPerTileBits-1:ConstantBitsLSB]; // Bits that would
+  // Bits that would have gone to increasing lines in the same tile but now go to different tiles
+  assign tile_id  = address_i[SeqTotalBits-1:SeqPerTileBits];
+
+  always_comb begin
+    // Default: Unscrambled
+    address_o[SeqTotalBits-1:ConstantBitsLSB] = {tile_id, scramble};
+    // If not in bypass mode and address is in sequential region
+    if (!bypass_i && address_i < (NumTiles * SeqMemSizePerTile)) begin
+      address_o[SeqTotalBits-1:ConstantBitsLSB] = {scramble, tile_id};
+    end
+  end
 
   // Check for unsupported configurations
   // pragma translate_off
