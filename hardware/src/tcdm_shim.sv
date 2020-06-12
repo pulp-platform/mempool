@@ -63,9 +63,6 @@ module tcdm_shim #(
   import snitch_pkg::dreq_t ;
   import snitch_pkg::dresp_t;
 
-  import mempool_pkg::ByteOffset;
-  import mempool_pkg::SeqMemSizePerTile;
-
   // Includes
   `include "common_cells/registers.svh"
 
@@ -132,32 +129,6 @@ module tcdm_shim #(
     );
   end: gen_soc_rob_id_fifo
 
-  // Scramble address
-  // TODO:
-  localparam int unsigned NumBanksPerTile = 16;
-  localparam int unsigned NumTiles = 8;
-  localparam int unsigned ScrambleAddressWidth = $clog2(SeqMemSizePerTile)-$clog2(NumBanksPerTile)-ByteOffset;
-  localparam int unsigned InterleavedAddressWidth = AddrWidth-$clog2(SeqMemSizePerTile)+$clog2(NumTiles);
-
-  logic [AddrWidth-1:0]               data_qaddr;
-  logic [ByteOffset-1:0]              byte_offset;
-  logic [$clog2(NumBanksPerTile)-1:0] bank_offset; // Offset of Bank inside Tile
-  logic [ScrambleAddressWidth-1:0]    scramble_address; // Address bits that have to be shuffled around
-  logic [$clog2(NumTiles)-1:0]        tile_id;     // Which tile does  this address region belong to
-  logic [InterleavedAddressWidth-1:0] interleaved_address;     // MSB address bits that stay unchanged
-
-  // Pick correct chunks from input address
-  assign byte_offset         = data_qaddr_i[0                                  +: ByteOffset                                ];
-  assign bank_offset         = data_qaddr_i[ByteOffset                         +: $clog2(NumBanksPerTile)                   ];
-  assign scramble_address    = data_qaddr_i[ByteOffset+$clog2(NumBanksPerTile) +: ScrambleAddressWidth                      ];
-  assign tile_id             = data_qaddr_i[$clog2(SeqMemSizePerTile)          +: $clog2(NumTiles)                          ];
-  assign interleaved_address = data_qaddr_i[AddrWidth-1                         : $clog2(SeqMemSizePerTile)+$clog2(NumTiles)];
-  // Scramble the address back together
-  assign data_qaddr = data_qaddr_i < SeqMemSizePerTile*NumTiles ? {interleaved_address, scramble_address, tile_id, bank_offset, byte_offset} : data_qaddr_i;
-
-  // check that we disect the address correctly and don't miss a bit
-  assert property (@(posedge clk_i) disable iff (!rst_ni) data_qaddr_i == {interleaved_address, tile_id, scramble_address, bank_offset, byte_offset});
-
   // Demux according to address
   snitch_addr_demux #(
     .NrOutput     (NumOutput),
@@ -168,7 +139,7 @@ module tcdm_shim #(
   ) i_snitch_addr_demux (
     .clk_i         (clk_i                            ),
     .rst_ni        (rst_ni                           ),
-    .req_addr_i    (data_qaddr                       ),
+    .req_addr_i    (data_qaddr_i                     ),
     .req_payload_i (data_qpayload                    ),
     .req_valid_i   (data_qvalid_i && !rob_full       ),
     .req_ready_o   (data_qready                      ),
@@ -195,7 +166,7 @@ module tcdm_shim #(
   end
 
   // Request interface
-  assign data_qpayload.addr  = data_qaddr         ;
+  assign data_qpayload.addr  = data_qaddr_i       ;
   assign data_qpayload.write = data_qwrite_i      ;
   assign data_qpayload.amo   = data_qamo_i        ;
   assign data_qpayload.data  = data_qdata_i       ;
