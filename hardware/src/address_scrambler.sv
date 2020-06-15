@@ -49,13 +49,10 @@ module address_scrambler #(
   end
 
   // Check for unsupported configurations
-  // pragma translate_off
-`ifndef VERILATOR
-  initial begin: p_assertions
-    assert (NumTiles >= 2) else $fatal(1, "NumTiles must be at least two. The special case '1' is currently not supported (and makes no sense)!");
-    assert (NumBanksPerTile >= 2) else $fatal(1, "NumBanksPerTile must be greater than 2. The special case '1' is currently not supported!");
-    assert (SeqMemSizePerTile % (2**ByteOffset*NumBanksPerTile) == 0) else $fatal(1, "SeqMemSizePerTile must be a multiple of BankWidth*NumBanksPerTile!");
-  end
-`endif
-// pragma translate_on
+  if (NumTiles < 2)
+    $fatal(1, "NumTiles must be at least two. The special case '1' is currently not supported (and makes no sense)!");
+  if (NumBanksPerTile < 2)
+    $fatal(1, "NumBanksPerTile must be greater than 2. The special case '1' is currently not supported!");
+  if (SeqMemSizePerTile % (2**ByteOffset*NumBanksPerTile) != 0)
+    $fatal(1, "SeqMemSizePerTile must be a multiple of BankWidth*NumBanksPerTile!");
 endmodule : address_scrambler
