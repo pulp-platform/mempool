@@ -9,7 +9,8 @@ module snitch #(
   parameter logic [31:0] BootAddr  = 32'h0000_1000,
   parameter logic [31:0] MTVEC     = BootAddr, // Exception Base Address (see privileged spec 3.1.7)
   parameter bit          RVE       = 0,   // Reduced-register Extension
-  parameter bit          RVM       = 1    // Enable IntegerMmultiplication & Division Extension
+  parameter bit          RVM       = 1,   // Enable IntegerMmultiplication & Division Extension
+  parameter int    RegNrWritePorts = 2    // Implement one or two write ports into the register file
 ) (
   input  logic          clk_i,
   input  logic          rst_i,
@@ -79,7 +80,6 @@ module snitch #(
 
   localparam int RegWidth = RVE ? 4 : 5;
   localparam int RegNrReadPorts  = 2;
-  localparam int RegNrWritePorts = 2;
 
   logic illegal_inst;
   logic zero_lsb;
