@@ -476,6 +476,21 @@ module mempool_tile #(
     assign local_xbar_req_payload[c].ini_addr = 'x;
     assign soc_data_q[c].id                   = 'x;
 
+    // Scramble address before entering TCDM shim for sequential+interleaved memory map
+    addr_t snitch_data_qaddr_scrambled;
+
+    address_scrambler #(
+      .AddrWidth         (AddrWidth        ),
+      .ByteOffset        (ByteOffset       ),
+      .NumTiles          (NumTiles         ),
+      .NumBanksPerTile   (NumBanksPerTile  ),
+      .Bypass            (0                ),
+      .SeqMemSizePerTile (SeqMemSizePerTile)
+    ) i_address_scrambler (
+      .address_i (snitch_data_qaddr[c]       ),
+      .address_o (snitch_data_qaddr_scrambled)
+    );
+
     tcdm_shim #(
       .AddrWidth(AddrWidth),
       .DataWidth(DataWidth),
@@ -511,7 +526,7 @@ module mempool_tile #(
       .soc_pvalid_i       (soc_data_pvalid[c]                                                 ),
       .soc_pready_o       (soc_data_pready[c]                                                 ),
       // from core
-      .data_qaddr_i       (snitch_data_qaddr[c]                                               ),
+      .data_qaddr_i       (snitch_data_qaddr_scrambled                                        ),
       .data_qwrite_i      (snitch_data_qwrite[c]                                              ),
       .data_qamo_i        (snitch_data_qamo[c]                                                ),
       .data_qdata_i       (snitch_data_qdata[c]                                               ),

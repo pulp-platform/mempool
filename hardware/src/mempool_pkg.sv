@@ -40,6 +40,9 @@ package mempool_pkg;
    *  ADDRESS MAP  *
    *****************/
 
+  // Size in bytes of memory that is sequentially addressable per tile
+  parameter int unsigned SeqMemSizePerTile = 4*1024; // 1 KiB
+
   typedef struct packed {
     int unsigned slave_idx;
     addr_t mask           ;

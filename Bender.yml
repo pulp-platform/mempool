@@ -16,6 +16,7 @@ sources:
   - hardware/src/snitch_address_demux.sv
   - hardware/src/tcdm_adapter.sv
   - hardware/src/tcdm_shim.sv
+  - hardware/src/address_scrambler.sv
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 2

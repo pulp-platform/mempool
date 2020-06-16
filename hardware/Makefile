@@ -41,8 +41,9 @@ python         ?= python3.6
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
-	$(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
-	questa_cmd =
+    # Spaces are needed for indentation here!
+    $(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
+    questa_cmd =
 endif
 
 QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)-kgf/questasim
