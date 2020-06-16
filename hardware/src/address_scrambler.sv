@@ -9,9 +9,9 @@ module address_scrambler #(
   parameter int unsigned ByteOffset        = 2,
   parameter int unsigned NumTiles          = 2,
   parameter int unsigned NumBanksPerTile   = 2,
+  parameter bit          Bypass            = 0,
   parameter int unsigned SeqMemSizePerTile = 4*1024
 ) (
-  input  logic                 bypass_i,
   input  logic [AddrWidth-1:0] address_i,
   output logic [AddrWidth-1:0] address_o
 );
@@ -43,7 +43,7 @@ module address_scrambler #(
     // Default: Unscrambled
     address_o[SeqTotalBits-1:ConstantBitsLSB] = {tile_id, scramble};
     // If not in bypass mode and address is in sequential region
-    if (!bypass_i && address_i < (NumTiles * SeqMemSizePerTile)) begin
+    if (!Bypass && address_i < (NumTiles * SeqMemSizePerTile)) begin
       address_o[SeqTotalBits-1:ConstantBitsLSB] = {scramble, tile_id};
     end
   end
