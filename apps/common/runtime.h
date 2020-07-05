@@ -1,7 +1,26 @@
+// Copyright 2020 ETH Zurich and University of Bologna.
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Author: Samuel Riedel, ETH Zurich
+//         Matheus Cavalcante, ETH Zurich
+
 #pragma once
 #include "encoding.h"
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 extern char l1_alloc_base;
 extern uint32_t atomic_barrier;
@@ -12,47 +31,26 @@ typedef uint32_t mempool_timer_t;
 
 /// Obtain the number of cores in the current cluster.
 static inline mempool_id_t mempool_get_core_count() {
-    extern uint32_t nr_cores_address_reg;
-    return nr_cores_address_reg;
+  extern uint32_t nr_cores_address_reg;
+  return nr_cores_address_reg;
 }
 
 /// Obtain the ID of the current core.
 static inline mempool_id_t mempool_get_core_id() {
-    mempool_id_t r;
-    asm volatile ("csrr %0, mhartid" : "=r"(r));
-    return r;
+  mempool_id_t r;
+  asm volatile("csrr %0, mhartid" : "=r"(r));
+  return r;
 }
 
 /// Obtain a monotonically increasing cycle count.
-static inline mempool_timer_t mempool_get_timer() {
-    return read_csr(mcycle);
-}
+static inline mempool_timer_t mempool_get_timer() { return read_csr(mcycle); }
 
-/// A cluster-local barrier.
-static inline void mempool_barrier() {
-    // // The following is a software-only barrier using AMOs.
-    // uint32_t core_id = mempool_get_core_id();
-    // uint32_t core_count = mempool_get_core_count();
-    // uint32_t mask = 1 << core_id;
-    // uint32_t others = ((1 << core_count) - 1) ^ mask;
-    // if (core_id == 0) {
-    //     while ((__atomic_load_n(&atomic_barrier, __ATOMIC_RELAXED) & others) != others);
-    //     __atomic_or_fetch(&atomic_barrier, mask, __ATOMIC_RELAXED);
-    //     while ((__atomic_load_n(&atomic_barrier, __ATOMIC_RELAXED) & others) != 0);
-    //     __atomic_and_fetch(&atomic_barrier, ~mask, __ATOMIC_RELAXED);
-    // } else {
-    //     while ((__atomic_load_n(&atomic_barrier, __ATOMIC_RELAXED) & 1) != 0);
-    //     __atomic_or_fetch(&atomic_barrier, mask, __ATOMIC_RELAXED);
-    //     while ((__atomic_load_n(&atomic_barrier, __ATOMIC_RELAXED) & 1) != 1);
-    //     __atomic_and_fetch(&atomic_barrier, ~mask, __ATOMIC_RELAXED);
-    // }
-
-    // The following uses the hardware barrier.
-    extern uint32_t barrier_reg;
-    uint32_t tmp;
-    asm volatile (
-        "lw %[tmp], 0(%[addr]) \n"
-        "mv zero, %[tmp] \n"
-        : [tmp]"=r"(tmp) : [addr]"r"(&barrier_reg)
-    );
+/// Busy loop for waiting
+static inline void mempool_wait(uint32_t cycles) {
+  asm volatile("1: \n\t"
+               "addi %[counter], %[counter], -2 \n\t"
+               "bgtz %[counter], 1b \n\t"
+               : [counter] "+&r"(cycles)
+               :
+               : "memory");
 }
