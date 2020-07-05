@@ -16,146 +16,165 @@
 
 // Author: Samuel Riedel, ETH Zurich
 
-#include "printf.h"
 #include <stdint.h>
 #include <string.h>
+
+#include "../common/kernel/mat_mul.h"
+#include "../common/runtime.h"
+#include "../common/synchronization.h"
 #include "encoding.h"
+// #include "kernel/mat_mul.h"
+#include "printf.h"
 
-#define N 64
-#define M 64
-// #define VERBOSE
+#define M 12
+#define N 8
+#define P 4
+#define VERBOSE
 
-volatile uint32_t atomic __attribute__ ((section (".l1")));
-volatile uint32_t a[N][M] __attribute__ ((section (".l1")));
-volatile uint32_t b[M][N] __attribute__ ((section (".l1")));
-volatile uint32_t c[N][N] __attribute__ ((section (".l1")));
+volatile uint32_t init __attribute__((section(".data"))) = 0;
+volatile uint32_t a[M][N] __attribute__((section(".l1")));
+volatile uint32_t b[N][P] __attribute__((section(".l1")));
+volatile uint32_t c[M][P] __attribute__((section(".l1")));
 
 extern volatile uint32_t tcdm_start_address_reg;
 extern volatile uint32_t tcdm_end_address_reg;
 
 void matrix_multiplication(uint32_t coreid, uint32_t num_cores) {
-  asm volatile ("nop"::);
+  asm volatile("nop" ::);
   uint32_t sum;
-  for (int i=coreid; i<N; i += num_cores) {
-    for (int j=0; j<N; j++) {
+  for (int i = coreid; i < N; i += num_cores) {
+    for (int j = 0; j < N; j++) {
       sum = 0;
-      for (int k=0; k<M; k++) {
+      for (int k = 0; k < M; k++) {
         sum += a[i][k] * b[k][j];
       }
       c[i][j] = sum;
     }
   }
-  asm volatile ("nop"::);
+  asm volatile("nop" ::);
 }
 
 void matrix_multiplication_unrolled(uint32_t coreid, uint32_t num_cores) {
-  asm volatile ("nop"::);
-  for (int i=coreid; i<N; i += num_cores) {
+  asm volatile("nop" ::);
+  for (int i = coreid; i < N; i += num_cores) {
     uint32_t sum0 = 0;
     uint32_t sum1 = 0;
     uint32_t sum2 = 0;
     uint32_t sum3 = 0;
-    for (int j=0; j<N; j += 4) {
-      for (int k=0; k<M; k++) {
-        uint32_t val_a  = a[i][k];
-        uint32_t val_b0 = b[k][j+0];
-        uint32_t val_b1 = b[k][j+1];
-        uint32_t val_b2 = b[k][j+2];
-        uint32_t val_b3 = b[k][j+3];
+    for (int j = 0; j < N; j += 4) {
+      for (int k = 0; k < M; k++) {
+        uint32_t val_a = a[i][k];
+        uint32_t val_b0 = b[k][j + 0];
+        uint32_t val_b1 = b[k][j + 1];
+        uint32_t val_b2 = b[k][j + 2];
+        uint32_t val_b3 = b[k][j + 3];
         sum0 += val_a * val_b0;
         sum1 += val_a * val_b1;
         sum2 += val_a * val_b2;
         sum3 += val_a * val_b3;
       }
-      c[i][j+0] = sum0;
-      c[i][j+1] = sum1;
-      c[i][j+2] = sum2;
-      c[i][j+3] = sum3;
+      c[i][j + 0] = sum0;
+      c[i][j + 1] = sum1;
+      c[i][j + 2] = sum2;
+      c[i][j + 3] = sum3;
     }
   }
-  asm volatile ("nop"::);
-}
-
-void barrier(uint32_t coreid, uint32_t num_cores) {
-  while (atomic % num_cores != coreid);
-  atomic = coreid+1;
-  while (atomic != num_cores);
+  asm volatile("nop" ::);
 }
 
 int main(int argc, char **argv) {
-  uint32_t coreid = (uint32_t) argc;
-  uint32_t num_cores = (uint32_t) argv;
-  //TODO(sriedel): This is a hack, to be fixed when MemPool has a fence mechanism.
-  atomic = 0;
+  uint32_t coreid = (uint32_t)argc;
+  uint32_t num_cores = (uint32_t)argv;
 
-// #ifdef VERBOSE
+  // Initialize synchronization variables
+  if (coreid == 0) {
+    mempool_barrier_init();
+    init = 1;
+  } else {
+    // FIXME: The other cores can not see changes introduced by the master core
+    // to the L2 memory
+    // while (!init) {
+    mempool_wait(2000);
+    // }
+  }
+
+  // #ifdef VERBOSE
   if (coreid == 0) {
     printf("Initialize\n");
   }
-// #endif
+  // #endif
 
-  // Initialize a and b
-  for (int i=coreid; i<N; i += num_cores) {
-    for (int j=0; j<M; j++) {
-      a[i][j] = coreid+i+j;
-      b[j][i] = i*coreid+j;
+  // Initialize a
+  for (int i = coreid; i < M; i += num_cores) {
+    for (int j = 0; j < N; j++) {
+      a[i][j] = coreid + i + j;
+    }
+  }
+  // Initialize b
+  for (int i = coreid; i < N; i += num_cores) {
+    for (int j = 0; j < P; j++) {
+      b[i][j] = i * coreid + j;
     }
   }
 
-  barrier(coreid, num_cores);
+  mempool_barrier(coreid, num_cores);
 
 #ifdef VERBOSE
   if (coreid == 0) {
     printf("A:\n");
 
-    for (int i=0; i<N; i++) {
-      for (int j=0; j<M; j++) {
+    for (int i = 0; i < M; i++) {
+      for (int j = 0; j < N; j++) {
         printf("%4u ", a[i][j]);
       }
       printf("\n");
     }
 
     printf("B:\n");
-    for (int j=0; j<M; j++) {
-      for (int i=0; i<N; i++) {
-        printf("%4u ", b[j][i]);
+    for (int j = 0; j < N; j++) {
+      for (int i = 0; i < P; i++) {
+        printf("%4u ", b[i][j]);
       }
       printf("\n");
     }
-  }
-
-  barrier(coreid, num_cores);
-
-  if (coreid == 0) {
     printf("Start\n");
   }
+
+  mempool_barrier(coreid, num_cores);
 #endif
 
   // Matrices are initialized --> Start calculating
-  matrix_multiplication_unrolled(coreid, num_cores);
+  asm volatile("nop" ::);
+  mat_mul_parallel(a, b, c, M, N, P, coreid, num_cores);
+  asm volatile("nop" ::);
 
-#ifdef VERBOSE
+  // Check result
   if (coreid == 0) {
+    int error = check_mat_mul(a, b, c, M, N, P);
+    if (error != 0) {
+      printf("Error in Matrix Multiplication\n");
+    }
+#ifdef VERBOSE
     printf("Done\n");
-  }
 #endif
+  }
 
   // wait until all cores have finished
-  barrier(coreid, num_cores);
+  mempool_barrier(coreid, num_cores);
 
 #ifdef VERBOSE
   if (coreid == 0) {
     printf("Print:\n");
 
-    for (int i=0; i<N; i++) {
-      for (int j=0; j<N; j++) {
+    for (int i = 0; i < M; i++) {
+      for (int j = 0; j < P; j++) {
         printf("%4u ", c[i][j]);
       }
       printf("\n");
     }
   }
 
-  barrier(coreid, num_cores);
+  mempool_barrier(coreid, num_cores);
 #endif
 
   return 0;
