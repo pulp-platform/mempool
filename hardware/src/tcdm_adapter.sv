@@ -122,7 +122,7 @@ module tcdm_adapter #(
 
     unique case (state_q)
       Idle: begin
-        if (in_valid_i && amo_op_t'(in_amo_i) != AMONone) begin
+        if (in_valid_i && in_ready_o && amo_op_t'(in_amo_i) != AMONone) begin
           load_amo = 1'b1;
           state_d = DoAMO;
         end
