@@ -19,75 +19,91 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "../common/kernel/mat_mul.h"
-#include "../common/runtime.h"
-#include "../common/synchronization.h"
 #include "encoding.h"
-// #include "kernel/mat_mul.h"
+#include "kernel/mat_mul.h"
 #include "printf.h"
+#include "runtime.h"
+#include "synchronization.h"
 
+// Define Matrix dimensions:
+// C = AB with A=[MxN], B=[NxP], C=[MxP]
 #define M 12
-#define N 8
-#define P 4
-#define VERBOSE
+#define N 32
+#define P 28
+// Specify how the matrices A and B should be initialized
+// The entries will follow this format:
+// a(i,j) = A_a*i + A_b*j + A_c
+// b(i,j) = B_a*i + B_b*j + B_c
+// The result will be the following matrix
+// c(i,j) = (A_a*B_b*i*j + A_a*B_c*i + A_c*B_b*j + A_c*B_c) * N
+//        + (A_a*B_a*i + A_b*B_b*j + A_b*B_c + B_a*A_c) * (N*(N-1))/2
+//        + (A_b*B_a) * (N*(N-1)*(2*N-1))/6
+// Note: To keep the code simpler, we use indices that go from 0 to N-1 instead
+// of 1 to N as the mathematicians do. Hence, for A, i=[0,M-1] j=[0,M-1]
+#define A_a 1
+#define A_b 1
+#define A_c -32
+#define B_a 2
+#define B_b 1
+#define B_c 16
+// Enable verbose printing
+// #define VERBOSE
 
-volatile uint32_t init __attribute__((section(".data"))) = 0;
-volatile uint32_t a[M][N] __attribute__((section(".l1")));
-volatile uint32_t b[N][P] __attribute__((section(".l1")));
-volatile uint32_t c[M][P] __attribute__((section(".l1")));
+uint32_t volatile init __attribute__((section(".data"))) = 0;
+int32_t volatile a[M][N] __attribute__((section(".l1")));
+int32_t volatile b[N][P] __attribute__((section(".l1")));
+int32_t volatile c[M][P] __attribute__((section(".l1")));
 
-extern volatile uint32_t tcdm_start_address_reg;
-extern volatile uint32_t tcdm_end_address_reg;
-
-void matrix_multiplication(uint32_t coreid, uint32_t num_cores) {
-  asm volatile("nop" ::);
-  uint32_t sum;
-  for (int i = coreid; i < N; i += num_cores) {
-    for (int j = 0; j < N; j++) {
-      sum = 0;
-      for (int k = 0; k < M; k++) {
-        sum += a[i][k] * b[k][j];
-      }
-      c[i][j] = sum;
+// Initialize the matrices in parallel
+void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
+                 int32_t a, int32_t b, int32_t c, uint32_t core_id,
+                 uint32_t num_cores) {
+  // Parallelize over rows
+  for (int i = core_id; i < num_rows; i += num_cores) {
+    for (int j = 0; j < num_columns; ++j) {
+      matrix[i * num_columns + j] = a * i + b * j + c;
     }
   }
-  asm volatile("nop" ::);
 }
 
-void matrix_multiplication_unrolled(uint32_t coreid, uint32_t num_cores) {
-  asm volatile("nop" ::);
-  for (int i = coreid; i < N; i += num_cores) {
-    uint32_t sum0 = 0;
-    uint32_t sum1 = 0;
-    uint32_t sum2 = 0;
-    uint32_t sum3 = 0;
-    for (int j = 0; j < N; j += 4) {
-      for (int k = 0; k < M; k++) {
-        uint32_t val_a = a[i][k];
-        uint32_t val_b0 = b[k][j + 0];
-        uint32_t val_b1 = b[k][j + 1];
-        uint32_t val_b2 = b[k][j + 2];
-        uint32_t val_b3 = b[k][j + 3];
-        sum0 += val_a * val_b0;
-        sum1 += val_a * val_b1;
-        sum2 += val_a * val_b2;
-        sum3 += val_a * val_b3;
+// Initialize the matrices in parallel
+int verify_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
+                  int32_t aa, int32_t ab, int32_t ac, int32_t ba, int32_t bb,
+                  int32_t bc) {
+  // Parallelize over rows
+  for (int i = 0; i < num_rows; ++i) {
+    for (int j = 0; j < num_columns; ++j) {
+      int32_t lin = (aa * bb * i * j + aa * bc * i + ac * bb * j + ac * bc) * N;
+      int32_t qua =
+          ((aa * ba * i + ab * bb * j + ab * bc + ba * ac) * (N * (N - 1))) / 2;
+      int32_t cub = ((ab * ba) * (N * (N - 1) * (2 * N - 1))) / 6;
+      int32_t golden = lin + qua + cub;
+      if (matrix[i * num_columns + j] != golden) {
+        return (i + j) == 0 ? -1 : i * num_columns + j;
       }
-      c[i][j + 0] = sum0;
-      c[i][j + 1] = sum1;
-      c[i][j + 2] = sum2;
-      c[i][j + 3] = sum3;
+      matrix[i * num_columns + j] = 0;
     }
   }
-  asm volatile("nop" ::);
+  return 0;
+}
+
+void print_matrix(int32_t const *matrix, uint32_t num_rows,
+                  uint32_t num_columns) {
+  printf("0x%8X\n", (uint32_t)matrix);
+  for (int i = 0; i < num_rows; ++i) {
+    for (int j = 0; j < num_columns; ++j) {
+      printf("%5d ", matrix[i * num_columns + j]);
+    }
+    printf("\n");
+  }
 }
 
 int main(int argc, char **argv) {
-  uint32_t coreid = (uint32_t)argc;
+  uint32_t core_id = (uint32_t)argc;
   uint32_t num_cores = (uint32_t)argv;
 
   // Initialize synchronization variables
-  if (coreid == 0) {
+  if (core_id == 0) {
     mempool_barrier_init();
     init = 1;
   } else {
@@ -99,82 +115,75 @@ int main(int argc, char **argv) {
   }
 
   // #ifdef VERBOSE
-  if (coreid == 0) {
+  if (core_id == 0) {
     printf("Initialize\n");
   }
   // #endif
 
-  // Initialize a
-  for (int i = coreid; i < M; i += num_cores) {
-    for (int j = 0; j < N; j++) {
-      a[i][j] = coreid + i + j;
-    }
-  }
-  // Initialize b
-  for (int i = coreid; i < N; i += num_cores) {
-    for (int j = 0; j < P; j++) {
-      b[i][j] = i * coreid + j;
-    }
-  }
-
-  mempool_barrier(coreid, num_cores);
+  // Initialize Matrices
+  init_matrix(a, M, N, A_a, A_b, A_c, core_id, num_cores);
+  init_matrix(b, N, P, B_a, B_b, B_c, core_id, num_cores);
 
 #ifdef VERBOSE
-  if (coreid == 0) {
-    printf("A:\n");
-
-    for (int i = 0; i < M; i++) {
-      for (int j = 0; j < N; j++) {
-        printf("%4u ", a[i][j]);
-      }
-      printf("\n");
-    }
-
-    printf("B:\n");
-    for (int j = 0; j < N; j++) {
-      for (int i = 0; i < P; i++) {
-        printf("%4u ", b[i][j]);
-      }
-      printf("\n");
-    }
-    printf("Start\n");
+  mempool_barrier(core_id, num_cores);
+  if (core_id == 0) {
+    print_matrix(a, M, N);
+    print_matrix(b, N, P);
   }
-
-  mempool_barrier(coreid, num_cores);
 #endif
 
   // Matrices are initialized --> Start calculating
-  asm volatile("nop" ::);
-  mat_mul_parallel(a, b, c, M, N, P, coreid, num_cores);
-  asm volatile("nop" ::);
-
-  // Check result
-  if (coreid == 0) {
-    int error = check_mat_mul(a, b, c, M, N, P);
-    if (error != 0) {
-      printf("Error in Matrix Multiplication\n");
+  for (int i = 0; i < 5; ++i) {
+    // Wait at barrier until everyone is ready
+    mempool_barrier(core_id, num_cores);
+    // Execute function to test. Add a NOP before and after for future analysis
+    // with benchmark script.
+    asm volatile("nop" ::);
+    switch (i) {
+    case 0:
+      mat_mul_parallel(a, b, c, M, N, P, core_id, num_cores);
+      break;
+    case 1:
+      mat_mul_unrolled_parallel(a, b, c, M, N, P, core_id, num_cores);
+      break;
+    case 2:
+      mat_mul_asm_parallel(a, b, c, M, N, P, core_id, num_cores);
+      break;
+    case 3:
+      mat_mul_parallel_finegrained(a, b, c, M, N, P, core_id, num_cores);
+      break;
+    case 4:
+      mat_mul_unrolled_parallel_finegrained(a, b, c, M, N, P, core_id,
+                                            num_cores);
+      break;
     }
+    asm volatile("nop" ::);
+    // Wait at barrier befor checking
+    mempool_barrier(core_id, num_cores);
+    // Check result
+    if (core_id == 0) {
+      int error = verify_matrix(c, M, P, A_a, A_b, A_c, B_a, B_b, B_c);
+      if (error != 0) {
+        printf("Error code %d\n", error);
+        printf("c[%d]=%d\n", error, c[error]);
+      }
 #ifdef VERBOSE
-    printf("Done\n");
+      printf("Done with round %d\n", i);
 #endif
+    } else {
+      // Wait for the approx amount it takes core 0 to verify the result
+      mempool_wait(M * P * 12);
+    }
   }
 
   // wait until all cores have finished
-  mempool_barrier(coreid, num_cores);
+  mempool_barrier(core_id, num_cores);
 
 #ifdef VERBOSE
-  if (coreid == 0) {
-    printf("Print:\n");
-
-    for (int i = 0; i < M; i++) {
-      for (int j = 0; j < P; j++) {
-        printf("%4u ", c[i][j]);
-      }
-      printf("\n");
-    }
+  if (core_id == 0) {
+    print_matrix(c, M, P);
   }
-
-  mempool_barrier(coreid, num_cores);
+  mempool_barrier(core_id, num_cores);
 #endif
 
   return 0;
