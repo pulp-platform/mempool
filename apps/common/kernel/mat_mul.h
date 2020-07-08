@@ -45,9 +45,16 @@ void mat_mul_parallel_finegrained(int32_t const *__restrict__ A,
                                   uint32_t N, uint32_t P, uint32_t id,
                                   uint32_t numThreads) {
   // Merge outer loops to balance the workload
-  uint32_t chunks = (M * P + numThreads - 1) / numThreads;
-  uint32_t start = id * chunks;
-  uint32_t end = (id == numThreads - 1) ? M * P : start + chunks;
+  uint32_t chunks = (M * P) / numThreads;
+  uint32_t chunks_left = (M * P) - (chunks * numThreads);
+  uint32_t start;
+  if (chunks_left < id) {
+    start = id * chunks + chunks_left;
+  } else {
+    chunks++;
+    start = id * chunks;
+  }
+  uint32_t end = start + chunks;
   uint32_t i = start / P;
   uint32_t j = start % P;
   for (uint32_t ij = start; ij < end; ++ij) {
@@ -105,9 +112,19 @@ void mat_mul_unrolled_parallel_finegrained(int32_t const *__restrict__ A,
                                            uint32_t N, uint32_t P, uint32_t id,
                                            uint32_t numThreads) {
   // Merge outer loops to balance the workload
-  uint32_t chunks = (M * P + numThreads - 1) / numThreads;
-  uint32_t start = id * chunks;
-  uint32_t end = (id == numThreads - 1) ? M * P : start + chunks;
+  // Chunks must be multiple of four
+  uint32_t workload = (M * P) / 4;
+  uint32_t chunks = workload / numThreads;
+  uint32_t chunks_left = workload - (numThreads * chunks);
+  uint32_t start;
+  chunks *= 4;
+  if (chunks_left < id) {
+    start = id * chunks + chunks_left * 4;
+  } else {
+    chunks += 4;
+    start = id * chunks;
+  }
+  uint32_t end = start + chunks;
   uint32_t i = start / P;
   uint32_t j = start % P;
   for (uint32_t ij = start; ij < end; ij += 4) {
