@@ -47,6 +47,15 @@ tc-llvm:
       - install/llvm
     expire_in: 1 day
 
+tc-isa-sim:
+  stage: build
+  script:
+    - make riscv-isa-sim
+  artifacts:
+    paths:
+      - install/riscv-isa-sim
+    expire_in: 1 day
+
 halide:
   stage: compiler
   script:
@@ -78,6 +87,25 @@ apps-llvm:
     paths:
       - hardware/build/transcript
       - hardware/build/trace_hart_*.trace
-  needs: ["tc-llvm"]
+  needs: ["tc-gcc","tc-llvm","tc-isa-sim"]
   dependencies:
+    - tc-gcc
     - tc-llvm
+    - tc-isa-sim
+
+apps-gcc:
+  stage: test
+  script:
+    - cd apps
+    - make COMPILER=gcc bin/matrix_mul
+    - cd ../hardware
+    - app=matrix_mul make run
+    - make trace
+  artifacts:
+    paths:
+      - hardware/build/transcript
+      - hardware/build/trace_hart_*.trace
+  needs: ["tc-gcc","tc-isa-sim"]
+  dependencies:
+    - tc-gcc
+    - tc-isa-sim
