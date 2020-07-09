@@ -36,10 +36,10 @@ CXX    = g++-8.2.0
 endif
 
 # Default target
-all: halide
+all: toolchain riscv-isa-sim halide
 
 # Halide
-halide: toolchain
+halide:
 	mkdir -p $(HALIDE_INSTALL_DIR)
 	cd toolchain/halide && mkdir -p build && cd build; \
 	$(CMAKE) \
@@ -68,7 +68,7 @@ tc-llvm:
 		-DCMAKE_C_COMPILER=$(CC) \
 		-DLLVM_ENABLE_PROJECTS="clang" \
 		-DLLVM_TARGETS_TO_BUILD="RISCV;host" \
-		-DLLVM_BUILD_DOCS="1" \
+		-DLLVM_BUILD_DOCS="0" \
 		-DLLVM_ENABLE_TERMINFO="0"  \
 		-DLLVM_ENABLE_ASSERTIONS=ON \
 		-DCMAKE_BUILD_TYPE=Release \
