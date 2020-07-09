@@ -19,13 +19,65 @@ variables:
   ROOT_DIR: '$CI_PROJECT_DIR'
 
 before_script:
-  - echo "Start"
+  - env
 
 after_script:
   - env
 
-all:
+stages:
+  - build
+  - compiler
+  - test
+
+tc-gcc:
+  stage: build
   script:
-    - env
+    - make tc-riscv-gcc
+  artifacts:
+    paths:
+      - install/riscv-gcc
+    expire_in: 1 day
+
+tc-llvm:
+  stage: build
+  script:
+    - make tc-llvm
+  artifacts:
+    paths:
+      - install/llvm
+    expire_in: 1 day
+
+halide:
+  stage: compiler
+  script:
+    - make halide
+  artifacts:
+    paths:
+      - install/halide
+    expire_in: 1 day
+  needs: ["tc-llvm"]
+  dependencies:
+    - tc-llvm
+
+hardware:
+  stage: test
+  script:
     - make -C hardware
-    - make all
+  needs: []
+  dependencies: []
+
+apps-llvm:
+  stage: test
+  script:
+    - cd apps
+    - make bin/hello_world
+    - cd ../hardware
+    - app=hello_world make run
+    - make trace
+  artifacts:
+    paths:
+      - hardware/build/transcript
+      - hardware/build/trace_hart_*.trace
+  needs: ["tc-llvm"]
+  dependencies:
+    - tc-llvm
