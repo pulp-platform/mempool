@@ -18,11 +18,12 @@
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SHELL = bash
 
-INSTALL_PREFIX     ?= install
-INSTALL_DIR        ?= ${ROOT_DIR}/${INSTALL_PREFIX}
-GCC_INSTALL_DIR    ?= ${INSTALL_DIR}/riscv-gcc
-LLVM_INSTALL_DIR   ?= ${INSTALL_DIR}/llvm
-HALIDE_INSTALL_DIR ?= ${INSTALL_DIR}/halide
+INSTALL_PREFIX      ?= install
+INSTALL_DIR         ?= ${ROOT_DIR}/${INSTALL_PREFIX}
+GCC_INSTALL_DIR     ?= ${INSTALL_DIR}/riscv-gcc
+ISA_SIM_INSTALL_DIR ?= ${INSTALL_DIR}/riscv-isa-sim
+LLVM_INSTALL_DIR    ?= ${INSTALL_DIR}/llvm
+HALIDE_INSTALL_DIR  ?= ${INSTALL_DIR}/halide
 
 CMAKE ?= cmake-3.7.1
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
@@ -77,7 +78,7 @@ tc-llvm:
 
 riscv-isa-sim:
 	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
-	../configure --prefix=$(GCC_INSTALL_DIR) && make && make install
+	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Helper targets
 .PHONY: clean
