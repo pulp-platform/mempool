@@ -1,0 +1,25 @@
+From b18b41fddafdf72e03f628dbaad195f6157c3d9c Mon Sep 17 00:00:00 2001
+From: Samuel Riedel <sriedel@iis.ee.ethz.ch>
+Date: Fri, 10 Jul 2020 14:39:28 +0200
+Subject: [PATCH] [hardware] Set number of cores to 32 in simulation
+
+---
+ hardware/tb/mempool_tb.sv | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hardware/tb/mempool_tb.sv b/hardware/tb/mempool_tb.sv
+index 5d76f2c..9dfa981 100644
+--- a/hardware/tb/mempool_tb.sv
++++ b/hardware/tb/mempool_tb.sv
+@@ -25,7 +25,7 @@ module mempool_tb;
+   import axi_pkg::xbar_cfg_t    ;
+   import axi_pkg::xbar_rule_32_t;
+ 
+-  localparam        NumCores        = 256;
++  localparam        NumCores        = 32;
+   localparam        NumCoresPerTile = 4;
+   localparam        BankingFactor   = 4;
+   localparam addr_t TCDMBaseAddr    = '0;
+-- 
+2.27.0
+
