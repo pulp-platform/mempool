@@ -185,31 +185,33 @@ module mempool_tile #(
     .FETCH_DW          (DataWidth                                               ),
     .FILL_AW           (AddrWidth                                               ),
     .FILL_DW           (ICacheLineWidth                                         ),
-    .EARLY_ENABLED     (1                                                       ),
     /// Make the early cache latch-based. This reduces latency at the cost of
     /// increased combinatorial path lengths and the hassle of having latches in
     /// the design.
-    .EARLY_LATCH       (0                                                       ),
-    /// Make the early cache serve responses combinatorially if possible. Set
-    /// this to 0 to cut combinatorial paths into the fetch interface.
-    .EARLY_FALLTHROUGH (0                                                       )
+    .EARLY_LATCH       (0                                                       )
   ) i_snitch_icache (
-    .clk_i           (clk_i            ),
-    .rst_ni          (rst_ni           ),
-    .inst_addr_i     (snitch_inst_addr ),
-    .inst_data_o     (snitch_inst_data ),
-    .inst_valid_i    (snitch_inst_valid),
-    .inst_ready_o    (snitch_inst_ready),
-    .inst_error_o    (/* Unused */     ),
-    .refill_qaddr_o  (refill_qaddr_o   ),
-    .refill_qlen_o   (refill_qlen_o    ),
-    .refill_qvalid_o (refill_qvalid_o  ),
-    .refill_qready_i (refill_qready_i  ),
-    .refill_pdata_i  (refill_pdata_i   ),
-    .refill_perror_i (refill_perror_i  ),
-    .refill_pvalid_i (refill_pvalid_i  ),
-    .refill_plast_i  (refill_plast_i   ),
-    .refill_pready_o (refill_pready_o  )
+    .clk_i                (clk_i                  ),
+    .clk_d2_i             (clk_i                  ),
+    .rst_ni               (rst_ni                 ),
+    .enable_prefetching_i (1'b1                   ),
+    .icache_events_o      (                       ),
+    .flush_valid_i        (1'b0                   ),
+    .flush_ready_o        (                       ),
+    .inst_addr_i          (snitch_inst_addr       ),
+    .inst_data_o          (snitch_inst_data       ),
+    .inst_cacheable_i     ({NumCoresPerTile{1'b1}}),
+    .inst_valid_i         (snitch_inst_valid      ),
+    .inst_ready_o         (snitch_inst_ready      ),
+    .inst_error_o         (/* Unused */           ),
+    .refill_qaddr_o       (refill_qaddr_o         ),
+    .refill_qlen_o        (refill_qlen_o          ),
+    .refill_qvalid_o      (refill_qvalid_o        ),
+    .refill_qready_i      (refill_qready_i        ),
+    .refill_pdata_i       (refill_pdata_i         ),
+    .refill_perror_i      (refill_perror_i        ),
+    .refill_pvalid_i      (refill_pvalid_i        ),
+    .refill_plast_i       (refill_plast_i         ),
+    .refill_pready_o      (refill_pready_o        )
   );
 
   /***********************
