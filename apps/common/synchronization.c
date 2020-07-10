@@ -43,6 +43,6 @@ void mempool_barrier() {
   } else {
     // Some threads have not reached the barrier --> Let's wait
     while (iteration_old == barrier_iteration)
-      ;
+      mempool_wait(100);
   }
 }
