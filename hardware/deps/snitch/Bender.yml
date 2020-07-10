@@ -9,7 +9,6 @@ sources:
   - defines:
       SNITCH_ENABLE_PERF: 1
     files:
-
     # packages
     - src/riscv_instr.sv
     - src/fpnew/src/fpnew_pkg.sv
