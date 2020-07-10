@@ -32,7 +32,10 @@ stages:
 tc-gcc:
   stage: build
   script:
+    - git submodule update --init --recursive -- toolchain/riscv-gnu-toolchain
     - make tc-riscv-gcc
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   artifacts:
     paths:
       - install/riscv-gcc
@@ -41,7 +44,10 @@ tc-gcc:
 tc-llvm:
   stage: build
   script:
+    - git submodule update --init --recursive -- toolchain/llvm-project
     - make tc-llvm
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   artifacts:
     paths:
       - install/llvm
@@ -50,7 +56,10 @@ tc-llvm:
 tc-isa-sim:
   stage: build
   script:
+    - git submodule update --init --recursive -- toolchain/riscv-isa-sim
     - make riscv-isa-sim
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   artifacts:
     paths:
       - install/riscv-isa-sim
@@ -59,11 +68,14 @@ tc-isa-sim:
 halide:
   stage: compiler
   script:
+    - git submodule update --init --recursive -- toolchain/halide
     - make halide
   artifacts:
     paths:
       - install/halide
     expire_in: 1 day
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   needs: ["tc-llvm"]
   dependencies:
     - tc-llvm
@@ -72,6 +84,8 @@ hardware:
   stage: test
   script:
     - make -C hardware
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   needs: []
   dependencies: []
 
@@ -87,6 +101,8 @@ apps-llvm:
     paths:
       - hardware/build/transcript
       - hardware/build/trace_hart_*.trace
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   needs: ["tc-gcc","tc-llvm","tc-isa-sim"]
   dependencies:
     - tc-gcc
@@ -105,6 +121,8 @@ apps-gcc:
     paths:
       - hardware/build/transcript
       - hardware/build/trace_hart_*.trace
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   needs: ["tc-gcc","tc-isa-sim"]
   dependencies:
     - tc-gcc
