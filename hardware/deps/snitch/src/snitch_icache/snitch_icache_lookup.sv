@@ -132,7 +132,6 @@ module snitch_icache_lookup #(
             .NUM_WORDS  ( CFG.LINE_COUNT  )
         ) i_tag (
             .clk_i   ( clk_i         ),
-            .rst_ni  ( rst_ni        ),
             .req_i   ( ram_enable[i] ),
             .we_i    ( ram_write     ),
             .addr_i  ( ram_addr      ),
@@ -146,7 +145,6 @@ module snitch_icache_lookup #(
             .NUM_WORDS  ( CFG.LINE_COUNT )
         ) i_data (
             .clk_i   ( clk_i         ),
-            .rst_ni  ( rst_ni        ),
             .req_i   ( ram_enable[i] ),
             .we_i    ( ram_write     ),
             .addr_i  ( ram_addr      ),
