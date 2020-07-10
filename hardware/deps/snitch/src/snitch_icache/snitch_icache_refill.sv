@@ -18,12 +18,14 @@ module snitch_icache_refill #(
 
     input  logic [CFG.FETCH_AW-1:0]     in_req_addr_i,
     input  logic [CFG.PENDING_IW-1:0]   in_req_id_i,
+    input  logic                        in_req_bypass_i,
     input  logic                        in_req_valid_i,
     output logic                        in_req_ready_o,
 
     output logic [CFG.LINE_WIDTH-1:0]   in_rsp_data_o,
     output logic                        in_rsp_error_o,
     output logic [CFG.PENDING_IW-1:0]   in_rsp_id_o,
+    output logic                        in_rsp_bypass_o,
     output logic                        in_rsp_valid_o,
     input  logic                        in_rsp_ready_i,
 
@@ -51,21 +53,21 @@ module snitch_icache_refill #(
     logic queue_push;
     logic queue_pop;
 
-    fifo #(
-        .DEPTH      ( 4              ),
-        .DATA_WIDTH ( CFG.PENDING_IW )
-    ) i_queue (
-        .clk_i       ( clk_i       ),
-        .rst_ni      ( rst_ni      ),
-        .flush_i     ( 1'b0        ),
-        .testmode_i  ( 1'b0        ),
-        .full_o      ( queue_full  ),
-        .empty_o     (             ),
-        .threshold_o (             ),
-        .data_i      ( in_req_id_i ),
-        .push_i      ( queue_push  ),
-        .data_o      ( in_rsp_id_o ),
-        .pop_i       ( queue_pop   )
+    fifo_v3  #(
+        .DEPTH      ( 4                ),
+        .DATA_WIDTH ( CFG.PENDING_IW+1 )
+    ) i_fifo_id_queue (
+        .clk_i       ( clk_i                          ),
+        .rst_ni      ( rst_ni                         ),
+        .flush_i     ( 1'b0                           ),
+        .testmode_i  ( 1'b0                           ),
+        .full_o      ( queue_full                     ),
+        .empty_o     (                                ),
+        .usage_o     (                                ),
+        .data_i      ( {in_req_bypass_i, in_req_id_i} ),
+        .push_i      ( queue_push                     ),
+        .data_o      ( {in_rsp_bypass_o, in_rsp_id_o} ),
+        .pop_i       ( queue_pop                      )
     );
 
     // Accept incoming requests, push the ID into the queue, and issue the
@@ -88,7 +90,7 @@ module snitch_icache_refill #(
         end
         assign response_data[CFG.LINE_WIDTH-1:CFG.LINE_WIDTH-CFG.FILL_DW] = refill_pdata_i;
     end else if (CFG.LINE_WIDTH < CFG.FILL_DW) begin : g_data_slice
-        assign response_data = refill_pdata_i >> (in_req_addr_i[CFG.FILL_ALIGN-1:CFG.LINE_ALIGN] * CFG.FILL_DW);
+        assign response_data = refill_pdata_i >> (in_req_addr_i[CFG.FILL_ALIGN-1:CFG.LINE_ALIGN] * CFG.LINE_WIDTH);
     end else begin : g_data_passthrough
         assign response_data = refill_pdata_i;
     end
