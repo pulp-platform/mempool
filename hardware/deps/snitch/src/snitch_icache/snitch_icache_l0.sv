@@ -327,9 +327,9 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
     offset = (1 << CFG.LINE_ALIGN);
     unique case ({is_branch_taken[taken_idx] & ~no_prefetch, is_jal[taken_idx] & ~no_prefetch})
       // JAL: UJ Immediate
-      2'b01: offset = uj_imm;
+      2'b01: offset = uj_imm + (taken_idx * 4);
       // Branch: // SB Immediate
-      2'b10: offset = sb_imm;
+      2'b10: offset = sb_imm + (taken_idx * 4);
       default:;
     endcase
   end
