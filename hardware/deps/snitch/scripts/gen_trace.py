@@ -490,7 +490,7 @@ def main():
 			if perf_metrics[0]['start'] is None:
 				perf_metrics[0]['start'] = time_info[1]
 			# Create a new section after every 'nop' instruction
-			if 'nop' in ann_insn:
+			if 'cycle' in ann_insn:
 				perf_metrics[-1]['end'] = time_info[1]
 				perf_metrics.append(defaultdict(int))
 				perf_metrics[-1]['start'] = time_info[1]
