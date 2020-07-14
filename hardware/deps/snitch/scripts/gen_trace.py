@@ -12,6 +12,8 @@ import sys
 import re
 import math
 import argparse
+import csv
+from csv import DictWriter
 from ctypes import c_int32, c_uint32
 from collections import deque, defaultdict
 
@@ -450,6 +452,12 @@ def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 		ret.append('{:<40}{:>10}'.format(key, val_str))
 	return '\n'.join(ret)
 
+def perf_metrics_to_csv(perf_metrics: list, filename: str):
+	keys = perf_metrics[0].keys()
+	with open(filename, 'w') as out:
+		dict_writer = csv.DictWriter(out, keys)
+		dict_writer.writeheader()
+		dict_writer.writerows(perf_metrics)
 
 # -------------------- Main --------------------
 
@@ -501,6 +509,8 @@ def main():
 	perf_metrics[-1]['end'] = time_info[1]
 	# Compute metrics
 	eval_perf_metrics(perf_metrics)
+	# Write metrics to CSV
+	perf_metrics_to_csv(perf_metrics, "test.csv")
 	# Emit metrics
 	print('\n## Performance metrics')
 	for idx in range(len(perf_metrics)):
