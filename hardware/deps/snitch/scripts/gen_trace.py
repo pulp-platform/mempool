@@ -9,6 +9,7 @@
 # TODO: We annotate all FP16 LSU values as IEEE, not FP16ALT... can we do better?
 
 import sys
+import os
 import re
 import math
 import numpy as np
@@ -34,7 +35,7 @@ TRACE_OUT_FMT = '{:>8} {:>8} {:>10} {:<30}'
 MAX_SIGNED_INT_LIT = 0xFFFF
 
 # Performance keys which only serve to compute other metrics: omit on printing
-PERF_EVAL_KEYS_OMIT = ('start', 'end', 'snitch_issues', 'snitch_load_latency')
+PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_issues', 'snitch_load_latency')
 
 
 # -------------------- Architectural constants and enums  --------------------
@@ -455,10 +456,18 @@ def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 
 def perf_metrics_to_csv(perf_metrics: list, filename: str):
 	keys = perf_metrics[0].keys()
-	with open(filename, 'w') as out:
-		dict_writer = csv.DictWriter(out, keys)
-		dict_writer.writeheader()
+	known_keys = ['core','section','start','end','cycles','snitch_loads','snitch_stores','snitch_avg_load_latency',
+				  'snitch_occupancy','snitch_load_latency','total_ipc','snitch_issues']
+	for key in keys:
+		if key not in known_keys:
+			known_keys.append(key)
+	write_header = not os.path.exists(filename)
+	with open(filename, 'a+') as out:
+		dict_writer = csv.DictWriter(out, known_keys)
+		if write_header:
+			dict_writer.writeheader()
 		dict_writer.writerows(perf_metrics)
+	print('Wrote performance metrics to %s\n' % filename)
 
 # -------------------- Main --------------------
 
@@ -476,8 +485,18 @@ def main():
 						help='Include performance metrics measured to compute others')
 	parser.add_argument('-p', '--permissive', action='store_true',
 						help='Ignore some state-related issues when they occur')
+	parser.add_argument('-c', '--csv', nargs=1,
+						help='Ignore some state-related issues when they occur')
 	args = parser.parse_args()
 	line_iter = iter(args.infile.readline,  b'')
+	if args.csv is not None:
+		csv_file = args.csv[0]
+	path, filename = os.path.split(args.infile.name)
+	core_id = re.search('(\d+)', filename)
+	if core_id:
+		core_id = int(core_id.group(1))
+	else:
+		core_id = -1
 	# Prepare stateful data structures
 	time_info = None
 	gpr_wb_info = defaultdict(deque)
@@ -532,7 +551,10 @@ def main():
 	for sec in perf_metrics:
 		sec['core'] = core_id
 	# Write metrics to CSV
-	perf_metrics_to_csv(perf_metrics, "test.csv")
+	if csv_file is not None:
+		if os.path.split(csv_file)[0] is '':
+			csv_file = os.path.join(path, csv_file)
+		perf_metrics_to_csv(perf_metrics, csv_file)
 	# Emit metrics
 	print('\n## Performance metrics')
 	for idx in range(len(perf_metrics)):
