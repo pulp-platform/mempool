@@ -59,7 +59,10 @@ questa_args += -sv_lib ${dpi_library}/mempool_dpi
 
 # DPI source files
 dpi   := $(patsubst tb/dpi/%.cpp,${buildpath}/${dpi_library}/%.o,$(wildcard tb/dpi/*.cpp))
+# Traces
 trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.trace,$(wildcard ${buildpath}/*.dasm))
+tracepath ?= $(buildpath)/traces
+traceresult ?= $(tracepath)/results.csv
 
 VLOG_ARGS += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 
@@ -83,12 +86,19 @@ run: build
 	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level} -do ../scripts/run.do
 	./scripts/return_status.sh ${buildpath}/transcript
 
-trace: $(trace)
+trace: pre_trace $(trace) post_trace
+
+pre_trace:
+	rm -rf $(tracepath)
+
+post_trace:
+	cp $(traceresult) "$(buildpath)/$$(date +'results-%F-%T.csv')"
+	rm -rf $(tracepath)
 
 ${buildpath}/%.trace: ${buildpath}/%.dasm
-	mkdir -p ${buildpath}
-	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(buildpath)/tmp
-	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py $(buildpath)/tmp > $@
+	mkdir -p $(tracepath)
+	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
+	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
 
 # Bender
 bender: Makefile
