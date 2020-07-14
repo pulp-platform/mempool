@@ -495,6 +495,7 @@ def main():
 	perf_metrics_setup[0]['start'] = None
 	# Initial code belongs to setup phase
 	perf_metrics = perf_metrics_setup
+	section = 0
 	# Parse input line by line
 	for line in line_iter:
 		if line:
@@ -509,9 +510,11 @@ def main():
 				if 'csrw' in ann_insn:
 					# Start of a benchmark section
 					perf_metrics = perf_metrics_bench
+					perf_metrics[-1]['section'] = section
 				else:
 					# End of a benchmark section
 					perf_metrics = perf_metrics_setup
+					section += 1
 				perf_metrics[-1]['start'] = time_info[1]
 			if not empty:
 				print(ann_insn)
@@ -525,6 +528,9 @@ def main():
 		perf_metrics.pop()
 	# Compute metrics
 	eval_perf_metrics(perf_metrics)
+	# Add metadata
+	for sec in perf_metrics:
+		sec['core'] = core_id
 	# Write metrics to CSV
 	perf_metrics_to_csv(perf_metrics, "test.csv")
 	# Emit metrics
