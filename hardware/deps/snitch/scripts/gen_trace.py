@@ -31,8 +31,7 @@ TRACE_OUT_FMT = '{:>8} {:>8} {:>10} {:<30}'
 MAX_SIGNED_INT_LIT = 0xFFFF
 
 # Performance keys which only serve to compute other metrics: omit on printing
-PERF_EVAL_KEYS_OMIT = ('start', 'end', 'end_fpss', 'snitch_issues', 'snitch_load_latency',
-	'snitch_fseq_offloads', 'fseq_issues', 'fpss_issues', 'fpss_fpu_issues', 'fpss_load_latency', 'fpss_fpu_latency')
+PERF_EVAL_KEYS_OMIT = ('start', 'end', 'snitch_issues', 'snitch_load_latency')
 
 
 # -------------------- Architectural constants and enums  --------------------
@@ -425,30 +424,15 @@ def safe_div(dividend, divisor):
 
 def eval_perf_metrics(perf_metrics: list):
 	for seg in perf_metrics:
-		fpss_latency = max(seg['end_fpss'] - seg['end'], 0)
-		end = seg['end'] + fpss_latency 	# This can be argued over, but it's the most conservatice choice
+		end = seg['end']
 		cycles = end - seg['start'] + 1
-		fpss_fpu_rel_issues = safe_div(seg['fpss_fpu_issues'], seg['fpss_issues'])
 		seg.update({
 			# Snitch
 			'snitch_avg_load_latency': safe_div(seg['snitch_load_latency'], seg['snitch_loads']),
 			'snitch_occupancy': safe_div(seg['snitch_issues'], cycles),
-			'snitch_fseq_rel_offloads': safe_div(
-				seg['snitch_fseq_offloads'], seg['snitch_issues'] + seg['snitch_fseq_offloads']),
-			# FSeq
-			'fseq_yield': safe_div(seg['fpss_issues'], seg['snitch_fseq_offloads']),
-			'fseq_fpu_yield': safe_div(safe_div(seg['fpss_fpu_issues'], seg['snitch_fseq_offloads']),
-				fpss_fpu_rel_issues),
-			# FPSS
-			'fpss_section_latency': fpss_latency,
-			'fpss_avg_fpu_latency': safe_div(seg['fpss_fpu_latency'], seg['fpss_fpu_issues']),
-			'fpss_avg_load_latency': safe_div(seg['fpss_load_latency'], seg['fpss_loads']),
-			'fpss_occupancy': safe_div(seg['fpss_issues'], cycles),
-			'fpss_fpu_occupancy': safe_div(seg['fpss_fpu_issues'], cycles),
-			'fpss_fpu_rel_occupancy': fpss_fpu_rel_issues
 		})
 		seg['cycles'] = cycles
-		seg['total_ipc'] = seg['fpss_occupancy'] + seg['snitch_occupancy']
+		seg['total_ipc'] = seg['snitch_occupancy']
 
 
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
