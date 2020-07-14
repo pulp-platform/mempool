@@ -489,8 +489,12 @@ def main():
 		'cfg_buf': deque(),
 		'curr_cfg': None
 	}
-	perf_metrics = [defaultdict(int)]  # all values initially 0, also 'start' time of measurement 0
-	perf_metrics[0]['start'] = None
+	perf_metrics_bench = [defaultdict(int)]  # all values initially 0, also 'start' time of measurement 0
+	perf_metrics_setup = [defaultdict(int)]  # all values initially 0, also 'start' time of measurement 0
+	perf_metrics_bench[0]['start'] = None
+	perf_metrics_setup[0]['start'] = None
+	# Initial code belongs to setup phase
+	perf_metrics = perf_metrics_setup
 	# Parse input line by line
 	for line in line_iter:
 		if line:
@@ -498,16 +502,27 @@ def main():
 				False, time_info, args.offl, not args.saddr, args.permissive)
 			if perf_metrics[0]['start'] is None:
 				perf_metrics[0]['start'] = time_info[1]
-			# Create a new section after every 'nop' instruction
+			# Start a new benchmark section after 'csrw cycle' instruction
 			if 'cycle' in ann_insn:
 				perf_metrics[-1]['end'] = time_info[1]
 				perf_metrics.append(defaultdict(int))
+				if 'csrw' in ann_insn:
+					# Start of a benchmark section
+					perf_metrics = perf_metrics_bench
+				else:
+					# End of a benchmark section
+					perf_metrics = perf_metrics_setup
 				perf_metrics[-1]['start'] = time_info[1]
 			if not empty:
 				print(ann_insn)
 		else:
 			break  # Nothing more in pipe, EOF
 	perf_metrics[-1]['end'] = time_info[1]
+	# Evaluate only the benchmarks
+	perf_metrics = perf_metrics_bench
+	# Remove last emtpy entry
+	if not bool(perf_metrics[-1]):
+		perf_metrics.pop()
 	# Compute metrics
 	eval_perf_metrics(perf_metrics)
 	# Write metrics to CSV
