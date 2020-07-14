@@ -11,6 +11,7 @@
 import sys
 import re
 import math
+import numpy as np
 import argparse
 import csv
 from csv import DictWriter
@@ -267,7 +268,7 @@ def annotate_snitch(
 	if extras['retire_load'] and extras['lsu_rd'] != 0:
 		try:
 			start_time = gpr_wb_info[extras['lsu_rd']].pop()
-			perf_metrics[-1]['snitch_load_latency'] += cycle - start_time
+			perf_metrics[-1].setdefault('snitch_load_latency', []).append(cycle - start_time)
 		except IndexError:
 			msg_type = 'WARNING' if permissive else 'FATAL'
 			sys.stderr.write('{}: In cycle {}, LSU attempts writeback to {}, but none in flight.\n'.format(
@@ -430,8 +431,8 @@ def eval_perf_metrics(perf_metrics: list):
 		cycles = end - seg['start'] + 1
 		seg.update({
 			# Snitch
-			'snitch_avg_load_latency': safe_div(seg['snitch_load_latency'], seg['snitch_loads']),
-			'snitch_occupancy': safe_div(seg['snitch_issues'], cycles),
+			'snitch_avg_load_latency': np.mean(seg['snitch_load_latency']),
+			'snitch_occupancy': safe_div(seg['snitch_issues'], cycles)
 		})
 		seg['cycles'] = cycles
 		seg['total_ipc'] = seg['snitch_occupancy']
