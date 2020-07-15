@@ -21,6 +21,7 @@ SHELL = /usr/bin/env bash
 
 # build path
 buildpath      ?= build
+resultpath     ?= results
 # questa library
 library        ?= work
 # dpi library
@@ -92,8 +93,12 @@ pre_trace:
 	rm -rf $(tracepath)
 
 post_trace:
-	cp $(traceresult) "$(buildpath)/$$(date +'results-%F-%T.csv')"
-	rm -rf $(tracepath)
+	RESULT_DIR=$(resultpath)/$$(date +"%F-%T-$$(git branch --show-current)-$$(git rev-parse HEAD)"); \
+	mkdir -p "$$RESULT_DIR"; mkdir -p "$$RESULT_DIR/original"; \
+	cp $(traceresult) "$$RESULT_DIR"; \
+	cp $(trace) "$$RESULT_DIR"; cp $(wildcard $(buildpath)/*.dasm) "$$RESULT_DIR/original"; \
+	cp "$$(grep -oP '(?<=\+PRELOAD=)[^ \"]*' build/transcript)"* "$$RESULT_DIR"; \
+	git diff > "$$RESULT_DIR/git-diff"
 
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
