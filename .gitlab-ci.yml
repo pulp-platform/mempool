@@ -17,6 +17,7 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   ROOT_DIR: '$CI_PROJECT_DIR'
+  APP: 'hello_world'
 
 before_script:
   - env
@@ -94,9 +95,9 @@ apps-llvm:
   script:
     - git apply .gitlab-ci.d/patches/0001-hardware-Set-number-of-cores-to-32-in-simulation.patch
     - cd apps
-    - make bin/hello_world
+    - make bin/${APP}
     - cd ../hardware
-    - app=hello_world make run
+    - app=${APP} make run
     - make trace
   artifacts:
     paths:
@@ -115,9 +116,9 @@ apps-gcc:
   script:
     - git apply .gitlab-ci.d/patches/0001-hardware-Set-number-of-cores-to-32-in-simulation.patch
     - cd apps
-    - make COMPILER=gcc bin/matrix_mul
+    - make COMPILER=gcc bin/${APP}
     - cd ../hardware
-    - app=matrix_mul make run
+    - app=${APP} make run
     - make trace
   artifacts:
     paths:
