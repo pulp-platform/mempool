@@ -81,6 +81,7 @@ simc: build
 
 run: build
 	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level} -do ../scripts/run.do
+	./scripts/return_status.sh ${buildpath}/transcript
 
 trace: $(trace)
 
