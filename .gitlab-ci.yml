@@ -90,12 +90,13 @@ hardware:
   needs: []
   dependencies: []
 
-apps-llvm:
+# Software tests
+.apps: &apps-compiler
   stage: test
   script:
     - git apply .gitlab-ci.d/patches/0001-hardware-Set-number-of-cores-to-32-in-simulation.patch
     - cd apps
-    - make bin/${APP}
+    - make COMPILER=${COMPILER} bin/${APP}
     - cd ../hardware
     - app=${APP} make run
     - make trace
@@ -103,29 +104,23 @@ apps-llvm:
     paths:
       - hardware/build/transcript
       - hardware/build/trace_hart_*.trace
+
+apps-llvm:
+  <<: *apps-compiler
   variables:
     GIT_SUBMODULE_STRATEGY: none
-  needs: ["tc-gcc","tc-llvm","tc-isa-sim"]
+    COMPILER: "llvm"
+  needs: ["tc-gcc","tc-isa-sim","tc-llvm"]
   dependencies:
     - tc-gcc
-    - tc-llvm
     - tc-isa-sim
+    - tc-llvm
 
 apps-gcc:
-  stage: test
-  script:
-    - git apply .gitlab-ci.d/patches/0001-hardware-Set-number-of-cores-to-32-in-simulation.patch
-    - cd apps
-    - make COMPILER=gcc bin/${APP}
-    - cd ../hardware
-    - app=${APP} make run
-    - make trace
-  artifacts:
-    paths:
-      - hardware/build/transcript
-      - hardware/build/trace_hart_*.trace
+  <<: *apps-compiler
   variables:
     GIT_SUBMODULE_STRATEGY: none
+    COMPILER: "gcc"
   needs: ["tc-gcc","tc-isa-sim"]
   dependencies:
     - tc-gcc
