@@ -81,12 +81,13 @@ simc: build
 
 run: build
 	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level} -do ../scripts/run.do
+	./scripts/return_status.sh ${buildpath}/transcript
 
 trace: $(trace)
 
 ${buildpath}/%.trace: ${buildpath}/%.dasm
 	mkdir -p ${buildpath}
-	$(INSTALL_DIR)/riscv-gcc/bin/spike-dasm < $< > $(buildpath)/tmp
+	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(buildpath)/tmp
 	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py $(buildpath)/tmp > $@
 
 # Bender

@@ -1,4 +1,4 @@
-# Copyright 2019 ETH Zurich and University of Bologna.
+# Copyright 2020 ETH Zurich and University of Bologna.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,15 +17,111 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   ROOT_DIR: '$CI_PROJECT_DIR'
+  APP: 'hello_world'
 
 before_script:
-  - echo "Start"
+  - env
 
 after_script:
   - env
 
-all:
+stages:
+  - build
+  - compiler
+  - test
+
+tc-gcc:
+  stage: build
   script:
-    - env
+    - git submodule update --init --recursive -- toolchain/riscv-gnu-toolchain
+    - make tc-riscv-gcc
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  artifacts:
+    paths:
+      - install/riscv-gcc
+    expire_in: 1 day
+
+tc-llvm:
+  stage: build
+  script:
+    - git submodule update --init --recursive -- toolchain/llvm-project
+    - make tc-llvm
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  artifacts:
+    paths:
+      - install/llvm
+    expire_in: 1 day
+
+tc-isa-sim:
+  stage: build
+  script:
+    - git submodule update --init --recursive -- toolchain/riscv-isa-sim
+    - make riscv-isa-sim
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  artifacts:
+    paths:
+      - install/riscv-isa-sim
+    expire_in: 1 day
+
+halide:
+  stage: compiler
+  script:
+    - git submodule update --init --recursive -- toolchain/halide
+    - make halide
+  artifacts:
+    paths:
+      - install/halide
+    expire_in: 1 day
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs: ["tc-llvm"]
+  dependencies:
+    - tc-llvm
+
+hardware:
+  stage: test
+  script:
     - make -C hardware
-    - make all
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs: []
+  dependencies: []
+
+# Software tests
+.apps: &apps-compiler
+  stage: test
+  script:
+    - git apply .gitlab-ci.d/patches/0001-hardware-Set-number-of-cores-to-32-in-simulation.patch
+    - cd apps
+    - make COMPILER=${COMPILER} bin/${APP}
+    - cd ../hardware
+    - app=${APP} make run
+    - make trace
+  artifacts:
+    paths:
+      - hardware/build/transcript
+      - hardware/build/trace_hart_*.trace
+
+apps-llvm:
+  <<: *apps-compiler
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    COMPILER: "llvm"
+  needs: ["tc-gcc","tc-isa-sim","tc-llvm"]
+  dependencies:
+    - tc-gcc
+    - tc-isa-sim
+    - tc-llvm
+
+apps-gcc:
+  <<: *apps-compiler
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    COMPILER: "gcc"
+  needs: ["tc-gcc","tc-isa-sim"]
+  dependencies:
+    - tc-gcc
+    - tc-isa-sim

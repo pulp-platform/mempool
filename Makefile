@@ -18,11 +18,12 @@
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 SHELL = bash
 
-INSTALL_PREFIX     ?= install
-INSTALL_DIR        ?= ${ROOT_DIR}/${INSTALL_PREFIX}
-GCC_INSTALL_DIR    ?= ${INSTALL_DIR}/riscv-gcc
-LLVM_INSTALL_DIR   ?= ${INSTALL_DIR}/llvm
-HALIDE_INSTALL_DIR ?= ${INSTALL_DIR}/halide
+INSTALL_PREFIX      ?= install
+INSTALL_DIR         ?= ${ROOT_DIR}/${INSTALL_PREFIX}
+GCC_INSTALL_DIR     ?= ${INSTALL_DIR}/riscv-gcc
+ISA_SIM_INSTALL_DIR ?= ${INSTALL_DIR}/riscv-isa-sim
+LLVM_INSTALL_DIR    ?= ${INSTALL_DIR}/llvm
+HALIDE_INSTALL_DIR  ?= ${INSTALL_DIR}/halide
 
 CMAKE ?= cmake-3.7.1
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
@@ -35,10 +36,10 @@ CXX    = g++-8.2.0
 endif
 
 # Default target
-all: halide
+all: toolchain riscv-isa-sim halide
 
 # Halide
-halide: toolchain
+halide:
 	mkdir -p $(HALIDE_INSTALL_DIR)
 	cd toolchain/halide && mkdir -p build && cd build; \
 	$(CMAKE) \
@@ -56,7 +57,10 @@ toolchain: tc-riscv-gcc tc-llvm
 
 tc-riscv-gcc:
 	mkdir -p $(GCC_INSTALL_DIR)
-	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && git submodule update --init --recursive && ./configure --prefix=$(GCC_INSTALL_DIR) --with-arch=rv32im --with-cmodel=medlow --enable-multilib && $(MAKE) -j4
+	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && \
+	./configure --prefix=$(GCC_INSTALL_DIR) --with-arch=rv32im --with-cmodel=medlow --enable-multilib && \
+	make clean && \
+	$(MAKE) -j4
 
 tc-llvm:
 	mkdir -p $(LLVM_INSTALL_DIR)
@@ -67,7 +71,7 @@ tc-llvm:
 		-DCMAKE_C_COMPILER=$(CC) \
 		-DLLVM_ENABLE_PROJECTS="clang" \
 		-DLLVM_TARGETS_TO_BUILD="RISCV;host" \
-		-DLLVM_BUILD_DOCS="1" \
+		-DLLVM_BUILD_DOCS="0" \
 		-DLLVM_ENABLE_TERMINFO="0"  \
 		-DLLVM_ENABLE_ASSERTIONS=ON \
 		-DCMAKE_BUILD_TYPE=Release \
@@ -77,7 +81,10 @@ tc-llvm:
 
 riscv-isa-sim:
 	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
-	../configure --prefix=$(GCC_INSTALL_DIR) && make && make install
+	[ -d dtc ] || git clone git://git.kernel.org/pub/scm/utils/dtc/dtc.git && cd dtc; \
+	make install SETUP_PREFIX=$$(pwd)/install PREFIX=$$(pwd)/install && \
+	PATH=$$(pwd)/install/bin:$$PATH; cd ..; \
+	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Helper targets
 .PHONY: clean
