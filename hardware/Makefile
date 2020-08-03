@@ -93,7 +93,7 @@ pre_trace:
 	rm -rf $(tracepath)
 
 post_trace:
-	RESULT_DIR=$(resultpath)/$$(date +"%F-%T-$$(git branch --show-current)-$$(git rev-parse HEAD)"); \
+	RESULT_DIR=$(resultpath)/$$(date +"%F-%T-$$(git rev-parse --abbrev-ref HEAD)-$$(git rev-parse HEAD)"); \
 	mkdir -p "$$RESULT_DIR"; mkdir -p "$$RESULT_DIR/original"; \
 	cp $(traceresult) "$$RESULT_DIR"; \
 	cp $(trace) "$$RESULT_DIR"; cp $(wildcard $(buildpath)/*.dasm) "$$RESULT_DIR/original"; \
