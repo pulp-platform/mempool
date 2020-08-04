@@ -132,3 +132,10 @@ apps-gcc:
   dependencies:
     - tc-gcc
     - tc-isa-sim
+
+# Code style test
+code-style:
+  stage: test
+  script:
+    - ./.gitlab-ci.d/lint.sh
+  needs: ["tc-llvm"]
