@@ -541,7 +541,10 @@ def main():
 			break  # Nothing more in pipe, EOF
 	perf_metrics[-1]['end'] = time_info[1]
 	# Evaluate only the benchmarks
-	perf_metrics = perf_metrics_bench
+	if perf_metrics_bench[0]['start'] is not None:
+		perf_metrics = perf_metrics_bench
+	else:
+		perf_metrics = perf_metrics_setup
 	# Remove last emtpy entry
 	if not bool(perf_metrics[-1]):
 		perf_metrics.pop()
