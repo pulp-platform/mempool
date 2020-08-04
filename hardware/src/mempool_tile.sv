@@ -175,20 +175,22 @@ module mempool_tile #(
    ***********************/
 
   snitch_icache #(
-    .NR_FETCH_PORTS    (NumCoresPerTile                                         ),
+    .NR_FETCH_PORTS     (NumCoresPerTile                                     ),
     /// Cache Line Width
-    .L0_LINE_COUNT     (4                                                       ),
-    .LINE_WIDTH        (ICacheLineWidth                                         ),
-    .LINE_COUNT        (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8)     ),
-    .SET_COUNT         (ICacheSets                                              ),
-    .FETCH_AW          (AddrWidth                                               ),
-    .FETCH_DW          (DataWidth                                               ),
-    .FILL_AW           (AddrWidth                                               ),
-    .FILL_DW           (ICacheLineWidth                                         ),
+    .L0_LINE_COUNT      (4                                                   ),
+    .LINE_WIDTH         (ICacheLineWidth                                     ),
+    .LINE_COUNT         (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8) ),
+    .SET_COUNT          (ICacheSets                                          ),
+    .FETCH_AW           (AddrWidth                                           ),
+    .FETCH_DW           (DataWidth                                           ),
+    .FILL_AW            (AddrWidth                                           ),
+    .FILL_DW            (ICacheLineWidth                                     ),
     /// Make the early cache latch-based. This reduces latency at the cost of
     /// increased combinatorial path lengths and the hassle of having latches in
     /// the design.
-    .EARLY_LATCH       (0                                                       )
+    .EARLY_LATCH        (0                                                   ),
+    .L0_EARLY_TAG_WIDTH (11                                                  ),
+    .ISO_CROSSING       (0                                                   )
   ) i_snitch_icache (
     .clk_i                (clk_i                  ),
     .clk_d2_i             (clk_i                  ),
