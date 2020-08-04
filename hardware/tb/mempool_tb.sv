@@ -30,7 +30,7 @@ module mempool_tb;
 `else
   localparam        NumCores        = 256;
 `endif
-  localparam        NumCoresPerTile = 4;
+  localparam        NumHives        = 4;
   localparam        BankingFactor   = 4;
   localparam addr_t TCDMBaseAddr    = '0;
   localparam        TCDMSizePerBank = 1024 /* [B] */;
@@ -51,19 +51,8 @@ module mempool_tb;
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
-  localparam AxiMstIdWidth = $clog2(NumCoresPerTile)+8; // TODO: Account for outstanding transactions
   localparam AxiSlvIdWidth = $clog2(NumCores)+8;
-
-  typedef logic [AxiMstIdWidth-1:0] axi_mst_id_t;
   typedef logic [AxiSlvIdWidth-1:0] axi_slv_id_t;
-
-  `AXI_TYPEDEF_AW_CHAN_T(axi_aw_t, addr_t, axi_mst_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_w_t, data_t, strb_t, logic)        ;
-  `AXI_TYPEDEF_B_CHAN_T(axi_b_t, axi_mst_id_t, logic)          ;
-  `AXI_TYPEDEF_AR_CHAN_T(axi_ar_t, addr_t, axi_mst_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_r_t, data_t, axi_mst_id_t, logic)  ;
-  `AXI_TYPEDEF_REQ_T(axi_req_t, axi_aw_t, axi_w_t, axi_ar_t)   ;
-  `AXI_TYPEDEF_RESP_T(axi_resp_t, axi_b_t, axi_r_t )           ;
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_slv_aw_t, addr_t, axi_slv_id_t, logic)     ;
   `AXI_TYPEDEF_W_CHAN_T(axi_slv_w_t, data_t, strb_t, logic)             ;
@@ -127,22 +116,15 @@ module mempool_tb;
    *********/
 
   mempool #(
-    .NumCores       (NumCores       ),
-    .NumCoresPerTile(NumCoresPerTile),
-    .BankingFactor  (BankingFactor  ),
-    .TCDMBaseAddr   (TCDMBaseAddr   ),
-    .TCDMSizePerBank(TCDMSizePerBank),
-    .BootAddr       (32'h8001_0000  ),
-    .axi_aw_t       (axi_aw_t       ),
-    .axi_w_t        (axi_w_t        ),
-    .axi_b_t        (axi_b_t        ),
-    .axi_ar_t       (axi_ar_t       ),
-    .axi_r_t        (axi_r_t        ),
-    .axi_req_t      (axi_req_t      ),
-    .axi_resp_t     (axi_resp_t     )
+    .NumCores     (NumCores      ),
+    .NumHives     (NumHives      ),
+    .BankingFactor(BankingFactor ),
+    .TCDMBaseAddr (TCDMBaseAddr  ),
+    .BootAddr     (32'h8001_0000 )
   ) dut (
     .clk_i          (clk           ),
     .rst_ni         (rst_n         ),
+    .testmode_i     (1'b0          ),
     .axi_mst_req_o  (axi_mst_req_o ),
     .axi_mst_resp_i (axi_mst_resp_i),
     .scan_enable_i  (1'b0          ),

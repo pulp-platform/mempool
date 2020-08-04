@@ -11,15 +11,14 @@
 import mempool_pkg::*;
 
 module mempool_tile #(
-    parameter int unsigned NumCoresPerTile  = 1                                             ,
-    parameter int unsigned NumBanksPerTile  = 1                                             ,
-    parameter int unsigned NumTiles         = 1                                             ,
-    parameter int unsigned NumBanks         = 1                                             ,
+    parameter int unsigned NumBanksPerTile = 1                                                    ,
+    parameter int unsigned NumTiles        = 1                                                    ,
+    parameter int unsigned NumHives        = 1                                                    ,
+    parameter int unsigned NumBanks        = 1                                                    ,
     // TCDM
-    parameter addr_t TCDMBaseAddr           = 32'b0                                         ,
-    parameter int unsigned TCDMSizePerBank  = 1024 /* [B] */                                ,
+    parameter addr_t TCDMBaseAddr          = 32'b0                                                ,
     // Boot address
-    parameter logic [31:0] BootAddr         = 32'h0000_1000                                 ,
+    parameter logic [31:0] BootAddr        = 32'h0000_1000                                        ,
     // Instruction cache
     parameter int unsigned ICacheSizeByte   = 512 * NumCoresPerTile                         , // Total Size of instruction cache in bytes
     parameter int unsigned ICacheSets       = NumCoresPerTile                               , // Number of sets
@@ -33,16 +32,14 @@ module mempool_tile #(
     parameter type axi_req_t                = logic                                         ,
     parameter type axi_resp_t               = logic                                         ,
     // Dependent parameters. DO NOT CHANGE.
-    parameter int unsigned NumCores         = NumCoresPerTile * NumTiles                    ,
-    parameter int unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth),
-    parameter int unsigned TileAddrWidth    = TCDMAddrMemWidth + $clog2(NumBanksPerTile)    ,
-    localparam LocalXbarAddrWidth           = $clog2(2*NumCoresPerTile)                     ,
-    parameter type tile_id_t                = logic [$clog2(NumTiles)-1:0]                  ,
-    parameter type core_id_t                = logic [$clog2(NumCores)-1:0]                  ,
-    parameter type tcdm_addr_t              = logic [TCDMAddrMemWidth-1:0]                  ,
-    parameter type tcdm_payload_t           = logic [DataWidth-1:0]                         ,
-    parameter type tile_addr_t              = logic [TileAddrWidth-1:0]                     ,
-    parameter type local_xbar_addr_t        = logic [LocalXbarAddrWidth-1:0]
+    parameter int unsigned NumCores        = NumCoresPerTile * NumTiles                           ,
+    parameter int unsigned NumBanksPerHive = NumBanks / NumHives                                  ,
+    parameter int unsigned NumTilesPerHive = NumTiles / NumHives                                  ,
+    parameter int unsigned TileAddrWidth   = TCDMAddrMemWidth + unsigned'($clog2(NumBanksPerTile)),
+    parameter int unsigned TCDMAddrWidth   = TCDMAddrMemWidth + unsigned'($clog2(NumBanksPerHive)),
+    parameter type hive_tile_id_t          = logic [$clog2(NumTilesPerHive)-1:0]                  ,
+    parameter type tcdm_addr_t             = logic [TCDMAddrWidth-1:0]                            ,
+    parameter type tile_addr_t             = logic [TileAddrWidth-1:0]
   ) (
     // Clock and reset
     input  logic                                 clk_i,
@@ -54,38 +51,39 @@ module mempool_tile #(
     // Tile ID
     input  logic          [$clog2(NumTiles)-1:0] tile_id_i,
     // Core data interface
-    output logic          [NumCoresPerTile-1:0]  tcdm_master_req_valid_o,
-    input  logic          [NumCoresPerTile-1:0]  tcdm_master_req_ready_i,
-    output addr_t         [NumCoresPerTile-1:0]  tcdm_master_req_tgt_addr_o,
-    output logic          [NumCoresPerTile-1:0]  tcdm_master_req_wen_o,
-    output tcdm_payload_t [NumCoresPerTile-1:0]  tcdm_master_req_wdata_o,
-    output strb_t         [NumCoresPerTile-1:0]  tcdm_master_req_be_o,
-    input  logic          [NumCoresPerTile-1:0]  tcdm_master_resp_valid_i,
-    input  tcdm_payload_t [NumCoresPerTile-1:0]  tcdm_master_resp_rdata_i,
+    output logic          [NumHives-1:0]         tcdm_master_req_valid_o,
+    input  logic          [NumHives-1:0]         tcdm_master_req_ready_i,
+    output tcdm_addr_t    [NumHives-1:0]         tcdm_master_req_tgt_addr_o,
+    output logic          [NumHives-1:0]         tcdm_master_req_wen_o,
+    output tcdm_payload_t [NumHives-1:0]         tcdm_master_req_wdata_o,
+    output strb_t         [NumHives-1:0]         tcdm_master_req_be_o,
+    input  logic          [NumHives-1:0]         tcdm_master_resp_valid_i,
+    output logic          [NumHives-1:0]         tcdm_master_resp_ready_o,
+    input  tcdm_payload_t [NumHives-1:0]         tcdm_master_resp_rdata_i,
     // TCDM banks interface
-    input  logic          [NumCoresPerTile-1:0]  tcdm_slave_req_valid_i,
-    output logic          [NumCoresPerTile-1:0]  tcdm_slave_req_ready_o,
-    input  tile_id_t      [NumCoresPerTile-1:0]  tcdm_slave_req_ini_addr_i,
-    input  tile_addr_t    [NumCoresPerTile-1:0]  tcdm_slave_req_tgt_addr_i,
-    input  logic          [NumCoresPerTile-1:0]  tcdm_slave_req_wen_i,
-    input  tcdm_payload_t [NumCoresPerTile-1:0]  tcdm_slave_req_wdata_i,
-    input  strb_t         [NumCoresPerTile-1:0]  tcdm_slave_req_be_i,
-    output logic          [NumCoresPerTile-1:0]  tcdm_slave_resp_valid_o,
-    input  logic          [NumCoresPerTile-1:0]  tcdm_slave_resp_ready_i,
-    output tile_id_t      [NumCoresPerTile-1:0]  tcdm_slave_resp_ini_addr_o,
-    output tcdm_payload_t [NumCoresPerTile-1:0]  tcdm_slave_resp_rdata_o,
+    input  logic          [NumHives-1:0]         tcdm_slave_req_valid_i ,
+    output logic          [NumHives-1:0]         tcdm_slave_req_ready_o ,
+    input  hive_tile_id_t [NumHives-1:0]         tcdm_slave_req_ini_addr_i ,
+    input  tile_addr_t    [NumHives-1:0]         tcdm_slave_req_tgt_addr_i ,
+    input  logic          [NumHives-1:0]         tcdm_slave_req_wen_i ,
+    input  tcdm_payload_t [NumHives-1:0]         tcdm_slave_req_wdata_i ,
+    input  strb_t         [NumHives-1:0]         tcdm_slave_req_be_i ,
+    output logic          [NumHives-1:0]         tcdm_slave_resp_valid_o ,
+    input  logic          [NumHives-1:0]         tcdm_slave_resp_ready_i ,
+    output hive_tile_id_t [NumHives-1:0]         tcdm_slave_resp_ini_addr_o ,
+    output tcdm_payload_t [NumHives-1:0]         tcdm_slave_resp_rdata_o,
     // AXI Interface
     output axi_req_t                             axi_mst_req_o ,
-    input  axi_resp_t                            axi_mst_resp_i,
+    input  axi_resp_t                            axi_mst_resp_i ,
     // Instruction interface
-    output addr_t                                refill_qaddr_o,
-    output logic          [7:0]                  refill_qlen_o,             // AXI signal
-    output logic                                 refill_qvalid_o,
-    input  logic                                 refill_qready_i,
-    input  logic          [ICacheLineWidth-1:0]  refill_pdata_i,
-    input  logic                                 refill_perror_i,
-    input  logic                                 refill_pvalid_i,
-    input  logic                                 refill_plast_i,
+    output addr_t                                refill_qaddr_o ,
+    output logic          [7:0]                  refill_qlen_o ,            // AXI signal
+    output logic                                 refill_qvalid_o ,
+    input  logic                                 refill_qready_i ,
+    input  logic          [ICacheLineWidth-1:0]  refill_pdata_i ,
+    input  logic                                 refill_perror_i ,
+    input  logic                                 refill_pvalid_i ,
+    input  logic                                 refill_plast_i ,
     output logic                                 refill_pready_o
   );
 
@@ -102,17 +100,22 @@ module mempool_tile #(
   import snitch_pkg::dreq_t ;
   import snitch_pkg::dresp_t;
 
+  typedef logic [(NumHives == 1 ? 1 : $clog2(NumHives))-1:0] hive_id_t;
+
   // TCDM Memory Region
   localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
   localparam addr_t TCDMMask = ~(TCDMSize - 1);
 
-  // Local crossbar payload
+  // Local crossbar
+  localparam LocalSlaveXbarAddrWidth = $clog2(NumCoresPerTile + NumHives);
+  typedef logic [LocalSlaveXbarAddrWidth-1:0] local_slave_xbar_addr_t;
   typedef struct packed {
-    reorder_id_t id   ;
-    amo_t amo         ;
-    data_t data       ;
-    core_id_t ini_addr;
-  } local_xbar_payload_t;
+    reorder_id_t reorder_id;
+    hive_tile_id_t tile_id ;
+    tile_core_id_t core_id ;
+    amo_t amo              ;
+    data_t data            ;
+  } local_slave_xbar_payload_t;
 
   /***********
    *  Cores  *
@@ -137,7 +140,7 @@ module mempool_tile #(
   logic  [NumCoresPerTile-1:0] snitch_data_pvalid;
   logic  [NumCoresPerTile-1:0] snitch_data_pready;
 
-  for (genvar c = 0; c < unsigned'(NumCoresPerTile); c++) begin: gen_cores
+  for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_cores
     logic [31:0] hart_id;
     assign hart_id = {unsigned'(tile_id_i), c[$clog2(NumCoresPerTile)-1:0]};
 
@@ -216,49 +219,56 @@ module mempool_tile #(
     .refill_pready_o      (refill_pready_o        )
   );
 
-  /***********************
-   *  TCDM Memory Banks  *
-   ***********************/
+  /******************
+   *  Memory Banks  *
+   ******************/
 
   // Bank metadata
   typedef struct packed {
-    local_xbar_addr_t ini_addr  ;
-    core_id_t payload_ini_addr  ;
-    reorder_id_t      payload_id;
+    local_slave_xbar_addr_t ini_addr;
+    reorder_id_t reorder_id         ;
+    hive_tile_id_t tile_id          ;
+    tile_core_id_t core_id          ;
   } bank_metadata_t;
 
   // Memory interfaces
-  logic                [NumBanksPerTile-1:0] bank_req_valid;
-  logic                [NumBanksPerTile-1:0] bank_req_ready;
-  tcdm_addr_t          [NumBanksPerTile-1:0] bank_req_tgt_addr;
-  local_xbar_addr_t    [NumBanksPerTile-1:0] bank_req_ini_addr;
-  logic                [NumBanksPerTile-1:0] bank_req_wen;
-  local_xbar_payload_t [NumBanksPerTile-1:0] bank_req_payload;
-  strb_t               [NumBanksPerTile-1:0] bank_req_be;
-  logic                [NumBanksPerTile-1:0] bank_resp_valid;
-  logic                [NumBanksPerTile-1:0] bank_resp_ready;
-  local_xbar_payload_t [NumBanksPerTile-1:0] bank_resp_payload;
-  local_xbar_addr_t    [NumBanksPerTile-1:0] bank_resp_ini_addr;
+  logic                      [NumBanksPerTile-1:0] bank_req_valid;
+  logic                      [NumBanksPerTile-1:0] bank_req_ready;
+  bank_addr_t                [NumBanksPerTile-1:0] bank_req_tgt_addr;
+  local_slave_xbar_addr_t    [NumBanksPerTile-1:0] bank_req_ini_addr;
+  logic                      [NumBanksPerTile-1:0] bank_req_wen;
+  local_slave_xbar_payload_t [NumBanksPerTile-1:0] bank_req_payload;
+  strb_t                     [NumBanksPerTile-1:0] bank_req_be;
+  logic                      [NumBanksPerTile-1:0] bank_resp_valid;
+  logic                      [NumBanksPerTile-1:0] bank_resp_ready;
+  local_slave_xbar_payload_t [NumBanksPerTile-1:0] bank_resp_payload;
+  local_slave_xbar_addr_t    [NumBanksPerTile-1:0] bank_resp_ini_addr;
 
-  for (genvar b = 0; b < unsigned'(NumBanksPerTile); b++) begin: gen_banks
-    bank_metadata_t meta_in, meta_out;
-    logic           req_valid, req_write;
-    tcdm_addr_t     req_addr;
-    data_t          req_wdata, resp_rdata, req_be;
+  for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_banks
+    bank_metadata_t meta_in ;
+    bank_metadata_t meta_out;
+    logic req_valid         ;
+    logic req_write         ;
+    bank_addr_t req_addr    ;
+    data_t req_wdata        ;
+    data_t resp_rdata       ;
+    data_t req_be           ;
 
     // Un/Pack metadata
     assign meta_in = '{
-      ini_addr        : bank_req_ini_addr[b],
-      payload_ini_addr: bank_req_payload[b].ini_addr,
-      payload_id      : bank_req_payload[b].id
+      ini_addr  : bank_req_ini_addr[b]          ,
+      reorder_id: bank_req_payload[b].reorder_id,
+      core_id   : bank_req_payload[b].core_id   ,
+      tile_id   : bank_req_payload[b].tile_id
     };
-
-    assign bank_resp_ini_addr[b]         = meta_out.ini_addr;
-    assign bank_resp_payload[b].ini_addr = meta_out.payload_ini_addr;
-    assign bank_resp_payload[b].id       = meta_out.payload_id;
+    assign bank_resp_ini_addr[b]           = meta_out.ini_addr  ;
+    assign bank_resp_payload[b].reorder_id = meta_out.reorder_id;
+    assign bank_resp_payload[b].tile_id    = meta_out.tile_id   ;
+    assign bank_resp_payload[b].core_id    = meta_out.core_id   ;
+    assign bank_resp_payload[b].amo        = '0                 ; // Don't care
 
     tcdm_adapter #(
-      .AddrWidth  ($bits(tcdm_addr_t)               ),
+      .AddrWidth  (TCDMAddrMemWidth                 ),
       .DataWidth  (DataWidth                        ),
       .metadata_t (logic[$bits(bank_metadata_t)-1:0]),
       .RegisterAmo(1'b0                             )
@@ -305,120 +315,240 @@ module mempool_tile #(
    ***************/
 
   // These are required to break dependencies between request and response, establishing a correct valid/ready handshake.
-  logic          [NumCoresPerTile-1:0] postreg_tcdm_slave_req_valid;
-  logic          [NumCoresPerTile-1:0] postreg_tcdm_slave_req_ready;
-  tile_addr_t    [NumCoresPerTile-1:0] postreg_tcdm_slave_req_tgt_addr;
-  logic          [NumCoresPerTile-1:0] postreg_tcdm_slave_req_wen;
-  tcdm_payload_t [NumCoresPerTile-1:0] postreg_tcdm_slave_req_wdata;
-  tile_id_t      [NumCoresPerTile-1:0] postreg_tcdm_slave_req_ini_addr;
-  strb_t         [NumCoresPerTile-1:0] postreg_tcdm_slave_req_be;
-  logic          [NumCoresPerTile-1:0] prereg_tcdm_slave_resp_valid;
-  logic          [NumCoresPerTile-1:0] prereg_tcdm_slave_resp_ready;
-  tcdm_payload_t [NumCoresPerTile-1:0] prereg_tcdm_slave_resp_rdata;
-  tile_id_t      [NumCoresPerTile-1:0] prereg_tcdm_slave_resp_ini_addr;
+  logic          [NumHives-1:0] postreg_tcdm_slave_req_valid;
+  logic          [NumHives-1:0] postreg_tcdm_slave_req_ready;
+  tile_addr_t    [NumHives-1:0] postreg_tcdm_slave_req_tgt_addr;
+  logic          [NumHives-1:0] postreg_tcdm_slave_req_wen;
+  tcdm_payload_t [NumHives-1:0] postreg_tcdm_slave_req_wdata;
+  hive_tile_id_t [NumHives-1:0] postreg_tcdm_slave_req_ini_addr;
+  strb_t         [NumHives-1:0] postreg_tcdm_slave_req_be;
+  logic          [NumHives-1:0] prereg_tcdm_slave_resp_valid;
+  logic          [NumHives-1:0] prereg_tcdm_slave_resp_ready;
+  tcdm_payload_t [NumHives-1:0] prereg_tcdm_slave_resp_rdata;
+  hive_tile_id_t [NumHives-1:0] prereg_tcdm_slave_resp_ini_addr;
+  logic          [NumHives-1:0] prereg_tcdm_master_req_valid;
+  logic          [NumHives-1:0] prereg_tcdm_master_req_ready;
+  tcdm_addr_t    [NumHives-1:0] prereg_tcdm_master_req_tgt_addr;
+  logic          [NumHives-1:0] prereg_tcdm_master_req_wen;
+  tcdm_payload_t [NumHives-1:0] prereg_tcdm_master_req_wdata;
+  strb_t         [NumHives-1:0] prereg_tcdm_master_req_be;
+  logic          [NumHives-1:0] postreg_tcdm_master_resp_valid;
+  logic          [NumHives-1:0] postreg_tcdm_master_resp_ready;
+  tcdm_payload_t [NumHives-1:0] postreg_tcdm_master_resp_rdata;
 
   // Break paths between request and response with registers
-  for (genvar c = 0; c < unsigned'(NumCoresPerTile); c++) begin: gen_tcdm_registers
+  for (genvar h = 0; unsigned'(h) < NumHives; h++) begin: gen_tcdm_registers
+    spill_register #(
+      .T(logic[TCDMAddrWidth + BeWidth + unsigned'($bits(tcdm_payload_t)):0])
+    ) i_tcdm_master_req_register (
+      .clk_i  (clk_i                                                                                                                             ),
+      .rst_ni (rst_ni                                                                                                                            ),
+      .data_i ({prereg_tcdm_master_req_tgt_addr[h], prereg_tcdm_master_req_be[h], prereg_tcdm_master_req_wen[h], prereg_tcdm_master_req_wdata[h]}),
+      .valid_i(prereg_tcdm_master_req_valid[h]                                                                                                   ),
+      .ready_o(prereg_tcdm_master_req_ready[h]                                                                                                   ),
+      .data_o ({tcdm_master_req_tgt_addr_o[h], tcdm_master_req_be_o[h], tcdm_master_req_wen_o[h], tcdm_master_req_wdata_o[h]}                    ),
+      .valid_o(tcdm_master_req_valid_o[h]                                                                                                        ),
+      .ready_i(tcdm_master_req_ready_i[h]                                                                                                        )
+    );
+
     fall_through_register #(
-      .T(logic[TileAddrWidth + BeWidth + 1 + $bits(tcdm_payload_t) + $clog2(NumTiles) - 1:0])
+      .T(tcdm_payload_t)
+    ) i_tcdm_master_resp_register (
+      .clk_i     (clk_i                            ),
+      .rst_ni    (rst_ni                           ),
+      .clr_i     (1'b0                             ),
+      .testmode_i(1'b0                             ),
+      .data_i    (tcdm_master_resp_rdata_i[h]      ),
+      .valid_i   (tcdm_master_resp_valid_i[h]      ),
+      .ready_o   (tcdm_master_resp_ready_o[h]      ),
+      .data_o    (postreg_tcdm_master_resp_rdata[h]),
+      .valid_o   (postreg_tcdm_master_resp_valid[h]),
+      .ready_i   (postreg_tcdm_master_resp_ready[h])
+    );
+
+    fall_through_register #(
+      .T(logic[TileAddrWidth + BeWidth + unsigned'($bits(tcdm_payload_t)) + unsigned'($clog2(NumTilesPerHive)):0])
     ) i_tcdm_slave_req_register (
       .clk_i     (clk_i                                                                                                                                                                 ),
       .rst_ni    (rst_ni                                                                                                                                                                ),
       .clr_i     (1'b0                                                                                                                                                                  ),
       .testmode_i(1'b0                                                                                                                                                                  ),
-      .data_i    ({tcdm_slave_req_tgt_addr_i[c], tcdm_slave_req_be_i[c], tcdm_slave_req_wen_i[c], tcdm_slave_req_wdata_i[c], tcdm_slave_req_ini_addr_i[c]}                              ),
-      .valid_i   (tcdm_slave_req_valid_i[c]                                                                                                                                             ),
-      .ready_o   (tcdm_slave_req_ready_o[c]                                                                                                                                             ),
-      .data_o    ({postreg_tcdm_slave_req_tgt_addr[c], postreg_tcdm_slave_req_be[c], postreg_tcdm_slave_req_wen[c], postreg_tcdm_slave_req_wdata[c], postreg_tcdm_slave_req_ini_addr[c]}),
-      .valid_o   (postreg_tcdm_slave_req_valid[c]                                                                                                                                       ),
-      .ready_i   (postreg_tcdm_slave_req_ready[c]                                                                                                                                       )
+      .data_i    ({tcdm_slave_req_tgt_addr_i[h], tcdm_slave_req_be_i[h], tcdm_slave_req_wen_i[h], tcdm_slave_req_wdata_i[h], tcdm_slave_req_ini_addr_i[h]}                              ),
+      .valid_i   (tcdm_slave_req_valid_i[h]                                                                                                                                             ),
+      .ready_o   (tcdm_slave_req_ready_o[h]                                                                                                                                             ),
+      .data_o    ({postreg_tcdm_slave_req_tgt_addr[h], postreg_tcdm_slave_req_be[h], postreg_tcdm_slave_req_wen[h], postreg_tcdm_slave_req_wdata[h], postreg_tcdm_slave_req_ini_addr[h]}),
+      .valid_o   (postreg_tcdm_slave_req_valid[h]                                                                                                                                       ),
+      .ready_i   (postreg_tcdm_slave_req_ready[h]                                                                                                                                       )
     );
 
-    fall_through_register #(
-      .T(logic[$bits(tcdm_payload_t) + $clog2(NumTiles) - 1:0])
+    spill_register #(
+      .T(logic[$bits(tcdm_payload_t) + $clog2(NumTilesPerHive) - 1:0])
     ) i_tcdm_slave_resp_register (
-      .clk_i     (clk_i                                                                ),
-      .rst_ni    (rst_ni                                                               ),
-      .clr_i     (1'b0                                                                 ),
-      .testmode_i(1'b0                                                                 ),
-      .data_i    ({prereg_tcdm_slave_resp_rdata[c], prereg_tcdm_slave_resp_ini_addr[c]}),
-      .valid_i   (prereg_tcdm_slave_resp_valid[c]                                      ),
-      .ready_o   (prereg_tcdm_slave_resp_ready[c]                                      ),
-      .data_o    ({tcdm_slave_resp_rdata_o[c], tcdm_slave_resp_ini_addr_o[c]}          ),
-      .valid_o   (tcdm_slave_resp_valid_o[c]                                           ),
-      .ready_i   (tcdm_slave_resp_ready_i[c]                                           )
+      .clk_i  (clk_i                                                                ),
+      .rst_ni (rst_ni                                                               ),
+      .data_i ({prereg_tcdm_slave_resp_rdata[h], prereg_tcdm_slave_resp_ini_addr[h]}),
+      .valid_i(prereg_tcdm_slave_resp_valid[h]                                      ),
+      .ready_o(prereg_tcdm_slave_resp_ready[h]                                      ),
+      .data_o ({tcdm_slave_resp_rdata_o[h], tcdm_slave_resp_ini_addr_o[h]}          ),
+      .valid_o(tcdm_slave_resp_valid_o[h]                                           ),
+      .ready_i(tcdm_slave_resp_ready_i[h]                                           )
     );
   end: gen_tcdm_registers
 
+  /************************
+   *   Request Crossbar   *
+   ************************/
 
-  /*************************
-   *   Internal Crossbar   *
-   *************************/
+  typedef struct packed {
+    logic wen             ;
+    strb_t be             ;
+    tcdm_addr_t tgt_addr  ;
+    tcdm_payload_t payload;
+  } local_master_xbar_req_payload_t;
 
-  // TCDM request
-  logic                [NumCoresPerTile-1:0] local_xbar_req_valid;
-  logic                [NumCoresPerTile-1:0] local_xbar_req_ready;
-  addr_t               [NumCoresPerTile-1:0] local_xbar_req_addr;
-  logic                [NumCoresPerTile-1:0] local_xbar_req_wen;
-  local_xbar_payload_t [NumCoresPerTile-1:0] local_xbar_req_payload;
-  strb_t               [NumCoresPerTile-1:0] local_xbar_req_be;
-  logic                [NumCoresPerTile-1:0] local_xbar_resp_valid;
-  logic                [NumCoresPerTile-1:0] local_xbar_resp_ready;
-  local_xbar_payload_t [NumCoresPerTile-1:0] local_xbar_resp_payload;
-  local_xbar_payload_t [NumCoresPerTile-1:0] postreg_tcdm_slave_req_payload;
-  local_xbar_payload_t [NumCoresPerTile-1:0] prereg_tcdm_slave_resp_payload;
+  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_req_valid;
+  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_req_ready;
+  tcdm_addr_t                     [NumCoresPerTile-1:0]                                             local_master_xbar_req_tgt_addr;
+  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_req_wen;
+  tcdm_payload_t                  [NumCoresPerTile-1:0]                                             local_master_xbar_req_wdata;
+  strb_t                          [NumCoresPerTile-1:0]                                             local_master_xbar_req_be;
+  local_master_xbar_req_payload_t [NumCoresPerTile-1:0]                                             local_master_xbar_req_data_agg;
+  logic                           [NumCoresPerTile-1:0][(NumHives == 1 ? 1 : $clog2(NumHives))-1:0] local_master_xbar_req_tgt_sel;
+  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_resp_valid;
+  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_resp_ready;
+  tcdm_payload_t                  [NumCoresPerTile-1:0]                                             local_master_xbar_resp_rdata;
+  logic                           [NumCoresPerTile-1:0][(NumHives == 1 ? 1 : $clog2(NumHives))-1:0] local_master_xbar_resp_ini_addr;
+  local_master_xbar_req_payload_t [NumHives-1:0]                                                    local_master_xbar_resp_data_agg;
 
-  addr_t [NumCoresPerTile-1:0] tcdm_slave_req_tgt_addr_int;
-  for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_mem_addr
-    assign tcdm_slave_req_tgt_addr_int[c] = {postreg_tcdm_slave_req_tgt_addr[c], {ByteOffset{1'b0}}};
+  for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_local_master_xbar_req_data_agg
+    assign local_master_xbar_req_data_agg[c].be                 = local_master_xbar_req_be[c]              ;
+    assign local_master_xbar_req_data_agg[c].wen                = local_master_xbar_req_wen[c]             ;
+    assign local_master_xbar_req_data_agg[c].tgt_addr           = local_master_xbar_req_tgt_addr[c]        ;
+    assign local_master_xbar_req_data_agg[c].payload.amo        = local_master_xbar_req_wdata[c].amo       ;
+    assign local_master_xbar_req_data_agg[c].payload.data       = local_master_xbar_req_wdata[c].data      ;
+    assign local_master_xbar_req_data_agg[c].payload.reorder_id = local_master_xbar_req_wdata[c].reorder_id;
+    assign local_master_xbar_req_data_agg[c].payload.core_id    = c[$clog2(NumCoresPerTile)-1:0]           ;
   end
 
-  for (genvar c = 0; c < unsigned'(NumCoresPerTile); c++) begin: gen_tcdm_slave_payload
-    assign postreg_tcdm_slave_req_payload[c] = '{
-      data    : postreg_tcdm_slave_req_wdata[c].data,
-      amo     : postreg_tcdm_slave_req_wdata[c].amo,
-      id      : postreg_tcdm_slave_req_wdata[c].id  ,
-      ini_addr: {postreg_tcdm_slave_req_ini_addr[c], c[$clog2(NumCoresPerTile)-1:0]}
+  for (genvar h = 0; h < NumHives; h++) begin: gen_local_master_xbar_resp_data_agg
+    assign prereg_tcdm_master_req_wen[h]      = local_master_xbar_resp_data_agg[h].wen      ;
+    assign prereg_tcdm_master_req_be[h]       = local_master_xbar_resp_data_agg[h].be       ;
+    assign prereg_tcdm_master_req_tgt_addr[h] = local_master_xbar_resp_data_agg[h].tgt_addr ;
+    assign prereg_tcdm_master_req_wdata[h]    = local_master_xbar_resp_data_agg[h].payload  ;
+    assign local_master_xbar_resp_ini_addr[h] = postreg_tcdm_master_resp_rdata[h].core_id   ;
+  end
+
+  full_duplex_xbar #(
+    .NumIn        (NumCoresPerTile                       ),
+    .NumOut       (NumHives                              ),
+    .ReqDataWidth ($bits(local_master_xbar_req_payload_t)),
+    .RespDataWidth($bits(tcdm_payload_t)                 ),
+    .AxiVldRdy    (1'b1                                  )
+  ) i_local_master_xbar (
+    .clk_i          (clk_i                          ),
+    .rst_ni         (rst_ni                         ),
+    // Extern priority flags
+    .req_rr_i       ('0                             ),
+    .resp_rr_i      ('0                             ),
+    // Initiator side
+    .req_valid_i    (local_master_xbar_req_valid    ),
+    .req_ready_o    (local_master_xbar_req_ready    ),
+    .req_tgt_addr_i (local_master_xbar_req_tgt_sel  ),
+    .req_wdata_i    (local_master_xbar_req_data_agg ),
+    .resp_valid_i   (postreg_tcdm_master_resp_valid ),
+    .resp_ready_o   (postreg_tcdm_master_resp_ready ),
+    .resp_ini_addr_i(local_master_xbar_resp_ini_addr),
+    .resp_rdata_i   (postreg_tcdm_master_resp_rdata ),
+    // Target side
+    .req_valid_o    (prereg_tcdm_master_req_valid   ),
+    .req_ini_addr_o (/* Unused */                   ),
+    .req_ready_i    (prereg_tcdm_master_req_ready   ),
+    .req_wdata_o    (local_master_xbar_resp_data_agg),
+    .resp_valid_o   (local_master_xbar_resp_valid   ),
+    .resp_ready_i   (local_master_xbar_resp_ready   ),
+    .resp_rdata_o   (local_master_xbar_resp_rdata   )
+  );
+
+  /**********************
+   *   Slave Crossbar   *
+   **********************/
+
+  logic                      [NumCoresPerTile-1:0] local_slave_xbar_req_valid;
+  logic                      [NumCoresPerTile-1:0] local_slave_xbar_req_ready;
+  tcdm_addr_t                [NumCoresPerTile-1:0] local_slave_xbar_req_addr;
+  logic                      [NumCoresPerTile-1:0] local_slave_xbar_req_wen;
+  local_slave_xbar_payload_t [NumCoresPerTile-1:0] local_slave_xbar_req_payload;
+  strb_t                     [NumCoresPerTile-1:0] local_slave_xbar_req_be;
+  logic                      [NumCoresPerTile-1:0] local_slave_xbar_resp_valid;
+  logic                      [NumCoresPerTile-1:0] local_slave_xbar_resp_ready;
+  local_slave_xbar_payload_t [NumCoresPerTile-1:0] local_slave_xbar_resp_payload;
+  local_slave_xbar_payload_t [NumHives-1:0]        postreg_tcdm_slave_req_payload;
+  local_slave_xbar_payload_t [NumHives-1:0]        prereg_tcdm_slave_resp_payload;
+
+  for (genvar h = 0; unsigned'(h) < NumHives; h++) begin: gen_tcdm_slave_payload
+    assign postreg_tcdm_slave_req_payload[h] = '{
+      data       : postreg_tcdm_slave_req_wdata[h].data      ,
+      amo        : postreg_tcdm_slave_req_wdata[h].amo       ,
+      reorder_id : postreg_tcdm_slave_req_wdata[h].reorder_id,
+      tile_id    : postreg_tcdm_slave_req_ini_addr[h]        ,
+      core_id    : postreg_tcdm_slave_req_wdata[h].core_id
     };
-    assign prereg_tcdm_slave_resp_rdata[c].data = prereg_tcdm_slave_resp_payload[c].data                               ;
-    assign prereg_tcdm_slave_resp_rdata[c].id   = prereg_tcdm_slave_resp_payload[c].id                                 ;
-    assign prereg_tcdm_slave_resp_ini_addr[c]   = prereg_tcdm_slave_resp_payload[c].ini_addr >> $clog2(NumCoresPerTile);
+    assign prereg_tcdm_slave_resp_rdata[h].data       = prereg_tcdm_slave_resp_payload[h].data      ;
+    assign prereg_tcdm_slave_resp_rdata[h].reorder_id = prereg_tcdm_slave_resp_payload[h].reorder_id;
+    assign prereg_tcdm_slave_resp_rdata[h].core_id    = prereg_tcdm_slave_resp_payload[h].core_id   ;
+    assign prereg_tcdm_slave_resp_rdata[h].amo        = '0                                          ; // Don't care
+    assign prereg_tcdm_slave_resp_ini_addr[h]         = prereg_tcdm_slave_resp_payload[h].tile_id   ;
   end: gen_tcdm_slave_payload
 
-  // Local crossbar
-  variable_latency_interconnect #(
-    .NumIn       (2*NumCoresPerTile          ),
-    .NumOut      (NumBanksPerTile            ),
-    .AddrWidth   (AddrWidth                  ),
-    .AddrMemWidth(TCDMAddrMemWidth           ),
-    .Topology    (tcdm_interconnect_pkg::LIC ),
-    .DataWidth   ($bits(local_xbar_payload_t)),
-    .BeWidth     (DataWidth / 8              ),
-    .ByteOffWidth(ByteOffset                 ),
-    .AxiVldRdy   (1'b1                       )
-  ) i_local_xbar (
-    .clk_i          (clk_i                                                    ),
-    .rst_ni         (rst_ni                                                   ),
-    .req_valid_i    ({local_xbar_req_valid, postreg_tcdm_slave_req_valid}     ),
-    .req_ready_o    ({local_xbar_req_ready, postreg_tcdm_slave_req_ready}     ),
-    .req_tgt_addr_i ({local_xbar_req_addr, tcdm_slave_req_tgt_addr_int}       ),
-    .req_wen_i      ({local_xbar_req_wen, postreg_tcdm_slave_req_wen}         ),
-    .req_be_i       ({local_xbar_req_be, postreg_tcdm_slave_req_be}           ),
-    .req_wdata_i    ({local_xbar_req_payload, postreg_tcdm_slave_req_payload} ),
-    .resp_valid_o   ({local_xbar_resp_valid, prereg_tcdm_slave_resp_valid}    ),
-    .resp_rdata_o   ({local_xbar_resp_payload, prereg_tcdm_slave_resp_payload}),
-    .resp_ready_i   ({local_xbar_resp_ready, prereg_tcdm_slave_resp_ready}    ),
-    .req_valid_o    (bank_req_valid                                           ),
-    .req_ready_i    (bank_req_ready                                           ),
-    .req_tgt_addr_o (bank_req_tgt_addr                                        ),
-    .req_be_o       (bank_req_be                                              ),
-    .req_wen_o      (bank_req_wen                                             ),
-    .req_wdata_o    (bank_req_payload                                         ),
-    .req_ini_addr_o (bank_req_ini_addr                                        ),
-    .resp_valid_i   (bank_resp_valid                                          ),
-    .resp_ini_addr_i(bank_resp_ini_addr                                       ),
-    .resp_ready_o   (bank_resp_ready                                          ),
-    .resp_rdata_i   (bank_resp_payload                                        )
+  localparam int unsigned RespXbarAggDataWidth = 1 + BeWidth + TCDMAddrMemWidth + $bits(local_slave_xbar_payload_t);
+
+  logic [NumCoresPerTile+NumHives-1:0][RespXbarAggDataWidth-1:0]    local_slave_xbar_data_agg;
+  logic [NumCoresPerTile+NumHives-1:0][$clog2(NumBanksPerTile)-1:0] local_slave_xbar_tgt_sel;
+  logic [NumBanksPerTile-1:0][RespXbarAggDataWidth-1:0]             bank_data_agg;
+
+  for (genvar j = 0; unsigned'(j) < NumCoresPerTile; j++) begin: gen_local_slave_xbar_data_agg_local
+    assign local_slave_xbar_data_agg[j] = {local_slave_xbar_req_wen[j], local_slave_xbar_req_be[j], local_slave_xbar_req_addr[j][$clog2(NumBanksPerTile) +: TCDMAddrMemWidth], local_slave_xbar_req_payload[j]};
+    assign local_slave_xbar_tgt_sel[j]  = local_slave_xbar_req_addr[j][$clog2(NumBanksPerTile)-1:0]                                                                                                            ;
+  end: gen_local_slave_xbar_data_agg_local
+
+  for (genvar j = 0; unsigned'(j) < NumHives; j++) begin: gen_local_slave_xbar_data_agg_remote
+    assign local_slave_xbar_data_agg[j + NumCoresPerTile] = {postreg_tcdm_slave_req_wen[j], postreg_tcdm_slave_req_be[j], postreg_tcdm_slave_req_tgt_addr[j][$clog2(NumBanksPerTile) +: TCDMAddrMemWidth], postreg_tcdm_slave_req_payload[j]};
+    assign local_slave_xbar_tgt_sel[j + NumCoresPerTile]  = postreg_tcdm_slave_req_tgt_addr[j][$clog2(NumBanksPerTile)-1:0]                                                                                                                  ;
+  end: gen_local_slave_xbar_data_agg_remote
+
+  for (genvar j = 0; unsigned'(j) < NumBanksPerTile; j++) begin: gen_bank_data_agg
+    assign {bank_req_wen[j], bank_req_be[j], bank_req_tgt_addr[j], bank_req_payload[j]} = bank_data_agg[j];
+  end: gen_bank_data_agg
+
+  full_duplex_xbar #(
+    .NumIn        (NumCoresPerTile + NumHives       ),
+    .NumOut       (NumBanksPerTile                  ),
+    .ReqDataWidth (RespXbarAggDataWidth             ),
+    .RespDataWidth($bits(local_slave_xbar_payload_t)),
+    .AxiVldRdy    (1'b1                             )
+  ) i_local_slave_xbar (
+    .clk_i          (clk_i                                                          ),
+    .rst_ni         (rst_ni                                                         ),
+    // Extern priority flags
+    .req_rr_i       ('0                                                             ),
+    .resp_rr_i      ('0                                                             ),
+    // Initiator side
+    .req_valid_i    ({postreg_tcdm_slave_req_valid, local_slave_xbar_req_valid}     ),
+    .req_ready_o    ({postreg_tcdm_slave_req_ready, local_slave_xbar_req_ready}     ),
+    .req_tgt_addr_i (local_slave_xbar_tgt_sel                                       ),
+    .req_wdata_i    (local_slave_xbar_data_agg                                      ),
+    .resp_valid_i   (bank_resp_valid                                                ),
+    .resp_ready_o   (bank_resp_ready                                                ),
+    .resp_ini_addr_i(bank_resp_ini_addr                                             ),
+    .resp_rdata_i   (bank_resp_payload                                              ),
+    // Target side
+    .req_valid_o    (bank_req_valid                                                 ),
+    .req_ini_addr_o (bank_req_ini_addr                                              ),
+    .req_ready_i    (bank_req_ready                                                 ),
+    .req_wdata_o    (bank_data_agg                                                  ),
+    .resp_valid_o   ({prereg_tcdm_slave_resp_valid, local_slave_xbar_resp_valid}    ),
+    .resp_ready_i   ({prereg_tcdm_slave_resp_ready, local_slave_xbar_resp_ready}    ),
+    .resp_rdata_o   ({prereg_tcdm_slave_resp_payload, local_slave_xbar_resp_payload})
   );
 
   /*******************
@@ -426,15 +556,12 @@ module mempool_tile #(
    *******************/
 
   // SoC requests
-  dreq_t  [NumCoresPerTile-1:0] soc_data_q ;
+  dreq_t  [NumCoresPerTile-1:0] soc_data_q;
   logic   [NumCoresPerTile-1:0] soc_data_qvalid;
   logic   [NumCoresPerTile-1:0] soc_data_qready;
-  dresp_t [NumCoresPerTile-1:0] soc_data_p ;
+  dresp_t [NumCoresPerTile-1:0] soc_data_p;
   logic   [NumCoresPerTile-1:0] soc_data_pvalid;
   logic   [NumCoresPerTile-1:0] soc_data_pready;
-
-  // Unused ready signals for the remote TCDM response
-  logic [NumCoresPerTile-1:0] tcdm_master_resp_ready;
 
   // Address map
   typedef enum int unsigned {
@@ -461,28 +588,34 @@ module mempool_tile #(
       };
 
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_core_mux
-    // Remove tile index from local_xbar_addr_int, since it will not be used for routing.
-    addr_t local_xbar_addr_int;
-    assign local_xbar_req_addr[c] =
-     addr_t'({local_xbar_addr_int[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
-             local_xbar_addr_int[ByteOffset +: $clog2(NumBanksPerTile)]                                       , // Bank
-             local_xbar_addr_int[0 +: ByteOffset]});
+    // Remove tile index from local_slave_xbar_addr_int, since it will not be used for routing.
+    addr_t local_slave_xbar_addr_int;
+    assign local_slave_xbar_req_addr[c] =
+     tcdm_addr_t'({local_slave_xbar_addr_int[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
+             local_slave_xbar_addr_int[ByteOffset +: $clog2(NumBanksPerTile)]}); // Bank
 
-    addr_t prescramble_tcdm_req_tgt_addr;
     // Switch tile and bank indexes for correct upper level routing
-    assign tcdm_master_req_tgt_addr_o[c] =
-     addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
-       prescramble_tcdm_req_tgt_addr[ByteOffset +: $clog2(NumBanksPerTile)]                                             , // Bank
-       prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) +: $clog2(NumTiles)]                          , // Tile
-       prescramble_tcdm_req_tgt_addr[0 +: ByteOffset]});
+    addr_t prescramble_tcdm_req_tgt_addr;
+    assign local_master_xbar_req_tgt_addr[c] =
+    tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerHive) + $clog2(NumHives) +: TCDMAddrMemWidth], // Bank address
+       prescramble_tcdm_req_tgt_addr[ByteOffset +: $clog2(NumBanksPerTile)]                                                                           , // Bank
+       prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) +: $clog2(NumTilesPerHive)]}); // Tile
+    if (NumHives == 1) begin: gen_local_master_xbar_req_tgt_sel_degen
+      assign local_master_xbar_req_tgt_sel[c] = 1'b0;
+    end else begin
+      assign local_master_xbar_req_tgt_sel[c] = prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerHive) +: $clog2(NumHives)]; // Hive
+    end
 
     // We don't care about these
-    assign local_xbar_req_payload[c].ini_addr = 'x;
-    assign soc_data_q[c].id                   = 'x;
+    assign local_slave_xbar_req_payload[c].core_id = '0;
+    assign local_slave_xbar_req_payload[c].tile_id = '0;
+    assign soc_data_q[c].id                        = '0;
+
+    // Constant value
+    assign local_master_xbar_req_wdata[c].core_id = c[$clog2(NumCoresPerTile)-1:0];
 
     // Scramble address before entering TCDM shim for sequential+interleaved memory map
     addr_t snitch_data_qaddr_scrambled;
-
     address_scrambler #(
       .AddrWidth         (AddrWidth        ),
       .ByteOffset        (ByteOffset       ),
@@ -502,46 +635,46 @@ module mempool_tile #(
       .NrSoC    (1        ),
       .NumRules (3        )
     ) i_tcdm_shim (
-      .clk_i              (clk_i                                                              ),
-      .rst_ni             (rst_ni                                                             ),
+      .clk_i              (clk_i                                                                                    ),
+      .rst_ni             (rst_ni                                                                                   ),
       // to TCDM --> FF Connection to outside of tile
-      .tcdm_req_valid_o   ({local_xbar_req_valid[c], tcdm_master_req_valid_o[c]}              ),
-      .tcdm_req_tgt_addr_o({local_xbar_addr_int, prescramble_tcdm_req_tgt_addr}               ),
-      .tcdm_req_wen_o     ({local_xbar_req_wen[c], tcdm_master_req_wen_o[c]}                  ),
-      .tcdm_req_wdata_o   ({local_xbar_req_payload[c].data, tcdm_master_req_wdata_o[c].data}  ),
-      .tcdm_req_amo_o     ({local_xbar_req_payload[c].amo, tcdm_master_req_wdata_o[c].amo}    ),
-      .tcdm_req_id_o      ({local_xbar_req_payload[c].id, tcdm_master_req_wdata_o[c].id}      ),
-      .tcdm_req_be_o      ({local_xbar_req_be[c], tcdm_master_req_be_o[c]}                    ),
-      .tcdm_req_ready_i   ({local_xbar_req_ready[c], tcdm_master_req_ready_i[c]}              ),
-      .tcdm_resp_valid_i  ({local_xbar_resp_valid[c], tcdm_master_resp_valid_i[c]}            ),
-      .tcdm_resp_ready_o  ({local_xbar_resp_ready[c], tcdm_master_resp_ready[c]}              ),
-      .tcdm_resp_rdata_i  ({local_xbar_resp_payload[c].data, tcdm_master_resp_rdata_i[c].data}),
-      .tcdm_resp_id_i     ({local_xbar_resp_payload[c].id, tcdm_master_resp_rdata_i[c].id}    ),
+      .tcdm_req_valid_o   ({local_slave_xbar_req_valid[c], local_master_xbar_req_valid[c]}                          ),
+      .tcdm_req_tgt_addr_o({local_slave_xbar_addr_int, prescramble_tcdm_req_tgt_addr}                               ),
+      .tcdm_req_wen_o     ({local_slave_xbar_req_wen[c], local_master_xbar_req_wen[c]}                              ),
+      .tcdm_req_wdata_o   ({local_slave_xbar_req_payload[c].data, local_master_xbar_req_wdata[c].data}              ),
+      .tcdm_req_amo_o     ({local_slave_xbar_req_payload[c].amo, local_master_xbar_req_wdata[c].amo}                ),
+      .tcdm_req_id_o      ({local_slave_xbar_req_payload[c].reorder_id, local_master_xbar_req_wdata[c].reorder_id}  ),
+      .tcdm_req_be_o      ({local_slave_xbar_req_be[c], local_master_xbar_req_be[c]}                                ),
+      .tcdm_req_ready_i   ({local_slave_xbar_req_ready[c], local_master_xbar_req_ready[c]}                          ),
+      .tcdm_resp_valid_i  ({local_slave_xbar_resp_valid[c], local_master_xbar_resp_valid[c]}                        ),
+      .tcdm_resp_ready_o  ({local_slave_xbar_resp_ready[c], local_master_xbar_resp_ready[c]}                        ),
+      .tcdm_resp_rdata_i  ({local_slave_xbar_resp_payload[c].data, local_master_xbar_resp_rdata[c].data}            ),
+      .tcdm_resp_id_i     ({local_slave_xbar_resp_payload[c].reorder_id, local_master_xbar_resp_rdata[c].reorder_id}),
       // to SoC
-      .soc_qaddr_o        (soc_data_q[c].addr                                                 ),
-      .soc_qwrite_o       (soc_data_q[c].write                                                ),
-      .soc_qamo_o         (soc_data_q[c].amo                                                  ),
-      .soc_qdata_o        (soc_data_q[c].data                                                 ),
-      .soc_qstrb_o        (soc_data_q[c].strb                                                 ),
-      .soc_qvalid_o       (soc_data_qvalid[c]                                                 ),
-      .soc_qready_i       (soc_data_qready[c]                                                 ),
-      .soc_pdata_i        (soc_data_p[c].data                                                 ),
-      .soc_perror_i       (soc_data_p[c].error                                                ),
-      .soc_pvalid_i       (soc_data_pvalid[c]                                                 ),
-      .soc_pready_o       (soc_data_pready[c]                                                 ),
+      .soc_qaddr_o        (soc_data_q[c].addr                                                                       ),
+      .soc_qwrite_o       (soc_data_q[c].write                                                                      ),
+      .soc_qamo_o         (soc_data_q[c].amo                                                                        ),
+      .soc_qdata_o        (soc_data_q[c].data                                                                       ),
+      .soc_qstrb_o        (soc_data_q[c].strb                                                                       ),
+      .soc_qvalid_o       (soc_data_qvalid[c]                                                                       ),
+      .soc_qready_i       (soc_data_qready[c]                                                                       ),
+      .soc_pdata_i        (soc_data_p[c].data                                                                       ),
+      .soc_perror_i       (soc_data_p[c].error                                                                      ),
+      .soc_pvalid_i       (soc_data_pvalid[c]                                                                       ),
+      .soc_pready_o       (soc_data_pready[c]                                                                       ),
       // from core
-      .data_qaddr_i       (snitch_data_qaddr_scrambled                                        ),
-      .data_qwrite_i      (snitch_data_qwrite[c]                                              ),
-      .data_qamo_i        (snitch_data_qamo[c]                                                ),
-      .data_qdata_i       (snitch_data_qdata[c]                                               ),
-      .data_qstrb_i       (snitch_data_qstrb[c]                                               ),
-      .data_qvalid_i      (snitch_data_qvalid[c]                                              ),
-      .data_qready_o      (snitch_data_qready[c]                                              ),
-      .data_pdata_o       (snitch_data_pdata[c]                                               ),
-      .data_perror_o      (snitch_data_perror[c]                                              ),
-      .data_pvalid_o      (snitch_data_pvalid[c]                                              ),
-      .data_pready_i      (snitch_data_pready[c]                                              ),
-      .address_map_i      (mask_map                                                           )
+      .data_qaddr_i       (snitch_data_qaddr_scrambled                                                              ),
+      .data_qwrite_i      (snitch_data_qwrite[c]                                                                    ),
+      .data_qamo_i        (snitch_data_qamo[c]                                                                      ),
+      .data_qdata_i       (snitch_data_qdata[c]                                                                     ),
+      .data_qstrb_i       (snitch_data_qstrb[c]                                                                     ),
+      .data_qvalid_i      (snitch_data_qvalid[c]                                                                    ),
+      .data_qready_o      (snitch_data_qready[c]                                                                    ),
+      .data_pdata_o       (snitch_data_pdata[c]                                                                     ),
+      .data_perror_o      (snitch_data_perror[c]                                                                    ),
+      .data_pvalid_o      (snitch_data_pvalid[c]                                                                    ),
+      .data_pready_i      (snitch_data_pready[c]                                                                    ),
+      .address_map_i      (mask_map                                                                                 )
     );
   end
 
@@ -586,7 +719,7 @@ module mempool_tile #(
   );
 
   // Core request
-  axi_req_t  axi_mst_req ;
+  axi_req_t  axi_mst_req;
   axi_resp_t axi_mst_resp;
 
   snitch_axi_adapter #(
@@ -640,15 +773,7 @@ module mempool_tile #(
   if (NumCoresPerTile != 2**$clog2(NumCoresPerTile))
     $fatal(1, "[mempool_tile] The number of cores per tile must be a power of two.");
 
-  if (NumCores != 2**$clog2(NumCores))
+  if (NumCores != unsigned'(2**$clog2(NumCores)))
     $fatal(1, "[mempool_tile] The number of cores must be a power of two.");
-
-  for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_tcdm_resp_ready_assertion
-    `ifndef VERILATOR
-    tcdm_resp_ready_assertion : assert property (
-        @(posedge clk_i) disable iff (!rst_ni) (tcdm_master_resp_valid_i[c] |-> tcdm_master_resp_ready[c]))
-    else $fatal (1, "[mempool_tile] Remote TCDM response was not accepted.");
-    `endif
-  end
 
 endmodule : mempool_tile
