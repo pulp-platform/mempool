@@ -23,7 +23,7 @@ bin/%: %/main.c.o $(RUNTIME)
 	mkdir -p $(shell dirname $@)
 	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $^ -T$(CURDIR)/common/link.ld
 	$(RISCV_STRIP) $@ -g -S -d --strip-debug
-	$(RISCV_OBJDUMP) -D $@ > $@.dump
+	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 
 clean:
 	rm -rf $(EXE)
