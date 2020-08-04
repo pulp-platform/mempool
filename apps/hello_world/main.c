@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include <string.h>
 #include "encoding.h"
+#include "runtime.h"
+#include "synchronization.h"
 
 volatile uint32_t atomic __attribute__ ((section (".l1")));
 
@@ -27,19 +29,23 @@ extern volatile uint32_t tcdm_start_address_reg;
 extern volatile uint32_t tcdm_end_address_reg;
 
 int main(int argc, char **argv) {
-    uint32_t coreid = (uint32_t) argc;
+    uint32_t core_id = (uint32_t) argc;
     uint32_t num_cores = (uint32_t) argv;
-    //TODO(sriedel): This is a hack, to be fixed when MemPool has a fence mechanism.
-    if (coreid == 0)
+    // Initialize synchronization variables
+    if (core_id == 0) {
+      mempool_barrier_init();
       atomic = 0;
+    } else {
+      mempool_wait(2000);
+    }
+    mempool_barrier(core_id, num_cores);
 
-    while (atomic != coreid);
+    while (atomic != core_id);
 
-    printf("Core %d says Hello!\n", coreid);
-    // increment mutex
-    //__atomic_add_fetch(&atomic, 1, __ATOMIC_RELAXED);
-    atomic++;
+    printf("Core %d says Hello!\n", core_id);
+    __atomic_fetch_add(&atomic, 1, __ATOMIC_SEQ_CST);
+
     // wait until all cores have finished
-    while (atomic != num_cores);
+    mempool_barrier(core_id, num_cores);
     return 0;
 }
