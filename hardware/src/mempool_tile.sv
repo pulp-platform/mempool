@@ -21,9 +21,9 @@ module mempool_tile #(
     // Boot address
     parameter logic [31:0] BootAddr         = 32'h0000_1000                                 ,
     // Instruction cache
-    parameter int unsigned ICacheSizeByte   = 1024 * NumCoresPerTile                        , // Total Size of instruction cache in bytes
-    parameter int unsigned ICacheSets       = NumCoresPerTile                               ,
-    parameter int unsigned ICacheLineWidth  = 64                                            ,
+    parameter int unsigned ICacheSizeByte   = 512 * NumCoresPerTile                         , // Total Size of instruction cache in bytes
+    parameter int unsigned ICacheSets       = NumCoresPerTile                               , // Number of sets
+    parameter int unsigned ICacheLineWidth  = 64                                            , // Size of each cache line in bits
     // AXI
     parameter type axi_aw_t                 = logic                                         ,
     parameter type axi_w_t                  = logic                                         ,
@@ -179,7 +179,7 @@ module mempool_tile #(
     /// Cache Line Width
     .L0_LINE_COUNT     (4                                                       ),
     .LINE_WIDTH        (ICacheLineWidth                                         ),
-    .LINE_COUNT        (ICacheSizeByte / (NumCoresPerTile * NumCoresPerTile * 4)),
+    .LINE_COUNT        (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8)     ),
     .SET_COUNT         (ICacheSets                                              ),
     .FETCH_AW          (AddrWidth                                               ),
     .FETCH_DW          (DataWidth                                               ),
