@@ -9,7 +9,8 @@ module snitch #(
   parameter logic [31:0] BootAddr  = 32'h0000_1000,
   parameter logic [31:0] MTVEC     = BootAddr, // Exception Base Address (see privileged spec 3.1.7)
   parameter bit          RVE       = 0,   // Reduced-register Extension
-  parameter bit          RVM       = 1    // Enable IntegerMmultiplication & Division Extension
+  parameter bit          RVM       = 1,   // Enable IntegerMmultiplication & Division Extension
+  parameter int    RegNrWritePorts = 2    // Implement one or two write ports into the register file
 ) (
   input  logic          clk_i,
   input  logic          rst_i,
@@ -78,6 +79,7 @@ module snitch #(
 );
 
   localparam int RegWidth = RVE ? 4 : 5;
+  localparam int RegNrReadPorts  = 2;
 
   logic illegal_inst;
   logic zero_lsb;
@@ -105,12 +107,12 @@ module snitch #(
   logic [RegWidth-1:0] rd, rs1, rs2;
   logic stall, lsu_stall;
   // Register connections
-  logic [1:0][RegWidth-1:0] gpr_raddr;
-  logic [1:0][31:0]         gpr_rdata;
-  logic [0:0][RegWidth-1:0] gpr_waddr;
-  logic [0:0][31:0]         gpr_wdata;
-  logic [0:0]               gpr_we;
-  logic [2**RegWidth-1:0]   sb_d, sb_q;
+  logic [RegNrReadPorts-1:0][RegWidth-1:0]  gpr_raddr;
+  logic [RegNrReadPorts-1:0][31:0]          gpr_rdata;
+  logic [RegNrWritePorts-1:0][RegWidth-1:0] gpr_waddr;
+  logic [RegNrWritePorts-1:0][31:0]         gpr_wdata;
+  logic [RegNrWritePorts-1:0]               gpr_we;
+  logic [2**RegWidth-1:0]                   sb_d, sb_q;
 
   // Load/Store Defines
   logic is_load, is_store, is_signed;
@@ -1644,11 +1646,11 @@ module snitch #(
   end
 
   snitch_regfile #(
-    .DATA_WIDTH     ( 32       ),
-    .NR_READ_PORTS  ( 2        ),
-    .NR_WRITE_PORTS ( 1        ),
-    .ZERO_REG_ZERO  ( 1        ),
-    .ADDR_WIDTH     ( RegWidth )
+    .DATA_WIDTH     ( 32              ),
+    .NR_READ_PORTS  ( RegNrReadPorts  ),
+    .NR_WRITE_PORTS ( RegNrWritePorts ),
+    .ZERO_REG_ZERO  ( 1               ),
+    .ADDR_WIDTH     ( RegWidth        )
   ) i_snitch_regfile (
     .clk_i,
     .raddr_i   ( gpr_raddr ),
@@ -1849,32 +1851,79 @@ module snitch #(
     endcase
   end
 
-  always_comb begin
-    gpr_we[0] = 1'b0;
-    gpr_waddr[0] = rd;
-    gpr_wdata[0] = alu_writeback;
-    // external interfaces
-    lsu_pready = 1'b0;
-    acc_pready_o = 1'b0;
-    retire_acc = 1'b0;
-    retire_load = 1'b0;
+  if (RegNrWritePorts == 1) begin
+    always_comb begin
+      gpr_we[0] = 1'b0;
+      gpr_waddr[0] = rd;
+      gpr_wdata[0] = alu_writeback;
+      // external interfaces
+      lsu_pready = 1'b0;
+      acc_pready_o = 1'b0;
+      retire_acc = 1'b0;
+      retire_load = 1'b0;
 
-    if (retire_i) begin
-      gpr_we[0] = 1'b1;
-    // if we are not retiring another instruction retire the load now
-    end else if (lsu_pvalid) begin
-      retire_load = 1'b1;
-      gpr_we[0] = 1'b1;
-      gpr_waddr[0] = lsu_rd;
-      gpr_wdata[0] = ld_result[31:0];
-      lsu_pready = 1'b1;
-    end else if (acc_pvalid_i) begin
-      retire_acc = 1'b1;
-      gpr_we[0] = 1'b1;
-      gpr_waddr[0] = acc_pid_i;
-      gpr_wdata[0] = acc_pdata_i[31:0];
-      acc_pready_o = 1'b1;
+      if (retire_i) begin
+        gpr_we[0] = 1'b1;
+      // if we are not retiring another instruction retire the load now
+      end else if (lsu_pvalid) begin
+        retire_load = 1'b1;
+        gpr_we[0] = 1'b1;
+        gpr_waddr[0] = lsu_rd;
+        gpr_wdata[0] = ld_result[31:0];
+        lsu_pready = 1'b1;
+      end else if (acc_pvalid_i) begin
+        retire_acc = 1'b1;
+        gpr_we[0] = 1'b1;
+        gpr_waddr[0] = acc_pid_i;
+        gpr_wdata[0] = acc_pdata_i[31:0];
+        acc_pready_o = 1'b1;
+      end
     end
+  end else if (RegNrWritePorts == 2) begin
+    always_comb begin
+      gpr_we[0] = 1'b0;
+      gpr_waddr[0] = rd;
+      gpr_wdata[0] = alu_writeback;
+      gpr_we[1] = 1'b0;
+      gpr_waddr[1] = lsu_rd;
+      gpr_wdata[1] = ld_result[31:0];
+      // external interfaces
+      lsu_pready = 1'b0;
+      acc_pready_o = 1'b0;
+      retire_acc = 1'b0;
+      retire_load = 1'b0;
+
+      if (retire_i) begin
+        gpr_we[0] = 1'b1;
+        if (lsu_pvalid) begin
+          retire_load = 1'b1;
+          gpr_we[1] = 1'b1;
+          lsu_pready = 1'b1;
+        end else if (acc_pvalid_i) begin
+          retire_acc = 1'b1;
+          gpr_we[1] = 1'b1;
+          gpr_waddr[1] = acc_pid_i;
+          gpr_wdata[1] = acc_pdata_i[31:0];
+          acc_pready_o = 1'b1;
+        end
+      // if we are not retiring another instruction retire the load now
+      end else begin
+        if (acc_pvalid_i) begin
+          retire_acc = 1'b1;
+          gpr_we[0] = 1'b1;
+          gpr_waddr[0] = acc_pid_i;
+          gpr_wdata[0] = acc_pdata_i[31:0];
+          acc_pready_o = 1'b1;
+        end
+        if (lsu_pvalid) begin
+          retire_load = 1'b1;
+          gpr_we[1] = 1'b1;
+          lsu_pready = 1'b1;
+        end
+      end
+    end
+  end else begin
+    $fatal(1, "[snitch] Unsupported RegNrWritePorts.");
   end
 
   // --------------------------
