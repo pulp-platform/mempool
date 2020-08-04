@@ -110,6 +110,7 @@ hardware:
     paths:
       - hardware/build/transcript
       - hardware/build/trace_hart_*.trace
+      - hardware/results
 
 apps-llvm:
   <<: *apps-compiler

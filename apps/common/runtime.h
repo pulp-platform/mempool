@@ -42,6 +42,12 @@ static inline mempool_id_t mempool_get_core_id() {
   return r;
 }
 
+/// Reset a monotonically increasing cycle count.
+static inline void mempool_start_benchmark() { write_csr(cycle, 0); }
+
+/// Obtain a monotonically increasing cycle count.
+static inline int mempool_stop_benchmark() { return read_csr(cycle); }
+
 /// Obtain a monotonically increasing cycle count.
 static inline mempool_timer_t mempool_get_timer() { return read_csr(mcycle); }
 

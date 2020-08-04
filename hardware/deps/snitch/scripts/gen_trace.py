@@ -9,9 +9,13 @@
 # TODO: We annotate all FP16 LSU values as IEEE, not FP16ALT... can we do better?
 
 import sys
+import os
 import re
 import math
+import numpy as np
 import argparse
+import csv
+from csv import DictWriter
 from ctypes import c_int32, c_uint32
 from collections import deque, defaultdict
 
@@ -31,8 +35,7 @@ TRACE_OUT_FMT = '{:>8} {:>8} {:>10} {:<30}'
 MAX_SIGNED_INT_LIT = 0xFFFF
 
 # Performance keys which only serve to compute other metrics: omit on printing
-PERF_EVAL_KEYS_OMIT = ('start', 'end', 'end_fpss', 'snitch_issues', 'snitch_load_latency',
-	'snitch_fseq_offloads', 'fseq_issues', 'fpss_issues', 'fpss_fpu_issues', 'fpss_load_latency', 'fpss_fpu_latency')
+PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_issues', 'snitch_load_latency')
 
 
 # -------------------- Architectural constants and enums  --------------------
@@ -266,7 +269,7 @@ def annotate_snitch(
 	if extras['retire_load'] and extras['lsu_rd'] != 0:
 		try:
 			start_time = gpr_wb_info[extras['lsu_rd']].pop()
-			perf_metrics[-1]['snitch_load_latency'] += cycle - start_time
+			perf_metrics[-1].setdefault('snitch_load_latency', []).append(cycle - start_time)
 		except IndexError:
 			msg_type = 'WARNING' if permissive else 'FATAL'
 			sys.stderr.write('{}: In cycle {}, LSU attempts writeback to {}, but none in flight.\n'.format(
@@ -425,30 +428,15 @@ def safe_div(dividend, divisor):
 
 def eval_perf_metrics(perf_metrics: list):
 	for seg in perf_metrics:
-		fpss_latency = max(seg['end_fpss'] - seg['end'], 0)
-		end = seg['end'] + fpss_latency 	# This can be argued over, but it's the most conservatice choice
+		end = seg['end']
 		cycles = end - seg['start'] + 1
-		fpss_fpu_rel_issues = safe_div(seg['fpss_fpu_issues'], seg['fpss_issues'])
 		seg.update({
 			# Snitch
-			'snitch_avg_load_latency': safe_div(seg['snitch_load_latency'], seg['snitch_loads']),
-			'snitch_occupancy': safe_div(seg['snitch_issues'], cycles),
-			'snitch_fseq_rel_offloads': safe_div(
-				seg['snitch_fseq_offloads'], seg['snitch_issues'] + seg['snitch_fseq_offloads']),
-			# FSeq
-			'fseq_yield': safe_div(seg['fpss_issues'], seg['snitch_fseq_offloads']),
-			'fseq_fpu_yield': safe_div(safe_div(seg['fpss_fpu_issues'], seg['snitch_fseq_offloads']),
-				fpss_fpu_rel_issues),
-			# FPSS
-			'fpss_section_latency': fpss_latency,
-			'fpss_avg_fpu_latency': safe_div(seg['fpss_fpu_latency'], seg['fpss_fpu_issues']),
-			'fpss_avg_load_latency': safe_div(seg['fpss_load_latency'], seg['fpss_loads']),
-			'fpss_occupancy': safe_div(seg['fpss_issues'], cycles),
-			'fpss_fpu_occupancy': safe_div(seg['fpss_fpu_issues'], cycles),
-			'fpss_fpu_rel_occupancy': fpss_fpu_rel_issues
+			'snitch_avg_load_latency': np.mean(seg['snitch_load_latency']),
+			'snitch_occupancy': safe_div(seg['snitch_issues'], cycles)
 		})
 		seg['cycles'] = cycles
-		seg['total_ipc'] = seg['fpss_occupancy'] + seg['snitch_occupancy']
+		seg['total_ipc'] = seg['snitch_occupancy']
 
 
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
@@ -466,6 +454,20 @@ def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 		ret.append('{:<40}{:>10}'.format(key, val_str))
 	return '\n'.join(ret)
 
+def perf_metrics_to_csv(perf_metrics: list, filename: str):
+	keys = perf_metrics[0].keys()
+	known_keys = ['core','section','start','end','cycles','snitch_loads','snitch_stores','snitch_avg_load_latency',
+				  'snitch_occupancy','snitch_load_latency','total_ipc','snitch_issues']
+	for key in keys:
+		if key not in known_keys:
+			known_keys.append(key)
+	write_header = not os.path.exists(filename)
+	with open(filename, 'a+') as out:
+		dict_writer = csv.DictWriter(out, known_keys)
+		if write_header:
+			dict_writer.writeheader()
+		dict_writer.writerows(perf_metrics)
+	print('Wrote performance metrics to %s\n' % filename)
 
 # -------------------- Main --------------------
 
@@ -483,8 +485,18 @@ def main():
 						help='Include performance metrics measured to compute others')
 	parser.add_argument('-p', '--permissive', action='store_true',
 						help='Ignore some state-related issues when they occur')
+	parser.add_argument('-c', '--csv', nargs=1,
+						help='Ignore some state-related issues when they occur')
 	args = parser.parse_args()
 	line_iter = iter(args.infile.readline,  b'')
+	if args.csv is not None:
+		csv_file = args.csv[0]
+	path, filename = os.path.split(args.infile.name)
+	core_id = re.search('(\d+)', filename)
+	if core_id:
+		core_id = int(core_id.group(1))
+	else:
+		core_id = -1
 	# Prepare stateful data structures
 	time_info = None
 	gpr_wb_info = defaultdict(deque)
@@ -496,8 +508,13 @@ def main():
 		'cfg_buf': deque(),
 		'curr_cfg': None
 	}
-	perf_metrics = [defaultdict(int)]  # all values initially 0, also 'start' time of measurement 0
-	perf_metrics[0]['start'] = None
+	perf_metrics_bench = [defaultdict(int)]  # all values initially 0, also 'start' time of measurement 0
+	perf_metrics_setup = [defaultdict(int)]  # all values initially 0, also 'start' time of measurement 0
+	perf_metrics_bench[0]['start'] = None
+	perf_metrics_setup[0]['start'] = None
+	# Initial code belongs to setup phase
+	perf_metrics = perf_metrics_setup
+	section = 0
 	# Parse input line by line
 	for line in line_iter:
 		if line:
@@ -505,13 +522,42 @@ def main():
 				False, time_info, args.offl, not args.saddr, args.permissive)
 			if perf_metrics[0]['start'] is None:
 				perf_metrics[0]['start'] = time_info[1]
+			# Start a new benchmark section after 'csrw cycle' instruction
+			if 'cycle' in ann_insn:
+				perf_metrics[-1]['end'] = time_info[1]
+				perf_metrics.append(defaultdict(int))
+				if 'csrw' in ann_insn:
+					# Start of a benchmark section
+					perf_metrics = perf_metrics_bench
+					perf_metrics[-1]['section'] = section
+				else:
+					# End of a benchmark section
+					perf_metrics = perf_metrics_setup
+					section += 1
+				perf_metrics[-1]['start'] = time_info[1]
 			if not empty:
 				print(ann_insn)
 		else:
 			break  # Nothing more in pipe, EOF
 	perf_metrics[-1]['end'] = time_info[1]
+	# Evaluate only the benchmarks
+	if perf_metrics_bench[0]['start'] is not None:
+		perf_metrics = perf_metrics_bench
+	else:
+		perf_metrics = perf_metrics_setup
+	# Remove last emtpy entry
+	if not bool(perf_metrics[-1]):
+		perf_metrics.pop()
 	# Compute metrics
 	eval_perf_metrics(perf_metrics)
+	# Add metadata
+	for sec in perf_metrics:
+		sec['core'] = core_id
+	# Write metrics to CSV
+	if csv_file is not None:
+		if os.path.split(csv_file)[0] is '':
+			csv_file = os.path.join(path, csv_file)
+		perf_metrics_to_csv(perf_metrics, csv_file)
 	# Emit metrics
 	print('\n## Performance metrics')
 	for idx in range(len(perf_metrics)):

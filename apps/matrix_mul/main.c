@@ -138,7 +138,8 @@ int main(int argc, char **argv) {
     mempool_barrier(core_id, num_cores);
     // Execute function to test. Add a NOP before and after for future analysis
     // with benchmark script.
-    asm volatile("nop" ::);
+    // mempool_timer_t cycles = mempool_get_timer();
+    mempool_start_benchmark();
     switch (i) {
     case 0:
       mat_mul_parallel(a, b, c, M, N, P, core_id, num_cores);
@@ -157,11 +158,13 @@ int main(int argc, char **argv) {
                                             num_cores);
       break;
     }
-    asm volatile("nop" ::);
+    mempool_stop_benchmark();
+    // cycles = mempool_get_timer() - cycles;
     // Wait at barrier befor checking
     mempool_barrier(core_id, num_cores);
     // Check result
     if (core_id == 0) {
+      // printf("Duration: %d\n", cycles);
       int error = verify_matrix(c, M, P, A_a, A_b, A_c, B_a, B_b, B_c);
       if (error != 0) {
         printf("Error code %d\n", error);

@@ -21,6 +21,7 @@ SHELL = /usr/bin/env bash
 
 # build path
 buildpath      ?= build
+resultpath     ?= results
 # questa library
 library        ?= work
 # dpi library
@@ -55,40 +56,54 @@ endif
 ifdef preload
 	questa_args += +PRELOAD=$(preload)
 endif
-questa_args += -sv_lib ${dpi_library}/mempool_dpi
+questa_args += -sv_lib $(dpi_library)/mempool_dpi
 
 # DPI source files
-dpi   := $(patsubst tb/dpi/%.cpp,${buildpath}/${dpi_library}/%.o,$(wildcard tb/dpi/*.cpp))
-trace := $(patsubst ${buildpath}/%.dasm,${buildpath}/%.trace,$(wildcard ${buildpath}/*.dasm))
+dpi   := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
+# Traces
+trace := $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpath)/*.dasm))
+tracepath ?= $(buildpath)/traces
+traceresult ?= $(tracepath)/results.csv
 
 VLOG_ARGS += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 
-build: bender lib ${buildpath}/${dpi_library}/mempool_dpi.so
-	./bender script vsim --vlog-arg="$(VLOG_ARGS)" -t rtl -t asic -t mempool_test > ${buildpath}/compile.tcl
-	echo "exit" >> ${buildpath}/compile.tcl
-	cd ${buildpath} && $(questa_cmd) vsim -c -do compile.tcl
+build: bender lib $(buildpath)/$(dpi_library)/mempool_dpi.so
+	./bender script vsim --vlog-arg="$(VLOG_ARGS)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
+	echo "exit" >> $(buildpath)/compile.tcl
+	cd $(buildpath) && $(questa_cmd) vsim -c -do compile.tcl
 
 lib:
-	mkdir -p ${buildpath}
-	mkdir -p ${buildpath}/${library}
-	cd ${buildpath} && $(questa_cmd) vlib work && $(questa_cmd) vmap work work
+	mkdir -p $(buildpath)
+	mkdir -p $(buildpath)/$(library)
+	cd $(buildpath) && $(questa_cmd) vlib work && $(questa_cmd) vmap work work
 
 sim: build
-	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level}
+	cd $(buildpath) && $(questa_cmd) vsim $(questa_args) $(library).$(top_level)
 
 simc: build
-	cd ${buildpath} && $(questa_cmd) vsim -c $(questa_args) ${library}.${top_level}
+	cd $(buildpath) && $(questa_cmd) vsim -c $(questa_args) $(library).$(top_level)
 
 run: build
-	cd ${buildpath} && $(questa_cmd) vsim $(questa_args) ${library}.${top_level} -do ../scripts/run.do
-	./scripts/return_status.sh ${buildpath}/transcript
+	cd $(buildpath) && $(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.do
+	./scripts/return_status.sh $(buildpath)/transcript
 
-trace: $(trace)
+trace: pre_trace $(trace) post_trace
 
-${buildpath}/%.trace: ${buildpath}/%.dasm
-	mkdir -p ${buildpath}
-	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(buildpath)/tmp
-	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py $(buildpath)/tmp > $@
+pre_trace:
+	rm -rf $(tracepath)
+
+post_trace:
+	RESULT_DIR=$(resultpath)/$$(date +"%F-%T-$$(git rev-parse --abbrev-ref HEAD)-$$(git rev-parse HEAD)"); \
+	mkdir -p "$$RESULT_DIR"; mkdir -p "$$RESULT_DIR/original"; \
+	cp $(traceresult) "$$RESULT_DIR"; \
+	cp $(trace) "$$RESULT_DIR"; cp $(wildcard $(buildpath)/*.dasm) "$$RESULT_DIR/original"; \
+	cp "$$(grep -oP '(?<=\+PRELOAD=)[^ \"]*' build/transcript)"* "$$RESULT_DIR"; \
+	git diff > "$$RESULT_DIR/git-diff"
+
+$(buildpath)/%.trace: $(buildpath)/%.dasm
+	mkdir -p $(tracepath)
+	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
+	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
 
 # Bender
 bender: Makefile
@@ -100,15 +115,15 @@ bender: Makefile
 	@echo "$$(./bender --version) available."
 
 # DPIs
-${buildpath}/${dpi_library}/%.o: tb/dpi/%.cpp
-	mkdir -p ${buildpath}/${dpi_library}
-	$(CXX) -shared -fPIC -std=c++11 -Bsymbolic -c $< -I${QUESTASIM_HOME}/include -o $@
+$(buildpath)/$(dpi_library)/%.o: tb/dpi/%.cpp
+	mkdir -p $(buildpath)/$(dpi_library)
+	$(CXX) -shared -fPIC -std=c++11 -Bsymbolic -c $< -I$(QUESTASIM_HOME)/include -o $@
 
-${buildpath}/${dpi_library}/mempool_dpi.so: $(dpi)
-	mkdir -p ${buildpath}/${dpi_library}
-	$(CXX) -shared -m64 -o ${buildpath}/${dpi_library}/mempool_dpi.so $?
+$(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
+	mkdir -p $(buildpath)/$(dpi_library)
+	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $?
 
 clean:
-	rm -rf ${buildpath}
+	rm -rf $(buildpath)
 
 .PHONY: build lib sim simc clean
