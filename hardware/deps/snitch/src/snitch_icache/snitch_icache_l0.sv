@@ -317,24 +317,28 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
     .empty_o (no_prefetch)
   );
 
-  addr_t offset, uj_imm, sb_imm;
+  addr_t base_addr, offset, uj_imm, sb_imm;
+  logic [CFG.LINE_ALIGN-1:0] base_offset;
+  assign base_offset = taken_idx << 2;
   assign uj_imm = $signed({ins_data[ins_idx+31], ins_data[ins_idx+12+:8], ins_data[ins_idx+20], ins_data[ins_idx+21+:10], 1'b0});
   assign sb_imm = $signed({ins_data[ins_idx+31], ins_data[ins_idx+7], ins_data[ins_idx+25+:6], ins_data[ins_idx+8+:4], 1'b0});
 
   // next address calculation
   always_comb begin
     // default is next line predictor
+    base_addr = no_prefetch ? in_addr_i : {in_addr_i >> CFG.LINE_ALIGN, base_offset};
     offset = (1 << CFG.LINE_ALIGN);
+    // If the cache-line contains a taken branch, compute the pre-fetch address with the jump's offset.
     unique case ({is_branch_taken[taken_idx] & ~no_prefetch, is_jal[taken_idx] & ~no_prefetch})
       // JAL: UJ Immediate
-      2'b01: offset = uj_imm + (taken_idx * 4);
+      2'b01: offset = uj_imm;
       // Branch: // SB Immediate
-      2'b10: offset = sb_imm + (taken_idx * 4);
+      2'b10: offset = sb_imm;
       default:;
     endcase
   end
 
-  assign prefetcher_out.addr = ($signed(in_addr_i) + offset) >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
+  assign prefetcher_out.addr = ($signed(base_addr) + offset) >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
 
   // check whether cache-line we want to pre-fetch is already present
   assign addr_tag_prefetch = prefetcher_out.addr >> CFG.LINE_ALIGN;
