@@ -398,19 +398,19 @@ module mempool_tile #(
     tcdm_payload_t payload;
   } local_master_xbar_req_payload_t;
 
-  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_req_valid;
-  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_req_ready;
-  tcdm_addr_t                     [NumCoresPerTile-1:0]                                             local_master_xbar_req_tgt_addr;
-  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_req_wen;
-  tcdm_payload_t                  [NumCoresPerTile-1:0]                                             local_master_xbar_req_wdata;
-  strb_t                          [NumCoresPerTile-1:0]                                             local_master_xbar_req_be;
-  local_master_xbar_req_payload_t [NumCoresPerTile-1:0]                                             local_master_xbar_req_data_agg;
-  logic                           [NumCoresPerTile-1:0][(NumHives == 1 ? 1 : $clog2(NumHives))-1:0] local_master_xbar_req_tgt_sel;
-  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_resp_valid;
-  logic                           [NumCoresPerTile-1:0]                                             local_master_xbar_resp_ready;
-  tcdm_payload_t                  [NumCoresPerTile-1:0]                                             local_master_xbar_resp_rdata;
-  logic                           [NumCoresPerTile-1:0][(NumHives == 1 ? 1 : $clog2(NumHives))-1:0] local_master_xbar_resp_ini_addr;
-  local_master_xbar_req_payload_t [NumHives-1:0]                                                    local_master_xbar_resp_data_agg;
+  logic                           [NumCoresPerTile-1:0]                                                    local_master_xbar_req_valid;
+  logic                           [NumCoresPerTile-1:0]                                                    local_master_xbar_req_ready;
+  tcdm_addr_t                     [NumCoresPerTile-1:0]                                                    local_master_xbar_req_tgt_addr;
+  logic                           [NumCoresPerTile-1:0]                                                    local_master_xbar_req_wen;
+  tcdm_payload_t                  [NumCoresPerTile-1:0]                                                    local_master_xbar_req_wdata;
+  strb_t                          [NumCoresPerTile-1:0]                                                    local_master_xbar_req_be;
+  local_master_xbar_req_payload_t [NumCoresPerTile-1:0]                                                    local_master_xbar_req_data_agg;
+  logic                           [NumCoresPerTile-1:0][(NumHives == 1 ? 1 : $clog2(NumHives))-1:0]        local_master_xbar_req_tgt_sel;
+  logic                           [NumCoresPerTile-1:0]                                                    local_master_xbar_resp_valid;
+  logic                           [NumCoresPerTile-1:0]                                                    local_master_xbar_resp_ready;
+  tcdm_payload_t                  [NumCoresPerTile-1:0]                                                    local_master_xbar_resp_rdata;
+  logic                           [NumHives-1:0][(NumCoresPerTile == 1 ? 1 : $clog2(NumCoresPerTile))-1:0] local_master_xbar_resp_ini_addr;
+  local_master_xbar_req_payload_t [NumHives-1:0]                                                           local_master_xbar_resp_data_agg;
 
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_local_master_xbar_req_data_agg
     assign local_master_xbar_req_data_agg[c].be                 = local_master_xbar_req_be[c]              ;
@@ -447,18 +447,18 @@ module mempool_tile #(
     .req_ready_o    (local_master_xbar_req_ready    ),
     .req_tgt_addr_i (local_master_xbar_req_tgt_sel  ),
     .req_wdata_i    (local_master_xbar_req_data_agg ),
-    .resp_valid_i   (postreg_tcdm_master_resp_valid ),
-    .resp_ready_o   (postreg_tcdm_master_resp_ready ),
-    .resp_ini_addr_i(local_master_xbar_resp_ini_addr),
-    .resp_rdata_i   (postreg_tcdm_master_resp_rdata ),
+    .resp_valid_o   (local_master_xbar_resp_valid   ),
+    .resp_ready_i   (local_master_xbar_resp_ready   ),
+    .resp_rdata_o   (local_master_xbar_resp_rdata   ),
     // Target side
     .req_valid_o    (prereg_tcdm_master_req_valid   ),
     .req_ini_addr_o (/* Unused */                   ),
     .req_ready_i    (prereg_tcdm_master_req_ready   ),
     .req_wdata_o    (local_master_xbar_resp_data_agg),
-    .resp_valid_o   (local_master_xbar_resp_valid   ),
-    .resp_ready_i   (local_master_xbar_resp_ready   ),
-    .resp_rdata_o   (local_master_xbar_resp_rdata   )
+    .resp_valid_i   (postreg_tcdm_master_resp_valid ),
+    .resp_ready_o   (postreg_tcdm_master_resp_ready ),
+    .resp_ini_addr_i(local_master_xbar_resp_ini_addr),
+    .resp_rdata_i   (postreg_tcdm_master_resp_rdata )
   );
 
   /**********************
