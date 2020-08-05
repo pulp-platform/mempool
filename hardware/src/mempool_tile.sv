@@ -23,14 +23,6 @@ module mempool_tile #(
     parameter int unsigned ICacheSizeByte   = 512 * NumCoresPerTile                         , // Total Size of instruction cache in bytes
     parameter int unsigned ICacheSets       = NumCoresPerTile                               , // Number of sets
     parameter int unsigned ICacheLineWidth  = 32 * NumCoresPerTile                          , // Size of each cache line in bits
-    // AXI
-    parameter type axi_aw_t                 = logic                                         ,
-    parameter type axi_w_t                  = logic                                         ,
-    parameter type axi_b_t                  = logic                                         ,
-    parameter type axi_ar_t                 = logic                                         ,
-    parameter type axi_r_t                  = logic                                         ,
-    parameter type axi_req_t                = logic                                         ,
-    parameter type axi_resp_t               = logic                                         ,
     // Dependent parameters. DO NOT CHANGE.
     parameter int unsigned NumCores        = NumCoresPerTile * NumTiles                           ,
     parameter int unsigned NumBanksPerHive = NumBanks / NumHives                                  ,
