@@ -1,2 +1,5 @@
 install/*
 .bender
+gmon.out
+# Vim files
+*.swp
