@@ -102,8 +102,8 @@ module snitch_icache_handler #(
     // the same time, the pop is updated with the push information and the push
     // discarded.
     always_comb begin : p_pushpop_bypass
-        pending_set = push_enable ? $unsigned(1 << push_index) : '0;
-        pending_clr = pop_enable ? $unsigned(1 << pop_index) : '0;
+        pending_set = push_enable ? 'b1 << push_index : '0;
+        pending_clr = pop_enable ? 'b1 << pop_index : '0;
         pop_addr = pending_q[pop_index].addr;
         pop_idmask = pending_q[pop_index].idmask;
         if (push_enable && pop_enable && push_index == pop_index) begin
@@ -161,14 +161,14 @@ module snitch_icache_handler #(
 
     always_comb begin : p_miss_handler
         hit_valid = 0;
-        hit_id    = $unsigned(1 << in_req_id_i);
+        hit_id    = 'b1 << in_req_id_i;
         hit_data  = in_req_data_i;
         hit_error = in_req_error_i;
 
         push_index  = free_id;
         push_init   = 0;
         push_addr   = in_req_addr_i;
-        push_idmask = $unsigned(1 << in_req_id_i);
+        push_idmask = 'b1 << in_req_id_i;
         push_enable = 0;
 
         in_req_ready_o  = 1;

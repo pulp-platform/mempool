@@ -12,6 +12,13 @@
 package snitch_icache_pkg;
 
     typedef struct packed {
+      logic l0_miss;
+      logic l0_hit;
+      logic l0_prefetch;
+      logic l0_double_hit;
+    } icache_events_t;
+
+    typedef struct packed {
         // Parameters passed to the root module.
         int NR_FETCH_PORTS;
         int LINE_WIDTH;
@@ -23,9 +30,7 @@ package snitch_icache_pkg;
         int FETCH_DW;
         int FILL_AW;
         int FILL_DW;
-        bit EARLY_ENABLED;
         bit EARLY_LATCH;
-        bit EARLY_FALLTHROUGH;
 
         // Derived values.
         int FETCH_ALIGN;
@@ -35,6 +40,7 @@ package snitch_icache_pkg;
         int SET_ALIGN;
         int TAG_WIDTH;
         int L0_TAG_WIDTH;
+        int L0_EARLY_TAG_WIDTH;
         int ID_WIDTH_REQ;
         int ID_WIDTH_RESP;
         int PENDING_IW; // refill ID width

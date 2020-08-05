@@ -16,6 +16,9 @@ module snitch_icache_lookup #(
     input  logic clk_i,
     input  logic rst_ni,
 
+    input  logic flush_valid_i,
+    output logic flush_ready_o,
+
     input  logic [CFG.FETCH_AW-1:0]     in_addr_i,
     input  logic [CFG.ID_WIDTH_REQ-1:0] in_id_i,
     input  logic                        in_valid_i,
@@ -80,8 +83,12 @@ module snitch_icache_lookup #(
         end
     end
 
+    assign flush_ready_o = flush_valid_i & (init_count_q == $unsigned(CFG.LINE_COUNT));
+
     always_ff @(posedge clk_i, negedge rst_ni) begin
         if (!rst_ni)
+            init_count_q <= '0;
+        else if (flush_valid_i)
             init_count_q <= '0;
         else if (init_count_q != $unsigned(CFG.LINE_COUNT))
             init_count_q <= init_count_q + 1;

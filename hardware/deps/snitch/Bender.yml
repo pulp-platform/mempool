@@ -9,7 +9,6 @@ sources:
   - defines:
       SNITCH_ENABLE_PERF: 1
     files:
-
     # packages
     - src/riscv_instr.sv
     - src/fpnew/src/fpnew_pkg.sv
@@ -31,5 +30,4 @@ sources:
     - src/snitch_icache/snitch_icache_handler.sv
     - src/snitch_icache/snitch_icache_lfsr.sv
     - src/snitch_icache/snitch_icache_lookup.sv
-    - src/snitch_icache/snitch_icache_prefetch.sv
     - src/snitch_icache/snitch_icache_refill.sv
