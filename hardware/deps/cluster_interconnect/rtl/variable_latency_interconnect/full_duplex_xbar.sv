@@ -24,17 +24,20 @@ module full_duplex_xbar #(
     parameter bit ExtPrio                = 1'b0, // Use external arbiter priority flags
     parameter bit SpillRegisterReq       = 1'b0, // Insert a spill register on the request path (after arbitration)
     parameter bit SpillRegisterResp      = 1'b0, // Insert a spill register on the response path (after arbitration)
-    parameter bit AxiVldRdy              = 1'b0  // Valid/ready signaling.
+    parameter bit AxiVldRdy              = 1'b0, // Valid/ready signaling.
+    // Dependent parameters, DO NOT OVERRIDE!
+    localparam int unsigned NumInLog     = NumIn == 1 ? 1 : $clog2(NumIn),
+    localparam int unsigned NumOutLog    = NumOut == 1 ? 1 : $clog2(NumOut)
   ) (
     input  logic                                 clk_i,
     input  logic                                 rst_ni,
     // External priority signals
-    input  logic [NumOut-1:0][$clog2(NumIn)-1:0] req_rr_i,
-    input  logic [NumIn-1:0][$clog2(NumOut)-1:0] resp_rr_i,
+    input  logic [NumOut-1:0][NumInLog-1:0]      req_rr_i,
+    input  logic [NumIn-1:0][NumOutLog-1:0]      resp_rr_i,
     // Initiator side
     input  logic [NumIn-1:0]                     req_valid_i,     // Request valid
     output logic [NumIn-1:0]                     req_ready_o,     // Request ready
-    input  logic [NumIn-1:0][$clog2(NumOut)-1:0] req_tgt_addr_i,  // Target address
+    input  logic [NumIn-1:0][NumOutLog-1:0]      req_tgt_addr_i,  // Target address
     input  logic [NumIn-1:0][ReqDataWidth-1:0]   req_wdata_i,     // Write data
     output logic [NumIn-1:0]                     resp_valid_o,    // Response valid
     input  logic [NumIn-1:0]                     resp_ready_i,    // Response ready
@@ -42,11 +45,11 @@ module full_duplex_xbar #(
     // Target side
     output logic [NumOut-1:0]                    req_valid_o,     // Request valid
     input  logic [NumOut-1:0]                    req_ready_i,     // Request ready
-    output logic [NumOut-1:0][$clog2(NumIn)-1:0] req_ini_addr_o,  // Initiator address
+    output logic [NumOut-1:0][NumInLog-1:0]      req_ini_addr_o,  // Initiator address
     output logic [NumOut-1:0][ReqDataWidth-1:0]  req_wdata_o,     // Write data
     input  logic [NumOut-1:0]                    resp_valid_i,    // Response valid
     output logic [NumOut-1:0]                    resp_ready_o,    // Response ready
-    input  logic [NumOut-1:0][$clog2(NumIn)-1:0] resp_ini_addr_i, // Initiator address
+    input  logic [NumOut-1:0][NumInLog-1:0]      resp_ini_addr_i, // Initiator address
     input  logic [NumOut-1:0][RespDataWidth-1:0] resp_rdata_i     // Data response (for load commands)
   );
 

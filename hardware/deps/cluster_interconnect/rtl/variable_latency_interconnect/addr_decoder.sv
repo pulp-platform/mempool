@@ -18,11 +18,13 @@
 module addr_decoder #(
     parameter int unsigned NumOut    = 32,
     parameter int unsigned DataWidth = 32,
-    parameter bit AxiVldRdy          = 1'b1
+    parameter bit AxiVldRdy          = 1'b1,
+    // Dependent parameters, DO NOT OVERRIDE!
+    localparam int unsigned NumOutLog = NumOut == 1 ? 1 : $clog2(NumOut)
   ) (
     // Initiator side
     input  logic                             valid_i, // Request valid from this initiator
-    input  logic [$clog2(NumOut)-1:0]        addr_i,  // Target selection index to be decoded
+    input  logic [NumOutLog-1:0]             addr_i,  // Target selection index to be decoded
     input  logic [DataWidth-1:0]             data_i,  // Data to be transported to the targets
     output logic                             ready_o, // Ready to the initiator
     // Target side

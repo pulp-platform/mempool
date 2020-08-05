@@ -37,23 +37,25 @@ module rr_arb_tree #(
   parameter type         DataType   = logic [DataWidth-1:0],
   parameter bit          ExtPrio    = 1'b0, // set to 1'b1 to enable
   parameter bit          AxiVldRdy  = 1'b0, // treat req/gnt as vld/rdy
-  parameter bit          LockIn     = 1'b0  // set to 1'b1 to enable
+  parameter bit          LockIn     = 1'b0,  // set to 1'b1 to enable
+  // Dependent parameters, DO NOT OVERRIDE!
+  localparam int unsigned NumInLog  = NumIn == 1 ? 1 : $clog2(NumIn)
 ) (
-  input  logic                             clk_i,
-  input  logic                             rst_ni,
-  input  logic                             flush_i, // clears the arbiter state
-  input  logic [$clog2(NumIn)-1:0]         rr_i,    // external RR prio (needs to be enabled above)
+  input  logic                        clk_i,
+  input  logic                        rst_ni,
+  input  logic                        flush_i, // clears the arbiter state
+  input  logic [NumInLog-1:0]         rr_i,    // external RR prio (needs to be enabled above)
   // input requests and data
-  input  logic [NumIn-1:0]                 req_i,
+  input  logic [NumIn-1:0]            req_i,
   /* verilator lint_off UNOPTFLAT */
-  output logic [NumIn-1:0]                 gnt_o,
+  output logic [NumIn-1:0]            gnt_o,
   /* verilator lint_on UNOPTFLAT */
-  input  DataType [NumIn-1:0]              data_i,
+  input  DataType [NumIn-1:0]         data_i,
   // arbitrated output
-  input  logic                             gnt_i,
-  output logic                             req_o,
-  output DataType                          data_o,
-  output logic [$clog2(NumIn)-1:0]         idx_o
+  input  logic                        gnt_i,
+  output logic                        req_o,
+  output DataType                     data_o,
+  output logic [NumInLog-1:0]         idx_o
 );
 
   // pragma translate_off
@@ -71,7 +73,7 @@ module rr_arb_tree #(
     assign idx_o    = '0;
   // non-degenerate cases
   end else begin
-    localparam int unsigned NumLevels = $clog2(NumIn);
+    localparam int unsigned NumLevels = NumInLog;
 
     /* verilator lint_off UNOPTFLAT */
     logic [2**NumLevels-2:0][NumLevels-1:0]  index_nodes; // used to propagate the indices
