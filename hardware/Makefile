@@ -65,10 +65,13 @@ trace := $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildp
 tracepath ?= $(buildpath)/traces
 traceresult ?= $(tracepath)/results.csv
 
-VLOG_ARGS += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
+vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
+ifdef num_cores
+  vlog_args += +define+NUM_CORES=$(num_cores)
+endif
 
 build: bender lib $(buildpath)/$(dpi_library)/mempool_dpi.so
-	./bender script vsim --vlog-arg="$(VLOG_ARGS)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
+	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -c -do compile.tcl
 
