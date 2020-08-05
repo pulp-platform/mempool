@@ -25,7 +25,11 @@ module mempool_tb;
   import axi_pkg::xbar_cfg_t    ;
   import axi_pkg::xbar_rule_32_t;
 
+`ifdef NUM_CORES
+  localparam        NumCores        = `NUM_CORES;
+`else
   localparam        NumCores        = 256;
+`endif
   localparam        NumCoresPerTile = 4;
   localparam        BankingFactor   = 4;
   localparam addr_t TCDMBaseAddr    = '0;
