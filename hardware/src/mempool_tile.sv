@@ -529,18 +529,18 @@ module mempool_tile #(
     .req_ready_o    ({postreg_tcdm_slave_req_ready, local_slave_xbar_req_ready}     ),
     .req_tgt_addr_i (local_slave_xbar_tgt_sel                                       ),
     .req_wdata_i    (local_slave_xbar_data_agg                                      ),
-    .resp_valid_i   (bank_resp_valid                                                ),
-    .resp_ready_o   (bank_resp_ready                                                ),
-    .resp_ini_addr_i(bank_resp_ini_addr                                             ),
-    .resp_rdata_i   (bank_resp_payload                                              ),
+    .resp_valid_o   ({prereg_tcdm_slave_resp_valid, local_slave_xbar_resp_valid}    ),
+    .resp_ready_i   ({prereg_tcdm_slave_resp_ready, local_slave_xbar_resp_ready}    ),
+    .resp_rdata_o   ({prereg_tcdm_slave_resp_payload, local_slave_xbar_resp_payload}),
     // Target side
     .req_valid_o    (bank_req_valid                                                 ),
     .req_ini_addr_o (bank_req_ini_addr                                              ),
     .req_ready_i    (bank_req_ready                                                 ),
     .req_wdata_o    (bank_data_agg                                                  ),
-    .resp_valid_o   ({prereg_tcdm_slave_resp_valid, local_slave_xbar_resp_valid}    ),
-    .resp_ready_i   ({prereg_tcdm_slave_resp_ready, local_slave_xbar_resp_ready}    ),
-    .resp_rdata_o   ({prereg_tcdm_slave_resp_payload, local_slave_xbar_resp_payload})
+    .resp_valid_i   (bank_resp_valid                                                ),
+    .resp_ready_o   (bank_resp_ready                                                ),
+    .resp_ini_addr_i(bank_resp_ini_addr                                             ),
+    .resp_rdata_i   (bank_resp_payload                                              )
   );
 
   /*******************
