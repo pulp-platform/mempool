@@ -20,6 +20,12 @@ variables:
   APPS: "hello_world matrix_mul"
   num_cores: 64
 
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_REF_NAME
+
 before_script:
   - env
 
@@ -139,3 +145,8 @@ code-style:
   script:
     - ./.gitlab-ci.d/lint.sh
   needs: ["tc-llvm"]
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID'
+      allow_failure: false
+    - if: '$CI_MERGE_REQUEST_ID == null'
+      allow_failure: true
