@@ -18,7 +18,7 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   ROOT_DIR: '$CI_PROJECT_DIR'
   APPS: "hello_world matrix_mul"
-  num_cores: 32
+  num_cores: 64
 
 before_script:
   - env
