@@ -109,7 +109,7 @@ hardware:
     - cd ../hardware
     - |
       for APP in ${APPS}; do
-        app=${APP} make run
+        app=${APP} make simc
         make trace
       done
   artifacts:

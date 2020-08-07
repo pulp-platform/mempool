@@ -75,7 +75,9 @@ ifdef num_cores
 endif
 
 build: bender lib $(buildpath)/$(dpi_library)/mempool_dpi.so
-	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
+	mkdir -p $(buildpath)
+	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test\
+	  > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -c -do compile.tcl
 
@@ -84,14 +86,14 @@ lib:
 	mkdir -p $(buildpath)/$(library)
 	cd $(buildpath) && $(questa_cmd) vlib work && $(questa_cmd) vmap work work
 
-sim: build
-	cd $(buildpath) && $(questa_cmd) vsim $(questa_args) $(library).$(top_level)
+sim: clean-dasm build
+	cd $(buildpath) && \
+	$(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.do
+	./scripts/return_status.sh $(buildpath)/transcript
 
-simc: build
-	cd $(buildpath) && $(questa_cmd) vsim -c $(questa_args) $(library).$(top_level)
-
-run: build
-	cd $(buildpath) && $(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.do
+simc: clean-dasm build
+	cd $(buildpath) && \
+	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
 
 trace: pre_trace $(trace) post_trace
@@ -133,4 +135,7 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 clean:
 	rm -rf $(buildpath)
 
-.PHONY: build lib sim simc clean
+clean-dasm:
+	rm -rf $(buildpath)/*.dasm
+
+.PHONY: build lib sim simc clean clean-dasm
