@@ -148,11 +148,14 @@ deps/snitch/src/snitch_icache/snitch_icache_prefetch.sv
 deps/snitch/src/snitch_icache/snitch_icache_refill.sv
 
 src/mempool_pkg.sv
+src/address_scrambler.sv
 src/reorder_buffer.sv
 src/snitch_address_demux.sv
+src/tcdm_adapter.sv
 src/tcdm_shim.sv
 src/mempool_tile.sv
 src/mempool.sv
+src/mempool_wrap.sv
 
 tb/axi2mem.sv
 tb/ctrl_registers.sv

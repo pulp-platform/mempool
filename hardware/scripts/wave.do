@@ -2,7 +2,7 @@ onerror {resume}
 quietly WaveActivateNextPane {} 0
 
 # Add all cores from tile 0
-for {set core 0}  {$core < 4} {incr core} {
+for {set core 0}  {$core < [examine -radix dec mempool_pkg::NumCoresPerTile]} {incr core} {
     do ../scripts/wave_core.do 0 $core
 }
 
@@ -16,8 +16,10 @@ for {set tile 0}  {$tile < 4} {incr tile} {
 }
 
 # Interconnect
-for {set interconnect 0}  {$interconnect < 4} {incr interconnect} {
-	add wave -group Interconnect[$interconnect] /mempool_tb/dut/gen_intercos[$interconnect]/i_interco/*
+for {set ini 0}  {$ini < [examine -radix dec /mempool_tb/dut/NumHives]} {incr ini} {
+  for {set tgt 0}  {$tgt < [examine -radix dec /mempool_tb/dut/NumHives]} {incr tgt} {
+      add wave -group Interconnect_ini[$ini] -group Interconnect_tgt[$tgt] /mempool_tb/dut/gen_intercos_ini_hive[$ini]/gen_intercos_tgt_hive[$tgt]/i_interco/*
+  }
 }
 
 # TreeUpdate [SetDefaultTree]

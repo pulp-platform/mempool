@@ -12,7 +12,7 @@ import mempool_pkg::*;
 
 module mempool_wrap #(
     parameter int unsigned NumCores        = 1             ,
-    parameter int unsigned NumCoresPerTile = 1             ,
+    parameter int unsigned NumHives        = 1             ,
     parameter int unsigned BankingFactor   = 1             ,
     // TCDM
     parameter addr_t TCDMBaseAddr          = 32'b0         ,
@@ -25,6 +25,7 @@ module mempool_wrap #(
     // Clock and reset
     input  logic clk_i,
     input  logic rst_ni,
+    input  logic testmode_i,
     // Scan chain
     input  logic scan_enable_i,
     input  logic scan_data_i,
@@ -38,18 +39,6 @@ module mempool_wrap #(
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
-  localparam AxiMstIdWidth = $clog2(NumCoresPerTile);
-
-  typedef logic [AxiMstIdWidth-1:0] axi_mst_id_t;
-
-  `AXI_TYPEDEF_AW_CHAN_T(axi_aw_t, addr_t, axi_mst_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_w_t, data_t, strb_t, logic)        ;
-  `AXI_TYPEDEF_B_CHAN_T(axi_b_t, axi_mst_id_t, logic)          ;
-  `AXI_TYPEDEF_AR_CHAN_T(axi_ar_t, addr_t, axi_mst_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_r_t, data_t, axi_mst_id_t, logic)  ;
-  `AXI_TYPEDEF_REQ_T(axi_req_t, axi_aw_t, axi_w_t, axi_ar_t)   ;
-  `AXI_TYPEDEF_RESP_T(axi_resp_t, axi_b_t, axi_r_t )           ;
-
   axi_req_t  [NumTiles-1:0] axi_mst_req;
   axi_resp_t [NumTiles-1:0] axi_mst_resp;
 
@@ -58,23 +47,15 @@ module mempool_wrap #(
    *********************/
 
   mempool #(
-    .NumCores       (NumCores       ),
-    .NumCoresPerTile(NumCoresPerTile),
-    .BankingFactor  (BankingFactor  ),
-    .TCDMBaseAddr   (TCDMBaseAddr   ),
-    .TCDMSizePerBank(TCDMSizePerBank),
-    .BootAddr       (BootAddr       ),
-    // AXI
-    .axi_aw_t       (axi_aw_t       ),
-    .axi_w_t        (axi_w_t        ),
-    .axi_b_t        (axi_b_t        ),
-    .axi_ar_t       (axi_ar_t       ),
-    .axi_r_t        (axi_r_t        ),
-    .axi_req_t      (axi_req_t      ),
-    .axi_resp_t     (axi_resp_t     )
+    .NumCores      (NumCores      ),
+    .NumHives      (NumHives      ),
+    .BankingFactor (BankingFactor ),
+    .TCDMBaseAddr  (TCDMBaseAddr  ),
+    .BootAddr      (BootAddr      )
   ) i_mempool (
     .clk_i         (clk_i        ),
     .rst_ni        (rst_ni       ),
+    .testmode_i    (testmode_i   ),
     .scan_enable_i (scan_enable_i),
     .scan_data_i   (scan_data_i  ),
     .scan_data_o   (scan_data_o  ),
@@ -83,4 +64,3 @@ module mempool_wrap #(
   );
 
 endmodule : mempool_wrap
-

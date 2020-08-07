@@ -5,7 +5,10 @@ SECTIONS {
     .l1_seq : { *(.l1_seq) }
     l1__seq_alloc_base = ALIGN(0x10);
 
-    . = 0x8000;
+    /*. = 0x08000; /*  32x1KiB */
+    . = 0x10000; /*  64x1KiB */
+    /*. = 0x20000; /* 128x1KiB */
+    /*. = 0x30000; /* 256x1KiB */
     .l1 : { *(.l1) }
     l1_alloc_base = ALIGN(0x10);
 
