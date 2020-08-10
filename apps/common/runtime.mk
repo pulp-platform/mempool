@@ -87,3 +87,6 @@ HDR ?=     common/runtime.h
 
 %.cpp.o: %.cpp
 	$(RISCV_CXX) $(RISCV_CXXFLAGS) -c $< -o $@
+
+%.ld: %.ld.c
+	$(RISCV_CC) -P -E $(DEFINES) $< -o $@

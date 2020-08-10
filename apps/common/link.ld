@@ -1,6 +1,7 @@
 OUTPUT_ARCH("riscv")
 ENTRY(_start)
 
+/* Include the file processed by the preprocessor called common/arch.ld.c */
 INCLUDE common/arch.ld
 
 SECTIONS {
