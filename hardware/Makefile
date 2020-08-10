@@ -20,6 +20,9 @@ ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
 
+# Include configuration
+include $(abspath $(ROOT_DIR)/../config/config.mk)
+
 # build path
 buildpath      ?= build
 resultpath     ?= results

@@ -20,6 +20,9 @@ SHELL = /usr/bin/env bash
 
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
+# Include configuration
+include $(MEMPOOL_DIR)/config/config.mk
+
 INSTALL_DIR        ?= $(MEMPOOL_DIR)/install
 GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
@@ -49,10 +52,13 @@ RISCV_AR      ?= $(RISCV_PREFIX)ar
 RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
+# Defines
+DEFINES := -DNUM_CORES=$(num_cores)
+
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
-RISCV_FLAGS_COMMON ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf
+RISCV_FLAGS_COMMON ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -enable-misched
 ifeq ($(COMPILER),gcc)
