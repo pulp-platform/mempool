@@ -14,7 +14,9 @@
 
 # Author: Matheus Cavalcante, ETH Zurich
 
-include $(CURDIR)/common/runtime.mk
+SHELL = /usr/bin/env bash
+ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+include $(ROOT_DIR)/common/runtime.mk
 
 all: bin/hello_world
 #all: bin/gradient

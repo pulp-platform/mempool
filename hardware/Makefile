@@ -15,9 +15,10 @@
 # Author: Matheus Cavalcante, ETH Zurich
 #         Samuel Riedel, ETH Zurich
 
-ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
 SHELL = /usr/bin/env bash
+ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
+INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
 
 # build path
 buildpath      ?= build

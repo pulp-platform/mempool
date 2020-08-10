@@ -15,8 +15,9 @@
 # Author: Matheus Cavalcante, ETH Zurich
 #         Samuel Riedel, ETH Zurich
 
+SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-SHELL = bash
+MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 
 INSTALL_PREFIX      ?= install
 INSTALL_DIR         ?= ${ROOT_DIR}/${INSTALL_PREFIX}
