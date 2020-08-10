@@ -198,6 +198,7 @@ static inline void mat_mul_asm_parallel(int32_t const *__restrict__ A,
         // Inner loop: Take one element of A to multiply with four elements of
         // B. Traverse A row major and B column major with four columns in
         // parallel. Do this loop N times per element
+        ".balign 16 \n\t"
         "2: \n\t"
         "lw %[a], 0(%[idx_a]) \n\t"
         "lw %[b0], 0(%[idx_b]) \n\t"
@@ -207,7 +208,7 @@ static inline void mat_mul_asm_parallel(int32_t const *__restrict__ A,
         // Traverse A row wise --> Increment A by one word
         "addi %[idx_a],%[idx_a],%[inc_a] \n\t"
         // Traverse B column wise --> Increment B by P words
-        "addi %[idx_b],%[idx_b],%[inc_b] \n\t"
+        "add %[idx_b],%[idx_b],%[inc_b] \n\t"
         "mul %[b0],%[a],%[b0] \n\t"
         "mul %[b1],%[a],%[b1] \n\t"
         "mul %[b2],%[a],%[b2] \n\t"
@@ -225,7 +226,7 @@ static inline void mat_mul_asm_parallel(int32_t const *__restrict__ A,
         // A traversed one complete row + one extra word due to the
         // structure of the loop. Undo these increments to reset
         // `idx_a` to the first word in the row
-        "addi %[idx_a], %[idx_a], %[adv_a] \n\t"
+        "add %[idx_a], %[idx_a], %[adv_a] \n\t"
         // Increment the index of B and C by four words
         "addi %[start_b], %[start_b], %[adv_b] \n\t"
         "addi %[idx_c], %[idx_c], %[adv_c] \n\t"
@@ -235,7 +236,7 @@ static inline void mat_mul_asm_parallel(int32_t const *__restrict__ A,
           [ b2 ] "=&r"(b2), [ b3 ] "=&r"(b3), [ idx_b ] "+&r"(idx_b),
           [ idx_a ] "+&r"(start_a), [ start_b ] "+&r"(start_b),
           [ idx_c ] "+&r"(start_c)
-        : [ inc_a ] "I"(4), [ inc_b ] "I"(4 * P), [ adv_a ] "I"(-4 * N),
+        : [ inc_a ] "I"(4), [ inc_b ] "r"(4 * P), [ adv_a ] "r"(-4 * N),
           [ adv_b ] "I"(4 * 4), [ adv_c ] "I"(4 * 4), [ end_a ] "r"(end_a),
           [ end_c ] "r"(end_c)
         : "memory");
