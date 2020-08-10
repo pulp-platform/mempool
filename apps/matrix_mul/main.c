@@ -49,10 +49,10 @@
 // Enable verbose printing
 // #define VERBOSE
 
-uint32_t volatile init __attribute__((section(".data"))) = 0;
-int32_t volatile a[M][N] __attribute__((section(".l1")));
-int32_t volatile b[N][P] __attribute__((section(".l1")));
-int32_t volatile c[M][P] __attribute__((section(".l1")));
+int32_t volatile init __attribute__((section(".l2"))) = 0;
+int32_t a[M * N] __attribute__((section(".l1")));
+int32_t b[N * P] __attribute__((section(".l1")));
+int32_t c[M * P] __attribute__((section(".l1")));
 
 // Initialize the matrices in parallel
 void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
@@ -107,11 +107,8 @@ int main(int argc, char **argv) {
     mempool_barrier_init();
     init = 1;
   } else {
-    // FIXME: The other cores can not see changes introduced by the master core
-    // to the L2 memory
-    // while (!init) {
-    mempool_wait(2000);
-    // }
+    while (!init)
+      mempool_wait(2 * num_cores);
   }
 
   // #ifdef VERBOSE
