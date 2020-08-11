@@ -46,9 +46,9 @@ python         ?= python3.6
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
-    # Spaces are needed for indentation here!
-    $(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
-    questa_cmd =
+  # Spaces are needed for indentation here!
+  $(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
+  questa_cmd =
 endif
 
 QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)-kgf/questasim
@@ -65,15 +65,18 @@ questa_args += -sv_lib $(dpi_library)/mempool_dpi
 # DPI source files
 dpi   := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
 # Traces
-trace := $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpath)/*.dasm))
+trace = $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpath)/*.dasm))
 tracepath ?= $(buildpath)/traces
 traceresult ?= $(tracepath)/results.csv
-
-vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
-ifdef num_cores
-  vlog_args += +define+NUM_CORES=$(num_cores)
+ifndef result_dir
+	result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)")
 endif
 
+vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
+# Defines
+vlog_args += +define+NUM_CORES=$(num_cores)
+
+# Simulation
 build: bender lib $(buildpath)/$(dpi_library)/mempool_dpi.so
 	mkdir -p $(buildpath)
 	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test\
@@ -96,18 +99,34 @@ simc: clean-dasm build
 	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
 
+# Benchmarking
+benchmark: log simc
+	# Call `make` again to get variable extension with all traces
+	result_dir=$(result_dir) $(MAKE) trace
+
 trace: pre_trace $(trace) post_trace
+
+log:
+	mkdir -p "$(result_dir)/original"
+	[ -e "$(preload)" ] && cp "$(preload)"* "$(result_dir)" || \
+	([ -e "$(buildpath)/transcript" ] && \
+	cp "$$(grep -oP '(?<=\+PRELOAD=)[^ \"]*' $(buildpath)/transcript)"* "$(result_dir)" || \
+	echo "No application specified")
+	env > "$(result_dir)/env"
+	cp $(MEMPOOL_DIR)/config/config.mk $(result_dir)/config
+	git rev-parse HEAD > "$(result_dir)/git-info.diff"
+	git show --oneline -s >> "$(result_dir)/git-info.diff"
+	git diff >> "$(result_dir)/git-info.diff"
 
 pre_trace:
 	rm -rf $(tracepath)
 
 post_trace:
-	RESULT_DIR=$(resultpath)/$$(date +"%F-%T-$$(git rev-parse --abbrev-ref HEAD)-$$(git rev-parse HEAD)"); \
-	mkdir -p "$$RESULT_DIR"; mkdir -p "$$RESULT_DIR/original"; \
-	cp $(traceresult) "$$RESULT_DIR"; \
-	cp $(trace) "$$RESULT_DIR"; cp $(wildcard $(buildpath)/*.dasm) "$$RESULT_DIR/original"; \
-	cp "$$(grep -oP '(?<=\+PRELOAD=)[^ \"]*' build/transcript)"* "$$RESULT_DIR"; \
-	git diff > "$$RESULT_DIR/git-diff"
+	mkdir -p "$(result_dir)/original"
+	cp $(buildpath)/transcript "$(result_dir)/"
+	cp $(traceresult) "$(result_dir)"
+	cp $(trace) "$(result_dir)"
+	cp $(wildcard $(buildpath)/*.dasm) "$(result_dir)/original"
 
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
