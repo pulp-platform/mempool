@@ -17,7 +17,7 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   ROOT_DIR: '$CI_PROJECT_DIR'
-  APPS: "hello_world matrix_mul"
+  APPS: "tests"
   num_cores: 64
 
 workflow:
@@ -109,8 +109,7 @@ hardware:
     - cd ../hardware
     - |
       for APP in ${APPS}; do
-        app=${APP} make simc
-        make trace
+        app=${APP} make benchmark
       done
   artifacts:
     paths:
