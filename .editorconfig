@@ -18,8 +18,8 @@ max_line_length = 100
 [{Makefile,*.mk}]
 indent_style = tab
 
-[*.yml]
-indent_size = 2
+[*.py]
+indent_style = tab
 
 [COMMIT_EDITMSG]
 max_line_length = 72
