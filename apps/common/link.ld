@@ -1,6 +1,7 @@
 OUTPUT_ARCH("riscv")
 ENTRY(_start)
 
+/* Include the file processed by the preprocessor called common/arch.ld.c */
 INCLUDE common/arch.ld
 
 SECTIONS {
@@ -11,7 +12,7 @@ SECTIONS {
   }
 
   . = ALIGN(0x10);
-  .data           : { *(.data)}
+  .data           : { *(.data) }
   .rodata         : { *(.rodata .rodata.* .gnu.linkonce.r.*) }
   .rodata1        : { *(.rodata1) }
   .sdata2         : {
@@ -29,4 +30,7 @@ SECTIONS {
   .bss            : { *(.bss) }
   __bss_end = .;
 
+  . = ALIGN(0x10);
+  .l2             : { *(.l2) }
+  l2_alloc_base = ALIGN(0x10);
 }

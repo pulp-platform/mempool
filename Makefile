@@ -15,8 +15,9 @@
 # Author: Matheus Cavalcante, ETH Zurich
 #         Samuel Riedel, ETH Zurich
 
+SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-SHELL = bash
+MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 
 INSTALL_PREFIX      ?= install
 INSTALL_DIR         ?= ${ROOT_DIR}/${INSTALL_PREFIX}
@@ -87,7 +88,10 @@ riscv-isa-sim:
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Helper targets
-.PHONY: clean
+.PHONY: clean format
+
+format:
+	$(LLVM_INSTALL_DIR)/bin/clang-format -style=file -i --verbose $$(git diff --name-only HEAD | tr ' ' '\n' | grep -E "\.(h|c|cpp)\b")
 
 clean:
 	rm -rf $(INSTALL_DIR)

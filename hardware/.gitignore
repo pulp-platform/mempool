@@ -3,5 +3,5 @@
 bender
 .bender/*
 .dvt/*
-build/*
+build*
 results/*

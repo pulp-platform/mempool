@@ -1,0 +1,34 @@
+# EditorConfig (http://editorconfig.org/)
+root = true
+
+# Default Settings
+[*]
+charset = utf-8
+end_of_line = lf
+tab_width = 2
+indent_size = 2
+indent_style = space
+max_line_length = 80
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{sv,svh,v,vg}]
+max_line_length = 100
+
+[{Makefile,*.mk}]
+indent_style = tab
+
+[*.yml]
+indent_size = 2
+
+[COMMIT_EDITMSG]
+max_line_length = 72
+
+# The format in diffs should be preserved, so disable all formatting options for them.
+[*.{diff,patch}]
+end_of_line = unset
+indent_size = unset
+indent_style = unset
+insert_final_newline = false
+max_line_length = 0
+trim_trailing_whitespace = false

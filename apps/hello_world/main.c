@@ -24,7 +24,7 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-volatile uint32_t atomic __attribute__((section(".l1")));
+volatile uint32_t atomic __attribute__((section(".l2"))) = -1;
 
 extern volatile uint32_t tcdm_start_address_reg;
 extern volatile uint32_t tcdm_end_address_reg;
@@ -37,15 +37,16 @@ int main(int argc, char **argv) {
     mempool_barrier_init();
     atomic = 0;
   } else {
-    mempool_wait(2000);
+    while (atomic)
+      mempool_wait(100);
   }
   mempool_barrier(core_id, num_cores);
 
   while (atomic != core_id)
-    ;
+    mempool_wait(100);
 
   printf("Core %d says Hello!\n", core_id);
-  __atomic_fetch_add(&atomic, 1, __ATOMIC_SEQ_CST);
+  atomic++;
 
   // wait until all cores have finished
   mempool_barrier(core_id, num_cores);

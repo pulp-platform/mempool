@@ -17,8 +17,14 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   ROOT_DIR: '$CI_PROJECT_DIR'
-  APPS: "hello_world matrix_mul"
+  APPS: "tests"
   num_cores: 64
+
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_REF_NAME
 
 before_script:
   - env
@@ -103,8 +109,7 @@ hardware:
     - cd ../hardware
     - |
       for APP in ${APPS}; do
-        app=${APP} make run
-        make trace
+        app=${APP} make benchmark
       done
   artifacts:
     paths:
@@ -132,3 +137,15 @@ apps-gcc:
   dependencies:
     - tc-gcc
     - tc-isa-sim
+
+# Code style test
+code-style:
+  stage: test
+  script:
+    - ./.gitlab-ci.d/lint.sh
+  needs: ["tc-llvm"]
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID'
+      allow_failure: false
+    - if: '$CI_MERGE_REQUEST_ID == null'
+      allow_failure: true
