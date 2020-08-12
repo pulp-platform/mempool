@@ -539,6 +539,7 @@ def main():
 				print(ann_insn)
 		else:
 			break  # Nothing more in pipe, EOF
+	args.infile.close()
 	perf_metrics[-1]['end'] = time_info[1]
 	# Evaluate only the benchmarks
 	if perf_metrics_bench[0]['start'] is not None:
