@@ -18,3 +18,4 @@
 #         Matheus Cavalcante, ETH Zurich
 
 num_cores ?= 256
+num_hives ?= 4

@@ -30,7 +30,11 @@ module mempool_tb;
 `else
   localparam        NumCores        = 256;
 `endif
+`ifdef NUM_HIVES
+  localparam        NumHives        = `NUM_HIVES;
+`else
   localparam        NumHives        = 4;
+`endif
   localparam        BankingFactor   = 4;
   localparam addr_t TCDMBaseAddr    = '0;
   localparam        TCDMSizePerBank = 1024 /* [B] */;

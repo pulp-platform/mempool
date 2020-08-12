@@ -53,7 +53,7 @@ RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Defines
-DEFINES := -DNUM_CORES=$(num_cores)
+DEFINES := -DNUM_CORES=$(num_cores) -DNUM_HIVES=$(num_hives)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
