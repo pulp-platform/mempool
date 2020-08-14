@@ -25,7 +25,6 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-uint32_t volatile init __attribute__((section(".l2"))) = 0;
 uint32_t volatile error __attribute__((section(".l1")));
 
 // Define Matrix dimensions:
@@ -102,13 +101,13 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   init_matrix(A, M, N, A_a, A_b, A_c, core_id, num_cores);
   init_matrix(B, N, P, B_a, B_b, B_c, core_id, num_cores);
   // Wait at barrier until everyone is ready
-  mempool_barrier(core_id, num_cores);
+  mempool_barrier(core_id, num_cores, num_cores / 2);
   // Execute function to test.
   mempool_start_benchmark();
   mat_mul_asm_parallel(A, B, C, M, N, P, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
-  mempool_barrier(core_id, num_cores);
+  mempool_barrier(core_id, num_cores, num_cores * 4);
   if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
                     num_cores)) {
     error = 1;
@@ -121,20 +120,17 @@ int main(int argc, char **argv) {
   uint32_t core_id = (uint32_t)argc;
   uint32_t num_cores = (uint32_t)argv;
   // Initialize barrier and synchronize
+  mempool_barrier_init(core_id, num_cores);
+
   if (core_id == 0) {
-    mempool_barrier_init();
     error = 0;
-    init = 1;
-  } else {
-    while (!init)
-      mempool_wait(2 * num_cores);
   }
 
   // Test the Matrix multiplication
   test_matrix_multiplication(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
                              matrix_P, core_id, num_cores);
   // wait until all cores have finished
-  mempool_barrier(core_id, num_cores);
+  mempool_barrier(core_id, num_cores, num_cores * 4);
 
   return error;
 }
