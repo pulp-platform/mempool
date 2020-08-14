@@ -29,7 +29,6 @@ def get_speedup(data):
     columns = ['section']
     result = pd.DataFrame(index=data['section'].unique())
     for i, pair in enumerate(itertools.permutations(runs, 2)):
-        print(*pair)
         runtime_old = data.loc[data.run == pair[0],'runtime'].to_list()
         index_old   = data.loc[data.run == pair[0],'section'].to_list()
         runtime_old = [runtime_old[i] for i in index_old]
@@ -75,23 +74,33 @@ def main():
 
     plt.figure(1)
     # ax = runtime.set_index(['section', 'run']).unstack('run').plot.bar(colormap='Pastel2')
-    ax = sns.barplot(x='section', y='runtime', hue='run', data=runtime, palette='viridis')
+#    ax = sns.barplot(x='section', y='runtime', hue='run', data=runtime,
+#        palette='vlag')
+    ax = sns.barplot(x='run', y='runtime', data=runtime, palette='vlag')
     ax.set_ylabel('Runtime [cycles]')
-    plt.show()
+    ax.set_title('Runtime')
 
     plt.figure(2)
     # df = sns.load_dataset('tips')
     # sns.violinplot(x='day', y="total_bill", hue="smoker", data=df, palette="Pastel1")
-    sns.violinplot(x='section', y='cycles', hue='run', data=data, palette="Pastel2")
-    plt.show()
+    # sns.violinplot(x='section', y='cycles', hue='run', data=data, palette="Pastel2")
+    sns.violinplot(x='run', y='cycles', data=data, palette="vlag")
+    sns.swarmplot(x='run', y='cycles', data=data, size=2, color='.3', linewidth=0);
+    #plt.show()
 
     plt.figure(3, figsize=(16, 8), dpi=300)
-    load_latency = data[data['section'] == 1]
+    load_latency = data[data['section'] == 0]
     load_latency = load_latency.explode('snitch_load_latency').infer_objects()
     # df = sns.load_dataset('tips')
     # sns.violinplot(x='day', y="total_bill", hue="smoker", data=df, palette="Pastel1")
-    sns.violinplot(x='core', y='snitch_load_latency', hue='run', data=load_latency, palette="Set1")
-    plt.show()
+    sns.violinplot(x='core', y='snitch_load_latency', hue='run',
+        data=load_latency[load_latency['core'] < 4], palette="vlag")
+#    sns.boxplot(x='core', y='snitch_load_latency', hue='run',
+#        data=load_latency[load_latency['core'] < 4],
+#        whis=[0,100], palette='vlag')
+#    sns.swarmplot(x='core', y='snitch_load_latency', hue='run',
+#        data=load_latency[load_latency['core'] < 1], size=2, color='.3',
+#        linewidth=0)
 
     # plt.figure(3)
     # ax = runtime.set_index(['section','run']).unstack('run').plot.bar()
@@ -99,10 +108,15 @@ def main():
     # plt.show()
 
     speedup = get_speedup(runtime)
+    print(speedup)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
         print(runtime.drop(columns='cycles').set_index(['section', 'run']).unstack('run'))
         print(speedup)
 
+    plt.figure(4)
+    sns.heatmap(speedup, annot=True, linewidth=.5)
+
+    plt.show()
     exit(0)
 
     X = np.arange(4)
