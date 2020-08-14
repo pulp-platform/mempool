@@ -106,6 +106,44 @@ void mat_mul_unrolled_parallel(int32_t const *__restrict__ A,
   }
 }
 
+void mat_mul_unrolled2_parallel(int32_t const *__restrict__ A,
+                                int32_t const *__restrict__ B,
+                                int32_t *__restrict__ C, uint32_t M, uint32_t N,
+                                uint32_t P, uint32_t id, uint32_t numThreads) {
+  // Parallelize by assigning each core one row
+  for (uint32_t i = 2 * id; i < M; i += 2 * numThreads) {
+    for (uint32_t j = 0; j < P; j += 2) {
+      int32_t c00 = 0;
+      int32_t c01 = 0;
+      int32_t c10 = 0;
+      int32_t c11 = 0;
+      for (int k = 0; k < N; ++k) {
+        // Explicitly load the values first to help with scheduling
+        int32_t val_a00 = A[(i + 0) * N + k + 0];
+        int32_t val_a01 = A[(i + 0) * N + k + 1];
+        int32_t val_a10 = A[(i + 1) * N + k + 0];
+        int32_t val_a11 = A[(i + 1) * N + k + 1];
+        int32_t val_b00 = B[(k + 0) * P + j + 0];
+        int32_t val_b01 = B[(k + 0) * P + j + 1];
+        int32_t val_b10 = B[(k + 1) * P + j + 0];
+        int32_t val_b11 = B[(k + 1) * P + j + 1];
+        c00 += val_a00 * val_b00;
+        c00 += val_a01 * val_b10;
+        c01 += val_a00 * val_b01;
+        c01 += val_a01 * val_b11;
+        c10 += val_a10 * val_b00;
+        c10 += val_a11 * val_b10;
+        c11 += val_a10 * val_b01;
+        c11 += val_a11 * val_b11;
+      }
+      C[(i + 0) * P + j + 0] = c00;
+      C[(i + 0) * P + j + 1] = c01;
+      C[(i + 1) * P + j + 0] = c10;
+      C[(i + 1) * P + j + 1] = c11;
+    }
+  }
+}
+
 void mat_mul_unrolled_parallel_finegrained(int32_t const *__restrict__ A,
                                            int32_t const *__restrict__ B,
                                            int32_t *__restrict__ C, uint32_t M,
