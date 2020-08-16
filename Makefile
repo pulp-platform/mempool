@@ -26,7 +26,7 @@ ISA_SIM_INSTALL_DIR ?= ${INSTALL_DIR}/riscv-isa-sim
 LLVM_INSTALL_DIR    ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR  ?= ${INSTALL_DIR}/halide
 
-CMAKE ?= cmake-3.7.1
+CMAKE ?= cmake-3.18.1
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
 # the variable if it is only defined by the Makefile (its origin in the Makefile's default).
 ifeq ($(origin CC),default)
