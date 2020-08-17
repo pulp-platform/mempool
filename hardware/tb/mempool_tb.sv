@@ -339,7 +339,7 @@ module mempool_tb;
    *  Instruction Memory  *
    ************************/
 
-  localparam addr_t ICacheLineWidth   = dut.gen_tiles[0].i_tile.i_snitch_icache.LINE_WIDTH;
+  localparam addr_t ICacheLineWidth   = dut.gen_tiles[0].i_tile.i_tile.i_snitch_icache.LINE_WIDTH;
   localparam addr_t ICacheBytes       = ICacheLineWidth / 8 ;
   localparam addr_t ICacheAddressMask = ~(ICacheBytes - 1);
   localparam addr_t ICacheByteOffset  = $clog2(ICacheBytes);

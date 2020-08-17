@@ -11,6 +11,7 @@
 
 # Includes
 +incdir+deps/common_cells/include
++incdir+deps/snitch/src/common_cells/include
 +incdir+deps/axi/include
 
 # Files
@@ -34,9 +35,9 @@ deps/tech_cells_generic/src/deprecated/pulp_buffer.sv
 deps/tech_cells_generic/src/deprecated/pulp_pwr_cells.sv
 deps/tech_cells_generic/src/tc_pwr.sv
 
+deps/common_cells/src/cf_math_pkg.sv
 deps/common_cells/src/addr_decode.sv
 deps/common_cells/src/cdc_2phase.sv
-deps/common_cells/src/cf_math_pkg.sv
 deps/common_cells/src/clk_div.sv
 deps/common_cells/src/delta_counter.sv
 deps/common_cells/src/edge_propagator_tx.sv
@@ -144,7 +145,6 @@ deps/snitch/src/snitch_icache/snitch_icache_l0.sv
 deps/snitch/src/snitch_icache/snitch_icache_handler.sv
 deps/snitch/src/snitch_icache/snitch_icache_lfsr.sv
 deps/snitch/src/snitch_icache/snitch_icache_lookup.sv
-deps/snitch/src/snitch_icache/snitch_icache_prefetch.sv
 deps/snitch/src/snitch_icache/snitch_icache_refill.sv
 
 src/mempool_pkg.sv
@@ -154,6 +154,7 @@ src/snitch_address_demux.sv
 src/tcdm_adapter.sv
 src/tcdm_shim.sv
 src/mempool_tile.sv
+src/mempool_tile_wrap_NumHives4.sv
 src/mempool.sv
 src/mempool_wrap.sv
 
