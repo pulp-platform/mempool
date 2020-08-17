@@ -320,6 +320,7 @@ module mempool #(
   // East
   for (genvar ini = 0; ini < NumHives; ini++) begin: gen_east_intercos
     localparam int unsigned tgt = ini ^ 2'b01;
+    localparam int unsigned idx[NumTilesPerHive] = {0,2,8,10,1,3,9,11,4,6,12,14,5,7,13,15};
 
     logic [NumTilesPerHive-1:0] master_east_req_valid             ;
     logic [NumTilesPerHive-1:0] master_east_req_ready             ;
@@ -343,26 +344,26 @@ module mempool #(
     tcdm_payload_t [NumTilesPerHive-1:0] slave_east_resp_rdata    ;
 
     for (genvar t = 0; t < NumTilesPerHive; t++) begin: gen_connections
-      assign master_east_req_valid[t]                              = tcdm_master_east_req_valid[NumTilesPerHive*ini + t]   ;
-      assign master_east_req_tgt_addr[t]                           = tcdm_master_east_req[NumTilesPerHive*ini + t].tgt_addr;
-      assign master_east_req_wen[t]                                = tcdm_master_east_req[NumTilesPerHive*ini + t].wen     ;
-      assign master_east_req_wdata[t]                              = tcdm_master_east_req[NumTilesPerHive*ini + t].wdata   ;
-      assign master_east_req_be[t]                                 = tcdm_master_east_req[NumTilesPerHive*ini + t].be      ;
-      assign tcdm_master_east_req_ready[NumTilesPerHive*ini + t]   = master_east_req_ready[t]                              ;
-      assign slave_east_resp_valid[t]                              = tcdm_slave_east_resp_valid[NumTilesPerHive*ini + t]   ;
-      assign slave_east_resp_ini_addr[t]                           = tcdm_slave_east_resp[NumTilesPerHive*ini + t].ini_addr;
-      assign slave_east_resp_rdata[t]                              = tcdm_slave_east_resp[NumTilesPerHive*ini + t].rdata   ;
-      assign tcdm_slave_east_resp_ready[NumTilesPerHive*ini + t]   = slave_east_resp_ready[t]                              ;
-      assign tcdm_master_east_resp_valid[NumTilesPerHive*tgt + t]  = master_east_resp_valid[t]                             ;
-      assign tcdm_master_east_resp[NumTilesPerHive*tgt + t].rdata  = master_east_resp_rdata[t]                             ;
-      assign master_east_resp_ready[t]                             = tcdm_master_east_resp_ready[NumTilesPerHive*tgt + t]  ;
-      assign tcdm_slave_east_req_valid[NumTilesPerHive*tgt + t]    = slave_east_req_valid[t]                               ;
-      assign tcdm_slave_east_req[NumTilesPerHive*tgt + t].tgt_addr = slave_east_req_tgt_addr[t]                            ;
-      assign tcdm_slave_east_req[NumTilesPerHive*tgt + t].ini_addr = slave_east_req_ini_addr[t]                            ;
-      assign tcdm_slave_east_req[NumTilesPerHive*tgt + t].wen      = slave_east_req_wen[t]                                 ;
-      assign tcdm_slave_east_req[NumTilesPerHive*tgt + t].wdata    = slave_east_req_wdata[t]                               ;
-      assign tcdm_slave_east_req[NumTilesPerHive*tgt + t].be       = slave_east_req_be[t]                                  ;
-      assign slave_east_req_ready[t]                               = tcdm_slave_east_req_ready[NumTilesPerHive*tgt + t]    ;
+      assign master_east_req_valid[t]                              = tcdm_master_east_req_valid[NumTilesPerHive*ini + idx[t]]   ;
+      assign master_east_req_tgt_addr[t]                           = tcdm_master_east_req[NumTilesPerHive*ini + idx[t]].tgt_addr;
+      assign master_east_req_wen[t]                                = tcdm_master_east_req[NumTilesPerHive*ini + idx[t]].wen     ;
+      assign master_east_req_wdata[t]                              = tcdm_master_east_req[NumTilesPerHive*ini + idx[t]].wdata   ;
+      assign master_east_req_be[t]                                 = tcdm_master_east_req[NumTilesPerHive*ini + idx[t]].be      ;
+      assign tcdm_master_east_req_ready[NumTilesPerHive*ini + idx[t]]   = master_east_req_ready[t]                              ;
+      assign slave_east_resp_valid[t]                              = tcdm_slave_east_resp_valid[NumTilesPerHive*ini + idx[t]]   ;
+      assign slave_east_resp_ini_addr[t]                           = tcdm_slave_east_resp[NumTilesPerHive*ini + idx[t]].ini_addr;
+      assign slave_east_resp_rdata[t]                              = tcdm_slave_east_resp[NumTilesPerHive*ini + idx[t]].rdata   ;
+      assign tcdm_slave_east_resp_ready[NumTilesPerHive*ini + idx[t]]   = slave_east_resp_ready[t]                              ;
+      assign tcdm_master_east_resp_valid[NumTilesPerHive*tgt + idx[t]]  = master_east_resp_valid[t]                             ;
+      assign tcdm_master_east_resp[NumTilesPerHive*tgt + idx[t]].rdata  = master_east_resp_rdata[t]                             ;
+      assign master_east_resp_ready[t]                             = tcdm_master_east_resp_ready[NumTilesPerHive*tgt + idx[t]]  ;
+      assign tcdm_slave_east_req_valid[NumTilesPerHive*tgt + idx[t]]    = slave_east_req_valid[t]                               ;
+      assign tcdm_slave_east_req[NumTilesPerHive*tgt + idx[t]].tgt_addr = slave_east_req_tgt_addr[t]                            ;
+      assign tcdm_slave_east_req[NumTilesPerHive*tgt + idx[t]].ini_addr = slave_east_req_ini_addr[t]                            ;
+      assign tcdm_slave_east_req[NumTilesPerHive*tgt + idx[t]].wen      = slave_east_req_wen[t]                                 ;
+      assign tcdm_slave_east_req[NumTilesPerHive*tgt + idx[t]].wdata    = slave_east_req_wdata[t]                               ;
+      assign tcdm_slave_east_req[NumTilesPerHive*tgt + idx[t]].be       = slave_east_req_be[t]                                  ;
+      assign slave_east_req_ready[t]                               = tcdm_slave_east_req_ready[NumTilesPerHive*tgt + idx[t]]    ;
     end
 
     variable_latency_interconnect #(
@@ -406,6 +407,7 @@ module mempool #(
   // North
   for (genvar ini = 0; ini < NumHives; ini++) begin: gen_north_intercos
     localparam int unsigned tgt = ini ^ 2'b10;
+    localparam int unsigned idx[NumTilesPerHive] = {0,1,4,5,2,3,6,7,8,9,12,13,10,11,14,15};
 
     logic [NumTilesPerHive-1:0] master_north_req_valid             ;
     logic [NumTilesPerHive-1:0] master_north_req_ready             ;
@@ -429,26 +431,26 @@ module mempool #(
     tcdm_payload_t [NumTilesPerHive-1:0] slave_north_resp_rdata    ;
 
     for (genvar t = 0; t < NumTilesPerHive; t++) begin: gen_connections
-      assign master_north_req_valid[t]                              = tcdm_master_north_req_valid[NumTilesPerHive*ini + t]   ;
-      assign master_north_req_tgt_addr[t]                           = tcdm_master_north_req[NumTilesPerHive*ini + t].tgt_addr;
-      assign master_north_req_wen[t]                                = tcdm_master_north_req[NumTilesPerHive*ini + t].wen     ;
-      assign master_north_req_wdata[t]                              = tcdm_master_north_req[NumTilesPerHive*ini + t].wdata   ;
-      assign master_north_req_be[t]                                 = tcdm_master_north_req[NumTilesPerHive*ini + t].be      ;
-      assign tcdm_master_north_req_ready[NumTilesPerHive*ini + t]   = master_north_req_ready[t]                              ;
-      assign slave_north_resp_valid[t]                              = tcdm_slave_north_resp_valid[NumTilesPerHive*ini + t]   ;
-      assign slave_north_resp_ini_addr[t]                           = tcdm_slave_north_resp[NumTilesPerHive*ini + t].ini_addr;
-      assign slave_north_resp_rdata[t]                              = tcdm_slave_north_resp[NumTilesPerHive*ini + t].rdata   ;
-      assign tcdm_slave_north_resp_ready[NumTilesPerHive*ini + t]   = slave_north_resp_ready[t]                              ;
-      assign tcdm_master_north_resp_valid[NumTilesPerHive*tgt + t]  = master_north_resp_valid[t]                             ;
-      assign tcdm_master_north_resp[NumTilesPerHive*tgt + t].rdata  = master_north_resp_rdata[t]                             ;
-      assign master_north_resp_ready[t]                             = tcdm_master_north_resp_ready[NumTilesPerHive*tgt + t]  ;
-      assign tcdm_slave_north_req_valid[NumTilesPerHive*tgt + t]    = slave_north_req_valid[t]                               ;
-      assign tcdm_slave_north_req[NumTilesPerHive*tgt + t].tgt_addr = slave_north_req_tgt_addr[t]                            ;
-      assign tcdm_slave_north_req[NumTilesPerHive*tgt + t].ini_addr = slave_north_req_ini_addr[t]                            ;
-      assign tcdm_slave_north_req[NumTilesPerHive*tgt + t].wen      = slave_north_req_wen[t]                                 ;
-      assign tcdm_slave_north_req[NumTilesPerHive*tgt + t].wdata    = slave_north_req_wdata[t]                               ;
-      assign tcdm_slave_north_req[NumTilesPerHive*tgt + t].be       = slave_north_req_be[t]                                  ;
-      assign slave_north_req_ready[t]                               = tcdm_slave_north_req_ready[NumTilesPerHive*tgt + t]    ;
+      assign master_north_req_valid[t]                              = tcdm_master_north_req_valid[NumTilesPerHive*ini + idx[t]]   ;
+      assign master_north_req_tgt_addr[t]                           = tcdm_master_north_req[NumTilesPerHive*ini + idx[t]].tgt_addr;
+      assign master_north_req_wen[t]                                = tcdm_master_north_req[NumTilesPerHive*ini + idx[t]].wen     ;
+      assign master_north_req_wdata[t]                              = tcdm_master_north_req[NumTilesPerHive*ini + idx[t]].wdata   ;
+      assign master_north_req_be[t]                                 = tcdm_master_north_req[NumTilesPerHive*ini + idx[t]].be      ;
+      assign tcdm_master_north_req_ready[NumTilesPerHive*ini + idx[t]]   = master_north_req_ready[t]                              ;
+      assign slave_north_resp_valid[t]                              = tcdm_slave_north_resp_valid[NumTilesPerHive*ini + idx[t]]   ;
+      assign slave_north_resp_ini_addr[t]                           = tcdm_slave_north_resp[NumTilesPerHive*ini + idx[t]].ini_addr;
+      assign slave_north_resp_rdata[t]                              = tcdm_slave_north_resp[NumTilesPerHive*ini + idx[t]].rdata   ;
+      assign tcdm_slave_north_resp_ready[NumTilesPerHive*ini + idx[t]]   = slave_north_resp_ready[t]                              ;
+      assign tcdm_master_north_resp_valid[NumTilesPerHive*tgt + idx[t]]  = master_north_resp_valid[t]                             ;
+      assign tcdm_master_north_resp[NumTilesPerHive*tgt + idx[t]].rdata  = master_north_resp_rdata[t]                             ;
+      assign master_north_resp_ready[t]                             = tcdm_master_north_resp_ready[NumTilesPerHive*tgt + idx[t]]  ;
+      assign tcdm_slave_north_req_valid[NumTilesPerHive*tgt + idx[t]]    = slave_north_req_valid[t]                               ;
+      assign tcdm_slave_north_req[NumTilesPerHive*tgt + idx[t]].tgt_addr = slave_north_req_tgt_addr[t]                            ;
+      assign tcdm_slave_north_req[NumTilesPerHive*tgt + idx[t]].ini_addr = slave_north_req_ini_addr[t]                            ;
+      assign tcdm_slave_north_req[NumTilesPerHive*tgt + idx[t]].wen      = slave_north_req_wen[t]                                 ;
+      assign tcdm_slave_north_req[NumTilesPerHive*tgt + idx[t]].wdata    = slave_north_req_wdata[t]                               ;
+      assign tcdm_slave_north_req[NumTilesPerHive*tgt + idx[t]].be       = slave_north_req_be[t]                                  ;
+      assign slave_north_req_ready[t]                               = tcdm_slave_north_req_ready[NumTilesPerHive*tgt + idx[t]]    ;
     end
 
     variable_latency_interconnect #(
