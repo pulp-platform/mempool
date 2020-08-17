@@ -18,7 +18,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   ROOT_DIR: '$CI_PROJECT_DIR'
   APPS: "tests"
-  num_cores: 64
 
 workflow:
   rules:
