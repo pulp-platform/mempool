@@ -8,3 +8,5 @@ gmon.out
 *.temp
 # Vim files
 *.swp
+# PyCharm
+**.idea
