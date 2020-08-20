@@ -22,30 +22,29 @@
  * A is a vector of length A_size, B is a vector of size B_size
  */
 
-// #pragma once
-
 void conv2d_parallel(int32_t const *__restrict__ in, uint32_t in_x,
                      uint32_t in_y, uint32_t const volatile *__restrict__ k,
                      uint32_t k_x, uint32_t k_y,
                      int32_t volatile *__restrict__ out, uint32_t id,
                      uint32_t numThreads) {
-  uint32_t boundary_x = k_x / 2;
-  uint32_t boundary_y = k_y / 2;
+  int boundary_x = k_x / 2;
+  int boundary_y = k_y / 2;
+  // Now we only care about valid entries
+  while (id < boundary_x) {
+    id += numThreads;
+  }
   int32_t sum;
-  uint32_t weight;
+  uint32_t weight = 0;
   for (int i = 0; i < k_x * k_y; ++i) {
     weight += k[i];
   }
   // TODO implement boundary halo
-  // Now we only care about valid entries
   // Start at the boundary_x
-  if (id < boundary_x)
-    return;
   for (int i = id; i < in_x - boundary_x; i += numThreads) {
     for (int j = boundary_y; j < in_y - boundary_y; j++) {
       sum = 0;
-      for (int m = -boundary_y; m < k_y - boundary_y; m++) {
-        for (int n = -boundary_x; n < k_x - boundary_x; n++) {
+      for (int m = -boundary_y; m < (int)(k_y - boundary_y); m++) {
+        for (int n = -boundary_x; n < (int)(k_x - boundary_x); n++) {
           sum += in[(j + m) * in_x + (i + n)] *
                  k[(m + boundary_y) * k_x + (n + boundary_x)];
         }
@@ -63,17 +62,17 @@ void conv2d_shifted_parallel(int32_t const *__restrict__ in, uint32_t in_x,
   uint32_t boundary_x = k_x / 2;
   uint32_t boundary_y = k_y / 2;
   int32_t sum;
-  uint32_t weight;
+  uint32_t weight = 0;
   for (int i = 0; i < k_x * k_y; ++i) {
     weight += k[i];
   }
   // TODO implement boundary halo
   // Now we only care about valid entries
-  for (int i = id; i < in_x - (2 * boundary_x); i += numThreads) {
-    for (int j = 0; j < in_y - (2 * boundary_y); j++) {
+  for (uint32_t i = id; i < in_x - (2 * boundary_x); i += numThreads) {
+    for (uint32_t j = 0; j < in_y - (2 * boundary_y); j++) {
       sum = 0;
-      for (int m = 0; m < k_y; m++) {
-        for (int n = 0; n < k_x; n++) {
+      for (uint32_t m = 0; m < k_y; m++) {
+        for (uint32_t n = 0; n < k_x; n++) {
           sum += in[(j + m) * in_x + (i + n)] * k[m * k_x + n];
         }
       }
@@ -86,17 +85,16 @@ void conv2d_3x3_unrolled_parallel(int32_t const *__restrict__ in, uint32_t in_x,
                                   uint32_t in_y, uint32_t const *__restrict__ k,
                                   int32_t volatile *__restrict__ out,
                                   uint32_t id, uint32_t numThreads) {
-  uint32_t boundary_x = 1;
-  uint32_t boundary_y = 1;
   int32_t sum;
-  uint32_t weight;
+  uint32_t weight = 0;
   for (int i = 0; i < 9; ++i) {
     weight += k[i];
   }
   // TODO implement boundary halo
   // Now we only care about valid entries
-  if (id < 1)
-    return;
+  while (id < 1) {
+    id += numThreads;
+  }
 
   for (int i = id; i < in_x - 1; i += numThreads) {
     for (int j = 1; j < in_y - 1; j++) {
@@ -120,10 +118,8 @@ void conv2d_3x3_shifted_unrolled_parallel(int32_t const *__restrict__ in,
                                           uint32_t const *__restrict__ k,
                                           int32_t volatile *__restrict__ out,
                                           uint32_t id, uint32_t numThreads) {
-  uint32_t boundary_x = 1;
-  uint32_t boundary_y = 1;
   int32_t sum;
-  uint32_t weight;
+  uint32_t weight = 0;
   for (int i = 0; i < 9; ++i) {
     weight += k[i];
   }
@@ -141,38 +137,69 @@ void conv2d_3x3_shifted_unrolled_parallel(int32_t const *__restrict__ in,
       sum += in[(j + 2) * in_x + (i + 0)] * k[6];
       sum += in[(j + 2) * in_x + (i + 1)] * k[7];
       sum += in[(j + 2) * in_x + (i + 2)] * k[8];
-      out[(j + 1) + in_x + (i + 1)] = sum / weight;
+      out[(j + 1) * in_x + (i + 1)] = sum / weight;
     }
   }
 }
 
-void conv2d_3x3_shifted_unrolled(int32_t const *__restrict__ in, uint32_t in_x,
-                                 uint32_t in_y, uint32_t const *__restrict__ k,
-                                 int32_t volatile *__restrict__ out) {
-  uint32_t boundary_x = 1;
-  uint32_t boundary_y = 1;
-  int32_t sum;
-  uint32_t weight;
-  for (int i = 0; i < 9; ++i) {
-    weight += k[i];
-  }
-  // TODO implement boundary halo
-  // Now we only care about valid entries
-  for (int i = 0; i < in_x - 2; i += 1) {
-    for (int j = 0; j < in_y - 2; j++) {
-      sum = 0;
-      sum += in[(j + 0) * in_x + (i + 0)] * k[0];
-      sum += in[(j + 0) * in_x + (i + 1)] * k[1];
-      sum += in[(j + 0) * in_x + (i + 2)] * k[2];
-      sum += in[(j + 1) * in_x + (i + 0)] * k[3];
-      sum += in[(j + 1) * in_x + (i + 1)] * k[4];
-      sum += in[(j + 1) * in_x + (i + 2)] * k[5];
-      sum += in[(j + 2) * in_x + (i + 0)] * k[6];
-      sum += in[(j + 2) * in_x + (i + 1)] * k[7];
-      sum += in[(j + 2) * in_x + (i + 2)] * k[8];
-      out[(j + 1) + in_x + (i + 1)] = sum / weight;
+// Testing
+// Initialize the image in parallel
+void init_conv2d_image(volatile int32_t *img, uint32_t img_x, uint32_t img_y,
+                       uint32_t id, uint32_t numThreads) {
+  // Parallelize over rows
+  if (img_y > img_x) {
+    for (int i = id; i < img_y; i += numThreads) {
+      for (int j = 0; j < img_x; ++j) {
+        img[i * img_x + j] = (i % 16) + (j % 4);
+      }
+    }
+  } else {
+    for (int j = id; j < img_x; j += numThreads) {
+      for (int i = 0; i < img_y; ++i) {
+        img[i * img_x + j] = (i % 16) + (j % 4);
+      }
     }
   }
 }
 
-// void convolution(uint32_t id, uint32_t numThreads) { uint32_t sum; }
+// Initialize the image in parallel
+void zero_conv2d_image(volatile int32_t *img, uint32_t img_x, uint32_t img_y,
+                       uint32_t id, uint32_t numThreads) {
+  // Parallelize over rows
+  if (img_y > img_x) {
+    for (int i = id; i < img_y; i += numThreads) {
+      for (int j = 0; j < img_x; ++j) {
+        img[i * img_x + j] = 0;
+      }
+    }
+  } else {
+    for (int j = id; j < img_x; j += numThreads) {
+      for (int i = 0; i < img_y; ++i) {
+        img[i * img_x + j] = 0;
+      }
+    }
+  }
+}
+
+extern uint32_t barrier_init;
+
+// Verify and reset the image in parallel
+int verify_conv2d_image(volatile int32_t *img, uint32_t img_x, uint32_t img_y,
+                        uint32_t id, uint32_t numThreads) {
+  // Parallelize over rows
+  for (int i = id + 1; i < img_y - 1; i += numThreads) {
+    int32_t y = i % 16;
+    if (i % 16 == 0)
+      y = 4;
+    if (i % 16 == 15)
+      y = 11;
+    for (int32_t j = 1; j < img_x - 1; ++j) {
+      int32_t x = ((j % 4) / 2) + 1;
+      if (img[i * img_x + j] != x + y) {
+        return (i + j) == 0 ? -1 : i * img_x + j;
+      }
+      img[i * img_x + j] = 0;
+    }
+  }
+  return 0;
+}

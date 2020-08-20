@@ -28,33 +28,29 @@
 // #include "convolution_riscv.h"
 // #include "halide_runtime.h"
 
-#define M 4
-#define N 4
+#define M 80
+#define N (4 * NUM_CORES)
 #define KERNEL_N 3
-#define VERBOSE
+// #define VERBOSE
 
-int32_t volatile in[M * N] __attribute__((section(".l1")));
-int32_t volatile out[M * N] __attribute__((section(".l1")));
-uint32_t volatile kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
-
-int check_out(int32_t *out) {
-  uint32_t error = 0;
-  for (int i = 0; i < N * M; ++i) {
-    if (out[i] == 0)
-      error += 1;
-    out[i] = 0;
-  }
-  return 0;
-}
+volatile int32_t in[M * N] __attribute__((section(".l1")));
+volatile int32_t out[M * N] __attribute__((section(".l1")));
+volatile uint32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
+uint32_t volatile error __attribute__((section(".l1")));
 
 int main(int argc, char **argv) {
   uint32_t core_id = (uint32_t)argc;
   uint32_t num_cores = (uint32_t)argv;
   mempool_barrier_init(core_id, num_cores);
 
-  // #ifdef VERBOSE
   if (core_id == 0) {
+    // Hack the allocation of in and out before kernel
+    in[0] = -1;
+    out[0] = -1;
+#ifdef VERBOSE
     printf("Initialize\n");
+#endif
+    error = 0;
     kernel[0] = 1;
     kernel[1] = 2;
     kernel[2] = 1;
@@ -67,18 +63,16 @@ int main(int argc, char **argv) {
     kernel[7] = 2;
     kernel[8] = 1;
   }
-  // #endif
 
-  // Initialize in
-  for (int i = core_id; i < M; i += num_cores) {
-    for (int j = 0; j < N; j++) {
-      in[i * N + j] = core_id + ((i * i) + 4 * (j % 3) + (j % 9)) % 128;
-    }
-  }
+  int tests = error - in[0];
 
-  mempool_barrier(core_id, num_cores, num_cores / 4);
+  // Initialize img
+  init_conv2d_image(in, N, M, core_id, num_cores);
+  // zero_conv2d_image(out, N, M, core_id, num_cores);
 
 #ifdef VERBOSE
+  mempool_barrier(core_id, num_cores, num_cores / 4);
+
   if (core_id == 0) {
     printf("A:\n");
 
@@ -98,35 +92,47 @@ int main(int argc, char **argv) {
     }
   }
 
-  mempool_barrier(core_id, num_cores, num_cores / 4);
-
   if (core_id == 0) {
     printf("Start\n");
   }
 #endif
 
-  if (core_id == 0) {
-    conv2d_3x3_shifted_unrolled(in, N, M, kernel, out);
+  // Matrices are initialized --> Start calculating
+  for (int i = 0; i < 4; ++i) {
+    // Wait at barrier until everyone is ready
+    mempool_barrier(core_id, num_cores, num_cores / 2);
+    mempool_start_benchmark();
+    switch (i) {
+    case 0:
+      conv2d_parallel((const int32_t *)in, N, M, (const uint32_t *)kernel,
+                      KERNEL_N, KERNEL_N, (int32_t *)out, core_id, num_cores);
+      break;
+    case 1:
+      conv2d_shifted_parallel((const int32_t *)in, N, M,
+                              (const uint32_t *)kernel, KERNEL_N, KERNEL_N,
+                              (int32_t *)out, core_id, num_cores);
+      break;
+    case 2:
+      conv2d_3x3_unrolled_parallel((const int32_t *)in, N, M,
+                                   (const uint32_t *)kernel, (int32_t *)out,
+                                   core_id, num_cores);
+      break;
+    case 3:
+      conv2d_3x3_shifted_unrolled_parallel((const int32_t *)in, N, M,
+                                           (const uint32_t *)kernel,
+                                           (int32_t *)out, core_id, num_cores);
+      break;
+    case 4:
+      break;
+    }
+    mempool_stop_benchmark();
+    // Wait at barrier befor checking
+    mempool_barrier(core_id, num_cores, num_cores * 4);
+    // Check result
+    if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
+      __atomic_fetch_or(&error, i, __ATOMIC_SEQ_CST);
+    }
   }
-
-  // // Initialized --> Start calculating
-  // conv2d_shifted_parallel(in, N, M, kernel, KERNEL_N, KERNEL_N, out, core_id,
-  //                 num_cores);
-  // // check_out(out);
-
-  // // wait until all cores have finished
-  // mempool_barrier(core_id, num_cores, num_cores / 4);
-
-  // // Initialized --> Start calculating
-  // conv2d_3x3_unrolled_parallel(in, N, M, kernel, out, core_id, num_cores);
-  // // check_out(out);
-
-  // // wait until all cores have finished
-  // mempool_barrier(core_id, num_cores, num_cores / 4);
-
-  // conv2d_3x3_shifted_unrolled_parallel(in, N, M, kernel, out, core_id,
-  //                                      num_cores);
-  // // check_out(out);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -151,5 +157,5 @@ int main(int argc, char **argv) {
   mempool_barrier(core_id, num_cores, 4 * num_cores);
 #endif
 
-  return 0;
+  return error;
 }
