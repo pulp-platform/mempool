@@ -107,7 +107,7 @@ benchmark: log simc
 trace: pre_trace $(trace) post_trace
 
 log:
-	mkdir -p "$(result_dir)/original"
+	mkdir -p "$(result_dir)"
 	[ -e "$(preload)" ] && cp "$(preload)"* "$(result_dir)" || \
 	([ -e "$(buildpath)/transcript" ] && \
 	cp "$$(grep -oP '(?<=\+PRELOAD=)[^ \"]*' $(buildpath)/transcript)"* "$(result_dir)" || \
@@ -122,11 +122,10 @@ pre_trace:
 	rm -rf $(tracepath)
 
 post_trace:
-	mkdir -p "$(result_dir)/original"
+	mkdir -p "$(result_dir)"
 	cp $(buildpath)/transcript "$(result_dir)/"
 	cp $(traceresult) "$(result_dir)"
 	cp $(trace) "$(result_dir)"
-	cp $(wildcard $(buildpath)/*.dasm) "$(result_dir)/original"
 
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
