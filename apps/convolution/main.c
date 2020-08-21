@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
 #endif
 
   // Matrices are initialized --> Start calculating
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 2; i < 3; ++i) {
     // Wait at barrier until everyone is ready
     mempool_barrier(core_id, num_cores, num_cores / 2);
     mempool_start_benchmark();

@@ -91,13 +91,23 @@ void conv2d_3x3_unrolled_parallel(int32_t const *__restrict__ in, uint32_t in_x,
     weight += k[i];
   }
   // TODO implement boundary halo
+  uint32_t div = in_x / numThreads;
+  uint32_t rem = in_x % numThreads;
+  uint32_t start = div * id;
+  uint32_t end = div * (id + 1);
+  // Add remainder
+  start += id < rem ? id : rem;
+  end += id < rem ? id : rem;
   // Now we only care about valid entries
-  while (id < 1) {
-    id += numThreads;
+  if (start < 1) {
+    start = 1;
+  }
+  if (end > in_x - 1) {
+    end = in_x - 1;
   }
 
-  for (int i = id; i < in_x - 1; i += numThreads) {
-    for (int j = 1; j < in_y - 1; j++) {
+  for (uint32_t i = start; i < end; ++i) {
+    for (uint32_t j = 1; j < in_y - 1; j++) {
       sum = 0;
       sum += in[(j - 1) * in_x + (i - 1)] * k[0];
       sum += in[(j - 1) * in_x + (i + 0)] * k[1];
