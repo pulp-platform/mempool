@@ -155,6 +155,7 @@ src/tcdm_adapter.sv
 src/tcdm_shim.sv
 src/mempool_tile.sv
 src/mempool_tile_wrap_NumHives4.sv
+src/mempool_hive.sv
 src/mempool.sv
 src/mempool_wrap.sv
 

@@ -32,16 +32,6 @@ module mempool_wrap #(
     output logic scan_data_o
   );
 
-  /*********
-   *  AXI  *
-   *********/
-
-  `include "axi/assign.svh"
-  `include "axi/typedef.svh"
-
-  axi_req_t  [NumTiles-1:0] axi_mst_req;
-  axi_resp_t [NumTiles-1:0] axi_mst_resp;
-
   /*********************
    *  MemPool Cluster  *
    *********************/
@@ -58,9 +48,7 @@ module mempool_wrap #(
     .testmode_i    (testmode_i   ),
     .scan_enable_i (scan_enable_i),
     .scan_data_i   (scan_data_i  ),
-    .scan_data_o   (scan_data_o  ),
-    .axi_mst_req_o (axi_mst_req  ),
-    .axi_mst_resp_i(axi_mst_resp )
+    .scan_data_o   (scan_data_o  )
   );
 
 endmodule : mempool_wrap

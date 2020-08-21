@@ -22,8 +22,10 @@ sources:
   # Level 2
   - hardware/src/mempool_tile_wrap_NumHives4.sv
   # Level 3
-  - hardware/src/mempool.sv
+  - hardware/src/mempool_hive.sv
   # Level 4
+  - hardware/src/mempool.sv
+  # Level 5
   - hardware/src/mempool_wrap.sv
 
   - target: mempool_test

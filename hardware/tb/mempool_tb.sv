@@ -39,6 +39,7 @@ module mempool_tb;
   localparam addr_t TCDMBaseAddr    = '0;
   localparam        TCDMSizePerBank = 1024 /* [B] */;
   localparam        NumTiles        = NumCores / NumCoresPerTile;
+  localparam        NumTilesPerHive = NumTiles / NumHives;
   localparam        NumBanks        = NumCores * BankingFactor;
   localparam        TCDMSize        = NumBanks * TCDMSizePerBank;
 
@@ -126,15 +127,20 @@ module mempool_tb;
     .TCDMBaseAddr (TCDMBaseAddr  ),
     .BootAddr     (32'h8001_0000 )
   ) dut (
-    .clk_i          (clk           ),
-    .rst_ni         (rst_n         ),
-    .testmode_i     (1'b0          ),
-    .axi_mst_req_o  (axi_mst_req_o ),
-    .axi_mst_resp_i (axi_mst_resp_i),
-    .scan_enable_i  (1'b0          ),
-    .scan_data_i    (1'b0          ),
-    .scan_data_o    (/* Unused */  )
+    .clk_i         (clk          ),
+    .rst_ni        (rst_n        ),
+    .testmode_i    (1'b0         ),
+    .scan_enable_i (1'b0         ),
+    .scan_data_i   (1'b0         ),
+    .scan_data_o   (/* Unused */ )
   );
+
+  for (genvar h = 0; h < NumHives; h++) begin: gen_axi_connections
+    for (genvar t = 0; t < NumTilesPerHive; t++) begin
+      assign axi_mst_req_o[NumTilesPerHive*h + t]                       = dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.axi_mst_req_o;
+      assign dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.axi_mst_resp_i = axi_mst_resp_i[NumTilesPerHive*h + t]                    ;
+    end
+  end
 
   /**********************
    *  AXI Interconnect  *
@@ -200,13 +206,13 @@ module mempool_tb;
   `AXI_ASSIGN_TO_RESP (axi_mem_resp[L2Memory], axi_l2memory_slave);
 
   // Memory
-  logic  mem_req;
-  addr_t mem_addr;
-  data_t mem_wdata;
-  strb_t mem_strb;
+  logic  mem_req ;
+  addr_t mem_addr ;
+  data_t mem_wdata ;
+  strb_t mem_strb ;
   data_t mem_strb_int;
-  logic  mem_we;
-  data_t mem_rdata;
+  logic  mem_we ;
+  data_t mem_rdata ;
 
   axi2mem #(
     .AXI_ADDR_WIDTH(AddrWidth    ),
@@ -339,52 +345,54 @@ module mempool_tb;
    *  Instruction Memory  *
    ************************/
 
-  localparam addr_t ICacheLineWidth   = dut.gen_tiles[0].i_tile.i_tile.i_snitch_icache.LINE_WIDTH;
+  localparam addr_t ICacheLineWidth   = dut.gen_hives[0].i_hive.gen_tiles[0].i_tile.i_tile.i_snitch_icache.LINE_WIDTH;
   localparam addr_t ICacheBytes       = ICacheLineWidth / 8 ;
-  localparam addr_t ICacheAddressMask = ~(ICacheBytes - 1);
-  localparam addr_t ICacheByteOffset  = $clog2(ICacheBytes);
+  localparam addr_t ICacheAddressMask = ~(ICacheBytes - 1) ;
+  localparam addr_t ICacheByteOffset  = $clog2(ICacheBytes) ;
 
   logic [ICacheLineWidth-1:0] instr_memory[addr_t];
 
-  for (genvar t = 0; t < NumTiles; t++) begin: drive_inst_mem
-    static addr_t address       = '0;
-    static integer unsigned len = '0;
+  for (genvar h = 0; h < NumHives; h++) begin: drive_inst_mem
+    for (genvar t = 0; t < NumTiles/NumHives; t++) begin
+      static addr_t address       = '0;
+      static integer unsigned len = '0;
 
-    initial begin
-      while (1) begin
-        @(posedge clk);
-        #TA
-        if (dut.gen_tiles[t].i_tile.refill_qvalid_o) begin
-          // Respond to request
-          address = dut.gen_tiles[t].i_tile.refill_qaddr_o;
-          len     = dut.gen_tiles[t].i_tile.refill_qlen_o ;
-
-          cache_line_alignment: assume ((address & ICacheAddressMask) == address)
-          else $fatal(1, "Tile %0d request instruction at %x, but we only support cache-line boundary addresses.", t, address);
-
-          force dut.gen_tiles[t].i_tile.refill_qready_i = 1'b1;
+      initial begin
+        while (1) begin
           @(posedge clk);
-          force dut.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
-          // Response
-          for (int i = 0; i < len; i++) begin
-            force dut.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
-            force dut.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1                 ;
-            force dut.gen_tiles[t].i_tile.refill_plast_i  = 1'b0                 ;
-            address += ICacheBytes                     ;
-            wait(dut.gen_tiles[t].i_tile.refill_pready_o);
+          #TA
+          if (dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qvalid_o) begin
+            // Respond to request
+            address = dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qaddr_o;
+            len     = dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qlen_o ;
+
+            cache_line_alignment: assume ((address & ICacheAddressMask) == address)
+            else $fatal(1, "Tile %0d request instruction at %x, but we only support cache-line boundary addresses.", t, address);
+
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qready_i = 1'b1;
             @(posedge clk);
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
+            // Response
+            for (int i = 0; i < len; i++) begin
+              force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
+              force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1                 ;
+              force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_plast_i  = 1'b0                 ;
+              address += ICacheBytes                                           ;
+              wait(dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pready_o);
+              @(posedge clk);
+            end
+            // Last response
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1                 ;
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_plast_i  = 1'b1                 ;
+            wait(dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pready_o);
+            @(posedge clk);
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pvalid_i = 1'b0;
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_plast_i  = 1'b0;
+          end else begin
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pdata_i  = '0  ;
+            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
           end
-          // Last response
-          force dut.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
-          force dut.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1                 ;
-          force dut.gen_tiles[t].i_tile.refill_plast_i  = 1'b1                 ;
-          wait(dut.gen_tiles[t].i_tile.refill_pready_o);
-          @(posedge clk);
-          force dut.gen_tiles[t].i_tile.refill_pvalid_i = 1'b0;
-          force dut.gen_tiles[t].i_tile.refill_plast_i  = 1'b0;
-        end else begin
-          force dut.gen_tiles[t].i_tile.refill_pdata_i  = '0  ;
-          force dut.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
         end
       end
     end
