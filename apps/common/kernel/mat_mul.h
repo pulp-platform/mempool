@@ -86,7 +86,7 @@ void mat_mul_unrolled_parallel(int32_t const *__restrict__ A,
       int32_t c1 = 0;
       int32_t c2 = 0;
       int32_t c3 = 0;
-      for (int k = 0; k < N; ++k) {
+      for (uint32_t k = 0; k < N; ++k) {
         // Explicitly load the values first to help with scheduling
         int32_t val_a = A[i * N + k];
         int32_t val_b0 = B[k * P + j + 0];
@@ -117,7 +117,7 @@ void mat_mul_unrolled2_parallel(int32_t const *__restrict__ A,
       int32_t c01 = 0;
       int32_t c10 = 0;
       int32_t c11 = 0;
-      for (int k = 0; k < N; ++k) {
+      for (uint32_t k = 0; k < N; k += 2) {
         // Explicitly load the values first to help with scheduling
         int32_t val_a00 = A[(i + 0) * N + k + 0];
         int32_t val_a01 = A[(i + 0) * N + k + 1];
