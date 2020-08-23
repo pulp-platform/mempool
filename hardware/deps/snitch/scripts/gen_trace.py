@@ -18,6 +18,7 @@ import csv
 from csv import DictWriter
 from ctypes import c_int32, c_uint32
 from collections import deque, defaultdict
+from itertools import compress
 
 
 EXTRA_WB_WARN = 'WARNING: {} transactions still in flight for {}.'
@@ -71,6 +72,8 @@ FLOAT_FMTS = ((8, 23), (11, 52), (5, 10), (5, 2), (8, 7))
 LS_TO_FLOAT = (3, 2, 0, 1)
 
 CSR_NAMES = {0xb00: 'mcycle', 0xf14: 'mhartid'}
+
+MEM_REGIONS = {'Other': 0, 'Sequential': 1, 'Interleaved': 2}
 
 # ----------------- Architecture Info  -----------------
 NUM_CORES = int(os.environ.get('num_cores', 256))
@@ -274,15 +277,15 @@ def annotate_snitch(
 	if extras['retire_load'] and extras['lsu_rd'] != 0:
 		try:
 			start_time, address = gpr_wb_info[extras['lsu_rd']].pop()
-			region = -1
+			region = MEM_REGIONS['Other']
 			tile = -1
 			if (address < SEQ_MEM_SIZE*NUM_TILES):
 				# Local memory
-				region = 1
+				region = MEM_REGIONS['Sequential']
 				tile = address // SEQ_MEM_SIZE
 			elif (address < TCDM_SIZE):
 				# Interleaved memory
-				region = 2
+				region = MEM_REGIONS['Interleaved']
 				tile = address // 64
 				tile = tile % NUM_TILES
 			perf_metrics[-1].setdefault('snitch_load_latency', []).append(cycle - start_time)
@@ -453,7 +456,7 @@ def safe_div(dividend, divisor):
 	return dividend / divisor if divisor else None
 
 
-def eval_perf_metrics(perf_metrics: list):
+def eval_perf_metrics(perf_metrics: list, id: int):
 	for seg in perf_metrics:
 		end = seg['end']
 		cycles = end - seg['start'] + 1
@@ -464,6 +467,19 @@ def eval_perf_metrics(perf_metrics: list):
 		})
 		seg['cycles'] = cycles
 		seg['total_ipc'] = seg['snitch_occupancy']
+		# Detailed load/store info
+		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
+		seq_loads = list(compress(seg['snitch_load_tile'],seq_region))
+		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
+		itl_loads = list(compress(seg['snitch_load_tile'],itl_region))
+		tile_id = int(id // 4)
+		seg.update({
+			'seq_loads_local': seq_loads.count(tile_id),
+			'seq_loads_global': len(seq_loads) - seq_loads.count(tile_id),
+			'itl_loads_local': itl_loads.count(tile_id),
+			'itl_loads_global': len(itl_loads) - itl_loads.count(tile_id)
+		})
+
 
 
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
@@ -577,7 +593,7 @@ def main():
 	if not bool(perf_metrics[-1]):
 		perf_metrics.pop()
 	# Compute metrics
-	eval_perf_metrics(perf_metrics)
+	eval_perf_metrics(perf_metrics, core_id)
 	# Add metadata
 	for sec in perf_metrics:
 		sec['core'] = core_id
