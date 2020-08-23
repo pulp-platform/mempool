@@ -11,7 +11,7 @@ if [[ ! -f $app ]]; then
 fi
 
 # Run all three scenarios
-scenarios=('Original' '1Hive' '4Hives')
+scenarios=('Original' '1Hive' '2Hives' '4Hives')
 for scenario in "${scenarios[@]}"; do
   echo $scenario
   # Do some changes to get the correct HW state
@@ -23,6 +23,8 @@ for scenario in "${scenarios[@]}"; do
     num_hives=0
   elif [[ "$scenario" == "1Hive" ]]; then
     num_hives=1
+  elif [[ "$scenario" == "2Hives" ]]; then
+    num_hives=2
   else
     num_hives=4
   fi
