@@ -199,6 +199,15 @@ module mempool_cc #(
     end
   end
 
+  logic stall_instr;
+  always_ff @(posedge clk_i) begin
+    if(rst_i) begin
+      stall_instr <= 0;
+    end else begin
+      stall_instr <= (!i_snitch.inst_ready_i) && (i_snitch.inst_valid_o);
+    end
+  end
+
   typedef enum logic [1:0] {SrcSnitch =  0, SrcFpu = 1, SrcFpuSeq = 2} trace_src_e;
 
   longint extras_snitch       [string];
@@ -207,7 +216,8 @@ module mempool_cc #(
     // State
     "source":       SrcSnitch,
     "stall":        i_snitch.stall,
-    "stall_instr":  (!i_snitch.valid_instr),
+    "stall_instr":  stall_instr,
+    "stall_data":   ((!i_snitch.operands_ready) || (!i_snitch.dst_ready)),
     "stall_lsu":    i_snitch.lsu_stall,
     "stall_acc":    i_snitch.acc_stall,
     // Decoding

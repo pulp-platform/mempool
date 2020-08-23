@@ -36,7 +36,7 @@ TRACE_OUT_FMT = '{:>8} {:>8} {:>10} {:<30}'
 MAX_SIGNED_INT_LIT = 0xFFFF
 
 # Performance keys which only serve to compute other metrics: omit on printing
-PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_issues', 'snitch_load_latency', 'snitch_load_region', 'snitch_load_tile')
+PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_load_latency', 'snitch_load_region', 'snitch_load_tile')
 
 
 # -------------------- Architectural constants and enums  --------------------
@@ -225,6 +225,7 @@ def read_annotations(dict_str: str) -> dict:
 def annotate_snitch(
 		extras: dict,
 		cycle: int,
+		last_cycle: int,
 		pc: int,
 		gpr_wb_info: dict,
 		perf_metrics: list,
@@ -304,14 +305,17 @@ def annotate_snitch(
 	if not extras['stall'] and extras['pc_d'] != pc + 4:
 		ret.append('goto {}'.format(int_lit(extras['pc_d'])))
 	# Count stalls
-	if extras['stall']:
-		perf_metrics[-1]['stall_cycles'] += 1
+	if extras['stall'] or extras['stall_instr']:
+		stall_cycles = cycle - last_cycle
+		perf_metrics[-1]['stall_cycles'] += stall_cycles
 		if extras['stall_instr']:
-			perf_metrics[-1]['stall_instr'] += 1
+			perf_metrics[-1]['stall_instr'] += stall_cycles
+		if extras['stall_data']:
+			perf_metrics[-1]['stall_data'] += stall_cycles
 		if extras['stall_lsu']:
-			perf_metrics[-1]['stall_lsu'] += 1
+			perf_metrics[-1]['stall_lsu'] += stall_cycles
 		if extras['stall_acc']:
-			perf_metrics[-1]['stall_acc'] += 1
+			perf_metrics[-1]['stall_acc'] += stall_cycles
 	# Return comma-delimited list
 	return ', '.join(ret)
 
@@ -402,7 +406,7 @@ def annotate_insn(
 		extras = read_annotations(extras_str)
 		# Annotate snitch
 		if extras['source'] == TRACE_SRCES['snitch']:
-			annot = annotate_snitch(extras, time_info[1], int(pc_str, 16),
+			annot = annotate_snitch(extras, time_info[1], last_time_info[1], int(pc_str, 16),
 				gpr_wb_info, perf_metrics, annot_fseq_offl, force_hex_addr, permissive)
 			if extras['fpu_offload']:
 				perf_metrics[-1]['snitch_fseq_offloads'] += 1
@@ -509,7 +513,7 @@ def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 def perf_metrics_to_csv(perf_metrics: list, filename: str):
 	keys = perf_metrics[0].keys()
 	known_keys = ['core','section','start','end','cycles','snitch_loads','snitch_stores','snitch_avg_load_latency','snitch_occupancy',
-								'snitch_load_latency','total_ipc','snitch_issues','stall_cycles','stall_instr','stall_lsu','stall_acc']
+								'snitch_load_latency','total_ipc','snitch_issues','stall_cycles','stall_instr','stall_data','stall_lsu','stall_acc']
 	for key in keys:
 		if key not in known_keys:
 			known_keys.append(key)
@@ -550,7 +554,7 @@ def main():
 	else:
 		core_id = -1
 	# Prepare stateful data structures
-	time_info = None
+	time_info = (0,0)
 	gpr_wb_info = defaultdict(deque)
 	fpr_wb_info = defaultdict(deque)
 	fseq_info = {
