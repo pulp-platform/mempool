@@ -468,16 +468,25 @@ def eval_perf_metrics(perf_metrics: list, id: int):
 		seg['cycles'] = cycles
 		seg['total_ipc'] = seg['snitch_occupancy']
 		# Detailed load/store info
-		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
-		seq_loads = list(compress(seg['snitch_load_tile'],seq_region))
-		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
-		itl_loads = list(compress(seg['snitch_load_tile'],itl_region))
 		tile_id = int(id // 4)
+		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
+		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
+		loc_loads = [x == tile_id for x in seg['snitch_load_tile']]
+		seq_loads = list(compress(seg['snitch_load_tile'],seq_region))
+		itl_loads = list(compress(seg['snitch_load_tile'],itl_region))
+		seq_loads_local = np.logical_and(np.array(seq_region), np.array(loc_loads))
+		seq_loads_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_loads)))
+		itl_loads_local = np.logical_and(np.array(itl_region), np.array(loc_loads))
+		itl_loads_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_loads)))
 		seg.update({
-			'seq_loads_local': seq_loads.count(tile_id),
-			'seq_loads_global': len(seq_loads) - seq_loads.count(tile_id),
-			'itl_loads_local': itl_loads.count(tile_id),
-			'itl_loads_global': len(itl_loads) - itl_loads.count(tile_id)
+			'seq_loads_local': np.count_nonzero(seq_loads_local),
+			'seq_loads_global': np.count_nonzero(seq_loads_global),
+			'itl_loads_local': np.count_nonzero(itl_loads_local),
+			'itl_loads_global': np.count_nonzero(itl_loads_global),
+			'seq_latency_local': np.mean(np.select(seq_loads_local, np.array(seg['snitch_load_latency']))),
+			'seq_latency_global': np.mean(np.select(seq_loads_global, np.array(seg['snitch_load_latency']))),
+			'itl_latency_local': np.mean(np.select(itl_loads_local, np.array(seg['snitch_load_latency']))),
+			'itl_latency_global': np.mean(np.select(itl_loads_global, np.array(seg['snitch_load_latency']))),
 		})
 
 
