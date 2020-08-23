@@ -156,4 +156,7 @@ clean:
 clean-dasm:
 	rm -rf $(buildpath)/*.dasm
 
+clean-trace:
+	rm -rf $(buildpath)/*.trace
+
 .PHONY: build lib sim simc clean clean-dasm
