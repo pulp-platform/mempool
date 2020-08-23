@@ -67,7 +67,7 @@ package mempool_pkg;
    *****************/
 
   // Size in bytes of memory that is sequentially addressable per tile
-  parameter int unsigned SeqMemSizePerTile = 4*1024; // 1 KiB
+  parameter int unsigned SeqMemSizePerTile = NumCoresPerTile*1024; // 1 KiB
 
   typedef struct packed {
     int unsigned slave_idx;
