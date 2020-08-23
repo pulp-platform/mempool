@@ -207,6 +207,9 @@ module mempool_cc #(
     // State
     "source":       SrcSnitch,
     "stall":        i_snitch.stall,
+    "stall_instr":  (!i_snitch.valid_instr),
+    "stall_lsu":    i_snitch.lsu_stall,
+    "stall_acc":    i_snitch.acc_stall,
     // Decoding
     "rs1":          i_snitch.rs1,
     "rs2":          i_snitch.rs2,
