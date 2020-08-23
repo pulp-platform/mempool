@@ -22,11 +22,12 @@
  * TODO
  */
 
-#define DCT_SCALING (12) // DCT constants will be scaled by 2^DCT_SCALING
+#define DCT_SCALING (8) // DCT constants will be scaled by 2^DCT_SCALING
 #define DCT_SHIFT (16 - DCT_SCALING)
 
 // https://web.stanford.edu/class/ee398a/handouts/lectures/07-TransformCoding.pdf#page=30
-void fdct_8(int32_t const *in, int32_t *out, uint32_t stride_in, uint32_t stride_out) {
+void fdct_8(int32_t const *in, int32_t *out, uint32_t stride_in,
+            uint32_t stride_out) {
   // Constants: ck = cos(pi*k/16) * 10^16 >> DCT_SHIFT
   static const int32_t c0 = 65536 >> (DCT_SHIFT); // 1
   static const int32_t c2 = 60547 >> (DCT_SHIFT); // sqrt(2+sqrt(2))/2
@@ -106,186 +107,50 @@ void fdct_8(int32_t const *in, int32_t *out, uint32_t stride_in, uint32_t stride
   // Scaling and bitreverse
   out[0 * stride_out] = s5_0 * S0 >> (DCT_SCALING);
   out[4 * stride_out] = s5_1 * S4 >> (DCT_SCALING);
-  out[2 * stride_out] = s5_2 * S2 >> (DCT_SCALING+DCT_SCALING);
-  out[6 * stride_out] = s5_3 * S6 >> (DCT_SCALING+DCT_SCALING);
-  out[5 * stride_out] = s5_4 * S5 >> (DCT_SCALING+DCT_SCALING);
-  out[1 * stride_out] = s5_5 * S1 >> (DCT_SCALING+DCT_SCALING);
-  out[7 * stride_out] = s5_6 * S7 >> (DCT_SCALING+DCT_SCALING);
-  out[3 * stride_out] = s5_7 * S3 >> (DCT_SCALING+DCT_SCALING);
+  out[2 * stride_out] = s5_2 * S2 >> (DCT_SCALING + DCT_SCALING);
+  out[6 * stride_out] = s5_3 * S6 >> (DCT_SCALING + DCT_SCALING);
+  out[5 * stride_out] = s5_4 * S5 >> (DCT_SCALING + DCT_SCALING);
+  out[1 * stride_out] = s5_5 * S1 >> (DCT_SCALING + DCT_SCALING);
+  out[7 * stride_out] = s5_6 * S7 >> (DCT_SCALING + DCT_SCALING);
+  out[3 * stride_out] = s5_7 * S3 >> (DCT_SCALING + DCT_SCALING);
 }
 
-void fdct_8x8(int32_t const *in, int32_t *out, uint32_t stride_x, uint32_t stride_y) {
+void fdct_8x8(int32_t const *in, int32_t *out, uint32_t stride_x,
+              uint32_t stride_y) {
   // Create an 8x8 buffer on the stack.
   int32_t tmp[8][8];
   // Calculate all rows
-  for (int i = 0; i < 8; ++i) {
+  for (uint32_t i = 0; i < 8; ++i) {
     // fdct_8(&in[i*stride_y], &out[i*stride_y], stride_x, stride_x);
-    fdct_8(&in[i*stride_y], &tmp[i][0], stride_x, 1);
+    fdct_8(&in[i * stride_y], &tmp[i][0], stride_x, 1);
   }
   // BARRIER
-  for (int i = 0; i < 8; ++i) {
+  for (uint32_t i = 0; i < 8; ++i) {
     // fdct_8(&out[i*stride_y], &out[i*stride_y], stride_y, stride_y);
-    fdct_8(&tmp[0][i], &out[i], 8, stride_y);
+    fdct_8(&tmp[0][i], &out[i * stride_x], 8, stride_y);
   }
 }
 
-
-  /* Fast DCT algorithm due to Arai, Agui, Nakajima
-   * Implementation due to Tim Kientzle
-   */
-  // void dct_8x8(int32_t *tga, double data[8][8], const int xpos, const int
-  // ypos) {
-  //   int i;
-  //   int rows[8][8];
-
-  //   static const int c1 = 1004 /* cos(pi/16) << 10 */, s1 = 200 /* sin(pi/16)
-  // */,
-  //                    c3 = 851 /* cos(3pi/16) << 10 */,
-  //                    s3 = 569 /* sin(3pi/16) << 10 */,
-  //                    r2c6 = 554 /* sqrt(2)*cos(6pi/16) << 10 */,
-  //                    r2s6 = 1337 /* sqrt(2)*sin(6pi/16) << 10 */,
-  //                    r2 = 181; /* sqrt(2) << 7*/
-
-  //   int x0, x1, x2, x3, x4, x5, x6, x7, x8;
-
-  //   /* transform rows */
-  //   for (i = 0; i < 8; i++) {
-  //     x0 = pixel(tga, xpos + 0, ypos + i);
-  //     x1 = pixel(tga, xpos + 1, ypos + i);
-  //     x2 = pixel(tga, xpos + 2, ypos + i);
-  //     x3 = pixel(tga, xpos + 3, ypos + i);
-  //     x4 = pixel(tga, xpos + 4, ypos + i);
-  //     x5 = pixel(tga, xpos + 5, ypos + i);
-  //     x6 = pixel(tga, xpos + 6, ypos + i);
-  //     x7 = pixel(tga, xpos + 7, ypos + i);
-
-  //     /* Stage 1 */
-  //     x8 = x7 + x0;
-  //     x0 -= x7;
-  //     x7 = x1 + x6;
-  //     x1 -= x6;
-  //     x6 = x2 + x5;
-  //     x2 -= x5;
-  //     x5 = x3 + x4;
-  //     x3 -= x4;
-
-  //     /* Stage 2 */
-  //     x4 = x8 + x5;
-  //     x8 -= x5;
-  //     x5 = x7 + x6;
-  //     x7 -= x6;
-  //     x6 = c1 * (x1 + x2);
-  //     x2 = (-s1 - c1) * x2 + x6;
-  //     x1 = (s1 - c1) * x1 + x6;
-  //     x6 = c3 * (x0 + x3);
-  //     x3 = (-s3 - c3) * x3 + x6;
-  //     x0 = (s3 - c3) * x0 + x6;
-
-  //     /* Stage 3 */
-  //     x6 = x4 + x5;
-  //     x4 -= x5;
-  //     x5 = r2c6 * (x7 + x8);
-  //     x7 = (-r2s6 - r2c6) * x7 + x5;
-  //     x8 = (r2s6 - r2c6) * x8 + x5;
-  //     x5 = x0 + x2;
-  //     x0 -= x2;
-  //     x2 = x3 + x1;
-  //     x3 -= x1;
-
-  //      Stage 4 and output
-  //     rows[i][0] = x6;
-  //     rows[i][4] = x4;
-  //     rows[i][2] = x8 >> 10;
-  //     rows[i][6] = x7 >> 10;
-  //     rows[i][7] = (x2 - x5) >> 10;
-  //     rows[i][1] = (x2 + x5) >> 10;
-  //     rows[i][3] = (x3 * r2) >> 17;
-  //     rows[i][5] = (x0 * r2) >> 17;
-  //   }
-
-  //   /* transform columns */
-  //   for (i = 0; i < 8; i++) {
-  //     x0 = rows[0][i];
-  //     x1 = rows[1][i];
-  //     x2 = rows[2][i];
-  //     x3 = rows[3][i];
-  //     x4 = rows[4][i];
-  //     x5 = rows[5][i];
-  //     x6 = rows[6][i];
-  //     x7 = rows[7][i];
-
-  //     /* Stage 1 */
-  //     x8 = x7 + x0;
-  //     x0 -= x7;
-  //     x7 = x1 + x6;
-  //     x1 -= x6;
-  //     x6 = x2 + x5;
-  //     x2 -= x5;
-  //     x5 = x3 + x4;
-  //     x3 -= x4;
-
-  //     /* Stage 2 */
-  //     x4 = x8 + x5;
-  //     x8 -= x5;
-  //     x5 = x7 + x6;
-  //     x7 -= x6;
-  //     x6 = c1 * (x1 + x2);
-  //     x2 = (-s1 - c1) * x2 + x6;
-  //     x1 = (s1 - c1) * x1 + x6;
-  //     x6 = c3 * (x0 + x3);
-  //     x3 = (-s3 - c3) * x3 + x6;
-  //     x0 = (s3 - c3) * x0 + x6;
-
-  //     /* Stage 3 */
-  //     x6 = x4 + x5;
-  //     x4 -= x5;
-  //     x5 = r2c6 * (x7 + x8);
-  //     x7 = (-r2s6 - r2c6) * x7 + x5;
-  //     x8 = (r2s6 - r2c6) * x8 + x5;
-  //     x5 = x0 + x2;
-  //     x0 -= x2;
-  //     x2 = x3 + x1;
-  //     x3 -= x1;
-
-  //     /* Stage 4 and output */
-  //     data[0][i] = (double)((x6 + 16) >> 3);
-  //     data[4][i] = (double)((x4 + 16) >> 3);
-  //     data[2][i] = (double)((x8 + 16384) >> 13);
-  //     data[6][i] = (double)((x7 + 16384) >> 13);
-  //     data[7][i] = (double)((x2 - x5 + 16384) >> 13);
-  //     data[1][i] = (double)((x2 + x5 + 16384) >> 13);
-  //     data[3][i] = (double)(((x3 >> 8) * r2 + 8192) >> 12);
-  //     data[5][i] = (double)(((x0 >> 8) * r2 + 8192) >> 12);
-  //   }
-  // }
-
-  void dct8x8_parallel(
-      int32_t const * __restrict__ in, uint32_t in_x, uint32_t in_y,
-      uint32_t const volatile * __restrict__ k, uint32_t k_x, uint32_t k_y,
-      int32_t volatile * __restrict__ out, uint32_t id, uint32_t numThreads) {
-    int boundary_x = k_x / 2;
-    int boundary_y = k_y / 2;
-    // Now we only care about valid entries
-    while (id < boundary_x) {
-      id += numThreads;
+void fdct_8x8_parallel(int32_t const *in, uint32_t in_x, uint32_t in_y,
+                       int32_t *__restrict__ out, uint32_t id,
+                       uint32_t numThreads) {
+  // Assume image is divisible into 8x8 chunks
+  uint32_t tiles_x = in_x >> 3;
+  uint32_t tiles_y = in_y >> 3;
+  uint32_t tile_id;
+  if (tiles_x == (numThreads / 2)) {
+    // Process two rows of tiles at once to use local memory
+    tile_id = id / 2;
+    if (id & 0x1) {
+      tile_id += tiles_x; // Process second row
     }
-    int32_t sum;
-    uint32_t weight = 0;
-    for (int i = 0; i < k_x * k_y; ++i) {
-      weight += k[i];
-    }
-    // TODO implement boundary halo
-    // Start at the boundary_x
-    for (int i = id; i < in_x - boundary_x; i += numThreads) {
-      for (int j = boundary_y; j < in_y - boundary_y; j++) {
-        sum = 0;
-        for (int m = -boundary_y; m < (int)(k_y - boundary_y); m++) {
-          for (int n = -boundary_x; n < (int)(k_x - boundary_x); n++) {
-            sum += in[(j + m) * in_x + (i + n)] *
-                   k[(m + boundary_y) * k_x + (n + boundary_x)];
-          }
-        }
-        out[j * in_x + i] = sum / weight;
-      }
-    }
+  } else {
+    tile_id = id;
   }
+  for (uint32_t i = tile_id; i < tiles_x * tiles_y; i += numThreads) {
+    uint32_t tile_x = i % tiles_x;
+    uint32_t tile_y = i / tiles_x;
+    fdct_8x8(&in[(8 * tile_x) + (8 * in_x * tile_y)],
+             &out[(8 * tile_x) + (8 * in_x * tile_y)], 1, in_x);
+  }
+}
