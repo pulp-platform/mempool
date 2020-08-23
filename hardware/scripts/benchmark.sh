@@ -51,5 +51,4 @@ for scenario in "${scenarios[@]}"; do
   cat log_$1_$scenario >> log_all
 done
 
-mail -s "Benchmarking completed" $USER@iis.ee.ethz.ch < log_all
-rm log_*
+echo "Done" > mail -s "Benchmarking completed" $USER@iis.ee.ethz.ch
