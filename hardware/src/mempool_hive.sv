@@ -174,12 +174,12 @@ module mempool_hive #(
       .tcdm_master_northeast_resp_i      (tcdm_master_northeast_resp_i[t]              ),
       .tcdm_master_northeast_resp_valid_i(tcdm_master_northeast_resp_valid_i[t]        ),
       .tcdm_master_northeast_resp_ready_o(tcdm_master_northeast_resp_ready_o[t]        ),
-      .tcdm_master_center_req_o          (tcdm_master_center_req[t]                    ),
-      .tcdm_master_center_req_valid_o    (tcdm_master_center_req_valid[t]              ),
-      .tcdm_master_center_req_ready_i    (tcdm_master_center_req_ready[t]              ),
-      .tcdm_master_center_resp_i         (tcdm_master_center_resp[t]                   ),
-      .tcdm_master_center_resp_valid_i   (tcdm_master_center_resp_valid[t]             ),
-      .tcdm_master_center_resp_ready_o   (tcdm_master_center_resp_ready[t]             ),
+      .tcdm_master_local_req_o           (tcdm_master_local_req[t]                     ),
+      .tcdm_master_local_req_valid_o     (tcdm_master_local_req_valid[t]               ),
+      .tcdm_master_local_req_ready_i     (tcdm_master_local_req_ready[t]               ),
+      .tcdm_master_local_resp_i          (tcdm_master_local_resp[t]                    ),
+      .tcdm_master_local_resp_valid_i    (tcdm_master_local_resp_valid[t]              ),
+      .tcdm_master_local_resp_ready_o    (tcdm_master_local_resp_ready[t]              ),
       // TCDM banks interface
       .tcdm_slave_north_req_i            (tcdm_slave_north_req_i[t]                    ),
       .tcdm_slave_north_req_valid_i      (tcdm_slave_north_req_valid_i[t]              ),
@@ -199,12 +199,12 @@ module mempool_hive #(
       .tcdm_slave_northeast_resp_o       (tcdm_slave_northeast_resp[t]                 ),
       .tcdm_slave_northeast_resp_valid_o (tcdm_slave_northeast_resp_valid[t]           ),
       .tcdm_slave_northeast_resp_ready_i (tcdm_slave_northeast_resp_ready[t]           ),
-      .tcdm_slave_center_req_i           (tcdm_slave_center_req[t]                     ),
-      .tcdm_slave_center_req_valid_i     (tcdm_slave_center_req_valid[t]               ),
-      .tcdm_slave_center_req_ready_o     (tcdm_slave_center_req_ready[t]               ),
-      .tcdm_slave_center_resp_o          (tcdm_slave_center_resp[t]                    ),
-      .tcdm_slave_center_resp_valid_o    (tcdm_slave_center_resp_valid[t]              ),
-      .tcdm_slave_center_resp_ready_i    (tcdm_slave_center_resp_ready[t]              ),
+      .tcdm_slave_local_req_i            (tcdm_slave_local_req[t]                      ),
+      .tcdm_slave_local_req_valid_i      (tcdm_slave_local_req_valid[t]                ),
+      .tcdm_slave_local_req_ready_o      (tcdm_slave_local_req_ready[t]                ),
+      .tcdm_slave_local_resp_o           (tcdm_slave_local_resp[t]                     ),
+      .tcdm_slave_local_resp_valid_o     (tcdm_slave_local_resp_valid[t]               ),
+      .tcdm_slave_local_resp_ready_i     (tcdm_slave_local_resp_ready[t]               ),
       // AXI interface
       .axi_mst_req_o                     (/* Not connected */                          ),
       .axi_mst_resp_i                    (/* Not connected */                          ),
@@ -222,51 +222,51 @@ module mempool_hive #(
   end : gen_tiles
 
   /*************************
-   *  Center Interconnect  *
+   *  Local Interconnect  *
    *************************/
 
-  logic          [NumTilesPerHive-1:0] master_center_req_valid;
-  logic          [NumTilesPerHive-1:0] master_center_req_ready;
-  tcdm_addr_t    [NumTilesPerHive-1:0] master_center_req_tgt_addr;
-  logic          [NumTilesPerHive-1:0] master_center_req_wen;
-  tcdm_payload_t [NumTilesPerHive-1:0] master_center_req_wdata;
-  strb_t         [NumTilesPerHive-1:0] master_center_req_be;
-  logic          [NumTilesPerHive-1:0] master_center_resp_valid;
-  logic          [NumTilesPerHive-1:0] master_center_resp_ready;
-  tcdm_payload_t [NumTilesPerHive-1:0] master_center_resp_rdata;
-  logic          [NumTilesPerHive-1:0] slave_center_req_valid;
-  logic          [NumTilesPerHive-1:0] slave_center_req_ready;
-  tile_addr_t    [NumTilesPerHive-1:0] slave_center_req_tgt_addr;
-  hive_tile_id_t [NumTilesPerHive-1:0] slave_center_req_ini_addr;
-  logic          [NumTilesPerHive-1:0] slave_center_req_wen;
-  tcdm_payload_t [NumTilesPerHive-1:0] slave_center_req_wdata;
-  strb_t         [NumTilesPerHive-1:0] slave_center_req_be;
-  logic          [NumTilesPerHive-1:0] slave_center_resp_valid;
-  logic          [NumTilesPerHive-1:0] slave_center_resp_ready;
-  hive_tile_id_t [NumTilesPerHive-1:0] slave_center_resp_ini_addr;
-  tcdm_payload_t [NumTilesPerHive-1:0] slave_center_resp_rdata;
+  logic          [NumTilesPerHive-1:0] master_local_req_valid;
+  logic          [NumTilesPerHive-1:0] master_local_req_ready;
+  tcdm_addr_t    [NumTilesPerHive-1:0] master_local_req_tgt_addr;
+  logic          [NumTilesPerHive-1:0] master_local_req_wen;
+  tcdm_payload_t [NumTilesPerHive-1:0] master_local_req_wdata;
+  strb_t         [NumTilesPerHive-1:0] master_local_req_be;
+  logic          [NumTilesPerHive-1:0] master_local_resp_valid;
+  logic          [NumTilesPerHive-1:0] master_local_resp_ready;
+  tcdm_payload_t [NumTilesPerHive-1:0] master_local_resp_rdata;
+  logic          [NumTilesPerHive-1:0] slave_local_req_valid;
+  logic          [NumTilesPerHive-1:0] slave_local_req_ready;
+  tile_addr_t    [NumTilesPerHive-1:0] slave_local_req_tgt_addr;
+  hive_tile_id_t [NumTilesPerHive-1:0] slave_local_req_ini_addr;
+  logic          [NumTilesPerHive-1:0] slave_local_req_wen;
+  tcdm_payload_t [NumTilesPerHive-1:0] slave_local_req_wdata;
+  strb_t         [NumTilesPerHive-1:0] slave_local_req_be;
+  logic          [NumTilesPerHive-1:0] slave_local_resp_valid;
+  logic          [NumTilesPerHive-1:0] slave_local_resp_ready;
+  hive_tile_id_t [NumTilesPerHive-1:0] slave_local_resp_ini_addr;
+  tcdm_payload_t [NumTilesPerHive-1:0] slave_local_resp_rdata;
 
-  for (genvar t = 0; t < NumTilesPerHive; t++) begin: gen_center_connections
-    assign master_center_req_valid[t]        = tcdm_master_center_req_valid[t]   ;
-    assign master_center_req_tgt_addr[t]     = tcdm_master_center_req[t].tgt_addr;
-    assign master_center_req_wen[t]          = tcdm_master_center_req[t].wen     ;
-    assign master_center_req_wdata[t]        = tcdm_master_center_req[t].wdata   ;
-    assign master_center_req_be[t]           = tcdm_master_center_req[t].be      ;
-    assign tcdm_master_center_req_ready[t]   = master_center_req_ready[t]        ;
-    assign slave_center_resp_valid[t]        = tcdm_slave_center_resp_valid[t]   ;
-    assign slave_center_resp_ini_addr[t]     = tcdm_slave_center_resp[t].ini_addr;
-    assign slave_center_resp_rdata[t]        = tcdm_slave_center_resp[t].rdata   ;
-    assign tcdm_slave_center_resp_ready[t]   = slave_center_resp_ready[t]        ;
-    assign tcdm_master_center_resp_valid[t]  = master_center_resp_valid[t]       ;
-    assign tcdm_master_center_resp[t].rdata  = master_center_resp_rdata[t]       ;
-    assign master_center_resp_ready[t]       = tcdm_master_center_resp_ready[t]  ;
-    assign tcdm_slave_center_req_valid[t]    = slave_center_req_valid[t]         ;
-    assign tcdm_slave_center_req[t].tgt_addr = slave_center_req_tgt_addr[t]      ;
-    assign tcdm_slave_center_req[t].ini_addr = slave_center_req_ini_addr[t]      ;
-    assign tcdm_slave_center_req[t].wen      = slave_center_req_wen[t]           ;
-    assign tcdm_slave_center_req[t].wdata    = slave_center_req_wdata[t]         ;
-    assign tcdm_slave_center_req[t].be       = slave_center_req_be[t]            ;
-    assign slave_center_req_ready[t]         = tcdm_slave_center_req_ready[t]    ;
+  for (genvar t = 0; t < NumTilesPerHive; t++) begin: gen_local_connections
+    assign master_local_req_valid[t]        = tcdm_master_local_req_valid[t]   ;
+    assign master_local_req_tgt_addr[t]     = tcdm_master_local_req[t].tgt_addr;
+    assign master_local_req_wen[t]          = tcdm_master_local_req[t].wen     ;
+    assign master_local_req_wdata[t]        = tcdm_master_local_req[t].wdata   ;
+    assign master_local_req_be[t]           = tcdm_master_local_req[t].be      ;
+    assign tcdm_master_local_req_ready[t]   = master_local_req_ready[t]        ;
+    assign slave_local_resp_valid[t]        = tcdm_slave_local_resp_valid[t]   ;
+    assign slave_local_resp_ini_addr[t]     = tcdm_slave_local_resp[t].ini_addr;
+    assign slave_local_resp_rdata[t]        = tcdm_slave_local_resp[t].rdata   ;
+    assign tcdm_slave_local_resp_ready[t]   = slave_local_resp_ready[t]        ;
+    assign tcdm_master_local_resp_valid[t]  = master_local_resp_valid[t]       ;
+    assign tcdm_master_local_resp[t].rdata  = master_local_resp_rdata[t]       ;
+    assign master_local_resp_ready[t]       = tcdm_master_local_resp_ready[t]  ;
+    assign tcdm_slave_local_req_valid[t]    = slave_local_req_valid[t]         ;
+    assign tcdm_slave_local_req[t].tgt_addr = slave_local_req_tgt_addr[t]      ;
+    assign tcdm_slave_local_req[t].ini_addr = slave_local_req_ini_addr[t]      ;
+    assign tcdm_slave_local_req[t].wen      = slave_local_req_wen[t]           ;
+    assign tcdm_slave_local_req[t].wdata    = slave_local_req_wdata[t]         ;
+    assign tcdm_slave_local_req[t].be       = slave_local_req_be[t]            ;
+    assign slave_local_req_ready[t]         = tcdm_slave_local_req_ready[t]    ;
   end
 
   variable_latency_interconnect #(
@@ -279,29 +279,29 @@ module mempool_hive #(
     .AddrMemWidth(TCDMAddrMemWidth + $clog2(NumBanksPerTile)),
     .Topology    (tcdm_interconnect_pkg::LIC                ),
     .AxiVldRdy   (1'b1                                      )
-  ) i_center_interco (
-    .clk_i          (clk_i                     ),
-    .rst_ni         (rst_ni                    ),
-    .req_valid_i    (master_center_req_valid   ),
-    .req_ready_o    (master_center_req_ready   ),
-    .req_tgt_addr_i (master_center_req_tgt_addr),
-    .req_wen_i      (master_center_req_wen     ),
-    .req_wdata_i    (master_center_req_wdata   ),
-    .req_be_i       (master_center_req_be      ),
-    .resp_valid_o   (master_center_resp_valid  ),
-    .resp_ready_i   (master_center_resp_ready  ),
-    .resp_rdata_o   (master_center_resp_rdata  ),
-    .resp_ini_addr_i(slave_center_resp_ini_addr),
-    .resp_rdata_i   (slave_center_resp_rdata   ),
-    .resp_valid_i   (slave_center_resp_valid   ),
-    .resp_ready_o   (slave_center_resp_ready   ),
-    .req_valid_o    (slave_center_req_valid    ),
-    .req_ready_i    (slave_center_req_ready    ),
-    .req_be_o       (slave_center_req_be       ),
-    .req_wdata_o    (slave_center_req_wdata    ),
-    .req_wen_o      (slave_center_req_wen      ),
-    .req_ini_addr_o (slave_center_req_ini_addr ),
-    .req_tgt_addr_o (slave_center_req_tgt_addr )
+  ) i_local_interco (
+    .clk_i          (clk_i                    ),
+    .rst_ni         (rst_ni                   ),
+    .req_valid_i    (master_local_req_valid   ),
+    .req_ready_o    (master_local_req_ready   ),
+    .req_tgt_addr_i (master_local_req_tgt_addr),
+    .req_wen_i      (master_local_req_wen     ),
+    .req_wdata_i    (master_local_req_wdata   ),
+    .req_be_i       (master_local_req_be      ),
+    .resp_valid_o   (master_local_resp_valid  ),
+    .resp_ready_i   (master_local_resp_ready  ),
+    .resp_rdata_o   (master_local_resp_rdata  ),
+    .resp_ini_addr_i(slave_local_resp_ini_addr),
+    .resp_rdata_i   (slave_local_resp_rdata   ),
+    .resp_valid_i   (slave_local_resp_valid   ),
+    .resp_ready_o   (slave_local_resp_ready   ),
+    .req_valid_o    (slave_local_req_valid    ),
+    .req_ready_i    (slave_local_req_ready    ),
+    .req_be_o       (slave_local_req_be       ),
+    .req_wdata_o    (slave_local_req_wdata    ),
+    .req_wen_o      (slave_local_req_wen      ),
+    .req_ini_addr_o (slave_local_req_ini_addr ),
+    .req_tgt_addr_o (slave_local_req_tgt_addr )
   );
 
   /***********************
