@@ -121,18 +121,18 @@ module mempool_hive #(
   logic              [NumTiles-1:0] tcdm_slave_northeast_resp_valid;
   logic              [NumTiles-1:0] tcdm_slave_northeast_resp_ready;
   // Center
-  tcdm_master_req_t  [NumTiles-1:0] tcdm_master_center_req;
-  logic              [NumTiles-1:0] tcdm_master_center_req_valid;
-  logic              [NumTiles-1:0] tcdm_master_center_req_ready;
-  tcdm_master_resp_t [NumTiles-1:0] tcdm_master_center_resp;
-  logic              [NumTiles-1:0] tcdm_master_center_resp_valid;
-  logic              [NumTiles-1:0] tcdm_master_center_resp_ready;
-  tcdm_slave_req_t   [NumTiles-1:0] tcdm_slave_center_req;
-  logic              [NumTiles-1:0] tcdm_slave_center_req_valid;
-  logic              [NumTiles-1:0] tcdm_slave_center_req_ready;
-  tcdm_slave_resp_t  [NumTiles-1:0] tcdm_slave_center_resp;
-  logic              [NumTiles-1:0] tcdm_slave_center_resp_valid;
-  logic              [NumTiles-1:0] tcdm_slave_center_resp_ready;
+  tcdm_master_req_t  [NumTiles-1:0] tcdm_master_local_req;
+  logic              [NumTiles-1:0] tcdm_master_local_req_valid;
+  logic              [NumTiles-1:0] tcdm_master_local_req_ready;
+  tcdm_master_resp_t [NumTiles-1:0] tcdm_master_local_resp;
+  logic              [NumTiles-1:0] tcdm_master_local_resp_valid;
+  logic              [NumTiles-1:0] tcdm_master_local_resp_ready;
+  tcdm_slave_req_t   [NumTiles-1:0] tcdm_slave_local_req;
+  logic              [NumTiles-1:0] tcdm_slave_local_req_valid;
+  logic              [NumTiles-1:0] tcdm_slave_local_req_ready;
+  tcdm_slave_resp_t  [NumTiles-1:0] tcdm_slave_local_resp;
+  logic              [NumTiles-1:0] tcdm_slave_local_resp_valid;
+  logic              [NumTiles-1:0] tcdm_slave_local_resp_ready;
 
   for (genvar t = 0; unsigned'(t) < NumTilesPerHive; t++) begin: gen_tiles
     mempool_tile_wrap_NumHives4 #(
