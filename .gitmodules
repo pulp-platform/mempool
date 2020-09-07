@@ -1,6 +1,6 @@
 [submodule "toolchain/riscv-gnu-toolchain"]
 	path = toolchain/riscv-gnu-toolchain
-	url = ../riscv-gnu-toolchain.git
+	url = https://github.com/pulp-platform/pulp-riscv-gnu-toolchain.git
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
 	url = ../llvm-project.git
