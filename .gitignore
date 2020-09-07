@@ -1,5 +1,12 @@
 install/*
 .bender
 gmon.out
+# Backup files
+*.bk
+*.bu
+*.tmp
+*.temp
 # Vim files
 *.swp
+# PyCharm
+**.idea

@@ -22,15 +22,22 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-volatile uint32_t barrier __attribute__((section(".l1")));
-volatile uint32_t barrier_iteration __attribute__((section(".l1")));
+uint32_t volatile barrier __attribute__((section(".l1")));
+uint32_t volatile barrier_iteration __attribute__((section(".l1")));
+uint32_t volatile barrier_init __attribute__((section(".l2"))) = 0;
 
-void mempool_barrier_init() {
-  barrier = 0;
-  barrier_iteration = 0;
+void mempool_barrier_init(uint32_t core_id, uint32_t num_cores) {
+  if (core_id == 0) {
+    barrier = 0;
+    barrier_iteration = 0;
+    barrier_init = 1;
+  } else {
+    while (!barrier_init)
+      mempool_wait(2 * num_cores);
+  }
 }
 
-void mempool_barrier() {
+void mempool_barrier(uint32_t core_id, uint32_t num_cores, uint32_t cycles) {
   // Remember previous iteration
   uint32_t iteration_old = barrier_iteration;
   // Increment the barrier counter
@@ -43,6 +50,6 @@ void mempool_barrier() {
   } else {
     // Some threads have not reached the barrier --> Let's wait
     while (iteration_old == barrier_iteration)
-      mempool_wait(100);
+      mempool_wait(cycles);
   }
 }

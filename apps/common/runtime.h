@@ -43,10 +43,18 @@ static inline mempool_id_t mempool_get_core_id() {
 }
 
 /// Reset a monotonically increasing cycle count.
-static inline void mempool_start_benchmark() { write_csr(cycle, 0); }
+static inline void mempool_start_benchmark() {
+  asm volatile("" ::: "memory");
+  write_csr(cycle, 0);
+  asm volatile("" ::: "memory");
+}
 
 /// Obtain a monotonically increasing cycle count.
-static inline int mempool_stop_benchmark() { return read_csr(cycle); }
+static inline int mempool_stop_benchmark() {
+  asm volatile("" ::: "memory");
+  return read_csr(cycle);
+  asm volatile("" ::: "memory");
+}
 
 /// Obtain a monotonically increasing cycle count.
 static inline mempool_timer_t mempool_get_timer() { return read_csr(mcycle); }

@@ -103,13 +103,7 @@ int main(int argc, char **argv) {
   uint32_t num_cores = (uint32_t)argv;
 
   // Initialize synchronization variables
-  if (core_id == 0) {
-    mempool_barrier_init();
-    init = 1;
-  } else {
-    while (!init)
-      mempool_wait(2 * num_cores);
-  }
+  mempool_barrier_init(core_id, num_cores);
 
   // #ifdef VERBOSE
   if (core_id == 0) {
@@ -122,7 +116,7 @@ int main(int argc, char **argv) {
   init_matrix(b, N, P, B_a, B_b, B_c, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(core_id, num_cores);
+  mempool_barrier(core_id, num_cores, num_cores * 4);
   if (core_id == 0) {
     print_matrix(a, M, N);
     print_matrix(b, N, P);
@@ -132,7 +126,7 @@ int main(int argc, char **argv) {
   // Matrices are initialized --> Start calculating
   for (int i = 0; i < 5; ++i) {
     // Wait at barrier until everyone is ready
-    mempool_barrier(core_id, num_cores);
+    mempool_barrier(core_id, num_cores, num_cores / 2);
     // Execute function to test. Add a NOP before and after for future analysis
     // with benchmark script.
     // mempool_timer_t cycles = mempool_get_timer();
@@ -158,7 +152,7 @@ int main(int argc, char **argv) {
     mempool_stop_benchmark();
     // cycles = mempool_get_timer() - cycles;
     // Wait at barrier befor checking
-    mempool_barrier(core_id, num_cores);
+    mempool_barrier(core_id, num_cores, num_cores * 4);
     // Check result
     if (core_id == 0) {
       // printf("Duration: %d\n", cycles);
@@ -177,13 +171,13 @@ int main(int argc, char **argv) {
   }
 
   // wait until all cores have finished
-  mempool_barrier(core_id, num_cores);
+  mempool_barrier(core_id, num_cores, num_cores * 4);
 
 #ifdef VERBOSE
   if (core_id == 0) {
     print_matrix(c, M, P);
   }
-  mempool_barrier(core_id, num_cores);
+  mempool_barrier(core_id, num_cores, num_cores * 4);
 #endif
 
   return 0;

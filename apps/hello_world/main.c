@@ -33,22 +33,19 @@ int main(int argc, char **argv) {
   uint32_t core_id = (uint32_t)argc;
   uint32_t num_cores = (uint32_t)argv;
   // Initialize synchronization variables
+  mempool_barrier_init(core_id, num_cores);
   if (core_id == 0) {
-    mempool_barrier_init();
     atomic = 0;
-  } else {
-    while (atomic)
-      mempool_wait(100);
   }
-  mempool_barrier(core_id, num_cores);
+  mempool_barrier(core_id, num_cores, num_cores * 4);
 
   while (atomic != core_id)
-    mempool_wait(100);
+    mempool_wait(2 * num_cores);
 
   printf("Core %d says Hello!\n", core_id);
   atomic++;
 
   // wait until all cores have finished
-  mempool_barrier(core_id, num_cores);
+  mempool_barrier(core_id, num_cores, num_cores * 4);
   return 0;
 }

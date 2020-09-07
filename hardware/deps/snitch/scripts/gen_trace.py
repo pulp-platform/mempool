@@ -18,6 +18,7 @@ import csv
 from csv import DictWriter
 from ctypes import c_int32, c_uint32
 from collections import deque, defaultdict
+from itertools import compress
 
 
 EXTRA_WB_WARN = 'WARNING: {} transactions still in flight for {}.'
@@ -35,7 +36,7 @@ TRACE_OUT_FMT = '{:>8} {:>8} {:>10} {:<30}'
 MAX_SIGNED_INT_LIT = 0xFFFF
 
 # Performance keys which only serve to compute other metrics: omit on printing
-PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_issues', 'snitch_load_latency')
+PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_load_latency', 'snitch_load_region', 'snitch_load_tile')
 
 
 # -------------------- Architectural constants and enums  --------------------
@@ -72,6 +73,13 @@ LS_TO_FLOAT = (3, 2, 0, 1)
 
 CSR_NAMES = {0xb00: 'mcycle', 0xf14: 'mhartid'}
 
+MEM_REGIONS = {'Other': 0, 'Sequential': 1, 'Interleaved': 2}
+
+# ----------------- Architecture Info  -----------------
+NUM_CORES = int(os.environ.get('num_cores', 256))
+NUM_TILES = NUM_CORES/4
+SEQ_MEM_SIZE = 4*1024
+TCDM_SIZE = 16*1024*NUM_TILES
 
 # -------------------- FPU helpers  --------------------
 
@@ -217,6 +225,7 @@ def read_annotations(dict_str: str) -> dict:
 def annotate_snitch(
 		extras: dict,
 		cycle: int,
+		last_cycle: int,
 		pc: int,
 		gpr_wb_info: dict,
 		perf_metrics: list,
@@ -250,7 +259,7 @@ def annotate_snitch(
 		# Load / Store
 		if extras['is_load']:
 			perf_metrics[-1]['snitch_loads'] += 1
-			gpr_wb_info[extras['rd']].appendleft(cycle)
+			gpr_wb_info[extras['rd']].appendleft((cycle, extras['alu_result']))
 			ret.append('{:<3} <~~ {}[{}]'.format(
 				REG_ABI_NAMES_I[extras['rd']], LS_SIZES[extras['ls_size']],
 				int_lit(extras['alu_result'], force_hex=force_hex_addr)))
@@ -268,8 +277,21 @@ def annotate_snitch(
 	# Retired loads and accelerator (includes FPU) data: can come back on stall and during other ops
 	if extras['retire_load'] and extras['lsu_rd'] != 0:
 		try:
-			start_time = gpr_wb_info[extras['lsu_rd']].pop()
+			start_time, address = gpr_wb_info[extras['lsu_rd']].pop()
+			region = MEM_REGIONS['Other']
+			tile = -1
+			if (address < SEQ_MEM_SIZE*NUM_TILES):
+				# Local memory
+				region = MEM_REGIONS['Sequential']
+				tile = address // SEQ_MEM_SIZE
+			elif (address < TCDM_SIZE):
+				# Interleaved memory
+				region = MEM_REGIONS['Interleaved']
+				tile = address // 64
+				tile = tile % NUM_TILES
 			perf_metrics[-1].setdefault('snitch_load_latency', []).append(cycle - start_time)
+			perf_metrics[-1].setdefault('snitch_load_region', []).append(region)
+			perf_metrics[-1].setdefault('snitch_load_tile', []).append(int(tile))
 		except IndexError:
 			msg_type = 'WARNING' if permissive else 'FATAL'
 			sys.stderr.write('{}: In cycle {}, LSU attempts writeback to {}, but none in flight.\n'.format(
@@ -282,6 +304,18 @@ def annotate_snitch(
 	# Any kind of PC change: Branch, Jump, etc.
 	if not extras['stall'] and extras['pc_d'] != pc + 4:
 		ret.append('goto {}'.format(int_lit(extras['pc_d'])))
+	# Count stalls
+	if extras['stall'] or extras['stall_instr']:
+		stall_cycles = cycle - last_cycle
+		perf_metrics[-1]['stall_cycles'] += stall_cycles
+		if extras['stall_instr']:
+			perf_metrics[-1]['stall_instr'] += stall_cycles
+		if extras['stall_data']:
+			perf_metrics[-1]['stall_data'] += stall_cycles
+		if extras['stall_lsu']:
+			perf_metrics[-1]['stall_lsu'] += stall_cycles
+		if extras['stall_acc']:
+			perf_metrics[-1]['stall_acc'] += stall_cycles
 	# Return comma-delimited list
 	return ', '.join(ret)
 
@@ -372,7 +406,7 @@ def annotate_insn(
 		extras = read_annotations(extras_str)
 		# Annotate snitch
 		if extras['source'] == TRACE_SRCES['snitch']:
-			annot = annotate_snitch(extras, time_info[1], int(pc_str, 16),
+			annot = annotate_snitch(extras, time_info[1], last_time_info[1], int(pc_str, 16),
 				gpr_wb_info, perf_metrics, annot_fseq_offl, force_hex_addr, permissive)
 			if extras['fpu_offload']:
 				perf_metrics[-1]['snitch_fseq_offloads'] += 1
@@ -426,7 +460,7 @@ def safe_div(dividend, divisor):
 	return dividend / divisor if divisor else None
 
 
-def eval_perf_metrics(perf_metrics: list):
+def eval_perf_metrics(perf_metrics: list, id: int):
 	for seg in perf_metrics:
 		end = seg['end']
 		cycles = end - seg['start'] + 1
@@ -437,12 +471,34 @@ def eval_perf_metrics(perf_metrics: list):
 		})
 		seg['cycles'] = cycles
 		seg['total_ipc'] = seg['snitch_occupancy']
+		# Detailed load/store info
+		tile_id = int(id // 4)
+		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
+		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
+		loc_loads = [x == tile_id for x in seg['snitch_load_tile']]
+		seq_loads = list(compress(seg['snitch_load_tile'],seq_region))
+		itl_loads = list(compress(seg['snitch_load_tile'],itl_region))
+		seq_loads_local = np.logical_and(np.array(seq_region), np.array(loc_loads))
+		seq_loads_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_loads)))
+		itl_loads_local = np.logical_and(np.array(itl_region), np.array(loc_loads))
+		itl_loads_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_loads)))
+		seg.update({
+			'seq_loads_local': np.count_nonzero(seq_loads_local),
+			'seq_loads_global': np.count_nonzero(seq_loads_global),
+			'itl_loads_local': np.count_nonzero(itl_loads_local),
+			'itl_loads_global': np.count_nonzero(itl_loads_global),
+			'seq_latency_local': np.mean(np.select(seq_loads_local, np.array(seg['snitch_load_latency']))),
+			'seq_latency_global': np.mean(np.select(seq_loads_global, np.array(seg['snitch_load_latency']))),
+			'itl_latency_local': np.mean(np.select(itl_loads_local, np.array(seg['snitch_load_latency']))),
+			'itl_latency_global': np.mean(np.select(itl_loads_global, np.array(seg['snitch_load_latency']))),
+		})
+
 
 
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 	ret = ['Performance metrics for section {} @ ({}, {}):'.format(
 		idx, perf_metrics[idx]['start'], perf_metrics[idx]['end'])]
-	for key, val in perf_metrics[idx].items():
+	for key, val in sorted(perf_metrics[idx].items()):
 		if omit_keys and key in PERF_EVAL_KEYS_OMIT:
 			continue
 		if val is None:
@@ -456,8 +512,8 @@ def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 
 def perf_metrics_to_csv(perf_metrics: list, filename: str):
 	keys = perf_metrics[0].keys()
-	known_keys = ['core','section','start','end','cycles','snitch_loads','snitch_stores','snitch_avg_load_latency',
-				  'snitch_occupancy','snitch_load_latency','total_ipc','snitch_issues']
+	known_keys = ['core','section','start','end','cycles','snitch_loads','snitch_stores','snitch_avg_load_latency','snitch_occupancy',
+								'snitch_load_latency','total_ipc','snitch_issues','stall_cycles','stall_instr','stall_data','stall_lsu','stall_acc']
 	for key in keys:
 		if key not in known_keys:
 			known_keys.append(key)
@@ -498,7 +554,7 @@ def main():
 	else:
 		core_id = -1
 	# Prepare stateful data structures
-	time_info = None
+	time_info = (0,0)
 	gpr_wb_info = defaultdict(deque)
 	fpr_wb_info = defaultdict(deque)
 	fseq_info = {
@@ -539,6 +595,7 @@ def main():
 				print(ann_insn)
 		else:
 			break  # Nothing more in pipe, EOF
+	args.infile.close()
 	perf_metrics[-1]['end'] = time_info[1]
 	# Evaluate only the benchmarks
 	if perf_metrics_bench[0]['start'] is not None:
@@ -549,7 +606,7 @@ def main():
 	if not bool(perf_metrics[-1]):
 		perf_metrics.pop()
 	# Compute metrics
-	eval_perf_metrics(perf_metrics)
+	eval_perf_metrics(perf_metrics, core_id)
 	# Add metadata
 	for sec in perf_metrics:
 		sec['core'] = core_id
