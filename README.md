@@ -80,3 +80,10 @@ make trace
 # Automatically run the benchmark (headless), extract the traces, and log the results
 app=hello_world make benchmark
 ```
+
+## Common Problems
+
+- If building the GCC toolchain fails because *makeinfo/texinfo* is missing, try the following command:
+  ```bash
+  make MAKEINFO=true tc-riscv-gcc
+  ```
