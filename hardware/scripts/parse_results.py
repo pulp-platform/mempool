@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.font_manager import FontProperties
-
+from matplotlib import rc
 
 def get_runtime(data):
 	# Get runtime of each segment in each run
@@ -128,7 +128,10 @@ def main():
 	# colorpalette = 'GnBu_r'
 	# colorpalette = 'gnuplot'
 
-	f = plt.figure(1, figsize=(8, 4), dpi=600)
+	print(plt.style.available)
+	plt.style.use('mempool')
+
+	f = plt.figure(1)
 	if (args.sections):
 		ax = sns.barplot(x='section', y='runtime', hue='run', data=runtime, palette=colorpalette)
 		ax.set_xlabel('Section')
@@ -140,7 +143,21 @@ def main():
 	plt.show()
 	f.savefig("Runtime.pdf", bbox_inches='tight')
 
-	f = plt.figure(2, figsize=(8, 4), dpi=600)
+	runtime['speedup'] = runtime['runtime'][0]/runtime['runtime']
+	f = plt.figure(4)
+	if (args.sections):
+		ax = sns.barplot(x='section', y='speedup', hue='run', data=runtime, palette=colorpalette)
+		ax.set_xlabel('Section')
+	else:
+		ax = sns.barplot(x='run', y='speedup', data=runtime, palette=colorpalette)
+		# ax.set_xlabel('Configuration')
+		ax.set_xlabel(None)
+	ax.set_ylabel('Speedup')
+	# ax.set_title('Speedup')
+	plt.show()
+	f.savefig("Speedup.pdf", bbox_inches='tight')
+
+	f = plt.figure(2)
 	if (args.sections):
 		ax = boxplot(x='run', y='cycles', data=data, hue='run', palette=colorpalette, violin=args.violin)
 		ax.set_xlabel('Section')
@@ -152,7 +169,7 @@ def main():
 	plt.show()
 	f.savefig("Runtime_Distribution.pdf", bbox_inches='tight')
 
-	f = plt.figure(3, figsize=(8, 4), dpi=600)
+	f = plt.figure(3)
 	ax = boxplot(x='core', y='snitch_load_latency', hue='run', palette=colorpalette,
 		data=load_latency_1tile, violin=args.violin)
 	ax.set_xlabel('Core')
