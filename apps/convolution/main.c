@@ -33,8 +33,8 @@
 #define KERNEL_N 3
 // #define VERBOSE
 
-volatile int32_t in[M * N] __attribute__((section(".l1")));
-volatile int32_t out[M * N] __attribute__((section(".l1")));
+volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
+volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
 volatile uint32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
 uint32_t volatile error __attribute__((section(".l1")));
 
@@ -44,9 +44,6 @@ int main(int argc, char **argv) {
   mempool_barrier_init(core_id, num_cores);
 
   if (core_id == 0) {
-    // Hack the allocation of in and out before kernel
-    in[0] = -1;
-    out[0] = -1;
 #ifdef VERBOSE
     printf("Initialize\n");
 #endif
@@ -63,8 +60,6 @@ int main(int argc, char **argv) {
     kernel[7] = 2;
     kernel[8] = 1;
   }
-
-  int tests = error - in[0];
 
   // Initialize img
   init_conv2d_image(in, N, M, core_id, num_cores);

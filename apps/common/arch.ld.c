@@ -8,6 +8,7 @@ SECTIONS {
   l1__seq_alloc_base = ALIGN(0x10);
 
   . = (NUM_CORES * 0x400); /* NUM_CORES * 1KiB */
+  .l1_prio : { *(.l1_prio) }
   .l1 : { *(.l1) }
   l1_alloc_base = ALIGN(0x10);
 
