@@ -19,6 +19,8 @@
 import argparse
 import ast
 import itertools
+import os
+import subprocess
 import sys
 
 import matplotlib.pyplot as plt
@@ -27,6 +29,9 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.font_manager import FontProperties
 from matplotlib import rc
+
+git_dir = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
+plot_dir = os.path.join(git_dir,'hardware','plots')
 
 def get_runtime(data):
 	# Get runtime of each segment in each run
@@ -85,6 +90,8 @@ def main():
 		else:
 			names = args.name
 
+	names = [n.replace('_','\_') for n in names]
+
 	# Read data from files specified in arguments
 	dataframes = []
 	# Convert the lists in snitch_load_latency to lists instead of interpreting them as strings
@@ -128,8 +135,7 @@ def main():
 	# colorpalette = 'GnBu_r'
 	# colorpalette = 'gnuplot'
 
-	print(plt.style.available)
-	plt.style.use('mempool')
+	plt.style.use(os.path.join(git_dir,'hardware','scripts','mempool.mplstyle'))
 
 	f = plt.figure(1)
 	if (args.sections):
@@ -141,7 +147,7 @@ def main():
 	ax.set_ylabel('Runtime [cycles]')
 	ax.set_title('Runtime')
 	plt.show()
-	f.savefig("Runtime.pdf", bbox_inches='tight')
+	f.savefig(os.path.join(plot_dir,'Runtime.pdf'), bbox_inches='tight')
 
 	runtime['speedup'] = runtime['runtime'][0]/runtime['runtime']
 	f = plt.figure(4)
@@ -155,7 +161,7 @@ def main():
 	ax.set_ylabel('Speedup')
 	# ax.set_title('Speedup')
 	plt.show()
-	f.savefig("Speedup.pdf", bbox_inches='tight')
+	f.savefig(os.path.join(plot_dir,'Speedup.pdf'), bbox_inches='tight')
 
 	f = plt.figure(2)
 	if (args.sections):
@@ -167,7 +173,7 @@ def main():
 	ax.set_ylabel('Runtime [cycles]')
 	ax.set_title('Runtime')
 	plt.show()
-	f.savefig("Runtime_Distribution.pdf", bbox_inches='tight')
+	f.savefig(os.path.join(plot_dir,'Runtime_Distribution.pdf'), bbox_inches='tight')
 
 	f = plt.figure(3)
 	ax = boxplot(x='core', y='snitch_load_latency', hue='run', palette=colorpalette,
@@ -176,7 +182,7 @@ def main():
 	ax.set_ylabel('Load Latency [cycles]')
 	ax.set_title('Load Latency distribution')
 	plt.show()
-	f.savefig("LoadLatency.pdf", bbox_inches='tight')
+	f.savefig(os.path.join(plot_dir,'LoadLatency.pdf'), bbox_inches='tight')
 
 if __name__ == '__main__':
 	sys.exit(main())
