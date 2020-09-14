@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
   init_img(in, M * N, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(core_id, num_cores, num_cores / 4);
+  mempool_barrier(num_cores, num_cores / 4);
 
   if (core_id == 0) {
     printf("In:\n");
@@ -75,12 +75,12 @@ int main(int argc, char **argv) {
 #endif
 
   // Wait at barrier until everyone is ready
-  mempool_barrier(core_id, num_cores, num_cores / 2);
+  mempool_barrier(num_cores, num_cores / 2);
   mempool_start_benchmark();
   fdct_8x8_parallel(in, N, M, in, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
-  mempool_barrier(core_id, num_cores, num_cores * 4);
+  mempool_barrier(num_cores, num_cores * 4);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  mempool_barrier(core_id, num_cores, 4 * num_cores);
+  mempool_barrier(num_cores, 4 * num_cores);
 #endif
 
   return error;

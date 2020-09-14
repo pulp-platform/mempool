@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
   if (core_id == 0) {
     atomic = 0;
   }
-  mempool_barrier(core_id, num_cores, num_cores * 4);
+  mempool_barrier(num_cores, num_cores * 4);
 
   while (atomic != core_id)
     mempool_wait(2 * num_cores);
@@ -46,6 +46,6 @@ int main(int argc, char **argv) {
   atomic++;
 
   // wait until all cores have finished
-  mempool_barrier(core_id, num_cores, num_cores * 4);
+  mempool_barrier(num_cores, num_cores * 4);
   return 0;
 }

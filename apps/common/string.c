@@ -32,7 +32,7 @@ void* memset(void* dest, int byte, size_t len)
   } else {
     char *d = dest;
     while (d < (char*)(dest + len))
-      *d++ = byte;
+      *d++ = (char)byte;
   }
   return dest;
 }
@@ -42,7 +42,7 @@ size_t strlen(const char *s)
   const char *p = s;
   while (*p)
     p++;
-  return p - s;
+  return (size_t)(p - s);
 }
 
 int strcmp(const char* s1, const char* s2)
@@ -69,7 +69,7 @@ int memcmp(const void* s1, const void* s2, size_t n)
       u1++;
       u2++;
     }
-    n -= (const void*)u1 - s1;
+    n -= (size_t)((const void*)u1 - s1);
     s1 = u1;
     s2 = u2;
   }
