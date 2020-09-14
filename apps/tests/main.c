@@ -25,8 +25,6 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-uint32_t volatile error __attribute__((section(".l1")));
-
 // Define Matrix dimensions:
 // C = AB with A=[MxN], B=[NxP], C=[MxP]
 #ifdef NUM_CORES
@@ -38,25 +36,27 @@ uint32_t volatile error __attribute__((section(".l1")));
 #define matrix_N 16
 #define matrix_P 256
 #endif
-int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1")));
-int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1")));
-int32_t matrix_c[matrix_M * matrix_P] __attribute__((section(".l1")));
+int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
+int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));
+int32_t matrix_c[matrix_M * matrix_P] __attribute__((section(".l1_prio")));
+
+int volatile error __attribute__((section(".l1")));
 
 void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
                  int32_t a, int32_t b, int32_t c, uint32_t core_id,
                  uint32_t num_cores) {
   if (num_columns > num_rows) {
     // Parallelize over columns
-    for (int j = core_id; j < num_columns; j += num_cores) {
-      for (int i = 0; i < num_rows; ++i) {
-        matrix[i * num_columns + j] = a * i + b * j + c;
+    for (uint32_t j = core_id; j < num_columns; j += num_cores) {
+      for (uint32_t i = 0; i < num_rows; ++i) {
+        matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
       }
     }
   } else {
     // Parallelize over rows
-    for (int i = core_id; i < num_rows; i += num_cores) {
-      for (int j = 0; j < num_columns; ++j) {
-        matrix[i * num_columns + j] = a * i + b * j + c;
+    for (uint32_t i = core_id; i < num_rows; i += num_cores) {
+      for (uint32_t j = 0; j < num_columns; ++j) {
+        matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
       }
     }
   }
@@ -70,15 +70,19 @@ int verify_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
   // Convert to signed
   int32_t n = (int32_t)inner_dim;
   // Parallelize over rows
-  for (int32_t i = core_id; i < num_rows; i += num_cores) {
-    for (int32_t j = 0; j < num_columns; ++j) {
-      int32_t lin = (aa * bb * i * j + aa * bc * i + ac * bb * j + ac * bc) * n;
+  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
+    for (uint32_t j = 0; j < num_columns; ++j) {
+      int32_t ii = (int32_t)i;
+      int32_t jj = (int32_t)j;
+      int32_t lin =
+          (aa * bb * ii * jj + aa * bc * ii + ac * bb * jj + ac * bc) * n;
       int32_t qua =
-          ((aa * ba * i + ab * bb * j + ab * bc + ba * ac) * (n * (n - 1))) / 2;
+          ((aa * ba * ii + ab * bb * jj + ab * bc + ba * ac) * (n * (n - 1))) /
+          2;
       int32_t cub = ((ab * ba) * (n * (n - 1) * (2 * n - 1))) / 6;
       int32_t golden = lin + qua + cub;
       if (matrix[i * num_columns + j] != golden) {
-        return (i + j) == 0 ? -1 : i * num_columns + j;
+        return (i + j) == 0 ? -1 : (int)(i * num_columns + j);
       }
       matrix[i * num_columns + j] = 0;
     }

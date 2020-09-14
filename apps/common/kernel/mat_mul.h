@@ -106,11 +106,54 @@ void mat_mul_unrolled_parallel(int32_t const *__restrict__ A,
   }
 }
 
-void mat_mul_unrolled2_parallel(int32_t const *__restrict__ A,
-                                int32_t const *__restrict__ B,
-                                int32_t *__restrict__ C, uint32_t M, uint32_t N,
-                                uint32_t P, uint32_t id, uint32_t numThreads) {
+void mat_mul_unrolled_2x2_parallel(int32_t const *__restrict__ A,
+                                   int32_t const *__restrict__ B,
+                                   int32_t *__restrict__ C, uint32_t M,
+                                   uint32_t N, uint32_t P, uint32_t id,
+                                   uint32_t numThreads) {
   // Parallelize by assigning each core one row
+  uint32_t const c = 8; // How many columns to split the matrix into
+  uint32_t const c_start = (P / c) * (id % c);
+  uint32_t const c_end = (P / c) * ((id % c) + 1);
+  for (uint32_t i = 2 * (id / c); i < M; i += 2 * (numThreads / c)) {
+    for (uint32_t j = c_start; j < c_end; j += 2) {
+      int32_t c00 = 0;
+      int32_t c01 = 0;
+      int32_t c10 = 0;
+      int32_t c11 = 0;
+      for (uint32_t k = 0; k < N; k += 2) {
+        // Explicitly load the values first to help with scheduling
+        int32_t val_a00 = A[(i + 0) * N + k + 0];
+        int32_t val_a01 = A[(i + 0) * N + k + 1];
+        int32_t val_a10 = A[(i + 1) * N + k + 0];
+        int32_t val_a11 = A[(i + 1) * N + k + 1];
+        int32_t val_b00 = B[(k + 0) * P + j + 0];
+        int32_t val_b01 = B[(k + 0) * P + j + 1];
+        int32_t val_b10 = B[(k + 1) * P + j + 0];
+        int32_t val_b11 = B[(k + 1) * P + j + 1];
+        c00 += val_a00 * val_b00;
+        c00 += val_a01 * val_b10;
+        c01 += val_a00 * val_b01;
+        c01 += val_a01 * val_b11;
+        c10 += val_a10 * val_b00;
+        c10 += val_a11 * val_b10;
+        c11 += val_a10 * val_b01;
+        c11 += val_a11 * val_b11;
+      }
+      C[(i + 0) * P + j + 0] = c00;
+      C[(i + 0) * P + j + 1] = c01;
+      C[(i + 1) * P + j + 0] = c10;
+      C[(i + 1) * P + j + 1] = c11;
+    }
+  }
+}
+
+void mat_mul_unrolled2_shifted_parallel(int32_t const *__restrict__ A,
+                                        int32_t const *__restrict__ B,
+                                        int32_t *__restrict__ C, uint32_t M,
+                                        uint32_t N, uint32_t P, uint32_t id,
+                                        uint32_t numThreads) {
+  // Parallelize by assigning each core one quarter of a row
   for (uint32_t i = 2 * id; i < M; i += 2 * numThreads) {
     for (uint32_t j = 0; j < P; j += 2) {
       int32_t c00 = 0;
@@ -208,7 +251,7 @@ static inline void mat_mul_asm_parallel(int32_t const *__restrict__ A,
                                         uint32_t N, uint32_t P, uint32_t id,
                                         uint32_t numThreads) {
   // Do this loop M times
-  for (int i = id; i < M; i += numThreads) {
+  for (uint32_t i = id; i < M; i += numThreads) {
     int32_t const *start_a = &A[i * N];
     int32_t const *end_a = &A[(i + 1) * N];
     int32_t const *start_b = &B[0];
@@ -274,7 +317,7 @@ static inline void mat_mul_asm_parallel(int32_t const *__restrict__ A,
           [ b2 ] "=&r"(b2), [ b3 ] "=&r"(b3), [ idx_b ] "+&r"(idx_b),
           [ idx_a ] "+&r"(start_a), [ start_b ] "+&r"(start_b),
           [ idx_c ] "+&r"(start_c)
-        : [ inc_a ] "I"(4), [ inc_b ] "r"(4 * P), [ adv_a ] "r"(-4 * N),
+        : [ inc_a ] "I"(4), [ inc_b ] "r"(4 * P), [ adv_a ] "r"(-4 * (int)N),
           [ adv_b ] "I"(4 * 4), [ adv_c ] "I"(4 * 4), [ end_a ] "r"(end_a),
           [ end_c ] "r"(end_c)
         : "memory");

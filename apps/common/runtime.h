@@ -50,7 +50,7 @@ static inline void mempool_start_benchmark() {
 }
 
 /// Obtain a monotonically increasing cycle count.
-static inline int mempool_stop_benchmark() {
+static inline uint32_t mempool_stop_benchmark() {
   asm volatile("" ::: "memory");
   return read_csr(cycle);
   asm volatile("" ::: "memory");
@@ -64,7 +64,7 @@ static inline void mempool_wait(uint32_t cycles) {
   asm volatile("1: \n\t"
                "addi %[counter], %[counter], -2 \n\t"
                "bgtz %[counter], 1b \n\t"
-               : [ counter ] "+&r"(cycles)
+               : [counter] "+&r"(cycles)
                :
                : "memory");
 }
