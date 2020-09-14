@@ -306,7 +306,8 @@ def annotate_snitch(
 		ret.append('goto {}'.format(int_lit(extras['pc_d'])))
 	# Count stalls
 	if extras['stall'] or extras['stall_instr']:
-		stall_cycles = cycle - last_cycle
+		stall_cycles = cycle - last_cycle - 1
+		ret.append('// stall {} cycles'.format(stall_cycles))
 		perf_metrics[-1]['stall_cycles'] += stall_cycles
 		if extras['stall_instr']:
 			perf_metrics[-1]['stall_instr'] += stall_cycles
@@ -316,6 +317,9 @@ def annotate_snitch(
 			perf_metrics[-1]['stall_lsu'] += stall_cycles
 		if extras['stall_acc']:
 			perf_metrics[-1]['stall_acc'] += stall_cycles
+	elif cycle - last_cycle > 1:
+		# Check if we did not skip a cycle, otherwise we probably had a undetected stall
+		ret.append('// Potentially missed stall cycle ({} cycles)!!!'.format(cycle - last_cycle - 1))
 	# Return comma-delimited list
 	return ', '.join(ret)
 
@@ -476,8 +480,6 @@ def eval_perf_metrics(perf_metrics: list, id: int):
 		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
 		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
 		loc_loads = [x == tile_id for x in seg['snitch_load_tile']]
-		seq_loads = list(compress(seg['snitch_load_tile'],seq_region))
-		itl_loads = list(compress(seg['snitch_load_tile'],itl_region))
 		seq_loads_local = np.logical_and(np.array(seq_region), np.array(loc_loads))
 		seq_loads_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_loads)))
 		itl_loads_local = np.logical_and(np.array(itl_region), np.array(loc_loads))
@@ -487,13 +489,11 @@ def eval_perf_metrics(perf_metrics: list, id: int):
 			'seq_loads_global': np.count_nonzero(seq_loads_global),
 			'itl_loads_local': np.count_nonzero(itl_loads_local),
 			'itl_loads_global': np.count_nonzero(itl_loads_global),
-			'seq_latency_local': np.mean(np.select(seq_loads_local, np.array(seg['snitch_load_latency']))),
-			'seq_latency_global': np.mean(np.select(seq_loads_global, np.array(seg['snitch_load_latency']))),
-			'itl_latency_local': np.mean(np.select(itl_loads_local, np.array(seg['snitch_load_latency']))),
-			'itl_latency_global': np.mean(np.select(itl_loads_global, np.array(seg['snitch_load_latency']))),
+			'seq_latency_local': np.mean(np.array(seg['snitch_load_latency'])[seq_loads_local]),
+			'seq_latency_global': np.mean(np.array(seg['snitch_load_latency'])[seq_loads_global]),
+			'itl_latency_local': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_local]),
+			'itl_latency_global': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_global]),
 		})
-
-
 
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 	ret = ['Performance metrics for section {} @ ({}, {}):'.format(
@@ -579,7 +579,7 @@ def main():
 			if perf_metrics[0]['start'] is None:
 				perf_metrics[0]['start'] = time_info[1]
 			# Start a new benchmark section after 'csrw cycle' instruction
-			if 'cycle' in ann_insn:
+			if 'cycle' in line:
 				perf_metrics[-1]['end'] = time_info[1]
 				perf_metrics.append(defaultdict(int))
 				if 'csrw' in ann_insn:
