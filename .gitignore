@@ -14,3 +14,8 @@ tags
 venv
 # WIP
 virtual-platform
+# Visual Studio Code
+.vscode
+*.code-workspace
+# VSCode Favorites extension
+.favorites.json
