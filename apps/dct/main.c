@@ -28,12 +28,12 @@
 // #include "convolution_riscv.h"
 // #include "halide_runtime.h"
 
-#define M (8 * 2 * 8)
+#define M (8 * 8)
 #define N (4 * NUM_CORES)
 // #define VERBOSE
 
 volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
-volatile uint32_t error __attribute__((section(".l1")));
+volatile int error __attribute__((section(".l1")));
 
 void init_img(volatile int32_t *img, uint32_t size, uint32_t core_id,
               uint32_t num_cores) {

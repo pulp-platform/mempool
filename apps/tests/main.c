@@ -28,9 +28,9 @@
 // Define Matrix dimensions:
 // C = AB with A=[MxN], B=[NxP], C=[MxP]
 #ifdef NUM_CORES
-#define matrix_M NUM_CORES
-#define matrix_N 32
-#define matrix_P 32
+#define matrix_M (NUM_CORES / 4)
+#define matrix_N (NUM_CORES / 4)
+#define matrix_P (NUM_CORES / 4)
 #else
 #define matrix_M 256
 #define matrix_N 16
@@ -45,17 +45,24 @@ int volatile error __attribute__((section(".l1")));
 void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
                  int32_t a, int32_t b, int32_t c, uint32_t core_id,
                  uint32_t num_cores) {
+  uint32_t const split = 8; // How many rows/columns to split the matrix into
   if (num_columns > num_rows) {
     // Parallelize over columns
-    for (uint32_t j = core_id; j < num_columns; j += num_cores) {
-      for (uint32_t i = 0; i < num_rows; ++i) {
+    uint32_t const c_start = (num_rows / split) * (core_id % split);
+    uint32_t const c_end = (num_rows / split) * ((core_id % split) + 1);
+    for (uint32_t j = (core_id / split); j < num_columns;
+         j += (num_cores / split)) {
+      for (uint32_t i = c_start; i < c_end; ++i) {
         matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
       }
     }
   } else {
     // Parallelize over rows
-    for (uint32_t i = core_id; i < num_rows; i += num_cores) {
-      for (uint32_t j = 0; j < num_columns; ++j) {
+    uint32_t const c_start = (num_columns / split) * (core_id % split);
+    uint32_t const c_end = (num_columns / split) * ((core_id % split) + 1);
+    for (uint32_t i = (core_id / split); i < num_rows;
+         i += (num_cores / split)) {
+      for (uint32_t j = c_start; j < c_end; ++j) {
         matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
       }
     }
@@ -108,7 +115,7 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   mempool_barrier(num_cores, num_cores / 2);
   // Execute function to test.
   mempool_start_benchmark();
-  mat_mul_asm_parallel(A, B, C, M, N, P, core_id, num_cores);
+  mat_mul_unrolled_2x2_parallel(A, B, C, M, N, P, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
   mempool_barrier(num_cores, num_cores * 4);

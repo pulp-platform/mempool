@@ -28,7 +28,7 @@
 // #include "convolution_riscv.h"
 // #include "halide_runtime.h"
 
-#define M 80
+#define M (20)
 #define N (4 * NUM_CORES)
 #define KERNEL_N 3
 // #define VERBOSE
@@ -36,7 +36,7 @@
 volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
 volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
 volatile uint32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
-uint32_t volatile error __attribute__((section(".l1")));
+volatile int error __attribute__((section(".l1")));
 
 int main(int argc, char **argv) {
   uint32_t core_id = mempool_get_core_id();
