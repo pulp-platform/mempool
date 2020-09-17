@@ -14,7 +14,7 @@ fi
 mailfile=email_$1
 
 # Run all three scenarios
-scenarios=('Original' '1Hive' '4Hives')
+scenarios=('Original' '1Hive' '4Hives' 'xbar')
 echo "Benchmarked: $1" > $mailfile
 for scenario in "${scenarios[@]}"; do
   echo $scenario
@@ -25,6 +25,12 @@ for scenario in "${scenarios[@]}"; do
       config/patches/parallel-networks/0001-Revert-global-interconnect-to-parallel_butterfly.patch
     cd $MEMPOOL_DIR/hardware
     num_hives=0
+  elif [[ "$scenario" == "xbar" ]]; then
+    cd $MEMPOOL_DIR
+    git apply \
+      config/patches/x-bar/0001-Create-configuration-with-256-cores-in-one-tile.patch
+    cd $MEMPOOL_DIR/hardware
+    num_hives=1
   elif [[ "$scenario" == "1Hive" ]]; then
     num_hives=1
   elif [[ "$scenario" == "2Hives" ]]; then
@@ -51,6 +57,11 @@ for scenario in "${scenarios[@]}"; do
     cd $MEMPOOL_DIR
     git apply -R \
       config/patches/parallel-networks/0001-Revert-global-interconnect-to-parallel_butterfly.patch
+    cd $MEMPOOL_DIR/hardware
+  elif [[ "$scenario" == "xbar" ]]; then
+    cd $MEMPOOL_DIR
+    git apply -R \
+      config/patches/x-bar/0001-Create-configuration-with-256-cores-in-one-tile.patch
     cd $MEMPOOL_DIR/hardware
   fi
 done
