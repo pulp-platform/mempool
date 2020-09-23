@@ -23,44 +23,46 @@ module mempool_tile
     parameter type tcdm_slave_req_t         = logic,
     parameter type tcdm_slave_resp_t        = logic,
     // Boot address
-    parameter logic [31:0] BootAddr         = 32'h0000_1000
+    parameter logic [31:0] BootAddr         = 32'h0000_1000,
+    // Dependent parameters. DO NOT CHANGE.
+    parameter int unsigned NumCaches        = NumCoresPerTile / NumCoresPerCache
   ) (
     // Clock and reset
-    input  logic                                        clk_i,
-    input  logic                                        rst_ni,
+    input  logic                                               clk_i,
+    input  logic                                               rst_ni,
     // Scan chain
-    input  logic                                        scan_enable_i,
-    input  logic                                        scan_data_i,
-    output logic                                        scan_data_o,
+    input  logic                                               scan_enable_i,
+    input  logic                                               scan_data_i,
+    output logic                                               scan_data_o,
     // Tile ID
-    input  logic              [idx_width(NumTiles)-1:0] tile_id_i,
+    input  logic              [idx_width(NumTiles)-1:0]        tile_id_i,
     // TCDM Master interfaces
-    output tcdm_master_req_t  [NumGroups-1:0]           tcdm_master_req_o,
-    output logic              [NumGroups-1:0]           tcdm_master_req_valid_o,
-    input  logic              [NumGroups-1:0]           tcdm_master_req_ready_i,
-    input  tcdm_master_resp_t [NumGroups-1:0]           tcdm_master_resp_i,
-    input  logic              [NumGroups-1:0]           tcdm_master_resp_valid_i,
-    output logic              [NumGroups-1:0]           tcdm_master_resp_ready_o,
+    output tcdm_master_req_t  [NumGroups-1:0]                  tcdm_master_req_o,
+    output logic              [NumGroups-1:0]                  tcdm_master_req_valid_o,
+    input  logic              [NumGroups-1:0]                  tcdm_master_req_ready_i,
+    input  tcdm_master_resp_t [NumGroups-1:0]                  tcdm_master_resp_i,
+    input  logic              [NumGroups-1:0]                  tcdm_master_resp_valid_i,
+    output logic              [NumGroups-1:0]                  tcdm_master_resp_ready_o,
     // TCDM slave interfaces
-    input  tcdm_slave_req_t   [NumGroups-1:0]           tcdm_slave_req_i,
-    input  logic              [NumGroups-1:0]           tcdm_slave_req_valid_i,
-    output logic              [NumGroups-1:0]           tcdm_slave_req_ready_o,
-    output tcdm_slave_resp_t  [NumGroups-1:0]           tcdm_slave_resp_o,
-    output logic              [NumGroups-1:0]           tcdm_slave_resp_valid_o,
-    input  logic              [NumGroups-1:0]           tcdm_slave_resp_ready_i,
+    input  tcdm_slave_req_t   [NumGroups-1:0]                  tcdm_slave_req_i,
+    input  logic              [NumGroups-1:0]                  tcdm_slave_req_valid_i,
+    output logic              [NumGroups-1:0]                  tcdm_slave_req_ready_o,
+    output tcdm_slave_resp_t  [NumGroups-1:0]                  tcdm_slave_resp_o,
+    output logic              [NumGroups-1:0]                  tcdm_slave_resp_valid_o,
+    input  logic              [NumGroups-1:0]                  tcdm_slave_resp_ready_i,
     // AXI Interface
-    output axi_req_t                                    axi_mst_req_o,
-    input  axi_resp_t                                   axi_mst_resp_i,
+    output axi_req_t                                           axi_mst_req_o,
+    input  axi_resp_t                                          axi_mst_resp_i,
     // Instruction interface
-    output addr_t                                       refill_qaddr_o,
-    output logic              [7:0]                     refill_qlen_o,           // AXI signal
-    output logic                                        refill_qvalid_o,
-    input  logic                                        refill_qready_i,
-    input  logic              [ICacheLineWidth-1:0]     refill_pdata_i,
-    input  logic                                        refill_perror_i,
-    input  logic                                        refill_pvalid_i,
-    input  logic                                        refill_plast_i,
-    output logic                                        refill_pready_o
+    output addr_t         [NumCaches-1:0]                      refill_qaddr_o,
+    output logic          [NumCaches-1:0][7:0]                 refill_qlen_o,
+    output logic          [NumCaches-1:0]                      refill_qvalid_o,
+    input  logic          [NumCaches-1:0]                      refill_qready_i,
+    input  logic          [NumCaches-1:0][ICacheLineWidth-1:0] refill_pdata_i,
+    input  logic          [NumCaches-1:0]                      refill_perror_i,
+    input  logic          [NumCaches-1:0]                      refill_pvalid_i,
+    input  logic          [NumCaches-1:0]                      refill_plast_i,
+    output logic          [NumCaches-1:0]                      refill_pready_o
   );
 
   /****************
@@ -116,10 +118,10 @@ module mempool_tile
    ***********/
 
   // Instruction interfaces
-  addr_t [NumCoresPerTile-1:0] snitch_inst_addr;
-  data_t [NumCoresPerTile-1:0] snitch_inst_data;
-  logic  [NumCoresPerTile-1:0] snitch_inst_valid;
-  logic  [NumCoresPerTile-1:0] snitch_inst_ready;
+  addr_t [NumCaches-1:0][NumCoresPerCache-1:0] snitch_inst_addr;
+  data_t [NumCaches-1:0][NumCoresPerCache-1:0] snitch_inst_data;
+  logic  [NumCaches-1:0][NumCoresPerCache-1:0] snitch_inst_valid;
+  logic  [NumCaches-1:0][NumCoresPerCache-1:0] snitch_inst_ready;
 
   // Data interfaces
   addr_t [NumCoresPerTile-1:0] snitch_data_qaddr;
@@ -141,29 +143,29 @@ module mempool_tile
     mempool_cc #(
       .BootAddr (BootAddr)
     ) riscv_core (
-      .clk_i         (clk_i                ),
-      .rst_i         (!rst_ni              ),
-      .hart_id_i     (hart_id              ),
+      .clk_i         (clk_i                                                    ),
+      .rst_i         (!rst_ni                                                  ),
+      .hart_id_i     (hart_id                                                  ),
       // IMEM Port
-      .inst_addr_o   (snitch_inst_addr[c]  ),
-      .inst_data_i   (snitch_inst_data[c]  ),
-      .inst_valid_o  (snitch_inst_valid[c] ),
-      .inst_ready_i  (snitch_inst_ready[c] ),
+      .inst_addr_o   (snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache] ),
+      .inst_data_i   (snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache] ),
+      .inst_valid_o  (snitch_inst_valid[c/NumCoresPerCache][c%NumCoresPerCache]),
+      .inst_ready_i  (snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache]),
       // Data Ports
-      .data_qaddr_o  (snitch_data_qaddr[c] ),
-      .data_qwrite_o (snitch_data_qwrite[c]),
-      .data_qamo_o   (snitch_data_qamo[c]  ),
-      .data_qdata_o  (snitch_data_qdata[c] ),
-      .data_qstrb_o  (snitch_data_qstrb[c] ),
-      .data_qvalid_o (snitch_data_qvalid[c]),
-      .data_qready_i (snitch_data_qready[c]),
-      .data_pdata_i  (snitch_data_pdata[c] ),
-      .data_perror_i (snitch_data_perror[c]),
-      .data_pvalid_i (snitch_data_pvalid[c]),
-      .data_pready_o (snitch_data_pready[c]),
-      .wake_up_sync_i('0                   ),
+      .data_qaddr_o  (snitch_data_qaddr[c]                                     ),
+      .data_qwrite_o (snitch_data_qwrite[c]                                    ),
+      .data_qamo_o   (snitch_data_qamo[c]                                      ),
+      .data_qdata_o  (snitch_data_qdata[c]                                     ),
+      .data_qstrb_o  (snitch_data_qstrb[c]                                     ),
+      .data_qvalid_o (snitch_data_qvalid[c]                                    ),
+      .data_qready_i (snitch_data_qready[c]                                    ),
+      .data_pdata_i  (snitch_data_pdata[c]                                     ),
+      .data_perror_i (snitch_data_perror[c]                                    ),
+      .data_pvalid_i (snitch_data_pvalid[c]                                    ),
+      .data_pready_o (snitch_data_pready[c]                                    ),
+      .wake_up_sync_i('0                                                       ),
       // Core Events
-      .core_events_o (/* Unused */         )
+      .core_events_o (/* Unused */                                             )
     );
   end
 
@@ -171,47 +173,49 @@ module mempool_tile
    *  Instruction Cache  *
    ***********************/
 
-  snitch_icache #(
-    .NR_FETCH_PORTS     (NumCoresPerTile                                     ),
-    /// Cache Line Width
-    .L0_LINE_COUNT      (4                                                   ),
-    .LINE_WIDTH         (ICacheLineWidth                                     ),
-    .LINE_COUNT         (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8) ),
-    .SET_COUNT          (ICacheSets                                          ),
-    .FETCH_AW           (AddrWidth                                           ),
-    .FETCH_DW           (DataWidth                                           ),
-    .FILL_AW            (AddrWidth                                           ),
-    .FILL_DW            (ICacheLineWidth                                     ),
-    /// Make the early cache latch-based. This reduces latency at the cost of
-    /// increased combinatorial path lengths and the hassle of having latches in
-    /// the design.
-    .EARLY_LATCH        (0                                                   ),
-    .L0_EARLY_TAG_WIDTH (11                                                  ),
-    .ISO_CROSSING       (0                                                   )
-  ) i_snitch_icache (
-    .clk_i                (clk_i                  ),
-    .clk_d2_i             (clk_i                  ),
-    .rst_ni               (rst_ni                 ),
-    .enable_prefetching_i (1'b1                   ),
-    .icache_events_o      (/* Unused */           ),
-    .flush_valid_i        (1'b0                   ),
-    .flush_ready_o        (/* Unused */           ),
-    .inst_addr_i          (snitch_inst_addr       ),
-    .inst_data_o          (snitch_inst_data       ),
-    .inst_cacheable_i     ({NumCoresPerTile{1'b1}}),
-    .inst_valid_i         (snitch_inst_valid      ),
-    .inst_ready_o         (snitch_inst_ready      ),
-    .inst_error_o         (/* Unused */           ),
-    .refill_qaddr_o       (refill_qaddr_o         ),
-    .refill_qlen_o        (refill_qlen_o          ),
-    .refill_qvalid_o      (refill_qvalid_o        ),
-    .refill_qready_i      (refill_qready_i        ),
-    .refill_pdata_i       (refill_pdata_i         ),
-    .refill_perror_i      (refill_perror_i        ),
-    .refill_pvalid_i      (refill_pvalid_i        ),
-    .refill_plast_i       (refill_plast_i         ),
-    .refill_pready_o      (refill_pready_o        )
-  );
+  for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
+    snitch_icache #(
+      .NR_FETCH_PORTS     (NumCoresPerCache                                    ),
+      /// Cache Line Width
+      .L0_LINE_COUNT      (4                                                   ),
+      .LINE_WIDTH         (ICacheLineWidth                                     ),
+      .LINE_COUNT         (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8) ),
+      .SET_COUNT          (ICacheSets                                          ),
+      .FETCH_AW           (AddrWidth                                           ),
+      .FETCH_DW           (DataWidth                                           ),
+      .FILL_AW            (AddrWidth                                           ),
+      .FILL_DW            (ICacheLineWidth                                     ),
+      /// Make the early cache latch-based. This reduces latency at the cost of
+      /// increased combinatorial path lengths and the hassle of having latches in
+      /// the design.
+      .EARLY_LATCH        (0                                                   ),
+      .L0_EARLY_TAG_WIDTH (11                                                  ),
+      .ISO_CROSSING       (0                                                   )
+    ) i_snitch_icache (
+      .clk_i                (clk_i                   ),
+      .clk_d2_i             (clk_i                   ),
+      .rst_ni               (rst_ni                  ),
+      .enable_prefetching_i (1'b1                    ),
+      .icache_events_o      (/* Unused */            ),
+      .flush_valid_i        (1'b0                    ),
+      .flush_ready_o        (/* Unused */            ),
+      .inst_addr_i          (snitch_inst_addr[c]     ),
+      .inst_data_o          (snitch_inst_data[c]     ),
+      .inst_cacheable_i     ({NumCoresPerCache{1'b1}}),
+      .inst_valid_i         (snitch_inst_valid[c]    ),
+      .inst_ready_o         (snitch_inst_ready[c]    ),
+      .inst_error_o         (/* Unused */            ),
+      .refill_qaddr_o       (refill_qaddr_o[c]       ),
+      .refill_qlen_o        (refill_qlen_o[c]        ),
+      .refill_qvalid_o      (refill_qvalid_o[c]      ),
+      .refill_qready_i      (refill_qready_i[c]      ),
+      .refill_pdata_i       (refill_pdata_i[c]       ),
+      .refill_perror_i      (refill_perror_i[c]      ),
+      .refill_pvalid_i      (refill_pvalid_i[c]      ),
+      .refill_plast_i       (refill_plast_i[c]       ),
+      .refill_pready_o      (refill_pready_o[c]      )
+    );
+  end
 
   /******************
    *  Memory Banks  *
@@ -793,80 +797,82 @@ module mempool_tile_wrap
     parameter type tcdm_slave_req_t        = logic,
     parameter type tcdm_slave_resp_t       = logic,
     // Boot address
-    parameter logic [31:0] BootAddr        = 32'h0000_1000
+    parameter logic [31:0] BootAddr        = 32'h0000_1000,
+    // Dependent parameters. DO NOT CHANGE.
+    parameter int unsigned NumCaches        = NumCoresPerTile / NumCoresPerCache
   ) (
     // Clock and reset
-    input  logic                                     clk_i,
-    input  logic                                     rst_ni,
+    input  logic                                       clk_i,
+    input  logic                                       rst_ni,
     // Scan chain
-    input  logic                                     scan_enable_i,
-    input  logic                                     scan_data_i,
-    output logic                                     scan_data_o,
+    input  logic                                       scan_enable_i,
+    input  logic                                       scan_data_i,
+    output logic                                       scan_data_o,
     // Tile ID
     input  logic             [idx_width(NumTiles)-1:0] tile_id_i,
     // TCDM Master interfaces
-    output tcdm_master_req_t                         tcdm_master_north_req_o,
-    output logic                                     tcdm_master_north_req_valid_o,
-    input  logic                                     tcdm_master_north_req_ready_i,
-    input  tcdm_master_resp_t                        tcdm_master_north_resp_i,
-    input  logic                                     tcdm_master_north_resp_valid_i,
-    output logic                                     tcdm_master_north_resp_ready_o,
-    output tcdm_master_req_t                         tcdm_master_northeast_req_o,
-    output logic                                     tcdm_master_northeast_req_valid_o,
-    input  logic                                     tcdm_master_northeast_req_ready_i,
-    input  tcdm_master_resp_t                        tcdm_master_northeast_resp_i,
-    input  logic                                     tcdm_master_northeast_resp_valid_i,
-    output logic                                     tcdm_master_northeast_resp_ready_o,
-    output tcdm_master_req_t                         tcdm_master_east_req_o,
-    output logic                                     tcdm_master_east_req_valid_o,
-    input  logic                                     tcdm_master_east_req_ready_i,
-    input  tcdm_master_resp_t                        tcdm_master_east_resp_i,
-    input  logic                                     tcdm_master_east_resp_valid_i,
-    output logic                                     tcdm_master_east_resp_ready_o,
-    output tcdm_master_req_t                         tcdm_master_local_req_o,
-    output logic                                     tcdm_master_local_req_valid_o,
-    input  logic                                     tcdm_master_local_req_ready_i,
-    input  tcdm_master_resp_t                        tcdm_master_local_resp_i,
-    input  logic                                     tcdm_master_local_resp_valid_i,
-    output logic                                     tcdm_master_local_resp_ready_o,
+    output tcdm_master_req_t                           tcdm_master_north_req_o,
+    output logic                                       tcdm_master_north_req_valid_o,
+    input  logic                                       tcdm_master_north_req_ready_i,
+    input  tcdm_master_resp_t                          tcdm_master_north_resp_i,
+    input  logic                                       tcdm_master_north_resp_valid_i,
+    output logic                                       tcdm_master_north_resp_ready_o,
+    output tcdm_master_req_t                           tcdm_master_northeast_req_o,
+    output logic                                       tcdm_master_northeast_req_valid_o,
+    input  logic                                       tcdm_master_northeast_req_ready_i,
+    input  tcdm_master_resp_t                          tcdm_master_northeast_resp_i,
+    input  logic                                       tcdm_master_northeast_resp_valid_i,
+    output logic                                       tcdm_master_northeast_resp_ready_o,
+    output tcdm_master_req_t                           tcdm_master_east_req_o,
+    output logic                                       tcdm_master_east_req_valid_o,
+    input  logic                                       tcdm_master_east_req_ready_i,
+    input  tcdm_master_resp_t                          tcdm_master_east_resp_i,
+    input  logic                                       tcdm_master_east_resp_valid_i,
+    output logic                                       tcdm_master_east_resp_ready_o,
+    output tcdm_master_req_t                           tcdm_master_local_req_o,
+    output logic                                       tcdm_master_local_req_valid_o,
+    input  logic                                       tcdm_master_local_req_ready_i,
+    input  tcdm_master_resp_t                          tcdm_master_local_resp_i,
+    input  logic                                       tcdm_master_local_resp_valid_i,
+    output logic                                       tcdm_master_local_resp_ready_o,
     // TCDM Slave interfaces
-    input  tcdm_slave_req_t                          tcdm_slave_north_req_i,
-    input  logic                                     tcdm_slave_north_req_valid_i,
-    output logic                                     tcdm_slave_north_req_ready_o,
-    output tcdm_slave_resp_t                         tcdm_slave_north_resp_o,
-    output logic                                     tcdm_slave_north_resp_valid_o,
-    input  logic                                     tcdm_slave_north_resp_ready_i,
-    input  tcdm_slave_req_t                          tcdm_slave_northeast_req_i,
-    input  logic                                     tcdm_slave_northeast_req_valid_i,
-    output logic                                     tcdm_slave_northeast_req_ready_o,
-    output tcdm_slave_resp_t                         tcdm_slave_northeast_resp_o,
-    output logic                                     tcdm_slave_northeast_resp_valid_o,
-    input  logic                                     tcdm_slave_northeast_resp_ready_i,
-    input  tcdm_slave_req_t                          tcdm_slave_east_req_i,
-    input  logic                                     tcdm_slave_east_req_valid_i,
-    output logic                                     tcdm_slave_east_req_ready_o,
-    output tcdm_slave_resp_t                         tcdm_slave_east_resp_o,
-    output logic                                     tcdm_slave_east_resp_valid_o,
-    input  logic                                     tcdm_slave_east_resp_ready_i,
-    input  tcdm_slave_req_t                          tcdm_slave_local_req_i,
-    input  logic                                     tcdm_slave_local_req_valid_i,
-    output logic                                     tcdm_slave_local_req_ready_o,
-    output tcdm_slave_resp_t                         tcdm_slave_local_resp_o,
-    output logic                                     tcdm_slave_local_resp_valid_o,
-    input  logic                                     tcdm_slave_local_resp_ready_i,
+    input  tcdm_slave_req_t                            tcdm_slave_north_req_i,
+    input  logic                                       tcdm_slave_north_req_valid_i,
+    output logic                                       tcdm_slave_north_req_ready_o,
+    output tcdm_slave_resp_t                           tcdm_slave_north_resp_o,
+    output logic                                       tcdm_slave_north_resp_valid_o,
+    input  logic                                       tcdm_slave_north_resp_ready_i,
+    input  tcdm_slave_req_t                            tcdm_slave_northeast_req_i,
+    input  logic                                       tcdm_slave_northeast_req_valid_i,
+    output logic                                       tcdm_slave_northeast_req_ready_o,
+    output tcdm_slave_resp_t                           tcdm_slave_northeast_resp_o,
+    output logic                                       tcdm_slave_northeast_resp_valid_o,
+    input  logic                                       tcdm_slave_northeast_resp_ready_i,
+    input  tcdm_slave_req_t                            tcdm_slave_east_req_i,
+    input  logic                                       tcdm_slave_east_req_valid_i,
+    output logic                                       tcdm_slave_east_req_ready_o,
+    output tcdm_slave_resp_t                           tcdm_slave_east_resp_o,
+    output logic                                       tcdm_slave_east_resp_valid_o,
+    input  logic                                       tcdm_slave_east_resp_ready_i,
+    input  tcdm_slave_req_t                            tcdm_slave_local_req_i,
+    input  logic                                       tcdm_slave_local_req_valid_i,
+    output logic                                       tcdm_slave_local_req_ready_o,
+    output tcdm_slave_resp_t                           tcdm_slave_local_resp_o,
+    output logic                                       tcdm_slave_local_resp_valid_o,
+    input  logic                                       tcdm_slave_local_resp_ready_i,
     // AXI Interface
-    output axi_req_t                                 axi_mst_req_o,
-    input  axi_resp_t                                axi_mst_resp_i,
+    output axi_req_t                                   axi_mst_req_o,
+    input  axi_resp_t                                  axi_mst_resp_i,
     // Instruction interface
-    output addr_t                                    refill_qaddr_o,
-    output logic              [7:0]                  refill_qlen_o,                     // AXI signal
-    output logic                                     refill_qvalid_o,
-    input  logic                                     refill_qready_i,
-    input  logic              [ICacheLineWidth-1:0]  refill_pdata_i,
-    input  logic                                     refill_perror_i,
-    input  logic                                     refill_pvalid_i,
-    input  logic                                     refill_plast_i,
-    output logic                                     refill_pready_o
+    output addr_t [NumCaches-1:0]                      refill_qaddr_o,
+    output logic  [NumCaches-1:0][7:0]                 refill_qlen_o,                     // AXI signal
+    output logic  [NumCaches-1:0]                      refill_qvalid_o,
+    input  logic  [NumCaches-1:0]                      refill_qready_i,
+    input  logic  [NumCaches-1:0][ICacheLineWidth-1:0] refill_pdata_i,
+    input  logic  [NumCaches-1:0]                      refill_perror_i,
+    input  logic  [NumCaches-1:0]                      refill_pvalid_i,
+    input  logic  [NumCaches-1:0]                      refill_plast_i,
+    output logic  [NumCaches-1:0]                      refill_pready_o
   );
 
   mempool_tile #(

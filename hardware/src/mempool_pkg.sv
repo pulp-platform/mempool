@@ -30,9 +30,10 @@ package mempool_pkg;
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
-  localparam integer unsigned NumCoresPerTile = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
-  localparam integer unsigned NumGroups       = 4;
-  localparam integer unsigned AxiMstIdWidth   = $clog2(NumCoresPerTile)+8;
+  localparam integer unsigned NumCoresPerTile  = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
+  localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
+  localparam integer unsigned NumGroups        = 4;
+  localparam integer unsigned AxiMstIdWidth    = $clog2(NumCoresPerTile)+8;
 
   typedef logic [AxiMstIdWidth-1:0] axi_mst_id_t;
   typedef logic [AddrWidth-1:0] addr_t;
@@ -51,9 +52,9 @@ package mempool_pkg;
    *  INSTRUCTION CACHE  *
    ***********************/
 
-  localparam int unsigned ICacheSizeByte  = 512 * NumCoresPerTile; // Total Size of instruction cache in bytes
-  localparam int unsigned ICacheSets      = NumCoresPerTile;       // Number of sets
-  localparam int unsigned ICacheLineWidth = 32 * NumCoresPerTile;  // Size of each cache line in bits,
+  localparam int unsigned ICacheSizeByte  = 512 * NumCoresPerCache; // Total Size of instruction cache in bytes
+  localparam int unsigned ICacheSets      = NumCoresPerCache;       // Number of sets
+  localparam int unsigned ICacheLineWidth = 32 * NumCoresPerCache;  // Size of each cache line in bits,
 
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
