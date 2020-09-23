@@ -8,5 +8,9 @@ gmon.out
 *.temp
 # Vim files
 *.swp
-# PyCharm
+tags
+# Python
 **.idea
+venv
+# WIP
+virtual-platform
