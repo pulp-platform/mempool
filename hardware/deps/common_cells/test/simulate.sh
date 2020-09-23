@@ -24,6 +24,30 @@ call_vsim() {
 }
 
 #call_vsim cdc_fifo_tb # currently broken
-for tb in cdc_2phase_tb fifo_tb graycode_tb id_queue_tb popcount_tb stream_register_tb; do
+for tb in cdc_2phase_tb fifo_tb graycode_tb id_queue_tb popcount_tb stream_register_tb addr_decode_tb; do
     call_vsim $tb
+done
+
+for depth in 0 1 2; do
+	call_vsim stream_to_mem_tb -GBufDepth=$depth -coverage -voptargs="+acc +cover=bcesfx"
+done
+
+for num in 1 4 7; do
+  call_vsim rr_arb_tree_tb -GNumInp=$num -coverage -voptargs="+acc +cover=bcesfx" -suppress vsim-3009
+done
+
+for spill_reg in 0 1; do
+  for num_inp in 1 4 18; do
+    for num_out in 1 4 18; do
+      call_vsim stream_xbar_tb -gNumInp=$num_inp -gNumOut=$num_out -gSpillReg=$spill_reg -coverage -voptargs="+acc +cover=bcesfx"
+    done
+  done
+done
+
+for radix in 2 4 8; do
+  for num_inp in 1 2 17 64; do
+    for num_out in 1 2 4 16 17 64; do
+      call_vsim stream_omega_net_tb -gDutNumInp=$num_inp -gDutNumOut=$num_out -gDutRadix=$radix -coverage -voptargs="+acc +cover=bcesfx"
+    done
+  done
 done

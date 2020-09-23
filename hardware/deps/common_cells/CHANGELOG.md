@@ -6,7 +6,64 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 ### Added
+- assertions: Assertion include header with macros (from lowrisc)
+
+### Changed
+- `sram.sv`: Deprecated as it has been moved to `tech_cells_generic`
+
 ### Fixed
+- `stream_register`: Fix `DATA_WIDTH` of instantiated FIFO.
+- `stream_xbar`: Add missing argument in assertion error string.
+- Lint style fixes
+
+## 1.19.0 - 2020-05-25
+### Added
+- stream_to_mem: Allows to use memories with flow control (req/gnt) for requests but
+  without flow control for output data to be used in streams.
+- isochronous_spill_register: Isochronous clock domain crossing cutting all paths.
+- `rr_arb_tree_tb`: Systemverilog testbench for `rr_arb_tree`, which checks for fair throughput.
+- `cf_math_pkg::idx_width`: Constant function for defining the binary representation width
+  of an index signal.
+
+### Changed
+- `addr_decode`: Use `cf_math_pkg::idx_width` for computing the index width, inline documentation.
+- `lzc`: Use `cf_math_pkg::idx_width` for computing the index width, inline documentation.
+- `Bender`: Change levels of modules affected by depending on `cf_math_pkg::idx_width()`.
+- `stream_xbar`: Fully connected stream bassed interconnect with variable number of inputs and outputs.
+- `stream_xbar`: Fully connected stream-bassed interconnect with a variable number of inputs and outputs.
+- `stream_omega_net`: Stream-based network implementing an omega topology. Variable number of inputs,
+  outputs and radix. Topology is isomorphic to a butterfly network.
+
+### Fixed
+- Improve tool compatibility.
+- `rr_arb_tree`: Properly degenerate `rr_i` and `idx_o` signals.
+- `rr_arb_tree`: Add parameter `FairArb` to distribute throughput of input requests evenly when
+  not all inputs have requests active.
+- `stream_demux`: Properly degenerate `inp_sel_i` signal.
+
+## 1.18.0 - 2020-04-15
+### Added
+- stream_fork_dynamic: Wrapper around `stream_fork` for partial forking.
+- stream_join: Join multiple Ready/Valid handshakes to one common handshake.
+- SECDED (Single Error Correction, Double Error Detection) encoder and decoder
+- SECDED Verilator-based testbench
+- Travis build for SECDED module
+
+## 1.17.0 - 2020-04-09
+### Added
+- stream_fifo: Ready/Valid handshake wrapper around `fifo_v3`
+
+## 1.16.4 - 2020-03-02
+### Fixed
+- id_queue: Fix generation of `head_tail_q` registers
+
+## 1.16.3 - 2020-02-11
+### Fixed
+- Handle degenerated `addr_decode` with `NoIndices == 1`, change default parameters to `32'd0`
+
+## 1.16.2 - 2020-02-04
+### Fixed
+- Fix author section in Bender.yml
 
 ## 1.16.1 - 2020-02-03
 ### Fixed

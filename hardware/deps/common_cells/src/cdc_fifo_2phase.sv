@@ -45,12 +45,12 @@ module cdc_fifo_2phase #(
   end
   //pragma translate_on
 
-  localparam int PTR_WIDTH = LOG_DEPTH+1;
-  typedef logic [PTR_WIDTH-1:0] pointer_t;
+  localparam int PtrWidth = LOG_DEPTH+1;
+  typedef logic [PtrWidth-1:0] pointer_t;
   typedef logic [LOG_DEPTH-1:0] index_t;
 
-  localparam pointer_t PTR_FULL  = (1 << LOG_DEPTH);
-  localparam pointer_t PTR_EMPTY = '0;
+  localparam pointer_t PtrFull  = (1 << LOG_DEPTH);
+  localparam pointer_t PtrEmpty = '0;
 
   // Allocate the registers for the FIFO memory with its separate write and read
   // ports. The FIFO has the following ports:
@@ -94,11 +94,11 @@ module cdc_fifo_2phase #(
   // the FIFO. This makes detecting critical states very simple: if all but the
   // topmost bit of rptr and wptr agree, the FIFO is in a critical state. If the
   // topmost bit is equal, the FIFO is empty, otherwise it is full.
-  assign src_ready_o = ((src_wptr_q ^ src_rptr) != PTR_FULL);
-  assign dst_valid_o = ((dst_rptr_q ^ dst_wptr) != PTR_EMPTY);
+  assign src_ready_o = ((src_wptr_q ^ src_rptr) != PtrFull);
+  assign dst_valid_o = ((dst_rptr_q ^ dst_wptr) != PtrEmpty);
 
   // Transport the read and write pointers across the clock domain boundary.
-  cdc_2phase #(pointer_t) i_cdc_wptr (
+  cdc_2phase #( .T(pointer_t) ) i_cdc_wptr (
     .src_rst_ni  ( src_rst_ni ),
     .src_clk_i   ( src_clk_i  ),
     .src_data_i  ( src_wptr_q ),
@@ -111,7 +111,7 @@ module cdc_fifo_2phase #(
     .dst_ready_i ( 1'b1       )
   );
 
-  cdc_2phase #(pointer_t) i_cdc_rptr (
+  cdc_2phase #( .T(pointer_t) ) i_cdc_rptr (
     .src_rst_ni  ( dst_rst_ni ),
     .src_clk_i   ( dst_clk_i  ),
     .src_data_i  ( dst_rptr_q ),
