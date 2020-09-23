@@ -1,16 +1,18 @@
 /// Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
 /// Demux based on address
 
-import mempool_pkg::address_map_t;
 
-module snitch_addr_demux #(
+module snitch_addr_demux
+  import mempool_pkg::address_map_t;
+  import cf_math_pkg::idx_width;
+#(
     parameter int unsigned NrOutput     = 2    ,
     parameter int unsigned AddressWidth = 32   ,
     parameter int unsigned NumRules     = 1    , // Routing rules
     parameter type req_t                = logic,
     parameter type resp_t               = logic,
     /// Dependent parameters, DO NOT OVERRIDE!
-    localparam integer LogNrOutput      = $clog2(NrOutput)
+    localparam integer LogNrOutput      = idx_width(NrOutput)
   ) (
     input  logic                            clk_i,
     input  logic                            rst_ni,
@@ -34,7 +36,7 @@ module snitch_addr_demux #(
 
   logic [LogNrOutput-1:0]      slave_select;
   logic [NumRules-1:0]         addr_match;
-  logic [$clog2(NumRules)-1:0] rule_select;
+  logic [idx_width(NumRules)-1:0] rule_select;
 
   assign slave_select = address_map_i[rule_select].slave_idx;
 
@@ -69,7 +71,7 @@ module snitch_addr_demux #(
   end
 
   // Merge the response streams
-  logic [$clog2(NrOutput)-1:0] rr_prio;
+  logic [idx_width(NrOutput)-1:0] rr_prio;
   assign rr_prio = 0;
 
   rr_arb_tree #(
