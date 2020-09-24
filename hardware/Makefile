@@ -74,7 +74,7 @@ endif
 
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 # Defines
-vlog_args += +define+NUM_CORES=$(num_cores) +define+NUM_HIVES=$(num_hives)
+vlog_args += +define+NUM_CORES=$(num_cores) +define+NUM_CORES_PER_TILE=$(num_cores_per_tile) +define+BOOT_ADDR=$(boot_addr)
 
 # Simulation
 build: bender lib $(buildpath)/$(dpi_library)/mempool_dpi.so

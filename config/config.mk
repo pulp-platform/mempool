@@ -17,5 +17,11 @@
 # Author: Samuel Riedel, ETH Zurich
 #         Matheus Cavalcante, ETH Zurich
 
+# Boot address
+boot_addr ?= 'h80010000
+
+# Number of cores
 num_cores ?= 256
-num_hives ?= 4
+
+# Number of cores per MemPool tile
+num_cores_per_tile ?= 4
