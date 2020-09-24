@@ -8,8 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-import "DPI-C" function void read_elf (input string filename)                                ;
-import "DPI-C" function byte get_section (output longint address, output longint len)        ;
+import "DPI-C" function void read_elf (input string filename);
+import "DPI-C" function byte get_section (output longint address, output longint len);
 import "DPI-C" context function byte read_section(input longint address, inout byte buffer[]);
 
 module mempool_tb;
@@ -21,27 +21,29 @@ module mempool_tb;
   timeunit      1ns;
   timeprecision 1ps;
 
-  import mempool_pkg::*         ;
-  import axi_pkg::xbar_cfg_t    ;
+  import mempool_pkg::*;
+  import axi_pkg::xbar_cfg_t;
   import axi_pkg::xbar_rule_32_t;
 
-`ifdef NUM_CORES
-  localparam        NumCores        = `NUM_CORES;
-`else
-  localparam        NumCores        = 256;
-`endif
-`ifdef NUM_HIVES
-  localparam        NumHives        = `NUM_HIVES;
-`else
-  localparam        NumHives        = 4;
-`endif
-  localparam        BankingFactor   = 4;
-  localparam addr_t TCDMBaseAddr    = '0;
-  localparam        TCDMSizePerBank = 1024 /* [B] */;
-  localparam        NumTiles        = NumCores / NumCoresPerTile;
-  localparam        NumTilesPerHive = NumTiles / NumHives;
-  localparam        NumBanks        = NumCores * BankingFactor;
-  localparam        TCDMSize        = NumBanks * TCDMSizePerBank;
+  `ifdef NUM_CORES
+  localparam NumCores = `NUM_CORES;
+  `else
+  localparam NumCores = 256;
+  `endif
+
+  `ifdef BOOT_ADDR
+  localparam BootAddr = `BOOT_ADDR;
+  `else
+  localparam BootAddr = 0;
+  `endif
+
+  localparam        BankingFactor    = 4;
+  localparam addr_t TCDMBaseAddr     = '0;
+  localparam        TCDMSizePerBank  = 1024 /* [B] */;
+  localparam        NumTiles         = NumCores / NumCoresPerTile;
+  localparam        NumTilesPerGroup = NumTiles / NumGroups;
+  localparam        NumBanks         = NumCores * BankingFactor;
+  localparam        TCDMSize         = NumBanks * TCDMSizePerBank;
 
   localparam ClockPeriod = 1ns;
   localparam TA          = 0.2ns;
@@ -59,34 +61,34 @@ module mempool_tb;
   localparam AxiSlvIdWidth = $clog2(NumCores)+8;
   typedef logic [AxiSlvIdWidth-1:0] axi_slv_id_t;
 
-  `AXI_TYPEDEF_AW_CHAN_T(axi_slv_aw_t, addr_t, axi_slv_id_t, logic)     ;
-  `AXI_TYPEDEF_W_CHAN_T(axi_slv_w_t, data_t, strb_t, logic)             ;
-  `AXI_TYPEDEF_B_CHAN_T(axi_slv_b_t, axi_slv_id_t, logic)               ;
-  `AXI_TYPEDEF_AR_CHAN_T(axi_slv_ar_t, addr_t, axi_slv_id_t, logic)     ;
-  `AXI_TYPEDEF_R_CHAN_T(axi_slv_r_t, data_t, axi_slv_id_t, logic)       ;
+  `AXI_TYPEDEF_AW_CHAN_T(axi_slv_aw_t, addr_t, axi_slv_id_t, logic);
+  `AXI_TYPEDEF_W_CHAN_T(axi_slv_w_t, data_t, strb_t, logic);
+  `AXI_TYPEDEF_B_CHAN_T(axi_slv_b_t, axi_slv_id_t, logic);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_slv_ar_t, addr_t, axi_slv_id_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_slv_r_t, data_t, axi_slv_id_t, logic);
   `AXI_TYPEDEF_REQ_T(axi_slv_req_t, axi_slv_aw_t, axi_w_t, axi_slv_ar_t);
-  `AXI_TYPEDEF_RESP_T(axi_slv_resp_t, axi_slv_b_t, axi_slv_r_t)         ;
+  `AXI_TYPEDEF_RESP_T(axi_slv_resp_t, axi_slv_b_t, axi_slv_r_t);
 
   localparam NumAXIMasters = NumTiles;
   localparam NumAXISlaves  = 4;
   typedef enum logic [$clog2(NumAXISlaves)-1:0] {
     CtrlRegisters,
-    L2Memory     ,
-    UART         ,
+    L2Memory,
+    UART,
     EOC
   } axi_slave_target;
 
   localparam xbar_cfg_t XBarCfg = '{
-    NoSlvPorts        : NumAXIMasters         ,
-    NoMstPorts        : NumAXISlaves          ,
-    MaxMstTrans       : 4                     ,
-    MaxSlvTrans       : 4                     ,
-    FallThrough       : 1'b0                  ,
+    NoSlvPorts        : NumAXIMasters,
+    NoMstPorts        : NumAXISlaves,
+    MaxMstTrans       : 4,
+    MaxSlvTrans       : 4,
+    FallThrough       : 1'b0,
     LatencyMode       : axi_pkg::CUT_MST_PORTS,
-    AxiIdWidthSlvPorts: AxiMstIdWidth         ,
-    AxiIdUsedSlvPorts : AxiMstIdWidth         ,
-    AxiAddrWidth      : AddrWidth             ,
-    AxiDataWidth      : DataWidth             ,
+    AxiIdWidthSlvPorts: AxiMstIdWidth,
+    AxiIdUsedSlvPorts : AxiMstIdWidth,
+    AxiAddrWidth      : AddrWidth,
+    AxiDataWidth      : DataWidth,
     NoAddrRules       : NumAXISlaves
   };
 
@@ -99,7 +101,7 @@ module mempool_tb;
    *  Clock and Reset Generation  *
    ********************************/
 
-  logic clk ;
+  logic clk;
   logic rst_n;
 
   // Toggling the clock
@@ -122,10 +124,9 @@ module mempool_tb;
 
   mempool #(
     .NumCores     (NumCores      ),
-    .NumHives     (NumHives      ),
     .BankingFactor(BankingFactor ),
     .TCDMBaseAddr (TCDMBaseAddr  ),
-    .BootAddr     (32'h8001_0000 )
+    .BootAddr     (BootAddr      )
   ) dut (
     .clk_i         (clk          ),
     .rst_ni        (rst_n        ),
@@ -135,10 +136,10 @@ module mempool_tb;
     .scan_data_o   (/* Unused */ )
   );
 
-  for (genvar h = 0; h < NumHives; h++) begin: gen_axi_connections
-    for (genvar t = 0; t < NumTilesPerHive; t++) begin
-      assign axi_mst_req_o[NumTilesPerHive*h + t]                       = dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.axi_mst_req_o;
-      assign dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.axi_mst_resp_i = axi_mst_resp_i[NumTilesPerHive*h + t]                    ;
+  for (genvar g = 0; g < NumGroups; g++) begin: gen_axi_connections
+    for (genvar t = 0; t < NumTilesPerGroup; t++) begin
+      assign axi_mst_req_o[NumTilesPerGroup*g + t]                        = dut.gen_groups[g].i_group.gen_tiles[t].i_tile.axi_mst_req_o;
+      assign dut.gen_groups[g].i_group.gen_tiles[t].i_tile.axi_mst_resp_i = axi_mst_resp_i[NumTilesPerGroup*g + t];
     end
   end
 
@@ -157,37 +158,37 @@ module mempool_tb;
 
   xbar_rule_32_t [NumAXISlaves-1:0] tb_xbar_routing_rules = '{
     '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
-    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}               ,
-    '{idx: UART, start_addr: UARTBaseAddr, end_addr: UARTEndAddr}                           ,
+    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr},
+    '{idx: UART, start_addr: UARTBaseAddr, end_addr: UARTEndAddr},
     '{idx: EOC, start_addr: EOCBaseAddr, end_addr: EOCEndAddr}};
 
   axi_xbar #(
-    .Cfg           (XBarCfg       ),
-    .slv_aw_chan_t (axi_aw_t      ),
-    .mst_aw_chan_t (axi_slv_aw_t  ),
-    .w_chan_t      (axi_w_t       ),
-    .slv_b_chan_t  (axi_b_t       ),
-    .mst_b_chan_t  (axi_slv_b_t   ),
-    .slv_ar_chan_t (axi_ar_t      ),
-    .mst_ar_chan_t (axi_slv_ar_t  ),
-    .slv_r_chan_t  (axi_r_t       ),
-    .mst_r_chan_t  (axi_slv_r_t   ),
-    .slv_req_t     (axi_req_t     ),
-    .slv_resp_t    (axi_resp_t    ),
-    .mst_req_t     (axi_slv_req_t ),
-    .mst_resp_t    (axi_slv_resp_t),
-    .rule_t        (xbar_rule_32_t)
+    .Cfg          (XBarCfg       ),
+    .slv_aw_chan_t(axi_aw_t      ),
+    .mst_aw_chan_t(axi_slv_aw_t  ),
+    .w_chan_t     (axi_w_t       ),
+    .slv_b_chan_t (axi_b_t       ),
+    .mst_b_chan_t (axi_slv_b_t   ),
+    .slv_ar_chan_t(axi_ar_t      ),
+    .mst_ar_chan_t(axi_slv_ar_t  ),
+    .slv_r_chan_t (axi_r_t       ),
+    .mst_r_chan_t (axi_slv_r_t   ),
+    .slv_req_t    (axi_req_t     ),
+    .slv_resp_t   (axi_resp_t    ),
+    .mst_req_t    (axi_slv_req_t ),
+    .mst_resp_t   (axi_slv_resp_t),
+    .rule_t       (xbar_rule_32_t)
   ) i_tesbench_xbar (
-    .clk_i                 (clk                  ),
-    .rst_ni                (rst_n                ),
-    .test_i                (1'b0                 ),
-    .slv_ports_req_i       (axi_mst_req_o        ),
-    .slv_ports_resp_o      (axi_mst_resp_i       ),
-    .mst_ports_req_o       (axi_mem_req          ),
-    .mst_ports_resp_i      (axi_mem_resp         ),
-    .addr_map_i            (tb_xbar_routing_rules),
-    .en_default_mst_port_i ('0                   ),
-    .default_mst_port_i    ('0                   )
+    .clk_i                (clk                  ),
+    .rst_ni               (rst_n                ),
+    .test_i               (1'b0                 ),
+    .slv_ports_req_i      (axi_mst_req_o        ),
+    .slv_ports_resp_o     (axi_mst_resp_i       ),
+    .mst_ports_req_o      (axi_mem_req          ),
+    .mst_ports_resp_i     (axi_mem_resp         ),
+    .addr_map_i           (tb_xbar_routing_rules),
+    .en_default_mst_port_i('0                   ),
+    .default_mst_port_i   ('0                   )
   );
 
   /********
@@ -206,13 +207,13 @@ module mempool_tb;
   `AXI_ASSIGN_TO_RESP (axi_mem_resp[L2Memory], axi_l2memory_slave);
 
   // Memory
-  logic  mem_req ;
-  addr_t mem_addr ;
-  data_t mem_wdata ;
-  strb_t mem_strb ;
+  logic  mem_req;
+  addr_t mem_addr;
+  data_t mem_wdata;
+  strb_t mem_strb;
   data_t mem_strb_int;
-  logic  mem_we ;
-  data_t mem_rdata ;
+  logic  mem_we;
+  data_t mem_rdata;
 
   axi2mem #(
     .AXI_ADDR_WIDTH(AddrWidth    ),
@@ -277,10 +278,10 @@ module mempool_tb;
       join
 
       // Send response
-      axi_mem_resp[UART].b_valid = 1'b1                ;
+      axi_mem_resp[UART].b_valid = 1'b1;
       axi_mem_resp[UART].b.id    = id_queue.pop_front();
-      axi_mem_resp[UART].b.resp  = axi_pkg::RESP_OKAY  ;
-      axi_mem_resp[UART].b.user  = '0                  ;
+      axi_mem_resp[UART].b.resp  = axi_pkg::RESP_OKAY;
+      axi_mem_resp[UART].b.user  = '0;
       wait(axi_mem_req[UART].b_ready);
       @(posedge clk);
       axi_mem_resp[UART].b_valid = 1'b0;
@@ -303,11 +304,11 @@ module mempool_tb;
           axi_mem_resp[EOC].aw_ready <= @(posedge clk) 1'b0;
         end
         begin
-          wait(axi_mem_req[EOC].w_valid)                                                          ;
+          wait(axi_mem_req[EOC].w_valid);
           // Finish simulation
-          $timeformat(-9, 2, " ns", 0)                                                            ;
+          $timeformat(-9, 2, " ns", 0);
           $display("[EOC] Simulation ended at %t (retval = %0d).", $time, axi_mem_req[EOC].w.data);
-          $finish(0)                                                                              ;
+          $finish(0);
         end
       join
     end
@@ -345,15 +346,14 @@ module mempool_tb;
    *  Instruction Memory  *
    ************************/
 
-  localparam addr_t ICacheLineWidth   = dut.gen_hives[0].i_hive.gen_tiles[0].i_tile.i_tile.i_snitch_icache.LINE_WIDTH;
-  localparam addr_t ICacheBytes       = ICacheLineWidth / 8 ;
-  localparam addr_t ICacheAddressMask = ~(ICacheBytes - 1) ;
-  localparam addr_t ICacheByteOffset  = $clog2(ICacheBytes) ;
+  localparam addr_t ICacheBytes       = ICacheLineWidth / 8;
+  localparam addr_t ICacheAddressMask = ~(ICacheBytes - 1);
+  localparam addr_t ICacheByteOffset  = $clog2(ICacheBytes);
 
   logic [ICacheLineWidth-1:0] instr_memory[addr_t];
 
-  for (genvar h = 0; h < NumHives; h++) begin: drive_inst_mem
-    for (genvar t = 0; t < NumTiles/NumHives; t++) begin
+  for (genvar g = 0; g < NumGroups; g++) begin: drive_inst_mem
+    for (genvar t = 0; t < NumTilesPerGroup; t++) begin
       static addr_t address       = '0;
       static integer unsigned len = '0;
 
@@ -361,37 +361,37 @@ module mempool_tb;
         while (1) begin
           @(posedge clk);
           #TA
-          if (dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qvalid_o) begin
+          if (dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qvalid_o) begin
             // Respond to request
-            address = dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qaddr_o;
-            len     = dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qlen_o ;
+            address = dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qaddr_o;
+            len     = dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qlen_o;
 
             cache_line_alignment: assume ((address & ICacheAddressMask) == address)
             else $fatal(1, "Tile %0d request instruction at %x, but we only support cache-line boundary addresses.", t, address);
 
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qready_i = 1'b1;
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i = 1'b1;
             @(posedge clk);
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
             // Response
             for (int i = 0; i < len; i++) begin
-              force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
-              force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1                 ;
-              force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_plast_i  = 1'b0                 ;
-              address += ICacheBytes                                           ;
-              wait(dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pready_o);
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1;
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i  = 1'b0;
+              address += ICacheBytes;
+              wait(dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pready_o);
               @(posedge clk);
             end
             // Last response
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1                 ;
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_plast_i  = 1'b1                 ;
-            wait(dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pready_o);
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1;
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i  = 1'b1;
+            wait(dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pready_o);
             @(posedge clk);
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pvalid_i = 1'b0;
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_plast_i  = 1'b0;
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i = 1'b0;
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i  = 1'b0;
           end else begin
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_pdata_i  = '0  ;
-            force dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i  = '0;
+            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
           end
         end
       end
@@ -404,22 +404,22 @@ module mempool_tb;
 
   initial begin : instr_memory_init
     automatic logic [ICacheLineWidth-1:0] mem_row;
-    byte buffer []                               ;
-    addr_t address                               ;
-    addr_t length                                ;
-    string binary                                ;
+    byte buffer [];
+    addr_t address;
+    addr_t length;
+    string binary;
 
     // Initialize memories
     void'($value$plusargs("PRELOAD=%s", binary));
     if (binary != "") begin
       // Read ELF
-      void'(read_elf(binary))       ;
+      void'(read_elf(binary));
       $display("Loading %s", binary);
       while (get_section(address, length)) begin
         // Read sections
-        automatic int nwords = (length + ICacheBytes - 1)/ICacheBytes ;
-        $display("Loading section %x of length %x", address, length) ;
-        buffer = new[nwords * ICacheBytes] ;
+        automatic int nwords = (length + ICacheBytes - 1)/ICacheBytes;
+        $display("Loading section %x of length %x", address, length);
+        buffer = new[nwords * ICacheBytes];
         void'(read_section(address, buffer));
         // Initializing memories
         for (int w = 0; w < nwords; w++) begin
@@ -435,22 +435,22 @@ module mempool_tb;
 
   initial begin : l2_init
     automatic data_t mem_row;
-    byte buffer []          ;
-    addr_t address          ;
-    addr_t length           ;
-    string binary           ;
+    byte buffer [];
+    addr_t address;
+    addr_t length;
+    string binary;
 
     // Initialize memories
     void'($value$plusargs("PRELOAD=%s", binary));
     if (binary != "") begin
       // Read ELF
-      void'(read_elf(binary))       ;
+      void'(read_elf(binary));
       $display("Loading %s", binary);
       while (get_section(address, length)) begin
         // Read sections
-        automatic int nwords = (length + BeWidth - 1)/BeWidth ;
+        automatic int nwords = (length + BeWidth - 1)/BeWidth;
         $display("Loading section %x of length %x", address, length);
-        buffer = new[nwords * BeWidth] ;
+        buffer = new[nwords * BeWidth];
         void'(read_section(address, buffer));
         // Initializing memories
         for (int w = 0; w < nwords; w++) begin
