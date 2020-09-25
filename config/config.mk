@@ -17,8 +17,8 @@
 # Author: Samuel Riedel, ETH Zurich
 #         Matheus Cavalcante, ETH Zurich
 
-# Boot address
-boot_addr ?= 'h80010000
+# Boot address (in hex)
+boot_addr ?= 80010000
 
 # Number of cores
 num_cores ?= 256
