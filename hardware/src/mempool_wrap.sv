@@ -11,16 +11,12 @@
 import mempool_pkg::*;
 
 module mempool_wrap #(
-    parameter int unsigned NumCores        = 1             ,
-    parameter int unsigned NumHives        = 1             ,
-    parameter int unsigned BankingFactor   = 1             ,
+    parameter int unsigned NumCores      = 1,
+    parameter int unsigned BankingFactor = 1,
     // TCDM
-    parameter addr_t TCDMBaseAddr          = 32'b0         ,
-    parameter int unsigned TCDMSizePerBank = 1024 /* [B] */,
+    parameter addr_t TCDMBaseAddr        = 32'b0,
     // Boot address
-    parameter logic [31:0] BootAddr        = 32'h0000_0000 ,
-    // Dependent parameters. DO NOT CHANGE!
-    parameter int unsigned NumTiles        = NumCores / NumCoresPerTile
+    parameter logic [31:0] BootAddr      = 32'h0000_0000
   ) (
     // Clock and reset
     input  logic clk_i,
@@ -32,35 +28,22 @@ module mempool_wrap #(
     output logic scan_data_o
   );
 
-  /*********
-   *  AXI  *
-   *********/
-
-  `include "axi/assign.svh"
-  `include "axi/typedef.svh"
-
-  axi_req_t  [NumTiles-1:0] axi_mst_req;
-  axi_resp_t [NumTiles-1:0] axi_mst_resp;
-
   /*********************
    *  MemPool Cluster  *
    *********************/
 
   mempool #(
-    .NumCores      (NumCores      ),
-    .NumHives      (NumHives      ),
-    .BankingFactor (BankingFactor ),
-    .TCDMBaseAddr  (TCDMBaseAddr  ),
-    .BootAddr      (BootAddr      )
+    .NumCores     (NumCores     ),
+    .BankingFactor(BankingFactor),
+    .TCDMBaseAddr (TCDMBaseAddr ),
+    .BootAddr     (BootAddr     )
   ) i_mempool (
-    .clk_i         (clk_i        ),
-    .rst_ni        (rst_ni       ),
-    .testmode_i    (testmode_i   ),
-    .scan_enable_i (scan_enable_i),
-    .scan_data_i   (scan_data_i  ),
-    .scan_data_o   (scan_data_o  ),
-    .axi_mst_req_o (axi_mst_req  ),
-    .axi_mst_resp_i(axi_mst_resp )
+    .clk_i        (clk_i        ),
+    .rst_ni       (rst_ni       ),
+    .testmode_i   (testmode_i   ),
+    .scan_enable_i(scan_enable_i),
+    .scan_data_i  (scan_data_i  ),
+    .scan_data_o  (scan_data_o  )
   );
 
 endmodule : mempool_wrap

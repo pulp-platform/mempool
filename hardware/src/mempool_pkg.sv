@@ -16,11 +16,11 @@ package mempool_pkg;
    *  MEMORY PARAMETERS  *
    ***********************/
 
-  localparam integer unsigned AddrWidth        = 32                                            ;
-  localparam integer unsigned DataWidth        = 32                                            ;
-  localparam integer unsigned BeWidth          = DataWidth / 8                                 ;
-  localparam integer unsigned ByteOffset       = $clog2(BeWidth)                               ;
-  localparam integer unsigned TCDMSizePerBank  = 1024 /* [B] */                                ;
+  localparam integer unsigned AddrWidth        = 32;
+  localparam integer unsigned DataWidth        = 32;
+  localparam integer unsigned BeWidth          = DataWidth / 8;
+  localparam integer unsigned ByteOffset       = $clog2(BeWidth);
+  localparam integer unsigned TCDMSizePerBank  = 1024 /* [B] */;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
 
   /*********************
@@ -30,36 +30,45 @@ package mempool_pkg;
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
-  localparam integer unsigned NumCoresPerTile = 4                        ;
+  localparam integer unsigned NumCoresPerTile = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
+  localparam integer unsigned NumGroups       = 4;
   localparam integer unsigned AxiMstIdWidth   = $clog2(NumCoresPerTile)+8;
 
   typedef logic [AxiMstIdWidth-1:0] axi_mst_id_t;
-  typedef logic [AddrWidth-1:0] addr_t          ;
-  typedef logic [DataWidth-1:0] data_t          ;
-  typedef logic [BeWidth-1:0] strb_t            ;
+  typedef logic [AddrWidth-1:0] addr_t;
+  typedef logic [DataWidth-1:0] data_t;
+  typedef logic [BeWidth-1:0] strb_t;
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_aw_t, addr_t, axi_mst_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_w_t, data_t, strb_t, logic)        ;
-  `AXI_TYPEDEF_B_CHAN_T(axi_b_t, axi_mst_id_t, logic)          ;
+  `AXI_TYPEDEF_W_CHAN_T(axi_w_t, data_t, strb_t, logic);
+  `AXI_TYPEDEF_B_CHAN_T(axi_b_t, axi_mst_id_t, logic);
   `AXI_TYPEDEF_AR_CHAN_T(axi_ar_t, addr_t, axi_mst_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_r_t, data_t, axi_mst_id_t, logic)  ;
-  `AXI_TYPEDEF_REQ_T(axi_req_t, axi_aw_t, axi_w_t, axi_ar_t)   ;
-  `AXI_TYPEDEF_RESP_T(axi_resp_t, axi_b_t, axi_r_t )           ;
+  `AXI_TYPEDEF_R_CHAN_T(axi_r_t, data_t, axi_mst_id_t, logic);
+  `AXI_TYPEDEF_REQ_T(axi_req_t, axi_aw_t, axi_w_t, axi_ar_t);
+  `AXI_TYPEDEF_RESP_T(axi_resp_t, axi_b_t, axi_r_t );
+
+  /***********************
+   *  INSTRUCTION CACHE  *
+   ***********************/
+
+  localparam int unsigned ICacheSizeByte  = 512 * NumCoresPerTile; // Total Size of instruction cache in bytes
+  localparam int unsigned ICacheSets      = NumCoresPerTile;       // Number of sets
+  localparam int unsigned ICacheLineWidth = 32 * NumCoresPerTile;  // Size of each cache line in bits,
 
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
 
-  typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t          ;
-  typedef logic [ReorderIdWidth-1:0] reorder_id_t           ;
+  typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
+  typedef logic [ReorderIdWidth-1:0] reorder_id_t;
   typedef logic [$clog2(NumCoresPerTile)-1:0] tile_core_id_t;
-  typedef logic [3:0] amo_t                                 ;
+  typedef logic [3:0] amo_t;
 
   typedef struct packed {
     reorder_id_t reorder_id;
-    tile_core_id_t core_id ;
-    amo_t amo              ;
-    data_t data            ;
+    tile_core_id_t core_id;
+    amo_t amo;
+    data_t data;
   } tcdm_payload_t;
 
   /*****************
@@ -67,12 +76,12 @@ package mempool_pkg;
    *****************/
 
   // Size in bytes of memory that is sequentially addressable per tile
-  parameter int unsigned SeqMemSizePerTile = NumCoresPerTile*1024; // 1 KiB
+  localparam int unsigned SeqMemSizePerTile = NumCoresPerTile*1024; // 1 KiB
 
   typedef struct packed {
     int unsigned slave_idx;
-    addr_t mask           ;
-    addr_t value          ;
+    addr_t mask;
+    addr_t value;
   } address_map_t;
 
 endpackage : mempool_pkg

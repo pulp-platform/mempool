@@ -29,6 +29,7 @@ module variable_latency_bfly_net #(
     parameter bit ExtPrio                = 1'b0, // Use external arbiter priority flags
     parameter int unsigned Radix         = 2   , // Butterfly Radix. Currently supported: 2 or 4.
     parameter bit AxiVldRdy              = 1'b0, // Valid/ready signaling.
+    parameter bit FallThroughRegister    = 1'b1,
     // Spill registers
     // A bit set at position i indicates a spill register at the i-th crossbar layer.
     // The layers are counted starting at 0 from the initiator.
@@ -210,12 +211,13 @@ module variable_latency_bfly_net #(
 
         for (genvar k = 0; k < 2; k++) begin: gen_xbar
           simplex_xbar #(
-            .NumIn        (2                                 ),
-            .NumOut       (2                                 ),
-            .DataWidth    (AddWidth + IniAddWidth + DataWidth),
-            .ExtPrio      (ExtPrio                           ),
-            .AxiVldRdy    (AxiVldRdy                         ),
-            .SpillRegister(SpillRegister[l]                  )
+            .NumIn              (2                                 ),
+            .NumOut             (2                                 ),
+            .DataWidth          (AddWidth + IniAddWidth + DataWidth),
+            .ExtPrio            (ExtPrio                           ),
+            .AxiVldRdy          (AxiVldRdy                         ),
+            .SpillRegister      (SpillRegister[l]                  ),
+            .FallThroughRegister(FallThroughRegister               )
           ) i_xbar (
             .clk_i     (clk_i                           ),
             .rst_ni    (rst_ni                          ),
@@ -258,12 +260,13 @@ module variable_latency_bfly_net #(
         end
 
         simplex_xbar #(
-          .NumIn        (Radix                             ),
-          .NumOut       (Radix                             ),
-          .DataWidth    (AddWidth + IniAddWidth + DataWidth),
-          .ExtPrio      (ExtPrio                           ),
-          .AxiVldRdy    (AxiVldRdy                         ),
-          .SpillRegister(SpillRegister[l]                  )
+          .NumIn              (Radix                             ),
+          .NumOut             (Radix                             ),
+          .DataWidth          (AddWidth + IniAddWidth + DataWidth),
+          .ExtPrio            (ExtPrio                           ),
+          .AxiVldRdy          (AxiVldRdy                         ),
+          .SpillRegister      (SpillRegister[l]                  ),
+          .FallThroughRegister(FallThroughRegister               )
         ) i_xbar (
           .clk_i     (clk_i                 ),
           .rst_ni    (rst_ni                ),

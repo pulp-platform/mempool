@@ -31,8 +31,8 @@ uint32_t volatile error __attribute__((section(".l1")));
 // C = AB with A=[MxN], B=[NxP], C=[MxP]
 #ifdef NUM_CORES
 #define matrix_M NUM_CORES
-#define matrix_N 8
-#define matrix_P NUM_CORES
+#define matrix_N 32
+#define matrix_P 32
 #else
 #define matrix_M 256
 #define matrix_N 16

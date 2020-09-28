@@ -25,8 +25,9 @@ module full_duplex_xbar #(
     parameter bit SpillRegisterReq       = 1'b0, // Insert a spill register on the request path (after arbitration)
     parameter bit SpillRegisterResp      = 1'b0, // Insert a spill register on the response path (after arbitration)
     parameter bit AxiVldRdy              = 1'b0, // Valid/ready signaling.
+    parameter bit FallThroughRegister    = 1'b0,
     // Dependent parameters, DO NOT OVERRIDE!
-    localparam int unsigned NumInLog     = NumIn == 1 ? 1 : $clog2(NumIn),
+    localparam int unsigned NumInLog     = NumIn == 1 ? 1  : $clog2(NumIn),
     localparam int unsigned NumOutLog    = NumOut == 1 ? 1 : $clog2(NumOut)
   ) (
     input  logic                                 clk_i,
@@ -60,12 +61,13 @@ module full_duplex_xbar #(
   // Instantiate two simplex crossbars, one for the requests and one for the responses.
 
   simplex_xbar #(
-    .NumIn        (NumIn           ),
-    .NumOut       (NumOut          ),
-    .DataWidth    (ReqDataWidth    ),
-    .ExtPrio      (ExtPrio         ),
-    .AxiVldRdy    (AxiVldRdy       ),
-    .SpillRegister(SpillRegisterReq)
+    .NumIn              (NumIn              ),
+    .NumOut             (NumOut             ),
+    .DataWidth          (ReqDataWidth       ),
+    .ExtPrio            (ExtPrio            ),
+    .AxiVldRdy          (AxiVldRdy          ),
+    .SpillRegister      (SpillRegisterReq   ),
+    .FallThroughRegister(FallThroughRegister)
   ) req_xbar (
     .clk_i     (clk_i         ),
     .rst_ni    (rst_ni        ),
@@ -81,12 +83,13 @@ module full_duplex_xbar #(
   );
 
   simplex_xbar #(
-    .NumIn        (NumOut           ),
-    .NumOut       (NumIn            ),
-    .DataWidth    (RespDataWidth    ),
-    .ExtPrio      (ExtPrio          ),
-    .AxiVldRdy    (AxiVldRdy        ),
-    .SpillRegister(SpillRegisterResp)
+    .NumIn              (NumOut             ),
+    .NumOut             (NumIn              ),
+    .DataWidth          (RespDataWidth      ),
+    .ExtPrio            (ExtPrio            ),
+    .AxiVldRdy          (AxiVldRdy          ),
+    .SpillRegister      (SpillRegisterResp  ),
+    .FallThroughRegister(FallThroughRegister)
   ) resp_xbar (
     .clk_i     (clk_i          ),
     .rst_ni    (rst_ni         ),

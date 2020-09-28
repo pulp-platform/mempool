@@ -21,8 +21,9 @@ module simplex_xbar #(
     parameter bit ExtPrio             = 1'b0, // Use external arbiter priority flags
     parameter bit AxiVldRdy           = 1'b0, // Valid/ready signaling.
     parameter bit SpillRegister       = 1'b0,
+    parameter bit FallThroughRegister = 1'b0,
     // Dependent parameters, DO NOT OVERRIDE!
-    localparam int unsigned NumInLog  = NumIn == 1 ? 1 : $clog2(NumIn),
+    localparam int unsigned NumInLog  = NumIn == 1 ? 1  : $clog2(NumIn),
     localparam int unsigned NumOutLog = NumOut == 1 ? 1 : $clog2(NumOut)
   ) (
     input  logic                             clk_i,
@@ -57,9 +58,9 @@ module simplex_xbar #(
   logic [ NumIn-1:0][NumOut-1:0][DataWidth-1:0] ini_data;
   logic [ NumIn-1:0][NumOut-1:0]                ini_ready, ini_valid;
 
-  logic [NumOut-1:0]                    arb_valid, arb_ready;
-  logic [NumOut-1:0][DataWidth-1:0]     arb_data;
-  logic [NumOut-1:0][NumInLog-1:0]      arb_ini_addr;
+  logic [NumOut-1:0]                arb_valid, arb_ready;
+  logic [NumOut-1:0][DataWidth-1:0] arb_data;
+  logic [NumOut-1:0][NumInLog-1:0]  arb_ini_addr;
 
   /******************
    *   Initiators   *
@@ -127,19 +128,36 @@ module simplex_xbar #(
       .idx_o  (arb_ini_addr[k])
     );
 
-    spill_register #(
-      .Bypass(!SpillRegister               ),
-      .T     (logic[DataWidth+NumInLog-1:0])
-    ) i_register (
-      .clk_i  (clk_i                         ),
-      .rst_ni (rst_ni                        ),
-      .data_i ({arb_data[k], arb_ini_addr[k]}),
-      .valid_i(arb_valid[k]                  ),
-      .ready_o(arb_ready[k]                  ),
-      .data_o ({data_o[k], ini_addr_o[k]}    ),
-      .valid_o(valid_o[k]                    ),
-      .ready_i(ready_i[k]                    )
-    );
+    if (!FallThroughRegister || SpillRegister) begin
+      spill_register #(
+        .Bypass(!SpillRegister               ),
+        .T     (logic[DataWidth+NumInLog-1:0])
+      ) i_register (
+        .clk_i  (clk_i                         ),
+        .rst_ni (rst_ni                        ),
+        .data_i ({arb_data[k], arb_ini_addr[k]}),
+        .valid_i(arb_valid[k]                  ),
+        .ready_o(arb_ready[k]                  ),
+        .data_o ({data_o[k], ini_addr_o[k]}    ),
+        .valid_o(valid_o[k]                    ),
+        .ready_i(ready_i[k]                    )
+      );
+    end else begin
+      fall_through_register #(
+        .T(logic[DataWidth+NumInLog-1:0])
+      ) i_register (
+        .clk_i     (clk_i                         ),
+        .rst_ni    (rst_ni                        ),
+        .clr_i     (1'b0                          ),
+        .testmode_i(1'b0                          ),
+        .data_i    ({arb_data[k], arb_ini_addr[k]}),
+        .valid_i   (arb_valid[k]                  ),
+        .ready_o   (arb_ready[k]                  ),
+        .data_o    ({data_o[k], ini_addr_o[k]}    ),
+        .valid_o   (valid_o[k]                    ),
+        .ready_i   (ready_i[k]                    )
+      );
+    end
 
   end : gen_rr_outputs
 
