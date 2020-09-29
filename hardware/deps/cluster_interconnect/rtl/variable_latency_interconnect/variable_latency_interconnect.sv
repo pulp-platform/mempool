@@ -39,32 +39,34 @@ module variable_latency_interconnect #(
     // but sometimes it needs to be overridden (e.g., when metadata is supplied to the memory via the wdata signal).
     parameter int unsigned ByteOffWidth      = $clog2(DataWidth-1)-3,
     // Topology can be: LIC, BFLY2, BFLY4, CLOS
-    parameter topo_e Topology                = tcdm_interconnect_pkg::LIC
+    parameter topo_e Topology                = tcdm_interconnect_pkg::LIC,
+    // Dependant parameters. DO NOT CHANGE!
+    parameter int unsigned NumInLog2         = NumIn == 1 ? 1 : $clog2(NumIn)
   ) (
-    input  logic                                 clk_i,
-    input  logic                                 rst_ni,
+    input  logic                                clk_i,
+    input  logic                                rst_ni,
     // Initiator side
-    input  logic [NumIn-1:0]                     req_valid_i,     // Request valid
-    output logic [NumIn-1:0]                     req_ready_o,     // Request ready
-    input  logic [NumIn-1:0][AddrWidth-1:0]      req_tgt_addr_i,  // Target address
-    input  logic [NumIn-1:0]                     req_wen_i,       // Write enable
-    input  logic [NumIn-1:0][DataWidth-1:0]      req_wdata_i,     // Write data
-    input  logic [NumIn-1:0][BeWidth-1:0]        req_be_i,        // Byte enable
-    output logic [NumIn-1:0]                     resp_valid_o,    // Response valid
-    input  logic [NumIn-1:0]                     resp_ready_i,    // Response ready
-    output logic [NumIn-1:0][DataWidth-1:0]      resp_rdata_o,    // Data response
+    input  logic [NumIn-1:0]                    req_valid_i,     // Request valid
+    output logic [NumIn-1:0]                    req_ready_o,     // Request ready
+    input  logic [NumIn-1:0][AddrWidth-1:0]     req_tgt_addr_i,  // Target address
+    input  logic [NumIn-1:0]                    req_wen_i,       // Write enable
+    input  logic [NumIn-1:0][DataWidth-1:0]     req_wdata_i,     // Write data
+    input  logic [NumIn-1:0][BeWidth-1:0]       req_be_i,        // Byte enable
+    output logic [NumIn-1:0]                    resp_valid_o,    // Response valid
+    input  logic [NumIn-1:0]                    resp_ready_i,    // Response ready
+    output logic [NumIn-1:0][DataWidth-1:0]     resp_rdata_o,    // Data response
     // Target side
-    output logic [NumOut-1:0]                    req_valid_o,     // Request valid
-    input  logic [NumOut-1:0]                    req_ready_i,     // Request ready
-    output logic [NumOut-1:0][$clog2(NumIn)-1:0] req_ini_addr_o,  // Initiator address
-    output logic [NumOut-1:0][AddrMemWidth-1:0]  req_tgt_addr_o,  // Target address
-    output logic [NumOut-1:0]                    req_wen_o,       // Write enable
-    output logic [NumOut-1:0][DataWidth-1:0]     req_wdata_o,     // Write data
-    output logic [NumOut-1:0][BeWidth-1:0]       req_be_o,        // Byte enable
-    input  logic [NumOut-1:0]                    resp_valid_i,    // Response valid
-    output logic [NumOut-1:0]                    resp_ready_o,    // Response ready
-    input  logic [NumOut-1:0][$clog2(NumIn)-1:0] resp_ini_addr_i, // Initiator address
-    input  logic [NumOut-1:0][DataWidth-1:0]     resp_rdata_i     // Data response
+    output logic [NumOut-1:0]                   req_valid_o,     // Request valid
+    input  logic [NumOut-1:0]                   req_ready_i,     // Request ready
+    output logic [NumOut-1:0][NumInLog2-1:0]    req_ini_addr_o,  // Initiator address
+    output logic [NumOut-1:0][AddrMemWidth-1:0] req_tgt_addr_o,  // Target address
+    output logic [NumOut-1:0]                   req_wen_o,       // Write enable
+    output logic [NumOut-1:0][DataWidth-1:0]    req_wdata_o,     // Write data
+    output logic [NumOut-1:0][BeWidth-1:0]      req_be_o,        // Byte enable
+    input  logic [NumOut-1:0]                   resp_valid_i,    // Response valid
+    output logic [NumOut-1:0]                   resp_ready_o,    // Response ready
+    input  logic [NumOut-1:0][NumInLog2-1:0]    resp_ini_addr_i, // Initiator address
+    input  logic [NumOut-1:0][DataWidth-1:0]    resp_rdata_i     // Data response
   );
 
   /******************
@@ -86,7 +88,11 @@ module variable_latency_interconnect #(
 
   for (genvar j = 0; unsigned'(j) < NumIn; j++) begin : gen_inputs
     // Extract target index
-    assign tgt_sel[j] = req_tgt_addr_i[j][ByteOffWidth +: NumOutLog2];
+    if (NumIn == 1) begin
+      assign tgt_sel[j] = '0;
+    end else begin
+      assign tgt_sel[j] = req_tgt_addr_i[j][ByteOffWidth +: NumOutLog2];
+    end
 
     // Aggregate data to be routed to targets
     assign data_agg_in[j] = {req_wen_i[j], req_be_i[j], req_tgt_addr_i[j][ByteOffWidth + NumOutLog2 +: AddrMemWidth], req_wdata_i[j]};
@@ -102,7 +108,15 @@ module variable_latency_interconnect #(
    ****************/
 
   // Tuned logarithmic interconnect architecture, based on rr_arb_tree primitives
-  if (Topology == tcdm_interconnect_pkg::LIC) begin : gen_lic
+  if (NumIn < 2 && NumOut < 2) begin : gen_con
+    assign req_valid_o    = req_valid_i;
+    assign req_ready_o    = req_ready_i;
+    assign req_ini_addr_o = '0;
+    assign data_agg_out   = data_agg_in;
+    assign resp_valid_o   = resp_valid_i;
+    assign resp_ready_o   = resp_ready_i;
+    assign resp_rdata_o   = resp_rdata_i;
+  end else if (Topology == tcdm_interconnect_pkg::LIC) begin : gen_lic
     full_duplex_xbar #(
       .NumIn              (NumIn               ),
       .NumOut             (NumOut              ),
