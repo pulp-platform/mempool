@@ -33,6 +33,8 @@ EXIT_STATUS=0
 # Only check C and C++ files for clang-format compatibility
 echo "Checking C/C++ files for clang-format compliance"
 clang_files=$(echo $files | tr ' ' '\n' | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
+# Remove files from dependencies
+clang_files=$(echo $clang_files | grep -vP "hardware/deps/")
 for file in $clang_files; do
   echo $file
   ./.gitlab-ci.d/run_clang_format.py \

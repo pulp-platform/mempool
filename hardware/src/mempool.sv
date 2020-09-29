@@ -8,9 +8,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-import mempool_pkg::*;
-
-module mempool #(
+module mempool
+  import mempool_pkg::*;
+  import cf_math_pkg::idx_width;
+#(
     parameter int unsigned NumCores      = 1,
     parameter int unsigned BankingFactor = 1,
     // TCDM
@@ -33,15 +34,14 @@ module mempool #(
    *****************/
 
   localparam int unsigned NumTiles         = NumCores / NumCoresPerTile;
+  localparam int unsigned NumTilesPerGroup = NumTiles / NumGroups;
   localparam int unsigned NumBanks         = NumCores * BankingFactor;
   localparam int unsigned NumBanksPerTile  = NumBanks / NumTiles;
   localparam int unsigned NumBanksPerGroup = NumBanks / NumGroups;
-  localparam int unsigned TCDMAddrWidth    = TCDMAddrMemWidth + $clog2(NumBanksPerGroup);
-  localparam int unsigned NumTilesPerGroup = NumTiles / NumGroups;
+  localparam int unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
 
-  typedef logic [$clog2(NumTiles)-1:0] tile_id_t;
-  typedef logic [$clog2(NumTilesPerGroup)-1:0] tile_group_id_t;
-  typedef logic [TCDMAddrMemWidth + $clog2(NumBanksPerTile)-1:0] tile_addr_t;
+  typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
+  typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
 
   typedef struct packed {
@@ -144,7 +144,7 @@ module mempool #(
       .scan_enable_i                     (scan_enable_i                       ),
       .scan_data_i                       (/* Unconnected */                   ),
       .scan_data_o                       (/* Unconnected */                   ),
-      .group_id_i                        (g[$clog2(NumGroups)-1:0]            ),
+      .group_id_i                        (g[idx_width(NumGroups)-1:0]         ),
       // TCDM Master interfaces
       .tcdm_master_north_req_o           (tcdm_master_north_req[g]            ),
       .tcdm_master_north_req_valid_o     (tcdm_master_north_req_valid[g]      ),
@@ -226,8 +226,8 @@ module mempool #(
   if (NumCores > 1024)
     $fatal(1, "[mempool] MemPool is currently limited to 1024 cores.");
 
-  if (NumTiles <= 1)
-    $fatal(1, "[mempool] MemPool requires at least two tiles.");
+  if (NumTiles < NumGroups)
+    $fatal(1, "[mempool] MemPool requires more tiles than groups.");
 
   if (NumCores != NumTiles * NumCoresPerTile)
     $fatal(1, "[mempool] The number of cores is not divisible by the number of cores per tile.");

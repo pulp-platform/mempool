@@ -3,9 +3,10 @@
 // Description: Converts propper handshaking (ready/valid) to TCDM signaling
 // Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
 
-import mempool_pkg::address_map_t;
-
-module tcdm_shim #(
+module tcdm_shim
+  import mempool_pkg::address_map_t;
+  import cf_math_pkg::idx_width;
+#(
     parameter int unsigned AddrWidth           = 32            ,
     parameter int unsigned DataWidth           = 32            ,
     parameter int unsigned MaxOutStandingReads = 8             ,
@@ -14,7 +15,7 @@ module tcdm_shim #(
     parameter int unsigned NumRules            = 1             , // Routing rules
     localparam int unsigned StrbWidth          = DataWidth/8   ,
     localparam int unsigned NumOutput          = NrTCDM + NrSoC,
-    localparam int unsigned ReorderIdWidth     = $clog2(MaxOutStandingReads)
+    localparam int unsigned ReorderIdWidth     = idx_width(MaxOutStandingReads)
   ) (
     input  logic                                          clk_i,
     input  logic                                          rst_ni,

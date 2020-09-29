@@ -346,52 +346,54 @@ module mempool_tb;
    *  Instruction Memory  *
    ************************/
 
-  localparam addr_t ICacheBytes       = ICacheLineWidth / 8;
+  localparam addr_t ICacheBytes       = ICacheLineWidth / 8 ;
   localparam addr_t ICacheAddressMask = ~(ICacheBytes - 1);
   localparam addr_t ICacheByteOffset  = $clog2(ICacheBytes);
 
   logic [ICacheLineWidth-1:0] instr_memory[addr_t];
 
-  for (genvar g = 0; g < NumGroups; g++) begin: drive_inst_mem
-    for (genvar t = 0; t < NumTilesPerGroup; t++) begin
-      static addr_t address       = '0;
-      static integer unsigned len = '0;
+  for (genvar g = 0; g < NumGroups; g++) begin : drive_inst_mem_group
+    for (genvar t = 0; t < NumTilesPerGroup; t++) begin : drive_inst_mem_tile
+      for (genvar c = 0; c < NumCoresPerTile/NumCoresPerCache; c++) begin : drive_inst_mem_cache
+        static addr_t address       = '0;
+        static integer unsigned len = '0;
 
-      initial begin
-        while (1) begin
-          @(posedge clk);
-          #TA
-          if (dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qvalid_o) begin
-            // Respond to request
-            address = dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qaddr_o;
-            len     = dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qlen_o;
-
-            cache_line_alignment: assume ((address & ICacheAddressMask) == address)
-            else $fatal(1, "Tile %0d request instruction at %x, but we only support cache-line boundary addresses.", t, address);
-
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i = 1'b1;
+        initial begin
+          while (1) begin
             @(posedge clk);
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
-            // Response
-            for (int i = 0; i < len; i++) begin
-              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
-              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1;
-              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i  = 1'b0;
-              address += ICacheBytes;
-              wait(dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pready_o);
+            #TA
+            if (dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qvalid_o[c]) begin
+              // Respond to request
+              address = dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qaddr_o[c];
+              len     = dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qlen_o[c];
+
+              cache_line_alignment: assume ((address & ICacheAddressMask) == address)
+              else $fatal(1, "Tile %0d request instruction at %x, but we only support cache-line boundary addresses.", t, address);
+
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i[c] = 1'b1;
               @(posedge clk);
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i[c] = 1'b0;
+              // Response
+              for (int i = 0; i < len; i++) begin
+                force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i[c]  = instr_memory[address];
+                force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i[c] = 1'b1;
+                force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i[c]  = 1'b0;
+                address += ICacheBytes;
+                wait(dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pready_o[c]);
+                @(posedge clk);
+              end
+              // Last response
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i[c]  = instr_memory[address];
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i[c] = 1'b1;
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i[c]  = 1'b1;
+              wait(dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pready_o[c]);
+              @(posedge clk);
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i[c] = 1'b0;
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i[c]  = 1'b0;
+            end else begin
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i[c]  = '0;
+              force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i[c] = 1'b0;
             end
-            // Last response
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i  = instr_memory[address];
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i = 1'b1;
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i  = 1'b1;
-            wait(dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pready_o);
-            @(posedge clk);
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pvalid_i = 1'b0;
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_plast_i  = 1'b0;
-          end else begin
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_pdata_i  = '0;
-            force dut.gen_groups[g].i_group.gen_tiles[t].i_tile.refill_qready_i = 1'b0;
           end
         end
       end
