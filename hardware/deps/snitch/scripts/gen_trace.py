@@ -36,7 +36,7 @@ TRACE_OUT_FMT = '{:>8} {:>8} {:>10} {:<30}'
 MAX_SIGNED_INT_LIT = 0xFFFF
 
 # Performance keys which only serve to compute other metrics: omit on printing
-PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_load_latency', 'snitch_load_region', 'snitch_load_tile')
+PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_load_latency', 'snitch_load_region', 'snitch_load_tile', 'snitch_store_region', 'snitch_store_tile')
 
 
 # -------------------- Architectural constants and enums  --------------------
@@ -213,6 +213,19 @@ def emul_seq(fseq_info: dict, permissive: bool = False) -> (str, int, str, tuple
 	fseq_pc_str = None if cfg is None else cfg['fseq_pc']
 	return pc_str, curr_sec, fseq_pc_str, fseq_annot
 
+def addr_to_meta(address):
+	region = MEM_REGIONS['Other']
+	tile = -1
+	if (address < SEQ_MEM_SIZE*NUM_TILES):
+		# Local memory
+		region = MEM_REGIONS['Sequential']
+		tile = address // SEQ_MEM_SIZE
+	elif (address < TCDM_SIZE):
+		# Interleaved memory
+		region = MEM_REGIONS['Interleaved']
+		tile = address // 64
+		tile = tile % NUM_TILES
+	return region, tile
 
 # -------------------- Annotation --------------------
 
@@ -268,6 +281,9 @@ def annotate_snitch(
 			ret.append('{} ~~> {}[{}]'.format(
 				int_lit(extras['gpr_rdata_1']), LS_SIZES[extras['ls_size']],
 				int_lit(extras['alu_result'], force_hex=force_hex_addr)))
+			region, tile = addr_to_meta(extras['alu_result'])
+			perf_metrics[-1].setdefault('snitch_store_region', []).append(region)
+			perf_metrics[-1].setdefault('snitch_store_tile', []).append(int(tile))
 		# Branches: all reg-reg ops
 		elif extras['is_branch']:
 			ret.append('{}taken'.format('' if extras['alu_result'] else 'not '))
@@ -278,17 +294,7 @@ def annotate_snitch(
 	if extras['retire_load'] and extras['lsu_rd'] != 0:
 		try:
 			start_time, address = gpr_wb_info[extras['lsu_rd']].pop()
-			region = MEM_REGIONS['Other']
-			tile = -1
-			if (address < SEQ_MEM_SIZE*NUM_TILES):
-				# Local memory
-				region = MEM_REGIONS['Sequential']
-				tile = address // SEQ_MEM_SIZE
-			elif (address < TCDM_SIZE):
-				# Interleaved memory
-				region = MEM_REGIONS['Interleaved']
-				tile = address // 64
-				tile = tile % NUM_TILES
+			region, tile = addr_to_meta(address)
 			perf_metrics[-1].setdefault('snitch_load_latency', []).append(cycle - start_time)
 			perf_metrics[-1].setdefault('snitch_load_region', []).append(region)
 			perf_metrics[-1].setdefault('snitch_load_tile', []).append(int(tile))
@@ -494,6 +500,19 @@ def eval_perf_metrics(perf_metrics: list, id: int):
 			'itl_latency_local': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_local]),
 			'itl_latency_global': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_global]),
 		})
+		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_store_region']]
+		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_store_region']]
+		loc_stores = [x == tile_id for x in seg['snitch_store_tile']]
+		seq_stores_local = np.logical_and(np.array(seq_region), np.array(loc_stores))
+		seq_stores_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_stores)))
+		itl_stores_local = np.logical_and(np.array(itl_region), np.array(loc_stores))
+		itl_stores_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_stores)))
+		seg.update({
+			'seq_stores_local': np.count_nonzero(seq_stores_local),
+			'seq_stores_global': np.count_nonzero(seq_stores_global),
+			'itl_stores_local': np.count_nonzero(itl_stores_local),
+			'itl_stores_global': np.count_nonzero(itl_stores_global),
+		})
 
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 	ret = ['Performance metrics for section {} @ ({}, {}):'.format(
@@ -571,6 +590,7 @@ def main():
 	# Initial code belongs to setup phase
 	perf_metrics = perf_metrics_setup
 	section = 0
+	transition = [5000, 6250]
 	# Parse input line by line
 	for line in line_iter:
 		if line:
@@ -579,10 +599,12 @@ def main():
 			if perf_metrics[0]['start'] is None:
 				perf_metrics[0]['start'] = time_info[1]
 			# Start a new benchmark section after 'csrw cycle' instruction
-			if 'cycle' in line:
+			# if 'cycle' in line:
+			if len(transition) > 0 and time_info[1] >= transition[0]:
+				transition = transition[1:]
 				perf_metrics[-1]['end'] = time_info[1]
 				perf_metrics.append(defaultdict(int))
-				if 'csrw' in ann_insn:
+				if len(transition) % 2 == 1:
 					# Start of a benchmark section
 					perf_metrics = perf_metrics_bench
 					perf_metrics[-1]['section'] = section

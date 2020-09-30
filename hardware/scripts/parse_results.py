@@ -127,6 +127,16 @@ def main():
 			info = info.join(statistics)
 	print(info)
 
+	print('seq_loads_local   {:8d}'.format(sum(data['seq_loads_local'])))
+	print('itl_loads_local   {:8d}'.format(sum(data['itl_loads_local'])))
+	print('seq_loads_global  {:8d}'.format(sum(data['seq_loads_global'])))
+	print('itl_loads_global  {:8d}'.format(sum(data['itl_loads_global'])))
+
+	print('tot_loads_local   {:8d}'.format(sum(data['seq_loads_local'])+sum(data['itl_loads_local'])))
+	print('tot_loads_global  {:8d}'.format(sum(data['seq_loads_global'])+sum(data['itl_loads_global'])))
+
+	exit(0)
+
 	# Plotting
 	# colorpalette = 'vlag'
 	colorpalette = 'RdBu'
