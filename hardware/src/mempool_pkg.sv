@@ -23,19 +23,6 @@ package mempool_pkg;
   localparam integer unsigned TCDMSizePerBank  = 1024 /* [B] */;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
 
-  `ifdef REQ_PROBABILITY
-  localparam ReqProbability = `REQ_PROBABILITY;
-  `else
-  localparam ReqProbability = 500;
-  `endif
-  `ifdef SEQ_PROBABILITY
-  localparam SeqProbability = `SEQ_PROBABILITY;
-  `else
-  localparam SeqProbability = 0;
-  `endif
-
-  localparam NumCycles = 4000;
-
   /*********************
    *  TILE PARAMETERS  *
    *********************/

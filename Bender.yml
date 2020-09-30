@@ -32,5 +32,4 @@ sources:
       - hardware/tb/axi2mem.sv
       - hardware/tb/ctrl_registers.sv
       # Level 2
-      - hardware/tb/traffic_generator.sv
       - hardware/tb/mempool_tb.sv

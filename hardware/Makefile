@@ -41,10 +41,6 @@ questa_args    ?=
 # Path to the binaries
 app_path       ?= $(abspath $(ROOT_DIR)/../apps/bin)
 
-# Request probability
-req_prob       ?= 500
-seq_prob       ?= 500
-
 # Python
 python         ?= python3.6
 
@@ -78,7 +74,7 @@ endif
 
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 # Defines
-vlog_args += +define+NUM_CORES=$(num_cores) +define+NUM_CORES_PER_TILE=$(num_cores_per_tile) +define+BOOT_ADDR=32'h$(boot_addr) +define+REQ_PROBABILITY=$(req_prob) +define+SEQ_PROBABILITY=$(seq_prob)
+vlog_args += +define+NUM_CORES=$(num_cores) +define+NUM_CORES_PER_TILE=$(num_cores_per_tile) +define+BOOT_ADDR=32'h$(boot_addr)
 
 # Simulation
 build: bender lib $(buildpath)/$(dpi_library)/mempool_dpi.so
