@@ -20,10 +20,12 @@ module traffic_generator #(
     parameter int unsigned NumBanks            = 1          ,
     parameter int unsigned NumCycles           = 10000      ,
     parameter int unsigned ReqProbability      = 500        ,
+    parameter int unsigned SeqProbability      = 0          ,
     parameter int unsigned NrTCDM              = 2          ,
     parameter int unsigned NumRules            = 1          , // Routing rules
     localparam int unsigned StrbWidth          = DataWidth/8,
     parameter addr_t TCDMBaseAddr              = 32'b0      ,
+    parameter int unsigned NumBanksPerTile     = 0          ,
     localparam int unsigned ReorderIdWidth     = $clog2(MaxOutStandingReads)
   ) (
     input  logic                                          clk_i,
@@ -56,6 +58,8 @@ module traffic_generator #(
   // TCDM Memory Region
   localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
   localparam addr_t TCDMMask = ~(TCDMSize - 1);
+  localparam int unsigned BankOffsetBits = $clog2(NumBanksPerTile);
+  localparam int unsigned NumTilesBits   = $clog2(NumBanks/NumBanksPerTile);
 
   // Track the instructions
   typedef logic [ReorderIdWidth-1:0] id_t;
@@ -152,13 +156,16 @@ module traffic_generator #(
   id_t  resp_id_q;
   `FF(resp_valid_q, resp_valid, 0)
   `FF(resp_id_q, data_ppayload.id, 0)
+  logic [NumTilesBits-1:0] tile_id;
+  assign tile_id = core_id_i[$clog2(NumCores)-1 -: NumTilesBits];
+
 
   // Latency histogram
   int  unsigned latency_histogram[int];
   id_t          requests[$];
 
 
-  task automatic randomUniformRequest(int numCycles, int unsigned reqProbability);
+  task automatic randomUniformRequest(int numCycles, int unsigned reqProbability, int unsigned seqProbability);
     // Seed the randomizer
     process::self().srandom(core_id_i)                                           ;
 
@@ -193,7 +200,13 @@ module traffic_generator #(
         req_tgt_addr  = '0   ;
         data_qpayload = '0   ;
       end else begin
+        automatic int unsigned val;
         void'(randomize(req_tgt_addr) with {(req_tgt_addr & TCDMMask) == TCDMBaseAddr;});
+        // Make it fall into the sequential region
+        void'(randomize(val) with {val>=0; val<1000;});
+        if (val <= int'(seqProbability)) begin
+          req_tgt_addr[BankOffsetBits + ByteOffset +: NumTilesBits] = tile_id;
+        end
         req_valid         = 1'b1;
         req_tgt_addr[1:0] = '0  ;
 
@@ -233,7 +246,7 @@ module traffic_generator #(
       @(posedge clk_i);
 
     // Start the requests
-    randomUniformRequest(NumCycles, ReqProbability);
+    randomUniformRequest(NumCycles, ReqProbability, SeqProbability);
   end
 
 endmodule: traffic_generator
