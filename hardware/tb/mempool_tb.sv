@@ -342,6 +342,59 @@ module mempool_tb;
     .num_cores_o         (/* Unused */               )
   );
 
+  /***********************
+   *  Latency histogram  *
+   ***********************/
+
+  int                latency_histogram[int];
+  logic [NumCores:0] trigger_histogram;
+
+  initial begin
+    trigger_histogram    = '0  ;
+    trigger_histogram[0] = 1'b1;
+  end
+
+  for (genvar h = 0; h < NumHives; h++) begin
+    for (genvar t = 0; t < NumTilesPerHive; t++) begin
+      for (genvar c = 0; c < NumCoresPerTile; c++) begin
+        initial begin
+          automatic int core        = h * NumTilesPerHive * NumCoresPerTile + t * NumCoresPerTile + c;
+          trigger_histogram[core+1] = 1'b0                                                           ;
+
+          @(posedge rst_n);
+          repeat (3)
+            @(posedge clk);
+
+          // Wait for a few requests
+          repeat (mempool_pkg::NumCycles)
+            #ClockPeriod;
+
+          wait (trigger_histogram[core]);
+          $display("Consolidating data for core %0d", core);
+
+          foreach (dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.i_tile.gen_core_mux[c].i_traffic_gen.latency_histogram[i]) begin
+            if (latency_histogram.exists(i))
+              latency_histogram[i] = latency_histogram[i] + dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.i_tile.gen_core_mux[c].i_traffic_gen.latency_histogram[i];
+            else
+              latency_histogram[i] = dut.gen_hives[h].i_hive.gen_tiles[t].i_tile.i_tile.gen_core_mux[c].i_traffic_gen.latency_histogram[i];
+          end
+
+          trigger_histogram[core+1] = 1'b1;
+          if (core == NumCores-1) begin
+            $display("LATENCY RESULTS");
+            foreach (latency_histogram[i]) begin
+              $display("Latency %0d\tFrequency %0d", i, latency_histogram[i]);
+            end
+
+            $display("NUMCYCLES %0d", NumCycles);
+
+            $finish(0);
+          end
+        end
+      end
+    end
+  end
+
   /************************
    *  Instruction Memory  *
    ************************/

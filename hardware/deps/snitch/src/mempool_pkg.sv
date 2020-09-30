@@ -4,7 +4,7 @@ package snitch_pkg;
   localparam DataWidth                  = 32                            ;
   localparam StrbWidth                  = DataWidth/8                   ;
   localparam int NumFPOutstandingLoads  = 4                             ;
-  localparam int NumIntOutstandingLoads = 8                             ;
+  localparam int NumIntOutstandingLoads = 4096                          ;
   localparam ReorderIdWidth             = $clog2(NumIntOutstandingLoads);
 
   typedef struct packed {
