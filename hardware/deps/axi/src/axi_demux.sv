@@ -15,7 +15,7 @@
 // axi_demux: Demultiplex an AXI bus from one slave port to multiple master ports.
 // See `doc/axi_demux.md` for the documentation, including the definition of parameters and ports.
 module axi_demux #(
-  parameter int unsigned AxiIdWidth     = 1,
+  parameter int unsigned AxiIdWidth     = 32'd0,
   parameter type         aw_chan_t      = logic,
   parameter type         w_chan_t       = logic,
   parameter type         b_chan_t       = logic,
@@ -23,9 +23,9 @@ module axi_demux #(
   parameter type         r_chan_t       = logic,
   parameter type         req_t          = logic,
   parameter type         resp_t         = logic,
-  parameter int unsigned NoMstPorts     = 3,
-  parameter int unsigned MaxTrans       = 8,
-  parameter int unsigned AxiLookBits    = 3,
+  parameter int unsigned NoMstPorts     = 32'd0,
+  parameter int unsigned MaxTrans       = 32'd8,
+  parameter int unsigned AxiLookBits    = 32'd3,
   parameter bit          FallThrough    = 1'b0,
   parameter bit          SpillAw        = 1'b1,
   parameter bit          SpillW         = 1'b0,
@@ -33,7 +33,8 @@ module axi_demux #(
   parameter bit          SpillAr        = 1'b1,
   parameter bit          SpillR         = 1'b0,
   // Dependent parameters, DO NOT OVERRIDE!
-  parameter type         select_t       = logic [$clog2(NoMstPorts)-1:0]
+  parameter int unsigned SelectWidth    = (NoMstPorts > 32'd1) ? $clog2(NoMstPorts) : 32'd1,
+  parameter type         select_t       = logic [SelectWidth-1:0]
 ) (
   input  logic                     clk_i,
   input  logic                     rst_ni,
@@ -48,7 +49,20 @@ module axi_demux #(
   input  resp_t   [NoMstPorts-1:0] mst_resps_i
 );
 
-  localparam int unsigned IdCounterWidth = $clog2(MaxTrans);
+  localparam int unsigned IdCounterWidth = MaxTrans > 1 ? $clog2(MaxTrans) : 1;
+
+  //--------------------------------------
+  // Typedefs for the FIFOs / Queues
+  //--------------------------------------
+  typedef logic [AxiIdWidth-1:0] axi_id_t;
+  typedef struct packed {
+    aw_chan_t aw_chan;
+    select_t  aw_select;
+  } aw_chan_select_t;
+  typedef struct packed {
+    ar_chan_t ar_chan;
+    select_t  ar_select;
+  } ar_chan_select_t;
 
   // pass through if only one master port
   if (NoMstPorts == 32'h1) begin : gen_no_demux
@@ -56,18 +70,6 @@ module axi_demux #(
     assign slv_resp_o    = mst_resps_i;
   // other non degenerate cases
   end else begin : gen_demux
-    //--------------------------------------
-    // Typedefs for the Fifo's / Queues
-    //--------------------------------------
-    typedef logic [AxiIdWidth-1:0] axi_id_t;
-    typedef struct packed {
-      aw_chan_t aw_chan;
-      select_t  aw_select;
-    } aw_chan_select_t;
-    typedef struct packed {
-      ar_chan_t ar_chan;
-      select_t  ar_select;
-    } ar_chan_select_t;
 
     //--------------------------------------
     //--------------------------------------
@@ -576,7 +578,7 @@ module axi_demux_id_counters #(
     logic cnt_en, cnt_down, overflow;
     cnt_t cnt_delta, in_flight;
     always_comb begin
-      case ({push_en[i], inject_en[i], pop_en[i]})
+      unique case ({push_en[i], inject_en[i], pop_en[i]})
         3'b001  : begin // pop_i = -1
           cnt_en    = 1'b1;
           cnt_down  = 1'b1;
@@ -648,76 +650,77 @@ endmodule
 // interface wrapper
 `include "axi/assign.svh"
 `include "axi/typedef.svh"
-module axi_demux_wrap #(
-  parameter int unsigned AxiIdWidth     = 0, // Synopsys DC requires a default value for param.
-  parameter int unsigned AxiAddrWidth   = 0,
-  parameter int unsigned AxiDataWidth   = 0,
-  parameter int unsigned AxiUserWidth   = 0,
-  parameter int unsigned NoMstPorts     = 3,
-  parameter int unsigned MaxTrans       = 8,
-  parameter int unsigned AxiLookBits    = 3,
-  parameter bit          FallThrough    = 1'b0,
-  parameter bit          SpillAw        = 1'b1,
-  parameter bit          SpillW         = 1'b0,
-  parameter bit          SpillB         = 1'b0,
-  parameter bit          SpillAr        = 1'b1,
-  parameter bit          SpillR         = 1'b0,
+module axi_demux_intf #(
+  parameter int unsigned AXI_ID_WIDTH     = 32'd0, // Synopsys DC requires default value for params
+  parameter int unsigned AXI_ADDR_WIDTH   = 32'd0,
+  parameter int unsigned AXI_DATA_WIDTH   = 32'd0,
+  parameter int unsigned AXI_USER_WIDTH   = 32'd0,
+  parameter int unsigned NO_MST_PORTS     = 32'd3,
+  parameter int unsigned MAX_TRANS        = 32'd8,
+  parameter int unsigned AXI_LOOK_BITS    = 32'd3,
+  parameter bit          FALL_THROUGH     = 1'b0,
+  parameter bit          SPILL_AW         = 1'b1,
+  parameter bit          SPILL_W          = 1'b0,
+  parameter bit          SPILL_B          = 1'b0,
+  parameter bit          SPILL_AR         = 1'b1,
+  parameter bit          SPILL_R          = 1'b0,
   // Dependent parameters, DO NOT OVERRIDE!
-  parameter type         select_t       = logic [$clog2(NoMstPorts)-1:0] // MST port select type
+  parameter int unsigned SELECT_WIDTH   = (NO_MST_PORTS > 32'd1) ? $clog2(NO_MST_PORTS) : 32'd1,
+  parameter type         select_t       = logic [SELECT_WIDTH-1:0] // MST port select type
 ) (
-  input  logic    clk_i,               // Clock
-  input  logic    rst_ni,              // Asynchronous reset active low
-  input  logic    test_i,              // Testmode enable
-  input  select_t slv_aw_select_i,     // has to be stable, when aw_valid
-  input  select_t slv_ar_select_i,     // has to be stable, when ar_valid
-  AXI_BUS.Slave   slv,                 // slave port
-  AXI_BUS.Master  mst [NoMstPorts-1:0] // master ports
+  input  logic    clk_i,                 // Clock
+  input  logic    rst_ni,                // Asynchronous reset active low
+  input  logic    test_i,                // Testmode enable
+  input  select_t slv_aw_select_i,       // has to be stable, when aw_valid
+  input  select_t slv_ar_select_i,       // has to be stable, when ar_valid
+  AXI_BUS.Slave   slv,                   // slave port
+  AXI_BUS.Master  mst [NO_MST_PORTS-1:0] // master ports
 );
 
-  typedef logic [AxiIdWidth-1:0]       id_t;
-  typedef logic [AxiAddrWidth-1:0]   addr_t;
-  typedef logic [AxiDataWidth-1:0]   data_t;
-  typedef logic [AxiDataWidth/8-1:0] strb_t;
-  typedef logic [AxiUserWidth-1:0]   user_t;
-  `AXI_TYPEDEF_AW_CHAN_T( aw_chan_t, addr_t, id_t,         user_t);
-  `AXI_TYPEDEF_W_CHAN_T (  w_chan_t, data_t,       strb_t, user_t);
-  `AXI_TYPEDEF_B_CHAN_T (  b_chan_t,         id_t,         user_t);
-  `AXI_TYPEDEF_AR_CHAN_T( ar_chan_t, addr_t, id_t,         user_t);
-  `AXI_TYPEDEF_R_CHAN_T (  r_chan_t, data_t, id_t,         user_t);
-  `AXI_TYPEDEF_REQ_T    (     req_t, aw_chan_t, w_chan_t, ar_chan_t);
-  `AXI_TYPEDEF_RESP_T   (    resp_t,  b_chan_t, r_chan_t) ;
+  typedef logic [AXI_ID_WIDTH-1:0]       id_t;
+  typedef logic [AXI_ADDR_WIDTH-1:0]   addr_t;
+  typedef logic [AXI_DATA_WIDTH-1:0]   data_t;
+  typedef logic [AXI_DATA_WIDTH/8-1:0] strb_t;
+  typedef logic [AXI_USER_WIDTH-1:0]   user_t;
+  `AXI_TYPEDEF_AW_CHAN_T(aw_chan_t, addr_t, id_t, user_t)
+  `AXI_TYPEDEF_W_CHAN_T(w_chan_t, data_t, strb_t, user_t)
+  `AXI_TYPEDEF_B_CHAN_T(b_chan_t, id_t, user_t)
+  `AXI_TYPEDEF_AR_CHAN_T(ar_chan_t, addr_t, id_t, user_t)
+  `AXI_TYPEDEF_R_CHAN_T(r_chan_t, data_t, id_t, user_t)
+  `AXI_TYPEDEF_REQ_T(req_t, aw_chan_t, w_chan_t, ar_chan_t)
+  `AXI_TYPEDEF_RESP_T(resp_t, b_chan_t, r_chan_t)
 
-  req_t                   slv_req;
-  resp_t                  slv_resp;
-  req_t  [NoMstPorts-1:0] mst_req;
-  resp_t [NoMstPorts-1:0] mst_resp;
+  req_t                     slv_req;
+  resp_t                    slv_resp;
+  req_t  [NO_MST_PORTS-1:0] mst_req;
+  resp_t [NO_MST_PORTS-1:0] mst_resp;
 
-  `AXI_ASSIGN_TO_REQ    ( slv_req,  slv      );
-  `AXI_ASSIGN_FROM_RESP ( slv,      slv_resp );
+  `AXI_ASSIGN_TO_REQ(slv_req, slv)
+  `AXI_ASSIGN_FROM_RESP(slv, slv_resp)
 
-  for (genvar i = 0; i < NoMstPorts; i++) begin : gen_assign_mst_ports
-    `AXI_ASSIGN_FROM_REQ  ( mst[i]     , mst_req[i]  );
-    `AXI_ASSIGN_TO_RESP   ( mst_resp[i], mst[i]      );
+  for (genvar i = 0; i < NO_MST_PORTS; i++) begin : gen_assign_mst_ports
+    `AXI_ASSIGN_FROM_REQ(mst[i], mst_req[i])
+    `AXI_ASSIGN_TO_RESP(mst_resp[i], mst[i])
   end
 
   axi_demux #(
-    .AxiIdWidth     ( AxiIdWidth     ), // ID Width
-    .aw_chan_t      ( aw_chan_t      ), // AW Channel Type
-    .w_chan_t       (  w_chan_t      ), //  W Channel Type
-    .b_chan_t       (  b_chan_t      ), //  B Channel Type
-    .ar_chan_t      ( ar_chan_t      ), // AR Channel Type
-    .r_chan_t       (  r_chan_t      ), //  R Channel Type
-    .req_t          (     req_t      ),
-    .resp_t         (    resp_t      ),
-    .NoMstPorts     ( NoMstPorts     ),
-    .MaxTrans       ( MaxTrans       ),
-    .AxiLookBits    ( AxiLookBits    ),
-    .FallThrough    ( FallThrough    ),
-    .SpillAw        ( SpillAw        ),
-    .SpillW         ( SpillW         ),
-    .SpillB         ( SpillR         ),
-    .SpillAr        ( SpillAr        ),
-    .SpillR         ( SpillR         )
+    .AxiIdWidth     ( AXI_ID_WIDTH  ), // ID Width
+    .aw_chan_t      ( aw_chan_t     ), // AW Channel Type
+    .w_chan_t       (  w_chan_t     ), //  W Channel Type
+    .b_chan_t       (  b_chan_t     ), //  B Channel Type
+    .ar_chan_t      ( ar_chan_t     ), // AR Channel Type
+    .r_chan_t       (  r_chan_t     ), //  R Channel Type
+    .req_t          (     req_t     ),
+    .resp_t         (    resp_t     ),
+    .NoMstPorts     ( NO_MST_PORTS  ),
+    .MaxTrans       ( MAX_TRANS     ),
+    .AxiLookBits    ( AXI_LOOK_BITS ),
+    .FallThrough    ( FALL_THROUGH  ),
+    .SpillAw        ( SPILL_AW      ),
+    .SpillW         ( SPILL_W       ),
+    .SpillB         ( SPILL_B       ),
+    .SpillAr        ( SPILL_AR      ),
+    .SpillR         ( SPILL_R       )
   ) i_axi_demux (
     .clk_i,   // Clock
     .rst_ni,  // Asynchronous reset active low
@@ -728,7 +731,7 @@ module axi_demux_wrap #(
     .slv_ar_select_i ( slv_ar_select_i ),
     .slv_resp_o      ( slv_resp        ),
     // master port
-    .mst_reqs_o      ( mst_req        ),
-    .mst_resps_i     ( mst_resp       )
+    .mst_reqs_o      ( mst_req         ),
+    .mst_resps_i     ( mst_resp        )
   );
 endmodule
