@@ -69,6 +69,14 @@ module mempool_tb;
   `AXI_TYPEDEF_REQ_T(axi_slv_req_t, axi_slv_aw_t, axi_w_t, axi_slv_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_slv_resp_t, axi_slv_b_t, axi_slv_r_t);
 
+  `AXI_LITE_TYPEDEF_AW_CHAN_T(axi_lite_slv_aw_t, addr_t)
+  `AXI_LITE_TYPEDEF_W_CHAN_T(axi_lite_slv_w_t, data_t, strb_t)
+  `AXI_LITE_TYPEDEF_B_CHAN_T(axi_lite_slv_b_t)
+  `AXI_LITE_TYPEDEF_AR_CHAN_T(axi_lite_slv_ar_t, addr_t)
+  `AXI_LITE_TYPEDEF_R_CHAN_T(axi_lite_slv_r_t, data_t)
+  `AXI_LITE_TYPEDEF_REQ_T(axi_lite_slv_req_t, axi_lite_slv_aw_t, axi_lite_slv_w_t, axi_lite_slv_ar_t)
+  `AXI_LITE_TYPEDEF_RESP_T(axi_lite_slv_resp_t, axi_lite_slv_b_t, axi_lite_slv_r_t)
+
   localparam NumAXIMasters = NumTiles;
   localparam NumAXISlaves  = 4;
   typedef enum logic [$clog2(NumAXISlaves)-1:0] {
@@ -315,28 +323,46 @@ module mempool_tb;
    *  Control Registers  *
    ***********************/
 
+  axi_lite_slv_req_t  axi_lite_ctrl_registers_req;
+  axi_lite_slv_resp_t axi_lite_ctrl_registers_resp;
+
+  axi_to_axi_lite #(
+    .AxiAddrWidth   (AddrWidth          ),
+    .AxiDataWidth   (DataWidth          ),
+    .AxiIdWidth     (AxiSlvIdWidth      ),
+    .AxiUserWidth   (1                  ),
+    .AxiMaxReadTxns (1                  ),
+    .AxiMaxWriteTxns(1                  ),
+    .FallThrough    (1'b0               ),
+    .full_req_t     (axi_slv_req_t      ),
+    .full_resp_t    (axi_slv_resp_t     ),
+    .lite_req_t     (axi_lite_slv_req_t ),
+    .lite_resp_t    (axi_lite_slv_resp_t)
+  ) i_axi_to_axi_lite (
+    .clk_i     (clk                         ),
+    .rst_ni    (rst_n                       ),
+    .test_i    (1'b0                        ),
+    .slv_req_i (axi_mem_req[CtrlRegisters]  ),
+    .slv_resp_o(axi_mem_resp[CtrlRegisters] ),
+    .mst_req_o (axi_lite_ctrl_registers_req ),
+    .mst_resp_i(axi_lite_ctrl_registers_resp)
+  );
+
   ctrl_registers #(
-    .NumRegs              (3                    ),
-    .TCDMBaseAddr         (TCDMBaseAddr         ),
-    .TCDMSize             (TCDMSize             ),
-    .NumCores             (NumCores             ),
-    .CtrlRegistersBaseAddr(CtrlRegistersBaseAddr),
-    .CtrlRegistersEndAddr (CtrlRegistersEndAddr ),
-    .axi_aw_chan_t        (axi_slv_aw_t         ),
-    .axi_w_chan_t         (axi_w_t              ),
-    .axi_b_chan_t         (axi_slv_b_t          ),
-    .axi_ar_chan_t        (axi_slv_ar_t         ),
-    .axi_r_chan_t         (axi_slv_r_t          ),
-    .axi_req_t            (axi_slv_req_t        ),
-    .axi_resp_t           (axi_slv_resp_t       )
+    .NumRegs        (3                  ),
+    .TCDMBaseAddr   (TCDMBaseAddr       ),
+    .TCDMSize       (TCDMSize           ),
+    .NumCores       (NumCores           ),
+    .axi_lite_req_t (axi_lite_slv_req_t ),
+    .axi_lite_resp_t(axi_lite_slv_resp_t)
   ) i_ctrl_registers (
-    .clk_i               (clk                        ),
-    .rst_ni              (rst_n                      ),
-    .axi_slave_req_i     (axi_mem_req[CtrlRegisters] ),
-    .axi_slave_resp_o    (axi_mem_resp[CtrlRegisters]),
-    .tcdm_start_address_o(/* Unused */               ),
-    .tcdm_end_address_o  (/* Unused */               ),
-    .num_cores_o         (/* Unused */               )
+    .clk_i                (clk                         ),
+    .rst_ni               (rst_n                       ),
+    .axi_lite_slave_req_i (axi_lite_ctrl_registers_req ),
+    .axi_lite_slave_resp_o(axi_lite_ctrl_registers_resp),
+    .tcdm_start_address_o (/* Unused */                ),
+    .tcdm_end_address_o   (/* Unused */                ),
+    .num_cores_o          (/* Unused */                )
   );
 
   /************************
