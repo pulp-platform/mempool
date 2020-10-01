@@ -28,6 +28,8 @@ workflow:
 before_script:
   - env
   - git submodule sync --recursive
+  - git submodule foreach --recursive git reset --hard
+  # Clean up some stuff that the CI misses
 
 after_script:
   - env
@@ -64,7 +66,9 @@ tc-llvm:
 tc-isa-sim:
   stage: build
   script:
+    - rm -rf toolchain/riscv-isa-sim
     - git submodule update --init --recursive -- toolchain/riscv-isa-sim
+    - git submodule foreach --recursive git reset --hard
     - make riscv-isa-sim
   variables:
     GIT_SUBMODULE_STRATEGY: none
