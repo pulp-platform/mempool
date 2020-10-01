@@ -396,6 +396,7 @@ disassembler_t::disassembler_t(int xlen)
   #define DEFINE_NOARG(code) \
     add_insn(new disasm_insn_t(#code, match_##code, mask_##code, {}));
   #define DEFINE_RTYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &xrs2})
+  #define DEFINE_R1TYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1})
   #define DEFINE_ITYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &imm})
   #define DEFINE_ITYPE_SHIFT(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &shamt})
   #define DEFINE_I0TYPE(name, code) DISASM_INSN(name, code, mask_rs1, {&xrd, &imm})
@@ -647,10 +648,10 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_FRTYPE(fsgnjx_h);
   DEFINE_FR1TYPE(fcvt_h_s);
   DEFINE_FR1TYPE(fcvt_h_d);
-  DEFINE_FR1TYPE(fcvt_h_q);
+  //DEFINE_FR1TYPE(fcvt_h_q);
   DEFINE_FR1TYPE(fcvt_s_h);
   DEFINE_FR1TYPE(fcvt_d_h);
-  DEFINE_FR1TYPE(fcvt_q_h);
+  //DEFINE_FR1TYPE(fcvt_q_h);
   DEFINE_XFTYPE(fcvt_h_l);
   DEFINE_XFTYPE(fcvt_h_lu);
   DEFINE_XFTYPE(fcvt_h_w);
@@ -688,13 +689,13 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_XFTYPE(fcvt_q_w);
   DEFINE_XFTYPE(fcvt_q_wu);
   DEFINE_XFTYPE(fcvt_q_wu);
-  DEFINE_XFTYPE(fmv_q_x);
+  //DEFINE_XFTYPE(fmv_q_x);
   DEFINE_FXTYPE(fcvt_l_q);
   DEFINE_FXTYPE(fcvt_lu_q);
   DEFINE_FXTYPE(fcvt_w_q);
   DEFINE_FXTYPE(fcvt_wu_q);
   DEFINE_FXTYPE(fclass_q);
-  DEFINE_FXTYPE(fmv_x_q);
+  //DEFINE_FXTYPE(fmv_x_q);
   DEFINE_FX2TYPE(feq_q);
   DEFINE_FX2TYPE(flt_q);
   DEFINE_FX2TYPE(fle_q);
@@ -1257,6 +1258,13 @@ disassembler_t::disassembler_t(int xlen)
     DISASM_INSN("c.sdsp", c_sdsp, 0, {&rvc_rs2, &rvc_sdsp_address});
     DISASM_INSN("c.addiw", c_addiw, 0, {&xrd, &rvc_imm});
   }
+
+  // Xpulpimg extension
+  DEFINE_R1TYPE(p_abs);
+  DEFINE_RTYPE(p_min);
+  DEFINE_RTYPE(p_minu);
+  DEFINE_RTYPE(p_max);
+  DEFINE_RTYPE(p_maxu);
 
   // provide a default disassembly for all instructions as a fallback
   #define DECLARE_INSN(code, match, mask) \

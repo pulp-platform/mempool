@@ -271,11 +271,11 @@ riscv_insn_ext_zfh = \
 	fcvt_h_d \
 	fcvt_h_l \
 	fcvt_h_lu \
-	fcvt_h_q \
+	#fcvt_h_q \
 	fcvt_h_s \
 	fcvt_h_w \
 	fcvt_h_wu \
-	fcvt_q_h \
+	#fcvt_q_h \
 	fcvt_s_h \
 	fcvt_w_h \
 	fcvt_wu_h \
@@ -752,6 +752,13 @@ riscv_insn_ext_v = \
 	$(riscv_insn_ext_v_ctrl) \
 	$(riscv_insn_ext_v_ldst) \
 
+riscv_insn_ext_xpulpimg = \
+  p_abs \
+  p_max \
+  p_maxu \
+  p_min \
+  p_minu \
+
 riscv_insn_ext_h = \
 	hfence_gvma \
 	hfence_vvma \
@@ -795,6 +802,7 @@ riscv_insn_list = \
 	$(riscv_insn_ext_zfh) \
 	$(riscv_insn_ext_q) \
 	$(if $(HAVE_INT128),$(riscv_insn_ext_v),) \
+	$(riscv_insn_ext_xpulpimg) \
 	$(riscv_insn_ext_h) \
 	$(riscv_insn_priv) \
 
