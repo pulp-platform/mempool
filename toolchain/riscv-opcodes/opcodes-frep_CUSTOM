@@ -1,0 +1,1 @@
+frep            rd rs1 imm12 rm 6..2=0x02 1..0=3
