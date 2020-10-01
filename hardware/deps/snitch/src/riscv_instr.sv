@@ -1,1 +1,1 @@
-../riscv-opcodes/inst.sverilog
+../../../../toolchain/riscv-opcodes/inst.sverilog
