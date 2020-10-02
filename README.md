@@ -49,12 +49,23 @@ cd apps
 make bin/hello_world
 ```
 
-You can also choose the compiler to build the application with using the `COMPILER` option. The possible options are `gcc` and `llvm`, the later being the default.
+You can also choose the compiler to build the application with using the `COMPILER` option. The possible options are `gcc` and `llvm`, the latter being the default.
 
 ```bash
 # Compile with GCC instead of LLVM
 make COMPILER=gcc bin/hello_world
 ```
+
+To run applications designed for the in-development extension **Xpulpimg**, be sure to select the `gcc` compiler option.
+If all the Xpulpimg instructions implemented in Snitch at compilation time are supported by the Xpulpimg subset of the GCC compiler, you can build your application with the option `XPULPIMG` set to `1`:
+
+```bash
+# Compile with GCC supporting Xpulpimg instruction set
+make COMPILER=gcc XPULPIMG=1 bin/hello_world
+```
+
+Otherwise, for quick implementation & simulation cycles, you can compile without any support for the Xpulpimg extension but still making the assembler aware of Xpulpimg instructions; in that case you must be sure to use Xpulpimg instructions only in an `asm volatile` construct within your C/C++ application, and set `XPULPIMG=0`.
+If `XPULPIMG` is not set, no support for any Xpulp extension will be provied by the compiler nor the assembler.
 
 ### Writing Applications
 

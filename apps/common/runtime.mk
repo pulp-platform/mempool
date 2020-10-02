@@ -31,7 +31,19 @@ HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
 COMPILER      ?= llvm
 
 RISCV_XLEN    ?= 32
-RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+
+ifeq ($(XPULPIMG),1)
+	# when compiler knows all your Xpulpimg instructions
+	RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
+else
+	# to give different compiler/assembler directives (only use Xpulpimg instructions within asm)
+	# OR when no support for any Xpulp (XPULPIMG not defined)
+	RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+	ifeq ($(XPULPIMG),0)
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
+	endif
+endif
+
 RISCV_ABI     ?= ilp32
 RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
 ifeq ($(COMPILER),gcc)
@@ -61,7 +73,15 @@ RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RI
 
 RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
 RISCV_FLAGS_COMMON ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
-RISCV_FLAGS_GCC    ?= -mcmodel=medany
+
+ifeq ($(XPULPIMG),0)
+	# to give different compiler/assembler directives (only use Xpulpimg instructions within asm)
+	RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS)
+else
+	# when compiler knows all your Xpulpimg instructions OR when no support for any Xpulp
+	RISCV_FLAGS_GCC    ?= -mcmodel=medany
+endif
+
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -enable-misched
 ifeq ($(COMPILER),gcc)
 	RISCV_FLAGS    ?= $(RISCV_FLAGS_GCC)  $(RISCV_FLAGS_COMMON)
