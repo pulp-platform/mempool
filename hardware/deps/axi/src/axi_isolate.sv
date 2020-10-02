@@ -343,4 +343,3 @@ module axi_isolate_intf #(
   `endif
   // pragma translate_on
 endmodule
-
