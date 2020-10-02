@@ -99,8 +99,8 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 }
 
 int main(int argc, char **argv) {
-  uint32_t core_id = (uint32_t)argc;
-  uint32_t num_cores = (uint32_t)argv;
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
   mempool_barrier_init(core_id, num_cores);

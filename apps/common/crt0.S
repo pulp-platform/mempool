@@ -64,10 +64,8 @@ reset_vector:
     li      x31, 0
     la      sp, tcdm_start_address_reg // load stack top from peripheral register
     lw      sp, 0(sp)
-    csrr    a0, mhartid                // get hart id
-    la      a1, nr_cores_address_reg   // get the number of cores per cluster
-    lw      a1, 0(a1)
-    addi    t0, a0, 1
+    csrr    t0, mhartid                // get hart id
+    addi    t0, t0, 1
     slli    t0, t0, 10                 // set some stack-space aside for each hart
     add     sp, sp, t0
     call    main

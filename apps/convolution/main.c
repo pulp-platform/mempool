@@ -39,8 +39,8 @@ volatile uint32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
 uint32_t volatile error __attribute__((section(".l1")));
 
 int main(int argc, char **argv) {
-  uint32_t core_id = (uint32_t)argc;
-  uint32_t num_cores = (uint32_t)argv;
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id, num_cores);
 
   if (core_id == 0) {
