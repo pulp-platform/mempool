@@ -27,7 +27,7 @@ fi
 echo "Comparing HEAD to $base"
 
 # Check for clang format
-files=$(git diff --name-only HEAD $base)
+files=$(git diff --name-only $base HEAD)
 EXIT_STATUS=0
 
 # Only check C and C++ files for clang-format compatibility
@@ -44,6 +44,6 @@ done
 
 # Check for trailing whitespaces and tabs
 echo "Checking for trailing whitespaces and tabs"
-git diff --check HEAD $base -- ':(exclude)**.def' || EXIT_STATUS=$?
+git diff --check $base HEAD -- ':(exclude)**.def' || EXIT_STATUS=$?
 
 exit $EXIT_STATUS

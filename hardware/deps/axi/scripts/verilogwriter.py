@@ -38,7 +38,7 @@ class Instance:
         self.name = name
         self.parameters = parameters
         self.ports = ports
-    
+
     def write(self):
         s = self.module
         if self.parameters:
@@ -47,7 +47,7 @@ class Instance:
             s += ',\n    '.join(['.' + p.name.ljust(max_len) +' (' + str(p.value) + ')' for p in self.parameters])
             s += ')\n'
         s += ' ' + self.name
-        
+
         if self.ports:
             s += '\n   ('
             max_len = max([len(p.name) for p in self.ports])
@@ -63,7 +63,7 @@ class VerilogWriter:
         self.instances = []
         self.ports = []
         self.wires = []
-    
+
     def add(self, obj):
         if isinstance(obj, Instance):
             self.instances += [obj]
