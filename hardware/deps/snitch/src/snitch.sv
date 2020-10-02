@@ -1,4 +1,5 @@
-// Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
+// Authors: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
+//          Sergio Mazzola <smazzola@student.ethz.ch>
 // Description: Top-Level of Snitch Integer Core RV32E
 
 `include "common_cells/registers.svh"
@@ -157,12 +158,21 @@ module snitch #(
   logic exception;
 
   // ALU Operations
-  enum logic [3:0]  {
+  enum logic [4:0]  {
+    // Arithmetical operations
     Add, Sub,
-    Slt, Sltu,
+    // Shifts
     Sll, Srl, Sra,
+    // Logical operations
     LXor, LOr, LAnd, LNAnd,
+    // Comparisons
     Eq, Neq, Ge, Geu,
+    Slt, Sltu,
+    // Absolute value
+    Abs,                  // Xpulpimg
+    // Min/max
+    Min, Minu, Max, Maxu, // Xpulpimg
+    // Miscellaneous
     BypassA
   } alu_op;
 
@@ -738,6 +748,40 @@ module snitch #(
         opb_select = Reg;
         acc_register_rd = 1'b1;
       end
+
+/* Xpulpimg extension */
+      riscv_instr::P_ABS: begin
+        // Xpulpimg: p.abs
+        opa_select = Reg;
+        opb_select = Reg;
+        alu_op = Abs;
+      end
+      riscv_instr::P_MIN: begin
+        // Xpulpimg: p.min
+        opa_select = Reg;
+        opb_select = Reg;
+        alu_op = Min;
+      end
+      riscv_instr::P_MINU: begin
+        // Xpulpimg: p.minu
+        opa_select = Reg;
+        opb_select = Reg;
+        alu_op = Minu;
+      end
+      riscv_instr::P_MAX: begin
+        // Xpulpimg: p.max
+        opa_select = Reg;
+        opb_select = Reg;
+        alu_op = Max;
+      end
+      riscv_instr::P_MAXU: begin
+        // Xpulpimg: p.maxu
+        opa_select = Reg;
+        opb_select = Reg;
+        alu_op = Maxu;
+      end
+/* end of Xpulpimg extension */
+
       // Offload Multiply Instructions
       // TODO(zarubaf): Illegal Instructions
       default: begin
@@ -870,7 +914,9 @@ module snitch #(
     shift_arithmetic = 1'b0;
 
     unique case (alu_op)
+      // Arithmetical operations
       Sub: alu_opb = -$signed(opb);
+      // Comparisons
       Slt: begin
         alu_opb = -$signed(opb);
         alu_result = {30'b0, adder_result[32]};
@@ -889,6 +935,7 @@ module snitch #(
         alu_opb = -$unsigned(opb);
         alu_result = {30'b0, ~adder_result[32]};
       end
+      // Shifts
       Sll: begin
         shift_left = 1'b1;
         alu_result = shift_left_result;
@@ -898,10 +945,12 @@ module snitch #(
         shift_arithmetic = 1'b1;
         alu_result = shift_right_result;
       end
+      // Logical operations
       LXor: alu_result = opa ^ opb;
       LAnd: alu_result = opa & opb;
       LNAnd: alu_result = (~opa) & opb;
       LOr: alu_result = opa | opb;
+      // Equal, not equal
       Eq: begin
         alu_opb = -$signed(opb);
         alu_result = ~|adder_result;
@@ -910,6 +959,37 @@ module snitch #(
         alu_opb = -$signed(opb);
         alu_result = |adder_result;
       end
+      // Absolute value
+      Abs: begin
+        // Xpulpimg: p.abs
+        alu_opa = -$signed(opa);
+        // opb should be 0
+        alu_result = opa[31] ? adder_result[31:0] : opa;
+      end
+      // Min/max
+      Min: begin
+        // Xpulpimg: p.min
+        alu_opb = -$signed(opb);
+        alu_result = adder_result[32] ? opa : opb;
+      end
+      Minu: begin
+        // Xpulpimg: p.minu
+        alu_opa = $unsigned(opa);
+        alu_opb = -$unsigned(opb);
+        alu_result = adder_result[32] ? opa : opb;
+      end
+      Max: begin
+        // Xpulpimg: p.max
+        alu_opb = -$signed(opb);
+        alu_result = ~adder_result[32] ? opa : opb;
+      end
+      Maxu: begin
+        // Xpulpimg: p.maxu
+        alu_opa = $unsigned(opa);
+        alu_opb = -$unsigned(opb);
+        alu_result = ~adder_result[32] ? opa : opb;
+      end
+      // Miscellaneous
       BypassA: begin
         alu_result = opa;
       end
