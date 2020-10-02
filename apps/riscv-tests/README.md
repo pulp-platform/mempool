@@ -4,7 +4,9 @@ riscv-tests
 About
 -----------
 
-This repository hosts unit tests for RISC-V processors.
+This repository hosts unit tests for RISC-V processors; it also contains the
+customization for the unit test of the Xpulpimg extension, subset of the Xpulp
+extension, in the context of the Snitch core used in MemPool.
 
 Building from repository
 -----------------------------
@@ -54,6 +56,7 @@ TVM Name | Description
 `rv32ud` | RV32 user-level, double-precision
 `rv32uf` | RV32 user-level, floating-point
 `rv32um` | RV32 user-level, integer mul/div
+`rv32uxpulpimg` | RV32 user-level, Xpulpimg extension
 `rv32si` | RV32 supervisor-level, integer only
 `rv32mi` | RV32 machine-level, integer only
 `rv64ui` | RV64 user-level, integer only
