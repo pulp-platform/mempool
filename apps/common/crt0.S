@@ -85,7 +85,6 @@ reset_vector:
     addi    t0, t0, -4                 // Subtract one word to avoid overlapping
     add     sp, sp, t0
 #endif
-    li      a0, 0                      // Set argc to zero
     call    main
 
 eoc:

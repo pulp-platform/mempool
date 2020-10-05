@@ -38,7 +38,7 @@ volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
 volatile uint32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
 volatile int error __attribute__((section(".l1")));
 
-int main(int argc, char **argv) {
+int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id, num_cores);

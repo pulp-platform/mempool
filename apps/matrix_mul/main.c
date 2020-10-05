@@ -98,7 +98,7 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
   }
 }
 
-int main(int argc, char **argv) {
+int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
 

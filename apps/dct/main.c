@@ -42,7 +42,7 @@ void init_img(volatile int32_t *img, uint32_t size, uint32_t core_id,
   }
 }
 
-int main(int argc, char **argv) {
+int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id, num_cores);

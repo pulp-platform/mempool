@@ -127,9 +127,9 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   return 0;
 }
 
-int main(int argc, char **argv) {
-  uint32_t core_id = (uint32_t)argc;
-  uint32_t num_cores = (uint32_t)argv;
+int main() {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   // Initialize barrier and synchronize
   mempool_barrier_init(core_id, num_cores);
 
