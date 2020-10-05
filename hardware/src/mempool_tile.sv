@@ -250,7 +250,7 @@ module mempool_tile
     bank_addr_t req_addr;
     data_t req_wdata;
     data_t resp_rdata;
-    data_t req_be;
+    strb_t req_be;
 
     // Un/Pack metadata
     assign meta_in = '{
@@ -294,11 +294,13 @@ module mempool_tile
     );
 
     // Bank
-    sram #(
-      .DATA_WIDTH(DataWidth          ),
-      .NUM_WORDS (2**TCDMAddrMemWidth)
+    tc_sram #(
+      .DataWidth(DataWidth          ),
+      .NumWords (2**TCDMAddrMemWidth),
+      .NumPorts (1                  )
     ) mem_bank (
       .clk_i  (clk_i     ),
+      .rst_ni (rst_ni    ),
       .req_i  (req_valid ),
       .we_i   (req_write ),
       .addr_i (req_addr  ),

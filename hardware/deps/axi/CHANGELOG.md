@@ -13,10 +13,327 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+
+## 0.23.2 - 2020-09-14
+
+### Fixed
+- `ips_list.yml`: Add missing `common_verification` dependency.
+
+
+## 0.23.1 - 2020-06-19
+
+### Fixed
+- `axi_lite_demux_intf`: Fix passing of `req_t` and `resp_t` parameters to `axi_lite_demux`.
+- `axi_lite_xbar`: Add missing `slv_a{w,r}_cache_i` connections on `axi_lite_to_axi` instance.
+
+
+## 0.23.0 - 2020-05-11
+
+### Added
+- `axi_lite_regs`: Add memory-mapped registers with AXI4-Lite slave port and the option to make
+  individual bytes read-only.
+
+### Changed
+- Interfaces `AXI_LITE` and `AXI_LITE_DV`: add `aw_prot` and `ar_prot` signals.
+  - The `AXI_LITE_ASSIGN*` and `AXI_LITE_SET*` macros (in `include/axi/assign.svh`) have been
+    updated to include the two new interface signals.
+  - `axi_test::axi_lite_driver`: A new `prot` function argument has been added to the `send_aw`,
+    `send_ar`, `recv_aw`, and `recv_ar` functions.
+  - `axi_test::rand_axi_lite_master`:
+    - A new `w_prot` and `r_prot` function argument has been added to the `write` and `read`
+      function, respectively.  The new arguments have a default value of `'0`.
+    - The `send_aws` and the `send_ars` function now randomizes the `prot` signal of each AW and AR,
+      respectively.
+  - `axi_test::rand_axi_slave`: Display `prot` signal (but otherwise still ignore it).
+
+### Fixed
+- `rand_axi_master` (in `axi_test`): Another fix to respect burst type restrictions when emitting
+  ATOPs.
+
+
+## 0.22.1 - 2020-05-11
+
+### Fixed
+- `rand_axi_master` (in `axi_test`): Respect burst type restrictions when emitting ATOPs.
+
+
+## 0.22.0 - 2020-05-01
+
+### Added
+- `axi_pkg`: Add `bufferable` and `modifiable` helper functions.
+- `axi_dw_converter`: Add support for single-beat *fixed* bursts in the downsizer and for *fixed*
+  bursts of any length in the upsizer.
+
+### Changed
+- `axi_dw_downsizer` (part of `axi_dw_converter`): Downsize regardless of the *modifiable* bit of
+  incoming transactions.  Previously, non-*modifiable* transactions whose attributes would have to
+  be modified for downsizing were rejected with a slave error.  As of this change, transactions are
+  downsized and their attributes modified even if their *modifiable* bit is not set.  This is
+  permitted by a note in the AXI specification (page A4-65 of IHI0022H).
+
+### Fixed
+- `axi_dw_downsizer` (part of `axi_dw_converter`): Fix condition for keeping transactions that have
+  a smaller `size` than the master/downstream port unmodified.
+
+
+## 0.21.0 - 2020-04-27
+
+### Added
+- `axi_serializer`: serialize transactions with different IDs to the same ID.
+
+### Changed
+- `axi_modify_address`:
+  - Simplify redundant `slv_resp_t` and `mst_resp_t` parameters to single `axi_resp_t` parameter.
+  - Remove unnecessary `slv_a{r,w}_addr_o` outputs, which were fed back from the `slv_req_i` inputs.
+    Those signals can instead be derived outside `axi_modify_address`.
+- `axi_modify_address_intf`:
+  - Change name of slave port to `slv` and master port to `mst` and change name of associated
+    parameters to align them with repository conventions.
+  - Change type of parameters to `int unsigned` because their values are unsigned.
+  - Add parameters for data, ID, and user width to avoid derivation from interface, which is
+    incompatible with many tools.
+  - Add missing I/O suffixes to port names and align them with `axi_modify_address`.
+
+### Fixed
+- `axi_modify_address_intf`: Fix type parameters passed to actual implementation.
+
+
+## 0.20.0 - 2020-04-22
+
+### Added
+- `axi_pkg`: Add `wrap_boundary` function to calculate the boundary of a wrapping burst.
+- `axi_test`: The random AXI master `rand_axi_master` can now emit wrapping bursts (but does not do
+  so by default).  Three new parameters control the burst types of the emitted transactions; not
+  setting those parameters means the random master behaves as it did before this change.
+- Interface `AXI_BUS_DV`: Add `Monitor` modport, in which all signals are inputs.
+- `axi/assign.svh`: Add `AXI_ASSIGN_MONITOR` macro, which assigns an `AXI_BUS` to an
+  `AXI_BUS_DV.Monitor`.
+- Package `axi_test`: Add `axi_scoreboard` class, which checks that data read from a memory address
+  matches data written to that address.
+
+### Changed
+- `axi_pkg`:
+  - The `beat_addr` function now supports all burst types.  Due to this, the function has two new
+    arguments (the length and type of the burst).
+  - The `beat_upper_byte` and `beat_lower_byte` functions internally call `beat_addr`, so they have
+    two new arguments as well.
+
+
+## 0.19.0 - 2020-04-21
+
+### Changed
+- `axi_lite_to_axi`: Expose `AxCACHE` signals.  It is now possible to define the `cache` signal of
+  AXI transactions coming out of this module by driving the added `slv_aw_cache_i` and
+  `slv_ar_cache_i` inputs.  To retain the behavior prior to this change, tie those two inputs to
+  zero.
+
+
+## 0.18.1 - 2020-04-08
+
+### Fixed
+- `axi_modify_address`: Fix unconnected `w_valid`.
+- `axi_dw_converter`: Fix internal inversion of up- and downconversion, which led to incorrect lane
+  steering and serialization.
+- `rand_axi_master` (in `axi_test`): In ATOP mode, this module could get stuck receiving an R beat
+  when only writes (without ATOP read responses) were left to complete.  This has been fixed.
+- `assign.svh`: Remove spurious semicolons.
+- `axi_lite_to_apb`: Fix message of assertion checking the strobe width.
+
+
+## 0.18.0 - 2020-03-24
+
+### Added
+- `axi_dw_converter`: a data width converter between AXI interfaces of any data width.  Depending on
+  its parametrization, this module instantiates one of the following:
+  - `axi_dw_downsizer`: a data width converter between a wide AXI master and a narrower slave.
+  - `axi_dw_upsizer`: a data width converter between a narrow AXI master and a wider slave.
+
+
+## 0.17.0 - 2020-03-23
+
+### Added
+- Add `axi_isolate` to isolate downstream slaves from receiving new transactions.
+
+### Changed
+- `axi_lite_to_axi`: Add mandatory `AxiDataWidth` parameter to enable fix mentioned below.
+
+### Fixed
+- Improve compatibility with Xcelium:
+  - by removing unsupported hierarchical argument to `$bits()` function in `axi_lite_to_axi`;
+  - by removing unsupported `struct` assignment in `axi_lite_demux`.
+
+
+## 0.16.3 - 2020-03-19
+
+### Changed
+- `axi_err_slv`: Add optional parameter to define data returned by read response.  The parameter
+  defaults to a 64-bit value, so buses with data width larger than or equal to 64 bit see an
+  additional 32-bit value in error responses compared to the prior version.  Other than that, this
+  change is fully backward compatible.
+
+
+## 0.16.2 - 2020-03-16
+
+### Fixed
+- `axi_atop_filter`: Fix underflow in counter for `AxiMaxWriteTxns = 1`.
+
+
+## 0.16.1 - 2020-03-13
+
+### Fixed
+- Remove whitespace in and semicolon after macro calls.
+- `axi_intf`: Improve Verilator compatibility by disabling unsupported assertions.
+
+
+## 0.16.0 - 2020-03-11
+
+### Added
+- `axi_cdc_intf`: Add interface variant of AXI clock domain crossing.
+
+### Fixed
+- `axi_cdc`: Remove unused global `import axi_pkg::*`.
+- `axi_intf`: Remove global `import axi_pkg::*` and explicitly use symbols from `axi_pkg`.
+- `axi_lite_cut_intf`: Add missing assigns to and from interface ports.
+- `tb_axi_cdc`:
+  - Remove global `import axi_pkg::*`.
+  - Define channels with `AXI_TYPEDEF` macros instead of local `typedef`s.
+
+### Removed
+- Remove unused `AXI_ARBITRATION` and `AXI_ROUTING_RULES` interfaces.
+
+
+## 0.15.1 - 2020-03-09
+
+### Added
+- `axi_intf`: Add single-channel assertions to `AXI_BUS_DV`.
+
+### Fixed
+- `axi_lite_to_apb`: Fix the interface version (`axi_lite_to_apb_intf`) to match the changes from
+  version `0.15.0`.
+- `axi_demux`: When `MaxTrans` was 1, the `IdCounterWidth` became 0.  This has been fixed.
+- `axi_atop_filter`:
+  - The master interface of this module in one case depended on `aw_ready` before applying
+    `w_valid`, which is a violation of the AXI specification that can lead to deadlocks.  This issue
+    has been fixed by removing that dependency.
+  - The slave interface of this module could illegally change the value of B and R beats between
+    valid and handshake.  This has been fixed.
+- `rand_axi_master` (in `axi_test`):
+  - Fix infinite wait in `send_ws` task.
+  - Decouple generation of AWs from sending them.  This allows to apply W beats before or
+    simultaneous with AW beats.
+- `rand_axi_slave` (in `axi_test`):
+  - Decouple receiving of Ws from receiving of AWs.  This allows to receive W beats independent of
+    AW beats.
+- Update `common_cells` to `1.16.4` to fix synthesis warning in `id_queue`.
+
+
+## 0.15.0 - 2020-02-28
+
+### Added
+- `axi_burst_splitter`: Split AXI4 bursts to single-beat transactions.
+
+### Changed
+- `axi_lite_to_apb`: The `psel` field of the `apb_req_t` struct is now a single bit.  That is, every
+  APB slave has its own request struct.  Accordingly, `apb_req_o` is now an array with `NoApbSlaves`
+  entries.
+- `axi_decerr_slv` has been replaced by a more generic `axi_err_slv`, which takes the kind of error
+  as parameter.  This `axi_err_slv` no longer has a `FallThrough` parameter; instead, a response
+  (i.e., B or R beat) now always comes one cycle after the AW or AR beat (as required by the AXI
+  Spec) but the slave can accept a W beat in the same cycle as the corresponding AW beat.
+  Additionally, `axi_err_slv` got a parameter `ATOPs` that defines if it supports atomic operations.
+- `axi_to_axi_lite`: Rework module to structs and add burst support.
+
+### Fixed
+- `axi_demux`: The `case` statement controlling the counters had not been specified `unique` even
+  though it qualified for it.  This has been fixed.
+- `axi_lite_mux_intf`: Fix signal names in internal assignments, names of parameters of
+  `axi_lite_mux` instance, and typos in assertion messages.
+
+
+## 0.14.0 - 2020-02-24
+
+### Added
+- Add `axi_lite_mailbox`: AXI4-Lite mailbox.
+
+
+## 0.13.0 - 2020-02-18
+
+### Added
+- `axi_xbar_intf`: Add interface variant of crossbar.
+
+### Fixed
+- `axi_atop_filter`: Fix ModelSim warnings by adding `default` statement.  The signal in the `case`
+  has a single bit, and both values were correctly handled in synthesis.  However, when starting
+  simulation, the signal has an undefined value, and ModelSim threw warnings that this violated the
+  `unique` condition.
+- `axi_demux`: Move `typedef` outside `generate` for compatibility with VCS.
+- `axi_id_prepend`:
+  - Fix text of some assertion messages.
+  - Fix case of prepending a single-bit ID.
+- `tb_axi_xbar`: Fix for localparam `AxiIdWidthSlaves` to be dependent on the number of masters.
+
+
+## 0.12.0 - 2020-02-14
+
+### Added
+- `axi_lite_to_apb`: AXI4-Lite to APB4 converter.
+
+
+## 0.11.0 - 2020-02-13
+
+### Added
+- `axi_cdc`: Add a safe AXI clock domain crossing (CDC) implementation.
+
+### Changed
+- The interface variants of `axi_demux` and `axi_mux` have been changed to match the convention for
+  interface variants in this repository:
+  - `axi_demux_wrap`: Change name to `axi_demux_intf` and change parameter names to ALL_CAPS.
+  - `axi_mux_wrap`: Change name to `axi_mux_intf`, and change parameter names to ALL_CAPS.
+- `axi_demux`: Default parameters to `0`.
+
+### Fixed
+- `axi_demux`: Add parameter case for `NoMstPorts == 1`.
+
+
+## 0.10.2 - 2020-02-13
+
+### Fixed
+- `axi_atop_filter`: Remove unreachable `default` in `unique case` block.
+- `axi_demux_wrap`: Fix signals passed to demux.
+- `axi_lite_demux_intf`: Fix signal passed to demux.
+- `axi_lite_mux`: Add missing declaration of `r_fifo_push`.
+
+
+## 0.10.1 - 2020-02-12
+
+### Fixed
+- `axi_lite_xbar`: Fix synthesis for `NoMstPorts == 1`.
+
+
+## 0.10.0 - 2020-02-11
+
+### Added
+- `axi_lite_xbar`: fully-connected AXI4-Lite crossbar.
+- `axi_lite_demux`: AXI4-Lite demultiplexer from one slave port to a configurable number of master
+  ports.
+- `axi_lite_mux`: AXI4-Lite multiplexer from a configurable number of slave ports to one master
+  port.
+
+### Changed
+- `axi_test`: Extended package with random AXI4-Lite master and slave test bench classes.
+
+
+## 0.9.2 - 2020-02-11
+
+### Fixed
+- `axi_pkg`: Fix value of `CUT_ALL_PORTS` (in `xbar_latency_e`) in Vivado synthesis.
+
+
 ## 0.9.1 - 2020-01-18
 
 ### Fixed
 - `axi_decerr_slv`: Fix parameter to be UpperCamelCase
+
 
 ## 0.9.0 - 2020-01-16
 

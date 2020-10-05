@@ -211,7 +211,6 @@ module mempool_tb;
   addr_t mem_addr;
   data_t mem_wdata;
   strb_t mem_strb;
-  data_t mem_strb_int;
   logic  mem_we;
   data_t mem_rdata;
 
@@ -232,20 +231,18 @@ module mempool_tb;
     .data_i(mem_rdata         )
   );
 
-  for (genvar be_byte = 0; be_byte < BeWidth; be_byte++) begin: gen_mem_be
-    assign mem_strb_int[8*be_byte+:8] = {8{mem_strb[be_byte]}};
-  end
-
-  sram #(
-    .DATA_WIDTH(DataWidth     ),
-    .NUM_WORDS (2**L2AddrWidth)
+  tc_sram #(
+    .DataWidth(DataWidth     ),
+    .NumWords (2**L2AddrWidth),
+    .NumPorts (1             )
   ) l2_mem (
     .clk_i  (clk                                ),
+    .rst_ni (rst_n                              ),
     .req_i  (mem_req                            ),
     .we_i   (mem_we                             ),
     .addr_i (mem_addr[ByteOffset +: L2AddrWidth]),
     .wdata_i(mem_wdata                          ),
-    .be_i   (mem_strb_int                       ),
+    .be_i   (mem_strb                           ),
     .rdata_o(mem_rdata                          )
   );
 
@@ -461,7 +458,7 @@ module mempool_tb;
             mem_row[8 * b +: 8] = buffer[w * BeWidth + b];
           end
           if (address >= L2MemoryBaseAddr && address < L2MemoryEndAddr)
-            l2_mem.ram[(address - L2MemoryBaseAddr + (w << ByteOffset)) >> ByteOffset] = mem_row;
+            l2_mem.init_val[(address - L2MemoryBaseAddr + (w << ByteOffset)) >> ByteOffset] = mem_row;
           else
             $display("Cannot initialize address %x, which doesn't fall into the L2 region.", address);
         end

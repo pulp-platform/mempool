@@ -33,7 +33,7 @@ module tcdm_adapter #(
   output logic [AddrWidth-1:0] out_add_o,   // Address
   output logic                 out_write_o, // 1: Store, 0: Load
   output logic [DataWidth-1:0] out_wdata_o, // Write data
-  output logic [DataWidth-1:0] out_be_o,    // Bit enable
+  output logic [BeWidth-1:0]   out_be_o,    // Bit enable
   input  logic [DataWidth-1:0] out_rdata_i  // Read data
 );
 
@@ -115,7 +115,7 @@ module tcdm_adapter #(
     out_add_o   = in_address_i;
     out_write_o = in_write_i;
     out_wdata_o = in_wdata_i;
-    be_expand   = in_be_i;
+    out_be_o    = in_be_i;
 
     state_d     = state_q;
     load_amo    = 1'b0;
@@ -135,7 +135,7 @@ module tcdm_adapter #(
         out_req_o   = 1'b1;
         out_write_o = 1'b1;
         out_add_o   = addr_q;
-        be_expand   = 4'b1111;
+        out_be_o    = 4'b1111;
         // serve from register if we cut the path
         if (RegisterAmo) begin
           out_wdata_o = amo_result_q;
@@ -145,11 +145,6 @@ module tcdm_adapter #(
       end
       default:;
     endcase
-  end
-
-  // Expand byte-enable into bit-enable
-  for (genvar be_byte = 0; be_byte < BeWidth; be_byte++) begin: gen_mem_be
-    assign out_be_o[8*be_byte+:8] = {8{be_expand[be_byte]}};
   end
 
   if (RegisterAmo) begin : gen_amo_slice

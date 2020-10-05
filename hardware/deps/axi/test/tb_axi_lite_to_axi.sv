@@ -36,7 +36,7 @@ module tb_axi_lite_to_axi;
     .AXI_DATA_WIDTH(DW)
   ) axi_lite();
 
-  `AXI_LITE_ASSIGN(axi_lite, axi_lite_dv);
+  `AXI_LITE_ASSIGN(axi_lite, axi_lite_dv)
 
   AXI_BUS_DV #(
     .AXI_ADDR_WIDTH(AW),
@@ -52,10 +52,14 @@ module tb_axi_lite_to_axi;
     .AXI_USER_WIDTH(UW)
   ) axi();
 
-  `AXI_ASSIGN(axi_dv, axi);
+  `AXI_ASSIGN(axi_dv, axi)
 
-  axi_lite_to_axi_intf i_dut (
+  axi_lite_to_axi_intf #(
+    .AXI_DATA_WIDTH (DW)
+  ) i_dut (
     .in   ( axi_lite ),
+    .slv_aw_cache_i ('0),
+    .slv_ar_cache_i ('0),
     .out  ( axi      )
   );
 
@@ -80,7 +84,7 @@ module tb_axi_lite_to_axi;
     automatic axi_pkg::resp_t resp;
     axi_lite_drv.reset_master();
     @(posedge clk);
-    axi_lite_drv.send_aw('hdeadbeef);
+    axi_lite_drv.send_aw('hdeadbeef, axi_pkg::prot_t'('0));
     axi_lite_drv.send_w('hdeadbeef, '1);
     axi_lite_drv.recv_b(resp);
     $info("AXI-Lite B: resp %h", resp);
