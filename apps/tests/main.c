@@ -31,10 +31,6 @@
 #define matrix_M (NUM_CORES / 4)
 #define matrix_N (NUM_CORES / 4)
 #define matrix_P (NUM_CORES / 4)
-#else
-#define matrix_M 256
-#define matrix_N 16
-#define matrix_P 256
 #endif
 int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));

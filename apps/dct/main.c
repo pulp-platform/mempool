@@ -77,7 +77,7 @@ int main() {
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores, num_cores / 2);
   mempool_start_benchmark();
-  fdct_8x8_parallel(in, N, M, in, core_id, num_cores);
+  fdct_8x8_parallel((int32_t *)in, N, M, (int32_t *)in, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
   mempool_barrier(num_cores, num_cores * 4);

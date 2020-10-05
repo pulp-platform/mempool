@@ -24,7 +24,7 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-volatile uint32_t atomic __attribute__((section(".l2"))) = -1;
+volatile uint32_t atomic __attribute__((section(".l2"))) = NUM_CORES;
 
 extern volatile uint32_t tcdm_start_address_reg;
 extern volatile uint32_t tcdm_end_address_reg;
