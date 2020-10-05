@@ -60,7 +60,7 @@ endif
 ifdef preload
 	questa_args += +PRELOAD=$(preload)
 endif
-questa_args += -sv_lib $(dpi_library)/mempool_dpi
+questa_args += -sv_lib $(dpi_library)/mempool_dpi -suppress vsim-12070
 
 # DPI source files
 dpi   := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
