@@ -87,7 +87,10 @@ riscv-isa-sim:
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Helper targets
-.PHONY: clean format
+.PHONY: clean format apps
+
+apps:
+	make -C apps
 
 format:
 	$(LLVM_INSTALL_DIR)/bin/clang-format -style=file -i --verbose $$(git diff --name-only HEAD | tr ' ' '\n' | grep -E "\.(h|c|cpp)\b")
