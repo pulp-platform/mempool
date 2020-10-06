@@ -10,6 +10,11 @@ if [[ ! -f $app ]]; then
   exit -1
 fi
 
+echo "This benchmark script and the patches it relies on have not been updated \
+to match the latest hardware changes!"
+echo "Abort"
+exit 1
+
 # Create log
 mailfile=email_$1
 
