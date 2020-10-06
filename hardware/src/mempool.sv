@@ -26,6 +26,7 @@ module mempool
     // Scan chain
     input  logic scan_enable_i,
     input  logic scan_data_i,
+    input  logic [NumCores-1:0] wake_up_i,
     output logic scan_data_o
   );
 
@@ -39,6 +40,7 @@ module mempool
   localparam int unsigned NumBanksPerTile  = NumBanks / NumTiles;
   localparam int unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam int unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
+  localparam int unsigned NumCoresPerGroup = NumCores / NumGroups;
 
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
@@ -126,12 +128,13 @@ module mempool
   tcdm_master_resp_t [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_northeast_resp;
   logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_northeast_resp_valid;
   logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_northeast_resp_ready;
-
+  
   for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
     mempool_group #(
       .NumBanksPerTile   (NumBanksPerTile   ),
       .NumTiles          (NumTiles          ),
       .NumBanks          (NumBanks          ),
+      .NumCoresPerGroup  (NumCoresPerGroup  ),
       .TCDMBaseAddr      (TCDMBaseAddr      ),
       .BootAddr          (BootAddr          ),
       .tcdm_master_req_t (tcdm_master_req_t ),
@@ -182,7 +185,8 @@ module mempool
       .tcdm_slave_northeast_req_ready_o  (tcdm_slave_northeast_req_ready[g]   ),
       .tcdm_slave_northeast_resp_o       (tcdm_slave_northeast_resp[g]        ),
       .tcdm_slave_northeast_resp_valid_o (tcdm_slave_northeast_resp_valid[g]  ),
-      .tcdm_slave_northeast_resp_ready_i (tcdm_slave_northeast_resp_ready[g]  )
+      .tcdm_slave_northeast_resp_ready_i (tcdm_slave_northeast_resp_ready[g]  ),
+      .wake_up_i                         (wake_up_i[(g+1)*NumCoresPerGroup-1:g*NumCoresPerGroup])
     );
   end : gen_groups
 

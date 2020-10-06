@@ -16,6 +16,7 @@ module mempool_group
     parameter int unsigned NumBanksPerTile  = 1,
     parameter int unsigned NumTiles         = 1,
     parameter int unsigned NumBanks         = 1,
+    parameter int unsigned NumCoresPerGroup = 1,
     // TCDM
     parameter addr_t TCDMBaseAddr           = 32'b0,
     parameter type tcdm_master_req_t        = logic,
@@ -73,7 +74,9 @@ module mempool_group
     output logic              [NumTilesPerGroup-1:0]     tcdm_slave_east_req_ready_o,
     output tcdm_master_resp_t [NumTilesPerGroup-1:0]     tcdm_slave_east_resp_o,
     output logic              [NumTilesPerGroup-1:0]     tcdm_slave_east_resp_valid_o,
-    input  logic              [NumTilesPerGroup-1:0]     tcdm_slave_east_resp_ready_i
+    input  logic              [NumTilesPerGroup-1:0]     tcdm_slave_east_resp_ready_i,
+    // Wake up interface
+    input  logic              [NumCoresPerGroup-1:0]     wake_up_i 
   );
 
   /*****************
@@ -213,7 +216,9 @@ module mempool_group
       .refill_perror_i                   (/* Not yet implemented */ '0                ),
       .refill_pvalid_i                   (/* Not yet implemented */ '0                ),
       .refill_plast_i                    (/* Not yet implemented */ '0                ),
-      .refill_pready_o                   (/* Not yet implemented */                   )
+      .refill_pready_o                   (/* Not yet implemented */                   ),
+      // Wake up interface
+      .wake_up_i                         (wake_up_i[(t+1)*NumCoresPerTile-1:t*NumCoresPerTile])
     );
   end : gen_tiles
 
