@@ -8,6 +8,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+`include "common_cells/registers.svh"
 import mempool_pkg::addr_t;
 
 module ctrl_registers #(
@@ -109,17 +110,13 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
     if (wr_active_q[15:12]) begin
       if (wake_up < NumCores) begin
         wake_up_o = 1 << wake_up;
-      end else if (wake_up == -1) begin
-        wake_up_o = '1;
+      end else if (wake_up == {DataWidth{1'b1}}) begin
+        wake_up_o = {NumCores{1'b1}};
       end
     end
   end
 
   // register to add +1 latency to the wr_active signal
-  always_ff @ (posedge clk_i) begin
-    if (clk_i == 1'b1) begin
-      wr_active_q <= wr_active_d;
-    end
-  end
+  `FF(wr_active_q, wr_active_d, rst_ni)
 
 endmodule : ctrl_registers
