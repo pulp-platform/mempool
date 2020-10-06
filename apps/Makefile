@@ -33,8 +33,8 @@ $(APPS): % : bin/% $(APPS_DIR)/Makefile $(shell find common -type f)
 $(BINARIES): bin/%: %/main.c.o $(RUNTIME)
 	mkdir -p $(shell dirname $@)
 	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $^ -T$(CURDIR)/common/link.ld
-	$(RISCV_STRIP) $@ -g -S -d --strip-debug
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
+	$(RISCV_STRIP) $@ -S --strip-unneeded
 
 .PHONY: clean
 clean:
