@@ -467,8 +467,6 @@ module mempool_tb;
     addr_t length;
     string binary;
 
-    @(posedge clk)
-    @(posedge clk)
     // Initialize memories
     void'($value$plusargs("PRELOAD=%s", binary));
     if (binary != "") begin
