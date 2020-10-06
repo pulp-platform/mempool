@@ -27,9 +27,10 @@ module ctrl_registers #(
     input  axi_lite_req_t                  axi_lite_slave_req_i,
     output axi_lite_resp_t                 axi_lite_slave_resp_o,
     // Control registers
-    output logic           [DataWidth-1:0] tcdm_start_address_o,
-    output logic           [DataWidth-1:0] tcdm_end_address_o,
-    output logic           [DataWidth-1:0] num_cores_o
+    output logic      [DataWidth-1:0]      tcdm_start_address_o,
+    output logic      [DataWidth-1:0]      tcdm_end_address_o,
+    output logic      [DataWidth-1:0]      num_cores_o,
+    output logic      [NumCores-1:0]       wake_up_o
   );
 
   import mempool_pkg::*;
@@ -49,12 +50,15 @@ module ctrl_registers #(
   // [3:0]:  tcdm_start_address (ro)
   // [7:4]:  tcdm_end_address   (ro)
   // [11:8]: num_cores          (ro)
-  localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
+  // [15:12]:wake_up            (rw)
+localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
+    {DataWidth{1'b0}},
     NumCores,
     TCDMBaseAddr + TCDMSize,
     TCDMBaseAddr
   };
   localparam logic [NumRegs-1:0][DataWidthInBytes-1:0] AxiReadOnly = '{
+    ReadWriteReg,
     ReadOnlyReg,
     ReadOnlyReg,
     ReadOnlyReg
@@ -64,12 +68,15 @@ module ctrl_registers #(
    *  Registers  *
    ***************/
 
-  logic [DataWidth-1:0] tcdm_start_address;
-  logic [DataWidth-1:0] tcdm_end_address;
-  logic [DataWidth-1:0] num_cores;
-
+  logic [DataWidth-1:0]   tcdm_start_address;
+  logic [DataWidth-1:0]   tcdm_end_address;
+  logic [DataWidth-1:0]   num_cores;
+  logic [DataWidth-1:0]   wake_up;
+  logic [RegNumBytes-1:0] wr_active_d;
+  logic [RegNumBytes-1:0] wr_active_q;
+  
   axi_lite_regs #(
-    .RegNumBytes (DataWidthInBytes * NumRegs),
+    .RegNumBytes (RegNumBytes               ),
     .AxiAddrWidth(AddrWidth                 ),
     .AxiDataWidth(DataWidth                 ),
     .AxiReadOnly (AxiReadOnly               ),
@@ -77,15 +84,15 @@ module ctrl_registers #(
     .req_lite_t  (axi_lite_req_t            ),
     .resp_lite_t (axi_lite_resp_t           )
   ) i_axi_lite_regs (
-    .clk_i      (clk_i                                            ),
-    .rst_ni     (rst_ni                                           ),
-    .axi_req_i  (axi_lite_slave_req_i                             ),
-    .axi_resp_o (axi_lite_slave_resp_o                            ),
-    .wr_active_o(/* Unused */                                     ),
-    .rd_active_o(/* Unused */                                     ),
-    .reg_d_i    ('0                                               ),
-    .reg_load_i ('0                                               ),
-    .reg_q_o    ({num_cores, tcdm_end_address, tcdm_start_address})
+    .clk_i      (clk_i                                                     ),
+    .rst_ni     (rst_ni                                                    ),
+    .axi_req_i  (axi_lite_slave_req_i                                      ),
+    .axi_resp_o (axi_lite_slave_resp_o                                     ),
+    .wr_active_o(wr_active_d                                               ),
+    .rd_active_o(/* Unused */                                              ),
+    .reg_d_i    ('0                                                        ),
+    .reg_load_i ('0                                                        ),
+    .reg_q_o    ({wake_up, num_cores, tcdm_end_address, tcdm_start_address})
   );
 
   /***************
@@ -95,5 +102,24 @@ module ctrl_registers #(
   assign tcdm_start_address_o = tcdm_start_address;
   assign tcdm_end_address_o   = tcdm_end_address;
   assign num_cores_o          = num_cores;
+
+  // converts 32 bit wake up to 256 bit
+  always_comb begin
+    wake_up_o = '0;
+    if (wr_active_q[15:12]) begin
+      if (wake_up < NumCores) begin
+        wake_up_o = 1 << wake_up;
+      end else if (wake_up == -1) begin
+        wake_up_o = '1;
+      end
+    end
+  end
+
+  // register to add +1 latency to the wr_active signal
+  always_ff @ (posedge clk_i) begin
+    if (clk_i == 1'b1) begin
+      wr_active_q <= wr_active_d;
+    end
+  end
 
 endmodule : ctrl_registers
