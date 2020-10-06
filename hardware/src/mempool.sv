@@ -186,7 +186,7 @@ module mempool
       .tcdm_slave_northeast_resp_o       (tcdm_slave_northeast_resp[g]        ),
       .tcdm_slave_northeast_resp_valid_o (tcdm_slave_northeast_resp_valid[g]  ),
       .tcdm_slave_northeast_resp_ready_i (tcdm_slave_northeast_resp_ready[g]  ),
-      .wake_up_i                         (wake_up_i[(g+1)*NumCoresPerGroup-1:g*NumCoresPerGroup])
+      .wake_up_i                         (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup])
     );
   end : gen_groups
 

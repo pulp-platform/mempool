@@ -218,7 +218,7 @@ module mempool_group
       .refill_plast_i                    (/* Not yet implemented */ '0                ),
       .refill_pready_o                   (/* Not yet implemented */                   ),
       // Wake up interface
-      .wake_up_i                         (wake_up_i[(t+1)*NumCoresPerTile-1:t*NumCoresPerTile])
+      .wake_up_i                         (wake_up_i[t*NumCoresPerTile +: NumCoresPerTile])
     );
   end : gen_tiles
 
