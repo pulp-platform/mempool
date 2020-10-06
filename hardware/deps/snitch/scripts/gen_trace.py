@@ -590,7 +590,6 @@ def main():
 	# Initial code belongs to setup phase
 	perf_metrics = perf_metrics_setup
 	section = 0
-	transition = [5000, 6250]
 	# Parse input line by line
 	for line in line_iter:
 		if line:
@@ -599,12 +598,10 @@ def main():
 			if perf_metrics[0]['start'] is None:
 				perf_metrics[0]['start'] = time_info[1]
 			# Start a new benchmark section after 'csrw cycle' instruction
-			# if 'cycle' in line:
-			if len(transition) > 0 and time_info[1] >= transition[0]:
-				transition = transition[1:]
+			if 'cycle' in line:
 				perf_metrics[-1]['end'] = time_info[1]
 				perf_metrics.append(defaultdict(int))
-				if len(transition) % 2 == 1:
+				if 'csrw' in ann_insn:
 					# Start of a benchmark section
 					perf_metrics = perf_metrics_bench
 					perf_metrics[-1]['section'] = section
