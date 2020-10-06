@@ -109,8 +109,6 @@ add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_g
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/i_snitch/is_branch
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/i_snitch/csr_rvalue
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/i_snitch/csr_en
-add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/i_snitch/fcsr_d
-add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/i_snitch/fcsr_q
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/i_snitch/cycle_q
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/i_snitch/instret_q
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/i_snitch/acc_register_rd
