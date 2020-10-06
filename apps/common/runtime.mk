@@ -39,13 +39,14 @@ ifeq ($(COMPILER),gcc)
 	RISCV_PREFIX  ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-
 	RISCV_CC      ?= $(RISCV_PREFIX)gcc
 	RISCV_CXX     ?= $(RISCV_PREFIX)g++
+	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 else
 	# Use LLVM by default
 	RISCV_PREFIX  ?= $(LLVM_INSTALL_DIR)/bin/llvm-
 	RISCV_CC      ?= $(LLVM_INSTALL_DIR)/bin/clang
 	RISCV_CXX     ?= $(LLVM_INSTALL_DIR)/bin/clang++
+	RISCV_OBJDUMP ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-objdump
 endif
-RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 RISCV_OBJCOPY ?= $(RISCV_PREFIX)objcopy
 RISCV_AS      ?= $(RISCV_PREFIX)as
 RISCV_AR      ?= $(RISCV_PREFIX)ar
@@ -53,7 +54,7 @@ RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Defines
-DEFINES := -DNUM_CORES=$(num_cores) -DNUM_HIVES=$(num_hives)
+DEFINES := -DNUM_CORES=$(num_cores)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
@@ -74,11 +75,13 @@ RISCV_LDFLAGS  ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS)
 ifeq ($(COMPILER),gcc)
 	RISCV_OBJDUMP_FLAGS ?=
 else
-	RISCV_OBJDUMP_FLAGS ?= --triple=$(RISCV_TARGET) --mcpu=generic-rv32 -mattr=m,a
+	RISCV_OBJDUMP_FLAGS ?=
 endif
 
 RUNTIME ?= common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o common/arch.ld
 HDR ?=     common/runtime.h
+
+.INTERMEDIATE: $(RUNTIME)
 
 %.S.o: %.S
 	$(RISCV_CC) $(RISCV_CCFLAGS) -c $< -o $@

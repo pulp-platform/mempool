@@ -14,38 +14,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Author: Matheus Cavalcante, ETH Zurich
+// Author: Samuel Riedel, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>
 
 #include "encoding.h"
+#include "kernel/synth.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
-volatile uint32_t atomic __attribute__((section(".l2"))) = NUM_CORES;
+#define N 16
 
-extern volatile uint32_t tcdm_start_address_reg;
-extern volatile uint32_t tcdm_end_address_reg;
+int32_t block_a[N] __attribute__((section(".l1_prio")));
+int volatile error __attribute__((section(".l1")));
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  // Initialize synchronization variables
+  // Initialize barrier and synchronize
   mempool_barrier_init(core_id, num_cores);
+
   if (core_id == 0) {
-    atomic = 0;
+    error = 0;
+    for (int i = 0; i < N; ++i) {
+      block_a[i] = 78459 + i;
+    }
+    power_profile(block_a);
   }
-  mempool_barrier(num_cores, num_cores * 4);
-
-  while (atomic != core_id)
-    mempool_wait(2 * num_cores);
-
-  printf("Core %d says Hello!\n", core_id);
-  atomic++;
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
-  return 0;
+  mempool_barrier(num_cores, num_cores * 1000);
+
+  return error;
 }

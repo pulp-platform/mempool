@@ -17,6 +17,8 @@
 // Author: Samuel Riedel, ETH Zurich
 //         Matheus Cavalcante, ETH Zurich
 
+// #define TOP4_STACK
+
 .globl _start
 .section .text;
 .section .text.init;
@@ -65,11 +67,24 @@ reset_vector:
     la      sp, tcdm_start_address_reg // load stack top from peripheral register
     lw      sp, 0(sp)
     csrr    a0, mhartid                // get hart id
-    la      a1, nr_cores_address_reg   // get the number of cores per cluster
-    lw      a1, 0(a1)
+#ifdef TOP4_STACK
+    srli    t0, a0, 4                  // id / 16
+    li      t1, 12288                  // 12 * 2^10
+    mul     t1, t0, t1                 // * 12 * 2^10
+    andi    t0, a0, 3                  // id % 4
+    slli    t0, t0, 12                 // * 2^12
+    add     sp, sp, t0                 // sp += (id % 4) * 2^12
+    add     sp, sp, t1                 // sp += (id / 16) * 12 * 2^10
+    srli    t0, a0, 2                  // id / 4
+    slli    t0, t0, 10                 // * 2^10
+    add     sp, sp, t0                 // sp += (id / 4 + 1) * 2^10
+    addi    sp, sp, 1020               // sp += 2^10-1 (start at stack of next core)
+#else
     addi    t0, a0, 1
     slli    t0, t0, 10                 // set some stack-space aside for each hart
+    addi    t0, t0, -4                 // Subtract one word to avoid overlapping
     add     sp, sp, t0
+#endif
     call    main
 
 eoc:

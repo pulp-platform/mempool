@@ -59,9 +59,9 @@ void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
                  int32_t a, int32_t b, int32_t c, uint32_t core_id,
                  uint32_t num_cores) {
   // Parallelize over rows
-  for (int i = core_id; i < num_rows; i += num_cores) {
-    for (int j = 0; j < num_columns; ++j) {
-      matrix[i * num_columns + j] = a * i + b * j + c;
+  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
+    for (uint32_t j = 0; j < num_columns; ++j) {
+      matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
     }
   }
 }
@@ -71,17 +71,17 @@ int verify_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
                   int32_t aa, int32_t ab, int32_t ac, int32_t ba, int32_t bb,
                   int32_t bc) {
   // Parallelize over rows
-  for (int i = 0; i < num_rows; ++i) {
-    for (int j = 0; j < num_columns; ++j) {
+  for (int32_t i = 0; i < (int32_t)num_rows; ++i) {
+    for (int32_t j = 0; j < (int32_t)num_columns; ++j) {
       int32_t lin = (aa * bb * i * j + aa * bc * i + ac * bb * j + ac * bc) * N;
       int32_t qua =
           ((aa * ba * i + ab * bb * j + ab * bc + ba * ac) * (N * (N - 1))) / 2;
       int32_t cub = ((ab * ba) * (N * (N - 1) * (2 * N - 1))) / 6;
       int32_t golden = lin + qua + cub;
-      if (matrix[i * num_columns + j] != golden) {
-        return (i + j) == 0 ? -1 : i * num_columns + j;
+      if (matrix[i * (int32_t)num_columns + j] != golden) {
+        return (i + j) == 0 ? -1 : i * (int32_t)num_columns + j;
       }
-      matrix[i * num_columns + j] = 0;
+      matrix[i * (int32_t)num_columns + j] = 0;
     }
   }
   return 0;
@@ -90,17 +90,17 @@ int verify_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
 void print_matrix(int32_t const *matrix, uint32_t num_rows,
                   uint32_t num_columns) {
   printf("0x%8X\n", (uint32_t)matrix);
-  for (int i = 0; i < num_rows; ++i) {
-    for (int j = 0; j < num_columns; ++j) {
+  for (uint32_t i = 0; i < num_rows; ++i) {
+    for (uint32_t j = 0; j < num_columns; ++j) {
       printf("%5d ", matrix[i * num_columns + j]);
     }
     printf("\n");
   }
 }
 
-int main(int argc, char **argv) {
-  uint32_t core_id = (uint32_t)argc;
-  uint32_t num_cores = (uint32_t)argv;
+int main() {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
   mempool_barrier_init(core_id, num_cores);
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
   init_matrix(b, N, P, B_a, B_b, B_c, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(core_id, num_cores, num_cores * 4);
+  mempool_barrier(num_cores, num_cores * 4);
   if (core_id == 0) {
     print_matrix(a, M, N);
     print_matrix(b, N, P);
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
   // Matrices are initialized --> Start calculating
   for (int i = 0; i < 5; ++i) {
     // Wait at barrier until everyone is ready
-    mempool_barrier(core_id, num_cores, num_cores / 2);
+    mempool_barrier(num_cores, num_cores / 2);
     // Execute function to test. Add a NOP before and after for future analysis
     // with benchmark script.
     // mempool_timer_t cycles = mempool_get_timer();
@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
     mempool_stop_benchmark();
     // cycles = mempool_get_timer() - cycles;
     // Wait at barrier befor checking
-    mempool_barrier(core_id, num_cores, num_cores * 4);
+    mempool_barrier(num_cores, num_cores * 4);
     // Check result
     if (core_id == 0) {
       // printf("Duration: %d\n", cycles);
@@ -171,13 +171,13 @@ int main(int argc, char **argv) {
   }
 
   // wait until all cores have finished
-  mempool_barrier(core_id, num_cores, num_cores * 4);
+  mempool_barrier(num_cores, num_cores * 4);
 
 #ifdef VERBOSE
   if (core_id == 0) {
     print_matrix(c, M, P);
   }
-  mempool_barrier(core_id, num_cores, num_cores * 4);
+  mempool_barrier(num_cores, num_cores * 4);
 #endif
 
   return 0;

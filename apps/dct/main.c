@@ -28,13 +28,12 @@
 // #include "convolution_riscv.h"
 // #include "halide_runtime.h"
 
-#define M (8 * 2 * 8)
+#define M (8 * 8)
 #define N (4 * NUM_CORES)
 // #define VERBOSE
 
-volatile int32_t in[M * N] __attribute__((section(".l1")));
-// volatile int32_t out[M * N] __attribute__((section(".l1")));
-uint32_t volatile error __attribute__((section(".l1")));
+volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
+volatile int error __attribute__((section(".l1")));
 
 void init_img(volatile int32_t *img, uint32_t size, uint32_t core_id,
               uint32_t num_cores) {
@@ -43,9 +42,9 @@ void init_img(volatile int32_t *img, uint32_t size, uint32_t core_id,
   }
 }
 
-int main(int argc, char **argv) {
-  uint32_t core_id = (uint32_t)argc;
-  uint32_t num_cores = (uint32_t)argv;
+int main() {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id, num_cores);
 
   if (core_id == 0) {
@@ -61,7 +60,7 @@ int main(int argc, char **argv) {
   init_img(in, M * N, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(core_id, num_cores, num_cores / 4);
+  mempool_barrier(num_cores, num_cores / 4);
 
   if (core_id == 0) {
     printf("In:\n");
@@ -76,12 +75,12 @@ int main(int argc, char **argv) {
 #endif
 
   // Wait at barrier until everyone is ready
-  mempool_barrier(core_id, num_cores, num_cores / 2);
+  mempool_barrier(num_cores, num_cores / 2);
   mempool_start_benchmark();
-  fdct_8x8_parallel(in, N, M, in, core_id, num_cores);
+  fdct_8x8_parallel((int32_t *)in, N, M, (int32_t *)in, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
-  mempool_barrier(core_id, num_cores, num_cores * 4);
+  mempool_barrier(num_cores, num_cores * 4);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -94,7 +93,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  mempool_barrier(core_id, num_cores, 4 * num_cores);
+  mempool_barrier(num_cores, 4 * num_cores);
 #endif
 
   return error;

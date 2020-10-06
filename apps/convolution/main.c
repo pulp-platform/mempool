@@ -28,25 +28,22 @@
 // #include "convolution_riscv.h"
 // #include "halide_runtime.h"
 
-#define M 80
+#define M (20)
 #define N (4 * NUM_CORES)
 #define KERNEL_N 3
 // #define VERBOSE
 
-volatile int32_t in[M * N] __attribute__((section(".l1")));
-volatile int32_t out[M * N] __attribute__((section(".l1")));
+volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
+volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
 volatile uint32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
-uint32_t volatile error __attribute__((section(".l1")));
+volatile int error __attribute__((section(".l1")));
 
-int main(int argc, char **argv) {
-  uint32_t core_id = (uint32_t)argc;
-  uint32_t num_cores = (uint32_t)argv;
+int main() {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id, num_cores);
 
   if (core_id == 0) {
-    // Hack the allocation of in and out before kernel
-    in[0] = -1;
-    out[0] = -1;
 #ifdef VERBOSE
     printf("Initialize\n");
 #endif
@@ -64,14 +61,12 @@ int main(int argc, char **argv) {
     kernel[8] = 1;
   }
 
-  int tests = error - in[0];
-
   // Initialize img
   init_conv2d_image(in, N, M, core_id, num_cores);
   // zero_conv2d_image(out, N, M, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(core_id, num_cores, num_cores / 4);
+  mempool_barrier(num_cores, num_cores / 4);
 
   if (core_id == 0) {
     printf("A:\n");
@@ -100,7 +95,7 @@ int main(int argc, char **argv) {
   // Matrices are initialized --> Start calculating
   for (int i = 2; i < 3; ++i) {
     // Wait at barrier until everyone is ready
-    mempool_barrier(core_id, num_cores, num_cores / 2);
+    mempool_barrier(num_cores, num_cores / 2);
     mempool_start_benchmark();
     switch (i) {
     case 0:
@@ -127,7 +122,7 @@ int main(int argc, char **argv) {
     }
     mempool_stop_benchmark();
     // Wait at barrier befor checking
-    mempool_barrier(core_id, num_cores, num_cores * 4);
+    mempool_barrier(num_cores, num_cores * 4);
     // Check result
     if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
       __atomic_fetch_or(&error, i, __ATOMIC_SEQ_CST);
@@ -141,7 +136,7 @@ int main(int argc, char **argv) {
 #endif
 
   // wait until all cores have finished
-  mempool_barrier(core_id, num_cores, 4 * num_cores);
+  mempool_barrier(num_cores, 4 * num_cores);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -154,7 +149,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  mempool_barrier(core_id, num_cores, 4 * num_cores);
+  mempool_barrier(num_cores, 4 * num_cores);
 #endif
 
   return error;
