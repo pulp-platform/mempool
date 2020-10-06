@@ -18,7 +18,7 @@ for scenario in "${scenarios[@]}"; do
   if [[ "$scenario" == "Original" ]]; then
     cd $MEMPOOL_DIR
     git apply \
-      config/patches/0001-Revert-global-interconnect-to-parallel_butterfly.patch
+      config/patches/parallel-networks/0001-Revert-global-interconnect-to-parallel_butterfly.patch
     cd $MEMPOOL_DIR/hardware
     num_hives=0
   elif [[ "$scenario" == "1Hive" ]]; then
@@ -40,7 +40,7 @@ for scenario in "${scenarios[@]}"; do
   if [[ "$scenario" == "Original" ]]; then
     cd $MEMPOOL_DIR
     git apply -R \
-      config/patches/0001-Revert-global-interconnect-to-parallel_butterfly.patch
+      config/patches/parallel-networks/0001-Revert-global-interconnect-to-parallel_butterfly.patch
     cd $MEMPOOL_DIR/hardware
   fi
 done
