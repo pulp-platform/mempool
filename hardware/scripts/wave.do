@@ -36,7 +36,7 @@ add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[0]/i_group/gen_ti
 
 add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[1]/i_group/gen_tiles[0]/i_tile/i_tile/gen_cores[0]/riscv_core/i_snitch/wake_up_sync_i
 add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[1]/i_group/gen_tiles[0]/i_tile/i_tile/gen_cores[1]/riscv_core/i_snitch/wake_up_sync_i
-add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[]/i_group/gen_tiles[0]/i_tile/i_tile/gen_cores[2]/riscv_core/i_snitch/wake_up_sync_i
+add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[1]/i_group/gen_tiles[0]/i_tile/i_tile/gen_cores[2]/riscv_core/i_snitch/wake_up_sync_i
 add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[1]/i_group/gen_tiles[0]/i_tile/i_tile/gen_cores[3]/riscv_core/i_snitch/wake_up_sync_i
 
 add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[2]/i_group/gen_tiles[0]/i_tile/i_tile/gen_cores[0]/riscv_core/i_snitch/wake_up_sync_i
