@@ -20,11 +20,11 @@ int main(int argc, char **argv) {
   if (core_id == 0) {
   // Do a lot of work
     mempool_wait(10000);
-    write_wake_up_reg(core_id + 1);
+    wake_up(core_id + 1);
   } else {
     mempool_wfi();
     printf("Core %d woke up\n", core_id);
-    write_wake_up_reg(core_id + 1);
+    wake_up(core_id + 1);
   }
   mempool_barrier(core_id, num_cores, num_cores * 4); 
 

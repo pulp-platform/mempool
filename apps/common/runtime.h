@@ -70,9 +70,11 @@ static inline void mempool_wait(uint32_t cycles) {
 }
 
 static inline void mempool_wfi(){
-  asm("wfi");
+  asm volatile("wfi");
 }
 
-static inline void write_wake_up_reg(uint32_t value){
-  wake_up_reg = value;
+// Wake up core with given core_id by writing in the wake up control register.
+// If core_id equals -1, wake up all cores.
+static inline void wake_up(uint32_t core_id){
+  wake_up_reg = core_id;
 }
