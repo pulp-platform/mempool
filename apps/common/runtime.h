@@ -68,3 +68,11 @@ static inline void mempool_wait(uint32_t cycles) {
                :
                : "memory");
 }
+
+static inline void mempool_wfi(){
+  asm("wfi");
+}
+
+static inline void write_wake_up_reg(uint32_t value){
+  wake_up_reg = value;
+}
