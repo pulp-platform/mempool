@@ -19,6 +19,8 @@
 import argparse
 import ast
 import itertools
+import os
+import subprocess
 import sys
 
 import matplotlib.pyplot as plt
@@ -26,7 +28,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.font_manager import FontProperties
+from matplotlib import rc
 
+git_dir = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
+plot_dir = os.path.join(git_dir,'hardware','plots')
 
 def get_runtime(data):
 	# Get runtime of each segment in each run
@@ -85,6 +90,8 @@ def main():
 		else:
 			names = args.name
 
+	names = [n.replace('_','\_') for n in names]
+
 	# Read data from files specified in arguments
 	dataframes = []
 	# Convert the lists in snitch_load_latency to lists instead of interpreting them as strings
@@ -120,6 +127,16 @@ def main():
 			info = info.join(statistics)
 	print(info)
 
+	print('seq_loads_local   {:8d}'.format(sum(data['seq_loads_local'])))
+	print('itl_loads_local   {:8d}'.format(sum(data['itl_loads_local'])))
+	print('seq_loads_global  {:8d}'.format(sum(data['seq_loads_global'])))
+	print('itl_loads_global  {:8d}'.format(sum(data['itl_loads_global'])))
+
+	print('tot_loads_local   {:8d}'.format(sum(data['seq_loads_local'])+sum(data['itl_loads_local'])))
+	print('tot_loads_global  {:8d}'.format(sum(data['seq_loads_global'])+sum(data['itl_loads_global'])))
+
+	exit(0)
+
 	# Plotting
 	# colorpalette = 'vlag'
 	colorpalette = 'RdBu'
@@ -128,7 +145,9 @@ def main():
 	# colorpalette = 'GnBu_r'
 	# colorpalette = 'gnuplot'
 
-	f = plt.figure(1, figsize=(8, 4), dpi=600)
+	plt.style.use(os.path.join(git_dir,'hardware','scripts','mempool.mplstyle'))
+
+	f = plt.figure(1)
 	if (args.sections):
 		ax = sns.barplot(x='section', y='runtime', hue='run', data=runtime, palette=colorpalette)
 		ax.set_xlabel('Section')
@@ -138,9 +157,23 @@ def main():
 	ax.set_ylabel('Runtime [cycles]')
 	ax.set_title('Runtime')
 	plt.show()
-	f.savefig("Runtime.pdf", bbox_inches='tight')
+	f.savefig(os.path.join(plot_dir,'Runtime.pdf'), bbox_inches='tight')
 
-	f = plt.figure(2, figsize=(8, 4), dpi=600)
+	runtime['speedup'] = runtime['runtime'][0]/runtime['runtime']
+	f = plt.figure(4)
+	if (args.sections):
+		ax = sns.barplot(x='section', y='speedup', hue='run', data=runtime, palette=colorpalette)
+		ax.set_xlabel('Section')
+	else:
+		ax = sns.barplot(x='run', y='speedup', data=runtime, palette=colorpalette)
+		# ax.set_xlabel('Configuration')
+		ax.set_xlabel(None)
+	ax.set_ylabel('Speedup')
+	# ax.set_title('Speedup')
+	plt.show()
+	f.savefig(os.path.join(plot_dir,'Speedup.pdf'), bbox_inches='tight')
+
+	f = plt.figure(2)
 	if (args.sections):
 		ax = boxplot(x='run', y='cycles', data=data, hue='run', palette=colorpalette, violin=args.violin)
 		ax.set_xlabel('Section')
@@ -150,16 +183,16 @@ def main():
 	ax.set_ylabel('Runtime [cycles]')
 	ax.set_title('Runtime')
 	plt.show()
-	f.savefig("Runtime_Distribution.pdf", bbox_inches='tight')
+	f.savefig(os.path.join(plot_dir,'Runtime_Distribution.pdf'), bbox_inches='tight')
 
-	f = plt.figure(3, figsize=(8, 4), dpi=600)
+	f = plt.figure(3)
 	ax = boxplot(x='core', y='snitch_load_latency', hue='run', palette=colorpalette,
 		data=load_latency_1tile, violin=args.violin)
 	ax.set_xlabel('Core')
 	ax.set_ylabel('Load Latency [cycles]')
 	ax.set_title('Load Latency distribution')
 	plt.show()
-	f.savefig("LoadLatency.pdf", bbox_inches='tight')
+	f.savefig(os.path.join(plot_dir,'LoadLatency.pdf'), bbox_inches='tight')
 
 if __name__ == '__main__':
 	sys.exit(main())

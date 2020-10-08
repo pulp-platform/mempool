@@ -18,6 +18,7 @@ import csv
 from csv import DictWriter
 from ctypes import c_int32, c_uint32
 from collections import deque, defaultdict
+import warnings
 from itertools import compress
 
 
@@ -36,7 +37,7 @@ TRACE_OUT_FMT = '{:>8} {:>8} {:>10} {:<30}'
 MAX_SIGNED_INT_LIT = 0xFFFF
 
 # Performance keys which only serve to compute other metrics: omit on printing
-PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_load_latency', 'snitch_load_region', 'snitch_load_tile')
+PERF_EVAL_KEYS_OMIT = ('section', 'core', 'start', 'end', 'snitch_load_latency', 'snitch_load_region', 'snitch_load_tile', 'snitch_store_region', 'snitch_store_tile')
 
 
 # -------------------- Architectural constants and enums  --------------------
@@ -213,6 +214,19 @@ def emul_seq(fseq_info: dict, permissive: bool = False) -> (str, int, str, tuple
 	fseq_pc_str = None if cfg is None else cfg['fseq_pc']
 	return pc_str, curr_sec, fseq_pc_str, fseq_annot
 
+def addr_to_meta(address):
+	region = MEM_REGIONS['Other']
+	tile = -1
+	if (address < SEQ_MEM_SIZE*NUM_TILES):
+		# Local memory
+		region = MEM_REGIONS['Sequential']
+		tile = address // SEQ_MEM_SIZE
+	elif (address < TCDM_SIZE):
+		# Interleaved memory
+		region = MEM_REGIONS['Interleaved']
+		tile = address // 64
+		tile = tile % NUM_TILES
+	return region, tile
 
 # -------------------- Annotation --------------------
 
@@ -268,6 +282,9 @@ def annotate_snitch(
 			ret.append('{} ~~> {}[{}]'.format(
 				int_lit(extras['gpr_rdata_1']), LS_SIZES[extras['ls_size']],
 				int_lit(extras['alu_result'], force_hex=force_hex_addr)))
+			region, tile = addr_to_meta(extras['alu_result'])
+			perf_metrics[-1].setdefault('snitch_store_region', []).append(region)
+			perf_metrics[-1].setdefault('snitch_store_tile', []).append(int(tile))
 		# Branches: all reg-reg ops
 		elif extras['is_branch']:
 			ret.append('{}taken'.format('' if extras['alu_result'] else 'not '))
@@ -278,17 +295,7 @@ def annotate_snitch(
 	if extras['retire_load'] and extras['lsu_rd'] != 0:
 		try:
 			start_time, address = gpr_wb_info[extras['lsu_rd']].pop()
-			region = MEM_REGIONS['Other']
-			tile = -1
-			if (address < SEQ_MEM_SIZE*NUM_TILES):
-				# Local memory
-				region = MEM_REGIONS['Sequential']
-				tile = address // SEQ_MEM_SIZE
-			elif (address < TCDM_SIZE):
-				# Interleaved memory
-				region = MEM_REGIONS['Interleaved']
-				tile = address // 64
-				tile = tile % NUM_TILES
+			region, tile = addr_to_meta(address)
 			perf_metrics[-1].setdefault('snitch_load_latency', []).append(cycle - start_time)
 			perf_metrics[-1].setdefault('snitch_load_region', []).append(region)
 			perf_metrics[-1].setdefault('snitch_load_tile', []).append(int(tile))
@@ -306,7 +313,8 @@ def annotate_snitch(
 		ret.append('goto {}'.format(int_lit(extras['pc_d'])))
 	# Count stalls
 	if extras['stall'] or extras['stall_instr']:
-		stall_cycles = cycle - last_cycle
+		stall_cycles = cycle - last_cycle - 1
+		ret.append('// stall {} cycles'.format(stall_cycles))
 		perf_metrics[-1]['stall_cycles'] += stall_cycles
 		if extras['stall_instr']:
 			perf_metrics[-1]['stall_instr'] += stall_cycles
@@ -316,6 +324,9 @@ def annotate_snitch(
 			perf_metrics[-1]['stall_lsu'] += stall_cycles
 		if extras['stall_acc']:
 			perf_metrics[-1]['stall_acc'] += stall_cycles
+	elif cycle - last_cycle > 1:
+		# Check if we did not skip a cycle, otherwise we probably had a undetected stall
+		ret.append('// Potentially missed stall cycle ({} cycles)!!!'.format(cycle - last_cycle - 1))
 	# Return comma-delimited list
 	return ', '.join(ret)
 
@@ -472,28 +483,41 @@ def eval_perf_metrics(perf_metrics: list, id: int):
 		seg['cycles'] = cycles
 		seg['total_ipc'] = seg['snitch_occupancy']
 		# Detailed load/store info
-		tile_id = int(id // 4)
-		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
-		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
-		loc_loads = [x == tile_id for x in seg['snitch_load_tile']]
-		seq_loads = list(compress(seg['snitch_load_tile'],seq_region))
-		itl_loads = list(compress(seg['snitch_load_tile'],itl_region))
-		seq_loads_local = np.logical_and(np.array(seq_region), np.array(loc_loads))
-		seq_loads_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_loads)))
-		itl_loads_local = np.logical_and(np.array(itl_region), np.array(loc_loads))
-		itl_loads_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_loads)))
-		seg.update({
-			'seq_loads_local': np.count_nonzero(seq_loads_local),
-			'seq_loads_global': np.count_nonzero(seq_loads_global),
-			'itl_loads_local': np.count_nonzero(itl_loads_local),
-			'itl_loads_global': np.count_nonzero(itl_loads_global),
-			'seq_latency_local': np.mean(np.select(seq_loads_local, np.array(seg['snitch_load_latency']))),
-			'seq_latency_global': np.mean(np.select(seq_loads_global, np.array(seg['snitch_load_latency']))),
-			'itl_latency_local': np.mean(np.select(itl_loads_local, np.array(seg['snitch_load_latency']))),
-			'itl_latency_global': np.mean(np.select(itl_loads_global, np.array(seg['snitch_load_latency']))),
-		})
-
-
+		if seg['snitch_loads'] > 0:
+			tile_id = int(id // 4)
+			seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
+			itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
+			loc_loads = [x == tile_id for x in seg['snitch_load_tile']]
+			seq_loads_local = np.logical_and(np.array(seq_region), np.array(loc_loads))
+			seq_loads_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_loads)))
+			itl_loads_local = np.logical_and(np.array(itl_region), np.array(loc_loads))
+			itl_loads_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_loads)))
+			with warnings.catch_warnings():
+				warnings.simplefilter("ignore", category=RuntimeWarning)
+				seg.update({
+					'seq_loads_local': np.count_nonzero(seq_loads_local),
+					'seq_loads_global': np.count_nonzero(seq_loads_global),
+					'itl_loads_local': np.count_nonzero(itl_loads_local),
+					'itl_loads_global': np.count_nonzero(itl_loads_global),
+					'seq_latency_local': np.mean(np.array(seg['snitch_load_latency'])[seq_loads_local]),
+					'seq_latency_global': np.mean(np.array(seg['snitch_load_latency'])[seq_loads_global]),
+					'itl_latency_local': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_local]),
+					'itl_latency_global': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_global]),
+				})
+		if seg['snitch_stores'] > 0:
+			seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_store_region']]
+			itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_store_region']]
+			loc_stores = [x == tile_id for x in seg['snitch_store_tile']]
+			seq_stores_local = np.logical_and(np.array(seq_region), np.array(loc_stores))
+			seq_stores_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_stores)))
+			itl_stores_local = np.logical_and(np.array(itl_region), np.array(loc_stores))
+			itl_stores_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_stores)))
+			seg.update({
+				'seq_stores_local': np.count_nonzero(seq_stores_local),
+				'seq_stores_global': np.count_nonzero(seq_stores_global),
+				'itl_stores_local': np.count_nonzero(itl_stores_local),
+				'itl_stores_global': np.count_nonzero(itl_stores_global),
+			})
 
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 	ret = ['Performance metrics for section {} @ ({}, {}):'.format(
@@ -579,7 +603,7 @@ def main():
 			if perf_metrics[0]['start'] is None:
 				perf_metrics[0]['start'] = time_info[1]
 			# Start a new benchmark section after 'csrw cycle' instruction
-			if 'cycle' in ann_insn:
+			if 'cycle' in line:
 				perf_metrics[-1]['end'] = time_info[1]
 				perf_metrics.append(defaultdict(int))
 				if 'csrw' in ann_insn:
