@@ -657,7 +657,7 @@ module snitch #(
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
-        ls_amo = AMOMinu;
+        ls_amo = AMOMin;
         opa_select = Reg;
         opb_select = Reg;
       end
