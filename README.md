@@ -95,6 +95,9 @@ make trace
 app=hello_world make benchmark
 ```
 
+### Unit tests
+:pushpin: _TODO_
+
 ## Common Problems
 
 - If building the GCC toolchain fails because *makeinfo/texinfo* is missing, try the following command:
