@@ -18,6 +18,7 @@ import csv
 from csv import DictWriter
 from ctypes import c_int32, c_uint32
 from collections import deque, defaultdict
+import warnings
 from itertools import compress
 
 
@@ -482,37 +483,41 @@ def eval_perf_metrics(perf_metrics: list, id: int):
 		seg['cycles'] = cycles
 		seg['total_ipc'] = seg['snitch_occupancy']
 		# Detailed load/store info
-		tile_id = int(id // 4)
-		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
-		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
-		loc_loads = [x == tile_id for x in seg['snitch_load_tile']]
-		seq_loads_local = np.logical_and(np.array(seq_region), np.array(loc_loads))
-		seq_loads_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_loads)))
-		itl_loads_local = np.logical_and(np.array(itl_region), np.array(loc_loads))
-		itl_loads_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_loads)))
-		seg.update({
-			'seq_loads_local': np.count_nonzero(seq_loads_local),
-			'seq_loads_global': np.count_nonzero(seq_loads_global),
-			'itl_loads_local': np.count_nonzero(itl_loads_local),
-			'itl_loads_global': np.count_nonzero(itl_loads_global),
-			'seq_latency_local': np.mean(np.array(seg['snitch_load_latency'])[seq_loads_local]),
-			'seq_latency_global': np.mean(np.array(seg['snitch_load_latency'])[seq_loads_global]),
-			'itl_latency_local': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_local]),
-			'itl_latency_global': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_global]),
-		})
-		seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_store_region']]
-		itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_store_region']]
-		loc_stores = [x == tile_id for x in seg['snitch_store_tile']]
-		seq_stores_local = np.logical_and(np.array(seq_region), np.array(loc_stores))
-		seq_stores_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_stores)))
-		itl_stores_local = np.logical_and(np.array(itl_region), np.array(loc_stores))
-		itl_stores_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_stores)))
-		seg.update({
-			'seq_stores_local': np.count_nonzero(seq_stores_local),
-			'seq_stores_global': np.count_nonzero(seq_stores_global),
-			'itl_stores_local': np.count_nonzero(itl_stores_local),
-			'itl_stores_global': np.count_nonzero(itl_stores_global),
-		})
+		if seg['snitch_loads'] > 0:
+			tile_id = int(id // 4)
+			seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_load_region']]
+			itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_load_region']]
+			loc_loads = [x == tile_id for x in seg['snitch_load_tile']]
+			seq_loads_local = np.logical_and(np.array(seq_region), np.array(loc_loads))
+			seq_loads_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_loads)))
+			itl_loads_local = np.logical_and(np.array(itl_region), np.array(loc_loads))
+			itl_loads_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_loads)))
+			with warnings.catch_warnings():
+				warnings.simplefilter("ignore", category=RuntimeWarning)
+				seg.update({
+					'seq_loads_local': np.count_nonzero(seq_loads_local),
+					'seq_loads_global': np.count_nonzero(seq_loads_global),
+					'itl_loads_local': np.count_nonzero(itl_loads_local),
+					'itl_loads_global': np.count_nonzero(itl_loads_global),
+					'seq_latency_local': np.mean(np.array(seg['snitch_load_latency'])[seq_loads_local]),
+					'seq_latency_global': np.mean(np.array(seg['snitch_load_latency'])[seq_loads_global]),
+					'itl_latency_local': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_local]),
+					'itl_latency_global': np.mean(np.array(seg['snitch_load_latency'])[itl_loads_global]),
+				})
+		if seg['snitch_stores'] > 0:
+			seq_region = [x == MEM_REGIONS['Sequential'] for x in seg['snitch_store_region']]
+			itl_region = [x == MEM_REGIONS['Interleaved'] for x in seg['snitch_store_region']]
+			loc_stores = [x == tile_id for x in seg['snitch_store_tile']]
+			seq_stores_local = np.logical_and(np.array(seq_region), np.array(loc_stores))
+			seq_stores_global = np.logical_and(np.array(seq_region), np.invert(np.array(loc_stores)))
+			itl_stores_local = np.logical_and(np.array(itl_region), np.array(loc_stores))
+			itl_stores_global = np.logical_and(np.array(itl_region), np.invert(np.array(loc_stores)))
+			seg.update({
+				'seq_stores_local': np.count_nonzero(seq_stores_local),
+				'seq_stores_global': np.count_nonzero(seq_stores_global),
+				'itl_stores_local': np.count_nonzero(itl_stores_local),
+				'itl_stores_global': np.count_nonzero(itl_stores_global),
+			})
 
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
 	ret = ['Performance metrics for section {} @ ({}, {}):'.format(
