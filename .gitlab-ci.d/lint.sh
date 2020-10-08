@@ -44,6 +44,6 @@ done
 
 # Check for trailing whitespaces and tabs
 echo "Checking for trailing whitespaces and tabs"
-git diff --check $base HEAD -- ':(exclude)**.def' || EXIT_STATUS=$?
+git diff --check $base HEAD -- ':(exclude)**.def' ':(exclude)**.patch' || EXIT_STATUS=$?
 
 exit $EXIT_STATUS
