@@ -84,6 +84,7 @@ Target Environment Name | Description
 `pm` | virtual memory is disabled, all cores boot up
 `pt` | virtual memory is disabled, timer interrupt fires every 100 cycles
 `v` | virtual memory is enabled
+`mempool` | MemPool environment for actual RTL simulation
 
 Each test program must next specify for which TVM it is designed by including
 the appropriate TVM macro, `RVTEST_RV64U` in this example. This specification

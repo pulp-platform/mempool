@@ -22,6 +22,8 @@ isa:
 
 clean:
 	[ ! -d isa ]        || $(MAKE) -C isa -f $(isa_src_dir)/Makefile src_dir=$(isa_src_dir) clean
+	rm -rf target/
+	rm -rf autom4te.cache/
 
 .PHONY: isa clean
 
