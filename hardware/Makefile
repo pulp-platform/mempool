@@ -53,6 +53,7 @@ endif
 
 QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)-kgf/questasim
 
+questa_args += -voptargs=+acc
 ifdef app
 	preload ?= "$(app_path)/$(app)"
 endif
@@ -102,19 +103,19 @@ compile: dpi lib $(buildpath) $(buildpath)/compile.tcl
 $(buildpath)/compile.tcl: bender $(shell find src -type f) $(shell find tb -type f) $(shell find deps -type f)
 	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
-	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl && $(questa_cmd) vopt +acc -work $(library) $(library).$(top_level) -o $(top_level)_opt
+	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
 # Simulation
 .PHONY: sim
 sim: compile
 	cd $(buildpath) && \
-	$(questa_cmd) vsim $(questa_args) $(library).$(top_level)_opt -do ../scripts/run.do
+	$(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.do
 	./scripts/return_status.sh $(buildpath)/transcript
 
 .PHONY: simc
 simc: compile
 	cd $(buildpath) && \
-	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level)_opt -do "run -a"
+	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
 
 # Benchmarking
