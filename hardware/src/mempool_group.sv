@@ -26,7 +26,8 @@ module mempool_group
     parameter logic [31:0] BootAddr         = 32'h0000_1000,
     // Dependant parameters. DO NOT CHANGE!
     parameter int unsigned NumTilesPerGroup = NumTiles / NumGroups,
-    parameter int unsigned NumCoresPerGroup = NumCoresPerTile * NumTilesPerGroup
+    parameter int unsigned NumCoresPerGroup = NumCoresPerTile * NumTilesPerGroup,
+    parameter int unsigned NumAXIMasters    = NumTilesPerGroup
   ) (
     // Clock and reset
     input  logic                                         clk_i,
@@ -76,7 +77,10 @@ module mempool_group
     output logic              [NumTilesPerGroup-1:0]     tcdm_slave_east_resp_valid_o,
     input  logic              [NumTilesPerGroup-1:0]     tcdm_slave_east_resp_ready_i,
     // Wake up interface
-    input  logic              [NumCoresPerGroup-1:0]     wake_up_i
+    input  logic              [NumCoresPerGroup-1:0]     wake_up_i,
+     // AXI Interface
+    output axi_req_t          [NumTilesPerGroup-1:0]     axi_mst_req_o,
+    input  axi_resp_t         [NumTilesPerGroup-1:0]     axi_mst_resp_i
   );
 
   /*****************
@@ -205,8 +209,8 @@ module mempool_group
       .tcdm_slave_local_resp_valid_o     (tcdm_slave_local_resp_valid[t]                 ),
       .tcdm_slave_local_resp_ready_i     (tcdm_slave_local_resp_ready[t]                 ),
       // AXI interface
-      .axi_mst_req_o                     (/* Not connected */                            ),
-      .axi_mst_resp_i                    (/* Not connected */                            ),
+      .axi_mst_req_o                     (axi_mst_req_o[t]                               ),
+      .axi_mst_resp_i                    (axi_mst_resp_i[t]                              ),
       // Instruction refill interface
       .refill_qaddr_o                    (/* Not yet implemented */                      ),
       .refill_qlen_o                     (/* Not yet implemented */                      ), // AXI signal

@@ -17,25 +17,29 @@ module mempool
     // TCDM
     parameter addr_t TCDMBaseAddr        = 32'b0,
     // Boot address
-    parameter logic [31:0] BootAddr      = 32'h0000_0000
+    parameter logic [31:0] BootAddr      = 32'h0000_0000,
+    // Dependant parameters. DO NOT CHANGE!
+    parameter int unsigned NumTiles         = NumCores / NumCoresPerTile,
+    parameter int unsigned NumAXIMasters    = NumTiles
   ) (
     // Clock and reset
-    input  logic clk_i,
-    input  logic rst_ni,
-    input  logic testmode_i,
+    input  logic                clk_i,
+    input  logic                rst_ni,
+    input  logic                testmode_i,
     // Scan chain
-    input  logic scan_enable_i,
-    input  logic scan_data_i,
-    output logic scan_data_o,
-    // Wake up interface
-    input  logic [NumCores-1:0] wake_up_i
-  );
+    input  logic                scan_enable_i,
+    input  logic                scan_data_i,
+    input  logic [NumCores-1:0] wake_up_i,
+    output logic                scan_data_o,
+    // AXI Interface
+    output axi_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
+    input  axi_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
+ );
 
   /*****************
    *  Definitions  *
    *****************/
 
-  localparam int unsigned NumTiles         = NumCores / NumCoresPerTile;
   localparam int unsigned NumTilesPerGroup = NumTiles / NumGroups;
   localparam int unsigned NumBanks         = NumCores * BankingFactor;
   localparam int unsigned NumBanksPerTile  = NumBanks / NumTiles;
@@ -140,7 +144,8 @@ module mempool
       .tcdm_master_req_t (tcdm_master_req_t ),
       .tcdm_master_resp_t(tcdm_master_resp_t),
       .tcdm_slave_req_t  (tcdm_slave_req_t  ),
-      .tcdm_slave_resp_t (tcdm_slave_resp_t )
+      .tcdm_slave_resp_t (tcdm_slave_resp_t ),
+      .NumAXIMasters     (NumTilesPerGroup  )
     ) i_group (
       .clk_i                             (clk_i                                            ),
       .rst_ni                            (rst_n                                            ),
@@ -186,8 +191,11 @@ module mempool
       .tcdm_slave_northeast_resp_o       (tcdm_slave_northeast_resp[g]                     ),
       .tcdm_slave_northeast_resp_valid_o (tcdm_slave_northeast_resp_valid[g]               ),
       .tcdm_slave_northeast_resp_ready_i (tcdm_slave_northeast_resp_ready[g]               ),
-      .wake_up_i                         (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup])
-    );
+      .wake_up_i                         (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]),
+      // AXI interface
+      .axi_mst_req_o                     (axi_mst_req_o[g*NumTilesPerGroup +: NumTilesPerGroup] ),
+      .axi_mst_resp_i                    (axi_mst_resp_i[g*NumTilesPerGroup +: NumTilesPerGroup])
+   );
   end : gen_groups
 
   /*******************

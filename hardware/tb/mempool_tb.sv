@@ -131,26 +131,22 @@ module mempool_tb;
    *********/
 
   mempool #(
-    .NumCores     (NumCores      ),
-    .BankingFactor(BankingFactor ),
-    .TCDMBaseAddr (TCDMBaseAddr  ),
-    .BootAddr     (BootAddr      )
+    .NumCores     (NumCores       ),
+    .BankingFactor(BankingFactor  ),
+    .TCDMBaseAddr (TCDMBaseAddr   ),
+    .BootAddr     (BootAddr       ),
+    .NumAXIMasters(NumAXIMasters  )
   ) dut (
-    .clk_i         (clk          ),
-    .rst_ni        (rst_n        ),
-    .wake_up_i     (wake_up      ),
-    .testmode_i    (1'b0         ),
-    .scan_enable_i (1'b0         ),
-    .scan_data_i   (1'b0         ),
-    .scan_data_o   (/* Unused */ )
-  );
-
-  for (genvar g = 0; g < NumGroups; g++) begin: gen_axi_connections
-    for (genvar t = 0; t < NumTilesPerGroup; t++) begin
-      assign axi_mst_req_o[NumTilesPerGroup*g + t]                        = dut.gen_groups[g].i_group.gen_tiles[t].i_tile.axi_mst_req_o;
-      assign dut.gen_groups[g].i_group.gen_tiles[t].i_tile.axi_mst_resp_i = axi_mst_resp_i[NumTilesPerGroup*g + t];
-    end
-  end
+    .clk_i         (clk           ),
+    .rst_ni        (rst_n         ),
+    .wake_up_i     (wake_up       ),
+    .testmode_i    (1'b0          ),
+    .scan_enable_i (1'b0          ),
+    .scan_data_i   (1'b0          ),
+    .scan_data_o   (/* Unused */  ),
+    .axi_mst_req_o (axi_mst_req_o ),
+    .axi_mst_resp_i(axi_mst_resp_i)
+);
 
   /**********************
    *  AXI Interconnect  *
