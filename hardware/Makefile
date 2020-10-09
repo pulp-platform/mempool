@@ -60,7 +60,8 @@ endif
 ifdef preload
 	questa_args += +PRELOAD=$(preload)
 endif
-questa_args += -sv_lib $(dpi_library)/mempool_dpi -suppress vsim-12070
+questa_args += -sv_lib $(dpi_library)/mempool_dpi -work $(library)
+questa_args += -suppress vsim-12070
 
 # DPI source files
 dpi   := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
@@ -73,28 +74,46 @@ ifndef result_dir
 endif
 
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
+vlog_args += -work $(library)
 # Defines
 vlog_args += +define+NUM_CORES=$(num_cores) +define+NUM_CORES_PER_TILE=$(num_cores_per_tile) +define+BOOT_ADDR=32'h$(boot_addr)
 
-# Simulation
-build: bender lib $(buildpath)/$(dpi_library)/mempool_dpi.so
+# Build path
+$(buildpath):
 	mkdir -p $(buildpath)
-	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test\
-	  > $(buildpath)/compile.tcl
+
+# Bender
+bender:
+	@[ -x ./bender ] && echo "Bender already exists." || \
+	(command -v bender >/dev/null 2>&1 && ln -sf $$(command -v bender) ./bender || \
+	curl --proto '=https' --tlsv1.2 -sSf https://iis-people.ee.ethz.ch/~andkurt/bender-init \
+		| bash -s -- 0.19.0)
+	@touch bender
+	@echo "$$(./bender --version) available."
+
+# Library
+.PHONY: lib
+lib: $(buildpath) $(buildpath)/$(library)
+$(buildpath)/$(library):
+	cd $(buildpath) && $(questa_cmd) vlib $(library) && $(questa_cmd) vmap $(library) $(library)
+
+# Compilation
+.PHONY: compile
+compile: dpi lib $(buildpath) $(buildpath)/compile.tcl
+$(buildpath)/compile.tcl: bender $(shell find src -type f) $(shell find tb -type f) $(shell find deps -type f)
+	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
-	cd $(buildpath) && $(questa_cmd) vsim -c -do compile.tcl
+	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
-lib:
-	mkdir -p $(buildpath)
-	mkdir -p $(buildpath)/$(library)
-	cd $(buildpath) && $(questa_cmd) vlib work && $(questa_cmd) vmap work work
-
-sim: clean-dasm build
+# Simulation
+.PHONY: sim
+sim: compile
 	cd $(buildpath) && \
 	$(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.do
 	./scripts/return_status.sh $(buildpath)/transcript
 
-simc: clean-dasm build
+.PHONY: simc
+simc: compile
 	cd $(buildpath) && \
 	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
@@ -132,16 +151,10 @@ $(buildpath)/%.trace: $(buildpath)/%.dasm
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
 	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
 
-# Bender
-bender: Makefile
-	@[ -x ./bender ] && echo "Bender already exists." || \
-	(command -v bender >/dev/null 2>&1 && ln -sf $$(command -v bender) ./bender || \
-	curl --proto '=https' --tlsv1.2 -sSf https://iis-people.ee.ethz.ch/~andkurt/bender-init \
-		| bash -s -- 0.19.0)
-	@touch bender
-	@echo "$$(./bender --version) available."
-
 # DPIs
+.PHONY: dpi
+dpi: $(buildpath)/$(dpi_library)/mempool_dpi.so
+
 $(buildpath)/$(dpi_library)/%.o: tb/dpi/%.cpp
 	mkdir -p $(buildpath)/$(dpi_library)
 	$(CXX) -shared -fPIC -std=c++11 -Bsymbolic -c $< -I$(QUESTASIM_HOME)/include -o $@
@@ -150,6 +163,8 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 	mkdir -p $(buildpath)/$(dpi_library)
 	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $?
 
+# Clean targets
+.PHONY: clean clean-dasm clean-trace
 clean:
 	rm -rf $(buildpath)
 
@@ -158,5 +173,3 @@ clean-dasm:
 
 clean-trace:
 	rm -rf $(buildpath)/*.trace
-
-.PHONY: build lib sim simc clean clean-dasm
