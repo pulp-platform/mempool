@@ -883,7 +883,7 @@ module mempool_tile_wrap
     .refill_plast_i          (refill_plast_i                                                                                                                     ),
     .refill_pready_o         (refill_pready_o                                                                                                                    ),
    // Wake up interface
-    .wake_up_i               (wake_up_i)
+    .wake_up_i               (wake_up_i                                                                                                                          )
   );
 
 endmodule: mempool_tile_wrap
