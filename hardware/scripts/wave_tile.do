@@ -35,8 +35,10 @@ add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/prereg_tcdm_slave_resp_*
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/prereg_tcdm_master_req_*
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/postreg_tcdm_master_resp_*
-add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/local_master_xbar_*
-add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/local_slave_xbar_*
+add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/remote_req_*
+add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/remote_resp_*
+add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/local_req_*
+add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/local_resp_*
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/soc_data_*
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/mask_map
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/soc_req_o
