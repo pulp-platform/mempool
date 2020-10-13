@@ -66,7 +66,9 @@ reset_vector:
     li      x31, 0
     la      sp, tcdm_start_address_reg // load stack top from peripheral register
     lw      sp, 0(sp)
-    csrr    a0, mhartid                // get hart id
+    la      sp, eoc_reg
+    lw      sp, 0(sp)
+   csrr    a0, mhartid                // get hart id
 #ifdef TOP4_STACK
     srli    t0, a0, 4                  // id / 16
     li      t1, 12288                  // 12 * 2^10
@@ -88,18 +90,18 @@ reset_vector:
     call    main
 
 eoc:
-    la t0, eoc_address
+    la t0, eoc_reg
     sw a0, 0(t0)
     jal x0, eoc
 
 fail:
-    la t0, eoc_address
+    la t0, eoc_reg
     sw a0, 0(t0)
     jal x0, eoc
 
-.section ".eoc_address","aw",@progbits
-.align 6
-.globl eoc_address
-eoc_address: .dword 0
+//.section ".eoc_address","aw",@progbits
+//.align 6
+//.globl eoc_address
+//eoc_address: .dword 0
 
 .section .data

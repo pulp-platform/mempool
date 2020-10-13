@@ -78,19 +78,18 @@ module mempool_tb;
   `AXI_LITE_TYPEDEF_RESP_T(axi_lite_slv_resp_t, axi_lite_slv_b_t, axi_lite_slv_r_t)
 
   localparam NumAXIMasters = NumTiles;
-  localparam NumAXISlaves  = 4;
+  localparam NumAXISlaves  = 3;
   typedef enum logic [$clog2(NumAXISlaves)-1:0] {
     CtrlRegisters,
     L2Memory,
-    UART,
-    EOC
+    UART
   } axi_slave_target;
 
   localparam xbar_cfg_t XBarCfg = '{
     NoSlvPorts        : NumAXIMasters,
     NoMstPorts        : NumAXISlaves,
     MaxMstTrans       : 4,
-    MaxSlvTrans       : 4,
+    MaxSlvTrans       : 3,
     FallThrough       : 1'b0,
     LatencyMode       : axi_pkg::CUT_MST_PORTS,
     AxiIdWidthSlvPorts: AxiMstIdWidth,
@@ -105,7 +104,9 @@ module mempool_tb;
   axi_slv_req_t [NumAXISlaves-1:0]  axi_mem_req;
   axi_slv_resp_t[NumAXISlaves-1:0]  axi_mem_resp;
   logic         [NumCores-1:0]      wake_up;
-  /********************************
+  logic         [DataWidth-1:0]     eoc;
+
+ /********************************
    *  Clock and Reset Generation  *
    ********************************/
 
@@ -158,14 +159,11 @@ module mempool_tb;
   localparam addr_t L2MemoryEndAddr       = 32'hBFFF_FFFF;
   localparam addr_t UARTBaseAddr          = 32'hC000_0000;
   localparam addr_t UARTEndAddr           = 32'hC000_FFFF;
-  localparam addr_t EOCBaseAddr           = 32'hD000_0000;
-  localparam addr_t EOCEndAddr            = 32'hD000_FFFF;
 
   xbar_rule_32_t [NumAXISlaves-1:0] tb_xbar_routing_rules = '{
     '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
     '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr},
-    '{idx: UART, start_addr: UARTBaseAddr, end_addr: UARTEndAddr},
-    '{idx: EOC, start_addr: EOCBaseAddr, end_addr: EOCEndAddr}};
+    '{idx: UART, start_addr: UARTBaseAddr, end_addr: UARTEndAddr}};
 
   axi_xbar #(
     .Cfg          (XBarCfg       ),
@@ -294,29 +292,23 @@ module mempool_tb;
    *  EOC  *
    *********/
 
+  localparam addr_t EOCAddress = 32'h40000000;
+
   initial begin
-    axi_mem_resp[EOC] <= '0;
-
     while (1) begin
-      @(posedge clk); #TT;
-      fork
-        begin
-          wait(axi_mem_req[EOC].aw_valid);
-          axi_mem_resp[EOC].aw_ready <= 1'b1;
-          axi_mem_resp[EOC].aw_ready <= @(posedge clk) 1'b0;
+        @(posedge clk); #TT;
+        if (axi_lite_ctrl_registers_req.aw_valid && axi_lite_ctrl_registers_resp.aw_ready) begin
+            if (axi_lite_ctrl_registers_req.aw.addr == EOCAddress) begin
+                // Finish simulation
+                $timeformat(-9, 2, " ns", 0);
+                $display("[EOC] Simulation ended at %t (retval = %0d).", $time, axi_lite_ctrl_registers_req.w.data);
+                $finish(0);
+            end
         end
-        begin
-          wait(axi_mem_req[EOC].w_valid);
-          // Finish simulation
-          $timeformat(-9, 2, " ns", 0);
-          $display("[EOC] Simulation ended at %t (retval = %0d).", $time, axi_mem_req[EOC].w.data);
-          $finish(0);
-        end
-      join
     end
-  end
+ end
 
-  /***********************
+ /***********************
    *  Control Registers  *
    ***********************/
 
@@ -346,7 +338,7 @@ module mempool_tb;
   );
 
   ctrl_registers #(
-    .NumRegs        (4                  ),
+    .NumRegs        (5                  ),
     .TCDMBaseAddr   (TCDMBaseAddr       ),
     .TCDMSize       (TCDMSize           ),
     .NumCores       (NumCores           ),
@@ -360,7 +352,8 @@ module mempool_tb;
     .tcdm_start_address_o (/* Unused */                ),
     .tcdm_end_address_o   (/* Unused */                ),
     .num_cores_o          (/* Unused */                ),
-    .wake_up_o            (wake_up                     )
+    .wake_up_o            (wake_up                     ),
+    .eoc_o                (eoc                         )
   );
 
   /************************
