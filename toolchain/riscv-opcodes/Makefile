@@ -3,7 +3,7 @@ SHELL := /bin/sh
 ALL_REAL_ILEN32_OPCODES := opcodes-rv32i opcodes-rv64i opcodes-rv32m opcodes-rv64m opcodes-rv32a opcodes-rv64a opcodes-rv32h opcodes-rv64h opcodes-rv32f opcodes-rv64f opcodes-rv32d opcodes-rv64d opcodes-rv32q opcodes-rv64q opcodes-system
 ALL_REAL_OPCODES := $(ALL_REAL_ILEN32_OPCODES) opcodes-rvc opcodes-rv32c opcodes-rv64c opcodes-custom opcodes-rvv
 # Add here your opcodes
-MY_OPCODES := opcodes-frep_CUSTOM opcodes-xpulpimg_CUSTOM opcodes-rv32b_UNOFFICIAL opcodes-rv64b_UNOFFICIAL opcodes-sflt_CUSTOM
+MY_OPCODES := opcodes-frep_CUSTOM opcodes-xpulpimg_CUSTOM
 
 ALL_OPCODES := opcodes-pseudo $(ALL_REAL_OPCODES) $(MY_OPCODES) opcodes-rvv-pseudo
 # Opcodes to be discarded

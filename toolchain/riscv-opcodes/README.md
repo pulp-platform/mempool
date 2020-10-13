@@ -33,8 +33,3 @@ starting from their high-level, human-readable description.
   listing them in the variable `DISCARDED_OPCODES`;
 - opcodes files from the official 128-bit extension have not been introduced
   due to the other changes which they imply to other opcodes specifications.
-
-## Known problems
-1. Some instructions of the still unofficial bit manipulation extension
-  (`opcodes-rv32b` and `opcodes-rv64b`, discarded by default in the parsing)
-  overlap with some of the Xpulp extension (`opcodes-xpulpimg`, subset of Xpulp).
