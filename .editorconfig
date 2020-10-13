@@ -15,7 +15,7 @@ insert_final_newline = true
 [*.{sv,svh,v,vg}]
 max_line_length = 100
 
-[{Makefile,*.mk}]
+[{Makefile,Makefile.*,*.mk,*.mk.*}]
 indent_style = tab
 
 [*.py]
