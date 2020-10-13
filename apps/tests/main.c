@@ -27,11 +27,16 @@
 
 // Define Matrix dimensions:
 // C = AB with A=[MxN], B=[NxP], C=[MxP]
-#ifdef NUM_CORES
-#define matrix_M (NUM_CORES / 4)
-#define matrix_N (NUM_CORES / 4)
-#define matrix_P (NUM_CORES / 4)
+#if NUM_CORES > 32
+#define matrix_M 32
+#define matrix_N 32
+#define matrix_P 32
+#else
+#define matrix_M (NUM_CORES)
+#define matrix_N (NUM_CORES)
+#define matrix_P (NUM_CORES)
 #endif
+
 int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));
 int32_t matrix_c[matrix_M * matrix_P] __attribute__((section(".l1_prio")));
