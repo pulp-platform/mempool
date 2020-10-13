@@ -18,7 +18,7 @@ int main() {
   mempool_barrier_init(core_id, num_cores);
 
   if (core_id == 0) {
-  // Do a lot of work
+    // Do a lot of work
     mempool_wait(1000);
     wake_up(core_id + 1);
   } else {
@@ -28,5 +28,5 @@ int main() {
   }
   mempool_barrier(num_cores, num_cores * 4);
 
-return 0;
+  return 0;
 }
