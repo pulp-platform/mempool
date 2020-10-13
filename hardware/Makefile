@@ -108,13 +108,13 @@ $(buildpath)/compile.tcl: bender $(config_mk) $(shell find src -type f) $(shell 
 
 # Simulation
 .PHONY: sim
-sim: compile
+sim: clean-dasm compile
 	cd $(buildpath) && \
 	$(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.do
 	./scripts/return_status.sh $(buildpath)/transcript
 
 .PHONY: simc
-simc: compile
+simc: clean-dasm compile
 	cd $(buildpath) && \
 	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
