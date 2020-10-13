@@ -21,7 +21,8 @@ MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPO
 INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
 
 # Include configuration
-include $(abspath $(ROOT_DIR)/../config/config.mk)
+config_mk = $(abspath $(ROOT_DIR)/../config/config.mk)
+include $(config_mk)
 
 # build path
 buildpath      ?= build
@@ -100,7 +101,7 @@ $(buildpath)/$(library):
 # Compilation
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl
-$(buildpath)/compile.tcl: bender $(shell find src -type f) $(shell find tb -type f) $(shell find deps -type f)
+$(buildpath)/compile.tcl: bender $(config_mk) $(shell find src -type f) $(shell find tb -type f) $(shell find deps -type f)
 	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
