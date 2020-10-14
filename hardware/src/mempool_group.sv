@@ -16,7 +16,6 @@ module mempool_group
     parameter int unsigned NumBanksPerTile  = 1,
     parameter int unsigned NumTiles         = 1,
     parameter int unsigned NumBanks         = 1,
-    parameter int unsigned NumCoresPerGroup = 1,
     // TCDM
     parameter addr_t TCDMBaseAddr           = 32'b0,
     parameter type tcdm_master_req_t        = logic,
@@ -26,7 +25,8 @@ module mempool_group
     // Boot address
     parameter logic [31:0] BootAddr         = 32'h0000_1000,
     // Dependant parameters. DO NOT CHANGE!
-    parameter int unsigned NumTilesPerGroup = NumTiles / NumGroups
+    parameter int unsigned NumTilesPerGroup = NumTiles / NumGroups,
+    parameter int unsigned NumCoresPerGroup = NumCoresPerTile * NumTilesPerGroup
   ) (
     // Clock and reset
     input  logic                                         clk_i,

@@ -135,7 +135,6 @@ module mempool
       .NumBanksPerTile   (NumBanksPerTile   ),
       .NumTiles          (NumTiles          ),
       .NumBanks          (NumBanks          ),
-      .NumCoresPerGroup  (NumCoresPerGroup  ),
       .TCDMBaseAddr      (TCDMBaseAddr      ),
       .BootAddr          (BootAddr          ),
       .tcdm_master_req_t (tcdm_master_req_t ),
