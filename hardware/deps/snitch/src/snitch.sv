@@ -752,33 +752,53 @@ module snitch #(
 /* Xpulpimg extension */
       riscv_instr::P_ABS: begin
         // Xpulpimg: p.abs
-        opa_select = Reg;
-        opb_select = Reg;
-        alu_op = Abs;
+        if (snitch_pkg::XPULPIMG) begin
+          opa_select = Reg;
+          opb_select = Reg;
+          alu_op = Abs;
+        end else begin
+          illegal_inst = 1'b1;
+        end
       end
       riscv_instr::P_MIN: begin
         // Xpulpimg: p.min
-        opa_select = Reg;
-        opb_select = Reg;
-        alu_op = Min;
+        if (snitch_pkg::XPULPIMG) begin
+          opa_select = Reg;
+          opb_select = Reg;
+          alu_op = Min;
+        end else begin
+          illegal_inst = 1'b1;
+        end
       end
       riscv_instr::P_MINU: begin
         // Xpulpimg: p.minu
-        opa_select = Reg;
-        opb_select = Reg;
-        alu_op = Minu;
+        if (snitch_pkg::XPULPIMG) begin
+          opa_select = Reg;
+          opb_select = Reg;
+          alu_op = Minu;
+        end else begin
+          illegal_inst = 1'b1;
+        end
       end
       riscv_instr::P_MAX: begin
         // Xpulpimg: p.max
-        opa_select = Reg;
-        opb_select = Reg;
-        alu_op = Max;
+        if (snitch_pkg::XPULPIMG) begin
+          opa_select = Reg;
+          opb_select = Reg;
+          alu_op = Max;
+        end else begin
+          illegal_inst = 1'b1;
+        end
       end
       riscv_instr::P_MAXU: begin
         // Xpulpimg: p.maxu
-        opa_select = Reg;
-        opb_select = Reg;
-        alu_op = Maxu;
+        if (snitch_pkg::XPULPIMG) begin
+          opa_select = Reg;
+          opb_select = Reg;
+          alu_op = Maxu;
+        end else begin
+          illegal_inst = 1'b1;
+        end
       end
 /* end of Xpulpimg extension */
 
