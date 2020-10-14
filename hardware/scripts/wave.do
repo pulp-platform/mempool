@@ -24,7 +24,7 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
 }
 
 add wave -group Wake_up_reg /mempool_tb/i_ctrl_registers/clk_i
-add wave -group Wake_up_reg /mempool_tb/i_ctrl_registers/wake_up 
+add wave -group Wake_up_reg /mempool_tb/i_ctrl_registers/wake_up
 add wave -group Wake_up_reg /mempool_tb/i_ctrl_registers/wake_up_o
 add wave -group Wake_up_reg /mempool_tb/i_ctrl_registers/wr_active_d
 add wave -group Wake_up_reg /mempool_tb/i_ctrl_registers/wr_active_q
