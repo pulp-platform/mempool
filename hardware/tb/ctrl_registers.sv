@@ -75,7 +75,7 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
   logic [DataWidth-1:0]   wake_up;
   logic [RegNumBytes-1:0] wr_active_d;
   logic [RegNumBytes-1:0] wr_active_q;
-  
+
   axi_lite_regs #(
     .RegNumBytes (RegNumBytes               ),
     .AxiAddrWidth(AddrWidth                 ),
