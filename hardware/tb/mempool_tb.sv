@@ -89,7 +89,7 @@ module mempool_tb;
     NoSlvPorts        : NumAXIMasters,
     NoMstPorts        : NumAXISlaves,
     MaxMstTrans       : 4,
-    MaxSlvTrans       : 3,
+    MaxSlvTrans       : 4,
     FallThrough       : 1'b0,
     LatencyMode       : axi_pkg::CUT_MST_PORTS,
     AxiIdWidthSlvPorts: AxiMstIdWidth,
