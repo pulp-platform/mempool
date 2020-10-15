@@ -37,6 +37,19 @@ void mempool_barrier_init(uint32_t core_id, uint32_t num_cores) {
   }
 }
 
+void mempool_barrier_init_sleep(uint32_t core_id, uint32_t num_cores) {
+  if (core_id == 0) {
+    // Give other cores time to go to sleep
+    mempool_wait(4 * num_cores);
+    barrier = 0;
+    barrier_iteration = 0;
+    barrier_init = 1;
+    wake_up(-1);
+  } else {
+    mempool_wfi();
+  }
+}
+
 void mempool_barrier(uint32_t num_cores, uint32_t cycles) {
   // Remember previous iteration
   uint32_t iteration_old = barrier_iteration;

@@ -62,7 +62,9 @@ module mempool_tile
     input  logic              [NumCaches-1:0]                      refill_perror_i,
     input  logic              [NumCaches-1:0]                      refill_pvalid_i,
     input  logic              [NumCaches-1:0]                      refill_plast_i,
-    output logic              [NumCaches-1:0]                      refill_pready_o
+    output logic              [NumCaches-1:0]                      refill_pready_o,
+    // Wake up interface
+    input  logic              [NumCoresPerTile-1:0]                wake_up_i
   );
 
   /****************
@@ -155,7 +157,7 @@ module mempool_tile
       .data_perror_i (snitch_data_perror[c]                                    ),
       .data_pvalid_i (snitch_data_pvalid[c]                                    ),
       .data_pready_o (snitch_data_pready[c]                                    ),
-      .wake_up_sync_i('0                                                       ),
+      .wake_up_sync_i(wake_up_i[c]                                             ),
       // Core Events
       .core_events_o (/* Unused */                                             )
     );
@@ -830,7 +832,9 @@ module mempool_tile_wrap
     input  logic              [NumCaches-1:0]                      refill_perror_i,
     input  logic              [NumCaches-1:0]                      refill_pvalid_i,
     input  logic              [NumCaches-1:0]                      refill_plast_i,
-    output logic              [NumCaches-1:0]                      refill_pready_o
+    output logic              [NumCaches-1:0]                      refill_pready_o,
+    // Wake up interface
+    input  logic              [NumCoresPerTile-1:0]                wake_up_i
   );
 
   mempool_tile #(
@@ -877,7 +881,9 @@ module mempool_tile_wrap
     .refill_perror_i         (refill_perror_i                                                                                                                    ),
     .refill_pvalid_i         (refill_pvalid_i                                                                                                                    ),
     .refill_plast_i          (refill_plast_i                                                                                                                     ),
-    .refill_pready_o         (refill_pready_o                                                                                                                    )
+    .refill_pready_o         (refill_pready_o                                                                                                                    ),
+   // Wake up interface
+    .wake_up_i               (wake_up_i                                                                                                                          )
   );
 
 endmodule: mempool_tile_wrap

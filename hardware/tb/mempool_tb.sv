@@ -104,7 +104,7 @@ module mempool_tb;
   axi_resp_t    [NumAXIMasters-1:0] axi_mst_resp_i;
   axi_slv_req_t [NumAXISlaves-1:0]  axi_mem_req;
   axi_slv_resp_t[NumAXISlaves-1:0]  axi_mem_resp;
-
+  logic         [NumCores-1:0]      wake_up;
   /********************************
    *  Clock and Reset Generation  *
    ********************************/
@@ -138,6 +138,7 @@ module mempool_tb;
   ) dut (
     .clk_i         (clk          ),
     .rst_ni        (rst_n        ),
+    .wake_up_i     (wake_up      ),
     .testmode_i    (1'b0         ),
     .scan_enable_i (1'b0         ),
     .scan_data_i   (1'b0         ),
@@ -349,7 +350,7 @@ module mempool_tb;
   );
 
   ctrl_registers #(
-    .NumRegs        (3                  ),
+    .NumRegs        (4                  ),
     .TCDMBaseAddr   (TCDMBaseAddr       ),
     .TCDMSize       (TCDMSize           ),
     .NumCores       (NumCores           ),
@@ -362,7 +363,8 @@ module mempool_tb;
     .axi_lite_slave_resp_o(axi_lite_ctrl_registers_resp),
     .tcdm_start_address_o (/* Unused */                ),
     .tcdm_end_address_o   (/* Unused */                ),
-    .num_cores_o          (/* Unused */                )
+    .num_cores_o          (/* Unused */                ),
+    .wake_up_o            (wake_up                     )
   );
 
   /************************

@@ -15,6 +15,7 @@ SECTIONS {
   tcdm_start_address_reg = 0x40000000;
   tcdm_end_address_reg   = 0x40000004;
   nr_cores_address_reg   = 0x40000008;
+  wake_up_reg            = 0x4000000C;
 
   fake_uart = 0xC0000000;
 

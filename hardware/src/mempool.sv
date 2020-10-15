@@ -26,7 +26,9 @@ module mempool
     // Scan chain
     input  logic scan_enable_i,
     input  logic scan_data_i,
-    output logic scan_data_o
+    output logic scan_data_o,
+    // Wake up interface
+    input  logic [NumCores-1:0] wake_up_i
   );
 
   /*****************
@@ -39,6 +41,7 @@ module mempool
   localparam int unsigned NumBanksPerTile  = NumBanks / NumTiles;
   localparam int unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam int unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
+  localparam int unsigned NumCoresPerGroup = NumCores / NumGroups;
 
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
@@ -139,50 +142,51 @@ module mempool
       .tcdm_slave_req_t  (tcdm_slave_req_t  ),
       .tcdm_slave_resp_t (tcdm_slave_resp_t )
     ) i_group (
-      .clk_i                             (clk_i                               ),
-      .rst_ni                            (rst_n                               ),
-      .scan_enable_i                     (scan_enable_i                       ),
-      .scan_data_i                       (/* Unconnected */                   ),
-      .scan_data_o                       (/* Unconnected */                   ),
-      .group_id_i                        (g[idx_width(NumGroups)-1:0]         ),
+      .clk_i                             (clk_i                                            ),
+      .rst_ni                            (rst_n                                            ),
+      .scan_enable_i                     (scan_enable_i                                    ),
+      .scan_data_i                       (/* Unconnected */                                ),
+      .scan_data_o                       (/* Unconnected */                                ),
+      .group_id_i                        (g[idx_width(NumGroups)-1:0]                      ),
       // TCDM Master interfaces
-      .tcdm_master_north_req_o           (tcdm_master_north_req[g]            ),
-      .tcdm_master_north_req_valid_o     (tcdm_master_north_req_valid[g]      ),
-      .tcdm_master_north_req_ready_i     (tcdm_master_north_req_ready[g]      ),
-      .tcdm_master_north_resp_i          (tcdm_master_north_resp[g]           ),
-      .tcdm_master_north_resp_valid_i    (tcdm_master_north_resp_valid[g]     ),
-      .tcdm_master_north_resp_ready_o    (tcdm_master_north_resp_ready[g]     ),
-      .tcdm_master_east_req_o            (tcdm_master_east_req[g]             ),
-      .tcdm_master_east_req_valid_o      (tcdm_master_east_req_valid[g]       ),
-      .tcdm_master_east_req_ready_i      (tcdm_master_east_req_ready[g]       ),
-      .tcdm_master_east_resp_i           (tcdm_master_east_resp[g]            ),
-      .tcdm_master_east_resp_valid_i     (tcdm_master_east_resp_valid[g]      ),
-      .tcdm_master_east_resp_ready_o     (tcdm_master_east_resp_ready[g]      ),
-      .tcdm_master_northeast_req_o       (tcdm_master_northeast_req[g]        ),
-      .tcdm_master_northeast_req_valid_o (tcdm_master_northeast_req_valid[g]  ),
-      .tcdm_master_northeast_req_ready_i (tcdm_master_northeast_req_ready[g]  ),
-      .tcdm_master_northeast_resp_i      (tcdm_master_northeast_resp[g]       ),
-      .tcdm_master_northeast_resp_valid_i(tcdm_master_northeast_resp_valid[g] ),
-      .tcdm_master_northeast_resp_ready_o(tcdm_master_northeast_resp_ready[g] ),
+      .tcdm_master_north_req_o           (tcdm_master_north_req[g]                         ),
+      .tcdm_master_north_req_valid_o     (tcdm_master_north_req_valid[g]                   ),
+      .tcdm_master_north_req_ready_i     (tcdm_master_north_req_ready[g]                   ),
+      .tcdm_master_north_resp_i          (tcdm_master_north_resp[g]                        ),
+      .tcdm_master_north_resp_valid_i    (tcdm_master_north_resp_valid[g]                  ),
+      .tcdm_master_north_resp_ready_o    (tcdm_master_north_resp_ready[g]                  ),
+      .tcdm_master_east_req_o            (tcdm_master_east_req[g]                          ),
+      .tcdm_master_east_req_valid_o      (tcdm_master_east_req_valid[g]                    ),
+      .tcdm_master_east_req_ready_i      (tcdm_master_east_req_ready[g]                    ),
+      .tcdm_master_east_resp_i           (tcdm_master_east_resp[g]                         ),
+      .tcdm_master_east_resp_valid_i     (tcdm_master_east_resp_valid[g]                   ),
+      .tcdm_master_east_resp_ready_o     (tcdm_master_east_resp_ready[g]                   ),
+      .tcdm_master_northeast_req_o       (tcdm_master_northeast_req[g]                     ),
+      .tcdm_master_northeast_req_valid_o (tcdm_master_northeast_req_valid[g]               ),
+      .tcdm_master_northeast_req_ready_i (tcdm_master_northeast_req_ready[g]               ),
+      .tcdm_master_northeast_resp_i      (tcdm_master_northeast_resp[g]                    ),
+      .tcdm_master_northeast_resp_valid_i(tcdm_master_northeast_resp_valid[g]              ),
+      .tcdm_master_northeast_resp_ready_o(tcdm_master_northeast_resp_ready[g]              ),
       // TCDM banks interface
-      .tcdm_slave_north_req_i            (tcdm_slave_north_req[g]             ),
-      .tcdm_slave_north_req_valid_i      (tcdm_slave_north_req_valid[g]       ),
-      .tcdm_slave_north_req_ready_o      (tcdm_slave_north_req_ready[g]       ),
-      .tcdm_slave_north_resp_o           (tcdm_slave_north_resp[g]            ),
-      .tcdm_slave_north_resp_valid_o     (tcdm_slave_north_resp_valid[g]      ),
-      .tcdm_slave_north_resp_ready_i     (tcdm_slave_north_resp_ready[g]      ),
-      .tcdm_slave_east_req_i             (tcdm_slave_east_req[g]              ),
-      .tcdm_slave_east_req_valid_i       (tcdm_slave_east_req_valid[g]        ),
-      .tcdm_slave_east_req_ready_o       (tcdm_slave_east_req_ready[g]        ),
-      .tcdm_slave_east_resp_o            (tcdm_slave_east_resp[g]             ),
-      .tcdm_slave_east_resp_valid_o      (tcdm_slave_east_resp_valid[g]       ),
-      .tcdm_slave_east_resp_ready_i      (tcdm_slave_east_resp_ready[g]       ),
-      .tcdm_slave_northeast_req_i        (tcdm_slave_northeast_req[g]         ),
-      .tcdm_slave_northeast_req_valid_i  (tcdm_slave_northeast_req_valid[g]   ),
-      .tcdm_slave_northeast_req_ready_o  (tcdm_slave_northeast_req_ready[g]   ),
-      .tcdm_slave_northeast_resp_o       (tcdm_slave_northeast_resp[g]        ),
-      .tcdm_slave_northeast_resp_valid_o (tcdm_slave_northeast_resp_valid[g]  ),
-      .tcdm_slave_northeast_resp_ready_i (tcdm_slave_northeast_resp_ready[g]  )
+      .tcdm_slave_north_req_i            (tcdm_slave_north_req[g]                          ),
+      .tcdm_slave_north_req_valid_i      (tcdm_slave_north_req_valid[g]                    ),
+      .tcdm_slave_north_req_ready_o      (tcdm_slave_north_req_ready[g]                    ),
+      .tcdm_slave_north_resp_o           (tcdm_slave_north_resp[g]                         ),
+      .tcdm_slave_north_resp_valid_o     (tcdm_slave_north_resp_valid[g]                   ),
+      .tcdm_slave_north_resp_ready_i     (tcdm_slave_north_resp_ready[g]                   ),
+      .tcdm_slave_east_req_i             (tcdm_slave_east_req[g]                           ),
+      .tcdm_slave_east_req_valid_i       (tcdm_slave_east_req_valid[g]                     ),
+      .tcdm_slave_east_req_ready_o       (tcdm_slave_east_req_ready[g]                     ),
+      .tcdm_slave_east_resp_o            (tcdm_slave_east_resp[g]                          ),
+      .tcdm_slave_east_resp_valid_o      (tcdm_slave_east_resp_valid[g]                    ),
+      .tcdm_slave_east_resp_ready_i      (tcdm_slave_east_resp_ready[g]                    ),
+      .tcdm_slave_northeast_req_i        (tcdm_slave_northeast_req[g]                      ),
+      .tcdm_slave_northeast_req_valid_i  (tcdm_slave_northeast_req_valid[g]                ),
+      .tcdm_slave_northeast_req_ready_o  (tcdm_slave_northeast_req_ready[g]                ),
+      .tcdm_slave_northeast_resp_o       (tcdm_slave_northeast_resp[g]                     ),
+      .tcdm_slave_northeast_resp_valid_o (tcdm_slave_northeast_resp_valid[g]               ),
+      .tcdm_slave_northeast_resp_ready_i (tcdm_slave_northeast_resp_ready[g]               ),
+      .wake_up_i                         (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup])
     );
   end : gen_groups
 

@@ -85,7 +85,7 @@ module mempool_cc #(
     .data_perror_i    ( data_resp_q.error   ),
     .data_pvalid_i    ( data_resp_q_valid   ),
     .data_pready_o    ( data_resp_q_ready   ),
-    .wake_up_sync_i                          ,
+    .wake_up_sync_i   ( wake_up_sync_i      ),
     .core_events_o    ( core_events_o       )
   );
 
