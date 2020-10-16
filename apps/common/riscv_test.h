@@ -3,9 +3,7 @@
 #ifndef _ENV_PHYSICAL_SINGLE_CORE_H
 #define _ENV_PHYSICAL_SINGLE_CORE_H
 
-#include "../encoding.h"
-
-#define EOC_ADDRESS 0xD0000000
+#include "encoding.h"
 
 //-----------------------------------------------------------------------
 // Begin Macro
@@ -91,7 +89,11 @@ reset_vector:                                                           \
 //-----------------------------------------------------------------------
 
 #define RVTEST_CODE_END                                                 \
-        csrrw x0, cycle, x0
+        csrrw x0, cycle, x0;                                            \
+        .section ".eoc_address","aw",@progbits;                         \
+        .align 6;                                                       \
+        .globl eoc_address;                                             \
+        eoc_address: .dword 0;
 
 //-----------------------------------------------------------------------
 // Pass/Fail Macro
@@ -100,13 +102,13 @@ reset_vector:                                                           \
 
 #define RVTEST_PASS                                                     \
         li TESTNUM, 0;                                                  \
-1:      li t0, EOC_ADDRESS;                                             \
+1:      la t0, eoc_address;                                             \
         sw TESTNUM, 0(t0);                                              \
         jal x0, 1b;
 
 #define RVTEST_FAIL                                                     \
 1:      beqz TESTNUM, 1b;                                               \
-        li t0, EOC_ADDRESS;                                             \
+        la t0, eoc_address;                                             \
         sw TESTNUM, 0(t0);
 
 //-----------------------------------------------------------------------

@@ -10,7 +10,11 @@ SECTIONS {
 
   . = (NUM_CORES * 0x400); /* NUM_CORES * 1KiB */
   .l1_prio (NOLOAD): { *(.l1_prio) }
-  .l1 (NOLOAD): { *(.l1) }
+  /* .bss in .l1 to avoid test cases for atomics fail for race conditions */
+  .l1 (NOLOAD): {
+    *(.l1)
+    *(.bss)
+  }
   l1_alloc_base = ALIGN(0x10);
 
   eoc_reg                = 0x40000000;

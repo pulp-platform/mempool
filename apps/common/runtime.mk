@@ -69,7 +69,8 @@ DEFINES := -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr)
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
 RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
-RISCV_FLAGS_COMMON ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
+RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static
+RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS)
 
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -enable-misched
@@ -90,6 +91,10 @@ endif
 
 LINKER_SCRIPT ?= common/arch.ld
 RUNTIME ?= $(LINKER_SCRIPT) common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o
+
+# For unit tests
+RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib -nostartfiles
+RUNTIME_TESTS ?= common/arch.ld
 
 .INTERMEDIATE: $(RUNTIME)
 

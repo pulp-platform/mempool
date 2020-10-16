@@ -1,0 +1,1 @@
+../riscv-tests/isa/macros/scalar/test_macros.h

@@ -4,9 +4,18 @@ riscv-tests
 About
 -----------
 
-This repository hosts unit tests for RISC-V processors; it also contains the
-customization for the unit test of the Xpulpimg extension, subset of the Xpulp
-extension, in the context of the Snitch core used in MemPool.
+This repository hosts unit tests for RISC-V processors; it also hosts unit
+tests for the instructions in the Xpulpimg extension, subset of the Xpulp
+extension.
+
+This infrastructure deals with the behavioral Spike simulations of the
+instructions, useful to verify either the correct behavioral implementation
+of a new instruction in Spike or the goodness of a test case.
+
+The tests can also be used for RTL simulation (outside of the scope of
+`riscv-tests`); the instructions of interest for RTL simulation on the
+MemPool system, powered by the Snitch core (which implements those
+instructions), have to be listed in the file `isa/snitch_isa.mk`.
 
 Building from repository
 -----------------------------
@@ -84,7 +93,6 @@ Target Environment Name | Description
 `pm` | virtual memory is disabled, all cores boot up
 `pt` | virtual memory is disabled, timer interrupt fires every 100 cycles
 `v` | virtual memory is enabled
-`mempool` | MemPool environment for actual RTL simulation
 
 Each test program must next specify for which TVM it is designed by including
 the appropriate TVM macro, `RVTEST_RV64U` in this example. This specification
