@@ -56,7 +56,7 @@ You can also choose the compiler to build the application with using the `COMPIL
 make COMPILER=gcc bin/hello_world
 ```
 
-To run applications designed for the in-development extension **Xpulpimg**, be sure to select the `gcc` compiler option.
+To run applications designed for the **Xpulpimg** extension, be sure to select the `gcc` compiler option.
 If all the Xpulpimg instructions implemented in Snitch at compilation time are supported by the Xpulpimg subset of the GCC compiler, you can build your application with the option `XPULPIMG` set to `1`:
 
 ```bash
@@ -64,8 +64,9 @@ If all the Xpulpimg instructions implemented in Snitch at compilation time are s
 make COMPILER=gcc XPULPIMG=1 bin/hello_world
 ```
 
-Otherwise, for quick implementation & simulation cycles, you can compile without any support for the Xpulpimg extension but still making the assembler aware of Xpulpimg instructions; in that case you must be sure to use Xpulpimg instructions only in an `asm volatile` construct within your C/C++ application, and set `XPULPIMG=0`.
-If `XPULPIMG` is not set, no support for any Xpulp extension will be provied by the compiler nor the assembler.
+Otherwise, if new Xpulpimg instructions have been implemented in Snitch, but the Xpulpimg extension in the compiler does not support them yet, you must be sure to use Xpulpimg instructions only in an `asm volatile` construct within your C/C++ application, and set `XPULPIMG=0`. This will work as long as Xpulpimg is a subset of Xpulpv2.
+
+If `XPULPIMG` is not forced while launching `make`, the default value, configured in `config/config.mk`, will be used. Note that such parameter in the configuration file also defines whether the Xpulpimg extension is enabled or not in the RTL of the Snitch core.
 
 ### Unit tests
 :pushpin: _TODO_
@@ -95,8 +96,7 @@ make trace
 app=hello_world make benchmark
 ```
 
-### Unit tests
-:pushpin: _TODO_
+You can set up the configuration of the system in the file `config/config.mk`, controlling the total number of cores, the number of cores per tile and whether the Xpulpimg extension is enabled or not in the Snitch core; the `xpulpimg` parameter also control the default core architecture considered when compiling applications for MemPool.
 
 ## Common Problems
 
