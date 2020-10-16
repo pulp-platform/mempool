@@ -91,37 +91,23 @@ riscv-isa-sim:
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Unit tests for verification
-RISCV_TESTS_ISA_DIR = $(RISCV_TESTS_DIR)/isa
-include $(RISCV_TESTS_ISA_DIR)/snitch_isa.mk
+.PHONY: test build_test clean_test
 
-.PHONY: clean_test
-
-test: build_test $(rtl_mempool_tests)
+test: build_test
+	make -C $(RISCV_TESTS_DIR)/isa -j4 run && \
+	COMPILER=gcc make -C $(APPS_PREFIX) test && \
+	make -C hardware simc_test
 
 build_test:
-	cd apps/riscv-tests; \
+	cd $(RISCV_TESTS_DIR); \
 	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
-	make isa -j4 && make install; \
-	cd isa; \
-	make -j4 all && make -j4 run && ( cd ../../../hardware; make build )
-
-define rtl_mempool_test_template
-
-$$($(1)_mempool_tests): $(1)-%: $(RISCV_TESTS_ISA_DIR)/$(1)-%
-	cd hardware && preload=$$< make simc
-#	@echo $(1)-$$^
-
-endef
-
-$(eval $(call rtl_mempool_test_template,rv32ui))
-$(eval $(call rtl_mempool_test_template,rv32um))
-$(eval $(call rtl_mempool_test_template,rv32ua))
-$(eval $(call rtl_mempool_test_template,rv32si))
-$(eval $(call rtl_mempool_test_template,rv32mi))
-$(eval $(call rtl_mempool_test_template,rv32uxpulpimg))
+	make isa -j4 && make install && \
+	cd isa && make -j4 all && \
+	make -C ../../../hardware build
 
 clean_test:
 	$(MAKE) -C hardware clean
+	$(MAKE) -C $(APPS_PREFIX) clean
 	$(MAKE) -C $(RISCV_TESTS_DIR) clean
 
 # Bender

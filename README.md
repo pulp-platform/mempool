@@ -69,7 +69,14 @@ Otherwise, if new Xpulpimg instructions have been implemented in Snitch, but the
 If `XPULPIMG` is not forced while launching `make`, the default value, configured in `config/config.mk`, will be used. Note that such parameter in the configuration file also defines whether the Xpulpimg extension is enabled or not in the RTL of the Snitch core.
 
 ### Unit tests
-:pushpin: _TODO_
+
+The system is provided with an automatic unit tests suit for verification purposes; the tests are located in `riscv-tests/isa`, and can be launched from the top-level directory with:
+```bash
+make test
+```
+The unit tests will be compiled, simulated on Spike and, finally, run on an RTL simulation of MemPool.
+The compilation and simulation (Spike and RTL) of the unit tests also depends on the `xpulpimg` parameter in `config/config.mk`: the test cases dedicated to the Xpulpimg instructions will be compiled and simulated only if `xpulpimg=1`.
+To add more tests, you must add your own ones to the `riscv-isa` infrastructure; more information can be found in `apps/riscv-tests/README.md`.
 
 ### Writing Applications
 

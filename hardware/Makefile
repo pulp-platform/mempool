@@ -115,6 +115,19 @@ simc: clean-dasm compile
 	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
 
+# Unit tests simulation
+TESTS_DIR := $(abspath $(ROOT_DIR)/../apps/riscv-tests/isa)
+include $(TESTS_DIR)/snitch_isa.mk
+
+TESTS := $(addprefix $(app_path),$(rtl_mempool_tests))
+
+simc_test: $(rtl_mempool_tests)
+
+$(rtl_mempool_tests): rv% : $(app_path)/rv% clean-dasm build
+	cd $(buildpath) && \
+	$(questa_cmd) vsim -c $(questa_args) +PRELOAD=$< $(library).$(top_level) -do "run -a"
+	./scripts/return_status.sh $(buildpath)/transcript
+
 # Benchmarking
 benchmark: log simc
 	# Call `make` again to get variable extension with all traces
@@ -177,3 +190,5 @@ clean-dasm:
 
 clean-trace:
 	rm -rf $(buildpath)/*.trace
+
+.PHONY: build lib sim simc simc_test clean clean-dasm
