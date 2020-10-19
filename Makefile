@@ -93,7 +93,7 @@ apps:
 	make -C apps
 
 format:
-	$(LLVM_INSTALL_DIR)/bin/clang-format -style=file -i --verbose $$(git diff --name-only HEAD | tr ' ' '\n' | grep -E "\.(h|c|cpp)\b")
+	$(LLVM_INSTALL_DIR)/bin/clang-format -style=file -i --verbose $$(git diff --name-only HEAD | tr ' ' '\n' | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
 
 clean:
 	rm -rf $(INSTALL_DIR)

@@ -113,7 +113,7 @@ hardware:
     - cd ../hardware
     - |
       for APP in ${APPS}; do
-        app=${APP} make benchmark
+        app=${APP} make simc
       done
   artifacts:
     paths:
