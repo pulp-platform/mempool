@@ -32,25 +32,28 @@ COMPILER      ?= llvm
 
 RISCV_XLEN    ?= 32
 
-# Compiler -march
-ifeq ($(xpulpimg),1)
-	RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
-	RISCV_ARCH_AS ?= $(RISCV_ARCH)
-else
-	RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
-	RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
-endif
-
 RISCV_ABI     ?= ilp32
 RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
 ifeq ($(COMPILER),gcc)
 	# Use GCC
+	# GCC compiler -march
+	ifeq ($(xpulpimg),1)
+		RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)
+	else
+		RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
+	endif
+	# GCC Toolchain
 	RISCV_PREFIX  ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-
 	RISCV_CC      ?= $(RISCV_PREFIX)gcc
 	RISCV_CXX     ?= $(RISCV_PREFIX)g++
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 else
 	# Use LLVM by default
+	# LLVM compiler -march
+	RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+	# GCC Toolchain
 	RISCV_PREFIX  ?= $(LLVM_INSTALL_DIR)/bin/llvm-
 	RISCV_CC      ?= $(LLVM_INSTALL_DIR)/bin/clang
 	RISCV_CXX     ?= $(LLVM_INSTALL_DIR)/bin/clang++
