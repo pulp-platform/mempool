@@ -17,8 +17,9 @@
 
 SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-APPS_DIR := $(ROOT_DIR)
 TESTS_DIR := $(ROOT_DIR)/riscv-tests/isa
+TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
+APPS_DIR := $(ROOT_DIR)
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(ROOT_DIR)/common/runtime.mk
 include $(TESTS_DIR)/snitch_isa.mk
@@ -32,9 +33,9 @@ all: $(BINARIES)
 $(APPS): % : bin/% $(APPS_DIR)/Makefile $(shell find common -type f)
 
 .PHONY: $(BINARIES)
-$(BINARIES): bin/%: %/main.c.o $(RUNTIME)
+$(BINARIES): bin/%: update_opcodes %/main.c.o $(RUNTIME)
 	mkdir -p $(shell dirname $@)
-	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $^ -T$(CURDIR)/common/link.ld
+	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $(filter-out $<, $^) -T$(CURDIR)/common/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 	$(RISCV_STRIP) $@ -S --strip-unneeded
 
@@ -58,7 +59,7 @@ $(eval $(call rtl_mempool_tests_template,rv32um))
 $(eval $(call rtl_mempool_tests_template,rv32ua))
 $(eval $(call rtl_mempool_tests_template,rv32uxpulpimg))
 
-test: $(TESTS)
+test: update_opcodes $(TESTS)
 
 # Helper targets
 .PHONY: update_opcodes clean

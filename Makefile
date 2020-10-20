@@ -83,7 +83,7 @@ tc-llvm:
 	make -j4 all && \
 	make install
 
-riscv-isa-sim:
+riscv-isa-sim: update_opcodes
 	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
 	[ -d dtc ] || git clone git://git.kernel.org/pub/scm/utils/dtc/dtc.git && cd dtc; \
 	make install SETUP_PREFIX=$$(pwd)/install PREFIX=$$(pwd)/install && \
@@ -98,7 +98,7 @@ test: build_test
 	COMPILER=gcc make -C $(APPS_PREFIX) test && \
 	make -C hardware simc_test
 
-build_test:
+build_test: update_opcodes
 	cd $(RISCV_TESTS_DIR); \
 	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
 	make isa -j4 && make install && \
@@ -131,6 +131,9 @@ $(BENDER_INSTALL_DIR)/bender:
 
 apps:
 	make -C apps
+
+update_opcodes:
+	make -C toolchain/riscv-opcodes all
 
 format:
 	$(LLVM_INSTALL_DIR)/bin/clang-format -style=file -i --verbose $$(git diff --name-only HEAD | tr ' ' '\n' | grep -P "(?<!\.ld)\.(h|c|cpp)\b")

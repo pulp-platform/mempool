@@ -19,6 +19,7 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
+TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
 
 # Include configuration
 config_mk = $(abspath $(ROOT_DIR)/../config/config.mk)
@@ -96,7 +97,7 @@ $(buildpath)/$(library):
 
 # Compilation
 .PHONY: compile
-compile: dpi lib $(buildpath) $(buildpath)/compile.tcl
+compile: update_opcodes dpi lib $(buildpath) $(buildpath)/compile.tcl
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
@@ -181,7 +182,11 @@ $(MEMPOOL_DIR)/apps/common/bootrom.img:
 	make -C $(MEMPOOL_DIR)/apps common/bootrom.img
 
 # Clean targets
-.PHONY: clean clean-dasm clean-trace
+.PHONY: update_opcodes clean clean-dasm clean-trace
+
+update_opcodes:
+	make -C $(TOOLCHAIN_DIR)/riscv-opcodes all
+
 clean:
 	rm -rf $(buildpath)
 
@@ -190,5 +195,3 @@ clean-dasm:
 
 clean-trace:
 	rm -rf $(buildpath)/*.trace
-
-.PHONY: build lib sim simc simc_test clean clean-dasm
