@@ -22,7 +22,7 @@ RVTEST_CODE_BEGIN
   TEST_RR_OP( 4, p.min, 0xffffffff, 0xffffffff, 0x00000000 );
   TEST_RR_OP( 5, p.min, 0xffffffff, 0xffffffff, 0xffffffff );
 
-  TEST_RR_OP( 6, p.min, 0x584022e8, 0x7a08f69a, 0x584022e8 ); # positive-positive, min is rs1
+  TEST_RR_OP( 6, p.min, 0x584022e8, 0x584022e8, 0x7a08f69a ); # positive-positive, min is rs1
   TEST_RR_OP( 7, p.min, 0x6479b278, 0x76b39000, 0x6479b278 ); # positive-positive, min is rs2
   TEST_RR_OP( 9, p.min, 0x8a7e00c8, 0x8a7e00c8, 0xb4635cea ); # negative-negative, min is rs1
   TEST_RR_OP( 8, p.min, 0xe6fa0f05, 0xf0c13aa0, 0xe6fa0f05 ); # negative-negative, min is rs2
