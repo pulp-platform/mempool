@@ -128,6 +128,10 @@ public:
   uint64_t v_vma() { return x(27, 1); }
   uint64_t v_mew() { return x(28, 1); }
 
+  // Xpulpimg
+  uint64_t x_uimm5() { return x(20, 5); }
+
+
 private:
   insn_bits_t b;
   uint64_t x(int lo, int len) { return (b >> lo) & ((insn_bits_t(1) << len)-1); }
@@ -218,7 +222,7 @@ private:
 #define dirty_vs_state (STATE.mstatus |= MSTATUS_VS | (xlen == 64 ? MSTATUS64_SD : MSTATUS32_SD))
 #define DO_WRITE_FREG(reg, value) (STATE.FPR.write(reg, value), dirty_fp_state)
 #define WRITE_FRD(value) WRITE_FREG(insn.rd(), value)
- 
+
 #define SHAMT (insn.i_imm() & 0x3F)
 #define BRANCH_TARGET (pc + insn.sb_imm())
 #define JUMP_TARGET (pc + insn.uj_imm())
@@ -272,6 +276,14 @@ private:
                                STATE.fflags |= softfloat_exceptionFlags; \
                              } \
                              softfloat_exceptionFlags = 0; })
+
+// Xpulpimg macros
+#define sext16(x) ((sreg_t)(int16_t)(x))
+#define zext16(x) ((reg_t)(uint16_t)(x))
+
+#define sext8(x)  ((sreg_t)(int8_t)(x))
+#define zext8(x)  ((reg_t)(uint8_t)(x))
+
 
 #define sext32(x) ((sreg_t)(int32_t)(x))
 #define zext32(x) ((reg_t)(uint32_t)(x))
@@ -622,7 +634,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
   reg_t rd_num = insn.rd(); \
   reg_t rs1_num = insn.rs1(); \
   reg_t rs2_num = insn.rs2(); \
-  for (reg_t i=P.VU.vstart; i<vl; ++i){ 
+  for (reg_t i=P.VU.vstart; i<vl; ++i){
 
 #define VI_LOOP_BASE \
     VI_GENERAL_LOOP_BASE \
@@ -637,7 +649,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
   if (vl > 0) { \
     vd_0_des = vd_0_res; \
   } \
-  P.VU.vstart = 0; 
+  P.VU.vstart = 0;
 
 #define VI_LOOP_CMP_BASE \
   require(P.VU.vsew >= e8 && P.VU.vsew <= e64); \
@@ -947,7 +959,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
     VXI_PARAMS(e64); \
     BODY; \
   } \
-  VI_LOOP_END 
+  VI_LOOP_END
 
 // reduction loop - signed
 #define VI_LOOP_REDUCTION_BASE(x) \
@@ -1029,7 +1041,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
     VV_U_PARAMS(e64); \
     BODY; \
   } \
-  VI_LOOP_END 
+  VI_LOOP_END
 
 #define VI_VV_LOOP(BODY) \
   VI_CHECK_SSS(true) \
@@ -1047,7 +1059,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
     VV_PARAMS(e64); \
     BODY; \
   } \
-  VI_LOOP_END 
+  VI_LOOP_END
 
 #define VI_VX_ULOOP(BODY) \
   VI_CHECK_SSS(false) \
@@ -1065,7 +1077,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
     VX_U_PARAMS(e64); \
     BODY; \
   } \
-  VI_LOOP_END 
+  VI_LOOP_END
 
 #define VI_VX_LOOP(BODY) \
   VI_CHECK_SSS(false) \
@@ -1083,7 +1095,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
     VX_PARAMS(e64); \
     BODY; \
   } \
-  VI_LOOP_END 
+  VI_LOOP_END
 
 #define VI_VI_ULOOP(BODY) \
   VI_CHECK_SSS(false) \
@@ -1101,7 +1113,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
     VI_U_PARAMS(e64); \
     BODY; \
   } \
-  VI_LOOP_END 
+  VI_LOOP_END
 
 #define VI_VI_LOOP(BODY) \
   VI_CHECK_SSS(false) \
@@ -1119,7 +1131,7 @@ static inline bool is_aligned(const unsigned val, const unsigned pos)
     VI_PARAMS(e64); \
     BODY; \
   } \
-  VI_LOOP_END 
+  VI_LOOP_END
 
 // narrow operation loop
 #define VI_VV_LOOP_NARROW(BODY) \
@@ -1135,7 +1147,7 @@ if (sew == e8){ \
   VI_NARROW_SHIFT(e32, e64) \
   BODY; \
 } \
-VI_LOOP_END 
+VI_LOOP_END
 
 #define VI_NARROW_SHIFT(sew1, sew2) \
   type_usew_t<sew1>::type &vd = P.VU.elt<type_usew_t<sew1>::type>(rd_num, i, true); \
@@ -1143,7 +1155,7 @@ VI_LOOP_END
   type_usew_t<sew1>::type zimm5 = (type_usew_t<sew1>::type)insn.v_zimm5(); \
   type_sew_t<sew2>::type vs2 = P.VU.elt<type_sew_t<sew2>::type>(rs2_num, i); \
   type_sew_t<sew1>::type vs1 = P.VU.elt<type_sew_t<sew1>::type>(rs1_num, i); \
-  type_sew_t<sew1>::type rs1 = (type_sew_t<sew1>::type)RS1; 
+  type_sew_t<sew1>::type rs1 = (type_sew_t<sew1>::type)RS1;
 
 #define VI_VVXI_LOOP_NARROW(BODY, is_vs1) \
   VI_CHECK_SDS(is_vs1); \
@@ -1574,7 +1586,7 @@ VI_LOOP_BASE \
 VI_LOOP_END
 
 //
-// vector: load/store helper 
+// vector: load/store helper
 //
 #define VI_STRIP(inx) \
   reg_t vreg_inx = inx;
@@ -1801,7 +1813,7 @@ for (reg_t i = 0; i < P.VU.vlmax && P.VU.vl != 0; ++i) { \
   P.VU.vstart = 0;
 
 //
-// vector: amo 
+// vector: amo
 //
 #define VI_AMO(op, type, idx_type) \
   require_vector(false); \
@@ -1894,7 +1906,7 @@ for (reg_t i = 0; i < P.VU.vlmax && P.VU.vl != 0; ++i) { \
       default: \
         break; \
     } \
-  VI_LOOP_END 
+  VI_LOOP_END
 
 //
 // vector: vfp helper

@@ -753,11 +753,21 @@ riscv_insn_ext_v = \
 	$(riscv_insn_ext_v_ldst) \
 
 riscv_insn_ext_xpulpimg = \
-  p_abs \
-  p_max \
-  p_maxu \
-  p_min \
-  p_minu \
+	p_abs \
+	p_slet \
+	p_sletu \
+	p_max \
+	p_maxu \
+	p_min \
+	p_minu \
+	p_exths \
+	p_exthz \
+	p_extbs \
+	p_extbz \
+	p_clip \
+	p_clipu \
+	p_clipr \
+	p_clipur \
 
 riscv_insn_ext_h = \
 	hfence_gvma \

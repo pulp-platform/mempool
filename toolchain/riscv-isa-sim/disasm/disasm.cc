@@ -353,6 +353,13 @@ struct : public arg_t {
   }
 } x0;
 
+// Xpulpimg
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::to_string((int)insn.x_uimm5());
+  }
+} imm5;
+
 typedef struct {
   reg_t match;
   reg_t mask;
@@ -419,6 +426,8 @@ disassembler_t::disassembler_t(int xlen)
   #define DEFINE_FX2TYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &frs1, &frs2})
   #define DEFINE_XFTYPE(code) DISASM_INSN(#code, code, 0, {&frd, &xrs1})
   #define DEFINE_SFENCE_TYPE(code) DISASM_INSN(#code, code, 0, {&xrs1, &xrs2})
+  // Xpulpimg
+  #define DEFINE_XITYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &imm5})
 
   DEFINE_XLOAD(lb)
   DEFINE_XLOAD(lbu)
@@ -1261,10 +1270,20 @@ disassembler_t::disassembler_t(int xlen)
 
   // Xpulpimg extension
   DEFINE_R1TYPE(p_abs);
+  DEFINE_RTYPE(p_slet);
+  DEFINE_RTYPE(p_sletu);
   DEFINE_RTYPE(p_min);
   DEFINE_RTYPE(p_minu);
   DEFINE_RTYPE(p_max);
   DEFINE_RTYPE(p_maxu);
+  DEFINE_R1TYPE(p_exths);
+  DEFINE_R1TYPE(p_exthz);
+  DEFINE_R1TYPE(p_extbs);
+  DEFINE_R1TYPE(p_extbz);
+  DEFINE_XITYPE(p_clip);
+  DEFINE_XITYPE(p_clipu);
+  DEFINE_RTYPE(p_clipr);
+  DEFINE_RTYPE(p_clipur);
 
   // provide a default disassembly for all instructions as a fallback
   #define DECLARE_INSN(code, match, mask) \
