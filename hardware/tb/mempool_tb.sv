@@ -296,17 +296,17 @@ module mempool_tb;
 
   initial begin
     while (1) begin
-        @(posedge clk); #TT;
-        if (axi_lite_ctrl_registers_req.aw_valid && axi_lite_ctrl_registers_resp.aw_ready) begin
-            if (axi_lite_ctrl_registers_req.aw.addr == EOCAddress) begin
-                // Finish simulation
-                $timeformat(-9, 2, " ns", 0);
-                $display("[EOC] Simulation ended at %t (retval = %0d).", $time, axi_lite_ctrl_registers_req.w.data);
-                $finish(0);
-            end
+      @(posedge clk); #TT;
+      if (axi_lite_ctrl_registers_req.aw_valid && axi_lite_ctrl_registers_resp.aw_ready) begin
+        if (axi_lite_ctrl_registers_req.aw.addr == EOCAddress) begin
+          // Finish simulation
+          $timeformat(-9, 2, " ns", 0);
+          $display("[EOC] Simulation ended at %t (retval = %0d).", $time, axi_lite_ctrl_registers_req.w.data);
+          $finish(0);
         end
+      end
     end
- end
+  end
 
  /***********************
    *  Control Registers  *
