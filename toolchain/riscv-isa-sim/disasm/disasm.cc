@@ -648,10 +648,10 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_FRTYPE(fsgnjx_h);
   DEFINE_FR1TYPE(fcvt_h_s);
   DEFINE_FR1TYPE(fcvt_h_d);
-  //DEFINE_FR1TYPE(fcvt_h_q);
+  DEFINE_FR1TYPE(fcvt_h_q);
   DEFINE_FR1TYPE(fcvt_s_h);
   DEFINE_FR1TYPE(fcvt_d_h);
-  //DEFINE_FR1TYPE(fcvt_q_h);
+  DEFINE_FR1TYPE(fcvt_q_h);
   DEFINE_XFTYPE(fcvt_h_l);
   DEFINE_XFTYPE(fcvt_h_lu);
   DEFINE_XFTYPE(fcvt_h_w);
