@@ -27,11 +27,11 @@ sources:
   - hardware/src/mempool.sv
   # Level 4
   - hardware/src/mempool_wrap.sv
+  - hardware/src/ctrl_registers.sv
 
   - target: mempool_test
     files:
       # Level 1
       - hardware/tb/axi2mem.sv
-      - hardware/tb/ctrl_registers.sv
       # Level 2
       - hardware/tb/mempool_tb.sv

@@ -49,6 +49,7 @@ add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[3]/i_group/gen_ti
 add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[3]/i_group/gen_tiles[0]/i_tile/i_tile/gen_cores[2]/riscv_core/i_snitch/wake_up_sync_i
 add wave -group Core_wake_up_sync_i /mempool_tb/dut/gen_groups[3]/i_group/gen_tiles[0]/i_tile/i_tile/gen_cores[3]/riscv_core/i_snitch/wake_up_sync_i
 
+add wave -Group Control_Registers /mempool_tb/i_ctrl_registers/*
 
 # TreeUpdate [SetDefaultTree]
 # WaveRestoreCursors {{Core0 0->sp} {445000 ps} 1} {{Cursor 2} {434939 ps} 0}

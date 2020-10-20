@@ -28,10 +28,11 @@ module ctrl_registers #(
     input  axi_lite_req_t                  axi_lite_slave_req_i,
     output axi_lite_resp_t                 axi_lite_slave_resp_o,
     // Control registers
+    output logic      [DataWidth-1:0]      eoc_o,
+    output logic      [NumCores-1:0]       wake_up_o,
     output logic      [DataWidth-1:0]      tcdm_start_address_o,
     output logic      [DataWidth-1:0]      tcdm_end_address_o,
-    output logic      [DataWidth-1:0]      num_cores_o,
-    output logic      [NumCores-1:0]       wake_up_o
+    output logic      [DataWidth-1:0]      num_cores_o
   );
 
   import mempool_pkg::*;
@@ -48,31 +49,35 @@ module ctrl_registers #(
   localparam logic [DataWidthInBytes-1:0] ReadWriteReg = {DataWidthInBytes{1'b0}};
 
   // Memory map
-  // [3:0]:  tcdm_start_address (ro)
-  // [7:4]:  tcdm_end_address   (ro)
-  // [11:8]: num_cores          (ro)
-  // [15:12]:wake_up            (rw)
+  // [3:0]:  eoc_reg                        (rw)
+  // [7:4]:  wake_up_reg                    (rw)
+  // [11:8]: tcdm_start_adress_reg          (ro)
+  // [15:12]:tcdm_end_address_reg           (ro)
+  // [19:16]:nr_cores_address_reg           (ro)
 localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
-    {DataWidth{1'b0}},
     NumCores,
     TCDMBaseAddr + TCDMSize,
-    TCDMBaseAddr
+    TCDMBaseAddr,
+    {DataWidth{1'b0}},
+    {DataWidth{1'b0}}
   };
   localparam logic [NumRegs-1:0][DataWidthInBytes-1:0] AxiReadOnly = '{
+    ReadOnlyReg,
+    ReadOnlyReg,
+    ReadOnlyReg,
     ReadWriteReg,
-    ReadOnlyReg,
-    ReadOnlyReg,
-    ReadOnlyReg
+    ReadWriteReg
   };
 
   /***************
    *  Registers  *
    ***************/
-
+  logic [DataWidth-1:0]   eoc;
+  logic [DataWidth-1:0]   wake_up;
   logic [DataWidth-1:0]   tcdm_start_address;
   logic [DataWidth-1:0]   tcdm_end_address;
   logic [DataWidth-1:0]   num_cores;
-  logic [DataWidth-1:0]   wake_up;
+
   logic [RegNumBytes-1:0] wr_active_d;
   logic [RegNumBytes-1:0] wr_active_q;
 
@@ -85,21 +90,22 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
     .req_lite_t  (axi_lite_req_t            ),
     .resp_lite_t (axi_lite_resp_t           )
   ) i_axi_lite_regs (
-    .clk_i      (clk_i                                                     ),
-    .rst_ni     (rst_ni                                                    ),
-    .axi_req_i  (axi_lite_slave_req_i                                      ),
-    .axi_resp_o (axi_lite_slave_resp_o                                     ),
-    .wr_active_o(wr_active_d                                               ),
-    .rd_active_o(/* Unused */                                              ),
-    .reg_d_i    ('0                                                        ),
-    .reg_load_i ('0                                                        ),
-    .reg_q_o    ({wake_up, num_cores, tcdm_end_address, tcdm_start_address})
+    .clk_i      (clk_i                                                          ),
+    .rst_ni     (rst_ni                                                         ),
+    .axi_req_i  (axi_lite_slave_req_i                                           ),
+    .axi_resp_o (axi_lite_slave_resp_o                                          ),
+    .wr_active_o(wr_active_d                                                    ),
+    .rd_active_o(/* Unused */                                                   ),
+    .reg_d_i    ('0                                                             ),
+    .reg_load_i ('0                                                             ),
+    .reg_q_o    ({num_cores, tcdm_end_address, tcdm_start_address, wake_up, eoc})
   );
 
   /***************
    *   Signals   *
    ***************/
 
+  assign eoc_o                = eoc;
   assign tcdm_start_address_o = tcdm_start_address;
   assign tcdm_end_address_o   = tcdm_end_address;
   assign num_cores_o          = num_cores;
@@ -107,7 +113,7 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
   // converts 32 bit wake up to 256 bit
   always_comb begin
     wake_up_o = '0;
-    if (wr_active_q[15:12]) begin
+    if (wr_active_q[7:4]) begin
       if (wake_up < NumCores) begin
         wake_up_o = 1 << wake_up;
       end else if (wake_up == {DataWidth{1'b1}}) begin

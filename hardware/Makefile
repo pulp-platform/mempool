@@ -101,7 +101,7 @@ $(buildpath)/$(library):
 # Compilation
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl
-$(buildpath)/compile.tcl: bender $(config_mk) Makefile $(shell find {src,tb,deps} -type f)
+$(buildpath)/compile.tcl: bender $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl

@@ -12,13 +12,11 @@ SECTIONS {
   .l1 (NOLOAD): { *(.l1) }
   l1_alloc_base = ALIGN(0x10);
 
-  tcdm_start_address_reg = 0x40000000;
-  tcdm_end_address_reg   = 0x40000004;
-  nr_cores_address_reg   = 0x40000008;
-  wake_up_reg            = 0x4000000C;
+  eoc_reg                = 0x40000000;
+  wake_up_reg            = 0x40000004;
+  tcdm_start_address_reg = 0x40000008;
+  tcdm_end_address_reg   = 0x4000000C;
+  nr_cores_address_reg   = 0x40000010;
 
-  fake_uart = 0xC0000000;
-
-  . = 0xD0000000;
-  .eoc_address (NOLOAD): { *(.eoc_address) }
+  fake_uart              = 0xC0000000;
 }
