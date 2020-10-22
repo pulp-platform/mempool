@@ -4,8 +4,13 @@
 
 rv32uxpulpimg_sc_tests = \
 	p_abs \
+  p_slet p_sletu \
   p_min p_minu \
   p_max p_maxu \
+  p_exths p_exthz \
+  p_extbs p_extbz \
+  p_clip p_clipu \
+  p_clipr p_clipur \
 
 rv32uxpulpimg_p_tests = $(addprefix rv32uxpulpimg-p-, $(rv32uxpulpimg_sc_tests))
 rv32uxpulpimg_v_tests = $(addprefix rv32uxpulpimg-v-, $(rv32uxpulpimg_sc_tests))

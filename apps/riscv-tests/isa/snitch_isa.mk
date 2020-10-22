@@ -32,10 +32,15 @@ rv32um_snitch_sc_tests = \
 
 ifeq ($(xpulpimg),1)
 
-	rv32uxpulpimg_snitch_sc_tests = \
+	rv32uxpulpimg_sc_tests = \
 		p_abs \
+		p_slet p_sletu \
 		p_min p_minu \
 		p_max p_maxu \
+		p_exths p_exthz \
+		p_extbs p_extbz \
+		p_clip p_clipu \
+		p_clipr p_clipur \
 
 endif
 

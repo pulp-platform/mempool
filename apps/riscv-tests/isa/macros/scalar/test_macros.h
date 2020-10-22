@@ -38,7 +38,7 @@ test_ ## testnum: \
 #-----------------------------------------------------------------------
 
 #-----------------------------------------------------------------------
-# Tests for instructions with immediate operand
+# Tests for instructions with 12-bit immediate operand
 #-----------------------------------------------------------------------
 
 #define SEXT_IMM(x) ((x) | (-(((x) >> 11) & 1) << 11))
@@ -87,6 +87,58 @@ test_ ## testnum: \
     TEST_CASE( testnum, x0, 0, \
       li  x1, MASK_XLEN(val1); \
       inst x0, x1, SEXT_IMM(imm); \
+    )
+
+#-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 5-bit unsigned immediate operand
+#-----------------------------------------------------------------------
+
+#define ZEXT_UIMM5(x) ((x) & 0x1F)
+
+#define TEST_UIMM5_OP( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x14, x1, ZEXT_UIMM5(imm); \
+    )
+
+#define TEST_UIMM5_SRC1_EQ_DEST( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x1, x1, ZEXT_UIMM5(imm); \
+    )
+
+#define TEST_UIMM5_DEST_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x6, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      inst x14, x1, ZEXT_UIMM5(imm); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      addi  x6, x14, 0; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_UIMM5_SRC1_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      inst x14, x1, ZEXT_UIMM5(imm); \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_UIMM5_ZEROSRC1( testnum, inst, result, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      inst x1, x0, ZEXT_UIMM5(imm); \
+    )
+
+#define TEST_UIMM5_ZERODEST( testnum, inst, val1, imm ) \
+    TEST_CASE( testnum, x0, 0, \
+      li  x1, MASK_XLEN(val1); \
+      inst x0, x1, ZEXT_UIMM5(imm); \
     )
 
 #-----------------------------------------------------------------------
