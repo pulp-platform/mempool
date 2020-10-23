@@ -171,11 +171,11 @@ module snitch #(
     Slt, Sltu,
 /* Xpulpimg extension */
     // Absolute value
-    Abs,                  // Xpulpimg
+    Abs,
     // Comparisons
     Slet, Sletu,
     // Min/max
-    Min, Minu, Max, Maxu, // Xpulpimg
+    Min, Minu, Max, Maxu,
     // Halfword/byte extension
     Exths, Exthz, Extbs, Extbz,
     // Clip
@@ -759,8 +759,7 @@ module snitch #(
       end
 
 /* Xpulpimg extension */
-      riscv_instr::P_ABS: begin
-        // Xpulpimg: p.abs
+      riscv_instr::P_ABS: begin // Xpulpimg: p.abs
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -769,8 +768,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_SLET: begin
-        // Xpulpimg: p.slet
+      riscv_instr::P_SLET: begin // Xpulpimg: p.slet
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -779,8 +777,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_SLETU: begin
-        // Xpulpimg: p.sletu
+      riscv_instr::P_SLETU: begin // Xpulpimg: p.sletu
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -789,8 +786,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_MIN: begin
-        // Xpulpimg: p.min
+      riscv_instr::P_MIN: begin // Xpulpimg: p.min
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -799,8 +795,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_MINU: begin
-        // Xpulpimg: p.minu
+      riscv_instr::P_MINU: begin // Xpulpimg: p.minu
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -809,8 +804,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_MAX: begin
-        // Xpulpimg: p.max
+      riscv_instr::P_MAX: begin // Xpulpimg: p.max
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -819,8 +813,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_MAXU: begin
-        // Xpulpimg: p.maxu
+      riscv_instr::P_MAXU: begin // Xpulpimg: p.maxu
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -829,8 +822,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_EXTHS: begin
-        // Xpulpimg: p.exths
+      riscv_instr::P_EXTHS: begin // Xpulpimg: p.exths
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -839,8 +831,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_EXTHZ: begin
-        // Xpulpimg: p.exthz
+      riscv_instr::P_EXTHZ: begin // Xpulpimg: p.exthz
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -849,8 +840,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_EXTBS: begin
-        // Xpulpimg: p.extbs
+      riscv_instr::P_EXTBS: begin // Xpulpimg: p.extbs
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -859,8 +849,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_EXTBZ: begin
-        // Xpulpimg: p.extbz
+      riscv_instr::P_EXTBZ: begin // Xpulpimg: p.extbz
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -869,8 +858,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_CLIP: begin
-        // Xpulpimg: p.clip
+      riscv_instr::P_CLIP: begin // Xpulpimg: p.clip
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = XImmediate;
@@ -879,8 +867,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_CLIPU: begin
-        // Xpulpimg: p.clipu
+      riscv_instr::P_CLIPU: begin // Xpulpimg: p.clipu
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = XImmediate;
@@ -889,8 +876,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_CLIPR: begin
-        // Xpulpimg: p.clipr
+      riscv_instr::P_CLIPR: begin // Xpulpimg: p.clipr
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -899,8 +885,7 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::P_CLIPUR: begin
-        // Xpulpimg: p.clipur
+      riscv_instr::P_CLIPUR: begin // Xpulpimg: p.clipur
         if (snitch_pkg::XPULPIMG) begin
           opa_select = Reg;
           opb_select = Reg;
@@ -1102,82 +1087,67 @@ module snitch #(
 
 /* Xpulpimg extension */
       // Absolute value
-      Abs: begin
-        // Xpulpimg: p.abs
+      Abs: begin // Xpulpimg: p.abs
         alu_opa = -$signed(opa);
         // opb should be 0
         alu_result = opa[31] ? adder_result[31:0] : opa;
       end
       // Comparisons
-      Slet: begin
-        // Xpulpimg: p.slet
+      Slet: begin // Xpulpimg: p.slet
         alu_opb = -$signed(opb);
         alu_result = {30'b0, adder_result[32] | ~|adder_result};
       end
-      Sletu: begin
-        // Xpulpimg: p.sletu
+      Sletu: begin // Xpulpimg: p.sletu
         alu_opa = $unsigned(opa);
         alu_opb = -$unsigned(opb);
         alu_result = {30'b0, adder_result[32] | ~|adder_result};
       end
       // Min/max
-      Min: begin
-        // Xpulpimg: p.min
+      Min: begin // Xpulpimg: p.min
         alu_opb = -$signed(opb);
         alu_result = adder_result[32] ? opa : opb;
       end
-      Minu: begin
-        // Xpulpimg: p.minu
+      Minu: begin // Xpulpimg: p.minu
         alu_opa = $unsigned(opa);
         alu_opb = -$unsigned(opb);
         alu_result = adder_result[32] ? opa : opb;
       end
-      Max: begin
-        // Xpulpimg: p.max
+      Max: begin // Xpulpimg: p.max
         alu_opb = -$signed(opb);
         alu_result = ~adder_result[32] ? opa : opb;
       end
-      Maxu: begin
-        // Xpulpimg: p.maxu
+      Maxu: begin // Xpulpimg: p.maxu
         alu_opa = $unsigned(opa);
         alu_opb = -$unsigned(opb);
         alu_result = ~adder_result[32] ? opa : opb;
       end
       // Halfword/byte extension
-      Exths: begin
-        // Xpulpimg: p.exths
+      Exths: begin // Xpulpimg: p.exths
         alu_result = $signed(opa[15:0]);
       end
-      Exthz: begin
-        // Xpulpimg: p.exthz
+      Exthz: begin // Xpulpimg: p.exthz
         alu_result = $unsigned(opa[15:0]);
       end
-      Extbs: begin
-        // Xpulpimg: p.extbs
+      Extbs: begin // Xpulpimg: p.extbs
         alu_result = $signed(opa[7:0]);
       end
-      Extbz: begin
-        // Xpulpimg: p.extbz
+      Extbz: begin // Xpulpimg: p.extbz
         alu_result = $unsigned(opa[7:0]);
       end
       // Clip
-      Clip: begin
-        // Xpulpimg: p.clip
+      Clip: begin // Xpulpimg: p.clip
         alu_opb = -$signed(opa[31] ? clip_opb_n : clip_opb);
         alu_result = opa[31] ? (adder_result[32] ? clip_opb_n : opa) : (adder_result[32] ? opa : clip_opb);
       end
-      Clipu: begin
-        // Xpulpimg: p.clipu
+      Clipu: begin // Xpulpimg: p.clipu
         alu_opb = -$signed(opa[31] ? 32'b0 : clip_opb);
         alu_result = opa[31] ? (adder_result[32] ? 32'b0 : opa) : (adder_result[32] ? opa : clip_opb);
       end
-      Clipr: begin
-        // Xpulpimg: p.clipr
+      Clipr: begin // Xpulpimg: p.clipr
         alu_opb = -$signed((opa[31] ^ clip_reg_opb[31]) ? clip_reg_opb_n : clip_reg_opb);
         alu_result = (opa[31] ^ clip_reg_opb[31]) ? ((adder_result[32] | ~|adder_result) ? clip_reg_opb_n : (clip_reg_opb[31] ? clip_reg_opb : opa)) : (clip_reg_opb[31] ? clip_reg_opb_n : (adder_result[32] ? opa : clip_reg_opb));
       end
-      Clipur: begin
-        // Xpulpimg: p.clipur
+      Clipur: begin // Xpulpimg: p.clipur
         alu_opb = -$signed((opa[31] | clip_reg_opb[31]) ? 32'b0 : clip_reg_opb);
         alu_result = (opa[31] | clip_reg_opb[31]) ? ((adder_result[32] | ~|adder_result) ? 32'b0 : clip_reg_opb) : (adder_result[32] ? opa : clip_reg_opb);
       end
