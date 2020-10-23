@@ -186,7 +186,7 @@ module snitch #(
   } alu_op;
 
   enum logic [3:0] {
-    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmmediate, XImmediate
+    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate, XImmediate
   } opa_select, opb_select;
 
   logic write_rd; // write desitnation this cycle
@@ -553,7 +553,7 @@ module snitch #(
         csr_en = 1'b1;
       end
       riscv_instr::CSRRWI: begin
-        opa_select = CSRImmmediate;
+        opa_select = CSRImmediate;
         opb_select = None;
         rd_select = RdBypass;
         rd_bypass = csr_rvalue;
@@ -571,7 +571,7 @@ module snitch #(
         // offload CSR enable to FP SS
         if (inst_data_i[31:20] != snitch_pkg::CSR_SSR) begin
           alu_op = LOr;
-          opa_select = CSRImmmediate;
+          opa_select = CSRImmediate;
           opb_select = CSR;
           rd_select = RdBypass;
           rd_bypass = csr_rvalue;
@@ -592,7 +592,7 @@ module snitch #(
       riscv_instr::CSRRCI: begin
         if (inst_data_i[31:20] != snitch_pkg::CSR_SSR) begin
           alu_op = LNAnd;
-          opa_select = CSRImmmediate;
+          opa_select = CSRImmediate;
           opb_select = CSR;
           rd_select = RdBypass;
           rd_bypass = csr_rvalue;
@@ -991,7 +991,7 @@ module snitch #(
       Reg: opa = gpr_rdata[0];
       UImmediate: opa = uimm;
       JImmediate: opa = jimm;
-      CSRImmmediate: opa = {{{32-RegWidth}{1'b0}}, rs1};
+      CSRImmediate: opa = {{{32-RegWidth}{1'b0}}, rs1};
       default: opa = '0;
     endcase
   end
