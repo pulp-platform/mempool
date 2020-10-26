@@ -127,19 +127,17 @@ module snitch_icache_lookup #(
 
     // Instantiate the RAM sets.
     for (genvar i = 0; i < CFG.SET_COUNT; i++) begin : g_sets
-        tc_sram #(
-            .DataWidth ( CFG.TAG_WIDTH+2 ),
-            .NumWords  ( CFG.LINE_COUNT  ),
-            .NumPorts  ( 1               )
+        latch_scm #(
+            .ADDR_WIDTH ($clog2(CFG.LINE_COUNT)),
+            .DATA_WIDTH (CFG.TAG_WIDTH+2       )
         ) i_tag (
-            .clk_i   ( clk_i         ),
-            .rst_ni  ( rst_ni        ),
-            .req_i   ( ram_enable[i] ),
-            .we_i    ( ram_write     ),
-            .addr_i  ( ram_addr      ),
-            .wdata_i ( ram_wtag      ),
-            .be_i    ( '1            ),
-            .rdata_o ( ram_rtag[i]   )
+            .clk        (clk_i                      ),
+            .ReadEnable (ram_enable[i] && !ram_write),
+            .ReadAddr   (ram_addr                   ),
+            .ReadData   (ram_rtag[i]                ),
+            .WriteEnable(ram_enable[i] && ram_write ),
+            .WriteAddr  (ram_addr                   ),
+            .WriteData  (ram_wtag                   )
         );
 
         tc_sram #(
