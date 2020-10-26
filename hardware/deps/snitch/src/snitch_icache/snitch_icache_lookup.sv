@@ -140,19 +140,18 @@ module snitch_icache_lookup #(
             .WriteData  (ram_wtag                   )
         );
 
-        tc_sram #(
-            .DataWidth ( CFG.LINE_WIDTH ),
-            .NumWords  ( CFG.LINE_COUNT ),
-            .NumPorts  ( 1              )
+
+        latch_scm #(
+            .ADDR_WIDTH ($clog2(CFG.LINE_COUNT)),
+            .DATA_WIDTH (CFG.LINE_WIDTH        )
         ) i_data (
-            .clk_i   ( clk_i         ),
-            .rst_ni  ( rst_ni        ),
-            .req_i   ( ram_enable[i] ),
-            .we_i    ( ram_write     ),
-            .addr_i  ( ram_addr      ),
-            .wdata_i ( ram_wdata     ),
-            .be_i    ( '1            ),
-            .rdata_o ( ram_rdata[i]  )
+            .clk        (clk_i                      ),
+            .ReadEnable (ram_enable[i] && !ram_write),
+            .ReadAddr   (ram_addr                   ),
+            .ReadData   (ram_rdata[i]               ),
+            .WriteEnable(ram_enable[i] && ram_write ),
+            .WriteAddr  (ram_addr                   ),
+            .WriteData  (ram_wdata                  )
         );
     end
 
