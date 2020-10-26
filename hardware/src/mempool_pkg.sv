@@ -32,14 +32,20 @@ package mempool_pkg;
   `include "axi/typedef.svh"
 
   localparam integer unsigned NumCoresPerTile  = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
+  localparam integer unsigned NumCores         = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
+  localparam integer unsigned NumTiles         = NumCores / NumCoresPerTile;
   localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
   localparam integer unsigned NumGroups        = 4;
-  localparam integer unsigned AxiMstIdWidth    = $clog2(NumCoresPerTile)+8;
+  localparam integer unsigned AxiMstIdWidth    = $clog2(NumCoresPerTile);
 
   typedef logic [AxiMstIdWidth-1:0] axi_mst_id_t;
   typedef logic [AddrWidth-1:0] addr_t;
   typedef logic [DataWidth-1:0] data_t;
   typedef logic [BeWidth-1:0] strb_t;
+
+  localparam NumAXIMasters = NumTiles + 1;
+  localparam AxiSlvIdWidth = $clog2(NumAXIMasters) + AxiMstIdWidth;
+  typedef logic [AxiSlvIdWidth-1:0] axi_slv_id_t;
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_aw_t, addr_t, axi_mst_id_t, logic);
   `AXI_TYPEDEF_W_CHAN_T(axi_w_t, data_t, strb_t, logic);
@@ -48,6 +54,22 @@ package mempool_pkg;
   `AXI_TYPEDEF_R_CHAN_T(axi_r_t, data_t, axi_mst_id_t, logic);
   `AXI_TYPEDEF_REQ_T(axi_req_t, axi_aw_t, axi_w_t, axi_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_resp_t, axi_b_t, axi_r_t );
+
+  `AXI_TYPEDEF_AW_CHAN_T(axi_slv_aw_t, addr_t, axi_slv_id_t, logic);
+  `AXI_TYPEDEF_W_CHAN_T(axi_slv_w_t, data_t, strb_t, logic);
+  `AXI_TYPEDEF_B_CHAN_T(axi_slv_b_t, axi_slv_id_t, logic);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_slv_ar_t, addr_t, axi_slv_id_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_slv_r_t, data_t, axi_slv_id_t, logic);
+  `AXI_TYPEDEF_REQ_T(axi_slv_req_t, axi_slv_aw_t, axi_w_t, axi_slv_ar_t);
+  `AXI_TYPEDEF_RESP_T(axi_slv_resp_t, axi_slv_b_t, axi_slv_r_t);
+
+  `AXI_LITE_TYPEDEF_AW_CHAN_T(axi_lite_slv_aw_t, addr_t)
+  `AXI_LITE_TYPEDEF_W_CHAN_T(axi_lite_slv_w_t, data_t, strb_t)
+  `AXI_LITE_TYPEDEF_B_CHAN_T(axi_lite_slv_b_t)
+  `AXI_LITE_TYPEDEF_AR_CHAN_T(axi_lite_slv_ar_t, addr_t)
+  `AXI_LITE_TYPEDEF_R_CHAN_T(axi_lite_slv_r_t, data_t)
+  `AXI_LITE_TYPEDEF_REQ_T(axi_lite_slv_req_t, axi_lite_slv_aw_t, axi_lite_slv_w_t, axi_lite_slv_ar_t)
+  `AXI_LITE_TYPEDEF_RESP_T(axi_lite_slv_resp_t, axi_lite_slv_b_t, axi_lite_slv_r_t)
 
   /***********************
    *  INSTRUCTION CACHE  *
