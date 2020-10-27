@@ -125,9 +125,9 @@ module mempool_tb;
     .busy_o         (/*Unused*/   ),
     .ext_req_o      (axi_mst_req  ),
     .ext_resp_i     (axi_mst_resp ),
-    .ext_req_i      (/*Unused*/   ),
+    .ext_req_i      (/*Unused*/ '0),
     .ext_resp_o     (/*Unused*/   ),
-    .rab_conf_req_i (/*Unused*/   ),
+    .rab_conf_req_i (/*Unused*/ '0),
     .rab_conf_resp_o(/*Unused*/   )
   );
 
@@ -170,6 +170,11 @@ module mempool_tb;
     .en_default_mst_port_i('1                   ), // default all slave ports to master port Host
     .default_mst_port_i   ({NumAXIMasters{Host}})
   );
+
+ /**********
+  *  HOST  *
+  **********/
+  assign axi_mem_resp[Host] = '0;
 
   /**********
    *  UART  *
