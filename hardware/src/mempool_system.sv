@@ -43,7 +43,6 @@ module mempool_system
    *  AXI  *
    *********/
 
-  localparam AxiSlvIdWidth = $clog2(NumCores+1); // +1 for the Host
   localparam NumAXIMasters = NumTiles + 1;
   localparam NumAXISlaves  = 3;
   localparam NumRules  = NumAXISlaves-1;
@@ -145,10 +144,10 @@ module mempool_system
    ********/
 
   AXI_BUS #(
-    .AXI_ADDR_WIDTH (AddrWidth    ),
-    .AXI_DATA_WIDTH (DataWidth    ),
-    .AXI_ID_WIDTH   (AxiSlvIdWidth),
-    .AXI_USER_WIDTH (1            )
+    .AXI_ADDR_WIDTH (AddrWidth       ),
+    .AXI_DATA_WIDTH (DataWidth       ),
+    .AXI_ID_WIDTH   (AxiSystemIdWidth),
+    .AXI_USER_WIDTH (1               )
   ) axi_l2memory_slave ();
 
   // Assign slave
@@ -164,10 +163,10 @@ module mempool_system
   data_t mem_rdata;
 
   axi2mem #(
-    .AXI_ADDR_WIDTH(AddrWidth    ),
-    .AXI_DATA_WIDTH(DataWidth    ),
-    .AXI_ID_WIDTH  (AxiSlvIdWidth),
-    .AXI_USER_WIDTH(1            )
+    .AXI_ADDR_WIDTH(AddrWidth       ),
+    .AXI_DATA_WIDTH(DataWidth       ),
+    .AXI_ID_WIDTH  (AxiSystemIdWidth),
+    .AXI_USER_WIDTH(1               )
   ) i_axi2mem (
     .clk_i (clk_i             ),
     .rst_ni(rst_ni            ),
@@ -205,7 +204,7 @@ module mempool_system
   axi_to_axi_lite #(
     .AxiAddrWidth   (AddrWidth          ),
     .AxiDataWidth   (DataWidth          ),
-    .AxiIdWidth     (AxiSlvIdWidth      ),
+    .AxiIdWidth     (AxiSystemIdWidth   ),
     .AxiUserWidth   (1                  ),
     .AxiMaxReadTxns (1                  ),
     .AxiMaxWriteTxns(1                  ),
