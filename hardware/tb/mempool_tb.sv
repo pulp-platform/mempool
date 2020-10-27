@@ -227,8 +227,7 @@ module mempool_tb;
         if (eoc_valid) begin
             // Finish simulation
             $timeformat(-9, 2, " ns", 0);
-            // $display("[EOC] Simulation ended at %t (retval = %0d).", $time, axi_lite_ctrl_registers_req.w.data);
-            $display("[EOC] Simulation ended at %t.", $time);
+            $display("[EOC] Simulation ended at %t (retval = %0d).", $time, dut.i_ctrl_registers.eoc);
             $finish(0);
         end
     end
