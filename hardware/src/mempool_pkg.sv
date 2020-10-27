@@ -36,8 +36,10 @@ package mempool_pkg;
   localparam integer unsigned NumTiles         = NumCores / NumCoresPerTile;
   localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
   localparam integer unsigned NumGroups        = 4;
-  localparam integer unsigned AxiTileIdWidth   = $clog2(NumCoresPerTile); // before: AxiMstIdWidth
+  localparam integer unsigned AxiCoreIdWidth   = $clog2(NumCoresPerTile);
+  localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache // before: AxiMstIdWidth
 
+  typedef logic [AxiCoreIdWidth-1:0] axi_core_id_t;
   typedef logic [AxiTileIdWidth-1:0] axi_tile_id_t; // before: axi_mst_id_t
   typedef logic [AddrWidth-1:0] addr_t;
   typedef logic [DataWidth-1:0] data_t;
@@ -51,6 +53,14 @@ package mempool_pkg;
   localparam AxiTestbenchIdWidth = $clog2(NumTestbenchXbarMasters) + AxiSystemIdWidth;
   typedef logic [AxiTestbenchIdWidth-1:0] axi_tb_id_t;
 
+
+  `AXI_TYPEDEF_AW_CHAN_T(axi_core_aw_t, addr_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_W_CHAN_T(axi_core_w_t, data_t, strb_t, logic);
+  `AXI_TYPEDEF_B_CHAN_T(axi_core_b_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_core_ar_t, addr_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_core_r_t, data_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_REQ_T(axi_core_req_t, axi_core_aw_t, axi_core_w_t, axi_core_ar_t);
+  `AXI_TYPEDEF_RESP_T(axi_core_resp_t, axi_core_b_t, axi_core_r_t );
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_tile_aw_t, addr_t, axi_tile_id_t, logic);
   `AXI_TYPEDEF_W_CHAN_T(axi_tile_w_t, data_t, strb_t, logic);
