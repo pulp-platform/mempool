@@ -82,15 +82,17 @@ module mempool_tb;
 
   localparam NumAXIMasters = 1;
   localparam NumAXISlaves  = 2;
+  localparam NumRules  = NumAXISlaves-1;
+
   typedef enum logic [$clog2(NumAXISlaves)-1:0] {
     UART,
-    HOST
+    Host
   } axi_slave_target;
 
-  axi_slv_req_t   [NumAXIMasters - 1:0] axi_mst_req;
-  axi_slv_resp_t  [NumAXIMasters - 1:0] axi_mst_resp;
-  axi_req_t       [NumAXISlaves - 1:0]  axi_mem_req;
-  axi_resp_t      [NumAXISlaves - 1:0]  axi_mem_resp;
+  axi_system_req_t  [NumAXIMasters - 1:0] axi_mst_req;
+  axi_system_resp_t [NumAXIMasters - 1:0] axi_mst_resp;
+  axi_tb_req_t      [NumAXISlaves - 1:0]  axi_mem_req;
+  axi_tb_resp_t     [NumAXISlaves - 1:0]  axi_mem_resp;
 
   localparam xbar_cfg_t XBarCfg = '{
     NoSlvPorts        : NumAXIMasters,
@@ -99,11 +101,11 @@ module mempool_tb;
     MaxSlvTrans       : 4,
     FallThrough       : 1'b0,
     LatencyMode       : axi_pkg::CUT_MST_PORTS,
-    AxiIdWidthSlvPorts: dut.AxiSlvIdWidth,
-    AxiIdUsedSlvPorts : dut.AxiSlvIdWidth,
+    AxiIdWidthSlvPorts: AxiSystemIdWidth, //before: dut.AxiSlvIdWidth
+    AxiIdUsedSlvPorts : AxiSystemIdWidth, //before: dut.AxiSlvIdWidth
     AxiAddrWidth      : AddrWidth,
     AxiDataWidth      : DataWidth,
-    NoAddrRules       : NumAXISlaves
+    NoAddrRules       : NumRules
   };
 
   /*********
@@ -135,40 +137,38 @@ module mempool_tb;
 
   localparam addr_t UARTBaseAddr = 32'hC000_0000;
   localparam addr_t UARTEndAddr = 32'hC000_FFFF;
-  localparam addr_t HOSTBaseAddr = 32'h0000_0000;
-  localparam addr_t HOSTEndAddr = 32'hFFFF_FFFF;
 
-  xbar_rule_32_t [NumAXISlaves-1:0] xbar_routing_rules = '{
-    '{idx: UART, start_addr: UARTBaseAddr, end_addr: UARTEndAddr},
-    '{idx: HOST, start_addr: HOSTBaseAddr, end_addr: HOSTEndAddr}};
+  xbar_rule_32_t [NumRules-1:0] xbar_routing_rules = '{
+    '{idx: UART, start_addr: UARTBaseAddr, end_addr: UARTEndAddr}
+  };
 
   axi_xbar #(
     .Cfg          (XBarCfg       ),
-    .slv_aw_chan_t(axi_slv_aw_t  ),
-    .mst_aw_chan_t(axi_aw_t      ),
-    .w_chan_t     (axi_w_t       ),
-    .slv_b_chan_t (axi_slv_b_t   ),
-    .mst_b_chan_t (axi_b_t       ),
-    .slv_ar_chan_t(axi_slv_ar_t  ),
-    .mst_ar_chan_t(axi_ar_t      ),
-    .slv_r_chan_t (axi_slv_r_t   ),
-    .mst_r_chan_t (axi_r_t       ),
-    .slv_req_t    (axi_slv_req_t ),
-    .slv_resp_t   (axi_slv_resp_t),
-    .mst_req_t    (axi_req_t     ),
-    .mst_resp_t   (axi_resp_t    ),
+    .slv_aw_chan_t(axi_system_aw_t  ),
+    .mst_aw_chan_t(axi_tb_aw_t      ),
+    .w_chan_t     (axi_tb_w_t       ),
+    .slv_b_chan_t (axi_system_b_t   ),
+    .mst_b_chan_t (axi_tb_b_t       ),
+    .slv_ar_chan_t(axi_system_ar_t  ),
+    .mst_ar_chan_t(axi_tb_ar_t      ),
+    .slv_r_chan_t (axi_system_r_t   ),
+    .mst_r_chan_t (axi_tb_r_t       ),
+    .slv_req_t    (axi_system_req_t ),
+    .slv_resp_t   (axi_system_resp_t),
+    .mst_req_t    (axi_tb_req_t     ),
+    .mst_resp_t   (axi_tb_resp_t    ),
     .rule_t       (xbar_rule_32_t)
   ) i_testbench_xbar (
-    .clk_i                (clk               ),
-    .rst_ni               (rst_n             ),
-    .test_i               (1'b0              ),
-    .slv_ports_req_i      (axi_mst_req       ),
-    .slv_ports_resp_o     (axi_mst_resp      ),
-    .mst_ports_req_o      (/*Unused*/        ),
-    .mst_ports_resp_i     (/*Unused*/        ),
-    .addr_map_i           (xbar_routing_rules),
-    .en_default_mst_port_i('0                ),
-    .default_mst_port_i   ('0                )
+    .clk_i                (clk                  ),
+    .rst_ni               (rst_n                ),
+    .test_i               (1'b0                 ),
+    .slv_ports_req_i      (axi_mst_req          ),
+    .slv_ports_resp_o     (axi_mst_resp         ),
+    .mst_ports_req_o      (axi_mem_req          ),
+    .mst_ports_resp_i     (axi_mem_resp         ),
+    .addr_map_i           (xbar_routing_rules   ),
+    .en_default_mst_port_i('1                   ), // default all slave ports to master port Host
+    .default_mst_port_i   ({NumAXIMasters{Host}})
   );
 
   /**********
@@ -176,7 +176,7 @@ module mempool_tb;
    **********/
 
   // Printing
-  axi_slv_id_t id_queue [$];
+  axi_system_id_t id_queue [$];
 
   initial begin
     automatic string sb = "";

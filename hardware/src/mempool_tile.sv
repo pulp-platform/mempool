@@ -51,8 +51,8 @@ module mempool_tile
     output logic              [NumGroups-1:0]                      tcdm_slave_resp_valid_o,
     input  logic              [NumGroups-1:0]                      tcdm_slave_resp_ready_i,
     // AXI Interface
-    output axi_req_t                                               axi_mst_req_o,
-    input  axi_resp_t                                              axi_mst_resp_i,
+    output axi_tile_req_t                                          axi_mst_req_o,
+    input  axi_tile_resp_t                                         axi_mst_resp_i,
     // Instruction interface
     output addr_t             [NumCaches-1:0]                      refill_qaddr_o,
     output logic              [NumCaches-1:0][7:0]                 refill_qlen_o,
@@ -676,12 +676,12 @@ module mempool_tile
   );
 
   // Core request
-  axi_req_t  axi_mst_req;
-  axi_resp_t axi_mst_resp;
+  axi_tile_req_t  axi_mst_req;
+  axi_tile_resp_t axi_mst_resp;
 
   snitch_axi_adapter #(
-    .axi_mst_req_t  (axi_req_t ),
-    .axi_mst_resp_t (axi_resp_t)
+    .axi_mst_req_t  (axi_tile_req_t ),
+    .axi_mst_resp_t (axi_tile_resp_t)
   ) i_snitch_core_axi_adapter (
     .clk_i       (clk_i           ),
     .rst_ni      (rst_ni          ),
@@ -703,13 +703,13 @@ module mempool_tile
   );
 
   axi_cut #(
-    .aw_chan_t(axi_aw_t  ),
-    .w_chan_t (axi_w_t   ),
-    .b_chan_t (axi_b_t   ),
-    .ar_chan_t(axi_ar_t  ),
-    .r_chan_t (axi_r_t   ),
-    .req_t    (axi_req_t ),
-    .resp_t   (axi_resp_t)
+    .aw_chan_t(axi_tile_aw_t  ),
+    .w_chan_t (axi_tile_w_t   ),
+    .b_chan_t (axi_tile_b_t   ),
+    .ar_chan_t(axi_tile_ar_t  ),
+    .r_chan_t (axi_tile_r_t   ),
+    .req_t    (axi_tile_req_t ),
+    .resp_t   (axi_tile_resp_t)
   ) axi_mst_slice (
     .clk_i     (clk_i         ),
     .rst_ni    (rst_ni        ),
@@ -821,8 +821,8 @@ module mempool_tile_wrap
     output logic                                                   tcdm_slave_local_resp_valid_o,
     input  logic                                                   tcdm_slave_local_resp_ready_i,
     // AXI Interface
-    output axi_req_t                                               axi_mst_req_o,
-    input  axi_resp_t                                              axi_mst_resp_i,
+    output axi_tile_req_t                                               axi_mst_req_o,
+    input  axi_tile_resp_t                                              axi_mst_resp_i,
     // Instruction interface
     output addr_t             [NumCaches-1:0]                      refill_qaddr_o,
     output logic              [NumCaches-1:0][7:0]                 refill_qlen_o,                     // AXI signal

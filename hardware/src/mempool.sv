@@ -32,8 +32,8 @@ module mempool
     input  logic      [NumCores-1:0]      wake_up_i,
     output logic                          scan_data_o,
     // AXI Interface
-    output axi_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
-    input  axi_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
+    output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
+    input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
  );
 
   /*****************
