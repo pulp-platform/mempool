@@ -165,7 +165,7 @@ module mempool_tile
       /// Make the early cache latch-based. This reduces latency at the cost of
       /// increased combinatorial path lengths and the hassle of having latches in
       /// the design.
-      .EARLY_LATCH        (0                                                   ),
+      .EARLY_LATCH        (1                                                   ),
       .L0_EARLY_TAG_WIDTH (11                                                  ),
       .ISO_CROSSING       (0                                                   )
     ) i_snitch_icache (
