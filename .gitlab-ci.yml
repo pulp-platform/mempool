@@ -128,6 +128,25 @@ apps-gcc:
     COMPILER: "gcc"
   needs: ["tc-gcc","riscv-isa-sim"]
 
+# Unit tests
+unit-tests:
+  stage: test
+  script:
+    - make test
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs: ["tc-gcc","tc-isa-sim"]
+  dependencies:
+    - tc-gcc
+    - tc-isa-sim
+  artifacts:
+    paths:
+      - apps/riscv-tests/isa/*.dump
+      - apps/riscv-tests/isa/*.out32
+      - apps/bin/*.dump
+      - hardware/build/transcript
+      - hardware/results
+
 # Code style test
 code-style:
   stage: test
