@@ -50,7 +50,7 @@ $$(TESTS_$(1)): bin/$(1)-mempool-%: $(TESTS_DIR)/$(1)/%.S $(RUNTIME_TESTS)
 	mkdir -p $$(shell dirname $$@)
 	$$(RISCV_CC) $$(RISCV_CCFLAGS_TESTS) -T$$(CURDIR)/common/link.ld $$< -o $$@
 	$$(RISCV_STRIP) $$@ -g -S -d --strip-debug
-	$$(RISCV_OBJDUMP) -D $$@ > $$@.dump
+	$$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $$@ > $$@.dump
 
 endef
 

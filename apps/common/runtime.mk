@@ -88,7 +88,7 @@ RISCV_CCFLAGS  ?= $(RISCV_FLAGS)
 RISCV_CXXFLAGS ?= $(RISCV_FLAGS)
 RISCV_LDFLAGS  ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS)
 ifeq ($(COMPILER),gcc)
-	RISCV_OBJDUMP_FLAGS ?=
+	RISCV_OBJDUMP_FLAGS ?= --disassembler-option="march=$(RISCV_ARCH_AS)"
 else
 	RISCV_OBJDUMP_FLAGS ?=
 endif
