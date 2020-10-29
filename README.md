@@ -66,7 +66,7 @@ make COMPILER=gcc XPULPIMG=1 bin/hello_world
 
 Otherwise, if new Xpulpimg instructions have been implemented in Snitch, but the Xpulpimg extension in the compiler does not support them yet, you must be sure to use Xpulpimg instructions only in an `asm volatile` construct within your C/C++ application, and set `XPULPIMG=0`. This will work as long as Xpulpimg is a subset of Xpulpv2.
 
-If `XPULPIMG` is not forced while launching `make`, the default value, configured in `config/config.mk`, will be used. Note that such parameter in the configuration file also defines whether the Xpulpimg extension is enabled or not in the RTL of the Snitch core.
+If `XPULPIMG` is not forced while launching `make`, it will be defaulted to the `xpulpimg` value configured in `config/config.mk`. Note that such parameter in the configuration file also defines whether the Xpulpimg extension is enabled or not in the RTL of the Snitch core, and whether such Xpulpimg functionalities have to be tested or not by the `riscv-tests` unit tests.
 
 ### Unit tests
 
@@ -74,9 +74,15 @@ The system is provided with an automatic unit tests suit for verification purpos
 ```bash
 make test
 ```
-The unit tests will be compiled, simulated on Spike and, finally, run on an RTL simulation of MemPool.
-The compilation and simulation (Spike and RTL) of the unit tests also depends on the `xpulpimg` parameter in `config/config.mk`: the test cases dedicated to the Xpulpimg instructions will be compiled and simulated only if `xpulpimg=1`.
+The unit tests will be compiled, simulated in Spike and, finally, run on an RTL simulation of MemPool.
+The compilation and simulation (for both Spike simulator and MemPool RTL) of the unit tests also depends on the `xpulpimg` parameter in `config/config.mk`: the test cases dedicated to the Xpulpimg instructions will be compiled and simulated only if `xpulpimg=1`.
 To add more tests, you must add your own ones to the `riscv-isa` infrastructure; more information can be found in `apps/riscv-tests/README.md`.
+
+The unit tests are included in the software package of `apps`, and can be compiled for MemPool by launching in the `apps` directory:
+```bash
+make COMPILER=gcc test
+```
+Note that the unit tests need to be compiled with `gcc`. The same logic of normal applications concerning the `XPULPIMG` parameter applies for tests.
 
 ### Writing Applications
 

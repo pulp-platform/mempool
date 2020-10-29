@@ -29,6 +29,7 @@ LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
 
 COMPILER      ?= llvm
+XPULPIMG      ?= $(xpulpimg)
 
 RISCV_XLEN    ?= 32
 
@@ -37,7 +38,7 @@ RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
 ifeq ($(COMPILER),gcc)
 	# Use GCC
 	# GCC compiler -march
-	ifeq ($(xpulpimg),1)
+	ifeq ($(XPULPIMG),1)
 		RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)
 	else
