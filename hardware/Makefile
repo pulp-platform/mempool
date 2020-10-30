@@ -81,6 +81,8 @@ vlog_args += -work $(library)
 # Defines
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
 
+.DEFAULT_GOAL := compile
+
 # Build path
 $(buildpath):
 	mkdir -p $(buildpath)
