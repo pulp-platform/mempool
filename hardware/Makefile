@@ -122,14 +122,17 @@ simc: clean-dasm compile
 TESTS_DIR := $(abspath $(ROOT_DIR)/../apps/riscv-tests/isa)
 include $(TESTS_DIR)/snitch_isa.mk
 
-TESTS := $(addprefix $(app_path),$(rtl_mempool_tests))
+test_result_dir := $(resultpath)/test_result
 
-simc_test: $(rtl_mempool_tests)
+tests := $(addsuffix .out,$(addprefix $(test_result_dir)/,$(rtl_mempool_tests)))
 
-$(rtl_mempool_tests): rv% : $(app_path)/rv% clean-dasm build
+simc_test: clean-dasm compile $(tests)
+
+$(tests): $(test_result_dir)/%.out : $(app_path)/%
+	mkdir -p $(test_result_dir)
 	cd $(buildpath) && \
 	$(questa_cmd) vsim -c $(questa_args) +PRELOAD=$< $(library).$(top_level) -do "run -a"
-	./scripts/return_status.sh $(buildpath)/transcript
+	./scripts/return_status.sh $(buildpath)/transcript > $@
 
 # Benchmarking
 benchmark: log simc
