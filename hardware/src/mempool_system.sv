@@ -7,7 +7,7 @@ import axi_pkg::xbar_rule_32_t;
 module mempool_system
 #(
     // Mempool
-    parameter int unsigned NumCores = 1,
+    parameter int unsigned NumCores      = 1,
     parameter int unsigned BankingFactor = 4,
     // TCDM
     parameter addr_t TCDMBaseAddr = 32'b0,
@@ -15,29 +15,28 @@ module mempool_system
     parameter addr_t BootAddr = 32'h0000_0000,
     // Dependant parameters. DO NOT CHANGE!
     parameter int unsigned NumTiles = NumCores / NumCoresPerTile
-    //parameter int unsigned NumAXIMasters = NumTiles + 1
   ) (
-    input logic                    clk_i,
-    input logic                    rst_ni,
+    input logic                clk_i,
+    input logic                rst_ni,
 
-    input  logic  fetch_en_i,
-    output logic  eoc_valid_o,
-    output logic  busy_o,
+    input  logic               fetch_en_i,
+    output logic               eoc_valid_o,
+    output logic               busy_o,
 
-    output axi_system_req_t              ext_req_o,
-    input  axi_system_resp_t             ext_resp_i,
+    output axi_system_req_t    ext_req_o,
+    input  axi_system_resp_t   ext_resp_i,
 
-    input  axi_tile_req_t                  ext_req_i,
-    output axi_tile_resp_t                 ext_resp_o,
+    input  axi_system_req_t    ext_req_i,
+    output axi_system_resp_t   ext_resp_o,
 
-    input  axi_lite_slv_req_t         rab_conf_req_i,
-    output axi_lite_slv_resp_t        rab_conf_resp_o
+    input  axi_lite_slv_req_t  rab_conf_req_i,
+    output axi_lite_slv_resp_t rab_conf_resp_o
   );
 
   localparam NumTilesPerGroup = NumTiles / NumGroups;
-  localparam NumBanks = NumCores * BankingFactor;
-  localparam TCDMSize = NumBanks * TCDMSizePerBank;
-  localparam L2AddrWidth = 18;
+  localparam NumBanks         = NumCores * BankingFactor;
+  localparam TCDMSize         = NumBanks * TCDMSizePerBank;
+  localparam L2AddrWidth      = 18;
 
   /*********
    *  AXI  *
@@ -45,9 +44,9 @@ module mempool_system
 
   localparam NumAXIMasters = NumTiles + 1;
   localparam NumAXISlaves  = 3;
-  localparam NumRules  = NumAXISlaves-1;
+  localparam NumRules      = NumAXISlaves - 1;
 
-  typedef enum logic [$clog2(NumAXISlaves)-1:0] {
+  typedef enum logic [$clog2(NumAXISlaves) - 1:0] {
     CtrlRegisters,
     L2Memory,
     External
@@ -61,17 +60,17 @@ module mempool_system
   logic             [DataWidth - 1:0]     eoc;
 
   localparam xbar_cfg_t XBarCfg = '{
-    NoSlvPorts        : NumAXIMasters,
-    NoMstPorts        : NumAXISlaves,
-    MaxMstTrans       : 4,
-    MaxSlvTrans       : 4,
-    FallThrough       : 1'b0,
-    LatencyMode       : axi_pkg::CUT_MST_PORTS,
-    AxiIdWidthSlvPorts: AxiTileIdWidth,
-    AxiIdUsedSlvPorts : AxiTileIdWidth,
-    AxiAddrWidth      : AddrWidth,
-    AxiDataWidth      : DataWidth,
-    NoAddrRules       : NumRules
+    NoSlvPorts         : NumAXIMasters,
+    NoMstPorts         : NumAXISlaves,
+    MaxMstTrans        : 4,
+    MaxSlvTrans        : 4,
+    FallThrough        : 1'b0,
+    LatencyMode        : axi_pkg::CUT_MST_PORTS,
+    AxiIdWidthSlvPorts : AxiTileIdWidth,
+    AxiIdUsedSlvPorts  : AxiTileIdWidth,
+    AxiAddrWidth       : AddrWidth,
+    AxiDataWidth       : DataWidth,
+    NoAddrRules        : NumRules
   };
 
   /*************
@@ -79,11 +78,11 @@ module mempool_system
    ************/
 
   mempool #(
-    .NumCores     (NumCores                        ),
-    .BankingFactor(BankingFactor                   ),
-    .TCDMBaseAddr (TCDMBaseAddr                    ),
-    .BootAddr     (BootAddr                        ),
-    .NumAXIMasters(NumAXIMasters-1                 )
+    .NumCores     (NumCores       ),
+    .BankingFactor(BankingFactor  ),
+    .TCDMBaseAddr (TCDMBaseAddr   ),
+    .BootAddr     (BootAddr       ),
+    .NumAXIMasters(NumAXIMasters-1)
   ) i_mempool (
     .clk_i         (clk_i                          ),
     .rst_ni        (rst_ni                         ),
@@ -96,18 +95,18 @@ module mempool_system
     .axi_mst_resp_i(axi_mst_resp[NumAXIMasters-2:0])
   );
 
-/**********************
- *  AXI Interconnect  *
- **********************/
+  /**********************
+   *  AXI Interconnect  *
+   **********************/
 
   localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
-  localparam addr_t CtrlRegistersEndAddr = 32'h4000_FFFF;
-  localparam addr_t L2MemoryBaseAddr = 32'h8000_0000;
-  localparam addr_t L2MemoryEndAddr = 32'hBFFF_FFFF;
+  localparam addr_t CtrlRegistersEndAddr  = 32'h4000_FFFF;
+  localparam addr_t L2MemoryBaseAddr      = 32'h8000_0000;
+  localparam addr_t L2MemoryEndAddr       = 32'hBFFF_FFFF;
 
-  xbar_rule_32_t [NumRules-1:0] xbar_routing_rules = '{
-  '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
-  '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}
+  xbar_rule_32_t [NumRules - 1:0] xbar_routing_rules = '{
+    '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
+    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}
   };
 
   axi_xbar #(
@@ -243,16 +242,83 @@ module mempool_system
     .eoc_valid_o          (eoc_valid_o                 )
   );
 
-  /***********************
-   * Host/External Ports *
-   ***********************/
+  /***********
+   * AXI RAB *
+   ***********/
 
-  // Assign Host Master
-  assign axi_mst_req[NumAXIMasters-1] = ext_req_i;
-  assign ext_resp_o = axi_mst_resp[NumAXIMasters-1];
+  axi_system_req_t  rab_slv_req;
+  axi_system_resp_t rab_slv_resp;
 
-  // Assign Host Slave
-  assign ext_req_o = axi_mem_req[External];
-  assign axi_mem_resp[External] = ext_resp_i;
+  AXI_BUS #(
+    .AXI_ADDR_WIDTH (AxiAddrWidth    ),
+    .AXI_DATA_WIDTH (AxiDataWidth    ),
+    .AXI_ID_WIDTH   (AxiSystemIdWidth),
+    .AXI_USER_WIDTH (AxiUserWidth    )
+  ) id_resize_mst ();
+
+  AXI_BUS #(
+    .AXI_ADDR_WIDTH (AxiAddrWidth  ),
+    .AXI_DATA_WIDTH (AxiDataWidth  ),
+    .AXI_ID_WIDTH   (AxiTileIdWidth),
+    .AXI_USER_WIDTH (AxiUserWidth  )
+  ) id_resize_slv ();
+
+  `AXI_ASSIGN_FROM_REQ(id_resize_mst, rab_slv_req);
+  `AXI_ASSIGN_TO_RESP(rab_slv_resp, id_resize_mst);
+
+  `AXI_ASSIGN_TO_REQ(axi_mst_req[NumAXIMasters-1], id_resize_slv);
+  `AXI_ASSIGN_FROM_RESP(id_resize_slv, axi_mst_resp[NumAXIMasters-1]);
+
+  axi_rab_wrap #(
+    .L1NumSlicesPulp   (4                  ),
+    .L1NumSlicesHost   (4                  ),
+    .L2Enable          (1'b0               ),
+    .L2NumSets         (32                 ),
+    .L2NumSetEntries   (32                 ),
+    .L2NumParVaRams    (4                  ),
+    .MhFifoDepth       (1                  ),
+    .AxiAddrWidth      (AddrWidth          ),
+    .AxiDataWidth      (DataWidth          ),
+    .AxiIdWidth        (AxiSystemIdWidth   ),
+    .AxiUserWidth      (1                  ),
+    .axi_req_t         (axi_system_req_t   ),
+    .axi_resp_t        (axi_system_resp_t  ),
+    .axi_lite_req_t    (axi_lite_slv_req_t ),
+    .axi_lite_resp_t   (axi_lite_slv_resp_t)
+  ) i_rab (
+    .clk_i,
+    .rst_ni,
+    .from_mempool_req_i      (axi_mem_req[External] ),
+    .from_mempool_resp_o     (axi_mem_resp[External]),
+    .from_mempool_miss_irq_o (/*Unused*/            ),
+    .from_mempool_multi_irq_o(/*Unused*/            ),
+    .from_mempool_prot_irq_o (/*Unused*/            ),
+    .to_host_req_o           (ext_req_o             ),
+    .to_host_resp_i          (ext_resp_i            ),
+    .from_host_req_i         (ext_req_i             ),
+    .from_host_resp_o        (ext_resp_o            ),
+    .from_host_miss_irq_o    (/*Unused*/            ),
+    .from_host_multi_irq_o   (/*Unused*/            ),
+    .from_host_prot_irq_o    (/*Unused*/            ),
+    .to_mempool_req_o        (rab_slv_req           ),
+    .to_mempool_resp_i       (rab_slv_resp          ),
+    .mh_fifo_full_irq_o      (/*Unused*/            ),
+    .conf_req_i              (rab_conf_req_i        ),
+    .conf_resp_o             (rab_conf_resp_o       )
+  );
+
+  axi_id_resize #(
+    .ADDR_WIDTH   (AddrWidth       ),
+    .DATA_WIDTH   (DataWidth       ),
+    .USER_WIDTH   (1               ),
+    .ID_WIDTH_IN  (AxiSystemIdWidth),
+    .ID_WIDTH_OUT (AxiTileIdWidth  ),
+    .TABLE_SIZE   (4               )
+  ) i_id_resize_system_tile (
+    .clk_i  (clk_i ),
+    .rst_ni (rst_ni),
+    .in     (id_resize_mst),
+    .out    (id_resize_slv)
+  );
 
 endmodule : mempool_system

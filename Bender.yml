@@ -3,6 +3,7 @@ package:
 
 dependencies:
   axi:                  { git: "git@github.com:pulp-platform/axi.git",                      version: 0.23.2  }
+  axi_rab:              { git: "git@github.com:pulp-platform/axi_rab.git",                  rev: urania      }
   common_cells:         { git: "git@github.com:pulp-platform/common_cells.git",             version: 1.19.0  }
   tech_cells_generic:   { git: "git@github.com:pulp-platform/tech_cells_generic.git",       version: 0.2.1   }
   cluster_interconnect: { git: "git@github.com:pulp-platform/cluster_interconnect.git",     rev:     dev     }
@@ -28,6 +29,7 @@ sources:
   # Level 4
   - hardware/src/mempool_wrap.sv
   - hardware/src/ctrl_registers.sv
+  - hardware/src/axi_rab_wrap.sv
   # Level 5
   - hardware/src/mempool_system.sv
 
