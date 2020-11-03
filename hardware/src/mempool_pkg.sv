@@ -37,17 +37,17 @@ package mempool_pkg;
   localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
   localparam integer unsigned NumGroups        = 4;
   localparam integer unsigned AxiCoreIdWidth   = $clog2(NumCoresPerTile);
-  localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache // before: AxiMstIdWidth
+  localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache
 
   typedef logic [AxiCoreIdWidth-1:0] axi_core_id_t;
-  typedef logic [AxiTileIdWidth-1:0] axi_tile_id_t; // before: axi_mst_id_t
+  typedef logic [AxiTileIdWidth-1:0] axi_tile_id_t;
   typedef logic [AddrWidth-1:0] addr_t;
   typedef logic [DataWidth-1:0] data_t;
   typedef logic [BeWidth-1:0] strb_t;
 
-  localparam NumSystemXbarMasters = NumTiles + 1; // before: NumAXIMasters
-  localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth; //before: AxiSlvIdWidth
-  typedef logic [AxiSystemIdWidth-1:0] axi_system_id_t; // before: axi_slv_id_t
+  localparam NumSystemXbarMasters = NumTiles + 1;
+  localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
+  typedef logic [AxiSystemIdWidth-1:0] axi_system_id_t;
 
   localparam NumTestbenchXbarMasters = 1;
   localparam AxiTestbenchIdWidth = $clog2(NumTestbenchXbarMasters) + AxiSystemIdWidth;

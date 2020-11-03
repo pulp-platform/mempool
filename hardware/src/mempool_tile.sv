@@ -28,33 +28,33 @@ module mempool_tile
     parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
   ) (
     // Clock and reset
-    input  logic                                                   clk_i,
-    input  logic                                                   rst_ni,
+    input  logic                                        clk_i,
+    input  logic                                        rst_ni,
     // Scan chain
-    input  logic                                                   scan_enable_i,
-    input  logic                                                   scan_data_i,
-    output logic                                                   scan_data_o,
+    input  logic                                        scan_enable_i,
+    input  logic                                        scan_data_i,
+    output logic                                        scan_data_o,
     // Tile ID
-    input  logic              [idx_width(NumTiles)-1:0]            tile_id_i,
+    input  logic              [idx_width(NumTiles)-1:0] tile_id_i,
     // TCDM Master interfaces
-    output tcdm_master_req_t  [NumGroups-1:0]                      tcdm_master_req_o,
-    output logic              [NumGroups-1:0]                      tcdm_master_req_valid_o,
-    input  logic              [NumGroups-1:0]                      tcdm_master_req_ready_i,
-    input  tcdm_master_resp_t [NumGroups-1:0]                      tcdm_master_resp_i,
-    input  logic              [NumGroups-1:0]                      tcdm_master_resp_valid_i,
-    output logic              [NumGroups-1:0]                      tcdm_master_resp_ready_o,
+    output tcdm_master_req_t  [NumGroups-1:0]           tcdm_master_req_o,
+    output logic              [NumGroups-1:0]           tcdm_master_req_valid_o,
+    input  logic              [NumGroups-1:0]           tcdm_master_req_ready_i,
+    input  tcdm_master_resp_t [NumGroups-1:0]           tcdm_master_resp_i,
+    input  logic              [NumGroups-1:0]           tcdm_master_resp_valid_i,
+    output logic              [NumGroups-1:0]           tcdm_master_resp_ready_o,
     // TCDM slave interfaces
-    input  tcdm_slave_req_t   [NumGroups-1:0]                      tcdm_slave_req_i,
-    input  logic              [NumGroups-1:0]                      tcdm_slave_req_valid_i,
-    output logic              [NumGroups-1:0]                      tcdm_slave_req_ready_o,
-    output tcdm_slave_resp_t  [NumGroups-1:0]                      tcdm_slave_resp_o,
-    output logic              [NumGroups-1:0]                      tcdm_slave_resp_valid_o,
-    input  logic              [NumGroups-1:0]                      tcdm_slave_resp_ready_i,
+    input  tcdm_slave_req_t   [NumGroups-1:0]           tcdm_slave_req_i,
+    input  logic              [NumGroups-1:0]           tcdm_slave_req_valid_i,
+    output logic              [NumGroups-1:0]           tcdm_slave_req_ready_o,
+    output tcdm_slave_resp_t  [NumGroups-1:0]           tcdm_slave_resp_o,
+    output logic              [NumGroups-1:0]           tcdm_slave_resp_valid_o,
+    input  logic              [NumGroups-1:0]           tcdm_slave_resp_ready_i,
     // AXI Interface
-    output axi_tile_req_t                                          axi_mst_req_o,
-    input  axi_tile_resp_t                                         axi_mst_resp_i,
+    output axi_tile_req_t                               axi_mst_req_o,
+    input  axi_tile_resp_t                              axi_mst_resp_i,
     // Wake up interface
-    input  logic              [NumCoresPerTile-1:0]                wake_up_i
+    input  logic              [NumCoresPerTile-1:0]     wake_up_i
   );
 
   /****************
@@ -715,17 +715,17 @@ module mempool_tile
   ) i_snitch_cache_axi_adapter (
     .clk_i       (clk_i           ),
     .rst_ni      (rst_ni          ),
-    .slv_qaddr_i (refill_qaddr[0] ),
+    .slv_qaddr_i (refill_qaddr [0]),
     .slv_qwrite_i('0              ),
     .slv_qamo_i  ('0              ),
     .slv_qdata_i ('0              ),
     .slv_qstrb_i ('0              ),
-    .slv_qrlen_i (refill_qlen[0]  ),
+    .slv_qrlen_i (refill_qlen  [0]),
     .slv_qvalid_i(refill_qvalid[0]),
     .slv_qready_o(refill_qready[0]),
-    .slv_pdata_o (refill_pdata[0] ),
+    .slv_pdata_o (refill_pdata [0]),
     .slv_perror_o(refill_perror[0]),
-    .slv_plast_o (refill_plast[0] ),
+    .slv_plast_o (refill_plast [0]),
     .slv_pvalid_o(refill_pvalid[0]),
     .slv_pready_i(refill_pready[0]),
     .axi_req_o   (axi_cache_req   ),
