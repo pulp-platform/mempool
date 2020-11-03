@@ -4,8 +4,7 @@ import axi_pkg::xbar_rule_32_t;
 
 `include "axi/assign.svh"
 
-module mempool_system
-#(
+module mempool_system #(
     // Mempool
     parameter int unsigned NumCores      = 1,
     parameter int unsigned BankingFactor = 4,
@@ -249,26 +248,6 @@ module mempool_system
   axi_system_req_t  rab_slv_req;
   axi_system_resp_t rab_slv_resp;
 
-  AXI_BUS #(
-    .AXI_ADDR_WIDTH (AxiAddrWidth    ),
-    .AXI_DATA_WIDTH (AxiDataWidth    ),
-    .AXI_ID_WIDTH   (AxiSystemIdWidth),
-    .AXI_USER_WIDTH (AxiUserWidth    )
-  ) id_resize_mst ();
-
-  AXI_BUS #(
-    .AXI_ADDR_WIDTH (AxiAddrWidth  ),
-    .AXI_DATA_WIDTH (AxiDataWidth  ),
-    .AXI_ID_WIDTH   (AxiTileIdWidth),
-    .AXI_USER_WIDTH (AxiUserWidth  )
-  ) id_resize_slv ();
-
-  `AXI_ASSIGN_FROM_REQ(id_resize_mst, rab_slv_req);
-  `AXI_ASSIGN_TO_RESP(rab_slv_resp, id_resize_mst);
-
-  `AXI_ASSIGN_TO_REQ(axi_mst_req[NumAXIMasters-1], id_resize_slv);
-  `AXI_ASSIGN_FROM_RESP(id_resize_slv, axi_mst_resp[NumAXIMasters-1]);
-
   axi_rab_wrap #(
     .L1NumSlicesPulp   (4                  ),
     .L1NumSlicesHost   (4                  ),
@@ -307,18 +286,21 @@ module mempool_system
     .conf_resp_o             (rab_conf_resp_o       )
   );
 
-  axi_id_resize #(
-    .ADDR_WIDTH   (AddrWidth       ),
-    .DATA_WIDTH   (DataWidth       ),
-    .USER_WIDTH   (1               ),
-    .ID_WIDTH_IN  (AxiSystemIdWidth),
-    .ID_WIDTH_OUT (AxiTileIdWidth  ),
-    .TABLE_SIZE   (4               )
-  ) i_id_resize_system_tile (
-    .clk_i  (clk_i ),
-    .rst_ni (rst_ni),
-    .in     (id_resize_mst),
-    .out    (id_resize_slv)
-  );
+  axi_id_remap #(
+    .AxiSlvPortIdWidth   (AxiSystemIdWidth ),
+    .AxiSlvPortMaxUniqIds(1                ),
+    .AxiMaxTxnsPerId     (1                ),
+    .AxiMstPortIdWidth   (AxiTileIdWidth   ),
+    .slv_req_t           (axi_system_req_t ),
+    .slv_resp_t          (axi_system_resp_t),
+    .mst_req_t           (axi_tile_req_t   ),
+    .mst_resp_t          (axi_tile_resp_t  )
+  ) i_axi_id_remap (
+    .clk_i     (clk_i                        ),
+    .rst_ni    (rst_ni                       ),
+    .slv_req_i (rab_slv_req                  ),
+    .slv_resp_o(rab_slv_resp                 ),
+    .mst_req_o (axi_mst_req[NumAXIMasters-1] ),
+    .mst_resp_i(axi_mst_resp[NumAXIMasters-1])
 
 endmodule : mempool_system
