@@ -22,6 +22,7 @@ sources:
   - hardware/src/address_scrambler.sv
   # Level 1
   - hardware/src/mempool_tile.sv
+  - hardware/src/axi_rab_wrap.sv
   # Level 2
   - hardware/src/mempool_group.sv
   # Level 3
@@ -29,7 +30,6 @@ sources:
   # Level 4
   - hardware/src/mempool_wrap.sv
   - hardware/src/ctrl_registers.sv
-  - hardware/src/axi_rab_wrap.sv
   # Level 5
   - hardware/src/mempool_system.sv
 
