@@ -192,7 +192,7 @@ module mempool_system #(
     .rdata_o(mem_rdata                          )
   );
 
- /***********************
+  /***********************
    *  Control Registers  *
    ***********************/
 

@@ -75,9 +75,9 @@ module axi_rab_wrap #(
     .AXI_USER_WIDTH       (AxiUserWidth                                                               ),
     .MH_FIFO_DEPTH        (MhFifoDepth                                                                )
   ) i_rab (
-    .Clk_CI         (clk_i ),
-    .NonGatedClk_CI (clk_i ),
-    .Rst_RBI        (rst_ni),
+    .Clk_CI           (clk_i                                                     ),
+    .NonGatedClk_CI   (clk_i                                                     ),
+    .Rst_RBI          (rst_ni                                                    ),
 
     // AXI4 Slave {{{
     .s_axi4_awid      ({from_mempool_req_i.aw.id,      from_host_req_i.aw.id    }),
