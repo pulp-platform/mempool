@@ -9,20 +9,20 @@
 
 module axi_rab_wrap #(
   // L1 Configuration
-  parameter int unsigned L1NumSlicesPulp = 0,
-  parameter int unsigned L1NumSlicesHost = 0,
+  parameter int unsigned L1NumSlicesMemPool = 0,
+  parameter int unsigned L1NumSlicesHost    = 0,
   // L2 Configuration
-  parameter bit          L2Enable        = 1'b0,
-  parameter int unsigned L2NumSets       = 0,
-  parameter int unsigned L2NumSetEntries = 0,
-  parameter int unsigned L2NumParVaRams  = 0,
+  parameter bit          L2Enable           = 1'b0,
+  parameter int unsigned L2NumSets          = 0,
+  parameter int unsigned L2NumSetEntries    = 0,
+  parameter int unsigned L2NumParVaRams     = 0,
   // Miss Handler FIFO Configuration
-  parameter int unsigned MhFifoDepth     = 0,
+  parameter int unsigned MhFifoDepth        = 0,
   // AXI Configuration
-  parameter int unsigned AxiAddrWidth    = 0,
-  parameter int unsigned AxiDataWidth    = 0,
-  parameter int unsigned AxiIdWidth      = 0,
-  parameter int unsigned AxiUserWidth    = 0,
+  parameter int unsigned AxiAddrWidth       = 0,
+  parameter int unsigned AxiDataWidth       = 0,
+  parameter int unsigned AxiIdWidth         = 0,
+  parameter int unsigned AxiUserWidth       = 0,
   // AXI types
   parameter type axi_req_t       = logic,
   parameter type axi_resp_t      = logic
@@ -58,22 +58,22 @@ module axi_rab_wrap #(
 );
 
   axi_rab_top #(
-    .N_PORTS              (2                                                                    ),
-    .N_L1_SLICES          ('{0, 0, L1NumSlicesPulp, L1NumSlicesHost}                            ),
-    .N_L1_SLICES_MAX      (L1NumSlicesPulp > L1NumSlicesHost ? L1NumSlicesPulp : L1NumSlicesHost),
-    .EN_ACP               (1'b0                                                                 ),
-    .ENABLE_L2TLB         ('{1'b0, 1'b0, L2Enable, 1'b0}                                        ),
-    .N_L2_SETS            (L2NumSets                                                            ),
-    .N_L2_SET_ENTRIES     (L2NumSetEntries                                                      ),
-    .N_L2_PAR_VA_RAMS     (L2NumParVaRams                                                       ),
-    .AXI_DATA_WIDTH       (AxiDataWidth                                                         ),
-    .AXI_S_ADDR_WIDTH     (AxiAddrWidth                                                         ),
-    .AXI_M_ADDR_WIDTH     (AxiAddrWidth                                                         ),
-    .AXI_LITE_DATA_WIDTH  (64/* TODO */                                                         ),
-    .AXI_LITE_ADDR_WIDTH  (32/* TODO */                                                         ),
-    .AXI_ID_WIDTH         (AxiMempoolIdWidth                                                    ),
-    .AXI_USER_WIDTH       (AxiUserWidth                                                         ),
-    .MH_FIFO_DEPTH        (MhFifoDepth                                                          )
+    .N_PORTS              (2                                                                          ),
+    .N_L1_SLICES          ('{0, 0, L1NumSlicesMemPool, L1NumSlicesHost}                               ),
+    .N_L1_SLICES_MAX      (L1NumSlicesMemPool > L1NumSlicesHost ? L1NumSlicesMemPool : L1NumSlicesHost),
+    .EN_ACP               (1'b0                                                                       ),
+    .ENABLE_L2TLB         ('{1'b0, 1'b0, L2Enable, 1'b0}                                              ),
+    .N_L2_SETS            (L2NumSets                                                                  ),
+    .N_L2_SET_ENTRIES     (L2NumSetEntries                                                            ),
+    .N_L2_PAR_VA_RAMS     (L2NumParVaRams                                                             ),
+    .AXI_DATA_WIDTH       (AxiDataWidth                                                               ),
+    .AXI_S_ADDR_WIDTH     (AxiAddrWidth                                                               ),
+    .AXI_M_ADDR_WIDTH     (AxiAddrWidth                                                               ),
+    .AXI_LITE_DATA_WIDTH  (64/* TODO */                                                               ),
+    .AXI_LITE_ADDR_WIDTH  (32/* TODO */                                                               ),
+    .AXI_ID_WIDTH         (AxiMempoolIdWidth                                                          ),
+    .AXI_USER_WIDTH       (AxiUserWidth                                                               ),
+    .MH_FIFO_DEPTH        (MhFifoDepth                                                                )
   ) i_rab (
     .Clk_CI         (clk_i ),
     .NonGatedClk_CI (clk_i ),

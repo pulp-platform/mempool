@@ -249,7 +249,7 @@ module mempool_system #(
   axi_system_resp_t rab_slv_resp;
 
   axi_rab_wrap #(
-    .L1NumSlicesPulp   (4                  ),
+    .L1NumSlicesMemPool(4                  ),
     .L1NumSlicesHost   (4                  ),
     .L2Enable          (1'b0               ),
     .L2NumSets         (32                 ),
