@@ -25,7 +25,7 @@ module axi_rab_wrap #(
   parameter int unsigned AxiUserWidth       = 0,
   // AXI types
   parameter type axi_req_t       = logic,
-  parameter type axi_resp_t      = logic
+  parameter type axi_resp_t      = logic,
   parameter type axi_lite_req_t  = logic,
   parameter type axi_lite_resp_t = logic
 
@@ -71,7 +71,7 @@ module axi_rab_wrap #(
     .AXI_M_ADDR_WIDTH     (AxiAddrWidth                                                               ),
     .AXI_LITE_DATA_WIDTH  (64/* TODO */                                                               ),
     .AXI_LITE_ADDR_WIDTH  (32/* TODO */                                                               ),
-    .AXI_ID_WIDTH         (AxiMempoolIdWidth                                                          ),
+    .AXI_ID_WIDTH         (AxiIdWidth                                                                 ),
     .AXI_USER_WIDTH       (AxiUserWidth                                                               ),
     .MH_FIFO_DEPTH        (MhFifoDepth                                                                )
   ) i_rab (
