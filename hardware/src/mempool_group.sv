@@ -95,8 +95,10 @@ module mempool_group
   typedef logic [TCDMAddrMemWidth + idx_width(NumBanksPerTile)-1:0] tile_addr_t;
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
 
-  localparam int unsigned idx_east[16]  = (NumTilesPerGroup == 16) ? {0,2,8,10,1,3,9,11,4,6,12,14,5,7,13,15} : {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-  localparam int unsigned idx_north[16] = (NumTilesPerGroup == 16) ? {0,1,4,5,2,3,6,7,8,9,12,13,10,11,14,15} : {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+  //Commented out atm because Vivado creates problems, replaced by the following 2 lines
+  //localparam int unsigned idx_east[16]  = (NumTilesPerGroup == 16) ? {0,2,8,10,1,3,9,11,4,6,12,14,5,7,13,15} : {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+  //localparam int unsigned idx_north[16] = (NumTilesPerGroup == 16) ? {0,1,4,5,2,3,6,7,8,9,12,13,10,11,14,15} : {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+  //In the genvar loop below, replaced idx_east[t] -> t and idx_north[t] -> t
 
   /***********
    *  Tiles  *
@@ -159,18 +161,18 @@ module mempool_group
       .scan_data_o                       (/* Unconnected */                              ),
       .tile_id_i                         (id                                             ),
       // TCDM Master interfaces
-      .tcdm_master_north_req_o           (tcdm_master_north_req[idx_north[t]]            ),
-      .tcdm_master_north_req_valid_o     (tcdm_master_north_req_valid[idx_north[t]]      ),
-      .tcdm_master_north_req_ready_i     (tcdm_master_north_req_ready[idx_north[t]]      ),
-      .tcdm_master_north_resp_i          (tcdm_master_north_resp_i[idx_north[t]]         ),
-      .tcdm_master_north_resp_valid_i    (tcdm_master_north_resp_valid_i[idx_north[t]   ]),
-      .tcdm_master_north_resp_ready_o    (tcdm_master_north_resp_ready_o[idx_north[t]   ]),
-      .tcdm_master_east_req_o            (tcdm_master_east_req[idx_east[t]]              ),
-      .tcdm_master_east_req_valid_o      (tcdm_master_east_req_valid[idx_east[t]]        ),
-      .tcdm_master_east_req_ready_i      (tcdm_master_east_req_ready[idx_east[t]]        ),
-      .tcdm_master_east_resp_i           (tcdm_master_east_resp_i[idx_east[t]]           ),
-      .tcdm_master_east_resp_valid_i     (tcdm_master_east_resp_valid_i[idx_east[t]]     ),
-      .tcdm_master_east_resp_ready_o     (tcdm_master_east_resp_ready_o[idx_east[t]]     ),
+      .tcdm_master_north_req_o           (tcdm_master_north_req[t]            ),
+      .tcdm_master_north_req_valid_o     (tcdm_master_north_req_valid[t]      ),
+      .tcdm_master_north_req_ready_i     (tcdm_master_north_req_ready[t]      ),
+      .tcdm_master_north_resp_i          (tcdm_master_north_resp_i[t]         ),
+      .tcdm_master_north_resp_valid_i    (tcdm_master_north_resp_valid_i[t   ]),
+      .tcdm_master_north_resp_ready_o    (tcdm_master_north_resp_ready_o[t   ]),
+      .tcdm_master_east_req_o            (tcdm_master_east_req[t]              ),
+      .tcdm_master_east_req_valid_o      (tcdm_master_east_req_valid[t]        ),
+      .tcdm_master_east_req_ready_i      (tcdm_master_east_req_ready[t]        ),
+      .tcdm_master_east_resp_i           (tcdm_master_east_resp_i[t]           ),
+      .tcdm_master_east_resp_valid_i     (tcdm_master_east_resp_valid_i[t]     ),
+      .tcdm_master_east_resp_ready_o     (tcdm_master_east_resp_ready_o[t]     ),
       .tcdm_master_northeast_req_o       (tcdm_master_northeast_req[t]                   ),
       .tcdm_master_northeast_req_valid_o (tcdm_master_northeast_req_valid[t]             ),
       .tcdm_master_northeast_req_ready_i (tcdm_master_northeast_req_ready[t]             ),
@@ -187,15 +189,15 @@ module mempool_group
       .tcdm_slave_north_req_i            (tcdm_slave_north_req_i[t]                      ),
       .tcdm_slave_north_req_valid_i      (tcdm_slave_north_req_valid_i[t]                ),
       .tcdm_slave_north_req_ready_o      (tcdm_slave_north_req_ready_o[t]                ),
-      .tcdm_slave_north_resp_o           (tcdm_slave_north_resp[idx_north[t]]            ),
-      .tcdm_slave_north_resp_valid_o     (tcdm_slave_north_resp_valid[idx_north[t]]      ),
-      .tcdm_slave_north_resp_ready_i     (tcdm_slave_north_resp_ready[idx_north[t]]      ),
+      .tcdm_slave_north_resp_o           (tcdm_slave_north_resp[t]            ),
+      .tcdm_slave_north_resp_valid_o     (tcdm_slave_north_resp_valid[t]      ),
+      .tcdm_slave_north_resp_ready_i     (tcdm_slave_north_resp_ready[t]      ),
       .tcdm_slave_east_req_i             (tcdm_slave_east_req_i[t]                       ),
       .tcdm_slave_east_req_valid_i       (tcdm_slave_east_req_valid_i[t]                 ),
       .tcdm_slave_east_req_ready_o       (tcdm_slave_east_req_ready_o[t]                 ),
-      .tcdm_slave_east_resp_o            (tcdm_slave_east_resp[idx_east[t]]              ),
-      .tcdm_slave_east_resp_valid_o      (tcdm_slave_east_resp_valid[idx_east[t]]        ),
-      .tcdm_slave_east_resp_ready_i      (tcdm_slave_east_resp_ready[idx_east[t]]        ),
+      .tcdm_slave_east_resp_o            (tcdm_slave_east_resp[t]              ),
+      .tcdm_slave_east_resp_valid_o      (tcdm_slave_east_resp_valid[t]        ),
+      .tcdm_slave_east_resp_ready_i      (tcdm_slave_east_resp_ready[t]        ),
       .tcdm_slave_northeast_req_i        (tcdm_slave_northeast_req_i[t]                  ),
       .tcdm_slave_northeast_req_valid_i  (tcdm_slave_northeast_req_valid_i[t]            ),
       .tcdm_slave_northeast_req_ready_o  (tcdm_slave_northeast_req_ready_o[t]            ),
