@@ -302,5 +302,6 @@ module mempool_system #(
     .slv_resp_o(rab_slv_resp                 ),
     .mst_req_o (axi_mst_req[NumAXIMasters-1] ),
     .mst_resp_i(axi_mst_resp[NumAXIMasters-1])
+  );
 
 endmodule : mempool_system
