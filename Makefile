@@ -25,6 +25,7 @@ GCC_INSTALL_DIR     ?= ${INSTALL_DIR}/riscv-gcc
 ISA_SIM_INSTALL_DIR ?= ${INSTALL_DIR}/riscv-isa-sim
 LLVM_INSTALL_DIR    ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR  ?= ${INSTALL_DIR}/halide
+BENDER_INSTALL_DIR  ?= ${INSTALL_DIR}/bender
 
 CMAKE ?= cmake-3.18.1
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
@@ -35,6 +36,7 @@ endif
 ifeq ($(origin CXX),default)
 CXX    = g++-8.2.0
 endif
+BENDER_VERSION = 0.21.0
 
 # Default target
 all: toolchain riscv-isa-sim halide
@@ -85,6 +87,22 @@ riscv-isa-sim:
 	make install SETUP_PREFIX=$$(pwd)/install PREFIX=$$(pwd)/install && \
 	PATH=$$(pwd)/install/bin:$$PATH; cd ..; \
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
+
+# Bender
+bender: check-bender
+check-bender:
+	@if [ -x $(BENDER_INSTALL_DIR)/bender ]; then \
+		req="bender $(BENDER_VERSION)"; \
+		current="$$($(BENDER_INSTALL_DIR)/bender --version)"; \
+		if [ "$$(printf '%s\n' "$${req}" "$${current}" | sort -V | head -n1)" != "$${req}" ]; then \
+			rm -rf $(BENDER_INSTALL_DIR); \
+		fi \
+	fi
+	@$(MAKE) -C $(ROOT_DIR) $(BENDER_INSTALL_DIR)/bender
+
+$(BENDER_INSTALL_DIR)/bender:
+	mkdir -p $(BENDER_INSTALL_DIR) && cd $(BENDER_INSTALL_DIR) && \
+	curl --proto '=https' --tlsv1.2 https://fabianschuiki.github.io/bender/init -sSf | sh
 
 # Helper targets
 .PHONY: clean format apps
