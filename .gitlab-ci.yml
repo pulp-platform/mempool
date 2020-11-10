@@ -15,7 +15,7 @@
 # Author: Samuel Riedel, ETH Zurich
 
 variables:
-  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_STRATEGY: none
   ROOT_DIR: '$CI_PROJECT_DIR'
   APPS: "tests"
   RUST_LOG: 'memora=debug'
@@ -44,8 +44,6 @@ tc-gcc:
         make tc-riscv-gcc
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert tc-riscv-gcc
       fi
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
 
 tc-llvm:
   stage: build
@@ -56,8 +54,6 @@ tc-llvm:
         make tc-llvm
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert tc-llvm
       fi
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
 
 riscv-isa-sim:
   stage: build
@@ -68,8 +64,6 @@ riscv-isa-sim:
         make riscv-isa-sim
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert riscv-isa-sim
       fi
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
 
 halide:
   stage: compiler
@@ -83,16 +77,12 @@ halide:
         make halide
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert halide
       fi
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
   needs: ["tc-llvm"]
 
 hardware:
   stage: test
   script:
     - make -C hardware
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
   needs: []
 
 # Software tests
@@ -125,7 +115,6 @@ apps-llvm:
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
     - *apps-script-anchor
   variables:
-    GIT_SUBMODULE_STRATEGY: none
     COMPILER: "llvm"
   needs: ["tc-gcc","riscv-isa-sim","tc-llvm"]
 
@@ -136,7 +125,6 @@ apps-gcc:
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
     - *apps-script-anchor
   variables:
-    GIT_SUBMODULE_STRATEGY: none
     COMPILER: "gcc"
   needs: ["tc-gcc","riscv-isa-sim"]
 
