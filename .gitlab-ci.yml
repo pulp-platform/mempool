@@ -18,6 +18,8 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   ROOT_DIR: '$CI_PROJECT_DIR'
   APPS: "tests"
+  RUST_LOG: 'memora=debug'
+  PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin'
 
 workflow:
   rules:
@@ -43,13 +45,13 @@ tc-gcc:
   stage: build
   script:
     - git submodule update --init --recursive -- toolchain/riscv-gnu-toolchain
-    - make tc-riscv-gcc
+    - |
+      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup tc-riscv-gcc; then
+        make tc-riscv-gcc
+        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert tc-riscv-gcc
+      fi
   variables:
     GIT_SUBMODULE_STRATEGY: none
-  artifacts:
-    paths:
-      - install/riscv-gcc
-    expire_in: 1 day
 
 tc-llvm:
   stage: build
@@ -105,6 +107,7 @@ hardware:
 .apps: &apps-compiler
   stage: test
   script:
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
     - cd apps
     - |
       for APP in ${APPS}; do

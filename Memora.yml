@@ -1,0 +1,9 @@
+cache_root_dir: /usr/scratch2/dolent1/gitlabci/buildcache/mempool
+
+artifacts:
+  tc-riscv-gcc:
+    inputs:
+      - Makefile
+      - toolchain/riscv-gnu-toolchain
+    outputs:
+      - install/riscv-gcc
