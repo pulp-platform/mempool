@@ -41,7 +41,8 @@ questa_cmd     ?= questa-$(questa_version)
 questa_args    ?=
 # Path to the binaries
 app_path       ?= $(abspath $(ROOT_DIR)/../apps/bin)
-
+# Bender
+bender         ?= $(INSTALL_DIR)/bender/bender
 # Python
 python         ?= python3.6
 
@@ -84,13 +85,8 @@ $(buildpath):
 	mkdir -p $(buildpath)
 
 # Bender
-bender:
-	@[ -x ./bender ] && echo "Bender already exists." || \
-	(command -v bender >/dev/null 2>&1 && ln -sf $$(command -v bender) ./bender || \
-	curl --proto '=https' --tlsv1.2 -sSf https://iis-people.ee.ethz.ch/~andkurt/bender-init \
-		| bash -s -- 0.19.0)
-	@touch bender
-	@echo "$$(./bender --version) available."
+$(bender):
+	make -C $(MEMPOOL_DIR) bender
 
 # Library
 .PHONY: lib
@@ -101,8 +97,8 @@ $(buildpath)/$(library):
 # Compilation
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl
-$(buildpath)/compile.tcl: bender $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	./bender script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
+$(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
+	$(bender) script vsim --vlog-arg="$(vlog_args)" -t rtl -t asic -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
