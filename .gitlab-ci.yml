@@ -29,12 +29,6 @@ workflow:
 
 before_script:
   - env
-  - git submodule sync --recursive
-  - git submodule foreach --recursive git reset --hard
-  # Clean up some stuff that the CI misses
-
-after_script:
-  - env
 
 stages:
   - build
