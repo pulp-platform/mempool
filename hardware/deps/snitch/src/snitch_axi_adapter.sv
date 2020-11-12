@@ -17,28 +17,32 @@
 
 module snitch_axi_adapter #(
   parameter int unsigned WriteFIFODepth = 2,
+  parameter type addr_t = logic,
+  parameter type data_t = logic,
+  parameter type strb_t = logic,
   parameter type axi_mst_req_t  = logic,
   parameter type axi_mst_resp_t = logic
 ) (
-  input  logic                                clk_i,
-  input  logic                                rst_ni,
+  input  logic          clk_i,
+  input  logic          rst_ni,
   // AXI port
-  input  axi_mst_resp_t                       axi_resp_i,
-  output axi_mst_req_t                        axi_req_o,
+  input  axi_mst_resp_t axi_resp_i,
+  output axi_mst_req_t  axi_req_o,
 
-  input  logic [$bits(axi_req_o.aw.addr)-1:0] slv_qaddr_i,
-  input  logic                                slv_qwrite_i,
-  input  logic [3:0]                          slv_qamo_i,
-  input  logic [$bits(axi_req_o.w.data)-1:0]  slv_qdata_i,
-  input  logic [$bits(axi_req_o.w.strb)-1:0]  slv_qstrb_i,
-  input  logic [7:0]                          slv_qrlen_i,
-  input  logic                                slv_qvalid_i,
-  output logic                                slv_qready_o,
-  output logic [$bits(axi_req_o.w.data)-1:0]  slv_pdata_o,
-  output logic                                slv_perror_o,
-  output logic                                slv_plast_o,
-  output logic                                slv_pvalid_o,
-  input  logic                                slv_pready_i
+  input  addr_t         slv_qaddr_i,
+  input  logic          slv_qwrite_i,
+  input  logic [3:0]    slv_qamo_i,
+  input  data_t         slv_qdata_i,
+  input  logic [2:0]    slv_qsize_i,
+  input  strb_t         slv_qstrb_i,
+  input  logic [7:0]    slv_qrlen_i,
+  input  logic          slv_qvalid_i,
+  output logic          slv_qready_o,
+  output data_t         slv_pdata_o,
+  output logic          slv_perror_o,
+  output logic          slv_plast_o,
+  output logic          slv_pvalid_o,
+  input  logic          slv_pready_i
 );
 
   typedef enum logic [3:0] {
@@ -57,8 +61,8 @@ module snitch_axi_adapter #(
   } amo_op_t;
 
   typedef struct packed {
-    logic [$bits(axi_req_o.w.data)-1:0] data;
-    logic [$bits(axi_req_o.w.strb)-1:0] strb;
+    logic [$bits(data_t)-1:0] data;
+    logic [$bits(strb_t)-1:0] strb;
   } write_t;
 
   logic   write_full;
@@ -69,16 +73,15 @@ module snitch_axi_adapter #(
   assign axi_req_o.aw.addr   = slv_qaddr_i;
   assign axi_req_o.aw.prot   = 3'b0;
   assign axi_req_o.aw.region = 4'b0;
-  assign axi_req_o.aw.size   = $clog2($bits(axi_req_o.w.data)/8);
+  assign axi_req_o.aw.size   = slv_qsize_i;
   assign axi_req_o.aw.len    = '0;
   assign axi_req_o.aw.burst  = axi_pkg::BURST_INCR;
   assign axi_req_o.aw.lock   = 1'b0;
-  assign axi_req_o.aw.cache  = 4'b0;
+  assign axi_req_o.aw.cache  = axi_pkg::CACHE_MODIFIABLE;
   assign axi_req_o.aw.qos    = 4'b0;
   assign axi_req_o.aw.id     = '0;
   assign axi_req_o.aw.user   = '0;
   assign axi_req_o.aw_valid  = ~write_full & slv_qvalid_i & slv_qwrite_i;
-
 
   always_comb begin
     write_data_in.data = slv_qdata_i;
@@ -130,11 +133,11 @@ module snitch_axi_adapter #(
   assign axi_req_o.ar.addr   = slv_qaddr_i;
   assign axi_req_o.ar.prot   = 3'b0;
   assign axi_req_o.ar.region = 4'b0;
-  assign axi_req_o.ar.size   = $clog2($bits(axi_req_o.w.data)/8);
+  assign axi_req_o.ar.size   = slv_qsize_i;
   assign axi_req_o.ar.len    = slv_qrlen_i;
   assign axi_req_o.ar.burst  = axi_pkg::BURST_INCR;
   assign axi_req_o.ar.lock   = 1'b0;
-  assign axi_req_o.ar.cache  = 4'b0;
+  assign axi_req_o.ar.cache  = axi_pkg::CACHE_MODIFIABLE;
   assign axi_req_o.ar.qos    = 4'b0;
   assign axi_req_o.ar.id     = '0;
   assign axi_req_o.ar.user   = '0;
@@ -149,9 +152,11 @@ module snitch_axi_adapter #(
   assign slv_qready_o = (axi_resp_i.ar_ready & axi_req_o.ar_valid)
                       | (axi_resp_i.aw_ready & axi_req_o.aw_valid);
 
+  `ifndef VERILATOR
   // pragma translate_off
   hot_one : assert property (
     @(posedge clk_i) disable iff (!rst_ni) (slv_qvalid_i & slv_qwrite_i & slv_qready_o) |-> (slv_qrlen_i == 0))
       else $warning("Bursts are not supported for write transactions");
   // pragma translate_on
+  `endif
 endmodule
