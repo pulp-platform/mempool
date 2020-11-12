@@ -7,47 +7,44 @@ package snitch_pkg;
   localparam int NumIntOutstandingLoads = 8;
   localparam ReorderIdWidth             = $clog2(NumIntOutstandingLoads);
 
+  typedef logic [31:0]               addr_t;
+  typedef logic [DataWidth-1:0]      data_t;
+  typedef logic [StrbWidth-1:0]      strb_t;
+
   typedef struct packed {
-    logic [31:0] BootAddress;
+    addr_t       BootAddress;
     int unsigned NrCores;
   } SnitchCfg;
 
   typedef struct packed {
-    logic [31:0] addr;
+    addr_t addr;
     logic [ReorderIdWidth-1:0] id;
     logic [3:0] amo;
     logic write;
-    logic [DataWidth-1:0] data;
-    logic [StrbWidth-1:0] strb;
+    data_t data;
+    strb_t strb;
   } dreq_t;
 
   typedef struct packed {
-    logic [DataWidth-1:0] data;
+    data_t data;
     logic [ReorderIdWidth-1:0] id;
     logic error;
   } dresp_t;
 
   typedef struct packed {
-    logic [31:0] addr;
+    addr_t addr;
     logic [4:0] id;
     logic [31:0] data_op;
-    logic [DataWidth-1:0] data_arga;
-    logic [DataWidth-1:0] data_argb;
-    logic [DataWidth-1:0] data_argc;
+    data_t data_arga;
+    data_t data_argb;
+    data_t data_argc;
   } acc_req_t;
 
   typedef struct packed {
     logic [4:0] id;
     logic error;
-    logic [DataWidth-1:0] data;
+    data_t data;
   } acc_resp_t;
-
-  typedef struct packed {
-    logic [31:0] addr;
-    logic write;
-    logic [DataWidth-1:0] data;
-    logic [StrbWidth-1:0] strb;
-  } inst_req_t;
 
   // Number of instructions the sequencer can hold
   localparam int FPUSequencerInstr      = 16;
