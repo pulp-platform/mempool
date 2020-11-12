@@ -17,6 +17,7 @@
 
 module snitch_axi_adapter #(
   parameter int unsigned WriteFIFODepth = 2,
+  parameter int unsigned ReadFIFODepth = 2,
   parameter type addr_t = logic,
   parameter type data_t = logic,
   parameter type strb_t = logic,
@@ -45,6 +46,11 @@ module snitch_axi_adapter #(
   input  logic          slv_pready_i
 );
 
+  localparam DataWidth     = $bits(data_t);
+  localparam StrbWidth     = $bits(strb_t);
+  localparam SlvByteOffset = $clog2($bits(strb_t));
+  localparam AxiByteOffset = $clog2($bits(axi_req_o.w.strb));
+
   typedef enum logic [3:0] {
     AMONone = 4'h0,
     AMOSwap = 4'h1,
@@ -61,16 +67,17 @@ module snitch_axi_adapter #(
   } amo_op_t;
 
   typedef struct packed {
-    logic [$bits(data_t)-1:0] data;
-    logic [$bits(strb_t)-1:0] strb;
+    data_t data;
+    strb_t strb;
   } write_t;
 
   logic   write_full;
   logic   write_empty;
+  logic   read_full;
   write_t write_data_in;
   write_t write_data_out;
 
-  assign axi_req_o.aw.addr   = slv_qaddr_i;
+  assign axi_req_o.aw.addr   = {slv_qaddr_i[$bits(axi_req_o.aw.addr)-1:AxiByteOffset],{AxiByteOffset{1'b0}}};
   assign axi_req_o.aw.prot   = 3'b0;
   assign axi_req_o.aw.region = 4'b0;
   assign axi_req_o.aw.size   = slv_qsize_i;
@@ -105,30 +112,89 @@ module snitch_axi_adapter #(
     endcase
   end
 
-  fifo_v3 #(
-    .DEPTH      ( WriteFIFODepth                             ),
-    .dtype      ( write_t                                    )
-  ) i_fifo_v3 (
-    .clk_i,
-    .rst_ni,
-    .flush_i    ( 1'b0                                       ),
-    .testmode_i ( 1'b0                                       ),
-    .full_o     ( write_full                                 ),
-    .empty_o    ( write_empty                                ),
-    .usage_o    ( /* NC */                                   ),
-    .data_i     ( write_data_in                              ),
-    .push_i     ( slv_qvalid_i & slv_qready_o & slv_qwrite_i ),
-    .data_o     ( write_data_out                             ),
-    .pop_i      ( axi_req_o.w_valid & axi_resp_i.w_ready     )
-  );
+  if (SlvByteOffset == AxiByteOffset) begin : gen_w_data
+    // Write
+    fifo_v3 #(
+      .DEPTH      ( WriteFIFODepth                             ),
+      .dtype      ( write_t                                    )
+    ) i_fifo_w_data (
+      .clk_i,
+      .rst_ni,
+      .flush_i    ( 1'b0                                       ),
+      .testmode_i ( 1'b0                                       ),
+      .full_o     ( write_full                                 ),
+      .empty_o    ( write_empty                                ),
+      .usage_o    ( /* NC */                                   ),
+      .data_i     ( write_data_in                              ),
+      .push_i     ( slv_qvalid_i & slv_qready_o & slv_qwrite_i ),
+      .data_o     ( write_data_out                             ),
+      .pop_i      ( axi_req_o.w_valid & axi_resp_i.w_ready     )
+    );
+    assign axi_req_o.w.data = write_data_out.data;
+    assign axi_req_o.w.strb = write_data_out.strb;
 
-  assign axi_req_o.w.data    = write_data_out.data;
-  assign axi_req_o.w.strb    = write_data_out.strb;
+    // Read
+    assign read_full   = 1'b0;
+    assign slv_pdata_o = axi_resp_i.r.data;
+  end else begin  : gen_w_data
+    typedef logic [AxiByteOffset-SlvByteOffset-1:0] shift_t;
+    typedef struct packed {
+      write_t data;
+      shift_t shift;
+    } write_ext_t;
+
+    // Write
+    write_ext_t write_data_ext_in, write_data_ext_out;
+
+    fifo_v3 #(
+      .DEPTH      ( WriteFIFODepth                             ),
+      .dtype      ( write_ext_t                                )
+    ) i_fifo_w_data (
+      .clk_i,
+      .rst_ni,
+      .flush_i    ( 1'b0                                       ),
+      .testmode_i ( 1'b0                                       ),
+      .full_o     ( write_full                                 ),
+      .empty_o    ( write_empty                                ),
+      .usage_o    ( /* NC */                                   ),
+      .data_i     ( write_data_ext_in                          ),
+      .push_i     ( slv_qvalid_i & slv_qready_o & slv_qwrite_i ),
+      .data_o     ( write_data_ext_out                         ),
+      .pop_i      ( axi_req_o.w_valid & axi_resp_i.w_ready     )
+    );
+
+    assign write_data_ext_in.data  = write_data_in;
+    assign write_data_ext_in.shift = slv_qaddr_i[AxiByteOffset-1:SlvByteOffset];
+    assign axi_req_o.w.data  = {'0, write_data_ext_out.data.data} << ($bits(data_t) * write_data_ext_out.shift);
+    assign axi_req_o.w.strb  = {'0, write_data_ext_out.data.strb} << ($bits(strb_t) * write_data_ext_out.shift);
+
+    // Read
+    shift_t read_shift;
+
+    fifo_v3 #(
+      .DEPTH      ( ReadFIFODepth                               ),
+      .dtype      ( shift_t                                     )
+    ) i_fifo_r_shift (
+      .clk_i,
+      .rst_ni,
+      .flush_i    ( 1'b0                                        ),
+      .testmode_i ( 1'b0                                        ),
+      .full_o     ( read_full                                   ),
+      .empty_o    ( /* NC */                                    ),
+      .usage_o    ( /* NC */                                    ),
+      .data_i     ( slv_qaddr_i[AxiByteOffset-1:SlvByteOffset]  ),
+      .push_i     ( slv_qvalid_i & slv_qready_o & ~slv_qwrite_i ),
+      .data_o     ( read_shift                                  ),
+      .pop_i      ( axi_resp_i.r_valid & slv_pready_i           )
+    );
+
+    assign slv_pdata_o       = axi_resp_i.r.data >> ($bits(data_t) * read_shift);
+  end
   assign axi_req_o.w.last    = 1'b1;
   assign axi_req_o.w.user    = '0;
   assign axi_req_o.w_valid   = ~write_empty;
 
-  assign axi_req_o.b_ready  = 1'b1;
+  assign axi_req_o.b_ready   = 1'b1;
 
   assign axi_req_o.ar.addr   = slv_qaddr_i;
   assign axi_req_o.ar.prot   = 3'b0;
@@ -141,9 +207,8 @@ module snitch_axi_adapter #(
   assign axi_req_o.ar.qos    = 4'b0;
   assign axi_req_o.ar.id     = '0;
   assign axi_req_o.ar.user   = '0;
-  assign axi_req_o.ar_valid  = slv_qvalid_i & ~slv_qwrite_i;
+  assign axi_req_o.ar_valid  = ~read_full & slv_qvalid_i & ~slv_qwrite_i;
 
-  assign slv_pdata_o       = axi_resp_i.r.data;
   assign slv_perror_o      = (axi_resp_i.r.resp inside {axi_pkg::RESP_EXOKAY, axi_pkg::RESP_OKAY}) ? 1'b0 : 1'b1;
   assign slv_plast_o       = axi_resp_i.r.last;
   assign slv_pvalid_o      = axi_resp_i.r_valid;
