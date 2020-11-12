@@ -143,7 +143,7 @@ module mempool_system #(
 
   AXI_BUS #(
     .AXI_ADDR_WIDTH (AddrWidth       ),
-    .AXI_DATA_WIDTH (DataWidth       ),
+    .AXI_DATA_WIDTH (AxiDataWidth    ),
     .AXI_ID_WIDTH   (AxiSystemIdWidth),
     .AXI_USER_WIDTH (1               )
   ) axi_l2memory_slave ();
@@ -155,14 +155,14 @@ module mempool_system #(
   // Memory
   logic  mem_req;
   addr_t mem_addr;
-  data_t mem_wdata;
-  strb_t mem_strb;
+  axi_data_t mem_wdata;
+  axi_strb_t mem_strb;
   logic  mem_we;
-  data_t mem_rdata;
+  axi_data_t mem_rdata;
 
   axi2mem #(
     .AXI_ADDR_WIDTH(AddrWidth       ),
-    .AXI_DATA_WIDTH(DataWidth       ),
+    .AXI_DATA_WIDTH(AxiDataWidth    ),
     .AXI_ID_WIDTH  (AxiSystemIdWidth),
     .AXI_USER_WIDTH(1               )
   ) i_axi2mem (
@@ -178,18 +178,18 @@ module mempool_system #(
   );
 
   tc_sram #(
-    .DataWidth(DataWidth     ),
+    .DataWidth(AxiDataWidth  ),
     .NumWords (2**L2AddrWidth),
     .NumPorts (1             )
   ) l2_mem (
-    .clk_i  (clk_i                              ),
-    .rst_ni (rst_ni                             ),
-    .req_i  (mem_req                            ),
-    .we_i   (mem_we                             ),
-    .addr_i (mem_addr[ByteOffset +: L2AddrWidth]),
-    .wdata_i(mem_wdata                          ),
-    .be_i   (mem_strb                           ),
-    .rdata_o(mem_rdata                          )
+    .clk_i  (clk_i                                ),
+    .rst_ni (rst_ni                               ),
+    .req_i  (mem_req                              ),
+    .we_i   (mem_we                               ),
+    .addr_i (mem_addr[L2ByteOffset +: L2AddrWidth]),
+    .wdata_i(mem_wdata                            ),
+    .be_i   (mem_strb                             ),
+    .rdata_o(mem_rdata                            )
   );
 
   /***********************
@@ -201,7 +201,7 @@ module mempool_system #(
 
   axi_to_axi_lite #(
     .AxiAddrWidth   (AddrWidth          ),
-    .AxiDataWidth   (DataWidth          ),
+    .AxiDataWidth   (AxiDataWidth       ),
     .AxiIdWidth     (AxiSystemIdWidth   ),
     .AxiUserWidth   (1                  ),
     .AxiMaxReadTxns (1                  ),
@@ -257,7 +257,7 @@ module mempool_system #(
     .L2NumParVaRams    (4                  ),
     .MhFifoDepth       (16                 ),
     .AxiAddrWidth      (AddrWidth          ),
-    .AxiDataWidth      (DataWidth          ),
+    .AxiDataWidth      (AxiDataWidth       ),
     .AxiIdWidth        (AxiSystemIdWidth   ),
     .AxiUserWidth      (1                  ),
     .axi_req_t         (axi_system_req_t   ),

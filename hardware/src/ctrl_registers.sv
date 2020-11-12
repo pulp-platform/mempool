@@ -85,7 +85,7 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
   axi_lite_regs #(
     .RegNumBytes (RegNumBytes               ),
     .AxiAddrWidth(AddrWidth                 ),
-    .AxiDataWidth(DataWidth                 ),
+    .AxiDataWidth(AxiDataWidth              ),
     .AxiReadOnly (AxiReadOnly               ),
     .RegRstVal   (RegRstVal                 ),
     .req_lite_t  (axi_lite_req_t            ),

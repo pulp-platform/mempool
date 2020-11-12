@@ -161,7 +161,7 @@ module mempool_tile
   logic  [NumCaches-1:0][7:0]                 refill_qlen;
   logic  [NumCaches-1:0]                      refill_qvalid;
   logic  [NumCaches-1:0]                      refill_qready;
-  logic  [NumCaches-1:0][DataWidth-1:0]       refill_pdata;
+  logic  [NumCaches-1:0][AxiDataWidth-1:0]    refill_pdata;
   logic  [NumCaches-1:0]                      refill_perror;
   logic  [NumCaches-1:0]                      refill_pvalid;
   logic  [NumCaches-1:0]                      refill_plast;
@@ -178,7 +178,7 @@ module mempool_tile
       .FETCH_AW           (AddrWidth                                           ),
       .FETCH_DW           (DataWidth                                           ),
       .FILL_AW            (AddrWidth                                           ),
-      .FILL_DW            (DataWidth /* TODO undo this */                      ),
+      .FILL_DW            (AxiDataWidth                                        ),
       /// Make the early cache latch-based. This reduces latency at the cost of
       /// increased combinatorial path lengths and the hassle of having latches in
       /// the design.
@@ -711,8 +711,8 @@ module mempool_tile
   // TODO: Add demux for the case where we have many intruction caches
   snitch_axi_adapter #(
     .addr_t         (snitch_pkg::addr_t),
-    .data_t         (snitch_pkg::data_t),
-    .strb_t         (snitch_pkg::strb_t),
+    .data_t         (axi_data_t        ),
+    .strb_t         (axi_strb_t        ),
     .axi_mst_req_t  (axi_core_req_t    ),
     .axi_mst_resp_t (axi_core_resp_t   )
   ) i_snitch_cache_axi_adapter (
@@ -801,7 +801,7 @@ module mempool_tile
   if (NumCaches != 1)
     $error("NumCaches > 1 is not supported!");
 
-  if (DataWidth < AxiDataWidth)
+  if (DataWidth > AxiDataWidth)
     $error("AxiDataWidth needs to be larger than DataWidth!");
 
 endmodule : mempool_tile

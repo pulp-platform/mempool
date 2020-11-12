@@ -284,7 +284,7 @@ module mempool_tb;
   end
 
   initial begin : l2_init
-    automatic data_t mem_row;
+    automatic axi_data_t mem_row;
     byte buffer [];
     addr_t address;
     addr_t length;
@@ -298,18 +298,18 @@ module mempool_tb;
       $display("Loading %s", binary);
       while (get_section(address, length)) begin
         // Read sections
-        automatic int nwords = (length + BeWidth - 1)/BeWidth;
+        automatic int nwords = (length + L2BeWidth - 1)/L2BeWidth;
         $display("Loading section %x of length %x", address, length);
-        buffer = new[nwords * BeWidth];
+        buffer = new[nwords * L2BeWidth];
         void'(read_section(address, buffer));
         // Initializing memories
         for (int w = 0; w < nwords; w++) begin
           mem_row = '0;
-          for (int b = 0; b < BeWidth; b++) begin
-            mem_row[8 * b +: 8] = buffer[w * BeWidth + b];
+          for (int b = 0; b < L2BeWidth; b++) begin
+            mem_row[8 * b +: 8] = buffer[w * L2BeWidth + b];
           end
           if (address >= dut.L2MemoryBaseAddr && address < dut.L2MemoryEndAddr)
-            dut.l2_mem.init_val[(address - dut.L2MemoryBaseAddr + (w << ByteOffset)) >> ByteOffset] = mem_row;
+            dut.l2_mem.init_val[(address - dut.L2MemoryBaseAddr + (w << L2ByteOffset)) >> L2ByteOffset] = mem_row;
           else
             $display("Cannot initialize address %x, which doesn't fall into the L2 region.", address);
         end
