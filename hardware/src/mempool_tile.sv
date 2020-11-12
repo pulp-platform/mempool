@@ -682,8 +682,11 @@ module mempool_tile
   axi_tile_resp_t axi_mst_resp;
 
   snitch_axi_adapter #(
-    .axi_mst_req_t  (axi_core_req_t ),
-    .axi_mst_resp_t (axi_core_resp_t)
+    .addr_t         (snitch_pkg::addr_t),
+    .data_t         (snitch_pkg::data_t),
+    .strb_t         (snitch_pkg::strb_t),
+    .axi_mst_req_t  (axi_core_req_t    ),
+    .axi_mst_resp_t (axi_core_resp_t   )
   ) i_snitch_core_axi_adapter (
     .clk_i       (clk_i           ),
     .rst_ni      (rst_ni          ),
@@ -691,6 +694,7 @@ module mempool_tile
     .slv_qwrite_i(soc_req_o.write ),
     .slv_qamo_i  (soc_req_o.amo   ),
     .slv_qdata_i (soc_req_o.data  ),
+    .slv_qsize_i (3'b010          ),
     .slv_qstrb_i (soc_req_o.strb  ),
     .slv_qrlen_i ('0              ),
     .slv_qvalid_i(soc_qvalid      ),
@@ -705,31 +709,31 @@ module mempool_tile
   );
 
   // TODO: Add demux for the case where we have many intruction caches
-  initial begin
-    assert(NumCaches == 1) else $fatal("NumCaches > 1 is not supported!");
-  end
-
   snitch_axi_adapter #(
-    .axi_mst_req_t  (axi_core_req_t ),
-    .axi_mst_resp_t (axi_core_resp_t)
+    .addr_t         (snitch_pkg::addr_t),
+    .data_t         (snitch_pkg::data_t),
+    .strb_t         (snitch_pkg::strb_t),
+    .axi_mst_req_t  (axi_core_req_t    ),
+    .axi_mst_resp_t (axi_core_resp_t   )
   ) i_snitch_cache_axi_adapter (
-    .clk_i       (clk_i           ),
-    .rst_ni      (rst_ni          ),
-    .slv_qaddr_i (refill_qaddr[0] ),
-    .slv_qwrite_i('0              ),
-    .slv_qamo_i  ('0              ),
-    .slv_qdata_i ('0              ),
-    .slv_qstrb_i ('0              ),
-    .slv_qrlen_i (refill_qlen[0]  ),
-    .slv_qvalid_i(refill_qvalid[0]),
-    .slv_qready_o(refill_qready[0]),
-    .slv_pdata_o (refill_pdata[0] ),
-    .slv_perror_o(refill_perror[0]),
-    .slv_plast_o (refill_plast[0] ),
-    .slv_pvalid_o(refill_pvalid[0]),
-    .slv_pready_i(refill_pready[0]),
-    .axi_req_o   (axi_cache_req   ),
-    .axi_resp_i  (axi_cache_resp  )
+    .clk_i       (clk_i                 ),
+    .rst_ni      (rst_ni                    ),
+    .slv_qaddr_i (refill_qaddr[0]           ),
+    .slv_qwrite_i('0                        ),
+    .slv_qamo_i  ('0                        ),
+    .slv_qdata_i ('0                        ),
+    .slv_qsize_i (3'($clog2(AxiDataWidth/8))),
+    .slv_qstrb_i ('0                        ),
+    .slv_qrlen_i (refill_qlen[0]            ),
+    .slv_qvalid_i(refill_qvalid[0]          ),
+    .slv_qready_o(refill_qready[0]          ),
+    .slv_pdata_o (refill_pdata[0]           ),
+    .slv_perror_o(refill_perror[0]          ),
+    .slv_plast_o (refill_plast[0]           ),
+    .slv_pvalid_o(refill_pvalid[0]          ),
+    .slv_pready_i(refill_pready[0]          ),
+    .axi_req_o   (axi_cache_req             ),
+    .axi_resp_i  (axi_cache_resp            )
   );
 
   axi_mux #(
@@ -793,6 +797,12 @@ module mempool_tile
 
   if (NumBanksPerTile < 1)
     $fatal(1, "[mempool_tile] The number of banks per tile must be larger than one");
+
+  if (NumCaches != 1)
+    $error("NumCaches > 1 is not supported!");
+
+  if (DataWidth < AxiDataWidth)
+    $error("AxiDataWidth needs to be larger than DataWidth!");
 
 endmodule : mempool_tile
 
