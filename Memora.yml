@@ -1,0 +1,30 @@
+cache_root_dir: /usr/scratch2/dolent1/gitlabci/buildcache/mempool
+
+artifacts:
+  tc-riscv-gcc:
+    inputs:
+      - Makefile
+      - toolchain/riscv-gnu-toolchain
+    outputs:
+      - install/riscv-gcc
+
+  tc-llvm:
+    inputs:
+      - Makefile
+      - toolchain/llvm-project
+    outputs:
+      - install/llvm
+
+  riscv-isa-sim:
+    inputs:
+      - Makefile
+      - toolchain/riscv-isa-sim
+    outputs:
+      - install/riscv-isa-sim
+
+  halide:
+    inputs:
+      - Makefile
+      - toolchain/halide
+    outputs:
+      - install/halide
