@@ -34,7 +34,7 @@ dpi_library    ?= work-dpi
 # Top level module to compile
 top_level      ?= mempool_tb
 # QuestaSim Version
-questa_version ?= 2020.1
+questa_version ?= 2019.3
 # QuestaSim command
 questa_cmd     ?= questa-$(questa_version)
 # QuestaSim arguments
@@ -92,7 +92,7 @@ $(bender):
 .PHONY: lib
 lib: $(buildpath) $(buildpath)/$(library)
 $(buildpath)/$(library):
-	cd $(buildpath) && $(questa_cmd) vlib $(library) && $(questa_cmd) vmap $(library) $(library)
+	cd $(buildpath) && $(questa_cmd) vlib $(library) && chmod +w modelsim.ini && $(questa_cmd) vmap $(library) $(library)
 
 # Compilation
 .PHONY: compile
