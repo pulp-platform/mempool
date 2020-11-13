@@ -4,22 +4,29 @@ packages:
     revision: b3eac3d46930541f20f0d76c9b52255d603c2c63
     version: 0.23.2
     source:
-      Git: "git@github.com:pulp-platform/axi.git"
+      Git: "https://github.com/pulp-platform/axi.git"
     dependencies:
       - common_cells
       - common_verification
+  axi_rab:
+    revision: 1a74fac92af1f3a2dfd851fb5f409bf1838f6367
+    version: ~
+    source:
+      Git: "https://github.com/pulp-platform/axi_rab.git"
+    dependencies:
+      - axi
   cluster_interconnect:
     revision: 6fc56bb3455fa0c2707bd16c9fca9c0de32cacb5
     version: ~
     source:
-      Git: "git@github.com:pulp-platform/cluster_interconnect.git"
+      Git: "https://github.com/pulp-platform/cluster_interconnect.git"
     dependencies:
       - common_cells
   common_cells:
-    revision: ff721776a7deabb0d09046c3aa8411d6e0686f63
-    version: 1.19.0
+    revision: a06e4beb08b8c0a5ef2c85d9afcfe0d96be76f30
+    version: 1.20.0
     source:
-      Git: "git@github.com:pulp-platform/common_cells.git"
+      Git: "https://github.com/pulp-platform/common_cells.git"
     dependencies:
       - common_verification
       - tech_cells_generic
@@ -33,12 +40,12 @@ packages:
     revision: d98fa448ab5e17c3fce35e5fb4abe9ea9a79b077
     version: ~
     source:
-      Git: "git@iis-git.ee.ethz.ch:sriedel/snitch.git"
+      Git: "git@iis-git.ee.ethz.ch:mempool/snitch.git"
     dependencies: []
   tech_cells_generic:
-    revision: 627fd6c50733159354df82ea488aeac9b2e076ea
-    version: 0.2.1
+    revision: f5919f811921e5fc30c9ddaedd001b8a9b1dab1f
+    version: 0.2.2
     source:
-      Git: "git@github.com:pulp-platform/tech_cells_generic.git"
+      Git: "https://github.com/pulp-platform/tech_cells_generic.git"
     dependencies:
       - common_verification
