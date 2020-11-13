@@ -255,7 +255,7 @@ module mempool_system #(
     .L2NumSets         (32                 ),
     .L2NumSetEntries   (32                 ),
     .L2NumParVaRams    (4                  ),
-    .MhFifoDepth       (1                  ),
+    .MhFifoDepth       (16                 ),
     .AxiAddrWidth      (AddrWidth          ),
     .AxiDataWidth      (DataWidth          ),
     .AxiIdWidth        (AxiSystemIdWidth   ),
