@@ -12,6 +12,11 @@ import "DPI-C" function void read_elf (input string filename);
 import "DPI-C" function byte get_section (output longint address, output longint len);
 import "DPI-C" context function byte read_section(input longint address, inout byte buffer[]);
 
+`define wait_for(signal) \
+  do \
+    @(posedge clk); \
+  while (!signal);
+
 module mempool_tb;
 
   /*****************
@@ -58,8 +63,6 @@ module mempool_tb;
   logic clk;
   logic rst_n;
 
-  logic eoc_valid;
-
   // Toggling the clock
   always #(ClockPeriod/2) clk = !clk;
 
@@ -89,10 +92,12 @@ module mempool_tb;
     Host
   } axi_slave_target;
 
-  axi_system_req_t  [NumAXIMasters - 1:0] axi_mst_req;
-  axi_system_resp_t [NumAXIMasters - 1:0] axi_mst_resp;
-  axi_tb_req_t      [NumAXISlaves - 1:0]  axi_mem_req;
-  axi_tb_resp_t     [NumAXISlaves - 1:0]  axi_mem_resp;
+  axi_system_req_t    [NumAXIMasters - 1:0] axi_mst_req;
+  axi_system_resp_t   [NumAXIMasters - 1:0] axi_mst_resp;
+  axi_tb_req_t        [NumAXISlaves - 1:0]  axi_mem_req;
+  axi_tb_resp_t       [NumAXISlaves - 1:0]  axi_mem_resp;
+  axi_lite_slv_req_t                        rab_conf_req;
+  axi_lite_slv_resp_t                       rab_conf_resp;
 
   localparam xbar_cfg_t XBarCfg = '{
     NoSlvPorts        : NumAXIMasters,
@@ -112,6 +117,9 @@ module mempool_tb;
    *  DUT  *
    *********/
 
+  logic fetch_en;
+  logic eoc_valid;
+
   mempool_system #(
     .NumCores       (NumCores     ),
     .BankingFactor  (BankingFactor),
@@ -120,15 +128,15 @@ module mempool_tb;
   ) dut (
     .clk_i          (clk          ),
     .rst_ni         (rst_n        ),
-    .fetch_en_i     (/*Unused*/   ),
+    .fetch_en_i     (fetch_en     ),
     .eoc_valid_o    (eoc_valid    ),
     .busy_o         (/*Unused*/   ),
     .ext_req_o      (axi_mst_req  ),
     .ext_resp_i     (axi_mst_resp ),
     .ext_req_i      (/*Unused*/ '0),
     .ext_resp_o     (/*Unused*/   ),
-    .rab_conf_req_i (/*Unused*/ '0),
-    .rab_conf_resp_o(/*Unused*/   )
+    .rab_conf_req_i (rab_conf_req ),
+    .rab_conf_resp_o(rab_conf_resp)
   );
 
   /**********************
@@ -213,6 +221,48 @@ module mempool_tb;
       @(posedge clk);
       axi_mem_resp[UART].b_valid = 1'b0;
     end
+  end
+
+  /*******************
+   *  Configure RAB  *
+   *******************/
+
+  task write_rab(input addr_t addr, input data_t data);
+    rab_conf_req.aw.addr = addr;
+    rab_conf_req.aw_valid = 1'b1;
+    `wait_for(rab_conf_resp.aw_ready)
+    rab_conf_req.aw_valid = 1'b0;
+    rab_conf_req.w.data = data;
+    rab_conf_req.w.strb = '1;
+    rab_conf_req.w_valid = 1'b1;
+    `wait_for(rab_conf_resp.w_ready)
+    rab_conf_req.w_valid = 1'b0;
+    rab_conf_req.b_ready = 1'b1;
+    `wait_for(rab_conf_resp.b_valid)
+    rab_conf_req.b_ready = 1'b0;
+  endtask
+
+  task write_rab_slice(input addr_t slice_addr, input addr_t first, input addr_t last, input addr_t phys_addr);
+    write_rab(slice_addr+8'h00, first);
+    write_rab(slice_addr+8'h08, last);
+    write_rab(slice_addr+8'h10, phys_addr);
+    write_rab(slice_addr+8'h18, 32'h7);
+  endtask
+
+  // Simulation control
+  initial begin
+    fetch_en = 1'b0;
+    rab_conf_req = '{default: '0};
+    // Wait for reset.
+    wait (rst_n);
+    @(posedge clk);
+
+    // Set up RAB slice from MemPool to external devices: all addresses (that the interconnect routes
+    // through the RAB) except zero page.
+    write_rab_slice(32'hA0, 32'h0000_1000, 32'hFFFF_FFFF, 32'h0000_1000);
+
+    // Start MemPool
+    fetch_en = 1'b1;
   end
 
   /*********
