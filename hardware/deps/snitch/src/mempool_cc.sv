@@ -119,26 +119,49 @@ module mempool_cc #(
     .data_o  ( acc_resp_q       )
   );
 
-  // Snitch Multiplier/Divider accelerator
-  snitch_shared_muldiv #(
-    .IdWidth ( 5 )
-  ) i_snitch_shared_muldiv (
-    .clk_i                                   ,
-    .rst_i                                   ,
-    .acc_qaddr_i      ( acc_req_q.addr      ),
-    .acc_qid_i        ( acc_req_q.id        ),
-    .acc_qdata_op_i   ( acc_req_q.data_op   ),
-    .acc_qdata_arga_i ( acc_req_q.data_arga ),
-    .acc_qdata_argb_i ( acc_req_q.data_argb ),
-    .acc_qdata_argc_i ( acc_req_q.data_argc ),
-    .acc_qvalid_i     ( acc_req_q_valid     ),
-    .acc_qready_o     ( acc_req_q_ready     ),
-    .acc_pdata_o      ( acc_resp_d.data     ),
-    .acc_pid_o        ( acc_resp_d.id       ),
-    .acc_perror_o     ( acc_resp_d.error    ),
-    .acc_pvalid_o     ( acc_resp_d_valid    ),
-    .acc_pready_i     ( acc_resp_d_ready    )
-  );
+  if (snitch_pkg::XPULPIMG) begin : gen_ipu
+    // Snitch IPU accelerator
+    snitch_ipu #(
+      .IdWidth ( 5 )
+    ) i_snitch_ipu (
+      .clk_i                                   ,
+      .rst_i                                   ,
+      .acc_qaddr_i      ( acc_req_q.addr      ),
+      .acc_qid_i        ( acc_req_q.id        ),
+      .acc_qdata_op_i   ( acc_req_q.data_op   ),
+      .acc_qdata_arga_i ( acc_req_q.data_arga ),
+      .acc_qdata_argb_i ( acc_req_q.data_argb ),
+      .acc_qdata_argc_i ( acc_req_q.data_argc ),
+      .acc_qvalid_i     ( acc_req_q_valid     ),
+      .acc_qready_o     ( acc_req_q_ready     ),
+      .acc_pdata_o      ( acc_resp_d.data     ),
+      .acc_pid_o        ( acc_resp_d.id       ),
+      .acc_perror_o     ( acc_resp_d.error    ),
+      .acc_pvalid_o     ( acc_resp_d_valid    ),
+      .acc_pready_i     ( acc_resp_d_ready    )
+    );
+  end else begin : gen_shared_muldiv
+    // Snitch Multiplier/Divider accelerator
+    snitch_shared_muldiv #(
+      .IdWidth ( 5 )
+    ) i_snitch_shared_muldiv (
+      .clk_i                                   ,
+      .rst_i                                   ,
+      .acc_qaddr_i      ( acc_req_q.addr      ),
+      .acc_qid_i        ( acc_req_q.id        ),
+      .acc_qdata_op_i   ( acc_req_q.data_op   ),
+      .acc_qdata_arga_i ( acc_req_q.data_arga ),
+      .acc_qdata_argb_i ( acc_req_q.data_argb ),
+      .acc_qdata_argc_i ( acc_req_q.data_argc ),
+      .acc_qvalid_i     ( acc_req_q_valid     ),
+      .acc_qready_o     ( acc_req_q_ready     ),
+      .acc_pdata_o      ( acc_resp_d.data     ),
+      .acc_pid_o        ( acc_resp_d.id       ),
+      .acc_perror_o     ( acc_resp_d.error    ),
+      .acc_pvalid_o     ( acc_resp_d_valid    ),
+      .acc_pready_i     ( acc_resp_d_ready    )
+    );
+  end
 
   // Cut TCDM data request path
   spill_register #(
