@@ -132,7 +132,6 @@ apps-gcc:
 unit-tests:
   stage: test
   script:
-    - export PATH=$(pwd)/install/riscv-isa-sim/bin:$PATH
     - make test
   variables:
     GIT_SUBMODULE_STRATEGY: none

@@ -96,6 +96,7 @@ MINPOOL_CONFIG = num_cores=16 num_cores_per_tile=4
 .PHONY: test build_test clean_test
 
 test: build_test
+	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
 	COMPILER=gcc $(MINPOOL_CONFIG) make -C $(APPS_PREFIX) test && \
 	$(MINPOOL_CONFIG) make -C hardware simc_test
