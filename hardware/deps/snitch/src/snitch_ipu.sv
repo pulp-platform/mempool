@@ -186,39 +186,52 @@ module dspu #(
   // Datapath
   // --------------------
 
+  // Shared comparator
+  logic cmp_signed;
+  logic [Width-1:0] cmp_op_a, cmp_op_b;
+  logic cmp_result;
+  assign cmp_result = $signed({cmp_op_a[Width-1] & cmp_signed, cmp_op_a}) <= $signed({cmp_op_b[Width-1] & cmp_signed, cmp_op_b});
+
   // Clip pre-processing
-  logic [Width-1:0] clip_opb, clip_opb_n;
-  logic [Width-1:0] clip_reg_opb, clip_reg_opb_n;
-  assign clip_opb_n = ({(Width+1){1'b1}} << ximm) >> 1; // -2^(ximm-1)
-  assign clip_opb = ~clip_opb_n;                        // 2^(ximm-1) - 1
-  assign clip_reg_opb = op_b_i;                         // rs2
-  assign clip_reg_opb_n = ~clip_reg_opb;                // -rs2-1
+  logic [Width-1:0] clip_op_b, clip_op_b_n;
+  logic [Width-1:0] clip_reg_op_b, clip_reg_op_b_n;
+  assign clip_op_b_n = ({(Width+1){1'b1}} << ximm) >> 1; // -2^(ximm-1)
+  assign clip_op_b = ~clip_op_b_n;                       // 2^(ximm-1) - 1
+  assign clip_reg_op_b = op_b_i;                         // rs2
+  assign clip_reg_op_b_n = ~clip_reg_op_b;               // -rs2-1
 
   // Operations
   always_comb begin
+    cmp_op_a = op_a_i;
+    cmp_op_b = op_b_i;
+    cmp_signed = 1'b1;
     result_o = 'b0;
     unique casez (operator_i)
       // Absolute value
       riscv_instr::P_ABS: begin    // Xpulpimg: p.abs
-        result_o = (op_a_i[Width-1]) ? -$signed(op_a_i) : op_a_i;
+        cmp_op_b = 'b0;
+        result_o = cmp_result ? -$signed(op_a_i) : op_a_i;
       end
       riscv_instr::P_SLET: begin   // Xpulpimg: p.slet
-        result_o = ($signed(op_a_i) <= $signed(op_b_i)) ? 'b1 : 'b0;
+        result_o = $unsigned(cmp_result);
       end
       riscv_instr::P_SLETU: begin  // Xpulpimg: p.sletu
-        result_o = ($unsigned(op_a_i) <= $unsigned(op_b_i)) ? 'b1 : 'b0;
+        cmp_signed = 1'b0;
+        result_o = $unsigned(cmp_result);
       end
       riscv_instr::P_MIN: begin    // Xpulpimg: p.min
-        result_o = ($signed(op_a_i) <= $signed(op_b_i)) ? op_a_i : op_b_i;
+        result_o = cmp_result ? op_a_i : op_b_i;
       end
       riscv_instr::P_MINU: begin   // Xpulpimg: p.minu
-        result_o = ($unsigned(op_a_i) <= $unsigned(op_b_i)) ? op_a_i : op_b_i;
+        cmp_signed = 1'b0;
+        result_o = cmp_result ? op_a_i : op_b_i;
       end
-      riscv_instr::P_MAX: begin    // Xpulpimg: p.min
-        result_o = ~($signed(op_a_i) <= $signed(op_b_i)) ? op_a_i : op_b_i;
+      riscv_instr::P_MAX: begin    // Xpulpimg: p.max
+        result_o = ~cmp_result ? op_a_i : op_b_i;
       end
-      riscv_instr::P_MAXU: begin   // Xpulpimg: p.minu
-        result_o = ~($unsigned(op_a_i) <= $unsigned(op_b_i)) ? op_a_i : op_b_i;
+      riscv_instr::P_MAXU: begin   // Xpulpimg: p.maxu
+        cmp_signed = 1'b0;
+        result_o = ~cmp_result ? op_a_i : op_b_i;
       end
       riscv_instr::P_EXTHS: begin  // Xpulpimg: p.exths
         result_o = $signed(op_a_i[Width/2-1:0]);
@@ -233,40 +246,20 @@ module dspu #(
         result_o = $unsigned(op_a_i[7:0]);
       end
       riscv_instr::P_CLIP: begin   // Xpulpimg: p.clip
-        if ($signed(op_a_i) <= $signed(clip_opb_n)) begin
-          result_o = clip_opb_n;
-        end else if ($signed(op_a_i) >= $signed(clip_opb)) begin
-          result_o = clip_opb;
-        end else begin
-          result_o = op_a_i;
-        end
+        cmp_op_b = op_a_i[Width-1] ? clip_op_b_n : clip_op_b;
+        result_o = op_a_i[Width-1] ? (cmp_result ? clip_op_b_n : op_a_i) : (cmp_result ? op_a_i : clip_op_b);
       end
       riscv_instr::P_CLIPU: begin  // Xpulpimg: p.clipu
-        if ($signed(op_a_i) <= 0) begin
-          result_o = 'b0;
-        end else if ($signed(op_a_i) >= $signed(clip_opb)) begin
-          result_o = clip_opb;
-        end else begin
-          result_o = op_a_i;
-        end
+        cmp_op_b = op_a_i[Width-1] ? 'b0 : clip_op_b;
+        result_o = op_a_i[Width-1] ? (cmp_result ? 'b0 : op_a_i) : (cmp_result ? op_a_i : clip_op_b);
       end
       riscv_instr::P_CLIPR: begin  // Xpulpimg: p.clipr
-        if ($signed(op_a_i) <= $signed(clip_reg_opb_n)) begin
-          result_o = clip_reg_opb_n;
-        end else if ($signed(op_a_i) >= $signed(clip_reg_opb)) begin
-          result_o = clip_reg_opb;
-        end else begin
-          result_o = op_a_i;
-        end
+        cmp_op_b = (op_a_i[Width-1] ^ clip_reg_op_b[Width-1]) ? clip_reg_op_b_n : clip_reg_op_b;
+        result_o = (op_a_i[Width-1] ^ clip_reg_op_b[Width-1]) ? (cmp_result ? clip_reg_op_b_n : (clip_reg_op_b[Width-1] ? clip_reg_op_b : op_a_i)) : (clip_reg_op_b[Width-1] ? clip_reg_op_b_n : (cmp_result ? op_a_i : clip_reg_op_b));
       end
       riscv_instr::P_CLIPUR: begin // Xpulpimg: p.clipur
-        if ($signed(op_a_i) <= 0) begin
-          result_o = 'b0;
-        end else if ($signed(op_a_i) >= $signed(clip_reg_opb)) begin
-          result_o = clip_reg_opb;
-        end else begin
-          result_o = op_a_i;
-        end
+        cmp_op_b = (op_a_i[Width-1] | clip_reg_op_b[Width-1]) ? 'b0 : clip_reg_op_b;
+        result_o = (op_a_i[Width-1] | clip_reg_op_b[Width-1]) ? (cmp_result ? 'b0 : clip_reg_op_b) : (cmp_result ? op_a_i : clip_reg_op_b);
       end
       default: result_o = 'b0;
     endcase
