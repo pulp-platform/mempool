@@ -189,16 +189,6 @@ module dspu #(
   //
 
   // --------------------
-  // Shared comparator
-  // --------------------
-  logic cmp_signed;
-  logic [Width-1:0] cmp_op_a, cmp_op_b;
-  logic cmp_result;
-
-  // Instantiate comparator
-  assign cmp_result = $signed({cmp_op_a[Width-1] & cmp_signed, cmp_op_a}) <= $signed({cmp_op_b[Width-1] & cmp_signed, cmp_op_b});
-
-  // --------------------
   // Clips
   // --------------------
   logic [Width-1:0] clip_op_b, clip_op_b_n;
@@ -215,59 +205,63 @@ module dspu #(
   assign clip_op_b = clip_instr_immediate ? ~clip_lower : op_b_i;
 
   // --------------------
-  // Result generation
+  // Shared comparator
   // --------------------
+  logic [Width-1:0] cmp_op_a, cmp_op_b;
+  logic cmp_signed;
+  logic cmp_result;
+
+  // Sign of the comparison
+  always_comb begin
+    cmp_signed = 1'b1;
+    unique casez (operator_i)
+      riscv_instr::P_SLETU,
+      riscv_instr::P_MINU,
+      riscv_instr::P_MAXU:
+        cmp_signed = 1'b0;
+      default: ;
+    endcase
+  end
+
+  // Comparison operands
   always_comb begin
     cmp_op_a = op_a_i;
     cmp_op_b = op_b_i;
-    cmp_signed = 1'b1;
-    result_o = 'b0;
     unique casez (operator_i)
-      riscv_instr::P_ABS: begin
-        cmp_op_b = 'b0;
-        result_o = cmp_result ? -$signed(op_a_i) : op_a_i;
-      end
-      riscv_instr::P_SLET: begin
-        result_o = $unsigned(cmp_result);
-      end
-      riscv_instr::P_SLETU: begin
-        cmp_signed = 1'b0;
-        result_o = $unsigned(cmp_result);
-      end
-      riscv_instr::P_MIN: begin
-        result_o = cmp_result ? op_a_i : op_b_i;
-      end
-      riscv_instr::P_MINU: begin
-        cmp_signed = 1'b0;
-        result_o = cmp_result ? op_a_i : op_b_i;
-      end
-      riscv_instr::P_MAX: begin
-        result_o = ~cmp_result ? op_a_i : op_b_i;
-      end
-      riscv_instr::P_MAXU: begin
-        cmp_signed = 1'b0;
-        result_o = ~cmp_result ? op_a_i : op_b_i;
-      end
-      riscv_instr::P_EXTHS: begin
-        result_o = $signed(op_a_i[Width/2-1:0]);
-      end
-      riscv_instr::P_EXTHZ: begin
-        result_o = $unsigned(op_a_i[Width/2-1:0]);
-      end
-      riscv_instr::P_EXTBS: begin
-        result_o = $signed(op_a_i[7:0]);
-      end
-      riscv_instr::P_EXTBZ: begin
-        result_o = $unsigned(op_a_i[7:0]);
-      end
+      riscv_instr::P_ABS: cmp_op_b = 'b0;
       riscv_instr::P_CLIP,
       riscv_instr::P_CLIPU,
       riscv_instr::P_CLIPR,
-      riscv_instr::P_CLIPUR: begin
-        cmp_op_b = (op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : clip_op_b;
-        result_o = cmp_result ? ((op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : op_a_i) : (op_a_i[Width-1] ? op_a_i : clip_op_b);
-      end
-      default: result_o = 'b0;
+      riscv_instr::P_CLIPUR: cmp_op_b = (op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : clip_op_b;
+      default: ;
+    endcase
+  end
+
+  // Instantiate comparator
+  assign cmp_result = $signed({cmp_op_a[Width-1] & cmp_signed, cmp_op_a}) <= $signed({cmp_op_b[Width-1] & cmp_signed, cmp_op_b});
+
+  // --------------------
+  // Result generation
+  // --------------------
+  always_comb begin
+    unique casez (operator_i)
+      riscv_instr::P_ABS: result_o = cmp_result ? -$signed(op_a_i) : op_a_i;
+      riscv_instr::P_SLET,
+      riscv_instr::P_SLETU: result_o = $unsigned(cmp_result);
+      riscv_instr::P_MIN,
+      riscv_instr::P_MINU: result_o = cmp_result ? op_a_i : op_b_i;
+      riscv_instr::P_MAX,
+      riscv_instr::P_MAXU:
+        result_o = ~cmp_result ? op_a_i : op_b_i;
+      riscv_instr::P_EXTHS: result_o = $signed(op_a_i[Width/2-1:0]);
+      riscv_instr::P_EXTHZ: result_o = $unsigned(op_a_i[Width/2-1:0]);
+      riscv_instr::P_EXTBS: result_o = $signed(op_a_i[7:0]);
+      riscv_instr::P_EXTBZ: result_o = $unsigned(op_a_i[7:0]);
+      riscv_instr::P_CLIP,
+      riscv_instr::P_CLIPU,
+      riscv_instr::P_CLIPR,
+      riscv_instr::P_CLIPUR: result_o = cmp_result ? ((op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : op_a_i) : (op_a_i[Width-1] ? op_a_i : clip_op_b);
+      default: result_o = '0;
     endcase
   end
 
