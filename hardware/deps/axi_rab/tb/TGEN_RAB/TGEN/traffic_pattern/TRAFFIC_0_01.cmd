@@ -36,5 +36,5 @@ BARRIER_AR();
 Nop;
 
 BASE_ADDRESS = 32'h0005_0000;
-FILL_RANDOM   ( .address_base(BASE_ADDRESS),   .fill_pattern(32'h01F10000), .transfer_count(COUNT_32B), .transfer_type("32_BYTE") ); 
+FILL_RANDOM   ( .address_base(BASE_ADDRESS),   .fill_pattern(32'h01F10000), .transfer_count(COUNT_32B), .transfer_type("32_BYTE") );
 BARRIER_AW();

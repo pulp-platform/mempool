@@ -122,9 +122,9 @@ program test
             pkt.genRndPkt(4, dataIn);
             pkt.PrintPkt("Data In", dataIn);
             $display("Data Length is %d bytes", dataIn.size());
-         	 $display("Address is %h", address);
-         	 axi4lite_m.writeData(wrRespPtr, address, dataIn);
-         	 axi4lite_m.getWrResp(wrRespPtr, wrRespOut);
+            $display("Address is %h", address);
+            axi4lite_m.writeData(wrRespPtr, address, dataIn);
+            axi4lite_m.getWrResp(wrRespPtr, wrRespOut);
          end
 
          // Read slice registers

@@ -6,11 +6,11 @@
 // int data;
 // string trans_type;
 // int seed;
-// 
+//
 // seed = 920;
 // $display(" Seed for Random Number generator is %d",seed);
 // void'($urandom(seed));
-// 
+//
 // Nop;
 // for (int i=0; i<1024; i++) begin
 //   //srandom(546);
@@ -39,5 +39,3 @@ FILL_LINEAR ( .address_base(32'h00001020),   .fill_pattern(32'h00001020), .trans
 FILL_LINEAR ( .address_base(32'h00001030),   .fill_pattern(32'h00001030), .transfer_count(COUNT_ONE), .transfer_type("4_BYTE") );
 
 FILL_LINEAR ( .address_base(32'h00001040),   .fill_pattern(32'h00001040), .transfer_count(COUNT_ONE), .transfer_type("4_BYTE") );
-
-

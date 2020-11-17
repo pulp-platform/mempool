@@ -11,14 +11,14 @@
 `timescale 1ns/1ps
 `define SOD 0.1
 
-module TGEN_AXI_LITE 
-#( 
+module TGEN_AXI_LITE
+#(
       parameter AXI_ADDRESS_WIDTH = 32,
       parameter AXI_RDATA_WIDTH   = 32,
       parameter AXI_WDATA_WIDTH   = 32,
       parameter AXI_NUMBYTES       = AXI_WDATA_WIDTH/8,
       parameter SRC_ID             = 0
-)	
+)
 (
     input  logic							clk,
     input  logic							rst_n,
@@ -53,21 +53,21 @@ module TGEN_AXI_LITE
     input  logic [1:0] 							rresp_i
 );
 
-    
-    //class color ;   
+
+    //class color ;
     event 					req_AW_granted;
     event 					req_AR_granted;
     event 					req_DW_granted;
     event					WriteDone;
     event					ReadDone;
 
-    
+
     integer 					i,j,k;
     integer 					ID;
-    
 
-    
-    `include "TGEN_AXI_LITE_TASK.sv" 
+
+
+    `include "TGEN_AXI_LITE_TASK.sv"
 
 
     always @(posedge clk)
@@ -77,25 +77,25 @@ module TGEN_AXI_LITE
 	-> req_AW_granted;
       end
     end
-    
-    
+
+
     always @(posedge clk)
     begin
       if((arvalid_o == 1'b1) && (arready_i == 1'b1))
       begin
 	-> req_AR_granted;
       end
-    end    
-    
-    
+    end
+
+
     always @(posedge clk)
     begin
       if((wvalid_o == 1'b1) && (wready_i == 1'b1))
       begin
 	-> req_DW_granted;
       end
-    end     
-    
+    end
+
     always @(posedge clk)
     begin
       if((bvalid_i == 1'b1) && (bready_o == 1'b1))
@@ -110,32 +110,32 @@ module TGEN_AXI_LITE
       begin
 	-> ReadDone;
       end
-    end    
-    
-    
-initial 
+    end
+
+
+initial
   begin
 
     Nop();
-    
-    @(posedge clk);
-    @(posedge clk);    
-    @(posedge clk);
-    @(posedge clk);
-    @(posedge clk);
-    @(posedge clk);
-    @(posedge clk);
-    @(posedge clk);    
-    @(posedge clk);
-    @(posedge clk);
-    @(posedge clk);
-    @(posedge clk);        
 
-    
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+    @(posedge clk);
+
+
     repeat(1)
     begin
       // Write your Config program Here!!!!        Eg 4 regions, and we use only one (Region0)
-      
+
       // FILL The axi_reg_top conf register 4 Region USED
       STORE( .address(32'h0000_0000), .wdata(32'h0000_0000), .be(4'hf) ); //Start Address Region 0, Master 0;
       STORE( .address(32'h0000_0004), .wdata(32'h0003_FFFF), .be(4'hf) ); //End Address   Region 0, Master 0;
@@ -195,16 +195,16 @@ initial
 
       //Configure the connectivity map for Slave PORT 0 --> write the LSB
       STORE( .address(32'h0000_0200), .wdata(32'b00000000_00000000_00000000_11111111), .be(4'hF) );  // Slave port 0 (eg Core0) is connected to all master ports (eg memories)
-      
+
       //Configure the connectivity map for Slave PORT 1
       STORE( .address(32'h0000_0204), .wdata(32'b00000000_00000000_00000000_00001111), .be(4'hF) );  // Slave port 1 is connected to  master ports 0,1,2,3
-      
+
       //Configure the connectivity map for Slave PORT 2
       STORE( .address(32'h0000_0208), .wdata(32'b00000000_00000000_00000000_00001111), .be(4'hF) );  // Slave port 2 is connected to  master ports 4,5,6,7
-      
+
       //Configure the connectivity map for Slave PORT 3
       STORE( .address(32'h0000_020C), .wdata(32'b00000000_00000000_00000000_00000011), .be(4'hF) );  // Slave port 1 is connected to  master ports 0,1
-      
+
     end
 
     Nop();
@@ -218,7 +218,7 @@ initial
     @(negedge clk);
     @(negedge clk);
     @(negedge clk);
-    
+
 end
 
 

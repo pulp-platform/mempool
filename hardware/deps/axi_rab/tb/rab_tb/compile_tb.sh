@@ -30,14 +30,14 @@ endif
 if (-e $LIB) then
  rm -rf $LIB
 endif
- 
+
 ## make new library
 vlib-${VER} $LIB
 
 ## Start the log file
 echo -n "** Compilation using modelsim version: $VER of ${DESIGN} from: " >> ${LOG}
 date                                                                      >> ${LOG}
- 
+
 ## Compile sources
 # Generic FIFO
 vlog-${VER}  -work $LIB +incdir+${INC_PATHS} +define+PULP_FPGA_EMUL=1 ${IPS_SOURCE_PATH}/common_cells/generic_fifo.sv >> ${LOG}
@@ -88,7 +88,7 @@ vlog-${VER}  -work $LIB  +incdir+${INC_PATHS} ${IPS_SOURCE_PATH}/axi/axi_rab/rtl
 vlog-${VER}  -work $LIB  +incdir+${INC_PATHS} ${IPS_SOURCE_PATH}/axi/axi_rab/rtl/axi_rab_top.sv    >> ${LOG}
 
 vlog-${VER}  -work $LIB  +incdir+${INC_PATHS} ./axi_rab_wrap_tb.sv                                 >> ${LOG}
- 
+
 # Traffic Generators
 vlog-${VER}  -work $LIB ${AXI4LITE_VIP_PATH}/axi4lite_vip/verification_ip/axi4lite_m_if.sv         >> ${LOG}
 vlog-${VER}  -work $LIB ${AXI4LITE_VIP_PATH}/axi4lite_vip/verification_ip/axi4lite_m.sv            >> ${LOG}

@@ -12,4 +12,3 @@ clean:
 	rm -rf vsim*
 	rm -rf transcript
 	rm -rf TRAFFIC_0_13.cmd
-

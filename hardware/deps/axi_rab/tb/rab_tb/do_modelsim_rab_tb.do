@@ -6,7 +6,6 @@ onbreak {resume}
 view objects
 view locals
 view source
-view wave 
+view wave
 
 do ./wave.do
-

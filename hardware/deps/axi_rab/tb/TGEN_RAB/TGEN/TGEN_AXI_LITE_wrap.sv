@@ -11,8 +11,8 @@
 `timescale 1ns/1ps
 `define SOD 0.1
 
-module TGEN_AXI_LITE_wrap 
-#( 
+module TGEN_AXI_LITE_wrap
+#(
       parameter AXI_ADDRESS_WIDTH = 32,
       parameter AXI_RDATA_WIDTH   = 32,
       parameter AXI_WDATA_WIDTH   = 32,
@@ -26,8 +26,8 @@ module TGEN_AXI_LITE_wrap
 );
 
 
-TGEN_AXI_LITE 
-#( 
+TGEN_AXI_LITE
+#(
       .AXI_ADDRESS_WIDTH ( AXI_ADDRESS_WIDTH ),
       .AXI_RDATA_WIDTH   ( AXI_RDATA_WIDTH   ),
       .AXI_WDATA_WIDTH   ( AXI_WDATA_WIDTH   ),
