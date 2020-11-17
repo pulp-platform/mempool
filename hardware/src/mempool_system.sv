@@ -11,9 +11,7 @@ module mempool_system #(
     // TCDM
     parameter addr_t TCDMBaseAddr = 32'b0,
     // Boot address
-    parameter addr_t BootAddr = 32'h0000_0000,
-    // Dependant parameters. DO NOT CHANGE!
-    parameter int unsigned NumTiles = NumCores / NumCoresPerTile
+    parameter addr_t BootAddr = 32'h0000_0000
   ) (
     input logic                clk_i,
     input logic                rst_ni,
@@ -32,6 +30,7 @@ module mempool_system #(
     output axi_lite_slv_resp_t rab_conf_resp_o
   );
 
+  localparam NumTiles         = NumCores / NumCoresPerTile;
   localparam NumTilesPerGroup = NumTiles / NumGroups;
   localparam NumBanks         = NumCores * BankingFactor;
   localparam TCDMSize         = NumBanks * TCDMSizePerBank;
@@ -41,8 +40,8 @@ module mempool_system #(
    *  AXI  *
    *********/
 
-  localparam NumAXIMasters = NumTiles + 1;
-  localparam NumAXISlaves  = 3;
+  localparam NumAXIMasters = NumTiles + 1; // +1 because the external host is also a master
+  localparam NumAXISlaves  = 3;            // control regs, l2 memory and the external mst ports
   localparam NumRules      = NumAXISlaves - 1;
 
   typedef enum logic [$clog2(NumAXISlaves) - 1:0] {
