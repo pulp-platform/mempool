@@ -24,7 +24,7 @@ module axi4_b_sender
     input  logic                      hit_i,
 
     output logic   [AXI_ID_WIDTH-1:0] s_axi4_bid,
-    output logic                [1:0] s_axi4_bresp, 
+    output logic                [1:0] s_axi4_bresp,
     output logic                      s_axi4_bvalid,
     output logic [AXI_USER_WIDTH-1:0] s_axi4_buser,
     input  logic                      s_axi4_bready,
