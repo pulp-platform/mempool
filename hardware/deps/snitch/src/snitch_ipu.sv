@@ -182,17 +182,25 @@ module dspu #(
   logic [4:0] ximm;
   assign ximm = operator_i[24:20];
 
-  // --------------------
-  // Datapath
-  // --------------------
+  //  ___    _  _____  _    ___   _  _____  _  _
+  // |   \  /_\|_   _|/_\  | _ \ /_\|_   _|| || |
+  // | |) |/ _ \ | | / _ \ |  _// _ \ | |  | __ |
+  // |___//_/ \_\|_|/_/ \_\|_| /_/ \_\|_|  |_||_|
+  //
 
+  // --------------------
   // Shared comparator
+  // --------------------
   logic cmp_signed;
   logic [Width-1:0] cmp_op_a, cmp_op_b;
   logic cmp_result;
+
+  // Instantiate comparator
   assign cmp_result = $signed({cmp_op_a[Width-1] & cmp_signed, cmp_op_a}) <= $signed({cmp_op_b[Width-1] & cmp_signed, cmp_op_b});
 
-  // Clip pre-processing (generate -2^(ximm-1), 2^(ximm-1)-1 for clip/clipu and -rs2-1, rs2 for clipr, clipur)
+  // --------------------
+  // Clips
+  // --------------------
   logic [Width-1:0] clip_op_b, clip_op_b_n;
   logic [Width-1:0] clip_lower;
   logic clip_instr_unsigned;
@@ -201,60 +209,61 @@ module dspu #(
   assign clip_instr_unsigned = (operator_i ==? riscv_instr::P_CLIPU) || (operator_i ==? riscv_instr::P_CLIPUR);
   assign clip_instr_immediate = (operator_i ==? riscv_instr::P_CLIP) || (operator_i ==? riscv_instr::P_CLIPU);
 
+  // Generate -2^(ximm-1), 2^(ximm-1)-1 for clip/clipu and -rs2-1, rs2 for clipr, clipur
   assign clip_lower = ({(Width+1){1'b1}} << $unsigned(ximm)) >> 1;
-
   assign clip_op_b_n = clip_instr_unsigned ? 'b0 : ((operator_i ==? riscv_instr::P_CLIP) ? clip_lower : ~op_b_i);
   assign clip_op_b = clip_instr_immediate ? ~clip_lower : op_b_i;
 
-  // Operations
+  // --------------------
+  // Result generation
+  // --------------------
   always_comb begin
     cmp_op_a = op_a_i;
     cmp_op_b = op_b_i;
     cmp_signed = 1'b1;
     result_o = 'b0;
     unique casez (operator_i)
-      // Absolute value
-      riscv_instr::P_ABS: begin    // Xpulpimg: p.abs
+      riscv_instr::P_ABS: begin
         cmp_op_b = 'b0;
         result_o = cmp_result ? -$signed(op_a_i) : op_a_i;
       end
-      riscv_instr::P_SLET: begin   // Xpulpimg: p.slet
+      riscv_instr::P_SLET: begin
         result_o = $unsigned(cmp_result);
       end
-      riscv_instr::P_SLETU: begin  // Xpulpimg: p.sletu
+      riscv_instr::P_SLETU: begin
         cmp_signed = 1'b0;
         result_o = $unsigned(cmp_result);
       end
-      riscv_instr::P_MIN: begin    // Xpulpimg: p.min
+      riscv_instr::P_MIN: begin
         result_o = cmp_result ? op_a_i : op_b_i;
       end
-      riscv_instr::P_MINU: begin   // Xpulpimg: p.minu
+      riscv_instr::P_MINU: begin
         cmp_signed = 1'b0;
         result_o = cmp_result ? op_a_i : op_b_i;
       end
-      riscv_instr::P_MAX: begin    // Xpulpimg: p.max
+      riscv_instr::P_MAX: begin
         result_o = ~cmp_result ? op_a_i : op_b_i;
       end
-      riscv_instr::P_MAXU: begin   // Xpulpimg: p.maxu
+      riscv_instr::P_MAXU: begin
         cmp_signed = 1'b0;
         result_o = ~cmp_result ? op_a_i : op_b_i;
       end
-      riscv_instr::P_EXTHS: begin  // Xpulpimg: p.exths
+      riscv_instr::P_EXTHS: begin
         result_o = $signed(op_a_i[Width/2-1:0]);
       end
-      riscv_instr::P_EXTHZ: begin  // Xpulpimg: p.exthz
+      riscv_instr::P_EXTHZ: begin
         result_o = $unsigned(op_a_i[Width/2-1:0]);
       end
-      riscv_instr::P_EXTBS: begin  // Xpulpimg: p.extbs
+      riscv_instr::P_EXTBS: begin
         result_o = $signed(op_a_i[7:0]);
       end
-      riscv_instr::P_EXTBZ: begin  // Xpulpimg: p.extbz
+      riscv_instr::P_EXTBZ: begin
         result_o = $unsigned(op_a_i[7:0]);
       end
-      riscv_instr::P_CLIP,         // Xpulpimg: p.clip
-      riscv_instr::P_CLIPU,        // Xpulpimg: p.clipu
-      riscv_instr::P_CLIPR,        // Xpulpimg: p.clipr
-      riscv_instr::P_CLIPUR: begin // Xpulpimg: p.clipur
+      riscv_instr::P_CLIP,
+      riscv_instr::P_CLIPU,
+      riscv_instr::P_CLIPR,
+      riscv_instr::P_CLIPUR: begin
         cmp_op_b = (op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : clip_op_b;
         result_o = cmp_result ? ((op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : op_a_i) : (op_a_i[Width-1] ? op_a_i : clip_op_b);
       end
