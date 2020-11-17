@@ -192,13 +192,19 @@ module dspu #(
   logic cmp_result;
   assign cmp_result = $signed({cmp_op_a[Width-1] & cmp_signed, cmp_op_a}) <= $signed({cmp_op_b[Width-1] & cmp_signed, cmp_op_b});
 
-  // Clip pre-processing
+  // Clip pre-processing (generate -2^(ximm-1), 2^(ximm-1)-1 for clip/clipu and -rs2-1, rs2 for clipr, clipur)
   logic [Width-1:0] clip_op_b, clip_op_b_n;
-  logic [Width-1:0] clip_reg_op_b, clip_reg_op_b_n;
-  assign clip_op_b_n = ({(Width+1){1'b1}} << ximm) >> 1; // -2^(ximm-1)
-  assign clip_op_b = ~clip_op_b_n;                       // 2^(ximm-1) - 1
-  assign clip_reg_op_b = op_b_i;                         // rs2
-  assign clip_reg_op_b_n = ~clip_reg_op_b;               // -rs2-1
+  logic [Width-1:0] clip_lower;
+  logic clip_instr_unsigned;
+  logic clip_instr_immediate;
+
+  assign clip_instr_unsigned = (operator_i ==? riscv_instr::P_CLIPU) || (operator_i ==? riscv_instr::P_CLIPUR);
+  assign clip_instr_immediate = (operator_i ==? riscv_instr::P_CLIP) || (operator_i ==? riscv_instr::P_CLIPU);
+
+  assign clip_lower = ({(Width+1){1'b1}} << $unsigned(ximm)) >> 1;
+
+  assign clip_op_b_n = clip_instr_unsigned ? 'b0 : ((operator_i ==? riscv_instr::P_CLIP) ? clip_lower : ~op_b_i);
+  assign clip_op_b = clip_instr_immediate ? ~clip_lower : op_b_i;
 
   // Operations
   always_comb begin
@@ -245,21 +251,12 @@ module dspu #(
       riscv_instr::P_EXTBZ: begin  // Xpulpimg: p.extbz
         result_o = $unsigned(op_a_i[7:0]);
       end
-      riscv_instr::P_CLIP: begin   // Xpulpimg: p.clip
-        cmp_op_b = op_a_i[Width-1] ? clip_op_b_n : clip_op_b;
-        result_o = op_a_i[Width-1] ? (cmp_result ? clip_op_b_n : op_a_i) : (cmp_result ? op_a_i : clip_op_b);
-      end
-      riscv_instr::P_CLIPU: begin  // Xpulpimg: p.clipu
-        cmp_op_b = op_a_i[Width-1] ? 'b0 : clip_op_b;
-        result_o = op_a_i[Width-1] ? (cmp_result ? 'b0 : op_a_i) : (cmp_result ? op_a_i : clip_op_b);
-      end
-      riscv_instr::P_CLIPR: begin  // Xpulpimg: p.clipr
-        cmp_op_b = (op_a_i[Width-1] ^ clip_reg_op_b[Width-1]) ? clip_reg_op_b_n : clip_reg_op_b;
-        result_o = (op_a_i[Width-1] ^ clip_reg_op_b[Width-1]) ? (cmp_result ? clip_reg_op_b_n : (clip_reg_op_b[Width-1] ? clip_reg_op_b : op_a_i)) : (clip_reg_op_b[Width-1] ? clip_reg_op_b_n : (cmp_result ? op_a_i : clip_reg_op_b));
-      end
+      riscv_instr::P_CLIP,         // Xpulpimg: p.clip
+      riscv_instr::P_CLIPU,        // Xpulpimg: p.clipu
+      riscv_instr::P_CLIPR,        // Xpulpimg: p.clipr
       riscv_instr::P_CLIPUR: begin // Xpulpimg: p.clipur
-        cmp_op_b = (op_a_i[Width-1] | clip_reg_op_b[Width-1]) ? 'b0 : clip_reg_op_b;
-        result_o = (op_a_i[Width-1] | clip_reg_op_b[Width-1]) ? (cmp_result ? 'b0 : clip_reg_op_b) : (cmp_result ? op_a_i : clip_reg_op_b);
+        cmp_op_b = (op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : clip_op_b;
+        result_o = cmp_result ? ((op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : op_a_i) : (op_a_i[Width-1] ? op_a_i : clip_op_b);
       end
       default: result_o = 'b0;
     endcase
