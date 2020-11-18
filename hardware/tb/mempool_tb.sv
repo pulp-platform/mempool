@@ -131,10 +131,10 @@ module mempool_tb;
     .fetch_en_i     (fetch_en     ),
     .eoc_valid_o    (eoc_valid    ),
     .busy_o         (/*Unused*/   ),
-    .ext_req_o      (axi_mst_req  ),
-    .ext_resp_i     (axi_mst_resp ),
-    .ext_req_i      (/*Unused*/ '0),
-    .ext_resp_o     (/*Unused*/   ),
+    .mst_req_o      (axi_mst_req  ),
+    .mst_resp_i     (axi_mst_resp ),
+    .slv_req_i      (/*Unused*/ '0),
+    .slv_resp_o     (/*Unused*/   ),
     .rab_conf_req_i (rab_conf_req ),
     .rab_conf_resp_o(rab_conf_resp)
   );

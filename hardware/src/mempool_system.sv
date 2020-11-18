@@ -20,11 +20,11 @@ module mempool_system #(
     output logic               eoc_valid_o,
     output logic               busy_o,
 
-    output axi_system_req_t    ext_req_o,
-    input  axi_system_resp_t   ext_resp_i,
+    output axi_system_req_t    mst_req_o,
+    input  axi_system_resp_t   mst_resp_i,
 
-    input  axi_system_req_t    ext_req_i,
-    output axi_system_resp_t   ext_resp_o,
+    input  axi_system_req_t    slv_req_i,
+    output axi_system_resp_t   slv_resp_o,
 
     input  axi_lite_slv_req_t  rab_conf_req_i,
     output axi_lite_slv_resp_t rab_conf_resp_o
@@ -271,10 +271,10 @@ module mempool_system #(
     .from_mempool_miss_irq_o (/*Unused*/            ),
     .from_mempool_multi_irq_o(/*Unused*/            ),
     .from_mempool_prot_irq_o (/*Unused*/            ),
-    .to_host_req_o           (ext_req_o             ),
-    .to_host_resp_i          (ext_resp_i            ),
-    .from_host_req_i         (ext_req_i             ),
-    .from_host_resp_o        (ext_resp_o            ),
+    .to_host_req_o           (mst_req_o             ),
+    .to_host_resp_i          (mst_resp_i            ),
+    .from_host_req_i         (slv_req_i             ),
+    .from_host_resp_o        (slv_resp_o            ),
     .from_host_miss_irq_o    (/*Unused*/            ),
     .from_host_multi_irq_o   (/*Unused*/            ),
     .from_host_prot_irq_o    (/*Unused*/            ),
