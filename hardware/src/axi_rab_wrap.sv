@@ -20,6 +20,7 @@ module axi_rab_wrap #(
   parameter int unsigned MhFifoDepth        = 0,
   // AXI Configuration
   parameter int unsigned AxiAddrWidth       = 0,
+  parameter int unsigned AxiLiteDataWidth   = 0,
   parameter int unsigned AxiDataWidth       = 0,
   parameter int unsigned AxiIdWidth         = 0,
   parameter int unsigned AxiUserWidth       = 0,
@@ -68,7 +69,7 @@ module axi_rab_wrap #(
     .AXI_DATA_WIDTH       (AxiDataWidth                                                               ),
     .AXI_S_ADDR_WIDTH     (AxiAddrWidth                                                               ),
     .AXI_M_ADDR_WIDTH     (AxiAddrWidth                                                               ),
-    .AXI_LITE_DATA_WIDTH  (AxiDataWidth                                                               ),
+    .AXI_LITE_DATA_WIDTH  (AxiLiteDataWidth                                                           ),
     .AXI_LITE_ADDR_WIDTH  (AxiAddrWidth                                                               ),
     .AXI_ID_WIDTH         (AxiIdWidth                                                                 ),
     .AXI_USER_WIDTH       (AxiUserWidth                                                               ),

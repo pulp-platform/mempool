@@ -257,6 +257,7 @@ module mempool_system #(
     .MhFifoDepth       (16                 ),
     .AxiAddrWidth      (AddrWidth          ),
     .AxiDataWidth      (AxiDataWidth       ),
+    .AxiLiteDataWidth  (AxiLiteDataWidth   ),
     .AxiIdWidth        (AxiSystemIdWidth   ),
     .AxiUserWidth      (1                  ),
     .axi_req_t         (axi_system_req_t   ),

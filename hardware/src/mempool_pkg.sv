@@ -38,7 +38,8 @@ package mempool_pkg;
   localparam integer unsigned NumGroups        = 4;
   localparam integer unsigned AxiCoreIdWidth   = $clog2(NumCoresPerTile);
   localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache
-  localparam integer unsigned AxiDataWidth     = 64;
+  localparam integer unsigned AxiDataWidth     = 128;
+  localparam integer unsigned AxiLiteDataWidth = 32;
 
   localparam integer unsigned L2BeWidth        = AxiDataWidth/8;
   localparam integer unsigned L2ByteOffset     = $clog2(L2BeWidth);
@@ -47,6 +48,8 @@ package mempool_pkg;
   typedef logic [AxiTileIdWidth-1:0] axi_tile_id_t;
   typedef logic [AxiDataWidth-1:0] axi_data_t;
   typedef logic [AxiDataWidth/8-1:0] axi_strb_t;
+  typedef logic [AxiLiteDataWidth-1:0] axi_lite_data_t;
+  typedef logic [AxiLiteDataWidth/8-1:0] axi_lite_strb_t;
   typedef logic [AddrWidth-1:0] addr_t;
   typedef logic [DataWidth-1:0] data_t;
   typedef logic [BeWidth-1:0] strb_t;
@@ -93,10 +96,10 @@ package mempool_pkg;
   `AXI_TYPEDEF_RESP_T(axi_tb_resp_t, axi_tb_b_t, axi_tb_r_t);
 
   `AXI_LITE_TYPEDEF_AW_CHAN_T(axi_lite_slv_aw_t, addr_t)
-  `AXI_LITE_TYPEDEF_W_CHAN_T(axi_lite_slv_w_t, axi_data_t, axi_strb_t)
+  `AXI_LITE_TYPEDEF_W_CHAN_T(axi_lite_slv_w_t, axi_lite_data_t, axi_lite_strb_t)
   `AXI_LITE_TYPEDEF_B_CHAN_T(axi_lite_slv_b_t)
   `AXI_LITE_TYPEDEF_AR_CHAN_T(axi_lite_slv_ar_t, addr_t)
-  `AXI_LITE_TYPEDEF_R_CHAN_T(axi_lite_slv_r_t, axi_data_t)
+  `AXI_LITE_TYPEDEF_R_CHAN_T(axi_lite_slv_r_t, axi_lite_data_t)
   `AXI_LITE_TYPEDEF_REQ_T(axi_lite_slv_req_t, axi_lite_slv_aw_t, axi_lite_slv_w_t, axi_lite_slv_ar_t)
   `AXI_LITE_TYPEDEF_RESP_T(axi_lite_slv_resp_t, axi_lite_slv_b_t, axi_lite_slv_r_t)
 
