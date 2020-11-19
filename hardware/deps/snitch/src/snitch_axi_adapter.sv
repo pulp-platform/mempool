@@ -173,7 +173,7 @@ module snitch_axi_adapter #(
 
     fifo_v3 #(
       .DEPTH      ( ReadFIFODepth                               ),
-      .dtype      ( shift_t                                     )
+      .DATA_WIDTH ( AxiByteOffset-SlvByteOffset                 )
     ) i_fifo_r_shift (
       .clk_i,
       .rst_ni,
