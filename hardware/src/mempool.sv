@@ -23,17 +23,17 @@ module mempool
     parameter int unsigned NumAXIMasters = NumTiles
   ) (
     // Clock and reset
-    input  logic                          clk_i,
-    input  logic                          rst_ni,
-    input  logic                          testmode_i,
+    input  logic                               clk_i,
+    input  logic                               rst_ni,
+    input  logic                               testmode_i,
     // Scan chain
-    input  logic                          scan_enable_i,
-    input  logic                          scan_data_i,
-    input  logic      [NumCores-1:0]      wake_up_i,
-    output logic                          scan_data_o,
+    input  logic                               scan_enable_i,
+    input  logic                               scan_data_i,
+    input  logic           [NumCores-1:0]      wake_up_i,
+    output logic                               scan_data_o,
     // AXI Interface
-    output axi_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
-    input  axi_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
+    output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
+    input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
  );
 
   /*****************

@@ -29,6 +29,7 @@ module ctrl_registers #(
     output axi_lite_resp_t                 axi_lite_slave_resp_o,
     // Control registers
     output logic      [DataWidth-1:0]      eoc_o,
+    output logic                           eoc_valid_o,
     output logic      [NumCores-1:0]       wake_up_o,
     output logic      [DataWidth-1:0]      tcdm_start_address_o,
     output logic      [DataWidth-1:0]      tcdm_end_address_o,
@@ -84,7 +85,7 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
   axi_lite_regs #(
     .RegNumBytes (RegNumBytes               ),
     .AxiAddrWidth(AddrWidth                 ),
-    .AxiDataWidth(DataWidth                 ),
+    .AxiDataWidth(AxiLiteDataWidth          ),
     .AxiReadOnly (AxiReadOnly               ),
     .RegRstVal   (RegRstVal                 ),
     .req_lite_t  (axi_lite_req_t            ),
@@ -121,6 +122,8 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
       end
     end
   end
+
+  assign eoc_valid_o = |wr_active_q[3:0];
 
   // register to add +1 latency to the wr_active signal
   `FF(wr_active_q, wr_active_d, rst_ni)

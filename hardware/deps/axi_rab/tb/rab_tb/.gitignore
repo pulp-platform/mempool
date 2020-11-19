@@ -1,0 +1,7 @@
+/*.log
+
+/rtl/*
+
+/modelsim.ini
+/transcript
+/vsim.wlf

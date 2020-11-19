@@ -28,43 +28,33 @@ module mempool_tile
     parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
   ) (
     // Clock and reset
-    input  logic                                                   clk_i,
-    input  logic                                                   rst_ni,
+    input  logic                                        clk_i,
+    input  logic                                        rst_ni,
     // Scan chain
-    input  logic                                                   scan_enable_i,
-    input  logic                                                   scan_data_i,
-    output logic                                                   scan_data_o,
+    input  logic                                        scan_enable_i,
+    input  logic                                        scan_data_i,
+    output logic                                        scan_data_o,
     // Tile ID
-    input  logic              [idx_width(NumTiles)-1:0]            tile_id_i,
+    input  logic              [idx_width(NumTiles)-1:0] tile_id_i,
     // TCDM Master interfaces
-    output tcdm_master_req_t  [NumGroups-1:0]                      tcdm_master_req_o,
-    output logic              [NumGroups-1:0]                      tcdm_master_req_valid_o,
-    input  logic              [NumGroups-1:0]                      tcdm_master_req_ready_i,
-    input  tcdm_master_resp_t [NumGroups-1:0]                      tcdm_master_resp_i,
-    input  logic              [NumGroups-1:0]                      tcdm_master_resp_valid_i,
-    output logic              [NumGroups-1:0]                      tcdm_master_resp_ready_o,
+    output tcdm_master_req_t  [NumGroups-1:0]           tcdm_master_req_o,
+    output logic              [NumGroups-1:0]           tcdm_master_req_valid_o,
+    input  logic              [NumGroups-1:0]           tcdm_master_req_ready_i,
+    input  tcdm_master_resp_t [NumGroups-1:0]           tcdm_master_resp_i,
+    input  logic              [NumGroups-1:0]           tcdm_master_resp_valid_i,
+    output logic              [NumGroups-1:0]           tcdm_master_resp_ready_o,
     // TCDM slave interfaces
-    input  tcdm_slave_req_t   [NumGroups-1:0]                      tcdm_slave_req_i,
-    input  logic              [NumGroups-1:0]                      tcdm_slave_req_valid_i,
-    output logic              [NumGroups-1:0]                      tcdm_slave_req_ready_o,
-    output tcdm_slave_resp_t  [NumGroups-1:0]                      tcdm_slave_resp_o,
-    output logic              [NumGroups-1:0]                      tcdm_slave_resp_valid_o,
-    input  logic              [NumGroups-1:0]                      tcdm_slave_resp_ready_i,
+    input  tcdm_slave_req_t   [NumGroups-1:0]           tcdm_slave_req_i,
+    input  logic              [NumGroups-1:0]           tcdm_slave_req_valid_i,
+    output logic              [NumGroups-1:0]           tcdm_slave_req_ready_o,
+    output tcdm_slave_resp_t  [NumGroups-1:0]           tcdm_slave_resp_o,
+    output logic              [NumGroups-1:0]           tcdm_slave_resp_valid_o,
+    input  logic              [NumGroups-1:0]           tcdm_slave_resp_ready_i,
     // AXI Interface
-    output axi_req_t                                               axi_mst_req_o,
-    input  axi_resp_t                                              axi_mst_resp_i,
-    // Instruction interface
-    output addr_t             [NumCaches-1:0]                      refill_qaddr_o,
-    output logic              [NumCaches-1:0][7:0]                 refill_qlen_o,
-    output logic              [NumCaches-1:0]                      refill_qvalid_o,
-    input  logic              [NumCaches-1:0]                      refill_qready_i,
-    input  logic              [NumCaches-1:0][ICacheLineWidth-1:0] refill_pdata_i,
-    input  logic              [NumCaches-1:0]                      refill_perror_i,
-    input  logic              [NumCaches-1:0]                      refill_pvalid_i,
-    input  logic              [NumCaches-1:0]                      refill_plast_i,
-    output logic              [NumCaches-1:0]                      refill_pready_o,
+    output axi_tile_req_t                               axi_mst_req_o,
+    input  axi_tile_resp_t                              axi_mst_resp_i,
     // Wake up interface
-    input  logic              [NumCoresPerTile-1:0]                wake_up_i
+    input  logic              [NumCoresPerTile-1:0]     wake_up_i
   );
 
   /****************
@@ -166,6 +156,16 @@ module mempool_tile
   /***********************
    *  Instruction Cache  *
    ***********************/
+  // Instruction interface
+  addr_t [NumCaches-1:0]                      refill_qaddr;
+  logic  [NumCaches-1:0][7:0]                 refill_qlen;
+  logic  [NumCaches-1:0]                      refill_qvalid;
+  logic  [NumCaches-1:0]                      refill_qready;
+  logic  [NumCaches-1:0][AxiDataWidth-1:0]    refill_pdata;
+  logic  [NumCaches-1:0]                      refill_perror;
+  logic  [NumCaches-1:0]                      refill_pvalid;
+  logic  [NumCaches-1:0]                      refill_plast;
+  logic  [NumCaches-1:0]                      refill_pready;
 
   for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
     snitch_icache #(
@@ -178,7 +178,7 @@ module mempool_tile
       .FETCH_AW           (AddrWidth                                           ),
       .FETCH_DW           (DataWidth                                           ),
       .FILL_AW            (AddrWidth                                           ),
-      .FILL_DW            (ICacheLineWidth                                     ),
+      .FILL_DW            (AxiDataWidth                                        ),
       /// Make the early cache latch-based. This reduces latency at the cost of
       /// increased combinatorial path lengths and the hassle of having latches in
       /// the design.
@@ -199,15 +199,15 @@ module mempool_tile
       .inst_valid_i         (snitch_inst_valid[c]    ),
       .inst_ready_o         (snitch_inst_ready[c]    ),
       .inst_error_o         (/* Unused */            ),
-      .refill_qaddr_o       (refill_qaddr_o[c]       ),
-      .refill_qlen_o        (refill_qlen_o[c]        ),
-      .refill_qvalid_o      (refill_qvalid_o[c]      ),
-      .refill_qready_i      (refill_qready_i[c]      ),
-      .refill_pdata_i       (refill_pdata_i[c]       ),
-      .refill_perror_i      (refill_perror_i[c]      ),
-      .refill_pvalid_i      (refill_pvalid_i[c]      ),
-      .refill_plast_i       (refill_plast_i[c]       ),
-      .refill_pready_o      (refill_pready_o[c]      )
+      .refill_qaddr_o       (refill_qaddr[c]         ),
+      .refill_qlen_o        (refill_qlen[c]          ),
+      .refill_qvalid_o      (refill_qvalid[c]        ),
+      .refill_qready_i      (refill_qready[c]        ),
+      .refill_pdata_i       (refill_pdata[c]         ),
+      .refill_perror_i      (refill_perror[c]        ),
+      .refill_pvalid_i      (refill_pvalid[c]        ),
+      .refill_plast_i       (refill_plast[c]         ),
+      .refill_pready_o      (refill_pready[c]        )
     );
   end
 
@@ -676,12 +676,17 @@ module mempool_tile
   );
 
   // Core request
-  axi_req_t  axi_mst_req;
-  axi_resp_t axi_mst_resp;
+  axi_core_req_t  axi_cores_req, axi_cache_req;
+  axi_core_resp_t axi_cores_resp, axi_cache_resp;
+  axi_tile_req_t  axi_mst_req;
+  axi_tile_resp_t axi_mst_resp;
 
   snitch_axi_adapter #(
-    .axi_mst_req_t  (axi_req_t ),
-    .axi_mst_resp_t (axi_resp_t)
+    .addr_t         (snitch_pkg::addr_t),
+    .data_t         (snitch_pkg::data_t),
+    .strb_t         (snitch_pkg::strb_t),
+    .axi_mst_req_t  (axi_core_req_t    ),
+    .axi_mst_resp_t (axi_core_resp_t   )
   ) i_snitch_core_axi_adapter (
     .clk_i       (clk_i           ),
     .rst_ni      (rst_ni          ),
@@ -689,6 +694,7 @@ module mempool_tile
     .slv_qwrite_i(soc_req_o.write ),
     .slv_qamo_i  (soc_req_o.amo   ),
     .slv_qdata_i (soc_req_o.data  ),
+    .slv_qsize_i (3'b010          ),
     .slv_qstrb_i (soc_req_o.strb  ),
     .slv_qrlen_i ('0              ),
     .slv_qvalid_i(soc_qvalid      ),
@@ -698,18 +704,74 @@ module mempool_tile
     .slv_plast_o (/* Unused */    ),
     .slv_pvalid_o(soc_pvalid      ),
     .slv_pready_i(soc_pready      ),
-    .axi_req_o   (axi_mst_req     ),
-    .axi_resp_i  (axi_mst_resp    )
+    .axi_req_o   (axi_cores_req   ),
+    .axi_resp_i  (axi_cores_resp  )
+  );
+
+  // TODO: Add demux for the case where we have many intruction caches
+  snitch_axi_adapter #(
+    .addr_t         (snitch_pkg::addr_t),
+    .data_t         (axi_data_t        ),
+    .strb_t         (axi_strb_t        ),
+    .axi_mst_req_t  (axi_core_req_t    ),
+    .axi_mst_resp_t (axi_core_resp_t   )
+  ) i_snitch_cache_axi_adapter (
+    .clk_i       (clk_i                 ),
+    .rst_ni      (rst_ni                    ),
+    .slv_qaddr_i (refill_qaddr[0]           ),
+    .slv_qwrite_i('0                        ),
+    .slv_qamo_i  ('0                        ),
+    .slv_qdata_i ('0                        ),
+    .slv_qsize_i (3'($clog2(AxiDataWidth/8))),
+    .slv_qstrb_i ('0                        ),
+    .slv_qrlen_i (refill_qlen[0]            ),
+    .slv_qvalid_i(refill_qvalid[0]          ),
+    .slv_qready_o(refill_qready[0]          ),
+    .slv_pdata_o (refill_pdata[0]           ),
+    .slv_perror_o(refill_perror[0]          ),
+    .slv_plast_o (refill_plast[0]           ),
+    .slv_pvalid_o(refill_pvalid[0]          ),
+    .slv_pready_i(refill_pready[0]          ),
+    .axi_req_o   (axi_cache_req             ),
+    .axi_resp_i  (axi_cache_resp            )
+  );
+
+  axi_mux #(
+    .SlvAxiIDWidth (AxiCoreIdWidth ),
+    .slv_aw_chan_t (axi_core_aw_t  ),
+    .mst_aw_chan_t (axi_tile_aw_t  ),
+    .w_chan_t      (axi_tile_w_t   ),
+    .slv_b_chan_t  (axi_core_b_t   ),
+    .mst_b_chan_t  (axi_tile_b_t   ),
+    .slv_ar_chan_t (axi_core_ar_t  ),
+    .mst_ar_chan_t (axi_tile_ar_t  ),
+    .slv_r_chan_t  (axi_core_r_t   ),
+    .mst_r_chan_t  (axi_tile_r_t   ),
+    .slv_req_t     (axi_core_req_t ),
+    .slv_resp_t    (axi_core_resp_t),
+    .mst_req_t     (axi_tile_req_t ),
+    .mst_resp_t    (axi_tile_resp_t),
+    .NoSlvPorts    (2              ),
+    .MaxWTrans     (8              ),
+    .FallThrough   (1              )
+  ) i_axi_mux (
+    .clk_i      (clk_i                           ),
+    .rst_ni     (rst_ni                          ),
+    .test_i     (test_i                          ),
+    .slv_reqs_i ({axi_cores_req, axi_cache_req}  ),
+    .slv_resps_o({axi_cores_resp, axi_cache_resp}),
+    .mst_req_o  (axi_mst_req                     ),
+    .mst_resp_i (axi_mst_resp                    )
   );
 
   axi_cut #(
-    .aw_chan_t(axi_aw_t  ),
-    .w_chan_t (axi_w_t   ),
-    .b_chan_t (axi_b_t   ),
-    .ar_chan_t(axi_ar_t  ),
-    .r_chan_t (axi_r_t   ),
-    .req_t    (axi_req_t ),
-    .resp_t   (axi_resp_t)
+    .aw_chan_t(axi_tile_aw_t  ),
+    .w_chan_t (axi_tile_w_t   ),
+    .b_chan_t (axi_tile_b_t   ),
+    .ar_chan_t(axi_tile_ar_t  ),
+    .r_chan_t (axi_tile_r_t   ),
+    .req_t    (axi_tile_req_t ),
+    .resp_t   (axi_tile_resp_t)
   ) axi_mst_slice (
     .clk_i     (clk_i         ),
     .rst_ni    (rst_ni        ),
@@ -735,6 +797,12 @@ module mempool_tile
 
   if (NumBanksPerTile < 1)
     $fatal(1, "[mempool_tile] The number of banks per tile must be larger than one");
+
+  if (NumCaches != 1)
+    $error("NumCaches > 1 is not supported!");
+
+  if (DataWidth > AxiDataWidth)
+    $error("AxiDataWidth needs to be larger than DataWidth!");
 
 endmodule : mempool_tile
 
@@ -821,8 +889,8 @@ module mempool_tile_wrap
     output logic                                                   tcdm_slave_local_resp_valid_o,
     input  logic                                                   tcdm_slave_local_resp_ready_i,
     // AXI Interface
-    output axi_req_t                                               axi_mst_req_o,
-    input  axi_resp_t                                              axi_mst_resp_i,
+    output axi_tile_req_t                                               axi_mst_req_o,
+    input  axi_tile_resp_t                                              axi_mst_resp_i,
     // Instruction interface
     output addr_t             [NumCaches-1:0]                      refill_qaddr_o,
     output logic              [NumCaches-1:0][7:0]                 refill_qlen_o,                     // AXI signal
@@ -872,16 +940,6 @@ module mempool_tile_wrap
     // AXI interface
     .axi_mst_req_o           (axi_mst_req_o                                                                                                                      ),
     .axi_mst_resp_i          (axi_mst_resp_i                                                                                                                     ),
-    // Instruction interface
-    .refill_qaddr_o          (refill_qaddr_o                                                                                                                     ),
-    .refill_qlen_o           (refill_qlen_o                                                                                                                      ),
-    .refill_qvalid_o         (refill_qvalid_o                                                                                                                    ),
-    .refill_qready_i         (refill_qready_i                                                                                                                    ),
-    .refill_pdata_i          (refill_pdata_i                                                                                                                     ),
-    .refill_perror_i         (refill_perror_i                                                                                                                    ),
-    .refill_pvalid_i         (refill_pvalid_i                                                                                                                    ),
-    .refill_plast_i          (refill_plast_i                                                                                                                     ),
-    .refill_pready_o         (refill_pready_o                                                                                                                    ),
    // Wake up interface
     .wake_up_i               (wake_up_i                                                                                                                          )
   );
