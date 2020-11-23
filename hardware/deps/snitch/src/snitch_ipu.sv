@@ -178,9 +178,92 @@ module dspu #(
   assign in_ready_o = out_ready_i;
   assign id_o = id_i;
 
-  // Decode fields
+  // Decoded fields
   logic [4:0] ximm;
   assign ximm = operator_i[24:20];
+
+  // Internal control signals
+  logic cmp_signed;     // comparator operation is signed
+  enum logic [1:0] {
+    Reg, Zero, ClipBound
+  } cmp_op_b_sel;       // selection of shared comparator operands
+  logic clip_unsigned;  // clip operation has "0" as lower bound
+  logic clip_register;  // if 1 clip operation uses rs2, else ximm
+  enum logic [3:0] {
+    Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip
+  } res_sel;            // result selection
+
+  // --------------------
+  // Decoder
+  // --------------------
+
+  always_comb begin
+    cmp_signed = 1'b1;
+    cmp_op_b_sel = Reg;
+    clip_unsigned = 1'b0;
+    clip_register = 1'b0;
+    res_sel = Abs;
+    unique casez (operator_i)
+      riscv_instr::P_ABS: begin
+        cmp_op_b_sel = Zero;
+        res_sel = Abs;
+      end
+      riscv_instr::P_SLET: begin
+        res_sel = Sle;
+      end
+      riscv_instr::P_SLETU: begin
+        cmp_signed = 1'b0;
+        res_sel = Sle;
+      end
+      riscv_instr::P_MIN: begin
+        res_sel = Min;
+      end
+      riscv_instr::P_MINU: begin
+        cmp_signed = 1'b0;
+        res_sel = Min;
+      end
+      riscv_instr::P_MAX: begin
+        res_sel = Max;
+      end
+      riscv_instr::P_MAXU: begin
+        cmp_signed = 1'b0;
+        res_sel = Max;
+      end
+      riscv_instr::P_EXTHS: begin
+        res_sel = Exths;
+      end
+      riscv_instr::P_EXTHZ: begin
+        res_sel = Exthz;
+      end
+      riscv_instr::P_EXTBS: begin
+        res_sel = Extbs;
+      end
+      riscv_instr::P_EXTBZ: begin
+        res_sel = Extbz;
+      end
+      riscv_instr::P_CLIP: begin
+        cmp_op_b_sel = ClipBound;
+        res_sel = Clip;
+      end
+      riscv_instr::P_CLIPU: begin
+        clip_unsigned = 1'b1;
+        cmp_op_b_sel = ClipBound;
+        res_sel = Clip;
+      end
+      riscv_instr::P_CLIPR: begin
+        clip_register = 1'b1;
+        cmp_op_b_sel = ClipBound;
+        res_sel = Clip;
+      end
+      riscv_instr::P_CLIPUR: begin
+        clip_unsigned = 1'b1;
+        clip_register = 1'b1;
+        cmp_op_b_sel = ClipBound;
+        res_sel = Clip;
+      end
+      default: ;
+    endcase
+  end
 
   //  ___    _  _____  _    ___   _  _____  _  _
   // |   \  /_\|_   _|/_\  | _ \ /_\|_   _|| || |
@@ -188,52 +271,44 @@ module dspu #(
   // |___//_/ \_\|_|/_/ \_\|_| /_/ \_\|_|  |_||_|
   //
 
+  logic cmp_result;
+
   // --------------------
   // Clips
   // --------------------
-  logic [Width-1:0] clip_op_b, clip_op_b_n;
+  logic clip_use_n_bound;
+  logic [Width-1:0] clip_op_b_n, clip_op_b; // clip lower and upper bounds
   logic [Width-1:0] clip_lower;
-  logic clip_instr_unsigned;
-  logic clip_instr_immediate;
-
-  assign clip_instr_unsigned = (operator_i ==? riscv_instr::P_CLIPU) || (operator_i ==? riscv_instr::P_CLIPUR);
-  assign clip_instr_immediate = (operator_i ==? riscv_instr::P_CLIP) || (operator_i ==? riscv_instr::P_CLIPU);
+  logic [Width-1:0] clip_comp;
 
   // Generate -2^(ximm-1), 2^(ximm-1)-1 for clip/clipu and -rs2-1, rs2 for clipr, clipur
   assign clip_lower = ({(Width+1){1'b1}} << $unsigned(ximm)) >> 1;
-  assign clip_op_b_n = clip_instr_unsigned ? 'b0 : ((operator_i ==? riscv_instr::P_CLIP) ? clip_lower : ~op_b_i);
-  assign clip_op_b = clip_instr_immediate ? ~clip_lower : op_b_i;
+  assign clip_op_b_n = clip_unsigned ? 'b0 : (clip_register ? ~op_b_i : clip_lower);
+  assign clip_op_b = clip_register ? op_b_i : ~clip_lower;
+
+  // is 1 when NOT(rs1 >= 0 AND clip_op_b >= 0), i.e. at least one operand is negative
+  assign clip_use_n_bound = op_a_i[Width-1] | clip_op_b[Width-1];
+
+  // Select operand to use in comparison for clip operations: clips would need two comparisons
+  // to clamp the result between the two bounds; but one comparison is enough if we select the
+  // second operand basing on op_a and clip_op_b signs (i.e. rs1 and clip upper bound, being
+  // either rs2 or 2^(ximm-1)-1)
+  assign clip_comp = clip_use_n_bound ? clip_op_b_n : clip_op_b;
 
   // --------------------
   // Shared comparator
   // --------------------
   logic [Width-1:0] cmp_op_a, cmp_op_b;
-  logic cmp_signed;
-  logic cmp_result;
 
-  // Sign of the comparison
+  // Comparator operand A assignment
+  assign cmp_op_a = op_a_i;
+  // Comparator operand B assignment
   always_comb begin
-    cmp_signed = 1'b1;
-    unique casez (operator_i)
-      riscv_instr::P_SLETU,
-      riscv_instr::P_MINU,
-      riscv_instr::P_MAXU:
-        cmp_signed = 1'b0;
-      default: ;
-    endcase
-  end
-
-  // Comparison operands
-  always_comb begin
-    cmp_op_a = op_a_i;
-    cmp_op_b = op_b_i;
-    unique casez (operator_i)
-      riscv_instr::P_ABS: cmp_op_b = 'b0;
-      riscv_instr::P_CLIP,
-      riscv_instr::P_CLIPU,
-      riscv_instr::P_CLIPR,
-      riscv_instr::P_CLIPUR: cmp_op_b = (op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : clip_op_b;
-      default: ;
+    unique case (cmp_op_b_sel)
+      Reg: cmp_op_b = op_b_i;
+      Zero: cmp_op_b = '0;
+      ClipBound: cmp_op_b = clip_comp;
+      default: cmp_op_b = '0;
     endcase
   end
 
@@ -243,24 +318,33 @@ module dspu #(
   // --------------------
   // Result generation
   // --------------------
+
   always_comb begin
-    unique casez (operator_i)
-      riscv_instr::P_ABS: result_o = cmp_result ? -$signed(op_a_i) : op_a_i;
-      riscv_instr::P_SLET,
-      riscv_instr::P_SLETU: result_o = $unsigned(cmp_result);
-      riscv_instr::P_MIN,
-      riscv_instr::P_MINU: result_o = cmp_result ? op_a_i : op_b_i;
-      riscv_instr::P_MAX,
-      riscv_instr::P_MAXU:
-        result_o = ~cmp_result ? op_a_i : op_b_i;
-      riscv_instr::P_EXTHS: result_o = $signed(op_a_i[Width/2-1:0]);
-      riscv_instr::P_EXTHZ: result_o = $unsigned(op_a_i[Width/2-1:0]);
-      riscv_instr::P_EXTBS: result_o = $signed(op_a_i[7:0]);
-      riscv_instr::P_EXTBZ: result_o = $unsigned(op_a_i[7:0]);
-      riscv_instr::P_CLIP,
-      riscv_instr::P_CLIPU,
-      riscv_instr::P_CLIPR,
-      riscv_instr::P_CLIPUR: result_o = cmp_result ? ((op_a_i[Width-1] | clip_op_b[Width-1]) ? clip_op_b_n : op_a_i) : (op_a_i[Width-1] ? op_a_i : clip_op_b);
+    unique case (res_sel)
+      Abs: result_o = cmp_result ? -$signed(op_a_i) : op_a_i;
+      Sle: result_o = $unsigned(cmp_result);
+      Min: result_o = cmp_result ? op_a_i : op_b_i;
+      Max: result_o = ~cmp_result ? op_a_i : op_b_i;
+      Exths: result_o = $signed(op_a_i[15:0]);
+      Exthz: result_o = $unsigned(op_a_i[15:0]);
+      Extbs: result_o = $signed(op_a_i[7:0]);
+      Extbz: result_o = $unsigned(op_a_i[7:0]);
+      // Select the clip output basing on the result of the comparison and on the signs of the operands:
+      // - if rs1 <= clip_comp (i.e. cmp_result = 1)
+      //   * if clip_comp=clip_op_b_n (i.e. rs1<0 or clip_op_b<0): rs1 is below the lower boundand since
+      //     this check has priority over the others, result_o is clipped to clip_op_b_n
+      //   * if clip_comp=clip_op_b (i.e. rs1>=0 and clip_op_b>=0): since rs1<=clip_op_b, then it is
+      //     clip_op_b_n < 0 <= rs1 <= clip_op_b thus rs1 is already within the clip bounds
+      // - if rs1 > clip_comp (i.e. cmp_result = 0)
+      //   * if rs1 < 0: clip_comp=clip_op_b_n because clip_use_n_bound=1; since rs1>clip_op_b_n and
+      //     rs1<0 it is clip_op_b_n < rs1 < 0 <= clip_op_b, thus rs1 is already within the clip bounds
+      //   * if rs1 >= 0: then clip_comp might be clip_op_b_n or clip_op_b basing on clip_op_b sign;
+      //     + if clip_op_b < 0: clip_comp=clip_op_b_n, so rs1>clip_op_b_n but also rs1 >= 0, so it is
+      //       clip_op_b < 0 <= clip_op_n <= rs1; then rs1 is not <= clip_ob_n but it is >= clip_op_b,
+      //       so result_o is clipped to clip_op_b
+      //     + if clip_op_b >= 0: clip_comp=clip_op_b (i.e. rs1>=0 and clip_op_b>=0) and the result must
+      //       be clipped to the upper bound since rs1 > clip_op_b
+      Clip: result_o = cmp_result ? (clip_use_n_bound ? clip_op_b_n : op_a_i) : (op_a_i[Width-1] ? op_a_i : clip_op_b);
       default: result_o = '0;
     endcase
   end
