@@ -41,6 +41,7 @@ ifeq ($(xpulpimg),1)
 		p_extbs p_extbz \
 		p_clip p_clipu \
 		p_clipr p_clipur \
+		p_beqimm p_bneimm \
 
 endif
 

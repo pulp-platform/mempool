@@ -417,6 +417,44 @@ test_ ## testnum: \
     li  x5, 2; \
     bne x4, x5, 1b \
 
+#-----------------------------------------------------------------------
+# Test immediate branching instructions
+#-----------------------------------------------------------------------
+
+#define SEXT_IMM5(x) ((x) | (-(((x) >> 4) & 1) << 4))
+
+#define TEST_BRI_OP_TAKEN( testnum, inst, val1, imm ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x1, MASK_XLEN(val1); \
+    inst x1, SEXT_IMM5(imm), 2f; \
+    bne x0, TESTNUM, fail; \
+1:  bne x0, TESTNUM, 3f; \
+2:  inst x1, SEXT_IMM5(imm), 1b; \
+    bne x0, TESTNUM, fail; \
+3:
+
+#define TEST_BRI_OP_NOTTAKEN( testnum, inst, val1, imm ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x1, MASK_XLEN(val1); \
+    inst x1, SEXT_IMM5(imm), 1f; \
+    bne x0, TESTNUM, 2f; \
+1:  bne x0, TESTNUM, fail; \
+2:  inst x1, SEXT_IMM5(imm), 1b; \
+3:
+
+#define TEST_BRI_SRC1_BYPASS( testnum, nop_cycles, inst, val1, imm ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  li  x1, MASK_XLEN(val1); \
+    TEST_INSERT_NOPS_ ## nop_cycles \
+    inst x1, SEXT_IMM5(imm), fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
 
 #-----------------------------------------------------------------------
 # RV64UF MACROS
