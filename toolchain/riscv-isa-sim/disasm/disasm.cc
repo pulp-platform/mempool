@@ -354,11 +354,12 @@ struct : public arg_t {
 } x0;
 
 // Xpulpimg
+
 struct : public arg_t {
   std::string to_string(insn_t insn) const {
-    return std::to_string((int)insn.x_uimm5());
+    return std::to_string((uint32_t)insn.p_zimm5());
   }
-} imm5;
+} p_zimm5;
 
 typedef struct {
   reg_t match;
@@ -427,7 +428,7 @@ disassembler_t::disassembler_t(int xlen)
   #define DEFINE_XFTYPE(code) DISASM_INSN(#code, code, 0, {&frd, &xrs1})
   #define DEFINE_SFENCE_TYPE(code) DISASM_INSN(#code, code, 0, {&xrs1, &xrs2})
   // Xpulpimg
-  #define DEFINE_XITYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &imm5})
+  #define DEFINE_PITYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_zimm5})
 
   DEFINE_XLOAD(lb)
   DEFINE_XLOAD(lbu)
@@ -1280,8 +1281,8 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_R1TYPE(p_exthz);
   DEFINE_R1TYPE(p_extbs);
   DEFINE_R1TYPE(p_extbz);
-  DEFINE_XITYPE(p_clip);
-  DEFINE_XITYPE(p_clipu);
+  DEFINE_PITYPE(p_clip);
+  DEFINE_PITYPE(p_clipu);
   DEFINE_RTYPE(p_clipr);
   DEFINE_RTYPE(p_clipur);
 

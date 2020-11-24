@@ -129,8 +129,7 @@ public:
   uint64_t v_mew() { return x(28, 1); }
 
   // Xpulpimg
-  uint64_t x_uimm5() { return x(20, 5); }
-
+  uint64_t p_zimm5() { return x(20, 5); }
 
 private:
   insn_bits_t b;
