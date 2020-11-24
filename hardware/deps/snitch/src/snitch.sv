@@ -90,7 +90,7 @@ module snitch #(
   logic wfi_d, wfi_q;
   logic [31:0] consec_pc;
   // Immediates
-  logic [31:0] iimm, uimm, jimm, bimm, simm;
+  logic [31:0] iimm, uimm, jimm, bimm, simm, pbimm;
   /* verilator lint_off WIDTH */
   assign iimm = $signed({inst_data_i[31:20]});
   assign uimm = {inst_data_i[31:12], 12'b0};
@@ -99,6 +99,7 @@ module snitch #(
   assign bimm = $signed({inst_data_i[31],
                                     inst_data_i[7], inst_data_i[30:25], inst_data_i[11:8], 1'b0});
   assign simm = $signed({inst_data_i[31:25], inst_data_i[11:7]});
+  assign pbimm = $signed(inst_data_i[24:20]); // Xpulpimg immediate branching signed immediate
   /* verilator lint_on WIDTH */
 
   logic [31:0] opa, opb;
@@ -173,7 +174,7 @@ module snitch #(
   } alu_op;
 
   enum logic [3:0] {
-    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate
+    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate, PBImmediate
   } opa_select, opb_select;
 
   logic write_rd; // write desitnation this cycle
@@ -723,7 +724,7 @@ module snitch #(
         opa_select = Reg;
         opb_select = Reg;
       end
-      // Off-load to shared multiplier
+      // Off-load to IPU coprocessor
       riscv_instr::MUL,
       riscv_instr::MULH,
       riscv_instr::MULHSU,
@@ -746,6 +747,7 @@ module snitch #(
       end
 
 /* Xpulpimg extension */
+      // Off-load to IPU coprocessor
       riscv_instr::P_ABS,          // Xpulpimg: p.abs
       riscv_instr::P_SLET,         // Xpulpimg: p.slet
       riscv_instr::P_SLETU,        // Xpulpimg: p.sletu
@@ -772,9 +774,31 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
+      // Immediate branching
+      riscv_instr::P_BEQIMM: begin // Xpulpimg: p.beqimm
+        if (snitch_pkg::XPULPIMG) begin
+          is_branch = 1'b1;
+          write_rd = 1'b0;
+          alu_op = Eq;
+          opa_select = Reg;
+          opb_select = PBImmediate;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::P_BNEIMM: begin // Xpulpimg: p.bneimm
+        if (snitch_pkg::XPULPIMG) begin
+          is_branch = 1'b1;
+          write_rd = 1'b0;
+          alu_op = Neq;
+          opa_select = Reg;
+          opb_select = PBImmediate;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
 /* end of Xpulpimg extension */
 
-      // Offload Multiply Instructions
       // TODO(zarubaf): Illegal Instructions
       default: begin
         illegal_inst = 1'b1;
@@ -867,6 +891,7 @@ module snitch #(
       SFImmediate, SImmediate: opb = simm;
       PC: opb = pc_q;
       CSR: opb = csr_rvalue;
+      PBImmediate: opb = pbimm;
       default: opb = '0;
     endcase
   end
