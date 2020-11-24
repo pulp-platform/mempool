@@ -361,6 +361,12 @@ struct : public arg_t {
   }
 } p_zimm5;
 
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::to_string((int)insn.p_simm5());
+  }
+} p_simm5;
+
 typedef struct {
   reg_t match;
   reg_t mask;
@@ -429,6 +435,7 @@ disassembler_t::disassembler_t(int xlen)
   #define DEFINE_SFENCE_TYPE(code) DISASM_INSN(#code, code, 0, {&xrs1, &xrs2})
   // Xpulpimg
   #define DEFINE_PITYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_zimm5})
+  #define DEFINE_PBTYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_simm5, &branch_target})
 
   DEFINE_XLOAD(lb)
   DEFINE_XLOAD(lbu)
@@ -1285,6 +1292,8 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_PITYPE(p_clipu);
   DEFINE_RTYPE(p_clipr);
   DEFINE_RTYPE(p_clipur);
+  DEFINE_PBTYPE(p_beqimm);
+  DEFINE_PBTYPE(p_bneimm);
 
   // provide a default disassembly for all instructions as a fallback
   #define DECLARE_INSN(code, match, mask) \

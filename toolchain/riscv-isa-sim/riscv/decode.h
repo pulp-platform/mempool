@@ -130,6 +130,7 @@ public:
 
   // Xpulpimg
   uint64_t p_zimm5() { return x(20, 5); }
+  int64_t p_simm5() { return xs(20, 5); }
 
 private:
   insn_bits_t b;
