@@ -18,7 +18,7 @@
 #         Matheus Cavalcante, ETH Zurich
 
 # Boot address (in hex)
-boot_addr ?= 80010000
+boot_addr ?= A0000000
 
 # Number of cores
 num_cores ?= 256

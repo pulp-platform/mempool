@@ -5,7 +5,7 @@ ENTRY(_start)
 INCLUDE common/arch.ld
 
 SECTIONS {
-  . = 0x80010000;
+  . = INSTR_BASE;
   .text : {
     *(.text.init)
     *(.text)

@@ -54,7 +54,7 @@ RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Defines
-DEFINES := -DNUM_CORES=$(num_cores)
+DEFINES := -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
@@ -78,8 +78,8 @@ else
 	RISCV_OBJDUMP_FLAGS ?=
 endif
 
-RUNTIME ?= common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o common/arch.ld
-HDR ?=     common/runtime.h
+LINKER_SCRIPT ?= common/arch.ld
+RUNTIME ?= $(LINKER_SCRIPT) common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o
 
 .INTERMEDIATE: $(RUNTIME)
 
@@ -94,3 +94,13 @@ HDR ?=     common/runtime.h
 
 %.ld: %.ld.c
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
+
+# Bootrom
+%.elf: %.S common/bootrom.ld $(LINKER_SCRIPT)
+	$(RISCV_CC) $(RISCV_CCFLAGS) -Tcommon/bootrom.ld $< -nostdlib -static -Wl,--no-gc-sections -o $@
+
+%.bin: %.elf
+	$(RISCV_OBJCOPY) -O binary $< $@
+
+%.img: %.bin
+	dd if=$< of=$@ bs=128
