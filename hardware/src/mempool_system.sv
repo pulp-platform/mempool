@@ -11,7 +11,7 @@ module mempool_system #(
     // TCDM
     parameter addr_t TCDMBaseAddr = 32'b0,
     // Boot address
-    parameter addr_t BootAddr = 32'h0000_0000
+    parameter addr_t BootAddr     = 32'h0000_0000
   ) (
     input logic                clk_i,
     input logic                rst_ni,
@@ -41,12 +41,13 @@ module mempool_system #(
    *********/
 
   localparam NumAXIMasters = NumTiles + 1; // +1 because the external host is also a master
-  localparam NumAXISlaves  = 3;            // control regs, l2 memory and the external mst ports
+  localparam NumAXISlaves  = 4;            // control regs, l2 memory, bootrom and the external mst ports
   localparam NumRules      = NumAXISlaves - 1;
 
   typedef enum logic [$clog2(NumAXISlaves) - 1:0] {
     CtrlRegisters,
     L2Memory,
+    Bootrom,
     External
   } axi_slave_target;
 
@@ -100,11 +101,14 @@ module mempool_system #(
   localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
   localparam addr_t CtrlRegistersEndAddr  = 32'h4000_FFFF;
   localparam addr_t L2MemoryBaseAddr      = 32'h8000_0000;
-  localparam addr_t L2MemoryEndAddr       = 32'hBFFF_FFFF;
+  localparam addr_t L2MemoryEndAddr       = 32'h9FFF_FFFF;
+  localparam addr_t BootromBaseAddr       = 32'hA000_0000;
+  localparam addr_t BootromEndAddr        = 32'hA000_FFFF;
 
   xbar_rule_32_t [NumRules - 1:0] xbar_routing_rules = '{
     '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
-    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}
+    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr},
+    '{idx: Bootrom, start_addr: BootromBaseAddr, end_addr: BootromEndAddr}
   };
 
   axi_xbar #(
@@ -152,11 +156,11 @@ module mempool_system #(
   `AXI_ASSIGN_TO_RESP (axi_mem_resp[L2Memory], axi_l2memory_slave);
 
   // Memory
-  logic  mem_req;
-  addr_t mem_addr;
+  logic      mem_req;
+  addr_t     mem_addr;
   axi_data_t mem_wdata;
   axi_strb_t mem_strb;
-  logic  mem_we;
+  logic      mem_we;
   axi_data_t mem_rdata;
 
   axi2mem #(
@@ -164,7 +168,7 @@ module mempool_system #(
     .AXI_DATA_WIDTH(AxiDataWidth    ),
     .AXI_ID_WIDTH  (AxiSystemIdWidth),
     .AXI_USER_WIDTH(1               )
-  ) i_axi2mem (
+  ) i_axi2mem_l2mem (
     .clk_i (clk_i             ),
     .rst_ni(rst_ni            ),
     .slave (axi_l2memory_slave),
@@ -189,6 +193,50 @@ module mempool_system #(
     .wdata_i(mem_wdata                            ),
     .be_i   (mem_strb                             ),
     .rdata_o(mem_rdata                            )
+  );
+
+  /*************
+   *  Bootrom  *
+   *************/
+
+  AXI_BUS #(
+    .AXI_ADDR_WIDTH (AddrWidth       ),
+    .AXI_DATA_WIDTH (AxiDataWidth    ),
+    .AXI_ID_WIDTH   (AxiSystemIdWidth),
+    .AXI_USER_WIDTH (1               )
+  ) axi_bootrom_slave ();
+
+  // Assign slave
+  `AXI_ASSIGN_FROM_REQ(axi_bootrom_slave, axi_mem_req[Bootrom] );
+  `AXI_ASSIGN_TO_RESP (axi_mem_resp[Bootrom], axi_bootrom_slave);
+
+  // Memory
+  logic      bootrom_req;
+  addr_t     bootrom_addr;
+  axi_data_t bootrom_rdata;
+
+  axi2mem #(
+    .AXI_ADDR_WIDTH(AddrWidth       ),
+    .AXI_DATA_WIDTH(AxiDataWidth    ),
+    .AXI_ID_WIDTH  (AxiSystemIdWidth),
+    .AXI_USER_WIDTH(1               )
+  ) i_axi2mem_bootrom (
+    .clk_i (clk_i            ),
+    .rst_ni(rst_ni           ),
+    .slave (axi_bootrom_slave),
+    .req_o (bootrom_req      ),
+    .addr_o(bootrom_addr     ),
+    .data_o(/* Unused */     ),
+    .we_o  (/* Unused */     ),
+    .be_o  (/* Unused */     ),
+    .data_i(bootrom_rdata    )
+  );
+
+  bootrom i_bootrom (
+    .clk_i  (clk_i        ),
+    .req_i  (bootrom_req  ),
+    .addr_i (bootrom_addr ),
+    .rdata_o(bootrom_rdata)
   );
 
   /***********************
