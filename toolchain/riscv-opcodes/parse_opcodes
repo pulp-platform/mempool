@@ -38,6 +38,7 @@ arglut['shamtw'] = (24,20)
 
 # for xpulpimg
 arglut['imm5'] = (24,20)
+arglut['prs3'] = (11,7)
 
 # for vectors
 arglut['vd'] = (11,7)

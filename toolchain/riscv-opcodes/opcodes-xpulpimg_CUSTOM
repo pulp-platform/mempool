@@ -9,6 +9,35 @@
 
 # Xpulpimg extension
 
+# Post-increment and reg-reg loads
+p.lb_irpost  rd rs1 imm12             14..12=0 6..2=0x02 1..0=3
+p.lbu_irpost rd rs1 imm12             14..12=4 6..2=0x02 1..0=3
+p.lh_irpost  rd rs1 imm12             14..12=1 6..2=0x02 1..0=3
+p.lhu_irpost rd rs1 imm12             14..12=5 6..2=0x02 1..0=3
+p.lw_irpost  rd rs1 imm12             14..12=2 6..2=0x02 1..0=3
+p.lb_rrpost  rd rs1 rs2   31..25=0x00 14..12=7 6..2=0x02 1..0=3
+p.lbu_rrpost rd rs1 rs2   31..25=0x20 14..12=7 6..2=0x02 1..0=3
+p.lh_rrpost  rd rs1 rs2   31..25=0x08 14..12=7 6..2=0x02 1..0=3
+p.lhu_rrpost rd rs1 rs2   31..25=0x28 14..12=7 6..2=0x02 1..0=3
+p.lw_rrpost  rd rs1 rs2   31..25=0x10 14..12=7 6..2=0x02 1..0=3
+p.lb_rr      rd rs1 rs2   31..25=0x00 14..12=7 6..2=0x00 1..0=3
+p.lbu_rr     rd rs1 rs2   31..25=0x20 14..12=7 6..2=0x00 1..0=3
+p.lh_rr      rd rs1 rs2   31..25=0x08 14..12=7 6..2=0x00 1..0=3
+p.lhu_rr     rd rs1 rs2   31..25=0x28 14..12=7 6..2=0x00 1..0=3
+p.lw_rr      rd rs1 rs2   31..25=0x10 14..12=7 6..2=0x00 1..0=3
+
+# Post-increment and reg-reg stores
+p.sb_irpost  rs1 rs2 imm12hi imm12lo              14..12=0 6..2=0x0A 1..0=3
+p.sh_irpost  rs1 rs2 imm12hi imm12lo              14..12=1 6..2=0x0A 1..0=3
+p.sw_irpost  rs1 rs2 imm12hi imm12lo              14..12=2 6..2=0x0A 1..0=3
+p.sb_rrpost  rs1 rs2 prs3             31..25=0x00 14..12=4 6..2=0x0A 1..0=3
+p.sh_rrpost  rs1 rs2 prs3             31..25=0x00 14..12=5 6..2=0x0A 1..0=3
+p.sw_rrpost  rs1 rs2 prs3             31..25=0x00 14..12=6 6..2=0x0A 1..0=3
+p.sb_rr      rs1 rs2 prs3             31..25=0x00 14..12=4 6..2=0x08 1..0=3
+p.sh_rr      rs1 rs2 prs3             31..25=0x00 14..12=5 6..2=0x08 1..0=3
+p.sw_rr      rs1 rs2 prs3             31..25=0x00 14..12=6 6..2=0x08 1..0=3
+
+# Generic ALU operations
 p.abs    rd rs1      31..25=2  24..20=0 14..12=0 6..2=0x0C 1..0=3
 p.slet   rd rs1 rs2  31..25=2           14..12=2 6..2=0x0C 1..0=3
 p.sletu  rd rs1 rs2  31..25=2           14..12=3 6..2=0x0C 1..0=3
@@ -25,5 +54,6 @@ p.clipu  rd rs1 imm5 31..25=10          14..12=2 6..2=0x0C 1..0=3
 p.clipr  rd rs1 rs2  31..25=10          14..12=5 6..2=0x0C 1..0=3
 p.clipur rd rs1 rs2  31..25=10          14..12=6 6..2=0x0C 1..0=3
 
+# Immediate branching
 p.beqimm rs1 imm5 bimm12hi bimm12lo 14..12=2 6..2=0x18 1..0=3
 p.bneimm rs1 imm5 bimm12hi bimm12lo 14..12=3 6..2=0x18 1..0=3

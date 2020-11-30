@@ -7,7 +7,7 @@ MY_OPCODES := opcodes-frep_CUSTOM opcodes-xpulpimg_CUSTOM opcodes-rv32d-zfh_DRAF
 
 ALL_OPCODES := opcodes-pseudo $(ALL_REAL_OPCODES) $(MY_OPCODES) opcodes-rvv-pseudo
 # Opcodes to be discarded
-DISCARDED_OPCODES :=
+DISCARDED_OPCODES := opcodes-frep_CUSTOM
 
 OPCODES = $(filter-out $(sort $(DISCARDED_OPCODES)), $(sort $(ALL_OPCODES)))
 
