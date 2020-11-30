@@ -367,6 +367,43 @@ struct : public arg_t {
   }
 } p_simm5;
 
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::to_string((int)insn.i_imm()) + '(' + xpr_name[insn.rs1()] + "!)";
+  }
+} load_address_irpost;
+
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::string(xpr_name[insn.rs2()]) + '(' + xpr_name[insn.rs1()] + "!)";
+  }
+} load_address_rrpost;
+
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::string(xpr_name[insn.rs2()]) + '(' + xpr_name[insn.rs1()] + ')';
+  }
+} load_address_rr;
+
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::to_string((int)insn.s_imm()) + '(' + xpr_name[insn.rs1()] + "!)";
+  }
+} store_address_irpost;
+
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::string(xpr_name[insn.p_rs3()]) + '(' + xpr_name[insn.rs1()] + "!)";
+  }
+} store_address_rrpost;
+
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::string(xpr_name[insn.p_rs3()]) + '(' + xpr_name[insn.rs1()] + ')';
+  }
+} store_address_rr;
+
+
 typedef struct {
   reg_t match;
   reg_t mask;
@@ -434,6 +471,12 @@ disassembler_t::disassembler_t(int xlen)
   #define DEFINE_XFTYPE(code) DISASM_INSN(#code, code, 0, {&frd, &xrs1})
   #define DEFINE_SFENCE_TYPE(code) DISASM_INSN(#code, code, 0, {&xrs1, &xrs2})
   // Xpulpimg
+  #define DEFINE_PLOAD_IRPOST(code) DISASM_INSN(#code, code, 0, {&xrd, &load_address_irpost})
+  #define DEFINE_PLOAD_RRPOST(code) DISASM_INSN(#code, code, 0, {&xrd, &load_address_rrpost})
+  #define DEFINE_PLOAD_RR(code) DISASM_INSN(#code, code, 0, {&xrd, &load_address_rr})
+  #define DEFINE_PSTORE_IRPOST(code) DISASM_INSN(#code, code, 0, {&xrs2, &store_address_irpost})
+  #define DEFINE_PSTORE_RRPOST(code) DISASM_INSN(#code, code, 0, {&xrs2, &store_address_rrpost})
+  #define DEFINE_PSTORE_RR(code) DISASM_INSN(#code, code, 0, {&xrs2, &store_address_rr})
   #define DEFINE_PITYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_zimm5})
   #define DEFINE_PBTYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_simm5, &branch_target})
 
@@ -1277,6 +1320,30 @@ disassembler_t::disassembler_t(int xlen)
   }
 
   // Xpulpimg extension
+  DEFINE_PLOAD_IRPOST(p_lb_irpost);
+  DEFINE_PLOAD_IRPOST(p_lbu_irpost);
+  DEFINE_PLOAD_IRPOST(p_lh_irpost);
+  DEFINE_PLOAD_IRPOST(p_lhu_irpost);
+  DEFINE_PLOAD_IRPOST(p_lw_irpost);
+  DEFINE_PLOAD_RRPOST(p_lb_rrpost);
+  DEFINE_PLOAD_RRPOST(p_lbu_rrpost);
+  DEFINE_PLOAD_RRPOST(p_lh_rrpost);
+  DEFINE_PLOAD_RRPOST(p_lhu_rrpost);
+  DEFINE_PLOAD_RRPOST(p_lw_rrpost);
+  DEFINE_PLOAD_RR(p_lb_rr);
+  DEFINE_PLOAD_RR(p_lbu_rr);
+  DEFINE_PLOAD_RR(p_lh_rr);
+  DEFINE_PLOAD_RR(p_lhu_rr);
+  DEFINE_PLOAD_RR(p_lw_rr);
+  DEFINE_PSTORE_IRPOST(p_sb_irpost);
+  DEFINE_PSTORE_IRPOST(p_sh_irpost);
+  DEFINE_PSTORE_IRPOST(p_sw_irpost);
+  DEFINE_PSTORE_RRPOST(p_sb_rrpost);
+  DEFINE_PSTORE_RRPOST(p_sh_rrpost);
+  DEFINE_PSTORE_RRPOST(p_sw_rrpost);
+  DEFINE_PSTORE_RR(p_sb_rr);
+  DEFINE_PSTORE_RR(p_sh_rr);
+  DEFINE_PSTORE_RR(p_sw_rr);
   DEFINE_R1TYPE(p_abs);
   DEFINE_RTYPE(p_slet);
   DEFINE_RTYPE(p_sletu);

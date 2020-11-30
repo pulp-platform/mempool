@@ -753,6 +753,30 @@ riscv_insn_ext_v = \
 	$(riscv_insn_ext_v_ldst) \
 
 riscv_insn_ext_xpulpimg = \
+	p_lb_irpost \
+	p_lbu_irpost \
+	p_lh_irpost \
+	p_lhu_irpost \
+	p_lw_irpost \
+	p_lb_rrpost \
+	p_lbu_rrpost \
+	p_lh_rrpost \
+	p_lhu_rrpost \
+	p_lw_rrpost \
+	p_lb_rr \
+	p_lbu_rr \
+	p_lh_rr \
+	p_lhu_rr \
+	p_lw_rr \
+	p_sb_irpost \
+	p_sh_irpost \
+	p_sw_irpost \
+	p_sb_rrpost \
+	p_sh_rrpost \
+	p_sw_rrpost \
+	p_sb_rr \
+	p_sh_rr \
+	p_sw_rr \
 	p_abs \
 	p_slet \
 	p_sletu \

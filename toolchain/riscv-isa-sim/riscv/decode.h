@@ -131,6 +131,7 @@ public:
   // Xpulpimg
   uint64_t p_zimm5() { return x(20, 5); }
   int64_t p_simm5() { return xs(20, 5); }
+  uint64_t p_rs3() { return x(7, 5); }
 
 private:
   insn_bits_t b;
@@ -283,6 +284,9 @@ private:
 
 #define sext8(x)  ((sreg_t)(int8_t)(x))
 #define zext8(x)  ((reg_t)(uint8_t)(x))
+
+#define P_RS3 READ_REG(insn.p_rs3()) /* same as RD, just different semantical value */
+#define WRITE_RS1(value) WRITE_REG(insn.rs1(), value)
 
 
 #define sext32(x) ((sreg_t)(int32_t)(x))
