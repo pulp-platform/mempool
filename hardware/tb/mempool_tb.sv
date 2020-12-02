@@ -99,6 +99,9 @@ module mempool_tb;
   axi_lite_slv_req_t                        rab_conf_req;
   axi_lite_slv_resp_t                       rab_conf_resp;
 
+  axi_system_req_t                          to_mempool_req;
+  axi_system_resp_t                         to_mempool_resp;
+
   localparam xbar_cfg_t XBarCfg = '{
     NoSlvPorts        : NumAXIMasters,
     NoMstPorts        : NumAXISlaves,
@@ -133,8 +136,8 @@ module mempool_tb;
     .busy_o         (/*Unused*/   ),
     .mst_req_o      (axi_mst_req  ),
     .mst_resp_i     (axi_mst_resp ),
-    .slv_req_i      (/*Unused*/ '0),
-    .slv_resp_o     (/*Unused*/   ),
+    .slv_req_i      (to_mempool_req ),
+    .slv_resp_o     (to_mempool_resp),
     .rab_conf_req_i (rab_conf_req ),
     .rab_conf_resp_o(rab_conf_resp)
   );
@@ -227,7 +230,7 @@ module mempool_tb;
    *  Configure RAB  *
    *******************/
 
-  task write_rab(input addr_t addr, input data_t data);
+  task write_rab(input addr_t addr, input axi_lite_data_t data);
     rab_conf_req.aw.addr = addr;
     rab_conf_req.aw_valid = 1'b1;
     `wait_for(rab_conf_resp.aw_ready)
@@ -249,6 +252,37 @@ module mempool_tb;
     write_rab(slice_addr+8'h18, 32'h7);
   endtask
 
+  task write_to_mempool(input addr_t addr, input data_t data, output axi_pkg::resp_t resp);
+    to_mempool_req.aw.id = '0;
+    to_mempool_req.aw.addr = addr;
+    to_mempool_req.aw.len = '0;
+    to_mempool_req.aw.size = $clog2(AxiDataWidth/8);
+    to_mempool_req.aw.burst = axi_pkg::BURST_INCR;
+    to_mempool_req.aw.lock = 1'b0;
+    to_mempool_req.aw.cache = '0;
+    to_mempool_req.aw.prot = '0;
+    to_mempool_req.aw.qos = '0;
+    to_mempool_req.aw.region = '0;
+    to_mempool_req.aw.atop = '0;
+    to_mempool_req.aw.user = '0;
+    to_mempool_req.aw_valid = 1'b1;
+    `wait_for(to_mempool_resp.aw_ready)
+    to_mempool_req.aw_valid = 1'b0;
+    to_mempool_req.w.data = data;
+    to_mempool_req.w.strb = '1;
+    to_mempool_req.w.last = 1'b1;
+    to_mempool_req.w.user = '0;
+    to_mempool_req.w_valid = 1'b1;
+    `wait_for(to_mempool_resp.w_ready)
+    to_mempool_req.w_valid = 1'b0;
+    to_mempool_req.b_ready = 1'b1;
+    `wait_for(to_mempool_resp.b_valid)
+    resp = to_mempool_resp.b.resp;
+    to_mempool_req.b_ready = 1'b0;
+  endtask
+
+  axi_pkg::resp_t resp;
+
   // Simulation control
   initial begin
     fetch_en = 1'b0;
@@ -257,9 +291,18 @@ module mempool_tb;
     wait (rst_n);
     @(posedge clk);
 
-    // Set up RAB slice from MemPool to external devices: all addresses (that the interconnect routes
-    // through the RAB) except zero page.
+    // Give the cores time to execute the bootrom's program
+    #(100*ClockPeriod);
+
+    // Set up RAB slice from MemPool to the external devices
     write_rab_slice(32'hA0, 32'h0000_1000, 32'hFFFF_FFFF, 32'h0000_1000);
+
+    // Set up RAB slice from external/Host to  the control registers
+    write_rab_slice(32'h40, 32'h4000_0000, 32'h4000_FFFF, 32'h4000_0000);
+
+    // Wake up all cores
+    write_to_mempool(32'h4000_0004, {DataWidth{1'b1}}, resp);
+    assert(resp == axi_pkg::RESP_OKAY);
 
     // Start MemPool
     fetch_en = 1'b1;
@@ -282,6 +325,10 @@ module mempool_tb;
         end
     end
   end
+
+  /***********************
+   *  L2 Initialization  *
+   ***********************/
 
   initial begin : l2_init
     automatic axi_data_t mem_row;
