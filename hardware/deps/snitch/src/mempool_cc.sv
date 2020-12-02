@@ -255,8 +255,8 @@ module mempool_cc #(
     "acc_pid":      i_snitch.acc_pid_i,
     "acc_pdata_32": i_snitch.acc_pdata_i[31:0],
     // FPU offload
-    "fpu_offload":  (i_snitch.acc_qready_i && i_snitch.acc_qvalid_o && !snitch_pkg::shared_offload(i_snitch.acc_qdata_op_o)),
-    "is_seq_insn":  (i_snitch.inst_data_i ==? riscv_instr::FREP)
+    "fpu_offload":  1'b0,
+    "is_seq_insn":  1'b0
   };
 
   task fmt_extras (
