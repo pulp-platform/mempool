@@ -28,7 +28,7 @@ GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
 
-COMPILER      ?= llvm
+COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
 
 RISCV_XLEN    ?= 32
