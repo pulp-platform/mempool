@@ -52,9 +52,11 @@ vpath %.S $(src_dir)
 	$(RISCV_OBJDUMP) $< > $@
 
 %.out: %
+	PATH="$(MEMPOOL_DIR)/install/riscv-isa-sim/bin:$$PATH"; \
 	$(RISCV_SIM) --isa=rv64gc $< 2> $@
 
 %.out32: %
+	PATH="$(MEMPOOL_DIR)/install/riscv-isa-sim/bin:$$PATH"; \
 	$(RISCV_SIM) --isa=rv32gc $< 2> $@
 
 define compile_template
