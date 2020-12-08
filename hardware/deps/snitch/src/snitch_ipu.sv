@@ -75,8 +75,12 @@ module snitch_ipu #(
       riscv_instr::P_CLIPU,        // Xpulpimg: p.clipu
       riscv_instr::P_CLIPR,        // Xpulpimg: p.clipr
       riscv_instr::P_CLIPUR: begin // Xpulpimg: p.clipur
-        dsp_valid_op = acc_qvalid_i;
-        acc_qready_o = dsp_ready_op;
+        if (snitch_pkg::XPULPIMG) begin
+          dsp_valid_op = acc_qvalid_i;
+          acc_qready_o = dsp_ready_op;
+        end else begin
+          illegal_instruction = 1'b1;
+        end
       end
       default: illegal_instruction = 1'b1;
     endcase
@@ -118,38 +122,56 @@ module snitch_ipu #(
       .id_o        ( div.id                 ),
       .res_o       ( div.result             )
   );
-  // DSP Unit
-  dspu #(
-      .Width    ( 32      ),
-      .IdWidth  ( IdWidth )
-  ) i_dspu (
-      .clk_i       ( clk_i                  ),
-      .rst_i       ( rst_i                  ),
-      .id_i        ( acc_qid_i              ),
-      .operator_i  ( acc_qdata_op_i         ),
-      .op_a_i      ( acc_qdata_arga_i       ),
-      .op_b_i      ( acc_qdata_argb_i       ),
-      .in_valid_i  ( dsp_valid_op           ),
-      .in_ready_o  ( dsp_ready_op           ),
-      .out_valid_o ( dsp_valid              ),
-      .out_ready_i ( dsp_ready              ),
-      .id_o        ( dsp.id                 ),
-      .result_o    ( dsp.result             )
-  );
+  if (snitch_pkg::XPULPIMG) begin : gen_dspu
+    // DSP Unit
+    dspu #(
+        .Width    ( 32      ),
+        .IdWidth  ( IdWidth )
+    ) i_dspu (
+        .clk_i       ( clk_i                  ),
+        .rst_i       ( rst_i                  ),
+        .id_i        ( acc_qid_i              ),
+        .operator_i  ( acc_qdata_op_i         ),
+        .op_a_i      ( acc_qdata_arga_i       ),
+        .op_b_i      ( acc_qdata_argb_i       ),
+        .in_valid_i  ( dsp_valid_op           ),
+        .in_ready_o  ( dsp_ready_op           ),
+        .out_valid_o ( dsp_valid              ),
+        .out_ready_i ( dsp_ready              ),
+        .id_o        ( dsp.id                 ),
+        .result_o    ( dsp.result             )
+    );
+  end
   // Output Arbitration
-  stream_arbiter #(
-    .DATA_T ( result_t ),
-    .N_INP  ( 3        )
-  ) i_stream_arbiter (
-    .clk_i,
-    .rst_ni      ( ~rst_i                            ),
-    .inp_data_i  ( {div, mul, dsp}                   ),
-    .inp_valid_i ( {div_valid, mul_valid, dsp_valid} ),
-    .inp_ready_o ( {div_ready, mul_ready, dsp_ready} ),
-    .oup_data_o  ( oup                               ),
-    .oup_valid_o ( acc_pvalid_o                      ),
-    .oup_ready_i ( acc_pready_i                      )
-  );
+  if (snitch_pkg::XPULPIMG) begin : gen_3inputs
+    stream_arbiter #(
+      .DATA_T ( result_t ),
+      .N_INP  ( 3        )
+    ) i_stream_arbiter (
+      .clk_i,
+      .rst_ni      ( ~rst_i                            ),
+      .inp_data_i  ( {div, mul, dsp}                   ),
+      .inp_valid_i ( {div_valid, mul_valid, dsp_valid} ),
+      .inp_ready_o ( {div_ready, mul_ready, dsp_ready} ),
+      .oup_data_o  ( oup                               ),
+      .oup_valid_o ( acc_pvalid_o                      ),
+      .oup_ready_i ( acc_pready_i                      )
+    );
+  end else begin : gen_2inputs
+    stream_arbiter #(
+      .DATA_T ( result_t ),
+      .N_INP  ( 2        )
+    ) i_stream_arbiter (
+      .clk_i,
+      .rst_ni      ( ~rst_i                 ),
+      .inp_data_i  ( {div, mul}             ),
+      .inp_valid_i ( {div_valid, mul_valid} ),
+      .inp_ready_o ( {div_ready, mul_ready} ),
+      .oup_data_o  ( oup                    ),
+      .oup_valid_o ( acc_pvalid_o           ),
+      .oup_ready_i ( acc_pready_i           )
+    );
+  end
   assign acc_pdata_o = oup.result;
   assign acc_pid_o = oup.id;
 endmodule
