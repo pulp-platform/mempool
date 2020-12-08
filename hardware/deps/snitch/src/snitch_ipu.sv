@@ -1,5 +1,4 @@
 /// Integer Processing Unit
-`include "common_cells/registers.svh"
 /// Based on Snitch Shared Muliplier/Divider
 /// Author: Sergio Mazzola, <smazzola@student.ethz.ch>
 
@@ -23,6 +22,8 @@ module snitch_ipu #(
   output logic                     acc_pvalid_o,
   input  logic                     acc_pready_i
 );
+  `include "common_cells/registers.svh"
+
   typedef struct packed {
     logic [31:0]        result;
     logic [IdWidth-1:0] id;
