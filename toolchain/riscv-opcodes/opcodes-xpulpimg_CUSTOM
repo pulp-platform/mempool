@@ -57,3 +57,7 @@ p.clipur rd rs1 rs2  31..25=10          14..12=6 6..2=0x0C 1..0=3
 # Immediate branching
 p.beqimm rs1 imm5 bimm12hi bimm12lo 14..12=2 6..2=0x18 1..0=3
 p.bneimm rs1 imm5 bimm12hi bimm12lo 14..12=3 6..2=0x18 1..0=3
+
+# MAC operations
+p.mac rd rs1 rs2 31..25=33 14..12=0 6..2=0x0C 1..0=3
+p.msu rd rs1 rs2 31..25=33 14..12=1 6..2=0x0C 1..0=3
