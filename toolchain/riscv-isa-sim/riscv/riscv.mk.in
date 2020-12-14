@@ -794,6 +794,8 @@ riscv_insn_ext_xpulpimg = \
 	p_clipur \
 	p_beqimm \
 	p_bneimm \
+	p_mac \
+	p_msu \
 
 riscv_insn_ext_h = \
 	hfence_gvma \

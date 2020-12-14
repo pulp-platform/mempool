@@ -1361,6 +1361,8 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_RTYPE(p_clipur);
   DEFINE_PBTYPE(p_beqimm);
   DEFINE_PBTYPE(p_bneimm);
+  DEFINE_RTYPE(p_mac);
+  DEFINE_RTYPE(p_msu);
 
   // provide a default disassembly for all instructions as a fallback
   #define DECLARE_INSN(code, match, mask) \
