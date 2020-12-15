@@ -208,12 +208,12 @@ module dspu #(
   // Internal control signals
   logic cmp_signed;     // comparator operation is signed
   enum logic [1:0] {
-    Reg, Zero, ClipBound
+    None, Reg, Zero, ClipBound
   } cmp_op_b_sel;       // selection of shared comparator operands
   logic clip_unsigned;  // clip operation has "0" as lower bound
   logic clip_register;  // if 1 clip operation uses rs2, else ximm
   enum logic [3:0] {
-    Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip
+    Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip
   } res_sel;            // result selection
 
   // --------------------
@@ -222,46 +222,56 @@ module dspu #(
 
   always_comb begin
     cmp_signed = 1'b1;
-    cmp_op_b_sel = Reg;
+    cmp_op_b_sel = None;
     clip_unsigned = 1'b0;
     clip_register = 1'b0;
-    res_sel = Abs;
+    res_sel = Nop;
     unique casez (operator_i)
       riscv_instr::P_ABS: begin
         cmp_op_b_sel = Zero;
         res_sel = Abs;
       end
       riscv_instr::P_SLET: begin
+        cmp_op_b_sel = Reg;
         res_sel = Sle;
       end
       riscv_instr::P_SLETU: begin
         cmp_signed = 1'b0;
+        cmp_op_b_sel = Reg;
         res_sel = Sle;
       end
       riscv_instr::P_MIN: begin
+        cmp_op_b_sel = Reg;
         res_sel = Min;
       end
       riscv_instr::P_MINU: begin
         cmp_signed = 1'b0;
+        cmp_op_b_sel = Reg;
         res_sel = Min;
       end
       riscv_instr::P_MAX: begin
+        cmp_op_b_sel = Reg;
         res_sel = Max;
       end
       riscv_instr::P_MAXU: begin
         cmp_signed = 1'b0;
+        cmp_op_b_sel = Reg;
         res_sel = Max;
       end
       riscv_instr::P_EXTHS: begin
+        cmp_op_b_sel = Reg;
         res_sel = Exths;
       end
       riscv_instr::P_EXTHZ: begin
+        cmp_op_b_sel = Reg;
         res_sel = Exthz;
       end
       riscv_instr::P_EXTBS: begin
+        cmp_op_b_sel = Reg;
         res_sel = Extbs;
       end
       riscv_instr::P_EXTBZ: begin
+        cmp_op_b_sel = Reg;
         res_sel = Extbz;
       end
       riscv_instr::P_CLIP: begin
