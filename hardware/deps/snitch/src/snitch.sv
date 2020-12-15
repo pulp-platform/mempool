@@ -104,10 +104,11 @@ module snitch #(
   /* verilator lint_on WIDTH */
 
   logic [31:0] opa, opb;
+//logic [31:0] opa, opb, opc;
   logic [32:0] adder_result;
   logic [31:0] alu_result;
 
-  logic [RegWidth-1:0] rd, rs1, rs2, rs3;
+  logic [RegWidth-1:0] rd, rs1, rs2;
   logic stall, lsu_stall;
   // Register connections
   logic [RegNrReadPorts-1:0][RegWidth-1:0]  gpr_raddr;
@@ -177,8 +178,8 @@ module snitch #(
   } alu_op;
 
   enum logic [3:0] {
-    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate, PBImmediate, RegRs3
-  } opa_select, opb_select;
+    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate, PBImmediate, RegRd
+  } opa_select, opb_select, opc_select;
 
   logic write_rd; // write rd desitnation this cycle
   logic uses_rd;
@@ -221,7 +222,8 @@ module snitch #(
   assign acc_qdata_op_o = inst_data_i;
   assign acc_qdata_arga_o = {{32{gpr_rdata[0][31]}}, gpr_rdata[0]};
   assign acc_qdata_argb_o = {{32{gpr_rdata[1][31]}}, gpr_rdata[1]};
-  assign acc_qdata_argc_o = {32'b0, alu_result};
+//assign acc_qdata_argc_o = {32'b0, alu_result};
+  assign acc_qdata_argc_o = {{32{gpr_rdata[2][31]}}, gpr_rdata[2]};
 
   // instruction fetch interface
   assign inst_addr_o = pc_q;
@@ -233,8 +235,7 @@ module snitch #(
   // Scoreboard: Keep track of rd dependencies (only loads at the moment)
   logic operands_ready;
   logic dst_ready;
-  logic rs2_ready, rs3_ready;
-  logic opa_ready, opb_ready;
+  logic opa_ready, opb_ready, opc_ready;
   logic dstrd_ready, dstrs1_ready;
 
   always_comb begin
@@ -245,13 +246,11 @@ module snitch #(
     if (retire_acc) sb_d[acc_pid_i[RegWidth-1:0]] = 1'b0;
     sb_d[0] = 1'b0;
   end
-  // rediness of registers connected to opb
-  assign rs2_ready = (opb_select != Reg & opb_select != SImmediate) | ~sb_q[rs2];
-  assign rs3_ready = (opb_select != RegRs3) | ~sb_q[rs3];
   // TODO(zarubaf): This can probably be described a bit more efficient
   assign opa_ready = (opa_select != Reg) | ~sb_q[rs1];
-  assign opb_ready = rs2_ready & rs3_ready;
-  assign operands_ready = opa_ready & opb_ready;
+  assign opb_ready = ((opb_select != Reg & opb_select != SImmediate) | ~sb_q[rs2]) & ((opb_select != RegRd) | ~sb_q[rd]);
+  assign opc_ready = (opc_select != Reg) | ~sb_q[rd];
+  assign operands_ready = opa_ready & opb_ready & opc_ready;
   // either we are not using the destination register or we need to make
   // sure that its destination operand is not marked busy in the scoreboard.
   assign dstrd_ready = ~uses_rd | (uses_rd & ~sb_q[rd]);
@@ -289,13 +288,13 @@ module snitch #(
   assign rd = inst_data_i[7 + RegWidth - 1:7];
   assign rs1 = inst_data_i[15 + RegWidth - 1:15];
   assign rs2 = inst_data_i[20 + RegWidth - 1:20];
-  assign rs3 = inst_data_i[7 + RegWidth - 1:7];
 
   always_comb begin
     illegal_inst = 1'b0;
     alu_op = Add;
     opa_select = None;
     opb_select = None;
+    opc_select = None;
 
     next_pc = Consec;
 
@@ -1013,7 +1012,7 @@ module snitch #(
           is_store = 1'b1;
           is_postincr = 1'b1;
           opa_select = Reg;
-          opb_select = RegRs3;
+          opb_select = RegRd;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1026,7 +1025,7 @@ module snitch #(
           is_postincr = 1'b1;
           ls_size = HalfWord;
           opa_select = Reg;
-          opb_select = RegRs3;
+          opb_select = RegRd;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1039,7 +1038,7 @@ module snitch #(
           is_postincr = 1'b1;
           ls_size = Word;
           opa_select = Reg;
-          opb_select = RegRs3;
+          opb_select = RegRd;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1049,7 +1048,7 @@ module snitch #(
           write_rd = 1'b0;
           is_store = 1'b1;
           opa_select = Reg;
-          opb_select = RegRs3;
+          opb_select = RegRd;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1060,7 +1059,7 @@ module snitch #(
           is_store = 1'b1;
           ls_size = HalfWord;
           opa_select = Reg;
-          opb_select = RegRs3;
+          opb_select = RegRd;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1071,7 +1070,7 @@ module snitch #(
           is_store = 1'b1;
           ls_size = Word;
           opa_select = Reg;
-          opb_select = RegRs3;
+          opb_select = RegRd;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1124,6 +1123,22 @@ module snitch #(
           alu_op = Neq;
           opa_select = Reg;
           opb_select = PBImmediate;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      // MAC operations
+      // Off-load to IPU coprocessor
+      riscv_instr::P_MAC,          // Xpulpimg: p.mac
+      riscv_instr::P_MSU: begin    // Xpulpimg: p.msu
+        if (snitch_pkg::XPULPIMG) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          opc_select = Reg;
+          acc_register_rd = 1'b1;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1225,16 +1240,24 @@ module snitch #(
       PC: opb = pc_q;
       CSR: opb = csr_rvalue;
       PBImmediate: opb = pbimm;
-      RegRs3: opb = gpr_rdata[2];
+      RegRd: opb = gpr_rdata[2];
       default: opb = '0;
     endcase
   end
 
+//  always_comb begin
+//    unique case (opc_select)
+//      None: opc = '0;
+//      Reg: opc = gpr_rdata[2];
+//      default: opc = '0;
+//    endcase
+//  end
+
   assign gpr_raddr[0] = rs1;
   assign gpr_raddr[1] = rs2;
   // connect third read port only if present
-  if (RegNrReadPorts >= 3) begin : gpr_rs3
-    assign gpr_raddr[2] = rs3;
+  if (RegNrReadPorts >= 3) begin : gpr_raddr_2
+    assign gpr_raddr[2] = rd;
   end
 
   // --------------------

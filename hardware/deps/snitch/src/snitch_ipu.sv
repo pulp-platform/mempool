@@ -75,7 +75,9 @@ module snitch_ipu #(
       riscv_instr::P_CLIP,         // Xpulpimg: p.clip
       riscv_instr::P_CLIPU,        // Xpulpimg: p.clipu
       riscv_instr::P_CLIPR,        // Xpulpimg: p.clipr
-      riscv_instr::P_CLIPUR: begin // Xpulpimg: p.clipur
+      riscv_instr::P_CLIPUR,       // Xpulpimg: p.clipur
+      riscv_instr::P_MAC,          // Xpulpimg: p.mac
+      riscv_instr::P_MSU: begin    // Xpulpimg: p.msu
         if (snitch_pkg::XPULPIMG) begin
           dsp_valid_op = acc_qvalid_i;
           acc_qready_o = dsp_ready_op;
@@ -135,6 +137,7 @@ module snitch_ipu #(
         .operator_i  ( acc_qdata_op_i         ),
         .op_a_i      ( acc_qdata_arga_i       ),
         .op_b_i      ( acc_qdata_argb_i       ),
+        .op_c_i      ( acc_qdata_argc_i       ),
         .in_valid_i  ( dsp_valid_op           ),
         .in_ready_o  ( dsp_ready_op           ),
         .out_valid_o ( dsp_valid              ),
@@ -188,6 +191,7 @@ module dspu #(
     input  logic [31:0]        operator_i,
     input  logic [Width-1:0]   op_a_i,
     input  logic [Width-1:0]   op_b_i,
+    input  logic [Width-1:0]   op_c_i,
     input  logic               in_valid_i,
     output logic               in_ready_o,
     output logic               out_valid_o,
@@ -212,8 +216,9 @@ module dspu #(
   } cmp_op_b_sel;       // selection of shared comparator operands
   logic clip_unsigned;  // clip operation has "0" as lower bound
   logic clip_register;  // if 1 clip operation uses rs2, else ximm
+  logic mul_msu;        // multiplication operation is msu
   enum logic [3:0] {
-    Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip
+    Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip, Mul
   } res_sel;            // result selection
 
   // --------------------
@@ -225,6 +230,7 @@ module dspu #(
     cmp_op_b_sel = None;
     clip_unsigned = 1'b0;
     clip_register = 1'b0;
+    mul_msu = 1'b0;
     res_sel = Nop;
     unique casez (operator_i)
       riscv_instr::P_ABS: begin
@@ -294,6 +300,13 @@ module dspu #(
         cmp_op_b_sel = ClipBound;
         res_sel = Clip;
       end
+      riscv_instr::P_MAC: begin
+        res_sel = Mul;
+      end
+      riscv_instr::P_MSU: begin
+        mul_msu = 1'b1;
+        res_sel = Mul;
+      end
       default: ;
     endcase
   end
@@ -303,8 +316,6 @@ module dspu #(
   // | |) |/ _ \ | | / _ \ |  _// _ \ | |  | __ |
   // |___//_/ \_\|_|/_/ \_\|_| /_/ \_\|_|  |_||_|
   //
-
-  logic cmp_result;
 
   // --------------------
   // Clips
@@ -332,6 +343,7 @@ module dspu #(
   // Shared comparator
   // --------------------
   logic [Width-1:0] cmp_op_a, cmp_op_b;
+  logic cmp_result;
 
   // Comparator operand A assignment
   assign cmp_op_a = op_a_i;
@@ -347,6 +359,20 @@ module dspu #(
 
   // Instantiate comparator
   assign cmp_result = $signed({cmp_op_a[Width-1] & cmp_signed, cmp_op_a}) <= $signed({cmp_op_b[Width-1] & cmp_signed, cmp_op_b});
+
+  // --------------------
+  // Multiplier
+  // --------------------
+
+  // 32x32 into 32 bits multiplier & accumulator
+  logic [Width-1:0] mul_op_a, mul_op_b;
+  logic [Width-1:0] mul_result;
+
+  assign mul_op_a = op_a_i ^ {Width{mul_msu}};
+  assign mul_op_b = op_b_i & {Width{mul_msu}};
+
+  // perform either accumulation or subtraction with respect to op_c_i basing on mul_msu
+  assign mul_result = $signed(op_c_i) + $signed(mul_op_b) + $signed(mul_op_a) * $signed(op_b_i);
 
   // --------------------
   // Result generation
@@ -378,6 +404,7 @@ module dspu #(
       //     + if clip_op_b >= 0: clip_comp=clip_op_b (i.e. rs1>=0 and clip_op_b>=0) and the result must
       //       be clipped to the upper bound since rs1 > clip_op_b
       Clip: result_o = cmp_result ? (clip_use_n_bound ? clip_op_b_n : op_a_i) : (op_a_i[Width-1] ? op_a_i : clip_op_b);
+      Mul: result_o = mul_result;
       default: result_o = '0;
     endcase
   end
