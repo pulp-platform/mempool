@@ -51,8 +51,13 @@ module snitch_ipu #(
       riscv_instr::MULH,
       riscv_instr::MULHSU,
       riscv_instr::MULHU: begin
-        mul_valid_op = acc_qvalid_i;
-        acc_qready_o = mul_ready_op;
+        if (snitch_pkg::XPULPIMG) begin
+          dsp_valid_op = acc_qvalid_i;
+          acc_qready_o = dsp_ready_op;
+        end else begin
+          mul_valid_op = acc_qvalid_i;
+          acc_qready_o = mul_ready_op;
+        end
       end
       riscv_instr::DIV,
       riscv_instr::DIVU,
@@ -89,24 +94,6 @@ module snitch_ipu #(
     endcase
   end
 
-  // Multiplication
-  multiplier #(
-    .Width    ( 32      ),
-    .IdWidth  ( IdWidth )
-  ) i_multiplier (
-    .clk_i,
-    .rst_i,
-    .id_i        ( acc_qid_i              ),
-    .operator_i  ( acc_qdata_op_i         ),
-    .operand_a_i ( acc_qdata_arga_i       ),
-    .operand_b_i ( acc_qdata_argb_i       ),
-    .valid_i     ( mul_valid_op           ),
-    .ready_o     ( mul_ready_op           ),
-    .result_o    ( mul.result             ),
-    .valid_o     ( mul_valid              ),
-    .ready_i     ( mul_ready              ),
-    .id_o        ( mul.id                 )
-  );
   // Serial Divider
   serdiv #(
       .WIDTH       ( 32      ),
@@ -125,43 +112,61 @@ module snitch_ipu #(
       .id_o        ( div.id                 ),
       .res_o       ( div.result             )
   );
-  if (snitch_pkg::XPULPIMG) begin : gen_dspu
+
+  if (snitch_pkg::XPULPIMG) begin : gen_xpulpimg
     // DSP Unit
     dspu #(
         .Width    ( 32      ),
         .IdWidth  ( IdWidth )
     ) i_dspu (
-        .clk_i       ( clk_i                  ),
-        .rst_i       ( rst_i                  ),
-        .id_i        ( acc_qid_i              ),
-        .operator_i  ( acc_qdata_op_i         ),
-        .op_a_i      ( acc_qdata_arga_i       ),
-        .op_b_i      ( acc_qdata_argb_i       ),
-        .op_c_i      ( acc_qdata_argc_i       ),
-        .in_valid_i  ( dsp_valid_op           ),
-        .in_ready_o  ( dsp_ready_op           ),
-        .out_valid_o ( dsp_valid              ),
-        .out_ready_i ( dsp_ready              ),
-        .id_o        ( dsp.id                 ),
-        .result_o    ( dsp.result             )
+        .clk_i       ( clk_i                ),
+        .rst_i       ( rst_i                ),
+        .id_i        ( acc_qid_i            ),
+        .operator_i  ( acc_qdata_op_i       ),
+        .op_a_i      ( acc_qdata_arga_i     ),
+        .op_b_i      ( acc_qdata_argb_i     ),
+        .op_c_i      ( acc_qdata_argc_i     ),
+        .in_valid_i  ( dsp_valid_op         ),
+        .in_ready_o  ( dsp_ready_op         ),
+        .out_valid_o ( dsp_valid            ),
+        .out_ready_i ( dsp_ready            ),
+        .id_o        ( dsp.id               ),
+        .result_o    ( dsp.result           )
     );
-  end
-  // Output Arbitration
-  if (snitch_pkg::XPULPIMG) begin : gen_3inputs
+    // Output Arbitration
     stream_arbiter #(
       .DATA_T ( result_t ),
-      .N_INP  ( 3        )
+      .N_INP  ( 2        )
     ) i_stream_arbiter (
       .clk_i,
-      .rst_ni      ( ~rst_i                            ),
-      .inp_data_i  ( {div, mul, dsp}                   ),
-      .inp_valid_i ( {div_valid, mul_valid, dsp_valid} ),
-      .inp_ready_o ( {div_ready, mul_ready, dsp_ready} ),
-      .oup_data_o  ( oup                               ),
-      .oup_valid_o ( acc_pvalid_o                      ),
-      .oup_ready_i ( acc_pready_i                      )
+      .rst_ni      ( ~rst_i                 ),
+      .inp_data_i  ( {div, dsp}             ),
+      .inp_valid_i ( {div_valid, dsp_valid} ),
+      .inp_ready_o ( {div_ready, dsp_ready} ),
+      .oup_data_o  ( oup                    ),
+      .oup_valid_o ( acc_pvalid_o           ),
+      .oup_ready_i ( acc_pready_i           )
     );
-  end else begin : gen_2inputs
+  end else begin : gen_vanilla
+    // Multiplication
+    multiplier #(
+      .Width    ( 32      ),
+      .IdWidth  ( IdWidth )
+    ) i_multiplier (
+      .clk_i,
+      .rst_i,
+      .id_i        ( acc_qid_i              ),
+      .operator_i  ( acc_qdata_op_i         ),
+      .operand_a_i ( acc_qdata_arga_i       ),
+      .operand_b_i ( acc_qdata_argb_i       ),
+      .valid_i     ( mul_valid_op           ),
+      .ready_o     ( mul_ready_op           ),
+      .result_o    ( mul.result             ),
+      .valid_o     ( mul_valid              ),
+      .ready_i     ( mul_ready              ),
+      .id_o        ( mul.id                 )
+    );
+    // Output Arbitration
     stream_arbiter #(
       .DATA_T ( result_t ),
       .N_INP  ( 2        )
@@ -176,6 +181,7 @@ module snitch_ipu #(
       .oup_ready_i ( acc_pready_i           )
     );
   end
+
   assign acc_pdata_o = oup.result;
   assign acc_pid_o = oup.id;
 endmodule
@@ -216,9 +222,14 @@ module dspu #(
   } cmp_op_b_sel;       // selection of shared comparator operands
   logic clip_unsigned;  // clip operation has "0" as lower bound
   logic clip_register;  // if 1 clip operation uses rs2, else ximm
-  logic mul_msu;        // multiplication operation is msu
+  enum logic [1:0] {
+    NoMul, MulLow, MulHigh, MulMac
+  } mul_op;             // type of multiplication operation
+  logic mac_msu;        // multiplication operation is MSU
+  logic mul_op_a_sign;  // sign of multiplier operand a
+  logic mac_op_b_sign;  // sign of multiplier operand b
   enum logic [3:0] {
-    Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip, Mul
+    Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip, Mac
   } res_sel;            // result selection
 
   // --------------------
@@ -230,9 +241,35 @@ module dspu #(
     cmp_op_b_sel = None;
     clip_unsigned = 1'b0;
     clip_register = 1'b0;
-    mul_msu = 1'b0;
+    mul_op = NoMul;
+    mac_msu = 1'b0;
+    mul_op_a_sign = 1'b0;
+    mac_op_b_sign = 1'b0;
     res_sel = Nop;
     unique casez (operator_i)
+      // Multiplications from M extension
+      riscv_instr::MUL: begin
+        mul_op = MulLow;
+        mul_op_a_sign = 1'b1;
+        mac_op_b_sign = 1'b1;
+        res_sel = Mac;
+      end
+      riscv_instr::MULH: begin
+        mul_op = MulHigh;
+        mul_op_a_sign = 1'b1;
+        mac_op_b_sign = 1'b1;
+        res_sel = Mac;
+      end
+      riscv_instr::MULHSU: begin
+        mul_op = MulHigh;
+        mul_op_a_sign = 1'b1;
+        res_sel = Mac;
+      end
+      riscv_instr::MULHU: begin
+        mul_op = MulHigh;
+        res_sel = Mac;
+      end
+      // Instructions from Xpulpimg
       riscv_instr::P_ABS: begin
         cmp_op_b_sel = Zero;
         res_sel = Abs;
@@ -301,11 +338,17 @@ module dspu #(
         res_sel = Clip;
       end
       riscv_instr::P_MAC: begin
-        res_sel = Mul;
+        mul_op = MulMac;
+        mul_op_a_sign = 1'b1;
+        mac_op_b_sign = 1'b1;
+        res_sel = Mac;
       end
       riscv_instr::P_MSU: begin
-        mul_msu = 1'b1;
-        res_sel = Mul;
+        mul_op = MulMac;
+        mac_msu = 1'b1;
+        mul_op_a_sign = 1'b1;
+        mac_op_b_sign = 1'b1;
+        res_sel = Mac;
       end
       default: ;
     endcase
@@ -361,18 +404,27 @@ module dspu #(
   assign cmp_result = $signed({cmp_op_a[Width-1] & cmp_signed, cmp_op_a}) <= $signed({cmp_op_b[Width-1] & cmp_signed, cmp_op_b});
 
   // --------------------
-  // Multiplier
+  // Multiplier & acc
   // --------------------
 
   // 32x32 into 32 bits multiplier & accumulator
-  logic [Width-1:0] mul_op_a, mul_op_b;
-  logic [Width-1:0] mul_result;
+  logic [Width-1:0] mul_op_a;
+  logic [2*Width-1:0] mul_result;
+  logic [Width-1:0] mac_result;
 
-  assign mul_op_a = op_a_i ^ {Width{mul_msu}};
-  assign mul_op_b = op_b_i & {Width{mul_msu}};
+  assign mul_op_a = mac_msu ? -op_a_i : op_a_i; // op_a_i is sign-inverted if mac_msu=1, to have -op_a*op_b
 
-  // perform either accumulation or subtraction with respect to op_c_i basing on mul_msu
-  assign mul_result = $signed(op_c_i) + $signed(mul_op_b) + $signed(mul_op_a) * $signed(op_b_i);
+  // 32-bits input, 64-bits output multiplier
+  assign mul_result = $signed({mul_op_a[Width-1] & mul_op_a_sign, mul_op_a}) * $signed({op_b_i[Width-1] & mac_op_b_sign, op_b_i});
+
+  always_comb begin
+    unique case (mul_op)
+      MulLow: mac_result = mul_result[Width-1:0]; // mul, take lowest 32 bits
+      MulHigh: mac_result = mul_result[2*Width-1:Width]; // mul high, take highest 32 bits
+      MulMac: mac_result = op_c_i + mul_result[Width-1:0]; // accumulate
+      default: mac_result = '0;
+    endcase
+  end
 
   // --------------------
   // Result generation
@@ -404,7 +456,7 @@ module dspu #(
       //     + if clip_op_b >= 0: clip_comp=clip_op_b (i.e. rs1>=0 and clip_op_b>=0) and the result must
       //       be clipped to the upper bound since rs1 > clip_op_b
       Clip: result_o = cmp_result ? (clip_use_n_bound ? clip_op_b_n : op_a_i) : (op_a_i[Width-1] ? op_a_i : clip_op_b);
-      Mul: result_o = mul_result;
+      Mac: result_o = mac_result;
       default: result_o = '0;
     endcase
   end
