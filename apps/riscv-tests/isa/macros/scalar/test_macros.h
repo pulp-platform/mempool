@@ -264,6 +264,135 @@ test_ ## testnum: \
     )
 
 #-----------------------------------------------------------------------
+# Tests for instructions with 3 register operands
+#-----------------------------------------------------------------------
+
+#define TEST_RRR_OP( testnum, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, x2; \
+    )
+
+#define TEST_RRR_SRC1_EQ_DEST( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      inst x1, x1, x2; \
+    )
+
+#define TEST_RRR_SRC2_EQ_DEST( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x2, result, \
+      li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      inst x2, x1, x2; \
+    )
+
+#define TEST_RRR_SRC12_EQ_DEST( testnum, inst, result, val1 ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x1, x1, x1; \
+    )
+
+#define TEST_RRR_DEST_BYPASS( testnum, nop_cycles, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x6, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, x2; \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      addi  x6, x14, 0; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_RRR_SRC12_BYPASS( testnum, src1_nops, src2_nops, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li x14, MASK_XLEN(val3); \
+      li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## src1_nops \
+      li  x2, MASK_XLEN(val2); \
+      TEST_INSERT_NOPS_ ## src2_nops \
+      inst x14, x1, x2; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_RRR_SRC21_BYPASS( testnum, src1_nops, src2_nops, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li x14, MASK_XLEN(val3); \
+      li  x2, MASK_XLEN(val2); \
+      TEST_INSERT_NOPS_ ## src1_nops \
+      li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## src2_nops \
+      inst x14, x1, x2; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+# Actually here we have 3 sources; to avoid too many tests we test rD source bypass only on its own
+#define TEST_RRR_SRC3_BYPASS( testnum, nop_cycles, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      li x14, MASK_XLEN(val3); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      inst x14, x1, x2; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_RRR_ZEROSRC1( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x2, result, \
+      li x1, MASK_XLEN(val1); \
+      li x2, MASK_XLEN(val2); \
+      inst x2, x0, x1; \
+    )
+
+#define TEST_RRR_ZEROSRC2( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x2, result, \
+      li x1, MASK_XLEN(val1); \
+      li x2, MASK_XLEN(val2); \
+      inst x2, x1, x0; \
+    )
+
+#define TEST_RRR_ZEROSRC3( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x14, result, \
+      li x1, MASK_XLEN(val1); \
+      li x2, MASK_XLEN(val2); \
+      li x14, 0; \
+      inst x14, x1, x2; \
+    )
+
+#define TEST_RRR_ZEROSRC12( testnum, inst, result, val1 ) \
+    TEST_CASE( testnum, x1, result, \
+      li x1, MASK_XLEN(val1); \
+      inst x1, x0, x0; \
+    )
+
+#define TEST_RRR_ZEROSRC123( testnum, inst, result ) \
+    TEST_CASE( testnum, x1, result, \
+      li x1, 0; \
+      inst x1, x0, x0; \
+    )
+
+#define TEST_RRR_ZERODEST( testnum, inst, val1, val2 ) \
+    TEST_CASE( testnum, x0, 0, \
+      li x1, MASK_XLEN(val1); \
+      li x2, MASK_XLEN(val2); \
+      inst x0, x1, x2; \
+    )
+
+#-----------------------------------------------------------------------
 # Test memory instructions (immediate offset)
 #-----------------------------------------------------------------------
 

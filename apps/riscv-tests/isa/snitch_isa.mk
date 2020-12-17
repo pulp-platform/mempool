@@ -48,6 +48,7 @@ ifeq ($(xpulpimg),1)
 		p_clip p_clipu \
 		p_clipr p_clipur \
 		p_beqimm p_bneimm \
+  	p_mac p_msu \
 
 endif
 
