@@ -32,4 +32,8 @@ starting from their high-level, human-readable description.
   for the parsing script execution, basing on the target architecture, by
   listing them in the variable `DISCARDED_OPCODES`;
 - opcodes files from the official 128-bit extension have not been introduced
-  due to the other changes which they imply to other opcodes specifications.
+  due to the other changes which they imply to other opcodes specifications;
+- some of the instructions originally declared in the vectorial extension
+  (`opcodes-rvv` file) have been set as pseudo-instruction due to the overlapping
+  of their opcodes space with the opcodes space of the SIMD instructions from
+  Xpulpv2, defined in `opcodes-xpulpimg_CUSTOM`.
