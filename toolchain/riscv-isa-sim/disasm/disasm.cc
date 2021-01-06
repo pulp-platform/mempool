@@ -477,7 +477,7 @@ disassembler_t::disassembler_t(int xlen)
   #define DEFINE_PSTORE_IRPOST(code) DISASM_INSN(#code, code, 0, {&xrs2, &store_address_irpost})
   #define DEFINE_PSTORE_RRPOST(code) DISASM_INSN(#code, code, 0, {&xrs2, &store_address_rrpost})
   #define DEFINE_PSTORE_RR(code) DISASM_INSN(#code, code, 0, {&xrs2, &store_address_rr})
-  #define DEFINE_PITYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_zimm5})
+  #define DEFINE_PI0TYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_zimm5})
   #define DEFINE_PBTYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_simm5, &branch_target})
 
   DEFINE_XLOAD(lb)
@@ -1355,8 +1355,8 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_R1TYPE(p_exthz);
   DEFINE_R1TYPE(p_extbs);
   DEFINE_R1TYPE(p_extbz);
-  DEFINE_PITYPE(p_clip);
-  DEFINE_PITYPE(p_clipu);
+  DEFINE_PI0TYPE(p_clip);
+  DEFINE_PI0TYPE(p_clipu);
   DEFINE_RTYPE(p_clipr);
   DEFINE_RTYPE(p_clipur);
   DEFINE_PBTYPE(p_beqimm);
