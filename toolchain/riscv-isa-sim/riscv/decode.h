@@ -132,6 +132,9 @@ public:
   uint64_t p_zimm5() { return x(20, 5); }
   int64_t p_simm5() { return xs(20, 5); }
   uint64_t p_rs3() { return x(7, 5); }
+  uint64_t p_zimm6() { return x(25,1) + (x(20, 5) << 1); }
+  int64_t p_simm6() { return x(25,1) + (xs(20, 5) << 1); }
+
 
 private:
   insn_bits_t b;
@@ -287,6 +290,13 @@ private:
 
 #define P_RS3 READ_REG(insn.p_rs3()) /* same as RD, just different semantical value */
 #define WRITE_RS1(value) WRITE_REG(insn.rs1(), value)
+
+#define RS1_H(i) ((RS1 >> ((xlen >> 1) * (i & 0x1))) & 0xFFFF) /* select rs1 half: i should only be 0 or 1 */
+#define RS1_B(i) ((RS1 >> ((xlen >> 2) * (i & 0x3))) & 0xFF) /* select rs1 byte: i should only be from 0 to 3 */
+#define RS2_H(i) ((RS2 >> ((xlen >> 1) * (i & 0x1))) & 0xFFFF) /* select rs2 half: i should only be 0 or 1 */
+#define RS2_B(i) ((RS2 >> ((xlen >> 2) * (i & 0x3))) & 0xFF) /* select rs2 byte: i should only be from 0 to 3 */
+#define WRITE_RD_H(i, value) WRITE_RD((RD & ~(0xFFFF << ((xlen >> 1) * (i & 0x1)))) | ((value & 0xFFFF) << ((xlen >> 1) * (i & 0x1)))) /* select to which rd half to write the 16-bit value */
+#define WRITE_RD_B(i, value) WRITE_RD((RD & ~(0xFF << ((xlen >> 2) * (i & 0x3)))) | ((value & 0xFF) << ((xlen >> 2) * (i & 0x3)))) /* select to which rd byte to write the 8-bit value */
 
 
 #define sext32(x) ((sreg_t)(int32_t)(x))

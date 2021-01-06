@@ -369,6 +369,18 @@ struct : public arg_t {
 
 struct : public arg_t {
   std::string to_string(insn_t insn) const {
+    return std::to_string((uint32_t)insn.p_zimm6());
+  }
+} p_zimm6;
+
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
+    return std::to_string((int)insn.p_simm6());
+  }
+} p_simm6;
+
+struct : public arg_t {
+  std::string to_string(insn_t insn) const {
     return std::to_string((int)insn.i_imm()) + '(' + xpr_name[insn.rs1()] + "!)";
   }
 } load_address_irpost;
@@ -478,6 +490,8 @@ disassembler_t::disassembler_t(int xlen)
   #define DEFINE_PSTORE_RRPOST(code) DISASM_INSN(#code, code, 0, {&xrs2, &store_address_rrpost})
   #define DEFINE_PSTORE_RR(code) DISASM_INSN(#code, code, 0, {&xrs2, &store_address_rr})
   #define DEFINE_PI0TYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_zimm5})
+  #define DEFINE_PI1ZTYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_zimm6})
+  #define DEFINE_PI1STYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_simm6})
   #define DEFINE_PBTYPE(code) DISASM_INSN(#code, code, 0, {&xrd, &xrs1, &p_simm5, &branch_target})
 
   DEFINE_XLOAD(lb)
@@ -1363,6 +1377,99 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_PBTYPE(p_bneimm);
   DEFINE_RTYPE(p_mac);
   DEFINE_RTYPE(p_msu);
+
+  DEFINE_RTYPE(pv_add_h);
+  DEFINE_RTYPE(pv_add_sc_h);
+  DEFINE_PI1STYPE(pv_add_sci_h);
+  DEFINE_RTYPE(pv_add_b);
+  DEFINE_RTYPE(pv_add_sc_b);
+  DEFINE_PI1STYPE(pv_add_sci_b);
+  DEFINE_RTYPE(pv_sub_h);
+  DEFINE_RTYPE(pv_sub_sc_h);
+  DEFINE_PI1STYPE(pv_sub_sci_h);
+  DEFINE_RTYPE(pv_sub_b);
+  DEFINE_RTYPE(pv_sub_sc_b);
+  DEFINE_PI1STYPE(pv_sub_sci_b);
+  DEFINE_RTYPE(pv_avg_h);
+  DEFINE_RTYPE(pv_avg_sc_h);
+  DEFINE_PI1STYPE(pv_avg_sci_h);
+  DEFINE_RTYPE(pv_avg_b);
+  DEFINE_RTYPE(pv_avg_sc_b);
+  DEFINE_PI1STYPE(pv_avg_sci_b);
+  DEFINE_RTYPE(pv_avgu_h);
+  DEFINE_RTYPE(pv_avgu_sc_h);
+  DEFINE_PI1ZTYPE(pv_avgu_sci_h);
+  DEFINE_RTYPE(pv_avgu_b);
+  DEFINE_RTYPE(pv_avgu_sc_b);
+  DEFINE_PI1ZTYPE(pv_avgu_sci_b);
+  DEFINE_RTYPE(pv_min_h);
+  DEFINE_RTYPE(pv_min_sc_h);
+  DEFINE_PI1STYPE(pv_min_sci_h);
+  DEFINE_RTYPE(pv_min_b);
+  DEFINE_RTYPE(pv_min_sc_b);
+  DEFINE_PI1STYPE(pv_min_sci_b);
+  DEFINE_RTYPE(pv_minu_h);
+  DEFINE_RTYPE(pv_minu_sc_h);
+  DEFINE_PI1ZTYPE(pv_minu_sci_h);
+  DEFINE_RTYPE(pv_minu_b);
+  DEFINE_RTYPE(pv_minu_sc_b);
+  DEFINE_PI1ZTYPE(pv_minu_sci_b);
+  DEFINE_RTYPE(pv_max_h);
+  DEFINE_RTYPE(pv_max_sc_h);
+  DEFINE_PI1STYPE(pv_max_sci_h);
+  DEFINE_RTYPE(pv_max_b);
+  DEFINE_RTYPE(pv_max_sc_b);
+  DEFINE_PI1STYPE(pv_max_sci_b);
+  DEFINE_RTYPE(pv_maxu_h);
+  DEFINE_RTYPE(pv_maxu_sc_h);
+  DEFINE_PI1ZTYPE(pv_maxu_sci_h);
+  DEFINE_RTYPE(pv_maxu_b);
+  DEFINE_RTYPE(pv_maxu_sc_b);
+  DEFINE_PI1ZTYPE(pv_maxu_sci_b);
+  DEFINE_RTYPE(pv_srl_h);
+  DEFINE_RTYPE(pv_srl_sc_h);
+  DEFINE_PI1ZTYPE(pv_srl_sci_h);
+  DEFINE_RTYPE(pv_srl_b);
+  DEFINE_RTYPE(pv_srl_sc_b);
+  DEFINE_PI1ZTYPE(pv_srl_sci_b);
+  DEFINE_RTYPE(pv_sra_h);
+  DEFINE_RTYPE(pv_sra_sc_h);
+  DEFINE_PI1ZTYPE(pv_sra_sci_h);
+  DEFINE_RTYPE(pv_sra_b);
+  DEFINE_RTYPE(pv_sra_sc_b);
+  DEFINE_PI1ZTYPE(pv_sra_sci_b);
+  DEFINE_RTYPE(pv_sll_h);
+  DEFINE_RTYPE(pv_sll_sc_h);
+  DEFINE_PI1ZTYPE(pv_sll_sci_h);
+  DEFINE_RTYPE(pv_sll_b);
+  DEFINE_RTYPE(pv_sll_sc_b);
+  DEFINE_PI1ZTYPE(pv_sll_sci_b);
+  DEFINE_RTYPE(pv_or_h);
+  DEFINE_RTYPE(pv_or_sc_h);
+  DEFINE_PI1ZTYPE(pv_or_sci_h);
+  DEFINE_RTYPE(pv_or_b);
+  DEFINE_RTYPE(pv_or_sc_b);
+  DEFINE_PI1ZTYPE(pv_or_sci_b);
+  DEFINE_RTYPE(pv_xor_h);
+  DEFINE_RTYPE(pv_xor_sc_h);
+  DEFINE_PI1ZTYPE(pv_xor_sci_h);
+  DEFINE_RTYPE(pv_xor_b);
+  DEFINE_RTYPE(pv_xor_sc_b);
+  DEFINE_PI1ZTYPE(pv_xor_sci_b);
+  DEFINE_RTYPE(pv_and_h);
+  DEFINE_RTYPE(pv_and_sc_h);
+  DEFINE_PI1ZTYPE(pv_and_sci_h);
+  DEFINE_RTYPE(pv_and_b);
+  DEFINE_RTYPE(pv_and_sc_b);
+  DEFINE_PI1ZTYPE(pv_and_sci_b);
+  DEFINE_R1TYPE(pv_abs_h);
+  DEFINE_R1TYPE(pv_abs_b);
+  DEFINE_PI1ZTYPE(pv_extract_h);
+  DEFINE_PI1ZTYPE(pv_extract_b);
+  DEFINE_PI1ZTYPE(pv_extractu_h);
+  DEFINE_PI1ZTYPE(pv_extractu_b);
+  DEFINE_PI1ZTYPE(pv_insert_h);
+  DEFINE_PI1ZTYPE(pv_insert_b);
 
   // provide a default disassembly for all instructions as a fallback
   #define DECLARE_INSN(code, match, mask) \
