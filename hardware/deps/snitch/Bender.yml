@@ -11,7 +11,7 @@ sources:
     files:
     # packages
     - src/riscv_instr.sv
-    - src/mempool_pkg.sv
+    - src/snitch_pkg.sv
     - src/snitch_axi_pkg.sv
     - src/snitch_icache/snitch_icache_pkg.sv
     # rest of RTL
