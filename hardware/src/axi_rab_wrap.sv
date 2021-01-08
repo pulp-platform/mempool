@@ -57,6 +57,14 @@ module axi_rab_wrap #(
   output axi_lite_resp_t conf_resp_o
 );
 
+  // Truncate configuration address since the RAB will reject addresses outside its configuration space
+  // The RAB's configuration space is at most 2^16 bytes
+  logic [AxiAddrWidth-1:0] conf_req_aw_tuncated;
+  logic [AxiAddrWidth-1:0] conf_req_ar_tuncated;
+
+  assign conf_req_aw_tuncated = {{AxiAddrWidth-16{1'b0}}, conf_req_i.aw.addr[15:0]};
+  assign conf_req_ar_tuncated = {{AxiAddrWidth-16{1'b0}}, conf_req_i.ar.addr[15:0]};
+
   axi_rab_top #(
     .N_PORTS              (2                                                                          ),
     .N_L1_SLICES          ('{0, 0, L1NumSlicesMemPool, L1NumSlicesHost}                               ),
@@ -236,7 +244,7 @@ module axi_rab_wrap #(
     // }}}
 
     // AXI4 Lite Slave (Configuration Interface) {{{
-    .s_axi4lite_awaddr  (conf_req_i.aw.addr  ),
+    .s_axi4lite_awaddr  (conf_req_aw_tuncated),
     .s_axi4lite_awvalid (conf_req_i.aw_valid ),
     .s_axi4lite_awready (conf_resp_o.aw_ready),
 
@@ -249,7 +257,7 @@ module axi_rab_wrap #(
     .s_axi4lite_bvalid  (conf_resp_o.b_valid ),
     .s_axi4lite_bready  (conf_req_i.b_ready  ),
 
-    .s_axi4lite_araddr  (conf_req_i.ar.addr  ),
+    .s_axi4lite_araddr  (conf_req_ar_tuncated),
     .s_axi4lite_arvalid (conf_req_i.ar_valid ),
     .s_axi4lite_arready (conf_resp_o.ar_ready),
 
