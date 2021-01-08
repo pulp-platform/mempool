@@ -142,6 +142,109 @@ test_ ## testnum: \
     )
 
 #-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 6-bit unsigned immediate operand
+#-----------------------------------------------------------------------
+
+#define ZEXT_UIMM6(x) ((x) & 0x3F)
+
+#define TEST_UIMM6_OP( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x14, x1, ZEXT_UIMM6(imm); \
+    )
+
+#define TEST_UIMM6_SRC1_EQ_DEST( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x1, x1, ZEXT_UIMM6(imm); \
+    )
+
+#define TEST_UIMM6_DEST_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x6, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      inst x14, x1, ZEXT_UIMM6(imm); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      addi  x6, x14, 0; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_UIMM6_SRC1_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      inst x14, x1, ZEXT_UIMM6(imm); \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_UIMM6_ZEROSRC1( testnum, inst, result, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      inst x1, x0, ZEXT_UIMM6(imm); \
+    )
+
+#define TEST_UIMM6_ZERODEST( testnum, inst, val1, imm ) \
+    TEST_CASE( testnum, x0, 0, \
+      li  x1, MASK_XLEN(val1); \
+      inst x0, x1, ZEXT_UIMM6(imm); \
+    )
+
+#-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 6-bit signed immediate operand
+#-----------------------------------------------------------------------
+#define SEXT_IMM6(x) ((x) | (-(((x) >> 5) & 1) << 5))
+
+#define TEST_SIMM6_OP( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x14, x1, SEXT_IMM6(imm); \
+    )
+
+#define TEST_SIMM6_SRC1_EQ_DEST( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x1, x1, SEXT_IMM6(imm); \
+    )
+
+#define TEST_SIMM6_DEST_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x6, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      inst x14, x1, SEXT_IMM6(imm); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      addi  x6, x14, 0; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_SIMM6_SRC1_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      inst x14, x1, SEXT_IMM6(imm); \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_SIMM6_ZEROSRC1( testnum, inst, result, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      inst x1, x0, SEXT_IMM6(imm); \
+    )
+
+#define TEST_SIMM6_ZERODEST( testnum, inst, val1, imm ) \
+    TEST_CASE( testnum, x0, 0, \
+      li  x1, MASK_XLEN(val1); \
+      inst x0, x1, SEXT_IMM6(imm); \
+    )
+
+#-----------------------------------------------------------------------
 # Tests for an instruction with register operands
 #-----------------------------------------------------------------------
 

@@ -49,6 +49,20 @@ ifeq ($(xpulpimg),1)
 		p_clipr p_clipur \
 		p_beqimm p_bneimm \
   	p_mac p_msu \
+		pv_add \
+		pv_sub \
+		pv_avg pv_avgu \
+		pv_min pv_minu \
+		pv_max pv_maxu \
+		pv_srl \
+		pv_sra \
+		pv_sll \
+		pv_or \
+		pv_xor \
+		pv_and \
+		pv_abs \
+		pv_extract pv_extractu \
+		pv_insert \
 
 endif
 
