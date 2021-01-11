@@ -77,7 +77,7 @@ module snitch_axi_adapter #(
   write_t write_data_in;
   write_t write_data_out;
 
-  assign axi_req_o.aw.addr   = {slv_qaddr_i[$bits(axi_req_o.aw.addr)-1:AxiByteOffset],{AxiByteOffset{1'b0}}};
+  assign axi_req_o.aw.addr   = slv_qaddr_i;
   assign axi_req_o.aw.prot   = 3'b0;
   assign axi_req_o.aw.region = 4'b0;
   assign axi_req_o.aw.size   = slv_qsize_i;
