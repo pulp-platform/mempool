@@ -90,11 +90,11 @@ reset_vector:
 eoc:
     la t0, eoc_reg
     sw a0, 0(t0)
-    jal x0, eoc
+    wfi
 
 fail:
     la t0, eoc_reg
     sw a0, 0(t0)
-    jal x0, eoc
+    wfi
 
 .section .data
