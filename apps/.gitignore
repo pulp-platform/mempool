@@ -1,1 +1,16 @@
+# build folder
 bin/
+
+# intermediate files
+*.img
+*.o
+*.obj
+*.elf
+*.ll
+common/arch.ld
+
+# libraries
+*.lib
+*.a
+*.la
+*.lo

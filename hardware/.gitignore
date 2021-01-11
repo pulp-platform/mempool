@@ -6,3 +6,4 @@ bender
 build*
 results*
 plots*
+obj_dir
