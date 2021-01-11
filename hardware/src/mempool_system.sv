@@ -3,6 +3,7 @@ import axi_pkg::xbar_cfg_t;
 import axi_pkg::xbar_rule_32_t;
 
 `include "axi/assign.svh"
+`include "common_cells/registers.svh"
 
 module mempool_system #(
     // Mempool
@@ -144,19 +145,9 @@ module mempool_system #(
    *  L2  *
    ********/
 
-  AXI_BUS #(
-    .AXI_ADDR_WIDTH (AddrWidth       ),
-    .AXI_DATA_WIDTH (AxiDataWidth    ),
-    .AXI_ID_WIDTH   (AxiSystemIdWidth),
-    .AXI_USER_WIDTH (1               )
-  ) axi_l2memory_slave ();
-
-  // Assign slave
-  `AXI_ASSIGN_FROM_REQ(axi_l2memory_slave, axi_mem_req[L2Memory] );
-  `AXI_ASSIGN_TO_RESP (axi_mem_resp[L2Memory], axi_l2memory_slave);
-
   // Memory
   logic      mem_req;
+  logic      mem_rvalid;
   addr_t     mem_addr;
   axi_data_t mem_wdata;
   axi_strb_t mem_strb;
@@ -164,21 +155,34 @@ module mempool_system #(
   axi_data_t mem_rdata;
 
   axi2mem #(
-    .AXI_ADDR_WIDTH(AddrWidth       ),
-    .AXI_DATA_WIDTH(AxiDataWidth    ),
-    .AXI_ID_WIDTH  (AxiSystemIdWidth),
-    .AXI_USER_WIDTH(1               )
+    .axi_req_t  (axi_system_req_t ),
+    .axi_resp_t (axi_system_resp_t),
+    .AddrWidth  (AddrWidth),
+    .DataWidth  (AxiDataWidth),
+    .IdWidth    (AxiSystemIdWidth),
+    .NumBanks   (1),
+    .BufDepth   (2)
   ) i_axi2mem_l2mem (
-    .clk_i (clk_i             ),
-    .rst_ni(rst_ni            ),
-    .slave (axi_l2memory_slave),
-    .req_o (mem_req           ),
-    .addr_o(mem_addr          ),
-    .data_o(mem_wdata         ),
-    .we_o  (mem_we            ),
-    .be_o  (mem_strb          ),
-    .data_i(mem_rdata         )
+    .clk_i        (clk_i),
+    .rst_ni       (rst_ni),
+
+    .busy_o       (/*unsused*/),
+
+    .axi_req_i    (axi_mem_req[L2Memory] ),
+    .axi_resp_o   (axi_mem_resp[L2Memory]),
+
+    .mem_req_o    (mem_req),
+    .mem_gnt_i    (mem_req),
+    .mem_addr_o   (mem_addr),
+    .mem_wdata_o  (mem_wdata),
+    .mem_strb_o   (mem_strb),
+    .mem_atop_o   (/*unused*/),
+    .mem_we_o     (mem_we),
+    .mem_rvalid_i (mem_rvalid),
+    .mem_rdata_i  (mem_rdata)
   );
+
+  `FF(mem_rvalid, mem_req, rst_ni)
 
   tc_sram #(
     .DataWidth(AxiDataWidth  ),
@@ -199,38 +203,41 @@ module mempool_system #(
    *  Bootrom  *
    *************/
 
-  AXI_BUS #(
-    .AXI_ADDR_WIDTH (AddrWidth       ),
-    .AXI_DATA_WIDTH (AxiDataWidth    ),
-    .AXI_ID_WIDTH   (AxiSystemIdWidth),
-    .AXI_USER_WIDTH (1               )
-  ) axi_bootrom_slave ();
-
-  // Assign slave
-  `AXI_ASSIGN_FROM_REQ(axi_bootrom_slave, axi_mem_req[Bootrom] );
-  `AXI_ASSIGN_TO_RESP (axi_mem_resp[Bootrom], axi_bootrom_slave);
-
   // Memory
   logic      bootrom_req;
+  logic      bootrom_rvalid;
   addr_t     bootrom_addr;
   axi_data_t bootrom_rdata;
 
   axi2mem #(
-    .AXI_ADDR_WIDTH(AddrWidth       ),
-    .AXI_DATA_WIDTH(AxiDataWidth    ),
-    .AXI_ID_WIDTH  (AxiSystemIdWidth),
-    .AXI_USER_WIDTH(1               )
+    .axi_req_t  (axi_system_req_t ),
+    .axi_resp_t (axi_system_resp_t),
+    .AddrWidth  (AddrWidth),
+    .DataWidth  (AxiDataWidth),
+    .IdWidth    (AxiSystemIdWidth),
+    .NumBanks   (1),
+    .BufDepth   (2)
   ) i_axi2mem_bootrom (
-    .clk_i (clk_i            ),
-    .rst_ni(rst_ni           ),
-    .slave (axi_bootrom_slave),
-    .req_o (bootrom_req      ),
-    .addr_o(bootrom_addr     ),
-    .data_o(/* Unused */     ),
-    .we_o  (/* Unused */     ),
-    .be_o  (/* Unused */     ),
-    .data_i(bootrom_rdata    )
+    .clk_i        (clk_i),
+    .rst_ni       (rst_ni),
+
+    .busy_o       (/*unsused*/),
+
+    .axi_req_i    (axi_mem_req[Bootrom] ),
+    .axi_resp_o   (axi_mem_resp[Bootrom]),
+
+    .mem_req_o    (bootrom_req),
+    .mem_gnt_i    (bootrom_req),
+    .mem_addr_o   (bootrom_addr),
+    .mem_wdata_o  (/*unused*/),
+    .mem_strb_o   (/*unused*/),
+    .mem_atop_o   (/*unused*/),
+    .mem_we_o     (/*unused*/),
+    .mem_rvalid_i (bootrom_rvalid),
+    .mem_rdata_i  (bootrom_rdata)
   );
+
+  `FF(bootrom_rvalid, bootrom_req, rst_ni)
 
   bootrom i_bootrom (
     .clk_i  (clk_i        ),
