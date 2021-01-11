@@ -34,7 +34,7 @@ module mempool_system #(
   localparam NumTilesPerGroup = NumTiles / NumGroups;
   localparam NumBanks         = NumCores * BankingFactor;
   localparam TCDMSize         = NumBanks * TCDMSizePerBank;
-  localparam L2AddrWidth      = 18;
+  localparam L2AddrWidth      = 12;
 
   /*********
    *  AXI  *
@@ -101,7 +101,7 @@ module mempool_system #(
   localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
   localparam addr_t CtrlRegistersEndAddr  = 32'h4000_FFFF;
   localparam addr_t L2MemoryBaseAddr      = 32'h8000_0000;
-  localparam addr_t L2MemoryEndAddr       = 32'h9FFF_FFFF;
+  localparam addr_t L2MemoryEndAddr       = 32'h801F_FFFF;
   localparam addr_t BootromBaseAddr       = 32'hA000_0000;
   localparam addr_t BootromEndAddr        = 32'hA000_FFFF;
 
