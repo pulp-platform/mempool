@@ -52,10 +52,10 @@ module mempool_system #(
     External
   } axi_slave_target;
 
-  axi_tile_req_t    [NumAXIMasters - 1:0] axi_mst_req;
-  axi_tile_resp_t   [NumAXIMasters - 1:0] axi_mst_resp;
-  axi_system_req_t  [NumAXISlaves - 1:0]  axi_mem_req;
-  axi_system_resp_t [NumAXISlaves - 1:0]  axi_mem_resp;
+  (* mark_debug = "true" *) axi_tile_req_t    [NumAXIMasters - 1:0] axi_mst_req;
+  (* mark_debug = "true" *) axi_tile_resp_t   [NumAXIMasters - 1:0] axi_mst_resp;
+  (* mark_debug = "true" *) axi_system_req_t  [NumAXISlaves - 1:0]  axi_mem_req;
+  (* mark_debug = "true" *) axi_system_resp_t [NumAXISlaves - 1:0]  axi_mem_resp;
   logic             [NumCores - 1:0]      wake_up;
   logic             [DataWidth - 1:0]     eoc;
 
@@ -146,13 +146,13 @@ module mempool_system #(
    ********/
 
   // Memory
-  logic      mem_req;
-  logic      mem_rvalid;
-  addr_t     mem_addr;
-  axi_data_t mem_wdata;
-  axi_strb_t mem_strb;
-  logic      mem_we;
-  axi_data_t mem_rdata;
+  (* mark_debug = "true" *) logic      mem_req;
+  (* mark_debug = "true" *) logic      mem_rvalid;
+  (* mark_debug = "true" *) addr_t     mem_addr;
+  (* mark_debug = "true" *) axi_data_t mem_wdata;
+  (* mark_debug = "true" *) axi_strb_t mem_strb;
+  (* mark_debug = "true" *) logic      mem_we;
+  (* mark_debug = "true" *) axi_data_t mem_rdata;
 
   axi2mem #(
     .axi_req_t  (axi_system_req_t ),
@@ -250,10 +250,10 @@ module mempool_system #(
    *  Control Registers  *
    ***********************/
 
-  axi_ctrl_req_t    axi_ctrl_req;
-  axi_ctrl_resp_t   axi_ctrl_resp;
-  axi_lite_slv_req_t  axi_lite_ctrl_registers_req;
-  axi_lite_slv_resp_t axi_lite_ctrl_registers_resp;
+  (* mark_debug = "true" *) axi_ctrl_req_t    axi_ctrl_req;
+  (* mark_debug = "true" *) axi_ctrl_resp_t   axi_ctrl_resp;
+  (* mark_debug = "true" *) axi_lite_slv_req_t  axi_lite_ctrl_registers_req;
+  (* mark_debug = "true" *) axi_lite_slv_resp_t axi_lite_ctrl_registers_resp;
 
   axi_dw_converter #(
     .AxiMaxReads         (1                ), // Number of outstanding reads
