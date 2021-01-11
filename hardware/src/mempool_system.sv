@@ -69,7 +69,7 @@ module mempool_system #(
     AxiIdWidthSlvPorts : AxiTileIdWidth,
     AxiIdUsedSlvPorts  : AxiTileIdWidth,
     AxiAddrWidth       : AddrWidth,
-    AxiDataWidth       : DataWidth,
+    AxiDataWidth       : AxiDataWidth,
     NoAddrRules        : NumRules
   };
 
