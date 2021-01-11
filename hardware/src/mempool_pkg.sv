@@ -87,6 +87,12 @@ package mempool_pkg;
   `AXI_TYPEDEF_REQ_T(axi_system_req_t, axi_system_aw_t, axi_system_w_t, axi_system_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_system_resp_t, axi_system_b_t, axi_system_r_t);
 
+  // AXI to ctrl registers
+  `AXI_TYPEDEF_W_CHAN_T(axi_ctrl_w_t, axi_lite_data_t, axi_lite_strb_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_ctrl_r_t, axi_lite_data_t, axi_system_id_t, logic);
+  `AXI_TYPEDEF_REQ_T(axi_ctrl_req_t, axi_system_aw_t, axi_ctrl_w_t, axi_system_ar_t);
+  `AXI_TYPEDEF_RESP_T(axi_ctrl_resp_t, axi_system_b_t, axi_ctrl_r_t);
+
   `AXI_TYPEDEF_AW_CHAN_T(axi_tb_aw_t, addr_t, axi_tb_id_t, logic);
   `AXI_TYPEDEF_W_CHAN_T(axi_tb_w_t, axi_data_t, axi_strb_t, logic);
   `AXI_TYPEDEF_B_CHAN_T(axi_tb_b_t, axi_tb_id_t, logic);

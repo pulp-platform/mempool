@@ -250,27 +250,57 @@ module mempool_system #(
    *  Control Registers  *
    ***********************/
 
+  axi_ctrl_req_t    axi_ctrl_req;
+  axi_ctrl_resp_t   axi_ctrl_resp;
   axi_lite_slv_req_t  axi_lite_ctrl_registers_req;
   axi_lite_slv_resp_t axi_lite_ctrl_registers_resp;
 
+  axi_dw_converter #(
+    .AxiMaxReads         (1                ), // Number of outstanding reads
+    .AxiSlvPortDataWidth (AxiDataWidth     ), // Data width of the slv port
+    .AxiMstPortDataWidth (AxiLiteDataWidth ), // Data width of the mst port
+    .AxiAddrWidth        (AddrWidth        ), // Address width
+    .AxiIdWidth          (AxiSystemIdWidth ), // ID width
+    .aw_chan_t           (axi_system_aw_t  ), // AW Channel Type
+    .mst_w_chan_t        (axi_ctrl_w_t     ), //  W Channel Type for the mst port
+    .slv_w_chan_t        (axi_system_w_t   ), //  W Channel Type for the slv port
+    .b_chan_t            (axi_system_b_t   ), //  B Channel Type
+    .ar_chan_t           (axi_system_ar_t  ), // AR Channel Type
+    .mst_r_chan_t        (axi_ctrl_r_t     ), //  R Channel Type for the mst port
+    .slv_r_chan_t        (axi_system_r_t   ), //  R Channel Type for the slv port
+    .axi_mst_req_t       (axi_ctrl_req_t   ), // AXI Request Type for mst ports
+    .axi_mst_resp_t      (axi_ctrl_resp_t  ), // AXI Response Type for mst ports
+    .axi_slv_req_t       (axi_system_req_t ), // AXI Request Type for slv ports
+    .axi_slv_resp_t      (axi_system_resp_t)  // AXI Response Type for slv ports
+  ) i_axi_dw_converter_ctrl (
+    .clk_i      (clk_i                      ),
+    .rst_ni     (rst_ni                     ),
+    // Slave interface
+    .slv_req_i  (axi_mem_req[CtrlRegisters] ),
+    .slv_resp_o (axi_mem_resp[CtrlRegisters]),
+    // Master interface
+    .mst_req_o  (axi_ctrl_req               ),
+    .mst_resp_i (axi_ctrl_resp              )
+  );
+
   axi_to_axi_lite #(
     .AxiAddrWidth   (AddrWidth          ),
-    .AxiDataWidth   (AxiDataWidth       ),
+    .AxiDataWidth   (AxiLiteDataWidth   ),
     .AxiIdWidth     (AxiSystemIdWidth   ),
     .AxiUserWidth   (1                  ),
     .AxiMaxReadTxns (1                  ),
     .AxiMaxWriteTxns(1                  ),
     .FallThrough    (1'b0               ),
-    .full_req_t     (axi_system_req_t   ),
-    .full_resp_t    (axi_system_resp_t  ),
+    .full_req_t     (axi_ctrl_req_t     ),
+    .full_resp_t    (axi_ctrl_resp_t    ),
     .lite_req_t     (axi_lite_slv_req_t ),
     .lite_resp_t    (axi_lite_slv_resp_t)
   ) i_axi_to_axi_lite (
     .clk_i     (clk_i                       ),
     .rst_ni    (rst_ni                      ),
     .test_i    (1'b0                        ),
-    .slv_req_i (axi_mem_req[CtrlRegisters]  ),
-    .slv_resp_o(axi_mem_resp[CtrlRegisters] ),
+    .slv_req_i (axi_ctrl_req                ),
+    .slv_resp_o(axi_ctrl_resp               ),
     .mst_req_o (axi_lite_ctrl_registers_req ),
     .mst_resp_i(axi_lite_ctrl_registers_resp)
   );
