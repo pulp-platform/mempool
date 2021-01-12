@@ -888,6 +888,42 @@ riscv_insn_ext_xpulpimg = \
 	pv_extractu_b \
 	pv_insert_h \
 	pv_insert_b \
+	pv_dotup_h \
+	pv_dotup_sc_h \
+	pv_dotup_sci_h \
+	pv_dotup_b \
+	pv_dotup_sc_b \
+	pv_dotup_sci_b \
+	pv_dotusp_h \
+	pv_dotusp_sc_h \
+	pv_dotusp_sci_h \
+	pv_dotusp_b \
+	pv_dotusp_sc_b \
+	pv_dotusp_sci_b \
+	pv_dotsp_h \
+	pv_dotsp_sc_h \
+	pv_dotsp_sci_h \
+	pv_dotsp_b \
+	pv_dotsp_sc_b \
+	pv_dotsp_sci_b \
+	pv_sdotup_h \
+	pv_sdotup_sc_h \
+	pv_sdotup_sci_h \
+	pv_sdotup_b \
+	pv_sdotup_sc_b \
+	pv_sdotup_sci_b \
+	pv_sdotusp_h \
+	pv_sdotusp_sc_h \
+	pv_sdotusp_sci_h \
+	pv_sdotusp_b \
+	pv_sdotusp_sc_b \
+	pv_sdotusp_sci_b \
+	pv_sdotsp_h \
+	pv_sdotsp_sc_h \
+	pv_sdotsp_sci_h \
+	pv_sdotsp_b \
+	pv_sdotsp_sc_b \
+	pv_sdotsp_sci_b \
 
 riscv_insn_ext_h = \
 	hfence_gvma \

@@ -1471,6 +1471,43 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_PI1ZTYPE(pv_insert_h);
   DEFINE_PI1ZTYPE(pv_insert_b);
 
+  DEFINE_RTYPE(pv_dotup_h);
+  DEFINE_RTYPE(pv_dotup_sc_h);
+  DEFINE_PI1ZTYPE(pv_dotup_sci_h);
+  DEFINE_RTYPE(pv_dotup_b);
+  DEFINE_RTYPE(pv_dotup_sc_b);
+  DEFINE_PI1ZTYPE(pv_dotup_sci_b);
+  DEFINE_RTYPE(pv_dotusp_h);
+  DEFINE_RTYPE(pv_dotusp_sc_h);
+  DEFINE_PI1ZTYPE(pv_dotusp_sci_h);
+  DEFINE_RTYPE(pv_dotusp_b);
+  DEFINE_RTYPE(pv_dotusp_sc_b);
+  DEFINE_PI1ZTYPE(pv_dotusp_sci_b);
+  DEFINE_RTYPE(pv_dotsp_h);
+  DEFINE_RTYPE(pv_dotsp_sc_h);
+  DEFINE_PI1ZTYPE(pv_dotsp_sci_h);
+  DEFINE_RTYPE(pv_dotsp_b);
+  DEFINE_RTYPE(pv_dotsp_sc_b);
+  DEFINE_PI1ZTYPE(pv_dotsp_sci_b);
+  DEFINE_RTYPE(pv_sdotup_h);
+  DEFINE_RTYPE(pv_sdotup_sc_h);
+  DEFINE_PI1ZTYPE(pv_sdotup_sci_h);
+  DEFINE_RTYPE(pv_sdotup_b);
+  DEFINE_RTYPE(pv_sdotup_sc_b);
+  DEFINE_PI1ZTYPE(pv_sdotup_sci_b);
+  DEFINE_RTYPE(pv_sdotusp_h);
+  DEFINE_RTYPE(pv_sdotusp_sc_h);
+  DEFINE_PI1ZTYPE(pv_sdotusp_sci_h);
+  DEFINE_RTYPE(pv_sdotusp_b);
+  DEFINE_RTYPE(pv_sdotusp_sc_b);
+  DEFINE_PI1ZTYPE(pv_sdotusp_sci_b);
+  DEFINE_RTYPE(pv_sdotsp_h);
+  DEFINE_RTYPE(pv_sdotsp_sc_h);
+  DEFINE_PI1ZTYPE(pv_sdotsp_sci_h);
+  DEFINE_RTYPE(pv_sdotsp_b);
+  DEFINE_RTYPE(pv_sdotsp_sc_b);
+  DEFINE_PI1ZTYPE(pv_sdotsp_sci_b);
+
   // provide a default disassembly for all instructions as a fallback
   #define DECLARE_INSN(code, match, mask) \
    add_insn(new disasm_insn_t(#code " (args unknown)", match, mask, {}));
