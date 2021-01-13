@@ -63,6 +63,12 @@ ifeq ($(xpulpimg),1)
 		pv_abs \
 		pv_extract pv_extractu \
 		pv_insert \
+		pv_dotup \
+		pv_dotusp \
+		pv_dotsp \
+		pv_sdotup \
+		pv_sdotusp \
+		pv_sdotsp \
 
 endif
 

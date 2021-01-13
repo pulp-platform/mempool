@@ -496,6 +496,34 @@ test_ ## testnum: \
     )
 
 #-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 2 register operands (rd and rs1)
+# and a 6-bit unsigned immediate input
+#-----------------------------------------------------------------------
+
+#define TEST_RR_UIMM6_OP( testnum, inst, result, val1, imm, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, ZEXT_UIMM6(imm); \
+    )
+
+# TODO(smazzola): finish to write macros to cover all tests types
+
+#-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 2 register operands (rd and rs1)
+# and a 6-bit signed immediate input
+#-----------------------------------------------------------------------
+
+#define TEST_RR_SIMM6_OP( testnum, inst, result, val1, imm, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, SEXT_IMM6(imm); \
+    )
+
+# TODO(smazzola): finish to write macros to cover all tests types
+
+#-----------------------------------------------------------------------
 # Test memory instructions (immediate offset)
 #-----------------------------------------------------------------------
 
