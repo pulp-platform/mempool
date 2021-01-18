@@ -333,14 +333,23 @@ riscv_insn_ext_q = \
 	fsqrt_q \
 	fsub_q \
 
+# Disabled riscv_insn_ext_v_alu_int instructions for opcode overlap:
+#vasubu_vx
+#vslide1up_vx
+#vaaddu_vx
+#vadc_vvm
+#vadc_vxm
+#vsbc_vvm
+#vsbc_vxm
+#vmulhu_vx
+#vdivu_vx
+#vmulhsu_vx
+
 riscv_insn_ext_v_alu_int = \
 	vaadd_vv \
 	vaaddu_vv \
 	vaadd_vx \
-	vaaddu_vx \
 	vadc_vim \
-	vadc_vvm \
-	vadc_vxm \
 	vadd_vi \
 	vadd_vv \
 	vadd_vx \
@@ -350,12 +359,10 @@ riscv_insn_ext_v_alu_int = \
 	vasub_vv \
 	vasubu_vv \
 	vasub_vx \
-	vasubu_vx \
 	vcompress_vm \
 	vdiv_vv \
 	vdiv_vx \
 	vdivu_vv \
-	vdivu_vx \
 	vdot_vv \
 	vdotu_vv \
 	vid_v \
@@ -416,9 +423,7 @@ riscv_insn_ext_v_alu_int = \
 	vmulh_vv \
 	vmulh_vx \
 	vmulhsu_vv \
-	vmulhsu_vx \
 	vmulhu_vv \
-	vmulhu_vx \
 	vmv_s_x \
 	vmv_v_i \
 	vmv_v_v \
@@ -473,13 +478,10 @@ riscv_insn_ext_v_alu_int = \
 	vsaddu_vi \
 	vsaddu_vv \
 	vsaddu_vx \
-	vsbc_vvm \
-	vsbc_vxm \
 	vsext_vf2 \
 	vsext_vf4 \
 	vsext_vf8 \
 	vslide1down_vx \
-	vslide1up_vx \
 	vslidedown_vi \
 	vslidedown_vx \
 	vslideup_vi \
@@ -545,6 +547,9 @@ riscv_insn_ext_v_alu_int = \
 	vzext_vf4 \
 	vzext_vf8 \
 
+# Disabled riscv_insn_ext_v_alu_fp instructions for opcode overlap:
+#vfcvt_x_f_v
+
 riscv_insn_ext_v_alu_fp = \
 	vfadd_vf \
 	vfadd_vv \
@@ -553,7 +558,6 @@ riscv_insn_ext_v_alu_fp = \
 	vfcvt_f_xu_v \
 	vfcvt_rtz_x_f_v \
 	vfcvt_rtz_xu_f_v \
-	vfcvt_x_f_v \
 	vfcvt_xu_f_v \
 	vfdiv_vf \
 	vfdiv_vv \
@@ -741,9 +745,11 @@ riscv_insn_ext_v_ldst = \
 	vs4r_v \
 	vs8r_v \
 
+# Disabled riscv_insn_ext_v_ctrl instructions for opcode overlap:
+#vsetvl
+
 riscv_insn_ext_v_ctrl = \
 	vsetvli \
-	vsetvl \
 
 riscv_insn_ext_v = \
 	$(riscv_insn_ext_v_alu_fp) \

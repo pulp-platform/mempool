@@ -295,8 +295,6 @@ private:
 #define RS1_B(i) ((RS1 >> ((xlen >> 2) * (i & 0x3))) & 0xFF) /* select rs1 byte: i should only be from 0 to 3 */
 #define RS2_H(i) ((RS2 >> ((xlen >> 1) * (i & 0x1))) & 0xFFFF) /* select rs2 half: i should only be 0 or 1 */
 #define RS2_B(i) ((RS2 >> ((xlen >> 2) * (i & 0x3))) & 0xFF) /* select rs2 byte: i should only be from 0 to 3 */
-#define WRITE_RD_H(i, value) WRITE_RD((RD & ~(0xFFFF << ((xlen >> 1) * (i & 0x1)))) | ((value & 0xFFFF) << ((xlen >> 1) * (i & 0x1)))) /* select to which rd half to write the 16-bit value */
-#define WRITE_RD_B(i, value) WRITE_RD((RD & ~(0xFF << ((xlen >> 2) * (i & 0x3)))) | ((value & 0xFF) << ((xlen >> 2) * (i & 0x3)))) /* select to which rd byte to write the 8-bit value */
 
 
 #define sext32(x) ((sreg_t)(int32_t)(x))

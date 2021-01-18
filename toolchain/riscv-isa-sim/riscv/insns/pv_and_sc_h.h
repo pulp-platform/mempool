@@ -6,4 +6,4 @@ for(int i = xlen/16 - 1; i >= 0; i--){
   simd_rd <<= 16;
   simd_rd += (uint32_t)temp & 0x0000FFFF;
 }
-WRITE_RD(zext_xlen(simd_rd));
+WRITE_RD(sext_xlen(simd_rd));
