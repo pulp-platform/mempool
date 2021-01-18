@@ -9,7 +9,7 @@
 # configuration setting
 # https://github.com/riscv/riscv-v-spec/blob/master/vcfg-format.adoc
 @vsetvli      31=0 zimm11         rs1 14..12=0x7 rd 6..0=0x57
-@vsetvl       31=1 30..25=0x0 rs2 rs1 14..12=0x7 rd 6..0=0x57
+#vsetvl       31=1 30..25=0x0 rs2 rs1 14..12=0x7 rd 6..0=0x57
 
 #
 # Vector Loads and Store
@@ -192,7 +192,7 @@ vfnmacc.vv     31..26=0x2d vm vs2 vs1 14..12=0x1 vd 6..0=0x57
 vfnmsac.vv     31..26=0x2f vm vs2 vs1 14..12=0x1 vd 6..0=0x57
 
 @vfcvt.xu.f.v     31..26=0x12 vm vs2 19..15=0x00 14..12=0x1 vd 6..0=0x57
-@vfcvt.x.f.v      31..26=0x12 vm vs2 19..15=0x01 14..12=0x1 vd 6..0=0x57
+#vfcvt.x.f.v      31..26=0x12 vm vs2 19..15=0x01 14..12=0x1 vd 6..0=0x57
 @vfcvt.f.xu.v     31..26=0x12 vm vs2 19..15=0x02 14..12=0x1 vd 6..0=0x57
 @vfcvt.f.x.v      31..26=0x12 vm vs2 19..15=0x03 14..12=0x1 vd 6..0=0x57
 @vfcvt.rtz.xu.f.v 31..26=0x12 vm vs2 19..15=0x06 14..12=0x1 vd 6..0=0x57
@@ -248,9 +248,9 @@ vxor.vx        31..26=0x0b vm vs2 rs1 14..12=0x4 vd 6..0=0x57
 @vslideup.vx    31..26=0x0e vm vs2 rs1 14..12=0x4 vd 6..0=0x57
 vslidedown.vx  31..26=0x0f vm vs2 rs1 14..12=0x4 vd 6..0=0x57
 
-@vadc.vxm       31..26=0x10 25=0 vs2 rs1 14..12=0x4 vd 6..0=0x57
+#vadc.vxm       31..26=0x10 25=0 vs2 rs1 14..12=0x4 vd 6..0=0x57
 vmadc.vxm      31..26=0x11 vm   vs2 rs1 14..12=0x4 vd 6..0=0x57
-@vsbc.vxm       31..26=0x12 25=0 vs2 rs1 14..12=0x4 vd 6..0=0x57
+#vsbc.vxm       31..26=0x12 25=0 vs2 rs1 14..12=0x4 vd 6..0=0x57
 vmsbc.vxm      31..26=0x13 vm   vs2 rs1 14..12=0x4 vd 6..0=0x57
 @vmerge.vxm     31..26=0x17 25=0 vs2 rs1 14..12=0x4 vd 6..0=0x57
 @vmv.v.x        31..26=0x17 25=1 24..20=0 rs1 14..12=0x4 vd 6..0=0x57
@@ -296,9 +296,9 @@ vxor.vv         31..26=0x0b vm vs2 vs1 14..12=0x0 vd 6..0=0x57
 @vrgather.vv     31..26=0x0c vm vs2 vs1 14..12=0x0 vd 6..0=0x57
 @vrgatherei16.vv 31..26=0x0e vm vs2 vs1 14..12=0x0 vd 6..0=0x57
 
-@vadc.vvm       31..26=0x10 25=0 vs2 vs1 14..12=0x0 vd 6..0=0x57
+#vadc.vvm       31..26=0x10 25=0 vs2 vs1 14..12=0x0 vd 6..0=0x57
 vmadc.vvm      31..26=0x11 vm   vs2 vs1 14..12=0x0 vd 6..0=0x57
-@vsbc.vvm       31..26=0x12 25=0 vs2 vs1 14..12=0x0 vd 6..0=0x57
+#vsbc.vvm       31..26=0x12 25=0 vs2 vs1 14..12=0x0 vd 6..0=0x57
 vmsbc.vvm      31..26=0x13 vm   vs2 vs1 14..12=0x0 vd 6..0=0x57
 vmerge.vvm     31..26=0x17 25=0 vs2 vs1 14..12=0x0 vd 6..0=0x57
 vmv.v.v        31..26=0x17 25=1 24..20=0 vs1 14..12=0x0 vd 6..0=0x57
@@ -442,22 +442,22 @@ vwmacc.vv      31..26=0x3d vm vs2 vs1 14..12=0x2 vd 6..0=0x57
 vwmaccsu.vv    31..26=0x3f vm vs2 vs1 14..12=0x2 vd 6..0=0x57
 
 # OPMVX
-@vaaddu.vx      31..26=0x08 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
+#vaaddu.vx      31..26=0x08 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vaadd.vx       31..26=0x09 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
-@vasubu.vx      31..26=0x0a vm vs2 rs1 14..12=0x6 vd 6..0=0x57
+#vasubu.vx      31..26=0x0a vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vasub.vx       31..26=0x0b vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 
 @vmv.s.x        31..26=0x10 25=1 24..20=0 rs1 14..12=0x6 vd 6..0=0x57
-@vslide1up.vx   31..26=0x0e vm vs2 rs1 14..12=0x6 vd 6..0=0x57
+#vslide1up.vx   31..26=0x0e vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vslide1down.vx 31..26=0x0f vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 
-@vdivu.vx       31..26=0x20 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
+#vdivu.vx       31..26=0x20 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vdiv.vx        31..26=0x21 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 @vremu.vx       31..26=0x22 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vrem.vx        31..26=0x23 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
-@vmulhu.vx      31..26=0x24 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
+#vmulhu.vx      31..26=0x24 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vmul.vx        31..26=0x25 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
-@vmulhsu.vx     31..26=0x26 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
+#vmulhsu.vx     31..26=0x26 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vmulh.vx       31..26=0x27 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vmadd.vx       31..26=0x29 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
 vnmsub.vx      31..26=0x2b vm vs2 rs1 14..12=0x6 vd 6..0=0x57
