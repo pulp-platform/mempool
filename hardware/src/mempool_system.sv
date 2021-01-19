@@ -36,7 +36,7 @@ module mempool_system
    *  AXI  *
    *********/
 
-  localparam NumAXIMasters = NumTiles + 1; // +1 because the external host is also a master
+  localparam NumAXIMasters = NumGroups + 1; // +1 because the external host is also a master
   localparam NumAXISlaves  = 4;            // control regs, l2 memory, bootrom and the external mst ports
   localparam NumRules      = NumAXISlaves - 1;
 

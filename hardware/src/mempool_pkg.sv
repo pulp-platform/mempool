@@ -21,7 +21,7 @@ package mempool_pkg;
   localparam integer unsigned NumTilesPerGroup = NumTiles / NumGroups;
   localparam integer unsigned NumCoresPerGroup = NumCores / NumGroups;
   localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
-  localparam integer unsigned AxiCoreIdWidth   = $clog2(NumCoresPerTile);
+  localparam integer unsigned AxiCoreIdWidth   = 1;
   localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache
   localparam integer unsigned AxiDataWidth     = 128;
   localparam integer unsigned AxiLiteDataWidth = 32;
@@ -55,7 +55,7 @@ package mempool_pkg;
   typedef logic [DataWidth-1:0] data_t;
   typedef logic [BeWidth-1:0] strb_t;
 
-  localparam NumSystemXbarMasters = NumTiles + 1;
+  localparam NumSystemXbarMasters = NumGroups + 1;
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
   typedef logic [AxiSystemIdWidth-1:0] axi_system_id_t;
 

@@ -65,8 +65,8 @@ module mempool_group
   // Wake up interface
   input  logic                            [NumCoresPerGroup-1:0]  wake_up_i,
    // AXI Interface
-  output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMasters-1:0])    axi_mst_req_o,
-  input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMasters-1:0])    axi_mst_resp_i
+  output `STRUCT_PORT(axi_tile_req_t)                             axi_mst_req_o,
+  input  `STRUCT_PORT(axi_tile_resp_t)                            axi_mst_resp_i
 );
 
   /*****************
@@ -142,6 +142,10 @@ module mempool_group
   logic              [NumTilesPerGroup-1:0] tcdm_slave_local_resp_valid;
   logic              [NumTilesPerGroup-1:0] tcdm_slave_local_resp_ready;
 
+  // AXI interfaces
+  axi_tile_req_t  [NumTilesPerGroup-1:0] axi_tile_req;
+  axi_tile_resp_t [NumTilesPerGroup-1:0] axi_tile_resp;
+
   for (genvar t = 0; unsigned'(t) < NumTilesPerGroup; t++) begin: gen_tiles
     tile_id_t id;
     assign id = (group_id_i << $clog2(NumTilesPerGroup)) | t[idx_width(NumTilesPerGroup)-1:0];
@@ -206,8 +210,8 @@ module mempool_group
       .tcdm_slave_local_resp_valid_o     (tcdm_slave_local_resp_valid[t]                   ),
       .tcdm_slave_local_resp_ready_i     (tcdm_slave_local_resp_ready[t]                   ),
       // AXI interface
-      .axi_mst_req_o                     (axi_mst_req_o[t]                                 ),
-      .axi_mst_resp_i                    (axi_mst_resp_i[t]                                ),
+      .axi_mst_req_o                     (axi_tile_req[t]                                  ),
+      .axi_mst_resp_i                    (axi_tile_resp[t]                                 ),
       // Wake up interface
       .wake_up_i                         (wake_up_i[t*NumCoresPerTile +: NumCoresPerTile])
     );
@@ -552,6 +556,32 @@ module mempool_group
     .req_wen_o      (slave_northeast_req_wen      ),
     .req_ini_addr_o (slave_northeast_req_ini_addr ),
     .req_tgt_addr_o (slave_northeast_req_tgt_addr )
+  );
+
+  /**********************
+   *  AXI Interconnect  *
+   **********************/
+
+  axi_hier_interco #(
+    .NumSlvPorts (NumTilesPerGroup),
+    .EnableCache (1'b0            ),
+    .AddrWidth   (AddrWidth       ),
+    .DataWidth   (AxiDataWidth    ),
+    .SlvIdWidth  (AxiTileIdWidth  ),
+    .MstIdWidth  (AxiTileIdWidth  ),
+    .UserWidth   (1               ),
+    .slv_req_t   (axi_tile_req_t  ),
+    .slv_resp_t  (axi_tile_resp_t ),
+    .mst_req_t   (axi_tile_req_t  ),
+    .mst_resp_t  (axi_tile_resp_t )
+  ) i_axi_interco (
+    .clk_i      (clk_i         ),
+    .rst_ni     (rst_ni        ),
+    .test_i     (1'b0          ),
+    .slv_req_i  (axi_tile_req  ),
+    .slv_resp_o (axi_tile_resp ),
+    .mst_req_o  (axi_mst_req_o ),
+    .mst_resp_i (axi_mst_resp_i)
   );
 
 endmodule: mempool_group

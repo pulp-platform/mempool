@@ -10,7 +10,7 @@ module mempool_cluster_wrap
   // Boot address
   parameter logic [31:0] BootAddr      = 32'h0000_0000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumAXIMasters = NumTiles
+  parameter int unsigned NumAXIMasters = NumGroups
 ) (
   // Clock and reset
   input  logic                               clk_i,
