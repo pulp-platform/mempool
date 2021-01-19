@@ -563,17 +563,18 @@ module mempool_group
    **********************/
 
   axi_hier_interco #(
-    .NumSlvPorts (NumTilesPerGroup),
-    .EnableCache (1'b0            ),
-    .AddrWidth   (AddrWidth       ),
-    .DataWidth   (AxiDataWidth    ),
-    .SlvIdWidth  (AxiTileIdWidth  ),
-    .MstIdWidth  (AxiTileIdWidth  ),
-    .UserWidth   (1               ),
-    .slv_req_t   (axi_tile_req_t  ),
-    .slv_resp_t  (axi_tile_resp_t ),
-    .mst_req_t   (axi_tile_req_t  ),
-    .mst_resp_t  (axi_tile_resp_t )
+    .NumSlvPorts    (NumTilesPerGroup),
+    .NumPortsPerMux (4               ),
+    .EnableCache    (1'b0            ),
+    .AddrWidth      (AddrWidth       ),
+    .DataWidth      (AxiDataWidth    ),
+    .SlvIdWidth     (AxiTileIdWidth  ),
+    .MstIdWidth     (AxiTileIdWidth  ),
+    .UserWidth      (1               ),
+    .slv_req_t      (axi_tile_req_t  ),
+    .slv_resp_t     (axi_tile_resp_t ),
+    .mst_req_t      (axi_tile_req_t  ),
+    .mst_resp_t     (axi_tile_resp_t )
   ) i_axi_interco (
     .clk_i      (clk_i         ),
     .rst_ni     (rst_ni        ),
