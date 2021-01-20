@@ -44,6 +44,8 @@ questa_args    ?=
 app_path       ?= $(abspath $(ROOT_DIR)/../apps/bin)
 # Bender
 bender         ?= $(INSTALL_DIR)/bender/bender
+# Verilator
+verilator      ?= $(INSTALL_DIR)/verilator/bin/verilator
 # Python
 python         ?= python3.6
 
@@ -91,6 +93,9 @@ $(buildpath):
 $(bender):
 	make -C $(MEMPOOL_DIR) bender
 
+################
+# Modelsim
+################
 # Library
 .PHONY: lib
 lib: $(buildpath) $(buildpath)/$(library)
@@ -133,6 +138,25 @@ $(tests): $(test_result_dir)/%.out : $(app_path)/%
 	cd $(buildpath) && \
 	$(questa_cmd) vsim -c $(questa_args) +PRELOAD=$< $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript > $@
+
+################
+# Verilator
+################
+VERILATOR_FLAGS += -Wno-BLKANDNBLK
+VERILATOR_FLAGS += -Wno-LITENDIAN
+VERILATOR_FLAGS += -Wno-CASEINCOMPLETE
+VERILATOR_FLAGS += -Wno-CMPCONST
+VERILATOR_FLAGS += -Wno-WIDTH
+VERILATOR_FLAGS += -Wno-WIDTHCONCAT
+VERILATOR_FLAGS += -Wno-UNSIGNED
+VERILATOR_FLAGS += -Wno-UNUSED
+VERILATOR_FLAGS += -Wno-fatal
+VERILATOR_FLAGS += --output-split 20000
+
+verilate:
+	mkdir -p obj_dir
+	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_test > obj_dir/files
+	$(verilator) -f obj_dir/files $(VERILATOR_FLAGS) --cc --top-module mempool_system
 
 # Benchmarking
 benchmark: log simc
