@@ -19,15 +19,16 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 
-INSTALL_PREFIX      ?= install
-APPS_PREFIX         ?= apps
-INSTALL_DIR         ?= ${ROOT_DIR}/${INSTALL_PREFIX}
-GCC_INSTALL_DIR     ?= ${INSTALL_DIR}/riscv-gcc
-ISA_SIM_INSTALL_DIR ?= ${INSTALL_DIR}/riscv-isa-sim
-LLVM_INSTALL_DIR    ?= ${INSTALL_DIR}/llvm
-HALIDE_INSTALL_DIR  ?= ${INSTALL_DIR}/halide
-BENDER_INSTALL_DIR  ?= ${INSTALL_DIR}/bender
-RISCV_TESTS_DIR     ?= ${ROOT_DIR}/${APPS_PREFIX}/riscv-tests
+INSTALL_PREFIX        ?= install
+APPS_PREFIX           ?= apps
+INSTALL_DIR           ?= ${ROOT_DIR}/${INSTALL_PREFIX}
+GCC_INSTALL_DIR       ?= ${INSTALL_DIR}/riscv-gcc
+ISA_SIM_INSTALL_DIR   ?= ${INSTALL_DIR}/riscv-isa-sim
+LLVM_INSTALL_DIR      ?= ${INSTALL_DIR}/llvm
+HALIDE_INSTALL_DIR    ?= ${INSTALL_DIR}/halide
+BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
+VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
+RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${APPS_PREFIX}/riscv-tests
 
 CMAKE ?= cmake-3.18.1
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
@@ -128,6 +129,15 @@ check-bender:
 $(BENDER_INSTALL_DIR)/bender:
 	mkdir -p $(BENDER_INSTALL_DIR) && cd $(BENDER_INSTALL_DIR) && \
 	curl --proto '=https' --tlsv1.2 https://fabianschuiki.github.io/bender/init -sSf | sh
+
+# Verilator
+verilator: $(VERILATOR_INSTALL_DIR)/bin/verilator
+$(VERILATOR_INSTALL_DIR)/bin/verilator:
+	git clone https://github.com/verilator/verilator $(VERILATOR_INSTALL_DIR)
+	cd $(VERILATOR_INSTALL_DIR); \
+	unset VERILATOR_ROOT; \
+	autoconf && ./configure && \
+	make -j4
 
 # Helper targets
 .PHONY: clean format apps
