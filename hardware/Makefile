@@ -106,7 +106,7 @@ $(buildpath)/$(library):
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_test > $(buildpath)/compile.tcl
+	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
@@ -150,13 +150,22 @@ VERILATOR_FLAGS += -Wno-WIDTH
 VERILATOR_FLAGS += -Wno-WIDTHCONCAT
 VERILATOR_FLAGS += -Wno-UNSIGNED
 VERILATOR_FLAGS += -Wno-UNUSED
+# VERILATOR_FLAGS += -Wno-BLKLOOPINIT
 VERILATOR_FLAGS += -Wno-fatal
+VERILATOR_FLAGS += -Wno-lint
+VERILATOR_FLAGS += -Wno-style
 VERILATOR_FLAGS += --output-split 20000
+
+# VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
+VERILATOR_FLAGS += -CFLAGS "-std=c++11 -Wall -DVM_TRACE_FMT_FST -DTOPLEVEL_NAME=mempool_tb_verilator -g" -LDFLAGS "-pthread -lutil -lelf" -Wall --unroll-count 72
+VERILATOR_FLAGS += --debug
 
 verilate:
 	mkdir -p obj_dir
-	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_test > obj_dir/files
-	$(verilator) -f obj_dir/files $(VERILATOR_FLAGS) --cc --top-module mempool_system
+	# 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > obj_dir/files
+	cp files.target obj_dir/files
+	$(verilator) -f obj_dir/files $(VERILATOR_FLAGS) --cc --top-module mempool_tb_verilator
+	make -j4 -C obj_dir -f Vmempool_tb_verilator.mk
 
 # Benchmarking
 benchmark: log simc
