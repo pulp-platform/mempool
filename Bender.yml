@@ -34,11 +34,16 @@ sources:
   # Level 5
   - hardware/src/mempool_system.sv
 
-  - target: mempool_test
+  - target: mempool_vsim
     files:
       # Level 1
       - hardware/tb/mempool_tb.sv
 
+  - target: mempool_verilator
+    files:
+      # Level 1
+      - hardware/tb/mempool_tb_verilator.sv
+  
   - target: fpga
     files:
       # Level 1
