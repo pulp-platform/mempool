@@ -164,12 +164,16 @@ static std::vector<uint8_t> FlattenElfFile(const std::string &filepath) {
       continue;
     }
 
-    if (phdr.p_memsz == 0) {
+    if (phdr.p_memsz == 0 || phdr.p_filesz == 0) {
+      std::cout << "Program header number " << i << " in `" << filepath
+                << "' has size 0; ignoring." << std::endl;
       continue;
     }
 
     if (!any || phdr.p_paddr < low) {
       low = phdr.p_paddr;
+      std::cout << "Program header number " << i << " in `" << filepath
+                << "' low is " << std::hex << low << std::endl;
     }
 
     Elf32_Addr seg_top = phdr.p_paddr + (phdr.p_memsz - 1);
@@ -183,6 +187,8 @@ static std::vector<uint8_t> FlattenElfFile(const std::string &filepath) {
 
     if (!any || seg_top > high) {
       high = seg_top;
+      std::cout << "Program header number " << i << " in `" << filepath
+                << "' high is " << std::hex << high << std::endl;
     }
 
     any = true;
@@ -207,6 +213,9 @@ static std::vector<uint8_t> FlattenElfFile(const std::string &filepath) {
     const Elf32_Phdr &phdr = phdrs[i];
 
     if (phdr.p_type != PT_LOAD) {
+      continue;
+    }
+    if (phdr.p_memsz == 0 || phdr.p_filesz == 0) {
       continue;
     }
 
@@ -237,6 +246,13 @@ static std::vector<uint8_t> FlattenElfFile(const std::string &filepath) {
 // Write a "segment" of data to the given memory area.
 static void WriteSegment(const MemArea &m, uint32_t offset,
                          const std::vector<uint8_t> &data) {
+  std::cout << "Set `" << m.name << " "
+      << m.location << " "
+      << m.width_byte << " "
+      "0x" << std::hex << m.addr_loc.base << " "
+      "0x" << std::hex << m.addr_loc.size << " "
+      << "write with offset: 0x" << std::hex << offset << " "
+      << "write with size: 0x" << std::hex << data.size() << "\n";
   assert(m.width_byte <= 32);
   assert(m.addr_loc.size == 0 || offset + data.size() <= m.addr_loc.size);
   assert((offset % m.width_byte) == 0);
@@ -543,11 +559,11 @@ void DpiMemUtil::LoadElfToMemories(bool verbose, const std::string &filepath) {
         WriteSegment(mem_area, seg_rng.lo, seg_data);
       } catch (const SVScoped::Error &err) {
         std::ostringstream oss;
-        oss << "No memory found at `" << err.scope_name_
+        std::cout << "No memory found at `" << err.scope_name_
             << "' (the scope associated with region `" << mem_area.name
             << "', used by a segment that starts at LMA 0x" << std::hex
             << mem_area.addr_loc.base + seg_rng.lo << ").";
-        throw std::runtime_error(oss.str());
+        // throw std::runtime_warn(oss.str());
       }
     }
   }
