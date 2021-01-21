@@ -24,9 +24,8 @@ ENTRY(_start)
 INCLUDE common/arch.ld
 
 SECTIONS {
-  . = BOOT_BASE;
   .text : {
     *(.text.init)
     *(.text)
-  }
+  } > rom
 }

@@ -28,3 +28,7 @@ num_cores_per_tile ?= 4
 
 # Xpulpimg extension enabled?
 xpulpimg ?= 1
+
+# L2 memory configuration (in hex)
+l2_base ?= 80000000
+l2_size ?= 10000

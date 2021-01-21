@@ -21,6 +21,6 @@
 .section .text.init;
 
 _start:
-    la      a0, INSTR_BASE // load the address to the entry point
+    la      a0, __l2_start // load the address to the entry point
     wfi
     jr      a0

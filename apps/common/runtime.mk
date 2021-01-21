@@ -67,7 +67,7 @@ RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Defines
-DEFINES := -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr)
+DEFINES := -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr) -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
@@ -94,12 +94,12 @@ else
 endif
 
 LINKER_SCRIPT ?= common/arch.ld
-RUNTIME ?= $(LINKER_SCRIPT) common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o
+RUNTIME ?= common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o
 
 # For unit tests
 RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib -nostartfiles
 
-.INTERMEDIATE: $(RUNTIME)
+.INTERMEDIATE: $(RUNTIME) $(LINKER_SCRIPT)
 
 %.S.o: %.S
 	$(RISCV_CC) $(RISCV_CCFLAGS) -c $< -o $@
