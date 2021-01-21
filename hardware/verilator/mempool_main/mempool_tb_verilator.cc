@@ -16,8 +16,9 @@ int main(int argc, char **argv) {
   simctrl.SetTop(&top, &top.clk_i, &top.rst_ni,
                  VerilatorSimCtrlFlags::ResetPolarityNegative);
 
+  MemAreaLoc l2_mem = {.base=0x80000000, .size=0x00080000};
   memutil.RegisterMemoryArea(
-      "ram", "TOP.mempool_tb_verilator.dut.l2_mem");
+      "ram", "TOP.mempool_tb_verilator.dut.l2_mem", 128, &l2_mem);
   simctrl.RegisterExtension(&memutil);
 
   bool exit_app = false;
