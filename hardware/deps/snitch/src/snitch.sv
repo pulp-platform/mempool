@@ -155,7 +155,6 @@ module snitch #(
 
   logic retire_load; // retire a load instruction
   logic retire_i; // retire the rest of the base instruction set
-  logic retire_i_rd, retire_i_rs1; // when retire_i = 1, write-back can be on rd or on rs1
   logic retire_acc; // retire an instruction we offloaded
 
   logic acc_stall;
@@ -184,7 +183,7 @@ module snitch #(
   logic write_rd; // write rd desitnation this cycle
   logic uses_rd;
   logic write_rs1; // write rs1 destination this cycle
-  logic uses_rs1; // useless for now, rs1 always written this cycle
+  logic uses_rs1;
   enum logic [1:0] {Consec, Alu, Exception} next_pc;
 
   enum logic [1:0] {RdAlu, RdConsecPC, RdBypass} rd_select;
@@ -1536,11 +1535,12 @@ module snitch #(
 
   assign lsu_qvalid = valid_instr & (is_load | is_store) & ~(ld_addr_misaligned | st_addr_misaligned);
 
+  // NOTE(smazzola): write-backs "on rd from non-load or non-acc instructions" and "on rs1 from
+  // post-increment instructions" in the same cycle should be mutually exclusive
+  // retire post-incremented address on rs1 if valid postincr instruction and LSU not stalling
+  assign retire_p = write_rs1 & ~stall & (rs1 != 0);
   // we can retire if we are not stalling and if the instruction is writing a register
-  assign retire_i_rd = write_rd & valid_instr & (rd != 0);
-  assign retire_i_rs1 = write_rs1 & valid_instr & (rs1 != 0);
-  // NOTE(smazzola): write-backs on rd and rs1 in the same cycle should be mutually exclusive
-  assign retire_i = retire_i_rd | retire_i_rs1;
+  assign retire_i = write_rd & valid_instr & (rd != 0);
 
   // -----------------------
   // Unaligned Address Check
@@ -1588,7 +1588,7 @@ module snitch #(
       gpr_we[0] = 1'b0;
       // NOTE(smazzola): this works because write-backs on rd and rs1 in the same cycle are mutually
       // exclusive; if this should change, the following statement has to be written in another form
-      gpr_waddr[0] = write_rs1 ? rs1 : rd; // choose whether to writeback at RF[rs1] for post-increment load/stores
+      gpr_waddr[0] = retire_p ? rs1 : rd; // choose whether to writeback at RF[rs1] for post-increment load/stores
       gpr_wdata[0] = alu_writeback;
       // external interfaces
       lsu_pready = 1'b0;
@@ -1596,7 +1596,7 @@ module snitch #(
       retire_acc = 1'b0;
       retire_load = 1'b0;
 
-      if (retire_i) begin
+      if (retire_i | retire_p) begin
         gpr_we[0] = 1'b1;
       // if we are not retiring another instruction retire the load now
       end else if (lsu_pvalid) begin
@@ -1618,7 +1618,7 @@ module snitch #(
       gpr_we[0] = 1'b0;
       // NOTE(smazzola): this works because write-backs on rd and rs1 in the same cycle are mutually
       // exclusive; if this should change, the following statement has to be written in another form
-      gpr_waddr[0] = write_rs1 ? rs1 : rd; // choose whether to writeback at RF[rs1] for post-increment load/stores
+      gpr_waddr[0] = retire_p ? rs1 : rd; // choose whether to writeback at RF[rs1] for post-increment load/stores
       gpr_wdata[0] = alu_writeback;
       gpr_we[1] = 1'b0;
       gpr_waddr[1] = lsu_rd;
@@ -1629,7 +1629,7 @@ module snitch #(
       retire_acc = 1'b0;
       retire_load = 1'b0;
 
-      if (retire_i) begin
+      if (retire_i | retire_p) begin
         gpr_we[0] = 1'b1;
         if (lsu_pvalid) begin
           retire_load = 1'b1;
