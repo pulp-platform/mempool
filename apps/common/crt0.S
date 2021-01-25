@@ -90,11 +90,13 @@ reset_vector:
 eoc:
     la t0, eoc_reg
     sw a0, 0(t0)
-    wfi
+    la ra, BOOT_BASE
+    ret
 
 fail:
     la t0, eoc_reg
     sw a0, 0(t0)
-    wfi
+    la ra, BOOT_BASE
+    ret
 
 .section .data
