@@ -106,7 +106,7 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
    *   Signals   *
    ***************/
 
-  assign eoc_o                = eoc;
+  assign eoc_o                = eoc >> 1;
   assign tcdm_start_address_o = tcdm_start_address;
   assign tcdm_end_address_o   = tcdm_end_address;
   assign num_cores_o          = num_cores;
@@ -123,7 +123,7 @@ localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
     end
   end
 
-  assign eoc_valid_o = |wr_active_q[3:0];
+  assign eoc_valid_o = eoc[0];
 
   // register to add +1 latency to the wr_active signal
   `FF(wr_active_q, wr_active_d, rst_ni)

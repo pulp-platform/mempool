@@ -54,7 +54,7 @@ module mempool_tb;
   localparam TA          = 0.2ns;
   localparam TT          = 0.8ns;
 
-  localparam L2AddrWidth = 18;
+  localparam PollEoc     = 0;
 
  /********************************
    *  Clock and Reset Generation  *
@@ -347,19 +347,23 @@ module mempool_tb;
     // Wake up all cores
     write_to_mempool(32'hA700_0004, {DataWidth{1'b1}}, resp);
     assert(resp == axi_pkg::RESP_OKAY);
-    // write_to_mempool(32'hA000_0000, 32'h0000_1234, resp);
-    // assert(resp == axi_pkg::RESP_OKAY);
-    // read_from_mempool(32'hA000_0000, rdata, resp);
-    // assert(resp == axi_pkg::RESP_OKAY);
-    do begin
-      #(1000*ClockPeriod);
-      @(posedge clk);
+    if (PollEoc) begin
+      // Poll for EOC (as done on the host at the moment)
+      do begin
+        #(1000*ClockPeriod);
+        @(posedge clk);
+        read_from_mempool(32'hA700_0000, rdata, resp);
+        assert(resp == axi_pkg::RESP_OKAY);
+      end while (rdata == 0);
+    end else begin
+      // Wait for the interrupt
+      wait (eoc_valid);
       read_from_mempool(32'hA700_0000, rdata, resp);
       assert(resp == axi_pkg::RESP_OKAY);
-    end while (rdata == 0);
+    end
     $timeformat(-9, 2, " ns", 0);
-    $display("[EOC] Simulation ended at %t (retval = %0d).", $time, rdata);
-    // $finish(0);
+    $display("[EOC] Simulation ended at %t (retval = %0d).", $time, rdata >> 1);
+    $finish(0);
     // Start MemPool
     fetch_en = 1'b1;
   end
