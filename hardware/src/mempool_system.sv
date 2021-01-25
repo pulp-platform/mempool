@@ -35,7 +35,6 @@ module mempool_system #(
   localparam NumTilesPerGroup = NumTiles / NumGroups;
   localparam NumBanks         = NumCores * BankingFactor;
   localparam TCDMSize         = NumBanks * TCDMSizePerBank;
-  localparam L2AddrWidth      = 12;
 
   /*********
    *  AXI  *
@@ -144,6 +143,8 @@ module mempool_system #(
   /********
    *  L2  *
    ********/
+  localparam L2NumWords  = L2Size / L2BeWidth;
+  localparam L2AddrWidth = $clog2(L2NumWords);
 
   // Memory
   logic      mem_req;
@@ -185,9 +186,9 @@ module mempool_system #(
   `FF(mem_rvalid, mem_req, rst_ni)
 
   tc_sram #(
-    .DataWidth(AxiDataWidth  ),
-    .NumWords (2**L2AddrWidth),
-    .NumPorts (1             )
+    .DataWidth(AxiDataWidth),
+    .NumWords (L2NumWords  ),
+    .NumPorts (1           )
   ) l2_mem (
     .clk_i  (clk_i                                ),
     .rst_ni (rst_ni                               ),
