@@ -164,6 +164,7 @@ module mempool_tb_verilator (
    *********/
   always_ff @(posedge clk) begin
     if (rst_ni && eoc_valid) begin
+      $display("[EOC] Simulation ended at %t (retval = %0d).", $time, dut.i_ctrl_registers.eoc_o);
       $finish;
     end
   end
