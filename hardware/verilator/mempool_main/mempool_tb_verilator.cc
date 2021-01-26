@@ -21,6 +21,9 @@ int main(int argc, char **argv) {
       "ram", "TOP.mempool_tb_verilator.dut.l2_mem", 128, &l2_mem);
   simctrl.RegisterExtension(&memutil);
 
+  simctrl.SetInitialResetDelay(5);
+  simctrl.SetResetDuration(5);
+
   bool exit_app = false;
   int ret_code = simctrl.ParseCommandArgs(argc, argv, exit_app);
   if (exit_app) {
