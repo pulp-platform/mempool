@@ -7,3 +7,6 @@
 [submodule "toolchain/halide"]
 	path = toolchain/halide
 	url = ../Halide.git
+[submodule "toolchain/verilator"]
+	path = toolchain/verilator
+	url = https://github.com/verilator/verilator.git

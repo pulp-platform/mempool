@@ -132,12 +132,10 @@ $(BENDER_INSTALL_DIR)/bender:
 
 # Verilator
 verilator: $(VERILATOR_INSTALL_DIR)/bin/verilator
-$(VERILATOR_INSTALL_DIR)/bin/verilator:
-	git clone https://github.com/verilator/verilator $(VERILATOR_INSTALL_DIR)
-	cd $(VERILATOR_INSTALL_DIR); \
-	unset VERILATOR_ROOT; \
-	autoconf && ./configure && \
-	make -j4
+$(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
+	cd $<; unset VERILATOR_ROOT; \
+	autoconf && ./configure --prefix=$(VERILATOR_INSTALL_DIR) && \
+	make -j4 && make install
 
 # Helper targets
 .PHONY: clean format apps
