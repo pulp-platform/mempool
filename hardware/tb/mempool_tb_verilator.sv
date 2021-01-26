@@ -157,22 +157,17 @@ module mempool_tb_verilator (
     .reg_q_o    (/*unused*/   )
   );
 
+  // TODO Print UART
+
   /*********
    *  EOC  *
    *********/
+  always_ff @(posedge clk) begin
+    if (rst_ni && eoc_valid) begin
+      $finish;
+    end
+  end
 
-  localparam addr_t EOCAddress = 32'h4000_0000;
-
-  // initial begin
-  //   while (1) begin
-  //       @(posedge clk); #TT;
-  //       if (eoc_valid) begin
-  //           // Finish simulation
-  //           $timeformat(-9, 2, " ns", 0);
-  //           $display("[EOC] Simulation ended at %t (retval = %0d).", $time, dut.i_ctrl_registers.eoc);
-  //           $finish(0);
-  //       end
-  //   end
-  // end
+  // TODO read EOC value with DPI
 
 endmodule : mempool_tb_verilator
