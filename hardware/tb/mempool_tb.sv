@@ -124,22 +124,22 @@ module mempool_tb;
   logic eoc_valid;
 
   mempool_system #(
-    .NumCores       (NumCores     ),
-    .BankingFactor  (BankingFactor),
-    .TCDMBaseAddr   (TCDMBaseAddr ),
-    .BootAddr       (BootAddr     )
+    .NumCores       (NumCores       ),
+    .BankingFactor  (BankingFactor  ),
+    .TCDMBaseAddr   (TCDMBaseAddr   ),
+    .BootAddr       (BootAddr       )
   ) dut (
-    .clk_i          (clk          ),
-    .rst_ni         (rst_n        ),
-    .fetch_en_i     (fetch_en     ),
-    .eoc_valid_o    (eoc_valid    ),
-    .busy_o         (/*Unused*/   ),
-    .mst_req_o      (axi_mst_req  ),
-    .mst_resp_i     (axi_mst_resp ),
+    .clk_i          (clk            ),
+    .rst_ni         (rst_n          ),
+    .fetch_en_i     (fetch_en       ),
+    .eoc_valid_o    (eoc_valid      ),
+    .busy_o         (/*Unused*/     ),
+    .mst_req_o      (axi_mst_req    ),
+    .mst_resp_i     (axi_mst_resp   ),
     .slv_req_i      (to_mempool_req ),
     .slv_resp_o     (to_mempool_resp),
-    .rab_conf_req_i (rab_conf_req ),
-    .rab_conf_resp_o(rab_conf_resp)
+    .rab_conf_req_i (rab_conf_req   ),
+    .rab_conf_resp_o(rab_conf_resp  )
   );
 
   /**********************
@@ -154,7 +154,7 @@ module mempool_tb;
   };
 
   axi_xbar #(
-    .Cfg          (XBarCfg       ),
+    .Cfg          (XBarCfg          ),
     .slv_aw_chan_t(axi_system_aw_t  ),
     .mst_aw_chan_t(axi_tb_aw_t      ),
     .w_chan_t     (axi_tb_w_t       ),
@@ -182,9 +182,9 @@ module mempool_tb;
     .default_mst_port_i   ({NumAXIMasters{Host}})
   );
 
- /**********
-  *  HOST  *
-  **********/
+  /**********
+   *  HOST  *
+   **********/
   assign axi_mem_resp[Host] = '0;
 
   /**********
@@ -277,7 +277,6 @@ module mempool_tb;
     to_mempool_req.aw.id = 'h18d;
     to_mempool_req.aw.addr = addr;
     to_mempool_req.aw.len = '0;
-    //to_mempool_req.aw.size = $clog2(AxiDataWidth/8);
     to_mempool_req.aw.size = 'h2;
     to_mempool_req.aw.burst = axi_pkg::BURST_INCR;
     to_mempool_req.aw_valid = 1'b1;
@@ -367,24 +366,6 @@ module mempool_tb;
     // Start MemPool
     fetch_en = 1'b1;
   end
-
-  /*********
-   *  EOC  *
-   *********/
-
-  localparam addr_t EOCAddress = 32'h4000_0000;
-
-//  initial begin
-//    while (1) begin
-//        @(posedge clk); #TT;
-//        if (eoc_valid) begin
-//            // Finish simulation
-//            $timeformat(-9, 2, " ns", 0);
-//            $display("[EOC] Simulation ended at %t (retval = %0d).", $time, dut.i_ctrl_registers.eoc);
-//            $finish(0);
-//        end
-//    end
-//  end
 
   /***********************
    *  L2 Initialization  *
