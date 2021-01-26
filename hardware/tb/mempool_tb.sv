@@ -54,7 +54,7 @@ module mempool_tb;
   localparam TA          = 0.2ns;
   localparam TT          = 0.8ns;
 
-  localparam L2AddrWidth = 18;
+  localparam PollEoc     = 0;
 
  /********************************
    *  Clock and Reset Generation  *
@@ -99,6 +99,9 @@ module mempool_tb;
   axi_lite_slv_req_t                        rab_conf_req;
   axi_lite_slv_resp_t                       rab_conf_resp;
 
+  axi_system_req_t                          to_mempool_req;
+  axi_system_resp_t                         to_mempool_resp;
+
   localparam xbar_cfg_t XBarCfg = '{
     NoSlvPorts        : NumAXIMasters,
     NoMstPorts        : NumAXISlaves,
@@ -121,22 +124,22 @@ module mempool_tb;
   logic eoc_valid;
 
   mempool_system #(
-    .NumCores       (NumCores     ),
-    .BankingFactor  (BankingFactor),
-    .TCDMBaseAddr   (TCDMBaseAddr ),
-    .BootAddr       (BootAddr     )
+    .NumCores       (NumCores       ),
+    .BankingFactor  (BankingFactor  ),
+    .TCDMBaseAddr   (TCDMBaseAddr   ),
+    .BootAddr       (BootAddr       )
   ) dut (
-    .clk_i          (clk          ),
-    .rst_ni         (rst_n        ),
-    .fetch_en_i     (fetch_en     ),
-    .eoc_valid_o    (eoc_valid    ),
-    .busy_o         (/*Unused*/   ),
-    .mst_req_o      (axi_mst_req  ),
-    .mst_resp_i     (axi_mst_resp ),
-    .slv_req_i      (/*Unused*/ '0),
-    .slv_resp_o     (/*Unused*/   ),
-    .rab_conf_req_i (rab_conf_req ),
-    .rab_conf_resp_o(rab_conf_resp)
+    .clk_i          (clk            ),
+    .rst_ni         (rst_n          ),
+    .fetch_en_i     (fetch_en       ),
+    .eoc_valid_o    (eoc_valid      ),
+    .busy_o         (/*Unused*/     ),
+    .mst_req_o      (axi_mst_req    ),
+    .mst_resp_i     (axi_mst_resp   ),
+    .slv_req_i      (to_mempool_req ),
+    .slv_resp_o     (to_mempool_resp),
+    .rab_conf_req_i (rab_conf_req   ),
+    .rab_conf_resp_o(rab_conf_resp  )
   );
 
   /**********************
@@ -151,7 +154,7 @@ module mempool_tb;
   };
 
   axi_xbar #(
-    .Cfg          (XBarCfg       ),
+    .Cfg          (XBarCfg          ),
     .slv_aw_chan_t(axi_system_aw_t  ),
     .mst_aw_chan_t(axi_tb_aw_t      ),
     .w_chan_t     (axi_tb_w_t       ),
@@ -179,9 +182,9 @@ module mempool_tb;
     .default_mst_port_i   ({NumAXIMasters{Host}})
   );
 
- /**********
-  *  HOST  *
-  **********/
+  /**********
+   *  HOST  *
+   **********/
   assign axi_mem_resp[Host] = '0;
 
   /**********
@@ -227,7 +230,7 @@ module mempool_tb;
    *  Configure RAB  *
    *******************/
 
-  task write_rab(input addr_t addr, input data_t data);
+  task write_rab(input addr_t addr, input axi_lite_data_t data);
     rab_conf_req.aw.addr = addr;
     rab_conf_req.aw_valid = 1'b1;
     `wait_for(rab_conf_resp.aw_ready)
@@ -249,39 +252,124 @@ module mempool_tb;
     write_rab(slice_addr+8'h18, 32'h7);
   endtask
 
+  task read_rab(input addr_t addr, output axi_lite_data_t data, output axi_pkg::resp_t resp);
+    rab_conf_req.ar.addr = addr;
+    rab_conf_req.ar_valid = 1'b1;
+    `wait_for(rab_conf_resp.ar_ready)
+    rab_conf_req.ar_valid = 1'b0;
+    rab_conf_req.r_ready = 1'b1;
+    `wait_for(rab_conf_resp.r_valid)
+    resp = rab_conf_resp.r.resp;
+    data = rab_conf_resp.r.data;
+    rab_conf_req.r_ready = 1'b0;
+    $display("[TB] Read %08x from %08x at %t (resp=%d).", data, addr, $time, resp);
+  endtask
+
+  task read_rab_slice(input addr_t slice_addr, output addr_t first, output addr_t last, output addr_t phys_addr, output addr_t rab_config);
+    axi_pkg::resp_t resp;
+    read_rab(slice_addr+8'h00, first, resp);
+    read_rab(slice_addr+8'h08, last, resp);
+    read_rab(slice_addr+8'h10, phys_addr, resp);
+    read_rab(slice_addr+8'h18, rab_config, resp);
+  endtask
+
+  task write_to_mempool(input addr_t addr, input data_t data, output axi_pkg::resp_t resp);
+    to_mempool_req.aw.id = 'h18d;
+    to_mempool_req.aw.addr = addr;
+    to_mempool_req.aw.len = '0;
+    to_mempool_req.aw.size = 'h2;
+    to_mempool_req.aw.burst = axi_pkg::BURST_INCR;
+    to_mempool_req.aw_valid = 1'b1;
+    `wait_for(to_mempool_resp.aw_ready)
+    to_mempool_req.aw_valid = 1'b0;
+    to_mempool_req.w.data = data << addr[ByteOffset +: (AxiDataWidth/DataWidth)] * DataWidth;
+    to_mempool_req.w.strb = {BeWidth{1'b1}} << addr[ByteOffset +: (AxiDataWidth/DataWidth)] * BeWidth;
+    to_mempool_req.w.last = 1'b1;
+    to_mempool_req.w.user = '0;
+    to_mempool_req.w_valid = 1'b1;
+    `wait_for(to_mempool_resp.w_ready)
+    to_mempool_req.w_valid = 1'b0;
+    to_mempool_req.b_ready = 1'b1;
+    `wait_for(to_mempool_resp.b_valid)
+    resp = to_mempool_resp.b.resp;
+    to_mempool_req.b_ready = 1'b0;
+  endtask
+
+  task read_from_mempool(input addr_t addr, output data_t data, output axi_pkg::resp_t resp);
+    to_mempool_req.ar.id = '0;
+    to_mempool_req.ar.addr = addr;
+    to_mempool_req.ar.len = '0;
+    to_mempool_req.ar.size = $clog2(AxiDataWidth/8);
+    to_mempool_req.ar.burst = axi_pkg::BURST_INCR;
+    to_mempool_req.ar_valid = 1'b1;
+    `wait_for(to_mempool_resp.ar_ready)
+    to_mempool_req.ar_valid = 1'b0;
+    to_mempool_req.r_ready = 1'b1;
+    `wait_for(to_mempool_resp.r_valid)
+    data = to_mempool_resp.r.data;
+    resp = to_mempool_resp.r.resp;
+    to_mempool_req.r_ready = 1'b0;
+    $display("[TB] Read %08x from %08x at %t (resp=%d).", data, addr, $time, resp);
+  endtask
+
+  axi_pkg::resp_t resp;
+
   // Simulation control
   initial begin
+    addr_t first, last, phys_addr, rab_config;
+    data_t rdata;
+    axi_pkg::resp_t resp;
     fetch_en = 1'b0;
     rab_conf_req = '{default: '0};
+    to_mempool_req = '{default: '0};
     // Wait for reset.
     wait (rst_n);
     @(posedge clk);
 
-    // Set up RAB slice from MemPool to external devices: all addresses (that the interconnect routes
-    // through the RAB) except zero page.
-    write_rab_slice(32'hA0, 32'h0000_1000, 32'hFFFF_FFFF, 32'h0000_1000);
+    // Give the cores time to execute the bootrom's program
+    #(100*ClockPeriod);
 
+    // Set up RAB slice from MemPool to the external devices
+    // RAB is at 0xA800_0000 from the hosts perspective
+    // MemPool is at 0xA000_0000 from the hosts perspective (then translated by RAB)
+    write_rab_slice(32'hA80000A0, 32'h0000_1000, 32'hFFFF_FFFF, 32'h0000_1000);
+    read_rab_slice(32'hA80000A0, first, last, phys_addr, rab_config);
+
+    // Set up RAB slice from external/Host to  the L2 memory
+    write_rab_slice(32'hA8000040, 32'hA000_0000, 32'hA6FF_FFFF, 32'h8000_0000);
+    read_rab_slice(32'hA8000040, first, last, phys_addr, rab_config);
+
+    // Set up RAB slice from external/Host to  the control registers
+    write_rab_slice(32'hA8000060, 32'hA700_0000, 32'hA7FF_FFFF, 32'h4000_0000);
+    read_rab_slice(32'hA8000060, first, last, phys_addr, rab_config);
+
+    // Wake up all cores
+    write_to_mempool(32'hA700_0004, {DataWidth{1'b1}}, resp);
+    assert(resp == axi_pkg::RESP_OKAY);
+    if (PollEoc) begin
+      // Poll for EOC (as done on the host at the moment)
+      do begin
+        #(1000*ClockPeriod);
+        @(posedge clk);
+        read_from_mempool(32'hA700_0000, rdata, resp);
+        assert(resp == axi_pkg::RESP_OKAY);
+      end while (rdata == 0);
+    end else begin
+      // Wait for the interrupt
+      wait (eoc_valid);
+      read_from_mempool(32'hA700_0000, rdata, resp);
+      assert(resp == axi_pkg::RESP_OKAY);
+    end
+    $timeformat(-9, 2, " ns", 0);
+    $display("[EOC] Simulation ended at %t (retval = %0d).", $time, rdata >> 1);
+    $finish(0);
     // Start MemPool
     fetch_en = 1'b1;
   end
 
-  /*********
-   *  EOC  *
-   *********/
-
-  localparam addr_t EOCAddress = 32'h4000_0000;
-
-  initial begin
-    while (1) begin
-        @(posedge clk); #TT;
-        if (eoc_valid) begin
-            // Finish simulation
-            $timeformat(-9, 2, " ns", 0);
-            $display("[EOC] Simulation ended at %t (retval = %0d).", $time, dut.i_ctrl_registers.eoc);
-            $finish(0);
-        end
-    end
-  end
+  /***********************
+   *  L2 Initialization  *
+   ***********************/
 
   initial begin : l2_init
     automatic axi_data_t mem_row;

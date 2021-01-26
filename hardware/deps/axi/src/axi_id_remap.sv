@@ -98,7 +98,10 @@ module axi_id_remap #(
   assign mst_req_o.aw.atop   = slv_req_i.aw.atop;
   assign mst_req_o.aw.user   = slv_req_i.aw.user;
 
-  assign mst_req_o.w         = slv_req_i.w;
+  assign mst_req_o.w.data    = slv_req_i.w.data;
+  assign mst_req_o.w.strb    = slv_req_i.w.strb;
+  assign mst_req_o.w.last    = slv_req_i.w.last;
+  assign mst_req_o.w.user    = slv_req_i.w.user;
   assign mst_req_o.w_valid   = slv_req_i.w_valid;
   assign slv_resp_o.w_ready  = mst_resp_i.w_ready;
 
@@ -349,6 +352,8 @@ module axi_id_remap #(
       else $fatal(1, "AXI AW address widths are not equal!");
     assert($bits(slv_req_i.w.data) == $bits(mst_req_o.w.data))
       else $fatal(1, "AXI W data widths are not equal!");
+    assert($bits(slv_req_i.w.user) == $bits(mst_req_o.w.user))
+      else $fatal(1, "AXI W user widths are not equal!");
     assert($bits(slv_req_i.ar.addr) == $bits(mst_req_o.ar.addr))
       else $fatal(1, "AXI AR address widths are not equal!");
     assert($bits(slv_resp_o.r.data) == $bits(mst_resp_i.r.data))

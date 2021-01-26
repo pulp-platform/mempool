@@ -1,7 +1,8 @@
 /* This file will get processed by the precompiler to expand all macros. */
 
 SECTIONS {
-  ROM_BASE = 0x80000000; /* ... but actually position independent */
+  BOOT_BASE = BOOT_ADDR; /* Defined by config.mk */
+  INSTR_BASE = 0x80000000;
 
   . = 0x0;
   .l1_seq (NOLOAD): { *(.l1_seq) }

@@ -3,6 +3,7 @@ import axi_pkg::xbar_cfg_t;
 import axi_pkg::xbar_rule_32_t;
 
 `include "axi/assign.svh"
+`include "common_cells/registers.svh"
 
 module mempool_system #(
     // Mempool
@@ -11,7 +12,7 @@ module mempool_system #(
     // TCDM
     parameter addr_t TCDMBaseAddr = 32'b0,
     // Boot address
-    parameter addr_t BootAddr = 32'h0000_0000
+    parameter addr_t BootAddr     = 32'h0000_0000
   ) (
     input logic                clk_i,
     input logic                rst_ni,
@@ -34,19 +35,19 @@ module mempool_system #(
   localparam NumTilesPerGroup = NumTiles / NumGroups;
   localparam NumBanks         = NumCores * BankingFactor;
   localparam TCDMSize         = NumBanks * TCDMSizePerBank;
-  localparam L2AddrWidth      = 18;
 
   /*********
    *  AXI  *
    *********/
 
   localparam NumAXIMasters = NumTiles + 1; // +1 because the external host is also a master
-  localparam NumAXISlaves  = 3;            // control regs, l2 memory and the external mst ports
+  localparam NumAXISlaves  = 4;            // control regs, l2 memory, bootrom and the external mst ports
   localparam NumRules      = NumAXISlaves - 1;
 
   typedef enum logic [$clog2(NumAXISlaves) - 1:0] {
     CtrlRegisters,
     L2Memory,
+    Bootrom,
     External
   } axi_slave_target;
 
@@ -67,7 +68,7 @@ module mempool_system #(
     AxiIdWidthSlvPorts : AxiTileIdWidth,
     AxiIdUsedSlvPorts  : AxiTileIdWidth,
     AxiAddrWidth       : AddrWidth,
-    AxiDataWidth       : DataWidth,
+    AxiDataWidth       : AxiDataWidth,
     NoAddrRules        : NumRules
   };
 
@@ -100,11 +101,14 @@ module mempool_system #(
   localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
   localparam addr_t CtrlRegistersEndAddr  = 32'h4000_FFFF;
   localparam addr_t L2MemoryBaseAddr      = 32'h8000_0000;
-  localparam addr_t L2MemoryEndAddr       = 32'hBFFF_FFFF;
+  localparam addr_t L2MemoryEndAddr       = 32'h801F_FFFF;
+  localparam addr_t BootromBaseAddr       = 32'hA000_0000;
+  localparam addr_t BootromEndAddr        = 32'hA000_FFFF;
 
   xbar_rule_32_t [NumRules - 1:0] xbar_routing_rules = '{
     '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
-    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}
+    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr},
+    '{idx: Bootrom, start_addr: BootromBaseAddr, end_addr: BootromEndAddr}
   };
 
   axi_xbar #(
@@ -139,47 +143,52 @@ module mempool_system #(
   /********
    *  L2  *
    ********/
-
-  AXI_BUS #(
-    .AXI_ADDR_WIDTH (AddrWidth       ),
-    .AXI_DATA_WIDTH (AxiDataWidth    ),
-    .AXI_ID_WIDTH   (AxiSystemIdWidth),
-    .AXI_USER_WIDTH (1               )
-  ) axi_l2memory_slave ();
-
-  // Assign slave
-  `AXI_ASSIGN_FROM_REQ(axi_l2memory_slave, axi_mem_req[L2Memory] );
-  `AXI_ASSIGN_TO_RESP (axi_mem_resp[L2Memory], axi_l2memory_slave);
+  localparam L2NumWords  = L2Size / L2BeWidth;
+  localparam L2AddrWidth = $clog2(L2NumWords);
 
   // Memory
-  logic  mem_req;
-  addr_t mem_addr;
+  logic      mem_req;
+  logic      mem_rvalid;
+  addr_t     mem_addr;
   axi_data_t mem_wdata;
   axi_strb_t mem_strb;
-  logic  mem_we;
+  logic      mem_we;
   axi_data_t mem_rdata;
 
   axi2mem #(
-    .AXI_ADDR_WIDTH(AddrWidth       ),
-    .AXI_DATA_WIDTH(AxiDataWidth    ),
-    .AXI_ID_WIDTH  (AxiSystemIdWidth),
-    .AXI_USER_WIDTH(1               )
-  ) i_axi2mem (
-    .clk_i (clk_i             ),
-    .rst_ni(rst_ni            ),
-    .slave (axi_l2memory_slave),
-    .req_o (mem_req           ),
-    .addr_o(mem_addr          ),
-    .data_o(mem_wdata         ),
-    .we_o  (mem_we            ),
-    .be_o  (mem_strb          ),
-    .data_i(mem_rdata         )
+    .axi_req_t  (axi_system_req_t ),
+    .axi_resp_t (axi_system_resp_t),
+    .AddrWidth  (AddrWidth),
+    .DataWidth  (AxiDataWidth),
+    .IdWidth    (AxiSystemIdWidth),
+    .NumBanks   (1),
+    .BufDepth   (2)
+  ) i_axi2mem_l2mem (
+    .clk_i        (clk_i),
+    .rst_ni       (rst_ni),
+
+    .busy_o       (/*unsused*/),
+
+    .axi_req_i    (axi_mem_req[L2Memory] ),
+    .axi_resp_o   (axi_mem_resp[L2Memory]),
+
+    .mem_req_o    (mem_req),
+    .mem_gnt_i    (mem_req),
+    .mem_addr_o   (mem_addr),
+    .mem_wdata_o  (mem_wdata),
+    .mem_strb_o   (mem_strb),
+    .mem_atop_o   (/*unused*/),
+    .mem_we_o     (mem_we),
+    .mem_rvalid_i (mem_rvalid),
+    .mem_rdata_i  (mem_rdata)
   );
 
+  `FF(mem_rvalid, mem_req, rst_ni)
+
   tc_sram #(
-    .DataWidth(AxiDataWidth  ),
-    .NumWords (2**L2AddrWidth),
-    .NumPorts (1             )
+    .DataWidth(AxiDataWidth),
+    .NumWords (L2NumWords  ),
+    .NumPorts (1           )
   ) l2_mem (
     .clk_i  (clk_i                                ),
     .rst_ni (rst_ni                               ),
@@ -191,31 +200,108 @@ module mempool_system #(
     .rdata_o(mem_rdata                            )
   );
 
+  /*************
+   *  Bootrom  *
+   *************/
+
+  // Memory
+  logic      bootrom_req;
+  logic      bootrom_rvalid;
+  addr_t     bootrom_addr;
+  axi_data_t bootrom_rdata;
+
+  axi2mem #(
+    .axi_req_t  (axi_system_req_t ),
+    .axi_resp_t (axi_system_resp_t),
+    .AddrWidth  (AddrWidth),
+    .DataWidth  (AxiDataWidth),
+    .IdWidth    (AxiSystemIdWidth),
+    .NumBanks   (1),
+    .BufDepth   (2)
+  ) i_axi2mem_bootrom (
+    .clk_i        (clk_i),
+    .rst_ni       (rst_ni),
+
+    .busy_o       (/*unsused*/),
+
+    .axi_req_i    (axi_mem_req[Bootrom] ),
+    .axi_resp_o   (axi_mem_resp[Bootrom]),
+
+    .mem_req_o    (bootrom_req),
+    .mem_gnt_i    (bootrom_req),
+    .mem_addr_o   (bootrom_addr),
+    .mem_wdata_o  (/*unused*/),
+    .mem_strb_o   (/*unused*/),
+    .mem_atop_o   (/*unused*/),
+    .mem_we_o     (/*unused*/),
+    .mem_rvalid_i (bootrom_rvalid),
+    .mem_rdata_i  (bootrom_rdata)
+  );
+
+  `FF(bootrom_rvalid, bootrom_req, rst_ni)
+
+  bootrom i_bootrom (
+    .clk_i  (clk_i        ),
+    .req_i  (bootrom_req  ),
+    .addr_i (bootrom_addr ),
+    .rdata_o(bootrom_rdata)
+  );
+
   /***********************
    *  Control Registers  *
    ***********************/
 
+  axi_ctrl_req_t    axi_ctrl_req;
+  axi_ctrl_resp_t   axi_ctrl_resp;
   axi_lite_slv_req_t  axi_lite_ctrl_registers_req;
   axi_lite_slv_resp_t axi_lite_ctrl_registers_resp;
 
+  axi_dw_converter #(
+    .AxiMaxReads         (1                ), // Number of outstanding reads
+    .AxiSlvPortDataWidth (AxiDataWidth     ), // Data width of the slv port
+    .AxiMstPortDataWidth (AxiLiteDataWidth ), // Data width of the mst port
+    .AxiAddrWidth        (AddrWidth        ), // Address width
+    .AxiIdWidth          (AxiSystemIdWidth ), // ID width
+    .aw_chan_t           (axi_system_aw_t  ), // AW Channel Type
+    .mst_w_chan_t        (axi_ctrl_w_t     ), //  W Channel Type for the mst port
+    .slv_w_chan_t        (axi_system_w_t   ), //  W Channel Type for the slv port
+    .b_chan_t            (axi_system_b_t   ), //  B Channel Type
+    .ar_chan_t           (axi_system_ar_t  ), // AR Channel Type
+    .mst_r_chan_t        (axi_ctrl_r_t     ), //  R Channel Type for the mst port
+    .slv_r_chan_t        (axi_system_r_t   ), //  R Channel Type for the slv port
+    .axi_mst_req_t       (axi_ctrl_req_t   ), // AXI Request Type for mst ports
+    .axi_mst_resp_t      (axi_ctrl_resp_t  ), // AXI Response Type for mst ports
+    .axi_slv_req_t       (axi_system_req_t ), // AXI Request Type for slv ports
+    .axi_slv_resp_t      (axi_system_resp_t)  // AXI Response Type for slv ports
+  ) i_axi_dw_converter_ctrl (
+    .clk_i      (clk_i                      ),
+    .rst_ni     (rst_ni                     ),
+    // Slave interface
+    .slv_req_i  (axi_mem_req[CtrlRegisters] ),
+    .slv_resp_o (axi_mem_resp[CtrlRegisters]),
+    // Master interface
+    .mst_req_o  (axi_ctrl_req               ),
+    .mst_resp_i (axi_ctrl_resp              )
+  );
+
   axi_to_axi_lite #(
     .AxiAddrWidth   (AddrWidth          ),
-    .AxiDataWidth   (AxiDataWidth       ),
+    .AxiDataWidth   (AxiLiteDataWidth   ),
     .AxiIdWidth     (AxiSystemIdWidth   ),
     .AxiUserWidth   (1                  ),
     .AxiMaxReadTxns (1                  ),
     .AxiMaxWriteTxns(1                  ),
     .FallThrough    (1'b0               ),
-    .full_req_t     (axi_system_req_t   ),
-    .full_resp_t    (axi_system_resp_t  ),
+    .full_req_t     (axi_ctrl_req_t     ),
+    .full_resp_t    (axi_ctrl_resp_t    ),
     .lite_req_t     (axi_lite_slv_req_t ),
     .lite_resp_t    (axi_lite_slv_resp_t)
   ) i_axi_to_axi_lite (
     .clk_i     (clk_i                       ),
     .rst_ni    (rst_ni                      ),
     .test_i    (1'b0                        ),
-    .slv_req_i (axi_mem_req[CtrlRegisters]  ),
-    .slv_resp_o(axi_mem_resp[CtrlRegisters] ),
+    .slv_req_i (axi_ctrl_req                ),
+    .slv_resp_o(axi_ctrl_resp               ),
     .mst_req_o (axi_lite_ctrl_registers_req ),
     .mst_resp_i(axi_lite_ctrl_registers_resp)
   );

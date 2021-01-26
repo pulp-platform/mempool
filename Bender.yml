@@ -20,6 +20,8 @@ sources:
   - hardware/src/tcdm_adapter.sv
   - hardware/src/tcdm_shim.sv
   - hardware/src/address_scrambler.sv
+  - hardware/src/axi2mem.sv
+  - hardware/src/bootrom.sv
   # Level 1
   - hardware/src/mempool_tile.sv
   - hardware/src/axi_rab_wrap.sv
@@ -36,6 +38,4 @@ sources:
   - target: mempool_test
     files:
       # Level 1
-      - hardware/tb/axi2mem.sv
-      # Level 2
       - hardware/tb/mempool_tb.sv

@@ -160,6 +160,13 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 	mkdir -p $(buildpath)/$(dpi_library)
 	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $?
 
+# Bootrom
+src/bootrom.sv: $(MEMPOOL_DIR)/apps/common/bootrom.img
+	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth 128 $<
+
+$(MEMPOOL_DIR)/apps/common/bootrom.img:
+	make -C $(MEMPOOL_DIR)/apps common/bootrom.img
+
 # Clean targets
 .PHONY: clean clean-dasm clean-trace
 clean:

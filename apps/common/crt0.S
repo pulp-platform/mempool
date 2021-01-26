@@ -88,13 +88,19 @@ reset_vector:
     call    main
 
 eoc:
-    la t0, eoc_reg
-    sw a0, 0(t0)
-    jal x0, eoc
+    la      t0, eoc_reg
+    slli    t1, a0, 1
+    addi    t1, t1, 1
+    sw      t1, 0(t0)
+    la      ra, BOOT_BASE
+    ret
 
 fail:
-    la t0, eoc_reg
-    sw a0, 0(t0)
-    jal x0, eoc
+    la      t0, eoc_reg
+    slli    t1, a0, 1
+    addi    t1, t1, 1
+    sw      t1, 0(t0)
+    la      ra, BOOT_BASE
+    ret
 
 .section .data
