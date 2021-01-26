@@ -145,9 +145,11 @@ $(tests): $(test_result_dir)/%.out : $(app_path)/%
 VERILATOR_DIR    = $(ROOT_DIR)/verilator
 VERILATOR_BUILD  = $(ROOT_DIR)/obj_dir
 VERILATOR_FILES  = $(VERILATOR_BUILD)/files
-VERILATOR_ROOT  := $(shell bash -c '$(verilator) -V | grep -m 1 VERILATOR_ROOT | sed -e " s/^.*=\s*//"')
 VERILATOR_LIBS  := $(shell find $(VERILATOR_DIR) -name "*.cc" -print | sort)
 VERILATOR_INCS  := $(shell find $(VERILATOR_DIR) -name "cpp" -print | sort)
+VERILATOR_TOP   := mempool_tb_verilator
+VERILATOR_BIN   := $(VERILATOR_BUILD)/V$(VERILATOR_TOP)
+VERILATOR_MK    := $(VERILATOR_BIN).mk
 VERILATOR_FLAGS += -Wno-BLKANDNBLK
 VERILATOR_FLAGS += -Wno-LITENDIAN
 VERILATOR_FLAGS += -Wno-CASEINCOMPLETE
@@ -163,22 +165,30 @@ VERILATOR_FLAGS += -Wno-fatal
 VERILATOR_FLAGS += --output-split 20000
 
 # VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
-VERILATOR_FLAGS += -CFLAGS "-std=c++11 -Wall -DVM_TRACE_FMT_FST -DTOPLEVEL_NAME=mempool_tb_verilator -g" -LDFLAGS "-pthread -lutil -lelf" -Wall --unroll-count 128
+VERILATOR_FLAGS += -CFLAGS "-std=c++11 -Wall -DVM_TRACE_FMT_FST -DTOPLEVEL_NAME=$(VERILATOR_TOP) -g" -LDFLAGS "-pthread -lutil -lelf" -Wall --unroll-count 128
 # VERILATOR_FLAGS += --debug
 VERILATOR_FLAGS += --autoflush # Display the prints from time to time.
 VERILATOR_FLAGS += --exe # Build the executable
 
-
-verilate: Makefile
-	echo $(VERILATOR_ROOT)
-	mkdir -p obj_dir
+$(VERILATOR_MK): $(bender) $(config_mk) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) Makefile
+	mkdir -p $(VERILATOR_BUILD)
+	# Create Bender script of all RTL files
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(VERILATOR_FILES)
+	# Append the verilator library files
 	@echo '' >> $(VERILATOR_FILES)
+	# Append the verilator library files: Includes
 	@echo $(addprefix +incdir+,$(VERILATOR_INCS)) | tr ' ' '\n' >> $(VERILATOR_FILES)
 	for i in $(VERILATOR_INCS); do echo "-CFLAGS -I$${i}" >> $(VERILATOR_FILES); done
+	# Append the verilator library files: source files
 	@echo $(VERILATOR_LIBS) | tr ' ' '\n'  >> $(VERILATOR_FILES)
-	$(verilator) -f $(VERILATOR_FILES) $(VERILATOR_FLAGS) --cc --top-module mempool_tb_verilator
-	make -j4 -C $(VERILATOR_BUILD) -f Vmempool_tb_verilator.mk
+	# Create Verilator Makefile
+	$(verilator) -f $(VERILATOR_FILES) $(VERILATOR_FLAGS) --cc --top-module $(VERILATOR_TOP)
+
+$(VERILATOR_BIN): $(VERILATOR_MK) $(shell find $(VERILATOR_DIR) -type f) Makefile
+	make -j4 -C $(VERILATOR_BUILD) -f $<
+
+verilate: $(VERILATOR_BIN) Makefile
+	$(VERILATOR_BIN) --meminit=ram,$(preload)
 
 # Benchmarking
 benchmark: log simc
