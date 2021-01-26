@@ -142,6 +142,12 @@ $(tests): $(test_result_dir)/%.out : $(app_path)/%
 ################
 # Verilator
 ################
+VERILATOR_DIR    = $(ROOT_DIR)/verilator
+VERILATOR_BUILD  = $(ROOT_DIR)/obj_dir
+VERILATOR_FILES  = $(VERILATOR_BUILD)/files
+VERILATOR_ROOT  := $(shell bash -c '$(verilator) -V | grep -m 1 VERILATOR_ROOT | sed -e " s/^.*=\s*//"')
+VERILATOR_LIBS  := $(shell find $(VERILATOR_DIR) -name "*.cc" -print | sort)
+VERILATOR_INCS  := $(shell find $(VERILATOR_DIR) -name "cpp" -print | sort)
 VERILATOR_FLAGS += -Wno-BLKANDNBLK
 VERILATOR_FLAGS += -Wno-LITENDIAN
 VERILATOR_FLAGS += -Wno-CASEINCOMPLETE
@@ -152,20 +158,27 @@ VERILATOR_FLAGS += -Wno-UNSIGNED
 VERILATOR_FLAGS += -Wno-UNUSED
 # VERILATOR_FLAGS += -Wno-BLKLOOPINIT
 VERILATOR_FLAGS += -Wno-fatal
-VERILATOR_FLAGS += -Wno-lint
-VERILATOR_FLAGS += -Wno-style
+# VERILATOR_FLAGS += -Wno-lint
+# VERILATOR_FLAGS += -Wno-style
 VERILATOR_FLAGS += --output-split 20000
 
 # VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
-VERILATOR_FLAGS += -CFLAGS "-std=c++11 -Wall -DVM_TRACE_FMT_FST -DTOPLEVEL_NAME=mempool_tb_verilator -g" -LDFLAGS "-pthread -lutil -lelf" -Wall --unroll-count 72
-VERILATOR_FLAGS += --debug
+VERILATOR_FLAGS += -CFLAGS "-std=c++11 -Wall -DVM_TRACE_FMT_FST -DTOPLEVEL_NAME=mempool_tb_verilator -g" -LDFLAGS "-pthread -lutil -lelf" -Wall --unroll-count 128
+# VERILATOR_FLAGS += --debug
+VERILATOR_FLAGS += --autoflush # Display the prints from time to time.
+VERILATOR_FLAGS += --exe # Build the executable
 
-verilate:
+
+verilate: Makefile
+	echo $(VERILATOR_ROOT)
 	mkdir -p obj_dir
-	# 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > obj_dir/files
-	cp files.target obj_dir/files
-	$(verilator) -f obj_dir/files $(VERILATOR_FLAGS) --cc --top-module mempool_tb_verilator
-	make -j4 -C obj_dir -f Vmempool_tb_verilator.mk
+	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(VERILATOR_FILES)
+	@echo '' >> $(VERILATOR_FILES)
+	@echo $(addprefix +incdir+,$(VERILATOR_INCS)) | tr ' ' '\n' >> $(VERILATOR_FILES)
+	for i in $(VERILATOR_INCS); do echo "-CFLAGS -I$${i}" >> $(VERILATOR_FILES); done
+	@echo $(VERILATOR_LIBS) | tr ' ' '\n'  >> $(VERILATOR_FILES)
+	$(verilator) -f $(VERILATOR_FILES) $(VERILATOR_FLAGS) --cc --top-module mempool_tb_verilator
+	make -j4 -C $(VERILATOR_BUILD) -f Vmempool_tb_verilator.mk
 
 # Benchmarking
 benchmark: log simc
