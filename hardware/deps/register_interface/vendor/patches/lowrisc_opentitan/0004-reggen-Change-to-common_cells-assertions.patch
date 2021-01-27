@@ -1,0 +1,25 @@
+From e45f8771b263ae7447a55357483481bea5ecc3cf Mon Sep 17 00:00:00 2001
+From: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
+Date: Wed, 30 Dec 2020 20:26:44 +0100
+Subject: [PATCH 4/5] reggen: Change to common_cells assertions
+
+---
+ reg_top.sv.tpl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/reg_top.sv.tpl b/reg_top.sv.tpl
+index 4c41c63..d4b99f4 100644
+--- a/reg_top.sv.tpl
++++ b/reg_top.sv.tpl
+@@ -16,7 +16,7 @@
+   max_regs_char = len("{}".format(block.get_n_regs_flat()-1))
+   regs_flat = block.get_regs_flat()
+ %>
+-`include "prim_assert.sv"
++`include "common_cells/assertions.svh"
+ 
+ module ${block.name}_reg_top ${print_param(params)}(
+   input clk_i,
+-- 
+2.24.3 (Apple Git-128)
+
