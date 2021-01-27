@@ -38,11 +38,15 @@ sources:
   - target: mempool_vsim
     files:
       # Level 1
+      - hardware/tb/axi_uart.sv
+      # Level 2
       - hardware/tb/mempool_tb.sv
 
   - target: mempool_verilator
     files:
       # Level 1
+      - hardware/tb/axi_uart.sv
+      # Level 2
       - hardware/tb/mempool_tb_verilator.sv
   
   - target: fpga

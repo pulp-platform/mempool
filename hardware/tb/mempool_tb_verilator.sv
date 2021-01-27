@@ -72,12 +72,19 @@ module mempool_tb_verilator (
   end
 `endif
 
-  /*********
-   *  DUT  *
-   *********/
+  /*************************
+   *  Signal declarations  *
+   *************************/
 
   logic fetch_en;
   logic eoc_valid;
+
+  axi_system_req_t  axi_mst_req;
+  axi_system_resp_t axi_mst_resp;
+
+  /*********
+   *  DUT  *
+   *********/
 
   mempool_system #(
     .NumCores       (NumCores     ),
@@ -98,66 +105,22 @@ module mempool_tb_verilator (
     .rab_conf_resp_o(/*Unused*/   )
   );
 
-  /*****************
-   *  Host Memory  *
-   *****************/
-  `AXI_LITE_TYPEDEF_AW_CHAN_T(axi_lite_aw_t, addr_t)
-  `AXI_LITE_TYPEDEF_W_CHAN_T(axi_lite_w_t, axi_data_t, axi_strb_t)
-  `AXI_LITE_TYPEDEF_B_CHAN_T(axi_lite_b_t)
-  `AXI_LITE_TYPEDEF_AR_CHAN_T(axi_lite_ar_t, addr_t)
-  `AXI_LITE_TYPEDEF_R_CHAN_T(axi_lite_r_t, axi_data_t)
-  `AXI_LITE_TYPEDEF_REQ_T(axi_lite_req_t, axi_lite_aw_t, axi_lite_w_t, axi_lite_ar_t)
-  `AXI_LITE_TYPEDEF_RESP_T(axi_lite_resp_t, axi_lite_b_t, axi_lite_r_t)
+  /**********
+   *  UART  *
+   **********/
 
-  axi_system_req_t  axi_req;
-  axi_system_resp_t axi_resp;
-  axi_lite_req_t    axi_lite_req;
-  axi_lite_resp_t   axi_lite_resp;
-  logic             wr_active_d, wr_active_q;
-
-  axi_to_axi_lite #(
-    .AxiAddrWidth   (AddrWidth        ),
-    .AxiDataWidth   (AxiDataWidth     ),
-    .AxiIdWidth     (AxiSystemIdWidth ),
-    .AxiUserWidth   (1                ),
-    .AxiMaxReadTxns (1                ),
-    .AxiMaxWriteTxns(1                ),
-    .FallThrough    (1'b0             ),
-    .full_req_t     (axi_system_req_t ),
-    .full_resp_t    (axi_system_resp_t),
-    .lite_req_t     (axi_lite_req_t   ),
-    .lite_resp_t    (axi_lite_resp_t  )
-  ) i_axi_to_axi_lite (
-    .clk_i     (clk          ),
-    .rst_ni    (rst_n        ),
-    .test_i    (1'b0         ),
-    .slv_req_i (axi_req      ),
-    .slv_resp_o(axi_resp     ),
-    .mst_req_o (axi_lite_req ),
-    .mst_resp_i(axi_lite_resp)
+  axi_uart #(
+    .axi_req_t  (axi_system_req_t ),
+    .axi_resp_t (axi_system_resp_t)
+  ) i_axi_uart (
+    .clk_i     (clk         ),
+    .rst_ni    (rst_n       ),
+    .testmode_i(1'b0        ),
+    .axi_req_i (axi_mst_req ),
+    .axi_resp_o(axi_mst_resp)
   );
 
-  axi_lite_regs #(
-    .RegNumBytes (AxiDataWidth/8 ),
-    .AxiAddrWidth(AddrWidth      ),
-    .AxiDataWidth(AxiDataWidth   ),
-    .AxiReadOnly ('0             ),
-    .RegRstVal   ('0             ),
-    .req_lite_t  (axi_lite_req_t ),
-    .resp_lite_t (axi_lite_resp_t)
-  ) i_axi_lite_regs (
-    .clk_i      (clk          ),
-    .rst_ni     (rst_n        ),
-    .axi_req_i  (axi_lite_req ),
-    .axi_resp_o (axi_lite_resp),
-    .wr_active_o(wr_active_d  ),
-    .rd_active_o(/*unused*/   ),
-    .reg_d_i    ('0           ),
-    .reg_load_i ('0           ),
-    .reg_q_o    (/*unused*/   )
-  );
-
-  // TODO Print UART
+  // TODO: Add XBAR and infinite host memory?
 
   /*********
    *  EOC  *
