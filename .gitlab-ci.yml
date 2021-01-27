@@ -65,6 +65,16 @@ riscv-isa-sim:
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert riscv-isa-sim
       fi
 
+verilator:
+  stage: build
+  script:
+    - |
+      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator; then
+        git submodule update --init --recursive -- toolchain/verilator
+        make verilator
+        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert verilator
+      fi
+
 halide:
   stage: compiler
   script:
