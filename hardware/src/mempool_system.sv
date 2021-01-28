@@ -333,6 +333,7 @@ module mempool_system #(
   axi_system_req_t  rab_slv_req;
   axi_system_resp_t rab_slv_resp;
 
+`ifdef TARGET_FPGA
   axi_rab_wrap #(
     .L1NumSlicesMemPool(4                  ),
     .L1NumSlicesHost   (4                  ),
@@ -371,6 +372,16 @@ module mempool_system #(
     .conf_req_i              (rab_conf_req_i        ),
     .conf_resp_o             (rab_conf_resp_o       )
   );
+`else
+  // From MemPool to the Host
+  assign mst_req_o              = axi_mem_req[External];
+  assign axi_mem_resp[External] = mst_resp_i;
+  // From the Host to MemPool
+  assign rab_slv_req            = slv_req_i;
+  assign slv_resp_o             = rab_slv_resp;
+  // Config interface
+  assign rab_conf_resp_o        = '0;
+`endif
 
   axi_id_remap #(
     .AxiSlvPortIdWidth   (AxiSystemIdWidth ),

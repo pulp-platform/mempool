@@ -6,28 +6,30 @@ dependencies:
   axi: { git: "https://github.com/pulp-platform/axi.git", rev: urania }
 
 sources:
-  - rtl/axi4_ar_sender.sv
-  - rtl/axi4_aw_sender.sv
-  - rtl/axi4_b_sender.sv
-  - rtl/axi4_r_sender.sv
-  - rtl/axi4_w_buffer.sv
-  - rtl/axi4_w_sender.sv
-  - rtl/axi_buffer_rab_bram.sv
-  - rtl/axi_rab_cfg.sv
-  - rtl/axi_rab_top.sv
-  - rtl/check_ram.sv
-  - rtl/fsm.sv
-  - rtl/l2_tlb.sv
-  - rtl/rab_core.sv
-  - rtl/rab_slice.sv
-  - rtl/ram_tp_write_first.sv
-  - rtl/ram_tp_no_change.sv
-  - rtl/slice_top.sv
+  - target: fpga
+    files:
+    - rtl/axi4_ar_sender.sv
+    - rtl/axi4_aw_sender.sv
+    - rtl/axi4_b_sender.sv
+    - rtl/axi4_r_sender.sv
+    - rtl/axi4_w_buffer.sv
+    - rtl/axi4_w_sender.sv
+    - rtl/axi_buffer_rab_bram.sv
+    - rtl/axi_rab_cfg.sv
+    - rtl/axi_rab_top.sv
+    - rtl/check_ram.sv
+    - rtl/fsm.sv
+    - rtl/l2_tlb.sv
+    - rtl/rab_core.sv
+    - rtl/rab_slice.sv
+    - rtl/ram_tp_write_first.sv
+    - rtl/ram_tp_no_change.sv
+    - rtl/slice_top.sv
 
-  #- target: test
-  #  files:
-  #    - tb/invalidate/base_tb.sv
-  #    - tb/invalidate/rab_wrap.sv
-  #    - tb/invalidate/tb_all.sv
-  #    - tb/invalidate/tb_single.sv
-  #    - tb/invalidate/tb_random.sv
+  - target: test
+    files:
+     - tb/invalidate/base_tb.sv
+     - tb/invalidate/rab_wrap.sv
+     - tb/invalidate/tb_all.sv
+     - tb/invalidate/tb_single.sv
+     - tb/invalidate/tb_random.sv
