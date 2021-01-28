@@ -68,12 +68,18 @@ riscv-isa-sim:
 verilator:
   stage: build
   script:
+    # The CI's ccache directory is very limited in size, so let's disable it.
+    # Verilator requires a more recent version of python than the default one.
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator; then
         git submodule update --init --recursive -- toolchain/verilator
+        export CCACHE_DISABLE=1
+        export PYTHON3=$(which python3-3.6.5)
         make verilator
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert verilator
       fi
+  variables:
+    CCACHE_DISABLE: "1"
 
 halide:
   stage: compiler
