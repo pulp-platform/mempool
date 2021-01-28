@@ -24,7 +24,6 @@ sources:
   - hardware/src/bootrom.sv
   # Level 1
   - hardware/src/mempool_tile.sv
-  - hardware/src/axi_rab_wrap.sv
   # Level 2
   - hardware/src/mempool_group.sv
   # Level 3
@@ -39,3 +38,8 @@ sources:
     files:
       # Level 1
       - hardware/tb/mempool_tb.sv
+
+  - target: fpga
+    files:
+      # Level 1
+    - hardware/src/axi_rab_wrap.sv

@@ -276,7 +276,6 @@ module mempool_tb;
   task write_to_mempool(input addr_t addr, input data_t data, output axi_pkg::resp_t resp);
     to_mempool_req.aw.id = 'h18d;
     to_mempool_req.aw.addr = addr;
-    to_mempool_req.aw.len = '0;
     to_mempool_req.aw.size = 'h2;
     to_mempool_req.aw.burst = axi_pkg::BURST_INCR;
     to_mempool_req.aw_valid = 1'b1;
@@ -296,17 +295,16 @@ module mempool_tb;
   endtask
 
   task read_from_mempool(input addr_t addr, output data_t data, output axi_pkg::resp_t resp);
-    to_mempool_req.ar.id = '0;
+    to_mempool_req.ar.id = 'h18d;
     to_mempool_req.ar.addr = addr;
-    to_mempool_req.ar.len = '0;
-    to_mempool_req.ar.size = $clog2(AxiDataWidth/8);
+    to_mempool_req.ar.size = 'h2;
     to_mempool_req.ar.burst = axi_pkg::BURST_INCR;
     to_mempool_req.ar_valid = 1'b1;
     `wait_for(to_mempool_resp.ar_ready)
     to_mempool_req.ar_valid = 1'b0;
     to_mempool_req.r_ready = 1'b1;
     `wait_for(to_mempool_resp.r_valid)
-    data = to_mempool_resp.r.data;
+    data = to_mempool_resp.r.data >> addr[ByteOffset +: (AxiDataWidth/DataWidth)] * DataWidth;
     resp = to_mempool_resp.r.resp;
     to_mempool_req.r_ready = 1'b0;
     $display("[TB] Read %08x from %08x at %t (resp=%d).", data, addr, $time, resp);
@@ -316,19 +314,35 @@ module mempool_tb;
 
   // Simulation control
   initial begin
+    localparam ctrl_phys_addr = 32'h4000_0000;
+    localparam ctrl_size      = 32'h0100_0000;
+    localparam l2_phys_addr   = 32'h8000_0000;
+    localparam l2_size        = 32'h0700_0000;
+`ifdef TARGET_FPGA
+    localparam ctrl_virt_addr = 32'hA700_0000;
+    localparam l2_virt_addr   = 32'hA000_0000;
+`else
+    localparam ctrl_virt_addr = ctrl_phys_addr;
+    localparam l2_virt_addr   = l2_phys_addr;
+`endif
     addr_t first, last, phys_addr, rab_config;
     data_t rdata;
     axi_pkg::resp_t resp;
     fetch_en = 1'b0;
     rab_conf_req = '{default: '0};
     to_mempool_req = '{default: '0};
+    to_mempool_req.aw.burst = axi_pkg::BURST_INCR;
+    to_mempool_req.ar.burst = axi_pkg::BURST_INCR;
+    to_mempool_req.aw.cache = axi_pkg::CACHE_MODIFIABLE;
+    to_mempool_req.ar.cache = axi_pkg::CACHE_MODIFIABLE;
     // Wait for reset.
     wait (rst_n);
     @(posedge clk);
 
     // Give the cores time to execute the bootrom's program
-    #(100*ClockPeriod);
+    #(1000*ClockPeriod);
 
+`ifdef TARGET_FPGA
     // Set up RAB slice from MemPool to the external devices
     // RAB is at 0xA800_0000 from the hosts perspective
     // MemPool is at 0xA000_0000 from the hosts perspective (then translated by RAB)
@@ -336,28 +350,29 @@ module mempool_tb;
     read_rab_slice(32'hA80000A0, first, last, phys_addr, rab_config);
 
     // Set up RAB slice from external/Host to  the L2 memory
-    write_rab_slice(32'hA8000040, 32'hA000_0000, 32'hA6FF_FFFF, 32'h8000_0000);
+    write_rab_slice(32'hA8000040, l2_virt_addr, l2_virt_addr+l2_size-1, l2_phys_addr);
     read_rab_slice(32'hA8000040, first, last, phys_addr, rab_config);
 
     // Set up RAB slice from external/Host to  the control registers
-    write_rab_slice(32'hA8000060, 32'hA700_0000, 32'hA7FF_FFFF, 32'h4000_0000);
+    write_rab_slice(32'hA8000060, ctrl_virt_addr, ctrl_virt_addr+ctrl_size-1, ctrl_phys_addr);
     read_rab_slice(32'hA8000060, first, last, phys_addr, rab_config);
-
+`endif
     // Wake up all cores
-    write_to_mempool(32'hA700_0004, {DataWidth{1'b1}}, resp);
+    write_to_mempool(ctrl_virt_addr + 32'h4, {DataWidth{1'b1}}, resp);
     assert(resp == axi_pkg::RESP_OKAY);
+
     if (PollEoc) begin
       // Poll for EOC (as done on the host at the moment)
       do begin
         #(1000*ClockPeriod);
         @(posedge clk);
-        read_from_mempool(32'hA700_0000, rdata, resp);
+        read_from_mempool(ctrl_virt_addr, rdata, resp);
         assert(resp == axi_pkg::RESP_OKAY);
       end while (rdata == 0);
     end else begin
       // Wait for the interrupt
       wait (eoc_valid);
-      read_from_mempool(32'hA700_0000, rdata, resp);
+      read_from_mempool(ctrl_virt_addr, rdata, resp);
       assert(resp == axi_pkg::RESP_OKAY);
     end
     $timeformat(-9, 2, " ns", 0);
