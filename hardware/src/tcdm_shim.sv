@@ -7,58 +7,58 @@ module tcdm_shim
   import mempool_pkg::address_map_t;
   import cf_math_pkg::idx_width;
 #(
-    parameter int unsigned AddrWidth           = 32            ,
-    parameter int unsigned DataWidth           = 32            ,
-    parameter int unsigned MaxOutStandingReads = 8             ,
-    parameter int unsigned NrTCDM              = 2             ,
-    parameter int unsigned NrSoC               = 1             ,
-    parameter int unsigned NumRules            = 1             , // Routing rules
-    localparam int unsigned StrbWidth          = DataWidth/8   ,
-    localparam int unsigned NumOutput          = NrTCDM + NrSoC,
-    localparam int unsigned ReorderIdWidth     = idx_width(MaxOutStandingReads)
-  ) (
-    input  logic                                          clk_i,
-    input  logic                                          rst_ni,
-    // to TCDM
-    output logic         [NrTCDM-1:0]                     tcdm_req_valid_o,
-    output logic         [NrTCDM-1:0][AddrWidth-1:0]      tcdm_req_tgt_addr_o,
-    output logic         [NrTCDM-1:0]                     tcdm_req_wen_o,
-    output logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_req_wdata_o,
-    output logic         [NrTCDM-1:0][3:0]                tcdm_req_amo_o,
-    output logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_req_id_o,
-    output logic         [NrTCDM-1:0][StrbWidth-1:0]      tcdm_req_be_o,
-    input  logic         [NrTCDM-1:0]                     tcdm_req_ready_i,
-    input  logic         [NrTCDM-1:0]                     tcdm_resp_valid_i,
-    output logic         [NrTCDM-1:0]                     tcdm_resp_ready_o,
-    input  logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_resp_rdata_i,
-    input  logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_resp_id_i,
-    // to SoC
-    output logic         [NrSoC-1:0] [AddrWidth-1:0]      soc_qaddr_o,
-    output logic         [NrSoC-1:0]                      soc_qwrite_o,
-    output logic         [NrSoC-1:0] [3:0]                soc_qamo_o,
-    output logic         [NrSoC-1:0] [DataWidth-1:0]      soc_qdata_o,
-    output logic         [NrSoC-1:0] [StrbWidth-1:0]      soc_qstrb_o,
-    output logic         [NrSoC-1:0]                      soc_qvalid_o,
-    input  logic         [NrSoC-1:0]                      soc_qready_i,
-    input  logic         [NrSoC-1:0] [DataWidth-1:0]      soc_pdata_i,
-    input  logic         [NrSoC-1:0]                      soc_perror_i,
-    input  logic         [NrSoC-1:0]                      soc_pvalid_i,
-    output logic         [NrSoC-1:0]                      soc_pready_o,
-    // from core
-    input  logic         [AddrWidth-1:0]                  data_qaddr_i,
-    input  logic                                          data_qwrite_i,
-    input  logic         [3:0]                            data_qamo_i,
-    input  logic         [DataWidth-1:0]                  data_qdata_i,
-    input  logic         [StrbWidth-1:0]                  data_qstrb_i,
-    input  logic                                          data_qvalid_i,
-    output logic                                          data_qready_o,
-    output logic         [DataWidth-1:0]                  data_pdata_o,
-    output logic                                          data_perror_o,
-    output logic                                          data_pvalid_o,
-    input  logic                                          data_pready_i,
-    // Address map
-    input  address_map_t [NumRules-1:0]                   address_map_i
-  );
+  parameter int unsigned AddrWidth           = 32            ,
+  parameter int unsigned DataWidth           = 32            ,
+  parameter int unsigned MaxOutStandingReads = 8             ,
+  parameter int unsigned NrTCDM              = 2             ,
+  parameter int unsigned NrSoC               = 1             ,
+  parameter int unsigned NumRules            = 1             , // Routing rules
+  localparam int unsigned StrbWidth          = DataWidth/8   ,
+  localparam int unsigned NumOutput          = NrTCDM + NrSoC,
+  localparam int unsigned ReorderIdWidth     = idx_width(MaxOutStandingReads)
+) (
+  input  logic                                          clk_i,
+  input  logic                                          rst_ni,
+  // to TCDM
+  output logic         [NrTCDM-1:0]                     tcdm_req_valid_o,
+  output logic         [NrTCDM-1:0][AddrWidth-1:0]      tcdm_req_tgt_addr_o,
+  output logic         [NrTCDM-1:0]                     tcdm_req_wen_o,
+  output logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_req_wdata_o,
+  output logic         [NrTCDM-1:0][3:0]                tcdm_req_amo_o,
+  output logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_req_id_o,
+  output logic         [NrTCDM-1:0][StrbWidth-1:0]      tcdm_req_be_o,
+  input  logic         [NrTCDM-1:0]                     tcdm_req_ready_i,
+  input  logic         [NrTCDM-1:0]                     tcdm_resp_valid_i,
+  output logic         [NrTCDM-1:0]                     tcdm_resp_ready_o,
+  input  logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_resp_rdata_i,
+  input  logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_resp_id_i,
+  // to SoC
+  output logic         [NrSoC-1:0] [AddrWidth-1:0]      soc_qaddr_o,
+  output logic         [NrSoC-1:0]                      soc_qwrite_o,
+  output logic         [NrSoC-1:0] [3:0]                soc_qamo_o,
+  output logic         [NrSoC-1:0] [DataWidth-1:0]      soc_qdata_o,
+  output logic         [NrSoC-1:0] [StrbWidth-1:0]      soc_qstrb_o,
+  output logic         [NrSoC-1:0]                      soc_qvalid_o,
+  input  logic         [NrSoC-1:0]                      soc_qready_i,
+  input  logic         [NrSoC-1:0] [DataWidth-1:0]      soc_pdata_i,
+  input  logic         [NrSoC-1:0]                      soc_perror_i,
+  input  logic         [NrSoC-1:0]                      soc_pvalid_i,
+  output logic         [NrSoC-1:0]                      soc_pready_o,
+  // from core
+  input  logic         [AddrWidth-1:0]                  data_qaddr_i,
+  input  logic                                          data_qwrite_i,
+  input  logic         [3:0]                            data_qamo_i,
+  input  logic         [DataWidth-1:0]                  data_qdata_i,
+  input  logic         [StrbWidth-1:0]                  data_qstrb_i,
+  input  logic                                          data_qvalid_i,
+  output logic                                          data_qready_o,
+  output logic         [DataWidth-1:0]                  data_pdata_o,
+  output logic                                          data_perror_o,
+  output logic                                          data_pvalid_o,
+  input  logic                                          data_pready_i,
+  // Address map
+  input  address_map_t [NumRules-1:0]                   address_map_i
+);
 
   // Imports
   import snitch_pkg::dreq_t ;

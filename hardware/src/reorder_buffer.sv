@@ -9,29 +9,29 @@
 // specific language governing permissions and limitations under the License.
 
 module reorder_buffer #(
-    parameter int unsigned DataWidth = 0   ,
-    parameter int unsigned NumWords  = 0   ,
-    parameter bit FallThrough        = 1'b0,
-    // Dependant parameters. Do not change!
-    parameter IdWidth                = NumWords > 1 ? $clog2(NumWords) : 1,
-    parameter type data_t            = logic [DataWidth-1:0],
-    parameter type id_t              = logic [IdWidth-1:0]
-  ) (
-    input  logic  clk_i,
-    input  logic  rst_ni,
-    // Data write
-    input  data_t data_i,
-    input  id_t   id_i,
-    input  logic  push_i,
-    // Data read
-    output data_t data_o,
-    output logic  valid_o,
-    input  logic  pop_i,
-    // ID request
-    input  logic  id_req_i,
-    output id_t   id_o,
-    output logic  full_o
-  );
+  parameter int unsigned DataWidth = 0   ,
+  parameter int unsigned NumWords  = 0   ,
+  parameter bit FallThrough        = 1'b0,
+  // Dependant parameters. Do not change!
+  parameter IdWidth                = NumWords > 1 ? $clog2(NumWords) : 1,
+  parameter type data_t            = logic [DataWidth-1:0],
+  parameter type id_t              = logic [IdWidth-1:0]
+) (
+  input  logic  clk_i,
+  input  logic  rst_ni,
+  // Data write
+  input  data_t data_i,
+  input  id_t   id_i,
+  input  logic  push_i,
+  // Data read
+  output data_t data_o,
+  output logic  valid_o,
+  input  logic  pop_i,
+  // ID request
+  input  logic  id_req_i,
+  output id_t   id_o,
+  output logic  full_o
+);
 
   /*************
    *  Signals  *
