@@ -150,27 +150,19 @@ VERILATOR_INCS  := $(shell find $(VERILATOR_DIR) -name "cpp" -print | sort)
 VERILATOR_TOP   := mempool_tb_verilator
 VERILATOR_BIN   := $(VERILATOR_BUILD)/V$(VERILATOR_TOP)
 VERILATOR_MK    := $(VERILATOR_BIN).mk
-VERILATOR_FLAGS += -Wno-BLKANDNBLK
-VERILATOR_FLAGS += -Wno-LITENDIAN
-VERILATOR_FLAGS += -Wno-CASEINCOMPLETE
-VERILATOR_FLAGS += -Wno-CMPCONST
-VERILATOR_FLAGS += -Wno-WIDTH
-VERILATOR_FLAGS += -Wno-WIDTHCONCAT
-VERILATOR_FLAGS += -Wno-UNSIGNED
-VERILATOR_FLAGS += -Wno-UNUSED
-# VERILATOR_FLAGS += -Wno-BLKLOOPINIT
-VERILATOR_FLAGS += -Wno-fatal
-# VERILATOR_FLAGS += -Wno-lint
-# VERILATOR_FLAGS += -Wno-style
-VERILATOR_FLAGS += --output-split 20000
+VERILATOR_WAIVE := $(shell find $(VERILATOR_DIR) -name "*.vlt" -print | sort)
+VERILATOR_CONF  := $(VERILATOR_DIR)/verilator.flags
 
 # VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
-VERILATOR_FLAGS += -CFLAGS "-std=c++11 -Wall -DVM_TRACE_FMT_FST -DTOPLEVEL_NAME=$(VERILATOR_TOP) -g" -LDFLAGS "-pthread -lutil -lelf" -Wall --unroll-count 128
 # VERILATOR_FLAGS += --debug
-VERILATOR_FLAGS += --autoflush # Display the prints from time to time.
-VERILATOR_FLAGS += --exe # Build the executable
 
-$(VERILATOR_MK): $(bender) $(config_mk) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) Makefile
+VERILATOR_FLAGS += -CFLAGS "-DTOPLEVEL_NAME=$(VERILATOR_TOP)"
+VERILATOR_FLAGS += --Mdir $(VERILATOR_BUILD)
+VERILATOR_FLAGS += -f $(VERILATOR_FILES)
+VERILATOR_FLAGS += -f $(VERILATOR_CONF)
+VERILATOR_FLAGS += $(VERILATOR_WAIVE)
+
+$(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
 	mkdir -p $(VERILATOR_BUILD)
 	# Create Bender script of all RTL files
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(VERILATOR_FILES)
@@ -182,7 +174,7 @@ $(VERILATOR_MK): $(bender) $(config_mk) $(MEMPOOL_DIR)/Bender.yml $(shell find {
 	# Append the verilator library files: source files
 	@echo $(VERILATOR_LIBS) | tr ' ' '\n'  >> $(VERILATOR_FILES)
 	# Create Verilator Makefile
-	$(verilator) -f $(VERILATOR_FILES) $(VERILATOR_FLAGS) --cc --top-module $(VERILATOR_TOP)
+	$(verilator)   verilator/waiver.vlt $(VERILATOR_FLAGS) --top-module $(VERILATOR_TOP)
 
 $(VERILATOR_BIN): $(VERILATOR_MK) $(shell find $(VERILATOR_DIR) -type f) Makefile
 	make -j4 -C $(VERILATOR_BUILD) -f $<
