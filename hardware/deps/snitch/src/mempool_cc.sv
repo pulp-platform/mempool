@@ -89,6 +89,8 @@ module mempool_cc #(
     .core_events_o    ( core_events_o       )
   );
 
+  assign data_req_d.id = '0;
+
   // Cut off-loading request path
   spill_register #(
     .T      ( snitch_pkg::acc_req_t ),
@@ -179,6 +181,7 @@ module mempool_cc #(
   assign data_qvalid_o     = data_req_q_valid;
   assign data_req_q_ready  = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
+  assign data_resp_d.id    = '0;
   assign data_resp_d.error = data_perror_i;
   assign data_resp_d_valid = data_pvalid_i;
   assign data_pready_o     = data_resp_d_ready;

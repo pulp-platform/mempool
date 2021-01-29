@@ -757,7 +757,7 @@ module mempool_tile
   ) i_axi_mux (
     .clk_i      (clk_i                           ),
     .rst_ni     (rst_ni                          ),
-    .test_i     (test_i                          ),
+    .test_i     (1'b0                            ),
     .slv_reqs_i ({axi_cores_req, axi_cache_req}  ),
     .slv_resps_o({axi_cores_resp, axi_cache_resp}),
     .mst_req_o  (axi_mst_req                     ),
@@ -891,16 +891,6 @@ module mempool_tile_wrap
   // AXI Interface
   output axi_tile_req_t                                          axi_mst_req_o,
   input  axi_tile_resp_t                                         axi_mst_resp_i,
-  // Instruction interface
-  output addr_t             [NumCaches-1:0]                      refill_qaddr_o,
-  output logic              [NumCaches-1:0][7:0]                 refill_qlen_o,
-  output logic              [NumCaches-1:0]                      refill_qvalid_o,
-  input  logic              [NumCaches-1:0]                      refill_qready_i,
-  input  logic              [NumCaches-1:0][ICacheLineWidth-1:0] refill_pdata_i,
-  input  logic              [NumCaches-1:0]                      refill_perror_i,
-  input  logic              [NumCaches-1:0]                      refill_pvalid_i,
-  input  logic              [NumCaches-1:0]                      refill_plast_i,
-  output logic              [NumCaches-1:0]                      refill_pready_o,
   // Wake up interface
   input  logic              [NumCoresPerTile-1:0]                wake_up_i
 );
@@ -940,7 +930,7 @@ module mempool_tile_wrap
     // AXI interface
     .axi_mst_req_o           (axi_mst_req_o                                                                                                                      ),
     .axi_mst_resp_i          (axi_mst_resp_i                                                                                                                     ),
-   // Wake up interface
+    // Wake up interface
     .wake_up_i               (wake_up_i                                                                                                                          )
   );
 

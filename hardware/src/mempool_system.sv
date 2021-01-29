@@ -337,6 +337,8 @@ module mempool_system
     .eoc_valid_o          (eoc_valid_o                 )
   );
 
+  assign busy_o = 1'b0;
+
   /***********
    * AXI RAB *
    ***********/

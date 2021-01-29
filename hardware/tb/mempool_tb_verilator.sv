@@ -68,7 +68,6 @@ module mempool_tb_verilator (
    *  Signal declarations  *
    *************************/
 
-  logic fetch_en;
   logic eoc_valid;
 
   axi_system_req_t  axi_mst_req;
@@ -86,7 +85,7 @@ module mempool_tb_verilator (
   ) dut (
     .clk_i          (clk          ),
     .rst_ni         (rst_n        ),
-    .fetch_en_i     (fetch_en     ),
+    .fetch_en_i     (1'b0         ),
     .eoc_valid_o    (eoc_valid    ),
     .busy_o         (/*Unused*/   ),
     .mst_req_o      (axi_mst_req  ),

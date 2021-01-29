@@ -149,6 +149,8 @@ module tcdm_adapter #(
 
   if (RegisterAmo) begin : gen_amo_slice
     `FFLNR(amo_result_q, amo_result, (state_q == DoAMO), clk_i)
+  end else begin : gen_amo_slice
+    assign amo_result_q = '0;
   end
 
   always_ff @(posedge clk_i or negedge rst_ni) begin

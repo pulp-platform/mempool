@@ -108,39 +108,39 @@ module mempool_group
 
   // TCDM interfaces
   // North
-  tcdm_master_req_t  [NumTiles-1:0] tcdm_master_north_req;
-  logic              [NumTiles-1:0] tcdm_master_north_req_valid;
-  logic              [NumTiles-1:0] tcdm_master_north_req_ready;
-  tcdm_slave_resp_t  [NumTiles-1:0] tcdm_slave_north_resp;
-  logic              [NumTiles-1:0] tcdm_slave_north_resp_valid;
-  logic              [NumTiles-1:0] tcdm_slave_north_resp_ready;
+  tcdm_master_req_t  [NumTilesPerGroup-1:0] tcdm_master_north_req;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_north_req_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_north_req_ready;
+  tcdm_slave_resp_t  [NumTilesPerGroup-1:0] tcdm_slave_north_resp;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_north_resp_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_north_resp_ready;
   // East
-  tcdm_master_req_t  [NumTiles-1:0] tcdm_master_east_req;
-  logic              [NumTiles-1:0] tcdm_master_east_req_valid;
-  logic              [NumTiles-1:0] tcdm_master_east_req_ready;
-  tcdm_slave_resp_t  [NumTiles-1:0] tcdm_slave_east_resp;
-  logic              [NumTiles-1:0] tcdm_slave_east_resp_valid;
-  logic              [NumTiles-1:0] tcdm_slave_east_resp_ready;
+  tcdm_master_req_t  [NumTilesPerGroup-1:0] tcdm_master_east_req;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_east_req_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_east_req_ready;
+  tcdm_slave_resp_t  [NumTilesPerGroup-1:0] tcdm_slave_east_resp;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_east_resp_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_east_resp_ready;
   // Northeast
-  tcdm_master_req_t  [NumTiles-1:0] tcdm_master_northeast_req;
-  logic              [NumTiles-1:0] tcdm_master_northeast_req_valid;
-  logic              [NumTiles-1:0] tcdm_master_northeast_req_ready;
-  tcdm_slave_resp_t  [NumTiles-1:0] tcdm_slave_northeast_resp;
-  logic              [NumTiles-1:0] tcdm_slave_northeast_resp_valid;
-  logic              [NumTiles-1:0] tcdm_slave_northeast_resp_ready;
+  tcdm_master_req_t  [NumTilesPerGroup-1:0] tcdm_master_northeast_req;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_northeast_req_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_northeast_req_ready;
+  tcdm_slave_resp_t  [NumTilesPerGroup-1:0] tcdm_slave_northeast_resp;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_northeast_resp_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_northeast_resp_ready;
   // Center
-  tcdm_master_req_t  [NumTiles-1:0] tcdm_master_local_req;
-  logic              [NumTiles-1:0] tcdm_master_local_req_valid;
-  logic              [NumTiles-1:0] tcdm_master_local_req_ready;
-  tcdm_master_resp_t [NumTiles-1:0] tcdm_master_local_resp;
-  logic              [NumTiles-1:0] tcdm_master_local_resp_valid;
-  logic              [NumTiles-1:0] tcdm_master_local_resp_ready;
-  tcdm_slave_req_t   [NumTiles-1:0] tcdm_slave_local_req;
-  logic              [NumTiles-1:0] tcdm_slave_local_req_valid;
-  logic              [NumTiles-1:0] tcdm_slave_local_req_ready;
-  tcdm_slave_resp_t  [NumTiles-1:0] tcdm_slave_local_resp;
-  logic              [NumTiles-1:0] tcdm_slave_local_resp_valid;
-  logic              [NumTiles-1:0] tcdm_slave_local_resp_ready;
+  tcdm_master_req_t  [NumTilesPerGroup-1:0] tcdm_master_local_req;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_local_req_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_local_req_ready;
+  tcdm_master_resp_t [NumTilesPerGroup-1:0] tcdm_master_local_resp;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_local_resp_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_master_local_resp_ready;
+  tcdm_slave_req_t   [NumTilesPerGroup-1:0] tcdm_slave_local_req;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_local_req_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_local_req_ready;
+  tcdm_slave_resp_t  [NumTilesPerGroup-1:0] tcdm_slave_local_resp;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_local_resp_valid;
+  logic              [NumTilesPerGroup-1:0] tcdm_slave_local_resp_ready;
 
   for (genvar t = 0; unsigned'(t) < NumTilesPerGroup; t++) begin: gen_tiles
     tile_id_t id;
@@ -215,16 +215,6 @@ module mempool_group
       // AXI interface
       .axi_mst_req_o                     (axi_mst_req_o[t]                                 ),
       .axi_mst_resp_i                    (axi_mst_resp_i[t]                                ),
-      // Instruction refill interface
-      .refill_qaddr_o                    (/* Not yet implemented */                        ),
-      .refill_qlen_o                     (/* Not yet implemented */                        ), // AXI signal
-      .refill_qvalid_o                   (/* Not yet implemented */                        ),
-      .refill_qready_i                   (/* Not yet implemented */ '0                     ),
-      .refill_pdata_i                    (/* Not yet implemented */ '0                     ),
-      .refill_perror_i                   (/* Not yet implemented */ '0                     ),
-      .refill_pvalid_i                   (/* Not yet implemented */ '0                     ),
-      .refill_plast_i                    (/* Not yet implemented */ '0                     ),
-      .refill_pready_o                   (/* Not yet implemented */                        ),
       // Wake up interface
       .wake_up_i                         (wake_up_i[t*NumCoresPerTile +: NumCoresPerTile])
     );
