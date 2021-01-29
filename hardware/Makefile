@@ -174,7 +174,7 @@ $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml 
 	# Append the verilator library files: source files
 	@echo $(VERILATOR_LIBS) | tr ' ' '\n'  >> $(VERILATOR_FILES)
 	# Create Verilator Makefile
-	$(verilator)   verilator/waiver.vlt $(VERILATOR_FLAGS) --top-module $(VERILATOR_TOP)
+	$(verilator) $(VERILATOR_FLAGS) --top-module $(VERILATOR_TOP)
 
 $(VERILATOR_BIN): $(VERILATOR_MK) $(shell find $(VERILATOR_DIR) -type f) Makefile
 	make -j4 -C $(VERILATOR_BUILD) -f $<

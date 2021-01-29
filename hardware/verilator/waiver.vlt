@@ -26,3 +26,12 @@ lint_off -rule DECLFILENAME -file "*/deps/*" -match "*"
 // Ignore unused RISCV instruction encoding parameters
 lint_off -rule UNUSED -file "*/deps/snitch/src/riscv_instr.sv" -match "*"
 
+// Ignore undriven scan chains
+lint_off -rule UNDRIVEN -file "*" -match "*scan_data*"
+
+// Priority case is implemented correctly
+lint_off -rule CASEOVERLAP -file "*/deps/axi/src/axi_id_remap.sv" -match "*"
+
+// Ignore redefinition of NumCores and NumTiles for now
+lint_off -rule VARHIDDEN -file "*" -match "*NumCores*"
+lint_off -rule VARHIDDEN -file "*" -match "*NumTiles*"

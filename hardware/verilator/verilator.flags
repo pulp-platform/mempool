@@ -26,6 +26,7 @@
 -Wno-WIDTHCONCAT
 -Wno-UNSIGNED
 -Wno-UNUSED
+-Wno-UNOPTFLAT
 -Wno-fatal
 
 // C++ mode and flags
