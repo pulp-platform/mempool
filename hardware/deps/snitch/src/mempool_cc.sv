@@ -274,7 +274,7 @@ module mempool_cc #(
       automatic string extras_str;
 
       if (!rst_i) begin
-        cycle++;
+        cycle <= cycle + 1;
         // Trace snitch iff:
         // we are not stalled <==> we have issued and processed an instruction (including offloads)
         // OR we are retiring (issuing a writeback from) a load or accelerator instruction
