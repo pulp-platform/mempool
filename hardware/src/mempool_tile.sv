@@ -809,7 +809,7 @@ endmodule : mempool_tile
 /*****************
  *    WRAPPER    *
  *****************/
-
+/*verilator lint_off DECLFILENAME*/
 
 module mempool_tile_wrap
   import mempool_pkg::*;

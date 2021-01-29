@@ -17,7 +17,7 @@ sources:
   # Level 0
   - hardware/src/mempool_pkg.sv
   - hardware/src/reorder_buffer.sv
-  - hardware/src/snitch_address_demux.sv
+  - hardware/src/snitch_addr_demux.sv
   - hardware/src/tcdm_adapter.sv
   - hardware/src/tcdm_shim.sv
   - hardware/src/address_scrambler.sv
@@ -48,7 +48,7 @@ sources:
       - hardware/tb/axi_uart.sv
       # Level 2
       - hardware/tb/mempool_tb_verilator.sv
-  
+
   - target: fpga
     files:
       # Level 1
