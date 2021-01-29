@@ -29,6 +29,18 @@ artifacts:
     outputs:
       - install/verilator
 
+  verilator_model:
+    inputs:
+      - Makefile
+      - toolchain/verilator
+      - config/config.mk
+      - hardware/deps
+      - hardware/src
+      - hardware/tb
+      - hardware/Makefile
+    outputs:
+      - hardware/verilator_build/Vmempool_tb_verilator
+
   halide:
     inputs:
       - Makefile

@@ -32,12 +32,12 @@ before_script:
   - env
 
 stages:
+  - tools
   - build
-  - compiler
   - test
 
 tc-gcc:
-  stage: build
+  stage: tools
   script:
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup tc-riscv-gcc; then
@@ -47,7 +47,7 @@ tc-gcc:
       fi
 
 tc-llvm:
-  stage: build
+  stage: tools
   script:
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup tc-llvm; then
@@ -57,7 +57,7 @@ tc-llvm:
       fi
 
 riscv-isa-sim:
-  stage: build
+  stage: tools
   script:
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup riscv-isa-sim; then
@@ -67,7 +67,7 @@ riscv-isa-sim:
       fi
 
 verilator:
-  stage: build
+  stage: tools
   script:
     # The CI's ccache directory is very limited in size, so let's disable it.
     # Verilator requires a more recent version of python than the default one.
@@ -84,7 +84,7 @@ verilator:
     CCACHE_DISABLE: "1"
 
 halide:
-  stage: compiler
+  stage: build
   script:
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup halide; then
@@ -96,6 +96,20 @@ halide:
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert halide
       fi
   needs: ["tc-llvm"]
+
+verilator_model:
+  stage: build
+  script:
+    - |
+      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator_model; then
+        # Download Verilator
+        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
+        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator
+        # Build the verilator model
+        make -C hardware $(pwd)/hardware/verilator_build/Vmempool_tb_verilator
+        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert verilator_model
+      fi
+  needs: ["tc-llvm","verilator"]
 
 hardware:
   stage: test
@@ -117,6 +131,10 @@ hardware:
 
 .apps_script:
   script: &apps-script-anchor
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator_model
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
     - cd apps
     - |
       for APP in ${APPS}; do
@@ -125,29 +143,25 @@ hardware:
     - cd ../hardware
     - |
       for APP in ${APPS}; do
-        app=${APP} make simc
+        app=${APP} make verilate
       done
 
 apps-llvm:
   <<: *apps-job-anchor
   script:
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
     - *apps-script-anchor
   variables:
     COMPILER: "llvm"
-  needs: ["tc-gcc","riscv-isa-sim","tc-llvm"]
+  needs: ["tc-gcc","riscv-isa-sim","tc-llvm","verilator_model"]
 
 apps-gcc:
   <<: *apps-job-anchor
   script:
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
     - *apps-script-anchor
   variables:
     COMPILER: "gcc"
-  needs: ["tc-gcc","riscv-isa-sim"]
+  needs: ["tc-gcc","riscv-isa-sim","verilator_model"]
 
 # Unit tests
 unit-tests:
