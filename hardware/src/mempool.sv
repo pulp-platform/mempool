@@ -12,29 +12,30 @@ module mempool
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
-    parameter int unsigned NumCores      = 1,
-    parameter int unsigned BankingFactor = 1,
-    // TCDM
-    parameter addr_t TCDMBaseAddr        = 32'b0,
-    // Boot address
-    parameter logic [31:0] BootAddr      = 32'h0000_0000,
-    // Dependant parameters. DO NOT CHANGE!
-    parameter int unsigned NumTiles      = NumCores / NumCoresPerTile,
-    parameter int unsigned NumAXIMasters = NumTiles
-  ) (
-    // Clock and reset
-    input  logic                               clk_i,
-    input  logic                               rst_ni,
-    input  logic                               testmode_i,
-    // Scan chain
-    input  logic                               scan_enable_i,
-    input  logic                               scan_data_i,
-    input  logic           [NumCores-1:0]      wake_up_i,
-    output logic                               scan_data_o,
-    // AXI Interface
-    output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
-    input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
- );
+  parameter int unsigned NumCores      = 1,
+  parameter int unsigned BankingFactor = 1,
+  // TCDM
+  parameter addr_t       TCDMBaseAddr  = 32'b0,
+  // Boot address
+  parameter logic [31:0] BootAddr      = 32'h0000_0000,
+  // Dependant parameters. DO NOT CHANGE!
+  parameter int unsigned NumTiles      = NumCores / NumCoresPerTile,
+  parameter int unsigned NumAXIMasters = NumTiles
+) (
+  // Clock and reset
+  input  logic                               clk_i,
+  input  logic                               rst_ni,
+  input  logic                               testmode_i,
+  // Scan chain
+  input  logic                               scan_enable_i,
+  input  logic                               scan_data_i,
+  output logic                               scan_data_o,
+  // Wake up signal
+  input  logic           [NumCores-1:0]      wake_up_i,
+  // AXI Interface
+  output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
+  input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
+);
 
   /*****************
    *  Definitions  *
