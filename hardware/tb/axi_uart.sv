@@ -59,7 +59,7 @@ module axi_uart #(
 
   string str;
 
-  always @(posedge clk_i ) begin
+  always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       str <= "";
     end else begin

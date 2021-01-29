@@ -190,16 +190,16 @@ module snitch #(
   logic csr_en;
 
   // Registers
-  `FFSR(pc_q, pc_d, BootAddr, clk_i, rst_i)
-  `FFSR(wfi_q, wfi_d, '0, clk_i, rst_i)
-  `FFSR(sb_q, sb_d, '0, clk_i, rst_i)
+  `FFAR(pc_q, pc_d, BootAddr, clk_i, rst_i)
+  `FFAR(wfi_q, wfi_d, '0, clk_i, rst_i)
+  `FFAR(sb_q, sb_d, '0, clk_i, rst_i)
 
   // performance counter
   `ifdef SNITCH_ENABLE_PERF
   logic [63:0] cycle_q;
   logic [63:0] instret_q;
-  `FFSR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
-  `FFLSR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
+  `FFAR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
+  `FFLAR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
   `endif
 
   always_comb begin
@@ -817,7 +817,7 @@ module snitch #(
   assign exception = illegal_inst | ld_addr_misaligned | st_addr_misaligned;
 
   // pragma translate_off
-  always_ff @(posedge clk_i) begin
+  always_ff @(posedge clk_i or posedge rst_i) begin
     if (!rst_i && illegal_inst && inst_valid_o && inst_ready_i) begin
       $display("[Illegal Instruction Core %0d] PC: %h Data: %h", hart_id_i, inst_addr_o, inst_data_i);
     end
@@ -1043,7 +1043,7 @@ module snitch #(
   assign ld_addr_misaligned = ls_misaligned & (is_load | is_fp_load);
 
   // pragma translate_off
-  always_ff @(posedge clk_i) begin
+  always_ff @(posedge clk_i or posedge rst_i) begin
     if (!rst_i && (ld_addr_misaligned || st_addr_misaligned) && valid_instr && inst_ready_i) begin
       $display("%t: [Misaligned Load/Store Core %0d] PC: %h Address: %h Data: %h", $time, hart_id_i, inst_addr_o, alu_result, inst_data_i);
     end
@@ -1162,7 +1162,7 @@ module snitch #(
 
 
     // retire an instruction and increase ordering bit
-    `FFLSR(rvfi_order[0], rvfi_order[0] + 1, rvfi_valid[0], '0, clk_i, rst_i)
+    `FFLAR(rvfi_order[0], rvfi_order[0] + 1, rvfi_valid[0], '0, clk_i, rst_i)
 
     logic [31:0] ld_instr_q;
     logic [31:0] ld_addr_q;
@@ -1170,12 +1170,12 @@ module snitch #(
     logic [31:0] rs1_data_q;
     logic [31:0] pc_qq;
     // we need to latch the load
-    `FFLSR(ld_instr_q, inst_data_i, latch_load, '0, clk_i, rst_i)
-    `FFLSR(ld_addr_q, data_qaddr_o, latch_load, '0, clk_i, rst_i)
-    `FFLSR(rs1_q, rs1, latch_load, '0, clk_i, rst_i)
-    `FFLSR(rs1_data_q, gpr_rdata[0], latch_load, '0, clk_i, rst_i)
-    `FFLSR(pc_qq, pc_d, latch_load, '0, clk_i, rst_i)
-    `FFLSR(ld_addr_misaligned_q, ld_addr_misaligned, latch_load, '0, clk_i, rst_i)
+    `FFLAR(ld_instr_q, inst_data_i, latch_load, '0, clk_i, rst_i)
+    `FFLAR(ld_addr_q, data_qaddr_o, latch_load, '0, clk_i, rst_i)
+    `FFLAR(rs1_q, rs1, latch_load, '0, clk_i, rst_i)
+    `FFLAR(rs1_data_q, gpr_rdata[0], latch_load, '0, clk_i, rst_i)
+    `FFLAR(pc_qq, pc_d, latch_load, '0, clk_i, rst_i)
+    `FFLAR(ld_addr_misaligned_q, ld_addr_misaligned, latch_load, '0, clk_i, rst_i)
 
     // in case we don't retire another instruction on port 1 we can use it for loads
     logic retire_load_port1;

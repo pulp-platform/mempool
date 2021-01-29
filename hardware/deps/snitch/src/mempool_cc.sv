@@ -203,7 +203,7 @@ module mempool_cc #(
   end
 
   logic stall_instr;
-  always_ff @(posedge clk_i) begin
+  always_ff @(posedge clk_i or posedge rst_i) begin
     if(rst_i) begin
       stall_instr <= 0;
     end else begin
@@ -269,7 +269,7 @@ module mempool_cc #(
   endtask
 `endif
 
-  always_ff @(posedge clk_i) begin
+  always_ff @(posedge clk_i or posedge rst_i) begin
       automatic string trace_entry;
       automatic string extras_str;
 

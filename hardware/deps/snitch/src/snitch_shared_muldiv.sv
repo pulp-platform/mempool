@@ -188,11 +188,11 @@ module multiplier  #(
     if (valid_i & ready_o)
       valid_d = 1;
   end
-  `FFSR(valid_q, valid_d, '0, clk_i, rst_i)
+  `FFAR(valid_q, valid_d, '0, clk_i, rst_i)
   // Pipe-line registers
-  `FFLNR(id_q,           id_i,           (valid_i & ready_o), clk_i)
-  `FFLNR(result_q,       result_d,       (valid_i & ready_o), clk_i)
-  `FFLNR(select_upper_q, select_upper_d, (valid_i & ready_o), clk_i)
+  `FFLAR(id_q,           id_i,           (valid_i & ready_o), '0, clk_i, rst_i)
+  `FFLAR(result_q,       result_d,       (valid_i & ready_o), '0, clk_i, rst_i)
+  `FFLAR(select_upper_q, select_upper_d, (valid_i & ready_o), '0, clk_i, rst_i)
 
   assign id_o = id_q;
   assign valid_o = valid_q;

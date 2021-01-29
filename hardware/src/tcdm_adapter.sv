@@ -106,7 +106,7 @@ module tcdm_adapter #(
   assign pop_resp   = in_ready_i & in_valid_o;
 
   // Generate out_gnt one cycle after sending read request to the bank
-  `FFSRN(out_gnt, out_req_o & !out_write_o, 1'b0, clk_i, rst_ni);
+  `FFARN(out_gnt, out_req_o & !out_write_o, 1'b0, clk_i, rst_ni);
 
   always_comb begin
     // feed-through
