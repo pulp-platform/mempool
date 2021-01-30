@@ -168,6 +168,8 @@ VERILATOR_FLAGS += $(VERILATOR_WAIVE)
 
 $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
 	mkdir -p $(VERILATOR_BUILD)
+	# Overwrite Bootaddress to L2 base while we don't have a DPI to write a wake-up
+	$(eval boot_addr=$(l2_base))
 	# Create Bender script of all RTL files
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(VERILATOR_FILES)
 	# Append the verilator library files
