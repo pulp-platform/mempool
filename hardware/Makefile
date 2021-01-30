@@ -81,7 +81,11 @@ endif
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
-vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
+vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
+vlog_defs += -DL2_BASE="32'h$(l2_base)" -DL2_SIZE="32'h$(l2_size)"
+vlog_defs += -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
+
+cpp_defs  += -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
 
 .DEFAULT_GOAL := compile
 
@@ -171,6 +175,8 @@ $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml 
 	# Append the verilator library files: Includes
 	@echo $(addprefix +incdir+,$(VERILATOR_INCS)) | tr ' ' '\n' >> $(VERILATOR_FILES)
 	for i in $(VERILATOR_INCS); do echo "-CFLAGS -I$${i}" >> $(VERILATOR_FILES); done
+	# Append the CPP defines
+	@echo "-CFLAGS \"$(cpp_defs)\"" >> $(VERILATOR_FILES)
 	# Append the verilator library files: source files
 	@echo $(VERILATOR_LIBS) | tr ' ' '\n'  >> $(VERILATOR_FILES)
 	# Create Verilator Makefile

@@ -111,8 +111,8 @@ module mempool_system
 
   localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
   localparam addr_t CtrlRegistersEndAddr  = 32'h4000_FFFF;
-  localparam addr_t L2MemoryBaseAddr      = 32'h8000_0000;
-  localparam addr_t L2MemoryEndAddr       = 32'h801F_FFFF;
+  localparam addr_t L2MemoryBaseAddr      = `ifdef L2_BASE `L2_BASE `else 32'h8000_0000 `endif;
+  localparam addr_t L2MemoryEndAddr       = L2MemoryBaseAddr + L2Size;
   localparam addr_t BootromBaseAddr       = 32'hA000_0000;
   localparam addr_t BootromEndAddr        = 32'hA000_FFFF;
 

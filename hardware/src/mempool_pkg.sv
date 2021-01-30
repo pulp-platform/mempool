@@ -23,7 +23,7 @@ package mempool_pkg;
   localparam integer unsigned ByteOffset       = $clog2(BeWidth);
   localparam integer unsigned TCDMSizePerBank  = 1024; // [B]
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
-  localparam integer unsigned L2Size           = 65536; // [B]
+  localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 65536 `endif; // [B]
 
   /*********************
    *  TILE PARAMETERS  *

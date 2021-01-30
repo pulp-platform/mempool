@@ -9,6 +9,13 @@
 #include "verilator_memutil.h"
 #include "verilator_sim_ctrl.h"
 
+#ifndef L2_BASE
+#define L2_BASE 0x80000000
+#endif
+#ifndef L2_SIZE
+#define L2_SIZE 0x00080000
+#endif
+
 int main(int argc, char **argv) {
   mempool_tb_verilator top;
   VerilatorMemUtil memutil;
@@ -16,9 +23,9 @@ int main(int argc, char **argv) {
   simctrl.SetTop(&top, &top.clk_i, &top.rst_ni,
                  VerilatorSimCtrlFlags::ResetPolarityNegative);
 
-  MemAreaLoc l2_mem = {.base=0x80000000, .size=0x00080000};
-  memutil.RegisterMemoryArea(
-      "ram", "TOP.mempool_tb_verilator.dut.l2_mem", 128, &l2_mem);
+  MemAreaLoc l2_mem = {.base = L2_BASE, .size = L2_SIZE};
+  memutil.RegisterMemoryArea("ram", "TOP.mempool_tb_verilator.dut.l2_mem", 128,
+                             &l2_mem);
   simctrl.RegisterExtension(&memutil);
 
   simctrl.SetInitialResetDelay(5);
