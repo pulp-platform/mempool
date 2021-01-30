@@ -26,28 +26,31 @@ config_mk = $(abspath $(ROOT_DIR)/../config/config.mk)
 include $(config_mk)
 
 # build path
-buildpath      ?= build
-resultpath     ?= results
+buildpath       ?= build
+resultpath      ?= results
 # questa library
-library        ?= work
+library         ?= work
 # dpi library
-dpi_library    ?= work-dpi
+dpi_library     ?= work-dpi
 # Top level module to compile
-top_level      ?= mempool_tb
+top_level       ?= mempool_tb
 # QuestaSim Version
-questa_version ?= 2019.3
+questa_version  ?= 2019.3
 # QuestaSim command
-questa_cmd     ?= questa-$(questa_version)
+questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
-questa_args    ?=
+questa_args     ?=
 # Path to the binaries
-app_path       ?= $(abspath $(ROOT_DIR)/../apps/bin)
+app_path        ?= $(abspath $(ROOT_DIR)/../apps/bin)
 # Bender
-bender         ?= $(INSTALL_DIR)/bender/bender
+bender          ?= $(INSTALL_DIR)/bender/bender
 # Verilator
-verilator      ?= $(INSTALL_DIR)/verilator/bin/verilator
+verilator       ?= $(INSTALL_DIR)/verilator/bin/verilator
+verilator_build ?= $(ROOT_DIR)/verilator_build
+verilator_files ?= $(verilator_build)/files
+verilator_top   ?= mempool_tb_verilator
 # Python
-python         ?= python3.6
+python          ?= python3.6
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -98,7 +101,7 @@ $(bender):
 	make -C $(MEMPOOL_DIR) bender
 
 ################
-# Modelsim
+# Modelsim     #
 ################
 # Library
 .PHONY: lib
@@ -144,53 +147,51 @@ $(tests): $(test_result_dir)/%.out : $(app_path)/%
 	./scripts/return_status.sh $(buildpath)/transcript > $@
 
 ################
-# Verilator
+# Verilator    #
 ################
-VERILATOR_DIR    = $(ROOT_DIR)/verilator
-VERILATOR_BUILD  = $(ROOT_DIR)/obj_dir
-VERILATOR_FILES  = $(VERILATOR_BUILD)/files
-VERILATOR_LIBS  := $(shell find $(VERILATOR_DIR) -name "*.cc" -print | sort)
-VERILATOR_INCS  := $(shell find $(VERILATOR_DIR) -name "cpp" -print | sort)
-VERILATOR_TOP   := mempool_tb_verilator
-VERILATOR_BIN   := $(VERILATOR_BUILD)/V$(VERILATOR_TOP)
-VERILATOR_MK    := $(VERILATOR_BIN).mk
-VERILATOR_WAIVE := $(shell find $(VERILATOR_DIR) -name "*.vlt" -print | sort)
-VERILATOR_CONF  := $(VERILATOR_DIR)/verilator.flags
+VERILATOR_SRC   := $(ROOT_DIR)/tb/verilator
+VERILATOR_LIBS  := $(shell find $(VERILATOR_SRC) -name "*.cc" -print | sort)
+VERILATOR_INCS  := $(shell find $(VERILATOR_SRC) -name "cpp" -print | sort)
+VERILATOR_EXE   := $(verilator_build)/V$(verilator_top)
+VERILATOR_MK    := $(VERILATOR_EXE).mk
+VERILATOR_WAIVE := $(shell find $(VERILATOR_SRC) -name "*.vlt" -print | sort)
+VERILATOR_CONF  := $(VERILATOR_SRC)/verilator.flags
 
+VERILATOR_FLAGS += -CFLAGS "-DTOPLEVEL_NAME=$(verilator_top)"
+VERILATOR_FLAGS += --Mdir $(verilator_build)
+VERILATOR_FLAGS += -f $(verilator_files)
+VERILATOR_FLAGS += -f $(VERILATOR_CONF)
+VERILATOR_FLAGS += $(VERILATOR_WAIVE)
 # VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
 # VERILATOR_FLAGS += --debug
 
-VERILATOR_FLAGS += -CFLAGS "-DTOPLEVEL_NAME=$(VERILATOR_TOP)"
-VERILATOR_FLAGS += --Mdir $(VERILATOR_BUILD)
-VERILATOR_FLAGS += -f $(VERILATOR_FILES)
-VERILATOR_FLAGS += -f $(VERILATOR_CONF)
-VERILATOR_FLAGS += $(VERILATOR_WAIVE)
-
 $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
-	mkdir -p $(VERILATOR_BUILD)
+	mkdir -p $(verilator_build)
 	# Overwrite Bootaddress to L2 base while we don't have a DPI to write a wake-up
 	$(eval boot_addr=$(l2_base))
 	# Create Bender script of all RTL files
-	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(VERILATOR_FILES)
+	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(verilator_files)
 	# Append the verilator library files
-	@echo '' >> $(VERILATOR_FILES)
+	@echo '' >> $(verilator_files)
 	# Append the verilator library files: Includes
-	@echo $(addprefix +incdir+,$(VERILATOR_INCS)) | tr ' ' '\n' >> $(VERILATOR_FILES)
-	for i in $(VERILATOR_INCS); do echo "-CFLAGS -I$${i}" >> $(VERILATOR_FILES); done
+	@echo $(addprefix +incdir+,$(VERILATOR_INCS)) | tr ' ' '\n' >> $(verilator_files)
+	for i in $(VERILATOR_INCS); do echo "-CFLAGS -I$${i}" >> $(verilator_files); done
 	# Append the CPP defines
-	@echo "-CFLAGS \"$(cpp_defs)\"" >> $(VERILATOR_FILES)
+	@echo "-CFLAGS \"$(cpp_defs)\"" >> $(verilator_files)
 	# Append the verilator library files: source files
-	@echo $(VERILATOR_LIBS) | tr ' ' '\n'  >> $(VERILATOR_FILES)
+	@echo $(VERILATOR_LIBS) | tr ' ' '\n'  >> $(verilator_files)
 	# Create Verilator Makefile
-	$(verilator) $(VERILATOR_FLAGS) --top-module $(VERILATOR_TOP)
+	$(verilator) $(VERILATOR_FLAGS) --top-module $(verilator_top)
 
-$(VERILATOR_BIN): $(VERILATOR_MK) $(shell find $(VERILATOR_DIR) -type f) Makefile
-	make -j4 -C $(VERILATOR_BUILD) -f $<
+$(VERILATOR_EXE): $(VERILATOR_MK) $(shell find $(VERILATOR_SRC) -type f) Makefile
+	make -j4 -C $(verilator_build) -f $<
 
-verilate: $(VERILATOR_BIN) Makefile
-	$(VERILATOR_BIN) --meminit=ram,$(preload)
+verilate: $(VERILATOR_EXE) $(buildpath) Makefile
+	cd $(buildpath) && $(VERILATOR_EXE) --meminit=ram,$(preload)
 
-# Benchmarking
+################
+# Tracing      #
+################
 benchmark: log simc
 	# Call `make` again to get variable extension with all traces
 	result_dir=$(result_dir) $(MAKE) trace
@@ -223,6 +224,9 @@ $(buildpath)/%.trace: $(buildpath)/%.dasm
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
 	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
 
+################
+# Helper       #
+################
 # DPIs
 .PHONY: dpi
 dpi: $(buildpath)/$(dpi_library)/mempool_dpi.so

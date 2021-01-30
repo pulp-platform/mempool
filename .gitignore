@@ -1,5 +1,6 @@
 install/*
 .bender
+.ctags
 gmon.out
 # Backup files
 *.bk
@@ -19,3 +20,7 @@ virtual-platform
 *.code-workspace
 # VSCode Favorites extension
 .favorites.json
+# Ignore fish scripts :(
+*.fish
+# In general, ignore pdfs
+*.pdf

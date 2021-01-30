@@ -1,9 +1,12 @@
 *.log
+*.dasm
+*.trace
 *.project
 bender
 .bender/*
 .dvt/*
-build*
+*build*
+*results*
 results*
 plots*
 obj_dir
