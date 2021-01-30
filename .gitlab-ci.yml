@@ -19,8 +19,8 @@ variables:
   ROOT_DIR: '$CI_PROJECT_DIR'
   APPS: "tests"
   RUST_LOG: 'memora=debug'
-  PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin'
   VERILATOR_ROOT: '$CI_PROJECT_DIR/install/verilator'
+  PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin:$VERILATOR_ROOT/bin'
 
 workflow:
   rules:
@@ -102,14 +102,15 @@ verilator_model:
   script:
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator_model; then
-        # Download Verilator
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
+        # Download Verilator and add missing links
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator
+        ln -s $VERILATOR_ROOT/share/verilator/include $VERILATOR_ROOT/include
+        ln -s $VERILATOR_ROOT/share/verilator/bin/verilator_includer $VERILATOR_ROOT/bin/verilator_includer
         # Build the verilator model
-        make -C hardware $(pwd)/hardware/verilator_build/Vmempool_tb_verilator
+        make -C hardware $(ROOT_DIR)/hardware/verilator_build/Vmempool_tb_verilator
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert verilator_model
       fi
-  needs: ["tc-llvm","verilator"]
+  needs: ["verilator"]
 
 hardware:
   stage: test
@@ -129,9 +130,8 @@ hardware:
       - hardware/build/trace_hart_*.trace
       - hardware/results
 
-.apps_script:
+.apps-script:
   script: &apps-script-anchor
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator_model
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
@@ -143,6 +143,8 @@ hardware:
     - cd ../hardware
     - |
       for APP in ${APPS}; do
+        touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
+        touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         app=${APP} make verilate
       done
 
