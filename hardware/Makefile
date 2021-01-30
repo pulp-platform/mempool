@@ -240,7 +240,7 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $?
 
 # Bootrom
-src/bootrom.sv: $(MEMPOOL_DIR)/apps/common/bootrom.img
+src/bootrom.sv:
 	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth 128 $<
 
 $(MEMPOOL_DIR)/apps/common/bootrom.img:
