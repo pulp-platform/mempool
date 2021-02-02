@@ -4,10 +4,11 @@
 
 #include "verilator_memutil.h"
 
+#include <getopt.h>
+
 #include <array>
 #include <cassert>
 #include <cstring>
-#include <getopt.h>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -22,7 +23,7 @@ struct LoadArg {
   std::string filepath;
   MemImageType type;
 };
-}  // namespace
+} // namespace
 
 // Parse a meminit command-line argument. This should be of the form
 // mem_area,file[,type]. Throw a std::runtime_error if something looks wrong.
@@ -120,52 +121,52 @@ bool VerilatorMemUtil::ParseCLIArguments(int argc, char **argv,
     opterr = 0;
 
     switch (c) {
-      case 0:
-        break;
-      case 'r':
-        load_args.push_back(
-            {.name = "rom", .filepath = optarg, .type = kMemImageUnknown});
-        break;
-      case 'm':
-        load_args.push_back(
-            {.name = "ram", .filepath = optarg, .type = kMemImageUnknown});
-        break;
-      case 'f':
-        load_args.push_back(
-            {.name = "flash", .filepath = optarg, .type = kMemImageUnknown});
-        break;
-      case 'l':
-        if (strcasecmp(optarg, "list") == 0) {
-          mem_util_->PrintMemRegions();
-          exit_app = true;
-          return true;
-        }
-
-        // --meminit / -l
-        try {
-          load_args.emplace_back(ParseMemArg(optarg));
-        } catch (const std::runtime_error &err) {
-          std::cerr << "ERROR: " << err.what() << std::endl;
-          return false;
-        }
-        break;
-      case 'V':
-        verbose = true;
-        break;
-      case 'E':
-        load_args.push_back(
-            {.name = "", .filepath = optarg, .type = kMemImageElf});
-        break;
-      case 'h':
-        PrintHelp();
+    case 0:
+      break;
+    case 'r':
+      load_args.push_back(
+          {.name = "rom", .filepath = optarg, .type = kMemImageUnknown});
+      break;
+    case 'm':
+      load_args.push_back(
+          {.name = "ram", .filepath = optarg, .type = kMemImageUnknown});
+      break;
+    case 'f':
+      load_args.push_back(
+          {.name = "flash", .filepath = optarg, .type = kMemImageUnknown});
+      break;
+    case 'l':
+      if (strcasecmp(optarg, "list") == 0) {
+        mem_util_->PrintMemRegions();
+        exit_app = true;
         return true;
-      case ':':  // missing argument
-        std::cerr << "ERROR: Missing argument." << std::endl << std::endl;
+      }
+
+      // --meminit / -l
+      try {
+        load_args.emplace_back(ParseMemArg(optarg));
+      } catch (const std::runtime_error &err) {
+        std::cerr << "ERROR: " << err.what() << std::endl;
         return false;
-      case '?':
-      default:;
-        // Ignore unrecognized options since they might be consumed by
-        // other utils
+      }
+      break;
+    case 'V':
+      verbose = true;
+      break;
+    case 'E':
+      load_args.push_back(
+          {.name = "", .filepath = optarg, .type = kMemImageElf});
+      break;
+    case 'h':
+      PrintHelp();
+      return true;
+    case ':': // missing argument
+      std::cerr << "ERROR: Missing argument." << std::endl << std::endl;
+      return false;
+    case '?':
+    default:;
+      // Ignore unrecognized options since they might be consumed by
+      // other utils
     }
   }
 

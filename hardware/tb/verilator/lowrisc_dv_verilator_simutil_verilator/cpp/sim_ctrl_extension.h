@@ -6,7 +6,7 @@
 #define OPENTITAN_HW_DV_VERILATOR_SIMUTIL_VERILATOR_CPP_SIM_CTRL_EXTENSION_H_
 
 class SimCtrlExtension {
- public:
+public:
   virtual ~SimCtrlExtension() = default;
 
   /**
@@ -38,4 +38,4 @@ class SimCtrlExtension {
   virtual void PostExec() {}
 };
 
-#endif  // OPENTITAN_HW_DV_VERILATOR_SIMUTIL_VERILATOR_CPP_SIM_CTRL_EXTENSION_H_
+#endif // OPENTITAN_HW_DV_VERILATOR_SIMUTIL_VERILATOR_CPP_SIM_CTRL_EXTENSION_H_

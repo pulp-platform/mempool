@@ -21,7 +21,7 @@ enum VerilatorSimCtrlFlags {
  * Simulation controller for verilated simulations
  */
 class VerilatorSimCtrl {
- public:
+public:
   /**
    * Get the simulation controller instance
    *
@@ -112,7 +112,7 @@ class VerilatorSimCtrl {
    */
   unsigned long GetTime() const { return time_; }
 
- private:
+private:
   VerilatedToplevel *top_;
   CData *sig_clk_;
   CData *sig_rst_;
@@ -240,4 +240,4 @@ class VerilatorSimCtrl {
   void Trace();
 };
 
-#endif  // OPENTITAN_HW_DV_VERILATOR_SIMUTIL_VERILATOR_CPP_VERILATOR_SIM_CTRL_H_
+#endif // OPENTITAN_HW_DV_VERILATOR_SIMUTIL_VERILATOR_CPP_VERILATOR_SIM_CTRL_H_

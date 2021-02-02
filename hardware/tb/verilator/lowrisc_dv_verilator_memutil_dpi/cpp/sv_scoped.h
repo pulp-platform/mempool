@@ -5,9 +5,10 @@
 #ifndef OPENTITAN_HW_DV_VERILATOR_CPP_SV_SCOPED_H_
 #define OPENTITAN_HW_DV_VERILATOR_CPP_SV_SCOPED_H_
 
+#include <svdpi.h>
+
 #include <stdexcept>
 #include <string>
-#include <svdpi.h>
 
 /**
  * Wrapper and guard class for SV Scope
@@ -29,23 +30,23 @@
  * This guard restores the previous scope at destruction.
  */
 class SVScoped {
- public:
+public:
   SVScoped(const std::string &name);
   ~SVScoped() { svSetScope(prev_scope_); }
 
   class Error : public std::exception {
-   public:
+  public:
     Error(const std::string &scope_name);
     const char *what() const noexcept override { return msg_.c_str(); }
 
     std::string scope_name_;
 
-   private:
+  private:
     std::string msg_;
   };
 
- private:
+private:
   svScope prev_scope_;
 };
 
-#endif  // OPENTITAN_HW_DV_VERILATOR_CPP_SV_SCOPED_H_
+#endif // OPENTITAN_HW_DV_VERILATOR_CPP_SV_SCOPED_H_

@@ -14,7 +14,7 @@
 #include "sim_ctrl_extension.h"
 
 class VerilatorMemUtil : public SimCtrlExtension {
- public:
+public:
   // No-argument constructor makes a VerilatorMemUtil. Single-argument
   // constructor wraps its mem_util argument (but does not take ownership).
   VerilatorMemUtil();
@@ -36,7 +36,7 @@ class VerilatorMemUtil : public SimCtrlExtension {
     return mem_util_->RegisterMemoryArea(name, location);
   }
 
- private:
+private:
   DpiMemUtil *mem_util_;
   std::unique_ptr<DpiMemUtil> allocation_;
 };

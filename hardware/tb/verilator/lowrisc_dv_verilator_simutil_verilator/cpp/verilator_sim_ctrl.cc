@@ -5,10 +5,11 @@
 #include "verilator_sim_ctrl.h"
 
 #include <getopt.h>
-#include <iostream>
 #include <signal.h>
 #include <sys/stat.h>
 #include <verilated.h>
+
+#include <iostream>
 
 // This is defined by Verilator and passed through the command line
 #ifndef VM_TRACE
@@ -77,32 +78,32 @@ bool VerilatorSimCtrl::ParseCommandArgs(int argc, char **argv, bool &exit_app) {
     opterr = 0;
 
     switch (c) {
-      case 0:
-        break;
-      case 't':
-        if (!tracing_possible_) {
-          std::cerr << "ERROR: Tracing has not been enabled at compile time."
-                    << std::endl;
-          exit_app = true;
-          return false;
-        }
-        TraceOn();
-        break;
-      case 'c':
-        term_after_cycles_ = atoi(optarg);
-        break;
-      case 'h':
-        PrintHelp();
-        exit_app = true;
-        break;
-      case ':':  // missing argument
-        std::cerr << "ERROR: Missing argument." << std::endl << std::endl;
+    case 0:
+      break;
+    case 't':
+      if (!tracing_possible_) {
+        std::cerr << "ERROR: Tracing has not been enabled at compile time."
+                  << std::endl;
         exit_app = true;
         return false;
-      case '?':
-      default:;
-        // Ignore unrecognized options since they might be consumed by
-        // Verilator's built-in parsing below.
+      }
+      TraceOn();
+      break;
+    case 'c':
+      term_after_cycles_ = atoi(optarg);
+      break;
+    case 'h':
+      PrintHelp();
+      exit_app = true;
+      break;
+    case ':': // missing argument
+      std::cerr << "ERROR: Missing argument." << std::endl << std::endl;
+      exit_app = true;
+      return false;
+    case '?':
+    default:;
+      // Ignore unrecognized options since they might be consumed by
+      // Verilator's built-in parsing below.
     }
   }
 
@@ -169,17 +170,11 @@ void VerilatorSimCtrl::RegisterExtension(SimCtrlExtension *ext) {
 }
 
 VerilatorSimCtrl::VerilatorSimCtrl()
-    : top_(nullptr),
-      time_(0),
-      tracing_enabled_(false),
-      tracing_enabled_changed_(false),
-      tracing_ever_enabled_(false),
-      tracing_possible_(VM_TRACE),
-      initial_reset_delay_cycles_(2),
-      reset_duration_cycles_(2),
-      request_stop_(false),
-      simulation_success_(true),
-      tracer_(VerilatedTracer()),
+    : top_(nullptr), time_(0), tracing_enabled_(false),
+      tracing_enabled_changed_(false), tracing_ever_enabled_(false),
+      tracing_possible_(VM_TRACE), initial_reset_delay_cycles_(2),
+      reset_duration_cycles_(2), request_stop_(false),
+      simulation_success_(true), tracer_(VerilatedTracer()),
       term_after_cycles_(0) {}
 
 void VerilatorSimCtrl::RegisterSignalHandler() {
@@ -197,16 +192,16 @@ void VerilatorSimCtrl::SignalHandler(int sig) {
   VerilatorSimCtrl &simctrl = VerilatorSimCtrl::GetInstance();
 
   switch (sig) {
-    case SIGINT:
-      simctrl.RequestStop(true);
-      break;
-    case SIGUSR1:
-      if (simctrl.TracingEnabled()) {
-        simctrl.TraceOff();
-      } else {
-        simctrl.TraceOn();
-      }
-      break;
+  case SIGINT:
+    simctrl.RequestStop(true);
+    break;
+  case SIGUSR1:
+    if (simctrl.TracingEnabled()) {
+      simctrl.TraceOff();
+    } else {
+      simctrl.TraceOn();
+    }
+    break;
   }
 }
 

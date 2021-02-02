@@ -11,19 +11,15 @@
 
 // The type used to represent address ranges. This is essentially a std::pair,
 // but we need a operator< custom for the internal map.
-template <typename addr_t>
-struct AddrRange {
-  addr_t lo, hi;
-};
+template <typename addr_t> struct AddrRange { addr_t lo, hi; };
 
 template <typename addr_t>
 bool operator<(const AddrRange<addr_t> &a, const AddrRange<addr_t> &b) {
   return a.lo < b.lo;
 }
 
-template <typename addr_t, typename val_t>
-class RangedMap {
- public:
+template <typename addr_t, typename val_t> class RangedMap {
+public:
   using rng_t = AddrRange<addr_t>;
 
   // A function used to merge overlapping segments. When called by
@@ -176,6 +172,6 @@ class RangedMap {
     return (addr <= it->first.hi) ? const_iterator(it) : end();
   }
 
- private:
+private:
   std::map<rng_t, val_t> map_;
 };

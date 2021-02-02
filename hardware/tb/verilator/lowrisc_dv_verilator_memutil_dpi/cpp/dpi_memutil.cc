@@ -4,14 +4,15 @@
 
 #include "dpi_memutil.h"
 
-#include <cassert>
-#include <cstring>
 #include <fcntl.h>
-#include <iostream>
 #include <libelf.h>
-#include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <cassert>
+#include <cstring>
+#include <iostream>
+#include <sstream>
 #include <vector>
 
 #include "sv_scoped.h"
@@ -37,7 +38,7 @@ extern int simutil_set_mem(int index, const svBitVecVal *val);
 namespace {
 // Convenience class for runtime errors when loading an ELF file
 class ElfError : public std::exception {
- public:
+public:
   ElfError(const std::string &path, const std::string &msg) {
     std::ostringstream oss;
     oss << "Failed to load ELF file at `" << path << "': " << msg;
@@ -46,13 +47,13 @@ class ElfError : public std::exception {
 
   const char *what() const noexcept override { return msg_.c_str(); }
 
- private:
+private:
   std::string msg_;
 };
 
 // Class wrapping an open ELF file
 class ElfFile {
- public:
+public:
   ElfFile(const std::string &path) : path_(path) {
     (void)elf_errno();
     if (elf_version(EV_CURRENT) == EV_NONE) {
@@ -101,7 +102,7 @@ class ElfFile {
   int fd_;
   Elf *ptr_;
 };
-}  // namespace
+} // namespace
 
 // Convert a string to a MemImageType, throwing a std::runtime_error
 // if it's not a known name.
@@ -246,13 +247,15 @@ static std::vector<uint8_t> FlattenElfFile(const std::string &filepath) {
 // Write a "segment" of data to the given memory area.
 static void WriteSegment(const MemArea &m, uint32_t offset,
                          const std::vector<uint8_t> &data) {
-  std::cout << "Set `" << m.name << " "
-      << m.location << " "
-      << m.width_byte << " "
-      "0x" << std::hex << m.addr_loc.base << " "
-      "0x" << std::hex << m.addr_loc.size << " "
-      << "write with offset: 0x" << std::hex << offset << " "
-      << "write with size: 0x" << std::hex << data.size() << "\n";
+  std::cout << "Set `" << m.name << " " << m.location << " " << m.width_byte
+            << " "
+               "0x"
+            << std::hex << m.addr_loc.base
+            << " "
+               "0x"
+            << std::hex << m.addr_loc.size << " "
+            << "write with offset: 0x" << std::hex << offset << " "
+            << "write with size: 0x" << std::hex << data.size() << "\n";
   assert(m.width_byte <= 32);
   assert(m.addr_loc.size == 0 || offset + data.size() <= m.addr_loc.size);
   assert((offset % m.width_byte) == 0);
@@ -522,14 +525,14 @@ void DpiMemUtil::LoadFileToNamedMem(bool verbose, const std::string &name,
 
   try {
     switch (type) {
-      case kMemImageElf:
-        WriteElfToMem(m, filepath);
-        break;
-      case kMemImageVmem:
-        WriteVmemToMem(m, filepath);
-        break;
-      default:
-        assert(0);
+    case kMemImageElf:
+      WriteElfToMem(m, filepath);
+      break;
+    case kMemImageVmem:
+      WriteVmemToMem(m, filepath);
+      break;
+    default:
+      assert(0);
     }
   } catch (const SVScoped::Error &err) {
     std::ostringstream oss;
@@ -560,9 +563,9 @@ void DpiMemUtil::LoadElfToMemories(bool verbose, const std::string &filepath) {
       } catch (const SVScoped::Error &err) {
         std::ostringstream oss;
         std::cout << "No memory found at `" << err.scope_name_
-            << "' (the scope associated with region `" << mem_area.name
-            << "', used by a segment that starts at LMA 0x" << std::hex
-            << mem_area.addr_loc.base + seg_rng.lo << ").";
+                  << "' (the scope associated with region `" << mem_area.name
+                  << "', used by a segment that starts at LMA 0x" << std::hex
+                  << mem_area.addr_loc.base + seg_rng.lo << ").";
         // throw std::runtime_warn(oss.str());
       }
     }

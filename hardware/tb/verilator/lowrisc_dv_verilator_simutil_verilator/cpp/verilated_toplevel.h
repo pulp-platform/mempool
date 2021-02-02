@@ -54,7 +54,7 @@
  * should go away.
  */
 class VerilatedTracer {
- public:
+public:
   VerilatedTracer() : impl_(nullptr) { impl_ = new VM_TRACE_CLASS_NAME(); };
 
   ~VerilatedTracer() { delete impl_; }
@@ -72,7 +72,7 @@ class VerilatedTracer {
     return impl_;
   }
 
- private:
+private:
   VM_TRACE_CLASS_NAME *impl_;
 };
 #else
@@ -80,7 +80,7 @@ class VerilatedTracer {
  * No-op tracer interface
  */
 class VerilatedTracer {
- public:
+public:
   VerilatedTracer(){};
   ~VerilatedTracer() {}
   bool isOpen() const { return false; };
@@ -88,7 +88,7 @@ class VerilatedTracer {
   void close(){};
   void dump(vluint64_t timeui) {}
 };
-#endif  // VM_TRACE == 1
+#endif // VM_TRACE == 1
 
 // Forward-declare for use in VerilatedToplevel
 class TOPLEVEL_NAME;
@@ -114,7 +114,7 @@ class TOPLEVEL_NAME;
  * of the tracer-specific class.
  */
 class VerilatedToplevel {
- public:
+public:
   VerilatedToplevel(){};
   virtual ~VerilatedToplevel(){};
 
@@ -136,7 +136,7 @@ class VerilatedToplevel {
 };
 
 class TOPLEVEL_NAME : public VERILATED_TOPLEVEL_NAME, public VerilatedToplevel {
- public:
+public:
   TOPLEVEL_NAME(const char *name = "TOP")
       : VERILATED_TOPLEVEL_NAME(name), VerilatedToplevel() {}
   const char *name() const { return STR_AND_EXPAND(TOPLEVEL_NAME); }
@@ -152,4 +152,4 @@ class TOPLEVEL_NAME : public VERILATED_TOPLEVEL_NAME, public VerilatedToplevel {
   }
 };
 
-#endif  // OPENTITAN_HW_DV_VERILATOR_SIMUTIL_VERILATOR_CPP_VERILATED_TOPLEVEL_H_
+#endif // OPENTITAN_HW_DV_VERILATOR_SIMUTIL_VERILATOR_CPP_VERILATED_TOPLEVEL_H_

@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <svdpi.h>
+
 #include <map>
 #include <string>
-#include <svdpi.h>
 #include <vector>
 
 #include "ranged_map.h"
@@ -26,10 +27,10 @@ struct MemAreaLoc {
 };
 
 struct MemArea {
-  std::string name;      // Unique identifier
-  std::string location;  // Design scope location
-  uint32_t width_byte;   // Memory width in bytes
-  MemAreaLoc addr_loc;   // Address location. If !size, location is unknown.
+  std::string name;     // Unique identifier
+  std::string location; // Design scope location
+  uint32_t width_byte;  // Memory width in bytes
+  MemAreaLoc addr_loc;  // Address location. If !size, location is unknown.
 };
 
 // Staged data for a given memory area.
@@ -40,7 +41,7 @@ struct MemArea {
 // Once it is nonempty, the class maintains the invariant that min_addr_ /
 // max_addr_ is the smallest / largest byte offset with valid data.
 class StagedMem {
- public:
+public:
   StagedMem() : min_addr_(~(uint32_t)0), max_addr_(0) {}
 
   // Add a segment to the tracked memory
@@ -57,7 +58,7 @@ class StagedMem {
   }
   const SegMap &GetSegs() const { return segs_; }
 
- private:
+private:
   uint32_t min_addr_, max_addr_;
   SegMap segs_;
 };
@@ -71,7 +72,7 @@ class StagedMem {
  * to be defined somewhere as SystemVerilog functions.
  */
 class DpiMemUtil {
- public:
+public:
   /**
    * Register a memory as instantiated by generic ram
    *
@@ -145,7 +146,7 @@ class DpiMemUtil {
    */
   const StagedMem &GetMemoryData(const std::string &mem_name) const;
 
- private:
+private:
   // Memory area registry
   std::map<std::string, MemArea> name_to_mem_;
   RangedMap<uint32_t, MemArea *> addr_to_mem_;
