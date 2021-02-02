@@ -107,9 +107,11 @@ verilator_model:
         ln -s $VERILATOR_ROOT/share/verilator/include $VERILATOR_ROOT/include
         ln -s $VERILATOR_ROOT/share/verilator/bin/verilator_includer $VERILATOR_ROOT/bin/verilator_includer
         # Build the verilator model
-        make -C hardware $(ROOT_DIR)/hardware/verilator_build/Vmempool_tb_verilator
+        make -C hardware $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert verilator_model
       fi
+  variables:
+    num_cores: "16"
   needs: ["verilator"]
 
 hardware:
@@ -132,7 +134,6 @@ hardware:
 
 .apps-script:
   script: &apps-script-anchor
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator_model
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
     - cd apps
@@ -143,9 +144,7 @@ hardware:
     - cd ../hardware
     - |
       for APP in ${APPS}; do
-        touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
-        touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
-        app=${APP} make verilate
+        app=${APP} make simc
       done
 
 apps-llvm:
@@ -155,7 +154,7 @@ apps-llvm:
     - *apps-script-anchor
   variables:
     COMPILER: "llvm"
-  needs: ["tc-gcc","riscv-isa-sim","tc-llvm","verilator_model"]
+  needs: ["tc-gcc","riscv-isa-sim","tc-llvm"]
 
 apps-gcc:
   <<: *apps-job-anchor
@@ -163,7 +162,7 @@ apps-gcc:
     - *apps-script-anchor
   variables:
     COMPILER: "gcc"
-  needs: ["tc-gcc","riscv-isa-sim","verilator_model"]
+  needs: ["tc-gcc","riscv-isa-sim"]
 
 # Unit tests
 unit-tests:
@@ -182,6 +181,30 @@ unit-tests:
       - apps/bin/*.dump
       - hardware/build/transcript
       - hardware/results
+
+# Verilator test
+verilator-tests:
+  stage: test
+  script:
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator_model
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
+    - cd apps
+    - |
+      for APP in ${APPS}; do
+        make COMPILER=${COMPILER} bin/${APP}
+      done
+    - cd ../hardware
+    - |
+      for APP in ${APPS}; do
+        touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
+        touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
+        app=${APP} make verilate
+      done
+  variables:
+    num_cores: "16"
+  needs: ["tc-gcc","riscv-isa-sim","tc-llvm","verilator_model"]
 
 # Code style test
 code-style:
