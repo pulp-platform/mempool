@@ -16,6 +16,10 @@
 
 `verilator_config
 
+// Hierarchical verilation
+hier_block -module "mempool_tile_wrap"
+hier_block -module "mempool_group"
+
 // Deactivate for the whole design
 lint_off -rule PINCONNECTEMPTY
 

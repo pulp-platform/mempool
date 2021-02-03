@@ -37,45 +37,6 @@ module mempool
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
 );
 
-  /*****************
-   *  Definitions  *
-   *****************/
-
-  localparam int unsigned NumTilesPerGroup = NumTiles / NumGroups;
-  localparam int unsigned NumBanks         = NumCores * BankingFactor;
-  localparam int unsigned NumBanksPerTile  = NumBanks / NumTiles;
-  localparam int unsigned NumBanksPerGroup = NumBanks / NumGroups;
-  localparam int unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
-  localparam int unsigned NumCoresPerGroup = NumCores / NumGroups;
-
-  typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
-  typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
-  typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
-
-  typedef struct packed {
-    tcdm_payload_t wdata;
-    logic wen;
-    strb_t be;
-    tcdm_addr_t tgt_addr;
-  } tcdm_master_req_t;
-
-  typedef struct packed {
-    tcdm_payload_t rdata;
-  } tcdm_master_resp_t;
-
-  typedef struct packed {
-    tcdm_payload_t wdata;
-    logic wen;
-    strb_t be;
-    tile_addr_t tgt_addr;
-    tile_group_id_t ini_addr;
-  } tcdm_slave_req_t;
-
-  typedef struct packed {
-    tcdm_payload_t rdata;
-    tile_group_id_t ini_addr;
-  } tcdm_slave_resp_t;
-
   /***********
    *  Reset  *
    ***********/
@@ -141,12 +102,7 @@ module mempool
       .NumTiles          (NumTiles          ),
       .NumBanks          (NumBanks          ),
       .TCDMBaseAddr      (TCDMBaseAddr      ),
-      .BootAddr          (BootAddr          ),
-      .tcdm_master_req_t (tcdm_master_req_t ),
-      .tcdm_master_resp_t(tcdm_master_resp_t),
-      .tcdm_slave_req_t  (tcdm_slave_req_t  ),
-      .tcdm_slave_resp_t (tcdm_slave_resp_t ),
-      .NumAXIMasters     (NumTilesPerGroup  )
+      .BootAddr          (BootAddr          )
     ) i_group (
       .clk_i                             (clk_i                                                 ),
       .rst_ni                            (rst_n                                                 ),

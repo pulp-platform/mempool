@@ -13,6 +13,9 @@ dependencies:
 workspace:
   checkout_dir: "./hardware/deps"
 
+export_include_dirs:
+  - hardware/src
+
 sources:
   # Level 0
   - hardware/src/mempool_pkg.sv

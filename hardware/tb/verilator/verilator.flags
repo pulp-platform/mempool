@@ -51,3 +51,6 @@
 
 // Gain more insights on the signals that Verilator failed to optimize
 // --report-unoptflat
+
+// Build the model hierarchical. For MinPool, a non-hierarchical model might be faster
+--hierarchical
