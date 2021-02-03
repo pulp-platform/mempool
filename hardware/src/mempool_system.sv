@@ -14,9 +14,6 @@
 module mempool_system
   import mempool_pkg::*;
 #(
-  // Mempool
-  parameter int unsigned NumCores      = 1,
-  parameter int unsigned BankingFactor = 4,
   // TCDM
   parameter addr_t       TCDMBaseAddr  = 32'h0000_0000,
   // Boot address
@@ -42,10 +39,7 @@ module mempool_system
   import axi_pkg::xbar_cfg_t;
   import axi_pkg::xbar_rule_32_t;
 
-  localparam NumTiles         = NumCores / NumCoresPerTile;
-  localparam NumTilesPerGroup = NumTiles / NumGroups;
-  localparam NumBanks         = NumCores * BankingFactor;
-  localparam TCDMSize         = NumBanks * TCDMSizePerBank;
+  localparam TCDMSize = NumBanks * TCDMSizePerBank;
 
   /*********
    *  AXI  *
@@ -88,11 +82,8 @@ module mempool_system
    ************/
 
   mempool #(
-    .NumCores     (NumCores       ),
-    .BankingFactor(BankingFactor  ),
-    .TCDMBaseAddr (TCDMBaseAddr   ),
-    .BootAddr     (BootAddr       ),
-    .NumAXIMasters(NumAXIMasters-1)
+    .TCDMBaseAddr(TCDMBaseAddr),
+    .BootAddr    (BootAddr    )
   ) i_mempool (
     .clk_i         (clk_i                          ),
     .rst_ni        (rst_ni                         ),

@@ -14,16 +14,11 @@ module mempool_group
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
-  parameter int unsigned NumBanksPerTile  = 1,
-  parameter int unsigned NumTiles         = 1,
-  parameter int unsigned NumBanks         = 1,
   // TCDM
   parameter addr_t       TCDMBaseAddr     = 32'b0,
   // Boot address
   parameter logic [31:0] BootAddr         = 32'h0000_1000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumTilesPerGroup = NumTiles / NumGroups,
-  parameter int unsigned NumCoresPerGroup = NumCoresPerTile * NumTilesPerGroup,
   parameter int unsigned NumAXIMasters    = NumTilesPerGroup
 ) (
   // Clock and reset
@@ -76,21 +71,15 @@ module mempool_group
   // Wake up interface
   input  logic                            [NumCoresPerGroup-1:0]  wake_up_i,
    // AXI Interface
-  output `STRUCT_VECT(axi_tile_req_t,     [NumTilesPerGroup-1:0]) axi_mst_req_o,
-  input  `STRUCT_VECT(axi_tile_resp_t,    [NumTilesPerGroup-1:0]) axi_mst_resp_i
+  output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMasters-1:0])    axi_mst_req_o,
+  input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMasters-1:0])    axi_mst_resp_i
 );
 
   /*****************
    *  Definitions  *
    *****************/
 
-  localparam NumBanksPerGroup = NumBanks / NumGroups;
-  localparam TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
-
   typedef logic [idx_width(NumTiles)-1:0] tile_id_t;
-  typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
-  typedef logic [TCDMAddrMemWidth + idx_width(NumBanksPerTile)-1:0] tile_addr_t;
-  typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
 
   localparam logic [16*8-1:0] idx_east  = (NumTilesPerGroup == 16) ?
       {8'd15, 8'd13, 8'd07, 8'd05, 8'd14, 8'd12, 8'd06, 8'd04, 8'd11, 8'd09, 8'd03, 8'd01, 8'd10, 8'd08, 8'd02, 8'd00} :
@@ -163,11 +152,8 @@ module mempool_group
     tile_id_t id;
     assign id = (group_id_i << $clog2(NumTilesPerGroup)) | t[idx_width(NumTilesPerGroup)-1:0];
     mempool_tile_wrap #(
-      .NumBanksPerTile   (NumBanksPerTile   ),
-      .NumTiles          (NumTiles          ),
-      .NumBanks          (NumBanks          ),
-      .TCDMBaseAddr      (TCDMBaseAddr      ),
-      .BootAddr          (BootAddr          )
+      .TCDMBaseAddr(TCDMBaseAddr),
+      .BootAddr    (BootAddr    )
     ) i_tile (
       .clk_i                             (clk_i                                            ),
       .rst_ni                            (rst_ni                                           ),

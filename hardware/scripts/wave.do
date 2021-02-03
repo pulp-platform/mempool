@@ -12,7 +12,7 @@ do ../scripts/wave_core.do 1 0 0
 # Add groups
 for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr group} {
     # Add tiles
-    for {set tile 0} {$tile < [expr min(4,[examine -radix dec /mempool_tb/dut/i_mempool/gen_groups[$group]/i_group/NumTilesPerGroup])]} {incr tile} {
+    for {set tile 0} {$tile < [expr min(4,[examine -radix dec /mempool_pkg::NumTilesPerGroup])]} {incr tile} {
         do ../scripts/wave_tile.do $group $tile
     }
 

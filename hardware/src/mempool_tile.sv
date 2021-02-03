@@ -13,15 +13,12 @@ module mempool_tile
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
-  parameter int unsigned NumBanksPerTile = 1,
-  parameter int unsigned NumTiles        = 1,
-  parameter int unsigned NumBanks        = 1,
   // TCDM
-  parameter addr_t       TCDMBaseAddr    = 32'b0,
+  parameter addr_t       TCDMBaseAddr = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr        = 32'h0000_1000,
+  parameter logic [31:0] BootAddr     = 32'h0000_1000,
   // Dependent parameters. DO NOT CHANGE.
-  parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
+  parameter int unsigned NumCaches    = NumCoresPerTile / NumCoresPerCache
 ) (
   // Clock and reset
   input  logic                                        clk_i,
@@ -62,16 +59,6 @@ module mempool_tile
   /*****************
    *  Definitions  *
    *****************/
-
-  localparam int unsigned NumCores         = NumCoresPerTile * NumTiles;
-  localparam int unsigned NumBanksPerGroup = NumBanks / NumGroups;
-  localparam int unsigned NumTilesPerGroup = NumTiles / NumGroups;
-  localparam int unsigned TileAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerTile);
-  localparam int unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
-
-  typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
-  typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
-  typedef logic [TileAddrWidth-1:0] tile_addr_t;
 
   import snitch_pkg::dreq_t;
   import snitch_pkg::dresp_t;
@@ -813,9 +800,6 @@ module mempool_tile_wrap
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
-  parameter int unsigned NumBanksPerTile = 1,
-  parameter int unsigned NumTiles        = 1,
-  parameter int unsigned NumBanks        = 1,
   // TCDM
   parameter addr_t       TCDMBaseAddr    = 32'b0,
   // Boot address
@@ -890,11 +874,8 @@ module mempool_tile_wrap
 );
 
   mempool_tile #(
-    .NumBanksPerTile   (NumBanksPerTile   ),
-    .NumTiles          (NumTiles          ),
-    .NumBanks          (NumBanks          ),
-    .TCDMBaseAddr      (TCDMBaseAddr      ),
-    .BootAddr          (BootAddr          )
+    .TCDMBaseAddr(TCDMBaseAddr),
+    .BootAddr    (BootAddr    )
   ) i_tile (
     .clk_i                   (clk_i                                                                                                                              ),
     .rst_ni                  (rst_ni                                                                                                                             ),

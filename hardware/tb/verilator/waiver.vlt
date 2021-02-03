@@ -35,7 +35,3 @@ lint_off -rule UNDRIVEN -file "*" -match "*scan_data*"
 
 // Priority case is implemented correctly
 lint_off -rule CASEOVERLAP -file "*/deps/axi/src/axi_id_remap.sv" -match "*"
-
-// Ignore redefinition of NumCores and NumTiles for now
-lint_off -rule VARHIDDEN -file "*" -match "*NumCores*"
-lint_off -rule VARHIDDEN -file "*" -match "*NumTiles*"

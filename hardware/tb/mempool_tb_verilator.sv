@@ -21,12 +21,6 @@ module mempool_tb_verilator (
   import axi_pkg::xbar_cfg_t;
   import axi_pkg::xbar_rule_32_t;
 
-  `ifdef NUM_CORES
-  localparam NumCores = `NUM_CORES;
-  `else
-  localparam NumCores = 256;
-  `endif
-
   `ifdef BOOT_ADDR
   localparam BootAddr = `BOOT_ADDR;
   `else
@@ -78,10 +72,8 @@ module mempool_tb_verilator (
    *********/
 
   mempool_system #(
-    .NumCores       (NumCores     ),
-    .BankingFactor  (4            ),
-    .TCDMBaseAddr   (32'h0        ),
-    .BootAddr       (BootAddr     )
+    .TCDMBaseAddr(32'h0   ),
+    .BootAddr    (BootAddr)
   ) dut (
     .clk_i          (clk          ),
     .rst_ni         (rst_n        ),

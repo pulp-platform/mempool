@@ -30,25 +30,11 @@ module mempool_tb;
   import axi_pkg::xbar_cfg_t;
   import axi_pkg::xbar_rule_32_t;
 
-  `ifdef NUM_CORES
-  localparam NumCores = `NUM_CORES;
-  `else
-  localparam NumCores = 256;
-  `endif
-
   `ifdef BOOT_ADDR
   localparam BootAddr = `BOOT_ADDR;
   `else
   localparam BootAddr = 0;
   `endif
-
-  localparam        BankingFactor    = 4;
-  localparam addr_t TCDMBaseAddr     = '0;
-  localparam        TCDMSizePerBank  = 1024 /* [B] */;
-  localparam        NumTiles         = NumCores / NumCoresPerTile;
-  localparam        NumTilesPerGroup = NumTiles / NumGroups;
-  localparam        NumBanks         = NumCores * BankingFactor;
-  localparam        TCDMSize         = NumBanks * TCDMSizePerBank;
 
   localparam ClockPeriod = 1ns;
   localparam TA          = 0.2ns;
@@ -124,10 +110,8 @@ module mempool_tb;
   logic eoc_valid;
 
   mempool_system #(
-    .NumCores       (NumCores       ),
-    .BankingFactor  (BankingFactor  ),
-    .TCDMBaseAddr   (TCDMBaseAddr   ),
-    .BootAddr       (BootAddr       )
+    .TCDMBaseAddr(32'h0   ),
+    .BootAddr    (BootAddr)
   ) dut (
     .clk_i          (clk            ),
     .rst_ni         (rst_n          ),

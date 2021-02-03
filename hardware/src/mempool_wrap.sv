@@ -12,14 +12,11 @@
 module mempool_wrap
   import mempool_pkg::*;
 #(
-  parameter int unsigned NumCores      = 1,
-  parameter int unsigned BankingFactor = 1,
   // TCDM
   parameter addr_t       TCDMBaseAddr  = 32'b0000_0000,
   // Boot address
   parameter logic [31:0] BootAddr      = 32'h0000_0000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumTiles      = NumCores / NumCoresPerTile,
   parameter int unsigned NumAXIMasters = NumTiles
 ) (
   // Clock and reset
@@ -42,10 +39,8 @@ module mempool_wrap
    *********************/
 
   mempool #(
-    .NumCores      (NumCores      ),
-    .BankingFactor (BankingFactor ),
-    .TCDMBaseAddr  (TCDMBaseAddr  ),
-    .BootAddr      (BootAddr      )
+    .TCDMBaseAddr(TCDMBaseAddr),
+    .BootAddr    (BootAddr    )
   ) i_mempool (
     .clk_i         (clk_i         ),
     .rst_ni        (rst_ni        ),
