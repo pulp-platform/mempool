@@ -21,6 +21,7 @@ variables:
   RUST_LOG: 'memora=debug'
   VERILATOR_ROOT: '$CI_PROJECT_DIR/install/verilator'
   PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin:$VERILATOR_ROOT/bin'
+  OBJCACHE: ''
 
 workflow:
   rules:
@@ -74,14 +75,11 @@ verilator:
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator; then
         git submodule update --init --recursive -- toolchain/verilator
-        export CCACHE_DISABLE=1
         export PYTHON3=$(which python3-3.6.5)
         export VERILATOR_CI="--disable-defenv"
         make verilator
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert verilator
       fi
-  variables:
-    CCACHE_DISABLE: "1"
 
 halide:
   stage: build
