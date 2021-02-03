@@ -19,7 +19,6 @@
 // Warnings
 -Wall
 -Wno-BLKANDNBLK
--Wno-LITENDIAN
 -Wno-CASEINCOMPLETE
 -Wno-CMPCONST
 -Wno-WIDTH
@@ -27,7 +26,8 @@
 -Wno-UNSIGNED
 -Wno-UNUSED
 -Wno-UNOPTFLAT
--Wno-fatal
+// Continue despite warnings
+// -Wno-fatal
 
 // C++ mode and flags
 --cc
@@ -47,7 +47,7 @@
 --exe
 
 // Evaluate the performance gain
-// --threads
+// --threads 4
 
 // Gain more insights on the signals that Verilator failed to optimize
 // --report-unoptflat
