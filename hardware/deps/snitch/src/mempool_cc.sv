@@ -212,6 +212,7 @@ module mempool_cc #(
   end
 
   typedef enum logic [1:0] {SrcSnitch =  0, SrcFpu = 1, SrcFpuSeq = 2} trace_src_e;
+  localparam int SnitchTrace = `ifdef SNITCH_TRACE `SNITCH_TRACE `else 0 `endif;
 
 `ifndef VERILATOR
   longint extras_snitch       [string];
@@ -276,9 +277,10 @@ module mempool_cc #(
       if (!rst_i) begin
         cycle <= cycle + 1;
         // Trace snitch iff:
+        // Tracing enabled by CSR register
         // we are not stalled <==> we have issued and processed an instruction (including offloads)
         // OR we are retiring (issuing a writeback from) a load or accelerator instruction
-        if (!i_snitch.stall || i_snitch.retire_load || i_snitch.retire_acc) begin
+        if ((i_snitch.csr_trace_q || SnitchTrace) && (!i_snitch.stall || i_snitch.retire_load || i_snitch.retire_acc)) begin
 `ifdef VERILATOR
           // Manual loop unrolling for Verilator
           // Data type keys for arrays are currently not supported in Verilator

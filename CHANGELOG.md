@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Added
+- Capability to enable and disable the traces with a CSR
+
 ## 0.3.0 - 2021-03-31
 
 ### Added
