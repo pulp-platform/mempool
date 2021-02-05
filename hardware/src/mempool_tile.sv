@@ -794,7 +794,7 @@ endmodule : mempool_tile
  *****************/
 /*verilator lint_off DECLFILENAME*/
 
-`include "mempool.svh"
+`include "mempool/mempool.svh"
 
 module mempool_tile_wrap
   import mempool_pkg::*;

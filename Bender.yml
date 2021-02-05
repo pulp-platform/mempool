@@ -14,7 +14,7 @@ workspace:
   checkout_dir: "./hardware/deps"
 
 export_include_dirs:
-  - hardware/src
+  - hardware/include
 
 sources:
   # Level 0
