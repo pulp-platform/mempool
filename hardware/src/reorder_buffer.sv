@@ -8,12 +8,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-module reorder_buffer #(
-  parameter int unsigned DataWidth = 0   ,
-  parameter int unsigned NumWords  = 0   ,
+module reorder_buffer
+  import cf_math_pkg::idx_width;
+#(
+  parameter int unsigned DataWidth = 0,
+  parameter int unsigned NumWords  = 0,
   parameter bit FallThrough        = 1'b0,
   // Dependant parameters. Do not change!
-  parameter IdWidth                = NumWords > 1 ? $clog2(NumWords) : 1,
+  parameter IdWidth                = idx_width(NumWords),
   parameter type data_t            = logic [DataWidth-1:0],
   parameter type id_t              = logic [IdWidth-1:0]
 ) (
@@ -53,14 +55,14 @@ module reorder_buffer #(
   // Read and Write logic
   always_comb begin: read_write_comb
     // Maintain state
-    read_pointer_n  = read_pointer_q ;
+    read_pointer_n  = read_pointer_q;
     write_pointer_n = write_pointer_q;
-    status_cnt_n    = status_cnt_q   ;
-    mem_n           = mem_q          ;
-    valid_n         = valid_q        ;
+    status_cnt_n    = status_cnt_q;
+    mem_n           = mem_q;
+    valid_n         = valid_q;
 
     // Output data
-    data_o  = mem_q[read_pointer_q]  ;
+    data_o  = mem_q[read_pointer_q];
     valid_o = valid_q[read_pointer_q];
 
     // Request an ID.
@@ -77,13 +79,13 @@ module reorder_buffer #(
     // Push data
     if (push_i) begin
       mem_n[id_i]   = data_i;
-      valid_n[id_i] = 1'b1  ;
+      valid_n[id_i] = 1'b1;
     end
 
     // ROB is in fall-through mode -> do not change the pointers
     if (FallThrough && push_i && (id_i == read_pointer_q)) begin
       data_o  = data_i;
-      valid_o = 1'b1  ;
+      valid_o = 1'b1;
       if (pop_i) begin
         valid_n[id_i] = 1'b0;
       end
@@ -117,11 +119,11 @@ module reorder_buffer #(
       mem_q           <= '0;
       valid_q         <= '0;
     end else begin
-      read_pointer_q  <= read_pointer_n ;
+      read_pointer_q  <= read_pointer_n;
       write_pointer_q <= write_pointer_n;
-      status_cnt_q    <= status_cnt_n   ;
-      mem_q           <= mem_n          ;
-      valid_q         <= valid_n        ;
+      status_cnt_q    <= status_cnt_n;
+      mem_q           <= mem_n;
+      valid_q         <= valid_n;
     end
   end
 

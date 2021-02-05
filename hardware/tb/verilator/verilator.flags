@@ -32,16 +32,13 @@
 // C++ mode and flags
 --cc
 -O3
--CFLAGS "-std=c++11 -Wall -DVM_TRACE_FMT_FST -g -O3"
+-CFLAGS "-std=c++11 -Wall -g -O3"
 -LDFLAGS "-pthread -lutil -lelf"
 
 // Specifies the maximum number of loop iterations that may be unrolled.
 // This is necessary for the SRAM model where we have blocking assignments in
 // for loops, which only works if we unroll them.
 --unroll-count 256
-
-// Display the prints from time to time.
---autoflush
 
 // Build the executable
 --exe

@@ -47,7 +47,7 @@ package mempool_pkg;
   localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
   localparam integer unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
-  localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 65536 `endif; // [B]
+  localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 0 `endif; // [B]
   localparam integer unsigned L2BeWidth        = AxiDataWidth/8;
   localparam integer unsigned L2ByteOffset     = $clog2(L2BeWidth);
 
