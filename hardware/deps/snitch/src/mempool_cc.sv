@@ -89,6 +89,8 @@ module mempool_cc #(
     .core_events_o    ( core_events_o       )
   );
 
+  assign data_req_d.id = '0;
+
   // Cut off-loading request path
   spill_register #(
     .T      ( snitch_pkg::acc_req_t ),
@@ -179,6 +181,7 @@ module mempool_cc #(
   assign data_qvalid_o     = data_req_q_valid;
   assign data_req_q_ready  = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
+  assign data_resp_d.id    = '0;
   assign data_resp_d.error = data_perror_i;
   assign data_resp_d_valid = data_pvalid_i;
   assign data_pready_o     = data_resp_d_ready;
@@ -200,7 +203,7 @@ module mempool_cc #(
   end
 
   logic stall_instr;
-  always_ff @(posedge clk_i) begin
+  always_ff @(posedge clk_i or posedge rst_i) begin
     if(rst_i) begin
       stall_instr <= 0;
     end else begin
@@ -210,6 +213,7 @@ module mempool_cc #(
 
   typedef enum logic [1:0] {SrcSnitch =  0, SrcFpu = 1, SrcFpuSeq = 2} trace_src_e;
 
+`ifndef VERILATOR
   longint extras_snitch       [string];
 
   assign extras_snitch = '{
@@ -263,26 +267,72 @@ module mempool_cc #(
     foreach(extras[key]) extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, key, extras[key]);
     extras_str = $sformatf("%s}", extras_str);
   endtask
+`endif
 
-  always_ff @(posedge clk_i) begin
+  always_ff @(posedge clk_i or posedge rst_i) begin
       automatic string trace_entry;
       automatic string extras_str;
 
       if (!rst_i) begin
-        cycle++;
+        cycle <= cycle + 1;
         // Trace snitch iff:
         // we are not stalled <==> we have issued and processed an instruction (including offloads)
         // OR we are retiring (issuing a writeback from) a load or accelerator instruction
-        if (
-            !i_snitch.stall || i_snitch.retire_load || i_snitch.retire_acc
-        ) begin
+        if (!i_snitch.stall || i_snitch.retire_load || i_snitch.retire_acc) begin
+`ifdef VERILATOR
+          // Manual loop unrolling for Verilator
+          // Data type keys for arrays are currently not supported in Verilator
+          extras_str = "{";
+          // State
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "source",      SrcSnitch,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall",       i_snitch.stall,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_instr", stall_instr,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_data",  ((!i_snitch.operands_ready) || (!i_snitch.dst_ready)),);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_lsu",   i_snitch.lsu_stall,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_acc",   i_snitch.acc_stall,);
+          // Decoding
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs1",         i_snitch.rs1,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs2",         i_snitch.rs2,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rd",          i_snitch.rd,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_load",     i_snitch.is_load,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_store",    i_snitch.is_store,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_branch",   i_snitch.is_branch,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "pc_d",        i_snitch.pc_d,);
+          // Operands
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opa",         i_snitch.opa,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opb",         i_snitch.opb,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opa_select",  i_snitch.opa_select,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opb_select",  i_snitch.opb_select,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "write_rd",    i_snitch.write_rd,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "csr_addr",    i_snitch.inst_data_i[31:20],);
+          // Pipeline writeback
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "writeback",   i_snitch.alu_writeback,);
+          // Load/Store
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "gpr_rdata_1", i_snitch.gpr_rdata[1],);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "ls_size",     i_snitch.ls_size,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "ld_result_32",i_snitch.ld_result[31:0],);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "lsu_rd",      i_snitch.lsu_rd,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "retire_load", i_snitch.retire_load,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "alu_result",  i_snitch.alu_result,);
+          // Atomics
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "ls_amo",      i_snitch.ls_amo,);
+          // Accumulator
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "retire_acc",  i_snitch.retire_acc,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "acc_pid",     i_snitch.acc_pid_i,);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "acc_pdata_32",i_snitch.acc_pdata_i[31:0],);
+          // FPU offload
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "fpu_offload", (i_snitch.acc_qready_i && i_snitch.acc_qvalid_o && !snitch_pkg::shared_offload(i_snitch.acc_qdata_op_o)),);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_seq_insn", (i_snitch.inst_data_i ==? riscv_instr::FREP));
+          extras_str = $sformatf("%s}", extras_str);
+`else
           fmt_extras(extras_snitch, extras_str);
+`endif
           $sformat(trace_entry, "%t %8d 0x%h DASM(%h) #; %s\n",
               $time, cycle, i_snitch.pc_q, i_snitch.inst_data_i, extras_str);
           $fwrite(f, trace_entry);
         end
       end else begin
-        cycle = '0;
+        cycle <= '0;
       end
     end
 

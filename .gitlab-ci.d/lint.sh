@@ -20,6 +20,8 @@ if [[ -n "$CI_MERGE_REQUEST_ID" ]]; then
   # Make sure we have the latest version of the target branch
   git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
   base="origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+elif [[ -n "$1" ]]; then
+  base="$1"
 else
   base="HEAD~1"
 fi

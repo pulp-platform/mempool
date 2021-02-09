@@ -6,33 +6,33 @@ module snitch_addr_demux
   import mempool_pkg::address_map_t;
   import cf_math_pkg::idx_width;
 #(
-    parameter int unsigned NrOutput     = 2    ,
-    parameter int unsigned AddressWidth = 32   ,
-    parameter int unsigned NumRules     = 1    , // Routing rules
-    parameter type req_t                = logic,
-    parameter type resp_t               = logic,
-    /// Dependent parameters, DO NOT OVERRIDE!
-    localparam integer LogNrOutput      = idx_width(NrOutput)
-  ) (
-    input  logic                            clk_i,
-    input  logic                            rst_ni,
-    // request port
-    input  logic         [AddressWidth-1:0] req_addr_i,
-    input  req_t                            req_payload_i,
-    input  logic                            req_valid_i,
-    output logic                            req_ready_o,
-    output resp_t                           resp_payload_o,
-    output logic                            resp_valid_o,
-    input  logic                            resp_ready_i,
-    // response port
-    output req_t         [NrOutput-1:0]     req_payload_o,
-    output logic         [NrOutput-1:0]     req_valid_o,
-    input  logic         [NrOutput-1:0]     req_ready_i,
-    input  resp_t        [NrOutput-1:0]     resp_payload_i,
-    input  logic         [NrOutput-1:0]     resp_valid_i,
-    output logic         [NrOutput-1:0]     resp_ready_o,
-    input  address_map_t [NumRules-1:0]     address_map_i
-  );
+  parameter int unsigned NrOutput     = 2    ,
+  parameter int unsigned AddressWidth = 32   ,
+  parameter int unsigned NumRules     = 1    , // Routing rules
+  parameter type req_t                = logic,
+  parameter type resp_t               = logic,
+  /// Dependent parameters, DO NOT OVERRIDE!
+  localparam integer LogNrOutput      = idx_width(NrOutput)
+) (
+  input  logic                            clk_i,
+  input  logic                            rst_ni,
+  // request port
+  input  logic         [AddressWidth-1:0] req_addr_i,
+  input  req_t                            req_payload_i,
+  input  logic                            req_valid_i,
+  output logic                            req_ready_o,
+  output resp_t                           resp_payload_o,
+  output logic                            resp_valid_o,
+  input  logic                            resp_ready_i,
+  // response port
+  output req_t         [NrOutput-1:0]     req_payload_o,
+  output logic         [NrOutput-1:0]     req_valid_o,
+  input  logic         [NrOutput-1:0]     req_ready_i,
+  input  resp_t        [NrOutput-1:0]     resp_payload_i,
+  input  logic         [NrOutput-1:0]     resp_valid_i,
+  output logic         [NrOutput-1:0]     resp_ready_o,
+  input  address_map_t [NumRules-1:0]     address_map_i
+);
 
   logic [LogNrOutput-1:0]      slave_select;
   logic [NumRules-1:0]         addr_match;

@@ -1,22 +1,25 @@
 /* This file will get processed by the precompiler to expand all macros. */
 
+MEMORY {
+  l1 (R) : ORIGIN = 0x00000000, LENGTH = (NUM_CORES * 0x1000) /* NUM_CORES * 4 * 1KiB per bank */
+  l2     : ORIGIN = L2_BASE   , LENGTH = L2_SIZE
+  rom (R): ORIGIN = BOOT_ADDR , LENGTH = 0x00001000
+}
+
 SECTIONS {
-  BOOT_BASE = BOOT_ADDR; /* Defined by config.mk */
-  INSTR_BASE = 0x80000000;
+  // Start end end of memories
+  __l1_start = ORIGIN(l1);
+  __l1_end = ORIGIN(l1) + LENGTH(l1);
+  __l2_start = ORIGIN(l2);
+  __l2_end = ORIGIN(l2) + LENGTH(l2);
+  __rom_start = ORIGIN(rom);
+  __rom_end = ORIGIN(rom) + LENGTH(rom);
 
-  . = 0x0;
-  .l1_seq (NOLOAD): { *(.l1_seq) }
-  l1__seq_alloc_base = ALIGN(0x10);
+  // Stack size
+  __stack_start = __l1_start;
+  __stack_end = __l1_start + (NUM_CORES * 0x400);
 
-  . = (NUM_CORES * 0x400); /* NUM_CORES * 1KiB */
-  .l1_prio (NOLOAD): { *(.l1_prio) }
-  /* .bss in .l1 to avoid test cases for atomics fail for race conditions */
-  .l1 (NOLOAD): {
-    *(.l1)
-    *(.bss)
-  }
-  l1_alloc_base = ALIGN(0x10);
-
+  // Hardware register location
   eoc_reg                = 0x40000000;
   wake_up_reg            = 0x40000004;
   tcdm_start_address_reg = 0x40000008;

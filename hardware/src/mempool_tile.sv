@@ -13,49 +13,42 @@ module mempool_tile
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
-    parameter int unsigned NumBanksPerTile = 1,
-    parameter int unsigned NumTiles        = 1,
-    parameter int unsigned NumBanks        = 1,
-    // TCDM
-    parameter addr_t TCDMBaseAddr          = 32'b0,
-    parameter type tcdm_master_req_t       = logic,
-    parameter type tcdm_master_resp_t      = logic,
-    parameter type tcdm_slave_req_t        = logic,
-    parameter type tcdm_slave_resp_t       = logic,
-    // Boot address
-    parameter logic [31:0] BootAddr        = 32'h0000_1000,
-    // Dependent parameters. DO NOT CHANGE.
-    parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
-  ) (
-    // Clock and reset
-    input  logic                                        clk_i,
-    input  logic                                        rst_ni,
-    // Scan chain
-    input  logic                                        scan_enable_i,
-    input  logic                                        scan_data_i,
-    output logic                                        scan_data_o,
-    // Tile ID
-    input  logic              [idx_width(NumTiles)-1:0] tile_id_i,
-    // TCDM Master interfaces
-    output tcdm_master_req_t  [NumGroups-1:0]           tcdm_master_req_o,
-    output logic              [NumGroups-1:0]           tcdm_master_req_valid_o,
-    input  logic              [NumGroups-1:0]           tcdm_master_req_ready_i,
-    input  tcdm_master_resp_t [NumGroups-1:0]           tcdm_master_resp_i,
-    input  logic              [NumGroups-1:0]           tcdm_master_resp_valid_i,
-    output logic              [NumGroups-1:0]           tcdm_master_resp_ready_o,
-    // TCDM slave interfaces
-    input  tcdm_slave_req_t   [NumGroups-1:0]           tcdm_slave_req_i,
-    input  logic              [NumGroups-1:0]           tcdm_slave_req_valid_i,
-    output logic              [NumGroups-1:0]           tcdm_slave_req_ready_o,
-    output tcdm_slave_resp_t  [NumGroups-1:0]           tcdm_slave_resp_o,
-    output logic              [NumGroups-1:0]           tcdm_slave_resp_valid_o,
-    input  logic              [NumGroups-1:0]           tcdm_slave_resp_ready_i,
-    // AXI Interface
-    output axi_tile_req_t                               axi_mst_req_o,
-    input  axi_tile_resp_t                              axi_mst_resp_i,
-    // Wake up interface
-    input  logic              [NumCoresPerTile-1:0]     wake_up_i
-  );
+  // TCDM
+  parameter addr_t       TCDMBaseAddr = 32'b0,
+  // Boot address
+  parameter logic [31:0] BootAddr     = 32'h0000_1000,
+  // Dependent parameters. DO NOT CHANGE.
+  parameter int unsigned NumCaches    = NumCoresPerTile / NumCoresPerCache
+) (
+  // Clock and reset
+  input  logic                                        clk_i,
+  input  logic                                        rst_ni,
+  // Scan chain
+  input  logic                                        scan_enable_i,
+  input  logic                                        scan_data_i,
+  output logic                                        scan_data_o,
+  // Tile ID
+  input  logic              [idx_width(NumTiles)-1:0] tile_id_i,
+  // TCDM Master interfaces
+  output tcdm_master_req_t  [NumGroups-1:0]           tcdm_master_req_o,
+  output logic              [NumGroups-1:0]           tcdm_master_req_valid_o,
+  input  logic              [NumGroups-1:0]           tcdm_master_req_ready_i,
+  input  tcdm_master_resp_t [NumGroups-1:0]           tcdm_master_resp_i,
+  input  logic              [NumGroups-1:0]           tcdm_master_resp_valid_i,
+  output logic              [NumGroups-1:0]           tcdm_master_resp_ready_o,
+  // TCDM slave interfaces
+  input  tcdm_slave_req_t   [NumGroups-1:0]           tcdm_slave_req_i,
+  input  logic              [NumGroups-1:0]           tcdm_slave_req_valid_i,
+  output logic              [NumGroups-1:0]           tcdm_slave_req_ready_o,
+  output tcdm_slave_resp_t  [NumGroups-1:0]           tcdm_slave_resp_o,
+  output logic              [NumGroups-1:0]           tcdm_slave_resp_valid_o,
+  input  logic              [NumGroups-1:0]           tcdm_slave_resp_ready_i,
+  // AXI Interface
+  output axi_tile_req_t                               axi_mst_req_o,
+  input  axi_tile_resp_t                              axi_mst_resp_i,
+  // Wake up interface
+  input  logic              [NumCoresPerTile-1:0]     wake_up_i
+);
 
   /****************
    *   Includes   *
@@ -66,16 +59,6 @@ module mempool_tile
   /*****************
    *  Definitions  *
    *****************/
-
-  localparam int unsigned NumCores         = NumCoresPerTile * NumTiles;
-  localparam int unsigned NumBanksPerGroup = NumBanks / NumGroups;
-  localparam int unsigned NumTilesPerGroup = NumTiles / NumGroups;
-  localparam int unsigned TileAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerTile);
-  localparam int unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
-
-  typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
-  typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
-  typedef logic [TileAddrWidth-1:0] tile_addr_t;
 
   import snitch_pkg::dreq_t;
   import snitch_pkg::dresp_t;
@@ -757,7 +740,7 @@ module mempool_tile
   ) i_axi_mux (
     .clk_i      (clk_i                           ),
     .rst_ni     (rst_ni                          ),
-    .test_i     (test_i                          ),
+    .test_i     (1'b0                            ),
     .slv_reqs_i ({axi_cores_req, axi_cache_req}  ),
     .slv_resps_o({axi_cores_resp, axi_cache_resp}),
     .mst_req_o  (axi_mst_req                     ),
@@ -809,112 +792,90 @@ endmodule : mempool_tile
 /*****************
  *    WRAPPER    *
  *****************/
+/*verilator lint_off DECLFILENAME*/
 
+`include "mempool/mempool.svh"
 
 module mempool_tile_wrap
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
-    parameter int unsigned NumBanksPerTile = 1,
-    parameter int unsigned NumTiles        = 1,
-    parameter int unsigned NumBanks        = 1,
-    // TCDM
-    parameter addr_t TCDMBaseAddr          = 32'b0,
-    parameter type tcdm_master_req_t       = logic,
-    parameter type tcdm_master_resp_t      = logic,
-    parameter type tcdm_slave_req_t        = logic,
-    parameter type tcdm_slave_resp_t       = logic,
-    // Boot address
-    parameter logic [31:0] BootAddr        = 32'h0000_1000,
-    // Dependent parameters. DO NOT CHANGE.
-    parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
-  ) (
-    // Clock and reset
-    input  logic                                                   clk_i,
-    input  logic                                                   rst_ni,
-    // Scan chain
-    input  logic                                                   scan_enable_i,
-    input  logic                                                   scan_data_i,
-    output logic                                                   scan_data_o,
-    // Tile ID
-    input  logic              [idx_width(NumTiles)-1:0]            tile_id_i,
-    // TCDM Master interfaces
-    output tcdm_master_req_t                                       tcdm_master_north_req_o,
-    output logic                                                   tcdm_master_north_req_valid_o,
-    input  logic                                                   tcdm_master_north_req_ready_i,
-    input  tcdm_master_resp_t                                      tcdm_master_north_resp_i,
-    input  logic                                                   tcdm_master_north_resp_valid_i,
-    output logic                                                   tcdm_master_north_resp_ready_o,
-    output tcdm_master_req_t                                       tcdm_master_northeast_req_o,
-    output logic                                                   tcdm_master_northeast_req_valid_o,
-    input  logic                                                   tcdm_master_northeast_req_ready_i,
-    input  tcdm_master_resp_t                                      tcdm_master_northeast_resp_i,
-    input  logic                                                   tcdm_master_northeast_resp_valid_i,
-    output logic                                                   tcdm_master_northeast_resp_ready_o,
-    output tcdm_master_req_t                                       tcdm_master_east_req_o,
-    output logic                                                   tcdm_master_east_req_valid_o,
-    input  logic                                                   tcdm_master_east_req_ready_i,
-    input  tcdm_master_resp_t                                      tcdm_master_east_resp_i,
-    input  logic                                                   tcdm_master_east_resp_valid_i,
-    output logic                                                   tcdm_master_east_resp_ready_o,
-    output tcdm_master_req_t                                       tcdm_master_local_req_o,
-    output logic                                                   tcdm_master_local_req_valid_o,
-    input  logic                                                   tcdm_master_local_req_ready_i,
-    input  tcdm_master_resp_t                                      tcdm_master_local_resp_i,
-    input  logic                                                   tcdm_master_local_resp_valid_i,
-    output logic                                                   tcdm_master_local_resp_ready_o,
-    // TCDM Slave interfaces
-    input  tcdm_slave_req_t                                        tcdm_slave_north_req_i,
-    input  logic                                                   tcdm_slave_north_req_valid_i,
-    output logic                                                   tcdm_slave_north_req_ready_o,
-    output tcdm_slave_resp_t                                       tcdm_slave_north_resp_o,
-    output logic                                                   tcdm_slave_north_resp_valid_o,
-    input  logic                                                   tcdm_slave_north_resp_ready_i,
-    input  tcdm_slave_req_t                                        tcdm_slave_northeast_req_i,
-    input  logic                                                   tcdm_slave_northeast_req_valid_i,
-    output logic                                                   tcdm_slave_northeast_req_ready_o,
-    output tcdm_slave_resp_t                                       tcdm_slave_northeast_resp_o,
-    output logic                                                   tcdm_slave_northeast_resp_valid_o,
-    input  logic                                                   tcdm_slave_northeast_resp_ready_i,
-    input  tcdm_slave_req_t                                        tcdm_slave_east_req_i,
-    input  logic                                                   tcdm_slave_east_req_valid_i,
-    output logic                                                   tcdm_slave_east_req_ready_o,
-    output tcdm_slave_resp_t                                       tcdm_slave_east_resp_o,
-    output logic                                                   tcdm_slave_east_resp_valid_o,
-    input  logic                                                   tcdm_slave_east_resp_ready_i,
-    input  tcdm_slave_req_t                                        tcdm_slave_local_req_i,
-    input  logic                                                   tcdm_slave_local_req_valid_i,
-    output logic                                                   tcdm_slave_local_req_ready_o,
-    output tcdm_slave_resp_t                                       tcdm_slave_local_resp_o,
-    output logic                                                   tcdm_slave_local_resp_valid_o,
-    input  logic                                                   tcdm_slave_local_resp_ready_i,
-    // AXI Interface
-    output axi_tile_req_t                                               axi_mst_req_o,
-    input  axi_tile_resp_t                                              axi_mst_resp_i,
-    // Instruction interface
-    output addr_t             [NumCaches-1:0]                      refill_qaddr_o,
-    output logic              [NumCaches-1:0][7:0]                 refill_qlen_o,                     // AXI signal
-    output logic              [NumCaches-1:0]                      refill_qvalid_o,
-    input  logic              [NumCaches-1:0]                      refill_qready_i,
-    input  logic              [NumCaches-1:0][ICacheLineWidth-1:0] refill_pdata_i,
-    input  logic              [NumCaches-1:0]                      refill_perror_i,
-    input  logic              [NumCaches-1:0]                      refill_pvalid_i,
-    input  logic              [NumCaches-1:0]                      refill_plast_i,
-    output logic              [NumCaches-1:0]                      refill_pready_o,
-    // Wake up interface
-    input  logic              [NumCoresPerTile-1:0]                wake_up_i
-  );
+  // TCDM
+  parameter addr_t       TCDMBaseAddr    = 32'b0,
+  // Boot address
+  parameter logic [31:0] BootAddr        = 32'h0000_1000,
+  // Dependent parameters. DO NOT CHANGE.
+  parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
+) (
+  // Clock and reset
+  input  logic                             clk_i,
+  input  logic                             rst_ni,
+  // Scan chain
+  input  logic                             scan_enable_i,
+  input  logic                             scan_data_i,
+  output logic                             scan_data_o,
+  // Tile ID
+  input  logic [idx_width(NumTiles)-1:0]   tile_id_i,
+  // TCDM Master interfaces
+  output `STRUCT_PORT(tcdm_master_req_t)   tcdm_master_north_req_o,
+  output logic                             tcdm_master_north_req_valid_o,
+  input  logic                             tcdm_master_north_req_ready_i,
+  input  `STRUCT_PORT(tcdm_master_resp_t)  tcdm_master_north_resp_i,
+  input  logic                             tcdm_master_north_resp_valid_i,
+  output logic                             tcdm_master_north_resp_ready_o,
+  output `STRUCT_PORT(tcdm_master_req_t)   tcdm_master_northeast_req_o,
+  output logic                             tcdm_master_northeast_req_valid_o,
+  input  logic                             tcdm_master_northeast_req_ready_i,
+  input  `STRUCT_PORT(tcdm_master_resp_t)  tcdm_master_northeast_resp_i,
+  input  logic                             tcdm_master_northeast_resp_valid_i,
+  output logic                             tcdm_master_northeast_resp_ready_o,
+  output `STRUCT_PORT(tcdm_master_req_t)   tcdm_master_east_req_o,
+  output logic                             tcdm_master_east_req_valid_o,
+  input  logic                             tcdm_master_east_req_ready_i,
+  input  `STRUCT_PORT(tcdm_master_resp_t)  tcdm_master_east_resp_i,
+  input  logic                             tcdm_master_east_resp_valid_i,
+  output logic                             tcdm_master_east_resp_ready_o,
+  output `STRUCT_PORT(tcdm_master_req_t)   tcdm_master_local_req_o,
+  output logic                             tcdm_master_local_req_valid_o,
+  input  logic                             tcdm_master_local_req_ready_i,
+  input  `STRUCT_PORT(tcdm_master_resp_t)  tcdm_master_local_resp_i,
+  input  logic                             tcdm_master_local_resp_valid_i,
+  output logic                             tcdm_master_local_resp_ready_o,
+  // TCDM Slave interfaces
+  input  `STRUCT_PORT(tcdm_slave_req_t)    tcdm_slave_north_req_i,
+  input  logic                             tcdm_slave_north_req_valid_i,
+  output logic                             tcdm_slave_north_req_ready_o,
+  output `STRUCT_PORT(tcdm_slave_resp_t)   tcdm_slave_north_resp_o,
+  output logic                             tcdm_slave_north_resp_valid_o,
+  input  logic                             tcdm_slave_north_resp_ready_i,
+  input  `STRUCT_PORT(tcdm_slave_req_t)    tcdm_slave_northeast_req_i,
+  input  logic                             tcdm_slave_northeast_req_valid_i,
+  output logic                             tcdm_slave_northeast_req_ready_o,
+  output `STRUCT_PORT(tcdm_slave_resp_t)   tcdm_slave_northeast_resp_o,
+  output logic                             tcdm_slave_northeast_resp_valid_o,
+  input  logic                             tcdm_slave_northeast_resp_ready_i,
+  input  `STRUCT_PORT(tcdm_slave_req_t)    tcdm_slave_east_req_i,
+  input  logic                             tcdm_slave_east_req_valid_i,
+  output logic                             tcdm_slave_east_req_ready_o,
+  output `STRUCT_PORT(tcdm_slave_resp_t)   tcdm_slave_east_resp_o,
+  output logic                             tcdm_slave_east_resp_valid_o,
+  input  logic                             tcdm_slave_east_resp_ready_i,
+  input  `STRUCT_PORT(tcdm_slave_req_t)    tcdm_slave_local_req_i,
+  input  logic                             tcdm_slave_local_req_valid_i,
+  output logic                             tcdm_slave_local_req_ready_o,
+  output `STRUCT_PORT(tcdm_slave_resp_t)   tcdm_slave_local_resp_o,
+  output logic                             tcdm_slave_local_resp_valid_o,
+  input  logic                             tcdm_slave_local_resp_ready_i,
+  // AXI Interface
+  output `STRUCT_PORT(axi_tile_req_t)      axi_mst_req_o,
+  input  `STRUCT_PORT(axi_tile_resp_t)     axi_mst_resp_i,
+  // Wake up interface
+  input  logic [NumCoresPerTile-1:0]       wake_up_i
+);
 
   mempool_tile #(
-    .NumBanksPerTile   (NumBanksPerTile   ),
-    .NumTiles          (NumTiles          ),
-    .NumBanks          (NumBanks          ),
-    .TCDMBaseAddr      (TCDMBaseAddr      ),
-    .BootAddr          (BootAddr          ),
-    .tcdm_master_req_t (tcdm_master_req_t ),
-    .tcdm_master_resp_t(tcdm_master_resp_t),
-    .tcdm_slave_req_t  (tcdm_slave_req_t  ),
-    .tcdm_slave_resp_t (tcdm_slave_resp_t )
+    .TCDMBaseAddr(TCDMBaseAddr),
+    .BootAddr    (BootAddr    )
   ) i_tile (
     .clk_i                   (clk_i                                                                                                                              ),
     .rst_ni                  (rst_ni                                                                                                                             ),
@@ -940,7 +901,7 @@ module mempool_tile_wrap
     // AXI interface
     .axi_mst_req_o           (axi_mst_req_o                                                                                                                      ),
     .axi_mst_resp_i          (axi_mst_resp_i                                                                                                                     ),
-   // Wake up interface
+    // Wake up interface
     .wake_up_i               (wake_up_i                                                                                                                          )
   );
 

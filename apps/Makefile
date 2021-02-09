@@ -33,9 +33,9 @@ all: $(BINARIES)
 $(APPS): % : bin/% $(APPS_DIR)/Makefile $(shell find common -type f)
 
 .PHONY: $(BINARIES)
-$(BINARIES): bin/%: update_opcodes %/main.c.o $(RUNTIME)
+$(BINARIES): bin/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update_opcodes
 	mkdir -p $(shell dirname $@)
-	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $(filter-out $<, $^) -T$(CURDIR)/common/link.ld
+	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) -T$(CURDIR)/common/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 	$(RISCV_STRIP) $@ -S --strip-unneeded
 
@@ -72,6 +72,7 @@ clean:
 	rm -vf $(addsuffix .dump,$(BINARIES))
 	rm -vf $(addsuffix /main.c.o,$(APPS))
 	rm -vf $(RUNTIME)
+	rm -vf $(LINKER_SCRIPT)
 	rm -vf $(TESTS)
 	rm -vf $(addsuffix .dump,$(TESTS))
 

@@ -1,0 +1,25 @@
+From 218345a33d583680c2d50c4c99793062fad41ace Mon Sep 17 00:00:00 2001
+From: bluew <bluewww@users.noreply.github.com>
+Date: Thu, 10 Dec 2020 16:54:12 +0100
+Subject: [PATCH] reggen: Use common_cells assertion header
+
+---
+ fpv_csr.sv.tpl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/fpv_csr.sv.tpl b/fpv_csr.sv.tpl
+index c7aac49..174904d 100644
+--- a/fpv_csr.sv.tpl
++++ b/fpv_csr.sv.tpl
+@@ -15,7 +15,7 @@
+ ${construct_classes(b)}
+ % endfor
+ 
+-`include "prim_assert.sv"
++`include "common_cells/assertions.svh"
+ 
+ // Block: ${block.name}
+ module ${block.name}_csr_assert_fpv import tlul_pkg::*; import ${block.name}_reg_pkg::*; (
+-- 
+2.28.0
+

@@ -1,8 +1,8 @@
 # Create group for group $1 tile $2
 
-add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/NumBanksPerTile
-add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/NumTiles
-add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/NumBanks
+add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::NumBanksPerTile
+add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::NumTiles
+add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::NumBanks
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/TCDMBaseAddr
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/BootAddr
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_caches[0].i_snitch_icache.LINE_WIDTH
@@ -11,8 +11,7 @@ add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::ICacheLineWidth
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::ICacheSizeByte
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::ICacheSets
-add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/NumCores
-add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/TileAddrWidth
+add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::NumCores
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/TCDMSize
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/TCDMMask
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/clk_i

@@ -13,6 +13,25 @@ package mempool_pkg;
   import snitch_pkg::ReorderIdWidth;
   import cf_math_pkg::idx_width;
 
+  /*********************
+   *  TILE PARAMETERS  *
+   *********************/
+
+  `include "axi/assign.svh"
+  `include "axi/typedef.svh"
+
+  localparam integer unsigned NumCores         = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
+  localparam integer unsigned NumCoresPerTile  = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
+  localparam integer unsigned NumGroups        = 4;
+  localparam integer unsigned NumTiles         = NumCores / NumCoresPerTile;
+  localparam integer unsigned NumTilesPerGroup = NumTiles / NumGroups;
+  localparam integer unsigned NumCoresPerGroup = NumCores / NumGroups;
+  localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
+  localparam integer unsigned AxiCoreIdWidth   = $clog2(NumCoresPerTile);
+  localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache
+  localparam integer unsigned AxiDataWidth     = 128;
+  localparam integer unsigned AxiLiteDataWidth = 32;
+
   /***********************
    *  MEMORY PARAMETERS  *
    ***********************/
@@ -21,27 +40,14 @@ package mempool_pkg;
   localparam integer unsigned DataWidth        = 32;
   localparam integer unsigned BeWidth          = DataWidth / 8;
   localparam integer unsigned ByteOffset       = $clog2(BeWidth);
+  localparam integer unsigned BankingFactor    = 4;
   localparam integer unsigned TCDMSizePerBank  = 1024; // [B]
+  localparam integer unsigned NumBanks         = NumCores * BankingFactor;
+  localparam integer unsigned NumBanksPerTile  = NumBanks / NumTiles;
+  localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
-  localparam integer unsigned L2Size           = 65536; // [B]
-
-  /*********************
-   *  TILE PARAMETERS  *
-   *********************/
-
-  `include "axi/assign.svh"
-  `include "axi/typedef.svh"
-
-  localparam integer unsigned NumCoresPerTile  = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
-  localparam integer unsigned NumCores         = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
-  localparam integer unsigned NumTiles         = NumCores / NumCoresPerTile;
-  localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
-  localparam integer unsigned NumGroups        = 4;
-  localparam integer unsigned AxiCoreIdWidth   = $clog2(NumCoresPerTile);
-  localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache
-  localparam integer unsigned AxiDataWidth     = 128;
-  localparam integer unsigned AxiLiteDataWidth = 32;
-
+  localparam integer unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
+  localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 0 `endif; // [B]
   localparam integer unsigned L2BeWidth        = AxiDataWidth/8;
   localparam integer unsigned L2ByteOffset     = $clog2(L2BeWidth);
 
@@ -122,9 +128,12 @@ package mempool_pkg;
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
 
+  typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
+  typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
   typedef logic [ReorderIdWidth-1:0] reorder_id_t;
   typedef logic [idx_width(NumCoresPerTile)-1:0] tile_core_id_t;
+  typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
   typedef logic [3:0] amo_t;
 
@@ -134,6 +143,30 @@ package mempool_pkg;
     amo_t amo;
     data_t data;
   } tcdm_payload_t;
+
+  typedef struct packed {
+    tcdm_payload_t wdata;
+    logic wen;
+    strb_t be;
+    tcdm_addr_t tgt_addr;
+  } tcdm_master_req_t;
+
+  typedef struct packed {
+    tcdm_payload_t rdata;
+  } tcdm_master_resp_t;
+
+  typedef struct packed {
+    tcdm_payload_t wdata;
+    logic wen;
+    strb_t be;
+    tile_addr_t tgt_addr;
+    tile_group_id_t ini_addr;
+  } tcdm_slave_req_t;
+
+  typedef struct packed {
+    tcdm_payload_t rdata;
+    tile_group_id_t ini_addr;
+  } tcdm_slave_resp_t;
 
   /*****************
    *  ADDRESS MAP  *

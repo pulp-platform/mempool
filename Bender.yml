@@ -8,15 +8,19 @@ dependencies:
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",       version: 0.2.1   }
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git",     rev:     dev     }
   snitch:               { git: "git@iis-git.ee.ethz.ch:mempool/snitch.git",                     rev:     mempool }
+  register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",       version: 0.2.0   }
 
 workspace:
   checkout_dir: "./hardware/deps"
+
+export_include_dirs:
+  - hardware/include
 
 sources:
   # Level 0
   - hardware/src/mempool_pkg.sv
   - hardware/src/reorder_buffer.sv
-  - hardware/src/snitch_address_demux.sv
+  - hardware/src/snitch_addr_demux.sv
   - hardware/src/tcdm_adapter.sv
   - hardware/src/tcdm_shim.sv
   - hardware/src/address_scrambler.sv
@@ -34,10 +38,19 @@ sources:
   # Level 5
   - hardware/src/mempool_system.sv
 
-  - target: mempool_test
+  - target: mempool_vsim
     files:
       # Level 1
+      - hardware/tb/axi_uart.sv
+      # Level 2
       - hardware/tb/mempool_tb.sv
+
+  - target: mempool_verilator
+    files:
+      # Level 1
+      - hardware/tb/axi_uart.sv
+      # Level 2
+      - hardware/tb/mempool_tb_verilator.sv
 
   - target: fpga
     files:

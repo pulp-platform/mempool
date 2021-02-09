@@ -30,25 +30,11 @@ module mempool_tb;
   import axi_pkg::xbar_cfg_t;
   import axi_pkg::xbar_rule_32_t;
 
-  `ifdef NUM_CORES
-  localparam NumCores = `NUM_CORES;
-  `else
-  localparam NumCores = 256;
-  `endif
-
   `ifdef BOOT_ADDR
   localparam BootAddr = `BOOT_ADDR;
   `else
   localparam BootAddr = 0;
   `endif
-
-  localparam        BankingFactor    = 4;
-  localparam addr_t TCDMBaseAddr     = '0;
-  localparam        TCDMSizePerBank  = 1024 /* [B] */;
-  localparam        NumTiles         = NumCores / NumCoresPerTile;
-  localparam        NumTilesPerGroup = NumTiles / NumGroups;
-  localparam        NumBanks         = NumCores * BankingFactor;
-  localparam        TCDMSize         = NumBanks * TCDMSizePerBank;
 
   localparam ClockPeriod = 1ns;
   localparam TA          = 0.2ns;
@@ -124,10 +110,8 @@ module mempool_tb;
   logic eoc_valid;
 
   mempool_system #(
-    .NumCores       (NumCores       ),
-    .BankingFactor  (BankingFactor  ),
-    .TCDMBaseAddr   (TCDMBaseAddr   ),
-    .BootAddr       (BootAddr       )
+    .TCDMBaseAddr(32'h0   ),
+    .BootAddr    (BootAddr)
   ) dut (
     .clk_i          (clk            ),
     .rst_ni         (rst_n          ),
@@ -191,40 +175,16 @@ module mempool_tb;
    *  UART  *
    **********/
 
-  // Printing
-  axi_system_id_t id_queue [$];
-
-  initial begin
-    automatic string sb = "";
-
-    axi_mem_resp[UART] <= '0;
-    while (1) begin
-      @(posedge clk); #TT;
-      fork
-        begin
-          wait(axi_mem_req[UART].aw_valid);
-          axi_mem_resp[UART].aw_ready <= 1'b1;
-          axi_mem_resp[UART].aw_ready <= @(posedge clk) 1'b0;
-          id_queue.push_back(axi_mem_req[UART].aw.id);
-        end
-        begin
-          wait(axi_mem_req[UART].w_valid);
-          axi_mem_resp[UART].w_ready <= 1'b1;
-          axi_mem_resp[UART].w_ready <= @(posedge clk) 1'b0;
-          $write("%c", axi_mem_req[UART].w.data);
-        end
-      join
-
-      // Send response
-      axi_mem_resp[UART].b_valid = 1'b1;
-      axi_mem_resp[UART].b.id    = id_queue.pop_front();
-      axi_mem_resp[UART].b.resp  = axi_pkg::RESP_OKAY;
-      axi_mem_resp[UART].b.user  = '0;
-      wait(axi_mem_req[UART].b_ready);
-      @(posedge clk);
-      axi_mem_resp[UART].b_valid = 1'b0;
-    end
-  end
+  axi_uart #(
+    .axi_req_t (axi_tb_req_t ),
+    .axi_resp_t(axi_tb_resp_t)
+  ) i_axi_uart (
+    .clk_i     (clk               ),
+    .rst_ni    (rst_n             ),
+    .testmode_i(1'b0              ),
+    .axi_req_i (axi_mem_req[UART] ),
+    .axi_resp_o(axi_mem_resp[UART])
+  );
 
   /*******************
    *  Configure RAB  *

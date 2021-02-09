@@ -10,49 +10,49 @@
 
 `include "common_cells/registers.svh"
 
-import mempool_pkg::*;
-
-module traffic_generator #(
-    parameter int unsigned AddrWidth           = 32         ,
-    parameter int unsigned DataWidth           = 32         ,
-    parameter int unsigned NumCores            = 32         ,
-    parameter int unsigned MaxOutStandingReads = 1024       ,
-    parameter int unsigned NumBanks            = 1          ,
-    parameter int unsigned NumCycles           = 10000      ,
-    parameter int unsigned ReqProbability      = 500        ,
-    parameter int unsigned SeqProbability      = 0          ,
-    parameter int unsigned NrTCDM              = 2          ,
-    parameter int unsigned NumRules            = 1          , // Routing rules
-    localparam int unsigned StrbWidth          = DataWidth/8,
-    parameter addr_t TCDMBaseAddr              = 32'b0      ,
-    parameter int unsigned NumBanksPerTile     = 0          ,
-    localparam int unsigned ReorderIdWidth     = $clog2(MaxOutStandingReads)
-  ) (
-    input  logic                                          clk_i,
-    input  logic                                          rst_ni,
-    input  logic         [$clog2(NumCores)-1:0]           core_id_i,
-    // to TCDM
-    output logic         [NrTCDM-1:0]                     tcdm_req_valid_o,
-    output logic         [NrTCDM-1:0][AddrWidth-1:0]      tcdm_req_tgt_addr_o,
-    output logic         [NrTCDM-1:0]                     tcdm_req_wen_o,
-    output logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_req_wdata_o,
-    output logic         [NrTCDM-1:0][3:0]                tcdm_req_amo_o,
-    output logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_req_id_o,
-    output logic         [NrTCDM-1:0][StrbWidth-1:0]      tcdm_req_be_o,
-    input  logic         [NrTCDM-1:0]                     tcdm_req_ready_i,
-    input  logic         [NrTCDM-1:0]                     tcdm_resp_valid_i,
-    output logic         [NrTCDM-1:0]                     tcdm_resp_ready_o,
-    input  logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_resp_rdata_i,
-    input  logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_resp_id_i,
-    // Address map
-    input  address_map_t [NumRules-1:0]                   address_map_i
-  );
+module traffic_generator
+  import mempool_pkg::*;
+#(
+  parameter int unsigned AddrWidth           = 32,
+  parameter int unsigned DataWidth           = 32,
+  parameter int unsigned NumCores            = 32,
+  parameter int unsigned MaxOutStandingReads = 1024,
+  parameter int unsigned NumBanks            = 1,
+  parameter int unsigned NumCycles           = 10000,
+  parameter int unsigned ReqProbability      = 500,
+  parameter int unsigned SeqProbability      = 0,
+  parameter int unsigned NrTCDM              = 2,
+  parameter int unsigned NumRules            = 1, // Routing rules
+  localparam int unsigned StrbWidth          = DataWidth/8,
+  parameter addr_t TCDMBaseAddr              = 32'b0,
+  parameter int unsigned NumBanksPerTile     = 0,
+  localparam int unsigned ReorderIdWidth     = $clog2(MaxOutStandingReads)
+) (
+  input  logic                                          clk_i,
+  input  logic                                          rst_ni,
+  input  logic         [$clog2(NumCores)-1:0]           core_id_i,
+  // to TCDM
+  output logic         [NrTCDM-1:0]                     tcdm_req_valid_o,
+  output logic         [NrTCDM-1:0][AddrWidth-1:0]      tcdm_req_tgt_addr_o,
+  output logic         [NrTCDM-1:0]                     tcdm_req_wen_o,
+  output logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_req_wdata_o,
+  output logic         [NrTCDM-1:0][3:0]                tcdm_req_amo_o,
+  output logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_req_id_o,
+  output logic         [NrTCDM-1:0][StrbWidth-1:0]      tcdm_req_be_o,
+  input  logic         [NrTCDM-1:0]                     tcdm_req_ready_i,
+  input  logic         [NrTCDM-1:0]                     tcdm_resp_valid_i,
+  output logic         [NrTCDM-1:0]                     tcdm_resp_ready_o,
+  input  logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_resp_rdata_i,
+  input  logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_resp_id_i,
+  // Address map
+  input  address_map_t [NumRules-1:0]                   address_map_i
+);
 
   /*************
    *  IMPORTS  *
    *************/
 
-  import snitch_pkg::dreq_t ;
+  import snitch_pkg::dreq_t;
   import snitch_pkg::dresp_t;
 
   // TCDM Memory Region
@@ -101,18 +101,18 @@ module traffic_generator #(
   dresp_t [NrTCDM-1:0] tcdm_ppayload;
 
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_ppayload
-    assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i]   ;
+    assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i];
     assign tcdm_ppayload[i].data  = tcdm_resp_rdata_i[i];
-    assign tcdm_ppayload[i].error = 1'b0                ;
+    assign tcdm_ppayload[i].error = 1'b0;
   end
 
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_qpayload
-    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr ;
-    assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data ;
-    assign tcdm_req_amo_o[i]      = tcdm_qpayload[i].amo  ;
-    assign tcdm_req_id_o[i]       = tcdm_qpayload[i].id   ;
+    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr;
+    assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data;
+    assign tcdm_req_amo_o[i]      = tcdm_qpayload[i].amo;
+    assign tcdm_req_id_o[i]       = tcdm_qpayload[i].id;
     assign tcdm_req_wen_o[i]      = tcdm_qpayload[i].write;
-    assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb ;
+    assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb;
   end
 
   // Generate requests
@@ -167,7 +167,7 @@ module traffic_generator #(
 
   task automatic randomUniformRequest(int numCycles, int unsigned reqProbability, int unsigned seqProbability);
     // Seed the randomizer
-    process::self().srandom(core_id_i)                                           ;
+    process::self().srandom(core_id_i);
 
     repeat (numCycles) begin
       @(negedge clk_i);
@@ -189,16 +189,16 @@ module traffic_generator #(
         if (val <= int'(reqProbability)) begin
           // Mark the request as pending
           starting_cycle[next_id]         = cycle;
-          pending_instructions_d[next_id] = 1'b1 ;
+          pending_instructions_d[next_id] = 1'b1;
           requests.push_back(next_id);
         end
       end
 
       // Send a request if the queue is not empty
       if (requests.size() == 0) begin
-        req_valid     = 1'b0 ;
-        req_tgt_addr  = '0   ;
-        data_qpayload = '0   ;
+        req_valid     = 1'b0;
+        req_tgt_addr  = '0;
+        data_qpayload = '0;
       end else begin
         automatic int unsigned val;
         void'(randomize(req_tgt_addr) with {(req_tgt_addr & TCDMMask) == TCDMBaseAddr;});
@@ -208,11 +208,11 @@ module traffic_generator #(
           req_tgt_addr[BankOffsetBits + ByteOffset +: NumTilesBits] = tile_id;
         end
         req_valid         = 1'b1;
-        req_tgt_addr[1:0] = '0  ;
+        req_tgt_addr[1:0] = '0;
 
-        data_qpayload      = '0          ;
+        data_qpayload      = '0;
         data_qpayload.addr = req_tgt_addr;
-        data_qpayload.id   = requests[0] ;
+        data_qpayload.id   = requests[0];
       end
 
       @(posedge clk_i);
@@ -233,10 +233,10 @@ module traffic_generator #(
 
   initial begin
     // Idle
-    pending_instructions_d = '0  ;
+    pending_instructions_d = '0;
     req_valid              = 1'b0;
-    req_tgt_addr           = '0  ;
-    data_qpayload          = '0  ;
+    req_tgt_addr           = '0;
+    data_qpayload          = '0;
 
     // We are always ready
     resp_ready = 1'b1;

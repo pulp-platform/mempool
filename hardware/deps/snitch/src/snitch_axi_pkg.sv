@@ -16,7 +16,7 @@
 
 package snitch_axi_pkg;
 
-    localparam UserWidth = 0;
+    localparam UserWidth = 1;
     localparam AddrWidth = 32;
     localparam DataWidth = 32;
     localparam StrbWidth = DataWidth / 8;

@@ -1,40 +1,45 @@
-import mempool_pkg::*;
-import axi_pkg::xbar_cfg_t;
-import axi_pkg::xbar_rule_32_t;
+// Copyright 2019 ETH Zurich and University of Bologna.
+// Copyright and related rights are licensed under the Solderpad Hardware
+// License, Version 0.51 (the "License"); you may not use this file except in
+// compliance with the License.  You may obtain a copy of the License at
+// http://solderpad.org/licenses/SHL-0.51. Unless required by applicable law
+// or agreed to in writing, software, hardware and materials distributed under
+// this License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
 
 `include "axi/assign.svh"
 `include "common_cells/registers.svh"
 
-module mempool_system #(
-    // Mempool
-    parameter int unsigned NumCores      = 1,
-    parameter int unsigned BankingFactor = 4,
-    // TCDM
-    parameter addr_t TCDMBaseAddr = 32'b0,
-    // Boot address
-    parameter addr_t BootAddr     = 32'h0000_0000
-  ) (
-    input logic                clk_i,
-    input logic                rst_ni,
+module mempool_system
+  import mempool_pkg::*;
+#(
+  // TCDM
+  parameter addr_t       TCDMBaseAddr  = 32'h0000_0000,
+  // Boot address
+  parameter addr_t       BootAddr      = 32'h0000_0000
+) (
+  input logic                clk_i,
+  input logic                rst_ni,
 
-    input  logic               fetch_en_i,
-    output logic               eoc_valid_o,
-    output logic               busy_o,
+  input  logic               fetch_en_i,
+  output logic               eoc_valid_o,
+  output logic               busy_o,
 
-    output axi_system_req_t    mst_req_o,
-    input  axi_system_resp_t   mst_resp_i,
+  output axi_system_req_t    mst_req_o,
+  input  axi_system_resp_t   mst_resp_i,
 
-    input  axi_system_req_t    slv_req_i,
-    output axi_system_resp_t   slv_resp_o,
+  input  axi_system_req_t    slv_req_i,
+  output axi_system_resp_t   slv_resp_o,
 
-    input  axi_lite_slv_req_t  rab_conf_req_i,
-    output axi_lite_slv_resp_t rab_conf_resp_o
-  );
+  input  axi_lite_slv_req_t  rab_conf_req_i,
+  output axi_lite_slv_resp_t rab_conf_resp_o
+);
 
-  localparam NumTiles         = NumCores / NumCoresPerTile;
-  localparam NumTilesPerGroup = NumTiles / NumGroups;
-  localparam NumBanks         = NumCores * BankingFactor;
-  localparam TCDMSize         = NumBanks * TCDMSizePerBank;
+  import axi_pkg::xbar_cfg_t;
+  import axi_pkg::xbar_rule_32_t;
+
+  localparam TCDMSize = NumBanks * TCDMSizePerBank;
 
   /*********
    *  AXI  *
@@ -77,11 +82,8 @@ module mempool_system #(
    ************/
 
   mempool #(
-    .NumCores     (NumCores       ),
-    .BankingFactor(BankingFactor  ),
-    .TCDMBaseAddr (TCDMBaseAddr   ),
-    .BootAddr     (BootAddr       ),
-    .NumAXIMasters(NumAXIMasters-1)
+    .TCDMBaseAddr(TCDMBaseAddr),
+    .BootAddr    (BootAddr    )
   ) i_mempool (
     .clk_i         (clk_i                          ),
     .rst_ni        (rst_ni                         ),
@@ -100,8 +102,8 @@ module mempool_system #(
 
   localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
   localparam addr_t CtrlRegistersEndAddr  = 32'h4000_FFFF;
-  localparam addr_t L2MemoryBaseAddr      = 32'h8000_0000;
-  localparam addr_t L2MemoryEndAddr       = 32'h801F_FFFF;
+  localparam addr_t L2MemoryBaseAddr      = `ifdef L2_BASE `L2_BASE `else 32'h8000_0000 `endif;
+  localparam addr_t L2MemoryEndAddr       = L2MemoryBaseAddr + L2Size;
   localparam addr_t BootromBaseAddr       = 32'hA000_0000;
   localparam addr_t BootromEndAddr        = 32'hA000_FFFF;
 
@@ -325,6 +327,8 @@ module mempool_system #(
     .eoc_o                (/* Unused */                ),
     .eoc_valid_o          (eoc_valid_o                 )
   );
+
+  assign busy_o = 1'b0;
 
   /***********
    * AXI RAB *

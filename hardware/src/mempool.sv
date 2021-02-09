@@ -12,68 +12,27 @@ module mempool
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
-    parameter int unsigned NumCores      = 1,
-    parameter int unsigned BankingFactor = 1,
-    // TCDM
-    parameter addr_t TCDMBaseAddr        = 32'b0,
-    // Boot address
-    parameter logic [31:0] BootAddr      = 32'h0000_0000,
-    // Dependant parameters. DO NOT CHANGE!
-    parameter int unsigned NumTiles      = NumCores / NumCoresPerTile,
-    parameter int unsigned NumAXIMasters = NumTiles
-  ) (
-    // Clock and reset
-    input  logic                               clk_i,
-    input  logic                               rst_ni,
-    input  logic                               testmode_i,
-    // Scan chain
-    input  logic                               scan_enable_i,
-    input  logic                               scan_data_i,
-    input  logic           [NumCores-1:0]      wake_up_i,
-    output logic                               scan_data_o,
-    // AXI Interface
-    output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
-    input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
- );
-
-  /*****************
-   *  Definitions  *
-   *****************/
-
-  localparam int unsigned NumTilesPerGroup = NumTiles / NumGroups;
-  localparam int unsigned NumBanks         = NumCores * BankingFactor;
-  localparam int unsigned NumBanksPerTile  = NumBanks / NumTiles;
-  localparam int unsigned NumBanksPerGroup = NumBanks / NumGroups;
-  localparam int unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
-  localparam int unsigned NumCoresPerGroup = NumCores / NumGroups;
-
-  typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
-  typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
-  typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
-
-  typedef struct packed {
-    tcdm_payload_t wdata;
-    logic wen;
-    strb_t be;
-    tcdm_addr_t tgt_addr;
-  } tcdm_master_req_t;
-
-  typedef struct packed {
-    tcdm_payload_t rdata;
-  } tcdm_master_resp_t;
-
-  typedef struct packed {
-    tcdm_payload_t wdata;
-    logic wen;
-    strb_t be;
-    tile_addr_t tgt_addr;
-    tile_group_id_t ini_addr;
-  } tcdm_slave_req_t;
-
-  typedef struct packed {
-    tcdm_payload_t rdata;
-    tile_group_id_t ini_addr;
-  } tcdm_slave_resp_t;
+  // TCDM
+  parameter addr_t       TCDMBaseAddr  = 32'b0,
+  // Boot address
+  parameter logic [31:0] BootAddr      = 32'h0000_0000,
+  // Dependant parameters. DO NOT CHANGE!
+  parameter int unsigned NumAXIMasters = NumTiles
+) (
+  // Clock and reset
+  input  logic                               clk_i,
+  input  logic                               rst_ni,
+  input  logic                               testmode_i,
+  // Scan chain
+  input  logic                               scan_enable_i,
+  input  logic                               scan_data_i,
+  output logic                               scan_data_o,
+  // Wake up signal
+  input  logic           [NumCores-1:0]      wake_up_i,
+  // AXI Interface
+  output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
+  input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
+);
 
   /***********
    *  Reset  *
@@ -136,16 +95,8 @@ module mempool
 
   for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
     mempool_group #(
-      .NumBanksPerTile   (NumBanksPerTile   ),
-      .NumTiles          (NumTiles          ),
-      .NumBanks          (NumBanks          ),
-      .TCDMBaseAddr      (TCDMBaseAddr      ),
-      .BootAddr          (BootAddr          ),
-      .tcdm_master_req_t (tcdm_master_req_t ),
-      .tcdm_master_resp_t(tcdm_master_resp_t),
-      .tcdm_slave_req_t  (tcdm_slave_req_t  ),
-      .tcdm_slave_resp_t (tcdm_slave_resp_t ),
-      .NumAXIMasters     (NumTilesPerGroup  )
+      .TCDMBaseAddr(TCDMBaseAddr),
+      .BootAddr    (BootAddr    )
     ) i_group (
       .clk_i                             (clk_i                                                 ),
       .rst_ni                            (rst_n                                                 ),

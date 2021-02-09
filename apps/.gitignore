@@ -2,11 +2,13 @@
 bin/
 
 # intermediate files
+*.bin
 *.img
 *.o
 *.obj
 *.elf
 *.ll
+*.dump
 common/arch.ld
 
 # libraries

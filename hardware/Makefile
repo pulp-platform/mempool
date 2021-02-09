@@ -26,26 +26,31 @@ config_mk = $(abspath $(ROOT_DIR)/../config/config.mk)
 include $(config_mk)
 
 # build path
-buildpath      ?= build
-resultpath     ?= results
+buildpath       ?= build
+resultpath      ?= results
 # questa library
-library        ?= work
+library         ?= work
 # dpi library
-dpi_library    ?= work-dpi
+dpi_library     ?= work-dpi
 # Top level module to compile
-top_level      ?= mempool_tb
+top_level       ?= mempool_tb
 # QuestaSim Version
-questa_version ?= 2019.3
+questa_version  ?= 2019.3
 # QuestaSim command
-questa_cmd     ?= questa-$(questa_version)
+questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
-questa_args    ?=
+questa_args     ?=
 # Path to the binaries
-app_path       ?= $(abspath $(ROOT_DIR)/../apps/bin)
+app_path        ?= $(abspath $(ROOT_DIR)/../apps/bin)
 # Bender
-bender         ?= $(INSTALL_DIR)/bender/bender
+bender          ?= $(INSTALL_DIR)/bender/bender
+# Verilator
+verilator       ?= $(INSTALL_DIR)/verilator/bin/verilator
+verilator_build ?= $(ROOT_DIR)/verilator_build
+verilator_files ?= $(verilator_build)/files
+verilator_top   ?= mempool_tb_verilator
 # Python
-python         ?= python3.6
+python          ?= python3.6
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -79,7 +84,11 @@ endif
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
-vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
+vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
+vlog_defs += -DL2_BASE="32'h$(l2_base)" -DL2_SIZE="32'h$(l2_size)"
+vlog_defs += -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
+
+cpp_defs  += -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
 
 .DEFAULT_GOAL := compile
 
@@ -91,6 +100,9 @@ $(buildpath):
 $(bender):
 	make -C $(MEMPOOL_DIR) bender
 
+################
+# Modelsim     #
+################
 # Library
 .PHONY: lib
 lib: $(buildpath) $(buildpath)/$(library)
@@ -101,7 +113,7 @@ $(buildpath)/$(library):
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_test > $(buildpath)/compile.tcl
+	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
@@ -134,7 +146,52 @@ $(tests): $(test_result_dir)/%.out : $(app_path)/%
 	$(questa_cmd) vsim -c $(questa_args) +PRELOAD=$< $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript > $@
 
-# Benchmarking
+################
+# Verilator    #
+################
+VERILATOR_SRC   := $(ROOT_DIR)/tb/verilator
+VERILATOR_LIBS  := $(shell find $(VERILATOR_SRC) -name "*.cc" -print | sort)
+VERILATOR_INCS  := $(shell find $(VERILATOR_SRC) -name "cpp" -print | sort)
+VERILATOR_EXE   := $(verilator_build)/V$(verilator_top)
+VERILATOR_MK    := $(VERILATOR_EXE).mk
+VERILATOR_WAIVE := $(shell find $(VERILATOR_SRC) -name "*.vlt" -print | sort)
+VERILATOR_CONF  := $(VERILATOR_SRC)/verilator.flags
+
+VERILATOR_FLAGS += -CFLAGS "-DTOPLEVEL_NAME=$(verilator_top)"
+VERILATOR_FLAGS += --Mdir $(verilator_build)
+VERILATOR_FLAGS += -f $(verilator_files)
+VERILATOR_FLAGS += -f $(VERILATOR_CONF)
+VERILATOR_FLAGS += $(VERILATOR_WAIVE)
+# VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
+# VERILATOR_FLAGS += --debug
+
+$(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
+	mkdir -p $(verilator_build)
+	# Overwrite Bootaddress to L2 base while we don't have a DPI to write a wake-up
+	$(eval boot_addr=$(l2_base))
+	# Create Bender script of all RTL files
+	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(verilator_files)
+	# Append the verilator library files
+	@echo '' >> $(verilator_files)
+	# Append the verilator library files: Includes
+	@echo $(addprefix +incdir+,$(VERILATOR_INCS)) | tr ' ' '\n' >> $(verilator_files)
+	for i in $(VERILATOR_INCS); do echo "-CFLAGS -I$${i}" >> $(verilator_files); done
+	# Append the CPP defines
+	@echo "-CFLAGS \"$(cpp_defs)\"" >> $(verilator_files)
+	# Append the verilator library files: source files
+	@echo $(VERILATOR_LIBS) | tr ' ' '\n'  >> $(verilator_files)
+	# Create Verilator Makefile
+	$(verilator) $(VERILATOR_FLAGS) --top-module $(verilator_top)
+
+$(VERILATOR_EXE): $(VERILATOR_MK) $(shell find $(VERILATOR_SRC) -type f) Makefile
+	make -j4 -C $(verilator_build) -f $<
+
+verilate: $(VERILATOR_EXE) $(buildpath) Makefile
+	cd $(buildpath) && $(VERILATOR_EXE) --meminit=ram,$(preload)
+
+################
+# Tracing      #
+################
 benchmark: log simc
 	# Call `make` again to get variable extension with all traces
 	result_dir=$(result_dir) $(MAKE) trace
@@ -167,6 +224,9 @@ $(buildpath)/%.trace: $(buildpath)/%.dasm
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
 	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
 
+################
+# Helper       #
+################
 # DPIs
 .PHONY: dpi
 dpi: $(buildpath)/$(dpi_library)/mempool_dpi.so
@@ -180,7 +240,7 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $?
 
 # Bootrom
-src/bootrom.sv: $(MEMPOOL_DIR)/apps/common/bootrom.img
+src/bootrom.sv:
 	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth 128 $<
 
 $(MEMPOOL_DIR)/apps/common/bootrom.img:

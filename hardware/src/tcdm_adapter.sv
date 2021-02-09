@@ -106,7 +106,7 @@ module tcdm_adapter #(
   assign pop_resp   = in_ready_i & in_valid_o;
 
   // Generate out_gnt one cycle after sending read request to the bank
-  `FFSRN(out_gnt, out_req_o & !out_write_o, 1'b0, clk_i, rst_ni);
+  `FFARN(out_gnt, out_req_o & !out_write_o, 1'b0, clk_i, rst_ni);
 
   always_comb begin
     // feed-through
@@ -149,6 +149,8 @@ module tcdm_adapter #(
 
   if (RegisterAmo) begin : gen_amo_slice
     `FFLNR(amo_result_q, amo_result, (state_q == DoAMO), clk_i)
+  end else begin : gen_amo_slice
+    assign amo_result_q = '0;
   end
 
   always_ff @(posedge clk_i or negedge rst_ni) begin

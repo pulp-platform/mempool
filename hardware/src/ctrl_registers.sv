@@ -9,32 +9,31 @@
 // specific language governing permissions and limitations under the License.
 
 `include "common_cells/registers.svh"
-import mempool_pkg::addr_t;
 
 module ctrl_registers #(
-    parameter int DataWidth                      = 32,
-    parameter int NumRegs                        = 0,
-    // Parameters
-    parameter logic [DataWidth-1:0] TCDMBaseAddr = 0,
-    parameter logic [DataWidth-1:0] TCDMSize     = 0,
-    parameter logic [DataWidth-1:0] NumCores     = 0,
-    // AXI Structs
-    parameter type axi_lite_req_t                = logic,
-    parameter type axi_lite_resp_t               = logic
-  ) (
-    input  logic                           clk_i,
-    input  logic                           rst_ni,
-    // AXI Bus
-    input  axi_lite_req_t                  axi_lite_slave_req_i,
-    output axi_lite_resp_t                 axi_lite_slave_resp_o,
-    // Control registers
-    output logic      [DataWidth-1:0]      eoc_o,
-    output logic                           eoc_valid_o,
-    output logic      [NumCores-1:0]       wake_up_o,
-    output logic      [DataWidth-1:0]      tcdm_start_address_o,
-    output logic      [DataWidth-1:0]      tcdm_end_address_o,
-    output logic      [DataWidth-1:0]      num_cores_o
-  );
+  parameter int DataWidth                      = 32,
+  parameter int NumRegs                        = 0,
+  // Parameters
+  parameter logic [DataWidth-1:0] TCDMBaseAddr = 0,
+  parameter logic [DataWidth-1:0] TCDMSize     = 0,
+  parameter logic [DataWidth-1:0] NumCores     = 0,
+  // AXI Structs
+  parameter type axi_lite_req_t                = logic,
+  parameter type axi_lite_resp_t               = logic
+) (
+  input  logic                           clk_i,
+  input  logic                           rst_ni,
+  // AXI Bus
+  input  axi_lite_req_t                  axi_lite_slave_req_i,
+  output axi_lite_resp_t                 axi_lite_slave_resp_o,
+  // Control registers
+  output logic      [DataWidth-1:0]      eoc_o,
+  output logic                           eoc_valid_o,
+  output logic      [NumCores-1:0]       wake_up_o,
+  output logic      [DataWidth-1:0]      tcdm_start_address_o,
+  output logic      [DataWidth-1:0]      tcdm_end_address_o,
+  output logic      [DataWidth-1:0]      num_cores_o
+);
 
   import mempool_pkg::*;
 
@@ -55,7 +54,7 @@ module ctrl_registers #(
   // [11:8]: tcdm_start_adress_reg          (ro)
   // [15:12]:tcdm_end_address_reg           (ro)
   // [19:16]:nr_cores_address_reg           (ro)
-localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
+  localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
     NumCores,
     TCDMBaseAddr + TCDMSize,
     TCDMBaseAddr,

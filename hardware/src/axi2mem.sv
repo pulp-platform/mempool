@@ -458,6 +458,7 @@ module axi2mem #(
 
 endmodule
 
+/*verilator lint_off DECLFILENAME*/
 
 `include "axi/assign.svh"
 `include "axi/typedef.svh"
