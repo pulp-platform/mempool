@@ -1278,7 +1278,9 @@ module snitch #(
       riscv_instr::PV_SDOTSP_H,          // Xpulpimg: pv.sdotsp.h
       riscv_instr::PV_SDOTSP_SC_H,       // Xpulpimg: pv.sdotsp.sc.h
       riscv_instr::PV_SDOTSP_B,          // Xpulpimg: pv.sdotsp.b
-      riscv_instr::PV_SDOTSP_SC_B: begin // Xpulpimg: pv.sdotsp.sc.b
+      riscv_instr::PV_SDOTSP_SC_B,       // Xpulpimg: pv.sdotsp.sc.b
+      riscv_instr::PV_SHUFFLE2_H,        // Xpulpimg: pv.shuffle2.h
+      riscv_instr::PV_SHUFFLE2_B: begin  // Xpulpimg: pv.shuffle2.b
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
@@ -1536,7 +1538,10 @@ module snitch #(
   assign lsu_qvalid = valid_instr & (is_load | is_store) & ~(ld_addr_misaligned | st_addr_misaligned);
 
   // NOTE(smazzola): write-backs "on rd from non-load or non-acc instructions" and "on rs1 from
-  // post-increment instructions" in the same cycle should be mutually exclusive
+  // post-increment instructions" in the same cycle should be mutually exclusive (currently valid
+  // assumption since write-back to rs1 happens on the cycle in which the post-increment load/store
+  // is issued, if that cycle is not a stall, and it is not postponed like offloaded instructions,
+  // so no other instructions writing back on rd can be issued in the same cycle)
   // retire post-incremented address on rs1 if valid postincr instruction and LSU not stalling
   assign retire_p = write_rs1 & ~stall & (rs1 != 0);
   // we can retire if we are not stalling and if the instruction is writing a register

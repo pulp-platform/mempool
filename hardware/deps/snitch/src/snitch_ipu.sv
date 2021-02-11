@@ -210,7 +210,9 @@ module snitch_ipu #(
       riscv_instr::PV_SDOTSP_SCI_H,       // Xpulpimg: pv.sdotsp.sci.h
       riscv_instr::PV_SDOTSP_B,           // Xpulpimg: pv.sdotsp.b
       riscv_instr::PV_SDOTSP_SC_B,        // Xpulpimg: pv.sdotsp.sc.b
-      riscv_instr::PV_SDOTSP_SCI_B: begin // Xpulpimg: pv.sdotsp.sci.b
+      riscv_instr::PV_SDOTSP_SCI_B,       // Xpulpimg: pv.sdotsp.sci.b
+      riscv_instr::PV_SHUFFLE2_H,         // Xpulpimg: pv.shuffle2.h
+      riscv_instr::PV_SHUFFLE2_B: begin   // Xpulpimg: pv.shuffle2.b
         if (snitch_pkg::XPULPIMG) begin
           dsp_valid_op = acc_qvalid_i;
           acc_qready_o = dsp_ready_op;
@@ -362,9 +364,10 @@ module dspu #(
     Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip, Mac, Simd
   } res_sel;                   // result selection
 
-  enum logic [0:3] {
-    SimdNop, SimdAdd, SimdSub, SimdAvg, SimdMin, SimdMax, SimdSrl, SimdSra, SimdSll, SimdOr, SimdXor, SimdAnd, SimdAbs, SimdExt, SimdIns, SimdDotp
-  } simd_op;
+  enum logic [0:4] {
+    SimdNop, SimdAdd, SimdSub, SimdAvg, SimdMin, SimdMax, SimdSrl, SimdSra, SimdSll, SimdOr,
+    SimdXor, SimdAnd, SimdAbs, SimdExt, SimdIns, SimdDotp, SimdShuffle
+  } simd_op;                   // SIMD operation
   enum logic {
     HalfWord, Byte
   } simd_size;                 // SIMD granularity
@@ -1243,6 +1246,15 @@ module dspu #(
         simd_dotp_acc = 1;
         res_sel = Simd;
       end
+      riscv_instr::PV_SHUFFLE2_H: begin
+        simd_op = SimdShuffle;
+        res_sel = Simd;
+      end
+      riscv_instr::PV_SHUFFLE2_B: begin
+        simd_op = SimdShuffle;
+        simd_size = Byte;
+        res_sel = Simd;
+      end
       default: ;
     endcase
   end
@@ -1323,7 +1335,7 @@ module dspu #(
   // SIMD operations
   // --------------------
 
-  logic [3:0][7:0] simd_op_a, simd_op_b;
+  logic [3:0][7:0] simd_op_a, simd_op_b, simd_op_c;
   logic [1:0][7:0] simd_imm;
   logic [3:0][7:0] simd_result;
 
@@ -1336,6 +1348,7 @@ module dspu #(
   always_comb begin
     simd_op_a = 'b0;
     simd_op_b = 'b0;
+    simd_op_c = 'b0;
     unique case (simd_size)
       // half-word granularity
       HalfWord:
@@ -1343,6 +1356,7 @@ module dspu #(
           simd_op_a[2*i +: 2] = op_a_i[16*i +: 16]; // operands A are the half-words of op_a_i
           // operands B are the half-words of op_b_i, replicated lowest half-word of op_b_i or replicated 6-bit immediate
           simd_op_b[2*i +: 2] = (simd_mode == Vect) ? op_b_i[16*i +: 16] : ((simd_mode == Sc) ? op_b_i[15:0] : simd_imm);
+          simd_op_c[2*i +: 2] = op_c_i[16*i +: 16]; // operands C are the half-words of op_c_i
         end
       // byte granularity
       Byte:
@@ -1350,6 +1364,7 @@ module dspu #(
           simd_op_a[i] = op_a_i[8*i +: 8]; // operands A are the bytes of op_a_i
           // operands B are the bytes of op_b_i, replicated lowest byte of op_b_i or replicated 6-bit immediate
           simd_op_b[i] = (simd_mode == Vect) ? op_b_i[8*i +: 8] : ((simd_mode == Sc) ? op_b_i[7:0] : simd_imm[0]);
+          simd_op_c[i] = op_c_i[8*i +: 8]; // operands C are the bytes of op_c_i
         end
       default: ;
     endcase
@@ -1414,6 +1429,9 @@ module dspu #(
                                                    $signed({simd_op_b[2*i+1][7] & simd_dotp_op_b_signed, simd_op_b[2*i +: 2]});
             end
           end
+          SimdShuffle:
+            for (int i = 0; i < Width/16; i++)
+              simd_result[2*i +: 2] = simd_op_b[2*i][1] ? simd_op_a[2*simd_op_b[2*i][0] +: 2] : simd_op_c[2*simd_op_b[2*i][0] +: 2];
           default: ;
         endcase
       end
@@ -1471,6 +1489,9 @@ module dspu #(
               simd_result = $signed(simd_result) + $signed({simd_op_a[i][7] & simd_dotp_op_a_signed, simd_op_a[i]}) *
                                                    $signed({simd_op_b[i][7] & simd_dotp_op_b_signed, simd_op_b[i]});
           end
+          SimdShuffle:
+            for (int i = 0; i < Width/8; i++)
+              simd_result[i] = simd_op_b[i][2] ? simd_op_a[simd_op_b[i][1:0]] : simd_op_c[simd_op_b[i][1:0]];
           default: ;
         endcase
       end
