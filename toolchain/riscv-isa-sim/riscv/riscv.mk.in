@@ -930,6 +930,8 @@ riscv_insn_ext_xpulpimg = \
 	pv_sdotsp_b \
 	pv_sdotsp_sc_b \
 	pv_sdotsp_sci_b \
+	pv_shuffle2_h \
+	pv_shuffle2_b \
 
 riscv_insn_ext_h = \
 	hfence_gvma \
