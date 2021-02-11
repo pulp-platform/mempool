@@ -39,6 +39,7 @@ rv32uxpulpimg_sc_tests = \
   pv_sdotup \
   pv_sdotusp \
   pv_sdotsp \
+  pv_shuffle2 \
 
 rv32uxpulpimg_p_tests = $(addprefix rv32uxpulpimg-p-, $(rv32uxpulpimg_sc_tests))
 rv32uxpulpimg_v_tests = $(addprefix rv32uxpulpimg-v-, $(rv32uxpulpimg_sc_tests))
