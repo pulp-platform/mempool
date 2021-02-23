@@ -111,6 +111,18 @@ app=hello_world make benchmark
 
 You can set up the configuration of the system in the file `config/config.mk`, controlling the total number of cores, the number of cores per tile and whether the Xpulpimg extension is enabled or not in the Snitch core; the `xpulpimg` parameter also control the default core architecture considered when compiling applications for MemPool.
 
+To simulate the MemPool system with Verilator use the same format, but with the target
+```bash
+make verilate
+```
+If, during the Verilator model compilation, you run out of space on your disk, use
+```bash
+export OBJCACHE=''
+```
+to disable the use of `ccache`. This will make the following compilations slower, but avoid to use storage.
+
+If the tracer is enabled, its output traces are found under `hardware/build`, for both ModelSim and Verilator simulations.
+
 ## Common Problems
 
 - If building the GCC toolchain fails because *makeinfo/texinfo* is missing, try the following command:
