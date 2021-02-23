@@ -30,8 +30,10 @@ module snitch_ipu #(
   } result_t;
   // input handshake
   logic div_valid_op, div_ready_op;
+  /* verilator lint_off UNDRIVEN */
   logic mul_valid_op, mul_ready_op;
   logic dsp_valid_op, dsp_ready_op;
+  /* verilator lint_on UNDRIVEN */
   // output handshake
   logic mul_valid, mul_ready;
   logic div_valid, div_ready;
