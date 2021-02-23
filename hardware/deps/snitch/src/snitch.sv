@@ -154,6 +154,7 @@ module snitch #(
   logic [31:0] lsu_qaddr;
 
   logic retire_load; // retire a load instruction
+  logic retire_p; // retire from post-increment instructions
   logic retire_i; // retire the rest of the base instruction set
   logic retire_acc; // retire an instruction we offloaded
 
