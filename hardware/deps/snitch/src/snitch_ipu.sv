@@ -364,14 +364,14 @@ module dspu #(
     Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip, Mac, Simd
   } res_sel;                   // result selection
 
-  enum logic [0:4] {
+  enum logic [4:0] {
     SimdNop, SimdAdd, SimdSub, SimdAvg, SimdMin, SimdMax, SimdSrl, SimdSra, SimdSll, SimdOr,
     SimdXor, SimdAnd, SimdAbs, SimdExt, SimdIns, SimdDotp, SimdShuffle
   } simd_op;                   // SIMD operation
   enum logic {
     HalfWord, Byte
   } simd_size;                 // SIMD granularity
-  enum logic [0:1] {
+  enum logic [1:0] {
     Vect, Sc, Sci
   } simd_mode;                 // SIMD mode
   logic simd_signed;           // SIMD operation is signed and uses sign-extended imm6
