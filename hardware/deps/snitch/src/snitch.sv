@@ -178,7 +178,7 @@ module snitch #(
   } alu_op;
 
   enum logic [3:0] {
-    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate, PBImmediate, RegRd
+    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate, PBImmediate, RegRd, RegRs2
   } opa_select, opb_select, opc_select;
 
   logic write_rd; // write rd desitnation this cycle
@@ -249,7 +249,7 @@ module snitch #(
   // TODO(zarubaf): This can probably be described a bit more efficient
   assign opa_ready = (opa_select != Reg) | ~sb_q[rs1];
   assign opb_ready = ((opb_select != Reg & opb_select != SImmediate) | ~sb_q[rs2]) & ((opb_select != RegRd) | ~sb_q[rd]);
-  assign opc_ready = (opc_select != Reg) | ~sb_q[rd];
+  assign opc_ready = ((opc_select != Reg) | ~sb_q[rd]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
   assign operands_ready = opa_ready & opb_ready & opc_ready;
   // either we are not using the destination register or we need to make
   // sure that its destination operand is not marked busy in the scoreboard.
@@ -1005,14 +1005,19 @@ module snitch #(
           illegal_inst = 1'b1;
         end
       end
+      // opb is usually assigned with the content of rs2; in stores with reg-reg
+      // addressing mode, however, the offset is stored in rd, so rd content is
+      // instead assigned to opb: if we cross such signals now (rd -> opb,
+      // rs2 -> opc) we don't have to do that in the ALU, with bigger muxes
       riscv_instr::P_SB_RRPOST: begin  // Xpulpimg: p.sb rs2,rs3(rs1!)
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
           write_rs1 = 1'b1;
           is_store = 1'b1;
           is_postincr = 1'b1;
-          opa_select = Reg;
-          opb_select = RegRd;
+          opa_select = Reg; // rs1 base address
+          opb_select = RegRd; // rs3 (i.e. rd) offset
+          opc_select = RegRs2; // rs2 source data
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1026,6 +1031,7 @@ module snitch #(
           ls_size = HalfWord;
           opa_select = Reg;
           opb_select = RegRd;
+          opc_select = RegRs2;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1039,6 +1045,7 @@ module snitch #(
           ls_size = Word;
           opa_select = Reg;
           opb_select = RegRd;
+          opc_select = RegRs2;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1049,6 +1056,7 @@ module snitch #(
           is_store = 1'b1;
           opa_select = Reg;
           opb_select = RegRd;
+          opc_select = RegRs2;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1060,6 +1068,7 @@ module snitch #(
           ls_size = HalfWord;
           opa_select = Reg;
           opb_select = RegRd;
+          opc_select = RegRs2;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1071,6 +1080,7 @@ module snitch #(
           ls_size = Word;
           opa_select = Reg;
           opb_select = RegRd;
+          opc_select = RegRs2;
         end else begin
           illegal_inst = 1'b1;
         end
