@@ -49,7 +49,7 @@ void conv2d_3x3_unrolled_i8_rv32im(int8_t const volatile *__restrict__ in, uint3
 
   for (uint32_t i = 1; i < in_x - 1; ++i) {
     for (uint32_t j = 1; j < in_y - 1; j++) {
-      sum = 1;
+      sum = 0;
       sum += in[(j - 1) * in_x + (i - 1)] * k[0];
       sum += in[(j - 1) * in_x + (i + 0)] * k[1];
       sum += in[(j - 1) * in_x + (i + 1)] * k[2];
