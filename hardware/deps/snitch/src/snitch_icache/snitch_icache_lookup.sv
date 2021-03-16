@@ -55,7 +55,7 @@ module snitch_icache_lookup #(
 
     typedef struct packed {
         logic [CFG.FETCH_AW-1:0]     addr;
-        logic [CFG.COUNT_ALIGN-1:0]  set;
+        logic [CFG.COUNT_ALIGN-1:0]  cset;
         logic [CFG.LINE_WIDTH-1:0]   data;
         logic [CFG.ID_WIDTH_REQ-1:0] id;
         logic                        write;
@@ -103,7 +103,7 @@ module snitch_icache_lookup #(
             // Store request to data bank
             req_valid        = 1'b1;
             data_req_d.addr  = write_addr_i;
-            data_req_d.set   = write_set_i;
+            data_req_d.cset  = write_set_i;
             data_req_d.data  = write_data_i;
             data_req_d.id    = data_req_q.id; // Don't care
             data_req_d.write = 1'b1;
@@ -114,7 +114,7 @@ module snitch_icache_lookup #(
             // Store request to data bank
             req_valid        = 1'b1;
             data_req_d.addr  = in_addr_i;
-            data_req_d.set   = data_req_q.set; // Don't care
+            data_req_d.cset  = data_req_q.cset; // Don't care
             data_req_d.data  = data_req_q.data; // Don't care
             data_req_d.id    = in_id_i;
             data_req_d.write = 1'b0;
@@ -184,7 +184,7 @@ module snitch_icache_lookup #(
 
     // Single data bank for all sets
     assign data_addr = {data_req_q.write ? data_req_q.addr : data_req_q.addr >> CFG.LINE_ALIGN};
-    assign data_bank_addr = {data_req_q.write ? data_req_q.set : out_set, data_addr};
+    assign data_bank_addr = {data_req_q.write ? data_req_q.cset : out_set, data_addr};
     tc_sram #(
         .DataWidth ( CFG.LINE_WIDTH                 ),
         .NumWords  ( CFG.LINE_COUNT * CFG.SET_COUNT ),
