@@ -153,11 +153,13 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
         .clk_o     (clk_vld         )
       );
       // Data Array
+      /* verilator lint_off NOLATCH */
       always_latch begin
         if (clk_vld) begin
           data[i] <= out_rsp_data_i;
         end
       end
+      /* verilator lint_on NOLATCH */
     end else begin : gen_ff
       `FFLNR(data[i], out_rsp_data_i, validate_strb[i], clk_i)
     end
