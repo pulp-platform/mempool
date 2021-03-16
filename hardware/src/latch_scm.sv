@@ -116,11 +116,13 @@ module latch_scm #(
   //-- Use active low, i.e. transparent on low latches as storage elements
   //-- Data is sampled on rising clock edge
 
+  /* verilator lint_off NOLATCH */
   always_latch begin : latch_wdata
     for(k=0; k<NUM_WORDS; k++) begin : w_WordIter
       if( ClocksxC[k] == 1'b1)
-        MemContentxDP[k] = WDataIntxD;
+        MemContentxDP[k] <= WDataIntxD;
     end
   end
+  /* verilator lint_on NOLATCH */
 
 endmodule
