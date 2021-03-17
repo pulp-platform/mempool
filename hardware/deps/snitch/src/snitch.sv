@@ -600,7 +600,7 @@ module snitch #(
         write_rd = 1'b0;
       end
       riscv_instr::WFI: begin
-        wfi_d = 1'b1;
+        if (valid_instr) wfi_d = 1'b1;
       end
       // Atomics
       riscv_instr::AMOADD_W: begin
