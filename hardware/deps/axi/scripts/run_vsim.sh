@@ -10,17 +10,28 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 #
-# Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
-# Andreas Kurth  <akurth@iis.ee.ethz.ch>
+# Authors:
+# - Andreas Kurth <akurth@iis.ee.ethz.ch>
+# - Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
+# - Matheus Cavalcante <matheusd@iis.ee.ethz.ch>
 
-set -e
+set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
-[ ! -z "$VSIM" ] || VSIM=vsim
+if test -z ${VSIM+x}; then
+    VSIM=vsim
+fi
+
+# Seed values for `sv_seed`; can be extended with specific values on a per-TB basis, as well as with
+# a random number by passing the `--random` flag.  The default value, 0, is always included to stay
+# regression-consistent.
+SEEDS=(0)
 
 call_vsim() {
-    echo "run -all" | $VSIM "$@" | tee vsim.log 2>&1
-    grep "Errors: 0," vsim.log
+    for seed in ${SEEDS[@]}; do
+        echo "run -all" | $VSIM -sv_seed $seed "$@" | tee vsim.log 2>&1
+        grep "Errors: 0," vsim.log
+    done
 }
 
 exec_test() {
@@ -29,37 +40,58 @@ exec_test() {
         exit 1
     fi
     case "$1" in
-        axi_lite_to_axi)
-            for DW in 8 16 32 64 128 256 512 1024; do
-                call_vsim tb_axi_lite_to_axi -GDW=$DW -t 1ps -c
-            done
-            ;;
-        axi_dw_downsizer)
-            for DW in 8 16 32 64 128 256 512 1024; do
-                for (( MULT = 2; MULT <= `echo 1024/$DW`; MULT *= 2 )); do
-                    call_vsim tb_axi_dw_downsizer -GDW=$DW -GMULT=$MULT -t 1ps -c
-                done
-            done
-            ;;
-        axi_dw_upsizer)
-            for DW in 8 16 32 64 128 256 512 1024; do
-                for (( MULT = `echo 1024/$DW | bc`; MULT > 1; MULT /= 2 )); do
-                    call_vsim tb_axi_dw_upsizer -GDW=$DW -GMULT=$MULT -t 1ps -c
-                done
+        axi_atop_filter)
+            for MAX_TXNS in 1 3 12; do
+                call_vsim tb_axi_atop_filter -gTB_N_TXNS=1000 -gTB_AXI_MAX_WRITE_TXNS=$MAX_TXNS
             done
             ;;
         axi_cdc|axi_delayer)
             call_vsim tb_$1
             ;;
-        axi_atop_filter)
-            for MAX_TXNS in 1 3 12; do
-                call_vsim tb_axi_atop_filter -GN_TXNS=1000 -GAXI_MAX_WRITE_TXNS=$MAX_TXNS
+        axi_dw_downsizer)
+            for AxiSlvPortDataWidth in 8 16 32 64 128 256 512 1024; do
+                for (( AxiMstPortDataWidth = 8; \
+                        AxiMstPortDataWidth < $AxiSlvPortDataWidth; \
+                        AxiMstPortDataWidth *= 2 )); \
+                do
+                    call_vsim tb_axi_dw_downsizer \
+                            -gTbAxiSlvPortDataWidth=$AxiSlvPortDataWidth \
+                            -gTbAxiMstPortDataWidth=$AxiMstPortDataWidth -t 1ps
+                done
+            done
+            ;;
+        axi_dw_upsizer)
+            for AxiSlvPortDataWidth in 8 16 32 64 128 256 512 1024; do
+                for (( AxiMstPortDataWidth = $AxiSlvPortDataWidth*2; \
+                        AxiMstPortDataWidth <= 1024; \
+                        AxiMstPortDataWidth *= 2 )); \
+                do
+                    call_vsim tb_axi_dw_upsizer \
+                            -gTbAxiSlvPortDataWidth=$AxiSlvPortDataWidth \
+                            -gTbAxiMstPortDataWidth=$AxiMstPortDataWidth -t 1ps
+                done
             done
             ;;
         axi_lite_regs)
+            SEEDS+=(10 42)
             for PRIV in 0 1; do
                 for SECU in 0 1; do
-                    call_vsim tb_axi_lite_regs -GPrivProtOnly=$PRIV -GSecuProtOnly=$SECU
+                    for BYTES in 42 200 369; do
+                        call_vsim tb_axi_lite_regs -gTbPrivProtOnly=$PRIV -gTbSecuProtOnly=$SECU \
+                                -gTbRegNumBytes=$BYTES -t 1ps
+                    done
+                done
+            done
+            ;;
+        axi_lite_to_axi)
+            for DW in 8 16 32 64 128 256 512 1024; do
+                call_vsim tb_axi_lite_to_axi -gTB_DW=$DW -t 1ps
+            done
+            ;;
+        axi_sim_mem)
+            for AW in 16 32 64; do
+                for DW in 32 64 128 256 512 1024; do
+                    call_vsim tb_axi_sim_mem -gTbAddrWidth=$AW -gTbDataWidth=$DW -t 1ps
                 done
             done
             ;;
@@ -67,8 +99,24 @@ exec_test() {
             call_vsim tb_$1 -t 1ns -coverage -voptargs="+acc +cover=bcesfx"
             ;;
     esac
-    touch "$1.tested"
 }
+
+# Parse flags.
+PARAMS=""
+while (( "$#" )); do
+    case "$1" in
+        --random-seed)
+            SEEDS+=(random)
+            shift;;
+        -*--*) # unsupported flag
+            echo "Error: Unsupported flag '$1'." >&2
+            exit 1;;
+        *) # preserve positional arguments
+            PARAMS="$PARAMS $1"
+            shift;;
+    esac
+done
+eval set -- "$PARAMS"
 
 if [ "$#" -eq 0 ]; then
     tests=()

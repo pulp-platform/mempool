@@ -7,8 +7,10 @@
 // this License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
-// Testbench for axi_cdc
+//
+// Authors:
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
 
 `include "axi/typedef.svh"
 `include "axi/assign.svh"
@@ -35,9 +37,6 @@ module tb_axi_cdc #(
   parameter int unsigned N_TXNS = 1000
 );
 
-  timeunit 1ns;
-  timeprecision 10ps;
-
   localparam int unsigned N_RD_TXNS = N_TXNS / 2;
   localparam int unsigned N_WR_TXNS = N_TXNS / 2;
 
@@ -49,16 +48,16 @@ module tb_axi_cdc #(
         downstream_rst_n;
 
   clk_rst_gen #(
-    .CLK_PERIOD     (TCLK_UPSTREAM),
-    .RST_CLK_CYCLES (5)
+    .ClkPeriod    (TCLK_UPSTREAM),
+    .RstClkCycles (5)
   ) i_clk_rst_gen_upstream (
     .clk_o  (upstream_clk),
     .rst_no (upstream_rst_n)
   );
 
   clk_rst_gen #(
-    .CLK_PERIOD     (TCLK_DOWNSTREAM),
-    .RST_CLK_CYCLES (5)
+    .ClkPeriod    (TCLK_DOWNSTREAM),
+    .RstClkCycles (5)
   ) i_clk_rst_gen_downstream (
     .clk_o  (downstream_clk),
     .rst_no (downstream_rst_n)
@@ -131,7 +130,7 @@ module tb_axi_cdc #(
     .dst        (downstream)
   );
 
-  typedef axi_test::rand_axi_master #(
+  typedef axi_test::axi_rand_master #(
     .AW                   (AXI_AW),
     .DW                   (AXI_DW),
     .IW                   (AXI_IW),
@@ -155,7 +154,7 @@ module tb_axi_cdc #(
     axi_master.run(N_RD_TXNS, N_WR_TXNS);
   end
 
-  typedef axi_test::rand_axi_slave #(
+  typedef axi_test::axi_rand_slave #(
     .AW                   (AXI_AW),
     .DW                   (AXI_DW),
     .IW                   (AXI_IW),

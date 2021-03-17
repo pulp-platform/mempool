@@ -9,8 +9,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 //
-// Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
-// Andreas Kurth  <akurth@iis.ee.ethz.ch>
+// Authors:
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
+// - Florian Zaruba <zarubaf@iis.ee.ethz.ch>
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
+// - Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
+// - Matheus Cavalcante <matheusd@iis.ee.ethz.ch>
 
 //! AXI Package
 /// Contains all necessary type definitions, constants, and generally useful functions.
@@ -245,6 +249,45 @@ package axi_pkg;
       WBACK_WALLOCATE                   : return 4'b1111;
       WBACK_RWALLOCATE                  : return 4'b1111;
     endcase // mtype
+  endfunction
+
+  /// RESP precedence: DECERR > SLVERR > OKAY > EXOKAY.  This is not defined in the AXI standard but
+  /// depends on the implementation.  We consistently use the precedence above.  Rationale:
+  /// - EXOKAY means an exclusive access was successful, whereas OKAY means it was not.  Thus, if
+  ///   OKAY and EXOKAY are to be merged, OKAY precedes because the exclusive access was not fully
+  ///   successful.
+  /// - Both DECERR and SLVERR mean (part of) a transaction were unsuccessful, whereas OKAY means an
+  ///   entire transaction was successful.  Thus both DECERR and SLVERR precede OKAY.
+  /// - DECERR means (part of) a transactions could not be routed to a slave component, whereas
+  ///   SLVERR means the transaction reached a slave component but lead to an error condition there.
+  ///   Thus DECERR precedes SLVERR because DECERR happens earlier in the handling of a transaction.
+  function automatic resp_t resp_precedence(resp_t resp_a, resp_t resp_b);
+    unique case (resp_a)
+      RESP_OKAY: begin
+        // Any response except EXOKAY precedes OKAY.
+        if (resp_b == RESP_EXOKAY) begin
+          return resp_a;
+        end else begin
+          return resp_b;
+        end
+      end
+      RESP_EXOKAY: begin
+        // Any response precedes EXOKAY.
+        return resp_b;
+      end
+      RESP_SLVERR: begin
+        // Only DECERR precedes SLVERR.
+        if (resp_b == RESP_DECERR) begin
+          return resp_b;
+        end else begin
+          return resp_a;
+        end
+      end
+      RESP_DECERR: begin
+        // No response precedes DECERR.
+        return resp_a;
+      end
+    endcase
   endfunction
 
   // ATOP[5:0]

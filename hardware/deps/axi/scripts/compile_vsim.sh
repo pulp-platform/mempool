@@ -10,8 +10,9 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 #
-# Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
-# Andreas Kurth  <akurth@iis.ee.ethz.ch>
+# Authors:
+# - Andreas Kurth <akurth@iis.ee.ethz.ch>
+# - Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
 
 set -e
 
@@ -23,4 +24,24 @@ bender script vsim -t test \
     --vlog-arg="-suppress 2583" \
     > compile.tcl
 echo 'return 0' >> compile.tcl
+
+# Add `-lint -pendanticerrors` flags only for the files in this repository.
+# Patching the compile script in this way is quite ugly, maybe there should be a Bender command to
+# add arguments just for certain targets.
+for x in axi_pkg; do
+  # Adapted from https://unix.stackexchange.com/a/200610.
+  POSIXLY_CORRECT=1 awk -v N=6 "
+    BEGIN{N--}
+    NR > N {
+      if (/.*src\/$x\.sv/)
+        print \"    -lint -pedanticerrors \\\\\"
+      print l[NR % N]
+    }
+    {l[NR % N] = \$0}
+    END{
+      for (i = NR > N ? NR - N + 1 : 1; i <= NR; i++) print l[i % N]
+    }" < compile.tcl > compile.patched.tcl
+  mv compile{.patched,}.tcl
+done
+
 $VSIM -c -do 'exit -code [source compile.tcl]'

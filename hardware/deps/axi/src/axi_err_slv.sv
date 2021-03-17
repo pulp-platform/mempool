@@ -7,8 +7,11 @@
 // this License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
-// Author: Wolfgang Roenninger <wroennin@ethz.ch>
+//
+// Authors:
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
+// - Matheus Cavalcante <matheusd@iis.ee.ethz.ch>
 
 // AXI Error Slave: This module always responds with an AXI error for transactions that are sent to
 // it.  This module optionally supports ATOPs if the `ATOPs` parameter is set.
@@ -241,6 +244,7 @@ module axi_err_slv #(
 
   // pragma translate_off
   `ifndef VERILATOR
+  `ifndef XSIM
   initial begin
     assert (Resp == axi_pkg::RESP_DECERR || Resp == axi_pkg::RESP_SLVERR) else
       $fatal(1, "This module may only generate RESP_DECERR or RESP_SLVERR responses!");
@@ -250,6 +254,7 @@ module axi_err_slv #(
     assume property( @(posedge clk_i) (slv_req_i.aw_valid |-> slv_req_i.aw.atop == '0)) else
      $fatal(1, "Got ATOP but not configured to support ATOPs!");
   end
+  `endif
   `endif
   // pragma translate_on
 

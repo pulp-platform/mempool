@@ -8,8 +8,8 @@ package:
     - "Wolfgang Roenninger <wroennin@ethz.ch>"
 
 dependencies:
-  common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 1.16.4 }
-  common_verification: { git: "https://github.com/pulp-platform/common_verification.git", version: 0.1.1 }
+  common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 1.21.0 }
+  common_verification: { git: "https://github.com/pulp-platform/common_verification.git", version: 0.2.0 }
 
 export_include_dirs:
   - include
@@ -56,28 +56,33 @@ sources:
 
   - target: synth_test
     files:
-      - test/synth_bench.sv
+      - test/axi_synth_bench.sv
 
   - target: simulation
     files:
+      - src/axi_sim_mem.sv
       - src/axi_test.sv
 
   - target: test
     files:
-      - test/tb_axi_atop_filter.sv
+      # Level 0
+      - test/tb_axi_dw_pkg.sv
+      - test/tb_axi_xbar_pkg.sv
+      # Level 1
       - test/tb_axi_addr_test.sv
+      - test/tb_axi_atop_filter.sv
       - test/tb_axi_cdc.sv
       - test/tb_axi_delayer.sv
       - test/tb_axi_dw_downsizer.sv
       - test/tb_axi_dw_upsizer.sv
       - test/tb_axi_isolate.sv
+      - test/tb_axi_lite_mailbox.sv
       - test/tb_axi_lite_regs.sv
       - test/tb_axi_lite_to_apb.sv
       - test/tb_axi_lite_to_axi.sv
-      - test/tb_axi_lite_mailbox.sv
       - test/tb_axi_lite_xbar.sv
       - test/tb_axi_modify_address.sv
       - test/tb_axi_serializer.sv
+      - test/tb_axi_sim_mem.sv
       - test/tb_axi_to_axi_lite.sv
-      - test/tb_axi_xbar_pkg.sv
       - test/tb_axi_xbar.sv

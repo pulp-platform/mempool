@@ -9,21 +9,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 //
-// Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
-//
-// This file defines the interfaces we support.
+// Authors:
+// - Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
 
 
 
 /// An AXI4 interface.
 interface AXI_BUS #(
-  parameter AXI_ADDR_WIDTH = -1,
-  parameter AXI_DATA_WIDTH = -1,
-  parameter AXI_ID_WIDTH   = -1,
-  parameter AXI_USER_WIDTH = -1
+  parameter int unsigned AXI_ADDR_WIDTH = 0,
+  parameter int unsigned AXI_DATA_WIDTH = 0,
+  parameter int unsigned AXI_ID_WIDTH   = 0,
+  parameter int unsigned AXI_USER_WIDTH = 0
 );
 
-  localparam AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
+  localparam int unsigned AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
 
   typedef logic [AXI_ID_WIDTH-1:0]   id_t;
   typedef logic [AXI_ADDR_WIDTH-1:0] addr_t;
@@ -102,15 +103,15 @@ endinterface
 
 /// A clocked AXI4 interface for use in design verification.
 interface AXI_BUS_DV #(
-  parameter AXI_ADDR_WIDTH = -1,
-  parameter AXI_DATA_WIDTH = -1,
-  parameter AXI_ID_WIDTH   = -1,
-  parameter AXI_USER_WIDTH = -1
+  parameter int unsigned AXI_ADDR_WIDTH = 0,
+  parameter int unsigned AXI_DATA_WIDTH = 0,
+  parameter int unsigned AXI_ID_WIDTH   = 0,
+  parameter int unsigned AXI_USER_WIDTH = 0
 )(
   input logic clk_i
 );
 
-  localparam AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
+  localparam int unsigned AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
 
   typedef logic [AXI_ID_WIDTH-1:0]   id_t;
   typedef logic [AXI_ADDR_WIDTH-1:0] addr_t;
@@ -248,14 +249,14 @@ endinterface
 /// An asynchronous AXI4 interface.
 interface AXI_BUS_ASYNC
 #(
-  parameter AXI_ADDR_WIDTH = -1,
-  parameter AXI_DATA_WIDTH = -1,
-  parameter AXI_ID_WIDTH   = -1,
-  parameter AXI_USER_WIDTH = -1,
-  parameter BUFFER_WIDTH   = -1
+  parameter int unsigned AXI_ADDR_WIDTH = 0,
+  parameter int unsigned AXI_DATA_WIDTH = 0,
+  parameter int unsigned AXI_ID_WIDTH   = 0,
+  parameter int unsigned AXI_USER_WIDTH = 0,
+  parameter int unsigned BUFFER_WIDTH   = 0
 );
 
-  localparam AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
+  localparam int unsigned AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
 
   typedef logic [AXI_ID_WIDTH-1:0]   id_t;
   typedef logic [AXI_ADDR_WIDTH-1:0] addr_t;
@@ -335,11 +336,11 @@ endinterface
 
 /// An AXI4-Lite interface.
 interface AXI_LITE #(
-  parameter AXI_ADDR_WIDTH = -1,
-  parameter AXI_DATA_WIDTH = -1
+  parameter int unsigned AXI_ADDR_WIDTH = 0,
+  parameter int unsigned AXI_DATA_WIDTH = 0
 );
 
-  localparam AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
+  localparam int unsigned AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
 
   typedef logic [AXI_ADDR_WIDTH-1:0] addr_t;
   typedef logic [AXI_DATA_WIDTH-1:0] data_t;
@@ -390,8 +391,8 @@ endinterface
 
 /// A clocked AXI4-Lite interface for use in design verification.
 interface AXI_LITE_DV #(
-  parameter AXI_ADDR_WIDTH = -1,
-  parameter AXI_DATA_WIDTH = -1
+  parameter int unsigned AXI_ADDR_WIDTH = 0,
+  parameter int unsigned AXI_DATA_WIDTH = 0
 )(
   input logic clk_i
 );

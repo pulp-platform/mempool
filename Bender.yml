@@ -2,7 +2,7 @@ package:
   name: mempool
 
 dependencies:
-  axi:                  { git: "https://github.com/pulp-platform/axi.git",                      version: 0.23.2  }
+  axi:                  { git: "https://github.com/pulp-platform/axi.git",                      version: 0.27.1  }
   axi_rab:              { git: "https://github.com/pulp-platform/axi_rab.git",                  rev:     urania  }
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",             version: 1.19.0  }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",       version: 0.2.1   }
