@@ -81,9 +81,9 @@ int main() {
 
     mempool_start_benchmark();
 #ifdef __XPULPIMG
-  conv2d_3x3_unrolled_i8_xpulpv2(in, out, M, N, kernel);
+  conv2d_3x3_unrolled2_i8_xpulpv2(in, out, M, N, kernel);
 #else
-  conv2d_3x3_unrolled_i8_rv32im(in, N, M, kernel, out);
+  conv2d_3x3_unrolled2_i8_rv32im(in, N, M, kernel, out);
 #endif
     mempool_stop_benchmark();
 
