@@ -191,6 +191,10 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
     if (evict_req) begin
       evict_strb = 1 << cnt_q;
       cnt_d = cnt_q + 1;
+      if (evict_strb == hit_early) begin
+        evict_strb = 1 << cnt_d;
+        cnt_d = cnt_q + 2;
+      end
     end
   end
 

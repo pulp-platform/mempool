@@ -3,6 +3,7 @@
 // Description: Top-Level of Snitch Integer Core RV32E
 
 `include "common_cells/registers.svh"
+`include "common_cells/assertions.svh"
 
 // `SNITCH_ENABLE_PERF Enables mcycle, minstret performance counters (read only)
 
@@ -1204,4 +1205,14 @@ module snitch #(
     assign rvfi_mem_rdata[0] = (retire_load_port1) ? data_pdata_i[31:0] : '0;
     assign rvfi_mem_wdata[0] = (retire_load_port1) ? '0 : data_qdata_o[31:0];
   `endif
+
+  // ----------
+  // Assertions
+  // ----------
+  // Make sure the instruction interface is stable. Otherwise, Snitch might violate the protocol at
+  // the LSU or accelerator interface by withdrawing the valid signal.
+  `ASSERT(InstructionInterfaceStable,
+      (inst_valid_o && inst_ready_i) ##1 (inst_valid_o && $stable(inst_addr_o))
+      |-> inst_ready_i && $stable(inst_data_i), clk_i, rst_i)
+
 endmodule
