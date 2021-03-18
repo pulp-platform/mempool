@@ -8,9 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Unreleased
 
 ### Added
+- Assertion checking that Snitch's instruction interface is stable during stalls
 
 ### Changed
 - Update `axi` dependency to 0.27.1
+- Change I$ policy to avoid evicting the cache-line currently in use
 
 ### Fixed
 - Add a workaround for a Modelsim 2019 bug in the `axi_demux`
