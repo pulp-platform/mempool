@@ -8,9 +8,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 //
-// Fabian Schuiki     <fschuiki@iis.ee.ethz.ch>
-// Andreas Kurth      <akurth@iis.ee.ethz.ch>
-// Wolfgang Ronninger <wroennin@iis.ee.ethz.ch>
+// Authors:
+// - Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
+// - Florian Zaruba <zarubaf@iis.ee.ethz.ch>
 
 `include "axi/assign.svh"
 
@@ -77,7 +79,7 @@ module tb_axi_to_axi_lite;
     .mst        ( axi_lite )
   );
 
-  typedef axi_test::rand_axi_master #(
+  typedef axi_test::axi_rand_master #(
     // AXI interface parameters
     .AW ( AW ),
     .DW ( DW ),
@@ -90,11 +92,11 @@ module tb_axi_to_axi_lite;
     .MAX_READ_TXNS  ( MAX_READ_TXNS  ),
     .MAX_WRITE_TXNS ( MAX_WRITE_TXNS ),
     .AXI_ATOPS      ( AXI_ATOPS      )
-  ) rand_axi_master_t;
-  typedef axi_test::rand_axi_lite_slave #(.AW(AW), .DW(DW), .TA(TA), .TT(TT)) rand_axi_lite_slv_t;
+  ) axi_rand_master_t;
+  typedef axi_test::axi_lite_rand_slave #(.AW(AW), .DW(DW), .TA(TA), .TT(TT)) axi_lite_rand_slv_t;
 
-  rand_axi_lite_slv_t axi_lite_drv = new(axi_lite_dv, "rand_axi_lite_slave");
-  rand_axi_master_t   axi_drv      = new(axi_dv);
+  axi_lite_rand_slv_t axi_lite_drv = new(axi_lite_dv, "axi_lite_rand_slave");
+  axi_rand_master_t   axi_drv      = new(axi_dv);
 
   initial begin
     #tCK;

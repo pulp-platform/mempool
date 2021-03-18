@@ -7,8 +7,10 @@
 // this License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
-// Author: Wolfgang Roenninger <wroennin@ethz.ch>
+//
+// Authors:
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
 
 `include "common_cells/registers.svh"
 
@@ -48,6 +50,18 @@ module axi_lite_demux #(
   input  resp_t [NoMstPorts-1:0] mst_resps_i
 );
 
+  //--------------------------------------
+  // Typedefs for the spill registers
+  //--------------------------------------
+  typedef struct packed {
+    aw_chan_t aw;
+    select_t  select;
+  } aw_chan_select_t;
+  typedef struct packed {
+    ar_chan_t ar;
+    select_t  select;
+  } ar_chan_select_t;
+
   if (NoMstPorts == 32'd1) begin : gen_no_demux
     // degenerate case, connect slave to master port
     // AW channel
@@ -56,17 +70,6 @@ module axi_lite_demux #(
   end else begin : gen_demux
     // normal non degenerate case
 
-    //--------------------------------------
-    // Typedefs for the spill registers
-    //--------------------------------------
-    typedef struct packed {
-      aw_chan_t aw;
-      select_t  select;
-    } aw_chan_select_t;
-    typedef struct packed {
-      ar_chan_t ar;
-      select_t  select;
-    } ar_chan_select_t;
 
     //--------------------------------------
     //--------------------------------------

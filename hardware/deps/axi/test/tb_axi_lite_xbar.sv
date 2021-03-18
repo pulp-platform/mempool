@@ -7,8 +7,11 @@
 // this License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
-// Author: Wolfgang Roenninger <wroennin@ethz.ch>
+//
+// Authors:
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
+// - Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
 
 // Directed Random Verification Testbench for `axi_lite_xbar`:  The crossbar is instantiated with
 // a number of random axi master and slave modules. Each random master executes a fixed number of
@@ -72,7 +75,7 @@ module tb_axi_lite_xbar;
     '{idx: 32'd0, start_addr: 32'h0000_0000, end_addr: 32'h0000_3000}
   };
 
-  typedef axi_test::rand_axi_lite_master #(
+  typedef axi_test::axi_lite_rand_master #(
     // AXI interface parameters
     .AW ( AxiAddrWidth       ),
     .DW ( AxiDataWidth       ),
@@ -84,7 +87,7 @@ module tb_axi_lite_xbar;
     .MAX_READ_TXNS  ( 10 ),
     .MAX_WRITE_TXNS ( 10 )
   ) rand_lite_master_t;
-  typedef axi_test::rand_axi_lite_slave #(
+  typedef axi_test::axi_lite_rand_slave #(
     // AXI interface parameters
     .AW ( AxiAddrWidth       ),
     .DW ( AxiDataWidth       ),
@@ -178,8 +181,8 @@ module tb_axi_lite_xbar;
   // Clock generator
   //-----------------------------------
   clk_rst_gen #(
-    .CLK_PERIOD    ( CyclTime ),
-    .RST_CLK_CYCLES( 5        )
+    .ClkPeriod    ( CyclTime ),
+    .RstClkCycles ( 5        )
   ) i_clk_gen (
     .clk_o (clk),
     .rst_no(rst_n)

@@ -8,7 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 //
-// Author: Andreas Kurth <akurth@iis.ee.ethz.ch>
+// Authors:
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
 
 `include "axi/assign.svh"
 `include "axi/typedef.svh"
@@ -32,9 +33,6 @@ module tb_axi_modify_address #(
   parameter int unsigned N_TXNS = 1000
 );
 
-  timeunit 1ns;
-  timeprecision 10ps;
-
   localparam int unsigned N_RD_TXNS = N_TXNS / 2;
   localparam int unsigned N_WR_TXNS = N_TXNS / 2;
 
@@ -42,8 +40,8 @@ module tb_axi_modify_address #(
   logic clk,
         rst_n;
   clk_rst_gen #(
-    .CLK_PERIOD     (TCLK),
-    .RST_CLK_CYCLES (5)
+    .ClkPeriod     (TCLK),
+    .RstClkCycles  (5)
   ) i_clk_rst_gen (
     .clk_o  (clk),
     .rst_no (rst_n)
@@ -111,7 +109,7 @@ module tb_axi_modify_address #(
   );
 
   // Test harness master
-  typedef axi_test::rand_axi_master #(
+  typedef axi_test::axi_rand_master #(
     .AW                   (AXI_SLV_PORT_ADDR_WIDTH),
     .DW                   (AXI_DATA_WIDTH),
     .IW                   (AXI_ID_WIDTH),
@@ -137,7 +135,7 @@ module tb_axi_modify_address #(
   end
 
   // Test harness slave
-  typedef axi_test::rand_axi_slave #(
+  typedef axi_test::axi_rand_slave #(
     .AW                   (AXI_MST_PORT_ADDR_WIDTH),
     .DW                   (AXI_DATA_WIDTH),
     .IW                   (AXI_ID_WIDTH),

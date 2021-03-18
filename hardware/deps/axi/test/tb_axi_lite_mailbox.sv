@@ -7,8 +7,9 @@
 // this License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
-// Author: Wolfgang Roenninger <wroennin@ethz.ch>
+//
+// Authors:
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
 
 // Directed Verification Testbench for `axi_lite_mailbox`.
 // - On port 0 all registers get read and the expected results asserted.
@@ -60,7 +61,7 @@ module tb_axi_lite_mailbox;
     CTRL   = addr_t'(9 * AxiDataWidth/8)
   } reg_addr_e;
 
-  typedef axi_test::rand_axi_lite_master #(
+  typedef axi_test::axi_lite_rand_master #(
     // AXI interface parameters
     .AW ( AxiAddrWidth        ),
     .DW ( AxiDataWidth        ),
@@ -436,8 +437,8 @@ module tb_axi_lite_mailbox;
   // Clock generator
   //-----------------------------------
   clk_rst_gen #(
-    .CLK_PERIOD    ( CyclTime ),
-    .RST_CLK_CYCLES( 5        )
+    .ClkPeriod    ( CyclTime ),
+    .RstClkCycles ( 5        )
   ) i_clk_gen (
     .clk_o (clk),
     .rst_no(rst_n)

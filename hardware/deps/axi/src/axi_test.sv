@@ -9,10 +9,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 //
-// Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
-// Andreas Kurth  <akurth@iis.ee.ethz.ch>
-//
-// This file defines the interfaces we support.
+// Authors:
+// - Wolfgang Roenninger <wroennin@iis.ee.ethz.ch>
+// - Andreas Kurth <akurth@iis.ee.ethz.ch>
+// - Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
+// - Florian Zaruba <zarubaf@iis.ee.ethz.ch>
+// - Matheus Cavalcante <matheusd@iis.ee.ethz.ch>
 
 
 /// A set of testbench utilities for AXI interfaces.
@@ -236,7 +238,7 @@ package axi_test;
     logic               ax_lock   = '0;
     logic [3:0]         ax_cache  = '0;
     logic [2:0]         ax_prot   = '0;
-    logic [3:0]         ax_qos    = '0;
+    rand logic [3:0]    ax_qos    = '0;
     logic [3:0]         ax_region = '0;
     logic [5:0]         ax_atop   = '0; // Only defined on the AW channel.
     rand logic [UW-1:0] ax_user   = '0;
@@ -591,7 +593,7 @@ package axi_test;
 
   endclass
 
-  class rand_axi_master #(
+  class axi_rand_master #(
     // AXI interface parameters
     parameter int   AW = 32,
     parameter int   DW = 32,
@@ -732,6 +734,7 @@ package axi_test;
       automatic burst_t burst;
       automatic cache_t cache;
       automatic id_t id;
+      automatic qos_t qos;
       automatic len_t len;
       automatic size_t size;
       automatic int unsigned mem_region_idx;
@@ -835,13 +838,16 @@ package axi_test;
 
       ax_beat.ax_addr = addr;
       rand_success = std::randomize(id); assert(rand_success);
+      rand_success = std::randomize(qos); assert(rand_success);
       ax_beat.ax_id = id;
+      ax_beat.ax_qos = qos;
       return ax_beat;
     endfunction
 
     task rand_atop_burst(inout ax_beat_t beat);
       automatic logic rand_success;
       automatic id_t id;
+      automatic qos_t qos;
       beat.ax_atop[5:4] = $random();
       if (beat.ax_atop[5:4] != 2'b00) begin // ATOP
         // Determine `ax_atop`.
@@ -865,7 +871,7 @@ package axi_test;
             // Total data transferred in burst can be 2, 4, 8, 16, or 32 B.
             automatic int unsigned log_bytes;
             rand_success = std::randomize(log_bytes) with {
-              log_bytes > 0; 2**log_bytes >= AXI_STRB_WIDTH; 2**log_bytes <= 32;
+              log_bytes > 0; 2**log_bytes <= 32;
             }; assert(rand_success);
             bytes = 2**log_bytes;
           end else begin
@@ -934,6 +940,8 @@ package axi_test;
         end
       end
       beat.ax_id = id;
+      rand_success = std::randomize(qos); assert(rand_success);
+      beat.ax_qos = qos;
       w_flight_cnt[id]++;
       cnt_sem.put();
     endtask
@@ -1104,7 +1112,7 @@ package axi_test;
           automatic w_beat_t w_beat = new;
           automatic int unsigned begin_byte, end_byte, n_bytes;
           automatic logic [AXI_STRB_WIDTH-1:0] rand_strb, strb_mask;
-          rand_success = std::randomize(w_beat); assert (rand_success);
+          rand_success = w_beat.randomize(); assert (rand_success);
           // Determine strobe.
           w_beat.w_strb = '0;
           n_bytes = 2**aw_beat.ax_size;
@@ -1162,7 +1170,7 @@ package axi_test;
 
   endclass
 
-  class rand_axi_slave #(
+  class axi_rand_slave #(
     // AXI interface parameters
     parameter int   AW = 32,
     parameter int   DW = 32,
@@ -1171,6 +1179,7 @@ package axi_test;
     // Stimuli application and test time
     parameter time  TA = 0ps,
     parameter time  TT = 0ps,
+    parameter bit   RAND_RESP = 0,
     // Upper and lower bounds on wait cycles on Ax, W, and resp (R and B) channels
     parameter int   AX_MIN_WAIT_CYCLES = 0,
     parameter int   AX_MAX_WAIT_CYCLES = 100,
@@ -1242,8 +1251,10 @@ package axi_test;
         automatic r_beat_t r_beat = new;
         wait (!ar_queue.empty());
         ar_beat = ar_queue.peek();
-        rand_success = std::randomize(r_beat); assert(rand_success);
+        rand_success = r_beat.randomize(); assert(rand_success);
         r_beat.r_id = ar_beat.ax_id;
+        if (RAND_RESP && !ar_beat.ax_atop[axi_pkg::ATOP_R_RESP])
+          r_beat.r_resp[1] = $random();
         if (ar_beat.ax_lock)
           r_beat.r_resp[0]= $random();
         rand_wait(R_MIN_WAIT_CYCLES, R_MAX_WAIT_CYCLES);
@@ -1292,8 +1303,10 @@ package axi_test;
         automatic logic rand_success;
         wait (b_wait_cnt > 0 && (aw_queue.size() != 0));
         aw_beat = aw_queue.pop_front();
-        rand_success = std::randomize(b_beat); assert(rand_success);
+        rand_success = b_beat.randomize(); assert(rand_success);
         b_beat.b_id = aw_beat.ax_id;
+        if (RAND_RESP && !aw_beat.ax_atop[axi_pkg::ATOP_R_RESP])
+          b_beat.b_resp[1] = $random();
         if (aw_beat.ax_lock) begin
           b_beat.b_resp[0]= $random();
         end
@@ -1316,13 +1329,13 @@ package axi_test;
   endclass
 
   // AXI4-Lite random master and slave
-  class rand_axi_lite_master #(
+  class axi_lite_rand_master #(
     // AXI interface parameters
-    parameter int   AW,
-    parameter int   DW,
+    parameter int unsigned AW = 0,
+    parameter int unsigned DW = 0,
     // Stimuli application and test time
-    parameter time  TA,
-    parameter time  TT,
+    parameter time  TA = 2ns,
+    parameter time  TT = 8ns,
     parameter int unsigned MIN_ADDR = 32'h0000_0000,
     parameter int unsigned MAX_ADDR = 32'h1000_0000,
     // Maximum number of open transactions
@@ -1360,6 +1373,8 @@ package axi_test;
     );
       this.drv  = new(axi);
       this.name = name;
+      assert(AW != 0) else $fatal(1, "Address width must be non-zero!");
+      assert(DW != 0) else $fatal(1, "Data width must be non-zero!");
     endfunction
 
     function void reset();
@@ -1483,13 +1498,13 @@ package axi_test;
     endtask : read
   endclass
 
-  class rand_axi_lite_slave #(
+  class axi_lite_rand_slave #(
     // AXI interface parameters
-    parameter int   AW,
-    parameter int   DW,
+    parameter int unsigned AW = 0,
+    parameter int unsigned DW = 0,
     // Stimuli application and test time
-    parameter time  TA,
-    parameter time  TT,
+    parameter time  TA = 2ns,
+    parameter time  TT = 8ns,
     // Upper and lower bounds on wait cycles on Ax, W, and resp (R and B) channels
     parameter int   AX_MIN_WAIT_CYCLES = 0,
     parameter int   AX_MAX_WAIT_CYCLES = 100,
@@ -1521,6 +1536,8 @@ package axi_test;
     );
       this.drv = new(axi);
       this.name = name;
+      assert(AW != 0) else $fatal(1, "Address width must be non-zero!");
+      assert(DW != 0) else $fatal(1, "Data width must be non-zero!");
     endfunction
 
     function void reset();

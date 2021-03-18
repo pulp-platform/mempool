@@ -5,13 +5,117 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 
-## Unreleased
-
-### Added
-
-### Changed
+## 0.27.1 - 2021-02-01
 
 ### Fixed
+- `axi_dw_downsizer` and `axi_dw_upsizer` (part of `axi_dw_converter`): Fix declaration order of
+  `w_req_t`, `w_req_d`, and `w_req_q` to remove problematic forward references.
+- FuseSoC: Fix version of `common_cells` (`1.21.0`).
+
+
+## 0.27.0 - 2021-02-01
+
+### Added
+- `assign.svh`: Add macros for assigning between AXI-Lite `struct`s, both inside a process
+  (`AXI_LITE_SET_*_STRUCT`) and outside a process (`AXI_LITE_ASSIGN_*_STRUCT`).  This is safer than
+  assigning `struct`s with a simple `=`, because the macros assign individual fields.
+- `typedef.svh`: Add `AXI_TYPEDEF_ALL` and `AXI_LITE_TYPEDEF_ALL` macros for defining all channels
+  and request/response `struct`s of an AXI4+ATOPs and an AXI4-Lite interface, respectively, in a
+  single macro call.
+- `axi_test::axi_rand_slave`: Add parameter `RAND_RESP`, which enables randomization of the `resp`
+  field in B and R beats.
+
+### Changed
+- `axi_test::axi_rand_master`: Randomize the QoS field.
+- Update `common_verification` dependency to `0.2.0`, which has been released for more than a year.
+- Update `common_cells` dependency to `1.21.0` to align on version `0.2.0` of the
+  `common_verification` dependency.  This includes version `1.20.1` of `common_cells`, which fixes
+  an out-of-bounds index in `axi_burst_splitter` (#150).
+
+
+## 0.26.0 - 2021-01-19
+
+### Added
+- Add infinite, simulation-only memory `axi_sim_mem`.
+- `assign.svh`: Add macros for assigning between `struct`s, both inside a process
+  (`AXI_SET_*_STRUCT`) and outside a process (`AXI_ASSIGN_*_STRUCT`).  This is safer than assigning
+  `struct`s with a simple `=`, because the macros assign individual fields.  (Fields that mismatch
+  between two `struct`s, e.g., due to different `user` signal widths, should, and in some cases
+  must, be still assigned separately.)
+
+### Changed
+- Rename the following classes in `axi_test` to follow the convention that all user-facing objects
+  in this repository start with `axi_`:
+  - `rand_axi_lite_master` to `axi_lite_rand_master`,
+  - `rand_axi_lite_slave` to `axi_lite_rand_slave`,
+  - `rand_axi_master` to `axi_rand_master`, and
+  - `rand_axi_slave` to `axi_rand_slave`.
+
+
+## 0.25.0 - 2021-01-14
+
+### Added
+- `axi_xbar`: Add parameter to disable support for atomic operations (`ATOPs`).
+
+### Changed
+- `AXI_BUS`, `AXI_BUS_ASYNC`, `AXI_BUS_DV`, `AXI_LITE`, and `AXI_LITE_DV`: Change type of every
+  parameter from `int` to `int unsigned`.  An unsigned type is more appropriate, because none of
+  those parameters can actually take a negative value, and it improves compatibility with some
+  tools.
+- `axi_test::rand_axi_lite_slave` and `axi_test::rand_axi_lite_master`: Change type of address and
+  data width parameters (`AW` and `DW`) from `int` to `int unsigned`.  Same rationale as for
+  `AXI_BUS` (et al.) above.
+
+### Fixed
+- `axi_demux`: Break combinatorial simulation loop.
+- `axi_xbar`: Improve compatibility with vsim version 10.6c (and earlier) by introducing a
+  workaround for a tool limitation (#133).
+- `tb_axi_lite_regs`: Removed superfluous hardcoded assertion.
+- Improve compatibility with Vivado XSim by disabling formal properties in `axi_demux`,
+  `axi_err_slv`, and `axi_xbar` if `XSIM` is defined.
+
+
+## 0.24.2 - 2021-01-11
+
+### Changed
+- `axi_test::rand_axi_lite_master` and `axi_test::rand_axi_lite_slave`: Specify default values for
+  parameters to improve compatibility with tools that require a default value for every parameter.
+
+### Fixed
+- `axi_lite_demux`: Move `typedef` out of `generate` block to improve compatibility with VCS.
+- `axi_test::rand_axi_master` and `axi_test::rand_axi_slave`: Fix call to `randomize` function for
+  class variables.  Prior to this fix, the `std::randomize()` function was used for three class
+  variables, but class variables must use the `.randomize()` member function.
+
+
+## 0.24.1 - 2020-11-04
+
+### Changed
+- Update `common_cells` dependency to `1.20.0` to fix file order in IPApproX.
+
+### Fixed
+- `doc/axi_lite_mailbox`: Fix position of `RFIFOL` and `WFIFOL` in `STATUS` register.
+- IPApproX:
+  - Add missing link against `common_cells_lib`.
+  - Fix include path for `common_cells`.
+  - Fix version specification of `common_verification`.
+
+
+## 0.24.0 - 2020-10-27
+
+### Added
+- `axi_pkg`: Add function that defines response precedence.
+
+### Changed
+- `axi_dw_downsizer` and `axi_dw_upsizer`: Pipeline injection of atomic AWs into the AR channel to
+  shorten the critical path.
+
+### Fixed
+- `axi_dw_downsizer` and `axi_dw_upsizer`: Improve portability of bit slice assignment constructs.
+- `axi_dw_downsizer`:
+  - Forward worst response among split transactions.
+  - Fix overflow of B forward FIFO.
+- `axi_test`: Remove minimal length constraint from `rand_atop_burst`.
 
 
 ## 0.23.2 - 2020-09-14
@@ -449,6 +553,7 @@ The individual changes for each module follow.
 - axi_to_axi_lite: Fix underflow in internal buffers.
 - axi_to_axi_lite: Remove restriction on size of internal buffers.
 
+
 ## 0.7.1 - 2019-11-19
 
 ### Changed
@@ -458,12 +563,14 @@ The individual changes for each module follow.
 - src_files: Removed `axi_test.sv` from synthesized files.
 - tb_axi_lite_xbar: Fixed AW->W dependency.
 
+
 ## 0.7.0 - 2019-05-28
 
 ### Changed
 - The `in` and `out` modports have been removed from the interface definition of both AXI and AXI
   Lite.  These modports were "aliases" of `Slave` and `Master`, respectively, and caused problems
   because many tools did not recognize the aliases as being identical to `Slave` and `Master`.
+
 
 ## 0.6.0 - 2019-02-27
 
@@ -481,6 +588,7 @@ The individual changes for each module follow.
   (#8). Those macros can now be used without a semicolon. Existing code that uses the macros with a
   semicolon do not break.
 
+
 ## 0.5.0 - 2018-12-18
 - Add axi channel delayer
 
@@ -493,17 +601,21 @@ The individual changes for each module follow.
 - Update `src_files.yml` to match `Bender.yml`.
 - Add missing `axi_test` to compile script.
 
+
 ## 0.4.5 - 2018-09-12
 ### Fixed
 - Fix `common_cells` dependency to open-source repo
+
 
 ## 0.4.4 - 2018-09-06
 ### Changed
 - Make `axi_cut` and `axi_multicut` verilator compatible
 
+
 ## 0.4.3 - 2018-08-01
 ### Changed
 - Add license file and adjust copyright headers.
+
 
 ## 0.4.2 - 2018-06-02
 ### Fixed
@@ -511,9 +623,11 @@ The individual changes for each module follow.
 - Remove `axi_find_first_one` from src_files.yml
 - Fix release ID issue in ID `axi_id_remap`
 
+
 ## 0.4.1 - 2018-03-23
 ### Fixed
 - Remove time unit from test package. Fixes an issue in the AXI driver.
+
 
 ## 0.4.0 - 2018-03-20
 ### Added
@@ -524,17 +638,21 @@ The individual changes for each module follow.
 - Fixed ID width in AXI ID remapper.
 - AXI join now asserts if width of outgoing ID is larger or equal to width of incoming ID.
 
+
 ## 0.3.0 - 2018-03-09
 ### Added
 - AXI and AXI-Lite multicuts
+
 
 ## 0.2.1 - 2018-03-09
 ### Fixed
 - Remove `axi_find_first_one.sv` from manifest
 
+
 ## 0.2.0 - 2018-03-09
 ### Added
 - AXI cut
+
 
 ## 0.1.0 - 2018-03-09
 - Initial release with various interfaces, drivers for testbenches, and utility modules.
