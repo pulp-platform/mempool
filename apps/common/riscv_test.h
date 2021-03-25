@@ -1,5 +1,7 @@
 // See LICENSE for license details.
 
+// clang-format off
+
 #ifndef _ENV_PHYSICAL_SINGLE_CORE_H
 #define _ENV_PHYSICAL_SINGLE_CORE_H
 
@@ -130,5 +132,7 @@ begin_signature:
         .align 4;                                                              \
         .global end_signature;                                                 \
 end_signature:
+
+// clang-format on
 
 #endif
