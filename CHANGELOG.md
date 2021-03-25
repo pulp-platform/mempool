@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 - Add a workaround for a Modelsim 2019 bug in the `axi_demux`
+- Keep clang-format from reformatting the `apps/common/riscv_test.h` assembly header file
 
 ## 0.1.0 - 2021-03-17
 - Initial release.
