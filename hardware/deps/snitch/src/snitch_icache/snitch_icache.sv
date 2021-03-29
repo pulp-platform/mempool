@@ -31,6 +31,8 @@ module snitch_icache #(
     parameter int FILL_AW = -1,
     /// Fill interface data width. Power of two; >= 8.
     parameter int FILL_DW = -1,
+    /// Replace the L1 tag banks with latch-based SCM.
+    parameter bit L1_TAG_SCM = 0,
     /// This reduces area impact at the cost of
     /// increased hassle of having latches in
     /// the design.
@@ -88,6 +90,7 @@ module snitch_icache #(
         FETCH_DW:          FETCH_DW,
         FILL_AW:           FILL_AW,
         FILL_DW:           FILL_DW,
+        L1_TAG_SCM:        L1_TAG_SCM,
         EARLY_LATCH:       EARLY_LATCH,
 
         FETCH_ALIGN: $clog2(FETCH_DW/8),
