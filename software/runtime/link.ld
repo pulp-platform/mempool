@@ -23,6 +23,7 @@ SECTIONS {
     *(.l1)
     *(.bss)
     __l1_alloc_base = ALIGN(0x10);
+    __heap_start = .;
   } > l1
 
   /* Instructions on L2 */
