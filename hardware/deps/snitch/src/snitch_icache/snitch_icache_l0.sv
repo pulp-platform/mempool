@@ -120,6 +120,12 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   assign hit_prefetch_any = |hit_prefetch;
   assign miss = ~hit_any & in_valid_i & ~pending_refill_q;
 
+  logic clk_inv;
+  tc_clk_inverter i_clk_inv (
+    .clk_i (clk_i),
+    .clk_o (clk_inv)
+  );
+
   for (genvar i = 0; i < CFG.L0_LINE_COUNT; i++) begin : gen_array
     // Tag Array
     always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -139,12 +145,21 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
       end
     end
     if (CFG.EARLY_LATCH) begin : gen_latch
+      logic clk_vld;
+      tc_clk_gating i_clk_gate (
+        .clk_i     (clk_inv         ),
+        .en_i      (validate_strb[i]),
+        .test_en_i (1'b0            ),
+        .clk_o     (clk_vld         )
+      );
       // Data Array
+      /* verilator lint_off NOLATCH */
       always_latch begin
-        if (clk_i && validate_strb[i]) begin
+        if (clk_vld) begin
           data[i] <= out_rsp_data_i;
         end
       end
+      /* verilator lint_on NOLATCH */
     end else begin : gen_ff
       `FFLNR(data[i], out_rsp_data_i, validate_strb[i], clk_i)
     end

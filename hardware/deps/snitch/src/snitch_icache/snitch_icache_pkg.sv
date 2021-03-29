@@ -30,6 +30,7 @@ package snitch_icache_pkg;
         int FETCH_DW;
         int FILL_AW;
         int FILL_DW;
+        bit L1_TAG_SCM;
         bit EARLY_LATCH;
 
         // Derived values.

@@ -120,9 +120,9 @@ package mempool_pkg;
    *  INSTRUCTION CACHE  *
    ***********************/
 
-  localparam int unsigned ICacheSizeByte  = 512 * NumCoresPerCache; // Total Size of instruction cache in bytes
-  localparam int unsigned ICacheSets      = NumCoresPerCache;       // Number of sets
-  localparam int unsigned ICacheLineWidth = 32 * NumCoresPerCache;  // Size of each cache line in bits,
+  localparam int unsigned ICacheSizeByte  = 512 * NumCoresPerCache;     // Total Size of instruction cache in bytes
+  localparam int unsigned ICacheSets      = NumCoresPerCache / 2;       // Number of sets
+  localparam int unsigned ICacheLineWidth = 32 * 2 * NumCoresPerCache;  // Size of each cache line in bits,
 
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
