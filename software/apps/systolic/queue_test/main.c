@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich and University of Bologna.
+// Copyright 2021 ETH Zurich and University of Bologna.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,16 +19,16 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "alloc.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 #include "systolic/queue.h"
 
-#define QUEUE_SIZE 8
+extern int32_t __heap_start, __heap_end;
 
-struct queue_t queue;
-int32_t array[QUEUE_SIZE];
+queue_t *queue = 0;
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -41,11 +41,12 @@ int main() {
   if (core_id == 0) {
     printf("Initialize\n");
 
-    // Setup queue
-    queue.array = array;
-    queue.head = 0;
-    queue.tail = 0;
-    queue.size = QUEUE_SIZE;
+    // Initialize malloc
+    uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
+    alloc_init(get_alloc_l1(), &__heap_start, heap_size);
+
+    // Create queue
+    queue_create(&queue, 8);
   }
 
   // Wait for all cores
@@ -55,7 +56,7 @@ int main() {
   if (core_id == 0) {
     int32_t data[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
     for (uint32_t i = 0; i < 16; ++i) {
-      while (queue_push(&queue, &data[i])) {
+      while (queue_push(queue, &data[i])) {
         mempool_wait(5);
       }
     }
@@ -65,7 +66,7 @@ int main() {
   if (core_id == 1) {
     int32_t read_data;
     for (uint32_t i = 0; i < 16; ++i) {
-      while (queue_pop(&queue, &read_data)) {
+      while (queue_pop(queue, &read_data)) {
         mempool_wait(5);
       }
       printf("Received: %d\n", read_data);

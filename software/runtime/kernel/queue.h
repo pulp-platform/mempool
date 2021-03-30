@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich and University of Bologna.
+// Copyright 2021 ETH Zurich and University of Bologna.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,29 +19,29 @@
 /* This library implements the single-producer single-consumer queue
  */
 
-// CONCURRENT QUEUE BASED ON AMO ADD/SUB (SINGLE PRODUCER, SINGLE CONSUMER)
-// DO WE HAVE ATOMIC MODULO ADDITION OR ATOMIC SET?
+// Concurrent single-producer single-consumer queue based on head and tail
+// Uses a single slot buffer for the full state to differentiate it from empty
 
-struct queue_t {
+#include "alloc.h"
+
+typedef struct {
   int32_t *array;
   uint32_t head;
   uint32_t tail;
   uint32_t size;
-};
+} queue_t;
 
-/*
-void queue_create(struct queue_t *queue, uint32_t size) {
-  struct queue_t new_queue;
-  queue = &new_queue;
-  int32_t data[size];
-  queue->array = data;
-  queue->head = 0;
-  queue->tail = 0;
-  queue->size = size;
+void queue_create(queue_t **queue, const uint32_t size) {
+  queue_t *new_queue = (queue_t *)simple_malloc(4 * 4);
+  int32_t *array = (int32_t *)simple_malloc(size * 4);
+  new_queue->array = array;
+  new_queue->head = 0;
+  new_queue->tail = 0;
+  new_queue->size = size;
+  *queue = new_queue;
 }
-*/
 
-int32_t queue_pop(struct queue_t *const queue, int32_t *data) {
+int32_t queue_pop(queue_t *const queue, int32_t *data) {
   uint32_t current_head = queue->head;
   // Check if empty
   if (current_head == queue->tail) {
@@ -54,7 +54,7 @@ int32_t queue_pop(struct queue_t *const queue, int32_t *data) {
   return 0;
 }
 
-int32_t queue_push(struct queue_t *const queue, int32_t *data) {
+int32_t queue_push(queue_t *const queue, int32_t *data) {
   uint32_t current_tail = queue->tail;
   uint32_t next_tail = (current_tail + 1) % queue->size;
   // Check if full (with one slot constantly open)
