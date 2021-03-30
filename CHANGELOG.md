@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 - Disable the branch prediction if there are multiple early-hits
+- Align end of `.text` section with the instruction cache
 
 ## 0.2.0 - 2021-03-29
 

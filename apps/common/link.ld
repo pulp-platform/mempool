@@ -25,6 +25,7 @@ SECTIONS {
   .text : {
     *(.text.init)
     *(.text)
+    . = ALIGN(0x40);
   } > l2
 
   /* Data on L2 */
