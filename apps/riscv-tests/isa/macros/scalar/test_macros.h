@@ -3,6 +3,7 @@
 #ifndef __TEST_MACROS_SCALAR_H
 #define __TEST_MACROS_SCALAR_H
 
+// clang-format off
 
 #-----------------------------------------------------------------------
 # Helper macros
@@ -1345,5 +1346,7 @@ pass: \
 #-----------------------------------------------------------------------
 
 #define TEST_DATA
+
+// clang-format on
 
 #endif
