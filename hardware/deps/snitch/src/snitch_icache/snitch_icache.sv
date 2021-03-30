@@ -52,7 +52,7 @@ module snitch_icache #(
     input  logic clk_d2_i,
     input  logic rst_ni,
 
-    input  logic                               enable_prefetching_i,
+    input  logic [NR_FETCH_PORTS-1:0]                              enable_prefetching_i,
     output snitch_icache_pkg::icache_events_t [NR_FETCH_PORTS-1:0] icache_events_o,
 
     input  logic flush_valid_i,
@@ -220,24 +220,24 @@ module snitch_icache #(
             .clk_i ( clk_d2_i ),
             .rst_ni,
             .flush_valid_i,
-            .enable_prefetching_i,
-            .icache_events_o ( icache_events_o [i]    ),
-            .in_addr_i       ( inst_addr_i    [i]     ),
-            .in_data_o       ( in_cache_data  [i]     ),
-            .in_error_o      ( in_cache_error [i]     ),
-            .in_valid_i      ( in_cache_valid [i]     ),
-            .in_ready_o      ( in_cache_ready [i]     ),
+            .enable_prefetching_i ( enable_prefetching_i [i] ),
+            .icache_events_o      ( icache_events_o [i]      ),
+            .in_addr_i            ( inst_addr_i    [i]       ),
+            .in_data_o            ( in_cache_data  [i]       ),
+            .in_error_o           ( in_cache_error [i]       ),
+            .in_valid_i           ( in_cache_valid [i]       ),
+            .in_ready_o           ( in_cache_ready [i]       ),
 
-            .out_req_addr_o  ( local_prefetch_req.addr   ),
-            .out_req_id_o    ( local_prefetch_req.id     ),
-            .out_req_valid_o ( local_prefetch_req_valid ),
-            .out_req_ready_i ( local_prefetch_req_ready ),
+            .out_req_addr_o       ( local_prefetch_req.addr  ),
+            .out_req_id_o         ( local_prefetch_req.id    ),
+            .out_req_valid_o      ( local_prefetch_req_valid ),
+            .out_req_ready_i      ( local_prefetch_req_ready ),
 
-            .out_rsp_data_i  ( local_prefetch_rsp.data   ),
-            .out_rsp_error_i ( local_prefetch_rsp.error  ),
-            .out_rsp_id_i    ( local_prefetch_rsp.id     ),
-            .out_rsp_valid_i ( local_prefetch_rsp_valid  ),
-            .out_rsp_ready_o ( local_prefetch_rsp_ready  )
+            .out_rsp_data_i       ( local_prefetch_rsp.data  ),
+            .out_rsp_error_i      ( local_prefetch_rsp.error ),
+            .out_rsp_id_i         ( local_prefetch_rsp.id    ),
+            .out_rsp_valid_i      ( local_prefetch_rsp_valid ),
+            .out_rsp_ready_o      ( local_prefetch_rsp_ready )
         );
 
         isochronous_spill_register  #(

@@ -173,7 +173,7 @@ module mempool_tile
       .clk_i                (clk_i                   ),
       .clk_d2_i             (clk_i                   ),
       .rst_ni               (rst_ni                  ),
-      .enable_prefetching_i (1'b1                    ),
+      .enable_prefetching_i (snitch_inst_valid[c]    ),
       .icache_events_o      (/* Unused */            ),
       .flush_valid_i        (1'b0                    ),
       .flush_ready_o        (/* Unused */            ),
