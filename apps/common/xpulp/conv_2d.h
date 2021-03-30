@@ -38,9 +38,10 @@
  * unrolling  = whole 3x3 kernel
  * simd       = no
  */
-void conv2d_3x3_unrolled_i8_rv32im(int8_t const volatile *__restrict__ in, uint32_t in_x,
-                                    uint32_t in_y, uint8_t const volatile *__restrict__ k,
-                                    int32_t volatile *__restrict__ out) {
+void conv2d_3x3_unrolled_i8_rv32im(int8_t const volatile *__restrict__ in,
+                                   uint32_t in_x, uint32_t in_y,
+                                   uint8_t const volatile *__restrict__ k,
+                                   int32_t volatile *__restrict__ out) {
   int32_t sum;
   uint32_t weight = 0;
   for (int i = 0; i < 9; ++i) {
@@ -72,8 +73,9 @@ void conv2d_3x3_unrolled_i8_rv32im(int8_t const volatile *__restrict__ in, uint3
  * unrolling  = whole 3x3 kernel
  * simd       = no
  */
-void conv2d_3x3_unrolled2_i8_rv32im(int8_t const volatile *__restrict__ in, uint32_t in_x,
-                                    uint32_t in_y, uint8_t const volatile *__restrict__ k,
+void conv2d_3x3_unrolled2_i8_rv32im(int8_t const volatile *__restrict__ in,
+                                    uint32_t in_x, uint32_t in_y,
+                                    uint8_t const volatile *__restrict__ k,
                                     int32_t volatile *__restrict__ out) {
   int32_t sum;
   uint32_t weight = 0;
@@ -135,8 +137,10 @@ void conv2d_3x3_unrolled2_i8_rv32im(int8_t const volatile *__restrict__ in, uint
  *
  * Insipired from Conv3x3_Vector from pulp-training
  */
-void conv2d_3x3_unrolled_i8_xpulpv2(int8_t const volatile *__restrict__ In_Img, int32_t volatile *__restrict__ Out_Img,
-                                    uint32_t R, uint32_t C, uint8_t const volatile *__restrict__ Kernel){
+void conv2d_3x3_unrolled_i8_xpulpv2(
+    int8_t const volatile *__restrict__ In_Img,
+    int32_t volatile *__restrict__ Out_Img, uint32_t R, uint32_t C,
+    uint8_t const volatile *__restrict__ Kernel) {
 #ifdef __XPULPIMG
   v4s coeff_0, coeff_1, coeff_2;
   v4s Img_0, Img_1, Img_2;
@@ -156,9 +160,10 @@ void conv2d_3x3_unrolled_i8_xpulpv2(int8_t const volatile *__restrict__ In_Img, 
   // image board is black
   for (c = 1; c < C - 1; c++) {
 
-    Img_0 = (v4s){In_Img[c - 1],         In_Img[c],         In_Img[c + 1],         0};
-    Img_1 = (v4s){In_Img[c - 1 + R],     In_Img[c + R],     In_Img[c + 1 + R],     0};
-    Img_2 = (v4s){In_Img[c - 1 + R * 2], In_Img[c + R * 2], In_Img[c + 1 + R * 2], 0};
+    Img_0 = (v4s){In_Img[c - 1], In_Img[c], In_Img[c + 1], 0};
+    Img_1 = (v4s){In_Img[c - 1 + R], In_Img[c + R], In_Img[c + 1 + R], 0};
+    Img_2 = (v4s){In_Img[c - 1 + R * 2], In_Img[c + R * 2],
+                  In_Img[c + 1 + R * 2], 0};
 
     for (r = 1; r < R - 1; r++) {
       t = r * R + c;
@@ -166,10 +171,11 @@ void conv2d_3x3_unrolled_i8_xpulpv2(int8_t const volatile *__restrict__ In_Img, 
       S = __builtin_pulp_sdotsp4(Img_1, coeff_1, S);
       S = __builtin_pulp_sdotsp4(Img_2, coeff_2, S);
 
-      Out_Img[t] = S/weight;
+      Out_Img[t] = S / weight;
 
       // load a new rod
-      new_data = (v4s){In_Img[(r + 2) * R + c - 1], In_Img[(r + 2) * R + c], In_Img[(r + 2) * R + c + 1], 0};
+      new_data = (v4s){In_Img[(r + 2) * R + c - 1], In_Img[(r + 2) * R + c],
+                       In_Img[(r + 2) * R + c + 1], 0};
       // move the window: move each vector one line down
       Img_0 = Img_1;
       Img_1 = Img_2;
@@ -189,8 +195,10 @@ void conv2d_3x3_unrolled_i8_xpulpv2(int8_t const volatile *__restrict__ In_Img, 
  *
  * Insipired from Conv3x3_Vector from pulp-training
  */
-void conv2d_3x3_unrolled2_i8_xpulpv2(int8_t const volatile *__restrict__ In_Img, int32_t volatile *__restrict__ Out_Img,
-                                    uint32_t R, uint32_t C, uint8_t const volatile *__restrict__ Kernel){
+void conv2d_3x3_unrolled2_i8_xpulpv2(
+    int8_t const volatile *__restrict__ In_Img,
+    int32_t volatile *__restrict__ Out_Img, uint32_t R, uint32_t C,
+    uint8_t const volatile *__restrict__ Kernel) {
 #ifdef __XPULPIMG
   v4s coeff_0, coeff_1, coeff_2;
   v4s Img_00, Img_10, Img_20;
@@ -209,15 +217,19 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(int8_t const volatile *__restrict__ In_Img,
   coeff_2 = (v4s){Kernel[6], Kernel[7], Kernel[8], 0};
 
   // image board is black
-  for (c = 1; c < C/2; c++) {
+  for (c = 1; c < C / 2; c++) {
 
-    Img_00 = (v4s){In_Img[2*c - 2],         In_Img[2*c - 1],         In_Img[2*c],         0};
-    Img_10 = (v4s){In_Img[2*c - 2 + R],     In_Img[2*c - 1 + R],     In_Img[2*c + R],     0};
-    Img_20 = (v4s){In_Img[2*c - 2 + R * 2], In_Img[2*c - 1 + R * 2], In_Img[2*c + R * 2], 0};
+    Img_00 = (v4s){In_Img[2 * c - 2], In_Img[2 * c - 1], In_Img[2 * c], 0};
+    Img_10 = (v4s){In_Img[2 * c - 2 + R], In_Img[2 * c - 1 + R],
+                   In_Img[2 * c + R], 0};
+    Img_20 = (v4s){In_Img[2 * c - 2 + R * 2], In_Img[2 * c - 1 + R * 2],
+                   In_Img[2 * c + R * 2], 0};
 
-    Img_01 = (v4s){In_Img[2*c - 1],         In_Img[2*c],         In_Img[2*c + 1],         0};
-    Img_11 = (v4s){In_Img[2*c - 1 + R],     In_Img[2*c + R],     In_Img[2*c + 1 + R],     0};
-    Img_21 = (v4s){In_Img[2*c - 1 + R * 2], In_Img[2*c + R * 2], In_Img[2*c + 1 + R * 2], 0};
+    Img_01 = (v4s){In_Img[2 * c - 1], In_Img[2 * c], In_Img[2 * c + 1], 0};
+    Img_11 = (v4s){In_Img[2 * c - 1 + R], In_Img[2 * c + R],
+                   In_Img[2 * c + 1 + R], 0};
+    Img_21 = (v4s){In_Img[2 * c - 1 + R * 2], In_Img[2 * c + R * 2],
+                   In_Img[2 * c + 1 + R * 2], 0};
 
     for (r = 1; r < R - 1; r++) {
       S_0 = __builtin_pulp_dotsp4(Img_00, coeff_0);
@@ -229,12 +241,16 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(int8_t const volatile *__restrict__ In_Img,
       S_0 = __builtin_pulp_sdotsp4(Img_20, coeff_2, S_0);
       S_1 = __builtin_pulp_sdotsp4(Img_21, coeff_2, S_1);
 
-      int32_t res_0 = S_0/weight;
-      int32_t res_1 = S_1/weight;
+      int32_t res_0 = S_0 / weight;
+      int32_t res_1 = S_1 / weight;
 
       // load a new rod
-      new_data_0 = (v4s){In_Img[(r + 2) * R + (2*c - 1) - 1], In_Img[(r + 2) * R + (2*c - 1)], In_Img[(r + 2) * R + (2*c - 1) + 1], 0};
-      new_data_1 = (v4s){In_Img[(r + 2) * R + 2*c - 1], In_Img[(r + 2) * R + 2*c], In_Img[(r + 2) * R + 2*c + 1], 0};
+      new_data_0 = (v4s){In_Img[(r + 2) * R + (2 * c - 1) - 1],
+                         In_Img[(r + 2) * R + (2 * c - 1)],
+                         In_Img[(r + 2) * R + (2 * c - 1) + 1], 0};
+      new_data_1 =
+          (v4s){In_Img[(r + 2) * R + 2 * c - 1], In_Img[(r + 2) * R + 2 * c],
+                In_Img[(r + 2) * R + 2 * c + 1], 0};
       // move the window: move each vector one line down
       Img_00 = Img_10;
       Img_10 = Img_20;
@@ -243,8 +259,8 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(int8_t const volatile *__restrict__ In_Img,
       Img_11 = Img_21;
       Img_21 = new_data_1;
 
-      Out_Img[r * R + (2*c - 1)] = res_0;
-      Out_Img[r * R + 2*c] = res_1;
+      Out_Img[r * R + (2 * c - 1)] = res_0;
+      Out_Img[r * R + 2 * c] = res_1;
     }
   }
 #endif
@@ -288,7 +304,8 @@ int verify_conv2d_image_i8(int32_t *img, uint32_t img_x, uint32_t img_y) {
 }
 
 // Verify and reset the image
-int verify_conv2d_image_i8_verbose(int32_t *img, uint32_t img_x, uint32_t img_y) {
+int verify_conv2d_image_i8_verbose(int32_t *img, uint32_t img_x,
+                                   uint32_t img_y) {
   for (int i = 1; i < img_y - 1; ++i) {
     int32_t y = i % 16;
     if (i % 16 == 0)
@@ -305,8 +322,9 @@ int verify_conv2d_image_i8_verbose(int32_t *img, uint32_t img_x, uint32_t img_y)
   return 0;
 }
 
-void conv2d_3x3_unrolled_i8_xpulpv2_verbose(int8_t const *__restrict__ In_Img, int32_t volatile *__restrict__ Out_Img,
-                                    uint32_t R, uint32_t C, uint8_t const volatile *__restrict__ Kernel){
+void conv2d_3x3_unrolled_i8_xpulpv2_verbose(
+    int8_t const *__restrict__ In_Img, int32_t volatile *__restrict__ Out_Img,
+    uint32_t R, uint32_t C, uint8_t const volatile *__restrict__ Kernel) {
 #ifdef __XPULPIMG
   v4s coeff_0, coeff_1, coeff_2;
   v4s Img_0, Img_1, Img_2;
@@ -338,9 +356,10 @@ void conv2d_3x3_unrolled_i8_xpulpv2_verbose(int8_t const *__restrict__ In_Img, i
   // image board is black
   for (c = 1; c < C - 1; c++) {
 
-    Img_0 = (v4s){In_Img[c - 1],         In_Img[c],         In_Img[c + 1],         0};
-    Img_1 = (v4s){In_Img[c - 1 + R],     In_Img[c + R],     In_Img[c + 1 + R],     0};
-    Img_2 = (v4s){In_Img[c - 1 + R * 2], In_Img[c + R * 2], In_Img[c + 1 + R * 2], 0};
+    Img_0 = (v4s){In_Img[c - 1], In_Img[c], In_Img[c + 1], 0};
+    Img_1 = (v4s){In_Img[c - 1 + R], In_Img[c + R], In_Img[c + 1 + R], 0};
+    Img_2 = (v4s){In_Img[c - 1 + R * 2], In_Img[c + R * 2],
+                  In_Img[c + 1 + R * 2], 0};
 
     for (r = 1; r < R - 1; r++) {
       printf("-------------\n");
@@ -355,12 +374,13 @@ void conv2d_3x3_unrolled_i8_xpulpv2_verbose(int8_t const *__restrict__ In_Img, i
       S = __builtin_pulp_sdotsp4(Img_2, coeff_2, S);
 
       printf("S = %d\n", S);
-      printf("S/weight = %d\n", S/weight);
+      printf("S/weight = %d\n", S / weight);
 
-      Out_Img[t] = S/weight;
+      Out_Img[t] = S / weight;
       printf("Out_Img[%d] = %d\n", t, Out_Img[t]);
 
-      new_data = (v4s){In_Img[(r + 2) * R + c - 1], In_Img[(r + 2) * R + c], In_Img[(r + 2) * R + c + 1], 0};
+      new_data = (v4s){In_Img[(r + 2) * R + c - 1], In_Img[(r + 2) * R + c],
+                       In_Img[(r + 2) * R + c + 1], 0};
 
       // Move the window
       /*

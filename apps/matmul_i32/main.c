@@ -112,7 +112,8 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   mempool_start_benchmark();
 
 #ifdef __XPULPIMG
-  matmul_unrolled_2x2_parallel_i32_xpulpv2(A, B, C, M, N, P, core_id, num_cores);
+  matmul_unrolled_2x2_parallel_i32_xpulpv2(A, B, C, M, N, P, core_id,
+                                           num_cores);
 #else
   matmul_unrolled_2x2_parallel_i32_rv32im(A, B, C, M, N, P, core_id, num_cores);
 #endif

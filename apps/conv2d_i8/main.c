@@ -81,9 +81,9 @@ int main() {
 
     mempool_start_benchmark();
 #ifdef __XPULPIMG
-  conv2d_3x3_unrolled2_i8_xpulpv2(in, out, M, N, kernel);
+    conv2d_3x3_unrolled2_i8_xpulpv2(in, out, M, N, kernel);
 #else
-  conv2d_3x3_unrolled2_i8_rv32im(in, N, M, kernel, out);
+    conv2d_3x3_unrolled2_i8_rv32im(in, N, M, kernel, out);
 #endif
     mempool_stop_benchmark();
 
@@ -97,9 +97,9 @@ int main() {
     }
 #endif
 
-    //verify_conv2d_image_i8_verbose(out, N, M);
+    // verify_conv2d_image_i8_verbose(out, N, M);
     // Check result
-    if (verify_conv2d_image_i8(out, N, M)){
+    if (verify_conv2d_image_i8(out, N, M)) {
       error = 1;
     }
   }

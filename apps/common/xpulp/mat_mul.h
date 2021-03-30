@@ -618,9 +618,9 @@ void matmul_unrolled_4x2_pincr_asm_parallel_i16_xpulpv2(
  */
 void matmul_unrolled_2x2_parallel_i32_rv32im(int32_t const *__restrict__ A,
                                              int32_t const *__restrict__ B,
-                                             int32_t *__restrict__ C, uint32_t M,
-                                             uint32_t N, uint32_t P, uint32_t id,
-                                             uint32_t numThreads) {
+                                             int32_t *__restrict__ C,
+                                             uint32_t M, uint32_t N, uint32_t P,
+                                             uint32_t id, uint32_t numThreads) {
   // Parallelize by assigning each core one row
   uint32_t const c = 8; // How many columns to split the matrix into
   uint32_t const c_start = (P / c) * (id % c);
@@ -670,8 +670,9 @@ void matmul_unrolled_2x2_parallel_i32_rv32im(int32_t const *__restrict__ A,
  */
 void matmul_unrolled_2x2_parallel_i32_xpulpv2(int32_t const *__restrict__ A,
                                               int32_t const *__restrict__ B,
-                                              int32_t *__restrict__ C, uint32_t M,
-                                              uint32_t N, uint32_t P, uint32_t id,
+                                              int32_t *__restrict__ C,
+                                              uint32_t M, uint32_t N,
+                                              uint32_t P, uint32_t id,
                                               uint32_t numThreads) {
 #ifdef __XPULPIMG
   // Parallelize by assigning each core one row
@@ -692,23 +693,23 @@ void matmul_unrolled_2x2_parallel_i32_xpulpv2(int32_t const *__restrict__ A,
       for (uint32_t k = 0; k < N; k += 2) {
         int32_t *idx_a = &A[i * N + k];
         int32_t *idx_b = &B[k * P + j];
-        int32_t val_a00, val_a01, val_a10, val_a11, val_b00, val_b01, val_b10, val_b11;
-        __asm__ volatile(
-          "p.lw %[a00], 4(%[addr_a]!) \n\t"
-          "p.lw %[a01], %[a_incr](%[addr_a]!) \n\t"
-          "p.lw %[a10], 4(%[addr_a]!) \n\t"
-          "p.lw %[a11], 0(%[addr_a]) \n\t"
-          "p.lw %[b00], 4(%[addr_b]!) \n\t"
-          "p.lw %[b01], %[b_incr](%[addr_b]!) \n\t"
-          "p.lw %[b10], 4(%[addr_b]!) \n\t"
-          "p.lw %[b11], 0(%[addr_b]) \n\t"
-          : [ a00 ] "=&r"(val_a00), [ a01 ] "=&r"(val_a01),
-            [ a10 ] "=&r"(val_a10), [ a11 ] "=&r"(val_a11),
-            [ b00 ] "=&r"(val_b00), [ b01 ] "=&r"(val_b01),
-            [ b10 ] "=&r"(val_b10), [ b11 ] "=&r"(val_b11),
-            [ addr_a ] "+&r"(idx_a), [ addr_b ] "+&r"(idx_b)
-          : [ a_incr ] "r"(A_incr), [ b_incr ] "r"(B_incr)
-          : "memory");
+        int32_t val_a00, val_a01, val_a10, val_a11, val_b00, val_b01, val_b10,
+            val_b11;
+        __asm__ volatile("p.lw %[a00], 4(%[addr_a]!) \n\t"
+                         "p.lw %[a01], %[a_incr](%[addr_a]!) \n\t"
+                         "p.lw %[a10], 4(%[addr_a]!) \n\t"
+                         "p.lw %[a11], 0(%[addr_a]) \n\t"
+                         "p.lw %[b00], 4(%[addr_b]!) \n\t"
+                         "p.lw %[b01], %[b_incr](%[addr_b]!) \n\t"
+                         "p.lw %[b10], 4(%[addr_b]!) \n\t"
+                         "p.lw %[b11], 0(%[addr_b]) \n\t"
+                         : [ a00 ] "=&r"(val_a00), [ a01 ] "=&r"(val_a01),
+                           [ a10 ] "=&r"(val_a10), [ a11 ] "=&r"(val_a11),
+                           [ b00 ] "=&r"(val_b00), [ b01 ] "=&r"(val_b01),
+                           [ b10 ] "=&r"(val_b10), [ b11 ] "=&r"(val_b11),
+                           [ addr_a ] "+&r"(idx_a), [ addr_b ] "+&r"(idx_b)
+                         : [ a_incr ] "r"(A_incr), [ b_incr ] "r"(B_incr)
+                         : "memory");
         /* The asm code above implements the following commented C code */
         // int32_t val_a00 = A[(i + 0) * N + k + 0];
         // int32_t val_a01 = A[(i + 0) * N + k + 1];
@@ -728,16 +729,14 @@ void matmul_unrolled_2x2_parallel_i32_xpulpv2(int32_t const *__restrict__ A,
         c11 += val_a11 * val_b11;
       }
       int32_t *idx_c = &C[i * P + j];
-      __asm__ volatile(
-          "p.sw %[s00], 4(%[addr_c]!) \n\t"
-          "p.sw %[s01], %[c_incr](%[addr_c]!) \n\t"
-          "p.sw %[s10], 4(%[addr_c]!) \n\t"
-          "p.sw %[s11], 0(%[addr_c]) \n\t"
-          : [ addr_c ] "+&r"(idx_c)
-          : [ s00 ] "r"(c00), [ s01 ] "r"(c01),
-            [ s10 ] "r"(c10), [ s11 ] "r"(c11),
-            [ c_incr ] "r"(B_incr)
-          : "memory");
+      __asm__ volatile("p.sw %[s00], 4(%[addr_c]!) \n\t"
+                       "p.sw %[s01], %[c_incr](%[addr_c]!) \n\t"
+                       "p.sw %[s10], 4(%[addr_c]!) \n\t"
+                       "p.sw %[s11], 0(%[addr_c]) \n\t"
+                       : [ addr_c ] "+&r"(idx_c)
+                       : [ s00 ] "r"(c00), [ s01 ] "r"(c01), [ s10 ] "r"(c10),
+                         [ s11 ] "r"(c11), [ c_incr ] "r"(B_incr)
+                       : "memory");
       /* The asm code above implements the following commented C code */
       // C[(i + 0) * P + j + 0] = c00;
       // C[(i + 0) * P + j + 1] = c01;
