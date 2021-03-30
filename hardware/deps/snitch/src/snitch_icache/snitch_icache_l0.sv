@@ -298,26 +298,28 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
     always_comb begin
       is_branch_taken[i] = 1'b0;
       is_jal[i] = 1'b0;
-      unique casez (ins_data[i*32+:32])
-        // static prediction
-        riscv_instr::BEQ,
-        riscv_instr::BNE,
-        riscv_instr::BLT,
-        riscv_instr::BGE,
-        riscv_instr::BLTU,
-        riscv_instr::BGEU: begin
-          // look at the sign bit of the immediate field
-          // backward branches (immediate negative) taken
-          // forward branches not taken
-          is_branch_taken[i] = ins_data[i*32+31];
-        end
-        riscv_instr::JAL: begin
-          is_jal[i] = 1'b1;
-        end
-        // we can't do anything about the JALR case as we don't
-        // know the destination.
-        default:;
-      endcase
+      if (hit_early_is_onehot) begin
+        unique casez (ins_data[i*32+:32])
+          // static prediction
+          riscv_instr::BEQ,
+          riscv_instr::BNE,
+          riscv_instr::BLT,
+          riscv_instr::BGE,
+          riscv_instr::BLTU,
+          riscv_instr::BGEU: begin
+            // look at the sign bit of the immediate field
+            // backward branches (immediate negative) taken
+            // forward branches not taken
+            is_branch_taken[i] = ins_data[i*32+31];
+          end
+          riscv_instr::JAL: begin
+            is_jal[i] = 1'b1;
+          end
+          // we can't do anything about the JALR case as we don't
+          // know the destination.
+          default:;
+        endcase
+      end
     end
   end
 

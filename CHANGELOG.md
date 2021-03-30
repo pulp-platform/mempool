@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Fixed
+- Disable the branch prediction if there are multiple early-hits
 
 ## 0.2.0 - 2021-03-29
 
