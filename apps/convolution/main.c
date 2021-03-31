@@ -125,7 +125,7 @@ int main() {
     mempool_barrier(num_cores, num_cores * 4);
     // Check result
     if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
-      __atomic_fetch_or(&error, i, __ATOMIC_SEQ_CST);
+      amo_or(&error, (unsigned)i);
     }
   }
 
