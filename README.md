@@ -119,7 +119,7 @@ If, during the Verilator model compilation, you run out of space on your disk, u
 ```bash
 export OBJCACHE=''
 ```
-to disable the use of `ccache`. This will make the following compilations slower, but avoid to use storage.
+to disable the use of `ccache`. Keep in mind that this will make the following compilations slower, since compiled object files will no longer be cached.
 
 If the tracer is enabled, its output traces are found under `hardware/build`, for both ModelSim and Verilator simulations.
 
