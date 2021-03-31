@@ -27,9 +27,6 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-// Define which kernel to use
-#define __XPULPIMG
-
 /*
  * 2D Convolution 3x3 ----------------------------------
  * kernel     = conv2d_3x3_unrolled_i8_rv32im
@@ -137,11 +134,11 @@ void conv2d_3x3_unrolled2_i8_rv32im(int8_t const volatile *__restrict__ in,
  *
  * Insipired from Conv3x3_Vector from pulp-training
  */
+#ifdef __XPULPIMG
 void conv2d_3x3_unrolled_i8_xpulpv2(
     int8_t const volatile *__restrict__ In_Img,
     int32_t volatile *__restrict__ Out_Img, uint32_t R, uint32_t C,
     uint8_t const volatile *__restrict__ Kernel) {
-#ifdef __XPULPIMG
   v4u coeff_0, coeff_1, coeff_2;
   v4s Img_0, Img_1, Img_2;
   v4s new_data;
@@ -182,8 +179,8 @@ void conv2d_3x3_unrolled_i8_xpulpv2(
       Img_2 = new_data;
     }
   }
-#endif
 }
+#endif
 
 /*
  * 2D Convolution 3x3 ----------------------------------
@@ -195,11 +192,11 @@ void conv2d_3x3_unrolled_i8_xpulpv2(
  *
  * Insipired from Conv3x3_Vector from pulp-training
  */
+#ifdef __XPULPIMG
 void conv2d_3x3_unrolled2_i8_xpulpv2(
     int8_t const volatile *__restrict__ In_Img,
     int32_t volatile *__restrict__ Out_Img, uint32_t R, uint32_t C,
     uint8_t const volatile *__restrict__ Kernel) {
-#ifdef __XPULPIMG
   v4u coeff_0, coeff_1, coeff_2;
   v4s Img_00, Img_10, Img_20;
   v4s Img_01, Img_11, Img_21;
@@ -263,8 +260,8 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(
       Out_Img[r * R + 2 * c] = res_1;
     }
   }
-#endif
 }
+#endif
 
 // Testing
 // Initialize the image in parallel
@@ -324,10 +321,10 @@ int verify_conv2d_image_i8_verbose(int32_t *img, uint32_t img_x,
   return 0;
 }
 
+#ifdef __XPULPIMG
 void conv2d_3x3_unrolled_i8_xpulpv2_verbose(
     int8_t const *__restrict__ In_Img, int32_t volatile *__restrict__ Out_Img,
     uint32_t R, uint32_t C, uint8_t const volatile *__restrict__ Kernel) {
-#ifdef __XPULPIMG
   v4u coeff_0, coeff_1, coeff_2;
   v4s Img_0, Img_1, Img_2;
   v4s new_data;
@@ -398,5 +395,5 @@ void conv2d_3x3_unrolled_i8_xpulpv2_verbose(
       Img_2 = new_data;
     }
   }
-#endif
 }
+#endif

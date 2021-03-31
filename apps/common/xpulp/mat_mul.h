@@ -30,9 +30,6 @@
  * considered, leading to wrong results
  */
 
-// Define which kernel to use
-#define __XPULPIMG
-
 /*
  * Matrix multiplication ----------------------------------
  * kernel     = matmul_unrolled_2x2_parallel_i8_rv32im
@@ -143,11 +140,11 @@ void matmul_unrolled_2x2_parallel_i16_rv32im(int16_t const *__restrict__ A,
  *
  * Original plp_mat_mult_i8s_xpulpv2 from pulp-dsp
  */
+#ifdef __XPULPIMG
 void matmul_unrolled_2x4_i8_xpulpv2(const int8_t *__restrict__ pSrcA,
                                     const int8_t *__restrict__ pSrcB,
                                     int32_t *__restrict__ pDstC, uint32_t M,
                                     uint32_t N, uint32_t P) {
-#ifdef __XPULPIMG
   static v4s mask0 = {0, 1, 4, 5};
   static v4s mask1 = {2, 3, 6, 7};
   static v4s mask2 = {0, 2, 4, 6};
@@ -209,8 +206,8 @@ void matmul_unrolled_2x4_i8_xpulpv2(const int8_t *__restrict__ pSrcA,
       pDstC[(i * 2 + 1) * P + (k * 4 + 3)] = sum13;
     }
   }
-#endif
 }
+#endif
 
 /*
  * Matrix multiplication ----------------------------------
@@ -222,13 +219,13 @@ void matmul_unrolled_2x4_i8_xpulpv2(const int8_t *__restrict__ pSrcA,
  *
  * Original plp_mat_mult_i8p_xpulpv2 from pulp-dsp
  */
+#ifdef __XPULPIMG
 void matmul_unrolled_2x4_parallel_i8_xpulpv2(const int8_t *__restrict__ pSrcA,
                                              const int8_t *__restrict__ pSrcB,
                                              int32_t *__restrict__ pDstC,
                                              uint32_t M, uint32_t N, uint32_t P,
                                              uint32_t core_id,
                                              uint32_t numThreads) {
-#ifdef __XPULPIMG
   static v4s mask0 = {0, 1, 4, 5};
   static v4s mask1 = {2, 3, 6, 7};
   static v4s mask2 = {0, 2, 4, 6};
@@ -290,8 +287,8 @@ void matmul_unrolled_2x4_parallel_i8_xpulpv2(const int8_t *__restrict__ pSrcA,
       pDstC[(i * 2 + 1) * P + (k * 4 + 3)] = sum13;
     }
   }
-#endif
 }
+#endif
 
 /*
  * Matrix multiplication ----------------------------------
@@ -306,11 +303,11 @@ void matmul_unrolled_2x4_parallel_i8_xpulpv2(const int8_t *__restrict__ pSrcA,
  *
  * Inspired from plp_mat_mult_i8p_xpulpv2 from pulp-dsp
  */
+#ifdef __XPULPIMG
 void matmul_unrolled_2x4_pincr_asm_parallel_i8_xpulpv2(
     const int8_t *__restrict__ pSrcA, const int8_t *__restrict__ pSrcB,
     int32_t *__restrict__ pDstC, uint32_t M, uint32_t N, uint32_t P,
     uint32_t core_id, uint32_t numThreads) {
-#ifdef __XPULPIMG
   // Masks for shuffles
   static v4s mask0 = {0, 1, 4, 5};
   static v4s mask1 = {2, 3, 6, 7};
@@ -419,8 +416,8 @@ void matmul_unrolled_2x4_pincr_asm_parallel_i8_xpulpv2(
       idx_a += N; // adjust A matrix pointer
     }
   }
-#endif
 }
+#endif
 
 /*
  * Matrix multiplication ----------------------------------
@@ -432,13 +429,13 @@ void matmul_unrolled_2x4_pincr_asm_parallel_i8_xpulpv2(
  *
  * Original plp_mat_mult_i16p_xpulpv2 from pulp-dsp
  */
+#ifdef __XPULPIMG
 void matmul_unrolled_4x2_parallel_i16_xpulpv2(const int16_t *__restrict__ pSrcA,
                                               const int16_t *__restrict__ pSrcB,
                                               int32_t *__restrict__ pDstC,
                                               uint32_t M, uint32_t N,
                                               uint32_t P, uint32_t core_id,
                                               uint32_t numThreads) {
-#ifdef __XPULPIMG
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
   uint32_t k = 0; // loop counter for P
@@ -488,8 +485,8 @@ void matmul_unrolled_4x2_parallel_i16_xpulpv2(const int16_t *__restrict__ pSrcA,
       pDstC[(i * 4 + 3) * P + (k * 2 + 1)] = sum31;
     }
   }
-#endif
 }
+#endif
 
 /*
  * Matrix multiplication ----------------------------------
@@ -504,11 +501,11 @@ void matmul_unrolled_4x2_parallel_i16_xpulpv2(const int16_t *__restrict__ pSrcA,
  *
  * Inspired from plp_mat_mult_i16p_xpulpv2 from pulp-dsp
  */
+#ifdef __XPULPIMG
 void matmul_unrolled_4x2_pincr_asm_parallel_i16_xpulpv2(
     const int16_t *__restrict__ pSrcA, const int16_t *__restrict__ pSrcB,
     int32_t *__restrict__ pDstC, uint32_t M, uint32_t N, uint32_t P,
     uint32_t core_id, uint32_t numThreads) {
-#ifdef __XPULPIMG
   // Loop counter for P
   uint32_t k = 0;
   // Increment for A matrix = 1 row forward
@@ -606,8 +603,8 @@ void matmul_unrolled_4x2_pincr_asm_parallel_i16_xpulpv2(
       idx_a += N * 3;
     }
   }
-#endif
 }
+#endif
 
 /*
  * Matrix multiplication ----------------------------------
@@ -669,13 +666,13 @@ void matmul_unrolled_2x2_parallel_i32_rv32im(int32_t const *__restrict__ A,
  * other      = loads/stores explicitly written in asm
  *              for optimal register utilization
  */
+#ifdef __XPULPIMG
 void matmul_unrolled_2x2_parallel_i32_xpulpv2(int32_t const *__restrict__ A,
                                               int32_t const *__restrict__ B,
                                               int32_t *__restrict__ C,
                                               uint32_t M, uint32_t N,
                                               uint32_t P, uint32_t id,
                                               uint32_t numThreads) {
-#ifdef __XPULPIMG
   // Parallelize by assigning each core one row
   uint32_t const c = 8; // How many columns to split the matrix into
   uint32_t const c_start = (P / c) * (id % c);
@@ -745,5 +742,5 @@ void matmul_unrolled_2x2_parallel_i32_xpulpv2(int32_t const *__restrict__ A,
       // C[(i + 1) * P + j + 1] = c11;
     }
   }
-#endif
 }
+#endif
