@@ -116,11 +116,11 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
       int32_t *sub_matrix = (int32_t *)simple_malloc(sub_matrix_size);
 
       // Copy over values from matrix
-      anchor = y * num_rows + x;
+      anchor = y * num_cols + x;
       for (uint32_t syst_y = 0; syst_y < SYSTOLIC_SIZE; ++syst_y) {
         for (uint32_t syst_x = 0; syst_x < SYSTOLIC_SIZE; ++syst_x) {
-          sub_matrix[syst_y * syst_num_rows + syst_x] =
-              matrix[anchor + syst_y * num_rows + syst_x];
+          sub_matrix[syst_y * SYSTOLIC_SIZE + syst_x] =
+              matrix[anchor + syst_y * num_cols + syst_x];
         }
       }
 
