@@ -27,17 +27,21 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+#define DIM_M 3
+#define DIM_N 3
+#define DIM_P 3
+
 extern int32_t __heap_start, __heap_end;
 
-int32_t A[3][3] = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
-int32_t B[3][3] = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
+int32_t A[DIM_M][DIM_N] = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
+int32_t B[DIM_N][DIM_P] = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
 
 int32_t *matrix_A = (int32_t *)A;
 int32_t *matrix_B = (int32_t *)B;
 
-uint32_t dim_M = 3;
-uint32_t dim_N = 3;
-uint32_t dim_P = 3;
+systolic_matrix_t *syst_matrix_A;
+systolic_matrix_t *syst_matrix_B;
+systolic_matrix_t *syst_matrix_C;
 
 void print_matrix(int32_t const *matrix, uint32_t num_rows,
                   uint32_t num_columns) {
@@ -67,6 +71,11 @@ int main() {
 
     // Initialize systolic array
     systolic_init();
+
+    // Create systolic matrices
+    systolic_matrix_create(&syst_matrix_A, matrix_A, DIM_M, DIM_N);
+    systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
+    systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
   }
 
   // Wait for all cores
@@ -77,8 +86,19 @@ int main() {
   uint32_t col_idx = core_id / 4;
 
   if ((row_idx == 0) && (col_idx == 0)) {
-    int32_t *matrix_C = (int32_t *)simple_malloc(dim_M * dim_P * 4);
-    systolic_matrix_mul(matrix_A, matrix_B, matrix_C, dim_M, dim_N, dim_P);
+    // Print out matrices A & B
+    print_matrix(matrix_A, DIM_M, DIM_N);
+    print_matrix(matrix_B, DIM_N, DIM_P);
+
+    // Print out systolic matrices A & B
+    systolic_matrix_print(syst_matrix_A);
+    systolic_matrix_print(syst_matrix_B);
+
+    // Instruct systolic matrix multiplication
+    systolic_matrix_mul(syst_matrix_A, syst_matrix_B, syst_matrix_C);
+
+    // Print out systolic matrix C
+    systolic_matrix_print(syst_matrix_C);
   }
 
   if ((row_idx == 0) && (col_idx != 0)) {
