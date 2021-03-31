@@ -333,14 +333,23 @@ riscv_insn_ext_q = \
 	fsqrt_q \
 	fsub_q \
 
+# Disabled riscv_insn_ext_v_alu_int instructions for opcode overlap:
+#vasubu_vx
+#vslide1up_vx
+#vaaddu_vx
+#vadc_vvm
+#vadc_vxm
+#vsbc_vvm
+#vsbc_vxm
+#vmulhu_vx
+#vdivu_vx
+#vmulhsu_vx
+
 riscv_insn_ext_v_alu_int = \
 	vaadd_vv \
 	vaaddu_vv \
 	vaadd_vx \
-	vaaddu_vx \
 	vadc_vim \
-	vadc_vvm \
-	vadc_vxm \
 	vadd_vi \
 	vadd_vv \
 	vadd_vx \
@@ -350,12 +359,10 @@ riscv_insn_ext_v_alu_int = \
 	vasub_vv \
 	vasubu_vv \
 	vasub_vx \
-	vasubu_vx \
 	vcompress_vm \
 	vdiv_vv \
 	vdiv_vx \
 	vdivu_vv \
-	vdivu_vx \
 	vdot_vv \
 	vdotu_vv \
 	vid_v \
@@ -416,9 +423,7 @@ riscv_insn_ext_v_alu_int = \
 	vmulh_vv \
 	vmulh_vx \
 	vmulhsu_vv \
-	vmulhsu_vx \
 	vmulhu_vv \
-	vmulhu_vx \
 	vmv_s_x \
 	vmv_v_i \
 	vmv_v_v \
@@ -473,13 +478,10 @@ riscv_insn_ext_v_alu_int = \
 	vsaddu_vi \
 	vsaddu_vv \
 	vsaddu_vx \
-	vsbc_vvm \
-	vsbc_vxm \
 	vsext_vf2 \
 	vsext_vf4 \
 	vsext_vf8 \
 	vslide1down_vx \
-	vslide1up_vx \
 	vslidedown_vi \
 	vslidedown_vx \
 	vslideup_vi \
@@ -545,6 +547,9 @@ riscv_insn_ext_v_alu_int = \
 	vzext_vf4 \
 	vzext_vf8 \
 
+# Disabled riscv_insn_ext_v_alu_fp instructions for opcode overlap:
+#vfcvt_x_f_v
+
 riscv_insn_ext_v_alu_fp = \
 	vfadd_vf \
 	vfadd_vv \
@@ -553,7 +558,6 @@ riscv_insn_ext_v_alu_fp = \
 	vfcvt_f_xu_v \
 	vfcvt_rtz_x_f_v \
 	vfcvt_rtz_xu_f_v \
-	vfcvt_x_f_v \
 	vfcvt_xu_f_v \
 	vfdiv_vf \
 	vfdiv_vv \
@@ -741,9 +745,11 @@ riscv_insn_ext_v_ldst = \
 	vs4r_v \
 	vs8r_v \
 
+# Disabled riscv_insn_ext_v_ctrl instructions for opcode overlap:
+#vsetvl
+
 riscv_insn_ext_v_ctrl = \
 	vsetvli \
-	vsetvl \
 
 riscv_insn_ext_v = \
 	$(riscv_insn_ext_v_alu_fp) \
@@ -753,6 +759,30 @@ riscv_insn_ext_v = \
 	$(riscv_insn_ext_v_ldst) \
 
 riscv_insn_ext_xpulpimg = \
+	p_lb_irpost \
+	p_lbu_irpost \
+	p_lh_irpost \
+	p_lhu_irpost \
+	p_lw_irpost \
+	p_lb_rrpost \
+	p_lbu_rrpost \
+	p_lh_rrpost \
+	p_lhu_rrpost \
+	p_lw_rrpost \
+	p_lb_rr \
+	p_lbu_rr \
+	p_lh_rr \
+	p_lhu_rr \
+	p_lw_rr \
+	p_sb_irpost \
+	p_sh_irpost \
+	p_sw_irpost \
+	p_sb_rrpost \
+	p_sh_rrpost \
+	p_sw_rrpost \
+	p_sb_rr \
+	p_sh_rr \
+	p_sw_rr \
 	p_abs \
 	p_slet \
 	p_sletu \
@@ -770,6 +800,138 @@ riscv_insn_ext_xpulpimg = \
 	p_clipur \
 	p_beqimm \
 	p_bneimm \
+	p_mac \
+	p_msu \
+	pv_add_h \
+	pv_add_sc_h \
+	pv_add_sci_h \
+	pv_add_b \
+	pv_add_sc_b \
+	pv_add_sci_b \
+	pv_sub_h \
+	pv_sub_sc_h \
+	pv_sub_sci_h \
+	pv_sub_b \
+	pv_sub_sc_b \
+	pv_sub_sci_b \
+	pv_avg_h \
+	pv_avg_sc_h \
+	pv_avg_sci_h \
+	pv_avg_b \
+	pv_avg_sc_b \
+	pv_avg_sci_b \
+	pv_avgu_h \
+	pv_avgu_sc_h \
+	pv_avgu_sci_h \
+	pv_avgu_b \
+	pv_avgu_sc_b \
+	pv_avgu_sci_b \
+	pv_min_h \
+	pv_min_sc_h \
+	pv_min_sci_h \
+	pv_min_b \
+	pv_min_sc_b \
+	pv_min_sci_b \
+	pv_minu_h \
+	pv_minu_sc_h \
+	pv_minu_sci_h \
+	pv_minu_b \
+	pv_minu_sc_b \
+	pv_minu_sci_b \
+	pv_max_h \
+	pv_max_sc_h \
+	pv_max_sci_h \
+	pv_max_b \
+	pv_max_sc_b \
+	pv_max_sci_b \
+	pv_maxu_h \
+	pv_maxu_sc_h \
+	pv_maxu_sci_h \
+	pv_maxu_b \
+	pv_maxu_sc_b \
+	pv_maxu_sci_b \
+	pv_srl_h \
+	pv_srl_sc_h \
+	pv_srl_sci_h \
+	pv_srl_b \
+	pv_srl_sc_b \
+	pv_srl_sci_b \
+	pv_sra_h \
+	pv_sra_sc_h \
+	pv_sra_sci_h \
+	pv_sra_b \
+	pv_sra_sc_b \
+	pv_sra_sci_b \
+	pv_sll_h \
+	pv_sll_sc_h \
+	pv_sll_sci_h \
+	pv_sll_b \
+	pv_sll_sc_b \
+	pv_sll_sci_b \
+	pv_or_h \
+	pv_or_sc_h \
+	pv_or_sci_h \
+	pv_or_b \
+	pv_or_sc_b \
+	pv_or_sci_b \
+	pv_xor_h \
+	pv_xor_sc_h \
+	pv_xor_sci_h \
+	pv_xor_b \
+	pv_xor_sc_b \
+	pv_xor_sci_b \
+	pv_and_h \
+	pv_and_sc_h \
+	pv_and_sci_h \
+	pv_and_b \
+	pv_and_sc_b \
+	pv_and_sci_b \
+	pv_abs_h \
+	pv_abs_b \
+	pv_extract_h \
+	pv_extract_b \
+	pv_extractu_h \
+	pv_extractu_b \
+	pv_insert_h \
+	pv_insert_b \
+	pv_dotup_h \
+	pv_dotup_sc_h \
+	pv_dotup_sci_h \
+	pv_dotup_b \
+	pv_dotup_sc_b \
+	pv_dotup_sci_b \
+	pv_dotusp_h \
+	pv_dotusp_sc_h \
+	pv_dotusp_sci_h \
+	pv_dotusp_b \
+	pv_dotusp_sc_b \
+	pv_dotusp_sci_b \
+	pv_dotsp_h \
+	pv_dotsp_sc_h \
+	pv_dotsp_sci_h \
+	pv_dotsp_b \
+	pv_dotsp_sc_b \
+	pv_dotsp_sci_b \
+	pv_sdotup_h \
+	pv_sdotup_sc_h \
+	pv_sdotup_sci_h \
+	pv_sdotup_b \
+	pv_sdotup_sc_b \
+	pv_sdotup_sci_b \
+	pv_sdotusp_h \
+	pv_sdotusp_sc_h \
+	pv_sdotusp_sci_h \
+	pv_sdotusp_b \
+	pv_sdotusp_sc_b \
+	pv_sdotusp_sci_b \
+	pv_sdotsp_h \
+	pv_sdotsp_sc_h \
+	pv_sdotsp_sci_h \
+	pv_sdotsp_b \
+	pv_sdotsp_sc_b \
+	pv_sdotsp_sci_b \
+	pv_shuffle2_h \
+	pv_shuffle2_b \
 
 riscv_insn_ext_h = \
 	hfence_gvma \

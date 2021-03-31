@@ -16,6 +16,47 @@
 
 // Author: Samuel Riedel, ETH Zurich
 
+#ifndef __SYNCHRONIZATION_H__
+#define __SYNCHRONIZATION_H__
+
 // Barrier functions
 void mempool_barrier_init(uint32_t core_id, uint32_t num_cores);
 void mempool_barrier(uint32_t num_cores, uint32_t cycles);
+
+// Atomics
+
+/**
+
+ * Expose the atomic add instruction.
+ *
+ * @param   address     A pointer to an address on L2 memory to store the value.
+ * @param   value       Value to add to the specified memory location.
+ *
+ * @return  Value previously stored in memory.
+ */
+static inline unsigned amo_add(void volatile *const address, unsigned value) {
+  unsigned ret;
+  asm volatile("" : : : "memory");
+  asm volatile("amoadd.w  %0, %1, (%2)" : "=r"(ret) : "r"(value), "r"(address));
+  asm volatile("" : : : "memory");
+  return ret;
+}
+
+/**
+
+ * Expose the atomic or instruction.
+ *
+ * @param   address     A pointer to an address on L2 memory to store the value.
+ * @param   value       Value to add to the specified memory location.
+ *
+ * @return  Value previously stored in memory.
+ */
+static inline unsigned amo_or(void volatile *const address, unsigned value) {
+  unsigned ret;
+  asm volatile("" : : : "memory");
+  asm volatile("amoor.w  %0, %1, (%2)" : "=r"(ret) : "r"(value), "r"(address));
+  asm volatile("" : : : "memory");
+  return ret;
+}
+
+#endif // __SYNCHRONIZATION_H__

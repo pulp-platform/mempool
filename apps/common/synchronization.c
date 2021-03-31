@@ -16,8 +16,6 @@
 
 // Author: Samuel Riedel, ETH Zurich
 
-static inline unsigned amo_add(void volatile *const address, unsigned value);
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -70,21 +68,4 @@ void mempool_barrier(uint32_t num_cores, uint32_t cycles) {
     while (iteration_old == barrier_iteration)
       mempool_wait(cycles);
   }
-}
-
-/**
-
- * Expose the atomic add instruction.
- *
- * @param   address     A pointer to an address on L2 memory to store the value.
- * @param   value       Value to add to the specified memory location.
- *
- * @return  Value previously stored in memory.
- */
-static inline unsigned amo_add(void volatile *const address, unsigned value) {
-  unsigned ret;
-  __asm__ __volatile__("" : : : "memory");
-  asm volatile("amoadd.w  %0, %1, (%2)" : "=r"(ret) : "r"(value), "r"(address));
-  __asm__ __volatile__("" : : : "memory");
-  return ret;
 }

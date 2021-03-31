@@ -215,7 +215,7 @@ pre_trace:
 
 post_trace:
 	mkdir -p "$(result_dir)"
-	cp $(buildpath)/transcript "$(result_dir)/"
+	cp $(buildpath)/transcript "$(result_dir)/" | true
 	cp $(traceresult) "$(result_dir)"
 	cp $(trace) "$(result_dir)"
 

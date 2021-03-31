@@ -33,6 +33,12 @@ rv32um_snitch_sc_tests = \
 ifeq ($(xpulpimg),1)
 
 	rv32uxpulpimg_snitch_sc_tests = \
+		p_lb_irpost p_lbu_irpost p_lh_irpost p_lhu_irpost p_lw_irpost \
+		p_lb_rrpost p_lbu_rrpost p_lh_rrpost p_lhu_rrpost p_lw_rrpost \
+		p_lb_rr p_lbu_rr p_lh_rr p_lhu_rr p_lw_rr \
+		p_sb_irpost p_sh_irpost p_sw_irpost \
+		p_sb_rrpost p_sh_rrpost p_sw_rrpost \
+		p_sb_rr p_sh_rr p_sw_rr \
 		p_abs \
 		p_slet p_sletu \
 		p_min p_minu \
@@ -42,6 +48,28 @@ ifeq ($(xpulpimg),1)
 		p_clip p_clipu \
 		p_clipr p_clipur \
 		p_beqimm p_bneimm \
+  	p_mac p_msu \
+		pv_add \
+		pv_sub \
+		pv_avg pv_avgu \
+		pv_min pv_minu \
+		pv_max pv_maxu \
+		pv_srl \
+		pv_sra \
+		pv_sll \
+		pv_or \
+		pv_xor \
+		pv_and \
+		pv_abs \
+		pv_extract pv_extractu \
+		pv_insert \
+		pv_dotup \
+		pv_dotusp \
+		pv_dotsp \
+		pv_sdotup \
+		pv_sdotusp \
+		pv_sdotsp \
+		pv_shuffle2 \
 
 endif
 

@@ -3,6 +3,7 @@
 #ifndef __TEST_MACROS_SCALAR_H
 #define __TEST_MACROS_SCALAR_H
 
+// clang-format off
 
 #-----------------------------------------------------------------------
 # Helper macros
@@ -142,6 +143,109 @@ test_ ## testnum: \
     )
 
 #-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 6-bit unsigned immediate operand
+#-----------------------------------------------------------------------
+
+#define ZEXT_UIMM6(x) ((x) & 0x3F)
+
+#define TEST_UIMM6_OP( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x14, x1, ZEXT_UIMM6(imm); \
+    )
+
+#define TEST_UIMM6_SRC1_EQ_DEST( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x1, x1, ZEXT_UIMM6(imm); \
+    )
+
+#define TEST_UIMM6_DEST_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x6, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      inst x14, x1, ZEXT_UIMM6(imm); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      addi  x6, x14, 0; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_UIMM6_SRC1_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      inst x14, x1, ZEXT_UIMM6(imm); \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_UIMM6_ZEROSRC1( testnum, inst, result, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      inst x1, x0, ZEXT_UIMM6(imm); \
+    )
+
+#define TEST_UIMM6_ZERODEST( testnum, inst, val1, imm ) \
+    TEST_CASE( testnum, x0, 0, \
+      li  x1, MASK_XLEN(val1); \
+      inst x0, x1, ZEXT_UIMM6(imm); \
+    )
+
+#-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 6-bit signed immediate operand
+#-----------------------------------------------------------------------
+#define SEXT_IMM6(x) ((x) | (-(((x) >> 5) & 1) << 5))
+
+#define TEST_SIMM6_OP( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x14, x1, SEXT_IMM6(imm); \
+    )
+
+#define TEST_SIMM6_SRC1_EQ_DEST( testnum, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x1, x1, SEXT_IMM6(imm); \
+    )
+
+#define TEST_SIMM6_DEST_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x6, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      inst x14, x1, SEXT_IMM6(imm); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      addi  x6, x14, 0; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_SIMM6_SRC1_BYPASS( testnum, nop_cycles, inst, result, val1, imm ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      inst x14, x1, SEXT_IMM6(imm); \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_SIMM6_ZEROSRC1( testnum, inst, result, imm ) \
+    TEST_CASE( testnum, x1, result, \
+      inst x1, x0, SEXT_IMM6(imm); \
+    )
+
+#define TEST_SIMM6_ZERODEST( testnum, inst, val1, imm ) \
+    TEST_CASE( testnum, x0, 0, \
+      li  x1, MASK_XLEN(val1); \
+      inst x0, x1, SEXT_IMM6(imm); \
+    )
+
+#-----------------------------------------------------------------------
 # Tests for an instruction with register operands
 #-----------------------------------------------------------------------
 
@@ -264,7 +368,164 @@ test_ ## testnum: \
     )
 
 #-----------------------------------------------------------------------
-# Test memory instructions
+# Tests for instructions with 3 register operands
+#-----------------------------------------------------------------------
+
+#define TEST_RRR_OP( testnum, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, x2; \
+    )
+
+#define TEST_RRR_SRC1_EQ_DEST( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      inst x1, x1, x2; \
+    )
+
+#define TEST_RRR_SRC2_EQ_DEST( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x2, result, \
+      li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      inst x2, x1, x2; \
+    )
+
+#define TEST_RRR_SRC12_EQ_DEST( testnum, inst, result, val1 ) \
+    TEST_CASE( testnum, x1, result, \
+      li  x1, MASK_XLEN(val1); \
+      inst x1, x1, x1; \
+    )
+
+#define TEST_RRR_DEST_BYPASS( testnum, nop_cycles, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x6, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, x2; \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      addi  x6, x14, 0; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_RRR_SRC12_BYPASS( testnum, src1_nops, src2_nops, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li x14, MASK_XLEN(val3); \
+      li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## src1_nops \
+      li  x2, MASK_XLEN(val2); \
+      TEST_INSERT_NOPS_ ## src2_nops \
+      inst x14, x1, x2; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_RRR_SRC21_BYPASS( testnum, src1_nops, src2_nops, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li x14, MASK_XLEN(val3); \
+      li  x2, MASK_XLEN(val2); \
+      TEST_INSERT_NOPS_ ## src1_nops \
+      li  x1, MASK_XLEN(val1); \
+      TEST_INSERT_NOPS_ ## src2_nops \
+      inst x14, x1, x2; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+# Actually here we have 3 sources; to avoid too many tests we test rD source bypass only on its own
+#define TEST_RRR_SRC3_BYPASS( testnum, nop_cycles, inst, result, val1, val2, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x4, 0; \
+1:    li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      li x14, MASK_XLEN(val3); \
+      TEST_INSERT_NOPS_ ## nop_cycles \
+      inst x14, x1, x2; \
+      addi  x4, x4, 1; \
+      li  x5, 2; \
+      bne x4, x5, 1b \
+    )
+
+#define TEST_RRR_ZEROSRC1( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x2, result, \
+      li x1, MASK_XLEN(val1); \
+      li x2, MASK_XLEN(val2); \
+      inst x2, x0, x1; \
+    )
+
+#define TEST_RRR_ZEROSRC2( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x2, result, \
+      li x1, MASK_XLEN(val1); \
+      li x2, MASK_XLEN(val2); \
+      inst x2, x1, x0; \
+    )
+
+#define TEST_RRR_ZEROSRC3( testnum, inst, result, val1, val2 ) \
+    TEST_CASE( testnum, x14, result, \
+      li x1, MASK_XLEN(val1); \
+      li x2, MASK_XLEN(val2); \
+      li x14, 0; \
+      inst x14, x1, x2; \
+    )
+
+#define TEST_RRR_ZEROSRC12( testnum, inst, result, val1 ) \
+    TEST_CASE( testnum, x1, result, \
+      li x1, MASK_XLEN(val1); \
+      inst x1, x0, x0; \
+    )
+
+#define TEST_RRR_ZEROSRC123( testnum, inst, result ) \
+    TEST_CASE( testnum, x1, result, \
+      li x1, 0; \
+      inst x1, x0, x0; \
+    )
+
+#define TEST_RRR_ZERODEST( testnum, inst, val1, val2 ) \
+    TEST_CASE( testnum, x0, 0, \
+      li x1, MASK_XLEN(val1); \
+      li x2, MASK_XLEN(val2); \
+      inst x0, x1, x2; \
+    )
+
+#-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 2 register operands (rd and rs1)
+# and a 6-bit unsigned immediate input
+#-----------------------------------------------------------------------
+
+#define TEST_RR_UIMM6_OP( testnum, inst, result, val1, imm, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, ZEXT_UIMM6(imm); \
+    )
+
+# TODO(smazzola): finish to write macros to cover all tests types
+
+#-----------------------------------------------------------------------
+# Tests for Xpulpimg instructions with 2 register operands (rd and rs1)
+# and a 6-bit signed immediate input
+#-----------------------------------------------------------------------
+
+#define TEST_RR_SIMM6_OP( testnum, inst, result, val1, imm, val3 ) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, SEXT_IMM6(imm); \
+    )
+
+# TODO(smazzola): finish to write macros to cover all tests types
+
+#-----------------------------------------------------------------------
+# Test memory instructions (immediate offset)
 #-----------------------------------------------------------------------
 
 #define TEST_LD_OP( testnum, inst, result, offset, base ) \
@@ -339,6 +600,356 @@ test_ ## testnum: \
     addi  x4, x4, 1; \
     li  x5, 2; \
     bne x4, x5, 1b \
+
+#-----------------------------------------------------------------------
+# Test post-increment memory instructions (immediate offset)
+#-----------------------------------------------------------------------
+
+#define TEST_LD_POST_OP( testnum, inst, load_result, offset, base ) \
+    TEST_CASE( testnum, x14, load_result, \
+      la  x1, base; \
+      addi x15, x1, offset; \
+      inst x14, offset(x1!); \
+    ) \
+    bne x1, x15, fail;
+
+#define TEST_ST_POST_OP( testnum, store_inst, load_inst, store_result, offset, base ) \
+    TEST_CASE( testnum, x14, store_result, \
+      la  x1, base; \
+      la x15, base; \
+      li  x2, store_result; \
+      store_inst x2, offset(x1!); \
+      load_inst x14, 0(x15); \
+    ) \
+    addi x15, x15, offset; \
+    bne x1, x15, fail;
+
+#define TEST_LD_POST_DEST1_BYPASS( testnum, nop_cycles, inst, load_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x1, base; \
+    inst x14, offset(x1!); \
+    TEST_INSERT_NOPS_ ## nop_cycles \
+    addi  x6, x14, 0; \
+    li  x7, load_result; \
+    bne x6, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b; \
+
+#define TEST_LD_POST_DEST2_BYPASS( testnum, nop_cycles, inst, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x1, base; \
+    addi x7, x1, offset; \
+    inst x14, offset(x1!); \
+    TEST_INSERT_NOPS_ ## nop_cycles \
+    addi  x6, x1, 0; \
+    bne x6, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b; \
+
+#define TEST_LD_POST_SRC1_BYPASS( testnum, nop_cycles, inst, load_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x1, base; \
+    TEST_INSERT_NOPS_ ## nop_cycles \
+    inst x14, offset(x1!); \
+    li  x7, load_result; \
+    bne x14, x7, fail; \
+    la  x15, base; \
+    addi x15, x15, offset; \
+    bne x1, x15, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+#define TEST_ST_POST_SRC12_BYPASS( testnum, src1_nops, src2_nops, store_inst, load_inst, store_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  li  x1, store_result; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    la  x2, base; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    store_inst x1, offset(x2!); \
+    la x15, base; \
+    load_inst x14, 0(x15); \
+    li  x7, store_result; \
+    bne x14, x7, fail; \
+    addi x15, x15, offset; \
+    bne x2, x15, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+#define TEST_ST_POST_SRC21_BYPASS( testnum, src1_nops, src2_nops, store_inst, load_inst, store_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x2, base; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    li  x1, store_result; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    store_inst x1, offset(x2!); \
+    la x15, base; \
+    load_inst x14, 0(x15); \
+    li  x7, store_result; \
+    bne x14, x7, fail; \
+    addi x15, x15, offset; \
+    bne x2, x15, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+
+# You have to make sure Mem[base] =! value, otherwise this test might wrongly succeed
+#define TEST_LD_POST_DEST1_WAW( testnum, inst, value, base ) \
+    TEST_CASE( testnum, x14, value, \
+      la  x1, base; \
+      inst x14, 0(x1!); \
+      li x14, value; \
+    )
+
+#-----------------------------------------------------------------------
+# Test memory instructions (register offset)
+#-----------------------------------------------------------------------
+
+#define TEST_LD_RR_OP( testnum, inst, load_result, offset, base ) \
+    TEST_CASE( testnum, x14, load_result, \
+      la  x1, base; \
+      li x16, offset; \
+      inst x14, x16(x1); \
+    ) \
+    la x15, base; \
+    bne x1, x15, fail;
+
+#define TEST_ST_RR_OP( testnum, store_inst, load_inst, store_result, offset, base ) \
+    TEST_CASE( testnum, x14, store_result, \
+      la  x1, base; \
+      la x15, base; \
+      li x16, offset; \
+      li  x2, store_result; \
+      store_inst x2, x16(x1); \
+      load_inst x14, offset(x15); \
+    ) \
+    bne x1, x15, fail;
+
+#define TEST_LD_RR_DEST_BYPASS( testnum, nop_cycles, inst, load_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x1, base; \
+    li x16, offset; \
+    inst x14, x16(x1); \
+    TEST_INSERT_NOPS_ ## nop_cycles \
+    addi  x6, x14, 0; \
+    li  x7, load_result; \
+    bne x6, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b; \
+
+#define TEST_LD_RR_SRC12_BYPASS( testnum, src1_nops, src2_nops, inst, load_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x1, base; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    li x16, offset; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    inst x14, x16(x1); \
+    li  x7, load_result; \
+    bne x14, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+#define TEST_LD_RR_SRC21_BYPASS( testnum, src1_nops, src2_nops, inst, load_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  li x16, offset; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    la  x1, base; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    inst x14, x16(x1); \
+    li  x7, load_result; \
+    bne x14, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+# Actually reg-reg stores have 3 sources; to avoid too many tests we
+# only test rs1 and rs3 bypass (rs2 bypass already tested by others)
+#define TEST_ST_RR_SRC12_BYPASS( testnum, src1_nops, src2_nops, store_inst, load_inst, store_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x2, base; \
+    li  x1, store_result; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    li x16, offset; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    store_inst x1, x16(x2); \
+    la x15, base; \
+    load_inst x14, offset(x15); \
+    li  x7, store_result; \
+    bne x14, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+#define TEST_ST_RR_SRC21_BYPASS( testnum, src1_nops, src2_nops, store_inst, load_inst, store_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x2, base; \
+    li x16, offset; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    li  x1, store_result; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    store_inst x1, x16(x2); \
+    la x15, base; \
+    load_inst x14, offset(x15); \
+    li  x7, store_result; \
+    bne x14, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+# You have to make sure Mem[base] =! value, otherwise this test might wrongly succeed
+#define TEST_LD_RR_DEST1_WAW( testnum, inst, value, base ) \
+    TEST_CASE( testnum, x14, value, \
+      la  x1, base; \
+      inst x14, x0(x1); \
+      li x14, value; \
+    ) \
+
+#-----------------------------------------------------------------------
+# Test post-increment memory instructions (register offset)
+#-----------------------------------------------------------------------
+
+#define TEST_LD_RR_POST_OP( testnum, inst, load_result, offset, base ) \
+    TEST_CASE( testnum, x14, load_result, \
+      la  x1, base; \
+      li x16, offset; \
+      inst x14, x16(x1!); \
+    ) \
+    la x15, base; \
+    addi x15, x15, offset; \
+    bne x1, x15, fail;
+
+#define TEST_ST_RR_POST_OP( testnum, store_inst, load_inst, store_result, offset, base ) \
+    TEST_CASE( testnum, x14, store_result, \
+      la  x1, base; \
+      la x15, base; \
+      li x16, offset; \
+      li  x2, store_result; \
+      store_inst x2, x16(x1!); \
+      load_inst x14, 0(x15); \
+    ) \
+    addi x15, x15, offset; \
+    bne x1, x15, fail;
+
+#define TEST_LD_RR_POST_DEST_BYPASS( testnum, nop_cycles, inst, load_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x1, base; \
+    li x16, offset; \
+    inst x14, x16(x1!); \
+    TEST_INSERT_NOPS_ ## nop_cycles \
+    addi  x6, x14, 0; \
+    li  x7, load_result; \
+    bne x6, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b; \
+
+#define TEST_LD_RR_POST_SRC12_BYPASS( testnum, src1_nops, src2_nops, inst, load_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x1, base; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    li x16, offset; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    inst x14, x16(x1!); \
+    li  x7, load_result; \
+    bne x14, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+#define TEST_LD_RR_POST_SRC21_BYPASS( testnum, src1_nops, src2_nops, inst, load_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  li x16, offset; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    la  x1, base; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    inst x14, x16(x1!); \
+    li  x7, load_result; \
+    bne x14, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+# Actually reg-reg stores have 3 sources; to avoid too many tests we
+# only test rs1 and rs3 bypass (rs2 bypass already tested by others)
+#define TEST_ST_RR_POST_SRC12_BYPASS( testnum, src1_nops, src2_nops, store_inst, load_inst, store_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x2, base; \
+    li  x1, store_result; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    li x16, offset; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    store_inst x1, x16(x2!); \
+    la x15, base; \
+    load_inst x14, 0 (x15); \
+    li  x7, store_result; \
+    bne x14, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+#define TEST_ST_RR_POST_SRC21_BYPASS( testnum, src1_nops, src2_nops, store_inst, load_inst, store_result, offset, base ) \
+test_ ## testnum: \
+    li  TESTNUM, testnum; \
+    li  x4, 0; \
+1:  la  x2, base; \
+    li x16, offset; \
+    TEST_INSERT_NOPS_ ## src1_nops \
+    li  x1, store_result; \
+    TEST_INSERT_NOPS_ ## src2_nops \
+    store_inst x1, x16(x2!); \
+    la x15, base; \
+    load_inst x14, 0(x15); \
+    li  x7, store_result; \
+    bne x14, x7, fail; \
+    addi  x4, x4, 1; \
+    li  x5, 2; \
+    bne x4, x5, 1b \
+
+# You have to make sure Mem[base] =! value, otherwise this test might wrongly succeed
+#define TEST_LD_RR_POST_DEST1_WAW( testnum, inst, value, base ) \
+    TEST_CASE( testnum, x14, value, \
+      la  x1, base; \
+      inst x14, x0(x1!); \
+      li x14, value; \
+    ) \
+
+#-----------------------------------------------------------------------
+# Test branch instructions
+#-----------------------------------------------------------------------
 
 #define TEST_BR2_OP_TAKEN( testnum, inst, val1, val2 ) \
 test_ ## testnum: \
@@ -735,5 +1346,7 @@ pass: \
 #-----------------------------------------------------------------------
 
 #define TEST_DATA
+
+// clang-format on
 
 #endif

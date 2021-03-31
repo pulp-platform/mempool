@@ -131,6 +131,10 @@ public:
   // Xpulpimg
   uint64_t p_zimm5() { return x(20, 5); }
   int64_t p_simm5() { return xs(20, 5); }
+  uint64_t p_rs3() { return x(7, 5); }
+  uint64_t p_zimm6() { return x(25,1) + (x(20, 5) << 1); }
+  int64_t p_simm6() { return x(25,1) + (xs(20, 5) << 1); }
+
 
 private:
   insn_bits_t b;
@@ -283,6 +287,16 @@ private:
 
 #define sext8(x)  ((sreg_t)(int8_t)(x))
 #define zext8(x)  ((reg_t)(uint8_t)(x))
+
+#define P_RS3 READ_REG(insn.p_rs3()) /* same as RD, just different semantical value */
+#define WRITE_RS1(value) WRITE_REG(insn.rs1(), value)
+
+#define RS1_H(i) ((RS1 >> ((xlen >> 1) * (i & 0x1))) & 0xFFFF) /* select rs1 half: i should only be 0 or 1 */
+#define RS1_B(i) ((RS1 >> ((xlen >> 2) * (i & 0x3))) & 0xFF) /* select rs1 byte: i should only be from 0 to 3 */
+#define RS2_H(i) ((RS2 >> ((xlen >> 1) * (i & 0x1))) & 0xFFFF) /* select rs2 half: i should only be 0 or 1 */
+#define RS2_B(i) ((RS2 >> ((xlen >> 2) * (i & 0x3))) & 0xFF) /* select rs2 byte: i should only be from 0 to 3 */
+#define RD_H(i) ((RD >> ((xlen >> 1) * (i & 0x1))) & 0xFFFF) /* select rd half: i should only be 0 or 1 */
+#define RD_B(i) ((RD >> ((xlen >> 2) * (i & 0x3))) & 0xFF) /* select rd byte: i should only be from 0 to 3 */
 
 
 #define sext32(x) ((sreg_t)(int32_t)(x))
