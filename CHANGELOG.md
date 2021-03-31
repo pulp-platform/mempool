@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Added
+
+- Toolchain and hardware support for Xpulp instructions:
+  - Post-incrementing and register-register loads and stores (`pv.lb[u]`, `pv.lh[u]`, `pv.lw`)
+  - 32-bit multiply-accumulate instructions (`pv.mac`, `pv.msu`)
+  - Arithmetic SIMD instructions (`pv.{add, sub, abs, avg, avgu, min, minu, max, maxu, srl, sra, sll, or, xor, and, dotsp, dotup, dotusp, sdotsp, sdotup, sdotusp}.{h, b}`
+  - Sub-word manipulation SIMD instructions (`pv.{extract, extractu, insert, shuffle2}.{h, b}`)
+
 ### Fixed
 - Disable the branch prediction if there are multiple early-hits
 - Align end of `.text` section with the instruction cache
+- Observe the code style guidelines in the matrix multiplication and convolution kernels
+
+### Changed
+- Clean-up the pedantic compilation warnings of the matrix multiplication and convolution kernels
 
 ## 0.2.0 - 2021-03-29
 
