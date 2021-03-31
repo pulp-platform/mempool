@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
-### Added
+## 0.3.0 - 2021-03-31
 
+### Added
 - Toolchain and hardware support for Xpulp instructions:
   - Post-incrementing and register-register loads and stores (`pv.lb[u]`, `pv.lh[u]`, `pv.lw`)
   - 32-bit multiply-accumulate instructions (`pv.mac`, `pv.msu`)
