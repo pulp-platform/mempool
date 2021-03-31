@@ -73,6 +73,14 @@ int main() {
     }
   }
 
+  // Wait for all cores
+  mempool_barrier(num_cores, num_cores * 4);
+
+  // Destroy queue
+  if (core_id == 0) {
+    queue_destroy(queue);
+  }
+
   // wait until all cores have finished
   mempool_barrier(num_cores, num_cores * 4);
   return 0;
