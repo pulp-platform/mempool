@@ -28,7 +28,7 @@
 #include "synchronization.h"
 
 // Define which kernel to use
-//#define __XPULPIMG
+#define __XPULPIMG
 
 /*
  * 2D Convolution 3x3 ----------------------------------
@@ -60,7 +60,7 @@ void conv2d_3x3_unrolled_i8_rv32im(int8_t const volatile *__restrict__ in,
       sum += in[(j + 1) * in_x + (i - 1)] * k[6];
       sum += in[(j + 1) * in_x + (i + 0)] * k[7];
       sum += in[(j + 1) * in_x + (i + 1)] * k[8];
-      out[j * in_x + i] = sum / weight;
+      out[j * in_x + i] = sum / (int)weight;
     }
   }
 }
@@ -122,7 +122,7 @@ void conv2d_3x3_unrolled2_i8_rv32im(int8_t const volatile *__restrict__ in,
       elem_21 = in[(j + 2) * in_x + (i + 0)];
       elem_22 = in[(j + 2) * in_x + (i + 1)];
 
-      out[j * in_x + i] = sum / weight;
+      out[j * in_x + i] = sum / (int)weight;
     }
   }
 }
@@ -142,7 +142,7 @@ void conv2d_3x3_unrolled_i8_xpulpv2(
     int32_t volatile *__restrict__ Out_Img, uint32_t R, uint32_t C,
     uint8_t const volatile *__restrict__ Kernel) {
 #ifdef __XPULPIMG
-  v4s coeff_0, coeff_1, coeff_2;
+  v4u coeff_0, coeff_1, coeff_2;
   v4s Img_0, Img_1, Img_2;
   v4s new_data;
   uint32_t r, c, t;
@@ -153,9 +153,9 @@ void conv2d_3x3_unrolled_i8_xpulpv2(
     weight += Kernel[i];
   }
 
-  coeff_0 = (v4s){Kernel[0], Kernel[1], Kernel[2], 0};
-  coeff_1 = (v4s){Kernel[3], Kernel[4], Kernel[5], 0};
-  coeff_2 = (v4s){Kernel[6], Kernel[7], Kernel[8], 0};
+  coeff_0 = (v4u){Kernel[0], Kernel[1], Kernel[2], 0};
+  coeff_1 = (v4u){Kernel[3], Kernel[4], Kernel[5], 0};
+  coeff_2 = (v4u){Kernel[6], Kernel[7], Kernel[8], 0};
 
   // image board is black
   for (c = 1; c < C - 1; c++) {
@@ -171,7 +171,7 @@ void conv2d_3x3_unrolled_i8_xpulpv2(
       S = __builtin_pulp_sdotsp4(Img_1, coeff_1, S);
       S = __builtin_pulp_sdotsp4(Img_2, coeff_2, S);
 
-      Out_Img[t] = S / weight;
+      Out_Img[t] = S / (int)weight;
 
       // load a new rod
       new_data = (v4s){In_Img[(r + 2) * R + c - 1], In_Img[(r + 2) * R + c],
@@ -200,7 +200,7 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(
     int32_t volatile *__restrict__ Out_Img, uint32_t R, uint32_t C,
     uint8_t const volatile *__restrict__ Kernel) {
 #ifdef __XPULPIMG
-  v4s coeff_0, coeff_1, coeff_2;
+  v4u coeff_0, coeff_1, coeff_2;
   v4s Img_00, Img_10, Img_20;
   v4s Img_01, Img_11, Img_21;
   v4s new_data_0, new_data_1;
@@ -212,9 +212,9 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(
     weight += Kernel[i];
   }
 
-  coeff_0 = (v4s){Kernel[0], Kernel[1], Kernel[2], 0};
-  coeff_1 = (v4s){Kernel[3], Kernel[4], Kernel[5], 0};
-  coeff_2 = (v4s){Kernel[6], Kernel[7], Kernel[8], 0};
+  coeff_0 = (v4u){Kernel[0], Kernel[1], Kernel[2], 0};
+  coeff_1 = (v4u){Kernel[3], Kernel[4], Kernel[5], 0};
+  coeff_2 = (v4u){Kernel[6], Kernel[7], Kernel[8], 0};
 
   // image board is black
   for (c = 1; c < C / 2; c++) {
@@ -241,8 +241,8 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(
       S_0 = __builtin_pulp_sdotsp4(Img_20, coeff_2, S_0);
       S_1 = __builtin_pulp_sdotsp4(Img_21, coeff_2, S_1);
 
-      int32_t res_0 = S_0 / weight;
-      int32_t res_1 = S_1 / weight;
+      int32_t res_0 = S_0 / (int)weight;
+      int32_t res_1 = S_1 / (int)weight;
 
       // load a new rod
       new_data_0 = (v4s){In_Img[(r + 2) * R + (2 * c - 1) - 1],
@@ -268,36 +268,38 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(
 
 // Testing
 // Initialize the image in parallel
-void init_conv2d_image_i8(int8_t *img, uint32_t img_x, uint32_t img_y) {
+void init_conv2d_image_i8(volatile int8_t *img, uint32_t img_x,
+                          uint32_t img_y) {
   if (img_y > img_x) {
-    for (int i = 0; i < img_y; ++i) {
-      for (int j = 0; j < img_x; ++j) {
-        img[i * img_x + j] = (i % 16) + (j % 4);
+    for (int i = 0; i < (int)img_y; ++i) {
+      for (int j = 0; j < (int)img_x; ++j) {
+        img[i * (int)img_x + j] = (int8_t)((i % 16) + (j % 4));
       }
     }
   } else {
-    for (int j = 0; j < img_x; ++j) {
-      for (int i = 0; i < img_y; ++i) {
-        img[i * img_x + j] = (i % 16) + (j % 4);
+    for (int j = 0; j < (int)img_x; ++j) {
+      for (int i = 0; i < (int)img_y; ++i) {
+        img[i * (int)img_x + j] = (int8_t)((i % 16) + (j % 4));
       }
     }
   }
 }
 
 // Verify and reset the image
-int verify_conv2d_image_i8(int32_t *img, uint32_t img_x, uint32_t img_y) {
-  for (int i = 1; i < img_y - 1; ++i) {
+int verify_conv2d_image_i8(volatile int32_t *img, uint32_t img_x,
+                           uint32_t img_y) {
+  for (int i = 1; i < (int)img_y - 1; ++i) {
     int32_t y = i % 16;
     if (i % 16 == 0)
       y = 4;
     if (i % 16 == 15)
       y = 11;
-    for (int32_t j = 1; j < img_x - 1; ++j) {
+    for (int32_t j = 1; j < (int)img_x - 1; ++j) {
       int32_t x = ((j % 4) / 2) + 1;
-      if ((int32_t)img[i * img_x + j] != (int32_t)(x + y)) {
-        return (i + j) == 0 ? -1 : i * img_x + j;
+      if ((int32_t)img[i * (int)img_x + j] != (int32_t)(x + y)) {
+        return (i + j) == 0 ? -1 : i * (int)img_x + j;
       }
-      img[i * img_x + j] = 0;
+      img[i * (int)img_x + j] = 0;
     }
   }
   return 0;
@@ -306,16 +308,16 @@ int verify_conv2d_image_i8(int32_t *img, uint32_t img_x, uint32_t img_y) {
 // Verify and reset the image
 int verify_conv2d_image_i8_verbose(int32_t *img, uint32_t img_x,
                                    uint32_t img_y) {
-  for (int i = 1; i < img_y - 1; ++i) {
+  for (int i = 1; i < (int)img_y - 1; ++i) {
     int32_t y = i % 16;
     if (i % 16 == 0)
       y = 4;
     if (i % 16 == 15)
       y = 11;
     printf("|");
-    for (int32_t j = 1; j < img_x - 1; ++j) {
+    for (int32_t j = 1; j < (int)img_x - 1; ++j) {
       int32_t x = ((j % 4) / 2) + 1;
-      printf(" %2u - %2u |", img[i * img_x + j], x + y);
+      printf(" %2u - %2u |", img[i * (int)img_x + j], x + y);
     }
     printf("\n");
   }
@@ -326,7 +328,7 @@ void conv2d_3x3_unrolled_i8_xpulpv2_verbose(
     int8_t const *__restrict__ In_Img, int32_t volatile *__restrict__ Out_Img,
     uint32_t R, uint32_t C, uint8_t const volatile *__restrict__ Kernel) {
 #ifdef __XPULPIMG
-  v4s coeff_0, coeff_1, coeff_2;
+  v4u coeff_0, coeff_1, coeff_2;
   v4s Img_0, Img_1, Img_2;
   v4s new_data;
   uint32_t r, c, t;
@@ -337,21 +339,9 @@ void conv2d_3x3_unrolled_i8_xpulpv2_verbose(
     weight += Kernel[i];
   }
 
-  // __asm__ volatile(
-  //   "lw %[c0], 0(%[addr_ker]) \n\t"
-  //   "lw %[c1], 3(%[addr_ker]) \n\t"
-  //   "lw %[c2], 6(%[addr_ker]) \n\t"
-  //   : [ c0 ] "=&r"(coeff_0), [ c1 ] "=&r"(coeff_1), [ c2 ] "=&r"(coeff_2)
-  //   : [ addr_ker ] "r"(Kernel)
-  //   : "memory");
-  //
-  // coeff_0 = coeff_0 & 0xFFFFFF00;
-  // coeff_1 = coeff_1 & 0xFFFFFF00;
-  // coeff_2 = coeff_2 & 0xFFFFFF00;
-
-  coeff_0 = (v4s){Kernel[0], Kernel[1], Kernel[2], 0};
-  coeff_1 = (v4s){Kernel[3], Kernel[4], Kernel[5], 0};
-  coeff_2 = (v4s){Kernel[6], Kernel[7], Kernel[8], 0};
+  coeff_0 = (v4u){Kernel[0], Kernel[1], Kernel[2], 0};
+  coeff_1 = (v4u){Kernel[3], Kernel[4], Kernel[5], 0};
+  coeff_2 = (v4u){Kernel[6], Kernel[7], Kernel[8], 0};
 
   // image board is black
   for (c = 1; c < C - 1; c++) {
@@ -374,9 +364,9 @@ void conv2d_3x3_unrolled_i8_xpulpv2_verbose(
       S = __builtin_pulp_sdotsp4(Img_2, coeff_2, S);
 
       printf("S = %d\n", S);
-      printf("S/weight = %d\n", S / weight);
+      printf("S/weight = %d\n", S / (int)weight);
 
-      Out_Img[t] = S / weight;
+      Out_Img[t] = S / (int)weight;
       printf("Out_Img[%d] = %d\n", t, Out_Img[t]);
 
       new_data = (v4s){In_Img[(r + 2) * R + c - 1], In_Img[(r + 2) * R + c],
