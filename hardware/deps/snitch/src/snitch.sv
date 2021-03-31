@@ -104,7 +104,6 @@ module snitch #(
   /* verilator lint_on WIDTH */
 
   logic [31:0] opa, opb;
-//logic [31:0] opa, opb, opc;
   logic [32:0] adder_result;
   logic [31:0] alu_result;
 
@@ -222,7 +221,6 @@ module snitch #(
   assign acc_qdata_op_o = inst_data_i;
   assign acc_qdata_arga_o = {{32{gpr_rdata[0][31]}}, gpr_rdata[0]};
   assign acc_qdata_argb_o = {{32{gpr_rdata[1][31]}}, gpr_rdata[1]};
-//assign acc_qdata_argc_o = {32'b0, alu_result};
   assign acc_qdata_argc_o = {{32{gpr_rdata[2][31]}}, gpr_rdata[2]};
 
   // instruction fetch interface
@@ -1405,14 +1403,6 @@ module snitch #(
       default: opb = '0;
     endcase
   end
-
-//  always_comb begin
-//    unique case (opc_select)
-//      None: opc = '0;
-//      Reg: opc = gpr_rdata[2];
-//      default: opc = '0;
-//    endcase
-//  end
 
   assign gpr_raddr[0] = rs1;
   assign gpr_raddr[1] = rs2;
