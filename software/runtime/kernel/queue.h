@@ -23,6 +23,7 @@
 // Uses a single slot buffer for the full state to differentiate it from empty
 
 #include "alloc.h"
+#include "runtime.h"
 
 typedef struct {
   int32_t *array;
@@ -39,6 +40,11 @@ void queue_create(queue_t **queue, const uint32_t size) {
   new_queue->tail = 0;
   new_queue->size = size;
   *queue = new_queue;
+}
+
+void queue_destroy(queue_t *queue) {
+  simple_free(queue->array);
+  simple_free(queue);
 }
 
 int32_t queue_pop(queue_t *const queue, int32_t *data) {
@@ -67,4 +73,32 @@ int32_t queue_push(queue_t *const queue, int32_t *data) {
   // Safely update tail
   queue->tail = next_tail;
   return 0;
+}
+
+void blocking_queue_pop(queue_t *const queue, int32_t *data) {
+  while (queue_pop(queue, data)) {
+    mempool_wait(1);
+  };
+}
+
+void blocking_queue_push(queue_t *const queue, int32_t *data) {
+  while (queue_push(queue, data)) {
+    mempool_wait(1);
+  };
+}
+
+uint32_t counting_queue_pop(queue_t *const queue, int32_t *data) {
+  uint32_t counter = 0;
+  while (queue_pop(queue, data)) {
+    counter++;
+  };
+  return counter;
+}
+
+uint32_t counting_queue_push(queue_t *const queue, int32_t *data) {
+  uint32_t counter = 0;
+  while (queue_push(queue, data)) {
+    counter++;
+  };
+  return counter;
 }
