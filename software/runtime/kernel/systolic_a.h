@@ -263,12 +263,6 @@ void systolic_column_ctrl(const uint32_t idx) {
   queue_next = queues_right[0][idx];
   queue_data = queues_down[0][idx];
 
-  // Pre-fill queues
-  data = INSTR_NOP;
-  for (uint32_t i = 0; i < idx - 1; ++i) {
-    blocking_queue_push(queue_data, &data);
-  }
-
   // Systolic loop
   while (loop) {
     // Receive instruction and instr_repetition count
@@ -340,12 +334,6 @@ void systolic_row_ctrl(const uint32_t idx) {
   queue_prev = queues_down[idx - 1][0];
   queue_next = queues_down[idx][0];
   queue_data = queues_right[idx][0];
-
-  // Pre-fill queues
-  data = INSTR_NOP;
-  for (uint32_t i = 0; i < idx - 1; ++i) {
-    blocking_queue_push(queue_data, &data);
-  }
 
   // Systolic loop
   while (loop) {
