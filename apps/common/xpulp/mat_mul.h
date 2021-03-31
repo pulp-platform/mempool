@@ -320,12 +320,12 @@ void matmul_unrolled_2x4_pincr_asm_parallel_i8_xpulpv2(
   // Loop counter for P
   uint32_t k = 0;
   // Row decrement for A matrix
-  int32_t const N_decr = -N + 4;
+  int32_t const N_decr = -(int)N + 4;
   // Row increment for C matrix
   uint32_t const P_incr = (P * 4) - 12;
 
   for (k = core_id; k < P / 4; k += numThreads) {
-    int8_t *idx_a = &pSrcA[0];            // start_a
+    const int8_t *idx_a = &pSrcA[0];      // start_a
     int32_t *idx_c = &pDstC[k * 4];       // start_c
     int32_t const *end_c = &pDstC[P * M]; // actually (P * M) + (k * 4)
     while (idx_c < end_c) {
@@ -340,7 +340,7 @@ void matmul_unrolled_2x4_pincr_asm_parallel_i8_xpulpv2(
       int32_t sum13 = 0;
 
       int8_t const *end_a = idx_a + N;
-      int8_t *idx_b = &pSrcB[k * 4]; // start_b
+      const int8_t *idx_b = &pSrcB[k * 4]; // start_b
       while (idx_a < end_a) {
 
         v4s aVec0, aVec1;
@@ -514,14 +514,15 @@ void matmul_unrolled_4x2_pincr_asm_parallel_i16_xpulpv2(
   // Increment for A matrix = 1 row forward
   uint32_t const A_incr = N * sizeof(int16_t);
   // Decrement for A matrix = 3 rows backward and 2 words forward
-  int32_t const A_decr = -(N * 3 * sizeof(int16_t)) + 2 * sizeof(int16_t);
+  int32_t const A_decr =
+      -(int)(N * 3 * sizeof(int16_t)) + 2 * (int)sizeof(int16_t);
   // Increment for B matrix = 1 row forward
   uint32_t const B_incr = P * sizeof(int16_t); // bytes in 1 row
   // Increment for C matrix = 1 row forward and 1 word backward
   uint32_t const C_incr = (P * sizeof(int32_t)) - sizeof(int32_t);
 
   for (k = core_id; k < P / 2; k += numThreads) {
-    int16_t *idx_a = &pSrcA[0];           // start_a
+    const int16_t *idx_a = &pSrcA[0];     // start_a
     int32_t *idx_c = &pDstC[k * 2];       // start_c
     int32_t const *end_c = &pDstC[P * M]; // actually (P * M) + (k * 2)
 
@@ -537,7 +538,7 @@ void matmul_unrolled_4x2_pincr_asm_parallel_i16_xpulpv2(
       int32_t sum31 = 0;
 
       int16_t const *end_a = idx_a + N;
-      int16_t *idx_b = &pSrcB[k * 2]; // start_b
+      const int16_t *idx_b = &pSrcB[k * 2]; // start_b
 
       while (idx_a < end_a) {
 
@@ -691,8 +692,8 @@ void matmul_unrolled_2x2_parallel_i32_xpulpv2(int32_t const *__restrict__ A,
       int32_t c11 = 0;
 
       for (uint32_t k = 0; k < N; k += 2) {
-        int32_t *idx_a = &A[i * N + k];
-        int32_t *idx_b = &B[k * P + j];
+        const int32_t *idx_a = &A[i * N + k];
+        const int32_t *idx_b = &B[k * P + j];
         int32_t val_a00, val_a01, val_a10, val_a11, val_b00, val_b01, val_b10,
             val_b11;
         __asm__ volatile("p.lw %[a00], 4(%[addr_a]!) \n\t"
