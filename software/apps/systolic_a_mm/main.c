@@ -45,7 +45,7 @@ systolic_matrix_t *syst_matrix_C;
 
 void print_matrix(int32_t const *matrix, uint32_t num_rows,
                   uint32_t num_columns) {
-  printf("0x%8X\n", (uint32_t)matrix);
+  printf("Matrix at 0x%8X\n", (uint32_t)matrix);
   for (uint32_t i = 0; i < num_rows; ++i) {
     for (uint32_t j = 0; j < num_columns; ++j) {
       printf("%5d ", matrix[i * num_columns + j]);
@@ -63,19 +63,30 @@ int main() {
 
   // Setup
   if (core_id == 0) {
-    printf("Initialize\n");
+    printf("> Initialize Allocator\n");
 
     // Initialize malloc
     uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
     alloc_init(get_alloc_l1(), &__heap_start, heap_size);
 
+    // Check allocator state
+    alloc_dump(get_alloc_l1());
+
     // Initialize systolic array
+    printf("> Initialize Systolic Architecture\n");
     systolic_init();
 
+    // Check allocator state
+    alloc_dump(get_alloc_l1());
+
     // Create systolic matrices
+    printf("> Allocate Systolic Matrices\n");
     systolic_matrix_create(&syst_matrix_A, matrix_A, DIM_M, DIM_N);
     systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
     systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
+
+    // Check allocator state
+    alloc_dump(get_alloc_l1());
   }
 
   // Wait for all cores
