@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - Allow atomic extension to be enabled in GCC
 - Replace atomic library with the corresponding builtins
+- Compile all applications in the CI instead of only the ones executed
+- Move Halide applications to their own directory
 
 ### Fixed
 - Stall cycle counting in the trace no longer misses stalls
