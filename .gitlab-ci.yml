@@ -135,10 +135,7 @@ hardware:
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
     - cd apps
-    - |
-      for APP in ${APPS}; do
-        make COMPILER=${COMPILER} bin/${APP}
-      done
+    - make COMPILER=${COMPILER} all
     - cd ../hardware
     - |
       for APP in ${APPS}; do
