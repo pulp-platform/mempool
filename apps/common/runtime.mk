@@ -41,6 +41,8 @@ ifeq ($(COMPILER),gcc)
 	ifeq ($(XPULPIMG),1)
 		RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)
+		# Define __XPULPIMG if the extension is active
+		DEFINES       += -D__XPULPIMG
 	else
 		RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
@@ -67,11 +69,7 @@ RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Defines
-DEFINES := -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr) -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
-# Define __XPULPIMG if the extension is active
-ifeq ($(XPULPIMG),1)
-	DEFINES += -D__XPULPIMG
-endif
+DEFINES += -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr) -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
