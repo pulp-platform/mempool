@@ -32,6 +32,9 @@ echo "Comparing HEAD to $base"
 files=$(git diff --name-only $base HEAD)
 EXIT_STATUS=0
 
+# Only check files that still exist
+files=$(echo "$files" | xargs ls -d 2>/dev/null)
+
 # Only check C and C++ files for clang-format compatibility
 echo "Checking C/C++ files for clang-format compliance"
 clang_files=$(echo "$files" | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
