@@ -47,20 +47,23 @@ typedef struct {
   uint32_t num_cols;
 } systolic_matrix_t;
 
-// Array of queue ptrs in row-major order
-queue_t *queues_down[NUM_CORES - 1][NUM_CORES];
-queue_t *queues_right[NUM_CORES][NUM_CORES - 1];
-
 // TODO: SQRT ROOT OF NUM_CORES FOR GRID SIZE AND SYSTOLIC SIZE
+
+// Array of queue ptrs in row-major order
+queue_t *queues_down[GRID_SIZE - 1][GRID_SIZE];
+queue_t *queues_right[GRID_SIZE][GRID_SIZE - 1];
+
 void systolic_init() {
   for (uint32_t y = 0; y < GRID_SIZE - 1; ++y) {
     for (uint32_t x = 0; x < GRID_SIZE; ++x) {
       queue_create(&queues_down[y][x], QUEUE_SIZE);
+      // printf("queue down (%02u,%02u) at %08X\n", y, x, queues_down[y][x]);
     }
   }
   for (uint32_t y = 0; y < GRID_SIZE; ++y) {
     for (uint32_t x = 0; x < GRID_SIZE - 1; ++x) {
       queue_create(&queues_right[y][x], QUEUE_SIZE);
+      // printf("queue right (%02u,%02u) at %08X\n", y, x, queues_right[y][x]);
     }
   }
 }
@@ -237,9 +240,9 @@ void systolic_matrix_mul(systolic_matrix_t const *__restrict__ A,
   }
 
   // End instruction
-  instr = (instr_rep << 16) | INSTR_MATRIX_MUL;
+  instr = INSTR_END;
   return_ptr = (int32_t *)simple_malloc(4);
-  return_ptr = 0;
+  *return_ptr = 0;
   blocking_queue_push(queue_next_horz, &instr);
   blocking_queue_push(queue_next_horz, (int32_t *)&return_ptr);
   blocking_queue_push(queue_next_vert, &instr);
@@ -247,7 +250,14 @@ void systolic_matrix_mul(systolic_matrix_t const *__restrict__ A,
 
   // Wait for end flag
   while (return_ptr == 0) {
+    mempool_wait(1);
   };
+}
+
+void systolic_kill_loop() {
+  int32_t instr = INSTR_KILL;
+  blocking_queue_push(queues_right[0][0], &instr);
+  blocking_queue_push(queues_down[0][0], &instr);
 }
 
 void systolic_column_ctrl(const uint32_t idx) {
@@ -263,37 +273,47 @@ void systolic_column_ctrl(const uint32_t idx) {
 
   // Assign queues
   queue_prev = queues_right[0][idx - 1];
-  queue_next = queues_right[0][idx];
+  if (idx == GRID_SIZE - 1) {
+    queue_next = NULL;
+  } else {
+    queue_next = queues_right[0][idx];
+  }
   queue_data = queues_down[0][idx];
 
   // Systolic loop
   while (loop) {
     // Receive instruction and instr_repetition count
     blocking_queue_pop(queue_prev, &instr);
+    if (queue_next) {
+      blocking_queue_push(queue_next, &instr);
+    }
     instr_rep = (uint16_t)(instr >> 16);
     instr_code = instr & 0xFFFF;
 
     switch (instr_code) {
     case INSTR_NOP:
-      blocking_queue_push(queue_next, &instr);
       blocking_queue_push(queue_data, &instr);
       break;
 
     case INSTR_RESET:
       blocking_queue_pop(queue_prev, (int32_t *)&return_ptr);
-      blocking_queue_push(queue_next, &instr);
-      blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      if (queue_next) {
+        blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      }
       blocking_queue_push(queue_data, (int32_t *)&return_ptr);
       break;
 
     case INSTR_MATRIX_MUL:
       blocking_queue_pop(queue_prev, (int32_t *)&return_ptr);
-      blocking_queue_push(queue_next, &instr);
-      blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      if (queue_next) {
+        blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      }
       blocking_queue_push(queue_data, (int32_t *)&return_ptr);
       for (uint32_t i = 0; i < instr_rep; ++i) {
         blocking_queue_pop(queue_prev, (int32_t *)&arg_ptr);
-        blocking_queue_push(queue_next, (int32_t *)&arg_ptr);
+        if (queue_next) {
+          blocking_queue_push(queue_next, (int32_t *)&arg_ptr);
+        }
         uint32_t offset;
         for (uint32_t y = 0; y < SYSTOLIC_SIZE; ++y) {
           offset = y * SYSTOLIC_SIZE + idx - 1;
@@ -304,13 +324,13 @@ void systolic_column_ctrl(const uint32_t idx) {
 
     case INSTR_END:
       blocking_queue_pop(queue_prev, (int32_t *)&return_ptr);
-      blocking_queue_push(queue_next, &instr);
-      blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      if (queue_next) {
+        blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      }
       blocking_queue_push(queue_data, (int32_t *)&return_ptr);
       break;
 
     case INSTR_KILL:
-      blocking_queue_push(queue_next, &instr);
       blocking_queue_push(queue_data, &instr);
       loop = 0;
       break;
@@ -334,37 +354,47 @@ void systolic_row_ctrl(const uint32_t idx) {
 
   // Assign queues
   queue_prev = queues_down[idx - 1][0];
-  queue_next = queues_down[idx][0];
+  if (idx == GRID_SIZE - 1) {
+    queue_next = NULL;
+  } else {
+    queue_next = queues_down[idx][0];
+  }
   queue_data = queues_right[idx][0];
 
   // Systolic loop
   while (loop) {
     // Receive instruction and instr_repetition count
     blocking_queue_pop(queue_prev, &instr);
+    if (queue_next) {
+      blocking_queue_push(queue_next, &instr);
+    }
     instr_rep = (uint16_t)(instr >> 16);
     instr_code = instr & 0xFFFF;
 
     switch (instr_code) {
     case INSTR_NOP:
-      blocking_queue_push(queue_next, &instr);
       blocking_queue_push(queue_data, &instr);
       break;
 
     case INSTR_RESET:
       blocking_queue_pop(queue_prev, (int32_t *)&return_ptr);
-      blocking_queue_push(queue_next, &instr);
-      blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      if (queue_next) {
+        blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      }
       blocking_queue_push(queue_data, &instr);
       break;
 
     case INSTR_MATRIX_MUL:
       blocking_queue_pop(queue_prev, (int32_t *)&return_ptr);
-      blocking_queue_push(queue_next, &instr);
-      blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      if (queue_next) {
+        blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      }
       blocking_queue_push(queue_data, &instr);
       for (uint32_t i = 0; i < instr_rep; ++i) {
         blocking_queue_pop(queue_prev, (int32_t *)&arg_ptr);
-        blocking_queue_push(queue_next, (int32_t *)&arg_ptr);
+        if (queue_next) {
+          blocking_queue_push(queue_next, (int32_t *)&arg_ptr);
+        }
         uint32_t offset;
         for (uint32_t x = 0; x < SYSTOLIC_SIZE; ++x) {
           offset = (idx - 1) * SYSTOLIC_SIZE + x;
@@ -375,13 +405,13 @@ void systolic_row_ctrl(const uint32_t idx) {
 
     case INSTR_END:
       blocking_queue_pop(queue_prev, (int32_t *)&return_ptr);
-      blocking_queue_push(queue_next, &instr);
-      blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      if (queue_next) {
+        blocking_queue_push(queue_next, (int32_t *)&return_ptr);
+      }
       blocking_queue_push(queue_data, &instr);
       break;
 
     case INSTR_KILL:
-      blocking_queue_push(queue_next, &instr);
       blocking_queue_push(queue_data, &instr);
       loop = 0;
       break;
@@ -408,21 +438,31 @@ void systolic_proc_element(const uint32_t row_idx, const uint32_t col_idx) {
   int32_t data_vert;
   uint32_t offset;
 
-  // TODO: HANDLE BOUNDARY
-
   // Assign queues
   queue_prev_horz = queues_right[row_idx][col_idx - 1];
   queue_prev_vert = queues_down[row_idx - 1][col_idx];
-  queue_next_horz = queues_right[row_idx][col_idx];
-  queue_next_vert = queues_down[row_idx][col_idx];
+  if (col_idx == GRID_SIZE - 1) {
+    queue_next_horz = NULL;
+  } else {
+    queue_next_horz = queues_right[row_idx][col_idx];
+  }
+  if (row_idx == GRID_SIZE - 1) {
+    queue_next_vert = NULL;
+  } else {
+    queue_next_vert = queues_down[row_idx][col_idx];
+  }
 
   // Systolic loop
   while (loop) {
     // Receive instruction and instr_repetition count
     blocking_queue_pop(queue_prev_horz, &instr);
     blocking_queue_pop(queue_prev_vert, (int32_t *)&return_ptr);
-    blocking_queue_push(queue_next_horz, &instr);
-    blocking_queue_push(queue_next_vert, (int32_t *)&return_ptr);
+    if (queue_next_horz) {
+      blocking_queue_push(queue_next_horz, &instr);
+    }
+    if (queue_next_vert) {
+      blocking_queue_push(queue_next_vert, (int32_t *)&return_ptr);
+    }
     instr_rep = (uint16_t)(instr >> 16);
     instr_code = instr & 0xFFFF;
 
@@ -442,8 +482,12 @@ void systolic_proc_element(const uint32_t row_idx, const uint32_t col_idx) {
           blocking_queue_pop(queue_prev_vert, &data_vert);
           offset = data_row_idx * SYSTOLIC_SIZE + data_col_idx;
           *(return_ptr + offset) += data_horz * data_vert;
-          blocking_queue_push(queue_next_horz, &data_horz);
-          blocking_queue_push(queue_next_vert, &data_vert);
+          if (queue_next_horz) {
+            blocking_queue_push(queue_next_horz, &data_horz);
+          }
+          if (queue_next_vert) {
+            blocking_queue_push(queue_next_vert, &data_vert);
+          }
         }
       }
       break;

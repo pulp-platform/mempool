@@ -69,15 +69,9 @@ int main() {
     uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
     alloc_init(get_alloc_l1(), &__heap_start, heap_size);
 
-    // Check allocator state
-    alloc_dump(get_alloc_l1());
-
     // Initialize systolic array
     printf("> Initialize Systolic Architecture\n");
     systolic_init();
-
-    // Check allocator state
-    alloc_dump(get_alloc_l1());
 
     // Create systolic matrices
     printf("> Allocate Systolic Matrices\n");
@@ -85,31 +79,30 @@ int main() {
     systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
     systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
 
-    // Check allocator state
-    alloc_dump(get_alloc_l1());
+    // Print out systolic matrices A & B
+    printf("> Print Systolic Matrices A & B\n");
+    systolic_matrix_print(syst_matrix_A);
+    systolic_matrix_print(syst_matrix_B);
   }
 
   // Wait for all cores
   mempool_barrier(num_cores, num_cores * 4);
 
   // Assign grid position
-  uint32_t row_idx = core_id % 4;
-  uint32_t col_idx = core_id / 4;
+  uint32_t col_idx = core_id % 4;
+  uint32_t row_idx = core_id / 4;
 
   if ((row_idx == 0) && (col_idx == 0)) {
-    // Print out matrices A & B
-    print_matrix(matrix_A, DIM_M, DIM_N);
-    print_matrix(matrix_B, DIM_N, DIM_P);
-
-    // Print out systolic matrices A & B
-    systolic_matrix_print(syst_matrix_A);
-    systolic_matrix_print(syst_matrix_B);
-
     // Instruct systolic matrix multiplication
     systolic_matrix_mul(syst_matrix_A, syst_matrix_B, syst_matrix_C);
 
     // Print out systolic matrix C
+    printf("> Print Systolic Matrix C\n");
     systolic_matrix_print(syst_matrix_C);
+
+    // Kill systolic loop
+    printf("> Kill Systolic Loop\n");
+    systolic_kill_loop();
   }
 
   if ((row_idx == 0) && (col_idx != 0)) {
