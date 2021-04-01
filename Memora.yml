@@ -19,6 +19,7 @@ artifacts:
     inputs:
       - Makefile
       - toolchain/riscv-isa-sim
+      - toolchain/riscv-opcodes/encoding_out.h
     outputs:
       - install/riscv-isa-sim
 
