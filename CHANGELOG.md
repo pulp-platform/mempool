@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 - Capability to enable and disable the traces with a CSR
+- CPU model for MemPool in GCC to enable correct instruction scheduling
 
 ### Fixed
 - Stall cycle counting in the trace no longer misses stalls
