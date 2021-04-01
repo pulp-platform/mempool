@@ -408,9 +408,11 @@ void systolic_proc_element(const uint32_t row_idx, const uint32_t col_idx) {
   int32_t data_vert;
   uint32_t offset;
 
+  // TODO: HANDLE BOUNDARY
+
   // Assign queues
-  queue_prev_horz = queues_right[row_idx - 1][col_idx - 1];
-  queue_prev_vert = queues_down[row_idx - 1][col_idx - 1];
+  queue_prev_horz = queues_right[row_idx][col_idx - 1];
+  queue_prev_vert = queues_down[row_idx - 1][col_idx];
   queue_next_horz = queues_right[row_idx][col_idx];
   queue_next_vert = queues_down[row_idx][col_idx];
 
@@ -419,25 +421,21 @@ void systolic_proc_element(const uint32_t row_idx, const uint32_t col_idx) {
     // Receive instruction and instr_repetition count
     blocking_queue_pop(queue_prev_horz, &instr);
     blocking_queue_pop(queue_prev_vert, (int32_t *)&return_ptr);
+    blocking_queue_push(queue_next_horz, &instr);
+    blocking_queue_push(queue_next_vert, (int32_t *)&return_ptr);
     instr_rep = (uint16_t)(instr >> 16);
     instr_code = instr & 0xFFFF;
 
     switch (instr_code) {
     case INSTR_NOP:
-      blocking_queue_push(queue_next_horz, &instr);
-      blocking_queue_push(queue_next_vert, (int32_t *)&return_ptr);
       break;
 
     case INSTR_RESET:
       offset = data_row_idx * SYSTOLIC_SIZE + data_col_idx;
       *(return_ptr + offset) = 0;
-      blocking_queue_push(queue_next_horz, &instr);
-      blocking_queue_push(queue_next_vert, (int32_t *)&return_ptr);
       break;
 
     case INSTR_MATRIX_MUL:
-      blocking_queue_push(queue_next_horz, &instr);
-      blocking_queue_push(queue_next_vert, (int32_t *)&return_ptr);
       for (uint32_t i = 0; i < instr_rep; ++i) {
         for (uint32_t k = 0; k < SYSTOLIC_SIZE; ++k) {
           blocking_queue_pop(queue_prev_horz, &data_horz);
@@ -454,13 +452,9 @@ void systolic_proc_element(const uint32_t row_idx, const uint32_t col_idx) {
       if ((row_idx == SYSTOLIC_SIZE) && (col_idx == SYSTOLIC_SIZE)) {
         *return_ptr = 1;
       }
-      blocking_queue_push(queue_next_horz, &instr);
-      blocking_queue_push(queue_next_vert, (int32_t *)&return_ptr);
       break;
 
     case INSTR_KILL:
-      blocking_queue_push(queue_next_horz, &instr);
-      blocking_queue_push(queue_next_vert, (int32_t *)&return_ptr);
       loop = 0;
       break;
 
