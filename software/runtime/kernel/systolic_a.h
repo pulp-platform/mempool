@@ -24,6 +24,7 @@
 #include "printf.h"
 
 // Size of systolic array
+#define GRID_SIZE 4
 #define SYSTOLIC_SIZE 3
 
 // Size of all queues
@@ -50,19 +51,21 @@ typedef struct {
 queue_t *queues_down[NUM_CORES - 1][NUM_CORES];
 queue_t *queues_right[NUM_CORES][NUM_CORES - 1];
 
+// TODO: SQRT ROOT OF NUM_CORES FOR GRID SIZE AND SYSTOLIC SIZE
 void systolic_init() {
-  for (uint32_t y = 0; y < NUM_CORES - 1; ++y) {
-    for (uint32_t x = 0; x < NUM_CORES; ++x) {
+  for (uint32_t y = 0; y < GRID_SIZE - 1; ++y) {
+    for (uint32_t x = 0; x < GRID_SIZE; ++x) {
       queue_create(&queues_down[y][x], QUEUE_SIZE);
     }
   }
-  for (uint32_t y = 0; y < NUM_CORES; ++y) {
-    for (uint32_t x = 0; x < NUM_CORES - 1; ++x) {
+  for (uint32_t y = 0; y < GRID_SIZE; ++y) {
+    for (uint32_t x = 0; x < GRID_SIZE - 1; ++x) {
       queue_create(&queues_right[y][x], QUEUE_SIZE);
     }
   }
 }
 
+// TODO: Detect allocation failure
 void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
                               uint32_t num_rows, uint32_t num_cols) {
   // Calculate how many submatrices in row and col dimension
@@ -94,6 +97,7 @@ void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
   *syst_matrix = new_matrix;
 }
 
+// TODO: Detect allocation failure
 void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
                             uint32_t num_rows, uint32_t num_cols) {
   // Calculate how many submatrices in row and col dimension
@@ -141,7 +145,7 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
 }
 
 void systolic_matrix_print(systolic_matrix_t *matrix) {
-  printf("Systolic matrix at 0x%8X\n", (uint32_t)matrix);
+  printf("Systolic matrix at 0x%08X\n", (uint32_t)matrix);
   uint32_t num_syst_rows = matrix->num_rows;
   uint32_t num_syst_cols = matrix->num_cols;
   uint32_t num_rows = num_syst_rows * SYSTOLIC_SIZE;
@@ -256,7 +260,6 @@ void systolic_column_ctrl(const uint32_t idx) {
   uint16_t instr_rep;
   int32_t *return_ptr;
   int32_t *arg_ptr;
-  int32_t data;
 
   // Assign queues
   queue_prev = queues_right[0][idx - 1];
@@ -328,7 +331,6 @@ void systolic_row_ctrl(const uint32_t idx) {
   uint16_t instr_rep;
   int32_t *return_ptr;
   int32_t *arg_ptr;
-  int32_t data;
 
   // Assign queues
   queue_prev = queues_down[idx - 1][0];
