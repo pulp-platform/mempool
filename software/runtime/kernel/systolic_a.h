@@ -57,18 +57,15 @@ void systolic_init() {
   for (uint32_t y = 0; y < GRID_SIZE - 1; ++y) {
     for (uint32_t x = 0; x < GRID_SIZE; ++x) {
       queue_create(&queues_down[y][x], QUEUE_SIZE);
-      // printf("queue down (%02u,%02u) at %08X\n", y, x, queues_down[y][x]);
     }
   }
   for (uint32_t y = 0; y < GRID_SIZE; ++y) {
     for (uint32_t x = 0; x < GRID_SIZE - 1; ++x) {
       queue_create(&queues_right[y][x], QUEUE_SIZE);
-      // printf("queue right (%02u,%02u) at %08X\n", y, x, queues_right[y][x]);
     }
   }
 }
 
-// TODO: Detect allocation failure
 void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
                               uint32_t num_rows, uint32_t num_cols) {
   // Calculate how many submatrices in row and col dimension
@@ -100,7 +97,7 @@ void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
   *syst_matrix = new_matrix;
 }
 
-// TODO: Detect allocation failure
+// TODO: Copy over for non-multiple matrices -> Fill with 0 (memory overflow)
 void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
                             uint32_t num_rows, uint32_t num_cols) {
   // Calculate how many submatrices in row and col dimension
@@ -151,22 +148,18 @@ void systolic_matrix_print(systolic_matrix_t *matrix) {
   printf("Systolic matrix at 0x%08X\n", (uint32_t)matrix);
   uint32_t num_syst_rows = matrix->num_rows;
   uint32_t num_syst_cols = matrix->num_cols;
-  uint32_t num_rows = num_syst_rows * SYSTOLIC_SIZE;
-  uint32_t num_cols = num_syst_cols * SYSTOLIC_SIZE;
   int32_t *sub_matrix;
   int32_t **sub_matrices = matrix->sub_matrices;
-  uint32_t syst_y, syst_x;
-  uint32_t sub_y, sub_x;
-  for (uint32_t y = 0; y < num_rows; ++y) {
-    for (uint32_t x = 0; x < num_cols; ++x) {
-      syst_y = y / SYSTOLIC_SIZE;
-      sub_y = y % SYSTOLIC_SIZE;
-      syst_x = x / SYSTOLIC_SIZE;
-      sub_x = x % SYSTOLIC_SIZE;
-      sub_matrix = sub_matrices[syst_y * num_syst_cols + syst_x];
-      printf("%5d ", sub_matrix[sub_y * SYSTOLIC_SIZE + sub_x]);
+  for (uint32_t syst_y = 0; syst_y < num_syst_rows; ++syst_y) {
+    for (uint32_t sub_y = 0; sub_y < SYSTOLIC_SIZE; ++sub_y) {
+      for (uint32_t syst_x = 0; syst_x < num_syst_cols; ++syst_x) {
+        sub_matrix = sub_matrices[syst_y * num_syst_cols + syst_x];
+        for (uint32_t sub_x = 0; sub_x < SYSTOLIC_SIZE; ++sub_x) {
+          printf("%5d ", sub_matrix[sub_y * SYSTOLIC_SIZE + sub_x]);
+        }
+      }
+      printf("\n");
     }
-    printf("\n");
   }
 }
 
