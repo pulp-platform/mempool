@@ -97,7 +97,6 @@ void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
   *syst_matrix = new_matrix;
 }
 
-// TODO: Copy over for non-multiple matrices -> Fill with 0 (memory overflow)
 void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
                             uint32_t num_rows, uint32_t num_cols) {
   // Calculate how many submatrices in row and col dimension
@@ -114,6 +113,7 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
   // Store submatrices
   uint32_t idx = 0;
   uint32_t anchor;
+  uint32_t rem_x, rem_y;
   for (uint32_t y = 0; y < num_rows; y += SYSTOLIC_SIZE) {
     for (uint32_t x = 0; x < num_cols; x += SYSTOLIC_SIZE) {
       // Allocate submatrix
@@ -121,10 +121,27 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
 
       // Copy over values from matrix
       anchor = y * num_cols + x;
-      for (uint32_t syst_y = 0; syst_y < SYSTOLIC_SIZE; ++syst_y) {
-        for (uint32_t syst_x = 0; syst_x < SYSTOLIC_SIZE; ++syst_x) {
-          sub_matrix[syst_y * SYSTOLIC_SIZE + syst_x] =
-              matrix[anchor + syst_y * num_cols + syst_x];
+      rem_x = num_cols - x;
+      rem_y = num_rows - y;
+      if ((rem_x < SYSTOLIC_SIZE) || (rem_y < SYSTOLIC_SIZE)) {
+        // Submatrix is only partly within original matrix
+        for (uint32_t sub_y = 0; sub_y < SYSTOLIC_SIZE; ++sub_y) {
+          for (uint32_t sub_x = 0; sub_x < SYSTOLIC_SIZE; ++sub_x) {
+            if ((sub_x < rem_x) && (sub_y < rem_y)) {
+              sub_matrix[sub_y * SYSTOLIC_SIZE + sub_x] =
+                  matrix[anchor + sub_y * num_cols + sub_x];
+            } else {
+              sub_matrix[sub_y * SYSTOLIC_SIZE + sub_x] = 0;
+            }
+          }
+        }
+      } else {
+        // Submatrix is fully within original matrix
+        for (uint32_t sub_y = 0; sub_y < SYSTOLIC_SIZE; ++sub_y) {
+          for (uint32_t sub_x = 0; sub_x < SYSTOLIC_SIZE; ++sub_x) {
+            sub_matrix[sub_y * SYSTOLIC_SIZE + sub_x] =
+                matrix[anchor + sub_y * num_cols + sub_x];
+          }
         }
       }
 
