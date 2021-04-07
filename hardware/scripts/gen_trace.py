@@ -4,6 +4,7 @@
 # and computes various performance metrics up to each mcycle CSR read.
 
 # Author: Paul Scheffler <paulsc@iis.ee.ethz.ch>
+#         Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
 # TODO: OPER_TYPES and FPU_OPER_TYPES could break: optimization might alter
 # enum mapping
@@ -17,11 +18,9 @@ import math
 import numpy as np
 import argparse
 import csv
-from csv import DictWriter
 from ctypes import c_int32, c_uint32
 from collections import deque, defaultdict
 import warnings
-from itertools import compress
 
 
 EXTRA_WB_WARN = 'WARNING: {} transactions still in flight for {}.'
@@ -269,7 +268,7 @@ def read_annotations(dict_str: str) -> dict:
     return {
         key: int(
             val, 16) for key, val in re.findall(
-            r"'([^']+)'\s*:\s*([^\s,]+)", dict_str)}
+            r"'([^']+)'\s*:\s*(0x[0-9a-fA-F]+)", dict_str)}
 
 
 def annotate_snitch(
@@ -803,7 +802,7 @@ def main():
         sec['core'] = core_id
     # Write metrics to CSV
     if csv_file is not None:
-        if os.path.split(csv_file)[0] is '':
+        if os.path.split(csv_file)[0] == '':
             csv_file = os.path.join(path, csv_file)
         perf_metrics_to_csv(perf_metrics, csv_file)
     # Emit metrics
@@ -846,7 +845,7 @@ def main():
         pc_str = fseq_cfg['fseq_pc']
         sys.stderr.write(
             ('WARNING: Not all FPSS instructions from sequence {} were '
-            ' issued.\n').format(pc_str))
+             ' issued.\n').format(pc_str))
     if warn_trip:
         sys.stderr.write(GENERAL_WARN)
     return 0
