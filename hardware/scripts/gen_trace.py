@@ -363,24 +363,31 @@ def annotate_snitch(
     # Any kind of PC change: Branch, Jump, etc.
     if not extras['stall'] and extras['pc_d'] != pc + 4:
         ret.append('goto {}'.format(int_lit(extras['pc_d'])))
-    # Count stalls
-    if extras['stall'] or extras['stall_instr']:
-        stall_cycles = cycle - last_cycle - 1
-        ret.append('// stall {} cycles'.format(stall_cycles))
-        perf_metrics[-1]['stall_cycles'] += stall_cycles
-        if extras['stall_instr']:
-            perf_metrics[-1]['stall_instr'] += stall_cycles
-        if extras['stall_data']:
-            perf_metrics[-1]['stall_data'] += stall_cycles
-        if extras['stall_lsu']:
-            perf_metrics[-1]['stall_lsu'] += stall_cycles
-        if extras['stall_acc']:
-            perf_metrics[-1]['stall_acc'] += stall_cycles
-    elif cycle - last_cycle > 1:
-        # Check if we did not skip a cycle, otherwise we probably had a
-        # undetected stall
-        ret.append('// Potentially missed stall cycle ({} cycles)!!!'.format(
-            cycle - last_cycle - 1))
+    # Count stalls, but only in cycles that execute an instruction
+    if not extras['stall']:
+        if extras['stall_tot']:
+            ret.append('// stall {} cycles'.format(extras['stall_tot']))
+            perf_metrics[-1]['stall_tot'] += extras['stall_tot']
+            if extras['stall_ins']:
+                perf_metrics[-1]['stall_ins'] += extras['stall_ins']
+                ret.append('({} ins)'.format(extras['stall_ins']))
+            if extras['stall_raw']:
+                perf_metrics[-1]['stall_raw'] += extras['stall_raw']
+                ret.append('({} raw)'.format(extras['stall_raw']))
+            if extras['stall_lsu']:
+                perf_metrics[-1]['stall_lsu'] += extras['stall_lsu']
+                ret.append('({} lsu)'.format(extras['stall_lsu']))
+            if extras['stall_acc']:
+                perf_metrics[-1]['stall_acc'] += extras['stall_acc']
+                ret.append('({} acc)'.format(extras['stall_acc']))
+        elif (extras['stall_ins'] or extras['stall_raw'] or extras['stall_lsu']
+              or extras['stall_acc']):
+            ret.append('// Missed specific stall!!!')
+        elif cycle - last_cycle > 1:
+            # Check if we did not skip a cycle, otherwise we probably had a
+            # undetected stall
+            ret.append('// Potentially missed stall cycle ({} cycles)!!!'
+                       .format(cycle - last_cycle - 1))
     # Return comma-delimited list
     return ', '.join(ret)
 
@@ -673,9 +680,9 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'snitch_load_latency',
         'total_ipc',
         'snitch_issues',
-        'stall_cycles',
-        'stall_instr',
-        'stall_data',
+        'stall_tot',
+        'stall_ins',
+        'stall_raw',
         'stall_lsu',
         'stall_acc']
     for key in keys:

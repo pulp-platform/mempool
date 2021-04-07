@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Capability to enable and disable the traces with a CSR
 
+### Fixed
+- Stall cycle counting in the trace no longer misses stalls
+
 ## 0.3.0 - 2021-03-31
 
 ### Added

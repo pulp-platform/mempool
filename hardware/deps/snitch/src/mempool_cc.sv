@@ -193,21 +193,13 @@ module mempool_cc #(
   int f;
   string fn;
   logic [63:0] cycle;
+  int unsigned stall, stall_ins, stall_raw, stall_lsu, stall_acc;
 
   always_ff @(posedge rst_i) begin
     if(rst_i) begin
       $sformat(fn, "trace_hart_%04.0f.dasm", hart_id_i);
       f = $fopen(fn, "w");
       $display("[Tracer] Logging Hart %d to %s", hart_id_i, fn);
-    end
-  end
-
-  logic stall_instr;
-  always_ff @(posedge clk_i or posedge rst_i) begin
-    if(rst_i) begin
-      stall_instr <= 0;
-    end else begin
-      stall_instr <= (!i_snitch.inst_ready_i) && (i_snitch.inst_valid_o);
     end
   end
 
@@ -231,10 +223,11 @@ module mempool_cc #(
           // State
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "source",      SrcSnitch);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall",       i_snitch.stall);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_instr", stall_instr);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_data",  ((!i_snitch.operands_ready) || (!i_snitch.dst_ready)));
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_lsu",   i_snitch.lsu_stall);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_acc",   i_snitch.acc_stall);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_tot",   stall);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_ins",   stall_ins);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_raw",   stall_raw);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_lsu",   stall_lsu);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_acc",   stall_acc);
           // Decoding
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs1",         i_snitch.rs1);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs2",         i_snitch.rs2);
@@ -274,8 +267,39 @@ module mempool_cc #(
               $time, cycle, i_snitch.pc_q, i_snitch.inst_data_i, extras_str);
           $fwrite(f, trace_entry);
         end
+
+        // Reset all stalls when we execute an instruction
+        if (!i_snitch.stall) begin
+            stall <= 0;
+            stall_ins <= 0;
+            stall_raw <= 0;
+            stall_lsu <= 0;
+            stall_acc <= 0;
+        end else begin
+          // We are currently stalled, let's count the stall causes
+          if (i_snitch.stall) begin
+            stall <= stall + 1;
+          end
+          if ((!i_snitch.inst_ready_i) && (i_snitch.inst_valid_o)) begin
+            stall_ins <= stall_ins + 1;
+          end
+          if ((!i_snitch.operands_ready) || (!i_snitch.dst_ready)) begin
+            stall_raw <= stall_raw + 1;
+          end
+          if (i_snitch.lsu_stall) begin
+            stall_lsu <= stall_lsu + 1;
+          end
+          if (i_snitch.acc_stall) begin
+            stall_acc <= stall_acc + 1;
+          end
+        end
       end else begin
         cycle <= '0;
+        stall <= 0;
+        stall_ins <= 0;
+        stall_raw <= 0;
+        stall_lsu <= 0;
+        stall_acc <= 0;
       end
     end
 
