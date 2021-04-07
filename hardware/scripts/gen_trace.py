@@ -751,14 +751,8 @@ def main():
         'cfg_buf': deque(),
         'curr_cfg': None
     }
-    # all values initially 0, also 'start' time of measurement 0
-    perf_metrics_bench = [defaultdict(int)]
-    # all values initially 0, also 'start' time of measurement 0
-    perf_metrics_setup = [defaultdict(int)]
-    perf_metrics_bench[0]['start'] = None
-    perf_metrics_setup[0]['start'] = None
-    # Initial code belongs to setup phase
-    perf_metrics = perf_metrics_setup
+    perf_metrics = [defaultdict(int)]
+    perf_metrics[0]['start'] = None
     section = 0
     # Parse input line by line
     for line in line_iter:
@@ -768,33 +762,27 @@ def main():
                 False, time_info, args.offl, not args.saddr, args.permissive)
             if perf_metrics[0]['start'] is None:
                 perf_metrics[0]['start'] = time_info[1]
-            # Start a new benchmark section after 'csrw cycle' instruction
-            if 'cycle' in line:
+            # Start a new benchmark section after 'csrw trace' instruction
+            if 'trace' in line:
                 perf_metrics[-1]['end'] = time_info[1]
                 perf_metrics.append(defaultdict(int))
-                if 'csrw' in ann_insn:
-                    # Start of a benchmark section
-                    perf_metrics = perf_metrics_bench
-                    perf_metrics[-1]['section'] = section
-                else:
-                    # End of a benchmark section
-                    perf_metrics = perf_metrics_setup
-                    section += 1
+                perf_metrics[-1]['section'] = section
                 perf_metrics[-1]['start'] = time_info[1]
+                section += 1
             if not empty:
                 print(ann_insn)
         else:
             break  # Nothing more in pipe, EOF
     args.infile.close()
     perf_metrics[-1]['end'] = time_info[1]
-    # Evaluate only the benchmarks
-    if perf_metrics_bench[0]['start'] is not None:
-        perf_metrics = perf_metrics_bench
-    else:
-        perf_metrics = perf_metrics_setup
     # Remove last emtpy entry
-    if not bool(perf_metrics[-1]):
-        perf_metrics.pop()
+    if perf_metrics[-1]['start'] == perf_metrics[-1]['end']:
+        perf_metrics = perf_metrics[:-1]
+    if not perf_metrics or perf_metrics[0]['start'] is None:
+        # Empty list
+        sys.stderr.write('WARNING: Empty trace file ({}).\n'
+                         .format(args.infile.name))
+        return 0
     # Compute metrics
     eval_perf_metrics(perf_metrics, core_id)
     # Add metadata
