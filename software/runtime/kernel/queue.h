@@ -75,18 +75,16 @@ void blocking_queue_push(queue_t *const queue, int32_t *data) {
   };
 }
 
-uint32_t counting_queue_pop(queue_t *const queue, int32_t *data) {
-  uint32_t counter = 0;
+void counting_queue_pop(queue_t *const queue, int32_t *data,
+                        uint32_t *counter) {
   while (queue_pop(queue, data)) {
     counter++;
   };
-  return counter;
 }
 
-uint32_t counting_queue_push(queue_t *const queue, int32_t *data) {
-  uint32_t counter = 0;
+void counting_queue_push(queue_t *const queue, int32_t *data,
+                         uint32_t *counter) {
   while (queue_push(queue, data)) {
     counter++;
   };
-  return counter;
 }
