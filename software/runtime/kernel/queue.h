@@ -78,13 +78,15 @@ void blocking_queue_push(queue_t *const queue, int32_t *data) {
 void counting_queue_pop(queue_t *const queue, int32_t *data,
                         uint32_t *counter) {
   while (queue_pop(queue, data)) {
-    counter++;
+    __asm__ __volatile__("");
+    (*counter)++;
   };
 }
 
 void counting_queue_push(queue_t *const queue, int32_t *data,
                          uint32_t *counter) {
   while (queue_push(queue, data)) {
-    counter++;
+    __asm__ __volatile__("");
+    (*counter)++;
   };
 }
