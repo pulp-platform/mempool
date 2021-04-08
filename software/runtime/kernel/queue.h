@@ -65,13 +65,13 @@ int32_t queue_push(queue_t *const queue, int32_t *data) {
 
 void blocking_queue_pop(queue_t *const queue, int32_t *data) {
   while (queue_pop(queue, data)) {
-    mempool_wait(1);
+    __asm__ __volatile__("");
   };
 }
 
 void blocking_queue_push(queue_t *const queue, int32_t *data) {
   while (queue_push(queue, data)) {
-    mempool_wait(1);
+    __asm__ __volatile__("");
   };
 }
 
