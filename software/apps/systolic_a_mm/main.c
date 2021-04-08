@@ -27,21 +27,30 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#define DIM_M 3
-#define DIM_N 3
-#define DIM_P 3
+// Dimensions of matrices
+#define DIM_M 15
+#define DIM_N 15
+#define DIM_P 15
 
 extern int32_t __heap_start, __heap_end;
 
-int32_t A[DIM_M][DIM_N] = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
-int32_t B[DIM_N][DIM_P] = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
-
-int32_t *matrix_A = (int32_t *)A;
-int32_t *matrix_B = (int32_t *)B;
+int32_t *matrix_A;
+int32_t *matrix_B;
 
 systolic_matrix_t *syst_matrix_A;
 systolic_matrix_t *syst_matrix_B;
 systolic_matrix_t *syst_matrix_C;
+
+void generate_gradient_matrix(int32_t **matrix, uint32_t num_rows,
+                              uint32_t num_cols) {
+  int32_t *new_matrix = (int32_t *)simple_malloc(num_rows * num_cols * 4);
+  for (uint32_t y = 0; y < num_rows; ++y) {
+    for (uint32_t x = 0; x < num_cols; ++x) {
+      new_matrix[y * num_cols + x] = (int32_t)(y + x);
+    }
+  }
+  *matrix = new_matrix;
+}
 
 void print_matrix(int32_t const *matrix, uint32_t num_rows,
                   uint32_t num_columns) {
@@ -73,16 +82,21 @@ int main() {
     printf("> Initialize Systolic Architecture\n");
     systolic_init();
 
+    // Generate matrices A & B
+    printf("> Generate Matrices A & B\n");
+    generate_gradient_matrix(&matrix_A, DIM_M, DIM_N);
+    generate_gradient_matrix(&matrix_B, DIM_N, DIM_P);
+
     // Create systolic matrices
-    printf("> Allocate Systolic Matrices\n");
+    printf("> Create/Allocate Systolic Matrices\n");
     systolic_matrix_create(&syst_matrix_A, matrix_A, DIM_M, DIM_N);
     systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
     systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
 
     // Print out systolic matrices A & B
-    printf("> Print Systolic Matrices A & B\n");
-    systolic_matrix_print(syst_matrix_A);
-    systolic_matrix_print(syst_matrix_B);
+    // printf("> Print Systolic Matrices A & B\n");
+    // systolic_matrix_print(syst_matrix_A);
+    // systolic_matrix_print(syst_matrix_B);
   }
 
   // Wait for all cores
@@ -93,12 +107,20 @@ int main() {
   uint32_t row_idx = core_id / 4;
 
   if ((row_idx == 0) && (col_idx == 0)) {
+    // Start benchmark
+    printf("> Start Systolic Matrix Multiplication\n");
+    mempool_start_benchmark();
+
     // Instruct systolic matrix multiplication
     systolic_matrix_mul(syst_matrix_A, syst_matrix_B, syst_matrix_C);
 
+    // Stop benchmark
+    mempool_stop_benchmark();
+    printf("> Systolic Matrix Multiplication Finished\n");
+
     // Print out systolic matrix C
-    printf("> Print Systolic Matrix C\n");
-    systolic_matrix_print(syst_matrix_C);
+    // printf("> Print Systolic Matrix C\n");
+    // systolic_matrix_print(syst_matrix_C);
 
     // Kill systolic loop
     printf("> Kill Systolic Loop\n");
@@ -115,6 +137,14 @@ int main() {
 
   if ((row_idx != 0) && (col_idx != 0)) {
     systolic_proc_element(row_idx, col_idx);
+  }
+
+  // Wait for all cores
+  mempool_barrier(num_cores, num_cores * 4);
+
+  // Print out benchmark
+  if (core_id == 0) {
+    systolic_benchmark_print();
   }
 
   // wait until all cores have finished
