@@ -587,7 +587,7 @@ void systolic_proc_element(const uint32_t row_idx, const uint32_t col_idx) {
   int32_t *return_addr;
   int32_t data_horz;
   int32_t data_vert;
-  uint32_t offset;
+  uint32_t offset = data_row_idx * SYSTOLIC_SIZE + data_col_idx;
   uint32_t horz_pop_cntr = 0;
   uint32_t horz_push_cntr = 0;
   uint32_t vert_pop_cntr = 0;
@@ -629,7 +629,6 @@ void systolic_proc_element(const uint32_t row_idx, const uint32_t col_idx) {
       break;
 
     case INSTR_RESET:
-      offset = data_row_idx * SYSTOLIC_SIZE + data_col_idx;
       *(return_ptr + offset) = 0;
       break;
 
@@ -638,14 +637,13 @@ void systolic_proc_element(const uint32_t row_idx, const uint32_t col_idx) {
         for (uint32_t k = 0; k < SYSTOLIC_SIZE; ++k) {
           counting_queue_pop(queue_prev_horz, &data_horz, &horz_pop_cntr);
           counting_queue_pop(queue_prev_vert, &data_vert, &vert_pop_cntr);
-          offset = data_row_idx * SYSTOLIC_SIZE + data_col_idx;
-          *(return_ptr + offset) += data_horz * data_vert;
           if (queue_next_horz) {
             counting_queue_push(queue_next_horz, &data_horz, &horz_push_cntr);
           }
           if (queue_next_vert) {
             counting_queue_push(queue_next_vert, &data_vert, &vert_push_cntr);
           }
+          *(return_ptr + offset) += data_horz * data_vert;
         }
       }
       break;
