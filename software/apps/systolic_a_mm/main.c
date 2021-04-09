@@ -72,23 +72,20 @@ int main() {
 
   // Setup
   if (core_id == 0) {
-    printf("> Initialize Allocator\n");
+    printf("> Initialize\n");
 
     // Initialize malloc
     uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
     alloc_init(get_alloc_l1(), &__heap_start, heap_size);
 
     // Initialize systolic array
-    printf("> Initialize Systolic Architecture\n");
     systolic_init();
 
     // Generate matrices A & B
-    printf("> Generate Matrices A & B\n");
     generate_gradient_matrix(&matrix_A, DIM_M, DIM_N);
     generate_gradient_matrix(&matrix_B, DIM_N, DIM_P);
 
     // Create systolic matrices
-    printf("> Create/Allocate Systolic Matrices\n");
     systolic_matrix_create(&syst_matrix_A, matrix_A, DIM_M, DIM_N);
     systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
     systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
@@ -108,7 +105,7 @@ int main() {
 
   if ((row_idx == 0) && (col_idx == 0)) {
     // Start benchmark
-    printf("> Start Systolic Matrix Multiplication\n");
+    printf("> Start\n");
     mempool_start_benchmark();
 
     // Instruct systolic matrix multiplication
@@ -116,14 +113,13 @@ int main() {
 
     // Stop benchmark
     mempool_stop_benchmark();
-    printf("> Systolic Matrix Multiplication Finished\n");
+    printf("> End\n");
 
     // Print out systolic matrix C
     // printf("> Print Systolic Matrix C\n");
     // systolic_matrix_print(syst_matrix_C);
 
     // Kill systolic loop
-    printf("> Kill Systolic Loop\n");
     systolic_kill_loop();
   }
 
