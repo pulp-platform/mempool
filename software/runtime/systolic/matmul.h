@@ -204,7 +204,8 @@ void systolic_benchmark_print() {
 }
 
 // row and column producing processing element
-void systolic_rcp_pe(systolic_matrix_t const *__restrict__ A,
+void systolic_rcp_pe(const uint32_t rep_count,
+                     systolic_matrix_t const *__restrict__ A,
                      systolic_matrix_t const *__restrict__ B,
                      systolic_matrix_t const *__restrict__ C) {
   queue_t *queue_next_horz;
@@ -218,7 +219,6 @@ void systolic_rcp_pe(systolic_matrix_t const *__restrict__ A,
   uint32_t num_cols_B;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
-  uint32_t rep_count;
   uint32_t data_offset;
   int32_t *curr_sub_matrix_A;
   int32_t *curr_sub_matrix_B;
@@ -241,9 +241,6 @@ void systolic_rcp_pe(systolic_matrix_t const *__restrict__ A,
   num_cols_B = B->num_cols;
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
-
-  // Repetition count per sub_matrix_C (A->num_cols == B->num_rows)
-  rep_count = (uint16_t)num_cols_A;
 
   // Set data offset depending on PE position
   data_offset = 0;
@@ -278,7 +275,7 @@ void systolic_rcp_pe(systolic_matrix_t const *__restrict__ A,
 }
 
 // column producing processing element
-void systolic_cp_pe(const uint32_t col_idx,
+void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
                     systolic_matrix_t const *__restrict__ B,
                     systolic_matrix_t const *__restrict__ C) {
   queue_t *queue_prev_horz;
@@ -291,7 +288,6 @@ void systolic_cp_pe(const uint32_t col_idx,
   uint32_t num_cols_B;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
-  uint32_t rep_count;
   uint32_t data_offset;
   int32_t *curr_sub_matrix_B;
   int32_t *curr_sub_matrix_C;
@@ -317,9 +313,6 @@ void systolic_cp_pe(const uint32_t col_idx,
   num_cols_B = B->num_cols;
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
-
-  // Repetition count per sub_matrix_C (A->num_cols == B->num_rows)
-  rep_count = (uint16_t)B->num_rows;
 
   // Set data offset depending on PE position
   data_offset = col_idx;
@@ -356,7 +349,7 @@ void systolic_cp_pe(const uint32_t col_idx,
 }
 
 // row producing processing element
-void systolic_rp_pe(const uint32_t row_idx,
+void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
                     systolic_matrix_t const *__restrict__ A,
                     systolic_matrix_t const *__restrict__ C) {
   queue_t *queue_next_horz;
@@ -369,7 +362,6 @@ void systolic_rp_pe(const uint32_t row_idx,
   uint32_t num_cols_A;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
-  uint32_t rep_count;
   uint32_t data_offset;
   int32_t *curr_sub_matrix_A;
   int32_t *curr_sub_matrix_C;
@@ -395,9 +387,6 @@ void systolic_rp_pe(const uint32_t row_idx,
   num_cols_A = A->num_cols;
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
-
-  // Repetition count per sub_matrix_C (A->num_cols == B->num_rows)
-  rep_count = (uint16_t)num_cols_A;
 
   // Set data offset depending on PE position
   data_offset = row_idx * SYSTOLIC_SIZE;

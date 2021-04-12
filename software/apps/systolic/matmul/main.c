@@ -23,6 +23,8 @@
 int32_t *matrix_A;
 int32_t *matrix_B;
 
+uint32_t rep_count;
+
 systolic_matrix_t *syst_matrix_A;
 systolic_matrix_t *syst_matrix_B;
 systolic_matrix_t *syst_matrix_C;
@@ -79,6 +81,9 @@ int main() {
     // printf("> Print Systolic Matrices A & B\n");
     // systolic_matrix_print(syst_matrix_A);
     // systolic_matrix_print(syst_matrix_B);
+
+    // Set repetition count per submatrix of C (A->num_cols == B->num_rows)
+    rep_count = syst_matrix_A->num_cols;
   }
 
   // Wait for all cores
@@ -98,19 +103,18 @@ int main() {
   mempool_barrier(num_cores, num_cores * 4);
 
   if ((row_idx == 0) && (col_idx == 0)) {
-    systolic_rcp_pe(syst_matrix_A, syst_matrix_B, syst_matrix_C);
+    systolic_rcp_pe(rep_count, syst_matrix_A, syst_matrix_B, syst_matrix_C);
   }
 
   if ((row_idx == 0) && (col_idx != 0)) {
-    systolic_cp_pe(col_idx, syst_matrix_B, syst_matrix_C);
+    systolic_cp_pe(col_idx, rep_count, syst_matrix_B, syst_matrix_C);
   }
 
   if ((row_idx != 0) && (col_idx == 0)) {
-    systolic_rp_pe(row_idx, syst_matrix_A, syst_matrix_C);
+    systolic_rp_pe(row_idx, rep_count, syst_matrix_A, syst_matrix_C);
   }
 
   if ((row_idx != 0) && (col_idx != 0)) {
-    uint32_t rep_count = syst_matrix_A->num_cols;
     systolic_np_pe(row_idx, col_idx, rep_count, syst_matrix_C);
   }
 
