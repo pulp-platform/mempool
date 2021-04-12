@@ -16,9 +16,9 @@
 #include "synchronization.h"
 
 // Dimensions of matrices
-#define DIM_M 15
-#define DIM_N 15
-#define DIM_P 15
+#define DIM_M 12
+#define DIM_N 12
+#define DIM_P 12
 
 int32_t *matrix_A;
 int32_t *matrix_B;
@@ -54,7 +54,7 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id);
+  mempool_barrier_init(core_id, num_cores);
 
   // Initialization
   mempool_init(core_id);
@@ -82,20 +82,43 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores);
+  mempool_barrier(num_cores, num_cores * 4);
 
   // Assign grid position
   uint32_t col_idx = core_id % 4;
   uint32_t row_idx = core_id / 4;
 
-  if ((row_idx == 0) && (col_idx == 0)) {
+  if (core_id == 0) {
     // Start benchmark
     printf("> Start\n");
     mempool_start_benchmark();
+  }
 
-    // Instruct systolic matrix multiplication
-    systolic_matrix_mul(syst_matrix_A, syst_matrix_B, syst_matrix_C);
+  // Wait for all cores
+  mempool_barrier(num_cores, num_cores * 4);
 
+  if ((row_idx == 0) && (col_idx == 0)) {
+    systolic_rcp_pe(syst_matrix_A, syst_matrix_B, syst_matrix_C);
+  }
+
+  if ((row_idx == 0) && (col_idx != 0)) {
+    systolic_cp_pe(col_idx, syst_matrix_B, syst_matrix_C);
+  }
+
+  if ((row_idx != 0) && (col_idx == 0)) {
+    systolic_rp_pe(row_idx, syst_matrix_A, syst_matrix_C);
+  }
+
+  if ((row_idx != 0) && (col_idx != 0)) {
+    uint32_t rep_count = syst_matrix_A->num_cols;
+    systolic_np_pe(row_idx, col_idx, rep_count, syst_matrix_C);
+  }
+
+  // Wait for all cores
+  mempool_barrier(num_cores, num_cores * 4);
+
+  // Print out benchmark
+  if (core_id == 0) {
     // Stop benchmark
     mempool_stop_benchmark();
     printf("> End\n");
@@ -104,31 +127,11 @@ int main() {
     // printf("> Print Systolic Matrix C\n");
     // systolic_matrix_print(syst_matrix_C);
 
-    // Kill systolic loop
-    systolic_kill_loop();
-  }
-
-  if ((row_idx == 0) && (col_idx != 0)) {
-    systolic_column_ctrl(col_idx);
-  }
-
-  if ((row_idx != 0) && (col_idx == 0)) {
-    systolic_row_ctrl(row_idx);
-  }
-
-  if ((row_idx != 0) && (col_idx != 0)) {
-    systolic_proc_element(row_idx, col_idx);
-  }
-
-  // Wait for all cores
-  mempool_barrier(num_cores);
-
-  // Print out benchmark
-  if (core_id == 0) {
+    // Print out benchmark results
     systolic_benchmark_print();
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores);
+  mempool_barrier(num_cores, num_cores * 4);
   return 0;
 }
