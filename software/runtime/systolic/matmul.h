@@ -245,6 +245,11 @@ void systolic_rcp_pe(const uint32_t rep_count,
   // Set data offset depending on PE position
   data_offset = 0;
 
+  // Start benchmark (remove initial latency from benchmark)
+  // (we could use any data, data_* chosen arbitrarily)
+  blocking_queue_push(queue_next_horz, &data_horz);
+  blocking_queue_push(queue_next_vert, &data_vert);
+
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < num_rows_C; ++y) {
     for (uint32_t x = 0; x < num_cols_C; ++x) {
@@ -316,6 +321,14 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
 
   // Set data offset depending on PE position
   data_offset = col_idx;
+
+  // Start benchmark (remove initial latency from benchmark)
+  // (we could use any data, data_* chosen arbitrarily)
+  blocking_queue_pop(queue_prev_horz, &data_horz);
+  if (queue_next_horz) {
+    blocking_queue_push(queue_next_horz, &data_horz);
+  }
+  blocking_queue_push(queue_next_vert, &data_vert);
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < num_rows_C; ++y) {
@@ -390,6 +403,14 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
 
   // Set data offset depending on PE position
   data_offset = row_idx * SYSTOLIC_SIZE;
+
+  // Start benchmark (remove initial latency from benchmark)
+  // (we could use any data, data_* chosen arbitrarily)
+  blocking_queue_pop(queue_prev_vert, &data_vert);
+  blocking_queue_push(queue_next_horz, &data_horz);
+  if (queue_next_vert) {
+    blocking_queue_push(queue_next_vert, &data_vert);
+  }
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < num_rows_C; ++y) {
@@ -466,6 +487,17 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
   // Set data offset depending on PE position
   data_offset = row_idx * SYSTOLIC_SIZE + col_idx;
+
+  // Start benchmark (remove initial latency from benchmark)
+  // (we could use any data, data_* chosen arbitrarily)
+  blocking_queue_pop(queue_prev_horz, &data_horz);
+  blocking_queue_pop(queue_prev_vert, &data_vert);
+  if (queue_next_horz) {
+    blocking_queue_push(queue_next_horz, &data_horz);
+  }
+  if (queue_next_vert) {
+    blocking_queue_push(queue_next_vert, &data_vert);
+  }
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < num_rows_C; ++y) {
