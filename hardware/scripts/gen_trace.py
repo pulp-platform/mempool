@@ -88,6 +88,8 @@ CSR_NAMES = {0xb00: 'mcycle', 0xf14: 'mhartid'}
 
 MEM_REGIONS = {'Other': 0, 'Sequential': 1, 'Interleaved': 2}
 
+RAW_TYPES = ['lsu', 'acc']
+
 # ----------------- Architecture Info  -----------------
 NUM_CORES = int(os.environ.get('num_cores', 256))
 NUM_TILES = NUM_CORES / 4
@@ -277,13 +279,16 @@ def annotate_snitch(
     last_cycle: int,
     pc: int,
     gpr_wb_info: dict,
+    retired_reg: dict,
     perf_metrics: list,
     annot_fseq_offl: bool = False,
     force_hex_addr: bool = True,
     permissive: bool = False
-) -> str:
+) -> (str, dict):
     # Compound annotations in datapath order
     ret = []
+    # Remember if we had a potential RAW stall
+    raw_stall = {k: 0 for k in RAW_TYPES}
     # If Sequencer offload: annotate if desired
     if annot_fseq_offl and extras['fpu_offload']:
         target_name = 'FSEQ' if extras['is_seq_insn'] else 'FPSS'
@@ -294,9 +299,15 @@ def annotate_snitch(
         if extras['opa_select'] == OPER_TYPES['gpr'] and extras['rs1'] != 0:
             ret.append('{:<3} = {}'.format(
                 REG_ABI_NAMES_I[extras['rs1']], int_lit(extras['opa'])))
+            for k in RAW_TYPES:
+                if extras['rs1'] == retired_reg.get(k, -1):
+                    raw_stall[k] = retired_reg[k]
         if extras['opb_select'] == OPER_TYPES['gpr'] and extras['rs2'] != 0:
             ret.append('{:<3} = {}'.format(
                 REG_ABI_NAMES_I[extras['rs2']], int_lit(extras['opb'])))
+            for k in RAW_TYPES:
+                if extras['rs2'] == retired_reg.get(k, -1):
+                    raw_stall[k] = retired_reg[k]
         # CSR (always operand b)
         if extras['opb_select'] == OPER_TYPES['csr']:
             csr_addr = extras['csr_addr']
@@ -356,10 +367,16 @@ def annotate_snitch(
         ret.append('(lsu) {:<3} <-- {}'.format(
             REG_ABI_NAMES_I[extras['lsu_rd']],
             int_lit(extras['ld_result_32'])))
+        retired_reg['lsu'] = extras['lsu_rd']
+    else:
+        retired_reg['lsu'] = 0
     if extras['retire_acc'] and extras['acc_pid'] != 0:
         ret.append('(acc) {:<3} <-- {}'.format(
             REG_ABI_NAMES_I[extras['acc_pid']],
             int_lit(extras['acc_pdata_32'])))
+        retired_reg['acc'] = extras['acc_pid']
+    else:
+        retired_reg['acc'] = 0
     # Any kind of PC change: Branch, Jump, etc.
     if not extras['stall'] and extras['pc_d'] != pc + 4:
         ret.append('goto {}'.format(int_lit(extras['pc_d'])))
@@ -373,7 +390,13 @@ def annotate_snitch(
                 ret.append('({} ins)'.format(extras['stall_ins']))
             if extras['stall_raw']:
                 perf_metrics[-1]['stall_raw'] += extras['stall_raw']
-                ret.append('({} raw)'.format(extras['stall_raw']))
+                ret.append('({} raw'.format(extras['stall_raw']))
+                for k in RAW_TYPES:
+                    if raw_stall[k] > 0:
+                        ret.append('{}:{})'.format(
+                            k, REG_ABI_NAMES_I[raw_stall[k]]))
+                        perf_metrics[-1]['stall_raw_{}'.format(
+                            k)] += extras['stall_raw']
             if extras['stall_lsu']:
                 perf_metrics[-1]['stall_lsu'] += extras['stall_lsu']
                 ret.append('({} lsu)'.format(extras['stall_lsu']))
@@ -389,7 +412,7 @@ def annotate_snitch(
             ret.append('// Potentially missed stall cycle ({} cycles)!!!'
                        .format(cycle - last_cycle - 1))
     # Return comma-delimited list
-    return ', '.join(ret)
+    return ', '.join(ret), retired_reg
 
 
 def annotate_fpu(
@@ -483,11 +506,13 @@ def annotate_insn(
     dupl_time_info: bool = True,
     # Previous timestamp (keeps this method stateless)
     last_time_info: tuple = None,
+    # Previous retired instructions (keeps this method stateless)
+    retired_reg: dict = {k: 0 for k in RAW_TYPES},
     # Annotate whenever core offloads to CPU on own line
     annot_fseq_offl: bool = False,
     force_hex_addr: bool = True,
     permissive: bool = True
-) -> (str, tuple, bool):
+) -> (str, tuple, dict, bool):
     # Return time info, whether trace line contains no info, and fseq_len
     match = re.search(TRACE_IN_REGEX, line.strip('\n'))
     if match is None:
@@ -502,10 +527,11 @@ def annotate_insn(
         extras = read_annotations(extras_str)
         # Annotate snitch
         if extras['source'] == TRACE_SRCES['snitch']:
-            annot = annotate_snitch(extras, time_info[1], last_time_info[1],
-                                    int(pc_str, 16), gpr_wb_info, perf_metrics,
-                                    annot_fseq_offl, force_hex_addr,
-                                    permissive)
+            (annot, retired_reg) = annotate_snitch(
+                extras, time_info[1], last_time_info[1],
+                int(pc_str, 16), gpr_wb_info, retired_reg,
+                perf_metrics, annot_fseq_offl, force_hex_addr,
+                permissive)
             if extras['fpu_offload']:
                 perf_metrics[-1]['snitch_fseq_offloads'] += 1
                 fseq_info['fpss_pcs'].appendleft(
@@ -562,12 +588,13 @@ def annotate_insn(
         if empty:
             # Reset time info if empty: last line on record is previous one!
             time_info = last_time_info
-        return (TRACE_OUT_FMT + ' #; {}').format(
-            *time_info_strs, pc_str, insn, annot), time_info, empty
+        return ((TRACE_OUT_FMT + ' #; {}').format(*time_info_strs,
+                                                  pc_str, insn, annot),
+                time_info, retired_reg, empty)
     # Vanilla trace
     else:
         return TRACE_OUT_FMT.format(
-            *time_info_strs, pc_str, insn), time_info, False
+            *time_info_strs, pc_str, insn), time_info, retired_reg, False
 
 
 # -------------------- Performance metrics --------------------
@@ -683,6 +710,8 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'stall_tot',
         'stall_ins',
         'stall_raw',
+        'stall_raw_lsu',
+        'stall_raw_acc',
         'stall_lsu',
         'stall_acc']
     for key in keys:
@@ -749,6 +778,7 @@ def main():
         core_id = -1
     # Prepare stateful data structures
     time_info = (0, 0)
+    retired_reg = {k: -1 for k in RAW_TYPES}
     gpr_wb_info = defaultdict(deque)
     fpr_wb_info = defaultdict(deque)
     fseq_info = {
@@ -764,9 +794,10 @@ def main():
     # Parse input line by line
     for line in line_iter:
         if line:
-            ann_insn, time_info, empty = annotate_insn(
+            ann_insn, time_info, retired_reg, empty = annotate_insn(
                 line, gpr_wb_info, fpr_wb_info, fseq_info, perf_metrics,
-                False, time_info, args.offl, not args.saddr, args.permissive)
+                False, time_info, retired_reg, args.offl, not args.saddr,
+                args.permissive)
             if perf_metrics[0]['start'] is None:
                 perf_metrics[0]['start'] = time_info[1]
             # Start a new benchmark section after 'csrw trace' instruction
