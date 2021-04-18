@@ -16,9 +16,9 @@
 #include "synchronization.h"
 
 // Dimensions of matrices
-#define DIM_M 12
-#define DIM_N 12
-#define DIM_P 12
+#define DIM_M 20
+#define DIM_N 20
+#define DIM_P 20
 
 int32_t *matrix_A;
 int32_t *matrix_B;
@@ -68,13 +68,13 @@ int main() {
     // Initialize systolic array
     systolic_init();
 
-    // Generate matrices A & B
-    generate_gradient_matrix(&matrix_A, DIM_M, DIM_N);
-    generate_gradient_matrix(&matrix_B, DIM_N, DIM_P);
-
     // Create systolic matrices
+    generate_gradient_matrix(&matrix_A, DIM_M, DIM_N);
     systolic_matrix_create(&syst_matrix_A, matrix_A, DIM_M, DIM_N);
+    simple_free(matrix_A);
+    generate_gradient_matrix(&matrix_B, DIM_N, DIM_P);
     systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
+    simple_free(matrix_B);
     systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
 
     // Print out systolic matrices A & B
@@ -89,9 +89,31 @@ int main() {
   // Wait for all cores
   mempool_barrier(num_cores, num_cores * 4);
 
-  // Assign grid position
-  uint32_t col_idx = core_id % 4;
-  uint32_t row_idx = core_id / 4;
+  // Assign grid position (row wise)
+  // uint32_t col_idx = core_id % 4;
+  // uint32_t row_idx = core_id / 4;
+
+  // Assign grid position (col wise)
+  uint32_t col_idx = core_id / 4;
+  uint32_t row_idx = core_id % 4;
+
+  // 16 CORES only
+  // Assign grid position (tile wise)
+  // uint32_t col_idx;
+  // uint32_t row_idx;
+  // if (core_id < 4) {
+  //   col_idx = core_id % 2;
+  //   row_idx = core_id / 2;
+  // } else if (core_id < 8) {
+  //   col_idx = core_id % 2 + 2;
+  //   row_idx = core_id / 6;
+  // } else if (core_id < 12) {
+  //   col_idx = core_id % 2;
+  //   row_idx = core_id / 10 + 2;
+  // } else {
+  //   col_idx = core_id % 2 + 2;
+  //   row_idx = core_id / 14 + 2;
+  // }
 
   if (core_id == 0) {
     // Start benchmark
