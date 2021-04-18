@@ -12,7 +12,7 @@ ENTRY(_start)
 SECTIONS {
   /* Sequential region on L1 */
   .l1_seq (NOLOAD): {
-    . = __stack_end;
+    . = __seq_end;
     *(.l1_seq);
     __l1_seq_alloc_base = ALIGN(0x10);
   } > l1

@@ -23,6 +23,9 @@ SECTIONS {
   __stack_start = __l1_start;
   __stack_end = __l1_start + (NUM_CORES * 0x400);
 
+  __seq_start = __l1_start;
+  __seq_end = __l1_start + (NUM_CORES * 0x800);
+
   // Heap size (start address is re-assigned in link.ld)
   __heap_start = __l1_start;
   __heap_end = __l1_end;

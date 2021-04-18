@@ -68,10 +68,14 @@ _reset_vector:
     add     sp, sp, t0                 // sp += (id / 4 + 1) * 2^10
     addi    sp, sp, 1020               // sp += 2^10-1 (start at stack of next core)
 #else
-    addi    t0, a0, 1
-    slli    t0, t0, 10                 // set some stack-space aside for each hart
-    addi    t0, t0, -4                 // Subtract one word to avoid overlapping
-    add     sp, sp, t0
+    srli    t0, a0, 2                  // tile_id = id / 4
+    slli    t0, t0, 13                 // tile_offset = tile_id * 8 KiB
+    andi    t1, a0, 3                  // tile_core_id = id % 4
+    addi    t1, t1, 1                  // tile_core_id += 1
+    slli    t1, t1, 10                 // tile_core_offset = tile_core_id * 1 KiB
+    addi    t1, t1, -4                 // tile_core_offset -= 1 word
+    add     t0, t0, t1                 // offset = tile_offset + tile_core_offset
+    add     sp, sp, t0                 // sp += offset
 #endif
     bnez    a0, _jump_main
     la      t0, ro_cache_end_0         // Get peripheral register to set cacheable region
