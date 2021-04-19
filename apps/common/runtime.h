@@ -45,14 +45,14 @@ static inline mempool_id_t mempool_get_core_id() {
 /// Reset a monotonically increasing cycle count.
 static inline void mempool_start_benchmark() {
   asm volatile("" ::: "memory");
-  write_csr(cycle, 0);
+  write_csr(trace, 1);
   asm volatile("" ::: "memory");
 }
 
 /// Obtain a monotonically increasing cycle count.
-static inline uint32_t mempool_stop_benchmark() {
+static inline void mempool_stop_benchmark() {
   asm volatile("" ::: "memory");
-  return read_csr(cycle);
+  write_csr(trace, 0);
   asm volatile("" ::: "memory");
 }
 

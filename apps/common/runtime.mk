@@ -41,6 +41,8 @@ ifeq ($(COMPILER),gcc)
 	ifeq ($(XPULPIMG),1)
 		RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)
+		# Define __XPULPIMG if the extension is active
+		DEFINES       += -D__XPULPIMG
 	else
 		RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
@@ -67,11 +69,7 @@ RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Defines
-DEFINES := -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr) -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
-# Define __XPULPIMG if the extension is active
-ifeq ($(XPULPIMG),1)
-	DEFINES += -D__XPULPIMG
-endif
+DEFINES += -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr) -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
@@ -79,21 +77,18 @@ RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RI
 RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
 RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
-RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -falign-loops=32 -falign-jumps=32
-
+RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -falign-loops=32 -falign-jumps=32
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -enable-misched
-ifeq ($(COMPILER),gcc)
-	RISCV_FLAGS    ?= $(RISCV_FLAGS_GCC)  $(RISCV_FLAGS_COMMON)
-else
-	RISCV_FLAGS    ?= $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
-endif
 
-RISCV_CCFLAGS  ?= $(RISCV_FLAGS)
-RISCV_CXXFLAGS ?= $(RISCV_FLAGS)
-RISCV_LDFLAGS  ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS)
 ifeq ($(COMPILER),gcc)
+	RISCV_CCFLAGS       ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
+	RISCV_CXXFLAGS      ?= $(RISCV_CCFLAGS)
+	RISCV_LDFLAGS       ?= -static -nostartfiles -lm -lgcc $(RISCV_CCFLAGS)
 	RISCV_OBJDUMP_FLAGS ?= --disassembler-option="march=$(RISCV_ARCH_AS)"
 else
+	RISCV_CCFLAGS       ?= $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
+	RISCV_CXXFLAGS      ?= $(RISCV_CCFLAGS)
+	RISCV_LDFLAGS       ?= -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON)
 	RISCV_OBJDUMP_FLAGS ?=
 endif
 

@@ -1332,8 +1332,12 @@ module snitch #(
   // pragma translate_on
 
   // CSR logic
+  logic csr_trace_en;
+  logic csr_trace_q;
+
   always_comb begin
     csr_rvalue = '0;
+    csr_trace_en = 1'b0;
 
     // TODO(zarubaf): Needs some more input handling, like illegal instruction exceptions.
     // Right now we skip this due to simplicity.
@@ -1341,6 +1345,10 @@ module snitch #(
       unique case (inst_data_i[31:20])
         riscv_instr::CSR_MHARTID: begin
           csr_rvalue = hart_id_i;
+        end
+        riscv_instr::CSR_TRACE: begin
+          csr_rvalue = csr_trace_q;
+          csr_trace_en = 1'b1;
         end
         `ifdef SNITCH_ENABLE_PERF
         riscv_instr::CSR_MCYCLE: begin
@@ -1360,6 +1368,9 @@ module snitch #(
       endcase
     end
   end
+
+  // CSR registers
+  `FFLAR(csr_trace_q, alu_result, csr_trace_en, '0, clk_i, rst_i);
 
   snitch_regfile #(
     .DATA_WIDTH     ( 32              ),

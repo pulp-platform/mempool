@@ -291,6 +291,9 @@ csrs = [
   (0x33E, 'mhpmevent30'),
   (0x33F, 'mhpmevent31'),
 
+  # Custom Machine R/W
+  (0x7d0, 'trace'),
+
   # Standard Machine RO
   (0xF11, 'mvendorid'),
   (0xF12, 'marchid'),

@@ -51,6 +51,8 @@ verilator_files ?= $(verilator_build)/files
 verilator_top   ?= mempool_tb_verilator
 # Python
 python          ?= python3.6
+# Enable tracing
+snitch_trace    ?= 0
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -87,6 +89,7 @@ vlog_args += -work $(library)
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 vlog_defs += -DL2_BASE="32'h$(l2_base)" -DL2_SIZE="32'h$(l2_size)"
 vlog_defs += -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
+vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
 
 cpp_defs  += -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
 
@@ -222,7 +225,7 @@ post_trace:
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
-	$(python) $(ROOT_DIR)/deps/snitch/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
+	$(python) $(ROOT_DIR)/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
 
 ################
 # Helper       #

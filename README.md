@@ -123,6 +123,8 @@ to disable the use of `ccache`. Keep in mind that this will make the following c
 
 If the tracer is enabled, its output traces are found under `hardware/build`, for both ModelSim and Verilator simulations.
 
+Tracing can be controlled per core with a custom `trace` CSR register. The CSR is of type WARL and can only be set to zero or one. For debugging, tracing can be enabled persistently with the `snitch_trace` environment variable.
+
 ## Common Problems
 
 - If building the GCC toolchain fails because *makeinfo/texinfo* is missing, try the following command:

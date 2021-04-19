@@ -55,14 +55,9 @@ void mempool_barrier(uint32_t num_cores, uint32_t cycles) {
   uint32_t iteration_old = barrier_iteration;
 
   // Increment the barrier counter
-  if ((num_cores - 1) ==
-      amo_add(&barrier, 1)) { /* if __atomic_fetch_add built-in not defined */
-    //__atomic_fetch_add(&barrier, 1, __ATOMIC_SEQ_CST)) {
-    // We are the last one to reach the barrier --> reset barrier and increment
-    // barrier_iteration
+  if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_SEQ_CST)) {
     barrier = 0;
-    //__atomic_fetch_add(&barrier_iteration, 1, __ATOMIC_SEQ_CST);
-    amo_add(&barrier_iteration, 1);
+    __atomic_fetch_add(&barrier_iteration, 1, __ATOMIC_SEQ_CST);
   } else {
     // Some threads have not reached the barrier --> Let's wait
     while (iteration_old == barrier_iteration)

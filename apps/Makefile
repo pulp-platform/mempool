@@ -24,7 +24,7 @@ APPS_DIR := $(ROOT_DIR)
 include $(ROOT_DIR)/common/runtime.mk
 include $(TESTS_DIR)/snitch_isa.mk
 
-APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
+APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c" -not -path "*/halide/*"))
 BINARIES := $(addprefix bin/,$(APPS))
 
 # Make all applications

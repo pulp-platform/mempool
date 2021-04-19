@@ -22,6 +22,7 @@ variables:
   VERILATOR_ROOT: '$CI_PROJECT_DIR/install/verilator'
   PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin:$VERILATOR_ROOT/bin'
   OBJCACHE: ''
+  RISCV_WARNINGS: '-Werror'
 
 workflow:
   rules:
@@ -127,18 +128,15 @@ hardware:
   artifacts:
     paths:
       - hardware/build/transcript
-      - hardware/build/trace_hart_*.trace
-      - hardware/results
+      - apps/bin/*
+    expire_in: 1 week
 
 .apps-script:
   script: &apps-script-anchor
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
     - cd apps
-    - |
-      for APP in ${APPS}; do
-        make COMPILER=${COMPILER} bin/${APP}
-      done
+    - make COMPILER=${COMPILER} all
     - cd ../hardware
     - |
       for APP in ${APPS}; do
@@ -179,6 +177,7 @@ unit-tests:
       - apps/bin/*.dump
       - hardware/build/transcript
       - hardware/results
+    expire_in: 1 week
 
 # Verilator test
 verilator-tests:

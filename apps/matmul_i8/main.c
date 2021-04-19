@@ -48,7 +48,8 @@ void init_matrix(int8_t *matrix, uint32_t num_rows, uint32_t num_columns,
     for (uint32_t j = (core_id / split); j < num_columns;
          j += (num_cores / split)) {
       for (uint32_t i = c_start; i < c_end; ++i) {
-        matrix[i * num_columns + j] = a * (int8_t)i + b * (int8_t)j + c;
+        matrix[i * num_columns + j] =
+            (int8_t)(a * (int8_t)i + b * (int8_t)j + c);
       }
     }
   } else {
@@ -58,7 +59,8 @@ void init_matrix(int8_t *matrix, uint32_t num_rows, uint32_t num_columns,
     for (uint32_t i = (core_id / split); i < num_rows;
          i += (num_cores / split)) {
       for (uint32_t j = c_start; j < c_end; ++j) {
-        matrix[i * num_columns + j] = a * (int8_t)i + b * (int8_t)j + c;
+        matrix[i * num_columns + j] =
+            (int8_t)(a * (int8_t)i + b * (int8_t)j + c);
       }
     }
   }
