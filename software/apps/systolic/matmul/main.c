@@ -20,6 +20,8 @@
 #define DIM_N 20
 #define DIM_P 20
 
+uint32_t *grid_mapping;
+
 int32_t *matrix_A;
 int32_t *matrix_B;
 
@@ -54,6 +56,7 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t tile_id = core_id / 4;
 
   // Initialize synchronization variables
   mempool_barrier_init(core_id, num_cores);
@@ -61,33 +64,10 @@ int main() {
   // Initialization
   mempool_init(core_id, num_cores);
 
-  // Setup
+  // Allocate systolic grid mapping
   if (core_id == 0) {
-    printf("> Initialize\n");
-
-    // Initialize systolic array
-    systolic_init();
-
-    // Create systolic matrices
-    generate_gradient_matrix(&matrix_A, DIM_M, DIM_N);
-    systolic_matrix_create(&syst_matrix_A, matrix_A, DIM_M, DIM_N);
-    simple_free(matrix_A);
-    generate_gradient_matrix(&matrix_B, DIM_N, DIM_P);
-    systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
-    simple_free(matrix_B);
-    systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
-
-    // Print out systolic matrices A & B
-    // printf("> Print Systolic Matrices A & B\n");
-    // systolic_matrix_print(syst_matrix_A);
-    // systolic_matrix_print(syst_matrix_B);
-
-    // Set repetition count per submatrix of C (A->num_cols == B->num_rows)
-    rep_count = syst_matrix_A->num_cols;
+    grid_mapping = (uint32_t *)simple_malloc(num_cores * 4);
   }
-
-  // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
 
   // Assign grid position (row wise)
   // uint32_t col_idx = core_id % 4;
@@ -114,6 +94,43 @@ int main() {
   //   col_idx = core_id % 2 + 2;
   //   row_idx = core_id / 14 + 2;
   // }
+
+  // Wait for all cores
+  mempool_barrier(num_cores, num_cores * 4);
+
+  // Set systolic grid mapping
+  grid_mapping[row_idx * SYSTOLIC_SIZE + col_idx] = tile_id;
+
+  // Wait for all cores
+  mempool_barrier(num_cores, num_cores * 4);
+
+  // Setup
+  if (core_id == 0) {
+    printf("> Initialize\n");
+
+    // Initialize systolic array
+    systolic_init(grid_mapping);
+
+    // Create systolic matrices
+    generate_gradient_matrix(&matrix_A, DIM_M, DIM_N);
+    systolic_matrix_create(&syst_matrix_A, matrix_A, DIM_M, DIM_N);
+    simple_free(matrix_A);
+    generate_gradient_matrix(&matrix_B, DIM_N, DIM_P);
+    systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
+    simple_free(matrix_B);
+    systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
+
+    // Print out systolic matrices A & B
+    // printf("> Print Systolic Matrices A & B\n");
+    // systolic_matrix_print(syst_matrix_A);
+    // systolic_matrix_print(syst_matrix_B);
+
+    // Set repetition count per submatrix of C (A->num_cols == B->num_rows)
+    rep_count = syst_matrix_A->num_cols;
+  }
+
+  // Wait for all cores
+  mempool_barrier(num_cores, num_cores * 4);
 
   if (core_id == 0) {
     // Start benchmark

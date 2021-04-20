@@ -44,15 +44,19 @@ uint32_t bm_v_push_cnt[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 queue_t *queues_vert[SYSTOLIC_SIZE - 1][SYSTOLIC_SIZE];
 queue_t *queues_horz[SYSTOLIC_SIZE][SYSTOLIC_SIZE - 1];
 
-void systolic_init() {
-  for (uint32_t y = 0; y < SYSTOLIC_SIZE - 1; ++y) {
-    for (uint32_t x = 0; x < SYSTOLIC_SIZE; ++x) {
-      queue_create(&queues_vert[y][x], QUEUE_SIZE);
-    }
-  }
+void systolic_init(uint32_t const *grid_mapping) {
+  uint32_t grid_pos = 0;
+  alloc_t *alloc;
   for (uint32_t y = 0; y < SYSTOLIC_SIZE; ++y) {
-    for (uint32_t x = 0; x < SYSTOLIC_SIZE - 1; ++x) {
-      queue_create(&queues_horz[y][x], QUEUE_SIZE);
+    for (uint32_t x = 0; x < SYSTOLIC_SIZE; ++x) {
+      alloc = get_alloc_tile(grid_mapping[grid_pos]);
+      if (y != SYSTOLIC_SIZE - 1) {
+        queue_domain_create(alloc, &queues_vert[y][x], QUEUE_SIZE);
+      }
+      if (x != SYSTOLIC_SIZE - 1) {
+        queue_domain_create(alloc, &queues_horz[y][x], QUEUE_SIZE);
+      }
+      ++grid_pos;
     }
   }
 }

@@ -20,9 +20,9 @@ typedef struct {
   uint32_t size;
 } queue_t;
 
-void queue_create(queue_t **queue, const uint32_t size) {
-  queue_t *new_queue = (queue_t *)simple_malloc(4 * 4);
-  int32_t *array = (int32_t *)simple_malloc(size * 4);
+void queue_domain_create(alloc_t *alloc, queue_t **queue, const uint32_t size) {
+  queue_t *new_queue = (queue_t *)domain_malloc(alloc, 4 * 4);
+  int32_t *array = (int32_t *)domain_malloc(alloc, size * 4);
   new_queue->array = array;
   new_queue->head = 0;
   new_queue->tail = 0;
@@ -30,9 +30,17 @@ void queue_create(queue_t **queue, const uint32_t size) {
   *queue = new_queue;
 }
 
+void queue_domain_destroy(alloc_t *alloc, queue_t *queue) {
+  domain_free(alloc, queue->array);
+  domain_free(alloc, queue);
+}
+
+void queue_create(queue_t **queue, const uint32_t size) {
+  queue_domain_create(get_alloc_l1(), queue, size);
+}
+
 void queue_destroy(queue_t *queue) {
-  simple_free(queue->array);
-  simple_free(queue);
+  queue_domain_destroy(get_alloc_l1(), queue);
 }
 
 int32_t queue_pop(queue_t *const queue, int32_t *data) {
