@@ -9,11 +9,10 @@
 
 #include "alloc.h"
 #include "encoding.h"
-#include "systolic/queue.h"
-#include "systolic/matmul.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "systolic/matmul.h"
 
 // Dimensions of matrices
 #define DIM_M 32

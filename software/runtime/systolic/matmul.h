@@ -15,6 +15,7 @@
 
 #include "alloc.h"
 #include "printf.h"
+#include "systolic/queue_multi.h"
 
 // Size of systolic array
 // TODO: SQRT ROOT OF NUM_CORES FOR SYSTOLIC SIZE
@@ -47,10 +48,10 @@ void systolic_init(uint32_t const *grid_mapping) {
     for (uint32_t x = 0; x < SYSTOLIC_SIZE; ++x) {
       alloc = get_alloc_tile(grid_mapping[grid_pos]);
       if (y != SYSTOLIC_SIZE - 1) {
-        queue_domain_create(alloc, &queues_vert[y][x], QUEUE_SIZE);
+        queue_domain_create(alloc, &queues_vert[y][x]);
       }
       if (x != SYSTOLIC_SIZE - 1) {
-        queue_domain_create(alloc, &queues_horz[y][x], QUEUE_SIZE);
+        queue_domain_create(alloc, &queues_horz[y][x]);
       }
       ++grid_pos;
       // Initialize counters
@@ -215,8 +216,8 @@ void systolic_rcp_pe(const uint32_t rep_count,
                      systolic_matrix_t const *__restrict__ C) {
   queue_t *queue_next_horz;
   queue_t *queue_next_vert;
-  int32_t data_horz = 0;
-  int32_t data_vert = 0;
+  int32_t data_horz[DATA_SIZE];
+  int32_t data_vert[DATA_SIZE];
   int32_t **sub_matrices_A;
   int32_t **sub_matrices_B;
   int32_t **sub_matrices_C;
@@ -252,8 +253,8 @@ void systolic_rcp_pe(const uint32_t rep_count,
 
   // Start benchmark (remove initial latency from benchmark)
   // (we could use any data, data_* chosen arbitrarily)
-  blocking_queue_push(queue_next_horz, &data_horz);
-  blocking_queue_push(queue_next_vert, &data_vert);
+  blocking_queue_push(queue_next_horz, data_horz);
+  blocking_queue_push(queue_next_vert, data_vert);
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < num_rows_C; ++y) {
@@ -269,12 +270,17 @@ void systolic_rcp_pe(const uint32_t rep_count,
       for (uint32_t i = 0; i < rep_count; ++i) {
         curr_sub_matrix_A = sub_matrices_A[y * num_cols_A + i];
         curr_sub_matrix_B = sub_matrices_B[i * num_cols_B + x];
-        for (uint32_t j = 0; j < SYSTOLIC_SIZE; ++j) {
-          data_horz = *(curr_sub_matrix_A + data_offset + j);
-          data_vert = *(curr_sub_matrix_B + data_offset + j * SYSTOLIC_SIZE);
-          counting_queue_push(queue_next_horz, &data_horz, &h_push_cnt);
-          counting_queue_push(queue_next_vert, &data_vert, &v_push_cnt);
-          *curr_element_C += data_horz * data_vert;
+        for (uint32_t j = 0; j < SYSTOLIC_SIZE; j += DATA_SIZE) {
+          for (uint32_t k = 0; k < DATA_SIZE; ++k) {
+            data_horz[k] = *(curr_sub_matrix_A + data_offset + j + k);
+            data_vert[k] =
+                *(curr_sub_matrix_B + data_offset + (j + k) * SYSTOLIC_SIZE);
+          }
+          counting_queue_push(queue_next_horz, data_horz, &h_push_cnt);
+          counting_queue_push(queue_next_vert, data_vert, &v_push_cnt);
+          for (uint32_t k = 0; k < DATA_SIZE; ++k) {
+            *curr_element_C += data_horz[k] * data_vert[k];
+          }
         }
       }
     }
@@ -291,8 +297,8 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   queue_t *queue_prev_horz;
   queue_t *queue_next_horz;
   queue_t *queue_next_vert;
-  int32_t data_horz = 0;
-  int32_t data_vert = 0;
+  int32_t data_horz[DATA_SIZE];
+  int32_t data_vert[DATA_SIZE];
   int32_t **sub_matrices_B;
   int32_t **sub_matrices_C;
   uint32_t num_cols_B;
@@ -329,11 +335,11 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
 
   // Start benchmark (remove initial latency from benchmark)
   // (we could use any data, data_* chosen arbitrarily)
-  blocking_queue_pop(queue_prev_horz, &data_horz);
+  blocking_queue_pop(queue_prev_horz, data_horz);
   if (queue_next_horz) {
-    blocking_queue_push(queue_next_horz, &data_horz);
+    blocking_queue_push(queue_next_horz, data_horz);
   }
-  blocking_queue_push(queue_next_vert, &data_vert);
+  blocking_queue_push(queue_next_vert, data_vert);
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < num_rows_C; ++y) {
@@ -348,14 +354,19 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
       // Systolic matrix multiplication through MACs
       for (uint32_t i = 0; i < rep_count; ++i) {
         curr_sub_matrix_B = sub_matrices_B[i * num_cols_B + x];
-        for (uint32_t j = 0; j < SYSTOLIC_SIZE; ++j) {
-          data_vert = *(curr_sub_matrix_B + data_offset + j * SYSTOLIC_SIZE);
-          counting_queue_pop(queue_prev_horz, &data_horz, &h_pop_cnt);
-          if (queue_next_horz) {
-            counting_queue_push(queue_next_horz, &data_horz, &h_push_cnt);
+        for (uint32_t j = 0; j < SYSTOLIC_SIZE; j += DATA_SIZE) {
+          for (uint32_t k = 0; k < DATA_SIZE; ++k) {
+            data_vert[k] =
+                *(curr_sub_matrix_B + data_offset + (j + k) * SYSTOLIC_SIZE);
           }
-          counting_queue_push(queue_next_vert, &data_vert, &v_push_cnt);
-          *curr_element_C += data_horz * data_vert;
+          counting_queue_pop(queue_prev_horz, data_horz, &h_pop_cnt);
+          if (queue_next_horz) {
+            counting_queue_push(queue_next_horz, data_horz, &h_push_cnt);
+          }
+          counting_queue_push(queue_next_vert, data_vert, &v_push_cnt);
+          for (uint32_t k = 0; k < DATA_SIZE; ++k) {
+            *curr_element_C += data_horz[k] * data_vert[k];
+          }
         }
       }
     }
@@ -373,8 +384,8 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   queue_t *queue_next_horz;
   queue_t *queue_prev_vert;
   queue_t *queue_next_vert;
-  int32_t data_horz = 0;
-  int32_t data_vert = 0;
+  int32_t data_horz[DATA_SIZE];
+  int32_t data_vert[DATA_SIZE];
   int32_t **sub_matrices_A;
   int32_t **sub_matrices_C;
   uint32_t num_cols_A;
@@ -411,10 +422,10 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
 
   // Start benchmark (remove initial latency from benchmark)
   // (we could use any data, data_* chosen arbitrarily)
-  blocking_queue_pop(queue_prev_vert, &data_vert);
-  blocking_queue_push(queue_next_horz, &data_horz);
+  blocking_queue_pop(queue_prev_vert, data_vert);
+  blocking_queue_push(queue_next_horz, data_horz);
   if (queue_next_vert) {
-    blocking_queue_push(queue_next_vert, &data_vert);
+    blocking_queue_push(queue_next_vert, data_vert);
   }
 
   // Execute step-wise matrix multiplication
@@ -430,14 +441,18 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
       // Systolic matrix multiplication through MACs
       for (uint32_t i = 0; i < rep_count; ++i) {
         curr_sub_matrix_A = sub_matrices_A[y * num_cols_A + i];
-        for (uint32_t j = 0; j < SYSTOLIC_SIZE; ++j) {
-          data_horz = *(curr_sub_matrix_A + data_offset + j);
-          counting_queue_pop(queue_prev_vert, &data_vert, &v_pop_cnt);
-          counting_queue_push(queue_next_horz, &data_horz, &h_push_cnt);
-          if (queue_next_vert) {
-            counting_queue_push(queue_next_vert, &data_vert, &v_push_cnt);
+        for (uint32_t j = 0; j < SYSTOLIC_SIZE; j += DATA_SIZE) {
+          for (uint32_t k = 0; k < DATA_SIZE; ++k) {
+            data_horz[k] = *(curr_sub_matrix_A + data_offset + j + k);
           }
-          *curr_element_C += data_horz * data_vert;
+          counting_queue_pop(queue_prev_vert, data_vert, &v_pop_cnt);
+          counting_queue_push(queue_next_horz, data_horz, &h_push_cnt);
+          if (queue_next_vert) {
+            counting_queue_push(queue_next_vert, data_vert, &v_push_cnt);
+          }
+          for (uint32_t k = 0; k < DATA_SIZE; ++k) {
+            *curr_element_C += data_horz[k] * data_vert[k];
+          }
         }
       }
     }
@@ -456,8 +471,8 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   queue_t *queue_next_horz;
   queue_t *queue_prev_vert;
   queue_t *queue_next_vert;
-  int32_t data_horz = 0;
-  int32_t data_vert = 0;
+  int32_t data_horz[DATA_SIZE];
+  int32_t data_vert[DATA_SIZE];
   int32_t **sub_matrices_C;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
@@ -495,13 +510,13 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
   // Start benchmark (remove initial latency from benchmark)
   // (we could use any data, data_* chosen arbitrarily)
-  blocking_queue_pop(queue_prev_horz, &data_horz);
-  blocking_queue_pop(queue_prev_vert, &data_vert);
+  blocking_queue_pop(queue_prev_horz, data_horz);
+  blocking_queue_pop(queue_prev_vert, data_vert);
   if (queue_next_horz) {
-    blocking_queue_push(queue_next_horz, &data_horz);
+    blocking_queue_push(queue_next_horz, data_horz);
   }
   if (queue_next_vert) {
-    blocking_queue_push(queue_next_vert, &data_vert);
+    blocking_queue_push(queue_next_vert, data_vert);
   }
 
   // Execute step-wise matrix multiplication
@@ -516,16 +531,18 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
       // Systolic matrix multiplication through MACs
       for (uint32_t i = 0; i < rep_count; ++i) {
-        for (uint32_t j = 0; j < SYSTOLIC_SIZE; ++j) {
-          counting_queue_pop(queue_prev_horz, &data_horz, &h_pop_cnt);
-          counting_queue_pop(queue_prev_vert, &data_vert, &v_pop_cnt);
+        for (uint32_t j = 0; j < SYSTOLIC_SIZE; j += DATA_SIZE) {
+          counting_queue_pop(queue_prev_horz, data_horz, &h_pop_cnt);
+          counting_queue_pop(queue_prev_vert, data_vert, &v_pop_cnt);
           if (queue_next_horz) {
-            counting_queue_push(queue_next_horz, &data_horz, &h_push_cnt);
+            counting_queue_push(queue_next_horz, data_horz, &h_push_cnt);
           }
           if (queue_next_vert) {
-            counting_queue_push(queue_next_vert, &data_vert, &v_push_cnt);
+            counting_queue_push(queue_next_vert, data_vert, &v_push_cnt);
           }
-          *curr_element_C += data_horz * data_vert;
+          for (uint32_t k = 0; k < DATA_SIZE; ++k) {
+            *curr_element_C += data_horz[k] * data_vert[k];
+          }
         }
       }
     }
