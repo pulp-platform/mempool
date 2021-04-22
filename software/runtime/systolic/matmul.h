@@ -214,8 +214,8 @@ void systolic_rcp_pe(const uint32_t rep_count,
                      systolic_matrix_t const *__restrict__ C) {
   queue_t *queue_next_horz;
   queue_t *queue_next_vert;
-  int32_t data_horz;
-  int32_t data_vert;
+  int32_t data_horz = 0;
+  int32_t data_vert = 0;
   int32_t **sub_matrices_A;
   int32_t **sub_matrices_B;
   int32_t **sub_matrices_C;
@@ -290,8 +290,8 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   queue_t *queue_prev_horz;
   queue_t *queue_next_horz;
   queue_t *queue_next_vert;
-  int32_t data_horz;
-  int32_t data_vert;
+  int32_t data_horz = 0;
+  int32_t data_vert = 0;
   int32_t **sub_matrices_B;
   int32_t **sub_matrices_C;
   uint32_t num_cols_B;
@@ -372,8 +372,8 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   queue_t *queue_next_horz;
   queue_t *queue_prev_vert;
   queue_t *queue_next_vert;
-  int32_t data_horz;
-  int32_t data_vert;
+  int32_t data_horz = 0;
+  int32_t data_vert = 0;
   int32_t **sub_matrices_A;
   int32_t **sub_matrices_C;
   uint32_t num_cols_A;
@@ -455,8 +455,8 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   queue_t *queue_next_horz;
   queue_t *queue_prev_vert;
   queue_t *queue_next_vert;
-  int32_t data_horz;
-  int32_t data_vert;
+  int32_t data_horz = 0;
+  int32_t data_vert = 0;
   int32_t **sub_matrices_C;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
