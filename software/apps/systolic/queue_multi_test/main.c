@@ -36,10 +36,13 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // Initialization
   mempool_init(core_id, num_cores);
+
+  // Wait for all cores
+  mempool_barrier(num_cores);
 
   // Setup
   if (core_id == 0) {
@@ -50,7 +53,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Producer
   if (core_id == 0) {
@@ -78,32 +81,28 @@ int main() {
     for (uint32_t i = 0; i < 8; ++i) {
       blocking_queue_pop(queue, read_data);
       for (uint32_t j = 0; j < QUEUE_DATA_SIZE; ++j) {
-        printf("Received: %d\n", read_data[j]);
+        printf("Rx: %d\n", read_data[j]);
       }
     }
     for (uint32_t i = 0; i < 8; ++i) {
       counting_queue_pop(queue, read_data, &counter);
       for (uint32_t j = 0; j < QUEUE_DATA_SIZE; ++j) {
-        printf("Received: %d\n", read_data[j]);
+        printf("Rx: %d\n", read_data[j]);
       }
     }
     consumer_cnt = counter;
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
-  // Destroy queue
+  // Destroy queue and print out counters
   if (core_id == 0) {
     queue_destroy(queue);
-  }
-
-  // Print out counters
-  if (core_id == 1) {
-    printf("Producer/Consumer Stalls: %d/%d\n", producer_cnt, consumer_cnt);
+    printf("Stalls: %d/%d\n", producer_cnt, consumer_cnt);
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   return 0;
 }
