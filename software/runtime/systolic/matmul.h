@@ -21,9 +21,6 @@
 // TODO: SQRT ROOT OF NUM_CORES FOR SYSTOLIC SIZE
 #define SYSTOLIC_SIZE 4
 
-// Dimensions of square submatrix
-#define SUB_MATRIX_DIM 2
-
 // IMPORTANT: DATA_SIZE of queue_multi.h must be set to 4
 
 // Systolic matrix
