@@ -15,9 +15,9 @@
 #include "systolic/matmul.h"
 
 // Dimensions of matrices
-#define DIM_M 16
-#define DIM_N 16
-#define DIM_P 16
+#define DIM_M 24
+#define DIM_N 24
+#define DIM_P 24
 
 uint32_t *grid_mapping;
 
@@ -125,7 +125,7 @@ int main() {
     // systolic_matrix_print(syst_matrix_B);
 
     // Set repetition count per submatrix of C (A->num_cols == B->num_rows)
-    rep_count = syst_matrix_A->num_cols;
+    rep_count = syst_matrix_A->num_cols / 2;
   }
 
   // Wait for all cores

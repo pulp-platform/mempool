@@ -24,12 +24,11 @@
 // Dimensions of square submatrix
 #define SUB_MATRIX_DIM 2
 
-// Ceiling division function
-#define CEIL_DIV(x, y) (x / y + (x % y != 0))
+// IMPORTANT: DATA_SIZE of queue_multi.h must be set to 4
 
 // Systolic matrix
 typedef struct {
-  int32_t **sub_matrices;
+  int32_t *matrix;
   uint32_t num_rows;
   uint32_t num_cols;
 } systolic_matrix_t;
@@ -68,29 +67,18 @@ void systolic_init(uint32_t const *grid_mapping) {
 
 void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
                               uint32_t num_rows, uint32_t num_cols) {
-  // Calculate how many submatrices in row and col dimension
-  uint32_t syst_num_rows = CEIL_DIV(num_rows, SUB_MATRIX_DIM);
-  uint32_t syst_num_cols = CEIL_DIV(num_cols, SUB_MATRIX_DIM);
+  // Round up row and col dimension to next multiple of two
+  uint32_t syst_num_rows = (uint32_t)((num_rows + 1) & 0xFFFE);
+  uint32_t syst_num_cols = (uint32_t)((num_cols + 1) & 0xFFFE);
 
-  // Calculate size of submatrices
-  uint32_t sub_matrix_size = SUB_MATRIX_DIM * SUB_MATRIX_DIM * 4;
-
-  // Calculate number of submatrices
-  uint32_t num_sub_matrices = syst_num_rows * syst_num_cols;
-
-  // Allocate submatrices array
-  int32_t **sub_matrices = (int32_t **)simple_malloc(num_sub_matrices * 4);
-
-  // Allocate submatrices
-  for (uint32_t i = 0; i < num_sub_matrices; ++i) {
-    sub_matrices[i] = (int32_t *)simple_malloc(sub_matrix_size);
-  }
+  // Allocate matrix array
+  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * 4);
 
   // Allocate systolic matrix
   systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(3 * 4);
 
   // Assign values to systolic matrix
-  new_matrix->sub_matrices = sub_matrices;
+  new_matrix->matrix = array;
   new_matrix->num_rows = syst_num_rows;
   new_matrix->num_cols = syst_num_cols;
 
@@ -99,54 +87,29 @@ void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
 
 void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
                             uint32_t num_rows, uint32_t num_cols) {
-  // Calculate how many submatrices in row and col dimension
-  uint32_t syst_num_rows = CEIL_DIV(num_rows, SUB_MATRIX_DIM);
-  uint32_t syst_num_cols = CEIL_DIV(num_cols, SUB_MATRIX_DIM);
+  // Round up row and col dimension to next multiple of two
+  uint32_t syst_num_rows = (uint32_t)((num_rows + 1) & 0xFFFE);
+  uint32_t syst_num_cols = (uint32_t)((num_cols + 1) & 0xFFFE);
 
-  // Calculate size of submatrices
-  uint32_t sub_matrix_size = SUB_MATRIX_DIM * SUB_MATRIX_DIM * 4;
+  // Allocate matrix array
+  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * 4);
 
-  // Allocate submatrices array
-  int32_t **sub_matrices =
-      (int32_t **)simple_malloc(syst_num_rows * syst_num_cols * 4);
+  // Copy data into new matrix array
+  for (uint32_t y = 0; y < num_rows; ++y) {
+    for (uint32_t x = 0; x < num_cols; ++x) {
+      array[y * syst_num_cols + x] = matrix[y * num_cols + x];
+    }
+  }
 
-  // Store submatrices
-  uint32_t idx = 0;
-  uint32_t anchor;
-  uint32_t rem_x, rem_y;
-  for (uint32_t y = 0; y < num_rows; y += SUB_MATRIX_DIM) {
-    for (uint32_t x = 0; x < num_cols; x += SUB_MATRIX_DIM) {
-      // Allocate submatrix
-      int32_t *sub_matrix = (int32_t *)simple_malloc(sub_matrix_size);
-
-      // Copy over values from matrix
-      anchor = y * num_cols + x;
-      rem_x = num_cols - x;
-      rem_y = num_rows - y;
-      if ((rem_x < SUB_MATRIX_DIM) || (rem_y < SUB_MATRIX_DIM)) {
-        // Submatrix is only partly within original matrix
-        for (uint32_t sub_y = 0; sub_y < SUB_MATRIX_DIM; ++sub_y) {
-          for (uint32_t sub_x = 0; sub_x < SUB_MATRIX_DIM; ++sub_x) {
-            if ((sub_x < rem_x) && (sub_y < rem_y)) {
-              sub_matrix[sub_y * SUB_MATRIX_DIM + sub_x] =
-                  matrix[anchor + sub_y * num_cols + sub_x];
-            } else {
-              sub_matrix[sub_y * SUB_MATRIX_DIM + sub_x] = 0;
-            }
-          }
-        }
-      } else {
-        // Submatrix is fully within original matrix
-        for (uint32_t sub_y = 0; sub_y < SUB_MATRIX_DIM; ++sub_y) {
-          for (uint32_t sub_x = 0; sub_x < SUB_MATRIX_DIM; ++sub_x) {
-            sub_matrix[sub_y * SUB_MATRIX_DIM + sub_x] =
-                matrix[anchor + sub_y * num_cols + sub_x];
-          }
-        }
-      }
-
-      // Add submatrix to array of submatrices
-      sub_matrices[idx++] = sub_matrix;
+  // Zero padding of matrix array
+  if (syst_num_cols != num_cols) {
+    for (uint32_t y = 0; y < syst_num_rows; ++y) {
+      array[y * syst_num_cols + syst_num_cols - 1] = 0;
+    }
+  }
+  if (syst_num_rows != num_rows) {
+    for (uint32_t x = 0; x < syst_num_cols; ++x) {
+      array[(syst_num_rows - 1) * syst_num_cols + x] = 0;
     }
   }
 
@@ -154,29 +117,23 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
   systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(3 * 4);
 
   // Assign values to systolic matrix
-  new_matrix->sub_matrices = sub_matrices;
+  new_matrix->matrix = array;
   new_matrix->num_rows = syst_num_rows;
   new_matrix->num_cols = syst_num_cols;
 
   *syst_matrix = new_matrix;
 }
 
-void systolic_matrix_print(systolic_matrix_t *matrix) {
-  printf("Systolic matrix at 0x%08X\n", (uint32_t)matrix);
-  uint32_t num_syst_rows = matrix->num_rows;
-  uint32_t num_syst_cols = matrix->num_cols;
-  int32_t *sub_matrix;
-  int32_t **sub_matrices = matrix->sub_matrices;
-  for (uint32_t syst_y = 0; syst_y < num_syst_rows; ++syst_y) {
-    for (uint32_t sub_y = 0; sub_y < SUB_MATRIX_DIM; ++sub_y) {
-      for (uint32_t syst_x = 0; syst_x < num_syst_cols; ++syst_x) {
-        sub_matrix = sub_matrices[syst_y * num_syst_cols + syst_x];
-        for (uint32_t sub_x = 0; sub_x < SUB_MATRIX_DIM; ++sub_x) {
-          printf("%5d ", sub_matrix[sub_y * SUB_MATRIX_DIM + sub_x]);
-        }
-      }
-      printf("\n");
+void systolic_matrix_print(systolic_matrix_t *syst_matrix) {
+  printf("Systolic matrix at 0x%08X\n", (uint32_t)syst_matrix);
+  uint32_t num_rows = syst_matrix->num_rows;
+  uint32_t num_cols = syst_matrix->num_cols;
+  int32_t *matrix = syst_matrix->matrix;
+  for (uint32_t y = 0; y < num_rows; ++y) {
+    for (uint32_t x = 0; x < num_cols; ++x) {
+      printf("%5d ", matrix[y * num_cols + x]);
     }
+    printf("\n");
   }
 }
 
@@ -221,20 +178,19 @@ void systolic_rcp_pe(const uint32_t rep_count,
   queue_t *queue_next_vert;
   int32_t data_horz[4];
   int32_t data_vert[4];
-  int32_t **sub_matrices_A;
-  int32_t **sub_matrices_B;
-  int32_t **sub_matrices_C;
+  int32_t *matrix_A;
+  int32_t *matrix_B;
+  int32_t *matrix_C;
   uint32_t num_cols_A;
   uint32_t num_cols_B;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
-  int32_t *curr_sub_matrix_A;
-  int32_t *curr_sub_matrix_B;
-  int32_t *curr_sub_matrix_C;
   int32_t curr_element_0_C;
   int32_t curr_element_1_C;
   int32_t curr_element_2_C;
   int32_t curr_element_3_C;
+  uint32_t anchor_row_0;
+  uint32_t anchor_row_1;
   uint32_t h_push_cnt = 0;
   uint32_t v_push_cnt = 0;
 
@@ -242,12 +198,12 @@ void systolic_rcp_pe(const uint32_t rep_count,
   queue_next_horz = queues_horz[0][0];
   queue_next_vert = queues_vert[0][0];
 
-  // Get array of submatrices
-  sub_matrices_A = A->sub_matrices;
-  sub_matrices_B = B->sub_matrices;
-  sub_matrices_C = C->sub_matrices;
+  // Get matrix arrays
+  matrix_A = A->matrix;
+  matrix_B = B->matrix;
+  matrix_C = C->matrix;
 
-  // Get dimensions of submatrices
+  // Get dimensions of matrices
   num_cols_A = A->num_cols;
   num_cols_B = B->num_cols;
   num_rows_C = C->num_rows;
@@ -259,11 +215,8 @@ void systolic_rcp_pe(const uint32_t rep_count,
   blocking_queue_push(queue_next_vert, data_vert);
 
   // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < num_rows_C; y += SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < num_cols_C; x += SYSTOLIC_SIZE) {
-      // Set current submatrix C
-      curr_sub_matrix_C = sub_matrices_C[y * num_cols_C + x];
-
+  for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
+    for (uint32_t x = 0; x < num_cols_C; x += 2 * SYSTOLIC_SIZE) {
       // Reset values
       curr_element_0_C = 0;
       curr_element_1_C = 0;
@@ -271,17 +224,15 @@ void systolic_rcp_pe(const uint32_t rep_count,
       curr_element_3_C = 0;
 
       // Systolic matrix multiplication through MACs
-      for (uint32_t i = 0; i < rep_count; ++i) {
-        curr_sub_matrix_A = sub_matrices_A[y * num_cols_A + i];
-        curr_sub_matrix_B = sub_matrices_B[i * num_cols_B + x];
-        data_horz[0] = curr_sub_matrix_A[0];
-        data_horz[1] = curr_sub_matrix_A[1];
-        data_horz[2] = curr_sub_matrix_A[2];
-        data_horz[3] = curr_sub_matrix_A[3];
-        data_vert[0] = curr_sub_matrix_B[0];
-        data_vert[1] = curr_sub_matrix_B[1];
-        data_vert[2] = curr_sub_matrix_B[2];
-        data_vert[3] = curr_sub_matrix_B[3];
+      for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
+        data_horz[0] = matrix_A[y * num_cols_A + i];
+        data_horz[1] = matrix_A[y * num_cols_A + i + 1];
+        data_horz[2] = matrix_A[(y + 1) * num_cols_A + i];
+        data_horz[3] = matrix_A[(y + 1) * num_cols_A + i + 1];
+        data_vert[0] = matrix_B[i * num_cols_B + x];
+        data_vert[1] = matrix_B[i * num_cols_B + x + 1];
+        data_vert[2] = matrix_B[(i + 1) * num_cols_B + x];
+        data_vert[3] = matrix_B[(i + 1) * num_cols_B + x + 1];
         counting_queue_push(queue_next_horz, data_horz, &h_push_cnt);
         counting_queue_push(queue_next_vert, data_vert, &v_push_cnt);
         curr_element_0_C += data_horz[1] * data_vert[2];
@@ -295,10 +246,12 @@ void systolic_rcp_pe(const uint32_t rep_count,
       }
 
       // Store values
-      curr_sub_matrix_C[0] = curr_element_0_C;
-      curr_sub_matrix_C[1] = curr_element_1_C;
-      curr_sub_matrix_C[2] = curr_element_2_C;
-      curr_sub_matrix_C[3] = curr_element_3_C;
+      anchor_row_0 = y * num_cols_C + x;
+      anchor_row_1 = anchor_row_0 + num_cols_C;
+      matrix_C[anchor_row_0] = curr_element_0_C;
+      matrix_C[anchor_row_0 + 1] = curr_element_1_C;
+      matrix_C[anchor_row_1] = curr_element_2_C;
+      matrix_C[anchor_row_1 + 1] = curr_element_3_C;
     }
   }
 
@@ -315,18 +268,18 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   queue_t *queue_next_vert;
   int32_t data_horz[4];
   int32_t data_vert[4];
-  int32_t **sub_matrices_B;
-  int32_t **sub_matrices_C;
+  int32_t *matrix_B;
+  int32_t *matrix_C;
   uint32_t num_cols_B;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
   uint32_t shifted_x;
-  int32_t *curr_sub_matrix_B;
-  int32_t *curr_sub_matrix_C;
   int32_t curr_element_0_C;
   int32_t curr_element_1_C;
   int32_t curr_element_2_C;
   int32_t curr_element_3_C;
+  uint32_t anchor_row_0;
+  uint32_t anchor_row_1;
   uint32_t h_pop_cnt = 0;
   uint32_t h_push_cnt = 0;
   uint32_t v_push_cnt = 0;
@@ -340,11 +293,11 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   }
   queue_next_vert = queues_vert[0][col_idx];
 
-  // Get array of submatrices
-  sub_matrices_B = B->sub_matrices;
-  sub_matrices_C = C->sub_matrices;
+  // Get matrix arrays
+  matrix_B = B->matrix;
+  matrix_C = C->matrix;
 
-  // Get dimensions of submatrices
+  // Get dimensions of matrices
   num_cols_B = B->num_cols;
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
@@ -358,16 +311,13 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   blocking_queue_push(queue_next_vert, data_vert);
 
   // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < num_rows_C; y += SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < num_cols_C; x += SYSTOLIC_SIZE) {
+  for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
+    for (uint32_t x = 0; x < num_cols_C; x += 2 * SYSTOLIC_SIZE) {
       // Shift x
-      shifted_x = x + col_idx;
+      shifted_x = x + 2 * col_idx;
 
       // Check if this PE is currently within the matrix C
       if (shifted_x < num_cols_C) {
-        // Set current submatrix C
-        curr_sub_matrix_C = sub_matrices_C[y * num_cols_C + shifted_x];
-
         // Reset values
         curr_element_0_C = 0;
         curr_element_1_C = 0;
@@ -375,12 +325,11 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
         curr_element_3_C = 0;
 
         // Systolic matrix multiplication through MACs
-        for (uint32_t i = 0; i < rep_count; ++i) {
-          curr_sub_matrix_B = sub_matrices_B[i * num_cols_B + shifted_x];
-          data_vert[0] = curr_sub_matrix_B[0];
-          data_vert[1] = curr_sub_matrix_B[1];
-          data_vert[2] = curr_sub_matrix_B[2];
-          data_vert[3] = curr_sub_matrix_B[3];
+        for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
+          data_vert[0] = matrix_B[i * num_cols_B + shifted_x];
+          data_vert[1] = matrix_B[i * num_cols_B + shifted_x + 1];
+          data_vert[2] = matrix_B[(i + 1) * num_cols_B + shifted_x];
+          data_vert[3] = matrix_B[(i + 1) * num_cols_B + shifted_x + 1];
           counting_queue_pop(queue_prev_horz, data_horz, &h_pop_cnt);
           if (queue_next_horz) {
             counting_queue_push(queue_next_horz, data_horz, &h_push_cnt);
@@ -397,10 +346,12 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
         }
 
         // Store values
-        curr_sub_matrix_C[0] = curr_element_0_C;
-        curr_sub_matrix_C[1] = curr_element_1_C;
-        curr_sub_matrix_C[2] = curr_element_2_C;
-        curr_sub_matrix_C[3] = curr_element_3_C;
+        anchor_row_0 = y * num_cols_C + shifted_x;
+        anchor_row_1 = anchor_row_0 + num_cols_C;
+        matrix_C[anchor_row_0] = curr_element_0_C;
+        matrix_C[anchor_row_0 + 1] = curr_element_1_C;
+        matrix_C[anchor_row_1] = curr_element_2_C;
+        matrix_C[anchor_row_1 + 1] = curr_element_3_C;
       } else {
         // Pop and push dummy data
         for (uint32_t i = 0; i < rep_count; ++i) {
@@ -428,18 +379,18 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   queue_t *queue_next_vert;
   int32_t data_horz[4];
   int32_t data_vert[4];
-  int32_t **sub_matrices_A;
-  int32_t **sub_matrices_C;
+  int32_t *matrix_A;
+  int32_t *matrix_C;
   uint32_t num_cols_A;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
   uint32_t shifted_y;
-  int32_t *curr_sub_matrix_A;
-  int32_t *curr_sub_matrix_C;
   int32_t curr_element_0_C;
   int32_t curr_element_1_C;
   int32_t curr_element_2_C;
   int32_t curr_element_3_C;
+  uint32_t anchor_row_0;
+  uint32_t anchor_row_1;
   uint32_t h_push_cnt = 0;
   uint32_t v_pop_cnt = 0;
   uint32_t v_push_cnt = 0;
@@ -453,11 +404,11 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
     queue_next_vert = queues_vert[row_idx][0];
   }
 
-  // Get array of submatrices
-  sub_matrices_A = A->sub_matrices;
-  sub_matrices_C = C->sub_matrices;
+  // Get matrix arrays
+  matrix_A = A->matrix;
+  matrix_C = C->matrix;
 
-  // Get dimensions of submatrices
+  // Get dimensions of matrices
   num_cols_A = A->num_cols;
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
@@ -471,16 +422,13 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   }
 
   // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < num_rows_C; y += SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < num_cols_C; x += SYSTOLIC_SIZE) {
+  for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
+    for (uint32_t x = 0; x < num_cols_C; x += 2 * SYSTOLIC_SIZE) {
       // Shift y
-      shifted_y = y + row_idx;
+      shifted_y = y + 2 * row_idx;
 
       // Check if this PE is currently within the matrix C
       if (shifted_y < num_rows_C) {
-        // Set current submatrix C
-        curr_sub_matrix_C = sub_matrices_C[shifted_y * num_cols_C + x];
-
         // Reset values
         curr_element_0_C = 0;
         curr_element_1_C = 0;
@@ -488,12 +436,11 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
         curr_element_3_C = 0;
 
         // Systolic matrix multiplication through MACs
-        for (uint32_t i = 0; i < rep_count; ++i) {
-          curr_sub_matrix_A = sub_matrices_A[shifted_y * num_cols_A + i];
-          data_horz[0] = curr_sub_matrix_A[0];
-          data_horz[1] = curr_sub_matrix_A[1];
-          data_horz[2] = curr_sub_matrix_A[2];
-          data_horz[3] = curr_sub_matrix_A[3];
+        for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
+          data_horz[0] = matrix_A[shifted_y * num_cols_A + i];
+          data_horz[1] = matrix_A[shifted_y * num_cols_A + i + 1];
+          data_horz[2] = matrix_A[(shifted_y + 1) * num_cols_A + i];
+          data_horz[3] = matrix_A[(shifted_y + 1) * num_cols_A + i + 1];
           counting_queue_pop(queue_prev_vert, data_vert, &v_pop_cnt);
           counting_queue_push(queue_next_horz, data_horz, &h_push_cnt);
           if (queue_next_vert) {
@@ -510,10 +457,12 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
         }
 
         // Store values
-        curr_sub_matrix_C[0] = curr_element_0_C;
-        curr_sub_matrix_C[1] = curr_element_1_C;
-        curr_sub_matrix_C[2] = curr_element_2_C;
-        curr_sub_matrix_C[3] = curr_element_3_C;
+        anchor_row_0 = shifted_y * num_cols_C + x;
+        anchor_row_1 = anchor_row_0 + num_cols_C;
+        matrix_C[anchor_row_0] = curr_element_0_C;
+        matrix_C[anchor_row_0 + 1] = curr_element_1_C;
+        matrix_C[anchor_row_1] = curr_element_2_C;
+        matrix_C[anchor_row_1 + 1] = curr_element_3_C;
       } else {
         // Pop and push dummy data
         for (uint32_t i = 0; i < rep_count; ++i) {
@@ -542,16 +491,17 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   queue_t *queue_next_vert;
   int32_t data_horz[4];
   int32_t data_vert[4];
-  int32_t **sub_matrices_C;
+  int32_t *matrix_C;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
   uint32_t shifted_x;
   uint32_t shifted_y;
-  int32_t *curr_sub_matrix_C;
   int32_t curr_element_0_C;
   int32_t curr_element_1_C;
   int32_t curr_element_2_C;
   int32_t curr_element_3_C;
+  uint32_t anchor_row_0;
+  uint32_t anchor_row_1;
   uint32_t h_pop_cnt = 0;
   uint32_t h_push_cnt = 0;
   uint32_t v_pop_cnt = 0;
@@ -571,10 +521,10 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
     queue_next_vert = queues_vert[row_idx][col_idx];
   }
 
-  // Get array of submatrices
-  sub_matrices_C = C->sub_matrices;
+  // Get matrix arrays
+  matrix_C = C->matrix;
 
-  // Get dimensions of submatrices
+  // Get dimensions of matrices
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
 
@@ -590,17 +540,14 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   }
 
   // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < num_rows_C; y += SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < num_cols_C; x += SYSTOLIC_SIZE) {
+  for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
+    for (uint32_t x = 0; x < num_cols_C; x += 2 * SYSTOLIC_SIZE) {
       // Shift x and y
-      shifted_x = x + col_idx;
-      shifted_y = y + row_idx;
+      shifted_x = x + 2 * col_idx;
+      shifted_y = y + 2 * row_idx;
 
       // Check if this PE is currently within the matrix C
       if (shifted_x < num_cols_C && shifted_y < num_rows_C) {
-        // Set current submatrix C
-        curr_sub_matrix_C = sub_matrices_C[shifted_y * num_cols_C + shifted_x];
-
         // Reset values
         curr_element_0_C = 0;
         curr_element_1_C = 0;
@@ -628,10 +575,12 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
         }
 
         // Store values
-        curr_sub_matrix_C[0] = curr_element_0_C;
-        curr_sub_matrix_C[1] = curr_element_1_C;
-        curr_sub_matrix_C[2] = curr_element_2_C;
-        curr_sub_matrix_C[3] = curr_element_3_C;
+        anchor_row_0 = shifted_y * num_cols_C + shifted_x;
+        anchor_row_1 = anchor_row_0 + num_cols_C;
+        matrix_C[anchor_row_0] = curr_element_0_C;
+        matrix_C[anchor_row_0 + 1] = curr_element_1_C;
+        matrix_C[anchor_row_1] = curr_element_2_C;
+        matrix_C[anchor_row_1 + 1] = curr_element_3_C;
       } else {
         // Pop and push dummy data
         for (uint32_t i = 0; i < rep_count; ++i) {
