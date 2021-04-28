@@ -15,8 +15,8 @@
 
 typedef struct {
   int32_t *array;
-  uint32_t head;
-  uint32_t tail;
+  uint32_t volatile head;
+  uint32_t volatile tail;
   uint32_t size;
 } queue_t;
 
@@ -73,20 +73,17 @@ int32_t queue_push(queue_t *const queue, int32_t *data) {
 
 void blocking_queue_pop(queue_t *const queue, int32_t *data) {
   while (queue_pop(queue, data)) {
-    __asm__ __volatile__("");
   };
 }
 
 void blocking_queue_push(queue_t *const queue, int32_t *data) {
   while (queue_push(queue, data)) {
-    __asm__ __volatile__("");
   };
 }
 
 void counting_queue_pop(queue_t *const queue, int32_t *data,
                         uint32_t *counter) {
   while (queue_pop(queue, data)) {
-    __asm__ __volatile__("");
     (*counter)++;
   };
 }
@@ -94,7 +91,6 @@ void counting_queue_pop(queue_t *const queue, int32_t *data,
 void counting_queue_push(queue_t *const queue, int32_t *data,
                          uint32_t *counter) {
   while (queue_push(queue, data)) {
-    __asm__ __volatile__("");
     (*counter)++;
   };
 }

@@ -32,7 +32,7 @@ typedef struct {
   int32_t *buffer;
   uint32_t head;
   uint32_t tail;
-  uint32_t counter;
+  uint32_t volatile counter;
   uint32_t size;
   uint32_t buffer_size;
 } queue_t;
@@ -106,7 +106,6 @@ void blocking_queue_pop(queue_t *const queue, int32_t *data) {
   uint32_t current_head = queue->head;
   // Wait until not empty
   while (queue->counter == 0) {
-    __asm__ __volatile__("");
   }
   // Copy data to data pointer
   int32_t *array = queue->buffer + current_head;
@@ -124,7 +123,6 @@ void blocking_queue_push(queue_t *const queue, int32_t *data) {
   uint32_t queue_size = queue->size;
   // Wait until not full
   while (queue->counter == queue_size) {
-    __asm__ __volatile__("");
   }
   // Copy data from data pointer
   int32_t *array = queue->buffer + current_tail;
@@ -142,7 +140,6 @@ void counting_queue_pop(queue_t *const queue, int32_t *data,
   uint32_t current_head = queue->head;
   // Wait until not empty
   while (queue->counter == 0) {
-    __asm__ __volatile__("");
     (*counter)++;
   }
   // Copy data to data pointer
@@ -162,7 +159,6 @@ void counting_queue_push(queue_t *const queue, int32_t *data,
   uint32_t queue_size = queue->size;
   // Wait until not full
   while (queue->counter == queue_size) {
-    __asm__ __volatile__("");
     (*counter)++;
   }
   // Copy data from data pointer
