@@ -15,9 +15,9 @@
 #include "systolic/matmul.h"
 
 // Dimensions of matrices
-#define DIM_M 32
-#define DIM_N 32
-#define DIM_P 32
+#define DIM_M 16
+#define DIM_N 16
+#define DIM_P 16
 
 uint32_t *grid_mapping;
 

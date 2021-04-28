@@ -403,11 +403,13 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
         curr_sub_matrix_C[3] = curr_element_3_C;
       } else {
         // Pop and push dummy data
-        blocking_queue_pop(queue_prev_horz, data_horz);
-        if (queue_next_horz) {
-          blocking_queue_push(queue_next_horz, data_horz);
+        for (uint32_t i = 0; i < rep_count; ++i) {
+          blocking_queue_pop(queue_prev_horz, data_horz);
+          if (queue_next_horz) {
+            blocking_queue_push(queue_next_horz, data_horz);
+          }
+          blocking_queue_push(queue_next_vert, data_vert);
         }
-        blocking_queue_push(queue_next_vert, data_vert);
       }
     }
   }
@@ -514,10 +516,12 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
         curr_sub_matrix_C[3] = curr_element_3_C;
       } else {
         // Pop and push dummy data
-        blocking_queue_pop(queue_prev_vert, data_vert);
-        blocking_queue_push(queue_next_horz, data_horz);
-        if (queue_next_vert) {
-          blocking_queue_push(queue_next_vert, data_vert);
+        for (uint32_t i = 0; i < rep_count; ++i) {
+          blocking_queue_pop(queue_prev_vert, data_vert);
+          blocking_queue_push(queue_next_horz, data_horz);
+          if (queue_next_vert) {
+            blocking_queue_push(queue_next_vert, data_vert);
+          }
         }
       }
     }
@@ -630,13 +634,15 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
         curr_sub_matrix_C[3] = curr_element_3_C;
       } else {
         // Pop and push dummy data
-        blocking_queue_pop(queue_prev_horz, data_horz);
-        blocking_queue_pop(queue_prev_vert, data_vert);
-        if (queue_next_horz) {
-          blocking_queue_push(queue_next_horz, data_horz);
-        }
-        if (queue_next_vert) {
-          blocking_queue_push(queue_next_vert, data_vert);
+        for (uint32_t i = 0; i < rep_count; ++i) {
+          blocking_queue_pop(queue_prev_horz, data_horz);
+          blocking_queue_pop(queue_prev_vert, data_vert);
+          if (queue_next_horz) {
+            blocking_queue_push(queue_next_horz, data_horz);
+          }
+          if (queue_next_vert) {
+            blocking_queue_push(queue_next_vert, data_vert);
+          }
         }
       }
     }
