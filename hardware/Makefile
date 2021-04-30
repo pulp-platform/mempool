@@ -225,7 +225,7 @@ post_trace:
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
-	$(python) $(ROOT_DIR)/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
+	$(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
 
 ################
 # Helper       #
