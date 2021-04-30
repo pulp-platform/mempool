@@ -1355,11 +1355,13 @@ module snitch
   // pragma translate_on
 
   // CSR logic
+  logic csr_dump;
   logic csr_trace_en;
   logic csr_trace_q;
 
   always_comb begin
     csr_rvalue = '0;
+    csr_dump = 1'b0;
     csr_trace_en = 1'b0;
 
     // TODO(zarubaf): Needs some more input handling, like illegal instruction exceptions.
@@ -1387,13 +1389,25 @@ module snitch
           csr_rvalue = instret_q[63:32];
         end
         `endif
-        default: csr_rvalue = '0;
+        default: begin
+          csr_rvalue = '0;
+          csr_dump = 1'b1;
+        end
       endcase
     end
   end
 
   // CSR registers
   `FFLAR(csr_trace_q, alu_result, csr_trace_en, '0, clk_i, rst_i);
+
+  // pragma translate_off
+  always_ff @(posedge clk_i or posedge rst_i) begin
+    // Display CSR write if the CSR does not exist
+    if (!rst_i && csr_dump && inst_valid_o && inst_ready_i && !stall) begin
+      $display("[DUMP] %3d: 0x%3h = %d", hart_id_i, inst_data_i[31:20], alu_result);
+    end
+  end
+  // pragma translate_on
 
   snitch_regfile #(
     .DATA_WIDTH     ( 32              ),

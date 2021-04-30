@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add a trace visualization script `tracevis.py`
 - Add `config` flag to set specific MemPool flavor, either `minpool` or `mempool`
 - Add bypass channels through the groups for the northeast intergroup connection
+- Add capability to quickly write a value via a CSR
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
