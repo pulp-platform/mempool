@@ -17,11 +17,10 @@
 # Author: Samuel Riedel, ETH Zurich
 
 from string import Template
+from math import log2
 import argparse
 import os.path
 import sys
-import binascii
-
 
 parser = argparse.ArgumentParser(
     description='Convert binary file to verilog rom')
@@ -74,6 +73,8 @@ if DataWidth < 32:
 if DataWidth % 32:
     sys.exit('DataWidth must be multiple of 32')
 
+DataOffset = int(log2(DataWidth / 8))
+
 license = """\
 // Copyright 2019 ETH Zurich and University of Bologna.
 // Copyright and related rights are licensed under the Solderpad Hardware
@@ -113,7 +114,7 @@ $content
 
   always_ff @(posedge clk_i) begin
     if (req_i) begin
-      addr_q <= addr_i[AddrBits-1+3:3];
+      addr_q <= addr_i[AddrBits-1+$DataOffset:$DataOffset];
     end
   end
 
@@ -181,4 +182,5 @@ if args.systemverilog:
         f.write(license)
         s = Template(module)
         f.write(s.substitute(filename=os.path.basename(filename), size=int(
-            len(rom) / ByteWidth), content=rom_str, DataWidth=DataWidth))
+            len(rom) / ByteWidth), content=rom_str, DataWidth=DataWidth,
+            DataOffset=DataOffset))
