@@ -194,8 +194,11 @@ verilator-tests:
         make COMPILER=${COMPILER} bin/${APP}
       done
     - cd ../hardware
+    # Don't regenerate the bootrom or the model, we just did that in a previous step
     - |
       for APP in ${APPS}; do
+        touch $ROOT_DIR/apps/common/bootrom.img
+        touch $ROOT_DIR/hardware/src/bootrom.sv
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         app=${APP} make verilate
