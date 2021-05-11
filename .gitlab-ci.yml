@@ -102,6 +102,7 @@ verilator_model:
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator_model; then
         # Download Verilator and add missing links
+        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator
         ln -s $VERILATOR_ROOT/share/verilator/include $VERILATOR_ROOT/include
         ln -s $VERILATOR_ROOT/share/verilator/bin/verilator_includer $VERILATOR_ROOT/bin/verilator_includer
@@ -193,8 +194,11 @@ verilator-tests:
         make COMPILER=${COMPILER} bin/${APP}
       done
     - cd ../hardware
+    # Don't regenerate the bootrom or the model, we just did that in a previous step
     - |
       for APP in ${APPS}; do
+        touch $ROOT_DIR/apps/common/bootrom.img
+        touch $ROOT_DIR/hardware/src/bootrom.sv
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         app=${APP} make verilate

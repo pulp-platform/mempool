@@ -361,7 +361,7 @@ def annotate_snitch(
             msg_type = 'WARNING' if permissive else 'FATAL'
             sys.stderr.write(('{}: In cycle {}, LSU attempts writeback to {}, '
                               'but none in flight.\n').format(
-                msg_type, cycle, REG_ABI_NAMES_F[extras['fpr_waddr']]))
+                msg_type, cycle, REG_ABI_NAMES_I[extras['lsu_rd']]))
             if not permissive:
                 sys.exit(1)
         ret.append('(lsu) {:<3} <-- {}'.format(

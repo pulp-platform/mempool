@@ -169,7 +169,7 @@ VERILATOR_FLAGS += $(VERILATOR_WAIVE)
 # VERILATOR_FLAGS += --debug
 
 $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
-	mkdir -p $(verilator_build)
+	rm -rf $(verilator_build); mkdir -p $(verilator_build)
 	# Overwrite Bootaddress to L2 base while we don't have a DPI to write a wake-up
 	$(eval boot_addr=$(l2_base))
 	# Create Bender script of all RTL files
@@ -225,7 +225,7 @@ post_trace:
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
-	$(python) $(ROOT_DIR)/scripts/gen_trace.py --csv $(traceresult) $(tracepath)/$* > $@
+	$(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
 
 ################
 # Helper       #
@@ -243,7 +243,7 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $?
 
 # Bootrom
-src/bootrom.sv:
+src/bootrom.sv: $(MEMPOOL_DIR)/apps/common/bootrom.img
 	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth 128 $<
 
 $(MEMPOOL_DIR)/apps/common/bootrom.img:

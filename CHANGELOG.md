@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 - Stall cycle counting in the trace no longer misses stalls
+- Remove unwanted latches in instruction cache
+- Boot ROM address offset depends on the data width of the ROM
 
 ## 0.3.0 - 2021-03-31
 

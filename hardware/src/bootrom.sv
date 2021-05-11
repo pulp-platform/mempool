@@ -33,7 +33,7 @@ module bootrom #(
 
   always_ff @(posedge clk_i) begin
     if (req_i) begin
-      addr_q <= addr_i[AddrBits-1+3:3];
+      addr_q <= addr_i[AddrBits-1+4:4];
     end
   end
 
