@@ -102,6 +102,7 @@ verilator_model:
     - |
       if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator_model; then
         # Download Verilator and add missing links
+        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
         $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator
         ln -s $VERILATOR_ROOT/share/verilator/include $VERILATOR_ROOT/include
         ln -s $VERILATOR_ROOT/share/verilator/bin/verilator_includer $VERILATOR_ROOT/bin/verilator_includer
