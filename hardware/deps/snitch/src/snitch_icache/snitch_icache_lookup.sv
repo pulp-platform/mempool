@@ -89,6 +89,8 @@ module snitch_icache_lookup #(
         ram_write  = 1'b0;
         req_valid  = 1'b0;
 
+        data_req_d = data_req_q;
+
         if (init_count_q != $unsigned(CFG.LINE_COUNT)) begin
             ram_addr   = init_count_q;
             ram_enable = '1;
@@ -105,7 +107,6 @@ module snitch_icache_lookup #(
             data_req_d.addr  = write_addr_i;
             data_req_d.cset  = write_set_i;
             data_req_d.data  = write_data_i;
-            data_req_d.id    = data_req_q.id; // Don't care
             data_req_d.write = 1'b1;
         end else if (in_valid_i) begin
             // Read the tag banks
@@ -114,8 +115,6 @@ module snitch_icache_lookup #(
             // Store request to data bank
             req_valid        = 1'b1;
             data_req_d.addr  = in_addr_i;
-            data_req_d.cset  = data_req_q.cset; // Don't care
-            data_req_d.data  = data_req_q.data; // Don't care
             data_req_d.id    = in_id_i;
             data_req_d.write = 1'b0;
         end
