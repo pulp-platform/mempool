@@ -381,34 +381,65 @@ module mempool_tile
     assign bank_resp_payload[b].rdata.amo     = '0; // Don't care
     assign bank_resp_wide[b]                  = meta_out.wide;
 
-    tcdm_adapter #(
-      .AddrWidth  (TCDMAddrMemWidth),
-      .DataWidth  (DataWidth       ),
-      .metadata_t (bank_metadata_t ),
-      .LrScEnable (LrScEnable      ),
-      .RegisterAmo(1'b0            )
-    ) i_tcdm_adapter (
-      .clk_i       (clk_i                                                                       ),
-      .rst_ni      (rst_ni                                                                      ),
-      .in_valid_i  (bank_req_valid[b]                                                           ),
-      .in_ready_o  (bank_req_ready[b]                                                           ),
-      .in_address_i(bank_req_payload[b].tgt_addr[idx_width(NumBanksPerTile) +: TCDMAddrMemWidth]),
-      .in_amo_i    (bank_req_payload[b].wdata.amo                                               ),
-      .in_write_i  (bank_req_payload[b].wen                                                     ),
-      .in_wdata_i  (bank_req_payload[b].wdata.data                                              ),
-      .in_meta_i   (meta_in                                                                     ),
-      .in_be_i     (bank_req_payload[b].be                                                      ),
-      .in_valid_o  (bank_resp_valid[b]                                                          ),
-      .in_ready_i  (bank_resp_ready[b]                                                          ),
-      .in_rdata_o  (bank_resp_payload[b].rdata.data                                             ),
-      .in_meta_o   (meta_out                                                                    ),
-      .out_req_o   (req_valid                                                                   ),
-      .out_add_o   (req_addr                                                                    ),
-      .out_write_o (req_write                                                                   ),
-      .out_wdata_o (req_wdata                                                                   ),
-      .out_be_o    (req_be                                                                      ),
-      .out_rdata_i (resp_rdata                                                                  )
-    );
+    if (Xqueue) begin: gen_tcdm_adapter_xqueue
+      tcdm_adapter_xqueue #(
+        .AddrWidth  (TCDMAddrMemWidth),
+        .DataWidth  (DataWidth       ),
+        .XQueueSize (XQueueSize      ),
+        .metadata_t (bank_metadata_t ),
+        .RegisterAmo(1'b0            )
+      ) i_tcdm_adapter (
+        .clk_i       (clk_i                                                                       ),
+        .rst_ni      (rst_ni                                                                      ),
+        .in_valid_i  (bank_req_valid[b]                                                           ),
+        .in_ready_o  (bank_req_ready[b]                                                           ),
+        .in_address_i(bank_req_payload[b].tgt_addr[idx_width(NumBanksPerTile) +: TCDMAddrMemWidth]),
+        .in_amo_i    (bank_req_payload[b].wdata.amo                                               ),
+        .in_write_i  (bank_req_payload[b].wen                                                     ),
+        .in_wdata_i  (bank_req_payload[b].wdata.data                                              ),
+        .in_meta_i   (meta_in                                                                     ),
+        .in_be_i     (bank_req_payload[b].be                                                      ),
+        .in_valid_o  (bank_resp_valid[b]                                                          ),
+        .in_ready_i  (bank_resp_ready[b]                                                          ),
+        .in_rdata_o  (bank_resp_payload[b].rdata.data                                             ),
+        .in_meta_o   (meta_out                                                                    ),
+        .out_req_o   (req_valid                                                                   ),
+        .out_add_o   (req_addr                                                                    ),
+        .out_write_o (req_write                                                                   ),
+        .out_wdata_o (req_wdata                                                                   ),
+        .out_be_o    (req_be                                                                      ),
+        .out_rdata_i (resp_rdata                                                                  )
+      );
+    end else begin: gen_tcdm_adapter
+      tcdm_adapter #(
+        .AddrWidth  (TCDMAddrMemWidth),
+        .DataWidth  (DataWidth       ),
+        .metadata_t (bank_metadata_t ),
+        .LrScEnable (LrScEnable      ),
+        .RegisterAmo(1'b0            )
+      ) i_tcdm_adapter (
+        .clk_i       (clk_i                                                                       ),
+        .rst_ni      (rst_ni                                                                      ),
+        .in_valid_i  (bank_req_valid[b]                                                           ),
+        .in_ready_o  (bank_req_ready[b]                                                           ),
+        .in_address_i(bank_req_payload[b].tgt_addr[idx_width(NumBanksPerTile) +: TCDMAddrMemWidth]),
+        .in_amo_i    (bank_req_payload[b].wdata.amo                                               ),
+        .in_write_i  (bank_req_payload[b].wen                                                     ),
+        .in_wdata_i  (bank_req_payload[b].wdata.data                                              ),
+        .in_meta_i   (meta_in                                                                     ),
+        .in_be_i     (bank_req_payload[b].be                                                      ),
+        .in_valid_o  (bank_resp_valid[b]                                                          ),
+        .in_ready_i  (bank_resp_ready[b]                                                          ),
+        .in_rdata_o  (bank_resp_payload[b].rdata.data                                             ),
+        .in_meta_o   (meta_out                                                                    ),
+        .out_req_o   (req_valid                                                                   ),
+        .out_add_o   (req_addr                                                                    ),
+        .out_write_o (req_write                                                                   ),
+        .out_wdata_o (req_wdata                                                                   ),
+        .out_be_o    (req_be                                                                      ),
+        .out_rdata_i (resp_rdata                                                                  )
+      );
+    end
 
     // Bank
     tc_sram #(
