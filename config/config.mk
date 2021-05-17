@@ -56,6 +56,9 @@ dmas_per_group ?= 4
 ##  Xqueues configuration  ##
 #############################
 
+# Hardware queues for systolic (atomic ISA extension in TCDM adapter)
+xqueue ?= 0
+
 # XQueue extension's queue size in each memory bank (in words)
 xqueue_size ?= 0
 

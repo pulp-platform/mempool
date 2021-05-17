@@ -258,6 +258,9 @@ package mempool_pkg;
    *  QUEUE PARAMETERS  *
    **********************/
 
+  // Size of queues in words (must be a power of two)
+  localparam bit Xqueue = `ifdef XQUEUE `XQUEUE `else 1'b0 `endif;
+
   // Size of xqueues in words (must be a power of two)
   localparam int unsigned XQueueSize = `ifdef XQUEUE_SIZE `XQUEUE_SIZE `else 0 `endif;
 

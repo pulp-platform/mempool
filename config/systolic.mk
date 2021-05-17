@@ -32,6 +32,10 @@ seq_mem_size ?= 2048
 ##  Xqueues configuration  ##
 #############################
 
-# Xqueue extension's queue size (in queue entries)
-# in each memory bank (assume banking factor of 4)
+# Hardware queues for systolic (atomic ISA extension in TCDM adapter)
+xqueue ?= 1
+
+# Systolic queues size (assume banking factor of 4) for:
+# - software queues emulation (size measured in queue entries)
+# - hardware xqueue's queue in each memory bank (size measured in words)
 xqueue_size ?= 4
