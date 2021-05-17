@@ -195,12 +195,20 @@ package mempool_pkg;
     tile_group_id_t ini_addr;
   } tcdm_slave_resp_t;
 
+  /**********************
+   *  QUEUE PARAMETERS  *
+   **********************/
+
+  // Size of xqueues in words (must be a power of two)
+  localparam int unsigned XQueueSize = `ifdef XQUEUE_SIZE `XQUEUE_SIZE `else 0 `endif;
+
   /*****************
    *  ADDRESS MAP  *
    *****************/
 
   // Size in bytes of memory that is sequentially addressable per tile
-  localparam int unsigned SeqMemSizePerTile = NumCoresPerTile*2048; // 2 KiB (1 KiB Stack)
+  localparam int unsigned SeqMemSizePerCore = `ifdef SEQ_MEM_SIZE `SEQ_MEM_SIZE `else 0 `endif;
+  localparam int unsigned SeqMemSizePerTile = NumCoresPerTile*SeqMemSizePerCore;
 
   typedef struct packed {
     int unsigned slave_idx;
