@@ -61,6 +61,7 @@ RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 # Defines
 DEFINES += -DPRINTF_DISABLE_SUPPORT_FLOAT -DPRINTF_DISABLE_SUPPORT_LONG_LONG -DPRINTF_DISABLE_SUPPORT_PTRDIFF_T
 DEFINES += -DNUM_CORES=$(num_cores) -DNUM_GROUPS=$(num_groups) -DBOOT_ADDR=0x$(boot_addr) -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
+DEFINES += -DSEQ_MEM_SIZE=$(seq_mem_size) -DSTACK_SIZE=$(stack_size) -DXQUEUE_SIZE=$(xqueue_size)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)

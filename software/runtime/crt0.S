@@ -75,6 +75,7 @@ _reset_vector:
     slli    t1, t1, 10                 // tile_core_offset = tile_core_id * 1 KiB
     addi    t1, t1, -4                 // tile_core_offset -= 1 word
     add     t0, t0, t1                 // offset = tile_offset + tile_core_offset
+    addi    t0, t0, 256                // offset += 16 * queue_size * 4
     add     sp, sp, t0                 // sp += offset
 #endif
     bnez    a0, _jump_main

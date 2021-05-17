@@ -39,11 +39,13 @@ static inline void mempool_init(const uint32_t core_id,
 
     // Initialize L1 Sequential Heap Allocator per Tile
     extern int32_t __seq_start;
-    int32_t *seq_base = &__seq_start + (4096 / 4);
-    uint32_t seq_size = 4096;
+    uint32_t seq_heap_offset = 4 * STACK_SIZE + 16 * 4 * XQUEUE_SIZE;
+    uint32_t seq_total_size = 4 * SEQ_MEM_SIZE;
+    int32_t *seq_heap_base = &__seq_start + (seq_heap_offset / 4);
+    uint32_t seq_heap_size = seq_total_size - seq_heap_offset;
     for (uint32_t tile_id = 0; tile_id < num_cores / 4; ++tile_id) {
-      alloc_init(get_alloc_tile(tile_id), seq_base, seq_size);
-      seq_base += (8192 / 4);
+      alloc_init(get_alloc_tile(tile_id), seq_heap_base, seq_heap_size);
+      seq_heap_base += (seq_total_size / 4);
     }
   }
 }
