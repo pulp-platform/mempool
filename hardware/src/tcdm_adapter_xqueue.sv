@@ -117,9 +117,6 @@ module tcdm_adapter_xqueue #(
   logic increment_tail, increment_head;
   logic stalled_queue_op;
 
-  // Temporary storage of write data for stalled queue push
-  logic[DataWidth-1:0] qpush_data_d, qpush_data_q;
-
   // Stores the metadata at handshake (except stalled queue operations)
   spill_register #(
     .T     (metadata_t),
@@ -200,7 +197,6 @@ module tcdm_adapter_xqueue #(
     state_d         = state_q;
     sresp_select_d  = sresp_select_q;
     queue_stalled_d = queue_stalled_q;
-    qpush_data_d    = qpush_data_q;
 
     // While response is pending no requests are accepted
     in_ready_o = in_valid_o & ~in_ready_i ? 1'b0 : 1'b1;
@@ -258,10 +254,10 @@ module tcdm_adapter_xqueue #(
           // Queue push
           if (amo_op_t'(in_amo_i) == QPush) begin
             if (queue_full) begin
-              // Set flag and store queue push data for later
+              // Note: Memory write is still executed but the tail is not incremented
+              // Set stalled flag
               queue_stalled_d   = 1'b1;
-              qpush_data_d      = in_wdata_i; // TODO: MIGHT NOT BE NEEDED
-              // Prevent acquisition of response data (TODO: might not be needed)
+              // Prevent acquisition of response data
               prevent_rdata_acq = 1'b1;
             end else begin
               // Set increment flag
@@ -280,7 +276,7 @@ module tcdm_adapter_xqueue #(
           // Queue pop
           if (amo_op_t'(in_amo_i) == QPop) begin
             if (queue_empty) begin
-              // Set flag
+              // Set stalled flag
               queue_stalled_d   = 1'b1;
               // Prevent acquisition of response data despite read access
               prevent_rdata_acq = 1'b1;
@@ -316,19 +312,18 @@ module tcdm_adapter_xqueue #(
       end
 
       // ResolveQPushStall State blocks any requests until queue pop response
-      // has been accepted and then executes the queue push
+      // has been accepted and then prepares the queue push response
+      // (queue push stores data even in full queue but does not update tail)
       ResolveQPushStall: begin
         // Do not accept any requests during resolve
         in_ready_o  = 1'b0;
-        // Prepare queue push (write data at tail of queue)
-        // TODO: INSTEAD READ STORED DATA FOR PUSH RESPONSE
+        // Retrieve queue push data as dummy response (read data at tail of queue)
         out_add_o   = curr_tail_q;
-        out_write_o = 1'b1;
-        out_wdata_o = qpush_data_q;
+        out_write_o = 1'b0;
         out_be_o    = 4'b1111;
         // Wait until pop response accepted
         if (resp_accepted) begin
-          // Set success flag
+          // Set increment flag
           increment_tail  = 1'b1;
           // Trigger memory access
           out_req_o       = 1'b1;
@@ -353,7 +348,7 @@ module tcdm_adapter_xqueue #(
         out_be_o    = 4'b1111;
         // Wait until push response accepted
         if (resp_accepted) begin
-          // Set success flag
+          // Set increment flag
           increment_head = 1'b1;
           // Trigger memory access
           out_req_o      = 1'b1;
@@ -467,7 +462,6 @@ module tcdm_adapter_xqueue #(
       next_tail_q     <= 1;
       curr_head_q     <= 0;
       queue_stalled_q <= 1'b0;
-      qpush_data_q    <= '0;
     end else begin
       state_q         <= state_d;
       amo_op_q        <= amo_op_d;
@@ -479,7 +473,6 @@ module tcdm_adapter_xqueue #(
       next_tail_q     <= next_tail_d;
       curr_head_q     <= curr_head_d;
       queue_stalled_q <= queue_stalled_d;
-      qpush_data_q    <= qpush_data_d;
     end
   end
 
