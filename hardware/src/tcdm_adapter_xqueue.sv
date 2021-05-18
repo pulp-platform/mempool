@@ -83,6 +83,11 @@ module tcdm_adapter_xqueue #(
   logic resp_vld;
   logic sresp_vld;
 
+  // Helper signals to determine response data acquisition
+  logic mem_read_req;
+  logic force_rdata_acq;
+  logic prevent_rdata_acq;
+
   // FSM related signals
   state_e state_q, state_d;
   logic   vld_amo_op;
@@ -167,6 +172,11 @@ module tcdm_adapter_xqueue #(
   assign resp_in_data  = out_rdata_i;
   assign rdata_out_rdy = resp_accepted;
 
+  // Set if memory read request occurs this cycle
+  assign mem_read_req = out_req_o & !out_write_o;
+  // Acquire response data a cycle after a memory read request (can be forced or prevented)
+  assign rdata_in_vld_d = force_rdata_acq | (mem_read_req & !prevent_rdata_acq);
+
   // Output response valid if both meta and read data are available (the read data will always be last)
   assign resp_vld   = meta_out_vld  & rdata_out_vld;
   assign sresp_vld  = smeta_out_vld & rdata_out_vld;
@@ -205,8 +215,9 @@ module tcdm_adapter_xqueue #(
     // Response data as feed-through of read data
     // resp_in_data   = out_rdata_i;
 
-    // Response is acquired a cycle after a read access
-    rdata_in_vld_d = out_req_o & !out_write_o;
+    // Flags to force or prevent response acquisition
+    force_rdata_acq   = 1'b0;
+    prevent_rdata_acq = 1'b0;
 
     // Flags to increment queue counters
     increment_tail = 1'b0;
@@ -248,16 +259,16 @@ module tcdm_adapter_xqueue #(
           if (amo_op_t'(in_amo_i) == QPush) begin
             if (queue_full) begin
               // Set flag and store queue push data for later
-              queue_stalled_d = 1'b1;
-              qpush_data_d    = in_wdata_i; // TODO: MIGHT NOT BE NEEDED
+              queue_stalled_d   = 1'b1;
+              qpush_data_d      = in_wdata_i; // TODO: MIGHT NOT BE NEEDED
               // Prevent acquisition of response data (TODO: might not be needed)
-              rdata_in_vld_d  = 1'b0;
+              prevent_rdata_acq = 1'b1;
             end else begin
               // Set increment flag
-              increment_tail = 1'b1;
+              increment_tail  = 1'b1;
               // Force acquisition of response data despite a write access
               // Response data will match the write data of the write access
-              rdata_in_vld_d = 1'b1;
+              force_rdata_acq = 1'b1;
               // Previous queue pop failed due to empty queue
               if (queue_stalled_q) begin
                 queue_stalled_d = 1'b0;
@@ -270,9 +281,9 @@ module tcdm_adapter_xqueue #(
           if (amo_op_t'(in_amo_i) == QPop) begin
             if (queue_empty) begin
               // Set flag
-              queue_stalled_d = 1'b1;
+              queue_stalled_d   = 1'b1;
               // Prevent acquisition of response data despite read access
-              rdata_in_vld_d  = 1'b0;
+              prevent_rdata_acq = 1'b1;
             end else begin
               // Set increment flag
               increment_head = 1'b1;
@@ -318,16 +329,16 @@ module tcdm_adapter_xqueue #(
         // Wait until pop response accepted
         if (resp_accepted) begin
           // Set success flag
-          increment_tail = 1'b1;
+          increment_tail  = 1'b1;
           // Trigger memory access
-          out_req_o      = 1'b1;
+          out_req_o       = 1'b1;
           // Force acquisition of response data despite a write access
           // Response data will match the write data of the write access
-          rdata_in_vld_d = 1'b1;
+          force_rdata_acq = 1'b1;
           // Set meta data selection to stalled meta data
-          sresp_select_d = 1'b1;
+          sresp_select_d  = 1'b1;
           // Return to Idle
-          state_d        = Idle;
+          state_d         = Idle;
         end
       end
 
