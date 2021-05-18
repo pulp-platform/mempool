@@ -18,7 +18,8 @@ module snitch
   parameter logic [31:0] MTVEC     = BootAddr, // Exception Base Address (see privileged spec 3.1.7)
   parameter bit          RVE       = 0,   // Reduced-register Extension
   parameter bit          RVM       = 1,   // Enable IntegerMmultiplication & Division Extension
-  parameter int    RegNrWritePorts = 2    // Implement one or two write ports into the register file
+  parameter int    RegNrWritePorts = 2,   // Implement one or two write ports into the register file
+  parameter bit          Xqueue    = 0
 ) (
   input  logic          clk_i,
   input  logic          rst_i,
@@ -154,7 +155,10 @@ module snitch
     AMOMin  = 4'h8,
     AMOMinu = 4'h9,
     AMOLR   = 4'hA,
-    AMOSC   = 4'hB
+    AMOSC   = 4'hB,
+    // TODO(smazzola): parametrize
+    QPush   = 4'hC, // Only used when Xqueue is enabled
+    QPop    = 4'hD  // Only used when Xqueue is enabled
   } ls_amo;
 
   logic [31:0] ld_result;
@@ -1344,6 +1348,41 @@ module snitch
         end
       end
 /* end of Xpulpimg extension */
+
+/* Xqueues extension */
+      // TODO(khovg): Add define to include instr
+      riscv_instr::Q_PUSH: begin
+        if (Xqueue) begin
+          alu_op = BypassA;
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          is_load = 1'b1;
+          is_signed = 1'b1;
+          ls_size = Word;
+          ls_amo = QPush;
+          opa_select = Reg;
+          opb_select = Reg;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      // TODO(khovg): Two source registers are unnnecessary
+      riscv_instr::Q_POP: begin
+        if (Xqueue) begin
+          alu_op = BypassA;
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          is_load = 1'b1;
+          is_signed = 1'b1;
+          ls_size = Word;
+          ls_amo = QPop;
+          opa_select = Reg;
+          opb_select = Reg;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+/* end of Xqueues extension */
 
       // TODO(zarubaf): Illegal Instructions
       default: begin

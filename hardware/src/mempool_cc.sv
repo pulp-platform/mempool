@@ -57,10 +57,11 @@ module mempool_cc
 
   // Snitch Integer Core
   snitch #(
-    .BootAddr ( BootAddr ),
-    .MTVEC    ( MTVEC    ),
-    .RVE      ( RVE      ),
-    .RVM      ( RVM      )
+    .BootAddr ( BootAddr            ),
+    .MTVEC    ( MTVEC               ),
+    .RVE      ( RVE                 ),
+    .RVM      ( RVM                 ),
+    .Xqueue   ( mempool_pkg::Xqueue )
   ) i_snitch (
     .clk_i                                   ,
     .rst_i                                   ,
