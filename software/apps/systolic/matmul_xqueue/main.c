@@ -159,7 +159,7 @@ int main() {
     // systolic_matrix_print(syst_matrix_B);
 
     // Set repetition count per submatrix of C (A->num_cols == B->num_rows)
-    rep_count = syst_matrix_A->num_cols;
+    rep_count = syst_matrix_A->num_cols / 2;
   }
 
   // Wait for all cores
@@ -200,8 +200,8 @@ int main() {
     printf("> End\n");
 
     // Print out systolic matrix C
-    // printf("> Print Systolic Matrix C\n");
-    // systolic_matrix_print(syst_matrix_C);
+    printf("> Print Systolic Matrix C\n");
+    systolic_matrix_print(syst_matrix_C);
   }
 
   // wait until all cores have finished

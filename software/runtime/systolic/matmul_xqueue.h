@@ -67,29 +67,49 @@ void systolic_init(uint32_t const *grid_mapping) {
 
 void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
                               uint32_t num_rows, uint32_t num_cols) {
+  // Round up row and col dimension to next multiple of two
+  uint32_t syst_num_rows = (uint32_t)((num_rows + 1) & 0xFFFE);
+  uint32_t syst_num_cols = (uint32_t)((num_cols + 1) & 0xFFFE);
+
   // Allocate matrix array
-  int32_t *array = (int32_t *)simple_malloc(num_rows * num_cols * 4);
+  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * 4);
 
   // Allocate systolic matrix
   systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(3 * 4);
 
   // Assign values to systolic matrix
   new_matrix->matrix = array;
-  new_matrix->num_rows = num_rows;
-  new_matrix->num_cols = num_cols;
+  new_matrix->num_rows = syst_num_rows;
+  new_matrix->num_cols = syst_num_cols;
 
   *syst_matrix = new_matrix;
 }
 
 void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
                             uint32_t num_rows, uint32_t num_cols) {
+  // Round up row and col dimension to next multiple of two
+  uint32_t syst_num_rows = (uint32_t)((num_rows + 1) & 0xFFFE);
+  uint32_t syst_num_cols = (uint32_t)((num_cols + 1) & 0xFFFE);
+
   // Allocate matrix array
-  int32_t *array = (int32_t *)simple_malloc(num_rows * num_cols * 4);
+  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * 4);
 
   // Copy data into new matrix array
   for (uint32_t y = 0; y < num_rows; ++y) {
     for (uint32_t x = 0; x < num_cols; ++x) {
-      array[y * num_cols + x] = matrix[y * num_cols + x];
+      array[y * syst_num_cols + x] = matrix[y * num_cols + x];
+    }
+  }
+
+  // Zero padding of matrix array
+  if (syst_num_cols != num_cols) {
+    for (uint32_t y = 0; y < syst_num_rows; ++y) {
+      array[y * syst_num_cols + syst_num_cols - 1] = 0;
+    }
+  }
+  if (syst_num_rows != num_rows) {
+    for (uint32_t x = 0; x < syst_num_cols; ++x) {
+      array[(syst_num_rows - 1) * syst_num_cols + x] = 0;
     }
   }
 
@@ -98,8 +118,8 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
 
   // Assign values to systolic matrix
   new_matrix->matrix = array;
-  new_matrix->num_rows = num_rows;
-  new_matrix->num_cols = num_cols;
+  new_matrix->num_rows = syst_num_rows;
+  new_matrix->num_cols = syst_num_cols;
 
   *syst_matrix = new_matrix;
 }
@@ -124,8 +144,8 @@ void systolic_rcp_pe(const uint32_t rep_count,
                      systolic_matrix_t const *__restrict__ C) {
   int32_t *q_next_horz;
   int32_t *q_next_vert;
-  int32_t data_horz = 0;
-  int32_t data_vert = 0;
+  int32_t data_horz[4] = {0, 0, 0, 0};
+  int32_t data_vert[4] = {0, 0, 0, 0};
   int32_t *matrix_A;
   int32_t *matrix_B;
   int32_t *matrix_C;
@@ -133,7 +153,12 @@ void systolic_rcp_pe(const uint32_t rep_count,
   uint32_t num_cols_B;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
-  int32_t curr_element_C;
+  int32_t curr_element_0_C;
+  int32_t curr_element_1_C;
+  int32_t curr_element_2_C;
+  int32_t curr_element_3_C;
+  uint32_t anchor_row_0;
+  uint32_t anchor_row_1;
 
   // Assign queues
   q_next_horz = queues_horz[0][1];
@@ -151,22 +176,49 @@ void systolic_rcp_pe(const uint32_t rep_count,
   num_cols_C = C->num_cols;
 
   // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < num_rows_C; y += SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < num_cols_C; x += SYSTOLIC_SIZE) {
-      // Reset value
-      curr_element_C = 0;
+  for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
+    for (uint32_t x = 0; x < num_cols_C; x += 2 * SYSTOLIC_SIZE) {
+      // Reset values
+      curr_element_0_C = 0;
+      curr_element_1_C = 0;
+      curr_element_2_C = 0;
+      curr_element_3_C = 0;
 
       // Systolic matrix multiplication through MACs
-      for (uint32_t i = 0; i < rep_count; ++i) {
-        data_horz = matrix_A[y * num_cols_A + i];
-        data_vert = matrix_B[i * num_cols_B + x];
-        __atomic_fetch_and(q_next_horz, data_horz, __ATOMIC_SEQ_CST);
-        __atomic_fetch_and(q_next_vert, data_vert, __ATOMIC_SEQ_CST);
-        curr_element_C += data_horz * data_vert;
+      for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
+        data_horz[0] = matrix_A[y * num_cols_A + i];
+        data_horz[1] = matrix_A[y * num_cols_A + i + 1];
+        data_horz[2] = matrix_A[(y + 1) * num_cols_A + i];
+        data_horz[3] = matrix_A[(y + 1) * num_cols_A + i + 1];
+        data_vert[0] = matrix_B[i * num_cols_B + x];
+        data_vert[1] = matrix_B[i * num_cols_B + x + 1];
+        data_vert[2] = matrix_B[(i + 1) * num_cols_B + x];
+        data_vert[3] = matrix_B[(i + 1) * num_cols_B + x + 1];
+        __atomic_fetch_and(q_next_horz, data_horz[0], __ATOMIC_SEQ_CST);
+        __atomic_fetch_and(q_next_horz, data_horz[1], __ATOMIC_SEQ_CST);
+        __atomic_fetch_and(q_next_horz, data_horz[2], __ATOMIC_SEQ_CST);
+        __atomic_fetch_and(q_next_horz, data_horz[3], __ATOMIC_SEQ_CST);
+        __atomic_fetch_and(q_next_vert, data_vert[0], __ATOMIC_SEQ_CST);
+        __atomic_fetch_and(q_next_vert, data_vert[1], __ATOMIC_SEQ_CST);
+        __atomic_fetch_and(q_next_vert, data_vert[2], __ATOMIC_SEQ_CST);
+        __atomic_fetch_and(q_next_vert, data_vert[3], __ATOMIC_SEQ_CST);
+        curr_element_0_C += data_horz[1] * data_vert[2];
+        curr_element_1_C += data_horz[1] * data_vert[3];
+        curr_element_2_C += data_horz[3] * data_vert[2];
+        curr_element_3_C += data_horz[3] * data_vert[3];
+        curr_element_0_C += data_horz[0] * data_vert[0];
+        curr_element_1_C += data_horz[0] * data_vert[1];
+        curr_element_2_C += data_horz[2] * data_vert[0];
+        curr_element_3_C += data_horz[2] * data_vert[1];
       }
 
-      // Store value
-      matrix_C[y * num_cols_C + x] = curr_element_C;
+      // Store values
+      anchor_row_0 = y * num_cols_C + x;
+      anchor_row_1 = anchor_row_0 + num_cols_C;
+      matrix_C[anchor_row_0] = curr_element_0_C;
+      matrix_C[anchor_row_0 + 1] = curr_element_1_C;
+      matrix_C[anchor_row_1] = curr_element_2_C;
+      matrix_C[anchor_row_1 + 1] = curr_element_3_C;
     }
   }
 }
@@ -178,15 +230,20 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   int32_t *q_prev_horz;
   int32_t *q_next_horz;
   int32_t *q_next_vert;
-  int32_t data_horz = 0;
-  int32_t data_vert = 0;
+  int32_t data_horz[4] = {0, 0, 0, 0};
+  int32_t data_vert[4] = {0, 0, 0, 0};
   int32_t *matrix_B;
   int32_t *matrix_C;
   uint32_t num_cols_B;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
   uint32_t shifted_x;
-  int32_t curr_element_C;
+  int32_t curr_element_0_C;
+  int32_t curr_element_1_C;
+  int32_t curr_element_2_C;
+  int32_t curr_element_3_C;
+  uint32_t anchor_row_0;
+  uint32_t anchor_row_1;
 
   // Assign queues
   q_prev_horz = queues_horz[0][col_idx];
@@ -207,37 +264,73 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   num_cols_C = C->num_cols;
 
   // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < num_rows_C; y += SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < num_cols_C; x += SYSTOLIC_SIZE) {
+  for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
+    for (uint32_t x = 0; x < num_cols_C; x += 2 * SYSTOLIC_SIZE) {
       // Shift x
-      shifted_x = x + col_idx;
+      shifted_x = x + 2 * col_idx;
 
       // Check if this PE is currently within the matrix C
       if (shifted_x < num_cols_C) {
-        // Reset value
-        curr_element_C = 0;
+        // Reset values
+        curr_element_0_C = 0;
+        curr_element_1_C = 0;
+        curr_element_2_C = 0;
+        curr_element_3_C = 0;
 
         // Systolic matrix multiplication through MACs
-        for (uint32_t i = 0; i < rep_count; ++i) {
-          data_vert = matrix_B[i * num_cols_B + shifted_x];
-          data_horz = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+        for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
+          data_vert[0] = matrix_B[i * num_cols_B + shifted_x];
+          data_vert[1] = matrix_B[i * num_cols_B + shifted_x + 1];
+          data_vert[2] = matrix_B[(i + 1) * num_cols_B + shifted_x];
+          data_vert[3] = matrix_B[(i + 1) * num_cols_B + shifted_x + 1];
+          data_horz[0] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[1] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[2] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[3] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
           if (q_next_horz) {
-            __atomic_fetch_and(q_next_horz, data_horz, __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[0], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[1], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[2], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[3], __ATOMIC_SEQ_CST);
           }
-          __atomic_fetch_and(q_next_vert, data_vert, __ATOMIC_SEQ_CST);
-          curr_element_C += data_horz * data_vert;
+          __atomic_fetch_and(q_next_vert, data_vert[0], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_vert, data_vert[1], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_vert, data_vert[2], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_vert, data_vert[3], __ATOMIC_SEQ_CST);
+          curr_element_0_C += data_horz[1] * data_vert[2];
+          curr_element_1_C += data_horz[1] * data_vert[3];
+          curr_element_2_C += data_horz[3] * data_vert[2];
+          curr_element_3_C += data_horz[3] * data_vert[3];
+          curr_element_0_C += data_horz[0] * data_vert[0];
+          curr_element_1_C += data_horz[0] * data_vert[1];
+          curr_element_2_C += data_horz[2] * data_vert[0];
+          curr_element_3_C += data_horz[2] * data_vert[1];
         }
 
-        // Store value
-        matrix_C[y * num_cols_C + shifted_x] = curr_element_C;
+        // Store values
+        anchor_row_0 = y * num_cols_C + shifted_x;
+        anchor_row_1 = anchor_row_0 + num_cols_C;
+        matrix_C[anchor_row_0] = curr_element_0_C;
+        matrix_C[anchor_row_0 + 1] = curr_element_1_C;
+        matrix_C[anchor_row_1] = curr_element_2_C;
+        matrix_C[anchor_row_1 + 1] = curr_element_3_C;
       } else {
         // Pop and push dummy data
         for (uint32_t i = 0; i < rep_count; ++i) {
-          data_horz = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[0] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[1] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[2] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[3] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
           if (q_next_horz) {
-            __atomic_fetch_and(q_next_horz, data_horz, __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[0], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[1], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[2], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[3], __ATOMIC_SEQ_CST);
           }
-          __atomic_fetch_and(q_next_vert, data_vert, __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_vert, data_vert[0], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_vert, data_vert[1], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_vert, data_vert[2], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_vert, data_vert[3], __ATOMIC_SEQ_CST);
         }
       }
     }
@@ -251,15 +344,20 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   int32_t *q_next_horz;
   int32_t *q_prev_vert;
   int32_t *q_next_vert;
-  int32_t data_horz = 0;
-  int32_t data_vert = 0;
+  int32_t data_horz[4] = {0, 0, 0, 0};
+  int32_t data_vert[4] = {0, 0, 0, 0};
   int32_t *matrix_A;
   int32_t *matrix_C;
   uint32_t num_cols_A;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
   uint32_t shifted_y;
-  int32_t curr_element_C;
+  int32_t curr_element_0_C;
+  int32_t curr_element_1_C;
+  int32_t curr_element_2_C;
+  int32_t curr_element_3_C;
+  uint32_t anchor_row_0;
+  uint32_t anchor_row_1;
 
   // Assign queues
   q_next_horz = queues_horz[row_idx][1];
@@ -280,36 +378,72 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   num_cols_C = C->num_cols;
 
   // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < num_rows_C; y += SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < num_cols_C; x += SYSTOLIC_SIZE) {
+  for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
+    for (uint32_t x = 0; x < num_cols_C; x += 2 * SYSTOLIC_SIZE) {
       // Shift y
-      shifted_y = y + row_idx;
+      shifted_y = y + 2 * row_idx;
 
       // Check if this PE is currently within the matrix C
       if (shifted_y < num_rows_C) {
-        // Reset value
-        curr_element_C = 0;
+        // Reset values
+        curr_element_0_C = 0;
+        curr_element_1_C = 0;
+        curr_element_2_C = 0;
+        curr_element_3_C = 0;
 
         // Systolic matrix multiplication through MACs
-        for (uint32_t i = 0; i < rep_count; ++i) {
-          data_horz = matrix_A[shifted_y * num_cols_A + i];
-          data_vert = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
-          __atomic_fetch_and(q_next_horz, data_horz, __ATOMIC_SEQ_CST);
+        for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
+          data_horz[0] = matrix_A[shifted_y * num_cols_A + i];
+          data_horz[1] = matrix_A[shifted_y * num_cols_A + i + 1];
+          data_horz[2] = matrix_A[(shifted_y + 1) * num_cols_A + i];
+          data_horz[3] = matrix_A[(shifted_y + 1) * num_cols_A + i + 1];
+          data_vert[0] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[1] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[2] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[3] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_horz, data_horz[0], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_horz, data_horz[1], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_horz, data_horz[2], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_horz, data_horz[3], __ATOMIC_SEQ_CST);
           if (q_next_vert) {
-            __atomic_fetch_and(q_next_vert, data_vert, __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[0], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[1], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[2], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[3], __ATOMIC_SEQ_CST);
           }
-          curr_element_C += data_horz * data_vert;
+          curr_element_0_C += data_horz[1] * data_vert[2];
+          curr_element_1_C += data_horz[1] * data_vert[3];
+          curr_element_2_C += data_horz[3] * data_vert[2];
+          curr_element_3_C += data_horz[3] * data_vert[3];
+          curr_element_0_C += data_horz[0] * data_vert[0];
+          curr_element_1_C += data_horz[0] * data_vert[1];
+          curr_element_2_C += data_horz[2] * data_vert[0];
+          curr_element_3_C += data_horz[2] * data_vert[1];
         }
 
-        // Store value
-        matrix_C[shifted_y * num_cols_C + x] = curr_element_C;
+        // Store values
+        anchor_row_0 = shifted_y * num_cols_C + x;
+        anchor_row_1 = anchor_row_0 + num_cols_C;
+        matrix_C[anchor_row_0] = curr_element_0_C;
+        matrix_C[anchor_row_0 + 1] = curr_element_1_C;
+        matrix_C[anchor_row_1] = curr_element_2_C;
+        matrix_C[anchor_row_1 + 1] = curr_element_3_C;
       } else {
         // Pop and push dummy data
         for (uint32_t i = 0; i < rep_count; ++i) {
-          data_vert = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
-          __atomic_fetch_and(q_next_horz, data_horz, __ATOMIC_SEQ_CST);
+          data_vert[0] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[1] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[2] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[3] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_horz, data_horz[0], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_horz, data_horz[1], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_horz, data_horz[2], __ATOMIC_SEQ_CST);
+          __atomic_fetch_and(q_next_horz, data_horz[3], __ATOMIC_SEQ_CST);
           if (q_next_vert) {
-            __atomic_fetch_and(q_next_vert, data_vert, __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[0], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[1], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[2], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[3], __ATOMIC_SEQ_CST);
           }
         }
       }
@@ -325,14 +459,19 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   int32_t *q_next_horz;
   int32_t *q_prev_vert;
   int32_t *q_next_vert;
-  int32_t data_horz = 0;
-  int32_t data_vert = 0;
+  int32_t data_horz[4] = {0, 0, 0, 0};
+  int32_t data_vert[4] = {0, 0, 0, 0};
   int32_t *matrix_C;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
   uint32_t shifted_x;
   uint32_t shifted_y;
-  int32_t curr_element_C;
+  int32_t curr_element_0_C;
+  int32_t curr_element_1_C;
+  int32_t curr_element_2_C;
+  int32_t curr_element_3_C;
+  uint32_t anchor_row_0;
+  uint32_t anchor_row_1;
 
   // Assign queues
   q_prev_horz = queues_horz[row_idx][col_idx];
@@ -356,43 +495,81 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   num_cols_C = C->num_cols;
 
   // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < num_rows_C; y += SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < num_cols_C; x += SYSTOLIC_SIZE) {
+  for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
+    for (uint32_t x = 0; x < num_cols_C; x += 2 * SYSTOLIC_SIZE) {
       // Shift x and y
-      shifted_x = x + col_idx;
-      shifted_y = y + row_idx;
+      shifted_x = x + 2 * col_idx;
+      shifted_y = y + 2 * row_idx;
 
       // Check if this PE is currently within the matrix C
       if (shifted_x < num_cols_C && shifted_y < num_rows_C) {
-        // Reset value
-        curr_element_C = 0;
+        // Reset values
+        curr_element_0_C = 0;
+        curr_element_1_C = 0;
+        curr_element_2_C = 0;
+        curr_element_3_C = 0;
 
         // Systolic matrix multiplication through MACs
         for (uint32_t i = 0; i < rep_count; ++i) {
-          data_horz = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
-          data_vert = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_horz[0] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[1] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[2] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[3] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_vert[0] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[1] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[2] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[3] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
           if (q_next_horz) {
-            __atomic_fetch_and(q_next_horz, data_horz, __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[0], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[1], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[2], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[3], __ATOMIC_SEQ_CST);
           }
           if (q_next_vert) {
-            __atomic_fetch_and(q_next_vert, data_vert, __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[0], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[1], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[2], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[3], __ATOMIC_SEQ_CST);
           }
-          curr_element_C += data_horz * data_vert;
+          curr_element_0_C += data_horz[1] * data_vert[2];
+          curr_element_1_C += data_horz[1] * data_vert[3];
+          curr_element_2_C += data_horz[3] * data_vert[2];
+          curr_element_3_C += data_horz[3] * data_vert[3];
+          curr_element_0_C += data_horz[0] * data_vert[0];
+          curr_element_1_C += data_horz[0] * data_vert[1];
+          curr_element_2_C += data_horz[2] * data_vert[0];
+          curr_element_3_C += data_horz[2] * data_vert[1];
         }
 
         // Store values
-        matrix_C[shifted_y * num_cols_C + shifted_x] = curr_element_C;
+        anchor_row_0 = shifted_y * num_cols_C + shifted_x;
+        anchor_row_1 = anchor_row_0 + num_cols_C;
+        matrix_C[anchor_row_0] = curr_element_0_C;
+        matrix_C[anchor_row_0 + 1] = curr_element_1_C;
+        matrix_C[anchor_row_1] = curr_element_2_C;
+        matrix_C[anchor_row_1 + 1] = curr_element_3_C;
       } else {
         // Pop and push dummy data
         for (uint32_t i = 0; i < rep_count; ++i) {
-          data_horz = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
-          data_vert = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_horz[0] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[1] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[2] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_horz[3] = __atomic_fetch_or(q_prev_horz, 0, __ATOMIC_SEQ_CST);
+          data_vert[0] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[1] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[2] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
+          data_vert[3] = __atomic_fetch_or(q_prev_vert, 0, __ATOMIC_SEQ_CST);
           if (q_next_horz) {
-            __atomic_fetch_and(q_next_horz, data_horz, __ATOMIC_SEQ_CST);
-
+            __atomic_fetch_and(q_next_horz, data_horz[0], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[1], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[2], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_horz, data_horz[3], __ATOMIC_SEQ_CST);
           }
           if (q_next_vert) {
-            __atomic_fetch_and(q_next_vert, data_vert, __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[0], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[1], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[2], __ATOMIC_SEQ_CST);
+            __atomic_fetch_and(q_next_vert, data_vert[3], __ATOMIC_SEQ_CST);
           }
         }
       }
