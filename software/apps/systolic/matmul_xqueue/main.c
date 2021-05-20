@@ -200,8 +200,8 @@ int main() {
     printf("> End\n");
 
     // Print out systolic matrix C
-    printf("> Print Systolic Matrix C\n");
-    systolic_matrix_print(syst_matrix_C);
+    //printf("> Print Systolic Matrix C\n");
+    //systolic_matrix_print(syst_matrix_C);
   }
 
   // wait until all cores have finished
