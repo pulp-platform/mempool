@@ -27,9 +27,9 @@
 #include "synchronization.h"
 
 // Dimensions of matrices
-#define DIM_M 12
-#define DIM_N 12
-#define DIM_P 12
+#define DIM_M 16
+#define DIM_N 16
+#define DIM_P 16
 
 uint32_t *grid_mapping;
 
@@ -171,6 +171,10 @@ int main() {
     mempool_start_benchmark();
   }
 
+  // Start benchmark for all cores
+  // mempool_barrier(num_cores);
+  // mempool_start_benchmark();
+
   // Wait for all cores
   mempool_barrier(num_cores);
 
@@ -193,6 +197,10 @@ int main() {
   // Wait for all cores
   mempool_barrier(num_cores);
 
+  // Stop benchmark for all cores
+  // mempool_stop_benchmark();
+  // mempool_barrier(num_cores);
+
   // Print out benchmark
   if (core_id == 0) {
     // Stop benchmark
@@ -200,8 +208,8 @@ int main() {
     printf("> End\n");
 
     // Print out systolic matrix C
-    //printf("> Print Systolic Matrix C\n");
-    //systolic_matrix_print(syst_matrix_C);
+    // printf("> Print Systolic Matrix C\n");
+    // systolic_matrix_print(syst_matrix_C);
   }
 
   // wait until all cores have finished
