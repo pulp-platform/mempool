@@ -54,13 +54,14 @@ int32_t *queues_vert[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 int32_t *queues_horz[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 
 // queue push
-inline int32_t queue_push(int32_t *queue, int32_t data) {
-  return __atomic_fetch_and(queue, data, __ATOMIC_RELAXED);
+static inline void queue_push(void *const queue, int32_t data,
+                              int32_t *const ret) {
+  asm volatile("q.push.w %0, %1, (%2)" : "+r"(*ret) : "r"(data), "r"(queue));
 }
 
 // queue pop
-inline int32_t queue_pop(int32_t *queue) {
-  return __atomic_fetch_or(queue, 0, __ATOMIC_RELAXED);
+inline void queue_pop(void *const queue, int32_t *const ret) {
+  asm volatile("q.pop.w %0, 0(%1)" : "=r"(*ret) : "r"(queue));
 }
 
 // TODO: GENERALIZE FOR ANY NUMBER OF TILES
@@ -81,7 +82,22 @@ void systolic_init(uint32_t const *grid_mapping) {
       ++grid_pos;
     }
   }
-  // TODO: PRINT OUT THE ADDRESSES TO CHECK
+
+  // Print out queue addresses
+  // printf("queues_vert\n");
+  // for (uint32_t y = 0; y < SYSTOLIC_SIZE; ++y) {
+  //   for (uint32_t x = 0; x < SYSTOLIC_SIZE; ++x) {
+  //     printf("%5d ", queues_vert[y][x]);
+  //   }
+  //   printf("\n");
+  // }
+  // printf("queues_horz\n");
+  // for (uint32_t y = 0; y < SYSTOLIC_SIZE; ++y) {
+  //   for (uint32_t x = 0; x < SYSTOLIC_SIZE; ++x) {
+  //     printf("%5d ", queues_horz[y][x]);
+  //   }
+  //   printf("\n");
+  // }
 }
 
 void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
@@ -165,8 +181,8 @@ void systolic_rcp_pe(const uint32_t rep_count,
   int32_t *queue_next_vert;
   int32_t data_horz[4] = {0, 0, 0, 0};
   int32_t data_vert[4] = {0, 0, 0, 0};
-  int32_t resp_horz __attribute__((unused));
-  int32_t resp_vert __attribute__((unused));
+  int32_t resp_horz __attribute__((unused)) = 0;
+  int32_t resp_vert __attribute__((unused)) = 0;
   int32_t *matrix_A;
   int32_t *matrix_B;
   int32_t *matrix_C;
@@ -209,25 +225,25 @@ void systolic_rcp_pe(const uint32_t rep_count,
       for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
         data_horz[0] = matrix_A[y * num_cols_A + i];
         data_vert[0] = matrix_B[i * num_cols_B + x];
-        resp_horz = queue_push(queue_next_horz, data_horz[0]);
-        resp_vert = queue_push(queue_next_vert, data_vert[0]);
-        curr_element_0_C += data_horz[0] * data_vert[0];
+        queue_push(queue_next_horz, data_horz[0], &resp_horz);
+        queue_push(queue_next_vert, data_vert[0], &resp_vert);
         data_horz[1] = matrix_A[y * num_cols_A + i + 1];
         data_vert[1] = matrix_B[(i + 1) * num_cols_B + x];
-        resp_horz = queue_push(queue_next_horz, data_horz[1]);
-        resp_vert = queue_push(queue_next_vert, data_vert[1]);
-        curr_element_0_C += data_horz[1] * data_vert[1];
+        curr_element_0_C += data_horz[0] * data_vert[0];
+        queue_push(queue_next_horz, data_horz[1], &resp_horz);
+        queue_push(queue_next_vert, data_vert[1], &resp_vert);
         data_horz[2] = matrix_A[(y + 1) * num_cols_A + i];
         data_vert[2] = matrix_B[i * num_cols_B + x + 1];
-        resp_horz = queue_push(queue_next_horz, data_horz[1]);
-        resp_vert = queue_push(queue_next_vert, data_vert[1]);
+        curr_element_0_C += data_horz[1] * data_vert[1];
+        queue_push(queue_next_horz, data_horz[1], &resp_horz);
+        queue_push(queue_next_vert, data_vert[1], &resp_vert);
+        data_horz[3] = matrix_A[(y + 1) * num_cols_A + i + 1];
+        data_vert[3] = matrix_B[(i + 1) * num_cols_B + x + 1];
         curr_element_1_C += data_horz[0] * data_vert[2];
         curr_element_2_C += data_horz[2] * data_vert[0];
         curr_element_3_C += data_horz[2] * data_vert[2];
-        data_horz[3] = matrix_A[(y + 1) * num_cols_A + i + 1];
-        data_vert[3] = matrix_B[(i + 1) * num_cols_B + x + 1];
-        resp_horz = queue_push(queue_next_horz, data_horz[3]);
-        resp_vert = queue_push(queue_next_vert, data_vert[3]);
+        queue_push(queue_next_horz, data_horz[3], &resp_horz);
+        queue_push(queue_next_vert, data_vert[3], &resp_vert);
         curr_element_1_C += data_horz[1] * data_vert[3];
         curr_element_2_C += data_horz[3] * data_vert[1];
         curr_element_3_C += data_horz[3] * data_vert[3];
@@ -253,8 +269,8 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   int32_t *queue_next_vert;
   int32_t data_horz[4] = {0, 0, 0, 0};
   int32_t data_vert[4] = {0, 0, 0, 0};
-  int32_t resp_horz __attribute__((unused));
-  int32_t resp_vert __attribute__((unused));
+  int32_t resp_horz __attribute__((unused)) = 0;
+  int32_t resp_vert __attribute__((unused)) = 0;
   int32_t *matrix_B;
   int32_t *matrix_C;
   uint32_t num_cols_B;
@@ -305,26 +321,26 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
           // Systolic matrix multiplication through MACs
           for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
             data_vert[0] = matrix_B[i * num_cols_B + shifted_x];
-            data_horz[0] = queue_pop(queue_prev_horz);
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
-            curr_element_0_C += data_horz[0] * data_vert[0];
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
             data_vert[1] = matrix_B[(i + 1) * num_cols_B + shifted_x];
-            data_horz[1] = queue_pop(queue_prev_horz);
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
-            curr_element_0_C += data_horz[1] * data_vert[1];
+            curr_element_0_C += data_horz[0] * data_vert[0];
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
             data_vert[2] = matrix_B[i * num_cols_B + shifted_x + 1];
-            data_horz[2] = queue_pop(queue_prev_horz);
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
+            curr_element_0_C += data_horz[1] * data_vert[1];
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
+            data_vert[3] = matrix_B[(i + 1) * num_cols_B + shifted_x + 1];
             curr_element_1_C += data_horz[0] * data_vert[2];
             curr_element_2_C += data_horz[2] * data_vert[0];
             curr_element_3_C += data_horz[2] * data_vert[2];
-            data_vert[3] = matrix_B[(i + 1) * num_cols_B + shifted_x + 1];
-            data_horz[3] = queue_pop(queue_prev_horz);
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
             curr_element_1_C += data_horz[1] * data_vert[3];
             curr_element_2_C += data_horz[3] * data_vert[1];
             curr_element_3_C += data_horz[3] * data_vert[3];
@@ -340,18 +356,18 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
         } else {
           // Pop and push dummy data
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
-            data_horz[1] = queue_pop(queue_prev_horz);
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
-            data_horz[2] = queue_pop(queue_prev_horz);
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
-            data_horz[3] = queue_pop(queue_prev_horz);
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
           }
         }
       }
@@ -374,22 +390,22 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
           // Systolic matrix multiplication through MACs
           for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
             data_vert[0] = matrix_B[i * num_cols_B + shifted_x];
-            data_horz[0] = queue_pop(queue_prev_horz);
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
-            curr_element_0_C += data_horz[0] * data_vert[0];
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
             data_vert[1] = matrix_B[(i + 1) * num_cols_B + shifted_x];
-            data_horz[1] = queue_pop(queue_prev_horz);
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
-            curr_element_0_C += data_horz[1] * data_vert[1];
+            curr_element_0_C += data_horz[0] * data_vert[0];
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
             data_vert[2] = matrix_B[i * num_cols_B + shifted_x + 1];
-            data_horz[2] = queue_pop(queue_prev_horz);
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
+            curr_element_0_C += data_horz[1] * data_vert[1];
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
+            data_vert[3] = matrix_B[(i + 1) * num_cols_B + shifted_x + 1];
             curr_element_1_C += data_horz[0] * data_vert[2];
             curr_element_2_C += data_horz[2] * data_vert[0];
             curr_element_3_C += data_horz[2] * data_vert[2];
-            data_vert[3] = matrix_B[(i + 1) * num_cols_B + shifted_x + 1];
-            data_horz[3] = queue_pop(queue_prev_horz);
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
             curr_element_1_C += data_horz[1] * data_vert[3];
             curr_element_2_C += data_horz[3] * data_vert[1];
             curr_element_3_C += data_horz[3] * data_vert[3];
@@ -405,14 +421,14 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
         } else {
           // Pop and push dummy data
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            resp_vert = queue_push(queue_next_vert, data_horz[0]);
-            data_horz[1] = queue_pop(queue_prev_horz);
-            resp_vert = queue_push(queue_next_vert, data_horz[1]);
-            data_horz[2] = queue_pop(queue_prev_horz);
-            resp_vert = queue_push(queue_next_vert, data_horz[2]);
-            data_horz[3] = queue_pop(queue_prev_horz);
-            resp_vert = queue_push(queue_next_vert, data_horz[3]);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_push(queue_next_vert, data_horz[0], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_push(queue_next_vert, data_horz[1], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_push(queue_next_vert, data_horz[2], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_push(queue_next_vert, data_horz[3], &resp_vert);
           }
         }
       }
@@ -429,8 +445,8 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   int32_t *queue_next_vert;
   int32_t data_horz[4] = {0, 0, 0, 0};
   int32_t data_vert[4] = {0, 0, 0, 0};
-  int32_t resp_horz __attribute__((unused));
-  int32_t resp_vert __attribute__((unused));
+  int32_t resp_horz __attribute__((unused)) = 0;
+  int32_t resp_vert __attribute__((unused)) = 0;
   int32_t *matrix_A;
   int32_t *matrix_C;
   uint32_t num_cols_A;
@@ -481,26 +497,26 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
           // Systolic matrix multiplication through MACs
           for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
             data_horz[0] = matrix_A[shifted_y * num_cols_A + i];
-            data_vert[0] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
-            curr_element_0_C += data_horz[0] * data_vert[0];
+            queue_pop(queue_prev_vert, &data_vert[0]);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
             data_horz[1] = matrix_A[shifted_y * num_cols_A + i + 1];
-            data_vert[1] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
-            curr_element_0_C += data_horz[1] * data_vert[1];
+            curr_element_0_C += data_horz[0] * data_vert[0];
+            queue_pop(queue_prev_vert, &data_vert[1]);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
             data_horz[2] = matrix_A[(shifted_y + 1) * num_cols_A + i];
-            data_vert[2] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
+            curr_element_0_C += data_horz[1] * data_vert[1];
+            queue_pop(queue_prev_vert, &data_vert[2]);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
+            data_horz[3] = matrix_A[(shifted_y + 1) * num_cols_A + i + 1];
             curr_element_1_C += data_horz[0] * data_vert[2];
             curr_element_2_C += data_horz[2] * data_vert[0];
             curr_element_3_C += data_horz[2] * data_vert[2];
-            data_horz[3] = matrix_A[(shifted_y + 1) * num_cols_A + i + 1];
-            data_vert[3] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
             curr_element_1_C += data_horz[1] * data_vert[3];
             curr_element_2_C += data_horz[3] * data_vert[1];
             curr_element_3_C += data_horz[3] * data_vert[3];
@@ -516,18 +532,18 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
         } else {
           // Pop and push dummy data
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_vert[0] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
-            data_vert[1] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
-            data_vert[2] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
-            data_vert[3] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
+            queue_pop(queue_prev_vert, &data_vert[1]);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
+            queue_pop(queue_prev_vert, &data_vert[2]);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
+            queue_pop(queue_prev_vert, &data_vert[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
           }
         }
       }
@@ -550,22 +566,22 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
           // Systolic matrix multiplication through MACs
           for (uint32_t i = 0; i < 2 * rep_count; i += 2) {
             data_horz[0] = matrix_A[shifted_y * num_cols_A + i];
-            data_vert[0] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
-            curr_element_0_C += data_horz[0] * data_vert[0];
+            queue_pop(queue_prev_vert, &data_vert[0]);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
             data_horz[1] = matrix_A[shifted_y * num_cols_A + i + 1];
-            data_vert[1] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
-            curr_element_0_C += data_horz[1] * data_vert[1];
+            curr_element_0_C += data_horz[0] * data_vert[0];
+            queue_pop(queue_prev_vert, &data_vert[1]);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
             data_horz[2] = matrix_A[(shifted_y + 1) * num_cols_A + i];
-            data_vert[2] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
+            curr_element_0_C += data_horz[1] * data_vert[1];
+            queue_pop(queue_prev_vert, &data_vert[2]);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
+            data_horz[3] = matrix_A[(shifted_y + 1) * num_cols_A + i + 1];
             curr_element_1_C += data_horz[0] * data_vert[2];
             curr_element_2_C += data_horz[2] * data_vert[0];
             curr_element_3_C += data_horz[2] * data_vert[2];
-            data_horz[3] = matrix_A[(shifted_y + 1) * num_cols_A + i + 1];
-            data_vert[3] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
             curr_element_1_C += data_horz[1] * data_vert[3];
             curr_element_2_C += data_horz[3] * data_vert[1];
             curr_element_3_C += data_horz[3] * data_vert[3];
@@ -581,14 +597,14 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
         } else {
           // Pop and push dummy data
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_vert[0] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_vert[0]);
-            data_vert[1] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_vert[1]);
-            data_vert[2] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_vert[2]);
-            data_vert[3] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_vert[3]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
+            queue_push(queue_next_horz, data_vert[0], &resp_horz);
+            queue_pop(queue_prev_vert, &data_vert[1]);
+            queue_push(queue_next_horz, data_vert[1], &resp_horz);
+            queue_pop(queue_prev_vert, &data_vert[2]);
+            queue_push(queue_next_horz, data_vert[2], &resp_horz);
+            queue_pop(queue_prev_vert, &data_vert[3]);
+            queue_push(queue_next_horz, data_vert[3], &resp_horz);
           }
         }
       }
@@ -607,8 +623,8 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   int32_t data_horz[4] = {0, 0, 0, 0};
   int32_t data_vert[4] = {0, 0, 0, 0};
   int32_t data_dummy __attribute__((unused)) = 0;
-  int32_t resp_horz __attribute__((unused));
-  int32_t resp_vert __attribute__((unused));
+  int32_t resp_horz __attribute__((unused)) = 0;
+  int32_t resp_vert __attribute__((unused)) = 0;
   int32_t *matrix_C;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
@@ -661,27 +677,27 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
           // Systolic matrix multiplication through MACs
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            data_vert[0] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
             curr_element_0_C += data_horz[0] * data_vert[0];
-            data_horz[1] = queue_pop(queue_prev_horz);
-            data_vert[1] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_pop(queue_prev_vert, &data_vert[1]);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
             curr_element_0_C += data_horz[1] * data_vert[1];
-            data_horz[2] = queue_pop(queue_prev_horz);
-            data_vert[2] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_pop(queue_prev_vert, &data_vert[2]);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
             curr_element_1_C += data_horz[0] * data_vert[2];
             curr_element_2_C += data_horz[2] * data_vert[0];
             curr_element_3_C += data_horz[2] * data_vert[2];
-            data_horz[3] = queue_pop(queue_prev_horz);
-            data_vert[3] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
             curr_element_1_C += data_horz[1] * data_vert[3];
             curr_element_2_C += data_horz[3] * data_vert[1];
             curr_element_3_C += data_horz[3] * data_vert[3];
@@ -697,22 +713,22 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
         } else {
           // Pop and push dummy data
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            data_vert[0] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
-            data_horz[1] = queue_pop(queue_prev_horz);
-            data_vert[1] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
-            data_horz[2] = queue_pop(queue_prev_horz);
-            data_vert[2] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
-            data_horz[3] = queue_pop(queue_prev_horz);
-            data_vert[3] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_pop(queue_prev_vert, &data_vert[1]);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_pop(queue_prev_vert, &data_vert[2]);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
           }
         }
       }
@@ -738,23 +754,23 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
           // Systolic matrix multiplication through MACs
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            data_vert[0] = queue_pop(queue_prev_vert);
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
             curr_element_0_C += data_horz[0] * data_vert[0];
-            data_horz[1] = queue_pop(queue_prev_horz);
-            data_vert[1] = queue_pop(queue_prev_vert);
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_pop(queue_prev_vert, &data_vert[1]);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
             curr_element_0_C += data_horz[1] * data_vert[1];
-            data_horz[2] = queue_pop(queue_prev_horz);
-            data_vert[2] = queue_pop(queue_prev_vert);
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_pop(queue_prev_vert, &data_vert[2]);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
             curr_element_1_C += data_horz[0] * data_vert[2];
             curr_element_2_C += data_horz[2] * data_vert[0];
             curr_element_3_C += data_horz[2] * data_vert[2];
-            data_horz[3] = queue_pop(queue_prev_horz);
-            data_vert[3] = queue_pop(queue_prev_vert);
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
             curr_element_1_C += data_horz[1] * data_vert[3];
             curr_element_2_C += data_horz[3] * data_vert[1];
             curr_element_3_C += data_horz[3] * data_vert[3];
@@ -770,22 +786,22 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
         } else {
           // Pop and push dummy data
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            data_vert[0] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
             data_vert[0] += data_horz[0];
-            resp_vert = queue_push(queue_next_vert, data_vert[0]);
-            data_horz[1] = queue_pop(queue_prev_horz);
-            data_vert[1] = queue_pop(queue_prev_vert);
+            queue_push(queue_next_vert, data_vert[0], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_pop(queue_prev_vert, &data_vert[1]);
             data_vert[1] += data_horz[1];
-            resp_vert = queue_push(queue_next_vert, data_vert[1]);
-            data_horz[2] = queue_pop(queue_prev_horz);
-            data_vert[2] = queue_pop(queue_prev_vert);
+            queue_push(queue_next_vert, data_vert[1], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_pop(queue_prev_vert, &data_vert[2]);
             data_vert[2] += data_horz[2];
-            resp_vert = queue_push(queue_next_vert, data_vert[2]);
-            data_horz[3] = queue_pop(queue_prev_horz);
-            data_vert[3] = queue_pop(queue_prev_vert);
+            queue_push(queue_next_vert, data_vert[2], &resp_vert);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
             data_vert[3] += data_horz[3];
-            resp_vert = queue_push(queue_next_vert, data_vert[3]);
+            queue_push(queue_next_vert, data_vert[3], &resp_vert);
           }
         }
       }
@@ -811,23 +827,23 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
           // Systolic matrix multiplication through MACs
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            data_vert[0] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
             curr_element_0_C += data_horz[0] * data_vert[0];
-            data_horz[1] = queue_pop(queue_prev_horz);
-            data_vert[1] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_pop(queue_prev_vert, &data_vert[1]);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
             curr_element_0_C += data_horz[1] * data_vert[1];
-            data_horz[2] = queue_pop(queue_prev_horz);
-            data_vert[2] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_pop(queue_prev_vert, &data_vert[2]);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
             curr_element_1_C += data_horz[0] * data_vert[2];
             curr_element_2_C += data_horz[2] * data_vert[0];
             curr_element_3_C += data_horz[2] * data_vert[2];
-            data_horz[3] = queue_pop(queue_prev_horz);
-            data_vert[3] = queue_pop(queue_prev_vert);
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
             curr_element_1_C += data_horz[1] * data_vert[3];
             curr_element_2_C += data_horz[3] * data_vert[1];
             curr_element_3_C += data_horz[3] * data_vert[3];
@@ -843,22 +859,22 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
         } else {
           // Pop and push dummy data
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            data_vert[0] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
             data_horz[0] += data_vert[0];
-            resp_horz = queue_push(queue_next_horz, data_horz[0]);
-            data_horz[1] = queue_pop(queue_prev_horz);
-            data_vert[1] = queue_pop(queue_prev_vert);
+            queue_push(queue_next_horz, data_horz[0], &resp_horz);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_pop(queue_prev_vert, &data_vert[1]);
             data_horz[1] += data_vert[1];
-            resp_horz = queue_push(queue_next_horz, data_horz[1]);
-            data_horz[2] = queue_pop(queue_prev_horz);
-            data_vert[2] = queue_pop(queue_prev_vert);
+            queue_push(queue_next_horz, data_horz[1], &resp_horz);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_pop(queue_prev_vert, &data_vert[2]);
             data_horz[2] += data_vert[2];
-            resp_horz = queue_push(queue_next_horz, data_horz[2]);
-            data_horz[3] = queue_pop(queue_prev_horz);
-            data_vert[3] = queue_pop(queue_prev_vert);
+            queue_push(queue_next_horz, data_horz[2], &resp_horz);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
             data_horz[3] += data_vert[3];
-            resp_horz = queue_push(queue_next_horz, data_horz[3]);
+            queue_push(queue_next_horz, data_horz[3], &resp_horz);
           }
         }
       }
@@ -884,19 +900,19 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
           // Systolic matrix multiplication through MACs
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            data_vert[0] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
             curr_element_0_C += data_horz[0] * data_vert[0];
-            data_horz[1] = queue_pop(queue_prev_horz);
-            data_vert[1] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_pop(queue_prev_vert, &data_vert[1]);
             curr_element_0_C += data_horz[1] * data_vert[1];
-            data_horz[2] = queue_pop(queue_prev_horz);
-            data_vert[2] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_pop(queue_prev_vert, &data_vert[2]);
             curr_element_1_C += data_horz[0] * data_vert[2];
             curr_element_2_C += data_horz[2] * data_vert[0];
             curr_element_3_C += data_horz[2] * data_vert[2];
-            data_horz[3] = queue_pop(queue_prev_horz);
-            data_vert[3] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
             curr_element_1_C += data_horz[1] * data_vert[3];
             curr_element_2_C += data_horz[3] * data_vert[1];
             curr_element_3_C += data_horz[3] * data_vert[3];
@@ -912,17 +928,17 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
         } else {
           // Pop and push dummy data
           for (uint32_t i = 0; i < rep_count; ++i) {
-            data_horz[0] = queue_pop(queue_prev_horz);
-            data_vert[0] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[0]);
+            queue_pop(queue_prev_vert, &data_vert[0]);
             data_dummy += data_horz[0] * data_vert[0];
-            data_horz[1] = queue_pop(queue_prev_horz);
-            data_vert[1] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[1]);
+            queue_pop(queue_prev_vert, &data_vert[1]);
             data_dummy += data_horz[1] * data_vert[1];
-            data_horz[2] = queue_pop(queue_prev_horz);
-            data_vert[2] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[2]);
+            queue_pop(queue_prev_vert, &data_vert[2]);
             data_dummy += data_horz[2] * data_vert[2];
-            data_horz[3] = queue_pop(queue_prev_horz);
-            data_vert[3] = queue_pop(queue_prev_vert);
+            queue_pop(queue_prev_horz, &data_horz[3]);
+            queue_pop(queue_prev_vert, &data_vert[3]);
             data_dummy += data_horz[3] * data_vert[3];
             // TODO: FIND SAFER WAY TO ENFORCE DATA DEPENDENCY
             if (!data_dummy)
