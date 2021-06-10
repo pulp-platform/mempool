@@ -1,3 +1,7 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 # Create group for group $1 tile $2
 
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::NumBanksPerTile

@@ -1,3 +1,7 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 # Create group for core $3 from group $1 tile $2 (core_id=NUM_CORES_PER_group*$1+NUM_CORES_PER_TILE*$2+$3)
 
 add wave -noupdate -group core[$1][$2][$3] -group Params /mempool_tb/dut/i_mempool/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/riscv_core/BootAddr

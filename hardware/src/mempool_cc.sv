@@ -1,3 +1,7 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
 module mempool_cc #(
   parameter logic [31:0] BootAddr   = 32'h0000_1000,
   parameter logic [31:0] MTVEC      = BootAddr,

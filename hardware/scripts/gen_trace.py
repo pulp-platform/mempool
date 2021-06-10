@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 # This script takes a trace generated for a Snitch hart and transforms the
 # additional decode stage info into meaningful annotation. It also counts
 # and computes various performance metrics up to each mcycle CSR read.

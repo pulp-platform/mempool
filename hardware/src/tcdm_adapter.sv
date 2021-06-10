@@ -1,8 +1,13 @@
-/// Description: Handles the protocol conversion from valid/ready to req/gnt and correctly returns
-/// the metadata. Additionally, it handles atomics. Hence, it needs to be instantiated in front of
-/// an SRAM over which it has exclusive access.
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
 
-/// Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
+// Description: Handles the protocol conversion from valid/ready to req/gnt and correctly returns
+// the metadata. Additionally, it handles atomics. Hence, it needs to be instantiated in front of
+// an SRAM over which it has exclusive access.
+//
+// Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
+
 `include "common_cells/registers.svh"
 
 module tcdm_adapter #(
