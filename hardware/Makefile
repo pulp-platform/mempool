@@ -19,6 +19,7 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
+TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
 
 # Include configuration
 config_mk = $(abspath $(ROOT_DIR)/../config/config.mk)
@@ -78,7 +79,9 @@ endif
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
-vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DBOOT_ADDR="32'h$(boot_addr)"
+vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
+
+.DEFAULT_GOAL := compile
 
 # Build path
 $(buildpath):
@@ -92,11 +95,11 @@ $(bender):
 .PHONY: lib
 lib: $(buildpath) $(buildpath)/$(library)
 $(buildpath)/$(library):
-	cd $(buildpath) && $(questa_cmd) vlib $(library) && chmod +w modelsim.ini && $(questa_cmd) vmap $(library) $(library)
+	cd $(buildpath) && $(questa_cmd) vlib $(library) && chmod +w modelsim.ini; $(questa_cmd) vmap $(library) $(library)
 
 # Compilation
 .PHONY: compile
-compile: dpi lib $(buildpath) $(buildpath)/compile.tcl
+compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
@@ -114,6 +117,22 @@ simc: clean-dasm compile
 	cd $(buildpath) && \
 	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
+
+# Unit tests simulation
+TESTS_DIR := $(abspath $(ROOT_DIR)/../apps/riscv-tests/isa)
+include $(TESTS_DIR)/snitch_isa.mk
+
+test_result_dir := $(resultpath)/test_result
+
+tests := $(addsuffix .out,$(addprefix $(test_result_dir)/,$(rtl_mempool_tests)))
+
+simc_test: clean-dasm compile $(tests)
+
+$(tests): $(test_result_dir)/%.out : $(app_path)/%
+	mkdir -p $(test_result_dir)
+	cd $(buildpath) && \
+	$(questa_cmd) vsim -c $(questa_args) +PRELOAD=$< $(library).$(top_level) -do "run -a"
+	./scripts/return_status.sh $(buildpath)/transcript > $@
 
 # Benchmarking
 benchmark: log simc
@@ -168,7 +187,11 @@ $(MEMPOOL_DIR)/apps/common/bootrom.img:
 	make -C $(MEMPOOL_DIR)/apps common/bootrom.img
 
 # Clean targets
-.PHONY: clean clean-dasm clean-trace
+.PHONY: clean clean-dasm clean-trace update_opcodes
+
+update_opcodes:
+	make -C $(TOOLCHAIN_DIR)/riscv-opcodes all
+
 clean:
 	rm -rf $(buildpath)
 

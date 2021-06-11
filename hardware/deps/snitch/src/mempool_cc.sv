@@ -119,10 +119,10 @@ module mempool_cc #(
     .data_o  ( acc_resp_q       )
   );
 
-  // Snitch Multiplier/Divider accelerator
-  snitch_shared_muldiv #(
+  // Snitch IPU accelerator
+  snitch_ipu #(
     .IdWidth ( 5 )
-  ) i_snitch_shared_muldiv (
+  ) i_snitch_ipu (
     .clk_i                                   ,
     .rst_i                                   ,
     .acc_qaddr_i      ( acc_req_q.addr      ),

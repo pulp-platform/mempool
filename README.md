@@ -49,12 +49,40 @@ cd apps
 make bin/hello_world
 ```
 
-You can also choose the compiler to build the application with using the `COMPILER` option. The possible options are `gcc` and `llvm`, the later being the default.
+You can also choose the compiler to build the application with using the `COMPILER` option. The possible options are `gcc` and `llvm`, the latter being the default.
 
 ```bash
 # Compile with GCC instead of LLVM
 make COMPILER=gcc bin/hello_world
 ```
+
+To run applications designed for the **Xpulpimg** extension, be sure to select the `gcc` compiler option.
+If all the Xpulpimg instructions implemented in Snitch at compilation time are supported by the Xpulpimg subset of the GCC compiler, you can build your application with the option `XPULPIMG` set to `1`:
+
+```bash
+# Compile with GCC supporting Xpulpimg instruction set
+make COMPILER=gcc XPULPIMG=1 bin/hello_world
+```
+
+Otherwise, if new Xpulpimg instructions have been implemented in Snitch, but the Xpulpimg extension in the compiler does not support them yet, you must be sure to use Xpulpimg instructions only in an `asm volatile` construct within your C/C++ application, and set `XPULPIMG=0`. This will work as long as Xpulpimg is a subset of Xpulpv2.
+
+If `XPULPIMG` is not forced while launching `make`, it will be defaulted to the `xpulpimg` value configured in `config/config.mk`. Note that such parameter in the configuration file also defines whether the Xpulpimg extension is enabled or not in the RTL of the Snitch core, and whether such Xpulpimg functionalities have to be tested or not by the `riscv-tests` unit tests.
+
+### Unit tests
+
+The system is provided with an automatic unit tests suit for verification purposes; the tests are located in `riscv-tests/isa`, and can be launched from the top-level directory with:
+```bash
+make test
+```
+The unit tests will be compiled, simulated in Spike and, finally, run on an RTL simulation of MemPool.
+The compilation and simulation (for both Spike simulator and MemPool RTL) of the unit tests also depends on the `xpulpimg` parameter in `config/config.mk`: the test cases dedicated to the Xpulpimg instructions will be compiled and simulated only if `xpulpimg=1`.
+To add more tests, you must add your own ones to the `riscv-isa` infrastructure; more information can be found in `apps/riscv-tests/README.md`.
+
+The unit tests are included in the software package of `apps`, and can be compiled for MemPool by launching in the `apps` directory:
+```bash
+make COMPILER=gcc test
+```
+Note that the unit tests need to be compiled with `gcc`. The same logic of normal applications concerning the `XPULPIMG` parameter applies for tests.
 
 ### Writing Applications
 
@@ -80,6 +108,8 @@ make trace
 # Automatically run the benchmark (headless), extract the traces, and log the results
 app=hello_world make benchmark
 ```
+
+You can set up the configuration of the system in the file `config/config.mk`, controlling the total number of cores, the number of cores per tile and whether the Xpulpimg extension is enabled or not in the Snitch core; the `xpulpimg` parameter also control the default core architecture considered when compiling applications for MemPool.
 
 ## Common Problems
 

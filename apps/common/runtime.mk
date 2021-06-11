@@ -29,19 +29,32 @@ LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
 
 COMPILER      ?= llvm
+XPULPIMG      ?= $(xpulpimg)
 
 RISCV_XLEN    ?= 32
-RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+
 RISCV_ABI     ?= ilp32
 RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
 ifeq ($(COMPILER),gcc)
 	# Use GCC
+	# GCC compiler -march
+	ifeq ($(XPULPIMG),1)
+		RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)
+	else
+		RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
+	endif
+	# GCC Toolchain
 	RISCV_PREFIX  ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-
 	RISCV_CC      ?= $(RISCV_PREFIX)gcc
 	RISCV_CXX     ?= $(RISCV_PREFIX)g++
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 else
 	# Use LLVM by default
+	# LLVM compiler -march
+	RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+	# GCC Toolchain
 	RISCV_PREFIX  ?= $(LLVM_INSTALL_DIR)/bin/llvm-
 	RISCV_CC      ?= $(LLVM_INSTALL_DIR)/bin/clang
 	RISCV_CXX     ?= $(LLVM_INSTALL_DIR)/bin/clang++
@@ -60,8 +73,10 @@ DEFINES := -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr)
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
 RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
-RISCV_FLAGS_COMMON ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
-RISCV_FLAGS_GCC    ?= -mcmodel=medany
+RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static
+RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
+RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS)
+
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -enable-misched
 ifeq ($(COMPILER),gcc)
 	RISCV_FLAGS    ?= $(RISCV_FLAGS_GCC)  $(RISCV_FLAGS_COMMON)
@@ -73,13 +88,16 @@ RISCV_CCFLAGS  ?= $(RISCV_FLAGS)
 RISCV_CXXFLAGS ?= $(RISCV_FLAGS)
 RISCV_LDFLAGS  ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS)
 ifeq ($(COMPILER),gcc)
-	RISCV_OBJDUMP_FLAGS ?=
+	RISCV_OBJDUMP_FLAGS ?= --disassembler-option="march=$(RISCV_ARCH_AS)"
 else
 	RISCV_OBJDUMP_FLAGS ?=
 endif
 
 LINKER_SCRIPT ?= common/arch.ld
 RUNTIME ?= $(LINKER_SCRIPT) common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o
+
+# For unit tests
+RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib -nostartfiles
 
 .INTERMEDIATE: $(RUNTIME)
 

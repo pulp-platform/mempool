@@ -1,4 +1,5 @@
-// Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
+// Authors: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
+//          Sergio Mazzola <smazzola@student.ethz.ch>
 // Description: Top-Level of Snitch Integer Core RV32E
 
 `include "common_cells/registers.svh"
@@ -89,7 +90,7 @@ module snitch #(
   logic wfi_d, wfi_q;
   logic [31:0] consec_pc;
   // Immediates
-  logic [31:0] iimm, uimm, jimm, bimm, simm;
+  logic [31:0] iimm, uimm, jimm, bimm, simm, pbimm;
   /* verilator lint_off WIDTH */
   assign iimm = $signed({inst_data_i[31:20]});
   assign uimm = {inst_data_i[31:12], 12'b0};
@@ -98,6 +99,7 @@ module snitch #(
   assign bimm = $signed({inst_data_i[31],
                                     inst_data_i[7], inst_data_i[30:25], inst_data_i[11:8], 1'b0});
   assign simm = $signed({inst_data_i[31:25], inst_data_i[11:7]});
+  assign pbimm = $signed(inst_data_i[24:20]); // Xpulpimg immediate branching signed immediate
   /* verilator lint_on WIDTH */
 
   logic [31:0] opa, opb;
@@ -158,16 +160,21 @@ module snitch #(
 
   // ALU Operations
   enum logic [3:0]  {
+    // Arithmetical operations
     Add, Sub,
-    Slt, Sltu,
+    // Shifts
     Sll, Srl, Sra,
+    // Logical operations
     LXor, LOr, LAnd, LNAnd,
+    // Comparisons
     Eq, Neq, Ge, Geu,
+    Slt, Sltu,
+    // Miscellaneous
     BypassA
   } alu_op;
 
   enum logic [3:0] {
-    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmmediate
+    None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate, PBImmediate
   } opa_select, opb_select;
 
   logic write_rd; // write desitnation this cycle
@@ -534,7 +541,7 @@ module snitch #(
         csr_en = 1'b1;
       end
       riscv_instr::CSRRWI: begin
-        opa_select = CSRImmmediate;
+        opa_select = CSRImmediate;
         opb_select = None;
         rd_select = RdBypass;
         rd_bypass = csr_rvalue;
@@ -552,7 +559,7 @@ module snitch #(
         // offload CSR enable to FP SS
         if (inst_data_i[31:20] != snitch_pkg::CSR_SSR) begin
           alu_op = LOr;
-          opa_select = CSRImmmediate;
+          opa_select = CSRImmediate;
           opb_select = CSR;
           rd_select = RdBypass;
           rd_bypass = csr_rvalue;
@@ -573,7 +580,7 @@ module snitch #(
       riscv_instr::CSRRCI: begin
         if (inst_data_i[31:20] != snitch_pkg::CSR_SSR) begin
           alu_op = LNAnd;
-          opa_select = CSRImmmediate;
+          opa_select = CSRImmediate;
           opb_select = CSR;
           rd_select = RdBypass;
           rd_bypass = csr_rvalue;
@@ -647,7 +654,7 @@ module snitch #(
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
-        ls_amo = AMOMinu;
+        ls_amo = AMOMin;
         opa_select = Reg;
         opb_select = Reg;
       end
@@ -717,7 +724,7 @@ module snitch #(
         opa_select = Reg;
         opb_select = Reg;
       end
-      // Off-load to shared multiplier
+      // Off-load to IPU coprocessor
       riscv_instr::MUL,
       riscv_instr::MULH,
       riscv_instr::MULHSU,
@@ -738,7 +745,60 @@ module snitch #(
         opb_select = Reg;
         acc_register_rd = 1'b1;
       end
-      // Offload Multiply Instructions
+
+/* Xpulpimg extension */
+      // Off-load to IPU coprocessor
+      riscv_instr::P_ABS,          // Xpulpimg: p.abs
+      riscv_instr::P_SLET,         // Xpulpimg: p.slet
+      riscv_instr::P_SLETU,        // Xpulpimg: p.sletu
+      riscv_instr::P_MIN,          // Xpulpimg: p.min
+      riscv_instr::P_MINU,         // Xpulpimg: p.minu
+      riscv_instr::P_MAX,          // Xpulpimg: p.max
+      riscv_instr::P_MAXU,         // Xpulpimg: p.maxu
+      riscv_instr::P_EXTHS,        // Xpulpimg: p.exths
+      riscv_instr::P_EXTHZ,        // Xpulpimg: p.exthz
+      riscv_instr::P_EXTBS,        // Xpulpimg: p.extbs
+      riscv_instr::P_EXTBZ,        // Xpulpimg: p.extbz
+      riscv_instr::P_CLIP,         // Xpulpimg: p.clip
+      riscv_instr::P_CLIPU,        // Xpulpimg: p.clipu
+      riscv_instr::P_CLIPR,        // Xpulpimg: p.clipr
+      riscv_instr::P_CLIPUR: begin // Xpulpimg: p.clipur
+        if (snitch_pkg::XPULPIMG) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      // Immediate branching
+      riscv_instr::P_BEQIMM: begin // Xpulpimg: p.beqimm
+        if (snitch_pkg::XPULPIMG) begin
+          is_branch = 1'b1;
+          write_rd = 1'b0;
+          alu_op = Eq;
+          opa_select = Reg;
+          opb_select = PBImmediate;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::P_BNEIMM: begin // Xpulpimg: p.bneimm
+        if (snitch_pkg::XPULPIMG) begin
+          is_branch = 1'b1;
+          write_rd = 1'b0;
+          alu_op = Neq;
+          opa_select = Reg;
+          opb_select = PBImmediate;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+/* end of Xpulpimg extension */
+
       // TODO(zarubaf): Illegal Instructions
       default: begin
         illegal_inst = 1'b1;
@@ -818,7 +878,7 @@ module snitch #(
       Reg: opa = gpr_rdata[0];
       UImmediate: opa = uimm;
       JImmediate: opa = jimm;
-      CSRImmmediate: opa = {{{32-RegWidth}{1'b0}}, rs1};
+      CSRImmediate: opa = {{{32-RegWidth}{1'b0}}, rs1};
       default: opa = '0;
     endcase
   end
@@ -831,6 +891,7 @@ module snitch #(
       SFImmediate, SImmediate: opb = simm;
       PC: opb = pc_q;
       CSR: opb = csr_rvalue;
+      PBImmediate: opb = pbimm;
       default: opb = '0;
     endcase
   end
@@ -870,7 +931,9 @@ module snitch #(
     shift_arithmetic = 1'b0;
 
     unique case (alu_op)
+      // Arithmetical operations
       Sub: alu_opb = -$signed(opb);
+      // Comparisons
       Slt: begin
         alu_opb = -$signed(opb);
         alu_result = {30'b0, adder_result[32]};
@@ -889,6 +952,7 @@ module snitch #(
         alu_opb = -$unsigned(opb);
         alu_result = {30'b0, ~adder_result[32]};
       end
+      // Shifts
       Sll: begin
         shift_left = 1'b1;
         alu_result = shift_left_result;
@@ -898,10 +962,12 @@ module snitch #(
         shift_arithmetic = 1'b1;
         alu_result = shift_right_result;
       end
+      // Logical operations
       LXor: alu_result = opa ^ opb;
       LAnd: alu_result = opa & opb;
       LNAnd: alu_result = (~opa) & opb;
       LOr: alu_result = opa | opb;
+      // Equal, not equal
       Eq: begin
         alu_opb = -$signed(opb);
         alu_result = ~|adder_result;
@@ -910,6 +976,7 @@ module snitch #(
         alu_opb = -$signed(opb);
         alu_result = |adder_result;
       end
+      // Miscellaneous
       BypassA: begin
         alu_result = opa;
       end

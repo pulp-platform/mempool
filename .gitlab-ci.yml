@@ -82,7 +82,10 @@ halide:
 hardware:
   stage: test
   script:
-    - make -C hardware
+    # Don't regenerate the bootrom, we just want to see if the HW compiles
+    - touch apps/common/bootrom.img
+    - touch hardware/src/bootrom.sv
+    - make -C hardware compile
   needs: []
 
 # Software tests
@@ -127,6 +130,24 @@ apps-gcc:
   variables:
     COMPILER: "gcc"
   needs: ["tc-gcc","riscv-isa-sim"]
+
+# Unit tests
+unit-tests:
+  stage: test
+  script:
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
+    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
+    - make test
+  variables:
+    COMPILER: "gcc"
+  needs: ["tc-gcc","riscv-isa-sim"]
+  artifacts:
+    paths:
+      - apps/riscv-tests/isa/*.dump
+      - apps/riscv-tests/isa/*.out32
+      - apps/bin/*.dump
+      - hardware/build/transcript
+      - hardware/results
 
 # Code style test
 code-style:

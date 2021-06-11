@@ -16,6 +16,8 @@
 
 // Author: Samuel Riedel, ETH Zurich
 
+static inline unsigned amo_add(void volatile *const address, unsigned value);
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -44,7 +46,7 @@ void mempool_barrier_init_sleep(uint32_t core_id, uint32_t num_cores) {
     barrier = 0;
     barrier_iteration = 0;
     barrier_init = 1;
-    wake_up(-1);
+    wake_up((uint32_t)-1);
   } else {
     mempool_wfi();
   }
@@ -53,15 +55,36 @@ void mempool_barrier_init_sleep(uint32_t core_id, uint32_t num_cores) {
 void mempool_barrier(uint32_t num_cores, uint32_t cycles) {
   // Remember previous iteration
   uint32_t iteration_old = barrier_iteration;
+
   // Increment the barrier counter
-  if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_SEQ_CST)) {
+  if ((num_cores - 1) ==
+      amo_add(&barrier, 1)) { /* if __atomic_fetch_add built-in not defined */
+    //__atomic_fetch_add(&barrier, 1, __ATOMIC_SEQ_CST)) {
     // We are the last one to reach the barrier --> reset barrier and increment
     // barrier_iteration
     barrier = 0;
-    __atomic_fetch_add(&barrier_iteration, 1, __ATOMIC_SEQ_CST);
+    //__atomic_fetch_add(&barrier_iteration, 1, __ATOMIC_SEQ_CST);
+    amo_add(&barrier_iteration, 1);
   } else {
     // Some threads have not reached the barrier --> Let's wait
     while (iteration_old == barrier_iteration)
       mempool_wait(cycles);
   }
+}
+
+/**
+
+ * Expose the atomic add instruction.
+ *
+ * @param   address     A pointer to an address on L2 memory to store the value.
+ * @param   value       Value to add to the specified memory location.
+ *
+ * @return  Value previously stored in memory.
+ */
+static inline unsigned amo_add(void volatile *const address, unsigned value) {
+  unsigned ret;
+  __asm__ __volatile__("" : : : "memory");
+  asm volatile("amoadd.w  %0, %1, (%2)" : "=r"(ret) : "r"(value), "r"(address));
+  __asm__ __volatile__("" : : : "memory");
+  return ret;
 }

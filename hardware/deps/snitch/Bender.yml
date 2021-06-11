@@ -19,6 +19,7 @@ sources:
     - src/snitch_regfile_ff.sv
     # - src/snitch_regfile_latch.sv
     - src/snitch_lsu.sv
+    - src/snitch_ipu.sv
     - src/snitch_shared_muldiv.sv
     - src/snitch_demux.sv
     - src/mempool_cc.sv

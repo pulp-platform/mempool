@@ -35,6 +35,8 @@ echo "Checking C/C++ files for clang-format compliance"
 clang_files=$(echo $files | tr ' ' '\n' | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
 # Remove files from dependencies
 clang_files=$(echo $clang_files | grep -vP "hardware/deps/")
+clang_files=$(echo $clang_files | grep -vP "toolchain/")
+clang_files=$(echo $clang_files | grep -vP "be/")
 for file in $clang_files; do
   echo $file
   ./.gitlab-ci.d/run_clang_format.py \
@@ -44,6 +46,11 @@ done
 
 # Check for trailing whitespaces and tabs
 echo "Checking for trailing whitespaces and tabs"
-git diff --check $base HEAD -- ':(exclude)**.def' ':(exclude)**.patch' || EXIT_STATUS=$?
+git diff --check $base HEAD -- \
+    ':(exclude)**.def' \
+    ':(exclude)**.patch' \
+    ':(exclude)toolchain/**' \
+    ':(exclude)apps/riscv-tests/**' \
+    || EXIT_STATUS=$?
 
 exit $EXIT_STATUS

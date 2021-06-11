@@ -6,6 +6,8 @@ package snitch_pkg;
   localparam int NumFPOutstandingLoads  = 4;
   localparam int NumIntOutstandingLoads = 8;
   localparam ReorderIdWidth             = $clog2(NumIntOutstandingLoads);
+  // Xpulpimg extension enabled?
+  localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
 
   typedef logic [31:0]               addr_t;
   typedef logic [DataWidth-1:0]      data_t;

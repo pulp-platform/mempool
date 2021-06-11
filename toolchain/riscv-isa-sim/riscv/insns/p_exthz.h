@@ -1,0 +1,1 @@
+WRITE_RD(zext16(RS1));

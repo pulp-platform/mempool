@@ -20,12 +20,14 @@ ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 
 INSTALL_PREFIX      ?= install
+APPS_PREFIX         ?= apps
 INSTALL_DIR         ?= ${ROOT_DIR}/${INSTALL_PREFIX}
 GCC_INSTALL_DIR     ?= ${INSTALL_DIR}/riscv-gcc
 ISA_SIM_INSTALL_DIR ?= ${INSTALL_DIR}/riscv-isa-sim
 LLVM_INSTALL_DIR    ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR  ?= ${INSTALL_DIR}/halide
 BENDER_INSTALL_DIR  ?= ${INSTALL_DIR}/bender
+RISCV_TESTS_DIR     ?= ${ROOT_DIR}/${APPS_PREFIX}/riscv-tests
 
 CMAKE ?= cmake-3.18.1
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
@@ -81,12 +83,35 @@ tc-llvm:
 	make -j4 all && \
 	make install
 
-riscv-isa-sim:
+riscv-isa-sim: update_opcodes
 	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
 	[ -d dtc ] || git clone git://git.kernel.org/pub/scm/utils/dtc/dtc.git && cd dtc; \
-	make install SETUP_PREFIX=$$(pwd)/install PREFIX=$$(pwd)/install && \
-	PATH=$$(pwd)/install/bin:$$PATH; cd ..; \
+	make install SETUP_PREFIX=$(ISA_SIM_INSTALL_DIR) PREFIX=$(ISA_SIM_INSTALL_DIR) && \
+	PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; cd ..; \
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
+
+# Unit tests for verification
+MINPOOL_CONFIG = num_cores=16 num_cores_per_tile=4
+
+.PHONY: test build_test clean_test
+
+test: build_test
+	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
+	make -C $(RISCV_TESTS_DIR)/isa run && \
+	COMPILER=gcc $(MINPOOL_CONFIG) make -C $(APPS_PREFIX) test && \
+	$(MINPOOL_CONFIG) make -C hardware simc_test
+
+build_test: update_opcodes
+	cd $(RISCV_TESTS_DIR); \
+	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
+	make isa -j4 && make install && \
+	cd isa && make -j4 all && \
+	$(MINPOOL_CONFIG) make -C ../../../hardware compile
+
+clean_test:
+	$(MAKE) -C hardware clean
+	$(MAKE) -C $(APPS_PREFIX) clean
+	$(MAKE) -C $(RISCV_TESTS_DIR) clean
 
 # Bender
 bender: check-bender
@@ -110,8 +135,11 @@ $(BENDER_INSTALL_DIR)/bender:
 apps:
 	make -C apps
 
+update_opcodes:
+	make -C toolchain/riscv-opcodes all
+
 format:
 	$(LLVM_INSTALL_DIR)/bin/clang-format -style=file -i --verbose $$(git diff --name-only HEAD | tr ' ' '\n' | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
 
-clean:
+clean: clean_test
 	rm -rf $(INSTALL_DIR)

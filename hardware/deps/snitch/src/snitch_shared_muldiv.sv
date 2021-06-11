@@ -1,5 +1,4 @@
 /// Shared Multiply/Divide a.k.a M Extension
-`include "common_cells/registers.svh"
 /// Based on Ariane Multiply Divide
 /// Author: Michael Schaffner,  <schaffner@iis.ee.ethz.ch>
 /// Author: Florian Zaruba , <zarubaf@iis.ee.ethz.ch>
@@ -24,6 +23,8 @@ module snitch_shared_muldiv #(
   output logic                     acc_pvalid_o,
   input  logic                     acc_pready_i
 );
+  `include "common_cells/registers.svh"
+
   typedef struct packed {
     logic [31:0]        result;
     logic [IdWidth-1:0] id;
