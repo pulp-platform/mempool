@@ -95,11 +95,11 @@ $(bender):
 .PHONY: lib
 lib: $(buildpath) $(buildpath)/$(library)
 $(buildpath)/$(library):
-	cd $(buildpath) && $(questa_cmd) vlib $(library) && chmod +w modelsim.ini && $(questa_cmd) vmap $(library) $(library)
+	cd $(buildpath) && $(questa_cmd) vlib $(library) && chmod +w modelsim.ini; $(questa_cmd) vmap $(library) $(library)
 
 # Compilation
 .PHONY: compile
-compile: update_opcodes dpi lib $(buildpath) $(buildpath)/compile.tcl
+compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_test > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
@@ -187,7 +187,7 @@ $(MEMPOOL_DIR)/apps/common/bootrom.img:
 	make -C $(MEMPOOL_DIR)/apps common/bootrom.img
 
 # Clean targets
-.PHONY: update_opcodes clean clean-dasm clean-trace
+.PHONY: clean clean-dasm clean-trace update_opcodes
 
 update_opcodes:
 	make -C $(TOOLCHAIN_DIR)/riscv-opcodes all

@@ -98,7 +98,6 @@ RUNTIME ?= $(LINKER_SCRIPT) common/crt0.S.o common/printf.c.o common/string.c.o 
 
 # For unit tests
 RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib -nostartfiles
-RUNTIME_TESTS ?= common/arch.ld
 
 .INTERMEDIATE: $(RUNTIME)
 

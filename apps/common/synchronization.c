@@ -46,7 +46,7 @@ void mempool_barrier_init_sleep(uint32_t core_id, uint32_t num_cores) {
     barrier = 0;
     barrier_iteration = 0;
     barrier_init = 1;
-    wake_up(-1);
+    wake_up((uint32_t)-1);
   } else {
     mempool_wfi();
   }

@@ -20,6 +20,7 @@
 // #define TOP4_STACK
 
 .globl _start
+.globl _eoc
 .section .text;
 .section .text.init;
 
@@ -32,8 +33,8 @@ _start:
     .option pop
 
     /* reset vector */
-    j reset_vector
-reset_vector:
+    j _reset_vector
+_reset_vector:
     li      x1, 0
     li      x4, 0
     li      x5, 0
@@ -87,15 +88,7 @@ reset_vector:
 #endif
     call    main
 
-eoc:
-    la      t0, eoc_reg
-    slli    t1, a0, 1
-    addi    t1, t1, 1
-    sw      t1, 0(t0)
-    la      ra, BOOT_BASE
-    ret
-
-fail:
+_eoc:
     la      t0, eoc_reg
     slli    t1, a0, 1
     addi    t1, t1, 1

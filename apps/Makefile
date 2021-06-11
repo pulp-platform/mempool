@@ -46,7 +46,7 @@ define rtl_mempool_tests_template
 
 TESTS_$(1) := $(addprefix bin/,$($(1)_mempool_tests))
 
-$$(TESTS_$(1)): bin/$(1)-mempool-%: $(TESTS_DIR)/$(1)/%.S $(RUNTIME_TESTS)
+$$(TESTS_$(1)): bin/$(1)-mempool-%: $(TESTS_DIR)/$(1)/%.S $(LINKER_SCRIPT)
 	mkdir -p $$(shell dirname $$@)
 	$$(RISCV_CC) $$(RISCV_CCFLAGS_TESTS) -T$$(CURDIR)/common/link.ld $$< -o $$@
 	$$(RISCV_STRIP) $$@ -g -S -d --strip-debug

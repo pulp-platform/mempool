@@ -60,8 +60,9 @@
 #define RVTEST_FP_ENABLE
 
 #define RISCV_MULTICORE_DISABLE                                                \
-        csrr a0, mhartid;                                                      \
-1:      bnez a0, 1b
+  csrr a0, mhartid;                                                            \
+  bnez a0, _sleep;                                                             \
+
 
 #define EXTRA_TVEC_USER
 #define EXTRA_TVEC_MACHINE
@@ -89,7 +90,13 @@ reset_vector:                                                                  \
   //-----------------------------------------------------------------------
 
 #define RVTEST_CODE_END                                                        \
-        csrrw x0, cycle, x0;
+_eoc:                                                                          \
+        la t0, eoc_reg;                                                        \
+        slli t1, a0, 1;                                                        \
+        addi t1, t1, 1;                                                        \
+        sw t1, 0(t0);                                                          \
+_sleep:                                                                        \
+        wfi;
 
 //-----------------------------------------------------------------------
 // Pass/Fail Macro
@@ -97,15 +104,15 @@ reset_vector:                                                                  \
 #define TESTNUM gp
 
 #define RVTEST_PASS                                                            \
-        li TESTNUM, 0;                                                         \
-1:      la t0, eoc_reg;                                                        \
-        sw TESTNUM, 0(t0);                                                     \
-        jal x0, 1b;
+        li a0, 0;                                                              \
+        j _eoc;
 
 #define RVTEST_FAIL                                                            \
-1:      beqz TESTNUM, 1b;                                                      \
-        la t0, eoc_reg;                                                        \
-        sw TESTNUM, 0(t0);
+        beqz TESTNUM, 1f;                                                      \
+        mv a0, TESTNUM;                                                        \
+        j _eoc;                                                                \
+1:      li a0, -1;                                                             \
+        j _eoc;
 
 //-----------------------------------------------------------------------
 // Data Section Macro
