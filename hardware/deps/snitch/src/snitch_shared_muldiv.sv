@@ -1,3 +1,7 @@
+// Copyright 2020 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
 /// Shared Multiply/Divide a.k.a M Extension
 /// Based on Ariane Multiply Divide
 /// Author: Michael Schaffner,  <schaffner@iis.ee.ethz.ch>
