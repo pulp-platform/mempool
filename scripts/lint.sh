@@ -46,7 +46,7 @@ echo "Checking C/C++ files for clang-format compliance"
 clang_files=$(echo "$files" | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
 for file in $clang_files; do
   echo $file
-  ./.gitlab-ci.d/run_clang_format.py \
+  ./scripts/run_clang_format.py \
     --clang-format-executable install/llvm/bin/clang-format \
     $file || EXIT_STATUS=$?
 done

@@ -42,30 +42,30 @@ tc-gcc:
   stage: tools
   script:
     - |
-      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup tc-riscv-gcc; then
+      if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup tc-riscv-gcc; then
         git submodule update --init --recursive -- toolchain/riscv-gnu-toolchain
         make tc-riscv-gcc
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert tc-riscv-gcc
+        $CI_PROJECT_DIR/scripts/memora_retry.sh insert tc-riscv-gcc
       fi
 
 tc-llvm:
   stage: tools
   script:
     - |
-      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup tc-llvm; then
+      if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup tc-llvm; then
         git submodule update --init --recursive -- toolchain/llvm-project
         make tc-llvm
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert tc-llvm
+        $CI_PROJECT_DIR/scripts/memora_retry.sh insert tc-llvm
       fi
 
 riscv-isa-sim:
   stage: tools
   script:
     - |
-      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup riscv-isa-sim; then
+      if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup riscv-isa-sim; then
         git submodule update --init --recursive -- toolchain/riscv-isa-sim
         make riscv-isa-sim
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert riscv-isa-sim
+        $CI_PROJECT_DIR/scripts/memora_retry.sh insert riscv-isa-sim
       fi
 
 verilator:
@@ -74,25 +74,25 @@ verilator:
     # The CI's ccache directory is very limited in size, so let's disable it.
     # Verilator requires a more recent version of python than the default one.
     - |
-      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator; then
+      if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup verilator; then
         git submodule update --init --recursive -- toolchain/verilator
         export PYTHON3=$(which python3-3.6.5)
         export VERILATOR_CI="--disable-defenv"
         make verilator
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert verilator
+        $CI_PROJECT_DIR/scripts/memora_retry.sh insert verilator
       fi
 
 halide:
   stage: build
   script:
     - |
-      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup halide; then
+      if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup halide; then
         # Download LLVM
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
+        $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-llvm
         # Build Halide
         git submodule update --init --recursive -- toolchain/halide
         make halide
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert halide
+        $CI_PROJECT_DIR/scripts/memora_retry.sh insert halide
       fi
   needs: ["tc-llvm"]
 
@@ -100,15 +100,15 @@ verilator_model:
   stage: build
   script:
     - |
-      if ! $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh lookup verilator_model; then
+      if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup verilator_model; then
         # Download Verilator and add missing links
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator
+        $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
+        $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator
         ln -s $VERILATOR_ROOT/share/verilator/include $VERILATOR_ROOT/include
         ln -s $VERILATOR_ROOT/share/verilator/bin/verilator_includer $VERILATOR_ROOT/bin/verilator_includer
         # Build the verilator model
         make -C hardware $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
-        $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh insert verilator_model
+        $CI_PROJECT_DIR/scripts/memora_retry.sh insert verilator_model
       fi
   variables:
     num_cores: "16"
@@ -134,8 +134,8 @@ hardware:
 
 .apps-script:
   script: &apps-script-anchor
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
     - cd apps
     - make COMPILER=${COMPILER} all
     - cd ../hardware
@@ -147,7 +147,7 @@ hardware:
 apps-llvm:
   <<: *apps-job-anchor
   script:
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-llvm
     - *apps-script-anchor
   variables:
     COMPILER: "llvm"
@@ -165,8 +165,8 @@ apps-gcc:
 unit-tests:
   stage: test
   script:
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
     - make test
   variables:
     COMPILER: "gcc"
@@ -184,10 +184,10 @@ unit-tests:
 verilator-tests:
   stage: test
   script:
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get verilator_model
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-riscv-gcc
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get riscv-isa-sim
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator_model
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-llvm
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
     - cd apps
     - |
       for APP in ${APPS}; do
@@ -212,8 +212,8 @@ code-style:
   stage: test
   script:
     # Download LLVM
-    - $CI_PROJECT_DIR/.gitlab-ci.d/memora_retry.sh get tc-llvm
-    - ./.gitlab-ci.d/lint.sh
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-llvm
+    - ./scripts/lint.sh
   needs: ["tc-llvm"]
   rules:
     - if: '$CI_MERGE_REQUEST_ID'
