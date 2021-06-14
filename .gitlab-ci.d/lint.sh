@@ -40,7 +40,6 @@ files=$(echo "$files" | xargs ls -d 2>/dev/null)
 # Remove files from dependencies
 files=$(echo "$files" | grep -vP "hardware/deps/")
 files=$(echo "$files" | grep -vP "toolchain/")
-files=$(echo "$files" | grep -vP "be/")
 
 # Only check C and C++ files for clang-format compatibility
 echo "Checking C/C++ files for clang-format compliance"
