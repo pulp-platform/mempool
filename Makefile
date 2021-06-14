@@ -131,6 +131,11 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	autoconf && ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
 	make -j4 && make install
 
+# Patch hardware for MemPool
+.PHONY: patch-hw
+patch-hw:
+	git apply hardware/deps/patches/*
+
 # Helper targets
 .PHONY: clean format apps
 
