@@ -1,1 +1,0 @@
-../../tb_tcdm_interconnect/hdl/defaults.svh
