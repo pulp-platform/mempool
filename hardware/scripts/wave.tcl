@@ -3,17 +3,17 @@ quietly WaveActivateNextPane {} 0
 
 # Add all cores from group 0 tile 0
 for {set core 0}  {$core < [examine -radix dec mempool_pkg::NumCoresPerTile]} {incr core} {
-    do ../scripts/wave_core.do 0 0 $core
+    do ../scripts/wave_core.tcl 0 0 $core
 }
 
 # Add specific cores from different tiles
-do ../scripts/wave_core.do 1 0 0
+do ../scripts/wave_core.tcl 1 0 0
 
 # Add groups
 for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr group} {
     # Add tiles
     for {set tile 0} {$tile < [expr min(4,[examine -radix dec /mempool_pkg::NumTilesPerGroup])]} {incr tile} {
-        do ../scripts/wave_tile.do $group $tile
+        do ../scripts/wave_tile.tcl $group $tile
     }
 
     # Interconnects

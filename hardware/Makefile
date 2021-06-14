@@ -124,7 +124,7 @@ $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.
 .PHONY: sim
 sim: clean-dasm compile
 	cd $(buildpath) && \
-	$(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.do
+	$(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.tcl
 	./scripts/return_status.sh $(buildpath)/transcript
 
 .PHONY: simc
