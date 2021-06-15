@@ -28,6 +28,7 @@ typedef struct {
   void (*fn) (void*);
   void *data;
   uint32_t nthreads;
+  uint32_t barrier;
   uint8_t thread_pool[16];
 } event_t;
 

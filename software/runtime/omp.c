@@ -13,9 +13,11 @@ void set_event(void (*fn) (void*), void *data, uint32_t nthreads)
   event.data = data;
   if(nthreads == 0){
     event.nthreads = 16;
+    event.barrier = 16;
   }
   else{
     event.nthreads = nthreads;
+    event.barrier = nthreads;
   }
   
 
@@ -31,10 +33,9 @@ void run_task(uint32_t core_id){
     if(event.thread_pool[core_id]){
         // printf(" %d\n", core_id);
         event.fn(event.data);
-        __atomic_add_fetch(&event.nthreads, -1, __ATOMIC_RELAXED);
+        __atomic_add_fetch(&event.barrier, -1, __ATOMIC_RELAXED);
     }
 }
-
 
 void GOMP_parallel_start (void (*fn) (void*), void *data, unsigned int num_threads)
 {
@@ -47,7 +48,7 @@ void GOMP_parallel_end (void)
 {
     // printf("GOMP_parallel_end\n");
 
-    while(event.nthreads > 0){
+    while(event.barrier > 0){
     	// printf("  %d  \n", event.nthreads);
     	mempool_wait(4 * 16);
     }
@@ -91,7 +92,7 @@ void GOMP_loop_dynamic_next (int *istart, int *iend)
 
 
 uint32_t omp_get_num_threads(void){
-	return mempool_get_core_count();
+	return event.nthreads;
 }
 
 uint32_t omp_get_thread_num(void){

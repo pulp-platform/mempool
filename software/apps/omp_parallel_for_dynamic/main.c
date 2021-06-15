@@ -36,8 +36,8 @@ int main() {
     
 
     mempool_start_benchmark();
-    #pragma omp parallel for num_threads(16) schedule(static)
-    for(int i = 0; i < 160; i++){
+    #pragma omp parallel for schedule(dynamic)
+    for(int i = 0; i < 16; i++){
       work(100);
     }
     mempool_stop_benchmark();
@@ -45,13 +45,13 @@ int main() {
     printf("Parallel Time %d\n",time);
     printf("Parallel end \n\n\n");
 
-    mempool_start_benchmark();
-    for(int i = 0; i < 160; i++){
-      work(100);
-    }
-    mempool_stop_benchmark();
-    time = mempool_get_timer();
-    printf("Sequential Time %d\n",time);
+    // mempool_start_benchmark();
+    // for(int i = 0; i < 16; i++){
+    //   work(100);
+    // }
+    // mempool_stop_benchmark();
+    // time = mempool_get_timer();
+    // printf("Sequential Time %d\n",time);
 
   } 
   else {
