@@ -27,11 +27,12 @@
 #include "synchronization.h"
 
 // Dimensions of matrices
-#define DIM_M 16
-#define DIM_N 16
-#define DIM_P 16
+#define DIM_M 24
+#define DIM_N 24
+#define DIM_P 24
 
-uint32_t *grid_mapping;
+uint32_t *tile_mapping;
+uint32_t *core_mapping;
 
 int32_t *matrix_A;
 int32_t *matrix_B;
@@ -77,7 +78,8 @@ int main() {
 
   // Allocate systolic grid mapping
   if (core_id == 0) {
-    grid_mapping = (uint32_t *)simple_malloc(num_cores * 4);
+    tile_mapping = (uint32_t *)simple_malloc(num_cores * 4);
+    core_mapping = (uint32_t *)simple_malloc(num_cores * 4);
   }
 
   // ----------
@@ -92,44 +94,53 @@ int main() {
   uint32_t col_idx = core_id / 4;
   uint32_t row_idx = core_id % 4;
 
-  // Assign grid position (tile wise)
-  // uint32_t col_idx;
-  // uint32_t row_idx;
-  // if (core_id < 4) {
-  //   col_idx = core_id % 2;
-  //   row_idx = core_id / 2;
-  // } else if (core_id < 8) {
-  //   col_idx = core_id % 2 + 2;
-  //   row_idx = core_id / 6;
-  // } else if (core_id < 12) {
-  //   col_idx = core_id % 2;
-  //   row_idx = core_id / 10 + 2;
-  // } else {
-  //   col_idx = core_id % 2 + 2;
-  //   row_idx = core_id / 14 + 2;
-  // }
-
-  // uint32_t mapped_tile = tile_id;
+  // Assign grid position (square wise)
+  // uint32_t col_idx = tile_id % 2;
+  // col_idx *= 2;
+  // col_idx += core_id % 2;
+  // uint32_t row_idx = tile_id / 2;
+  // row_idx *= 2;
+  // row_idx += (core_id % 4) / 2;
 
   // ----------
   // 256 CORES
   // ----------
 
+  // Assign grid position (row wise)
+  // uint32_t col_idx = core_id % 16;
+  // uint32_t row_idx = core_id / 16;
+
   // Assign grid position (col wise)
   // uint32_t col_idx = core_id / 16;
   // uint32_t row_idx = core_id % 16;
 
-  // Assign grid position (tile wise)
-  // uint32_t mapped_group = core_id % 4;
-  // uint32_t col_idx = tile_id / 4;
-  // uint32_t row_idx = (tile_id % 4) + (mapped_group * 4);
-  // uint32_t mapped_tile = (tile_id % 16) + (mapped_group * 16);
+  // Assign grid position (square wise)
+  // uint32_t col_idx = tile_id % 8;
+  // col_idx *= 2;
+  // col_idx += core_id % 2;
+  // uint32_t row_idx = tile_id / 8;
+  // row_idx *= 2;
+  // row_idx += (core_id % 4) / 2;
+
+  // Assign grid position (square square wise)
+  // uint32_t group_id = tile_id / 16;
+  // uint32_t add_col = group_id % 2;
+  // uint32_t add_row = group_id / 2;
+  // uint32_t col_idx = tile_id % 4;
+  // col_idx *= 2;
+  // col_idx += core_id % 2;
+  // col_idx += add_col * 8;
+  // uint32_t row_idx = (tile_id % 16) / 4;
+  // row_idx *= 2;
+  // row_idx += (core_id % 4) / 2;
+  // row_idx += add_row * 8;
 
   // Wait for all cores
   mempool_barrier(num_cores);
 
-  // Set systolic grid mapping
-  grid_mapping[row_idx * SYSTOLIC_SIZE + col_idx] = tile_id;
+  // Set tile and core mapping
+  tile_mapping[row_idx * SYSTOLIC_SIZE + col_idx] = tile_id;
+  core_mapping[row_idx * SYSTOLIC_SIZE + col_idx] = core_id;
 
   // Wait for all cores
   mempool_barrier(num_cores);
@@ -138,11 +149,14 @@ int main() {
   if (core_id == 0) {
     printf("> Initialize\n");
 
-    // Print out grid mapping
-    // print_matrix((int32_t *)grid_mapping, 4, 4);
+    // Print out tile mapping
+    // print_matrix((int32_t *)tile_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
+
+    // Print out core mapping
+    // print_matrix((int32_t *)core_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
 
     // Initialize systolic array
-    systolic_init(grid_mapping);
+    systolic_init(tile_mapping, core_mapping);
 
     // Create systolic matrices
     generate_gradient_matrix(&matrix_A, DIM_M, DIM_N);
