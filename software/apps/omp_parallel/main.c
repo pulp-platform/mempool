@@ -21,7 +21,7 @@ int main() {
   if (core_id == 0) {
     printf("Master Thread: Parallel start\n");
     mempool_wait(1000);
-    #pragma omp parallel
+    #pragma omp parallel num_threads(8)
     {
       printf("A\n");
     }
@@ -29,7 +29,7 @@ int main() {
 
     printf("Master Thread: Parallel start\n");
     mempool_wait(1000);
-    #pragma omp parallel
+    #pragma omp parallel 
     {
       printf("B\n");
     }

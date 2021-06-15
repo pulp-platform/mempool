@@ -11,11 +11,17 @@ void set_event(void (*fn) (void*), void *data, uint32_t nthreads)
 {
   event.fn = fn;
   event.data = data;
-  event.nthreads = 16;
+  if(nthreads == 0){
+    event.nthreads = 16;
+  }
+  else{
+    event.nthreads = nthreads;
+  }
+  
 
   for(uint32_t i = 0; i < 16; i++)
   {
-    event.thread_pool[i] = (i < 16) ? 1 : 0;
+    event.thread_pool[i] = (i < event.nthreads) ? 1 : 0;
   }
 }
 
@@ -50,7 +56,7 @@ void GOMP_parallel_end (void)
 
 void GOMP_parallel (void (*fn) (void*), void *data, unsigned int num_threads)
 {
-	// printf("GOMP_parallel\n");
+	// printf("GOMP_parallel num threads %d\n", num_threads);
 	uint32_t core_id = mempool_get_core_id();
 
 	GOMP_parallel_start(fn, data, num_threads);
