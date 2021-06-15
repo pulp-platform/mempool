@@ -58,32 +58,34 @@ int32_t *queues_horz_0[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 int32_t *queues_horz_1[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 
 // queue push
-static inline void queue_push(void *const queue, int32_t data, int32_t *const ret) {
-  asm volatile ("q.push.w %0, %1, (%2)" : "+r"(*ret) : "r"(data), "r"(queue));
+static inline void queue_push(void *const queue, int32_t data,
+                              int32_t *const ret) {
+  asm volatile("q.push.w %0, %1, (%2)" : "+r"(*ret) : "r"(data), "r"(queue));
 }
 
 // queue pop
 inline void queue_pop(void *const queue, int32_t *const ret) {
-  asm volatile ("q.pop.w %0, 0(%1)" : "=r"(*ret) : "r"(queue));
+  asm volatile("q.pop.w %0, 0(%1)" : "=r"(*ret) : "r"(queue));
 }
 
-// TODO: GENERALIZE FOR ANY NUMBER OF TILES
-void systolic_init(uint32_t const *grid_mapping) {
+void systolic_init(uint32_t const *tile_mapping, uint32_t const *core_mapping) {
   // Create systolic array via queues
   extern int32_t __seq_start;
   uint32_t grid_pos = 0;
   uint32_t tile_id;
+  uint32_t core_id;
   uint32_t tile_offset;
-  uint32_t bank_sel[4] = {0, 0, 0, 0};
+  uint32_t core_offset;
   for (uint32_t y = 0; y < SYSTOLIC_SIZE; ++y) {
     for (uint32_t x = 0; x < SYSTOLIC_SIZE; ++x) {
-      tile_id = grid_mapping[grid_pos];
+      tile_id = tile_mapping[grid_pos];
+      core_id = core_mapping[grid_pos];
       tile_offset = tile_id * 4 * SEQ_MEM_SIZE / 4;
-      queues_vert_0[y][x] = &__seq_start + tile_offset + bank_sel[tile_id] + 0;
-      queues_vert_1[y][x] = &__seq_start + tile_offset + bank_sel[tile_id] + 1;
-      queues_horz_0[y][x] = &__seq_start + tile_offset + bank_sel[tile_id] + 2;
-      queues_horz_1[y][x] = &__seq_start + tile_offset + bank_sel[tile_id] + 3;
-      bank_sel[tile_id] += 4;
+      core_offset = core_id % 4 * 4;
+      queues_vert_0[y][x] = &__seq_start + tile_offset + core_offset + 0;
+      queues_vert_1[y][x] = &__seq_start + tile_offset + core_offset + 1;
+      queues_horz_0[y][x] = &__seq_start + tile_offset + core_offset + 2;
+      queues_horz_1[y][x] = &__seq_start + tile_offset + core_offset + 3;
       ++grid_pos;
     }
   }
