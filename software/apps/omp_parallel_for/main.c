@@ -35,15 +35,15 @@ int main() {
     mempool_wait(1000);
     
 
-    mempool_start_benchmark();
-    #pragma omp parallel for num_threads(16) schedule(static)
-    for(int i = 0; i < 160; i++){
-      work(100);
-    }
-    mempool_stop_benchmark();
-    time = mempool_get_timer();
-    printf("Parallel Time %d\n",time);
-    printf("Parallel end \n\n\n");
+    // mempool_start_benchmark();
+    // #pragma omp parallel for num_threads(16) schedule(static)
+    // for(int i = 0; i < 160; i++){
+    //   work(100);
+    // }
+    // mempool_stop_benchmark();
+    // time = mempool_get_timer();
+    // printf("Parallel Time %d\n",time);
+    // printf("Parallel end \n\n\n");
 
     mempool_start_benchmark();
     for(int i = 0; i < 160; i++){

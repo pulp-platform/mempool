@@ -4,8 +4,10 @@
 #include "encoding.h"
 #include "synchronization.h"
 
-
+// uint32_t volatile lock __attribute__((section(".l1"))) = 0;
+uint32_t lock = 0;
 event_t event;
+work_t works;
 
 void set_event(void (*fn) (void*), void *data, uint32_t nthreads)
 {
@@ -29,11 +31,9 @@ void set_event(void (*fn) (void*), void *data, uint32_t nthreads)
 
 
 void run_task(uint32_t core_id){
-	
     if(event.thread_pool[core_id]){
-        // printf(" %d\n", core_id);
         event.fn(event.data);
-        __atomic_add_fetch(&event.barrier, -1, __ATOMIC_RELAXED);
+        __atomic_add_fetch(&event.barrier, -1, __ATOMIC_SEQ_CST);
     }
 }
 
@@ -49,7 +49,6 @@ void GOMP_parallel_end (void)
     // printf("GOMP_parallel_end\n");
 
     while(event.barrier > 0){
-    	// printf("  %d  \n", event.nthreads);
     	mempool_wait(4 * 16);
     }
 
@@ -65,19 +64,62 @@ void GOMP_parallel (void (*fn) (void*), void *data, unsigned int num_threads)
 	GOMP_parallel_end();
 }
 
-void GOMP_parallel_loop_dynamic (void (*fn) (void *), void *data, unsigned num_threads, long start, long end, long incr, long chunk_size, unsigned flags)
+void GOMP_parallel_loop_dynamic (void (*fn) (void *), void *data, unsigned num_threads, long start, long end, long incr, long chunk_size)
 {
 
+    // printf("GOMP_parallel_loop_dynamic %d %d %d %d \n", start, end, incr, chunk_size);
+    uint32_t core_id = mempool_get_core_id();
+    works.chunk_size = chunk_size;
+    works.end = end;
+    works.incr = incr;
+    works.next = start;
+
+
+
+    GOMP_parallel_start(fn, data, num_threads);
+    run_task(core_id);
+    GOMP_parallel_end();
 }
 
 void GOMP_loop_end_nowait()
 {
-
 }
 
-void GOMP_loop_dynamic_next (int *istart, int *iend)
+int GOMP_loop_dynamic_next (int *istart, int *iend)
 {
+
+    int start, end, chunk, left;
+    uint32_t islocked = 1;
+
+    while(islocked){
+      islocked = __atomic_fetch_or(&lock, 1, __ATOMIC_RELAXED);
+    }
     
+    
+    start = works.next;
+    if (start == works.end)
+    {
+        __atomic_fetch_and(&lock, 0, __ATOMIC_RELAXED);
+        return 0;
+    }
+    
+    chunk = works.chunk_size * works.incr;
+    
+    left = works.end - start;
+
+    if (chunk > left)
+        chunk = left;
+
+    end = start + chunk;
+    
+    works.next = end;
+    
+    __atomic_fetch_and(&lock, 0, __ATOMIC_SEQ_CST);
+    
+    *istart = start;
+    *iend = end;
+
+    return 1;
 }
 
 

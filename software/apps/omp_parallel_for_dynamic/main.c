@@ -13,13 +13,15 @@ extern volatile uint32_t tcdm_start_address_reg;
 extern volatile uint32_t tcdm_end_address_reg;
 
 
-void work(unsigned long num)
+void work(int num)
 {
-  unsigned int i;
+  int i;
   volatile int cnt = 0;
 
-  for(i=0; i<num; i++)
-        cnt += i;
+  for(i = 0; i < num; i++)
+  {
+      cnt += i;
+  }   
 }
 
 
@@ -35,9 +37,9 @@ int main() {
     mempool_wait(1000);
     
 
-    mempool_start_benchmark();
-    #pragma omp parallel for schedule(dynamic)
-    for(int i = 0; i < 16; i++){
+    mempool_start_benchmark(); 
+    #pragma omp parallel for num_threads(16) schedule(dynamic,10)
+    for(int i = 0; i < 160; i++){
       work(100);
     }
     mempool_stop_benchmark();
@@ -45,13 +47,13 @@ int main() {
     printf("Parallel Time %d\n",time);
     printf("Parallel end \n\n\n");
 
-    // mempool_start_benchmark();
-    // for(int i = 0; i < 16; i++){
-    //   work(100);
-    // }
-    // mempool_stop_benchmark();
-    // time = mempool_get_timer();
-    // printf("Sequential Time %d\n",time);
+    mempool_start_benchmark();
+    for(int i = 0; i < 160; i++){
+      work(100);
+    }
+    mempool_stop_benchmark();
+    time = mempool_get_timer();
+    printf("Sequential Time %d\n",time);
 
   } 
   else {

@@ -14,9 +14,9 @@
 extern void GOMP_parallel (void (*fn) (void*), void *data, unsigned int num_threads);
 extern void GOMP_parallel_start (void (*fn) (void*), void *data, unsigned int num_threads);
 extern void GOMP_parallel_end (void);
-extern void GOMP_parallel_loop_dynamic (void (*fn) (void *), void *data, unsigned num_threads, long start, long end, long incr, long chunk_size, unsigned flags);
+extern void GOMP_parallel_loop_dynamic (void (*fn) (void *), void *data, unsigned num_threads, long start, long end, long incr, long chunk_size);
 extern void GOMP_loop_end_nowait();
-extern void GOMP_loop_dynamic_next (int *istart, int *iend);
+extern int GOMP_loop_dynamic_next (int *istart, int *iend);
 
 
 
@@ -32,6 +32,14 @@ typedef struct {
   uint8_t thread_pool[16];
 } event_t;
 
+typedef struct {
+  int end;
+  int next;
+  int chunk_size;
+  int incr;
+} work_t;
+
 extern event_t event;
+extern work_t works;
 
 #endif  /* __LIBGOMP_H__ */
