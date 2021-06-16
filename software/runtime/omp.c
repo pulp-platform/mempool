@@ -56,7 +56,7 @@ void GOMP_parallel_end (void)
 
 void GOMP_parallel (void (*fn) (void*), void *data, unsigned int num_threads)
 {
-	// printf("GOMP_parallel num threads %d\n", num_threads);
+	// printf("GOMP_parallel\n");
 	uint32_t core_id = mempool_get_core_id();
 
 	GOMP_parallel_start(fn, data, num_threads);
