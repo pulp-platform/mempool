@@ -5,7 +5,7 @@
 #include "synchronization.h"
 
 // uint32_t volatile lock __attribute__((section(".l1"))) = 0;
-uint32_t lock = 0;
+// uint32_t volatile lock;
 event_t event;
 work_t works;
 
@@ -73,6 +73,7 @@ void GOMP_parallel_loop_dynamic (void (*fn) (void *), void *data, unsigned num_t
     works.end = end;
     works.incr = incr;
     works.next = start;
+    works.lock = 0;
 
 
 
@@ -88,18 +89,19 @@ void GOMP_loop_end_nowait()
 int GOMP_loop_dynamic_next (int *istart, int *iend)
 {
 
+
     int start, end, chunk, left;
     uint32_t islocked = 1;
 
     while(islocked){
-      islocked = __atomic_fetch_or(&lock, 1, __ATOMIC_RELAXED);
+      islocked = __atomic_fetch_or(&works.lock, 1, __ATOMIC_SEQ_CST);
     }
     
     
     start = works.next;
     if (start == works.end)
     {
-        __atomic_fetch_and(&lock, 0, __ATOMIC_RELAXED);
+        __atomic_fetch_and(&works.lock, 0, __ATOMIC_SEQ_CST);
         return 0;
     }
     
@@ -113,12 +115,13 @@ int GOMP_loop_dynamic_next (int *istart, int *iend)
     end = start + chunk;
     
     works.next = end;
-    
-    __atomic_fetch_and(&lock, 0, __ATOMIC_SEQ_CST);
+    // printf("%d %d \n", works.lock, end);
+
+    __atomic_fetch_and(&works.lock, 0, __ATOMIC_SEQ_CST);
     
     *istart = start;
     *iend = end;
-
+    
     return 1;
 }
 

@@ -37,6 +37,7 @@ typedef struct {
   int next;
   int chunk_size;
   int incr;
+  uint32_t lock;
 } work_t;
 
 extern event_t event;
