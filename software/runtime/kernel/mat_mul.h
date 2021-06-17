@@ -11,12 +11,44 @@
  * C = AB
  */
 
+
+void mat_mul_sequential(int32_t const *__restrict__ A,
+                      int32_t const *__restrict__ B, int32_t *__restrict__ C,
+                      uint32_t M, uint32_t N, uint32_t P) {
+  // Parallelize by assigning each core one row
+  for (uint32_t i = 0; i < M; i++) {
+    for (uint32_t j = 0; j < P; ++j) {
+      int32_t c = 0;
+      for (uint32_t k = 0; k < N; ++k) {
+        c += A[i * N + k] * B[k * P + j];
+      }
+      C[i * P + j] = c;
+    }
+  }
+}
+
+
 void mat_mul_parallel(int32_t const *__restrict__ A,
                       int32_t const *__restrict__ B, int32_t *__restrict__ C,
                       uint32_t M, uint32_t N, uint32_t P, uint32_t id,
                       uint32_t numThreads) {
   // Parallelize by assigning each core one row
   for (uint32_t i = id; i < M; i += numThreads) {
+    for (uint32_t j = 0; j < P; ++j) {
+      int32_t c = 0;
+      for (uint32_t k = 0; k < N; ++k) {
+        c += A[i * N + k] * B[k * P + j];
+      }
+      C[i * P + j] = c;
+    }
+  }
+}
+
+void mat_mul_parallel_omp(int32_t const *__restrict__ A,
+                      int32_t const *__restrict__ B, int32_t *__restrict__ C,
+                      uint32_t M, uint32_t N, uint32_t P) {
+  #pragma omp parallel for 
+  for (uint32_t i = 0; i < M; i++) {
     for (uint32_t j = 0; j < P; ++j) {
       int32_t c = 0;
       for (uint32_t k = 0; k < N; ++k) {
@@ -69,6 +101,38 @@ void mat_mul_unrolled_parallel(int32_t const *__restrict__ A,
                                uint32_t P, uint32_t id, uint32_t numThreads) {
   // Parallelize by assigning each core one row
   for (uint32_t i = id; i < M; i += numThreads) {
+    for (uint32_t j = 0; j < P; j += 4) {
+      int32_t c0 = 0;
+      int32_t c1 = 0;
+      int32_t c2 = 0;
+      int32_t c3 = 0;
+      for (uint32_t k = 0; k < N; ++k) {
+        // Explicitly load the values first to help with scheduling
+        int32_t val_a = A[i * N + k];
+        int32_t val_b0 = B[k * P + j + 0];
+        int32_t val_b1 = B[k * P + j + 1];
+        int32_t val_b2 = B[k * P + j + 2];
+        int32_t val_b3 = B[k * P + j + 3];
+        c0 += val_a * val_b0;
+        c1 += val_a * val_b1;
+        c2 += val_a * val_b2;
+        c3 += val_a * val_b3;
+      }
+      C[i * P + j + 0] = c0;
+      C[i * P + j + 1] = c1;
+      C[i * P + j + 2] = c2;
+      C[i * P + j + 3] = c3;
+    }
+  }
+}
+
+void mat_mul_unrolled_parallel_omp(int32_t const *__restrict__ A,
+                               int32_t const *__restrict__ B,
+                               int32_t *__restrict__ C, uint32_t M, uint32_t N,
+                               uint32_t P) {
+  // Parallelize by assigning each core one row
+  #pragma omp parallel for
+  for (uint32_t i = 0; i < M; i++) {
     for (uint32_t j = 0; j < P; j += 4) {
       int32_t c0 = 0;
       int32_t c1 = 0;

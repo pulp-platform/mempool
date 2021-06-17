@@ -20,7 +20,6 @@ extern int GOMP_loop_dynamic_next (int *istart, int *iend);
 
 
 
-
 extern void set_event(void (*fn) (void*), void *data, uint32_t nthreads);
 extern void run_task(uint32_t core_id);
 
