@@ -12,6 +12,7 @@ volatile uint32_t atomic __attribute__((section(".l2"))) = (uint32_t)-1;
 extern volatile uint32_t tcdm_start_address_reg;
 extern volatile uint32_t tcdm_end_address_reg;
 
+#define TEST_THREAD
 
 void work(unsigned long num)
 {
@@ -118,23 +119,10 @@ void gcc_omp_parallel_for_schedule_static (void)
   }
 }
 
-int main() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  uint32_t time;
 
-  mempool_barrier_init(core_id, num_cores);
 
-  if (core_id == 0) {
-    mempool_wait(1000);
-    
-  
-
-    /////////////////////////////////////////////////////////// 
-    //////////////////////   test   ///////////////////////////
-    ///////////////////////////////////////////////////////////
-    gcc_omp_parallel_for_schedule_static();
-
+void gcc_omp_parallel_for_schedule_static_thread (void)
+{
     printf("Testing: schedule default chunk size\n");
     #pragma omp parallel for num_threads(4) schedule(static)
     for (int i = 0; i < 10; i++){
@@ -175,6 +163,35 @@ int main() {
       
     }
     printf("A %d\n", A);
+}
+
+
+int main() {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
+  
+
+  mempool_barrier_init(core_id, num_cores);
+
+  if (core_id == 0) {
+    mempool_wait(1000);
+    
+  
+
+    /////////////////////////////////////////////////////////// 
+    //////////////////////   test   ///////////////////////////
+    ///////////////////////////////////////////////////////////
+#ifdef TEST_THREAD
+    gcc_omp_parallel_for_schedule_static_thread();
+#else
+    gcc_omp_parallel_for_schedule_static();
+#endif
+    
+
+    
+
+
+    
 
 
     
@@ -182,6 +199,7 @@ int main() {
     /////////////////////////////////////////////////////////// 
     /////////////////////   Benchmark   ///////////////////////
     ///////////////////////////////////////////////////////////
+    // uint32_t time;
     // mempool_start_benchmark();
     // #pragma omp parallel for num_threads(16) schedule(static,3)
     // for(int i = 0; i < 160; i++){

@@ -12,6 +12,7 @@ volatile uint32_t atomic __attribute__((section(".l2"))) = (uint32_t)-1;
 extern volatile uint32_t tcdm_start_address_reg;
 extern volatile uint32_t tcdm_end_address_reg;
 
+// #define TEST_THREAD
 
 void work(int num)
 {
@@ -24,36 +25,148 @@ void work(int num)
   }   
 }
 
+void gcc_omp_parallel_for_schedule_dynamic (void)
+{
+  int buf[64];
+  int i,j;
+  int result = 0;
+  memset (buf, '\0', sizeof (buf));
+#pragma omp parallel for schedule (dynamic, 3)
+  for (j=10; j < 54; j++)
+    buf[j] = 5;
+  for (i = 0; i < 64; i++)
+    if (buf[i] != 5 * (i >= 10 && i < 54)){
+      printf("error 1 at gcc schedule dynamic\n");
+      result += 1;
+    }
+  memset (buf, '\0', sizeof (buf));
+#pragma omp parallel for schedule (dynamic, 3)
+  for (j = 3; j <= 63; j += 2)
+    buf[j-2] = 6;
+  for (i = 0; i < 64; i++)
+    if (buf[i] != 6 * ((i & 1) && i <= 61)){
+      printf("error 2 at gcc schedule dynamic\n");
+      result += 1;
+    }
+  memset (buf, '\0', sizeof (buf));
+#pragma omp parallel for schedule (dynamic, 3)
+  for (j = 16; j < 51; j += 4)
+    buf[j+2] = 7;
+  for (i = 0; i < 64; i++)
+    if (buf[i] != 7 * ((i & 3) == 2 && i >= 18 && i < 53)){
+      printf("error 3 at gcc schedule dynamic\n");
+      result += 1;
+    }
+  memset (buf, '\0', sizeof (buf));
+#pragma omp parallel for schedule (dynamic, 3)
+  for (j = 16; j <= 40; j += 4)
+    buf[j+2] = -7;
+  for (i = 0; i < 64; i++)
+    if (buf[i] != -7 * ((i & 3) == 2 && i >= 18 && i <= 42)){
+      printf("error 4 at gcc schedule dynamic\n");
+      result += 1;
+    }
+  memset (buf, '\0', sizeof (buf));
+#pragma omp parallel for schedule (dynamic, 3)
+  for (j = 53; j > 9; --j)
+    buf[j] = 5;
+  for (i = 0; i < 64; i++)
+    if (buf[i] != 5 * (i >= 10 && i < 54)){
+      printf("error 5 at gcc schedule dynamic\n");
+      result += 1;
+    }
+  memset (buf, '\0', sizeof (buf));
+#pragma omp parallel for schedule (dynamic, 3)
+  for (j = 63; j >= 3; j -= 2)
+    buf[j-2] = 6;
+  for (i = 0; i < 64; i++)
+    if (buf[i] != 6 * ((i & 1) && i <= 61)){
+      printf("error 6 at gcc schedule dynamic\n");
+      result += 1;
+    }
+  memset (buf, '\0', sizeof (buf));
+#pragma omp parallel for schedule (dynamic, 3)
+  for (j = 48; j > 15; j -= 4 )
+    buf[j+2] = 7;
+  for (i = 0; i < 64; i++)
+    if (buf[i] != 7 * ((i & 3) == 2 && i >= 18 && i < 53)){
+      printf("error 7 at gcc schedule dynamic\n");
+      result += 1;
+    }
+  memset (buf, '\0', sizeof (buf));
+#pragma omp parallel for schedule (dynamic, 3)
+  for (j = 40; j >= 16; j -= 4)
+    buf[j+2] = -7;
+  for (i = 0; i < 64; i++)
+    if (buf[i] != -7 * ((i & 3) == 2 && i >= 18 && i <= 42)){
+      printf("error 8 at gcc schedule dynamic\n");
+      result += 1;
+    }
+  if(result == 0){
+    printf("All tests passed\n");
+  }
+  else{
+    printf("Failed %d tests", result);
+  }
+}
+
+
+// void gcc_omp_parallel_for_schedule_dynamic_thread_test(void){
+//     printf("Testing: schedule chunk size 1\n");
+//     #pragma omp parallel for num_threads(4) schedule(dynamic)
+//     for (int k = 0; k < 10; k++){
+//       printf("%d\n", omp_get_thread_num());
+//     }
+
+//     printf("Testing: schedule chunk size 2\n");
+//     #pragma omp parallel for num_threads(4) schedule(dynamic,3)
+//     for (int k = 0; k < 10; k++){
+//         printf("%d\n", omp_get_thread_num());
+//     }
+// }
+
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t time;
+
 
   mempool_barrier_init(core_id, num_cores);
 
   if (core_id == 0) {
-    printf("Parallel start\n");
+
     mempool_wait(1000);
     
+    /////////////////////////////////////////////////////////// 
+    //////////////////////   test   ///////////////////////////
+    ///////////////////////////////////////////////////////////
+    
 
-    mempool_start_benchmark(); 
-    #pragma omp parallel for num_threads(2) schedule(dynamic,2)
-    for(int i = 0; i < 6400; i++){
-      work(10);
-    }
-    mempool_stop_benchmark();
-    time = mempool_get_timer();
-    printf("Parallel Time %d\n",time);
-    printf("Parallel end \n\n\n");
 
-    mempool_start_benchmark();
-    for(int i = 0; i < 6400; i++){
-      work(10);
-    }
-    mempool_stop_benchmark();
-    time = mempool_get_timer();
-    printf("Sequential Time %d\n",time);
+  gcc_omp_parallel_for_schedule_dynamic();
+
+
+
+    /////////////////////////////////////////////////////////// 
+    /////////////////////   Benchmark   ///////////////////////
+    ///////////////////////////////////////////////////////////
+    // uint32_t time;
+    // mempool_start_benchmark(); 
+    // #pragma omp parallel for num_threads(2) schedule(dynamic,2)
+    // for(int i = 0; i < 6400; i++){
+    //   work(10);
+    // }
+    // mempool_stop_benchmark();
+    // time = mempool_get_timer();
+    // printf("Parallel Time %d\n",time);
+
+    // mempool_start_benchmark();
+    // for(int i = 0; i < 6400; i++){
+    //   work(10);
+    // }
+    // mempool_stop_benchmark();
+    // time = mempool_get_timer();
+    // printf("Sequential Time %d\n",time);
 
   } 
   else {
@@ -62,7 +175,6 @@ int main() {
       run_task(core_id);
     }
   }
-  // mempool_barrier(num_cores, num_cores * 4);
 
   return 0;
 }

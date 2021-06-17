@@ -11,6 +11,9 @@ work_t works;
 
 void set_event(void (*fn) (void*), void *data, uint32_t nthreads)
 {
+  // int* dd = (int*) data;
+  // printf("task %d %d %d %d %d %d \n", *dd, *(dd+1), *(dd+2), *(dd+3), *(dd+4), *(dd+5));
+  // printf("task %d %d %d %d %d %d \n", dd, (dd+1), (dd+2), (dd+3), (dd+4), (dd+5));
   event.fn = fn;
   event.data = data;
   if(nthreads == 0){
@@ -32,14 +35,16 @@ void set_event(void (*fn) (void*), void *data, uint32_t nthreads)
 
 void run_task(uint32_t core_id){
     if(event.thread_pool[core_id]){
+        // printf("r\n");
         event.fn(event.data);
+        // printf("t\n");
         __atomic_add_fetch(&event.barrier, -1, __ATOMIC_SEQ_CST);
     }
 }
 
 void GOMP_parallel_start (void (*fn) (void*), void *data, unsigned int num_threads)
 {
-	// printf("GOMP_parallel_start\n");
+	// printf("GOMP_parallel_start\n"); 
 	set_event(fn, data, num_threads);
 	wake_up((uint32_t)-1);
 }
@@ -89,7 +94,7 @@ void GOMP_loop_end_nowait()
 int GOMP_loop_dynamic_next (int *istart, int *iend)
 {
 
-
+    // printf("n\n");
     int start, end, chunk, left;
     uint32_t islocked = 1;
 
@@ -137,10 +142,12 @@ int GOMP_loop_dynamic_next (int *istart, int *iend)
 
 
 uint32_t omp_get_num_threads(void){
+    // printf("a\n");
 	return event.nthreads;
 }
 
 uint32_t omp_get_thread_num(void){
+    // printf("b\n");
 	return mempool_get_core_id();
 }
 
