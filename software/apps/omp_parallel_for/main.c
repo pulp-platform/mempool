@@ -14,15 +14,6 @@ extern volatile uint32_t tcdm_end_address_reg;
 
 #define TEST_THREAD
 
-void work(unsigned long num)
-{
-  unsigned int i;
-  volatile int cnt = 0;
-
-  for(i=0; i<num; i++)
-        cnt += i;
-}
-
 void gcc_omp_parallel_for_schedule_static (void)
 {
   int buf[64], *p;
@@ -175,47 +166,16 @@ int main() {
 
   if (core_id == 0) {
     mempool_wait(1000);
-    
-  
 
-    /////////////////////////////////////////////////////////// 
-    //////////////////////   test   ///////////////////////////
-    ///////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////// 
+//////////////////////   test   ///////////////////////////
+///////////////////////////////////////////////////////////
 #ifdef TEST_THREAD
     gcc_omp_parallel_for_schedule_static_thread();
 #else
     gcc_omp_parallel_for_schedule_static();
 #endif
     
-
-    
-
-
-    
-
-
-    
-
-    /////////////////////////////////////////////////////////// 
-    /////////////////////   Benchmark   ///////////////////////
-    ///////////////////////////////////////////////////////////
-    // uint32_t time;
-    // mempool_start_benchmark();
-    // #pragma omp parallel for num_threads(16) schedule(static,3)
-    // for(int i = 0; i < 160; i++){
-    //   work(10);
-    // }
-    // mempool_stop_benchmark();
-    // time = mempool_get_timer();
-    // printf("Parallel Time %d\n",time);
-
-    // mempool_start_benchmark();
-    // for(int i = 0; i < 160; i++){
-    //   work(100);
-    // }
-    // mempool_stop_benchmark();
-    // time = mempool_get_timer();
-    // printf("Sequential Time %d\n",time);
 
   } 
   else {

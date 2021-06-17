@@ -131,7 +131,50 @@ int GOMP_loop_dynamic_next (int *istart, int *iend)
 }
 
 
+int GOMP_loop_dynamic_start(int start, int end, int incr, int chunk_size, int *istart, int *iend)
+{
+    int chunk, left;
+    int ret = 1;
+    
+    works.chunk_size = chunk_size;
+    works.end = end;
+    works.incr = incr;
+    works.next = start;
+    works.lock = 0;
 
+    uint32_t islocked = 1;
+
+    while(islocked){
+      islocked = __atomic_fetch_or(&works.lock, 1, __ATOMIC_SEQ_CST);
+    }
+    
+    start = works.next;
+    
+    if (start == works.end)
+        ret = 0;
+    
+    if(ret)
+    {
+        chunk = chunk_size * incr;
+        
+        left = works.end - start;
+        
+        if (chunk > left){
+            chunk = left;
+        }
+        
+
+        end = start + chunk;
+        works.next = end;
+    }
+    
+    *istart = start;
+    *iend   = end;
+    
+    __atomic_fetch_and(&works.lock, 0, __ATOMIC_SEQ_CST);
+    
+    return ret;
+}
 
 
 

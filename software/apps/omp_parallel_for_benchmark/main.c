@@ -192,7 +192,7 @@ int main() {
       printf("Error code %d\n", error);
       printf("c[%d]=%d\n", error, c[error]);
     }
-
+    
     cycles = mempool_get_timer();
     mempool_start_benchmark();
     mat_mul_unrolled_parallel_omp(a,b,c,M,N,P);
