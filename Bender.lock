@@ -8,13 +8,6 @@ packages:
     dependencies:
       - common_cells
       - common_verification
-  axi_rab:
-    revision: 1a74fac92af1f3a2dfd851fb5f409bf1838f6367
-    version: ~
-    source:
-      Git: "https://github.com/pulp-platform/axi_rab.git"
-    dependencies:
-      - axi
   cluster_interconnect:
     revision: 15067138873959641e013b8fc55719e18b52a9af
     version: 1.2.0

@@ -77,9 +77,7 @@ module mempool_tb_verilator (
     .mst_req_o      (axi_mst_req  ),
     .mst_resp_i     (axi_mst_resp ),
     .slv_req_i      (/*Unused*/ '0),
-    .slv_resp_o     (/*Unused*/   ),
-    .rab_conf_req_i ('0           ),
-    .rab_conf_resp_o(/*Unused*/   )
+    .slv_resp_o     (/*Unused*/   )
   );
 
   /**********

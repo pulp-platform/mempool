@@ -13,9 +13,6 @@
 [submodule "hardware/deps/axi"]
 	path = hardware/deps/axi
 	url = https://github.com/pulp-platform/axi.git
-[submodule "hardware/deps/axi_rab"]
-	path = hardware/deps/axi_rab
-	url = https://github.com/pulp-platform/axi_rab.git
 [submodule "hardware/deps/cluster_interconnect"]
 	path = hardware/deps/cluster_interconnect
 	url = https://github.com/pulp-platform/cluster_interconnect.git

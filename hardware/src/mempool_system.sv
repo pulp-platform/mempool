@@ -24,10 +24,7 @@ module mempool_system
   input  axi_system_resp_t   mst_resp_i,
 
   input  axi_system_req_t    slv_req_i,
-  output axi_system_resp_t   slv_resp_o,
-
-  input  axi_lite_slv_req_t  rab_conf_req_i,
-  output axi_lite_slv_resp_t rab_conf_resp_o
+  output axi_system_resp_t   slv_resp_o
 );
 
   import axi_pkg::xbar_cfg_t;
@@ -324,63 +321,10 @@ module mempool_system
 
   assign busy_o = 1'b0;
 
-  /***********
-   * AXI RAB *
-   ***********/
-
-  axi_system_req_t  rab_slv_req;
-  axi_system_resp_t rab_slv_resp;
-
-`ifdef TARGET_FPGA
-  axi_rab_wrap #(
-    .L1NumSlicesMemPool(4                  ),
-    .L1NumSlicesHost   (4                  ),
-    .L2Enable          (1'b0               ),
-    .L2NumSets         (32                 ),
-    .L2NumSetEntries   (32                 ),
-    .L2NumParVaRams    (4                  ),
-    .MhFifoDepth       (16                 ),
-    .AxiAddrWidth      (AddrWidth          ),
-    .AxiDataWidth      (AxiDataWidth       ),
-    .AxiLiteDataWidth  (AxiLiteDataWidth   ),
-    .AxiIdWidth        (AxiSystemIdWidth   ),
-    .AxiUserWidth      (1                  ),
-    .axi_req_t         (axi_system_req_t   ),
-    .axi_resp_t        (axi_system_resp_t  ),
-    .axi_lite_req_t    (axi_lite_slv_req_t ),
-    .axi_lite_resp_t   (axi_lite_slv_resp_t)
-  ) i_rab (
-    .clk_i,
-    .rst_ni,
-    .from_mempool_req_i      (axi_mem_req[External] ),
-    .from_mempool_resp_o     (axi_mem_resp[External]),
-    .from_mempool_miss_irq_o (/*Unused*/            ),
-    .from_mempool_multi_irq_o(/*Unused*/            ),
-    .from_mempool_prot_irq_o (/*Unused*/            ),
-    .to_host_req_o           (mst_req_o             ),
-    .to_host_resp_i          (mst_resp_i            ),
-    .from_host_req_i         (slv_req_i             ),
-    .from_host_resp_o        (slv_resp_o            ),
-    .from_host_miss_irq_o    (/*Unused*/            ),
-    .from_host_multi_irq_o   (/*Unused*/            ),
-    .from_host_prot_irq_o    (/*Unused*/            ),
-    .to_mempool_req_o        (rab_slv_req           ),
-    .to_mempool_resp_i       (rab_slv_resp          ),
-    .mh_fifo_full_irq_o      (/*Unused*/            ),
-    .conf_req_i              (rab_conf_req_i        ),
-    .conf_resp_o             (rab_conf_resp_o       )
-  );
-`else
   // From MemPool to the Host
   assign mst_req_o              = axi_mem_req[External];
   assign axi_mem_resp[External] = mst_resp_i;
   // From the Host to MemPool
-  assign rab_slv_req            = slv_req_i;
-  assign slv_resp_o             = rab_slv_resp;
-  // Config interface
-  assign rab_conf_resp_o        = '0;
-`endif
-
   axi_id_remap #(
     .AxiSlvPortIdWidth   (AxiSystemIdWidth ),
     .AxiSlvPortMaxUniqIds(1                ),
@@ -393,8 +337,8 @@ module mempool_system
   ) i_axi_id_remap (
     .clk_i     (clk_i                        ),
     .rst_ni    (rst_ni                       ),
-    .slv_req_i (rab_slv_req                  ),
-    .slv_resp_o(rab_slv_resp                 ),
+    .slv_req_i (slv_req_i                    ),
+    .slv_resp_o(slv_resp_o                   ),
     .mst_req_o (axi_mst_req[NumAXIMasters-1] ),
     .mst_resp_i(axi_mst_resp[NumAXIMasters-1])
   );
