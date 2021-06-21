@@ -3,7 +3,7 @@
 	url = https://github.com/pulp-platform/pulp-riscv-gnu-toolchain.git
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
-	url = https://github.com/SamuelRiedel/llvm-project.git
+	url = https://github.com/pulp-platform/snitch-llvm.git
 [submodule "toolchain/halide"]
 	path = toolchain/halide
 	url = https://github.com/SamuelRiedel/Halide.git
