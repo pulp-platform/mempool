@@ -52,7 +52,7 @@ static inline void mempool_wait(uint32_t cycles) {
   asm volatile("1: \n\t"
                "addi %[counter], %[counter], -2 \n\t"
                "bgtz %[counter], 1b \n\t"
-               : [ counter ] "+&r"(cycles)
+               : [counter] "+&r"(cycles)
                :
                : "memory");
 }

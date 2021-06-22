@@ -300,14 +300,13 @@ static inline void mat_mul_asm_parallel(int32_t const *__restrict__ A,
         "addi %[start_b], %[start_b], %[adv_b] \n\t"
         "addi %[idx_c], %[idx_c], %[adv_c] \n\t"
         "bne %[idx_c], %[end_c], 1b \n\t"
-        : [ c0 ] "=&r"(c0), [ c1 ] "=&r"(c1), [ c2 ] "=&r"(c2),
-          [ c3 ] "=&r"(c3), [ a ] "=&r"(a), [ b0 ] "=&r"(b0), [ b1 ] "=&r"(b1),
-          [ b2 ] "=&r"(b2), [ b3 ] "=&r"(b3), [ idx_b ] "+&r"(idx_b),
-          [ idx_a ] "+&r"(start_a), [ start_b ] "+&r"(start_b),
-          [ idx_c ] "+&r"(start_c)
-        : [ inc_a ] "I"(4), [ inc_b ] "r"(4 * P), [ adv_a ] "r"(-4 * (int)N),
-          [ adv_b ] "I"(4 * 4), [ adv_c ] "I"(4 * 4), [ end_a ] "r"(end_a),
-          [ end_c ] "r"(end_c)
+        : [c0] "=&r"(c0), [c1] "=&r"(c1), [c2] "=&r"(c2), [c3] "=&r"(c3),
+          [a] "=&r"(a), [b0] "=&r"(b0), [b1] "=&r"(b1), [b2] "=&r"(b2),
+          [b3] "=&r"(b3), [idx_b] "+&r"(idx_b), [idx_a] "+&r"(start_a),
+          [start_b] "+&r"(start_b), [idx_c] "+&r"(start_c)
+        : [inc_a] "I"(4), [inc_b] "r"(4 * P), [adv_a] "r"(-4 * (int)N),
+          [adv_b] "I"(4 * 4), [adv_c] "I"(4 * 4), [end_a] "r"(end_a),
+          [end_c] "r"(end_c)
         : "memory");
   }
 }

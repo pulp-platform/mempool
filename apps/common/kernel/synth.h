@@ -142,13 +142,13 @@ static inline void power_profile(int32_t *const a) {
       "add %[op_3],%[op_a3],%[op_a7] \n\t"
       "addi %[idx], %[idx], -1 \n\t"
       "bne %[idx], %[im_0], 3b \n\t"
-      : [ op_0 ] "=&r"(op_0), [ op_1 ] "=&r"(op_1), [ op_2 ] "=&r"(op_2),
-        [ op_3 ] "=&r"(op_3), [ a0 ] "=&r"(a0), [ a1 ] "=&r"(a1),
-        [ a2 ] "=&r"(a2), [ a3 ] "=&r"(a3), [ a4 ] "=&r"(a4), [ a5 ] "=&r"(a5),
-        [ a6 ] "=&r"(a6), [ a7 ] "=&r"(a7), [ idx ] "+&r"(idx)
-      : [ im_0 ] "r"(im_0), [ num_loops ] "I"(num_loops), [ op_a0 ] "r"(op_a0),
-        [ op_a1 ] "r"(op_a1), [ op_a2 ] "r"(op_a2), [ op_a3 ] "r"(op_a3),
-        [ op_a4 ] "r"(op_a4), [ op_a5 ] "r"(op_a5), [ op_a6 ] "r"(op_a6),
-        [ op_a7 ] "r"(op_a7), [ a ] "r"(a)
+      : [op_0] "=&r"(op_0), [op_1] "=&r"(op_1), [op_2] "=&r"(op_2),
+        [op_3] "=&r"(op_3), [a0] "=&r"(a0), [a1] "=&r"(a1), [a2] "=&r"(a2),
+        [a3] "=&r"(a3), [a4] "=&r"(a4), [a5] "=&r"(a5), [a6] "=&r"(a6),
+        [a7] "=&r"(a7), [idx] "+&r"(idx)
+      : [im_0] "r"(im_0), [num_loops] "I"(num_loops), [op_a0] "r"(op_a0),
+        [op_a1] "r"(op_a1), [op_a2] "r"(op_a2), [op_a3] "r"(op_a3),
+        [op_a4] "r"(op_a4), [op_a5] "r"(op_a5), [op_a6] "r"(op_a6),
+        [op_a7] "r"(op_a7), [a] "r"(a)
       : "memory");
 }

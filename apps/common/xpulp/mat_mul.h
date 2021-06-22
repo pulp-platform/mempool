@@ -338,10 +338,10 @@ void matmul_unrolled_2x4_pincr_asm_parallel_i8_xpulpv2(
             "p.lw %[t1], %[b_incr](%[addr_b]!) \n\t"
             "p.lw %[t2], %[b_incr](%[addr_b]!) \n\t"
             "p.lw %[t3], %[b_incr](%[addr_b]!) \n\t"
-            : [ a0 ] "=&r"(aVec0), [ a1 ] "=&r"(aVec1), [ t0 ] "=&r"(temp0),
-              [ t1 ] "=&r"(temp1), [ t2 ] "=&r"(temp2), [ t3 ] "=&r"(temp3),
-              [ addr_a ] "+&r"(idx_a), [ addr_b ] "+&r"(idx_b)
-            : [ a_incr ] "r"(N), [ a_decr ] "r"(N_decr), [ b_incr ] "r"(P)
+            : [a0] "=&r"(aVec0), [a1] "=&r"(aVec1), [t0] "=&r"(temp0),
+              [t1] "=&r"(temp1), [t2] "=&r"(temp2), [t3] "=&r"(temp3),
+              [addr_a] "+&r"(idx_a), [addr_b] "+&r"(idx_b)
+            : [a_incr] "r"(N), [a_decr] "r"(N_decr), [b_incr] "r"(P)
             : "memory");
         /* The asm code above implements the following commented C code */
         // go to next row, same column
@@ -386,10 +386,10 @@ void matmul_unrolled_2x4_pincr_asm_parallel_i8_xpulpv2(
           "p.sw %[s11], 4(%[addr_c]!) \n\t"
           "p.sw %[s12], 4(%[addr_c]!) \n\t"
           "p.sw %[s13], %[c_incr](%[addr_c]!) \n\t"
-          : [ addr_c ] "+&r"(idx_c)
-          : [ s00 ] "r"(sum00), [ s01 ] "r"(sum01), [ s02 ] "r"(sum02),
-            [ s03 ] "r"(sum03), [ s10 ] "r"(sum10), [ s11 ] "r"(sum11),
-            [ s12 ] "r"(sum12), [ s13 ] "r"(sum13), [ c_incr ] "r"(P_incr)
+          : [addr_c] "+&r"(idx_c)
+          : [s00] "r"(sum00), [s01] "r"(sum01), [s02] "r"(sum02),
+            [s03] "r"(sum03), [s10] "r"(sum10), [s11] "r"(sum11),
+            [s12] "r"(sum12), [s13] "r"(sum13), [c_incr] "r"(P_incr)
           : "memory");
       /* The asm code above implements the following commented C code */
       // *(idx_c++) = sum00;
@@ -530,19 +530,18 @@ void matmul_unrolled_4x2_pincr_asm_parallel_i16_xpulpv2(
         v2s aVec0, aVec1, aVec2, aVec3;
         v2s bTemp0, bTemp1;
 
-        __asm__ volatile("p.lw %[a0], %[a_incr](%[addr_a]!) \n\t"
-                         "p.lw %[a1], %[a_incr](%[addr_a]!) \n\t"
-                         "p.lw %[a2], %[a_incr](%[addr_a]!) \n\t"
-                         "p.lw %[a3], %[a_decr](%[addr_a]!) \n\t"
-                         "p.lw %[t0], %[b_incr](%[addr_b]!) \n\t"
-                         "p.lw %[t1], %[b_incr](%[addr_b]!) \n\t"
-                         : [ a0 ] "=&r"(aVec0), [ a1 ] "=&r"(aVec1),
-                           [ a2 ] "=&r"(aVec2), [ a3 ] "=&r"(aVec3),
-                           [ t0 ] "=&r"(bTemp0), [ t1 ] "=&r"(bTemp1),
-                           [ addr_a ] "+&r"(idx_a), [ addr_b ] "+&r"(idx_b)
-                         : [ a_incr ] "r"(A_incr), [ a_decr ] "r"(A_decr),
-                           [ b_incr ] "r"(B_incr)
-                         : "memory");
+        __asm__ volatile(
+            "p.lw %[a0], %[a_incr](%[addr_a]!) \n\t"
+            "p.lw %[a1], %[a_incr](%[addr_a]!) \n\t"
+            "p.lw %[a2], %[a_incr](%[addr_a]!) \n\t"
+            "p.lw %[a3], %[a_decr](%[addr_a]!) \n\t"
+            "p.lw %[t0], %[b_incr](%[addr_b]!) \n\t"
+            "p.lw %[t1], %[b_incr](%[addr_b]!) \n\t"
+            : [a0] "=&r"(aVec0), [a1] "=&r"(aVec1), [a2] "=&r"(aVec2),
+              [a3] "=&r"(aVec3), [t0] "=&r"(bTemp0), [t1] "=&r"(bTemp1),
+              [addr_a] "+&r"(idx_a), [addr_b] "+&r"(idx_b)
+            : [a_incr] "r"(A_incr), [a_decr] "r"(A_decr), [b_incr] "r"(B_incr)
+            : "memory");
         /* The asm code above implements the following commented C code */
         // v2s aVec0 = *((v2s *)&(pSrcA[(i * 4) * N + (j * 2)]));
         // v2s aVec1 = *((v2s *)&(pSrcA[(i * 4 + 1) * N + (j * 2)]));
@@ -573,10 +572,10 @@ void matmul_unrolled_4x2_pincr_asm_parallel_i16_xpulpv2(
           "p.sw %[s21], %[c_incr](%[addr_c]!) \n\t"
           "p.sw %[s30], 4(%[addr_c]!) \n\t"
           "p.sw %[s31], %[c_incr](%[addr_c]!) \n\t"
-          : [ addr_c ] "+&r"(idx_c)
-          : [ s00 ] "r"(sum00), [ s01 ] "r"(sum01), [ s10 ] "r"(sum10),
-            [ s11 ] "r"(sum11), [ s20 ] "r"(sum20), [ s21 ] "r"(sum21),
-            [ s30 ] "r"(sum30), [ s31 ] "r"(sum31), [ c_incr ] "r"(C_incr)
+          : [addr_c] "+&r"(idx_c)
+          : [s00] "r"(sum00), [s01] "r"(sum01), [s10] "r"(sum10),
+            [s11] "r"(sum11), [s20] "r"(sum20), [s21] "r"(sum21),
+            [s30] "r"(sum30), [s31] "r"(sum31), [c_incr] "r"(C_incr)
           : "memory");
       /* The asm code above implements the following commented C code */
       // pDstC[(i * 4) * P + (k * 2)] = sum00;
@@ -681,21 +680,21 @@ void matmul_unrolled_2x2_parallel_i32_xpulpv2(int32_t const *__restrict__ A,
         const int32_t *idx_b = &B[k * P + j];
         int32_t val_a00, val_a01, val_a10, val_a11, val_b00, val_b01, val_b10,
             val_b11;
-        __asm__ volatile("p.lw %[a00], 4(%[addr_a]!) \n\t"
-                         "p.lw %[a01], %[a_incr](%[addr_a]!) \n\t"
-                         "p.lw %[a10], 4(%[addr_a]!) \n\t"
-                         "p.lw %[a11], 0(%[addr_a]) \n\t"
-                         "p.lw %[b00], 4(%[addr_b]!) \n\t"
-                         "p.lw %[b01], %[b_incr](%[addr_b]!) \n\t"
-                         "p.lw %[b10], 4(%[addr_b]!) \n\t"
-                         "p.lw %[b11], 0(%[addr_b]) \n\t"
-                         : [ a00 ] "=&r"(val_a00), [ a01 ] "=&r"(val_a01),
-                           [ a10 ] "=&r"(val_a10), [ a11 ] "=&r"(val_a11),
-                           [ b00 ] "=&r"(val_b00), [ b01 ] "=&r"(val_b01),
-                           [ b10 ] "=&r"(val_b10), [ b11 ] "=&r"(val_b11),
-                           [ addr_a ] "+&r"(idx_a), [ addr_b ] "+&r"(idx_b)
-                         : [ a_incr ] "r"(A_incr), [ b_incr ] "r"(B_incr)
-                         : "memory");
+        __asm__ volatile(
+            "p.lw %[a00], 4(%[addr_a]!) \n\t"
+            "p.lw %[a01], %[a_incr](%[addr_a]!) \n\t"
+            "p.lw %[a10], 4(%[addr_a]!) \n\t"
+            "p.lw %[a11], 0(%[addr_a]) \n\t"
+            "p.lw %[b00], 4(%[addr_b]!) \n\t"
+            "p.lw %[b01], %[b_incr](%[addr_b]!) \n\t"
+            "p.lw %[b10], 4(%[addr_b]!) \n\t"
+            "p.lw %[b11], 0(%[addr_b]) \n\t"
+            : [a00] "=&r"(val_a00), [a01] "=&r"(val_a01), [a10] "=&r"(val_a10),
+              [a11] "=&r"(val_a11), [b00] "=&r"(val_b00), [b01] "=&r"(val_b01),
+              [b10] "=&r"(val_b10), [b11] "=&r"(val_b11), [addr_a] "+&r"(idx_a),
+              [addr_b] "+&r"(idx_b)
+            : [a_incr] "r"(A_incr), [b_incr] "r"(B_incr)
+            : "memory");
         /* The asm code above implements the following commented C code */
         // int32_t val_a00 = A[(i + 0) * N + k + 0];
         // int32_t val_a01 = A[(i + 0) * N + k + 1];
@@ -719,9 +718,9 @@ void matmul_unrolled_2x2_parallel_i32_xpulpv2(int32_t const *__restrict__ A,
                        "p.sw %[s01], %[c_incr](%[addr_c]!) \n\t"
                        "p.sw %[s10], 4(%[addr_c]!) \n\t"
                        "p.sw %[s11], 0(%[addr_c]) \n\t"
-                       : [ addr_c ] "+&r"(idx_c)
-                       : [ s00 ] "r"(c00), [ s01 ] "r"(c01), [ s10 ] "r"(c10),
-                         [ s11 ] "r"(c11), [ c_incr ] "r"(B_incr)
+                       : [addr_c] "+&r"(idx_c)
+                       : [s00] "r"(c00), [s01] "r"(c01), [s10] "r"(c10),
+                         [s11] "r"(c11), [c_incr] "r"(B_incr)
                        : "memory");
       /* The asm code above implements the following commented C code */
       // C[(i + 0) * P + j + 0] = c00;
