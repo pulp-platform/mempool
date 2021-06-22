@@ -19,47 +19,32 @@ else
   base="HEAD~1"
 fi
 
-echo "Comparing HEAD to $base"
-
 # Check for clang format
-files=$(git diff --name-only $base HEAD)
-EXIT_STATUS=0
+echo "Check C and C++ source code"
+./scripts/run_clang_format.py \
+    --clang-format-executable=install/llvm/bin/clang-format -r . || EXIT_STATUS=$?
 
-# Only check files that still exist
-files=$(echo "$files" | xargs ls -d 2>/dev/null)
-
-# Remove files from dependencies
-files=$(echo "$files" | grep -vP "hardware/deps/")
-files=$(echo "$files" | grep -vP "toolchain/")
-
-# Only check C and C++ files for clang-format compatibility
-echo "Checking C/C++ files for clang-format compliance"
-clang_files=$(echo "$files" | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
-for file in $clang_files; do
-  echo $file
-  ./scripts/run_clang_format.py \
-    --clang-format-executable install/llvm/bin/clang-format \
-    $file || EXIT_STATUS=$?
-done
-
-# Only check python files for flake8 compatibility
+# Check python files
+echo "Check Python files"
 if [[ -n "$GITLAB_CI" ]]; then
   # Special case for gitlab ci, since it has an old default python
   python3=$(command -v python3.6) || EXIT_STATUS=$?
 else
   python3=$(command -v python3) || EXIT_STATUS=$?
 fi
-
-echo "Checking python files for flake8 compliance"
-py_files=$(echo "$files" | grep -P "\.(py)\b")
-for file in $py_files; do
-  echo $file
-  $python3 -m flake8 $file || EXIT_STATUS=$?
-done
+${python3} -m flake8 || EXIT_STATUS=$?
 
 # Check for trailing whitespaces and tabs
-echo "Checking for trailing whitespaces and tabs"
-git diff --check $base HEAD -- \
+echo "Checking for trailing whitespaces and tabs in unstaged files"
+git --no-pager diff --check -- \
+    ':(exclude)**.def' \
+    ':(exclude)**.patch' \
+    ':(exclude)toolchain/**' \
+    ':(exclude)apps/riscv-tests/**' \
+    || EXIT_STATUS=$?
+
+echo "Checking for trailing whitespaces and tabs between HEAD and $base"
+git --no-pager diff --check $base HEAD -- \
     ':(exclude)**.def' \
     ':(exclude)**.patch' \
     ':(exclude)toolchain/**' \

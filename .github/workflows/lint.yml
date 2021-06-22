@@ -1,0 +1,74 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+# Lint the design
+name: lint
+on: [push, pull_request]
+
+jobs:
+  #################
+  # Check License #
+  #################
+  check-license:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Python requirements
+      run: pip install -r python-requirements.txt
+    - name: Check license
+      run: python scripts/license-checker.py --config scripts/license-checker.hjson
+
+  ######################
+  # Clang-Format Check #
+  ######################
+  # Check C/C++ files for correct formatting.
+  clangfmt:
+    name: C/C++ Sources
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: DoozyX/clang-format-lint-action@v0.12
+      with:
+        clangFormatVersion: 12
+
+  ########################
+  # Check Python Sources #
+  ########################
+  python:
+    name: Python Sources
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Python requirements
+      run: pip install flake8
+    # Check that all python sources conform to the `pep8` standard
+    - name: Check Python sources
+      run: |
+        flake8
+
+  #########################
+  # Check Trailing Spaces #
+  #########################
+  check-trailing-whitespaces:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Determine base commit
+      run: |
+        if [[ -n $GITHUB_BASE_REF ]]; then
+          # Make sure we have the latest version of the target branch
+          git fetch origin $GITHUB_BASE_REF
+          echo "base=origin/$GITHUB_BASE_REF" >> $GITHUB_ENV
+        else
+          echo "base=HEAD~1" >> $GITHUB_ENV
+        fi
+    - name: Check for trailing whitespaces and tabs
+      run: |
+        git diff --check $base HEAD --      \
+            ':(exclude)**.def'              \
+            ':(exclude)**.patch'            \
+            ':(exclude)toolchain/**'        \
+            ':(exclude)apps/riscv-tests/**'
