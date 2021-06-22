@@ -1,0 +1,397 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+name: ci
+on: [push, pull_request]
+
+jobs:
+
+  ################
+  #  Toolchains  #
+  ################
+  tc-gcc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Recover the submodule commit hash
+      run: |
+        git rev-parse HEAD:toolchain/riscv-gnu-toolchain
+        echo "riscv-gnu-toolchain-hash=`git rev-parse HEAD:toolchain/riscv-gnu-toolchain`" >> $GITHUB_ENV
+    - name: Cache riscv-gnu-toolchain
+      uses: actions/cache@v2
+      id: riscv-gnu-toolchain
+      with:
+        path: install/riscv-gcc
+        key: ${{ runner.os }}-riscv-gnu-toolchain-${{ env.riscv-gnu-toolchain-hash }}
+    - name: Download riscv-gnu-toolchain
+      if: steps.riscv-gnu-toolchain.outputs.cache-hit != 'true'
+      run: git submodule update --init --recursive -- toolchain/riscv-gnu-toolchain
+    - name: Compile riscv-gnu-toolchain
+      if: steps.riscv-gnu-toolchain.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get install libmpc-dev
+        make tc-riscv-gcc
+    - name: Tar riscv-gnu-toolchain
+      run: tar --posix --use-compress-program zstd -cf riscv-gnu-toolchain.tzst install/riscv-gcc
+    - name: Upload riscv-gnu-toolchain
+      uses: actions/upload-artifact@v2
+      with:
+        name: riscv-gnu-toolchain
+        path: riscv-gnu-toolchain.tzst
+
+  tc-llvm:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Recover the submodule commit hash
+      run: |
+        git rev-parse HEAD:toolchain/llvm-project
+        echo "llvm-project-hash=`git rev-parse HEAD:toolchain/llvm-project`" >> $GITHUB_ENV
+    - name: Cache llvm-project
+      uses: actions/cache@v2
+      id: llvm-project
+      with:
+        path: install/llvm
+        key: ${{ runner.os }}-llvm-project-${{ env.llvm-project-hash }}
+    - name: Download llvm-project
+      if: steps.llvm-project.outputs.cache-hit != 'true'
+      run: git submodule update --init --recursive -- toolchain/llvm-project
+    - name: Compile llvm-project
+      if: steps.llvm-project.outputs.cache-hit != 'true'
+      run: |
+        make tc-llvm
+    - name: Tar llvm-project
+      run: tar --posix --use-compress-program zstd -cf llvm-project.tzst install/llvm
+    - name: Upload llvm-project
+      uses: actions/upload-artifact@v2
+      with:
+        name: llvm-project
+        path: llvm-project.tzst
+
+  tc-halide:
+    runs-on: ubuntu-latest
+    needs: tc-llvm
+    steps:
+    - uses: actions/checkout@v2
+    - name: Recover the submodule commit hash
+      run: |
+        git rev-parse HEAD:toolchain/halide
+        echo "halide-hash=`git rev-parse HEAD:toolchain/halide`" >> $GITHUB_ENV
+    - name: Cache halide
+      uses: actions/cache@v2
+      id: halide
+      with:
+        path: install/halide
+        key: ${{ runner.os }}-halide-${{ env.halide-hash }}
+    - name: Get llvm-project artifacts
+      if: steps.halide.outputs.cache-hit != 'true'
+      uses: actions/download-artifact@v2
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      if: steps.halide.outputs.cache-hit != 'true'
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
+    - name: Download halide
+      if: steps.halide.outputs.cache-hit != 'true'
+      run: git submodule update --init --recursive -- toolchain/halide
+    - name: Compile halide
+      if: steps.halide.outputs.cache-hit != 'true'
+      run: |
+        make halide
+    - name: Tar halide
+      run: tar --posix --use-compress-program zstd -cf halide.tzst install/halide
+    - name: Upload halide
+      uses: actions/upload-artifact@v2
+      with:
+        name: halide
+        path: halide.tzst
+
+  ###########
+  #  Tools  #
+  ###########
+  riscv-isa-sim:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache riscv-isa-sim
+      uses: actions/cache@v2
+      id: riscv-isa-sim
+      with:
+        path: install/riscv-isa-sim
+        key: ${{ runner.os }}-riscv-isa-sim-${{ hashFiles('toolchain/riscv-isa-sim/**') }}
+    - name: Download riscv-isa-sim
+      if: steps.riscv-isa-sim.outputs.cache-hit != 'true'
+      run: git submodule update --init --recursive -- toolchain/riscv-isa-sim
+    - name: Compile riscv-isa-sim
+      if: steps.riscv-isa-sim.outputs.cache-hit != 'true'
+      run: |
+        sudo apt install device-tree-compiler
+        make riscv-isa-sim
+    - name: Tar riscv-isa-sim
+      run: tar --posix --use-compress-program zstd -cf riscv-isa-sim.tzst install/riscv-isa-sim
+    - name: Upload riscv-isa-sim
+      uses: actions/upload-artifact@v2
+      with:
+        name: riscv-isa-sim
+        path: riscv-isa-sim.tzst
+
+  verilator:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Recover the submodule commit hash
+      run: |
+        git rev-parse HEAD:toolchain/verilator
+        echo "tc-verilator-hash=`git rev-parse HEAD:toolchain/verilator`" >> $GITHUB_ENV
+    - name: Cache Verilator
+      uses: actions/cache@v2
+      id: verilator-cache
+      with:
+        path: install/verilator
+        key: ${{ runner.os }}-verilator-${{ env.tc-verilator-hash }}
+    - name: Download Verilator
+      if: steps.verilator-cache.outputs.cache-hit != 'true'
+      run: |
+        git submodule update --init --recursive -- toolchain/verilator
+    - name: Compile Verilator
+      if: steps.verilator-cache.outputs.cache-hit != 'true'
+      run: |
+        sudo apt install libfl-dev
+        make verilator
+    - name: Tar verilator
+      run: tar --posix --use-compress-program zstd -cf verilator.tzst install/verilator
+    - name: Upload verilator
+      uses: actions/upload-artifact@v2
+      with:
+        name: verilator
+        path: verilator.tzst
+
+  ####################
+  #  Build Hardware  #
+  ####################
+  verilator-model:
+    runs-on: ubuntu-latest
+    needs: verilator
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache Verilator Model
+      uses: actions/cache@v2
+      id: verilator-model
+      with:
+        path: hardware/verilator_build/Vmempool_tb_verilator
+        key: ${{ runner.os }}-verilator-model-${{ hashFiles('hardware/**','config/**') }}
+    - name: Get Verilator artifacts
+      if: steps.verilator-model.outputs.cache-hit != 'true'
+      uses: actions/download-artifact@v2
+      with:
+        name: verilator
+    - name: Untar Verilator
+      if: steps.verilator-model.outputs.cache-hit != 'true'
+      run: tar --use-compress-program zstd -xf verilator.tzst
+    - name: Build Model
+      if: steps.verilator-model.outputs.cache-hit != 'true'
+      env:
+        num_cores: '16'
+      run: |
+        sudo apt install libelf-dev
+        ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/include $GITHUB_WORKSPACE/install/verilator/include
+        ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/bin/verilator_includer $GITHUB_WORKSPACE/install/verilator/bin/verilator_includer
+        make bender
+        git submodule update --init --recursive -- hardware/deps/*
+        make patch-hw
+        make -C hardware $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
+    - name: Tar Verilator Model
+      run: tar --posix --use-compress-program zstd -cf verilator-model.tzst hardware/verilator_build/Vmempool_tb_verilator
+    - name: Upload Verilator Model
+      uses: actions/upload-artifact@v2
+      with:
+        name: verilator-model
+        path: verilator-model.tzst
+
+  ####################
+  #  Build Software  #
+  ####################
+  build-apps-gcc:
+    runs-on: ubuntu-latest
+    needs: tc-gcc
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get riscv-gnu-toolchain artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-gnu-toolchain
+    - name: Untar riscv-gnu-toolchain
+      run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
+    - name: Build Apps
+      env:
+        num_cores: '16'
+        RISCV_WARNINGS: '-Werror'
+      run: |
+        COMPILER=gcc make -C apps all
+    - name: Tar apps-gcc Model
+      run: tar --posix --use-compress-program zstd -cf apps-gcc.tzst apps/bin
+    - name: Upload apps-gcc
+      uses: actions/upload-artifact@v2
+      with:
+        name: apps-gcc
+        path: apps-gcc.tzst
+
+  build-apps-llvm:
+    runs-on: ubuntu-latest
+    needs: [tc-gcc, tc-llvm]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get riscv-gnu-toolchain artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-gnu-toolchain
+    - name: Untar riscv-gnu-toolchain
+      run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
+    - name: Get llvm-project artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
+    - name: Build Apps
+      env:
+        num_cores: '16'
+        RISCV_WARNINGS: '-Werror'
+      run: |
+        COMPILER=llvm make -C apps all
+    - name: Tar apps-llvm Model
+      run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst apps/bin
+    - name: Upload apps-llvm
+      uses: actions/upload-artifact@v2
+      with:
+        name: apps-llvm
+        path: apps-llvm.tzst
+
+  ##################
+  #  Run Software  #
+  ##################
+  run-apps-gcc:
+    runs-on: ubuntu-latest
+    needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get apps-gcc artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: apps-gcc
+    - name: Untar apps-gcc
+      run: tar --use-compress-program zstd -xf apps-gcc.tzst
+    - name: Get riscv-isa-sim artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-isa-sim
+    - name: Untar riscv-isa-sim
+      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
+    - name: Get verilator-model artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: verilator-model
+    - name: Untar verilator-model
+      run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Install Python requirements
+      run: pip install -r python-requirements.txt
+    - name: Run GCC Apps
+      env:
+        num_cores: '16'
+      run: |
+        # Don't regenerate previously build artifacts
+        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
+        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
+        cd hardware
+        app=tests make verilate
+        make trace
+
+  run-apps-llvm:
+    runs-on: ubuntu-latest
+    needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get apps-llvm artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: apps-llvm
+    - name: Untar apps-llvm
+      run: tar --use-compress-program zstd -xf apps-llvm.tzst
+    - name: Get riscv-isa-sim artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-isa-sim
+    - name: Untar riscv-isa-sim
+      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
+    - name: Get verilator-model artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: verilator-model
+    - name: Untar verilator-model
+      run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Install Python requirements
+      run: pip install -r python-requirements.txt
+    - name: Run LLVM Apps
+      env:
+        num_cores: '16'
+      run: |
+        # Don't regenerate previously build artifacts
+        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
+        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
+        cd hardware
+        app=tests make verilate
+        make trace
+
+  unit-test:
+    runs-on: ubuntu-latest
+    needs: [tc-gcc, riscv-isa-sim, verilator-model]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get riscv-gnu-toolchain artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-gnu-toolchain
+    - name: Untar riscv-gnu-toolchain
+      run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
+    - name: Get riscv-isa-sim artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-isa-sim
+    - name: Untar riscv-isa-sim
+      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
+    - name: Get verilator-model artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: verilator-model
+    - name: Untar verilator-model
+      run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Execute tests
+      run: |
+        # Don't regenerate previously build artifacts
+        sudo apt install device-tree-compiler
+        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
+        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
+        make test
+
+  ##############
+  #  Clean-up  #
+  ##############
+  clean-up:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
+      build-apps-llvm, build-apps-gcc, unit-test, run-apps-gcc, run-apps-llvm]
+    steps:
+    - name: Delete artifacts
+      uses: geekyeggo/delete-artifact@v1
+      with:
+        name: |
+          riscv-gnu-toolchain
+          llvm-project
+          halide
+          riscv-isa-sim
+          verilator
+          verilator-model
+          apps-gcc
+          apps-llvm
