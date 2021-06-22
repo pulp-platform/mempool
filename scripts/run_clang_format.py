@@ -162,6 +162,9 @@ def run_clang_format_diff(args, file):
     else:
         invocation = [args.clang_format_executable, file]
 
+    if args.style:
+        invocation.extend(['--style', args.style])
+
     if args.dry_run:
         print(" ".join(invocation))
         return [], []
@@ -324,6 +327,9 @@ def main():
         default=[],
         help='exclude paths matching the given glob-like pattern(s)'
         ' from recursive search')
+    parser.add_argument(
+        '--style',
+        help='formatting style to apply (LLVM, Google, Chromium, Mozilla, WebKit)')
 
     args = parser.parse_args()
 

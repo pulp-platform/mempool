@@ -148,7 +148,7 @@ update_opcodes:
 	make -C toolchain/riscv-opcodes all
 
 format:
-	$(LLVM_INSTALL_DIR)/bin/clang-format -style=file -i --verbose $$(git diff --name-only HEAD | tr ' ' '\n' | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
+	$(ROOT_DIR)/scripts/run_clang_format.py --clang-format-executable=$(LLVM_INSTALL_DIR)/bin/clang-format -i -r $(ROOT_DIR)
 
 clean: clean_test
 	rm -rf $(INSTALL_DIR)

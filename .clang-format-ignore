@@ -1,0 +1,18 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+# Exclude files from formatting requirement
+# External dependencies
+*/apps/common/encoding.h
+*/apps/riscv-tests
+*/toolchain
+*/hardware/deps
+*/hardware/tb/dpi/elfloader.cpp
+
+# Build artifacts
+*/install
+*build*
+
+# Linker scripts to preprocess
+*.ld.c
