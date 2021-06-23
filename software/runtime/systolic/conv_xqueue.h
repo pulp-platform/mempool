@@ -36,7 +36,7 @@
 #define KERNEL_SIZE 3
 
 // Number of kernels
-#define NUM_KERNELS 1
+#define NUM_KERNELS 25
 
 // Array of queue ptrs in row-major order (concatenated kernels)
 int32_t *queues_x[KERNEL_SIZE][NUM_KERNELS * KERNEL_SIZE];
@@ -116,12 +116,11 @@ void systolic_init(uint32_t const *kernel_tile_map,
   // }
 }
 
-void systolic_conv_first_leader(const uint32_t kernel_id,
-                                const uint32_t kernel_row,
-                                const uint32_t num_rows,
-                                const uint32_t num_cols,
-                                int32_t const *__restrict__ X,
-                                int32_t const *__restrict__ W) {
+void systolic_conv_first_front(const uint32_t kernel_id,
+                               const uint32_t kernel_row,
+                               const uint32_t num_rows, const uint32_t num_cols,
+                               int32_t const *__restrict__ X,
+                               int32_t const *__restrict__ W) {
   int32_t *queue_next_x;
   int32_t *queue_next_y;
   int32_t resp_x __attribute__((unused)) = 0;
@@ -161,9 +160,9 @@ void systolic_conv_first_leader(const uint32_t kernel_id,
   }
 }
 
-void systolic_conv_leader(const uint32_t kernel_id, const uint32_t kernel_row,
-                          const uint32_t num_rows, const uint32_t num_cols,
-                          int32_t const *__restrict__ W) {
+void systolic_conv_front(const uint32_t kernel_id, const uint32_t kernel_row,
+                         const uint32_t num_rows, const uint32_t num_cols,
+                         int32_t const *__restrict__ W) {
   int32_t *queue_prev_x;
   int32_t *queue_next_x;
   int32_t *queue_next_y;
@@ -205,9 +204,9 @@ void systolic_conv_leader(const uint32_t kernel_id, const uint32_t kernel_row,
   }
 }
 
-void systolic_conv_follower(const uint32_t kernel_id, const uint32_t kernel_row,
-                            const uint32_t num_rows, const uint32_t num_cols,
-                            int32_t const *__restrict__ W) {
+void systolic_conv_mid(const uint32_t kernel_id, const uint32_t kernel_row,
+                       const uint32_t num_rows, const uint32_t num_cols,
+                       int32_t const *__restrict__ W) {
   int32_t *queue_prev_x;
   int32_t *queue_next_x;
   int32_t *queue_prev_y;
@@ -248,9 +247,9 @@ void systolic_conv_follower(const uint32_t kernel_id, const uint32_t kernel_row,
   }
 }
 
-void systolic_conv_NAME(const uint32_t kernel_id, const uint32_t kernel_row,
-                        const uint32_t num_rows, const uint32_t num_cols,
-                        int32_t const *__restrict__ W) {
+void systolic_conv_end(const uint32_t kernel_id, const uint32_t kernel_row,
+                       const uint32_t num_rows, const uint32_t num_cols,
+                       int32_t const *__restrict__ W) {
   int32_t *queue_prev_x;
   int32_t *queue_next_x;
   int32_t *queue_prev_y;
@@ -289,12 +288,15 @@ void systolic_conv_NAME(const uint32_t kernel_id, const uint32_t kernel_row,
     queue_pop(queue_prev_x, &curr_x);
     queue_push(queue_next_x, curr_x, &resp_x);
   }
+
+  // Flush next queues at the end of execution
+  queue_pop(queue_next_x, &curr_x);
+  queue_pop(queue_next_x, &curr_x);
 }
 
-void systolic_conv_last_NAME(const uint32_t kernel_id,
-                             const uint32_t kernel_row, const uint32_t num_rows,
-                             const uint32_t num_cols,
-                             int32_t const *__restrict__ W) {
+void systolic_conv_last_end(const uint32_t kernel_id, const uint32_t kernel_row,
+                            const uint32_t num_rows, const uint32_t num_cols,
+                            int32_t const *__restrict__ W) {
   int32_t *queue_prev_x;
   int32_t *queue_prev_y;
   int32_t *queue_next_y;

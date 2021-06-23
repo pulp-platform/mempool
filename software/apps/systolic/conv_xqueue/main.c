@@ -36,7 +36,7 @@
 
 // Dimensions of maps
 #define KERNEL_ROWS KERNEL_SIZE
-#define KERNEL_COLS KERNEL_SIZE *NUM_KERNELS
+#define KERNEL_COLS (KERNEL_SIZE * NUM_KERNELS)
 #define NUM_ACCS NUM_KERNELS
 
 uint32_t *kernel_tile_map;
@@ -101,17 +101,23 @@ int main() {
   // ACC COMBO
   // ----------
 
-  // TODO: VISUAL DESCRIPTION
+  // XY: X = Tile and Y = Core % 4
+  //
+  // 00 01 30 **
+  // 10 11 31 33 02 03 40 **
+  // 20 21 32 ** 12 13 41 43
+  //             22 23 42 **
+
   // TODO: CURRENTLY ONLY WORKS FOR KERNEL_SIZE == 3
 
-  kernel_id = tile_id / 5;
-  uint32_t kernel_pair_id = tile_id % 5;
+  uint32_t group_id = tile_id / 5;
+  uint32_t group_tile_id = tile_id % 5;
   uint32_t tile_core_id = core_id % 4;
-  if (kernel_pair_id < 3) {
+  if (group_tile_id < 3) {
     is_kernel_core = 1;
-    kernel_row = kernel_pair_id;
+    kernel_row = group_tile_id;
     kernel_col = tile_core_id % 2;
-    kernel_id += tile_core_id / 2;
+    kernel_id = 2 * group_id + (tile_core_id / 2);
   } else {
     if (tile_core_id == 3) {
       is_kernel_core = 0;
@@ -120,8 +126,46 @@ int main() {
       kernel_row = tile_core_id;
       kernel_col = 2;
     }
-    kernel_id += kernel_pair_id % 3;
+    kernel_id = 2 * group_id + (group_tile_id % 3);
   }
+
+  // ----------
+  // LONG ROWS
+  // ----------
+
+  // XY: X = Tile and Y = Core % 4
+  //
+  // 00 01 02 **
+  // 10 11 12 90 13 30 31 **
+  // 20 21 22 ** 23 40 41 91 42 43 60 **
+  //             03 50 51 ** 52 53 70 92 71 72 73 **
+  //                         32 33 80 ** 81 82 83 93
+  //                                     61 62 63 **
+
+  // TODO: CURRENTLY ONLY WORKS FOR KERNEL_SIZE == 3
+
+  // uint32_t group_id = tile_id / 10;
+  // uint32_t group_tile_id = tile_id % 10;
+  // uint32_t tile_core_id = core_id % 4;
+  // if (group_tile_id < 9) {
+  //   is_kernel_core = 1;
+  //   uint32_t group_kernel_id = group_tile_id / 3;
+  //   kernel_row = group_tile_id % 3;
+  //   kernel_col = (tile_core_id + group_kernel_id) % 3;
+  //   uint32_t threshold = 3 - group_kernel_id;
+  //   if (tile_core_id >= threshold) {
+  //     group_kernel_id += 1;
+  //     if (kernel_row == 0) {
+  //       kernel_row = 2;
+  //     } else {
+  //       kernel_row -= 1;
+  //     }
+  //   }
+  //   kernel_id = 4 * group_id + group_kernel_id;
+  // } else {
+  //   is_kernel_core = 0;
+  //   kernel_id = 4 * group_id + tile_core_id;
+  // }
 
   // Core is only enabled if its kernel is required
   if (kernel_id < NUM_KERNELS) {
@@ -136,8 +180,9 @@ int main() {
   // Set tile and core maps
   if (is_enabled) {
     if (is_kernel_core) {
-      kernel_tile_map[kernel_row * KERNEL_COLS + kernel_col] = tile_id;
-      kernel_core_map[kernel_row * KERNEL_COLS + kernel_col] = core_id;
+      uint32_t map_col = KERNEL_SIZE * kernel_id + kernel_col;
+      kernel_tile_map[kernel_row * KERNEL_COLS + map_col] = tile_id;
+      kernel_core_map[kernel_row * KERNEL_COLS + map_col] = core_id;
     } else {
       row_acc_tile_map[kernel_id] = tile_id;
       row_acc_core_map[kernel_id] = core_id;
@@ -191,35 +236,35 @@ int main() {
       switch (kernel_col) {
       case 0:
         if (kernel_id == 0) {
-          systolic_conv_first_leader(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                     matrix_X, (int32_t *)weights);
+          systolic_conv_first_front(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
+                                    matrix_X, (int32_t *)weights);
         } else {
           if (kernel_row == 2) {
-            systolic_conv_first_leader(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                       matrix_X, (int32_t *)weights);
+            systolic_conv_first_front(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
+                                      matrix_X, (int32_t *)weights);
           } else {
-            systolic_conv_leader(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                 (int32_t *)weights);
+            systolic_conv_front(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
+                                (int32_t *)weights);
           }
         }
         break;
       case (KERNEL_SIZE - 1):
         if (kernel_id == NUM_KERNELS - 1) {
-          systolic_conv_last_NAME(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                  (int32_t *)weights);
+          systolic_conv_last_end(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
+                                 (int32_t *)weights);
         } else {
           if (kernel_row == 0) {
-            systolic_conv_last_NAME(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                    (int32_t *)weights);
+            systolic_conv_last_end(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
+                                   (int32_t *)weights);
           } else {
-            systolic_conv_NAME(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                               (int32_t *)weights);
+            systolic_conv_end(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
+                              (int32_t *)weights);
           }
         }
         break;
       default:
-        systolic_conv_follower(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                               (int32_t *)weights);
+        systolic_conv_mid(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
+                          (int32_t *)weights);
       }
     } else {
       systolic_conv_row_acc(kernel_id, DIM_Y_M, DIM_Y_N, matrix_Y);
