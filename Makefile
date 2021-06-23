@@ -47,6 +47,7 @@ halide:
 		-DCMAKE_INSTALL_PREFIX=$(HALIDE_INSTALL_DIR) \
 		-DCMAKE_CXX_COMPILER=$(CXX) \
 		-DCMAKE_C_COMPILER=$(CC) \
+		-DWITH_PYTHON_BINDINGS=OFF \
 		-DCMAKE_BUILD_TYPE=Release \
 		.. && \
 	make -j4 all && \
