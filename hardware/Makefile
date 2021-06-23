@@ -123,22 +123,6 @@ simc: clean-dasm compile
 	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
 
-# Unit tests simulation
-TESTS_DIR := $(abspath $(ROOT_DIR)/../apps/riscv-tests/isa)
-include $(TESTS_DIR)/snitch_isa.mk
-
-test_result_dir := $(resultpath)/test_result
-
-tests := $(addsuffix .out,$(addprefix $(test_result_dir)/,$(rtl_mempool_tests)))
-
-simc_test: clean-dasm compile $(tests)
-
-$(tests): $(test_result_dir)/%.out : $(app_path)/%
-	mkdir -p $(test_result_dir)
-	cd $(buildpath) && \
-	$(questa_cmd) vsim -c $(questa_args) +PRELOAD=$< $(library).$(top_level) -do "run -a"
-	./scripts/return_status.sh $(buildpath)/transcript > $@
-
 ################
 # Verilator    #
 ################
@@ -180,7 +164,8 @@ $(VERILATOR_EXE): $(VERILATOR_MK) $(shell find $(VERILATOR_SRC) -type f) Makefil
 	make -j4 -C $(verilator_build) -f $<
 
 verilate: $(VERILATOR_EXE) $(buildpath) Makefile
-	cd $(buildpath) && $(VERILATOR_EXE) --meminit=ram,$(preload)
+	cd $(buildpath) && $(VERILATOR_EXE) --meminit=ram,$(preload) | tee transcript
+	./scripts/return_status.sh $(buildpath)/transcript
 
 ################
 # Tracing      #
@@ -216,6 +201,32 @@ $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
 	$(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
+
+############################
+# Unit tests simulation    #
+############################
+TESTS_DIR := $(abspath $(ROOT_DIR)/../apps/riscv-tests/isa)
+include $(TESTS_DIR)/snitch_isa.mk
+
+test_result_dir_vsim := $(resultpath)/test_result_vsim
+test_result_dir_verilate := $(resultpath)/test_result_verilate
+
+tests_vsim := $(addsuffix .out,$(addprefix $(test_result_dir_vsim)/,$(rtl_mempool_tests)))
+tests_verilate := $(addsuffix .out,$(addprefix $(test_result_dir_verilate)/,$(rtl_mempool_tests)))
+
+simc_test: clean-dasm compile $(buildpath) $(tests_vsim)
+verilate_test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
+
+$(tests_vsim): $(test_result_dir_vsim)/%.out : $(app_path)/%
+	mkdir -p $(test_result_dir_vsim)
+	cd $(buildpath) && \
+	$(questa_cmd) vsim -c $(questa_args) +PRELOAD=$< $(library).$(top_level) -do "run -a"
+	./scripts/return_status.sh $(buildpath)/transcript > $@
+
+$(tests_verilate): $(test_result_dir_verilate)/%.out : $(app_path)/%
+	mkdir -p $(test_result_dir_verilate)
+	cd $(buildpath) && $(VERILATOR_EXE) --meminit=ram,$< | tee transcript
+	./scripts/return_status.sh $(buildpath)/transcript > $@
 
 ################
 # Helper       #

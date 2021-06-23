@@ -6,7 +6,7 @@
 
 # Author: Samuel Riedel, ETH Zurich
 
-RET=$(grep '# \[EOC\]' $1 | grep -Poh -- '(?<=\(retval = )-?[0-9]+(?=\))')
+RET=$(grep '\[EOC\]' $1 | grep -Poh -- '(?<=\(retval = )-?[0-9]+(?=\))')
 [[ -z "${RET}" ]] && echo "Simulation did not finish" && exit 1
 echo "Simulation returned ${RET}"
 [[ "${RET}" -eq 0 ]] && exit 0 || exit 1

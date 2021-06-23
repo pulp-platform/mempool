@@ -96,14 +96,13 @@ test: build_test
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
 	COMPILER=gcc $(MINPOOL_CONFIG) make -C $(APPS_PREFIX) test && \
-	$(MINPOOL_CONFIG) make -C hardware simc_test
+	$(MINPOOL_CONFIG) make -C hardware verilate_test
 
 build_test: update_opcodes
 	cd $(RISCV_TESTS_DIR); \
 	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
 	make isa -j4 && make install && \
-	cd isa && make -j4 all && \
-	$(MINPOOL_CONFIG) make -C ../../../hardware compile
+	cd isa && make -j4 all
 
 clean_test:
 	$(MAKE) -C hardware clean
