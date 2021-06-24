@@ -10,12 +10,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Capability to enable and disable the traces with a CSR
 - CPU model for MemPool in GCC to enable correct instruction scheduling
+- Added GitHub CI flow
 
 ### Changed
 - Allow atomic extension to be enabled in GCC
 - Replace atomic library with the corresponding builtins
 - Compile all applications in the CI instead of only the ones executed
 - Move Halide applications to their own directory
+- Move linting scripts to `scripts` folder
+- Move flat hardware dependencies to submodules
+- Updated LLVM to version 12
+- Updated Halide to version 12
+- Run unit tests with Verilator
 
 ### Fixed
 - Stall cycle counting in the trace no longer misses stalls
