@@ -19,6 +19,10 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 
+# Include configuration
+config_mk = $(abspath $(ROOT_DIR)/config/config.mk)
+include $(config_mk)
+
 INSTALL_PREFIX        ?= install
 APPS_PREFIX           ?= apps
 INSTALL_DIR           ?= ${ROOT_DIR}/${INSTALL_PREFIX}
@@ -30,14 +34,14 @@ BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
 RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${APPS_PREFIX}/riscv-tests
 
-CMAKE ?= cmake-3.18.1
+CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
 # the variable if it is only defined by the Makefile (its origin in the Makefile's default).
 ifeq ($(origin CC),default)
-CC     = gcc-8.2.0
+CC  = gcc
 endif
 ifeq ($(origin CXX),default)
-CXX    = g++-8.2.0
+CXX = g++
 endif
 BENDER_VERSION = 0.21.0
 

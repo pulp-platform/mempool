@@ -50,7 +50,7 @@ verilator_build ?= $(ROOT_DIR)/verilator_build
 verilator_files ?= $(verilator_build)/files
 verilator_top   ?= mempool_tb_verilator
 # Python
-python          ?= python3.6
+python          ?= python3
 # Enable tracing
 snitch_trace    ?= 0
 
