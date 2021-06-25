@@ -205,3 +205,20 @@ We use the following RISC-V tools to parse simulation traces and keep opcodes co
 The open-source simulator [Verilator](https://www.veripool.org/verilator) can be used for RTL simulation.
 
 - `toolchain/verilator` is licensed under GPL. See [Verilator's license](https://github.com/verilator/verilator/blob/master/LICENSE) for more details.
+
+## Publication
+
+If you want to use MemPool, you can cite us:
+
+```
+@InProceedings{MemPool2021,
+    author    = {Matheus Cavalcante and Samuel Riedel and Antonio Pullini and Luca Benini},
+    title     = {{MemPool}: A Shared-{L1} Memory Many-Core Cluster with a Low-Latency Interconnect},
+    booktitle = {Proceedings of the 2021 {Design}, {Automation} & {Test} in {Europe} {Conference} & {Exhibition} ({DATE})},
+    year      = 2021,
+    month     = mar,
+    address   = {Grenoble, France}
+}
+```
+
+This paper is also available at arXiv, at the following link: [arXiv:2012.02973 [cs.AR]](https://arxiv.org/abs/2012.02973).
