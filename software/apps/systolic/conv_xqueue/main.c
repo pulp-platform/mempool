@@ -31,23 +31,17 @@
 #define DIM_X_N 32
 
 // Dimensions of matrix Y
-#define DIM_Y_M (DIM_X_M - (KERNEL_SIZE - 1))
-#define DIM_Y_N (DIM_X_N - (KERNEL_SIZE - 1))
+#define DIM_Y_M (DIM_X_M - 2)
+#define DIM_Y_N (DIM_X_N - 2)
 
-// Dimensions of maps
-#define KERNEL_ROWS KERNEL_SIZE
-#define KERNEL_COLS (KERNEL_SIZE * NUM_KERNELS)
-#define NUM_ACCS NUM_KERNELS
-
-uint32_t *kernel_tile_map;
-uint32_t *kernel_core_map;
-uint32_t *row_acc_tile_map;
-uint32_t *row_acc_core_map;
+uint32_t *tile_map;
+uint32_t *core_map;
 
 int32_t *matrix_X;
 int32_t *matrix_Y;
 
 int32_t weights[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
+int32_t *matrix_W = (int32_t *)weights;
 
 void generate_gradient_matrix(int32_t **matrix, uint32_t num_rows,
                               uint32_t num_cols) {
@@ -84,110 +78,16 @@ int main() {
 
   // Allocate tile and core maps
   if (core_id == 0) {
-    kernel_tile_map = (uint32_t *)simple_malloc(KERNEL_ROWS * KERNEL_COLS * 4);
-    kernel_core_map = (uint32_t *)simple_malloc(KERNEL_ROWS * KERNEL_COLS * 4);
-    row_acc_tile_map = (uint32_t *)simple_malloc(NUM_ACCS * 4);
-    row_acc_core_map = (uint32_t *)simple_malloc(NUM_ACCS * 4);
-  }
-
-  // Systolic identifiers
-  int32_t is_enabled = 0;
-  int32_t is_kernel_core = 0;
-  uint32_t kernel_id = 0;
-  uint32_t kernel_row = 0;
-  uint32_t kernel_col = 0;
-
-  // ----------
-  // ACC COMBO
-  // ----------
-
-  // XY: X = Tile and Y = Core % 4
-  //
-  // 00 01 30 **
-  // 10 11 31 33 02 03 40 **
-  // 20 21 32 ** 12 13 41 43
-  //             22 23 42 **
-
-  // TODO: CURRENTLY ONLY WORKS FOR KERNEL_SIZE == 3
-
-  uint32_t group_id = tile_id / 5;
-  uint32_t group_tile_id = tile_id % 5;
-  uint32_t tile_core_id = core_id % 4;
-  if (group_tile_id < 3) {
-    is_kernel_core = 1;
-    kernel_row = group_tile_id;
-    kernel_col = tile_core_id % 2;
-    kernel_id = 2 * group_id + (tile_core_id / 2);
-  } else {
-    if (tile_core_id == 3) {
-      is_kernel_core = 0;
-    } else {
-      is_kernel_core = 1;
-      kernel_row = tile_core_id;
-      kernel_col = 2;
-    }
-    kernel_id = 2 * group_id + (group_tile_id % 3);
-  }
-
-  // ----------
-  // LONG ROWS
-  // ----------
-
-  // XY: X = Tile and Y = Core % 4
-  //
-  // 00 01 02 **
-  // 10 11 12 90 13 30 31 **
-  // 20 21 22 ** 23 40 41 91 42 43 60 **
-  //             03 50 51 ** 52 53 70 92 71 72 73 **
-  //                         32 33 80 ** 81 82 83 93
-  //                                     61 62 63 **
-
-  // TODO: CURRENTLY ONLY WORKS FOR KERNEL_SIZE == 3
-
-  // uint32_t group_id = tile_id / 10;
-  // uint32_t group_tile_id = tile_id % 10;
-  // uint32_t tile_core_id = core_id % 4;
-  // if (group_tile_id < 9) {
-  //   is_kernel_core = 1;
-  //   uint32_t group_kernel_id = group_tile_id / 3;
-  //   kernel_row = group_tile_id % 3;
-  //   kernel_col = (tile_core_id + group_kernel_id) % 3;
-  //   uint32_t threshold = 3 - group_kernel_id;
-  //   if (tile_core_id >= threshold) {
-  //     group_kernel_id += 1;
-  //     if (kernel_row == 0) {
-  //       kernel_row = 2;
-  //     } else {
-  //       kernel_row -= 1;
-  //     }
-  //   }
-  //   kernel_id = 4 * group_id + group_kernel_id;
-  // } else {
-  //   is_kernel_core = 0;
-  //   kernel_id = 4 * group_id + tile_core_id;
-  // }
-
-  // Core is only enabled if its kernel is required
-  if (kernel_id < NUM_KERNELS) {
-    is_enabled = 1;
-  } else {
-    is_enabled = 0;
+    tile_map = (uint32_t *)simple_malloc(num_cores * 4);
+    core_map = (uint32_t *)simple_malloc(num_cores * 4);
   }
 
   // Wait for all cores
   mempool_barrier(num_cores);
 
   // Set tile and core maps
-  if (is_enabled) {
-    if (is_kernel_core) {
-      uint32_t map_col = KERNEL_SIZE * kernel_id + kernel_col;
-      kernel_tile_map[kernel_row * KERNEL_COLS + map_col] = tile_id;
-      kernel_core_map[kernel_row * KERNEL_COLS + map_col] = core_id;
-    } else {
-      row_acc_tile_map[kernel_id] = tile_id;
-      row_acc_core_map[kernel_id] = core_id;
-    }
-  }
+  tile_map[core_id] = tile_id;
+  core_map[core_id] = core_id;
 
   // Wait for all cores
   mempool_barrier(num_cores);
@@ -197,14 +97,11 @@ int main() {
     printf("> Initialize\n");
 
     // Print out maps
-    // print_matrix((int32_t *)kernel_tile_map, KERNEL_ROWS, KERNEL_COLS);
-    // print_matrix((int32_t *)kernel_core_map, KERNEL_ROWS, KERNEL_COLS);
-    // print_matrix((int32_t *)row_acc_tile_map, 1, NUM_ACCS);
-    // print_matrix((int32_t *)row_acc_core_map, 1, NUM_ACCS);
+    // print_matrix((int32_t *)tile_map, 1, num_cores);
+    // print_matrix((int32_t *)core_map, 1, num_cores);
 
     // Initialize systolic array
-    systolic_init(kernel_tile_map, kernel_core_map, row_acc_tile_map,
-                  row_acc_core_map);
+    systolic_init(tile_map, core_map);
 
     // Create and initialize matrices
     generate_gradient_matrix(&matrix_X, DIM_X_M, DIM_X_N);
@@ -231,44 +128,15 @@ int main() {
   // Wait for all cores
   mempool_barrier(num_cores);
 
-  if (is_enabled) {
-    if (is_kernel_core) {
-      switch (kernel_col) {
-      case 0:
-        if (kernel_id == 0) {
-          systolic_conv_first_front(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                    matrix_X, (int32_t *)weights);
-        } else {
-          if (kernel_row == 2) {
-            systolic_conv_first_front(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                      matrix_X, (int32_t *)weights);
-          } else {
-            systolic_conv_front(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                (int32_t *)weights);
-          }
-        }
-        break;
-      case (KERNEL_SIZE - 1):
-        if (kernel_id == NUM_KERNELS - 1) {
-          systolic_conv_last_end(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                 (int32_t *)weights);
-        } else {
-          if (kernel_row == 0) {
-            systolic_conv_last_end(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                                   (int32_t *)weights);
-          } else {
-            systolic_conv_end(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                              (int32_t *)weights);
-          }
-        }
-        break;
-      default:
-        systolic_conv_mid(kernel_id, kernel_row, DIM_X_M, DIM_X_N,
-                          (int32_t *)weights);
-      }
-    } else {
-      systolic_conv_row_acc(kernel_id, DIM_Y_M, DIM_Y_N, matrix_Y);
-    }
+  switch (core_id) {
+  case 0:
+    systolic_conv_front(DIM_X_M, DIM_X_N, matrix_X, matrix_W, matrix_Y);
+    break;
+  case (NUM_CORES - 1):
+    systolic_conv_end(core_id, DIM_X_M, DIM_X_N, matrix_X, matrix_W, matrix_Y);
+    break;
+  default:
+    systolic_conv_mid(core_id, DIM_X_M, DIM_X_N, matrix_X, matrix_W, matrix_Y);
   }
 
   // Wait for all cores
@@ -285,8 +153,8 @@ int main() {
     printf("> End\n");
 
     // Print out matrix Y
-    printf("> Print Matrix Y\n");
-    print_matrix(matrix_Y, DIM_Y_M, DIM_Y_N);
+    // printf("> Print Matrix Y\n");
+    // print_matrix(matrix_Y, DIM_Y_M, DIM_Y_N);
   }
 
   // wait until all cores have finished
