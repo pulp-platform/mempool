@@ -82,9 +82,6 @@ tc-llvm:
 
 riscv-isa-sim: update_opcodes
 	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
-	[ -d dtc ] || git clone git://git.kernel.org/pub/scm/utils/dtc/dtc.git && cd dtc; \
-	make install SETUP_PREFIX=$(ISA_SIM_INSTALL_DIR) PREFIX=$(ISA_SIM_INSTALL_DIR) && \
-	PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; cd ..; \
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Unit tests for verification
