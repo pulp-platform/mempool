@@ -34,7 +34,7 @@ artifacts:
     outputs:
       - install/verilator
 
-  verilator_model:
+  verilator-model:
     inputs:
       - Makefile
       - toolchain/verilator

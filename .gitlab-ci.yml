@@ -90,19 +90,20 @@ halide:
       fi
   needs: ["tc-llvm"]
 
-verilator_model:
+verilator-model:
   stage: build
   script:
     - |
-      if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup verilator_model; then
+      if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup verilator-model; then
         # Download Verilator and add missing links
-        $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
         $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator
         ln -s $VERILATOR_ROOT/share/verilator/include $VERILATOR_ROOT/include
         ln -s $VERILATOR_ROOT/share/verilator/bin/verilator_includer $VERILATOR_ROOT/bin/verilator_includer
         # Build the verilator model
+        git submodule update --init --recursive -- hardware/deps/*
+        make patch-hw
         make -C hardware $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
-        $CI_PROJECT_DIR/scripts/memora_retry.sh insert verilator_model
+        $CI_PROJECT_DIR/scripts/memora_retry.sh insert verilator-model
       fi
   variables:
     num_cores: "16"
@@ -111,9 +112,8 @@ verilator_model:
 hardware:
   stage: test
   script:
-    # Don't regenerate the bootrom, we just want to see if the HW compiles
-    - touch apps/common/bootrom.img
-    - touch hardware/src/bootrom.sv
+    - git submodule update --init --recursive -- hardware/deps/*
+    - make patch-hw
     - make -C hardware compile
   needs: []
 
@@ -132,7 +132,10 @@ hardware:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
     - cd apps
     - make COMPILER=${COMPILER} all
-    - cd ../hardware
+    - cd ..
+    - git submodule update --init --recursive -- hardware/deps/*
+    - make patch-hw
+    - cd hardware
     - |
       for APP in ${APPS}; do
         app=${APP} make simc
@@ -161,10 +164,15 @@ unit-tests:
   script:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator-model
+    - git submodule update --init --recursive -- hardware/deps/*
+    - make patch-hw
+    - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
+    - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
     - make test
   variables:
     COMPILER: "gcc"
-  needs: ["tc-gcc","riscv-isa-sim"]
+  needs: ["tc-gcc","riscv-isa-sim","verilator-model"]
   artifacts:
     paths:
       - apps/riscv-tests/isa/*.dump
@@ -178,7 +186,7 @@ unit-tests:
 verilator-tests:
   stage: test
   script:
-    - $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator_model
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator-model
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-llvm
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
@@ -188,18 +196,15 @@ verilator-tests:
         make COMPILER=${COMPILER} bin/${APP}
       done
     - cd ../hardware
-    # Don't regenerate the bootrom or the model, we just did that in a previous step
     - |
       for APP in ${APPS}; do
-        touch $ROOT_DIR/apps/common/bootrom.img
-        touch $ROOT_DIR/hardware/src/bootrom.sv
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         app=${APP} make verilate
       done
   variables:
     num_cores: "16"
-  needs: ["tc-gcc","riscv-isa-sim","tc-llvm","verilator_model"]
+  needs: ["tc-gcc","riscv-isa-sim","tc-llvm","verilator-model"]
 
 # Code style test
 code-style:
