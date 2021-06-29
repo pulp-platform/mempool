@@ -23,6 +23,10 @@ variables:
   PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin:$VERILATOR_ROOT/bin'
   OBJCACHE: ''
   RISCV_WARNINGS: '-Werror'
+  CC: 'gcc-8.2.0'
+  CXX: 'g++-8.2.0'
+  CMAKE: 'cmake-3.18.1'
+  python: 'python3.6'
 
 workflow:
   rules:
