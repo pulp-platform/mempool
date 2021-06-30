@@ -68,14 +68,14 @@ module mempool_system
     NoAddrRules        : NumRules
   };
 
-  /*************
-   *  MEMPOOL  *
-   ************/
+  /*********************
+   *  MemPool Cluster  *
+   ********************/
 
-  mempool #(
+  mempool_cluster #(
     .TCDMBaseAddr(TCDMBaseAddr),
     .BootAddr    (BootAddr    )
-  ) i_mempool (
+  ) i_mempool_cluster (
     .clk_i         (clk_i                          ),
     .rst_ni        (rst_ni                         ),
     .wake_up_i     (wake_up                        ),

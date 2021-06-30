@@ -21,10 +21,10 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
     }
 
     # Interconnects
-    add wave -group group_[$group] -group Interconnect_North     /mempool_tb/dut/i_mempool/gen_groups[$group]/i_group/i_north_interco/*
-    add wave -group group_[$group] -group Interconnect_East      /mempool_tb/dut/i_mempool/gen_groups[$group]/i_group/i_east_interco/*
-    add wave -group group_[$group] -group Interconnect_Northeast /mempool_tb/dut/i_mempool/gen_groups[$group]/i_group/i_northeast_interco/*
-    add wave -group group_[$group] -group Interconnect_Local     /mempool_tb/dut/i_mempool/gen_groups[$group]/i_group/i_local_interco/*
+    add wave -group group_[$group] -group Interconnect_North     /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_north_interco/*
+    add wave -group group_[$group] -group Interconnect_East      /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_east_interco/*
+    add wave -group group_[$group] -group Interconnect_Northeast /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_northeast_interco/*
+    add wave -group group_[$group] -group Interconnect_Local     /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_local_interco/*
 }
 
 add wave -Group Control_Registers /mempool_tb/dut/i_ctrl_registers/*

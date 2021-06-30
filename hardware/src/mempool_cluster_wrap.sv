@@ -2,7 +2,7 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
-module mempool_wrap
+module mempool_cluster_wrap
   import mempool_pkg::*;
 #(
   // TCDM
@@ -31,10 +31,10 @@ module mempool_wrap
    *  MemPool Cluster  *
    *********************/
 
-  mempool #(
+  mempool_cluster #(
     .TCDMBaseAddr(TCDMBaseAddr),
     .BootAddr    (BootAddr    )
-  ) i_mempool (
+  ) i_mempool_cluster (
     .clk_i         (clk_i         ),
     .rst_ni        (rst_ni        ),
     .testmode_i    (testmode_i    ),
@@ -46,4 +46,4 @@ module mempool_wrap
     .axi_mst_resp_i(axi_mst_resp_i)
   );
 
-endmodule : mempool_wrap
+endmodule : mempool_cluster_wrap

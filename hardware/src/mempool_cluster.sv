@@ -2,7 +2,7 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
-module mempool
+module mempool_cluster
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
@@ -198,4 +198,4 @@ module mempool
   if (NumGroups != 4)
     $fatal(1, "[mempool] This version of the MemPool cluster only works with four groups.");
 
-endmodule : mempool
+endmodule : mempool_cluster
