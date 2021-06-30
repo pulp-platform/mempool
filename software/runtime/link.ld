@@ -2,8 +2,8 @@
 /* Licensed under the Apache License, Version 2.0, see LICENSE for details. */
 /* SPDX-License-Identifier: Apache-2.0 */
 
-/* Include the file processed by the preprocessor called common/arch.ld.c */
-INCLUDE common/arch.ld
+/* Include the file processed by the preprocessor called arch.ld.c */
+INCLUDE arch.ld
 
 OUTPUT_ARCH("riscv")
 ENTRY(_start)

@@ -20,7 +20,7 @@ BINARIES := $(addprefix bin/,$(APPS))
 # Make all applications
 all: $(BINARIES)
 
-$(APPS): % : bin/% $(APPS_DIR)/Makefile $(shell find common -type f)
+$(APPS): % : bin/% $(APPS_DIR)/Makefile $(shell find common/**.{S,c,h,ld} -type f)
 
 .PHONY: $(BINARIES)
 $(BINARIES): bin/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update_opcodes

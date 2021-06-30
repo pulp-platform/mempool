@@ -57,13 +57,14 @@ RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Defines
+DEFINES += -DPRINTF_DISABLE_SUPPORT_FLOAT -DPRINTF_DISABLE_SUPPORT_LONG_LONG -DPRINTF_DISABLE_SUPPORT_PTRDIFF_T
 DEFINES += -DNUM_CORES=$(num_cores) -DBOOT_ADDR=0x$(boot_addr) -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
 RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
-RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(CURDIR)/common -static
+RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -falign-loops=32 -falign-jumps=32
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown
@@ -71,17 +72,17 @@ RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown
 ifeq ($(COMPILER),gcc)
 	RISCV_CCFLAGS       ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      ?= $(RISCV_CCFLAGS)
-	RISCV_LDFLAGS       ?= -static -nostartfiles -lm -lgcc $(RISCV_CCFLAGS)
+	RISCV_LDFLAGS       ?= -static -nostartfiles -lm -lgcc $(RISCV_CCFLAGS) -L$(ROOT_DIR)
 	RISCV_OBJDUMP_FLAGS ?= --disassembler-option="march=$(RISCV_ARCH_AS)"
 else
 	RISCV_CCFLAGS       ?= $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      ?= $(RISCV_CCFLAGS)
-	RISCV_LDFLAGS       ?= -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON)
+	RISCV_LDFLAGS       ?= -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
 	RISCV_OBJDUMP_FLAGS ?=
 endif
 
-LINKER_SCRIPT ?= common/arch.ld
-RUNTIME ?= common/crt0.S.o common/printf.c.o common/string.c.o common/synchronization.c.o common/serial.c.o
+LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld
+RUNTIME ?= $(ROOT_DIR)/crt0.S.o $(ROOT_DIR)/printf.c.o $(ROOT_DIR)/string.c.o $(ROOT_DIR)/synchronization.c.o $(ROOT_DIR)/serial.c.o
 
 # For unit tests
 RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib -nostartfiles
@@ -101,8 +102,8 @@ RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibili
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
 # Bootrom
-%.elf: %.S common/bootrom.ld $(LINKER_SCRIPT)
-	$(RISCV_CC) $(RISCV_CCFLAGS) -Tcommon/bootrom.ld $< -nostdlib -static -Wl,--no-gc-sections -o $@
+%.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)
+	$(RISCV_CC) $(RISCV_CCFLAGS) -T$(ROOT_DIR)/bootrom.ld $< -nostdlib -static -Wl,--no-gc-sections -o $@
 
 %.bin: %.elf
 	$(RISCV_OBJCOPY) -O binary $< $@
