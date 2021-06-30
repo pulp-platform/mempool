@@ -209,6 +209,38 @@ jobs:
         name: verilator-model
         path: verilator-model.tzst
 
+  ######################
+  #  Regenerate files  #
+  ######################
+  check-bootrom:
+    runs-on: ubuntu-latest
+    needs: tc-gcc
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get riscv-gnu-toolchain artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: riscv-gnu-toolchain
+    - name: Untar riscv-gnu-toolchain
+      run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
+    - name: Build BootROM
+      run: |
+        rm software/runtime/bootrom.img
+        rm hardware/src/bootrom.sv
+        make -C software runtime/bootrom.img
+        make -C hardware src/bootrom.sv
+        git diff --exit-code
+
+  check-opcodes:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Regenerate opcodes
+      run: |
+        rm toolchain/riscv-opcodes/encoding_out.h
+        make update_opcodes
+        git diff --exit-code
+
   ####################
   #  Build Software  #
   ####################
@@ -301,6 +333,7 @@ jobs:
         num_cores: '16'
       run: |
         # Don't regenerate previously build artifacts
+        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         cd hardware
@@ -337,6 +370,7 @@ jobs:
         num_cores: '16'
       run: |
         # Don't regenerate previously build artifacts
+        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         cd hardware
@@ -370,6 +404,7 @@ jobs:
       run: |
         # Don't regenerate previously build artifacts
         sudo apt install device-tree-compiler
+        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         make test

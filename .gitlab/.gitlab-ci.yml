@@ -117,6 +117,24 @@ hardware:
     - make -C hardware compile
   needs: []
 
+check-bootrom:
+  stage: test
+  needs: ["tc-gcc"]
+  script:
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
+    - rm software/runtime/bootrom.img
+    - rm hardware/src/bootrom.sv
+    - make -C software runtime/bootrom.img
+    - make -C hardware src/bootrom.sv
+    - git diff --exit-code
+
+check-opcodes:
+  stage: test
+  script:
+    - rm toolchain/riscv-opcodes/encoding_out.h
+    - make update_opcodes
+    - git diff --exit-code
+
 # Software tests
 .apps: &apps-job-anchor
   stage: test
@@ -167,6 +185,7 @@ unit-tests:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator-model
     - git submodule update --init --recursive -- hardware/deps/*
     - make patch-hw
+    - touch $ROOT_DIR/hardware/src/bootrom.sv
     - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
     - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
     - make test
@@ -198,6 +217,7 @@ verilator-tests:
     - cd ../../hardware
     - |
       for APP in ${APPS}; do
+        touch $ROOT_DIR/hardware/src/bootrom.sv
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         app=${APP} make verilate
