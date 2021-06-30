@@ -31,7 +31,7 @@ questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
 questa_args     ?=
 # Path to the binaries
-app_path        ?= $(abspath $(ROOT_DIR)/../apps/bin)
+app_path        ?= $(abspath $(ROOT_DIR)/../software/bin)
 # Bender
 bender          ?= $(INSTALL_DIR)/bender/bender
 # Verilator
@@ -205,7 +205,7 @@ $(buildpath)/%.trace: $(buildpath)/%.dasm
 ############################
 # Unit tests simulation    #
 ############################
-TESTS_DIR := $(abspath $(ROOT_DIR)/../apps/riscv-tests/isa)
+TESTS_DIR := $(abspath $(ROOT_DIR)/../software/riscv-tests/isa)
 include $(TESTS_DIR)/snitch_isa.mk
 
 test_result_dir_vsim := $(resultpath)/test_result_vsim
@@ -244,11 +244,11 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $?
 
 # Bootrom
-src/bootrom.sv: $(MEMPOOL_DIR)/apps/common/bootrom.img
+src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img
 	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth 128 $<
 
-$(MEMPOOL_DIR)/apps/common/bootrom.img:
-	make -C $(MEMPOOL_DIR)/apps common/bootrom.img
+$(MEMPOOL_DIR)/software/runtime/bootrom.img:
+	make -C $(MEMPOOL_DIR)/software runtime/bootrom.img
 
 # Clean targets
 .PHONY: clean clean-dasm clean-trace update_opcodes

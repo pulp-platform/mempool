@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Updated Halide to version 12
 - Run unit tests with Verilator
 - Rename `mempool` `mempool_cluster`
+- Restructure software folder
 
 ### Fixed
 - Stall cycle counting in the trace no longer misses stalls

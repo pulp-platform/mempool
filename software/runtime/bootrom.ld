@@ -7,8 +7,8 @@
 OUTPUT_ARCH("riscv")
 ENTRY(_start)
 
-/* Include the file processed by the preprocessor called common/arch.ld.c */
-INCLUDE common/arch.ld
+/* Include the file processed by the preprocessor called arch.ld.c */
+INCLUDE arch.ld
 
 SECTIONS {
   .text : {

@@ -8,10 +8,10 @@ This repository contains the software and hardware of MemPool, as well as infras
 
 The repository is structured as follows:
 
-- `apps` provides example applications and MemPool's runtime.
 - `config` contains the global configurations that are used by software as well as hardware.
 - `hardware` is where the RTL code and simulation scripts are.
 - `scripts` contains useful scripts such as linting or formatting scripts.
+- `software` provides example applications and MemPool's runtime.
 - `toolchain` holds third-party packages
     * `halide` is the compiler infrastructure for the _Halide_ language.
     * `llvm-project` provides the LLVM compiler infrastructure.
@@ -84,10 +84,10 @@ make verilator
 
 ### Build Applications
 
-The `apps` folder contains example applications that work on MemPool. Run the following command to build an application. E.g., `hello_world`:
+The `software/apps` folder contains example applications that work on MemPool. Run the following command to build an application. E.g., `hello_world`:
 
 ```bash
-cd apps
+cd software/apps
 make hello_world
 ```
 
@@ -118,9 +118,9 @@ make test
 ```
 The unit tests will be compiled, simulated in Spike, and run in RTL simulation of MemPool.
 The compilation and simulation (for both Spike simulator and MemPool RTL) of the unit tests also depends on the `xpulpimg` parameter in `config/config.mk`: the test cases dedicated to the Xpulpimg instructions will be compiled and simulated only if `xpulpimg=1`.
-To add more tests, you must add your own ones to the `riscv-isa` infrastructure; more information can be found in `apps/riscv-tests/README.md`.
+To add more tests, you must add your own ones to the `riscv-isa` infrastructure; more information can be found in `software/riscv-tests/README.md`.
 
-The unit tests are included in the software package of `apps` and can be compiled for MemPool by launching in the `apps` directory:
+The unit tests are included in the software package of `software` and can be compiled for MemPool by launching in the `software` directory:
 ```bash
 make COMPILER=gcc test
 ```
@@ -174,8 +174,8 @@ Note, MemPool includes several third-party packages with their own licenses:
 
 ### Software
 
-- `apps/common/printf.{c,h}` is licensed under the MIT license.
-- `apps/riscv-tests` is an extended version of RISC-V's [riscv-tests](https://github.com/riscv/riscv-tests/) repository licensed under a BSD license. See [`apps/riscv-tests/LICENSE`](apps/riscv-tests/LICENSE) for details.
+- `software/runtime/printf.{c,h}` is licensed under the MIT license.
+- `software/riscv-tests` is an extended version of RISC-V's [riscv-tests](https://github.com/riscv/riscv-tests/) repository licensed under a BSD license. See [`software/riscv-tests/LICENSE`](software/riscv-tests/LICENSE) for details.
 
 ### Hardware
 

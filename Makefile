@@ -14,7 +14,7 @@ config_mk = $(abspath $(ROOT_DIR)/config/config.mk)
 include $(config_mk)
 
 INSTALL_PREFIX        ?= install
-APPS_PREFIX           ?= apps
+SOFTWARE_DIR          ?= software
 INSTALL_DIR           ?= ${ROOT_DIR}/${INSTALL_PREFIX}
 GCC_INSTALL_DIR       ?= ${INSTALL_DIR}/riscv-gcc
 ISA_SIM_INSTALL_DIR   ?= ${INSTALL_DIR}/riscv-isa-sim
@@ -22,7 +22,7 @@ LLVM_INSTALL_DIR      ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR    ?= ${INSTALL_DIR}/halide
 BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
-RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${APPS_PREFIX}/riscv-tests
+RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
 CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
@@ -92,7 +92,7 @@ MINPOOL_CONFIG = num_cores=16 num_cores_per_tile=4
 test: build_test
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
-	COMPILER=gcc $(MINPOOL_CONFIG) make -C $(APPS_PREFIX) test && \
+	COMPILER=gcc $(MINPOOL_CONFIG) make -C $(SOFTWARE_DIR) test && \
 	$(MINPOOL_CONFIG) make -C hardware verilate_test
 
 build_test: update_opcodes
@@ -103,7 +103,7 @@ build_test: update_opcodes
 
 clean_test:
 	$(MAKE) -C hardware clean
-	$(MAKE) -C $(APPS_PREFIX) clean
+	$(MAKE) -C $(SOFTWARE_DIR) clean
 	$(MAKE) -C $(RISCV_TESTS_DIR) clean
 
 # Bender
@@ -138,7 +138,7 @@ patch-hw:
 .PHONY: clean format apps
 
 apps:
-	make -C apps
+	make -C $(SOFTWARE_DIR) apps
 
 update_opcodes:
 	make -C toolchain/riscv-opcodes all

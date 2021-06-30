@@ -13,7 +13,7 @@ bin/
 *.elf
 *.ll
 *.dump
-common/arch.ld
+runtime/arch.ld
 
 # libraries
 *.lib

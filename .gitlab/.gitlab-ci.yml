@@ -123,16 +123,16 @@ hardware:
   artifacts:
     paths:
       - hardware/build/transcript
-      - apps/bin/*
+      - software/bin/*
     expire_in: 1 week
 
 .apps-script:
   script: &apps-script-anchor
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
-    - cd apps
+    - cd software/apps
     - make COMPILER=${COMPILER} all
-    - cd ..
+    - cd ../..
     - git submodule update --init --recursive -- hardware/deps/*
     - make patch-hw
     - cd hardware
@@ -175,9 +175,9 @@ unit-tests:
   needs: ["tc-gcc","riscv-isa-sim","verilator-model"]
   artifacts:
     paths:
-      - apps/riscv-tests/isa/*.dump
-      - apps/riscv-tests/isa/*.out32
-      - apps/bin/*.dump
+      - software/riscv-tests/isa/*.dump
+      - software/riscv-tests/isa/*.out32
+      - software/bin/*.dump
       - hardware/build/transcript
       - hardware/results
     expire_in: 1 week
@@ -190,12 +190,12 @@ verilator-tests:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-llvm
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
-    - cd apps
+    - cd software/apps
     - |
       for APP in ${APPS}; do
-        make COMPILER=${COMPILER} bin/${APP}
+        make COMPILER=${COMPILER} ${APP}
       done
-    - cd ../hardware
+    - cd ../../hardware
     - |
       for APP in ${APPS}; do
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk

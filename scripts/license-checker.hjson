@@ -13,8 +13,8 @@
   match_regex: 'true'
   exclude_paths: [
     # Exclude anything that is explicitly mentioned in the README
-    'apps/common/printf*'
-    'apps/riscv-tests/*'
+    'software/runtime/printf*'
+    'software/riscv-tests/*'
     'hardware/deps/*'
     'hardware/tb/dpi/elfloader.cpp'
     'scripts/run_clang_format.py'

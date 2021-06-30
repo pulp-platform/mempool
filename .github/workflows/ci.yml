@@ -228,9 +228,9 @@ jobs:
         num_cores: '16'
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=gcc make -C apps all
+        COMPILER=gcc make -C software/apps all
     - name: Tar apps-gcc Model
-      run: tar --posix --use-compress-program zstd -cf apps-gcc.tzst apps/bin
+      run: tar --posix --use-compress-program zstd -cf apps-gcc.tzst software/bin
     - name: Upload apps-gcc
       uses: actions/upload-artifact@v2
       with:
@@ -259,9 +259,9 @@ jobs:
         num_cores: '16'
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C apps all
+        COMPILER=llvm make -C software/apps all
     - name: Tar apps-llvm Model
-      run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst apps/bin
+      run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst software/bin
     - name: Upload apps-llvm
       uses: actions/upload-artifact@v2
       with:

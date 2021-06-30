@@ -85,7 +85,7 @@ LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld
 RUNTIME ?= $(ROOT_DIR)/crt0.S.o $(ROOT_DIR)/printf.c.o $(ROOT_DIR)/string.c.o $(ROOT_DIR)/synchronization.c.o $(ROOT_DIR)/serial.c.o
 
 # For unit tests
-RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib -nostartfiles
+RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 
 .INTERMEDIATE: $(RUNTIME) $(LINKER_SCRIPT)
 
@@ -103,7 +103,7 @@ RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibili
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)
-	$(RISCV_CC) $(RISCV_CCFLAGS) -T$(ROOT_DIR)/bootrom.ld $< -nostdlib -static -Wl,--no-gc-sections -o $@
+	$(RISCV_CC) $(RISCV_CCFLAGS) -L$(ROOT_DIR) -T$(ROOT_DIR)/bootrom.ld $< -nostdlib -static -Wl,--no-gc-sections -o $@
 
 %.bin: %.elf
 	$(RISCV_OBJCOPY) -O binary $< $@

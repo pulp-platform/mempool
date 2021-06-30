@@ -4,8 +4,8 @@
 
 # Exclude files from formatting requirement
 # External dependencies
-*/apps/common/encoding.h
-*/apps/riscv-tests
+*/software/runtime/encoding.h
+*/software/riscv-tests
 */toolchain
 */hardware/deps
 */hardware/tb/dpi/elfloader.cpp
