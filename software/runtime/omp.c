@@ -59,15 +59,20 @@ void GOMP_parallel_end (void)
 
 }
 
-void GOMP_parallel (void (*fn) (void*), void *data, unsigned int num_threads)
+void GOMP_parallel (void (*fn) (void*), void *data, unsigned int num_threads, unsigned int flags)
 {
 	// printf("GOMP_parallel\n");
 	uint32_t core_id = mempool_get_core_id();
+
+	works.checkfirst = WS_NOT_INITED;
+	works.completed = 0;
+	works.lock = 0;
 
 	GOMP_parallel_start(fn, data, num_threads);
 	run_task(core_id);
 	GOMP_parallel_end();
 }
+
 
 void GOMP_parallel_loop_dynamic (void (*fn) (void *), void *data, unsigned num_threads, long start, long end, long incr, long chunk_size)
 {
@@ -88,6 +93,10 @@ void GOMP_parallel_loop_dynamic (void (*fn) (void *), void *data, unsigned num_t
 }
 
 void GOMP_loop_end_nowait()
+{
+}
+
+void GOMP_loop_end()
 {
 }
 
