@@ -1,16 +1,6 @@
-# Copyright 2019 ETH Zurich and University of Bologna.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
 
 # Author: Matheus Cavalcante, ETH Zurich
 #         Samuel Riedel, ETH Zurich
@@ -19,8 +9,12 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 
+# Include configuration
+config_mk = $(abspath $(ROOT_DIR)/config/config.mk)
+include $(config_mk)
+
 INSTALL_PREFIX        ?= install
-APPS_PREFIX           ?= apps
+SOFTWARE_DIR          ?= software
 INSTALL_DIR           ?= ${ROOT_DIR}/${INSTALL_PREFIX}
 GCC_INSTALL_DIR       ?= ${INSTALL_DIR}/riscv-gcc
 ISA_SIM_INSTALL_DIR   ?= ${INSTALL_DIR}/riscv-isa-sim
@@ -28,16 +22,16 @@ LLVM_INSTALL_DIR      ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR    ?= ${INSTALL_DIR}/halide
 BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
-RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${APPS_PREFIX}/riscv-tests
+RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
-CMAKE ?= cmake-3.18.1
+CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
 # the variable if it is only defined by the Makefile (its origin in the Makefile's default).
 ifeq ($(origin CC),default)
-CC     = gcc-8.2.0
+CC  = gcc
 endif
 ifeq ($(origin CXX),default)
-CXX    = g++-8.2.0
+CXX = g++
 endif
 BENDER_VERSION = 0.21.0
 
@@ -53,6 +47,7 @@ halide:
 		-DCMAKE_INSTALL_PREFIX=$(HALIDE_INSTALL_DIR) \
 		-DCMAKE_CXX_COMPILER=$(CXX) \
 		-DCMAKE_C_COMPILER=$(CC) \
+		-DWITH_PYTHON_BINDINGS=OFF \
 		-DCMAKE_BUILD_TYPE=Release \
 		.. && \
 	make -j4 all && \
@@ -77,6 +72,7 @@ tc-llvm:
 		-DLLVM_ENABLE_PROJECTS="clang" \
 		-DLLVM_TARGETS_TO_BUILD="RISCV;host" \
 		-DLLVM_BUILD_DOCS="0" \
+		-DLLVM_ENABLE_BINDINGS="0" \
 		-DLLVM_ENABLE_TERMINFO="0"  \
 		-DLLVM_ENABLE_ASSERTIONS=ON \
 		-DCMAKE_BUILD_TYPE=Release \
@@ -86,9 +82,6 @@ tc-llvm:
 
 riscv-isa-sim: update_opcodes
 	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
-	[ -d dtc ] || git clone git://git.kernel.org/pub/scm/utils/dtc/dtc.git && cd dtc; \
-	make install SETUP_PREFIX=$(ISA_SIM_INSTALL_DIR) PREFIX=$(ISA_SIM_INSTALL_DIR) && \
-	PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; cd ..; \
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Unit tests for verification
@@ -99,19 +92,18 @@ MINPOOL_CONFIG = num_cores=16 num_cores_per_tile=4
 test: build_test
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
-	COMPILER=gcc $(MINPOOL_CONFIG) make -C $(APPS_PREFIX) test && \
-	$(MINPOOL_CONFIG) make -C hardware simc_test
+	COMPILER=gcc $(MINPOOL_CONFIG) make -C $(SOFTWARE_DIR) test && \
+	$(MINPOOL_CONFIG) make -C hardware verilate_test
 
 build_test: update_opcodes
 	cd $(RISCV_TESTS_DIR); \
 	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
 	make isa -j4 && make install && \
-	cd isa && make -j4 all && \
-	$(MINPOOL_CONFIG) make -C ../../../hardware compile
+	cd isa && make -j4 all
 
 clean_test:
 	$(MAKE) -C hardware clean
-	$(MAKE) -C $(APPS_PREFIX) clean
+	$(MAKE) -C $(SOFTWARE_DIR) clean
 	$(MAKE) -C $(RISCV_TESTS_DIR) clean
 
 # Bender
@@ -137,17 +129,22 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	autoconf && ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
 	make -j4 && make install
 
+# Patch hardware for MemPool
+.PHONY: patch-hw
+patch-hw:
+	git apply hardware/deps/patches/*
+
 # Helper targets
 .PHONY: clean format apps
 
 apps:
-	make -C apps
+	make -C $(SOFTWARE_DIR) apps
 
 update_opcodes:
 	make -C toolchain/riscv-opcodes all
 
 format:
-	$(LLVM_INSTALL_DIR)/bin/clang-format -style=file -i --verbose $$(git diff --name-only HEAD | tr ' ' '\n' | grep -P "(?<!\.ld)\.(h|c|cpp)\b")
+	$(ROOT_DIR)/scripts/run_clang_format.py --clang-format-executable=$(LLVM_INSTALL_DIR)/bin/clang-format -i -r $(ROOT_DIR)
 
 clean: clean_test
 	rm -rf $(INSTALL_DIR)

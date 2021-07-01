@@ -1,1 +1,0 @@
-../../tb_tcdm_interconnect/hdl/tb_patterns.sv

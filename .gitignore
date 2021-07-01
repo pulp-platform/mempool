@@ -1,3 +1,7 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
 install/*
 .bender
 .ctags
@@ -13,8 +17,6 @@ tags
 # Python
 **.idea
 venv
-# WIP
-virtual-platform
 # Visual Studio Code
 .vscode
 *.code-workspace

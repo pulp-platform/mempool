@@ -1,8 +1,12 @@
-/// Description: Scrambles the address in such a way, that part of the memory is accessed
-/// sequentially and part is interleaved.
-/// Current constraints:
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
 
-/// Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
+// Description: Scrambles the address in such a way, that part of the memory is accessed
+// sequentially and part is interleaved.
+// Current constraints:
+
+// Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
 module address_scrambler #(
   parameter int unsigned AddrWidth         = 32,

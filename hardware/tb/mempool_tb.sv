@@ -1,12 +1,6 @@
-// Copyright 2019 ETH Zurich and University of Bologna.
-// Copyright and related rights are licensed under the Solderpad Hardware
-// License, Version 0.51 (the "License"); you may not use this file except in
-// compliance with the License.  You may obtain a copy of the License at
-// http://solderpad.org/licenses/SHL-0.51. Unless required by applicable law
-// or agreed to in writing, software, hardware and materials distributed under
-// this License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
 
 import "DPI-C" function void read_elf (input string filename);
 import "DPI-C" function byte get_section (output longint address, output longint len);
@@ -82,8 +76,6 @@ module mempool_tb;
   axi_system_resp_t   [NumAXIMasters - 1:0] axi_mst_resp;
   axi_tb_req_t        [NumAXISlaves - 1:0]  axi_mem_req;
   axi_tb_resp_t       [NumAXISlaves - 1:0]  axi_mem_resp;
-  axi_lite_slv_req_t                        rab_conf_req;
-  axi_lite_slv_resp_t                       rab_conf_resp;
 
   axi_system_req_t                          to_mempool_req;
   axi_system_resp_t                         to_mempool_resp;
@@ -121,9 +113,7 @@ module mempool_tb;
     .mst_req_o      (axi_mst_req    ),
     .mst_resp_i     (axi_mst_resp   ),
     .slv_req_i      (to_mempool_req ),
-    .slv_resp_o     (to_mempool_resp),
-    .rab_conf_req_i (rab_conf_req   ),
-    .rab_conf_resp_o(rab_conf_resp  )
+    .slv_resp_o     (to_mempool_resp)
   );
 
   /**********************
@@ -186,52 +176,9 @@ module mempool_tb;
     .axi_resp_o(axi_mem_resp[UART])
   );
 
-  /*******************
-   *  Configure RAB  *
-   *******************/
-
-  task write_rab(input addr_t addr, input axi_lite_data_t data);
-    rab_conf_req.aw.addr = addr;
-    rab_conf_req.aw_valid = 1'b1;
-    `wait_for(rab_conf_resp.aw_ready)
-    rab_conf_req.aw_valid = 1'b0;
-    rab_conf_req.w.data = data;
-    rab_conf_req.w.strb = '1;
-    rab_conf_req.w_valid = 1'b1;
-    `wait_for(rab_conf_resp.w_ready)
-    rab_conf_req.w_valid = 1'b0;
-    rab_conf_req.b_ready = 1'b1;
-    `wait_for(rab_conf_resp.b_valid)
-    rab_conf_req.b_ready = 1'b0;
-  endtask
-
-  task write_rab_slice(input addr_t slice_addr, input addr_t first, input addr_t last, input addr_t phys_addr);
-    write_rab(slice_addr+8'h00, first);
-    write_rab(slice_addr+8'h08, last);
-    write_rab(slice_addr+8'h10, phys_addr);
-    write_rab(slice_addr+8'h18, 32'h7);
-  endtask
-
-  task read_rab(input addr_t addr, output axi_lite_data_t data, output axi_pkg::resp_t resp);
-    rab_conf_req.ar.addr = addr;
-    rab_conf_req.ar_valid = 1'b1;
-    `wait_for(rab_conf_resp.ar_ready)
-    rab_conf_req.ar_valid = 1'b0;
-    rab_conf_req.r_ready = 1'b1;
-    `wait_for(rab_conf_resp.r_valid)
-    resp = rab_conf_resp.r.resp;
-    data = rab_conf_resp.r.data;
-    rab_conf_req.r_ready = 1'b0;
-    $display("[TB] Read %08x from %08x at %t (resp=%d).", data, addr, $time, resp);
-  endtask
-
-  task read_rab_slice(input addr_t slice_addr, output addr_t first, output addr_t last, output addr_t phys_addr, output addr_t rab_config);
-    axi_pkg::resp_t resp;
-    read_rab(slice_addr+8'h00, first, resp);
-    read_rab(slice_addr+8'h08, last, resp);
-    read_rab(slice_addr+8'h10, phys_addr, resp);
-    read_rab(slice_addr+8'h18, rab_config, resp);
-  endtask
+  /************************
+   *  Write/Read via AXI  *
+   ************************/
 
   task write_to_mempool(input addr_t addr, input data_t data, output axi_pkg::resp_t resp);
     to_mempool_req.aw.id = 'h18d;
@@ -278,18 +225,12 @@ module mempool_tb;
     localparam ctrl_size      = 32'h0100_0000;
     localparam l2_phys_addr   = 32'h8000_0000;
     localparam l2_size        = 32'h0700_0000;
-`ifdef TARGET_FPGA
-    localparam ctrl_virt_addr = 32'hA700_0000;
-    localparam l2_virt_addr   = 32'hA000_0000;
-`else
     localparam ctrl_virt_addr = ctrl_phys_addr;
     localparam l2_virt_addr   = l2_phys_addr;
-`endif
-    addr_t first, last, phys_addr, rab_config;
+    addr_t first, last, phys_addr;
     data_t rdata;
     axi_pkg::resp_t resp;
     fetch_en = 1'b0;
-    rab_conf_req = '{default: '0};
     to_mempool_req = '{default: '0};
     to_mempool_req.aw.burst = axi_pkg::BURST_INCR;
     to_mempool_req.ar.burst = axi_pkg::BURST_INCR;
@@ -302,21 +243,6 @@ module mempool_tb;
     // Give the cores time to execute the bootrom's program
     #(1000*ClockPeriod);
 
-`ifdef TARGET_FPGA
-    // Set up RAB slice from MemPool to the external devices
-    // RAB is at 0xA800_0000 from the hosts perspective
-    // MemPool is at 0xA000_0000 from the hosts perspective (then translated by RAB)
-    write_rab_slice(32'hA80000A0, 32'h0000_1000, 32'hFFFF_FFFF, 32'h0000_1000);
-    read_rab_slice(32'hA80000A0, first, last, phys_addr, rab_config);
-
-    // Set up RAB slice from external/Host to  the L2 memory
-    write_rab_slice(32'hA8000040, l2_virt_addr, l2_virt_addr+l2_size-1, l2_phys_addr);
-    read_rab_slice(32'hA8000040, first, last, phys_addr, rab_config);
-
-    // Set up RAB slice from external/Host to  the control registers
-    write_rab_slice(32'hA8000060, ctrl_virt_addr, ctrl_virt_addr+ctrl_size-1, ctrl_phys_addr);
-    read_rab_slice(32'hA8000060, first, last, phys_addr, rab_config);
-`endif
     // Wake up all cores
     write_to_mempool(ctrl_virt_addr + 32'h4, {DataWidth{1'b1}}, resp);
     assert(resp == axi_pkg::RESP_OKAY);

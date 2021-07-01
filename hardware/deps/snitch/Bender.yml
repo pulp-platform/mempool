@@ -1,3 +1,7 @@
+# Copyright 2020 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 package:
   name: snitch
   authors: [ "Florian Zaruba <zarubaf@iis.ee.ethz.ch>" ]
@@ -22,7 +26,6 @@ sources:
     - src/snitch_ipu.sv
     - src/snitch_shared_muldiv.sv
     - src/snitch_demux.sv
-    - src/mempool_cc.sv
     - src/snitch_axi_adapter.sv
     - src/snitch_onehot.sv
     - src/snitch_icache/snitch_icache.sv

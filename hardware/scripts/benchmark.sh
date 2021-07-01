@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 MEMPOOL_DIR=$(git rev-parse --show-toplevel 2>/dev/null || echo $MEMPOOL_DIR)
 cd $MEMPOOL_DIR/hardware
 
 # Make sure an app is specified
-app="$MEMPOOL_DIR/apps/bin/$1"
+app="$MEMPOOL_DIR/software/bin/$1"
 if [[ ! -f $app ]]; then
   echo "Please specify an application to execute"
   exit -1

@@ -1,3 +1,7 @@
+// Copyright 2020 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
 /// Integer Processing Unit
 /// Based on Snitch Shared Muliplier/Divider
 /// Author: Sergio Mazzola, <smazzola@student.ethz.ch>
