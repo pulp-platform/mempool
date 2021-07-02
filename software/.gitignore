@@ -20,3 +20,6 @@ runtime/arch.ld
 *.a
 *.la
 *.lo
+
+# Halide cross-compilation output
+*.riscv.*
