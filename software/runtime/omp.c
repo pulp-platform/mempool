@@ -52,7 +52,6 @@ void GOMP_parallel_start (void (*fn) (void*), void *data, unsigned int num_threa
 void GOMP_parallel_end (void)
 {
     // printf("GOMP_parallel_end\n");
-
     while(event.barrier > 0){
     	mempool_wait(4 * 16);
     }
@@ -61,13 +60,15 @@ void GOMP_parallel_end (void)
 
 void GOMP_parallel (void (*fn) (void*), void *data, unsigned int num_threads, unsigned int flags)
 {
-	// printf("GOMP_parallel\n");
+	printf("GOMP_parallel\n");
 	uint32_t core_id = mempool_get_core_id();
 
 	works.checkfirst = WS_NOT_INITED;
 	works.completed = 0;
 	works.lock = 0;
-
+	works.critical_lock = 0;
+	works.atomic_lock = 0;
+	
 	GOMP_parallel_start(fn, data, num_threads);
 	run_task(core_id);
 	GOMP_parallel_end();

@@ -22,9 +22,13 @@ extern int GOMP_loop_dynamic_next (int *istart, int *iend);
 extern int GOMP_loop_dynamic_start(int start, int end, int incr, int chunk_size, int *istart, int *iend);
 extern void GOMP_barrier (void);
 extern int GOMP_single_start(void);
+extern void GOMP_critical_start (void);
+extern void GOMP_critical_end (void);
 
 extern void set_event(void (*fn) (void*), void *data, uint32_t nthreads);
 extern void run_task(uint32_t core_id);
+
+typedef uint32_t omp_lock_t;
 
 typedef struct {
   void (*fn) (void*);
@@ -45,6 +49,11 @@ typedef struct {
   int checkfirst;
   uint32_t completed;
   void *copyprivate;
+  
+  // for critical construct
+  omp_lock_t critical_lock;
+  // for atomic construct
+  omp_lock_t atomic_lock;
 } work_t;
 
 extern event_t event;
