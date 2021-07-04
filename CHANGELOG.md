@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Added
+- Add Halide runtime and build scripts for applications
+- Add Halide example applications (2D convolution & matrix multiplication)
+
 ## 0.4.0 - 2021-07-01
 
 ### Added
