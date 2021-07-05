@@ -88,11 +88,15 @@ make verilator
 
 ### Build Applications
 
-The `software/apps` folder contains example applications that work on MemPool. Run the following command to build an application. E.g., `hello_world`:
+The `software/apps` folder contains example applications that work on MemPool. MemPool also contains some Halide example applications in the `software/halide` folder. Run the following command to build an application. E.g., `hello_world`:
 
 ```bash
+# Bare-metal applications
 cd software/apps
 make hello_world
+# Halide applications
+cd software/halide
+make matmul
 ```
 
 You can also choose the compiler to build the application with using the `COMPILER` option. The possible options are `gcc` and `llvm`, the former being the default.
@@ -145,6 +149,8 @@ cd hardware
 make compile
 # Run the simulation with the *hello_world* binary loaded
 app=hello_world make sim
+# For Halide applications use the `halide-` prefix: E.g., to run `matmul`:
+app=halide-matmul make sim
 # Run the simulation with the *some_binary* binary. This allows specifying the full path to the binary
 preload=/some_path/some_binary make sim
 # Run the simulation without starting the gui
