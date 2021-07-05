@@ -5,6 +5,7 @@
 SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 APPS_DIR := $(ROOT_DIR)/apps
+HALIDE_DIR := $(ROOT_DIR)/halide
 RUNTIME_DIR := $(ROOT_DIR)/runtime
 TESTS_DIR := $(ROOT_DIR)/riscv-tests/isa
 TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
@@ -17,9 +18,17 @@ include $(TESTS_DIR)/snitch_isa.mk
 apps:
 	make -C $(APPS_DIR) all
 
+.PHONY: halide-apps
+halide-apps:
+	make -C $(HALIDE_DIR) all
+
 .PHONY: clean-apps
 clean-apps:
 	make -C $(APPS_DIR) clean
+
+.PHONY: clean-halide-apps
+clean-halide-apps:
+	make -C $(HALIDE_DIR) clean
 
 # Unit tests
 TESTS := $(addprefix bin/,$(rtl_mempool_tests))
@@ -55,4 +64,4 @@ update_opcodes:
 	make -C $(TOOLCHAIN_DIR)/riscv-opcodes all
 
 .PHONY: clean
-clean: clean-test clean-apps
+clean: clean-test clean-apps clean-halide-apps
