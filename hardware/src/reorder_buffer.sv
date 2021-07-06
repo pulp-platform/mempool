@@ -129,6 +129,7 @@ module reorder_buffer
     $error("NumWords cannot be 0.");
 
   `ifndef VERILATOR
+  // pragma translate_off
   full_write : assert property(
       @(posedge clk_i) disable iff (!rst_ni) (full_o |-> !id_req_i))
   else $fatal (1, "Trying to request an ID although the ROB is full.");
@@ -136,6 +137,7 @@ module reorder_buffer
   empty_read : assert property(
       @(posedge clk_i) disable iff (!rst_ni) (!valid_o |-> !pop_i))
   else $fatal (1, "Trying to pop data although the top of the ROB is not valid.");
+  // pragma translate_on
   `endif
 
 endmodule: reorder_buffer
