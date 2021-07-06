@@ -98,7 +98,8 @@ module mempool_system
   localparam addr_t BootromBaseAddr       = 32'hA000_0000;
   localparam addr_t BootromEndAddr        = 32'hA000_FFFF;
 
-  xbar_rule_32_t [NumRules - 1:0] xbar_routing_rules = '{
+  xbar_rule_32_t [NumRules - 1:0] xbar_routing_rules;
+  assign xbar_routing_rules = '{
     '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
     '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr},
     '{idx: Bootrom, start_addr: BootromBaseAddr, end_addr: BootromEndAddr}
