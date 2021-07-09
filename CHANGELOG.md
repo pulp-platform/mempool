@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add Halide runtime and build scripts for applications
 - Add Halide example applications (2D convolution & matrix multiplication)
 
+### Fixed
+- Avoid the elaboration of SVA assertions on the `reorder_buffer` module
+- Fix the elaboration of constant signal with an initial value in the `mempool_system` module
+
 ## 0.4.0 - 2021-07-01
 
 ### Added
