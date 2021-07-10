@@ -44,34 +44,34 @@ void run_task(uint32_t core_id){
 
 void GOMP_parallel_start (void (*fn) (void*), void *data, unsigned int num_threads)
 {
-	// printf("GOMP_parallel_start\n"); 
-	set_event(fn, data, num_threads);
-	wake_up((uint32_t)-1);
+  // printf("GOMP_parallel_start\n"); 
+  set_event(fn, data, num_threads);
+  wake_up((uint32_t)-1);
 }
 
 void GOMP_parallel_end (void)
 {
     // printf("GOMP_parallel_end\n");
     while(event.barrier > 0){
-    	mempool_wait(4 * 16);
+      mempool_wait(4 * 16);
     }
 
 }
 
 void GOMP_parallel (void (*fn) (void*), void *data, unsigned int num_threads, unsigned int flags)
 {
-	// printf("GOMP_parallel\n");
-	uint32_t core_id = mempool_get_core_id();
+  // printf("GOMP_parallel\n");
+  uint32_t core_id = mempool_get_core_id();
 
-	works.checkfirst = WS_NOT_INITED;
-	works.completed = 0;
-	works.lock = 0;
-	works.critical_lock = 0;
-	works.atomic_lock = 0;
-	
-	GOMP_parallel_start(fn, data, num_threads);
-	run_task(core_id);
-	GOMP_parallel_end();
+  works.checkfirst = WS_NOT_INITED;
+  works.completed = 0;
+  works.lock = 0;
+  works.critical_lock = 0;
+  works.atomic_lock = 0;
+  
+  GOMP_parallel_start(fn, data, num_threads);
+  run_task(core_id);
+  GOMP_parallel_end();
 }
 
 
@@ -143,21 +143,17 @@ int GOMP_loop_dynamic_next (int *istart, int *iend)
 
 int GOMP_loop_dynamic_start(int start, int end, int incr, int chunk_size, int *istart, int *iend)
 {
-    // printf("GOMP_parallel_loop_dynamic_start %d %d %d %d \n", start, end, incr, chunk_size);
+    
     int chunk, left;
     int ret = 1;
     
-    works.chunk_size = chunk_size;
-    works.end = end;
-    works.incr = incr;
-    works.next = start;
-    works.lock = 0;
-
-    uint32_t islocked = 1;
-
-    while(islocked){
-      islocked = __atomic_fetch_or(&works.lock, 1, __ATOMIC_SEQ_CST);
-    }
+    if (gomp_work_share_start()){
+      works.chunk_size = chunk_size;
+      works.end = end;
+      works.incr = incr;
+      works.next = start;
+      // printf("GOMP_parallel_loop_dynamic_start %d %d %d %d \n", start, end, incr, chunk_size);
+    }  
     
     start = works.next;
     
@@ -191,18 +187,36 @@ int GOMP_loop_dynamic_start(int start, int end, int incr, int chunk_size, int *i
 
 
 
+int gomp_work_share_start(void)
+{
+    int ret = 0;
+    // printf("SINGLE START\n");
+    uint32_t islocked = 1;
 
+    while(islocked){
+      islocked = __atomic_fetch_or(&works.lock, 1, __ATOMIC_SEQ_CST);
+    }
+    
+    if (works.checkfirst != WS_INITED)
+    {
+        /* This section is performed only by first thread of next new_ws*/
+        works.checkfirst = WS_INITED;
+        ret = 1;
+    }
+
+    return ret;
+}
 
 
 
 uint32_t omp_get_num_threads(void){
     // printf("a\n");
-	return event.nthreads;
+  return event.nthreads;
 }
 
 uint32_t omp_get_thread_num(void){
     // printf("b\n");
-	return mempool_get_core_id();
+  return mempool_get_core_id();
 }
 
 

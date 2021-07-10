@@ -133,12 +133,12 @@ int32_t dot_product_omp_static(int32_t const *__restrict__ A,
 
 int32_t dot_product_omp_dynamic(int32_t const *__restrict__ A,
                         int32_t const *__restrict__ B, 
-                        uint32_t num_elements) {
+                        uint32_t num_elements, uint32_t chunksize) {
   int i;
   int32_t dotp=0;
   //printf("num_elements %d\n", num_elements);
-#pragma omp parallel for schedule (dynamic,4) reduction(+:dotp)
-  for (i = 0; i < 16; i++) {
+#pragma omp parallel for schedule (dynamic,chunksize) reduction(+:dotp)
+  for (i = 0; i < num_elements; i++) {
     dotp += A[i] * B[i];
     //printf("core %d dotp %d\n", mempool_get_core_id(), dotp);
   }
@@ -234,10 +234,10 @@ int main() {
     }
 
     mempool_wait(4*num_cores);
-/*
+
     cycles = mempool_get_timer();
     mempool_start_benchmark();
-    omp_result = dot_product_omp_dynamic(a, b, M);
+    omp_result = dot_product_omp_dynamic(a, b, M, 4);
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;
 
@@ -247,7 +247,39 @@ int main() {
       printf("OMP Dynamic(4) Result is %d instead of %d\n", omp_result, correct_result);
     } else{
       printf("Result is correct!\n");
-    }*/
+    }
+
+    mempool_wait(4*num_cores);
+
+    cycles = mempool_get_timer();
+    mempool_start_benchmark();
+    omp_result = dot_product_omp_dynamic(a, b, M, 32);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer() - cycles;
+
+    printf("OMP Dynamic(32) Result: %d\n", omp_result);
+    printf("OMP Dynamic(32) Duration: %d\n", cycles);
+    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)){
+      printf("OMP Dynamic(32) Result is %d instead of %d\n", omp_result, correct_result);
+    } else{
+      printf("Result is correct!\n");
+    }
+
+    mempool_wait(4*num_cores);
+
+    cycles = mempool_get_timer();
+    mempool_start_benchmark();
+    omp_result = dot_product_omp_dynamic(a, b, M, 50);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer() - cycles;
+
+    printf("OMP Dynamic(50) Result: %d\n", omp_result);
+    printf("OMP Dynamic(50) Duration: %d\n", cycles);
+    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)){
+      printf("OMP Dynamic(50) Result is %d instead of %d\n", omp_result, correct_result);
+    } else{
+      printf("Result is correct!\n");
+    }
   }
   else{
     while(1){
