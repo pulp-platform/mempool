@@ -1,0 +1,113 @@
+#include <stdint.h>
+#include <string.h>
+
+#include "encoding.h"
+#include "printf.h"
+#include "runtime.h"
+#include "synchronization.h"
+#include "libgomp.h"
+
+#define REPETITIONS 10 /* Number of times to run each test */
+#define SLEEPTIME 1000
+
+uint32_t * checkfirst;
+uint32_t result;
+extern uint32_t barrier_init;
+
+void work1(){
+  int sum=0;
+  for(int i=0; i<100; i++){
+    sum++;
+  }
+}
+
+parallel_master_manual()
+{
+  uint32_t core_id;
+  uint32_t num_cores = mempool_get_core_count();
+  core_id = mempool_get_core_id();
+  
+  work1();
+
+  mempool_timer_t cycles = mempool_get_timer();
+  mempool_start_benchmark();
+
+  if(core_id==0){
+    result = 100;
+  }
+
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+
+  mempool_barrier(num_cores, num_cores * 4);
+
+  if(core_id==0){
+    printf("Manual Master Result: %d\n", result);
+    printf("Manual Master Duration: %d\n", cycles);
+  }
+}
+
+omp_parallel_master()
+{
+  uint32_t core_id;
+  uint32_t num_cores = mempool_get_core_count();
+  
+  #pragma omp parallel num_threads(num_cores)
+  {
+    work1();
+
+    mempool_timer_t cycles = mempool_get_timer();
+    mempool_start_benchmark();
+
+    #pragma omp master
+    {
+      result = 100;
+    }
+
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer() - cycles;
+
+    mempool_barrier(num_cores, num_cores * 4);
+
+    #pragma omp master
+    {
+    printf("OMP Master Result: %d\n", result);
+    printf("OMP Master Duration: %d\n", cycles);
+    }
+  }
+}
+
+int main() {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
+
+  // Initialize synchronization variables
+  mempool_barrier_init(core_id, num_cores);
+
+  // #ifdef VERBOSE
+  if (core_id == 0) {
+    printf("Initialize\n");
+    *checkfirst = 0;
+    result = 0;
+  }
+  
+  mempool_barrier(num_cores, num_cores * 4);
+  parallel_master_manual();
+  mempool_barrier(num_cores, num_cores * 4);
+
+  result = 0;
+
+/*  OPENMP IMPLEMENTATION  */
+
+  if(core_id == 0){
+    omp_parallel_master();
+    mempool_wait(4*num_cores);
+  }
+  else{
+    while(1){
+      mempool_wfi();
+      run_task(core_id);
+    }
+  }
+  return 0;
+}

@@ -58,5 +58,4 @@ typedef struct {
 
 extern event_t event;
 extern work_t works;
-
 #endif  /* __LIBGOMP_H__ */
