@@ -400,7 +400,7 @@ module snitch_icache #(
         assign flush_ready_o = flush_ready;
     end
 
-    snitch_icache_lookup #(CFG) i_lookup (
+    snitch_icache_lookup_serial #(CFG) i_lookup (
         .clk_i,
         .rst_ni,
 

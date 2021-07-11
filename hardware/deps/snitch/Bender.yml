@@ -32,5 +32,6 @@ sources:
     - src/snitch_icache/snitch_icache_l0.sv
     - src/snitch_icache/snitch_icache_handler.sv
     - src/snitch_icache/snitch_icache_lfsr.sv
-    - src/snitch_icache/snitch_icache_lookup.sv
+    - src/snitch_icache/snitch_icache_lookup_parallel.sv
+    - src/snitch_icache/snitch_icache_lookup_serial.sv
     - src/snitch_icache/snitch_icache_refill.sv
