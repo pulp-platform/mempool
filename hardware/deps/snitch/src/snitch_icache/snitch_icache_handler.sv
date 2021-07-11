@@ -226,10 +226,11 @@ module snitch_icache_handler #(
     logic in_rsp_served_q;
     logic rsp_valid, rsp_ready;
 
-    struct packed {
+    typedef struct packed {
         logic sel;
         logic lock;
-    } arb_q, arb_d;
+    } arb_t;
+    arb_t arb_q, arb_d;
 
     always_ff @(posedge clk_i, negedge rst_ni) begin
         if (!rst_ni)
@@ -290,7 +291,8 @@ module snitch_icache_handler #(
         end else if (arb_d.sel == 1) begin
             if (out_rsp_valid_i) begin
                 rsp_valid       = 1;
-                rsp_ready       = (in_rsp_ready_i || in_rsp_served_q) && (write_ready_i || write_served_q);
+                rsp_ready       = (in_rsp_ready_i || in_rsp_served_q)
+                                && (write_ready_i || write_served_q);
                 write_valid_o   = 1 && ~write_served_q;
                 in_rsp_valid_o  = 1 && ~in_rsp_served_q;
                 pop_enable      = rsp_ready;
