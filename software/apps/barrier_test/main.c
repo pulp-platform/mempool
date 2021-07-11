@@ -60,6 +60,7 @@ int main() {
     }
     printf("Master Thread end\n\n\n");
     printf("num_failed:%d\n",num_failed);
+    mempool_wait(4*num_cores);
   } else {
     while(1){
       mempool_wfi();
