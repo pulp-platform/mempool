@@ -52,6 +52,10 @@ module snitch_read_only_cache #(
   input  mst_rsp_t axi_mst_rsp_i
 );
 
+  // Check for supported parameters
+  if (AxiDataWidth < 32)
+    $error("snitch_const_cache: AxiDataWidth must be larger than 32.");
+
   typedef enum logic [1:0] {
     Error = 0,
     Cache = 1,
@@ -244,7 +248,7 @@ module snitch_read_only_cache #(
   assign demux_rsp[1].b_valid = 1'b0;
   assign demux_rsp[1].b = '0;
   // AR channel --> Ready if cache is ready
-  assign in_addr = demux_req[1].ar.addr;
+  assign in_addr = demux_req[1].ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
   assign in_id = demux_req[1].ar.id;
   // TODO we need to store the ID somehow
   assign in_valid = demux_req[1].ar_valid;
@@ -252,16 +256,27 @@ module snitch_read_only_cache #(
   // R channel
   assign demux_rsp[1].r_valid = in_rsp_valid;
   // assign demux_rsp[1].r.id = in_rsp_id;
-  assign demux_rsp[1].r.data = in_rsp_data;
+  assign demux_rsp[1].r.data = in_rsp_data >> (metadata_out.addr * AxiDataWidth);
+  assign demux_rsp[1].r.id   = metadata_out.id;
   assign demux_rsp[1].r.resp = axi_pkg::RESP_OKAY; // in_rsp_error
   assign demux_rsp[1].r.last = 1'b1;
   assign demux_rsp[1].r.user = '0;
   assign in_rsp_ready = demux_req[1].r_ready; // Cache assumes it's always one?
 
-  // Store the AXI ID for the response
+  // Store some AXI metadata for the response
+  localparam WORD_OFFSET = $clog2(LineWidth/AxiDataWidth); // AXI-word offset within cache line
+  typedef struct packed {
+    id_t                    id;   // Store the AXI ID for the R response
+    logic [WORD_OFFSET-1:0] addr; // Store the offset in the cache line minus the byte offset
+  } metadata_t;
+
+  metadata_t metadata_in, metadata_out;
+  assign metadata_in.id   = demux_req[1].ar.id;
+  assign metadata_in.addr = demux_req[1].ar.addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET]; // Ignore the byte offset
+
   fifo_v3 #(
-    .DEPTH ( 8    ),
-    .dtype ( id_t )
+    .DEPTH      ( 8                 ),
+    .DATA_WIDTH ( $bits(metadata_t) )
   ) i_axi_id_fifo (
     .clk_i      ( clk_i                        ),
     .rst_ni     ( rst_ni                       ),
@@ -270,9 +285,9 @@ module snitch_read_only_cache #(
     .full_o     ( axi_id_fifo_full             ),
     .empty_o    ( /* unused */                 ),
     .usage_o    ( /* unused */                 ),
-    .data_i     ( demux_req[1].ar.id           ),
+    .data_i     ( metadata_in                  ),
     .push_i     ( in_valid & ar_ready          ),
-    .data_o     ( demux_rsp[1].r.id            ),
+    .data_o     ( metadata_out                 ),
     .pop_i      ( in_rsp_valid && in_rsp_ready )   // demux_rsp[1].r.last has to be considered when bursts are supported
   );
   // always_ff @(posedge clk_i) begin : proc_queue
