@@ -35,3 +35,4 @@ sources:
     - src/snitch_icache/snitch_icache_lookup_parallel.sv
     - src/snitch_icache/snitch_icache_lookup_serial.sv
     - src/snitch_icache/snitch_icache_refill.sv
+    - src/snitch_read_only_cache/snitch_read_only_cache.sv
