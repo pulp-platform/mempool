@@ -16,11 +16,8 @@ void gomp_new_work_share()
 int gomp_work_share_start(void)
 {
     int ret = 0;
-    uint32_t islocked = 1;
 
-    while(islocked){
-      islocked = __atomic_fetch_or(&works.lock, 1, __ATOMIC_SEQ_CST);
-    }
+    gomp_hal_lock(&works.lock);
     
     if (works.checkfirst != WS_INITED)
     {

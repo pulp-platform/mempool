@@ -1,3 +1,5 @@
+/* This file handles the LOOP (FOR/DO) construct.  */
+
 #include "libgomp.h"
 #include "runtime.h"
 #include "printf.h"

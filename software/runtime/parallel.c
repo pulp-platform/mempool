@@ -1,3 +1,5 @@
+/* This file handles the (bare) PARALLEL construct.  */
+
 #include "libgomp.h"
 #include "runtime.h"
 #include "printf.h"
@@ -15,8 +17,8 @@ void set_event(void (*fn) (void*), void *data, uint32_t nthreads)
   event.fn = fn;
   event.data = data;
   if(nthreads == 0){
-    event.nthreads = 16;
-    event.barrier = 16;
+    event.nthreads = NUM_CORES;
+    event.barrier = NUM_CORES;
   }
   else{
     event.nthreads = nthreads;
@@ -24,7 +26,7 @@ void set_event(void (*fn) (void*), void *data, uint32_t nthreads)
   }
   
 
-  for(uint32_t i = 0; i < 16; i++)
+  for(uint32_t i = 0; i < NUM_CORES; i++)
   {
     event.thread_pool[i] = (i < event.nthreads) ? 1 : 0;
   }
@@ -50,7 +52,7 @@ void GOMP_parallel_end (void)
 {
     // printf("GOMP_parallel_end\n");
     while(event.barrier > 0){
-      mempool_wait(4 * 16);
+      mempool_wait(4 * NUM_CORES);
     }
 
 }

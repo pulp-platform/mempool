@@ -1,3 +1,5 @@
+/* This file handles the SECTIONS construct.  */
+
 #include "libgomp.h"
 #include "runtime.h"
 #include "printf.h"
@@ -12,22 +14,14 @@ void GOMP_sections_end_nowait()
 
 int GOMP_sections_next()
 {
-    
     int chunk, left, start, end;
     
-    
-
-    uint32_t islocked = 1;
-
-    while(islocked){
-      islocked = __atomic_fetch_or(&works.lock, 1, __ATOMIC_SEQ_CST);
-    }
-    
+    gomp_hal_lock(&works.lock);
     
     start = works.next;
     if (start == works.end)
     {
-        __atomic_fetch_and(&works.lock, 0, __ATOMIC_SEQ_CST);
+        gomp_hal_unlock(&works.lock);
         // printf("n%d\n",0);
         return 0;
     }
@@ -43,7 +37,7 @@ int GOMP_sections_next()
     
     works.next = end;
 
-    __atomic_fetch_and(&works.lock, 0, __ATOMIC_SEQ_CST);
+    gomp_hal_unlock(&works.lock);
     
     // printf("n%d\n",start);
     return start;
@@ -56,11 +50,13 @@ void GOMP_parallel_sections (void (*fn) (void *), void *data, unsigned int num_t
 {
     // printf("GOMP_parallel_sections\n");
     uint32_t core_id = mempool_get_core_id();
+
+    gomp_new_work_share();
+
     works.end = count + 1;
     works.next = 1;
     works.chunk_size = 1;
     works.incr = 1;
-    works.lock = 0;
 
     GOMP_parallel_start(fn, data, num_threads);
     run_task(core_id);

@@ -1,3 +1,5 @@
+/* This file handles the SINGLE construct.  */
+
 #include "libgomp.h"
 #include "runtime.h"
 #include "printf.h"
