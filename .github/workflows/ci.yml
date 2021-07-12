@@ -149,7 +149,7 @@ jobs:
       id: verilator-cache
       with:
         path: install/verilator
-        key: ${{ runner.os }}-verilator-${{ env.tc-verilator-hash }}
+        key: ${{ runner.os }}-verilator-llvm-${{ env.tc-verilator-hash }}
     - name: Download Verilator
       if: steps.verilator-cache.outputs.cache-hit != 'true'
       run: |
