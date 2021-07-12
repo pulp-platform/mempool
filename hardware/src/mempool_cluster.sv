@@ -94,6 +94,7 @@ module mempool_cluster
     ) i_group (
       .clk_i                             (clk_i                                            ),
       .rst_ni                            (rst_n                                            ),
+      .testmode_i                        (testmode_i                                       ),
       .scan_enable_i                     (scan_enable_i                                    ),
       .scan_data_i                       (/* Unconnected */                                ),
       .scan_data_o                       (/* Unconnected */                                ),

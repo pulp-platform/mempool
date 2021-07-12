@@ -18,6 +18,7 @@ module mempool_group
   // Clock and reset
   input  logic                                                    clk_i,
   input  logic                                                    rst_ni,
+  input  logic                                                    testmode_i,
   // Scan chain
   input  logic                                                    scan_enable_i,
   input  logic                                                    scan_data_i,
