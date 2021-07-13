@@ -35,6 +35,10 @@ CXX = g++
 endif
 BENDER_VERSION = 0.21.0
 
+# We need a recent LLVM installation (>11) to compile Verilator
+CLANG_CC  ?= clang
+CLANG_CXX ?= clang++
+
 # Default target
 all: toolchain riscv-isa-sim halide
 
@@ -126,7 +130,7 @@ $(BENDER_INSTALL_DIR)/bender:
 verilator: $(VERILATOR_INSTALL_DIR)/bin/verilator
 $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	cd $<; unset VERILATOR_ROOT; \
-	autoconf && ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
+	autoconf && CC=$(CLANG_CC) CXX=$(CLANG_CXX) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
 	make -j4 && make install
 
 # Patch hardware for MemPool

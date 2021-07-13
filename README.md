@@ -83,6 +83,7 @@ MemPool supports ModelSim and the open-source Verilator for RTL simulation. Use 
 # Build Verilator
 make verilator
 ```
+You will need an LLVM installation.
 
 ## Software
 

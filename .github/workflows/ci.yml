@@ -149,7 +149,7 @@ jobs:
       id: verilator-cache
       with:
         path: install/verilator
-        key: ${{ runner.os }}-verilator-${{ env.tc-verilator-hash }}
+        key: ${{ runner.os }}-verilator-llvm-${{ env.tc-verilator-hash }}
     - name: Download Verilator
       if: steps.verilator-cache.outputs.cache-hit != 'true'
       run: |
@@ -173,6 +173,9 @@ jobs:
   verilator-model:
     runs-on: ubuntu-latest
     needs: verilator
+    strategy:
+      matrix:
+        num_cores: [16, 256]
     steps:
     - uses: actions/checkout@v2
     - name: Cache Verilator Model
@@ -180,7 +183,7 @@ jobs:
       id: verilator-model
       with:
         path: hardware/verilator_build/Vmempool_tb_verilator
-        key: ${{ runner.os }}-verilator-model-${{ hashFiles('hardware/**','config/**') }}
+        key: ${{ runner.os }}-verilator-model-${{ matrix.num_cores}}cores-${{ hashFiles('hardware/**','config/**') }}
     - name: Get Verilator artifacts
       if: steps.verilator-model.outputs.cache-hit != 'true'
       uses: actions/download-artifact@v2
@@ -192,7 +195,7 @@ jobs:
     - name: Build Model
       if: steps.verilator-model.outputs.cache-hit != 'true'
       env:
-        num_cores: '16'
+        num_cores: ${{ matrix.num_cores }}
       run: |
         sudo apt install libelf-dev
         ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/include $GITHUB_WORKSPACE/install/verilator/include
@@ -206,7 +209,7 @@ jobs:
     - name: Upload Verilator Model
       uses: actions/upload-artifact@v2
       with:
-        name: verilator-model
+        name: verilator-model-${{ matrix.num_cores }}cores
         path: verilator-model.tzst
 
   ######################
@@ -247,6 +250,9 @@ jobs:
   build-apps-gcc:
     runs-on: ubuntu-latest
     needs: tc-gcc
+    strategy:
+      matrix:
+        num_cores: [16, 256]
     steps:
     - uses: actions/checkout@v2
     - name: Get riscv-gnu-toolchain artifacts
@@ -257,7 +263,7 @@ jobs:
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
     - name: Build Apps
       env:
-        num_cores: '16'
+        num_cores: ${{ matrix.num_cores }}
         RISCV_WARNINGS: '-Werror'
       run: |
         COMPILER=gcc make -C software/apps all
@@ -266,12 +272,15 @@ jobs:
     - name: Upload apps-gcc
       uses: actions/upload-artifact@v2
       with:
-        name: apps-gcc
+        name: apps-gcc-${{ matrix.num_cores }}cores
         path: apps-gcc.tzst
 
   build-apps-llvm:
     runs-on: ubuntu-latest
     needs: [tc-gcc, tc-llvm]
+    strategy:
+      matrix:
+        num_cores: [16, 256]
     steps:
     - uses: actions/checkout@v2
     - name: Get riscv-gnu-toolchain artifacts
@@ -288,7 +297,7 @@ jobs:
       run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Build Apps
       env:
-        num_cores: '16'
+        num_cores: ${{ matrix.num_cores }}
         RISCV_WARNINGS: '-Werror'
       run: |
         COMPILER=llvm make -C software/apps all
@@ -297,12 +306,15 @@ jobs:
     - name: Upload apps-llvm
       uses: actions/upload-artifact@v2
       with:
-        name: apps-llvm
+        name: apps-llvm-${{ matrix.num_cores }}cores
         path: apps-llvm.tzst
 
   build-apps-halide:
     runs-on: ubuntu-latest
     needs: [tc-gcc, tc-llvm, tc-halide]
+    strategy:
+      matrix:
+        num_cores: [16, 256]
     steps:
     - uses: actions/checkout@v2
     - name: Get riscv-gnu-toolchain artifacts
@@ -325,7 +337,7 @@ jobs:
       run: tar --use-compress-program zstd -xf halide.tzst
     - name: Build Apps
       env:
-        num_cores: '16'
+        num_cores: ${{ matrix.num_cores }}
         RISCV_WARNINGS: '-Werror'
       run: |
         COMPILER=llvm make -C software/halide all
@@ -334,7 +346,7 @@ jobs:
     - name: Upload apps-halide
       uses: actions/upload-artifact@v2
       with:
-        name: apps-halide
+        name: apps-halide-${{ matrix.num_cores }}cores
         path: apps-halide.tzst
 
   ##################
@@ -343,12 +355,15 @@ jobs:
   run-apps-gcc:
     runs-on: ubuntu-latest
     needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
+    strategy:
+      matrix:
+        num_cores: [16, 256]
     steps:
     - uses: actions/checkout@v2
     - name: Get apps-gcc artifacts
       uses: actions/download-artifact@v2
       with:
-        name: apps-gcc
+        name: apps-gcc-${{ matrix.num_cores }}cores
     - name: Untar apps-gcc
       run: tar --use-compress-program zstd -xf apps-gcc.tzst
     - name: Get riscv-isa-sim artifacts
@@ -360,14 +375,14 @@ jobs:
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v2
       with:
-        name: verilator-model
+        name: verilator-model-${{ matrix.num_cores }}cores
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run GCC Apps
       env:
-        num_cores: '16'
+        num_cores: ${{ matrix.num_cores }}
       run: |
         # Don't regenerate previously build artifacts
         touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
@@ -380,12 +395,15 @@ jobs:
   run-apps-llvm:
     runs-on: ubuntu-latest
     needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
+    strategy:
+      matrix:
+        num_cores: [16, 256]
     steps:
     - uses: actions/checkout@v2
     - name: Get apps-llvm artifacts
       uses: actions/download-artifact@v2
       with:
-        name: apps-llvm
+        name: apps-llvm-${{ matrix.num_cores }}cores
     - name: Untar apps-llvm
       run: tar --use-compress-program zstd -xf apps-llvm.tzst
     - name: Get riscv-isa-sim artifacts
@@ -397,14 +415,14 @@ jobs:
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v2
       with:
-        name: verilator-model
+        name: verilator-model-${{ matrix.num_cores }}cores
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run LLVM Apps
       env:
-        num_cores: '16'
+        num_cores: ${{ matrix.num_cores }}
       run: |
         # Don't regenerate previously build artifacts
         touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
@@ -417,12 +435,15 @@ jobs:
   run-apps-halide:
     runs-on: ubuntu-latest
     needs: [build-apps-halide, riscv-isa-sim, verilator-model]
+    strategy:
+      matrix:
+        num_cores: [16, 256]
     steps:
     - uses: actions/checkout@v2
     - name: Get apps-halide artifacts
       uses: actions/download-artifact@v2
       with:
-        name: apps-halide
+        name: apps-halide-${{ matrix.num_cores }}cores
     - name: Untar apps-halide
       run: tar --use-compress-program zstd -xf apps-halide.tzst
     - name: Get riscv-isa-sim artifacts
@@ -434,14 +455,14 @@ jobs:
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v2
       with:
-        name: verilator-model
+        name: verilator-model-${{ matrix.num_cores }}cores
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run Halide Apps
       env:
-        num_cores: '16'
+        num_cores: ${{ matrix.num_cores }}
       run: |
         # Don't regenerate previously build artifacts
         touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
@@ -471,7 +492,7 @@ jobs:
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v2
       with:
-        name: verilator-model
+        name: verilator-model-16cores
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Execute tests
@@ -502,7 +523,22 @@ jobs:
           halide
           riscv-isa-sim
           verilator
-          verilator-model
-          apps-gcc
-          apps-llvm
-          apps-halide
+
+  clean-up-compile-runs:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
+      build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
+      run-apps-llvm, run-apps-halide]
+    strategy:
+      matrix:
+        num_cores: [16, 256]
+    steps:
+    - name: Delete artifacts
+      uses: geekyeggo/delete-artifact@v1
+      with:
+        name: |
+          verilator-model-${{ matrix.num_cores }}cores
+          apps-gcc-${{ matrix.num_cores }}cores
+          apps-llvm-${{ matrix.num_cores }}cores
+          apps-halide-${{ matrix.num_cores }}cores
