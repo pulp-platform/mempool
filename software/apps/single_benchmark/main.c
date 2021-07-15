@@ -7,9 +7,6 @@
 #include "synchronization.h"
 #include "libgomp.h"
 
-#define REPETITIONS 10 /* Number of times to run each test */
-#define SLEEPTIME 1000
-
 uint32_t * checkfirst;
 uint32_t result;
 extern uint32_t barrier_init;
@@ -52,7 +49,7 @@ omp_parallel_single()
 {
   uint32_t core_id;
 
-  #pragma omp parallel num_threads(16)
+  #pragma omp parallel
   {
     work1();
 

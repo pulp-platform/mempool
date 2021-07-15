@@ -7,9 +7,6 @@
 #include "synchronization.h"
 #include "libgomp.h"
 
-#define REPETITIONS 10 /* Number of times to run each test */
-#define SLEEPTIME 1000
-
 uint32_t * lock;
 uint32_t result;
 extern uint32_t barrier_init;
@@ -106,7 +103,7 @@ int main() {
   if(core_id == 0){
     mempool_wait(4*num_cores);
     omp_parallel_critical();
-    mempool_wait(4*num_cores);
+    mempool_wait(100*num_cores);
   }
   else{
     while(1){

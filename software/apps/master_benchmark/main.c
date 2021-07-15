@@ -7,9 +7,6 @@
 #include "synchronization.h"
 #include "libgomp.h"
 
-#define REPETITIONS 10 /* Number of times to run each test */
-#define SLEEPTIME 1000
-
 uint32_t * checkfirst;
 uint32_t result;
 extern uint32_t barrier_init;
@@ -98,8 +95,9 @@ int main() {
   result = 0;
 
 /*  OPENMP IMPLEMENTATION  */
-
+  
   if(core_id == 0){
+    mempool_wait(1*num_cores);
     omp_parallel_master();
     mempool_wait(4*num_cores);
   }

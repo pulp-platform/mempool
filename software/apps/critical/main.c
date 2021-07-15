@@ -30,10 +30,10 @@ int test_omp_critical()
     #pragma omp critical
     {
       sum = mysum +sum;
-      printf("Sum: %d, thread_id: %d\n",sum,omp_get_thread_num());
+      //printf("Sum: %d, thread_id: %d\n",sum,omp_get_thread_num());
     }
   }
-  known_sum = 99 * 100 / 2 * 16;
+  known_sum = 99 * 100 / 2 * NUM_CORES;
   return (known_sum == sum);
 }
 
@@ -43,25 +43,25 @@ int main() {
   uint32_t i;
   uint32_t num_failed=0;
 
-  //mempool_barrier_init(core_id, num_cores);
-	mempool_wait(2 * num_cores);
+  mempool_wait(2 * num_cores);
 
   if (core_id == 0) {
     printf("Master Thread start\n");
     for(i = 0; i < REPETITIONS; i++) {
+      printf("test: %d\n",i);
       if(!test_omp_critical()) {
         num_failed++;
       }
+      printf("num_failed: %d\n",num_failed);
     }
     printf("Master Thread end\n\n\n");
-    printf("num_failed:%d\n",num_failed);
+    printf("num_failed: %d\n",num_failed);
   } else {
     while(1){
       mempool_wfi();
       run_task(core_id);
     }
   }
-  // mempool_barrier(num_cores, num_cores * 4);
 
   return 0;
 }

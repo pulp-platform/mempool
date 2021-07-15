@@ -8,9 +8,6 @@
 #include "synchronization.h"
 
 #define REPETITIONS 10 /* Number of times to run each test */
-#define SLEEPTIME 10000000
-
-#define DOUBLE_DIGITS 20  /* dt^DOUBLE_DIGITS */
 #define MAX_FACTOR 10
 #define KNOWN_PRODUCT 3628800  /* 10! */
 #define LOOPCOUNT 100 /* Number of iterations to slit amongst threads */
@@ -19,9 +16,6 @@ int test_omp_atomic()
 {
   int sum;
   int diff;
-  double dsum = 0;
-  double dt = 0.5;  /* base of geometric row for + and - test*/
-  double ddiff;
   int product;
   int x;
   int *logics;
@@ -35,9 +29,6 @@ int test_omp_atomic()
   int result = 0;
   int logic_and = 1;
   int logic_or = 0;
-  double dknown_sum;
-  double rounding_error = 1.E-9;
-  double dpt, div;
   int logicsArray[LOOPCOUNT];
   logics = logicsArray;
 
@@ -307,8 +298,8 @@ int main()
   int i;
   int num_failed=0;
 
-	mempool_wait(4*num_cores);
-	
+  mempool_wait(4*num_cores);
+  
   if (core_id == 0) {
     printf("Master Thread start\n");
     for(i = 0; i < REPETITIONS; i++) {

@@ -8,9 +8,7 @@
 #include "synchronization.h"
 
 #define REPETITIONS 10 /* Number of times to run each test */
-#define SLEEPTIME 10000000
 
-#define DOUBLE_DIGITS 20  /* dt^DOUBLE_DIGITS */
 #define MAX_FACTOR 10
 #define KNOWN_PRODUCT 3628800  /* 10! */
 #define LOOPCOUNT 100 /* Number of iterations to slit amongst threads */
@@ -19,12 +17,8 @@ int test_omp_parallel_for_reduction()
 {
   int sum;
   int known_sum;
-  double dsum;
-  double dknown_sum;
-  double dt=0.5;  /* base of geometric row for + and - test*/
   double rounding_error= 1.E-9;
   int diff;
-  double ddiff;
   int product;
   int known_product;
   int logic_and;
@@ -34,12 +28,9 @@ int test_omp_parallel_for_reduction()
   int exclusiv_bit_or;
   uint32_t logics[LOOPCOUNT];
   int i;
-  double dpt;
   int result;
 
   sum =0;
-  dsum=0;
-  dt = 1./3.;
   result = 0;
   product = 1;
   logic_and=1;
@@ -237,6 +228,7 @@ int main()
       run_task(core_id);
     }
   }
+  
   return num_failed;
 }
 

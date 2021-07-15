@@ -17,27 +17,24 @@ uint32_t test_omp_barrier()
   result1 = 0;
   result2 = 0;
 
-  #pragma omp parallel num_threads(16)
+  #pragma omp parallel
   {
     uint32_t rank;
     rank = omp_get_thread_num ();
     if (rank == 1) {
-      printf("waiting:\n");
+      printf("waiting...\n");
       mempool_wait(((double)SLEEPTIME)/REPETITIONS); // give 1 sec to whole test
-      printf("waited:\n");
+      printf("waited.\n");
       result2 = 3;
-      // printf("result2:%d\n",result2);
     }
     #pragma omp barrier
-   
+
     if (rank == 2) {
-      printf("result2:%d\n",result2);
+      printf("result2: %d\n",result2);
       result1 = result2;
-      printf("result1:%d\n",result1);
+      printf("result1: %d\n",result1);
     }
   }
-  //mempool_barrier(16, 16 / 4);
-  printf("return:%d\n",result1);
   return (result1 == 3);
 }
 
@@ -47,19 +44,17 @@ int main() {
   uint32_t i;
   uint32_t num_failed=0;
 
-  // mempool_barrier_init(core_id, num_cores);
-
   if (core_id == 0) {
     printf("Master Thread start\n");
     for(i = 0; i < REPETITIONS; i++) {
-      printf("test:%d\n",i);
+      printf("test: %d\n",i);
       if(!test_omp_barrier()) {
-	num_failed++;
+  num_failed++;
       }
-      printf("test finished:%d\n",i);
+      printf("test finished: %d\n",i);
     }
     printf("Master Thread end\n\n\n");
-    printf("num_failed:%d\n",num_failed);
+    printf("num_failed: %d\n",num_failed);
     mempool_wait(4*num_cores);
   } else {
     while(1){
@@ -67,7 +62,6 @@ int main() {
       run_task(core_id);
     }
   }
-  // mempool_barrier(num_cores, num_cores * 4);
 
   return 0;
 }

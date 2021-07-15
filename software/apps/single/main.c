@@ -8,7 +8,6 @@
 #include "synchronization.h"
 
 #define REPETITIONS 10 /* Number of times to run each test */
-#define SLEEPTIME 1000
 
 void work1(){
   int sum=0;
@@ -23,7 +22,7 @@ uint32_t test_omp_parallel_single()
   result = 0;
   uint32_t core_id;
 
-  #pragma omp parallel num_threads(16) shared(result)
+  #pragma omp parallel shared(result)
   {
     core_id = mempool_get_core_id();
 
@@ -49,7 +48,7 @@ uint32_t test_omp_parallel_single()
         result = core_id;
     }
   }
-  return (result);
+  return result;
 }
 
 uint32_t test_omp_for_single(){
@@ -77,7 +76,7 @@ uint32_t test_omp_single_copyprivate(){
   uint32_t result;
   result = 0;
   
-  #pragma omp parallel num_threads(10) firstprivate(result)
+  #pragma omp parallel firstprivate(result)
   {
     uint32_t core_id = mempool_get_core_id();
 
@@ -100,7 +99,7 @@ uint32_t test_omp_single_copyprivate(){
       printf("Core 5 result: %d\n",result);
     }
   }
-  return (result);
+  return result;
 }
 
 int main() {
@@ -115,20 +114,18 @@ int main() {
     printf("Master Thread start\n");
     for(i = 0; i < REPETITIONS; i++) {
       printf("Test: %d\n",i);
-      printf("For loop-sum is t/f: %d\n", test_omp_for_single());
       printf("Single core_id: %d\n",test_omp_parallel_single());
+      printf("For loop-sum is t/f: %d\n", test_omp_for_single());
       printf("Copyprivate: %d\n",test_omp_single_copyprivate());
       printf("Test finished: %d\n",i);
     }
     printf("Master Thread end\n\n\n");
-    printf("num_failed:%d\n",num_failed);
   } else {
     while(1){
       mempool_wfi();
       run_task(core_id);
     }
   }
-  // mempool_barrier(num_cores, num_cores * 4);
 
   return 0;
 }

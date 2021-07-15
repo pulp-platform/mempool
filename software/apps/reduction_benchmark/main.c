@@ -40,7 +40,7 @@
 // of 1 to N as the mathematicians do. Hence, for A, i=[0,M-1].
 #define A_a 1
 #define A_b 1
-#define B_a -2
+#define B_a 2
 #define B_b 1
 // Enable verbose printing
 #define VERBOSE
@@ -95,7 +95,7 @@ int32_t dot_product_sequential(int32_t const *__restrict__ A,
 int32_t dot_product_parallel1(int32_t const *__restrict__ A,
                       int32_t const *__restrict__ B, int32_t *__restrict__ Partial_sums,
                       uint32_t num_elements, uint32_t id, uint32_t numThreads) {
-  // Parallelize by assigning each core one row
+
   Partial_sums[id] = 0;
   int32_t dotp = 0;
   for (uint32_t i = id; i < num_elements; i += numThreads) {
@@ -114,7 +114,7 @@ int32_t dot_product_parallel1(int32_t const *__restrict__ A,
 int32_t dot_product_parallel2(int32_t const *__restrict__ A,
                       int32_t const *__restrict__ B, int32_t *__restrict__ Partial_sums,
                       uint32_t num_elements, uint32_t id, uint32_t numThreads) {
-  // Parallelize by assigning each core one row
+  
   Partial_sums[id] = 0;
   int32_t dotp = 0;
   for (uint32_t i = id*num_elements/numThreads; i < (id+1)*num_elements/numThreads; i += 1) {

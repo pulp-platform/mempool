@@ -9,7 +9,7 @@
 
 #define REPETITIONS 10 /* Number of times to run each test */
 
-int test_omp_master_3()
+int test_omp_master()
 {
   int nthreads;
   int executing_thread;
@@ -18,7 +18,7 @@ int test_omp_master_3()
   nthreads = 0;
   executing_thread = -1;
 
-  #pragma omp parallel num_threads(16)
+  #pragma omp parallel
   {
     #pragma omp master
     {
@@ -37,12 +37,10 @@ int main() {
   uint32_t i;
   uint32_t num_failed=0;
 
-  // mempool_barrier_init(core_id, num_cores);
-
   if (core_id == 0) {
     printf("Master Thread start\n");
     for(i = 0; i < REPETITIONS; i++) {
-      if(!test_omp_master_3()) {
+      if(!test_omp_master()) {
         num_failed++;
       }
     }
@@ -54,7 +52,6 @@ int main() {
       run_task(core_id);
     }
   }
-  // mempool_barrier(num_cores, num_cores * 4);
 
   return 0;
 }
