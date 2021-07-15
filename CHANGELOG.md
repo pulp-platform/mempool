@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add Halide runtime and build scripts for applications
 - Add Halide example applications (2D convolution & matrix multiplication)
 - Add CI workflow for MemPool with 256 cores
+- Add hierarchical AXI interconnect to the `mempool_group`
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module

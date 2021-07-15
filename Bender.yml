@@ -21,6 +21,7 @@ export_include_dirs:
 
 sources:
   # Level 0
+  - hardware/src/axi_hier_interco.sv
   - hardware/src/mempool_pkg.sv
   - hardware/src/mempool_cc.sv
   - hardware/src/reorder_buffer.sv
