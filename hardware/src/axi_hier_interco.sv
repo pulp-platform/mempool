@@ -50,15 +50,17 @@ module axi_hier_interco #(
   //  Typedefs  //
   ////////////////
 
-  localparam int unsigned IntIdWidth = SlvIdWidth + $clog2(NumSlvPorts);
+  localparam int unsigned IntIdWidth   = SlvIdWidth + $clog2(NumSlvPorts);
+  localparam int unsigned CacheIdWidth = IntIdWidth + 1;
 
-  typedef logic [AddrWidth-1:0]   addr_t;
-  typedef logic [DataWidth-1:0]   data_t;
-  typedef logic [DataWidth/8-1:0] strb_t;
-  typedef logic [SlvIdWidth-1:0]  slv_id_t;
-  typedef logic [MstIdWidth-1:0]  mst_id_t;
-  typedef logic [IntIdWidth-1:0]  int_id_t;
-  typedef logic [UserWidth-1:0]   user_t;
+  typedef logic [AddrWidth-1:0]    addr_t;
+  typedef logic [DataWidth-1:0]    data_t;
+  typedef logic [DataWidth/8-1:0]  strb_t;
+  typedef logic [SlvIdWidth-1:0]   slv_id_t;
+  typedef logic [MstIdWidth-1:0]   mst_id_t;
+  typedef logic [IntIdWidth-1:0]   int_id_t;
+  typedef logic [CacheIdWidth-1:0] cache_id_t;
+  typedef logic [UserWidth-1:0]    user_t;
 
   `include "axi/typedef.svh"
   // Common AXI types
@@ -75,6 +77,13 @@ module axi_hier_interco #(
   `AXI_TYPEDEF_R_CHAN_T(int_r_t, data_t, int_id_t, user_t);
   `AXI_TYPEDEF_REQ_T(int_req_t, int_aw_t, w_t, int_ar_t);
   `AXI_TYPEDEF_RESP_T(int_resp_t, int_b_t, int_r_t );
+  // Cache AXI types
+  `AXI_TYPEDEF_AW_CHAN_T(cache_aw_t, addr_t, cache_id_t, user_t);
+  `AXI_TYPEDEF_B_CHAN_T(cache_b_t, cache_id_t, user_t);
+  `AXI_TYPEDEF_AR_CHAN_T(cache_ar_t, addr_t, cache_id_t, user_t);
+  `AXI_TYPEDEF_R_CHAN_T(cache_r_t, data_t, cache_id_t, user_t);
+  `AXI_TYPEDEF_REQ_T(cache_req_t, cache_aw_t, w_t, cache_ar_t);
+  `AXI_TYPEDEF_RESP_T(cache_resp_t, cache_b_t, cache_r_t );
 
   ///////////////
   //  Interco  //
@@ -85,8 +94,10 @@ module axi_hier_interco #(
   if (NumSlvPorts <= NumPortsPerMux) begin : gen_axi_level_final
 
     // Intermediate AXI channel
-    int_req_t  int_req;
-    int_resp_t int_resp;
+    int_req_t    int_req;
+    int_resp_t   int_resp;
+    cache_req_t  cache_req;
+    cache_resp_t cache_resp;
 
     axi_mux #(
       // AXI parameter and channel types
@@ -126,20 +137,53 @@ module axi_hier_interco #(
       .mst_resp_i  (int_resp  )
     );
 
+    addr_t [1:0] CachedRegionStart;
+    addr_t [1:0] CachedRegionEnd;
+    assign CachedRegionStart = '{addr_t'(32'h4000_0000),addr_t'(32'h8000_0000)};
+    assign CachedRegionEnd   = '{addr_t'(32'h4000_1000),addr_t'(32'h8000_2460)};
+
+    snitch_read_only_cache #(
+      .LineWidth    ( 2*DataWidth    ),
+      .LineCount    ( 128            ),
+      .SetCount     ( 1              ),
+      .AxiAddrWidth ( AddrWidth      ),
+      .AxiDataWidth ( DataWidth      ),
+      .AxiIdWidth   ( IntIdWidth     ),
+      .AxiUserWidth ( UserWidth      ),
+      .MaxTrans     ( 32'd16         ),
+      .NrAddrRules  ( 2              ),
+      .slv_req_t    ( int_req_t      ),
+      .slv_rsp_t    ( int_resp_t     ),
+      .mst_req_t    ( cache_req_t    ),
+      .mst_rsp_t    ( cache_resp_t   )
+    ) i_snitch_read_only_cache (
+      .clk_i         ( clk_i               ),
+      .rst_ni        ( rst_ni              ),
+      .enable_i      ( 1'b1                ),
+      .flush_valid_i ( 1'b0                ),
+      .flush_ready_o ( /*unused*/          ),
+      .start_addr_i  ( CachedRegionStart   ),
+      .end_addr_i    ( CachedRegionEnd     ),
+      .axi_slv_req_i ( int_req             ),
+      .axi_slv_rsp_o ( int_resp            ),
+      .axi_mst_req_o ( cache_req           ),
+      .axi_mst_rsp_i ( cache_resp          )
+    );
+
     axi_id_remap #(
-      .AxiSlvPortIdWidth    (IntIdWidth),
-      .AxiSlvPortMaxUniqIds (IntIdWidth),
-      .AxiMaxTxnsPerId      (4         ),
-      .AxiMstPortIdWidth    (MstIdWidth),
-      .slv_req_t            (int_req_t ),
-      .slv_resp_t           (int_resp_t),
-      .mst_req_t            (mst_req_t ),
-      .mst_resp_t           (mst_resp_t)
+      .AxiSlvPortIdWidth    (CacheIdWidth),
+      .AxiSlvPortMaxUniqIds (2**MstIdWidth  ),
+      .AxiMaxTxnsPerId      (4           ),
+      .AxiMstPortIdWidth    (MstIdWidth  ),
+      .slv_req_t            (cache_req_t ),
+      .slv_resp_t           (cache_resp_t),
+      .mst_req_t            (mst_req_t   ),
+      .mst_resp_t           (mst_resp_t  )
     ) i_axi_id_remap (
       .clk_i      (clk_i     ),
       .rst_ni     (rst_ni    ),
-      .slv_req_i  (int_req   ),
-      .slv_resp_o (int_resp  ),
+      .slv_req_i  (cache_req ),
+      .slv_resp_o (cache_resp),
       .mst_req_o  (mst_req_o ),
       .mst_resp_i (mst_resp_i)
     );
@@ -174,6 +218,15 @@ module axi_hier_interco #(
       $error("[axi_hier_interco] `int_req.aw.id` does not match IntIdWidth.");
     if ($bits(int_req.aw.user) != UserWidth)
       $error("[axi_hier_interco] `int_req.aw.user` does not match UserWidth.");
+
+    if ($bits(cache_req.aw.addr) != AddrWidth)
+      $error("[axi_hier_interco] `cache_req.aw.addr` does not match AddrWidth.");
+    if ($bits(cache_req.w.data) != DataWidth)
+      $error("[axi_hier_interco] `cache_req.w.data` does not match DataWidth.");
+    if ($bits(cache_req.aw.id) != CacheIdWidth)
+      $error("[axi_hier_interco] `cache_req.aw.id` does not match CacheIdWidth.");
+    if ($bits(cache_req.aw.user) != UserWidth)
+      $error("[axi_hier_interco] `cache_req.aw.user` does not match UserWidth.");
   end else begin : gen_axi_level_recursive
     // More than one level missing. --> Recursively call this module
     // This level will contain `NumMuxes` interconnects
