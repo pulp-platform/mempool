@@ -6,9 +6,22 @@
 #include "encoding.h"
 #include "synchronization.h"
 
+
+
+void
+gomp_sections_init(int count)
+{
+  works.end = count + 1;
+  works.next = 1;
+  works.chunk_size = 1;
+  works.incr = 1;
+}
+
+/*********************** APIs *****************************/
+
 void GOMP_sections_end_nowait()
 {
-    // printf("e%d\n",omp_get_thread_num());
+
 }
 
 
@@ -22,7 +35,6 @@ int GOMP_sections_next()
     if (start == works.end)
     {
         gomp_hal_unlock(&works.lock);
-        // printf("n%d\n",0);
         return 0;
     }
     
@@ -39,7 +51,6 @@ int GOMP_sections_next()
 
     gomp_hal_unlock(&works.lock);
     
-    // printf("n%d\n",start);
     return start;
 }
 
@@ -70,33 +81,23 @@ extern void GOMP_sections_end()
 }
 
 /*
-TODO
  #pragma omp parallel 
  code
     #pragma omp sections
 */
-// int GOMP_sections_start (int count)
-// {
-//     int ret = 0;
-//     works.end = count + 1;
-//     works.next = 1;
-//     works.chunk_size = 1;
-//     works.incr = 1;
-
-//     works.lock = 0;
-
-//     uint32_t islocked = 1;
-
-//     while(islocked){
-//       islocked = __atomic_fetch_or(&works.lock, 1, __ATOMIC_SEQ_CST);
-//     }
+int GOMP_sections_start (int count)
+{
+    int ret = 0;
     
-//     if (works.next != works.end)
-//         ret = works.next++;
+    if (gomp_work_share_start()){ // work returns locked
+      gomp_section_init(start, end, incr, chunk_size);
+    }  
     
-//     __atomic_fetch_and(&works.lock, 0, __ATOMIC_SEQ_CST);
+    if (works.next != works.end)
+        ret = works.next++;
+    
+    gomp_hal_unlock(&works.lock);
 
-//     // printf("s%d\n",ret);
-//     return ret;
-// }
+    return ret;
+}
 
