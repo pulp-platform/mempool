@@ -290,6 +290,7 @@ module snitch_icache_handler #(
         // No cache hit is pending, but response data is available.
         end else if (arb_d.sel == 1) begin
             if (out_rsp_valid_i) begin
+                hit_ready       = 0;
                 rsp_valid       = 1;
                 rsp_ready       = (in_rsp_ready_i || in_rsp_served_q)
                                 && (write_ready_i || write_served_q);
