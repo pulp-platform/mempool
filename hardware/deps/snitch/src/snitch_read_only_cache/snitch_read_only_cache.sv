@@ -5,7 +5,6 @@
 // Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
 //         Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
-`include "axi/typedef.svh"
 
 /// Serve bufferable read memory requests from a constant cache.
 /// In more specific AXI terms:
@@ -51,11 +50,15 @@ module snitch_read_only_cache #(
   output mst_req_t axi_mst_req_o,
   input  mst_rsp_t axi_mst_rsp_i
 );
+
+  `include "axi/typedef.svh"
   import cf_math_pkg::idx_width;
 
   // Check for supported parameters
   if (AxiDataWidth < 32)
     $error("snitch_const_cache: AxiDataWidth must be larger than 32.");
+  if (AxiDataWidth > LineWidth)
+    $error("snitch_const_cache: LineWidth must be larger/equal than AxiDataWidth.");
 
   typedef enum logic [1:0] {
     Error = 0,
@@ -229,119 +232,83 @@ module snitch_read_only_cache #(
   logic                         handler_rsp_valid;
   logic                         handler_rsp_ready;
 
-  logic [CFG.LINE_WIDTH-1:0]    in_rsp_data_a, in_rsp_data_d, in_rsp_data_q;
-  logic                         in_rsp_error_a, in_rsp_error_d, in_rsp_error_q;
-  logic [CFG.ID_WIDTH_RESP-1:0] in_rsp_id_a, in_rsp_id_d, in_rsp_id_q;
-  logic                         in_rsp_valid_a, in_rsp_valid_d, in_rsp_valid_q;
+  logic [CFG.LINE_WIDTH-1:0]    in_rsp_data  , in_rsp_data_d, in_rsp_data_q;
+  logic                         in_rsp_error  , in_rsp_error_d, in_rsp_error_q;
+  logic [CFG.ID_WIDTH_RESP-1:0] in_rsp_id  , in_rsp_id_d, in_rsp_id_q;
+  logic                         in_rsp_valid  , in_rsp_valid_d, in_rsp_valid_q;
   logic                         in_rsp_ready_d, in_rsp_ready_q;
 
   logic [CFG.ID_WIDTH_RESP-1:0] pop_counter;
   logic in_rsp_empty;
 
-  logic                         ar_ready;
   logic                         axi_id_fifo_full;
+  id_t                          r_id;
 
   localparam WORD_OFFSET = idx_width(LineWidth/AxiDataWidth); // AXI-word offset within cache line
-  logic [WORD_OFFSET-1:0] addr_offset [2**AxiIdWidth];
-  logic [2**AxiIdWidth] in_flight;
-
-  assign ar_ready = in_ready & ~axi_id_fifo_full & ~in_flight[demux_req[1].ar.id];
-
-  // TODO
-  // id_t id_queue[$];
-
-  // AW, W, B channel --> Never used tie off
-  assign demux_rsp[1].aw_ready = 1'b0;
-  assign demux_rsp[1].w_ready = 1'b0;
-  assign demux_rsp[1].b_valid = 1'b0;
-  assign demux_rsp[1].b = '0;
-  // AR channel --> Ready if cache is ready
-  assign in_addr = demux_req[1].ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
-  assign in_id = demux_req[1].ar.id;
-  // TODO we need to store the ID somehow
-  assign in_valid = demux_req[1].ar_valid;
-  assign demux_rsp[1].ar_ready = ar_ready;
-  // R channel
-  assign demux_rsp[1].r_valid = ~in_rsp_empty; //in_rsp_valid_q;
-  assign demux_rsp[1].r.data = in_rsp_data_q >> (addr_offset[demux_rsp[1].r.id] * AxiDataWidth);
-  // assign demux_rsp[1].r.id = in_rsp_id_q;
-  // assign demux_rsp[1].r.id   = metadata_out.id;
-  assign demux_rsp[1].r.resp = axi_pkg::RESP_OKAY; // in_rsp_error_q
-  assign demux_rsp[1].r.last = 1'b1;
-  assign demux_rsp[1].r.user = '0;
-  assign in_rsp_ready_d = demux_req[1].r_ready; // Cache assumes it's always one?
 
   // Store some AXI metadata for the response
   typedef struct packed {
-    id_t                    id;   // Store the AXI ID for the R response
     logic [WORD_OFFSET-1:0] addr; // Store the offset in the cache line minus the byte offset
+    axi_pkg::len_t          len; // Store the length of the burst
+    logic                   valid; // Metadata is valid --> a transaction is already in flight
   } metadata_t;
 
-  metadata_t metadata_in, metadata_out;
-  assign metadata_in.id   = demux_req[1].ar.id;
+  metadata_t [2**AxiIdWidth:0] metadata;
+  // logic [2**AxiIdWidth:0][WORD_OFFSET-1:0] addr_offset;
+  // logic [2**AxiIdWidth:0] in_flight;
+
+  // AW, W, B channel --> Never used tie off
+  assign demux_rsp[Cache].aw_ready = 1'b0;
+  assign demux_rsp[Cache].w_ready = 1'b0;
+  assign demux_rsp[Cache].b_valid = 1'b0;
+  assign demux_rsp[Cache].b = '0;
+  // AR channel --> Ready if cache is ready and no request with the same ID is in flight
+  assign in_id = demux_req[Cache].ar.id;
+  assign in_addr = demux_req[Cache].ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
+  assign in_valid = demux_req[Cache].ar_valid & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
+  assign demux_rsp[Cache].ar_ready = in_ready & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
+  // R channel
+  assign demux_rsp[Cache].r.id = r_id;
+  assign demux_rsp[Cache].r.data = in_rsp_data_q >> (metadata[r_id].addr * AxiDataWidth);
+  assign demux_rsp[Cache].r.resp = in_rsp_error_q; // This response is already an AXI response.
+  assign demux_rsp[Cache].r.last = ~(|metadata[r_id].len);
+  assign demux_rsp[Cache].r.user = '0;
+  assign demux_rsp[Cache].r_valid = ~in_rsp_empty;
+  assign in_rsp_ready_d = demux_req[Cache].r_ready; // Cache assumes it's always one?
+
+  // Store Metadata:
+  //   - Address offset to realign data in response
+  //   - Burst length to count number of responses
+  //   - Valid to see if a transaction is already in flight
   if (LineWidth/AxiDataWidth <= 1) begin : set_metadata
-    assign metadata_in.addr = '0; // Ignore the byte offset
+    assign metadata = '0; // Ignore the byte offset
   end else begin : set_metadata
-    assign metadata_in.addr = demux_req[1].ar.addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET]; // Ignore the byte offset
-  end
-
-
-  for (genvar i = 0; i < 2**AxiIdWidth; i++) begin
-    if (LineWidth/AxiDataWidth <= 1) begin : set_metadata_2
-      assign addr_offset[i] = '0; // Ignore the byte offset
-    end else begin : set_metadata_2
-      always_ff @(posedge clk_i or negedge rst_ni) begin : proc_addr_offset
-        if(~rst_ni) begin
-          addr_offset[i] <= '0;
-        end else if (in_valid && ar_ready && demux_req[1].ar.id == i) begin
-          addr_offset[i] <= demux_req[1].ar.addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET];
+    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_metadata
+      if(~rst_ni) begin
+        metadata <= '0;
+      end else begin
+        if (in_valid && in_ready) begin
+          metadata[in_id].addr <= demux_req[Cache].ar.addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET];
+          metadata[in_id].len <= demux_req[Cache].ar.len;
+          metadata[in_id].valid <= 1'b1;
+        end
+        if (demux_rsp[Cache].r_valid && demux_req[Cache].r_ready) begin
+          metadata[r_id].addr <= metadata[r_id].addr + 1;
+          metadata[r_id].len <= metadata[r_id].len - 1;
+          if (demux_rsp[Cache].r.last) begin
+            metadata[r_id].valid <= 1'b0;
+          end
         end
       end
     end
   end
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_in_flight
-    if(~rst_ni) begin
-      in_flight <= '0;
-    end else begin
-      if (in_valid && ar_ready) begin
-        in_flight[demux_req[1].ar.id] <= 1'b1;
-      end
-      if (demux_rsp[1].r_valid && in_rsp_ready_d) begin
-        in_flight[demux_rsp[1].r.id] <= 1'b0;
-      end
-    end
-  end
-
-  fifo_v3 #(
-    .DEPTH      ( 8                 ),
-    .DATA_WIDTH ( $bits(metadata_t) )
-  ) i_axi_id_fifo (
-    .clk_i      ( clk_i                                  ),
-    .rst_ni     ( rst_ni                                 ),
-    .flush_i    ( 1'b0                                   ),
-    .testmode_i ( 1'b0                                   ),
-    .full_o     ( axi_id_fifo_full                       ),
-    .empty_o    ( /* unused */                           ),
-    .usage_o    ( /* unused */                           ),
-    .data_i     ( metadata_in                            ),
-    .push_i     ( in_valid & ar_ready                    ),
-    .data_o     ( metadata_out                           ),
-    .pop_i      ( demux_rsp[1].r_valid && in_rsp_ready_d )   // demux_rsp[1].r.last has to be considered when bursts are supported
-  );
-
-
   lzc #(
-    /// The width of the input vector.
-    .WIDTH     (CFG.ID_WIDTH_RESP),
-    /// Mode selection: 0 -> trailing zero, 1 -> leading zero
-    .MODE      (0                )
+    .WIDTH (CFG.ID_WIDTH_RESP),
+    .MODE  (0                )
   ) i_lzc (
-    /// Input vector to be counted.
-    .in_i    (in_rsp_id_q),
-    /// Count of the leading / trailing zeros.
-    .cnt_o   (demux_rsp[1].r.id),
-    /// Counter is empty: Asserted if all bits in in_i are zero.
+    .in_i    (in_rsp_id_q ),
+    .cnt_o   (r_id        ),
     .empty_o (in_rsp_empty)
   );
 
@@ -350,15 +317,14 @@ module snitch_read_only_cache #(
     in_rsp_error_d = in_rsp_error_q;
     in_rsp_id_d    = in_rsp_id_q;
     in_rsp_valid_d = in_rsp_valid_q;
-    if (in_rsp_valid_a && in_rsp_empty) begin
-      in_rsp_data_d  = in_rsp_data_a;
-      in_rsp_error_d = in_rsp_error_a;
-      in_rsp_id_d    = in_rsp_id_a;
-      in_rsp_valid_d = in_rsp_valid_a;
-    end else if (demux_rsp[1].r_valid && in_rsp_ready_d) begin
-      in_rsp_id_d = in_rsp_id_q & ~(1 << demux_rsp[1].r.id);
+    if (in_rsp_valid && in_rsp_empty) begin
+      in_rsp_data_d  = in_rsp_data;
+      in_rsp_error_d = in_rsp_error;
+      in_rsp_id_d    = in_rsp_id;
+      in_rsp_valid_d = in_rsp_valid;
+    end else if (demux_rsp[Cache].r_valid && demux_req[Cache].r_ready && demux_rsp[Cache].r.last) begin
+      in_rsp_id_d = in_rsp_id_q & ~(1 << r_id);
     end
-
   end
 
   always_ff @(posedge clk_i) begin : proc_queue
@@ -386,7 +352,7 @@ module snitch_read_only_cache #(
     // TODO(zarubaf): This is wrong, just for initial estimates.
     .in_addr_i     ( in_addr   ),
     .in_id_i       ( in_id     ),
-    .in_valid_i    ( in_valid & ~axi_id_fifo_full & ~in_flight[demux_req[1].ar.id] ),
+    .in_valid_i    ( in_valid  ),
     .in_ready_o    ( in_ready  ),
 
     .out_addr_o    ( lookup_addr        ),
@@ -421,11 +387,11 @@ module snitch_read_only_cache #(
     .in_req_ready_o  ( lookup_ready       ),
 
     // TODO(zarubaf): This is wrong, just for initial estimates.
-    .in_rsp_data_o   ( in_rsp_data_a      ),
-    .in_rsp_error_o  ( in_rsp_error_a     ),
-    .in_rsp_id_o     ( in_rsp_id_a        ),
-    .in_rsp_valid_o  ( in_rsp_valid_a     ),
-    .in_rsp_ready_i  ( in_rsp_empty       ),
+    .in_rsp_data_o   ( in_rsp_data        ),
+    .in_rsp_error_o  ( in_rsp_error       ),
+    .in_rsp_id_o     ( in_rsp_id          ),
+    .in_rsp_valid_o  ( in_rsp_valid       ),
+    .in_rsp_ready_i  ( in_rsp_empty       ), // TODO: Technically, onehot is enough
 
     .write_addr_o    ( write_addr         ),
     .write_set_o     ( write_set          ),
