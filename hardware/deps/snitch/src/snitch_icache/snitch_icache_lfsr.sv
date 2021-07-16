@@ -112,6 +112,7 @@ module snitch_icache_lfsr #(
                 30: taps = $unsigned( 1<<29 | 1<< 5 | 1<< 3 | 1<< 0 );
                 31: taps = $unsigned( 1<<30 | 1<<27                 );
                 32: taps = $unsigned( 1<<31 | 1<<21 | 1<< 1 | 1<< 0 );
+                default: taps = 1 << (N-1);
             endcase;
         end
 
