@@ -10,9 +10,9 @@
 
 `include "common_cells/registers.svh"
 
-import cf_math_pkg::idx_width;
-
-module tcdm_adapter_xqueue #(
+module tcdm_adapter_xqueue
+  import cf_math_pkg::idx_width;
+#(
   parameter int unsigned AddrWidth    = 32,
   parameter int unsigned DataWidth    = 32,
   parameter int unsigned XQueueSize   = 4,

@@ -27,8 +27,8 @@
 #include "synchronization.h"
 
 // Dimensions of matrix X
-#define DIM_X_M 32
-#define DIM_X_N 32
+#define DIM_X_M 258
+#define DIM_X_N 61
 
 // Dimensions of matrix Y
 #define DIM_Y_M (DIM_X_M - 2)
