@@ -244,12 +244,14 @@ module snitch_read_only_cache #(
   logic                         axi_id_fifo_full;
   id_t                          r_id;
 
-  localparam WORD_OFFSET = idx_width(LineWidth/AxiDataWidth); // AXI-word offset within cache line
+  // localparam WORD_OFFSET = idx_width(LineWidth/AxiDataWidth); // AXI-word offset within cache line
+  localparam WORD_OFFSET = CFG.LINE_ALIGN;
 
   // Store some AXI metadata for the response
   typedef struct packed {
     logic [WORD_OFFSET-1:0] addr; // Store the offset in the cache line minus the byte offset
     axi_pkg::len_t          len; // Store the length of the burst
+    axi_pkg::size_t         size; // Store the size of the beats
     logic                   valid; // Metadata is valid --> a transaction is already in flight
   } metadata_t;
 
@@ -269,7 +271,8 @@ module snitch_read_only_cache #(
   assign demux_rsp[Cache].ar_ready = in_ready & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
   // R channel
   assign demux_rsp[Cache].r.id = r_id;
-  assign demux_rsp[Cache].r.data = in_rsp_data_q >> (metadata[r_id].addr * AxiDataWidth);
+  // assign demux_rsp[Cache].r.data = in_rsp_data_q >> (metadata[r_id].addr * AxiDataWidth);
+  assign demux_rsp[Cache].r.data = in_rsp_data_q >> (metadata[r_id].addr[$clog2(AxiDataWidth/8)+:idx_width(LineWidth/AxiDataWidth)] * AxiDataWidth);
   assign demux_rsp[Cache].r.resp = in_rsp_error_q; // This response is already an AXI response.
   assign demux_rsp[Cache].r.last = ~(|metadata[r_id].len);
   assign demux_rsp[Cache].r.user = '0;
@@ -288,12 +291,14 @@ module snitch_read_only_cache #(
         metadata <= '0;
       end else begin
         if (in_valid && in_ready) begin
-          metadata[in_id].addr <= demux_req[Cache].ar.addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET];
+          // metadata[in_id].addr <= demux_req[Cache].ar.addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET];
+          metadata[in_id].addr <= demux_req[Cache].ar.addr[0+:WORD_OFFSET];
           metadata[in_id].len <= demux_req[Cache].ar.len;
+          metadata[in_id].size <= demux_req[Cache].ar.size;
           metadata[in_id].valid <= 1'b1;
         end
         if (demux_rsp[Cache].r_valid && demux_req[Cache].r_ready) begin
-          metadata[r_id].addr <= metadata[r_id].addr + 1;
+          metadata[r_id].addr <= metadata[r_id].addr + (1 << metadata[r_id].size);
           metadata[r_id].len <= metadata[r_id].len - 1;
           if (demux_rsp[Cache].r.last) begin
             metadata[r_id].valid <= 1'b0;
