@@ -39,12 +39,12 @@ int32_t *queues_x_1[NUM_CORES];
 // queue push
 static inline void queue_push(void *const queue, int32_t data,
                               int32_t *const ret) {
-  asm volatile("q.push.w %0, %1, (%2)" : "+r"(*ret) : "r"(data), "r"(queue));
+  asm volatile("q.push.w %0, %1, (%2)" : "+r"(*ret) : "r"(data), "r"(queue) : "memory");
 }
 
 // queue pop
 inline void queue_pop(void *const queue, int32_t *const ret) {
-  asm volatile("q.pop.w %0, 0(%1)" : "=r"(*ret) : "r"(queue));
+  asm volatile("q.pop.w %0, 0(%1)" : "=r"(*ret) : "r"(queue) : "memory");
 }
 
 void systolic_init(uint32_t const *tile_map, uint32_t const *core_map) {
@@ -87,7 +87,7 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
   int32_t resp_x_1 __attribute__((unused)) = 0;
   int32_t weights[3][3];
   int32_t curr_x[3];
-  int32_t acc_y[3] = {0, 0, 0};
+  register int32_t acc_y[3] = {0, 0, 0};
   uint32_t row;
   uint32_t col;
   uint32_t num_cols_y = num_cols - 2;
@@ -140,11 +140,12 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
     // MACs with 3rd row of weights
     acc_y[2] += curr_x[2] * weights[2][1];
     acc_y[0] += curr_x[2] * weights[2][0];
+    __asm__ __volatile__("":::"memory");
     // ------------------
     // CONVOLUTION BURSTS
     // ------------------
     col = 2;
-    while (col < num_cols_y - 2) {
+    while (col < num_cols_y) {
       // -----------
       // ITERATION 0
       // -----------
@@ -225,15 +226,17 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
       Y[(row - 2) * num_cols_y + (col - 2) + 2] = acc_y[1];
       // Reset finished accumulation
       acc_y[1] = 0;
+      __asm__ __volatile__("":::"memory");
       // ----------------
       // INCREMENT COLUMN
       // ----------------
       col += 3;
     }
+    __asm__ __volatile__("":::"memory");
     // ---------------------
     // CONVOLUTION REMAINDER
     // ---------------------
-    while (col < num_cols_y) {
+    while (col < num_cols) {
       // -----------
       // ITERATION 0
       // -----------
@@ -258,11 +261,9 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
       acc_y[1] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[2];
-      // Reset finished accumulation
-      acc_y[2] = 0;
       // Increment column index
       ++col;
-      if (col >= num_cols_y) break;
+      if (col >= num_cols) break;
       __asm__ __volatile__("":::"memory");
       // -----------
       // ITERATION 1
@@ -288,50 +289,7 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
       acc_y[2] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[0];
-      // Reset finished accumulation
-      acc_y[0] = 0;
-      // Increment column index
-      ++col;
     }
-    // -------
-    // FLUSH 0
-    // -------
-    // Load x vector
-    curr_x[1] = X[(row - 1) * num_cols + col];
-    curr_x[2] = X[(row - 0) * num_cols + col];
-    curr_x[0] = X[(row - 2) * num_cols + col];
-    // Push lower part of x vector
-    queue_push(queue_next_x_0, curr_x[1], &resp_x_0);
-    queue_push(queue_next_x_1, curr_x[2], &resp_x_1);
-    // MACs with 1st row of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 1) % 3] += curr_x[0] * weights[0][1];
-    // MACs with 2nd row of weights
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 1) % 3] += curr_x[1] * weights[1][1];
-    // MACs with 3rd row of weights
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    acc_y[(col + 1) % 3] += curr_x[2] * weights[2][1];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
-    // Increment column index
-    ++col;
-    // -------
-    // FLUSH 1
-    // -------
-    // Load x vector
-    curr_x[1] = X[(row - 1) * num_cols + col];
-    curr_x[2] = X[(row - 0) * num_cols + col];
-    curr_x[0] = X[(row - 2) * num_cols + col];
-    // Push lower part of x vector
-    queue_push(queue_next_x_0, curr_x[1], &resp_x_0);
-    queue_push(queue_next_x_1, curr_x[2], &resp_x_1);
-    // MACs with 3rd column of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
     // ------------------
     // RESET ACCUMULATORS
     // ------------------
@@ -357,6 +315,7 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
     acc_y[2] += curr_x[0] * weights[0][0];
     acc_y[2] += curr_x[1] * weights[1][0];
     acc_y[2] += curr_x[2] * weights[2][0];
+    __asm__ __volatile__("":::"memory");
     // ----------
     // POPULATE 1
     // ----------
@@ -373,11 +332,12 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
     // MACs with 3rd row of weights
     acc_y[2] += curr_x[2] * weights[2][1];
     acc_y[0] += curr_x[2] * weights[2][0];
+    __asm__ __volatile__("":::"memory");
     // ------------------
     // CONVOLUTION BURSTS
     // ------------------
     col = 2;
-    while (col < num_cols_y - 2) {
+    while (col < num_cols_y) {
       // -----------
       // ITERATION 0
       // -----------
@@ -449,15 +409,17 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
       Y[(row - 2) * num_cols_y + (col - 2) + 2] = acc_y[1];
       // Reset finished accumulation
       acc_y[1] = 0;
+      __asm__ __volatile__("":::"memory");
       // ----------------
       // INCREMENT COLUMN
       // ----------------
       col += 3;
     }
+    __asm__ __volatile__("":::"memory");
     // ---------------------
     // CONVOLUTION REMAINDER
     // ---------------------
-    while (col < num_cols_y) {
+    while (col < num_cols) {
       // -----------
       // ITERATION 0
       // -----------
@@ -482,11 +444,9 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
       acc_y[1] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[2];
-      // Reset finished accumulation
-      acc_y[2] = 0;
       // Increment column index
       ++col;
-      if (col >= num_cols_y) break;
+      if (col >= num_cols) break;
       __asm__ __volatile__("":::"memory");
       // -----------
       // ITERATION 1
@@ -512,44 +472,7 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
       acc_y[2] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[0];
-      // Reset finished accumulation
-      acc_y[0] = 0;
-      // Increment column index
-      ++col;
     }
-    // -------
-    // FLUSH 0
-    // -------
-    // Load x vector
-    curr_x[1] = X[(row - 1) * num_cols + col];
-    curr_x[2] = X[(row - 0) * num_cols + col];
-    curr_x[0] = X[(row - 2) * num_cols + col];
-    // MACs with 1st row of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 1) % 3] += curr_x[0] * weights[0][1];
-    // MACs with 2nd row of weights
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 1) % 3] += curr_x[1] * weights[1][1];
-    // MACs with 3rd row of weights
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    acc_y[(col + 1) % 3] += curr_x[2] * weights[2][1];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
-    // Increment column index
-    ++col;
-    // -------
-    // FLUSH 1
-    // -------
-    // Load x vector
-    curr_x[1] = X[(row - 1) * num_cols + col];
-    curr_x[2] = X[(row - 0) * num_cols + col];
-    curr_x[0] = X[(row - 2) * num_cols + col];
-    // MACs with 3rd column of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
   }
 }
 
@@ -564,7 +487,7 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
   int32_t resp_x_1 __attribute__((unused)) = 0;
   int32_t weights[3][3];
   int32_t curr_x[3];
-  int32_t acc_y[3] = {0, 0, 0};
+  register int32_t acc_y[3] = {0, 0, 0};
   uint32_t row;
   uint32_t col;
   uint32_t num_cols_y = num_cols - 2;
@@ -619,11 +542,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
     // MACs with 3rd row of weights
     acc_y[2] += curr_x[2] * weights[2][1];
     acc_y[0] += curr_x[2] * weights[2][0];
+    __asm__ __volatile__("":::"memory");
     // ------------------
     // CONVOLUTION BURSTS
     // ------------------
     col = 2;
-    while (col < num_cols_y - 2) {
+    while (col < num_cols_y) {
       // -----------
       // ITERATION 0
       // -----------
@@ -704,15 +628,17 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
       Y[(row - 2) * num_cols_y + (col - 2) + 2] = acc_y[1];
       // Reset finished accumulation
       acc_y[1] = 0;
+      __asm__ __volatile__("":::"memory");
       // ----------------
       // INCREMENT COLUMN
       // ----------------
       col += 3;
     }
+    __asm__ __volatile__("":::"memory");
     // ---------------------
     // CONVOLUTION REMAINDER
     // ---------------------
-    while (col < num_cols_y) {
+    while (col < num_cols) {
       // -----------
       // ITERATION 0
       // -----------
@@ -737,11 +663,9 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
       acc_y[1] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[2];
-      // Reset finished accumulation
-      acc_y[2] = 0;
       // Increment column index
       ++col;
-      if (col >= num_cols_y) break;
+      if (col >= num_cols) break;
       __asm__ __volatile__("":::"memory");
       // -----------
       // ITERATION 1
@@ -767,50 +691,7 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
       acc_y[2] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[0];
-      // Reset finished accumulation
-      acc_y[0] = 0;
-      // Increment column index
-      ++col;
     }
-    // -------
-    // FLUSH 0
-    // -------
-    // Pop and load x vector
-    queue_pop(queue_prev_x_1, &curr_x[1]);
-    curr_x[2] = X[row * num_cols + col];
-    queue_pop(queue_prev_x_0, &curr_x[0]);
-    // Push lower part of x vector
-    queue_push(queue_next_x_0, curr_x[1], &resp_x_0);
-    queue_push(queue_next_x_1, curr_x[2], &resp_x_1);
-    // MACs with 1st row of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 1) % 3] += curr_x[0] * weights[0][1];
-    // MACs with 2nd row of weights
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 1) % 3] += curr_x[1] * weights[1][1];
-    // MACs with 3rd row of weights
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    acc_y[(col + 1) % 3] += curr_x[2] * weights[2][1];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
-    // Increment column index
-    ++col;
-    // -------
-    // FLUSH 1
-    // -------
-    // Pop and load x vector
-    queue_pop(queue_prev_x_1, &curr_x[1]);
-    curr_x[2] = X[row * num_cols + col];
-    queue_pop(queue_prev_x_0, &curr_x[0]);
-    // Push lower part of x vector
-    queue_push(queue_next_x_0, curr_x[1], &resp_x_0);
-    queue_push(queue_next_x_1, curr_x[2], &resp_x_1);
-    // MACs with 3rd column of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
     // ------------------
     // RESET ACCUMULATORS
     // ------------------
@@ -836,6 +717,7 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
     acc_y[2] += curr_x[0] * weights[0][0];
     acc_y[2] += curr_x[1] * weights[1][0];
     acc_y[2] += curr_x[2] * weights[2][0];
+    __asm__ __volatile__("":::"memory");
     // ----------
     // POPULATE 1
     // ----------
@@ -852,11 +734,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
     // MACs with 3rd row of weights
     acc_y[2] += curr_x[2] * weights[2][1];
     acc_y[0] += curr_x[2] * weights[2][0];
+    __asm__ __volatile__("":::"memory");
     // ------------------
     // CONVOLUTION BURSTS
     // ------------------
     col = 2;
-    while (col < num_cols_y - 2) {
+    while (col < num_cols_y) {
       // -----------
       // ITERATION 0
       // -----------
@@ -928,15 +811,17 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
       Y[(row - 2) * num_cols_y + (col - 2) + 2] = acc_y[1];
       // Reset finished accumulation
       acc_y[1] = 0;
+      __asm__ __volatile__("":::"memory");
       // ----------------
       // INCREMENT COLUMN
       // ----------------
       col += 3;
     }
+    __asm__ __volatile__("":::"memory");
     // ---------------------
     // CONVOLUTION REMAINDER
     // ---------------------
-    while (col < num_cols_y) {
+    while (col < num_cols) {
       // -----------
       // ITERATION 0
       // -----------
@@ -958,11 +843,9 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
       acc_y[1] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[2];
-      // Reset finished accumulation
-      acc_y[2] = 0;
       // Increment column index
       ++col;
-      if (col >= num_cols_y) break;
+      if (col >= num_cols) break;
       __asm__ __volatile__("":::"memory");
       // -----------
       // ITERATION 1
@@ -985,44 +868,7 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
       acc_y[2] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[0];
-      // Reset finished accumulation
-      acc_y[0] = 0;
-      // Increment column index
-      ++col;
     }
-    // -------
-    // FLUSH 0
-    // -------
-    // Pop and load x vector
-    queue_pop(queue_prev_x_1, &curr_x[1]);
-    curr_x[2] = X[row * num_cols + col];
-    queue_pop(queue_prev_x_0, &curr_x[0]);
-    // MACs with 1st row of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 1) % 3] += curr_x[0] * weights[0][1];
-    // MACs with 2nd row of weights
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 1) % 3] += curr_x[1] * weights[1][1];
-    // MACs with 3rd row of weights
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    acc_y[(col + 1) % 3] += curr_x[2] * weights[2][1];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
-    // Increment column index
-    ++col;
-    // -------
-    // FLUSH 1
-    // -------
-    // Pop and load x vector
-    queue_pop(queue_prev_x_1, &curr_x[1]);
-    curr_x[2] = X[row * num_cols + col];
-    queue_pop(queue_prev_x_0, &curr_x[0]);
-    // MACs with 3rd column of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
   }
 }
 
@@ -1033,7 +879,7 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
   int32_t *queue_prev_x_1;
   int32_t weights[3][3];
   int32_t curr_x[3];
-  int32_t acc_y[3] = {0, 0, 0};
+  register int32_t acc_y[3] = {0, 0, 0};
   uint32_t col;
   uint32_t num_cols_y = num_cols - 2;
 
@@ -1078,11 +924,12 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
     // MACs with 3rd row of weights
     acc_y[2] += curr_x[2] * weights[2][1];
     acc_y[0] += curr_x[2] * weights[2][0];
+    __asm__ __volatile__("":::"memory");
     // ------------------
     // CONVOLUTION BURSTS
     // ------------------
     col = 2;
-    while (col < num_cols_y - 2) {
+    while (col < num_cols_y) {
       // -----------
       // ITERATION 0
       // -----------
@@ -1154,15 +1001,17 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
       Y[(row - 2) * num_cols_y + (col - 2) + 2] = acc_y[1];
       // Reset finished accumulation
       acc_y[1] = 0;
+      __asm__ __volatile__("":::"memory");
       // ----------------
       // INCREMENT COLUMN
       // ----------------
       col += 3;
     }
+    __asm__ __volatile__("":::"memory");
     // ---------------------
     // CONVOLUTION REMAINDER
     // ---------------------
-    while (col < num_cols_y) {
+    while (col < num_cols) {
       // -----------
       // ITERATION 0
       // -----------
@@ -1184,11 +1033,9 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
       acc_y[1] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[2];
-      // Reset finished accumulation
-      acc_y[2] = 0;
       // Increment column index
       ++col;
-      if (col >= num_cols_y) break;
+      if (col >= num_cols) break;
       __asm__ __volatile__("":::"memory");
       // -----------
       // ITERATION 1
@@ -1211,44 +1058,7 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
       acc_y[2] += curr_x[2] * weights[2][0];
       // Store finished accumulation
       Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[0];
-      // Reset finished accumulation
-      acc_y[0] = 0;
-      // Increment column index
-      ++col;
     }
-    // -------
-    // FLUSH 0
-    // -------
-    // Pop and load x vector
-    queue_pop(queue_prev_x_1, &curr_x[1]);
-    curr_x[2] = X[row * num_cols + col];
-    queue_pop(queue_prev_x_0, &curr_x[0]);
-    // MACs with 1st row of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 1) % 3] += curr_x[0] * weights[0][1];
-    // MACs with 2nd row of weights
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 1) % 3] += curr_x[1] * weights[1][1];
-    // MACs with 3rd row of weights
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    acc_y[(col + 1) % 3] += curr_x[2] * weights[2][1];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
-    // Increment column index
-    ++col;
-    // -------
-    // FLUSH 1
-    // -------
-    // Pop and load x vector
-    queue_pop(queue_prev_x_1, &curr_x[1]);
-    curr_x[2] = X[row * num_cols + col];
-    queue_pop(queue_prev_x_0, &curr_x[0]);
-    // MACs with 3rd column of weights
-    acc_y[(col + 0) % 3] += curr_x[0] * weights[0][2];
-    acc_y[(col + 0) % 3] += curr_x[1] * weights[1][2];
-    acc_y[(col + 0) % 3] += curr_x[2] * weights[2][2];
-    // Store finished accumulation
-    Y[(row - 2) * num_cols_y + (col - 2)] = acc_y[col % 3];
     // ------------------
     // RESET ACCUMULATORS
     // ------------------
