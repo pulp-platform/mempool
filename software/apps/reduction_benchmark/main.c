@@ -27,7 +27,7 @@
 
 // Define Vector dimensions:
 // C = AB with A=[Mx1], B=[Mx1]
-#define M (NUM_CORES * 50)
+#define M (NUM_CORES * 10)
 // Specify how the vectors A and B should be initialized
 // The entries will follow this format:
 // a(i) = A_a*i + A_b
@@ -40,8 +40,8 @@
 // of 1 to N as the mathematicians do. Hence, for A, i=[0,M-1].
 #define A_a 1
 #define A_b 1
-#define B_a 2
-#define B_b 1
+#define B_a 1
+#define B_b -1
 // Enable verbose printing
 #define VERBOSE
 
@@ -320,49 +320,20 @@ int main() {
 
     cycles = mempool_get_timer();
     mempool_start_benchmark();
-    omp_result = dot_product_omp_dynamic(a, b, M, 16);
+    omp_result = dot_product_omp_dynamic(a, b, M, 10);
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;
 
-    printf("OMP Dynamic(16) Result: %d\n", omp_result);
-    printf("OMP Dynamic(16) Duration: %d\n", cycles);
+    printf("OMP Dynamic(10) Result: %d\n", omp_result);
+    printf("OMP Dynamic(10) Duration: %d\n", cycles);
     if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)){
-      printf("OMP Dynamic(16) Result is %d instead of %d\n", omp_result, correct_result);
+      printf("OMP Dynamic(10) Result is %d instead of %d\n", omp_result, correct_result);
     } else{
       printf("Result is correct!\n");
     }
 
     mempool_wait(4*num_cores);
 
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    omp_result = dot_product_omp_dynamic(a, b, M, 32);
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-
-    printf("OMP Dynamic(32) Result: %d\n", omp_result);
-    printf("OMP Dynamic(32) Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)){
-      printf("OMP Dynamic(32) Result is %d instead of %d\n", omp_result, correct_result);
-    } else{
-      printf("Result is correct!\n");
-    }
-
-    mempool_wait(4*num_cores);
-
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    omp_result = dot_product_omp_dynamic(a, b, M, 50);
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-
-    printf("OMP Dynamic(50) Result: %d\n", omp_result);
-    printf("OMP Dynamic(50) Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)){
-      printf("OMP Dynamic(50) Result is %d instead of %d\n", omp_result, correct_result);
-    } else{
-      printf("Result is correct!\n");
-    }
   }
   else{
     while(1){
@@ -372,3 +343,4 @@ int main() {
   }
   return 0;
 }
+

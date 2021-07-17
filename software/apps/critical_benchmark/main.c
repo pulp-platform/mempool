@@ -9,22 +9,12 @@
 
 uint32_t * lock;
 uint32_t result;
-extern uint32_t barrier_init;
-
-void work1(){
-  int sum=0;
-  for(int i=0; i<100; i++){
-    sum++;
-  }
-}
 
 parallel_critical_manual()
 {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   uint32_t islocked = 1;
-  
-  work1();
 
   mempool_timer_t cycles = mempool_get_timer();
   mempool_start_benchmark();
@@ -52,11 +42,9 @@ omp_parallel_critical()
 {
   uint32_t core_id;
   uint32_t num_cores = mempool_get_core_count();
-
+  
   #pragma omp parallel num_threads(num_cores)
   {
-    work1();
-
     mempool_timer_t cycles = mempool_get_timer();
     mempool_start_benchmark();
 
@@ -113,3 +101,4 @@ int main() {
   }
   return 0;
 }
+

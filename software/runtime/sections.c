@@ -90,7 +90,7 @@ int GOMP_sections_start (int count)
     int ret = 0;
     
     if (gomp_work_share_start()){ // work returns locked
-      gomp_section_init(start, end, incr, chunk_size);
+      gomp_sections_init(count);
     }  
     
     if (works.next != works.end)
