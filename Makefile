@@ -35,9 +35,22 @@ CXX = g++
 endif
 BENDER_VERSION = 0.21.0
 
-# We need a recent LLVM installation (>11) to compile Verilator
-CLANG_CC  ?= clang
-CLANG_CXX ?= clang++
+# We need a recent LLVM installation (>11) to compile Verilator.
+# We also need to link the binaries with LLVM's libc++.
+# Define CLANG_PATH to be the path of your Clang installation.
+# At IIS, check .gitlab/.gitlab-ci.yml for an example CLANG_PATH.
+
+ifneq (${CLANG_PATH},)
+        CLANG_CC       := $(CLANG_PATH)/bin/clang
+        CLANG_CXX      := $(CLANG_PATH)/bin/clang++
+        CLANG_CXXFLAGS := "-nostdinc++ -isystem $(CLANG_PATH)/include/c++/v1"
+        CLANG_LDFLAGS  := "-L $(CLANG_PATH)/lib -Wl,-rpath,$(CLANG_PATH)/lib -lc++ -nostdlib++"
+else
+        CLANG_CC       ?= clang
+        CLANG_CXX      ?= clang++
+        CLANG_CXXFLAGS := ""
+        CLANG_LDFLAGS  := ""
+endif
 
 # Default target
 all: toolchain riscv-isa-sim halide
@@ -131,7 +144,7 @@ $(BENDER_INSTALL_DIR)/bender:
 verilator: $(VERILATOR_INSTALL_DIR)/bin/verilator
 $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	cd $<; unset VERILATOR_ROOT; \
-	autoconf && CC=$(CLANG_CC) CXX=$(CLANG_CXX) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
+	autoconf && CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=$(CLANG_CXXFLAGS) LDFLAGS=$(CLANG_LDFLAGS) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
 	make -j4 && make install
 
 # Patch hardware for MemPool
