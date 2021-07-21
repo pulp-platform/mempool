@@ -10,6 +10,7 @@ variables:
   APPS: "tests"
   RUST_LOG: 'memora=debug'
   VERILATOR_ROOT: '$CI_PROJECT_DIR/install/verilator'
+  CLANG_PATH: '/usr/scratch/riseten/matheusd/llvm/'
   PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin:$VERILATOR_ROOT/bin'
   OBJCACHE: ''
   RISCV_WARNINGS: '-Werror'
@@ -189,10 +190,7 @@ apps-halide:
     - git submodule update --init --recursive -- hardware/deps/*
     - make patch-hw
     - cd hardware
-    - |
-      for APP in ${APPS}; do
-        app=${APP} make simc
-      done
+    - app=halide-2d_convolution make simc
   variables:
     COMPILER: "llvm"
     APP: "halide-2d_convolution"
