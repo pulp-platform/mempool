@@ -19,7 +19,8 @@ module snitch
   parameter bit          RVE       = 0,   // Reduced-register Extension
   parameter bit          RVM       = 1,   // Enable IntegerMmultiplication & Division Extension
   parameter int    RegNrWritePorts = 2,   // Implement one or two write ports into the register file
-  parameter bit          Xqueue    = 0
+  parameter bit          Xqueue    = 0,
+  parameter bit          Qlr       = 0
 ) (
   input  logic          clk_i,
   input  logic          rst_i,
@@ -249,6 +250,10 @@ module snitch
   logic dst_ready;
   logic opa_ready, opb_ready, opc_ready;
   logic dstrd_ready, dstrs1_ready;
+  logic [2**RegWidth-1:0] sb;
+  logic [3:0] qlr_sb_enabled;
+  logic [3:0] qlr_sb;
+  logic [3:0] qlr_ready;
 
   always_comb begin
     sb_d = sb_q;
@@ -258,15 +263,41 @@ module snitch
     if (retire_acc) sb_d[acc_pid_i[RegWidth-1:0]] = 1'b0;
     sb_d[0] = 1'b0;
   end
-  // TODO(zarubaf): This can probably be described a bit more efficient
-  assign opa_ready = (opa_select != Reg) | ~sb_q[rs1];
-  assign opb_ready = ((opb_select != Reg & opb_select != SImmediate) | ~sb_q[rs2]) & ((opb_select != RegRd) | ~sb_q[rd]);
-  assign opc_ready = ((opc_select != Reg) | ~sb_q[rd]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
-  assign operands_ready = opa_ready & opb_ready & opc_ready;
-  // either we are not using the destination register or we need to make
-  // sure that its destination operand is not marked busy in the scoreboard.
-  assign dstrd_ready = ~uses_rd | (uses_rd & ~sb_q[rd]);
-  assign dstrs1_ready = ~uses_rs1 | (uses_rs1 & ~sb_q[rs1]);
+
+  if (Qlr) begin: gen_sb_qlr
+    // select internal scoreboard or scoreboard provided by QLR
+    // TODO(khovg): Make the assigned QLR register tags configurable
+    always_comb begin
+      for (int ii = 0; ii < 2**RegWidth; ii++) begin
+        unique case (ii)
+          5:       sb[ii] = qlr_sb_enabled[0] ? qlr_sb[0] : (sb_q[ii] | ~qlr_ready[0]);
+          6:       sb[ii] = qlr_sb_enabled[1] ? qlr_sb[1] : (sb_q[ii] | ~qlr_ready[1]);
+          7:       sb[ii] = qlr_sb_enabled[2] ? qlr_sb[2] : (sb_q[ii] | ~qlr_ready[2]);
+          28:      sb[ii] = qlr_sb_enabled[3] ? qlr_sb[3] : (sb_q[ii] | ~qlr_ready[3]);
+          default: sb[ii] = sb_q[ii];
+        endcase
+      end
+    end
+    assign opa_ready = (opa_select != Reg) | ~sb[rs1];
+    assign opb_ready = ((opb_select != Reg & opb_select != SImmediate) | ~sb[rs2]) & ((opb_select != RegRd) | ~sb[rd]);
+    assign opc_ready = ((opc_select != Reg) | ~sb[rd]) & ((opc_select != RegRs2) | ~sb[rs2]);
+    assign operands_ready = opa_ready & opb_ready & opc_ready;
+    // either we are not using the destination register or we need to make
+    // sure that its destination operand is not marked busy in the scoreboard.
+    assign dstrd_ready = ~uses_rd | (uses_rd & ~sb[rd]);
+    assign dstrs1_ready = ~uses_rs1 | (uses_rs1 & ~sb[rs1]);
+  end else begin: gen_sb
+    // TODO(zarubaf): This can probably be described a bit more efficient
+    assign opa_ready = (opa_select != Reg) | ~sb_q[rs1];
+    assign opb_ready = ((opb_select != Reg & opb_select != SImmediate) | ~sb_q[rs2]) & ((opb_select != RegRd) | ~sb_q[rd]);
+    assign opc_ready = ((opc_select != Reg) | ~sb_q[rd]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
+    assign operands_ready = opa_ready & opb_ready & opc_ready;
+    // either we are not using the destination register or we need to make
+    // sure that its destination operand is not marked busy in the scoreboard.
+    assign dstrd_ready = ~uses_rd | (uses_rd & ~sb_q[rd]);
+    assign dstrs1_ready = ~uses_rs1 | (uses_rs1 & ~sb_q[rs1]);
+  end
+
   assign dst_ready = dstrd_ready & dstrs1_ready;
 
   assign valid_instr = (inst_ready_i & inst_valid_o) & operands_ready & dst_ready;
@@ -1585,28 +1616,114 @@ module snitch
   /* verilator lint_on WIDTH */
 
   // --------------------
+  // QLR
+  // --------------------
+  // intermediate signals (QLRs <-> LSU)
+  logic [RegWidth-1:0] lsu_req_tag;
+  logic                lsu_req_write;
+  logic                lsu_req_signed;
+  logic [31:0]         lsu_req_addr;
+  logic [31:0]         lsu_req_data;
+  logic [1:0]          lsu_req_size;
+  logic [3:0]          lsu_req_amo;
+  logic                lsu_req_qlr;
+  logic                lsu_req_valid;
+  logic                lsu_req_ready;
+  logic [31:0]         lsu_resp_data;
+  logic [RegWidth-1:0] lsu_resp_tag;
+  logic                lsu_resp_error;
+  logic                lsu_resp_qlr;
+  logic                lsu_resp_valid;
+  logic                lsu_resp_ready;
+
+  // instruction usage bits
+  logic instr_reads_rs1, instr_reads_rs2, instr_reads_rd;
+
+  // group of QLRs
+  if (Qlr) begin: gen_qlr_group
+    snitch_qlr_group #(
+      .NumWritePorts ( RegNrWritePorts     ),
+      .tag_t         ( logic[RegWidth-1:0] )
+    ) i_qlr_group (
+      .clk_i                                   ,
+      .rst_ni            ( ~rst_i             ),
+      .lsu_qtag_i        ( rd                 ),
+      .lsu_qwrite_i      ( is_store           ),
+      .lsu_qsigned_i     ( is_signed          ),
+      .lsu_qaddr_i       ( lsu_qaddr          ),
+      .lsu_qdata_i       ( gpr_rdata[1]       ),
+      .lsu_qsize_i       ( ls_size            ),
+      .lsu_qamo_i        ( ls_amo             ),
+      .lsu_qvalid_i      ( lsu_qvalid         ),
+      .lsu_qready_o      ( lsu_qready         ),
+      .lsu_out_tag_o     ( lsu_req_tag        ),
+      .lsu_out_write_o   ( lsu_req_write      ),
+      .lsu_out_signed_o  ( lsu_req_signed     ),
+      .lsu_out_addr_o    ( lsu_req_addr       ),
+      .lsu_out_data_o    ( lsu_req_data       ),
+      .lsu_out_size_o    ( lsu_req_size       ),
+      .lsu_out_amo_o     ( lsu_req_amo        ),
+      .lsu_out_qlr_o     ( lsu_req_qlr        ),
+      .lsu_out_valid_o   ( lsu_req_valid      ),
+      .lsu_out_ready_i   ( lsu_req_ready      ),
+      .lsu_in_data_i     ( lsu_resp_data      ),
+      .lsu_in_tag_i      ( lsu_resp_tag       ),
+      .lsu_in_error_i    ( lsu_resp_error     ),
+      .lsu_in_qlr_i      ( lsu_resp_qlr       ),
+      .lsu_in_valid_i    ( lsu_resp_valid     ),
+      .lsu_in_ready_o    ( lsu_resp_ready     ),
+      .lsu_pdata_o       ( ld_result          ),
+      .lsu_ptag_o        ( lsu_rd             ),
+      .lsu_perror_o      (                    ), // ignored for the moment
+      .lsu_pvalid_o      ( lsu_pvalid         ),
+      .lsu_pready_i      ( lsu_pready         ),
+      .instr_rs1_i       ( rs1                ),
+      .instr_rs2_i       ( rs2                ),
+      .instr_rd_i        ( rd                 ),
+      .instr_reads_rs1_i ( instr_reads_rs1    ),
+      .instr_reads_rs2_i ( instr_reads_rs2    ),
+      .instr_reads_rd_i  ( instr_reads_rd     ),
+      .instr_executed_i  ( ~stall             ),
+      .qlr_sb_enabled_o  ( qlr_sb_enabled     ),
+      .qlr_sb_o          ( qlr_sb             ),
+      .rf_in_data_i      ( gpr_wdata          ),
+      .rf_in_tag_i       ( gpr_waddr          ),
+      .rf_in_vld_i       ( gpr_we             ),
+      .qlr_ready_o       ( qlr_ready          )
+    );
+
+    // instruction decoding
+    assign instr_reads_rs1 = (opa_select == Reg);
+    assign instr_reads_rs2 = (opb_select inside {Reg, SImmediate}) | (opc_select == RegRs2);
+    assign instr_reads_rd  = (opb_select == RegRd) | (opc_select == Reg);
+  end
+
+  // --------------------
   // LSU
   // --------------------
   snitch_lsu #(
     .tag_t               ( logic[RegWidth-1:0]                ),
-    .NumOutstandingLoads ( snitch_pkg::NumIntOutstandingLoads )
+    .NumOutstandingLoads ( snitch_pkg::NumIntOutstandingLoads ),
+    .Qlr                 ( Qlr                                )
   ) i_snitch_lsu (
-    .clk_i                                ,
-    .rst_i                                ,
-    .lsu_qtag_i   ( rd                    ),
-    .lsu_qwrite   ( is_store              ),
-    .lsu_qsigned  ( is_signed             ),
-    .lsu_qaddr_i  ( lsu_qaddr             ),
-    .lsu_qdata_i  ( gpr_rdata[1]          ),
-    .lsu_qsize_i  ( ls_size               ),
-    .lsu_qamo_i   ( ls_amo                ),
-    .lsu_qvalid_i ( lsu_qvalid            ),
-    .lsu_qready_o ( lsu_qready            ),
-    .lsu_pdata_o  ( ld_result             ),
-    .lsu_ptag_o   ( lsu_rd                ),
-    .lsu_perror_o (                       ), // ignored for the moment
-    .lsu_pvalid_o ( lsu_pvalid            ),
-    .lsu_pready_i ( lsu_pready            ),
+    .clk_i                                 ,
+    .rst_i                                 ,
+    .lsu_qtag_i   ( lsu_req_tag           ),
+    .lsu_qwrite   ( lsu_req_write         ),
+    .lsu_qsigned  ( lsu_req_signed        ),
+    .lsu_qaddr_i  ( lsu_req_addr          ),
+    .lsu_qdata_i  ( lsu_req_data          ),
+    .lsu_qsize_i  ( lsu_req_size          ),
+    .lsu_qamo_i   ( lsu_req_amo           ),
+    .lsu_qqlr_i   ( lsu_req_qlr           ),
+    .lsu_qvalid_i ( lsu_req_valid         ),
+    .lsu_qready_o ( lsu_req_ready         ),
+    .lsu_pdata_o  ( lsu_resp_data         ),
+    .lsu_ptag_o   ( lsu_resp_tag          ),
+    .lsu_perror_o ( lsu_resp_error        ),
+    .lsu_pqlr_o   ( lsu_resp_qlr          ),
+    .lsu_pvalid_o ( lsu_resp_valid        ),
+    .lsu_pready_i ( lsu_resp_ready        ),
     .data_qaddr_o                          ,
     .data_qwrite_o                         ,
     .data_qdata_o                          ,

@@ -39,3 +39,11 @@ xqueue ?= 1
 # - software queues emulation (size measured in queue entries)
 # - hardware xqueue's queue in each memory bank (size measured in words)
 xqueue_size ?= 4
+
+#########################
+##  QLR configuration  ##
+#########################
+
+qlr_fifo_size ?= 4
+qlr_max_requests ?= 4095
+qlr_max_rf_reads ?= 7
