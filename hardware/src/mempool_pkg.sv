@@ -264,6 +264,23 @@ package mempool_pkg;
   // Size of xqueues in words (must be a power of two)
   localparam int unsigned XQueueSize = `ifdef XQUEUE_SIZE `XQUEUE_SIZE `else 0 `endif;
 
+  /********************
+   *  QLR PARAMETERS  *
+   ********************/
+
+   // Design constants
+   localparam int unsigned NumQlrsPerCore = 4;
+   localparam logic [31:0] QlrConfigMask  = 32'b0100_0000_0000_0001_????_????_????_????;
+
+   // DO NOT CHANGE: Assigned register tags (t0 = x5, t1 = x6, t2 = x7, t3 = x28)
+   localparam logic [NumQlrsPerCore-1:0][4:0] QlrTags = {5'(28), 5'(7), 5'(6), 5'(5)};
+
+   // Configurable parameters
+   localparam int unsigned QlrFifoSize    = `ifdef QLR_FIFO_SIZE `QLR_FIFO_SIZE `else 0 `endif;
+   localparam int unsigned QlrMaxRequests = `ifdef QLR_MAX_REQUESTS `QLR_MAX_REQUESTS `else 0 `endif;
+   localparam int unsigned QlrMaxRfReads  = `ifdef QLR_MAX_RF_READS `QLR_MAX_RF_READS `else 0 `endif;
+   localparam bit          QlrEnabled     = !QlrFifoSize;
+
   /*****************
    *  ADDRESS MAP  *
    *****************/

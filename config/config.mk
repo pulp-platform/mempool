@@ -65,6 +65,12 @@ xqueue ?= 0
 # XQueue extension's queue size in each memory bank (in words)
 xqueue_size ?= 0
 
+#########################
+##  QLR configuration  ##
+#########################
+
+qlr_fifo_size ?= 0
+
 ################################
 ##  Optional functionalities  ##
 ################################

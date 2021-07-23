@@ -13,6 +13,7 @@ module snitch_lsu
   parameter type tag_t                       = logic [4:0],
   parameter int unsigned NumOutstandingLoads = 1,
   parameter bit NaNBox                       = 0,
+  parameter bit Qlr                          = 0,
   // Dependent parameters. DO NOT CHANGE.
   localparam int unsigned IdWidth = idx_width(NumOutstandingLoads)
 ) (
@@ -26,12 +27,14 @@ module snitch_lsu
   input  logic [31:0]        lsu_qdata_i,
   input  logic [1:0]         lsu_qsize_i,
   input  logic [3:0]         lsu_qamo_i,
+  input  logic               lsu_qqlr_i,
   input  logic               lsu_qvalid_i,
   output logic               lsu_qready_o,
   // response channel
   output logic [31:0]        lsu_pdata_o,
   output tag_t               lsu_ptag_o,
   output logic               lsu_perror_o,
+  output logic               lsu_pqlr_o,
   output logic               lsu_pvalid_o,
   input  logic               lsu_pready_i,
   // Memory Interface Channel
@@ -62,6 +65,7 @@ module snitch_lsu
     logic       sign_ext;
     logic [1:0] offset;
     logic [1:0] size;
+    logic       qlr;
   } metadata_t;
 
   // ----------------
@@ -108,7 +112,8 @@ module snitch_lsu
     tag:      lsu_qtag_i,
     sign_ext: lsu_qsigned,
     offset:   lsu_qaddr_i[1:0],
-    size:     lsu_qsize_i
+    size:     lsu_qsize_i,
+    qlr:      lsu_qqlr_i
   };
 
   assign resp_metadata = metadata_q[resp_id];
@@ -187,6 +192,9 @@ module snitch_lsu
   assign lsu_ptag_o    = resp_metadata.tag;
   assign lsu_pvalid_o  = data_pvalid_i && !resp_metadata.write;
   assign data_pready_o = lsu_pready_i || resp_metadata.write;
+  if (Qlr) begin
+    assign lsu_pqlr_o    = resp_metadata.qlr;
+  end
 
   // ----------------
   // SEQUENTIAL
