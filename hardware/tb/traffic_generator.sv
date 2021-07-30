@@ -4,23 +4,36 @@
 
 `include "common_cells/registers.svh"
 
+import "DPI-C" function void create_request (
+  input  bit [31:0] core_id,
+  input  bit [31:0] cycle,
+  input  bit [31:0] tcdm_base_addr,
+  input  bit [31:0] tcdm_mask,
+  input  bit [31:0] tile_mask,
+  input  bit [31:0] seq_mask,
+  input  bit [31:0] next_id,
+  input  bit        full,
+  output bit        req_valid,
+  output bit [31:0] req_id,
+  output bit [31:0] req_addr);
+
+import "DPI-C" function void probe_response (
+  input bit [31:0] core_id,
+  input bit [31:0] cycle,
+  input bit        req_ready,
+  input bit        resp_valid,
+  input bit [31:0] resp_id);
+
 module traffic_generator
   import mempool_pkg::*;
 #(
-  parameter int unsigned AddrWidth           = 32,
-  parameter int unsigned DataWidth           = 32,
-  parameter int unsigned NumCores            = 32,
-  parameter int unsigned MaxOutStandingReads = 1024,
-  parameter int unsigned NumBanks            = 1,
-  parameter int unsigned NumCycles           = 10000,
-  parameter int unsigned ReqProbability      = 500,
-  parameter int unsigned SeqProbability      = 0,
-  parameter int unsigned NrTCDM              = 2,
-  parameter int unsigned NumRules            = 1, // Routing rules
-  localparam int unsigned StrbWidth          = DataWidth/8,
-  parameter addr_t TCDMBaseAddr              = 32'b0,
-  parameter int unsigned NumBanksPerTile     = 0,
-  localparam int unsigned ReorderIdWidth     = $clog2(MaxOutStandingReads)
+  parameter  int    unsigned MaxOutStandingReads = 1024,
+  parameter  int    unsigned NrTCDM              = 2,
+  parameter  int    unsigned NumRules            = 1,                          // Routing rules
+  parameter  addr_t          TCDMBaseAddr        = 32'b0,
+  // Dependant parameters. DO NOT CHANGE!
+  localparam int    unsigned StrbWidth           = DataWidth/8,
+  localparam int    unsigned ReorderIdWidth      = $clog2(MaxOutStandingReads)
 ) (
   input  logic                                          clk_i,
   input  logic                                          rst_ni,
@@ -43,50 +56,53 @@ module traffic_generator
 );
 
   /*************
-   *  IMPORTS  *
+   *  Imports  *
    *************/
 
   import snitch_pkg::dreq_t;
   import snitch_pkg::dresp_t;
 
   // TCDM Memory Region
-  localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
-  localparam addr_t TCDMMask = ~(TCDMSize - 1);
-  localparam int unsigned BankOffsetBits = $clog2(NumBanksPerTile);
-  localparam int unsigned NumTilesBits   = $clog2(NumBanks/NumBanksPerTile);
+  localparam addr_t          TCDMSize       = NumBanks * TCDMSizePerBank;
+  localparam addr_t          TCDMMask       = ~(TCDMSize - 1);
+  localparam int    unsigned BankOffsetBits = $clog2(NumBanksPerTile);
+  localparam int    unsigned NumTilesBits   = $clog2(NumBanks/NumBanksPerTile);
 
   // Track the instructions
   typedef logic [ReorderIdWidth-1:0] id_t;
-  int unsigned starting_cycle[id_t];
 
   // Cycle count
-  int unsigned cycle;
-  `FF(cycle, cycle+1, 0)
+  logic [31:0] cycle;
 
   /**************************
-   *  PENDING INSTRUCTIONS  *
+   *  Pending instructions  *
    **************************/
 
   id_t                            next_id;
   logic                           full;
-  logic [MaxOutStandingReads-1:0] pending_instructions_d, pending_instructions_q;
+  logic [MaxOutStandingReads-1:0] pending_transactions_d, pending_transactions_q;
 
-  `FF(pending_instructions_q, pending_instructions_d, '0)
+  `FF(pending_transactions_q, pending_transactions_d, '0)
   lzc #(
     .WIDTH(MaxOutStandingReads)
   ) i_next_id_lzc (
-    .in_i   (~pending_instructions_q),
+    .in_i   (~pending_transactions_q),
     .cnt_o  (next_id                ),
     .empty_o(/* Unused */           )
   );
 
-  assign full = &pending_instructions_q;
+  assign full = &pending_transactions_q;
+
+`ifndef VERILATOR
+  // pragma translate_off
   full_traffic_generator : assert property (
       @(posedge clk_i) disable iff (!rst_ni) (!full))
   else $warning("The traffic generator exhausted all the ROB IDs.");
+  // pragma translate_on
+`endif
 
   /*************
-   *  PAYLOAD  *
+   *  Payload  *
    *************/
 
   dreq_t               data_qpayload;
@@ -112,6 +128,7 @@ module traffic_generator
   // Generate requests
   logic                 req_valid;
   logic                 req_ready;
+  logic [31:0]          req_id;
   logic [AddrWidth-1:0] req_tgt_addr;
   logic                 resp_valid;
   logic                 resp_ready;
@@ -120,7 +137,7 @@ module traffic_generator
   snitch_addr_demux #(
     .NrOutput     (NrTCDM   ),
     .AddressWidth (AddrWidth),
-    .NumRules     (NumRules ), // TODO
+    .NumRules     (NumRules ),
     .req_t        (dreq_t   ),
     .resp_t       (dresp_t  )
   ) i_snitch_addr_demux (
@@ -143,104 +160,74 @@ module traffic_generator
   );
 
   /***********************
-   *  GENERATE REQUESTS  *
+   *  Generate requests  *
    ***********************/
 
-  logic resp_valid_q;
-  id_t  resp_id_q;
-  `FF(resp_valid_q, resp_valid, 0)
-  `FF(resp_id_q, data_ppayload.id, 0)
+  // Tile ID
   logic [NumTilesBits-1:0] tile_id;
-  assign tile_id = core_id_i[$clog2(NumCores)-1 -: NumTilesBits];
 
+  // Construct the payload
+  assign data_qpayload = '{
+    addr   : req_tgt_addr,
+    id     : req_id,
+    default: '0
+  };
 
-  // Latency histogram
-  int  unsigned latency_histogram[int];
-  id_t          requests[$];
+  logic [AddrWidth-1:0] TileMask;
+  logic [AddrWidth-1:0] SeqMask;
 
+  // Configure the tile mask and the sequential region mask
+  always_comb begin
+    // Tile ID
+    tile_id = core_id_i[$clog2(NumCores)-1 -: NumTilesBits];
 
-  task automatic randomUniformRequest(int numCycles, int unsigned reqProbability, int unsigned seqProbability);
-    // Seed the randomizer
-    process::self().srandom(core_id_i);
+    // Masks
+    TileMask = '0;
+    SeqMask  = '0;
 
-    repeat (numCycles) begin
-      @(negedge clk_i);
+    TileMask[BankOffsetBits + ByteOffset +: NumTilesBits] = '1;
+    SeqMask[BankOffsetBits + ByteOffset +: NumTilesBits]  = tile_id;
+  end
 
-      // Receive response
-      if (resp_valid) begin
-        automatic int unsigned latency = cycle - starting_cycle[data_ppayload.id];
-        if (latency_histogram.exists(latency))
-          latency_histogram[latency] = latency_histogram[latency] + 1;
-        else
-          latency_histogram[latency] = 1;
-      end
+  // We are always ready
+  assign resp_ready = 1'b1;
 
-      if (!full) begin
-        automatic int unsigned val;
-
-        // decide whether to request
-        void'(randomize(val) with {val>0; val<=1000;});
-        if (val <= int'(reqProbability)) begin
-          // Mark the request as pending
-          starting_cycle[next_id]         = cycle;
-          pending_instructions_d[next_id] = 1'b1;
-          requests.push_back(next_id);
-        end
-      end
-
-      // Send a request if the queue is not empty
-      if (requests.size() == 0) begin
-        req_valid     = 1'b0;
-        req_tgt_addr  = '0;
-        data_qpayload = '0;
-      end else begin
-        automatic int unsigned val;
-        void'(randomize(req_tgt_addr) with {(req_tgt_addr & TCDMMask) == TCDMBaseAddr;});
-        // Make it fall into the sequential region
-        void'(randomize(val) with {val>=0; val<1000;});
-        if (val <= int'(seqProbability)) begin
-          req_tgt_addr[BankOffsetBits + ByteOffset +: NumTilesBits] = tile_id;
-        end
-        req_valid         = 1'b1;
-        req_tgt_addr[1:0] = '0;
-
-        data_qpayload      = '0;
-        data_qpayload.addr = req_tgt_addr;
-        data_qpayload.id   = requests[0];
-      end
-
-      @(posedge clk_i);
-      if (req_valid && req_ready) begin
-        void'(requests.pop_front());
-      end
-
-      // Unmark the pending requests
-      if (resp_valid_q) begin
-        pending_instructions_d[resp_id_q] = 1'b0;
-      end
+  // Generate new requests
+  always @(negedge clk_i or negedge rst_ni) begin
+    // Reset deactivated
+    if (!rst_ni) begin
+      req_valid    <= 1'b0;
+      req_id       <= '0;
+      req_tgt_addr <= '0;
+    end else begin
+      // Create a new request
+      create_request(core_id_i, cycle, TCDMBaseAddr, TCDMMask, TileMask, SeqMask, next_id, full,
+        req_valid, req_id, req_tgt_addr);
     end
-  endtask: randomUniformRequest
+  end
 
-  /*************
-   *  RESULTS  *
-   *************/
+  // Probe the responses
+  always @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      cycle <= '0;
+    end else begin
+      cycle <= cycle + 1;
+      // NOTE: Needs to be in the same process as `cycle`, to ensure that
+      // the function gets the correct value of this variable.
+      probe_response(core_id_i, cycle, req_ready, resp_valid, data_ppayload.id);
+    end
+  end
 
-  initial begin
-    // Idle
-    pending_instructions_d = '0;
-    req_valid              = 1'b0;
-    req_tgt_addr           = '0;
-    data_qpayload          = '0;
+  // Update the pending instructions
+  always_comb begin
+    // Maintain state
+    pending_transactions_d = pending_transactions_q;
 
-    // We are always ready
-    resp_ready = 1'b1;
+    // Trigger new transaction
+    pending_transactions_d[req_id] |= req_valid;
 
-    @(posedge rst_ni);
-    repeat(3)
-      @(posedge clk_i);
-
-    // Start the requests
-    randomUniformRequest(NumCycles, ReqProbability, SeqProbability);
+    // Transaction finished
+    pending_transactions_d[data_ppayload.id] = !resp_valid;
   end
 
 endmodule: traffic_generator
