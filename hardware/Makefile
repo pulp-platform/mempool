@@ -81,6 +81,20 @@ vlog_defs += -DL2_BASE="32'h$(l2_base)" -DL2_SIZE="32'h$(l2_size)"
 vlog_defs += -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
 
+# Traffic generation enabled
+ifdef tg
+	tg_ncycles ?= 10000
+
+	vlog_defs += -DTRAFFIC_GEN=1
+	cpp_defs  += -DTRAFFIC_GEN=1 -DTG_REQ_PROB=$(tg_reqprob) -DTG_SEQ_PROB=$(tg_seqprob) -DTG_NCYCLES=$(tg_ncycles) -DNUM_CORES=$(num_cores)
+
+	# How many cycles should we execute?
+	veril_flags := --term-after-cycles=$(tg_ncycles)
+else
+	tg          := 0
+	veril_flags := --meminit=ram,$(preload)
+endif
+
 cpp_defs  += -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
 
 .DEFAULT_GOAL := compile
@@ -128,6 +142,7 @@ simc: clean-dasm compile
 ################
 VERILATOR_SRC   := $(ROOT_DIR)/tb/verilator
 VERILATOR_LIBS  := $(shell find $(VERILATOR_SRC) -name "*.cc" -print | sort)
+VERILATOR_LIBS  += $(shell find $(VERILATOR_SRC) -name "*.cpp" -print | sort)
 VERILATOR_INCS  := $(shell find $(VERILATOR_SRC) -name "cpp" -print | sort)
 VERILATOR_EXE   := $(verilator_build)/V$(verilator_top)
 VERILATOR_MK    := $(VERILATOR_EXE).mk
@@ -173,8 +188,9 @@ $(VERILATOR_EXE): $(VERILATOR_MK) $(shell find $(VERILATOR_SRC) -type f) Makefil
 	make -j4 -C $(verilator_build) -f $<
 
 verilate: $(VERILATOR_EXE) $(buildpath) Makefile
-	cd $(buildpath) && $(VERILATOR_EXE) --meminit=ram,$(preload) | tee transcript
-	./scripts/return_status.sh $(buildpath)/transcript
+	cd $(buildpath) && $(VERILATOR_EXE) $(veril_flags) | tee transcript
+	# Avoid capturing the return status when running the load-throughput analysis
+	if [ $(tg) -ne 1 ]; then ./scripts/return_status.sh $(buildpath)/transcript; fi
 
 ################
 # Tracing      #
@@ -250,7 +266,7 @@ $(buildpath)/$(dpi_library)/%.o: tb/dpi/%.cpp
 
 $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 	mkdir -p $(buildpath)/$(dpi_library)
-	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $?
+	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $^
 
 # Bootrom
 src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img
@@ -266,7 +282,8 @@ update_opcodes:
 	make -C $(TOOLCHAIN_DIR)/riscv-opcodes all
 
 clean:
-	rm -rf $(buildpath)
+	@rm -rf $(buildpath)
+	@rm -rf $(verilator_build)
 
 clean-dasm:
 	rm -rf $(buildpath)/*.dasm
