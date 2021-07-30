@@ -224,10 +224,12 @@ module traffic_generator
     pending_transactions_d = pending_transactions_q;
 
     // Trigger new transaction
-    pending_transactions_d[req_id] |= req_valid;
+    if (req_valid)
+      pending_transactions_d[req_id] = 1'b1;
 
     // Transaction finished
-    pending_transactions_d[data_ppayload.id] = !resp_valid;
+    if (resp_valid)
+      pending_transactions_d[data_ppayload.id] = 1'b0;
   end
 
 endmodule: traffic_generator

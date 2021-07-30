@@ -101,33 +101,45 @@ module mempool_tile
     logic [31:0] hart_id;
     assign hart_id = {unsigned'(tile_id_i), c[idx_width(NumCoresPerTile)-1:0]};
 
-    mempool_cc #(
-      .BootAddr (BootAddr)
-    ) riscv_core (
-      .clk_i         (clk_i                                                    ),
-      .rst_i         (!rst_ni                                                  ),
-      .hart_id_i     (hart_id                                                  ),
-      // IMEM Port
-      .inst_addr_o   (snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache] ),
-      .inst_data_i   (snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache] ),
-      .inst_valid_o  (snitch_inst_valid[c/NumCoresPerCache][c%NumCoresPerCache]),
-      .inst_ready_i  (snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache]),
-      // Data Ports
-      .data_qaddr_o  (snitch_data_qaddr[c]                                     ),
-      .data_qwrite_o (snitch_data_qwrite[c]                                    ),
-      .data_qamo_o   (snitch_data_qamo[c]                                      ),
-      .data_qdata_o  (snitch_data_qdata[c]                                     ),
-      .data_qstrb_o  (snitch_data_qstrb[c]                                     ),
-      .data_qvalid_o (snitch_data_qvalid[c]                                    ),
-      .data_qready_i (snitch_data_qready[c]                                    ),
-      .data_pdata_i  (snitch_data_pdata[c]                                     ),
-      .data_perror_i (snitch_data_perror[c]                                    ),
-      .data_pvalid_i (snitch_data_pvalid[c]                                    ),
-      .data_pready_o (snitch_data_pready[c]                                    ),
-      .wake_up_sync_i(wake_up_i[c]                                             ),
-      // Core Events
-      .core_events_o (/* Unused */                                             )
-    );
+    if (!TrafficGeneration) begin: gen_mempool_cc
+      mempool_cc #(
+        .BootAddr (BootAddr)
+      ) riscv_core (
+        .clk_i         (clk_i                                                    ),
+        .rst_i         (!rst_ni                                                  ),
+        .hart_id_i     (hart_id                                                  ),
+        // IMEM Port
+        .inst_addr_o   (snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache] ),
+        .inst_data_i   (snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache] ),
+        .inst_valid_o  (snitch_inst_valid[c/NumCoresPerCache][c%NumCoresPerCache]),
+        .inst_ready_i  (snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache]),
+        // Data Ports
+        .data_qaddr_o  (snitch_data_qaddr[c]                                     ),
+        .data_qwrite_o (snitch_data_qwrite[c]                                    ),
+        .data_qamo_o   (snitch_data_qamo[c]                                      ),
+        .data_qdata_o  (snitch_data_qdata[c]                                     ),
+        .data_qstrb_o  (snitch_data_qstrb[c]                                     ),
+        .data_qvalid_o (snitch_data_qvalid[c]                                    ),
+        .data_qready_i (snitch_data_qready[c]                                    ),
+        .data_pdata_i  (snitch_data_pdata[c]                                     ),
+        .data_perror_i (snitch_data_perror[c]                                    ),
+        .data_pvalid_i (snitch_data_pvalid[c]                                    ),
+        .data_pready_o (snitch_data_pready[c]                                    ),
+        .wake_up_sync_i(wake_up_i[c]                                             ),
+        // Core Events
+        .core_events_o (/* Unused */                                             )
+      );
+    end else begin
+      assign snitch_data_qaddr[c]                                      = '0;
+      assign snitch_data_qwrite[c]                                     = '0;
+      assign snitch_data_qamo[c]                                       = '0;
+      assign snitch_data_qdata[c]                                      = '0;
+      assign snitch_data_qstrb[c]                                      = '0;
+      assign snitch_data_qvalid[c]                                     = '0;
+      assign snitch_data_pready[c]                                     = '0;
+      assign snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache]  = '0;
+      assign snitch_inst_valid[c/NumCoresPerCache][c%NumCoresPerCache] = '0;
+    end
   end
 
   /***********************
@@ -283,7 +295,8 @@ module mempool_tile
    *  Registers  *
    ***************/
 
-  // These are required to break dependencies between request and response, establishing a correct valid/ready handshake.
+  // These are required to break dependencies between request and response, establishing a correct
+  // valid/ready handshake.
   tcdm_master_req_t  [NumGroups-1:0] prereg_tcdm_master_req;
   logic              [NumGroups-1:0] prereg_tcdm_master_req_valid;
   logic              [NumGroups-1:0] prereg_tcdm_master_req_ready;
@@ -449,7 +462,7 @@ module mempool_tile
     .data_i ({postreg_tcdm_slave_req, local_req_interco_payload}    ),
     .valid_i({postreg_tcdm_slave_req_valid, local_req_interco_valid}),
     .ready_o({postreg_tcdm_slave_req_ready, local_req_interco_ready}),
-    .sel_i  (local_req_interco_tgt_sel                               ),
+    .sel_i  (local_req_interco_tgt_sel                              ),
     // Slave
     .data_o (bank_req_payload                                       ),
     .valid_o(bank_req_valid                                         ),
@@ -563,54 +576,99 @@ module mempool_tile
       .address_o (snitch_data_qaddr_scrambled)
     );
 
-    tcdm_shim #(
-      .AddrWidth(AddrWidth),
-      .DataWidth(DataWidth),
-      .NrTCDM   (2        ),
-      .NrSoC    (1        ),
-      .NumRules (3        )
-    ) i_tcdm_shim (
-      .clk_i              (clk_i                                                                                    ),
-      .rst_ni             (rst_ni                                                                                   ),
-      // to TCDM --> FF Connection to outside of tile
-      .tcdm_req_valid_o   ({local_req_interco_valid[c], remote_req_interco_valid[c]}                                ),
-      .tcdm_req_tgt_addr_o({local_req_interco_addr_int, prescramble_tcdm_req_tgt_addr}                              ),
-      .tcdm_req_wen_o     ({local_req_interco_payload[c].wen, remote_req_interco[c].wen}                            ),
-      .tcdm_req_wdata_o   ({local_req_interco_payload[c].wdata.data, remote_req_interco[c].wdata.data}              ),
-      .tcdm_req_amo_o     ({local_req_interco_payload[c].wdata.amo, remote_req_interco[c].wdata.amo}                ),
-      .tcdm_req_id_o      ({local_req_interco_payload[c].wdata.reorder_id, remote_req_interco[c].wdata.reorder_id}  ),
-      .tcdm_req_be_o      ({local_req_interco_payload[c].be, remote_req_interco[c].be}                              ),
-      .tcdm_req_ready_i   ({local_req_interco_ready[c], remote_req_interco_ready[c]}                                ),
-      .tcdm_resp_valid_i  ({local_resp_interco_valid[c], remote_resp_interco_valid[c]}                              ),
-      .tcdm_resp_ready_o  ({local_resp_interco_ready[c], remote_resp_interco_ready[c]}                              ),
-      .tcdm_resp_rdata_i  ({local_resp_interco_payload[c].rdata.data, remote_resp_interco[c].rdata.data}            ),
-      .tcdm_resp_id_i     ({local_resp_interco_payload[c].rdata.reorder_id, remote_resp_interco[c].rdata.reorder_id}),
-      // to SoC
-      .soc_qaddr_o        (soc_data_q[c].addr                                                                       ),
-      .soc_qwrite_o       (soc_data_q[c].write                                                                      ),
-      .soc_qamo_o         (soc_data_q[c].amo                                                                        ),
-      .soc_qdata_o        (soc_data_q[c].data                                                                       ),
-      .soc_qstrb_o        (soc_data_q[c].strb                                                                       ),
-      .soc_qvalid_o       (soc_data_qvalid[c]                                                                       ),
-      .soc_qready_i       (soc_data_qready[c]                                                                       ),
-      .soc_pdata_i        (soc_data_p[c].data                                                                       ),
-      .soc_perror_i       (soc_data_p[c].error                                                                      ),
-      .soc_pvalid_i       (soc_data_pvalid[c]                                                                       ),
-      .soc_pready_o       (soc_data_pready[c]                                                                       ),
-      // from core
-      .data_qaddr_i       (snitch_data_qaddr_scrambled                                                              ),
-      .data_qwrite_i      (snitch_data_qwrite[c]                                                                    ),
-      .data_qamo_i        (snitch_data_qamo[c]                                                                      ),
-      .data_qdata_i       (snitch_data_qdata[c]                                                                     ),
-      .data_qstrb_i       (snitch_data_qstrb[c]                                                                     ),
-      .data_qvalid_i      (snitch_data_qvalid[c]                                                                    ),
-      .data_qready_o      (snitch_data_qready[c]                                                                    ),
-      .data_pdata_o       (snitch_data_pdata[c]                                                                     ),
-      .data_perror_o      (snitch_data_perror[c]                                                                    ),
-      .data_pvalid_o      (snitch_data_pvalid[c]                                                                    ),
-      .data_pready_i      (snitch_data_pready[c]                                                                    ),
-      .address_map_i      (mask_map                                                                                 )
-    );
+    if (!TrafficGeneration) begin: gen_tcdm_shim
+      tcdm_shim #(
+        .AddrWidth(AddrWidth),
+        .DataWidth(DataWidth),
+        .NrTCDM   (2        ),
+        .NrSoC    (1        ),
+        .NumRules (3        )
+      ) i_tcdm_shim (
+        .clk_i              (clk_i                                                                                    ),
+        .rst_ni             (rst_ni                                                                                   ),
+        // to TCDM --> FF Connection to outside of tile
+        .tcdm_req_valid_o   ({local_req_interco_valid[c], remote_req_interco_valid[c]}                                ),
+        .tcdm_req_tgt_addr_o({local_req_interco_addr_int, prescramble_tcdm_req_tgt_addr}                              ),
+        .tcdm_req_wen_o     ({local_req_interco_payload[c].wen, remote_req_interco[c].wen}                            ),
+        .tcdm_req_wdata_o   ({local_req_interco_payload[c].wdata.data, remote_req_interco[c].wdata.data}              ),
+        .tcdm_req_amo_o     ({local_req_interco_payload[c].wdata.amo, remote_req_interco[c].wdata.amo}                ),
+        .tcdm_req_id_o      ({local_req_interco_payload[c].wdata.reorder_id, remote_req_interco[c].wdata.reorder_id}  ),
+        .tcdm_req_be_o      ({local_req_interco_payload[c].be, remote_req_interco[c].be}                              ),
+        .tcdm_req_ready_i   ({local_req_interco_ready[c], remote_req_interco_ready[c]}                                ),
+        .tcdm_resp_valid_i  ({local_resp_interco_valid[c], remote_resp_interco_valid[c]}                              ),
+        .tcdm_resp_ready_o  ({local_resp_interco_ready[c], remote_resp_interco_ready[c]}                              ),
+        .tcdm_resp_rdata_i  ({local_resp_interco_payload[c].rdata.data, remote_resp_interco[c].rdata.data}            ),
+        .tcdm_resp_id_i     ({local_resp_interco_payload[c].rdata.reorder_id, remote_resp_interco[c].rdata.reorder_id}),
+        // to SoC
+        .soc_qaddr_o        (soc_data_q[c].addr                                                                       ),
+        .soc_qwrite_o       (soc_data_q[c].write                                                                      ),
+        .soc_qamo_o         (soc_data_q[c].amo                                                                        ),
+        .soc_qdata_o        (soc_data_q[c].data                                                                       ),
+        .soc_qstrb_o        (soc_data_q[c].strb                                                                       ),
+        .soc_qvalid_o       (soc_data_qvalid[c]                                                                       ),
+        .soc_qready_i       (soc_data_qready[c]                                                                       ),
+        .soc_pdata_i        (soc_data_p[c].data                                                                       ),
+        .soc_perror_i       (soc_data_p[c].error                                                                      ),
+        .soc_pvalid_i       (soc_data_pvalid[c]                                                                       ),
+        .soc_pready_o       (soc_data_pready[c]                                                                       ),
+        // from core
+        .data_qaddr_i       (snitch_data_qaddr_scrambled                                                              ),
+        .data_qwrite_i      (snitch_data_qwrite[c]                                                                    ),
+        .data_qamo_i        (snitch_data_qamo[c]                                                                      ),
+        .data_qdata_i       (snitch_data_qdata[c]                                                                     ),
+        .data_qstrb_i       (snitch_data_qstrb[c]                                                                     ),
+        .data_qvalid_i      (snitch_data_qvalid[c]                                                                    ),
+        .data_qready_o      (snitch_data_qready[c]                                                                    ),
+        .data_pdata_o       (snitch_data_pdata[c]                                                                     ),
+        .data_perror_o      (snitch_data_perror[c]                                                                    ),
+        .data_pvalid_o      (snitch_data_pvalid[c]                                                                    ),
+        .data_pready_i      (snitch_data_pready[c]                                                                    ),
+        .address_map_i      (mask_map                                                                                 )
+      );
+    end else begin: gen_traffic_generator
+      traffic_generator #(
+        .NumRules           (3                                 ),
+        .TCDMBaseAddr       (TCDMBaseAddr                      ),
+        .MaxOutStandingReads(snitch_pkg::NumIntOutstandingLoads)
+      ) i_traffic_gen (
+        .clk_i              (clk_i                                                        ),
+        .rst_ni             (rst_ni                                                       ),
+        .core_id_i          ({tile_id_i, c[idx_width(NumCoresPerTile)-1:0]}               ),
+        // Address map
+        .address_map_i      (mask_map                                                     ),
+        // To TCDM
+        .tcdm_req_valid_o   ({local_req_interco_valid[c], remote_req_interco_valid[c]}    ),
+        .tcdm_req_tgt_addr_o({local_req_interco_addr_int, prescramble_tcdm_req_tgt_addr}  ),
+        .tcdm_req_wen_o     ({local_req_interco_payload[c].wen, remote_req_interco[c].wen}),
+        .tcdm_req_wdata_o   ({local_req_interco_payload[c].wdata.data,
+            remote_req_interco[c].wdata.data}),
+        .tcdm_req_amo_o({local_req_interco_payload[c].wdata.amo,
+            remote_req_interco[c].wdata.amo}),
+        .tcdm_req_id_o({local_req_interco_payload[c]
+            .wdata.reorder_id, remote_req_interco[c].wdata.reorder_id}),
+        .tcdm_req_be_o    ({local_req_interco_payload[c].be, remote_req_interco[c].be}),
+        .tcdm_req_ready_i ({local_req_interco_ready[c], remote_req_interco_ready[c]}  ),
+        .tcdm_resp_valid_i({local_resp_interco_valid[c], remote_resp_interco_valid[c]}),
+        .tcdm_resp_ready_o({local_resp_interco_ready[c], remote_resp_interco_ready[c]}),
+        .tcdm_resp_rdata_i({local_resp_interco_payload[c].rdata.data,
+            remote_resp_interco[c].rdata.data} ),
+        .tcdm_resp_id_i ({local_resp_interco_payload[c].rdata.reorder_id,
+            remote_resp_interco[c].rdata.reorder_id})
+      );
+
+      // Tie unused signals
+      assign soc_data_q[c].addr    = '0;
+      assign soc_data_q[c].write   = '0;
+      assign soc_data_q[c].amo     = '0;
+      assign soc_data_q[c].data    = '0;
+      assign soc_data_q[c].strb    = '0;
+      assign soc_data_qvalid[c]    = '0;
+      assign soc_data_pready[c]    = '0;
+      assign snitch_data_qready[c] = '0;
+      assign snitch_data_pdata[c]  = '0;
+      assign snitch_data_perror[c] = '0;
+      assign snitch_data_pvalid[c] = '0;
+    end
   end
 
   /****************
@@ -694,7 +752,7 @@ module mempool_tile
     .axi_mst_req_t  (axi_core_req_t    ),
     .axi_mst_resp_t (axi_core_resp_t   )
   ) i_snitch_cache_axi_adapter (
-    .clk_i       (clk_i                 ),
+    .clk_i       (clk_i                     ),
     .rst_ni      (rst_ni                    ),
     .slv_qaddr_i (refill_qaddr[0]           ),
     .slv_qwrite_i('0                        ),
