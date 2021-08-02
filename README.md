@@ -225,10 +225,12 @@ If you want to use MemPool, you can cite us:
 @InProceedings{MemPool2021,
     author    = {Matheus Cavalcante and Samuel Riedel and Antonio Pullini and Luca Benini},
     title     = {{MemPool}: A Shared-{L1} Memory Many-Core Cluster with a Low-Latency Interconnect},
-    booktitle = {Proceedings of the 2021 {Design}, {Automation} & {Test} in {Europe} {Conference} & {Exhibition} ({DATE})},
+    booktitle = {2021 Design, Automation, and Test in Europe Conference and Exhibition (DATE)},
     year      = 2021,
     month     = mar,
-    address   = {Grenoble, France}
+    address   = {Grenoble, FR},
+    pages     = {701-706},
+    doi       = {10.23919/DATE51398.2021.9474087}
 }
 ```
 
