@@ -26,8 +26,7 @@ void create_request(const core_id_t *core_id, const uint32_t *cycle,
                                              // who identify the tile
                     const addr_t *seq_mask,  // Indicates the bits that have to
                                              // be set for a local request
-                    const req_id_t *next_id, const bool full, bool *req_valid,
-                    req_id_t *req_id, addr_t *req_addr);
+                    bool *req_valid, req_id_t *req_id, addr_t *req_addr);
 void probe_response(const core_id_t *core_id, const uint32_t *cycle,
                     const bool req_ready, const bool resp_valid,
                     const req_id_t *resp_id);
@@ -75,22 +74,37 @@ std::map<uint32_t, uint32_t> latency_histogram;
 // Request queues
 std::map<core_id_t, std::queue<request_t>> requests;
 
+// Transaction IDs
+uint32_t tran_id_initialized = 0;
+std::map<core_id_t, std::queue<req_id_t>> tran_id;
+
 extern "C" void create_request(const core_id_t *core_id, const uint32_t *cycle,
                                const addr_t *tcdm_base_addr,
                                const addr_t *tcdm_mask, const addr_t *tile_mask,
-                               const addr_t *seq_mask, const req_id_t *next_id,
-                               const bool full, bool *req_valid,
+                               const addr_t *seq_mask, bool *req_valid,
                                req_id_t *req_id, addr_t *req_addr) {
   // Lock the function
   std::lock_guard<std::mutex> guard(g_mutex);
 
+  // Initialize the transaction ID queues
+  if (!tran_id_initialized) {
+    for (int c = 0; c < NUM_CORES; c++)
+      for (int id = 0; id < 2048; id++)
+        tran_id[c].push(id);
+    tran_id_initialized = 1;
+  }
+
   // Generate new request
-  if (!full) {
+  if (!tran_id[*core_id].empty()) {
     if (real_dist(e1) < TG_REQ_PROB) {
       // Generate new address
       request_t next_request;
 
-      next_request.id = *next_id;
+      // Transaction id
+      req_id_t req_id = tran_id[*core_id].front();
+      tran_id[*core_id].pop();
+
+      next_request.id = req_id;
       next_request.addr = addr_dist(e1);
       // Make sure the request is in the TCDM region
       next_request.addr =
@@ -106,7 +120,7 @@ extern "C" void create_request(const core_id_t *core_id, const uint32_t *cycle,
       next_request.addr = (next_request.addr >> 2) << 2;
 
       // Push the request
-      starting_cycle[std::make_pair(*core_id, *next_id)] = *cycle;
+      starting_cycle[std::make_pair(*core_id, req_id)] = *cycle;
       requests[*core_id].push(next_request);
     }
   } else {
@@ -141,6 +155,9 @@ extern "C" void probe_response(const core_id_t *core_id, const uint32_t *cycle,
 
   // Acknowledged response
   if (resp_valid) {
+    // Free the request ID
+    tran_id[*core_id].push(*resp_id);
+
     // Account for the latency
     uint32_t latency =
         *cycle - starting_cycle[std::make_pair(*core_id, *resp_id)];

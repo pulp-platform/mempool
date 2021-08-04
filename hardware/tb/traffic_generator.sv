@@ -11,8 +11,6 @@ import "DPI-C" function void create_request (
   input  bit [31:0] tcdm_mask,
   input  bit [31:0] tile_mask,
   input  bit [31:0] seq_mask,
-  input  bit [31:0] next_id,
-  input  bit        full,
   output bit        req_valid,
   output bit [31:0] req_id,
   output bit [31:0] req_addr);
@@ -73,33 +71,6 @@ module traffic_generator
 
   // Cycle count
   logic [31:0] cycle;
-
-  /**************************
-   *  Pending instructions  *
-   **************************/
-
-  id_t                            next_id;
-  logic                           full;
-  logic [MaxOutStandingReads-1:0] pending_transactions_d, pending_transactions_q;
-
-  `FF(pending_transactions_q, pending_transactions_d, '0)
-  lzc #(
-    .WIDTH(MaxOutStandingReads)
-  ) i_next_id_lzc (
-    .in_i   (~pending_transactions_q),
-    .cnt_o  (next_id                ),
-    .empty_o(/* Unused */           )
-  );
-
-  assign full = &pending_transactions_q;
-
-`ifndef VERILATOR
-  // pragma translate_off
-  full_traffic_generator : assert property (
-      @(posedge clk_i) disable iff (!rst_ni) (!full))
-  else $warning("The traffic generator exhausted all the ROB IDs.");
-  // pragma translate_on
-`endif
 
   /*************
    *  Payload  *
@@ -201,8 +172,8 @@ module traffic_generator
       req_tgt_addr <= '0;
     end else begin
       // Create a new request
-      create_request(core_id_i, cycle, TCDMBaseAddr, TCDMMask, TileMask, SeqMask, next_id, full,
-        req_valid, req_id, req_tgt_addr);
+      create_request(core_id_i, cycle, TCDMBaseAddr, TCDMMask, TileMask, SeqMask, req_valid, req_id,
+        req_tgt_addr);
     end
   end
 
@@ -216,20 +187,6 @@ module traffic_generator
       // the function gets the correct value of this variable.
       probe_response(core_id_i, cycle, req_ready, resp_valid, data_ppayload.id);
     end
-  end
-
-  // Update the pending instructions
-  always_comb begin
-    // Maintain state
-    pending_transactions_d = pending_transactions_q;
-
-    // Trigger new transaction
-    if (req_valid)
-      pending_transactions_d[req_id] = 1'b1;
-
-    // Transaction finished
-    if (resp_valid)
-      pending_transactions_d[data_ppayload.id] = 1'b0;
   end
 
 endmodule: traffic_generator
