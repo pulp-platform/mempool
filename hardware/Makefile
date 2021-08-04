@@ -142,6 +142,15 @@ VERILATOR_FLAGS += $(VERILATOR_WAIVE)
 # VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
 # VERILATOR_FLAGS += --debug
 
+# We need to link the verilated model against LLVM's libc++.
+# Define CLANG_PATH to be the path of your Clang installation.
+# At IIS, check .gitlab/.gitlab-ci.yml for an example CLANG_PATH.
+
+ifneq (${CLANG_PATH},)
+  VERILATOR_FLAGS += -CFLAGS "-nostdinc++ -isystem $(CLANG_PATH)/include/c++/v1"
+  VERILATOR_FLAGS += -LDFLAGS "-L $(CLANG_PATH)/lib -Wl,-rpath,$(CLANG_PATH)/lib -lc++ -nostdlib++"
+endif
+
 $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
 	rm -rf $(verilator_build); mkdir -p $(verilator_build)
 	# Overwrite Bootaddress to L2 base while we don't have a DPI to write a wake-up
