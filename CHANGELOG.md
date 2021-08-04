@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add Halide example applications (2D convolution & matrix multiplication)
 - Add CI workflow for MemPool with 256 cores
 - Add hierarchical AXI interconnect to the `mempool_group`
+- Integrate a `traffic_generator` into the tile
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 - Compile verilator and the verilated model with Clang, for a faster compilation time
 - Update BibTeX reference to the MemPool DATE paper
+- Rewrite the `traffic_generator` with DPI calls
 
 ## 0.4.0 - 2021-07-01
 
