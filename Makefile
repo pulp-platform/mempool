@@ -28,10 +28,10 @@ CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
 # the variable if it is only defined by the Makefile (its origin in the Makefile's default).
 ifeq ($(origin CC),default)
-CC  = gcc
+  CC  = gcc
 endif
 ifeq ($(origin CXX),default)
-CXX = g++
+  CXX = g++
 endif
 BENDER_VERSION = 0.21.0
 
@@ -41,15 +41,15 @@ BENDER_VERSION = 0.21.0
 # At IIS, check .gitlab/.gitlab-ci.yml for an example CLANG_PATH.
 
 ifneq (${CLANG_PATH},)
-        CLANG_CC       := $(CLANG_PATH)/bin/clang
-        CLANG_CXX      := $(CLANG_PATH)/bin/clang++
-        CLANG_CXXFLAGS := "-nostdinc++ -isystem $(CLANG_PATH)/include/c++/v1"
-        CLANG_LDFLAGS  := "-L $(CLANG_PATH)/lib -Wl,-rpath,$(CLANG_PATH)/lib -lc++ -nostdlib++"
+  CLANG_CC       := $(CLANG_PATH)/bin/clang
+  CLANG_CXX      := $(CLANG_PATH)/bin/clang++
+  CLANG_CXXFLAGS := "-nostdinc++ -isystem $(CLANG_PATH)/include/c++/v1"
+  CLANG_LDFLAGS  := "-L $(CLANG_PATH)/lib -Wl,-rpath,$(CLANG_PATH)/lib -lc++ -nostdlib++"
 else
-        CLANG_CC       ?= clang
-        CLANG_CXX      ?= clang++
-        CLANG_CXXFLAGS := ""
-        CLANG_LDFLAGS  := ""
+  CLANG_CC       ?= clang
+  CLANG_CXX      ?= clang++
+  CLANG_CXXFLAGS := ""
+  CLANG_LDFLAGS  := ""
 endif
 
 # Default target
