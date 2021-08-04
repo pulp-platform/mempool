@@ -38,6 +38,12 @@ module mempool_group
   input  `STRUCT_VECT(tcdm_master_resp_t, [NumTilesPerGroup-1:0]) tcdm_master_northeast_resp_i,
   input  logic                            [NumTilesPerGroup-1:0]  tcdm_master_northeast_resp_valid_i,
   output logic                            [NumTilesPerGroup-1:0]  tcdm_master_northeast_resp_ready_o,
+  output `STRUCT_VECT(tcdm_slave_req_t,   [NumTilesPerGroup-1:0]) tcdm_master_bypass_req_o,
+  output logic                            [NumTilesPerGroup-1:0]  tcdm_master_bypass_req_valid_o,
+  input  logic                            [NumTilesPerGroup-1:0]  tcdm_master_bypass_req_ready_i,
+  input  `STRUCT_VECT(tcdm_master_resp_t, [NumTilesPerGroup-1:0]) tcdm_master_bypass_resp_i,
+  input  logic                            [NumTilesPerGroup-1:0]  tcdm_master_bypass_resp_valid_i,
+  output logic                            [NumTilesPerGroup-1:0]  tcdm_master_bypass_resp_ready_o,
   output `STRUCT_VECT(tcdm_slave_req_t,   [NumTilesPerGroup-1:0]) tcdm_master_east_req_o,
   output logic                            [NumTilesPerGroup-1:0]  tcdm_master_east_req_valid_o,
   input  logic                            [NumTilesPerGroup-1:0]  tcdm_master_east_req_ready_i,
@@ -57,6 +63,12 @@ module mempool_group
   output `STRUCT_VECT(tcdm_master_resp_t, [NumTilesPerGroup-1:0]) tcdm_slave_northeast_resp_o,
   output logic                            [NumTilesPerGroup-1:0]  tcdm_slave_northeast_resp_valid_o,
   input  logic                            [NumTilesPerGroup-1:0]  tcdm_slave_northeast_resp_ready_i,
+  input  `STRUCT_VECT(tcdm_slave_req_t,   [NumTilesPerGroup-1:0]) tcdm_slave_bypass_req_i,
+  input  logic                            [NumTilesPerGroup-1:0]  tcdm_slave_bypass_req_valid_i,
+  output logic                            [NumTilesPerGroup-1:0]  tcdm_slave_bypass_req_ready_o,
+  output `STRUCT_VECT(tcdm_master_resp_t, [NumTilesPerGroup-1:0]) tcdm_slave_bypass_resp_o,
+  output logic                            [NumTilesPerGroup-1:0]  tcdm_slave_bypass_resp_valid_o,
+  input  logic                            [NumTilesPerGroup-1:0]  tcdm_slave_bypass_resp_ready_i,
   input  `STRUCT_VECT(tcdm_slave_req_t,   [NumTilesPerGroup-1:0]) tcdm_slave_east_req_i,
   input  logic                            [NumTilesPerGroup-1:0]  tcdm_slave_east_req_valid_i,
   output logic                            [NumTilesPerGroup-1:0]  tcdm_slave_east_req_ready_o,
@@ -578,5 +590,16 @@ module mempool_group
     .mst_req_o  (axi_mst_req_o ),
     .mst_resp_i (axi_mst_resp_i)
   );
+
+  /*********************
+   *  Bypass Channels  *
+   *********************/
+
+  assign tcdm_master_bypass_req_o        = tcdm_slave_bypass_req_i;
+  assign tcdm_master_bypass_req_valid_o  = tcdm_slave_bypass_req_valid_i;
+  assign tcdm_slave_bypass_req_ready_o   = tcdm_master_bypass_req_ready_i;
+  assign tcdm_slave_bypass_resp_o        = tcdm_master_bypass_resp_i;
+  assign tcdm_slave_bypass_resp_valid_o  = tcdm_master_bypass_resp_valid_i;
+  assign tcdm_master_bypass_resp_ready_o = tcdm_slave_bypass_resp_ready_i;
 
 endmodule: mempool_group

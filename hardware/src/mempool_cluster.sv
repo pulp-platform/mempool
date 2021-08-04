@@ -72,6 +72,19 @@ module mempool_cluster
   tcdm_master_resp_t [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_northeast_resp;
   logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_northeast_resp_valid;
   logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_northeast_resp_ready;
+  // Bypass
+  tcdm_slave_req_t   [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_bypass_req;
+  logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_bypass_req_valid;
+  logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_bypass_req_ready;
+  tcdm_master_resp_t [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_bypass_resp;
+  logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_bypass_resp_valid;
+  logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_bypass_resp_ready;
+  tcdm_slave_req_t   [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_bypass_req;
+  logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_bypass_req_valid;
+  logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_bypass_req_ready;
+  tcdm_master_resp_t [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_bypass_resp;
+  logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_bypass_resp_valid;
+  logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_bypass_resp_ready;
 
   for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
     mempool_group #(
@@ -104,6 +117,12 @@ module mempool_cluster
       .tcdm_master_northeast_resp_i      (tcdm_master_northeast_resp[g]                    ),
       .tcdm_master_northeast_resp_valid_i(tcdm_master_northeast_resp_valid[g]              ),
       .tcdm_master_northeast_resp_ready_o(tcdm_master_northeast_resp_ready[g]              ),
+      .tcdm_master_bypass_req_o          (tcdm_master_bypass_req[g]                        ),
+      .tcdm_master_bypass_req_valid_o    (tcdm_master_bypass_req_valid[g]                  ),
+      .tcdm_master_bypass_req_ready_i    (tcdm_master_bypass_req_ready[g]                  ),
+      .tcdm_master_bypass_resp_i         (tcdm_master_bypass_resp[g]                       ),
+      .tcdm_master_bypass_resp_valid_i   (tcdm_master_bypass_resp_valid[g]                 ),
+      .tcdm_master_bypass_resp_ready_o   (tcdm_master_bypass_resp_ready[g]                 ),
       // TCDM banks interface
       .tcdm_slave_north_req_i            (tcdm_slave_north_req[g]                          ),
       .tcdm_slave_north_req_valid_i      (tcdm_slave_north_req_valid[g]                    ),
@@ -123,6 +142,12 @@ module mempool_cluster
       .tcdm_slave_northeast_resp_o       (tcdm_slave_northeast_resp[g]                     ),
       .tcdm_slave_northeast_resp_valid_o (tcdm_slave_northeast_resp_valid[g]               ),
       .tcdm_slave_northeast_resp_ready_i (tcdm_slave_northeast_resp_ready[g]               ),
+      .tcdm_slave_bypass_req_i           (tcdm_slave_bypass_req[g]                         ),
+      .tcdm_slave_bypass_req_valid_i     (tcdm_slave_bypass_req_valid[g]                   ),
+      .tcdm_slave_bypass_req_ready_o     (tcdm_slave_bypass_req_ready[g]                   ),
+      .tcdm_slave_bypass_resp_o          (tcdm_slave_bypass_resp[g]                        ),
+      .tcdm_slave_bypass_resp_valid_o    (tcdm_slave_bypass_resp_valid[g]                  ),
+      .tcdm_slave_bypass_resp_ready_i    (tcdm_slave_bypass_resp_ready[g]                  ),
       .wake_up_i                         (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]),
       // AXI interface
       .axi_mst_req_o                     (axi_mst_req_o[g]                                 ),
@@ -144,15 +169,6 @@ module mempool_cluster
     assign tcdm_master_east_resp_valid[ini ^ 2'b01] = tcdm_slave_east_resp_valid[ini];
     assign tcdm_slave_east_resp_ready[ini]          = tcdm_master_east_resp_ready[ini ^ 2'b01];
 
-    // Northeast
-    assign tcdm_slave_northeast_req[ini ^ 2'b11]       = tcdm_master_northeast_req[ini];
-    assign tcdm_slave_northeast_req_valid[ini ^ 2'b11] = tcdm_master_northeast_req_valid[ini];
-    assign tcdm_master_northeast_req_ready[ini]        = tcdm_slave_northeast_req_ready[ini ^ 2'b11];
-
-    assign tcdm_master_northeast_resp[ini ^ 2'b11]       = tcdm_slave_northeast_resp[ini];
-    assign tcdm_master_northeast_resp_valid[ini ^ 2'b11] = tcdm_slave_northeast_resp_valid[ini];
-    assign tcdm_slave_northeast_resp_ready[ini]          = tcdm_master_northeast_resp_ready[ini ^ 2'b11];
-
     // North
     assign tcdm_slave_north_req[ini ^ 2'b10]       = tcdm_master_north_req[ini];
     assign tcdm_slave_north_req_valid[ini ^ 2'b10] = tcdm_master_north_req_valid[ini];
@@ -161,6 +177,24 @@ module mempool_cluster
     assign tcdm_master_north_resp[ini ^ 2'b10]       = tcdm_slave_north_resp[ini];
     assign tcdm_master_north_resp_valid[ini ^ 2'b10] = tcdm_slave_north_resp_valid[ini];
     assign tcdm_slave_north_resp_ready[ini]          = tcdm_master_north_resp_ready[ini ^ 2'b10];
+
+    // Northeast
+
+    // First north, then east
+    assign tcdm_slave_bypass_req[ini ^ 2'b10]           = tcdm_master_northeast_req[ini];
+    assign tcdm_slave_northeast_req[ini ^ 2'b11]        = tcdm_master_bypass_req[ini ^ 2'b10];
+    assign tcdm_slave_bypass_req_valid[ini ^ 2'b10]     = tcdm_master_northeast_req_valid[ini];
+    assign tcdm_slave_northeast_req_valid[ini ^ 2'b11]  = tcdm_master_bypass_req_valid[ini ^ 2'b10];
+    assign tcdm_master_bypass_req_ready[ini ^ 2'b10]    = tcdm_slave_northeast_req_ready[ini ^ 2'b11];
+    assign tcdm_master_northeast_req_ready[ini]         = tcdm_slave_bypass_req_ready[ini ^ 2'b10];
+
+    // First east, then north
+    assign tcdm_master_northeast_resp[ini]              = tcdm_slave_bypass_resp[ini ^ 2'b10];
+    assign tcdm_master_bypass_resp[ini ^ 2'b10]         = tcdm_slave_northeast_resp[ini ^ 2'b11];
+    assign tcdm_master_northeast_resp_valid[ini]        = tcdm_slave_bypass_resp_valid[ini ^ 2'b10];
+    assign tcdm_master_bypass_resp_valid[ini ^ 2'b10]   = tcdm_slave_northeast_resp_valid[ini ^ 2'b11];
+    assign tcdm_slave_bypass_resp_ready[ini ^ 2'b10]    = tcdm_master_northeast_resp_ready[ini];
+    assign tcdm_slave_northeast_resp_ready[ini ^ 2'b11] = tcdm_master_bypass_resp_ready[ini ^ 2'b10];
   end: gen_interconnections
 
   /****************
