@@ -14,12 +14,14 @@ parallel_critical_manual()
 {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t islocked = 1;
+  uint32_t islocked;
 
   mempool_timer_t cycles = mempool_get_timer();
   mempool_start_benchmark();
 
+  islocked = __atomic_fetch_or(lock, 1, __ATOMIC_SEQ_CST);
   while(islocked){
+    mempool_wait(NUM_CORES);
     islocked = __atomic_fetch_or(lock, 1, __ATOMIC_SEQ_CST);
   }
 
