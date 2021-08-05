@@ -142,7 +142,6 @@ simc: clean-dasm compile
 ################
 VERILATOR_SRC   := $(ROOT_DIR)/tb/verilator
 VERILATOR_LIBS  := $(shell find $(VERILATOR_SRC) -name "*.cc" -print | sort)
-VERILATOR_LIBS  += $(shell find $(VERILATOR_SRC) -name "*.cpp" -print | sort)
 VERILATOR_INCS  := $(shell find $(VERILATOR_SRC) -name "cpp" -print | sort)
 VERILATOR_EXE   := $(verilator_build)/V$(verilator_top)
 VERILATOR_MK    := $(VERILATOR_EXE).mk
