@@ -175,4 +175,11 @@ package mempool_pkg;
     addr_t value;
   } address_map_t;
 
+  /***********************
+   *  TRAFFIC GENERATOR  *
+   ***********************/
+
+  // Replaces core with a traffic generator
+  parameter bit TrafficGeneration  = `ifdef TRAFFIC_GEN `TRAFFIC_GEN `else 0 `endif;
+
 endpackage : mempool_pkg

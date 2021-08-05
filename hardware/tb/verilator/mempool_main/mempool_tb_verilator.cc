@@ -16,6 +16,9 @@
 #define L2_SIZE 0x00080000
 #endif
 
+// Histogram printing function
+extern "C" void print_histogram();
+
 int main(int argc, char **argv) {
   mempool_tb_verilator top;
   VerilatorMemUtil memutil;
@@ -23,10 +26,12 @@ int main(int argc, char **argv) {
   simctrl.SetTop(&top, &top.clk_i, &top.rst_ni,
                  VerilatorSimCtrlFlags::ResetPolarityNegative);
 
+#ifndef TRAFFIC_GEN
   MemAreaLoc l2_mem = {.base = L2_BASE, .size = L2_SIZE};
   memutil.RegisterMemoryArea("ram", "TOP.mempool_tb_verilator.dut.l2_mem", 128,
                              &l2_mem);
   simctrl.RegisterExtension(&memutil);
+#endif
 
   simctrl.SetInitialResetDelay(5);
   simctrl.SetResetDuration(5);
@@ -42,6 +47,11 @@ int main(int argc, char **argv) {
             << std::endl;
 
   simctrl.RunSimulation();
+
+#ifdef TRAFFIC_GEN
+  // Print the latency histogram
+  print_histogram();
+#endif
 
   if (!simctrl.WasSimulationSuccessful()) {
     return 1;

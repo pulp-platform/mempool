@@ -8,7 +8,8 @@ package snitch_pkg;
   localparam DataWidth                  = 32;
   localparam StrbWidth                  = DataWidth/8;
   localparam int NumFPOutstandingLoads  = 4;
-  localparam int NumIntOutstandingLoads = 8;
+  // Use a high number of outstanding loads, if running a latency-throughput analysis
+  localparam int NumIntOutstandingLoads = `ifdef TRAFFIC_GEN 2048 `else 8 `endif;
   localparam ReorderIdWidth             = $clog2(NumIntOutstandingLoads);
   // Xpulpimg extension enabled?
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;

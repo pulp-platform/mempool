@@ -273,7 +273,6 @@ static void WriteSegment(const MemArea &m, uint32_t offset,
   memset(minibuf, 0, sizeof minibuf);
   assert(m.width_byte <= sizeof minibuf);
 
-  uint32_t all_words = (data.size() + m.width_byte - 1) / m.width_byte;
   uint32_t full_data_words = data.size() / m.width_byte;
   uint32_t part_data_word_len = data.size() % m.width_byte;
   bool has_part_data_word = part_data_word_len != 0;
@@ -555,7 +554,7 @@ void DpiMemUtil::LoadElfToMemories(bool verbose, const std::string &filepath) {
 
     const MemArea &mem_area = mem_area_it->second;
 
-    for (const auto seg_pr : staged_mem.GetSegs()) {
+    for (const auto &seg_pr : staged_mem.GetSegs()) {
       const AddrRange<uint32_t> &seg_rng = seg_pr.first;
       const std::vector<uint8_t> &seg_data = seg_pr.second;
       try {
