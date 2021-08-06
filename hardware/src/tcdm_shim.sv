@@ -54,10 +54,12 @@ module tcdm_shim
   input  logic         [3:0]                            data_qamo_i,
   input  logic         [DataWidth-1:0]                  data_qdata_i,
   input  logic         [StrbWidth-1:0]                  data_qstrb_i,
+  input  logic         [ReorderIdWidth-1:0]             data_qid_i,
   input  logic                                          data_qvalid_i,
   output logic                                          data_qready_o,
   output logic         [DataWidth-1:0]                  data_pdata_o,
   output logic                                          data_perror_o,
+  output logic         [ReorderIdWidth-1:0]             data_pid_o,
   output logic                                          data_pvalid_o,
   input  logic                                          data_pready_i,
   // Address map
@@ -88,33 +90,6 @@ module tcdm_shim
   // ROB IDs of the SoC requests (come back in order)
   logic [NrSoC-1:0][ReorderIdWidth-1:0] soc_rob_id;
 
-  // Correctly reorder responses
-  logic                      data_qready;
-  logic                      rob_full, rob_push;
-  logic [ReorderIdWidth-1:0] rob_id;
-
-  reorder_buffer #(
-    .DataWidth   (DataWidth          ),
-    .NumWords    (MaxOutStandingReads),
-    .FallThrough (1'b1               )
-  ) i_reorder_buffer (
-    .clk_i   (clk_i                                         ),
-    .rst_ni  (rst_ni                                        ),
-    // Data write
-    .data_i  (data_ppayload.data                            ),
-    .id_i    (data_ppayload.id                              ),
-    .push_i  (rob_push                                      ),
-    // Data read
-    .data_o  (data_pdata_o                                  ),
-    .valid_o (data_pvalid_o                                 ),
-    .pop_i   (data_pready_i                                 ),
-    // ID request
-    .id_req_i(data_qvalid_i & data_qready_o & !data_qwrite_i),
-    .id_o    (rob_id                                        ),
-    .full_o  (rob_full                                      )
-  );
-  assign data_qready_o = data_qready && !rob_full;
-
   for (genvar i = 0; i < NrSoC; i++) begin: gen_soc_rob_id_fifo
     fifo_v3 #(
       .DEPTH     (MaxOutStandingReads),
@@ -124,7 +99,7 @@ module tcdm_shim
       .rst_ni    (rst_ni                                             ),
       .flush_i   (1'b0                                               ),
       .testmode_i(1'b0                                               ),
-      .data_i    (rob_id                                             ),
+      .data_i    (data_qid_i                                         ),
       .push_i    (soc_qvalid_o[i] & soc_qready_i[i] &!soc_qwrite_o[i]),
       .full_o    (/* Unused */                                       ),
       .data_o    (soc_rob_id[i]                                      ),
@@ -146,11 +121,11 @@ module tcdm_shim
     .rst_ni        (rst_ni                           ),
     .req_addr_i    (data_qaddr_i                     ),
     .req_payload_i (data_qpayload                    ),
-    .req_valid_i   (data_qvalid_i && !rob_full       ),
-    .req_ready_o   (data_qready                      ),
+    .req_valid_i   (data_qvalid_i                    ),
+    .req_ready_o   (data_qready_o                    ),
     .resp_payload_o(data_ppayload                    ),
-    .resp_valid_o  (rob_push                         ),
-    .resp_ready_i  (1'b1                             ),
+    .resp_valid_o  (data_pvalid_o                    ),
+    .resp_ready_i  (data_pready_i                    ),
     .req_payload_o ({soc_qpayload, tcdm_qpayload}    ),
     .req_valid_o   ({soc_qvalid_o, tcdm_req_valid_o} ),
     .req_ready_i   ({soc_qready_i, tcdm_req_ready_i} ),
@@ -160,7 +135,7 @@ module tcdm_shim
     .address_map_i (address_map_i                    )
   );
 
-  // Connect output ports
+  // Connect TCDM output ports
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_con
     assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr ;
     assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data ;
@@ -170,15 +145,7 @@ module tcdm_shim
     assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb ;
   end
 
-  // Request interface
-  assign data_qpayload.addr  = data_qaddr_i       ;
-  assign data_qpayload.write = data_qwrite_i      ;
-  assign data_qpayload.amo   = data_qamo_i        ;
-  assign data_qpayload.data  = data_qdata_i       ;
-  assign data_qpayload.id    = rob_id             ;
-  assign data_qpayload.strb  = data_qstrb_i       ;
-  assign data_perror_o       = data_ppayload.error;
-
+  // Connect SOCs
   for (genvar i = 0; i < NrSoC; i++) begin : gen_soc_con
     assign soc_qaddr_o[i]        = soc_qpayload[i].addr ;
     assign soc_qwrite_o[i]       = soc_qpayload[i].write;
@@ -189,6 +156,19 @@ module tcdm_shim
     assign soc_ppayload[i].id    = soc_rob_id[i]        ;
     assign soc_ppayload[i].error = soc_perror_i[i]      ;
   end
+
+  // Request interface
+  assign data_qpayload.addr  = data_qaddr_i ;
+  assign data_qpayload.write = data_qwrite_i;
+  assign data_qpayload.amo   = data_qamo_i  ;
+  assign data_qpayload.data  = data_qdata_i ;
+  assign data_qpayload.id    = data_qid_i   ;
+  assign data_qpayload.strb  = data_qstrb_i ;
+
+  // Response interface
+  assign data_pdata_o  = data_ppayload.data ;
+  assign data_perror_o = data_ppayload.error;
+  assign data_pid_o    = data_ppayload.id   ;
 
   // Elaboration-time assertions
 
