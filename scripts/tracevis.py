@@ -13,14 +13,14 @@ import progressbar
 # 3 -> pc (hex with 0x prefix)
 # 4 -> instruction
 # 5 -> args
-LINE_REGEX = r' *(\d+) +(\d+) +([3M1S0U]) +(0x[0-9a-f]+) ([.\w]+) +(.+)#'
+LINE_REGEX = r' *(\d+) +(\d+) +([3M1S0U]?) *(0x[0-9a-f]+) ([.\w]+) +(.+)#'
 
 # regex matches a line of instruction retired by the accelerator
 # 2 -> privilege level
 # 3 -> pc (hex with 0x prefix)
 # 4 -> instruction
 # 5 -> args
-ACC_LINE_REGEX = r' +([3M1S0U]) +(0x[0-9a-f]+) ([.\w]+) +(.+)#'
+ACC_LINE_REGEX = r' +([3M1S0U]?) *(0x[0-9a-f]+) ([.\w]+) +(.+)#'
 
 re_line = re.compile(LINE_REGEX)
 re_acc_line = re.compile(ACC_LINE_REGEX)
