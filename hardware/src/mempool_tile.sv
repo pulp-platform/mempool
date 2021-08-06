@@ -583,11 +583,12 @@ module mempool_tile
 
     if (!TrafficGeneration) begin: gen_tcdm_shim
       tcdm_shim #(
-        .AddrWidth(AddrWidth),
-        .DataWidth(DataWidth),
-        .NrTCDM   (2        ),
-        .NrSoC    (1        ),
-        .NumRules (3        )
+        .AddrWidth           (AddrWidth                         ),
+        .DataWidth           (DataWidth                         ),
+        .MaxOutStandingReads (snitch_pkg::NumIntOutstandingLoads),
+        .NrTCDM              (2                                 ),
+        .NrSoC               (1                                 ),
+        .NumRules            (3                                 )
       ) i_tcdm_shim (
         .clk_i              (clk_i                                                                              ),
         .rst_ni             (rst_ni                                                                             ),
