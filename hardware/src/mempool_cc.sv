@@ -2,7 +2,9 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
-module mempool_cc #(
+module mempool_cc
+  import snitch_pkg::meta_id_t;
+#(
   parameter logic [31:0] BootAddr   = 32'h0000_1000,
   parameter logic [31:0] MTVEC      = BootAddr,
   parameter bit          RVE        = 0,  // Reduced-register extension
@@ -10,8 +12,7 @@ module mempool_cc #(
   parameter bit RegisterOffloadReq  = 1,
   parameter bit RegisterOffloadResp = 1,
   parameter bit RegisterTCDMReq     = 0,
-  parameter bit RegisterTCDMResp    = 0,
-  localparam int unsigned IdWidth   = snitch_pkg::ReorderIdWidth
+  parameter bit RegisterTCDMResp    = 0
 ) (
   input  logic               clk_i,
   input  logic               rst_i,
@@ -27,12 +28,12 @@ module mempool_cc #(
   output logic [3:0]         data_qamo_o,
   output logic [31:0]        data_qdata_o,
   output logic [3:0]         data_qstrb_o,
-  output logic [IdWidth-1:0] data_qid_o,
+  output meta_id_t           data_qid_o,
   output logic               data_qvalid_o,
   input  logic               data_qready_i,
   input  logic [31:0]        data_pdata_i,
   input  logic               data_perror_i,
-  input  logic [IdWidth-1:0] data_pid_i,
+  input  meta_id_t           data_pid_i,
   input  logic               data_pvalid_i,
   output logic               data_pready_o,
   input  logic               wake_up_sync_i,

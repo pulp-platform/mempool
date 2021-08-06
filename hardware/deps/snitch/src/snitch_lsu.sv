@@ -54,7 +54,7 @@ module snitch_lsu
   // TYPEDEFS
   // ----------------
 
-  typedef logic [IdWidth-1:0] identifier_t;
+  typedef logic [IdWidth-1:0] meta_id_t;
 
   typedef struct packed {
     tag_t       tag;
@@ -72,8 +72,8 @@ module snitch_lsu
   metadata_t [NumOutstandingLoads-1:0] metadata_d, metadata_q;
   metadata_t                           req_metadata;
   metadata_t                           resp_metadata;
-  identifier_t                         req_id;
-  identifier_t                         resp_id;
+  meta_id_t                            req_id;
+  meta_id_t                            resp_id;
   logic                                id_table_push;
   logic                                id_table_pop;
   logic                                id_table_full;

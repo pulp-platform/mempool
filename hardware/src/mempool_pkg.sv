@@ -4,7 +4,7 @@
 
 package mempool_pkg;
 
-  import snitch_pkg::ReorderIdWidth;
+  import snitch_pkg::MetaIdWidth;
   import cf_math_pkg::idx_width;
 
   /*********************
@@ -125,14 +125,14 @@ package mempool_pkg;
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
-  typedef logic [ReorderIdWidth-1:0] reorder_id_t;
+  typedef logic [MetaIdWidth-1:0] meta_id_t;
   typedef logic [idx_width(NumCoresPerTile)-1:0] tile_core_id_t;
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
   typedef logic [3:0] amo_t;
 
   typedef struct packed {
-    reorder_id_t reorder_id;
+    meta_id_t meta_id;
     tile_core_id_t core_id;
     amo_t amo;
     data_t data;

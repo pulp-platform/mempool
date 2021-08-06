@@ -11,13 +11,14 @@
 
 // `SNITCH_ENABLE_PERF Enables mcycle, minstret performance counters (read only)
 
-module snitch #(
+module snitch
+  import snitch_pkg::meta_id_t;
+#(
   parameter logic [31:0] BootAddr  = 32'h0000_1000,
   parameter logic [31:0] MTVEC     = BootAddr, // Exception Base Address (see privileged spec 3.1.7)
   parameter bit          RVE       = 0,   // Reduced-register Extension
   parameter bit          RVM       = 1,   // Enable IntegerMmultiplication & Division Extension
-  parameter int    RegNrWritePorts = 2,   // Implement one or two write ports into the register file
-  localparam int unsigned IdWidth  = snitch_pkg::ReorderIdWidth
+  parameter int    RegNrWritePorts = 2    // Implement one or two write ports into the register file
 ) (
   input  logic          clk_i,
   input  logic          rst_i,
@@ -69,20 +70,20 @@ module snitch #(
   /// TCDM Data Interface
   /// Write transactions do not return data on the `P Channel`
   /// Transactions need to be handled strictly in-order.
-  output logic [31:0]        data_qaddr_o,
-  output logic               data_qwrite_o,
-  output logic [3:0]         data_qamo_o,
-  output logic [31:0]        data_qdata_o,
-  output logic [3:0]         data_qstrb_o,
-  output logic [IdWidth-1:0] data_qid_o,
-  output logic               data_qvalid_o,
-  input  logic               data_qready_i,
-  input  logic [31:0]        data_pdata_i,
-  input  logic               data_perror_i,
-  input  logic [IdWidth-1:0] data_pid_i,
-  input  logic               data_pvalid_i,
-  output logic               data_pready_o,
-  input  logic               wake_up_sync_i, // synchronous wake-up interrupt
+  output logic [31:0]   data_qaddr_o,
+  output logic          data_qwrite_o,
+  output logic [3:0]    data_qamo_o,
+  output logic [31:0]   data_qdata_o,
+  output logic [3:0]    data_qstrb_o,
+  output meta_id_t      data_qid_o,
+  output logic          data_qvalid_o,
+  input  logic          data_qready_i,
+  input  logic [31:0]   data_pdata_i,
+  input  logic          data_perror_i,
+  input  meta_id_t      data_pid_i,
+  input  logic          data_pvalid_i,
+  output logic          data_pready_o,
+  input  logic          wake_up_sync_i, // synchronous wake-up interrupt
   // Core event strobes
   output snitch_pkg::core_events_t core_events_o
 );

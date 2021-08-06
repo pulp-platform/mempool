@@ -19,7 +19,7 @@ module tcdm_shim
   parameter int unsigned NumRules            = 1             , // Routing rules
   localparam int unsigned StrbWidth          = DataWidth/8   ,
   localparam int unsigned NumOutput          = NrTCDM + NrSoC,
-  localparam int unsigned ReorderIdWidth     = idx_width(MaxOutStandingReads)
+  localparam int unsigned MetaIdWidth        = idx_width(MaxOutStandingReads)
 ) (
   input  logic                                          clk_i,
   input  logic                                          rst_ni,
@@ -29,13 +29,13 @@ module tcdm_shim
   output logic         [NrTCDM-1:0]                     tcdm_req_wen_o,
   output logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_req_wdata_o,
   output logic         [NrTCDM-1:0][3:0]                tcdm_req_amo_o,
-  output logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_req_id_o,
+  output logic         [NrTCDM-1:0][MetaIdWidth-1:0]    tcdm_req_id_o,
   output logic         [NrTCDM-1:0][StrbWidth-1:0]      tcdm_req_be_o,
   input  logic         [NrTCDM-1:0]                     tcdm_req_ready_i,
   input  logic         [NrTCDM-1:0]                     tcdm_resp_valid_i,
   output logic         [NrTCDM-1:0]                     tcdm_resp_ready_o,
   input  logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_resp_rdata_i,
-  input  logic         [NrTCDM-1:0][ReorderIdWidth-1:0] tcdm_resp_id_i,
+  input  logic         [NrTCDM-1:0][MetaIdWidth-1:0]    tcdm_resp_id_i,
   // to SoC
   output logic         [NrSoC-1:0] [AddrWidth-1:0]      soc_qaddr_o,
   output logic         [NrSoC-1:0]                      soc_qwrite_o,
@@ -54,12 +54,12 @@ module tcdm_shim
   input  logic         [3:0]                            data_qamo_i,
   input  logic         [DataWidth-1:0]                  data_qdata_i,
   input  logic         [StrbWidth-1:0]                  data_qstrb_i,
-  input  logic         [ReorderIdWidth-1:0]             data_qid_i,
+  input  logic         [MetaIdWidth-1:0]                data_qid_i,
   input  logic                                          data_qvalid_i,
   output logic                                          data_qready_o,
   output logic         [DataWidth-1:0]                  data_pdata_o,
   output logic                                          data_perror_o,
-  output logic         [ReorderIdWidth-1:0]             data_pid_o,
+  output logic         [MetaIdWidth-1:0]                data_pid_o,
   output logic                                          data_pvalid_o,
   input  logic                                          data_pready_i,
   // Address map
@@ -88,13 +88,13 @@ module tcdm_shim
   end
 
   // ROB IDs of the SoC requests (come back in order)
-  logic [NrSoC-1:0][ReorderIdWidth-1:0] soc_rob_id;
+  logic [NrSoC-1:0][MetaIdWidth-1:0] soc_meta_id;
 
-  for (genvar i = 0; i < NrSoC; i++) begin: gen_soc_rob_id_fifo
+  for (genvar i = 0; i < NrSoC; i++) begin: gen_soc_meta_id_fifo
     fifo_v3 #(
       .DEPTH     (MaxOutStandingReads),
-      .DATA_WIDTH(ReorderIdWidth     )
-    ) i_soc_rob_id_fifo (
+      .DATA_WIDTH(MetaIdWidth        )
+    ) i_soc_meta_id_fifo (
       .clk_i     (clk_i                                              ),
       .rst_ni    (rst_ni                                             ),
       .flush_i   (1'b0                                               ),
@@ -102,12 +102,12 @@ module tcdm_shim
       .data_i    (data_qid_i                                         ),
       .push_i    (soc_qvalid_o[i] & soc_qready_i[i] &!soc_qwrite_o[i]),
       .full_o    (/* Unused */                                       ),
-      .data_o    (soc_rob_id[i]                                      ),
+      .data_o    (soc_meta_id[i]                                     ),
       .pop_i     (soc_pvalid_i[i] & soc_pready_o[i]                  ),
       .empty_o   (/* Unused */                                       ),
       .usage_o   (/* Unused */                                       )
     );
-  end: gen_soc_rob_id_fifo
+  end: gen_soc_meta_id_fifo
 
   // Demux according to address
   snitch_addr_demux #(
@@ -153,7 +153,7 @@ module tcdm_shim
     assign soc_qdata_o[i]        = soc_qpayload[i].data ;
     assign soc_qstrb_o[i]        = soc_qpayload[i].strb ;
     assign soc_ppayload[i].data  = soc_pdata_i[i]       ;
-    assign soc_ppayload[i].id    = soc_rob_id[i]        ;
+    assign soc_ppayload[i].id    = soc_meta_id[i]       ;
     assign soc_ppayload[i].error = soc_perror_i[i]      ;
   end
 
