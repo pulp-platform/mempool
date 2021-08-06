@@ -85,17 +85,19 @@ module mempool_tile
   logic  [NumCaches-1:0][NumCoresPerCache-1:0] snitch_inst_ready;
 
   // Data interfaces
-  addr_t [NumCoresPerTile-1:0] snitch_data_qaddr;
-  logic  [NumCoresPerTile-1:0] snitch_data_qwrite;
-  amo_t  [NumCoresPerTile-1:0] snitch_data_qamo;
-  data_t [NumCoresPerTile-1:0] snitch_data_qdata;
-  strb_t [NumCoresPerTile-1:0] snitch_data_qstrb;
-  logic  [NumCoresPerTile-1:0] snitch_data_qvalid;
-  logic  [NumCoresPerTile-1:0] snitch_data_qready;
-  data_t [NumCoresPerTile-1:0] snitch_data_pdata;
-  logic  [NumCoresPerTile-1:0] snitch_data_perror;
-  logic  [NumCoresPerTile-1:0] snitch_data_pvalid;
-  logic  [NumCoresPerTile-1:0] snitch_data_pready;
+  addr_t [NumCoresPerTile-1:0]       snitch_data_qaddr;
+  logic  [NumCoresPerTile-1:0]       snitch_data_qwrite;
+  amo_t  [NumCoresPerTile-1:0]       snitch_data_qamo;
+  data_t [NumCoresPerTile-1:0]       snitch_data_qdata;
+  strb_t [NumCoresPerTile-1:0]       snitch_data_qstrb;
+  reorder_id_t [NumCoresPerTile-1:0] snitch_data_qid;
+  logic  [NumCoresPerTile-1:0]       snitch_data_qvalid;
+  logic  [NumCoresPerTile-1:0]       snitch_data_qready;
+  data_t [NumCoresPerTile-1:0]       snitch_data_pdata;
+  logic  [NumCoresPerTile-1:0]       snitch_data_perror;
+  reorder_id_t [NumCoresPerTile-1:0] snitch_data_pid;
+  logic  [NumCoresPerTile-1:0]       snitch_data_pvalid;
+  logic  [NumCoresPerTile-1:0]       snitch_data_pready;
 
   for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_cores
     logic [31:0] hart_id;
@@ -119,10 +121,12 @@ module mempool_tile
         .data_qamo_o   (snitch_data_qamo[c]                                      ),
         .data_qdata_o  (snitch_data_qdata[c]                                     ),
         .data_qstrb_o  (snitch_data_qstrb[c]                                     ),
+        .data_qid_o    (snitch_data_qid[c]                                       ),
         .data_qvalid_o (snitch_data_qvalid[c]                                    ),
         .data_qready_i (snitch_data_qready[c]                                    ),
         .data_pdata_i  (snitch_data_pdata[c]                                     ),
         .data_perror_i (snitch_data_perror[c]                                    ),
+        .data_pid_i    (snitch_data_pid[c]                                       ),
         .data_pvalid_i (snitch_data_pvalid[c]                                    ),
         .data_pready_o (snitch_data_pready[c]                                    ),
         .wake_up_sync_i(wake_up_i[c]                                             ),
@@ -135,6 +139,7 @@ module mempool_tile
       assign snitch_data_qamo[c]                                       = '0;
       assign snitch_data_qdata[c]                                      = '0;
       assign snitch_data_qstrb[c]                                      = '0;
+      assign snitch_data_qid[c]                                        = '0;
       assign snitch_data_qvalid[c]                                     = '0;
       assign snitch_data_pready[c]                                     = '0;
       assign snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache]  = '0;
@@ -617,10 +622,12 @@ module mempool_tile
         .data_qamo_i        (snitch_data_qamo[c]                                                                      ),
         .data_qdata_i       (snitch_data_qdata[c]                                                                     ),
         .data_qstrb_i       (snitch_data_qstrb[c]                                                                     ),
+        .data_qid_i         (snitch_data_qid[c]                                                                       ),
         .data_qvalid_i      (snitch_data_qvalid[c]                                                                    ),
         .data_qready_o      (snitch_data_qready[c]                                                                    ),
         .data_pdata_o       (snitch_data_pdata[c]                                                                     ),
         .data_perror_o      (snitch_data_perror[c]                                                                    ),
+        .data_pid_o         (snitch_data_pid[c]                                                                       ),
         .data_pvalid_o      (snitch_data_pvalid[c]                                                                    ),
         .data_pready_i      (snitch_data_pready[c]                                                                    ),
         .address_map_i      (mask_map                                                                                 )
@@ -667,6 +674,7 @@ module mempool_tile
       assign snitch_data_qready[c] = '0;
       assign snitch_data_pdata[c]  = '0;
       assign snitch_data_perror[c] = '0;
+      assign snitch_data_pid[c]    = '0;
       assign snitch_data_pvalid[c] = '0;
     end
   end

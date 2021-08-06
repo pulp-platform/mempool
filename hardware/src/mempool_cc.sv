@@ -10,7 +10,8 @@ module mempool_cc #(
   parameter bit RegisterOffloadReq  = 1,
   parameter bit RegisterOffloadResp = 1,
   parameter bit RegisterTCDMReq     = 0,
-  parameter bit RegisterTCDMResp    = 0
+  parameter bit RegisterTCDMResp    = 0,
+  localparam int unsigned IdWidth   = snitch_pkg::ReorderIdWidth
 ) (
   input  logic               clk_i,
   input  logic               rst_i,
@@ -26,10 +27,12 @@ module mempool_cc #(
   output logic [3:0]         data_qamo_o,
   output logic [31:0]        data_qdata_o,
   output logic [3:0]         data_qstrb_o,
+  output logic [IdWidth-1:0] data_qid_o,
   output logic               data_qvalid_o,
   input  logic               data_qready_i,
   input  logic [31:0]        data_pdata_i,
   input  logic               data_perror_i,
+  input  logic [IdWidth-1:0] data_pid_i,
   input  logic               data_pvalid_i,
   output logic               data_pready_o,
   input  logic               wake_up_sync_i,
@@ -83,17 +86,17 @@ module mempool_cc #(
     .data_qamo_o      ( data_req_d.amo      ),
     .data_qdata_o     ( data_req_d.data     ),
     .data_qstrb_o     ( data_req_d.strb     ),
+    .data_qid_o       ( data_req_d.id       ),
     .data_qvalid_o    ( data_req_d_valid    ),
     .data_qready_i    ( data_req_d_ready    ),
     .data_pdata_i     ( data_resp_q.data    ),
     .data_perror_i    ( data_resp_q.error   ),
+    .data_pid_i       ( data_resp_q.id      ),
     .data_pvalid_i    ( data_resp_q_valid   ),
     .data_pready_o    ( data_resp_q_ready   ),
     .wake_up_sync_i   ( wake_up_sync_i      ),
     .core_events_o    ( core_events_o       )
   );
-
-  assign data_req_d.id = '0;
 
   // Cut off-loading request path
   spill_register #(
@@ -182,10 +185,11 @@ module mempool_cc #(
   assign data_qamo_o       = data_req_q.amo;
   assign data_qdata_o      = data_req_q.data;
   assign data_qstrb_o      = data_req_q.strb;
+  assign data_qid_o        = data_req_q.id;
   assign data_qvalid_o     = data_req_q_valid;
   assign data_req_q_ready  = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
-  assign data_resp_d.id    = '0;
+  assign data_resp_d.id    = data_pid_i;
   assign data_resp_d.error = data_perror_i;
   assign data_resp_d_valid = data_pvalid_i;
   assign data_pready_o     = data_resp_d_ready;
