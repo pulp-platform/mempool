@@ -36,9 +36,9 @@ def flush(buf, hartid):
   for i in range(len(buf)-1):
     (time, cyc, priv, pc, instr, args) = buf.pop(0)
 
-    next_time = 1.0e-3*int(buf[0][0])
+    next_time = int(buf[0][0])
 
-    time = 1.0e-3*int(time)
+    time = int(time)
     # print(f'time "{time}", cyc "{cyc}", priv "{priv}", pc "{pc}", instr "{instr}", args "{args}"', file=sys.stderr)
     
     [pc, func, file] = a2ls.pop(0), a2ls.pop(0), a2ls.pop(0)
