@@ -28,31 +28,29 @@ GOMP_loop_dynamic_start(int start, int end, int incr, int chunk_size,
       gomp_loop_init(start, end, incr, chunk_size);
       // printf("GOMP_parallel_loop_dynamic_start %d %d %d %d \n", start, end, incr, chunk_size);
     }  
+    gomp_hal_unlock(&works.lock);
     
-    start = works.next;
+    chunk = chunk_size * incr;
+
+    start = __atomic_fetch_add(&works.next, chunk, __ATOMIC_SEQ_CST);
     
-    if (start == works.end)
-        ret = 0;
+    if (start >= works.end) {
+      ret = 0;
+    }
     
     if(ret)
     {
-        chunk = chunk_size * incr;
-        
         left = works.end - start;
         
-        if (chunk > left){
-            chunk = left;
+        if (chunk > left) {
+          end = works.end;
+        } else {
+          end = start + chunk;
         }
-        
-
-        end = start + chunk;
-        works.next = end;
     }
     
     *istart = start;
     *iend   = end;
-    
-    gomp_hal_unlock(&works.lock);
     
     return ret;
 }
@@ -60,32 +58,23 @@ GOMP_loop_dynamic_start(int start, int end, int incr, int chunk_size,
 int
 GOMP_loop_dynamic_next (int *istart, int *iend)
 {
-    // printf("n\n");
     int start, end, chunk, left;
 
-    gomp_hal_lock(&works.lock);
-    
-    start = works.next;
-    if (start == works.end)
-    {
-        gomp_hal_unlock(&works.lock);
+    chunk = works.chunk_size * works.incr;
+    start = __atomic_fetch_add(&works.next, chunk, __ATOMIC_SEQ_CST);
+
+    if (start >= works.end) {
         return 0;
     }
     
-    chunk = works.chunk_size * works.incr;
-    
     left = works.end - start;
 
-    if (chunk > left)
-        chunk = left;
+    if (chunk > left) {
+      end = works.end;
+    } else {
+      end = start + chunk;
+    }
 
-    end = start + chunk;
-    
-    works.next = end;
-    // printf("%d %d \n", works.lock, end);
-
-    gomp_hal_unlock(&works.lock);
-    
     *istart = start;
     *iend = end;
     
