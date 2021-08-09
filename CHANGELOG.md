@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Compile verilator and the verilated model with Clang, for a faster compilation time
 - Update BibTeX reference to the MemPool DATE paper
 - Rewrite the `traffic_generator` with DPI calls
+- Replace group's butterflies with logarithmic interconnects
 
 ## 0.4.0 - 2021-07-01
 

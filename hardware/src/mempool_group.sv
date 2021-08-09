@@ -357,10 +357,10 @@ module mempool_group
     .BeWidth            (DataWidth/8                                  ),
     .ByteOffWidth       (0                                            ),
     .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
-    .Topology           (tcdm_interconnect_pkg::BFLY4                 ),
+    .Topology           (tcdm_interconnect_pkg::LIC                   ),
     .AxiVldRdy          (1'b1                                         ),
-    .SpillRegisterReq   (64'b10                                       ),
-    .SpillRegisterResp  (64'b10                                       ),
+    .SpillRegisterReq   (64'b1                                        ),
+    .SpillRegisterResp  (64'b1                                        ),
     .FallThroughRegister(1'b1                                         )
   ) i_east_interco (
     .clk_i          (clk_i                   ),
@@ -443,10 +443,10 @@ module mempool_group
     .BeWidth            (DataWidth/8                                  ),
     .ByteOffWidth       (0                                            ),
     .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
-    .Topology           (tcdm_interconnect_pkg::BFLY4                 ),
+    .Topology           (tcdm_interconnect_pkg::LIC                   ),
     .AxiVldRdy          (1'b1                                         ),
-    .SpillRegisterReq   (64'b10                                       ),
-    .SpillRegisterResp  (64'b10                                       ),
+    .SpillRegisterReq   (64'b1                                        ),
+    .SpillRegisterResp  (64'b1                                        ),
     .FallThroughRegister(1'b1                                         )
   ) i_north_interco (
     .clk_i          (clk_i                    ),
@@ -529,10 +529,10 @@ module mempool_group
     .BeWidth            (DataWidth/8                                  ),
     .ByteOffWidth       (0                                            ),
     .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
-    .Topology           (tcdm_interconnect_pkg::BFLY4                 ),
+    .Topology           (tcdm_interconnect_pkg::LIC                   ),
     .AxiVldRdy          (1'b1                                         ),
-    .SpillRegisterReq   (64'b10                                       ),
-    .SpillRegisterResp  (64'b10                                       ),
+    .SpillRegisterReq   (64'b1                                        ),
+    .SpillRegisterResp  (64'b1                                        ),
     .FallThroughRegister(1'b1                                         )
   ) i_northeast_interco (
     .clk_i          (clk_i                        ),
