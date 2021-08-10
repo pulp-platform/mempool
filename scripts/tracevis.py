@@ -50,7 +50,7 @@ def flush(buf, hartid):
     # get function names
     pcs = [x[3] for x in buf]
     a2ls = os.popen(
-        f'addr2line -e {elf} -f -a -i {pcs}').read().split('\n')[:-1]
+        f'addr2line -e {elf} -f -a -i {" ".join(pcs)}').read().split('\n')[:-1]
 
     for i in range(len(buf)-1):
         (time, cyc, priv, pc, instr, args) = buf.pop(0)
