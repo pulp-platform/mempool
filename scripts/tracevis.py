@@ -17,6 +17,7 @@ import re
 import os
 import sys
 import progressbar
+import argparse
 
 # line format:
 # 101000 82      M         0x00001000 csrr    a0, mhartid     #; comment
@@ -45,6 +46,7 @@ buf = []
 
 
 def flush(buf, hartid):
+    global output_file
     # get function names
     pcs = [x[3] for x in buf]
     a2ls = os.popen(
@@ -85,13 +87,13 @@ def flush(buf, hartid):
         arg_coords = file
         arg_inlined = inlined
 
-        print((
-              f'{{"name": "{label}", "cat": "{cat}", "ph": "X", '
-              f'"ts": {start_time}, "dur": {duration}, "pid": "{pid}", '
-              f'"tid": "{funcname}", "args": {{"pc": "{arg_pc}", '
-              f'"instr": "{arg_instr} {arg_args}", "time": "{arg_cycles}", '
-              f'"Origin": "{arg_coords}", "inline": "{arg_inlined}"'
-              f'}}}},'))
+        output_file.write((
+            f'{{"name": "{label}", "cat": "{cat}", "ph": "X", '
+            f'"ts": {start_time}, "dur": {duration}, "pid": "{pid}", '
+            f'"tid": "{funcname}", "args": {{"pc": "{arg_pc}", '
+            f'"instr": "{arg_instr} {arg_args}", "time": "{arg_cycles}", '
+            f'"Origin": "{arg_coords}", "inline": "{arg_inlined}"'
+            f'}}}},\n'))
 
 
 def parse_line(line, hartid):
@@ -123,38 +125,73 @@ def parse_line(line, hartid):
     return 0
 
 
+parser = argparse.ArgumentParser('tracevis', allow_abbrev=True)
+parser.add_argument(
+    'elf',
+    metavar='<elf>',
+    help='The binary executed to generate the traces',
+)
+parser.add_argument(
+    'traces',
+    metavar='<trace>',
+    nargs='+',
+    help='Snitch traces to visualize')
+parser.add_argument(
+    '-o',
+    '--output',
+    metavar='<trace>',
+    nargs='?',
+    default='chrome.json',
+    help='Output JSON file')
+parser.add_argument(
+    '-s',
+    '--start',
+    metavar='<trace>',
+    nargs='?',
+    type=int,
+    default=0,
+    help='First line to parse')
+parser.add_argument(
+    '-e',
+    '--end',
+    metavar='<trace>',
+    nargs='?',
+    type=int,
+    default=-1,
+    help='Last line to parse')
 
-if len(sys.argv) < 3:
-    print('Usage: tracevis.py <elf> <trace> [trace ...]', file=sys.stderr)
-    exit(-1)
+args = parser.parse_args()
 
-elf = sys.argv[1]
-traces = sys.argv[2:]
+elf = args.elf
+traces = args.traces
+output = args.output
 
 print('elf', elf, file=sys.stderr)
 print('traces', traces, file=sys.stderr)
+print('output', output, file=sys.stderr)
 
-# json header
-print('{"traceEvents": [')
+with open(output, 'w') as output_file:
+    # JSON header
+    output_file.write('{"traceEvents": [\n')
 
-for filename in traces:
-    hartid = 0
-    parsed_nums = re.findall(r'\d+', filename)
-    hartid = int(parsed_nums[-1]) if len(parsed_nums) else hartid+1
-    fails = lines = 0
-    last_time = last_cyc = 0
+    for filename in traces:
+        hartid = 0
+        parsed_nums = re.findall(r'\d+', filename)
+        hartid = int(parsed_nums[-1]) if len(parsed_nums) else hartid+1
+        fails = lines = 0
+        last_time = last_cyc = 0
 
-    print(f'parsing hartid {hartid} with trace {filename}', file=sys.stderr)
-    tot_lines = len(open(filename).readlines())
-    with open(filename) as f:
-        for lino, line in progressbar.progressbar(enumerate(f.readlines()),
-                                                  max_value=tot_lines):
-            fails += parse_line(line, hartid)
-            lines += 1
-            if lino > 30000:
-                break
-        flush(buf, hartid)
-        print(f' parsed {lines-fails} of {lines} lines', file=sys.stderr)
+        print(
+            f'parsing hartid {hartid} with trace {filename}', file=sys.stderr)
+        tot_lines = len(open(filename).readlines())
+        with open(filename) as f:
+            for lino, line in progressbar.progressbar(
+                    enumerate(f.readlines()[args.start:args.end]),
+                    max_value=tot_lines):
+                fails += parse_line(line, hartid)
+                lines += 1
+            flush(buf, hartid)
+            print(f' parsed {lines-fails} of {lines} lines', file=sys.stderr)
 
-# json footer
-print('{}]}')
+    # JSON footer
+    output_file.write(r'{}]}''\n')
