@@ -27,11 +27,8 @@
 #include "synchronization.h"
 
 // Dimensions of matrix X
-// #define DIM_X_M 258
-// #define DIM_X_N 61
-
-#define DIM_X_M 30
-#define DIM_X_N 18
+#define DIM_X_M 258
+#define DIM_X_N 61
 
 // Dimensions of matrix Y
 #define DIM_Y_M (DIM_X_M - 2)
@@ -114,17 +111,12 @@ int main() {
   mempool_barrier(num_cores);
 
   if (core_id == 0) {
-    // Start benchmark
     printf("> Start\n");
-    // mempool_start_benchmark();
   }
 
   // Start benchmark for all cores
   mempool_barrier(num_cores);
   mempool_start_benchmark();
-
-  // Wait for all cores
-  // mempool_barrier(num_cores);
 
   switch (core_id) {
   case 0:
@@ -137,17 +129,12 @@ int main() {
     systolic_conv_mid(core_id, DIM_X_M, DIM_X_N, matrix_X, matrix_W, matrix_Y);
   }
 
-  // Wait for all cores
-  // mempool_barrier(num_cores);
-
   // Stop benchmark for all cores
   mempool_stop_benchmark();
   mempool_barrier(num_cores);
 
   // Print out benchmark
   if (core_id == 0) {
-    // Stop benchmark
-    // mempool_stop_benchmark();
     printf("> End\n");
 
     // Print out matrix Y
