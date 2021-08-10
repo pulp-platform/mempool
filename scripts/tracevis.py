@@ -16,8 +16,16 @@
 import re
 import os
 import sys
-import progressbar
 import argparse
+
+has_progressbar = True
+try:
+    import progressbar
+except ImportError as e:
+    # Do not use progressbar
+    print(f'{e} --> No progress bar will be shown.', file=sys.stderr)
+    has_progressbar = False
+
 
 # line format:
 # 101000 82      M         0x00001000 csrr    a0, mhartid     #; comment
@@ -195,11 +203,17 @@ with open(output, 'w') as output_file:
             f'parsing hartid {hartid} with trace {filename}', file=sys.stderr)
         tot_lines = len(open(filename).readlines())
         with open(filename) as f:
-            for lino, line in progressbar.progressbar(
-                    enumerate(f.readlines()[args.start:args.end]),
-                    max_value=tot_lines):
-                fails += parse_line(line, hartid)
-                lines += 1
+            if has_progressbar:
+                for lino, line in progressbar.progressbar(
+                        enumerate(f.readlines()[args.start:args.end]),
+                        max_value=tot_lines):
+                    fails += parse_line(line, hartid)
+                    lines += 1
+            else:
+                for lino, line in enumerate(
+                        f.readlines()[args.start:args.end]):
+                    fails += parse_line(line, hartid)
+                    lines += 1
             flush(buf, hartid)
             print(f' parsed {lines-fails} of {lines} lines', file=sys.stderr)
 
