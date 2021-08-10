@@ -13,7 +13,9 @@
 # Author: Noah Huetter <huettern@student.ethz.ch>
 #         Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
-import re, os, sys
+import re
+import os
+import sys
 import progressbar
 
 # line format:
@@ -38,7 +40,6 @@ ACC_LINE_REGEX = r' +([3M1S0U]?) *(0x[0-9a-f]+) ([.\w]+) +(.+)#'
 
 re_line = re.compile(LINE_REGEX)
 re_acc_line = re.compile(ACC_LINE_REGEX)
-# re_line = re.compile(r'(\d+)')
 
 buf = []
 
@@ -55,7 +56,8 @@ def flush(buf, hartid):
         next_time = int(buf[0][0])
 
         time = int(time)
-        # print(f'time "{time}", cyc "{cyc}", priv "{priv}", pc "{pc}", instr "{instr}", args "{args}"', file=sys.stderr)
+        # print(f'time "{time}", cyc "{cyc}", priv "{priv}", pc "{pc}"'
+        #       f', instr "{instr}", args "{args}"', file=sys.stderr)
 
         [pc, func, file] = a2ls.pop(0), a2ls.pop(0), a2ls.pop(0)
 
@@ -70,11 +72,10 @@ def flush(buf, hartid):
         cat = instr
         start_time = time
         duration = next_time - time
-        # print(f'"{label}" time {time} next: {next_time} duration: {duration}', file=sys.stderr)
+        # print(f'"{label}" time {time} next: {next_time}'
+        #       f' duration: {duration}', file=sys.stderr)
         pid = elf+':hartid'+str(hartid)
         funcname = func
-
-        last_time = time
 
         # args
         arg_pc = pc
@@ -85,15 +86,12 @@ def flush(buf, hartid):
         arg_inlined = inlined
 
         print((
-              f'{{"name": "{label}", "cat": "{cat}", "ph": "X", "ts": {start_time}, '
-              f'"dur": {duration}, "pid": "{pid}", "tid": "{funcname}", '
-              f'"args": {{'
-              f'  "pc": "{arg_pc}", "instr": "{arg_instr} {arg_args}", '
-              f'  "time": "{arg_cycles}", "Origin": "{arg_coords}", "inline": "{inlined}"'
+              f'{{"name": "{label}", "cat": "{cat}", "ph": "X", '
+              f'"ts": {start_time}, "dur": {duration}, "pid": "{pid}", '
+              f'"tid": "{funcname}", "args": {{"pc": "{arg_pc}", '
+              f'"instr": "{arg_instr} {arg_args}", "time": "{arg_cycles}", '
+              f'"Origin": "{arg_coords}", "inline": "{arg_inlined}"'
               f'}}}},'))
-
-
-last_time = last_cyc = 0
 
 
 def parse_line(line, hartid):
@@ -125,8 +123,6 @@ def parse_line(line, hartid):
     return 0
 
 
-fails = lines = 0
-
 
 if len(sys.argv) < 3:
     print('Usage: tracevis.py <elf> <trace> [trace ...]', file=sys.stderr)
@@ -145,17 +141,20 @@ for filename in traces:
     hartid = 0
     parsed_nums = re.findall(r'\d+', filename)
     hartid = int(parsed_nums[-1]) if len(parsed_nums) else hartid+1
+    fails = lines = 0
+    last_time = last_cyc = 0
 
     print(f'parsing hartid {hartid} with trace {filename}', file=sys.stderr)
     tot_lines = len(open(filename).readlines())
     with open(filename) as f:
-        for lino, line in progressbar.progressbar(enumerate(f.readlines()), max_value=tot_lines):
+        for lino, line in progressbar.progressbar(enumerate(f.readlines()),
+                                                  max_value=tot_lines):
             fails += parse_line(line, hartid)
             lines += 1
             if lino > 30000:
                 break
         flush(buf, hartid)
-        print(f'parsed {lines-fails} of {lines} lines', file=sys.stderr)
+        print(f' parsed {lines-fails} of {lines} lines', file=sys.stderr)
 
 # json footer
 print('{}]}')
