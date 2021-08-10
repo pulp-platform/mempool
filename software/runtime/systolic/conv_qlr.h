@@ -30,6 +30,7 @@
 #include "alloc.h"
 #include "printf.h"
 
+// QLR configuration
 #define QLR_BASE 0x40010000
 #define QLR_CFG_T0 (QLR_BASE | (5 << 5))
 #define QLR_CFG_T1 (QLR_BASE | (6 << 5))
@@ -41,6 +42,7 @@
 #define QLR_CFG_IADDR 4
 #define QLR_CFG_OADDR 5
 
+// QLRs
 register int32_t qlr_t0 asm("t0");
 register int32_t qlr_t1 asm("t1");
 register int32_t qlr_t2 asm("t2");
