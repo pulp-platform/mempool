@@ -46,7 +46,7 @@ buf = []
 
 
 def flush(buf, hartid):
-    global output_file
+    global output_file, use_time
     # get function names
     pcs = [x[3] for x in buf]
     a2ls = os.popen(
@@ -55,9 +55,13 @@ def flush(buf, hartid):
     for i in range(len(buf)-1):
         (time, cyc, priv, pc, instr, args) = buf.pop(0)
 
-        next_time = int(buf[0][0])
+        if use_time:
+            next_time = int(buf[0][0])
+            time = int(time)
+        else:
+            next_time = int(buf[0][1])
+            time = int(cyc)
 
-        time = int(time)
         # print(f'time "{time}", cyc "{cyc}", priv "{priv}", pc "{pc}"'
         #       f', instr "{instr}", args "{args}"', file=sys.stderr)
 
@@ -144,6 +148,11 @@ parser.add_argument(
     default='chrome.json',
     help='Output JSON file')
 parser.add_argument(
+    '-t',
+    '--time',
+    action='store_true',
+    help='Use the traces time instead of cycles')
+parser.add_argument(
     '-s',
     '--start',
     metavar='<trace>',
@@ -165,6 +174,7 @@ args = parser.parse_args()
 elf = args.elf
 traces = args.traces
 output = args.output
+use_time = args.time
 
 print('elf', elf, file=sys.stderr)
 print('traces', traces, file=sys.stderr)
