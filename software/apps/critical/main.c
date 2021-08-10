@@ -2,35 +2,34 @@
 #include <string.h>
 
 #include "encoding.h"
+#include "libgomp.h"
 #include "printf.h"
 #include "runtime.h"
-#include "libgomp.h"
 #include "synchronization.h"
 
 #define REPETITIONS 10 /* Number of times to run each test */
 
-int test_omp_critical()
-{
+int test_omp_critical() {
   int sum;
-  int known_sum,mysum;
+  int known_sum, mysum;
 
-  sum=0;
-  #pragma omp parallel
+  sum = 0;
+#pragma omp parallel
   {
-    mysum=0;
+    mysum = 0;
     int i;
 
-    #pragma omp single
+#pragma omp single
     {
       for (i = 0; i < 100; i++)
         mysum = mysum + i;
       printf("Single\n");
-    }   
-    
-    #pragma omp critical
+    }
+
+#pragma omp critical
     {
-      sum = mysum +sum;
-      //printf("Sum: %d, thread_id: %d\n",sum,omp_get_thread_num());
+      sum = mysum + sum;
+      // printf("Sum: %d, thread_id: %d\n",sum,omp_get_thread_num());
     }
   }
   known_sum = 99 * 100 / 2 * NUM_CORES;
@@ -41,23 +40,23 @@ int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   uint32_t i;
-  uint32_t num_failed=0;
+  uint32_t num_failed = 0;
 
   mempool_wait(2 * num_cores);
 
   if (core_id == 0) {
     printf("Master Thread start\n");
-    for(i = 0; i < REPETITIONS; i++) {
-      printf("test: %d\n",i);
-      if(!test_omp_critical()) {
+    for (i = 0; i < REPETITIONS; i++) {
+      printf("test: %d\n", i);
+      if (!test_omp_critical()) {
         num_failed++;
       }
-      printf("num_failed: %d\n",num_failed);
+      printf("num_failed: %d\n", num_failed);
     }
     printf("Master Thread end\n\n\n");
-    printf("num_failed: %d\n",num_failed);
+    printf("num_failed: %d\n", num_failed);
   } else {
-    while(1){
+    while (1) {
       mempool_wfi();
       run_task(core_id);
     }

@@ -51,41 +51,38 @@ int32_t b[M] __attribute__((section(".l1")));
 int32_t c[NUM_CORES] __attribute__((section(".l1")));
 
 // Initialize the matrices in parallel
-void init_vector(int32_t *vector, uint32_t num_elements,
-                 int32_t a, int32_t b, uint32_t core_id,
-                 uint32_t num_cores) {
+void init_vector(int32_t *vector, uint32_t num_elements, int32_t a, int32_t b,
+                 uint32_t core_id, uint32_t num_cores) {
   // Parallelize over rows
   for (uint32_t i = core_id; i < num_elements; i += num_cores) {
-      vector[i] = a * (int32_t)i + b;
+    vector[i] = a * (int32_t)i + b;
   }
 }
 
 void print_vector(int32_t const *vector, uint32_t num_elements) {
   printf("0x%8X\n", (uint32_t)vector);
   for (uint32_t i = 0; i < num_elements; ++i) {
-      printf("%5d ", vector[i]);
+    printf("%5d ", vector[i]);
     printf("\n");
   }
 }
 
 // Initialize the matrices in parallel
-int verify_dotproduct(int32_t dotp, uint32_t num_elements,
-                  int32_t aa, int32_t ab, int32_t ba, int32_t bb,
-                  int32_t * golden) {
-  int32_t N = (int32_t) num_elements;
-  *golden = aa * ba * N * (N-1) * (2*N-1) / 6 +
-            (aa * bb + ab * ba) * N * (N-1) / 2 +
-            ab * bb * (N);
+int verify_dotproduct(int32_t dotp, uint32_t num_elements, int32_t aa,
+                      int32_t ab, int32_t ba, int32_t bb, int32_t *golden) {
+  int32_t N = (int32_t)num_elements;
+  *golden = aa * ba * N * (N - 1) * (2 * N - 1) / 6 +
+            (aa * bb + ab * ba) * N * (N - 1) / 2 + ab * bb * (N);
   if (dotp == *golden)
     return 1;
   return 0;
 }
 
 int32_t dot_product_sequential(int32_t const *__restrict__ A,
-                        int32_t const *__restrict__ B, 
-                        uint32_t num_elements) {
+                               int32_t const *__restrict__ B,
+                               uint32_t num_elements) {
   uint32_t i;
-  int32_t dotp=0;
+  int32_t dotp = 0;
   for (i = 0; i < num_elements; i++) {
     dotp += A[i] * B[i];
   }
@@ -93,17 +90,19 @@ int32_t dot_product_sequential(int32_t const *__restrict__ A,
 }
 
 int32_t dot_product_parallel1(int32_t const *__restrict__ A,
-                      int32_t const *__restrict__ B, int32_t *__restrict__ Partial_sums,
-                      uint32_t num_elements, uint32_t id, uint32_t numThreads) {
+                              int32_t const *__restrict__ B,
+                              int32_t *__restrict__ Partial_sums,
+                              uint32_t num_elements, uint32_t id,
+                              uint32_t numThreads) {
 
   Partial_sums[id] = 0;
   int32_t dotp = 0;
   for (uint32_t i = id; i < num_elements; i += numThreads) {
-  Partial_sums[id] += A[i] * B[i];
+    Partial_sums[id] += A[i] * B[i];
   }
   mempool_barrier(numThreads, numThreads * 4);
-  if(id==0){
-    for (uint32_t i = 0; i < numThreads; i += 1){
+  if (id == 0) {
+    for (uint32_t i = 0; i < numThreads; i += 1) {
       dotp += Partial_sums[i];
     }
   }
@@ -112,17 +111,20 @@ int32_t dot_product_parallel1(int32_t const *__restrict__ A,
 }
 
 int32_t dot_product_parallel2(int32_t const *__restrict__ A,
-                      int32_t const *__restrict__ B, int32_t *__restrict__ Partial_sums,
-                      uint32_t num_elements, uint32_t id, uint32_t numThreads) {
-  
+                              int32_t const *__restrict__ B,
+                              int32_t *__restrict__ Partial_sums,
+                              uint32_t num_elements, uint32_t id,
+                              uint32_t numThreads) {
+
   Partial_sums[id] = 0;
   int32_t dotp = 0;
-  for (uint32_t i = id*num_elements/numThreads; i < (id+1)*num_elements/numThreads; i += 1) {
+  for (uint32_t i = id * num_elements / numThreads;
+       i < (id + 1) * num_elements / numThreads; i += 1) {
     Partial_sums[id] += A[i] * B[i];
   }
   mempool_barrier(numThreads, numThreads * 4);
-  if(id==0){
-    for (uint32_t i = 0; i < numThreads; i += 1){
+  if (id == 0) {
+    for (uint32_t i = 0; i < numThreads; i += 1) {
       dotp += Partial_sums[i];
     }
   }
@@ -131,11 +133,11 @@ int32_t dot_product_parallel2(int32_t const *__restrict__ A,
 }
 
 int32_t dot_product_omp_static(int32_t const *__restrict__ A,
-                        int32_t const *__restrict__ B, 
-                        uint32_t num_elements) {
+                               int32_t const *__restrict__ B,
+                               uint32_t num_elements) {
   uint32_t i;
-  int32_t dotp=0;
-  #pragma omp parallel for reduction(+:dotp)
+  int32_t dotp = 0;
+#pragma omp parallel for reduction(+ : dotp)
   for (i = 0; i < num_elements; i++) {
     dotp += A[i] * B[i];
   }
@@ -143,15 +145,15 @@ int32_t dot_product_omp_static(int32_t const *__restrict__ A,
 }
 
 int32_t dot_product_omp_dynamic(int32_t const *__restrict__ A,
-                        int32_t const *__restrict__ B, 
-                        uint32_t num_elements, uint32_t chunksize) {
+                                int32_t const *__restrict__ B,
+                                uint32_t num_elements, uint32_t chunksize) {
   int i;
-  int32_t dotp=0;
-  //printf("num_elements %d\n", num_elements);
-#pragma omp parallel for schedule (dynamic,chunksize) reduction(+:dotp)
+  int32_t dotp = 0;
+  // printf("num_elements %d\n", num_elements);
+#pragma omp parallel for schedule(dynamic, chunksize) reduction(+ : dotp)
   for (i = 0; i < num_elements; i++) {
     dotp += A[i] * B[i];
-    //printf("core %d dotp %d\n", mempool_get_core_id(), dotp);
+    // printf("core %d dotp %d\n", mempool_get_core_id(), dotp);
   }
   return dotp;
 }
@@ -186,7 +188,7 @@ int main() {
   int32_t result, correct_result;
 
   if (core_id == 0) {
-    mempool_wait(4*num_cores);
+    mempool_wait(4 * num_cores);
     cycles = mempool_get_timer();
     mempool_start_benchmark();
     result = dot_product_sequential(a, b, M);
@@ -199,9 +201,9 @@ int main() {
   if (core_id == 0) {
     printf("Sequential Result: %d\n", result);
     printf("Sequential Duration: %d\n", cycles);
-    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)){
+    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
       printf("Sequential Result is %d instead of %d\n", result, correct_result);
-    } else{
+    } else {
       printf("Result is correct!\n");
     }
   }
@@ -219,9 +221,10 @@ int main() {
   if (core_id == 0) {
     printf("Manual Parallel1 Result: %d\n", result);
     printf("Manual Parallel1 Duration: %d\n", cycles);
-    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)){
-      printf("Manual Parallel1 Result is %d instead of %d\n", result, correct_result);
-    } else{
+    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
+      printf("Manual Parallel1 Result is %d instead of %d\n", result,
+             correct_result);
+    } else {
       printf("Result is correct!\n");
     }
   }
@@ -239,22 +242,23 @@ int main() {
   if (core_id == 0) {
     printf("Manual Parallel2 Result: %d\n", result);
     printf("Manual Parallel2 Duration: %d\n", cycles);
-    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)){
-      printf("Manual Parallel2 Result is %d instead of %d\n", result, correct_result);
-    } else{
+    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
+      printf("Manual Parallel2 Result is %d instead of %d\n", result,
+             correct_result);
+    } else {
       printf("Result is correct!\n");
     }
   }
 #endif
   mempool_barrier(num_cores, num_cores * 4);
 
-/*  OPENMP IMPLEMENTATION  */
+  /*  OPENMP IMPLEMENTATION  */
   int32_t omp_result;
 
-  if(core_id == 0){
-    mempool_wait(4*num_cores);
+  if (core_id == 0) {
+    mempool_wait(4 * num_cores);
 
-/*    cycles = mempool_get_timer();
+    cycles = mempool_get_timer();
     mempool_start_benchmark();
     omp_result = dot_product_omp_static(a, b, M);
     mempool_stop_benchmark();
@@ -262,14 +266,16 @@ int main() {
 
     printf("OMP Static Result: %d\n", omp_result);
     printf("OMP Static Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)){
-      printf("OMP Static Result is %d instead of %d\n", omp_result, correct_result);
-    } else{
+    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
+                           &correct_result)) {
+      printf("OMP Static Result is %d instead of %d\n", omp_result,
+             correct_result);
+    } else {
       printf("Result is correct!\n");
     }
 
-    mempool_wait(4*num_cores);
-*/
+    mempool_wait(4 * num_cores);
+
     cycles = mempool_get_timer();
     mempool_start_benchmark();
     omp_result = dot_product_omp_dynamic(a, b, M, 4);
@@ -278,13 +284,15 @@ int main() {
 
     printf("OMP Dynamic(4) Result: %d\n", omp_result);
     printf("OMP Dynamic(4) Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)){
-      printf("OMP Dynamic(4) Result is %d instead of %d\n", omp_result, correct_result);
-    } else{
+    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
+                           &correct_result)) {
+      printf("OMP Dynamic(4) Result is %d instead of %d\n", omp_result,
+             correct_result);
+    } else {
       printf("Result is correct!\n");
     }
 
-    mempool_wait(4*num_cores);
+    mempool_wait(4 * num_cores);
 
     cycles = mempool_get_timer();
     mempool_start_benchmark();
@@ -294,21 +302,21 @@ int main() {
 
     printf("OMP Dynamic(10) Result: %d\n", omp_result);
     printf("OMP Dynamic(10) Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)){
-      printf("OMP Dynamic(10) Result is %d instead of %d\n", omp_result, correct_result);
-    } else{
+    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
+                           &correct_result)) {
+      printf("OMP Dynamic(10) Result is %d instead of %d\n", omp_result,
+             correct_result);
+    } else {
       printf("Result is correct!\n");
     }
 
-    mempool_wait(4*num_cores);
+    mempool_wait(4 * num_cores);
 
-  }
-  else{
-    while(1){
+  } else {
+    while (1) {
       mempool_wfi();
       run_task(core_id);
     }
   }
   return 0;
 }
-

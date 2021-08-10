@@ -21,9 +21,9 @@
 
 #include "encoding.h"
 #include "kernel/mat_mul.h"
+#include "libgomp.h"
 #include "printf.h"
 #include "runtime.h"
-#include "libgomp.h"
 #include "synchronization.h"
 
 // Define Matrix dimensions:
@@ -52,9 +52,6 @@ int32_t volatile init __attribute__((section(".l2"))) = 0;
 int32_t a[M * N] __attribute__((section(".l1")));
 int32_t b[N * P] __attribute__((section(".l1")));
 int32_t c[M * P] __attribute__((section(".l1")));
-
-
-
 
 // Initialize the matrices in parallel
 void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
@@ -100,8 +97,6 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
   }
 }
 
-
-
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
@@ -111,13 +106,11 @@ int main() {
   // Initialize synchronization variables
   mempool_barrier_init(core_id, num_cores);
 
-
   // Initialize Matrices
   init_matrix(a, M, N, A_a, A_b, A_c, core_id, num_cores);
   init_matrix(b, N, P, B_a, B_b, B_c, core_id, num_cores);
 
   mempool_barrier(num_cores, num_cores / 2);
-
 
   cycles = mempool_get_timer();
   mempool_start_benchmark();
@@ -159,15 +152,13 @@ int main() {
   }
   mempool_barrier(num_cores, num_cores * 4);
 
-
-  if(core_id == 0){
+  if (core_id == 0) {
 
     mempool_wait(1000);
 
-    
     cycles = mempool_get_timer();
     mempool_start_benchmark();
-    mat_mul_sequential(a,b,c,M,N,P);
+    mat_mul_sequential(a, b, c, M, N, P);
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;
     printf("Sequqntial Duration: %d\n", cycles);
@@ -177,13 +168,11 @@ int main() {
       printf("c[%d]=%d\n", error, c[error]);
     }
 
-
     printf("Start openMP\n");
-    
 
     cycles = mempool_get_timer();
     mempool_start_benchmark();
-    mat_mul_parallel_omp(a,b,c,M,N,P);
+    mat_mul_parallel_omp(a, b, c, M, N, P);
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;
     printf("OpenMP Parallel Duration: %d\n", cycles);
@@ -192,10 +181,10 @@ int main() {
       printf("Error code %d\n", error);
       printf("c[%d]=%d\n", error, c[error]);
     }
-    
+
     cycles = mempool_get_timer();
     mempool_start_benchmark();
-    mat_mul_unrolled_parallel_omp(a,b,c,M,N,P);
+    mat_mul_unrolled_parallel_omp(a, b, c, M, N, P);
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;
     printf("OpenMP Unrolled Parallel Duration: %d\n", cycles);
@@ -205,9 +194,8 @@ int main() {
       printf("c[%d]=%d\n", error, c[error]);
     }
 
-  }
-  else{
-    while(1){
+  } else {
+    while (1) {
       mempool_wfi();
       run_task(core_id);
     }

@@ -11,10 +11,9 @@
  * C = AB
  */
 
-
 void mat_mul_sequential(int32_t const *__restrict__ A,
-                      int32_t const *__restrict__ B, int32_t *__restrict__ C,
-                      uint32_t M, uint32_t N, uint32_t P) {
+                        int32_t const *__restrict__ B, int32_t *__restrict__ C,
+                        uint32_t M, uint32_t N, uint32_t P) {
   // Parallelize by assigning each core one row
   for (uint32_t i = 0; i < M; i++) {
     for (uint32_t j = 0; j < P; ++j) {
@@ -26,7 +25,6 @@ void mat_mul_sequential(int32_t const *__restrict__ A,
     }
   }
 }
-
 
 void mat_mul_parallel(int32_t const *__restrict__ A,
                       int32_t const *__restrict__ B, int32_t *__restrict__ C,
@@ -45,9 +43,10 @@ void mat_mul_parallel(int32_t const *__restrict__ A,
 }
 
 void mat_mul_parallel_omp(int32_t const *__restrict__ A,
-                      int32_t const *__restrict__ B, int32_t *__restrict__ C,
-                      uint32_t M, uint32_t N, uint32_t P) {
-  #pragma omp parallel for 
+                          int32_t const *__restrict__ B,
+                          int32_t *__restrict__ C, uint32_t M, uint32_t N,
+                          uint32_t P) {
+#pragma omp parallel for
   for (uint32_t i = 0; i < M; i++) {
     for (uint32_t j = 0; j < P; ++j) {
       int32_t c = 0;
@@ -127,11 +126,11 @@ void mat_mul_unrolled_parallel(int32_t const *__restrict__ A,
 }
 
 void mat_mul_unrolled_parallel_omp(int32_t const *__restrict__ A,
-                               int32_t const *__restrict__ B,
-                               int32_t *__restrict__ C, uint32_t M, uint32_t N,
-                               uint32_t P) {
-  // Parallelize by assigning each core one row
-  #pragma omp parallel for
+                                   int32_t const *__restrict__ B,
+                                   int32_t *__restrict__ C, uint32_t M,
+                                   uint32_t N, uint32_t P) {
+// Parallelize by assigning each core one row
+#pragma omp parallel for
   for (uint32_t i = 0; i < M; i++) {
     for (uint32_t j = 0; j < P; j += 4) {
       int32_t c0 = 0;

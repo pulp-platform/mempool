@@ -21,10 +21,10 @@
 
 #include "encoding.h"
 #include "kernel/convolution.h"
+#include "libgomp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "libgomp.h"
 
 // #include "convolution_riscv.h"
 // #include "halide_runtime.h"
@@ -39,8 +39,8 @@ volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
 volatile uint32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
 volatile int error __attribute__((section(".l1")));
 
-void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores){
-    mempool_barrier_init(core_id, num_cores);
+void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores) {
+  mempool_barrier_init(core_id, num_cores);
 
   if (core_id == 0) {
     error = 0;
@@ -65,7 +65,7 @@ void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores){
   for (int i = 2; i < 3; ++i) {
     // Wait at barrier until everyone is ready
     mempool_barrier(num_cores, WAIT_BARRIER);
-    
+
     switch (i) {
     case 0:
       conv2d_parallel((const int32_t *)in, N, M, (const uint32_t *)kernel,
@@ -89,7 +89,7 @@ void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores){
     case 4:
       break;
     }
-    
+
     // Wait at barrier befor checking
     mempool_barrier(num_cores, WAIT_BARRIER);
 
@@ -103,7 +103,7 @@ void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores){
   mempool_barrier(num_cores, WAIT_BARRIER);
 }
 
-void conv_gomp_barrier(uint32_t core_id, uint32_t num_cores){
+void conv_gomp_barrier(uint32_t core_id, uint32_t num_cores) {
 
   if (core_id == 0) {
     error = 0;
@@ -126,9 +126,9 @@ void conv_gomp_barrier(uint32_t core_id, uint32_t num_cores){
 
   // Matrices are initialized --> Start calculating
   for (int i = 2; i < 3; ++i) {
-    // Wait at barrier until everyone is ready
-    #pragma omp barrier
-    
+// Wait at barrier until everyone is ready
+#pragma omp barrier
+
     switch (i) {
     case 0:
       conv2d_parallel((const int32_t *)in, N, M, (const uint32_t *)kernel,
@@ -152,17 +152,17 @@ void conv_gomp_barrier(uint32_t core_id, uint32_t num_cores){
     case 4:
       break;
     }
-    
-    // Wait at barrier befor checking
-    #pragma omp barrier
+
+// Wait at barrier befor checking
+#pragma omp barrier
     // Check result
     if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
       __atomic_fetch_or(&error, i, __ATOMIC_SEQ_CST);
     }
   }
 
-  // wait until all cores have finished
-  #pragma omp barrier
+// wait until all cores have finished
+#pragma omp barrier
 }
 
 int main() {
@@ -173,8 +173,8 @@ int main() {
   if (core_id == 0) {
     printf("Start Barrier Benchmark\n");
   }
-  
-  #pragma omp barrier
+
+#pragma omp barrier
   barrier_init = 0;
 
   start_time = mempool_get_timer();
@@ -184,7 +184,7 @@ int main() {
   cycles = mempool_get_timer();
 
   if (core_id == 0) {
-    printf("Mempool barrier cycles: %d\n",cycles-start_time);
+    printf("Mempool barrier cycles: %d\n", cycles - start_time);
   }
 
   mempool_barrier(num_cores, num_cores);
@@ -197,9 +197,9 @@ int main() {
   cycles = mempool_get_timer();
 
   if (core_id == 0) {
-    printf("GOMP barrier cycles: %d\n",cycles-start_time);
+    printf("GOMP barrier cycles: %d\n", cycles - start_time);
   }
 
-  #pragma omp barrier
+#pragma omp barrier
   return 0;
 }
