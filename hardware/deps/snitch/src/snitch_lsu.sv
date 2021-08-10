@@ -84,30 +84,21 @@ module snitch_lsu
   // ----------------
   // ID TABLE
   // ----------------
-  // Track ID availability
+  // Track ID availability and store metadata
   always_comb begin
     // Default
     id_available_d = id_available_q;
+    metadata_d     = metadata_q;
 
-    // Take ID
+    // Take ID and store metadata
     if (id_table_push) begin
       id_available_d[req_id] = 1'b0;
+      metadata_d[req_id]     = req_metadata;
     end
 
     // Free ID
     if (id_table_pop) begin
       id_available_d[resp_id] = 1'b1;
-    end
-  end
-
-  // Store metadata for responses
-  always_comb begin
-    // Default
-    metadata_d = metadata_q;
-
-    // Store metadata
-    if (id_table_push) begin
-      metadata_d[req_id] = req_metadata;
     end
   end
 
