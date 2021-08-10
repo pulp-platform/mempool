@@ -31,11 +31,10 @@
 #include "printf.h"
 
 // QLR configuration
-#define QLR_BASE 0x40010000
-#define QLR_CFG_T0 (QLR_BASE | (5 << 5))
-#define QLR_CFG_T1 (QLR_BASE | (6 << 5))
-#define QLR_CFG_T2 (QLR_BASE | (7 << 5))
-#define QLR_CFG_T3 (QLR_BASE | (28 << 5))
+#define QLR_CFG_T0 (QLR_CFG_BASE | (5 << 5))
+#define QLR_CFG_T1 (QLR_CFG_BASE | (6 << 5))
+#define QLR_CFG_T2 (QLR_CFG_BASE | (7 << 5))
+#define QLR_CFG_T3 (QLR_CFG_BASE | (28 << 5))
 #define QLR_CFG_TYPE 0
 #define QLR_CFG_REQ 2
 #define QLR_CFG_RF 3

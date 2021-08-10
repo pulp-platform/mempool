@@ -270,7 +270,8 @@ package mempool_pkg;
 
    // Design constants
    localparam int unsigned NumQlrsPerCore = 4;
-   localparam logic [31:0] QlrConfigMask  = 32'b0100_0000_0000_0001_????_????_????_????;
+   localparam logic [32:0] QlrConfigBase  = `ifdef QLR_CFG_BASE `QLR_CFG_BASE `else 32'h4001_0000 `endif;
+   localparam logic [31:0] QlrConfigMask  = {QlrConfigBase[32:16], 16'b????_????_????_????};
 
    // DO NOT CHANGE: Assigned register tags (t0 = x5, t1 = x6, t2 = x7, t3 = x28)
    localparam logic [NumQlrsPerCore-1:0][4:0] QlrTags = {5'(28), 5'(7), 5'(6), 5'(5)};

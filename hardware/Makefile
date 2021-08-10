@@ -96,7 +96,7 @@ vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE=$(xqueue) -DXQUEUE_SIZE=$(xqueue_size)
-vlog_defs += -DQLR_FIFO_SIZE=$(qlr_fifo_size) -DQLR_MAX_REQUESTS=$(qlr_max_requests) -DQLR_MAX_RF_READS=$(qlr_max_rf_reads)
+vlog_defs += -DQLR_CFG_BASE="32'h$(qlr_cfg_base)" -DQLR_FIFO_SIZE=$(qlr_fifo_size) -DQLR_MAX_REQUESTS=$(qlr_max_requests) -DQLR_MAX_RF_READS=$(qlr_max_rf_reads)
 
 # Traffic generation enabled
 ifdef tg
