@@ -6,7 +6,8 @@ parameters such as the number of cores in the design. This will automatically
 generate the correct software runtime and the correct hardware.
 
 The `config.mk` file includes other configuration files, which represent specific
-flavors of MemPool. We currently support two flavors:
+flavors of MemPool. We currently support three flavors:
+- `terapool`: 1024 cores, organized into 128 tiles with eight cores each
 - `mempool`: 256 cores, organized into 64 tiles with four cores each (default)
 - `minpool`: 16 cores, organized into 4 tiles with four cores each
 
