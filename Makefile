@@ -103,15 +103,13 @@ riscv-isa-sim: update_opcodes
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Unit tests for verification
-MINPOOL_CONFIG = num_cores=16 num_cores_per_tile=4
-
 .PHONY: test build_test clean_test
 
 test: build_test
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
-	COMPILER=gcc $(MINPOOL_CONFIG) make -C $(SOFTWARE_DIR) test && \
-	$(MINPOOL_CONFIG) make -C hardware verilate_test
+	config=minpool COMPILER=gcc make -C $(SOFTWARE_DIR) test && \
+	config=minpool make -C hardware verilate_test
 
 build_test: update_opcodes
 	cd $(RISCV_TESTS_DIR); \

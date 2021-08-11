@@ -107,7 +107,7 @@ verilator-model:
         $CI_PROJECT_DIR/scripts/memora_retry.sh insert verilator-model
       fi
   variables:
-    num_cores: "16"
+    config: "minpool"
   needs: ["verilator"]
 
 hardware:
@@ -243,7 +243,7 @@ verilator-tests:
         app=${APP} make verilate
       done
   variables:
-    num_cores: "16"
+    config: "minpool"
   needs: ["tc-gcc","riscv-isa-sim","tc-llvm","verilator-model"]
 
 # Code style test

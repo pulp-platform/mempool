@@ -175,7 +175,7 @@ jobs:
     needs: verilator
     strategy:
       matrix:
-        num_cores: [16, 256]
+        mempool_config: [minpool, mempool]
     steps:
     - uses: actions/checkout@v2
     - name: Cache Verilator Model
@@ -183,7 +183,7 @@ jobs:
       id: verilator-model
       with:
         path: hardware/verilator_build/Vmempool_tb_verilator
-        key: ${{ runner.os }}-verilator-model-${{ matrix.num_cores}}cores-${{ hashFiles('hardware/**','config/**') }}
+        key: ${{ runner.os }}-verilator-model-${{ matrix.mempool_config }}-${{ hashFiles('hardware/**','config/**') }}
     - name: Get Verilator artifacts
       if: steps.verilator-model.outputs.cache-hit != 'true'
       uses: actions/download-artifact@v2
@@ -195,7 +195,7 @@ jobs:
     - name: Build Model
       if: steps.verilator-model.outputs.cache-hit != 'true'
       env:
-        num_cores: ${{ matrix.num_cores }}
+        config: ${{ matrix.mempool_config }}
       run: |
         sudo apt install libelf-dev
         ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/include $GITHUB_WORKSPACE/install/verilator/include
@@ -209,7 +209,7 @@ jobs:
     - name: Upload Verilator Model
       uses: actions/upload-artifact@v2
       with:
-        name: verilator-model-${{ matrix.num_cores }}cores
+        name: verilator-model-${{ matrix.mempool_config }}
         path: verilator-model.tzst
 
   ######################
@@ -252,7 +252,7 @@ jobs:
     needs: tc-gcc
     strategy:
       matrix:
-        num_cores: [16, 256]
+        mempool_config: [minpool, mempool]
     steps:
     - uses: actions/checkout@v2
     - name: Get riscv-gnu-toolchain artifacts
@@ -263,7 +263,7 @@ jobs:
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
     - name: Build Apps
       env:
-        num_cores: ${{ matrix.num_cores }}
+        config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
         COMPILER=gcc make -C software/apps all
@@ -272,7 +272,7 @@ jobs:
     - name: Upload apps-gcc
       uses: actions/upload-artifact@v2
       with:
-        name: apps-gcc-${{ matrix.num_cores }}cores
+        name: apps-gcc-${{ matrix.mempool_config }}
         path: apps-gcc.tzst
 
   build-apps-llvm:
@@ -280,7 +280,7 @@ jobs:
     needs: [tc-gcc, tc-llvm]
     strategy:
       matrix:
-        num_cores: [16, 256]
+        mempool_config: [minpool, mempool]
     steps:
     - uses: actions/checkout@v2
     - name: Get riscv-gnu-toolchain artifacts
@@ -297,7 +297,7 @@ jobs:
       run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Build Apps
       env:
-        num_cores: ${{ matrix.num_cores }}
+        config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
         COMPILER=llvm make -C software/apps all
@@ -306,7 +306,7 @@ jobs:
     - name: Upload apps-llvm
       uses: actions/upload-artifact@v2
       with:
-        name: apps-llvm-${{ matrix.num_cores }}cores
+        name: apps-llvm-${{ matrix.mempool_config }}
         path: apps-llvm.tzst
 
   build-apps-halide:
@@ -314,7 +314,7 @@ jobs:
     needs: [tc-gcc, tc-llvm, tc-halide]
     strategy:
       matrix:
-        num_cores: [16, 256]
+        mempool_config: [minpool, mempool]
     steps:
     - uses: actions/checkout@v2
     - name: Get riscv-gnu-toolchain artifacts
@@ -337,7 +337,7 @@ jobs:
       run: tar --use-compress-program zstd -xf halide.tzst
     - name: Build Apps
       env:
-        num_cores: ${{ matrix.num_cores }}
+        config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
         COMPILER=llvm make -C software/halide all
@@ -346,7 +346,7 @@ jobs:
     - name: Upload apps-halide
       uses: actions/upload-artifact@v2
       with:
-        name: apps-halide-${{ matrix.num_cores }}cores
+        name: apps-halide-${{ matrix.mempool_config }}
         path: apps-halide.tzst
 
   ##################
@@ -357,13 +357,13 @@ jobs:
     needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
     strategy:
       matrix:
-        num_cores: [16, 256]
+        mempool_config: [minpool, mempool]
     steps:
     - uses: actions/checkout@v2
     - name: Get apps-gcc artifacts
       uses: actions/download-artifact@v2
       with:
-        name: apps-gcc-${{ matrix.num_cores }}cores
+        name: apps-gcc-${{ matrix.mempool_config }}
     - name: Untar apps-gcc
       run: tar --use-compress-program zstd -xf apps-gcc.tzst
     - name: Get riscv-isa-sim artifacts
@@ -375,14 +375,14 @@ jobs:
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v2
       with:
-        name: verilator-model-${{ matrix.num_cores }}cores
+        name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run GCC Apps
       env:
-        num_cores: ${{ matrix.num_cores }}
+        config: ${{ matrix.mempool_config }}
       run: |
         # Don't regenerate previously build artifacts
         touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
@@ -397,13 +397,13 @@ jobs:
     needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
     strategy:
       matrix:
-        num_cores: [16, 256]
+        mempool_config: [minpool, mempool]
     steps:
     - uses: actions/checkout@v2
     - name: Get apps-llvm artifacts
       uses: actions/download-artifact@v2
       with:
-        name: apps-llvm-${{ matrix.num_cores }}cores
+        name: apps-llvm-${{ matrix.mempool_config }}
     - name: Untar apps-llvm
       run: tar --use-compress-program zstd -xf apps-llvm.tzst
     - name: Get riscv-isa-sim artifacts
@@ -415,14 +415,14 @@ jobs:
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v2
       with:
-        name: verilator-model-${{ matrix.num_cores }}cores
+        name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run LLVM Apps
       env:
-        num_cores: ${{ matrix.num_cores }}
+        config: ${{ matrix.mempool_config }}
       run: |
         # Don't regenerate previously build artifacts
         touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
@@ -437,13 +437,13 @@ jobs:
     needs: [build-apps-halide, riscv-isa-sim, verilator-model]
     strategy:
       matrix:
-        num_cores: [16, 256]
+        mempool_config: [minpool, mempool]
     steps:
     - uses: actions/checkout@v2
     - name: Get apps-halide artifacts
       uses: actions/download-artifact@v2
       with:
-        name: apps-halide-${{ matrix.num_cores }}cores
+        name: apps-halide-${{ matrix.mempool_config }}
     - name: Untar apps-halide
       run: tar --use-compress-program zstd -xf apps-halide.tzst
     - name: Get riscv-isa-sim artifacts
@@ -455,14 +455,14 @@ jobs:
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v2
       with:
-        name: verilator-model-${{ matrix.num_cores }}cores
+        name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Run Halide Apps
       env:
-        num_cores: ${{ matrix.num_cores }}
+        config: ${{ matrix.mempool_config }}
       run: |
         # Don't regenerate previously build artifacts
         touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
@@ -492,7 +492,7 @@ jobs:
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v2
       with:
-        name: verilator-model-16cores
+        name: verilator-model-minpool
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Execute tests
@@ -532,13 +532,13 @@ jobs:
       run-apps-llvm, run-apps-halide]
     strategy:
       matrix:
-        num_cores: [16, 256]
+        mempool_config: [minpool, mempool]
     steps:
     - name: Delete artifacts
       uses: geekyeggo/delete-artifact@v1
       with:
         name: |
-          verilator-model-${{ matrix.num_cores }}cores
-          apps-gcc-${{ matrix.num_cores }}cores
-          apps-llvm-${{ matrix.num_cores }}cores
-          apps-halide-${{ matrix.num_cores }}cores
+          verilator-model-${{ matrix.mempool_config }}
+          apps-gcc-${{ matrix.mempool_config }}
+          apps-llvm-${{ matrix.mempool_config }}
+          apps-halide-${{ matrix.mempool_config }}

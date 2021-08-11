@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add hierarchical AXI interconnect to the `mempool_group`
 - Integrate a `traffic_generator` into the tile
 - Add a trace visualization script `tracevis.py`
+- Add `config` flag to set specific MemPool flavor, either `minpool` or `mempool`
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
