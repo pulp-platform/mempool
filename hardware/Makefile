@@ -226,6 +226,9 @@ $(buildpath)/%.trace: $(buildpath)/%.dasm
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
 	$(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
 
+tracevis:
+	$(MEMPOOL_DIR)/scripts/tracevis.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json
+
 ############################
 # Unit tests simulation    #
 ############################

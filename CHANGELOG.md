@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add CI workflow for MemPool with 256 cores
 - Add hierarchical AXI interconnect to the `mempool_group`
 - Integrate a `traffic_generator` into the tile
+- Add a trace visualization script `tracevis.py`
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update BibTeX reference to the MemPool DATE paper
 - Rewrite the `traffic_generator` with DPI calls
 - Replace group's butterflies with logarithmic interconnects
+- Do not strip the binaries of debug symbols
 
 ## 0.4.0 - 2021-07-01
 

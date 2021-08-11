@@ -158,6 +158,8 @@ preload=/some_path/some_binary make sim
 app=hello_world make simc
 # Generate the human-readable traces after simulation is completed
 make trace
+# Generate a visualization of the traces
+app=hello_world make tracevis
 # Automatically run the benchmark (headless), extract the traces, and log the results
 app=hello_world make benchmark
 ```
@@ -177,6 +179,8 @@ to disable the use of `ccache`. Keep in mind that this will make the following c
 If the tracer is enabled, its output traces are found under `hardware/build`, for both ModelSim and Verilator simulations.
 
 Tracing can be controlled per core with a custom `trace` CSR register. The CSR is of type WARL and can only be set to zero or one. For debugging, tracing can be enabled persistently with the `snitch_trace` environment variable.
+
+To get a visualization of the traces, check out the `scripts/tracevis.py` script. It creates a JSON file that can be viewed with [Trace-Viewer](https://github.com/catapult-project/catapult/tree/master/tracing) or in Google Chrome by navigating to `about:tracing`.
 
 ## License
 MemPool is released under permissive open source licenses. Most of MemPool's source code is released under the Apache License 2.0 (`Apache-2.0`) see [`LICENSE`](LICENSE). The code in `hardware` is released under Solderpad v0.51 (`SHL-0.51`) see [`hardware/LICENSE`](hardware/LICENSE).
