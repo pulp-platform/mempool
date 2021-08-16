@@ -260,18 +260,117 @@ module snitch_read_only_cache #(
   assign demux_rsp[Cache].w_ready = 1'b0;
   assign demux_rsp[Cache].b_valid = 1'b0;
   assign demux_rsp[Cache].b = '0;
+
+  //////////////////////////////////////////////////////////////
+  // Split bursts
+  //////////////////////////////////////////////////////////////
+
+  // Demultiplex between supported and unsupported transactions.
+  axi_req_t   cache_req;
+  axi_resp_t  cache_rsp;
+  localparam int unsigned MaxTxns = 1;
+
+  // --------------------------------------------------
+  // AR Channel
+  // --------------------------------------------------
+  // See description of `ax_chan` module.
+  logic           r_cnt_dec, r_cnt_req, r_cnt_gnt;
+  axi_pkg::len_t  r_cnt_len;
+  axi_burst_splitter_ax_chan #(
+    .chan_t   ( axi_ar_chan_t ),
+    .IdWidth  ( AxiIdWidth    ),
+    .MaxTxns  ( MaxTxns       )
+  ) i_axi_burst_splitter_ar_chan (
+    .clk_i,
+    .rst_ni,
+    .ax_i           ( demux_req[Cache].ar        ),
+    .ax_valid_i     ( demux_req[Cache].ar_valid  ),
+    .ax_ready_o     ( demux_rsp[Cache].ar_ready ),
+    .ax_o           ( cache_req.ar        ),
+    .ax_valid_o     ( cache_req.ar_valid  ),
+    .ax_ready_i     ( cache_rsp.ar_ready  ),
+    .cnt_id_i       ( cache_rsp.r.id      ),
+    .cnt_len_o      ( r_cnt_len           ),
+    .cnt_set_err_i  ( 1'b0                ),
+    .cnt_err_o      (                     ),
+    .cnt_dec_i      ( r_cnt_dec           ),
+    .cnt_req_i      ( r_cnt_req           ),
+    .cnt_gnt_o      ( r_cnt_gnt           )
+  );
+
+  // --------------------------------------------------
+  // R Channel
+  // --------------------------------------------------
+  // Reconstruct `last`, feed rest through.
+  logic r_last_d, r_last_q;
+  enum logic {RFeedthrough, RWait} r_state_d, r_state_q;
+  always_comb begin
+    r_cnt_dec         = 1'b0;
+    r_cnt_req         = 1'b0;
+    r_last_d          = r_last_q;
+    r_state_d         = r_state_q;
+    cache_req.r_ready = 1'b0;
+    demux_rsp[Cache].r        = cache_rsp.r;
+    demux_rsp[Cache].r.last   = 1'b0;
+    demux_rsp[Cache].r_valid  = 1'b0;
+
+    unique case (r_state_q)
+      RFeedthrough: begin
+        // If downstream has an R beat and the R counters can give us the remaining length of
+        // that burst, ...
+        if (cache_rsp.r_valid) begin
+          r_cnt_req = 1'b1;
+          if (r_cnt_gnt) begin
+            r_last_d = (r_cnt_len == 8'd0);
+            demux_rsp[Cache].r.last   = r_last_d;
+            // Decrement the counter.
+            r_cnt_dec         = 1'b1;
+            // Try to forward the beat upstream.
+            demux_rsp[Cache].r_valid  = 1'b1;
+            if (demux_req[Cache].r_ready) begin
+              // Acknowledge downstream.
+              cache_req.r_ready = 1'b1;
+            end else begin
+              // Wait for upstream to become ready.
+              r_state_d = RWait;
+            end
+          end
+        end
+      end
+      RWait: begin
+        demux_rsp[Cache].r.last   = r_last_q;
+        demux_rsp[Cache].r_valid  = cache_rsp.r_valid;
+        if (cache_rsp.r_valid && demux_req[Cache].r_ready) begin
+          cache_req.r_ready = 1'b1;
+          r_state_d         = RFeedthrough;
+        end
+      end
+      default: /*do nothing*/;
+    endcase
+  end
+
+  // --------------------------------------------------
+  // Flip-Flops
+  // --------------------------------------------------
+  `FFARN(r_last_q, r_last_d, 1'b0, clk_i, rst_ni)
+  `FFARN(r_state_q, r_state_d, RFeedthrough, clk_i, rst_ni)
+
+
+  //////////////////////////////////////////////////////////////
+
+
   // AR channel --> Ready if cache is ready and no request with the same ID is in flight
-  assign in_id = demux_req[Cache].ar.id;
-  assign in_addr = demux_req[Cache].ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
-  assign in_valid = demux_req[Cache].ar_valid & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
-  assign demux_rsp[Cache].ar_ready = in_ready & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
+  assign in_id = cache_req.ar.id;
+  assign in_addr = cache_req.ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
+  assign in_valid = cache_req.ar_valid & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
+  assign cache_rsp.ar_ready = in_ready & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
   // R channel
-  assign demux_rsp[Cache].r.id = r_id;
-  assign demux_rsp[Cache].r.data = in_rsp_data_q >> (metadata[r_id].addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET] * AxiDataWidth);
-  assign demux_rsp[Cache].r.resp = in_rsp_error_q; // This response is already an AXI response.
-  assign demux_rsp[Cache].r.last = ~(|metadata[r_id].len);
-  assign demux_rsp[Cache].r.user = '0;
-  assign demux_rsp[Cache].r_valid = ~in_rsp_empty;
+  assign cache_rsp.r.id = r_id;
+  assign cache_rsp.r.data = in_rsp_data_q >> (metadata[r_id].addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET] * AxiDataWidth);
+  assign cache_rsp.r.resp = in_rsp_error_q; // This response is already an AXI response.
+  assign cache_rsp.r.last = ~(|metadata[r_id].len);
+  assign cache_rsp.r.user = '0;
+  assign cache_rsp.r_valid = ~in_rsp_empty;
   // Technically, we could already give the ready once in_rsp_id_q is onehot, but we need to make sure to handle fetching the ID properly
   assign in_rsp_ready = in_rsp_empty;
 
@@ -284,17 +383,17 @@ module snitch_read_only_cache #(
     if(~rst_ni) begin
       metadata <= '0;
     end else begin
-      if (demux_rsp[Cache].r_valid && demux_req[Cache].r_ready) begin
+      if (cache_rsp.r_valid && cache_req.r_ready) begin
         metadata[r_id].addr <= metadata[r_id].addr + (1 << metadata[r_id].size);
         metadata[r_id].len  <= metadata[r_id].len - 1;
-        if (demux_rsp[Cache].r.last) begin
+        if (cache_rsp.r.last) begin
           metadata[r_id].valid <= 1'b0;
         end
       end
       if (in_valid && in_ready) begin
-        metadata[in_id].addr  <= demux_req[Cache].ar.addr[0+:CFG.LINE_ALIGN];
-        metadata[in_id].len   <= demux_req[Cache].ar.len;
-        metadata[in_id].size  <= demux_req[Cache].ar.size;
+        metadata[in_id].addr  <= cache_req.ar.addr[0+:CFG.LINE_ALIGN];
+        metadata[in_id].len   <= cache_req.ar.len;
+        metadata[in_id].size  <= cache_req.ar.size;
         metadata[in_id].valid <= 1'b1;
       end
     end
@@ -313,7 +412,7 @@ module snitch_read_only_cache #(
     in_rsp_id_d = in_rsp_id_q;
     if (in_rsp_valid && in_rsp_ready) begin
       in_rsp_id_d = in_rsp_id;
-    end else if (demux_rsp[Cache].r_valid && demux_req[Cache].r_ready && demux_rsp[Cache].r.last) begin
+    end else if (cache_rsp.r_valid && cache_req.r_ready && cache_rsp.r.last) begin
       in_rsp_id_d = in_rsp_id_q & ~(1 << r_id);
     end
   end
