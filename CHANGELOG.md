@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Do not strip the binaries of debug symbols
 - Remove tile's north/east TCDM connection shuffling from the groups
 - Remove the reset synchronizer from the `mempool_cluster`
+- Changed LSU from in-order memory responses to out-of-order memory responses
+- Remove the `reorder_buffer` from the `tcdm_shim`
 
 ## 0.4.0 - 2021-07-01
 

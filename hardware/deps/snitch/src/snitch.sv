@@ -11,7 +11,9 @@
 
 // `SNITCH_ENABLE_PERF Enables mcycle, minstret performance counters (read only)
 
-module snitch #(
+module snitch
+  import snitch_pkg::meta_id_t;
+#(
   parameter logic [31:0] BootAddr  = 32'h0000_1000,
   parameter logic [31:0] MTVEC     = BootAddr, // Exception Base Address (see privileged spec 3.1.7)
   parameter bit          RVE       = 0,   // Reduced-register Extension
@@ -73,10 +75,12 @@ module snitch #(
   output logic [3:0]    data_qamo_o,
   output logic [31:0]   data_qdata_o,
   output logic [3:0]    data_qstrb_o,
+  output meta_id_t      data_qid_o,
   output logic          data_qvalid_o,
   input  logic          data_qready_i,
   input  logic [31:0]   data_pdata_i,
   input  logic          data_perror_i,
+  input  meta_id_t      data_pid_i,
   input  logic          data_pvalid_i,
   output logic          data_pready_o,
   input  logic          wake_up_sync_i, // synchronous wake-up interrupt
@@ -1540,10 +1544,12 @@ module snitch #(
     .data_qdata_o                          ,
     .data_qamo_o                           ,
     .data_qstrb_o                          ,
+    .data_qid_o                            ,
     .data_qvalid_o                         ,
     .data_qready_i                         ,
     .data_pdata_i                          ,
     .data_perror_i                         ,
+    .data_pid_i                            ,
     .data_pvalid_i                         ,
     .data_pready_o
   );

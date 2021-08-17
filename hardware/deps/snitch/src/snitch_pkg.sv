@@ -5,18 +5,21 @@
 /// Snitch Configuration.
 package snitch_pkg;
 
+  import cf_math_pkg::idx_width;
+
   localparam DataWidth                  = 32;
   localparam StrbWidth                  = DataWidth/8;
   localparam int NumFPOutstandingLoads  = 4;
   // Use a high number of outstanding loads, if running a latency-throughput analysis
   localparam int NumIntOutstandingLoads = `ifdef TRAFFIC_GEN 2048 `else 8 `endif;
-  localparam ReorderIdWidth             = $clog2(NumIntOutstandingLoads);
+  localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads);
   // Xpulpimg extension enabled?
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
 
   typedef logic [31:0]               addr_t;
   typedef logic [DataWidth-1:0]      data_t;
   typedef logic [StrbWidth-1:0]      strb_t;
+  typedef logic [MetaIdWidth-1:0]    meta_id_t;
 
   typedef struct packed {
     addr_t       BootAddress;
@@ -25,7 +28,7 @@ package snitch_pkg;
 
   typedef struct packed {
     addr_t addr;
-    logic [ReorderIdWidth-1:0] id;
+    meta_id_t id;
     logic [3:0] amo;
     logic write;
     data_t data;
@@ -34,7 +37,7 @@ package snitch_pkg;
 
   typedef struct packed {
     data_t data;
-    logic [ReorderIdWidth-1:0] id;
+    meta_id_t id;
     logic error;
   } dresp_t;
 
