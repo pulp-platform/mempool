@@ -74,13 +74,14 @@ module snitch_icache #(
 
     // Bundle the parameters up into a proper configuration struct that we can
     // pass to submodules.
+    localparam PENDING_COUNT = 8;
     localparam snitch_icache_pkg::config_t CFG = '{
         NR_FETCH_PORTS:    NR_FETCH_PORTS,
         LINE_WIDTH:        LINE_WIDTH,
         LINE_COUNT:        LINE_COUNT,
         L0_LINE_COUNT:     L0_LINE_COUNT,
         SET_COUNT:         SET_COUNT,
-        PENDING_COUNT:     2,
+        PENDING_COUNT:     PENDING_COUNT,
         FETCH_AW:          FETCH_AW,
         FETCH_DW:          FETCH_DW,
         FILL_AW:           FILL_AW,
@@ -98,7 +99,7 @@ module snitch_icache #(
         L0_EARLY_TAG_WIDTH: (L0_EARLY_TAG_WIDTH == -1) ? FETCH_AW - $clog2(LINE_WIDTH/8) : L0_EARLY_TAG_WIDTH,
         ID_WIDTH_REQ: $clog2(NR_FETCH_PORTS) + 1,
         ID_WIDTH_RESP: 2*NR_FETCH_PORTS,
-        PENDING_IW:  $clog2(2)
+        PENDING_IW:  $clog2(PENDING_COUNT)
     };
 
     // pragma translate_off
