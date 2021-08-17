@@ -26,25 +26,22 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-// Dimensions of matrix X
-#define DIM_X_M 258
-#define DIM_X_N 61
-
-// Dimensions of matrix Y
-#define DIM_Y_M (DIM_X_M - 2)
-#define DIM_Y_N (DIM_X_N - 2)
+// Dimensions of matrices X and Y
+#define DIM_M 256
+#define DIM_N 61
+#define IN_PLACE 0
 
 uint32_t *core_map;
 
 int32_t *matrix_X;
 int32_t *matrix_Y;
 
-int32_t weights[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
-int32_t *matrix_W = (int32_t *)weights;
+const int32_t weights[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
+int32_t *matrix_W[NUM_CORES / 4];
 
 void generate_gradient_matrix(int32_t **matrix, uint32_t num_rows,
                               uint32_t num_cols) {
-  int32_t *new_matrix = (int32_t *)simple_malloc(num_rows * num_cols * sizeof(int32_t));
+  int32_t *new_matrix = (int32_t *)simple_malloc(num_rows * num_cols * 4);
   for (uint32_t y = 0; y < num_rows; ++y) {
     for (uint32_t x = 0; x < num_cols; ++x) {
       new_matrix[y * num_cols + x] = (int32_t)(y + x);
@@ -67,28 +64,29 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t tile_id = core_id / 4;
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id);
+  mempool_barrier_init(core_id, num_cores);
 
   // Initialization
   mempool_init(core_id, num_cores);
 
   // Allocate tile and core maps
   if (core_id == 0) {
-    core_map = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
+    core_map = (uint32_t *)simple_malloc(num_cores * 4);
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores);
+  mempool_barrier(num_cores, num_cores * 4);
 
   // Set tile and core maps
   core_map[core_id] = core_id;
 
   // Wait for all cores
-  mempool_barrier(num_cores);
+  mempool_barrier(num_cores, num_cores * 4);
 
-  // Setup
+  // Setup: Systolic initialization and matrix_X
   if (core_id == 0) {
     printf("> Initialize\n");
 
@@ -99,39 +97,66 @@ int main() {
     systolic_init(core_map);
 
     // Create and initialize matrices
-    generate_gradient_matrix(&matrix_X, DIM_X_M, DIM_X_N);
-    matrix_Y = (int32_t *)simple_malloc(DIM_Y_M * DIM_Y_N * sizeof(int32_t));
+    generate_gradient_matrix(&matrix_X, DIM_M, DIM_N);
+    if (DIM_M > num_cores) {
+      // In-place 2D convolution not possible due to overlap
+      matrix_Y = (int32_t *)simple_malloc(DIM_M * DIM_N * 4);
+    } else {
+      if (IN_PLACE) {
+        // Save memory space by using in-place 2D convolution
+        matrix_Y = matrix_X;
+      } else {
+        // In-place 2D convolution not enabled
+        matrix_Y = (int32_t *)simple_malloc(DIM_M * DIM_N * 4);
+      }
+    }
 
     // Print out matrix X
     // printf("> Print Matrix X\n");
-    // print_matrix(matrix_X, DIM_X_M, DIM_X_N);
+    // print_matrix(matrix_X, DIM_M, DIM_N);
+  }
+
+  // Setup: Distribute weights
+  if (core_id % 4 == 1) {
+    // Get tile allocator
+    alloc_t *tile_alloc = get_alloc_tile(tile_id);
+
+    // Allocate local matrix_W
+    matrix_W[tile_id] = (int32_t *)domain_malloc(tile_alloc, 9 * 4);
+
+    // Load weights
+    for (uint32_t y = 0; y < 3; ++y) {
+      for (uint32_t x = 0; x < 3; ++x) {
+        (matrix_W[tile_id])[y * 3 + x] = weights[y][x];
+      }
+    }
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores);
+  mempool_barrier(num_cores, num_cores * 4);
 
   if (core_id == 0) {
     printf("> Start\n");
   }
 
   // Start benchmark for all cores
-  mempool_barrier(num_cores);
+  mempool_barrier(num_cores, num_cores * 4);
   mempool_start_benchmark();
 
   switch (core_id) {
   case 0:
-    systolic_conv_front(DIM_X_M, DIM_X_N, matrix_X, matrix_W, matrix_Y);
+    systolic_conv_front(DIM_M, DIM_N, matrix_X, matrix_W[tile_id], matrix_Y);
     break;
   case (NUM_CORES - 1):
-    systolic_conv_end(core_id, DIM_X_M, DIM_X_N, matrix_X, matrix_W, matrix_Y);
+    systolic_conv_end(core_id, DIM_M, DIM_N, matrix_X, matrix_W[tile_id], matrix_Y);
     break;
   default:
-    systolic_conv_mid(core_id, DIM_X_M, DIM_X_N, matrix_X, matrix_W, matrix_Y);
+    systolic_conv_mid(core_id, DIM_M, DIM_N, matrix_X, matrix_W[tile_id], matrix_Y);
   }
 
   // Stop benchmark for all cores
   mempool_stop_benchmark();
-  mempool_barrier(num_cores);
+  mempool_barrier(num_cores, num_cores * 4);
 
   // Print out benchmark
   if (core_id == 0) {
@@ -139,10 +164,10 @@ int main() {
 
     // Print out matrix Y
     // printf("> Print Matrix Y\n");
-    // print_matrix(matrix_Y, DIM_Y_M, DIM_Y_N);
+    // print_matrix(matrix_Y, DIM_M, DIM_N);
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores);
+  mempool_barrier(num_cores, num_cores * 4);
   return 0;
 }

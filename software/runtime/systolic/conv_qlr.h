@@ -20,11 +20,11 @@
  * using global code based orchestration
  */
 
-/* X is an M x N matrix, W is a 3 x 3 matrix and Y is an (M-2) x (N-2) matrix
- * Y = X * W (without zero-padding)
+/* X is an M x N matrix, W is a 3 x 3 matrix and Y is an M x N matrix
+ * Y = X * W (with zero-padding)
  * Each core loads the whole weight kernel and outputs a row of Y, while loading
- * and passing rows of X to the next core NOTE: M and N must be at least 3 and
- * the kernel size is fixed to 3 x 3
+ * and passing rows of X to the next core
+ * NOTE: M and N must be at least 3 and the kernel size is fixed to 3 x 3
  */
 
 #include "alloc.h"
@@ -82,9 +82,8 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
   int32_t weights[3][3];
   uint32_t qpush_reqs;
   register int32_t acc_y[3] = {0, 0, 0};
+  uint32_t row = 0;
   uint32_t col;
-  register uint32_t y_anchor;
-  uint32_t num_cols_y = num_cols - 2;
   volatile int32_t *qlr_cfg_t1 = (int32_t *)QLR_CFG_T1;
   volatile int32_t *qlr_cfg_t2 = (int32_t *)QLR_CFG_T2;
 
@@ -96,11 +95,8 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
   }
 
   // Calculate queue requests
-  if (num_rows == 3) {
-    // special case: kernel is at the last row
-    qpush_reqs = 0;
-  } else if (num_rows > 3) {
-    qpush_reqs = (((num_rows - 4) / NUM_CORES) + 1) * num_cols;
+  if (num_rows > 1) {
+    qpush_reqs = (((num_rows - 2) / NUM_CORES) + 1) * num_cols;
   } else {
     return;
   }
@@ -115,30 +111,73 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
     qlr_cfg_t2[QLR_CFG_TYPE] = 2;
   }
 
-  // Execute row-wise systolic 2d convolution
-  for (uint32_t row = 2; row < num_rows; row += NUM_CORES) {
-    write_csr(0, row);
-    // ------------
-    // SET Y ANCHOR
-    // ------------
-    y_anchor = (row - 2) * num_cols_y;
-    // ----------
-    // POPULATE 0
-    // ----------
+  // Special case: Execute first row of systolic 2d convolution
+  // Convolution with only the two lower weight rows
+  write_csr(0, row);
+  // --------
+  // POPULATE
+  // --------
+  // Load x vector
+  qlr_t1 = X[0];
+  qlr_t2 = X[num_cols];
+  // MACs with 2nd row of weights
+  __asm__ __volatile__("mul   %0, %1, %2"
+                       : "+r"(acc_y[1])
+                       : "r"(qlr_t1), "r"(weights[1][2]));
+  __asm__ __volatile__("mul   %0, %1, %2"
+                       : "+r"(acc_y[2])
+                       : "r"(qlr_t1), "r"(weights[1][1]));
+  __asm__ __volatile__("mul   %0, %1, %2"
+                       : "+r"(acc_y[0])
+                       : "r"(qlr_t1), "r"(weights[1][0]));
+  // MACs with 3rd row of weights
+  __asm__ __volatile__("p.mac %0, %1, %2"
+                       : "+r"(acc_y[1])
+                       : "r"(qlr_t2), "r"(weights[2][2]));
+  __asm__ __volatile__("p.mac %0, %1, %2"
+                       : "+r"(acc_y[2])
+                       : "r"(qlr_t2), "r"(weights[2][1]));
+  __asm__ __volatile__("p.mac %0, %1, %2"
+                       : "+r"(acc_y[0])
+                       : "r"(qlr_t2), "r"(weights[2][0]));
+  // ------------------
+  // CONVOLUTION BURSTS
+  // ------------------
+  for (col = 1; col < num_cols - 2; col += 3) {
+    // -----------
+    // ITERATION 0
+    // -----------
     // Load x vector
-    qlr_t0 = X[(row - 2) * num_cols + 0];
-    qlr_t1 = X[(row - 1) * num_cols + 0];
-    qlr_t2 = X[(row - 0) * num_cols + 0];
-    // MACs with 1st row of weights
-    __asm__ __volatile__("mul   %0, %1, %2"
+    qlr_t1 = X[col + 0];
+    qlr_t2 = X[num_cols + col + 0];
+    // MACs with 2nd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t1), "r"(weights[1][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
                          : "+r"(acc_y[0])
-                         : "r"(qlr_t0), "r"(weights[0][2]));
+                         : "r"(qlr_t1), "r"(weights[1][1]));
     __asm__ __volatile__("mul   %0, %1, %2"
                          : "+r"(acc_y[1])
-                         : "r"(qlr_t0), "r"(weights[0][1]));
-    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "r"(qlr_t1), "r"(weights[1][0]));
+    // MACs with 3rd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
                          : "+r"(acc_y[2])
-                         : "r"(qlr_t0), "r"(weights[0][0]));
+                         : "r"(qlr_t2), "r"(weights[2][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t2), "r"(weights[2][1]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t2), "r"(weights[2][0]));
+    // Store finished accumulation
+    Y[col - 1] = acc_y[2];
+    // -----------
+    // ITERATION 1
+    // -----------
+    // Load x vector
+    qlr_t1 = X[col + 1];
+    qlr_t2 = X[num_cols + col + 1];
     // MACs with 2nd row of weights
     __asm__ __volatile__("p.mac %0, %1, %2"
                          : "+r"(acc_y[0])
@@ -146,7 +185,7 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
     __asm__ __volatile__("p.mac %0, %1, %2"
                          : "+r"(acc_y[1])
                          : "r"(qlr_t1), "r"(weights[1][1]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
+    __asm__ __volatile__("mul   %0, %1, %2"
                          : "+r"(acc_y[2])
                          : "r"(qlr_t1), "r"(weights[1][0]));
     // MACs with 3rd row of weights
@@ -159,18 +198,150 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
     __asm__ __volatile__("p.mac %0, %1, %2"
                          : "+r"(acc_y[2])
                          : "r"(qlr_t2), "r"(weights[2][0]));
-    // ----------
-    // POPULATE 1
-    // ----------
+    // Store finished accumulation
+    Y[col + 0] = acc_y[0];
+    // -----------
+    // ITERATION 2
+    // -----------
     // Load x vector
-    qlr_t0 = X[(row - 2) * num_cols + 1];
-    qlr_t1 = X[(row - 1) * num_cols + 1];
-    qlr_t2 = X[(row - 0) * num_cols + 1];
-    // MACs with 1st row of weights
+    qlr_t1 = X[col + 2];
+    qlr_t2 = X[num_cols + col + 2];
+    // MACs with 2nd row of weights
     __asm__ __volatile__("p.mac %0, %1, %2"
                          : "+r"(acc_y[1])
-                         : "r"(qlr_t0), "r"(weights[0][2]));
+                         : "r"(qlr_t1), "r"(weights[1][2]));
     __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t1), "r"(weights[1][1]));
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t1), "r"(weights[1][0]));
+    // MACs with 3rd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t2), "r"(weights[2][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t2), "r"(weights[2][1]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t2), "r"(weights[2][0]));
+    // Store finished accumulation
+    Y[col + 1] = acc_y[1];
+  }
+  // ---------------------
+  // CONVOLUTION REMAINDER
+  // ---------------------
+  if (col == num_cols - 2) {
+    // -----------
+    // ITERATION 0
+    // -----------
+    // Load x vector
+    qlr_t1 = X[col + 0];
+    qlr_t2 = X[num_cols + col + 0];
+    // MACs with 2nd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t1), "r"(weights[1][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t1), "r"(weights[1][1]));
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t1), "r"(weights[1][0]));
+    // MACs with 3rd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t2), "r"(weights[2][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t2), "r"(weights[2][1]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t2), "r"(weights[2][0]));
+    // Store finished accumulation
+    Y[col - 1] = acc_y[2];
+    // -----------
+    // ITERATION 1
+    // -----------
+    // Load x vector
+    qlr_t1 = X[col + 1];
+    qlr_t2 = X[num_cols + col + 1];
+    // MACs with 2nd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t1), "r"(weights[1][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t1), "r"(weights[1][1]));
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t1), "r"(weights[1][0]));
+    // MACs with 3rd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t2), "r"(weights[2][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t2), "r"(weights[2][1]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t2), "r"(weights[2][0]));
+    // Store finished accumulation
+    Y[col + 0] = acc_y[0];
+    // Store partial accumulation (zero-padding)
+    Y[col + 1] = acc_y[1];
+  } else if (col == num_cols - 1) {
+    // -----------
+    // ITERATION 0
+    // -----------
+    // Load x vector
+    qlr_t1 = X[col + 0];
+    qlr_t2 = X[num_cols + col + 0];
+    // MACs with 2nd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t1), "r"(weights[1][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t1), "r"(weights[1][1]));
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t1), "r"(weights[1][0]));
+    // MACs with 3rd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t2), "r"(weights[2][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t2), "r"(weights[2][1]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t2), "r"(weights[2][0]));
+    // Store finished accumulation
+    Y[col - 1] = acc_y[2];
+    // Store partial accumulation (zero-padding)
+    Y[col + 0] = acc_y[0];
+  } else {
+    // Store partial accumulation (zero-padding)
+    Y[col - 1] = acc_y[2];
+  }
+
+  // Execute row-wise systolic 2d convolution
+  for (uint32_t row = NUM_CORES; row < num_rows; row += NUM_CORES) {
+    write_csr(0, row);
+    // --------
+    // POPULATE
+    // --------
+    // Load x vector
+    qlr_t0 = X[(row - 1) * num_cols];
+    qlr_t1 = X[(row + 0) * num_cols];
+    qlr_t2 = X[(row + 1) * num_cols];
+    // MACs with 1st row of weights
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t0), "r"(weights[0][2]));
+    __asm__ __volatile__("mul   %0, %1, %2"
                          : "+r"(acc_y[2])
                          : "r"(qlr_t0), "r"(weights[0][1]));
     __asm__ __volatile__("mul   %0, %1, %2"
@@ -199,15 +370,14 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
     // ------------------
     // CONVOLUTION BURSTS
     // ------------------
-    col = 2;
-    while (col < num_cols_y) {
+    for (col = 1; col < num_cols - 2; col += 3) {
       // -----------
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t0 = X[(row - 2) * num_cols + col + 0];
-      qlr_t1 = X[(row - 1) * num_cols + col + 0];
-      qlr_t2 = X[(row - 0) * num_cols + col + 0];
+      qlr_t0 = X[(row - 1) * num_cols + col + 0];
+      qlr_t1 = X[(row + 0) * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
                            : "+r"(acc_y[2])
@@ -239,14 +409,14 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
       // -----------
       // ITERATION 1
       // -----------
       // Load x vector
-      qlr_t0 = X[(row - 2) * num_cols + col + 1];
-      qlr_t1 = X[(row - 1) * num_cols + col + 1];
-      qlr_t2 = X[(row - 0) * num_cols + col + 1];
+      qlr_t0 = X[(row - 1) * num_cols + col + 1];
+      qlr_t1 = X[(row + 0) * num_cols + col + 1];
+      qlr_t2 = X[(row + 1) * num_cols + col + 1];
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
                            : "+r"(acc_y[0])
@@ -278,14 +448,14 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
                            : "+r"(acc_y[2])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 1] = acc_y[0];
+      Y[row * num_cols + col + 0] = acc_y[0];
       // -----------
       // ITERATION 2
       // -----------
       // Load x vector
-      qlr_t0 = X[(row - 2) * num_cols + col + 2];
-      qlr_t1 = X[(row - 1) * num_cols + col + 2];
-      qlr_t2 = X[(row - 0) * num_cols + col + 2];
+      qlr_t0 = X[(row - 1) * num_cols + col + 2];
+      qlr_t1 = X[(row + 0) * num_cols + col + 2];
+      qlr_t2 = X[(row + 1) * num_cols + col + 2];
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
                            : "+r"(acc_y[1])
@@ -317,11 +487,7 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
                            : "+r"(acc_y[0])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 2] = acc_y[1];
-      // ----------------
-      // INCREMENT COLUMN
-      // ----------------
-      col += 3;
+      Y[row * num_cols + col + 1] = acc_y[1];
     }
     // ---------------------
     // CONVOLUTION REMAINDER
@@ -331,9 +497,9 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t0 = X[(row - 2) * num_cols + col + 0];
-      qlr_t1 = X[(row - 1) * num_cols + col + 0];
-      qlr_t2 = X[(row - 0) * num_cols + col + 0];
+      qlr_t0 = X[(row - 1) * num_cols + col + 0];
+      qlr_t1 = X[(row + 0) * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
                            : "+r"(acc_y[2])
@@ -365,14 +531,14 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
       // -----------
       // ITERATION 1
       // -----------
       // Load x vector
-      qlr_t0 = X[(row - 2) * num_cols + col + 1];
-      qlr_t1 = X[(row - 1) * num_cols + col + 1];
-      qlr_t2 = X[(row - 0) * num_cols + col + 1];
+      qlr_t0 = X[(row - 1) * num_cols + col + 1];
+      qlr_t1 = X[(row + 0) * num_cols + col + 1];
+      qlr_t2 = X[(row + 1) * num_cols + col + 1];
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
                            : "+r"(acc_y[0])
@@ -404,15 +570,17 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
                            : "+r"(acc_y[2])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 1] = acc_y[0];
+      Y[row * num_cols + col + 0] = acc_y[0];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 1] = acc_y[1];
     } else if (col == num_cols - 1) {
       // -----------
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t0 = X[(row - 2) * num_cols + col + 0];
-      qlr_t1 = X[(row - 1) * num_cols + col + 0];
-      qlr_t2 = X[(row - 0) * num_cols + col + 0];
+      qlr_t0 = X[(row - 1) * num_cols + col + 0];
+      qlr_t1 = X[(row + 0) * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
                            : "+r"(acc_y[2])
@@ -444,7 +612,12 @@ void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 0] = acc_y[0];
+    } else {
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col - 1] = acc_y[2];
     }
   }
 }
@@ -455,9 +628,7 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
   int32_t weights[3][3];
   uint32_t qpopush_reqs;
   register int32_t acc_y[3] = {0, 0, 0};
-  uint32_t col;
-  register uint32_t y_anchor;
-  uint32_t num_cols_y = num_cols - 2;
+  uint32_t row, col;
   volatile int32_t *qlr_cfg_t0 = (int32_t *)QLR_CFG_T0;
   volatile int32_t *qlr_cfg_t1 = (int32_t *)QLR_CFG_T1;
   volatile int32_t *qlr_cfg_t2 = (int32_t *)QLR_CFG_T2;
@@ -470,11 +641,11 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
   }
 
   // Calculate queue requests
-  if (num_rows == kernel_id + 3) {
+  if (kernel_id == num_rows - 1) {
     // special case: kernel is at the last row
     qpopush_reqs = 0;
-  } else if (kernel_id + 3 < num_rows) {
-    qpopush_reqs = (((num_rows - (kernel_id + 4)) / NUM_CORES) + 1) * num_cols;
+  } else if (kernel_id < num_rows - 1) {
+    qpopush_reqs = (((num_rows - (kernel_id + 2)) / NUM_CORES) + 1) * num_cols;
   } else {
     return;
   }
@@ -496,69 +667,19 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
   }
 
   // Execute row-wise systolic 2d convolution
-  for (uint32_t row = kernel_id + 2; row < num_rows; row += NUM_CORES) {
+  for (row = kernel_id; row < num_rows - 1; row += NUM_CORES) {
     write_csr(0, row);
-    // ------------
-    // SET Y ANCHOR
-    // ------------
-    y_anchor = (row - 2) * num_cols_y;
-    // ---------------
-    // CONFIG LAST ROW
-    // ---------------
-    if (row == num_rows - 1) {
-      // If kernel lands at last row request one row (qpop only)
-      qlr_cfg_t0[QLR_CFG_REQ] = (int32_t)num_cols;
-      qlr_cfg_t1[QLR_CFG_REQ] = (int32_t)num_cols;
-      qlr_cfg_t0[QLR_CFG_TYPE] = 1;
-      qlr_cfg_t1[QLR_CFG_TYPE] = 1;
-    }
-    // ----------
-    // POPULATE 0
-    // ----------
+    // --------
+    // POPULATE
+    // --------
     // Load x vector
-    qlr_t2 = X[row * num_cols + 0];
+    qlr_t2 = X[(row + 1) * num_cols];
     __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
     // MACs with 1st row of weights
     __asm__ __volatile__("mul   %0, %1, %2"
-                         : "+r"(acc_y[0])
-                         : "r"(qlr_t0), "r"(weights[0][2]));
-    __asm__ __volatile__("mul   %0, %1, %2"
-                         : "+r"(acc_y[1])
-                         : "r"(qlr_t0), "r"(weights[0][1]));
-    __asm__ __volatile__("mul   %0, %1, %2"
-                         : "+r"(acc_y[2])
-                         : "r"(qlr_t0), "r"(weights[0][0]));
-    // MACs with 2nd row of weights
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[0])
-                         : "r"(qlr_t1), "r"(weights[1][2]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[1])
-                         : "r"(qlr_t1), "r"(weights[1][1]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[2])
-                         : "r"(qlr_t1), "r"(weights[1][0]));
-    // MACs with 3rd row of weights
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[0])
-                         : "r"(qlr_t2), "r"(weights[2][2]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[1])
-                         : "r"(qlr_t2), "r"(weights[2][1]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[2])
-                         : "r"(qlr_t2), "r"(weights[2][0]));
-    // ----------
-    // POPULATE 1
-    // ----------
-    // Load x vector
-    qlr_t2 = X[row * num_cols + 1];
-    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
-    // MACs with 1st row of weights
-    __asm__ __volatile__("p.mac %0, %1, %2"
                          : "+r"(acc_y[1])
                          : "r"(qlr_t0), "r"(weights[0][2]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
+    __asm__ __volatile__("mul   %0, %1, %2"
                          : "+r"(acc_y[2])
                          : "r"(qlr_t0), "r"(weights[0][1]));
     __asm__ __volatile__("mul   %0, %1, %2"
@@ -587,13 +708,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
     // ------------------
     // CONVOLUTION BURSTS
     // ------------------
-    col = 2;
-    while (col < num_cols_y) {
+    for (col = 1; col < num_cols - 2; col += 3) {
       // -----------
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -626,12 +746,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
       // -----------
       // ITERATION 1
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 1];
+      qlr_t2 = X[(row + 1) * num_cols + col + 1];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -664,12 +784,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[2])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 1] = acc_y[0];
+      Y[row * num_cols + col + 0] = acc_y[0];
       // -----------
       // ITERATION 2
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 2];
+      qlr_t2 = X[(row + 1) * num_cols + col + 2];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -702,11 +822,7 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[0])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 2] = acc_y[1];
-      // ----------------
-      // INCREMENT COLUMN
-      // ----------------
-      col += 3;
+      Y[row * num_cols + col + 1] = acc_y[1];
     }
     // ---------------------
     // CONVOLUTION REMAINDER
@@ -716,7 +832,7 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -749,12 +865,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
       // -----------
       // ITERATION 1
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 1];
+      qlr_t2 = X[(row + 1) * num_cols + col + 1];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -787,13 +903,15 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[2])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 1] = acc_y[0];
+      Y[row * num_cols + col + 0] = acc_y[0];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 1] = acc_y[1];
     } else if (col == num_cols - 1) {
       // -----------
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -826,7 +944,227 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 0] = acc_y[0];
+    } else {
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col - 1] = acc_y[2];
+    }
+  }
+  // Special case: Execute last row of systolic 2d convolution
+  if (row == num_rows - 1) {
+    // Request one row (qpop only)
+    qlr_cfg_t0[QLR_CFG_REQ] = (int32_t)num_cols;
+    qlr_cfg_t1[QLR_CFG_REQ] = (int32_t)num_cols;
+    qlr_cfg_t0[QLR_CFG_TYPE] = 1;
+    qlr_cfg_t1[QLR_CFG_TYPE] = 1;
+    // Convolution with only the two upper weight rows
+    write_csr(0, row);
+    // --------
+    // POPULATE
+    // --------
+    // Load x vector
+    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+    // MACs with 1st row of weights
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t0), "r"(weights[0][2]));
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t0), "r"(weights[0][1]));
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t0), "r"(weights[0][0]));
+    // MACs with 2nd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t1), "r"(weights[1][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t1), "r"(weights[1][1]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t1), "r"(weights[1][0]));
+    // ------------------
+    // CONVOLUTION BURSTS
+    // ------------------
+    for (col = 1; col < num_cols - 2; col += 3) {
+      // -----------
+      // ITERATION 0
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // -----------
+      // ITERATION 1
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col + 0] = acc_y[0];
+      // -----------
+      // ITERATION 2
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col + 1] = acc_y[1];
+    }
+    // ---------------------
+    // CONVOLUTION REMAINDER
+    // ---------------------
+    if (col == num_cols - 2) {
+      // -----------
+      // ITERATION 0
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // -----------
+      // ITERATION 1
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col + 0] = acc_y[0];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 1] = acc_y[1];
+    } else if (col == num_cols - 1) {
+      // -----------
+      // ITERATION 0
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 0] = acc_y[0];
+    } else {
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col - 1] = acc_y[2];
     }
   }
 }
@@ -837,9 +1175,7 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
   int32_t weights[3][3];
   uint32_t qpop_reqs;
   register int32_t acc_y[3] = {0, 0, 0};
-  uint32_t col;
-  register uint32_t y_anchor;
-  uint32_t num_cols_y = num_cols - 2;
+  uint32_t row, col;
   volatile int32_t *qlr_cfg_t0 = (int32_t *)QLR_CFG_T0;
   volatile int32_t *qlr_cfg_t1 = (int32_t *)QLR_CFG_T1;
 
@@ -851,8 +1187,8 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
   }
 
   // Calculate queue requests
-  if (kernel_id + 2 < num_rows) {
-    qpop_reqs = (((num_rows - (kernel_id + 3)) / NUM_CORES) + 1) * num_cols;
+  if (kernel_id < num_rows) {
+    qpop_reqs = (((num_rows - (kernel_id + 1)) / NUM_CORES) + 1) * num_cols;
   } else {
     return;
   }
@@ -868,59 +1204,19 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
   qlr_cfg_t1[QLR_CFG_TYPE] = 1;
 
   // Execute row-wise systolic 2d convolution
-  for (uint32_t row = kernel_id + 2; row < num_rows; row += NUM_CORES) {
+  for (row = kernel_id; row < num_rows - 1; row += NUM_CORES) {
     write_csr(0, row);
-    // ------------
-    // SET Y ANCHOR
-    // ------------
-    y_anchor = (row - 2) * num_cols_y;
-    // ----------
-    // POPULATE 0
-    // ----------
+    // --------
+    // POPULATE
+    // --------
     // Load x vector
-    qlr_t2 = X[row * num_cols + 0];
+    qlr_t2 = X[(row + 1) * num_cols];
     __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
     // MACs with 1st row of weights
     __asm__ __volatile__("mul   %0, %1, %2"
-                         : "+r"(acc_y[0])
-                         : "r"(qlr_t0), "r"(weights[0][2]));
-    __asm__ __volatile__("mul   %0, %1, %2"
-                         : "+r"(acc_y[1])
-                         : "r"(qlr_t0), "r"(weights[0][1]));
-    __asm__ __volatile__("mul   %0, %1, %2"
-                         : "+r"(acc_y[2])
-                         : "r"(qlr_t0), "r"(weights[0][0]));
-    // MACs with 2nd row of weights
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[0])
-                         : "r"(qlr_t1), "r"(weights[1][2]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[1])
-                         : "r"(qlr_t1), "r"(weights[1][1]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[2])
-                         : "r"(qlr_t1), "r"(weights[1][0]));
-    // MACs with 3rd row of weights
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[0])
-                         : "r"(qlr_t2), "r"(weights[2][2]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[1])
-                         : "r"(qlr_t2), "r"(weights[2][1]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
-                         : "+r"(acc_y[2])
-                         : "r"(qlr_t2), "r"(weights[2][0]));
-    // ----------
-    // POPULATE 1
-    // ----------
-    // Load x vector
-    qlr_t2 = X[row * num_cols + 1];
-    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
-    // MACs with 1st row of weights
-    __asm__ __volatile__("p.mac %0, %1, %2"
                          : "+r"(acc_y[1])
                          : "r"(qlr_t0), "r"(weights[0][2]));
-    __asm__ __volatile__("p.mac %0, %1, %2"
+    __asm__ __volatile__("mul   %0, %1, %2"
                          : "+r"(acc_y[2])
                          : "r"(qlr_t0), "r"(weights[0][1]));
     __asm__ __volatile__("mul   %0, %1, %2"
@@ -949,13 +1245,12 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
     // ------------------
     // CONVOLUTION BURSTS
     // ------------------
-    col = 2;
-    while (col < num_cols_y) {
+    for (col = 1; col < num_cols - 2; col += 3) {
       // -----------
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -988,12 +1283,12 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
       // -----------
       // ITERATION 1
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 1];
+      qlr_t2 = X[(row + 1) * num_cols + col + 1];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -1026,12 +1321,12 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[2])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 1] = acc_y[0];
+      Y[row * num_cols + col + 0] = acc_y[0];
       // -----------
       // ITERATION 2
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 2];
+      qlr_t2 = X[(row + 1) * num_cols + col + 2];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -1064,11 +1359,7 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[0])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 2] = acc_y[1];
-      // ----------------
-      // INCREMENT COLUMN
-      // ----------------
-      col += 3;
+      Y[row * num_cols + col + 1] = acc_y[1];
     }
     // ---------------------
     // CONVOLUTION REMAINDER
@@ -1078,7 +1369,7 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -1111,12 +1402,12 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
       // -----------
       // ITERATION 1
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 1];
+      qlr_t2 = X[(row + 1) * num_cols + col + 1];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -1149,13 +1440,15 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[2])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 1] = acc_y[0];
+      Y[row * num_cols + col + 0] = acc_y[0];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 1] = acc_y[1];
     } else if (col == num_cols - 1) {
       // -----------
       // ITERATION 0
       // -----------
       // Load x vector
-      qlr_t2 = X[row * num_cols + col + 0];
+      qlr_t2 = X[(row + 1) * num_cols + col + 0];
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
       // MACs with 1st row of weights
       __asm__ __volatile__("p.mac %0, %1, %2"
@@ -1188,7 +1481,222 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
                            : "+r"(acc_y[1])
                            : "r"(qlr_t2), "r"(weights[2][0]));
       // Store finished accumulation
-      Y[y_anchor + (col - 2) + 0] = acc_y[2];
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 0] = acc_y[0];
+    } else {
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col - 1] = acc_y[2];
+    }
+  }
+  // Special case: Execute last row of systolic 2d convolution
+  if (row == num_rows - 1) {
+    // Convolution with only the two upper weight rows
+    write_csr(0, row);
+    // --------
+    // POPULATE
+    // --------
+    // Load x vector
+    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+    // MACs with 1st row of weights
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t0), "r"(weights[0][2]));
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t0), "r"(weights[0][1]));
+    __asm__ __volatile__("mul   %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t0), "r"(weights[0][0]));
+    // MACs with 2nd row of weights
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[1])
+                         : "r"(qlr_t1), "r"(weights[1][2]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[2])
+                         : "r"(qlr_t1), "r"(weights[1][1]));
+    __asm__ __volatile__("p.mac %0, %1, %2"
+                         : "+r"(acc_y[0])
+                         : "r"(qlr_t1), "r"(weights[1][0]));
+    // ------------------
+    // CONVOLUTION BURSTS
+    // ------------------
+    for (col = 1; col < num_cols - 2; col += 3) {
+      // -----------
+      // ITERATION 0
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // -----------
+      // ITERATION 1
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col + 0] = acc_y[0];
+      // -----------
+      // ITERATION 2
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col + 1] = acc_y[1];
+    }
+    // ---------------------
+    // CONVOLUTION REMAINDER
+    // ---------------------
+    if (col == num_cols - 2) {
+      // -----------
+      // ITERATION 0
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // -----------
+      // ITERATION 1
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col + 0] = acc_y[0];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 1] = acc_y[1];
+    } else if (col == num_cols - 1) {
+      // -----------
+      // ITERATION 0
+      // -----------
+      // Load x vector
+      __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));
+      // MACs with 1st row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t0), "r"(weights[0][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t0), "r"(weights[0][1]));
+      __asm__ __volatile__("mul   %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t0), "r"(weights[0][0]));
+      // MACs with 2nd row of weights
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[2])
+                           : "r"(qlr_t1), "r"(weights[1][2]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[0])
+                           : "r"(qlr_t1), "r"(weights[1][1]));
+      __asm__ __volatile__("p.mac %0, %1, %2"
+                           : "+r"(acc_y[1])
+                           : "r"(qlr_t1), "r"(weights[1][0]));
+      // Store finished accumulation
+      Y[row * num_cols + col - 1] = acc_y[2];
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col + 0] = acc_y[0];
+    } else {
+      // Store partial accumulation (zero-padding)
+      Y[row * num_cols + col - 1] = acc_y[2];
     }
   }
 }
