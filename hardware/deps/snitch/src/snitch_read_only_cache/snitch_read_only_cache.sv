@@ -41,6 +41,7 @@ module snitch_read_only_cache #(
 ) (
   input  logic clk_i,
   input  logic rst_ni,
+  input  logic enable_i,
   input  logic flush_valid_i,
   output logic flush_ready_o,
   input  logic [AxiAddrWidth-1:0] start_addr_i [NrAddrRules],
@@ -171,8 +172,20 @@ module snitch_read_only_cache #(
 
   // select logic
   always_comb begin
-    // TODO(zarubaf): Cache selection logic.
+    // Cache selection logic.
     slv_ar_select = dec_ar;
+    // Bypass all atomic requests
+    if (axi_slv_req_i.ar.lock) begin
+      slv_ar_select = Bypass;
+    end
+    // Wrapping bursts are currently not supported.
+    if (axi_slv_req_i.ar.burst == axi_pkg::BURST_WRAP) begin
+      slv_ar_select = Bypass;
+    end
+    // Bypass cache if disabled
+    if (enable_i == 1'b0) begin
+      slv_ar_select = Bypass;
+    end
   end
 
   localparam PendingCount = 2**AxiIdWidth; // TODO: Necessary for now to support all IDs requesting the same address in the handler
