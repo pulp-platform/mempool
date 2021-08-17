@@ -28,20 +28,6 @@ module mempool_cluster
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
 );
 
-  /***********
-   *  Reset  *
-   ***********/
-
-  logic rst_n;
-  rstgen_bypass i_rstgen (
-    .clk_i           (clk_i       ),
-    .rst_ni          (rst_ni      ),
-    .rst_test_mode_ni(rst_ni      ),
-    .test_mode_i     (testmode_i  ),
-    .init_no         (/* Unused */),
-    .rst_no          (rst_n       )
-  );
-
   /************
    *  Groups  *
    ************/
@@ -93,7 +79,7 @@ module mempool_cluster
       .BootAddr    (BootAddr    )
     ) i_group (
       .clk_i                             (clk_i                                            ),
-      .rst_ni                            (rst_n                                            ),
+      .rst_ni                            (rst_ni                                           ),
       .testmode_i                        (testmode_i                                       ),
       .scan_enable_i                     (scan_enable_i                                    ),
       .scan_data_i                       (/* Unconnected */                                ),
