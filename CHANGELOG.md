@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Replace group's butterflies with logarithmic interconnects
 - Do not strip the binaries of debug symbols
 - Remove tile's north/east TCDM connection shuffling from the groups
+- Remove the reset synchronizer from the `mempool_cluster`
 
 ## 0.4.0 - 2021-07-01
 
