@@ -317,10 +317,9 @@ module mempool_tb;
         for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_snitch_ideal_cache
           addr_t addr;
           data_t data;
-          assign addr = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache];
+          assign addr = dut.ideal_inst_addr[g*NumTilesPerGroup*NumCoresPerTile+t*NumCoresPerTile+c];
           assign data = dut.l2_mem.sram[addr[L2ByteOffset +: dut.L2AddrWidth]] >> (8 * addr[L2ByteOffset-1:0]);
-          assign dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache] = data;
-          assign dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache] = '1;
+          assign dut.ideal_inst_data[g*NumTilesPerGroup*NumCoresPerTile+t*NumCoresPerTile+c] = data;
         end
       end
     end

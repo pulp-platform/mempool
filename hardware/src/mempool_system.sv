@@ -72,19 +72,29 @@ module mempool_system
    *  MemPool Cluster  *
    ********************/
 
+  addr_t [NumCores-1:0] ideal_inst_addr;
+  data_t [NumCores-1:0] ideal_inst_data;
+
+  if (!IdealInstructionInterface) begin: gen_drive_ideal_instr
+    assign ideal_inst_data = '0;
+  end
+  // else driven by testbench
+
   mempool_cluster #(
     .TCDMBaseAddr(TCDMBaseAddr),
     .BootAddr    (BootAddr    )
   ) i_mempool_cluster (
-    .clk_i         (clk_i                          ),
-    .rst_ni        (rst_ni                         ),
-    .wake_up_i     (wake_up                        ),
-    .testmode_i    (1'b0                           ),
-    .scan_enable_i (1'b0                           ),
-    .scan_data_i   (1'b0                           ),
-    .scan_data_o   (/* Unused */                   ),
-    .axi_mst_req_o (axi_mst_req[NumAXIMasters-2:0] ),
-    .axi_mst_resp_i(axi_mst_resp[NumAXIMasters-2:0])
+    .clk_i            (clk_i                          ),
+    .rst_ni           (rst_ni                         ),
+    .wake_up_i        (wake_up                        ),
+    .testmode_i       (1'b0                           ),
+    .scan_enable_i    (1'b0                           ),
+    .scan_data_i      (1'b0                           ),
+    .scan_data_o      (/* Unused */                   ),
+    .ideal_inst_addr_o(ideal_inst_addr                ),
+    .ideal_inst_data_i(ideal_inst_data                ),
+    .axi_mst_req_o    (axi_mst_req[NumAXIMasters-2:0] ),
+    .axi_mst_resp_i   (axi_mst_resp[NumAXIMasters-2:0])
   );
 
   /**********************

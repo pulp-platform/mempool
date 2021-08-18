@@ -20,6 +20,9 @@ module mempool_cluster_wrap
   input  logic                               scan_enable_i,
   input  logic                               scan_data_i,
   output logic                               scan_data_o,
+  // Ideal Instruction Interface
+  output addr_t          [NumCores-1:0]      ideal_inst_addr_o,
+  input  data_t          [NumCores-1:0]      ideal_inst_data_i,
   // Wake up signal
   input  logic           [NumCores-1:0]      wake_up_i,
   // AXI Interface
@@ -35,15 +38,17 @@ module mempool_cluster_wrap
     .TCDMBaseAddr(TCDMBaseAddr),
     .BootAddr    (BootAddr    )
   ) i_mempool_cluster (
-    .clk_i         (clk_i         ),
-    .rst_ni        (rst_ni        ),
-    .testmode_i    (testmode_i    ),
-    .scan_enable_i (scan_enable_i ),
-    .scan_data_i   (scan_data_i   ),
-    .scan_data_o   (scan_data_o   ),
-    .wake_up_i     ('0            ),
-    .axi_mst_req_o (axi_mst_req_o ),
-    .axi_mst_resp_i(axi_mst_resp_i)
+    .clk_i            (clk_i            ),
+    .rst_ni           (rst_ni           ),
+    .testmode_i       (testmode_i       ),
+    .scan_enable_i    (scan_enable_i    ),
+    .scan_data_i      (scan_data_i      ),
+    .scan_data_o      (scan_data_o      ),
+    .ideal_inst_addr_o(ideal_inst_addr_o),
+    .ideal_inst_data_i(ideal_inst_data_i),
+    .wake_up_i        ('0               ),
+    .axi_mst_req_o    (axi_mst_req_o    ),
+    .axi_mst_resp_i   (axi_mst_resp_i   )
   );
 
 endmodule : mempool_cluster_wrap
