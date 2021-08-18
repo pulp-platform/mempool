@@ -42,7 +42,9 @@ verilator_top   ?= mempool_tb_verilator
 # Python
 python          ?= python3
 # Enable tracing
-snitch_trace    ?= 0
+snitch_trace    ?= 1
+# Ideal instruction path
+ideal_instr     ?= 0
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -73,13 +75,17 @@ ifndef result_dir
 	result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)")
 endif
 
+ifeq (1, $(ideal_instr))
+  boot_addr = $(l2_base)
+endif
+
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 vlog_defs += -DL2_BASE="32'h$(l2_base)" -DL2_SIZE="32'h$(l2_size)"
 vlog_defs += -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
-vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
+vlog_defs += -DSNITCH_TRACE=$(snitch_trace) -DIDEAL_INSTR=$(ideal_instr)
 
 # Traffic generation enabled
 ifdef tg

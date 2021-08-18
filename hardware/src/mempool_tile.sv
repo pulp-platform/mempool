@@ -161,49 +161,63 @@ module mempool_tile
   logic  [NumCaches-1:0]                      refill_plast;
   logic  [NumCaches-1:0]                      refill_pready;
 
-  for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
-    snitch_icache #(
-      .NR_FETCH_PORTS     (NumCoresPerCache                                    ),
-      /// Cache Line Width
-      .L0_LINE_COUNT      (4                                                   ),
-      .LINE_WIDTH         (ICacheLineWidth                                     ),
-      .LINE_COUNT         (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8) ),
-      .SET_COUNT          (ICacheSets                                          ),
-      .FETCH_AW           (AddrWidth                                           ),
-      .FETCH_DW           (DataWidth                                           ),
-      .FILL_AW            (AddrWidth                                           ),
-      .FILL_DW            (AxiDataWidth                                        ),
-      .L1_TAG_SCM         (1                                                   ),
-      /// Make the early cache latch-based. This reduces latency at the cost of
-      /// increased combinatorial path lengths and the hassle of having latches in
-      /// the design.
-      .EARLY_LATCH        (1                                                   ),
-      .L0_EARLY_TAG_WIDTH (11                                                  ),
-      .ISO_CROSSING       (0                                                   )
-    ) i_snitch_icache (
-      .clk_i                (clk_i                   ),
-      .clk_d2_i             (clk_i                   ),
-      .rst_ni               (rst_ni                  ),
-      .enable_prefetching_i (snitch_inst_valid[c]    ),
-      .icache_events_o      (/* Unused */            ),
-      .flush_valid_i        (1'b0                    ),
-      .flush_ready_o        (/* Unused */            ),
-      .inst_addr_i          (snitch_inst_addr[c]     ),
-      .inst_data_o          (snitch_inst_data[c]     ),
-      .inst_cacheable_i     ({NumCoresPerCache{1'b1}}),
-      .inst_valid_i         (snitch_inst_valid[c]    ),
-      .inst_ready_o         (snitch_inst_ready[c]    ),
-      .inst_error_o         (/* Unused */            ),
-      .refill_qaddr_o       (refill_qaddr[c]         ),
-      .refill_qlen_o        (refill_qlen[c]          ),
-      .refill_qvalid_o      (refill_qvalid[c]        ),
-      .refill_qready_i      (refill_qready[c]        ),
-      .refill_pdata_i       (refill_pdata[c]         ),
-      .refill_perror_i      (refill_perror[c]        ),
-      .refill_pvalid_i      (refill_pvalid[c]        ),
-      .refill_plast_i       (refill_plast[c]         ),
-      .refill_pready_o      (refill_pready[c]        )
-    );
+  localparam int NumWords = L2Size/4;
+  data_t sram [NumWords-1:0];
+
+  if (!IdealInstructionInterface) begin: gen_snitch_icache
+    for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
+      snitch_icache #(
+        .NR_FETCH_PORTS     (NumCoresPerCache                                    ),
+        /// Cache Line Width
+        .L0_LINE_COUNT      (4                                                   ),
+        .LINE_WIDTH         (ICacheLineWidth                                     ),
+        .LINE_COUNT         (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8) ),
+        .SET_COUNT          (ICacheSets                                          ),
+        .FETCH_AW           (AddrWidth                                           ),
+        .FETCH_DW           (DataWidth                                           ),
+        .FILL_AW            (AddrWidth                                           ),
+        .FILL_DW            (AxiDataWidth                                        ),
+        .L1_TAG_SCM         (1                                                   ),
+        /// Make the early cache latch-based. This reduces latency at the cost of
+        /// increased combinatorial path lengths and the hassle of having latches in
+        /// the design.
+        .EARLY_LATCH        (1                                                   ),
+        .L0_EARLY_TAG_WIDTH (11                                                  ),
+        .ISO_CROSSING       (0                                                   )
+      ) i_snitch_icache (
+        .clk_i                (clk_i                   ),
+        .clk_d2_i             (clk_i                   ),
+        .rst_ni               (rst_ni                  ),
+        .enable_prefetching_i (snitch_inst_valid[c]    ),
+        .icache_events_o      (/* Unused */            ),
+        .flush_valid_i        (1'b0                    ),
+        .flush_ready_o        (/* Unused */            ),
+        .inst_addr_i          (snitch_inst_addr[c]     ),
+        .inst_data_o          (snitch_inst_data[c]     ),
+        .inst_cacheable_i     ({NumCoresPerCache{1'b1}}),
+        .inst_valid_i         (snitch_inst_valid[c]    ),
+        .inst_ready_o         (snitch_inst_ready[c]    ),
+        .inst_error_o         (/* Unused */            ),
+        .refill_qaddr_o       (refill_qaddr[c]         ),
+        .refill_qlen_o        (refill_qlen[c]          ),
+        .refill_qvalid_o      (refill_qvalid[c]        ),
+        .refill_qready_i      (refill_qready[c]        ),
+        .refill_pdata_i       (refill_pdata[c]         ),
+        .refill_perror_i      (refill_perror[c]        ),
+        .refill_pvalid_i      (refill_pvalid[c]        ),
+        .refill_plast_i       (refill_plast[c]         ),
+        .refill_pready_o      (refill_pready[c]        )
+      );
+    end
+  end else begin: gen_snitch_ideal_cache
+    for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_snitch_ideal_cache
+      assign snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache]  = sram[snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache][2 +: 12]];
+      assign snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache] = '1;
+    end
+    assign refill_qaddr  = '0;
+    assign refill_qlen   = '0;
+    assign refill_qvalid = '0;
+    assign refill_pready = '0;
   end
 
   /******************
