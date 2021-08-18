@@ -192,6 +192,9 @@ package mempool_pkg;
     logic trans_complete;
   } dma_meta_t;
 
+  // Replaces core with a traffic generator
+  parameter bit IdealInstructionInterface  = `ifdef IDEAL_INSTR `IDEAL_INSTR `else 0 `endif;
+
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/

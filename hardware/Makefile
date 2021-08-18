@@ -46,7 +46,9 @@ verilator_top   ?= mempool_tb_verilator
 # Python
 python          ?= python3
 # Enable tracing
-snitch_trace    ?= 0
+snitch_trace    ?= 1
+# Ideal instruction path
+ideal_instr     ?= 0
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -84,13 +86,17 @@ ifndef result_dir
 	result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)")
 endif
 
+ifeq (1, $(ideal_instr))
+  boot_addr = $(l2_base)
+endif
+
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DNUM_GROUPS=$(num_groups) -DBANKING_FACTOR=$(banking_factor)
 vlog_defs += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
 vlog_defs += -DBOOT_ADDR=$(boot_addr) -DXPULPIMG=$(xpulpimg)
-vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
+vlog_defs += -DSNITCH_TRACE=$(snitch_trace) -DIDEAL_INSTR=$(ideal_instr)
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)

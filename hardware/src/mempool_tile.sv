@@ -165,60 +165,74 @@ module mempool_tile
   axi_core_req_t  [NumCaches-1:0] axi_cache_req_d, axi_cache_req_q;
   axi_core_resp_t [NumCaches-1:0] axi_cache_resp_d, axi_cache_resp_q;
 
-  for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
-    snitch_icache #(
-      .NR_FETCH_PORTS     (NumCoresPerCache                                    ),
-      /// Cache Line Width
-      .L0_LINE_COUNT      (4                                                   ),
-      .LINE_WIDTH         (ICacheLineWidth                                     ),
-      .LINE_COUNT         (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8) ),
-      .SET_COUNT          (ICacheSets                                          ),
-      .FETCH_AW           (AddrWidth                                           ),
-      .FETCH_DW           (DataWidth                                           ),
-      .FILL_AW            (AddrWidth                                           ),
-      .FILL_DW            (AxiDataWidth                                        ),
-      .L1_TAG_SCM         (1                                                   ),
-      /// Make the early cache latch-based. This reduces latency at the cost of
-      /// increased combinatorial path lengths and the hassle of having latches in
-      /// the design.
-      .EARLY_LATCH        (1                                                   ),
-      .L0_EARLY_TAG_WIDTH (11                                                  ),
-      .ISO_CROSSING       (0                                                   ),
-      .axi_req_t          (axi_core_req_t                                      ),
-      .axi_rsp_t          (axi_core_resp_t                                     )
-    ) i_snitch_icache (
-      .clk_i                (clk_i                   ),
-      .clk_d2_i             (clk_i                   ),
-      .rst_ni               (rst_ni                  ),
-      .enable_prefetching_i (1'b1                    ),
-      .icache_events_o      (/* Unused */            ),
-      .flush_valid_i        (1'b0                    ),
-      .flush_ready_o        (/* Unused */            ),
-      .inst_addr_i          (snitch_inst_addr[c]     ),
-      .inst_data_o          (snitch_inst_data[c]     ),
-      .inst_cacheable_i     ({NumCoresPerCache{1'b1}}),
-      .inst_valid_i         (snitch_inst_valid[c]    ),
-      .inst_ready_o         (snitch_inst_ready[c]    ),
-      .inst_error_o         (/* Unused */            ),
-      .axi_req_o            (axi_cache_req_d[c]      ),
-      .axi_rsp_i            (axi_cache_resp_q[c]     )
-    );
-    axi_cut #(
-      .aw_chan_t (axi_core_aw_t  ),
-      .w_chan_t  (axi_core_w_t   ),
-      .b_chan_t  (axi_core_b_t   ),
-      .ar_chan_t (axi_core_ar_t  ),
-      .r_chan_t  (axi_core_r_t   ),
-      .axi_req_t (axi_core_req_t ),
-      .axi_resp_t(axi_core_resp_t)
-    ) axi_cache_slice (
-      .clk_i     (clk_i              ),
-      .rst_ni    (rst_ni             ),
-      .slv_req_i (axi_cache_req_d[c] ),
-      .slv_resp_o(axi_cache_resp_q[c]),
-      .mst_req_o (axi_cache_req_q[c] ),
-      .mst_resp_i(axi_cache_resp_d[c])
-    );
+  localparam int NumWords = L2Size/4;
+  data_t sram [NumWords-1:0];
+
+  if (!IdealInstructionInterface) begin: gen_snitch_icache
+    for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
+      snitch_icache #(
+        .NR_FETCH_PORTS     (NumCoresPerCache                                    ),
+        /// Cache Line Width
+        .L0_LINE_COUNT      (4                                                   ),
+        .LINE_WIDTH         (ICacheLineWidth                                     ),
+        .LINE_COUNT         (ICacheSizeByte / (ICacheSets * ICacheLineWidth / 8) ),
+        .SET_COUNT          (ICacheSets                                          ),
+        .FETCH_AW           (AddrWidth                                           ),
+        .FETCH_DW           (DataWidth                                           ),
+        .FILL_AW            (AddrWidth                                           ),
+        .FILL_DW            (AxiDataWidth                                        ),
+        .L1_TAG_SCM         (1                                                   ),
+        /// Make the early cache latch-based. This reduces latency at the cost of
+        /// increased combinatorial path lengths and the hassle of having latches in
+        /// the design.
+        .EARLY_LATCH        (1                                                   ),
+        .L0_EARLY_TAG_WIDTH (11                                                  ),
+        .ISO_CROSSING       (0                                                   ),
+        .axi_req_t          (axi_core_req_t                                      ),
+        .axi_rsp_t          (axi_core_resp_t                                     )
+      ) i_snitch_icache (
+        .clk_i                (clk_i                   ),
+        .clk_d2_i             (clk_i                   ),
+        .rst_ni               (rst_ni                  ),
+        .enable_prefetching_i (1'b1                    ),
+        .icache_events_o      (/* Unused */            ),
+        .flush_valid_i        (1'b0                    ),
+        .flush_ready_o        (/* Unused */            ),
+        .inst_addr_i          (snitch_inst_addr[c]     ),
+        .inst_data_o          (snitch_inst_data[c]     ),
+        .inst_cacheable_i     ({NumCoresPerCache{1'b1}}),
+        .inst_valid_i         (snitch_inst_valid[c]    ),
+        .inst_ready_o         (snitch_inst_ready[c]    ),
+        .inst_error_o         (/* Unused */            ),
+        .axi_req_o            (axi_cache_req_d[c]      ),
+        .axi_rsp_i            (axi_cache_resp_q[c]     )
+      );
+      axi_cut #(
+        .aw_chan_t (axi_core_aw_t  ),
+        .w_chan_t  (axi_core_w_t   ),
+        .b_chan_t  (axi_core_b_t   ),
+        .ar_chan_t (axi_core_ar_t  ),
+        .r_chan_t  (axi_core_r_t   ),
+        .axi_req_t (axi_core_req_t ),
+        .axi_resp_t(axi_core_resp_t)
+      ) axi_cache_slice (
+        .clk_i     (clk_i              ),
+        .rst_ni    (rst_ni             ),
+        .slv_req_i (axi_cache_req_d[c] ),
+        .slv_resp_o(axi_cache_resp_q[c]),
+        .mst_req_o (axi_cache_req_q[c] ),
+        .mst_resp_i(axi_cache_resp_d[c])
+      );
+    end
+  end else begin: gen_snitch_ideal_cache
+    for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_snitch_ideal_cache
+      assign snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache]  = sram[snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache][2 +: 12]];
+      assign snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache] = '1;
+    end
+    assign refill_qaddr  = '0;
+    assign refill_qlen   = '0;
+    assign refill_qvalid = '0;
+    assign refill_pready = '0;
   end
 
   /******************
