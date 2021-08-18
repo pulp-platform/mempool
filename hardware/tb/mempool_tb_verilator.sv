@@ -107,6 +107,24 @@ module mempool_tb_verilator (
     end
   end
 
+  /*********************************
+   *  Ideal Instruction Interface  *
+   *********************************/
+  if (IdealInstructionInterface) begin
+    for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_snitch_ideal_cache
+      for (genvar t = 0; unsigned'(t) < NumTilesPerGroup; t++) begin: gen_snitch_ideal_cache
+        for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_snitch_ideal_cache
+          addr_t addr;
+          data_t data;
+          assign addr = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache];
+          assign data = dut.l2_mem.sram[addr[L2ByteOffset +: dut.L2AddrWidth]] >> (8 * addr[L2ByteOffset-1:0]);
+          assign dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache] = data;
+          assign dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache] = '1;
+        end
+      end
+    end
+  end
+
   // TODO read EOC value with DPI
 
 endmodule : mempool_tb_verilator
