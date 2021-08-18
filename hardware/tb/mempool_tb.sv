@@ -332,46 +332,21 @@ module mempool_tb;
     end : l2_init
   end : gen_l2_banks_init
 
-  /**************************************
-   *  Ideal Instruction Initialization  *
-   **************************************/
-
-  for (genvar g = 0; g < NumGroups; g++) begin
-    for (genvar t = 0; t < NumTilesPerGroup; t++) begin
-      initial begin : init_ideal_instr
-        automatic axi_data_t mem_row;
-        byte buffer [];
-        addr_t address;
-        addr_t length;
-        string binary;
-        int IdealInstrBeWidth = 4;
-
-        // Initialize memories
-        void'($value$plusargs("PRELOAD=%s", binary));
-        if (binary != "") begin
-          // Read ELF
-          void'(read_elf(binary));
-          $display("Loading %s", binary);
-          while (get_section(address, length)) begin
-            // Read sections
-            automatic int nwords = (length + IdealInstrBeWidth - 1)/IdealInstrBeWidth;
-            $display("Loading section %x of length %x", address, length);
-            buffer = new[nwords * IdealInstrBeWidth];
-            void'(read_section(address, buffer));
-            // Initializing memories
-            for (int w = 0; w < nwords; w++) begin
-              mem_row = '0;
-              for (int b = 0; b < IdealInstrBeWidth; b++) begin
-                mem_row[8 * b +: 8] = buffer[w * IdealInstrBeWidth + b];
-              end
-              if (address >= dut.L2MemoryBaseAddr && address < dut.L2MemoryEndAddr)
-                    dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.sram[(address - dut.L2MemoryBaseAddr + (w << 2)) >> 2] = mem_row;
-              else
-                $display("Cannot initialize address %x, which doesn't fall into the L2 region.", address);
-            end
-          end
+  /*********************************
+   *  Ideal Instruction Interface  *
+   *********************************/
+  if (IdealInstructionInterface) begin
+    for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_snitch_ideal_cache
+      for (genvar t = 0; unsigned'(t) < NumTilesPerGroup; t++) begin: gen_snitch_ideal_cache
+        for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_snitch_ideal_cache
+          addr_t addr;
+          data_t data;
+          assign addr = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache];
+          assign data = dut.l2_mem.sram[addr[L2ByteOffset +: dut.L2AddrWidth]] >> (8 * addr[L2ByteOffset-1:0]);
+          assign dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache] = data;
+          assign dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache] = '1;
         end
-      end : init_ideal_instr
+      end
     end
   end
 

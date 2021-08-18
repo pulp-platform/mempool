@@ -165,9 +165,6 @@ module mempool_tile
   axi_core_req_t  [NumCaches-1:0] axi_cache_req_d, axi_cache_req_q;
   axi_core_resp_t [NumCaches-1:0] axi_cache_resp_d, axi_cache_resp_q;
 
-  localparam int NumWords = L2Size/4;
-  data_t sram [NumWords-1:0];
-
   if (!IdealInstructionInterface) begin: gen_snitch_icache
     for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
       snitch_icache #(
@@ -225,10 +222,8 @@ module mempool_tile
       );
     end
   end else begin: gen_snitch_ideal_cache
-    for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_snitch_ideal_cache
-      assign snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache]  = sram[snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache][2 +: 12]];
-      assign snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache] = '1;
-    end
+    // snitch_inst_data  driven by testbench
+    // snitch_inst_ready driven by testbench
     assign refill_qaddr  = '0;
     assign refill_qlen   = '0;
     assign refill_qvalid = '0;
