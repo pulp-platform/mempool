@@ -49,6 +49,9 @@ module mempool_tile
   // AXI Interface
   output `STRUCT_PORT(axi_tile_req_t)                      axi_mst_req_o,
   input  `STRUCT_PORT(axi_tile_resp_t)                     axi_mst_resp_i,
+  // Ideal Instruction Interface
+  output addr_t             [NumCoresPerTile-1:0]     ideal_inst_addr_o,
+  input  data_t             [NumCoresPerTile-1:0]     ideal_inst_data_i,
   // Wake up interface
   input  logic              [NumCoresPerTile-1:0]          wake_up_i
 );
@@ -221,7 +224,13 @@ module mempool_tile
         .mst_resp_i(axi_cache_resp_d[c])
       );
     end
+    assign ideal_inst_addr_o = '0;
   end else begin: gen_snitch_ideal_cache
+    for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_snitch_ideal_cache
+      assign snitch_inst_data[c/NumCoresPerCache][c%NumCoresPerCache]  = ideal_inst_data_i[c];
+      assign snitch_inst_ready[c/NumCoresPerCache][c%NumCoresPerCache] = 1'b1;
+      assign ideal_inst_addr_o[c] = snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache];
+    end
     // snitch_inst_data  driven by testbench
     // snitch_inst_ready driven by testbench
     assign refill_qaddr  = '0;
@@ -993,3 +1002,127 @@ module mempool_tile
     $error("AxiDataWidth needs to be larger than DataWidth!");
 
 endmodule : mempool_tile
+
+/*****************
+ *    WRAPPER    *
+ *****************/
+/*verilator lint_off DECLFILENAME*/
+
+`include "mempool/mempool.svh"
+
+module mempool_tile_wrap
+  import mempool_pkg::*;
+  import cf_math_pkg::idx_width;
+#(
+  // TCDM
+  parameter addr_t       TCDMBaseAddr    = 32'b0,
+  // Boot address
+  parameter logic [31:0] BootAddr        = 32'h0000_1000,
+  // Dependent parameters. DO NOT CHANGE.
+  parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
+) (
+  // Clock and reset
+  input  logic                                       clk_i,
+  input  logic                                       rst_ni,
+  // Scan chain
+  input  logic                                       scan_enable_i,
+  input  logic                                       scan_data_i,
+  output logic                                       scan_data_o,
+  // Tile ID
+  input  logic [idx_width(NumTiles)-1:0]             tile_id_i,
+  // TCDM Master interfaces
+  output `STRUCT_PORT(tcdm_master_req_t)             tcdm_master_north_req_o,
+  output logic                                       tcdm_master_north_req_valid_o,
+  input  logic                                       tcdm_master_north_req_ready_i,
+  input  `STRUCT_PORT(tcdm_master_resp_t)            tcdm_master_north_resp_i,
+  input  logic                                       tcdm_master_north_resp_valid_i,
+  output logic                                       tcdm_master_north_resp_ready_o,
+  output `STRUCT_PORT(tcdm_master_req_t)             tcdm_master_northeast_req_o,
+  output logic                                       tcdm_master_northeast_req_valid_o,
+  input  logic                                       tcdm_master_northeast_req_ready_i,
+  input  `STRUCT_PORT(tcdm_master_resp_t)            tcdm_master_northeast_resp_i,
+  input  logic                                       tcdm_master_northeast_resp_valid_i,
+  output logic                                       tcdm_master_northeast_resp_ready_o,
+  output `STRUCT_PORT(tcdm_master_req_t)             tcdm_master_east_req_o,
+  output logic                                       tcdm_master_east_req_valid_o,
+  input  logic                                       tcdm_master_east_req_ready_i,
+  input  `STRUCT_PORT(tcdm_master_resp_t)            tcdm_master_east_resp_i,
+  input  logic                                       tcdm_master_east_resp_valid_i,
+  output logic                                       tcdm_master_east_resp_ready_o,
+  output `STRUCT_PORT(tcdm_master_req_t)             tcdm_master_local_req_o,
+  output logic                                       tcdm_master_local_req_valid_o,
+  input  logic                                       tcdm_master_local_req_ready_i,
+  input  `STRUCT_PORT(tcdm_master_resp_t)            tcdm_master_local_resp_i,
+  input  logic                                       tcdm_master_local_resp_valid_i,
+  output logic                                       tcdm_master_local_resp_ready_o,
+  // TCDM Slave interfaces
+  input  `STRUCT_PORT(tcdm_slave_req_t)              tcdm_slave_north_req_i,
+  input  logic                                       tcdm_slave_north_req_valid_i,
+  output logic                                       tcdm_slave_north_req_ready_o,
+  output `STRUCT_PORT(tcdm_slave_resp_t)             tcdm_slave_north_resp_o,
+  output logic                                       tcdm_slave_north_resp_valid_o,
+  input  logic                                       tcdm_slave_north_resp_ready_i,
+  input  `STRUCT_PORT(tcdm_slave_req_t)              tcdm_slave_northeast_req_i,
+  input  logic                                       tcdm_slave_northeast_req_valid_i,
+  output logic                                       tcdm_slave_northeast_req_ready_o,
+  output `STRUCT_PORT(tcdm_slave_resp_t)             tcdm_slave_northeast_resp_o,
+  output logic                                       tcdm_slave_northeast_resp_valid_o,
+  input  logic                                       tcdm_slave_northeast_resp_ready_i,
+  input  `STRUCT_PORT(tcdm_slave_req_t)              tcdm_slave_east_req_i,
+  input  logic                                       tcdm_slave_east_req_valid_i,
+  output logic                                       tcdm_slave_east_req_ready_o,
+  output `STRUCT_PORT(tcdm_slave_resp_t)             tcdm_slave_east_resp_o,
+  output logic                                       tcdm_slave_east_resp_valid_o,
+  input  logic                                       tcdm_slave_east_resp_ready_i,
+  input  `STRUCT_PORT(tcdm_slave_req_t)              tcdm_slave_local_req_i,
+  input  logic                                       tcdm_slave_local_req_valid_i,
+  output logic                                       tcdm_slave_local_req_ready_o,
+  output `STRUCT_PORT(tcdm_slave_resp_t)             tcdm_slave_local_resp_o,
+  output logic                                       tcdm_slave_local_resp_valid_o,
+  input  logic                                       tcdm_slave_local_resp_ready_i,
+  // AXI Interface
+  output `STRUCT_PORT(axi_tile_req_t)                axi_mst_req_o,
+  input  `STRUCT_PORT(axi_tile_resp_t)               axi_mst_resp_i,
+  // Ideal Instruction Interface
+  output `STRUCT_VECT(addr_t, [NumCoresPerTile-1:0]) ideal_inst_addr_o,
+  input  `STRUCT_VECT(data_t, [NumCoresPerTile-1:0]) ideal_inst_data_i,
+  // Wake up interface
+  input  logic [NumCoresPerTile-1:0]                 wake_up_i
+);
+
+  mempool_tile #(
+    .TCDMBaseAddr(TCDMBaseAddr),
+    .BootAddr    (BootAddr    )
+  ) i_tile (
+    .clk_i                   (clk_i                                                                                                                              ),
+    .rst_ni                  (rst_ni                                                                                                                             ),
+    .tile_id_i               (tile_id_i                                                                                                                          ),
+    // Scan chain
+    .scan_enable_i           (scan_enable_i                                                                                                                      ),
+    .scan_data_i             (scan_data_i                                                                                                                        ),
+    .scan_data_o             (scan_data_o                                                                                                                        ),
+    // TCDM Master
+    .tcdm_master_req_o       ({tcdm_master_northeast_req_o, tcdm_master_north_req_o, tcdm_master_east_req_o, tcdm_master_local_req_o}                            ),
+    .tcdm_master_req_ready_i ({tcdm_master_northeast_req_ready_i, tcdm_master_north_req_ready_i, tcdm_master_east_req_ready_i, tcdm_master_local_req_ready_i}    ),
+    .tcdm_master_req_valid_o ({tcdm_master_northeast_req_valid_o, tcdm_master_north_req_valid_o, tcdm_master_east_req_valid_o, tcdm_master_local_req_valid_o}    ),
+    .tcdm_master_resp_i      ({tcdm_master_northeast_resp_i, tcdm_master_north_resp_i, tcdm_master_east_resp_i, tcdm_master_local_resp_i}                        ),
+    .tcdm_master_resp_ready_o({tcdm_master_northeast_resp_ready_o, tcdm_master_north_resp_ready_o, tcdm_master_east_resp_ready_o, tcdm_master_local_resp_ready_o}),
+    .tcdm_master_resp_valid_i({tcdm_master_northeast_resp_valid_i, tcdm_master_north_resp_valid_i, tcdm_master_east_resp_valid_i, tcdm_master_local_resp_valid_i}),
+    // TCDM Slave
+    .tcdm_slave_req_i        ({tcdm_slave_northeast_req_i, tcdm_slave_north_req_i, tcdm_slave_east_req_i, tcdm_slave_local_req_i}                                ),
+    .tcdm_slave_req_ready_o  ({tcdm_slave_northeast_req_ready_o, tcdm_slave_north_req_ready_o, tcdm_slave_east_req_ready_o, tcdm_slave_local_req_ready_o}        ),
+    .tcdm_slave_req_valid_i  ({tcdm_slave_northeast_req_valid_i, tcdm_slave_north_req_valid_i, tcdm_slave_east_req_valid_i, tcdm_slave_local_req_valid_i}        ),
+    .tcdm_slave_resp_o       ({tcdm_slave_northeast_resp_o, tcdm_slave_north_resp_o, tcdm_slave_east_resp_o, tcdm_slave_local_resp_o}                            ),
+    .tcdm_slave_resp_ready_i ({tcdm_slave_northeast_resp_ready_i, tcdm_slave_north_resp_ready_i, tcdm_slave_east_resp_ready_i, tcdm_slave_local_resp_ready_i}    ),
+    .tcdm_slave_resp_valid_o ({tcdm_slave_northeast_resp_valid_o, tcdm_slave_north_resp_valid_o, tcdm_slave_east_resp_valid_o, tcdm_slave_local_resp_valid_o}    ),
+    // AXI interface
+    .axi_mst_req_o           (axi_mst_req_o                                                                                                                      ),
+    .axi_mst_resp_i          (axi_mst_resp_i                                                                                                                     ),
+    // Ideal Instruction Interface
+    .ideal_inst_addr_o       (ideal_inst_addr_o                                                                                                                  ),
+    .ideal_inst_data_i       (ideal_inst_data_i                                                                                                                  ),
+    // Wake up interface
+    .wake_up_i               (wake_up_i                                                                                                                          )
+  );
+
+endmodule: mempool_tile_wrap

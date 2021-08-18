@@ -24,6 +24,9 @@ module mempool_cluster
   input  logic                               scan_enable_i,
   input  logic                               scan_data_i,
   output logic                               scan_data_o,
+  // Ideal Instruction Interface
+  output addr_t          [NumCores-1:0]      ideal_inst_addr_o,
+  input  data_t          [NumCores-1:0]      ideal_inst_data_i,
   // Wake up signal
   input  logic           [NumCores-1:0]      wake_up_i,
   // RO-Cache configuration
@@ -162,6 +165,9 @@ module mempool_cluster
       .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
       .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
       .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+      // Ideal Instruction Interface
+      .ideal_inst_addr_o       (ideal_inst_addr_o[g*NumCoresPerGroup +: NumCoresPerGroup]),
+      .ideal_inst_data_i       (ideal_inst_data_i[g*NumCoresPerGroup +: NumCoresPerGroup]),
       .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
       .ro_cache_ctrl_i         (ro_cache_ctrl_q                                                 ),
       // DMA request
@@ -174,7 +180,6 @@ module mempool_cluster
       .axi_mst_req_o           (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
       .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
     );
-  end : gen_groups
 
   /*******************
    *  Interconnects  *

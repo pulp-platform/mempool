@@ -39,6 +39,9 @@ module mempool_group
   output `STRUCT_VECT(tcdm_master_resp_t, [NumGroups-1:1][NumTilesPerGroup-1:0]) tcdm_slave_resp_o,
   output logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_valid_o,
   input  logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_ready_i,
+  // Ideal Instruction Interface
+  output `STRUCT_VECT(addr_t,             [NumCoresPerGroup-1:0]) ideal_inst_addr_o,
+  input  `STRUCT_VECT(data_t,             [NumCoresPerGroup-1:0]) ideal_inst_data_i,
   // Wake up interface
   input  logic                            [NumCoresPerGroup-1:0]                 wake_up_i,
   // RO-Cache configuration
@@ -173,6 +176,9 @@ module mempool_group
       // AXI interface
       .axi_mst_req_o           (axi_tile_req[t]                                ),
       .axi_mst_resp_i          (axi_tile_resp[t]                               ),
+      // Ideal Instruction Interface
+      .ideal_inst_addr_o       (ideal_inst_addr_o[t*NumCoresPerTile +: NumCoresPerTile]),
+      .ideal_inst_data_i       (ideal_inst_data_i[t*NumCoresPerTile +: NumCoresPerTile]),
       // Wake up interface
       .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile])
     );

@@ -115,6 +115,14 @@ module mempool_system
    *  MemPool Cluster  *
    ********************/
 
+  addr_t [NumCores-1:0] ideal_inst_addr;
+  data_t [NumCores-1:0] ideal_inst_data;
+
+  if (!IdealInstructionInterface) begin: gen_drive_ideal_instr
+    assign ideal_inst_data = '0;
+  end
+  // else driven by testbench
+
   mempool_cluster #(
     .TCDMBaseAddr(TCDMBaseAddr),
     .BootAddr    (BootAddr    )
@@ -131,6 +139,8 @@ module mempool_system
     .dma_req_valid_i(dma_req_valid                  ),
     .dma_req_ready_o(dma_req_ready                  ),
     .dma_meta_o     (dma_meta                       ),
+    .ideal_inst_addr_o(ideal_inst_addr                ),
+    .ideal_inst_data_i(ideal_inst_data                ),
     .axi_mst_req_o  (axi_mst_req[NumAXIMasters-2:0] ),
     .axi_mst_resp_i (axi_mst_resp[NumAXIMasters-2:0])
   );
