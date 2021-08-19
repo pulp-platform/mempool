@@ -73,6 +73,8 @@ MEM_REGIONS = {'Other': 0, 'Sequential': 1, 'Interleaved': 2}
 
 RAW_TYPES = ['lsu', 'acc']
 
+QLR_REQ = {'push': 0xC, 'pop': 0xD}
+
 # ----------------- Architecture Info  -----------------
 NUM_CORES = int(os.environ.get('num_cores', 256))
 NUM_TILES = NUM_CORES / 4
@@ -242,6 +244,12 @@ def annotate_snitch(
     # Any kind of PC change: Branch, Jump, etc.
     if not extras['stall'] and extras['pc_d'] != pc + 4:
         ret.append('goto {}'.format(int_lit(extras['pc_d'])))
+    # QLR requests
+    if extras['qlr_req'] == QLR_REQ['pop']:
+        gpr_wb_info[extras['qlr_reg']].appendleft((cycle, extras['alu_result']))
+        ret.append('Qpop {:<3}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
+    elif extras['qlr_req'] == QLR_REQ['push']:
+        ret.append('Qpush {:<3}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
     # Count stalls, but only in cycles that execute an instruction
     if not extras['stall']:
         if extras['stall_tot']:
