@@ -60,33 +60,38 @@ module snitch_axi_to_cache #(
   // --------------------------------------------------
   // AR Channel
   // --------------------------------------------------
-  // See description of `ax_chan` module.
+  typedef logic [WORD_OFFSET-1:0] offset_t;
+
   logic           r_cnt_dec, r_cnt_req, r_cnt_gnt;
   axi_pkg::len_t  r_cnt_len;
   logic           cnt_alloc_req, cnt_alloc_gnt;
-  metadata_t      r_metadata;
+  offset_t        ar_offset, r_offset;
+
+  assign ar_offset = slv_req_i.ar.addr[$clog2(CFG.FETCH_DW/8)+:WORD_OFFSET];
+
 
   // Store counters
   axi_burst_splitter_table #(
-    .MaxTxns    ( MaxTxns    ),
-    .IdWidth    ( IdWidth    ),
-    .metadata_t ( metadata_t )
+    .MaxTxns    ( MaxTxns  ),
+    .IdWidth    ( IdWidth  ),
+    .offset_t   ( offset_t )
   ) i_axi_burst_splitter_table (
     .clk_i,
     .rst_ni,
-    .alloc_id_i     ( slv_req_i.ar.id  ),
-    .alloc_len_i    ( slv_req_i.ar.len ),
-    .alloc_meta_i   ( req_meta_o       ),
-    .alloc_req_i    ( cnt_alloc_req    ),
-    .alloc_gnt_o    ( cnt_alloc_gnt    ),
-    .cnt_id_i       ( rsp_id             ),
-    .cnt_len_o      ( r_cnt_len        ),
-    .cnt_meta_o     ( r_metadata       ),
-    .cnt_set_err_i  ( 1'b0             ),
-    .cnt_err_o      ( /* unused */     ),
-    .cnt_dec_i      ( r_cnt_dec        ),
-    .cnt_req_i      ( r_cnt_req        ),
-    .cnt_gnt_o      ( r_cnt_gnt        )
+    .alloc_id_i       ( slv_req_i.ar.id  ),
+    .alloc_len_i      ( slv_req_i.ar.len ),
+    .alloc_offset_i   ( ar_offset        ), //addr[$clog2(CFG.FETCH_DW/8)+:WORD_OFFSET]
+    .alloc_req_i      ( cnt_alloc_req    ),
+    .alloc_gnt_o      ( cnt_alloc_gnt    ),
+    .cnt_id_i         ( rsp_id           ),
+    .cnt_len_o        ( r_cnt_len        ),
+    .cnt_offset_o     ( r_offset         ),
+    .cnt_set_err_i    ( 1'b0             ),
+    .cnt_err_o        ( /* unused */     ),
+    .cnt_len_dec_i    ( r_cnt_dec        ),
+    .cnt_offset_inc_i ( r_cnt_dec        ),
+    .cnt_req_i        ( r_cnt_req        ),
+    .cnt_gnt_o        ( r_cnt_gnt        )
   );
 
   typedef struct packed {
@@ -184,7 +189,6 @@ module snitch_axi_to_cache #(
     logic [CFG.LINE_WIDTH-1:0]    data;
     logic                         error;
     logic [CFG.ID_WIDTH_RESP-1:0] id;
-    logic [CFG.META_WIDTH-1:0]    meta;
   } rsp_in_t;
 
   logic rsp_valid_q, rsp_ready_q;
@@ -193,7 +197,6 @@ module snitch_axi_to_cache #(
   assign rsp_in_d.data  = rsp_data_i;
   assign rsp_in_d.error = rsp_error_i;
   assign rsp_in_d.id    = rsp_id_i;
-  assign rsp_in_d.meta  = rsp_meta_i;
 
   spill_register #(
     .T      ( rsp_in_t),
@@ -266,7 +269,7 @@ module snitch_axi_to_cache #(
     r_state_d         = r_state_q;
     rsp_ready         = 1'b0;
     slv_rsp_o.r.id    = rsp_id;
-    slv_rsp_o.r.data  = rsp_in_q.data >> (r_metadata.addr[$clog2(CFG.FETCH_DW/8)+:WORD_OFFSET] * CFG.FETCH_DW);
+    slv_rsp_o.r.data  = rsp_in_q.data >> (r_offset * CFG.FETCH_DW);
     slv_rsp_o.r.resp  = rsp_in_q.error; // This response is already an AXI response.
     // slv_rsp_o.r.last  = ~(|metadata[rsp_id].len);
     slv_rsp_o.r.user  = '0;
@@ -353,7 +356,7 @@ endmodule
 module axi_burst_splitter_table #(
   parameter int unsigned MaxTxns    = 0,
   parameter int unsigned IdWidth    = 0,
-  parameter type         metadata_t = logic,
+  parameter type         offset_t   = logic,
   parameter type         id_t       = logic [IdWidth-1:0]
 ) (
   input  logic          clk_i,
@@ -361,43 +364,60 @@ module axi_burst_splitter_table #(
 
   input  id_t           alloc_id_i,
   input  axi_pkg::len_t alloc_len_i,
-  input  metadata_t     alloc_meta_i,
+  input  offset_t       alloc_offset_i,
   input  logic          alloc_req_i,
   output logic          alloc_gnt_o,
 
   input  id_t           cnt_id_i,
   output axi_pkg::len_t cnt_len_o,
-  output metadata_t     cnt_meta_o,
+  output offset_t       cnt_offset_o,
   input  logic          cnt_set_err_i,
   output logic          cnt_err_o,
-  input  logic          cnt_dec_i,
+  input  logic          cnt_len_dec_i,
+  input  logic          cnt_offset_inc_i,
   input  logic          cnt_req_i,
   output logic          cnt_gnt_o
 );
   localparam int unsigned CntIdxWidth = (MaxTxns > 1) ? $clog2(MaxTxns) : 32'd1;
   typedef logic [CntIdxWidth-1:0]         cnt_idx_t;
   typedef logic [$bits(axi_pkg::len_t):0] cnt_t;
-  logic [MaxTxns-1:0]  cnt_dec, cnt_free, cnt_set, err_d, err_q;
-  cnt_t                cnt_inp;
-  cnt_t [MaxTxns-1:0]  cnt_oup;
+  logic [MaxTxns-1:0]  cnt_len_dec, cnt_offset_inc, cnt_free, cnt_set, err_d, err_q;
+  cnt_t                cnt_len_inp;
+  cnt_t [MaxTxns-1:0]  cnt_len_oup;
+  offset_t                cnt_offset_inp;
+  offset_t [MaxTxns-1:0]  cnt_offset_oup;
   cnt_idx_t            cnt_free_idx, cnt_r_idx;
   for (genvar i = 0; i < MaxTxns; i++) begin : gen_cnt
     counter #(
       .WIDTH ( $bits(cnt_t) )
-    ) i_cnt (
+    ) i_cnt_len (
       .clk_i,
       .rst_ni,
-      .clear_i    ( 1'b0       ),
-      .en_i       ( cnt_dec[i] ),
-      .load_i     ( cnt_set[i] ),
-      .down_i     ( 1'b1       ),
-      .d_i        ( cnt_inp    ),
-      .q_o        ( cnt_oup[i] ),
-      .overflow_o (            )  // not used
+      .clear_i    ( 1'b0           ),
+      .en_i       ( cnt_len_dec[i] ),
+      .load_i     ( cnt_set[i]     ),
+      .down_i     ( 1'b1           ),
+      .d_i        ( cnt_len_inp    ),
+      .q_o        ( cnt_len_oup[i] ),
+      .overflow_o (                )  // not used
     );
-    assign cnt_free[i] = (cnt_oup[i] == '0);
+    counter #(
+      .WIDTH ( $bits(offset_t) )
+    ) i_cnt_offset (
+      .clk_i,
+      .rst_ni,
+      .clear_i    ( 1'b0              ),
+      .en_i       ( cnt_offset_inc[i] ),
+      .load_i     ( cnt_set[i]        ),
+      .down_i     ( 1'b0              ),
+      .d_i        ( cnt_offset_inp    ),
+      .q_o        ( cnt_offset_oup[i] ),
+      .overflow_o (                   )  // not used
+    );
+    assign cnt_free[i] = (cnt_len_oup[i] == '0);
   end
-  assign cnt_inp = {1'b0, alloc_len_i} + 1;
+  assign cnt_len_inp    = {1'b0, alloc_len_i} + 1;
+  assign cnt_offset_inp = alloc_offset_i;
 
   lzc #(
     .WIDTH  ( MaxTxns ),
@@ -407,17 +427,6 @@ module axi_burst_splitter_table #(
     .cnt_o   ( cnt_free_idx ),
     .empty_o (              )
   );
-
-  // Metadata
-  metadata_t [MaxTxns-1:0]  metadata;
-  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_metadata
-    if(~rst_ni) begin
-      metadata <= '0;
-    end else if (alloc_req_i & alloc_gnt_o) begin
-      metadata[cnt_free_idx] <= alloc_meta_i;
-    end
-  end
-  assign cnt_meta_o = metadata[cnt_r_idx];
 
   logic idq_inp_req, idq_inp_gnt,
         idq_oup_gnt, idq_oup_valid, idq_oup_pop;
@@ -444,17 +453,22 @@ module axi_burst_splitter_table #(
     .oup_data_valid_o ( idq_oup_valid ),
     .oup_gnt_o        ( idq_oup_gnt   )
   );
-  assign idq_inp_req = alloc_req_i & alloc_gnt_o;
-  assign alloc_gnt_o = idq_inp_gnt & |(cnt_free);
-  assign cnt_gnt_o   = idq_oup_gnt & idq_oup_valid;
   logic [8:0] read_len;
-  assign read_len    = cnt_oup[cnt_r_idx] - 1;
-  assign cnt_len_o   = read_len[7:0];
+  assign idq_inp_req  = alloc_req_i & alloc_gnt_o;
+  assign alloc_gnt_o  = idq_inp_gnt & |(cnt_free);
+  assign cnt_gnt_o    = idq_oup_gnt & idq_oup_valid;
+  assign read_len     = cnt_len_oup[cnt_r_idx] - 1;
+  assign cnt_len_o    = read_len[7:0];
+  assign cnt_offset_o = cnt_offset_oup[cnt_r_idx];
 
-  assign idq_oup_pop = cnt_req_i & cnt_gnt_o & cnt_dec_i & (cnt_len_o == 8'd0);
+  assign idq_oup_pop = cnt_req_i & cnt_gnt_o & cnt_len_dec_i & (cnt_len_o == 8'd0);
   always_comb begin
-    cnt_dec            = '0;
-    cnt_dec[cnt_r_idx] = cnt_req_i & cnt_gnt_o & cnt_dec_i;
+    cnt_len_dec            = '0;
+    cnt_len_dec[cnt_r_idx] = cnt_req_i & cnt_gnt_o & cnt_len_dec_i;
+  end
+  always_comb begin
+    cnt_offset_inc            = '0;
+    cnt_offset_inc[cnt_r_idx] = cnt_req_i & cnt_gnt_o & cnt_offset_inc_i;
   end
   always_comb begin
     cnt_set               = '0;
