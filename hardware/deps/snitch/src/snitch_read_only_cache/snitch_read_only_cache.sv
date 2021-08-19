@@ -438,7 +438,7 @@ module snitch_read_only_cache #(
     .clk_i,
     .rst_ni,
 
-    .flush_valid_i ( 1'b0          ),
+    .flush_valid_i ( flush_valid_i ),
     .flush_ready_o ( flush_ready_o ),
 
     // TODO(zarubaf): This is wrong, just for initial estimates.
