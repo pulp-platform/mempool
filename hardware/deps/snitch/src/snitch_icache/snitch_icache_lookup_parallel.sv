@@ -15,12 +15,12 @@ module snitch_icache_lookup_parallel #(
     output logic flush_ready_o,
 
     input  logic [CFG.FETCH_AW-1:0]     in_addr_i,
-    input  logic [CFG.ID_WIDTH_REQ-1:0] in_id_i,
+    input  logic [CFG.META_WIDTH-1:0]   in_meta_i,
     input  logic                        in_valid_i,
     output logic                        in_ready_o,
 
     output logic [CFG.FETCH_AW-1:0]     out_addr_o,
-    output logic [CFG.ID_WIDTH_REQ-1:0] out_id_o,
+    output logic [CFG.META_WIDTH-1:0]   out_meta_o,
     output logic [CFG.SET_ALIGN-1:0]    out_set_o,
     output logic                        out_hit_o,
     output logic [CFG.LINE_WIDTH-1:0]   out_data_o,
@@ -101,7 +101,7 @@ module snitch_icache_lookup_parallel #(
     // looked up tag and data.
     logic valid_q;
     logic [CFG.FETCH_AW-1:0] addr_q;
-    logic [CFG.ID_WIDTH_REQ-1:0] id_q;
+    logic [CFG.META_WIDTH-1:0] meta_q;
 
     always_ff @(posedge clk_i, negedge rst_ni) begin
         if (!rst_ni)
@@ -113,10 +113,10 @@ module snitch_icache_lookup_parallel #(
     always_ff @(posedge clk_i, negedge rst_ni) begin
         if (!rst_ni) begin
             addr_q <= '0;
-            id_q   <= '0;
+            meta_q <= '0;
         end else if (in_valid_i && in_ready_o) begin
-            addr_q <= in_addr_i;// >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
-            id_q   <= in_id_i;
+            addr_q <= in_addr_i;
+            meta_q <= in_meta_i;
         end
     end
 
@@ -190,7 +190,7 @@ module snitch_icache_lookup_parallel #(
 
     // Generate the remaining output signals.
     assign out_addr_o  = addr_q;
-    assign out_id_o    = id_q;
+    assign out_meta_o  = meta_q;
     assign out_valid_o = valid_q;
 
 endmodule
