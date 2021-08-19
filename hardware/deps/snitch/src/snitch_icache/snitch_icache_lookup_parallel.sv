@@ -51,6 +51,17 @@ module snitch_icache_lookup_parallel #(
     logic                       ram_write_q;
     logic [CFG.COUNT_ALIGN:0]   init_count_q;
 
+    typedef struct packed {
+      logic [CFG.SET_ALIGN-1:0]   cset;
+      logic                       hit;
+      logic [CFG.LINE_WIDTH-1:0]  data;
+      logic                       error;
+    } out_buffer_t;
+
+    out_buffer_t data_d, data_q;
+    logic        buffer_ready;
+    logic        buffer_valid;
+
     always_comb begin : p_portmux
         write_ready_o = 0;
         in_ready_o = 0;
@@ -103,11 +114,12 @@ module snitch_icache_lookup_parallel #(
     logic [CFG.FETCH_AW-1:0] addr_q;
     logic [CFG.META_WIDTH-1:0] meta_q;
 
-    always_ff @(posedge clk_i, negedge rst_ni) begin
-        if (!rst_ni)
-            valid_q <= 1'b0;
-        else if ((in_valid_i && in_ready_o) || out_ready_i)
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+            valid_q <= 0;
+        end else begin
             valid_q <= in_valid_i && in_ready_o;
+        end
     end
 
     always_ff @(posedge clk_i, negedge rst_ni) begin
@@ -169,8 +181,8 @@ module snitch_icache_lookup_parallel #(
               ram_rtag[i][CFG.TAG_WIDTH-1:0] == required_tag;
             errors[i] = ram_rtag[i][CFG.TAG_WIDTH] && line_hit[i];
         end
-        out_hit_o = |line_hit & ~ram_write_q; // Don't let refills trigger "valid" lookups
-        out_error_o = |errors;
+        data_d.hit = |line_hit & ~ram_write_q; // Don't let refills trigger "valid" lookups
+        data_d.error = |errors;
     end
 
     always_comb begin
@@ -178,19 +190,45 @@ module snitch_icache_lookup_parallel #(
             automatic logic [CFG.SET_COUNT-1:0] masked;
             for (int j = 0; j < CFG.SET_COUNT; j++)
                 masked[j] = ram_rdata[j][i] & line_hit[j];
-            out_data_o[i] = |masked;
+            data_d.data[i] = |masked;
         end
     end
 
     lzc #(.WIDTH(CFG.SET_COUNT)) i_lzc (
-        .in_i     ( line_hit  ),
-        .cnt_o    ( out_set_o ),
-        .empty_o  (           )
+        .in_i     ( line_hit    ),
+        .cnt_o    ( data_d.cset ),
+        .empty_o  (             )
     );
 
-    // Generate the remaining output signals.
+    // Buffer response in case we are stalled
+    fall_through_register #(
+        .T          ( out_buffer_t )
+    ) i_rsp_buffer (
+        .clk_i      ( clk_i        ),
+        .rst_ni     ( rst_ni       ),
+        .clr_i      ( 1'b0         ),
+        .testmode_i ( 1'b0         ),
+        // Input port
+        .valid_i    ( valid_q      ),
+        .ready_o    ( buffer_ready ),
+        .data_i     ( data_d       ),
+        // Output port
+        .valid_o    ( buffer_valid ),
+        .ready_i    ( out_ready_i  ),
+        .data_o     ( data_q       )
+    );
+
+    // Generate the output signals.
     assign out_addr_o  = addr_q;
     assign out_meta_o  = meta_q;
-    assign out_valid_o = valid_q;
+    assign out_set_o   = data_q.cset;
+    assign out_hit_o   = data_q.hit;
+    assign out_data_o  = data_q.data;
+    assign out_error_o = data_q.error;
+    assign out_valid_o = buffer_valid;
+
+    // Assertions
+    `include "common_cells/assertions.svh"
+    `ASSERT(i_rsp_buffer_ready, (valid_q |-> buffer_ready), clk_i, !rst_ni)
 
 endmodule
