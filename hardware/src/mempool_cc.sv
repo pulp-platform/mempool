@@ -206,6 +206,9 @@ module mempool_cc
   string fn;
   logic [63:0] cycle;
   int unsigned stall, stall_ins, stall_raw, stall_lsu, stall_acc;
+  logic qlr_req;
+
+  assign qlr_req = i_snitch.lsu_req_valid && i_snitch.lsu_req_ready && i_snitch.lsu_req_qlr;
 
   always_ff @(posedge rst_i) begin
     if(rst_i) begin
@@ -230,7 +233,8 @@ module mempool_cc
         // Tracing enabled by CSR register
         // we are not stalled <==> we have issued and processed an instruction (including offloads)
         // OR we are retiring (issuing a writeback from) a load or accelerator instruction
-        if ((i_snitch.csr_trace_q || SnitchTrace) && (!i_snitch.stall || i_snitch.retire_load || i_snitch.retire_acc)) begin
+        // OR a QLR is executing a push/pop
+        if ((i_snitch.csr_trace_q || SnitchTrace) && (!i_snitch.stall || i_snitch.retire_load || i_snitch.retire_acc || qlr_req)) begin
           // Manual loop unrolling for Verilator
           // Data type keys for arrays are currently not supported in Verilator
           extras_str = "{";
@@ -268,6 +272,9 @@ module mempool_cc
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "lsu_rd",      i_snitch.lsu_rd);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "retire_load", i_snitch.retire_load);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "alu_result",  i_snitch.alu_result);
+          // QLR
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "qlr_req",     qlr_req ? i_snitch.lsu_req_amo : '0);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "qlr_reg",     qlr_req ? i_snitch.lsu_req_tag : '0);
           // Atomics
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "ls_amo",      i_snitch.ls_amo);
           // Accumulator
