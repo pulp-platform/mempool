@@ -142,6 +142,29 @@ module snitch_icache_handler #(
         .empty_o (                 )
     );
 
+    // Gurarntee ordering
+    // Check if there is a miss in flight from this ID. In that case, stall all
+    // further requests to guarantee correct ordering of requests.
+    logic [CFG.ID_WIDTH_RESP-1:0] miss_in_flight_d, miss_in_flight_q;
+
+    always_comb begin : p_miss_in_flight
+        miss_in_flight_d = miss_in_flight_q;
+        if (push_enable) begin
+          miss_in_flight_d |= push_idmask;
+        end
+        if (in_rsp_valid_o && in_rsp_ready_i) begin
+          miss_in_flight_d &= ~in_rsp_id_o;
+        end
+    end
+
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+       if(~rst_ni) begin
+           miss_in_flight_q <= '0;
+       end else begin
+           miss_in_flight_q <= miss_in_flight_d;
+       end
+    end
+
     // The miss handler checks if the access into the cache was a hit. If yes,
     // the data is forwarded to the response handler. Otherwise the table of
     // pending refills is consulted to check if any refills are currently in
@@ -173,8 +196,11 @@ module snitch_icache_handler #(
         out_req_valid_o = 0;
 
         if (in_req_valid_i) begin
+            // Miss already in flight. Stall to preserve ordering
+            if (miss_in_flight_q[in_req_id_i]) begin
+                in_req_ready_o = 0;
             // The cache lookup was a hit.
-            if (in_req_hit_i) begin
+            end else if (in_req_hit_i) begin
                 hit_valid = 1;
                 in_req_ready_o = hit_ready;
 
