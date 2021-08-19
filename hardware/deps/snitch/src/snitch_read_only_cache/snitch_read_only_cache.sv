@@ -188,6 +188,15 @@ module snitch_read_only_cache #(
     end
   end
 
+  // Store some AXI metadata for the response
+  typedef struct packed {
+    logic [AxiIdWidth-1:0]          id; // Store the AXI ID of the request
+    logic [$clog2(LineWidth/8)-1:0] addr; // Store the offset in the cache line minus the byte offset
+    axi_pkg::len_t                  len; // Store the length of the burst
+    axi_pkg::size_t                 size; // Store the size of the beats
+    logic                           valid; // Metadata is valid --> a transaction is already in flight
+  } metadata_t;
+
   localparam PendingCount = 2**AxiIdWidth; // TODO: Necessary for now to support all IDs requesting the same address in the handler
 
   localparam snitch_icache_pkg::config_t CFG = '{
@@ -208,20 +217,20 @@ module snitch_read_only_cache #(
       TAG_WIDTH:     AxiAddrWidth - $clog2(LineWidth/8) - $clog2(LineCount) + 1,
       ID_WIDTH_REQ:  AxiIdWidth,
       ID_WIDTH_RESP: 2**AxiIdWidth,
-      META_WIDTH:    AxiIdWidth,
+      META_WIDTH:    $bits(metadata_t),
       PENDING_IW:    $clog2(PendingCount),
       default:       0
   };
 
   // The lookup module contains the actual cache RAMs and performs lookups.
   logic [CFG.FETCH_AW-1:0]     lookup_addr;
-  logic [CFG.ID_WIDTH_REQ-1:0] lookup_id;
+  metadata_t                   lookup_meta;
   logic [CFG.SET_ALIGN-1:0]    lookup_set;
   logic                        lookup_hit;
   logic [CFG.LINE_WIDTH-1:0]   lookup_data;
   logic                        lookup_error;
-  logic                        lookup_valid;
-  logic                        lookup_ready;
+  logic                        lookup_valid, lookup_valid2;
+  logic                        lookup_ready, lookup_ready2;
 
   logic [CFG.COUNT_ALIGN-1:0]  write_addr;
   logic [CFG.SET_ALIGN-1:0]    write_set;
@@ -232,7 +241,7 @@ module snitch_read_only_cache #(
   logic                        write_ready;
 
   logic [CFG.FETCH_AW-1:0]     in_addr;
-  logic [CFG.ID_WIDTH_REQ-1:0] in_id;
+  metadata_t                   in_meta;
   logic                        in_valid;
   logic                        in_ready;
 
@@ -259,13 +268,6 @@ module snitch_read_only_cache #(
 
   localparam WORD_OFFSET = idx_width(LineWidth/AxiDataWidth); // AXI-word offset within cache line
 
-  // Store some AXI metadata for the response
-  typedef struct packed {
-    logic [CFG.LINE_ALIGN-1:0] addr; // Store the offset in the cache line minus the byte offset
-    axi_pkg::len_t             len; // Store the length of the burst
-    axi_pkg::size_t            size; // Store the size of the beats
-    logic                      valid; // Metadata is valid --> a transaction is already in flight
-  } metadata_t;
 
   metadata_t [2**AxiIdWidth:0] metadata;
 
@@ -374,16 +376,21 @@ module snitch_read_only_cache #(
 
 
   // AR channel --> Ready if cache is ready and no request with the same ID is in flight
-  assign in_id = cache_req.ar.id;
-  assign in_addr = cache_req.ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
-  assign in_valid = cache_req.ar_valid & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
-  assign cache_rsp.ar_ready = in_ready & ~metadata[in_id].valid; // Suppress handshake if transaction in flight
+  assign in_meta.id    = cache_req.ar.id;
+  assign in_meta.addr  = cache_req.ar.addr[0+:CFG.LINE_ALIGN];
+  assign in_meta.len   = cache_req.ar.len;
+  assign in_meta.size  = cache_req.ar.size;
+  assign in_meta.valid = cache_req.ar_valid;
+
+  assign in_addr  = cache_req.ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
+  assign in_valid = cache_req.ar_valid; // & ~metadata[lookup_meta.id].valid; // Suppress handshake if transaction in flight
+  assign cache_rsp.ar_ready = in_ready; // & ~metadata[lookup_meta.id].valid; // Suppress handshake if transaction in flight
   // R channel
-  assign cache_rsp.r.id = r_id;
-  assign cache_rsp.r.data = in_rsp_data_q >> (metadata[r_id].addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET] * AxiDataWidth);
-  assign cache_rsp.r.resp = in_rsp_error_q; // This response is already an AXI response.
-  assign cache_rsp.r.last = ~(|metadata[r_id].len);
-  assign cache_rsp.r.user = '0;
+  assign cache_rsp.r.id    = r_id;
+  assign cache_rsp.r.data  = in_rsp_data_q >> (metadata[r_id].addr[$clog2(AxiDataWidth/8)+:WORD_OFFSET] * AxiDataWidth);
+  assign cache_rsp.r.resp  = in_rsp_error_q; // This response is already an AXI response.
+  assign cache_rsp.r.last  = ~(|metadata[r_id].len);
+  assign cache_rsp.r.user  = '0;
   assign cache_rsp.r_valid = ~in_rsp_empty;
   // Technically, we could already give the ready once in_rsp_id_q is onehot, but we need to make sure to handle fetching the ID properly
   assign in_rsp_ready = in_rsp_empty;
@@ -404,11 +411,11 @@ module snitch_read_only_cache #(
           metadata[r_id].valid <= 1'b0;
         end
       end
-      if (in_valid && in_ready) begin
-        metadata[in_id].addr  <= cache_req.ar.addr[0+:CFG.LINE_ALIGN];
-        metadata[in_id].len   <= cache_req.ar.len;
-        metadata[in_id].size  <= cache_req.ar.size;
-        metadata[in_id].valid <= 1'b1;
+      if (lookup_valid2 && lookup_ready2) begin
+        metadata[lookup_meta.id].addr  <= lookup_meta.addr;
+        metadata[lookup_meta.id].len   <= lookup_meta.len;
+        metadata[lookup_meta.id].size  <= lookup_meta.size;
+        metadata[lookup_meta.id].valid <= 1'b1; // Could be ~lookup_hit if handler forwards/stores meta;
       end
     end
   end
@@ -442,14 +449,13 @@ module snitch_read_only_cache #(
     .flush_valid_i ( flush_valid_i ),
     .flush_ready_o ( flush_ready_o ),
 
-    // TODO(zarubaf): This is wrong, just for initial estimates.
     .in_addr_i     ( in_addr   ),
-    .in_meta_i     ( in_id     ),
+    .in_meta_i     ( in_meta   ),
     .in_valid_i    ( in_valid  ),
     .in_ready_o    ( in_ready  ),
 
     .out_addr_o    ( lookup_addr        ),
-    .out_meta_o    ( lookup_id          ),
+    .out_meta_o    ( lookup_meta        ),
     .out_set_o     ( lookup_set         ),
     .out_hit_o     ( lookup_hit         ),
     .out_data_o    ( lookup_data        ),
@@ -466,20 +472,22 @@ module snitch_read_only_cache #(
     .write_ready_o ( write_ready        )
   );
 
+  assign lookup_valid2 = lookup_valid  & ~metadata[lookup_meta.id].valid;
+  assign lookup_ready  = lookup_ready2 & ~metadata[lookup_meta.id].valid;
+
   snitch_icache_handler #(CFG) i_handler (
     .clk_i,
     .rst_ni,
 
     .in_req_addr_i   ( lookup_addr        ),
-    .in_req_id_i     ( lookup_id          ),
+    .in_req_id_i     ( lookup_meta.id     ),
     .in_req_set_i    ( lookup_set         ),
     .in_req_hit_i    ( lookup_hit         ),
     .in_req_data_i   ( lookup_data        ),
     .in_req_error_i  ( lookup_error       ),
-    .in_req_valid_i  ( lookup_valid       ),
-    .in_req_ready_o  ( lookup_ready       ),
+    .in_req_valid_i  ( lookup_valid2      ),
+    .in_req_ready_o  ( lookup_ready2      ),
 
-    // TODO(zarubaf): This is wrong, just for initial estimates.
     .in_rsp_data_o   ( in_rsp_data        ),
     .in_rsp_error_o  ( in_rsp_error       ),
     .in_rsp_id_o     ( in_rsp_id          ),
