@@ -62,13 +62,15 @@ module snitch_axi_to_cache #(
   // --------------------------------------------------
   typedef logic [WORD_OFFSET-1:0] offset_t;
 
-  logic           r_cnt_dec, r_cnt_req, r_cnt_gnt;
-  axi_pkg::len_t  r_cnt_len;
+  logic           r_cnt_len_dec, r_cnt_offset_inc, r_cnt_req, r_cnt_gnt;
+  axi_pkg::len_t  r_cnt_len, ar_len;
   logic           cnt_alloc_req, cnt_alloc_gnt;
-  offset_t        ar_offset, r_offset;
+  offset_t        ar_offset, r_offset, r_offset_d, r_offset_q;
 
+  // Store the offset if the cache is wider than AXI
   assign ar_offset = slv_req_i.ar.addr[$clog2(CFG.FETCH_DW/8)+:WORD_OFFSET];
-
+  // Issue less requests if the cache is wider than AXI
+  assign ar_len    = slv_req_i.ar.len >> $clog2(CFG.LINE_WIDTH/CFG.FETCH_DW);
 
   // Store counters
   axi_burst_splitter_table #(
@@ -80,7 +82,7 @@ module snitch_axi_to_cache #(
     .rst_ni,
     .alloc_id_i       ( slv_req_i.ar.id  ),
     .alloc_len_i      ( slv_req_i.ar.len ),
-    .alloc_offset_i   ( ar_offset        ), //addr[$clog2(CFG.FETCH_DW/8)+:WORD_OFFSET]
+    .alloc_offset_i   ( ar_offset        ),
     .alloc_req_i      ( cnt_alloc_req    ),
     .alloc_gnt_o      ( cnt_alloc_gnt    ),
     .cnt_id_i         ( rsp_id           ),
@@ -88,8 +90,8 @@ module snitch_axi_to_cache #(
     .cnt_offset_o     ( r_offset         ),
     .cnt_set_err_i    ( 1'b0             ),
     .cnt_err_o        ( /* unused */     ),
-    .cnt_len_dec_i    ( r_cnt_dec        ),
-    .cnt_offset_inc_i ( r_cnt_dec        ),
+    .cnt_len_dec_i    ( r_cnt_len_dec    ),
+    .cnt_offset_inc_i ( r_cnt_offset_inc ),
     .cnt_req_i        ( r_cnt_req        ),
     .cnt_gnt_o        ( r_cnt_gnt        )
   );
@@ -116,11 +118,11 @@ module snitch_axi_to_cache #(
     unique case (state_q)
       Idle: begin
         if (slv_req_i.ar_valid && cnt_alloc_gnt) begin
-          if (slv_req_i.ar.len == '0) begin // No splitting required -> feed through.
+          if (ar_len == '0) begin // No splitting required -> feed through.
             ax_o.addr       = slv_req_i.ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
             ax_o.meta.id    = slv_req_i.ar.id;
             ax_o.meta.addr  = slv_req_i.ar.addr[0+:CFG.LINE_ALIGN];
-            ax_o.meta.len   = slv_req_i.ar.len;
+            ax_o.meta.len   = ar_len;
             ax_o.meta.size  = slv_req_i.ar.size;
             ax_o.meta.valid = slv_req_i.ar_valid;
             req_valid_o = 1'b1;
@@ -134,10 +136,10 @@ module snitch_axi_to_cache #(
             ax_d.addr       = slv_req_i.ar.addr >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
             ax_d.meta.id    = slv_req_i.ar.id;
             ax_d.meta.addr  = slv_req_i.ar.addr[0+:CFG.LINE_ALIGN];
-            ax_d.meta.len   = slv_req_i.ar.len;
+            ax_d.meta.len   = ar_len; // STORE THIS USED
             ax_d.meta.size  = slv_req_i.ar.size;
             ax_d.meta.valid = slv_req_i.ar_valid;
-            ax_d.burst      = slv_req_i.ar.burst;
+            ax_d.burst      = slv_req_i.ar.burst; // STORE THIS USED
             cnt_alloc_req = 1'b1;
             slv_rsp_o.ar_ready    = 1'b1;
             // Try to feed first burst through.
@@ -148,7 +150,8 @@ module snitch_axi_to_cache #(
               // Reduce number of bursts still to be sent by one and increment address.
               ax_d.meta.len--; // TODO multiply by cache line width
               if (ax_d.burst == axi_pkg::BURST_INCR) begin
-                ax_d.addr += (1 << ax_d.meta.size); // TODO Will be the cache line width
+                // ax_d.addr += (1 << ax_d.meta.size); // TODO Will be the cache line width
+                ax_d.addr += CFG.LINE_WIDTH/8; // TODO Maybe we can support size later as well?
               end
             end
             state_d = Busy;
@@ -168,7 +171,8 @@ module snitch_axi_to_cache #(
             // Otherwise, continue with the next burst.
             ax_d.meta.len--;
             if (ax_q.burst == axi_pkg::BURST_INCR) begin
-              ax_d.addr += (1 << ax_q.meta.size);
+              // ax_d.addr += (1 << ax_q.meta.size);
+              ax_d.addr += CFG.LINE_WIDTH/8; // TODO Maybe we can support size later as well?
             end
           end
         end
@@ -261,12 +265,16 @@ module snitch_axi_to_cache #(
   // Reconstruct `last`, feed rest through.
   logic r_last_d, r_last_q;
   enum logic {RFeedthrough, RWait} r_state_d, r_state_q;
+  logic [CFG.FETCH_DW-1:0] r_data_d, r_data_q;
 
   always_comb begin
-    r_cnt_dec         = 1'b0;
+    r_cnt_len_dec     = 1'b0;
+    r_cnt_offset_inc  = 1'b0;
     r_cnt_req         = 1'b0;
     r_last_d          = r_last_q;
     r_state_d         = r_state_q;
+    r_data_d          = r_data_q;
+    r_offset_d        = r_offset_q;
     rsp_ready         = 1'b0;
     slv_rsp_o.r.id    = rsp_id;
     slv_rsp_o.r.data  = rsp_in_q.data >> (r_offset * CFG.FETCH_DW);
@@ -286,15 +294,23 @@ module snitch_axi_to_cache #(
           if (r_cnt_gnt) begin
             r_last_d = (r_cnt_len == 8'd0);
             slv_rsp_o.r.last   = r_last_d;
-            // Decrement the counter.
-            r_cnt_dec         = 1'b1;
-            // Try to forward the beat upstream.
+            // Decrement the counter
+            r_cnt_len_dec      = 1'b1;
+            // Increment the offset counter
+            r_cnt_offset_inc   = 1'b1;
+            // Try to forward the beat upstream
             slv_rsp_o.r_valid  = 1'b1;
             if (slv_req_i.r_ready) begin
-              // Acknowledge downstream.
-              rsp_ready       = 1'b1;
+              // Is this the last chunk of this cache line
+              if (r_offset == '1 || r_last_d) begin
+                // Acknowledge downstream
+                rsp_ready      = 1'b1;
+              end
             end else begin
-              // Wait for upstream to become ready.
+              // Keep output constant
+              r_data_d   = rsp_in_q.data >> (r_offset * CFG.FETCH_DW);
+              r_offset_d = r_offset;
+              // Wait for upstream to become ready
               r_state_d = RWait;
             end
           end
@@ -303,8 +319,13 @@ module snitch_axi_to_cache #(
       RWait: begin
         slv_rsp_o.r.last   = r_last_q;
         slv_rsp_o.r_valid  = rsp_valid;
+        slv_rsp_o.r.data   = r_data_q;
         if (rsp_valid && slv_req_i.r_ready) begin
-          rsp_ready       = 1'b1;
+          // Is this the last chunk of this cache line
+          if (r_offset_q == '1 || r_last_q) begin
+            // Acknowledge downstream
+            rsp_ready      = 1'b1;
+          end
           r_state_d         = RFeedthrough;
         end
       end
@@ -317,6 +338,8 @@ module snitch_axi_to_cache #(
   // --------------------------------------------------
   `FFARN(r_last_q, r_last_d, 1'b0, clk_i, rst_ni)
   `FFARN(r_state_q, r_state_d, RFeedthrough, clk_i, rst_ni)
+  `FFARN(r_data_q, r_data_d, '0, clk_i, rst_ni)
+  `FFARN(r_offset_q, r_offset_d, '0, clk_i, rst_ni)
 
 endmodule
 
