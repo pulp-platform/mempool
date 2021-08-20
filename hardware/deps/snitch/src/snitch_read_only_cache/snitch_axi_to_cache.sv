@@ -65,12 +65,14 @@ module snitch_axi_to_cache #(
   logic           r_cnt_len_dec, r_cnt_offset_inc, r_cnt_req, r_cnt_gnt;
   axi_pkg::len_t  r_cnt_len, ar_len;
   logic           cnt_alloc_req, cnt_alloc_gnt;
-  offset_t        ar_offset, r_offset, r_offset_d, r_offset_q;
+  offset_t        ar_offset, r_cnt_offset, r_offset, r_offset_d, r_offset_q;
 
   // Store the offset if the cache is wider than AXI
   assign ar_offset = slv_req_i.ar.addr[$clog2(CFG.FETCH_DW/8)+:WORD_OFFSET];
   // Issue less requests if the cache is wider than AXI
   assign ar_len    = slv_req_i.ar.len >> $clog2(CFG.LINE_WIDTH/CFG.FETCH_DW);
+  // Tie the offset down if cache and AXI width are the same
+  assign r_offset  = (CFG.LINE_WIDTH > CFG.FETCH_DW) ? r_cnt_offset : '1;
 
   // Store counters
   axi_burst_splitter_table #(
@@ -87,7 +89,7 @@ module snitch_axi_to_cache #(
     .alloc_gnt_o      ( cnt_alloc_gnt    ),
     .cnt_id_i         ( rsp_id           ),
     .cnt_len_o        ( r_cnt_len        ),
-    .cnt_offset_o     ( r_offset         ),
+    .cnt_offset_o     ( r_cnt_offset     ),
     .cnt_set_err_i    ( 1'b0             ),
     .cnt_err_o        ( /* unused */     ),
     .cnt_len_dec_i    ( r_cnt_len_dec    ),
@@ -265,7 +267,9 @@ module snitch_axi_to_cache #(
   // Reconstruct `last`, feed rest through.
   logic r_last_d, r_last_q;
   enum logic {RFeedthrough, RWait} r_state_d, r_state_q;
-  logic [CFG.FETCH_DW-1:0] r_data_d, r_data_q;
+  logic [CFG.FETCH_DW-1:0] r_data, r_data_d, r_data_q;
+
+  assign r_data = (CFG.LINE_WIDTH > CFG.FETCH_DW) ? rsp_in_q.data >> (r_offset * CFG.FETCH_DW) : rsp_in_q.data;
 
   always_comb begin
     r_cnt_len_dec     = 1'b0;
@@ -277,7 +281,7 @@ module snitch_axi_to_cache #(
     r_offset_d        = r_offset_q;
     rsp_ready         = 1'b0;
     slv_rsp_o.r.id    = rsp_id;
-    slv_rsp_o.r.data  = rsp_in_q.data >> (r_offset * CFG.FETCH_DW);
+    slv_rsp_o.r.data  = r_data;
     slv_rsp_o.r.resp  = rsp_in_q.error; // This response is already an AXI response.
     // slv_rsp_o.r.last  = ~(|metadata[rsp_id].len);
     slv_rsp_o.r.user  = '0;
@@ -308,7 +312,7 @@ module snitch_axi_to_cache #(
               end
             end else begin
               // Keep output constant
-              r_data_d   = rsp_in_q.data >> (r_offset * CFG.FETCH_DW);
+              r_data_d   = r_data;
               r_offset_d = r_offset;
               // Wait for upstream to become ready
               r_state_d = RWait;
