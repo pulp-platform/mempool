@@ -81,7 +81,13 @@ module snitch_axi_to_cache #(
   // Store the offset if the cache is wider than AXI
   assign ar_offset = slv_req_i.ar.addr[$clog2(CFG.FETCH_DW/8)+:WordOffset];
   // Issue less requests if the cache is wider than AXI
-  assign ar_len    = slv_req_i.ar.len >> $clog2(CFG.LINE_WIDTH/CFG.FETCH_DW);
+  always_comb begin
+    if (CFG.LINE_WIDTH > CFG.FETCH_DW) begin
+      ar_len = (slv_req_i.ar.len + ar_offset) >> $clog2(CFG.LINE_WIDTH/CFG.FETCH_DW);
+    end else begin
+      ar_len = slv_req_i.ar.len;
+    end
+  end
 
   // Store counters
   axi_burst_splitter_table #(
