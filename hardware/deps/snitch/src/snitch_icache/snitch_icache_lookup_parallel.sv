@@ -118,7 +118,11 @@ module snitch_icache_lookup_parallel #(
         if (!rst_ni) begin
             valid_q <= 0;
         end else begin
-            valid_q <= in_valid_i && in_ready_o;
+            if (CFG.BUFFER_LOOKUP) begin
+                valid_q <= in_valid_i && in_ready_o;
+            end else if ((in_valid_i && in_ready_o) || out_ready_i) begin
+                valid_q <= in_valid_i && in_ready_o;
+            end
         end
     end
 
@@ -201,22 +205,28 @@ module snitch_icache_lookup_parallel #(
     );
 
     // Buffer response in case we are stalled
-    fall_through_register #(
-        .T          ( out_buffer_t )
-    ) i_rsp_buffer (
-        .clk_i      ( clk_i        ),
-        .rst_ni     ( rst_ni       ),
-        .clr_i      ( 1'b0         ),
-        .testmode_i ( 1'b0         ),
-        // Input port
-        .valid_i    ( valid_q      ),
-        .ready_o    ( buffer_ready ),
-        .data_i     ( data_d       ),
-        // Output port
-        .valid_o    ( buffer_valid ),
-        .ready_i    ( out_ready_i  ),
-        .data_o     ( data_q       )
-    );
+    if (CFG.BUFFER_LOOKUP) begin : gen_buffer
+      fall_through_register #(
+          .T          ( out_buffer_t )
+      ) i_rsp_buffer (
+          .clk_i      ( clk_i        ),
+          .rst_ni     ( rst_ni       ),
+          .clr_i      ( 1'b0         ),
+          .testmode_i ( 1'b0         ),
+          // Input port
+          .valid_i    ( valid_q      ),
+          .ready_o    ( buffer_ready ),
+          .data_i     ( data_d       ),
+          // Output port
+          .valid_o    ( buffer_valid ),
+          .ready_i    ( out_ready_i  ),
+          .data_o     ( data_q       )
+      );
+    end else begin : gen_connection
+      assign data_q = data_d;
+      assign buffer_valid = valid_q;
+      assign buffer_ready = 1'b1;
+    end
 
     // Generate the output signals.
     assign out_addr_o  = addr_q;
