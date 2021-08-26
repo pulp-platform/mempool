@@ -75,5 +75,11 @@ qlr_fifo_size ?= 0
 ##  Optional functionalities  ##
 ################################
 
+# Snitch Tracing (global enable)
+snitch_trace ?= 0
+
+# Ideal instruction fetching
+ideal_instr ?= 1
+
 # Enable the XpulpIMG extension
 xpulpimg ?= 1
