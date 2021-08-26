@@ -30,7 +30,6 @@ $(BINARIES):  $(BIN_DIR)/$(APP_PREFIX)%: %/$(PIPELINE) %/main.c.o $(RUNTIME) $(L
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -I$(HALIDE_INCLUDE) $(RISCV_LDFLAGS) -o $@ $(filter-out $(LINKER_SCRIPT),$^) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
-	$(RISCV_STRIP) $@ -S --strip-unneeded
 
 # Build Halide application
 %.bin: %.cpp
