@@ -183,3 +183,14 @@ void mempool_partial_barrier(uint32_t volatile core_id,
     mempool_wfi();
   }
 }
+
+void mempool_sleep_barrier(uint32_t num_cores) {
+  // Increment the barrier counter
+  if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_SEQ_CST)) {
+    barrier = 0;
+    mempool_wait(256);
+    wake_up((uint32_t)-1);
+  } else {
+    mempool_wfi();
+  }
+}
