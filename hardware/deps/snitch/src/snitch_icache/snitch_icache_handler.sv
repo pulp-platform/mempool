@@ -149,17 +149,22 @@ module snitch_icache_handler #(
     // further requests to guarantee correct ordering of requests.
     logic [CFG.ID_WIDTH_RESP-1:0] miss_in_flight_d, miss_in_flight_q;
 
-    always_comb begin : p_miss_in_flight
-        miss_in_flight_d = miss_in_flight_q;
-        if (push_enable) begin
-          miss_in_flight_d |= push_idmask;
-        end
-        if (in_rsp_valid_o && in_rsp_ready_i) begin
-          miss_in_flight_d &= ~in_rsp_id_o;
-        end
-    end
+    if (CFG.GUARANTEE_ORDERING) begin : g_miss_in_flight_table
+      always_comb begin : p_miss_in_flight
+          miss_in_flight_d = miss_in_flight_q;
+          if (push_enable) begin
+            miss_in_flight_d |= push_idmask;
+          end
+          if (in_rsp_valid_o && in_rsp_ready_i) begin
+            miss_in_flight_d &= ~in_rsp_id_o;
+          end
+      end
 
-    `FF(miss_in_flight_q, miss_in_flight_d, '0, clk_i, rst_ni)
+      `FF(miss_in_flight_q, miss_in_flight_d, '0, clk_i, rst_ni)
+    end else begin : g_tie_off_miss_in_flight
+      assign miss_in_flight_d = '0;
+      assign miss_in_flight_q = '0;
+    end
 
     // The miss handler checks if the access into the cache was a hit. If yes,
     // the data is forwarded to the response handler. Otherwise the table of

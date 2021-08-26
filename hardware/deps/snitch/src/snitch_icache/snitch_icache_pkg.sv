@@ -28,6 +28,7 @@ package snitch_icache_pkg;
         bit L1_TAG_SCM;
         bit EARLY_LATCH;
         bit BUFFER_LOOKUP;
+        bit GUARANTEE_ORDERING;
 
         // Derived values.
         int FETCH_ALIGN;
