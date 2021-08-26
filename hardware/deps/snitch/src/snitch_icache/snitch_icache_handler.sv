@@ -4,6 +4,8 @@
 
 // Fabian Schuiki <fschuiki@iis.ee.ethz.ch>
 
+`include "common_cells/registers.svh"
+
 module snitch_icache_handler #(
     parameter snitch_icache_pkg::config_t CFG = '0
 )(
@@ -157,13 +159,7 @@ module snitch_icache_handler #(
         end
     end
 
-    always_ff @(posedge clk_i or negedge rst_ni) begin
-       if(~rst_ni) begin
-           miss_in_flight_q <= '0;
-       end else begin
-           miss_in_flight_q <= miss_in_flight_d;
-       end
-    end
+    `FF(miss_in_flight_q, miss_in_flight_d, '0, clk_i, rst_ni)
 
     // The miss handler checks if the access into the cache was a hit. If yes,
     // the data is forwarded to the response handler. Otherwise the table of
