@@ -97,6 +97,7 @@ module snitch
   // Instruction fetch
   logic [31:0] pc_d, pc_q;
   logic wfi_d, wfi_q;
+  logic wake_up_d, wake_up_q;
   logic [31:0] consec_pc;
   // Immediates
   logic [31:0] iimm, uimm, jimm, bimm, simm, pbimm;
@@ -205,6 +206,7 @@ module snitch
   // Registers
   `FFAR(pc_q, pc_d, BootAddr, clk_i, rst_i)
   `FFAR(wfi_q, wfi_d, '0, clk_i, rst_i)
+  `FFAR(wake_up_q, wake_up_d, '0, clk_i, rst_i)
   `FFAR(sb_q, sb_d, '0, clk_i, rst_i)
 
   // performance counter
@@ -330,7 +332,10 @@ module snitch
     acc_register_rd = 1'b0;
 
     csr_en = 1'b0;
-    wfi_d = (wake_up_sync_i) ? 1'b0 : wfi_q;
+    // Wake up if a wake-up is incoming or pending
+    wfi_d = (wake_up_q || wake_up_sync_i) ? 1'b0 : wfi_q;
+    // Only store a pending wake-up if we are not asleep
+    wake_up_d = (wake_up_sync_i && !wfi_q) ? 1'b1 : wake_up_q;
 
     unique casez (inst_data_i)
       riscv_instr::ADD: begin
@@ -622,7 +627,14 @@ module snitch
         write_rd = 1'b0;
       end
       riscv_instr::WFI: begin
-        if (valid_instr) wfi_d = 1'b1;
+        if (valid_instr) begin
+          wfi_d = 1'b1;
+          if (wake_up_q || wake_up_sync_i) begin
+            // Do not sleep if a wake-up is pending
+            wfi_d = 1'b0;
+            wake_up_d = 1'b0;
+          end
+        end
       end
       // Atomics
       riscv_instr::AMOADD_W: begin
@@ -1335,6 +1347,9 @@ module snitch
   always_ff @(posedge clk_i or posedge rst_i) begin
     if (!rst_i && illegal_inst && inst_valid_o && inst_ready_i) begin
       $display("[Illegal Instruction Core %0d] PC: %h Data: %h", hart_id_i, inst_addr_o, inst_data_i);
+    end
+    if (!rst_i && wake_up_sync_i && wake_up_q) begin
+      $display("[Missed wake-up Core %0d] Cycle: %d, Time: %t", hart_id_i, cycle_q, $time);
     end
   end
   // pragma translate_on
