@@ -111,7 +111,7 @@ int halide_convolution(uint32_t core_id, uint32_t num_cores) {
 #endif
   }
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   mempool_start_benchmark();
   // Call the Halide pipeline
@@ -119,7 +119,7 @@ int halide_convolution(uint32_t core_id, uint32_t num_cores) {
                               (halide_buffer_t *)&halide_buffer_out);
   mempool_stop_benchmark();
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 #ifdef VERBOSE
   // Print the result
   printf("Convolution finished with exit code %d\n", error);
@@ -141,7 +141,7 @@ int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   // Initialize barrier and synchronize
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   if (core_id == 0) {
 #ifdef VERBOSE
@@ -168,7 +168,7 @@ int main() {
     }
   }
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -190,7 +190,7 @@ int main() {
     }
   }
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     printf("Start\n");
@@ -203,7 +203,7 @@ int main() {
   mempool_stop_benchmark();
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Initialized --> Start calculating
   mempool_start_benchmark();
@@ -211,7 +211,7 @@ int main() {
   mempool_stop_benchmark();
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Initialized --> Start calculating
   halide_convolution(core_id, num_cores);
@@ -223,7 +223,7 @@ int main() {
 #endif
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -236,7 +236,7 @@ int main() {
     }
   }
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 #endif
 
   return 0;

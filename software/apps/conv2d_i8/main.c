@@ -27,9 +27,9 @@ volatile int error __attribute__((section(".l1")));
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
-  mempool_barrier(num_cores, num_cores / 2);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     // Initialize error
@@ -93,7 +93,7 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, 4 * num_cores);
+  mempool_barrier(num_cores);
 
   return error;
 }

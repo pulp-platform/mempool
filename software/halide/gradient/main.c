@@ -72,8 +72,8 @@ int main() {
     }
 
     wake_up((uint32_t)-1);
-  } else {
-    mempool_wfi();
   }
+  mempool_wfi();
+
   return 0;
 }

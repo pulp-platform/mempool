@@ -29,7 +29,7 @@ volatile int error __attribute__((section(".l1")));
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   if (core_id == 0) {
 #ifdef VERBOSE
@@ -54,7 +54,7 @@ int main() {
   // zero_conv2d_image(out, N, M, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores, num_cores / 4);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     printf("A:\n");
@@ -83,7 +83,7 @@ int main() {
   // Matrices are initialized --> Start calculating
   for (int i = 2; i < 3; ++i) {
     // Wait at barrier until everyone is ready
-    mempool_barrier(num_cores, num_cores / 2);
+    mempool_barrier(num_cores);
     mempool_start_benchmark();
     switch (i) {
     case 0:
@@ -110,7 +110,7 @@ int main() {
     }
     mempool_stop_benchmark();
     // Wait at barrier befor checking
-    mempool_barrier(num_cores, num_cores * 4);
+    mempool_barrier(num_cores);
     // Check result
     if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
       __atomic_fetch_or(&error, i, __ATOMIC_SEQ_CST);
@@ -124,7 +124,7 @@ int main() {
 #endif
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, 4 * num_cores);
+  mempool_barrier(num_cores);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -137,7 +137,7 @@ int main() {
     }
   }
 
-  mempool_barrier(num_cores, 4 * num_cores);
+  mempool_barrier(num_cores);
 #endif
 
   return error;

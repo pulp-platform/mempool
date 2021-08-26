@@ -33,7 +33,7 @@ void init_img(volatile int32_t *img, uint32_t size, uint32_t core_id,
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   if (core_id == 0) {
     // Hack the allocation of in and out before kernel
@@ -48,7 +48,7 @@ int main() {
   init_img(in, M * N, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores, num_cores / 4);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     printf("In:\n");
@@ -63,12 +63,12 @@ int main() {
 #endif
 
   // Wait at barrier until everyone is ready
-  mempool_barrier(num_cores, num_cores / 2);
+  mempool_barrier(num_cores);
   mempool_start_benchmark();
   fdct_8x8_parallel((int32_t *)in, N, M, (int32_t *)in, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -81,7 +81,7 @@ int main() {
     }
   }
 
-  mempool_barrier(num_cores, 4 * num_cores);
+  mempool_barrier(num_cores);
 #endif
 
   return error;
