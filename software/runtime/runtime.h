@@ -18,10 +18,7 @@ typedef uint32_t mempool_id_t;
 typedef uint32_t mempool_timer_t;
 
 /// Obtain the number of cores in the current cluster.
-static inline mempool_id_t mempool_get_core_count() {
-  extern uint32_t nr_cores_address_reg;
-  return nr_cores_address_reg;
-}
+static inline mempool_id_t mempool_get_core_count() { return NUM_CORES; }
 
 /// Obtain the ID of the current core.
 static inline mempool_id_t mempool_get_core_id() {
