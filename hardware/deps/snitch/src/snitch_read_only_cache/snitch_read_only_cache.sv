@@ -179,14 +179,18 @@ module snitch_read_only_cache #(
   // --------------------------------------------------
   localparam int unsigned PendingCount = MaxTrans;
   localparam snitch_icache_pkg::config_t CFG = '{
-    LINE_WIDTH:    LineWidth,
-    LINE_COUNT:    LineCount,
-    SET_COUNT:     SetCount,
-    PENDING_COUNT: PendingCount,
-    FETCH_AW:      AxiAddrWidth,
-    FETCH_DW:      AxiDataWidth,
-    FILL_AW:       AxiAddrWidth,
-    FILL_DW:       AxiDataWidth,
+    LINE_WIDTH:         LineWidth,
+    LINE_COUNT:         LineCount,
+    SET_COUNT:          SetCount,
+    PENDING_COUNT:      PendingCount,
+    FETCH_AW:           AxiAddrWidth,
+    FETCH_DW:           AxiDataWidth,
+    FILL_AW:            AxiAddrWidth,
+    FILL_DW:            AxiDataWidth,
+    L1_TAG_SCM:         0, // Unused here
+    EARLY_LATCH:        0, // Unused here
+    BUFFER_LOOKUP:      1, // Mandatory here
+    GUARANTEE_ORDERING: 1, // Mandatory here
 
     FETCH_ALIGN:   $clog2(AxiDataWidth/8),
     FILL_ALIGN:    $clog2(AxiDataWidth/8),
