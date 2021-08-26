@@ -184,8 +184,8 @@ module snitch_axi_to_cache #(
   end
 
   // registers
-  `FFARN(ax_q, ax_d, '0, clk_i, rst_ni)
-  `FFARN(ar_state_q, ar_state_d, Idle, clk_i, rst_ni)
+  `FF(ax_q, ax_d, '0, clk_i, rst_ni)
+  `FF(ar_state_q, ar_state_d, Idle, clk_i, rst_ni)
 
   // --------------------------------------------------
   // R Channel
@@ -342,10 +342,10 @@ module snitch_axi_to_cache #(
   // --------------------------------------------------
   // Flip-Flops
   // --------------------------------------------------
-  `FFARN(r_last_q, r_last_d, 1'b0, clk_i, rst_ni)
-  `FFARN(r_state_q, r_state_d, RFeedthrough, clk_i, rst_ni)
-  `FFARN(r_data_q, r_data_d, '0, clk_i, rst_ni)
-  `FFARN(r_offset_q, r_offset_d, '0, clk_i, rst_ni)
+  `FF(r_last_q, r_last_d, 1'b0, clk_i, rst_ni)
+  `FF(r_state_q, r_state_d, RFeedthrough, clk_i, rst_ni)
+  `FF(r_data_q, r_data_d, '0, clk_i, rst_ni)
+  `FF(r_offset_q, r_offset_d, '0, clk_i, rst_ni)
 
 endmodule
 
@@ -488,7 +488,7 @@ module axi_burst_splitter_table #(
   end
 
   // registers
-  `FFARN(err_q, err_d, '0, clk_i, rst_ni)
+  `FF(err_q, err_d, '0, clk_i, rst_ni)
 
   `ifndef VERILATOR
   // pragma translate_off

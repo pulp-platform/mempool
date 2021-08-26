@@ -169,7 +169,7 @@ module snitch_read_only_cache #(
       slv_ar_select = Bypass;
     end
     // Bypass cache if disabled
-    if (enable_i == 1'b0) begin
+    if (!enable_i) begin
       slv_ar_select = Bypass;
     end
   end
