@@ -17,5 +17,5 @@ void mempool_partial_barrier(uint32_t volatile core_id,
                              uint32_t volatile core_init,
                              uint32_t volatile num_sleeping_cores,
                              uint32_t volatile memloc);
-
+void mempool_sleep_barrier(uint32_t num_cores);
 #endif // __SYNCHRONIZATION_H__
