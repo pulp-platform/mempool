@@ -5,7 +5,7 @@
 // Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
 //         Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
-/// Serve read memory requests from a constant cache.
+/// Serve read memory requests from a read-only cache.
 /// The cacheable region can be runtime configured. All writes and read
 /// requests outside the configured regions will be forwarded.
 module snitch_read_only_cache #(
@@ -49,13 +49,13 @@ module snitch_read_only_cache #(
 
   // Check for supported parameters
   if (AxiDataWidth < 32)
-    $error("snitch_const_cache: AxiDataWidth must be larger than 32.");
+    $error("snitch_read_only_cache: AxiDataWidth must be larger than 32.");
   if (AxiDataWidth > LineWidth)
-    $error("snitch_const_cache: LineWidth must be larger than/equal to AxiDataWidth.");
+    $error("snitch_read_only_cache: LineWidth must be larger than/equal to AxiDataWidth.");
   if (NrAddrRules < 1)
-    $error("snitch_const_cache: NrAddrRules must be larger than/equal to 1.");
+    $error("snitch_read_only_cache: NrAddrRules must be larger than/equal to 1.");
   if (MaxTrans < 1)
-    $error("snitch_const_cache: MaxTrans must be larger than/equal to 1.");
+    $error("snitch_read_only_cache: MaxTrans must be larger than/equal to 1.");
 
   // --------------------------------------------------
   // AXI Demux
