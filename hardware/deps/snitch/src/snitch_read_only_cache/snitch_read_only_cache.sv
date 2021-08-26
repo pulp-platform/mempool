@@ -30,17 +30,17 @@ module snitch_read_only_cache #(
   parameter type mst_req_t = logic,
   parameter type mst_rsp_t = logic
 ) (
-  input  logic clk_i,
-  input  logic rst_ni,
-  input  logic enable_i,
-  input  logic flush_valid_i,
-  output logic flush_ready_o,
-  input  logic [AxiAddrWidth-1:0] start_addr_i [NrAddrRules],
-  input  logic [AxiAddrWidth-1:0] end_addr_i [NrAddrRules],
-  input  slv_req_t axi_slv_req_i,
-  output slv_rsp_t axi_slv_rsp_o,
-  output mst_req_t axi_mst_req_o,
-  input  mst_rsp_t axi_mst_rsp_i
+  input  logic                                     clk_i,
+  input  logic                                     rst_ni,
+  input  logic                                     enable_i,
+  input  logic                                     flush_valid_i,
+  output logic                                     flush_ready_o,
+  input  logic [NrAddrRules-1:0][AxiAddrWidth-1:0] start_addr_i,
+  input  logic [NrAddrRules-1:0][AxiAddrWidth-1:0] end_addr_i,
+  input  slv_req_t                                 axi_slv_req_i,
+  output slv_rsp_t                                 axi_slv_rsp_o,
+  output mst_req_t                                 axi_mst_req_o,
+  input  mst_rsp_t                                 axi_mst_rsp_i
 );
 
   `include "axi/typedef.svh"
