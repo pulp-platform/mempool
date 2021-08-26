@@ -329,6 +329,17 @@ $(buildpath)/%.trace: $(buildpath)/%.dasm
 tracevis:
 	$(MEMPOOL_DIR)/scripts/tracevis.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json
 
+tracemac: tracemac_log tracemac_csv	tracemac_plot
+
+tracemac_log:
+	$(MEMPOOL_DIR)/scripts/tracemac_log.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracemac.txt
+
+tracemac_csv:
+	$(MEMPOOL_DIR)/scripts/tracemac_csv.py $(preload) $(buildpath)/tracemac.txt -o $(buildpath)/tracemac.csv
+
+tracemac_plot:
+	$(MEMPOOL_DIR)/scripts/tracemac_plot.py $(preload) $(buildpath)/tracemac.csv --log $(buildpath)/tracemac.txt  -o $(buildpath)/tracemac.pdf
+
 ############################
 # Unit tests simulation    #
 ############################
