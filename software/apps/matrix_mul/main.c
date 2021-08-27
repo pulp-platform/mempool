@@ -91,7 +91,7 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // #ifdef VERBOSE
   if (core_id == 0) {
@@ -104,7 +104,7 @@ int main() {
   init_matrix(b, N, P, B_a, B_b, B_c, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   if (core_id == 0) {
     print_matrix(a, M, N);
     print_matrix(b, N, P);
@@ -114,7 +114,7 @@ int main() {
   // Matrices are initialized --> Start calculating
   for (int i = 0; i < 5; ++i) {
     // Wait at barrier until everyone is ready
-    mempool_barrier(num_cores, num_cores / 2);
+    mempool_barrier(num_cores);
     // Execute function to test. Add a NOP before and after for future analysis
     // with benchmark script.
     // mempool_timer_t cycles = mempool_get_timer();
@@ -140,7 +140,7 @@ int main() {
     mempool_stop_benchmark();
     // cycles = mempool_get_timer() - cycles;
     // Wait at barrier befor checking
-    mempool_barrier(num_cores, num_cores * 4);
+    mempool_barrier(num_cores);
     // Check result
     if (core_id == 0) {
       // printf("Duration: %d\n", cycles);
@@ -159,13 +159,13 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
 #ifdef VERBOSE
   if (core_id == 0) {
     print_matrix(c, M, P);
   }
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 #endif
 
   return 0;

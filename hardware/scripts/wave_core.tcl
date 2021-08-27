@@ -54,11 +54,14 @@ add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mem
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/stall
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/lsu_stall
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_stall
-add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/wfi_d
-add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/wfi_q
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/zero_lsb
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/pc_d
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/pc_q
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/wfi_d
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/wfi_q
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/wake_up_sync_i
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/wake_up_d
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/wake_up_q
 add wave -noupdate -group core[$1][$2][$3] -group Internal -divider LSU
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/ls_size
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/ls_amo
@@ -133,5 +136,4 @@ add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mem
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/alu_writeback
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/csr_trace_q
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/csr_trace_en
-add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/wake_up_sync_i
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/core_events_o

@@ -154,7 +154,7 @@ int halide_matmul(uint32_t core_id, uint32_t num_cores) {
     halide_buffer_matrix_c.padding = 0;
   }
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   mempool_start_benchmark();
   // Call the Halide pipeline
@@ -163,7 +163,7 @@ int halide_matmul(uint32_t core_id, uint32_t num_cores) {
                               (halide_buffer_t *)&halide_buffer_matrix_c);
   mempool_stop_benchmark();
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 #ifdef VERBOSE
   if (core_id == 0) {
     // Print the result
@@ -187,7 +187,7 @@ int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   // Initialize barrier and synchronize
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   if (core_id == 0) {
     error = 0;
@@ -211,7 +211,7 @@ int main() {
   halide_matmul(core_id, num_cores);
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   if (verify_matrix(matrix_c, matrix_M, matrix_P, matrix_N, A_a, A_b, A_c, B_a,
                     B_b, B_c, core_id, num_cores)) {
@@ -219,7 +219,7 @@ int main() {
     return -1;
   }
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   return error;
 }

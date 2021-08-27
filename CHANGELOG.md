@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Remove the reset synchronizer from the `mempool_cluster`
 - Changed LSU from in-order memory responses to out-of-order memory responses
 - Remove the `reorder_buffer` from the `tcdm_shim`
+- Register wake-up signals and use `wfi` for barriers
 
 ## 0.4.0 - 2021-07-01
 

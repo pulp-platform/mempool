@@ -62,3 +62,4 @@ static inline void mempool_wfi() { asm volatile("wfi"); }
 // Wake up core with given core_id by writing in the wake up control register.
 // If core_id equals -1, wake up all cores.
 static inline void wake_up(uint32_t core_id) { wake_up_reg = core_id; }
+static inline void wake_up_all() { wake_up((uint32_t)-1); }
