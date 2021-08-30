@@ -118,12 +118,12 @@ int main() {
   uint32_t row_idx = core_id % 16;
 
   // Assign grid position (square wise)
-  // uint32_t col_idx = tile_id % 8;
-  // col_idx *= 2;
-  // col_idx += core_id % 2;
-  // uint32_t row_idx = tile_id / 8;
-  // row_idx *= 2;
-  // row_idx += (core_id % 4) / 2;
+  uint32_t col_idx = tile_id % 8;
+  col_idx *= 2;
+  col_idx += core_id % 2;
+  uint32_t row_idx = tile_id / 8;
+  row_idx *= 2;
+  row_idx += (core_id % 4) / 2;
 
   // Assign grid position (square square wise)
   // uint32_t group_id = tile_id / 16;
@@ -139,13 +139,13 @@ int main() {
   // row_idx += add_row * 8;
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_sleep_barrier(num_cores);
 
   // Set tile and core mapping
   core_map[row_idx * SYSTOLIC_SIZE + col_idx] = core_id;
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_sleep_barrier(num_cores);
 
   // Setup
   if (core_id == 0) {
@@ -164,7 +164,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_sleep_barrier(num_cores);
 
   // Fill matrices with gradient
   fill_gradient_matrix(matrix_A, DIM_M, DIM_N, core_id, num_cores);
@@ -181,28 +181,29 @@ int main() {
   }
 
   // Start benchmark for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_sleep_barrier(num_cores);
   mempool_start_benchmark();
 
   if ((row_idx == 0) && (col_idx == 0)) {
-    systolic_rcp_pe(DIM_M, DIM_N, DIM_P, matrix_A, matrix_B, matrix_C);
+    systolic_rcp_pe(num_cores, DIM_M, DIM_N, DIM_P, matrix_A, matrix_B,
+                    matrix_C);
   }
 
   if ((row_idx == 0) && (col_idx != 0)) {
-    systolic_cp_pe(col_idx, DIM_M, DIM_N, DIM_P, matrix_B, matrix_C);
+    systolic_cp_pe(num_cores, col_idx, DIM_M, DIM_N, DIM_P, matrix_B, matrix_C);
   }
 
   if ((row_idx != 0) && (col_idx == 0)) {
-    systolic_rp_pe(row_idx, DIM_M, DIM_N, DIM_P, matrix_A, matrix_C);
+    systolic_rp_pe(num_cores, row_idx, DIM_M, DIM_N, DIM_P, matrix_A, matrix_C);
   }
 
   if ((row_idx != 0) && (col_idx != 0)) {
-    systolic_np_pe(row_idx, col_idx, DIM_M, DIM_N, DIM_P, matrix_C);
+    systolic_np_pe(num_cores, row_idx, col_idx, DIM_M, DIM_N, DIM_P, matrix_C);
   }
 
   // Stop benchmark for all cores
   mempool_stop_benchmark();
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_sleep_barrier(num_cores);
 
   // Print out benchmark
   if (core_id == 0) {
@@ -214,6 +215,6 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_sleep_barrier(num_cores);
   return 0;
 }
