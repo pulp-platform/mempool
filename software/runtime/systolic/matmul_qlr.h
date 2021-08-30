@@ -47,6 +47,7 @@
 
 #include "alloc.h"
 #include "printf.h"
+#include "synchronization.h"
 
 // Dimensions of square systolic array
 #define SYSTOLIC_SIZE 16
@@ -125,7 +126,8 @@ void systolic_init(uint32_t const *core_map) {
 }
 
 // row and column producing processing element
-void systolic_rcp_pe(const uint32_t M, const uint32_t N, const uint32_t P,
+void systolic_rcp_pe(const uint32_t num_cores, const uint32_t M,
+                     const uint32_t N, const uint32_t P,
                      int32_t const *__restrict__ A,
                      int32_t const *__restrict__ B,
                      int32_t *__restrict__ C) {
@@ -145,6 +147,9 @@ void systolic_rcp_pe(const uint32_t M, const uint32_t N, const uint32_t P,
   qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[0][1];
   qlr_cfg_t3[QLR_CFG_REQ] = 3 * N;
   qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[1][0];
+
+  // Synchronize cores
+  mempool_sleep_barrier(num_cores);
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < M; y += 3 * SYSTOLIC_SIZE) {
@@ -207,10 +212,9 @@ void systolic_rcp_pe(const uint32_t M, const uint32_t N, const uint32_t P,
 }
 
 // column producing processing element
-void systolic_cp_pe(const uint32_t col_idx,
+void systolic_cp_pe(const uint32_t num_cores, const uint32_t col_idx,
                     const uint32_t M, const uint32_t N, const uint32_t P,
-                    int32_t const *__restrict__ B,
-                    int32_t *__restrict__ C) {
+                    int32_t const *__restrict__ B, int32_t *__restrict__ C) {
   uint32_t shifted_x;
   register int32_t sub_C[9];
   register int32_t qlr_t3_buffer;
@@ -248,6 +252,9 @@ void systolic_cp_pe(const uint32_t col_idx,
     qlr_cfg_t3[QLR_CFG_REQ] = 3 * N;
     qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[1][col_idx];
   }
+
+  // Synchronize cores
+  mempool_sleep_barrier(num_cores);
 
   // Check if PE is at the right boundary
   if (col_idx == SYSTOLIC_SIZE - 1) {
@@ -386,10 +393,9 @@ void systolic_cp_pe(const uint32_t col_idx,
 }
 
 // row producing processing element
-void systolic_rp_pe(const uint32_t row_idx,
+void systolic_rp_pe(const uint32_t num_cores, const uint32_t row_idx,
                     const uint32_t M, const uint32_t N, const uint32_t P,
-                    int32_t const *__restrict__ A,
-                    int32_t *__restrict__ C) {
+                    int32_t const *__restrict__ A, int32_t *__restrict__ C) {
   uint32_t shifted_y;
   register int32_t sub_C[9];
   volatile uint32_t *qlr_cfg_t0 = (uint32_t *)QLR_CFG_T0;
@@ -420,6 +426,9 @@ void systolic_rp_pe(const uint32_t row_idx,
     qlr_cfg_t3[QLR_CFG_IADDR] = (uint32_t)queues_vert_0[row_idx][0];
     qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[row_idx + 1][0];
   }
+
+  // Synchronize cores
+  mempool_sleep_barrier(num_cores);
 
   // Check if PE is at the bottom boundary
   if (row_idx == SYSTOLIC_SIZE - 1) {
@@ -550,9 +559,9 @@ void systolic_rp_pe(const uint32_t row_idx,
 }
 
 // non-producing processing element
-void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
-                    const uint32_t M, const uint32_t N, const uint32_t P,
-                    int32_t *__restrict__ C) {
+void systolic_np_pe(const uint32_t num_cores, const uint32_t row_idx,
+                    const uint32_t col_idx, const uint32_t M, const uint32_t N,
+                    const uint32_t P, int32_t *__restrict__ C) {
   uint32_t shifted_x;
   uint32_t shifted_y;
   register int32_t sub_C[9];
@@ -596,6 +605,9 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
     qlr_cfg_t3[QLR_CFG_IADDR] = (uint32_t)queues_vert_0[row_idx][col_idx];
     qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[row_idx + 1][col_idx];
   }
+
+  // Synchronize cores
+  mempool_sleep_barrier(num_cores);
 
   // PE is not at a boundary
   if ((col_idx != SYSTOLIC_SIZE - 1) && (row_idx != SYSTOLIC_SIZE - 1)) {
