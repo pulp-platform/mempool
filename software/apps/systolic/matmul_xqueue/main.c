@@ -15,15 +15,12 @@
 #include "systolic/matmul_xqueue.h"
 
 // Dimensions of matrices
-#define DIM_M 24
-#define DIM_N 24
-#define DIM_P 24
+#define DIM_M 96
+#define DIM_N 96
+#define DIM_P 96
 
 uint32_t *tile_mapping;
 uint32_t *core_mapping;
-
-int32_t *matrix_A;
-int32_t *matrix_B;
 
 uint32_t rep_count;
 
@@ -80,8 +77,8 @@ int main() {
   // uint32_t row_idx = core_id / 4;
 
   // Assign grid position (col wise)
-  uint32_t col_idx = core_id / 4;
-  uint32_t row_idx = core_id % 4;
+  // uint32_t col_idx = core_id / 4;
+  // uint32_t row_idx = core_id % 4;
 
   // Assign grid position (square wise)
   // uint32_t col_idx = tile_id % 2;
@@ -104,12 +101,12 @@ int main() {
   uint32_t row_idx = core_id % 16;
 
   // Assign grid position (square wise)
-  // uint32_t col_idx = tile_id % 8;
-  // col_idx *= 2;
-  // col_idx += core_id % 2;
-  // uint32_t row_idx = tile_id / 8;
-  // row_idx *= 2;
-  // row_idx += (core_id % 4) / 2;
+  uint32_t col_idx = tile_id % 8;
+  col_idx *= 2;
+  col_idx += core_id % 2;
+  uint32_t row_idx = tile_id / 8;
+  row_idx *= 2;
+  row_idx += (core_id % 4) / 2;
 
   // Assign grid position (square square wise)
   // uint32_t group_id = tile_id / 16;
@@ -128,14 +125,14 @@ int main() {
 #endif
 
   // Wait for all cores
-  mempool_barrier(num_cores);
+  mempool_sleep_barrier(num_cores);
 
   // Set tile and core mapping
   tile_mapping[row_idx * SYSTOLIC_SIZE + col_idx] = tile_id;
   core_mapping[row_idx * SYSTOLIC_SIZE + col_idx] = core_id;
 
   // Wait for all cores
-  mempool_barrier(num_cores);
+  mempool_sleep_barrier(num_cores);
 
   // Setup
   if (core_id == 0) {
@@ -151,66 +148,55 @@ int main() {
     systolic_init(tile_mapping, core_mapping);
 
     // Create systolic matrices
-    generate_gradient_matrix(&matrix_A, DIM_M, DIM_N);
-    systolic_matrix_create(&syst_matrix_A, matrix_A, DIM_M, DIM_N);
-    simple_free(matrix_A);
-    generate_gradient_matrix(&matrix_B, DIM_N, DIM_P);
-    systolic_matrix_create(&syst_matrix_B, matrix_B, DIM_N, DIM_P);
-    simple_free(matrix_B);
+    systolic_matrix_allocate(&syst_matrix_A, DIM_M, DIM_N);
+    systolic_matrix_allocate(&syst_matrix_B, DIM_N, DIM_P);
     systolic_matrix_allocate(&syst_matrix_C, DIM_M, DIM_P);
-
-    // Print out systolic matrices A & B
-    // printf("> Print Systolic Matrices A & B\n");
-    // systolic_matrix_print(syst_matrix_A);
-    // systolic_matrix_print(syst_matrix_B);
 
     // Set repetition count per submatrix of C (A->num_cols == B->num_rows)
     rep_count = syst_matrix_A->num_cols / 2;
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores);
+  mempool_sleep_barrier(num_cores);
+
+  // Fill matrices with gradient
+  fill_systolic_matrix(syst_matrix_A, core_id, num_cores);
+  fill_systolic_matrix(syst_matrix_B, core_id, num_cores);
+
+  // Wait for all cores
+  mempool_sleep_barrier(num_cores);
 
   if (core_id == 0) {
-    // Start benchmark
     printf("> Start\n");
-    mempool_start_benchmark();
   }
 
   // Start benchmark for all cores
-  // mempool_barrier(num_cores);
-  // mempool_start_benchmark();
-
-  // Wait for all cores
-  mempool_barrier(num_cores);
+  mempool_sleep_barrier(num_cores);
+  mempool_start_benchmark();
 
   if ((row_idx == 0) && (col_idx == 0)) {
-    systolic_rcp_pe(rep_count, syst_matrix_A, syst_matrix_B, syst_matrix_C);
+    systolic_rcp_pe(num_cores, rep_count, syst_matrix_A, syst_matrix_B,
+                    syst_matrix_C);
   }
 
   if ((row_idx == 0) && (col_idx != 0)) {
-    systolic_cp_pe(col_idx, rep_count, syst_matrix_B, syst_matrix_C);
+    systolic_cp_pe(num_cores, col_idx, rep_count, syst_matrix_B, syst_matrix_C);
   }
 
   if ((row_idx != 0) && (col_idx == 0)) {
-    systolic_rp_pe(row_idx, rep_count, syst_matrix_A, syst_matrix_C);
+    systolic_rp_pe(num_cores, row_idx, rep_count, syst_matrix_A, syst_matrix_C);
   }
 
   if ((row_idx != 0) && (col_idx != 0)) {
-    systolic_np_pe(row_idx, col_idx, rep_count, syst_matrix_C);
+    systolic_np_pe(num_cores, row_idx, col_idx, rep_count, syst_matrix_C);
   }
 
-  // Wait for all cores
-  mempool_barrier(num_cores);
-
   // Stop benchmark for all cores
-  // mempool_stop_benchmark();
-  // mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+  mempool_sleep_barrier(num_cores);
 
   // Print out benchmark
   if (core_id == 0) {
-    // Stop benchmark
-    mempool_stop_benchmark();
     printf("> End\n");
 
     // Print out systolic matrix C
@@ -219,6 +205,6 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores);
+  mempool_sleep_barrier(num_cores);
   return 0;
 }
