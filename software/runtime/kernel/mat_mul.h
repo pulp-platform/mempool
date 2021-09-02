@@ -115,7 +115,7 @@ void mat_mul_unrolled_2x2_parallel(int32_t const *__restrict__ A,
                                    uint32_t N, uint32_t P, uint32_t id,
                                    uint32_t numThreads) {
   // Parallelize by assigning each core one row
-  uint32_t const c = 8; // How many columns to split the matrix into
+  uint32_t const c = 16; // How many columns to split the matrix into
   uint32_t const c_start = (P / c) * (id % c);
   uint32_t const c_end = (P / c) * ((id % c) + 1);
   for (uint32_t i = 2 * (id / c); i < M; i += 2 * (numThreads / c)) {
