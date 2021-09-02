@@ -26,6 +26,7 @@
 
 #include "alloc.h"
 #include "printf.h"
+#include "synchronization.h"
 
 // Dimensions of square systolic array
 #define SYSTOLIC_SIZE 16
@@ -168,6 +169,16 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
   *syst_matrix = new_matrix;
 }
 
+void fill_systolic_matrix(systolic_matrix_t *syst_matrix, uint32_t core_id,
+                          uint32_t num_cores) {
+  int32_t *matrix = syst_matrix->matrix;
+  for (uint32_t y = core_id; y < syst_matrix->num_rows; y += num_cores) {
+    for (uint32_t x = 0; x < syst_matrix->num_cols; ++x) {
+      matrix[y * syst_matrix->num_cols + x] = (int32_t)(y + x);
+    }
+  }
+}
+
 void systolic_matrix_print(systolic_matrix_t *syst_matrix) {
   printf("Systolic matrix at 0x%08X\n", (uint32_t)syst_matrix);
   uint32_t num_rows = syst_matrix->num_rows;
@@ -182,7 +193,7 @@ void systolic_matrix_print(systolic_matrix_t *syst_matrix) {
 }
 
 // row and column producing processing element
-void systolic_rcp_pe(const uint32_t rep_count,
+void systolic_rcp_pe(const uint32_t num_cores, const uint32_t rep_count,
                      systolic_matrix_t const *__restrict__ A,
                      systolic_matrix_t const *__restrict__ B,
                      systolic_matrix_t const *__restrict__ C) {
@@ -226,6 +237,9 @@ void systolic_rcp_pe(const uint32_t rep_count,
   num_cols_B = B->num_cols;
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
+
+  // Synchronize cores
+  mempool_sleep_barrier(num_cores);
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
@@ -276,7 +290,8 @@ void systolic_rcp_pe(const uint32_t rep_count,
 }
 
 // column producing processing element
-void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
+void systolic_cp_pe(const uint32_t num_cores, const uint32_t col_idx,
+                    const uint32_t rep_count,
                     systolic_matrix_t const *__restrict__ B,
                     systolic_matrix_t const *__restrict__ C) {
   int32_t *queue_prev_horz_0;
@@ -325,6 +340,9 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   num_cols_B = B->num_cols;
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
+
+  // Synchronize cores
+  mempool_sleep_barrier(num_cores);
 
   // Check if PE is at the right boundary
   if (queue_next_horz_0) {
@@ -461,7 +479,8 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
 }
 
 // row producing processing element
-void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
+void systolic_rp_pe(const uint32_t num_cores, const uint32_t row_idx,
+                    const uint32_t rep_count,
                     systolic_matrix_t const *__restrict__ A,
                     systolic_matrix_t const *__restrict__ C) {
   int32_t *queue_next_horz_0;
@@ -510,6 +529,9 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   num_cols_A = A->num_cols;
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
+
+  // Synchronize cores
+  mempool_sleep_barrier(num_cores);
 
   // Check if PE is at the bottom boundary
   if (queue_next_vert_0) {
@@ -646,8 +668,8 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
 }
 
 // non-producing processing element
-void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
-                    const uint32_t rep_count,
+void systolic_np_pe(const uint32_t num_cores, const uint32_t row_idx,
+                    const uint32_t col_idx, const uint32_t rep_count,
                     systolic_matrix_t const *__restrict__ C) {
   int32_t *queue_prev_horz_0;
   int32_t *queue_prev_horz_1;
@@ -702,6 +724,9 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   // Get dimensions of matrices
   num_rows_C = C->num_rows;
   num_cols_C = C->num_cols;
+
+  // Synchronize cores
+  mempool_sleep_barrier(num_cores);
 
   // PE is not at a boundary
   if (queue_next_horz_0 && queue_next_vert_0) {
