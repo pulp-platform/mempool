@@ -27,14 +27,14 @@
 #include "synchronization.h"
 
 // Dimensions of matrices X and Y
-#define DIM_M 256
+#define DIM_M 240
 #define DIM_N 61
 
 // Repetition count
 #define REP_COUNT 5
 
 // Systolic Length (must be divisor of NUM_CORES)
-#define SYSTOLIC_LENGTH 128
+#define SYSTOLIC_LENGTH 16
 
 uint32_t *core_map;
 
@@ -79,6 +79,8 @@ int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   uint32_t tile_id = core_id / 4;
+  uint32_t chain_id = core_id / SYSTOLIC_LENGTH;
+  uint32_t num_chains = num_cores / SYSTOLIC_LENGTH;
 
   // Initialize synchronization variables
   mempool_barrier_init(core_id, num_cores);
@@ -151,15 +153,14 @@ int main() {
 
   switch (core_id % SYSTOLIC_LENGTH) {
   case 0:
-    systolic_conv_front(core_id, num_cores, DIM_M, DIM_N, matrix_X,
-                        matrix_W[tile_id], matrix_Y, REP_COUNT);
+    systolic_conv_front(core_id, chain_id, num_chains, num_cores, DIM_M, DIM_N, matrix_X, REP_COUNT);
     break;
   case (SYSTOLIC_LENGTH - 1):
-    systolic_conv_end(core_id, num_cores, DIM_M, DIM_N, matrix_X,
+    systolic_conv_end(core_id, chain_id, num_chains, num_cores, DIM_M, DIM_N, matrix_X,
                       matrix_W[tile_id], matrix_Y, REP_COUNT);
     break;
   default:
-    systolic_conv_mid(core_id, num_cores, DIM_M, DIM_N, matrix_X,
+    systolic_conv_mid(core_id, chain_id, num_chains, num_cores, DIM_M, DIM_N, matrix_X,
                       matrix_W[tile_id], matrix_Y, REP_COUNT);
   }
 
