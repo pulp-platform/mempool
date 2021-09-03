@@ -11,7 +11,7 @@ dependencies:
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.23.0 }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.3.1  }
   snitch:               { path: "hardware/deps/snitch" }
-  tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.1  }
+  tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.5  }
 
 workspace:
   checkout_dir: "./hardware/deps"
