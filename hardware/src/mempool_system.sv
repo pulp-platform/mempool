@@ -63,6 +63,7 @@ module mempool_system
     LatencyMode        : axi_pkg::CUT_MST_PORTS,
     AxiIdWidthSlvPorts : AxiTileIdWidth,
     AxiIdUsedSlvPorts  : AxiTileIdWidth,
+    UniqueIds          : 0,
     AxiAddrWidth       : AddrWidth,
     AxiDataWidth       : AxiDataWidth,
     NoAddrRules        : NumRules
