@@ -119,6 +119,6 @@ module ctrl_registers #(
   assign eoc_valid_o = eoc[0];
 
   // register to add +1 latency to the wr_active signal
-  `FF(wr_active_q, wr_active_d, rst_ni)
+  `FF(wr_active_q, wr_active_d, '0, clk_i, rst_ni)
 
 endmodule : ctrl_registers

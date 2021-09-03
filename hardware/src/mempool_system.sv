@@ -177,7 +177,7 @@ module mempool_system
     .mem_rdata_i  (mem_rdata)
   );
 
-  `FF(mem_rvalid, mem_req, rst_ni)
+  `FF(mem_rvalid, mem_req, 1'b0, clk_i, rst_ni)
 
   tc_sram #(
     .DataWidth(AxiDataWidth),
@@ -232,7 +232,7 @@ module mempool_system
     .mem_rdata_i  (bootrom_rdata)
   );
 
-  `FF(bootrom_rvalid, bootrom_req, rst_ni)
+  `FF(bootrom_rvalid, bootrom_req, 1'b0, clk_i, rst_ni)
 
   bootrom i_bootrom (
     .clk_i  (clk_i        ),
