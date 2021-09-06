@@ -186,7 +186,7 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   // Check whether we had an early multi-hit (e.g., the portion of the tag matched
   // multiple entries in the tag array)
   if (CFG.L0_TAG_WIDTH != CFG.L0_EARLY_TAG_WIDTH) begin : gen_multihit_detection
-    onehot #(
+    cc_onehot #(
       .Width (CFG.L0_LINE_COUNT)
     ) i_onehot_hit_early (
       .d_i (hit_early),

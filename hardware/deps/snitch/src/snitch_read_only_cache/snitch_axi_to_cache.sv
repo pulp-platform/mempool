@@ -241,7 +241,7 @@ module snitch_axi_to_cache #(
     .empty_o ( rsp_id_empty  )
   );
 
-  onehot #(
+  cc_onehot #(
     .Width ( CFG.ID_WIDTH_RESP )
   ) i_onehot (
     .d_i         ( rsp_id_masked ),
@@ -434,6 +434,7 @@ module axi_burst_splitter_table #(
   id_queue #(
     .ID_WIDTH ( $bits(id_t) ),
     .CAPACITY ( MaxTrans    ),
+    .FULL_BW  ( 1'b1        ),
     .data_t   ( cnt_idx_t   )
   ) i_idq (
     .clk_i,
