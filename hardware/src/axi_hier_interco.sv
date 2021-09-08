@@ -2,31 +2,30 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
-//
+// Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
+
 // Implement a hierarchical AXI interconnect. Below shows one level of the interconnect. This module
 // recursively instantiates itself and creates a tree of interconnects, each with `NumPortsPerMux`
 // slave ports.
 //
-// TODO: Add a configurable cache per level
-//
-//           AXI Mux       ID Width
-//                         Converter
+//           AXI Mux    Read-only     ID Width
+//                      Cache         Converter
 //            |‾╲
 //  +-------->|  ╲
-//            |   +        +-------+
-//  +-------->| M |        |       |
-//            | U |------->|   >   |--------->
-//            | X |        |       |
-//            |   +        +-------+
+//            |   +     +-------+     +-------+
+//  +-------->| M |     |       |     |       |
+//            | U |---->|   $   |---->|   >   |---->
+//            | X |     |       |     |       |
+//            |   +     +-------+     +-------+
 //  +-------->|  ╱
 //            |_╱
-//                 Internal
-//  Slave type       type          Master type
+//                 Internal      Cache
+//  Slave type     type          type          Master type
 
 module axi_hier_interco #(
   parameter int unsigned NumSlvPorts    = 0,
   parameter int unsigned NumPortsPerMux = NumSlvPorts,
-  parameter int unsigned EnableCache    = 1'b0,
+  parameter int unsigned EnableCache    = 0,
   parameter int unsigned AddrWidth      = 0,
   parameter int unsigned DataWidth      = 0,
   parameter int unsigned SlvIdWidth     = 0,
@@ -51,7 +50,8 @@ module axi_hier_interco #(
   ////////////////
 
   localparam int unsigned IntIdWidth   = SlvIdWidth + $clog2(NumSlvPorts);
-  localparam int unsigned CacheIdWidth = IntIdWidth + 1;
+  localparam int unsigned CacheIdWidth = EnableCache[0] ? IntIdWidth + 1: IntIdWidth;
+  localparam int unsigned NrAddrRules  = 4;
 
   typedef logic [AddrWidth-1:0]    addr_t;
   typedef logic [DataWidth-1:0]    data_t;
@@ -137,48 +137,53 @@ module axi_hier_interco #(
       .mst_resp_i  (int_resp  )
     );
 
-    addr_t [1:0] CachedRegionStart;
-    addr_t [1:0] CachedRegionEnd;
-    assign CachedRegionStart = '{addr_t'(32'h4000_0000),addr_t'(32'h8000_0000)};
-    assign CachedRegionEnd   = '{addr_t'(32'h4000_1000),addr_t'(32'h8000_2460)};
+    addr_t [NrAddrRules-1:0] CachedRegionStart;
+    addr_t [NrAddrRules-1:0] CachedRegionEnd;
+    assign CachedRegionStart = '{addr_t'(32'h1000_0000),addr_t'(32'hA000_0000),addr_t'(32'h4000_0000),addr_t'(32'h8000_0000)};
+    assign CachedRegionEnd   = '{addr_t'(32'h1000_1000),addr_t'(32'hA000_1000),addr_t'(32'h4000_1000),addr_t'(32'h8000_2460)};
 
-    snitch_read_only_cache #(
-      .LineWidth    ( 2*DataWidth    ),
-      .LineCount    ( 128            ),
-      .SetCount     ( 1              ),
-      .AxiAddrWidth ( AddrWidth      ),
-      .AxiDataWidth ( DataWidth      ),
-      .AxiIdWidth   ( IntIdWidth     ),
-      .AxiUserWidth ( UserWidth      ),
-      .MaxTrans     ( 32'd16         ),
-      .NrAddrRules  ( 2              ),
-      .slv_req_t    ( int_req_t      ),
-      .slv_rsp_t    ( int_resp_t     ),
-      .mst_req_t    ( cache_req_t    ),
-      .mst_rsp_t    ( cache_resp_t   )
-    ) i_snitch_read_only_cache (
-      .clk_i         ( clk_i               ),
-      .rst_ni        ( rst_ni              ),
-      .enable_i      ( 1'b1                ),
-      .flush_valid_i ( 1'b0                ),
-      .flush_ready_o ( /*unused*/          ),
-      .start_addr_i  ( CachedRegionStart   ),
-      .end_addr_i    ( CachedRegionEnd     ),
-      .axi_slv_req_i ( int_req             ),
-      .axi_slv_rsp_o ( int_resp            ),
-      .axi_mst_req_o ( cache_req           ),
-      .axi_mst_rsp_i ( cache_resp          )
-    );
+    if (EnableCache[0]) begin: gen_ro_cache
+      snitch_read_only_cache #(
+        .LineWidth    (2*DataWidth ),
+        .LineCount    (256         ),
+        .SetCount     (2           ),
+        .AxiAddrWidth (AddrWidth   ),
+        .AxiDataWidth (DataWidth   ),
+        .AxiIdWidth   (IntIdWidth  ),
+        .AxiUserWidth (UserWidth   ),
+        .MaxTrans     (32'd16      ),
+        .NrAddrRules  (NrAddrRules ),
+        .slv_req_t    (int_req_t   ),
+        .slv_rsp_t    (int_resp_t  ),
+        .mst_req_t    (cache_req_t ),
+        .mst_rsp_t    (cache_resp_t)
+      ) i_snitch_read_only_cache (
+        .clk_i         (clk_i            ),
+        .rst_ni        (rst_ni           ),
+        .enable_i      (1'b1             ),
+        .flush_valid_i (1'b0             ),
+        .flush_ready_o (/*unused*/       ),
+        .start_addr_i  (CachedRegionStart),
+        .end_addr_i    (CachedRegionEnd  ),
+        .axi_slv_req_i (int_req          ),
+        .axi_slv_rsp_o (int_resp         ),
+        .axi_mst_req_o (cache_req        ),
+        .axi_mst_rsp_i (cache_resp       )
+      );
+    end else begin: gen_no_ro_cache
+      assign cache_req = int_req;
+      assign int_resp  = cache_resp;
+    end
 
     axi_id_remap #(
-      .AxiSlvPortIdWidth    (CacheIdWidth),
-      .AxiSlvPortMaxUniqIds (2**MstIdWidth  ),
-      .AxiMaxTxnsPerId      (4           ),
-      .AxiMstPortIdWidth    (MstIdWidth  ),
-      .slv_req_t            (cache_req_t ),
-      .slv_resp_t           (cache_resp_t),
-      .mst_req_t            (mst_req_t   ),
-      .mst_resp_t           (mst_resp_t  )
+      .AxiSlvPortIdWidth    (CacheIdWidth ),
+      .AxiSlvPortMaxUniqIds (2**MstIdWidth),
+      .AxiMaxTxnsPerId      (4            ),
+      .AxiMstPortIdWidth    (MstIdWidth   ),
+      .slv_req_t            (cache_req_t  ),
+      .slv_resp_t           (cache_resp_t ),
+      .mst_req_t            (mst_req_t    ),
+      .mst_resp_t           (mst_resp_t   )
     ) i_axi_id_remap (
       .clk_i      (clk_i     ),
       .rst_ni     (rst_ni    ),
@@ -188,9 +193,6 @@ module axi_hier_interco #(
       .mst_resp_i (mst_resp_i)
     );
 
-    // TODO: Implement cache
-    if (EnableCache[0])
-      $error("[axi_hier_interco] `EnableCache` not yet supported.");
     // Check all the AXI widths
     if ($bits(slv_req_i[0].aw.addr) != AddrWidth)
       $error("[axi_hier_interco] `slv_req_i.aw.addr` does not match AddrWidth.");
@@ -239,7 +241,7 @@ module axi_hier_interco #(
       axi_hier_interco #(
         .NumSlvPorts    (NumPortsPerMux),
         .NumPortsPerMux (NumPortsPerMux),
-        .EnableCache    (EnableCache[0]),
+        .EnableCache    (EnableCache   ),
         .AddrWidth      (AddrWidth     ),
         .DataWidth      (DataWidth     ),
         .SlvIdWidth     (SlvIdWidth    ),

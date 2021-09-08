@@ -345,7 +345,7 @@ module mempool_group
   axi_hier_interco #(
     .NumSlvPorts    (NumTilesPerGroup),
     .NumPortsPerMux (4               ),
-    .EnableCache    (1'b0            ),
+    .EnableCache    (3               ),
     .AddrWidth      (AddrWidth       ),
     .DataWidth      (AxiDataWidth    ),
     .SlvIdWidth     (AxiTileIdWidth  ),
