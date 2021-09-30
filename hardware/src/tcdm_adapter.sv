@@ -11,12 +11,15 @@
 `include "common_cells/registers.svh"
 
 module tcdm_adapter #(
-  parameter int unsigned AddrWidth    = 32,
-  parameter int unsigned DataWidth    = 32,
-  parameter type         metadata_t   = logic,
-  parameter bit          RegisterAmo  = 1'b0, // Cut path between request and response at the cost of increased AMO latency
+  parameter int unsigned  AddrWidth = 32,
+  parameter int unsigned  DataWidth = 32,
+                          parameter type metadata_t = logic,
+                      /// Core ID type.
+  parameter int unsigned  CoreIDWidth = 1,
+
+  parameter bit           RegisterAmo = 1'b0, // Cut path between request and response at the cost of increased AMO latency
   // Dependent parameters. DO NOT CHANGE.
-  localparam int unsigned BeWidth     = DataWidth/8
+  localparam int unsigned BeWidth = DataWidth/8
 ) (
   input  logic                 clk_i,
   input  logic                 rst_ni,
@@ -74,6 +77,24 @@ module tcdm_adapter #(
   logic [31:0] amo_operand_b_q;
   logic [31:0] amo_result, amo_result_q;
 
+  logic        sc_successful, sc_successful_q;
+  logic sc_q;
+
+  typedef struct packed {
+    /// Is the reservation valid.
+    logic        valid;
+    /// On which address is the reservation placed.
+    /// This address is aligned to the memory size
+    /// implying that the reservation happen on a set size
+    /// equal to the word width of the memory (32 or 64 bit).
+    logic [AddrWidth-1:0] addr;
+    /// Which core made this reservation. Important to
+    /// track the reservations from different cores and
+    /// to prevent any live-locking.
+    logic [CoreIDWidth-1:0]  core;
+  } reservation_t;
+  reservation_t reservation_d, reservation_q;
+
   // Store the metadata at handshake
   spill_register #(
     .T     (metadata_t),
@@ -113,12 +134,63 @@ module tcdm_adapter #(
   // Generate out_gnt one cycle after sending read request to the bank
   `FFARN(out_gnt, out_req_o & !out_write_o, 1'b0, clk_i, rst_ni);
 
+  // ----------------
+  // LR/SC
+  // ----------------
+
+  // In case of a SC we must forward SC result from the cycle earlier.
+  assign in_rdata_o = sc_q ? $unsigned(~sc_successful_q) : out_rdata_i;
+
+  `FF(sc_successful_q, sc_successful, 1'b0)
+  `FF(sc_q, in_valid_i & in_ready_o & (amo_op_t'(in_amo_i) == AMOSC), 1'b0)
+  `FF(reservation_q, reservation_d, '0)
+
+  always_comb begin
+    reservation_d = reservation_q;
+    sc_successful = 1'b0;
+    // new valid transaction
+    if (in_valid_i && in_ready_o) begin
+
+      // An SC can only pair with the most recent LR in program order.
+      // Place a reservation on the address if there isn't already a valid reservation.
+      // We prevent a live-lock by don't throwing away the reservation of a hart unless
+      // it makes a new reservation in program order or issues any SC.
+      if (amo_op_t'(in_amo_i) == AMOLR && (!reservation_q.valid || reservation_q.core == in_meta_i.core_id)) begin
+        reservation_d.valid = 1'b1;
+        reservation_d.addr = in_address_i;
+        reservation_d.core = in_meta_i.core_id;
+      end
+
+      // An SC may succeed only if no store from another hart (or other device) to
+      // the reservation set can be observed to have occurred between
+      // the LR and the SC, and if there is no other SC between the
+      // LR and itself in program order.
+
+      // check whether another core has made a write attempt
+      if ((in_meta_i.core_id != reservation_q.core) &&
+          (in_address_i == reservation_q.addr) &&
+          (!(amo_op_t'(in_amo_i) inside {AMONone, AMOLR, AMOSC}) || in_write_i)) begin
+        reservation_d.valid = 1'b0;
+      end
+
+      // An SC from the same hart clears any pending reservation.
+      if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC && reservation_q.core == in_meta_i.core_id) begin
+        reservation_d.valid = 1'b0;
+        sc_successful = reservation_q.addr == in_address_i;
+      end
+    end
+  end // always_comb
+
+  // ----------------
+  // Atomics
+  // ----------------
+
   always_comb begin
     // feed-through
     in_ready_o  = in_valid_o & ~in_ready_i ? 1'b0 : 1'b1;
     out_req_o   = in_valid_i & in_ready_o;
     out_add_o   = in_address_i;
-    out_write_o = in_write_i;
+    out_write_o = in_write_i | (sc_successful & (amo_op_t'(in_amo_i) == AMOSC));;
     out_wdata_o = in_wdata_i;
     out_be_o    = in_be_i;
 
@@ -127,7 +199,7 @@ module tcdm_adapter #(
 
     unique case (state_q)
       Idle: begin
-        if (in_valid_i && in_ready_o && amo_op_t'(in_amo_i) != AMONone) begin
+        if (in_valid_i && in_ready_o && ~(amo_op_t'(in_amo_i) inside {AMONone, AMOLR, AMOSC})) begin
           load_amo = 1'b1;
           state_d = DoAMO;
         end
@@ -174,7 +246,7 @@ module tcdm_adapter #(
         amo_op_q        <= AMONone;
       end
     end
-  end
+  end // always_ff @ (posedge clk_i or negedge rst_ni)
 
   // ----------------
   // AMO ALU

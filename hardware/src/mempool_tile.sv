@@ -78,6 +78,8 @@ module mempool_tile
    *  Cores  *
    ***********/
 
+  localparam int unsigned CoreIDWidth = idx_width(NumTiles * NumCoresPerTile);
+
   // Instruction interfaces
   addr_t [NumCaches-1:0][NumCoresPerCache-1:0] snitch_inst_addr;
   data_t [NumCaches-1:0][NumCoresPerCache-1:0] snitch_inst_data;
@@ -255,6 +257,7 @@ module mempool_tile
       .AddrWidth  (TCDMAddrMemWidth),
       .DataWidth  (DataWidth       ),
       .metadata_t (bank_metadata_t ),
+      .CoreIDWidth (CoreIDWidth),
       .RegisterAmo(1'b0            )
     ) i_tcdm_adapter (
       .clk_i       (clk_i                                                                       ),
