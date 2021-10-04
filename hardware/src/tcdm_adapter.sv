@@ -62,6 +62,10 @@ module tcdm_adapter #(
 
   logic meta_valid, meta_ready;
   logic rdata_valid, rdata_ready;
+
+  /// read signal before storage
+  logic [DataWidth-1:0] rdata_o;
+
   logic out_gnt;
   logic pop_resp;
 
@@ -121,7 +125,7 @@ module tcdm_adapter #(
     .data_i    (out_rdata_i),
     .valid_i   (out_gnt    ),
     .ready_o   (rdata_ready),
-    .data_o    (in_rdata_o ),
+    .data_o    (rdata_o ),
     .valid_o   (rdata_valid),
     .ready_i   (pop_resp   )
   );
@@ -139,11 +143,11 @@ module tcdm_adapter #(
   // ----------------
 
   // In case of a SC we must forward SC result from the cycle earlier.
-  assign in_rdata_o = sc_q ? $unsigned(~sc_successful_q) : out_rdata_i;
+  assign in_rdata_o = sc_q ? $unsigned(~sc_successful_q) : rdata_o;
 
-  `FF(sc_successful_q, sc_successful, 1'b0)
-  `FF(sc_q, in_valid_i & in_ready_o & (amo_op_t'(in_amo_i) == AMOSC), 1'b0)
-  `FF(reservation_q, reservation_d, '0)
+  `FFARN(sc_successful_q, sc_successful, 1'b0, clk_i, rst_ni);
+  `FFARN(sc_q, in_valid_i & in_ready_o & (amo_op_t'(in_amo_i) == AMOSC), 1'b0, clk_i, rst_ni);
+  `FFARN(reservation_q, reservation_d, 1'b0, clk_i, rst_ni);
 
   always_comb begin
     reservation_d = reservation_q;
@@ -225,7 +229,7 @@ module tcdm_adapter #(
   end
 
   if (RegisterAmo) begin : gen_amo_slice
-    `FFLNR(amo_result_q, amo_result, (state_q == DoAMO), clk_i)
+    `FFLNR(amo_result_q, amo_result, (state_q == DoAMO), clk_i);
   end else begin : gen_amo_slice
     assign amo_result_q = '0;
   end
