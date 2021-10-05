@@ -63,8 +63,8 @@ module tcdm_adapter #(
   logic meta_valid, meta_ready;
   logic rdata_valid, rdata_ready;
 
-  /// read signal before storage
-  logic [DataWidth-1:0] rdata_o;
+  /// read signal before register
+  logic [DataWidth-1:0] out_rdata;
 
   logic out_gnt;
   logic pop_resp;
@@ -122,10 +122,10 @@ module tcdm_adapter #(
     .rst_ni    (rst_ni     ),
     .clr_i     (1'b0       ),
     .testmode_i(1'b0       ),
-    .data_i    (out_rdata_i),
+    .data_i    (out_rdata),
     .valid_i   (out_gnt    ),
     .ready_o   (rdata_ready),
-    .data_o    (rdata_o ),
+    .data_o    (in_rdata_o ),
     .valid_o   (rdata_valid),
     .ready_i   (pop_resp   )
   );
@@ -136,14 +136,14 @@ module tcdm_adapter #(
   assign pop_resp   = in_ready_i & in_valid_o;
 
   // Generate out_gnt one cycle after sending read request to the bank
-  `FFARN(out_gnt, out_req_o & !out_write_o, 1'b0, clk_i, rst_ni);
+  `FFARN(out_gnt, (out_req_o & !out_write_o) | sc_successful, 1'b0, clk_i, rst_ni);
 
   // ----------------
   // LR/SC
   // ----------------
 
   // In case of a SC we must forward SC result from the cycle earlier.
-  assign in_rdata_o = sc_q ? $unsigned(~sc_successful_q) : rdata_o;
+  assign out_rdata = sc_q ? $unsigned(~sc_successful_q) : out_rdata_i;
 
   `FFARN(sc_successful_q, sc_successful, 1'b0, clk_i, rst_ni);
   `FFARN(sc_q, in_valid_i & in_ready_o & (amo_op_t'(in_amo_i) == AMOSC), 1'b0, clk_i, rst_ni);
@@ -180,7 +180,7 @@ module tcdm_adapter #(
       // An SC from the same hart clears any pending reservation.
       if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC && reservation_q.core == in_meta_i.core_id) begin
         reservation_d.valid = 1'b0;
-        sc_successful = reservation_q.addr == in_address_i;
+        sc_successful = (reservation_q.addr == in_address_i);
       end
     end
   end // always_comb
