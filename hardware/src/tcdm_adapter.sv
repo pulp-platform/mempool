@@ -10,39 +10,41 @@
 
 `include "common_cells/registers.svh"
 
-module tcdm_adapter #(
+module tcdm_adapter
+  import cf_math_pkg::idx_width;
+#(
   parameter int unsigned  AddrWidth = 32,
   parameter int unsigned  DataWidth = 32,
                           parameter type metadata_t = logic,
-                      /// Core ID type.
-  parameter int unsigned  CoreIDWidth = 1,
+  parameter int unsigned  NumCores = 1,
+  parameter bit           LRSC_EN = 1;
 
   parameter bit           RegisterAmo = 1'b0, // Cut path between request and response at the cost of increased AMO latency
   // Dependent parameters. DO NOT CHANGE.
   localparam int unsigned BeWidth = DataWidth/8
 ) (
-  input  logic                 clk_i,
-  input  logic                 rst_ni,
+  input logic                  clk_i,
+  input logic                  rst_ni,
   // master side
-  input  logic                 in_valid_i,   // Bank request
-  output logic                 in_ready_o,   // Bank grant
-  input  logic [AddrWidth-1:0] in_address_i, // Address
-  input  logic [3:0]           in_amo_i,     // Atomic Memory Operation
-  input  logic                 in_write_i,   // 1: Store, 0: Load
-  input  logic [DataWidth-1:0] in_wdata_i,   // Write data
-  input  metadata_t            in_meta_i,    // Meta data
-  input  logic [BeWidth-1:0]   in_be_i,      // Byte enable
-  output logic                 in_valid_o,   // Read data
-  input  logic                 in_ready_i,   // Read data
-  output logic [DataWidth-1:0] in_rdata_o,   // Read data
-  output metadata_t            in_meta_o,    // Meta data
+  input logic                  in_valid_i, // Bank request
+  output logic                 in_ready_o, // Bank grant
+  input logic [AddrWidth-1:0]  in_address_i, // Address
+  input logic [3:0]            in_amo_i, // Atomic Memory Operation
+  input logic                  in_write_i, // 1: Store, 0: Load
+  input logic [DataWidth-1:0]  in_wdata_i, // Write data
+  input                        metadata_t in_meta_i, // Meta data
+  input logic [BeWidth-1:0]    in_be_i, // Byte enable
+  output logic                 in_valid_o, // Read data
+  input logic                  in_ready_i, // Read data
+  output logic [DataWidth-1:0] in_rdata_o, // Read data
+  output                       metadata_t in_meta_o, // Meta data
   // slave side
-  output logic                 out_req_o,   // Bank request
-  output logic [AddrWidth-1:0] out_add_o,   // Address
+  output logic                 out_req_o, // Bank request
+  output logic [AddrWidth-1:0] out_add_o, // Address
   output logic                 out_write_o, // 1: Store, 0: Load
   output logic [DataWidth-1:0] out_wdata_o, // Write data
-  output logic [BeWidth-1:0]   out_be_o,    // Bit enable
-  input  logic [DataWidth-1:0] out_rdata_i  // Read data
+  output logic [BeWidth-1:0]   out_be_o, // Bit enable
+  input logic [DataWidth-1:0]  out_rdata_i  // Read data
 );
 
   typedef enum logic [3:0] {
@@ -81,6 +83,9 @@ module tcdm_adapter #(
   logic [31:0] amo_operand_b_q;
   logic [31:0] amo_result, amo_result_q;
 
+  // unique core identifier, does not necessarily match core_id
+  logic [idx_width(NumCores):0] unique_core_id;
+
   logic        sc_successful, sc_successful_q;
   logic sc_q;
 
@@ -95,7 +100,7 @@ module tcdm_adapter #(
     /// Which core made this reservation. Important to
     /// track the reservations from different cores and
     /// to prevent any live-locking.
-    logic [CoreIDWidth-1:0]  core;
+    logic [idx_width(NumCores):0] core;
   } reservation_t;
   reservation_t reservation_d, reservation_q;
 
@@ -130,6 +135,8 @@ module tcdm_adapter #(
     .ready_i   (pop_resp   )
   );
 
+  assign unique_core_id = {in_meta_i.ini_addr, in_meta_i.core_id};
+
   // Ready to output data if both meta and read data are available (the read data will always be last)
   assign in_valid_o = meta_valid & rdata_valid;
   // Only pop the data from the registers once both registers are ready
@@ -159,10 +166,10 @@ module tcdm_adapter #(
       // Place a reservation on the address if there isn't already a valid reservation.
       // We prevent a live-lock by don't throwing away the reservation of a hart unless
       // it makes a new reservation in program order or issues any SC.
-      if (amo_op_t'(in_amo_i) == AMOLR && (!reservation_q.valid || reservation_q.core == in_meta_i.core_id)) begin
+      if (amo_op_t'(in_amo_i) == AMOLR && (!reservation_q.valid || reservation_q.core == unique_core_id)) begin
         reservation_d.valid = 1'b1;
         reservation_d.addr = in_address_i;
-        reservation_d.core = in_meta_i.core_id;
+        reservation_d.core = unique_core_id;
       end
 
       // An SC may succeed only if no store from another hart (or other device) to
@@ -171,14 +178,14 @@ module tcdm_adapter #(
       // LR and itself in program order.
 
       // check whether another core has made a write attempt
-      if ((in_meta_i.core_id != reservation_q.core) &&
+      if ((unique_core_id != reservation_q.core) &&
           (in_address_i == reservation_q.addr) &&
           (!(amo_op_t'(in_amo_i) inside {AMONone, AMOLR, AMOSC}) || in_write_i)) begin
         reservation_d.valid = 1'b0;
       end
 
       // An SC from the same hart clears any pending reservation.
-      if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC && reservation_q.core == in_meta_i.core_id) begin
+      if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC && reservation_q.core == unique_core_id) begin
         reservation_d.valid = 1'b0;
         sc_successful = (reservation_q.addr == in_address_i);
       end
