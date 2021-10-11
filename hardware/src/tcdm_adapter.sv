@@ -13,38 +13,37 @@
 module tcdm_adapter
   import cf_math_pkg::idx_width;
 #(
-  parameter int unsigned  AddrWidth = 32,
-  parameter int unsigned  DataWidth = 32,
-                          parameter type metadata_t = logic,
-  parameter int unsigned  NumCores = 1,
-  parameter bit           LRSC_EN = 1;
+  parameter int unsigned  AddrWidth  = 32,
+  parameter int unsigned  DataWidth  = 32,
+  parameter type          metadata_t = logic,
+  parameter int unsigned  CoreIdWidth   = 1,
 
   parameter bit           RegisterAmo = 1'b0, // Cut path between request and response at the cost of increased AMO latency
   // Dependent parameters. DO NOT CHANGE.
   localparam int unsigned BeWidth = DataWidth/8
 ) (
-  input logic                  clk_i,
-  input logic                  rst_ni,
+  input  logic                 clk_i,
+  input  logic                 rst_ni,
   // master side
-  input logic                  in_valid_i, // Bank request
-  output logic                 in_ready_o, // Bank grant
-  input logic [AddrWidth-1:0]  in_address_i, // Address
-  input logic [3:0]            in_amo_i, // Atomic Memory Operation
-  input logic                  in_write_i, // 1: Store, 0: Load
-  input logic [DataWidth-1:0]  in_wdata_i, // Write data
-  input                        metadata_t in_meta_i, // Meta data
-  input logic [BeWidth-1:0]    in_be_i, // Byte enable
-  output logic                 in_valid_o, // Read data
-  input logic                  in_ready_i, // Read data
-  output logic [DataWidth-1:0] in_rdata_o, // Read data
-  output                       metadata_t in_meta_o, // Meta data
+  input  logic                 in_valid_i,   // Bank request
+  output logic                 in_ready_o,   // Bank grant
+  input  logic [AddrWidth-1:0] in_address_i, // Address
+  input  logic [3:0]           in_amo_i,     // Atomic Memory Operation
+  input  logic                 in_write_i,   // 1: Store, 0: Load
+  input  logic [DataWidth-1:0] in_wdata_i,   // Write data
+  input  metadata_t            in_meta_i,    // Meta data
+  input  logic [BeWidth-1:0]   in_be_i,      // Byte enable
+  output logic                 in_valid_o,   // Read data
+  input  logic                 in_ready_i,   // Read data
+  output logic [DataWidth-1:0] in_rdata_o,   // Read data
+  output metadata_t            in_meta_o,    // Meta data
   // slave side
-  output logic                 out_req_o, // Bank request
-  output logic [AddrWidth-1:0] out_add_o, // Address
+  output logic                 out_req_o,   // Bank request
+  output logic [AddrWidth-1:0] out_add_o,   // Address
   output logic                 out_write_o, // 1: Store, 0: Load
   output logic [DataWidth-1:0] out_wdata_o, // Write data
-  output logic [BeWidth-1:0]   out_be_o, // Bit enable
-  input logic [DataWidth-1:0]  out_rdata_i  // Read data
+  output logic [BeWidth-1:0]   out_be_o,    // Bit enable
+  input  logic [DataWidth-1:0] out_rdata_i  // Read data
 );
 
   typedef enum logic [3:0] {
@@ -84,7 +83,7 @@ module tcdm_adapter
   logic [31:0] amo_result, amo_result_q;
 
   // unique core identifier, does not necessarily match core_id
-  logic [idx_width(NumCores):0] unique_core_id;
+  logic [CoreIdWidth-1:0] unique_core_id;
 
   logic        sc_successful, sc_successful_q;
   logic sc_q;
@@ -100,7 +99,7 @@ module tcdm_adapter
     /// Which core made this reservation. Important to
     /// track the reservations from different cores and
     /// to prevent any live-locking.
-    logic [idx_width(NumCores):0] core;
+    logic [CoreIdWidth-1:0] core;
   } reservation_t;
   reservation_t reservation_d, reservation_q;
 
@@ -135,7 +134,7 @@ module tcdm_adapter
     .ready_i   (pop_resp   )
   );
 
-  assign unique_core_id = {in_meta_i.ini_addr, in_meta_i.core_id};
+  assign unique_core_id = {in_meta_i.ini_addr, in_meta_i.core_id, in_meta_i.tile_id};
 
   // Ready to output data if both meta and read data are available (the read data will always be last)
   assign in_valid_o = meta_valid & rdata_valid;

@@ -228,6 +228,8 @@ module mempool_tile
   tcdm_slave_resp_t        [NumBanksPerTile-1:0] bank_resp_payload;
   local_req_interco_addr_t [NumBanksPerTile-1:0] bank_resp_ini_addr;
 
+  localparam int unsigned CoreIdWidth = idx_width(NumCoresPerTile) + idx_width(NumTilesPerGroup) +
+                 idx_width(NumCoresPerTile + NumGroups);
   for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_banks
     bank_metadata_t meta_in;
     bank_metadata_t meta_out;
@@ -255,7 +257,7 @@ module mempool_tile
       .AddrWidth  (TCDMAddrMemWidth),
       .DataWidth  (DataWidth       ),
       .metadata_t (bank_metadata_t ),
-      .NumCores   (NumCores),
+      .CoreIdWidth(CoreIdWidth     ),
       .RegisterAmo(1'b0            )
     ) i_tcdm_adapter (
       .clk_i       (clk_i                                                                       ),
