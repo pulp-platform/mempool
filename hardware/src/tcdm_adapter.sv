@@ -17,6 +17,7 @@ module tcdm_adapter
   parameter int unsigned  DataWidth  = 32,
   parameter type          metadata_t = logic,
   parameter int unsigned  CoreIdWidth   = 1,
+  parameter bit           LrScEnable    = 1,
 
   parameter bit           RegisterAmo = 1'b0, // Cut path between request and response at the cost of increased AMO latency
   // Dependent parameters. DO NOT CHANGE.
@@ -134,9 +135,11 @@ module tcdm_adapter
     .ready_i   (pop_resp   )
   );
 
-  assign unique_core_id = {in_meta_i.ini_addr, in_meta_i.core_id, in_meta_i.tile_id};
+  assign unique_core_id = LrScEnable ?
+                          {in_meta_i.ini_addr, in_meta_i.core_id, in_meta_i.tile_id} : 1'b0;
 
-  // Ready to output data if both meta and read data are available (the read data will always be last)
+  // Ready to output data if both meta and read data
+  // are available (the read data will always be last)
   assign in_valid_o = meta_valid & rdata_valid;
   // Only pop the data from the registers once both registers are ready
   assign pop_resp   = in_ready_i & in_valid_o;
@@ -149,7 +152,7 @@ module tcdm_adapter
   // ----------------
 
   // In case of a SC we must forward SC result from the cycle earlier.
-  assign out_rdata = sc_q ? $unsigned(~sc_successful_q) : out_rdata_i;
+  assign out_rdata = (sc_q & LrScEnable)  ? $unsigned(~sc_successful_q) : out_rdata_i;
 
   `FFARN(sc_successful_q, sc_successful, 1'b0, clk_i, rst_ni);
   `FFARN(sc_q, in_valid_i & in_ready_o & (amo_op_t'(in_amo_i) == AMOSC), 1'b0, clk_i, rst_ni);
@@ -165,8 +168,9 @@ module tcdm_adapter
       // Place a reservation on the address if there isn't already a valid reservation.
       // We prevent a live-lock by don't throwing away the reservation of a hart unless
       // it makes a new reservation in program order or issues any SC.
-      if (amo_op_t'(in_amo_i) == AMOLR && (!reservation_q.valid || reservation_q.core == unique_core_id)) begin
-        reservation_d.valid = 1'b1;
+      if (amo_op_t'(in_amo_i) == AMOLR &&
+          (!reservation_q.valid || reservation_q.core == unique_core_id)) begin
+        reservation_d.valid = 1'b1 & LrScEnable;
         reservation_d.addr = in_address_i;
         reservation_d.core = unique_core_id;
       end
@@ -184,9 +188,10 @@ module tcdm_adapter
       end
 
       // An SC from the same hart clears any pending reservation.
-      if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC && reservation_q.core == unique_core_id) begin
+      if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC
+          && reservation_q.core == unique_core_id) begin
         reservation_d.valid = 1'b0;
-        sc_successful = (reservation_q.addr == in_address_i);
+        sc_successful = (reservation_q.addr == in_address_i) & LrScEnable;
       end
     end
   end // always_comb
