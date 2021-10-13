@@ -32,16 +32,18 @@ SECTIONS {
     . = ALIGN(0x40);
   } > l2
 
-  /* Data on L2 */
-  .data           : {
-    . = ALIGN(0x10);
-    *(.data)
-  } > l2
+  /* RO Data on L2 */
   .rodata : {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
   } > l2
   .rodata1 : {
     *(.rodata1)
+  } > l2
+
+  /* Data on L2 */
+  .data           : {
+    . = ALIGN(0x10);
+    *(.data)
   } > l2
   .sdata2 : {
     *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
