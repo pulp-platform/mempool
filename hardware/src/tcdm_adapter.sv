@@ -11,17 +11,15 @@
 `include "common_cells/registers.svh"
 
 module tcdm_adapter
-  import cf_math_pkg::idx_width;
 #(
-  parameter int unsigned  AddrWidth  = 32,
-  parameter int unsigned  DataWidth  = 32,
-  parameter type          metadata_t = logic,
-  parameter int unsigned  CoreIdWidth   = 1,
-  parameter bit           LrScEnable    = 1,
-
+  parameter int unsigned  AddrWidth   = 32,
+  parameter int unsigned  DataWidth   = 32,
+  parameter type          metadata_t  = logic,
+  parameter int unsigned  CoreIdWidth = 1,
+  parameter bit           LrScEnable  = 1,
   parameter bit           RegisterAmo = 1'b0, // Cut path between request and response at the cost of increased AMO latency
   // Dependent parameters. DO NOT CHANGE.
-  localparam int unsigned BeWidth = DataWidth/8
+  localparam int unsigned BeWidth     = DataWidth/8
 ) (
   input  logic                 clk_i,
   input  logic                 rst_ni,
@@ -86,8 +84,8 @@ module tcdm_adapter
   // unique core identifier, does not necessarily match core_id
   logic [CoreIdWidth-1:0] unique_core_id;
 
-  logic        sc_successful, sc_successful_q;
-  logic sc_q;
+  logic                   sc_successful, sc_successful_q;
+  logic                   sc_q;
 
   typedef struct packed {
     /// Is the reservation valid.
@@ -205,7 +203,7 @@ module tcdm_adapter
     in_ready_o  = in_valid_o & ~in_ready_i ? 1'b0 : 1'b1;
     out_req_o   = in_valid_i & in_ready_o;
     out_add_o   = in_address_i;
-    out_write_o = in_write_i | (sc_successful & (amo_op_t'(in_amo_i) == AMOSC));;
+    out_write_o = in_write_i | (sc_successful & (amo_op_t'(in_amo_i) == AMOSC));
     out_wdata_o = in_wdata_i;
     out_be_o    = in_be_i;
 
@@ -240,7 +238,7 @@ module tcdm_adapter
   end
 
   if (RegisterAmo) begin : gen_amo_slice
-    `FFLNR(amo_result_q, amo_result, (state_q == DoAMO), clk_i);
+    `FFLNR(amo_result_q, amo_result, (state_q == DoAMO), clk_i)
   end else begin : gen_amo_slice
     assign amo_result_q = '0;
   end
@@ -261,7 +259,7 @@ module tcdm_adapter
         amo_op_q        <= AMONone;
       end
     end
-  end // always_ff @ (posedge clk_i or negedge rst_ni)
+  end
 
   // ----------------
   // AMO ALU
