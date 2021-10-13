@@ -119,6 +119,18 @@ package mempool_pkg;
   localparam int unsigned ICacheSets      = NumCoresPerCache / 2;       // Number of sets
   localparam int unsigned ICacheLineWidth = 32 * 2 * NumCoresPerCache;  // Size of each cache line in bits,
 
+  /*********************
+   *  READ-ONLY CACHE  *
+   *********************/
+
+  localparam int unsigned ROCacheNumAddrRules = 4;
+  typedef struct packed {
+    logic enable;
+    logic flush_valid;
+    logic [ROCacheNumAddrRules-1:0][AddrWidth-1:0] start_addr;
+    logic [ROCacheNumAddrRules-1:0][AddrWidth-1:0] end_addr;
+  } ro_cache_ctrl_t;
+
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/

@@ -4,7 +4,9 @@
 
 `include "common_cells/registers.svh"
 
-module ctrl_registers #(
+module ctrl_registers
+  import mempool_pkg::ro_cache_ctrl_t;
+#(
   parameter int DataWidth                      = 32,
   parameter int NumRegs                        = 0,
   // Parameters
@@ -26,7 +28,8 @@ module ctrl_registers #(
   output logic      [NumCores-1:0]       wake_up_o,
   output logic      [DataWidth-1:0]      tcdm_start_address_o,
   output logic      [DataWidth-1:0]      tcdm_end_address_o,
-  output logic      [DataWidth-1:0]      num_cores_o
+  output logic      [DataWidth-1:0]      num_cores_o,
+  output ro_cache_ctrl_t                 ro_cache_ctrl_o
 );
 
   import mempool_pkg::*;
@@ -48,7 +51,27 @@ module ctrl_registers #(
   // [11:8]: tcdm_start_adress_reg          (ro)
   // [15:12]:tcdm_end_address_reg           (ro)
   // [19:16]:nr_cores_address_reg           (ro)
+  // [23:20]:ro_cache_enable                (rw)
+  // [27:24]:ro_cache_flush                 (rw)
+  // [31:28]:ro_cache_start_0               (rw)
+  // [35:32]:ro_cache_end_0                 (rw)
+  // [39:36]:ro_cache_start_1               (rw)
+  // [43:40]:ro_cache_end_1                 (rw)
+  // [47:44]:ro_cache_start_2               (rw)
+  // [51:48]:ro_cache_end_2                 (rw)
+  // [55:52]:ro_cache_start_3               (rw)
+  // [59:56]:ro_cache_end_3                 (rw)
   localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
+    32'h0000_0010,
+    32'h0000_000C,
+    32'h0000_000C,
+    32'h0000_0008,
+    32'hA000_1000,
+    32'hA000_0000,
+    32'h8000_1000,
+    32'h8000_0000,
+    {DataWidth{1'b0}},
+    32'h1,
     NumCores,
     TCDMBaseAddr + TCDMSize,
     TCDMBaseAddr,
@@ -56,6 +79,16 @@ module ctrl_registers #(
     {DataWidth{1'b0}}
   };
   localparam logic [NumRegs-1:0][DataWidthInBytes-1:0] AxiReadOnly = '{
+    ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
     ReadOnlyReg,
     ReadOnlyReg,
     ReadOnlyReg,
@@ -71,6 +104,16 @@ module ctrl_registers #(
   logic [DataWidth-1:0]   tcdm_start_address;
   logic [DataWidth-1:0]   tcdm_end_address;
   logic [DataWidth-1:0]   num_cores;
+  logic [DataWidth-1:0]   ro_cache_enable;
+  logic [DataWidth-1:0]   ro_cache_flush;
+  logic [DataWidth-1:0]   ro_cache_start_0;
+  logic [DataWidth-1:0]   ro_cache_end_0;
+  logic [DataWidth-1:0]   ro_cache_start_1;
+  logic [DataWidth-1:0]   ro_cache_end_1;
+  logic [DataWidth-1:0]   ro_cache_start_2;
+  logic [DataWidth-1:0]   ro_cache_end_2;
+  logic [DataWidth-1:0]   ro_cache_start_3;
+  logic [DataWidth-1:0]   ro_cache_end_3;
 
   logic [RegNumBytes-1:0] wr_active_d;
   logic [RegNumBytes-1:0] wr_active_q;
@@ -92,7 +135,10 @@ module ctrl_registers #(
     .rd_active_o(/* Unused */                                                   ),
     .reg_d_i    ('0                                                             ),
     .reg_load_i ('0                                                             ),
-    .reg_q_o    ({num_cores, tcdm_end_address, tcdm_start_address, wake_up, eoc})
+    .reg_q_o    ({ro_cache_end_3, ro_cache_start_3, ro_cache_end_2, ro_cache_start_2,
+                  ro_cache_end_1, ro_cache_start_1, ro_cache_end_0, ro_cache_start_0,
+                  ro_cache_flush, ro_cache_enable,
+                  num_cores, tcdm_end_address, tcdm_start_address, wake_up, eoc})
   );
 
   /***************
@@ -103,6 +149,17 @@ module ctrl_registers #(
   assign tcdm_start_address_o = tcdm_start_address;
   assign tcdm_end_address_o   = tcdm_end_address;
   assign num_cores_o          = num_cores;
+
+  assign ro_cache_ctrl_o.enable        = ro_cache_enable[0];
+  assign ro_cache_ctrl_o.flush_valid   = ro_cache_flush[0];
+  assign ro_cache_ctrl_o.start_addr[0] = ro_cache_start_0;
+  assign ro_cache_ctrl_o.start_addr[1] = ro_cache_start_1;
+  assign ro_cache_ctrl_o.start_addr[2] = ro_cache_start_2;
+  assign ro_cache_ctrl_o.start_addr[3] = ro_cache_start_3;
+  assign ro_cache_ctrl_o.end_addr[0]   = ro_cache_end_0;
+  assign ro_cache_ctrl_o.end_addr[1]   = ro_cache_end_1;
+  assign ro_cache_ctrl_o.end_addr[2]   = ro_cache_end_2;
+  assign ro_cache_ctrl_o.end_addr[3]   = ro_cache_end_3;
 
   // converts 32 bit wake up to 256 bit
   always_comb begin

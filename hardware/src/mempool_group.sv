@@ -41,6 +41,8 @@ module mempool_group
   input  logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_ready_i,
   // Wake up interface
   input  logic                            [NumCoresPerGroup-1:0]  wake_up_i,
+  // RO-Cache configuration
+  input  `STRUCT_PORT(ro_cache_ctrl_t)                            ro_cache_ctrl_i,
    // AXI Interface
   output `STRUCT_PORT(axi_tile_req_t)                             axi_mst_req_o,
   input  `STRUCT_PORT(axi_tile_resp_t)                            axi_mst_resp_i
@@ -356,13 +358,14 @@ module mempool_group
     .mst_req_t      (axi_tile_req_t  ),
     .mst_resp_t     (axi_tile_resp_t )
   ) i_axi_interco (
-    .clk_i      (clk_i         ),
-    .rst_ni     (rst_ni        ),
-    .test_i     (1'b0          ),
-    .slv_req_i  (axi_tile_req  ),
-    .slv_resp_o (axi_tile_resp ),
-    .mst_req_o  (axi_mst_req_o ),
-    .mst_resp_i (axi_mst_resp_i)
+    .clk_i           (clk_i          ),
+    .rst_ni          (rst_ni         ),
+    .test_i          (1'b0           ),
+    .ro_cache_ctrl_i (ro_cache_ctrl_i),
+    .slv_req_i       (axi_tile_req   ),
+    .slv_resp_o      (axi_tile_resp  ),
+    .mst_req_o       (axi_mst_req_o  ),
+    .mst_resp_i      (axi_mst_resp_i )
   );
 
 endmodule: mempool_group

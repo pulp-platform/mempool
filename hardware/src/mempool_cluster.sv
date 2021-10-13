@@ -23,6 +23,8 @@ module mempool_cluster
   output logic                               scan_data_o,
   // Wake up signal
   input  logic           [NumCores-1:0]      wake_up_i,
+  // RO-Cache configuration
+  input  ro_cache_ctrl_t                     ro_cache_ctrl_i,
   // AXI Interface
   output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
@@ -73,6 +75,7 @@ module mempool_cluster
       .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                         ),
       .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                         ),
       .wake_up_i               (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]),
+      .ro_cache_ctrl_i         (ro_cache_ctrl_i                                  ),
       // AXI interface
       .axi_mst_req_o           (axi_mst_req_o[g]                                 ),
       .axi_mst_resp_i          (axi_mst_resp_i[g]                                )

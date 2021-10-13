@@ -22,7 +22,9 @@
 //                 Internal      Cache
 //  Slave type     type          type          Master type
 
-module axi_hier_interco #(
+module axi_hier_interco
+  import mempool_pkg::ro_cache_ctrl_t;
+#(
   parameter int unsigned NumSlvPorts    = 0,
   parameter int unsigned NumPortsPerMux = NumSlvPorts,
   parameter int unsigned EnableCache    = 0,
@@ -39,6 +41,7 @@ module axi_hier_interco #(
   input  logic                        clk_i,
   input  logic                        rst_ni,
   input  logic                        test_i,
+  input  ro_cache_ctrl_t              ro_cache_ctrl_i,
   input  slv_req_t  [NumSlvPorts-1:0] slv_req_i,
   output slv_resp_t [NumSlvPorts-1:0] slv_resp_o,
   output mst_req_t                    mst_req_o,
@@ -51,7 +54,7 @@ module axi_hier_interco #(
 
   localparam int unsigned IntIdWidth   = SlvIdWidth + $clog2(NumSlvPorts);
   localparam int unsigned CacheIdWidth = EnableCache[0] ? IntIdWidth + 1: IntIdWidth;
-  localparam int unsigned NrAddrRules  = 4;
+  localparam int unsigned NrAddrRules  = mempool_pkg::ROCacheNumAddrRules;
 
   typedef logic [AddrWidth-1:0]    addr_t;
   typedef logic [DataWidth-1:0]    data_t;
@@ -158,17 +161,17 @@ module axi_hier_interco #(
         .mst_req_t    (cache_req_t ),
         .mst_rsp_t    (cache_resp_t)
       ) i_snitch_read_only_cache (
-        .clk_i         (clk_i            ),
-        .rst_ni        (rst_ni           ),
-        .enable_i      (1'b1             ),
-        .flush_valid_i (1'b0             ),
-        .flush_ready_o (/*unused*/       ),
-        .start_addr_i  (CachedRegionStart),
-        .end_addr_i    (CachedRegionEnd  ),
-        .axi_slv_req_i (int_req          ),
-        .axi_slv_rsp_o (int_resp         ),
-        .axi_mst_req_o (cache_req        ),
-        .axi_mst_rsp_i (cache_resp       )
+        .clk_i         (clk_i                      ),
+        .rst_ni        (rst_ni                     ),
+        .enable_i      (ro_cache_ctrl_i.enable     ),
+        .flush_valid_i (ro_cache_ctrl_i.flush_valid),
+        .flush_ready_o (/*unused*/                 ),
+        .start_addr_i  (ro_cache_ctrl_i.start_addr ),
+        .end_addr_i    (ro_cache_ctrl_i.end_addr   ),
+        .axi_slv_req_i (int_req                    ),
+        .axi_slv_rsp_o (int_resp                   ),
+        .axi_mst_req_o (cache_req                  ),
+        .axi_mst_rsp_i (cache_resp                 )
       );
     end else begin: gen_no_ro_cache
       assign cache_req = int_req;
@@ -252,13 +255,14 @@ module axi_hier_interco #(
         .mst_req_t      (slv_req_t     ),
         .mst_resp_t     (slv_resp_t    )
       ) i_axi_interco (
-        .clk_i      (clk_i                                         ),
-        .rst_ni     (rst_ni                                        ),
-        .test_i     (test_i                                        ),
-        .slv_req_i  (slv_req_i[i*NumPortsPerMux +: NumPortsPerMux] ),
-        .slv_resp_o (slv_resp_o[i*NumPortsPerMux +: NumPortsPerMux]),
-        .mst_req_o  (int_req[i]                                    ),
-        .mst_resp_i (int_resp[i]                                   )
+        .clk_i           (clk_i                                         ),
+        .rst_ni          (rst_ni                                        ),
+        .test_i          (test_i                                        ),
+        .ro_cache_ctrl_i (ro_cache_ctrl_i                               ),
+        .slv_req_i       (slv_req_i[i*NumPortsPerMux +: NumPortsPerMux] ),
+        .slv_resp_o      (slv_resp_o[i*NumPortsPerMux +: NumPortsPerMux]),
+        .mst_req_o       (int_req[i]                                    ),
+        .mst_resp_i      (int_resp[i]                                   )
       );
     end
 
@@ -276,13 +280,14 @@ module axi_hier_interco #(
       .mst_req_t      (mst_req_t     ),
       .mst_resp_t     (mst_resp_t    )
     ) i_axi_interco (
-      .clk_i      (clk_i     ),
-      .rst_ni     (rst_ni    ),
-      .test_i     (test_i    ),
-      .slv_req_i  (int_req   ),
-      .slv_resp_o (int_resp  ),
-      .mst_req_o  (mst_req_o ),
-      .mst_resp_i (mst_resp_i)
+      .clk_i           (clk_i          ),
+      .rst_ni          (rst_ni         ),
+      .test_i          (test_i         ),
+      .ro_cache_ctrl_i (ro_cache_ctrl_i),
+      .slv_req_i       (int_req        ),
+      .slv_resp_o      (int_resp       ),
+      .mst_req_o       (mst_req_o      ),
+      .mst_resp_i      (mst_resp_i     )
     );
 
     if (NumMuxes * NumPortsPerMux != NumSlvPorts)
