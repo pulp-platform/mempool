@@ -1,64 +1,44 @@
 diff --git b/hardware/deps/tech_cells_generic/Bender.yml a/hardware/deps/tech_cells_generic/Bender.yml
-index 877c88e..4a0e5bf 100644
+index 4efe945..386cf62 100644
 --- b/hardware/deps/tech_cells_generic/Bender.yml
 +++ a/hardware/deps/tech_cells_generic/Bender.yml
-@@ -13,25 +13,25 @@ sources:
+@@ -10,7 +10,7 @@ sources:
+   - src/deprecated/cluster_clk_cells.sv
+   - src/deprecated/pulp_clk_cells.sv
  
-   - target: all(fpga, xilinx)
+-  - target: all(rtl, not(synthesis))
++  - target: any(all(rtl, not(synthesis)), verilator)
      files:
--      - src/deprecated/cluster_clk_cells_xilinx.sv
-+      # - src/deprecated/cluster_clk_cells_xilinx.sv
+       # level 0
+       - src/rtl/tc_sram.sv
+@@ -22,7 +22,7 @@ sources:
        - src/fpga/tc_clk_xilinx.sv
        - src/fpga/tc_sram_xilinx.sv
  
-   - target: not(all(fpga, xilinx))
+-  - target: all(not(all(fpga, xilinx)), not(synthesis))
++  - target: any(all(not(all(fpga, xilinx)), not(synthesis)), verilator)
      files:
        # Level 0
--      - src/deprecated/cluster_clk_cells.sv
--      - src/deprecated/pulp_clk_cells.sv
-+      # - src/deprecated/cluster_clk_cells.sv
-+      # - src/deprecated/pulp_clk_cells.sv
        - src/rtl/tc_clk.sv
+diff --git a/hardware/deps/tech_cells_generic/src/deprecated/pulp_clk_cells.sv b/hardware/deps/tech_cells_generic/src/deprecated/pulp_clk_cells.sv
+index 53ad07f..4ddd4e1 100644
+--- a/hardware/deps/tech_cells_generic/src/deprecated/pulp_clk_cells.sv
++++ b/hardware/deps/tech_cells_generic/src/deprecated/pulp_clk_cells.sv
+@@ -94,6 +94,7 @@ module pulp_clock_xor2 (
+ endmodule
  
-   - target: not(synthesis)
-     files:
--      - src/deprecated/cluster_pwr_cells.sv
--      - src/deprecated/generic_memory.sv
--      - src/deprecated/generic_rom.sv
--      - src/deprecated/pad_functional.sv
--      - src/deprecated/pulp_buffer.sv
--      - src/deprecated/pulp_pwr_cells.sv
-+      # - src/deprecated/cluster_pwr_cells.sv
-+      # - src/deprecated/generic_memory.sv
-+      # - src/deprecated/generic_rom.sv
-+      # - src/deprecated/pad_functional.sv
-+      # - src/deprecated/pulp_buffer.sv
-+      # - src/deprecated/pulp_pwr_cells.sv
-       - src/tc_pwr.sv
+ `ifndef SYNTHESIS
++`ifndef VERILATOR
+ module pulp_clock_delay(
+   input  logic in_i,
+   output logic out_o
+@@ -103,5 +104,6 @@ module pulp_clock_delay(
  
-   - target: test
-diff --git b/hardware/deps/tech_cells_generic/scripts/run_vsim.sh a/hardware/deps/tech_cells_generic/scripts/run_vsim.sh
-index 34f2e22..b860912 100755
---- b/hardware/deps/tech_cells_generic/scripts/run_vsim.sh
-+++ a/hardware/deps/tech_cells_generic/scripts/run_vsim.sh
-@@ -34,4 +34,3 @@ for PORTS in 1 2; do
-     done
-   done
- done
--
-diff --git b/hardware/deps/tech_cells_generic/src/fpga/tc_sram_xilinx.sv a/hardware/deps/tech_cells_generic/src/fpga/tc_sram_xilinx.sv
-index 58e9806..c706802 100644
---- b/hardware/deps/tech_cells_generic/src/fpga/tc_sram_xilinx.sv
-+++ a/hardware/deps/tech_cells_generic/src/fpga/tc_sram_xilinx.sv
-@@ -22,7 +22,7 @@ module tc_sram #(
-   parameter int unsigned ByteWidth    = 32'd8,    // Width of a data byte (in bits)
-   parameter int unsigned NumPorts     = 32'd2,    // Number of read and write ports
-   parameter int unsigned Latency      = 32'd1,    // Latency when the read data is available
--  parameter string       SimInit      = "zeros",  // Simulation initialization, fixed to zero here!
-+  parameter              SimInit      = "zeros",  // Simulation initialization, fixed to zero here!
-   parameter bit          PrintSimCfg  = 1'b0,     // Print configuration
-   // DEPENDENT PARAMETERS, DO NOT OVERWRITE!
-   parameter int unsigned AddrWidth = (NumWords > 32'd1) ? $clog2(NumWords) : 32'd1,
+ endmodule
+ `endif
++`endif
+ 
+ 
 diff --git b/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv a/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
 index 53530e0..82fe1f7 100644
 --- b/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv

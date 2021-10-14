@@ -25,7 +25,7 @@ dpi_library     ?= work-dpi
 # Top level module to compile
 top_level       ?= mempool_tb
 # QuestaSim Version
-questa_version  ?= 2019.3
+questa_version  ?= 2021.2-bt
 # QuestaSim command
 questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
@@ -51,7 +51,7 @@ ifeq (, $(shell which $(questa_cmd)))
   questa_cmd =
 endif
 
-QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)-kgf/questasim
+QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)/questasim
 
 questa_args += -voptargs=+acc
 ifdef app

@@ -1,8 +1,8 @@
 ---
 packages:
   axi:
-    revision: 55c8e95c316c0d0dd3a598e9da34f780c9a028f8
-    version: 0.27.1
+    revision: 442ff3375710513623f95944d66cc2bd09b2f155
+    version: 0.29.1
     source:
       Git: "https://github.com/pulp-platform/axi.git"
     dependencies:
@@ -16,8 +16,8 @@ packages:
     dependencies:
       - common_cells
   common_cells:
-    revision: ff721776a7deabb0d09046c3aa8411d6e0686f63
-    version: 1.19.0
+    revision: dc555643226419b7a602f0aa39d449545ea4c1f2
+    version: 1.23.0
     source:
       Git: "https://github.com/pulp-platform/common_cells.git"
     dependencies:
@@ -30,8 +30,8 @@ packages:
       Git: "https://github.com/pulp-platform/common_verification.git"
     dependencies: []
   register_interface:
-    revision: 03a24c618888ecaad1c0b2409fdf99c38edbfe41
-    version: 0.2.0
+    revision: 73de8e51b79f416350229b1d2420b2c527e002b8
+    version: 0.3.1
     source:
       Git: "https://github.com/pulp-platform/register_interface.git"
     dependencies:
@@ -45,8 +45,8 @@ packages:
     dependencies:
       - common_cells
   tech_cells_generic:
-    revision: 627fd6c50733159354df82ea488aeac9b2e076ea
-    version: 0.2.1
+    revision: 78e817972307bcb9f6c77d18d64480ef595f03c9
+    version: 0.2.5
     source:
       Git: "https://github.com/pulp-platform/tech_cells_generic.git"
     dependencies:
