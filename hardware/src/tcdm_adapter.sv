@@ -94,14 +94,14 @@ module tcdm_adapter
     .T     (metadata_t),
     .Bypass(1'b0      )
   ) i_metadata_register (
-    .clk_i  (clk_i                                ),
-    .rst_ni (rst_ni                               ),
-    .valid_i(in_valid_i & in_ready_o & !in_write_i),
-    .ready_o(meta_ready                           ),
-    .data_i (in_meta_i                            ),
-    .valid_o(meta_valid                           ),
-    .ready_i(pop_resp                             ),
-    .data_o (in_meta_o                            )
+    .clk_i  (clk_i                                  ),
+    .rst_ni (rst_ni                                 ),
+    .valid_i(in_valid_i && in_ready_o && !in_write_i),
+    .ready_o(meta_ready                             ),
+    .data_i (in_meta_i                              ),
+    .valid_o(meta_valid                             ),
+    .ready_i(pop_resp                               ),
+    .data_o (in_meta_o                              )
   );
 
   // Store response if it's not accepted immediately
@@ -131,12 +131,12 @@ module tcdm_adapter
 
   // Ready to output data if both meta and read data
   // are available (the read data will always be last)
-  assign in_valid_o = meta_valid & rdata_valid;
+  assign in_valid_o = meta_valid && rdata_valid;
   // Only pop the data from the registers once both registers are ready
-  assign pop_resp   = in_ready_i & in_valid_o;
+  assign pop_resp   = in_ready_i && in_valid_o;
 
   // Generate out_gnt one cycle after sending read request to the bank
-  `FFARN(out_gnt, (out_req_o && !out_write_o) | sc_successful, 1'b0, clk_i, rst_ni);
+  `FFARN(out_gnt, (out_req_o && !out_write_o) || sc_successful, 1'b0, clk_i, rst_ni);
 
   // ----------------
   // LR/SC
@@ -195,7 +195,7 @@ module tcdm_adapter
         // it makes a new reservation in program order or issues any SC.
         if (amo_op_t'(in_amo_i) == AMOLR &&
             (!reservation_q.valid || reservation_q.core == unique_core_id)) begin
-          reservation_d.valid = 1'b1 & LrScEnable;
+          reservation_d.valid = 1'b1 && LrScEnable;
           reservation_d.addr = in_address_i;
           reservation_d.core = unique_core_id;
         end
@@ -216,7 +216,7 @@ module tcdm_adapter
         if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC
             && reservation_q.core == unique_core_id) begin
           reservation_d.valid = 1'b0;
-          sc_successful = (reservation_q.addr == in_address_i) & LrScEnable;
+          sc_successful = (reservation_q.addr == in_address_i) && LrScEnable;
         end
       end
     end // always_comb
@@ -232,10 +232,10 @@ module tcdm_adapter
 
   always_comb begin
     // feed-through
-    in_ready_o  = in_valid_o & ~in_ready_i ? 1'b0 : 1'b1;
-    out_req_o   = in_valid_i & in_ready_o;
+    in_ready_o  = in_valid_o && !in_ready_i ? 1'b0 : 1'b1;
+    out_req_o   = in_valid_i && in_ready_o;
     out_add_o   = in_address_i;
-    out_write_o = in_write_i | (sc_successful & (amo_op_t'(in_amo_i) == AMOSC));
+    out_write_o = in_write_i || (sc_successful && (amo_op_t'(in_amo_i) == AMOSC));
     out_wdata_o = in_wdata_i;
     out_be_o    = in_be_i;
 
