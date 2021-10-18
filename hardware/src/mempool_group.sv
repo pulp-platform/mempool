@@ -9,11 +9,12 @@ module mempool_group
   import cf_math_pkg::idx_width;
 #(
   // TCDM
-  parameter addr_t       TCDMBaseAddr     = 32'b0,
+  parameter addr_t TCDMBaseAddr                      = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr         = 32'h0000_1000,
+  parameter logic [31:0] BootAddr                    = 32'h0000_1000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumAXIMasters    = NumTilesPerGroup
+  parameter int unsigned NumAXIMasters               = NumTilesPerGroup,
+  parameter logic [idx_width(NumGroups)-1:0] GroupId = '0
 ) (
   // Clock and reset
   input  logic                                                    clk_i,
@@ -157,7 +158,8 @@ module mempool_group
     assign id = (group_id_i << $clog2(NumTilesPerGroup)) | t[idx_width(NumTilesPerGroup)-1:0];
     mempool_tile_wrap #(
       .TCDMBaseAddr(TCDMBaseAddr),
-      .BootAddr    (BootAddr    )
+      .BootAddr    (BootAddr    ),
+      .GroupId     (GroupId     )
     ) i_tile (
       .clk_i                             (clk_i                                          ),
       .rst_ni                            (rst_ni                                         ),

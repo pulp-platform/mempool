@@ -8,11 +8,12 @@ module mempool_tile
   import cf_math_pkg::idx_width;
 #(
   // TCDM
-  parameter addr_t       TCDMBaseAddr = 32'b0,
+  parameter addr_t TCDMBaseAddr                      = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr     = 32'h0000_1000,
+  parameter logic [31:0] BootAddr                    = 32'h0000_1000,
+  parameter logic [idx_width(NumGroups)-1:0] GroupId = '0,
   // Dependent parameters. DO NOT CHANGE.
-  parameter int unsigned NumCaches    = NumCoresPerTile / NumCoresPerCache
+  parameter int unsigned NumCaches                   = NumCoresPerTile / NumCoresPerCache
 ) (
   // Clock and reset
   input  logic                                        clk_i,
@@ -228,8 +229,6 @@ module mempool_tile
   tcdm_slave_resp_t        [NumBanksPerTile-1:0] bank_resp_payload;
   local_req_interco_addr_t [NumBanksPerTile-1:0] bank_resp_ini_addr;
 
-  localparam int unsigned CoreIdWidth = idx_width(NumCoresPerTile) + idx_width(NumTilesPerGroup) +
-                 idx_width(NumCoresPerTile + NumGroups);
   for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_banks
     bank_metadata_t meta_in;
     bank_metadata_t meta_out;
@@ -257,8 +256,8 @@ module mempool_tile
       .AddrWidth  (TCDMAddrMemWidth),
       .DataWidth  (DataWidth       ),
       .metadata_t (bank_metadata_t ),
-      .CoreIdWidth(CoreIdWidth     ),
       .LrScEnable (LrScEnable      ),
+      .GroupId    (GroupId         ),
       .RegisterAmo(1'b0            )
     ) i_tcdm_adapter (
       .clk_i       (clk_i                                                                       ),
@@ -867,11 +866,13 @@ module mempool_tile_wrap
   import cf_math_pkg::idx_width;
 #(
   // TCDM
-  parameter addr_t       TCDMBaseAddr    = 32'b0,
+  parameter addr_t TCDMBaseAddr                      = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr        = 32'h0000_1000,
+  parameter logic [31:0] BootAddr                    = 32'h0000_1000,
+    // Tile ID
+  parameter logic [idx_width(NumGroups)-1:0] GroupId = '0,
   // Dependent parameters. DO NOT CHANGE.
-  parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
+  parameter int unsigned NumCaches                   = NumCoresPerTile / NumCoresPerCache
 ) (
   // Clock and reset
   input  logic                             clk_i,
@@ -941,7 +942,8 @@ module mempool_tile_wrap
 
   mempool_tile #(
     .TCDMBaseAddr(TCDMBaseAddr),
-    .BootAddr    (BootAddr    )
+    .BootAddr    (BootAddr    ),
+    .GroupId     (GroupId     )
   ) i_tile (
     .clk_i                   (clk_i                                                                                                                              ),
     .rst_ni                  (rst_ni                                                                                                                             ),
