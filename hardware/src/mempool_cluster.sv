@@ -89,8 +89,7 @@ module mempool_cluster
   for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
     mempool_group #(
       .TCDMBaseAddr(TCDMBaseAddr),
-      .BootAddr    (BootAddr    ),
-      .GroupId     (g           )
+      .BootAddr    (BootAddr    )
     ) i_group (
       .clk_i                             (clk_i                                            ),
       .rst_ni                            (rst_ni                                           ),

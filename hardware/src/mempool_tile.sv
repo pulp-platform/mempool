@@ -11,7 +11,6 @@ module mempool_tile
   parameter addr_t TCDMBaseAddr                      = 32'b0,
   // Boot address
   parameter logic [31:0] BootAddr                    = 32'h0000_1000,
-  parameter logic [idx_width(NumGroups)-1:0] GroupId = '0,
   // Dependent parameters. DO NOT CHANGE.
   parameter int unsigned NumCaches                   = NumCoresPerTile / NumCoresPerCache
 ) (
@@ -257,7 +256,6 @@ module mempool_tile
       .DataWidth  (DataWidth       ),
       .metadata_t (bank_metadata_t ),
       .LrScEnable (LrScEnable      ),
-      .GroupId    (GroupId         ),
       .RegisterAmo(1'b0            )
     ) i_tcdm_adapter (
       .clk_i       (clk_i                                                                       ),
@@ -869,8 +867,6 @@ module mempool_tile_wrap
   parameter addr_t TCDMBaseAddr                      = 32'b0,
   // Boot address
   parameter logic [31:0] BootAddr                    = 32'h0000_1000,
-    // Tile ID
-  parameter logic [idx_width(NumGroups)-1:0] GroupId = '0,
   // Dependent parameters. DO NOT CHANGE.
   parameter int unsigned NumCaches                   = NumCoresPerTile / NumCoresPerCache
 ) (
@@ -942,8 +938,7 @@ module mempool_tile_wrap
 
   mempool_tile #(
     .TCDMBaseAddr(TCDMBaseAddr),
-    .BootAddr    (BootAddr    ),
-    .GroupId     (GroupId     )
+    .BootAddr    (BootAddr    )
   ) i_tile (
     .clk_i                   (clk_i                                                                                                                              ),
     .rst_ni                  (rst_ni                                                                                                                             ),

@@ -13,8 +13,7 @@ module mempool_group
   // Boot address
   parameter logic [31:0] BootAddr                    = 32'h0000_1000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumAXIMasters               = NumTilesPerGroup,
-  parameter logic [idx_width(NumGroups)-1:0] GroupId = '0
+  parameter int unsigned NumAXIMasters               = NumTilesPerGroup
 ) (
   // Clock and reset
   input  logic                                                    clk_i,
@@ -158,8 +157,7 @@ module mempool_group
     assign id = (group_id_i << $clog2(NumTilesPerGroup)) | t[idx_width(NumTilesPerGroup)-1:0];
     mempool_tile_wrap #(
       .TCDMBaseAddr(TCDMBaseAddr),
-      .BootAddr    (BootAddr    ),
-      .GroupId     (GroupId     )
+      .BootAddr    (BootAddr    )
     ) i_tile (
       .clk_i                             (clk_i                                          ),
       .rst_ni                            (rst_ni                                         ),

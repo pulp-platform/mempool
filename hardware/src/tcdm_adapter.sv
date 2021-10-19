@@ -16,17 +16,16 @@ module tcdm_adapter
   import mempool_pkg::NumCoresPerTile;
   import cf_math_pkg::idx_width;
 #(
-  parameter int unsigned                     AddrWidth = 32,
-  parameter int unsigned                     DataWidth = 32,
-                                             parameter type metadata_t = logic,
-  parameter bit                              LrScEnable = 1,
-  parameter logic [idx_width(NumGroups)-1:0] GroupId,
+  parameter int unsigned  AddrWidth    = 32,
+  parameter int unsigned  DataWidth    = 32,
+  parameter type          metadata_t   = logic,
+  parameter bit           LrScEnable   = 1,
   // Cut path between request and response at the cost of increased AMO latency
-  parameter bit                              RegisterAmo = 1'b0,
+  parameter bit           RegisterAmo  = 1'b0,
   // Dependent parameters. DO NOT CHANGE.
-  localparam int unsigned                    CoreIdWidth = idx_width(NumCores),
-  localparam int unsigned                    IniAddrWidth = idx_width(NumCoresPerTile + NumGroups),
-  localparam int unsigned                    BeWidth = DataWidth/8
+  localparam int unsigned CoreIdWidth  = idx_width(NumCores),
+  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroups),
+  localparam int unsigned BeWidth      = DataWidth/8
 ) (
   input  logic                 clk_i,
   input  logic                 rst_ni,
@@ -120,14 +119,11 @@ module tcdm_adapter
     .ready_i   (pop_resp   )
   );
 
-  logic        sc_successful, sc_successful_q;
-  logic        sc_q;
+  logic sc_successful, sc_successful_q;
+  logic sc_q;
 
   // In case of a SC we must forward SC result from the cycle earlier.
   assign out_rdata = (sc_q && LrScEnable) ? $unsigned(!sc_successful_q) : out_rdata_i;
-
-  `FFARN(sc_successful_q, sc_successful, 1'b0, clk_i, rst_ni);
-
 
   // Ready to output data if both meta and read data
   // are available (the read data will always be last)
@@ -142,11 +138,11 @@ module tcdm_adapter
   // LR/SC
   // ----------------
 
-  if (LrScEnable) begin : enable_lrsc
+  if (LrScEnable) begin : gen_lrsc
     // unique core identifier, does not necessarily match core_id
-    logic [CoreIdWidth:0]   unique_core_id;
+    logic [CoreIdWidth:0] unique_core_id;
 
-    typedef struct          packed {
+    typedef struct packed {
       /// Is the reservation valid.
       logic                 valid;
       /// On which address is the reservation placed.
@@ -161,27 +157,23 @@ module tcdm_adapter
     } reservation_t;
     reservation_t reservation_d, reservation_q;
 
+    `FFARN(sc_successful_q, sc_successful, 1'b0, clk_i, rst_ni);
     `FFARN(reservation_q, reservation_d, 1'b0, clk_i, rst_ni);
-    `FFARN(sc_q, in_valid_i && in_ready_o && (amo_op_t'(in_amo_i) == AMOSC),
-           1'b0, clk_i, rst_ni);
+    `FFARN(sc_q, in_valid_i && in_ready_o && (amo_op_t'(in_amo_i) == AMOSC), 1'b0, clk_i, rst_ni);
 
     always_comb begin
       // {group_id, tile_id, core_id}
       // MSB of ini_addr determines if request is coming from local or remote tile
-      if (LrScEnable == 1) begin
-        if (in_meta_i.ini_addr[IniAddrWidth-1] == 0) begin
-          // Request is coming from the local tile
-          // take group id of TCDM adapter
-          unique_core_id = {GroupId,
-                            in_meta_i.tile_id, in_meta_i.ini_addr[IniAddrWidth-2:0]};
-        end else begin
-          // Request is coming from a remote tile
-          // take group id from ini_addr
-          unique_core_id = {in_meta_i.ini_addr[IniAddrWidth-2:0],
-                            in_meta_i.tile_id, in_meta_i.core_id};
-        end
+      if (in_meta_i.ini_addr[IniAddrWidth-1] == 0) begin
+        // Request is coming from the local tile
+        // take group id of TCDM adapter
+        unique_core_id = {'0, in_meta_i.tile_id, in_meta_i.ini_addr[IniAddrWidth-2:0]};
       end else begin
-        unique_core_id = 1'b0;
+        // Request is coming from a remote tile
+        // take group id from ini_addr
+        // Ignore first bit of IniAddr to obtain the group address
+        unique_core_id = {in_meta_i.ini_addr[IniAddrWidth-2:0],
+                          in_meta_i.tile_id, in_meta_i.core_id};
       end
 
       reservation_d = reservation_q;
@@ -195,7 +187,7 @@ module tcdm_adapter
         // it makes a new reservation in program order or issues any SC.
         if (amo_op_t'(in_amo_i) == AMOLR &&
             (!reservation_q.valid || reservation_q.core == unique_core_id)) begin
-          reservation_d.valid = 1'b1 && LrScEnable;
+          reservation_d.valid = 1'b1;
           reservation_d.addr = in_address_i;
           reservation_d.core = unique_core_id;
         end
@@ -216,15 +208,15 @@ module tcdm_adapter
         if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC
             && reservation_q.core == unique_core_id) begin
           reservation_d.valid = 1'b0;
-          sc_successful = (reservation_q.addr == in_address_i) && LrScEnable;
+          sc_successful = (reservation_q.addr == in_address_i);
         end
       end
     end // always_comb
   end else begin : disable_lrcs
     assign sc_q = 1'b0;
+    assign sc_successful = 1'b0;
+    assign sc_successful_q = 1'b0;
   end
-
-
 
   // ----------------
   // Atomics
