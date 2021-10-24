@@ -28,8 +28,11 @@ SECTIONS {
   /* Instructions on L2 */
   .text : {
     *(.text.init)
+    *(.text.startup)
     *(.text)
+    *(.text.end)
     . = ALIGN(0x40);
+    _etext = .;
   } > l2
 
   /* RO Data on L2 */
@@ -38,6 +41,9 @@ SECTIONS {
   } > l2
   .rodata1 : {
     *(.rodata1)
+    /* Align non-cacheable regions to 4KiB boundary */
+    . = ALIGN(0x1000);
+    _erodata = .;
   } > l2
 
   /* Data on L2 */

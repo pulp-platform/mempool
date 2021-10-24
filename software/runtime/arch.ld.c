@@ -29,6 +29,16 @@ SECTIONS {
   tcdm_start_address_reg = 0x40000008;
   tcdm_end_address_reg   = 0x4000000C;
   nr_cores_address_reg   = 0x40000010;
+  ro_cache_enable        = 0x40000014;
+  ro_cache_flush         = 0x40000018;
+  ro_cache_start_0       = 0x4000001C;
+  ro_cache_end_0         = 0x40000020;
+  ro_cache_start_1       = 0x40000024;
+  ro_cache_end_1         = 0x40000028;
+  ro_cache_start_2       = 0x4000002C;
+  ro_cache_end_2         = 0x40000030;
+  ro_cache_start_3       = 0x40000034;
+  ro_cache_end_3         = 0x40000038;
 
   fake_uart              = 0xC0000000;
 }
