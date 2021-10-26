@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Specify Halide's library path while installing
 - Fix the waves scripts to match the new hierarchy names
 - Increase pending queue in icache
+- Make serial lookup in icache stallable
 
 ### Changed
 - Compile verilator and the verilated model with Clang, for a faster compilation time
