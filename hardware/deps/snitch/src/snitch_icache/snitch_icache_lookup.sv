@@ -88,7 +88,7 @@ module snitch_icache_lookup #(
     tag_req_t                   tag_req_d, tag_req_q;
     tag_rsp_t                   tag_rsp_d, tag_rsp_q, tag_rsp;
     logic                       tag_valid, tag_ready;
-    logic                       req_handshake, req_ready_ft;
+    logic                       req_handshake;
     logic                       tag_handshake;
     logic                       data_handshake;
     logic                       tag_valid_ft, tag_ready_ft;
@@ -180,18 +180,14 @@ module snitch_icache_lookup #(
         end
     end
 
-    spill_register #(
-        .T (tag_req_t)
-    ) i_tag_register (
-        .clk_i      (clk_i    ),
-        .rst_ni     (rst_ni   ),
-        .valid_i    (req_valid),
-        .ready_o    (req_ready),
-        .data_i     (tag_req_d),
-        .valid_o    (tag_valid),
-        .ready_i    (tag_ready && !data_write),
-        .data_o     (tag_req_q)
-    );
+    // Req handshake
+    `FF(req_handshake, req_valid && req_ready, 1'b0, clk_i, rst_ni)
+
+    // Buffer the metadata
+    `FFL(tag_req_q, tag_req_d, req_valid && req_ready, '0, clk_i, rst_ni)
+    `FF(tag_valid, req_valid ? 1'b1 : (tag_ready && !tag_write) ? 1'b0 : tag_valid, '0, clk_i, rst_ni)
+    assign req_ready = (!tag_valid || tag_ready) && !tag_write;
+
 
     // Determine which RAM line hit, and multiplex that data to the output.
     logic [CFG.TAG_WIDTH-1:0] required_tag;
@@ -214,7 +210,6 @@ module snitch_icache_lookup #(
         .empty_o  (               )
     );
 
-    `FF(req_handshake, req_valid && req_ready, 1'b0, clk_i, rst_ni)
     `FF(tag_handshake, tag_valid && tag_ready && !data_write, 1'b0, clk_i, rst_ni)
     //`FF(data_handshake, data_valid && data_ready, 1'b0, clk_i, rst_ni)
     assign data_handshake = data_valid && data_ready;
@@ -271,18 +266,23 @@ module snitch_icache_lookup #(
     assign data_req_d.hit   = tag_rsp.hit;
     assign data_req_d.error = tag_rsp.error;
 
-    spill_register #(
-        .T (data_req_t)
-    ) i_data_register (
-        .clk_i      (clk_i                        ),
-        .rst_ni     (rst_ni                       ),
-        .valid_i    (tag_valid && !data_write     ),
-        .ready_o    (tag_ready                    ),
-        .data_i     (data_req_d                   ),
-        .valid_o    (data_valid                   ),
-        .ready_i    (data_ready                   ),
-        .data_o     (data_req_q                   )
-    );
+    // Buffer the metadata
+    `FFL(data_req_q, data_req_d, tag_valid && tag_ready && !data_write, '0, clk_i, rst_ni)
+    `FF(data_valid, (tag_valid && !data_write) ? 1'b1 : data_ready ? 1'b0 : data_valid, '0, clk_i, rst_ni)
+    assign tag_ready = (!data_valid || data_ready) && !data_write;
+
+    // stream_register_2 #(
+    //     .T (data_req_t)
+    // ) i_data_register (
+    //     .clk_i      (clk_i                        ),
+    //     .rst_ni     (rst_ni                       ),
+    //     .valid_i    (tag_valid && !data_write     ),
+    //     .ready_o    (tag_ready                    ),
+    //     .data_i     (data_req_d                   ),
+    //     .valid_o    (data_valid                   ),
+    //     .ready_i    (data_ready                   ),
+    //     .data_o     (data_req_q                   )
+    // );
 
     // Generate the remaining output signals.
     assign out_addr_o  = data_req_q.addr;
