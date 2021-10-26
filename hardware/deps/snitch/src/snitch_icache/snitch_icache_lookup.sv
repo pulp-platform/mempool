@@ -179,13 +179,11 @@ module snitch_icache_lookup #(
         end
     end
 
-    stream_register #(
+    spill_register #(
         .T (tag_req_t)
     ) i_tag_register (
         .clk_i      (clk_i    ),
         .rst_ni     (rst_ni   ),
-        .clr_i      (1'b0     ),
-        .testmode_i (1'b0     ),
         .valid_i    (req_valid),
         .ready_o    (req_ready),
         .data_i     (tag_req_d),
@@ -220,7 +218,7 @@ module snitch_icache_lookup #(
     //`FF(data_handshake, data_valid && data_ready, 1'b0, clk_i, rst_ni)
     assign data_handshake = data_valid && data_ready;
 
-    fall_through_register #(
+    fall_through_register_2 #(
         .T (tag_rsp_t)
     ) i_tag_ft_register (
         .clk_i        (clk_i     ),
@@ -265,7 +263,7 @@ module snitch_icache_lookup #(
         .rdata_o ( data_rsp_d      )
     );
 
-    fall_through_register #(
+    fall_through_register_2 #(
         .T (data_rsp_t)
     ) i_data_ft_register (
         .clk_i        (clk_i     ),
@@ -289,13 +287,11 @@ module snitch_icache_lookup #(
     assign data_req_d.hit   = tag_rsp_q.hit;
     assign data_req_d.error = tag_rsp_q.error;
 
-    stream_register #(
+    spill_register #(
         .T (data_req_t)
     ) i_data_register (
         .clk_i      (clk_i                        ),
         .rst_ni     (rst_ni                       ),
-        .clr_i      (1'b0                         ),
-        .testmode_i (1'b0                         ),
         .valid_i    (tag_valid && !tag_req_q.write),
         .ready_o    (tag_ready                    ),
         .data_i     (data_req_d                   ),
@@ -313,5 +309,63 @@ module snitch_icache_lookup #(
     assign out_error_o = data_req_q.error;
     assign out_valid_o = data_valid;
     assign data_ready  = out_ready_i;
+
+endmodule
+
+module fall_through_register_2 #(
+    parameter type T = logic  // Vivado requires a default value for type parameters.
+) (
+    input  logic    clk_i,          // Clock
+    input  logic    rst_ni,         // Asynchronous active-low reset
+    input  logic    clr_i,          // Synchronous clear
+    input  logic    testmode_i,     // Test mode to bypass clock gating
+    // Input port
+    input  logic    valid_i,
+    output logic    ready_o,
+    input  T        data_i,
+    // Output port
+    output logic    valid_o,
+    input  logic    ready_i,
+    output T        data_o
+);
+
+  T data_d, data_q;
+  logic full_d, full_q;
+
+  always_comb begin
+    data_d = data_q;
+    data_o = data_q;
+    full_d = full_q;
+    valid_o = full_q || valid_i;
+    ready_o = !full_q || ready_i;
+
+    // Read
+    if (ready_i) begin
+      full_d = 1'b0;
+    end
+
+    // Write
+    if (valid_i) begin
+      full_d = 1'b1;
+      if (!full_q || ready_i) begin
+        data_d = data_i;
+        data_o = data_i;
+      end
+    end
+
+    if (valid_i && ready_i) begin
+      full_d = full_q;
+    end
+  end
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      data_q <= '0;
+      full_q <= 1'b0;
+    end else begin
+      data_q <= data_d;
+      full_q <= full_d;
+    end
+  end
 
 endmodule
