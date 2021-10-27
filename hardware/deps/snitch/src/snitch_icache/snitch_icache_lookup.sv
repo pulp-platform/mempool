@@ -46,18 +46,18 @@ module snitch_icache_lookup #(
     logic [CFG.COUNT_ALIGN:0] init_count_q;
     logic                     init_phase;
 
+    // We are always ready to flush
+    assign flush_ready_o = 1'b1;
+    assign init_phase = init_count_q != $unsigned(CFG.LINE_COUNT);
     // Initialization and flush FSM
     always_ff @(posedge clk_i, negedge rst_ni) begin
         if (!rst_ni)
             init_count_q <= '0;
-        else if (flush_valid_i)
-            init_count_q <= '0;
         else if (init_count_q != $unsigned(CFG.LINE_COUNT))
             init_count_q <= init_count_q + 1;
+        else if (flush_valid_i)
+            init_count_q <= '0;
     end
-
-    assign init_phase = init_count_q != $unsigned(CFG.LINE_COUNT);
-    assign flush_ready_o = flush_valid_i & (init_count_q == $unsigned(CFG.LINE_COUNT));
 
     // --------------------------------------------------
     // Tag stage
