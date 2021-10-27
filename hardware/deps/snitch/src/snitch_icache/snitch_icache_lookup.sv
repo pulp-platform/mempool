@@ -175,16 +175,18 @@ module snitch_icache_lookup #(
         .empty_o  (                )
     );
 
-    // Buffer the metadata
+    // Buffer the metadata on a valid handshake. Stall on write (implicit in req_valid/ready)
     `FFL(tag_req_q, tag_req_d, req_valid && req_ready, '0, clk_i, rst_ni)
-    `FF(tag_valid, req_valid ? 1'b1 : (tag_ready && !tag_write) ? 1'b0 : tag_valid, '0, clk_i, rst_ni)
+    `FF(tag_valid, req_valid ? 1'b1 : tag_ready ? 1'b0 : tag_valid, '0, clk_i, rst_ni)
+    // Ready if buffer is empy or downstream is reading. Stall on write
     assign req_ready = (!tag_valid || tag_ready) && !tag_write;
 
     // Register the handshake of the reg stage to buffer the tag output data in the next cycle
     `FF(req_handshake, req_valid && req_ready, 1'b0, clk_i, rst_ni)
 
-    // Fall-through buffer
-    `FFL(tag_rsp_q, tag_rsp_d, req_handshake, '0, clk_i, rst_ni) // And not tag_handshake in current cycle
+    // Fall-through buffer the tag data: Store the tag data if the SRAM bank accepted a request in
+    // the previous cycle and if we actually have to buffer them because the receiver is not ready
+    `FFL(tag_rsp_q, tag_rsp_d, req_handshake && !tag_ready, '0, clk_i, rst_ni)
     assign tag_rsp = req_handshake ? tag_rsp_d : tag_rsp_q;
 
     // --------------------------------------------------
@@ -248,13 +250,15 @@ module snitch_icache_lookup #(
         .rdata_o ( data_rdata  )
     );
 
-    // Buffer the metadata
-    `FFL(data_req_q, data_req_d, tag_valid && tag_ready && !data_write, '0, clk_i, rst_ni)
+    // Buffer the metadata on a valid handshake. Stall on write (implicit in tag_ready)
+    `FFL(data_req_q, data_req_d, tag_valid && tag_ready, '0, clk_i, rst_ni)
     `FF(data_valid, (tag_valid && !data_write) ? 1'b1 : data_ready ? 1'b0 : data_valid, '0, clk_i, rst_ni)
+    // Ready if buffer is empy or downstream is reading. Stall on write
     assign tag_ready = (!data_valid || data_ready) && !data_write;
 
     // Register the handshake of the tag stage to buffer the data output data in the next cycle
-    `FF(tag_handshake, tag_valid && tag_ready && !data_write, 1'b0, clk_i, rst_ni)
+    // but only if it was a hit. Otherwise, the data is not read anyway.
+    `FF(tag_handshake, tag_valid && tag_ready && data_req_d.hit, 1'b0, clk_i, rst_ni)
 
     // Fall-through buffer the read data: Store the read data if the SRAM bank accepted a request in
     // the previous cycle and if we actually have to buffer them because the receiver is not ready
