@@ -39,6 +39,8 @@ module snitch_icache_lookup #(
     output logic                        write_ready_o
 );
 
+    localparam int unsigned DATA_ADDR_WIDTH = $clog2(CFG.SET_COUNT) + CFG.COUNT_ALIGN;
+
     `ifndef SYNTHESIS
     initial assert(CFG != '0);
     `endif
@@ -82,12 +84,15 @@ module snitch_icache_lookup #(
     logic                       tag_write;
 
     tag_req_t                   tag_req_d, tag_req_q;
-    tag_rsp_t                   tag_rsp_d, tag_rsp_q, tag_rsp;
+    tag_rsp_t                   tag_rsp_s, tag_rsp_d, tag_rsp_q, tag_rsp;
     logic                       tag_valid, tag_ready;
     logic                       tag_handshake;
 
     logic [CFG.TAG_WIDTH-1:0]   required_tag;
     logic [CFG.SET_COUNT-1:0]   line_hit;
+
+    logic [DATA_ADDR_WIDTH-1:0] lookup_addr;
+    logic [DATA_ADDR_WIDTH-1:0] write_addr;
 
     // Connect input requests to tag stage
     assign tag_req_d.addr = in_addr_i;
@@ -165,13 +170,13 @@ module snitch_icache_lookup #(
             line_hit[i] = tag_rdata[i][CFG.TAG_WIDTH+1] && tag_rdata[i][CFG.TAG_WIDTH-1:0] == required_tag;
             errors[i] = tag_rdata[i][CFG.TAG_WIDTH] && line_hit[i];
         end
-        tag_rsp_d.hit = |line_hit;
-        tag_rsp_d.error = |errors;
+        tag_rsp_s.hit = |line_hit;
+        tag_rsp_s.error = |errors;
     end
 
     lzc #(.WIDTH(CFG.SET_COUNT)) i_lzc (
         .in_i     ( line_hit       ),
-        .cnt_o    ( tag_rsp_d.cset ),
+        .cnt_o    ( tag_rsp_s.cset ),
         .empty_o  (                )
     );
 
@@ -186,13 +191,23 @@ module snitch_icache_lookup #(
 
     // Fall-through buffer the tag data: Store the tag data if the SRAM bank accepted a request in
     // the previous cycle and if we actually have to buffer them because the receiver is not ready
-    `FFL(tag_rsp_q, tag_rsp_d, req_handshake && !tag_ready, '0, clk_i, rst_ni)
-    assign tag_rsp = req_handshake ? tag_rsp_d : tag_rsp_q;
+    `FF(tag_rsp_q, tag_rsp_d, '0, clk_i, rst_ni)
+    assign tag_rsp = req_handshake ? tag_rsp_s : tag_rsp_q;
+    always_comb begin
+        tag_rsp_d = tag_rsp_q;
+        // Load the FF if new data is incoming and downstream is not ready
+        if (req_handshake && !tag_ready) begin
+            tag_rsp_d = tag_rsp_s;
+        end
+        // Override the hit if the write that stalled us invalidated the data
+        if (lookup_addr == write_addr && write_valid_i) begin
+            tag_rsp_d.hit = 1'b0;
+        end
+    end
 
     // --------------------------------------------------
     // Data stage
     // --------------------------------------------------
-    localparam int unsigned DATA_ADDR_WIDTH = $clog2(CFG.SET_COUNT) + CFG.COUNT_ALIGN;
 
     typedef struct packed {
         logic [CFG.FETCH_AW-1:0]     addr;
@@ -220,16 +235,19 @@ module snitch_icache_lookup #(
     assign data_req_d.hit   = tag_rsp.hit;
     assign data_req_d.error = tag_rsp.error;
 
+    assign lookup_addr = {tag_rsp.cset, tag_req_q.addr[CFG.LINE_ALIGN +: CFG.COUNT_ALIGN]};
+    assign write_addr  = {write_set_i, write_addr_i};
+
     // Data bank port mux
     always_comb begin
         // Default read request
-        data_addr   = {tag_rsp.cset, tag_req_q.addr[CFG.LINE_ALIGN +: CFG.COUNT_ALIGN]};
+        data_addr   = lookup_addr;
         data_enable = tag_valid && tag_rsp.hit; // Only read data on hit
         data_wdata  = write_data_i;
         data_write  = 1'b0;
         // Write takes priority
         if (!init_phase && write_valid_i) begin
-            data_addr   = {write_set_i, write_addr_i};
+            data_addr   = write_addr;
             data_enable = 1'b1;
             data_write  = 1'b1;
         end
