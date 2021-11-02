@@ -1,18 +1,6 @@
-// Copyright 2021 ETH Zurich and University of Bologna.
-//
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 // Author: Gua Hao Khov, ETH Zurich
 
@@ -35,7 +23,7 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // Setup
   if (core_id == 0) {
@@ -50,7 +38,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Producer
   if (core_id == 0) {
@@ -74,7 +62,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Destroy queue
   if (core_id == 0) {
@@ -82,6 +70,6 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   return 0;
 }
