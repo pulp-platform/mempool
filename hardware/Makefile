@@ -30,6 +30,10 @@ questa_version  ?= 2021.2-bt
 questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
 questa_args     ?=
+# VCS Version
+vcs_version     ?= 2020.12-bt
+# VCS command
+vcs_cmd         ?= vcs-$(vcs_version)
 # Path to the binaries
 app_path        ?= $(abspath $(ROOT_DIR)/../software/bin)
 # Bender
@@ -61,6 +65,12 @@ ifdef preload
 endif
 questa_args += -sv_lib $(dpi_library)/mempool_dpi -work $(library)
 questa_args += -suppress vsim-12070
+
+# VCS options
+vcs_args += -assert svaext +v2k -override_timescale=1ns/1ps
+ifdef preload
+	vcs_args += +PRELOAD=$(preload)
+endif
 
 # DPI source files
 dpi   := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
@@ -135,6 +145,18 @@ simc: clean-dasm compile
 	cd $(buildpath) && \
 	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
+
+################
+# VCS          #
+################
+
+# Compilation
+.PHONY: compilevcs
+compilevcs: $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
+$(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
+	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compilevcs.sh
+	echo "exit" >> $(buildpath)/compilevcs.sh
+	cd $(buildpath) &&	chmod +x compilevcs.sh && ./compilevcs.sh && $(vcs_cmd) vcs $(top_level)
 
 ################
 # Verilator    #

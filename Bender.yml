@@ -45,6 +45,8 @@ sources:
 
   - target: mempool_vsim
     files:
+      # Level 0
+      - hardware/src/mempool_pkg.sv
       # Level 1
       - hardware/tb/axi_uart.sv
       - hardware/tb/traffic_generator.sv
