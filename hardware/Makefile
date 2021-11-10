@@ -53,7 +53,6 @@ endif
 
 QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)/questasim
 
-questa_args += -voptargs=+acc
 ifdef app
 	preload ?= "$(app_path)/$(app)"
 endif
@@ -128,7 +127,7 @@ $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.
 .PHONY: sim
 sim: clean-dasm compile
 	cd $(buildpath) && \
-	$(questa_cmd) vsim $(questa_args) $(library).$(top_level) -do ../scripts/run.tcl
+	$(questa_cmd) vsim -voptargs=+acc $(questa_args) $(library).$(top_level) -do ../scripts/run.tcl
 	./scripts/return_status.sh $(buildpath)/transcript
 
 .PHONY: simc
