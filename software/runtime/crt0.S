@@ -53,8 +53,7 @@ _reset_vector:
     li      x29, 0
     li      x30, 0
     li      x31, 0
-    la      sp, tcdm_start_address_reg // load stack top from peripheral register
-    lw      sp, 0(sp)
+    la      sp, __stack_start          // load stack
     csrr    a0, mhartid                // get hart id
 #ifdef TOP4_STACK
     srli    t0, a0, 4                  // id / 16
