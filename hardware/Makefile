@@ -56,6 +56,7 @@ ifeq (, $(shell which $(questa_cmd)))
 endif
 
 QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)/questasim
+VCS_HOME       ?= /usr/pack/vcs-$(vcs_version)/vcs
 
 ifdef app
 	preload ?= "$(app_path)/$(app)"
@@ -67,13 +68,14 @@ questa_args += -sv_lib $(dpi_library)/mempool_dpi -work $(library)
 questa_args += -suppress vsim-12070
 
 # VCS options
-vcs_args += -assert svaext +v2k -override_timescale=1ns/1ps
+vlogan_args += -assert svaext +v2k -override_timescale=1ns/1ps
 ifdef preload
 	vcs_args += +PRELOAD=$(preload)
 endif
 
 # DPI source files
-dpi   := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
+dpi     := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
+dpi_vcs := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%_vcs.o,$(wildcard tb/dpi/*.cpp))
 # Traces
 trace = $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpath)/*.dasm))
 tracepath ?= $(buildpath)/traces
@@ -146,17 +148,66 @@ simc: clean-dasm compile
 	$(questa_cmd) vsim -c $(questa_args) $(library).$(top_level) -do "run -a"
 	./scripts/return_status.sh $(buildpath)/transcript
 
+# DPIs
+.PHONY: dpi
+dpi: $(buildpath)/$(dpi_library)/mempool_dpi.so
+
+$(buildpath)/$(dpi_library)/%.o: tb/dpi/%.cpp
+	mkdir -p $(buildpath)/$(dpi_library)
+	$(CXX) -shared -fPIC -std=c++11 -Bsymbolic -c $< -I$(QUESTASIM_HOME)/include -o $@
+
+$(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
+	mkdir -p $(buildpath)/$(dpi_library)
+	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $^
+
 ################
 # VCS          #
 ################
 
-# Compilation
-.PHONY: compilevcs
-compilevcs: $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
+# Elaboration
+.PHONY: elabvcs
+elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
 $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compilevcs.sh
 	echo "exit" >> $(buildpath)/compilevcs.sh
-	cd $(buildpath) &&	chmod +x compilevcs.sh && ./compilevcs.sh && $(vcs_cmd) vcs $(top_level)
+	# Call VCS
+	cd $(buildpath) && \
+	chmod +x compilevcs.sh && \
+	./compilevcs.sh
+
+# Compilation
+.PHONY: compile_vcs_simv compile_vcs_simvopt
+
+compile_vcs_simv: elabvcs $(buildpath)/mempool_simv
+$(buildpath)/mempool_simv: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
+	cd $(buildpath) && \
+	$(vcs_cmd) vcs -full64 $(top_level) $(dpi_library)/mempool_vcs_dpi.so -debug_access+all -o mempool_simv
+
+compile_vcs_simvopt: elabvcs $(buildpath)/mempool_simvopt
+$(buildpath)/mempool_simvopt: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
+	cd $(buildpath) && \
+	$(vcs_cmd) vcs -full64 $(top_level) $(dpi_library)/mempool_vcs_dpi.so -o mempool_simvopt
+
+# Simulation
+simvcs: compile_vcs_simv
+	cd $(buildpath) && \
+	./mempool_simv $(vcs_args) -gui=dve
+
+simcvcs: compile_vcs_simvopt
+	cd $(buildpath) && \
+	./mempool_simvopt $(vcs_args)
+
+# DPIs
+.PHONY: dpivcs
+dpivcs: $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
+
+$(buildpath)/$(dpi_library)/%_vcs.o: tb/dpi/%.cpp
+	mkdir -p $(buildpath)/$(dpi_library)
+	$(CXX) -shared -fPIC -std=c++11 -Bsymbolic -c $< -I$(VCS_HOME)/include -o $@
+
+$(buildpath)/$(dpi_library)/mempool_vcs_dpi.so: $(dpi_vcs)
+	mkdir -p $(buildpath)/$(dpi_library)
+	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so $^
 
 ################
 # Verilator    #
@@ -279,17 +330,6 @@ $(tests_verilate): $(test_result_dir_verilate)/%.out : $(app_path)/%
 ################
 # Helper       #
 ################
-# DPIs
-.PHONY: dpi
-dpi: $(buildpath)/$(dpi_library)/mempool_dpi.so
-
-$(buildpath)/$(dpi_library)/%.o: tb/dpi/%.cpp
-	mkdir -p $(buildpath)/$(dpi_library)
-	$(CXX) -shared -fPIC -std=c++11 -Bsymbolic -c $< -I$(QUESTASIM_HOME)/include -o $@
-
-$(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
-	mkdir -p $(buildpath)/$(dpi_library)
-	$(CXX) -shared -m64 -o $(buildpath)/$(dpi_library)/mempool_dpi.so $^
 
 # Bootrom
 src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img
