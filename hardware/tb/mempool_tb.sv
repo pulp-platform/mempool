@@ -284,7 +284,7 @@ module mempool_tb;
     void'($value$plusargs("PRELOAD=%s", binary));
     if (binary != "") begin
       // Read ELF
-      void'(read_elf(binary));
+      read_elf(binary);
       $display("Loading %s", binary);
       while (get_section(address, length)) begin
         // Read sections
