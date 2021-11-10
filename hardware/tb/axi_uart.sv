@@ -99,20 +99,26 @@ module axi_uart #(
 
   string str;
 
+  `ifdef VCS
+    `define UARTASSIGNOPERATOR =
+  `else
+    `define UARTASSIGNOPERATOR <=
+  `endif
+
   always @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
-      str <= "";
+      str `UARTASSIGNOPERATOR "";
     end else begin
       if (reg_req.valid) begin
         if (reg_req.write) begin
           for (int i = 0; i < StrbWidth; i++) begin
             if (reg_req.wstrb[i]) begin
-              str <= $sformatf("%s%c", str, reg_req.wdata[i*8+:8]);
+              str `UARTASSIGNOPERATOR $sformatf("%s%c", str, reg_req.wdata[i*8+:8]);
             end
           end
           if (reg_req.wdata == 'h0a) begin
             $display("[UART] %s", str);
-            str <= "";
+            str `UARTASSIGNOPERATOR "";
           end
         end
       end
