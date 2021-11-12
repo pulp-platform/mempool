@@ -145,9 +145,15 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	autoconf && CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=$(CLANG_CXXFLAGS) LDFLAGS=$(CLANG_LDFLAGS) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
 	make -j4 && make install
 
-# Patch hardware for MemPool
-.PHONY: patch-hw
-patch-hw:
+# Update and patch hardware dependencies for MemPool
+# Previous changes will be stashed. Clear all the stashes with `git stash clear`
+.PHONY: update-deps
+update-deps:
+	for dep in $(shell git config --file .gitmodules --get-regexp path \
+	| awk '/hardware/{ print $$2 }'); do \
+	  git -C $${dep} diff --quiet || { echo $${dep}; git -C $${dep} stash -u; }; \
+	  git submodule update --init --recursive -- $${dep}; \
+	done
 	git apply hardware/deps/patches/*
 
 # Helper targets
