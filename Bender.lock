@@ -1,8 +1,8 @@
 ---
 packages:
   axi:
-    revision: 442ff3375710513623f95944d66cc2bd09b2f155
-    version: 0.29.1
+    revision: 527cf64a95f7aea36836b2db76dc4d767e150358
+    version: 0.29.2
     source:
       Git: "https://github.com/pulp-platform/axi.git"
     dependencies:
