@@ -16,7 +16,7 @@ package mempool_pkg;
 
   localparam integer unsigned NumCores         = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
   localparam integer unsigned NumCoresPerTile  = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
-  localparam integer unsigned NumGroups        = 4;
+  localparam integer unsigned NumGroups        = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
   localparam integer unsigned NumTiles         = NumCores / NumCoresPerTile;
   localparam integer unsigned NumTilesPerGroup = NumTiles / NumGroups;
   localparam integer unsigned NumCoresPerGroup = NumCores / NumGroups;
