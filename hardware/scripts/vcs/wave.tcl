@@ -27,8 +27,8 @@ proc min args {
 # Add groups
 for {set group 0} {$group < [get -radix dec mempool_pkg::NumGroups]} {incr group} {
     # Create the group
-    add_wave -group group_\[$group\] /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_north_interco/*
-    delete_group -group group_\[$group\] /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_north_interco/*
+    add_wave -group group_\[$group\] /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/*
+    delete_group -group group_\[$group\] /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/*
 
     # Add tiles
     for {set tile 0} {$tile < [min 4 [get -radix dec mempool_pkg::NumTilesPerGroup]]} {incr tile} {
@@ -36,10 +36,13 @@ for {set group 0} {$group < [get -radix dec mempool_pkg::NumGroups]} {incr group
     }
 
     # Interconnects
-    add_wave -group group_\[$group\]|Interconnect_North     /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_north_interco/*
-    add_wave -group group_\[$group\]|Interconnect_East      /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_east_interco/*
-    add_wave -group group_\[$group\]|Interconnect_Northeast /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_northeast_interco/*
-    add_wave -group group_\[$group\]|Interconnect_Local     /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/*
+    for {set tgtgroup 0} {$tgtgroup < [get -radix dec mempool_pkg::NumGroups]} {incr tgtgroup} {
+        if {$tgtgroup != $group} {
+            set interco_idx [expr $group ^ $tgtgroup]
+            add_wave -group group_\[$group\]|interconnect_to_group\[$tgtgroup\] /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/*
+        }
+    }
+    add_wave -group group_\[$group\]|interconnect_local /mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/*
 }
 
 add_wave -group Control_Registers /mempool_tb/dut/i_ctrl_registers/*
