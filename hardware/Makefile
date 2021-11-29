@@ -191,7 +191,7 @@ $(buildpath)/mempool_simvopt: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_libr
 # Simulation
 simvcs: compile_vcs_simv
 	cd $(buildpath) && \
-	./mempool_simv $(vcs_args) -gui=dve
+	./mempool_simv $(vcs_args) -ucli -do ../scripts/vcs/run.tcl -gui=dve
 
 simcvcs: compile_vcs_simvopt
 	cd $(buildpath) && \
