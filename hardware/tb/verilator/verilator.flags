@@ -31,6 +31,9 @@
 // Build the executable
 --exe
 
+// Control the size of the executable
+--output-split 5000
+
 // Evaluate the performance gain
 // --threads 4
 
