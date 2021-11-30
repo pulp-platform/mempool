@@ -46,36 +46,43 @@ module axi_hier_interco #(
   input  mst_resp_t                   mst_resp_i
 );
 
+  ////////////////
+  //  Typedefs  //
+  ////////////////
+
+  localparam int unsigned IntIdWidth = SlvIdWidth + $clog2(NumSlvPorts);
+
+  typedef logic [AddrWidth-1:0]   addr_t;
+  typedef logic [DataWidth-1:0]   data_t;
+  typedef logic [DataWidth/8-1:0] strb_t;
+  typedef logic [SlvIdWidth-1:0]  slv_id_t;
+  typedef logic [MstIdWidth-1:0]  mst_id_t;
+  typedef logic [IntIdWidth-1:0]  int_id_t;
+  typedef logic [UserWidth-1:0]   user_t;
+
+  `include "axi/typedef.svh"
+  // Common AXI types
+  `AXI_TYPEDEF_W_CHAN_T(w_t, data_t, strb_t, user_t);
+  // Slave AXI types
+  `AXI_TYPEDEF_AW_CHAN_T(slv_aw_t, addr_t, slv_id_t, user_t);
+  `AXI_TYPEDEF_B_CHAN_T(slv_b_t, slv_id_t, user_t);
+  `AXI_TYPEDEF_AR_CHAN_T(slv_ar_t, addr_t, slv_id_t, user_t);
+  `AXI_TYPEDEF_R_CHAN_T(slv_r_t, data_t, slv_id_t, user_t);
+  // Intermediate AXI types
+  `AXI_TYPEDEF_AW_CHAN_T(int_aw_t, addr_t, int_id_t, user_t);
+  `AXI_TYPEDEF_B_CHAN_T(int_b_t, int_id_t, user_t);
+  `AXI_TYPEDEF_AR_CHAN_T(int_ar_t, addr_t, int_id_t, user_t);
+  `AXI_TYPEDEF_R_CHAN_T(int_r_t, data_t, int_id_t, user_t);
+  `AXI_TYPEDEF_REQ_T(int_req_t, int_aw_t, w_t, int_ar_t);
+  `AXI_TYPEDEF_RESP_T(int_resp_t, int_b_t, int_r_t );
+
+  ///////////////
+  //  Interco  //
+  ///////////////
+
   // Recursive module to implement multiple hierarchy levels at once
 
   if (NumSlvPorts <= NumPortsPerMux) begin : gen_axi_level_final
-
-    // Typedefs
-    localparam int unsigned IntIdWidth = SlvIdWidth + $clog2(NumSlvPorts);
-
-    typedef logic [AddrWidth-1:0]   addr_t;
-    typedef logic [DataWidth-1:0]   data_t;
-    typedef logic [DataWidth/8-1:0] strb_t;
-    typedef logic [SlvIdWidth-1:0]  slv_id_t;
-    typedef logic [MstIdWidth-1:0]  mst_id_t;
-    typedef logic [IntIdWidth-1:0]  int_id_t;
-    typedef logic [UserWidth-1:0]   user_t;
-
-    `include "axi/typedef.svh"
-    // Common AXI types
-    `AXI_TYPEDEF_W_CHAN_T(w_t, data_t, strb_t, user_t);
-    // Slave AXI types
-    `AXI_TYPEDEF_AW_CHAN_T(slv_aw_t, addr_t, slv_id_t, user_t);
-    `AXI_TYPEDEF_B_CHAN_T(slv_b_t, slv_id_t, user_t);
-    `AXI_TYPEDEF_AR_CHAN_T(slv_ar_t, addr_t, slv_id_t, user_t);
-    `AXI_TYPEDEF_R_CHAN_T(slv_r_t, data_t, slv_id_t, user_t);
-    // Intermediate AXI types
-    `AXI_TYPEDEF_AW_CHAN_T(int_aw_t, addr_t, int_id_t, user_t);
-    `AXI_TYPEDEF_B_CHAN_T(int_b_t, int_id_t, user_t);
-    `AXI_TYPEDEF_AR_CHAN_T(int_ar_t, addr_t, int_id_t, user_t);
-    `AXI_TYPEDEF_R_CHAN_T(int_r_t, data_t, int_id_t, user_t);
-    `AXI_TYPEDEF_REQ_T(int_req_t, int_aw_t, w_t, int_ar_t);
-    `AXI_TYPEDEF_RESP_T(int_resp_t, int_b_t, int_r_t );
 
     // Intermediate AXI channel
     int_req_t  int_req;

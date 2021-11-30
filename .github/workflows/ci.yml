@@ -202,8 +202,7 @@ jobs:
         ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/include $GITHUB_WORKSPACE/install/verilator/include
         ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/bin/verilator_includer $GITHUB_WORKSPACE/install/verilator/bin/verilator_includer
         make bender
-        git submodule update --init --recursive -- hardware/deps/*
-        make patch-hw
+        make update-deps
         make -C hardware $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
     - name: Tar Verilator Model
       run: tar --posix --use-compress-program zstd -cf verilator-model.tzst hardware/verilator_build/Vmempool_tb_verilator

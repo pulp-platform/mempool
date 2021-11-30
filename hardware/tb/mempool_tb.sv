@@ -177,6 +177,26 @@ module mempool_tb;
     .axi_resp_o(axi_mem_resp[UART])
   );
 
+  /*********
+   *  WFI  *
+   *********/
+
+`ifndef TARGET_SYNTHESIS
+`ifndef TARGET_VERILATOR
+
+  // Helper debug signal with the wfi of each core
+  logic [NumCores-1:0]          wfi;
+  for (genvar g = 0; g < NumGroups; g++) begin: gen_wfi_groups
+    for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_wfi_tiles
+      for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_wfi_cores
+        assign wfi[g*NumTilesPerGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+      end: gen_wfi_cores
+    end: gen_wfi_tiles
+  end: gen_wfi_groups
+
+`endif
+`endif
+
   /************************
    *  Write/Read via AXI  *
    ************************/
@@ -284,7 +304,7 @@ module mempool_tb;
     void'($value$plusargs("PRELOAD=%s", binary));
     if (binary != "") begin
       // Read ELF
-      void'(read_elf(binary));
+      read_elf(binary);
       $display("Loading %s", binary);
       while (get_section(address, length)) begin
         // Read sections

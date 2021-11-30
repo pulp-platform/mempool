@@ -38,10 +38,10 @@ If the repository path of any submodule changes, run the following command to ch
 git submodule sync --recursive
 ```
 
-MemPool requires to patch a few hardware dependencies. To apply the patches, run the following command once in the project's root directory:
+MemPool requires to patch a few hardware dependencies. To update the dependencies and apply the patches, run the following command after checking out in the project's root directory:
 
 ```bash
-make patch-hw
+make update-deps
 ```
 
 ## Build dependencies

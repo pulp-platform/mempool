@@ -2,6 +2,5 @@
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-do ../scripts/wave.tcl
-log -r /*
-run -a
+do ../scripts/vcs/wave.tcl
+run

@@ -105,6 +105,13 @@ module snitch_axi_adapter #(
     endcase
   end
 
+  localparam int unsigned ShiftWidth = (SlvByteOffset == AxiByteOffset) ? 1 : AxiByteOffset - SlvByteOffset;
+  typedef logic [ShiftWidth-1:0] shift_t;
+  typedef struct packed {
+    write_t data;
+    shift_t shift;
+  } write_ext_t;
+
   if (SlvByteOffset == AxiByteOffset) begin : gen_w_data
     // Write
     fifo_v3 #(
@@ -130,12 +137,6 @@ module snitch_axi_adapter #(
     assign read_full   = 1'b0;
     assign slv_pdata_o = axi_resp_i.r.data;
   end else begin  : gen_w_data
-    typedef logic [AxiByteOffset-SlvByteOffset-1:0] shift_t;
-    typedef struct packed {
-      write_t data;
-      shift_t shift;
-    } write_ext_t;
-
     // Write
     write_ext_t write_data_ext_in, write_data_ext_out;
 
