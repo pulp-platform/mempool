@@ -33,7 +33,7 @@ endif
 ifeq ($(origin CXX),default)
   CXX = g++
 endif
-BENDER_VERSION = 0.22.0
+BENDER_VERSION = 0.23.2
 
 # We need a recent LLVM installation (>11) to compile Verilator.
 # We also need to link the binaries with LLVM's libc++.
