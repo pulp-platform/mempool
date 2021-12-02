@@ -10,12 +10,7 @@
 
 `include "common_cells/registers.svh"
 
-module tcdm_adapter
-  import mempool_pkg::NumCores;
-  import mempool_pkg::NumGroups;
-  import mempool_pkg::NumCoresPerTile;
-  import cf_math_pkg::idx_width;
-#(
+module tcdm_adapter #(
   parameter int unsigned  AddrWidth    = 32,
   parameter int unsigned  DataWidth    = 32,
   parameter type          metadata_t   = logic,
@@ -23,8 +18,6 @@ module tcdm_adapter
   // Cut path between request and response at the cost of increased AMO latency
   parameter bit           RegisterAmo  = 1'b0,
   // Dependent parameters. DO NOT CHANGE.
-  localparam int unsigned CoreIdWidth  = idx_width(NumCores),
-  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroups),
   localparam int unsigned BeWidth      = DataWidth/8
 ) (
   input  logic                 clk_i,
@@ -50,6 +43,11 @@ module tcdm_adapter
   output logic [BeWidth-1:0]   out_be_o,    // Bit enable
   input  logic [DataWidth-1:0] out_rdata_i  // Read data
 );
+
+  import mempool_pkg::NumCores;
+  import mempool_pkg::NumGroups;
+  import mempool_pkg::NumCoresPerTile;
+  import cf_math_pkg::idx_width;
 
   typedef enum logic [3:0] {
       AMONone = 4'h0,
@@ -119,7 +117,10 @@ module tcdm_adapter
     .ready_i   (pop_resp   )
   );
 
-  logic sc_successful, sc_successful_q;
+  localparam int unsigned CoreIdWidth  = idx_width(NumCores);
+  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroups);
+
+  logic sc_successful_d, sc_successful_q;
   logic sc_q;
 
   // In case of a SC we must forward SC result from the cycle earlier.
@@ -132,7 +133,7 @@ module tcdm_adapter
   assign pop_resp   = in_ready_i && in_valid_o;
 
   // Generate out_gnt one cycle after sending read request to the bank
-  `FFARN(out_gnt, (out_req_o && !out_write_o) || sc_successful, 1'b0, clk_i, rst_ni);
+  `FF(out_gnt, (out_req_o && !out_write_o) || sc_successful_d, 1'b0, clk_i, rst_ni);
 
   // ----------------
   // LR/SC
@@ -157,9 +158,9 @@ module tcdm_adapter
     } reservation_t;
     reservation_t reservation_d, reservation_q;
 
-    `FFARN(sc_successful_q, sc_successful, 1'b0, clk_i, rst_ni);
-    `FFARN(reservation_q, reservation_d, 1'b0, clk_i, rst_ni);
-    `FFARN(sc_q, in_valid_i && in_ready_o && (amo_op_t'(in_amo_i) == AMOSC), 1'b0, clk_i, rst_ni);
+    `FF(sc_successful_q, sc_successful_d, 1'b0, clk_i, rst_ni);
+    `FF(reservation_q, reservation_d, 1'b0, clk_i, rst_ni);
+    `FF(sc_q, in_valid_i && in_ready_o && (amo_op_t'(in_amo_i) == AMOSC), 1'b0, clk_i, rst_ni);
 
     always_comb begin
       // {group_id, tile_id, core_id}
@@ -177,7 +178,7 @@ module tcdm_adapter
       end
 
       reservation_d = reservation_q;
-      sc_successful = 1'b0;
+      sc_successful_d = 1'b0;
       // new valid transaction
       if (in_valid_i && in_ready_o) begin
 
@@ -208,13 +209,13 @@ module tcdm_adapter
         if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC
             && reservation_q.core == unique_core_id) begin
           reservation_d.valid = 1'b0;
-          sc_successful = (reservation_q.addr == in_address_i);
+          sc_successful_d = (reservation_q.addr == in_address_i);
         end
       end
     end // always_comb
   end else begin : disable_lrcs
     assign sc_q = 1'b0;
-    assign sc_successful = 1'b0;
+    assign sc_successful_d = 1'b0;
     assign sc_successful_q = 1'b0;
   end
 
@@ -227,7 +228,7 @@ module tcdm_adapter
     in_ready_o  = in_valid_o && !in_ready_i ? 1'b0 : 1'b1;
     out_req_o   = in_valid_i && in_ready_o;
     out_add_o   = in_address_i;
-    out_write_o = in_write_i || (sc_successful && (amo_op_t'(in_amo_i) == AMOSC));
+    out_write_o = in_write_i || (sc_successful_d && (amo_op_t'(in_amo_i) == AMOSC));
     out_wdata_o = in_wdata_i;
     out_be_o    = in_be_i;
 

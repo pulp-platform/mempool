@@ -182,7 +182,7 @@ class TcdmRequest;
     bank_metadata_t meta;
 
     meta = '0;
-    
+
     if (abs_core_id < 4) begin
       // define those cores as being in the local tile
       meta.ini_addr = abs_core_id;

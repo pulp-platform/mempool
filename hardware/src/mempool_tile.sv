@@ -8,11 +8,11 @@ module mempool_tile
   import cf_math_pkg::idx_width;
 #(
   // TCDM
-  parameter addr_t TCDMBaseAddr                      = 32'b0,
+  parameter addr_t       TCDMBaseAddr = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr                    = 32'h0000_1000,
+  parameter logic [31:0] BootAddr     = 32'h0000_1000,
   // Dependent parameters. DO NOT CHANGE.
-  parameter int unsigned NumCaches                   = NumCoresPerTile / NumCoresPerCache
+  parameter int unsigned NumCaches    = NumCoresPerTile / NumCoresPerCache
 ) (
   // Clock and reset
   input  logic                                        clk_i,
@@ -864,11 +864,11 @@ module mempool_tile_wrap
   import cf_math_pkg::idx_width;
 #(
   // TCDM
-  parameter addr_t TCDMBaseAddr                      = 32'b0,
+  parameter addr_t       TCDMBaseAddr    = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr                    = 32'h0000_1000,
+  parameter logic [31:0] BootAddr        = 32'h0000_1000,
   // Dependent parameters. DO NOT CHANGE.
-  parameter int unsigned NumCaches                   = NumCoresPerTile / NumCoresPerCache
+  parameter int unsigned NumCaches       = NumCoresPerTile / NumCoresPerCache
 ) (
   // Clock and reset
   input  logic                             clk_i,

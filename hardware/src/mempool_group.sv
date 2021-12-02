@@ -9,11 +9,11 @@ module mempool_group
   import cf_math_pkg::idx_width;
 #(
   // TCDM
-  parameter addr_t TCDMBaseAddr                      = 32'b0,
+  parameter addr_t       TCDMBaseAddr     = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr                    = 32'h0000_1000,
+  parameter logic [31:0] BootAddr         = 32'h0000_1000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumAXIMasters               = NumTilesPerGroup
+  parameter int unsigned NumAXIMasters    = NumTilesPerGroup
 ) (
   // Clock and reset
   input  logic                                                    clk_i,
