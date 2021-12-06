@@ -22,8 +22,7 @@ rv32ui_snitch_sc_tests = \
 	# fence_i
 
 rv32ua_snitch_sc_tests = \
-	amoadd_w amoand_w amomax_w amomaxu_w amomin_w amominu_w amoor_w amoxor_w amoswap_w
-	# lrsc
+	amoadd_w amoand_w amomax_w amomaxu_w amomin_w amominu_w amoor_w amoxor_w amoswap_w lrsc
 
 rv32um_snitch_sc_tests = \
 	div divu \

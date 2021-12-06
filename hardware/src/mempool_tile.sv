@@ -255,6 +255,7 @@ module mempool_tile
       .AddrWidth  (TCDMAddrMemWidth),
       .DataWidth  (DataWidth       ),
       .metadata_t (bank_metadata_t ),
+      .LrScEnable (LrScEnable      ),
       .RegisterAmo(1'b0            )
     ) i_tcdm_adapter (
       .clk_i       (clk_i                                                                       ),

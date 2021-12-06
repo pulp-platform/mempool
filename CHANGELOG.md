@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add bypass channels through the groups for the northeast intergroup connection
 - Add capability to quickly write a value via a CSR
 - Support for simulation with VCS through the `simvcs` and `simcvcs` Makefile targets
+- Add Load Reserved and Store Conditional from "A" standard extension of RISC-V to the TCDM adapter
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
