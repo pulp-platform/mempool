@@ -102,7 +102,7 @@ verilator-model:
         ln -s $VERILATOR_ROOT/share/verilator/bin/verilator_includer $VERILATOR_ROOT/bin/verilator_includer
         # Build the verilator model
         git submodule update --init --recursive -- hardware/deps/*
-        make patch-hw
+        make update-deps
         make -C hardware $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         $CI_PROJECT_DIR/scripts/memora_retry.sh insert verilator-model
       fi
@@ -114,7 +114,7 @@ hardware:
   stage: test
   script:
     - git submodule update --init --recursive -- hardware/deps/*
-    - make patch-hw
+    - make update-deps
     - make -C hardware compile
   needs: []
 
@@ -153,7 +153,7 @@ check-opcodes:
     - make COMPILER=${COMPILER} all
     - cd ../..
     - git submodule update --init --recursive -- hardware/deps/*
-    - make patch-hw
+    - make update-deps
     - cd hardware
     - |
       for APP in ${APPS}; do
@@ -188,7 +188,7 @@ apps-halide:
     - make COMPILER=${COMPILER} all
     - cd ../..
     - git submodule update --init --recursive -- hardware/deps/*
-    - make patch-hw
+    - make update-deps
     - cd hardware
     - app=halide-2d_convolution make simc
   variables:
@@ -204,7 +204,7 @@ unit-tests:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator-model
     - git submodule update --init --recursive -- hardware/deps/*
-    - make patch-hw
+    - make update-deps
     - touch $ROOT_DIR/hardware/src/bootrom.sv
     - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
     - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
