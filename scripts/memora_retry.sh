@@ -6,7 +6,7 @@
 
 i=1
 max_attempts=10
-while ! memora "$@"; do
+while ! memora --ignore-uncommitted-changes "$@"; do
   echo "Attempt $i/$max_attempts of 'memora $@' failed."
   if test $i -ge $max_attempts; then
     echo "'memora $@' keeps failing; aborting!"
