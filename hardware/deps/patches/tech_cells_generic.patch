@@ -1,7 +1,7 @@
-diff --git b/hardware/deps/tech_cells_generic/Bender.yml a/hardware/deps/tech_cells_generic/Bender.yml
+diff --git a/hardware/deps/tech_cells_generic/Bender.yml b/hardware/deps/tech_cells_generic/Bender.yml
 index 4efe945..386cf62 100644
---- b/hardware/deps/tech_cells_generic/Bender.yml
-+++ a/hardware/deps/tech_cells_generic/Bender.yml
+--- a/hardware/deps/tech_cells_generic/Bender.yml
++++ b/hardware/deps/tech_cells_generic/Bender.yml
 @@ -10,7 +10,7 @@ sources:
    - src/deprecated/cluster_clk_cells.sv
    - src/deprecated/pulp_clk_cells.sv
@@ -32,16 +32,28 @@ index 53ad07f..4ddd4e1 100644
  module pulp_clock_delay(
    input  logic in_i,
    output logic out_o
-@@ -103,4 +104,5 @@ module pulp_clock_delay(
+@@ -103,5 +104,6 @@ module pulp_clock_delay(
 
  endmodule
  `endif
 +`endif
 
-diff --git b/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv a/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
-index 53530e0..82fe1f7 100644
---- b/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
-+++ a/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
+
+diff --git a/hardware/deps/tech_cells_generic/src/deprecated/pulp_clock_gating_async.sv b/hardware/deps/tech_cells_generic/src/deprecated/pulp_clock_gating_async.sv
+index 5c95b55..88e9707 100644
+--- a/hardware/deps/tech_cells_generic/src/deprecated/pulp_clock_gating_async.sv
++++ b/hardware/deps/tech_cells_generic/src/deprecated/pulp_clock_gating_async.sv
+@@ -41,4 +41,4 @@ module pulp_clock_gating_async #(
+     .clk_o
+   );
+
+-endmodule
+\ No newline at end of file
++endmodule
+diff --git a/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv b/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
+index 53530e0..1e5ff2d 100644
+--- a/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
++++ b/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
 @@ -124,9 +124,11 @@ module tc_sram #(
    // write memory array
    always_ff @(posedge clk_i or negedge rst_ni) begin
