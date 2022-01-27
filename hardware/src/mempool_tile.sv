@@ -153,8 +153,8 @@ module mempool_tile
    *  Instruction Cache  *
    ***********************/
   // Instruction interface
-  axi_core_req_t  [NumCaches-1:0] axi_cache_req;
-  axi_core_resp_t [NumCaches-1:0] axi_cache_resp;
+  axi_core_req_t  [NumCaches-1:0] axi_cache_req_d, axi_cache_req_q;
+  axi_core_resp_t [NumCaches-1:0] axi_cache_resp_d, axi_cache_resp_q;
 
   for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
     snitch_icache #(
@@ -191,8 +191,24 @@ module mempool_tile
       .inst_valid_i         (snitch_inst_valid[c]    ),
       .inst_ready_o         (snitch_inst_ready[c]    ),
       .inst_error_o         (/* Unused */            ),
-      .axi_req_o            (axi_cache_req[c]        ),
-      .axi_rsp_i            (axi_cache_resp[c]       )
+      .axi_req_o            (axi_cache_req_d[c]      ),
+      .axi_rsp_i            (axi_cache_resp_q[c]     )
+    );
+    axi_cut #(
+      .aw_chan_t(axi_core_aw_t  ),
+      .w_chan_t (axi_core_w_t   ),
+      .b_chan_t (axi_core_b_t   ),
+      .ar_chan_t(axi_core_ar_t  ),
+      .r_chan_t (axi_core_r_t   ),
+      .req_t    (axi_core_req_t ),
+      .resp_t   (axi_core_resp_t)
+    ) axi_cache_slice (
+      .clk_i     (clk_i              ),
+      .rst_ni    (rst_ni             ),
+      .slv_req_i (axi_cache_req_d[c] ),
+      .slv_resp_o(axi_cache_resp_q[c]),
+      .mst_req_o (axi_cache_req_q[c] ),
+      .mst_resp_i(axi_cache_resp_d[c])
     );
   end
 
@@ -712,10 +728,8 @@ module mempool_tile
   );
 
   // Core request
-  axi_core_req_t  axi_cores_req;
-  axi_core_resp_t axi_cores_resp;
-  axi_tile_req_t  axi_mst_req;
-  axi_tile_resp_t axi_mst_resp;
+  axi_core_req_t  axi_cores_req_d, axi_cores_req_q;
+  axi_core_resp_t axi_cores_resp_d, axi_cores_resp_q;
 
   snitch_axi_adapter #(
     .addr_t         (snitch_pkg::addr_t),
@@ -740,12 +754,26 @@ module mempool_tile
     .slv_plast_o (/* Unused */    ),
     .slv_pvalid_o(soc_pvalid      ),
     .slv_pready_i(soc_pready      ),
-    .axi_req_o   (axi_cores_req   ),
-    .axi_resp_i  (axi_cores_resp  )
+    .axi_req_o   (axi_cores_req_d ),
+    .axi_resp_i  (axi_cores_resp_q)
   );
 
-  // TODO: Previously, the instruction cache's AXI signal were cut before the Mux
-  //       --> Check if this was actually necessary
+  axi_cut #(
+    .aw_chan_t(axi_core_aw_t  ),
+    .w_chan_t (axi_core_w_t   ),
+    .b_chan_t (axi_core_b_t   ),
+    .ar_chan_t(axi_core_ar_t  ),
+    .r_chan_t (axi_core_r_t   ),
+    .req_t    (axi_core_req_t ),
+    .resp_t   (axi_core_resp_t)
+  ) axi_core_slice (
+    .clk_i     (clk_i           ),
+    .rst_ni    (rst_ni          ),
+    .slv_req_i (axi_cores_req_d ),
+    .slv_resp_o(axi_cores_resp_q),
+    .mst_req_o (axi_cores_req_q ),
+    .mst_resp_i(axi_cores_resp_d)
+  );
 
   axi_mux #(
     .SlvAxiIDWidth (AxiCoreIdWidth ),
@@ -766,30 +794,13 @@ module mempool_tile
     .MaxWTrans     (8              ),
     .FallThrough   (1              )
   ) i_axi_mux (
-    .clk_i      (clk_i                           ),
-    .rst_ni     (rst_ni                          ),
-    .test_i     (1'b0                            ),
-    .slv_reqs_i ({axi_cores_req, axi_cache_req}  ),
-    .slv_resps_o({axi_cores_resp, axi_cache_resp}),
-    .mst_req_o  (axi_mst_req                     ),
-    .mst_resp_i (axi_mst_resp                    )
-  );
-
-  axi_cut #(
-    .aw_chan_t(axi_tile_aw_t  ),
-    .w_chan_t (axi_tile_w_t   ),
-    .b_chan_t (axi_tile_b_t   ),
-    .ar_chan_t(axi_tile_ar_t  ),
-    .r_chan_t (axi_tile_r_t   ),
-    .req_t    (axi_tile_req_t ),
-    .resp_t   (axi_tile_resp_t)
-  ) axi_mst_slice (
-    .clk_i     (clk_i         ),
-    .rst_ni    (rst_ni        ),
-    .slv_req_i (axi_mst_req   ),
-    .slv_resp_o(axi_mst_resp  ),
-    .mst_req_o (axi_mst_req_o ),
-    .mst_resp_i(axi_mst_resp_i)
+    .clk_i      (clk_i                               ),
+    .rst_ni     (rst_ni                              ),
+    .test_i     (1'b0                                ),
+    .slv_reqs_i ({axi_cores_req_q, axi_cache_req_q}  ),
+    .slv_resps_o({axi_cores_resp_d, axi_cache_resp_d}),
+    .mst_req_o  (axi_mst_req_o                       ),
+    .mst_resp_i (axi_mst_resp_i                      )
   );
 
   /******************
