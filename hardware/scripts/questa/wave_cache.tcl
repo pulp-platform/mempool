@@ -25,4 +25,5 @@ for {set i 0} {$i < [examine -radix dec /mempool_tb/dut/i_mempool_cluster/gen_gr
 
 add wave -noupdate -group cache[$1][$2][$3] -group lookup  /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_caches[$3]/i_snitch_icache/i_lookup/*
 add wave -noupdate -group cache[$1][$2][$3] -group handler /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_caches[$3]/i_snitch_icache/i_handler/*
+add wave -noupdate -group cache[$1][$2][$3] -group handler /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_caches[$3]/i_snitch_icache/i_handler/pending_q
 add wave -noupdate -group cache[$1][$2][$3] -group refill  /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_caches[$3]/i_snitch_icache/i_refill/*

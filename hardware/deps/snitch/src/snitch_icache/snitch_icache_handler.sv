@@ -76,6 +76,12 @@ module snitch_icache_handler #(
     logic [CFG.ID_WIDTH_RESP-1:0] pop_idmask;
     logic                         pop_enable;
 
+    typedef struct packed {
+        logic sel;
+        logic lock;
+    } arb_t;
+    arb_t arb_q, arb_d;
+
     for (genvar i = 0; i < CFG.PENDING_COUNT; i++) begin : g_pending_row
         always_ff @(posedge clk_i, negedge rst_ni) begin
             if (!rst_ni)
@@ -91,6 +97,8 @@ module snitch_icache_handler #(
             end else if (pending_set[i]) begin
                 pending_q[i].addr <= push_addr;
                 pending_q[i].idmask <= push_init ? push_idmask : push_idmask | pending_q[i].idmask;
+            end else if (in_rsp_valid_o && in_rsp_ready_i && (i == pop_index) && !pop_enable && (arb_d.sel == 1)) begin
+                pending_q[i].idmask <= '0;
             end
         end
     end
@@ -253,12 +261,6 @@ module snitch_icache_handler #(
     logic in_rsp_served_q;
     logic rsp_valid, rsp_ready;
 
-    typedef struct packed {
-        logic sel;
-        logic lock;
-    } arb_t;
-    arb_t arb_q, arb_d;
-
     always_ff @(posedge clk_i, negedge rst_ni) begin
         if (!rst_ni)
             arb_q <= '0;
@@ -322,7 +324,7 @@ module snitch_icache_handler #(
                 rsp_ready       = (in_rsp_ready_i || in_rsp_served_q)
                                 && (write_ready_i || write_served_q);
                 write_valid_o   = 1 && ~write_served_q;
-                in_rsp_valid_o  = 1 && ~in_rsp_served_q;
+                in_rsp_valid_o  = |pop_idmask;
                 pop_enable      = rsp_ready;
                 out_rsp_ready_o = rsp_ready;
                 evict_enable    = rsp_ready;
