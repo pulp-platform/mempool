@@ -5,8 +5,8 @@
 // Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
 // Implement a hierarchical AXI interconnect. Below shows one level of the interconnect. This module
-// recursively instantiates itself and creates a tree of interconnects, each with `NumPortsPerMux`
-// slave ports.
+// recursively instantiates itself and creates a tree of interconnects, each node with `Radix` slave
+// ports.
 //
 //           AXI Mux    Read-only     ID Width
 //                      Cache         Converter
@@ -27,8 +27,11 @@ module axi_hier_interco
 #(
   parameter int unsigned NumSlvPorts    = 0,
   parameter int unsigned NumMstPorts    = 0,
-  parameter int unsigned NumPortsPerMux = NumSlvPorts,
+  parameter int unsigned Radix          = 2,
   parameter int unsigned EnableCache    = 0,
+  parameter int unsigned CacheLineWidth = 0,
+  parameter int unsigned CacheSizeByte  = 0,
+  parameter int unsigned CacheSets      = 0,
   parameter int unsigned AddrWidth      = 0,
   parameter int unsigned DataWidth      = 0,
   parameter int unsigned SlvIdWidth     = 0,
@@ -95,7 +98,85 @@ module axi_hier_interco
 
   // Recursive module to implement multiple hierarchy levels at once
 
-  if (NumSlvPorts <= NumPortsPerMux) begin : gen_bottom_level
+  if (NumMstPorts >  NumSlvPorts) begin : gen_error
+    $error("[axi_hier_interco] `NumMstPorts` must be bigger than `NumSlvPorts`.");
+  end else if (NumMstPorts == NumSlvPorts) begin : gen_top_level
+    // Top-level, connect the ports to the master ports
+    for (genvar i = 0; i < NumMstPorts; i++) begin : gen_bypasses
+      assign mst_req_o[i]  = slv_req_i[i];
+      assign slv_resp_o[i] = mst_resp_i[i];
+    end
+  end else if (Radix <= 1) begin : gen_error
+    $error("[axi_hier_interco] `Radix` must be bigger than 1.");
+  end else if (NumSlvPorts > Radix) begin : gen_axi_level_recursive
+    // More than one level missing. --> Recursively call this module
+    // This level will contain `NumMuxes` interconnects
+    localparam int unsigned NumMuxes = NumSlvPorts / Radix;
+    if (NumMuxes * Radix != NumSlvPorts) begin : gen_error
+      $error("[axi_hier_interco] `NumSlvPorts` mod `Radix` must be 0.");
+    end else begin : gen_level
+      slv_req_t  [NumMuxes-1:0] int_req;
+      slv_resp_t [NumMuxes-1:0] int_resp;
+
+      for (genvar i = 0; i < NumMuxes; i++) begin : gen_lower_level
+        axi_hier_interco #(
+          .NumSlvPorts    (Radix         ),
+          .NumMstPorts    (1             ),
+          .Radix          (Radix         ),
+          .EnableCache    (EnableCache   ),
+          .CacheLineWidth (CacheLineWidth),
+          .CacheSizeByte  (CacheSizeByte ),
+          .CacheSets      (CacheSets     ),
+          .AddrWidth      (AddrWidth     ),
+          .DataWidth      (DataWidth     ),
+          .SlvIdWidth     (SlvIdWidth    ),
+          .MstIdWidth     (SlvIdWidth    ),
+          .UserWidth      (UserWidth     ),
+          .slv_req_t      (slv_req_t     ),
+          .slv_resp_t     (slv_resp_t    ),
+          .mst_req_t      (slv_req_t     ),
+          .mst_resp_t     (slv_resp_t    )
+        ) i_axi_interco (
+          .clk_i           (clk_i                       ),
+          .rst_ni          (rst_ni                      ),
+          .test_i          (test_i                      ),
+          .ro_cache_ctrl_i (ro_cache_ctrl_i             ),
+          .slv_req_i       (slv_req_i[i*Radix +: Radix] ),
+          .slv_resp_o      (slv_resp_o[i*Radix +: Radix]),
+          .mst_req_o       (int_req[i]                  ),
+          .mst_resp_i      (int_resp[i]                 )
+        );
+      end
+
+      axi_hier_interco #(
+        .NumSlvPorts    (NumMuxes      ),
+        .NumMstPorts    (NumMstPorts   ),
+        .Radix          (Radix         ),
+        .EnableCache    (EnableCache>>1),
+        .CacheLineWidth (CacheLineWidth),
+        .CacheSizeByte  (CacheSizeByte ),
+        .CacheSets      (CacheSets     ),
+        .AddrWidth      (AddrWidth     ),
+        .DataWidth      (DataWidth     ),
+        .SlvIdWidth     (SlvIdWidth    ),
+        .MstIdWidth     (MstIdWidth    ),
+        .UserWidth      (UserWidth     ),
+        .slv_req_t      (slv_req_t     ),
+        .slv_resp_t     (slv_resp_t    ),
+        .mst_req_t      (mst_req_t     ),
+        .mst_resp_t     (mst_resp_t    )
+      ) i_axi_interco (
+        .clk_i           (clk_i          ),
+        .rst_ni          (rst_ni         ),
+        .test_i          (test_i         ),
+        .ro_cache_ctrl_i (ro_cache_ctrl_i),
+        .slv_req_i       (int_req        ),
+        .slv_resp_o      (int_resp       ),
+        .mst_req_o       (mst_req_o      ),
+        .mst_resp_i      (mst_resp_i     )
+      );
+    end
+  end else if (NumSlvPorts <= Radix && NumMstPorts == 1) begin : gen_bottom_level
 
     // Intermediate AXI channel
     int_req_t    int_req;
@@ -141,26 +222,22 @@ module axi_hier_interco
       .mst_resp_i  (int_resp  )
     );
 
-    addr_t [NrAddrRules-1:0] CachedRegionStart;
-    addr_t [NrAddrRules-1:0] CachedRegionEnd;
-    assign CachedRegionStart = '{addr_t'(32'h1000_0000),addr_t'(32'hA000_0000),addr_t'(32'h4000_0000),addr_t'(32'h8000_0000)};
-    assign CachedRegionEnd   = '{addr_t'(32'h1000_1000),addr_t'(32'hA000_1000),addr_t'(32'h4000_1000),addr_t'(32'h8000_2460)};
-
     if (EnableCache[0]) begin: gen_ro_cache
+      localparam int unsigned LineCount = CacheSizeByte/(CacheSets*CacheLineWidth/8);
       snitch_read_only_cache #(
-        .LineWidth    (4*DataWidth ),
-        .LineCount    (256         ),
-        .SetCount     (2           ),
-        .AxiAddrWidth (AddrWidth   ),
-        .AxiDataWidth (DataWidth   ),
-        .AxiIdWidth   (IntIdWidth  ),
-        .AxiUserWidth (UserWidth   ),
-        .MaxTrans     (32'd16      ),
-        .NrAddrRules  (NrAddrRules ),
-        .slv_req_t    (int_req_t   ),
-        .slv_rsp_t    (int_resp_t  ),
-        .mst_req_t    (cache_req_t ),
-        .mst_rsp_t    (cache_resp_t)
+        .LineWidth    (CacheLineWidth),
+        .LineCount    (LineCount     ),
+        .SetCount     (CacheSets     ),
+        .AxiAddrWidth (AddrWidth     ),
+        .AxiDataWidth (DataWidth     ),
+        .AxiIdWidth   (IntIdWidth    ),
+        .AxiUserWidth (UserWidth     ),
+        .MaxTrans     (32'd16        ),
+        .NrAddrRules  (NrAddrRules   ),
+        .slv_req_t    (int_req_t     ),
+        .slv_rsp_t    (int_resp_t    ),
+        .mst_req_t    (cache_req_t   ),
+        .mst_rsp_t    (cache_resp_t  )
       ) i_snitch_read_only_cache (
         .clk_i         (clk_i                      ),
         .rst_ni        (rst_ni                     ),
@@ -233,81 +310,7 @@ module axi_hier_interco
       $error("[axi_hier_interco] `cache_req.aw.id` does not match CacheIdWidth.");
     if ($bits(cache_req.aw.user) != UserWidth)
       $error("[axi_hier_interco] `cache_req.aw.user` does not match UserWidth.");
-  end else begin : gen_axi_level_recursive
-    // More than one level missing. --> Recursively call this module
-    // This level will contain `NumMuxes` interconnects
-    localparam int unsigned NumMuxes = NumSlvPorts / NumPortsPerMux;
-
-    slv_req_t  [NumMuxes-1:0] int_req;
-    slv_resp_t [NumMuxes-1:0] int_resp;
-
-    for (genvar i = 0; i < NumMuxes; i++) begin : gen_lower_level
-      axi_hier_interco #(
-        .NumSlvPorts    (NumPortsPerMux),
-        .NumMstPorts    (1             ),
-        .NumPortsPerMux (NumPortsPerMux),
-        .EnableCache    (EnableCache   ),
-        .AddrWidth      (AddrWidth     ),
-        .DataWidth      (DataWidth     ),
-        .SlvIdWidth     (SlvIdWidth    ),
-        .MstIdWidth     (SlvIdWidth    ),
-        .UserWidth      (UserWidth     ),
-        .slv_req_t      (slv_req_t     ),
-        .slv_resp_t     (slv_resp_t    ),
-        .mst_req_t      (slv_req_t     ),
-        .mst_resp_t     (slv_resp_t    )
-      ) i_axi_interco (
-        .clk_i           (clk_i                                         ),
-        .rst_ni          (rst_ni                                        ),
-        .test_i          (test_i                                        ),
-        .ro_cache_ctrl_i (ro_cache_ctrl_i                               ),
-        .slv_req_i       (slv_req_i[i*NumPortsPerMux +: NumPortsPerMux] ),
-        .slv_resp_o      (slv_resp_o[i*NumPortsPerMux +: NumPortsPerMux]),
-        .mst_req_o       (int_req[i]                                    ),
-        .mst_resp_i      (int_resp[i]                                   )
-      );
-    end
-
-    if (NumMuxes < NumMstPorts) begin
-      $error("[axi_hier_interco] There must be NumMstPorts on the last level.");
-    end else if (NumMuxes == NumMstPorts) begin : gen_top_level
-      // Bypass
-      for (genvar i = 0; i < NumMstPorts; i++) begin : gen_bypasses
-        assign mst_req_o[i] = int_req[i];
-        assign int_resp[i]  = mst_resp_i[i];
-      end
-    end else begin : gen_upper_level
-      axi_hier_interco #(
-        .NumSlvPorts    (NumMuxes      ),
-        .NumMstPorts    (NumMstPorts   ),
-        .NumPortsPerMux (NumPortsPerMux),
-        .EnableCache    (EnableCache>>1),
-        .AddrWidth      (AddrWidth     ),
-        .DataWidth      (DataWidth     ),
-        .SlvIdWidth     (SlvIdWidth    ),
-        .MstIdWidth     (MstIdWidth    ),
-        .UserWidth      (UserWidth     ),
-        .slv_req_t      (slv_req_t     ),
-        .slv_resp_t     (slv_resp_t    ),
-        .mst_req_t      (mst_req_t     ),
-        .mst_resp_t     (mst_resp_t    )
-      ) i_axi_interco (
-        .clk_i           (clk_i          ),
-        .rst_ni          (rst_ni         ),
-        .test_i          (test_i         ),
-        .ro_cache_ctrl_i (ro_cache_ctrl_i),
-        .slv_req_i       (int_req        ),
-        .slv_resp_o      (int_resp       ),
-        .mst_req_o       (mst_req_o      ),
-        .mst_resp_i      (mst_resp_i     )
-      );
-    end
-
-    if (NumMuxes * NumPortsPerMux != NumSlvPorts)
-      $error("[axi_hier_interco] `NumSlvPorts mod NumPortsPerMux` must be 0.");
+  end else begin: gen_error
+    $error("[axi_hier_interco] Cannot build a tree with those parameters.");
   end
-
-  if (NumPortsPerMux <= 1)
-    $error("[axi_hier_interco] `NumPortsPerMux` must be bigger than 1.");
-
 endmodule

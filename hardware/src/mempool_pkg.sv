@@ -23,7 +23,7 @@ package mempool_pkg;
   localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
   localparam integer unsigned AxiCoreIdWidth   = 1;
   localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache
-  localparam integer unsigned AxiDataWidth     = 128;
+  localparam integer unsigned AxiDataWidth     = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 128 `endif;
   localparam integer unsigned AxiLiteDataWidth = 32;
 
   /***********************
@@ -56,7 +56,9 @@ package mempool_pkg;
   typedef logic [DataWidth-1:0] data_t;
   typedef logic [BeWidth-1:0] strb_t;
 
-  localparam NumSystemXbarMasters = NumGroups + 1;
+  localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
+
+  localparam NumSystemXbarMasters = (NumGroups * NumAXIMastersPerGroup) + 1; // +1 because the external host is also a master
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
   typedef logic [AxiSystemIdWidth-1:0] axi_system_id_t;
 
@@ -117,11 +119,16 @@ package mempool_pkg;
 
   localparam int unsigned ICacheSizeByte  = 512 * NumCoresPerCache;     // Total Size of instruction cache in bytes
   localparam int unsigned ICacheSets      = NumCoresPerCache / 2;       // Number of sets
-  localparam int unsigned ICacheLineWidth = 32 * 2 * NumCoresPerCache;  // Size of each cache line in bits,
+  localparam int unsigned ICacheLineWidth = 32 * 2 * NumCoresPerCache;  // Size of each cache line in bits
 
   /*********************
    *  READ-ONLY CACHE  *
    *********************/
+
+  localparam int unsigned AxiHierRadix      = `ifdef AXI_HIER_RADIX `AXI_HIER_RADIX `else NumTilesPerGroup `endif;
+  localparam int unsigned ROCacheLineWidth  = `ifdef RO_LINE_WIDTH `RO_LINE_WIDTH `else ICacheLineWidth `endif;
+  localparam int unsigned ROCacheSizeByte   = 8192;
+  localparam int unsigned ROCacheSets       = 2;
 
   localparam int unsigned ROCacheNumAddrRules = 4;
   typedef struct packed {

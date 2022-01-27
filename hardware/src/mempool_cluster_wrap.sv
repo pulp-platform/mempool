@@ -10,7 +10,7 @@ module mempool_cluster_wrap
   // Boot address
   parameter logic [31:0] BootAddr      = 32'h0000_0000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumAXIMasters = NumGroups
+  parameter int unsigned NumAXIMasters = NumGroups * NumAXIMastersPerGroup
 ) (
   // Clock and reset
   input  logic                               clk_i,
@@ -34,8 +34,9 @@ module mempool_cluster_wrap
    *********************/
 
   mempool_cluster #(
-    .TCDMBaseAddr(TCDMBaseAddr),
-    .BootAddr    (BootAddr    )
+    .TCDMBaseAddr (TCDMBaseAddr ),
+    .BootAddr     (BootAddr     ),
+    .NumAXIMasters(NumAXIMasters)
   ) i_mempool_cluster (
     .clk_i          (clk_i          ),
     .rst_ni         (rst_ni         ),
