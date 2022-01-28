@@ -209,8 +209,8 @@ module mempool_tb;
     to_mempool_req.aw_valid = 1'b1;
     `wait_for(to_mempool_resp.aw_ready)
     to_mempool_req.aw_valid = 1'b0;
-    to_mempool_req.w.data = data << addr[ByteOffset +: (AxiDataWidth/DataWidth)] * DataWidth;
-    to_mempool_req.w.strb = {BeWidth{1'b1}} << addr[ByteOffset +: (AxiDataWidth/DataWidth)] * BeWidth;
+    to_mempool_req.w.data = data << addr[ByteOffset +: $clog2(AxiDataWidth/DataWidth)] * DataWidth;
+    to_mempool_req.w.strb = {BeWidth{1'b1}} << addr[ByteOffset +: $clog2(AxiDataWidth/DataWidth)] * BeWidth;
     to_mempool_req.w.last = 1'b1;
     to_mempool_req.w.user = '0;
     to_mempool_req.w_valid = 1'b1;
@@ -232,7 +232,7 @@ module mempool_tb;
     to_mempool_req.ar_valid = 1'b0;
     to_mempool_req.r_ready = 1'b1;
     `wait_for(to_mempool_resp.r_valid)
-    data = to_mempool_resp.r.data >> addr[ByteOffset +: (AxiDataWidth/DataWidth)] * DataWidth;
+    data = to_mempool_resp.r.data >> addr[ByteOffset +: $clog2(AxiDataWidth/DataWidth)] * DataWidth;
     resp = to_mempool_resp.r.resp;
     to_mempool_req.r_ready = 1'b0;
     $display("[TB] Read %08x from %08x at %t (resp=%d).", data, addr, $time, resp);
