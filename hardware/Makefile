@@ -68,7 +68,7 @@ questa_args += -sv_lib $(dpi_library)/mempool_dpi -work $(library)
 questa_args += -suppress vsim-12070
 
 # VCS options
-vlogan_args += -assert svaext +v2k -override_timescale=1ns/1ps
+vlogan_args += -assert svaext +v2k -override_timescale=1ns/1ps -kdb
 ifdef preload
 	vcs_args += +PRELOAD=$(preload)
 endif
@@ -87,7 +87,7 @@ endif
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
-vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
+vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DNUM_GROUPS=$(num_groups)
 vlog_defs += -DL2_BASE="32'h$(l2_base)" -DL2_SIZE="32'h$(l2_size)"
 vlog_defs += -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
@@ -181,17 +181,17 @@ $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bende
 compile_vcs_simv: elabvcs $(buildpath)/mempool_simv
 $(buildpath)/mempool_simv: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
 	cd $(buildpath) && \
-	$(vcs_cmd) vcs -full64 $(top_level) $(dpi_library)/mempool_vcs_dpi.so -debug_access+all -o mempool_simv
+	$(vcs_cmd) vcs -full64 $(top_level) $(dpi_library)/mempool_vcs_dpi.so -debug_access=r -kdb -assert disable_cover -o mempool_simv
 
 compile_vcs_simvopt: elabvcs $(buildpath)/mempool_simvopt
 $(buildpath)/mempool_simvopt: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
 	cd $(buildpath) && \
-	$(vcs_cmd) vcs -full64 $(top_level) $(dpi_library)/mempool_vcs_dpi.so -o mempool_simvopt
+	$(vcs_cmd) vcs -full64 $(top_level) $(dpi_library)/mempool_vcs_dpi.so -assert disable_cover -o mempool_simvopt
 
 # Simulation
 simvcs: compile_vcs_simv
 	cd $(buildpath) && \
-	./mempool_simv $(vcs_args) -ucli -do ../scripts/vcs/run.tcl -gui=dve
+	./mempool_simv $(vcs_args) -ucli -do ../scripts/vcs/run.tcl -gui
 
 simcvcs: compile_vcs_simvopt
 	cd $(buildpath) && \

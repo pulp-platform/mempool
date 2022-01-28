@@ -4,15 +4,15 @@
 
 # Author: Matheus Cavalcante, ETH Zurich
 
-###############
-##  MemPool  ##
-###############
+################
+##  TeraPool  ##
+################
 
 # Number of cores
-num_cores ?= 256
+num_cores ?= 1024
 
 # Number of groups
-num_groups ?= 4
+num_groups ?= 8
 
 # Number of cores per MemPool tile
-num_cores_per_tile ?= 4
+num_cores_per_tile ?= 8

@@ -5,7 +5,7 @@
 `verilator_config
 
 // Hierarchical verilation
-hier_block -module "mempool_tile_wrap"
+hier_block -module "mempool_tile"
 hier_block -module "mempool_group"
 
 // Hierarchical modules will be renamed by Verilator. Disable the DECLFILENAME

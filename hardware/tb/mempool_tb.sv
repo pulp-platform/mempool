@@ -189,7 +189,7 @@ module mempool_tb;
   for (genvar g = 0; g < NumGroups; g++) begin: gen_wfi_groups
     for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_wfi_tiles
       for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_wfi_cores
-        assign wfi[g*NumTilesPerGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+        assign wfi[g*NumTilesPerGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
       end: gen_wfi_cores
     end: gen_wfi_tiles
   end: gen_wfi_groups
