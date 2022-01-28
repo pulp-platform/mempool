@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add capability to quickly write a value via a CSR
 - Support for simulation with VCS through the `simvcs` and `simcvcs` Makefile targets
 - Add Load Reserved and Store Conditional from "A" standard extension of RISC-V to the TCDM adapter
+- Add the `terapool` configuration
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix the waves scripts to match the new hierarchy names
 - Increase pending queue in icache
 - Make serial lookup in icache stallable
+- Generalize MemPool to have any number of groups, configured through the `num_groups` parameter
 
 ### Changed
 - Compile verilator and the verilated model with Clang, for a faster compilation time
@@ -45,6 +47,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add a timeout to CI stages that could run indefinitely on errors
 - Deprecate `patch-hw` and replace it with the `update-deps` Makefile target, which updates and patches the dependencies.
 - Bump bender to `v0.23.2`
+- Bump verilator to `v4.218`
 
 ## 0.4.0 - 2021-07-01
 
