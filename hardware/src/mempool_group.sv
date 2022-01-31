@@ -9,11 +9,9 @@ module mempool_group
   import cf_math_pkg::idx_width;
 #(
   // TCDM
-  parameter addr_t       TCDMBaseAddr     = 32'b0,
+  parameter addr_t       TCDMBaseAddr = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr         = 32'h0000_1000,
-  // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumAXIMasters    = NumTilesPerGroup
+  parameter logic [31:0] BootAddr     = 32'h0000_1000
 ) (
   // Clock and reset
   input  logic                                                    clk_i,
@@ -40,10 +38,12 @@ module mempool_group
   output logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_valid_o,
   input  logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_ready_i,
   // Wake up interface
-  input  logic                            [NumCoresPerGroup-1:0]  wake_up_i,
+  input  logic                            [NumCoresPerGroup-1:0]                 wake_up_i,
+  // RO-Cache configuration
+  input  `STRUCT_PORT(ro_cache_ctrl_t)                                           ro_cache_ctrl_i,
    // AXI Interface
-  output `STRUCT_PORT(axi_tile_req_t)                             axi_mst_req_o,
-  input  `STRUCT_PORT(axi_tile_resp_t)                            axi_mst_resp_i
+  output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMastersPerGroup-1:0])           axi_mst_req_o,
+  input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMastersPerGroup-1:0])           axi_mst_resp_i
 );
 
   /*****************
@@ -343,26 +343,31 @@ module mempool_group
    **********************/
 
   axi_hier_interco #(
-    .NumSlvPorts    (NumTilesPerGroup),
-    .NumPortsPerMux (4               ),
-    .EnableCache    (1'b0            ),
-    .AddrWidth      (AddrWidth       ),
-    .DataWidth      (AxiDataWidth    ),
-    .SlvIdWidth     (AxiTileIdWidth  ),
-    .MstIdWidth     (AxiTileIdWidth  ),
-    .UserWidth      (1               ),
-    .slv_req_t      (axi_tile_req_t  ),
-    .slv_resp_t     (axi_tile_resp_t ),
-    .mst_req_t      (axi_tile_req_t  ),
-    .mst_resp_t     (axi_tile_resp_t )
+    .NumSlvPorts    (NumTilesPerGroup     ),
+    .NumMstPorts    (NumAXIMastersPerGroup),
+    .Radix          (AxiHierRadix         ),
+    .EnableCache    (32'hFFFFFFFF         ),
+    .CacheLineWidth (ROCacheLineWidth     ),
+    .CacheSizeByte  (ROCacheSizeByte      ),
+    .CacheSets      (ROCacheSets          ),
+    .AddrWidth      (AddrWidth            ),
+    .DataWidth      (AxiDataWidth         ),
+    .SlvIdWidth     (AxiTileIdWidth       ),
+    .MstIdWidth     (AxiTileIdWidth       ),
+    .UserWidth      (1                    ),
+    .slv_req_t      (axi_tile_req_t       ),
+    .slv_resp_t     (axi_tile_resp_t      ),
+    .mst_req_t      (axi_tile_req_t       ),
+    .mst_resp_t     (axi_tile_resp_t      )
   ) i_axi_interco (
-    .clk_i      (clk_i         ),
-    .rst_ni     (rst_ni        ),
-    .test_i     (1'b0          ),
-    .slv_req_i  (axi_tile_req  ),
-    .slv_resp_o (axi_tile_resp ),
-    .mst_req_o  (axi_mst_req_o ),
-    .mst_resp_i (axi_mst_resp_i)
+    .clk_i           (clk_i               ),
+    .rst_ni          (rst_ni              ),
+    .test_i          (1'b0                ),
+    .ro_cache_ctrl_i (ro_cache_ctrl_i     ),
+    .slv_req_i       (axi_tile_req        ),
+    .slv_resp_o      (axi_tile_resp       ),
+    .mst_req_o       (axi_mst_req_o       ),
+    .mst_resp_i      (axi_mst_resp_i      )
   );
 
 endmodule: mempool_group

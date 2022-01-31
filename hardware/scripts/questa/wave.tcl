@@ -34,3 +34,5 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
 }
 
 add wave -Group Control_Registers /mempool_tb/dut/i_ctrl_registers/*
+
+do ../scripts/questa/wave_cache.tcl 0 0 0

@@ -41,13 +41,15 @@ module snitch_icache #(
     /// disabling this feature.
     parameter int L0_EARLY_TAG_WIDTH = -1,
     /// Operate L0 cache in slower clock-domain
-    parameter bit ISO_CROSSING      = 1
+    parameter bit ISO_CROSSING      = 1,
+    parameter type axi_req_t = logic,
+    parameter type axi_rsp_t = logic
 ) (
     input  logic clk_i,
     input  logic clk_d2_i,
     input  logic rst_ni,
 
-    input  logic [NR_FETCH_PORTS-1:0]                              enable_prefetching_i,
+    input  logic                               enable_prefetching_i,
     output snitch_icache_pkg::icache_events_t [NR_FETCH_PORTS-1:0] icache_events_o,
 
     input  logic flush_valid_i,
@@ -59,35 +61,28 @@ module snitch_icache #(
     input  logic [NR_FETCH_PORTS-1:0]               inst_valid_i,
     output logic [NR_FETCH_PORTS-1:0]               inst_ready_o,
     output logic [NR_FETCH_PORTS-1:0]               inst_error_o,
-    // AXI-like read-only interface
-    output logic [FILL_AW-1:0]   refill_qaddr_o,
-    output logic [7:0]           refill_qlen_o,
-    output logic                 refill_qvalid_o,
-    input  logic                 refill_qready_i,
-
-    input  logic [FILL_DW-1:0]   refill_pdata_i,
-    input  logic                 refill_perror_i,
-    input  logic                 refill_pvalid_i,
-    input  logic                 refill_plast_i,
-    output logic                 refill_pready_o
+    output axi_req_t                                axi_req_o,
+    input  axi_rsp_t                                axi_rsp_i
 );
 
     // Bundle the parameters up into a proper configuration struct that we can
     // pass to submodules.
     localparam PENDING_COUNT = 8;
     localparam snitch_icache_pkg::config_t CFG = '{
-        NR_FETCH_PORTS:    NR_FETCH_PORTS,
-        LINE_WIDTH:        LINE_WIDTH,
-        LINE_COUNT:        LINE_COUNT,
-        L0_LINE_COUNT:     L0_LINE_COUNT,
-        SET_COUNT:         SET_COUNT,
-        PENDING_COUNT:     PENDING_COUNT,
-        FETCH_AW:          FETCH_AW,
-        FETCH_DW:          FETCH_DW,
-        FILL_AW:           FILL_AW,
-        FILL_DW:           FILL_DW,
-        L1_TAG_SCM:        L1_TAG_SCM,
-        EARLY_LATCH:       EARLY_LATCH,
+        NR_FETCH_PORTS:     NR_FETCH_PORTS,
+        LINE_WIDTH:         LINE_WIDTH,
+        LINE_COUNT:         LINE_COUNT,
+        L0_LINE_COUNT:      L0_LINE_COUNT,
+        SET_COUNT:          SET_COUNT,
+        PENDING_COUNT:      PENDING_COUNT,
+        FETCH_AW:           FETCH_AW,
+        FETCH_DW:           FETCH_DW,
+        FILL_AW:            FILL_AW,
+        FILL_DW:            FILL_DW,
+        L1_TAG_SCM:         L1_TAG_SCM,
+        EARLY_LATCH:        EARLY_LATCH,
+        BUFFER_LOOKUP:      0,
+        GUARANTEE_ORDERING: 0,
 
         FETCH_ALIGN: $clog2(FETCH_DW/8),
         FILL_ALIGN:  $clog2(FILL_DW/8),
@@ -96,7 +91,8 @@ module snitch_icache #(
         SET_ALIGN:   $clog2(SET_COUNT),
         TAG_WIDTH:   FETCH_AW - $clog2(LINE_WIDTH/8) - $clog2(LINE_COUNT) + 1,
         L0_TAG_WIDTH: FETCH_AW - $clog2(LINE_WIDTH/8),
-        L0_EARLY_TAG_WIDTH: (L0_EARLY_TAG_WIDTH == -1) ? FETCH_AW - $clog2(LINE_WIDTH/8) : L0_EARLY_TAG_WIDTH,
+        L0_EARLY_TAG_WIDTH:
+          (L0_EARLY_TAG_WIDTH == -1) ? FETCH_AW - $clog2(LINE_WIDTH/8) : L0_EARLY_TAG_WIDTH,
         ID_WIDTH_REQ: $clog2(NR_FETCH_PORTS) + 1,
         ID_WIDTH_RESP: 2*NR_FETCH_PORTS,
         PENDING_IW:  $clog2(PENDING_COUNT)
@@ -116,11 +112,16 @@ module snitch_icache #(
         assert(FILL_DW > 0);
         assert(CFG.L0_EARLY_TAG_WIDTH < CFG.L0_TAG_WIDTH);
         assert(FETCH_AW == FILL_AW);
-        assert(2**$clog2(LINE_WIDTH) == LINE_WIDTH);
-        assert(2**$clog2(LINE_COUNT) == LINE_COUNT);
-        assert(2**$clog2(SET_COUNT) == SET_COUNT);
-        assert(2**$clog2(FETCH_DW) == FETCH_DW);
-        assert(2**$clog2(FILL_DW) == FILL_DW);
+        assert(2**$clog2(LINE_WIDTH) == LINE_WIDTH)
+          else $fatal(1, "Cache LINE_WIDTH %0d is not a power of two", LINE_WIDTH);
+        assert(2**$clog2(LINE_COUNT) == LINE_COUNT)
+          else $fatal(1, "Cache LINE_COUNT %0d is not a power of two", LINE_COUNT);
+        // NOTE(fschuiki): I think the following is not needed
+        // assert(2**$clog2(SET_COUNT) == SET_COUNT) else $fatal(1, "Cache SET_COUNT %0d is not a power of two", SET_COUNT);
+        assert(2**$clog2(FETCH_DW) == FETCH_DW)
+          else $fatal(1, "Cache FETCH_DW %0d is not a power of two", FETCH_DW);
+        assert(2**$clog2(FILL_DW) == FILL_DW)
+          else $fatal(1, "Cache FILL_DW %0d is not a power of two", FILL_DW);
     end
     `endif
     // pragma translate_on
@@ -204,10 +205,14 @@ module snitch_icache #(
 
         assign in_cache_valid[i] = inst_cacheable_i[i] & inst_valid_i[i];
         assign in_bypass_valid[i] = ~inst_cacheable_i[i] & inst_valid_i[i];
-        assign inst_ready_o[i] = (inst_cacheable_i[i] & in_cache_ready [i]) | (~inst_cacheable_i[i] & in_bypass_ready [i]);
+        assign inst_ready_o[i] = (inst_cacheable_i[i] & in_cache_ready [i])
+                               | (~inst_cacheable_i[i] & in_bypass_ready [i]);
         // multiplex results
-        assign {inst_error_o[i], inst_data_o[i]} = ({($bits(in_cache_data[i])+1){inst_cacheable_i[i]}} & {in_cache_error [i], in_cache_data[i]})
-                                                | (~{($bits(in_cache_data[i])+1){inst_cacheable_i[i]}} & {in_bypass_error[i], in_bypass_data[i]});
+        assign {inst_error_o[i], inst_data_o[i]} =
+            ({($bits(in_cache_data[i])+1){inst_cacheable_i[i]}}
+              & {in_cache_error [i], in_cache_data[i]})
+          | (~{($bits(in_cache_data[i])+1){inst_cacheable_i[i]}}
+              & {in_bypass_error[i], in_bypass_data[i]});
 
         snitch_icache_l0 #(
             .CFG   ( CFG ),
@@ -216,24 +221,24 @@ module snitch_icache #(
             .clk_i ( clk_d2_i ),
             .rst_ni,
             .flush_valid_i,
-            .enable_prefetching_i ( enable_prefetching_i [i] ),
-            .icache_events_o      ( icache_events_o [i]      ),
-            .in_addr_i            ( inst_addr_i    [i]       ),
-            .in_data_o            ( in_cache_data  [i]       ),
-            .in_error_o           ( in_cache_error [i]       ),
-            .in_valid_i           ( in_cache_valid [i]       ),
-            .in_ready_o           ( in_cache_ready [i]       ),
+            .enable_prefetching_i,
+            .icache_events_o ( icache_events_o[i]       ),
+            .in_addr_i       ( inst_addr_i[i]           ),
+            .in_data_o       ( in_cache_data[i]         ),
+            .in_error_o      ( in_cache_error[i]        ),
+            .in_valid_i      ( in_cache_valid[i]        ),
+            .in_ready_o      ( in_cache_ready[i]        ),
 
-            .out_req_addr_o       ( local_prefetch_req.addr  ),
-            .out_req_id_o         ( local_prefetch_req.id    ),
-            .out_req_valid_o      ( local_prefetch_req_valid ),
-            .out_req_ready_i      ( local_prefetch_req_ready ),
+            .out_req_addr_o  ( local_prefetch_req.addr  ),
+            .out_req_id_o    ( local_prefetch_req.id    ),
+            .out_req_valid_o ( local_prefetch_req_valid ),
+            .out_req_ready_i ( local_prefetch_req_ready ),
 
-            .out_rsp_data_i       ( local_prefetch_rsp.data  ),
-            .out_rsp_error_i      ( local_prefetch_rsp.error ),
-            .out_rsp_id_i         ( local_prefetch_rsp.id    ),
-            .out_rsp_valid_i      ( local_prefetch_rsp_valid ),
-            .out_rsp_ready_o      ( local_prefetch_rsp_ready )
+            .out_rsp_data_i  ( local_prefetch_rsp.data  ),
+            .out_rsp_error_i ( local_prefetch_rsp.error ),
+            .out_rsp_id_i    ( local_prefetch_rsp.id    ),
+            .out_rsp_valid_i ( local_prefetch_rsp_valid ),
+            .out_rsp_ready_o ( local_prefetch_rsp_ready )
         );
 
         isochronous_spill_register  #(
@@ -349,7 +354,8 @@ module snitch_icache #(
     for (genvar i = 0; i < NR_FETCH_PORTS; i++) begin : gen_resp
         assign prefetch_rsp[i] = prefetch_lookup_rsp;
         // check if one of the ID bits is set
-        assign prefetch_rsp_valid[i] = ((|((prefetch_rsp[i].id >> 2*i) & 2'b11)) & prefetch_lookup_rsp_valid);
+        assign prefetch_rsp_valid[i] =
+            ((|((prefetch_rsp[i].id >> 2*i) & 2'b11)) & prefetch_lookup_rsp_valid);
     end
     assign prefetch_lookup_rsp_ready = |prefetch_rsp_ready;
 
@@ -396,7 +402,7 @@ module snitch_icache #(
         assign flush_ready_o = flush_ready;
     end
 
-    snitch_icache_lookup #(CFG) i_lookup (
+    snitch_icache_lookup_serial #(CFG) i_lookup (
         .clk_i,
         .rst_ni,
 
@@ -499,28 +505,12 @@ module snitch_icache #(
     assign handler_rsp = refill_rsp;
     assign bypass_rsp = refill_rsp;
 
-    // AXI-like read-only interface
-    typedef struct packed {
-        logic [FILL_AW-1:0] addr;
-        logic [7:0]         len;
-    } extern_req_t;
-
-    typedef struct packed {
-        logic [FILL_DW-1:0] data;
-        logic               error;
-        logic               last;
-    } extern_rsp_t;
-
-    extern_req_t          extern_req, extern_req_q;
-    logic                 extern_qvalid;
-    logic                 extern_qready;
-
-    extern_rsp_t          extern_rsp, extern_rsp_q;
-    logic                 extern_pvalid_q;
-    logic                 extern_pready_q;
-
     // Instantiate the cache refill module which emits AXI transactions.
-    snitch_icache_refill #(CFG) i_refill (
+    snitch_icache_refill #(
+        .CFG(CFG),
+        .axi_req_t (axi_req_t),
+        .axi_rsp_t (axi_rsp_t)
+    ) i_refill (
         .clk_i,
         .rst_ni,
 
@@ -536,49 +526,10 @@ module snitch_icache #(
         .in_rsp_bypass_o ( refill_rsp.bypass  ),
         .in_rsp_valid_o  ( refill_rsp_valid   ),
         .in_rsp_ready_i  ( refill_rsp_ready   ),
-
-        .refill_qaddr_o  ( extern_req.addr    ),
-        .refill_qlen_o   ( extern_req.len     ),
-        .refill_qvalid_o ( extern_qvalid      ),
-        .refill_qready_i ( extern_qready      ),
-        .refill_pdata_i  ( extern_rsp_q.data  ),
-        .refill_perror_i ( extern_rsp_q.error ),
-        .refill_plast_i  ( extern_rsp_q.last  ),
-        .refill_pvalid_i ( extern_pvalid_q    ),
-        .refill_pready_o ( extern_pready_q    )
+        .axi_req_o (axi_req_o),
+        .axi_rsp_i (axi_rsp_i)
     );
 
-    // Insert Slices.
-    spill_register #(.T(extern_req_t)) i_spill_register_req (
-        .clk_i,
-        .rst_ni,
-        .valid_i ( extern_qvalid   ),
-        .ready_o ( extern_qready   ),
-        .data_i  ( extern_req      ),
-        // Q Output
-        .valid_o ( refill_qvalid_o ),
-        .ready_i ( refill_qready_i ),
-        .data_o  ( extern_req_q    )
-    );
-
-    assign refill_qaddr_o = extern_req_q.addr;
-    assign refill_qlen_o = extern_req_q.len;
-
-    spill_register #(.T(extern_rsp_t)) i_spill_register_resp (
-        .clk_i,
-        .rst_ni,
-        .valid_i ( refill_pvalid_i ),
-        .ready_o ( refill_pready_o ),
-        .data_i  ( extern_rsp      ),
-        // Q Output
-        .valid_o ( extern_pvalid_q ),
-        .ready_i ( extern_pready_q ),
-        .data_o  ( extern_rsp_q    )
-    );
-
-    assign extern_rsp.data = refill_pdata_i;
-    assign extern_rsp.error = refill_perror_i;
-    assign extern_rsp.last = refill_plast_i;
 endmodule
 
 // Translate register interface to refill requests.
@@ -611,13 +562,14 @@ module l0_to_bypass #(
     logic [CFG.NR_FETCH_PORTS-1:0] in_valid;
     logic [CFG.NR_FETCH_PORTS-1:0] in_ready;
 
-    enum logic [1:0] {
+    typedef enum logic [1:0] {
         Idle, RequestData, WaitResponse, PresentResponse
-    } state_d [CFG.NR_FETCH_PORTS-1:0], state_q [CFG.NR_FETCH_PORTS-1:0];
+    } state_e;
+    state_e [CFG.NR_FETCH_PORTS-1:0] state_d , state_q;
 
     // Mask address so that it is aligned to the cache-line width.
     logic [CFG.NR_FETCH_PORTS-1:0][CFG.FETCH_AW-1:0] in_addr_masked;
-    for (genvar i = 0; i < CFG.NR_FETCH_PORTS; i++) begin
+    for (genvar i = 0; i < CFG.NR_FETCH_PORTS; i++) begin : gen_masked_addr
         assign in_addr_masked[i] = in_addr_i[i] >> CFG.LINE_ALIGN << CFG.LINE_ALIGN;
     end
     stream_arbiter #(
@@ -634,10 +586,11 @@ module l0_to_bypass #(
         .oup_ready_i ( refill_req_ready_i )
     );
 
-    localparam int unsigned NR_FETCH_PORTS_BIN = CFG.NR_FETCH_PORTS == 1 ? 1 : $clog2(CFG.NR_FETCH_PORTS);
+    localparam int unsigned NrFetchPortsBin =
+      CFG.NR_FETCH_PORTS == 1 ? 1 : $clog2(CFG.NR_FETCH_PORTS);
 
     logic [CFG.NR_FETCH_PORTS-1:0] rsp_fifo_mux;
-    logic [NR_FETCH_PORTS_BIN-1:0] onehot_mux;
+    logic [NrFetchPortsBin-1:0] onehot_mux;
     logic [CFG.NR_FETCH_PORTS-1:0] rsp_fifo_pop;
     logic rsp_fifo_full;
 
@@ -712,8 +665,10 @@ module l0_to_bypass #(
             endcase
         end
         logic [CFG.FILL_DW-1:0] fill_rsp_data;
-        assign fill_rsp_data = refill_rsp_data_i >> (in_addr_i[i][CFG.LINE_ALIGN-1:CFG.FETCH_ALIGN] * CFG.FETCH_DW);
-        `FFLNR({in_data_o[i], in_error_o[i]}, {fill_rsp_data[CFG.FETCH_DW-1:0], refill_rsp_error_i}, rsp_valid[i], clk_i)
+        assign fill_rsp_data =
+          refill_rsp_data_i >> (in_addr_i[i][CFG.LINE_ALIGN-1:CFG.FETCH_ALIGN] * CFG.FETCH_DW);
+        `FFLNR({in_data_o[i], in_error_o[i]}, {fill_rsp_data[CFG.FETCH_DW-1:0], refill_rsp_error_i},
+                rsp_valid[i], clk_i)
     end
 
     `FF(state_q, state_d, '{default: Idle})

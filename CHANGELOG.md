@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Support for simulation with VCS through the `simvcs` and `simcvcs` Makefile targets
 - Add Load Reserved and Store Conditional from "A" standard extension of RISC-V to the TCDM adapter
 - Add the `terapool` configuration
+- Add read-only caches to the hierarchical AXI interconnect
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module

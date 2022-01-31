@@ -11,7 +11,7 @@ module mempool_cluster
   // Boot address
   parameter logic           [31:0] BootAddr      = 32'h0000_0000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int    unsigned        NumAXIMasters = NumGroups
+  parameter int    unsigned        NumAXIMasters = NumGroups * NumAXIMastersPerGroup
 ) (
   // Clock and reset
   input  logic                               clk_i,
@@ -23,6 +23,8 @@ module mempool_cluster
   output logic                               scan_data_o,
   // Wake up signal
   input  logic           [NumCores-1:0]      wake_up_i,
+  // RO-Cache configuration
+  input  ro_cache_ctrl_t                     ro_cache_ctrl_i,
   // AXI Interface
   output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
@@ -48,34 +50,35 @@ module mempool_cluster
 
   for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
     mempool_group #(
-      .TCDMBaseAddr(TCDMBaseAddr),
-      .BootAddr    (BootAddr    )
+      .TCDMBaseAddr (TCDMBaseAddr         ),
+      .BootAddr     (BootAddr             )
     ) i_group (
-      .clk_i                   (clk_i                                            ),
-      .rst_ni                  (rst_ni                                           ),
-      .testmode_i              (testmode_i                                       ),
-      .scan_enable_i           (scan_enable_i                                    ),
-      .scan_data_i             (/* Unconnected */                                ),
-      .scan_data_o             (/* Unconnected */                                ),
-      .group_id_i              (g[idx_width(NumGroups)-1:0]                      ),
+      .clk_i                   (clk_i                                                           ),
+      .rst_ni                  (rst_ni                                                          ),
+      .testmode_i              (testmode_i                                                      ),
+      .scan_enable_i           (scan_enable_i                                                   ),
+      .scan_data_i             (/* Unconnected */                                               ),
+      .scan_data_o             (/* Unconnected */                                               ),
+      .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
       // TCDM Master interfaces
-      .tcdm_master_req_o       (tcdm_master_req[g]                               ),
-      .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                         ),
-      .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                         ),
-      .tcdm_master_resp_i      (tcdm_master_resp[g]                              ),
-      .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                        ),
-      .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                        ),
+      .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
+      .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                                        ),
+      .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                                        ),
+      .tcdm_master_resp_i      (tcdm_master_resp[g]                                             ),
+      .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                                       ),
+      .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                                       ),
       // TCDM banks interface
-      .tcdm_slave_req_i        (tcdm_slave_req[g]                                ),
-      .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                          ),
-      .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                          ),
-      .tcdm_slave_resp_o       (tcdm_slave_resp[g]                               ),
-      .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                         ),
-      .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                         ),
-      .wake_up_i               (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]),
+      .tcdm_slave_req_i        (tcdm_slave_req[g]                                               ),
+      .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                                         ),
+      .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                                         ),
+      .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
+      .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
+      .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+      .wake_up_i               (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
+      .ro_cache_ctrl_i         (ro_cache_ctrl_i                                                 ),
       // AXI interface
-      .axi_mst_req_o           (axi_mst_req_o[g]                                 ),
-      .axi_mst_resp_i          (axi_mst_resp_i[g]                                )
+      .axi_mst_req_o           (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
+      .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
     );
   end : gen_groups
 

@@ -65,7 +65,12 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   } prefetch_req_t;
 
   logic latch_prefetch, last_cycle_was_prefetch_q;
-  prefetch_req_t prefetch_req_q, prefetch_req_d, prefetcher_out;
+  prefetch_req_t prefetcher_out;
+  // As we have different flipflops (resetable vs non-resetable) we need to
+  // split that struct into two distinct signals to avoid multi-driven warnings
+  // in Verilator.
+  logic prefetch_req_vld_q, prefetch_req_vld_d;
+  logic [CFG.FETCH_AW-1:0] prefetch_req_addr_q, prefetch_req_addr_d;
 
   // Holds the onehot signal for the line being refilled at the moment
   logic [CFG.L0_LINE_COUNT-1:0] pending_line_refill_q;
@@ -100,13 +105,16 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   // Tag Compare
   // ------------
   for (genvar i = 0; i < CFG.L0_LINE_COUNT; i++) begin : gen_cmp_fetch
-    assign hit_early[i] = tag[i].vld & (tag[i].tag[CFG.L0_EARLY_TAG_WIDTH-1:0] == addr_tag[CFG.L0_EARLY_TAG_WIDTH-1:0]);
+    assign hit_early[i] = tag[i].vld &
+      (tag[i].tag[CFG.L0_EARLY_TAG_WIDTH-1:0] == addr_tag[CFG.L0_EARLY_TAG_WIDTH-1:0]);
     // The two signals calculate the same.
     if (CFG.L0_TAG_WIDTH == CFG.L0_EARLY_TAG_WIDTH) begin : gen_hit_assign
       assign hit[i] = hit_early[i];
     // Compare the rest of the tag.
     end else begin : gen_hit
-      assign hit[i] = hit_early[i] & (tag[i].tag[CFG.L0_TAG_WIDTH-1:CFG.L0_EARLY_TAG_WIDTH] == addr_tag[CFG.L0_TAG_WIDTH-1:CFG.L0_EARLY_TAG_WIDTH]);
+      assign hit[i] = hit_early[i] &
+        (tag[i].tag[CFG.L0_TAG_WIDTH-1:CFG.L0_EARLY_TAG_WIDTH]
+          == addr_tag[CFG.L0_TAG_WIDTH-1:CFG.L0_EARLY_TAG_WIDTH]);
     end
     assign hit_prefetch[i] = tag[i].vld & (tag[i].tag == addr_tag_prefetch);
   end
@@ -178,7 +186,7 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   // Check whether we had an early multi-hit (e.g., the portion of the tag matched
   // multiple entries in the tag array)
   if (CFG.L0_TAG_WIDTH != CFG.L0_EARLY_TAG_WIDTH) begin : gen_multihit_detection
-    onehot #(
+    cc_onehot #(
       .Width (CFG.L0_LINE_COUNT)
     ) i_onehot_hit_early (
       .d_i (hit_early),
@@ -278,53 +286,53 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   // -------------
   // Generate a prefetch request if the cache hits and we haven't
   // pre-fetched the line yet and there is no other refill in progress.
-  assign prefetcher_out.vld = enable_prefetching_i & hit_any & ~hit_prefetch_any & ~pending_refill_q;
+  assign prefetcher_out.vld = enable_prefetching_i &
+                              hit_any & ~hit_prefetch_any &
+                              hit_early_is_onehot & ~pending_refill_q;
 
-  localparam FETCH_PKTS = CFG.LINE_WIDTH/32;
-  logic [FETCH_PKTS-1:0] is_branch_taken;
-  logic [FETCH_PKTS-1:0] is_jal;
-  logic [FETCH_PKTS-1:0] mask;
+  localparam int unsigned FetchPkts = CFG.LINE_WIDTH/32;
+  logic [FetchPkts-1:0] is_branch_taken;
+  logic [FetchPkts-1:0] is_jal;
+  logic [FetchPkts-1:0] mask;
   // make sure that we only look at the packets which are of interest to
   assign mask = '1 << in_addr_i[CFG.LINE_ALIGN-1:2];
 
   // Instruction aware pre-fetching
-  for (genvar i = 0; i < FETCH_PKTS; i++) begin : gen_pre_decode
+  for (genvar i = 0; i < FetchPkts; i++) begin : gen_pre_decode
     // iterate over the fetch packets (32 bits per instruction)
     always_comb begin
       is_branch_taken[i] = 1'b0;
       is_jal[i] = 1'b0;
-      if (hit_early_is_onehot) begin
-        unique casez (ins_data[i*32+:32])
-          // static prediction
-          riscv_instr::BEQ,
-          riscv_instr::BNE,
-          riscv_instr::BLT,
-          riscv_instr::BGE,
-          riscv_instr::BLTU,
-          riscv_instr::BGEU: begin
-            // look at the sign bit of the immediate field
-            // backward branches (immediate negative) taken
-            // forward branches not taken
-            is_branch_taken[i] = ins_data[i*32+31];
-          end
-          riscv_instr::JAL: begin
-            is_jal[i] = 1'b1;
-          end
-          // we can't do anything about the JALR case as we don't
-          // know the destination.
-          default:;
-        endcase
-      end
+      unique casez (ins_data[i*32+:32])
+        // static prediction
+        riscv_instr::BEQ,
+        riscv_instr::BNE,
+        riscv_instr::BLT,
+        riscv_instr::BGE,
+        riscv_instr::BLTU,
+        riscv_instr::BGEU: begin
+          // look at the sign bit of the immediate field
+          // backward branches (immediate negative) taken
+          // forward branches not taken
+          is_branch_taken[i] = ins_data[i*32+31];
+        end
+        riscv_instr::JAL: begin
+          is_jal[i] = 1'b1;
+        end
+        // we can't do anything about the JALR case as we don't
+        // know the destination.
+        default:;
+      endcase
     end
   end
 
-  logic [$clog2(FETCH_PKTS)-1:0] taken_idx;
+  logic [$clog2(FetchPkts)-1:0] taken_idx;
   logic no_prefetch;
   logic [$clog2(CFG.LINE_WIDTH)-1:0] ins_idx;
   assign ins_idx = 32*taken_idx;
   // Find first taken branch
   lzc #(
-    .WIDTH(FETCH_PKTS),
+    .WIDTH(FetchPkts),
     .MODE(0)
   ) i_lzc_branch (
     // look at branches and jals
@@ -336,8 +344,12 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   addr_t base_addr, offset, uj_imm, sb_imm;
   logic [CFG.LINE_ALIGN-1:0] base_offset;
   assign base_offset = taken_idx << 2;
-  assign uj_imm = $signed({ins_data[ins_idx+31], ins_data[ins_idx+12+:8], ins_data[ins_idx+20], ins_data[ins_idx+21+:10], 1'b0});
-  assign sb_imm = $signed({ins_data[ins_idx+31], ins_data[ins_idx+7], ins_data[ins_idx+25+:6], ins_data[ins_idx+8+:4], 1'b0});
+  assign uj_imm =
+    $signed({ins_data[ins_idx+31], ins_data[ins_idx+12+:8],
+             ins_data[ins_idx+20], ins_data[ins_idx+21+:10], 1'b0});
+  assign sb_imm =
+    $signed({ins_data[ins_idx+31], ins_data[ins_idx+7],
+             ins_data[ins_idx+25+:6], ins_data[ins_idx+8+:4], 1'b0});
 
   // next address calculation
   always_comb begin
@@ -359,25 +371,26 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   // check whether cache-line we want to pre-fetch is already present
   assign addr_tag_prefetch = prefetcher_out.addr >> CFG.LINE_ALIGN;
 
-  assign latch_prefetch = prefetcher_out.vld & ~prefetch_req_q.vld;
+  assign latch_prefetch = prefetcher_out.vld & ~prefetch_req_vld_q;
 
   always_comb begin
-      prefetch_req_d = prefetch_req_q;
+      prefetch_req_vld_d = prefetch_req_vld_q;
+      prefetch_req_addr_d = prefetch_req_addr_q;
 
-      if (prefetch_ready) prefetch_req_d.vld = 1'b0;
+      if (prefetch_ready) prefetch_req_vld_d = 1'b0;
 
       if (latch_prefetch) begin
-          prefetch_req_d.vld = 1'b1;
-          prefetch_req_d.addr = prefetcher_out.addr;
+          prefetch_req_vld_d = 1'b1;
+          prefetch_req_addr_d = prefetcher_out.addr;
       end
   end
 
   assign prefetch.is_prefetch = 1'b1;
-  assign prefetch.addr = prefetch_req_q.addr;
-  assign prefetch_valid = prefetch_req_q.vld;
+  assign prefetch.addr = prefetch_req_addr_q;
+  assign prefetch_valid = prefetch_req_vld_q;
 
-  `FF(prefetch_req_q.vld, prefetch_req_d.vld, '0)
-  `FF(prefetch_req_q.addr, prefetch_req_d.addr, '0)
+  `FF(prefetch_req_vld_q, prefetch_req_vld_d, '0)
+  `FF(prefetch_req_addr_q, prefetch_req_addr_d, '0)
 
   // ------------------
   // Performance Events
@@ -401,10 +414,13 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   `ASSERT(InstReqDataStable, in_valid_i && !in_ready_o |=> $stable(in_addr_i))
 
   `ASSERT(RefillReqStable, out_req_valid_o && !out_req_ready_i |=> out_req_valid_o)
-  `ASSERT(RefillReqDataStable, out_req_valid_o && !out_req_ready_i |=> $stable(out_req_addr_o) && $stable(out_req_id_o))
+  `ASSERT(RefillReqDataStable,
+    out_req_valid_o && !out_req_ready_i |=> $stable(out_req_addr_o) && $stable(out_req_id_o))
 
   `ASSERT(RefillRspStable, out_rsp_valid_i && !out_rsp_ready_o |=> out_rsp_valid_i)
-  `ASSERT(RefillRspDataStable, out_rsp_valid_i && !out_rsp_ready_o |=> $stable(out_rsp_data_i) && $stable(out_rsp_error_i) && $stable(out_rsp_id_i))
+  `ASSERT(RefillRspDataStable,
+    out_rsp_valid_i && !out_rsp_ready_o
+        |=> $stable(out_rsp_data_i) && $stable(out_rsp_error_i) && $stable(out_rsp_id_i))
   // make sure we observe a double hit condition
   `COVER(HitEarlyNotOnehot, hit |-> $onehot(hit_early))
 

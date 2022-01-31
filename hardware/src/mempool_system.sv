@@ -36,7 +36,7 @@ module mempool_system
    *  AXI  *
    *********/
 
-  localparam NumAXIMasters = NumGroups + 1; // +1 because the external host is also a master
+  localparam NumAXIMasters = NumSystemXbarMasters;
   localparam NumAXISlaves  = 4;            // control regs, l2 memory, bootrom and the external mst ports
   localparam NumRules      = NumAXISlaves - 1;
 
@@ -53,6 +53,7 @@ module mempool_system
   axi_system_resp_t [NumAXISlaves - 1:0]  axi_mem_resp;
   logic             [NumCores - 1:0]      wake_up;
   logic             [DataWidth - 1:0]     eoc;
+  ro_cache_ctrl_t                         ro_cache_ctrl;
 
   localparam xbar_cfg_t XBarCfg = '{
     NoSlvPorts         : NumAXIMasters,
@@ -77,15 +78,16 @@ module mempool_system
     .TCDMBaseAddr(TCDMBaseAddr),
     .BootAddr    (BootAddr    )
   ) i_mempool_cluster (
-    .clk_i         (clk_i                          ),
-    .rst_ni        (rst_ni                         ),
-    .wake_up_i     (wake_up                        ),
-    .testmode_i    (1'b0                           ),
-    .scan_enable_i (1'b0                           ),
-    .scan_data_i   (1'b0                           ),
-    .scan_data_o   (/* Unused */                   ),
-    .axi_mst_req_o (axi_mst_req[NumAXIMasters-2:0] ),
-    .axi_mst_resp_i(axi_mst_resp[NumAXIMasters-2:0])
+    .clk_i          (clk_i                          ),
+    .rst_ni         (rst_ni                         ),
+    .wake_up_i      (wake_up                        ),
+    .testmode_i     (1'b0                           ),
+    .scan_enable_i  (1'b0                           ),
+    .scan_data_i    (1'b0                           ),
+    .scan_data_o    (/* Unused */                   ),
+    .ro_cache_ctrl_i(ro_cache_ctrl                  ),
+    .axi_mst_req_o  (axi_mst_req[NumAXIMasters-2:0] ),
+    .axi_mst_resp_i (axi_mst_resp[NumAXIMasters-2:0])
   );
 
   /**********************
@@ -302,7 +304,7 @@ module mempool_system
   );
 
   ctrl_registers #(
-    .NumRegs        (5                  ),
+    .NumRegs        (15                 ),
     .TCDMBaseAddr   (TCDMBaseAddr       ),
     .TCDMSize       (TCDMSize           ),
     .NumCores       (NumCores           ),
@@ -313,6 +315,7 @@ module mempool_system
     .rst_ni               (rst_ni                      ),
     .axi_lite_slave_req_i (axi_lite_ctrl_registers_req ),
     .axi_lite_slave_resp_o(axi_lite_ctrl_registers_resp),
+    .ro_cache_ctrl_o      (ro_cache_ctrl               ),
     .tcdm_start_address_o (/* Unused */                ),
     .tcdm_end_address_o   (/* Unused */                ),
     .num_cores_o          (/* Unused */                ),

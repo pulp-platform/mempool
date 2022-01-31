@@ -7,7 +7,7 @@
 `include "common_cells/registers.svh"
 
 /// An actual cache lookup.
-module snitch_icache_lookup #(
+module snitch_icache_lookup_serial #(
     parameter snitch_icache_pkg::config_t CFG = '0
 )(
     input  logic                        clk_i,
