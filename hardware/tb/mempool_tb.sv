@@ -293,38 +293,41 @@ module mempool_tb;
    *  L2 Initialization  *
    ***********************/
 
-  initial begin : l2_init
-    automatic axi_data_t mem_row;
-    byte buffer [];
-    addr_t address;
-    addr_t length;
-    string binary;
+  for (genvar bank = 0; bank < NumL2Banks; bank++) begin : gen_l2_banks_init
+    initial begin : l2_init
+      automatic logic [L2BankWidth-1:0] mem_row;
+      byte buffer [];
+      addr_t address;
+      addr_t length;
+      string binary;
 
-    // Initialize memories
-    void'($value$plusargs("PRELOAD=%s", binary));
-    if (binary != "") begin
-      // Read ELF
-      read_elf(binary);
-      $display("Loading %s", binary);
-      while (get_section(address, length)) begin
-        // Read sections
-        automatic int nwords = (length + L2BeWidth - 1)/L2BeWidth;
-        $display("Loading section %x of length %x", address, length);
-        buffer = new[nwords * L2BeWidth];
-        void'(read_section(address, buffer));
-        // Initializing memories
-        for (int w = 0; w < nwords; w++) begin
-          mem_row = '0;
-          for (int b = 0; b < L2BeWidth; b++) begin
-            mem_row[8 * b +: 8] = buffer[w * L2BeWidth + b];
+      // Initialize memories
+      void'($value$plusargs("PRELOAD=%s", binary));
+      if (binary != "") begin
+        // Read ELF
+        read_elf(binary);
+        $display("Loading %s", binary);
+        while (get_section(address, length)) begin
+          // Read sections
+          automatic int nwords = (length + L2BeWidth - 1)/L2BeWidth;
+          $display("Loading section %x of length %x", address, length);
+          buffer = new[nwords * L2BeWidth];
+          void'(read_section(address, buffer));
+          // Initializing memories
+          for (int w = 0; w < nwords; w++) begin
+            mem_row = '0;
+            for (int b = 0; b < L2BankBeWidth; b++) begin
+              mem_row[8 * b +: 8] = buffer[(bank + w * NumL2Banks) * L2BankBeWidth + b];
+            end
+            if (address >= dut.L2MemoryBaseAddr && address < dut.L2MemoryEndAddr) begin
+              dut.gen_l2_banks[bank].l2_mem.init_val[(address - dut.L2MemoryBaseAddr + (w << L2ByteOffset)) >> L2ByteOffset] = mem_row;
+            end else begin
+              $display("Cannot initialize address %x, which doesn't fall into the L2 region.", address);
+            end
           end
-          if (address >= dut.L2MemoryBaseAddr && address < dut.L2MemoryEndAddr)
-            dut.l2_mem.init_val[(address - dut.L2MemoryBaseAddr + (w << L2ByteOffset)) >> L2ByteOffset] = mem_row;
-          else
-            $display("Cannot initialize address %x, which doesn't fall into the L2 region.", address);
         end
       end
-    end
-  end : l2_init
+    end : l2_init
+  end : gen_l2_banks_init
 
 endmodule : mempool_tb
