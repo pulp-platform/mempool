@@ -192,6 +192,7 @@ module mempool_system
   /********
    *  L2  *
    ********/
+  localparam int unsigned NumAXIMastersLog2 = NumAXIMasters == 1 ? 1 : $clog2(NumAXIMasters);
   // Memory
   logic      [NumAXIMasters-1:0] mem_req;
   logic      [NumAXIMasters-1:0] mem_gnt;
@@ -206,6 +207,8 @@ module mempool_system
   logic      [NumL2Banks-1:0] bank_gnt;
   logic      [NumL2Banks-1:0] bank_rvalid;
   logic      [NumL2Banks-1:0][L2BankAddrWidth-1:0] bank_addr;
+  logic      [NumL2Banks-1:0][NumAXIMastersLog2-1:0] bank_ini_d;
+  logic      [NumL2Banks-1:0][NumAXIMastersLog2-1:0] bank_ini_q;
   axi_data_t [NumL2Banks-1:0] bank_wdata;
   axi_strb_t [NumL2Banks-1:0] bank_strb;
   logic      [NumL2Banks-1:0] bank_we;
@@ -244,45 +247,56 @@ module mempool_system
       .NumWords (L2BankNumWords  ),
       .NumPorts (1               )
     ) l2_mem (
-      .clk_i  (clk_i                                    ),
-      .rst_ni (rst_ni                                   ),
-      .req_i  (bank_req[i]                              ),
-      .we_i   (bank_we[i]                               ),
-      .addr_i (bank_addr[i]                             ),
-      .wdata_i(bank_wdata[i]                            ),
-      .be_i   (bank_strb[i]                             ),
-      .rdata_o(bank_rdata[i]                            )
+      .clk_i  (clk_i        ),
+      .rst_ni (rst_ni       ),
+      .req_i  (bank_req[i]  ),
+      .we_i   (bank_we[i]   ),
+      .addr_i (bank_addr[i] ),
+      .wdata_i(bank_wdata[i]),
+      .be_i   (bank_strb[i] ),
+      .rdata_o(bank_rdata[i])
     );
   end
 
-  tcdm_interconnect #(
-    .NumIn        (NumAXIMasters        ),
-    .NumOut       (NumL2Banks           ),
-    .AddrWidth    (L2AddrWidth          ),
-    .DataWidth    (L2BankWidth          ),
-    .BeWidth      (L2BankBeWidth        ),
-    .AddrMemWidth (L2BankAddrWidth      )
+  variable_latency_interconnect #(
+    .NumIn            (NumAXIMasters  ),
+    .NumOut           (NumL2Banks     ),
+    .AddrWidth        (L2AddrWidth    ),
+    .DataWidth        (L2BankWidth    ),
+    .BeWidth          (L2BankBeWidth  ),
+    .AddrMemWidth     (L2BankAddrWidth),
+    .AxiVldRdy        (1'b1           ),
+    .SpillRegisterReq (64'b1          ),
+    .SpillRegisterResp(64'b1          )
   ) i_l2_bank_xbar (
-    .clk_i   (clk_i     ),
-    .rst_ni  (rst_ni    ),
+    .clk_i          (clk_i      ),
+    .rst_ni         (rst_ni     ),
     // master side
-    .req_i   (mem_req   ),
-    .add_i   (mem_addr  ),
-    .wen_i   (mem_we    ),
-    .wdata_i (mem_wdata ),
-    .be_i    (mem_strb  ),
-    .gnt_o   (mem_gnt   ),
-    .vld_o   (mem_rvalid),
-    .rdata_o (mem_rdata ),
+    .req_valid_i    (mem_req    ),
+    .req_ready_o    (mem_gnt    ),
+    .req_tgt_addr_i (mem_addr   ),
+    .req_wen_i      (mem_we     ),
+    .req_wdata_i    (mem_wdata  ),
+    .req_be_i       (mem_strb   ),
+    .resp_valid_o   (mem_rvalid ),
+    .resp_ready_i   ('1         ),
+    .resp_rdata_o   (mem_rdata  ),
     // slave side
-    .req_o   (bank_req  ),
-    .gnt_i   (bank_req  ),
-    .add_o   (bank_addr ),
-    .wen_o   (bank_we   ),
-    .wdata_o (bank_wdata),
-    .be_o    (bank_strb ),
-    .rdata_i (bank_rdata)
+    .req_valid_o    (bank_req   ),
+    .req_ready_i    ('1         ),
+    .req_ini_addr_o (bank_ini_d ),
+    .req_tgt_addr_o (bank_addr  ),
+    .req_wen_o      (bank_we    ),
+    .req_wdata_o    (bank_wdata ),
+    .req_be_o       (bank_strb  ),
+    .resp_valid_i   (bank_rvalid),
+    .resp_ready_o   (/*unused*/ ), // This only works because resp_ready_i = 1
+    .resp_ini_addr_i(bank_ini_q ),
+    .resp_rdata_i   (bank_rdata )
   );
+
+  `FF(bank_rvalid, bank_req, 1'b0, clk_i, rst_ni)
+  `FF(bank_ini_q, bank_ini_d, 1'b0, clk_i, rst_ni)
 
   /*************
    *  Bootrom  *
