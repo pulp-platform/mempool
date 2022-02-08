@@ -25,8 +25,6 @@ module mempool_tb_verilator (
   localparam TA          = 0.2ns;
   localparam TT          = 0.8ns;
 
-  localparam L2AddrWidth = 18;
-
  /********************************
    *  Clock and Reset Generation  *
    ********************************/

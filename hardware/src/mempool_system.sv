@@ -36,31 +36,50 @@ module mempool_system
    *  AXI  *
    *********/
 
+  // Overview of AXI buses
+  //
+  //      mst_demux
+  //        / |
+  //       /  | soc  +----------+ periph  +---------+
+  //      |  0|=====>| soc_xbar |========>| periph  |
+  //  mst |   |      +----------+         +---------+
+  // ====>|   |
+  //      |   | l2   +----------+  mem    +---------+ bank  +--------+
+  //      |  1|=====>| axi2mem  |-------->| l2_xbar |------>| l2_mem |
+  //       \  |      +----------+         +---------+       +--------+
+  //        \_|
+  //                  == axi ==>          -- tcdm -->
+
   localparam NumAXIMasters = NumSystemXbarMasters;
-  localparam NumAXISlaves  = 4 - 1;            // control regs, l2 memory, bootrom and the external mst ports
+  localparam NumAXISlaves  = 3; // control regs, bootrom and the external mst ports
   localparam NumSoCRules   = NumAXISlaves - 1;
 
   typedef enum logic [$clog2(NumAXISlaves) - 1:0] {
     CtrlRegisters,
     Bootrom,
     External
-  } axi_slave_target;
+  } axi_soc_xbar_slave_target;
 
-  axi_tile_req_t    [NumAXIMasters - 1:0] axi_mst_req;
-  axi_tile_resp_t   [NumAXIMasters - 1:0] axi_mst_resp;
-  axi_tile_req_t    [NumAXIMasters - 1:0] axi_l2_req;
-  axi_tile_resp_t   [NumAXIMasters - 1:0] axi_l2_resp;
-  axi_tile_req_t    [NumAXIMasters - 1:0] axi_soc_req;
-  axi_tile_resp_t   [NumAXIMasters - 1:0] axi_soc_resp;
-  axi_system_req_t  [NumAXISlaves - 1:0]  axi_mem_req;
-  axi_system_resp_t [NumAXISlaves - 1:0]  axi_mem_resp;
-  logic             [NumCores - 1:0]      wake_up;
-  logic             [DataWidth - 1:0]     eoc;
-  ro_cache_ctrl_t                         ro_cache_ctrl;
+  typedef enum logic {
+    SoCXBar = 0,
+    L2Memory = 1
+  } axi_mst_demux_slave_target;
 
-  localparam xbar_cfg_t L2XBarCfg = '{
-    NoSlvPorts         : 1,
-    NoMstPorts         : 2,
+  axi_tile_req_t    [NumAXIMasters-1:0] axi_mst_req;
+  axi_tile_resp_t   [NumAXIMasters-1:0] axi_mst_resp;
+  axi_tile_req_t    [NumAXIMasters-1:0] axi_l2_req;
+  axi_tile_resp_t   [NumAXIMasters-1:0] axi_l2_resp;
+  axi_tile_req_t    [NumAXIMasters-1:0] axi_soc_req;
+  axi_tile_resp_t   [NumAXIMasters-1:0] axi_soc_resp;
+  axi_system_req_t  [NumAXISlaves-1:0]  axi_periph_req;
+  axi_system_resp_t [NumAXISlaves-1:0]  axi_periph_resp;
+  logic             [NumCores-1:0]      wake_up;
+  logic             [DataWidth-1:0]     eoc;
+  ro_cache_ctrl_t                       ro_cache_ctrl;
+
+  localparam xbar_cfg_t MstDemuxCfg = '{
+    NoSlvPorts         : 1, // Each master has a private demux
+    NoMstPorts         : 2, // going to either the xbar or L2
     MaxMstTrans        : 4,
     MaxSlvTrans        : 4,
     FallThrough        : 1'b0,
@@ -119,19 +138,19 @@ module mempool_system
   localparam addr_t BootromBaseAddr       = 32'hA000_0000;
   localparam addr_t BootromEndAddr        = 32'hA000_FFFF;
 
-  xbar_rule_32_t [0:0] xbar_l2_rules;
-  xbar_rule_32_t [NumSoCRules - 1:0] xbar_soc_rules;
-  assign xbar_l2_rules = '{
-    '{idx: 1, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}
+  xbar_rule_32_t [            0:0]  mst_demux_rules;
+  xbar_rule_32_t [NumSoCRules-1:0] soc_xbar_rules;
+  assign mst_demux_rules = '{
+    '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}
   };
-  assign xbar_soc_rules = '{
+  assign soc_xbar_rules = '{
     '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
     '{idx: Bootrom, start_addr: BootromBaseAddr, end_addr: BootromEndAddr}
   };
 
-  for (genvar i = 0; i < NumAXIMasters; i++) begin : gen_l2_mux
+  for (genvar i = 0; i < NumAXIMasters; i++) begin : gen_mst_demux
     axi_xbar #(
-      .Cfg          (L2XBarCfg        ),
+      .Cfg          (MstDemuxCfg      ),
       .slv_aw_chan_t(axi_tile_aw_t    ),
       .mst_aw_chan_t(axi_tile_aw_t    ),
       .w_chan_t     (axi_tile_w_t     ),
@@ -146,7 +165,7 @@ module mempool_system
       .mst_req_t    (axi_tile_req_t   ),
       .mst_resp_t   (axi_tile_resp_t  ),
       .rule_t       (xbar_rule_32_t   )
-    ) i_l2_demux (
+    ) i_mst_demux (
       .clk_i                (clk_i                           ),
       .rst_ni               (rst_ni                          ),
       .test_i               (1'b0                            ),
@@ -154,9 +173,9 @@ module mempool_system
       .slv_ports_resp_o     (axi_mst_resp[i]                 ),
       .mst_ports_req_o      ({axi_l2_req[i] ,axi_soc_req[i] }),
       .mst_ports_resp_i     ({axi_l2_resp[i],axi_soc_resp[i]}),
-      .addr_map_i           (xbar_l2_rules                   ),
+      .addr_map_i           (mst_demux_rules                 ),
       .en_default_mst_port_i(1'b1                            ),
-      .default_mst_port_i   (1'b0                           )
+      .default_mst_port_i   (SoCXBar                         )
     );
   end
 
@@ -176,16 +195,16 @@ module mempool_system
     .mst_req_t    (axi_system_req_t ),
     .mst_resp_t   (axi_system_resp_t),
     .rule_t       (xbar_rule_32_t   )
-  ) i_xbar (
+  ) i_soc_xbar (
     .clk_i                (clk_i                    ),
     .rst_ni               (rst_ni                   ),
     .test_i               (1'b0                     ),
     .slv_ports_req_i      (axi_soc_req              ),
     .slv_ports_resp_o     (axi_soc_resp             ),
-    .mst_ports_req_o      (axi_mem_req              ),
-    .mst_ports_resp_i     (axi_mem_resp             ),
-    .addr_map_i           (xbar_soc_rules           ),
-    .en_default_mst_port_i('1                       ), // default all slave ports to master port External
+    .mst_ports_req_o      (axi_periph_req           ),
+    .mst_ports_resp_i     (axi_periph_resp          ),
+    .addr_map_i           (soc_xbar_rules           ),
+    .en_default_mst_port_i({NumAXIMasters{1'b1}}    ), // default all slave ports to master port External
     .default_mst_port_i   ({NumAXIMasters{External}})
   );
 
@@ -193,68 +212,54 @@ module mempool_system
    *  L2  *
    ********/
   localparam int unsigned NumAXIMastersLog2 = NumAXIMasters == 1 ? 1 : $clog2(NumAXIMasters);
-  // Memory
-  logic      [NumAXIMasters-1:0] mem_req;
-  logic      [NumAXIMasters-1:0] mem_gnt;
-  logic      [NumAXIMasters-1:0] mem_rvalid;
-  logic      [NumAXIMasters-1:0][L2AddrWidth-1:0] mem_addr;
-  axi_data_t [NumAXIMasters-1:0] mem_wdata;
-  axi_strb_t [NumAXIMasters-1:0] mem_strb;
-  logic      [NumAXIMasters-1:0] mem_we;
-  axi_data_t [NumAXIMasters-1:0] mem_rdata;
-
-  logic      [NumL2Banks-1:0] bank_req;
-  logic      [NumL2Banks-1:0] bank_gnt;
-  logic      [NumL2Banks-1:0] bank_rvalid;
-  logic      [NumL2Banks-1:0][L2BankAddrWidth-1:0] bank_addr;
-  logic      [NumL2Banks-1:0][NumAXIMastersLog2-1:0] bank_ini_d;
-  logic      [NumL2Banks-1:0][NumAXIMastersLog2-1:0] bank_ini_q;
-  axi_data_t [NumL2Banks-1:0] bank_wdata;
-  axi_strb_t [NumL2Banks-1:0] bank_strb;
-  logic      [NumL2Banks-1:0] bank_we;
-  axi_data_t [NumL2Banks-1:0] bank_rdata;
+  typedef logic [L2AddrWidth-1:0] l2_mem_addr_t;
+  typedef logic [L2BankAddrWidth-1:0] l2_bank_addr_t;
+  typedef logic [NumAXIMastersLog2-1:0] bank_ini_t;
+  // Axi2Mems to l2_xbar
+  logic         [NumAXIMasters-1:0] mem_req;
+  logic         [NumAXIMasters-1:0] mem_gnt;
+  logic         [NumAXIMasters-1:0] mem_rvalid;
+  addr_t        [NumAXIMasters-1:0] mem_addr_full;
+  l2_mem_addr_t [NumAXIMasters-1:0] mem_addr;
+  axi_data_t    [NumAXIMasters-1:0] mem_wdata;
+  axi_strb_t    [NumAXIMasters-1:0] mem_strb;
+  logic         [NumAXIMasters-1:0] mem_we;
+  axi_data_t    [NumAXIMasters-1:0] mem_rdata;
+  // l2_xbar to banks
+  logic          [NumL2Banks-1:0] bank_req;
+  logic          [NumL2Banks-1:0] bank_gnt;
+  logic          [NumL2Banks-1:0] bank_rvalid;
+  l2_bank_addr_t [NumL2Banks-1:0] bank_addr;
+  bank_ini_t     [NumL2Banks-1:0] bank_ini_d, bank_ini_q;
+  axi_data_t     [NumL2Banks-1:0] bank_wdata;
+  axi_strb_t     [NumL2Banks-1:0] bank_strb;
+  logic          [NumL2Banks-1:0] bank_we;
+  axi_data_t     [NumL2Banks-1:0] bank_rdata;
 
   for (genvar i = 0; i < NumAXIMasters; i++) begin : gen_l2_adapters
     axi2mem #(
-      .axi_req_t  (axi_tile_req_t ),
-      .axi_resp_t (axi_tile_resp_t),
-      .AddrWidth  (AddrWidth      ),
-      .DataWidth  (AxiDataWidth   ),
-      .IdWidth    (AxiTileIdWidth ),
-      .NumBanks   (1              ),
-      .BufDepth   (2              )
+      .axi_req_t (axi_tile_req_t ),
+      .axi_resp_t(axi_tile_resp_t),
+      .AddrWidth (L2AddrWidth    ),
+      .DataWidth (AxiDataWidth   ),
+      .IdWidth   (AxiTileIdWidth ),
+      .NumBanks  (1              ),
+      .BufDepth  (2              )
     ) i_axi2mem (
-      .clk_i        (clk_i         ),
-      .rst_ni       (rst_ni        ),
-      .busy_o       (/*unsused*/   ),
-      .axi_req_i    (axi_l2_req[i] ),
-      .axi_resp_o   (axi_l2_resp[i]),
-      .mem_req_o    (mem_req[i]    ),
-      .mem_gnt_i    (mem_gnt[i]    ),
-      .mem_addr_o   (mem_addr[i]   ),
-      .mem_wdata_o  (mem_wdata[i]  ),
-      .mem_strb_o   (mem_strb[i]   ),
-      .mem_atop_o   (/*unused*/    ),
-      .mem_we_o     (mem_we[i]     ),
-      .mem_rvalid_i (mem_rvalid[i] ),
-      .mem_rdata_i  (mem_rdata[i]  )
-    );
-  end
-
-  for (genvar i = 0; i < NumL2Banks; i++) begin : gen_l2_banks
-    tc_sram #(
-      .DataWidth(L2BankWidth     ),
-      .NumWords (L2BankNumWords  ),
-      .NumPorts (1               )
-    ) l2_mem (
-      .clk_i  (clk_i        ),
-      .rst_ni (rst_ni       ),
-      .req_i  (bank_req[i]  ),
-      .we_i   (bank_we[i]   ),
-      .addr_i (bank_addr[i] ),
-      .wdata_i(bank_wdata[i]),
-      .be_i   (bank_strb[i] ),
-      .rdata_o(bank_rdata[i])
+      .clk_i       (clk_i         ),
+      .rst_ni      (rst_ni        ),
+      .busy_o      (/*unsused*/   ),
+      .axi_req_i   (axi_l2_req[i] ),
+      .axi_resp_o  (axi_l2_resp[i]),
+      .mem_req_o   (mem_req[i]    ),
+      .mem_gnt_i   (mem_gnt[i]    ),
+      .mem_addr_o  (mem_addr[i]   ),
+      .mem_wdata_o (mem_wdata[i]  ),
+      .mem_strb_o  (mem_strb[i]   ),
+      .mem_atop_o  (/*unused*/    ),
+      .mem_we_o    (mem_we[i]     ),
+      .mem_rvalid_i(mem_rvalid[i] ),
+      .mem_rdata_i (mem_rdata[i]  )
     );
   end
 
@@ -268,7 +273,7 @@ module mempool_system
     .AxiVldRdy        (1'b1           ),
     .SpillRegisterReq (64'b1          ),
     .SpillRegisterResp(64'b1          )
-  ) i_l2_bank_xbar (
+  ) i_l2_xbar (
     .clk_i          (clk_i      ),
     .rst_ni         (rst_ni     ),
     // master side
@@ -298,6 +303,23 @@ module mempool_system
   `FF(bank_rvalid, bank_req, 1'b0, clk_i, rst_ni)
   `FF(bank_ini_q, bank_ini_d, 1'b0, clk_i, rst_ni)
 
+  for (genvar i = 0; i < NumL2Banks; i++) begin : gen_l2_banks
+    tc_sram #(
+      .DataWidth(L2BankWidth   ),
+      .NumWords (L2BankNumWords),
+      .NumPorts (1             )
+    ) l2_mem (
+      .clk_i  (clk_i        ),
+      .rst_ni (rst_ni       ),
+      .req_i  (bank_req[i]  ),
+      .we_i   (bank_we[i]   ),
+      .addr_i (bank_addr[i] ),
+      .wdata_i(bank_wdata[i]),
+      .be_i   (bank_strb[i] ),
+      .rdata_o(bank_rdata[i])
+    );
+  end
+
   /*************
    *  Bootrom  *
    *************/
@@ -311,29 +333,29 @@ module mempool_system
   axi2mem #(
     .axi_req_t  (axi_system_req_t ),
     .axi_resp_t (axi_system_resp_t),
-    .AddrWidth  (AddrWidth),
-    .DataWidth  (AxiDataWidth),
-    .IdWidth    (AxiSystemIdWidth),
-    .NumBanks   (1),
-    .BufDepth   (2)
+    .AddrWidth  (AddrWidth        ),
+    .DataWidth  (AxiDataWidth     ),
+    .IdWidth    (AxiSystemIdWidth ),
+    .NumBanks   (1                ),
+    .BufDepth   (2                )
   ) i_axi2mem_bootrom (
-    .clk_i        (clk_i),
-    .rst_ni       (rst_ni),
+    .clk_i        (clk_i                   ),
+    .rst_ni       (rst_ni                  ),
 
-    .busy_o       (/*unsused*/),
+    .busy_o       (/*unsused*/             ),
 
-    .axi_req_i    (axi_mem_req[Bootrom] ),
-    .axi_resp_o   (axi_mem_resp[Bootrom]),
+    .axi_req_i    (axi_periph_req[Bootrom] ),
+    .axi_resp_o   (axi_periph_resp[Bootrom]),
 
-    .mem_req_o    (bootrom_req),
-    .mem_gnt_i    (bootrom_req),
-    .mem_addr_o   (bootrom_addr),
-    .mem_wdata_o  (/*unused*/),
-    .mem_strb_o   (/*unused*/),
-    .mem_atop_o   (/*unused*/),
-    .mem_we_o     (/*unused*/),
-    .mem_rvalid_i (bootrom_rvalid),
-    .mem_rdata_i  (bootrom_rdata)
+    .mem_req_o    (bootrom_req             ),
+    .mem_gnt_i    (bootrom_req             ),
+    .mem_addr_o   (bootrom_addr            ),
+    .mem_wdata_o  (/*unused*/              ),
+    .mem_strb_o   (/*unused*/              ),
+    .mem_atop_o   (/*unused*/              ),
+    .mem_we_o     (/*unused*/              ),
+    .mem_rvalid_i (bootrom_rvalid          ),
+    .mem_rdata_i  (bootrom_rdata           )
   );
 
   `FF(bootrom_rvalid, bootrom_req, 1'b0, clk_i, rst_ni)
@@ -372,14 +394,14 @@ module mempool_system
     .axi_slv_req_t       (axi_system_req_t ), // AXI Request Type for slv ports
     .axi_slv_resp_t      (axi_system_resp_t)  // AXI Response Type for slv ports
   ) i_axi_dw_converter_ctrl (
-    .clk_i      (clk_i                      ),
-    .rst_ni     (rst_ni                     ),
+    .clk_i      (clk_i                         ),
+    .rst_ni     (rst_ni                        ),
     // Slave interface
-    .slv_req_i  (axi_mem_req[CtrlRegisters] ),
-    .slv_resp_o (axi_mem_resp[CtrlRegisters]),
+    .slv_req_i  (axi_periph_req[CtrlRegisters] ),
+    .slv_resp_o (axi_periph_resp[CtrlRegisters]),
     // Master interface
-    .mst_req_o  (axi_ctrl_req               ),
-    .mst_resp_i (axi_ctrl_resp              )
+    .mst_req_o  (axi_ctrl_req                  ),
+    .mst_resp_i (axi_ctrl_resp                 )
   );
 
   axi_to_axi_lite #(
@@ -428,8 +450,8 @@ module mempool_system
   assign busy_o = 1'b0;
 
   // From MemPool to the Host
-  assign mst_req_o              = axi_mem_req[External];
-  assign axi_mem_resp[External] = mst_resp_i;
+  assign mst_req_o                 = axi_periph_req[External];
+  assign axi_periph_resp[External] = mst_resp_i;
   // From the Host to MemPool
   axi_id_remap #(
     .AxiSlvPortIdWidth   (AxiSystemIdWidth ),
