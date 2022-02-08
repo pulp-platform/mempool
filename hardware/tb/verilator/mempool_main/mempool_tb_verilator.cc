@@ -27,9 +27,8 @@ int main(int argc, char **argv) {
                  VerilatorSimCtrlFlags::ResetPolarityNegative);
 
 #ifndef TRAFFIC_GEN
-  MemAreaLoc l2_mem = {.base = L2_BASE, .size = L2_SIZE};
-  memutil.RegisterMemoryArea("ram", "TOP.mempool_tb_verilator.dut.l2_mem", 128,
-                             &l2_mem);
+  MemArea l2_mem("TOP.mempool_tb_verilator.dut.l2_mem", L2_SIZE / 16, 16);
+  memutil.RegisterMemoryArea("ram", L2_BASE, &l2_mem);
   simctrl.RegisterExtension(&memutil);
 #endif
 

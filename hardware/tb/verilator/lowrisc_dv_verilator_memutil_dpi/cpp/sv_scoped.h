@@ -5,10 +5,10 @@
 #ifndef OPENTITAN_HW_DV_VERILATOR_CPP_SV_SCOPED_H_
 #define OPENTITAN_HW_DV_VERILATOR_CPP_SV_SCOPED_H_
 
-#include <svdpi.h>
-
+#include <cassert>
 #include <stdexcept>
 #include <string>
+#include <svdpi.h>
 
 /**
  * Wrapper and guard class for SV Scope
@@ -44,6 +44,9 @@ public:
   private:
     std::string msg_;
   };
+
+  // helper function to join two, possibly relative, scopes correctly.
+  static std::string join_sv_scopes(const std::string &a, const std::string &b);
 
 private:
   svScope prev_scope_;
