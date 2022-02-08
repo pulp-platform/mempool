@@ -11,7 +11,7 @@
 
 // This is the maximum width of a memory that's supported by the code in
 // prim_util_memload.svh
-#define SV_MEM_WIDTH_BITS 312
+#define SV_MEM_WIDTH_BITS 1024
 
 // This is the number of bytes to reserve for buffers used to pass data between
 // C++ and SystemVerilog using prim_util_memload.svh. Since this goes over DPI
