@@ -25,17 +25,18 @@ class MemArea {
 public:
   /** Constructor
    *
-   * @param scope  The SystemVerilog scope where the instantiated memory can be
-   *               found. This needs to support the DPI-C interfaces \c
-   *               simutil_memload and \c simutil_set_mem (used for vmem and
-   *               ELF files, respectively).
+   * @param scope     The SystemVerilog scope where the instantiated memory can
+   *                  be found. This needs to support the DPI-C interfaces
+   *                  \c simutil_memload and \c simutil_set_mem (used for vmem
+   *                  and ELF files, respectively).
    *
-   * @param size   The size of the memory in bytes (must be positive and a
-   *               multiple of \p width_byte)
+   * @param num_words The number of words of the memory (must be positive)
    *
-   * @param size   The width of each entry in bytes (must be positive)
+   * @param size      The width of each entry in bytes (must be positive)
    */
-  MemArea(const std::string &scope, uint32_t size, uint32_t width_byte);
+  MemArea(const std::string &scope, uint32_t num_words, uint32_t width_byte);
+  MemArea(const std::vector<std::string> &scopes, uint32_t num_words,
+          uint32_t width_byte);
 
   virtual ~MemArea() {}
 
@@ -74,16 +75,18 @@ public:
   /** Use \c simutil_memload to load a vmem file into the memory */
   virtual void LoadVmem(const std::string &path) const;
 
-  const std::string &GetScope() const { return scope_; }
+  const std::string &GetScope() const { return scopes_[0]; }
   uint32_t GetSizeWords() const { return num_words_; }
   uint32_t GetSizeBytes() const { return num_words_ * width_byte_; }
   uint32_t GetWidthByte() const { return width_byte_; }
   uint32_t GetWidth() const { return 8 * width_byte_; }
 
 protected:
-  std::string scope_;   ///< Design scope (used for accesses over DPI)
+  std::vector<std::string>
+      scopes_;          ///< Design scope (used for accesses over DPI)
   uint32_t num_words_;  ///< Size of the memory area in words
   uint32_t width_byte_; ///< Size of each word in bytes
+  uint32_t num_banks_;  ///< Number of interleaved banks for the memory
 
   /** Write to buf with the data that should be copied to the physical memory
    * for a single memory word.

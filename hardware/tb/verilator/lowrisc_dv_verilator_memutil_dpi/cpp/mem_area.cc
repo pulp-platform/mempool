@@ -20,7 +20,17 @@ int simutil_get_mem(int index, svBitVecVal *val);
 
 MemArea::MemArea(const std::string &scope, uint32_t num_words,
                  uint32_t width_byte)
-    : scope_(scope), num_words_(num_words), width_byte_(width_byte) {
+    : num_words_(num_words), width_byte_(width_byte) {
+  scopes_.push_back(scope);
+  num_banks_ = 1;
+  assert(0 < num_words);
+  assert(width_byte <= SV_MEM_WIDTH_BYTES);
+}
+
+MemArea::MemArea(const std::vector<std::string> &scopes, uint32_t num_words,
+                 uint32_t width_byte)
+    : scopes_(scopes), num_words_(num_words), width_byte_(width_byte) {
+  num_banks_ = scopes_.size();
   assert(0 < num_words);
   assert(width_byte <= SV_MEM_WIDTH_BYTES);
 }
@@ -52,8 +62,8 @@ void MemArea::Write(uint32_t word_offset,
     // interact causing incorrect relative path behaviour. If this fails to set
     // scope, it will throw an error which should be caught at this function's
     // callsite.
-    SVScoped scoped(scope_);
-    if (!simutil_set_mem(phys_addr, (svBitVecVal *)minibuf)) {
+    SVScoped scoped(scopes_[phys_addr % num_banks_]);
+    if (!simutil_set_mem(phys_addr / num_banks_, (svBitVecVal *)minibuf)) {
       std::ostringstream oss;
       oss << "Could not set memory at byte offset 0x" << std::hex
           << dst_word * width_byte_ << ".";
@@ -89,7 +99,7 @@ std::vector<uint8_t> MemArea::Read(uint32_t word_offset,
 }
 
 void MemArea::LoadVmem(const std::string &path) const {
-  SVScoped scoped(scope_.c_str());
+  SVScoped scoped(scopes_[0].c_str());
   // TODO: Add error handling.
   simutil_memload(path.c_str());
 }
@@ -114,8 +124,8 @@ void MemArea::ReadBuffer(std::vector<uint8_t> &data,
 }
 
 void MemArea::ReadToMinibuf(uint8_t *minibuf, uint32_t phys_addr) const {
-  SVScoped scoped(scope_);
-  if (!simutil_get_mem(phys_addr, (svBitVecVal *)minibuf)) {
+  SVScoped scoped(scopes_[phys_addr % phys_addr]);
+  if (!simutil_get_mem(phys_addr / num_banks_, (svBitVecVal *)minibuf)) {
     std::ostringstream oss;
     oss << "Could not read memory word at physical index 0x" << std::hex
         << phys_addr << ".";

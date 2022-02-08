@@ -15,6 +15,9 @@
 #ifndef L2_SIZE
 #define L2_SIZE 0x00080000
 #endif
+#ifndef L2_BANKS
+#define L2_BANKS 1
+#endif
 
 // Histogram printing function
 extern "C" void print_histogram();
@@ -27,7 +30,12 @@ int main(int argc, char **argv) {
                  VerilatorSimCtrlFlags::ResetPolarityNegative);
 
 #ifndef TRAFFIC_GEN
-  MemArea l2_mem("TOP.mempool_tb_verilator.dut.l2_mem", L2_SIZE / 16, 16);
+  std::vector<std::string> l2_scope;
+  for (int i = 0; i < L2_BANKS; ++i) {
+    l2_scope.push_back("TOP.mempool_tb_verilator.dut.gen_l2_banks[" +
+                       std::to_string(i) + "].l2_mem");
+  }
+  MemArea l2_mem(l2_scope, L2_SIZE / 16, 16);
   memutil.RegisterMemoryArea("ram", L2_BASE, &l2_mem);
   simctrl.RegisterExtension(&memutil);
 #endif
