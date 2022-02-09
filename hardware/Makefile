@@ -88,7 +88,7 @@ vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DNUM_GROUPS=$(num_groups)
-vlog_defs += -DL2_BASE="32'h$(l2_base)" -DL2_SIZE="32'h$(l2_size)"
+vlog_defs += -DL2_BASE="32'h$(l2_base)" -DL2_SIZE="32'h$(l2_size)" -DL2_BANKS=$(l2_banks)
 vlog_defs += -DBOOT_ADDR="32'h$(boot_addr)" -DXPULPIMG="1'b$(xpulpimg)"
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
@@ -107,7 +107,7 @@ else
 	veril_flags := --meminit=ram,$(preload)
 endif
 
-cpp_defs  += -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
+cpp_defs  += -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size) -DL2_BANKS=$(l2_banks)
 
 .DEFAULT_GOAL := compile
 

@@ -29,8 +29,9 @@ include $(MEMPOOL_DIR)/config/$(config).mk
 boot_addr ?= A0000000
 
 # L2 memory configuration (in hex)
-l2_base ?= 80000000
-l2_size ?= 10000
+l2_base  ?= 80000000
+l2_size  ?= 10000
+l2_banks ?= 4
 
 ################################
 ##  Optional functionalities  ##

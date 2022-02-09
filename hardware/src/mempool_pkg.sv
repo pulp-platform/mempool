@@ -42,9 +42,22 @@ package mempool_pkg;
   localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
   localparam integer unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
+
+  // L2
   localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 0 `endif; // [B]
-  localparam integer unsigned L2BeWidth        = AxiDataWidth/8;
+
+  localparam integer unsigned NumL2Banks       = `ifdef L2_BANKS `L2_BANKS `else 1 `endif;
+  localparam integer unsigned L2BankSize       = L2Size / NumL2Banks;
+  localparam integer unsigned L2BankWidth      = AxiDataWidth;
+  localparam integer unsigned L2BankBeWidth    = L2BankWidth/8;
+  localparam integer unsigned L2BankNumWords   = L2BankSize / L2BankBeWidth;
+  localparam integer unsigned L2BankAddrWidth  = $clog2(L2BankNumWords);
+
+  localparam integer unsigned L2Width          = L2BankWidth * NumL2Banks;
+  localparam integer unsigned L2BeWidth        = L2Width/8;
   localparam integer unsigned L2ByteOffset     = $clog2(L2BeWidth);
+  localparam integer unsigned L2AddrWidth      = $clog2(L2Size);
+
 
   typedef logic [AxiCoreIdWidth-1:0] axi_core_id_t;
   typedef logic [AxiTileIdWidth-1:0] axi_tile_id_t;

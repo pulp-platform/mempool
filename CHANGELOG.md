@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add Load Reserved and Store Conditional from "A" standard extension of RISC-V to the TCDM adapter
 - Add the `terapool` configuration
 - Add read-only caches to the hierarchical AXI interconnect
+- Add a `memcpy` benchmark
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
@@ -49,6 +50,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Deprecate `patch-hw` and replace it with the `update-deps` Makefile target, which updates and patches the dependencies.
 - Bump bender to `v0.23.2`
 - Bump verilator to `v4.218`
+- Make the L2 memory mutli-banked
 
 ## 0.4.0 - 2021-07-01
 

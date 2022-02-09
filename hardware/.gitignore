@@ -12,5 +12,6 @@ bender
 *build*
 *results*
 results*
+log/
 plots*
 obj_dir
