@@ -59,7 +59,7 @@ int main() {
   mempool_barrier_init(core_id, num_cores);
 
   // Initialization
-  mempool_init(core_id);
+  mempool_init(core_id, num_cores);
 
   // Setup
   if (core_id == 0) {

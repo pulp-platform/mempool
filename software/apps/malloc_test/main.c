@@ -13,8 +13,6 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-extern int32_t __heap_start, __heap_end;
-
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
@@ -22,13 +20,12 @@ int main() {
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
 
+  // Initialization
+  mempool_init(core_id, num_cores);
+
   // Test
   if (core_id == 0) {
     printf("Initialize\n");
-
-    // Initialize malloc
-    uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
-    alloc_init(get_alloc_l1(), &__heap_start, heap_size);
 
     // ------------------------------------------------------------------------
     // Basic Tests
@@ -126,6 +123,42 @@ int main() {
     alloc_dump(get_alloc_l1());
     simple_free(b2);
     alloc_dump(get_alloc_l1());
+
+    // ------------------------------------------------------------------------
+    // Sequential Memory Basic Tests
+    // ------------------------------------------------------------------------
+    for (uint32_t tile_id = 0; tile_id < num_cores / 4; ++tile_id) {
+      printf("Test tile allocator %u:\n", tile_id);
+
+      // Get tile allocator
+      alloc_t *tile_alloc = get_alloc_tile(tile_id);
+
+      // Print out allocator
+      alloc_dump(tile_alloc);
+
+      // Malloc uint32_t array of size 16 (40 bytes)
+      uint32_t array_size = 16;
+      uint32_t *array = (uint32_t *)domain_malloc(tile_alloc, array_size * 4);
+      printf("Allocated array at %08X with size %u\n", array, array_size);
+
+      // Print out allocator
+      alloc_dump(tile_alloc);
+
+      // Test array
+      for (uint32_t i = 0; i < 16; ++i) {
+        array[i] = i;
+      }
+      for (uint32_t i = 0; i < 16; ++i) {
+        printf("At %08X value is %02u\n", &array[i], array[i]);
+      }
+
+      // Free array
+      domain_free(tile_alloc, array);
+      printf("Freed array at %08X with size %u\n", array, array_size);
+
+      // Print out allocator
+      alloc_dump(tile_alloc);
+    }
   }
 
   // wait until all cores have finished

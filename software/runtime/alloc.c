@@ -28,8 +28,11 @@
 // Static Variables
 // ----------------------------------------------------------------------------
 
-// Allocator for L1 memory
+// Allocator for L1 interleaved heap memory
 alloc_t alloc_l1;
+
+// Allocators for L1 local sequential heap memory
+alloc_t alloc_tile[NUM_CORES / 4];
 
 // ----------------------------------------------------------------------------
 // Canary System based on LSBs of block pointer
@@ -235,3 +238,5 @@ void alloc_dump(alloc_t *alloc) {
 // Get Allocators
 // ----------------------------------------------------------------------------
 alloc_t *get_alloc_l1() { return &alloc_l1; }
+
+alloc_t *get_alloc_tile(const uint32_t tile_id) { return &alloc_tile[tile_id]; }

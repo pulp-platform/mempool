@@ -45,7 +45,10 @@ void domain_free(alloc_t *alloc, void *const ptr);
 // Print out linked list of free blocks
 void alloc_dump(alloc_t *alloc);
 
-// Get allocator for L1 memory
+// Get allocator for L1 interleaved heap memory
 alloc_t *get_alloc_l1();
+
+// Get allocator for L1 local sequential heap memory
+alloc_t *get_alloc_tile(const uint32_t tile_id);
 
 #endif
