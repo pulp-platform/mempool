@@ -6,6 +6,7 @@
 //         Matheus Cavalcante, ETH Zurich
 
 #pragma once
+#include "alloc.h"
 #include "encoding.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -25,6 +26,16 @@ static inline mempool_id_t mempool_get_core_id() {
   mempool_id_t r;
   asm volatile("csrr %0, mhartid" : "=r"(r));
   return r;
+}
+
+/// Initialization
+static inline void mempool_init(uint32_t core_id) {
+  if (core_id == 0) {
+    // Initialize Allocator
+    extern int32_t __heap_start, __heap_end;
+    uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
+    alloc_init(get_alloc_l1(), &__heap_start, heap_size);
+  }
 }
 
 /// Reset a monotonically increasing cycle count.

@@ -14,8 +14,6 @@
 #include "synchronization.h"
 #include "systolic/queue.h"
 
-extern int32_t __heap_start, __heap_end;
-
 queue_t *queue = 0;
 
 int main() {
@@ -25,13 +23,12 @@ int main() {
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
 
+  // Initialization
+  mempool_init(core_id);
+
   // Setup
   if (core_id == 0) {
     printf("Initialize\n");
-
-    // Initialize malloc
-    uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
-    alloc_init(get_alloc_l1(), &__heap_start, heap_size);
 
     // Create queue
     queue_create(&queue, 8);

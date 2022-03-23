@@ -32,8 +32,6 @@
 #define DIM_N 15
 #define DIM_P 15
 
-extern int32_t __heap_start, __heap_end;
-
 int32_t *matrix_A;
 int32_t *matrix_B;
 
@@ -70,13 +68,12 @@ int main() {
   // Initialize synchronization variables
   mempool_barrier_init(core_id, num_cores);
 
+  // Initialization
+  mempool_init(core_id);
+
   // Setup
   if (core_id == 0) {
     printf("> Initialize\n");
-
-    // Initialize malloc
-    uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
-    alloc_init(get_alloc_l1(), &__heap_start, heap_size);
 
     // Initialize systolic array
     systolic_init();
