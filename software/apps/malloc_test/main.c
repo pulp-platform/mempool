@@ -32,7 +32,7 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // Test
   if (core_id == 0) {
@@ -141,6 +141,6 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   return 0;
 }
