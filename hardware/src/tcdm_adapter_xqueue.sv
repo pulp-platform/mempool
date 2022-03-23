@@ -502,6 +502,12 @@ module tcdm_adapter_xqueue #(
       @(posedge clk_i) disable iff (~rst_ni) (rdata_in_vld_q |-> rdata_in_rdy))
       else $fatal (1, "Trying to push new data although the i_rdata_register is not ready.");
   `endif
+
+  `ifndef VERILATOR
+    stalled_queue : assert property(
+      @(posedge clk_i) disable iff (~rst_ni) (!(queue_stalled_q && smeta_in_vld)))
+      else $fatal (1, "Trying to stall a queue operation despite an already stalled queue.");
+  `endif
   // pragma translate_on
 
 endmodule
