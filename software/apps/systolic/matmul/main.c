@@ -16,9 +16,9 @@
 #include "synchronization.h"
 
 // Dimensions of matrices
-#define DIM_M 20
-#define DIM_N 20
-#define DIM_P 20
+#define DIM_M 32
+#define DIM_N 32
+#define DIM_P 32
 
 uint32_t *grid_mapping;
 
@@ -59,7 +59,7 @@ int main() {
   uint32_t tile_id = core_id / 4;
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // Initialization
   mempool_init(core_id, num_cores);
@@ -70,12 +70,12 @@ int main() {
   }
 
   // Assign grid position (row wise)
-  // uint32_t col_idx = core_id % 4;
-  // uint32_t row_idx = core_id / 4;
+  // uint32_t col_idx = core_id % SYSTOLIC_SIZE;
+  // uint32_t row_idx = core_id / SYSTOLIC_SIZE;
 
   // Assign grid position (col wise)
-  uint32_t col_idx = core_id / 4;
-  uint32_t row_idx = core_id % 4;
+  uint32_t col_idx = core_id / SYSTOLIC_SIZE;
+  uint32_t row_idx = core_id % SYSTOLIC_SIZE;
 
   // 16 CORES only
   // Assign grid position (tile wise)
@@ -96,13 +96,13 @@ int main() {
   // }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Set systolic grid mapping
   grid_mapping[row_idx * SYSTOLIC_SIZE + col_idx] = tile_id;
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Setup
   if (core_id == 0) {
@@ -130,7 +130,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     // Start benchmark
@@ -139,7 +139,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   if ((row_idx == 0) && (col_idx == 0)) {
     systolic_rcp_pe(rep_count, syst_matrix_A, syst_matrix_B, syst_matrix_C);
@@ -158,7 +158,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Print out benchmark
   if (core_id == 0) {
@@ -175,6 +175,6 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   return 0;
 }

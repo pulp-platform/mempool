@@ -17,10 +17,8 @@
 #include "printf.h"
 
 // Size of systolic array
+// TODO: SQRT ROOT OF NUM_CORES FOR SYSTOLIC SIZE
 #define SYSTOLIC_SIZE 4
-
-// Size of all queues
-#define QUEUE_SIZE 5
 
 // Ceiling division function
 #define CEIL_DIV(x, y) (x / y + (x % y != 0))
@@ -37,8 +35,6 @@ uint32_t bm_h_pop_cnt[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 uint32_t bm_h_push_cnt[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 uint32_t bm_v_pop_cnt[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 uint32_t bm_v_push_cnt[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
-
-// TODO: SQRT ROOT OF NUM_CORES FOR SYSTOLIC SIZE
 
 // Array of queue ptrs in row-major order
 queue_t *queues_vert[SYSTOLIC_SIZE - 1][SYSTOLIC_SIZE];
