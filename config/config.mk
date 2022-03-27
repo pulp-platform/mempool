@@ -35,7 +35,7 @@ l2_banks ?= 4
 
 # Size of sequential memory per core (in bytes)
 # (must be a power of two)
-seq_mem_size ?= 2048
+seq_mem_size ?= 1024
 
 # Size of stack in sequential memory per core (in bytes)
 stack_size ?= 1024
@@ -45,7 +45,7 @@ stack_size ?= 1024
 #############################
 
 # XQueue extension's queue size in each memory bank (in words)
-xqueue_size ?= 4
+xqueue_size ?= 0
 
 ################################
 ##  Optional functionalities  ##
