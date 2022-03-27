@@ -26,6 +26,8 @@
 #include "synchronization.h"
 #include "systolic/queue_multi.h"
 
+// IMPORTANT: DATA_SIZE of queue_multi.h must be set to 4
+
 queue_t *queue;
 
 uint32_t producer_cnt;
@@ -49,7 +51,7 @@ int main() {
     printf("Initialize\n");
 
     // Create queue
-    queue_create(&queue, 4);
+    queue_create(&queue);
   }
 
   // Wait for all cores
@@ -57,17 +59,17 @@ int main() {
 
   // Producer
   if (core_id == 0) {
-    int32_t data[QUEUE_DATA_SIZE];
+    int32_t data[4];
     uint32_t counter = 0;
     for (uint32_t i = 0; i < 8; ++i) {
-      for (uint32_t j = 0; j < QUEUE_DATA_SIZE; ++j) {
-        data[j] = (int32_t)(i * QUEUE_DATA_SIZE + j);
+      for (uint32_t j = 0; j < 4; ++j) {
+        data[j] = (int32_t)(i * 4 + j);
       }
       blocking_queue_push(queue, data);
     }
     for (uint32_t i = 0; i < 8; ++i) {
-      for (uint32_t j = 0; j < QUEUE_DATA_SIZE; ++j) {
-        data[j] = (int32_t)(i * QUEUE_DATA_SIZE + j);
+      for (uint32_t j = 0; j < 4; ++j) {
+        data[j] = (int32_t)(i * 4 + j);
       }
       counting_queue_push(queue, data, &counter);
     }
@@ -76,17 +78,17 @@ int main() {
 
   // Consumer
   if (core_id == 1) {
-    int32_t read_data[QUEUE_DATA_SIZE];
+    int32_t read_data[4];
     uint32_t counter = 0;
     for (uint32_t i = 0; i < 8; ++i) {
       blocking_queue_pop(queue, read_data);
-      for (uint32_t j = 0; j < QUEUE_DATA_SIZE; ++j) {
+      for (uint32_t j = 0; j < 4; ++j) {
         printf("Rx: %d\n", read_data[j]);
       }
     }
     for (uint32_t i = 0; i < 8; ++i) {
       counting_queue_pop(queue, read_data, &counter);
-      for (uint32_t j = 0; j < QUEUE_DATA_SIZE; ++j) {
+      for (uint32_t j = 0; j < 4; ++j) {
         printf("Rx: %d\n", read_data[j]);
       }
     }

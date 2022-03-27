@@ -25,28 +25,23 @@
 #include "alloc.h"
 #include "runtime.h"
 
-// Must be a factor of SYSTOLIC_SIZE
-#define QUEUE_DATA_SIZE 4
+#define DATA_SIZE 4
 
 typedef struct {
   int32_t *buffer;
   uint32_t head;
   uint32_t tail;
   uint32_t volatile counter;
-  uint32_t size;
-  uint32_t buffer_size;
 } queue_t;
 
-void queue_domain_create(alloc_t *alloc, queue_t **queue, const uint32_t size) {
-  queue_t *new_queue = (queue_t *)domain_malloc(alloc, 6 * 4);
-  uint32_t buffer_size = size * QUEUE_DATA_SIZE;
-  int32_t *buffer = (int32_t *)domain_malloc(alloc, buffer_size * 4);
+void queue_domain_create(alloc_t *alloc, queue_t **queue) {
+  queue_t *new_queue = (queue_t *)domain_malloc(alloc, 4 * 4);
+  int32_t *buffer =
+      (int32_t *)domain_malloc(alloc, XQUEUE_SIZE * DATA_SIZE * 4);
   new_queue->buffer = buffer;
   new_queue->head = 0;
   new_queue->tail = 0;
   new_queue->counter = 0;
-  new_queue->size = size;
-  new_queue->buffer_size = buffer_size;
   *queue = new_queue;
 }
 
@@ -55,8 +50,8 @@ void queue_domain_destroy(alloc_t *alloc, queue_t *queue) {
   domain_free(alloc, queue);
 }
 
-void queue_create(queue_t **queue, const uint32_t size) {
-  queue_domain_create(get_alloc_l1(), queue, size);
+void queue_create(queue_t **queue) {
+  queue_domain_create(get_alloc_l1(), queue);
 }
 
 void queue_destroy(queue_t *queue) {
@@ -71,11 +66,11 @@ int32_t queue_pop(queue_t *const queue, int32_t *data) {
   }
   // Copy data to data pointer
   int32_t *array = queue->buffer + current_head;
-  for (uint32_t i = 0; i < QUEUE_DATA_SIZE; ++i) {
+  for (uint32_t i = 0; i < DATA_SIZE; ++i) {
     data[i] = array[i];
   }
   // Update head
-  queue->head = (current_head + QUEUE_DATA_SIZE) % queue->buffer_size;
+  queue->head = (current_head + DATA_SIZE) % (XQUEUE_SIZE * DATA_SIZE);
   // Update counter
   __atomic_fetch_sub(&(queue->counter), 1, __ATOMIC_SEQ_CST);
   // Return success
@@ -84,18 +79,17 @@ int32_t queue_pop(queue_t *const queue, int32_t *data) {
 
 int32_t queue_push(queue_t *const queue, int32_t *data) {
   uint32_t current_tail = queue->tail;
-  uint32_t queue_size = queue->size;
   // Check if full
-  if (queue->counter == queue_size) {
+  if (queue->counter == XQUEUE_SIZE) {
     return 1;
   }
   // Copy data from data pointer
   int32_t *array = queue->buffer + current_tail;
-  for (uint32_t i = 0; i < QUEUE_DATA_SIZE; ++i) {
+  for (uint32_t i = 0; i < DATA_SIZE; ++i) {
     array[i] = data[i];
   }
   // Update tail
-  queue->tail = (current_tail + QUEUE_DATA_SIZE) % queue->buffer_size;
+  queue->tail = (current_tail + DATA_SIZE) % (XQUEUE_SIZE * DATA_SIZE);
   // Update counter
   __atomic_fetch_add(&(queue->counter), 1, __ATOMIC_SEQ_CST);
   // Return success
@@ -109,28 +103,27 @@ void blocking_queue_pop(queue_t *const queue, int32_t *data) {
   }
   // Copy data to data pointer
   int32_t *array = queue->buffer + current_head;
-  for (uint32_t i = 0; i < QUEUE_DATA_SIZE; ++i) {
+  for (uint32_t i = 0; i < DATA_SIZE; ++i) {
     data[i] = array[i];
   }
   // Update head
-  queue->head = (current_head + QUEUE_DATA_SIZE) % queue->buffer_size;
+  queue->head = (current_head + DATA_SIZE) % (XQUEUE_SIZE * DATA_SIZE);
   // Update counter
   __atomic_fetch_sub(&(queue->counter), 1, __ATOMIC_SEQ_CST);
 }
 
 void blocking_queue_push(queue_t *const queue, int32_t *data) {
   uint32_t current_tail = queue->tail;
-  uint32_t queue_size = queue->size;
   // Wait until not full
-  while (queue->counter == queue_size) {
+  while (queue->counter == XQUEUE_SIZE) {
   }
   // Copy data from data pointer
   int32_t *array = queue->buffer + current_tail;
-  for (uint32_t i = 0; i < QUEUE_DATA_SIZE; ++i) {
+  for (uint32_t i = 0; i < DATA_SIZE; ++i) {
     array[i] = data[i];
   }
   // Update tail
-  queue->tail = (current_tail + QUEUE_DATA_SIZE) % queue->buffer_size;
+  queue->tail = (current_tail + DATA_SIZE) % (XQUEUE_SIZE * DATA_SIZE);
   // Update counter
   __atomic_fetch_add(&(queue->counter), 1, __ATOMIC_SEQ_CST);
 }
@@ -144,11 +137,11 @@ void counting_queue_pop(queue_t *const queue, int32_t *data,
   }
   // Copy data to data pointer
   int32_t *array = queue->buffer + current_head;
-  for (uint32_t i = 0; i < QUEUE_DATA_SIZE; ++i) {
+  for (uint32_t i = 0; i < DATA_SIZE; ++i) {
     data[i] = array[i];
   }
   // Update head
-  queue->head = (current_head + QUEUE_DATA_SIZE) % queue->buffer_size;
+  queue->head = (current_head + DATA_SIZE) % (XQUEUE_SIZE * DATA_SIZE);
   // Update counter
   __atomic_fetch_sub(&(queue->counter), 1, __ATOMIC_SEQ_CST);
 }
@@ -156,18 +149,17 @@ void counting_queue_pop(queue_t *const queue, int32_t *data,
 void counting_queue_push(queue_t *const queue, int32_t *data,
                          uint32_t *counter) {
   uint32_t current_tail = queue->tail;
-  uint32_t queue_size = queue->size;
   // Wait until not full
-  while (queue->counter == queue_size) {
+  while (queue->counter == XQUEUE_SIZE) {
     (*counter)++;
   }
   // Copy data from data pointer
   int32_t *array = queue->buffer + current_tail;
-  for (uint32_t i = 0; i < QUEUE_DATA_SIZE; ++i) {
+  for (uint32_t i = 0; i < DATA_SIZE; ++i) {
     array[i] = data[i];
   }
   // Update tail
-  queue->tail = (current_tail + QUEUE_DATA_SIZE) % queue->buffer_size;
+  queue->tail = (current_tail + DATA_SIZE) % (XQUEUE_SIZE * DATA_SIZE);
   // Update counter
   __atomic_fetch_add(&(queue->counter), 1, __ATOMIC_SEQ_CST);
 }
