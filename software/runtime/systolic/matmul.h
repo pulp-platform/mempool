@@ -40,7 +40,14 @@ uint32_t bm_v_push_cnt[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 queue_t *queues_vert[SYSTOLIC_SIZE - 1][SYSTOLIC_SIZE];
 queue_t *queues_horz[SYSTOLIC_SIZE][SYSTOLIC_SIZE - 1];
 
+// Define dump functions via CSR writes
+dump(horz_pop, 0x7D1);
+dump(vert_pop, 0x7D2);
+dump(horz_push, 0x7D3);
+dump(vert_push, 0x7D4);
+
 void systolic_init(uint32_t const *grid_mapping) {
+  // Create systolic array via queues
   uint32_t grid_pos = 0;
   alloc_t *alloc;
   for (uint32_t y = 0; y < SYSTOLIC_SIZE; ++y) {
@@ -252,8 +259,13 @@ void systolic_rcp_pe(const uint32_t rep_count,
     }
   }
 
+  // Store benchmark results
   bm_h_push_cnt[0][0] = h_push_cnt;
   bm_v_push_cnt[0][0] = v_push_cnt;
+
+  // Dump benchmark results
+  dump_horz_push(h_push_cnt);
+  dump_vert_push(v_push_cnt);
 }
 
 // column producing processing element
@@ -362,9 +374,15 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
     }
   }
 
+  // Store benchmark results
   bm_h_pop_cnt[0][col_idx] = h_pop_cnt;
   bm_h_push_cnt[0][col_idx] = h_push_cnt;
   bm_v_push_cnt[0][col_idx] = v_push_cnt;
+
+  // Dump benchmark results
+  dump_horz_pop(h_pop_cnt);
+  dump_horz_push(h_push_cnt);
+  dump_vert_push(v_push_cnt);
 }
 
 // row producing processing element
@@ -473,9 +491,15 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
     }
   }
 
+  // Store benchmark results
   bm_h_push_cnt[row_idx][0] = h_push_cnt;
   bm_v_pop_cnt[row_idx][0] = v_pop_cnt;
   bm_v_push_cnt[row_idx][0] = v_push_cnt;
+
+  // Dump benchmark results
+  dump_vert_pop(v_pop_cnt);
+  dump_horz_push(h_push_cnt);
+  dump_vert_push(v_push_cnt);
 }
 
 // non-producing processing element
@@ -594,8 +618,15 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
     }
   }
 
+  // Store benchmark results
   bm_h_pop_cnt[row_idx][col_idx] = h_pop_cnt;
   bm_h_push_cnt[row_idx][col_idx] = h_push_cnt;
   bm_v_pop_cnt[row_idx][col_idx] = v_pop_cnt;
   bm_v_push_cnt[row_idx][col_idx] = v_push_cnt;
+
+  // Dump benchmark results
+  dump_horz_pop(h_pop_cnt);
+  dump_vert_pop(v_pop_cnt);
+  dump_horz_push(h_push_cnt);
+  dump_vert_push(v_push_cnt);
 }
