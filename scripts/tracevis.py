@@ -204,6 +204,10 @@ parser.add_argument(
     help='Disable addr2line caching'
     ' (slow but might give better traces in some cases)')
 parser.add_argument(
+    '--overlap-instructions',
+    action='store_true',
+    help='Lookahead for instruction duration and report their full duration')
+parser.add_argument(
     '-s',
     '--start',
     metavar='<line>',
@@ -229,6 +233,7 @@ use_time = args.time
 banshee = args.banshee
 addr2line = args.addr2line
 cache = not args.no_cache
+lookahead = args.overlap_instructions
 
 print('elf:', elf, file=sys.stderr)
 print('traces:', traces, file=sys.stderr)
@@ -316,7 +321,7 @@ with open(output, 'w') as output_file:
         with open(filename) as f:
             all_lines = f.readlines()[args.start:args.end]
             # offload lookahead
-            if not banshee:
+            if lookahead:
                 lah = offload_lookahead(all_lines)
             if has_progressbar:
                 for lino, line in progressbar.progressbar(
