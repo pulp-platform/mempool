@@ -776,9 +776,12 @@ def main():
     if args.csv is not None:
         csv_file = args.csv[0]
     path, filename = os.path.split(args.infile.name)
-    core_id = re.search(r'(\d+)', filename)
-    if core_id:
-        core_id = int(core_id.group(1))
+    core_id_hex = re.search(r'(0x[0-9a-fA-F]+)', filename)
+    core_id_dec = re.search(r'([\d]+)', filename)
+    if core_id_hex:
+        core_id = int(core_id_hex.group(1), 16)
+    elif core_id_dec:
+        core_id = int(core_id_dec.group(1))
     else:
         core_id = -1
     # Prepare stateful data structures
