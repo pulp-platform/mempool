@@ -297,10 +297,16 @@ with open(output, 'w') as output_file:
     # JSON header
     output_file.write('{"traceEvents": [\n')
 
+    hartid = 0
     for filename in traces:
-        hartid = 0
-        parsed_nums = re.findall(r'\d+', filename)
-        hartid = int(parsed_nums[-1]) if len(parsed_nums) else hartid+1
+        hartid_hex = re.search(r'(0x[0-9a-fA-F]+)', filename)
+        hartid_dec = re.search(r'([\d]+)', filename)
+        if hartid_hex:
+            hartid = int(hartid_hex.group(1), 16)
+        elif hartid_dec:
+            hartid = int(hartid_dec.group(1))
+        else:
+            hartid = hartid+1
         fails = lines = 0
         last_time = last_cyc = 0
 
