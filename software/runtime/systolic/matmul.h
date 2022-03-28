@@ -53,6 +53,11 @@ void systolic_init(uint32_t const *grid_mapping) {
         queue_domain_create(alloc, &queues_horz[y][x], QUEUE_SIZE);
       }
       ++grid_pos;
+      // Initialize counters
+      bm_h_pop_cnt[y][x] = 0;
+      bm_h_push_cnt[y][x] = 0;
+      bm_v_pop_cnt[y][x] = 0;
+      bm_v_push_cnt[y][x] = 0;
     }
   }
 }
