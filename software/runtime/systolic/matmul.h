@@ -19,7 +19,7 @@
 
 // Dimensions of square systolic array
 // TODO: SQRT ROOT OF NUM_CORES FOR SYSTOLIC SIZE
-#define SYSTOLIC_SIZE 4
+#define SYSTOLIC_SIZE 16
 
 // IMPORTANT: DATA_SIZE of queue_multi.h must be set to 4
 

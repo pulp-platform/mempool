@@ -15,9 +15,9 @@
 #include "systolic/matmul.h"
 
 // Dimensions of matrices
-#define DIM_M 24
-#define DIM_N 24
-#define DIM_P 24
+#define DIM_M 32
+#define DIM_N 32
+#define DIM_P 32
 
 uint32_t *grid_mapping;
 
@@ -66,6 +66,10 @@ int main() {
   // Allocate systolic grid mapping
   if (core_id == 0) {
     grid_mapping = (uint32_t *)simple_malloc(num_cores * 4);
+    if (num_cores != SYSTOLIC_SIZE * SYSTOLIC_SIZE) {
+      printf("SYSTOLIC_SIZE does not match core count!\n");
+      return -1;
+    }
   }
 
   // Assign grid position (row wise)
@@ -75,24 +79,6 @@ int main() {
   // Assign grid position (col wise)
   uint32_t col_idx = core_id / SYSTOLIC_SIZE;
   uint32_t row_idx = core_id % SYSTOLIC_SIZE;
-
-  // 16 CORES only
-  // Assign grid position (tile wise)
-  // uint32_t col_idx;
-  // uint32_t row_idx;
-  // if (core_id < 4) {
-  //   col_idx = core_id % 2;
-  //   row_idx = core_id / 2;
-  // } else if (core_id < 8) {
-  //   col_idx = core_id % 2 + 2;
-  //   row_idx = core_id / 6;
-  // } else if (core_id < 12) {
-  //   col_idx = core_id % 2;
-  //   row_idx = core_id / 10 + 2;
-  // } else {
-  //   col_idx = core_id % 2 + 2;
-  //   row_idx = core_id / 14 + 2;
-  // }
 
   // Wait for all cores
   mempool_barrier(num_cores);
@@ -106,6 +92,9 @@ int main() {
   // Setup
   if (core_id == 0) {
     printf("> Initialize\n");
+
+    // Print out grid mapping
+    // print_matrix((int32_t *)grid_mapping, 16, 16);
 
     // Initialize systolic array
     systolic_init(grid_mapping);
@@ -141,18 +130,26 @@ int main() {
   mempool_barrier(num_cores);
 
   if ((row_idx == 0) && (col_idx == 0)) {
+    // Top left corner
+    // row and column producing processing element
     systolic_rcp_pe(rep_count, syst_matrix_A, syst_matrix_B, syst_matrix_C);
   }
 
   if ((row_idx == 0) && (col_idx != 0)) {
+    // Top row
+    // column producing processing element
     systolic_cp_pe(col_idx, rep_count, syst_matrix_B, syst_matrix_C);
   }
 
   if ((row_idx != 0) && (col_idx == 0)) {
+    // Leftmost column
+    // row producing processing element
     systolic_rp_pe(row_idx, rep_count, syst_matrix_A, syst_matrix_C);
   }
 
   if ((row_idx != 0) && (col_idx != 0)) {
+    // Remainder
+    // non-producing processing element
     systolic_np_pe(row_idx, col_idx, rep_count, syst_matrix_C);
   }
 
@@ -170,7 +167,7 @@ int main() {
     // systolic_matrix_print(syst_matrix_C);
 
     // Print out benchmark results
-    systolic_benchmark_print();
+    // systolic_benchmark_print();
   }
 
   // wait until all cores have finished

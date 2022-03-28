@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ########################
-##  Systolic MinPool  ##
+##  Systolic MemPool  ##
 ########################
 
 # Number of cores
-num_cores ?= 16
+num_cores ?= 256
 
 # Number of groups
 num_groups ?= 4
