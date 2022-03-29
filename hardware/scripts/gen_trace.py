@@ -728,7 +728,7 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         if write_header:
             dict_writer.writeheader()
         dict_writer.writerows(perf_metrics)
-    print('Wrote performance metrics to %s\n' % filename)
+    print('\nWrote performance metrics to %s\n' % filename)
 
 # -------------------- Main --------------------
 
@@ -834,15 +834,16 @@ def main():
     # Add metadata
     for sec in perf_metrics:
         sec['core'] = core_id
+    # Emit metrics
+    print('\n## Performance metrics')
+    for idx in range(len(perf_metrics)):
+        print('\n' + fmt_perf_metrics(perf_metrics, idx, not args.allkeys))
+        perf_metrics[idx]['section'] = idx
     # Write metrics to CSV
     if csv_file is not None:
         if os.path.split(csv_file)[0] == '':
             csv_file = os.path.join(path, csv_file)
         perf_metrics_to_csv(perf_metrics, csv_file)
-    # Emit metrics
-    print('\n## Performance metrics')
-    for idx in range(len(perf_metrics)):
-        print('\n' + fmt_perf_metrics(perf_metrics, idx, not args.allkeys))
     # Check for any loose ends and warn before exiting
     seq_isns = len(fseq_info['fseq_pcs']) + len(fseq_info['cfg_buf'])
     unseq_left = len(fseq_info['fpss_pcs']) - len(fseq_info['fseq_pcs'])
