@@ -16,9 +16,14 @@ include $(RUNTIME_DIR)/runtime.mk
 
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
+ifeq ($(config), systolic)
+	ALL := $(APPS)
+else
+	ALL := $(filter-out systolic/%,$(APPS))
+endif
 
 # Make all applications
-all: $(BINARIES)
+all: $(ALL)
 
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
