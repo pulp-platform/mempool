@@ -60,8 +60,18 @@ RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Defines
 DEFINES += -DPRINTF_DISABLE_SUPPORT_FLOAT -DPRINTF_DISABLE_SUPPORT_LONG_LONG -DPRINTF_DISABLE_SUPPORT_PTRDIFF_T
-DEFINES += -DNUM_CORES=$(num_cores) -DNUM_GROUPS=$(num_groups) -DBOOT_ADDR=0x$(boot_addr) -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size)
-DEFINES += -DSEQ_MEM_SIZE=$(seq_mem_size) -DSTACK_SIZE=$(stack_size) -DXQUEUE_SIZE=$(xqueue_size)
+DEFINES += -DNUM_CORES=$(num_cores)
+DEFINES += -DNUM_GROUPS=$(num_groups)
+DEFINES += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
+DEFINES += -DLOG2_NUM_CORES_PER_TILE=$(shell awk 'BEGIN{print log($(num_cores_per_tile))/log(2)}')
+DEFINES += -DBOOT_ADDR=0x$(boot_addr)
+DEFINES += -DL2_BASE=0x$(l2_base)
+DEFINES += -DL2_SIZE=0x$(l2_size)
+DEFINES += -DSEQ_MEM_SIZE=$(seq_mem_size)
+DEFINES += -DLOG2_SEQ_MEM_SIZE=$(shell awk 'BEGIN{print log($(seq_mem_size))/log(2)}')
+DEFINES += -DSTACK_SIZE=$(stack_size)
+DEFINES += -DLOG2_STACK_SIZE=$(shell awk 'BEGIN{print log($(stack_size))/log(2)}')
+DEFINES += -DXQUEUE_SIZE=$(xqueue_size)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)

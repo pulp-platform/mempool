@@ -53,34 +53,29 @@ _reset_vector:
     li      x29, 0
     li      x30, 0
     li      x31, 0
-    la      sp, __stack_start          // load stack
-    csrr    a0, mhartid                // get hart id
-#ifdef TOP4_STACK
-    srli    t0, a0, 4                  // id / 16
-    li      t1, 12288                  // 12 * 2^10
-    mul     t1, t0, t1                 // * 12 * 2^10
-    andi    t0, a0, 3                  // id % 4
-    slli    t0, t0, 12                 // * 2^12
-    add     sp, sp, t0                 // sp += (id % 4) * 2^12
-    add     sp, sp, t1                 // sp += (id / 16) * 12 * 2^10
-    srli    t0, a0, 2                  // id / 4
-    slli    t0, t0, 10                 // * 2^10
-    add     sp, sp, t0                 // sp += (id / 4 + 1) * 2^10
-    addi    sp, sp, 1020               // sp += 2^10-1 (start at stack of next core)
-#else
-    srli    t0, a0, 2                  // tile_id = id / 4
-    slli    t0, t0, 13                 // tile_offset = tile_id * 8 KiB
-    andi    t1, a0, 3                  // tile_core_id = id % 4
-    addi    t1, t1, 1                  // tile_core_id += 1
-    slli    t1, t1, 10                 // tile_core_offset = tile_core_id * 1 KiB
-    addi    t1, t1, -4                 // tile_core_offset -= 1 word
-    add     t0, t0, t1                 // offset = tile_offset + tile_core_offset
-    addi    t0, t0, 256                // offset += 16 * queue_size * 4
-    add     sp, sp, t0                 // sp += offset
-#endif
+    la      sp, __stack_start                                   // load stack
+    csrr    a0, mhartid                                         // get hart id
+    // Calculate sequential region offset for our tile
+    srli    t0, a0, LOG2_NUM_CORES_PER_TILE                     // tile_id = id / NUM_CORES_PER_TILE
+    slli    t0, t0, (LOG2_NUM_CORES_PER_TILE+LOG2_SEQ_MEM_SIZE) // tile_offset = tile_id * NUM_CORES_PER_TILE * SEQ_MEM_SIZE
+    // Calculate stack offset within tile
+    li      t1, NUM_CORES_PER_TILE                              // NUM_CORES_PER_TILE
+    addi    t1, t1, -1                                          // Create mask for NUM_CORES_PER_TILE
+    and     t1, a0, t1                                          // tile_core_id = id % 4
+    addi    t1, t1, 1                                           // tile_core_id += 1
+    slli    t1, t1, LOG2_STACK_SIZE                             // tile_core_offset = tile_core_id * STACK_SIZE
+    addi    t1, t1, -4                                          // tile_core_offset -= 1 word
+    // Calculate final stack pointer
+    add     t0, t0, t1                                          // offset = tile_offset + tile_core_offset
+    add     sp, sp, t0                                          // sp += offset
+    // Add offset in case we have hardware queues at the beginning of sequential memory
+    li      t0, XQUEUE_SIZE                                     // XQUEUE_SIZE (in words)
+    slli    t0, t0, (4+2)                                       // XQUEUE_SIZE * BANKS_PER_TILE * BYTES_PER_WORD
+    add     sp, sp, t0                                          // offset += 16 * xqueue_size * 4
+    // Configure the RO cache or directly jump to main
     bnez    a0, _jump_main
-    la      t0, ro_cache_end_0         // Get peripheral register to set cacheable region
-    la      t1, _erodata               // Write the end of the read-only data to be cacheable
+    la      t0, ro_cache_end_0                                  // Get peripheral register to set cacheable region
+    la      t1, _erodata                                        // Write the end of the read-only data to be cacheable
     sw      t1, 0(t0)
 _jump_main:
     call    main
