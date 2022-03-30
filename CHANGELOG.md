@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Bump bender to `v0.23.2`
 - Bump verilator to `v4.218`
 - Make the L2 memory mutli-banked
+- Improve parsing speed of tracevis by caching the `addr2line` calls
 
 ## 0.4.0 - 2021-07-01
 

@@ -206,7 +206,7 @@ module mempool_cc
 
   always_ff @(posedge rst_i) begin
     if(rst_i) begin
-      $sformat(fn, "trace_hart_%04x.dasm", hart_id_i);
+      $sformat(fn, "trace_hart_0x%04x.dasm", hart_id_i);
       f = $fopen(fn, "w");
       $display("[Tracer] Logging Hart %d to %s", hart_id_i, fn);
     end
