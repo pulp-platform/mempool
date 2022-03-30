@@ -718,7 +718,25 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'stall_raw_lsu',
         'stall_raw_acc',
         'stall_lsu',
-        'stall_acc']
+        'stall_acc',
+        'seq_loads_local',
+        'seq_loads_global',
+        'itl_loads_local',
+        'itl_loads_global',
+        'seq_latency_local',
+        'seq_latency_global',
+        'itl_latency_local',
+        'itl_latency_global',
+        'snitch_load_latency',
+        'snitch_load_region',
+        'snitch_load_tile',
+        'snitch_store_region',
+        'snitch_store_region',
+        'snitch_store_tile',
+        'seq_stores_local',
+        'seq_stores_global',
+        'itl_stores_local',
+        'itl_stores_global']
     for key in keys:
         if key not in known_keys:
             known_keys.append(key)
