@@ -162,8 +162,17 @@ update-deps:
 apps:
 	make -C $(SOFTWARE_DIR) apps
 
-update_opcodes:
-	make -C toolchain/riscv-opcodes all
+update_opcodes: update_opcodes_encoding update_opcodes_sverilog
+
+update_opcodes_encoding:
+	make -C toolchain/riscv-opcodes encoding_out.h
+	mv toolchain/riscv-opcodes/encoding_out.h software/runtime/encoding.h
+	ln -fsr software/runtime/encoding.h toolchain/riscv-isa-sim/riscv/encoding.h
+	ln -fsr software/runtime/encoding.h software/riscv-tests/env/encoding.h #this will change when riscv-tests is a submodule
+
+update_opcodes_sverilog:
+	make -C toolchain/riscv-opcodes inst.sverilog
+	mv toolchain/riscv-opcodes/inst.sverilog hardware/deps/snitch/src/riscv_instr.sv
 
 format:
 	$(ROOT_DIR)/scripts/run_clang_format.py --clang-format-executable=$(LLVM_INSTALL_DIR)/bin/clang-format -i -r $(ROOT_DIR)
