@@ -2,6 +2,8 @@
 #include <string.h>
 #include "math.h"
 
+#define N_BANK NUM_CORES*4
+
 /*******************************************************/
 /**                    MULTI-CORE                     **/
 /*******************************************************/
@@ -39,25 +41,27 @@ void dotp_parallel  ( int32_t* in_a,
   __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
   mempool_barrier(NUM_CORES); // wait until all cores have finished*/
 
-  uint32_t remainder = N_vect%4;
-  int32_t local_sum = 0;
+  uint32_t const remainder = N_vect%4;
+  uint32_t const idx_stop = N_vect - remainder;
 
-  uint32_t idx_start = id*4;
-  uint32_t idx_stop = N_vect - remainder;
-  uint32_t idx;
-  for (idx = idx_start; idx < idx_stop; idx+= 1024){
+  int32_t local_sum = 0;
+  uint32_t idx = id*4;
+  while (idx < idx_stop) {
     local_sum += in_a[idx]*in_b[idx];
     local_sum += in_a[idx+1]*in_b[idx+1];
     local_sum += in_a[idx+2]*in_b[idx+2];
     local_sum += in_a[idx+3]*in_b[idx+3];
+    idx+= N_BANK;
   }
-  if ( id == (N_vect%1024)/4 ) {
+  if ( id == (N_vect%N_BANK)/4 ) {
     while(idx < N_vect){
       local_sum += in_a[idx]*in_b[idx];
       idx++;
     }
   }
   __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
+  mempool_stop_benchmark();
+  mempool_start_benchmark();
   mempool_barrier(NUM_CORES); // wait until all cores have finished
 }
 
@@ -110,29 +114,27 @@ void dotp_parallel_unrolled2 ( int32_t* in_a,
   mempool_barrier(NUM_CORES); // wait until all cores have finished*/
 
   uint32_t const remainder = N_vect%4;
+  uint32_t const idx_stop = N_vect - remainder;
   int32_t local_sum_1 = 0;
   int32_t local_sum_2 = 0;
 
-  uint32_t idx_start = id*4;
-  uint32_t idx_stop = N_vect - remainder;
-  uint32_t idx;
-  for (idx = idx_start; idx < idx_stop; idx+= 1024){
+  uint32_t idx = id*4;
+  while (idx < idx_stop){
     int32_t in_a1 = in_a[idx];
     int32_t in_b1 = in_b[idx];
     int32_t in_a2 = in_a[idx+1];
     int32_t in_b2 = in_b[idx+1];
     local_sum_1 += in_a1*in_b1;
     local_sum_2 += in_a2*in_b2;
-
     in_a1 = in_a[idx+2];
     in_b1 = in_b[idx+2];
     in_a2 = in_a[idx+3];
     in_b2 = in_b[idx+3];
     local_sum_1 += in_a1*in_b1;
     local_sum_2 += in_a2*in_b2;
-
+    idx += N_BANK;
   }
-  if (id == ((N_vect%1024)/4)) {
+  if (id == ((N_vect%N_BANK)/4)) {
     while(idx<N_vect){
       local_sum_1 += in_a[idx]*in_b[idx];
       idx++;
@@ -197,17 +199,15 @@ void dotp_parallel_unrolled4  ( int32_t* in_a,
   __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
   mempool_barrier(NUM_CORES); // wait until all cores have finished*/
 
-
   uint32_t const remainder = N_vect%4;
+  uint32_t const idx_stop = N_vect - remainder;
   int32_t local_sum_1 = 0;
   int32_t local_sum_2 = 0;
   int32_t local_sum_3 = 0;
   int32_t local_sum_4 = 0;
 
-  uint32_t idx_start = id*4;
-  uint32_t idx_stop = N_vect - remainder;
-  uint32_t idx;
-  for (idx = idx_start; idx< idx_stop; idx+= 1024){
+  uint32_t idx = id*4;
+  while (idx < idx_stop){
     int32_t in_a1 = in_a[idx];
     int32_t in_b1 = in_b[idx];
     int32_t in_a2 = in_a[idx+1];
@@ -220,9 +220,10 @@ void dotp_parallel_unrolled4  ( int32_t* in_a,
     local_sum_2 += in_a2*in_b2;
     local_sum_3 += in_a3*in_b3;
     local_sum_4 += in_a4*in_b4;
+    idx+= N_BANK;
   }
-  if (id == ((N_vect%1024)/4)) {
-    while(idx<N_vect){
+  if (id == ((N_vect%N_BANK)/4)) {
+    while(idx < N_vect){
       local_sum_1 += in_a[idx]*in_b[idx];
       idx++;
     }

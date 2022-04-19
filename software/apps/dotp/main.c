@@ -5,21 +5,24 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+
 #include "dotp_single.h"
 #include "dotp_parallel.h"
 #include "dotp_parallel_red0.h"
 
-#define N 1024
-#define N_BRANCH (N/1024)*4
+#define N 1024*16
+#define N_BANK NUM_CORES*4
+
 //#define SINGLE
 #define PARALLEL
-#define UNROLLED
+//#define UNROLLED
 
 // Vectors for kernel computation
-int32_t vector_a[N] 										__attribute__((aligned(64*1024), section(".l1")));
-int32_t vector_b[N] 										__attribute__((aligned(64*1024), section(".l1")));
-int32_t sum                             __attribute__((section(".l1")));
-//int32_t sum[4]                            __attribute__((section(".l1")));
+int32_t vector_a[N] 										__attribute__((aligned(N), section(".l1")));
+int32_t vector_b[N] 										__attribute__((aligned(N), section(".l1")));
+int32_t sum                           __attribute__((section(".l1")));
+//int32_t sum[N_BANK]                     __attribute__((aligned(N_BANK), section(".l1")));
+uint32_t my_barrier                     __attribute__((section(".l1")));
 
 // Vectors for performance metrics
 uint32_t instr_init[NUM_CORES]			    __attribute__((section(".l1")));
@@ -48,6 +51,7 @@ int main() {
   	time_init = 0;
   	time_end = 0;
     check = 0;
+    my_barrier = 0;
 
     init_vectors(	  vector_a, vector_b, &sum,
     								instr_init, instr_end,
@@ -56,28 +60,28 @@ int main() {
     								rawstalls_init, rawstalls_end,
   									&result, &check, N);
 
-    /*init_vectors_red0(   vector_a, vector_b, sum,
-                    instr_init, instr_end,
-                    instrstalls_init, instrstalls_end,
-                    lsustalls_init, lsustalls_end,
-                    rawstalls_init, rawstalls_end,
-                    &result, &check, N);*/
+//    init_vectors_red0(   vector_a, vector_b, sum,
+//                    instr_init, instr_end,
+//                    instrstalls_init, instrstalls_end,
+//                    lsustalls_init, lsustalls_end,
+//                    rawstalls_init, rawstalls_end,
+//                    &result, &check, N);
 
 
   }
   mempool_barrier(NUM_CORES); // wait until all cores have finished
 
   // Kernel execution
-  time_init = mempool_get_timer();
-  mempool_start_benchmark();
+  //time_init = mempool_get_timer();
+  //mempool_start_benchmark();
   //asm volatile ("csrr %0, 0xb02" : "=r" (instr_init[core_id]));
   //asm volatile ("csrr %0, 0xb03" : "=r" (instrstalls_init[core_id]));
   //asm volatile ("csrr %0, 0xb04" : "=r" (lsustalls_init[core_id]));
   //asm volatile ("csrr %0, 0xb05" : "=r" (rawstalls_init[core_id]));
-  instr_init[core_id] 				= read_csr(minstret);
-  instrstalls_init[core_id] 	= read_csr(mhpmcounter3);
-  lsustalls_init[core_id] 		= read_csr(mhpmcounter4);
-  rawstalls_init[core_id] 		= read_csr(mhpmcounter5);
+  //instr_init[core_id] 				= read_csr(minstret);
+  //instrstalls_init[core_id] 	= read_csr(mhpmcounter3);
+  //lsustalls_init[core_id] 		= read_csr(mhpmcounter4);
+  //rawstalls_init[core_id] 		= read_csr(mhpmcounter5);
 
   #ifdef SINGLE
 
@@ -92,11 +96,17 @@ int main() {
   #ifdef PARALLEL
 
   	#ifdef UNROLLED
+
       dotp_parallel_unrolled4(vector_a, vector_b, &sum, N, core_id);
   		//dotp_parallel_unrolled4_red0(vector_a, vector_b, sum, N, N_BRANCH, core_id);
+
   	#else
+
+      mempool_start_benchmark();
       dotp_parallel(vector_a, vector_b, &sum, N, core_id);
-  		//dotp_parallel_red0(vector_a, vector_b, sum, N, N_BRANCH, core_id);
+  		//dotp_parallel_red0(vector_a, vector_b, sum, N, core_id, &my_barrier);
+      mempool_stop_benchmark();
+
   	#endif
 
   #endif
@@ -105,12 +115,12 @@ int main() {
   //asm volatile ("csrr %0, 0xb05" : "=r" (rawstalls_end[core_id]));
   //asm volatile ("csrr %0, 0xb03" : "=r" (instrstalls_end[core_id]));
   //asm volatile ("csrr %0, 0xb02" : "=r" (instr_end[core_id]));
-  rawstalls_end[core_id]    = read_csr(mhpmcounter5);
-  lsustalls_end[core_id] 		= read_csr(mhpmcounter4);
-  instrstalls_end[core_id]  = read_csr(mhpmcounter3);
-  instr_end[core_id]        = read_csr(minstret);
-  mempool_stop_benchmark();
-  time_end = mempool_get_timer();
+  //rawstalls_end[core_id]    = read_csr(mhpmcounter5);
+  //lsustalls_end[core_id] 		= read_csr(mhpmcounter4);
+  //instrstalls_end[core_id]  = read_csr(mhpmcounter3);
+  //instr_end[core_id]        = read_csr(minstret);
+  //mempool_stop_benchmark();
+  //time_end = mempool_get_timer();
 
 
   // Check results
