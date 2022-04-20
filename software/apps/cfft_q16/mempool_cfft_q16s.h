@@ -1,19 +1,30 @@
 //#define __CLIP(x, bound) (((x)<=-((bound)+1))?(-((bound)+1)):(((x)>=(bound))?(bound):(x)))
-#define __CLIP(x, bound) ( { x <= (-(bound+1)) ? (-(bound+1)) : x; } )
+//#define __CLIP(x, bound) ( { x <= (-(bound+1)) ? (-(bound+1)) : x; } )
+#define __CLIP(x, bound) ( (x > bound) ? (bound) : ( (x < (-(bound+1))) ? (-(bound+1)) : x ) )
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-static void mempool_cfft_radix4by2_q16( int16_t *pSrc,
+static void mempool_cfft_q16s(  uint16_t fftLen,
+                                int16_t *pTwiddle,
+                                uint16_t *pBitRevTable,
+                                int16_t *pSrc,
+                                uint16_t bitReverseLen,
+                                uint8_t ifftFlag,
+                                uint8_t bitReverseFlag);
+
+static void mempool_cfft_radix4by2_q16s( int16_t *pSrc,
                                         uint32_t fftLen,
                                         const int16_t *pCoef);
 
-static void mempool_radix4_butterfly_q16( int16_t *pSrc16,
+static void mempool_radix4_butterfly_q16s( int16_t *pSrc16,
                                           uint32_t fftLen,
                                           int16_t *pCoef16,
                                           uint32_t twidCoefModifier);
 static void mempool_bitreversal_16s(  uint16_t *pSrc,
                                       const uint16_t bitRevLen,
                                       const uint16_t *pBitRevTab);
-static
+
+
+
 
 
 void mempool_cfft_q16s( uint16_t fftLen,
@@ -32,13 +43,13 @@ void mempool_cfft_q16s( uint16_t fftLen,
         case 256:
         case 1024:
         case 4096:
-            mempool_radix4_butterfly_q16(pSrc, fftLen, pTwiddle, 1);
+            mempool_radix4_butterfly_q16s(pSrc, fftLen, pTwiddle, 1);
             break;
         case 32:
         case 128:
         case 512:
         case 2048:
-            mempool_cfft_radix4by2_q16(pSrc, fftLen, pTwiddle);
+            mempool_cfft_radix4by2_q16s(pSrc, fftLen, pTwiddle);
             break;
         }
     }
@@ -48,7 +59,7 @@ void mempool_cfft_q16s( uint16_t fftLen,
 }
 
 
-void mempool_cfft_radix4by2_q16(int16_t *pSrc, uint32_t fftLen, const int16_t *pCoef) {
+void mempool_cfft_radix4by2_q16s(int16_t *pSrc, uint32_t fftLen, const int16_t *pCoef) {
 
     uint32_t i;
     uint32_t n2;
@@ -79,9 +90,9 @@ void mempool_cfft_radix4by2_q16(int16_t *pSrc, uint32_t fftLen, const int16_t *p
     }
 
     // first col
-    mempool_radix4_butterfly_q16(pSrc, n2, (int16_t *)pCoef, 2U);
+    mempool_radix4_butterfly_q16s(pSrc, n2, (int16_t *)pCoef, 2U);
     // second col
-    mempool_radix4_butterfly_q16(pSrc + fftLen, n2, (int16_t *)pCoef, 2U);
+    mempool_radix4_butterfly_q16s(pSrc + fftLen, n2, (int16_t *)pCoef, 2U);
 
     for (i = 0; i < (fftLen >> 1); i++) {
         p0 = pSrc[4 * i + 0];
@@ -101,7 +112,7 @@ void mempool_cfft_radix4by2_q16(int16_t *pSrc, uint32_t fftLen, const int16_t *p
     }
 }
 
-void mempool_radix4_butterfly_q16(  int16_t *pSrc16,
+void mempool_radix4_butterfly_q16s(  int16_t *pSrc16,
                                     uint32_t fftLen,
                                     int16_t *pCoef16,
                                     uint32_t twidCoefModifier) {

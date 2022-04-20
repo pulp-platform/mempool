@@ -1,5 +1,16 @@
-#define __CLIP(x, bound) ( { x <= (-(bound+1)) ? (-(bound+1)) : x; } )
+//#define __CLIP(x, bound) ( { x <= (-(bound+1)) ? (-(bound+1)) : x; } )
+#define __CLIP(x, bound) ( (x > bound) ? (bound) : ( (x < (-(bound+1))) ? (-(bound+1)) : x ) )
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
+
+static void mempool_cfft_q16p(  uint16_t fftLen,
+                                int16_t *pTwiddle,
+                                uint16_t *pBitRevTable,
+                                int16_t *pSrc,
+                                uint16_t bitReverseLen,
+                                uint8_t ifftFlag,
+                                uint8_t bitReverseFlag,
+                                uint32_t nPE);
 
 static void mempool_cfft_radix4by2_q16p( int16_t *pSrc,
                                         uint32_t fftLen,
@@ -12,6 +23,15 @@ static void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
                                           uint32_t twidCoefModifier,
                                           uint32_t nPE);
 
+void mempool_bitreversal_16p( uint16_t *pSrc,
+                              const uint16_t bitRevLen,
+                              const uint16_t *pBitRevTab,
+                              const uint32_t nPE);
+
+
+
+
+
 void mempool_cfft_q16p( uint16_t fftLen,
                         int16_t *pTwiddle,
                         uint16_t *pBitRevTable,
@@ -20,7 +40,6 @@ void mempool_cfft_q16p( uint16_t fftLen,
                         uint8_t ifftFlag,
                         uint8_t bitReverseFlag,
                         uint32_t nPE) {
-
 
     if (ifftFlag == 0) {
         switch (fftLen) {
@@ -40,10 +59,13 @@ void mempool_cfft_q16p( uint16_t fftLen,
         }
     }
 
-    if (bitReverseFlag)
-      if(mempool_get_core_id()==0) {
-        mempool_bitreversal_16s((uint16_t *)pSrc, bitReverseLen, pBitRevTable);
-      }
+    if (bitReverseFlag) {
+//      if(mempool_get_core_id()==0) {
+//        mempool_bitreversal_16s((uint16_t *)pSrc, bitReverseLen, pBitRevTable);
+//      }
+      mempool_bitreversal_16p((uint16_t *)pSrc, bitReverseLen, pBitRevTable, nPE);
+    }
+
 }
 
 
@@ -57,11 +79,7 @@ void mempool_cfft_radix4by2_q16p(int16_t *pSrc, uint32_t fftLen, const int16_t *
     int16_t xt, yt, cosVal, sinVal;
 
     n2 = fftLen >> 1;
-    if (n2 % nPE == 0) {
-      nCores = n2/nPE;
-    } else {
-      nCores = n2/nPE + 1;
-    }
+    nCores = (n2 + nPE - 1)/nPE;
 
     uint32_t core_offset = mempool_get_core_id()*nCores;
     for (i = core_offset; i < MIN(n2,core_offset + nCores); i++) {
@@ -98,7 +116,6 @@ void mempool_cfft_radix4by2_q16p(int16_t *pSrc, uint32_t fftLen, const int16_t *
       // second col
       mempool_radix4_butterfly_q16p(pSrc + fftLen, n2, (int16_t *)pCoef, 2U, nPE);
     }
-    mempool_barrier(NUM_CORES);
 
     for (i = core_offset; i < MIN((fftLen >> 1), core_offset + nCores); i++) {
         p0 = pSrc[4 * i + 0];
@@ -116,6 +133,7 @@ void mempool_cfft_radix4by2_q16p(int16_t *pSrc, uint32_t fftLen, const int16_t *
         pSrc[4 * i + 2] = p2;
         pSrc[4 * i + 3] = p3;
     }
+    mempool_barrier(NUM_CORES);
 }
 
 void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
@@ -137,12 +155,7 @@ void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
     n1 = n2;
     /* n2 = fftLen/4 */
     n2 >>= 2U;
-    uint32_t step;
-    if (n2 % nPE == 0) {
-        step = n2/nPE;
-    } else {
-        step = n2/nPE + 1;
-    }
+    uint32_t step = (n2 + nPE - 1)/nPE;
 
     /* Input is in 1.15(q15) format */
     /* START OF FIRST STAGE PROCESS */
@@ -284,12 +297,7 @@ void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
         /*  Initializations for the middle stage */
         n1 = n2;
         n2 >>= 2U;
-
-        if (n2 % nPE == 0) {
-            step = n2/nPE;
-        } else {
-            step = n2/nPE + 1;
-        }
+        step = (n2 + nPE - 1)/nPE;
 
         for (j = core_id * step; j < MIN(core_id * step + step, n2); j++) {
             /*  index calculation for the coefficients */
@@ -417,7 +425,6 @@ void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
     }
     /* END OF MIDDLE STAGE PROCESSING */
 
-
     /* data is in 10.6(q6) format for the 1024 point */
     /* data is in 8.8(q8) format for the 256 point */
     /* data is in 6.10(q10) format for the 64 point */
@@ -430,13 +437,7 @@ void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
     uint32_t steps;
     /* start of last stage process */
     steps = fftLen/n1;
-    // printf("steps: %i at %i\n", steps, fftLen);
-    if (steps % nPE == 0) {
-        step = steps/nPE;
-    } else {
-        step = steps/nPE + 1;
-    }
-
+    step = (steps + nPE - 1)/nPE;
     
     /*  Butterfly implementation */
     for (i0 = core_id * step * n1; i0 < MIN((core_id * step + step) * n1, fftLen); i0 += n1) {
@@ -513,6 +514,7 @@ void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
         pSrc16[i3 * 2U] = (int16_t) ((S0 >> 1U) - (T1 >> 1U));
         pSrc16[(i3 * 2U) + 1U] = (int16_t) ((S1 >> 1U) + (T0 >> 1U));
     }
+    mempool_barrier(NUM_CORES);
 
     /* END OF LAST STAGE PROCESSING */
 
@@ -520,4 +522,52 @@ void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
     /* output is in 9.7(q7) format for the 256 point   */
     /* output is in 7.9(q9) format for the 64 point  */
     /* output is in 5.11(q11) format for the 16 point  */
+}
+
+
+void mempool_bitreversal_16p( uint16_t *pSrc,
+                              const uint16_t bitRevLen,
+                              const uint16_t *pBitRevTab,
+                              const uint32_t nPE) {
+
+    uint16_t a, b, tmpar, tmpai, tmpbr, tmpbi;
+    uint32_t core_id = mempool_get_core_id();
+    uint32_t const Blocks = bitRevLen/(2*nPE);
+    uint32_t BlkCount = 0;
+    uint32_t Offset = 0;
+
+    while (BlkCount < Blocks) {
+
+        a = pBitRevTab[Offset + 2*core_id] >> 2;
+        b = pBitRevTab[Offset + 2*core_id + 1] >> 2;
+        tmpar = pSrc[a];
+        tmpai = pSrc[a + 1];
+        tmpbr = pSrc[b];
+        tmpbi = pSrc[b + 1];
+        // real
+        pSrc[a] = tmpbr;
+        pSrc[b] = tmpar;
+        // imag
+        pSrc[a + 1] = tmpbi;
+        pSrc[b + 1] = tmpai;
+        BlkCount++;
+        Offset += 2*nPE;
+    }
+
+    if (core_id < bitRevLen-Offset) {
+
+        a = pBitRevTab[Offset + 2*core_id] >> 2;
+        b = pBitRevTab[Offset + 2*core_id + 1] >> 2;
+        tmpar = pSrc[a];
+        tmpai = pSrc[a + 1];
+        tmpbr = pSrc[b];
+        tmpbi = pSrc[b + 1];
+        // real
+        pSrc[a] = tmpbr;
+        pSrc[b] = tmpar;
+        // imag
+        pSrc[a + 1] = tmpbi;
+        pSrc[b + 1] = tmpai;
+    }
+    mempool_barrier(NUM_CORES);
 }

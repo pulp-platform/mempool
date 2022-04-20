@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <time.h>
 
 /* Mempool runtime libraries */
 #include "encoding.h"
@@ -19,7 +18,7 @@
 #include "mempool_cfft_q16_BitRevIndexTable.h"
 
 
-int16_t pSrc[N_RSAMPLES] __attribute__((aligned(N_RSAMPLES), section(".l1")));
+int16_t pSrc[N_RSAMPLES] __attribute__((aligned(N_CSAMPLES), section(".l1")));
 int volatile error __attribute__((section(".l1")));
 void initialize_vector (int16_t *pSrc, uint32_t N_el);
 
@@ -34,11 +33,11 @@ int main() {
 
     if (core_id == 0)  {
 
-      printf("On the run!\n");
+      printf("On the run...\n");
       error = 0;
       initialize_vector(pSrc, N_RSAMPLES);
 
-#ifdef  TEST_16
+  #ifdef  TEST_16
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 16,
                           twiddleCoef_16_q16,
@@ -48,7 +47,7 @@ int main() {
                           0, 0);
       mempool_stop_benchmark();
 
-#elif   defined(TEST_32)
+  #elif   defined(TEST_32)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 32,
                           twiddleCoef_32_q16,
@@ -57,7 +56,7 @@ int main() {
                           BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH,
                           0, 0);
       mempool_stop_benchmark();
-#elif   defined(TEST_64)
+  #elif   defined(TEST_64)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 64,
                           twiddleCoef_64_q16,
@@ -66,7 +65,7 @@ int main() {
                           BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
                           0, 0);
       mempool_stop_benchmark();
-#elif   defined(TEST_128)
+  #elif   defined(TEST_128)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 128,
                           twiddleCoef_128_q16,
@@ -75,7 +74,7 @@ int main() {
                           BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH,
                           0, 0);
       mempool_stop_benchmark();
-#elif   defined(TEST_256)
+  #elif   defined(TEST_256)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 256,
                           twiddleCoef_256_q16,
@@ -84,7 +83,7 @@ int main() {
                           BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
                           0, 0);
       mempool_stop_benchmark();
-#elif   defined(TEST_512)
+  #elif   defined(TEST_512)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 512,
                           twiddleCoef_512_q16,
@@ -93,7 +92,7 @@ int main() {
                           BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH,
                           0, 0);
       mempool_stop_benchmark();
-#elif   defined(TEST_1024)
+  #elif   defined(TEST_1024)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 1024,
                           twiddleCoef_1024_q16,
@@ -102,7 +101,7 @@ int main() {
                           BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
                           0, 0);
       mempool_stop_benchmark();
-#elif   defined(TEST_2048)
+  #elif   defined(TEST_2048)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 2048,
                           twiddleCoef_2048_q16,
@@ -111,7 +110,7 @@ int main() {
                           BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH,
                           0, 0);
       mempool_stop_benchmark();
-#elif   defined(TEST_4096)
+  #elif   defined(TEST_4096)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 4096,
                           twiddleCoef_4096_q16,
@@ -120,17 +119,14 @@ int main() {
                           BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
                           0, 0);
       mempool_stop_benchmark();
-#endif
+  #endif
 
-//      for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-//        printf("{%6d;%6d } \n", pSrc[i], pSrc[i+1]);
-//      }
-      printf("Done!\n");
-
+      for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
+        printf("{%6d;%6d } \n", pSrc[i], pSrc[i+1]);
+      }
+      printf("Done SINGLE!\n");
     }
-    //mempool_barrier(NUM_CORES);
-
-    return error;
+    mempool_barrier(NUM_CORES);
 
 #endif
 
@@ -140,12 +136,13 @@ int main() {
 #ifdef PARALLEL
 
     if (core_id == 0)  {
-      printf("On the run!\n");
+      printf("On the run...\n");
       error = 0;
       initialize_vector(pSrc, N_RSAMPLES);
     }
+    mempool_barrier(NUM_CORES);
 
-#ifdef  TEST_16
+  #ifdef  TEST_16
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 16,
                         twiddleCoef_16_q16,
@@ -155,7 +152,7 @@ int main() {
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
 
-#elif   defined(TEST_32)
+  #elif   defined(TEST_32)
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 32,
                         twiddleCoef_32_q16,
@@ -164,7 +161,7 @@ int main() {
                         BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH,
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
-#elif   defined(TEST_64)
+  #elif   defined(TEST_64)
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 64,
                         twiddleCoef_64_q16,
@@ -173,7 +170,7 @@ int main() {
                         BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
-#elif   defined(TEST_128)
+  #elif   defined(TEST_128)
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 128,
                         twiddleCoef_128_q16,
@@ -182,7 +179,7 @@ int main() {
                         BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH,
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
-#elif   defined(TEST_256)
+  #elif   defined(TEST_256)
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 256,
                         twiddleCoef_256_q16,
@@ -191,7 +188,7 @@ int main() {
                         BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
-#elif   defined(TEST_512)
+  #elif   defined(TEST_512)
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 512,
                         twiddleCoef_512_q16,
@@ -200,7 +197,7 @@ int main() {
                         BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH,
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
-#elif   defined(TEST_1024)
+  #elif   defined(TEST_1024)
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 1024,
                         twiddleCoef_1024_q16,
@@ -209,7 +206,7 @@ int main() {
                         BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
-#elif   defined(TEST_2048)
+  #elif   defined(TEST_2048)
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 2048,
                         twiddleCoef_2048_q16,
@@ -218,7 +215,7 @@ int main() {
                         BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH,
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
-#elif   defined(TEST_4096)
+  #elif   defined(TEST_4096)
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 4096,
                         twiddleCoef_4096_q16,
@@ -227,23 +224,27 @@ int main() {
                         BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
                         0, 0, NUM_CORES);
     mempool_stop_benchmark();
-#endif
-    mempool_barrier(NUM_CORES);
+  #endif
 
     if(core_id==0) {
-      printf("Done!\n");
+//      for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
+//        printf("{%6d;%6d } \n", pSrcp[i], pSrcp[i+1]);
+//      }
+      printf("Done PARALLEL!\n");
     }
-    return error;
+    mempool_barrier(NUM_CORES);
 
 #endif
 
+
+  return error;
 
 }
 
 void initialize_vector (int16_t *pSrc, uint32_t N_el) {
     int lower = SHRT_MIN, upper = SHRT_MAX;
     srand((unsigned) 1);
-    for (uint32_t i = 0; i < 2*N_el; i++) {
+    for (uint32_t i = 0; i < N_el; i++) {
       pSrc[i] = (int16_t)((rand() % (upper - lower + 1)) + lower);
     }
 }
