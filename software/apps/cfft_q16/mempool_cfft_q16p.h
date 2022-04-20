@@ -145,7 +145,7 @@ void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
     uint32_t core_id = mempool_get_core_id()%nPE;
     int16_t R0, R1, S0, S1, T0, T1, U0, U1;
     int16_t Co1, Si1, Co2, Si2, Co3, Si3, out1, out2;
-    uint32_t n1, n2, ic, i0, i1, i2, i3, j, k;
+    uint32_t n1, n2, ic, i0, i1, i2, i3;
 
     /* Total process is divided into three stages */
     /* process first stage, middle stages, & last stage */
@@ -291,139 +291,143 @@ void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
 
     /*  Twiddle coefficients index modifier */
     twidCoefModifier <<= 2U;
+    uint32_t nbutterfly;
+    uint32_t nPE_butterfly, offset, butt_id;
 
     /*  Calculation of Middle stage */
-    for (k = fftLen / 4U; k > 4U; k >>= 2U) {
-        /*  Initializations for the middle stage */
-        n1 = n2;
-        n2 >>= 2U;
-        step = (n2 + nPE - 1)/nPE;
+    //for (k = fftLen / 4U; k > 4U; k >>= 2U) {
+    for (nbutterfly = 4U; nbutterfly < MIN(fftLen>>2U, nPE); nbutterfly <<= 2U) {
 
-        for (j = core_id * step; j < MIN(core_id * step + step, n2); j++) {
-            /*  index calculation for the coefficients */
+      /*  Initializations for the middle stage */
+      n1 = n2;
+      n2 >>= 2U;
+      nPE_butterfly = (nPE/nbutterfly);
+      step = (n2 + nPE_butterfly - 1)/nPE_butterfly;
+      offset = (core_id/nPE_butterfly)*n1;
+      butt_id = core_id%nPE_butterfly;
 
-            /*  Twiddle coefficients index modifier */
-            ic = twidCoefModifier * j;
+      /*  Butterfly implementation */
+      for (i0 = offset + butt_id*step; i0 < MIN(butt_id * step + step, n2); i0++) {
 
-            /*  index calculation for the coefficients */
-            Co1 = pCoef16[ic * 2U];
-            Si1 = pCoef16[(ic * 2U) + 1U];
-            Co2 = pCoef16[2U * (ic * 2U)];
-            Si2 = pCoef16[(2U * (ic * 2U)) + 1U];
-            Co3 = pCoef16[3U * (ic * 2U)];
-            Si3 = pCoef16[(3U * (ic * 2U)) + 1U];
-            /*  Twiddle coefficients index modifier */
-            //ic = ic + twidCoefModifier;
+          /*  Twiddle coefficients index modifier */
+          ic = twidCoefModifier * butt_id * step;
 
-            /*  Butterfly implementation */
-            for (i0 = j; i0 < fftLen; i0 += n1) {
-                /*  index calculation for the input as, */
-                /*  pSrc16[i0 + 0], pSrc16[i0 + fftLen/4], pSrc16[i0 + fftLen/2], pSrc16[i0 +
-                 * 3fftLen/4] */
-                i1 = i0 + n2;
-                i2 = i1 + n2;
-                i3 = i2 + n2;
+          /*  index calculation for the coefficients */
+          Co1 = pCoef16[ic * 2U];
+          Si1 = pCoef16[(ic * 2U) + 1U];
+          Co2 = pCoef16[2U * (ic * 2U)];
+          Si2 = pCoef16[(2U * (ic * 2U)) + 1U];
+          Co3 = pCoef16[3U * (ic * 2U)];
+          Si3 = pCoef16[(3U * (ic * 2U)) + 1U];
 
-                /*  Reading i0, i0+fftLen/2 inputs */
-                /* Read ya (real), xa(imag) input */
-                T0 = pSrc16[i0 * 2U];
-                T1 = pSrc16[(i0 * 2U) + 1U];
+          /*  index calculation for the input as, */
+          /*  pSrc16[i0 + 0], pSrc16[i0 + fftLen/4], pSrc16[i0 + fftLen/2], pSrc16[i0 +
+           * 3fftLen/4] */
+          i1 = i0 + n2;
+          i2 = i1 + n2;
+          i3 = i2 + n2;
 
-                /* Read yc (real), xc(imag) input */
-                S0 = pSrc16[i2 * 2U];
-                S1 = pSrc16[(i2 * 2U) + 1U];
+          /*  Reading i0, i0+fftLen/2 inputs */
+          /* Read ya (real), xa(imag) input */
+          T0 = pSrc16[i0 * 2U];
+          T1 = pSrc16[(i0 * 2U) + 1U];
 
-                /* R0 = (ya + yc), R1 = (xa + xc) */
-                R0 = (int16_t) __CLIP(T0 + S0, 15);
-                R1 = (int16_t) __CLIP(T1 + S1, 15);
+          /* Read yc (real), xc(imag) input */
+          S0 = pSrc16[i2 * 2U];
+          S1 = pSrc16[(i2 * 2U) + 1U];
 
-                /* S0 = (ya - yc), S1 =(xa - xc) */
-                S0 = (int16_t) __CLIP(T0 - S0, 15);
-                S1 = (int16_t) __CLIP(T1 - S1, 15);
+          /* R0 = (ya + yc), R1 = (xa + xc) */
+          R0 = (int16_t) __CLIP(T0 + S0, 15);
+          R1 = (int16_t) __CLIP(T1 + S1, 15);
 
-                /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
-                /* Read yb (real), xb(imag) input */
-                T0 = pSrc16[i1 * 2U];
-                T1 = pSrc16[(i1 * 2U) + 1U];
+          /* S0 = (ya - yc), S1 =(xa - xc) */
+          S0 = (int16_t) __CLIP(T0 - S0, 15);
+          S1 = (int16_t) __CLIP(T1 - S1, 15);
 
-                /* Read yd (real), xd(imag) input */
-                U0 = pSrc16[i3 * 2U];
-                U1 = pSrc16[(i3 * 2U) + 1U];
+          /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
+          /* Read yb (real), xb(imag) input */
+          T0 = pSrc16[i1 * 2U];
+          T1 = pSrc16[(i1 * 2U) + 1U];
 
-                /* T0 = (yb + yd), T1 = (xb + xd) */
-                T0 = (int16_t) __CLIP(T0 + U0, 15);
-                T1 = (int16_t) __CLIP(T1 + U1, 15);
+          /* Read yd (real), xd(imag) input */
+          U0 = pSrc16[i3 * 2U];
+          U1 = pSrc16[(i3 * 2U) + 1U];
 
-                /*  writing the butterfly processed i0 sample */
+          /* T0 = (yb + yd), T1 = (xb + xd) */
+          T0 = (int16_t) __CLIP(T0 + U0, 15);
+          T1 = (int16_t) __CLIP(T1 + U1, 15);
 
-                /* xa' = xa + xb + xc + xd */
-                /* ya' = ya + yb + yc + yd */
-                out1 = (int16_t) (((R0 >> 1U) + (T0 >> 1U)) >> 1U);
-                out2 = (int16_t) (((R1 >> 1U) + (T1 >> 1U)) >> 1U);
-                pSrc16[i0 * 2U] = out1;
-                pSrc16[(2U * i0) + 1U] = out2;
+          /*  writing the butterfly processed i0 sample */
+          /* xa' = xa + xb + xc + xd */
+          /* ya' = ya + yb + yc + yd */
+          out1 = (int16_t) (((R0 >> 1U) + (T0 >> 1U)) >> 1U);
+          out2 = (int16_t) (((R1 >> 1U) + (T1 >> 1U)) >> 1U);
+          pSrc16[i0 * 2U] = out1;
+          pSrc16[(2U * i0) + 1U] = out2;
 
-                /* R0 = (ya + yc) - (yb + yd), R1 = (xa + xc) - (xb + xd) */
-                R0 = (int16_t) ((R0 >> 1U) - (T0 >> 1U));
-                R1 = (int16_t) ((R1 >> 1U) - (T1 >> 1U));
+          /* R0 = (ya + yc) - (yb + yd), R1 = (xa + xc) - (xb + xd) */
+          R0 = (int16_t) ((R0 >> 1U) - (T0 >> 1U));
+          R1 = (int16_t) ((R1 >> 1U) - (T1 >> 1U));
 
-                /* (ya-yb+yc-yd)* (si2) + (xa-xb+xc-xd)* co2 */
-                out1 = (int16_t)((Co2 * R0 + Si2 * R1) >> 16U);
-                /* (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
-                out2 = (int16_t)((-Si2 * R0 + Co2 * R1) >> 16U);
+          /* (ya-yb+yc-yd)* (si2) + (xa-xb+xc-xd)* co2 */
+          out1 = (int16_t)((Co2 * R0 + Si2 * R1) >> 16U);
+          /* (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
+          out2 = (int16_t)((-Si2 * R0 + Co2 * R1) >> 16U);
 
-                /*  Reading i0+3fftLen/4 */
-                /* Read yb (real), xb(imag) input */
-                T0 = pSrc16[i1 * 2U];
-                T1 = pSrc16[(i1 * 2U) + 1U];
+          /*  Reading i0+3fftLen/4 */
+          /* Read yb (real), xb(imag) input */
+          T0 = pSrc16[i1 * 2U];
+          T1 = pSrc16[(i1 * 2U) + 1U];
 
-                /*  writing the butterfly processed i0 + fftLen/4 sample */
-                /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
-                /* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
-                pSrc16[i1 * 2U] = out1;
-                pSrc16[(i1 * 2U) + 1U] = out2;
+          /*  writing the butterfly processed i0 + fftLen/4 sample */
+          /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
+          /* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
+          pSrc16[i1 * 2U] = out1;
+          pSrc16[(i1 * 2U) + 1U] = out2;
 
-                /*  Butterfly calculations */
+          /*  Butterfly calculations */
+          /* Read yd (real), xd(imag) input */
+          U0 = pSrc16[i3 * 2U];
+          U1 = pSrc16[(i3 * 2U) + 1U];
 
-                /* Read yd (real), xd(imag) input */
-                U0 = pSrc16[i3 * 2U];
-                U1 = pSrc16[(i3 * 2U) + 1U];
+          /* T0 = yb-yd, T1 = xb-xd */
+          T0 = (int16_t) __CLIP(T0 - U0, 15);
+          T1 = (int16_t) __CLIP(T1 - U1, 15);
 
-                /* T0 = yb-yd, T1 = xb-xd */
-                T0 = (int16_t) __CLIP(T0 - U0, 15);
-                T1 = (int16_t) __CLIP(T1 - U1, 15);
+          /* R0 = (ya-yc) + (xb- xd), R1 = (xa-xc) - (yb-yd)) */
+          R0 = (int16_t) ((S0 >> 1U) - (T1 >> 1U));
+          R1 = (int16_t) ((S1 >> 1U) + (T0 >> 1U));
 
-                /* R0 = (ya-yc) + (xb- xd), R1 = (xa-xc) - (yb-yd)) */
-                R0 = (int16_t) ((S0 >> 1U) - (T1 >> 1U));
-                R1 = (int16_t) ((S1 >> 1U) + (T0 >> 1U));
+          /* S0 = (ya-yc) - (xb- xd), S1 = (xa-xc) + (yb-yd)) */
+          S0 = (int16_t)((S0 >> 1U) + (T1 >> 1U));
+          S1 = (int16_t)((S1 >> 1U) - (T0 >> 1U));
 
-                /* S0 = (ya-yc) - (xb- xd), S1 = (xa-xc) + (yb-yd)) */
-                S0 = (int16_t)((S0 >> 1U) + (T1 >> 1U));
-                S1 = (int16_t)((S1 >> 1U) - (T0 >> 1U));
+          /*  Butterfly process for the i0+fftLen/2 sample */
+          out1 = (int16_t)((Co1 * S0 + Si1 * S1) >> 16U);
+          out2 = (int16_t)((-Si1 * S0 + Co1 * S1) >> 16U);
 
-                /*  Butterfly process for the i0+fftLen/2 sample */
-                out1 = (int16_t)((Co1 * S0 + Si1 * S1) >> 16U);
-                out2 = (int16_t)((-Si1 * S0 + Co1 * S1) >> 16U);
+          /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
+          /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
+          pSrc16[i2 * 2U] = out1;
+          pSrc16[(i2 * 2U) + 1U] = out2;
 
-                /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
-                /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
-                pSrc16[i2 * 2U] = out1;
-                pSrc16[(i2 * 2U) + 1U] = out2;
+          /*  Butterfly process for the i0+3fftLen/4 sample */
+          out1 = (int16_t)((Si3 * R1 + Co3 * R0) >> 16U);
+          out2 = (int16_t)((-Si3 * R0 + Co3 * R1) >> 16U);
+          /* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
+          /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
+          pSrc16[i3 * 2U] = out1;
+          pSrc16[(i3 * 2U) + 1U] = out2;
 
-                /*  Butterfly process for the i0+3fftLen/4 sample */
-                out1 = (int16_t)((Si3 * R1 + Co3 * R0) >> 16U);
-                out2 = (int16_t)((-Si3 * R0 + Co3 * R1) >> 16U);
-                /* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
-                /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
-                pSrc16[i3 * 2U] = out1;
-                pSrc16[(i3 * 2U) + 1U] = out2;
-            }
-        }
-        /*  Twiddle coefficients index modifier */
-        twidCoefModifier <<= 2U;
-        mempool_barrier(NUM_CORES);
+      }
+
+      /*  Twiddle coefficients index modifier */
+      twidCoefModifier <<= 2U;
+      mempool_barrier(NUM_CORES);
+
     }
     /* END OF MIDDLE STAGE PROCESSING */
+
 
     /* data is in 10.6(q6) format for the 1024 point */
     /* data is in 8.8(q8) format for the 256 point */
