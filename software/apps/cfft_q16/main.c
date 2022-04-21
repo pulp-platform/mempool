@@ -227,9 +227,9 @@ int main() {
   #endif
 
     if(core_id==0) {
-      for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-        printf("{%6d;%6d } \n", pSrcp[i], pSrcp[i+1]);
-      }
+//      for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
+//        printf("{%6d;%6d } \n", pSrc[i], pSrc[i+1]);
+//      }
       printf("Done PARALLEL!\n");
     }
     mempool_barrier(NUM_CORES);

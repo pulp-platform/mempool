@@ -787,7 +787,7 @@ int16_t twiddleCoef_1024_q16[1536] = {
   Convert Floating point to q15(Fixed point 1.15):
         round(twiddleCoefq15(i) * pow(2, 15))
  */
-int16_t twiddleCoef_2048_q16[3072] __attribute__((aligned(2048), section(".l1"))) = {
+int16_t twiddleCoef_2048_q16[3072] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7FFF, (int16_t)0x0064, (int16_t)0x7FFF,
     (int16_t)0x00C9, (int16_t)0x7FFE, (int16_t)0x012D, (int16_t)0x7FFD, (int16_t)0x0192,
     (int16_t)0x7FFC, (int16_t)0x01F6, (int16_t)0x7FFA, (int16_t)0x025B, (int16_t)0x7FF8,
