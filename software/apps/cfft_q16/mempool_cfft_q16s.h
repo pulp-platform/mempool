@@ -1,7 +1,5 @@
-//#define __CLIP(x, bound) (((x)<=-((bound)+1))?(-((bound)+1)):(((x)>=(bound))?(bound):(x)))
-//#define __CLIP(x, bound) ( { x <= (-(bound+1)) ? (-(bound+1)) : x; } )
-#define __CLIP(x, bound) ( (x > bound) ? (bound) : ( (x < (-(bound+1))) ? (-(bound+1)) : x ) )
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#include "xpulp/builtins_v2.h"
 
 static void mempool_cfft_q16s(  uint16_t fftLen,
                                 int16_t *pTwiddle,

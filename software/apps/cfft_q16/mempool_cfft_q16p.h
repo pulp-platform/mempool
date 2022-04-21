@@ -1,6 +1,5 @@
-//#define __CLIP(x, bound) ( { x <= (-(bound+1)) ? (-(bound+1)) : x; } )
-#define __CLIP(x, bound) ( (x > bound) ? (bound) : ( (x < (-(bound+1))) ? (-(bound+1)) : x ) )
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#include "xpulp/builtins_v2.h"
 
 
 static void mempool_cfft_q16p(  uint16_t fftLen,
@@ -55,9 +54,9 @@ void mempool_cfft_q16p( uint16_t fftLen,
         }
     }
 
-    if(mempool_get_core_id()==0) {
-      printf("Done\n");
-    }
+//    if(mempool_get_core_id()==0) {
+//      printf("Done\n");
+//    }
 
     if (bitReverseFlag) {
 //      if(mempool_get_core_id()==0) {
@@ -145,7 +144,9 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
                                     uint32_t nPE) {
 
     uint32_t core_id = mempool_get_core_id()%nPE;
+    uint32_t R, S, T, U;
     int16_t R0, R1, S0, S1, T0, T1, U0, U1;
+    uint32_t CoSi1, CoSi2, CoSi3;
     int16_t Co1, Si1, Co2, Si2, Co3, Si3, out1, out2;
     uint32_t n1, n2, ic, i0, i1, i2, i3, j, k;
 
@@ -176,12 +177,14 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         /* Reading i0, i0+fftLen/2 inputs */
         /* input is down scale by 4 to avoid overflow */
         /* Read ya (real), xa (imag) input */
-        T0 = pSrc16[i0 * 2U] >> 2U;
-        T1 = pSrc16[(i0 * 2U) + 1U] >> 2U;
+        T = (uint32_t) pSrc16[i0 * 2U];
+        T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+        T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
         /* input is down scale by 4 to avoid overflow */
         /* Read yc (real), xc(imag) input */
-        S0 = pSrc16[i2 * 2U] >> 2U;
-        S1 = pSrc16[(i2 * 2U) + 1U] >> 2U;
+        S = (uint32_t) pSrc16[i2 * 2U];
+        S0 = (int16_t)((S&0x0000FFFF) >> 2U);
+        S1 = (int16_t)((S&0xFFFF0000) >> 2U);
 
         /* R0 = (ya + yc) */
         R0 = (int16_t) __CLIP(T0 + S0, 15);
@@ -196,12 +199,14 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
         /* input is down scale by 4 to avoid overflow */
         /* Read yb (real), xb(imag) input */
-        T0 = pSrc16[i1 * 2U] >> 2U;
-        T1 = pSrc16[(i1 * 2U) + 1U] >> 2U;
+        T = (uint32_t) pSrc16[i1 * 2U];
+        T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+        T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
         /* input is down scale by 4 to avoid overflow */
         /* Read yd (real), xd(imag) input */
-        U0 = pSrc16[i3 * 2U] >> 2U;
-        U1 = pSrc16[(i3 * 2U) + 1] >> 2U;
+        U = (uint32_t) pSrc16[i3 * 2U];
+        U0 =  (int16_t)((U&0x0000FFFF) >> 2U);
+        U1 =  (int16_t)((U&0xFFFF0000) >> 2U);
 
         /* T0 = (yb + yd) */
         T0 = (int16_t) __CLIP(T0 + U0, 15);
@@ -220,8 +225,9 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         R1 = (int16_t) __CLIP(R1 - T1, 15);
 
         /* co2 & si2 are read from Coefficient pointer */
-        Co2 = pCoef16[2U * ic * 2U];
-        Si2 = pCoef16[(2U * ic * 2U) + 1];
+        CoSi2 = (uint32_t) pCoef16[2U*ic];
+        Co2 = (int16_t) (CoSi2&0x0000FFFF);
+        Si2 = (int16_t) (CoSi2&0xFFFF0000);
 
         /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
         out1 = (int16_t)((Co2 * R0 + Si2 * R1) >> 16U);
@@ -231,8 +237,9 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         /*  Reading i0+fftLen/4 */
         /* input is down scale by 4 to avoid overflow */
         /* T0 = yb, T1 =  xb */
-        T0 = pSrc16[i1 * 2U] >> 2;
-        T1 = pSrc16[(i1 * 2U) + 1] >> 2;
+        T = (uint32_t) pSrc16[i1 * 2U];
+        T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+        T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
 
         /* writing the butterfly processed i0 + fftLen/4 sample */
         /* writing output(xc', yc') in little endian format */
@@ -242,8 +249,9 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         /*  Butterfly calculations */
         /* input is down scale by 4 to avoid overflow */
         /* U0 = yd, U1 = xd */
-        U0 = pSrc16[i3 * 2U] >> 2;
-        U1 = pSrc16[(i3 * 2U) + 1] >> 2;
+        U = (uint32_t) pSrc16[i3 * 2U];
+        U0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+        U1 =  (int16_t)((T&0xFFFF0000) >> 2U);
         /* T0 = yb-yd */
         T0 = (int16_t) __CLIP(T0 - U0, 15);
         /* T1 = xb-xd */
@@ -256,8 +264,10 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         S1 = (int16_t)__CLIP(((int32_t)S1 - T0), 15);
 
         /* co1 & si1 are read from Coefficient pointer */
-        Co1 = pCoef16[ic * 2U];
-        Si1 = pCoef16[(ic * 2U) + 1];
+        CoSi1 = (uint32_t) pCoef16[ic];
+        Co1 = (int16_t) (CoSi1&0x0000FFFF);
+        Si1 = (int16_t) (CoSi1&0xFFFF0000);
+
         /*  Butterfly process for the i0+fftLen/2 sample */
         /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
         out1 = (int16_t)((Si1 * S1 + Co1 * S0) >> 16);
@@ -269,8 +279,10 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         pSrc16[(i2 * 2U) + 1] = out2;
 
         /* Co3 & si3 are read from Coefficient pointer */
-        Co3 = pCoef16[3U * (ic * 2U)];
-        Si3 = pCoef16[(3U * (ic * 2U)) + 1];
+        CoSi3 = (uint32_t) pCoef16[ic];
+        Co3 = (int16_t) (CoSi3&0x0000FFFF);
+        Si3 = (int16_t) (CoSi3&0xFFFF0000);
+
         /*  Butterfly process for the i0+3fftLen/4 sample */
         /* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
         out1 = (int16_t)((Si3 * R1 + Co3 * R0) >> 16U);
@@ -299,6 +311,22 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
       n2 >>= 2U;
       step = (n2+nPE-1)/nPE;
 
+      CoSi1 = (uint32_t) pCoef16[ic];
+      CoSi2 = (uint32_t) pCoef16[2U*ic];
+      CoSi3 = (uint32_t) pCoef16[3U*ic];
+      Co1 = (int16_t) (CoSi1&0x0000FFFF);
+      Si1 = (int16_t) (CoSi1&0xFFFF0000);
+      Co2 = (int16_t) (CoSi2&0x0000FFFF);
+      Si2 = (int16_t) (CoSi2&0xFFFF0000);
+      Co3 = (int16_t) (CoSi3&0x0000FFFF);
+      Si3 = (int16_t) (CoSi3&0xFFFF0000);
+//      Co1 = pCoef16[ic * 2U];
+//      Si1 = pCoef16[(ic * 2U) + 1U];
+//      Co2 = pCoef16[2U * (ic * 2U)];
+//      Si2 = pCoef16[(2U * (ic * 2U)) + 1U];
+//      Co3 = pCoef16[3U * (ic * 2U)];
+//      Si3 = pCoef16[(3U * (ic * 2U)) + 1U];
+
       butt_id = core_id%n2;
       offset = (core_id/n2)*n1;
       for(j = butt_id*step; j < MIN(butt_id*step+step,n2); j++) {
@@ -307,17 +335,10 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
           /*  Twiddle coefficients index modifier */
           ic = twidCoefModifier * j;
 
-          /*  index calculation for the coefficients */
-          Co1 = pCoef16[ic * 2U];
-          Si1 = pCoef16[(ic * 2U) + 1U];
-          Co2 = pCoef16[2U * (ic * 2U)];
-          Si2 = pCoef16[(2U * (ic * 2U)) + 1U];
-          Co3 = pCoef16[3U * (ic * 2U)];
-          Si3 = pCoef16[(3U * (ic * 2U)) + 1U];
-
           /*  Butterfly implementation */
           for (i0 = offset + j; i0 < fftLen; i0 += ((nPE/n2) + 1)*n1) {
           //for (i0 = j; i0 < fftLen; i0 = i0 + n1) {
+
               /*  index calculation for the input as, */
               /*  pSrc16[i0 + 0], pSrc16[i0 + fftLen/4], pSrc16[i0 + fftLen/2], pSrc16[i0 + 3fftLen/4] */
               i1 = i0 + n2;
@@ -326,36 +347,38 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
 
               /*  Reading i0, i0+fftLen/2 inputs */
               /* Read ya (real), xa(imag) input */
-              T0 = pSrc16[i0 * 2U];
-              T1 = pSrc16[(i0 * 2U) + 1U];
+              T = (uint32_t) pSrc16[i0 * 2U];
+              T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+              T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
 
               /* Read yc (real), xc(imag) input */
-              S0 = pSrc16[i2 * 2U];
-              S1 = pSrc16[(i2 * 2U) + 1U];
+              S = (uint32_t) pSrc16[i2 * 2U];
+              S0 = (int16_t)((S&0x0000FFFF) >> 2U);
+              S1 = (int16_t)((S&0xFFFF0000) >> 2U);
 
               /* R0 = (ya + yc), R1 = (xa + xc) */
               R0 = (int16_t) __CLIP(T0 + S0, 15);
               R1 = (int16_t) __CLIP(T1 + S1, 15);
-
               /* S0 = (ya - yc), S1 =(xa - xc) */
               S0 = (int16_t) __CLIP(T0 - S0, 15);
               S1 = (int16_t) __CLIP(T1 - S1, 15);
 
               /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
               /* Read yb (real), xb(imag) input */
-              T0 = pSrc16[i1 * 2U];
-              T1 = pSrc16[(i1 * 2U) + 1U];
+              T = (uint32_t) pSrc16[i1 * 2U];
+              T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+              T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
 
               /* Read yd (real), xd(imag) input */
-              U0 = pSrc16[i3 * 2U];
-              U1 = pSrc16[(i3 * 2U) + 1U];
+              U = (uint32_t) pSrc16[i3 * 2U];
+              U0 =  (int16_t)((U&0x0000FFFF) >> 2U);
+              U1 =  (int16_t)((U&0xFFFF0000) >> 2U);
 
               /* T0 = (yb + yd), T1 = (xb + xd) */
               T0 = (int16_t) __CLIP(T0 + U0, 15);
               T1 = (int16_t) __CLIP(T1 + U1, 15);
 
               /*  writing the butterfly processed i0 sample */
-
               /* xa' = xa + xb + xc + xd */
               /* ya' = ya + yb + yc + yd */
               out1 = (int16_t) (((R0 >> 1U) + (T0 >> 1U)) >> 1U);
@@ -366,7 +389,6 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
               /* R0 = (ya + yc) - (yb + yd), R1 = (xa + xc) - (xb + xd) */
               R0 = (int16_t) ((R0 >> 1U) - (T0 >> 1U));
               R1 = (int16_t) ((R1 >> 1U) - (T1 >> 1U));
-
               /* (ya-yb+yc-yd)* (si2) + (xa-xb+xc-xd)* co2 */
               out1 = (int16_t)((Co2 * R0 + Si2 * R1) >> 16U);
               /* (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
@@ -374,8 +396,9 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
 
               /*  Reading i0+3fftLen/4 */
               /* Read yb (real), xb(imag) input */
-              T0 = pSrc16[i1 * 2U];
-              T1 = pSrc16[(i1 * 2U) + 1U];
+              T = (uint32_t) pSrc16[i1 * 2U];
+              T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+              T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
 
               /*  writing the butterfly processed i0 + fftLen/4 sample */
               /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
@@ -384,23 +407,20 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
               pSrc16[(i1 * 2U) + 1U] = out2;
 
               /*  Butterfly calculations */
-
               /* Read yd (real), xd(imag) input */
-              U0 = pSrc16[i3 * 2U];
-              U1 = pSrc16[(i3 * 2U) + 1U];
+              U = (uint32_t) pSrc16[i3 * 2U];
+              U0 =  (int16_t)((U&0x0000FFFF) >> 2U);
+              U1 =  (int16_t)((U&0xFFFF0000) >> 2U);
 
               /* T0 = yb-yd, T1 = xb-xd */
               T0 = (int16_t) __CLIP(T0 - U0, 15);
               T1 = (int16_t) __CLIP(T1 - U1, 15);
-
               /* R0 = (ya-yc) + (xb- xd), R1 = (xa-xc) - (yb-yd)) */
               R0 = (int16_t) ((S0 >> 1U) - (T1 >> 1U));
               R1 = (int16_t) ((S1 >> 1U) + (T0 >> 1U));
-
               /* S0 = (ya-yc) - (xb- xd), S1 = (xa-xc) + (yb-yd)) */
               S0 = (int16_t)((S0 >> 1U) + (T1 >> 1U));
               S1 = (int16_t)((S1 >> 1U) - (T0 >> 1U));
-
               /*  Butterfly process for the i0+fftLen/2 sample */
               out1 = (int16_t)((Co1 * S0 + Si1 * S1) >> 16U);
               out2 = (int16_t)((-Si1 * S0 + Co1 * S1) >> 16U);
@@ -409,7 +429,6 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
               /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
               pSrc16[i2 * 2U] = out1;
               pSrc16[(i2 * 2U) + 1U] = out2;
-
               /*  Butterfly process for the i0+3fftLen/4 sample */
               out1 = (int16_t)((Si3 * R1 + Co3 * R0) >> 16U);
               out2 = (int16_t)((-Si3 * R0 + Co3 * R1) >> 16U);
@@ -417,6 +436,7 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
               /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
               pSrc16[i3 * 2U] = out1;
               pSrc16[(i3 * 2U) + 1U] = out2;
+
           }
       }
 
@@ -454,12 +474,14 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
 
         /*  Reading i0, i0+fftLen/2 inputs */
         /* Read ya (real), xa(imag) input */
-        T0 = pSrc16[i0 * 2U];
-        T1 = pSrc16[(i0 * 2U) + 1U];
+        T = (uint32_t) pSrc16[i0 * 2U];
+        T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+        T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
 
         /* Read yc (real), xc(imag) input */
-        S0 = pSrc16[i2 * 2U];
-        S1 = pSrc16[(i2 * 2U) + 1U];
+        S = (uint32_t) pSrc16[i2 * 2U];
+        S0 = (int16_t)((S&0x0000FFFF) >> 2U);
+        S1 = (int16_t)((S&0xFFFF0000) >> 2U);
 
         /* R0 = (ya + yc), R1 = (xa + xc) */
         R0 = (int16_t) __CLIP(T0 + S0, 15);
@@ -471,11 +493,14 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
 
         /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
         /* Read yb (real), xb(imag) input */
-        T0 = pSrc16[i1 * 2U];
-        T1 = pSrc16[(i1 * 2U) + 1U];
+        T = (uint32_t) pSrc16[i1 * 2U];
+        T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+        T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
+
         /* Read yd (real), xd(imag) input */
-        U0 = pSrc16[i3 * 2U];
-        U1 = pSrc16[(i3 * 2U) + 1U];
+        U = (uint32_t) pSrc16[i3 * 2U];
+        U0 =  (int16_t)((U&0x0000FFFF) >> 2U);
+        U1 =  (int16_t)((U&0xFFFF0000) >> 2U);
 
         /* T0 = (yb + yd), T1 = (xb + xd)) */
         T0 = (int16_t) __CLIP(T0 + U0, 15);
@@ -491,8 +516,9 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         R0 = (int16_t) ((R0 >> 1U) - (T0 >> 1U));
         R1 = (int16_t) ((R1 >> 1U) - (T1 >> 1U));
         /* Read yb (real), xb(imag) input */
-        T0 = pSrc16[i1 * 2U];
-        T1 = pSrc16[(i1 * 2U) + 1U];
+        T = (uint32_t) pSrc16[i1 * 2U];
+        T0 =  (int16_t)((T&0x0000FFFF) >> 2U);
+        T1 =  (int16_t)((T&0xFFFF0000) >> 2U);
 
         /*  writing the butterfly processed i0 + fftLen/4 sample */
         /* xc' = (xa-xb+xc-xd) */
@@ -501,8 +527,10 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         pSrc16[(i1 * 2U) + 1U] = R1;
 
         /* Read yd (real), xd(imag) input */
-        U0 = pSrc16[i3 * 2U];
-        U1 = pSrc16[(i3 * 2U) + 1U];
+        U = (uint32_t) pSrc16[i3 * 2U];
+        U0 =  (int16_t)((U&0x0000FFFF) >> 2U);
+        U1 =  (int16_t)((U&0xFFFF0000) >> 2U);
+
         /* T0 = (yb - yd), T1 = (xb - xd)  */
         T0 = (int16_t) __CLIP(T0 - U0, 15);
         T1 = (int16_t) __CLIP(T1 - U1, 15);
