@@ -1,0 +1,13 @@
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "rust_hello"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rust-rt = {path = "../../rust-rt"}
+panic-halt = "0.2"
+riscv = "0.8"
