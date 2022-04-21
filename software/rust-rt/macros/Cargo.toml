@@ -1,0 +1,27 @@
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+authors = [
+    "Michael Rogenmoser <michaero@iis.ee.ethz.ch",
+]
+license = "Apache-2.0"
+name = "riscv-rt-macros"
+version = "0.1.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0"
+proc-macro2 = "1.0"
+
+[dependencies.syn]
+version = "1.0"
+features = ["extra-traits", "full"]
+
+[dependencies.rand]
+version = "0.7.3"
+default-features = false
+features = ["small_rng"]

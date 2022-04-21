@@ -1,0 +1,22 @@
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "rust-rt"
+version = "0.1.0"
+authors = ["Michael Rogenmoser <michaero@iis.ee.ethz.ch>"]
+description = "Minimal rust runtime for MemPool"
+
+[dependencies]
+riscv = "0.7"
+riscv-rt-macros = { path = "macros" }
+
+[features]
+inline-asm = ["riscv/inline-asm"]
+
+[dev-dependencies]
+panic-halt = "0.2.0"
+
+[build-dependencies]
+riscv-target = "0.1"
