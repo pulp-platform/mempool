@@ -11,10 +11,9 @@ ENTRY(_start)
 
 SECTIONS {
   /* Sequential region on L1 */
+  /* Use dynamic allocation with `domain_malloc` */
   .l1_seq (NOLOAD): {
     . = __seq_end;
-    *(.l1_seq);
-    __l1_seq_alloc_base = ALIGN(0x10);
   } > l1
 
   /* Interleaved region on L1 */
