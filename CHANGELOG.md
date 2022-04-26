@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add the `terapool` configuration
 - Add read-only caches to the hierarchical AXI interconnect
 - Add a `memcpy` benchmark
+- Add a systolic configuration including runtime support and a matmul application
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module

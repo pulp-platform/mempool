@@ -6,6 +6,7 @@
 //         Matheus Cavalcante, ETH Zurich
 
 #pragma once
+#include "alloc.h"
 #include "encoding.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -25,6 +26,28 @@ static inline mempool_id_t mempool_get_core_id() {
   mempool_id_t r;
   asm volatile("csrr %0, mhartid" : "=r"(r));
   return r;
+}
+
+/// Initialization
+static inline void mempool_init(const uint32_t core_id,
+                                const uint32_t num_cores) {
+  if (core_id == 0) {
+    // Initialize L1 Interleaved Heap Allocator
+    extern int32_t __heap_start, __heap_end;
+    uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
+    alloc_init(get_alloc_l1(), &__heap_start, heap_size);
+
+    // Initialize L1 Sequential Heap Allocator per Tile
+    extern int32_t __seq_start;
+    uint32_t seq_heap_offset = 4 * STACK_SIZE + 16 * 4 * XQUEUE_SIZE;
+    uint32_t seq_total_size = 4 * SEQ_MEM_SIZE;
+    int32_t *seq_heap_base = &__seq_start + (seq_heap_offset / 4);
+    uint32_t seq_heap_size = seq_total_size - seq_heap_offset;
+    for (uint32_t tile_id = 0; tile_id < num_cores / 4; ++tile_id) {
+      alloc_init(get_alloc_tile(tile_id), seq_heap_base, seq_heap_size);
+      seq_heap_base += (seq_total_size / 4);
+    }
+  }
 }
 
 /// Reset a monotonically increasing cycle count.

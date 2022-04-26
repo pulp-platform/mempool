@@ -21,7 +21,15 @@ SECTIONS {
 
   // Stack size
   __stack_start = __l1_start;
-  __stack_end = __l1_start + (NUM_CORES * 0x400);
+  __stack_end = __l1_start + (NUM_CORES * STACK_SIZE);
+
+  // Sequential region size
+  __seq_start = __l1_start;
+  __seq_end = __l1_start + (NUM_CORES * SEQ_MEM_SIZE);
+
+  // Heap size (start address is re-assigned in link.ld)
+  __heap_start = __l1_start;
+  __heap_end = __l1_end;
 
   // Hardware register location
   eoc_reg                = 0x40000000;
