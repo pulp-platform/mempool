@@ -345,7 +345,7 @@ $(MEMPOOL_DIR)/software/runtime/bootrom.img:
 .PHONY: clean clean-dasm clean-trace update_opcodes
 
 update_opcodes:
-	make -C $(TOOLCHAIN_DIR)/riscv-opcodes all
+	make -C $(MEMPOOL_DIR) update_opcodes
 
 clean:
 	@rm -rf $(buildpath)
