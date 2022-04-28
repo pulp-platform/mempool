@@ -132,7 +132,6 @@ check-bootrom:
 check-opcodes:
   stage: test
   script:
-    - rm toolchain/riscv-opcodes/encoding_out.h
     - make update_opcodes
     - git diff --exit-code
 
@@ -205,7 +204,9 @@ unit-tests:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator-model
     - git submodule update --init --recursive -- hardware/deps/*
     - make update-deps
+    - touch $ROOT_DIR/software/runtime/encoding.h
     - touch $ROOT_DIR/hardware/src/bootrom.sv
+    - touch $ROOT_DIR/hardware/deps/snitch/src/riscv_instr.sv
     - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
     - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
     - make test
@@ -237,7 +238,9 @@ verilator-tests:
     - cd ../../hardware
     - |
       for APP in ${APPS}; do
+        touch $ROOT_DIR/software/runtime/encoding.h
         touch $ROOT_DIR/hardware/src/bootrom.sv
+        touch $ROOT_DIR/hardware/deps/snitch/src/riscv_instr.sv
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         app=${APP} make verilate
