@@ -384,14 +384,9 @@ jobs:
       env:
         config: ${{ matrix.mempool_config }}
       run: |
-        # Don't regenerate previously build artifacts
-        touch $GITHUB_WORKSPACE/software/runtime/encoding.h
-        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
-        touch $GITHUB_WORKSPACE/hardware/deps/snitch/src/riscv_instr.sv
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         cd hardware
-        app=tests make verilate
+        # Don't regenerate previously build artifacts
+        app=tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-llvm:
@@ -427,14 +422,9 @@ jobs:
       env:
         config: ${{ matrix.mempool_config }}
       run: |
-        # Don't regenerate previously build artifacts
-        touch $GITHUB_WORKSPACE/software/runtime/encoding.h
-        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
-        touch $GITHUB_WORKSPACE/hardware/deps/snitch/src/riscv_instr.sv
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         cd hardware
-        app=tests make verilate
+        # Don't regenerate previously build artifacts
+        app=tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-halide:
@@ -470,14 +460,9 @@ jobs:
       env:
         config: ${{ matrix.mempool_config }}
       run: |
-        # Don't regenerate previously build artifacts
-        touch $GITHUB_WORKSPACE/software/runtime/encoding.h
-        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
-        touch $GITHUB_WORKSPACE/hardware/deps/snitch/src/riscv_instr.sv
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         cd hardware
-        app=halide-2d_convolution make verilate
+        # Don't regenerate previously build artifacts
+        app=halide-2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   unit-test:
@@ -514,7 +499,7 @@ jobs:
         touch $GITHUB_WORKSPACE/hardware/deps/snitch/src/riscv_instr.sv
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
-        make -o update_opcodes test
+        make test
 
   ##############
   #  Clean-up  #
