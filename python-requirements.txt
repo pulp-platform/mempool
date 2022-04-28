@@ -12,6 +12,7 @@ jsonref
 jsonschema
 mako
 numpy
+pandas
 progressbar2
 tabulate
 yamlfmt
