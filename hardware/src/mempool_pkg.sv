@@ -201,6 +201,8 @@ package mempool_pkg;
    *********/
 
   localparam int unsigned NumDMAsPerGroup = 4;
+  localparam int unsigned NumTilesPerDMA = NumTilesPerGroup/NumDMAsPerGroup;
+  localparam int unsigned NumDMAPortsPerTile = 4;
 
   typedef struct packed {
     axi_tile_id_t id;
@@ -226,6 +228,10 @@ package mempool_pkg;
   /*****************
    *  ADDRESS MAP  *
    *****************/
+
+  // TCDM Memory Region
+  localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
+  localparam addr_t TCDMMask = ~(TCDMSize - 1);
 
   // Size in bytes of memory that is sequentially addressable per tile
   localparam int unsigned SeqMemSizePerCore = `ifdef SEQ_MEM_SIZE `SEQ_MEM_SIZE `else 0 `endif;
