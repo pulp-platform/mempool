@@ -46,6 +46,14 @@ packages:
     dependencies:
       - axi
       - common_cells
+  reqrsp_interface:
+    revision: ~
+    version: ~
+    source:
+      Path: hardware/deps/reqrsp_interface
+    dependencies:
+      - axi
+      - common_cells
   snitch:
     revision: ~
     version: ~
