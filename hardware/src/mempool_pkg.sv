@@ -156,8 +156,8 @@ package mempool_pkg;
    *  DMA  *
    *********/
 
-  localparam int unsigned NumDMAsPerGroup = 4;
-  localparam int unsigned NumTilesPerDMA = NumTilesPerGroup/NumDMAsPerGroup;
+  localparam int unsigned NumDmasPerGroup = 4;
+  localparam int unsigned NumTilesPerDma = NumTilesPerGroup/NumDmasPerGroup;
   localparam int unsigned DmaNumWords = 4;
   localparam int unsigned DmaDataWidth = DmaNumWords*DataWidth;
   localparam int unsigned NumSuperbanks = NumBanksPerTile/DmaNumWords;
@@ -234,12 +234,10 @@ package mempool_pkg;
     logic wen;
     strb_t be;
     tile_addr_t tgt_addr;
-    tile_group_id_t ini_addr;
   } tcdm_dma_req_t;
 
   typedef struct packed {
     dma_payload_t rdata;
-    tile_group_id_t ini_addr;
   } tcdm_dma_resp_t;
 
   /**********************

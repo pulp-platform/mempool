@@ -16,8 +16,6 @@ add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::ICacheSizeByte
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::ICacheSets
 add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::NumCores
-add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/TCDMSize
-add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/TCDMMask
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/clk_i
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/rst_ni
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/scan_enable_i
