@@ -11,7 +11,7 @@ module mempool_cluster
   // Boot address
   parameter logic           [31:0] BootAddr      = 32'h0000_0000,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int    unsigned        NumDMAReq     = NumGroups * NumDMAsPerGroup,
+  parameter int    unsigned        NumDMAReq     = NumGroups * NumDmasPerGroup,
   parameter int    unsigned        NumAXIMasters = NumGroups * NumAXIMastersPerGroup
 ) (
   // Clock and reset
@@ -82,9 +82,9 @@ module mempool_cluster
       .wake_up_i               (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
       .ro_cache_ctrl_i         (ro_cache_ctrl_i                                                 ),
       // DMA request
-      .dma_req_i               (dma_req_i[g*NumDMAsPerGroup +: NumDMAsPerGroup]                 ),
-      .dma_req_valid_i         (dma_req_valid_i[g*NumDMAsPerGroup +: NumDMAsPerGroup]           ),
-      .dma_req_ready_o         (dma_req_ready_o[g*NumDMAsPerGroup +: NumDMAsPerGroup]           ),
+      .dma_req_i               (dma_req_i[g*NumDmasPerGroup +: NumDmasPerGroup]                 ),
+      .dma_req_valid_i         (dma_req_valid_i[g*NumDmasPerGroup +: NumDmasPerGroup]           ),
+      .dma_req_ready_o         (dma_req_ready_o[g*NumDmasPerGroup +: NumDmasPerGroup]           ),
       // AXI interface
       .axi_mst_req_o           (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
       .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
