@@ -11,6 +11,7 @@ dependencies:
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.23.0 }
   idma:                 { git: "git@iis-git.ee.ethz.ch:bslk/idma.git",                      rev:     mempool}
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.3.1  }
+  reqrsp_interface:     { path: "hardware/deps/reqrsp_interface"                                            }
   snitch:               { path: "hardware/deps/snitch"                                                      }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.5  }
 
