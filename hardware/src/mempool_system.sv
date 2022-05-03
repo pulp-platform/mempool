@@ -527,8 +527,8 @@ module mempool_system
     .burst_req_o     (dma_req               ),
     .valid_o         (dma_req_valid         ),
     .ready_i         (dma_req_ready         ),
-    .backend_idle_i  (1'b1                  ),
-    .trans_complete_i(1'b1                  ),
+    .backend_idle_i  (i_mempool_cluster.gen_groups[0].i_group.gen_dmas[0].backend_idle),
+    .trans_complete_i(i_mempool_cluster.gen_groups[0].i_group.gen_dmas[0].trans_complete),
     .dma_id_o        (dma_id                )
   );
 
