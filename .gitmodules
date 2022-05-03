@@ -30,4 +30,4 @@
 	url = https://github.com/pulp-platform/tech_cells_generic.git
 [submodule "toolchain/riscv-opcodes"]
 	path = toolchain/riscv-opcodes
-	url = https://github.com/oakentling/riscv-opcodes.git
+	url = https://github.com/pulp-platform/riscv-opcodes.git
