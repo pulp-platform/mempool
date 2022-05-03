@@ -39,6 +39,7 @@ int volatile error __attribute__((section(".l1")));
 
 dump(start, 2);
 dump(end, 3);
+dump(dma, 7);
 
 void *mempool_memcpy(void *destination, const void *source, size_t num) {
   if ((((size_t)destination | (size_t)source | num) &
@@ -145,17 +146,27 @@ int main() {
   }
 
   int32_t volatile *const src_a = (int32_t *)0x80002000;
-  int32_t volatile *const src_b = (int32_t *)0x80004000;
+  int32_t volatile *const src_b = (int32_t *)0x000C0000;
   int32_t volatile *const src_c = (int32_t *)0x80008000;
   int32_t volatile *const src_d = (int32_t *)0x8000C000;
+
+  // Init
+  for (int i = core_id; i < SIZE; i+=num_cores) {
+    src_a[i] = i;
+  }
+
+  mempool_barrier(num_cores);
 
   // Benchmark
   mempool_start_benchmark();
   uint32_t time = mempool_get_timer();
   dump_start(time);
-  if (core_id == 0)
-  {
-    dma_memcpy((void *)src_b, (const void *)src_a, SIZE * 4);
+  if (core_id == 0) {
+    dma_memcpy((void *)src_b, (const void *)src_a, 16 * 4 * 4);
+    while (*((volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_STATUS_REG_OFFSET)) != 0);
+    for (int i = 0; i < SIZE; ++i) {
+      dump_dma(src_b[i]);
+    }
   }
   time = mempool_get_timer() - time;
   dump_end(time);
