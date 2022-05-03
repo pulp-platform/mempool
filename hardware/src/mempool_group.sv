@@ -517,7 +517,7 @@ module mempool_group
       .default_mst_port_i   ('0                           )
     );
 
-    `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, data_t, strb_t)
+    `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
     reqrsp_req_t dma_reqrsp_req;
     reqrsp_rsp_t dma_reqrsp_rsp;
