@@ -455,7 +455,7 @@ module mempool_group
     // ------------------------------------------------------
 
     // xbar
-    localparam int unsigned NumRules = 2;
+    localparam int unsigned NumRules = 1;
     typedef struct packed {
       int unsigned idx;
       logic [AddrWidth-1:0] start_addr;
@@ -466,11 +466,6 @@ module mempool_group
       '{ // TCDM
         start_addr: TCDMBaseAddr,
         end_addr:   TCDMBaseAddr + TCDMSize,
-        idx:        0
-      },
-      '{ // SoC
-        start_addr: '0,
-        end_addr:   32'hFFFFFFFF,
         idx:        1
       }
     };
@@ -512,10 +507,10 @@ module mempool_group
       .test_i               (1'b0                         ),
       .slv_ports_req_i      (axi_dma_premux_req           ),
       .slv_ports_resp_o     (axi_dma_premux_resp          ),
-      .mst_ports_req_o      ({axi_dma_req[d],tcdm_req}    ),
-      .mst_ports_resp_i     ({axi_dma_resp[d],tcdm_resp}  ),
+      .mst_ports_req_o      ({tcdm_req,axi_dma_req[d]}    ),
+      .mst_ports_resp_i     ({tcdm_resp,axi_dma_resp[d]}  ),
       .addr_map_i           (addr_map                     ),
-      .en_default_mst_port_i('0                           ),
+      .en_default_mst_port_i('1                           ),
       .default_mst_port_i   ('0                           )
     );
 
@@ -563,12 +558,12 @@ module mempool_group
     // Assignment to TCDM interconnect
     // TODO: Reordering might be problematic
     for (genvar t = 0; unsigned'(t) < NumTilesPerDma; t++) begin: gen_dma_tile_connection
-      // TODO address offset?
       assign tcdm_dma_req[d*NumTilesPerDma+t] = '{
                wdata: dma_tile_req[t].q.data,
                wen: dma_tile_req[t].q.write,
                be: dma_tile_req[t].q.strb,
-               tgt_addr: dma_tile_req[t].q.addr[ByteOffset+:TCDMAddrMemWidth+idx_width(NumBanksPerTile)]
+               tgt_addr: {dma_tile_req[t].q.addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroups)+:TCDMAddrMemWidth],
+                          dma_tile_req[t].q.addr[ByteOffset+:idx_width(NumBanksPerTile)]}
              };
       assign tcdm_dma_req_valid[d*NumTilesPerDma+t]  = dma_tile_req[t].q_valid;
       assign dma_tile_rsp[t].q_ready = tcdm_dma_req_ready[d*NumTilesPerDma+t];
