@@ -163,6 +163,7 @@ package mempool_pkg;
   localparam int unsigned NumSuperbanks = NumBanksPerTile/DmaNumWords;
 
   typedef logic [DmaNumWords*DataWidth-1:0] dma_data_t;
+  typedef logic [DmaNumWords*DataWidth/8-1:0] dma_strb_t;
 
   typedef struct packed {
     axi_tile_id_t id;
@@ -232,7 +233,7 @@ package mempool_pkg;
   typedef struct packed {
     dma_payload_t wdata;
     logic wen;
-    strb_t be;
+    dma_strb_t be;
     tile_addr_t tgt_addr;
   } tcdm_dma_req_t;
 
