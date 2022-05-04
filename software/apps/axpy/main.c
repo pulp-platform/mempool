@@ -15,8 +15,8 @@
 #include "synchronization.h"
 
 #if NUM_CORES > 32
-#define matrix_M 128
-#define matrix_N 128
+#define matrix_M 256
+#define matrix_N 256
 #else
 #define matrix_M (NUM_CORES)
 #define matrix_N (NUM_CORES)
@@ -55,12 +55,10 @@ void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns, int32
 }
 
 int verify_axpy(int32_t *matrix_X, int32_t *matrix_Y, int32_t *matrix_Y_COPY, int32_t alpha, uint32_t elements) {
-  uint32_t i = 0;
-  while(i < elements) {
+  for(uint32_t i = 0; i < elements; i++) {
     if (matrix_Y[i] != matrix_X[i] * alpha + matrix_Y_COPY[i]) {
       return 1;
     }
-    i += 1;
   }
   return 0;
 }
