@@ -11,9 +11,7 @@ int32_t AXPY(uint32_t n,  int32_t da, int32_t *x, int32_t *y)
 
 	while(i < n)
 	{
-		y[0] += da * x[0] ;
-		x += 1 ;
-      y += 1 ;
+		y[i] += da * x[i] ;
 		i++ ;
 	}
 	return(0);
