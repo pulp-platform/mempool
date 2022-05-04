@@ -7,3 +7,4 @@ Thanks to all.
 * Sergio Mazzola
 * Gua Hao Khov
 * Marc Gantenbein
+* Lorena Oswald
