@@ -1,41 +1,85 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Author: Marco Bertuletti, ETH Zurich
+
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
+#include "define.h"
+
+#if defined(SINGLE) || defined(SINGLE_UNROLLED)
 #include "dotp_single.h"
+#endif
+
+#if defined(PARALLEL) || defined(PARALLEL_UNROLLED)
 #include "dotp_parallel.h"
+#endif
+
+#if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0)
 #include "dotp_parallel_red0.h"
+#endif
 
-#define N 1024*16
-#define N_BANK NUM_CORES*4
+#if defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
+#include "dotp_parallel_redtree.h"
+#endif
 
-//#define SINGLE
-#define PARALLEL
-//#define UNROLLED
+void initialize_custom_barriers(uint32_t volatile * barrier_global, uint32_t volatile * barrier_local) {
+  *barrier_global = 0;
+  for(uint32_t i = 0; i<N_BANK; i++) {
+    barrier_local[i] = 0;
+  }
+}
 
-// Vectors for kernel computation
-int32_t vector_a[N] 										__attribute__((aligned(N), section(".l1")));
-int32_t vector_b[N] 										__attribute__((aligned(N), section(".l1")));
-int32_t sum                           __attribute__((section(".l1")));
-//int32_t sum[N_BANK]                     __attribute__((aligned(N_BANK), section(".l1")));
-uint32_t my_barrier                     __attribute__((section(".l1")));
+void init_vectors( int32_t* in_a, int32_t* in_b, int32_t* s,
+                   int32_t* p_result, int32_t* p_check, uint32_t N_vect) {
+  *p_result = 0;
+  *p_check = 0;
+  *s = 0;
+  uint32_t split = N_vect/NUM_CORES;
+  uint32_t j = 0;
+  while(j<NUM_CORES) {
+    uint32_t MAX = (j+1)*split > N_vect? N_vect : (j+1)*split;
+    for(uint32_t i = j*split; i < MAX; i++) {
+      int32_t a = (int32_t)(i - 6);
+      int32_t b = i%4 == 0? -1 : 1;
+      in_a[i] = a;
+      in_b[i] = b;
+      *p_check = *p_check + (int32_t) (a*b);
+    }
+    j++;
+  }
+}
 
-// Vectors for performance metrics
-uint32_t instr_init[NUM_CORES]			    __attribute__((section(".l1")));
-uint32_t instr_end[NUM_CORES]	          __attribute__((section(".l1")));
-uint32_t instrstalls_init[NUM_CORES]	  __attribute__((section(".l1")));
-uint32_t instrstalls_end[NUM_CORES]	    __attribute__((section(".l1")));
-uint32_t lsustalls_init[NUM_CORES]	    __attribute__((section(".l1")));
-uint32_t lsustalls_end[NUM_CORES]	      __attribute__((section(".l1")));
-uint32_t rawstalls_init[NUM_CORES]	    __attribute__((section(".l1")));
-uint32_t rawstalls_end[NUM_CORES]	      __attribute__((section(".l1")));
-int32_t result   												__attribute__((section(".l1")));
-int32_t check              							__attribute__((section(".l1")));
-int volatile error 											__attribute__((section(".l1")));
+void init_vectors_red0(   int32_t* in_a, int32_t* in_b, int32_t* s,
+                              int32_t* p_result, int32_t* p_check, uint32_t N_vect) {
+  *p_result = 0;
+  *p_check = 0;
+  uint32_t split = N_vect/NUM_CORES;
+  uint32_t j = 0;
+  while(j<NUM_CORES) {
+    uint32_t MAX = (j+1)*split > N_vect? N_vect : (j+1)*split;
+    for(uint32_t i = j*split; i < MAX; i++) {
+      int32_t a = (int32_t)(i - 20);
+      int32_t b = i%4 == 0? -1 : 1;
+      in_a[i] = a;
+      in_b[i] = b;
+      *p_check = *p_check + (int32_t) (a*b);
+    }
+    j++;
+  }
+ for(uint32_t k=0; k<N_BANK; k++) {
+   s[k] = 0;
+ }
+
+}
 
 int main() {
 
@@ -46,133 +90,105 @@ int main() {
   mempool_barrier_init(core_id);
 
   if (core_id == 0) {
-
   	error = 0;
-  	time_init = 0;
-  	time_end = 0;
-    check = 0;
-    my_barrier = 0;
-
-    init_vectors(	  vector_a, vector_b, &sum,
-    								instr_init, instr_end,
-    								instrstalls_init, instrstalls_end,
-    								lsustalls_init, lsustalls_end,
-    								rawstalls_init, rawstalls_end,
-  									&result, &check, N);
-
-//    init_vectors_red0(   vector_a, vector_b, sum,
-//                    instr_init, instr_end,
-//                    instrstalls_init, instrstalls_end,
-//                    lsustalls_init, lsustalls_end,
-//                    rawstalls_init, rawstalls_end,
-//                    &result, &check, N);
-
-
+    time_init = 0;
+    time_end = 0;
+    #if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0) || defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
+    initialize_custom_barriers(&barrier_global, barrier_local);
+    init_vectors_red0(vector_a, vector_b, sum, &result, &check, N);
+    #else
+    init_vectors(vector_a, vector_b, &sum, &result, &check, N);
+    #endif
   }
   mempool_barrier(NUM_CORES); // wait until all cores have finished
 
   // Kernel execution
-  //time_init = mempool_get_timer();
-  //mempool_start_benchmark();
-  //asm volatile ("csrr %0, 0xb02" : "=r" (instr_init[core_id]));
-  //asm volatile ("csrr %0, 0xb03" : "=r" (instrstalls_init[core_id]));
-  //asm volatile ("csrr %0, 0xb04" : "=r" (lsustalls_init[core_id]));
-  //asm volatile ("csrr %0, 0xb05" : "=r" (rawstalls_init[core_id]));
-  //instr_init[core_id] 				= read_csr(minstret);
-  //instrstalls_init[core_id] 	= read_csr(mhpmcounter3);
-  //lsustalls_init[core_id] 		= read_csr(mhpmcounter4);
-  //rawstalls_init[core_id] 		= read_csr(mhpmcounter5);
 
   #ifdef SINGLE
-
-    #ifdef UNROLLED
-      dotp_single_unrolled4(vector_a, vector_b, &sum, N, core_id);
-    #else
-      dotp_single(vector_a, vector_b, &sum, N, core_id);
-    #endif
-
+    time_init = mempool_get_timer();
+    dotp_single(vector_a, vector_b, &sum, N, core_id);
+    time_end = mempool_get_timer();
   #endif
+
+  #ifdef SINGLE_UNROLLED
+    //time_init = mempool_get_timer();
+    dotp_single_unrolled4(vector_a, vector_b, &sum, N, core_id);
+    //time_end = mempool_get_timer();
+  #endif
+
+  /* A) Parallelized workload
+     B) Atomic fetch and add to a single memory location
+     C) Barrier */
 
   #ifdef PARALLEL
-
-  	#ifdef UNROLLED
-
-      dotp_parallel_unrolled4(vector_a, vector_b, &sum, N, core_id);
-  		//dotp_parallel_unrolled4_red0(vector_a, vector_b, sum, N, N_BRANCH, core_id);
-
-  	#else
-
-      mempool_start_benchmark();
-      dotp_parallel(vector_a, vector_b, &sum, N, core_id);
-  		//dotp_parallel_red0(vector_a, vector_b, sum, N, core_id, &my_barrier);
-      mempool_stop_benchmark();
-
-  	#endif
-
+    time_init = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel(vector_a, vector_b, &sum, N, core_id);
+    mempool_stop_benchmark();
+    time_end = mempool_get_timer();
   #endif
 
-  //asm volatile ("csrr %0, 0xb04" : "=r" (lsustalls_end[core_id]));
-  //asm volatile ("csrr %0, 0xb05" : "=r" (rawstalls_end[core_id]));
-  //asm volatile ("csrr %0, 0xb03" : "=r" (instrstalls_end[core_id]));
-  //asm volatile ("csrr %0, 0xb02" : "=r" (instr_end[core_id]));
-  //rawstalls_end[core_id]    = read_csr(mhpmcounter5);
-  //lsustalls_end[core_id] 		= read_csr(mhpmcounter4);
-  //instrstalls_end[core_id]  = read_csr(mhpmcounter3);
-  //instr_end[core_id]        = read_csr(minstret);
-  //mempool_stop_benchmark();
-  //time_end = mempool_get_timer();
+  #ifdef PARALLEL_UNROLLED
+    time_init = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel_unrolled4(vector_a, vector_b, &sum, N, core_id);
+    mempool_stop_benchmark();
+    time_end = mempool_get_timer();
+  #endif
 
+  /* A) Parallelized workload
+     B) Atomic fetch and add to local memory banks
+     C) Barrier
+     D) Final reduction by core 0 incorporated in a barrier */
+
+  #ifdef PARALLEL_RED0
+    time_init = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel_red0(vector_a, vector_b, sum, N, core_id, &barrier_global);
+    mempool_stop_benchmark();
+    time_end = mempool_get_timer();
+  #endif
+
+  #ifdef PARALLEL_UNROLLED_RED0
+    time_init = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel_unrolled4_red0(vector_a, vector_b, sum, N, core_id, &barrier_global);
+    mempool_stop_benchmark();
+    time_end = mempool_get_timer();
+  #endif
+
+  /* A) Parallelized workload
+     B) Nested set of barriers: reduction is performed in a logarithmic tree. */
+
+  #ifdef PARALLEL_REDTREE
+    time_init = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel_redtree(vector_a, vector_b, sum, N, core_id);
+    mempool_stop_benchmark();
+    time_end = mempool_get_timer();
+  #endif
+
+  #ifdef PARALLEL_UNROLLED_REDTREE
+    time_init = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel_redtree_unrolled(vector_a, vector_b, sum, N, core_id);
+    mempool_stop_benchmark();
+    time_end = mempool_get_timer();
+  #endif
 
   // Check results
   if (core_id == 0) {
-
-  	#ifdef PARALLEL
-
-
-			uint32_t mean_instrstalls = 0;
-			uint32_t mean_lsustalls = 0;
-			uint32_t mean_rawstalls = 0;
-			uint32_t mean_instr = 0;
-			for(uint32_t k=0; k < NUM_CORES; k++) {
-
-		  		//printf("Core nb. %d says: \"I got %d instruction stalls :( ...\"\n", k, instrstalls_end[k]-instrstalls_init[k]);
-					mean_instr       += (instr_end[k]-instr_init[k]);
-		  		mean_instrstalls += (instrstalls_end[k]-instrstalls_init[k]);
-		  	  mean_lsustalls   += (lsustalls_end[k]-lsustalls_init[k]);
-		  		mean_rawstalls   += (rawstalls_end[k]-rawstalls_init[k]);
-
-			}
-
-      //result = sum[0];
-      result = sum;
-      uint32_t clock_cycles = (time_end-time_init);
-			printf("Result ==> %d\n", result);
-			printf("Check  ==> %d\n\n", check);
-			printf("******** Performance-metrics *********\n");
-      printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
-			printf("Total instructions: %d\n", mean_instr);
-			printf("Mean instructions: %d\n", mean_instr/NUM_CORES);
-			printf("Mean instruction stalls: %d\n", mean_instrstalls/NUM_CORES);
-			printf("Mean load-store stalls: %d\n", mean_lsustalls/NUM_CORES);
-			printf("Mean read-after-write stalls: %d\n", mean_rawstalls/NUM_CORES);
-
-		#else
-
-			result = sum;
-	  	uint32_t clock_cycles = (time_end-time_init);
-			printf("Result ==> %d\n", result);
-			printf("Check  ==> %d\n\n", check);
-		  printf("******* Performance-metrics ********\n");
-      printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
-			printf("Instructions: %d\n", (instr_end[0]-instr_init[0]));
-			printf("Instruction stalls: %d\n", (instrstalls_end[0]-instrstalls_init[0]));
-			printf("Load-store stalls: %d\n", (lsustalls_end[0]-lsustalls_init[0]));
-			printf("Read-after-write stalls: %d\n", (rawstalls_end[0]-rawstalls_init[0]));
-
-		#endif
+    uint32_t clock_cycles = (time_end-time_init);
+    #if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0) || defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
+    result = sum[0];
+    #else
+    result = sum;
+    #endif
+    printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
+		printf("Result ==> %d\n", result);
+		printf("Check  ==> %d\n\n", check);
   }
-  mempool_barrier(NUM_CORES); // wait until all cores have finished
+  mempool_barrier(NUM_CORES);
 
   return error;
-
 }

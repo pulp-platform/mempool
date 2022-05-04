@@ -1,6 +1,13 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Author: Marco Bertuletti, ETH Zurich
+
 #include <stdint.h>
 #include <string.h>
 #include "math.h"
+#include "define.h"
 
 /*******************************************************/
 /**                    SINGLE-CORE                    **/
@@ -12,8 +19,10 @@ void dotp_single (	int32_t* in_a,
 						int32_t* s, 
 						uint32_t N_vect, 
 						uint32_t id) {
+
 	if(id == 0) {
 
+    mempool_start_benchmark();
     // Kernel execution
     /*int32_t local_sum = 0;
     int32_t* end = in_a + N_vect;
@@ -27,7 +36,6 @@ void dotp_single (	int32_t* in_a,
           [addrA] "+r" (in_a), [addrB] "+r" (in_b), [a] "=r" (a_tmp), [b] "=r" (b_tmp));
     } while(in_a<end);
     *s = local_sum;*/
-
     int32_t local_sum = 0;
     int32_t* end = in_a + N_vect;
 		//for(uint32_t i = 0; i < N_vect; i++)
@@ -36,9 +44,11 @@ void dotp_single (	int32_t* in_a,
 		} while(in_a<end);
 
     *s = local_sum;
+    mempool_stop_benchmark();
 
 	}
-  mempool_barrier(NUM_CORES); // wait until all cores have finished
+  //mempool_barrier(NUM_CORES); // wait until all cores have finished
+  mempool_log_barrier(2, id);
 }
 
 /* Single-core dot-product unrolled2 */
@@ -48,7 +58,6 @@ void dotp_single_unrolled2 ( int32_t* in_a,
                              uint32_t N_vect,
                              uint32_t id) {
   if(id == 0) {
-
     int32_t local_sum_1 = 0;
     int32_t local_sum_2 = 0;
     int32_t* end = in_a + ((N_vect>>1)<<1);
@@ -89,7 +98,8 @@ void dotp_single_unrolled2 ( int32_t* in_a,
     *s = local_sum_1;
 
   }
-  mempool_barrier(NUM_CORES); // wait until all cores have finished
+  //mempool_barrier(NUM_CORES); // wait until all cores have finished
+  mempool_log_barrier(2, id);
 }
 
 /* Single-core dot-product unrolled4 */
@@ -99,7 +109,7 @@ void dotp_single_unrolled4 ( int32_t* in_a,
                             uint32_t N_vect,
                             uint32_t id) {
   if(id == 0) {
-
+    mempool_start_benchmark();
     int32_t local_sum_1 = 0;
     int32_t local_sum_2 = 0;
     int32_t local_sum_3 = 0;
@@ -151,9 +161,10 @@ void dotp_single_unrolled4 ( int32_t* in_a,
     local_sum_3 += local_sum_4;
     local_sum_1 += local_sum_3;
     *s = local_sum_1;
+    mempool_stop_benchmark();
 
   }
-  mempool_barrier(NUM_CORES); // wait until all cores have finished
+  mempool_log_barrier(2,id); // wait until all cores have finished
 }
 
 /* Single-core dot-product unrolled4 */
@@ -199,35 +210,6 @@ void dotp_single_unrolled6 ( int32_t* in_a,
     local_sum_1 += local_sum_5;
 
     *s = local_sum_1;
-    mempool_barrier(NUM_CORES); // wait until all cores have finished
-
   }
-}
-
-
-
-void init_vectors(	int32_t* in_a, int32_t* in_b, int32_t* s, 
-					uint32_t* instr_init, uint32_t* instr_end,
-					uint32_t* instrs_init, uint32_t* instrs_end,
-					uint32_t* lsus_init, uint32_t* lsus_end,
-					uint32_t* raws_init, uint32_t* raws_end,
-					int32_t* p_result, int32_t* p_check, uint32_t N_vect) {
-	*p_result = 0;
-	*p_check = 0;
-  *s = 0;
-	for(uint32_t i = 0; i < N_vect; i++) {
-		in_a[i] = (int32_t) i;
-		in_b[i] = (int32_t) 1;
-		*p_check = *p_check + (int32_t) i;
-	}
-	for(uint32_t k=0; k<NUM_CORES; k++) {
-		instr_init[k] = 0;
-		instr_end[k] = 0;
-		instrs_init[k] = 0;
-		instrs_end[k] = 0;
-		lsus_init[k] = 0;
-		lsus_end[k] = 0;
-		raws_init[k] = 0;
-		raws_end[k] = 0;
-	}
+  mempool_barrier(NUM_CORES); // wait until all cores have finished
 }

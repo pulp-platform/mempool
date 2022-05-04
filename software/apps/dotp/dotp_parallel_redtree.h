@@ -4,7 +4,6 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-
 /*
   Parallel dot-product with atomic fetch and add towards local memory
   locations and final reduction by a single core. The cores write in
@@ -18,15 +17,15 @@
 /**                    MULTI-CORE                     **/
 /*******************************************************/
 
+void mempool_log_reduction(uint32_t volatile * barrier, int32_t * sum, uint32_t volatile step, uint32_t id, uint32_t num_cores);
+
 
 /* Parallel dot-product */
-void dotp_parallel_red0  ( int32_t* in_a,
-                           int32_t* in_b,
-                           int32_t* s,
-                           uint32_t N_vect,
-                           uint32_t id,
-                           uint32_t* my_barrier) {
-
+void dotp_parallel_redtree  ( int32_t* in_a,
+                              int32_t* in_b,
+                              int32_t* s,
+                              uint32_t N_vect,
+                              uint32_t id) {
   uint32_t const remainder = N_vect%4;
   uint32_t const idx_stop = N_vect - remainder;
   int32_t local_sum = 0;
@@ -46,41 +45,17 @@ void dotp_parallel_red0  ( int32_t* in_a,
       idx++;
     }
   }
-  __atomic_fetch_add(&s[(id/STEP_CORES)*STEP], local_sum, __ATOMIC_RELAXED);
+  s[id*4] = local_sum; //Each core is storing locally
   mempool_stop_benchmark();
-
   mempool_start_benchmark();
-  if ((NUM_CORES - 1) == __atomic_fetch_add(&barrier_global, 1, __ATOMIC_RELAXED)) {
-    __atomic_store_n(my_barrier, 0, __ATOMIC_RELAXED);
-    __sync_synchronize(); // Full memory barrier
-    uint32_t idx_red = 0;
-    local_sum = 0;
-    while(idx_red < N_BANK) {
-//      int32_t red_1 = s[idx_red];
-//      int32_t red_2 = s[idx_red+16];
-//      int32_t red_3 = s[idx_red+32];
-//      int32_t red_4 = s[idx_red+48];
-//      local_sum += red_1;
-//      local_sum += red_2;
-//      local_sum += red_3;
-//      local_sum += red_4;
-      local_sum += s[idx_red];
-      idx_red += STEP;
-    }
-    s[0] = local_sum;
-    wake_up_all();
-  }
-  mempool_wfi();
-
+  mempool_log_reduction(barrier_local, s, 2, id, NUM_CORES);
 }
 
-/* Parallel dot-product with loop unrolling */
-void dotp_parallel_unrolled4_red0  (  int32_t* in_a,
-                                      int32_t* in_b,
-                                      int32_t* s,
-                                      uint32_t N_vect,
-                                      uint32_t id) {
-
+void dotp_parallel_redtree_unrolled  (  int32_t* in_a,
+                                        int32_t* in_b,
+                                        int32_t* s,
+                                        uint32_t N_vect,
+                                        uint32_t id) {
   uint32_t const remainder = N_vect%4;
   uint32_t const idx_stop = N_vect - remainder;
   int32_t local_sum_1 = 0;
@@ -89,7 +64,7 @@ void dotp_parallel_unrolled4_red0  (  int32_t* in_a,
   int32_t local_sum_4 = 0;
 
   uint32_t idx = id*4;
-  while (idx< idx_stop) {
+  while (idx < idx_stop){
     int32_t in_a1 = in_a[idx];
     int32_t in_b1 = in_b[idx];
     int32_t in_a2 = in_a[idx+1];
@@ -105,7 +80,7 @@ void dotp_parallel_unrolled4_red0  (  int32_t* in_a,
     idx+= N_BANK;
   }
   if (id == ((N_vect%N_BANK)/4)) {
-    while(idx<N_vect){
+    while(idx < N_vect){
       local_sum_1 += in_a[idx]*in_b[idx];
       idx++;
     }
@@ -113,14 +88,42 @@ void dotp_parallel_unrolled4_red0  (  int32_t* in_a,
   local_sum_1 += local_sum_2;
   local_sum_3 += local_sum_4;
   local_sum_1 += local_sum_3;
-  //s[id] = local_sum_1;
-  __atomic_fetch_add(&s[id>>6], local_sum_1, __ATOMIC_RELAXED);
-  mempool_barrier(NUM_CORES);
+  s[id*4] = local_sum_1; //Each core is storing locally
+  mempool_stop_benchmark();
+  mempool_start_benchmark();
+  mempool_log_reduction(barrier_local, s, 2, id, NUM_CORES);
+}
 
-  if(id == 0) {
-    for(uint32_t i=1; i<NUM_CORES; i++) {
-      s[0] += s[i];
+void mempool_log_reduction(uint32_t volatile * barrier, int32_t * sum, uint32_t volatile step, uint32_t id, uint32_t num_cores){
+
+  uint32_t idx_sum, idx = (step*(id/step))*4;
+  uint32_t next_step, previous_step;
+  int32_t local_sum;
+
+  previous_step = step>>1;
+  if ((step-previous_step) == __atomic_fetch_add(&barrier[idx+previous_step-1], previous_step, __ATOMIC_RELAXED)){
+
+    local_sum = 0;
+    idx_sum = idx;
+    while(idx_sum < idx + step*4) {
+      local_sum += sum[idx_sum];
+      idx_sum += previous_step*4;
     }
+    sum[idx] = local_sum;
+
+    next_step = step<<1;
+    __atomic_store_n(&barrier[idx+previous_step-1], 0, __ATOMIC_RELAXED);
+    if (num_cores == step){
+      sum[0] = sum[idx];
+      __sync_synchronize(); // Full memory barrier
+      wake_up_all();
+      mempool_wfi();
+    } else {
+      mempool_log_reduction(barrier, sum, next_step, id, num_cores);
+    }
+
   }
-  mempool_barrier(NUM_CORES);
+  else
+    mempool_wfi();
+
 }
