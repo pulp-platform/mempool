@@ -14,6 +14,7 @@
 extern char l1_alloc_base;
 extern uint32_t atomic_barrier;
 extern uint32_t wake_up_reg;
+extern uint32_t wake_up_group_reg;
 
 typedef uint32_t mempool_id_t;
 typedef uint32_t mempool_timer_t;
@@ -82,7 +83,9 @@ static inline void mempool_wfi() { asm volatile("wfi"); }
 // Wake up core with given core_id by writing in the wake up control register.
 // If core_id equals -1, wake up all cores.
 static inline void wake_up(uint32_t core_id) { wake_up_reg = core_id; }
+static inline void wake_up_group(uint32_t group_id) { wake_up_group_reg = group_id; }
 static inline void wake_up_all() { wake_up((uint32_t)-1); }
+static inline void wake_up_all_group() { wake_up_group((uint32_t)-1); }
 
 // Dump a value via CSR
 // This is only supported in simulation and an experimental feature. All writes
