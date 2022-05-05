@@ -43,9 +43,11 @@ module mempool_group
   // RO-Cache configuration
   input  `STRUCT_PORT(ro_cache_ctrl_t)                                           ro_cache_ctrl_i,
   // DMA request
-  input  `STRUCT_VECT(dma_req_t,          [NumDmasPerGroup-1:0])                 dma_req_i,
-  input  logic                            [NumDmasPerGroup-1:0]                  dma_req_valid_i,
-  output logic                            [NumDmasPerGroup-1:0]                  dma_req_ready_o,
+  input  `STRUCT_PORT(dma_req_t)                                                 dma_req_i,
+  input  logic                                                                   dma_req_valid_i,
+  output logic                                                                   dma_req_ready_o,
+  // DMA status
+  output `STRUCT_PORT(dma_meta_t)                                                dma_meta_o,
    // AXI Interface
   output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMastersPerGroup-1:0])           axi_mst_req_o,
   input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMastersPerGroup-1:0])           axi_mst_resp_i
@@ -416,6 +418,28 @@ module mempool_group
   /*********
    *  DMA  *
    *********/
+  dma_req_t  [NumDmasPerGroup-1:0] dma_req;
+  logic      [NumDmasPerGroup-1:0] dma_req_valid;
+  logic      [NumDmasPerGroup-1:0] dma_req_ready;
+  dma_meta_t [NumDmasPerGroup-1:0] dma_meta;
+
+  idma_distributed_midend #(
+    .NoMstPorts     (NumDmasPerGroup                   ),
+    .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup),
+    .burst_req_t    (dma_req_t                         ),
+    .meta_t         (dma_meta_t                        )
+  ) i_idma_distributed_midend (
+    .clk_i       (clk_i          ),
+    .rst_ni      (rst_ni         ),
+    .burst_req_i (dma_req_i      ),
+    .valid_i     (dma_req_valid_i),
+    .ready_o     (dma_req_ready_o),
+    .meta_o      (dma_meta_o     ),
+    .burst_req_o (dma_req        ),
+    .valid_o     (dma_req_valid  ),
+    .ready_i     (dma_req_ready  ),
+    .meta_i      (dma_meta       )
+  );
 
   for (genvar d = 0; unsigned'(d) < NumDmasPerGroup; d++) begin: gen_dmas
     localparam int unsigned a = NumTilesPerGroup + d;
@@ -441,16 +465,16 @@ module mempool_group
       .DmaIdWidth      (1              ),
       .DmaTracing      (0              )
     ) i_axi_dma_backend (
-      .clk_i            (clk_i              ),
-      .rst_ni           (rst_ni             ),
-      .dma_id_i         (1'b0               ),
-      .axi_dma_req_o    (axi_dma_premux_req ),
-      .axi_dma_res_i    (axi_dma_premux_resp),
-      .burst_req_i      (dma_req_i[d]       ),
-      .valid_i          (dma_req_valid_i[d] ),
-      .ready_o          (dma_req_ready_o[d] ),
-      .backend_idle_o   (backend_idle       ),
-      .trans_complete_o (trans_complete     )
+      .clk_i            (clk_i                     ),
+      .rst_ni           (rst_ni                    ),
+      .dma_id_i         (1'b0                      ),
+      .axi_dma_req_o    (axi_dma_premux_req        ),
+      .axi_dma_res_i    (axi_dma_premux_resp       ),
+      .burst_req_i      (dma_req[d]                ),
+      .valid_i          (dma_req_valid[d]          ),
+      .ready_o          (dma_req_ready[d]          ),
+      .backend_idle_o   (dma_meta[d].backend_idle  ),
+      .trans_complete_o (dma_meta[d].trans_complete)
     );
 
     // ------------------------------------------------------
