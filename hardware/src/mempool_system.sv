@@ -254,7 +254,7 @@ module mempool_system
       .DataWidth (AxiDataWidth   ),
       .IdWidth   (AxiTileIdWidth ),
       .NumBanks  (1              ),
-      .BufDepth  (2              )
+      .BufDepth  (3              )
     ) i_axi2mem (
       .clk_i       (clk_i         ),
       .rst_ni      (rst_ni        ),
