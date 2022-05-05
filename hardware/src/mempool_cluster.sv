@@ -26,10 +26,12 @@ module mempool_cluster
   input  logic           [NumCores-1:0]      wake_up_i,
   // RO-Cache configuration
   input  ro_cache_ctrl_t                     ro_cache_ctrl_i,
-    // DMA request
-  input  dma_req_t       [NumDMAReq-1:0]     dma_req_i,
-  input  logic           [NumDMAReq-1:0]     dma_req_valid_i,
-  output logic           [NumDMAReq-1:0]     dma_req_ready_o,
+  // DMA request
+  input  dma_req_t       [NumGroups-1:0]     dma_req_i,
+  input  logic           [NumGroups-1:0]     dma_req_valid_i,
+  output logic           [NumGroups-1:0]     dma_req_ready_o,
+  // DMA status
+  output dma_meta_t      [NumGroups-1:0]     dma_meta_o,
   // AXI Interface
   output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
@@ -82,9 +84,11 @@ module mempool_cluster
       .wake_up_i               (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
       .ro_cache_ctrl_i         (ro_cache_ctrl_i                                                 ),
       // DMA request
-      .dma_req_i               (dma_req_i[g*NumDmasPerGroup +: NumDmasPerGroup]                 ),
-      .dma_req_valid_i         (dma_req_valid_i[g*NumDmasPerGroup +: NumDmasPerGroup]           ),
-      .dma_req_ready_o         (dma_req_ready_o[g*NumDmasPerGroup +: NumDmasPerGroup]           ),
+      .dma_req_i               (dma_req_i[g]                                                    ),
+      .dma_req_valid_i         (dma_req_valid_i[g]                                              ),
+      .dma_req_ready_o         (dma_req_ready_o[g]                                              ),
+      // DMA status
+      .dma_meta_o              (dma_meta_o[g]                                                   ),
       // AXI interface
       .axi_mst_req_o           (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
       .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])

@@ -77,10 +77,11 @@ module mempool_system
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
 
-  dma_req_t [NumGroups*NumDmasPerGroup-1:0] dma_req;
-  logic     [NumGroups*NumDmasPerGroup-1:0] dma_req_valid;
-  logic     [NumGroups*NumDmasPerGroup-1:0] dma_req_ready;
-  logic     [1-1:0] dma_id;
+  dma_req_t  [NumGroups-1:0] dma_req;
+  logic      [NumGroups-1:0] dma_req_valid;
+  logic      [NumGroups-1:0] dma_req_ready;
+  dma_meta_t [NumGroups-1:0] dma_meta;
+  logic      [1-1:0] dma_id;
 
   localparam xbar_cfg_t MstDemuxCfg = '{
     NoSlvPorts         : 1, // Each master has a private demux
@@ -131,6 +132,7 @@ module mempool_system
     .dma_req_i      (dma_req                        ),
     .dma_req_valid_i(dma_req_valid                  ),
     .dma_req_ready_o(dma_req_ready                  ),
+    .dma_meta_o     (dma_meta                       ),
     .axi_mst_req_o  (axi_mst_req[NumAXIMasters-2:0] ),
     .axi_mst_resp_i (axi_mst_resp[NumAXIMasters-2:0])
   );
@@ -517,7 +519,7 @@ module mempool_system
     .axi_lite_req_t(axi_lite_slv_req_t       ),
     .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
     .burst_req_t   (dma_req_t                ),
-    .NumBackends   (NumGroups*NumDmasPerGroup),
+    .NumBackends   (NumGroups                ),
     .DmaIdWidth    (1                        )
   ) i_mempool_dma (
     .clk_i           (clk_i                 ),
@@ -527,8 +529,8 @@ module mempool_system
     .burst_req_o     (dma_req               ),
     .valid_o         (dma_req_valid         ),
     .ready_i         (dma_req_ready         ),
-    .backend_idle_i  (i_mempool_cluster.gen_groups[0].i_group.gen_dmas[0].backend_idle),
-    .trans_complete_i(i_mempool_cluster.gen_groups[0].i_group.gen_dmas[0].trans_complete),
+    .backend_idle_i  (dma_meta[0].backend_idle),
+    .trans_complete_i(dma_meta[0].trans_complete),
     .dma_id_o        (dma_id                )
   );
 
