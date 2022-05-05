@@ -10,9 +10,12 @@ module ctrl_registers
   parameter int DataWidth                      = 32,
   parameter int NumRegs                        = 0,
   // Parameters
-  parameter logic [DataWidth-1:0] TCDMBaseAddr = 0,
-  parameter logic [DataWidth-1:0] TCDMSize     = 0,
-  parameter logic [DataWidth-1:0] NumCores     = 0,
+  parameter logic [DataWidth-1:0] TCDMBaseAddr      = 0,
+  parameter logic [DataWidth-1:0] TCDMSize          = 0,
+  parameter logic [DataWidth-1:0] NumCores          = 0,
+  parameter logic [DataWidth-1:0] NumGroups         = 0,
+  parameter logic [DataWidth-1:0] NumCoresPerGroup  = 0,
+  parameter logic [DataWidth-1:0] NumTiles          = 0,
   // AXI Structs
   parameter type axi_lite_req_t                = logic,
   parameter type axi_lite_resp_t               = logic
@@ -46,21 +49,23 @@ module ctrl_registers
   localparam logic [DataWidthInBytes-1:0] ReadWriteReg = {DataWidthInBytes{1'b0}};
 
   // Memory map
-  // [3:0]:  eoc_reg                        (rw)
-  // [7:4]:  wake_up_reg                    (rw)
-  // [11:8]: tcdm_start_adress_reg          (ro)
-  // [15:12]:tcdm_end_address_reg           (ro)
-  // [19:16]:nr_cores_address_reg           (ro)
-  // [23:20]:ro_cache_enable                (rw)
-  // [27:24]:ro_cache_flush                 (rw)
-  // [31:28]:ro_cache_start_0               (rw)
-  // [35:32]:ro_cache_end_0                 (rw)
-  // [39:36]:ro_cache_start_1               (rw)
-  // [43:40]:ro_cache_end_1                 (rw)
-  // [47:44]:ro_cache_start_2               (rw)
-  // [51:48]:ro_cache_end_2                 (rw)
-  // [55:52]:ro_cache_start_3               (rw)
-  // [59:56]:ro_cache_end_3                 (rw)
+  // [3 :0 ]:eoc_reg                        (rw)
+  // [7 :4 ]:wake_up_reg                    (rw)
+  // [11:8 ]:wake_up_group_reg              (rw)
+  // [15:12]:tcdm_start_adress_reg          (ro)
+  // [19:16]:tcdm_end_address_reg           (ro)
+  // [23:20]:nr_cores_address_reg           (ro)
+  // [27:24]:ro_cache_enable                (rw)
+  // [31:28]:ro_cache_flush                 (rw)
+  // [35:32]:ro_cache_start_0               (rw)
+  // [39:36]:ro_cache_end_0                 (rw)
+  // [43:40]:ro_cache_start_1               (rw)
+  // [47:44]:ro_cache_end_1                 (rw)
+  // [51:48]:ro_cache_start_2               (rw)
+  // [55:52]:ro_cache_end_2                 (rw)
+  // [59:56]:ro_cache_start_3               (rw)
+  // [63:60]:ro_cache_end_3                 (rw)
+
   localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
     32'h0000_0010,
     32'h0000_000C,
@@ -75,6 +80,7 @@ module ctrl_registers
     NumCores,
     TCDMBaseAddr + TCDMSize,
     TCDMBaseAddr,
+    {DataWidth{1'b0}},
     {DataWidth{1'b0}},
     {DataWidth{1'b0}}
   };
@@ -93,6 +99,7 @@ module ctrl_registers
     ReadOnlyReg,
     ReadOnlyReg,
     ReadWriteReg,
+    ReadWriteReg,
     ReadWriteReg
   };
 
@@ -101,6 +108,7 @@ module ctrl_registers
    ***************/
   logic [DataWidth-1:0]   eoc;
   logic [DataWidth-1:0]   wake_up;
+  logic [DataWidth-1:0]   wake_up_group;
   logic [DataWidth-1:0]   tcdm_start_address;
   logic [DataWidth-1:0]   tcdm_end_address;
   logic [DataWidth-1:0]   num_cores;
@@ -138,7 +146,7 @@ module ctrl_registers
     .reg_q_o    ({ro_cache_end_3, ro_cache_start_3, ro_cache_end_2, ro_cache_start_2,
                   ro_cache_end_1, ro_cache_start_1, ro_cache_end_0, ro_cache_start_0,
                   ro_cache_flush, ro_cache_enable,
-                  num_cores, tcdm_end_address, tcdm_start_address, wake_up, eoc})
+                  num_cores, tcdm_end_address, tcdm_start_address, wake_up_group, wake_up, eoc})
   );
 
   /***************
@@ -161,9 +169,9 @@ module ctrl_registers
   assign ro_cache_ctrl_o.end_addr[2]   = ro_cache_end_2;
   assign ro_cache_ctrl_o.end_addr[3]   = ro_cache_end_3;
 
-  // converts 32 bit wake up to 256 bit
   always_comb begin
     wake_up_o = '0;
+    // converts 32 bit wake up to 256 bit
     if (wr_active_q[7:4]) begin
       if (wake_up < NumCores) begin
         wake_up_o = 1 << wake_up;
@@ -171,6 +179,17 @@ module ctrl_registers
         wake_up_o = {NumCores{1'b1}};
       end
     end
+    // converts 32 bit group wake up mask to 256 bit core wake up mask
+    if (wr_active_q[11:8]) begin
+      if (wake_up_group <= {NumGroups{1'b1}}) begin
+        for(int i=0; i<NumGroups; i=i+1) begin
+          wake_up_o[NumCoresPerGroup*i +: NumCoresPerGroup] = {NumCoresPerGroup{wake_up_group[i]}};
+        end
+      end else if (wake_up_group == {DataWidth{1'b1}}) begin
+        wake_up_o = {NumCores{1'b1}};
+      end
+    end
+
   end
 
   assign eoc_valid_o = eoc[0];
