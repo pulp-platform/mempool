@@ -4,6 +4,7 @@
 
 SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 APPS_DIR := $(ROOT_DIR)/apps
 HALIDE_DIR := $(ROOT_DIR)/halide
 RUNTIME_DIR := $(ROOT_DIR)/runtime
@@ -59,9 +60,8 @@ clean-test:
 	rm -vf $(addsuffix .dump,$(TESTS))
 
 # Helper targets
-.PHONY: update_opcodes
 update_opcodes:
-	make -C $(TOOLCHAIN_DIR)/riscv-opcodes all
+	make -C $(MEMPOOL_DIR) update_opcodes
 
 .PHONY: clean
 clean: clean-test clean-apps clean-halide-apps

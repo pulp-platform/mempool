@@ -808,6 +808,8 @@ disassembler_t::disassembler_t(int xlen)
   DISASM_INSN("c.fsd", c_fsd, 0, {&rvc_fp_rs2s, &rvc_ld_address});
   DISASM_INSN("c.fsdsp", c_fsdsp, 0, {&rvc_fp_rs2, &rvc_sdsp_address});
 
+#ifdef VECTOR_EXT
+
   DISASM_INSN("vsetvli", vsetvli, 0, {&xrd, &xrs1, &v_vtype});
   //DISASM_INSN("vsetvl", vsetvl, 0, {&xrd, &xrs1, &xrs2});
 
@@ -1318,6 +1320,8 @@ disassembler_t::disassembler_t(int xlen)
       }
     }
   }
+
+#endif
 
   if (xlen == 32) {
     DISASM_INSN("c.flw", c_flw, 0, {&rvc_fp_rs2s, &rvc_lw_address});

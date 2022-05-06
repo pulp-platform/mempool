@@ -7,6 +7,7 @@
 
 SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 SOFTWARE_DIR := $(abspath $(ROOT_DIR)/..)
 RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin)
@@ -34,9 +35,8 @@ $(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update_opcodes
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 
 # Helper targets
-.PHONY: update_opcodes
 update_opcodes:
-	make -C $(SOFTWARE_DIR) update_opcodes
+	make -C $(MEMPOOL_DIR) update_opcodes
 
 .PHONY: clean
 clean:

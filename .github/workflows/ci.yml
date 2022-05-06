@@ -240,7 +240,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: Regenerate opcodes
       run: |
-        rm toolchain/riscv-opcodes/encoding_out.h
         make update_opcodes
         git diff --exit-code
 
@@ -385,12 +384,9 @@ jobs:
       env:
         config: ${{ matrix.mempool_config }}
       run: |
-        # Don't regenerate previously build artifacts
-        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         cd hardware
-        app=tests make verilate
+        # Don't regenerate previously build artifacts
+        app=tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-llvm:
@@ -426,12 +422,9 @@ jobs:
       env:
         config: ${{ matrix.mempool_config }}
       run: |
-        # Don't regenerate previously build artifacts
-        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         cd hardware
-        app=tests make verilate
+        # Don't regenerate previously build artifacts
+        app=tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-halide:
@@ -467,12 +460,9 @@ jobs:
       env:
         config: ${{ matrix.mempool_config }}
       run: |
-        # Don't regenerate previously build artifacts
-        touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
-        touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         cd hardware
-        app=halide-2d_convolution make verilate
+        # Don't regenerate previously build artifacts
+        app=halide-2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   unit-test:
@@ -503,7 +493,10 @@ jobs:
       run: |
         # Don't regenerate previously build artifacts
         sudo apt install device-tree-compiler
+        make update_opcodes
+        touch $GITHUB_WORKSPACE/software/runtime/encoding.h
         touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
+        touch $GITHUB_WORKSPACE/hardware/deps/snitch/src/riscv_instr.sv
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
         make test
