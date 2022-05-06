@@ -65,9 +65,12 @@ int verify_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
                   uint32_t num_cores) {
   // Convert to signed
   int32_t n = (int32_t)inner_dim;
-  // Parallelize over rows
-  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
-    for (uint32_t j = 0; j < num_columns; ++j) {
+  // Parallelize over tiles
+  uint32_t const c = 16; // How many columns to split the matrix into
+  uint32_t const c_start = (num_columns / c) * (core_id % c);
+  uint32_t const c_end = (num_columns / c) * ((core_id % c) + 1);
+  for (uint32_t i = 4 * (core_id / c); i < num_rows; i += 4 * (num_cores / c)) {
+    for (uint32_t j = c_start; j < c_end; j += 4) {
       int32_t ii = (int32_t)i;
       int32_t jj = (int32_t)j;
       int32_t lin =
