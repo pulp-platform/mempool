@@ -29,10 +29,11 @@
 // ----------------------------------------------------------------------------
 
 // Allocator for L1 interleaved heap memory
-alloc_t alloc_l1;
+alloc_t alloc_l1 __attribute__((section(".l2")));
 
 // Allocators for L1 local sequential heap memory
-alloc_t alloc_tile[NUM_CORES / NUM_CORES_PER_TILE];
+alloc_t alloc_tile[NUM_CORES / NUM_CORES_PER_TILE]
+    __attribute__((section(".l2")));
 
 // ----------------------------------------------------------------------------
 // Canary System based on LSBs of block pointer

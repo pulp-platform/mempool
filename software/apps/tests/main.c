@@ -16,9 +16,9 @@
 // Define Matrix dimensions:
 // C = AB with A=[MxN], B=[NxP], C=[MxP]
 #if NUM_CORES > 32
-#define matrix_M 32
-#define matrix_N 32
-#define matrix_P 32
+#define matrix_M 256
+#define matrix_N 256
+#define matrix_P 256
 #else
 #define matrix_M (NUM_CORES)
 #define matrix_N (NUM_CORES)
@@ -29,7 +29,7 @@ int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));
 int32_t matrix_c[matrix_M * matrix_P] __attribute__((section(".l1_prio")));
 
-int volatile error __attribute__((section(".l1")));
+int volatile error __attribute__((section(".l2")));
 
 void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
                  int32_t a, int32_t b, int32_t c, uint32_t core_id,
@@ -69,8 +69,8 @@ int verify_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
   uint32_t const c = 16; // How many columns to split the matrix into
   uint32_t const c_start = (num_columns / c) * (core_id % c);
   uint32_t const c_end = (num_columns / c) * ((core_id % c) + 1);
-  for (uint32_t i = 4 * (core_id / c); i < num_rows; i += 4 * (num_cores / c)) {
-    for (uint32_t j = c_start; j < c_end; j += 4) {
+  for (uint32_t i = core_id / c; i < num_rows; i += num_cores / c) {
+    for (uint32_t j = c_start; j < c_end; j++) {
       int32_t ii = (int32_t)i;
       int32_t jj = (int32_t)j;
       int32_t lin =
@@ -80,6 +80,8 @@ int verify_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
           2;
       int32_t cub = ((ab * ba) * (n * (n - 1) * (2 * n - 1))) / 6;
       int32_t golden = lin + qua + cub;
+      // printf("C %3d %3d 0x%08x\n", i, j, (uint32_t)&matrix[i * num_columns +
+      // j]);
       if (matrix[i * num_columns + j] != golden) {
         return (i + j) == 0 ? -1 : (int)(i * num_columns + j);
       }
@@ -107,15 +109,17 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   mempool_barrier(num_cores);
   // Execute function to test.
   mempool_start_benchmark();
-  mat_mul_unrolled_2x2_parallel(A, B, C, M, N, P, core_id, num_cores);
-  mempool_stop_benchmark();
+  // mat_mul_unrolled_2x2_parallel(A, B, C, M, N, P, core_id, num_cores);
+  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
+  mempool_start_benchmark();
   // Wait at barrier befor checking
   mempool_barrier(num_cores);
-  if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
-                    num_cores)) {
-    error = 1;
-    return -1;
-  }
+  mempool_stop_benchmark();
+  // if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
+  //                   num_cores)) {
+  //   error = 1;
+  //   return -1;
+  // }
   return 0;
 }
 

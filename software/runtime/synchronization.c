@@ -10,7 +10,8 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-uint32_t volatile barrier __attribute__((section(".l1")));
+// uint32_t volatile barrier __attribute__((section(".l1")));
+uint32_t volatile __l1_start;
 uint32_t volatile log_barrier[NUM_CORES * 4]
     __attribute__((aligned(NUM_CORES * 4), section(".l1")));
 uint32_t volatile partial_barrier[NUM_CORES * 4]
@@ -19,7 +20,7 @@ uint32_t volatile partial_barrier[NUM_CORES * 4]
 void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {
     // Initialize the barrier
-    barrier = 0;
+    __l1_start = 0;
     for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
       log_barrier[i] = 0;
     }
@@ -35,8 +36,8 @@ void mempool_barrier_init(uint32_t core_id) {
 
 void mempool_barrier(uint32_t num_cores) {
   // Increment the barrier counter
-  if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
-    __atomic_store_n(&barrier, 0, __ATOMIC_RELAXED);
+  if ((num_cores - 1) == __atomic_fetch_add(&__l1_start, 1, __ATOMIC_RELAXED)) {
+    __atomic_store_n(&__l1_start, 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
     wake_up_all();
   }
