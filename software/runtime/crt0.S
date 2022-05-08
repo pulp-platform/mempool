@@ -85,7 +85,8 @@ _eoc:
     slli    t1, a0, 1
     addi    t1, t1, 1
     sw      t1, 0(t0)
-    la      ra, __rom_start
-    ret
+    wfi
+   // la      ra, __rom_start
+   // ret
 
 .section .data
