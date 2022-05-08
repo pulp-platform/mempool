@@ -19,7 +19,7 @@
 #define M (20)
 #define N (4 * NUM_CORES)
 #define KERNEL_N 3
-#define VERBOSE
+// #define VERBOSE
 
 volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
 volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
@@ -53,32 +53,32 @@ int main() {
   init_conv2d_image(in, N, M, core_id, num_cores);
   // zero_conv2d_image(out, N, M, core_id, num_cores);
 
-// #ifdef VERBOSE
-//   mempool_barrier(num_cores);
+  // #ifdef VERBOSE
+  //   mempool_barrier(num_cores);
 
-//   if (core_id == 0) {
-//     printf("A:\n");
+  //   if (core_id == 0) {
+  //     printf("A:\n");
 
-//     for (int i = 0; i < M; i++) {
-//       for (int j = 0; j < N; j++) {
-//         printf("%4u ", in[i * N + j]);
-//       }
-//       printf("\n");
-//     }
+  //     for (int i = 0; i < M; i++) {
+  //       for (int j = 0; j < N; j++) {
+  //         printf("%4u ", in[i * N + j]);
+  //       }
+  //       printf("\n");
+  //     }
 
-//     printf("kernel:\n");
-//     for (int i = 0; i < KERNEL_N; i++) {
-//       for (int j = 0; j < KERNEL_N; j++) {
-//         printf("%4u ", kernel[i * KERNEL_N + j]);
-//       }
-//       printf("\n");
-//     }
-//   }
+  //     printf("kernel:\n");
+  //     for (int i = 0; i < KERNEL_N; i++) {
+  //       for (int j = 0; j < KERNEL_N; j++) {
+  //         printf("%4u ", kernel[i * KERNEL_N + j]);
+  //       }
+  //       printf("\n");
+  //     }
+  //   }
 
-//   if (core_id == 0) {
-//     printf("Start\n");
-//   }
-// #endif
+  //   if (core_id == 0) {
+  //     printf("Start\n");
+  //   }
+  // #endif
 
   // Matrices are initialized --> Start calculating
   for (int i = 2; i < 3; ++i) {
@@ -92,19 +92,19 @@ int main() {
     // Wait at barrier befor checking
     mempool_barrier(num_cores);
     // Check result
-    // if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
-    //   __atomic_fetch_or(&error, i, __ATOMIC_SEQ_CST);
-    // }
+    if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
+      __atomic_fetch_or(&error, i, __ATOMIC_SEQ_CST);
+    }
   }
-
-#ifdef VERBOSE
-  if (core_id == 0) {
-    printf("Done\n");
-  }
-#endif
 
   // wait until all cores have finished
   mempool_barrier(num_cores);
+
+#ifdef VERBOSE
+  if (core_id == 0) {
+    printf("Done (Error=%d)\n", error);
+  }
+#endif
 
 #ifdef VERBOSE
   if (core_id == 0) {

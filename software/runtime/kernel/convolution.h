@@ -122,36 +122,11 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
   for (unsigned int i = 0; i < 9; ++i) {
     weight += k[i];
   }
-  // // TODO implement boundary halo
-  // uint32_t div = in_x / numThreads;
-  // uint32_t rem = in_x % numThreads;
-  // uint32_t start = div * id;
-  // uint32_t end = div * (id + 1);
-  // // Add remainder
-  // start += id < rem ? id : rem;
-  // end += id < rem ? id : rem;
-  // // Now we only care about valid entries
-  // if (start < 1) {
-  //   start = 1;
-  // }
-  // if (end > in_x - 1) {
-  //   end = in_x - 1;
-  // }
 
-  // TODO implement left and right corner case
-if (regular) {
-  for (uint32_t c = 4 * id; c < in_x - 6;
-       c += 4 * numThreads) { // We compute four output columns per kernel
+  // Compute four columns per iteration
+  for (uint32_t c = 4 * id; c < in_x - 3; c += 4 * numThreads) {
 
-    // Address registers
-    const int32_t *addr_in = (const int32_t *)&in[c];
-    const int32_t *addr_out = (const int32_t *)&out[c + 1 + in_x]; // 3x3 Kernel
-
-    // TODO minus phase out 2 rounds
-    const int32_t *addr_end = &in[c + in_x * (in_y - 2)];
-
-    const int32_t C_3 = ((int32_t)in_x - 3) * 4;
-    const int32_t C_5 = ((int32_t)in_x - 5) * 4;
+    // Kernel
     const int32_t k0 = k[0];
     const int32_t k1 = k[1];
     const int32_t k2 = k[2];
@@ -163,538 +138,514 @@ if (regular) {
     const int32_t k8 = k[8];
     const int32_t W = (int32_t)weight;
 
-    // Input
-    //  x3  x4  x5  x6  x7  x8
-    // Output: TODO Can we make it work with half the outputs?
-    //      x9 x10 x11 x12  Top and bottom row in round one, middle in round
-    //      two
-    //     x13 x14 x15 x16  Middle in round one, top and bottom in round two
-    // Kernel:
-    //  k0  k1  k2
-    //  k3  k4  k5
-    //  k6  k7  k8
-
-    // register int32_t k asm("x1") = (int32_t)addr_end;
-    __asm__ volatile(
-        // Phase in; Round one
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, 4(%[addr_in]!) \n\t"
-        "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
-        // Compute bottom row
-        "mul    x9, %[k0], x3 \n\t"
-        "mul   x10, %[k0], x4 \n\t"
-        "mul   x11, %[k0], x5 \n\t"
-        "mul   x12, %[k0], x6 \n\t"
-        "p.mac  x9, %[k1], x4 \n\t"
-        "p.mac x10, %[k1], x5 \n\t"
-        "p.mac x11, %[k1], x6 \n\t"
-        "p.mac x12, %[k1], x7 \n\t"
-        "p.mac  x9, %[k2], x5 \n\t"
-        "p.mac x10, %[k2], x6 \n\t"
-        "p.mac x11, %[k2], x7 \n\t"
-        "p.mac x12, %[k2], x8 \n\t"
-        // Phase in; Round two
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, 4(%[addr_in]!) \n\t"
-        "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
-        // Compute middle row
-        "p.mac  x9, %[k3], x3 \n\t"
-        "p.mac x10, %[k3], x4 \n\t"
-        "p.mac x11, %[k3], x5 \n\t"
-        "p.mac x12, %[k3], x6 \n\t"
-        "p.mac  x9, %[k4], x4 \n\t"
-        "p.mac x10, %[k4], x5 \n\t"
-        "p.mac x11, %[k4], x6 \n\t"
-        "p.mac x12, %[k4], x7 \n\t"
-        "p.mac  x9, %[k5], x5 \n\t"
-        "p.mac x10, %[k5], x6 \n\t"
-        "p.mac x11, %[k5], x7 \n\t"
-        "p.mac x12, %[k5], x8 \n\t"
-        // Compute bottom row
-        "mul   x13, %[k0], x3 \n\t"
-        "mul   x14, %[k0], x4 \n\t"
-        "mul   x15, %[k0], x5 \n\t"
-        "mul   x16, %[k0], x6 \n\t"
-        "p.mac x13, %[k1], x4 \n\t"
-        "p.mac x14, %[k1], x5 \n\t"
-        "p.mac x15, %[k1], x6 \n\t"
-        "p.mac x16, %[k1], x7 \n\t"
-        "p.mac x13, %[k2], x5 \n\t"
-        "p.mac x14, %[k2], x6 \n\t"
-        "p.mac x15, %[k2], x7 \n\t"
-        "p.mac x16, %[k2], x8 \n\t"
-
-        // Full computation
-        "1: \n\t"
-        // Round one
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, 4(%[addr_in]!) \n\t"
-        "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
-        // Compute top row
-        "p.mac  x9, %[k6], x3 \n\t"
-        "p.mac x10, %[k6], x4 \n\t"
-        "p.mac x11, %[k6], x5 \n\t"
-        "p.mac x12, %[k6], x6 \n\t"
-        "p.mac  x9, %[k7], x4 \n\t"
-        "p.mac x10, %[k7], x5 \n\t"
-        "p.mac x11, %[k7], x6 \n\t"
-        "p.mac x12, %[k7], x7 \n\t"
-        "p.mac  x9, %[k8], x5 \n\t"
-        "p.mac x10, %[k8], x6 \n\t"
-        "p.mac x11, %[k8], x7 \n\t"
-        "p.mac x12, %[k8], x8 \n\t"
-        // Shift top row
-        "div    x9,  x9, %[W] \n\t"
-        "div   x10, x10, %[W] \n\t"
-        "div   x11, x11, %[W] \n\t"
-        "div   x12, x12, %[W] \n\t"
-        // Store top row
-        "p.sw   x9, 4(%[addr_out]!) \n\t"
-        "p.sw  x10, 4(%[addr_out]!) \n\t"
-        "p.sw  x11, 4(%[addr_out]!) \n\t"
-        "p.sw  x12, %[C_3](%[addr_out]!) \n\t"
-        // Compute middle row
-        "p.mac x13, %[k3], x3 \n\t"
-        "p.mac x14, %[k3], x4 \n\t"
-        "p.mac x15, %[k3], x5 \n\t"
-        "p.mac x16, %[k3], x6 \n\t"
-        "p.mac x13, %[k4], x4 \n\t"
-        "p.mac x14, %[k4], x5 \n\t"
-        "p.mac x15, %[k4], x6 \n\t"
-        "p.mac x16, %[k4], x7 \n\t"
-        "p.mac x13, %[k5], x5 \n\t"
-        "p.mac x14, %[k5], x6 \n\t"
-        "p.mac x15, %[k5], x7 \n\t"
-        "p.mac x16, %[k5], x8 \n\t"
-        // Compute bottom row
-        "mul    x9, %[k0], x3 \n\t"
-        "mul   x10, %[k0], x4 \n\t"
-        "mul   x11, %[k0], x5 \n\t"
-        "mul   x12, %[k0], x6 \n\t"
-        "p.mac  x9, %[k1], x4 \n\t"
-        "p.mac x10, %[k1], x5 \n\t"
-        "p.mac x11, %[k1], x6 \n\t"
-        "p.mac x12, %[k1], x7 \n\t"
-        "p.mac  x9, %[k2], x5 \n\t"
-        "p.mac x10, %[k2], x6 \n\t"
-        "p.mac x11, %[k2], x7 \n\t"
-        "p.mac x12, %[k2], x8 \n\t"
-        // Round two
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, 4(%[addr_in]!) \n\t"
-        "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
-        // Compute top row
-        "p.mac x13, %[k6], x3 \n\t"
-        "p.mac x14, %[k6], x4 \n\t"
-        "p.mac x15, %[k6], x5 \n\t"
-        "p.mac x16, %[k6], x6 \n\t"
-        "p.mac x13, %[k7], x4 \n\t"
-        "p.mac x14, %[k7], x5 \n\t"
-        "p.mac x15, %[k7], x6 \n\t"
-        "p.mac x16, %[k7], x7 \n\t"
-        "p.mac x13, %[k8], x5 \n\t"
-        "p.mac x14, %[k8], x6 \n\t"
-        "p.mac x15, %[k8], x7 \n\t"
-        "p.mac x16, %[k8], x8 \n\t"
-        // Shift top row
-        "div   x13, x13, %[W] \n\t"
-        "div   x14, x14, %[W] \n\t"
-        "div   x15, x15, %[W] \n\t"
-        "div   x16, x16, %[W] \n\t"
-        // Store top row
-        "p.sw  x13, 4(%[addr_out]!) \n\t"
-        "p.sw  x14, 4(%[addr_out]!) \n\t"
-        "p.sw  x15, 4(%[addr_out]!) \n\t"
-        "p.sw  x16, %[C_3](%[addr_out]!) \n\t"
-        // Compute middle row
-        "p.mac  x9, %[k3], x3 \n\t"
-        "p.mac x10, %[k3], x4 \n\t"
-        "p.mac x11, %[k3], x5 \n\t"
-        "p.mac x12, %[k3], x6 \n\t"
-        "p.mac  x9, %[k4], x4 \n\t"
-        "p.mac x10, %[k4], x5 \n\t"
-        "p.mac x11, %[k4], x6 \n\t"
-        "p.mac x12, %[k4], x7 \n\t"
-        "p.mac  x9, %[k5], x5 \n\t"
-        "p.mac x10, %[k5], x6 \n\t"
-        "p.mac x11, %[k5], x7 \n\t"
-        "p.mac x12, %[k5], x8 \n\t"
-        // Compute bottom row
-        "mul   x13, %[k0], x3 \n\t"
-        "mul   x14, %[k0], x4 \n\t"
-        "mul   x15, %[k0], x5 \n\t"
-        "mul   x16, %[k0], x6 \n\t"
-        "p.mac x13, %[k1], x4 \n\t"
-        "p.mac x14, %[k1], x5 \n\t"
-        "p.mac x15, %[k1], x6 \n\t"
-        "p.mac x16, %[k1], x7 \n\t"
-        "p.mac x13, %[k2], x5 \n\t"
-        "p.mac x14, %[k2], x6 \n\t"
-        "p.mac x15, %[k2], x7 \n\t"
-        "p.mac x16, %[k2], x8 \n\t"
-        // Branch
-        "bne %[addr_in], %[addr_end], 1b \n\t"
-
-        // Phase out; Round one
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, 4(%[addr_in]!) \n\t"
-        "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
-        // Compute top row
-        "p.mac  x9, %[k6], x3 \n\t"
-        "p.mac x10, %[k6], x4 \n\t"
-        "p.mac x11, %[k6], x5 \n\t"
-        "p.mac x12, %[k6], x6 \n\t"
-        "p.mac  x9, %[k7], x4 \n\t"
-        "p.mac x10, %[k7], x5 \n\t"
-        "p.mac x11, %[k7], x6 \n\t"
-        "p.mac x12, %[k7], x7 \n\t"
-        "p.mac  x9, %[k8], x5 \n\t"
-        "p.mac x10, %[k8], x6 \n\t"
-        "p.mac x11, %[k8], x7 \n\t"
-        "p.mac x12, %[k8], x8 \n\t"
-        // Shift top row
-        "div    x9,  x9, %[W] \n\t"
-        "div   x10, x10, %[W] \n\t"
-        "div   x11, x11, %[W] \n\t"
-        "div   x12, x12, %[W] \n\t"
-        // Store top row
-        "p.sw   x9, 4(%[addr_out]!) \n\t"
-        "p.sw  x10, 4(%[addr_out]!) \n\t"
-        "p.sw  x11, 4(%[addr_out]!) \n\t"
-        "p.sw  x12, %[C_3](%[addr_out]!) \n\t"
-        // Compute middle row
-        "p.mac x13, %[k3], x3 \n\t"
-        "p.mac x14, %[k3], x4 \n\t"
-        "p.mac x15, %[k3], x5 \n\t"
-        "p.mac x16, %[k3], x6 \n\t"
-        "p.mac x13, %[k4], x4 \n\t"
-        "p.mac x14, %[k4], x5 \n\t"
-        "p.mac x15, %[k4], x6 \n\t"
-        "p.mac x16, %[k4], x7 \n\t"
-        "p.mac x13, %[k5], x5 \n\t"
-        "p.mac x14, %[k5], x6 \n\t"
-        "p.mac x15, %[k5], x7 \n\t"
-        "p.mac x16, %[k5], x8 \n\t"
-        // Phae out; Round two
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, 4(%[addr_in]!) \n\t"
-        "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
-        // Compute top row
-        "p.mac x13, %[k6], x3 \n\t"
-        "p.mac x14, %[k6], x4 \n\t"
-        "p.mac x15, %[k6], x5 \n\t"
-        "p.mac x16, %[k6], x6 \n\t"
-        "p.mac x13, %[k7], x4 \n\t"
-        "p.mac x14, %[k7], x5 \n\t"
-        "p.mac x15, %[k7], x6 \n\t"
-        "p.mac x16, %[k7], x7 \n\t"
-        "p.mac x13, %[k8], x5 \n\t"
-        "p.mac x14, %[k8], x6 \n\t"
-        "p.mac x15, %[k8], x7 \n\t"
-        "p.mac x16, %[k8], x8 \n\t"
-        // Shift top row
-        "div   x13, x13, %[W] \n\t"
-        "div   x14, x14, %[W] \n\t"
-        "div   x15, x15, %[W] \n\t"
-        "div   x16, x16, %[W] \n\t"
-        // Store top row
-        "p.sw  x13, 4(%[addr_out]!) \n\t"
-        "p.sw  x14, 4(%[addr_out]!) \n\t"
-        "p.sw  x15, 4(%[addr_out]!) \n\t"
-        "p.sw  x16, %[C_3](%[addr_out]!) \n\t"
-        : [addr_in] "+&r"(addr_in), [addr_out] "+&r"(addr_out) // Outputs
-        : [addr_end] "r"(addr_end), [C_3] "r"(C_3), [C_5] "r"(C_5), [W] "r"(W),
-          [k0] "r"(k0), [k1] "r"(k1), [k2] "r"(k2), [k3] "r"(k3), [k4] "r"(k4),
-          [k5] "r"(k5), [k6] "r"(k6), [k7] "r"(k7),
-          [k8] "r"(k8) // Inputs
-        : "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13",
-          "x14", "x15", "x16", "memory"); // Clobber
-  }
-} else {
-  for (uint32_t c = 4 * id; c < in_x - 6;
-       c += 4 * numThreads) { // We compute four output columns per kernel
-
     // Address registers
-    const int32_t *addr_in = (const int32_t *)&in[c];
-    const int32_t *addr_out = (const int32_t *)&out[c + 1 + in_x]; // 3x3 Kernel
+    int32_t *addr_in = (int32_t *)&in[c - 1];
+    // Shift out address by one for 3x3 kernel
+    int32_t *addr_out = (int32_t *)&out[c + in_x];
+    // Final row -2 because of phase out
+    // TODO Address out might be easier
+    int32_t *addr_end = (int32_t *)&in[c - 1 + in_x * (in_y - 2)];
 
-    // TODO minus phase out 2 rounds
-    const int32_t *addr_end = &in[c + in_x * (in_y - 2)];
+    if (c > 0 && c < in_x - 4) {
+      // Full width around the output pixels from c to c+3
 
-    const int32_t C_2 = ((int32_t)in_x - 2) * 4;
-    const int32_t C_4 = ((int32_t)in_x - 4) * 4;
-    const int32_t k0 = k[0];
-    const int32_t k1 = k[1];
-    const int32_t k2 = k[2];
-    const int32_t k3 = k[3];
-    const int32_t k4 = k[4];
-    const int32_t k5 = k[5];
-    const int32_t k6 = k[6];
-    const int32_t k7 = k[7];
-    const int32_t k8 = k[8];
-    const int32_t W = (int32_t)weight;
+      // Address offsets
+      const int32_t C_3 = ((int32_t)in_x - 3) * 4;
+      const int32_t C_5 = ((int32_t)in_x - 5) * 4;
 
-    // Input
-    //  x3  x4  x5  x6  x7
-    // Output: TODO Can we make it work with half the outputs?
-    //      x9 x10 x11  Top and bottom in round one, middle in round two
-    //     x13 x14 x15  Middle in round one, top and bottom in round two
-    // Kernel:
-    //  k0  k1  k2
-    //  k3  k4  k5
-    //  k6  k7  k8
+      // Input
+      //  x3  x4  x5  x6  x7  x8
+      // Output: TODO Can we make it work with half the outputs?
+      //      x9 x10 x11 x12  Top and bottom row in round one, middle in round
+      //      two
+      //     x13 x14 x15 x16  Middle in round one, top and bottom in round two
+      // Kernel:
+      //  k0  k1  k2
+      //  k3  k4  k5
+      //  k6  k7  k8
 
-    // register int32_t k asm("x1") = (int32_t)addr_end;
-    __asm__ volatile(
-        // Phase in; Round one
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
-        // Compute bottom row
-        "mul    x9, %[k0], x3 \n\t"
-        "mul   x10, %[k0], x4 \n\t"
-        "mul   x11, %[k0], x5 \n\t"
-        "p.mac  x9, %[k1], x4 \n\t"
-        "p.mac x10, %[k1], x5 \n\t"
-        "p.mac x11, %[k1], x6 \n\t"
-        "p.mac  x9, %[k2], x5 \n\t"
-        "p.mac x10, %[k2], x6 \n\t"
-        "p.mac x11, %[k2], x7 \n\t"
-        // Phase in; Round two
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, %[C_4][C_4](%[addr_in]!) \n\t"
-        "p.mac  x9, %[k3], x3 \n\t"
-        "p.mac x10, %[k3], x4 \n\t"
-        "p.mac x11, %[k3], x5 \n\t"
-        "p.mac  x9, %[k4], x4 \n\t"
-        "p.mac x10, %[k4], x5 \n\t"
-        "p.mac x11, %[k4], x6 \n\t"
-        "p.mac  x9, %[k5], x5 \n\t"
-        "p.mac x10, %[k5], x6 \n\t"
-        "p.mac x11, %[k5], x7 \n\t"
-        // Compute bottom row
-        "mul   x13, %[k0], x3 \n\t"
-        "mul   x14, %[k0], x4 \n\t"
-        "mul   x15, %[k0], x5 \n\t"
-        "p.mac x13, %[k1], x4 \n\t"
-        "p.mac x14, %[k1], x5 \n\t"
-        "p.mac x15, %[k1], x6 \n\t"
-        "p.mac x13, %[k2], x5 \n\t"
-        "p.mac x14, %[k2], x6 \n\t"
-        "p.mac x15, %[k2], x7 \n\t"
+      __asm__ volatile(
+          // Phase in; Round one
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, 4(%[addr_in]!) \n\t"
+          "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
+          // Compute bottom row
+          "mul    x9, %[k0], x3 \n\t"
+          "mul   x10, %[k0], x4 \n\t"
+          "mul   x11, %[k0], x5 \n\t"
+          "mul   x12, %[k0], x6 \n\t"
+          "p.mac  x9, %[k1], x4 \n\t"
+          "p.mac x10, %[k1], x5 \n\t"
+          "p.mac x11, %[k1], x6 \n\t"
+          "p.mac x12, %[k1], x7 \n\t"
+          "p.mac  x9, %[k2], x5 \n\t"
+          "p.mac x10, %[k2], x6 \n\t"
+          "p.mac x11, %[k2], x7 \n\t"
+          "p.mac x12, %[k2], x8 \n\t"
+          // Phase in; Round two
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, 4(%[addr_in]!) \n\t"
+          "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
+          // Compute middle row
+          "p.mac  x9, %[k3], x3 \n\t"
+          "p.mac x10, %[k3], x4 \n\t"
+          "p.mac x11, %[k3], x5 \n\t"
+          "p.mac x12, %[k3], x6 \n\t"
+          "p.mac  x9, %[k4], x4 \n\t"
+          "p.mac x10, %[k4], x5 \n\t"
+          "p.mac x11, %[k4], x6 \n\t"
+          "p.mac x12, %[k4], x7 \n\t"
+          "p.mac  x9, %[k5], x5 \n\t"
+          "p.mac x10, %[k5], x6 \n\t"
+          "p.mac x11, %[k5], x7 \n\t"
+          "p.mac x12, %[k5], x8 \n\t"
+          // Compute bottom row
+          "mul   x13, %[k0], x3 \n\t"
+          "mul   x14, %[k0], x4 \n\t"
+          "mul   x15, %[k0], x5 \n\t"
+          "mul   x16, %[k0], x6 \n\t"
+          "p.mac x13, %[k1], x4 \n\t"
+          "p.mac x14, %[k1], x5 \n\t"
+          "p.mac x15, %[k1], x6 \n\t"
+          "p.mac x16, %[k1], x7 \n\t"
+          "p.mac x13, %[k2], x5 \n\t"
+          "p.mac x14, %[k2], x6 \n\t"
+          "p.mac x15, %[k2], x7 \n\t"
+          "p.mac x16, %[k2], x8 \n\t"
 
-        // Full computation
-        "1: \n\t"
-        // Round one
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
-        // Compute top row
-        "p.mac  x9, %[k6], x3 \n\t"
-        "p.mac x10, %[k6], x4 \n\t"
-        "p.mac x11, %[k6], x5 \n\t"
-        "p.mac  x9, %[k7], x4 \n\t"
-        "p.mac x10, %[k7], x5 \n\t"
-        "p.mac x11, %[k7], x6 \n\t"
-        "p.mac  x9, %[k8], x5 \n\t"
-        "p.mac x10, %[k8], x6 \n\t"
-        "p.mac x11, %[k8], x7 \n\t"
-        // Shift top row
-        "div    x9,  x9, %[W] \n\t"
-        "div   x10, x10, %[W] \n\t"
-        "div   x11, x11, %[W] \n\t"
-        // Store top row
-        "p.sw   x9, 4(%[addr_out]!) \n\t"
-        "p.sw  x10, 4(%[addr_out]!) \n\t"
-        "p.sw  x11, 4(%[addr_out]!) \n\t"
-        "p.sw  x12, %[C_2](%[addr_out]!) \n\t"
-        // Compute middle row
-        "p.mac x13, %[k3], x3 \n\t"
-        "p.mac x14, %[k3], x4 \n\t"
-        "p.mac x15, %[k3], x5 \n\t"
-        "p.mac x16, %[k3], x6 \n\t"
-        "p.mac x13, %[k4], x4 \n\t"
-        "p.mac x14, %[k4], x5 \n\t"
-        "p.mac x15, %[k4], x6 \n\t"
-        "p.mac x16, %[k4], x7 \n\t"
-        "p.mac x13, %[k5], x5 \n\t"
-        "p.mac x14, %[k5], x6 \n\t"
-        "p.mac x15, %[k5], x7 \n\t"
-        "p.mac x16, %[k5], x8 \n\t"
-        // Compute bottom row
-        "mul    x9, %[k0], x3 \n\t"
-        "mul   x10, %[k0], x4 \n\t"
-        "mul   x11, %[k0], x5 \n\t"
-        "mul   x12, %[k0], x6 \n\t"
-        "p.mac  x9, %[k1], x4 \n\t"
-        "p.mac x10, %[k1], x5 \n\t"
-        "p.mac x11, %[k1], x6 \n\t"
-        "p.mac x12, %[k1], x7 \n\t"
-        "p.mac  x9, %[k2], x5 \n\t"
-        "p.mac x10, %[k2], x6 \n\t"
-        "p.mac x11, %[k2], x7 \n\t"
-        "p.mac x12, %[k2], x8 \n\t"
-        // Round two
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
-        // Compute top row
-        "p.mac x13, %[k6], x3 \n\t"
-        "p.mac x14, %[k6], x4 \n\t"
-        "p.mac x15, %[k6], x5 \n\t"
-        "p.mac x16, %[k6], x6 \n\t"
-        "p.mac x13, %[k7], x4 \n\t"
-        "p.mac x14, %[k7], x5 \n\t"
-        "p.mac x15, %[k7], x6 \n\t"
-        "p.mac x16, %[k7], x7 \n\t"
-        "p.mac x13, %[k8], x5 \n\t"
-        "p.mac x14, %[k8], x6 \n\t"
-        "p.mac x15, %[k8], x7 \n\t"
-        "p.mac x16, %[k8], x8 \n\t"
-        // Shift top row
-        "div   x13, x13, %[W] \n\t"
-        "div   x14, x14, %[W] \n\t"
-        "div   x15, x15, %[W] \n\t"
-        "div   x16, x16, %[W] \n\t"
-        // Store top row
-        "p.sw  x13, 4(%[addr_out]!) \n\t"
-        "p.sw  x14, 4(%[addr_out]!) \n\t"
-        "p.sw  x15, 4(%[addr_out]!) \n\t"
-        "p.sw  x16, %[C_2](%[addr_out]!) \n\t"
-        // Compute middle row
-        "p.mac  x9, %[k3], x3 \n\t"
-        "p.mac x10, %[k3], x4 \n\t"
-        "p.mac x11, %[k3], x5 \n\t"
-        "p.mac x12, %[k3], x6 \n\t"
-        "p.mac  x9, %[k4], x4 \n\t"
-        "p.mac x10, %[k4], x5 \n\t"
-        "p.mac x11, %[k4], x6 \n\t"
-        "p.mac x12, %[k4], x7 \n\t"
-        "p.mac  x9, %[k5], x5 \n\t"
-        "p.mac x10, %[k5], x6 \n\t"
-        "p.mac x11, %[k5], x7 \n\t"
-        "p.mac x12, %[k5], x8 \n\t"
-        // Compute bottom row
-        "mul   x13, %[k0], x3 \n\t"
-        "mul   x14, %[k0], x4 \n\t"
-        "mul   x15, %[k0], x5 \n\t"
-        "mul   x16, %[k0], x6 \n\t"
-        "p.mac x13, %[k1], x4 \n\t"
-        "p.mac x14, %[k1], x5 \n\t"
-        "p.mac x15, %[k1], x6 \n\t"
-        "p.mac x16, %[k1], x7 \n\t"
-        "p.mac x13, %[k2], x5 \n\t"
-        "p.mac x14, %[k2], x6 \n\t"
-        "p.mac x15, %[k2], x7 \n\t"
-        "p.mac x16, %[k2], x8 \n\t"
-        // Branch
-        "bne %[addr_in], %[addr_end], 1b \n\t"
+          // Full computation
+          "1: \n\t"
+          // Round one
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, 4(%[addr_in]!) \n\t"
+          "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
+          // Compute top row
+          "p.mac  x9, %[k6], x3 \n\t"
+          "p.mac x10, %[k6], x4 \n\t"
+          "p.mac x11, %[k6], x5 \n\t"
+          "p.mac x12, %[k6], x6 \n\t"
+          "p.mac  x9, %[k7], x4 \n\t"
+          "p.mac x10, %[k7], x5 \n\t"
+          "p.mac x11, %[k7], x6 \n\t"
+          "p.mac x12, %[k7], x7 \n\t"
+          "p.mac  x9, %[k8], x5 \n\t"
+          "p.mac x10, %[k8], x6 \n\t"
+          "p.mac x11, %[k8], x7 \n\t"
+          "p.mac x12, %[k8], x8 \n\t"
+          // Shift top row
+          "div    x9,  x9, %[W] \n\t"
+          "div   x10, x10, %[W] \n\t"
+          "div   x11, x11, %[W] \n\t"
+          "div   x12, x12, %[W] \n\t"
+          // Store top row
+          "p.sw   x9, 4(%[addr_out]!) \n\t"
+          "p.sw  x10, 4(%[addr_out]!) \n\t"
+          "p.sw  x11, 4(%[addr_out]!) \n\t"
+          "p.sw  x12, %[C_3](%[addr_out]!) \n\t"
+          // Compute middle row
+          "p.mac x13, %[k3], x3 \n\t"
+          "p.mac x14, %[k3], x4 \n\t"
+          "p.mac x15, %[k3], x5 \n\t"
+          "p.mac x16, %[k3], x6 \n\t"
+          "p.mac x13, %[k4], x4 \n\t"
+          "p.mac x14, %[k4], x5 \n\t"
+          "p.mac x15, %[k4], x6 \n\t"
+          "p.mac x16, %[k4], x7 \n\t"
+          "p.mac x13, %[k5], x5 \n\t"
+          "p.mac x14, %[k5], x6 \n\t"
+          "p.mac x15, %[k5], x7 \n\t"
+          "p.mac x16, %[k5], x8 \n\t"
+          // Compute bottom row
+          "mul    x9, %[k0], x3 \n\t"
+          "mul   x10, %[k0], x4 \n\t"
+          "mul   x11, %[k0], x5 \n\t"
+          "mul   x12, %[k0], x6 \n\t"
+          "p.mac  x9, %[k1], x4 \n\t"
+          "p.mac x10, %[k1], x5 \n\t"
+          "p.mac x11, %[k1], x6 \n\t"
+          "p.mac x12, %[k1], x7 \n\t"
+          "p.mac  x9, %[k2], x5 \n\t"
+          "p.mac x10, %[k2], x6 \n\t"
+          "p.mac x11, %[k2], x7 \n\t"
+          "p.mac x12, %[k2], x8 \n\t"
+          // Round two
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, 4(%[addr_in]!) \n\t"
+          "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
+          // Compute top row
+          "p.mac x13, %[k6], x3 \n\t"
+          "p.mac x14, %[k6], x4 \n\t"
+          "p.mac x15, %[k6], x5 \n\t"
+          "p.mac x16, %[k6], x6 \n\t"
+          "p.mac x13, %[k7], x4 \n\t"
+          "p.mac x14, %[k7], x5 \n\t"
+          "p.mac x15, %[k7], x6 \n\t"
+          "p.mac x16, %[k7], x7 \n\t"
+          "p.mac x13, %[k8], x5 \n\t"
+          "p.mac x14, %[k8], x6 \n\t"
+          "p.mac x15, %[k8], x7 \n\t"
+          "p.mac x16, %[k8], x8 \n\t"
+          // Shift top row
+          "div   x13, x13, %[W] \n\t"
+          "div   x14, x14, %[W] \n\t"
+          "div   x15, x15, %[W] \n\t"
+          "div   x16, x16, %[W] \n\t"
+          // Store top row
+          "p.sw  x13, 4(%[addr_out]!) \n\t"
+          "p.sw  x14, 4(%[addr_out]!) \n\t"
+          "p.sw  x15, 4(%[addr_out]!) \n\t"
+          "p.sw  x16, %[C_3](%[addr_out]!) \n\t"
+          // Compute middle row
+          "p.mac  x9, %[k3], x3 \n\t"
+          "p.mac x10, %[k3], x4 \n\t"
+          "p.mac x11, %[k3], x5 \n\t"
+          "p.mac x12, %[k3], x6 \n\t"
+          "p.mac  x9, %[k4], x4 \n\t"
+          "p.mac x10, %[k4], x5 \n\t"
+          "p.mac x11, %[k4], x6 \n\t"
+          "p.mac x12, %[k4], x7 \n\t"
+          "p.mac  x9, %[k5], x5 \n\t"
+          "p.mac x10, %[k5], x6 \n\t"
+          "p.mac x11, %[k5], x7 \n\t"
+          "p.mac x12, %[k5], x8 \n\t"
+          // Compute bottom row
+          "mul   x13, %[k0], x3 \n\t"
+          "mul   x14, %[k0], x4 \n\t"
+          "mul   x15, %[k0], x5 \n\t"
+          "mul   x16, %[k0], x6 \n\t"
+          "p.mac x13, %[k1], x4 \n\t"
+          "p.mac x14, %[k1], x5 \n\t"
+          "p.mac x15, %[k1], x6 \n\t"
+          "p.mac x16, %[k1], x7 \n\t"
+          "p.mac x13, %[k2], x5 \n\t"
+          "p.mac x14, %[k2], x6 \n\t"
+          "p.mac x15, %[k2], x7 \n\t"
+          "p.mac x16, %[k2], x8 \n\t"
+          // Branch
+          "bne %[addr_in], %[addr_end], 1b \n\t"
 
-        // Phase out; Round one
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
-        // Compute top row
-        "p.mac  x9, %[k6], x3 \n\t"
-        "p.mac x10, %[k6], x4 \n\t"
-        "p.mac x11, %[k6], x5 \n\t"
-        "p.mac x12, %[k6], x6 \n\t"
-        "p.mac  x9, %[k7], x4 \n\t"
-        "p.mac x10, %[k7], x5 \n\t"
-        "p.mac x11, %[k7], x6 \n\t"
-        "p.mac x12, %[k7], x7 \n\t"
-        "p.mac  x9, %[k8], x5 \n\t"
-        "p.mac x10, %[k8], x6 \n\t"
-        "p.mac x11, %[k8], x7 \n\t"
-        "p.mac x12, %[k8], x8 \n\t"
-        // Shift top row
-        "div    x9,  x9, %[W] \n\t"
-        "div   x10, x10, %[W] \n\t"
-        "div   x11, x11, %[W] \n\t"
-        "div   x12, x12, %[W] \n\t"
-        // Store top row
-        "p.sw   x9, 4(%[addr_out]!) \n\t"
-        "p.sw  x10, 4(%[addr_out]!) \n\t"
-        "p.sw  x11, 4(%[addr_out]!) \n\t"
-        "p.sw  x12, %[C_2](%[addr_out]!) \n\t"
-        // Compute middle row
-        "p.mac x13, %[k3], x3 \n\t"
-        "p.mac x14, %[k3], x4 \n\t"
-        "p.mac x15, %[k3], x5 \n\t"
-        "p.mac x16, %[k3], x6 \n\t"
-        "p.mac x13, %[k4], x4 \n\t"
-        "p.mac x14, %[k4], x5 \n\t"
-        "p.mac x15, %[k4], x6 \n\t"
-        "p.mac x16, %[k4], x7 \n\t"
-        "p.mac x13, %[k5], x5 \n\t"
-        "p.mac x14, %[k5], x6 \n\t"
-        "p.mac x15, %[k5], x7 \n\t"
-        "p.mac x16, %[k5], x8 \n\t"
-        // Phae out; Round two
-        "p.lw   x3, 4(%[addr_in]!) \n\t"
-        "p.lw   x4, 4(%[addr_in]!) \n\t"
-        "p.lw   x5, 4(%[addr_in]!) \n\t"
-        "p.lw   x6, 4(%[addr_in]!) \n\t"
-        "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
-        // Compute top row
-        "p.mac x13, %[k6], x3 \n\t"
-        "p.mac x14, %[k6], x4 \n\t"
-        "p.mac x15, %[k6], x5 \n\t"
-        "p.mac x16, %[k6], x6 \n\t"
-        "p.mac x13, %[k7], x4 \n\t"
-        "p.mac x14, %[k7], x5 \n\t"
-        "p.mac x15, %[k7], x6 \n\t"
-        "p.mac x16, %[k7], x7 \n\t"
-        "p.mac x13, %[k8], x5 \n\t"
-        "p.mac x14, %[k8], x6 \n\t"
-        "p.mac x15, %[k8], x7 \n\t"
-        "p.mac x16, %[k8], x8 \n\t"
-        // Shift top row
-        "div   x13, x13, %[W] \n\t"
-        "div   x14, x14, %[W] \n\t"
-        "div   x15, x15, %[W] \n\t"
-        "div   x16, x16, %[W] \n\t"
-        // Store top row
-        "p.sw  x13, 4(%[addr_out]!) \n\t"
-        "p.sw  x14, 4(%[addr_out]!) \n\t"
-        "p.sw  x15, 4(%[addr_out]!) \n\t"
-        "p.sw  x16, %[C_2](%[addr_out]!) \n\t"
-        : [addr_in] "+&r"(addr_in), [addr_out] "+&r"(addr_out) // Outputs
-        : [addr_end] "r"(addr_end), [C_2] "r"(C_2), [C_4] "r"(C_4), [W] "r"(W),
-          [k0] "r"(k0), [k1] "r"(k1), [k2] "r"(k2), [k3] "r"(k3), [k4] "r"(k4),
-          [k5] "r"(k5), [k6] "r"(k6), [k7] "r"(k7),
-          [k8] "r"(k8) // Inputs
-        : "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13",
-          "x14", "x15", "x16", "memory"); // Clobber
+          // Phase out; Round one
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, 4(%[addr_in]!) \n\t"
+          "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
+          // Compute top row
+          "p.mac  x9, %[k6], x3 \n\t"
+          "p.mac x10, %[k6], x4 \n\t"
+          "p.mac x11, %[k6], x5 \n\t"
+          "p.mac x12, %[k6], x6 \n\t"
+          "p.mac  x9, %[k7], x4 \n\t"
+          "p.mac x10, %[k7], x5 \n\t"
+          "p.mac x11, %[k7], x6 \n\t"
+          "p.mac x12, %[k7], x7 \n\t"
+          "p.mac  x9, %[k8], x5 \n\t"
+          "p.mac x10, %[k8], x6 \n\t"
+          "p.mac x11, %[k8], x7 \n\t"
+          "p.mac x12, %[k8], x8 \n\t"
+          // Shift top row
+          "div    x9,  x9, %[W] \n\t"
+          "div   x10, x10, %[W] \n\t"
+          "div   x11, x11, %[W] \n\t"
+          "div   x12, x12, %[W] \n\t"
+          // Store top row
+          "p.sw   x9, 4(%[addr_out]!) \n\t"
+          "p.sw  x10, 4(%[addr_out]!) \n\t"
+          "p.sw  x11, 4(%[addr_out]!) \n\t"
+          "p.sw  x12, %[C_3](%[addr_out]!) \n\t"
+          // Compute middle row
+          "p.mac x13, %[k3], x3 \n\t"
+          "p.mac x14, %[k3], x4 \n\t"
+          "p.mac x15, %[k3], x5 \n\t"
+          "p.mac x16, %[k3], x6 \n\t"
+          "p.mac x13, %[k4], x4 \n\t"
+          "p.mac x14, %[k4], x5 \n\t"
+          "p.mac x15, %[k4], x6 \n\t"
+          "p.mac x16, %[k4], x7 \n\t"
+          "p.mac x13, %[k5], x5 \n\t"
+          "p.mac x14, %[k5], x6 \n\t"
+          "p.mac x15, %[k5], x7 \n\t"
+          "p.mac x16, %[k5], x8 \n\t"
+          // Phae out; Round two
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, 4(%[addr_in]!) \n\t"
+          "p.lw   x8, %[C_5](%[addr_in]!) \n\t"
+          // Compute top row
+          "p.mac x13, %[k6], x3 \n\t"
+          "p.mac x14, %[k6], x4 \n\t"
+          "p.mac x15, %[k6], x5 \n\t"
+          "p.mac x16, %[k6], x6 \n\t"
+          "p.mac x13, %[k7], x4 \n\t"
+          "p.mac x14, %[k7], x5 \n\t"
+          "p.mac x15, %[k7], x6 \n\t"
+          "p.mac x16, %[k7], x7 \n\t"
+          "p.mac x13, %[k8], x5 \n\t"
+          "p.mac x14, %[k8], x6 \n\t"
+          "p.mac x15, %[k8], x7 \n\t"
+          "p.mac x16, %[k8], x8 \n\t"
+          // Shift top row
+          "div   x13, x13, %[W] \n\t"
+          "div   x14, x14, %[W] \n\t"
+          "div   x15, x15, %[W] \n\t"
+          "div   x16, x16, %[W] \n\t"
+          // Store top row
+          "p.sw  x13, 4(%[addr_out]!) \n\t"
+          "p.sw  x14, 4(%[addr_out]!) \n\t"
+          "p.sw  x15, 4(%[addr_out]!) \n\t"
+          "p.sw  x16, %[C_3](%[addr_out]!) \n\t"
+          : [addr_in] "+&r"(addr_in), [addr_out] "+&r"(addr_out) // Outputs
+          : [addr_end] "r"(addr_end), [C_3] "r"(C_3), [C_5] "r"(C_5),
+            [W] "r"(W), [k0] "r"(k0), [k1] "r"(k1), [k2] "r"(k2), [k3] "r"(k3),
+            [k4] "r"(k4), [k5] "r"(k5), [k6] "r"(k6), [k7] "r"(k7),
+            [k8] "r"(k8) // Inputs
+          : "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
+            "x13", "x14", "x15", "x16", "memory"); // Clobber
+    } else {
+      // Boundary
+      if (c == 0) {
+        // Left boundary, shift computation to the right and compute c+1 to c+3
+        // output columns Address registers
+        addr_in = (int32_t *)&in[c];
+        // Shift out address by one for 3x3 kernel
+        addr_out = (int32_t *)&out[c + 1 + in_x];
+        // Final row -2 because of phase out
+        // TODO Address out might be easier
+        addr_end = (int32_t *)&in[c + in_x * (in_y - 2)];
+      }
+
+      // Address offsets
+      const int32_t C_2 = ((int32_t)in_x - 2) * 4;
+      const int32_t C_4 = ((int32_t)in_x - 4) * 4;
+
+      // Input
+      //  x3  x4  x5  x6  x7
+      // Output: TODO Can we make it work with half the outputs?
+      //      x9 x10 x11  Top and bottom in round one, middle in round two
+      //     x13 x14 x15  Middle in round one, top and bottom in round two
+      // Kernel:
+      //  k0  k1  k2
+      //  k3  k4  k5
+      //  k6  k7  k8
+
+      // register int32_t k asm("x1") = (int32_t)addr_end;
+      __asm__ volatile(
+          // Phase in; Round one
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
+          // Compute bottom row
+          "mul    x9, %[k0], x3 \n\t"
+          "mul   x10, %[k0], x4 \n\t"
+          "mul   x11, %[k0], x5 \n\t"
+          "p.mac  x9, %[k1], x4 \n\t"
+          "p.mac x10, %[k1], x5 \n\t"
+          "p.mac x11, %[k1], x6 \n\t"
+          "p.mac  x9, %[k2], x5 \n\t"
+          "p.mac x10, %[k2], x6 \n\t"
+          "p.mac x11, %[k2], x7 \n\t"
+          // Phase in; Round two
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
+          "p.mac  x9, %[k3], x3 \n\t"
+          "p.mac x10, %[k3], x4 \n\t"
+          "p.mac x11, %[k3], x5 \n\t"
+          "p.mac  x9, %[k4], x4 \n\t"
+          "p.mac x10, %[k4], x5 \n\t"
+          "p.mac x11, %[k4], x6 \n\t"
+          "p.mac  x9, %[k5], x5 \n\t"
+          "p.mac x10, %[k5], x6 \n\t"
+          "p.mac x11, %[k5], x7 \n\t"
+          // Compute bottom row
+          "mul   x13, %[k0], x3 \n\t"
+          "mul   x14, %[k0], x4 \n\t"
+          "mul   x15, %[k0], x5 \n\t"
+          "p.mac x13, %[k1], x4 \n\t"
+          "p.mac x14, %[k1], x5 \n\t"
+          "p.mac x15, %[k1], x6 \n\t"
+          "p.mac x13, %[k2], x5 \n\t"
+          "p.mac x14, %[k2], x6 \n\t"
+          "p.mac x15, %[k2], x7 \n\t"
+
+          // Full computation
+          "1: \n\t"
+          // Round one
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
+          // Compute top row
+          "p.mac  x9, %[k6], x3 \n\t"
+          "p.mac x10, %[k6], x4 \n\t"
+          "p.mac x11, %[k6], x5 \n\t"
+          "p.mac  x9, %[k7], x4 \n\t"
+          "p.mac x10, %[k7], x5 \n\t"
+          "p.mac x11, %[k7], x6 \n\t"
+          "p.mac  x9, %[k8], x5 \n\t"
+          "p.mac x10, %[k8], x6 \n\t"
+          "p.mac x11, %[k8], x7 \n\t"
+          // Shift top row
+          "div    x9,  x9, %[W] \n\t"
+          "div   x10, x10, %[W] \n\t"
+          "div   x11, x11, %[W] \n\t"
+          // Store top row
+          "p.sw   x9, 4(%[addr_out]!) \n\t"
+          "p.sw  x10, 4(%[addr_out]!) \n\t"
+          "p.sw  x11, %[C_2](%[addr_out]!) \n\t"
+          // Compute middle row
+          "p.mac x13, %[k3], x3 \n\t"
+          "p.mac x14, %[k3], x4 \n\t"
+          "p.mac x15, %[k3], x5 \n\t"
+          "p.mac x13, %[k4], x4 \n\t"
+          "p.mac x14, %[k4], x5 \n\t"
+          "p.mac x15, %[k4], x6 \n\t"
+          "p.mac x13, %[k5], x5 \n\t"
+          "p.mac x14, %[k5], x6 \n\t"
+          "p.mac x15, %[k5], x7 \n\t"
+          // Compute bottom row
+          "mul    x9, %[k0], x3 \n\t"
+          "mul   x10, %[k0], x4 \n\t"
+          "mul   x11, %[k0], x5 \n\t"
+          "p.mac  x9, %[k1], x4 \n\t"
+          "p.mac x10, %[k1], x5 \n\t"
+          "p.mac x11, %[k1], x6 \n\t"
+          "p.mac  x9, %[k2], x5 \n\t"
+          "p.mac x10, %[k2], x6 \n\t"
+          "p.mac x11, %[k2], x7 \n\t"
+          // Round two
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
+          // Compute top row
+          "p.mac x13, %[k6], x3 \n\t"
+          "p.mac x14, %[k6], x4 \n\t"
+          "p.mac x15, %[k6], x5 \n\t"
+          "p.mac x13, %[k7], x4 \n\t"
+          "p.mac x14, %[k7], x5 \n\t"
+          "p.mac x15, %[k7], x6 \n\t"
+          "p.mac x13, %[k8], x5 \n\t"
+          "p.mac x14, %[k8], x6 \n\t"
+          "p.mac x15, %[k8], x7 \n\t"
+          // Shift top row
+          "div   x13, x13, %[W] \n\t"
+          "div   x14, x14, %[W] \n\t"
+          "div   x15, x15, %[W] \n\t"
+          // Store top row
+          "p.sw  x13, 4(%[addr_out]!) \n\t"
+          "p.sw  x14, 4(%[addr_out]!) \n\t"
+          "p.sw  x15, %[C_2](%[addr_out]!) \n\t"
+          // Compute middle row
+          "p.mac  x9, %[k3], x3 \n\t"
+          "p.mac x10, %[k3], x4 \n\t"
+          "p.mac x11, %[k3], x5 \n\t"
+          "p.mac  x9, %[k4], x4 \n\t"
+          "p.mac x10, %[k4], x5 \n\t"
+          "p.mac x11, %[k4], x6 \n\t"
+          "p.mac  x9, %[k5], x5 \n\t"
+          "p.mac x10, %[k5], x6 \n\t"
+          "p.mac x11, %[k5], x7 \n\t"
+          // Compute bottom row
+          "mul   x13, %[k0], x3 \n\t"
+          "mul   x14, %[k0], x4 \n\t"
+          "mul   x15, %[k0], x5 \n\t"
+          "p.mac x13, %[k1], x4 \n\t"
+          "p.mac x14, %[k1], x5 \n\t"
+          "p.mac x15, %[k1], x6 \n\t"
+          "p.mac x13, %[k2], x5 \n\t"
+          "p.mac x14, %[k2], x6 \n\t"
+          "p.mac x15, %[k2], x7 \n\t"
+          // Branch
+          "bne %[addr_in], %[addr_end], 1b \n\t"
+
+          // Phase out; Round one
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
+          // Compute top row
+          "p.mac  x9, %[k6], x3 \n\t"
+          "p.mac x10, %[k6], x4 \n\t"
+          "p.mac x11, %[k6], x5 \n\t"
+          "p.mac  x9, %[k7], x4 \n\t"
+          "p.mac x10, %[k7], x5 \n\t"
+          "p.mac x11, %[k7], x6 \n\t"
+          "p.mac  x9, %[k8], x5 \n\t"
+          "p.mac x10, %[k8], x6 \n\t"
+          "p.mac x11, %[k8], x7 \n\t"
+          // Shift top row
+          "div    x9,  x9, %[W] \n\t"
+          "div   x10, x10, %[W] \n\t"
+          "div   x11, x11, %[W] \n\t"
+          // Store top row
+          "p.sw   x9, 4(%[addr_out]!) \n\t"
+          "p.sw  x10, 4(%[addr_out]!) \n\t"
+          "p.sw  x11, %[C_2](%[addr_out]!) \n\t"
+          // Compute middle row
+          "p.mac x13, %[k3], x3 \n\t"
+          "p.mac x14, %[k3], x4 \n\t"
+          "p.mac x15, %[k3], x5 \n\t"
+          "p.mac x13, %[k4], x4 \n\t"
+          "p.mac x14, %[k4], x5 \n\t"
+          "p.mac x15, %[k4], x6 \n\t"
+          "p.mac x13, %[k5], x5 \n\t"
+          "p.mac x14, %[k5], x6 \n\t"
+          "p.mac x15, %[k5], x7 \n\t"
+          // Phae out; Round two
+          "p.lw   x3, 4(%[addr_in]!) \n\t"
+          "p.lw   x4, 4(%[addr_in]!) \n\t"
+          "p.lw   x5, 4(%[addr_in]!) \n\t"
+          "p.lw   x6, 4(%[addr_in]!) \n\t"
+          "p.lw   x7, %[C_4](%[addr_in]!) \n\t"
+          // Compute top row
+          "p.mac x13, %[k6], x3 \n\t"
+          "p.mac x14, %[k6], x4 \n\t"
+          "p.mac x15, %[k6], x5 \n\t"
+          "p.mac x13, %[k7], x4 \n\t"
+          "p.mac x14, %[k7], x5 \n\t"
+          "p.mac x15, %[k7], x6 \n\t"
+          "p.mac x13, %[k8], x5 \n\t"
+          "p.mac x14, %[k8], x6 \n\t"
+          "p.mac x15, %[k8], x7 \n\t"
+          // Shift top row
+          "div   x13, x13, %[W] \n\t"
+          "div   x14, x14, %[W] \n\t"
+          "div   x15, x15, %[W] \n\t"
+          // Store top row
+          "p.sw  x13, 4(%[addr_out]!) \n\t"
+          "p.sw  x14, 4(%[addr_out]!) \n\t"
+          "p.sw  x15, %[C_2](%[addr_out]!) \n\t"
+          : [addr_in] "+&r"(addr_in), [addr_out] "+&r"(addr_out) // Outputs
+          : [addr_end] "r"(addr_end), [C_2] "r"(C_2), [C_4] "r"(C_4),
+            [W] "r"(W), [k0] "r"(k0), [k1] "r"(k1), [k2] "r"(k2), [k3] "r"(k3),
+            [k4] "r"(k4), [k5] "r"(k5), [k6] "r"(k6), [k7] "r"(k7),
+            [k8] "r"(k8) // Inputs
+          : "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
+            "x13", "x14", "x15", "x16", "memory"); // Clobber
+    }
   }
 }
 
@@ -783,7 +734,7 @@ int verify_conv2d_image(volatile int32_t *img, uint32_t img_x, uint32_t img_y,
       if ((int)img[i * (int)img_x + j] != x + y) {
         return (i + j) == 0 ? -1 : i * (int)img_x + j;
       }
-      img[i * (int)img_x + j] = 0;
+      // img[i * (int)img_x + j] = 0;
     }
   }
   return 0;
