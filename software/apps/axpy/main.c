@@ -1,4 +1,4 @@
-// Copyright 2021 ETH Zurich and University of Bologna.
+// Copyright 2022 ETH Zurich and University of Bologna.
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -15,28 +15,26 @@
 #include <stdlib.h>
 
 #if NUM_CORES > 32
-#define matrix_M 32
-#define matrix_N 32
+#define size_M 32
+#define size_N 32
 #else
-#define matrix_M (NUM_CORES)
-#define matrix_N (NUM_CORES)
+#define size_M (NUM_CORES)
+#define size_N (NUM_CORES)
 #endif
 
 #define ALPHA 2
 
 #if NUM_CORES > 32
-int32_t matrix_x[matrix_M * matrix_N]
+int32_t data_x[size_M * size_N]
     __attribute__((aligned(64 * 1024), section(".l1")));
-int32_t matrix_y[matrix_M * matrix_N]
+int32_t data_y[size_M * size_N]
     __attribute__((aligned(64 * 1024), section(".l1")));
-int32_t matrix_y_copy[matrix_M * matrix_N]
+int32_t data_y_copy[size_M * size_N]
     __attribute__((aligned(64 * 1024), section(".l1")));
 #else
-int32_t matrix_x[matrix_M * matrix_N]
-    __attribute__((aligned(32), section(".l1")));
-int32_t matrix_y[matrix_M * matrix_N]
-    __attribute__((aligned(32), section(".l1")));
-int32_t matrix_y_copy[matrix_M * matrix_N]
+int32_t data_x[size_M * size_N] __attribute__((aligned(32), section(".l1")));
+int32_t data_y[size_M * size_N] __attribute__((aligned(32), section(".l1")));
+int32_t data_y_copy[size_M * size_N]
     __attribute__((aligned(32), section(".l1")));
 #endif
 
@@ -157,7 +155,7 @@ int main() {
 
   uint32_t const core_id = mempool_get_core_id();
   uint32_t const num_cores = mempool_get_core_count();
-  uint32_t const total_elements = matrix_M * matrix_N;
+  uint32_t const total_elements = size_M * size_N;
 
   // Seed for create element matrix
   int32_t const A_a = 1;
@@ -173,26 +171,24 @@ int main() {
     printf("Initialize %3d cores\n", num_cores);
     error = 0;
   }
-  mempool_barrier(num_cores);
 
   // init_elements;
-  init_matrix(matrix_x, matrix_M, matrix_N, A_a, A_b, A_c, core_id, num_cores);
-  init_matrix(matrix_y, matrix_M, matrix_N, B_a, B_b, B_c, core_id, num_cores);
-  init_matrix(matrix_y_copy, matrix_M, matrix_N, B_a, B_b, B_c, core_id,
-              num_cores);
+  init_matrix(data_x, size_M, size_N, A_a, A_b, A_c, core_id, num_cores);
+  init_matrix(data_y, size_M, size_N, B_a, B_b, B_c, core_id, num_cores);
+  init_matrix(data_y_copy, size_M, size_N, B_a, B_b, B_c, core_id, num_cores);
   mempool_barrier(num_cores);
 
   // start kernel testing
   // benchmark three time to aviod last memory access on the barrier boundary
   mempool_start_benchmark();
-  calc_axpy_unloop_x4_localbank(matrix_x, matrix_y, ALPHA, total_elements,
-                                core_id, num_cores);
+  calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements, core_id,
+                                num_cores);
   mempool_start_benchmark();
-  calc_axpy_unloop_x4_localbank(matrix_x, matrix_y, ALPHA, total_elements,
-                                core_id, num_cores);
+  calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements, core_id,
+                                num_cores);
   mempool_start_benchmark();
-  calc_axpy_unloop_x4_localbank(matrix_x, matrix_y, ALPHA, total_elements,
-                                core_id, num_cores);
+  calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements, core_id,
+                                num_cores);
   mempool_stop_benchmark();
   // end kernel testing
   mempool_barrier(num_cores);
@@ -200,8 +196,9 @@ int main() {
   // Verify results
   if (core_id == 0) {
     printf("START CHECKING RESULTS\n");
-    if (verify_axpy(matrix_x, matrix_y, matrix_y_copy, ALPHA, total_elements)) {
+    if (verify_axpy(data_x, data_y, data_y_copy, ALPHA, total_elements)) {
       printf("RESULTS ERROR\n");
+      error = 1;
     } else {
       printf("RESULTS CORRECT\n");
     }
