@@ -162,6 +162,9 @@ def flt_fmt(flt: float, width: int = 7) -> str:
 # -------------------- Literal formatting  --------------------
 
 def int_lit(num: int, size: int = 2, force_hex: bool = False) -> str:
+    if type(num) is str:
+        sys.stderr.write('WARNING: Trace contains Xs!\n')
+        return num
     width = (8 * int(2 ** size))
     size_mask = (0x1 << width) - 1
     num = num & size_mask  # num is unsigned
@@ -272,10 +275,13 @@ def addr_to_meta(address):
 def read_annotations(dict_str: str) -> dict:
     # return literal_eval(dict_str)
     # Could be used, but slow due to universality: needs compiler
-    return {
-        key: int(
-            val, 16) for key, val in re.findall(
-            r"'([^']+)'\s*:\s*(0x[0-9a-fA-F]+)", dict_str)}
+    annot = {key: int(val, 16) for key, val in
+             re.findall(r"'([^']+)'\s*:\s*(0x[0-9a-fA-F]+)", dict_str)}
+    annot.update({key: val for key, val in
+                  re.findall(r"'([^']+)'\s*:\s*(0x[0-9a-fA-FxX]+)",
+                             re.sub(r"'([^']+)'\s*:\s*(0x[0-9a-fA-F]+)",
+                                    "", dict_str))})
+    return annot
 
 
 def annotate_snitch(
