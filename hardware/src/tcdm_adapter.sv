@@ -79,6 +79,7 @@ module tcdm_adapter #(
 
   logic                 load_amo;
   amo_op_t              amo_op_q;
+  logic                 amo_wb;
   logic [BeWidth-1:0]   be_expand;
   logic [AddrWidth-1:0] addr_q;
 
@@ -91,14 +92,14 @@ module tcdm_adapter #(
     .T     (metadata_t),
     .Bypass(1'b0      )
   ) i_metadata_register (
-    .clk_i  (clk_i                                  ),
-    .rst_ni (rst_ni                                 ),
-    .valid_i(in_valid_i && in_ready_o && !in_write_i),
-    .ready_o(meta_ready                             ),
-    .data_i (in_meta_i                              ),
-    .valid_o(meta_valid                             ),
-    .ready_i(pop_resp                               ),
-    .data_o (in_meta_o                              )
+    .clk_i  (clk_i                   ),
+    .rst_ni (rst_ni                  ),
+    .valid_i(in_valid_i && in_ready_o),
+    .ready_o(meta_ready              ),
+    .data_i (in_meta_i               ),
+    .valid_o(meta_valid              ),
+    .ready_i(pop_resp                ),
+    .data_o (in_meta_o               )
   );
 
   // Store response if it's not accepted immediately
@@ -132,8 +133,8 @@ module tcdm_adapter #(
   // Only pop the data from the registers once both registers are ready
   assign pop_resp   = in_ready_i && in_valid_o;
 
-  // Generate out_gnt one cycle after sending read request to the bank
-  `FF(out_gnt, (out_req_o && !out_write_o) || sc_successful_d, 1'b0, clk_i, rst_ni);
+  // Generate out_gnt one cycle after sending a request to the bank, except an AMO's write-back
+  `FF(out_gnt, out_req_o && !amo_wb, 1'b0, clk_i, rst_ni);
 
   // ----------------
   // LR/SC
@@ -234,6 +235,7 @@ module tcdm_adapter #(
 
     state_d     = state_q;
     load_amo    = 1'b0;
+    amo_wb      = 1'b0;
 
     unique case (state_q)
       Idle: begin
@@ -247,6 +249,7 @@ module tcdm_adapter #(
         in_ready_o  = 1'b0;
         state_d     = (RegisterAmo && state_q != WriteBackAMO) ?  WriteBackAMO : Idle;
         // Commit AMO
+        amo_wb      = 1'b1;
         out_req_o   = 1'b1;
         out_write_o = 1'b1;
         out_add_o   = addr_q;

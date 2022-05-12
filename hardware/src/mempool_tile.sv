@@ -592,7 +592,7 @@ module mempool_tile
       tcdm_shim #(
         .AddrWidth           (AddrWidth                         ),
         .DataWidth           (DataWidth                         ),
-        .MaxOutStandingReads (snitch_pkg::NumIntOutstandingLoads),
+        .MaxOutStandingTrans (snitch_pkg::NumIntOutstandingLoads),
         .NrTCDM              (2                                 ),
         .NrSoC               (1                                 ),
         .NumRules            (3                                 )
@@ -621,6 +621,7 @@ module mempool_tile
         .soc_qvalid_o       (soc_data_qvalid[c]                                                                 ),
         .soc_qready_i       (soc_data_qready[c]                                                                 ),
         .soc_pdata_i        (soc_data_p[c].data                                                                 ),
+        .soc_pwrite_i       (soc_data_p[c].write                                                                ),
         .soc_perror_i       (soc_data_p[c].error                                                                ),
         .soc_pvalid_i       (soc_data_pvalid[c]                                                                 ),
         .soc_pready_o       (soc_data_pready[c]                                                                 ),

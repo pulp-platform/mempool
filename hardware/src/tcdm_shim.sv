@@ -13,13 +13,13 @@ module tcdm_shim
 #(
   parameter int unsigned AddrWidth           = 32            ,
   parameter int unsigned DataWidth           = 32            ,
-  parameter int unsigned MaxOutStandingReads = 8             ,
+  parameter int unsigned MaxOutStandingTrans = 8             ,
   parameter int unsigned NrTCDM              = 2             ,
   parameter int unsigned NrSoC               = 1             ,
   parameter int unsigned NumRules            = 1             , // Routing rules
   localparam int unsigned StrbWidth          = DataWidth/8   ,
   localparam int unsigned NumOutput          = NrTCDM + NrSoC,
-  localparam int unsigned MetaIdWidth        = idx_width(MaxOutStandingReads)
+  localparam int unsigned MetaIdWidth        = idx_width(MaxOutStandingTrans)
 ) (
   input  logic                                          clk_i,
   input  logic                                          rst_ni,
@@ -45,6 +45,7 @@ module tcdm_shim
   output logic         [NrSoC-1:0]                      soc_qvalid_o,
   input  logic         [NrSoC-1:0]                      soc_qready_i,
   input  logic         [NrSoC-1:0] [DataWidth-1:0]      soc_pdata_i,
+  input  logic         [NrSoC-1:0]                      soc_pwrite_i,
   input  logic         [NrSoC-1:0]                      soc_perror_i,
   input  logic         [NrSoC-1:0]                      soc_pvalid_i,
   output logic         [NrSoC-1:0]                      soc_pready_o,
@@ -84,6 +85,7 @@ module tcdm_shim
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_ppayload
     assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i]   ;
     assign tcdm_ppayload[i].data  = tcdm_resp_rdata_i[i];
+    assign tcdm_ppayload[i].write = 1'b0                ; // Don't care
     assign tcdm_ppayload[i].error = 1'b0                ;
   end
 
@@ -91,10 +93,15 @@ module tcdm_shim
   logic [NrSoC-1:0][MetaIdWidth-1:0] soc_meta_id;
 
   for (genvar i = 0; i < NrSoC; i++) begin: gen_soc_meta_id_fifo
+    logic [NrSoC-1:0][MetaIdWidth-1:0] meta_read;
+    logic [NrSoC-1:0][MetaIdWidth-1:0] meta_write;
+
+    assign soc_meta_id[i] = soc_pwrite_i ? meta_write : meta_read;
+
     fifo_v3 #(
-      .DEPTH     (MaxOutStandingReads),
+      .DEPTH     (MaxOutStandingTrans),
       .DATA_WIDTH(MetaIdWidth        )
-    ) i_soc_meta_id_fifo (
+    ) i_soc_meta_id_read_fifo (
       .clk_i     (clk_i                                              ),
       .rst_ni    (rst_ni                                             ),
       .flush_i   (1'b0                                               ),
@@ -102,8 +109,24 @@ module tcdm_shim
       .data_i    (data_qid_i                                         ),
       .push_i    (soc_qvalid_o[i] & soc_qready_i[i] &!soc_qwrite_o[i]),
       .full_o    (/* Unused */                                       ),
-      .data_o    (soc_meta_id[i]                                     ),
-      .pop_i     (soc_pvalid_i[i] & soc_pready_o[i]                  ),
+      .data_o    (meta_read                                          ),
+      .pop_i     (soc_pvalid_i[i] & soc_pready_o[i] & !soc_pwrite_i  ),
+      .empty_o   (/* Unused */                                       ),
+      .usage_o   (/* Unused */                                       )
+    );
+    fifo_v3 #(
+      .DEPTH     (MaxOutStandingTrans),
+      .DATA_WIDTH(MetaIdWidth        )
+    ) i_soc_meta_id_write_fifo (
+      .clk_i     (clk_i                                              ),
+      .rst_ni    (rst_ni                                             ),
+      .flush_i   (1'b0                                               ),
+      .testmode_i(1'b0                                               ),
+      .data_i    (data_qid_i                                         ),
+      .push_i    (soc_qvalid_o[i] & soc_qready_i[i] & soc_qwrite_o[i]),
+      .full_o    (/* Unused */                                       ),
+      .data_o    (meta_write                                         ),
+      .pop_i     (soc_pvalid_i[i] & soc_pready_o[i] & soc_pwrite_i   ),
       .empty_o   (/* Unused */                                       ),
       .usage_o   (/* Unused */                                       )
     );
@@ -154,6 +177,7 @@ module tcdm_shim
     assign soc_qstrb_o[i]        = soc_qpayload[i].strb ;
     assign soc_ppayload[i].data  = soc_pdata_i[i]       ;
     assign soc_ppayload[i].id    = soc_meta_id[i]       ;
+    assign soc_ppayload[i].write = soc_pwrite_i[i]      ;
     assign soc_ppayload[i].error = soc_perror_i[i]      ;
   end
 
