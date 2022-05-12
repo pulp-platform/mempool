@@ -31,6 +31,8 @@ int32_t matrix_c[matrix_M * matrix_P] __attribute__((section(".l1_prio")));
 
 int volatile error __attribute__((section(".l2")));
 
+dump(time, 0);
+
 void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
                  int32_t a, int32_t b, int32_t c, uint32_t core_id,
                  uint32_t num_cores) {
@@ -107,19 +109,49 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   init_matrix(B, N, P, B_a, B_b, B_c, core_id, num_cores);
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
-  // Execute function to test.
+
+  // Cold cache
+  uint32_t start = mempool_get_timer();
   mempool_start_benchmark();
-  // mat_mul_unrolled_2x2_parallel(A, B, C, M, N, P, core_id, num_cores);
   mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
+  mempool_stop_benchmark();
+  if (core_id == 44) {
+    dump_time(mempool_get_timer() - start);
+  }
   mempool_start_benchmark();
+
   // Wait at barrier befor checking
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-  // if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
-  //                   num_cores)) {
-  //   error = 1;
-  //   return -1;
-  // }
+  uint32_t stop = mempool_get_timer();
+  if (core_id == 44) {
+    dump_time(stop - start);
+  }
+
+  // Hot cache
+  mempool_barrier(num_cores);
+  start = mempool_get_timer();
+  mempool_start_benchmark();
+  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
+  mempool_stop_benchmark();
+  if (core_id == 44) {
+    dump_time(mempool_get_timer() - start);
+  }
+  mempool_start_benchmark();
+
+  // Wait at barrier befor checking
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+  stop = mempool_get_timer();
+  if (core_id == 44) {
+    dump_time(stop - start);
+  }
+
+  if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
+                    num_cores)) {
+    error = 1;
+    return -1;
+  }
   return 0;
 }
 
