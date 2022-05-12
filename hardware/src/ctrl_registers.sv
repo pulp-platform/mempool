@@ -15,7 +15,8 @@ module ctrl_registers
   parameter logic [DataWidth-1:0] NumCores          = 0,
   parameter logic [DataWidth-1:0] NumGroups         = 0,
   parameter logic [DataWidth-1:0] NumCoresPerGroup  = 0,
-  parameter logic [DataWidth-1:0] NumTiles          = 0,
+  parameter logic [DataWidth-1:0] NumTilesPerGroup  = 0,
+  parameter logic [DataWidth-1:0] NumCoresPerTile   = 0,
   // AXI Structs
   parameter type axi_lite_req_t                = logic,
   parameter type axi_lite_resp_t               = logic
@@ -66,7 +67,11 @@ module ctrl_registers
   // [59:56]:ro_cache_start_3               (rw)
   // [63:60]:ro_cache_end_3                 (rw)
 
-  localparam logic [NumRegs-1:0][DataWidth-1:0] RegRstVal = '{
+  // [79:64]:wake_up_tile[3:0] (mempoool)   (rw)
+  // [95:64]:wake_up_tile[7:0] (terapool)   (rw)
+
+  localparam logic [NumGroups*DataWidth-1:0] RegRstVal_TileWakeUp = '{NumGroups*DataWidth{1'b0}};
+  localparam logic [NumRegs-NumGroups-1:0][DataWidth-1:0] RegRstVal = '{
     32'h0000_0010,
     32'h0000_000C,
     32'h0000_000C,
@@ -84,7 +89,9 @@ module ctrl_registers
     {DataWidth{1'b0}},
     {DataWidth{1'b0}}
   };
-  localparam logic [NumRegs-1:0][DataWidthInBytes-1:0] AxiReadOnly = '{
+
+  localparam logic [NumGroups-1:0][DataWidthInBytes-1:0] AxiReadOnly_TileWakeUp = '{NumGroups{ReadWriteReg}};
+  localparam logic [NumRegs-NumGroups-1:0][DataWidthInBytes-1:0] AxiReadOnly = '{
     ReadWriteReg,
     ReadWriteReg,
     ReadWriteReg,
@@ -122,18 +129,19 @@ module ctrl_registers
   logic [DataWidth-1:0]   ro_cache_end_2;
   logic [DataWidth-1:0]   ro_cache_start_3;
   logic [DataWidth-1:0]   ro_cache_end_3;
+  logic [NumGroups*DataWidth-1:0] wake_up_tile;
 
   logic [RegNumBytes-1:0] wr_active_d;
   logic [RegNumBytes-1:0] wr_active_q;
 
   axi_lite_regs #(
-    .RegNumBytes (RegNumBytes               ),
-    .AxiAddrWidth(AddrWidth                 ),
-    .AxiDataWidth(AxiLiteDataWidth          ),
-    .AxiReadOnly (AxiReadOnly               ),
-    .RegRstVal   (RegRstVal                 ),
-    .req_lite_t  (axi_lite_req_t            ),
-    .resp_lite_t (axi_lite_resp_t           )
+    .RegNumBytes (RegNumBytes                            ),
+    .AxiAddrWidth(AddrWidth                              ),
+    .AxiDataWidth(AxiLiteDataWidth                       ),
+    .AxiReadOnly ({AxiReadOnly_TileWakeUp, AxiReadOnly}  ),
+    .RegRstVal   ({RegRstVal_TileWakeUp, RegRstVal}      ),
+    .req_lite_t  (axi_lite_req_t                         ),
+    .resp_lite_t (axi_lite_resp_t                        )
   ) i_axi_lite_regs (
     .clk_i      (clk_i                                                          ),
     .rst_ni     (rst_ni                                                         ),
@@ -143,10 +151,13 @@ module ctrl_registers
     .rd_active_o(/* Unused */                                                   ),
     .reg_d_i    ('0                                                             ),
     .reg_load_i ('0                                                             ),
-    .reg_q_o    ({ro_cache_end_3, ro_cache_start_3, ro_cache_end_2, ro_cache_start_2,
-                  ro_cache_end_1, ro_cache_start_1, ro_cache_end_0, ro_cache_start_0,
-                  ro_cache_flush, ro_cache_enable,
-                  num_cores, tcdm_end_address, tcdm_start_address, wake_up_group, wake_up, eoc})
+    .reg_q_o    ({  wake_up_tile,
+                    ro_cache_end_3, ro_cache_start_3,
+                    ro_cache_end_2, ro_cache_start_2,
+                    ro_cache_end_1, ro_cache_start_1,
+                    ro_cache_end_0, ro_cache_start_0,
+                    ro_cache_flush, ro_cache_enable,
+                    num_cores, tcdm_end_address, tcdm_start_address, wake_up_group, wake_up, eoc  })
   );
 
   /***************
@@ -188,6 +199,19 @@ module ctrl_registers
       end else if (wake_up_group == {DataWidth{1'b1}}) begin
         wake_up_o = {NumCores{1'b1}};
       end
+    end
+
+    // converts 32 bit tile wake up mask to 256 bit core wake up mask
+    for(int i_g = 0; i_g < NumGroups; i_g = i_g+1) begin
+
+      if (wr_active_q[64+4*i_g +: 4]) begin
+        if (wake_up_tile[i_g*DataWidth +: DataWidth] <= {NumTilesPerGroup{1'b1}}) begin
+          for(int i = 0; i < NumTilesPerGroup; i = i+1) begin
+            wake_up_o[ NumCoresPerGroup*i_g + NumCoresPerTile*i +: NumCoresPerTile ] = {NumCoresPerTile{wake_up_tile[i_g*DataWidth+i]}};
+          end
+        end
+      end
+
     end
 
   end
