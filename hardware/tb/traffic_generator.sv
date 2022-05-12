@@ -84,6 +84,7 @@ module traffic_generator
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_ppayload
     assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i];
     assign tcdm_ppayload[i].data  = tcdm_resp_rdata_i[i];
+    assign tcdm_ppayload[i].write = 1'b0;
     assign tcdm_ppayload[i].error = 1'b0;
   end
 
