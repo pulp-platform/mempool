@@ -441,6 +441,25 @@ module mempool_group
     .meta_i      (dma_meta       )
   );
 
+  // xbar
+  localparam int unsigned NumRules = 1;
+  typedef struct packed {
+    int unsigned idx;
+    logic [AddrWidth-1:0] start_addr;
+    logic [AddrWidth-1:0] end_addr;
+  } xbar_rule_t;
+  xbar_rule_t [NumRules-1:0] addr_map;
+  assign addr_map = '{
+    '{ // TCDM
+      start_addr: TCDMBaseAddr,
+      end_addr:   TCDMBaseAddr + TCDMSize,
+      idx:        1
+    }
+  };
+
+  `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
+
+
   for (genvar d = 0; unsigned'(d) < NumDmasPerGroup; d++) begin: gen_dmas
     localparam int unsigned a = NumTilesPerGroup + d;
 
@@ -480,22 +499,6 @@ module mempool_group
     // ------------------------------------------------------
     // AXI connection to EXT/TCDM
     // ------------------------------------------------------
-
-    // xbar
-    localparam int unsigned NumRules = 1;
-    typedef struct packed {
-      int unsigned idx;
-      logic [AddrWidth-1:0] start_addr;
-      logic [AddrWidth-1:0] end_addr;
-    } xbar_rule_t;
-    xbar_rule_t [NumRules-1:0] addr_map;
-    assign addr_map = '{
-      '{ // TCDM
-        start_addr: TCDMBaseAddr,
-        end_addr:   TCDMBaseAddr + TCDMSize,
-        idx:        1
-      }
-    };
 
     localparam axi_pkg::xbar_cfg_t XbarCfg = '{
       NoSlvPorts:         1,
@@ -540,8 +543,6 @@ module mempool_group
       .en_default_mst_port_i('1                           ),
       .default_mst_port_i   ('0                           )
     );
-
-    `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
     reqrsp_req_t dma_reqrsp_req;
     reqrsp_rsp_t dma_reqrsp_rsp;
