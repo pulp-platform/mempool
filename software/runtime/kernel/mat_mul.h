@@ -218,20 +218,18 @@ void mat_mul_unrolled_4x4_parallel(int32_t const *__restrict__ A,
 }
 
 #define NN (256)
-#include "printf.h"
 
 void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
                                        int32_t const *__restrict__ B,
                                        int32_t *__restrict__ C, uint32_t M,
                                        uint32_t N, uint32_t P, uint32_t id,
                                        uint32_t numThreads) {
-  // Parallelize by assigning each core one row
+  // Parallelize by assigning each tile one row
   uint32_t const c = 16; // How many columns to split the matrix into
   uint32_t const c_start = (P / c) * (id % c);
   uint32_t const c_end = (P / c) * ((id % c) + 1);
   for (uint32_t i = 4 * (id / c); i < M; i += 4 * (numThreads / c)) {
     for (uint32_t j = c_start; j < c_end; j += 4) {
-      // printf("i=%d, j=%d, c_start=%d, c_end=%d\n", i, j, c_start, c_end);
 
       // Address registers
       int32_t const *addr_a = &A[i * N];
@@ -240,8 +238,6 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
       int32_t const *addr_c = &C[i * P + j];
       int32_t const N3_1 = (-3 * (int32_t)N + 1) * 4;
       int32_t const P_3 = ((int32_t)P - 3) * 4;
-      // printf("addr_a=%x, addr_b=%x, end_b=%x, addr_c=%x\n", addr_a, addr_b,
-      // end_b, addr_c);
 
       register int32_t k asm("x1") = (int32_t)end_b;
 
