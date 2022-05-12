@@ -49,6 +49,22 @@ SECTIONS {
   ro_cache_start_3       = 0x40000038;
   ro_cache_end_3         = 0x4000003C;
 
+#if NUM_CORES == 256
+  wake_up_tile_g0_reg = 0x40000040;
+  wake_up_tile_g1_reg = 0x40000044;
+  wake_up_tile_g2_reg = 0x40000048;
+  wake_up_tile_g3_reg = 0x4000004C;
+#elif NUM_CORES == 1024
+  wake_up_tile_g0_reg = 0x40000040;
+  wake_up_tile_g1_reg = 0x40000044;
+  wake_up_tile_g2_reg = 0x40000048;
+  wake_up_tile_g3_reg = 0x4000004C;
+  wake_up_tile_g4_reg = 0x40000050;
+  wake_up_tile_g5_reg = 0x40000054;
+  wake_up_tile_g6_reg = 0x40000058;
+  wake_up_tile_g7_reg = 0x4000005C;
+#endif
+
 
   fake_uart              = 0xC0000000;
 }
