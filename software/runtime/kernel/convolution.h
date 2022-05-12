@@ -118,10 +118,6 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
                                uint32_t in_y, int32_t const *__restrict__ k,
                                int32_t volatile *__restrict__ out, uint32_t id,
                                uint32_t numThreads) {
-  int32_t weight = 0;
-  for (unsigned int i = 0; i < 9; ++i) {
-    weight += k[i];
-  }
 
   // Compute four columns per iteration
   for (uint32_t c = 4 * id; c < in_x - 3; c += 4 * numThreads) {
@@ -136,7 +132,6 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
     const int32_t k6 = k[6];
     const int32_t k7 = k[7];
     const int32_t k8 = k[8];
-    const int32_t W = (int32_t)weight;
 
     // Address registers
     int32_t *addr_in = (int32_t *)&in[c - 1];
@@ -239,17 +234,14 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x11, %[k7], x6 \n\t"
           "p.mac x12, %[k7], x7 \n\t"
           // Shift top row
-          "div    x9,  x9, %[W] \n\t"
           "p.mac x10, %[k8], x6 \n\t"
           "p.mac x11, %[k8], x7 \n\t"
           "p.mac x12, %[k8], x8 \n\t"
           // Compute middle row
           "p.mac x13, %[k3], x3 \n\t"
           "p.mac x14, %[k3], x4 \n\t"
-          "div   x10, x10, %[W] \n\t"
           // Store top row
           "p.sw   x9, 4(%[addr_out]!) \n\t"
-          "div   x11, x11, %[W] \n\t"
           "p.sw  x10, 4(%[addr_out]!) \n\t"
           "p.mac x15, %[k3], x5 \n\t"
           "p.mac x16, %[k3], x6 \n\t"
@@ -257,7 +249,6 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x14, %[k4], x5 \n\t"
           "p.mac x15, %[k4], x6 \n\t"
           "p.sw  x11, 4(%[addr_out]!) \n\t"
-          "div   x12, x12, %[W] \n\t"
           "p.mac x16, %[k4], x7 \n\t"
           "p.mac x13, %[k5], x5 \n\t"
           "p.mac x14, %[k5], x6 \n\t"
@@ -295,11 +286,9 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x15, %[k7], x6 \n\t"
           "p.mac x16, %[k7], x7 \n\t"
           // Shift top row
-          "div   x13, x13, %[W] \n\t"
           "p.mac x14, %[k8], x6 \n\t"
           "p.mac x15, %[k8], x7 \n\t"
           "p.mac x16, %[k8], x8 \n\t"
-          "div   x14, x14, %[W] \n\t"
           // Compute middle row
           "p.mac  x9, %[k3], x3 \n\t"
           "p.mac x10, %[k3], x4 \n\t"
@@ -307,13 +296,11 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x12, %[k3], x6 \n\t"
           // Store top row
           "p.sw  x13, 4(%[addr_out]!) \n\t"
-          "div   x15, x15, %[W] \n\t"
           "p.sw  x14, 4(%[addr_out]!) \n\t"
           "p.mac  x9, %[k4], x4 \n\t"
           "p.mac x10, %[k4], x5 \n\t"
           "p.mac x11, %[k4], x6 \n\t"
           "p.mac x12, %[k4], x7 \n\t"
-          "div   x16, x16, %[W] \n\t"
           "p.sw  x15, 4(%[addr_out]!) \n\t"
           "p.mac  x9, %[k5], x5 \n\t"
           "p.mac x10, %[k5], x6 \n\t"
@@ -355,24 +342,20 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x12, %[k7], x7 \n\t"
           "p.mac x10, %[k8], x6 \n\t"
           // Shift top row
-          "div    x9,  x9, %[W] \n\t"
           "p.mac x11, %[k8], x7 \n\t"
           "p.mac x12, %[k8], x8 \n\t"
           // Compute middle row
           "p.mac x13, %[k3], x3 \n\t"
           "p.mac x14, %[k3], x4 \n\t"
-          "div   x10, x10, %[W] \n\t"
           // Store top row
           "p.sw   x9, 4(%[addr_out]!) \n\t"
           "p.mac x15, %[k3], x5 \n\t"
           "p.mac x16, %[k3], x6 \n\t"
           "p.mac x13, %[k4], x4 \n\t"
-          "div   x11, x11, %[W] \n\t"
           "p.sw  x10, 4(%[addr_out]!) \n\t"
           "p.mac x14, %[k4], x5 \n\t"
           "p.mac x15, %[k4], x6 \n\t"
           "p.mac x16, %[k4], x7 \n\t"
-          "div   x12, x12, %[W] \n\t"
           "p.sw  x11, 4(%[addr_out]!) \n\t"
           "p.mac x13, %[k5], x5 \n\t"
           "p.mac x14, %[k5], x6 \n\t"
@@ -398,12 +381,8 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x16, %[k7], x7 \n\t"
           "p.mac x14, %[k8], x6 \n\t"
           "p.mac x15, %[k8], x7 \n\t"
-          "div   x13, x13, %[W] \n\t"
           "p.mac x16, %[k8], x8 \n\t"
           // Shift top row
-          "div   x14, x14, %[W] \n\t"
-          "div   x15, x15, %[W] \n\t"
-          "div   x16, x16, %[W] \n\t"
           // Store top row
           "p.sw  x13, 4(%[addr_out]!) \n\t"
           "p.sw  x14, 4(%[addr_out]!) \n\t"
@@ -411,7 +390,7 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.sw  x16, %[C_3](%[addr_out]!) \n\t"
           : [addr_in] "+&r"(addr_in), [addr_out] "+&r"(addr_out) // Outputs
           : [addr_end] "r"(addr_end), [C_3] "r"(C_3), [C_5] "r"(C_5),
-            [W] "r"(W), [k0] "r"(k0), [k1] "r"(k1), [k2] "r"(k2), [k3] "r"(k3),
+            [k0] "r"(k0), [k1] "r"(k1), [k2] "r"(k2), [k3] "r"(k3),
             [k4] "r"(k4), [k5] "r"(k5), [k6] "r"(k6), [k7] "r"(k7),
             [k8] "r"(k8) // Inputs
           : "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
@@ -506,9 +485,6 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x10, %[k8], x6 \n\t"
           "p.mac x11, %[k8], x7 \n\t"
           // Shift top row
-          "div    x9,  x9, %[W] \n\t"
-          "div   x10, x10, %[W] \n\t"
-          "div   x11, x11, %[W] \n\t"
           // Store top row
           "p.sw   x9, 4(%[addr_out]!) \n\t"
           "p.sw  x10, 4(%[addr_out]!) \n\t"
@@ -550,9 +526,6 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x14, %[k8], x6 \n\t"
           "p.mac x15, %[k8], x7 \n\t"
           // Shift top row
-          "div   x13, x13, %[W] \n\t"
-          "div   x14, x14, %[W] \n\t"
-          "div   x15, x15, %[W] \n\t"
           // Store top row
           "p.sw  x13, 4(%[addr_out]!) \n\t"
           "p.sw  x14, 4(%[addr_out]!) \n\t"
@@ -597,9 +570,6 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x10, %[k8], x6 \n\t"
           "p.mac x11, %[k8], x7 \n\t"
           // Shift top row
-          "div    x9,  x9, %[W] \n\t"
-          "div   x10, x10, %[W] \n\t"
-          "div   x11, x11, %[W] \n\t"
           // Store top row
           "p.sw   x9, 4(%[addr_out]!) \n\t"
           "p.sw  x10, 4(%[addr_out]!) \n\t"
@@ -631,16 +601,13 @@ void conv2d_3x3_crazy_parallel(int32_t const *__restrict__ in, uint32_t in_x,
           "p.mac x14, %[k8], x6 \n\t"
           "p.mac x15, %[k8], x7 \n\t"
           // Shift top row
-          "div   x13, x13, %[W] \n\t"
-          "div   x14, x14, %[W] \n\t"
-          "div   x15, x15, %[W] \n\t"
           // Store top row
           "p.sw  x13, 4(%[addr_out]!) \n\t"
           "p.sw  x14, 4(%[addr_out]!) \n\t"
           "p.sw  x15, %[C_2](%[addr_out]!) \n\t"
           : [addr_in] "+&r"(addr_in), [addr_out] "+&r"(addr_out) // Outputs
           : [addr_end] "r"(addr_end), [C_2] "r"(C_2), [C_4] "r"(C_4),
-            [W] "r"(W), [k0] "r"(k0), [k1] "r"(k1), [k2] "r"(k2), [k3] "r"(k3),
+            [k0] "r"(k0), [k1] "r"(k1), [k2] "r"(k2), [k3] "r"(k3),
             [k4] "r"(k4), [k5] "r"(k5), [k6] "r"(k6), [k7] "r"(k7),
             [k8] "r"(k8) // Inputs
           : "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
