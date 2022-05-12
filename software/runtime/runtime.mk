@@ -63,6 +63,8 @@ DEFINES += -DPRINTF_DISABLE_SUPPORT_FLOAT -DPRINTF_DISABLE_SUPPORT_LONG_LONG -DP
 DEFINES += -DNUM_CORES=$(num_cores)
 DEFINES += -DNUM_GROUPS=$(num_groups)
 DEFINES += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
+DEFINES += -DNUM_CORES_PER_GROUP=$(shell awk 'BEGIN{print $(num_cores)/$(num_groups)}')
+DEFINES += -DNUM_TILES_PER_GROUP=$(shell awk 'BEGIN{print $(num_cores_per_group)/$(num_cores_per_tile)}')
 DEFINES += -DLOG2_NUM_CORES_PER_TILE=$(shell awk 'BEGIN{print log($(num_cores_per_tile))/log(2)}')
 DEFINES += -DBOOT_ADDR=0x$(boot_addr)
 DEFINES += -DL2_BASE=0x$(l2_base)
