@@ -8,10 +8,10 @@
 #include <string.h>
 
 #include "encoding.h"
+#include "mempool_dma_frontend.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "mempool_dma_frontend.h"
 
 #ifndef UNROLL
 #define UNROLL 1
@@ -22,10 +22,16 @@
 
 #define DMA_ADDRESS (0x40010000)
 
-int8_t ro_data[0xC000] __attribute__((section(".rodata")))
+#define SIZE (1024)
+int32_t ro_data[SIZE] __attribute__((section(".rodata")))
 __attribute__((aligned(0x1000)));
 
-#define SIZE (1024 * 2)
+int32_t l2_data_a[SIZE] __attribute__((section(".l2")))
+__attribute__((aligned(0x1000)));
+
+int32_t l2_data_b[SIZE] __attribute__((section(".l2")))
+__attribute__((aligned(0x1000)));
+
 int32_t volatile dst_a[SIZE] __attribute__((section(".l1")))
 __attribute__((aligned(1024)));
 int32_t volatile dst_b[SIZE] __attribute__((section(".l1")))
@@ -126,10 +132,17 @@ void *parallel_memcpy(void *destination, const void *source, size_t num_bytes,
 }
 
 void *dma_memcpy(void *destination, const void *source, size_t num) {
-  *(volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_DST_ADDR_REG_OFFSET) = (uint32_t) destination;
-  *(volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_SRC_ADDR_REG_OFFSET) = (uint32_t) source;
-  *(volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_NUM_BYTES_REG_OFFSET) = (uint32_t) num;
-  uint32_t id = *(volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_NEXT_ID_REG_OFFSET);
+  *(volatile uint32_t *)(DMA_ADDRESS +
+                         MEMPOOL_DMA_FRONTEND_DST_ADDR_REG_OFFSET) =
+      (uint32_t)destination;
+  *(volatile uint32_t *)(DMA_ADDRESS +
+                         MEMPOOL_DMA_FRONTEND_SRC_ADDR_REG_OFFSET) =
+      (uint32_t)source;
+  *(volatile uint32_t *)(DMA_ADDRESS +
+                         MEMPOOL_DMA_FRONTEND_NUM_BYTES_REG_OFFSET) =
+      (uint32_t)num;
+  uint32_t id = *(volatile uint32_t *)(DMA_ADDRESS +
+                                       MEMPOOL_DMA_FRONTEND_NEXT_ID_REG_OFFSET);
   return destination;
 }
 
@@ -145,13 +158,13 @@ int main() {
     error = 0;
   }
 
-  int32_t volatile *const src_a = (int32_t *)0x80002000;
+  int32_t volatile *const src_a = l2_data_a;
   int32_t volatile *const src_b = (int32_t *)0x000C0000;
-  int32_t volatile *const src_c = (int32_t *)0x80008000;
+  int32_t volatile *const src_c = l2_data_b;
   int32_t volatile *const src_d = (int32_t *)0x8000C000;
 
   // Init
-  for (int i = core_id; i < SIZE; i+=num_cores) {
+  for (int i = core_id; i < SIZE; i += num_cores) {
     src_a[i] = i;
   }
 
@@ -162,10 +175,23 @@ int main() {
   uint32_t time = mempool_get_timer();
   dump_start(time);
   if (core_id == 0) {
-    dma_memcpy((void *)src_b, (const void *)src_a, 16 * 4 * 4);
-    while (*((volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_STATUS_REG_OFFSET)) != 0);
+    dma_memcpy((void *)src_b + 4, (const void *)src_a + 8, 4 * 16 * 4 * 4);
+    while (*((volatile uint32_t *)(DMA_ADDRESS +
+                                   MEMPOOL_DMA_FRONTEND_STATUS_REG_OFFSET)) !=
+           0)
+      ;
+    dump_start((uint32_t)src_b);
     for (int i = 0; i < SIZE; ++i) {
       dump_dma(src_b[i]);
+    }
+    dma_memcpy((void *)src_c, (const void *)src_b + 4, 4 * 16 * 4 * 4);
+    while (*((volatile uint32_t *)(DMA_ADDRESS +
+                                   MEMPOOL_DMA_FRONTEND_STATUS_REG_OFFSET)) !=
+           0)
+      ;
+    dump_start((uint32_t)src_c);
+    for (int i = 0; i < SIZE; ++i) {
+      dump_dma(src_c[i]);
     }
   }
   time = mempool_get_timer() - time;
