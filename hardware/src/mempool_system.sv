@@ -77,10 +77,10 @@ module mempool_system
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
 
-  dma_req_t  [NumGroups-1:0] dma_req;
-  logic      [NumGroups-1:0] dma_req_valid;
-  logic      [NumGroups-1:0] dma_req_ready;
-  dma_meta_t [NumGroups-1:0] dma_meta;
+  dma_req_t  dma_req;
+  logic      dma_req_valid;
+  logic      dma_req_ready;
+  dma_meta_t dma_meta;
   logic      [1-1:0] dma_id;
 
   localparam xbar_cfg_t MstDemuxCfg = '{
@@ -529,8 +529,8 @@ module mempool_system
     .burst_req_o     (dma_req               ),
     .valid_o         (dma_req_valid         ),
     .ready_i         (dma_req_ready         ),
-    .backend_idle_i  (dma_meta[0].backend_idle),
-    .trans_complete_i(dma_meta[0].trans_complete),
+    .backend_idle_i  (dma_meta.backend_idle),
+    .trans_complete_i(dma_meta.trans_complete),
     .dma_id_o        (dma_id                )
   );
 
