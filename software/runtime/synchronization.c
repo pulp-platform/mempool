@@ -65,22 +65,65 @@ void mempool_log_barrier(uint32_t step, uint32_t core_id){
     mempool_wfi();
 }
 
-void mempool_partial_barrier(uint32_t core_id, uint32_t num_partial_cores) {
+void mempool_partial_barrier(uint32_t core_id, uint32_t core_init, uint32_t num_sleeping_cores) {
 
-    uint32_t core_init = (num_partial_cores*(core_id/num_partial_cores));
-    if ( num_partial_cores-1 == __atomic_fetch_add(&partial_barrier[4*core_init], 1, __ATOMIC_RELAXED))
+  //uint32_t core_init = (num_sleeping_cores*(core_id/num_sleeping_cores));
+  uint32_t core_end = core_init + num_sleeping_cores;
+
+  if(core_id>=core_init && core_id < core_end) {
+
+    if ( num_sleeping_cores-1 == __atomic_fetch_add(&partial_barrier[core_init], 1, __ATOMIC_RELAXED))
     {
       __atomic_store_n(&partial_barrier[core_init*4], 0, __ATOMIC_RELAXED);
       __sync_synchronize(); // Full memory barrier
-      uint32_t idx_core = core_init;
-      while(idx_core < core_init+num_partial_cores) {
-        if(core_id != idx_core) {
-          wake_up(idx_core);
+
+        /* Wake-up the core remainder */
+        if(core_end-core_init > NUM_CORES_PER_TILE) {
+            while(core_init%NUM_CORES_PER_TILE != 0){
+              wake_up(core_init);
+              core_init++;
+            }
+            while(core_end%NUM_CORES_PER_TILE != 0){
+              if (core_id != core_init)
+                wake_up(core_end);
+              core_end--;
+            }
+        } else if(core_end-core_init < NUM_CORES_PER_TILE) {
+            while(core_init < core_end) {
+              wake_up(core_init);
+              core_init++;
+            }
         }
-        idx_core++;
-      }
+
+        /* Wake-up the tile remainder */
+        uint32_t tile_init = core_init/NUM_CORES_PER_TILE;
+        uint32_t tile_end = core_end/NUM_CORES_PER_TILE;
+        if(tile_end-tile_init > NUM_TILES_PER_GROUP) {
+            while(tile_init%NUM_TILES_PER_GROUP != 0) {
+              wake_up_tile(tile_init/NUM_TILES_PER_GROUP, 1U<<tile_init);
+              tile_init++;
+              core_init += NUM_CORES_PER_TILE;
+            }
+            while(tile_end%NUM_TILES_PER_GROUP != 0){
+              wake_up_tile(tile_end/NUM_TILES_PER_GROUP, 1U<<(tile_end-1));
+              tile_end--;
+              core_end -= NUM_CORES_PER_TILE;
+            }
+        } else if(tile_end-tile_init < NUM_TILES_PER_GROUP) {
+          wake_up_tile(tile_init/NUM_TILES_PER_GROUP, ((1U<<(tile_end-tile_init))-1)<<tile_init );
+          core_init += NUM_CORES_PER_TILE*(tile_end-tile_init);
+        }
+
+        /* Wake-up the group remainder */
+        uint32_t group_init = core_init/NUM_CORES_PER_GROUP;
+        uint32_t group_end = core_end/NUM_CORES_PER_GROUP;
+        if(group_end-group_init > 0) {
+          wake_up_group( ((1U<<(group_end-group_init))-1)<<group_init );
+          core_init += NUM_CORES_PER_GROUP*(group_end-group_init);
+        }
 
     }
     else
       mempool_wfi();
+  }
 }
