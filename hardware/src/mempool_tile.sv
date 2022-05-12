@@ -751,6 +751,7 @@ module mempool_tile
     .slv_qvalid_i(soc_qvalid      ),
     .slv_qready_o(soc_qready      ),
     .slv_pdata_o (soc_resp_i.data ),
+    .slv_pwrite_o(soc_resp_i.write),
     .slv_perror_o(soc_resp_i.error),
     .slv_plast_o (/* Unused */    ),
     .slv_pvalid_o(soc_pvalid      ),

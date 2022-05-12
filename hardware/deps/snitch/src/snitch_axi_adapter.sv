@@ -33,6 +33,7 @@ module snitch_axi_adapter #(
   input  logic          slv_qvalid_i,
   output logic          slv_qready_o,
   output data_t         slv_pdata_o,
+  output logic          slv_pwrite_o,
   output logic          slv_perror_o,
   output logic          slv_plast_o,
   output logic          slv_pvalid_o,
@@ -64,11 +65,19 @@ module snitch_axi_adapter #(
     strb_t strb;
   } write_t;
 
+  typedef struct packed {
+    data_t data;
+    logic  write;
+    logic  error;
+    logic  last;
+  } resp_t;
+
   logic   write_full;
   logic   write_empty;
   logic   read_full;
   write_t write_data_in;
   write_t write_data_out;
+  write_t r_data;
 
   assign axi_req_o.aw.addr   = slv_qaddr_i;
   assign axi_req_o.aw.prot   = 3'b0;
@@ -134,8 +143,8 @@ module snitch_axi_adapter #(
     assign axi_req_o.w.strb = write_data_out.strb;
 
     // Read
-    assign read_full   = 1'b0;
-    assign slv_pdata_o = axi_resp_i.r.data;
+    assign read_full = 1'b0;
+    assign r_data = axi_resp_i.r.data;
   end else begin  : gen_w_data
     // Write
     write_ext_t write_data_ext_in, write_data_ext_out;
@@ -179,16 +188,14 @@ module snitch_axi_adapter #(
       .data_i     ( slv_qaddr_i[AxiByteOffset-1:SlvByteOffset]  ),
       .push_i     ( slv_qvalid_i & slv_qready_o & ~slv_qwrite_i ),
       .data_o     ( read_shift                                  ),
-      .pop_i      ( axi_resp_i.r_valid & slv_pready_i           )
+      .pop_i      ( axi_resp_i.r_valid & axi_req_o.r_ready      )
     );
 
-    assign slv_pdata_o       = axi_resp_i.r.data >> ($bits(data_t) * read_shift);
+    assign r_data = axi_resp_i.r.data >> ($bits(data_t) * read_shift);
   end
   assign axi_req_o.w.last    = 1'b1;
   assign axi_req_o.w.user    = '0;
   assign axi_req_o.w_valid   = ~write_empty;
-
-  assign axi_req_o.b_ready   = 1'b1;
 
   assign axi_req_o.ar.addr   = slv_qaddr_i;
   assign axi_req_o.ar.prot   = 3'b0;
@@ -203,10 +210,51 @@ module snitch_axi_adapter #(
   assign axi_req_o.ar.user   = '0;
   assign axi_req_o.ar_valid  = ~read_full & slv_qvalid_i & ~slv_qwrite_i;
 
-  assign slv_perror_o      = (axi_resp_i.r.resp inside {axi_pkg::RESP_EXOKAY, axi_pkg::RESP_OKAY}) ? 1'b0 : 1'b1;
-  assign slv_plast_o       = axi_resp_i.r.last;
-  assign slv_pvalid_o      = axi_resp_i.r_valid;
-  assign axi_req_o.r_ready = slv_pready_i;
+  // Response arbitration because we can get an R and B response simultaneously
+  resp_t r_resp, b_resp, slv_resp;
+  logic r_error, b_error;
+
+  assign r_error = (axi_resp_i.r.resp inside {axi_pkg::RESP_EXOKAY, axi_pkg::RESP_OKAY}) ? 1'b0 : 1'b1;
+  assign b_error = (axi_resp_i.b.resp inside {axi_pkg::RESP_EXOKAY, axi_pkg::RESP_OKAY}) ? 1'b0 : 1'b1;
+
+  assign r_resp = '{
+    data: r_data,
+    write: 1'b0,
+    error: r_error,
+    last: axi_resp_i.r.last
+  };
+
+  assign b_resp = '{
+    data: r_data,
+    write: 1'b1,
+    error: b_error,
+    last: 1'b1
+  };
+
+  rr_arb_tree #(
+    .NumIn      (2),
+    .DataType   (resp_t),
+    .ExtPrio    (1'b1),
+    .AxiVldRdy  (1'b1),
+    .LockIn     (1'b0)
+  ) i_response_arbiter (
+    .clk_i  (clk_i                                  ),
+    .rst_ni (rst_ni                                 ),
+    .flush_i('0                                     ),
+    .rr_i   ('0                                     ),
+    .req_i  ({axi_resp_i.b_valid,axi_resp_i.r_valid}),
+    .gnt_o  ({axi_req_o.b_ready,axi_req_o.r_ready}  ),
+    .data_i ({b_resp,r_resp}                        ),
+    .gnt_i  (slv_pready_i                           ),
+    .req_o  (slv_pvalid_o                           ),
+    .data_o (slv_resp                               ),
+    .idx_o  (                                       )
+  );
+
+  assign slv_pdata_o       = slv_resp.data;
+  assign slv_pwrite_o      = slv_resp.write;
+  assign slv_perror_o      = slv_resp.error;
+  assign slv_plast_o       = slv_resp.last;
 
   assign slv_qready_o = (axi_resp_i.ar_ready & axi_req_o.ar_valid)
                       | (axi_resp_i.aw_ready & axi_req_o.aw_valid);

@@ -38,6 +38,7 @@ package snitch_pkg;
   typedef struct packed {
     data_t data;
     meta_id_t id;
+    logic write;
     logic error;
   } dresp_t;
 

@@ -85,10 +85,10 @@ module snitch_demux #(
     .oup_ready_i  ( req_ready_i      )
   );
 
-  if (NrPorts == 1) begin
+  if (NrPorts == 1) begin : gen_connection
     assign idx_rsp = 0;
     assign full = 1'b0;
-  end else begin
+  end else begin : gen_demux
     onehot_to_bin #(
       .ONEHOT_WIDTH ( NrPorts )
     ) i_onehot_to_bin (
@@ -97,21 +97,20 @@ module snitch_demux #(
     );
 
     fifo_v3 #(
-       .DATA_WIDTH ( LogNrPorts                                       ),
-       .DEPTH      ( RespDepth                                        )
+       .DATA_WIDTH ( LogNrPorts                                ),
+       .DEPTH      ( RespDepth                                 )
      ) i_resp_fifo (
        .clk_i,
        .rst_ni,
-       .flush_i    ( 1'b0                                             ),
-       .testmode_i ( 1'b0                                             ),
-       .full_o     ( full                                             ),
-       .empty_o    (                                                  ),
-       .usage_o    (                                                  ),
-       .data_i     ( idx                                              ),
-       // only reads will generate a response message
-       .push_i     ( req_valid_o & req_ready_i & ~req_payload_o.write ),
-       .data_o     ( idx_rsp                                          ),
-       .pop_i      ( resp_ready_o & resp_valid_i & resp_last_i        )
+       .flush_i    ( 1'b0                                      ),
+       .testmode_i ( 1'b0                                      ),
+       .full_o     ( full                                      ),
+       .empty_o    (                                           ),
+       .usage_o    (                                           ),
+       .data_i     ( idx                                       ),
+       .push_i     ( req_valid_o & req_ready_i                 ),
+       .data_o     ( idx_rsp                                   ),
+       .pop_i      ( resp_ready_o & resp_valid_i & resp_last_i )
      );
    end
 
