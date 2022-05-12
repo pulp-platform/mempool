@@ -40,8 +40,8 @@ module snitch_demux #(
 
   logic [NrPorts-1:0] req_valid_masked;
   logic [NrPorts-1:0] req_ready_masked;
-  logic [LogNrPorts-1:0] idx, idx_rsp;
-  logic full;
+  logic [LogNrPorts-1:0] idx, idx_r, idx_w, idx_rsp;
+  logic full_r, full_w, full;
 
   req_t  [NrPorts-1:0] req_payload_q;
   logic  [NrPorts-1:0] req_valid_q;
@@ -97,22 +97,42 @@ module snitch_demux #(
     );
 
     fifo_v3 #(
-       .DATA_WIDTH ( LogNrPorts                                ),
-       .DEPTH      ( RespDepth                                 )
-     ) i_resp_fifo (
-       .clk_i,
-       .rst_ni,
-       .flush_i    ( 1'b0                                      ),
-       .testmode_i ( 1'b0                                      ),
-       .full_o     ( full                                      ),
-       .empty_o    (                                           ),
-       .usage_o    (                                           ),
-       .data_i     ( idx                                       ),
-       .push_i     ( req_valid_o & req_ready_i                 ),
-       .data_o     ( idx_rsp                                   ),
-       .pop_i      ( resp_ready_o & resp_valid_i & resp_last_i )
-     );
-   end
+      .DATA_WIDTH ( LogNrPorts                                                           ),
+      .DEPTH      ( RespDepth                                                            )
+    ) i_r_resp_fifo (
+      .clk_i      ( clk_i                                                                ),
+      .rst_ni     ( rst_ni                                                               ),
+      .flush_i    ( 1'b0                                                                 ),
+      .testmode_i ( 1'b0                                                                 ),
+      .full_o     ( full_r                                                               ),
+      .empty_o    (                                                                      ),
+      .usage_o    (                                                                      ),
+      .data_i     ( idx                                                                  ),
+      .push_i     ( req_valid_o && req_ready_i && !req_payload_o.write                   ),
+      .data_o     ( idx_r                                                                ),
+      .pop_i      ( resp_ready_o && resp_valid_i && resp_last_i && !resp_payload_i.write )
+    );
+
+    fifo_v3 #(
+      .DATA_WIDTH ( LogNrPorts                                                          ),
+      .DEPTH      ( RespDepth                                                           )
+    ) i_w_resp_fifo (
+      .clk_i      ( clk_i                                                               ),
+      .rst_ni     ( rst_ni                                                              ),
+      .flush_i    ( 1'b0                                                                ),
+      .testmode_i ( 1'b0                                                                ),
+      .full_o     ( full_w                                                              ),
+      .empty_o    (                                                                     ),
+      .usage_o    (                                                                     ),
+      .data_i     ( idx                                                                 ),
+      .push_i     ( req_valid_o && req_ready_i && req_payload_o.write                   ),
+      .data_o     ( idx_w                                                               ),
+      .pop_i      ( resp_ready_o && resp_valid_i && resp_last_i && resp_payload_i.write )
+    );
+
+    assign idx_rsp = resp_payload_i.write ? idx_w : idx_r;
+    assign full = full_w || full_r;
+  end
 
   stream_demux #(
     .N_OUP       ( NrPorts    )
