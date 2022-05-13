@@ -475,7 +475,7 @@ module mempool_group
       .DataWidth       (AxiDataWidth   ),
       .AddrWidth       (AddrWidth      ),
       .IdWidth         (AxiTileIdWidth ),
-      .AxReqFifoDepth  (1              ),
+      .AxReqFifoDepth  (2              ),
       .TransFifoDepth  (1              ),
       .BufferDepth     (3              ),
       .axi_req_t       (axi_tile_req_t ),

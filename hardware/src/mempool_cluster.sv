@@ -40,10 +40,34 @@ module mempool_cluster
   /*********
    *  DMA  *
    *********/
+  dma_req_t  dma_req_split;
+  logic      dma_req_split_valid;
+  logic      dma_req_split_ready;
+  dma_meta_t dma_meta_split;
   dma_req_t  [NumGroups-1:0] dma_req;
   logic      [NumGroups-1:0] dma_req_valid;
   logic      [NumGroups-1:0] dma_req_ready;
   dma_meta_t [NumGroups-1:0] dma_meta;
+
+  idma_split_midend #(
+    .DmaRegionWidth (NumBanksPerGroup*NumGroups*4),
+    .DmaRegionStart (32'h0000_0000               ),
+    .DmaRegionEnd   (32'h1000_0000               ),
+    .AddrWidth      (AddrWidth                   ),
+    .burst_req_t    (dma_req_t                   ),
+    .meta_t         (dma_meta_t                  )
+  ) i_idma_split_midend (
+    .clk_i      (clk_i              ),
+    .rst_ni     (rst_ni             ),
+    .burst_req_i(dma_req_i          ),
+    .valid_i    (dma_req_valid_i    ),
+    .ready_o    (dma_req_ready_o    ),
+    .meta_o     (dma_meta_o         ),
+    .burst_req_o(dma_req_split      ),
+    .valid_o    (dma_req_split_valid),
+    .ready_i    (dma_req_split_ready),
+    .meta_i     (dma_meta_split     )
+  );
 
   idma_distributed_midend #(
     .NoMstPorts     (NumGroups         ),
@@ -51,16 +75,16 @@ module mempool_cluster
     .burst_req_t    (dma_req_t         ),
     .meta_t         (dma_meta_t        )
   ) i_idma_distributed_midend (
-    .clk_i       (clk_i          ),
-    .rst_ni      (rst_ni         ),
-    .burst_req_i (dma_req_i      ),
-    .valid_i     (dma_req_valid_i),
-    .ready_o     (dma_req_ready_o),
-    .meta_o      (dma_meta_o     ),
-    .burst_req_o (dma_req        ),
-    .valid_o     (dma_req_valid  ),
-    .ready_i     (dma_req_ready  ),
-    .meta_i      (dma_meta       )
+    .clk_i       (clk_i              ),
+    .rst_ni      (rst_ni             ),
+    .burst_req_i (dma_req_split      ),
+    .valid_i     (dma_req_split_valid),
+    .ready_o     (dma_req_split_ready),
+    .meta_o      (dma_meta_split     ),
+    .burst_req_o (dma_req            ),
+    .valid_o     (dma_req_valid      ),
+    .ready_i     (dma_req_ready      ),
+    .meta_i      (dma_meta           )
   );
 
   /************
