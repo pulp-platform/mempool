@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Unreleased
 
 ### Added
+- Add AXPY kernel
 - Add Halide runtime and build scripts for applications
 - Add Halide example applications (2D convolution & matrix multiplication)
 - Add CI workflow for MemPool with 256 cores
