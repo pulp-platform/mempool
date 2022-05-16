@@ -49,7 +49,7 @@ SECTIONS {
   ro_cache_start_3       = 0x40000038;
   ro_cache_end_3         = 0x4000003C;
 
-#if NUM_CORES == 256
+#if ((NUM_CORES == 256) || (NUM_CORES == 16))
   wake_up_tile_g0_reg = 0x40000040;
   wake_up_tile_g1_reg = 0x40000044;
   wake_up_tile_g2_reg = 0x40000048;

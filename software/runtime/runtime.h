@@ -16,7 +16,7 @@ extern uint32_t atomic_barrier;
 extern uint32_t wake_up_reg;
 extern uint32_t wake_up_group_reg;
 
-#if NUM_CORES == 256
+#if ((NUM_CORES == 16) || (NUM_CORES == 256))
 extern uint32_t wake_up_tile_g0_reg;
 extern uint32_t wake_up_tile_g1_reg;
 extern uint32_t wake_up_tile_g2_reg;
@@ -103,28 +103,55 @@ static inline void wake_up_all() { wake_up((uint32_t)-1); }
 static inline void wake_up_group(uint32_t group_mask) { wake_up_group_reg = group_mask; }
 static inline void wake_up_all_group() { wake_up_group((uint32_t)-1); }
 
-#if NUM_CORES == 256
+#if ((NUM_CORES == 16) || (NUM_CORES == 256))
 static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
   switch(group_id) {
-    case 0: wake_up_tile_g0_reg = tile_mask; break;
-    case 1: wake_up_tile_g1_reg = tile_mask; break;
-    case 2: wake_up_tile_g2_reg = tile_mask; break;
-    case 3: wake_up_tile_g3_reg = tile_mask; break;
-    default: wake_up_tile_g0_reg = tile_mask; break;
+    case 0:
+      wake_up_tile_g0_reg = tile_mask;
+      break;
+    case 1:
+      wake_up_tile_g1_reg = tile_mask;
+      break;
+    case 2:
+      wake_up_tile_g2_reg = tile_mask;
+      break;
+    case 3:
+      wake_up_tile_g3_reg = tile_mask;
+      break;
+    default:
+      wake_up_tile_g0_reg = tile_mask;
+      break;
   }
 }
 #elif NUM_CORES == 1024
 static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
   switch(group_id) {
-    case 0: wake_up_tile_g0_reg = tile_mask; break;
-    case 1: wake_up_tile_g1_reg = tile_mask; break;
-    case 2: wake_up_tile_g2_reg = tile_mask; break;
-    case 3: wake_up_tile_g3_reg = tile_mask; break;
-    case 4: wake_up_tile_g4_reg = tile_mask; break;
-    case 5: wake_up_tile_g5_reg = tile_mask; break;
-    case 6: wake_up_tile_g6_reg = tile_mask; break;
-    case 7: wake_up_tile_g7_reg = tile_mask; break;
-    default: wake_up_tile_g0_reg = tile_mask; break;
+    case 0:
+      wake_up_tile_g0_reg = tile_mask;
+      break;
+    case 1:
+      wake_up_tile_g1_reg = tile_mask;
+      break;
+    case 2:
+      wake_up_tile_g2_reg = tile_mask;
+      break;
+    case 3:
+      wake_up_tile_g3_reg = tile_mask;
+      break;
+    case 4:
+      wake_up_tile_g4_reg = tile_mask;
+      break;
+    case 5:
+      wake_up_tile_g5_reg = tile_mask;
+      break;
+    case 6:
+      wake_up_tile_g6_reg = tile_mask;
+      break;
+    case 7:
+      wake_up_tile_g7_reg = tile_mask;
+      break;
+    default:
+      wake_up_tile_g0_reg = tile_mask; break;
   }
 }
 #endif
