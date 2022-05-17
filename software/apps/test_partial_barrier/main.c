@@ -20,12 +20,12 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
 
-  if(core_id >= 5 && core_id < 35)
+  if (core_id >= 5 && core_id < 35)
     mempool_wait(10);
-  else if(core_id >= 35 && core_id < 130)
+  else if (core_id >= 35 && core_id < 130)
     mempool_wait(20);
 
-  mempool_partial_barrier(core_id,5,125);
+  mempool_partial_barrier(core_id, 5, 125);
 
   dump_wake_up(core_id);
 
