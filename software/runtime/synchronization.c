@@ -104,12 +104,11 @@ void mempool_partial_barrier(uint32_t core_id, uint32_t core_init,
       uint32_t tile_init = core_init / NUM_CORES_PER_TILE;
       uint32_t tile_end = core_end / NUM_CORES_PER_TILE;
       if (tile_end - tile_init > NUM_TILES_PER_GROUP) {
-        wake_up_tile(tile_init / NUM_TILES_PER_GROUP,
-                     ((1U << (16 - tile_init)) - 1) << tile_init);
-        wake_up_tile(tile_end / NUM_TILES_PER_GROUP, ((1U << tile_end) - 1));
+        wake_up_tile(tile_init / NUM_TILES_PER_GROUP, ((1U << (16 - tile_init))-1) << tile_init);
+        wake_up_tile(tile_end / NUM_TILES_PER_GROUP, ((1U << tile_end)-1));
       } else if (tile_end - tile_init < NUM_TILES_PER_GROUP) {
         wake_up_tile(tile_init / NUM_TILES_PER_GROUP,
-                     ((1U << (tile_end - tile_init)) - 1) << (tile_init - 1));
+                     ((1U << (tile_end - tile_init)) - 1) << (tile_init-1));
         core_init += NUM_CORES_PER_TILE * (tile_end - tile_init);
       }
 
