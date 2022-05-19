@@ -121,10 +121,11 @@ int main() {
       mempool_stop_benchmark();
   #endif
 
+      printf("Done SINGLE!\n");
       for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
         printf("{%6d;%6d } \n", pSrc[i], pSrc[i+1]);
       }
-      printf("Done SINGLE!\n");
+
     }
     mempool_barrier(NUM_CORES);
 
@@ -227,10 +228,10 @@ int main() {
   #endif
 
     if(core_id==0) {
-//      for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-//        printf("{%6d;%6d } \n", pSrc[i], pSrc[i+1]);
-//      }
       printf("Done PARALLEL!\n");
+      // for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
+        // printf("{%6d;%6d } \n", pSrc[i], pSrc[i+1]);
+      // }
     }
     mempool_barrier(NUM_CORES);
 
