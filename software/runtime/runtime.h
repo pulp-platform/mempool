@@ -13,23 +13,23 @@
 
 extern char l1_alloc_base;
 extern uint32_t atomic_barrier;
-extern uint32_t wake_up_reg;
-extern uint32_t wake_up_group_reg;
+extern volatile uint32_t wake_up_reg;
+extern volatile uint32_t wake_up_group_reg;
 
 #if ((NUM_CORES == 16) || (NUM_CORES == 256))
-extern uint32_t wake_up_tile_g0_reg;
-extern uint32_t wake_up_tile_g1_reg;
-extern uint32_t wake_up_tile_g2_reg;
-extern uint32_t wake_up_tile_g3_reg;
+extern volatile uint32_t wake_up_tile_g0_reg;
+extern volatile uint32_t wake_up_tile_g1_reg;
+extern volatile uint32_t wake_up_tile_g2_reg;
+extern volatile uint32_t wake_up_tile_g3_reg;
 #elif NUM_CORES == 1024
-extern uint32_t wake_up_tile_g0_reg;
-extern uint32_t wake_up_tile_g1_reg;
-extern uint32_t wake_up_tile_g2_reg;
-extern uint32_t wake_up_tile_g3_reg;
-extern uint32_t wake_up_tile_g4_reg;
-extern uint32_t wake_up_tile_g5_reg;
-extern uint32_t wake_up_tile_g6_reg;
-extern uint32_t wake_up_tile_g7_reg;
+extern volatile uint32_t wake_up_tile_g0_reg;
+extern volatile uint32_t wake_up_tile_g1_reg;
+extern volatile uint32_t wake_up_tile_g2_reg;
+extern volatile uint32_t wake_up_tile_g3_reg;
+extern volatile uint32_t wake_up_tile_g4_reg;
+extern volatile uint32_t wake_up_tile_g5_reg;
+extern volatile uint32_t wake_up_tile_g6_reg;
+extern volatile uint32_t wake_up_tile_g7_reg;
 #endif
 
 typedef uint32_t mempool_id_t;
@@ -98,15 +98,15 @@ static inline void mempool_wfi() { asm volatile("wfi"); }
 
 // Wake up core with given core_id by writing in the wake up control register.
 // If core_id equals -1, wake up all cores.
-static inline void wake_up(uint32_t core_id) { wake_up_reg = core_id; }
+static inline void wake_up(uint32_t volatile core_id) { wake_up_reg = core_id; }
 static inline void wake_up_all() { wake_up((uint32_t)-1); }
-static inline void wake_up_group(uint32_t group_mask) {
+static inline void wake_up_group(uint32_t volatile group_mask) {
   wake_up_group_reg = group_mask;
 }
 static inline void wake_up_all_group() { wake_up_group((uint32_t)-1); }
 
 #if ((NUM_CORES == 16) || (NUM_CORES == 256))
-static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
+static inline void wake_up_tile(uint32_t volatile group_id, uint32_t tile_mask) {
   switch (group_id) {
   case 0:
     wake_up_tile_g0_reg = tile_mask;
@@ -126,7 +126,7 @@ static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
   }
 }
 #elif NUM_CORES == 1024
-static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
+static inline void wake_up_tile(uint32_t volatile group_id, uint32_t tile_mask) {
   switch (group_id) {
   case 0:
     wake_up_tile_g0_reg = tile_mask;

@@ -12,26 +12,41 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-dump(wake_up, 0);
+dump(cores_awake, 1);
 
 int main() {
 
-  uint32_t core_id = mempool_get_core_id();
+  uint32_t volatile core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
 
-  if (core_id >= 5 && core_id < 35)
+  if (core_id >= 65 && core_id < 98)
     mempool_wait(10);
-  else if (core_id >= 35 && core_id < 130)
+  else if (core_id >= 98 && core_id < 126)
     mempool_wait(20);
-
-  mempool_partial_barrier(core_id, 5, 125);
-
-  dump_wake_up(core_id);
-
-  if (core_id >= 5 && core_id < 120)
+  mempool_partial_barrier(core_id, 65, 61, 0);
+  // dump_cores_awake(core_id);
+  if (core_id >= 65 && core_id < 126)
     mempool_wait(10);
+  mempool_barrier(num_cores);
 
+  mempool_partial_barrier(core_id,   0, 64, 1);
+  mempool_partial_barrier(core_id,  64, 64, 2);
+  mempool_partial_barrier(core_id, 128, 64, 3);
+  mempool_partial_barrier(core_id, 192, 64, 4);
+  dump_cores_awake(core_id);
+  mempool_barrier(num_cores);
+
+  mempool_partial_barrier(core_id, 64*(core_id/64), 64, 5);
+  mempool_partial_barrier(core_id, 32*(core_id/32), 32, 6);
+  mempool_partial_barrier(core_id, 16*(core_id/16), 16, 7);
+  dump_cores_awake(core_id);
+  mempool_barrier(num_cores);
+
+  mempool_log_partial_barrier(2, core_id, 64);
+  mempool_log_partial_barrier(2, core_id, 32);
+  mempool_log_partial_barrier(2, core_id, 16);
+  dump_cores_awake(core_id);
   mempool_barrier(num_cores);
 
   return 0;
