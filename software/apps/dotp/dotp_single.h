@@ -15,17 +15,17 @@
 
 /* Single-core dot-product */
 void dotp_single (	int32_t* in_a,
-						int32_t* in_b, 
-						int32_t* s, 
-						uint32_t N_vect, 
-						uint32_t id) {
+        						int32_t* in_b,
+        						int32_t* s,
+        						uint32_t Len) {
 
-	if(id == 0) {
+  uint32_t core_id = mempool_get_core_id();
+	if(core_id == 0) {
 
     mempool_start_benchmark();
     // Kernel execution
     /*int32_t local_sum = 0;
-    int32_t* end = in_a + N_vect;
+    int32_t* end = in_a + Len;
     do {
       int32_t a_tmp, b_tmp;
       asm volatile(
@@ -37,8 +37,8 @@ void dotp_single (	int32_t* in_a,
     } while(in_a<end);
     *s = local_sum;*/
     int32_t local_sum = 0;
-    int32_t* end = in_a + N_vect;
-		//for(uint32_t i = 0; i < N_vect; i++)
+    int32_t* end = in_a + Len;
+		//for(uint32_t i = 0; i < Len; i++)
     do {
 			local_sum += ((*in_a++)*(*in_b++));
 		} while(in_a<end);
@@ -48,20 +48,22 @@ void dotp_single (	int32_t* in_a,
 
 	}
   //mempool_barrier(NUM_CORES); // wait until all cores have finished
-  mempool_log_barrier(2, id);
+  mempool_log_barrier(2, core_id);
 }
 
 /* Single-core dot-product unrolled2 */
 void dotp_single_unrolled2 ( int32_t* in_a,
                              int32_t* in_b,
                              int32_t* s,
-                             uint32_t N_vect,
-                             uint32_t id) {
-  if(id == 0) {
+                             uint32_t Len) {
+
+  uint32_t core_id = mempool_get_core_id();
+  if(core_id == 0) {
+
     int32_t local_sum_1 = 0;
     int32_t local_sum_2 = 0;
-    int32_t* end = in_a + ((N_vect>>1)<<1);
-    int32_t* end_reminder = in_a + N_vect;
+    int32_t* end = in_a + ((Len>>1)<<1);
+    int32_t* end_reminder = in_a + Len;
 
     // Kernel execution
     /*do {
@@ -83,7 +85,7 @@ void dotp_single_unrolled2 ( int32_t* in_a,
 
     } while(in_a<end);*/
 
-    //for(uint32_t i = 0; i < N_vect; i++)
+    //for(uint32_t i = 0; i < Len; i++)
     do {
       local_sum_1 += ((*in_a++)*(*in_b++));
       local_sum_2 += ((*in_a++)*(*in_b++));
@@ -99,23 +101,25 @@ void dotp_single_unrolled2 ( int32_t* in_a,
 
   }
   //mempool_barrier(NUM_CORES); // wait until all cores have finished
-  mempool_log_barrier(2, id);
+  mempool_log_barrier(2, core_id);
 }
 
 /* Single-core dot-product unrolled4 */
 void dotp_single_unrolled4 ( int32_t* in_a,
                             int32_t* in_b,
                             int32_t* s,
-                            uint32_t N_vect,
-                            uint32_t id) {
-  if(id == 0) {
+                            uint32_t Len) {
+
+  uint32_t core_id = mempool_get_core_id();
+  if(core_id == 0) {
+
     mempool_start_benchmark();
     int32_t local_sum_1 = 0;
     int32_t local_sum_2 = 0;
     int32_t local_sum_3 = 0;
     int32_t local_sum_4 = 0;
-    int32_t* end = in_a + ((N_vect>>2)<<2);
-    int32_t* end_reminder = in_a + N_vect;
+    int32_t* end = in_a + ((Len>>2)<<2);
+    int32_t* end_reminder = in_a + Len;
 
     /*int32_t a1_tmp=0, b1_tmp=0;
     int32_t a2_tmp=0, b2_tmp=0;
@@ -145,7 +149,7 @@ void dotp_single_unrolled4 ( int32_t* in_a,
           [a4] "+r" (a4_tmp), [b4] "+r" (b4_tmp));
     }*/
 
-    //for(uint32_t i = 0; i < N_vect; i++)
+    //for(uint32_t i = 0; i < Len; i++)
     do {
       local_sum_1 += ((*in_a++)*(*in_b++));
       local_sum_2 += ((*in_a++)*(*in_b++));
@@ -164,16 +168,17 @@ void dotp_single_unrolled4 ( int32_t* in_a,
     mempool_stop_benchmark();
 
   }
-  mempool_log_barrier(2,id); // wait until all cores have finished
+  mempool_log_barrier(2,core_id); // wait until all cores have finished
 }
 
 /* Single-core dot-product unrolled4 */
 void dotp_single_unrolled6 ( int32_t* in_a,
                             int32_t* in_b,
                             int32_t* s,
-                            uint32_t N_vect,
-                            uint32_t id) {
-  if(id == 0) {
+                            uint32_t Len) {
+
+  uint32_t core_id = mempool_get_core_id();
+  if(core_id == 0) {
 
     int32_t local_sum_1 = 0;
     int32_t local_sum_2 = 0;
@@ -183,10 +188,10 @@ void dotp_single_unrolled6 ( int32_t* in_a,
     int32_t local_sum_6 = 0;
     //int32_t local_sum_7 = 0;
     //int32_t local_sum_8 = 0;
-    int32_t* end = in_a + ((N_vect/6)*6);
-    int32_t* end_reminder = in_a + N_vect;
+    int32_t* end = in_a + ((Len/6)*6);
+    int32_t* end_reminder = in_a + Len;
 
-    //for(uint32_t i = 0; i < N_vect; i++)
+    //for(uint32_t i = 0; i < Len; i++)
     do {
       local_sum_1 += ((*in_a++)*(*in_b++));
       local_sum_2 += ((*in_a++)*(*in_b++));
