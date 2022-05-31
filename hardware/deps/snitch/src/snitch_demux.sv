@@ -38,8 +38,8 @@ module snitch_demux #(
 
   localparam LogNrPorts = (NrPorts > 1) ? $clog2(NrPorts) : 1;
 
-  logic [NrPorts-1:0] req_valid_masked;
-  logic [NrPorts-1:0] req_ready_masked;
+  logic req_valid_mask;
+  logic req_ready_mask;
   logic [LogNrPorts-1:0] idx, idx_r, idx_w, idx_rsp;
   logic full_r, full_w, full;
 
@@ -55,19 +55,17 @@ module snitch_demux #(
       ) i_spill_register_tcdm_req (
         .clk_i,
         .rst_ni,
-        .valid_i ( req_valid_i      [i] ),
-        .ready_o ( req_ready_o      [i] ),
-        .data_i  ( req_payload_i    [i] ),
-        .valid_o ( req_valid_q      [i] ),
-        .ready_i ( req_ready_masked [i] ),
-        .data_o  ( req_payload_q    [i] )
+        .valid_i ( req_valid_i[i]   ),
+        .ready_o ( req_ready_o[i]   ),
+        .data_i  ( req_payload_i[i] ),
+        .valid_o ( req_valid_q[i]   ),
+        .ready_i ( req_ready_q[i]   ),
+        .data_o  ( req_payload_q[i] )
       );
   end
 
-  for (genvar i = 0; i < NrPorts; i++) begin : gen_req_valid_masked
-    assign req_valid_masked[i] = req_valid_q[i] & ~full;
-    assign req_ready_masked[i] = req_ready_q[i] & ~full;
-  end
+  assign req_valid_o = req_valid_mask & ~full;
+  assign req_ready_mask = req_ready_i & ~full;
 
   /// Arbitrate on instruction request port
   stream_arbiter #(
@@ -78,11 +76,11 @@ module snitch_demux #(
     .clk_i,
     .rst_ni,
     .inp_data_i   ( req_payload_q    ),
-    .inp_valid_i  ( req_valid_masked ),
+    .inp_valid_i  ( req_valid_q      ),
     .inp_ready_o  ( req_ready_q      ),
     .oup_data_o   ( req_payload_o    ),
-    .oup_valid_o  ( req_valid_o      ),
-    .oup_ready_i  ( req_ready_i      )
+    .oup_valid_o  ( req_valid_mask   ),
+    .oup_ready_i  ( req_ready_mask   )
   );
 
   if (NrPorts == 1) begin : gen_connection
@@ -131,7 +129,7 @@ module snitch_demux #(
     );
 
     assign idx_rsp = resp_payload_i.write ? idx_w : idx_r;
-    assign full = full_w || full_r;
+    assign full = req_payload_o.write ? full_w : full_r;
   end
 
   stream_demux #(
