@@ -1654,19 +1654,22 @@ module snitch
 
       if (retire_i | retire_p) begin
         gpr_we[0] = 1'b1;
-      // if we are not retiring another instruction retire the load now
-      end else if (lsu_pvalid) begin
-        retire_load = 1'b1;
-        gpr_we[0] = 1'b1;
-        gpr_waddr[0] = lsu_rd;
-        gpr_wdata[0] = ld_result[31:0];
+      end else begin
+        // if we are not retiring another instruction retire the load now
         lsu_pready = 1'b1;
-      end else if (acc_pvalid_i) begin
-        retire_acc = 1'b1;
-        gpr_we[0] = 1'b1;
-        gpr_waddr[0] = acc_pid_i;
-        gpr_wdata[0] = acc_pdata_i[31:0];
-        acc_pready_o = 1'b1;
+        if (lsu_pvalid) begin
+          retire_load = 1'b1;
+          gpr_we[0] = 1'b1;
+          gpr_waddr[0] = lsu_rd;
+          gpr_wdata[0] = ld_result[31:0];
+        end else if (acc_pvalid_i) begin
+          // if we are not retiring another instruction retire the accelerated one now
+          retire_acc = 1'b1;
+          gpr_we[0] = 1'b1;
+          gpr_waddr[0] = acc_pid_i;
+          gpr_wdata[0] = acc_pdata_i[31:0];
+          acc_pready_o = 1'b1;
+        end
       end
     end
   end else if (RegNrWritePorts == 2) begin
@@ -1680,7 +1683,8 @@ module snitch
       gpr_waddr[1] = lsu_rd;
       gpr_wdata[1] = ld_result[31:0];
       // external interfaces
-      lsu_pready = 1'b0;
+      // Snitch and LSU have priority
+      lsu_pready = 1'b1;
       acc_pready_o = 1'b0;
       retire_acc = 1'b0;
       retire_load = 1'b0;
@@ -1690,7 +1694,6 @@ module snitch
         if (lsu_pvalid) begin
           retire_load = 1'b1;
           gpr_we[1] = 1'b1;
-          lsu_pready = 1'b1;
         end else if (acc_pvalid_i) begin
           retire_acc = 1'b1;
           gpr_we[1] = 1'b1;
@@ -1710,7 +1713,6 @@ module snitch
         if (lsu_pvalid) begin
           retire_load = 1'b1;
           gpr_we[1] = 1'b1;
-          lsu_pready = 1'b1;
         end
       end
     end
