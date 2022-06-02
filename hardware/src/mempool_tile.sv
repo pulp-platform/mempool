@@ -256,6 +256,9 @@ module mempool_tile
   logic                    [NumBanksPerTile-1:0] bank_resp_wide;
   local_req_interco_addr_t [NumBanksPerTile-1:0] bank_resp_ini_addr;
 
+  tcdm_dma_req_t tcdm_dma_req_i_struct;
+  assign tcdm_dma_req_i_struct = tcdm_dma_req_i;
+
   stream_xbar #(
     .NumInp   (1             ),
     .NumOut   (NumSuperbanks ),
@@ -267,10 +270,10 @@ module mempool_tile
     // External priority flag
     .rr_i   ('0                                                     ),
     // Master
-    .data_i (tcdm_dma_req_i                                         ),
+    .data_i (tcdm_dma_req_i_struct                                  ),
     .valid_i(tcdm_dma_req_valid_i                                   ),
     .ready_o(tcdm_dma_req_ready_o                                   ),
-    .sel_i  (tcdm_dma_req_i.tgt_addr[idx_width(NumBanksPerTile)-1:$clog2(DmaNumWords)]),
+    .sel_i  (tcdm_dma_req_i_struct.tgt_addr[idx_width(NumBanksPerTile)-1:$clog2(DmaNumWords)]),
     // Slave
     .data_o (tcdm_dma_req                                           ),
     .valid_o(tcdm_dma_req_valid                                     ),

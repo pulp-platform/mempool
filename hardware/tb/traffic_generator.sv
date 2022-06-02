@@ -61,8 +61,6 @@ module traffic_generator
   import snitch_pkg::dresp_t;
 
   // TCDM Memory Region
-  localparam addr_t          TCDMSize       = NumBanks * TCDMSizePerBank;
-  localparam addr_t          TCDMMask       = ~(TCDMSize - 1);
   localparam int    unsigned BankOffsetBits = $clog2(NumBanksPerTile);
   localparam int    unsigned NumTilesBits   = $clog2(NumBanks/NumBanksPerTile);
 
