@@ -30,8 +30,6 @@ module mempool_system
   import axi_pkg::xbar_cfg_t;
   import axi_pkg::xbar_rule_32_t;
 
-  localparam TCDMSize = NumBanks * TCDMSizePerBank;
-
   /*********
    *  AXI  *
    *********/
