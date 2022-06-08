@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Increase pending queue in icache
 - Make serial lookup in icache stallable
 - Generalize MemPool to have any number of groups, configured through the `num_groups` parameter
+- Kernel `conv_2d` will not preload unused values anymore
 
 ### Changed
 - Compile verilator and the verilated model with Clang, for a faster compilation time

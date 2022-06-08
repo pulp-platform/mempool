@@ -82,10 +82,10 @@ void conv2d_3x3_unrolled2_i8_rv32im(int8_t const volatile *__restrict__ in,
     elem_10 = in[in_x + (i - 1)];
     elem_11 = in[in_x + (i + 0)];
     elem_12 = in[in_x + (i + 1)];
-    elem_20 = in[2 * in_x + (i - 1)];
-    elem_21 = in[2 * in_x + (i + 0)];
-    elem_22 = in[2 * in_x + (i + 1)];
     for (j = 1; j < in_y - 1; j++) {
+      elem_20 = in[(j + 1) * in_x + (i - 1)];
+      elem_21 = in[(j + 1) * in_x + (i + 0)];
+      elem_22 = in[(j + 1) * in_x + (i + 1)];
       sum = 0;
       sum += elem_00 * k[0];
       sum += elem_01 * k[1];
@@ -103,9 +103,6 @@ void conv2d_3x3_unrolled2_i8_rv32im(int8_t const volatile *__restrict__ in,
       elem_10 = elem_20;
       elem_11 = elem_21;
       elem_12 = elem_22;
-      elem_20 = in[(j + 2) * in_x + (i - 1)];
-      elem_21 = in[(j + 2) * in_x + (i + 0)];
-      elem_22 = in[(j + 2) * in_x + (i + 1)];
 
       out[j * in_x + i] = sum / (int)weight;
     }
