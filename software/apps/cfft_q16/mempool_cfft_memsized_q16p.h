@@ -4,36 +4,59 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#ifdef TWIDDLE_MODIFIER
+static inline void mempool_memsized_butterfly(int16_t *pSrc16, int16_t *pDst16, uint32_t fftLen, int16_t *pCoef_src, uint32_t nPE);
+#else
+static inline void mempool_memsized_butterfly(int16_t *pSrc16, int16_t *pDst16, uint32_t fftLen, int16_t *pCoef_src, int16_t *pCoef_dst, uint32_t nPE);
+#endif
+static inline void fold_radix4(  int16_t *pSrc16, uint32_t fftLen, uint32_t nPE);
+
+#ifdef TWIDDLE_MODIFIER
 static void mempool_cfft_memsized_q16p(   uint16_t fftLen,
-                                          int16_t *pTwiddle,
+                                          int16_t *pCoef_src,
                                           uint16_t *pBitRevTable,
-                                          int16_t *pSrc,
-                                          int16_t *pDst,
+                                          int16_t *pSrc16,
+                                          int16_t *pDst16,
                                           uint16_t bitReverseLen,
                                           uint8_t ifftFlag,
                                           uint8_t bitReverseFlag,
                                           uint32_t nPE);
+#else
+static void mempool_cfft_memsized_q16p(   uint16_t fftLen,
+                                          int16_t *pCoef_src,
+                                          int16_t *pCoef_dst,
+                                          uint16_t *pBitRevTable,
+                                          int16_t *pSrc16,
+                                          int16_t *pDst16,
+                                          uint16_t bitReverseLen,
+                                          uint8_t ifftFlag,
+                                          uint8_t bitReverseFlag,
+                                          uint32_t nPE);
+#endif
 
-static void mempool_memsized_butterfly( int16_t *pSrc16,
-                                        int16_t *pDst16,
-                                        uint32_t fftLen,
-                                        int16_t *pCoef16,
-                                        int16_t *pCoef16_copy,
-                                        uint32_t nPE);
-
-static void fold_radix4(  int16_t *pSrc16,
-                          uint32_t fftLen,
-                          uint32_t nPE);
-
-void mempool_cfft_memsized_q16p( uint16_t fftLen,
-                                 int16_t *pTwiddle,
-                                 uint16_t *pBitRevTable,
-                                 int16_t *pSrc,
-                                 int16_t *pDst,
-                                 uint16_t bitReverseLen,
-                                 uint8_t ifftFlag,
-                                 uint8_t bitReverseFlag,
-                                 uint32_t nPE) {
+#ifdef TWIDDLE_MODIFIER
+static void mempool_cfft_memsized_q16p(   uint16_t fftLen,
+                                          int16_t *pCoef,
+                                          uint16_t *pBitRevTable,
+                                          int16_t *pSrc16,
+                                          int16_t *pDst16,
+                                          uint16_t bitReverseLen,
+                                          uint8_t ifftFlag,
+                                          uint8_t bitReverseFlag,
+                                          uint32_t nPE)
+#else
+static void mempool_cfft_memsized_q16p(   uint16_t fftLen,
+                                          int16_t *pCoef_src,
+                                          int16_t *pCoef_dst,
+                                          uint16_t *pBitRevTable,
+                                          int16_t *pSrc16,
+                                          int16_t *pDst16,
+                                          uint16_t bitReverseLen,
+                                          uint8_t ifftFlag,
+                                          uint8_t bitReverseFlag,
+                                          uint32_t nPE)
+#endif
+{
 
     if (ifftFlag == 0) {
         switch (fftLen) {
@@ -42,7 +65,11 @@ void mempool_cfft_memsized_q16p( uint16_t fftLen,
         case 256:
         case 1024:
         case 4096:
-            mempool_memsized_butterfly(pSrc, pDst, fftLen, pTwiddle, pCoef16_copy, nPE);
+            #ifdef TWIDDLE_MODIFIER
+            mempool_memsized_butterfly(pSrc16, pDst16, fftLen, pCoef, nPE);
+            #else
+            mempool_memsized_butterfly(pSrc16, pDst16, fftLen, pCoef_src, pCoef_dst, nPE);
+            #endif
             break;
         case 32:
         case 128:
@@ -59,22 +86,32 @@ void mempool_cfft_memsized_q16p( uint16_t fftLen,
 
 }
 
+#ifdef TWIDDLE_MODIFIER
 void mempool_memsized_butterfly(  int16_t *pSrc16,
                                   int16_t *pDst16,
                                   uint32_t fftLen,
-                                  int16_t *pCoef16,
-                                  int16_t *pCoef16_copy,
-                                  uint32_t nPE) {
+                                  int16_t *pCoef_src,
+                                  uint32_t nPE)
+#else
+void mempool_memsized_butterfly(  int16_t *pSrc16,
+                                  int16_t *pDst16,
+                                  uint32_t fftLen,
+                                  int16_t *pCoef_src,
+                                  int16_t *pCoef_dst,
+                                  uint32_t nPE)
+#endif
+{
 
     uint32_t core_id = mempool_get_core_id();
     v2s R, S, T, U, V, X, Y;
     v2s CoSi1, CoSi2, CoSi3;
-    uint32_t n1, n2, ic, i0, i1, i2, i3, j, k, s;
+    uint32_t n1, n2, ic, i0, i1, i2, i3, j, k;
     uint32_t n2_store, i0_store, i1_store, i2_store, i3_store;
     uint32_t offset, wing_id, bank_id;
-    register int16_t *pTmp;
+    int16_t *pTmp;
 
     #ifdef TWIDDLE_MODIFIER
+    uint32_t ic;
     uint32_t twidCoefModifier = 1U;
     #endif
 
@@ -87,26 +124,37 @@ void mempool_memsized_butterfly(  int16_t *pSrc16,
     for(i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, n2); i0++) {
 
         #ifdef TWIDDLE_MODIFIER
-        ic = i0;
-        CoSi1 = *(v2s *)&pCoef16[ic * 2U];
-        CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
-        CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+        CoSi1 = *(v2s *)&pCoef_src[2U * i0];
+        CoSi2 = *(v2s *)&pCoef_src[2U * (i0 * 2U)];
+        CoSi3 = *(v2s *)&pCoef_src[2U * (i0 * 3U)];
         #else
-        ic = i0;
-        CoSi1 = *(v2s *)&pCoef16[ic * 2U];
-        CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
-        CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
-        if(ic % 4 == 0) {
-          for(s = 0; s < 4; s++) {
-            *((v2s *)&pCoef16_copy[2U * (n2 * s + ic / 4)]) = CoSi1;
-            *((v2s *)&pCoef16_copy[2U * (n2 * s + 2U * (ic/4))]) = CoSi2;
-            *((v2s *)&pCoef16_copy[2U * (n2 * s + 3U * (ic/4))]) = CoSi3;
-          }
+        CoSi1 = *(v2s *)&pCoef_src[2U * i0];
+        CoSi2 = *(v2s *)&pCoef_src[2U * (i0 + 1 * N_BANKS)];
+        CoSi3 = *(v2s *)&pCoef_src[2U * (i0 + 2 * N_BANKS)];
+//        CoSi1 = *(v2s *)&pCoef_src[2U * i0];
+//        CoSi2 = *(v2s *)&pCoef_src[2U * (i0 * 2U)];
+//        CoSi3 = *(v2s *)&pCoef_src[2U * (i0 * 3U)];
+        if(i0 % 4 == 0) {
+            ic = i0 / 4;
+            *((v2s *)&pCoef_dst[2U * (               ic)]) = CoSi1;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi1;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi1;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi1;
+            ic += N_BANKS;
+            *((v2s *)&pCoef_dst[2U * (               ic)]) = CoSi2;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi2;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi2;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi2;
+            ic += N_BANKS;
+            *((v2s *)&pCoef_dst[2U * (               ic)]) = CoSi3;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi3;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi3;
+            *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi3;
         }
         #endif
-//        dump_ic(ic);
-//        dump_ic_2(ic * 2U);
-//        dump_ic_3(ic * 3U);
+//        dump_ic(pCoef_src[2U * ic]);
+//        dump_ic_2(pCoef_src[2U * (ic + 1 * N_BANKS)]);
+//        dump_ic_3(pCoef_src[2U * (ic + 2 * N_BANKS)]);
 
         i1 = i0 + N_BANKS;
         i2 = i1 + N_BANKS;
@@ -168,12 +216,12 @@ void mempool_memsized_butterfly(  int16_t *pSrc16,
     pSrc16 = pDst16;
     pDst16 = pTmp;
 
-    pTmp = pCoef16;
-    pCoef16 = pCoef16_copy;
-    pCoef16_copy = pTmp;
-
     #ifdef TWIDDLE_MODIFIER
     twidCoefModifier <<= 2U;
+    #else
+    pTmp = pCoef_src;
+    pCoef_src = pCoef_dst;
+    pCoef_dst = pTmp;
     #endif
 
     mempool_log_partial_barrier(2, core_id, nPE);
@@ -194,25 +242,40 @@ void mempool_memsized_butterfly(  int16_t *pSrc16,
 
                 #ifdef TWIDDLE_MODIFIER
                 ic = j*twidCoefModifier;
-                CoSi1 = *(v2s *)&pCoef16[ic * 2U];
-                CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
-                CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+                CoSi1 = *(v2s *)&pCoef_src[ic * 2U];
+                CoSi2 = *(v2s *)&pCoef_src[2U * (ic * 2U)];
+                CoSi3 = *(v2s *)&pCoef_src[3U * (ic * 2U)];
                 #else
-                ic = j;
-                CoSi1 = *(v2s *)&pCoef16[2U * (ic + bank_id * n2)];
-                CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U + bank_id * n2)];
-                CoSi3 = *(v2s *)&pCoef16[2U * (ic * 3U + bank_id * n2)];
-                if(ic % 4 == 0) {
-                  for(s = 0; s < 4; s++) {
-                    *((v2s *)&pCoef16_copy[2U * (bank_id * n1 + n2 * s + ic / 4)]) = CoSi1;
-                    *((v2s *)&pCoef16_copy[2U * (bank_id * n1 + n2 * s + 2U * (ic / 4))]) = CoSi2;
-                    *((v2s *)&pCoef16_copy[2U * (bank_id * n1 + n2 * s + 3U * (ic / 4))]) = CoSi3;
-                  }
+                CoSi1 = *(v2s *)&pCoef_src[2U * (i0               + offset)];
+                CoSi2 = *(v2s *)&pCoef_src[2U * (i0 + 1 * N_BANKS + offset)];
+                CoSi3 = *(v2s *)&pCoef_src[2U * (i0 + 2 * N_BANKS + offset)];
+                if(i0 % 4 == 0) {
+                    ic = i0 / 4 + offset;
+                    *((v2s *)&pCoef_dst[2U * (                ic)]) = CoSi1;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 1  + ic)]) = CoSi1;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 2  + ic)]) = CoSi1;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 3  + ic)]) = CoSi1;
+                    ic += N_BANKS;
+                    *((v2s *)&pCoef_dst[2U * (                ic)]) = CoSi2;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 1  + ic)]) = CoSi2;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 2  + ic)]) = CoSi2;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 3  + ic)]) = CoSi2;
+                    ic += N_BANKS;
+                    *((v2s *)&pCoef_dst[2U * (                ic)]) = CoSi3;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 1  + ic)]) = CoSi3;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 2  + ic)]) = CoSi3;
+                    *((v2s *)&pCoef_dst[2U * (n2_store * 3  + ic)]) = CoSi3;
+//                    dump_ic((offset + n2_store     +               i0 / 4));
+//                    dump_ic_2((offset + n2_store     + 1 * N_BANKS + i0 / 4));
+//                    dump_ic_3((offset + n2_store     + 2 * N_BANKS + i0 / 4));
                 }
                 #endif
-//                dump_ic(ic);
-//                dump_ic_2(ic * 2U);
-//                dump_ic_3(ic * 3U);
+//                dump_ic(i0);
+//                dump_ic_2(i0 * 2U);
+//                dump_ic_3(i0 * 3U);
+//                dump_ic(pCoef_src[2U * (i0               + offset)]);
+//                dump_ic_2(pCoef_src[2U * (i0 + 1 * N_BANKS + offset)]);
+//                dump_ic_3(pCoef_src[2U * (i0 + 2 * N_BANKS + offset)]);
 
                 i0 = offset + j;
                 // for (i0 = offset + j; i0 < fftLen; i0 += fftLen) {
@@ -277,12 +340,12 @@ void mempool_memsized_butterfly(  int16_t *pSrc16,
       pSrc16 = pDst16;
       pDst16 = pTmp;
 
-      pTmp = pCoef16;
-      pCoef16 = pCoef16_copy;
-      pCoef16_copy = pTmp;
-
       #ifdef TWIDDLE_MODIFIER
       twidCoefModifier <<= 2U;
+      #else
+      pTmp = pCoef_src;
+      pCoef_src = pCoef_dst;
+      pCoef_dst = pTmp;
       #endif
 
       // mempool_log_barrier(2, core_id);
