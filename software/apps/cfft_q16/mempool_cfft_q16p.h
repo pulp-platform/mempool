@@ -1,7 +1,8 @@
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#define __HAL_RISCV_BUILTINS_V2_H__
-#include "xpulp/builtins_v2.h"
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
 
+// Author: Marco Bertuletti, ETH Zurich
 
 static void mempool_cfft_q16p(  uint16_t fftLen,
                                 int16_t *pTwiddle,
@@ -17,16 +18,16 @@ static void mempool_cfft_radix4by2_q16p( int16_t *pSrc,
                                         const int16_t *pCoef,
                                         uint32_t nPE);
 
-static void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
-                                          uint32_t fftLen,
-                                          int16_t *pCoef16,
-                                          uint32_t twidCoefModifier,
-                                          uint32_t nPE);
+static void mempool_radix4_butterfly_q16p(  int16_t *pSrc16,
+                                            uint32_t fftLen,
+                                            int16_t *pCoef16,
+                                            uint32_t twidCoefModifier,
+                                            uint32_t nPE);
 
-void mempool_bitreversal_q16p( uint16_t *pSrc,
-                              const uint16_t bitRevLen,
-                              const uint16_t *pBitRevTab,
-                              const uint32_t nPE);
+void mempool_bitreversal_q16p(  uint16_t *pSrc,
+                                const uint16_t bitRevLen,
+                                const uint16_t *pBitRevTab,
+                                const uint32_t nPE);
 
 void mempool_cfft_q16p( uint16_t fftLen,
                         int16_t *pTwiddle,
@@ -77,7 +78,6 @@ void mempool_cfft_radix4by2_q16p(int16_t *pSrc, uint32_t fftLen, const int16_t *
     n2 = fftLen >> 1;
     step = (n2 + nPE - 1)/nPE;
     for (i = core_id * step; i < MIN(core_id * step + step, n2); i++) {
-    // for (i = core_id * step; i < n2; i++) {
 
         CoSi = *(v2s *)&pCoef[i * 2];
         l = i + n2;
@@ -92,9 +92,6 @@ void mempool_cfft_radix4by2_q16p(int16_t *pSrc, uint32_t fftLen, const int16_t *
 
     }
     mempool_log_barrier(2, core_id);
-
-//    mempool_radix4_butterfly_q16p((int16_t*) pSrc, n2, (int16_t *)pCoef, 2U, nPE);
-//    mempool_radix4_butterfly_q16p((int16_t*) (pSrc + fftLen), n2, (int16_t *)pCoef, 2U, nPE);
 
     if (nPE > 1) {
       if (core_id < nPE/2) {
@@ -128,18 +125,18 @@ void mempool_cfft_radix4by2_q16p(int16_t *pSrc, uint32_t fftLen, const int16_t *
 
 }
 
-dump(core_id, 1);
 void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
                                     uint32_t fftLen,
                                     int16_t *pCoef16,
                                     uint32_t twidCoefModifier,
                                     uint32_t nPE) {
 
-    v2s R, S, T, U, V;
+    v2s R, S, T, U, V, X, Y;
     v2s CoSi1, CoSi2, CoSi3;
     uint32_t n1, n2, ic, i0, i1, i2, i3, j, k;
     uint32_t absolute_core_id = mempool_get_core_id();
     uint32_t core_id = absolute_core_id%nPE;
+    uint32_t step, steps;
 
     /* Total process is divided into three stages */
     /* process first stage, middle stages, & last stage */
@@ -148,45 +145,45 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
     n1 = fftLen;
     /* n2 = fftLen/4 */
     n2 = n1 >> 2U;
-    uint32_t step = (n2 + nPE - 1)/nPE;
+    step = (n2 + nPE - 1) / nPE;
 
     /* Input is in 1.15(q15) format */
     /* START OF FIRST STAGE PROCESS */
-    for (i0 = core_id*step; i0 < MIN(core_id * step + step, n2); i0++) {
-    // for (i0 = core_id*step; i0 < n2; i0++) {
+    for (i0 = core_id * step; i0 < MIN(core_id * step + step, n2); i0++) {
 
-        /* index calculation for the input as, */
+        // dump_i0(i0);
         /* pSrc16[i0 + 0], pSrc16[i0 + fftLen/4], pSrc16[i0 + fftLen/2], pSrc16[i0 + 3fftLen/4] */
         i1 = i0 + n2;
         i2 = i1 + n2;
         i3 = i2 + n2;
-        /* Butterfly implementation */
+
         /*  Twiddle coefficients index modifier */
         ic = i0 * twidCoefModifier;
 
         /* Reading i0, i0+fftLen/2 inputs */
-        /* input is down scale by 4 to avoid overflow */
         /* Read ya (real), xa (imag) input */
-        T = __SRA2(*(v2s *)&pSrc16[i0 * 2U], ((v2s){ 2, 2 }));
-        /* input is down scale by 4 to avoid overflow */
+        X = __SRA2(*(v2s *)&pSrc16[i0 * 2U], ((v2s){ 2, 2 }));
         /* Read yc (real), xc(imag) input */
-        S = __SRA2(*(v2s *)&pSrc16[i2 * 2U], ((v2s){ 2, 2 }));
-
-        /* R0 = (ya + yc) */
-        /* R1 = (xa + xc) */
-        R = __ADD2(T, S);
-        /* S0 = (ya - yc) */
-        /* S1 = (xa - xc) */
-        S = __SUB2(T, S);
-
-        /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
-        /* input is down scale by 4 to avoid overflow */
+        Y = __SRA2(*(v2s *)&pSrc16[i2 * 2U], ((v2s){ 2, 2 }));
+        /* Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
         /* Read yb (real), xb(imag) input */
         T = __SRA2(*(v2s *)&pSrc16[i1 * 2U], ((v2s){ 2, 2 }));
-        /* input is down scale by 4 to avoid overflow */
         /* Read yd (real), xd(imag) input */
         U = __SRA2(*(v2s *)&pSrc16[i3 * 2U], ((v2s){ 2, 2 }));
 
+        /* co1 & si1 are read from Coefficient pointer */
+        CoSi1 = *(v2s *)&pCoef16[ic * 2U];
+        /* co2 & si2 are read from Coefficient pointer */
+        CoSi2 = *(v2s *)&pCoef16[2U * ic * 2U];
+        /* co3 & si3 are read from Coefficient pointer */
+        CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+
+        /* R0 = (ya + yc) */
+        /* R1 = (xa + xc) */
+        R = __ADD2(X, Y);
+        /* S0 = (ya - yc) */
+        /* S1 = (xa - xc) */
+        S = __SUB2(X, Y);
         /* V0 = (yb + yd) */
         /* V1 = (xb + xd) */
         V = __ADD2(T, U);
@@ -200,33 +197,21 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         /* R1 = (xa + xc) - (xb + xd) */
         R = __SUB2(R, V);
 
-        /* co2 & si2 are read from Coefficient pointer */
-        CoSi2 = *(v2s *)&pCoef16[2U * ic * 2U];
-
         /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
         /* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
         /* writing the butterfly processed i0 + fftLen/4 sample */
         /* writing output(xc', yc') in little endian format */
         *((v2s *)&pSrc16[i1 * 2U]) =
             __PACK2((int16_t)(__DOTP2(CoSi2, R) >> 16U),
-                    (int16_t)(__DOTP2(__PACK2(-CoSi2[1], CoSi2[0]), R) >> 16U));
-
-        /*  Butterfly calculations */
-        /* input is down scale by 4 to avoid overflow */
-        /* U0 = yd, U1 = xd */
-        // U = __SRA2(*(v2s *)&pSrc16[i3 * 2U], ((v2s){ 2, 2 }));
+                            (int16_t)(__DOTP2(__PACK2(-CoSi2[1], CoSi2[0]), R) >> 16U));
 
         /* T0 = yb-yd */
         /* T1 = xb-xd */
         T = __SUB2(T, U);
-
         /* R1 = (ya-yc) + (xb- xd),  R0 = (xa-xc) - (yb-yd)) */
         R = __ADD2(S, __PACK2(-T[1], T[0]));
         /* S1 = (ya-yc) - (xb- xd), S0 = (xa-xc) + (yb-yd)) */
-        S = __ADD2(S, (v2s)__PACK2(T[1], -T[0]));
-
-        /* co1 & si1 are read from Coefficient pointer */
-        CoSi1 = *(v2s *)&pCoef16[ic * 2U];
+        S = __ADD2(S, __PACK2(T[1], -T[0]));
 
         /*  Butterfly process for the i0+fftLen/2 sample */
         /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
@@ -234,10 +219,7 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         /* writing output(xb', yb') in little endian format */
         *((v2s *)&pSrc16[i2 * 2U]) =
             __PACK2((int16_t)(__DOTP2(CoSi1, S) >> 16U),
-                    (int16_t)(__DOTP2(__PACK2(-CoSi1[1], CoSi1[0]), S) >> 16U));
-
-        /* Co3 & si3 are read from Coefficient pointer */
-        CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+                            (int16_t)(__DOTP2(__PACK2(-CoSi1[1], CoSi1[0]), S) >> 16U));
 
         /*  Butterfly process for the i0+3fftLen/4 sample */
         /* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
@@ -247,6 +229,7 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
             __PACK2((int16_t)(__DOTP2(CoSi3, R) >> 16U),
                     (int16_t)(__DOTP2(__PACK2(-CoSi3[1], CoSi3[0]), R) >> 16U));
     }
+    // mempool_log_partial_barrier(2, absolute_core_id, nPE);
     mempool_log_barrier(2, absolute_core_id);
     /* data is in 4.11(q11) format */
     /* END OF FIRST STAGE PROCESS */
@@ -254,63 +237,90 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
     /* START OF MIDDLE STAGE PROCESS */
     /*  Twiddle coefficients index modifier */
     twidCoefModifier <<= 2U;
-    uint32_t offset, butt_id;
     /*  Calculation of Middle stage */
     for (k = fftLen / 4U; k > 4U; k >>= 2U) {
 
-      n1 = n2;
-      n2 >>= 2U;
-      step = (n2+nPE-1)/nPE;
+//      uint32_t n3, offset, i;
+//      n1 = n2;
+//      n2 >>= 2U;
+//      n3 = n2 * (fftLen / n1);
+//      step = (n3 + nPE - 1) / nPE; // Number of items per core
+//      steps = step / n2;           // Number of butterflies per core (in case step > n2)
+//      offset = step > n2 ? core_id * n1 * steps : (n1 * (core_id / (n2 / step)) + step * (core_id % (n2 / step)));
+//      // dump_offset(offset);
+//      ic = step > n2 ? 0 : step * (core_id % (n2 / step)) * twidCoefModifier;
+//      for (i = 0; i < MIN(n2, step); i++) {
+//        /*  index calculation for the coefficients */
+//        CoSi1 = *(v2s *)&pCoef16[ic * 2U];
+//        CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
+//        CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+//        ic = ic + twidCoefModifier;
+//          for (j = offset; j < MIN(offset + n1 * steps + n1, fftLen); j += n1) {
+//                      i0 = i + j;
 
-      butt_id = core_id%n2;
-      offset = (core_id/n2)*n1;
-      // for(j = butt_id*step; j < n2; j++) {
-      for(j = butt_id*step; j < MIN(butt_id*step+step,n2); j++) {
-      // for(j = core_id*step; j < MIN(core_id*step+step,n2); j++) {
+//        uint32_t offset, butt_id, local_id, mem_id;
+//        n1 = n2;
+//        n2 >>= 2U;
+//        butt_id = core_id % (n2 / 4);
+//        local_id = (core_id % n2) / (n2 / 4);
+//        mem_id = core_id / n2;
+//        offset = local_id * (nPE * 4) + mem_id * n1;
+////        dump_butt_id(butt_id);
+////        dump_local_id(local_id);
+////        dump_mem_id(mem_id);
+//        for(j = butt_id * 4; j < MIN(butt_id * 4 + 4, n2); j++) {
+//            /*  Twiddle coefficients index modifier */
+//            ic = twidCoefModifier * j;
+//            CoSi1 = *(v2s *)&pCoef16[ic * 2U];
+//            CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
+//            CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+//            /*  Butterfly implementation */
+//            for (i0 = offset + j; i0 < fftLen; i0 += (n1 / 4) * nPE * 4 ) {
+//            // for (i0 = j; i0 < fftLen; i0 += n1) {
+//                dump_i0(i0);
 
-          /*  Twiddle coefficients index modifier */
-          ic = twidCoefModifier * j;
-          /*  index calculation for the coefficients */
-          CoSi1 = *(v2s *)&pCoef16[ic * 2U];
-          CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
-          CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+        uint32_t offset, butt_id;
+        n1 = n2;
+        n2 >>= 2U;
+        step = (n2 + nPE - 1) / nPE;
+        butt_id = core_id % n2;
+        offset = (core_id / n2) * n1;
+        for(j = butt_id * step; j < MIN(butt_id * step + step, n2); j++) {
+        // for(j = core_id*step; j < MIN(core_id*step+step,n2); j++) {
+            /*  Twiddle coefficients index modifier */
+            ic = twidCoefModifier * j;
+            CoSi1 = *(v2s *)&pCoef16[ic * 2U];
+            CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
+            CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+            // dump_i0(ic);
+            /*  Butterfly implementation */
+            for (i0 = offset + j; i0 < fftLen; i0 += ((nPE + n2 - 1) / n2) * n1) {
+            // for (i0 = j; i0 < fftLen; i0 += n1) {
 
-          /*  Butterfly implementation */
-          for (i0 = offset + j; i0 < fftLen; i0 += ((nPE/n2) + 1)*n1) {
-          //for (i0 = j; i0 < fftLen; i0 = i0 + n1) {
-
-                 /*  Reading i0, i0+fftLen/2 inputs */
                 /*  index calculation for the input as, */
                 /*  pSrc16[i0 + 0], pSrc16[i0 + fftLen/4], pSrc16[i0 + fftLen/2], pSrc16[i0 + 3fftLen/4] */
+                // dump_i0(i0);
                 i1 = i0 + n2;
                 i2 = i1 + n2;
                 i3 = i2 + n2;
-
-                /*  Reading i0, i0+fftLen/2 inputs */
                 /* Read ya (real), xa(imag) input */
-                T = *(v2s *)&pSrc16[i0 * 2U];
-
+                X = *(v2s *)&pSrc16[i0 * 2U];
                 /* Read yc (real), xc(imag) input */
-                S = *(v2s *)&pSrc16[i2 * 2U];
-
-                /* R0 = (ya + yc), R1 = (xa + xc) */
-                R = __ADD2(T, S);
-
-                /* S0 = (ya - yc), S1 =(xa - xc) */
-                S = __SUB2(T, S);
-
+                Y = *(v2s *)&pSrc16[i2 * 2U];
                 /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
                 /* Read yb (real), xb(imag) input */
                 T = *(v2s *)&pSrc16[i1 * 2U];
-
                 /* Read yd (real), xd(imag) input */
                 U = *(v2s *)&pSrc16[i3 * 2U];
 
+                /* R0 = (ya + yc), R1 = (xa + xc) */
+                R = __ADD2(X, Y);
+                /* S0 = (ya - yc), S1 =(xa - xc) */
+                S = __SUB2(X, Y);
                 /* T0 = (yb + yd), T1 = (xb + xd) */
                 V = __ADD2(T, U);
 
                 /*  writing the butterfly processed i0 sample */
-
                 /* xa' = xa + xb + xc + xd */
                 /* ya' = ya + yb + yc + yd */
                 *((v2s *)&pSrc16[i0 * 2U]) =
@@ -319,7 +329,6 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
 
                 /* R0 = (ya + yc) - (yb + yd), R1 = (xa + xc) - (xb + xd) */
                 R = __SUB2(__SRA2(R, ((v2s){ 1, 1 })), __SRA2(V, ((v2s){ 1, 1 })));
-
                 /*  Reading i0+3fftLen/4 */
                 /* Read yb (real), xb(imag) input */
                 // T = *(v2s *) &pSrc16[i1 * 2U];
@@ -340,10 +349,8 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
 
                 /* T0 = yb-yd, T1 = xb-xd */
                 T = __SRA2(__SUB2(T, U), ((v2s){ 1, 1 }));
-
                 /* R0 = (ya-yc) + (xb- xd), R1 = (xa-xc) - (yb-yd)) */
                 R = __ADD2(__SRA2(S, ((v2s){ 1, 1 })), __PACK2(-T[1], T[0]));
-
                 /* S0 = (ya-yc) - (xb- xd), S1 = (xa-xc) + (yb-yd)) */
                 S = __ADD2(__SRA2(S, ((v2s){ 1, 1 })), __PACK2(T[1], -T[0]));
 
@@ -360,18 +367,17 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
                 *((v2s *)&pSrc16[i3 * 2U]) =
                     __PACK2((int16_t)(__DOTP2(CoSi3, R) >> 16U),
                             (int16_t)(__DOTP2(__PACK2(-CoSi3[1], CoSi3[0]), R) >> 16U));
+//                i0++;
           }
+//          i0 = offset + butt_id * 4 + i * (n1 / 4) * nPE * 4;
+//          i++;
       }
-
       /*  Twiddle coefficients index modifier */
       twidCoefModifier <<= 2U;
-      // mempool_partial_barrier(absolute_core_id,n2*(absolute_core_id/n2),n2,MIN(n2,nPE));
-      // mempool_log_barrier(2, absolute_core_id);
-      mempool_log_partial_barrier(2, absolute_core_id, n2);
-
+      mempool_log_barrier(2, absolute_core_id);
+      // mempool_log_partial_barrier(2, absolute_core_id, (n2 + step - 1) / step);
     }
     /* END OF MIDDLE STAGE PROCESSING */
-
 
     /* data is in 10.6(q6) format for the 1024 point */
     /* data is in 8.8(q8) format for the 256 point */
@@ -381,14 +387,12 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
     n1 = n2;
     n2 >>= 2U;
     /* START OF LAST STAGE PROCESSING */
-    uint32_t steps;
     /* start of last stage process */
-    steps = fftLen/n1;
+    steps = fftLen / n1;
     step = (steps + nPE - 1)/nPE;
     
     /*  Butterfly implementation */
     for (i0 = core_id * step * n1; i0 < MIN((core_id * step + step) * n1, fftLen); i0 += n1) {
-    // for (i0 = core_id * step * n1; i0 < fftLen; i0 += n1) {
 
         /*  index calculation for the input as, */
         /*  pSrc16[i0 + 0], pSrc16[i0 + fftLen/4], pSrc16[i0 + fftLen/2], pSrc16[i0 + 3fftLen/4] */
@@ -398,23 +402,19 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
 
         /*  Reading i0, i0+fftLen/2 inputs */
         /* Read ya (real), xa(imag) input */
-        T = *(v2s *)&pSrc16[i0 * 2U];
-
+        X = *(v2s *)&pSrc16[i0 * 2U];
         /* Read yc (real), xc(imag) input */
-        S = *(v2s *)&pSrc16[i2 * 2U];
-
-        /* R0 = (ya + yc), R1 = (xa + xc) */
-        R = __ADD2(T, S);
-
-        /* S0 = (ya - yc), S1 = (xa - xc) */
-        S = __SUB2(T, S);
-
+        Y = *(v2s *)&pSrc16[i2 * 2U];
         /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
         /* Read yb (real), xb(imag) input */
         T = *(v2s *)&pSrc16[i1 * 2U];
         /* Read yd (real), xd(imag) input */
         U = *(v2s *)&pSrc16[i3 * 2U];
 
+        /* R0 = (ya + yc), R1 = (xa + xc) */
+        R = __ADD2(X, Y);
+        /* S0 = (ya - yc), S1 = (xa - xc) */
+        S = __SUB2(X, Y);
         /* T0 = (yb + yd), T1 = (xb + xd)) */
         V = __ADD2(T, U);
 
@@ -448,6 +448,7 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
         /* yb' = (ya-xb-yc+xd) */
         *((v2s *)&pSrc16[i2 * 2U]) = __ADD2(S, __PACK2(T[1], -T[0]));
 
+
         /*  writing the butterfly processed i0 + 3fftLen/4 sample */
         /* xd' = (xa-yb-xc+yd) */
         /* yd' = (ya+xb-yc-xd) */
@@ -465,24 +466,19 @@ void mempool_radix4_butterfly_q16p( int16_t *pSrc16,
 }
 
 
-void mempool_bitreversal_q16p( uint16_t *pSrc,
-                              const uint16_t bitRevLen,
-                              const uint16_t *pBitRevTab,
-                              const uint32_t nPE) {
-
+void mempool_bitreversal_q16p(  uint16_t *pSrc,
+                                const uint16_t bitRevLen,
+                                const uint16_t *pBitRevTab,
+                                const uint32_t nPE) {
     uint32_t i;
     uint32_t core_id = mempool_get_core_id();
     v2s addr, tmpa, tmpb;
-
     for (i = 2*core_id; i < bitRevLen; i += (2*nPE)){
-
       addr = *(v2s *)&pBitRevTab[i] >> 2;
       tmpa = *(v2s *)&pSrc[ addr[0] ];
       tmpb = *(v2s *)&pSrc[ addr[1] ];
       *((v2s *)&pSrc[ addr[0] ]) = tmpb;
       *((v2s *)&pSrc[ addr[1] ]) = tmpa;
-
     }
     mempool_log_barrier(2, core_id);
-
 }

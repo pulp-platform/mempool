@@ -1,4 +1,8 @@
-#include "define.h"
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Author: Marco Bertuletti, ETH Zurich
 
 #define BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH ((uint16_t)12)
 #define BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH ((uint16_t)24)
@@ -14,14 +18,14 @@
 
 #ifdef  TEST_16
 
-uint16_t BitRevIndexTable_fixed_16[BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_16[BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH] __attribute__((aligned(8), section(".l1"))) = {
     /* radix 4, size 12 */
     8, 64, 16, 32, 24, 96, 40, 80, 56, 112, 88, 104
 };
 
 #elif defined(TEST_32)
 
-uint16_t BitRevIndexTable_fixed_32[BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_32[BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH] __attribute__((aligned(16), section(".l1"))) = {
     /* 4x2, size 24 */
     8,  128, 16, 64,  24,  192, 40,  160, 48,  96,  56,  224,
     72, 144, 88, 208, 104, 176, 120, 240, 152, 200, 184, 232
@@ -29,7 +33,7 @@ uint16_t BitRevIndexTable_fixed_32[BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH] = {
 
 #elif defined(TEST_64)
 
-uint16_t BitRevIndexTable_fixed_64[BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_64[BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH] __attribute__((aligned(32), section(".l1"))) = {
     /* radix 4, size 56 */
     8,   256, 16,  128, 24,  384, 32,  64,  40,  320, 48,  192, 56,  448, 72,  288, 80,  160, 88,
     416, 104, 352, 112, 224, 120, 480, 136, 272, 152, 400, 168, 336, 176, 208, 184, 464, 200, 304,
@@ -38,7 +42,7 @@ uint16_t BitRevIndexTable_fixed_64[BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH] = {
 
 #elif defined(TEST_128)
 
-uint16_t BitRevIndexTable_fixed_128[BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_128[BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH] __attribute__((aligned(64), section(".l1"))) = {
     /* 4x2, size 112 */
     8,   512, 16,  256, 24,  768, 32,  128, 40,  640, 48,  384,  56,   896, 72,  576, 80,  320, 88,
     832, 96,  192, 104, 704, 112, 448, 120, 960, 136, 544, 144,  288,  152, 800, 168, 672, 176, 416,
@@ -50,7 +54,7 @@ uint16_t BitRevIndexTable_fixed_128[BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH] = {
 
 #elif defined(TEST_256)
 
-uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] __attribute__((aligned(128), section(".l1"))) = {
     /* radix 4, size 240 */
     8,    1024, 16,   512,  24,   1536, 32,   256,  40,   1280, 48,   768,  56,   1792, 64,   128,
     72,   1152, 80,   640,  88,   1664, 96,   384,  104,  1408, 112,  896,  120,  1920, 136,  1088,
@@ -71,7 +75,7 @@ uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] = {
 
 #elif defined(TEST_512)
 
-uint16_t BitRevIndexTable_fixed_512[BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_512[BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH] __attribute__((aligned(256), section(".l1"))) = {
     /* 4x2, size 480 */
     8,    2048, 16,   1024, 24,   3072, 32,   512,  40,   2560, 48,   1536, 56,   3584, 64,   256,
     72,   2304, 80,   1280, 88,   3328, 96,   768,  104,  2816, 112,  1792, 120,  3840, 136,  2176,
@@ -107,7 +111,7 @@ uint16_t BitRevIndexTable_fixed_512[BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH] = {
 
 #elif defined(TEST_1024)
 
-uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] __attribute__((aligned(512), section(".l1"))) = {
     /* radix 4, size 992 */
     8,    4096, 16,   2048, 24,   6144, 32,   1024, 40,   5120, 48,   3072, 56,   7168, 64,   512,
     72,   4608, 80,   2560, 88,   6656, 96,   1536, 104,  5632, 112,  3584, 120,  7680, 128,  256,
@@ -175,7 +179,7 @@ uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] =
 
 #elif defined(TEST_2048)
 
-uint16_t BitRevIndexTable_fixed_2048[BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_2048[BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH] __attribute__((aligned(1024), section(".l1"))) = {
     /* 4x2, size 1984 */
     8,     8192,  16,    4096,  24,    12288, 32,    2048,  40,    10240, 48,    6144,  56,
     14336, 64,    1024,  72,    9216,  80,    5120,  88,    13312, 96,    3072,  104,   11264,
@@ -334,7 +338,7 @@ uint16_t BitRevIndexTable_fixed_2048[BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH] =
 
 #elif defined(TEST_4096)
 
-uint16_t BitRevIndexTable_fixed_4096[BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_4096[BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH] __attribute__((aligned(2048), section(".l1"))) = {
     /* radix 4, size 4032 */
     8,     16384, 16,    8192,  24,    24576, 32,    4096,  40,    20480, 48,    12288, 56,
     28672, 64,    2048,  72,    18432, 80,    10240, 88,    26624, 96,    6144,  104,   22528,
@@ -651,7 +655,7 @@ uint16_t BitRevIndexTable_fixed_4096[BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH] =
 
 #elif defined(TEST_16384)
 
-uint16_t BitRevIndexTable_fixed_16384[BITREVINDEXTABLE_FIXED_16384_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_16384[BITREVINDEXTABLE_FIXED_16384_TABLE_LENGTH] __attribute__((aligned(8192), section(".l1"))) = {
    8,65536, 16,32768, 24,98304, 32,16384, 40,81920, 48,49152, 56,114688,
    64,8192, 72,73728, 80,40960, 88,106496, 96,24576, 104,90112, 112,57344,
    120,122880, 128,4096, 136,69632, 144,36864, 152,102400, 160,20480,
@@ -2242,7 +2246,7 @@ uint16_t BitRevIndexTable_fixed_16384[BITREVINDEXTABLE_FIXED_16384_TABLE_LENGTH]
 
 #elif defined(TEST_65536)
 
-uint16_t BitRevIndexTable_fixed_65536[BITREVINDEXTABLE_FIXED_65536_TABLE_LENGTH] = {
+uint16_t BitRevIndexTable_fixed_65536[BITREVINDEXTABLE_FIXED_65536_TABLE_LENGTH] __attribute__((aligned(32768), section(".l1"))) = {
    8,262144, 16,131072, 24,393216, 32,65536, 40,327680, 48,196608, 56,458752,
    64,32768, 72,294912, 80,163840, 88,425984, 96,98304, 104,360448,
    112,229376, 120,491520, 128,16384, 136,278528, 144,147456, 152,409600,
