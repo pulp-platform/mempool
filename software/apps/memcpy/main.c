@@ -23,18 +23,15 @@
 
 #define DMA_ADDRESS (0x40010000)
 
-#define SIZE (2 * 1024)
-volatile uint32_t l2_data_a[SIZE] __attribute__((section(".l2")))
-__attribute__((aligned(0x1000)));
-volatile uint32_t l2_data_b[SIZE] __attribute__((section(".l2")))
-__attribute__((aligned(0x1000)));
+#define SIZE (256 * 256)
 
-volatile uint32_t l1_data_a[SIZE] __attribute__((section(".l1")))
-__attribute__((aligned(0x1000)));
-volatile uint32_t l1_data_b[SIZE] __attribute__((section(".l1")))
-__attribute__((aligned(0x1000)));
+uint32_t l2_data_a[SIZE] __attribute__((section(".l2")));
+uint32_t l2_data_b[SIZE] __attribute__((section(".l2")));
 
-int volatile error __attribute__((section(".l1")));
+uint32_t l1_data_a[SIZE] __attribute__((section(".l1")));
+uint32_t l1_data_b[SIZE] __attribute__((section(".l1")));
+
+uint32_t volatile error __attribute__((section(".l1")));
 
 dump(addr, 0);
 dump(start, 2);
@@ -47,10 +44,10 @@ void dump_data(volatile uint32_t *addr, uint32_t num_words) {
   }
 }
 
-uint32_t verify_dma(volatile uint32_t *addr, uint32_t num_words,
-                    uint32_t golden) {
+uint32_t verify_dma(uint32_t *addr, uint32_t num_words, uint32_t golden) {
+  volatile uint32_t *a = (volatile uint32_t *)addr;
   for (uint32_t i = 0; i < num_words; ++i) {
-    if (addr[i] != golden) {
+    if (a[i] != golden) {
       return i + 1;
     }
     golden += 4;
@@ -83,31 +80,30 @@ int main() {
 
   // Benchmark
   if (core_id == 0) {
+    // Copy in
     mempool_start_benchmark();
     uint32_t time = mempool_get_timer();
     dump_start(time);
-    dma_memcpy_blocking(&l1_data_a[1], (const void *)l2_data_a + 8,
-                        (1024 + 512) * 4);
-    error +=
-        verify_dma((void *)l1_data_a + 4, 1024 + 512, (uint32_t)l2_data_a + 8);
-    dump_start(error);
-    dump_start((uint32_t)l1_data_a);
-    // dump_data(l1_data_a, SIZE);
-    dma_memcpy_blocking((void *)l2_data_b, (const void *)l1_data_a + 4,
-                        (1024 + 512) * 4);
-    error += verify_dma((void *)l2_data_b, 1024 + 512, (uint32_t)l2_data_a + 8);
-    dump_start(error);
-    dump_start((uint32_t)l2_data_b);
-    // dump_data(l2_data_b, SIZE);
+    dma_memcpy_blocking(l1_data_a, l2_data_a, SIZE * sizeof(uint32_t));
     time = mempool_get_timer() - time;
     dump_end(time);
+    error += verify_dma(l1_data_a, SIZE, (uint32_t)l2_data_a);
+    dump_start(error);
+
+    // Copy out
+    mempool_start_benchmark();
+    time = mempool_get_timer();
+    dma_memcpy_blocking((void *)l2_data_b, (const void *)l1_data_a,
+                        SIZE * sizeof(uint32_t));
+    time = mempool_get_timer() - time;
+    dump_end(time);
+    error += verify_dma((void *)l2_data_b, SIZE, (uint32_t)l2_data_a);
+    dump_start(error);
     mempool_stop_benchmark();
   }
-
-  // __atomic_fetch_add(&error, (int)time, __ATOMIC_RELAXED);
 
   // wait until all cores have finished
   mempool_barrier(num_cores);
 
-  return error;
+  return (int)error;
 }
