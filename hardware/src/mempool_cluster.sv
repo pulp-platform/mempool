@@ -2,6 +2,8 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
+`include "common_cells/registers.svh"
+
 module mempool_cluster
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
@@ -40,6 +42,26 @@ module mempool_cluster
   /*********
    *  DMA  *
    *********/
+  dma_req_t  dma_req_cut;
+  logic      dma_req_cut_valid;
+  logic      dma_req_cut_ready;
+  dma_meta_t dma_meta_cut;
+
+  spill_register #(
+    .T(dma_req_t)
+  ) i_dma_req_register (
+    .clk_i  (clk_i            ),
+    .rst_ni (rst_ni           ),
+    .data_i (dma_req_i        ),
+    .valid_i(dma_req_valid_i  ),
+    .ready_o(dma_req_ready_o  ),
+    .data_o (dma_req_cut      ),
+    .valid_o(dma_req_cut_valid),
+    .ready_i(dma_req_cut_ready)
+  );
+
+  `FF(dma_meta_o, dma_meta_cut, '0, clk_i, rst_ni);
+
   dma_req_t  dma_req_split;
   logic      dma_req_split_valid;
   logic      dma_req_split_ready;
@@ -59,10 +81,10 @@ module mempool_cluster
   ) i_idma_split_midend (
     .clk_i      (clk_i              ),
     .rst_ni     (rst_ni             ),
-    .burst_req_i(dma_req_i          ),
-    .valid_i    (dma_req_valid_i    ),
-    .ready_o    (dma_req_ready_o    ),
-    .meta_o     (dma_meta_o         ),
+    .burst_req_i(dma_req_cut        ),
+    .valid_i    (dma_req_cut_valid  ),
+    .ready_o    (dma_req_cut_ready  ),
+    .meta_o     (dma_meta_cut       ),
     .burst_req_o(dma_req_split      ),
     .valid_o    (dma_req_split_valid),
     .ready_i    (dma_req_split_ready),
