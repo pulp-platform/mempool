@@ -22,6 +22,9 @@
 [submodule "hardware/deps/common_verification"]
 	path = hardware/deps/common_verification
 	url = https://github.com/pulp-platform/common_verification.git
+[submodule "hardware/deps/idma"]
+  path = hardware/deps/idma
+  url = git@iis-git.ee.ethz.ch:bslk/idma.git
 [submodule "hardware/deps/register_interface"]
 	path = hardware/deps/register_interface
 	url = https://github.com/pulp-platform/register_interface.git
