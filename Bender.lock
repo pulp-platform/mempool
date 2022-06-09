@@ -29,6 +29,15 @@ packages:
     source:
       Git: "https://github.com/pulp-platform/common_verification.git"
     dependencies: []
+  idma:
+    revision: e1fbdf81bac9c4395e164e8c0560238f87dc0c51
+    version: ~
+    source:
+      Git: "git@iis-git.ee.ethz.ch:bslk/idma.git"
+    dependencies:
+      - axi
+      - common_cells
+      - common_verification
   register_interface:
     revision: 73de8e51b79f416350229b1d2420b2c527e002b8
     version: 0.3.1
