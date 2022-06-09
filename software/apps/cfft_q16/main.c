@@ -36,10 +36,17 @@ void initialize_vector (int16_t *pSrc, int16_t *pDst, uint32_t N_el) {
       }
       pDst[i] = (int16_t) 0;
     }
-    for (uint32_t i = 0; i < N_TWIDDLES; i++) {
-      pCoef16_copy[i] = (int16_t) 0;
+    #ifdef MEMSIZED
+    for (uint32_t i = 0; i < 8 * N_BANKS; i++) {
+      pCoef16_src[i] = (int16_t) 0;
+      pCoef16_dst[i] = (int16_t) 0;
     }
-
+    for (uint32_t ic = 0; ic < (N_CSAMPLES / 4); ic++) {
+      *(v2s *)&pCoef16_src[2U * ic] = *(v2s *)&twiddleCoef_q16[2U * ic];
+      *(v2s *)&pCoef16_src[2U * (ic + 1 * N_BANKS)] = *(v2s *)&twiddleCoef_q16[2U * (ic * 2U)];
+      *(v2s *)&pCoef16_src[2U * (ic + 2 * N_BANKS)] = *(v2s *)&twiddleCoef_q16[2U * (ic * 3U)];
+    }
+    #endif
 }
 
 int volatile error __attribute__((section(".l1")));
@@ -61,7 +68,7 @@ int main() {
   #ifdef  TEST_16
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 16,
-                          twiddleCoef_16_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_16,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH,
@@ -71,7 +78,7 @@ int main() {
   #elif   defined(TEST_32)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 32,
-                          twiddleCoef_32_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_32,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH,
@@ -80,7 +87,7 @@ int main() {
   #elif   defined(TEST_64)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 64,
-                          twiddleCoef_64_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_64,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
@@ -89,7 +96,7 @@ int main() {
   #elif   defined(TEST_128)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 128,
-                          twiddleCoef_128_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_128,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH,
@@ -98,7 +105,7 @@ int main() {
   #elif   defined(TEST_256)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 256,
-                          twiddleCoef_256_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_256,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
@@ -107,7 +114,7 @@ int main() {
   #elif   defined(TEST_512)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 512,
-                          twiddleCoef_512_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_512,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH,
@@ -116,7 +123,7 @@ int main() {
   #elif   defined(TEST_1024)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 1024,
-                          twiddleCoef_1024_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_1024,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
@@ -125,7 +132,7 @@ int main() {
   #elif   defined(TEST_2048)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 2048,
-                          twiddleCoef_2048_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_2048,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH,
@@ -134,7 +141,7 @@ int main() {
   #elif   defined(TEST_4096)
       mempool_start_benchmark();
       mempool_cfft_q16s(  (uint16_t) 4096,
-                          twiddleCoef_4096_q16,
+                          twiddleCoef_q16,
                           BitRevIndexTable_fixed_4096,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
@@ -170,7 +177,7 @@ int main() {
 
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 16,
-                        twiddleCoef_16_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_16,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH,
@@ -181,7 +188,7 @@ int main() {
 
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 32,
-                        twiddleCoef_32_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_32,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH,
@@ -191,19 +198,32 @@ int main() {
   #elif   defined(TEST_64)
 
     #ifdef MEMSIZED
+
     mempool_start_benchmark();
+    #ifdef TWIDDLE_MODIFIER
     mempool_cfft_memsized_q16p( (uint16_t) 64,
-                        twiddleCoef_64_q16,
-                        BitRevIndexTable_fixed_64,
-                        pSrc,
-                        pDst,
-                        BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
-                        0, 0, 4);
+                                twiddleCoef_q16,
+                                BitRevIndexTable_fixed_64,
+                                pSrc,
+                                pDst,
+                                BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
+                                0, 0, 4);
+    #else
+    mempool_cfft_memsized_q16p( (uint16_t) 64,
+                                pCoef16_src,
+                                pCoef16_dst,
+                                BitRevIndexTable_fixed_64,
+                                pSrc,
+                                pDst,
+                                BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
+                                0, 0, 4);
+    #endif
     mempool_stop_benchmark();
+
     #else
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 64,
-                        twiddleCoef_64_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_64,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
@@ -215,7 +235,7 @@ int main() {
 
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 128,
-                        twiddleCoef_128_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_128,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH,
@@ -225,19 +245,32 @@ int main() {
   #elif   defined(TEST_256)
 
     #ifdef MEMSIZED
+
     mempool_start_benchmark();
+    #ifdef TWIDDLE_MODIFIER
     mempool_cfft_memsized_q16p( (uint16_t) 256,
-                        twiddleCoef_256_q16,
-                        BitRevIndexTable_fixed_256,
-                        pSrc,
-                        pDst,
-                        BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
-                        0, 0, 16);
+                                twiddleCoef_q16,
+                                BitRevIndexTable_fixed_256,
+                                pSrc,
+                                pDst,
+                                BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
+                                0, 0, 16);
+    #else
+    mempool_cfft_memsized_q16p( (uint16_t) 256,
+                                pCoef16_src,
+                                pCoef16_dst,
+                                BitRevIndexTable_fixed_256,
+                                pSrc,
+                                pDst,
+                                BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
+                                0, 0, 16);
+    #endif
     mempool_stop_benchmark();
+
     #else
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 256,
-                        twiddleCoef_256_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_256,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
@@ -249,7 +282,7 @@ int main() {
 
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 512,
-                        twiddleCoef_512_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_512,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH,
@@ -259,19 +292,32 @@ int main() {
   #elif   defined(TEST_1024)
 
     #ifdef MEMSIZED
+
     mempool_start_benchmark();
+    #ifdef TWIDDLE_MODIFIER
     mempool_cfft_memsized_q16p( (uint16_t) 1024,
-                        twiddleCoef_1024_q16,
-                        BitRevIndexTable_fixed_1024,
-                        pSrc,
-                        pDst,
-                        BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
-                        0, 0, 64);
+                                twiddleCoef_q16,
+                                BitRevIndexTable_fixed_1024,
+                                pSrc,
+                                pDst,
+                                BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
+                                0, 0, 64);
+    #else
+    mempool_cfft_memsized_q16p( (uint16_t) 1024,
+                                pCoef16_src,
+                                pCoef16_dst,
+                                BitRevIndexTable_fixed_1024,
+                                pSrc,
+                                pDst,
+                                BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
+                                0, 0, 64);
+    #endif
     mempool_stop_benchmark();
+
     #else
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 1024,
-                        twiddleCoef_1024_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_1024,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
@@ -283,7 +329,7 @@ int main() {
 
     mempool_start_benchmark();
     mempool_cfft_q16p(  (uint16_t) 2048,
-                        twiddleCoef_2048_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_2048,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH,
@@ -293,19 +339,32 @@ int main() {
   #elif   defined(TEST_4096)
 
     #ifdef MEMSIZED
+
     mempool_start_benchmark();
+    #ifdef TWIDDLE_MODIFIER
     mempool_cfft_memsized_q16p( (uint16_t) 4096,
-                        twiddleCoef_4096_q16,
-                        BitRevIndexTable_fixed_4096,
-                        pSrc,
-                        pDst,
-                        BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                                twiddleCoef_q16,
+                                BitRevIndexTable_fixed_4096,
+                                pSrc,
+                                pDst,
+                                BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
+                                0, 0, NUM_CORES);
+    #else
+    mempool_cfft_memsized_q16p( (uint16_t) 4096,
+                                pCoef16_src,
+                                pCoef16_dst,
+                                BitRevIndexTable_fixed_4096,
+                                pSrc,
+                                pDst,
+                                BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
+                                0, 0, NUM_CORES);
+    #endif
     mempool_stop_benchmark();
+
     #else
     mempool_start_benchmark();
     mempool_cfft_q16p( (uint16_t) 4096,
-                        twiddleCoef_4096_q16,
+                        twiddleCoef_q16,
                         BitRevIndexTable_fixed_4096,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,

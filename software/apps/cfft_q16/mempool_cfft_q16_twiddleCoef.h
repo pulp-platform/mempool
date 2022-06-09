@@ -23,7 +23,7 @@
   Convert Floating point to q15(Fixed point 1.15):
         round(twiddleCoefq15(i) * pow(2, 15))
  */
-int16_t twiddleCoef_16_q16[24] = {
+int16_t twiddleCoef_q16[24] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7641, (int16_t)0x30FB, (int16_t)0x5A82,
     (int16_t)0x5A82, (int16_t)0x30FB, (int16_t)0x7641, (int16_t)0x0000, (int16_t)0x7FFF,
     (int16_t)0xCF04, (int16_t)0x7641, (int16_t)0xA57D, (int16_t)0x5A82, (int16_t)0x89BE,
@@ -50,7 +50,7 @@ int16_t twiddleCoef_16_q16[24] = {
   Convert Floating point to q15(Fixed point 1.15):
         round(twiddleCoefq15(i) * pow(2, 15))
  */
-int16_t twiddleCoef_32_q16[48] = {
+int16_t twiddleCoef_q16[48] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7D8A, (int16_t)0x18F8, (int16_t)0x7641,
     (int16_t)0x30FB, (int16_t)0x6A6D, (int16_t)0x471C, (int16_t)0x5A82, (int16_t)0x5A82,
     (int16_t)0x471C, (int16_t)0x6A6D, (int16_t)0x30FB, (int16_t)0x7641, (int16_t)0x18F8,
@@ -82,7 +82,7 @@ int16_t twiddleCoef_32_q16[48] = {
   Convert Floating point to q15(Fixed point 1.15):
         round(twiddleCoefq15(i) * pow(2, 15))
  */
-int16_t twiddleCoef_64_q16[96] = {
+int16_t twiddleCoef_q16[96] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7F62, (int16_t)0x0C8B, (int16_t)0x7D8A,
     (int16_t)0x18F8, (int16_t)0x7A7D, (int16_t)0x2528, (int16_t)0x7641, (int16_t)0x30FB,
     (int16_t)0x70E2, (int16_t)0x3C56, (int16_t)0x6A6D, (int16_t)0x471C, (int16_t)0x62F2,
@@ -124,7 +124,7 @@ int16_t twiddleCoef_64_q16[96] = {
   Convert Floating point to q16(Fixed point 1.15):
     round(twiddleCoefq16(i) * pow(2, 15))
  */
-int16_t twiddleCoef_128_q16[192] = {
+int16_t twiddleCoef_q16[192] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7FD8, (int16_t)0x0647, (int16_t)0x7F62,
     (int16_t)0x0C8B, (int16_t)0x7E9D, (int16_t)0x12C8, (int16_t)0x7D8A, (int16_t)0x18F8,
     (int16_t)0x7C29, (int16_t)0x1F19, (int16_t)0x7A7D, (int16_t)0x2528, (int16_t)0x7884,
@@ -185,7 +185,7 @@ int16_t twiddleCoef_128_q16[192] = {
   Convert Floating point to q15(Fixed point 1.15):
         round(twiddleCoefq15(i) * pow(2, 15))
  */
-int16_t twiddleCoef_256_q16[384] = {
+int16_t twiddleCoef_q16[384] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7FF6, (int16_t)0x0324, (int16_t)0x7FD8,
     (int16_t)0x0647, (int16_t)0x7FA7, (int16_t)0x096A, (int16_t)0x7F62, (int16_t)0x0C8B,
     (int16_t)0x7F09, (int16_t)0x0FAB, (int16_t)0x7E9D, (int16_t)0x12C8, (int16_t)0x7E1D,
@@ -284,7 +284,7 @@ int16_t twiddleCoef_256_q16[384] = {
   Convert Floating point to q15(Fixed point 1.15):
         round(twiddleCoefq15(i) * pow(2, 15))
  */
-int16_t twiddleCoef_512_q16[768] = {
+int16_t twiddleCoef_q16[768] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7FFD, (int16_t)0x0192, (int16_t)0x7FF6,
     (int16_t)0x0324, (int16_t)0x7FE9, (int16_t)0x04B6, (int16_t)0x7FD8, (int16_t)0x0647,
     (int16_t)0x7FC2, (int16_t)0x07D9, (int16_t)0x7FA7, (int16_t)0x096A, (int16_t)0x7F87,
@@ -461,7 +461,7 @@ int16_t twiddleCoef_512_q16[768] = {
         round(twiddleCoefq15(i) * pow(2, 15))
 
  */
-int16_t twiddleCoef_1024_q16[1536] = {
+int16_t twiddleCoef_q16[1536] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7FFF, (int16_t)0x00C9, (int16_t)0x7FFD,
     (int16_t)0x0192, (int16_t)0x7FFA, (int16_t)0x025B, (int16_t)0x7FF6, (int16_t)0x0324,
     (int16_t)0x7FF0, (int16_t)0x03ED, (int16_t)0x7FE9, (int16_t)0x04B6, (int16_t)0x7FE1,
@@ -791,7 +791,7 @@ int16_t twiddleCoef_1024_q16[1536] = {
   Convert Floating point to q15(Fixed point 1.15):
         round(twiddleCoefq15(i) * pow(2, 15))
  */
-int16_t twiddleCoef_2048_q16[3072] = {
+int16_t twiddleCoef_q16[3072] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7FFF, (int16_t)0x0064, (int16_t)0x7FFF,
     (int16_t)0x00C9, (int16_t)0x7FFE, (int16_t)0x012D, (int16_t)0x7FFD, (int16_t)0x0192,
     (int16_t)0x7FFC, (int16_t)0x01F6, (int16_t)0x7FFA, (int16_t)0x025B, (int16_t)0x7FF8,
@@ -1428,7 +1428,7 @@ int16_t twiddleCoef_2048_q16[3072] = {
   Convert Floating point to q15(Fixed point 1.15):
         round(twiddleCoefq15(i) * pow(2, 15))
  */
-int16_t twiddleCoef_4096_q16[6144] = {
+int16_t twiddleCoef_q16[6144] = {
     (int16_t)0x7FFF, (int16_t)0x0000, (int16_t)0x7FFF, (int16_t)0x0032, (int16_t)0x7FFF,
     (int16_t)0x0064, (int16_t)0x7FFF, (int16_t)0x0096, (int16_t)0x7FFF, (int16_t)0x00C9,
     (int16_t)0x7FFF, (int16_t)0x00FB, (int16_t)0x7FFE, (int16_t)0x012D, (int16_t)0x7FFE,
@@ -2662,7 +2662,7 @@ int16_t twiddleCoef_4096_q16[6144] = {
 
 #elif defined(TEST_16384)
 
-int16_t twiddleCoef_16384_q16[16384] = {
+int16_t twiddleCoef_q16[16384] = {
     (int16_t) 0x8000, (int16_t) 0x0000, (int16_t) 0x8000, (int16_t) 0x000D, (int16_t) 0x8000, (int16_t) 0x0019, (int16_t) 0x8000, (int16_t) 0x0026, (int16_t) 0x8000, (int16_t) 0x0032,
     (int16_t) 0x8000, (int16_t) 0x003F, (int16_t) 0x8000, (int16_t) 0x004B, (int16_t) 0x8000, (int16_t) 0x0058, (int16_t) 0x8000, (int16_t) 0x0065, (int16_t) 0x8000, (int16_t) 0x0071,
     (int16_t) 0x8000, (int16_t) 0x007E, (int16_t) 0x8000, (int16_t) 0x008A, (int16_t) 0x8000, (int16_t) 0x0097, (int16_t) 0x8000, (int16_t) 0x00A3, (int16_t) 0x8000, (int16_t) 0x00B0,
@@ -5125,7 +5125,7 @@ int16_t twiddleCoef_16384_q16[16384] = {
 
 #elif defined(TEST_65536)
 
-int16_t twiddleCoef_65536_q16[65536] = {
+int16_t twiddleCoef_q16[65536] = {
     (int16_t) 0x8000, (int16_t) 0x0000, (int16_t) 0x8000, (int16_t) 0x0003, (int16_t) 0x8000, (int16_t) 0x0006, (int16_t) 0x8000, (int16_t) 0x0009, (int16_t) 0x8000, (int16_t) 0x000D,
     (int16_t) 0x8000, (int16_t) 0x0010, (int16_t) 0x8000, (int16_t) 0x0013, (int16_t) 0x8000, (int16_t) 0x0016, (int16_t) 0x8000, (int16_t) 0x0019, (int16_t) 0x8000, (int16_t) 0x001C,
     (int16_t) 0x8000, (int16_t) 0x001F, (int16_t) 0x8000, (int16_t) 0x0023, (int16_t) 0x8000, (int16_t) 0x0026, (int16_t) 0x8000, (int16_t) 0x0029, (int16_t) 0x8000, (int16_t) 0x002C,
