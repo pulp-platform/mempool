@@ -4,6 +4,7 @@
 
 `include "mempool/mempool.svh"
 `include "reqrsp_interface/typedef.svh"
+`include "common_cells/registers.svh"
 
 module mempool_group
   import mempool_pkg::*;
@@ -418,6 +419,26 @@ module mempool_group
   /*********
    *  DMA  *
    *********/
+  dma_req_t  dma_req_cut;
+  logic      dma_req_cut_valid;
+  logic      dma_req_cut_ready;
+  dma_meta_t dma_meta_cut;
+
+  spill_register #(
+    .T(dma_req_t)
+  ) i_dma_req_register (
+    .clk_i  (clk_i            ),
+    .rst_ni (rst_ni           ),
+    .data_i (dma_req_i        ),
+    .valid_i(dma_req_valid_i  ),
+    .ready_o(dma_req_ready_o  ),
+    .data_o (dma_req_cut      ),
+    .valid_o(dma_req_cut_valid),
+    .ready_i(dma_req_cut_ready)
+  );
+
+  `FF(dma_meta_o, dma_meta_cut, '0, clk_i, rst_ni);
+
   dma_req_t  [NumDmasPerGroup-1:0] dma_req;
   logic      [NumDmasPerGroup-1:0] dma_req_valid;
   logic      [NumDmasPerGroup-1:0] dma_req_ready;
@@ -429,16 +450,16 @@ module mempool_group
     .burst_req_t    (dma_req_t                         ),
     .meta_t         (dma_meta_t                        )
   ) i_idma_distributed_midend (
-    .clk_i       (clk_i          ),
-    .rst_ni      (rst_ni         ),
-    .burst_req_i (dma_req_i      ),
-    .valid_i     (dma_req_valid_i),
-    .ready_o     (dma_req_ready_o),
-    .meta_o      (dma_meta_o     ),
-    .burst_req_o (dma_req        ),
-    .valid_o     (dma_req_valid  ),
-    .ready_i     (dma_req_ready  ),
-    .meta_i      (dma_meta       )
+    .clk_i       (clk_i            ),
+    .rst_ni      (rst_ni           ),
+    .burst_req_i (dma_req_cut      ),
+    .valid_i     (dma_req_cut_valid),
+    .ready_o     (dma_req_cut_ready),
+    .meta_o      (dma_meta_cut     ),
+    .burst_req_o (dma_req          ),
+    .valid_o     (dma_req_valid    ),
+    .ready_i     (dma_req_ready    ),
+    .meta_i      (dma_meta         )
   );
 
   // xbar
