@@ -30,16 +30,16 @@ int main() {
     mempool_wait(10);
   mempool_barrier(num_cores);
 
-  mempool_partial_barrier(core_id,   0, 64, 1);
-  mempool_partial_barrier(core_id,  64, 64, 2);
+  mempool_partial_barrier(core_id, 0, 64, 1);
+  mempool_partial_barrier(core_id, 64, 64, 2);
   mempool_partial_barrier(core_id, 128, 64, 3);
   mempool_partial_barrier(core_id, 192, 64, 4);
   dump_cores_awake(core_id);
   mempool_barrier(num_cores);
 
-  mempool_partial_barrier(core_id, 64*(core_id/64), 64, 5);
-  mempool_partial_barrier(core_id, 32*(core_id/32), 32, 6);
-  mempool_partial_barrier(core_id, 16*(core_id/16), 16, 7);
+  mempool_partial_barrier(core_id, 64 * (core_id / 64), 64, 5);
+  mempool_partial_barrier(core_id, 32 * (core_id / 32), 32, 6);
+  mempool_partial_barrier(core_id, 16 * (core_id / 16), 16, 7);
   dump_cores_awake(core_id);
   mempool_barrier(num_cores);
 

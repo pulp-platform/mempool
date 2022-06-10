@@ -106,7 +106,8 @@ static inline void wake_up_group(uint32_t volatile group_mask) {
 static inline void wake_up_all_group() { wake_up_group((uint32_t)-1); }
 
 #if ((NUM_CORES == 16) || (NUM_CORES == 256))
-static inline void wake_up_tile(uint32_t volatile group_id, uint32_t tile_mask) {
+static inline void wake_up_tile(uint32_t volatile group_id,
+                                uint32_t tile_mask) {
   switch (group_id) {
   case 0:
     wake_up_tile_g0_reg = tile_mask;
@@ -126,7 +127,8 @@ static inline void wake_up_tile(uint32_t volatile group_id, uint32_t tile_mask) 
   }
 }
 #elif NUM_CORES == 1024
-static inline void wake_up_tile(uint32_t volatile group_id, uint32_t tile_mask) {
+static inline void wake_up_tile(uint32_t volatile group_id,
+                                uint32_t tile_mask) {
   switch (group_id) {
   case 0:
     wake_up_tile_g0_reg = tile_mask;

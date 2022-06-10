@@ -68,63 +68,67 @@ void mempool_log_barrier(uint32_t step, uint32_t core_id) {
     mempool_wfi();
 }
 
-void mempool_log_partial_barrier(uint32_t step, uint32_t core_id, uint32_t num_cores_barrier) {
+void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
+                                 uint32_t num_cores_barrier) {
 
-  uint32_t core_init = num_cores_barrier*(core_id/num_cores_barrier);
+  uint32_t core_init = num_cores_barrier * (core_id / num_cores_barrier);
   uint32_t core_end = core_init + num_cores_barrier;
-  if(core_id >= core_init && core_id < core_end) {
+  if (core_id >= core_init && core_id < core_end) {
 
-      uint32_t idx = (step * (core_id / step)) * 4;
-      uint32_t next_step, previous_step;
-      previous_step = step >> 1;
-      if ((step - previous_step) ==
-          __atomic_fetch_add(&log_barrier[idx + previous_step - 1], previous_step,
-                             __ATOMIC_RELAXED)) {
-        next_step = step << 1;
-        __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
-                         __ATOMIC_RELAXED);
-        if (num_cores_barrier == step) {
+    uint32_t idx = (step * (core_id / step)) * 4;
+    uint32_t next_step, previous_step;
+    previous_step = step >> 1;
+    if ((step - previous_step) ==
+        __atomic_fetch_add(&log_barrier[idx + previous_step - 1], previous_step,
+                           __ATOMIC_RELAXED)) {
+      next_step = step << 1;
+      __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
+                       __ATOMIC_RELAXED);
+      if (num_cores_barrier == step) {
 
-          __sync_synchronize(); // Full memory barrier
-          if(num_cores_barrier >= NUM_CORES) {
-            wake_up_all();
-          } else if (num_cores_barrier >= NUM_CORES_PER_GROUP) {
-            uint32_t volatile group_init = core_init / NUM_CORES_PER_GROUP;
-            uint32_t volatile group_end = core_end / NUM_CORES_PER_GROUP;
-            wake_up_group(((1U << (group_end - group_init)) - 1) << group_init);
-          } else if (num_cores_barrier >= NUM_CORES_PER_TILE) {
-            uint32_t volatile tile_init = core_init / NUM_CORES_PER_TILE;
-            uint32_t volatile tile_end = core_end / NUM_CORES_PER_TILE;
-            wake_up_tile(tile_init / NUM_TILES_PER_GROUP,
-                         ((1U << (tile_end - tile_init)) - 1) << tile_init % NUM_TILES_PER_GROUP);
-          } else {
-            while(core_init > core_end - 1) {
-              wake_up(core_init);
-              core_init++;
-            }
-          }
-          mempool_wfi();
-
+        __sync_synchronize(); // Full memory barrier
+        if (num_cores_barrier >= NUM_CORES) {
+          wake_up_all();
+        } else if (num_cores_barrier >= NUM_CORES_PER_GROUP) {
+          uint32_t volatile group_init = core_init / NUM_CORES_PER_GROUP;
+          uint32_t volatile group_end = core_end / NUM_CORES_PER_GROUP;
+          wake_up_group(((1U << (group_end - group_init)) - 1) << group_init);
+        } else if (num_cores_barrier >= NUM_CORES_PER_TILE) {
+          uint32_t volatile tile_init = core_init / NUM_CORES_PER_TILE;
+          uint32_t volatile tile_end = core_end / NUM_CORES_PER_TILE;
+          wake_up_tile(tile_init / NUM_TILES_PER_GROUP,
+                       ((1U << (tile_end - tile_init)) - 1)
+                           << tile_init % NUM_TILES_PER_GROUP);
         } else {
-          mempool_log_partial_barrier(next_step, core_id, num_cores_barrier);
+          while (core_init > core_end - 1) {
+            wake_up(core_init);
+            core_init++;
+          }
         }
-      } else
         mempool_wfi();
+      } else {
+        mempool_log_partial_barrier(next_step, core_id, num_cores_barrier);
+      }
+    } else
+      mempool_wfi();
   }
-
 }
 
-void mempool_partial_barrier(uint32_t volatile core_id, uint32_t volatile core_init,
-                             uint32_t volatile num_sleeping_cores, uint32_t volatile memloc) {
+void mempool_partial_barrier(uint32_t volatile core_id,
+                             uint32_t volatile core_init,
+                             uint32_t volatile num_sleeping_cores,
+                             uint32_t volatile memloc) {
 
   uint32_t volatile core_end = core_init + num_sleeping_cores;
 
   if (core_id >= core_init && core_id < core_end) {
 
     if (num_sleeping_cores - 1 ==
-        __atomic_fetch_add(&partial_barrier[(core_init * 4) + memloc], 1, __ATOMIC_RELAXED)) {
+        __atomic_fetch_add(&partial_barrier[(core_init * 4) + memloc], 1,
+                           __ATOMIC_RELAXED)) {
 
-      __atomic_store_n(&partial_barrier[(core_init * 4) + memloc], 0, __ATOMIC_RELAXED);
+      __atomic_store_n(&partial_barrier[(core_init * 4) + memloc], 0,
+                       __ATOMIC_RELAXED);
       __sync_synchronize(); // Full memory barrier
       /* Wake-up the core remainder */
       if ((core_end - core_init) > NUM_CORES_PER_TILE) {
@@ -148,13 +152,16 @@ void mempool_partial_barrier(uint32_t volatile core_id, uint32_t volatile core_i
       uint32_t volatile tile_end = core_end / NUM_CORES_PER_TILE;
       if ((tile_end - tile_init) > NUM_TILES_PER_GROUP) {
         wake_up_tile(tile_init / NUM_TILES_PER_GROUP,
-                     ((1U << (16 - tile_init % NUM_TILES_PER_GROUP)) - 1) << tile_init % NUM_TILES_PER_GROUP);
-        wake_up_tile(tile_end / NUM_TILES_PER_GROUP, ((1U << tile_end % NUM_TILES_PER_GROUP) - 1));
+                     ((1U << (16 - tile_init % NUM_TILES_PER_GROUP)) - 1)
+                         << tile_init % NUM_TILES_PER_GROUP);
+        wake_up_tile(tile_end / NUM_TILES_PER_GROUP,
+                     ((1U << tile_end % NUM_TILES_PER_GROUP) - 1));
         core_init += NUM_CORES_PER_TILE * (16 - tile_init);
         core_end -= NUM_CORES_PER_TILE * tile_end % NUM_TILES_PER_GROUP;
       } else if ((tile_end - tile_init) < NUM_TILES_PER_GROUP) {
         wake_up_tile(tile_init / NUM_TILES_PER_GROUP,
-                     ((1U << (tile_end - tile_init)) - 1) << tile_init % NUM_TILES_PER_GROUP);
+                     ((1U << (tile_end - tile_init)) - 1)
+                         << tile_init % NUM_TILES_PER_GROUP);
         core_init += NUM_CORES_PER_TILE * (tile_end - tile_init);
       }
 
@@ -165,9 +172,7 @@ void mempool_partial_barrier(uint32_t volatile core_id, uint32_t volatile core_i
         wake_up_group(((1U << (group_end - group_init)) - 1) << group_init);
         core_init += NUM_CORES_PER_GROUP * (group_end - group_init);
       }
-
     }
     mempool_wfi();
   }
-
 }
