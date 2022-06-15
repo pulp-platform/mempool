@@ -13,8 +13,6 @@ module ctrl_registers
   parameter logic [DataWidth-1:0] TCDMBaseAddr      = 0,
   parameter logic [DataWidth-1:0] TCDMSize          = 0,
   parameter logic [DataWidth-1:0] NumCores          = 0,
-  parameter logic [DataWidth-1:0] NumGroups         = 0,
-  parameter logic [DataWidth-1:0] NumCoresPerTile   = 0,
   // AXI Structs
   parameter type axi_lite_req_t                = logic,
   parameter type axi_lite_resp_t               = logic

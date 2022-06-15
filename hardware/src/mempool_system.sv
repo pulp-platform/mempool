@@ -431,8 +431,6 @@ module mempool_system
     .TCDMBaseAddr     (TCDMBaseAddr       ),
     .TCDMSize         (TCDMSize           ),
     .NumCores         (NumCores           ),
-    .NumGroups        (NumGroups          ),
-    .NumCoresPerTile  (NumCoresPerTile    ),
     .axi_lite_req_t (axi_lite_slv_req_t ),
     .axi_lite_resp_t(axi_lite_slv_resp_t)
   ) i_ctrl_registers (
