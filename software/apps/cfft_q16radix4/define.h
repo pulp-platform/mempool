@@ -5,9 +5,9 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 /* DEFINES */
-#define N_CSAMPLES 4096
+#define N_CSAMPLES 64
 #define N_RSAMPLES (2*N_CSAMPLES)
-#define TEST_4096
+#define TEST_64
 
 //#define SINGLE
 //#define PRINT_SINGLE
@@ -16,7 +16,7 @@
 #define PARALLEL
 #define MEMSIZED
 //#define PRINT_PARALLEL
-//#define TWIDDLE_MODIFIER
+#define TWIDDLE_MODIFIER
 
 /* DATA */
 #define N_BANKS (1024)
