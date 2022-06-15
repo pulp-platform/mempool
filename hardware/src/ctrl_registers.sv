@@ -14,8 +14,6 @@ module ctrl_registers
   parameter logic [DataWidth-1:0] TCDMSize          = 0,
   parameter logic [DataWidth-1:0] NumCores          = 0,
   parameter logic [DataWidth-1:0] NumGroups         = 0,
-  parameter logic [DataWidth-1:0] NumCoresPerGroup  = 0,
-  parameter logic [DataWidth-1:0] NumTilesPerGroup  = 0,
   parameter logic [DataWidth-1:0] NumCoresPerTile   = 0,
   // AXI Structs
   parameter type axi_lite_req_t                = logic,
@@ -42,9 +40,9 @@ module ctrl_registers
    *  Definitions  *
    *****************/
 
-  localparam int unsigned DataWidthInBytes = (DataWidth + 7) / 8;
-  localparam int unsigned RegNumBytes      = NumRegs * DataWidthInBytes;
-  localparam int unsigned RegDataWidth     = NumRegs * DataWidth;
+  localparam int unsigned DataWidthInBytes  = (DataWidth + 7) / 8;
+  localparam int unsigned RegNumBytes       = NumRegs * DataWidthInBytes;
+  localparam int unsigned RegDataWidth      = NumRegs * DataWidth;
 
   localparam logic [DataWidthInBytes-1:0] ReadOnlyReg  = {DataWidthInBytes{1'b1}};
   localparam logic [DataWidthInBytes-1:0] ReadWriteReg = {DataWidthInBytes{1'b0}};
@@ -193,8 +191,8 @@ module ctrl_registers
     // converts 32 bit group wake up mask to 256 bit core wake up mask
     if (wr_active_q[11:8]) begin
       if (wake_up_group <= {NumGroups{1'b1}}) begin
-        for(int i=0; i<NumGroups; i=i+1) begin
-          wake_up_o[NumCoresPerGroup*i +: NumCoresPerGroup] = {NumCoresPerGroup{wake_up_group[i]}};
+        for(int i = 0; i < NumGroups; i = i + 1) begin
+          wake_up_o[NumCoresPerGroup * i +: NumCoresPerGroup] = {NumCoresPerGroup{wake_up_group[i]}};
         end
       end else if (wake_up_group == {DataWidth{1'b1}}) begin
         wake_up_o = {NumCores{1'b1}};
@@ -204,10 +202,10 @@ module ctrl_registers
     // converts 32 bit tile wake up mask to 256 bit core wake up mask
     for(int i_g = 0; i_g < NumGroups; i_g = i_g+1) begin
 
-      if (wr_active_q[64+4*i_g +: 4]) begin
-        if (wake_up_tile[i_g*DataWidth +: DataWidth] <= {NumTilesPerGroup{1'b1}}) begin
-          for(int i = 0; i < NumTilesPerGroup; i = i+1) begin
-            wake_up_o[ NumCoresPerGroup*i_g + NumCoresPerTile*i +: NumCoresPerTile ] = {NumCoresPerTile{wake_up_tile[i_g*DataWidth+i]}};
+      if (wr_active_q[64 + 4 * i_g +: 4]) begin
+        if (wake_up_tile[i_g * DataWidth +: DataWidth] <= {NumTilesPerGroup{1'b1}}) begin
+          for (int i = 0; i < NumTilesPerGroup; i = i + 1) begin
+            wake_up_o[NumCoresPerGroup * i_g + NumCoresPerTile * i +: NumCoresPerTile] = {NumCoresPerTile{wake_up_tile[i_g * DataWidth + i]}};
           end
         end
       end

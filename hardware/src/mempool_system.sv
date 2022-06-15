@@ -432,8 +432,6 @@ module mempool_system
     .TCDMSize         (TCDMSize           ),
     .NumCores         (NumCores           ),
     .NumGroups        (NumGroups          ),
-    .NumCoresPerGroup (NumCoresPerGroup   ),
-    .NumTilesPerGroup (NumTilesPerGroup   ),
     .NumCoresPerTile  (NumCoresPerTile    ),
     .axi_lite_req_t (axi_lite_slv_req_t ),
     .axi_lite_resp_t(axi_lite_slv_resp_t)

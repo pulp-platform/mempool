@@ -14,9 +14,6 @@ num_cores ?= 1024
 # Number of groups
 num_groups ?= 8
 
-#Number of cores per Terapool group
-num_cores_per_group ?= 128
-
 # Number of cores per Terapool tile
 num_cores_per_tile ?= 8
 
