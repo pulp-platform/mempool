@@ -25,7 +25,8 @@ int main() {
   }
   mempool_barrier(num_cores);
 
-  if (core_id > 19 && core_id < 24) {
+  if (core_id > (5 * NUM_CORES_PER_TILE - 1) &&
+      core_id < (6 * NUM_CORES_PER_TILE)) {
     if (3 == __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
       __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
       __sync_synchronize();
@@ -37,9 +38,10 @@ int main() {
   }
   mempool_barrier(num_cores);
 
-  for (uint32_t i = 0; i < 16; i++) {
-    if (core_id < (i + 1) * 4) {
-      if ((i + 1) * 4 - 1 == __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
+  for (uint32_t i = 0; i < NUM_TILES_PER_GROUP; i++) {
+    if (core_id < (i + 1) * NUM_CORES_PER_TILE) {
+      if ((i + 1) * NUM_CORES_PER_TILE - 1 ==
+          __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
         __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
         __sync_synchronize();
         printf("Hello, I'm core %d and I woke-up %d tiles in group %d!\n",
@@ -53,9 +55,11 @@ int main() {
 
   mempool_barrier(num_cores);
 
-  for (uint32_t i = 0; i < 16; i++) {
-    if (core_id < 64 + (i + 1) * 4 && core_id > 63) {
-      if ((i + 1) * 4 - 1 == __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
+  for (uint32_t i = 0; i < NUM_TILES_PER_GROUP; i++) {
+    if (core_id < NUM_CORES_PER_GROUP + (i + 1) * NUM_CORES_PER_TILE &&
+        core_id > NUM_CORES_PER_GROUP - 1) {
+      if ((i + 1) * NUM_CORES_PER_TILE - 1 ==
+          __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
         __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
         __sync_synchronize();
         printf("Hello, I'm core %d and I woke-up %d tiles in group %d!\n",
@@ -69,9 +73,11 @@ int main() {
 
   mempool_barrier(num_cores);
 
-  for (uint32_t i = 0; i < 16; i++) {
-    if (core_id < 128 + (i + 1) * 4 && core_id > 127) {
-      if ((i + 1) * 4 - 1 == __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
+  for (uint32_t i = 0; i < NUM_TILES_PER_GROUP; i++) {
+    if (core_id < 2 * NUM_CORES_PER_GROUP + (i + 1) * NUM_CORES_PER_TILE &&
+        core_id > 2 * NUM_CORES_PER_GROUP - 1) {
+      if ((i + 1) * NUM_CORES_PER_TILE - 1 ==
+          __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
         __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
         __sync_synchronize();
         printf("Hello, I'm core %d and I woke-up %d tiles in group %d!\n",
@@ -83,9 +89,11 @@ int main() {
     mempool_barrier(num_cores);
   }
 
-  for (uint32_t i = 0; i < 16; i++) {
-    if (core_id < 192 + (i + 1) * 4 && core_id > 191) {
-      if ((i + 1) * 4 - 1 == __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
+  for (uint32_t i = 0; i < NUM_TILES_PER_GROUP; i++) {
+    if (core_id < 3 * NUM_CORES_PER_GROUP + (i + 1) * NUM_CORES_PER_TILE &&
+        core_id > 3 * NUM_CORES_PER_GROUP - 1) {
+      if ((i + 1) * NUM_CORES_PER_TILE - 1 ==
+          __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
         __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
         __sync_synchronize();
         printf("Hello, I'm core %d and I woke-up %d tiles in group %d!\n",
