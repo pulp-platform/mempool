@@ -83,6 +83,8 @@ static void mempool_cfft_memsized_q16p(   uint16_t fftLen,
     if (bitReverseFlag) {
       mempool_bitreversal_q16p((uint16_t *)pSrc, bitReverseLen, pBitRevTable, nPE);
     }
+    // mempool_log_barrier(2, mempool_get_core_id());
+    mempool_log_partial_barrier(2, mempool_get_core_id(), nPE);
 
 }
 
@@ -105,13 +107,13 @@ void mempool_memsized_butterfly(  int16_t *pSrc16,
     uint32_t core_id = mempool_get_core_id();
     v2s R, S, T, U, V, X, Y;
     v2s CoSi1, CoSi2, CoSi3;
-    uint32_t n1, n2, ic, i0, i1, i2, i3, j, k;
+    uint32_t n1, n2, i0, i1, i2, i3, j, k;
+    uint32_t ic;
     uint32_t n2_store, i0_store, i1_store, i2_store, i3_store;
     uint32_t offset, wing_id, bank_id;
     int16_t *pTmp;
 
     #ifdef TWIDDLE_MODIFIER
-    uint32_t ic;
     uint32_t twidCoefModifier = 1U;
     #endif
 
@@ -412,7 +414,6 @@ void mempool_memsized_butterfly(  int16_t *pSrc16,
     pSrc16 = pDst16;
     pDst16 = pTmp;
 
-    mempool_log_partial_barrier(2, core_id, nPE);
     /* END OF LAST STAGE PROCESSING */
 
 }
@@ -438,4 +439,30 @@ void fold_radix4 (  int16_t *pSrc16,
     }
     // mempool_log_barrier(2, core_id);
     mempool_log_partial_barrier(2, core_id, nPE);
+}
+
+
+void mempool_bitreversal_memsized_q16p( uint16_t *pSrc,
+                                        const uint16_t bitRevLen,
+                                        const uint16_t *pBitRevTab,
+                                        const uint32_t nPE) {
+    uint32_t i;
+    uint32_t core_id = mempool_get_core_id();
+    mempool_log_partial_barrier(2, core_id, nPE);
+    v2s addr, tmpa, tmpb;
+    for (i = 4*core_id; i < bitRevLen; i += N_BANKS){
+
+      addr = __SRA2(*(v2s *)&pBitRevTab[i], ((v2s){ 2, 2 }));
+      tmpa = *(v2s *)&pSrc[ addr[0] ];
+      tmpb = *(v2s *)&pSrc[ addr[1] ];
+      *((v2s *)&pSrc[ addr[0] ]) = tmpb;
+      *((v2s *)&pSrc[ addr[1] ]) = tmpa;
+
+      addr = __SRA2(*(v2s *)&pBitRevTab[i + 2], ((v2s){ 2, 2 }));
+      tmpa = *(v2s *)&pSrc[ addr[0] ];
+      tmpb = *(v2s *)&pSrc[ addr[1] ];
+      *((v2s *)&pSrc[ addr[0] ]) = tmpb;
+      *((v2s *)&pSrc[ addr[1] ]) = tmpa;
+
+    }
 }
