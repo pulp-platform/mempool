@@ -474,7 +474,7 @@ void mempool_bitreversal_q16p(  uint16_t *pSrc,
     uint32_t core_id = mempool_get_core_id();
     v2s addr, tmpa, tmpb;
     for (i = 2*core_id; i < bitRevLen; i += (2*nPE)){
-      addr = *(v2s *)&pBitRevTab[i] >> 2;
+      addr = __SRA2(*(v2s *)&pBitRevTab[i], ((v2s){ 2, 2 }));
       tmpa = *(v2s *)&pSrc[ addr[0] ];
       tmpb = *(v2s *)&pSrc[ addr[1] ];
       *((v2s *)&pSrc[ addr[0] ]) = tmpb;
