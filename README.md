@@ -182,6 +182,8 @@ Tracing can be controlled per core with a custom `trace` CSR register. The CSR i
 
 To get a visualization of the traces, check out the `scripts/tracevis.py` script. It creates a JSON file that can be viewed with [Trace-Viewer](https://github.com/catapult-project/catapult/tree/master/tracing) or in Google Chrome by navigating to `about:tracing`.
 
+We also provide Synopsys Spyglass linting scripts in the `hardware/spyglass`. Run `make lint` in the `hardware` folder, with a specific MemPool configuration, to run the tests associated with the `lint_rtl` target.
+
 ## License
 MemPool is released under permissive open source licenses. Most of MemPool's source code is released under the Apache License 2.0 (`Apache-2.0`) see [`LICENSE`](LICENSE). The code in `hardware` is released under Solderpad v0.51 (`SHL-0.51`) see [`hardware/LICENSE`](hardware/LICENSE).
 
