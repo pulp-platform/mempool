@@ -72,7 +72,7 @@ int main() {
                           BitRevIndexTable_fixed_16,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
 
   #elif   defined(TEST_32)
@@ -82,7 +82,7 @@ int main() {
                           BitRevIndexTable_fixed_32,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
   #elif   defined(TEST_64)
       mempool_start_benchmark();
@@ -91,7 +91,7 @@ int main() {
                           BitRevIndexTable_fixed_64,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
   #elif   defined(TEST_128)
       mempool_start_benchmark();
@@ -100,7 +100,7 @@ int main() {
                           BitRevIndexTable_fixed_128,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
   #elif   defined(TEST_256)
       mempool_start_benchmark();
@@ -109,7 +109,7 @@ int main() {
                           BitRevIndexTable_fixed_256,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
   #elif   defined(TEST_512)
       mempool_start_benchmark();
@@ -118,7 +118,7 @@ int main() {
                           BitRevIndexTable_fixed_512,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
   #elif   defined(TEST_1024)
       mempool_start_benchmark();
@@ -127,7 +127,7 @@ int main() {
                           BitRevIndexTable_fixed_1024,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
   #elif   defined(TEST_2048)
       mempool_start_benchmark();
@@ -136,7 +136,7 @@ int main() {
                           BitRevIndexTable_fixed_2048,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
   #elif   defined(TEST_4096)
       mempool_start_benchmark();
@@ -145,7 +145,7 @@ int main() {
                           BitRevIndexTable_fixed_4096,
                           pSrc,
                           BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
-                          0, 1);
+                          0, BIT_REV);
       mempool_stop_benchmark();
   #endif
 
@@ -181,7 +181,7 @@ int main() {
                         BitRevIndexTable_fixed_16,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
 
   #elif   defined(TEST_32)
@@ -192,7 +192,7 @@ int main() {
                         BitRevIndexTable_fixed_32,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
 
   #elif   defined(TEST_64)
@@ -208,7 +208,7 @@ int main() {
                                 pSrc,
                                 pDst,
                                 BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
-                                0, 0, 4);
+                                0, BIT_REV, 4);
     mempool_stop_benchmark();
     }
     #else
@@ -221,7 +221,7 @@ int main() {
                                 pSrc,
                                 pDst,
                                 BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
-                                0, 0, 4);
+                                0, BIT_REV, 4);
     mempool_stop_benchmark();
     }
     #endif
@@ -233,7 +233,7 @@ int main() {
                         BitRevIndexTable_fixed_64,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
     #endif
 
@@ -245,7 +245,7 @@ int main() {
                         BitRevIndexTable_fixed_128,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
 
   #elif   defined(TEST_256)
@@ -262,7 +262,7 @@ int main() {
                                 pSrc,
                                 pDst,
                                 BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
-                                0, 0, 16);
+                                0, BIT_REV, 16);
     mempool_stop_benchmark();
     }
     #else
@@ -275,7 +275,7 @@ int main() {
                                 pSrc,
                                 pDst,
                                 BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
-                                0, 0, 16);
+                                0, BIT_REV, 16);
     mempool_stop_benchmark();
     }
     #endif
@@ -288,7 +288,7 @@ int main() {
                         BitRevIndexTable_fixed_256,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
     #endif
 
@@ -300,7 +300,7 @@ int main() {
                         BitRevIndexTable_fixed_512,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
 
   #elif   defined(TEST_1024)
@@ -316,7 +316,7 @@ int main() {
                                 pSrc,
                                 pDst,
                                 BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
-                                0, 0, 64);
+                                0, BIT_REV, 64);
     mempool_stop_benchmark();
     }
     #else
@@ -329,7 +329,7 @@ int main() {
                                 pSrc,
                                 pDst,
                                 BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
-                                0, 0, 64);
+                                0, BIT_REV, 64);
     mempool_stop_benchmark();
     }
     #endif
@@ -341,7 +341,7 @@ int main() {
                         BitRevIndexTable_fixed_1024,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
     #endif
 
@@ -353,7 +353,7 @@ int main() {
                         BitRevIndexTable_fixed_2048,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
 
   #elif   defined(TEST_4096)
@@ -368,7 +368,7 @@ int main() {
                                 pSrc,
                                 pDst,
                                 BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
-                                0, 0, NUM_CORES);
+                                0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
     #else
     mempool_start_benchmark();
@@ -379,7 +379,7 @@ int main() {
                                 pSrc,
                                 pDst,
                                 BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
-                                0, 0, NUM_CORES);
+                                0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
     #endif
 
@@ -390,18 +390,18 @@ int main() {
                         BitRevIndexTable_fixed_4096,
                         pSrc,
                         BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
-                        0, 0, NUM_CORES);
+                        0, BIT_REV, NUM_CORES);
     mempool_stop_benchmark();
     #endif
 
   #endif
 
-    if(core_id==0) {
+    if(core_id == 0) {
       printf("Done PARALLEL!\n");
   #ifdef PRINT_PARALLEL
-      for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-        printf("{%6d;%6d } \n", pSrc[i], pSrc[i+1]);
-      }
+    for(uint32_t i = 0; i < N_RSAMPLES; i += 2) {
+      printf("{%6d;%6d } \n", pSrc[i], pSrc[i + 1]);
+    }
   #endif
     }
     mempool_barrier(NUM_CORES);
