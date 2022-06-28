@@ -218,7 +218,8 @@ module snitch_ipu #(
       riscv_instr::PV_SDOTSP_SC_B,        // Xpulpimg: pv.sdotsp.sc.b
       riscv_instr::PV_SDOTSP_SCI_B,       // Xpulpimg: pv.sdotsp.sci.b
       riscv_instr::PV_SHUFFLE2_H,         // Xpulpimg: pv.shuffle2.h
-      riscv_instr::PV_SHUFFLE2_B: begin   // Xpulpimg: pv.shuffle2.b
+      riscv_instr::PV_SHUFFLE2_B,         // Xpulpimg: pv.shuffle2.b
+      riscv_instr::PV_PACK_H: begin       // Xpulpimg: pv.pack.h
         if (snitch_pkg::XPULPIMG) begin
           dsp_valid_op = acc_qvalid_i;
           acc_qready_o = dsp_ready_op;
@@ -372,7 +373,7 @@ module dspu #(
 
   enum logic [4:0] {
     SimdNop, SimdAdd, SimdSub, SimdAvg, SimdMin, SimdMax, SimdSrl, SimdSra, SimdSll, SimdOr,
-    SimdXor, SimdAnd, SimdAbs, SimdExt, SimdIns, SimdDotp, SimdShuffle
+    SimdXor, SimdAnd, SimdAbs, SimdExt, SimdIns, SimdDotp, SimdShuffle, SimdPack
   } simd_op;                   // SIMD operation
   enum logic {
     HalfWord, Byte
@@ -1261,6 +1262,10 @@ module dspu #(
         simd_size = Byte;
         res_sel = Simd;
       end
+      riscv_instr::PV_PACK_H: begin
+        simd_op = SimdPack;
+        res_sel = Simd;
+      end
       default: ;
     endcase
   end
@@ -1436,8 +1441,13 @@ module dspu #(
             end
           end
           SimdShuffle:
-            for (int i = 0; i < Width/16; i++)
+            for (int i = 0; i < Width/16; i++) begin
               simd_result[2*i +: 2] = simd_op_b[2*i][1] ? simd_op_a[2*simd_op_b[2*i][0] +: 2] : simd_op_c[2*simd_op_b[2*i][0] +: 2];
+            end
+          SimdPack: begin
+            simd_result[3:2] = op_a_i[1:0];
+            simd_result[1:0] = op_b_i[1:0];
+          end
           default: ;
         endcase
       end
