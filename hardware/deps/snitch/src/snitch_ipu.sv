@@ -1445,8 +1445,8 @@ module dspu #(
               simd_result[2*i +: 2] = simd_op_b[2*i][1] ? simd_op_a[2*simd_op_b[2*i][0] +: 2] : simd_op_c[2*simd_op_b[2*i][0] +: 2];
             end
           SimdPack: begin
-            simd_result[3:2] = op_a_i[1:0];
-            simd_result[1:0] = op_b_i[1:0];
+            simd_result[3:2] = simd_op_a[1:0];
+            simd_result[1:0] = simd_op_b[1:0];
           end
           default: ;
         endcase
