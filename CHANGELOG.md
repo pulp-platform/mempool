@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Change `make update_opcodes` to fit with new submodule structure of `riscv-opcodes`
 - Update CI to work with new submodule structure of `riscv-opcodes`
 - Disable `rvv` extension for `riscv-isa-sim`
+- Issue write responses to Snitch for the TCDM and AXI interconnect
 
 ## 0.4.0 - 2021-07-01
 

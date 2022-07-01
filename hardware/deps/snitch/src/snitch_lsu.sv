@@ -57,6 +57,7 @@ module snitch_lsu
   typedef logic [IdWidth-1:0] meta_id_t;
 
   typedef struct packed {
+    logic       write;
     tag_t       tag;
     logic       sign_ext;
     logic [1:0] offset;
@@ -103,6 +104,7 @@ module snitch_lsu
   end
 
   assign req_metadata = '{
+    write:    lsu_qwrite,
     tag:      lsu_qtag_i,
     sign_ext: lsu_qsigned,
     offset:   lsu_qaddr_i[1:0],
@@ -124,7 +126,7 @@ module snitch_lsu
   assign id_table_pop = data_pvalid_i & data_pready_o;
 
   // Push if load request accepted
-  assign id_table_push = ~lsu_qwrite & data_qready_i & data_qvalid_o;
+  assign id_table_push = data_qready_i & data_qvalid_o;
 
   // ----------------
   // REQUEST
@@ -132,7 +134,7 @@ module snitch_lsu
   // only make a request when we got a valid request and if it is a load
   // also check that we can actually store the necessary information to process
   // it in the upcoming cycle(s).
-  assign data_qvalid_o = (lsu_qvalid_i) & (lsu_qwrite | ~id_table_full);
+  assign data_qvalid_o = lsu_qvalid_i && !id_table_full;
   assign data_qwrite_o = lsu_qwrite;
   assign data_qaddr_o  = {lsu_qaddr_i[31:2], 2'b0};
   assign data_qamo_o   = lsu_qamo_i;
@@ -183,8 +185,8 @@ module snitch_lsu
   assign lsu_perror_o  = data_perror_i;
   assign lsu_pdata_o   = ld_result;
   assign lsu_ptag_o    = resp_metadata.tag;
-  assign lsu_pvalid_o  = data_pvalid_i;
-  assign data_pready_o = lsu_pready_i;
+  assign lsu_pvalid_o  = data_pvalid_i && !resp_metadata.write;
+  assign data_pready_o = lsu_pready_i || resp_metadata.write;
 
   // ----------------
   // SEQUENTIAL

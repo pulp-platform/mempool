@@ -191,6 +191,7 @@ module mempool_cc
   assign data_req_q_ready  = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
   assign data_resp_d.id    = data_pid_i;
+  assign data_resp_d.write = 'x; // Don't care here
   assign data_resp_d.error = data_perror_i;
   assign data_resp_d_valid = data_pvalid_i;
   assign data_pready_o     = data_resp_d_ready;

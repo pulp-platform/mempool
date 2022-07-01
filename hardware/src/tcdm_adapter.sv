@@ -79,6 +79,7 @@ module tcdm_adapter #(
 
   logic                 load_amo;
   amo_op_t              amo_op_q;
+  logic                 amo_wb;
   logic [BeWidth-1:0]   be_expand;
   logic [AddrWidth-1:0] addr_q;
 
@@ -91,30 +92,40 @@ module tcdm_adapter #(
     .T     (metadata_t),
     .Bypass(1'b0      )
   ) i_metadata_register (
-    .clk_i  (clk_i                                  ),
-    .rst_ni (rst_ni                                 ),
-    .valid_i(in_valid_i && in_ready_o && !in_write_i),
-    .ready_o(meta_ready                             ),
-    .data_i (in_meta_i                              ),
-    .valid_o(meta_valid                             ),
-    .ready_i(pop_resp                               ),
-    .data_o (in_meta_o                              )
+    .clk_i  (clk_i                   ),
+    .rst_ni (rst_ni                  ),
+    .valid_i(in_valid_i && in_ready_o),
+    .ready_o(meta_ready              ),
+    .data_i (in_meta_i               ),
+    .valid_o(meta_valid              ),
+    .ready_i(pop_resp                ),
+    .data_o (in_meta_o               )
   );
 
   // Store response if it's not accepted immediately
-  fall_through_register #(
-    .T(logic[DataWidth-1:0])
-  ) i_rdata_register (
-    .clk_i     (clk_i      ),
-    .rst_ni    (rst_ni     ),
-    .clr_i     (1'b0       ),
-    .testmode_i(1'b0       ),
-    .data_i    (out_rdata  ),
-    .valid_i   (out_gnt    ),
-    .ready_o   (rdata_ready),
-    .data_o    (in_rdata_o ),
-    .valid_o   (rdata_valid),
-    .ready_i   (pop_resp   )
+  logic rdata_full, rdata_empty;
+  logic rdata_usage;
+
+  // assign rdata_ready = !rdata_full;
+  assign rdata_ready = !rdata_usage && !rdata_full;
+  assign rdata_valid = !rdata_empty;
+
+  fifo_v3 #(
+    .FALL_THROUGH (1'b1     ),
+    .DATA_WIDTH   (DataWidth),
+    .DEPTH        (2        )
+  ) i_rdata_fifo (
+    .clk_i      (clk_i                  ),
+    .rst_ni     (rst_ni                 ),
+    .flush_i    (1'b0                   ),
+    .testmode_i (1'b0                   ),
+    .full_o     (rdata_full             ),// queue is full
+    .empty_o    (rdata_empty            ),// queue is empty
+    .usage_o    (rdata_usage            ),// fill pointer
+    .data_i     (out_rdata              ),// data to push into the queue
+    .push_i     (out_gnt                ),// data is valid and can be pushed to the queue
+    .data_o     (in_rdata_o             ),// output data
+    .pop_i      (pop_resp && !rdata_empty)
   );
 
   localparam int unsigned CoreIdWidth  = idx_width(NumCores);
@@ -132,8 +143,8 @@ module tcdm_adapter #(
   // Only pop the data from the registers once both registers are ready
   assign pop_resp   = in_ready_i && in_valid_o;
 
-  // Generate out_gnt one cycle after sending read request to the bank
-  `FF(out_gnt, (out_req_o && !out_write_o) || sc_successful_d, 1'b0, clk_i, rst_ni);
+  // Generate out_gnt one cycle after sending a request to the bank, except an AMO's write-back
+  `FF(out_gnt, out_req_o && !amo_wb, 1'b0, clk_i, rst_ni);
 
   // ----------------
   // LR/SC
@@ -225,7 +236,7 @@ module tcdm_adapter #(
 
   always_comb begin
     // feed-through
-    in_ready_o  = in_valid_o && !in_ready_i ? 1'b0 : 1'b1;
+    in_ready_o  = rdata_ready;
     out_req_o   = in_valid_i && in_ready_o;
     out_add_o   = in_address_i;
     out_write_o = in_write_i || (sc_successful_d && (amo_op_t'(in_amo_i) == AMOSC));
@@ -234,6 +245,7 @@ module tcdm_adapter #(
 
     state_d     = state_q;
     load_amo    = 1'b0;
+    amo_wb      = 1'b0;
 
     unique case (state_q)
       Idle: begin
@@ -247,6 +259,7 @@ module tcdm_adapter #(
         in_ready_o  = 1'b0;
         state_d     = (RegisterAmo && state_q != WriteBackAMO) ?  WriteBackAMO : Idle;
         // Commit AMO
+        amo_wb      = 1'b1;
         out_req_o   = 1'b1;
         out_write_o = 1'b1;
         out_add_o   = addr_q;
@@ -338,8 +351,8 @@ module tcdm_adapter #(
   end
 
   `ifndef VERILATOR
-    rdata_full : assert property(
-      @(posedge clk_i) disable iff (~rst_ni) (out_gnt |-> rdata_ready))
+    assert_rdata_full : assert property(
+      @(posedge clk_i) disable iff (~rst_ni) (out_gnt |-> !rdata_full))
       else $fatal (1, "Trying to push new data although the i_rdata_register is not ready.");
   `endif
   // pragma translate_on
