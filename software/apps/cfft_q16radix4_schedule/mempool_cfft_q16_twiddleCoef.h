@@ -4,7 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#if defined(TEST_64)
+#if (N_CSAMPLES == 64)
 
 /**
   @par
@@ -46,7 +46,7 @@ int16_t twiddleCoef_q16[96] = {
     (int16_t)0x809D
 };
 
-#elif defined(TEST_256)
+#elif (N_CSAMPLES == 256)
 
 /**
   @par
@@ -145,7 +145,7 @@ int16_t twiddleCoef_q16[384] = {
     (int16_t)0xF9B8, (int16_t)0x8027, (int16_t)0xFCDB, (int16_t)0x8009
 };
 
-#elif defined(TEST_1024)
+#elif (N_CSAMPLES == 1024)
 
 /**
   @par
@@ -476,7 +476,7 @@ int16_t twiddleCoef_q16[1536] = {
     (int16_t)0x8000
 };
 
-#elif defined(TEST_4096)
+#elif (N_CSAMPLES == 4096)
 
 /**
   @par

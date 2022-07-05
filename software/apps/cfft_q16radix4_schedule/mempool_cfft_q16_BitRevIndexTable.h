@@ -9,7 +9,7 @@
 #define BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH ((uint16_t)992)
 #define BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH ((uint16_t)4032)
 
-#if defined(TEST_64)
+#if (N_CSAMPLES == 64)
 
 uint16_t BitRevIndexTable_fixed_64[BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH] = {
     /* radix 4, size 56 */
@@ -18,7 +18,7 @@ uint16_t BitRevIndexTable_fixed_64[BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH] = {
     216, 432, 232, 368, 248, 496, 280, 392, 296, 328, 312, 456, 344, 424, 376, 488, 440, 472
 };
 
-#elif defined(TEST_256)
+#elif (N_CSAMPLES == 256)
 
 uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] = {
     /* radix 4, size 240 */
@@ -39,7 +39,7 @@ uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] = {
     1496, 1768, 1528, 2024, 1592, 1816, 1624, 1688, 1656, 1944, 1720, 1880, 1784, 2008, 1912, 1976
 };
 
-#elif defined(TEST_1024)
+#elif (N_CSAMPLES == 1024)
 
 uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] = {
     /* radix 4, size 992 */
@@ -107,7 +107,7 @@ uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] =
     7096, 7640, 7160, 8152, 7288, 7736, 7352, 7480, 7416, 7992, 7544, 7864, 7672, 8120, 7928, 8056
 };
 
-#elif defined(TEST_4096)
+#elif (N_CSAMPLES == 4096)
 
 uint16_t BitRevIndexTable_fixed_4096[BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH] = {
     /* radix 4, size 4032 */
