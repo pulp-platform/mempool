@@ -61,7 +61,7 @@ void initialize_vector_p( int16_t *pSrc,
   for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
     for (uint32_t i = 0; i < 8 * N_BANKS; i++) {
       if(i < N_FFTs_COL * (fftLen >> 1U))
-        pSrc[i + idx_row * 8 * N_BANKS] = (int16_t)(i % (upper - lower + 1));
+        pSrc[i + idx_row * 8 * N_BANKS] = (int16_t)((int32_t) i % (upper - lower + 1));
       else
         pSrc[i + idx_row * 8 * N_BANKS] = (int16_t) 0;
       pDst[i + idx_row * 8 * N_BANKS] = (int16_t) 0;
@@ -114,51 +114,52 @@ int main() {
 
 #ifdef SINGLE
   if(core_id == 0) {
-    #if defined(TEST_64)
+    #if (N_CSAMPLES == 64)
     mempool_start_benchmark();
     mempool_cfft_q16s(  N_CSAMPLES,
                         pSrc16,
                         twiddleCoef_q16,
                         BitRevIndexTable_fixed_64,
                         BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
-                        0);
+                        BIT_REV);
     mempool_stop_benchmark();
     #endif
-    #if defined(TEST_256)
+    #if (N_CSAMPLES == 256)
     mempool_start_benchmark();
     mempool_cfft_q16s(  N_CSAMPLES,
                         pSrc16,
                         twiddleCoef_q16,
                         BitRevIndexTable_fixed_256,
                         BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
-                        0);
+                        BIT_REV);
     mempool_stop_benchmark();
     #endif
-    #if defined(TEST_1024)
+    #if (N_CSAMPLES == 1024)
     mempool_start_benchmark();
     mempool_cfft_q16s(  N_CSAMPLES,
                         pSrc16,
                         twiddleCoef_q16,
                         BitRevIndexTable_fixed_1024,
                         BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
-                        0);
+                        BIT_REV);
     mempool_stop_benchmark();
     #endif
-    #if defined(TEST_4096)
+    #if (N_CSAMPLES == 4096)
     mempool_start_benchmark();
     mempool_cfft_q16s(  N_CSAMPLES,
                         pSrc16,
                         twiddleCoef_q16,
                         BitRevIndexTable_fixed_4096,
                         BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
-                        0);
+                        BIT_REV);
     mempool_stop_benchmark();
     #endif
   }
 #endif
 
 #ifdef PARALLEL
-  #if defined(TEST_64)
+  #if (N_CSAMPLES == 64)
+  if (core_id < N_FFTs_COL * (N_CSAMPLES >> 4U)) {
   mempool_start_benchmark();
   mempool_cfft_columnwrapper( pSrc16,
                               pDst16,
@@ -167,11 +168,11 @@ int main() {
                               pCoef16_dst,
                               BitRevIndexTable_fixed_64,
                               BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH,
-                              0,
+                              BIT_REV,
                               N_CSAMPLES >> 4U);
   mempool_stop_benchmark();
   #endif
-  #if defined(TEST_256)
+  #if (N_CSAMPLES == 256)
   if (core_id < N_FFTs_COL * (N_CSAMPLES >> 4U)) {
   mempool_start_benchmark();
   mempool_cfft_columnwrapper( pSrc16,
@@ -181,12 +182,13 @@ int main() {
                               pCoef16_dst,
                               BitRevIndexTable_fixed_256,
                               BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH,
-                              0,
+                              BIT_REV,
                               N_CSAMPLES >> 4U);
   mempool_stop_benchmark();
   }
   #endif
-  #if defined(TEST_1024)
+  #if (N_CSAMPLES == 1024)
+  if (core_id < N_FFTs_COL * (N_CSAMPLES >> 4U)) {
   mempool_start_benchmark();
   mempool_cfft_columnwrapper( pSrc16,
                               pDst16,
@@ -195,11 +197,11 @@ int main() {
                               pCoef16_dst,
                               BitRevIndexTable_fixed_1024,
                               BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH,
-                              0,
+                              BIT_REV,
                               N_CSAMPLES >> 4U);
   mempool_stop_benchmark();
   #endif
-  #if defined(TEST_4096)
+  #if (N_CSAMPLES == 4096)
   mempool_start_benchmark();
   mempool_cfft_columnwrapper( pSrc16,
                               pDst16,
@@ -208,7 +210,7 @@ int main() {
                               pCoef16_dst,
                               BitRevIndexTable_fixed_4096,
                               BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH,
-                              0,
+                              BIT_REV,
                               N_CSAMPLES >> 4U);
   mempool_stop_benchmark();
   #endif
