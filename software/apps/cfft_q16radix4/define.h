@@ -5,9 +5,9 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 /* DEFINES */
-#define N_CSAMPLES 256
+#define N_CSAMPLES 64
 #define N_RSAMPLES (2*N_CSAMPLES)
-#define TEST_256
+#define TEST_64
 
 // #define SINGLE
 // #define PRINT_SINGLE
