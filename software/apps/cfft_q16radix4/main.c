@@ -15,15 +15,24 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "xpulp/builtins_v2.h"
 
 /* CFFT mempool libraries */
 #include "define.h"
-#include "xpulp/builtins_v2.h"
-#include "mempool_cfft_q16s.h"
-#include "mempool_cfft_q16p.h"
-#include "mempool_cfft_memsized_q16p.h"
 #include "mempool_cfft_q16_twiddleCoef.h"
 #include "mempool_cfft_q16_BitRevIndexTable.h"
+#include "mempool_cfft_q16_butterfly.h"
+#include "mempool_cfft_q16_bitreversal.h"
+
+#if defined(MEMSIZED)
+#include "mempool_cfft_memsized_q16p.h"
+#elif defined(PARALLEL)
+#include "mempool_cfft_q16p.h"
+#endif
+#if defined(SINGLE)
+#include "mempool_cfft_q16s.h"
+#endif
+
 
 void initialize_vector (int16_t *pSrc, int16_t *pDst, uint32_t N_el) {
     int lower = SHRT_MIN, upper = SHRT_MAX;
