@@ -43,10 +43,9 @@ void dotp_parallel  ( int32_t* in_a,
           idx++;
         }
       }
-      __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
       mempool_stop_benchmark();
       mempool_start_benchmark();
-      // mempool_barrier(NUM_CORES);
+      __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
       mempool_log_barrier(2, core_id);
   } else {
       int32_t local_sum = 0;
@@ -64,13 +63,12 @@ void dotp_parallel  ( int32_t* in_a,
           idx++;
         }
       }
-      __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
       if (core_id < nPE) {
         mempool_stop_benchmark();
         mempool_start_benchmark();
       }
+      __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
       mempool_log_partial_barrier(2, core_id, nPE);
-      // mempool_partial_barrier(core_id, 0, nPE, 1);
   }
 
 }
@@ -113,10 +111,9 @@ void dotp_parallel_unrolled2 (  int32_t* in_a,
         }
       }
       local_sum_1 += local_sum_2;
-      __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
       mempool_stop_benchmark();
       mempool_start_benchmark();
-      //mempool_barrier(NUM_CORES);
+      __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
       mempool_log_barrier(2, core_id);
   } else {
       uint32_t idx = core_id*4;
@@ -142,11 +139,10 @@ void dotp_parallel_unrolled2 (  int32_t* in_a,
         }
       }
       local_sum_1 += local_sum_2;
-      __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
       mempool_stop_benchmark();
       mempool_start_benchmark();
+      __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
       mempool_log_partial_barrier(2, core_id, nPE);
-      // mempool_partial_barrier(core_id, 0, nPE, 1);
   }
 
 }
@@ -192,10 +188,9 @@ void dotp_parallel_unrolled4  ( int32_t* in_a,
     local_sum_1 += local_sum_2;
     local_sum_3 += local_sum_4;
     local_sum_1 += local_sum_3;
-    __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
     mempool_stop_benchmark();
     mempool_start_benchmark();
-    //mempool_barrier(NUM_CORES);
+     __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
     mempool_log_barrier(2, core_id);
   } else {
     uint32_t idx = core_id*4;
@@ -223,11 +218,10 @@ void dotp_parallel_unrolled4  ( int32_t* in_a,
     local_sum_1 += local_sum_2;
     local_sum_3 += local_sum_4;
     local_sum_1 += local_sum_3;
-    __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
     mempool_stop_benchmark();
     mempool_start_benchmark();
+    __atomic_fetch_add(&s[0], local_sum_1, __ATOMIC_RELAXED);
     mempool_log_partial_barrier(2, core_id, nPE);
-    // mempool_partial_barrier(core_id, 0, nPE, 1);
   }
 
 }

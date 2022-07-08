@@ -38,7 +38,6 @@ void dotp_single (	int32_t* in_a,
     *s = local_sum;*/
     int32_t local_sum = 0;
     int32_t* end = in_a + Len;
-		//for(uint32_t i = 0; i < Len; i++)
     do {
 			local_sum += ((*in_a++)*(*in_b++));
 		} while(in_a<end);
@@ -47,7 +46,6 @@ void dotp_single (	int32_t* in_a,
     mempool_stop_benchmark();
 
 	}
-  //mempool_barrier(NUM_CORES); // wait until all cores have finished
   mempool_log_barrier(2, core_id);
 }
 
@@ -85,7 +83,6 @@ void dotp_single_unrolled2 ( int32_t* in_a,
 
     } while(in_a<end);*/
 
-    //for(uint32_t i = 0; i < Len; i++)
     do {
       local_sum_1 += ((*in_a++)*(*in_b++));
       local_sum_2 += ((*in_a++)*(*in_b++));
@@ -100,7 +97,6 @@ void dotp_single_unrolled2 ( int32_t* in_a,
     *s = local_sum_1;
 
   }
-  //mempool_barrier(NUM_CORES); // wait until all cores have finished
   mempool_log_barrier(2, core_id);
 }
 
@@ -149,7 +145,6 @@ void dotp_single_unrolled4 ( int32_t* in_a,
           [a4] "+r" (a4_tmp), [b4] "+r" (b4_tmp));
     }*/
 
-    //for(uint32_t i = 0; i < Len; i++)
     do {
       local_sum_1 += ((*in_a++)*(*in_b++));
       local_sum_2 += ((*in_a++)*(*in_b++));
@@ -168,7 +163,7 @@ void dotp_single_unrolled4 ( int32_t* in_a,
     mempool_stop_benchmark();
 
   }
-  mempool_log_barrier(2,core_id); // wait until all cores have finished
+  mempool_log_barrier(2,core_id);
 }
 
 /* Single-core dot-product unrolled4 */
@@ -191,7 +186,6 @@ void dotp_single_unrolled6 ( int32_t* in_a,
     int32_t* end = in_a + ((Len/6)*6);
     int32_t* end_reminder = in_a + Len;
 
-    //for(uint32_t i = 0; i < Len; i++)
     do {
       local_sum_1 += ((*in_a++)*(*in_b++));
       local_sum_2 += ((*in_a++)*(*in_b++));
@@ -216,5 +210,5 @@ void dotp_single_unrolled6 ( int32_t* in_a,
 
     *s = local_sum_1;
   }
-  mempool_barrier(NUM_CORES); // wait until all cores have finished
+  mempool_log_barrier(2,core_id);
 }

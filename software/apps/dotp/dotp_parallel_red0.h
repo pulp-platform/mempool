@@ -56,14 +56,6 @@ void dotp_parallel_red0  ( int32_t* in_a,
     uint32_t idx_red = 0;
     local_sum = 0;
     while(idx_red < N_BANK) {
-//      int32_t red_1 = s[idx_red];
-//      int32_t red_2 = s[idx_red+16];
-//      int32_t red_3 = s[idx_red+32];
-//      int32_t red_4 = s[idx_red+48];
-//      local_sum += red_1;
-//      local_sum += red_2;
-//      local_sum += red_3;
-//      local_sum += red_4;
       local_sum += s[idx_red];
       idx_red += STEP;
     }
@@ -71,12 +63,6 @@ void dotp_parallel_red0  ( int32_t* in_a,
     wake_up_all();
   }
   mempool_wfi();
-
-//  if(core_id == 0) {
-//    for(uint32_t i=1; i<NUM_CORES; i++) {
-//      s[0] += s[i];
-//    }
-//  }
 }
 
 /* Parallel dot-product with loop unrolling */
@@ -119,14 +105,20 @@ void dotp_parallel_unrolled4_red0  (  int32_t* in_a,
   local_sum_1 += local_sum_2;
   local_sum_3 += local_sum_4;
   local_sum_1 += local_sum_3;
-  //s[core_id] = local_sum_1;
-  __atomic_fetch_add(&s[core_id>>6], local_sum_1, __ATOMIC_RELAXED);
-  mempool_barrier(NUM_CORES);
+  __atomic_fetch_add(&s[(core_id/STEP_CORES)*STEP], local_sum_1, __ATOMIC_RELAXED);
+  mempool_stop_benchmark();
 
-  if(core_id == 0) {
-    for(uint32_t i=1; i<NUM_CORES; i++) {
-      s[0] += s[i];
+  mempool_start_benchmark();
+  if ((NUM_CORES - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
+    __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
+    __sync_synchronize(); // Full memory barrier
+    uint32_t idx_red = 0;
+    local_sum_1 = 0;
+    while(idx_red < N_BANK) {
+      local_sum_1 += s[idx_red];
+      idx_red += STEP;
     }
+    s[0] = local_sum_1;
+    wake_up_all();
   }
-  mempool_barrier(NUM_CORES);
 }
