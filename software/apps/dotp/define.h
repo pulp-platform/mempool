@@ -17,8 +17,9 @@
 //#define SINGLE_UNROLLED
 
 
-#define PARALLEL
+//#define PARALLEL
 //#define PARALLEL_UNROLLED
+#define PARALLEL_TRIVIAL
 
 
 //#define PARALLEL_RED0

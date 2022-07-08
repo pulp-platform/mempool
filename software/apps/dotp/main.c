@@ -21,6 +21,8 @@
 
 #if defined(PARALLEL) || defined(PARALLEL_UNROLLED)
 #include "dotp_parallel.h"
+#elif defined(PARALLEL_TRIVIAL)
+#include "dotp_parallel_trivial.h"
 #endif
 
 #if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0)
@@ -119,6 +121,10 @@ int main() {
       mempool_stop_benchmark();
       time_end = mempool_get_timer();
     }
+  #elif defined (PARALLEL_TRIVIAL)
+      mempool_start_benchmark();
+      dotp_parallel_trivial(vector_a, vector_b, &sum, LEN, N_PE);
+      mempool_stop_benchmark();
   #endif
 
   #ifdef PARALLEL_UNROLLED
