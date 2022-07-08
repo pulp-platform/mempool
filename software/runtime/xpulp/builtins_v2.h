@@ -13,7 +13,15 @@ typedef signed char v4s __attribute__((vector_size(4)));
 typedef unsigned char v4u __attribute__((vector_size(4)));
 
 /* Packing of scalars into vectors */
-#define __PACK2(x, y) __builtin_pulp_pack2((signed short)(x), (signed short)(y))
+
+inline v2s __PACK2(const int32_t x, const int32_t y) {
+  v2s output;
+  asm volatile("pv.pack.h %[z], %[x], %[y];"
+               : [z] "=r"(output)
+               : [x] "r"(x), [y] "r"(y));
+  return output;
+}
+
 #define __PACKU2(x, y)                                                         \
   __builtin_pulp_pack2((unsigned short)(x), (unsigned short)(y))
 
