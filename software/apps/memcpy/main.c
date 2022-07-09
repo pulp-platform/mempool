@@ -23,13 +23,23 @@
 
 #define DMA_ADDRESS (0x40010000)
 
-#define SIZE (256 * 256)
+// Size in words
+#ifndef SIZE
+#define SIZE (256 * 256 * 2)
+#endif
+#define BANKING_FACTOR (4)
 
-uint32_t l2_data_a[SIZE] __attribute__((section(".l2")));
-uint32_t l2_data_b[SIZE] __attribute__((section(".l2")));
+uint32_t l2_data_a[SIZE] __attribute__((section(".l2")))
+__attribute__((aligned(NUM_CORES * 4 * 4)));
+;
+// uint32_t l2_data_b[SIZE] __attribute__((section(".l2"))) __attribute__
+// ((aligned (NUM_CORES*4*4)));;
 
-uint32_t l1_data_a[SIZE] __attribute__((section(".l1")));
-uint32_t l1_data_b[SIZE] __attribute__((section(".l1")));
+uint32_t l1_data_a[SIZE] __attribute__((section(".l1_prio")))
+__attribute__((aligned(NUM_CORES * 4 * 4)));
+;
+// uint32_t l1_data_b[SIZE] __attribute__((section(".l1_prio"))) __attribute__
+// ((aligned (NUM_CORES*4*4)));;
 
 uint32_t volatile error __attribute__((section(".l1")));
 
@@ -66,38 +76,47 @@ int main() {
   if (core_id == 0) {
     error = 0;
     dump_addr((uint32_t)l2_data_a);
-    dump_addr((uint32_t)l2_data_b);
+    // dump_addr((uint32_t)l2_data_b);
     dump_addr((uint32_t)l1_data_a);
-    dump_addr((uint32_t)l1_data_b);
+    // dump_addr((uint32_t)l1_data_b);
   }
 
   // Init
-  for (uint32_t i = core_id; i < SIZE; i += num_cores) {
-    l2_data_a[i] = (uint32_t)l2_data_a + i * 4;
+  for (uint32_t i = core_id * BANKING_FACTOR; i < SIZE;
+       i += num_cores * BANKING_FACTOR) {
+    for (uint32_t j = 0; j < BANKING_FACTOR; ++j) {
+      l1_data_a[i + j] = (uint32_t)l1_data_a + (i + j);
+    }
   }
 
   mempool_barrier(num_cores);
 
   // Benchmark
   if (core_id == 0) {
-    // Copy in
+    // Copy out
     mempool_start_benchmark();
     uint32_t time = mempool_get_timer();
     dump_start(time);
-    dma_memcpy_blocking(l1_data_a, l2_data_a, SIZE * sizeof(uint32_t));
+    dma_memcpy_nonblocking((void *)l2_data_a, (const void *)l1_data_a,
+                           SIZE * sizeof(uint32_t));
+    do {
+      mempool_wait(512);
+    } while (!dma_idle());
     time = mempool_get_timer() - time;
     dump_end(time);
-    error += verify_dma(l1_data_a, SIZE, (uint32_t)l2_data_a);
+    // error += verify_dma((void *)l2_data_a, SIZE, (uint32_t)l1_data_a);
     dump_start(error);
 
-    // Copy out
+    // Copy in
     mempool_start_benchmark();
     time = mempool_get_timer();
-    dma_memcpy_blocking((void *)l2_data_b, (const void *)l1_data_a,
-                        SIZE * sizeof(uint32_t));
+    dma_memcpy_nonblocking(l1_data_a, l2_data_a, SIZE * sizeof(uint32_t));
+    do {
+      mempool_wait(512);
+    } while (!dma_idle());
     time = mempool_get_timer() - time;
     dump_end(time);
-    error += verify_dma((void *)l2_data_b, SIZE, (uint32_t)l2_data_a);
+    // error += verify_dma(l1_data_a, SIZE, (uint32_t)l1_data_a);
     dump_start(error);
     mempool_stop_benchmark();
   }
