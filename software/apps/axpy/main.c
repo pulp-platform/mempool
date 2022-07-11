@@ -1,8 +1,8 @@
-// Copyright 2022 ETH Zurich and University of Bologna.
+// Copyright 2021 ETH Zurich and University of Bologna.
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-// Author: Yichao Zhang, ETH Zurich
+// Author: Samuel Riedel, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>
@@ -12,118 +12,69 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include <stdlib.h>
 
-#if NUM_CORES > 32
-#define size_M 64
-#define size_N 64
-#else
-#define size_M (NUM_CORES)
-#define size_N (NUM_CORES)
-#endif
+#define N (1024 * 96)
 
-#define ALPHA 2
+dump(time, 0);
 
-#if NUM_CORES > 32
-int32_t data_x[size_M * size_N]
-    __attribute__((aligned(64 * 1024), section(".l1")));
-int32_t data_y[size_M * size_N]
-    __attribute__((aligned(64 * 1024), section(".l1")));
-int32_t data_y_copy[size_M * size_N]
-    __attribute__((aligned(64 * 1024), section(".l1")));
-#else
-int32_t data_x[size_M * size_N] __attribute__((aligned(32), section(".l1")));
-int32_t data_y[size_M * size_N] __attribute__((aligned(32), section(".l1")));
-int32_t data_y_copy[size_M * size_N]
-    __attribute__((aligned(32), section(".l1")));
-#endif
+int32_t vec_x[N] __attribute__((section(".l1_prio")));
+int32_t vec_y[N] __attribute__((section(".l1_prio")));
 
-int volatile error __attribute__((section(".l1")));
+volatile int32_t vec_x_l2[N] __attribute__((section(".l2")));
+volatile int32_t vec_y_l2[N] __attribute__((section(".l2")));
 
-void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
-                 int32_t a, int32_t b, int32_t c, uint32_t core_id,
+void init_vector(volatile int32_t *vec, uint32_t size, uint32_t core_id,
                  uint32_t num_cores) {
-  // How many rows/columns to split the matrix into
-  uint32_t const split = 8;
-  if (num_columns > num_rows) {
-    // Parallelize over columns
-    uint32_t const c_start = (num_rows / split) * (core_id % split);
-    uint32_t const c_end = (num_rows / split) * ((core_id % split) + 1);
-    for (uint32_t j = (core_id / split); j < num_columns;
-         j += (num_cores / split)) {
-      for (uint32_t i = c_start; i < c_end; ++i) {
-        matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
-      }
-    }
-  } else {
-    // Parallelize over rows
-    uint32_t const c_start = (num_columns / split) * (core_id % split);
-    uint32_t const c_end = (num_columns / split) * ((core_id % split) + 1);
-    for (uint32_t i = (core_id / split); i < num_rows;
-         i += (num_cores / split)) {
-      for (uint32_t j = c_start; j < c_end; ++j) {
-        matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
-      }
-    }
+  const int32_t unroll = 4;
+  for (int32_t i = unroll * (int32_t)core_id; i < (int32_t)size;
+       i += unroll * (int32_t)num_cores) {
+    vec[i + 0] = i - (int32_t)num_cores;
+    vec[i + 1] = -i - (int32_t)num_cores;
+    vec[i + 2] = i + (int32_t)num_cores;
+    vec[i + 3] = -i + (int32_t)num_cores;
   }
-}
-
-int verify_axpy(int32_t *matrix_X, int32_t *matrix_Y, int32_t *matrix_Y_COPY,
-                int32_t alpha, uint32_t elements) {
-  for (uint32_t i = 0; i < elements; i++) {
-    if (matrix_Y[i] != matrix_X[i] * alpha + matrix_Y_COPY[i]) {
-      return 1;
-    }
-  }
-  return 0;
 }
 
 int main() {
-
-  uint32_t const core_id = mempool_get_core_id();
-  uint32_t const num_cores = mempool_get_core_count();
-  uint32_t const total_elements = size_M * size_N;
-
-  // Seed for create element matrix
-  int32_t const A_a = 1;
-  int32_t const A_b = 1;
-  int32_t const A_c = -32;
-  int32_t const B_a = 2;
-  int32_t const B_b = 1;
-  int32_t const B_c = 16;
-
-  // Initialize synchronization variables
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
+
+  int32_t *dotp_barrier_a = (int32_t *)(64 * 1024);
+  int32_t *dotp_barrier_b = (int32_t *)(192 * 1024);
+
+  // Initialize img
+  init_vector(vec_x, N, core_id, num_cores);
+  init_vector(vec_y, N, core_id, num_cores);
+  mempool_barrier(num_cores);
+
   if (core_id == 0) {
-    printf("Initialize %3d cores\n", num_cores);
-    error = 0;
+    // *dotp_barrier_a = 0;
+    // *dotp_barrier_b = 0;
+    // dma_memcpy_blocking(vec_x_l2, vec_x, N * sizeof(int32_t));
+    // dma_memcpy_blocking(vec_y_l2, vec_y, N * sizeof(int32_t));
   }
 
-  // init_elements;
-  init_matrix(data_x, size_M, size_N, A_a, A_b, A_c, core_id, num_cores);
-  init_matrix(data_y, size_M, size_N, B_a, B_b, B_c, core_id, num_cores);
-  init_matrix(data_y_copy, size_M, size_N, B_a, B_b, B_c, core_id, num_cores);
-  mempool_barrier(num_cores);
+  // Do twice, with cold and hot cache
+  for (int i = 0; i < 2; ++i) {
+    // Vectors are initialized --> Start calculating
+    // Wait at barrier until everyone is ready
+    mempool_barrier(num_cores);
+    mempool_start_benchmark();
+    axpy_parallel_asm((const int32_t *)vec_x, (int32_t *)vec_y, 7, N, core_id,
+                      num_cores);
+    mempool_start_benchmark();
 
-  // start kernel testing
-  mempool_start_benchmark();
-  calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements, core_id,
-                                num_cores);
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  // end kernel testing
-
-  // Verify results
-  if (core_id == 0) {
-    printf("START CHECKING RESULTS\n");
-    if (verify_axpy(data_x, data_y, data_y_copy, ALPHA, total_elements)) {
-      printf("RESULTS ERROR\n");
-      error = 1;
-    } else {
-      printf("RESULTS CORRECT\n");
-    }
+    // Wait at barrier befor checking
+    mempool_barrier(num_cores);
+    mempool_stop_benchmark();
   }
+
+  // Check result
+  // TODO
+
+  // wait until all cores have finished
   mempool_barrier(num_cores);
 
-  return error;
+  return 0;
 }
