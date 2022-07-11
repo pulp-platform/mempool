@@ -1,155 +1,120 @@
-// Copyright 2022 ETH Zurich and University of Bologna.
+// Copyright 2021 ETH Zurich and University of Bologna.
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-// Author: Yichao Zhang, ETH Zurich
+// Author: Samuel Riedel, ETH Zurich
 
-int32_t AXPY(uint32_t n, int32_t da, int32_t *x, int32_t *y) {
-  uint32_t i = 0;
-  if (da == 0)
-    return (0);
+/* This library implements the dot product kernel
+ */
 
-  while (i < n) {
-    y[i] += da * x[i];
-    i++;
-  }
-  return (0);
-}
+#pragma once
+#include "dma.h"
+#include "runtime.h"
 
-int32_t AXPY_unloop(uint32_t n, int32_t da, int32_t *x, int32_t *y) {
-  uint32_t i = 0;
-  uint32_t j = 0;
-  if (da == 0)
-    return (0);
+// Must match the unroll factor in the code
+#define AXPY_UNROLL (4)
 
-  uint32_t partial = n % 4;
-
-  while (i < n - partial) {
-    int32_t x0 = x[0];
-    int32_t x1 = x[1];
-    int32_t x2 = x[2];
-    int32_t x3 = x[3];
-    int32_t acc = y[0];
-    int32_t acc1 = y[1];
-    int32_t acc2 = y[2];
-    int32_t acc3 = y[3];
-
-    acc += da * x0;
-    acc1 += da * x1;
-    acc2 += da * x2;
-    acc3 += da * x3;
-
-    y[0] = acc;
-    y[1] = acc1;
-    y[2] = acc2;
-    y[3] = acc3;
-
-    x += 4;
-    y += 4;
-    i += 4;
-  }
-
-  while (j < partial) {
-    y[0] += da * x[0];
-    x += 1;
-    y += 1;
-    j++;
-  }
-  return (0);
-}
-
-int32_t AXPY_unloop_x4(int32_t da, int32_t *x, int32_t *y) {
-  int32_t x0 = x[0];
-  int32_t x1 = x[1];
-  int32_t x2 = x[2];
-  int32_t x3 = x[3];
-  int32_t acc = y[0];
-  int32_t acc1 = y[1];
-  int32_t acc2 = y[2];
-  int32_t acc3 = y[3];
-
-  acc += da * x0;
-  acc1 += da * x1;
-  acc2 += da * x2;
-  acc3 += da * x3;
-
-  y[0] = acc;
-  y[1] = acc1;
-  y[2] = acc2;
-  y[3] = acc3;
-  return (0);
-}
-
-// Function start
-// Serial calculation by core 0
-void calc_axpy_serial(int32_t *matrix_X, int32_t *matrix_Y, int32_t alpha,
-                      uint32_t elements, uint32_t core_id) {
-  if (core_id == 0) {
-    AXPY(elements, alpha, &matrix_X[0], &matrix_Y[0]);
+void axpy_parallel(const int32_t *x, int32_t *y, int32_t alpha, uint32_t N,
+                   uint32_t core_id, uint32_t num_cores) {
+  for (uint32_t i = AXPY_UNROLL * core_id; i < N;
+       i += AXPY_UNROLL * num_cores) {
+    y[i + 0] = alpha * x[i + 0] + y[i + 0];
+    y[i + 1] = alpha * x[i + 1] + y[i + 1];
+    y[i + 2] = alpha * x[i + 2] + y[i + 2];
+    y[i + 3] = alpha * x[i + 3] + y[i + 3];
   }
 }
 
-// Serial calculation with 4 time unloop by core 0
-void calc_axpy_serial_unloop(int32_t *matrix_X, int32_t *matrix_Y,
-                             int32_t alpha, uint32_t elements,
-                             uint32_t core_id) {
-  if (core_id == 0) {
-    AXPY_unloop(elements, alpha, &matrix_X[0], &matrix_Y[0]);
-  }
+void axpy_parallel_asm(const int32_t *x, int32_t *y, int32_t alpha, uint32_t N,
+                       uint32_t core_id, uint32_t num_cores) {
+  int32_t x0, x1, x2, x3, y0, y1, y2, y3;
+
+  const int32_t *addr_x = &x[AXPY_UNROLL * core_id];
+  const int32_t *addr_y = &y[AXPY_UNROLL * core_id];
+  const int32_t *end_x = &x[AXPY_UNROLL * core_id + N];
+
+  const uint32_t row_increment =
+      (AXPY_UNROLL * num_cores - AXPY_UNROLL + 1) * 4;
+
+  __asm__ volatile(
+      // ".balign 16 \n\t"
+      // Inner loop: Do this loop N times
+      "1: \n\t"
+      // Load values
+      "p.lw %[x0], %[COLUMN](%[addr_x]!) \n\t"
+      "p.lw %[y0], %[COLUMN](%[addr_y]!) \n\t"
+      "p.lw %[x1], %[COLUMN](%[addr_x]!) \n\t"
+      "p.lw %[y1], %[COLUMN](%[addr_y]!) \n\t"
+      "p.lw %[x2], %[COLUMN](%[addr_x]!) \n\t"
+      "p.lw %[y2], %[COLUMN](%[addr_y]!) \n\t"
+      "p.lw %[x3], %[ROW](%[addr_x]!) \n\t"
+      "p.lw %[y3], %[DECR](%[addr_y]!) \n\t"
+      // Do MACs
+      "p.mac %[y0], %[alpha], %[x0] \n\t"
+      "p.mac %[y1], %[alpha], %[x1] \n\t"
+      "p.mac %[y2], %[alpha], %[x2] \n\t"
+      "p.mac %[y3], %[alpha], %[x3] \n\t"
+      // Write back
+      "p.sw %[y0], %[COLUMN](%[addr_y]!) \n\t"
+      "p.sw %[y1], %[COLUMN](%[addr_y]!) \n\t"
+      "p.sw %[y2], %[COLUMN](%[addr_y]!) \n\t"
+      "p.sw %[y3], %[ROW](%[addr_y]!) \n\t"
+      "bne %[addr_x], %[end_x], 1b \n\t"
+      : [x0] "=&r"(x0), [x1] "=&r"(x1), [x2] "=&r"(x2), [x3] "=&r"(x3),
+        [y0] "=&r"(y0), [y1] "=&r"(y1), [y2] "=&r"(y2), [y3] "=&r"(y3),
+        [addr_x] "+&r"(addr_x), [addr_y] "+&r"(addr_y) // Outputs
+      : [alpha] "r"(alpha), [end_x] "r"(end_x), [ROW] "r"(row_increment),
+        [DECR] "I"(-4 * (AXPY_UNROLL - 1)), [COLUMN] "I"(4) // Inputs
+      : "memory");                                          // Clobber
 }
 
-// Parallel calculation
-void calc_axpy(int32_t *matrix_X, int32_t *matrix_Y, int32_t alpha,
-               uint32_t elements, uint32_t core_id, uint32_t num_cores) {
-  // Support the elements number is not the devided by the core numbers;
-  // The corresponding core ID will take the partial elements.
-  uint32_t split = elements / num_cores;
-  uint32_t partial = elements % num_cores;
-  if (core_id < partial) {
-    uint32_t const c_start = core_id * (split + 1);
-    uint32_t const j = split + 1;
-    AXPY(j, alpha, &matrix_X[c_start], &matrix_Y[c_start]);
-  } else {
-    uint32_t const c_start = core_id * split + partial;
-    AXPY(split, alpha, &matrix_X[c_start], &matrix_Y[c_start]);
-  }
-}
+// void axpy_parallel_dma(const int32_t *a, const int32_t *b, uint32_t N,
+//                        const int32_t *a_remote, const int32_t *b_remote,
+//                        uint32_t N_remote, int32_t *c, uint32_t core_id,
+//                        uint32_t num_cores) {
+//   int32_t *axpy_barrier_a = (int32_t *)(64 * 1024);
+//   int32_t *axpy_barrier_b = (int32_t *)(192 * 1024);
+//   int32_t tmp_sum[AXPY_UNROLL] = {0, 0, 0, 0};
 
-// Parallel calculation with 4 times unloop
-void calc_axpy_unloop(int32_t *matrix_X, int32_t *matrix_Y, int32_t alpha,
-                      uint32_t elements, uint32_t core_id, uint32_t num_cores) {
-  // Support the elements number is not the devided by the core numbers;
-  // The corresponding core ID will take the partial elements.
-  uint32_t split = elements / num_cores;
-  uint32_t partial = elements % num_cores;
-  if (core_id < partial) {
-    uint32_t const c_start = core_id * (split + 1);
-    uint32_t const j = split + 1;
-    AXPY_unloop(j, alpha, &matrix_X[c_start], &matrix_Y[c_start]);
-  } else {
-    uint32_t const c_start = core_id * split + partial;
-    AXPY_unloop(split, alpha, &matrix_X[c_start], &matrix_Y[c_start]);
-  }
-}
+//   uint32_t first = 0;
+//   uint32_t last = 2 * num_cores;
+//   int last_round = 2;
 
-// Parallel calculation with 4 times unloop align with banks
-void calc_axpy_unloop_x4_localbank(int32_t *matrix_X, int32_t *matrix_Y,
-                                   int32_t alpha, uint32_t elements,
-                                   uint32_t core_id, uint32_t num_cores) {
-  uint32_t const bank_num = num_cores * 4;
-  // Do the calculation that redundant elements cannot be unloop;
-  // Use core0 is less overhead than found the local
-  uint32_t partial = elements % 4;
-  if (core_id == 0) {
-    if (partial != 0) {
-      uint32_t c_start = elements - partial + 1;
-      AXPY(partial, alpha, &matrix_X[c_start], &matrix_Y[c_start]);
-    }
-  }
-  // Do unloop 4 times
-  uint32_t const total_unloop = elements - partial;
-  uint32_t const c_start = core_id * 4;
-  for (uint32_t c = c_start; c <= total_unloop - 4; c += bank_num) {
-    AXPY_unloop_x4(alpha, &matrix_X[c], &matrix_Y[c]);
-  }
-}
+//   // Initial setup
+//   if (core_id == 0) {
+//     wake_up_all();
+//   }
+
+//   for (int round = 0; round < last_round; ++round) {
+//     // Barrier, launch DMA for next iteration
+//     mempool_wfi();
+//     int bar = __atomic_fetch_add(axpy_barrier_a, 2, __ATOMIC_RELAXED);
+//     // Are we the first to reach the next round?
+//     if (bar == first) {
+//       dma_wait();
+//       dma_memcpy_nonblocking(a, a_remote, N * sizeof(int32_t));
+//       dma_memcpy_nonblocking(b, b_remote, N * sizeof(int32_t));
+//       bar = __atomic_fetch_add(axpy_barrier_a, 2, __ATOMIC_RELAXED);
+//     }
+//     // Are we the last one?
+//     if (bar == last) {
+//       *axpy_barrier_a = 0;
+//       if (round != last_round - 1) {
+//         wake_up_all();
+//       }
+//     }
+
+//     for (uint32_t i = AXPY_UNROLL * core_id; i < N;
+//          i += AXPY_UNROLL * num_cores) {
+//       tmp_sum[0] += a[i + 0] * b[i + 0];
+//       tmp_sum[1] += a[i + 1] * b[i + 1];
+//       tmp_sum[2] += a[i + 2] * b[i + 2];
+//       tmp_sum[3] += a[i + 3] * b[i + 3];
+//     }
+//   }
+//   int32_t sum = tmp_sum[0];
+//   sum += tmp_sum[1];
+//   sum += tmp_sum[2];
+//   sum += tmp_sum[3];
+//   __atomic_fetch_add(c, sum, __ATOMIC_RELAXED);
+// }
