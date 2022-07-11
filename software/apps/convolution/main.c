@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "data.h"
+#include "dma.h"
 #include "encoding.h"
 #include "kernel/convolution.h"
 #include "printf.h"
@@ -25,8 +27,8 @@ dump(time, 0);
 
 volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
 volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
+volatile int32_t out_l2[M * N] __attribute__((section(".l2")));
 // volatile int32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
-volatile int error __attribute__((section(".l2")));
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -35,11 +37,12 @@ int main() {
 
   int32_t kernel[KERNEL_N * KERNEL_N];
 
+  // Initialize img
   if (core_id == 0) {
 #ifdef VERBOSE
     printf("Initialize\n");
 #endif
-    error = 0;
+    dma_memcpy_blocking((void *)in, (void *)in_l2, M * N / 2 * sizeof(int32_t));
   }
 
   kernel[0] = 1;
@@ -54,104 +57,77 @@ int main() {
   kernel[7] = 2;
   kernel[8] = 1;
 
-  // Initialize img
-  init_conv2d_image(in, N, M, core_id, num_cores);
-  // zero_conv2d_image(out, N, M, core_id, num_cores);
-
-  // #ifdef VERBOSE
-  //   mempool_barrier(num_cores);
-
-  //   if (core_id == 0) {
-  //     printf("A:\n");
-
-  //     for (int i = 0; i < M; i++) {
-  //       for (int j = 0; j < N; j++) {
-  //         printf("%4u ", in[i * N + j]);
-  //       }
-  //       printf("\n");
-  //     }
-
-  //     printf("kernel:\n");
-  //     for (int i = 0; i < KERNEL_N; i++) {
-  //       for (int j = 0; j < KERNEL_N; j++) {
-  //         printf("%4u ", kernel[i * KERNEL_N + j]);
-  //       }
-  //       printf("\n");
-  //     }
-  //   }
-
-  //   if (core_id == 0) {
-  //     printf("Start\n");
-  //   }
-  // #endif
-
   // Matrices are initialized --> Start calculating
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
-  uint32_t start = mempool_get_timer();
-  mempool_start_benchmark();
-  conv2d_3x3_crazy_parallel((const int32_t *)in, N, M, (const int32_t *)kernel,
-                            (int32_t *)out, core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
 
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  uint32_t stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
-  }
+  // Double-buffered convolution
+  int last_round = 6;
+  int first = 0;
+  int last = 2 * (int)num_cores;
+  int32_t *round_barrier = (int32_t *)(64 * 1024);
 
-  // Hot cache
-  start = mempool_get_timer();
-  mempool_start_benchmark();
-  conv2d_3x3_crazy_parallel((const int32_t *)in, N, M, (const int32_t *)kernel,
-                            (int32_t *)out, core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
-
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
-  }
-
-  // Check result
-  if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
-    error = 1;
-  }
-
-  // wait until all cores have finished
-  mempool_barrier(num_cores);
-
-#ifdef VERBOSE
+  // Initial setup
   if (core_id == 0) {
-    printf("Done (Error=%d)\n", error);
+    *round_barrier = 0;
+    wake_up_all();
   }
-#endif
 
-#ifdef VERBOSE
-  if (core_id == 0) {
-    printf("out:\n");
-    for (int i = KERNEL_N / 2; i < M - KERNEL_N / 2; i++) {
-      for (int j = KERNEL_N / 2; j < N - KERNEL_N / 2; j++) {
-        printf("%4u ", out[i * N + j]);
-      }
-      printf("\n");
+  const int32_t *in_comp;
+  const int32_t *in_dma;
+  int32_t *out_comp;
+  int32_t *out_dma;
+  for (int round = 0; round < last_round; ++round) {
+    if (round % 2 == 0) {
+      in_comp = (const int32_t *)&in[0];
+      out_comp = (int32_t *)&out[0];
+      in_dma = (const int32_t *)&in[N * M / 2];
+      out_dma = (int32_t *)&out[N * M / 2];
+    } else {
+      in_dma = (const int32_t *)&in[0];
+      out_dma = (int32_t *)&out[0];
+      in_comp = (const int32_t *)&in[N * M / 2];
+      out_comp = (int32_t *)&out[N * M / 2];
     }
+    mempool_start_benchmark();
+    // Barrier, launch DMA for next iteration
+    mempool_wfi();
+    int bar = __atomic_fetch_add(round_barrier, 2, __ATOMIC_RELAXED);
+    // Are we the first to reach the next round?
+    if (bar == first) {
+      dma_wait();
+      if (round != last_round - 1) {
+        dma_memcpy_nonblocking((void *)in_dma, (void *)in_l2,
+                               M * N / 2 * sizeof(int32_t));
+      }
+      if (round != 0) {
+        dma_memcpy_nonblocking((void *)out_l2, (void *)out_dma,
+                               M * N / 2 * sizeof(int32_t));
+      }
+      bar = __atomic_fetch_add(round_barrier, 2, __ATOMIC_RELAXED);
+    }
+    // Are we the last one?
+    if (bar == last) {
+      *round_barrier = 0;
+      if (round != last_round - 1) {
+        wake_up_all();
+      }
+    }
+    mempool_stop_benchmark();
+    mempool_start_benchmark();
+    conv2d_3x3_crazy_parallel((const int32_t *)in_comp, N, M / 2,
+                              (const int32_t *)kernel, (int32_t *)out_comp,
+                              core_id, num_cores);
+    mempool_stop_benchmark();
   }
 
-  mempool_barrier(num_cores);
-#endif
+  mempool_start_benchmark();
 
-  return error;
+  // Wait at barrier befor checking
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // TODO Verify
+
+  return 0;
 }
