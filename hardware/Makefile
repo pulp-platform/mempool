@@ -307,7 +307,7 @@ post_trace:
 	cp $(buildpath)/transcript "$(result_dir)/" | true
 	cp $(traceresult) "$(result_dir)"
 	cp $(trace) "$(result_dir)"
-	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)"
+	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(result_dir)/avg.txt
 
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
