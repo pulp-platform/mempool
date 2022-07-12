@@ -217,7 +217,7 @@ void mat_mul_unrolled_4x4_parallel(int32_t const *__restrict__ A,
   }
 }
 
-#define NN (256)
+#define NN (192)
 
 void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
                                        int32_t const *__restrict__ B,
