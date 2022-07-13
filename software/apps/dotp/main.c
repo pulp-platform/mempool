@@ -21,7 +21,9 @@
 
 #if defined(PARALLEL) || defined(PARALLEL_UNROLLED)
 #include "dotp_parallel.h"
-#elif defined(PARALLEL_TRIVIAL)
+#endif
+
+#if defined(PARALLEL_TRIVIAL) || defined(TRIVIAL_UNROLLED)
 #include "dotp_parallel_trivial.h"
 #endif
 
@@ -35,45 +37,31 @@
 
 void init_vectors( int32_t* in_a, int32_t* in_b, int32_t* s,
                    int32_t* p_result, int32_t* p_check, uint32_t Len) {
-  *p_result = 0;
-  *p_check = 0;
-  *s = 0;
-  uint32_t split = Len / NUM_CORES;
-  uint32_t j = 0;
-  while(j < NUM_CORES) {
-    uint32_t MAX = (j + 1) * split > Len? Len : (j + 1) * split;
-    for(uint32_t i = j * split; i < MAX; i++) {
-      int32_t a = (int32_t)(i - 6);
-      int32_t b = i % 4 == 0? -1 : 1;
-      in_a[i] = a;
-      in_b[i] = b;
-      *p_check = *p_check + (int32_t) (a * b);
+    *p_result = 0;
+    *p_check = 0;
+    uint32_t split = Len / NUM_CORES;
+    uint32_t j = 0;
+    while(j < NUM_CORES) {
+        uint32_t MAX = (j + 1) * split > Len? Len : (j + 1) * split;
+        for(uint32_t i = j * split; i < MAX; i++) {
+          int32_t a = (int32_t)(i - 6);
+          int32_t b = i % 4 == 0? -1 : 1;
+          in_a[i] = a;
+          in_b[i] = b;
+          *p_check = *p_check + (int32_t) (a * b);
+        }
+        j++;
     }
-    j++;
-  }
-}
-
-void init_vectors_red0(   int32_t* in_a, int32_t* in_b, int32_t* s,
-                              int32_t* p_result, int32_t* p_check, uint32_t Len) {
-  *p_result = 0;
-  *p_check = 0;
-  uint32_t split = Len / NUM_CORES;
-  uint32_t j = 0;
-  while(j < NUM_CORES) {
-    uint32_t MAX = (j+1) * split > Len? Len : (j + 1) * split;
-    for(uint32_t i = j * split; i < MAX; i++) {
-      int32_t a = (int32_t)(i - 20);
-      int32_t b = i % 4 == 0? -1 : 1;
-      in_a[i] = a;
-      in_b[i] = b;
-      *p_check = *p_check + (int32_t) (a * b);
+    #if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0) || defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
+    for(uint32_t k = 0; k < N_BANK; k++) {
+        s[k] = 0;
+        #if defined(PARALLEL) || defined(PARALLEL_UNROLLED_REDTREE)
+        red_barrier[k] = 0;
+        #endif
     }
-    j++;
-  }
- for(uint32_t k = 0; k < N_BANK; k++) {
-   s[k] = 0;
- }
-
+    #else
+    *s = 0;
+    #endif
 }
 
 int main() {
@@ -84,11 +72,11 @@ int main() {
   mempool_barrier_init(core_id);
 
   if (core_id == 0) {
-  	error = 0;
+    error = 0;
     time_init = 0;
     time_end = 0;
     #if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0) || defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
-    init_vectors_red0(vector_a, vector_b, sum, &result, &check, LEN);
+    init_vectors(vector_a, vector_b, sum, &result, &check, LEN);
     #else
     init_vectors(vector_a, vector_b, &sum, &result, &check, LEN);
     #endif
@@ -101,9 +89,7 @@ int main() {
     time_init = mempool_get_timer();
     dotp_single(vector_a, vector_b, &sum, LEN);
     time_end = mempool_get_timer();
-  #endif
-
-  #ifdef SINGLE_UNROLLED
+  #elif defined(SINGLE_UNROLLED)
     time_init = mempool_get_timer();
     dotp_single_unrolled4(vector_a, vector_b, &sum, LEN);
     time_end = mempool_get_timer();
@@ -113,26 +99,40 @@ int main() {
      B) Atomic fetch and add to a single memory location
      C) Barrier */
 
-  #ifdef PARALLEL
+  #ifdef PARALLEL_TRIVIAL
     time_init = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel_trivial(vector_a, vector_b, &sum, LEN, N_PE);
+    mempool_stop_benchmark();
+    time_end = mempool_get_timer();
+  #elif defined(TRIVIAL_UNROLLED)
+    time_init = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel_trivial_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
+    mempool_stop_benchmark();
+    time_end = mempool_get_timer();
+  #endif
+
+  /* A) Parallelized workload
+     B) Atomic fetch and add to a single memory location
+     C) Barrier */
+
+  #ifdef PARALLEL
     if(core_id < N_PE) {
+      time_init = mempool_get_timer();
       mempool_start_benchmark();
       dotp_parallel(vector_a, vector_b, &sum, LEN, N_PE);
       mempool_stop_benchmark();
       time_end = mempool_get_timer();
     }
-  #elif defined (PARALLEL_TRIVIAL)
+  #elif defined(PARALLEL_UNROLLED)
+    if(core_id < N_PE) {
+      time_init = mempool_get_timer();
       mempool_start_benchmark();
-      dotp_parallel_trivial(vector_a, vector_b, &sum, LEN, N_PE);
+      dotp_parallel_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
       mempool_stop_benchmark();
-  #endif
-
-  #ifdef PARALLEL_UNROLLED
-    time_init = mempool_get_timer();
-    mempool_start_benchmark();
-    dotp_parallel_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
-    mempool_stop_benchmark();
-    time_end = mempool_get_timer();
+      time_end = mempool_get_timer();
+    }
   #endif
 
   /* A) Parallelized workload
@@ -146,9 +146,7 @@ int main() {
     dotp_parallel_red0(vector_a, vector_b, sum, LEN, N_PE);
     mempool_stop_benchmark();
     time_end = mempool_get_timer();
-  #endif
-
-  #ifdef PARALLEL_UNROLLED_RED0
+  #elif defined(PARALLEL_UNROLLED_RED0)
     time_init = mempool_get_timer();
     mempool_start_benchmark();
     dotp_parallel_unrolled4_red0(vector_a, vector_b, sum, LEN, N_PE);
@@ -165,9 +163,7 @@ int main() {
     dotp_parallel_redtree(vector_a, vector_b, sum, LEN, N_PE);
     mempool_stop_benchmark();
     time_end = mempool_get_timer();
-  #endif
-
-  #ifdef PARALLEL_UNROLLED_REDTREE
+  #elif defined(PARALLEL_UNROLLED_REDTREE)
     time_init = mempool_get_timer();
     mempool_start_benchmark();
     dotp_parallel_redtree_unrolled(vector_a, vector_b, sum, LEN, N_PE);
@@ -185,8 +181,8 @@ int main() {
     result = sum;
     #endif
     printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
-		printf("Result ==> %d\n", result);
-		printf("Check  ==> %d\n\n", check);
+    printf("Result ==> %d\n", result);
+    printf("Check  ==> %d\n\n", check);
   }
   mempool_barrier(NUM_CORES);
 

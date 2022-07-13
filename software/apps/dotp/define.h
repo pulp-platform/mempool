@@ -16,11 +16,11 @@
 //#define SINGLE
 //#define SINGLE_UNROLLED
 
-
 //#define PARALLEL
 //#define PARALLEL_UNROLLED
-#define PARALLEL_TRIVIAL
 
+//#define PARALLEL_TRIVIAL
+//#define TRIVIAL_UNROLLED
 
 //#define PARALLEL_RED0
 //#define PARALLEL_UNROLLED_RED0
@@ -33,17 +33,19 @@
 //////////////////////////////////
 
 // Vectors for kernel computation
-int32_t vector_a[LEN] __attribute__((aligned(1024), section(".l1")));
-int32_t vector_b[LEN] __attribute__((aligned(1024), section(".l1")));
-//int32_t vector_a[LEN] __attribute__(( section(".l1")));
-//int32_t vector_b[LEN] __attribute__(( section(".l1")));
+int32_t vector_a[LEN] __attribute__((aligned(LEN), section(".l1")));
+int32_t vector_b[LEN] __attribute__((aligned(LEN), section(".l1")));
+
 #if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0) || defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
 int32_t sum[N_BANK] __attribute__((aligned(N_BANK), section(".l1")));
 #else
 int32_t sum         __attribute__((section(".l1")));
 #endif
 
-
+#if defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
+uint32_t volatile red_barrier[NUM_CORES * 4]
+    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+#endif
 
 // Vectors for performance metrics
 int32_t result   			__attribute__((section(".l1")));
