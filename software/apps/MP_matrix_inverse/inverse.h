@@ -4,53 +4,55 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#define FIXED_POINT 0
-#define FIX_DIV(a,b) ((int32_t)((a << FIXED_POINT)/b))
-#define FIX_MUL(a,b) ((int32_t)((a*b) >> FIXED_POINT))
+#define FIXED_POINT 16
+#define FIX_DIV(a,b) ((int32_t)((a << FIXED_POINT) / b))
+#define FIX_MUL(a,b) ((int32_t)((a * b) >> FIXED_POINT))
 
 dump(prova, 1);
 
-void Transpose(int32_t *matrix, int32_t *t_matrix, int32_t n);
+void Transpose(volatile int32_t *matrix, volatile int32_t *t_matrix, int32_t n, int32_t m);
 
-void MatrixMult(int32_t *matrix_1, int32_t *matrix_2, int32_t *matrix_product, int32_t n);
-
-
-
-void getCofactor(int32_t *A, int32_t *temp, int32_t p, int32_t q, int32_t n);
-
-int32_t determinant(int32_t *A, int32_t n);
-
-void adjoint(int32_t *A,int32_t *adj, int32_t n);
-
-int32_t C_inverse(int32_t *A, int32_t *inverse, int32_t n);
+void MatrixMult(volatile int32_t *matrix_1, volatile int32_t *matrix_2, volatile int32_t *matrix_product, int32_t n, int32_t m, int32_t o);
 
 
 
-int GJ_inverse(int32_t *pSrc, int32_t *pDst, uint32_t n);
+void getCofactor(volatile int32_t *A, int32_t *temp, int32_t p, int32_t q, int32_t n);
 
-void Transpose(int32_t *matrix, int32_t *t_matrix, int32_t n) {
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-             t_matrix[j * n + i]=matrix[i * n + j];
+int32_t determinant(volatile int32_t *A, int32_t n);
+
+void adjoint(volatile int32_t *A,int32_t *adj, int32_t n);
+
+int32_t C_inverse(volatile int32_t *A, int32_t *inverse, int32_t n);
+
+
+
+int GJ_inverse(volatile int32_t *pSrc, volatile int32_t *pDst, uint32_t n);
+
+void Transpose(volatile int32_t *matrix, volatile int32_t *t_matrix, int32_t n, int32_t m) {
+  int32_t i, j;
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < m; j++) {
+             t_matrix[j * n + i] = matrix[i * m + j];
         }
     }
 }
-void MatrixMult(int32_t *matrix_1, int32_t *matrix_2, int32_t *matrix_product, int32_t n) {
-    int k;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {             // not j<M
-            matrix_product[i * n + j] = 0;
-            for (k = 0; k < n; k++) {
-                matrix_product[i * n + j] += matrix_1[i * n + k] * matrix_2[k * n + j];
-            }
-        }
+void MatrixMult(volatile int32_t *matrix_1, volatile int32_t *matrix_2, volatile int32_t *matrix_product, int32_t n, int32_t m, int32_t o) {
+  int32_t i, j, k;
+  for (i = 0; i < n; i++) {
+      for (j = 0; j < o; j++) {
+        matrix_product[i * o + j] = 0;
+        for (k = 0; k < m; k++) {
+          matrix_product[i * o + j] += FIX_MUL(matrix_1[i * m + k], matrix_2[k * o + j]);
+      }
     }
+  }
+
 }
 
 /* CRAMER MATRIX INVERSION */
 
 // Function to get cofactor
-void getCofactor(int32_t *A, int32_t *temp, int32_t p, int32_t q, int32_t n) {
+void getCofactor(volatile int32_t *A, int32_t *temp, int32_t p, int32_t q, int32_t n) {
     int32_t i = 0, j = 0;
     // Looping for each element of the matrix
     for (int32_t row = 0; row < n; row++) {
@@ -71,7 +73,7 @@ void getCofactor(int32_t *A, int32_t *temp, int32_t p, int32_t q, int32_t n) {
 }
  
 // Recursive function for finding determinant of matrix.
-int32_t determinant(int32_t *A, int32_t n) {
+int32_t determinant(volatile int32_t *A, int32_t n) {
 
     int32_t D = 0; // Initialize result
     // Base case : if matrix contains single element
@@ -98,7 +100,7 @@ int32_t determinant(int32_t *A, int32_t n) {
 }
  
 // Function to get adjoint
-void adjoint(int32_t *A,int32_t *adj, int32_t n) {
+void adjoint(volatile int32_t *A,int32_t *adj, int32_t n) {
     if (n == 1) {
         adj[0] = 1;
         return;
@@ -122,7 +124,7 @@ void adjoint(int32_t *A,int32_t *adj, int32_t n) {
  
 // Function to calculate and store inverse, returns false if
 // matrix is singular
-int32_t C_inverse(int32_t *A, int32_t *inverse, int32_t n) {
+int32_t C_inverse(volatile int32_t *A, int32_t *inverse, int32_t n) {
     // Find determinant of A[][]
     int32_t det = determinant(A, n);
     if (det == 0) {
@@ -143,7 +145,7 @@ int32_t C_inverse(int32_t *A, int32_t *inverse, int32_t n) {
 
 /* GAUSS JORDAN INVERSION */
 
-int GJ_inverse(int32_t * pSrc, int32_t * pDst, uint32_t n) {
+int GJ_inverse(volatile int32_t * pSrc, volatile int32_t * pDst, uint32_t n) {
 
     int32_t *pSrcT1, *pSrcT2;                    /* Temporary input data matrix pointer */
     int32_t *pDstT1, *pDstT2;                    /* Temporary output data matrix pointer */
