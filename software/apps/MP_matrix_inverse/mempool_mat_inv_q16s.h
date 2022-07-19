@@ -15,11 +15,15 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
     int32_t *pPivotRowIn;                        /* Temporary input and output data matrix pointer */
     int32_t *pPRT_in, *pPivotRowDst, *pPRT_pDst; /* Temporary input and output data matrix pointer */
 
-    int32_t Xchg, in = 0, in1;                   /* Temporary input values  */
+    int32_t in = 0;
+    int32_t Xchg1, Xchg2, Xchg3, Xchg4;
+    int32_t in1, in2, in3, in4;
+    int32_t out1, out2, out3, out4;
+
     uint32_t i, rowCnt, j, loopCnt, k, l;        /* loop counters */
     uint32_t flag;
-
     uint32_t m = n; /* M is the number of rows. However, the matirces must be square. */
+
     pDstT1 = pDst;  /* Working pointer for destination matrix */
     rowCnt = m;     /* Loop over the number of rows */
     flag = 0U;
@@ -54,29 +58,69 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
         pSrcT1 = pSrc + (l * n);
         pDstT1 = pDst + (l * n);
         k = 1U;
-        if (*pSrcT1 == 0) {
+
+        in = *pSrcT1;
+        if (in == 0) {
             /* Loop over the rows present below */
             for (i = (l + 1U); i < m; i++) {
-                pSrcT2 = pSrcT1 + (n * i);
+                pSrcT2 = pSrc + (n * i);
                 pDstT2 = pDstT1 + (n * k);
 
                 /* Check if there is a non zero pivot element to replace in the rows below */
                 if (*pSrcT2 != 0) {
                     /* Exchange the row elements of the input matrix at the right of the pivot */
-                    j = n - l;
-                    while (j > 0U) {
-                        Xchg = *pSrcT2;
-                        *pSrcT2++ = *pSrcT1;
-                        *pSrcT1++ = Xchg;
-                        j--;
+                    j = 0;
+                    while (j < (n - l) - (n - l) % 4) {
+                        Xchg1 = *(pSrcT2);
+                        Xchg2 = *(pSrcT2 + 1);
+                        Xchg3 = *(pSrcT2 + 2);
+                        Xchg4 = *(pSrcT2 + 3);
+                        out1 = *(pSrcT1);
+                        out2 = *(pSrcT1 + 1);
+                        out3 = *(pSrcT1 + 2);
+                        out4 = *(pSrcT1 + 3);
+                        *pSrcT2++ = out1;
+                        *pSrcT2++ = out2;
+                        *pSrcT2++ = out3;
+                        *pSrcT2++ = out4;
+                        *pSrcT1++ = Xchg1;
+                        *pSrcT1++ = Xchg2;
+                        *pSrcT1++ = Xchg3;
+                        *pSrcT1++ = Xchg4;
+                        j += 4;
+                    }
+                    while (j < n - l) {
+                      Xchg1 = *pSrcT2;
+                      *pSrcT2++ = *pSrcT1;
+                      *pSrcT1++ = Xchg1;
+                      j++;
                     }
                     /* Exchange the row elements of the destination matrix */
-                    j = n;
-                    while (j > 0U) {
-                        Xchg = *pDstT2;
+                    j = 0;
+                    while (j < n - n % 4) {
+                        Xchg1 = *(pDstT2);
+                        Xchg2 = *(pDstT2 + 1);
+                        Xchg3 = *(pDstT2 + 2);
+                        Xchg4 = *(pDstT2 + 3);
+                        out1 = *(pDstT1);
+                        out2 = *(pDstT1 + 1);
+                        out3 = *(pDstT1 + 2);
+                        out4 = *(pDstT1 + 3);
+                        *pDstT2++ = out1;
+                        *pDstT2++ = out2;
+                        *pDstT2++ = out3;
+                        *pDstT2++ = out4;
+                        *pDstT1++ = Xchg1;
+                        *pDstT1++ = Xchg2;
+                        *pDstT1++ = Xchg3;
+                        *pDstT1++ = Xchg4;
+                        j += 4;
+                    }
+                    while (j < n) {
+                        Xchg1 = *pDstT2;
                         *pDstT2++ = *pDstT1;
-                        *pDstT1++ = Xchg;
-                        j--;
+                        *pDstT1++ = Xchg1;
+                        j++;
                     }
                     flag = 1U;
                     break;
@@ -102,20 +146,49 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
         in = *pPivotRowIn;
 
         /* Loop over number of columns to the right of the pilot element */
-        j = (n - l);
-        while (j > 0U) {
+        j = 0;
+        while (j < (n - l) - (n - l) % 4) {
+            in1 = *pSrcT1;
+            in2 = *(pSrcT1 + 1);
+            in3 = *(pSrcT1 + 2);
+            in4 = *(pSrcT1 + 3);
+            out1 = FIX_DIV(in1, in);
+            out2 = FIX_DIV(in2, in);
+            out3 = FIX_DIV(in3, in);
+            out4 = FIX_DIV(in4, in);
+            *pSrcT1++ = out1;
+            *pSrcT1++ = out2;
+            *pSrcT1++ = out3;
+            *pSrcT1++ = out4;
+            j += 4;
+        }
+        while (j < n - l) {
             in1 = *pSrcT1;
             *pSrcT1++ = FIX_DIV(in1, in);
-            j--;
+            j++;
         }
         /* Loop over number of columns of the destination matrix */
-        j = n;
-        while (j > 0U) {
+        j = 0;
+        while (j < n - n % 4) {
+            in1 = *pSrcT2;
+            in2 = *(pSrcT2 + 1);
+            in3 = *(pSrcT2 + 2);
+            in4 = *(pSrcT2 + 3);
+            out1 = FIX_DIV(in1, in);
+            out2 = FIX_DIV(in2, in);
+            out3 = FIX_DIV(in3, in);
+            out4 = FIX_DIV(in4, in);
+            *pSrcT2++ = out1;
+            *pSrcT2++ = out2;
+            *pSrcT2++ = out3;
+            *pSrcT2++ = out4;
+            j += 4;
+        }
+        while (j < n) {
             in1 = *pSrcT2;
             *pSrcT2++ = FIX_DIV(in1, in);
-            j--;
+            j++;
         }
-
         /* SUM THE MULTIPLE OF A BOTTOM ROW */
         /* Replace the rows with the sum of that row and a multiple of row i
          * so that each new element in column i above row i is zero.*/
@@ -141,17 +214,51 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
                 pPRT_in = pPivotRowIn;
                 pPRT_pDst = pPivotRowDst;
 
-                j = (n - l); /* Replace the elements to the right of the pivot */
-                while (j > 0U) {
+                j = 0;
+                while (j < (n - l) - (n - l) % 2) {
                     in1 = *pSrcT1;
-                    *pSrcT1++ = in1 - FIX_MUL(in, *pPRT_in++);
-                    j--;
+                    in2 = *(pSrcT1 + 1);
+                    // in3 = *(pSrcT1 + 2);
+                    // in4 = *(pSrcT1 + 3);
+                    out1 = *pPRT_in++;
+                    out2 = *pPRT_in++;
+                    // out3 = *pPRT_in++;
+                    // out4 = *pPRT_in++;
+                    *pSrcT1++ = in1 - FIX_MUL(in, out1);
+                    *pSrcT1++ = in2 - FIX_MUL(in, out2);
+                    // *pSrcT1++ = in3 - FIX_MUL(in, out3);
+                    // *pSrcT1++ = in4 - FIX_MUL(in, out4);
+                    j += 2;
                 }
-                j = n; /* Replace the elements in the destination matrix */
-                while (j > 0U) {
+                while (j < n - l) {
+                    in1 = *pSrcT1;
+                    out1 = *pPRT_in++;
+                    *pSrcT1++ = in1 - FIX_MUL(in, out1);
+                    j++;
+                }
+                /* Loop over the number of columns to
+                   replace the elements in the destination matrix */
+                j = 0;
+                while (j < n - n % 4) {
                     in1 = *pSrcT2;
-                    *pSrcT2++ = in1 - FIX_MUL(in, *pPRT_pDst++);
-                    j--;
+                    in2 = *(pSrcT2 + 1);
+                    in3 = *(pSrcT2 + 2);
+                    in4 = *(pSrcT2 + 3);
+                    out1 = *pPRT_pDst++;
+                    out2 = *pPRT_pDst++;
+                    out3 = *pPRT_pDst++;
+                    out4 = *pPRT_pDst++;
+                    *pSrcT2++ = in1 - FIX_MUL(in, out1);
+                    *pSrcT2++ = in2 - FIX_MUL(in, out2);
+                    *pSrcT2++ = in3 - FIX_MUL(in, out3);
+                    *pSrcT2++ = in4 - FIX_MUL(in, out4);
+                    j += 4;
+                }
+                while (j < n) {
+                    in1 = *pSrcT2;
+                    out1 = *pPRT_pDst;
+                    *pSrcT2++ = in1 - FIX_MUL(in, out1);
+                    j++;
                 }
             }
             /* Increment temporary input pointer */
