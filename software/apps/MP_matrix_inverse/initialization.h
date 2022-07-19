@@ -7,9 +7,7 @@
 #define FIXED_POINT 16
 #define FIX_DIV(a,b) ((int32_t)((a << FIXED_POINT) / b))
 #define FIX_MUL(a,b) ((int32_t)((a * b) >> FIXED_POINT))
-
-dump(flag, 1);
-
+#define MIN(a,b) (a < b ? a : b)
 
 void Transpose(int32_t *matrix, int32_t *t_matrix, int32_t n, int32_t m);
 
