@@ -228,6 +228,7 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                     pPRT_in = pPivotRowIn;
                     pPRT_pDst = pPivotRowDst;
                     /* Loop over columns to the right of pivot */
+                    j = 0;
                     while (j < (n - l) - (n - l) % 4) {
                         in1 = pSrcT1[j];
                         in2 = pSrcT1[j + 1];
@@ -249,6 +250,22 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                         pSrcT1[j] = in1 - FIX_MUL(in, out1);
                         j++;
                     }
+                    //j = 0;
+                    //while (j < MIN(core_id * 4, n - l)) {
+                    //    in1 = pSrcT1[j];
+                    //    in2 = pSrcT1[j + 1];
+                    //    in3 = pSrcT1[j + 2];
+                    //    in4 = pSrcT1[j + 3];
+                    //    out1 = pPRT_in[j];
+                    //    out2 = pPRT_in[j + 1];
+                    //    out3 = pPRT_in[j + 2];
+                    //    out4 = pPRT_in[j + 3];
+                    //    pSrcT1[j]     = in1 - FIX_MUL(in, out1);
+                    //    pSrcT1[j + 1] = in2 - FIX_MUL(in, out2);
+                    //    pSrcT1[j + 2] = in3 - FIX_MUL(in, out3);
+                    //    pSrcT1[j + 3] = in4 - FIX_MUL(in, out4);
+                    //    j += 4;
+                    //}
                     /* Loop over columns */
                     j = 0;
                     while (j < n - n % 4) {
@@ -266,12 +283,28 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                         pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
                         j += 4;
                     }
-                    while (j < n) {
+                    while (j < MIN(core_id * 4, n)) {
                         in1 = pSrcT2[j];
                         out1 = pPRT_pDst[j];
                         pSrcT2[j] = in1 - FIX_MUL(in, out1);
                         j++;
                     }
+                    //j = 0;
+                    //while (j < core_id * 4) {
+                    //    in1 = pSrcT2[j];
+                    //    in2 = pSrcT2[j + 1];
+                    //    in3 = pSrcT2[j + 2];
+                    //    in4 = pSrcT2[j + 3];
+                    //    out1 = pPRT_pDst[j];
+                    //    out2 = pPRT_pDst[j + 1];
+                    //    out3 = pPRT_pDst[j + 2];
+                    //    out4 = pPRT_pDst[j + 3];
+                    //    pSrcT2[j]     = in1 - FIX_MUL(in, out1);
+                    //    pSrcT2[j + 1] = in2 - FIX_MUL(in, out2);
+                    //    pSrcT2[j + 2] = in3 - FIX_MUL(in, out3);
+                    //    pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
+                    //    j += 4;
+                    //}
                 }
                 i++;
             }
