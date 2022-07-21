@@ -29,6 +29,7 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
     flag = 0U;
 
     /* CREATE THE IDENTITY MATRIX */
+
     while (rowCnt > 0U) {
         j = m - rowCnt;
         while (j > 0U) {
@@ -50,25 +51,24 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
     l = 0U;
 
     while (loopCnt > 0U) {
-        /* CHECK IF PIVOT ELEMENT IS ZERO...
-         * If it is zero then interchange the row with non zero row below.
-         * If there is no non zero element to replace in the rows below,
-         * then the matrix is Singular. */
 
         pSrcT1 = pSrc + (l * n);
         pDstT1 = pDst + (l * n);
         k = 1U;
-
         in = *pSrcT1;
+
+        /* CHECK IF PIVOT ELEMENT IS ZERO */
+
         if (in == 0) {
             /* Loop over the rows present below */
             for (i = (l + 1U); i < m; i++) {
                 pSrcT2 = pSrc + (n * i);
                 pDstT2 = pDstT1 + (n * k);
 
-                /* Check if there is a non zero pivot element to replace in the rows below */
+                /* EXCHANGE */
+
                 if (*pSrcT2 != 0) {
-                    /* Exchange the row elements of the input matrix at the right of the pivot */
+                    /* Loop over colums to the right of the pivot */
                     j = 0;
                     while (j < (n - l) - (n - l) % 4) {
                         Xchg1 = *(pSrcT2);
@@ -95,7 +95,7 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
                       *pSrcT1++ = Xchg1;
                       j++;
                     }
-                    /* Exchange the row elements of the destination matrix */
+                    /* Loop over colums */
                     j = 0;
                     while (j < n - n % 4) {
                         Xchg1 = *(pDstT2);
@@ -132,7 +132,6 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
         if ((flag == 0U) && (in == 0)) {
             return 1;
         }
-
 
         /* DIVIDE BY THE PIVOT */
 
@@ -189,10 +188,8 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
             *pSrcT2++ = FIX_DIV(in1, in);
             j++;
         }
-        /* SUM THE MULTIPLE OF A BOTTOM ROW */
-        /* Replace the rows with the sum of that row and a multiple of row i
-         * so that each new element in column i above row i is zero.*/
-        /* Temporary pointers for input and destination matrices */
+
+        /* REPLACE ROWS */
 
         pSrcT1 = pSrc;
         pSrcT2 = pDst;
