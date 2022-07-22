@@ -14,49 +14,49 @@ void mempool_cfft_q16s( uint16_t fftLen,
 
 #ifndef XPULP
 
-static inline void radix4s_butterfly_first(int16_t* pSrc,
-                            int16_t Co1,
-                            int16_t Si1,
-                            int16_t Co2,
-                            int16_t Si2,
-                            int16_t Co3,
-                            int16_t Si3,
-                            uint32_t i0,
-                            uint32_t n2);
+static inline void radix4_butterfly_first(  int16_t* pSrc16,
+                                            uint32_t i0,
+                                            uint32_t n2,
+                                            v2s CoSi1,
+                                            v2s CoSi2,
+                                            v2s CoSi3,
+                                            v2s C1,
+                                            v2s C2,
+                                            v2s C3);
 
-static inline void radix4s_butterfly(  int16_t* pSrc,
-                        int16_t Co1,
-                        int16_t Si1,
-                        int16_t Co2,
-                        int16_t Si2,
-                        int16_t Co3,
-                        int16_t Si3,
-                        uint32_t i0,
-                        uint32_t n2);
+static inline void radix4_butterfly_middle( int16_t* pSrc16,
+                                            int32_t i0,
+                                            uint32_t n2,
+                                            v2s CoSi1,
+                                            v2s CoSi2,
+                                            v2s CoSi3,
+                                            v2s C1,
+                                            v2s C2,
+                                            v2s C3);
 
-static inline void radix4s_butterfly_last( int16_t* pSrc,
-                            uint32_t i0,
-                            uint32_t n2);
+static inline void radix4_butterfly_last( int16_t* pSrc16,
+                                          uint32_t i0,
+                                          uint32_t n2);
 
 #else
 
-static inline void radix4s_butterfly_first(   int16_t* pSrc,
-                                              v2s CoSi1,
-                                              v2s CoSi2,
-                                              v2s CoSi3,
-                                              uint32_t i0,
-                                              uint32_t n2);
+static inline void radix4_butterfly_first(  int16_t* pSrc,
+                                            v2s CoSi1,
+                                            v2s CoSi2,
+                                            v2s CoSi3,
+                                            uint32_t i0,
+                                            uint32_t n2);
 
-static inline void radix4s_butterfly( int16_t* pSrc,
-                                      v2s CoSi1,
-                                      v2s CoSi2,
-                                      v2s CoSi3,
-                                      uint32_t i0,
-                                      uint32_t n2);
+static inline void radix4_butterfly_middle( int16_t* pSrc,
+                                            v2s CoSi1,
+                                            v2s CoSi2,
+                                            v2s CoSi3,
+                                            uint32_t i0,
+                                            uint32_t n2);
 
-static inline void radix4s_butterfly_last(    int16_t* pSrc,
-                                              uint32_t i0,
-                                              uint32_t n2);
+static inline void radix4_butterfly_last( int16_t* pSrc,
+                                          uint32_t i0,
+                                          uint32_t n2);
 
 #endif
 
@@ -88,16 +88,36 @@ void mempool_cfft_q16s( uint16_t fftLen,
         Co3 = pCoef[3U * (i0 * 2U)];
         Si3 = pCoef[(3U * (i0 * 2U)) + 1];
         for(uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
-            radix4s_butterfly_first(  pSrc + idx_fft * 2 * N_BANKS_SINGLE,
+            radix4_butterfly_first(  pSrc + idx_fft * 2 * N_BANKS_SINGLE,
                                       Co1, Si1, Co2, Si2, Co3, Si3, i0, n2);
         }
         #else
         CoSi1 = *(v2s *)&pCoef[2U * i0];
         CoSi2 = *(v2s *)&pCoef[2U * i0 * 2U];
         CoSi3 = *(v2s *)&pCoef[2U * i0 * 3U];
+        asm volatile(
+        "pv.extract.h  %[t1],%[CoSi1],1;"
+        "pv.extract.h  %[t3],%[CoSi2],1;"
+        "pv.extract.h  %[t5],%[CoSi3],1;"
+        "pv.extract.h  %[t0],%[CoSi1],0;"
+        "pv.extract.h  %[t2],%[CoSi2],0;"
+        "pv.extract.h  %[t4],%[CoSi3],0;"
+        "sub           %[t1],zero,%[t1];"
+        "sub           %[t3],zero,%[t3];"
+        "sub           %[t5],zero,%[t5];"
+        "pv.pack.h %[C1],%[t1],%[t0];"
+        "pv.pack.h %[C2],%[t3],%[t2];"
+        "pv.pack.h %[C3],%[t5],%[t4];"
+        : [C1] "=r" (C1), [C2] "=r" (C2), [C3] "=r" (C3),
+          [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
+          [t4] "=&r" (t4), [t5] "=&r" (t5)
+        : [CoSi1] "r" (CoSi1), [CoSi2] "r" (CoSi2), [CoSi3] "r" (CoSi3)
+        : );
         for(uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
-            radix4s_butterfly_first(  pSrc + idx_fft * 2 * N_BANKS_SINGLE,
-                                      CoSi1, CoSi2, CoSi3, i0, n2);
+            radix4_butterfly_first( pSrc + idx_fft * 2 * N_BANKS_SINGLE,
+                                    i0, n2,
+                                    CoSi1, CoSi2, CoSi3,
+                                    C1, C2, C3);
         }
         #endif
 
@@ -121,19 +141,39 @@ void mempool_cfft_q16s( uint16_t fftLen,
             ic = ic + twidCoefModifier;
             for (i0 = j; i0 < fftLen; i0 += n1) {
                 for(uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
-                    radix4s_butterfly(  pSrc + idx_fft * 2 * N_BANKS_SINGLE,
-                                        Co1, Si1, Co2, Si2, Co3, Si3, i0, n2);
+                    radix4_butterfly_middle(  pSrc + idx_fft * 2 * N_BANKS_SINGLE,
+                                              Co1, Si1, Co2, Si2, Co3, Si3, i0, n2);
                 }
             }
             #else
             CoSi1 = *(v2s *)&pCoef[2U * ic];
             CoSi2 = *(v2s *)&pCoef[2U * ic * 2U];
             CoSi3 = *(v2s *)&pCoef[2U * ic * 3U];
+            asm volatile(
+            "pv.extract.h  %[t1],%[CoSi1],1;"
+            "pv.extract.h  %[t3],%[CoSi2],1;"
+            "pv.extract.h  %[t5],%[CoSi3],1;"
+            "pv.extract.h  %[t0],%[CoSi1],0;"
+            "pv.extract.h  %[t2],%[CoSi2],0;"
+            "pv.extract.h  %[t4],%[CoSi3],0;"
+            "sub           %[t1],zero,%[t1];"
+            "sub           %[t3],zero,%[t3];"
+            "sub           %[t5],zero,%[t5];"
+            "pv.pack.h %[C1],%[t1],%[t0];"
+            "pv.pack.h %[C2],%[t3],%[t2];"
+            "pv.pack.h %[C3],%[t5],%[t4];"
+            : [C1] "=r" (C1), [C2] "=r" (C2), [C3] "=r" (C3),
+              [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
+              [t4] "=&r" (t4), [t5] "=&r" (t5)
+            : [CoSi1] "r" (CoSi1), [CoSi2] "r" (CoSi2), [CoSi3] "r" (CoSi3)
+            : );
             ic = ic + twidCoefModifier;
             for (i0 = j; i0 < fftLen; i0 += n1) {
                 for(uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
-                    radix4s_butterfly(  pSrc + idx_fft * 2 * N_BANKS_SINGLE,
-                                        CoSi1, CoSi2, CoSi3, i0, n2);
+                    radix4_butterfly_middle(  pSrc + idx_fft * 2 * N_BANKS_SINGLE,
+                                              i0, n2,
+                                              CoSi1, CoSi2, CoSi3,
+                                              C1, C2, C3);
                 }
             }
             #endif
@@ -147,7 +187,7 @@ void mempool_cfft_q16s( uint16_t fftLen,
     n2 >>= 2U;
     for (i0 = 0U; i0 <= (fftLen - n1); i0 += n1) {
         for(uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
-            radix4s_butterfly_last(  pSrc + idx_fft * 2 * N_BANKS_SINGLE, i0, n2);
+            radix4_butterfly_last(pSrc + idx_fft * 2 * N_BANKS_SINGLE, i0, n2);
         }
     }
 
@@ -173,20 +213,19 @@ void mempool_cfft_q16s( uint16_t fftLen,
         }
     }
 
-
 }
 
 #ifndef XPULP
 
-static inline void radix4s_butterfly_first(   int16_t* pSrc,
-                                int16_t Co1,
-                                int16_t Si1,
-                                int16_t Co2,
-                                int16_t Si2,
-                                int16_t Co3,
-                                int16_t Si3,
-                                uint32_t i0,
-                                uint32_t n2) {
+static inline void radix4_butterfly_first(   int16_t* pSrc,
+                                              int16_t Co1,
+                                              int16_t Si1,
+                                              int16_t Co2,
+                                              int16_t Si2,
+                                              int16_t Co3,
+                                              int16_t Si3,
+                                              uint32_t i0,
+                                              uint32_t n2) {
 
     int16_t R0, R1, S0, S1, T0, T1, U0, U1;
     uint32_t i1, i2, i3;
@@ -282,7 +321,7 @@ static inline void radix4s_butterfly_first(   int16_t* pSrc,
     pSrc[(i3 * 2U) + 1] = out2;
 }
 
-static inline void radix4s_butterfly( int16_t* pSrc,
+static inline void radix4_butterfly_middle( int16_t* pSrc,
                                       int16_t Co1,
                                       int16_t Si1,
                                       int16_t Co2,
@@ -376,7 +415,7 @@ static inline void radix4s_butterfly( int16_t* pSrc,
     pSrc[(i3 * 2U) + 1U] = out2;
 }
 
-static inline void radix4s_butterfly_last(    int16_t* pSrc,
+static inline void radix4_butterfly_last(    int16_t* pSrc,
                                               uint32_t i0,
                                               uint32_t n2) {
 
@@ -446,34 +485,36 @@ static inline void radix4s_butterfly_last(    int16_t* pSrc,
 
 #else
 
-static inline void radix4s_butterfly_first(   int16_t* pSrc,
-                                              v2s CoSi1,
-                                              v2s CoSi2,
-                                              v2s CoSi3,
-                                              uint32_t i0,
-                                              uint32_t n2) {
-
-    v2s A, B, C, D, E, F, G, H;
-    v2s C1, C2, C3;
+static inline void radix4_butterfly_first( int16_t* pIn,
+                                            uint32_t i0,
+                                            uint32_t n2,
+                                            v2s CoSi1,
+                                            v2s CoSi2,
+                                            v2s CoSi3,
+                                            v2s C1,
+                                            v2s C2,
+                                            v2s C3) {
     int16_t t0, t1, t2, t3, t4, t5;
     uint32_t i1, i2, i3;
-    C1 = __PACK2(-CoSi1[1], CoSi1[0]);
-    C2 = __PACK2(-CoSi2[1], CoSi2[0]);
-    C3 = __PACK2(-CoSi3[1], CoSi3[0]);
+    v2s A, B, C, D, E, F, G, H;
 
     /* index calculation for the input as, */
-    /* pSrc[i0 + 0], pSrc[i0 + fftLen/4], pSrc[i0 + fftLen/2], pSrc[i0 + 3fftLen/4] */
+    /* pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
+
+    #ifndef ASM
+    v2s s1 = {1, 1};
+    v2s s2 = {2, 2};
     /* Read yb (real), xb(imag) input */
-    B = __SRA2(*(v2s *)&pSrc[i1 * 2U], ((v2s){ 2, 2 }));
+    B = __SRA2(*(v2s *)&pIn[i1 * 2U], s2);
     /* Read yd (real), xd(imag) input */
-    D = __SRA2(*(v2s *)&pSrc[i3 * 2U], ((v2s){ 2, 2 }));
+    D = __SRA2(*(v2s *)&pIn[i3 * 2U], s2);
     /* Read ya (real), xa (imag) input */
-    A = __SRA2(*(v2s *)&pSrc[i0 * 2U], ((v2s){ 2, 2 }));
+    A = __SRA2(*(v2s *)&pIn[i0 * 2U], s2);
     /* Read yc (real), xc(imag) input */
-    C = __SRA2(*(v2s *)&pSrc[i2 * 2U], ((v2s){ 2, 2 }));
+    C = __SRA2(*(v2s *)&pIn[i2 * 2U], s2);
     /* G0 = (yb + yd), G1 = (xb + xd) */
     G = __ADD2(B, D);
     /* H0 = (yb - yd), H1 = (xb - xd) */
@@ -484,8 +525,8 @@ static inline void radix4s_butterfly_first(   int16_t* pSrc,
     F = __SUB2(A, C);
     t0 = (int16_t) H[0];
     t1 = (int16_t) H[1];
-    A = __SRA2(E, ((v2s){ 1, 1 }));
-    B = __SRA2(G, ((v2s){ 1, 1 }));
+    A = __SRA2(E, s1);
+    B = __SRA2(G, s1);
     /* C0 = (xb - xd), C1 = (yd - yb) */
     C = __PACK2(-t1, t0);
     /* D0 = (xd - xb), D1 = (yb - yd) */
@@ -514,40 +555,105 @@ static inline void radix4s_butterfly_first(   int16_t* pSrc,
     E = __PACK2(t0, t1);
     F = __PACK2(t2, t3);
     G = __PACK2(t4, t5);
-    *((v2s *)&pSrc[i0 * 2U]) = A;
-    *((v2s *)&pSrc[i1 * 2U]) = E;
-    *((v2s *)&pSrc[i2 * 2U]) = F;
-    *((v2s *)&pSrc[i3 * 2U]) = G;
+    *((v2s *)&pIn[i0 * 2U]) = A;
+    *((v2s *)&pIn[i1 * 2U]) = E;
+    *((v2s *)&pIn[i2 * 2U]) = F;
+    *((v2s *)&pIn[i3 * 2U]) = G;
+    #else
+    v2s s1, s2;
+    /* Read yb (real), xb(imag) input */
+    B = *(v2s *)&pIn[i1 * 2U];
+    /* Read yd (real), xd(imag) input */
+    D = *(v2s *)&pIn[i3 * 2U];
+    /* Read ya (real), xa (imag) input */
+    A = *(v2s *)&pIn[i0 * 2U];
+    /* Read yc (real), xc(imag) input */
+    C = *(v2s *)&pIn[i2 * 2U];
+    asm volatile (
+    "addi %[s1], zero, 1;"
+    "slli %[s1], %[s1], 0x10;"
+    "addi %[s1], %[s1], 1;"
+    "addi %[s2], zero, 2;"
+    "slli %[s2], %[s2], 0x10;"
+    "addi %[s2], %[s2], 2;"
+    "pv.sra.h  %[B],%[B],%[s2];"
+    "pv.sra.h  %[D],%[D],%[s2];"
+    "pv.sra.h  %[A],%[A],%[s2];"
+    "pv.sra.h  %[C],%[C],%[s2];"
+    "pv.add.h  %[G],%[B],%[D];"
+    "pv.sub.h  %[H],%[B],%[D];"
+    "pv.add.h  %[E],%[A],%[C];"
+    "pv.sub.h  %[F],%[A],%[C];"
+    "pv.extract.h  %[t0],%[H],0;"
+    "pv.extract.h  %[t1],%[H],1;"
+    "pv.sra.h  %[A],%[E],%[s1];"
+    "pv.sra.h  %[B],%[G],%[s1];"
+    "sub %[t3],zero,%[t1];"
+    "pv.pack.h %[C],%[t3],%[t0];"
+    "sub %[t4],zero,%[t0];"
+    "pv.pack.h %[D],%[t1],%[t4];"
+    "pv.sub.h  %[E],%[E],%[G];"
+    "pv.add.h  %[G],%[F],%[C];"
+    "pv.add.h  %[H],%[F],%[D];"
+    "pv.dotsp.h  %[C],%[CoSi2],%[E];"
+    "pv.dotsp.h  %[D],%[C2],%[E];"
+    "pv.dotsp.h  %[E],%[CoSi1],%[H];"
+    "pv.dotsp.h  %[F],%[C1],%[H];"
+    "srai  %[t0],%[C],0x10;"
+    "srai  %[t1],%[D],0x10;"
+    "pv.dotsp.h  %[C],%[CoSi3],%[G];"
+    "pv.dotsp.h  %[D],%[C3],%[G];"
+    "srai  %[t2],%[E],0x10;"
+    "srai  %[t3],%[F],0x10;"
+    "srai  %[t4],%[C],0x10;"
+    "srai  %[t5],%[D],0x10;"
+    "pv.add.h  %[A],%[A],%[B];"
+    "pv.pack.h %[E],%[t0],%[t1];"
+    "pv.pack.h %[F],%[t2],%[t3];"
+    "pv.pack.h %[G],%[t4],%[t5];"
+    : [A] "+&r" (A), [B] "+&r" (B), [C] "+&r" (C), [D] "+&r" (D),
+      [E] "=&r" (E), [F] "=&r" (F), [G] "=&r" (G), [H] "=&r" (H),
+      [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
+      [t4] "=&r" (t4), [t5] "=&r" (t5), [s1] "=&r" (s1), [s2] "=&r" (s2),
+      [C1] "+r" (C1), [C2] "+r" (C2), [C3] "+r" (C3) :
+      [CoSi1] "r" (CoSi1), [CoSi2] "r" (CoSi2), [CoSi3] "r" (CoSi3)
+    : );
+    *((v2s *)&pIn[i0 * 2U]) = A;
+    *((v2s *)&pIn[i1 * 2U]) = E;
+    *((v2s *)&pIn[i2 * 2U]) = F;
+    *((v2s *)&pIn[i3 * 2U]) = G;
+    #endif
 }
 
-static inline void radix4s_butterfly( int16_t* pSrc,
-                                      v2s CoSi1,
-                                      v2s CoSi2,
-                                      v2s CoSi3,
-                                      uint32_t i0,
-                                      uint32_t n2) {
-    v2s A, B, C, D, E, F, G, H;
-    v2s C1, C2, C3;
+static inline void radix4_butterfly_middle(  int16_t* pIn,
+                                              uint32_t i0,
+                                              uint32_t n2,
+                                              v2s CoSi1,
+                                              v2s CoSi2,
+                                              v2s CoSi3,
+                                              v2s C1,
+                                              v2s C2,
+                                              v2s C3) {
     int16_t t0, t1, t2, t3, t4, t5;
     uint32_t i1, i2, i3;
-    C1 = __PACK2(-CoSi1[1], CoSi1[0]);
-    C2 = __PACK2(-CoSi2[1], CoSi2[0]);
-    C3 = __PACK2(-CoSi3[1], CoSi3[0]);
-
+    v2s A, B, C, D, E, F, G, H;
     /*  index calculation for the input as, */
-    /*  pSrc[i0 + 0], pSrc[i0 + fftLen/4], pSrc[i0 + fftLen/2], pSrc[i0 +
+    /*  pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 +
      * 3fftLen/4] */
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
+
+    #ifndef ASM
+    v2s s1 = {1, 1};
     /* Read yb (real), xb(imag) input */
-    B = *(v2s *)&pSrc[i1 * 2U];
+    B = *(v2s *)&pIn[i1 * 2U];
     /* Read yd (real), xd(imag) input */
-    D = *(v2s *)&pSrc[i3 * 2U];
+    D = *(v2s *)&pIn[i3 * 2U];
     /* Read ya (real), xa(imag) input */
-    A = *(v2s *)&pSrc[i0 * 2U];
+    A = *(v2s *)&pIn[i0 * 2U];
     /* Read yc (real), xc(imag) input */
-    C = *(v2s *)&pSrc[i2 * 2U];
+    C = *(v2s *)&pIn[i2 * 2U];
     /* G0 = (yb + yd), G1 = (xb + xd) */
     G = __ADD2(B, D);
     /* H0 = (yb - yd), H1 = (xb - xd) */
@@ -556,10 +662,10 @@ static inline void radix4s_butterfly( int16_t* pSrc,
     E = __ADD2(A, C);
     /* F0 = (ya - yc), F1 =(xa - xc) */
     F = __SUB2(A, C);
-    G = __SRA2(G, ((v2s){ 1, 1 }));
-    H = __SRA2(H, ((v2s){ 1, 1 }));
-    E = __SRA2(E, ((v2s){ 1, 1 }));
-    F = __SRA2(F, ((v2s){ 1, 1 }));
+    G = __SRA2(G, s1);
+    H = __SRA2(H, s1);
+    E = __SRA2(E, s1);
+    F = __SRA2(F, s1);
     t0 = (int16_t) H[0];
     t1 = (int16_t) H[1];
     /* C0 = (ya+yc) - (yb+yd), C1 = (xa+xc) - (xb+xd) */
@@ -572,7 +678,7 @@ static inline void radix4s_butterfly( int16_t* pSrc,
     B = __PACK2(-t1, t0);
     /* xa' = xa + xb + xc + xd */
     /* ya' = ya + yb + yc + yd */
-    *((v2s *)&pSrc[i0 * 2U]) = __SRA2(D, ((v2s){ 1, 1 }));
+    *((v2s *)&pIn[i0 * 2U]) = __SRA2(D, s1);
     /* E1 = (ya-yc) + (xb-xd),  E0 = (xa-xc) - (yb-yd)) */
     E = __ADD2(F, A);
     /* F1 = (ya-yc) - (xb-xd), F0 = (xa-xc) + (yb-yd)) */
@@ -592,31 +698,94 @@ static inline void radix4s_butterfly( int16_t* pSrc,
     A = __PACK2(t0, t1);
     B = __PACK2(t2, t3);
     C = __PACK2(t4, t5);
-    *((v2s *)&pSrc[i1 * 2U]) = A;
-    *((v2s *)&pSrc[i2 * 2U]) = B;
-    *((v2s *)&pSrc[i3 * 2U]) = C;
+    *((v2s *)&pIn[i1 * 2U]) = A;
+    *((v2s *)&pIn[i2 * 2U]) = B;
+    *((v2s *)&pIn[i3 * 2U]) = C;
+    #else
+    v2s s1;
+    /* Read yb (real), xb(imag) input */
+    B = *(v2s *)&pIn[i1 * 2U];
+    /* Read yd (real), xd(imag) input */
+    D = *(v2s *)&pIn[i3 * 2U];
+    /* Read ya (real), xa(imag) input */
+    A = *(v2s *)&pIn[i0 * 2U];
+    /* Read yc (real), xc(imag) input */
+    C = *(v2s *)&pIn[i2 * 2U];
+    asm volatile (
+    "pv.add.h  %[G],%[B],%[D];"
+    "pv.sub.h  %[H],%[B],%[D];"
+    "pv.add.h  %[E],%[A],%[C];"
+    "pv.sub.h  %[F],%[A],%[C];"
+    "addi %[s1], zero, 0x01;"
+    "slli %[s1], %[s1], 0x10;"
+    "addi %[s1], %[s1], 0x01;"
+    "pv.sra.h  %[G],%[G],%[s1];"
+    "pv.sra.h  %[H],%[H],%[s1];"
+    "pv.sra.h  %[E],%[E],%[s1];"
+    "pv.sra.h  %[F],%[F],%[s1];"
+    "pv.extract.h  %[t0],%[H],0;"
+    "pv.extract.h  %[t1],%[H],1;"
+    "pv.sub.h  %[C],%[E],%[G];"
+    "pv.add.h  %[D],%[E],%[G];"
+    "sub %[t3],zero,%[t0];"
+    "pv.pack.h %[A],%[t1],%[t3];"
+    "sub %[t4],zero,%[t1];"
+    "pv.pack.h %[B],%[t4],%[t0];"
+    "pv.sra.h  %[D],%[D],%[s1];"
+    "pv.add.h  %[E],%[F],%[A];"
+    "pv.add.h  %[F],%[F],%[B];"
+    "pv.dotsp.h  %[G],%[CoSi2],%[C];"
+    "pv.dotsp.h  %[H],%[C2],%[C];"
+    "pv.dotsp.h  %[A],%[CoSi1],%[F];"
+    "pv.dotsp.h  %[B],%[C1],%[F];"
+    "srai  %[t0],%[G],0x10;"
+    "srai  %[t1],%[H],0x10;"
+    "pv.dotsp.h  %[G],%[CoSi3],%[E];"
+    "pv.dotsp.h  %[H],%[C3],%[E];"
+    "srai  %[t2],%[A],0x10;"
+    "srai  %[t3],%[B],0x10;"
+    "srai  %[t4],%[G],0x10;"
+    "srai  %[t5],%[H],0x10;"
+    "pv.pack.h %[A],%[t0],%[t1];"
+    "pv.pack.h %[B],%[t2],%[t3];"
+    "pv.pack.h %[C],%[t4],%[t5];"
+    : [A] "+&r" (A), [B] "+&r" (B), [C] "+&r" (C), [D] "+&r" (D),
+      [E] "=&r" (E), [F] "=&r" (F), [G] "=&r" (G), [H] "=&r" (H),
+      [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
+      [t4] "=&r" (t4), [t5] "=&r" (t5), [s1] "=&r" (s1),
+      [C1] "+r" (C1), [C2] "+r" (C2), [C3] "+r" (C3) :
+      [CoSi1] "r" (CoSi1), [CoSi2] "r" (CoSi2), [CoSi3] "r" (CoSi3)
+    : );
+    *((v2s *)&pIn[i0 * 2U]) = D;
+    *((v2s *)&pIn[i1 * 2U]) = A;
+    *((v2s *)&pIn[i2 * 2U]) = B;
+    *((v2s *)&pIn[i3 * 2U]) = C;
+    #endif
 }
 
-static inline void radix4s_butterfly_last(    int16_t* pSrc,
+static inline void radix4_butterfly_last(    int16_t* pSrc,
                                               uint32_t i0,
                                               uint32_t n2) {
-    v2s A, B, C, D, E, F, G, H;
-    uint32_t i1, i2, i3;
     int16_t t0, t1;
+    uint32_t i1, i2, i3;
+    v2s A, B, C, D, E, F, G, H;
 
     /*  index calculation for the input as, */
-    /*  pSrc[i0 + 0], pSrc[i0 + fftLen/4], pSrc[i0 + fftLen/2], pSrc[i0 + 3fftLen/4] */
+    /*  pIn[i0 + 0], pIn[i0 + fftLen/4],
+        pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
+    #ifndef ASM
+    v2s s1 = {1, 1};
     /* Read yb (real), xb(imag) input */
-    B = *(v2s *)&pSrc[i1 * 2U];
+    B = *(v2s *)&pIn[i1 * 2U];
     /* Read yd (real), xd(imag) input */
-    D = *(v2s *)&pSrc[i3 * 2U];
+    D = *(v2s *)&pIn[i3 * 2U];
     /* Read ya (real), xa(imag) input */
-    A = *(v2s *)&pSrc[i0 * 2U];
+    A = *(v2s *)&pIn[i0 * 2U];
     /* Read yc (real), xc(imag) input */
-    C = *(v2s *)&pSrc[i2 * 2U];
+    C = *(v2s *)&pIn[i2 * 2U];
     /* H0 = (yb-yd), H1 = (xb-xd) */
     H = __SUB2(B, D);
     /* G0 = (yb+yd), G1 = (xb+xd) */
@@ -625,15 +794,15 @@ static inline void radix4s_butterfly_last(    int16_t* pSrc,
     E = __ADD2(A, C);
     /* F0 = (ya-yc), F1 = (xa-xc) */
     F = __SUB2(A, C);
-    H = __SRA2(H, ((v2s){ 1, 1 }));
-    G = __SRA2(G, ((v2s){ 1, 1 }));
-    E = __SRA2(E, ((v2s){ 1, 1 }));
+    H = __SRA2(H, s1);
+    G = __SRA2(G, s1);
+    E = __SRA2(E, s1);
     t0 = (int16_t) H[0];
     t1 = (int16_t) H[1];
-    F = __SRA2(F, ((v2s){ 1, 1 }));
+    F = __SRA2(F, s1);
     /* xa' = (xa+xb+xc+xd) */
     /* ya' = (ya+yb+yc+yd) */
-    *((v2s *)&pSrc[i0 * 2U]) = __ADD2(E, G);
+    *((v2s *)&pIn[i0 * 2U]) = __ADD2(E, G);
     /* A0 = (xb-xd), A1 = (yd-yb) */
     A = __PACK2(t1, -t0);
     /* B0 = (xd-xb), B1 = (yb-yd) */
@@ -647,9 +816,51 @@ static inline void radix4s_butterfly_last(    int16_t* pSrc,
     /* xd' = (xa-yb-xc+yd) */
     /* yd' = (ya+xb-yc-xd) */
     B = __ADD2(F, B);
-    *((v2s *)&pSrc[i1 * 2U]) = E;
-    *((v2s *)&pSrc[i2 * 2U]) = A;
-    *((v2s *)&pSrc[i3 * 2U]) = B;
+    *((v2s *)&pIn[i1 * 2U]) = E;
+    *((v2s *)&pIn[i2 * 2U]) = A;
+    *((v2s *)&pIn[i3 * 2U]) = B;
+    #else
+    /* Read yb (real), xb(imag) input */
+    B = *(v2s *)&pIn[i1 * 2U];
+    /* Read yd (real), xd(imag) input */
+    D = *(v2s *)&pIn[i3 * 2U];
+    /* Read ya (real), xa(imag) input */
+    A = *(v2s *)&pIn[i0 * 2U];
+    /* Read yc (real), xc(imag) input */
+    C = *(v2s *)&pIn[i2 * 2U];
+    int16_t t2, t3;
+    v2s s1;
+    asm volatile (
+    "pv.sub.h  %[H],%[B],%[D];"
+    "pv.add.h  %[G],%[B],%[D];"
+    "pv.add.h  %[E],%[A],%[C];"
+    "pv.sub.h  %[F],%[A],%[C];"
+    "addi %[s1], zero, 1;"
+    "slli %[s1], %[s1], 0x10;"
+    "addi %[s1], %[s1], 1;"
+    "pv.sra.h  %[H],%[H],%[s1];"
+    "pv.sra.h  %[G],%[G],%[s1];"
+    "pv.sra.h  %[E],%[E],%[s1];"
+    "pv.extract.h  %[t0],%[H],0;"
+    "pv.extract.h  %[t1],%[H],1;"
+    "pv.sra.h  %[F],%[F],%[s1];"
+    "sub %[t2], zero, %[t0];"
+    "pv.pack.h %[A],%[t1],%[t2];"
+    "sub %[t3],zero,%[t1];"
+    "pv.pack.h %[B],%[t3],%[t0];"
+    "pv.add.h  %[H],%[E],%[G];"
+    "pv.sub.h  %[E],%[E],%[G];"
+    "pv.add.h  %[A],%[F],%[A];"
+    "pv.add.h  %[B],%[F],%[B];"
+    : [A] "+&r" (A), [B] "+&r" (B), [C] "+&r" (C), [D] "+&r" (D),
+      [E] "=&r" (E), [F] "=&r" (F), [G] "=&r" (G), [H] "=&r" (H),
+      [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3), [s1] "=&r" (s1)
+    : : );
+    *((v2s *)&pIn[i0 * 2U]) = H;
+    *((v2s *)&pIn[i1 * 2U]) = E;
+    *((v2s *)&pIn[i2 * 2U]) = A;
+    *((v2s *)&pIn[i3 * 2U]) = B;
+    #endif
 }
 
 #endif

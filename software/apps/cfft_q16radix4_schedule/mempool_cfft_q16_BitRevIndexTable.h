@@ -4,14 +4,10 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#define BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH ((uint16_t)56)
-#define BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH ((uint16_t)240)
-#define BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH ((uint16_t)992)
-#define BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH ((uint16_t)4032)
-
 #if (N_CSAMPLES == 64)
 
-uint16_t BitRevIndexTable_fixed_64[BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH] = {
+#define BITREVINDEXTABLE_FIXED_TABLE_LENGTH ((uint16_t)56)
+uint16_t BitRevIndexTable_fixed[BITREVINDEXTABLE_FIXED_TABLE_LENGTH] = {
     /* radix 4, size 56 */
     8,   256, 16,  128, 24,  384, 32,  64,  40,  320, 48,  192, 56,  448, 72,  288, 80,  160, 88,
     416, 104, 352, 112, 224, 120, 480, 136, 272, 152, 400, 168, 336, 176, 208, 184, 464, 200, 304,
@@ -20,7 +16,8 @@ uint16_t BitRevIndexTable_fixed_64[BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH] = {
 
 #elif (N_CSAMPLES == 256)
 
-uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] = {
+#define BITREVINDEXTABLE_FIXED_TABLE_LENGTH ((uint16_t)240)
+uint16_t BitRevIndexTable_fixed[BITREVINDEXTABLE_FIXED_TABLE_LENGTH] = {
     /* radix 4, size 240 */
     8,    1024, 16,   512,  24,   1536, 32,   256,  40,   1280, 48,   768,  56,   1792, 64,   128,
     72,   1152, 80,   640,  88,   1664, 96,   384,  104,  1408, 112,  896,  120,  1920, 136,  1088,
@@ -41,7 +38,8 @@ uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] = {
 
 #elif (N_CSAMPLES == 1024)
 
-uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] = {
+#define BITREVINDEXTABLE_FIXED_TABLE_LENGTH ((uint16_t)992)
+uint16_t BitRevIndexTable_fixed[BITREVINDEXTABLE_FIXED_TABLE_LENGTH] = {
     /* radix 4, size 992 */
     8,    4096, 16,   2048, 24,   6144, 32,   1024, 40,   5120, 48,   3072, 56,   7168, 64,   512,
     72,   4608, 80,   2560, 88,   6656, 96,   1536, 104,  5632, 112,  3584, 120,  7680, 128,  256,
@@ -109,7 +107,8 @@ uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] =
 
 #elif (N_CSAMPLES == 4096)
 
-uint16_t BitRevIndexTable_fixed_4096[BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH] = {
+#define BITREVINDEXTABLE_FIXED_TABLE_LENGTH ((uint16_t)4032)
+uint16_t BitRevIndexTable_fixed[BITREVINDEXTABLE_FIXED_TABLE_LENGTH] = {
     /* radix 4, size 4032 */
     8,     16384, 16,    8192,  24,    24576, 32,    4096,  40,    20480, 48,    12288, 56,
     28672, 64,    2048,  72,    18432, 80,    10240, 88,    26624, 96,    6144,  104,   22528,

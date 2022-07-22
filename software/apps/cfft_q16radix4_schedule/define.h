@@ -5,23 +5,27 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 /* DEFINES */
-#define N_CSAMPLES 1024
+#define N_CSAMPLES 64
 #define N_RSAMPLES (2*N_CSAMPLES)
 #define N_BANKS (1024)
 
-//#define SINGLE
-//#define XPULP
+// #define SINGLE
+// #define XPULP
+
 #define PARALLEL
+#define TEST_64
 #define BIT_REV 1
 
+#define ASM
+
 #if defined(SINGLE)
-  // #define N_FFTs 8
+  #define N_FFTs 1
   #define N_BANKS_SINGLE (N_BANKS * ((N_CSAMPLES + N_BANKS - 1) / N_BANKS))
   int16_t pSrc16[N_FFTs * 2 * N_BANKS_SINGLE] __attribute__((aligned(N_FFTs * 2 * N_BANKS_SINGLE), section(".l1")));
 #endif
 
 #if defined(PARALLEL)
-  //#define N_FFTs_ROW 1
+  #define N_FFTs_ROW 4
   #define N_FFTs_COL 1
   #define MAX_COL (1024 / (N_CSAMPLES / 4))
   int16_t pSrc16[N_FFTs_ROW * 8 * N_BANKS] __attribute__((aligned(N_FFTs_ROW * 8 * N_BANKS), section(".l1")));
