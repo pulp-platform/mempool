@@ -35,10 +35,10 @@ void initialize_vector_s( int16_t *pSrc,
                           uint32_t fftLen)
 {
   int lower = SHRT_MIN, upper = SHRT_MAX;
-  for (uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
+  for (int32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
 
-    for (uint32_t i = 0; i < 2 * N_BANKS_SINGLE; i++) {
-      if (i < 2 * fftLen) {
+    for (int32_t i = 0; i < 2 * N_BANKS_SINGLE; i++) {
+      if (i < (int32_t) (2 * fftLen)) {
         pSrc[i + idx_fft * 2 * N_BANKS_SINGLE] = (int16_t)(i % (upper - lower + 1));
       } else {
         pSrc[i + idx_fft * 2 * N_BANKS_SINGLE] = 0;
@@ -171,6 +171,7 @@ int main() {
                               BIT_REV,
                               N_CSAMPLES >> 4U);
   mempool_stop_benchmark();
+  }
   #endif
   #if (N_CSAMPLES == 256)
   if (core_id < N_FFTs_COL * (N_CSAMPLES >> 4U)) {
@@ -200,6 +201,7 @@ int main() {
                               BIT_REV,
                               N_CSAMPLES >> 4U);
   mempool_stop_benchmark();
+  }
   #endif
   #if (N_CSAMPLES == 4096)
   mempool_start_benchmark();

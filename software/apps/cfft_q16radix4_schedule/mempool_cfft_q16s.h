@@ -173,20 +173,19 @@ void mempool_cfft_q16s( uint16_t fftLen,
         }
     }
 
-
 }
 
 #ifndef XPULP
 
 static inline void radix4s_butterfly_first(   int16_t* pSrc,
-                                int16_t Co1,
-                                int16_t Si1,
-                                int16_t Co2,
-                                int16_t Si2,
-                                int16_t Co3,
-                                int16_t Si3,
-                                uint32_t i0,
-                                uint32_t n2) {
+                                              int16_t Co1,
+                                              int16_t Si1,
+                                              int16_t Co2,
+                                              int16_t Si2,
+                                              int16_t Co3,
+                                              int16_t Si3,
+                                              uint32_t i0,
+                                              uint32_t n2) {
 
     int16_t R0, R1, S0, S1, T0, T1, U0, U1;
     uint32_t i1, i2, i3;
@@ -466,58 +465,108 @@ static inline void radix4s_butterfly_first(   int16_t* pSrc,
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
+    ///* Read yb (real), xb(imag) input */
+    //B = __SRA2(*(v2s *)&pSrc[i1 * 2U], ((v2s){ 2, 2 }));
+    ///* Read yd (real), xd(imag) input */
+    //D = __SRA2(*(v2s *)&pSrc[i3 * 2U], ((v2s){ 2, 2 }));
+    ///* Read ya (real), xa (imag) input */
+    //A = __SRA2(*(v2s *)&pSrc[i0 * 2U], ((v2s){ 2, 2 }));
+    ///* Read yc (real), xc(imag) input */
+    //C = __SRA2(*(v2s *)&pSrc[i2 * 2U], ((v2s){ 2, 2 }));
+    ///* G0 = (yb + yd), G1 = (xb + xd) */
+    //G = __ADD2(B, D);
+    ///* H0 = (yb - yd), H1 = (xb - xd) */
+    //H = __SUB2(B, D);
+    ///* E0 = (ya + yc), E1 = (xa + xc) */
+    //E = __ADD2(A, C);
+    ///* F0 = (ya - yc), F1 = (xa - xc) */
+    //F = __SUB2(A, C);
+    //t0 = (int16_t) H[0];
+    //t1 = (int16_t) H[1];
+    //A = __SRA2(E, ((v2s){ 1, 1 }));
+    //B = __SRA2(G, ((v2s){ 1, 1 }));
+    ///* C0 = (xb - xd), C1 = (yd - yb) */
+    //C = __PACK2(-t1, t0);
+    ///* D0 = (xd - xb), D1 = (yb - yd) */
+    //D = __PACK2(t1, -t0);
+    ///* E0 = (ya+yc) - (yb+yd), E1 = (xa+xc) - (xb+xd) */
+    //E = __SUB2(E, G);
+    ///* G1 = (ya-yc) + (xb-xd), G0 = (xa-xc) - (yb-yd) */
+    //G = __ADD2(F, C);
+    ///* H1 = (ya-yc) - (xb-xd), H0 = (xa-xc) + (yb-yd) */
+    //H = __ADD2(F, D);
+    ///* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
+    ///* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
+    //t0 = (int16_t)(__DOTP2(CoSi2, E) >> 16U);
+    //t1 = (int16_t)(__DOTP2(C2, E) >> 16U);
+    ///* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
+    ///* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
+    //t2 = (int16_t)(__DOTP2(CoSi1, H) >> 16U);
+    //t3 = (int16_t)(__DOTP2(C1, H) >> 16U);
+    ///* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
+    ///* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
+    //t4 = (int16_t)(__DOTP2(CoSi3, G) >> 16U);
+    //t5 = (int16_t)(__DOTP2(C3, G) >> 16U);
+    ///* ya' = ya + yb + yc + yd */
+    ///* xa' = xa + xb + xc + xd */
+    //A = __ADD2(A, B);
+    //E = __PACK2(t0, t1);
+    //F = __PACK2(t2, t3);
+    //G = __PACK2(t4, t5);
+    //*((v2s *)&pSrc[i0 * 2U]) = A;
+    //*((v2s *)&pSrc[i1 * 2U]) = E;
+    //*((v2s *)&pSrc[i2 * 2U]) = F;
+    //*((v2s *)&pSrc[i3 * 2U]) = G;
+
     /* Read yb (real), xb(imag) input */
-    B = __SRA2(*(v2s *)&pSrc[i1 * 2U], ((v2s){ 2, 2 }));
+    B = *(v2s *)&pSrc16[i1 * 2U];
     /* Read yd (real), xd(imag) input */
-    D = __SRA2(*(v2s *)&pSrc[i3 * 2U], ((v2s){ 2, 2 }));
+    D = *(v2s *)&pSrc16[i3 * 2U];
     /* Read ya (real), xa (imag) input */
-    A = __SRA2(*(v2s *)&pSrc[i0 * 2U], ((v2s){ 2, 2 }));
+    A = *(v2s *)&pSrc16[i0 * 2U];
     /* Read yc (real), xc(imag) input */
-    C = __SRA2(*(v2s *)&pSrc[i2 * 2U], ((v2s){ 2, 2 }));
-    /* G0 = (yb + yd), G1 = (xb + xd) */
-    G = __ADD2(B, D);
-    /* H0 = (yb - yd), H1 = (xb - xd) */
-    H = __SUB2(B, D);
-    /* E0 = (ya + yc), E1 = (xa + xc) */
-    E = __ADD2(A, C);
-    /* F0 = (ya - yc), F1 = (xa - xc) */
-    F = __SUB2(A, C);
-    t0 = (int16_t) H[0];
-    t1 = (int16_t) H[1];
-    A = __SRA2(E, ((v2s){ 1, 1 }));
-    B = __SRA2(G, ((v2s){ 1, 1 }));
-    /* C0 = (xb - xd), C1 = (yd - yb) */
-    C = __PACK2(-t1, t0);
-    /* D0 = (xd - xb), D1 = (yb - yd) */
-    D = __PACK2(t1, -t0);
-    /* E0 = (ya+yc) - (yb+yd), E1 = (xa+xc) - (xb+xd) */
-    E = __SUB2(E, G);
-    /* G1 = (ya-yc) + (xb-xd), G0 = (xa-xc) - (yb-yd) */
-    G = __ADD2(F, C);
-    /* H1 = (ya-yc) - (xb-xd), H0 = (xa-xc) + (yb-yd) */
-    H = __ADD2(F, D);
-    /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
-    /* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
-    t0 = (int16_t)(__DOTP2(CoSi2, E) >> 16U);
-    t1 = (int16_t)(__DOTP2(C2, E) >> 16U);
-    /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
-    /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
-    t2 = (int16_t)(__DOTP2(CoSi1, H) >> 16U);
-    t3 = (int16_t)(__DOTP2(C1, H) >> 16U);
-    /* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
-    /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
-    t4 = (int16_t)(__DOTP2(CoSi3, G) >> 16U);
-    t5 = (int16_t)(__DOTP2(C3, G) >> 16U);
-    /* ya' = ya + yb + yc + yd */
-    /* xa' = xa + xb + xc + xd */
-    A = __ADD2(A, B);
-    E = __PACK2(t0, t1);
-    F = __PACK2(t2, t3);
-    G = __PACK2(t4, t5);
-    *((v2s *)&pSrc[i0 * 2U]) = A;
-    *((v2s *)&pSrc[i1 * 2U]) = E;
-    *((v2s *)&pSrc[i2 * 2U]) = F;
-    *((v2s *)&pSrc[i3 * 2U]) = G;
+    C = *(v2s *)&pSrc16[i2 * 2U];
+    asm volatile (
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+    );
+    *((v2s *)&pSrc16[i0 * 2U]) = B;
+    *((v2s *)&pSrc16[i1 * 2U]) = D;
+    *((v2s *)&pSrc16[i2 * 2U]) = A;
+    *((v2s *)&pSrc16[i3 * 2U]) = C;
 }
 
 static inline void radix4s_butterfly( int16_t* pSrc,
@@ -540,61 +589,109 @@ static inline void radix4s_butterfly( int16_t* pSrc,
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
+    ///* Read yb (real), xb(imag) input */
+    //B = *(v2s *)&pSrc[i1 * 2U];
+    ///* Read yd (real), xd(imag) input */
+    //D = *(v2s *)&pSrc[i3 * 2U];
+    ///* Read ya (real), xa(imag) input */
+    //A = *(v2s *)&pSrc[i0 * 2U];
+    ///* Read yc (real), xc(imag) input */
+    //C = *(v2s *)&pSrc[i2 * 2U];
+    ///* G0 = (yb + yd), G1 = (xb + xd) */
+    //G = __ADD2(B, D);
+    ///* H0 = (yb - yd), H1 = (xb - xd) */
+    //H = __SUB2(B, D);
+    ///* E0 = (ya + yc), E1 = (xa + xc) */
+    //E = __ADD2(A, C);
+    ///* F0 = (ya - yc), F1 =(xa - xc) */
+    //F = __SUB2(A, C);
+    //G = __SRA2(G, ((v2s){ 1, 1 }));
+    //H = __SRA2(H, ((v2s){ 1, 1 }));
+    //E = __SRA2(E, ((v2s){ 1, 1 }));
+    //F = __SRA2(F, ((v2s){ 1, 1 }));
+    //t0 = (int16_t) H[0];
+    //t1 = (int16_t) H[1];
+    ///* C0 = (ya+yc) - (yb+yd), C1 = (xa+xc) - (xb+xd) */
+    //C = __SUB2(E, G);
+    ///* D0 = (ya+yc) + (yb+yd), D1 = (xa+xc) + (xb+xd) */
+    //D = __ADD2(E, G);
+    ///* A0 = (xb-xd), A1 = (yd-yb) */
+    //A = __PACK2(t1, -t0);
+    ///* B0 = (xd-xb), B1 = (yb-yd) */
+    //B = __PACK2(-t1, t0);
+    ///* xa' = xa + xb + xc + xd */
+    ///* ya' = ya + yb + yc + yd */
+    //*((v2s *)&pSrc[i0 * 2U]) = __SRA2(D, ((v2s){ 1, 1 }));
+    ///* E1 = (ya-yc) + (xb-xd),  E0 = (xa-xc) - (yb-yd)) */
+    //E = __ADD2(F, A);
+    ///* F1 = (ya-yc) - (xb-xd), F0 = (xa-xc) + (yb-yd)) */
+    //F = __ADD2(F, B);
+    ///* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
+    ///* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
+    //t0 = (int16_t)(__DOTP2(CoSi2, C) >> 16U);
+    //t1 = (int16_t)(__DOTP2(C2, C) >> 16U);
+    ///* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
+    ///* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
+    //t2 = (int16_t)(__DOTP2(CoSi1, F) >> 16U);
+    //t3 = (int16_t)(__DOTP2(C1, F) >> 16U);
+    ///* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
+    ///* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
+    //t4 = (int16_t)(__DOTP2(CoSi3, E) >> 16U);
+    //t5 = (int16_t)(__DOTP2(C3, E) >> 16U);
+    //A = __PACK2(t0, t1);
+    //B = __PACK2(t2, t3);
+    //C = __PACK2(t4, t5);
+    //*((v2s *)&pSrc[i1 * 2U]) = A;
+    //*((v2s *)&pSrc[i2 * 2U]) = B;
+    //*((v2s *)&pSrc[i3 * 2U]) = C;
+
     /* Read yb (real), xb(imag) input */
-    B = *(v2s *)&pSrc[i1 * 2U];
+    B = *(v2s *)&pSrc16[i1 * 2U];
     /* Read yd (real), xd(imag) input */
-    D = *(v2s *)&pSrc[i3 * 2U];
-    /* Read ya (real), xa(imag) input */
-    A = *(v2s *)&pSrc[i0 * 2U];
+    D = *(v2s *)&pSrc16[i3 * 2U];
+    /* Read ya (real), xa (imag) input */
+    A = *(v2s *)&pSrc16[i0 * 2U];
     /* Read yc (real), xc(imag) input */
-    C = *(v2s *)&pSrc[i2 * 2U];
-    /* G0 = (yb + yd), G1 = (xb + xd) */
-    G = __ADD2(B, D);
-    /* H0 = (yb - yd), H1 = (xb - xd) */
-    H = __SUB2(B, D);
-    /* E0 = (ya + yc), E1 = (xa + xc) */
-    E = __ADD2(A, C);
-    /* F0 = (ya - yc), F1 =(xa - xc) */
-    F = __SUB2(A, C);
-    G = __SRA2(G, ((v2s){ 1, 1 }));
-    H = __SRA2(H, ((v2s){ 1, 1 }));
-    E = __SRA2(E, ((v2s){ 1, 1 }));
-    F = __SRA2(F, ((v2s){ 1, 1 }));
-    t0 = (int16_t) H[0];
-    t1 = (int16_t) H[1];
-    /* C0 = (ya+yc) - (yb+yd), C1 = (xa+xc) - (xb+xd) */
-    C = __SUB2(E, G);
-    /* D0 = (ya+yc) + (yb+yd), D1 = (xa+xc) + (xb+xd) */
-    D = __ADD2(E, G);
-    /* A0 = (xb-xd), A1 = (yd-yb) */
-    A = __PACK2(t1, -t0);
-    /* B0 = (xd-xb), B1 = (yb-yd) */
-    B = __PACK2(-t1, t0);
-    /* xa' = xa + xb + xc + xd */
-    /* ya' = ya + yb + yc + yd */
-    *((v2s *)&pSrc[i0 * 2U]) = __SRA2(D, ((v2s){ 1, 1 }));
-    /* E1 = (ya-yc) + (xb-xd),  E0 = (xa-xc) - (yb-yd)) */
-    E = __ADD2(F, A);
-    /* F1 = (ya-yc) - (xb-xd), F0 = (xa-xc) + (yb-yd)) */
-    F = __ADD2(F, B);
-    /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
-    /* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
-    t0 = (int16_t)(__DOTP2(CoSi2, C) >> 16U);
-    t1 = (int16_t)(__DOTP2(C2, C) >> 16U);
-    /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
-    /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
-    t2 = (int16_t)(__DOTP2(CoSi1, F) >> 16U);
-    t3 = (int16_t)(__DOTP2(C1, F) >> 16U);
-    /* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
-    /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
-    t4 = (int16_t)(__DOTP2(CoSi3, E) >> 16U);
-    t5 = (int16_t)(__DOTP2(C3, E) >> 16U);
-    A = __PACK2(t0, t1);
-    B = __PACK2(t2, t3);
-    C = __PACK2(t4, t5);
-    *((v2s *)&pSrc[i1 * 2U]) = A;
-    *((v2s *)&pSrc[i2 * 2U]) = B;
-    *((v2s *)&pSrc[i3 * 2U]) = C;
+    C = *(v2s *)&pSrc16[i2 * 2U];
+    asm volatile (
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+    );
+    *((v2s *)&pSrc16[i0 * 2U]) = B;
+    *((v2s *)&pSrc16[i1 * 2U]) = D;
+    *((v2s *)&pSrc16[i2 * 2U]) = A;
+    *((v2s *)&pSrc16[i3 * 2U]) = C;
 }
 
 static inline void radix4s_butterfly_last(    int16_t* pSrc,
@@ -609,47 +706,80 @@ static inline void radix4s_butterfly_last(    int16_t* pSrc,
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
+    ///* Read yb (real), xb(imag) input */
+    //B = *(v2s *)&pSrc[i1 * 2U];
+    ///* Read yd (real), xd(imag) input */
+    //D = *(v2s *)&pSrc[i3 * 2U];
+    ///* Read ya (real), xa(imag) input */
+    //A = *(v2s *)&pSrc[i0 * 2U];
+    ///* Read yc (real), xc(imag) input */
+    //C = *(v2s *)&pSrc[i2 * 2U];
+    ///* H0 = (yb-yd), H1 = (xb-xd) */
+    //H = __SUB2(B, D);
+    ///* G0 = (yb+yd), G1 = (xb+xd) */
+    //G = __ADD2(B, D);
+    ///* E0 = (ya+yc), E1 = (xa+xc) */
+    //E = __ADD2(A, C);
+    ///* F0 = (ya-yc), F1 = (xa-xc) */
+    //F = __SUB2(A, C);
+    //H = __SRA2(H, ((v2s){ 1, 1 }));
+    //G = __SRA2(G, ((v2s){ 1, 1 }));
+    //E = __SRA2(E, ((v2s){ 1, 1 }));
+    //t0 = (int16_t) H[0];
+    //t1 = (int16_t) H[1];
+    //F = __SRA2(F, ((v2s){ 1, 1 }));
+    ///* xa' = (xa+xb+xc+xd) */
+    ///* ya' = (ya+yb+yc+yd) */
+    //*((v2s *)&pSrc[i0 * 2U]) = __ADD2(E, G);
+    ///* A0 = (xb-xd), A1 = (yd-yb) */
+    //A = __PACK2(t1, -t0);
+    ///* B0 = (xd-xb), B1 = (yb-yd) */
+    //B = __PACK2(-t1, t0);
+    ///* xc' = (xa-xb+xc-xd) */
+    ///* yc' = (ya-yb+yc-yd) */
+    //E = __SUB2(E, G);
+    ///* xb' = (xa+yb-xc-yd) */
+    ///* yb' = (ya-xb-yc+xd) */
+    //A = __ADD2(F, A);
+    ///* xd' = (xa-yb-xc+yd) */
+    ///* yd' = (ya+xb-yc-xd) */
+    //B = __ADD2(F, B);
+    //*((v2s *)&pSrc[i1 * 2U]) = E;
+    //*((v2s *)&pSrc[i2 * 2U]) = A;
+    //*((v2s *)&pSrc[i3 * 2U]) = B;
+
     /* Read yb (real), xb(imag) input */
-    B = *(v2s *)&pSrc[i1 * 2U];
+    B = *(v2s *)&pSrc16[i1 * 2U];
     /* Read yd (real), xd(imag) input */
-    D = *(v2s *)&pSrc[i3 * 2U];
-    /* Read ya (real), xa(imag) input */
-    A = *(v2s *)&pSrc[i0 * 2U];
+    D = *(v2s *)&pSrc16[i3 * 2U];
+    /* Read ya (real), xa (imag) input */
+    A = *(v2s *)&pSrc16[i0 * 2U];
     /* Read yc (real), xc(imag) input */
-    C = *(v2s *)&pSrc[i2 * 2U];
-    /* H0 = (yb-yd), H1 = (xb-xd) */
-    H = __SUB2(B, D);
-    /* G0 = (yb+yd), G1 = (xb+xd) */
-    G = __ADD2(B, D);
-    /* E0 = (ya+yc), E1 = (xa+xc) */
-    E = __ADD2(A, C);
-    /* F0 = (ya-yc), F1 = (xa-xc) */
-    F = __SUB2(A, C);
-    H = __SRA2(H, ((v2s){ 1, 1 }));
-    G = __SRA2(G, ((v2s){ 1, 1 }));
-    E = __SRA2(E, ((v2s){ 1, 1 }));
-    t0 = (int16_t) H[0];
-    t1 = (int16_t) H[1];
-    F = __SRA2(F, ((v2s){ 1, 1 }));
-    /* xa' = (xa+xb+xc+xd) */
-    /* ya' = (ya+yb+yc+yd) */
-    *((v2s *)&pSrc[i0 * 2U]) = __ADD2(E, G);
-    /* A0 = (xb-xd), A1 = (yd-yb) */
-    A = __PACK2(t1, -t0);
-    /* B0 = (xd-xb), B1 = (yb-yd) */
-    B = __PACK2(-t1, t0);
-    /* xc' = (xa-xb+xc-xd) */
-    /* yc' = (ya-yb+yc-yd) */
-    E = __SUB2(E, G);
-    /* xb' = (xa+yb-xc-yd) */
-    /* yb' = (ya-xb-yc+xd) */
-    A = __ADD2(F, A);
-    /* xd' = (xa-yb-xc+yd) */
-    /* yd' = (ya+xb-yc-xd) */
-    B = __ADD2(F, B);
-    *((v2s *)&pSrc[i1 * 2U]) = E;
-    *((v2s *)&pSrc[i2 * 2U]) = A;
-    *((v2s *)&pSrc[i3 * 2U]) = B;
+    C = *(v2s *)&pSrc16[i2 * 2U];
+    asm volatile (
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+        "nop;"
+    );
+    *((v2s *)&pSrc16[i0 * 2U]) = B;
+    *((v2s *)&pSrc16[i1 * 2U]) = D;
+    *((v2s *)&pSrc16[i2 * 2U]) = A;
+    *((v2s *)&pSrc16[i3 * 2U]) = C;
 }
 
 #endif
