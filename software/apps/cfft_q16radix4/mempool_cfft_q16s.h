@@ -105,7 +105,7 @@ void mempool_cfft_radix4by2_q16s( int16_t *pSrc,
     }
 }
 
-#else //#ifndef XPULP
+#else //#ifdef XPULP
 
 void mempool_cfft_q16s( uint16_t fftLen,
                         int16_t *pTwiddle,
@@ -134,7 +134,7 @@ void mempool_cfft_q16s( uint16_t fftLen,
     }
 
     if (bitReverseFlag)
-        mempool_bitrev_q16s_riscv32((uint16_t *)pSrc, bitReverseLen, pBitRevTable);
+        mempool_bitrev_q16s_xpulpimg((uint16_t *)pSrc, bitReverseLen, pBitRevTable);
 }
 
 void mempool_cfft_radix4by2_q16s( int16_t *pSrc,

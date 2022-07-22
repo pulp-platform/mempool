@@ -52,13 +52,26 @@ static void mempool_bitrev_q16s_riscv32(  uint16_t *pSrc,
 static void mempool_bitrev_q16s_xpulpimg( uint16_t *pSrc,
                                           const uint16_t bitRevLen,
                                           const uint16_t *pBitRevTab) {
-    v2s addr, tmpa, tmpb;
-    for (uint32_t i = 0; i < bitRevLen; i += 2) {
-      addr = *(v2s *)&pBitRevTab[i] >> 2;
-      tmpa = *(v2s *)&pSrc[ addr[0] ];
-      tmpb = *(v2s *)&pSrc[ addr[1] ];
-      *((v2s *)&pSrc[ addr[0] ]) = tmpb;
-      *((v2s *)&pSrc[ addr[1] ]) = tmpa;
+    v2s addr0, addr1, tmpa, tmpb;
+    int16_t a00, a01, a10, a11;
+
+    for (uint32_t i = 0; i < bitRevLen; i += 4) {
+
+      addr0 = *(v2s *)&pBitRevTab[i] >> 2;
+      addr1 = *(v2s *)&pBitRevTab[i + 2] >> 2;
+      a00 = addr0[0];
+      a01 = addr0[1];
+      a10 = addr1[0];
+      a11 = addr1[1];
+      tmpa = *(v2s *)&pSrc[ a00 ];
+      tmpb = *(v2s *)&pSrc[ a01 ];
+      *((v2s *)&pSrc[ a00 ]) = tmpb;
+      *((v2s *)&pSrc[ a01 ]) = tmpa;
+      tmpa = *(v2s *)&pSrc[ a10 ];
+      tmpb = *(v2s *)&pSrc[ a11 ];
+      *((v2s *)&pSrc[ a10 ]) = tmpb;
+      *((v2s *)&pSrc[ a11 ]) = tmpa;
+
     }
 }
 
