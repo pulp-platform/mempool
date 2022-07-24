@@ -342,6 +342,9 @@ module mempool_group
    *  AXI Interconnect  *
    **********************/
 
+  axi_tile_req_t   [NumAXIMastersPerGroup-1:0] axi_mst_req;
+  axi_tile_resp_t  [NumAXIMastersPerGroup-1:0] axi_mst_resp;
+
   axi_hier_interco #(
     .NumSlvPorts    (NumTilesPerGroup     ),
     .NumMstPorts    (NumAXIMastersPerGroup),
@@ -366,8 +369,27 @@ module mempool_group
     .ro_cache_ctrl_i (ro_cache_ctrl_i     ),
     .slv_req_i       (axi_tile_req        ),
     .slv_resp_o      (axi_tile_resp       ),
-    .mst_req_o       (axi_mst_req_o       ),
-    .mst_resp_i      (axi_mst_resp_i      )
+    .mst_req_o       (axi_mst_req         ),
+    .mst_resp_i      (axi_mst_resp        )
   );
+
+  for (genvar m = 0; m < NumAXIMastersPerGroup; m++) begin: gen_axi_group_cuts
+    axi_cut #(
+      .ar_chan_t (axi_tile_ar_t  ),
+      .aw_chan_t (axi_tile_aw_t  ),
+      .r_chan_t  (axi_tile_r_t   ),
+      .w_chan_t  (axi_tile_w_t   ),
+      .b_chan_t  (axi_tile_b_t   ),
+      .axi_req_t (axi_tile_req_t ),
+      .axi_resp_t(axi_tile_resp_t)
+    ) i_axi_cut (
+      .clk_i     (clk_i            ),
+      .rst_ni    (rst_ni           ),
+      .slv_req_i (axi_mst_req[m]   ),
+      .slv_resp_o(axi_mst_resp[m]  ),
+      .mst_req_o (axi_mst_req_o[m] ),
+      .mst_resp_i(axi_mst_resp_i[m])
+    );
+  end: gen_axi_group_cuts
 
 endmodule: mempool_group
