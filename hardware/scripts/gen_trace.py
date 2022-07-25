@@ -338,6 +338,8 @@ def annotate_snitch(
                 REG_ABI_NAMES_I[extras['rd']], LS_SIZES[extras['ls_size']],
                 int_lit(extras['alu_result'], force_hex=force_hex_addr)))
         elif extras['is_store']:
+            for k in RAW_TYPES:
+                raw_stall[k] = retired_reg[k]
             perf_metrics[-1]['snitch_stores'] += 1
             ret.append('{} ~~> {}[{}]'.format(
                 int_lit(extras['gpr_rdata_1']), LS_SIZES[extras['ls_size']],
@@ -352,6 +354,8 @@ def annotate_snitch(
             ret.append(
                 '{}taken'.format(
                     '' if extras['alu_result'] else 'not '))
+            for k in RAW_TYPES:
+                raw_stall[k] = retired_reg[k]
         # Datapath (ALU / Jump Target / Bypass) register writeback
         if extras['write_rd'] and extras['rd'] != 0:
             ret.append('(wrb) {:<3} <-- {}'.format(
