@@ -195,13 +195,13 @@ module mempool_tile
       .axi_rsp_i            (axi_cache_resp_q[c]     )
     );
     axi_cut #(
-      .aw_chan_t(axi_core_aw_t  ),
-      .w_chan_t (axi_core_w_t   ),
-      .b_chan_t (axi_core_b_t   ),
-      .ar_chan_t(axi_core_ar_t  ),
-      .r_chan_t (axi_core_r_t   ),
-      .req_t    (axi_core_req_t ),
-      .resp_t   (axi_core_resp_t)
+      .aw_chan_t (axi_core_aw_t  ),
+      .w_chan_t  (axi_core_w_t   ),
+      .b_chan_t  (axi_core_b_t   ),
+      .ar_chan_t (axi_core_ar_t  ),
+      .r_chan_t  (axi_core_r_t   ),
+      .axi_req_t (axi_core_req_t ),
+      .axi_resp_t(axi_core_resp_t)
     ) axi_cache_slice (
       .clk_i     (clk_i              ),
       .rst_ni    (rst_ni             ),
@@ -761,13 +761,13 @@ module mempool_tile
   );
 
   axi_cut #(
-    .aw_chan_t(axi_core_aw_t  ),
-    .w_chan_t (axi_core_w_t   ),
-    .b_chan_t (axi_core_b_t   ),
-    .ar_chan_t(axi_core_ar_t  ),
-    .r_chan_t (axi_core_r_t   ),
-    .req_t    (axi_core_req_t ),
-    .resp_t   (axi_core_resp_t)
+    .aw_chan_t (axi_core_aw_t  ),
+    .w_chan_t  (axi_core_w_t   ),
+    .b_chan_t  (axi_core_b_t   ),
+    .ar_chan_t (axi_core_ar_t  ),
+    .r_chan_t  (axi_core_r_t   ),
+    .axi_req_t (axi_core_req_t ),
+    .axi_resp_t(axi_core_resp_t)
   ) axi_core_slice (
     .clk_i     (clk_i           ),
     .rst_ni    (rst_ni          ),
