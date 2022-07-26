@@ -418,6 +418,10 @@ def annotate_snitch(
             if extras['stall_acc']:
                 perf_metrics[-1]['stall_acc'] += extras['stall_acc']
                 ret.append('({} acc)'.format(extras['stall_acc']))
+            if not (extras['stall_ins'] or extras['stall_raw']
+                    or extras['stall_lsu'] or extras['stall_acc']):
+                perf_metrics[-1]['stall_wfi'] += extras['stall_tot']
+                ret.append('({} wfi)'.format(extras['stall_tot']))
         elif (extras['stall_ins'] or extras['stall_raw'] or extras['stall_lsu']
               or extras['stall_acc']):
             ret.append('// Missed specific stall!!!')
@@ -729,6 +733,7 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'stall_raw_acc',
         'stall_lsu',
         'stall_acc',
+        'stall_wfi',
         'seq_loads_local',
         'seq_loads_global',
         'itl_loads_local',
