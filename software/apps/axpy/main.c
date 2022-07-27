@@ -107,8 +107,8 @@ int main() {
 
   // start kernel testing
   mempool_start_benchmark();
-  calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements,
-                                         core_id, num_cores);
+  calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements, core_id,
+                                num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
   // end kernel testing
