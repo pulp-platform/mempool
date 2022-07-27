@@ -15,8 +15,8 @@
 #include <stdlib.h>
 
 #if NUM_CORES > 32
-#define size_M 32
-#define size_N 32
+#define size_M 64
+#define size_N 64
 #else
 #define size_M (NUM_CORES)
 #define size_N (NUM_CORES)
@@ -106,19 +106,12 @@ int main() {
   mempool_barrier(num_cores);
 
   // start kernel testing
-  // benchmark three time to aviod last memory access on the barrier boundary
   mempool_start_benchmark();
-  calc_axpy_parallel_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements,
+  calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements,
                                          core_id, num_cores);
-  mempool_start_benchmark();
-  calc_axpy_parallel_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements,
-                                         core_id, num_cores);
-  mempool_start_benchmark();
-  calc_axpy_parallel_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements,
-                                         core_id, num_cores);
+  mempool_barrier(num_cores);
   mempool_stop_benchmark();
   // end kernel testing
-  mempool_barrier(num_cores);
 
   // Verify results
   if (core_id == 0) {
