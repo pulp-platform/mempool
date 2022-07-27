@@ -63,11 +63,10 @@ module ctrl_registers
   // [59:56]:ro_cache_start_3               (rw)
   // [63:60]:ro_cache_end_3                 (rw)
 
-  // [79:64]:wake_up_tile[3:0] (mempoool)   (rw)
-  // [95:64]:wake_up_tile[7:0] (terapool)   (rw)
+  // [95:64]:wake_up_tile[7:0]              (rw)
 
-  localparam logic [NumGroups*DataWidth-1:0] RegRstVal_TileWakeUp = '{NumGroups*DataWidth{1'b0}};
-  localparam logic [NumRegs-NumGroups-1:0][DataWidth-1:0] RegRstVal = '{
+  localparam logic [MAX_NumGroups*DataWidth-1:0] RegRstVal_TileWakeUp = '{MAX_NumGroups*DataWidth{1'b0}};
+  localparam logic [NumRegs-MAX_NumGroups-1:0][DataWidth-1:0] RegRstVal = '{
     32'h0000_0010,
     32'h0000_000C,
     32'h0000_000C,
@@ -86,8 +85,8 @@ module ctrl_registers
     {DataWidth{1'b0}}
   };
 
-  localparam logic [NumGroups-1:0][DataWidthInBytes-1:0] AxiReadOnly_TileWakeUp = '{NumGroups{ReadWriteReg}};
-  localparam logic [NumRegs-NumGroups-1:0][DataWidthInBytes-1:0] AxiReadOnly = '{
+  localparam logic [MAX_NumGroups-1:0][DataWidthInBytes-1:0] AxiReadOnly_TileWakeUp = '{MAX_NumGroups{ReadWriteReg}};
+  localparam logic [NumRegs-MAX_NumGroups-1:0][DataWidthInBytes-1:0] AxiReadOnly = '{
     ReadWriteReg,
     ReadWriteReg,
     ReadWriteReg,
@@ -125,7 +124,7 @@ module ctrl_registers
   logic [DataWidth-1:0]   ro_cache_end_2;
   logic [DataWidth-1:0]   ro_cache_start_3;
   logic [DataWidth-1:0]   ro_cache_end_3;
-  logic [NumGroups*DataWidth-1:0] wake_up_tile;
+  logic [MAX_NumGroups*DataWidth-1:0] wake_up_tile;
 
   logic [RegNumBytes-1:0] wr_active_d;
   logic [RegNumBytes-1:0] wr_active_q;
@@ -198,7 +197,7 @@ module ctrl_registers
     end
 
     // converts 32 bit tile wake up mask to 256 bit core wake up mask
-    for(int i_g = 0; i_g < NumGroups; i_g = i_g+1) begin
+    for(int i_g = 0; i_g < NumGroups; i_g = i_g + 1) begin
 
       if (wr_active_q[64 + 4 * i_g +: 4]) begin
         if (wake_up_tile[i_g * DataWidth +: DataWidth] <= {NumTilesPerGroup{1'b1}}) begin
@@ -216,5 +215,11 @@ module ctrl_registers
 
   // register to add +1 latency to the wr_active signal
   `FF(wr_active_q, wr_active_d, '0, clk_i, rst_ni)
+
+  /******************
+   *   Assertions   *
+   ******************/
+  if (NumGroups > MAX_NumGroups)
+    $error("[ctrl_registers] Number of groups exceeds the maximum supported.");
 
 endmodule : ctrl_registers

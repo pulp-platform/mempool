@@ -427,7 +427,7 @@ module mempool_system
   );
 
   ctrl_registers #(
-    .NumRegs          (16 + NumGroups     ),
+    .NumRegs          (16 + 8             ),
     .TCDMBaseAddr     (TCDMBaseAddr       ),
     .TCDMSize         (TCDMSize           ),
     .NumCores         (NumCores           ),
