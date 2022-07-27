@@ -10,9 +10,9 @@ dump(l, 1);
 dump(loopCnt, 2);
 dump(i, 3);
 
-int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *flag);
+int mempool_GJinv_q32p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *flag);
 
-int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *flag) {
+int mempool_GJinv_q32p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *flag) {
 
     int32_t *pSrcT1, *pSrcT2;                    /* Temporary input data matrix pointer */
     int32_t *pDstT1, *pDstT2;                    /* Temporary output data matrix pointer */
@@ -31,12 +31,12 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
     /* CREATE THE IDENTITY MATRIX */
 
     pDstT1 = pDst;
-    for (i = core_id * 4; i < m; i += 4 * NUM_CORES) {
+    for (k = core_id * 4; k < m; k += 4 * NUM_CORES) {
         for (j = 0; j < m; j++) {
-            pDstT1[i * m + j] = (uint32_t) (i == j);
-            pDstT1[(i + 1) * m + j] = (uint32_t) ((i + 1) == j);
-            pDstT1[(i + 2) * m + j] = (uint32_t) ((i + 2) == j);
-            pDstT1[(i + 3) * m + j] = (uint32_t) ((i + 3) == j);
+            pDstT1[k * m + j] = (uint32_t) (k == j);
+            pDstT1[(k + 1) * m + j] = (uint32_t) ((k + 1) == j);
+            pDstT1[(k + 2) * m + j] = (uint32_t) ((k + 2) == j);
+            pDstT1[(k + 3) * m + j] = (uint32_t) ((k + 3) == j);
         }
     }
     mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
@@ -52,33 +52,32 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
         pDstT1 = pDst + (l * n);
         in = *pSrcT1;
 
-
         /* CHECK IF PIVOT ELEMENT IS ZERO */
 
         if (in == 0U) {
 
-            //if (core_id == 0) {
-            //    k = 1U;
-            //    while (k < m - l) {
-            //        pSrcT2 = pSrcT1 + k * n;
-            //        if (*pSrcT2 != 0) {
-            //            *flag = k;
-            //            break;
-            //        }
-            //        k++;
-            //    }
-            //}
-            //mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
-
-            k = 1U + core_id;
-            while ((k < m - l) && (*flag == 0)) {
-                pSrcT2 = pSrcT1 + k * n;
-                if (*pSrcT2 != 0) {
-                    __atomic_store_n(flag, k, __ATOMIC_RELAXED);
+            if (core_id == 0) {
+                k = 1U;
+                while (k < m - l) {
+                    pSrcT2 = pSrcT1 + k * n;
+                    if (*pSrcT2 != 0) {
+                        *flag = k;
+                        break;
+                    }
+                    k++;
                 }
-                k += MIN(n / 4, NUM_CORES);
-                mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
             }
+            mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+
+            //k = 1U + core_id;
+            //while ((k < m - l) && (*flag == 0)) {
+            //    pSrcT2 = pSrcT1 + k * n;
+            //    if (*pSrcT2 != 0) {
+            //        __atomic_store_n(flag, k, __ATOMIC_RELAXED);
+            //    }
+            //    k += MIN(n / 4, NUM_CORES);
+            //    mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+            //}
 
             /* EXCHANGE */
 
@@ -86,7 +85,9 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                 pSrcT2 = pSrcT1 + (n * *flag);
                 pDstT2 = pDstT1 + (n * *flag);
                 /* Loop over columns to the right of pivot */
-                for (j = core_id * 4; j < (n - l) - (n - l) % 4; j += 4 * NUM_CORES) {
+                //j = core_id * 4 > 4 * (l >> 2U) ? core_id * 4 : 4 * ((n - l) >> 2U);
+                //while (j < 4 * ((n - l) >> 2U)) {
+                for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += 4 * NUM_CORES) {
                     Xchg1 = pSrcT2[j];
                     Xchg2 = pSrcT2[j + 1];
                     Xchg3 = pSrcT2[j + 2];
@@ -103,9 +104,10 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                     pSrcT1[j + 1] = Xchg2;
                     pSrcT1[j + 2] = Xchg3;
                     pSrcT1[j + 3] = Xchg4;
+                    // j += 4 * NUM_CORES;
                 }
-                if (core_id == (n - l) / 4) {
-                    j = (n - l) - (n - l) % 4;
+                if (core_id == (n >> 2U) - 1) {
+                    j = 4 * ((n - l) >> 2U);
                     while (j < n - l) {
                         Xchg1 = pSrcT2[j];
                         pSrcT2[j] = pSrcT1[j];
@@ -114,7 +116,7 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                     }
                 }
                 /* Loop over columns */
-                for (j = core_id * 4; j < n - n % 4; j += 4 * NUM_CORES) {
+                for (j = core_id * 4; j < 4 * (n >> 2U); j += 4 * NUM_CORES) {
                     Xchg1 = pDstT2[j];
                     Xchg2 = pDstT2[j + 1];
                     Xchg3 = pDstT2[j + 2];
@@ -132,8 +134,8 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                     pDstT1[j + 2] = Xchg3;
                     pDstT1[j + 3] = Xchg4;
                 }
-                if (core_id == n / 4) {
-                    j = n - n % 4;
+                if (core_id == (n >> 2U) - 1) {
+                    j = 4 * (n >> 2U);
                     while (j < n) {
                         Xchg1 = pDstT2[j];
                         pDstT2[j] = pDstT1[j];
@@ -144,7 +146,6 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
             }
             mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
         }
-
         /* Update the status if the matrix is singular */
         if ((*flag == 0U) && (in == 0U)) {
             return 1;
@@ -163,6 +164,8 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
         in = *pPivotRowIn;
 
         ///* Loop over columns to the right of pivot */
+        // j = core_id * 4 > 4 * (l >> 2U) ? core_id * 4 : 4 * ((n - l) >> 2U);
+        // while (j < 4 * ((n - l) >> 2U)) {
         for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += NUM_CORES * 4) {
             in1 = pSrcT1[j];
             in2 = pSrcT1[j + 1];
@@ -176,8 +179,9 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
             pSrcT1[j + 1] = out2;
             pSrcT1[j + 2] = out3;
             pSrcT1[j + 3] = out4;
+            // j += NUM_CORES * 4;
         }
-        if (core_id == (n - l) / 4) {
+        if (core_id == (n >> 2U) - 1) {
             j = 4 * ((n - l) >> 2U);
             while (j < n - l) {
                 in1 = pSrcT1[j];
@@ -200,11 +204,11 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
             pSrcT2[j + 2] = out3;
             pSrcT2[j + 3] = out4;
         }
-        if (core_id == n / 4) {
+        if (core_id == (n >> 2U) - 1) {
             j = 4 * (n >> 2U);
             while (j < n) {
-                in1 = pSrcT1[j];
-                pSrcT1[j] = FIX_DIV(in1, in);
+                in1 = pSrcT2[j];
+                pSrcT2[j] = FIX_DIV(in1, in);
                 j++;
             }
         }
@@ -215,10 +219,9 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
 
         pSrcT1 = pSrc;
         pSrcT2 = pDst;
-
         /* Loop over rows */
         for (k = core_id * 4; k < m; k += NUM_CORES * 4) {
-            i = 0;
+            i = 0U;
             while (i < 4) {
                 if ((i + k) != l) {
                     pSrcT1 = pSrc + (i + k) * n;
@@ -229,7 +232,7 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                     pPRT_pDst = pPivotRowDst;
                     /* Loop over columns to the right of pivot */
                     j = 0;
-                    while (j < (n - l) - (n - l) % 4) {
+                    while (j < 4 * ((n - l) >> 2U)) {
                         in1 = pSrcT1[j];
                         in2 = pSrcT1[j + 1];
                         in3 = pSrcT1[j + 2];
@@ -250,25 +253,9 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                         pSrcT1[j] = in1 - FIX_MUL(in, out1);
                         j++;
                     }
-                    //j = 0;
-                    //while (j < MIN(core_id * 4, n - l)) {
-                    //    in1 = pSrcT1[j];
-                    //    in2 = pSrcT1[j + 1];
-                    //    in3 = pSrcT1[j + 2];
-                    //    in4 = pSrcT1[j + 3];
-                    //    out1 = pPRT_in[j];
-                    //    out2 = pPRT_in[j + 1];
-                    //    out3 = pPRT_in[j + 2];
-                    //    out4 = pPRT_in[j + 3];
-                    //    pSrcT1[j]     = in1 - FIX_MUL(in, out1);
-                    //    pSrcT1[j + 1] = in2 - FIX_MUL(in, out2);
-                    //    pSrcT1[j + 2] = in3 - FIX_MUL(in, out3);
-                    //    pSrcT1[j + 3] = in4 - FIX_MUL(in, out4);
-                    //    j += 4;
-                    //}
                     /* Loop over columns */
                     j = 0;
-                    while (j < n - n % 4) {
+                    while (j < 4 * (n >> 2U)) {
                         in1 = pSrcT2[j];
                         in2 = pSrcT2[j + 1];
                         in3 = pSrcT2[j + 2];
@@ -283,33 +270,86 @@ int mempool_GJinv_q16p(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *fla
                         pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
                         j += 4;
                     }
-                    while (j < MIN(core_id * 4, n)) {
+                    while (j < n) {
                         in1 = pSrcT2[j];
                         out1 = pPRT_pDst[j];
                         pSrcT2[j] = in1 - FIX_MUL(in, out1);
                         j++;
                     }
-                    //j = 0;
-                    //while (j < core_id * 4) {
-                    //    in1 = pSrcT2[j];
-                    //    in2 = pSrcT2[j + 1];
-                    //    in3 = pSrcT2[j + 2];
-                    //    in4 = pSrcT2[j + 3];
-                    //    out1 = pPRT_pDst[j];
-                    //    out2 = pPRT_pDst[j + 1];
-                    //    out3 = pPRT_pDst[j + 2];
-                    //    out4 = pPRT_pDst[j + 3];
-                    //    pSrcT2[j]     = in1 - FIX_MUL(in, out1);
-                    //    pSrcT2[j + 1] = in2 - FIX_MUL(in, out2);
-                    //    pSrcT2[j + 2] = in3 - FIX_MUL(in, out3);
-                    //    pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
-                    //    j += 4;
-                    //}
                 }
                 i++;
             }
         }
         mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+
+//        pSrcT1 = pSrc;
+//        pSrcT2 = pDst;
+//        /* Loop over rows */
+//        for (k = 0; k < m; k++) {
+//            if (k != l) {
+//                pSrcT1 = pSrc + k * n;
+//                pSrcT2 = pDst + k * n;
+//                /* Element of the reference row */
+//                in = *pSrcT1;
+//                pPRT_in = pPivotRowIn;
+//                pPRT_pDst = pPivotRowDst;
+//                /* Loop over columns to the right of pivot */
+//                j = core_id * 4;
+//                // j = core_id * 4 > 4 * (l >> 2U) ? core_id * 4 : 4 * ((n - l) >> 2U);
+//                while (j < 4 * ((n - l) >> 2U)) {
+//                    in1 = pSrcT1[j];
+//                    in2 = pSrcT1[j + 1];
+//                    in3 = pSrcT1[j + 2];
+//                    in4 = pSrcT1[j + 3];
+//                    out1 = pPRT_in[j];
+//                    out2 = pPRT_in[j + 1];
+//                    out3 = pPRT_in[j + 2];
+//                    out4 = pPRT_in[j + 3];
+//                    pSrcT1[j]     = in1 - FIX_MUL(in, out1);
+//                    pSrcT1[j + 1] = in2 - FIX_MUL(in, out2);
+//                    pSrcT1[j + 2] = in3 - FIX_MUL(in, out3);
+//                    pSrcT1[j + 3] = in4 - FIX_MUL(in, out4);
+//                    j += 4 * NUM_CORES;
+//                }
+//                if (core_id == (n >> 2U) - 1) {
+//                    j = 4 * ((n - l) >> 2U);
+//                    while (j < n - l) {
+//                        in1 = pSrcT1[j];
+//                        out1 = pPRT_in[j];
+//                        pSrcT1[j] = in1 - FIX_MUL(in, out1);
+//                        j++;
+//                    }
+//                }
+//                /* Loop over columns */
+//                j = core_id * 4;
+//                while (j < 4 * (n >> 2U)) {
+//                    in1 = pSrcT2[j];
+//                    in2 = pSrcT2[j + 1];
+//                    in3 = pSrcT2[j + 2];
+//                    in4 = pSrcT2[j + 3];
+//                    out1 = pPRT_pDst[j];
+//                    out2 = pPRT_pDst[j + 1];
+//                    out3 = pPRT_pDst[j + 2];
+//                    out4 = pPRT_pDst[j + 3];
+//                    pSrcT2[j]     = in1 - FIX_MUL(in, out1);
+//                    pSrcT2[j + 1] = in2 - FIX_MUL(in, out2);
+//                    pSrcT2[j + 2] = in3 - FIX_MUL(in, out3);
+//                    pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
+//                    j += 4 * NUM_CORES;
+//                }
+//                if (core_id == (n >> 2U) - 1) {
+//                    j = 4 * (n >> 2U);
+//                    while (j < n) {
+//                        in1 = pSrcT2[j];
+//                        out1 = pPRT_pDst[j];
+//                        pSrcT2[j] = in1 - FIX_MUL(in, out1);
+//                        j++;
+//                    }
+//                }
+//                mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+//            }
+//        }
+//        mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
 
         pSrc++;     /* Increment the input pointer */
         loopCnt--;  /* Decrement the loop counter */

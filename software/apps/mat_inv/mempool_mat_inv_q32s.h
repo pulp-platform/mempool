@@ -6,9 +6,9 @@
 
 /* GAUSS JORDAN INVERSION */
 
-int mempool_GJinv_q16s(int32_t *pSrc, int32_t *pDst, uint32_t n);
+int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n);
 
-int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
+int mempool_GJinv_q32s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
 
     int32_t *pSrcT1, *pSrcT2;                    /* Temporary input data matrix pointer */
     int32_t *pDstT1, *pDstT2;                    /* Temporary output data matrix pointer */
@@ -146,7 +146,7 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
 
         /* Loop over number of columns to the right of the pilot element */
         j = 0;
-        while (j < (n - l) - (n - l) % 4) {
+        while (j < 4 * ((n - l) >> 2U)) {
             in1 = *pSrcT1;
             in2 = *(pSrcT1 + 1);
             in3 = *(pSrcT1 + 2);
@@ -168,7 +168,7 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
         }
         /* Loop over number of columns of the destination matrix */
         j = 0;
-        while (j < n - n % 4) {
+        while (j < 4 * (n >> 2U)) {
             in1 = *pSrcT2;
             in2 = *(pSrcT2 + 1);
             in3 = *(pSrcT2 + 2);
@@ -193,26 +193,21 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
 
         pSrcT1 = pSrc;
         pSrcT2 = pDst;
-
         i = 0U; /* pivot index */
         k = m; /* row index */
         while (k > 0U) {
-
             /* Only the columns to the right of the pivot are to be processed */
             if (i == l) {
                 pSrcT1 += n - l;
                 pSrcT2 += n;
-
             } else {
-
                 /* Element of the reference row */
                 in = *pSrcT1;
                 /* Reference row pointers */
                 pPRT_in = pPivotRowIn;
                 pPRT_pDst = pPivotRowDst;
-
                 j = 0;
-                while (j < (n - l) - (n - l) % 2) {
+                while (j < 2 * ((n - l) >> 1U)) {
                     in1 = *pSrcT1;
                     in2 = *(pSrcT1 + 1);
                     // in3 = *(pSrcT1 + 2);
@@ -236,7 +231,7 @@ int mempool_GJinv_q16s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
                 /* Loop over the number of columns to
                    replace the elements in the destination matrix */
                 j = 0;
-                while (j < n - n % 4) {
+                while (j < 4 * (n >> 2U)) {
                     in1 = *pSrcT2;
                     in2 = *(pSrcT2 + 1);
                     in3 = *(pSrcT2 + 2);
