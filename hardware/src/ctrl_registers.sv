@@ -10,9 +10,9 @@ module ctrl_registers
   parameter int DataWidth                      = 32,
   parameter int NumRegs                        = 0,
   // Parameters
-  parameter logic [DataWidth-1:0] TCDMBaseAddr      = 0,
-  parameter logic [DataWidth-1:0] TCDMSize          = 0,
-  parameter logic [DataWidth-1:0] NumCores          = 0,
+  parameter logic [DataWidth-1:0] TCDMBaseAddr = 0,
+  parameter logic [DataWidth-1:0] TCDMSize     = 0,
+  parameter logic [DataWidth-1:0] NumCores     = 0,
   // AXI Structs
   parameter type axi_lite_req_t                = logic,
   parameter type axi_lite_resp_t               = logic
@@ -38,9 +38,9 @@ module ctrl_registers
    *  Definitions  *
    *****************/
 
-  localparam int unsigned DataWidthInBytes  = (DataWidth + 7) / 8;
-  localparam int unsigned RegNumBytes       = NumRegs * DataWidthInBytes;
-  localparam int unsigned RegDataWidth      = NumRegs * DataWidth;
+  localparam int unsigned DataWidthInBytes = (DataWidth + 7) / 8;
+  localparam int unsigned RegNumBytes      = NumRegs * DataWidthInBytes;
+  localparam int unsigned RegDataWidth     = NumRegs * DataWidth;
 
   localparam logic [DataWidthInBytes-1:0] ReadOnlyReg  = {DataWidthInBytes{1'b1}};
   localparam logic [DataWidthInBytes-1:0] ReadWriteReg = {DataWidthInBytes{1'b0}};
