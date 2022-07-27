@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add read-only caches to the hierarchical AXI interconnect
 - Add a `memcpy` benchmark
 - Add a systolic configuration including runtime support and a matmul application
+- Add `axpy` kernel
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
