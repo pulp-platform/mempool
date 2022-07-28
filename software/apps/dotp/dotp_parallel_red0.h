@@ -48,8 +48,8 @@ void dotp_parallel_red0  ( int32_t* in_a,
   mempool_stop_benchmark();
 
   mempool_start_benchmark();
-  if ((NUM_CORES - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
-    __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
+  if ((NUM_CORES - 1) == __atomic_fetch_add(&red_barrier[0], 1, __ATOMIC_RELAXED)) {
+    __atomic_store_n(&red_barrier[0], 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
     uint32_t idx_red = 0;
     local_sum = 0;
@@ -79,7 +79,7 @@ void dotp_parallel_unrolled4_red0  (  int32_t* in_a,
   int32_t local_sum_4 = 0;
 
   uint32_t idx = core_id * 4;
-  while (idx< idx_stop) {
+  while (idx < idx_stop){
     int32_t in_a1 = in_a[idx];
     int32_t in_b1 = in_b[idx];
     int32_t in_a2 = in_a[idx + 1];
@@ -107,8 +107,8 @@ void dotp_parallel_unrolled4_red0  (  int32_t* in_a,
   mempool_stop_benchmark();
 
   mempool_start_benchmark();
-  if ((NUM_CORES - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
-    __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
+  if ((NUM_CORES - 1) == __atomic_fetch_add(&red_barrier[0], 1, __ATOMIC_RELAXED)) {
+    __atomic_store_n(&red_barrier[0], 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
     uint32_t idx_red = 0;
     local_sum_1 = 0;
@@ -119,4 +119,5 @@ void dotp_parallel_unrolled4_red0  (  int32_t* in_a,
     s[0] = local_sum_1;
     wake_up_all();
   }
+  mempool_wfi();
 }

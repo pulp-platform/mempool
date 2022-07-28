@@ -39,25 +39,19 @@ void init_vectors( int32_t* in_a, int32_t* in_b, int32_t* s,
                    int32_t* p_result, int32_t* p_check, uint32_t Len) {
     *p_result = 0;
     *p_check = 0;
-    uint32_t split = Len / NUM_CORES;
     uint32_t j = 0;
-    while(j < NUM_CORES) {
-        uint32_t MAX = (j + 1) * split > Len? Len : (j + 1) * split;
-        for(uint32_t i = j * split; i < MAX; i++) {
-          int32_t a = (int32_t)(i - 6);
-          int32_t b = i % 4 == 0? -1 : 1;
-          in_a[i] = a;
-          in_b[i] = b;
-          *p_check = *p_check + (int32_t) (a * b);
-        }
+    while(j < Len) {
+        int32_t a = (int32_t)(j % NUM_CORES);
+        int32_t b = (int32_t)(j % 4 + 3);
+        in_a[j] = a;
+        in_b[j] = b;
+        *p_check = *p_check + (int32_t) (a * b);
         j++;
     }
     #if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0) || defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
     for(uint32_t k = 0; k < N_BANK; k++) {
         s[k] = 0;
-        #if defined(PARALLEL) || defined(PARALLEL_UNROLLED_REDTREE)
         red_barrier[k] = 0;
-        #endif
     }
     #else
     *s = 0;
