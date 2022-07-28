@@ -43,25 +43,26 @@ void dotp_parallel_trivial_unrolled4 (	int32_t* in_a,
   uint32_t reminder = step % 4;
   uint32_t i;
 
-  register int32_t a0, b0, a1, b1, a2, b2, a3, b3;
+  register int32_t a0 = 0, b0 = 0, a1 = 0, b1 = 0, a2 = 0, b2 = 0, a3 = 0, b3 = 0;
   register int32_t local_sum0 = 0;
   register int32_t local_sum1 = 0;
   register int32_t local_sum2 = 0;
   register int32_t local_sum3 = 0;
-	for(i = core_id * step; i < core_id * step + step - reminder; i += 4) {
-    a0 = in_a[i];
-    b0 = in_b[i];
-    a1 = in_a[i + 1];
-    b1 = in_b[i + 1];
-    a2 = in_a[i + 2];
-    b2 = in_b[i + 2];
-    a3 = in_a[i + 3];
-    b3 = in_b[i + 3];
-		local_sum0 += a0 * b0;
-    local_sum1 += a1 * b1;
-    local_sum2 += a2 * b2;
-    local_sum3 += a3 * b3;
+	for (i = core_id * step; i < (core_id * step + step) - reminder; i += 4) {
+      a0 = in_a[i];
+      b0 = in_b[i];
+      a1 = in_a[i + 1];
+      b1 = in_b[i + 1];
+      a2 = in_a[i + 2];
+      b2 = in_b[i + 2];
+      a3 = in_a[i + 3];
+      b3 = in_b[i + 3];
+  		local_sum0 += a0 * b0;
+      local_sum1 += a1 * b1;
+      local_sum2 += a2 * b2;
+      local_sum3 += a3 * b3;
   }
+  i = core_id * step + step - reminder;
   while (i < step) {
     a0 = in_a[i];
     b0 = in_b[i];

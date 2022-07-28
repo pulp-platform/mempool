@@ -36,7 +36,7 @@ void dotp_single_unrolled4 (  int32_t* in_a,
                               uint32_t Len) {
 
   uint32_t core_id = mempool_get_core_id();
-  if(core_id == 0) {
+  if (core_id == 0) {
 
     mempool_start_benchmark();
     uint32_t reminder = Len % 4;
@@ -47,7 +47,7 @@ void dotp_single_unrolled4 (  int32_t* in_a,
     register int32_t local_sum_2 = 0;
     register int32_t local_sum_3 = 0;
     register int32_t local_sum_4 = 0;
-    for(i = 0; i < (Len - reminder); i += 4) {
+    for (i = 0; i < (Len - reminder); i += 4) {
 
 //        asm volatile (
 //          "p.lbu   %[a0], 1(%[idx_a]!);"
