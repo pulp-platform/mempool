@@ -13,7 +13,17 @@
 
 extern char l1_alloc_base;
 extern uint32_t atomic_barrier;
-extern uint32_t wake_up_reg;
+extern volatile uint32_t wake_up_reg;
+extern volatile uint32_t wake_up_group_reg;
+
+extern volatile uint32_t wake_up_tile_g0_reg;
+extern volatile uint32_t wake_up_tile_g1_reg;
+extern volatile uint32_t wake_up_tile_g2_reg;
+extern volatile uint32_t wake_up_tile_g3_reg;
+extern volatile uint32_t wake_up_tile_g4_reg;
+extern volatile uint32_t wake_up_tile_g5_reg;
+extern volatile uint32_t wake_up_tile_g6_reg;
+extern volatile uint32_t wake_up_tile_g7_reg;
 
 typedef uint32_t mempool_id_t;
 typedef uint32_t mempool_timer_t;
@@ -83,6 +93,43 @@ static inline void mempool_wfi() { asm volatile("wfi"); }
 // If core_id equals -1, wake up all cores.
 static inline void wake_up(uint32_t core_id) { wake_up_reg = core_id; }
 static inline void wake_up_all() { wake_up((uint32_t)-1); }
+static inline void wake_up_group(uint32_t group_mask) {
+  wake_up_group_reg = group_mask;
+}
+static inline void wake_up_all_group() { wake_up_group((uint32_t)-1); }
+
+static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
+
+  switch (group_id) {
+  case 0:
+    wake_up_tile_g0_reg = tile_mask;
+    break;
+  case 1:
+    wake_up_tile_g1_reg = tile_mask;
+    break;
+  case 2:
+    wake_up_tile_g2_reg = tile_mask;
+    break;
+  case 3:
+    wake_up_tile_g3_reg = tile_mask;
+    break;
+  case 4:
+    wake_up_tile_g4_reg = tile_mask;
+    break;
+  case 5:
+    wake_up_tile_g5_reg = tile_mask;
+    break;
+  case 6:
+    wake_up_tile_g6_reg = tile_mask;
+    break;
+  case 7:
+    wake_up_tile_g7_reg = tile_mask;
+    break;
+  default:
+    wake_up_tile_g0_reg = tile_mask;
+    break;
+  }
+}
 
 // Dump a value via CSR
 // This is only supported in simulation and an experimental feature. All writes

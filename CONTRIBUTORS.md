@@ -9,3 +9,4 @@ Thanks to all.
 * Marc Gantenbein
 * Lorena Oswald
 * Yichao Zhang
+* Marco Bertuletti

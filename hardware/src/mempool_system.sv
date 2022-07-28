@@ -427,10 +427,10 @@ module mempool_system
   );
 
   ctrl_registers #(
-    .NumRegs        (15                 ),
-    .TCDMBaseAddr   (TCDMBaseAddr       ),
-    .TCDMSize       (TCDMSize           ),
-    .NumCores       (NumCores           ),
+    .NumRegs          (16 + 8             ),
+    .TCDMBaseAddr     (TCDMBaseAddr       ),
+    .TCDMSize         (TCDMSize           ),
+    .NumCores         (NumCores           ),
     .axi_lite_req_t (axi_lite_slv_req_t ),
     .axi_lite_resp_t(axi_lite_slv_resp_t)
   ) i_ctrl_registers (

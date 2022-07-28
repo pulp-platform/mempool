@@ -30,7 +30,7 @@ boot_addr ?= A0000000
 
 # L2 memory configuration (in hex)
 l2_base  ?= 80000000
-l2_size  ?= 10000
+l2_size  ?= 400000
 l2_banks ?= 4
 
 # Size of sequential memory per core (in bytes)
