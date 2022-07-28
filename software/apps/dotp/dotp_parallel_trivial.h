@@ -24,7 +24,11 @@ void dotp_parallel_trivial (  int32_t* in_a,
   mempool_stop_benchmark();
   mempool_start_benchmark();
   __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
-  mempool_barrier(NUM_CORES);
+  #ifdef LOG_BARRIERS
+    mempool_log_barrier(2, core_id);
+  #else
+    mempool_barrier(NUM_CORES);
+  #endif
 }
 
 /* Parallel dot-product */
@@ -67,8 +71,14 @@ void dotp_parallel_trivial_unrolled4 (	int32_t* in_a,
   local_sum0 += local_sum1;
   local_sum2 += local_sum3;
   local_sum0 += local_sum2;
+  mempool_barrier(NUM_CORES);
+
   mempool_stop_benchmark();
   mempool_start_benchmark();
   __atomic_fetch_add(&s[0], local_sum0, __ATOMIC_RELAXED);
-  mempool_barrier(NUM_CORES);
+  #ifdef LOG_BARRIERS
+    mempool_log_barrier(2, core_id);
+  #else
+    mempool_barrier(NUM_CORES);
+  #endif
 }
