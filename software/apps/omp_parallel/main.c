@@ -16,7 +16,7 @@ int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
 
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   if (core_id == 0) {
     printf("Master Thread: Parallel start\n");
@@ -36,7 +36,7 @@ int main() {
       run_task(core_id);
     }
   }
-  // mempool_barrier(num_cores, num_cores * 4);
+  // mempool_barrier(num_cores);
 
   return 0;
 }

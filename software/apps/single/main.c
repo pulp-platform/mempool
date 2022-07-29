@@ -107,7 +107,7 @@ int main() {
   uint32_t i;
   uint32_t num_failed = 0;
 
-  // mempool_barrier_init(core_id, num_cores);
+  // mempool_barrier_init(core_id);
 
   if (core_id == 0) {
     printf("Master Thread start\n");

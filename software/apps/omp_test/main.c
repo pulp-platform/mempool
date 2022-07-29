@@ -108,7 +108,7 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
   uint32_t i;
 
-  // mempool_barrier_init(core_id, num_cores);
+  // mempool_barrier_init(core_id);
 
   if (core_id == 0) {
     mempool_wait(4 * num_cores);
@@ -130,7 +130,7 @@ int main() {
       run_task(core_id);
     }
   }
-  // mempool_barrier(num_cores, num_cores * 4);
+  // mempool_barrier(num_cores);
 
   return 0;
 }

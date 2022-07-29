@@ -104,20 +104,20 @@ int main() {
   int error;
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // Initialize Matrices
   init_matrix(a, M, N, A_a, A_b, A_c, core_id, num_cores);
   init_matrix(b, N, P, B_a, B_b, B_c, core_id, num_cores);
 
-  mempool_barrier(num_cores, num_cores / 2);
+  mempool_barrier(num_cores);
 
   cycles = mempool_get_timer();
   mempool_start_benchmark();
   mat_mul_parallel(a, b, c, M, N, P, core_id, num_cores);
   mempool_stop_benchmark();
   cycles = mempool_get_timer() - cycles;
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Check result
   if (core_id == 0) {
@@ -130,14 +130,14 @@ int main() {
   } else {
     mempool_wait(M * P * 12);
   }
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   cycles = mempool_get_timer();
   mempool_start_benchmark();
   mat_mul_unrolled_parallel(a, b, c, M, N, P, core_id, num_cores);
   mempool_stop_benchmark();
   cycles = mempool_get_timer() - cycles;
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   // Check result
   if (core_id == 0) {
@@ -150,7 +150,7 @@ int main() {
   } else {
     mempool_wait(M * P * 12);
   }
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
 

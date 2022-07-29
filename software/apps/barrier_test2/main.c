@@ -27,7 +27,7 @@ uint32_t test_omp_barrier(uint32_t num_cores) {
       printf("waited.\n");
       result2 = 3;
     }
-    mempool_barrier(num_cores, num_cores);
+    mempool_barrier(num_cores);
 
     if (rank == 2) {
       printf("result2: %d\n", result2);
@@ -44,7 +44,7 @@ int main() {
   uint32_t i;
   uint32_t num_failed = 0;
 
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   if (core_id == 0) {
     printf("Master Thread start\n");

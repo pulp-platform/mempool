@@ -35,7 +35,7 @@ parallel_master_manual() {
   mempool_stop_benchmark();
   cycles = mempool_get_timer() - cycles;
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     printf("Manual Master Result: %d\n", result);
@@ -60,7 +60,7 @@ omp_parallel_master() {
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;
 
-    mempool_barrier(num_cores, num_cores * 4);
+    mempool_barrier(num_cores);
 
 #pragma omp master
     {
@@ -75,7 +75,7 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // #ifdef VERBOSE
   if (core_id == 0) {
@@ -84,9 +84,9 @@ int main() {
     result = 0;
   }
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   parallel_master_manual();
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   result = 0;
 

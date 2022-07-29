@@ -100,13 +100,13 @@ int32_t dot_product_parallel1(int32_t const *__restrict__ A,
   for (uint32_t i = id; i < num_elements; i += numThreads) {
     Partial_sums[id] += A[i] * B[i];
   }
-  mempool_barrier(numThreads, numThreads * 4);
+  mempool_barrier(numThreads);
   if (id == 0) {
     for (uint32_t i = 0; i < numThreads; i += 1) {
       dotp += Partial_sums[i];
     }
   }
-  mempool_barrier(numThreads, numThreads * 4);
+  mempool_barrier(numThreads);
   return dotp;
 }
 
@@ -122,13 +122,13 @@ int32_t dot_product_parallel2(int32_t const *__restrict__ A,
        i < (id + 1) * num_elements / numThreads; i += 1) {
     Partial_sums[id] += A[i] * B[i];
   }
-  mempool_barrier(numThreads, numThreads * 4);
+  mempool_barrier(numThreads);
   if (id == 0) {
     for (uint32_t i = 0; i < numThreads; i += 1) {
       dotp += Partial_sums[i];
     }
   }
-  mempool_barrier(numThreads, numThreads * 4);
+  mempool_barrier(numThreads);
   return dotp;
 }
 
@@ -164,7 +164,7 @@ int main() {
   mempool_timer_t cycles;
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -177,14 +177,14 @@ int main() {
   init_vector(b, M, B_a, B_b, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   if (core_id == 0) {
     // print_vector(a, M);
     // print_vector(b, M);
   }
 #endif
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   int32_t result, correct_result;
 
   if (core_id == 0) {
@@ -197,7 +197,7 @@ int main() {
   }
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   if (core_id == 0) {
     printf("Sequential Result: %d\n", result);
     printf("Sequential Duration: %d\n", cycles);
@@ -208,7 +208,7 @@ int main() {
     }
   }
 #endif
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   cycles = mempool_get_timer();
   mempool_start_benchmark();
@@ -217,7 +217,7 @@ int main() {
   cycles = mempool_get_timer() - cycles;
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   if (core_id == 0) {
     printf("Manual Parallel1 Result: %d\n", result);
     printf("Manual Parallel1 Duration: %d\n", cycles);
@@ -229,7 +229,7 @@ int main() {
     }
   }
 #endif
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   cycles = mempool_get_timer();
   mempool_start_benchmark();
@@ -238,7 +238,7 @@ int main() {
   cycles = mempool_get_timer() - cycles;
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
   if (core_id == 0) {
     printf("Manual Parallel2 Result: %d\n", result);
     printf("Manual Parallel2 Duration: %d\n", cycles);
@@ -250,7 +250,7 @@ int main() {
     }
   }
 #endif
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   /*  OPENMP IMPLEMENTATION  */
   int32_t omp_result;

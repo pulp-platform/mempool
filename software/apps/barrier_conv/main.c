@@ -40,7 +40,7 @@ volatile uint32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
 volatile int error __attribute__((section(".l1")));
 
 void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores) {
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   if (core_id == 0) {
     error = 0;
@@ -64,7 +64,7 @@ void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores) {
   // Matrices are initialized --> Start calculating
   for (int i = 2; i < 3; ++i) {
     // Wait at barrier until everyone is ready
-    mempool_barrier(num_cores, WAIT_BARRIER);
+    mempool_barrier(num_cores);
 
     switch (i) {
     case 0:
@@ -91,7 +91,7 @@ void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores) {
     }
 
     // Wait at barrier befor checking
-    mempool_barrier(num_cores, WAIT_BARRIER);
+    mempool_barrier(num_cores);
 
     // Check result
     if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
@@ -100,7 +100,7 @@ void conv_mempool_barrier(uint32_t core_id, uint32_t num_cores) {
   }
 
   // wait until all cores have finished
-  mempool_barrier(num_cores, WAIT_BARRIER);
+  mempool_barrier(num_cores);
 }
 
 void conv_gomp_barrier(uint32_t core_id, uint32_t num_cores) {
@@ -175,8 +175,6 @@ int main() {
   }
 
 #pragma omp barrier
-  barrier_init = 0;
-
   start_time = mempool_get_timer();
   mempool_start_benchmark();
   conv_mempool_barrier(core_id, num_cores);
@@ -187,8 +185,7 @@ int main() {
     printf("Mempool barrier cycles: %d\n", cycles - start_time);
   }
 
-  mempool_barrier(num_cores, num_cores);
-  barrier_init = 0;
+  mempool_barrier(num_cores);
 
   start_time = mempool_get_timer();
   mempool_start_benchmark();

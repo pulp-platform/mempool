@@ -9,7 +9,6 @@
 
 uint32_t *checkfirst;
 uint32_t result;
-extern uint32_t barrier_init;
 
 void work1() {
   int sum = 0;
@@ -32,7 +31,7 @@ parallel_single_manual() {
     result = 100;
   }
 
-  mempool_barrier(num_cores, num_cores);
+  mempool_barrier(num_cores);
   *checkfirst = 0;
 
   mempool_stop_benchmark();
@@ -73,7 +72,7 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // #ifdef VERBOSE
   if (core_id == 0) {
@@ -82,13 +81,12 @@ int main() {
     result = 0;
   }
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
   parallel_single_manual();
 
-  mempool_barrier(num_cores, num_cores * 4);
+  mempool_barrier(num_cores);
 
-  barrier_init = 0;
   result = 0;
 
   /*  OPENMP IMPLEMENTATION  */
