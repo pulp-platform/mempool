@@ -25,12 +25,12 @@ include $(MEMPOOL_DIR)/config/$(config).mk
 ##  Address configuration  ##
 #############################
 
-# Boot address (in hex)
-boot_addr ?= A0000000
+# Boot address (in dec)
+boot_addr ?= 2684354560 # A0000000
 
 # L2 memory configuration (in hex)
-l2_base  ?= 80000000
-l2_size  ?= 400000
+l2_base  ?= 2147483648 # 80000000
+l2_size  ?= 4194304    # 400000
 l2_banks ?= 4
 
 # Size of sequential memory per core (in bytes)
