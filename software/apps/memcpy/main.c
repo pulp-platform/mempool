@@ -11,6 +11,7 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "mempool_dma_frontend.h"
 
 #ifndef UNROLL
 #define UNROLL 1
@@ -18,6 +19,8 @@
 #ifndef GROUP
 #define GROUP 1
 #endif
+
+#define DMA_ADDRESS (0x40010000)
 
 int8_t ro_data[0xC000] __attribute__((section(".rodata")))
 __attribute__((aligned(0x1000)));
@@ -121,6 +124,14 @@ void *parallel_memcpy(void *destination, const void *source, size_t num_bytes,
   return destination;
 }
 
+void *dma_memcpy(void *destination, const void *source, size_t num) {
+  *(volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_DST_ADDR_REG_OFFSET) = (uint32_t) destination;
+  *(volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_SRC_ADDR_REG_OFFSET) = (uint32_t) source;
+  *(volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_NUM_BYTES_REG_OFFSET) = (uint32_t) num;
+  uint32_t id = *(volatile uint32_t *)(DMA_ADDRESS + MEMPOOL_DMA_FRONTEND_NEXT_ID_REG_OFFSET);
+  return destination;
+}
+
 int main() {
   uint32_t num_cores_per_group = NUM_CORES / NUM_GROUPS;
   uint32_t core_id = mempool_get_core_id();
@@ -142,23 +153,9 @@ int main() {
   mempool_start_benchmark();
   uint32_t time = mempool_get_timer();
   dump_start(time);
-  switch (group_id) {
-  case 0:
-    parallel_memcpy((void *)dst_a, (const void *)src_a, SIZE * 4,
-                    core_id % num_cores_per_group, num_cores_per_group);
-    break;
-  case 1:
-    parallel_memcpy((void *)dst_b, (const void *)src_b, SIZE * 4,
-                    core_id % num_cores_per_group, num_cores_per_group);
-    break;
-  case 2:
-    parallel_memcpy((void *)dst_c, (const void *)src_c, SIZE * 4,
-                    core_id % num_cores_per_group, num_cores_per_group);
-    break;
-  case 3:
-    parallel_memcpy((void *)dst_d, (const void *)src_d, SIZE * 4,
-                    core_id % num_cores_per_group, num_cores_per_group);
-    break;
+  if (core_id == 0)
+  {
+    dma_memcpy((void *)src_b, (const void *)src_a, SIZE * 4);
   }
   time = mempool_get_timer() - time;
   dump_end(time);

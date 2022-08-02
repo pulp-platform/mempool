@@ -35,4 +35,12 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
 
 add wave -Group Control_Registers /mempool_tb/dut/i_ctrl_registers/*
 
+add wave -Group DMA /mempool_tb/dut/i_mempool_dma/*
+add wave -Group DMA -Group Reg /mempool_tb/dut/i_mempool_dma/i_mempool_dma_frontend_reg_top/*
+for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr group} {
+  for {set dma 0} {$dma < [examine -radix dec /mempool_pkg::NumDMAsPerGroup]} {incr dma} {
+    add wave -Group DMA_${group}_${dma} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/gen_dmas[$dma]/i_axi_dma_backend/*
+  }
+}
+
 do ../scripts/questa/wave_cache.tcl 0 0 0
