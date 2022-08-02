@@ -348,8 +348,8 @@ $(tests_verilate): $(test_result_dir_verilate)/%.out : $(app_path)/%
 ################
 
 # Bootrom
-src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img
-	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth 128 $<
+src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img $(config_mk) Makefile
+	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth $(axi_data_width) $<
 
 $(MEMPOOL_DIR)/software/runtime/bootrom.img:
 	make -C $(MEMPOOL_DIR)/software runtime/bootrom.img
