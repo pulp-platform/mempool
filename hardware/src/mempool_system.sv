@@ -55,7 +55,7 @@ module mempool_system
   localparam NumSoCRules   = NumAXISlaves - 1;
 
   typedef enum logic [$clog2(NumAXISlaves) - 1:0] {
-    CtrlRegisters,
+    Peripherals,
     Bootrom,
     External
   } axi_soc_xbar_slave_target;
@@ -76,6 +76,11 @@ module mempool_system
   logic             [NumCores-1:0]      wake_up;
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
+
+  dma_req_t [NumGroups*NumDMAsPerGroup-1:0] dma_req;
+  logic     [NumGroups*NumDMAsPerGroup-1:0] dma_req_valid;
+  logic     [NumGroups*NumDMAsPerGroup-1:0] dma_req_ready;
+  logic     [1-1:0] dma_id;
 
   localparam xbar_cfg_t MstDemuxCfg = '{
     NoSlvPorts         : 1, // Each master has a private demux
@@ -123,6 +128,9 @@ module mempool_system
     .scan_data_i    (1'b0                           ),
     .scan_data_o    (/* Unused */                   ),
     .ro_cache_ctrl_i(ro_cache_ctrl                  ),
+    .dma_req_i      (dma_req                        ),
+    .dma_req_valid_i(dma_req_valid                  ),
+    .dma_req_ready_o(dma_req_ready                  ),
     .axi_mst_req_o  (axi_mst_req[NumAXIMasters-2:0] ),
     .axi_mst_resp_i (axi_mst_resp[NumAXIMasters-2:0])
   );
@@ -131,8 +139,8 @@ module mempool_system
    *  AXI Interconnect  *
    **********************/
 
-  localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
-  localparam addr_t CtrlRegistersEndAddr  = 32'h4000_FFFF;
+  localparam addr_t PeripheralsBaseAddr   = 32'h4000_0000;
+  localparam addr_t PeripheralsEndAddr    = 32'h4002_0000;
   localparam addr_t L2MemoryBaseAddr      = `ifdef L2_BASE `L2_BASE `else 32'h8000_0000 `endif;
   localparam addr_t L2MemoryEndAddr       = L2MemoryBaseAddr + L2Size;
   localparam addr_t BootromBaseAddr       = 32'hA000_0000;
@@ -144,7 +152,7 @@ module mempool_system
     '{idx: L2Memory, start_addr: L2MemoryBaseAddr, end_addr: L2MemoryEndAddr}
   };
   assign soc_xbar_rules = '{
-    '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
+    '{idx: Peripherals, start_addr: PeripheralsBaseAddr, end_addr: PeripheralsEndAddr},
     '{idx: Bootrom, start_addr: BootromBaseAddr, end_addr: BootromEndAddr}
   };
 
@@ -371,10 +379,45 @@ module mempool_system
    *  Control Registers  *
    ***********************/
 
-  axi_ctrl_req_t    axi_ctrl_req;
-  axi_ctrl_resp_t   axi_ctrl_resp;
-  axi_lite_slv_req_t  axi_lite_ctrl_registers_req;
-  axi_lite_slv_resp_t axi_lite_ctrl_registers_resp;
+  localparam NumPeriphs = 2; // Control registers + DMA
+
+  typedef enum logic [$clog2(NumPeriphs) - 1:0] {
+    CtrlRegisters,
+    DMA
+  } axi_lite_xbar_slave_target;
+
+  axi_periph_req_t                     axi_periph_narrow_req;
+  axi_periph_resp_t                    axi_periph_narrow_resp;
+  axi_lite_slv_req_t                   axi_lite_mst_req;
+  axi_lite_slv_resp_t                  axi_lite_mst_resp;
+  axi_lite_slv_req_t  [NumPeriphs-1:0] axi_lite_slv_req;
+  axi_lite_slv_resp_t [NumPeriphs-1:0] axi_lite_slv_resp;
+
+  localparam xbar_cfg_t AXILiteXBarCfg = '{
+    NoSlvPorts         : 1,
+    NoMstPorts         : NumPeriphs,
+    MaxMstTrans        : 1,
+    MaxSlvTrans        : 1,
+    FallThrough        : 1'b0,
+    LatencyMode        : axi_pkg::NO_LATENCY,
+    AxiIdWidthSlvPorts : 0, /* Not used for AXI lite */
+    AxiIdUsedSlvPorts  : 0, /* Not used for AXI lite */
+    UniqueIds          : 0, /* Not used for AXI lite */
+    AxiAddrWidth       : AddrWidth,
+    AxiDataWidth       : AxiLiteDataWidth,
+    NoAddrRules        : NumPeriphs
+  };
+
+  localparam addr_t CtrlRegistersBaseAddr = 32'h4000_0000;
+  localparam addr_t CtrlRegistersEndAddr  = 32'h4001_0000;
+  localparam addr_t DMABaseAddr           = 32'h4001_0000;
+  localparam addr_t DMAEndAddr            = 32'h4002_0000;
+
+  xbar_rule_32_t [NumPeriphs-1:0] axi_lite_xbar_rules;
+  assign axi_lite_xbar_rules = '{
+    '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
+    '{idx: DMA, start_addr: DMABaseAddr, end_addr: DMAEndAddr}
+  };
 
   axi_dw_converter #(
     .AxiMaxReads         (1                ), // Number of outstanding reads
@@ -383,25 +426,25 @@ module mempool_system
     .AxiAddrWidth        (AddrWidth        ), // Address width
     .AxiIdWidth          (AxiSystemIdWidth ), // ID width
     .aw_chan_t           (axi_system_aw_t  ), // AW Channel Type
-    .mst_w_chan_t        (axi_ctrl_w_t     ), //  W Channel Type for the mst port
+    .mst_w_chan_t        (axi_periph_w_t   ), //  W Channel Type for the mst port
     .slv_w_chan_t        (axi_system_w_t   ), //  W Channel Type for the slv port
     .b_chan_t            (axi_system_b_t   ), //  B Channel Type
     .ar_chan_t           (axi_system_ar_t  ), // AR Channel Type
-    .mst_r_chan_t        (axi_ctrl_r_t     ), //  R Channel Type for the mst port
+    .mst_r_chan_t        (axi_periph_r_t   ), //  R Channel Type for the mst port
     .slv_r_chan_t        (axi_system_r_t   ), //  R Channel Type for the slv port
-    .axi_mst_req_t       (axi_ctrl_req_t   ), // AXI Request Type for mst ports
-    .axi_mst_resp_t      (axi_ctrl_resp_t  ), // AXI Response Type for mst ports
+    .axi_mst_req_t       (axi_periph_req_t ), // AXI Request Type for mst ports
+    .axi_mst_resp_t      (axi_periph_resp_t), // AXI Response Type for mst ports
     .axi_slv_req_t       (axi_system_req_t ), // AXI Request Type for slv ports
     .axi_slv_resp_t      (axi_system_resp_t)  // AXI Response Type for slv ports
   ) i_axi_dw_converter_ctrl (
-    .clk_i      (clk_i                         ),
-    .rst_ni     (rst_ni                        ),
+    .clk_i      (clk_i                       ),
+    .rst_ni     (rst_ni                      ),
     // Slave interface
-    .slv_req_i  (axi_periph_req[CtrlRegisters] ),
-    .slv_resp_o (axi_periph_resp[CtrlRegisters]),
+    .slv_req_i  (axi_periph_req[Peripherals] ),
+    .slv_resp_o (axi_periph_resp[Peripherals]),
     // Master interface
-    .mst_req_o  (axi_ctrl_req                  ),
-    .mst_resp_i (axi_ctrl_resp                 )
+    .mst_req_o  (axi_periph_narrow_req       ),
+    .mst_resp_i (axi_periph_narrow_resp      )
   );
 
   axi_to_axi_lite #(
@@ -412,18 +455,41 @@ module mempool_system
     .AxiMaxReadTxns (1                  ),
     .AxiMaxWriteTxns(1                  ),
     .FallThrough    (1'b0               ),
-    .full_req_t     (axi_ctrl_req_t     ),
-    .full_resp_t    (axi_ctrl_resp_t    ),
+    .full_req_t     (axi_periph_req_t   ),
+    .full_resp_t    (axi_periph_resp_t  ),
     .lite_req_t     (axi_lite_slv_req_t ),
     .lite_resp_t    (axi_lite_slv_resp_t)
   ) i_axi_to_axi_lite (
-    .clk_i     (clk_i                       ),
-    .rst_ni    (rst_ni                      ),
-    .test_i    (1'b0                        ),
-    .slv_req_i (axi_ctrl_req                ),
-    .slv_resp_o(axi_ctrl_resp               ),
-    .mst_req_o (axi_lite_ctrl_registers_req ),
-    .mst_resp_i(axi_lite_ctrl_registers_resp)
+    .clk_i     (clk_i                 ),
+    .rst_ni    (rst_ni                ),
+    .test_i    (1'b0                  ),
+    .slv_req_i (axi_periph_narrow_req ),
+    .slv_resp_o(axi_periph_narrow_resp),
+    .mst_req_o (axi_lite_mst_req      ),
+    .mst_resp_i(axi_lite_mst_resp     )
+  );
+
+  axi_lite_xbar #(
+    .Cfg       (AXILiteXBarCfg     ),
+    .aw_chan_t (axi_lite_slv_aw_t  ),
+    .w_chan_t  (axi_lite_slv_w_t   ),
+    .b_chan_t  (axi_lite_slv_b_t   ),
+    .ar_chan_t (axi_lite_slv_ar_t  ),
+    .r_chan_t  (axi_lite_slv_r_t   ),
+    .axi_req_t (axi_lite_slv_req_t ),
+    .axi_resp_t(axi_lite_slv_resp_t),
+    .rule_t    (xbar_rule_32_t     )
+  ) i_axi_lite_xbar (
+    .clk_i                (clk_i              ),
+    .rst_ni               (rst_ni             ),
+    .test_i               (1'b0               ),
+    .slv_ports_req_i      (axi_lite_mst_req   ),
+    .slv_ports_resp_o     (axi_lite_mst_resp  ),
+    .mst_ports_req_o      (axi_lite_slv_req   ),
+    .mst_ports_resp_i     (axi_lite_slv_resp  ),
+    .addr_map_i           (axi_lite_xbar_rules),
+    .en_default_mst_port_i('1                 ),
+    .default_mst_port_i   (CtrlRegisters      )
   );
 
   ctrl_registers #(
@@ -434,17 +500,36 @@ module mempool_system
     .axi_lite_req_t (axi_lite_slv_req_t ),
     .axi_lite_resp_t(axi_lite_slv_resp_t)
   ) i_ctrl_registers (
-    .clk_i                (clk_i                       ),
-    .rst_ni               (rst_ni                      ),
-    .axi_lite_slave_req_i (axi_lite_ctrl_registers_req ),
-    .axi_lite_slave_resp_o(axi_lite_ctrl_registers_resp),
-    .ro_cache_ctrl_o      (ro_cache_ctrl               ),
-    .tcdm_start_address_o (/* Unused */                ),
-    .tcdm_end_address_o   (/* Unused */                ),
-    .num_cores_o          (/* Unused */                ),
-    .wake_up_o            (wake_up                     ),
-    .eoc_o                (/* Unused */                ),
-    .eoc_valid_o          (eoc_valid_o                 )
+    .clk_i                (clk_i                           ),
+    .rst_ni               (rst_ni                          ),
+    .axi_lite_slave_req_i (axi_lite_slv_req[CtrlRegisters] ),
+    .axi_lite_slave_resp_o(axi_lite_slv_resp[CtrlRegisters]),
+    .ro_cache_ctrl_o      (ro_cache_ctrl                   ),
+    .tcdm_start_address_o (/* Unused */                    ),
+    .tcdm_end_address_o   (/* Unused */                    ),
+    .num_cores_o          (/* Unused */                    ),
+    .wake_up_o            (wake_up                         ),
+    .eoc_o                (/* Unused */                    ),
+    .eoc_valid_o          (eoc_valid_o                     )
+  );
+
+  mempool_dma #(
+    .axi_lite_req_t(axi_lite_slv_req_t       ),
+    .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
+    .burst_req_t   (dma_req_t                ),
+    .NumBackends   (NumGroups*NumDMAsPerGroup),
+    .DmaIdWidth    (1                        )
+  ) i_mempool_dma (
+    .clk_i           (clk_i                 ),
+    .rst_ni          (rst_ni                ),
+    .config_req_i    (axi_lite_slv_req[DMA] ),
+    .config_res_o    (axi_lite_slv_resp[DMA]),
+    .burst_req_o     (dma_req               ),
+    .valid_o         (dma_req_valid         ),
+    .ready_i         (dma_req_ready         ),
+    .backend_idle_i  (1'b1                  ),
+    .trans_complete_i(1'b1                  ),
+    .dma_id_o        (dma_id                )
   );
 
   assign busy_o = 1'b0;

@@ -41,6 +41,10 @@ module mempool_group
   input  logic                            [NumCoresPerGroup-1:0]                 wake_up_i,
   // RO-Cache configuration
   input  `STRUCT_PORT(ro_cache_ctrl_t)                                           ro_cache_ctrl_i,
+  // DMA request
+  input  `STRUCT_VECT(dma_req_t,          [NumDMAsPerGroup-1:0])                 dma_req_i,
+  input  logic                            [NumDMAsPerGroup-1:0]                  dma_req_valid_i,
+  output logic                            [NumDMAsPerGroup-1:0]                  dma_req_ready_o,
    // AXI Interface
   output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMastersPerGroup-1:0])           axi_mst_req_o,
   input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMastersPerGroup-1:0])           axi_mst_resp_i
@@ -93,8 +97,8 @@ module mempool_group
   assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready[NumGroups-1:1];
 
   // AXI interfaces
-  axi_tile_req_t  [NumTilesPerGroup-1:0] axi_tile_req;
-  axi_tile_resp_t [NumTilesPerGroup-1:0] axi_tile_resp;
+  axi_tile_req_t  [NumTilesPerGroup+NumDMAsPerGroup-1:0] axi_tile_req;
+  axi_tile_resp_t [NumTilesPerGroup+NumDMAsPerGroup-1:0] axi_tile_resp;
 
   for (genvar t = 0; unsigned'(t) < NumTilesPerGroup; t++) begin: gen_tiles
     tile_id_t id;
@@ -160,6 +164,38 @@ module mempool_group
       assign tran_tcdm_slave_resp_ready[g]  = tcdm_slave_resp_ready[g][t];
     end: gen_tran_group_req
   end : gen_tiles
+
+  /*********
+   *  DMA  *
+   *********/
+
+  for (genvar d = 0; unsigned'(d) < NumDMAsPerGroup; d++) begin: gen_dmas
+    localparam int unsigned a = NumTilesPerGroup + d;
+    axi_dma_backend #(
+      .DataWidth       (AxiDataWidth   ),
+      .AddrWidth       (AddrWidth      ),
+      .IdWidth         (AxiTileIdWidth ),
+      .AxReqFifoDepth  (1              ),
+      .TransFifoDepth  (1              ),
+      .BufferDepth     (3              ),
+      .axi_req_t       (axi_tile_req_t ),
+      .axi_res_t       (axi_tile_resp_t),
+      .burst_req_t     (dma_req_t      ),
+      .DmaIdWidth      (1              ),
+      .DmaTracing      (0              )
+    ) i_axi_dma_backend (
+      .clk_i            (clk_i             ),
+      .rst_ni           (rst_ni            ),
+      .dma_id_i         (1'b0              ),
+      .axi_dma_req_o    (axi_tile_req[a]   ),
+      .axi_dma_res_i    (axi_tile_resp[a]  ),
+      .burst_req_i      (dma_req_i[d]      ),
+      .valid_i          (dma_req_valid_i[d]),
+      .ready_o          (dma_req_ready_o[d]),
+      .backend_idle_o   (/*unused*/        ),
+      .trans_complete_o (/*unused*/        )
+    );
+  end
 
   /*************************
    *  Local Interconnect  *
@@ -346,31 +382,31 @@ module mempool_group
   axi_tile_resp_t  [NumAXIMastersPerGroup-1:0] axi_mst_resp;
 
   axi_hier_interco #(
-    .NumSlvPorts    (NumTilesPerGroup     ),
-    .NumMstPorts    (NumAXIMastersPerGroup),
-    .Radix          (AxiHierRadix         ),
-    .EnableCache    (32'hFFFFFFFF         ),
-    .CacheLineWidth (ROCacheLineWidth     ),
-    .CacheSizeByte  (ROCacheSizeByte      ),
-    .CacheSets      (ROCacheSets          ),
-    .AddrWidth      (AddrWidth            ),
-    .DataWidth      (AxiDataWidth         ),
-    .SlvIdWidth     (AxiTileIdWidth       ),
-    .MstIdWidth     (AxiTileIdWidth       ),
-    .UserWidth      (1                    ),
-    .slv_req_t      (axi_tile_req_t       ),
-    .slv_resp_t     (axi_tile_resp_t      ),
-    .mst_req_t      (axi_tile_req_t       ),
-    .mst_resp_t     (axi_tile_resp_t      )
+    .NumSlvPorts    (NumTilesPerGroup+NumDMAsPerGroup),
+    .NumMstPorts    (NumAXIMastersPerGroup           ),
+    .Radix          (AxiHierRadix                    ),
+    .EnableCache    (32'hFFFFFFFF                    ),
+    .CacheLineWidth (ROCacheLineWidth                ),
+    .CacheSizeByte  (ROCacheSizeByte                 ),
+    .CacheSets      (ROCacheSets                     ),
+    .AddrWidth      (AddrWidth                       ),
+    .DataWidth      (AxiDataWidth                    ),
+    .SlvIdWidth     (AxiTileIdWidth                  ),
+    .MstIdWidth     (AxiTileIdWidth                  ),
+    .UserWidth      (1                               ),
+    .slv_req_t      (axi_tile_req_t                  ),
+    .slv_resp_t     (axi_tile_resp_t                 ),
+    .mst_req_t      (axi_tile_req_t                  ),
+    .mst_resp_t     (axi_tile_resp_t                 )
   ) i_axi_interco (
-    .clk_i           (clk_i               ),
-    .rst_ni          (rst_ni              ),
-    .test_i          (1'b0                ),
-    .ro_cache_ctrl_i (ro_cache_ctrl_i     ),
-    .slv_req_i       (axi_tile_req        ),
-    .slv_resp_o      (axi_tile_resp       ),
-    .mst_req_o       (axi_mst_req         ),
-    .mst_resp_i      (axi_mst_resp        )
+    .clk_i           (clk_i          ),
+    .rst_ni          (rst_ni         ),
+    .test_i          (1'b0           ),
+    .ro_cache_ctrl_i (ro_cache_ctrl_i),
+    .slv_req_i       (axi_tile_req   ),
+    .slv_resp_o      (axi_tile_resp  ),
+    .mst_req_o       (axi_mst_req    ),
+    .mst_resp_i      (axi_mst_resp   )
   );
 
   for (genvar m = 0; m < NumAXIMastersPerGroup; m++) begin: gen_axi_group_cuts

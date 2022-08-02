@@ -105,11 +105,11 @@ package mempool_pkg;
   `AXI_TYPEDEF_REQ_T(axi_system_req_t, axi_system_aw_t, axi_system_w_t, axi_system_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_system_resp_t, axi_system_b_t, axi_system_r_t);
 
-  // AXI to ctrl registers
-  `AXI_TYPEDEF_W_CHAN_T(axi_ctrl_w_t, axi_lite_data_t, axi_lite_strb_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_ctrl_r_t, axi_lite_data_t, axi_system_id_t, logic);
-  `AXI_TYPEDEF_REQ_T(axi_ctrl_req_t, axi_system_aw_t, axi_ctrl_w_t, axi_system_ar_t);
-  `AXI_TYPEDEF_RESP_T(axi_ctrl_resp_t, axi_system_b_t, axi_ctrl_r_t);
+  // AXI to periph
+  `AXI_TYPEDEF_W_CHAN_T(axi_periph_w_t, axi_lite_data_t, axi_lite_strb_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_periph_r_t, axi_lite_data_t, axi_system_id_t, logic);
+  `AXI_TYPEDEF_REQ_T(axi_periph_req_t, axi_system_aw_t, axi_periph_w_t, axi_system_ar_t);
+  `AXI_TYPEDEF_RESP_T(axi_periph_resp_t, axi_system_b_t, axi_periph_r_t);
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_tb_aw_t, addr_t, axi_tb_id_t, logic);
   `AXI_TYPEDEF_W_CHAN_T(axi_tb_w_t, axi_data_t, axi_strb_t, logic);
@@ -195,6 +195,26 @@ package mempool_pkg;
     tcdm_payload_t rdata;
     tile_group_id_t ini_addr;
   } tcdm_slave_resp_t;
+
+  /*********
+   *  DMA  *
+   *********/
+
+  localparam int unsigned NumDMAsPerGroup = 4;
+
+  typedef struct packed {
+    axi_tile_id_t id;
+    addr_t src;
+    addr_t dst;
+    logic [31:0] num_bytes;
+    axi_pkg::cache_t cache_src;
+    axi_pkg::cache_t cache_dst;
+    axi_pkg::burst_t burst_src;
+    axi_pkg::burst_t burst_dst;
+    logic decouple_rw;
+    logic deburst;
+    logic serialize;
+  } dma_req_t;
 
   /**********************
    *  QUEUE PARAMETERS  *
