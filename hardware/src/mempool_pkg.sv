@@ -152,6 +152,32 @@ package mempool_pkg;
     logic [ROCacheNumAddrRules-1:0][AddrWidth-1:0] end_addr;
   } ro_cache_ctrl_t;
 
+  /*********
+   *  DMA  *
+   *********/
+
+  localparam int unsigned NumDMAsPerGroup = 4;
+  localparam int unsigned NumTilesPerDMA = NumTilesPerGroup/NumDMAsPerGroup;
+  localparam int unsigned DmaNumWords = 4;
+  localparam int unsigned DmaDataWidth = DmaNumWords*DataWidth;
+  localparam int unsigned NumSuperbanks = NumBanksPerTile/DmaNumWords;
+
+  typedef logic [DmaNumWords*DataWidth-1:0] dma_data_t;
+
+  typedef struct packed {
+    axi_tile_id_t id;
+    addr_t src;
+    addr_t dst;
+    logic [31:0] num_bytes;
+    axi_pkg::cache_t cache_src;
+    axi_pkg::cache_t cache_dst;
+    axi_pkg::burst_t burst_src;
+    axi_pkg::burst_t burst_dst;
+    logic decouple_rw;
+    logic deburst;
+    logic serialize;
+  } dma_req_t;
+
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
@@ -196,27 +222,25 @@ package mempool_pkg;
     tile_group_id_t ini_addr;
   } tcdm_slave_resp_t;
 
-  /*********
-   *  DMA  *
-   *********/
-
-  localparam int unsigned NumDMAsPerGroup = 4;
-  localparam int unsigned NumTilesPerDMA = NumTilesPerGroup/NumDMAsPerGroup;
-  localparam int unsigned NumDMAPortsPerTile = 4;
+  typedef struct packed {
+    meta_id_t meta_id;
+    tile_core_id_t core_id;
+    amo_t amo;
+    dma_data_t data;
+  } dma_payload_t;
 
   typedef struct packed {
-    axi_tile_id_t id;
-    addr_t src;
-    addr_t dst;
-    logic [31:0] num_bytes;
-    axi_pkg::cache_t cache_src;
-    axi_pkg::cache_t cache_dst;
-    axi_pkg::burst_t burst_src;
-    axi_pkg::burst_t burst_dst;
-    logic decouple_rw;
-    logic deburst;
-    logic serialize;
-  } dma_req_t;
+    dma_payload_t wdata;
+    logic wen;
+    strb_t be;
+    tile_addr_t tgt_addr;
+    tile_group_id_t ini_addr;
+  } tcdm_dma_req_t;
+
+  typedef struct packed {
+    dma_payload_t rdata;
+    tile_group_id_t ini_addr;
+  } tcdm_dma_resp_t;
 
   /**********************
    *  QUEUE PARAMETERS  *
