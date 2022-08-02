@@ -89,7 +89,7 @@ You will need an LLVM installation.
 
 ### Build Applications
 
-The `software/apps` folder contains example applications that work on MemPool. MemPool also contains some Halide example applications in the `software/halide` folder. Run the following command to build an application. E.g., `hello_world`:
+The `software/apps` folder contains example applications that work on MemPool. MemPool also contains some Halide example applications in the `software/halide` folder and OpenMP applications in the `software/omp` folder. Run the following command to build an application. E.g., `hello_world`:
 
 ```bash
 # Bare-metal applications
@@ -98,6 +98,9 @@ make hello_world
 # Halide applications
 cd software/halide
 make matmul
+# OpenMP applications
+cd software/omp
+make omp_parallel
 ```
 
 You can also choose the compiler to build the application with using the `COMPILER` option. The possible options are `gcc` and `llvm`, the former being the default.
