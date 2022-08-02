@@ -4,47 +4,39 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-//#include <stdint.h>
-//#include <string.h>
-
-#define N 16
-#define M 16
-#define O 16
-#define N_BANKS (1024)
-
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "initialization.h"
-#include "mempool_mat_inv_q32p.h"
-#include "mempool_mat_inv_q32p_memsized.h"
-#include "mempool_mat_inv_q32s.h"
-
+#define N 16
+#define M 16
+#define O 16
+#define N_BANKS (1024)
+#define N_USED_BANKS (64)
 
 #define VERBOSE
 // #define SINGLE
 // #define PARALLEL
 #define MEMSIZED
+// #define FOLDED
 
+#include "initialization.h"
+#include "mempool_mat_inv_q32s.h"
+#include "mempool_mat_inv_q32p.h"
+#include "mempool_mat_inv_q32p_memsized.h"
+#include "mempool_mat_inv_q32p_folded.h"
+
+#ifdef FOLDED
+int32_t matrix[N * M]                                       __attribute__((aligned(N_BANKS), section(".l1")));
+int32_t folded_matrix[N_BANKS * ((N * M) / N_USED_BANKS)]   __attribute__((aligned(N_BANKS), section(".l1")));
+int32_t inv[N_BANKS * ((N * M) / N_USED_BANKS)]             __attribute__((aligned(N_BANKS), section(".l1")));
+uint32_t flag                                               __attribute__((section(".l1")));
+#else
 int32_t matrix[N * M]         __attribute__((aligned(N), section(".l1")));
 int32_t inv[M * M]            __attribute__((aligned(N), section(".l1")));
 uint32_t flag                 __attribute__((section(".l1")));
-
-void display(int32_t *A, int32_t n, int32_t m) {
-    //int32_t i, j;
-    //for (i = 0; i < n; i++) {
-    //  for (j = 0; j < m; j++) {
-    //    printf("%8d ", A[i * m + j]);
-    //  }
-    //  printf("\n");
-    //}
-    int32_t i;
-    for (i = 0; i < n * m; i++) {
-      printf("Output[%d] = %8d\n", i, A[i]);
-    }
-}
+#endif
 
 // Driver program
 void single_core()
@@ -109,7 +101,7 @@ void multi_core_memsized()
     mempool_barrier_init(core_id);
 
     init_matrix(matrix, N, M, -156, 427, -219, core_id);
-    init_matrix_zeros(inv, M, M, core_id);
+    init_matrix_zeros(inv, N, M, core_id);
     if (core_id == 0) {
         flag = 0U;
     }
@@ -127,6 +119,42 @@ void multi_core_memsized()
     mempool_barrier(num_cores);
 }
 
+#ifdef FOLDED
+void multi_core_folded()
+{
+
+    uint32_t core_id = mempool_get_core_id();
+    uint32_t num_cores = mempool_get_core_count();
+    uint32_t nPE = N_USED_BANKS >> 2U;
+    // Initialize barrier and synchronize
+    mempool_barrier_init(core_id);
+
+    init_matrix(matrix, N, M, -156, 427, -219, core_id);
+    init_matrix_zeros(folded_matrix, ((N * M) / N_USED_BANKS), N_BANKS, core_id);
+    init_matrix_zeros(inv, ((N * M) / N_USED_BANKS), N_BANKS, core_id);
+    if (core_id == 0) {
+        flag = 0U;
+    }
+    mempool_barrier(num_cores);
+
+    mempool_start_benchmark();
+    fold_matrix(matrix, folded_matrix, N);
+    mempool_stop_benchmark();
+    if(core_id < nPE) {
+        mempool_start_benchmark();
+        mempool_GJinv_q32p_folded(folded_matrix, inv, M, &flag, nPE);
+        mempool_stop_benchmark();
+    }
+    mempool_barrier(num_cores);
+    #ifdef VERBOSE
+    if (core_id == 0)
+      display_folded(inv, M, N);
+    #endif
+    mempool_barrier(num_cores);
+
+}
+#endif
+
 int main() {
     #if defined(SINGLE)
     single_core();
@@ -134,6 +162,8 @@ int main() {
     multi_core();
     #elif defined(MEMSIZED)
     multi_core_memsized();
+    #elif defined(FOLDED)
+    multi_core_folded();
     #endif
     return 0;
 }

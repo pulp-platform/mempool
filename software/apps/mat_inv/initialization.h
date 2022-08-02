@@ -9,6 +9,16 @@
 #define FIX_MUL(a,b) ((int32_t)((a * b) >> FIXED_POINT))
 #define MIN(a,b) (a < b ? a : b)
 
+dump(l, 1);
+dump(loopCnt, 2);
+dump(i, 3);
+
+void display(int32_t *A, int32_t n, int32_t m);
+
+#ifdef FOLDED
+void display_folded(int32_t *A, int32_t n, int32_t m);
+#endif
+
 void Transpose(int32_t *matrix, int32_t *t_matrix, int32_t n, int32_t m);
 
 void MatrixMult(int32_t *matrix_1,  int32_t *matrix_2,  int32_t *matrix_product, int32_t n, int32_t m, int32_t o);
@@ -17,6 +27,31 @@ void init_matrix(int32_t  *matrix, uint32_t num_rows, uint32_t num_columns, int3
 
 void init_matrix_zeros(int32_t  *matrix, uint32_t num_rows, uint32_t num_columns, uint32_t core_id);
 
+void display(int32_t *A, int32_t n, int32_t m) {
+    //int32_t i, j;
+    //for (i = 0; i < n; i++) {
+    //  for (j = 0; j < m; j++) {
+    //    printf("%8d ", A[i * m + j]);
+    //  }
+    //  printf("\n");
+    //}
+    int32_t i;
+    for (i = 0; i < n * m; i++) {
+      printf("Output[%d] = %8d\n", i, A[i]);
+    }
+}
+
+#ifdef FOLDED
+void display_folded(int32_t *A, int32_t n, int32_t m) {
+    int32_t i, j, k, shift;
+    for (i = 0; i < n * m; i++) {
+      k = i / n;
+      j = i % n;
+      shift = N_BANKS * ((k * n) / N_USED_BANKS) + (k * n) % N_USED_BANKS;
+      printf("Output[%d] = %8d\n", i, A[shift + j]);
+    }
+}
+#endif
 
 void Transpose(int32_t *matrix,  int32_t *t_matrix, int32_t n, int32_t m) {
   int32_t i, j;
