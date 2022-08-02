@@ -3,6 +3,7 @@
 
 #include "encoding.h"
 #include "kernel/convolution.h"
+#include "libgomp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -16,7 +17,6 @@
 int test_omp_parallel_for_reduction() {
   int sum;
   int known_sum;
-  double rounding_error = 1.E-9;
   int diff;
   int product;
   int known_product;
@@ -25,7 +25,7 @@ int test_omp_parallel_for_reduction() {
   int bit_and;
   int bit_or;
   int exclusiv_bit_or;
-  uint32_t logics[LOOPCOUNT];
+  int logics[LOOPCOUNT];
   int i;
   int result;
 
@@ -203,14 +203,11 @@ int test_omp_parallel_for_reduction() {
     result++;
     printf("Error in EXCLUSIV BIT OR part 2\n");
   }
-
-  /*printf("\nResult:%d\n",result);*/
   return (result);
 }
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
   int i;
   int num_failed = 0;
 

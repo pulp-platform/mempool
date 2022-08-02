@@ -11,8 +11,8 @@
 #define M 4
 
 void work2(unsigned long num) {
-  unsigned int i;
-  volatile int cnt = 0;
+  uint32_t i;
+  uint32_t cnt = 0;
 
   for (i = 0; i < num; i++)
     cnt += i;
@@ -76,46 +76,43 @@ void section_parallel() {
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  mempool_timer_t cycles;
+  uint32_t cycles;
 
   mempool_barrier_init(core_id);
 
   if (core_id == 0) {
 
-    mempool_wait(10000);
-
     printf("Sequential Start\n");
-    // cycles = mempool_get_timer();
-    // mempool_start_benchmark();
+    cycles = mempool_get_timer();
+    mempool_start_benchmark();
     sequential();
-    // mempool_stop_benchmark();
-    // cycles = mempool_get_timer() - cycles;
-    // printf("Sequential Duration: %d\n", cycles);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer() - cycles;
+    printf("Sequential Duration: %d\n", cycles);
 
     printf("Static Start\n");
-    // cycles = mempool_get_timer();
-    // mempool_start_benchmark();
+    cycles = mempool_get_timer();
+    mempool_start_benchmark();
     static_parallel();
-    // mempool_stop_benchmark();
-    // cycles = mempool_get_timer() - cycles;
-    // printf("Static Duration: %d\n", cycles);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer() - cycles;
+    printf("Static Duration: %d\n", cycles);
 
     printf("Dynamic Start\n");
-    // cycles = mempool_get_timer();
-    // mempool_start_benchmark();
+    cycles = mempool_get_timer();
+    mempool_start_benchmark();
     dynamic_parallel();
-    // mempool_stop_benchmark();
-    // cycles = mempool_get_timer() - cycles;
-    // printf("Dynamic Duration: %d\n", cycles);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer() - cycles;
+    printf("Dynamic Duration: %d\n", cycles);
 
     printf("Section Start\n");
-    // cycles = mempool_get_timer();
-    // mempool_start_benchmark();
+    cycles = mempool_get_timer();
+    mempool_start_benchmark();
     section_parallel();
-    // mempool_stop_benchmark();
-    // cycles = mempool_get_timer() - cycles;
-    // printf("Section Duration: %d\n", cycles);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer() - cycles;
+    printf("Section Duration: %d\n", cycles);
 
   } else {
     while (1) {

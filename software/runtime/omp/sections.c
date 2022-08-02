@@ -49,7 +49,6 @@ int GOMP_sections_next() {
 */
 void GOMP_parallel_sections(void (*fn)(void *), void *data,
                             unsigned int num_threads, int count) {
-  // printf("GOMP_parallel_sections\n");
   uint32_t core_id = mempool_get_core_id();
 
   gomp_new_work_share();

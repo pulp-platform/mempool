@@ -26,7 +26,6 @@ void mempool_barrier_gomp(uint32_t core_id, uint32_t num_cores) {
 }
 
 void GOMP_barrier() {
-  // printf("GOMP barrier\n");
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = event.nthreads;
   mempool_barrier_gomp(core_id, num_cores);

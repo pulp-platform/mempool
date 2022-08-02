@@ -26,9 +26,6 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-// #include "convolution_riscv.h"
-// #include "halide_runtime.h"
-
 #define M (20)
 #define N (4 * NUM_CORES)
 #define KERNEL_N 3

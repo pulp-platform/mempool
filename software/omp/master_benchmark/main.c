@@ -18,7 +18,7 @@ void work1() {
   }
 }
 
-parallel_master_manual() {
+void parallel_master_manual() {
   uint32_t core_id;
   uint32_t num_cores = mempool_get_core_count();
   core_id = mempool_get_core_id();
@@ -43,8 +43,7 @@ parallel_master_manual() {
   }
 }
 
-omp_parallel_master() {
-  uint32_t core_id;
+void omp_parallel_master() {
   uint32_t num_cores = mempool_get_core_count();
 
 #pragma omp parallel num_threads(num_cores)

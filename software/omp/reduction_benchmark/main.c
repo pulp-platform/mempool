@@ -21,6 +21,7 @@
 
 #include "encoding.h"
 #include "kernel/mat_mul.h"
+#include "libgomp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -147,13 +148,12 @@ int32_t dot_product_omp_static(int32_t const *__restrict__ A,
 int32_t dot_product_omp_dynamic(int32_t const *__restrict__ A,
                                 int32_t const *__restrict__ B,
                                 uint32_t num_elements, uint32_t chunksize) {
-  int i;
+  uint32_t i;
   int32_t dotp = 0;
   // printf("num_elements %d\n", num_elements);
 #pragma omp parallel for schedule(dynamic, chunksize) reduction(+ : dotp)
   for (i = 0; i < num_elements; i++) {
     dotp += A[i] * B[i];
-    // printf("core %d dotp %d\n", mempool_get_core_id(), dotp);
   }
   return dotp;
 }

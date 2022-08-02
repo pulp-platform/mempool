@@ -31,10 +31,7 @@ uint32_t test_omp_parallel_single() {
     }
 
 #pragma omp single
-    {
-      // printf("Single core_id inside: %d\n",core_id);
-      result = 100;
-    }
+    { result = 100; }
 
     work1();
     if (core_id == 0) {
@@ -51,14 +48,13 @@ uint32_t test_omp_parallel_single() {
 }
 
 uint32_t test_omp_for_single() {
-  uint32_t core_id;
-  int sum = 0;
+  uint32_t sum = 0;
 
 #pragma omp parallel shared(sum)
   {
 #pragma omp single
     {
-      for (int i = 0; i <= 100; i++) {
+      for (uint32_t i = 0; i <= 100; i++) {
         sum += i;
       }
     }
@@ -85,12 +81,7 @@ uint32_t test_omp_single_copyprivate() {
     }
 
 #pragma omp single copyprivate(result)
-    {
-      // printf("Single core_id inside: %d\n",core_id);
-      result = 100;
-    }
-
-    // printf("Single core_id outside: %d\n",core_id);
+    { result = 100; }
 
     work1();
     if (core_id == 5) {
@@ -103,11 +94,7 @@ uint32_t test_omp_single_copyprivate() {
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
   uint32_t i;
-  uint32_t num_failed = 0;
-
-  // mempool_barrier_init(core_id);
 
   if (core_id == 0) {
     printf("Master Thread start\n");

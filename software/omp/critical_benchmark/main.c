@@ -10,7 +10,7 @@
 uint32_t *lock;
 uint32_t result;
 
-parallel_critical_manual() {
+void parallel_critical_manual() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   uint32_t islocked;
@@ -39,8 +39,7 @@ parallel_critical_manual() {
   }
 }
 
-omp_parallel_critical() {
-  uint32_t core_id;
+void omp_parallel_critical() {
   uint32_t num_cores = mempool_get_core_count();
 
 #pragma omp parallel num_threads(num_cores)
@@ -71,7 +70,6 @@ int main() {
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
 
-  // #ifdef VERBOSE
   if (core_id == 0) {
     printf("Initialize\n");
     *lock = 0;

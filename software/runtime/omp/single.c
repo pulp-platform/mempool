@@ -12,7 +12,6 @@
 
 int GOMP_single_start(void) {
   int ret = 0;
-  // printf("SINGLE START\n");
 
   // NOTE works return from this function already locked
   ret = gomp_work_share_start();
@@ -37,7 +36,6 @@ void *GOMP_single_copy_start(void) {
   uint32_t core_id = mempool_get_core_id();
 
   void *ret;
-  // printf("SINGLE COPY START\n");
   gomp_hal_lock(&works.lock);
 
   if (works.checkfirst != WS_INITED) {
@@ -54,7 +52,6 @@ void *GOMP_single_copy_start(void) {
         __atomic_add_fetch(&works.completed, 1, __ATOMIC_SEQ_CST);
     gomp_hal_unlock(&works.lock);
 
-    // printf("wait at barrier\n");
     mempool_barrier_gomp(core_id, event.nthreads);
     if (completed == event.nthreads) {
       works.checkfirst = WS_NOT_INITED;

@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "kernel/convolution.h"
+#include "libgomp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -26,8 +26,6 @@ int test_omp_atomic() {
   int known_diff;
   int known_product;
   int result = 0;
-  int logic_and = 1;
-  int logic_or = 0;
   int logicsArray[LOOPCOUNT];
   logics = logicsArray;
 

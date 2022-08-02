@@ -22,8 +22,6 @@ int GOMP_loop_dynamic_start(int start, int end, int incr, int chunk_size,
 
   if (gomp_work_share_start()) { // work returns locked
     gomp_loop_init(start, end, incr, chunk_size);
-    // printf("GOMP_parallel_loop_dynamic_start %d %d %d %d \n", start, end,
-    // incr, chunk_size);
   }
   gomp_hal_unlock(&works.lock);
 
@@ -78,8 +76,6 @@ int GOMP_loop_dynamic_next(int *istart, int *iend) {
 void GOMP_parallel_loop_dynamic(void (*fn)(void *), void *data,
                                 unsigned num_threads, long start, long end,
                                 long incr, long chunk_size) {
-  // printf("GOMP_parallel_loop_dynamic %d %d %d %d \n", start, end, incr,
-  // chunk_size);
   uint32_t core_id = mempool_get_core_id();
 
   gomp_new_work_share();
@@ -96,3 +92,11 @@ void GOMP_loop_end() {
 }
 
 void GOMP_loop_end_nowait() {}
+
+int GOMP_loop_ull_dynamic_start(int start, int end, int incr, int chunk_size,
+                                int *istart, int *iend) {
+  return GOMP_loop_dynamic_start(start, end, incr, chunk_size, istart, iend);
+}
+int GOMP_loop_ull_dynamic_next(int *istart, int *iend) {
+  return GOMP_loop_dynamic_next(istart, iend);
+}

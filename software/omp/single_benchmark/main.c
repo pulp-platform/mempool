@@ -17,7 +17,7 @@ void work1() {
   }
 }
 
-parallel_single_manual() {
+void parallel_single_manual() {
   uint32_t core_id;
   uint32_t num_cores = mempool_get_core_count();
   core_id = mempool_get_core_id();
@@ -43,9 +43,7 @@ parallel_single_manual() {
   }
 }
 
-omp_parallel_single() {
-  uint32_t core_id;
-
+void omp_parallel_single() {
 #pragma omp parallel
   {
     work1();
@@ -90,8 +88,6 @@ int main() {
   result = 0;
 
   /*  OPENMP IMPLEMENTATION  */
-  int32_t omp_result;
-
   if (core_id == 0) {
 
     omp_parallel_single();

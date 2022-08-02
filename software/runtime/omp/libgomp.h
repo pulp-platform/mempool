@@ -21,6 +21,7 @@
 
 /* barrier.c */
 extern void GOMP_barrier(void);
+extern void mempool_barrier_gomp(uint32_t, uint32_t);
 
 /* critical.c */
 extern void GOMP_atomic_start(void);
