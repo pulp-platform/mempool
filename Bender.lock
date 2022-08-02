@@ -30,10 +30,10 @@ packages:
       Git: "https://github.com/pulp-platform/common_verification.git"
     dependencies: []
   idma:
-    revision: e1fbdf81bac9c4395e164e8c0560238f87dc0c51
+    revision: ~
     version: ~
     source:
-      Git: "git@iis-git.ee.ethz.ch:bslk/idma.git"
+      Path: hardware/deps/idma
     dependencies:
       - axi
       - common_cells
