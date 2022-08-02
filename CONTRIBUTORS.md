@@ -3,10 +3,12 @@ under the [Contributor's Agreement](https://iis-seafile.ee.ethz.ch/f/80e8166d2e)
 
 Thanks to all.
 
-* Joan Mihali
-* Sergio Mazzola
+* Gamze Islamoglu
 * Gua Hao Khov
-* Marc Gantenbein
+* Haoran Zhao
+* Joan Mihali
 * Lorena Oswald
-* Yichao Zhang
+* Marc Gantenbein
 * Marco Bertuletti
+* Sergio Mazzola
+* Yichao Zhang
