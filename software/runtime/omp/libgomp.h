@@ -1,7 +1,31 @@
+/* Copyright (C) 2005-2022 Free Software Foundation, Inc.
+   Contributed by Richard Henderson <rth@redhat.com>.
+   This file is part of the GNU Offloading and Multi Processing Library
+   (libgomp).
+   Libgomp is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3, or (at your option)
+   any later version.
+   Libgomp is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+   FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+   more details.
+   Under Section 7 of GPL version 3, you are granted additional
+   permissions described in the GCC Runtime Library Exception, version
+   3.1, as published by the Free Software Foundation.
+   You should have received a copy of the GNU General Public License and
+   a copy of the GCC Runtime Library Exception along with this program;
+   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+   <http://www.gnu.org/licenses/>.  */
+
 /* This file contains data types and function declarations that are not
-   part of the official OpenMP user interface.  There are declarations
-   in here that are part of the GNU OpenMP ABI, in that the compiler is
-   required to know about them and use them.*/
+   part of the official OpenACC or OpenMP user interfaces.  There are
+   declarations in here that are part of the GNU Offloading and Multi
+   Processing ABI, in that the compiler is required to know about them
+   and use them.
+   The convention is that the all caps prefix "GOMP" is used group items
+   that are part of the external ABI, and the lower case prefix "gomp"
+   is used group items that are completely private to the library.  */
 
 #ifndef __LIBGOMP_H__
 #define __LIBGOMP_H__

@@ -1,3 +1,7 @@
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef __OMP_LOCK_H__
 #define __OMP_LOCK_H__
 

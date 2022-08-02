@@ -192,6 +192,7 @@ Note, MemPool includes several third-party packages with their own licenses:
 ### Software
 
 - `software/runtime/printf.{c,h}` is licensed under the MIT license.
+- `software/runtime/omp/libgomp.h` is licensed under the GPL license.
 - `software/riscv-tests` is an extended version of RISC-V's [riscv-tests](https://github.com/riscv/riscv-tests/) repository licensed under a BSD license. See [`software/riscv-tests/LICENSE`](software/riscv-tests/LICENSE) for details.
 
 ### Hardware
