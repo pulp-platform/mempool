@@ -38,7 +38,6 @@ sources:
   # Level 3
   - hardware/src/mempool_cluster.sv
   # Level 4
-  - hardware/src/mempool_cluster_wrap.sv
   - hardware/src/ctrl_registers.sv
   # Level 5
   - hardware/src/mempool_system.sv
