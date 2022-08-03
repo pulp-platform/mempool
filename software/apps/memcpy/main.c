@@ -25,7 +25,7 @@
 
 // Size in words
 #ifndef SIZE
-#define SIZE (256 * 256 * 2)
+#define SIZE ((NUM_CORES) * (NUM_CORES)*2)
 #endif
 #define BANKING_FACTOR (4)
 
