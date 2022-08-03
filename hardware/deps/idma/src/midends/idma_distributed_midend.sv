@@ -135,16 +135,21 @@ module idma_distributed_midend #(
     end
   end
 
-  // // pragma translate_off
-  // always_ff @(posedge clk_i or negedge rst_ni) begin
-  //   if (rst_ni && valid_i && ready_o) begin
-  //     $display("[idma_distributed_midend] Got request");
-  //     $display("Request in: From: 0x%8x To: 0x%8x with size %d", burst_req_i.src, burst_req_i.dst, burst_req_i.num_bytes);
-  //     for (int i = 0; i < NoMstPorts; i++) begin
-  //       $display("Out %6d: From: 0x%8x To: 0x%8x with size %d", i, burst_req_o[i].src, burst_req_o[i].dst, burst_req_o[i].num_bytes);
-  //     end
-  //   end
-  // end
-  // // pragma translate_on
+  // pragma translate_off
+  int f;
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    automatic string str;
+    if (rst_ni && valid_i && ready_o) begin
+      str = "[idma_distributed_midend] Got request\n";
+      str = $sformatf("%sRequest in: From: 0x%8x To: 0x%8x with size %d\n", str, burst_req_i.src, burst_req_i.dst, burst_req_i.num_bytes);
+      for (int i = 0; i < NoMstPorts; i++) begin
+        str = $sformatf("%sOut %6d: From: 0x%8x To: 0x%8x with size %d\n", str, i, burst_req_o[i].src, burst_req_o[i].dst, burst_req_o[i].num_bytes);
+      end
+      f = $fopen("dma.log", "a");
+      $fwrite(f, str);
+      $fclose(f);
+    end
+  end
+  // pragma translate_on
 
 endmodule

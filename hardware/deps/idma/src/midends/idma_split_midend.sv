@@ -134,16 +134,24 @@ module idma_split_midend #(
     endcase
   end
 
-  // // pragma translate_off
-  // always_ff @(posedge clk_i or negedge rst_ni) begin
-  //   if (rst_ni && valid_i && ready_o) begin
-  //     $display("[idma_split_midend] Got request");
-  //     $display("Split: Request in: From: 0x%8x To: 0x%8x with size %d", burst_req_i.src, burst_req_i.dst, burst_req_i.num_bytes);
-  //   end
-  //   if (rst_ni && valid_o && ready_i) begin
-  //     $display("Split: Out %6d: From: 0x%8x To: 0x%8x with size %d", num_trans_q, burst_req_o.src, burst_req_o.dst, burst_req_o.num_bytes);
-  //   end
-  // end
-  // // pragma translate_on
+  // pragma translate_off
+  int f;
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    automatic string str;
+    if (rst_ni && valid_i && ready_o) begin
+      str = "[idma_split_midend] Got request\n";
+      str = $sformatf("%sSplit: Request in: From: 0x%8x To: 0x%8x with size %d\n", str, burst_req_i.src, burst_req_i.dst, burst_req_i.num_bytes);
+      f = $fopen("dma.log", "a");
+      $fwrite(f, str);
+      $fclose(f);
+    end
+    if (rst_ni && valid_o && ready_i) begin
+      str = $sformatf("Split: Out %6d: From: 0x%8x To: 0x%8x with size %d\n", num_trans_q, burst_req_o.src, burst_req_o.dst, burst_req_o.num_bytes);
+      f = $fopen("dma.log", "a");
+      $fwrite(f, str);
+      $fclose(f);
+    end
+  end
+  // pragma translate_on
 
 endmodule
