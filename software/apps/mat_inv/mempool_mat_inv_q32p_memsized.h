@@ -22,167 +22,230 @@ int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint
 
     uint32_t absolute_core_id = mempool_get_core_id();
     uint32_t core_id = absolute_core_id;
-    uint32_t i, j, loopCnt, k, l;  /* loop counters */
+    uint32_t i, j, k, l;  /* loop counters */
     uint32_t m = n; /* M is the number of rows. However, the matirces must be square. */
 
     /* CREATE THE IDENTITY MATRIX */
 
     pDstT1 = pDst;
-    for (k = 0; k < m; k++) {
-        core_id = absolute_core_id - ((n * k) / 4) % N_BANKS;
-        core_id = core_id > NUM_CORES ? core_id + NUM_CORES : core_id;
-        for (j = core_id * 4; j < m; j += 4 * NUM_CORES) {
-            pDstT1[k * m + j] = (uint32_t) (k == j);
-            pDstT1[(k + 1) * m + j] = (uint32_t) ((k + 1) == j);
-            pDstT1[(k + 2) * m + j] = (uint32_t) ((k + 2) == j);
-            pDstT1[(k + 3) * m + j] = (uint32_t) ((k + 3) == j);
+    for (k = core_id * 4; k < m; k += NUM_CORES * 4) {
+        for (j = 0; j < n; j++) {
+            pDstT1[k * n + j] = (uint32_t) (k == j);
+            pDstT1[(k + 1) * n + j] = (uint32_t) ((k + 1) == j);
+            pDstT1[(k + 2) * n + j] = (uint32_t) ((k + 2) == j);
+            pDstT1[(k + 3) * n + j] = (uint32_t) ((k + 3) == j);
         }
     }
-    mempool_log_barrier(2, absolute_core_id);
+//    pDstT1 = pDst;
+//    for (i = absolute_core_id * 4; i < n * m; i += NUM_CORES * 4) {
+//        k = i / n;
+//        j = i % n;
+//        pDstT1[k * n + j] = (uint32_t) (k == j);
+//        pDstT1[k * n + j + 1] = (uint32_t) (k == (j + 1));
+//        pDstT1[k * n + j + 2] = (uint32_t) (k == (j + 2));
+//        pDstT1[k * n + j + 3] = (uint32_t) (k == (j + 3));
+//    }
+//    mempool_log_barrier(2, absolute_core_id);
 
-    /* Loop over the number of columns of the input matrix. */
-    loopCnt = n;
     /* Index modifier to navigate through the columns */
     l = 0U;
-
-    while (loopCnt > 0U) {
+    while (l < n) {
 
         pSrcT1 = pSrc + (l * n);
         pDstT1 = pDst + (l * n);
-        core_id = absolute_core_id - ((l * n) / 4) % N_BANKS;
-        core_id = core_id > NUM_CORES ? core_id + NUM_CORES : core_id;
         in = *pSrcT1;
 
         /* CHECK IF PIVOT ELEMENT IS ZERO */
-
-        if (in == 0U) {
-
-            if (absolute_core_id == 0) {
-                k = 1U;
-                while (k < m - l) {
-                    pSrcT2 = pSrcT1 + k * n;
+        if (absolute_core_id == 0) {
+            if (in == 0U) {
+                /* Loop over the rows present below */
+                for (k = l + 1U; k < m; k++) {
+                    pSrcT2 = pSrc + (n * k);
+                    pDstT2 = pDst + (n * k);
+                    /* EXCHANGE */
                     if (*pSrcT2 != 0) {
-                        *flag = k;
+                        /* Loop over colums to the right of the pivot */
+                        j = 0;
+                        while (j < 4 * ((n - l) >> 2U)) {
+                            Xchg1 = pSrcT2[j];
+                            Xchg2 = pSrcT2[j + 1];
+                            Xchg3 = pSrcT2[j + 2];
+                            Xchg4 = pSrcT2[j + 3];
+                            out1 = pSrcT1[j];
+                            out2 = pSrcT1[j + 1];
+                            out3 = pSrcT1[j + 2];
+                            out4 = pSrcT1[j + 3];
+                            pSrcT2[j] = out1;
+                            pSrcT2[j + 1] = out2;
+                            pSrcT2[j + 2] = out3;
+                            pSrcT2[j + 3] = out4;
+                            pSrcT1[j] = Xchg1;
+                            pSrcT1[j + 1] = Xchg2;
+                            pSrcT1[j + 2] = Xchg3;
+                            pSrcT1[j + 3] = Xchg4;
+                            j += 4;
+                        }
+                        while (j < n - l) {
+                            Xchg1 = pSrcT2[j];
+                            pSrcT2[j] = pSrcT1[j];
+                            pSrcT1[j] = Xchg1;
+                            j++;
+                        }
+                        /* Loop over colums */
+                        j = 0;
+                        while (j < 4 * (n >> 2U)) {
+                            Xchg1 = pDstT2[j];
+                            Xchg2 = pDstT2[j + 1];
+                            Xchg3 = pDstT2[j + 2];
+                            Xchg4 = pDstT2[j + 3];
+                            out1 = pDstT1[j];
+                            out2 = pDstT1[j + 1];
+                            out3 = pDstT1[j + 2];
+                            out4 = pDstT1[j + 3];
+                            pDstT2[j] = out1;
+                            pDstT2[j + 1] = out2;
+                            pDstT2[j + 2] = out3;
+                            pDstT2[j + 3] = out4;
+                            pDstT1[j] = Xchg1;
+                            pDstT1[j + 1] = Xchg2;
+                            pDstT1[j + 2] = Xchg3;
+                            pDstT1[j + 3] = Xchg4;
+                            j += 4;
+                        }
+                        while (j < n) {
+                            Xchg1 = pDstT2[j];
+                            pDstT2[j] = pDstT1[j];
+                            pDstT1[j] = Xchg1;
+                            j++;
+                        }
+                        *flag = 1U;
                         break;
                     }
-                    k++;
                 }
             }
-            mempool_log_barrier(2, absolute_core_id);
-
-            /* EXCHANGE */
-
-            if (*flag != 0U) {
-                pSrcT2 = pSrcT1 + (n * *flag);
-                pDstT2 = pDstT1 + (n * *flag);
-
-                /* Loop over columns to the right of pivot */
-                //j = core_id * 4 > 4 * (l >> 2U) ? core_id * 4 : 4 * ((n - l) >> 2U);
-                //while (j < 4 * ((n - l) >> 2U)) {
-                for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += 4 * NUM_CORES) {
-                    Xchg1 = pSrcT2[j];
-                    Xchg2 = pSrcT2[j + 1];
-                    Xchg3 = pSrcT2[j + 2];
-                    Xchg4 = pSrcT2[j + 3];
-                    out1 = pSrcT1[j];
-                    out2 = pSrcT1[j + 1];
-                    out3 = pSrcT1[j + 2];
-                    out4 = pSrcT1[j + 3];
-                    pSrcT2[j] = out1;
-                    pSrcT2[j + 1] = out2;
-                    pSrcT2[j + 2] = out3;
-                    pSrcT2[j + 3] = out4;
-                    pSrcT1[j] = Xchg1;
-                    pSrcT1[j + 1] = Xchg2;
-                    pSrcT1[j + 2] = Xchg3;
-                    pSrcT1[j + 3] = Xchg4;
-                    // j += 4 * NUM_CORES;
-                }
-                if (core_id == (n >> 2U) - 1) {
-                    j = 4 * ((n - l) >> 2U);
-                    while (j < n - l) {
-                        Xchg1 = pSrcT2[j];
-                        pSrcT2[j] = pSrcT1[j];
-                        pSrcT1[j] = Xchg1;
-                        j++;
-                    }
-                }
-                /* Loop over columns */
-                for (j = core_id * 4; j < 4 * (n >> 2U); j += 4 * NUM_CORES) {
-                    Xchg1 = pDstT2[j];
-                    Xchg2 = pDstT2[j + 1];
-                    Xchg3 = pDstT2[j + 2];
-                    Xchg4 = pDstT2[j + 3];
-                    out1 = pDstT1[j];
-                    out2 = pDstT1[j + 1];
-                    out3 = pDstT1[j + 2];
-                    out4 = pDstT1[j + 3];
-                    pDstT2[j] = out1;
-                    pDstT2[j + 1] = out2;
-                    pDstT2[j + 2] = out3;
-                    pDstT2[j + 3] = out4;
-                    pDstT1[j] = Xchg1;
-                    pDstT1[j + 1] = Xchg2;
-                    pDstT1[j + 2] = Xchg3;
-                    pDstT1[j + 3] = Xchg4;
-                }
-                if (core_id == (n >> 2U) - 1) {
-                    j = 4 * (n >> 2U);
-                    while (j < n) {
-                        Xchg1 = pDstT2[j];
-                        pDstT2[j] = pDstT1[j];
-                        pDstT1[j] = Xchg1;
-                        j++;
-                    }
-                }
+            /* Update the status if the matrix is singular */
+            if ((*flag == 0U) && (in == 0U)) {
+                return 1;
             }
-            mempool_log_barrier(2, absolute_core_id);
+            //    /* DIVIDE BY THE PIVOT */
+            //    /* Points to the pivot row of input and destination matrices */
+            //    pPivotRowIn = pSrc + (l * n);
+            //    pPivotRowDst = pDst + (l * n);
+            //    /* Temporary pointers to the pivot row pointers */
+            //    pSrcT1 = pPivotRowIn;
+            //    pSrcT2 = pPivotRowDst;
+            //    /* Pivot element of the row */
+            //    in = *pPivotRowIn;
+            //    /* Loop over number of columns to the right of the pilot element */
+            //    j = 0;
+            //    while (j < 4 * ((n - l) >> 2U)) {
+            //        in1 = *pSrcT1;
+            //        in2 = *(pSrcT1 + 1);
+            //        in3 = *(pSrcT1 + 2);
+            //        in4 = *(pSrcT1 + 3);
+            //        out1 = FIX_DIV(in1, in);
+            //        out2 = FIX_DIV(in2, in);
+            //        out3 = FIX_DIV(in3, in);
+            //        out4 = FIX_DIV(in4, in);
+            //        *pSrcT1++ = out1;
+            //        *pSrcT1++ = out2;
+            //        *pSrcT1++ = out3;
+            //        *pSrcT1++ = out4;
+            //        j += 4;
+            //    }
+            //    while (j < n - l) {
+            //        in1 = *pSrcT1;
+            //        *pSrcT1++ = FIX_DIV(in1, in);
+            //        j++;
+            //    }
+            //    /* Loop over number of columns of the destination matrix */
+            //    j = 0;
+            //    while (j < 4 * (n >> 2U)) {
+            //        in1 = *pSrcT2;
+            //        in2 = *(pSrcT2 + 1);
+            //        in3 = *(pSrcT2 + 2);
+            //        in4 = *(pSrcT2 + 3);
+            //        out1 = FIX_DIV(in1, in);
+            //        out2 = FIX_DIV(in2, in);
+            //        out3 = FIX_DIV(in3, in);
+            //        out4 = FIX_DIV(in4, in);
+            //        *pSrcT2++ = out1;
+            //        *pSrcT2++ = out2;
+            //        *pSrcT2++ = out3;
+            //        *pSrcT2++ = out4;
+            //        j += 4;
+            //    }
+            //    while (j < n) {
+            //        in1 = *pSrcT2;
+            //        *pSrcT2++ = FIX_DIV(in1, in);
+            //        j++;
+            //    }
         }
-        /* Update the status if the matrix is singular */
-        if ((*flag == 0U) && (in == 0U)) {
-            return 1;
-        }
-
+        mempool_log_barrier(2, absolute_core_id);
+        //pPivotRowIn = pSrc + (l * n);
+        //pPivotRowDst = pDst + (l * n);
 
         /* DIVIDE BY THE PIVOT */
-
         /* Points to the pivot row of input and destination matrices */
         pPivotRowIn = pSrc + (l * n);
         pPivotRowDst = pDst + (l * n);
-
         /* Temporary pointers to the pivot row pointers */
         pSrcT1 = pPivotRowIn;
         pSrcT2 = pPivotRowDst;
         /* Pivot element of the row */
         in = *pPivotRowIn;
-
-        ///* Loop over columns to the right of pivot */
-        // j = core_id * 4 > 4 * (l >> 2U) ? core_id * 4 : 4 * ((n - l) >> 2U);
-        // while (j < 4 * ((n - l) >> 2U)) {
-        for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += NUM_CORES * 4) {
-            in1 = pSrcT1[j];
-            in2 = pSrcT1[j + 1];
-            in3 = pSrcT1[j + 2];
-            in4 = pSrcT1[j + 3];
-            out1 = FIX_DIV(in1, in);
-            out2 = FIX_DIV(in2, in);
-            out3 = FIX_DIV(in3, in);
-            out4 = FIX_DIV(in4, in);
-            pSrcT1[j] = out1;
-            pSrcT1[j + 1] = out2;
-            pSrcT1[j + 2] = out3;
-            pSrcT1[j + 3] = out4;
-            // j += NUM_CORES * 4;
-        }
-        if (core_id == (n >> 2U) - 1) {
-            j = 4 * ((n - l) >> 2U);
-            while (j < n - l) {
+        /* Loop over columns to the right of pivot */
+        core_id = absolute_core_id - (((l * n + l) % N_BANKS) >> 2U);
+        core_id = core_id > NUM_CORES ? core_id + NUM_CORES : core_id;
+        //for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += NUM_CORES * 4) {
+        //    in1 = pSrcT1[j];
+        //    in2 = pSrcT1[j + 1];
+        //    in3 = pSrcT1[j + 2];
+        //    in4 = pSrcT1[j + 3];
+        //    out1 = FIX_DIV(in1, in);
+        //    out2 = FIX_DIV(in2, in);
+        //    out3 = FIX_DIV(in3, in);
+        //    out4 = FIX_DIV(in4, in);
+        //    pSrcT1[j] = out1;
+        //    pSrcT1[j + 1] = out2;
+        //    pSrcT1[j + 2] = out3;
+        //    pSrcT1[j + 3] = out4;
+        //}
+        //if (core_id == 0) {
+        //    j = 4 * ((n - l) >> 2U);
+        //    while (j < n - l) {
+        //        in1 = pSrcT1[j];
+        //        pSrcT1[j] = FIX_DIV(in1, in);
+        //        j++;
+        //    }
+        //}
+        if(core_id == 0) {
+            j = 0;
+            while (j < 4 - l % 4) {
                 in1 = pSrcT1[j];
-                // pSrcT1[j] = FIX_DIV(in1, in);
+                pSrcT1[j] = FIX_DIV(in1, in);
                 j++;
+            }
+        } else {
+            j = core_id * 4 - l % 4;
+            if (j < (n - l)) {
+                in1 = pSrcT1[j];
+                in2 = pSrcT1[j + 1];
+                in3 = pSrcT1[j + 2];
+                in4 = pSrcT1[j + 3];
+                out1 = FIX_DIV(in1, in);
+                out2 = FIX_DIV(in2, in);
+                out3 = FIX_DIV(in3, in);
+                out4 = FIX_DIV(in4, in);
+                pSrcT1[j] = out1;
+                pSrcT1[j + 1] = out2;
+                pSrcT1[j + 2] = out3;
+                pSrcT1[j + 3] = out4;
             }
         }
         /* Loop over columns */
+        core_id = absolute_core_id - (((l * n) % N_BANKS) >> 2U);
+        core_id = core_id > NUM_CORES ? core_id + NUM_CORES : core_id;
         for (j = core_id * 4; j < 4 * (n >> 2U); j += NUM_CORES * 4) {
             in1 = pSrcT2[j];
             in2 = pSrcT2[j + 1];
@@ -197,111 +260,51 @@ int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint
             pSrcT2[j + 2] = out3;
             pSrcT2[j + 3] = out4;
         }
-        if (core_id == (n >> 2U) - 1) {
-            j = 4 * (n >> 2U);
-            while (j < n) {
-                in1 = pSrcT2[j];
-                pSrcT2[j] = FIX_DIV(in1, in);
-                j++;
-            }
-        }
+        //if (core_id == (n >> 2U) - 1) {
+        //    j = 4 * (n >> 2U);
+        //    while (j < n) {
+        //        in1 = pSrcT2[j];
+        //        pSrcT2[j] = FIX_DIV(in1, in);
+        //        j++;
+        //    }
+        //}
         mempool_log_barrier(2, absolute_core_id);
 
-
         /* REPLACE ROWS */
-        core_id = absolute_core_id;
         pSrcT1 = pSrc;
         pSrcT2 = pDst;
-        /* Loop over rows */
-//        for (k = core_id * 4; k < m; k += NUM_CORES * 4) {
-//            i = 0U;
-//            while (i < 4) {
-//                if ((i + k) != l) {
-//                    pSrcT1 = pSrc + (i + k) * n;
-//                    pSrcT2 = pDst + (i + k) * n;
-//                    /* Element of the reference row */
-//                    in = *pSrcT1;
-//                    pPRT_in = pPivotRowIn;
-//                    pPRT_pDst = pPivotRowDst;
-//                    /* Loop over columns to the right of pivot */
-//                    j = 0;
-//                    while (j < 4 * ((n - l) >> 2U)) {
-//                        in1 = pSrcT1[j];
-//                        in2 = pSrcT1[j + 1];
-//                        in3 = pSrcT1[j + 2];
-//                        in4 = pSrcT1[j + 3];
-//                        out1 = pPRT_in[j];
-//                        out2 = pPRT_in[j + 1];
-//                        out3 = pPRT_in[j + 2];
-//                        out4 = pPRT_in[j + 3];
-//                        pSrcT1[j]     = in1 - FIX_MUL(in, out1);
-//                        pSrcT1[j + 1] = in2 - FIX_MUL(in, out2);
-//                        pSrcT1[j + 2] = in3 - FIX_MUL(in, out3);
-//                        pSrcT1[j + 3] = in4 - FIX_MUL(in, out4);
-//                        j += 4;
-//                    }
-//                    while (j < n - l) {
-//                        in1 = pSrcT1[j];
-//                        out1 = pPRT_in[j];
-//                        pSrcT1[j] = in1 - FIX_MUL(in, out1);
-//                        j++;
-//                    }
-//                    /* Loop over columns */
-//                    j = 0;
-//                    while (j < 4 * (n >> 2U)) {
-//                        in1 = pSrcT2[j];
-//                        in2 = pSrcT2[j + 1];
-//                        in3 = pSrcT2[j + 2];
-//                        in4 = pSrcT2[j + 3];
-//                        out1 = pPRT_pDst[j];
-//                        out2 = pPRT_pDst[j + 1];
-//                        out3 = pPRT_pDst[j + 2];
-//                        out4 = pPRT_pDst[j + 3];
-//                        pSrcT2[j]     = in1 - FIX_MUL(in, out1);
-//                        pSrcT2[j + 1] = in2 - FIX_MUL(in, out2);
-//                        pSrcT2[j + 2] = in3 - FIX_MUL(in, out3);
-//                        pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
-//                        j += 4;
-//                    }
-//                    while (j < n) {
-//                        in1 = pSrcT2[j];
-//                        out1 = pPRT_pDst[j];
-//                        pSrcT2[j] = in1 - FIX_MUL(in, out1);
-//                        j++;
-//                    }
-//                }
-//                i++;
-//            }
-//        }
-//        mempool_log_barrier(2, absolute_core_id);
-
         for (k = absolute_core_id / (n >> 2U); k < m; k += NUM_CORES / (n >> 2U)) {
-            dump_i(absolute_core_id);
+            /* Only the columns to the right of the pivot are to be processed */
             if (k != l) {
+
                 pSrcT1 = pSrc + k * n;
                 pSrcT2 = pDst + k * n;
-                core_id = absolute_core_id % (n >> 2U);
                 /* Element of the reference row */
                 in = *pSrcT1;
+                /* Reference row pointers */
                 pPRT_in = pPivotRowIn;
                 pPRT_pDst = pPivotRowDst;
+
+                /* Loop over the columns */
+                core_id = absolute_core_id % (n >> 2U);
+                core_id = core_id - (l >> 2U);
                 j = core_id * 4;
                 while (j < 4 * ((n - l) >> 2U)) {
-                    in1 = pSrcT1[j];
-                    in2 = pSrcT1[j + 1];
-                    in3 = pSrcT1[j + 2];
-                    in4 = pSrcT1[j + 3];
                     out1 = pPRT_in[j];
                     out2 = pPRT_in[j + 1];
                     out3 = pPRT_in[j + 2];
                     out4 = pPRT_in[j + 3];
-                    pSrcT1[j]     = in1 - FIX_MUL(in, out1);
+                    in1 = pSrcT1[j];
+                    in2 = pSrcT1[j + 1];
+                    in3 = pSrcT1[j + 2];
+                    in4 = pSrcT1[j + 3];
+                    pSrcT1[j] = in1 - FIX_MUL(in, out1);
                     pSrcT1[j + 1] = in2 - FIX_MUL(in, out2);
                     pSrcT1[j + 2] = in3 - FIX_MUL(in, out3);
                     pSrcT1[j + 3] = in4 - FIX_MUL(in, out4);
-                    j += 4 * NUM_CORES;
+                    j += 4 * (n >> 2U);
                 }
-                if (core_id == (n >> 2U) - 1) {
+                if (core_id == 0) {
                     j = 4 * ((n - l) >> 2U);
                     while (j < n - l) {
                         in1 = pSrcT1[j];
@@ -310,49 +313,226 @@ int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint
                         j++;
                     }
                 }
-                /* Loop over columns */
+                /* Loop over the columns */
+                core_id = absolute_core_id % (n >> 2U);
                 j = core_id * 4;
                 while (j < 4 * (n >> 2U)) {
-                    in1 = pSrcT2[j];
-                    in2 = pSrcT2[j + 1];
-                    in3 = pSrcT2[j + 2];
-                    in4 = pSrcT2[j + 3];
                     out1 = pPRT_pDst[j];
                     out2 = pPRT_pDst[j + 1];
                     out3 = pPRT_pDst[j + 2];
                     out4 = pPRT_pDst[j + 3];
+                    in1 = pSrcT2[j];
+                    in2 = pSrcT2[j + 1];
+                    in3 = pSrcT2[j + 2];
+                    in4 = pSrcT2[j + 3];
                     pSrcT2[j]     = in1 - FIX_MUL(in, out1);
                     pSrcT2[j + 1] = in2 - FIX_MUL(in, out2);
                     pSrcT2[j + 2] = in3 - FIX_MUL(in, out3);
                     pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
-                    j += 4 * NUM_CORES;
+                    j += 4 * (n >> 2U);
                 }
-                if (core_id == (n >> 2U) - 1) {
-                    j = 4 * (n >> 2U);
-                    while (j < n) {
-                        in1 = pSrcT2[j];
-                        out1 = pPRT_pDst[j];
-                        pSrcT2[j] = in1 - FIX_MUL(in, out1);
-                        j++;
-                    }
-                }
+                //if (core_id == (n >> 2U) - 1) {
+                //    j = 4 * (n >> 2U);
+                //    while (j < n) {
+                //        in1 = pSrcT2[j];
+                //        out1 = pPRT_pDst[j];
+                //        pSrcT2[j] = in1 - FIX_MUL(in, out1);
+                //        j++;
+                //    }
+                //}
+
+                //uint32_t core_id_in;
+                //uint32_t core_id_Dst;
+                //int32_t p1_in, p2_in, p3_in, p4_in;
+                //int32_t p1_Dst, p2_Dst, p3_Dst, p4_Dst;
+                //core_id_in = absolute_core_id % (n >> 2U) - (l >> 2U);
+                //core_id_Dst = absolute_core_id % (n >> 2U);
+                //j = core_id_in == 0 ? 0 : (core_id_in * 4 - l % 4);
+                //i = core_id_Dst * 4;
+                //p1_in = pPRT_in[j];
+                //p2_in = pPRT_in[j + 1];
+                //p3_in = pPRT_in[j + 2];
+                //p4_in = pPRT_in[j + 3];
+                //p1_Dst = pPRT_pDst[i];
+                //p2_Dst = pPRT_pDst[i + 1];
+                //p3_Dst = pPRT_pDst[i + 2];
+                //p4_Dst = pPRT_pDst[i + 3];
+                //if(core_id_in == 0) {
+                //    switch (4 - l % 4) {
+                //        case (1):
+                //            in1 = pSrcT1[j];
+                //            pSrcT1[j] = in1 - FIX_MUL(in, p1_in);
+                //            break;
+                //        case (2):
+                //            in1 = pSrcT1[j];
+                //            in2 = pSrcT1[j + 1];
+                //            pSrcT1[j] = in1 - FIX_MUL(in, p1_in);
+                //            pSrcT1[j + 1] = in2 - FIX_MUL(in, p2_in);
+                //            break;
+                //        case (3):
+                //            in1 = pSrcT1[j];
+                //            in2 = pSrcT1[j + 1];
+                //            in3 = pSrcT1[j + 2];
+                //            pSrcT1[j] = in1 - FIX_MUL(in, p1_in);
+                //            pSrcT1[j + 1] = in2 - FIX_MUL(in, p2_in);
+                //            pSrcT1[j + 2] = in3 - FIX_MUL(in, p3_in);
+                //            break;
+                //        case (4):
+                //            in1 = pSrcT1[j];
+                //            in2 = pSrcT1[j + 1];
+                //            in3 = pSrcT1[j + 2];
+                //            in4 = pSrcT1[j + 3];
+                //            pSrcT1[j] = in1 - FIX_MUL(in, p1_in);
+                //            pSrcT1[j + 1] = in2 - FIX_MUL(in, p2_in);
+                //            pSrcT1[j + 2] = in3 - FIX_MUL(in, p3_in);
+                //            pSrcT1[j + 3] = in4 - FIX_MUL(in, p4_in);
+                //            break;
+                //    }
+                //} else {
+                //    in1 = pSrcT1[j];
+                //    in2 = pSrcT1[j + 1];
+                //    in3 = pSrcT1[j + 2];
+                //    in4 = pSrcT1[j + 3];
+                //    pSrcT1[j] = in1 - FIX_MUL(in, p1_in);
+                //    pSrcT1[j + 1] = in2 - FIX_MUL(in, p2_in);
+                //    pSrcT1[j + 2] = in3 - FIX_MUL(in, p3_in);
+                //    pSrcT1[j + 3] = in4 - FIX_MUL(in, p4_in);
+                //}
+                //in1 = pSrcT2[i];
+                //in2 = pSrcT2[i + 1];
+                //in3 = pSrcT2[i + 2];
+                //in4 = pSrcT2[i + 3];
+                //pSrcT2[i]     = in1 - FIX_MUL(in, p1_Dst);
+                //pSrcT2[i + 1] = in2 - FIX_MUL(in, p2_Dst);
+                //pSrcT2[i + 2] = in3 - FIX_MUL(in, p3_Dst);
+                //pSrcT2[i + 3] = in4 - FIX_MUL(in, p4_Dst);
+
             }
         }
         mempool_log_barrier(2, absolute_core_id);
 
+//        /* REPLACE ROWS */
+//        pSrcT1 = pSrc;
+//        pSrcT2 = pDst;
+//        for (i = absolute_core_id * 4; i < (n * m); i += NUM_CORES * 4) {
+//            k = i / n;
+//            if (k != l) {
+//                in = *(pSrc + k * n);
+//                j = i - (k * n);
+//                if (j >= 4 * (l >> 2U)) {
+//                    if (j == 4 * (l >> 2U)) {
+//                        pSrcT1 = pSrc + k * n;
+//                        pPRT_in = pPivotRowIn;
+//                        uint32_t bound = j + 4 - l;
+//                        j = 0;
+//                        while (j < bound) {
+//                            in1 = *pSrcT1;
+//                            out1 = *pPRT_in++;
+//                            *pSrcT1++ = in1 - FIX_MUL(in, out1);
+//                            j++;
+//                        }
+//                    } else {
+//                        pSrcT1 = pSrc + (i - l);
+//                        pPRT_in = pPivotRowIn + (j - l);
+//                        in1 = *pSrcT1;
+//                        in2 = *(pSrcT1 + 1);
+//                        in3 = *(pSrcT1 + 2);
+//                        in4 = *(pSrcT1 + 3);
+//                        out1 = *pPRT_in++;
+//                        out2 = *pPRT_in++;
+//                        out3 = *pPRT_in++;
+//                        out4 = *pPRT_in++;
+//                        *pSrcT1++ = in1 - FIX_MUL(in, out1);
+//                        *pSrcT1++ = in2 - FIX_MUL(in, out2);
+//                        *pSrcT1++ = in3 - FIX_MUL(in, out3);
+//                        *pSrcT1++ = in4 - FIX_MUL(in, out4);
+//                    }
+//                }
+//                pSrcT2 = pDst + i;
+//                pPRT_pDst = pPivotRowDst + j;
+//                in1 = *pSrcT2;
+//                in2 = *(pSrcT2 + 1);
+//                in3 = *(pSrcT2 + 2);
+//                in4 = *(pSrcT2 + 3);
+//                out1 = *pPRT_pDst++;
+//                out2 = *pPRT_pDst++;
+//                out3 = *pPRT_pDst++;
+//                out4 = *pPRT_pDst++;
+//                *pSrcT2++ = in1 - FIX_MUL(in, out1);
+//                *pSrcT2++ = in2 - FIX_MUL(in, out2);
+//                *pSrcT2++ = in3 - FIX_MUL(in, out3);
+//                *pSrcT2++ = in4 - FIX_MUL(in, out4);
+//            }
+//        }
+//        mempool_log_barrier(2, absolute_core_id);
+//        /* REPLACE ROWS */
+//        pSrcT1 = pSrc;
+//        pSrcT2 = pDst;
+//        core_id = absolute_core_id;
+//        for (k = core_id; k < m; k += NUM_CORES) {
+//            /* Only the columns to the right of the pivot are to be processed */
+//            if (k != l) {
+//                pSrcT1 = pSrc + k * n;
+//                pSrcT2 = pDst + k * n;
+//                /* Element of the reference row */
+//                in = *pSrcT1;
+//                /* Reference row pointers */
+//                pPRT_in = pPivotRowIn;
+//                pPRT_pDst = pPivotRowDst;
+//                /* Loop over the columns */
+//                j = 0;
+//                while (j < 4 * ((n - l) >> 2U)) {
+//                    in1 = pSrcT1[j];
+//                    in2 = pSrcT1[j + 1];
+//                    in3 = pSrcT1[j + 2];
+//                    in4 = pSrcT1[j + 3];
+//                    out1 = pPRT_in[j];
+//                    out2 = pPRT_in[j + 1];
+//                    out3 = pPRT_in[j + 2];
+//                    out4 = pPRT_in[j + 3];
+//                    pSrcT1[j] = in1 - FIX_MUL(in, out1);
+//                    pSrcT1[j + 1] = in2 - FIX_MUL(in, out2);
+//                    pSrcT1[j + 2] = in3 - FIX_MUL(in, out3);
+//                    pSrcT1[j + 3] = in4 - FIX_MUL(in, out4);
+//                    j += 4;
+//                }
+//                while (j < n - l) {
+//                    in1 = pSrcT1[j];
+//                    out1 = pPRT_in[j];
+//                    pSrcT1[j] = in1 - FIX_MUL(in, out1);
+//                    j++;
+//                }
+//                /* Loop over the columns */
+//                j = 0;
+//                while (j < 4 * (n >> 2U)) {
+//                    in1 = pSrcT2[j];
+//                    in2 = pSrcT2[j + 1];
+//                    in3 = pSrcT2[j + 2];
+//                    in4 = pSrcT2[j + 3];
+//                    out1 = pPRT_pDst[j];
+//                    out2 = pPRT_pDst[j + 1];
+//                    out3 = pPRT_pDst[j + 2];
+//                    out4 = pPRT_pDst[j + 3];
+//                    pSrcT2[j] = in1 - FIX_MUL(in, out1);
+//                    pSrcT2[j + 1] = in2 - FIX_MUL(in, out2);
+//                    pSrcT2[j + 2] = in3 - FIX_MUL(in, out3);
+//                    pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
+//                    j += 4;
+//                }
+//                while (j < n) {
+//                    in1 = pSrcT2[j];
+//                    out1 = pPRT_pDst[j];
+//                    pSrcT2[j] = in1 - FIX_MUL(in, out1);
+//                    j++;
+//                }
+//            }
+//        }
+//        mempool_log_barrier(2, absolute_core_id);
+
         pSrc++;     /* Increment the input pointer */
-        loopCnt--;  /* Decrement the loop counter */
         l++;        /* Increment the index modifier */
     }
     mempool_log_barrier(2, absolute_core_id);
 
-//    if ((flag != 1U) && (x == 0)) {
-//        for (i = 0; i < m * n; i++) {
-//            if (pSrc[i] != 0)
-//                break;
-//        }
-//        if (i == m * n)
-//            return 1;
-//    }
     return 0;
 }
