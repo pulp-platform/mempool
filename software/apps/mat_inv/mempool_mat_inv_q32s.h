@@ -20,37 +20,24 @@ int mempool_GJinv_q32s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
     int32_t in1, in2, in3, in4;
     int32_t out1, out2, out3, out4;
 
-    uint32_t i, rowCnt, j, loopCnt, k, l;        /* loop counters */
-    uint32_t flag;
-    uint32_t m = n; /* M is the number of rows. However, the matirces must be square. */
+    uint32_t m = n; /* M is the number of rows. However, the matrices must be square. */
+    uint32_t i, j, k, l; /* loop counters */
+    uint32_t flag = 0U; /* Flag to check if the matrix is singular */
 
     pDstT1 = pDst;  /* Working pointer for destination matrix */
-    rowCnt = m;     /* Loop over the number of rows */
-    flag = 0U;
-
     /* CREATE THE IDENTITY MATRIX */
-
-    while (rowCnt > 0U) {
-        j = m - rowCnt;
-        while (j > 0U) {
-            *pDstT1++ = 0;
-            j--;
+    for (k = 0; k < m; k += 4) {
+        for (j = 0; j < n; j++) {
+            pDstT1[k * m + j] = (uint32_t) (k == j);
+            pDstT1[(k + 1) * m + j] = (uint32_t) ((k + 1) == j);
+            pDstT1[(k + 2) * m + j] = (uint32_t) ((k + 2) == j);
+            pDstT1[(k + 3) * m + j] = (uint32_t) ((k + 3) == j);
         }
-        *pDstT1++ = 1;
-        j = rowCnt - 1U;
-        while (j > 0U) {
-            *pDstT1++ = 0;
-            j--;
-        }
-        rowCnt--;
     }
 
-    /* Loop over the number of columns of the input matrix. */
-    loopCnt = n;
     /* Index modifier to navigate through the columns */
     l = 0U;
-
-    while (loopCnt > 0U) {
+    while (l < n) {
 
         pSrcT1 = pSrc + (l * n);
         pDstT1 = pDst + (l * n);
@@ -166,6 +153,32 @@ int mempool_GJinv_q32s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
             *pSrcT1++ = FIX_DIV(in1, in);
             j++;
         }
+        //switch ((n - l) % 4) {
+        //    case 3:
+        //        in1 = *pSrcT1;
+        //        in2 = *(pSrcT1 + 1);
+        //        in3 = *(pSrcT1 + 2);
+        //        out1 = FIX_DIV(in1, in);
+        //        out2 = FIX_DIV(in2, in);
+        //        out3 = FIX_DIV(in3, in);
+        //        *pSrcT1++ = out1;
+        //        *pSrcT1++ = out2;
+        //        *pSrcT1++ = out3;
+        //        break;
+        //    case 2:
+        //        in1 = *pSrcT1;
+        //        in2 = *(pSrcT1 + 1);
+        //        out1 = FIX_DIV(in1, in);
+        //        out2 = FIX_DIV(in2, in);
+        //        *pSrcT1++ = out1;
+        //        *pSrcT1++ = out2;
+        //        break;
+        //    case 1:
+        //        in1 = *pSrcT1;
+        //        out1 = FIX_DIV(in1, in);
+        //        *pSrcT1++ = out1;
+        //        break;
+        //}
         /* Loop over number of columns of the destination matrix */
         j = 0;
         while (j < 4 * (n >> 2U)) {
@@ -207,20 +220,20 @@ int mempool_GJinv_q32s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
                 pPRT_in = pPivotRowIn;
                 pPRT_pDst = pPivotRowDst;
                 j = 0;
-                while (j < 2 * ((n - l) >> 1U)) {
+                while (j < 4 * ((n - l) >> 2U)) {
                     in1 = *pSrcT1;
                     in2 = *(pSrcT1 + 1);
-                    // in3 = *(pSrcT1 + 2);
-                    // in4 = *(pSrcT1 + 3);
+                    in3 = *(pSrcT1 + 2);
+                    in4 = *(pSrcT1 + 3);
                     out1 = *pPRT_in++;
                     out2 = *pPRT_in++;
-                    // out3 = *pPRT_in++;
-                    // out4 = *pPRT_in++;
+                    out3 = *pPRT_in++;
+                    out4 = *pPRT_in++;
                     *pSrcT1++ = in1 - FIX_MUL(in, out1);
                     *pSrcT1++ = in2 - FIX_MUL(in, out2);
-                    // *pSrcT1++ = in3 - FIX_MUL(in, out3);
-                    // *pSrcT1++ = in4 - FIX_MUL(in, out4);
-                    j += 2;
+                    *pSrcT1++ = in3 - FIX_MUL(in, out3);
+                    *pSrcT1++ = in4 - FIX_MUL(in, out4);
+                    j += 4;
                 }
                 while (j < n - l) {
                     in1 = *pSrcT1;
@@ -228,6 +241,32 @@ int mempool_GJinv_q32s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
                     *pSrcT1++ = in1 - FIX_MUL(in, out1);
                     j++;
                 }
+                //switch ((n - l) % 4) {
+                //    case 3:
+                //        in1 = *pSrcT1;
+                //        in2 = *(pSrcT1 + 1);
+                //        in3 = *(pSrcT1 + 2);
+                //        out1 = *pPRT_in++;
+                //        out2 = *pPRT_in++;
+                //        out3 = *pPRT_in++;
+                //        *pSrcT1++ = in1 - FIX_MUL(in, out1);
+                //        *pSrcT1++ = in2 - FIX_MUL(in, out2);
+                //        *pSrcT1++ = in3 - FIX_MUL(in, out3);
+                //        break;
+                //    case 2:
+                //        in1 = *pSrcT1;
+                //        in2 = *(pSrcT1 + 1);
+                //        out1 = *pPRT_in++;
+                //        out2 = *pPRT_in++;
+                //        *pSrcT1++ = in1 - FIX_MUL(in, out1);
+                //        *pSrcT1++ = in2 - FIX_MUL(in, out2);
+                //        break;
+                //    case 1:
+                //        in1 = *pSrcT1;
+                //        out1 = *pPRT_in++;
+                //        *pSrcT1++ = in1 - FIX_MUL(in, out1);
+                //        break;
+                //}
                 /* Loop over the number of columns to
                    replace the elements in the destination matrix */
                 j = 0;
@@ -262,18 +301,8 @@ int mempool_GJinv_q32s(int32_t * pSrc, int32_t * pDst, uint32_t n) {
         }
 
         pSrc++; /* Increment the input pointer */
-        loopCnt--; /* Decrement the loop counter */
         l++; /* Increment the index modifier */
     }
-
-//    if ((flag != 1U) && (in == 0)) {
-//        for (i = 0; i < m * n; i++) {
-//            if (pSrc[i] != 0)
-//                break;
-//        }
-//        if (i == m * n)
-//            return 1;
-//    }
 
     return 0;
 }
