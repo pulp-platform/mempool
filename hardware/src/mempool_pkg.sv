@@ -24,7 +24,7 @@ package mempool_pkg;
   localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
   localparam integer unsigned AxiCoreIdWidth   = 1;
   localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache
-  localparam integer unsigned AxiDataWidth     = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 128 `endif;
+  localparam integer unsigned AxiDataWidth     = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
   localparam integer unsigned AxiLiteDataWidth = 32;
 
   /***********************
@@ -140,7 +140,7 @@ package mempool_pkg;
    *********************/
 
   localparam int unsigned AxiHierRadix      = `ifdef AXI_HIER_RADIX `AXI_HIER_RADIX `else NumTilesPerGroup `endif;
-  localparam int unsigned ROCacheLineWidth  = `ifdef RO_LINE_WIDTH `RO_LINE_WIDTH `else ICacheLineWidth `endif;
+  localparam int unsigned ROCacheLineWidth  = `ifdef RO_LINE_WIDTH `RO_LINE_WIDTH `else 0 `endif;
   localparam int unsigned ROCacheSizeByte   = 8192;
   localparam int unsigned ROCacheSets       = 2;
 
