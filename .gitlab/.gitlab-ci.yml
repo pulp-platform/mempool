@@ -195,6 +195,16 @@ apps-halide:
     APP: "halide-2d_convolution"
   needs: ["tc-gcc","riscv-isa-sim","tc-llvm","halide"]
 
+apps-omp:
+  <<: *apps-job-anchor
+  script:
+    - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
+    - cd software/omp
+    - make COMPILER=${COMPILER} all
+  variables:
+    COMPILER: "gcc"
+  needs: ["tc-gcc"]
+
 # Unit tests
 unit-tests:
   stage: test
