@@ -108,7 +108,7 @@ else
 	veril_flags := --meminit=ram,$(preload)
 endif
 
-cpp_defs  += -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size) -DL2_BANKS=$(l2_banks)
+cpp_defs  += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
 
 .DEFAULT_GOAL := compile
 
