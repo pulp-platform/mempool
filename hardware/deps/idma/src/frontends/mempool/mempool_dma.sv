@@ -136,4 +136,37 @@ module mempool_dma #(
 
   assign dma_id_o = '0;
 
+  // `ifdef VERILATOR
+  // pragma translate_off
+  initial begin
+    integer cycle;
+    integer transfer;
+    integer size;
+    // Wait for reset.
+    wait (rst_ni);
+    @(posedge clk_i);
+
+    while (1) begin
+      @(posedge clk_i);
+      if (rst_ni && valid_o && ready_i) begin
+        cycle = 0;
+        transfer = 1;
+        size = burst_req_o.num_bytes;
+        $display("[mempool_dma] Launch request of %08d bytes", size);
+      end else begin
+        cycle = cycle + 1;
+      end
+
+      if (transfer == 1 && backend_idle_i == 0) begin
+        transfer = 2;
+      end else if (transfer == 2 && backend_idle_i == 1) begin
+        transfer = 0;
+        $display("[mempool_dma] Finished request");
+        $display("[mempool_dma] Duration: %08d cycles, %08.8f bytes/cycle", cycle, size/cycle);
+      end
+    end
+  end
+  // pragma translate_on
+  // `endif
+
 endmodule : mempool_dma
