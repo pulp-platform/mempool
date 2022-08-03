@@ -156,10 +156,10 @@ package mempool_pkg;
    *  DMA  *
    *********/
 
-  localparam int unsigned NumDmasPerGroup = 4;
+  localparam int unsigned NumDmasPerGroup = `ifdef DMAS_PER_GROUP `DMAS_PER_GROUP `else 4 `endif;
   localparam int unsigned NumTilesPerDma = NumTilesPerGroup/NumDmasPerGroup;
-  localparam int unsigned DmaNumWords = 4;
-  localparam int unsigned DmaDataWidth = DmaNumWords*DataWidth;
+  localparam int unsigned DmaDataWidth = AxiDataWidth;
+  localparam int unsigned DmaNumWords = DmaDataWidth/DataWidth;
   localparam int unsigned NumSuperbanks = NumBanksPerTile/DmaNumWords;
 
   typedef logic [DmaNumWords*DataWidth-1:0] dma_data_t;

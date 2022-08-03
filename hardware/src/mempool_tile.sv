@@ -259,6 +259,7 @@ module mempool_tile
   tcdm_dma_req_t tcdm_dma_req_i_struct;
   assign tcdm_dma_req_i_struct = tcdm_dma_req_i;
 
+  // TODO: Handle special case of 1 superbank
   stream_xbar #(
     .NumInp   (1             ),
     .NumOut   (NumSuperbanks ),
