@@ -206,7 +206,7 @@ module snitch_lsu
   // ----------------
   // Check for unsupported parameters
   if (NumOutstandingLoads == 0)
-    $error(1, "[snitch_lsu] NumOutstandingLoads cannot be 0.");
+    $error("[snitch_lsu] NumOutstandingLoads cannot be 0.");
 
   // pragma translate_off
   `ifndef VERILATOR
