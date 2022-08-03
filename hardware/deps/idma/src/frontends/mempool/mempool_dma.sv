@@ -136,23 +136,28 @@ module mempool_dma #(
 
   assign dma_id_o = '0;
 
-  // `ifdef VERILATOR
   // pragma translate_off
-  initial begin
-    integer cycle;
-    integer transfer;
-    integer size;
-    // Wait for reset.
-    wait (rst_ni);
-    @(posedge clk_i);
+  integer cycle;
+  integer transfer;
+  integer size;
+  integer f;
+  string str;
 
-    while (1) begin
-      @(posedge clk_i);
-      if (rst_ni && valid_o && ready_i) begin
+  /* verilator lint_off BLKSEQ */
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      cycle = 0;
+      size = 0;
+      transfer = 0;
+    end else begin
+      if (valid_o && ready_i) begin
         cycle = 0;
         transfer = 1;
         size = burst_req_o.num_bytes;
-        $display("[mempool_dma] Launch request of %08d bytes", size);
+        str = $sformatf("[mempool_dma] Launch request of %08d bytes\n", size);
+        f = $fopen("dma.log", "a");
+        $fwrite(f, str);
+        $fclose(f);
       end else begin
         cycle = cycle + 1;
       end
@@ -161,12 +166,14 @@ module mempool_dma #(
         transfer = 2;
       end else if (transfer == 2 && backend_idle_i == 1 && cycle >= 24) begin
         transfer = 0;
-        $display("[mempool_dma] Finished request");
-        $display("[mempool_dma] Duration: %08d cycles, %08.8f bytes/cycle", cycle, size/cycle);
+        str = "[mempool_dma] Finished request\n";
+        str = $sformatf("%s[mempool_dma] Duration: %08d cycles, %08.8f bytes/cycle\n", str, cycle, size/cycle);
+        f = $fopen("dma.log", "a");
+        $fwrite(f, str);
+        $fclose(f);
       end
     end
   end
   // pragma translate_on
-  // `endif
 
 endmodule : mempool_dma
