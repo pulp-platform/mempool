@@ -259,50 +259,59 @@ module mempool_tile
   tcdm_dma_req_t tcdm_dma_req_i_struct;
   assign tcdm_dma_req_i_struct = tcdm_dma_req_i;
 
-  // TODO: Handle special case of 1 superbank
-  stream_xbar #(
-    .NumInp   (1             ),
-    .NumOut   (NumSuperbanks ),
-    .payload_t(tcdm_dma_req_t)
-  ) i_dma_req_interco (
-    .clk_i  (clk_i                                                  ),
-    .rst_ni (rst_ni                                                 ),
-    .flush_i(1'b0                                                   ),
-    // External priority flag
-    .rr_i   ('0                                                     ),
-    // Master
-    .data_i (tcdm_dma_req_i_struct                                  ),
-    .valid_i(tcdm_dma_req_valid_i                                   ),
-    .ready_o(tcdm_dma_req_ready_o                                   ),
-    .sel_i  (tcdm_dma_req_i_struct.tgt_addr[idx_width(NumBanksPerTile)-1:$clog2(DmaNumWords)]),
-    // Slave
-    .data_o (tcdm_dma_req                                           ),
-    .valid_o(tcdm_dma_req_valid                                     ),
-    .ready_i(tcdm_dma_req_ready                                     ),
-    .idx_o  (/* Unused */                                           )
-  );
+  if (NumSuperbanks == 1) begin : gen_dma_interco_bypass
+    assign tcdm_dma_req = tcdm_dma_req_i_struct;
+    assign tcdm_dma_req_valid = tcdm_dma_req_valid_i;
+    assign tcdm_dma_req_ready_o = tcdm_dma_req_ready;
 
-  stream_xbar #(
-    .NumInp   (NumSuperbanks  ),
-    .NumOut   (1              ),
-    .payload_t(tcdm_dma_resp_t)
-  ) i_dma_resp_interco (
-    .clk_i  (clk_i                           ),
-    .rst_ni (rst_ni                          ),
-    .flush_i(1'b0                            ),
-    // External priority flag
-    .rr_i   ('0                              ),
-    // Master
-    .data_i (tcdm_dma_resp                   ),
-    .valid_i(tcdm_dma_resp_valid             ),
-    .ready_o(tcdm_dma_resp_ready             ),
-    .sel_i  ('0                              ),
-    // Slave
-    .data_o (tcdm_dma_resp_o                 ),
-    .valid_o(tcdm_dma_resp_valid_o           ),
-    .ready_i(tcdm_dma_resp_ready_i           ),
-    .idx_o  (/* Unused */                    )
-  );
+    assign tcdm_dma_resp_o = tcdm_dma_resp;
+    assign tcdm_dma_resp_valid_o = tcdm_dma_resp_valid;
+    assign tcdm_dma_resp_ready = tcdm_dma_resp_ready_i;
+  end else begin : gen_dma_interco
+    stream_xbar #(
+      .NumInp   (1             ),
+      .NumOut   (NumSuperbanks ),
+      .payload_t(tcdm_dma_req_t)
+    ) i_dma_req_interco (
+      .clk_i  (clk_i                                                  ),
+      .rst_ni (rst_ni                                                 ),
+      .flush_i(1'b0                                                   ),
+      // External priority flag
+      .rr_i   ('0                                                     ),
+      // Master
+      .data_i (tcdm_dma_req_i_struct                                  ),
+      .valid_i(tcdm_dma_req_valid_i                                   ),
+      .ready_o(tcdm_dma_req_ready_o                                   ),
+      .sel_i  (tcdm_dma_req_i_struct.tgt_addr[idx_width(NumBanksPerTile)-1:$clog2(DmaNumWords)]),
+      // Slave
+      .data_o (tcdm_dma_req                                           ),
+      .valid_o(tcdm_dma_req_valid                                     ),
+      .ready_i(tcdm_dma_req_ready                                     ),
+      .idx_o  (/* Unused */                                           )
+    );
+
+    stream_xbar #(
+      .NumInp   (NumSuperbanks  ),
+      .NumOut   (1              ),
+      .payload_t(tcdm_dma_resp_t)
+    ) i_dma_resp_interco (
+      .clk_i  (clk_i                           ),
+      .rst_ni (rst_ni                          ),
+      .flush_i(1'b0                            ),
+      // External priority flag
+      .rr_i   ('0                              ),
+      // Master
+      .data_i (tcdm_dma_resp                   ),
+      .valid_i(tcdm_dma_resp_valid             ),
+      .ready_o(tcdm_dma_resp_ready             ),
+      .sel_i  ('0                              ),
+      // Slave
+      .data_o (tcdm_dma_resp_o                 ),
+      .valid_o(tcdm_dma_resp_valid_o           ),
+      .ready_i(tcdm_dma_resp_ready_i           ),
+      .idx_o  (/* Unused */                    )
+    );
+  end
 
   assign bank_req_ini_addr = superbank_req_ini_addr;
   assign superbank_resp_ini_addr = bank_resp_ini_addr;
