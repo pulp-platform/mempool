@@ -111,7 +111,10 @@ else
 	veril_flags := --meminit=ram,$(preload)
 endif
 
-cpp_defs  += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
+cpp_defs += -DL2_BASE=$(l2_base)
+cpp_defs += -DL2_SIZE=$(l2_size)
+cpp_defs += -DL2_BANKS=$(l2_banks)
+cpp_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 
 .DEFAULT_GOAL := compile
 

@@ -9,14 +9,18 @@
 #include "verilator_memutil.h"
 #include "verilator_sim_ctrl.h"
 
+// Please define the following parameters with sensible values
 #ifndef L2_BASE
-#define L2_BASE 0x80000000
+#define L2_BASE (-1)
 #endif
 #ifndef L2_SIZE
-#define L2_SIZE 0x00080000
+#define L2_SIZE (-1)
 #endif
 #ifndef L2_BANKS
-#define L2_BANKS 1
+#define L2_BANKS (-1)
+#endif
+#ifndef AXI_DATA_WIDTH
+#define AXI_DATA_WIDTH (-1)
 #endif
 
 // Histogram printing function
@@ -35,7 +39,7 @@ int main(int argc, char **argv) {
     l2_scope.push_back("TOP.mempool_tb_verilator.dut.gen_l2_banks[" +
                        std::to_string(i) + "].l2_mem");
   }
-  MemArea l2_mem(l2_scope, L2_SIZE / 16, 16);
+  MemArea l2_mem(l2_scope, L2_SIZE / (AXI_DATA_WIDTH / 8), AXI_DATA_WIDTH / 8);
   memutil.RegisterMemoryArea("ram", L2_BASE, &l2_mem);
   simctrl.RegisterExtension(&memutil);
 #endif
