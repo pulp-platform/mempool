@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Disable `rvv` extension for `riscv-isa-sim`
 - Issue write responses to Snitch for the TCDM and AXI interconnect
 - Bump axi to `v0.36.0`
+- Run simulations at 500MHz by default
 
 ## 0.4.0 - 2021-07-01
 

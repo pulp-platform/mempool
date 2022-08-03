@@ -91,6 +91,8 @@ vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 vlog_defs += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
 vlog_defs += -DBOOT_ADDR=$(boot_addr) -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
+vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
+vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
 
@@ -108,7 +110,7 @@ else
 	veril_flags := --meminit=ram,$(preload)
 endif
 
-cpp_defs  += -DL2_BASE=0x$(l2_base) -DL2_SIZE=0x$(l2_size) -DL2_BANKS=$(l2_banks)
+cpp_defs  += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
 
 .DEFAULT_GOAL := compile
 
@@ -307,7 +309,7 @@ post_trace:
 	cp $(buildpath)/transcript "$(result_dir)/" | true
 	cp $(traceresult) "$(result_dir)"
 	cp $(trace) "$(result_dir)"
-	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)"
+	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(result_dir)/avg.txt
 
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
@@ -348,8 +350,8 @@ $(tests_verilate): $(test_result_dir_verilate)/%.out : $(app_path)/%
 ################
 
 # Bootrom
-src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img
-	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth 128 $<
+src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img $(config_mk) Makefile
+	$(python) ./scripts/generate_bootrom.py --sv --output src/bootrom --datawidth $(axi_data_width) $<
 
 $(MEMPOOL_DIR)/software/runtime/bootrom.img:
 	make -C $(MEMPOOL_DIR)/software runtime/bootrom.img

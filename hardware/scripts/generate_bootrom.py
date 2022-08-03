@@ -62,8 +62,9 @@ if DataWidth < 32:
     sys.exit('DataWidth must be larger than 32')
 if DataWidth % 32:
     sys.exit('DataWidth must be multiple of 32')
+ByteWidth = int(DataWidth / 8)
 
-DataOffset = int(log2(DataWidth / 8))
+DataOffset = int(log2(ByteWidth))
 
 license = """\
 // Copyright 2021 ETH Zurich and University of Bologna.
@@ -123,8 +124,8 @@ def read_bin():
     with open(filename + ".img", 'rb') as f:
         rom = bytes.hex(f.read())
         rom = list(map(''.join, zip(rom[::2], rom[1::2])))
-    # align to 64 bit
-    align = (int((len(rom) + 7) / 8)) * 8
+    # align to datawidth bits
+    align = (int((len(rom) + ByteWidth - 1) / ByteWidth)) * ByteWidth
     for i in range(len(rom), align):
         rom.append("00")
     return rom
@@ -152,7 +153,6 @@ if args.header:
 if args.systemverilog:
     with open(output + ".sv", "w") as f:
         rom_str = ""
-        ByteWidth = int(DataWidth / 8)
         # process in junks of DataWidth bit (DataWidth/8 byte)
         for i in reversed(range(int(len(rom) / ByteWidth))):
             rom_str += "    {}'h".format(DataWidth)

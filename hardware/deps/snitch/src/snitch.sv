@@ -1404,7 +1404,7 @@ module snitch
   always_ff @(posedge clk_i or posedge rst_i) begin
     // Display CSR write if the CSR does not exist
     if (!rst_i && csr_dump && inst_valid_o && inst_ready_i && !stall) begin
-      $display("[DUMP] %3d: 0x%3h = %d", hart_id_i, inst_data_i[31:20], alu_result);
+      $display("[DUMP] %3d: 0x%3h = 0x%08h, %d", hart_id_i, inst_data_i[31:20], alu_result, alu_result);
     end
   end
   // pragma translate_on

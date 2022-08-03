@@ -40,6 +40,15 @@ seq_mem_size ?= 1024
 # Size of stack in sequential memory per core (in bytes)
 stack_size ?= 1024
 
+#########################
+##  AXI configuration  ##
+#########################
+# AXI bus data width (in bits)
+axi_data_width ?= 128
+
+# Read-only cache line width in AXI interconnect (in bits)
+ro_line_width ?= 256
+
 #############################
 ##  Xqueues configuration  ##
 #############################
