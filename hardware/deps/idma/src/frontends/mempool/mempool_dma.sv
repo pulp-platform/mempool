@@ -159,7 +159,7 @@ module mempool_dma #(
 
       if (transfer == 1 && backend_idle_i == 0) begin
         transfer = 2;
-      end else if (transfer == 2 && backend_idle_i == 1) begin
+      end else if (transfer == 2 && backend_idle_i == 1 && cycle >= 24) begin
         transfer = 0;
         $display("[mempool_dma] Finished request");
         $display("[mempool_dma] Duration: %08d cycles, %08.8f bytes/cycle", cycle, size/cycle);
