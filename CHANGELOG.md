@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add a systolic configuration including runtime support and a matmul application
 - Add `axpy` kernel
 - Add Spyglass linting scripts
+- Add an OpenMP runtime and example applications
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module

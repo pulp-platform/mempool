@@ -17,6 +17,7 @@ LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
 HALIDE_INCLUDE     ?= $(HALIDE_INSTALL_DIR)/include
 HALIDE_LIB         ?= $(HALIDE_INSTALL_DIR)/lib
+OMP_DIR            ?= $(ROOT_DIR)/omp
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
@@ -85,24 +86,32 @@ RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown
 
 ifeq ($(COMPILER),gcc)
-	RISCV_CCFLAGS       ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
-	RISCV_CXXFLAGS      ?= $(RISCV_CCFLAGS)
-	RISCV_LDFLAGS       ?= -static -nostartfiles -lm -lgcc $(RISCV_CCFLAGS) -L$(ROOT_DIR)
-	RISCV_OBJDUMP_FLAGS ?= --disassembler-option="march=$(RISCV_ARCH_AS)"
+	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
+	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
+	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
+	RISCV_OBJDUMP_FLAGS += --disassembler-option="march=$(RISCV_ARCH_AS)"
 else
-	RISCV_CCFLAGS       ?= $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
-	RISCV_CXXFLAGS      ?= $(RISCV_CCFLAGS)
-	RISCV_LDFLAGS       ?= -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
-	RISCV_OBJDUMP_FLAGS ?=
+	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
+	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
+	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
+	RISCV_OBJDUMP_FLAGS +=
 endif
 
 LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld
-RUNTIME ?= $(ROOT_DIR)/crt0.S.o $(ROOT_DIR)/printf.c.o $(ROOT_DIR)/string.c.o $(ROOT_DIR)/synchronization.c.o $(ROOT_DIR)/serial.c.o $(ROOT_DIR)/alloc.c.o
+
+RUNTIME += $(ROOT_DIR)/alloc.c.o
+RUNTIME += $(ROOT_DIR)/crt0.S.o
+RUNTIME += $(ROOT_DIR)/printf.c.o
+RUNTIME += $(ROOT_DIR)/serial.c.o
+RUNTIME += $(ROOT_DIR)/string.c.o
+RUNTIME += $(ROOT_DIR)/synchronization.c.o
+
+OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
 
 # For unit tests
 RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 
-.INTERMEDIATE: $(RUNTIME) $(LINKER_SCRIPT)
+.INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT)
 # Disable builtin rules
 .SUFFIXES:
 
