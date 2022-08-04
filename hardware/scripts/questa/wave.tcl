@@ -33,6 +33,9 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
     add wave -group group_[$group] -group interconnect_local /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_local_interco/*
 }
 
+# Add cluster
+do ../scripts/questa/wave_cluster.tcl
+
 add wave -Group Control_Registers /mempool_tb/dut/i_ctrl_registers/*
 
 add wave -Group DMA /mempool_tb/dut/i_mempool_dma/*
