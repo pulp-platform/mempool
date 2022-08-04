@@ -134,6 +134,7 @@ void multi_core_folded()
     init_matrix_zeros(inv, ((N * M) / N_USED_BANKS), N_BANKS, core_id);
     if (core_id == 0) {
         flag = 0U;
+        __atomic_store_n(&pivot_barrier, 0U, __ATOMIC_RELAXED);
     }
     mempool_barrier(num_cores);
 

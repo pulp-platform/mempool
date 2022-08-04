@@ -6,6 +6,8 @@
 
 /* GAUSS JORDAN INVERSION */
 
+uint32_t volatile pivot_barrier __attribute__((section(".l1")));
+
 int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *flag);
 
 int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint32_t *flag) {
@@ -127,63 +129,8 @@ int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint
             if ((*flag == 0U) && (in == 0U)) {
                 return 1;
             }
-            //    /* DIVIDE BY THE PIVOT */
-            //    /* Points to the pivot row of input and destination matrices */
-            //    pPivotRowIn = pSrc + (l * n);
-            //    pPivotRowDst = pDst + (l * n);
-            //    /* Temporary pointers to the pivot row pointers */
-            //    pSrcT1 = pPivotRowIn;
-            //    pSrcT2 = pPivotRowDst;
-            //    /* Pivot element of the row */
-            //    in = *pPivotRowIn;
-            //    /* Loop over number of columns to the right of the pilot element */
-            //    j = 0;
-            //    while (j < 4 * ((n - l) >> 2U)) {
-            //        in1 = *pSrcT1;
-            //        in2 = *(pSrcT1 + 1);
-            //        in3 = *(pSrcT1 + 2);
-            //        in4 = *(pSrcT1 + 3);
-            //        out1 = FIX_DIV(in1, in);
-            //        out2 = FIX_DIV(in2, in);
-            //        out3 = FIX_DIV(in3, in);
-            //        out4 = FIX_DIV(in4, in);
-            //        *pSrcT1++ = out1;
-            //        *pSrcT1++ = out2;
-            //        *pSrcT1++ = out3;
-            //        *pSrcT1++ = out4;
-            //        j += 4;
-            //    }
-            //    while (j < n - l) {
-            //        in1 = *pSrcT1;
-            //        *pSrcT1++ = FIX_DIV(in1, in);
-            //        j++;
-            //    }
-            //    /* Loop over number of columns of the destination matrix */
-            //    j = 0;
-            //    while (j < 4 * (n >> 2U)) {
-            //        in1 = *pSrcT2;
-            //        in2 = *(pSrcT2 + 1);
-            //        in3 = *(pSrcT2 + 2);
-            //        in4 = *(pSrcT2 + 3);
-            //        out1 = FIX_DIV(in1, in);
-            //        out2 = FIX_DIV(in2, in);
-            //        out3 = FIX_DIV(in3, in);
-            //        out4 = FIX_DIV(in4, in);
-            //        *pSrcT2++ = out1;
-            //        *pSrcT2++ = out2;
-            //        *pSrcT2++ = out3;
-            //        *pSrcT2++ = out4;
-            //        j += 4;
-            //    }
-            //    while (j < n) {
-            //        in1 = *pSrcT2;
-            //        *pSrcT2++ = FIX_DIV(in1, in);
-            //        j++;
-            //    }
         }
         mempool_log_barrier(2, absolute_core_id);
-        //pPivotRowIn = pSrc + (l * n);
-        //pPivotRowDst = pDst + (l * n);
 
         /* DIVIDE BY THE PIVOT */
         /* Points to the pivot row of input and destination matrices */
@@ -276,7 +223,6 @@ int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint
         for (k = absolute_core_id / (n >> 2U); k < m; k += NUM_CORES / (n >> 2U)) {
             /* Only the columns to the right of the pivot are to be processed */
             if (k != l) {
-
                 pSrcT1 = pSrc + k * n;
                 pSrcT2 = pDst + k * n;
                 /* Element of the reference row */
@@ -284,7 +230,6 @@ int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint
                 /* Reference row pointers */
                 pPRT_in = pPivotRowIn;
                 pPRT_pDst = pPivotRowDst;
-
                 /* Loop over the columns */
                 core_id = absolute_core_id % (n >> 2U);
                 core_id = core_id - (l >> 2U);
@@ -340,7 +285,6 @@ int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint
                 //        j++;
                 //    }
                 //}
-
                 //uint32_t core_id_in;
                 //uint32_t core_id_Dst;
                 //int32_t p1_in, p2_in, p3_in, p4_in;
@@ -406,10 +350,151 @@ int mempool_GJinv_q32p_memsized(int32_t * pSrc, int32_t * pDst, uint32_t n, uint
                 //pSrcT2[i + 1] = in2 - FIX_MUL(in, p2_Dst);
                 //pSrcT2[i + 2] = in3 - FIX_MUL(in, p3_Dst);
                 //pSrcT2[i + 3] = in4 - FIX_MUL(in, p4_Dst);
-
             }
         }
         mempool_log_barrier(2, absolute_core_id);
+
+//        /* REPLACE ROWS */
+//        pSrcT1 = pSrc;
+//        pSrcT2 = pDst;
+//        /* Reference row pointers */
+//        pPRT_in = pSrc + (l * n);
+//        pPRT_pDst = pDst + (l * n);
+//        int32_t pivot = *pPRT_in;
+//        uint32_t nPE = (n >> 2U);
+//        uint32_t check = 0;
+//        if (absolute_core_id >= m * nPE)
+//            mempool_wfi();
+//        for (k = absolute_core_id / nPE; k < m; k += NUM_CORES / nPE) {
+//            /* Only the columns to the right of the pivot are to be processed */
+//            if (k != l) {
+//                pSrcT1 = pSrc + k * n;
+//                pSrcT2 = pDst + k * n;
+//                /* Element of the reference row */
+//                in = *pSrcT1;
+//                /* Loop over the columns */
+//                core_id = absolute_core_id % nPE;
+//                core_id = core_id - (l >> 2U);
+//                j = core_id * 4;
+//                while (j < 4 * ((n - l) >> 2U)) {
+//                    out1 = pPRT_in[j];
+//                    out2 = pPRT_in[j + 1];
+//                    out3 = pPRT_in[j + 2];
+//                    out4 = pPRT_in[j + 3];
+//                    out1 = FIX_DIV(out1, pivot);
+//                    out2 = FIX_DIV(out2, pivot);
+//                    out3 = FIX_DIV(out3, pivot);
+//                    out4 = FIX_DIV(out4, pivot);
+//                    in1 = pSrcT1[j];
+//                    in2 = pSrcT1[j + 1];
+//                    in3 = pSrcT1[j + 2];
+//                    in4 = pSrcT1[j + 3];
+//                    pSrcT1[j] = in1 - FIX_MUL(in, out1);
+//                    pSrcT1[j + 1] = in2 - FIX_MUL(in, out2);
+//                    pSrcT1[j + 2] = in3 - FIX_MUL(in, out3);
+//                    pSrcT1[j + 3] = in4 - FIX_MUL(in, out4);
+//                    j += 4 * (n >> 2U);
+//                }
+//                if (core_id == 0) {
+//                    j = 4 * ((n - l) >> 2U);
+//                    while (j < n - l) {
+//                        out1 = pPRT_in[j];
+//                        out1 = FIX_DIV(out1, pivot);
+//                        in1 = pSrcT1[j];
+//                        pSrcT1[j] = in1 - FIX_MUL(in, out1);
+//                        j++;
+//                    }
+//                }
+//                /* Loop over the columns */
+//                core_id = absolute_core_id % nPE;
+//                j = core_id * 4;
+//                while (j < 4 * (n >> 2U)) {
+//                    out1 = pPRT_pDst[j];
+//                    out2 = pPRT_pDst[j + 1];
+//                    out3 = pPRT_pDst[j + 2];
+//                    out4 = pPRT_pDst[j + 3];
+//                    out1 = FIX_DIV(out1, pivot);
+//                    out2 = FIX_DIV(out2, pivot);
+//                    out3 = FIX_DIV(out3, pivot);
+//                    out4 = FIX_DIV(out4, pivot);
+//                    in1 = pSrcT2[j];
+//                    in2 = pSrcT2[j + 1];
+//                    in3 = pSrcT2[j + 2];
+//                    in4 = pSrcT2[j + 3];
+//                    pSrcT2[j]     = in1 - FIX_MUL(in, out1);
+//                    pSrcT2[j + 1] = in2 - FIX_MUL(in, out2);
+//                    pSrcT2[j + 2] = in3 - FIX_MUL(in, out3);
+//                    pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
+//                    j += 4 * nPE;
+//                }
+//                __atomic_fetch_add(&pivot_barrier, 1, __ATOMIC_RELAXED);
+//                mempool_wfi();
+//            } else {
+//                do {
+//                    check = __atomic_fetch_add(&pivot_barrier, 0, __ATOMIC_RELAXED);
+//                    mempool_wait(20);
+//                } while (check < ((m - 1) * nPE));
+//                /* Loop over the columns */
+//                core_id = absolute_core_id % (n >> 2U);
+//                core_id = core_id - (l >> 2U);
+//                j = core_id * 4;
+//                while (j < 4 * ((n - l) >> 2U)) {
+//                    in1 = pPRT_in[j];
+//                    in2 = pPRT_in[j + 1];
+//                    in3 = pPRT_in[j + 2];
+//                    in4 = pPRT_in[j + 3];
+//                    out1 = FIX_DIV(in1, pivot);
+//                    out2 = FIX_DIV(in2, pivot);
+//                    out3 = FIX_DIV(in3, pivot);
+//                    out4 = FIX_DIV(in4, pivot);
+//                    pPRT_in[j] = out1;
+//                    pPRT_in[j + 1] = out2;
+//                    pPRT_in[j + 2] = out3;
+//                    pPRT_in[j + 3] = out4;
+//                    j += 4 * (n >> 2U);
+//                }
+//                if (core_id == 0) {
+//                    j = 4 * ((n - l) >> 2U);
+//                    while (j < n - l) {
+//                        in1 = pPRT_in[j];
+//                        pPRT_in[j] = FIX_DIV(in1, pivot);
+//                        j++;
+//                    }
+//                }
+//                /* Loop over the columns */
+//                core_id = absolute_core_id % (n >> 2U);
+//                j = core_id * 4;
+//                while (j < 4 * (n >> 2U)) {
+//                    in1 = pPRT_pDst[j];
+//                    in2 = pPRT_pDst[j + 1];
+//                    in3 = pPRT_pDst[j + 2];
+//                    in4 = pPRT_pDst[j + 3];
+//                    out1 = FIX_DIV(in1, pivot);
+//                    out2 = FIX_DIV(in2, pivot);
+//                    out3 = FIX_DIV(in3, pivot);
+//                    out4 = FIX_DIV(in4, pivot);
+//                    pPRT_pDst[j] = out1;
+//                    pPRT_pDst[j + 1] = out2;
+//                    pPRT_pDst[j + 2] = out3;
+//                    pPRT_pDst[j + 3] = out4;
+//                    j += 4 * (n >> 2U);
+//                }
+//                if (core_id == (n >> 2U) - 1) {
+//                    j = 4 * (n >> 2U);
+//                    while (j < n) {
+//                        in1 = pPRT_pDst[j];
+//                        pPRT_pDst[j] = FIX_DIV(in1, pivot);
+//                        j++;
+//                    }
+//                }
+//                if ((m * nPE) - 1 == __atomic_fetch_add(&pivot_barrier, 1, __ATOMIC_RELAXED)) {
+//                    __atomic_store_n(&pivot_barrier, 0, __ATOMIC_RELAXED);
+//                    __sync_synchronize();
+//                    wake_up_all();
+//                }
+//                mempool_wfi();
+//            }
+//        }
 
 //        /* REPLACE ROWS */
 //        pSrcT1 = pSrc;
