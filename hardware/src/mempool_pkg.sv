@@ -152,6 +152,14 @@ package mempool_pkg;
     logic [ROCacheNumAddrRules-1:0][AddrWidth-1:0] end_addr;
   } ro_cache_ctrl_t;
 
+  // RO cache reset value to avoid fatal warnings during reset in the address decoder
+  localparam ro_cache_ctrl_t ro_cache_ctrl_default = '{
+    enable: '0,
+    flush_valid: '0,
+    start_addr: {32'h18,32'h10,32'h08,32'h00},
+    end_addr: {32'h1C,32'h14,32'h0C,32'h04}
+  };
+
   /*********
    *  DMA  *
    *********/

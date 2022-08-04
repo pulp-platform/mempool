@@ -46,7 +46,7 @@ module mempool_cluster
   `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
 
   ro_cache_ctrl_t ro_cache_ctrl_q;
-  `FF(ro_cache_ctrl_q, ro_cache_ctrl_i, '0, clk_i, rst_ni);
+  `FF(ro_cache_ctrl_q, ro_cache_ctrl_i, ro_cache_ctrl_default, clk_i, rst_ni);
 
   /*********
    *  DMA  *
