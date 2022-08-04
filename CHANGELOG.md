@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 - Increase the default AXI width
+- Register all control signals at hierarchy boundaries
 
 ## 0.5.0 - 2022-08-03
 

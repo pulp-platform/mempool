@@ -39,6 +39,15 @@ module mempool_cluster
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
 );
 
+  /*********************
+   *  Control Signals  *
+   *********************/
+  logic [NumCores-1:0] wake_up_q;
+  `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
+
+  ro_cache_ctrl_t ro_cache_ctrl_q;
+  `FF(ro_cache_ctrl_q, ro_cache_ctrl_i, '0, clk_i, rst_ni);
+
   /*********
    *  DMA  *
    *********/
@@ -153,8 +162,8 @@ module mempool_cluster
       .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
       .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
       .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
-      .wake_up_i               (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
-      .ro_cache_ctrl_i         (ro_cache_ctrl_i                                                 ),
+      .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
+      .ro_cache_ctrl_i         (ro_cache_ctrl_q                                                 ),
       // DMA request
       .dma_req_i               (dma_req[g]                                                      ),
       .dma_req_valid_i         (dma_req_valid[g]                                                ),
