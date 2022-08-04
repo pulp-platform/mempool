@@ -207,7 +207,9 @@ module mempool_cc
 
   always_ff @(posedge rst_i) begin
     if(rst_i) begin
-      $sformat(fn, "trace_hart_0x%04x.dasm", hart_id_i);
+      // Format in hex because vcs and vsim treat decimal differently
+      // Format with 8 digits because Verilator does not support anything else
+      $sformat(fn, "trace_hart_0x%08x.dasm", hart_id_i);
       f = $fopen(fn, "w");
       $display("[Tracer] Logging Hart %d to %s", hart_id_i, fn);
     end
