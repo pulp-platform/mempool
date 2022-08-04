@@ -33,6 +33,35 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
     add wave -group group_[$group] -group interconnect_local /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_local_interco/*
 }
 
+# Add cluster
+do ../scripts/questa/wave_cluster.tcl
+
 add wave -Group Control_Registers /mempool_tb/dut/i_ctrl_registers/*
+
+add wave -Group DMA /mempool_tb/dut/i_mempool_dma/*
+add wave -Group DMA -Group Reg /mempool_tb/dut/i_mempool_dma/i_mempool_dma_frontend_reg_top/*
+for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr group} {
+  add wave -Group DMA_midend_${group} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_idma_distributed_midend/NoMstPorts
+  add wave -Group DMA_midend_${group} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_idma_distributed_midend/DmaRegionWidth
+  add wave -Group DMA_midend_${group} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_idma_distributed_midend/DmaRegionStart
+  add wave -Group DMA_midend_${group} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_idma_distributed_midend/DmaRegionEnd
+  add wave -Group DMA_midend_${group} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_idma_distributed_midend/DmaRegionAddressBits
+  add wave -Group DMA_midend_${group} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_idma_distributed_midend/FullRegionAddressBits
+  add wave -Group DMA_midend_${group} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/i_idma_distributed_midend/*
+  for {set dma 0} {$dma < [examine -radix dec /mempool_pkg::NumDmasPerGroup]} {incr dma} {
+    add wave -Group DMA_${group}_${dma} /mempool_tb/dut/i_mempool_cluster/gen_groups[$group]/i_group/gen_dmas[$dma]/i_axi_dma_backend/*
+  }
+}
+
+add wave -Group DMA_midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/NoMstPorts
+add wave -Group DMA_midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/DmaRegionWidth
+add wave -Group DMA_midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/DmaRegionStart
+add wave -Group DMA_midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/DmaRegionEnd
+add wave -Group DMA_midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/DmaRegionAddressBits
+add wave -Group DMA_midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/FullRegionAddressBits
+add wave -Group DMA_midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/*
+
+
+add wave -Group DMA_split /mempool_tb/dut/i_mempool_cluster/i_idma_split_midend/*
 
 do ../scripts/questa/wave_cache.tcl 0 0 0

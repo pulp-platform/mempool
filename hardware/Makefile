@@ -93,6 +93,7 @@ vlog_defs += -DBOOT_ADDR=$(boot_addr) -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
+vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
 
@@ -110,7 +111,10 @@ else
 	veril_flags := --meminit=ram,$(preload)
 endif
 
-cpp_defs  += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
+cpp_defs += -DL2_BASE=$(l2_base)
+cpp_defs += -DL2_SIZE=$(l2_size)
+cpp_defs += -DL2_BANKS=$(l2_banks)
+cpp_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 
 .DEFAULT_GOAL := compile
 
@@ -283,7 +287,7 @@ spyglass/tmp/files: $(bender)
 ################
 # Tracing      #
 ################
-benchmark: log simc
+benchmark: log simcvcs
 	# Call `make` again to get variable extension with all traces
 	result_dir=$(result_dir) $(MAKE) trace
 

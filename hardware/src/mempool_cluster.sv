@@ -2,6 +2,8 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
+`include "common_cells/registers.svh"
+
 module mempool_cluster
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
@@ -11,6 +13,7 @@ module mempool_cluster
   // Boot address
   parameter logic           [31:0] BootAddr      = 32'h0000_0000,
   // Dependant parameters. DO NOT CHANGE!
+  parameter int    unsigned        NumDMAReq     = NumGroups * NumDmasPerGroup,
   parameter int    unsigned        NumAXIMasters = NumGroups * NumAXIMastersPerGroup
 ) (
   // Clock and reset
@@ -25,10 +28,86 @@ module mempool_cluster
   input  logic           [NumCores-1:0]      wake_up_i,
   // RO-Cache configuration
   input  ro_cache_ctrl_t                     ro_cache_ctrl_i,
+  // DMA request
+  input  dma_req_t                           dma_req_i,
+  input  logic                               dma_req_valid_i,
+  output logic                               dma_req_ready_o,
+  // DMA status
+  output dma_meta_t                          dma_meta_o,
   // AXI Interface
   output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
 );
+
+  /*********
+   *  DMA  *
+   *********/
+  dma_req_t  dma_req_cut;
+  logic      dma_req_cut_valid;
+  logic      dma_req_cut_ready;
+  dma_meta_t dma_meta_cut;
+
+  spill_register #(
+    .T(dma_req_t)
+  ) i_dma_req_register (
+    .clk_i  (clk_i            ),
+    .rst_ni (rst_ni           ),
+    .data_i (dma_req_i        ),
+    .valid_i(dma_req_valid_i  ),
+    .ready_o(dma_req_ready_o  ),
+    .data_o (dma_req_cut      ),
+    .valid_o(dma_req_cut_valid),
+    .ready_i(dma_req_cut_ready)
+  );
+
+  `FF(dma_meta_o, dma_meta_cut, '0, clk_i, rst_ni);
+
+  dma_req_t  dma_req_split;
+  logic      dma_req_split_valid;
+  logic      dma_req_split_ready;
+  dma_meta_t dma_meta_split;
+  dma_req_t  [NumGroups-1:0] dma_req;
+  logic      [NumGroups-1:0] dma_req_valid;
+  logic      [NumGroups-1:0] dma_req_ready;
+  dma_meta_t [NumGroups-1:0] dma_meta;
+
+  idma_split_midend #(
+    .DmaRegionWidth (NumBanksPerGroup*NumGroups*4),
+    .DmaRegionStart (32'h0000_0000               ),
+    .DmaRegionEnd   (32'h1000_0000               ),
+    .AddrWidth      (AddrWidth                   ),
+    .burst_req_t    (dma_req_t                   ),
+    .meta_t         (dma_meta_t                  )
+  ) i_idma_split_midend (
+    .clk_i      (clk_i              ),
+    .rst_ni     (rst_ni             ),
+    .burst_req_i(dma_req_cut        ),
+    .valid_i    (dma_req_cut_valid  ),
+    .ready_o    (dma_req_cut_ready  ),
+    .meta_o     (dma_meta_cut       ),
+    .burst_req_o(dma_req_split      ),
+    .valid_o    (dma_req_split_valid),
+    .ready_i    (dma_req_split_ready),
+    .meta_i     (dma_meta_split     )
+  );
+
+  idma_distributed_midend #(
+    .NoMstPorts     (NumGroups         ),
+    .DmaRegionWidth (NumBanksPerGroup*4),
+    .burst_req_t    (dma_req_t         ),
+    .meta_t         (dma_meta_t        )
+  ) i_idma_distributed_midend (
+    .clk_i       (clk_i              ),
+    .rst_ni      (rst_ni             ),
+    .burst_req_i (dma_req_split      ),
+    .valid_i     (dma_req_split_valid),
+    .ready_o     (dma_req_split_ready),
+    .meta_o      (dma_meta_split     ),
+    .burst_req_o (dma_req            ),
+    .valid_o     (dma_req_valid      ),
+    .ready_i     (dma_req_ready      ),
+    .meta_i      (dma_meta           )
+  );
 
   /************
    *  Groups  *
@@ -76,6 +155,12 @@ module mempool_cluster
       .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
       .wake_up_i               (wake_up_i[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
       .ro_cache_ctrl_i         (ro_cache_ctrl_i                                                 ),
+      // DMA request
+      .dma_req_i               (dma_req[g]                                                      ),
+      .dma_req_valid_i         (dma_req_valid[g]                                                ),
+      .dma_req_ready_o         (dma_req_ready[g]                                                ),
+      // DMA status
+      .dma_meta_o              (dma_meta[g]                                                     ),
       // AXI interface
       .axi_mst_req_o           (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
       .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])

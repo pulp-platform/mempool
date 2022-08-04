@@ -8,7 +8,7 @@
 
 module bootrom #(
   /* Automatically generated. DO NOT CHANGE! */
-  parameter int unsigned DataWidth = 128,
+  parameter int unsigned DataWidth = 256,
   parameter int unsigned AddrWidth = 32
 ) (
   input  logic                 clk_i,
@@ -20,14 +20,14 @@ module bootrom #(
   localparam int AddrBits = RomSize > 1 ? $clog2(RomSize) : 1;
 
   const logic [RomSize-1:0][DataWidth-1:0] mem = {
-    128'h00050067_10500073_00050513_e0000517
+    256'h00000000_00000000_00000000_00000000_00050067_10500073_00050513_e0000517
   };
 
   logic [AddrBits-1:0] addr_q;
 
   always_ff @(posedge clk_i) begin
     if (req_i) begin
-      addr_q <= addr_i[AddrBits-1+4:4];
+      addr_q <= addr_i[AddrBits-1+5:5];
     end
   end
 

@@ -9,7 +9,9 @@ dependencies:
   axi:                  { git: "https://github.com/pulp-platform/axi.git",                  version: 0.36.0 }
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.2.1  }
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.23.0 }
+  idma:                 { path: "hardware/deps/idma"                                                        }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.3.1  }
+  reqrsp_interface:     { path: "hardware/deps/reqrsp_interface"                                            }
   snitch:               { path: "hardware/deps/snitch"                                                      }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.5  }
 
@@ -27,6 +29,7 @@ sources:
   - hardware/src/snitch_addr_demux.sv
   - hardware/src/tcdm_adapter.sv
   - hardware/src/tcdm_shim.sv
+  - hardware/src/tcdm_wide_narrow_mux.sv
   - hardware/src/address_scrambler.sv
   - hardware/src/axi2mem.sv
   - hardware/src/bootrom.sv

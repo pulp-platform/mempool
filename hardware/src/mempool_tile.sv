@@ -39,6 +39,13 @@ module mempool_tile
   output `STRUCT_VECT(tcdm_slave_resp_t,  [NumGroups-1:0]) tcdm_slave_resp_o,
   output logic              [NumGroups-1:0]                tcdm_slave_resp_valid_o,
   input  logic              [NumGroups-1:0]                tcdm_slave_resp_ready_i,
+  // TCDM DMA interfaces
+  input  `STRUCT_PORT(tcdm_dma_req_t)                      tcdm_dma_req_i,
+  input  logic                                             tcdm_dma_req_valid_i,
+  output logic                                             tcdm_dma_req_ready_o,
+  output `STRUCT_PORT(tcdm_dma_resp_t)                     tcdm_dma_resp_o,
+  output logic                                             tcdm_dma_resp_valid_o,
+  input  logic                                             tcdm_dma_resp_ready_i,
   // AXI Interface
   output `STRUCT_PORT(axi_tile_req_t)                      axi_mst_req_o,
   input  `STRUCT_PORT(axi_tile_resp_t)                     axi_mst_resp_i,
@@ -60,10 +67,6 @@ module mempool_tile
   import snitch_pkg::dresp_t;
 
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
-
-  // TCDM Memory Region
-  localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
-  localparam addr_t TCDMMask = ~(TCDMSize - 1);
 
   // Local interconnect address width
   typedef logic [idx_width(NumCoresPerTile + NumGroups)-1:0] local_req_interco_addr_t;
@@ -222,17 +225,130 @@ module mempool_tile
     meta_id_t meta_id;
     tile_group_id_t tile_id;
     tile_core_id_t core_id;
+    logic wide;
   } bank_metadata_t;
 
   // Memory interfaces
+  tcdm_dma_req_t           [NumSuperbanks-1:0]   tcdm_dma_req;
+  logic                    [NumSuperbanks-1:0]   tcdm_dma_req_valid;
+  logic                    [NumSuperbanks-1:0]   tcdm_dma_req_ready;
+  tcdm_dma_resp_t          [NumSuperbanks-1:0]   tcdm_dma_resp;
+  logic                    [NumSuperbanks-1:0]   tcdm_dma_resp_valid;
+  logic                    [NumSuperbanks-1:0]   tcdm_dma_resp_ready;
+
+  logic                    [NumBanksPerTile-1:0] superbank_req_valid;
+  logic                    [NumBanksPerTile-1:0] superbank_req_ready;
+  local_req_interco_addr_t [NumBanksPerTile-1:0] superbank_req_ini_addr;
+  tcdm_slave_req_t         [NumBanksPerTile-1:0] superbank_req_payload;
+  logic                    [NumBanksPerTile-1:0] superbank_resp_valid;
+  logic                    [NumBanksPerTile-1:0] superbank_resp_ready;
+  tcdm_slave_resp_t        [NumBanksPerTile-1:0] superbank_resp_payload;
+  local_req_interco_addr_t [NumBanksPerTile-1:0] superbank_resp_ini_addr;
+
   logic                    [NumBanksPerTile-1:0] bank_req_valid;
   logic                    [NumBanksPerTile-1:0] bank_req_ready;
   local_req_interco_addr_t [NumBanksPerTile-1:0] bank_req_ini_addr;
+  logic                    [NumBanksPerTile-1:0] bank_req_wide;
   tcdm_slave_req_t         [NumBanksPerTile-1:0] bank_req_payload;
   logic                    [NumBanksPerTile-1:0] bank_resp_valid;
   logic                    [NumBanksPerTile-1:0] bank_resp_ready;
   tcdm_slave_resp_t        [NumBanksPerTile-1:0] bank_resp_payload;
+  logic                    [NumBanksPerTile-1:0] bank_resp_wide;
   local_req_interco_addr_t [NumBanksPerTile-1:0] bank_resp_ini_addr;
+
+  tcdm_dma_req_t tcdm_dma_req_i_struct;
+  assign tcdm_dma_req_i_struct = tcdm_dma_req_i;
+
+  if (NumSuperbanks == 1) begin : gen_dma_interco_bypass
+    assign tcdm_dma_req = tcdm_dma_req_i_struct;
+    assign tcdm_dma_req_valid = tcdm_dma_req_valid_i;
+    assign tcdm_dma_req_ready_o = tcdm_dma_req_ready;
+
+    assign tcdm_dma_resp_o = tcdm_dma_resp;
+    assign tcdm_dma_resp_valid_o = tcdm_dma_resp_valid;
+    assign tcdm_dma_resp_ready = tcdm_dma_resp_ready_i;
+  end else begin : gen_dma_interco
+    stream_xbar #(
+      .NumInp   (1             ),
+      .NumOut   (NumSuperbanks ),
+      .payload_t(tcdm_dma_req_t)
+    ) i_dma_req_interco (
+      .clk_i  (clk_i                                                  ),
+      .rst_ni (rst_ni                                                 ),
+      .flush_i(1'b0                                                   ),
+      // External priority flag
+      .rr_i   ('0                                                     ),
+      // Master
+      .data_i (tcdm_dma_req_i_struct                                  ),
+      .valid_i(tcdm_dma_req_valid_i                                   ),
+      .ready_o(tcdm_dma_req_ready_o                                   ),
+      .sel_i  (tcdm_dma_req_i_struct.tgt_addr[idx_width(NumBanksPerTile)-1:$clog2(DmaNumWords)]),
+      // Slave
+      .data_o (tcdm_dma_req                                           ),
+      .valid_o(tcdm_dma_req_valid                                     ),
+      .ready_i(tcdm_dma_req_ready                                     ),
+      .idx_o  (/* Unused */                                           )
+    );
+
+    stream_xbar #(
+      .NumInp   (NumSuperbanks  ),
+      .NumOut   (1              ),
+      .payload_t(tcdm_dma_resp_t)
+    ) i_dma_resp_interco (
+      .clk_i  (clk_i                           ),
+      .rst_ni (rst_ni                          ),
+      .flush_i(1'b0                            ),
+      // External priority flag
+      .rr_i   ('0                              ),
+      // Master
+      .data_i (tcdm_dma_resp                   ),
+      .valid_i(tcdm_dma_resp_valid             ),
+      .ready_o(tcdm_dma_resp_ready             ),
+      .sel_i  ('0                              ),
+      // Slave
+      .data_o (tcdm_dma_resp_o                 ),
+      .valid_o(tcdm_dma_resp_valid_o           ),
+      .ready_i(tcdm_dma_resp_ready_i           ),
+      .idx_o  (/* Unused */                    )
+    );
+  end
+
+  assign bank_req_ini_addr = superbank_req_ini_addr;
+  assign superbank_resp_ini_addr = bank_resp_ini_addr;
+
+  for (genvar d = 0; unsigned'(d) < NumSuperbanks; d++) begin: gen_dma_mux
+    tcdm_wide_narrow_mux #(
+      .NarrowDataWidth(DataWidth        ),
+      .WideDataWidth  (DmaDataWidth     ),
+      .narrow_req_t   (tcdm_slave_req_t ),
+      .narrow_rsp_t   (tcdm_slave_resp_t),
+      .wide_req_t     (tcdm_dma_req_t   ),
+      .wide_rsp_t     (tcdm_dma_resp_t  )
+    ) i_tcdm_wide_narrow_mux (
+      .clk_i                 (clk_i                                             ),
+      .rst_ni                (rst_ni                                            ),
+      .slv_narrow_req_i      (superbank_req_payload[d*DmaNumWords+:DmaNumWords] ),
+      .slv_narrow_req_valid_i(superbank_req_valid[d*DmaNumWords+:DmaNumWords]   ),
+      .slv_narrow_req_ready_o(superbank_req_ready[d*DmaNumWords+:DmaNumWords]   ),
+      .slv_narrow_rsp_o      (superbank_resp_payload[d*DmaNumWords+:DmaNumWords]),
+      .slv_narrow_rsp_valid_o(superbank_resp_valid[d*DmaNumWords+:DmaNumWords]  ),
+      .slv_narrow_rsp_ready_i(superbank_resp_ready[d*DmaNumWords+:DmaNumWords]  ),
+      .slv_wide_req_i        (tcdm_dma_req[d]                                   ),
+      .slv_wide_req_valid_i  (tcdm_dma_req_valid[d]                             ),
+      .slv_wide_req_ready_o  (tcdm_dma_req_ready[d]                             ),
+      .slv_wide_rsp_o        (tcdm_dma_resp[d]                                  ),
+      .slv_wide_rsp_valid_o  (tcdm_dma_resp_valid[d]                            ),
+      .slv_wide_rsp_ready_i  (tcdm_dma_resp_ready[d]                            ),
+      .mst_req_o             (bank_req_payload[d*DmaNumWords+:DmaNumWords]      ),
+      .mst_req_wide_o        (bank_req_wide[d*DmaNumWords+:DmaNumWords]         ),
+      .mst_req_valid_o       (bank_req_valid[d*DmaNumWords+:DmaNumWords]        ),
+      .mst_req_ready_i       (bank_req_ready[d*DmaNumWords+:DmaNumWords]        ),
+      .mst_rsp_i             (bank_resp_payload[d*DmaNumWords+:DmaNumWords]     ),
+      .mst_rsp_wide_i        (bank_resp_wide[d*DmaNumWords+:DmaNumWords]        ),
+      .mst_rsp_valid_i       (bank_resp_valid[d*DmaNumWords+:DmaNumWords]       ),
+      .mst_rsp_ready_o       (bank_resp_ready[d*DmaNumWords+:DmaNumWords]       )
+    );
+  end
 
   for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_banks
     bank_metadata_t meta_in;
@@ -249,13 +365,15 @@ module mempool_tile
       ini_addr  : bank_req_ini_addr[b],
       meta_id   : bank_req_payload[b].wdata.meta_id,
       core_id   : bank_req_payload[b].wdata.core_id,
-      tile_id   : bank_req_payload[b].ini_addr
+      tile_id   : bank_req_payload[b].ini_addr,
+      wide      : bank_req_wide[b]
     };
     assign bank_resp_ini_addr[b]              = meta_out.ini_addr;
     assign bank_resp_payload[b].rdata.meta_id = meta_out.meta_id;
     assign bank_resp_payload[b].ini_addr      = meta_out.tile_id;
     assign bank_resp_payload[b].rdata.core_id = meta_out.core_id;
     assign bank_resp_payload[b].rdata.amo     = '0; // Don't care
+    assign bank_resp_wide[b]                  = meta_out.wide;
 
     tcdm_adapter #(
       .AddrWidth  (TCDMAddrMemWidth),
@@ -476,10 +594,10 @@ module mempool_tile
     .ready_o({postreg_tcdm_slave_req_ready, local_req_interco_ready}),
     .sel_i  (local_req_interco_tgt_sel                              ),
     // Slave
-    .data_o (bank_req_payload                                       ),
-    .valid_o(bank_req_valid                                         ),
-    .ready_i(bank_req_ready                                         ),
-    .idx_o  (bank_req_ini_addr                                      )
+    .data_o (superbank_req_payload                                  ),
+    .valid_o(superbank_req_valid                                    ),
+    .ready_i(superbank_req_ready                                    ),
+    .idx_o  (superbank_req_ini_addr                                 )
   );
 
   stream_xbar #(
@@ -493,10 +611,10 @@ module mempool_tile
     // External priority flag
     .rr_i   ('0                                                      ),
     // Master
-    .data_i (bank_resp_payload                                       ),
-    .valid_i(bank_resp_valid                                         ),
-    .ready_o(bank_resp_ready                                         ),
-    .sel_i  (bank_resp_ini_addr                                      ),
+    .data_i (superbank_resp_payload                                  ),
+    .valid_i(superbank_resp_valid                                    ),
+    .ready_o(superbank_resp_ready                                    ),
+    .sel_i  (superbank_resp_ini_addr                                 ),
     // Slave
     .data_o ({prereg_tcdm_slave_resp, local_resp_interco_payload}    ),
     .valid_o({prereg_tcdm_slave_resp_valid, local_resp_interco_valid}),

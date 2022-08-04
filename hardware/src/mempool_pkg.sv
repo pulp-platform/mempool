@@ -105,11 +105,11 @@ package mempool_pkg;
   `AXI_TYPEDEF_REQ_T(axi_system_req_t, axi_system_aw_t, axi_system_w_t, axi_system_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_system_resp_t, axi_system_b_t, axi_system_r_t);
 
-  // AXI to ctrl registers
-  `AXI_TYPEDEF_W_CHAN_T(axi_ctrl_w_t, axi_lite_data_t, axi_lite_strb_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_ctrl_r_t, axi_lite_data_t, axi_system_id_t, logic);
-  `AXI_TYPEDEF_REQ_T(axi_ctrl_req_t, axi_system_aw_t, axi_ctrl_w_t, axi_system_ar_t);
-  `AXI_TYPEDEF_RESP_T(axi_ctrl_resp_t, axi_system_b_t, axi_ctrl_r_t);
+  // AXI to periph
+  `AXI_TYPEDEF_W_CHAN_T(axi_periph_w_t, axi_lite_data_t, axi_lite_strb_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_periph_r_t, axi_lite_data_t, axi_system_id_t, logic);
+  `AXI_TYPEDEF_REQ_T(axi_periph_req_t, axi_system_aw_t, axi_periph_w_t, axi_system_ar_t);
+  `AXI_TYPEDEF_RESP_T(axi_periph_resp_t, axi_system_b_t, axi_periph_r_t);
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_tb_aw_t, addr_t, axi_tb_id_t, logic);
   `AXI_TYPEDEF_W_CHAN_T(axi_tb_w_t, axi_data_t, axi_strb_t, logic);
@@ -151,6 +151,38 @@ package mempool_pkg;
     logic [ROCacheNumAddrRules-1:0][AddrWidth-1:0] start_addr;
     logic [ROCacheNumAddrRules-1:0][AddrWidth-1:0] end_addr;
   } ro_cache_ctrl_t;
+
+  /*********
+   *  DMA  *
+   *********/
+
+  localparam int unsigned NumDmasPerGroup = `ifdef DMAS_PER_GROUP `DMAS_PER_GROUP `else 4 `endif;
+  localparam int unsigned NumTilesPerDma = NumTilesPerGroup/NumDmasPerGroup;
+  localparam int unsigned DmaDataWidth = AxiDataWidth;
+  localparam int unsigned DmaNumWords = DmaDataWidth/DataWidth;
+  localparam int unsigned NumSuperbanks = NumBanksPerTile/DmaNumWords;
+
+  typedef logic [DmaNumWords*DataWidth-1:0] dma_data_t;
+  typedef logic [DmaNumWords*DataWidth/8-1:0] dma_strb_t;
+
+  typedef struct packed {
+    axi_tile_id_t id;
+    addr_t src;
+    addr_t dst;
+    logic [31:0] num_bytes;
+    axi_pkg::cache_t cache_src;
+    axi_pkg::cache_t cache_dst;
+    axi_pkg::burst_t burst_src;
+    axi_pkg::burst_t burst_dst;
+    logic decouple_rw;
+    logic deburst;
+    logic serialize;
+  } dma_req_t;
+
+  typedef struct packed {
+    logic backend_idle;
+    logic trans_complete;
+  } dma_meta_t;
 
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
@@ -196,6 +228,24 @@ package mempool_pkg;
     tile_group_id_t ini_addr;
   } tcdm_slave_resp_t;
 
+  typedef struct packed {
+    meta_id_t meta_id;
+    tile_core_id_t core_id;
+    amo_t amo;
+    dma_data_t data;
+  } dma_payload_t;
+
+  typedef struct packed {
+    dma_payload_t wdata;
+    logic wen;
+    dma_strb_t be;
+    tile_addr_t tgt_addr;
+  } tcdm_dma_req_t;
+
+  typedef struct packed {
+    dma_payload_t rdata;
+  } tcdm_dma_resp_t;
+
   /**********************
    *  QUEUE PARAMETERS  *
    **********************/
@@ -206,6 +256,10 @@ package mempool_pkg;
   /*****************
    *  ADDRESS MAP  *
    *****************/
+
+  // TCDM Memory Region
+  localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
+  localparam addr_t TCDMMask = ~(TCDMSize - 1);
 
   // Size in bytes of memory that is sequentially addressable per tile
   localparam int unsigned SeqMemSizePerCore = `ifdef SEQ_MEM_SIZE `SEQ_MEM_SIZE `else 0 `endif;
