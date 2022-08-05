@@ -85,7 +85,8 @@ module snitch_read_only_cache #(
   axi_resp_t refill_rsp;
 
   index_t slv_aw_select;
-  index_t slv_ar_select;
+  index_t slv_ar_select, slv_ar_select_q;
+  index_t slv_ar_waiting;
   index_t dec_ar;
 
   axi_demux #(
@@ -153,6 +154,9 @@ module snitch_read_only_cache #(
   assign slv_aw_select = Bypass;
 
   // `AR` select logic
+  `FF(slv_ar_select_q, slv_ar_select, Bypass, clk_i, rst_ni)
+  `FF(slv_ar_waiting, axi_slv_req_i.ar_valid && !axi_slv_rsp_o.ar_ready, '0, clk_i, rst_ni)
+
   always_comb begin
     // Select cache based on address region
     slv_ar_select = dec_ar;
@@ -171,6 +175,10 @@ module snitch_read_only_cache #(
     // Bypass cache if disabled
     if (!enable_i) begin
       slv_ar_select = Bypass;
+    end
+    // Keep the select signal stable if the request was not accepted
+    if(slv_ar_waiting) begin
+      slv_ar_select = slv_ar_select_q;
     end
   end
 
