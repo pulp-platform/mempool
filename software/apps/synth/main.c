@@ -13,10 +13,10 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#define N 16
+#define UNROLL (4)
+#define N (NUM_CORES*UNROLL)
 
-int32_t block_a[N] __attribute__((section(".l1_prio")));
-int volatile error __attribute__((section(".l1")));
+int32_t block_a[N] __attribute__((aligned(NUM_CORES * 4), section(".l1")));
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -24,16 +24,22 @@ int main() {
   // Initialize barrier and synchronize
   mempool_barrier_init(core_id);
 
-  if (core_id == 0) {
-    error = 0;
-    for (int i = 0; i < N; ++i) {
-      block_a[i] = 78459 + i;
-    }
-    power_profile(block_a);
+  for (int i = (int)core_id*UNROLL; i < N; i+=(int)(num_cores*UNROLL)) {
+    // UNROLL
+    block_a[i+0] = -1111608459 + i * (   52918781);
+    block_a[i+1] =  -192269334 + i * (  942963224);
+    block_a[i+2] =   600576702 + i * (-1245786405);
+    block_a[i+3] =   132428405 + i * (  232792075);
   }
+
+  // Barrier
+  mempool_barrier(num_cores);
+  power_profile(block_a);
+  mempool_barrier(num_cores);
+  power_profile(block_a);
 
   // wait until all cores have finished
   mempool_barrier(num_cores);
 
-  return error;
+  return 0;
 }

@@ -21,12 +21,12 @@ void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {
     // Initialize the barrier
     __l1_start = 0;
-    for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
-      log_barrier[i] = 0;
-    }
-    for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
-      partial_barrier[i] = 0;
-    }
+    // for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
+    //   log_barrier[i] = 0;
+    // }
+    // for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
+    //   partial_barrier[i] = 0;
+    // }
     wake_up_all();
     mempool_wfi();
   } else {
