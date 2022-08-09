@@ -706,6 +706,33 @@ def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
     return '\n'.join(ret)
 
 
+def sanity_check_perf_metrics(perf_metrics: list, idx: int):
+    error = {'raw_stalls': 0, 'total_stalls': 0, 'cycles': 0}
+    perf_metric = perf_metrics[idx]
+    # Sum up RAW stalls
+    sum_raw = perf_metric.get('stall_raw_acc', 0) + \
+        perf_metric.get('stall_raw_lsu', 0)
+    if (sum_raw != perf_metric.get('stall_raw', 0)):
+        error['raw_stalls'] = sum_raw
+    # Sum up all stalls
+    sum_tot = perf_metric.get('stall_ins', 0) + \
+        perf_metric.get('stall_lsu', 0) + perf_metric.get('stall_raw', 0) + \
+        perf_metric.get('stall_wfi', 0)
+    if (sum_tot != perf_metric.get('stall_tot', 0)):
+        error['total_stalls'] = sum_tot
+    # Sum up all cycles
+    sum_cycle = perf_metric.get('stall_tot', 0) + \
+        perf_metric.get('snitch_issues', 0)
+    if (sum_cycle != perf_metric.get('cycles', 0)):
+        error['cycles'] = sum_cycle
+    if any(e != 0 for e in error.values()):
+        ret = ['Sanity check failed!']
+        for key, value in error.items():
+            if value != 0:
+                ret.append('{} do not add up. Sum is {}'.format(key, value))
+        return '\n'.join(ret)
+
+
 def perf_metrics_to_csv(perf_metrics: list, filename: str):
     keys = perf_metrics[0].keys()
     known_keys = [
@@ -865,6 +892,9 @@ def main():
     print('\n## Performance metrics')
     for idx in range(len(perf_metrics)):
         print('\n' + fmt_perf_metrics(perf_metrics, idx, not args.allkeys))
+        sanity_check = sanity_check_perf_metrics(perf_metrics, idx)
+        if sanity_check is not None:
+            print('\n' + sanity_check)
         perf_metrics[idx]['section'] = idx
     # Write metrics to CSV
     if csv_file is not None:
