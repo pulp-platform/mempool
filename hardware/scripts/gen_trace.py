@@ -290,6 +290,7 @@ def annotate_snitch(
     last_cycle: int,
     pc: int,
     gpr_wb_info: dict,
+    prev_wfi_time: int,
     retired_reg: dict,
     perf_metrics: list,
     annot_fseq_offl: bool = False,
@@ -415,6 +416,9 @@ def annotate_snitch(
             if extras['stall_acc']:
                 perf_metrics[-1]['stall_acc'] += extras['stall_acc']
                 ret.append('({} acc)'.format(extras['stall_acc']))
+            if prev_wfi_time != 0:
+                perf_metrics[-1]['stall_wfi'] += cycle - prev_wfi_time - 1
+                ret.append('({} wfi)'.format(cycle - prev_wfi_time - 1))
         elif (extras['stall_ins'] or extras['stall_raw'] or extras['stall_lsu']
               or extras['stall_acc']):
             ret.append('// Missed specific stall!!!')
@@ -520,13 +524,15 @@ def annotate_insn(
     dupl_time_info: bool = True,
     # Previous timestamp (keeps this method stateless)
     last_time_info: tuple = None,
+    # Timestamp of preceding wfi (keeps this method stateless)
+    prev_wfi_time: int = 0,
     # Previous retired instructions (keeps this method stateless)
     retired_reg: dict = {k: 0 for k in RAW_TYPES},
     # Annotate whenever core offloads to CPU on own line
     annot_fseq_offl: bool = False,
     force_hex_addr: bool = True,
     permissive: bool = True
-) -> (str, tuple, dict, bool):
+) -> (str, tuple, int, dict, bool):
     # Return time info, whether trace line contains no info, and fseq_len
     match = re.search(TRACE_IN_REGEX, line.strip('\n'))
     if match is None:
@@ -543,7 +549,7 @@ def annotate_insn(
         if extras['source'] == TRACE_SRCES['snitch']:
             (annot, retired_reg) = annotate_snitch(
                 extras, time_info[1], last_time_info[1],
-                int(pc_str, 16), gpr_wb_info, retired_reg,
+                int(pc_str, 16), gpr_wb_info, prev_wfi_time, retired_reg,
                 perf_metrics, annot_fseq_offl, force_hex_addr,
                 permissive)
             if extras['fpu_offload']:
@@ -602,13 +608,18 @@ def annotate_insn(
         if empty:
             # Reset time info if empty: last line on record is previous one!
             time_info = last_time_info
+        # If wfi, remember when we went to sleep
+        if insn.strip() == 'wfi':
+            prev_wfi_time = time_info[1]
+        else:
+            prev_wfi_time = 0
         return ((TRACE_OUT_FMT + ' #; {}').format(*time_info_strs,
                                                   pc_str, insn, annot),
-                time_info, retired_reg, empty)
+                time_info, prev_wfi_time, retired_reg, empty)
     # Vanilla trace
     else:
         return TRACE_OUT_FMT.format(
-            *time_info_strs, pc_str, insn), time_info, retired_reg, False
+            *time_info_strs, pc_str, insn), time_info, 0, retired_reg, False
 
 
 # -------------------- Performance metrics --------------------
@@ -755,6 +766,7 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'stall_raw_acc',
         'stall_lsu',
         'stall_acc',
+        'stall_wfi',
         'seq_loads_local',
         'seq_loads_global',
         'itl_loads_local',
@@ -840,6 +852,7 @@ def main():
         core_id = -1
     # Prepare stateful data structures
     time_info = (0, 0)
+    prev_wfi_time = 0
     retired_reg = {k: -1 for k in RAW_TYPES}
     gpr_wb_info = defaultdict(deque)
     fpr_wb_info = defaultdict(deque)
@@ -856,10 +869,11 @@ def main():
     # Parse input line by line
     for line in line_iter:
         if line:
-            ann_insn, time_info, retired_reg, empty = annotate_insn(
-                line, gpr_wb_info, fpr_wb_info, fseq_info, perf_metrics,
-                False, time_info, retired_reg, args.offl, not args.saddr,
-                args.permissive)
+            ann_insn, time_info, prev_wfi_time, retired_reg, empty = \
+                annotate_insn(line, gpr_wb_info, fpr_wb_info, fseq_info,
+                              perf_metrics, False, time_info, prev_wfi_time,
+                              retired_reg, args.offl, not args.saddr,
+                              args.permissive)
             if perf_metrics[0]['start'] is None:
                 perf_metrics[0]['start'] = time_info[1]
             # Start a new benchmark section after 'csrw trace' instruction
