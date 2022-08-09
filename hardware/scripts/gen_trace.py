@@ -306,19 +306,24 @@ def annotate_snitch(
         ret.append('{} <~~ 0x{:08x}'.format(target_name, pc))
     # Regular linear datapath operation
     if not (extras['stall'] or extras['fpu_offload']):
+        # Check whether a register that is accessed was retired earlier
+        for k in RAW_TYPES:
+            for reg in ['rs1', 'rs2', 'rd']:
+                if extras[reg] == retired_reg.get(k, -1):
+                    raw_stall[k] = retired_reg[k]
         # Operand registers
+        # Check whether we read opc from rd
+        if extras['opc_select'] == OPER_TYPES['gpr'] and extras['rd'] != 0:
+            ret.append('{:<3} = {}'.format(
+                REG_ABI_NAMES_I[extras['rd']], int_lit(extras['gpr_rdata_2'])))
+        # Check whether we read opa from rs1
         if extras['opa_select'] == OPER_TYPES['gpr'] and extras['rs1'] != 0:
             ret.append('{:<3} = {}'.format(
                 REG_ABI_NAMES_I[extras['rs1']], int_lit(extras['opa'])))
-            for k in RAW_TYPES:
-                if extras['rs1'] == retired_reg.get(k, -1):
-                    raw_stall[k] = retired_reg[k]
+        # Check whether we read opb from rs2
         if extras['opb_select'] == OPER_TYPES['gpr'] and extras['rs2'] != 0:
             ret.append('{:<3} = {}'.format(
                 REG_ABI_NAMES_I[extras['rs2']], int_lit(extras['opb'])))
-            for k in RAW_TYPES:
-                if extras['rs2'] == retired_reg.get(k, -1):
-                    raw_stall[k] = retired_reg[k]
         # CSR (always operand b)
         if extras['opb_select'] == OPER_TYPES['csr']:
             csr_addr = extras['csr_addr']
@@ -379,15 +384,11 @@ def annotate_snitch(
             REG_ABI_NAMES_I[extras['lsu_rd']],
             int_lit(extras['ld_result_32'])))
         retired_reg['lsu'] = extras['lsu_rd']
-    else:
-        retired_reg['lsu'] = 0
     if extras['retire_acc'] and extras['acc_pid'] != 0:
         ret.append('(acc) {:<3} <-- {}'.format(
             REG_ABI_NAMES_I[extras['acc_pid']],
             int_lit(extras['acc_pdata_32'])))
         retired_reg['acc'] = extras['acc_pid']
-    else:
-        retired_reg['acc'] = 0
     # Any kind of PC change: Branch, Jump, etc.
     if not extras['stall'] and extras['pc_d'] != pc + 4:
         ret.append('goto {}'.format(int_lit(extras['pc_d'])))
@@ -422,6 +423,8 @@ def annotate_snitch(
             # undetected stall
             ret.append('// Potentially missed stall cycle ({} cycles)!!!'
                        .format(cycle - last_cycle - 1))
+        # Reset the retired_reg vector, since we executed an instruction
+        retired_reg = {k: -1 for k in RAW_TYPES}
     # Return comma-delimited list
     return ', '.join(ret), retired_reg
 
