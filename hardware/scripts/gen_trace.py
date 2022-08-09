@@ -330,12 +330,8 @@ def annotate_snitch(
             csr_addr = extras['csr_addr']
             csr_name = (CSR_NAMES[csr_addr] if csr_addr in CSR_NAMES
                         else 'csr@{:x}'.format(csr_addr))
-            cycles_past = extras['opb']
-            if csr_name == 'mcycle':
-                perf_metrics[-1]['end'] = cycles_past
-                perf_metrics.append(defaultdict(int))
-                perf_metrics[-1]['start'] = cycles_past + 2
-            ret.append('{} = {}'.format(csr_name, int_lit(cycles_past)))
+            csr_value = extras['opb']
+            ret.append('{} = {}'.format(csr_name, int_lit(csr_value)))
         # Load / Store
         if extras['is_load']:
             perf_metrics[-1]['snitch_loads'] += 1
@@ -542,6 +538,8 @@ def annotate_insn(
     show_time_info = (dupl_time_info or time_info != last_time_info)
     time_info_strs = tuple((str(elem) if show_time_info else '')
                            for elem in time_info)
+    if perf_metrics[-1]['start'] is None:
+        perf_metrics[-1]['start'] = time_info[1]
     # Annotated trace
     if extras_str:
         extras = read_annotations(extras_str)
@@ -877,11 +875,11 @@ def main():
             if perf_metrics[0]['start'] is None:
                 perf_metrics[0]['start'] = time_info[1]
             # Start a new benchmark section after 'csrw trace' instruction
-            if 'trace' in line:
+            if 'trace' in line or 'mcycle' in line:
                 perf_metrics[-1]['end'] = time_info[1]
                 perf_metrics.append(defaultdict(int))
                 perf_metrics[-1]['section'] = section
-                perf_metrics[-1]['start'] = time_info[1]
+                perf_metrics[-1]['start'] = None
                 section += 1
             if not empty:
                 print(ann_insn)
@@ -890,7 +888,7 @@ def main():
     args.infile.close()
     perf_metrics[-1]['end'] = time_info[1]
     # Remove last emtpy entry
-    if perf_metrics[-1]['start'] == perf_metrics[-1]['end']:
+    if perf_metrics[-1]['start'] is None:
         perf_metrics = perf_metrics[:-1]
     if not perf_metrics or perf_metrics[0]['start'] is None:
         # Empty list
