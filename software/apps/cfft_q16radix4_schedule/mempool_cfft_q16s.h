@@ -14,47 +14,46 @@ void mempool_cfft_q16s( uint16_t fftLen,
 
 #ifndef XPULP
 
-static inline void radix4_butterfly_first(  int16_t* pSrc16,
+static inline void radix4_butterfly_first(  int16_t* pIn,
+                                            int16_t Co1,
+                                            int16_t Si1,
+                                            int16_t Co2,
+                                            int16_t Si2,
+                                            int16_t Co3,
+                                            int16_t Si3,
                                             uint32_t i0,
-                                            uint32_t n2,
-                                            v2s CoSi1,
-                                            v2s CoSi2,
-                                            v2s CoSi3,
-                                            v2s C1,
-                                            v2s C2,
-                                            v2s C3);
+                                            uint32_t n2);
 
-static inline void radix4_butterfly_middle( int16_t* pSrc16,
-                                            int32_t i0,
-                                            uint32_t n2,
-                                            v2s CoSi1,
-                                            v2s CoSi2,
-                                            v2s CoSi3,
-                                            v2s C1,
-                                            v2s C2,
-                                            v2s C3);
+static inline void radix4_butterfly_middle( int16_t* pIn,
+                                            int16_t Co1,
+                                            int16_t Si1,
+                                            int16_t Co2,
+                                            int16_t Si2,
+                                            int16_t Co3,
+                                            int16_t Si3,
+                                            uint32_t i0,
+                                            uint32_t n2);
 
-static inline void radix4_butterfly_last( int16_t* pSrc16,
+static inline void radix4_butterfly_last( int16_t* pIn,
                                           uint32_t i0,
                                           uint32_t n2);
-
 #else
 
-static inline void radix4_butterfly_first(  int16_t* pSrc,
+static inline void radix4_butterfly_first(  int16_t* pIn,
                                             v2s CoSi1,
                                             v2s CoSi2,
                                             v2s CoSi3,
                                             uint32_t i0,
                                             uint32_t n2);
 
-static inline void radix4_butterfly_middle( int16_t* pSrc,
+static inline void radix4_butterfly_middle( int16_t* pIn,
                                             v2s CoSi1,
                                             v2s CoSi2,
                                             v2s CoSi3,
                                             uint32_t i0,
                                             uint32_t n2);
 
-static inline void radix4_butterfly_last( int16_t* pSrc,
+static inline void radix4_butterfly_last( int16_t* pIn,
                                           uint32_t i0,
                                           uint32_t n2);
 
@@ -231,7 +230,7 @@ static inline void radix4_butterfly_first(   int16_t* pSrc,
     uint32_t i1, i2, i3;
     int16_t out1, out2;
     /*  index calculation for the input as, */
-    /*  pSrc[i0 + 0], pSrc[i0 + fftLen/4], pSrc[i0 + fftLen/2], pSrc[i0 +
+    /*  pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 +
     * 3fftLen/4] */
     i1 = i0 + n2;
     i2 = i1 + n2;
@@ -239,12 +238,12 @@ static inline void radix4_butterfly_first(   int16_t* pSrc,
     /* Reading i0, i0+fftLen/2 inputs */
     /* input is down scale by 4 to avoid overflow */
     /* Read ya (real), xa (imag) input */
-    T0 = pSrc[i0 * 2U] >> 2U;
-    T1 = pSrc[(i0 * 2U) + 1U] >> 2U;
+    T0 = pIn[i0 * 2U] >> 2U;
+    T1 = pIn[(i0 * 2U) + 1U] >> 2U;
     /* input is down scale by 4 to avoid overflow */
     /* Read yc (real), xc(imag) input */
-    S0 = pSrc[i2 * 2U] >> 2U;
-    S1 = pSrc[(i2 * 2U) + 1U] >> 2U;
+    S0 = pIn[i2 * 2U] >> 2U;
+    S1 = pIn[(i2 * 2U) + 1U] >> 2U;
     /* R0 = (ya + yc) */
     R0 = (int16_t) __CLIP(T0 + S0, 15);
     /* R1 = (xa + xc) */
@@ -256,12 +255,12 @@ static inline void radix4_butterfly_first(   int16_t* pSrc,
     /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
     /* input is down scale by 4 to avoid overflow */
     /* Read yb (real), xb(imag) input */
-    T0 = pSrc[i1 * 2U] >> 2U;
-    T1 = pSrc[(i1 * 2U) + 1U] >> 2U;
+    T0 = pIn[i1 * 2U] >> 2U;
+    T1 = pIn[(i1 * 2U) + 1U] >> 2U;
     /* input is down scale by 4 to avoid overflow */
     /* Read yd (real), xd(imag) input */
-    U0 = pSrc[i3 * 2U] >> 2U;
-    U1 = pSrc[(i3 * 2U) + 1U] >> 2U;
+    U0 = pIn[i3 * 2U] >> 2U;
+    U1 = pIn[(i3 * 2U) + 1U] >> 2U;
     /* T0 = (yb + yd) */
     T0 = (int16_t) __CLIP(T0 + U0, 15);
     /* T1 = (xb + xd) */
@@ -269,8 +268,8 @@ static inline void radix4_butterfly_first(   int16_t* pSrc,
     /*  writing the butterfly processed i0 sample */
     /* ya' = ya + yb + yc + yd */
     /* xa' = xa + xb + xc + xd */
-    pSrc[i0 * 2] = (int16_t)((R0 >> 1U) + (T0 >> 1U));
-    pSrc[(i0 * 2) + 1] = (int16_t)((R1 >> 1U) + (T1 >> 1U));
+    pIn[i0 * 2] = (int16_t)((R0 >> 1U) + (T0 >> 1U));
+    pIn[(i0 * 2) + 1] = (int16_t)((R1 >> 1U) + (T1 >> 1U));
     /* R0 = (ya + yc) - (yb + yd) */
     /* R1 = (xa + xc) - (xb + xd) */
     R0 = (int16_t) __CLIP(R0 - T0, 15);
@@ -282,17 +281,17 @@ static inline void radix4_butterfly_first(   int16_t* pSrc,
     /*  Reading i0+fftLen/4 */
     /* input is down scale by 4 to avoid overflow */
     /* T0 = yb, T1 =  xb */
-    T0 = pSrc[i1 * 2U] >> 2;
-    T1 = pSrc[(i1 * 2U) + 1] >> 2;
+    T0 = pIn[i1 * 2U] >> 2;
+    T1 = pIn[(i1 * 2U) + 1] >> 2;
     /* writing the butterfly processed i0 + fftLen/4 sample */
     /* writing output(xc', yc') in little endian format */
-    pSrc[i1 * 2U] = out1;
-    pSrc[(i1 * 2U) + 1] = out2;
+    pIn[i1 * 2U] = out1;
+    pIn[(i1 * 2U) + 1] = out2;
     /*  Butterfly calculations */
     /* input is down scale by 4 to avoid overflow */
     /* U0 = yd, U1 = xd */
-    U0 = pSrc[i3 * 2U] >> 2;
-    U1 = pSrc[(i3 * 2U) + 1] >> 2;
+    U0 = pIn[i3 * 2U] >> 2;
+    U1 = pIn[(i3 * 2U) + 1] >> 2;
     /* T0 = yb-yd */
     T0 = (int16_t) __CLIP(T0 - U0, 15);
     /* T1 = xb-xd */
@@ -309,44 +308,44 @@ static inline void radix4_butterfly_first(   int16_t* pSrc,
     /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
     out2 = (int16_t)((-Si1 * S0 + Co1 * S1) >> 16);
     /* writing output(xb', yb') in little endian format */
-    pSrc[i2 * 2U] = out1;
-    pSrc[(i2 * 2U) + 1] = out2;
+    pIn[i2 * 2U] = out1;
+    pIn[(i2 * 2U) + 1] = out2;
     /*  Butterfly process for the i0+3fftLen/4 sample */
     /* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
     out1 = (int16_t)((Si3 * R1 + Co3 * R0) >> 16U);
     /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
     out2 = (int16_t)((-Si3 * R0 + Co3 * R1) >> 16U);
     /* writing output(xd', yd') in little endian format */
-    pSrc[i3 * 2U] = out1;
-    pSrc[(i3 * 2U) + 1] = out2;
+    pIn[i3 * 2U] = out1;
+    pIn[(i3 * 2U) + 1] = out2;
 }
 
-static inline void radix4_butterfly_middle( int16_t* pSrc,
-                                      int16_t Co1,
-                                      int16_t Si1,
-                                      int16_t Co2,
-                                      int16_t Si2,
-                                      int16_t Co3,
-                                      int16_t Si3,
-                                      uint32_t i0,
-                                      uint32_t n2) {
+static inline void radix4_butterfly_middle( int16_t* pIn,
+                                            int16_t Co1,
+                                            int16_t Si1,
+                                            int16_t Co2,
+                                            int16_t Si2,
+                                            int16_t Co3,
+                                            int16_t Si3,
+                                            uint32_t i0,
+                                            uint32_t n2) {
 
     int16_t R0, R1, S0, S1, T0, T1, U0, U1;
     uint32_t i1, i2, i3;
     int16_t out1, out2;
     /*  index calculation for the input as, */
-    /*  pSrc[i0 + 0], pSrc[i0 + fftLen/4], pSrc[i0 + fftLen/2], pSrc[i0 +
+    /*  pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 +
     * 3fftLen/4] */
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
     /*  Reading i0, i0+fftLen/2 inputs */
     /* Read ya (real), xa(imag) input */
-    T0 = pSrc[i0 * 2U];
-    T1 = pSrc[(i0 * 2U) + 1U];
+    T0 = pIn[i0 * 2U];
+    T1 = pIn[(i0 * 2U) + 1U];
     /* Read yc (real), xc(imag) input */
-    S0 = pSrc[i2 * 2U];
-    S1 = pSrc[(i2 * 2U) + 1U];
+    S0 = pIn[i2 * 2U];
+    S1 = pIn[(i2 * 2U) + 1U];
     /* R0 = (ya + yc), R1 = (xa + xc) */
     R0 = (int16_t) __CLIP(T0 + S0, 15);
     R1 = (int16_t) __CLIP(T1 + S1, 15);
@@ -355,11 +354,11 @@ static inline void radix4_butterfly_middle( int16_t* pSrc,
     S1 = (int16_t) __CLIP(T1 - S1, 15);
     /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
     /* Read yb (real), xb(imag) input */
-    T0 = pSrc[i1 * 2U];
-    T1 = pSrc[(i1 * 2U) + 1U];
+    T0 = pIn[i1 * 2U];
+    T1 = pIn[(i1 * 2U) + 1U];
     /* Read yd (real), xd(imag) input */
-    U0 = pSrc[i3 * 2U];
-    U1 = pSrc[(i3 * 2U) + 1U];
+    U0 = pIn[i3 * 2U];
+    U1 = pIn[(i3 * 2U) + 1U];
     /* T0 = (yb + yd), T1 = (xb + xd) */
     T0 = (int16_t) __CLIP(T0 + U0, 15);
     T1 = (int16_t) __CLIP(T1 + U1, 15);
@@ -368,8 +367,8 @@ static inline void radix4_butterfly_middle( int16_t* pSrc,
     /* ya' = ya + yb + yc + yd */
     out1 = (int16_t)(((R0 >> 1U) + (T0 >> 1U)) >> 1U);
     out2 = (int16_t)(((R1 >> 1U) + (T1 >> 1U)) >> 1U);
-    pSrc[i0 * 2U] = out1;
-    pSrc[(2U * i0) + 1U] = out2;
+    pIn[i0 * 2U] = out1;
+    pIn[(2U * i0) + 1U] = out2;
     /* R0 = (ya + yc) - (yb + yd), R1 = (xa + xc) - (xb + xd) */
     R0 = (int16_t)((R0 >> 1U) - (T0 >> 1U));
     R1 = (int16_t)((R1 >> 1U) - (T1 >> 1U));
@@ -379,17 +378,17 @@ static inline void radix4_butterfly_middle( int16_t* pSrc,
     out2 = (int16_t)((-Si2 * R0 + Co2 * R1) >> 16U);
     /*  Reading i0+3fftLen/4 */
     /* Read yb (real), xb(imag) input */
-    T0 = pSrc[i1 * 2U];
-    T1 = pSrc[(i1 * 2U) + 1U];
+    T0 = pIn[i1 * 2U];
+    T1 = pIn[(i1 * 2U) + 1U];
     /*  writing the butterfly processed i0 + fftLen/4 sample */
     /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
     /* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
-    pSrc[i1 * 2U] = out1;
-    pSrc[(i1 * 2U) + 1U] = out2;
+    pIn[i1 * 2U] = out1;
+    pIn[(i1 * 2U) + 1U] = out2;
     /*  Butterfly calculations */
     /* Read yd (real), xd(imag) input */
-    U0 = pSrc[i3 * 2U];
-    U1 = pSrc[(i3 * 2U) + 1U];
+    U0 = pIn[i3 * 2U];
+    U1 = pIn[(i3 * 2U) + 1U];
     /* T0 = yb-yd, T1 = xb-xd */
     T0 = (int16_t) __CLIP(T0 - U0, 15);
     T1 = (int16_t) __CLIP(T1 - U1, 15);
@@ -404,35 +403,35 @@ static inline void radix4_butterfly_middle( int16_t* pSrc,
     out2 = (int16_t)((-Si1 * S0 + Co1 * S1) >> 16U);
     /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
     /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
-    pSrc[i2 * 2U] = out1;
-    pSrc[(i2 * 2U) + 1U] = out2;
+    pIn[i2 * 2U] = out1;
+    pIn[(i2 * 2U) + 1U] = out2;
     /*  Butterfly process for the i0+3fftLen/4 sample */
     out1 = (int16_t)((Si3 * R1 + Co3 * R0) >> 16U);
     out2 = (int16_t)((-Si3 * R0 + Co3 * R1) >> 16U);
     /* xd' = (xa-yb-xc+yd)* Co3 + (ya+xb-yc-xd)* (si3) */
     /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
-    pSrc[i3 * 2U] = out1;
-    pSrc[(i3 * 2U) + 1U] = out2;
+    pIn[i3 * 2U] = out1;
+    pIn[(i3 * 2U) + 1U] = out2;
 }
 
-static inline void radix4_butterfly_last(    int16_t* pSrc,
-                                              uint32_t i0,
-                                              uint32_t n2) {
+static inline void radix4_butterfly_last( int16_t* pIn,
+                                          uint32_t i0,
+                                          uint32_t n2) {
 
     int16_t R0, R1, S0, S1, T0, T1, U0, U1;
     uint32_t i1, i2, i3;
     /*  index calculation for the input as, */
-    /*  pSrc[i0 + 0], pSrc[i0 + fftLen/4], pSrc[i0 + fftLen/2], pSrc[i0 + 3fftLen/4] */
+    /*  pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
     /*  Reading i0, i0+fftLen/2 inputs */
     /* Read ya (real), xa(imag) input */
-    T0 = pSrc[i0 * 2U];
-    T1 = pSrc[(i0 * 2U) + 1U];
+    T0 = pIn[i0 * 2U];
+    T1 = pIn[(i0 * 2U) + 1U];
     /* Read yc (real), xc(imag) input */
-    S0 = pSrc[i2 * 2U];
-    S1 = pSrc[(i2 * 2U) + 1U];
+    S0 = pIn[i2 * 2U];
+    S1 = pIn[(i2 * 2U) + 1U];
     /* R0 = (ya + yc), R1 = (xa + xc) */
     R0 = (int16_t) __CLIP(T0 + S0, 15);
     R1 = (int16_t) __CLIP(T1 + S1, 15);
@@ -441,46 +440,46 @@ static inline void radix4_butterfly_last(    int16_t* pSrc,
     S1 = (int16_t) __CLIP(T1 - S1, 15);
     /*  Reading i0+fftLen/4 , i0+3fftLen/4 inputs */
     /* Read yb (real), xb(imag) input */
-    T0 = pSrc[i1 * 2U];
-    T1 = pSrc[(i1 * 2U) + 1U];
+    T0 = pIn[i1 * 2U];
+    T1 = pIn[(i1 * 2U) + 1U];
     /* Read yd (real), xd(imag) input */
-    U0 = pSrc[i3 * 2U];
-    U1 = pSrc[(i3 * 2U) + 1U];
+    U0 = pIn[i3 * 2U];
+    U1 = pIn[(i3 * 2U) + 1U];
     /* T0 = (yb + yd), T1 = (xb + xd)) */
     T0 = (int16_t) __CLIP(T0 + U0, 15);
     T1 = (int16_t) __CLIP(T1 + U1, 15);
     /*  writing the butterfly processed i0 sample */
     /* xa' = xa + xb + xc + xd */
     /* ya' = ya + yb + yc + yd */
-    pSrc[i0 * 2U] = (int16_t)((R0 >> 1U) + (T0 >> 1U));
-    pSrc[(i0 * 2U) + 1U] = (int16_t)((R1 >> 1U) + (T1 >> 1U));
+    pIn[i0 * 2U] = (int16_t)((R0 >> 1U) + (T0 >> 1U));
+    pIn[(i0 * 2U) + 1U] = (int16_t)((R1 >> 1U) + (T1 >> 1U));
     /* R0 = (ya + yc) - (yb + yd), R1 = (xa + xc) - (xb + xd) */
     R0 = (int16_t)((R0 >> 1U) - (T0 >> 1U));
     R1 = (int16_t)((R1 >> 1U) - (T1 >> 1U));
     /* Read yb (real), xb(imag) input */
-    T0 = pSrc[i1 * 2U];
-    T1 = pSrc[(i1 * 2U) + 1U];
+    T0 = pIn[i1 * 2U];
+    T1 = pIn[(i1 * 2U) + 1U];
     /*  writing the butterfly processed i0 + fftLen/4 sample */
     /* xc' = (xa-xb+xc-xd) */
     /* yc' = (ya-yb+yc-yd) */
-    pSrc[i1 * 2U] = R0;
-    pSrc[(i1 * 2U) + 1U] = R1;
+    pIn[i1 * 2U] = R0;
+    pIn[(i1 * 2U) + 1U] = R1;
     /* Read yd (real), xd(imag) input */
-    U0 = pSrc[i3 * 2U];
-    U1 = pSrc[(i3 * 2U) + 1U];
+    U0 = pIn[i3 * 2U];
+    U1 = pIn[(i3 * 2U) + 1U];
     /* T0 = (yb - yd), T1 = (xb - xd)  */
     T0 = (int16_t) __CLIP(T0 - U0, 15);
     T1 = (int16_t) __CLIP(T1 - U1, 15);
     /*  writing the butterfly processed i0 + fftLen/2 sample */
     /* xb' = (xa+yb-xc-yd) */
     /* yb' = (ya-xb-yc+xd) */
-    pSrc[i2 * 2U] = (int16_t)((S0 >> 1U) + (T1 >> 1U));
-    pSrc[(i2 * 2U) + 1U] = (int16_t)((S1 >> 1U) - (T0 >> 1U));
+    pIn[i2 * 2U] = (int16_t)((S0 >> 1U) + (T1 >> 1U));
+    pIn[(i2 * 2U) + 1U] = (int16_t)((S1 >> 1U) - (T0 >> 1U));
     /*  writing the butterfly processed i0 + 3fftLen/4 sample */
     /* xd' = (xa-yb-xc+yd) */
     /* yd' = (ya+xb-yc-xd) */
-    pSrc[i3 * 2U] = (int16_t)((S0 >> 1U) - (T1 >> 1U));
-    pSrc[(i3 * 2U) + 1U] = (int16_t)((S1 >> 1U) + (T0 >> 1U));
+    pIn[i3 * 2U] = (int16_t)((S0 >> 1U) - (T1 >> 1U));
+    pIn[(i3 * 2U) + 1U] = (int16_t)((S1 >> 1U) + (T0 >> 1U));
 }
 
 #else
@@ -763,7 +762,7 @@ static inline void radix4_butterfly_middle(  int16_t* pIn,
     #endif
 }
 
-static inline void radix4_butterfly_last(    int16_t* pSrc,
+static inline void radix4_butterfly_last(    int16_t* pIn,
                                               uint32_t i0,
                                               uint32_t n2) {
     int16_t t0, t1;
