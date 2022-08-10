@@ -5,8 +5,8 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 void mempool_cholesky_q32s(int32_t* pSrc,
-                           int32_t* pDst_A,
-                           int32_t* pDst_B,
+                           int32_t* pL,
+                           int32_t* pLT,
                            const uint32_t n,
                            const uint32_t fracBits);
 
@@ -15,8 +15,8 @@ int32_t mempool_sqrt_q32s(int32_t Src,
 
 
 void mempool_cholesky_q32s(int32_t* pSrc,
-                           int32_t* pDst_A,
-                           int32_t* pDst_B,
+                           int32_t* pL,
+                           int32_t* pLT,
                            const uint32_t n,
                            const uint32_t fracBits) {
     int32_t sum;
@@ -30,23 +30,22 @@ void mempool_cholesky_q32s(int32_t* pSrc,
             sum = 0;
             /* Loop over the elements of row i smaller than j */
             for (k = 0; k < j; k++)
-                sum += pDst_A[i * n + k] * pDst_A[j * n + k];
+                sum += pL[i * n + k] * pL[j * n + k];
             if (j == i) {
-                pDst_A[i * n + j] = mempool_sqrt_q32s((pSrc[i * n + j] - sum), fracBits);
-                pDst_B[j * n + i] = pDst_A[i * n + j];
+                pL[i * n + j] = mempool_sqrt_q32s((pSrc[i * n + j] - sum), fracBits);
+                pLT[j * n + i] = pL[i * n + j];
             } else {
-                pDst_A[i * n + j] = FIX_DIV((pSrc[i * n + j] - sum), pDst_A[j * n + j]);
-                pDst_B[j * n + i] = pDst_A[i * n + j];
+                pL[i * n + j] = FIX_DIV((pSrc[i * n + j] - sum), pL[j * n + j]);
+                pLT[j * n + i] = pL[i * n + j];
             }
 
         }
     }
 }
 
-int32_t mempool_sqrt_q32s(int32_t Src,
+int32_t mempool_sqrt_q32s(int32_t number,
                           const uint32_t fracBits) {
 
-    int32_t number = Src;
     int32_t res = 0;
 
     int32_t start = 0;
