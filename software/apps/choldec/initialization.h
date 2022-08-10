@@ -6,6 +6,8 @@
 
 #define FIXED_POINT 16
 #define FIX_DIV(a,b) ((int32_t)((a << FIXED_POINT) / b))
+#define FIX_MUL(a,b) ((int32_t)((a * b) >> FIXED_POINT))
+#define ABS(a) (a > 0 ? a : -a)
 
 void display(int32_t *matrix, uint32_t num_rows, uint32_t num_columns);
 void init_matrix(int32_t  *matrix, uint32_t num_rows, uint32_t num_columns, int32_t a, int32_t b, int32_t c, uint32_t core_id);

@@ -11,14 +11,23 @@
 
 #include "initialization.h"
 #include "mempool_cholesky_q32s.h"
+#include "mempool_ldlcholesky_q32s.h"
 
 #define N 8
 #define SINGLE
 #define VERBOSE
+#define LDL
 
+#if defined(CHOLESKY)
 int32_t M_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
 int32_t L_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
 int32_t LT_matrix[N * N]    __attribute__((aligned(N), section(".l1")));
+#elif defined(LDL)
+int32_t M_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
+int32_t L_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
+int32_t D_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
+uint32_t P_vector[N]        __attribute__((aligned(N), section(".l1")));
+#endif
 
 // Driver program
 void single_core() {
@@ -26,6 +35,9 @@ void single_core() {
     uint32_t core_id = mempool_get_core_id();
     uint32_t num_cores = mempool_get_core_count();
     mempool_barrier_init(core_id); // Initialize barrier and synchronize
+
+
+#if defined(CHOLESKY)
 
     init_matrix(M_matrix, N, N, -156, 427, -219, core_id);
     init_matrix_zeros(L_matrix, N, N, core_id);
@@ -46,6 +58,31 @@ void single_core() {
     }
     #endif
     mempool_barrier(num_cores);
+
+#elif defined(LDL)
+
+    init_matrix(M_matrix, N, N, -156, 427, -219, core_id);
+    init_matrix_zeros(L_matrix, N, N, core_id);
+    init_matrix_zeros(D_matrix, N, N, core_id);
+    mempool_barrier(num_cores);
+
+    if(core_id == 0) {
+        mempool_start_benchmark();
+        mempool_ldlcholesky_q32s(M_matrix, L_matrix, D_matrix, N, P_vector);
+        mempool_stop_benchmark();
+    }
+    mempool_barrier(num_cores);
+
+    #ifdef VERBOSE
+    if (core_id == 0) {
+        display(L_matrix, N, N);
+        display(D_matrix, N, N);
+    }
+    #endif
+    mempool_barrier(num_cores);
+
+#endif
+
 }
 
 int main() {
