@@ -50,7 +50,6 @@ static void mempool_cfft_memsized_q16p(   uint16_t fftLen,
                                           uint32_t nPE)
 #endif
 {
-
     if (ifftFlag == 0) {
         switch (fftLen) {
         case 16:
@@ -72,9 +71,11 @@ static void mempool_cfft_memsized_q16p(   uint16_t fftLen,
             break;
         }
     }
-
     if (bitReverseFlag) {
-      mempool_bitrev_q16p_xpulpimg((uint16_t *)pSrc16, bitReverseLen, pBitRevTable, nPE);
+        #ifndef BITREVERSETABLE
+        mempool_bitrev_q16p_xpulpimg((uint16_t *)pSrc16, (uint16_t *)pDst16, fftLen, nPE);
+        #else
+        mempool_bitrev_q16p_xpulpimg((uint16_t *)pSrc16, bitReverseLen, pBitRevTable, nPE);
+        #endif
     }
-
 }
