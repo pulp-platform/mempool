@@ -305,6 +305,9 @@ def annotate_snitch(
     if annot_fseq_offl and extras['fpu_offload']:
         target_name = 'FSEQ' if extras['is_seq_insn'] else 'FPSS'
         ret.append('{} <~~ 0x{:08x}'.format(target_name, pc))
+    # Add start time if this is this section's first instruction
+    if perf_metrics[-1]['start'] is None:
+        perf_metrics[-1]['start'] = cycle - extras['stall_tot']
     # Regular linear datapath operation
     if not (extras['stall'] or extras['fpu_offload']):
         # Check whether a register that is accessed was retired earlier
@@ -538,8 +541,6 @@ def annotate_insn(
     show_time_info = (dupl_time_info or time_info != last_time_info)
     time_info_strs = tuple((str(elem) if show_time_info else '')
                            for elem in time_info)
-    if perf_metrics[-1]['start'] is None:
-        perf_metrics[-1]['start'] = time_info[1]
     # Annotated trace
     if extras_str:
         extras = read_annotations(extras_str)
