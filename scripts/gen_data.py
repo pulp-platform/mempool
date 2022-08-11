@@ -26,10 +26,10 @@ def gen_header(command):
     return header
 
 
-def gen_var(variable, size, min, max):
+def gen_var(variable, size, min, max, generator):
     dim = [int(x) for x in re.findall(r'\d+', size)]
     num = np.prod(dim)
-    val = ','.join(map(str, np.random.randint(min, max, size=num)))
+    val = ','.join(map(str, generator.integers(min, max, size=num)))
     var = f'int32_t {variable}_flat[{num}] = {{ {val} }};\n'
     var += f'int32_t (*{variable})'
     for i in dim[1:]:
@@ -73,6 +73,11 @@ def main():
         default=2147483647,
         help='Max value')
     parser.add_argument(
+        '--seed',
+        nargs='?',
+        default=11581,
+        help='Random number seed value')
+    parser.add_argument(
         '--clangformat',
         nargs='?',
         default='clang-format',
@@ -85,17 +90,20 @@ def main():
     clang_format = args.clangformat
     min_val = args.min
     max_val = args.max
+    seed = args.seed
 
     # print('sizes:', sizes, file=sys.stderr)
     # print('variables:', variables, file=sys.stderr)
     # print('file:', file, file=sys.stderr)
     # print('Command: ', sys.argv, file=sys.stderr)
 
+    generator = np.random.default_rng(seed)
+
     # Write the file
     with open(file, "w") as f:
         f.write(gen_header(' '.join(sys.argv[1:])))
         for variable, size in zip(variables, sizes):
-            var = gen_var(variable[0], size[0], min_val, max_val)
+            var = gen_var(variable[0], size[0], min_val, max_val, generator)
             f.write(var)
 
     # Format the final file
