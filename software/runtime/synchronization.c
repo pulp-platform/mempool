@@ -100,7 +100,7 @@ void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
                        ((1U << (tile_end - tile_init)) - 1)
                            << tile_init % NUM_TILES_PER_GROUP);
         } else {
-          while (core_init > core_end - 1) {
+          while (core_init < core_end) {
             wake_up(core_init);
             core_init++;
           }
