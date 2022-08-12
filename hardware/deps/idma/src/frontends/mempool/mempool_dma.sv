@@ -162,9 +162,7 @@ module mempool_dma #(
         cycle = cycle + 1;
       end
 
-      if (transfer == 1 && backend_idle_i == 0) begin
-        transfer = 2;
-      end else if (transfer == 2 && backend_idle_i == 1 && cycle >= 24) begin
+      if (transfer == 1 && trans_complete_i == 1) begin
         transfer = 0;
         str = "[mempool_dma] Finished request\n";
         str = $sformatf("%s[mempool_dma] Duration: %08d cycles, %08.8f bytes/cycle\n", str, cycle, size/cycle);
