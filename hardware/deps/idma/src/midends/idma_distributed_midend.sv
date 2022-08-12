@@ -7,11 +7,19 @@
 `include "common_cells/registers.svh"
 
 module idma_distributed_midend #(
+  /// Number of backends to distribute the requests to
   parameter int unsigned NoMstPorts     = 1,
+  /// Bytes covered by each port
   parameter int unsigned DmaRegionWidth = 1, // [B] Region that one port covers in bytes
+  /// Start of the distributed memory region
   parameter int unsigned DmaRegionStart = 32'h0000_0000,
+  /// End of the distributed memory region
   parameter int unsigned DmaRegionEnd   = 32'h1000_0000,
+  /// Number of generic 1D requests that can be buffered
+  parameter int unsigned TransFifoDepth = 1,
+  /// Arbitrary 1D burst request definition
   parameter type         burst_req_t    = logic,
+  /// Meta data response definition
   parameter type         meta_t         = logic
 ) (
   input  logic                        clk_i,
@@ -33,26 +41,49 @@ module idma_distributed_midend #(
 
   typedef logic [FullRegionAddressBits:0] full_addr_t;
 
+  // Handle the ready signal
+  logic fork_ready, fifo_ready;
+  logic [NoMstPorts-1:0] fifo_full;
   // Handle Metadata
   logic [NoMstPorts-1:0] trans_complete_d, trans_complete_q;
   logic [NoMstPorts-1:0] tie_off_trans_complete_d, tie_off_trans_complete_q;
   logic [NoMstPorts-1:0] backend_idle_d, backend_idle_q;
   assign meta_o.trans_complete = &trans_complete_q;
   assign meta_o.backend_idle = &backend_idle_q;
+  assign fifo_ready = !(|fifo_full);
+  assign ready_o = fork_ready && fifo_ready;
 
-  // TODO We could have multiple outstanding requests per port, so we need multiple trans_complete_tie_offs
+  for (genvar i = 0; unsigned'(i) < NoMstPorts; i++) begin: gen_trans_complete_fifo
+    // Collect the `trans_complete` signals and reduce them once we have all of them
+    logic empty;
+    logic data;
+    fifo_v3 #(
+      .FALL_THROUGH (0             ),
+      .DATA_WIDTH   (1             ),
+      .DEPTH        (TransFifoDepth)
+    ) i_trans_complete_fifo (
+      .clk_i      (clk_i                ),
+      .rst_ni     (rst_ni               ),
+      .flush_i    ('0                   ),
+      .testmode_i ('0                   ),
+      .full_o     (fifo_full[i]         ),
+      .empty_o    (empty                ),
+      .usage_o    (/*unused*/           ),
+      .data_i     (1'b1                 ),
+      .push_i     (trans_complete_d[i]  ),
+      .data_o     (data                 ),
+      .pop_i      (meta_o.trans_complete)
+    );
+    assign trans_complete_d[i] = meta_i[i].trans_complete | tie_off_trans_complete_q[i];
+    assign trans_complete_q[i] = data && !empty;
+  end
+
   always_comb begin
-    trans_complete_d = trans_complete_q;
     backend_idle_d = backend_idle_q;
     for (int unsigned i = 0; i < NoMstPorts; i++) begin
-      trans_complete_d[i] = trans_complete_q[i] | meta_i[i].trans_complete | tie_off_trans_complete_q[i];
       backend_idle_d[i] = meta_i[i].backend_idle;
     end
-    if (meta_o.trans_complete) begin
-      trans_complete_d = '0;
-    end
   end
-  `FF(trans_complete_q, trans_complete_d, '0, clk_i, rst_ni)
   `FF(tie_off_trans_complete_q, tie_off_trans_complete_d, '0, clk_i, rst_ni)
   `FF(backend_idle_q, backend_idle_d, '1, clk_i, rst_ni)
 
@@ -61,12 +92,12 @@ module idma_distributed_midend #(
   stream_fork #(
     .N_OUP (NoMstPorts)
   ) i_stream_fork (
-    .clk_i   (clk_i  ),
-    .rst_ni  (rst_ni ),
-    .valid_i (valid_i),
-    .ready_o (ready_o),
-    .valid_o (valid  ),
-    .ready_i (ready  )
+    .clk_i   (clk_i               ),
+    .rst_ni  (rst_ni              ),
+    .valid_i (valid_i & fifo_ready),
+    .ready_o (fork_ready          ),
+    .valid_o (valid               ),
+    .ready_i (ready               )
   );
 
   full_addr_t src_addr, dst_addr, start_addr, end_addr;
