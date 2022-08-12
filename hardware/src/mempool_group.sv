@@ -598,20 +598,25 @@ module mempool_group
       .reqrsp_rsp_i(dma_reqrsp_rsp)
     );
 
-    reqrsp_demux #(
-      .NrPorts  (NumTilesPerDma),
-      .req_t    (reqrsp_req_t  ),
-      .rsp_t    (reqrsp_rsp_t  ),
-      .RespDepth(2             )
-    ) i_reqrsp_demux (
-       .clk_i       (clk_i                                                                                  ),
-       .rst_ni      (rst_ni                                                                                 ),
-       .slv_select_i(dma_reqrsp_req.q.addr[idx_width(NumBanksPerTile)+ByteOffset+:idx_width(NumTilesPerDma)]),
-       .slv_req_i   (dma_reqrsp_req                                                                         ),
-       .slv_rsp_o   (dma_reqrsp_rsp                                                                         ),
-       .mst_req_o   (dma_tile_req                                                                           ),
-       .mst_rsp_i   (dma_tile_rsp                                                                           )
-    );
+    if (NumTilesPerDma > 1) begin: gen_dma_reqrsp_demux
+      reqrsp_demux #(
+        .NrPorts  (NumTilesPerDma),
+        .req_t    (reqrsp_req_t  ),
+        .rsp_t    (reqrsp_rsp_t  ),
+        .RespDepth(2             )
+      ) i_reqrsp_demux (
+         .clk_i       (clk_i                                                                                  ),
+         .rst_ni      (rst_ni                                                                                 ),
+         .slv_select_i(dma_reqrsp_req.q.addr[idx_width(NumBanksPerTile)+ByteOffset+:idx_width(NumTilesPerDma)]),
+         .slv_req_i   (dma_reqrsp_req                                                                         ),
+         .slv_rsp_o   (dma_reqrsp_rsp                                                                         ),
+         .mst_req_o   (dma_tile_req                                                                           ),
+         .mst_rsp_i   (dma_tile_rsp                                                                           )
+      );
+    end else begin: gen_dma_reqrsp_bypass
+      assign dma_tile_req = dma_reqrsp_req;
+      assign dma_reqrsp_rsp = dma_tile_rsp;
+    end
 
     // Assignment to TCDM interconnect
     // TODO: Reordering might be problematic
