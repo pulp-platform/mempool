@@ -89,8 +89,6 @@ int main() {
 
   uint32_t core_id = mempool_get_core_id();
   mempool_barrier_init(core_id);
-
-
   if (core_id == 0)  {
     printf("On the run...\n");
     error = 0;
@@ -103,6 +101,7 @@ int main() {
   initialize_vector_s(pSrc16, N_CSAMPLES);
   if (core_id == 0)
     printf("Done initialization\n");
+  mempool_barrier(NUM_CORES);
 
   if(core_id == 0) {
       mempool_start_benchmark();
@@ -122,6 +121,7 @@ int main() {
   initialize_vector_p(pSrc16, pDst16, N_CSAMPLES, twiddleCoef_q16, pCoef16_src, pCoef16_dst);
   if (core_id == 0)
     printf("Done initialization\n");
+  mempool_barrier(NUM_CORES);
 
   if (core_id < N_FFTs_COL * (N_CSAMPLES >> 4U)) {
   mempool_start_benchmark();
@@ -137,6 +137,7 @@ int main() {
   mempool_stop_benchmark();
   }
   #endif
+  mempool_barrier(NUM_CORES);
 
   if (core_id == 0)  {
     printf("Done\n");

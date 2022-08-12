@@ -57,19 +57,19 @@ static void mempool_cfft_columnwrapper( int16_t *pSrc,
     uint32_t col_fftLen = fftLen >> 2U;
     uint32_t core_id = mempool_get_core_id();
     uint32_t col_id = core_id / (fftLen >> 4U);
-    for(uint32_t idx_col = col_id; idx_col < N_FFTs_COL; idx_col += N_FFTs_COL) {
+    if (col_id < N_FFTs_COL) {
         mempool_cfft_q16p(  col_id,
-                            pSrc + col_id * col_fftLen,
-                            pDst + col_id * col_fftLen,
+                            pSrc + 2 * col_id * col_fftLen,
+                            pDst + 2 * col_id * col_fftLen,
                             fftLen,
-                            pCoef_src + col_id * col_fftLen,
-                            pCoef_dst + col_id * col_fftLen,
+                            pCoef_src + 2 * col_id * col_fftLen,
+                            pCoef_dst + 2 * col_id * col_fftLen,
                             pBitRevTable,
                             bitReverseLen,
                             bitReverseFlag,
                             nPE);
     }
-    mempool_log_partial_barrier(2, core_id, nPE);
+    mempool_log_partial_barrier(2, core_id, N_FFTs_COL * (N_CSAMPLES >> 4U));
 }
 
 static void mempool_cfft_q16p(  uint32_t col_id,
@@ -227,13 +227,14 @@ static void mempool_cfft_q16p(  uint32_t col_id,
                                     i0, col_id, fftLen);
         }
     }
-    pTmp = pSrc;
-    pSrc = pDst;
+    pTmp = pSrc - 2 * col_id * (fftLen >> 2U);
+    pSrc = pDst - 2 * col_id * (fftLen >> 2U);
     pDst = pTmp;
 
     /* BITREVERSAL */
     if(bitReverseFlag) {
         mempool_log_partial_barrier(2, absolute_core_id, nPE);
+        #if BITREVERSE_TABLE
         pSrc = pSrc + col_id * fftLen;
         for (j = 2 * core_id; j < bitReverseLen; j += 2 * nPE) {
             v2s addr, tmpa, tmpb;
@@ -245,6 +246,29 @@ static void mempool_cfft_q16p(  uint32_t col_id,
                 *((v2s *)&pSrc[addr[1] + idx_row * (N_BANKS * 8)]) = tmpa;
             }
         }
+        #else
+        uint16_t* ptr1 = (uint16_t*)(pSrc + col_id * fftLen);
+        uint16_t* ptr2 = (uint16_t*)(pDst + col_id * fftLen);
+        uint32_t addr, n;
+        core_id = absolute_core_id % (fftLen >> 2U);
+        for (j = core_id; j < (core_id + 4); j++) {
+            n = j + fftLen;
+            addr = 0;
+            while (n > 0) {
+                if (addr != 0)
+                  addr = addr << 1;
+                if ((n & 1) == 1)
+                  addr = addr ^ 1;
+                n = n >> 1U;
+            }
+            addr = (addr >> 1);
+            for(uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
+                *((uint32_t*)&ptr2[2 * addr + idx_row * (N_BANKS * 8)]) =
+                                (uint32_t) ptr1[2 * j + idx_row * (N_BANKS * 8)];
+            }
+        }
+        pSrc = pDst;
+        #endif
     }
 }
 
@@ -670,7 +694,9 @@ static inline void radix4_butterfly_last(   int16_t *pIn,
       [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
       [s1] "=&r" (s1)
     : );
-    i0_store = i0 * 4 + col_id * fftLen;
+    /* Subtracting col_id * (fftLen >> 2U) the pointer is taken back to zero,
+    then col_id * fftLen is added, so the output vectors are sequential in memory */
+    i0_store = i0 * 4 + col_id * fftLen - col_id * (fftLen >> 2U);
     i1_store = i0_store + 1;
     i2_store = i1_store + 1;
     i3_store = i2_store + 1;
