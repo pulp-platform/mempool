@@ -57,10 +57,14 @@ void mempool_ldlcholesky_q32s(int32_t * pSrc,
                 tmp1 = pSrc[k * n + j + 1];
                 tmp2 = pSrc[k * n + j + 2];
                 tmp3 = pSrc[k * n + j + 3];
-                pSrc[k * n + j] = pSrc[idxPivot * n + j];
-                pSrc[k * n + j + 1] = pSrc[idxPivot * n + j + 1];
-                pSrc[k * n + j + 2] = pSrc[idxPivot * n + j + 2];
-                pSrc[k * n + j + 3] = pSrc[idxPivot * n + j + 3];
+                b0 = pSrc[idxPivot * n + j];
+                b1 = pSrc[idxPivot * n + j + 1];
+                b2 = pSrc[idxPivot * n + j + 2];
+                b3 = pSrc[idxPivot * n + j + 3];
+                pSrc[k * n + j] = b0;
+                pSrc[k * n + j + 1] = b1;
+                pSrc[k * n + j + 2] = b2;
+                pSrc[k * n + j + 3] = b3;
                 pSrc[idxPivot * n + j] = tmp0;
                 pSrc[idxPivot * n + j + 1] = tmp1;
                 pSrc[idxPivot * n + j + 2] = tmp2;
@@ -106,17 +110,29 @@ void mempool_ldlcholesky_q32s(int32_t * pSrc,
                 tmp2 = FIX_DIV(tmp2, pivot);
                 tmp3 = FIX_DIV(tmp3, pivot);
                 pSrc[i * n + j] = pSrc[i * n + j] - tmp0;
-                pSrc[i * n + j] = pSrc[i * n + j] - tmp1;
-                pSrc[i * n + j] = pSrc[i * n + j] - tmp2;
-                pSrc[i * n + j] = pSrc[i * n + j] - tmp3;
+                pSrc[i * n + j + 1] = pSrc[i * n + j + 1] - tmp1;
+                pSrc[i * n + j + 2] = pSrc[i * n + j + 2] - tmp2;
+                pSrc[i * n + j + 3] = pSrc[i * n + j + 3] - tmp3;
             }
-            while (j < n) {
+            while (j < 2 * (n >> 1U)) {
                 a = pSrc[i * n + k];
                 b0 = pSrc[j * n + k];
-                tmp0 = a * b0;
-                tmp0 = tmp0 / pivot;
-                pSrc[i * n + j] = pSrc[i * n + j] - tmp0;
-                j++;
+                b1 = pSrc[(j + 1) * n + k];
+                tmp0 = FIX_MUL(a, b0);
+                tmp1 = FIX_MUL(a, b1);
+                tmp0 = FIX_DIV(tmp0, pivot);
+                tmp1 = FIX_DIV(tmp1, pivot);
+                pSrc[i * n + j + 1] = pSrc[i * n + j + 1] - tmp0;
+                pSrc[i * n + j + 2] = pSrc[i * n + j + 2] - tmp0;
+                j += 2;
+            }
+            while (j < n) {
+               a = pSrc[i * n + k];
+               b0 = pSrc[j * n + k];
+               tmp0 = FIX_MUL(a, b0);
+               tmp0 = FIX_DIV(tmp0, pivot);
+               pSrc[i * n + j + 1] = pSrc[i * n + j + 1] - tmp0;
+               j++;
             }
         }
 
@@ -127,11 +143,14 @@ void mempool_ldlcholesky_q32s(int32_t * pSrc,
             pSrc[(i + 2) * n + k] = pSrc[(i + 2) * n + k] / pivot;
             pSrc[(i + 3) * n + k] = pSrc[(i + 3) * n + k] / pivot;
         }
+        while (i < 2 * (i >> 2U)) {
+            pSrc[i * n + k] = pSrc[i * n + k] / pivot;
+            pSrc[(i + 1) * n + k] = pSrc[(i + 1) * n + k] / pivot;
+        }
         while (i < n) {
             pSrc[i * n + k] = pSrc[i * n + k] / pivot;
             i++;
         }
-
     }
 
     diag = idxPivot;

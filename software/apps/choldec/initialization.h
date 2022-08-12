@@ -14,9 +14,16 @@ void init_matrix(int32_t  *matrix, uint32_t num_rows, uint32_t num_columns, int3
 void init_matrix_zeros(int32_t  *matrix, uint32_t num_rows, uint32_t num_columns, uint32_t core_id);
 
 void display(int32_t *matrix, uint32_t num_rows, uint32_t num_columns) {
-    uint32_t i;
-    for (i = 0; i < num_rows * num_columns; i++) {
-      printf("Output[%d] = %8d\n", i, matrix[i]);
+//    uint32_t i;
+//    for (i = 0; i < num_rows * num_columns; i++) {
+//      printf("Output[%d] = %8d\n", i, matrix[i]);
+//    }
+    uint32_t i, j;
+    for (i = 0; i < num_rows; i++) {
+        for (j = 0; j < num_columns; j++) {
+            printf("%8d ", matrix[i * num_columns + j]);
+        }
+        printf("\n");
     }
 }
 

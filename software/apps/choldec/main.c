@@ -16,7 +16,7 @@
 #define N 8
 #define SINGLE
 #define VERBOSE
-#define LDL
+#define CHOLESKY
 
 #if defined(CHOLESKY)
 int32_t M_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
@@ -45,6 +45,7 @@ void single_core() {
     mempool_barrier(num_cores);
 
     if(core_id == 0) {
+        mempool_cholesky_q32s(M_matrix, L_matrix, LT_matrix, N, FIXED_POINT);
         mempool_start_benchmark();
         mempool_cholesky_q32s(M_matrix, L_matrix, LT_matrix, N, FIXED_POINT);
         mempool_stop_benchmark();
