@@ -260,6 +260,8 @@ jobs:
         name: riscv-gnu-toolchain
     - name: Untar riscv-gnu-toolchain
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
+    - name: Install Python requirements
+      run: pip install -r python-requirements.txt
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -294,6 +296,8 @@ jobs:
         name: llvm-project
     - name: Untar llvm-project
       run: tar --use-compress-program zstd -xf llvm-project.tzst
+    - name: Install Python requirements
+      run: pip install -r python-requirements.txt
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
