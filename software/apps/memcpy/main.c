@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "data.h"
 #include "dma.h"
 #include "encoding.h"
 #include "mempool_dma_frontend.h"
@@ -29,19 +30,8 @@
 #endif
 #define BANKING_FACTOR (4)
 
-uint32_t l2_data_a[SIZE] __attribute__((section(".l2")))
+uint32_t l1_data[SIZE] __attribute__((section(".l1_prio")))
 __attribute__((aligned(NUM_CORES * 4 * 4)));
-;
-// uint32_t l2_data_b[SIZE] __attribute__((section(".l2"))) __attribute__
-// ((aligned (NUM_CORES*4*4)));;
-
-uint32_t l1_data_a[SIZE] __attribute__((section(".l1_prio")))
-__attribute__((aligned(NUM_CORES * 4 * 4)));
-;
-// uint32_t l1_data_b[SIZE] __attribute__((section(".l1_prio"))) __attribute__
-// ((aligned (NUM_CORES*4*4)));;
-
-uint32_t volatile error __attribute__((section(".l1")));
 
 dump(addr, 0);
 dump(start, 2);
@@ -74,55 +64,34 @@ int main() {
   mempool_barrier_init(core_id);
 
   if (core_id == 0) {
-    error = 0;
-    dump_addr((uint32_t)l2_data_a);
-    // dump_addr((uint32_t)l2_data_b);
-    dump_addr((uint32_t)l1_data_a);
-    // dump_addr((uint32_t)l1_data_b);
-  }
-
-  // Init
-  for (uint32_t i = core_id * BANKING_FACTOR; i < SIZE;
-       i += num_cores * BANKING_FACTOR) {
-    for (uint32_t j = 0; j < BANKING_FACTOR; ++j) {
-      l1_data_a[i + j] = (uint32_t)l1_data_a + (i + j);
-    }
-  }
-
-  mempool_barrier(num_cores);
-
-  // Benchmark
-  if (core_id == 0) {
-    // Copy out
-    mempool_start_benchmark();
-    uint32_t time = mempool_get_timer();
-    dump_start(time);
-    dma_memcpy_nonblocking((void *)l2_data_a, (const void *)l1_data_a,
-                           SIZE * sizeof(uint32_t));
-    do {
-      mempool_wait(512);
-    } while (!dma_idle());
-    time = mempool_get_timer() - time;
-    dump_end(time);
-    // error += verify_dma((void *)l2_data_a, SIZE, (uint32_t)l1_data_a);
-    dump_start(error);
-
+    // Benchmark
+    dump_addr((uint32_t)l2_data);
+    dump_addr((uint32_t)l1_data);
     // Copy in
     mempool_start_benchmark();
-    time = mempool_get_timer();
-    dma_memcpy_nonblocking(l1_data_a, l2_data_a, SIZE * sizeof(uint32_t));
+    uint32_t time = mempool_get_timer();
+    dma_memcpy_nonblocking(l1_data, l2_data, SIZE * sizeof(uint32_t));
     do {
       mempool_wait(512);
-    } while (!dma_idle());
+    } while (!dma_done());
     time = mempool_get_timer() - time;
     dump_end(time);
-    // error += verify_dma(l1_data_a, SIZE, (uint32_t)l1_data_a);
-    dump_start(error);
     mempool_stop_benchmark();
+
+    // Copy out
+    mempool_start_benchmark();
+    time = mempool_get_timer();
+    dump_start(time);
+    dma_memcpy_nonblocking(l2_data, l1_data, SIZE * sizeof(uint32_t));
+    do {
+      mempool_wait(512);
+    } while (!dma_done());
+    time = mempool_get_timer() - time;
+    dump_end(time);
   }
 
   // wait until all cores have finished
   mempool_barrier(num_cores);
 
-  return (int)error;
+  return 0;
 }

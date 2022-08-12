@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 - Add a DMA
+- Add a script to generate random data to preload the L2 memory
 
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly
