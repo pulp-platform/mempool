@@ -119,7 +119,7 @@ module mempool_dma #(
     burst_dst   : axi_pkg::BURST_INCR,
     decouple_rw : 1'b1,
     deburst     : 1'b0,
-    serialize   : 1'b1
+    serialize   : 1'b0
   };
 
   always_comb begin
