@@ -13,9 +13,9 @@
 // uint32_t volatile barrier __attribute__((section(".l1")));
 uint32_t volatile __l1_start;
 uint32_t volatile log_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+    __attribute__((aligned(NUM_CORES * 4), section(".l2")));
 uint32_t volatile partial_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+    __attribute__((aligned(NUM_CORES * 4), section(".l2")));
 
 void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {

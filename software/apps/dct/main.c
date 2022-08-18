@@ -62,13 +62,19 @@ int main() {
   }
 #endif
 
-  // Wait at barrier until everyone is ready
-  mempool_barrier(num_cores);
-  mempool_start_benchmark();
-  fdct_8x8_parallel((int32_t *)in, N, M, (int32_t *)in, core_id, num_cores);
-  mempool_stop_benchmark();
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
+  // Do twice, with cold and hot cache
+  for (int i = 0; i < 2; ++i) {
+    // Vectors are initialized --> Start calculating
+    // Wait at barrier until everyone is ready
+    mempool_barrier(num_cores);
+    mempool_start_benchmark();
+    fdct_8x8_parallel((int32_t *)in, N, M, (int32_t *)in, core_id, num_cores);
+    mempool_start_benchmark();
+
+    // Wait at barrier befor checking
+    mempool_barrier(num_cores);
+    mempool_stop_benchmark();
+  }
 
 #ifdef VERBOSE
   if (core_id == 0) {
