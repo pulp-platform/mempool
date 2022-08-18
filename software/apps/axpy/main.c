@@ -49,25 +49,22 @@ int main() {
   mempool_barrier(num_cores);
 
   if (core_id == 0) {
-    // *dotp_barrier_a = 0;
-    // *dotp_barrier_b = 0;
-    // dma_memcpy_blocking(vec_x_l2, vec_x, N * sizeof(int32_t));
-    // dma_memcpy_blocking(vec_y_l2, vec_y, N * sizeof(int32_t));
-  }
+    // Wait for the other cores to sleep at the barrier
+    mempool_wait(2048);
+    // Do twice, with cold and hot cache
+    for (int i = 0; i < 2; ++i) {
+      // Vectors are initialized --> Start calculating
+      // Wait at barrier until everyone is ready
+      // mempool_barrier(num_cores);
+      mempool_start_benchmark();
+      axpy_parallel_asm((const int32_t *)vec_x, (int32_t *)vec_y, 7, N, core_id,
+                        num_cores);
+      mempool_start_benchmark();
 
-  // Do twice, with cold and hot cache
-  for (int i = 0; i < 2; ++i) {
-    // Vectors are initialized --> Start calculating
-    // Wait at barrier until everyone is ready
-    mempool_barrier(num_cores);
-    mempool_start_benchmark();
-    axpy_parallel_asm((const int32_t *)vec_x, (int32_t *)vec_y, 7, N, core_id,
-                      num_cores);
-    mempool_start_benchmark();
-
-    // Wait at barrier befor checking
-    mempool_barrier(num_cores);
-    mempool_stop_benchmark();
+      // Wait at barrier befor checking
+      // mempool_barrier(num_cores);
+      mempool_stop_benchmark();
+    }
   }
 
   // Check result

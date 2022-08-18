@@ -88,42 +88,48 @@ int main() {
   // Matrices are initialized --> Start calculating
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
-  uint32_t start = mempool_get_timer();
-  mempool_start_benchmark();
-  conv2d_3x3_crazy_parallel((const int32_t *)in, N, M, (const int32_t *)kernel,
-                            (int32_t *)out, core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
+  if (core_id == 1)
+  {
+    // Wait for the other cores to sleep at the barrier
+    mempool_wait(2048);
+    uint32_t start = mempool_get_timer();
+    mempool_start_benchmark();
+    conv2d_3x3_crazy_parallel((const int32_t *)in, N, M, (const int32_t *)kernel,
+                              (int32_t *)out, core_id, num_cores);
+    mempool_stop_benchmark();
+    if (core_id == 44) {
+      dump_time(mempool_get_timer() - start);
+    }
+    mempool_start_benchmark();
 
-  // Wait at barrier befor checking
+    // Wait at barrier befor checking
+    // mempool_barrier(num_cores);
+    mempool_stop_benchmark();
+    uint32_t stop = mempool_get_timer();
+    if (core_id == 44) {
+      dump_time(stop - start);
+    }
+
+    // Hot cache
+    start = mempool_get_timer();
+    mempool_start_benchmark();
+    conv2d_3x3_crazy_parallel((const int32_t *)in, N, M, (const int32_t *)kernel,
+                              (int32_t *)out, core_id, num_cores);
+    mempool_stop_benchmark();
+    if (core_id == 44) {
+      dump_time(mempool_get_timer() - start);
+    }
+    mempool_start_benchmark();
+
+    // Wait at barrier befor checking
+    // mempool_barrier(num_cores);
+    mempool_stop_benchmark();
+    stop = mempool_get_timer();
+    if (core_id == 44) {
+      dump_time(stop - start);
+    }
+  }
   mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  uint32_t stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
-  }
-
-  // Hot cache
-  start = mempool_get_timer();
-  mempool_start_benchmark();
-  conv2d_3x3_crazy_parallel((const int32_t *)in, N, M, (const int32_t *)kernel,
-                            (int32_t *)out, core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
-
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
-  }
 
   // Check result
   if (verify_conv2d_image(out, N, M, core_id, num_cores)) {

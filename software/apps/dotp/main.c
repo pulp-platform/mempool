@@ -57,51 +57,56 @@ int main() {
     // dma_memcpy_blocking(vec_b_l2, vec_b, N * sizeof(int32_t));
   }
 
-  // Vectors are initialized --> Start calculating
-  // Wait at barrier until everyone is ready
-  mempool_barrier(num_cores);
-  uint32_t start = mempool_get_timer();
-  mempool_start_benchmark();
-  dotp_parallel((const int32_t *)vec_a, (const int32_t *)vec_b, N, c, core_id,
-                num_cores);
-  // dotp_parallel_dma((const int32_t *)vec_a, (const int32_t *)vec_b, N,
-  //               (const int32_t *)vec_a_l2, (const int32_t *)vec_b_l2, N, c,
-  //               core_id, num_cores);
-  mempool_stop_benchmark();
-  // if (core_id == 44) {
-  //   dump_time(mempool_get_timer() - start);
-  // }
-  mempool_start_benchmark();
+  if (core_id == 0) {
+    // Wait for the other cores to sleep at the barrier
+    mempool_wait(2048);
 
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  uint32_t stop = mempool_get_timer();
-  // if (core_id == 44) {
-  //   dump_time(stop - start);
-  // }
+    // Vectors are initialized --> Start calculating
+    // Wait at barrier until everyone is ready
+    // mempool_barrier(num_cores);
+    uint32_t start = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel((const int32_t *)vec_a, (const int32_t *)vec_b, N, c, core_id,
+                  num_cores);
+    // dotp_parallel_dma((const int32_t *)vec_a, (const int32_t *)vec_b, N,
+    //               (const int32_t *)vec_a_l2, (const int32_t *)vec_b_l2, N, c,
+    //               core_id, num_cores);
+    mempool_stop_benchmark();
+    // if (core_id == 44) {
+    //   dump_time(mempool_get_timer() - start);
+    // }
+    mempool_start_benchmark();
 
-  // Hot cache
-  start = mempool_get_timer();
-  mempool_start_benchmark();
-  dotp_parallel((const int32_t *)vec_a, (const int32_t *)vec_b, N, c, core_id,
-                num_cores);
-  // dotp_parallel_dma((const int32_t *)vec_a, (const int32_t *)vec_b, N,
-  //               (const int32_t *)vec_a_l2, (const int32_t *)vec_b_l2, N, c,
-  //               core_id, num_cores);
-  mempool_stop_benchmark();
-  // if (core_id == 44) {
-  //   dump_time(mempool_get_timer() - start);
-  // }
-  mempool_start_benchmark();
+    // Wait at barrier befor checking
+    // mempool_barrier(num_cores);
+    mempool_stop_benchmark();
+    uint32_t stop = mempool_get_timer();
+    // if (core_id == 44) {
+    //   dump_time(stop - start);
+    // }
 
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  stop = mempool_get_timer();
-  // if (core_id == 44) {
-  //   dump_time(stop - start);
-  // }
+    // Hot cache
+    start = mempool_get_timer();
+    mempool_start_benchmark();
+    dotp_parallel((const int32_t *)vec_a, (const int32_t *)vec_b, N, c, core_id,
+                  num_cores);
+    // dotp_parallel_dma((const int32_t *)vec_a, (const int32_t *)vec_b, N,
+    //               (const int32_t *)vec_a_l2, (const int32_t *)vec_b_l2, N, c,
+    //               core_id, num_cores);
+    mempool_stop_benchmark();
+    // if (core_id == 44) {
+    //   dump_time(mempool_get_timer() - start);
+    // }
+    mempool_start_benchmark();
+
+    // Wait at barrier befor checking
+    // mempool_barrier(num_cores);
+    mempool_stop_benchmark();
+    stop = mempool_get_timer();
+    // if (core_id == 44) {
+    //   dump_time(stop - start);
+    // }
+  }
 
   // Check result
   // TODO

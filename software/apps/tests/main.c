@@ -110,42 +110,50 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
 
-  // Cold cache
-  uint32_t start = mempool_get_timer();
-  mempool_start_benchmark();
-  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
+  if (core_id == 0)
+  {
+    // Wait for the other cores to sleep at the barrier
+    mempool_wait(2048);
+    // Cold cache
+    uint32_t start = mempool_get_timer();
+    mempool_start_benchmark();
+    mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
+    mempool_stop_benchmark();
+    if (core_id == 44) {
+      dump_time(mempool_get_timer() - start);
+    }
+    mempool_start_benchmark();
 
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  uint32_t stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
+    // Wait at barrier befor checking
+    // mempool_barrier(num_cores);
+    mempool_stop_benchmark();
+    uint32_t stop = mempool_get_timer();
+    if (core_id == 44) {
+      dump_time(stop - start);
+    }
+
+    // Hot cache
+    // mempool_barrier(num_cores);
+    start = mempool_get_timer();
+    mempool_start_benchmark();
+    mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
+    mempool_stop_benchmark();
+    if (core_id == 44) {
+      dump_time(mempool_get_timer() - start);
+    }
+    mempool_start_benchmark();
+
+    // Wait at barrier befor checking
+    // mempool_barrier(num_cores);
+    mempool_stop_benchmark();
+    stop = mempool_get_timer();
+    if (core_id == 44) {
+      dump_time(stop - start);
+    }
   }
 
-  // Hot cache
   mempool_barrier(num_cores);
-  start = mempool_get_timer();
-  mempool_start_benchmark();
-  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
 
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
-  }
 
   // if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
   //                   num_cores)) {
