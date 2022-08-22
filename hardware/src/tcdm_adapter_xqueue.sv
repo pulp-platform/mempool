@@ -10,6 +10,8 @@
 
 `include "common_cells/registers.svh"
 
+import cf_math_pkg::idx_width;
+
 module tcdm_adapter_xqueue #(
   parameter int unsigned AddrWidth    = 32,
   parameter int unsigned DataWidth    = 32,
@@ -18,7 +20,7 @@ module tcdm_adapter_xqueue #(
   parameter bit          RegisterAmo  = 1'b0, // Cut path between request and response at the cost of increased AMO latency
   // Dependent parameters. DO NOT CHANGE.
   localparam int unsigned BeWidth     = DataWidth/8,
-  localparam int unsigned QCntWidth   = $clog2(XQueueSize)
+  localparam int unsigned QCntWidth   = idx_width(XQueueSize)
 ) (
   input  logic                 clk_i,
   input  logic                 rst_ni,
