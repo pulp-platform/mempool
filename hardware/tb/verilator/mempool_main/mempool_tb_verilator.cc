@@ -44,8 +44,8 @@ int main(int argc, char **argv) {
   simctrl.RegisterExtension(&memutil);
 #endif
 
-  simctrl.SetInitialResetDelay(5);
-  simctrl.SetResetDuration(5);
+  simctrl.SetInitialResetDelay(1);
+  simctrl.SetResetDuration(4);
 
   bool exit_app = false;
   int ret_code = simctrl.ParseCommandArgs(argc, argv, exit_app);

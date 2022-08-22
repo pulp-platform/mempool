@@ -71,6 +71,12 @@ module mempool_tile
   // Local interconnect address width
   typedef logic [idx_width(NumCoresPerTile + NumGroups)-1:0] local_req_interco_addr_t;
 
+  /*********************
+   *  Control Signals  *
+   *********************/
+  logic [NumCoresPerTile-1:0] wake_up_q;
+  `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
+
   // Group ID
   logic [idx_width(NumGroups)-1:0] group_id;
   if (NumGroups != 1) begin: gen_group_id
@@ -134,7 +140,7 @@ module mempool_tile
         .data_pid_i    (snitch_data_pid[c]                                       ),
         .data_pvalid_i (snitch_data_pvalid[c]                                    ),
         .data_pready_o (snitch_data_pready[c]                                    ),
-        .wake_up_sync_i(wake_up_i[c]                                             ),
+        .wake_up_sync_i(wake_up_q[c]                                             ),
         // Core Events
         .core_events_o (/* Unused */                                             )
       );

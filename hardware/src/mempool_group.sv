@@ -60,6 +60,15 @@ module mempool_group
 
   typedef logic [idx_width(NumTiles)-1:0] tile_id_t;
 
+  /*********************
+   *  Control Signals  *
+   *********************/
+  logic [NumCoresPerGroup-1:0] wake_up_q;
+  `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
+
+  ro_cache_ctrl_t ro_cache_ctrl_q;
+  `FF(ro_cache_ctrl_q, ro_cache_ctrl_i, ro_cache_ctrl_default, clk_i, rst_ni);
+
   /**********************
    *  Ports to structs  *
    **********************/
@@ -165,7 +174,7 @@ module mempool_group
       .axi_mst_req_o           (axi_tile_req[t]                                ),
       .axi_mst_resp_i          (axi_tile_resp[t]                               ),
       // Wake up interface
-      .wake_up_i               (wake_up_i[t*NumCoresPerTile +: NumCoresPerTile])
+      .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile])
     );
 
     // Transpose the group requests
@@ -390,7 +399,7 @@ module mempool_group
     .clk_i           (clk_i                       ),
     .rst_ni          (rst_ni                      ),
     .test_i          (1'b0                        ),
-    .ro_cache_ctrl_i (ro_cache_ctrl_i             ),
+    .ro_cache_ctrl_i (ro_cache_ctrl_q             ),
     .slv_req_i       ({axi_dma_req,axi_tile_req}  ),
     .slv_resp_o      ({axi_dma_resp,axi_tile_resp}),
     .mst_req_o       (axi_mst_req                 ),
