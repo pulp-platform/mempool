@@ -132,9 +132,9 @@ int main() {
   mempool_barrier(num_cores);
 
   // Check result
-  if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
-    error = 1;
-  }
+  // if (verify_conv2d_image(out, N, M, core_id, num_cores)) {
+  //   error = 1;
+  // }
 
   // wait until all cores have finished
   mempool_barrier(num_cores);
