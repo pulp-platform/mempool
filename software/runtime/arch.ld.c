@@ -5,7 +5,7 @@
 /* This file will get processed by the precompiler to expand all macros. */
 
 MEMORY {
-  l1 (R) : ORIGIN = 0x00000000, LENGTH = (NUM_CORES * 0x1000) /* NUM_CORES * 4 * 1KiB per bank */
+  l1 (R) : ORIGIN = 0x00000000, LENGTH = (NUM_CORES * 0x4000) /* NUM_CORES * 4 * 1KiB per bank */
   l2     : ORIGIN = L2_BASE   , LENGTH = L2_SIZE
   rom (R): ORIGIN = BOOT_ADDR , LENGTH = 0x00001000
 }

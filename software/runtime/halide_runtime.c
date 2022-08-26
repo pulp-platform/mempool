@@ -16,7 +16,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-void *halide_malloc(void *user_context, size_t x) { return (void *)0x0000b000; }
+void *halide_malloc(void *user_context, size_t x) { return (void *)0x50000000; }
 
 void halide_free(void *user_context, void *ptr) {}
 
