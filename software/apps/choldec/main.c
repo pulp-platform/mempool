@@ -19,10 +19,14 @@
 #define CHOLESKY
 
 #if defined(CHOLESKY)
+int32_t A_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
+int32_t AT_matrix[N * N]    __attribute__((aligned(N), section(".l1")));
 int32_t M_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
 int32_t L_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
 int32_t LT_matrix[N * N]    __attribute__((aligned(N), section(".l1")));
 #elif defined(LDL)
+int32_t A_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
+int32_t AT_matrix[N * N]    __attribute__((aligned(N), section(".l1")));
 int32_t M_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
 int32_t L_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
 int32_t D_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
@@ -39,13 +43,23 @@ void single_core() {
 
 #if defined(CHOLESKY)
 
-    init_matrix(M_matrix, N, N, -156, 427, -219, core_id);
+    init_matrix(A_matrix, N, N, -156, 427, -219, core_id);
+    init_matrix_zeros(AT_matrix, N, N, core_id);
+    init_matrix_zeros(M_matrix, N, N, core_id);
     init_matrix_zeros(L_matrix, N, N, core_id);
     init_matrix_zeros(LT_matrix, N, N, core_id);
     mempool_barrier(num_cores);
+    if(core_id == 0) {
+        transpose(A_matrix, AT_matrix, N);
+        matrixmult(AT_matrix, A_matrix, M_matrix, N);
+    #ifdef VERBOSE
+        display(M_matrix, N, N);
+    #endif
+    }
+    mempool_barrier(num_cores);
 
     if(core_id == 0) {
-        mempool_cholesky_q32s(M_matrix, L_matrix, LT_matrix, N, FIXED_POINT);
+        mempool_cholesky_q32s(A_matrix, L_matrix, LT_matrix, N, FIXED_POINT);
         mempool_start_benchmark();
         mempool_cholesky_q32s(M_matrix, L_matrix, LT_matrix, N, FIXED_POINT);
         mempool_stop_benchmark();
@@ -55,16 +69,23 @@ void single_core() {
     #ifdef VERBOSE
     if (core_id == 0) {
         display(L_matrix, N, N);
-        display(LT_matrix, N, N);
+        // display(LT_matrix, N, N);
     }
     #endif
     mempool_barrier(num_cores);
 
 #elif defined(LDL)
 
-    init_matrix(M_matrix, N, N, -156, 427, -219, core_id);
+    init_matrix(A_matrix, N, N, -156, 427, -219, core_id);
+    init_matrix_zeros(AT_matrix, N, N, core_id);
+    init_matrix_zeros(M_matrix, N, N, core_id);
     init_matrix_zeros(L_matrix, N, N, core_id);
     init_matrix_zeros(D_matrix, N, N, core_id);
+    mempool_barrier(num_cores);
+    if(core_id == 0) {
+        transpose(A_matrix, AT_matrix, N);
+        matrixmult(A_matrix, AT_matrix, M_matrix, N);
+    }
     mempool_barrier(num_cores);
 
     if(core_id == 0) {

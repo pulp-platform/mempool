@@ -9,9 +9,31 @@
 #define FIX_MUL(a,b) ((int32_t)((a * b) >> FIXED_POINT))
 #define ABS(a) (a > 0 ? a : -a)
 
+void transpose(int32_t *matrix, int32_t *t_matrix, int32_t n);
+void matrixmult(int32_t *matrix_1, int32_t *matrix_2, int32_t *matrix_product, int32_t n);
 void display(int32_t *matrix, uint32_t num_rows, uint32_t num_columns);
 void init_matrix(int32_t  *matrix, uint32_t num_rows, uint32_t num_columns, int32_t a, int32_t b, int32_t c, uint32_t core_id);
 void init_matrix_zeros(int32_t  *matrix, uint32_t num_rows, uint32_t num_columns, uint32_t core_id);
+
+void transpose(int32_t *matrix, int32_t *t_matrix, int32_t n) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+             t_matrix[j * n + i] = matrix[i * n + j];
+        }
+    }
+}
+
+void matrixmult(int32_t *matrix_1, int32_t *matrix_2, int32_t *matrix_product, int32_t n) {
+    int k;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {             // not j < M
+            matrix_product[i * n + j] = 0;
+            for (k = 0; k < n; k++) {
+                matrix_product[i * n + j] += FIX_MUL(matrix_1[i * n + k], matrix_2[k * n + j]);
+            }
+        }
+    }
+}
 
 void display(int32_t *matrix, uint32_t num_rows, uint32_t num_columns) {
 //    uint32_t i;
