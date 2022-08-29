@@ -4,6 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#define CHOLESKY
+#define CROUT
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
@@ -16,7 +18,6 @@
 #define N 8
 #define SINGLE
 #define VERBOSE
-#define CHOLESKY
 
 #if defined(CHOLESKY)
 int32_t A_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
