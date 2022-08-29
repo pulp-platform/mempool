@@ -4,8 +4,13 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#define N 8
+// #define SINGLE
+#define PARALLEL
+#define VERBOSE
 #define CHOLESKY
 #define CROUT
+
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
@@ -13,11 +18,8 @@
 
 #include "initialization.h"
 #include "mempool_cholesky_q32s.h"
+#include "mempool_cholesky_q32p.h"
 #include "mempool_ldlcholesky_q32s.h"
-
-#define N 8
-#define SINGLE
-#define VERBOSE
 
 #if defined(CHOLESKY)
 int32_t A_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
@@ -108,9 +110,57 @@ void single_core() {
 
 }
 
+// Driver program
+void parallel() {
+
+    uint32_t core_id = mempool_get_core_id();
+    uint32_t num_cores = mempool_get_core_count();
+    mempool_barrier_init(core_id); // Initialize barrier and synchronize
+
+
+#if defined(CHOLESKY)
+
+    init_matrix(A_matrix, N, N, -156, 427, -219, core_id);
+    init_matrix_zeros(AT_matrix, N, N, core_id);
+    init_matrix_zeros(M_matrix, N, N, core_id);
+    init_matrix_zeros(L_matrix, N, N, core_id);
+    init_matrix_zeros(LT_matrix, N, N, core_id);
+    mempool_barrier(num_cores);
+    if(core_id == 0) {
+        transpose(A_matrix, AT_matrix, N);
+        matrixmult(AT_matrix, A_matrix, M_matrix, N);
+    #ifdef VERBOSE
+        //display(M_matrix, N, N);
+    #endif
+    }
+    mempool_barrier(num_cores);
+
+    mempool_start_benchmark();
+    mempool_cholesky_q32p(M_matrix, L_matrix, LT_matrix, N, FIXED_POINT);
+    mempool_stop_benchmark();
+    mempool_barrier(num_cores);
+
+    #ifdef VERBOSE
+    if (core_id == 0) {
+        display(L_matrix, N, N);
+    }
+    #endif
+    mempool_barrier(num_cores);
+
+#endif
+
+}
+
+
 int main() {
+
     #if defined(SINGLE)
     single_core();
     #endif
+
+    #if defined(PARALLEL)
+    parallel();
+    #endif
+
     return 0;
 }
