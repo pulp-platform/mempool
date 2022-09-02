@@ -4,9 +4,10 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#define FIXED_POINT 16
+#define FIXED_POINT 10
+#define HALF 1023
 #define FIX_DIV(a,b) ((int32_t)((a << FIXED_POINT) / b))
-#define FIX_MUL(a,b) ((int32_t)((a * b) >> FIXED_POINT))
+#define FIX_MUL(a,b) ((int32_t)((a * b + HALF) >> FIXED_POINT))
 #define ABS(a) (a > 0 ? a : -a)
 
 void transpose(int32_t *matrix, int32_t *t_matrix, int32_t n);
