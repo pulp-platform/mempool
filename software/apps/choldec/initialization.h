@@ -41,6 +41,15 @@ void display(int32_t *matrix, uint32_t num_rows, uint32_t num_columns) {
 //    for (i = 0; i < num_rows * num_columns; i++) {
 //      printf("Output[%d] = %8d\n", i, matrix[i]);
 //    }
+#if defined(FOLDED)
+    uint32_t i, j;
+    for (i = 0; i < num_rows; i++) {
+        for (j = 0; j < num_columns; j++) {
+            printf("%8d", matrix[i * N_BANKS + j]);
+        }
+        printf("\n");
+    }
+#else
     uint32_t i, j;
     for (i = 0; i < num_rows; i++) {
         for (j = 0; j < num_columns; j++) {
@@ -48,6 +57,7 @@ void display(int32_t *matrix, uint32_t num_rows, uint32_t num_columns) {
         }
         printf("\n");
     }
+#endif
 }
 
 void init_matrix(int32_t  *matrix, uint32_t num_rows, uint32_t num_columns, int32_t a, int32_t b, int32_t c, uint32_t core_id) {
