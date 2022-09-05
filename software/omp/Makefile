@@ -31,7 +31,7 @@ $(APPS): % : $(BIN_DIR)/$(APP_PREFIX)% $(APPS_DIR)/Makefile $(shell find $(RUNTI
 .PHONY: $(BINARIES)
 $(BINARIES): $(BIN_DIR)/$(APP_PREFIX)%: %/main.c.o $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT) update_opcodes
 	mkdir -p $(dir $@)
-	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) $(OMP_RUNTIME) -T$(RUNTIME_DIR)/link.ld
+	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) $(OMP_RUNTIME) -T$(RUNTIME_DIR)/link.ld -lm
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 
 # Helper targets
