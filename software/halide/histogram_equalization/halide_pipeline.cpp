@@ -32,15 +32,33 @@ int main(int argc, char **argv) {
   rescaled(x, y) = cast<uint8_t>((equalized(x, y) * 256) / pixels);
 
   // Schedule
-  hist.compute_root();
-  cdf.compute_root();
+  // hist.compute_root();
+  // cdf.compute_root();
   // equalized.fuse(x, y, xy).parallel(xy);
 
   // /scratch/sriedel/projects/mempool/hardware/results/20220819_010409_halide-histogram_equalization_ba5bb06b
+  // hist.compute_root();
+  // cdf.compute_root();
   // rescaled.fuse(x, y, xy).parallel(xy);
 
+  // /scratch/sriedel/projects/mempool/hardware/results/20220819_011320_halide-histogram_equalization_ba5bb06b
+  // hist.compute_root();
+  // cdf.compute_root();
+  // rescaled.fuse(x, y, xy);
+
   //
-  rescaled.fuse(x, y, xy);
+
+  // Schedule
+  // Func intermediate = hist.compute_root().update().rfactor({{r.y, y}});
+  // intermediate.compute_root().parallel(y).update().parallel(y);
+  // hist.parallel(x).update().parallel(x);
+  // cdf.compute_root();
+  // rescaled.fuse(x, y, xy).parallel(xy);
+  Func intermediate = hist.compute_root().update().rfactor({{r.y, y}});
+  intermediate.update().parallel(y);
+  hist.parallel(x).update().parallel(x);
+  cdf.compute_root();
+  rescaled.fuse(x, y, xy).parallel(xy);
 
   /*
     equalized .unroll(x) .unroll(y);

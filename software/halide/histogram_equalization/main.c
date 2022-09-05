@@ -138,6 +138,11 @@ int main() {
 
   if (core_id == 0) {
     error = 0;
+    // Initialize L1 Interleaved Heap Allocator
+    extern int32_t __heap_start, __heap_end;
+    uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
+    alloc_init(get_alloc_l1(), &__heap_start, heap_size);
+    alloc_dump(get_alloc_l1());
   }
 
   uint8_t const A_a = 1;
