@@ -14,8 +14,8 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#define WIDTH (32)
-#define HEIGHT (16)
+#define WIDTH (256)
+#define HEIGHT (160)
 //#define WIDTH (16)
 //#define HEIGHT (8)
 
@@ -31,58 +31,88 @@ typedef struct Vec3 {
 
 Vec3 image[WIDTH * HEIGHT];
 
-void vec_print(Vec3 v) { printf("%d, %d, %d\n", v.x, v.y, v.z); }
-int vec_dot_unscaled(Vec3 a, Vec3 b) {
-  return (a.x * b.x) + (a.y * b.y) +
-         (a.z * b.z);
+static inline int sqrtint(int x) {
+  if (x <= 0) {
+    return 0;
+  } else if (x < 2) {
+    return x; /* avoid div/0 */
+  }
+  unsigned val = (unsigned) x;
+  /* starting point is relatively unimportant */
+  unsigned a = PRECISION;
+  unsigned b;
+
+  b = val / a;
+  a = (a + b) / 2;
+  b = val / a;
+  a = (a + b) / 2;
+  b = val / a;
+  a = (a + b) / 2;
+  b = val / a;
+  a = (a + b) / 2;
+
+  return (int) a;
+  // return sqrt(x);
 }
 
-int vec_dot(Vec3 a, Vec3 b) {
+static inline int powint(int x, int exp) {
+  for (int i = 1; i < exp; ++i) {
+    x *= x;
+  }
+  return x;
+}
+
+void vec_print(Vec3 v) { printf("%d, %d, %d\n", v.x, v.y, v.z); }
+static inline int vec_dot_unscaled(Vec3 a, Vec3 b) {
+  return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+
+static inline int vec_dot(Vec3 a, Vec3 b) {
   return (a.x * b.x) / PRECISION + (a.y * b.y) / PRECISION +
          (a.z * b.z) / PRECISION;
 }
 
-int vec_length2(Vec3 v) { return vec_dot(v, v); }
-int vec_length(Vec3 v) { return sqrt(vec_length2(v)); }
+static inline int vec_length2(Vec3 v) { return vec_dot(v, v); }
+static inline int vec_length(Vec3 v) { return sqrtint(vec_length2(v)); }
 
-Vec3 vec_divide(Vec3 v, int s) {
+static inline Vec3 vec_divide(Vec3 v, int s) {
   v.x /= s;
   v.y /= s;
   v.z /= s;
   return v;
 }
 
-Vec3 vec_scale(Vec3 v, int s) {
+static inline Vec3 vec_scale(Vec3 v, int s) {
   v.x *= s;
   v.y *= s;
   v.z *= s;
   return v;
 }
-Vec3 vec_abs(Vec3 v) {
+static inline Vec3 vec_abs(Vec3 v) {
   v.x = v.x < 0 ? -v.x : v.x;
   v.y = v.y < 0 ? -v.y : v.y;
   v.z = v.z < 0 ? -v.z : v.z;
   return v;
 }
 
-Vec3 vec_add(Vec3 a, Vec3 b) {
+static inline Vec3 vec_add(Vec3 a, Vec3 b) {
   return (Vec3) { .x = a.x + b.x, .y = a.y + b.y, .z = a.z + b.z };
 }
-Vec3 vec_subtract(Vec3 a, Vec3 b) {
+static inline Vec3 vec_subtract(Vec3 a, Vec3 b) {
   return (Vec3) { .x = a.x - b.x, .y = a.y - b.y, .z = a.z - b.z };
 }
-Vec3 vec_negate(Vec3 v) {
+static inline Vec3 vec_negate(Vec3 v) {
   return (Vec3) { .x = -v.x, .y = -v.y, .z = -v.z };
 }
-Vec3 vec_multiply(Vec3 a, Vec3 b) {
+static inline Vec3 vec_multiply(Vec3 a, Vec3 b) {
   return (Vec3) { .x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z };
 }
 
-Vec3 vec_normalize2(Vec3 v) {
+static inline Vec3 vec_normalize2(Vec3 v) {
   // vec_print(v);
   int nor2 = vec_length2(v);
   if (nor2 > 0) {
-    int nor = sqrt(nor2);
+    int nor = sqrtint(nor2);
     v = vec_divide(vec_scale(v, PRECISION_SQRT), nor);
     // printf("Normalize v %d %d %d, nor2 %d, nor %d\n", v.x, v.y, v.z, nor2,
     // nor);
@@ -90,30 +120,36 @@ Vec3 vec_normalize2(Vec3 v) {
   return v;
 }
 
-Vec3 vec_normalize(Vec3 v) {
+static inline Vec3 vec_normalize(Vec3 v) {
   // vec_print(v);
   // Check how much we should scale the values
   if (vec_length2(v) < 0) {
     // Overflow
     int nor2 = vec_length2(vec_divide(v, PRECISION));
     if (nor2 > 0) {
-      int nor = sqrt(nor2 * PRECISION);
+      int nor = sqrtint(nor2 * PRECISION);
       v = vec_divide(v, nor);
-    } else { printf("OVER1\n"); }
+    } else {
+      printf("OVER1\n");
+    }
   } else if (vec_length2(v) > (INT_MAX / PRECISION / 4)) {
     int nor2 = vec_length2(v);
     if (nor2 > 0) {
-      int nor = sqrt(nor2);
+      int nor = sqrtint(nor2);
       v = vec_divide(vec_scale(v, PRECISION_SQRT), nor);
-    } else { printf("OVER2\n"); }
+    } else {
+      printf("OVER2\n");
+    }
   } else {
     int nor2 = vec_length2(v) * PRECISION;
     if (nor2 > 0) {
-      int nor = sqrt(nor2);
+      int nor = sqrtint(nor2);
       v = vec_divide(vec_scale(v, PRECISION), nor);
       // printf("Normalize v %d %d %d, nor2 %d, nor %d\n", v.x, v.y, v.z, nor2,
       // nor);
-    } else {/* printf("OVER3\n"); */}
+    } else {
+      printf("OVER3\n");
+    }
   }
   return v;
 }
@@ -140,7 +176,8 @@ bool intersect(const Sphere sphere, const Vec3 rayorig, const Vec3 raydir,
     return false;
   int d2 = vec_length2(l) - tca * tca / PRECISION;
   if (vec_length2(l) < 0) {
-    d2 = vec_dot_unscaled(vec_divide(l, PRECISION), vec_divide(l, PRECISION)) - (tca/PRECISION) *(tca/PRECISION);
+    d2 = vec_dot_unscaled(vec_divide(l, PRECISION), vec_divide(l, PRECISION)) -
+         (tca / PRECISION) * (tca / PRECISION);
     d2 *= PRECISION;
   }
   // printf("d2 %d\n", d2);
@@ -148,15 +185,23 @@ bool intersect(const Sphere sphere, const Vec3 rayorig, const Vec3 raydir,
     return false;
   int thc2 = sphere.radius2 - d2;
   int thc;
-  if ((thc2 > INT_MAX / PRECISION / 4) || (thc2 < INT_MIN / PRECISION / 4)) {
-    thc = sqrt(thc2) * PRECISION_SQRT;
-  } else if ((thc2 > INT_MAX / PRECISION/PRECISION / 4) || (thc2 < INT_MIN / PRECISION /PRECISION/ 4)) {
-    thc = sqrt(thc2*PRECISION);
-  } else if ((thc2 > INT_MAX / PRECISION/PRECISION/PRECISION / 4) || (thc2 < INT_MIN / PRECISION /PRECISION/PRECISION/ 4)) {
-    thc = sqrt(thc2*PRECISION*PRECISION) /PRECISION_SQRT;
+  if (thc2 < 0) {
+    thc2 = sphere.radius2 / PRECISION - d2 / PRECISION;
+    if (thc2 < 0) {
+      printf("WTF %d %d %d\n", tca, d2, sphere.radius2);
+    }
+    thc = sqrtint(thc2) * PRECISION;
+  } else if ((thc2 > INT_MAX / PRECISION / 4) ||
+             (thc2 < INT_MIN / PRECISION / 4)) {
+    thc = sqrtint(thc2) * PRECISION_SQRT;
+  } else if ((thc2 > INT_MAX / PRECISION / PRECISION / 4) ||
+             (thc2 < INT_MIN / PRECISION / PRECISION / 4)) {
+    thc = sqrtint(thc2 * PRECISION);
+  } else if ((thc2 > INT_MAX / PRECISION / PRECISION / PRECISION / 4) ||
+             (thc2 < INT_MIN / PRECISION / PRECISION / PRECISION / 4)) {
+    thc = sqrtint(thc2 * PRECISION * PRECISION) / PRECISION_SQRT;
   } else {
-    thc = sqrt(thc2*PRECISION*PRECISION*PRECISION) / PRECISION;
-    // printf("OBVER\n");
+    thc = sqrtint(thc2 * PRECISION * PRECISION * PRECISION) / PRECISION;
   }
   *t0 = tca - thc;
   *t1 = tca + thc;
@@ -236,9 +281,10 @@ Vec3 trace(const Vec3 rayorig, const Vec3 raydir, const Sphere *spheres,
       depth < MAX_RAY_DEPTH) {
     int facingratio = -vec_dot(raydir, nhit) / PRECISION;
     // change the mix value to tweak the effect
-    int fresneleffect = mix(pow(PRECISION - facingratio, 3),
-                            0.8 * (PRECISION * PRECISION * PRECISION), 0.2) /
-                        (PRECISION * PRECISION);
+    int fresneleffect = 1;
+    // int fresneleffect = mix(powint(PRECISION - facingratio, 3),
+    //                         0.8 * (PRECISION * PRECISION * PRECISION), 0.2) /
+    //                     (PRECISION * PRECISION);
     // compute reflection direction (not need to normalize because all vectors
     // are already normalized)
     Vec3 refldir =
@@ -249,20 +295,20 @@ Vec3 trace(const Vec3 rayorig, const Vec3 raydir, const Sphere *spheres,
                             spheres, num_spheres, depth + 1);
     Vec3 refraction = VEC3;
     // if the sphere is also transparent compute refraction ray (transmission)
-    if (sphere->transparency) {
-      int ior = 1.1;
-      int eta =
-          (inside) ? ior : 1 / ior; // are we inside or outside the surface?
-      int cosi = -vec_dot(nhit, raydir) / PRECISION;
-      int k = (PRECISION * PRECISION) -
-              eta * eta * ((PRECISION * PRECISION) - cosi * cosi);
-      Vec3 refrdir =
-          vec_add(vec_scale(raydir, eta),
-                  vec_scale(nhit, (eta * cosi - sqrt(k)) / PRECISION));
-      refrdir = vec_normalize(refrdir);
-      refraction = trace(vec_subtract(phit, vec_divide(nhit, bias)), refrdir,
-                         spheres, num_spheres, depth + 1);
-    }
+    // if (sphere->transparency) {
+    //   int ior = 1.1;
+    //   int eta =
+    //       (inside) ? ior : 1 / ior; // are we inside or outside the surface?
+    //   int cosi = -vec_dot(nhit, raydir) / PRECISION;
+    //   int k = (PRECISION * PRECISION) -
+    //           eta * eta * ((PRECISION * PRECISION) - cosi * cosi);
+    //   Vec3 refrdir =
+    //       vec_add(vec_scale(raydir, eta),
+    //               vec_scale(nhit, (eta * cosi - sqrtint(k)) / PRECISION));
+    //   refrdir = vec_normalize(refrdir);
+    //   refraction = trace(vec_subtract(phit, vec_divide(nhit, bias)), refrdir,
+    //                      spheres, num_spheres, depth + 1);
+    // }
     // the result is a mix of reflection and refraction (if the sphere is
     // transparent)
     surfaceColor = vec_multiply(
@@ -271,7 +317,7 @@ Vec3 trace(const Vec3 rayorig, const Vec3 raydir, const Sphere *spheres,
                           (PRECISION - fresneleffect) * sphere->transparency)),
         sphere->surfaceColor);
     surfaceColor =
-        vec_scale(surfaceColor, 1.0 / 256 / PRECISION); // Divide by 256
+        vec_divide(surfaceColor, 256 * PRECISION); // Divide by 256
   } else {
     // it's a diffuse object, no need to raytrace any further
     for (unsigned i = 0; i < num_spheres; ++i) {
@@ -307,7 +353,8 @@ Vec3 trace(const Vec3 rayorig, const Vec3 raydir, const Sphere *spheres,
     // surfaceColor = VEC3_x(32*sphere_idx);
   }
 
-  return vec_divide(vec_add(surfaceColor, sphere->emissionColor), PRECISION * 256);
+  return vec_divide(vec_add(surfaceColor, sphere->emissionColor),
+                    PRECISION * 256);
 }
 
 //[comment]
@@ -319,10 +366,12 @@ Vec3 trace(const Vec3 rayorig, const Vec3 raydir, const Sphere *spheres,
 void render(const Sphere *spheres, unsigned num_spheres) {
   Vec3 *pixel = image;
   // Trace rays
-  #pragma omp parallel for collapse(2) private(pixel) schedule(static, 2)
-  for (int y = 0; y < HEIGHT; ++y) {
-    for (int x = 0; x < WIDTH; ++x) {
+  // #pragma omp parallel for collapse(2) firstprivate(pixel) schedule(dynamic)
+  #pragma omp parallel for firstprivate(pixel) schedule(static)
+  for (int x = 0; x < WIDTH; ++x) {
+    for (int y = 0; y < HEIGHT; ++y) {
       Vec3 raydir = VEC3_xyz(-WIDTH / 2 + x, HEIGHT / 2 - y, -WIDTH * 1);
+      raydir = vec_scale(raydir, 1280 / WIDTH);
       raydir = vec_normalize(raydir);
       // printf("Check pixel %04d, raydir %d %d %d\n", x + y * WIDTH, raydir.x,
       //       raydir.y, raydir.z);
@@ -414,18 +463,18 @@ int main() {
 
   spheres_ptr[core_id] = spheres;
 
-  mempool_barrier(num_cores);
-
   if (core_id == 0) {
+    mempool_start_benchmark();
     render(spheres, num_spheres);
+    mempool_stop_benchmark();
   } else {
     while (1) {
       mempool_wfi();
+      mempool_start_benchmark();
       run_task(core_id);
+      mempool_stop_benchmark();
     }
   }
-
-  mempool_barrier(num_cores);
 
   return 0;
 }
