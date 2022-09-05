@@ -14,8 +14,8 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#define WIDTH (256)
-#define HEIGHT (160)
+#define WIDTH (256/16)
+#define HEIGHT (160/16)
 //#define WIDTH (16)
 //#define HEIGHT (8)
 
@@ -367,7 +367,7 @@ void render(const Sphere *spheres, unsigned num_spheres) {
   Vec3 *pixel = image;
   // Trace rays
   // #pragma omp parallel for collapse(2) firstprivate(pixel) schedule(dynamic)
-  #pragma omp parallel for firstprivate(pixel) schedule(static)
+  // #pragma omp parallel for firstprivate(pixel) schedule(static)
   for (int x = 0; x < WIDTH; ++x) {
     for (int y = 0; y < HEIGHT; ++y) {
       Vec3 raydir = VEC3_xyz(-WIDTH / 2 + x, HEIGHT / 2 - y, -WIDTH * 1);
