@@ -55,8 +55,8 @@ int main(int argc, char **argv) {
   // cdf.compute_root();
   // rescaled.fuse(x, y, xy).parallel(xy);
   Func intermediate = hist.compute_root().update().rfactor({{r.y, y}});
-  intermediate.update().parallel(y);
-  hist.parallel(x).update().parallel(x);
+  intermediate.compute_root().update().parallel(y);
+  hist.compute_root();
   cdf.compute_root();
   rescaled.fuse(x, y, xy).parallel(xy);
 

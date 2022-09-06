@@ -74,10 +74,12 @@ void halide_print(void *user_context, const char *msg) { printf("%s\n", msg); }
 // Halide calls this function
 int halide_do_par_for(void *user_context, halide_task_t task, int min, int size,
                       uint8_t *closure) {
+  mempool_barrier(NUM_CORES);
   for (uint32_t core_id = mempool_get_core_id(); core_id < (uint32_t)size;
        core_id += mempool_get_core_count()) {
     task(user_context, (int32_t)core_id, closure);
   }
+  mempool_barrier(NUM_CORES);
 
   return 0;
 }
