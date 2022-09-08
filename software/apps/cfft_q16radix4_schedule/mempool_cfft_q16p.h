@@ -59,11 +59,11 @@ static void mempool_cfft_columnwrapper( int16_t *pSrc,
     uint32_t col_id = core_id / (fftLen >> 4U);
     if (col_id < N_FFTs_COL) {
         mempool_cfft_q16p(  col_id,
-                            pSrc + col_id * col_fftLen,
-                            pDst + col_id * col_fftLen,
+                            pSrc + 2 * col_id * col_fftLen,
+                            pDst + 2 * col_id * col_fftLen,
                             fftLen,
-                            pCoef_src + col_id * col_fftLen,
-                            pCoef_dst + col_id * col_fftLen,
+                            pCoef_src + 2 * col_id * col_fftLen,
+                            pCoef_dst + 2 * col_id * col_fftLen,
                             pBitRevTable,
                             bitReverseLen,
                             bitReverseFlag,
@@ -227,8 +227,8 @@ static void mempool_cfft_q16p(  uint32_t col_id,
                                     i0, col_id, fftLen);
         }
     }
-    pTmp = pSrc - col_id * (fftLen >> 2U);
-    pSrc = pDst - col_id * (fftLen >> 2U);
+    pTmp = pSrc - 2 * col_id * (fftLen >> 2U);
+    pSrc = pDst - 2 * col_id * (fftLen >> 2U);
     pDst = pTmp;
 
     /* BITREVERSAL */
@@ -250,7 +250,8 @@ static void mempool_cfft_q16p(  uint32_t col_id,
         uint16_t* ptr1 = (uint16_t*)(pSrc + col_id * fftLen);
         uint16_t* ptr2 = (uint16_t*)(pDst + col_id * fftLen);
         uint32_t addr, n;
-        for (j = core_id; j < fftLen; j += nPE) {
+        core_id = absolute_core_id % (fftLen >> 2U);
+        for (j = core_id; j < (core_id + 4); j++) {
             n = j + fftLen;
             addr = 0;
             while (n > 0) {
@@ -268,7 +269,6 @@ static void mempool_cfft_q16p(  uint32_t col_id,
         }
         pSrc = pDst;
         #endif
-
     }
 }
 
@@ -694,6 +694,8 @@ static inline void radix4_butterfly_last(   int16_t *pIn,
       [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
       [s1] "=&r" (s1)
     : );
+    /* Subtracting col_id * (fftLen >> 2U) the pointer is taken back to zero,
+    then col_id * fftLen is added, so the output vectors are sequential in memory */
     i0_store = i0 * 4 + col_id * fftLen - col_id * (fftLen >> 2U);
     i1_store = i0_store + 1;
     i2_store = i1_store + 1;
