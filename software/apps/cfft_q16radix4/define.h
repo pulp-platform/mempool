@@ -5,30 +5,37 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 /* DEFINES */
-#define N_CSAMPLES 64
+
+//#define TEST_64
+
+#if defined(TEST_64)
+#define N_CSAMPLES (64)
+#elif defined(TEST_256)
+#define N_CSAMPLES (256)
+#elif defined(TEST_1024)
+#define N_CSAMPLES (1024)
+#elif defined(TEST_4096)
+#define N_CSAMPLES (4096)
+#endif
 #define N_RSAMPLES (2*N_CSAMPLES)
-#define TEST_64
 
-// #define SINGLE
-// #define PRINT_SINGLE
-// #define XPULP
-
-#define PARALLEL
-#define MEMSIZED
-// #define PRINT_PARALLEL
-// #define TWIDDLE_MODIFIER
+#define ASM
+#define BITREVERSETABLE
 #define BIT_REV 1
+
+#define SINGLE
+#define XPULP
+
+// #define PARALLEL
+// #define MEMSIZED
+// #define TWIDDLE_MODIFIER
+
+// #define PRINT_PARALLEL
+// #define PRINT_SINGLE
 
 /* DATA */
 #define N_BANKS (1024)
 #define N_TWIDDLES (3 * N_CSAMPLES / 4)
-
-int16_t pSrc[8*N_BANKS] __attribute__((aligned(8*N_BANKS), section(".l1")));
-int16_t pDst[8*N_BANKS] __attribute__((aligned(8*N_BANKS), section(".l1")));
-#ifdef MEMSIZED
-int16_t pCoef16_src[8*N_BANKS] __attribute__((aligned(8*N_BANKS), section(".l1")));
-int16_t pCoef16_dst[8*N_BANKS] __attribute__((aligned(8*N_BANKS), section(".l1")));
-#endif
 
 dump(ic, 1);
 dump(ic_2, 2);

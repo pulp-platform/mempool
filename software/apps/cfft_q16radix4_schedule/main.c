@@ -30,7 +30,14 @@
 #include "mempool_cfft_q16p.h"
 #endif
 
-#ifdef SINGLE
+
+#if defined(SINGLE)
+
+#define N_BANKS_SINGLE (N_BANKS * ((N_CSAMPLES + N_BANKS - 1) / N_BANKS))
+int16_t pSrc16[N_FFTs * 2 * N_BANKS_SINGLE] __attribute__((aligned(N_FFTs * 2 * N_BANKS_SINGLE), section(".l1")));
+int16_t pCoef16[3 * N_CSAMPLES / 4] __attribute__((aligned(N_BANKS), section(".l1")));
+uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH] __attribute__((aligned(N_BANKS), section(".l1")));
+int volatile error __attribute__((section(".l1")));
 void initialize_vector_s( int16_t *pSrc, uint32_t fftLen) {
     int32_t lower = SHRT_MIN, upper = SHRT_MAX;
     uint32_t idx_fft, i;
@@ -44,11 +51,24 @@ void initialize_vector_s( int16_t *pSrc, uint32_t fftLen) {
             }
         }
     }
+    for (i = core_id; i < (3 * N_CSAMPLES / 4); i += NUM_CORES) {
+      *(v2s *)&pCoef16[2U * i] = *(v2s *)&twiddleCoef_q16[2U * i];
+    }
+    for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += NUM_CORES) {
+      *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
+    }
     mempool_barrier(NUM_CORES);
 }
+
 #endif
 
-#ifdef PARALLEL
+#if defined(PARALLEL)
+
+int16_t pSrc16[N_FFTs_ROW * 8 * N_BANKS] __attribute__((aligned(N_FFTs_ROW * 8 * N_BANKS), section(".l1")));
+int16_t pDst16[N_FFTs_ROW * 8 * N_BANKS] __attribute__((aligned(N_FFTs_ROW * 8 * N_BANKS), section(".l1")));
+int16_t pCoef16_src[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
+int16_t pCoef16_dst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
+int volatile error __attribute__((section(".l1")));
 void initialize_vector_p( int16_t *pSrc,
                           int16_t *pDst,
                           uint32_t fftLen,
@@ -82,9 +102,9 @@ void initialize_vector_p( int16_t *pSrc,
     }
     mempool_barrier(NUM_CORES);
 }
+
 #endif
 
-int volatile error __attribute__((section(".l1")));
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
@@ -107,8 +127,8 @@ int main() {
       mempool_start_benchmark();
       mempool_cfft_q16s(  N_CSAMPLES,
                           pSrc16,
-                          twiddleCoef_q16,
-                          BitRevIndexTable_fixed,
+                          pCoef16,
+                          pRevT16,
                           BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
                           BIT_REV);
       mempool_stop_benchmark();
@@ -130,7 +150,7 @@ int main() {
                               N_CSAMPLES,
                               pCoef16_src,
                               pCoef16_dst,
-                              BitRevIndexTable_fixed,
+                              pRevT16,
                               BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
                               BIT_REV,
                               N_CSAMPLES >> 4U);
