@@ -40,18 +40,24 @@ static inline void radix4_butterfly_last( int16_t* pIn,
 #else
 
 static inline void radix4_butterfly_first(  int16_t* pIn,
+                                            uint32_t i0,
+                                            uint32_t n2,
                                             v2s CoSi1,
                                             v2s CoSi2,
                                             v2s CoSi3,
-                                            uint32_t i0,
-                                            uint32_t n2);
+                                            v2s C1,
+                                            v2s C2,
+                                            v2s C3);
 
 static inline void radix4_butterfly_middle( int16_t* pIn,
+                                            uint32_t i0,
+                                            uint32_t n2,
                                             v2s CoSi1,
                                             v2s CoSi2,
                                             v2s CoSi3,
-                                            uint32_t i0,
-                                            uint32_t n2);
+                                            v2s C1,
+                                            v2s C2,
+                                            v2s C3);
 
 static inline void radix4_butterfly_last( int16_t* pIn,
                                           uint32_t i0,
@@ -72,6 +78,8 @@ void mempool_cfft_q16s( uint16_t fftLen,
     int16_t Co1, Si1, Co2, Si2, Co3, Si3;
     #else
     v2s CoSi1, CoSi2, CoSi3;
+    v2s C1, C2, C3;
+    int16_t t0, t1, t2, t3, t4, t5;
     #endif
 
     /* FIRST STAGE */
@@ -192,23 +200,56 @@ void mempool_cfft_q16s( uint16_t fftLen,
 
     /* BITREVERSAL */
     if(bitReverseFlag) {
-        uint16_t a, b, tmp;
-        uint16_t *ptr = (uint16_t*) pSrc;
-        for (i0 = 0; i0 < bitReverseLen; i0 += 2) {
+        v2s addr1, addr2, addr3, addr4;
+        v2s s2 = (v2s){ 2, 2 };
+        v2s tmpa1, tmpa2, tmpa3, tmpa4;
+        v2s tmpb1, tmpb2, tmpb3, tmpb4;
+        int32_t a1, a2, a3, a4;
+        int32_t b1, b2, b3, b4;
+        uint16_t *ptr;
+        for (uint32_t i = 0; i < bitReverseLen; i += 8){
+            addr1 = *(v2s *)&pBitRevTable[i];
+            addr2 = *(v2s *)&pBitRevTable[i + 2];
+            addr3 = *(v2s *)&pBitRevTable[i + 4];
+            addr4 = *(v2s *)&pBitRevTable[i + 6];
+            asm volatile (
+                "pv.sra.h  %[addr1],%[addr1],%[s2];"
+                "pv.sra.h  %[addr2],%[addr2],%[s2];"
+                "pv.sra.h  %[addr3],%[addr3],%[s2];"
+                "pv.sra.h  %[addr4],%[addr4],%[s2];"
+                "pv.extract.h  %[a1],%[addr1],0;"
+                "pv.extract.h  %[a2],%[addr2],0;"
+                "pv.extract.h  %[a3],%[addr3],0;"
+                "pv.extract.h  %[a4],%[addr4],0;"
+                "pv.extract.h  %[b1],%[addr1],1;"
+                "pv.extract.h  %[b2],%[addr2],1;"
+                "pv.extract.h  %[b3],%[addr3],1;"
+                "pv.extract.h  %[b4],%[addr4],1;"
+                : [a1] "=r" (a1), [a2] "=r" (a2), [a3] "=r" (a3), [a4] "=r" (a4),
+                  [b1] "=r" (b1), [b2] "=r" (b2), [b3] "=r" (b3), [b4] "=r" (b4),
+                  [addr1] "+r" (addr1), [addr2] "+r" (addr2), [addr3] "+r" (addr3), [addr4] "+r" (addr4)
+                : [s2] "r" (s2)
+                : );
+            ptr = (uint16_t*) pSrc;
             for(uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
-                a = pBitRevTable[i0] >> 2;
-                b = pBitRevTable[i0 + 1] >> 2;
-                // real
-                tmp = (uint16_t) ptr[a];
-                ptr[a] = ptr[b];
-                *(uint16_t*)&ptr[b] = tmp;
-                // complex
-                tmp = (uint16_t) ptr[a + 1];
-                ptr[a + 1] = ptr[b + 1];
-                *(uint16_t*)&ptr[b + 1] = tmp;
+                tmpa1 = *(v2s *)&ptr[a1];
+                tmpa2 = *(v2s *)&ptr[a2];
+                tmpa3 = *(v2s *)&ptr[a3];
+                tmpa4 = *(v2s *)&ptr[a4];
+                tmpb1 = *(v2s *)&ptr[b1];
+                tmpb2 = *(v2s *)&ptr[b2];
+                tmpb3 = *(v2s *)&ptr[b3];
+                tmpb4 = *(v2s *)&ptr[b4];
+                *((v2s *)&ptr[a1]) = tmpb1;
+                *((v2s *)&ptr[a2]) = tmpb2;
+                *((v2s *)&ptr[a3]) = tmpb3;
+                *((v2s *)&ptr[a4]) = tmpb4;
+                *((v2s *)&ptr[b1]) = tmpa1;
+                *((v2s *)&ptr[b2]) = tmpa2;
+                *((v2s *)&ptr[b3]) = tmpa3;
+                *((v2s *)&ptr[b4]) = tmpa4;
                 ptr += N_BANKS_SINGLE;
             }
-            ptr = (uint16_t*) pSrc;
         }
     }
 
