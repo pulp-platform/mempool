@@ -13,12 +13,13 @@ int main(int argc, char **argv) {
   std::vector<Halide::Argument> args = {in};
 
   Func hist("hist"), cdf("cdf"), equalized("equalized"), rescaled("rescaled");
-  RDom r(in), ri(0, 255);
+  RDom r(in), ri(0, 256);
   Var x, y, xy, i;
 
   // Compute the histogram
   hist(x) = cast<int>(0);
-  hist(clamp(cast<uint8_t>(in(r.x, r.y)), 0, 255)) += cast<int>(1);
+  // hist(clamp(cast<uint8_t>(in(r.x, r.y)), 0, 255)) += cast<int>(1);
+  hist(cast<uint8_t>(in(r.x, r.y))) += cast<int>(1);
 
   // Integrate it to produce a cdf
   cdf(i) = 0;
@@ -58,7 +59,7 @@ int main(int argc, char **argv) {
   intermediate.parallel(y).compute_root().update().parallel(y);
   hist.parallel(x).update().parallel(x);
   cdf.compute_root();
-  rescaled.fuse(x, y, xy).parallel(xy);
+  rescaled.parallel(y);
 
   /*
     equalized .unroll(x) .unroll(y);

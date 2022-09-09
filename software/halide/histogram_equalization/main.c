@@ -13,7 +13,7 @@
 
 // Define Image dimensions:
 #define img_height 256
-#define img_width 256
+#define img_width 128
 // #define VERBOSE
 
 uint8_t in[img_height * img_width] __attribute__((section(".l1")));

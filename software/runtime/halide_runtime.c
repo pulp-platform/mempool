@@ -94,8 +94,8 @@ static inline halide_run_parallel_task() {
 int halide_do_par_for(void *user_context, halide_task_t task, int min, int size,
                       uint8_t *closure) {
   // Debug
-  printf("Halide_do_par_for %x %x %d %d %x!\n", user_context, task, min, size,
-         closure);
+  // printf("Halide_do_par_for %x %x %d %d %x!\n", user_context, task, min, size,
+  //        closure);
   // Initialize the parallel task struct for the slave cores
   halide_parallel_task.task = task;
   halide_parallel_task.closure = closure;
