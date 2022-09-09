@@ -12,8 +12,8 @@
 #include <string.h>
 
 // Define Image dimensions:
-#define img_height 16
-#define img_width 16
+#define img_height 256
+#define img_width 256
 #define VERBOSE
 
 uint8_t in[img_height * img_width] __attribute__((section(".l1")));
@@ -107,16 +107,20 @@ int halide_histogram_equalization(uint32_t core_id, uint32_t num_cores) {
   if (core_id == 0) {
     int error = halide_pipeline((halide_buffer_t *)&halide_buffer_in,
                                 (halide_buffer_t *)&halide_buffer_out);
+  } else {
+    halide_slave_core();
   }
   mempool_stop_benchmark();
 
-  mempool_barrier(num_cores);
+  // mempool_barrier(num_cores);
 #ifdef VERBOSE
-  if (core_id == 1) {
+  if (core_id == 0) {
     // Print the result
     printf("Histogram Equalization finished with exit code %d\n", error);
-    for (int y = 0; y < buffer_dim_out[1].extent; ++y) {
-      for (int x = 0; x < buffer_dim_out[0].extent; ++x) {
+    // for (int y = 0; y < buffer_dim_out[1].extent; ++y) {
+    //   for (int x = 0; x < buffer_dim_out[0].extent; ++x) {
+    for (int y = 0; y < 16; ++y) {
+      for (int x = 0; x < 16; ++x) {
         uint8_t val =
             ((uint8_t *)halide_buffer_out.host)[x * buffer_dim_out[0].stride +
                                                 y * buffer_dim_out[1].stride];
@@ -142,7 +146,7 @@ int main() {
     extern int32_t __heap_start, __heap_end;
     uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
     alloc_init(get_alloc_l1(), &__heap_start, heap_size);
-    alloc_dump(get_alloc_l1());
+    // alloc_dump(get_alloc_l1());
   }
 
   uint8_t const A_a = 1;

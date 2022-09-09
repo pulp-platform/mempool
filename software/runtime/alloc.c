@@ -123,7 +123,8 @@ void *domain_malloc(alloc_t *alloc, const uint32_t size) {
 
   // Block size must not exceed 24 bits to ensure space for canary
   if (block_size >= (1 << 24)) {
-    printf("Memory allocator: Requested memory exceeds max block size %d\n", block_size);
+    printf("Memory allocator: Requested memory exceeds max block size %d\n",
+           block_size);
     return NULL;
   }
 
