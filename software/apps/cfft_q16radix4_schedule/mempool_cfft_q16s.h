@@ -44,20 +44,14 @@ static inline void radix4_butterfly_first(  int16_t* pIn,
                                             uint32_t n2,
                                             v2s CoSi1,
                                             v2s CoSi2,
-                                            v2s CoSi3,
-                                            v2s C1,
-                                            v2s C2,
-                                            v2s C3);
+                                            v2s CoSi3);
 
 static inline void radix4_butterfly_middle( int16_t* pIn,
                                             uint32_t i0,
                                             uint32_t n2,
                                             v2s CoSi1,
                                             v2s CoSi2,
-                                            v2s CoSi3,
-                                            v2s C1,
-                                            v2s C2,
-                                            v2s C3);
+                                            v2s CoSi3);
 
 static inline void radix4_butterfly_last( int16_t* pIn,
                                           uint32_t i0,
@@ -78,8 +72,6 @@ void mempool_cfft_q16s( uint16_t fftLen,
     int16_t Co1, Si1, Co2, Si2, Co3, Si3;
     #else
     v2s CoSi1, CoSi2, CoSi3;
-    v2s C1, C2, C3;
-    int16_t t0, t1, t2, t3, t4, t5;
     #endif
 
     /* FIRST STAGE */
@@ -102,29 +94,10 @@ void mempool_cfft_q16s( uint16_t fftLen,
         CoSi1 = *(v2s *)&pCoef[2U * i0];
         CoSi2 = *(v2s *)&pCoef[2U * i0 * 2U];
         CoSi3 = *(v2s *)&pCoef[2U * i0 * 3U];
-        asm volatile(
-        "pv.extract.h  %[t1],%[CoSi1],1;"
-        "pv.extract.h  %[t3],%[CoSi2],1;"
-        "pv.extract.h  %[t5],%[CoSi3],1;"
-        "pv.extract.h  %[t0],%[CoSi1],0;"
-        "pv.extract.h  %[t2],%[CoSi2],0;"
-        "pv.extract.h  %[t4],%[CoSi3],0;"
-        "sub           %[t1],zero,%[t1];"
-        "sub           %[t3],zero,%[t3];"
-        "sub           %[t5],zero,%[t5];"
-        "pv.pack.h %[C1],%[t1],%[t0];"
-        "pv.pack.h %[C2],%[t3],%[t2];"
-        "pv.pack.h %[C3],%[t5],%[t4];"
-        : [C1] "=r" (C1), [C2] "=r" (C2), [C3] "=r" (C3),
-          [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
-          [t4] "=&r" (t4), [t5] "=&r" (t5)
-        : [CoSi1] "r" (CoSi1), [CoSi2] "r" (CoSi2), [CoSi3] "r" (CoSi3)
-        : );
         for(uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
             radix4_butterfly_first( pSrc + idx_fft * 2 * N_BANKS_SINGLE,
                                     i0, n2,
-                                    CoSi1, CoSi2, CoSi3,
-                                    C1, C2, C3);
+                                    CoSi1, CoSi2, CoSi3);
         }
         #endif
 
@@ -156,31 +129,12 @@ void mempool_cfft_q16s( uint16_t fftLen,
             CoSi1 = *(v2s *)&pCoef[2U * ic];
             CoSi2 = *(v2s *)&pCoef[2U * ic * 2U];
             CoSi3 = *(v2s *)&pCoef[2U * ic * 3U];
-            asm volatile(
-            "pv.extract.h  %[t1],%[CoSi1],1;"
-            "pv.extract.h  %[t3],%[CoSi2],1;"
-            "pv.extract.h  %[t5],%[CoSi3],1;"
-            "pv.extract.h  %[t0],%[CoSi1],0;"
-            "pv.extract.h  %[t2],%[CoSi2],0;"
-            "pv.extract.h  %[t4],%[CoSi3],0;"
-            "sub           %[t1],zero,%[t1];"
-            "sub           %[t3],zero,%[t3];"
-            "sub           %[t5],zero,%[t5];"
-            "pv.pack.h %[C1],%[t1],%[t0];"
-            "pv.pack.h %[C2],%[t3],%[t2];"
-            "pv.pack.h %[C3],%[t5],%[t4];"
-            : [C1] "=r" (C1), [C2] "=r" (C2), [C3] "=r" (C3),
-              [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
-              [t4] "=&r" (t4), [t5] "=&r" (t5)
-            : [CoSi1] "r" (CoSi1), [CoSi2] "r" (CoSi2), [CoSi3] "r" (CoSi3)
-            : );
             ic = ic + twidCoefModifier;
             for (i0 = j; i0 < fftLen; i0 += n1) {
                 for(uint32_t idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
                     radix4_butterfly_middle(  pSrc + idx_fft * 2 * N_BANKS_SINGLE,
                                               i0, n2,
-                                              CoSi1, CoSi2, CoSi3,
-                                              C1, C2, C3);
+                                              CoSi1, CoSi2, CoSi3);
                 }
             }
             #endif
@@ -530,19 +484,36 @@ static inline void radix4_butterfly_first( int16_t* pIn,
                                             uint32_t n2,
                                             v2s CoSi1,
                                             v2s CoSi2,
-                                            v2s CoSi3,
-                                            v2s C1,
-                                            v2s C2,
-                                            v2s C3) {
+                                            v2s CoSi3) {
     int16_t t0, t1, t2, t3, t4, t5;
     uint32_t i1, i2, i3;
     v2s A, B, C, D, E, F, G, H;
+    v2s C1, C2, C3;
 
     /* index calculation for the input as, */
     /* pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
+
+    asm volatile(
+    "pv.extract.h  %[t1],%[CoSi1],1;"
+    "pv.extract.h  %[t3],%[CoSi2],1;"
+    "pv.extract.h  %[t5],%[CoSi3],1;"
+    "pv.extract.h  %[t0],%[CoSi1],0;"
+    "pv.extract.h  %[t2],%[CoSi2],0;"
+    "pv.extract.h  %[t4],%[CoSi3],0;"
+    "sub           %[t1],zero,%[t1];"
+    "sub           %[t3],zero,%[t3];"
+    "sub           %[t5],zero,%[t5];"
+    "pv.pack.h %[C1],%[t1],%[t0];"
+    "pv.pack.h %[C2],%[t3],%[t2];"
+    "pv.pack.h %[C3],%[t5],%[t4];"
+    : [C1] "=r" (C1), [C2] "=r" (C2), [C3] "=r" (C3),
+      [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
+      [t4] "=&r" (t4), [t5] "=&r" (t5)
+    : [CoSi1] "r" (CoSi1), [CoSi2] "r" (CoSi2), [CoSi3] "r" (CoSi3)
+    : );
 
     #ifndef ASM
     v2s s1 = {1, 1};
@@ -670,19 +641,36 @@ static inline void radix4_butterfly_middle(  int16_t* pIn,
                                               uint32_t n2,
                                               v2s CoSi1,
                                               v2s CoSi2,
-                                              v2s CoSi3,
-                                              v2s C1,
-                                              v2s C2,
-                                              v2s C3) {
+                                              v2s CoSi3) {
     int16_t t0, t1, t2, t3, t4, t5;
     uint32_t i1, i2, i3;
     v2s A, B, C, D, E, F, G, H;
+    v2s C1, C2, C3;
+
     /*  index calculation for the input as, */
     /*  pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 +
      * 3fftLen/4] */
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
+    asm volatile(
+    "pv.extract.h  %[t1],%[CoSi1],1;"
+    "pv.extract.h  %[t3],%[CoSi2],1;"
+    "pv.extract.h  %[t5],%[CoSi3],1;"
+    "pv.extract.h  %[t0],%[CoSi1],0;"
+    "pv.extract.h  %[t2],%[CoSi2],0;"
+    "pv.extract.h  %[t4],%[CoSi3],0;"
+    "sub           %[t1],zero,%[t1];"
+    "sub           %[t3],zero,%[t3];"
+    "sub           %[t5],zero,%[t5];"
+    "pv.pack.h %[C1],%[t1],%[t0];"
+    "pv.pack.h %[C2],%[t3],%[t2];"
+    "pv.pack.h %[C3],%[t5],%[t4];"
+    : [C1] "=r" (C1), [C2] "=r" (C2), [C3] "=r" (C3),
+      [t0] "=&r" (t0), [t1] "=&r" (t1), [t2] "=&r" (t2), [t3] "=&r" (t3),
+      [t4] "=&r" (t4), [t5] "=&r" (t5)
+    : [CoSi1] "r" (CoSi1), [CoSi2] "r" (CoSi2), [CoSi3] "r" (CoSi3)
+    : );
 
     #ifndef ASM
     v2s s1 = {1, 1};
