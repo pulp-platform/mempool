@@ -78,7 +78,17 @@ void halide_print(void *user_context, const char *msg) { printf("%s\n", msg); }
 //////////////
 
 // Execute one chunk of the parallelized task
-// static inline halide_run_parallel_task()
+static inline halide_run_parallel_task() {
+  for (uint32_t i = mempool_get_core_id(); i < halide_parallel_task.size;
+       i += mempool_get_core_count()) {
+    halide_parallel_task.task(halide_parallel_task.user_context, (int32_t)i,
+                              halide_parallel_task.closure);
+  }
+  if (!__atomic_fetch_sub(&halide_parallel_task.barrier, 1, __ATOMIC_SEQ_CST)) {
+    wake_up_all();
+  }
+  mempool_wfi();
+}
 
 // Halide calls this function
 int halide_do_par_for(void *user_context, halide_task_t task, int min, int size,
@@ -91,38 +101,20 @@ int halide_do_par_for(void *user_context, halide_task_t task, int min, int size,
   halide_parallel_task.closure = closure;
   halide_parallel_task.user_context = user_context;
   halide_parallel_task.size = size;
-  halide_parallel_task.barrier = NUM_CORES;
+  halide_parallel_task.barrier = NUM_CORES - 1;
   // Wake up the threadpool
   __sync_synchronize(); // Full memory barrier
   wake_up_all();
   mempool_wfi();
   // Participate in the threadpool
-  for (uint32_t i = mempool_get_core_id(); i < size;
-       i += mempool_get_core_count()) {
-    task(user_context, (int32_t)i, closure);
-  }
-  if (__atomic_fetch_sub(&halide_parallel_task.barrier, 1, __ATOMIC_SEQ_CST) ==
-      1) {
-    wake_up_all();
-  }
-  mempool_wfi();
+  halide_run_parallel_task();
   return 0;
 }
 
 void halide_slave_core() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
   while (1) {
     mempool_wfi();
-    for (uint32_t i = core_id; i < halide_parallel_task.size; i += num_cores) {
-      halide_parallel_task.task(halide_parallel_task.user_context, (int32_t)i,
-                                halide_parallel_task.closure);
-    }
-    if (__atomic_fetch_sub(&halide_parallel_task.barrier, 1,
-                           __ATOMIC_SEQ_CST) == 1) {
-      wake_up_all();
-    }
-    mempool_wfi();
+    halide_run_parallel_task();
   }
 }
 

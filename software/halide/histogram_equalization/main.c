@@ -14,7 +14,7 @@
 // Define Image dimensions:
 #define img_height 256
 #define img_width 256
-#define VERBOSE
+// #define VERBOSE
 
 uint8_t in[img_height * img_width] __attribute__((section(".l1")));
 uint8_t out[img_height * img_width] __attribute__((section(".l1")));
@@ -160,10 +160,7 @@ int main() {
 
   // Initialized --> Start calculating (implicit barrier at start)
   mempool_start_benchmark();
-  halide_histogram_equalization(core_id, num_cores);
-
-  // wait until all cores have finished
-  mempool_barrier(num_cores);
+  error = halide_histogram_equalization(core_id, num_cores);
 
   return error;
 }
