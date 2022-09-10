@@ -4,7 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#define N 64
+// #define N 8
 #define N_BANKS (NUM_CORES * 4)
 
 //#define SINGLE
@@ -13,7 +13,7 @@
 
 //#define BANACHIEWICZ
 #define CROUT
-#define VERBOSE
+//#define VERBOSE
 
 #include "encoding.h"
 #include "printf.h"
@@ -25,14 +25,14 @@
 #include "mempool_cholesky_q32p.h"
 #include "mempool_ldlcholesky_q32s.h"
 
-int32_t A_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
-int32_t AT_matrix[N * N]    __attribute__((aligned(N), section(".l1")));
-int32_t M_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
+int32_t A_matrix[N * N]     __attribute__((aligned(N_BANKS), section(".l1")));
+int32_t AT_matrix[N * N]    __attribute__((aligned(N_BANKS), section(".l1")));
+int32_t M_matrix[N * N]     __attribute__((aligned(N_BANKS), section(".l1")));
 #if defined(FOLDED)
     int32_t LL_matrix[N * N_BANKS]     __attribute__((aligned(N_BANKS), section(".l1")));
     int32_t LR_matrix[N * N_BANKS]     __attribute__((aligned(N_BANKS), section(".l1")));
 #else
-    int32_t L_matrix[N * N]     __attribute__((aligned(N), section(".l1")));
+    int32_t L_matrix[N * N]     __attribute__((aligned(N_BANKS), section(".l1")));
 #endif
 
 #if defined(SINGLE)
