@@ -12,18 +12,15 @@
 #include <string.h>
 
 // Define Image dimensions:
-#define img_height 256
-#define img_width 128
+#define img_width 1024
+#define img_height 128
 // #define VERBOSE
 
-uint8_t in[img_height * img_width] __attribute__((section(".l1")));
-uint8_t out[img_height * img_width] __attribute__((section(".l1")));
+uint8_t in[img_height * img_width] __attribute__((section(".l1_prio")));
 
 volatile halide_buffer_t halide_buffer_in __attribute__((section(".l1")));
-volatile halide_buffer_t halide_buffer_out __attribute__((section(".l1")));
 
 halide_dimension_t buffer_dim_in[2] __attribute__((section(".l1")));
-halide_dimension_t buffer_dim_out[2] __attribute__((section(".l1")));
 
 struct halide_type_t buffer_type __attribute__((section(".l1")));
 
@@ -66,15 +63,6 @@ int halide_histogram_equalization(uint32_t core_id, uint32_t num_cores) {
     buffer_dim_in[1].stride = buffer_dim_in[0].extent;
     buffer_dim_in[1].flags = 0;
 
-    buffer_dim_out[0].min = 0;
-    buffer_dim_out[0].extent = img_width;
-    buffer_dim_out[0].stride = 1;
-    buffer_dim_out[0].flags = 0;
-    buffer_dim_out[1].min = 0;
-    buffer_dim_out[1].extent = img_height;
-    buffer_dim_out[1].stride = buffer_dim_out[0].extent;
-    buffer_dim_out[1].flags = 0;
-
     // Specify the type of data in the buffer
     buffer_type.code = halide_type_uint;
     buffer_type.bits = 8;
@@ -89,15 +77,6 @@ int halide_histogram_equalization(uint32_t core_id, uint32_t num_cores) {
     halide_buffer_in.dimensions = 2;
     halide_buffer_in.dim = (halide_dimension_t *)buffer_dim_in;
     halide_buffer_in.padding = 0;
-
-    halide_buffer_out.device = 0;
-    halide_buffer_out.device_interface = NULL;
-    halide_buffer_out.host = (uint8_t *)&out;
-    halide_buffer_out.flags = 1;
-    halide_buffer_out.type = buffer_type;
-    halide_buffer_out.dimensions = 2;
-    halide_buffer_out.dim = (halide_dimension_t *)buffer_dim_out;
-    halide_buffer_out.padding = 0;
   }
 
   mempool_barrier(num_cores);
@@ -106,7 +85,7 @@ int halide_histogram_equalization(uint32_t core_id, uint32_t num_cores) {
   // Call the Halide pipeline
   if (core_id == 0) {
     int error = halide_pipeline((halide_buffer_t *)&halide_buffer_in,
-                                (halide_buffer_t *)&halide_buffer_out);
+                                (halide_buffer_t *)&halide_buffer_in);
   } else {
     halide_slave_core();
   }

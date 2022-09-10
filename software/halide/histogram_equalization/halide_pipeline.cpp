@@ -14,10 +14,10 @@ int main(int argc, char **argv) {
 
   Func hist("hist"), cdf("cdf"), equalized("equalized"), rescaled("rescaled");
   RDom r(in), ri(0, 256);
-  Var x, y, xy, i;
+  Var x("x"), y("y"), xy("xy"), z("z"), i("i");
 
   // Compute the histogram
-  hist(x) = cast<int>(0);
+  hist(z) = cast<int>(0);
   // hist(clamp(cast<uint8_t>(in(r.x, r.y)), 0, 255)) += cast<int>(1);
   hist(cast<uint8_t>(in(r.x, r.y))) += cast<int>(1);
 
@@ -47,7 +47,27 @@ int main(int argc, char **argv) {
   // cdf.compute_root();
   // rescaled.fuse(x, y, xy);
 
+  // results/20220909_183925_halide-histogram_equalization_6bac9a5c
+  // Func intermediate = hist.compute_root().update().rfactor({{r.y, y}});
+  // intermediate.parallel(y).compute_root().update().parallel(y);
+  // hist.parallel(x).update().parallel(x);
+  // cdf.compute_root();
+  // rescaled.parallel(y);
+
   //
+  RVar rxo, rxi;
+  Func intermediate = hist.compute_root().update().reorder(r.y, r.x).split(r.x, rxo, rxi, 4).rfactor({{rxo, x}});
+  // intermediate.parallel(x, 4).compute_root().update().unroll(x, 4).parallel(x);
+  intermediate.parallel(x).compute_root().update().parallel(x);
+  hist.parallel(z).update().parallel(z);
+  cdf.compute_root();
+  rescaled.reorder(y, x).parallel(x, 4);
+
+  // Func intermediate = hist.compute_root().update().rfactor({{r.y, y}});
+  // intermediate.parallel(y, 4).compute_root().update().parallel(y, 4);
+  // hist.parallel(x).update().parallel(x);
+  // cdf.compute_root();
+  // rescaled.parallel(y, 4);
 
   // Schedule
   // Func intermediate = hist.compute_root().update().rfactor({{r.y, y}});
@@ -55,11 +75,10 @@ int main(int argc, char **argv) {
   // hist.parallel(x).update().parallel(x);
   // cdf.compute_root();
   // rescaled.fuse(x, y, xy).parallel(xy);
-  Func intermediate = hist.compute_root().update().rfactor({{r.y, y}});
-  intermediate.parallel(y).compute_root().update().parallel(y);
-  hist.parallel(x).update().parallel(x);
-  cdf.compute_root();
-  rescaled.parallel(y);
+
+  // hist.compute_root().update();
+  // cdf.compute_root();
+  // rescaled.compute_root();
 
   /*
     equalized .unroll(x) .unroll(y);
@@ -92,7 +111,7 @@ int main(int argc, char **argv) {
 
   // Quickly test the pipeline
   const uint32_t dim_x = 16;
-  const uint32_t dim_y = 16;
+  const uint32_t dim_y = 8;
   Buffer<uint8_t> test_in(dim_x, dim_y);
   for (uint8_t i = 0; i < dim_x; i++) {
     for (uint8_t j = 0; j < dim_y; j++) {
