@@ -3,42 +3,52 @@ void mempool_cholesky_q32p_fold(int32_t* pSrcA,
                                 int32_t* pLL,
                                 int32_t* pLR,
                                 const uint32_t n,
+                                const uint32_t n_row,
+                                const uint32_t n_col,
                                 const uint32_t fracBits,
-                                const uint32_t nPE);
+                                const uint32_t nPE) ;
 
 void mempool_cholesky_q32p_FLsqrtsum(int32_t* pSrc,
                                      int32_t* pL,
                                      uint32_t core_id,
                                      const uint32_t n,
                                      const uint32_t idx_col,
-                                     const uint32_t fracBits);
+                                     const uint32_t fracBits,
+                                     const uint32_t nPE);
 
 void mempool_cholesky_q32p_FRsqrtsum(int32_t* pSrc,
                                      int32_t* pL,
                                      uint32_t core_id,
                                      const uint32_t n,
                                      const uint32_t idx_col,
-                                     const uint32_t fracBits);
+                                     const uint32_t fracBits,
+                                     const uint32_t nPE);
 
 void mempool_cholesky_q32p_FLdivisum(int32_t* pSrc,
                                      int32_t* pL,
                                      uint32_t core_id,
                                      const uint32_t n,
                                      const uint32_t idx_col,
-                                     const uint32_t fracBits);
+                                     const uint32_t fracBits,
+                                     const uint32_t nPE);
 
 void mempool_cholesky_q32p_FRdivisum(int32_t* pSrc,
                                      int32_t* pL,
                                      uint32_t core_id,
                                      const uint32_t n,
                                      const uint32_t idx_col,
-                                     const uint32_t fracBits);
+                                     const uint32_t fracBits,
+                                     const uint32_t nPE);
+
+dump(index, 1)
 
 void mempool_cholesky_q32p_fold(int32_t* pSrcA,
                                 int32_t* pSrcB,
                                 int32_t* pLL,
                                 int32_t* pLR,
                                 const uint32_t n,
+                                const uint32_t n_row,
+                                const uint32_t n_col,
                                 const uint32_t fracBits,
                                 const uint32_t nPE) {
 
@@ -48,18 +58,18 @@ void mempool_cholesky_q32p_fold(int32_t* pSrcA,
     uint32_t idx_row, idx_col;
     uint32_t j;
 
-    for (j = 0; j < n, j++) {
-        for (idx_col = column_id; idx_col < n_col; idx_col++) {
+    for (j = 0; j < n; j++) {
+        for (idx_col = column_id; idx_col < n_col; idx_col += n_col) {
             for(idx_row = 0; idx_row < n_row; idx_row++) {
-                mempool_cholesky_q32p_FLsqrtsum(pSrcA, pLL + idx_col * n + idx_row * N_BANKS, core_id, n, j, fracBits);
-                mempool_cholesky_q32p_FRsqrtsum(pSrcB, pLR + idx_col * n + idx_row * N_BANKS, core_id, n, j, fracBits);
+                mempool_cholesky_q32p_FLsqrtsum(pSrcA + column_id * n, pLL + idx_col * n + idx_row * (n * N_BANKS), core_id, n, j, fracBits, nPE);
+                mempool_cholesky_q32p_FRsqrtsum(pSrcB + column_id * n, pLR + idx_col * n + idx_row * (n * N_BANKS), core_id, n, j, fracBits, nPE);
             }
         }
         mempool_log_partial_barrier(2, absolute_core_id, n_col * (n >> 2U));
-        for (idx_col = column_id; idx_col < n_col; idx_col++) {
+        for (idx_col = column_id; idx_col < n_col; idx_col += n_col) {
             for(idx_row = 0; idx_row < n_row; idx_row++) {
-                mempool_cholesky_q32p_FLdivisum(pSrcA, pLL + idx_col * n + idx_row * N_BANKS, core_id, n, j, fracBits);
-                mempool_cholesky_q32p_FRdivisum(pSrcB, pLR + idx_col * n + idx_row * N_BANKS, core_id, n, j, fracBits);
+                mempool_cholesky_q32p_FLdivisum(pSrcA + column_id * n, pLL + idx_col * n + idx_row * (n * N_BANKS), core_id, n, j, fracBits, nPE);
+                mempool_cholesky_q32p_FRdivisum(pSrcB + column_id * n, pLR + idx_col * n + idx_row * (n * N_BANKS), core_id, n, j, fracBits, nPE);
             }
         }
         mempool_log_partial_barrier(2, absolute_core_id, n_col * (n >> 2U));
@@ -74,14 +84,15 @@ void mempool_cholesky_q32p_FLsqrtsum(int32_t* pSrc,
                                      uint32_t core_id,
                                      const uint32_t n,
                                      const uint32_t idx_col,
-                                     const uint32_t fracBits) {
+                                     const uint32_t fracBits,
+                                     const uint32_t nPE) {
     int32_t sum;
     int32_t pivot;
     uint32_t k;
     int32_t a0, a1, a2, a3;
     /* Elements on the diagonal are computed with a single core */
     if (core_id == (idx_col >> 2U)) {
-        pivot = pSrc[idx_col * n + idx_col];
+        pivot = pSrc[idx_col * N_BANKS + idx_col];
         sum = 0;
         for (k = 0; k < 4 * (idx_col >> 2U); k++) {
             a0 = pL[idx_col + k * N_BANKS];
@@ -174,14 +185,15 @@ void mempool_cholesky_q32p_FRsqrtsum(int32_t* pSrc,
                                      uint32_t core_id,
                                      const uint32_t n,
                                      const uint32_t idx_col,
-                                     const uint32_t fracBits) {
+                                     const uint32_t fracBits,
+                                     const uint32_t nPE) {
     int32_t sum;
     int32_t pivot;
     uint32_t k;
     int32_t a0, a1, a2, a3;
     /* Elements on the diagonal are computed with a single core */
     if (core_id == nPE - 1 - (idx_col >> 2U)) {
-        pivot = pSrc[idx_col * n + idx_col];
+        pivot = pSrc[idx_col * N_BANKS + idx_col];
         sum = 0;
         for (k = 0; k < 4 * (idx_col >> 2U); k++) {
             a0 = pL[n - 1 - idx_col + k * N_BANKS];
@@ -274,7 +286,8 @@ void mempool_cholesky_q32p_FLdivisum(int32_t* pSrc,
                                      uint32_t core_id,
                                      const uint32_t n,
                                      const uint32_t idx_col,
-                                     const uint32_t fracBits) {
+                                     const uint32_t fracBits,
+                                     const uint32_t nPE) {
     int32_t sum;
     int32_t pivot, diag;
     uint32_t i, k;
@@ -284,7 +297,7 @@ void mempool_cholesky_q32p_FLdivisum(int32_t* pSrc,
     for (i = idx_col + 1; i < n; i++) {
         if (core_id == (i / 4)) {
             sum = 0;
-            pivot = pSrc[i * n + idx_col];
+            pivot = pSrc[i * N_BANKS + idx_col];
             diag = pL[idx_col + idx_col * N_BANKS];
             for (k = 0; k < 4 * (idx_col >> 2U); k += 4) {
                 a0 = pL[i + k * N_BANKS];
@@ -392,7 +405,8 @@ void mempool_cholesky_q32p_FRdivisum(int32_t* pSrc,
                                      uint32_t core_id,
                                      const uint32_t n,
                                      const uint32_t idx_col,
-                                     const uint32_t fracBits) {
+                                     const uint32_t fracBits,
+                                     const uint32_t nPE) {
     int32_t sum;
     int32_t pivot, diag;
     uint32_t i, k;
@@ -401,7 +415,7 @@ void mempool_cholesky_q32p_FRdivisum(int32_t* pSrc,
     for (i = idx_col + 1; i < n; i++) {
         if (core_id == nPE - 1 - (i / 4)) {
             sum = 0;
-            pivot = pSrc[i * n + idx_col];
+            pivot = pSrc[i * N_BANKS + idx_col];
             diag = pL[n - 1 - idx_col + idx_col * N_BANKS];
             for (k = 0; k < 4 * (idx_col >> 2U); k += 4) {
                 a0 = pL[n - 1 - i + k * N_BANKS];
