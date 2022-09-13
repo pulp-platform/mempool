@@ -17,10 +17,10 @@
  * Malloc must ensure to allocate aligned up to next chunk!
  */
 
-// Minimum block size due to alloc_block_t structure
-#define MIN_BLOCK_SIZE (uint32_t)8
+// Minimum block size due to alloc_block_t structure (must be a power of 2)
+#define MIN_BLOCK_SIZE (uint32_t)sizeof(alloc_block_t)
 
-// Alignment functions
+// Alignment functions (size must be a power of 2)
 #define ALIGN_UP(addr, size) ((addr + size - 1) & ~(size - 1))
 #define ALIGN_DOWN(addr, size) (addr & ~(size - 1))
 
@@ -32,7 +32,7 @@
 alloc_t alloc_l1;
 
 // Allocators for L1 local sequential heap memory
-alloc_t alloc_tile[NUM_CORES / 4];
+alloc_t alloc_tile[NUM_CORES / NUM_CORES_PER_TILE];
 
 // ----------------------------------------------------------------------------
 // Canary System based on LSBs of block pointer
@@ -117,12 +117,13 @@ static void *allocate_memory(alloc_t *alloc, const uint32_t size) {
 }
 
 void *domain_malloc(alloc_t *alloc, const uint32_t size) {
-  // Calculate actual required block size (+ size/metadata + alignment)
-  uint32_t data_size = size + 4;
-  uint32_t block_size = ALIGN_UP(data_size, MIN_BLOCK_SIZE);
+  // Calculate actually required block size
+  uint32_t data_size = size + sizeof(uint32_t); // add size/metadata
+  uint32_t block_size = ALIGN_UP(data_size, MIN_BLOCK_SIZE); // add alignment
 
-  // Block size must not exceed 24 bits to ensure space for canary
-  if (block_size >= (1 << 24)) {
+  // 32-bit metadata = 8-bit canary + 24-bit size
+  // i.e. max allowed block_size == (2^24 - 1) bytes
+  if (block_size >= (1 << (sizeof(uint32_t) * 8 - sizeof(uint8_t) * 8))) {
     printf("Memory allocator: Requested memory exceeds max block size\n");
     return NULL;
   }
