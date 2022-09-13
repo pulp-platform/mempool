@@ -29,6 +29,6 @@ seq_mem_size ?= 2048
 ##  Xqueues configuration  ##
 #############################
 
-# XQueue extension's queue size in each memory bank (in words)
-# (assume banking factor of 4)
+# Xqueue extension's queue size (in queue entries)
+# in each memory bank (assume banking factor of 4)
 xqueue_size ?= 4
