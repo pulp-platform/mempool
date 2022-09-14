@@ -21,15 +21,17 @@
 #include "define.h"
 #include "mempool_cfft_q16_twiddleCoef.h"
 #include "mempool_cfft_q16_BitRevIndexTable.h"
-#include "mempool_cfft_q16_butterfly.h"
 #include "mempool_cfft_q16_bitreversal.h"
 
 #if defined(MEMSIZED)
+#include "mempool_cfft_q16p_butterfly.h"
 #include "mempool_cfft_memsized_q16p.h"
 #elif defined(PARALLEL)
+#include "mempool_cfft_q16p_butterfly.h"
 #include "mempool_cfft_q16p.h"
 #endif
 #if defined(SINGLE)
+#include "mempool_cfft_q16s_butterfly.h"
 #include "mempool_cfft_q16s.h"
 #endif
 
@@ -69,7 +71,7 @@ void initialize_vector (int16_t *pSrc, int16_t *pDst, uint32_t N_el) {
 
 void initialize_l1 () {
     uint32_t core_id = mempool_get_core_id();
-    uint32_t i
+    uint32_t i;
     for (i = core_id; i < 8 * N_BANKS; i += NUM_CORES) {
       pCoef16_src[i] = (int16_t) 0;
       pCoef16_dst[i] = (int16_t) 0;
