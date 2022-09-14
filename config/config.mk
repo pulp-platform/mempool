@@ -40,6 +40,9 @@ seq_mem_size ?= 1024
 # Size of stack in sequential memory per core (in bytes)
 stack_size ?= 1024
 
+# L1 scratchpad banking factor
+banking_factor ?= 4
+
 #########################
 ##  AXI configuration  ##
 #########################

@@ -11,6 +11,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define NUM_BANKS_PER_TILE NUM_CORES_PER_TILE * BANKING_FACTOR
+
+#define SIZEOF_INT32_T 4 // hack: result of sizeof(int32_t)
+#if ((NUM_CORES * SEQ_MEM_SIZE) < (NUM_CORES * STACK_SIZE + NUM_CORES * BANKING_FACTOR * SIZEOF_INT32_T * XQUEUE_SIZE))
+#error Sequential memory required for stack and Xqueues is bigger than the available one
+#endif
+
 extern char l1_alloc_base;
 extern uint32_t atomic_barrier;
 extern volatile uint32_t wake_up_reg;

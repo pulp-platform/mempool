@@ -17,6 +17,9 @@ num_groups ?= 8
 # Number of cores per Terapool tile
 num_cores_per_tile ?= 8
 
+# L1 scratchpad banking factor
+banking_factor ?= 4
+
 # Radix for hierarchical AXI interconnect
 axi_hier_radix ?= 8
 

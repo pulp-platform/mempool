@@ -17,6 +17,9 @@ num_groups ?= 4
 # Number of cores per MemPool tile
 num_cores_per_tile ?= 4
 
+# L1 scratchpad banking factor
+banking_factor ?= 4
+
 # Number of DMA backends in each group
 dmas_per_group ?= 1
 
