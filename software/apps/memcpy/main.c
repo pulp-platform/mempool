@@ -27,7 +27,7 @@
 #ifndef SIZE
 #define SIZE ((NUM_CORES) * (NUM_CORES)*2)
 #endif
-#define BANKING_FACTOR (4)
+// Assume banking factor of 4
 
 uint32_t l2_data_a[SIZE] __attribute__((section(".l2")))
 __attribute__((aligned(NUM_CORES * 4 * 4)));

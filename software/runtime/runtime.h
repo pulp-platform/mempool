@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define NUM_BANKS_PER_TILE NUM_CORES_PER_TILE *BANKING_FACTOR
+
 extern char l1_alloc_base;
 extern uint32_t atomic_barrier;
 extern volatile uint32_t wake_up_reg;

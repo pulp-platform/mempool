@@ -35,7 +35,7 @@ package mempool_pkg;
   localparam integer unsigned DataWidth        = 32;
   localparam integer unsigned BeWidth          = DataWidth / 8;
   localparam integer unsigned ByteOffset       = $clog2(BeWidth);
-  localparam integer unsigned BankingFactor    = 4;
+  localparam integer unsigned BankingFactor    = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
   localparam bit              LrScEnable       = 1'b1;
   localparam integer unsigned TCDMSizePerBank  = 1024; // [B]
   localparam integer unsigned NumBanks         = NumCores * BankingFactor;
