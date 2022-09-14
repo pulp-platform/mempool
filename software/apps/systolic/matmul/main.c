@@ -32,7 +32,8 @@ systolic_matrix_t *syst_matrix_C;
 
 void generate_gradient_matrix(int32_t **matrix, uint32_t num_rows,
                               uint32_t num_cols) {
-  int32_t *new_matrix = (int32_t *)simple_malloc(num_rows * num_cols * 4);
+  int32_t *new_matrix =
+      (int32_t *)simple_malloc(num_rows * num_cols * sizeof(int32_t));
   for (uint32_t y = 0; y < num_rows; ++y) {
     for (uint32_t x = 0; x < num_cols; ++x) {
       new_matrix[y * num_cols + x] = (int32_t)(y + x);
@@ -55,7 +56,7 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t tile_id = core_id / 4;
+  uint32_t tile_id = core_id / NUM_CORES_PER_TILE;
 
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
@@ -65,7 +66,7 @@ int main() {
 
   // Allocate systolic grid mapping
   if (core_id == 0) {
-    grid_mapping = (uint32_t *)simple_malloc(num_cores * 4);
+    grid_mapping = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
     if (num_cores != SYSTOLIC_SIZE * SYSTOLIC_SIZE) {
       printf("SYSTOLIC_SIZE does not match core count!\n");
       return -1;

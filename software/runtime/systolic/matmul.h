@@ -17,11 +17,13 @@
 #include "printf.h"
 #include "systolic/queue_multi.h"
 
-// Dimensions of square systolic array
-// TODO: SQRT ROOT OF NUM_CORES FOR SYSTOLIC SIZE
-#define SYSTOLIC_SIZE 16
-
 // IMPORTANT: DATA_SIZE of queue_multi.h must be set to 4
+#if DATA_SIZE == 4 && NUM_CORES == 256
+
+// Dimensions of square systolic array
+// TODO: SYSTOLIC_SIZE must be sqrt of NUM_CORES; for now hardcoded for 256
+// cores
+#define SYSTOLIC_SIZE 16
 
 // Systolic matrix
 typedef struct {
@@ -76,10 +78,12 @@ void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
   uint32_t syst_num_cols = (uint32_t)((num_cols + 1) & 0xFFFE);
 
   // Allocate matrix array
-  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * 4);
+  int32_t *array =
+      (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * sizeof(int32_t));
 
   // Allocate systolic matrix
-  systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(3 * 4);
+  systolic_matrix_t *new_matrix =
+      (systolic_matrix_t *)simple_malloc(sizeof(systolic_matrix_t));
 
   // Assign values to systolic matrix
   new_matrix->matrix = array;
@@ -96,7 +100,8 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
   uint32_t syst_num_cols = (uint32_t)((num_cols + 1) & 0xFFFE);
 
   // Allocate matrix array
-  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * 4);
+  int32_t *array =
+      (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * sizeof(int32_t));
 
   // Copy data into new matrix array
   for (uint32_t y = 0; y < num_rows; ++y) {
@@ -118,7 +123,8 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
   }
 
   // Allocate systolic matrix
-  systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(3 * 4);
+  systolic_matrix_t *new_matrix =
+      (systolic_matrix_t *)simple_malloc(sizeof(systolic_matrix_t));
 
   // Assign values to systolic matrix
   new_matrix->matrix = array;
@@ -180,8 +186,8 @@ void systolic_rcp_pe(const uint32_t rep_count,
                      systolic_matrix_t const *__restrict__ C) {
   queue_t *queue_next_horz;
   queue_t *queue_next_vert;
-  int32_t data_horz[4];
-  int32_t data_vert[4];
+  int32_t data_horz[DATA_SIZE];
+  int32_t data_vert[DATA_SIZE];
   int32_t *matrix_A;
   int32_t *matrix_B;
   int32_t *matrix_C;
@@ -275,8 +281,8 @@ void systolic_cp_pe(const uint32_t col_idx, const uint32_t rep_count,
   queue_t *queue_prev_horz;
   queue_t *queue_next_horz;
   queue_t *queue_next_vert;
-  int32_t data_horz[4];
-  int32_t data_vert[4];
+  int32_t data_horz[DATA_SIZE];
+  int32_t data_vert[DATA_SIZE];
   int32_t *matrix_B;
   int32_t *matrix_C;
   uint32_t num_cols_B;
@@ -392,8 +398,8 @@ void systolic_rp_pe(const uint32_t row_idx, const uint32_t rep_count,
   queue_t *queue_next_horz;
   queue_t *queue_prev_vert;
   queue_t *queue_next_vert;
-  int32_t data_horz[4];
-  int32_t data_vert[4];
+  int32_t data_horz[DATA_SIZE];
+  int32_t data_vert[DATA_SIZE];
   int32_t *matrix_A;
   int32_t *matrix_C;
   uint32_t num_cols_A;
@@ -510,8 +516,8 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   queue_t *queue_next_horz;
   queue_t *queue_prev_vert;
   queue_t *queue_next_vert;
-  int32_t data_horz[4];
-  int32_t data_vert[4];
+  int32_t data_horz[DATA_SIZE];
+  int32_t data_vert[DATA_SIZE];
   int32_t *matrix_C;
   uint32_t num_rows_C;
   uint32_t num_cols_C;
@@ -630,3 +636,7 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   dump_horz_push(h_push_cnt);
   dump_vert_push(v_push_cnt);
 }
+
+#else
+#error Unsupported queue DATA_SIZE or NUM_CORES
+#endif // if DATA_SIZE == 4 && NUM_CORES == 256

@@ -13,7 +13,7 @@
 #include "alloc.h"
 #include "runtime.h"
 
-#define DATA_SIZE 4
+#define DATA_SIZE 4 // number of words in a queue entry
 
 typedef struct {
   int32_t *buffer;
@@ -23,9 +23,9 @@ typedef struct {
 } queue_t;
 
 void queue_domain_create(alloc_t *alloc, queue_t **queue) {
-  queue_t *new_queue = (queue_t *)domain_malloc(alloc, 4 * 4);
-  int32_t *buffer =
-      (int32_t *)domain_malloc(alloc, XQUEUE_SIZE * DATA_SIZE * 4);
+  queue_t *new_queue = (queue_t *)domain_malloc(alloc, sizeof(queue_t));
+  int32_t *buffer = (int32_t *)domain_malloc(alloc, XQUEUE_SIZE * DATA_SIZE *
+                                                        sizeof(int32_t));
   new_queue->buffer = buffer;
   new_queue->head = 0;
   new_queue->tail = 0;
