@@ -68,6 +68,7 @@ int16_t pSrc16[N_FFTs_ROW * 8 * N_BANKS] __attribute__((aligned(N_FFTs_ROW * 8 *
 int16_t pDst16[N_FFTs_ROW * 8 * N_BANKS] __attribute__((aligned(N_FFTs_ROW * 8 * N_BANKS), section(".l1")));
 int16_t pCoef16_src[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pCoef16_dst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
+uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH] __attribute__((aligned(N_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
 void initialize_vector_p( int16_t *pSrc,
                           int16_t *pDst,
@@ -100,6 +101,11 @@ void initialize_vector_p( int16_t *pSrc,
             *(v2s *)&pCoef_src[2U * (ic + 2 * N_BANKS) + idx_col * (fftLen >> 2U)] = *(v2s *)&twiddleCoef[2U * (ic * 3U)];
         }
     }
+    #ifdef BITREVERSALTABLE
+    for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += NUM_CORES) {
+      *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
+    }
+    #endif
     mempool_barrier(NUM_CORES);
 }
 
