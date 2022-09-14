@@ -1,18 +1,6 @@
-// Copyright 2021 ETH Zurich and University of Bologna.
-//
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 // Author: Gua Hao Khov, ETH Zurich
 
@@ -32,14 +20,14 @@ int32_t producer_check, consumer_check, dummy_check;
 // queue push
 static inline int32_t queue_push(void *const queue, int32_t data) {
   int32_t ret;
-  asm volatile ("q.push.w %0, %1, (%2)" : "=r"(ret) : "r"(data), "r"(queue));
+  asm volatile("q.push.w %0, %1, (%2)" : "=r"(ret) : "r"(data), "r"(queue));
   return ret;
 }
 
 // queue pop
 inline int32_t queue_pop(void *const queue) {
   int32_t ret;
-  asm volatile ("q.pop.w %0, 0(%1)" : "=r"(ret) : "r"(queue));
+  asm volatile("q.pop.w %0, 0(%1)" : "=r"(ret) : "r"(queue));
   return ret;
 }
 
