@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 - Add a DMA
+- Add support to hardrware-accelerated queues for CGRA (RV32A extension)
+- Add systolic implementation of matmul and 2d convolution exploiting hardware-accelerated queues
 
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly
@@ -34,7 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add the `terapool` configuration
 - Add read-only caches to the hierarchical AXI interconnect
 - Add a `memcpy` benchmark
-- Add a systolic configuration including runtime support and a matmul application
+- Add a systolic configuration for software-emulated CGRA including runtime support and a systolic matmul
 - Add `axpy` kernel
 - Add Spyglass linting scripts
 - Add an OpenMP runtime and example applications
