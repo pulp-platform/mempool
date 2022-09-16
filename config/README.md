@@ -10,6 +10,7 @@ flavors of MemPool. We currently support three flavors:
 - `terapool`: 1024 cores, organized into 128 tiles with eight cores each
 - `mempool`: 256 cores, organized into 64 tiles with four cores each (default)
 - `minpool`: 16 cores, organized into 4 tiles with four cores each
+- `systolic`: same as `mempool` but the cores form a CGRA
 
 Use the `config` variable to define which configuration to take. For example,
 to run a simulation with the `minpool` configuration, you would run
