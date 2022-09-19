@@ -69,6 +69,9 @@ xqueue_size ?= 0
 # Enable the XpulpIMG extension
 xpulpimg ?= 1
 
+# FPU is deactivated by default
+zfinx_rv ?= 1
+
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
 remote_group_latency_cycles ?= 7

@@ -34,15 +34,23 @@ RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
 ifeq ($(COMPILER),gcc)
 	# Use GCC
 	# GCC compiler -march
+	RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+	ifeq ($(fpu), 1)
+		RISCV_ARCH    += fd
+		# Define fpu if the extension is active
+		DEFINES 	  += -DFPU=$(fpu)
+	endif
 	ifeq ($(XPULPIMG),1)
-		RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
-		RISCV_ARCH_AS ?= $(RISCV_ARCH)
+		RISCV_ARCH    += Xpulpimg
 		# Define __XPULPIMG if the extension is active
 		DEFINES       += -D__XPULPIMG
+	endif
+	ifeq ($(XPULPIMG),1)
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)
 	else
-		RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
 	endif
+
 	# GCC Toolchain
 	RISCV_PREFIX  ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-
 	RISCV_CC      ?= $(RISCV_PREFIX)gcc
@@ -51,7 +59,11 @@ ifeq ($(COMPILER),gcc)
 else
 	# Use LLVM by default
 	# LLVM compiler -march
-	RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
+	RISCV_ARCH ?= rv$(RISCV_XLEN)ima
+	ifeq ($(fpu), 1)
+		RISCV_ARCH += fdv0p10
+	endif
+
 	# GCC Toolchain
 	RISCV_PREFIX  ?= $(LLVM_INSTALL_DIR)/bin/llvm-
 	RISCV_CC      ?= $(LLVM_INSTALL_DIR)/bin/clang
