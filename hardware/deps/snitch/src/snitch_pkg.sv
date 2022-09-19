@@ -15,6 +15,7 @@ package snitch_pkg;
   localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads);
   // Xpulpimg extension enabled?
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
+  localparam bit ZFINX_RV = `ifdef ZFINX_RV `ZFINX_RV `else 1'bX `endif;
 
   typedef logic [31:0]               addr_t;
   typedef logic [DataWidth-1:0]      data_t;
@@ -41,6 +42,14 @@ package snitch_pkg;
     logic write;
     logic error;
   } dresp_t;
+
+  typedef enum logic [31:0] {
+    FP_SS = 0,
+    SHARED_MULDIV = 1,
+    DMA_SS = 2,
+    XPULP_IPU = 3,
+    ZFINX_FPU = 4
+  } acc_addr_e;
 
   typedef struct packed {
     addr_t addr;
