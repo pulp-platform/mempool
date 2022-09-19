@@ -16,16 +16,16 @@ packages:
     dependencies:
       - common_cells
   common_cells:
-    revision: dc555643226419b7a602f0aa39d449545ea4c1f2
-    version: 1.23.0
+    revision: b59eca3c1747b28022573e37aa91a151808d1db5
+    version: 1.26.0
     source:
       Git: "https://github.com/pulp-platform/common_cells.git"
     dependencies:
       - common_verification
       - tech_cells_generic
   common_verification:
-    revision: 6fc76fb013315af9fabbb90b431863d498df2d6d
-    version: 0.2.0
+    revision: 9c07fa860593b2caabd9b5681740c25fac04b878
+    version: 0.2.3
     source:
       Git: "https://github.com/pulp-platform/common_verification.git"
     dependencies: []
@@ -38,9 +38,24 @@ packages:
       - axi
       - common_cells
       - common_verification
+  cvfpu:
+    revision: e5c91fefdb1cc072e832f7167c26b83e6075d3ab
+    version: ~
+    source:
+      Git: "git@github.com:openhwgroup/cvfpu.git"
+    dependencies:
+      - common_cells
+      - fpu_div_sqrt_mvp
+  fpu_div_sqrt_mvp:
+    revision: 86e1f558b3c95e91577c41b2fc452c86b04e85ac
+    version: 1.0.4
+    source:
+      Git: "https://github.com/pulp-platform/fpu_div_sqrt_mvp.git"
+    dependencies:
+      - common_cells
   register_interface:
-    revision: 73de8e51b79f416350229b1d2420b2c527e002b8
-    version: 0.3.1
+    revision: 1e23b79db80cb89b4d27fdbd10776df33d6a2ff4
+    version: 0.3.3
     source:
       Git: "https://github.com/pulp-platform/register_interface.git"
     dependencies:

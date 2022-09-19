@@ -31,3 +31,9 @@
 [submodule "toolchain/riscv-opcodes"]
 	path = toolchain/riscv-opcodes
 	url = https://github.com/pulp-platform/riscv-opcodes.git
+[submodule "toolchain/riscv-isa-sim"]
+	path = toolchain/riscv-isa-sim
+	url = https://github.com/riscv-software-src/riscv-isa-sim.git
+[submodule "hardware/deps/cvfpu"]
+	path = hardware/deps/cvfpu
+	url = https://github.com/openhwgroup/cvfpu.git
