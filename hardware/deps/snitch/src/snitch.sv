@@ -21,9 +21,7 @@ module snitch
   parameter logic [31:0] MTVEC     = BootAddr, // Exception Base Address (see privileged spec 3.1.7)
   parameter bit          RVE       = 0,   // Reduced-register Extension
   parameter bit          RVM       = 1,   // Enable IntegerMmultiplication & Division Extension
-  parameter bit          RVF       = `ifdef FPU `FPU `else 0 `endif,
-  parameter bit          RVD       = `ifdef FPU `FPU `else 0 `endif,
-  parameter bit          ZFINX_RV  = `ifdef FPU `FPU `else 0 `endif,
+  parameter bit          ZFINX_RV  = `ifdef FPU 1 `else 0 `endif,
   parameter int    RegNrWritePorts = 2    // Implement one or two write ports into the register file
 ) (
   input  logic          clk_i,
@@ -90,6 +88,8 @@ module snitch
   input  logic          data_pvalid_i,
   output logic          data_pready_o,
   input  logic          wake_up_sync_i, // synchronous wake-up interrupt
+  output fpnew_pkg::roundmode_e     fpu_rnd_mode_o,
+  input  fpnew_pkg::status_t        fpu_status_i,
   // Core event strobes
   output snitch_pkg::core_events_t core_events_o
 );
@@ -211,11 +211,20 @@ module snitch
   logic [31:0] csr_rvalue;
   logic csr_en;
 
+  typedef struct packed {
+    fpnew_pkg::roundmode_e frm;
+    fpnew_pkg::status_t    fflags;
+  } fcsr_t;
+  fcsr_t fcsr_d, fcsr_q;
+
+  assign fpu_rnd_mode_o = fcsr_q.frm;
+
   // Registers
   `FFAR(pc_q, pc_d, BootAddr, clk_i, rst_i)
   `FFAR(wfi_q, wfi_d, '0, clk_i, rst_i)
   `FFAR(wake_up_q, wake_up_d, '0, clk_i, rst_i)
   `FFAR(sb_q, sb_d, '0, clk_i, rst_i)
+  `FFAR(fcsr_q, fcsr_d, '0, clk_i, rst_i)
 
   always_comb begin
     core_events_o = '0;
@@ -317,7 +326,7 @@ module snitch
   assign rd = inst_data_i[7 + RegWidth - 1:7];
   assign rs1 = inst_data_i[15 + RegWidth - 1:15];
   assign rs2 = inst_data_i[20 + RegWidth - 1:20];
-  assign rs3 = ((acc_qaddr_o == snitch_pkg::ZFINX_FPU) & (snitch_pkg::ZFINX_RV)) ? inst_data_i[31:27] : (((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0);
+  assign rs3 = ((acc_qaddr_o == snitch_pkg::ZFINX_FPU) & (ZFINX_RV)) ? inst_data_i[31:27] : (((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0);
 
   always_comb begin
     illegal_inst = 1'b0;
@@ -827,7 +836,7 @@ module snitch
       riscv_instr::FMSUB_S,
       riscv_instr::FNMSUB_S,
       riscv_instr::FNMADD_S: begin
-        if (snitch_pkg::ZFINX_RV) begin
+        if (ZFINX_RV) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -849,7 +858,7 @@ module snitch
       riscv_instr::FCVT_W_S,
       riscv_instr::FCVT_WU_S,
       riscv_instr::FMV_X_W: begin
-        if (snitch_pkg::ZFINX_RV) begin
+        if (ZFINX_RV) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1483,6 +1492,9 @@ module snitch
     csr_trace_en = 1'b0;
     csr_stack_limit_en = 1'b0;
 
+    fcsr_d = fcsr_q;
+    fcsr_d.fflags = fcsr_q.fflags | fpu_status_i;
+
     // TODO(zarubaf): Needs some more input handling, like illegal instruction exceptions.
     // Right now we skip this due to simplicity.
     if (csr_en) begin
@@ -1593,7 +1605,7 @@ module snitch
     endcase
   end
 
-  if ((snitch_pkg::ZFINX_RV) | (snitch_pkg::XPULPIMG)) begin
+  if ((ZFINX_RV) | (snitch_pkg::XPULPIMG)) begin
     always_comb begin
       unique case (opc_select)
         None: opc = '0;
@@ -1609,7 +1621,7 @@ module snitch
   assign gpr_raddr[1] = rs2;
   // connect third read port only if present
   if (RegNrReadPorts >= 3) begin : gpr_raddr_2
-    assign gpr_raddr[2] = ((snitch_pkg::ZFINX_RV) || (snitch_pkg::XPULPIMG)) ? rs3 : '0;
+    assign gpr_raddr[2] = ((ZFINX_RV) || (snitch_pkg::XPULPIMG)) ? rs3 : '0;
   end
 
   // --------------------

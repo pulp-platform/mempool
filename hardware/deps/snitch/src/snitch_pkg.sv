@@ -15,7 +15,6 @@ package snitch_pkg;
   localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads);
   // Xpulpimg extension enabled?
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
-  localparam bit ZFINX_RV = `ifdef ZFINX_RV `ZFINX_RV `else 1'bX `endif;
 
   typedef logic [31:0]               addr_t;
   typedef logic [DataWidth-1:0]      data_t;
@@ -83,6 +82,39 @@ package snitch_pkg;
       default : return 0;
     endcase
   endfunction
+
+  // FPU
+  // Floating-point extensions configuration
+  localparam bit RVF = 1; // Is F extension enabled - MUST BE 1 IF D ENABLED!
+  localparam bit RVD = 0; // Is D extension enabled
+  localparam bit TinyFPU = 1; // Instantiate Floatli (1) or FPnew (0)
+
+  // Transprecision floating-point extensions configuration
+  localparam bit XF16    = 0; // Is half-precision float extension (Xf16) enabled
+  localparam bit XF16ALT = 0; // Is alt. half-precision float extension (Xf16alt) enabled
+  localparam bit XF8     = 0; // Is quarter-precision float extension (Xf8) enabled
+  localparam bit XFVEC   = 0; // Is vectorial float SIMD extension (Xfvec) enabled
+  // Non-standard extension present
+  localparam bit NSX = XF16 | XF16ALT | XF8 | XFVEC;
+  // ------------------
+  // FPU Configuration
+  // ------------------
+  localparam bit FP_PRESENT = RVF | RVD | XF16 | XF16ALT | XF8;
+
+  localparam FLEN = RVD     ? 64 : // D ext.
+                    RVF     ? 32 : // F ext.
+                    XF16    ? 16 : // Xf16 ext.
+                    XF16ALT ? 16 : // Xf16alt ext.
+                    XF8     ? 8 :  // Xf8 ext.
+                    0;             // Unused in case of no FP
+
+  localparam fpnew_pkg::fpu_features_t FPU_FEATURES = '{
+    Width:         fpnew_pkg::maximum(FLEN, 32),
+    EnableVectors: XFVEC,
+    EnableNanBox:  1'b1,
+    FpFmtMask:     {RVF, RVD, XF16, XF8, XF16ALT},
+    IntFmtMask:    {XFVEC && XF8, XFVEC && (XF16 || XF16ALT), 1'b1, 1'b0}
+  };
 
   // Amount of address bit which should be used for accesses from the SoC side.
   // This effectively determines the Address Space of a Snitch Cluster.
@@ -162,5 +194,71 @@ package snitch_pkg;
     logic issue_core_to_fpu; // instructions issued from core to FPU
     logic retired_insts;     // number of instructions retired by the core
   } core_events_t;
+
+  // Trace-Port Definitions
+  typedef struct packed {
+    longint source;
+    longint acc_q_hs;
+    longint fpu_out_hs;
+    longint lsu_q_hs;
+    longint op_in;
+    longint rs1;
+    longint rs2;
+    longint rs3;
+    longint rd;
+    longint op_sel_0;
+    longint op_sel_1;
+    longint op_sel_2;
+    longint src_fmt;
+    longint dst_fmt;
+    longint int_fmt;
+    longint acc_qdata_0;
+    longint acc_qdata_1;
+    longint acc_qdata_2;
+    longint op_0;
+    longint op_1;
+    longint op_2;
+    longint use_fpu;
+    longint fpu_in_rd;
+    longint fpu_in_acc;
+  } fpu_trace_port_t;
+
+  typedef struct packed {
+    longint source;
+    longint cbuf_push;
+    longint is_outer;
+    longint max_inst;
+    longint max_rpt;
+    longint stg_max;
+    longint stg_mask;
+  } fpu_sequencer_trace_port_t;
+
+  // ------------------
+  // FPU Configuration
+  // ------------------
+
+  // Latencies of FP ops (number of regs)
+  localparam int unsigned LAT_COMP_FP32    = 'd0;
+  localparam int unsigned LAT_COMP_FP64    = 'd0;
+  localparam int unsigned LAT_COMP_FP16    = 'd0;
+  localparam int unsigned LAT_COMP_FP16ALT = 'd0;
+  localparam int unsigned LAT_COMP_FP8     = 'd0;
+  localparam int unsigned LAT_DIVSQRT      = 'd0;
+  localparam int unsigned LAT_NONCOMP      = 'd0;
+  localparam int unsigned LAT_CONV         = 'd0;
+
+  localparam fpnew_pkg::fpu_implementation_t FPU_IMPLEMENTATION = '{
+    PipeRegs:  '{// FP32, FP64, FP16, FP8, FP16alt
+                 '{LAT_COMP_FP32, LAT_COMP_FP64, LAT_COMP_FP16, LAT_COMP_FP8, LAT_COMP_FP16ALT}, // ADDMUL
+                 '{default: LAT_DIVSQRT}, // DIVSQRT
+                 '{default: LAT_NONCOMP}, // NONCOMP
+                 '{default: LAT_CONV}},   // CONV
+    UnitTypes: '{'{default: fpnew_pkg::MERGED},
+                 // '{fpnew_pkg::PARALLEL, fpnew_pkg::PARALLEL, fpnew_pkg::MERGED, fpnew_pkg::MERGED, fpnew_pkg::MERGED}, // ADDMUL
+                 '{default: fpnew_pkg::DISABLED}, // DIVSQRT
+                 '{default: fpnew_pkg::PARALLEL}, // NONCOMP
+                 '{default: fpnew_pkg::MERGED}},  // CONV
+    PipeConfig: fpnew_pkg::BEFORE
+  };
 
 endpackage
