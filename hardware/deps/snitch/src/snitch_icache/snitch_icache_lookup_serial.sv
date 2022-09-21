@@ -130,8 +130,8 @@ module snitch_icache_lookup_serial #(
     end
 
     // Instantiate the tag sets.
-    for (genvar i = 0; i < CFG.SET_COUNT; i++) begin : g_sets
-        if (CFG.L1_TAG_SCM) begin : gen_scm
+    if (CFG.L1_TAG_SCM) begin : gen_scm
+        for (genvar i = 0; i < CFG.SET_COUNT; i++) begin : g_sets
             latch_scm #(
                 .ADDR_WIDTH ($clog2(CFG.LINE_COUNT)),
                 .DATA_WIDTH (CFG.TAG_WIDTH+2       )
@@ -144,22 +144,27 @@ module snitch_icache_lookup_serial #(
                 .WriteAddr   ( tag_addr                    ),
                 .WriteData   ( tag_wdata                   )
             );
-        end else begin : gen_sram
-            tc_sram #(
-                .DataWidth ( CFG.TAG_WIDTH+2 ),
-                .NumWords  ( CFG.LINE_COUNT  ),
-                .NumPorts  ( 1               )
-            ) i_tag (
-                .clk_i   ( clk_i         ),
-                .rst_ni  ( rst_ni        ),
-                .req_i   ( tag_enable[i] ),
-                .we_i    ( tag_write     ),
-                .addr_i  ( tag_addr      ),
-                .wdata_i ( tag_wdata     ),
-                .be_i    ( '1            ),
-                .rdata_o ( tag_rdata[i]  )
-            );
         end
+    end else begin : gen_sram
+        logic [CFG.SET_COUNT*(CFG.TAG_WIDTH+2)-1:0] tag_rdata_flat;
+        for (genvar i = 0; i < CFG.SET_COUNT; i++) begin : g_sets_rdata
+            assign tag_rdata[i] = tag_rdata_flat[i*(CFG.TAG_WIDTH+2)+:CFG.TAG_WIDTH+2];
+        end
+        tc_sram #(
+            .DataWidth ( (CFG.TAG_WIDTH+2) * CFG.SET_COUNT ),
+            .ByteWidth ( CFG.TAG_WIDTH+2                   ),
+            .NumWords  ( CFG.LINE_COUNT                    ),
+            .NumPorts  ( 1                                 )
+        ) i_tag (
+            .clk_i   ( clk_i                      ),
+            .rst_ni  ( rst_ni                     ),
+            .req_i   ( |tag_enable                ),
+            .we_i    ( tag_write                  ),
+            .addr_i  ( tag_addr                   ),
+            .wdata_i ( {CFG.SET_COUNT{tag_wdata}} ),
+            .be_i    ( tag_enable                 ),
+            .rdata_o ( tag_rdata_flat             )
+        );
     end
 
     // Determine which set hit

@@ -278,7 +278,7 @@ module snitch_read_only_cache #(
   );
 
   // The lookup module contains the actual cache RAMs and performs lookups.
-  snitch_icache_lookup_parallel #(CFG) i_lookup (
+  snitch_icache_lookup_serial #(CFG) i_lookup (
     .clk_i,
     .rst_ni,
 
