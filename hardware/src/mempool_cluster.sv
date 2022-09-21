@@ -45,8 +45,10 @@ module mempool_cluster
   logic [NumCores-1:0] wake_up_q;
   `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
 
-  ro_cache_ctrl_t ro_cache_ctrl_q;
-  `FF(ro_cache_ctrl_q, ro_cache_ctrl_i, ro_cache_ctrl_default, clk_i, rst_ni);
+  ro_cache_ctrl_t [NumGroups-1:0] ro_cache_ctrl_q;
+  for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_ro_cache_ctrl_q
+    `FF(ro_cache_ctrl_q[g], ro_cache_ctrl_i, ro_cache_ctrl_default, clk_i, rst_ni);
+  end: gen_ro_cache_ctrl_q
 
   /*********
    *  DMA  *
@@ -78,7 +80,9 @@ module mempool_cluster
   dma_req_t  [NumGroups-1:0] dma_req;
   logic      [NumGroups-1:0] dma_req_valid;
   logic      [NumGroups-1:0] dma_req_ready;
-  dma_meta_t [NumGroups-1:0] dma_meta;
+  dma_meta_t [NumGroups-1:0] dma_meta, dma_meta_q;
+
+  `FF(dma_meta_q, dma_meta, '0, clk_i, rst_ni);
 
   idma_split_midend #(
     .DmaRegionWidth (NumBanksPerGroup*NumGroups*4),
@@ -118,7 +122,7 @@ module mempool_cluster
     .burst_req_o (dma_req            ),
     .valid_o     (dma_req_valid      ),
     .ready_i     (dma_req_ready      ),
-    .meta_i      (dma_meta           )
+    .meta_i      (dma_meta_q         )
   );
 
   /************
@@ -166,7 +170,7 @@ module mempool_cluster
       .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
       .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
       .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
-      .ro_cache_ctrl_i         (ro_cache_ctrl_q                                                 ),
+      .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
       // DMA request
       .dma_req_i               (dma_req[g]                                                      ),
       .dma_req_valid_i         (dma_req_valid[g]                                                ),
