@@ -234,7 +234,7 @@ module mempool_cc
           extras_str = "{";
           // State
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "source",      SrcSnitch);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall",       i_snitch.stall);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "stall",       i_snitch.stall);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_tot",   stall);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_ins",   stall_ins);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_raw",   stall_raw);
@@ -244,37 +244,34 @@ module mempool_cc
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs1",         i_snitch.rs1);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs2",         i_snitch.rs2);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rd",          i_snitch.rd);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_load",     i_snitch.is_load);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_store",    i_snitch.is_store);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_branch",   i_snitch.is_branch);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "is_load",     i_snitch.is_load);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "is_store",    i_snitch.is_store);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "is_branch",   i_snitch.is_branch);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "pc_d",        i_snitch.pc_d);
           // Operands
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opa",         i_snitch.opa);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opb",         i_snitch.opb);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opa_select",  i_snitch.opa_select);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opb_select",  i_snitch.opb_select);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "opc_select",  i_snitch.opc_select);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "write_rd",    i_snitch.write_rd);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "csr_addr",    i_snitch.inst_data_i[31:20]);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "opa_select",  i_snitch.opa_select);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "opb_select",  i_snitch.opb_select);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "opc_select",  i_snitch.opc_select);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "write_rd",    i_snitch.write_rd);
+          extras_str = $sformatf("%s'%s': 0x%3x, ", extras_str, "csr_addr",    i_snitch.inst_data_i[31:20]);
           // Pipeline writeback
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "writeback",   i_snitch.alu_writeback);
           // Load/Store
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "gpr_rdata_1", i_snitch.gpr_rdata[1]);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "gpr_rdata_2", i_snitch.gpr_rdata[2]);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "ls_size",     i_snitch.ls_size);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "ls_size",     i_snitch.ls_size);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "ld_result_32",i_snitch.ld_result[31:0]);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "lsu_rd",      i_snitch.lsu_rd);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "retire_load", i_snitch.retire_load);
+          extras_str = $sformatf("%s'%s': 0x%2x, ", extras_str, "lsu_rd",      i_snitch.lsu_rd);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "retire_load", i_snitch.retire_load);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "alu_result",  i_snitch.alu_result);
           // Atomics
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "ls_amo",      i_snitch.ls_amo);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "ls_amo",      i_snitch.ls_amo);
           // Accumulator
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "retire_acc",  i_snitch.retire_acc);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "acc_pid",     i_snitch.acc_pid_i);
+          extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "retire_acc",  i_snitch.retire_acc);
+          extras_str = $sformatf("%s'%s': 0x%2x, ", extras_str, "acc_pid",     i_snitch.acc_pid_i);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "acc_pdata_32",i_snitch.acc_pdata_i[31:0]);
-          // FPU offload
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "fpu_offload", 1'b0);
-          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_seq_insn", 1'b0);
           extras_str = $sformatf("%s}", extras_str);
 
           $timeformat(-9, 0, "", 10);
