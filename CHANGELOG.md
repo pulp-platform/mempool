@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 - Add a DMA
+- Add pv.pack.h xpulpv2 instruction
 
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly

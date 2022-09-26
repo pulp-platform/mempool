@@ -1309,7 +1309,8 @@ module snitch
       riscv_instr::PV_SDOTSP_B,          // Xpulpimg: pv.sdotsp.b
       riscv_instr::PV_SDOTSP_SC_B,       // Xpulpimg: pv.sdotsp.sc.b
       riscv_instr::PV_SHUFFLE2_H,        // Xpulpimg: pv.shuffle2.h
-      riscv_instr::PV_SHUFFLE2_B: begin  // Xpulpimg: pv.shuffle2.b
+      riscv_instr::PV_SHUFFLE2_B,        // Xpulpimg: pv.shuffle2.b
+      riscv_instr::PV_PACK_H: begin      // Xpulpimg: pv.pack.h
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;

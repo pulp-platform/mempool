@@ -1514,6 +1514,7 @@ disassembler_t::disassembler_t(int xlen)
 
   DEFINE_RTYPE(pv_shuffle2_h);
   DEFINE_RTYPE(pv_shuffle2_b);
+  DEFINE_RTYPE(pv_pack_h);
 
   // provide a default disassembly for all instructions as a fallback
   #define DECLARE_INSN(code, match, mask) \
