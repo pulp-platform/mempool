@@ -23,8 +23,8 @@
 #include "dotp_parallel.h"
 #endif
 
-#if defined(PARALLEL_TRIVIAL) || defined(TRIVIAL_UNROLLED)
-#include "dotp_parallel_trivial.h"
+#if defined(PARALLEL_LOCAL) || defined(LOCAL_UNROLLED)
+#include "dotp_parallel_local.h"
 #endif
 
 #if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0)
@@ -93,16 +93,16 @@ int main() {
      B) Atomic fetch and add to a single memory location
      C) Barrier */
 
-  #ifdef PARALLEL_TRIVIAL
+  #ifdef PARALLEL
     time_init = mempool_get_timer();
     mempool_start_benchmark();
-    dotp_parallel_trivial(vector_a, vector_b, &sum, LEN, N_PE);
+    dotp_parallel(vector_a, vector_b, &sum, LEN, N_PE);
     mempool_stop_benchmark();
     time_end = mempool_get_timer();
-  #elif defined(TRIVIAL_UNROLLED)
+  #elif defined(PARALLEL_UNROLLED)
     time_init = mempool_get_timer();
     mempool_start_benchmark();
-    dotp_parallel_trivial_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
+    dotp_parallel_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
     mempool_stop_benchmark();
     time_end = mempool_get_timer();
   #endif
@@ -111,19 +111,19 @@ int main() {
      B) Atomic fetch and add to a single memory location
      C) Barrier */
 
-  #ifdef PARALLEL
+  #ifdef PARALLEL_LOCAL
     if(core_id < N_PE) {
       time_init = mempool_get_timer();
       mempool_start_benchmark();
-      dotp_parallel(vector_a, vector_b, &sum, LEN, N_PE);
+      dotp_parallel_local(vector_a, vector_b, &sum, LEN, N_PE);
       mempool_stop_benchmark();
       time_end = mempool_get_timer();
     }
-  #elif defined(PARALLEL_UNROLLED)
+  #elif defined(LOCAL_UNROLLED)
     if(core_id < N_PE) {
       time_init = mempool_get_timer();
       mempool_start_benchmark();
-      dotp_parallel_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
+      dotp_parallel_local_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
       mempool_stop_benchmark();
       time_end = mempool_get_timer();
     }
