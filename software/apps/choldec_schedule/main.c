@@ -104,9 +104,7 @@ void parallel() {
   if (core_id < N_COL * nPE) {
     mempool_start_benchmark();
     mempool_cholesky_q32p_fold(In_matrix, In_matrix, LL_matrix, LR_matrix, N,
-                               N_ROW, N_COL, FIXED_POINT, nPE);
-    // mempool_log_partial_barrier(2, core_id, nPE);
-    // mempool_log_barrier(2, core_id);
+                               N_ROW, N_COL, FIXED_POINT);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
