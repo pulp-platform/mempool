@@ -1,3 +1,9 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Author: Marco Bertuletti, ETH Zurich
+
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
@@ -5,7 +11,6 @@
 
 #include "nrutil.h"
 #include "svd.c"
-
 
 // Define Matrix dimensions:
 #define M 4
@@ -42,8 +47,8 @@ void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
   }
 }
 
-void init_vector(int32_t *vector, uint32_t num_el,
-                 int32_t a, int32_t b, uint32_t core_id) {
+void init_vector(int32_t *vector, uint32_t num_el, int32_t a, int32_t b,
+                 uint32_t core_id) {
   uint32_t const split = 8; // How many blocks to split the vector into
   uint32_t const reminder = num_el % split;
   uint32_t i, j;
