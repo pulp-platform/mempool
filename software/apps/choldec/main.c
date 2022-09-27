@@ -4,7 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-// #define N 8
+#define N 8
 #define N_BANKS (NUM_CORES * 4)
 
 //#define SINGLE
@@ -21,6 +21,8 @@
 #include "synchronization.h"
 
 #include "initialization.h"
+#include "mempool_sqrt_q32s.h"
+
 #include "mempool_cholesky_q32p.h"
 #include "mempool_cholesky_q32s.h"
 #include "mempool_ldlcholesky_q32s.h"

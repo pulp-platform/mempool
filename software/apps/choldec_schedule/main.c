@@ -4,8 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#define N 32
-#define N_COL 128
+#define N 4
+#define N_COL 1
 #define N_ROW 1
 //#define N_DEC 4096
 
@@ -19,8 +19,6 @@
 #include "synchronization.h"
 
 #include "initialization.h"
-#include "mempool_cholesky_q32s_schedule.h"
-#include "mempool_cholesky_q32p_schedule.h"
 
 int32_t A_matrix[N * N] __attribute__((aligned(N_BANKS), section(".l1")));
 int32_t AT_matrix[N * N] __attribute__((aligned(N_BANKS), section(".l1")));
@@ -37,6 +35,7 @@ int32_t L_matrix[N * N] __attribute__((aligned(N_BANKS), section(".l1")));
 #endif
 
 #if defined(SINGLE)
+#include "mempool_cholesky_q32s_schedule.h"
 // Driver program
 void single_core() {
   uint32_t core_id = mempool_get_core_id();
@@ -69,6 +68,7 @@ void single_core() {
 #endif
 
 #if defined(PARALLEL)
+#include "mempool_cholesky_q32p_schedule.h"
 // Driver program
 void parallel() {
   uint32_t core_id = mempool_get_core_id();

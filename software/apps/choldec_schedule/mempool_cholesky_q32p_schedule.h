@@ -1,3 +1,11 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Author: Marco Bertuletti, ETH Zurich
+
+#include "mempool_sqrt_q32s.h"
+
 void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
                                 int32_t *pLR, const uint32_t n,
                                 const uint32_t n_row, const uint32_t n_col,
