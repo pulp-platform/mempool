@@ -105,7 +105,7 @@ module mempool_cluster
     .DmaRegionWidth (NumBanksPerGroup*4   ),
     .DmaRegionStart (TCDMBaseAddr         ),
     .DmaRegionEnd   (TCDMBaseAddr+TCDMSize),
-    .TransFifoDepth (2                    ),
+    .TransFifoDepth (8                    ),
     .burst_req_t    (dma_req_t            ),
     .meta_t         (dma_meta_t           )
   ) i_idma_distributed_midend (
