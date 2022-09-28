@@ -18,8 +18,8 @@
 /*******************************************************/
 
 /* Parallel dot-product */
-void dotp_parallel_red0(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
-                        uint32_t nPE) {
+void dotp_parallel_red0(int32_t *in_a, int32_t *in_b, int32_t *s,
+                        uint32_t Len) {
 
   uint32_t const remainder = Len % 4;
   uint32_t const idx_stop = Len - remainder;
@@ -63,7 +63,7 @@ void dotp_parallel_red0(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
 
 /* Parallel dot-product with loop unrolling */
 void dotp_parallel_unrolled4_red0(int32_t *in_a, int32_t *in_b, int32_t *s,
-                                  uint32_t Len, uint32_t nPE) {
+                                  uint32_t Len) {
 
   uint32_t const remainder = Len % 4;
   uint32_t const idx_stop = Len - remainder;

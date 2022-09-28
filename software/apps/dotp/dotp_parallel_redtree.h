@@ -22,7 +22,7 @@ void mempool_log_reduction(int32_t *sum, uint32_t volatile step,
 
 /* Parallel dot-product */
 void dotp_parallel_redtree(int32_t *in_a, int32_t *in_b, int32_t *s,
-                           uint32_t Len, uint32_t nPE) {
+                           uint32_t Len) {
 
   uint32_t const remainder = Len % 4;
   uint32_t const idx_stop = Len - remainder;
@@ -50,7 +50,7 @@ void dotp_parallel_redtree(int32_t *in_a, int32_t *in_b, int32_t *s,
 }
 
 void dotp_parallel_redtree_unrolled(int32_t *in_a, int32_t *in_b, int32_t *s,
-                                    uint32_t Len, uint32_t nPE) {
+                                    uint32_t Len) {
 
   uint32_t const remainder = Len % 4;
   uint32_t const idx_stop = Len - remainder;

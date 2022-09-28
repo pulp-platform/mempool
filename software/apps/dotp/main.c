@@ -15,25 +15,11 @@
 
 #include "define.h"
 
-#if defined(SINGLE) || defined(SINGLE_UNROLLED)
-#include "dotp_single.h"
-#endif
-
-#if defined(PARALLEL) || defined(PARALLEL_UNROLLED)
 #include "dotp_parallel.h"
-#endif
-
-#if defined(PARALLEL_LOCAL) || defined(LOCAL_UNROLLED)
 #include "dotp_parallel_local.h"
-#endif
-
-#if defined(PARALLEL_RED0) || defined(PARALLEL_UNROLLED_RED0)
 #include "dotp_parallel_red0.h"
-#endif
-
-#if defined(PARALLEL_REDTREE) || defined(PARALLEL_UNROLLED_REDTREE)
 #include "dotp_parallel_redtree.h"
-#endif
+#include "dotp_single.h"
 
 void init_vectors(int32_t *in_a, int32_t *in_b, int32_t *s, int32_t *p_result,
                   int32_t *p_check, uint32_t Len) {
@@ -81,91 +67,55 @@ int main() {
 
   // Kernel execution
 
+  time_init = mempool_get_timer();
 #ifdef SINGLE
-  time_init = mempool_get_timer();
   dotp_single(vector_a, vector_b, &sum, LEN);
-  time_end = mempool_get_timer();
 #elif defined(SINGLE_UNROLLED)
-  time_init = mempool_get_timer();
   dotp_single_unrolled4(vector_a, vector_b, &sum, LEN);
-  time_end = mempool_get_timer();
 #endif
+  time_end = mempool_get_timer();
 
-  /* A) Parallelized workload
-     B) Atomic fetch and add to a single memory location
-     C) Barrier */
-
+  time_init = mempool_get_timer();
+  mempool_start_benchmark();
+/* A) Parallelized workload
+   B) Atomic fetch and add to a single memory location
+   C) Barrier */
 #ifdef PARALLEL
-  time_init = mempool_get_timer();
-  mempool_start_benchmark();
   dotp_parallel(vector_a, vector_b, &sum, LEN, N_PE);
-  mempool_stop_benchmark();
-  time_end = mempool_get_timer();
 #elif defined(PARALLEL_UNROLLED)
-  time_init = mempool_get_timer();
-  mempool_start_benchmark();
   dotp_parallel_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
+/* A) Parallelized workload
+   B) Atomic fetch and add to local memory banks
+   C) Barrier
+   D) Final reduction by core 0 incorporated in a barrier */
+#elif defined(PARALLEL_RED0)
+  dotp_parallel_red0(vector_a, vector_b, sum, LEN, N_PE);
+#elif defined(PARALLEL_UNROLLED_RED0)
+  dotp_parallel_unrolled4_red0(vector_a, vector_b, sum, LEN, N_PE);
+/* A) Parallelized workload
+   B) Nested set of barriers: reduction is performed in a logarithmic tree. */
+#elif defined(PARALLEL_REDTREE)
+  dotp_parallel_redtree(vector_a, vector_b, sum, LEN, N_PE);
+#elif defined(PARALLEL_UNROLLED_REDTREE)
+  dotp_parallel_redtree_unrolled(vector_a, vector_b, sum, LEN, N_PE);
+#endif
   mempool_stop_benchmark();
   time_end = mempool_get_timer();
-#endif
 
   /* A) Parallelized workload
      B) Atomic fetch and add to a single memory location
      C) Barrier */
-
+  if (core_id < N_PE) {
+    time_init = mempool_get_timer();
+    mempool_start_benchmark();
 #ifdef PARALLEL_LOCAL
-  if (core_id < N_PE) {
-    time_init = mempool_get_timer();
-    mempool_start_benchmark();
     dotp_parallel_local(vector_a, vector_b, &sum, LEN, N_PE);
-    mempool_stop_benchmark();
-    time_end = mempool_get_timer();
-  }
 #elif defined(LOCAL_UNROLLED)
-  if (core_id < N_PE) {
-    time_init = mempool_get_timer();
-    mempool_start_benchmark();
     dotp_parallel_local_unrolled4(vector_a, vector_b, &sum, LEN, N_PE);
+#endif
     mempool_stop_benchmark();
     time_end = mempool_get_timer();
   }
-#endif
-
-  /* A) Parallelized workload
-     B) Atomic fetch and add to local memory banks
-     C) Barrier
-     D) Final reduction by core 0 incorporated in a barrier */
-
-#ifdef PARALLEL_RED0
-  time_init = mempool_get_timer();
-  mempool_start_benchmark();
-  dotp_parallel_red0(vector_a, vector_b, sum, LEN, N_PE);
-  mempool_stop_benchmark();
-  time_end = mempool_get_timer();
-#elif defined(PARALLEL_UNROLLED_RED0)
-  time_init = mempool_get_timer();
-  mempool_start_benchmark();
-  dotp_parallel_unrolled4_red0(vector_a, vector_b, sum, LEN, N_PE);
-  mempool_stop_benchmark();
-  time_end = mempool_get_timer();
-#endif
-
-  /* A) Parallelized workload
-     B) Nested set of barriers: reduction is performed in a logarithmic tree. */
-
-#ifdef PARALLEL_REDTREE
-  time_init = mempool_get_timer();
-  mempool_start_benchmark();
-  dotp_parallel_redtree(vector_a, vector_b, sum, LEN, N_PE);
-  mempool_stop_benchmark();
-  time_end = mempool_get_timer();
-#elif defined(PARALLEL_UNROLLED_REDTREE)
-  time_init = mempool_get_timer();
-  mempool_start_benchmark();
-  dotp_parallel_redtree_unrolled(vector_a, vector_b, sum, LEN, N_PE);
-  mempool_stop_benchmark();
-  time_end = mempool_get_timer();
-#endif
 
   mempool_barrier(NUM_CORES);
   // Check results
