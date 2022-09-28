@@ -209,14 +209,6 @@ module snitch
   `FFAR(wake_up_q, wake_up_d, '0, clk_i, rst_i)
   `FFAR(sb_q, sb_d, '0, clk_i, rst_i)
 
-  // performance counter
-  `ifdef SNITCH_ENABLE_PERF
-  logic [63:0] cycle_q;
-  logic [63:0] instret_q;
-  `FFAR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
-  `FFLAR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
-  `endif
-
   always_comb begin
     core_events_o = '0;
     core_events_o.retired_insts = ~stall;
@@ -289,6 +281,24 @@ module snitch
       endcase
     end
   end
+
+  // --------------------
+  // Performance Counter
+  // --------------------
+
+  `ifdef SNITCH_ENABLE_PERF
+  logic [63:0] cycle_q;
+  logic [63:0] instret_q;
+  logic [31:0] stall_ins_q;
+  logic [31:0] stall_raw_q;
+  logic [31:0] stall_lsu_q;
+  `FFAR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
+  `FFLAR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
+  `FFLAR(stall_ins_q, stall_ins_q + 1, stall && (!inst_ready_i) && inst_valid_o, '0, clk_i, rst_i)
+  `FFLAR(stall_raw_q, stall_raw_q + 1, (!operands_ready) || (!dst_ready), '0, clk_i, rst_i)
+  `FFLAR(stall_lsu_q, stall_lsu_q + 1, lsu_stall, '0, clk_i, rst_i)
+  `endif
+
 
   // --------------------
   // Decoder
@@ -1388,6 +1398,15 @@ module snitch
         end
         riscv_instr::CSR_MINSTRETH: begin
           csr_rvalue = instret_q[63:32];
+        end
+        riscv_instr::CSR_MHPMCOUNTER3: begin
+          csr_rvalue = stall_ins_q[31:0];
+        end
+        riscv_instr::CSR_MHPMCOUNTER4: begin
+          csr_rvalue = stall_lsu_q[31:0];
+        end
+        riscv_instr::CSR_MHPMCOUNTER5: begin
+          csr_rvalue = stall_raw_q[31:0];
         end
         `endif
         default: begin

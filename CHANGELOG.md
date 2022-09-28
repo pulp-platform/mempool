@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add `axpy` kernel
 - Add Spyglass linting scripts
 - Add an OpenMP runtime and example applications
+- Add dotp kernels
 
 ### Fixed
 - Avoid the elaboration of SVA assertions on the `reorder_buffer` module
