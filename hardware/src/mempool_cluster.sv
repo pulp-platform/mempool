@@ -82,8 +82,8 @@ module mempool_cluster
 
   idma_split_midend #(
     .DmaRegionWidth (NumBanksPerGroup*NumGroups*4),
-    .DmaRegionStart (32'h0000_0000               ),
-    .DmaRegionEnd   (32'h1000_0000               ),
+    .DmaRegionStart (TCDMBaseAddr                ),
+    .DmaRegionEnd   (TCDMBaseAddr+TCDMSize       ),
     .AddrWidth      (AddrWidth                   ),
     .burst_req_t    (dma_req_t                   ),
     .meta_t         (dma_meta_t                  )
@@ -101,10 +101,13 @@ module mempool_cluster
   );
 
   idma_distributed_midend #(
-    .NoMstPorts     (NumGroups         ),
-    .DmaRegionWidth (NumBanksPerGroup*4),
-    .burst_req_t    (dma_req_t         ),
-    .meta_t         (dma_meta_t        )
+    .NoMstPorts     (NumGroups            ),
+    .DmaRegionWidth (NumBanksPerGroup*4   ),
+    .DmaRegionStart (TCDMBaseAddr         ),
+    .DmaRegionEnd   (TCDMBaseAddr+TCDMSize),
+    .TransFifoDepth (8                    ),
+    .burst_req_t    (dma_req_t            ),
+    .meta_t         (dma_meta_t           )
   ) i_idma_distributed_midend (
     .clk_i       (clk_i              ),
     .rst_ni      (rst_ni             ),

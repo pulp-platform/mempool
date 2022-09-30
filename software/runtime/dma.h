@@ -13,6 +13,8 @@
 #include <stdint.h>
 
 #include "mempool_dma_frontend.h"
+#include "runtime.h"
+
 #define DMA_BASE (0x40010000)
 
 static inline void dma_config(bool decouple, bool deburst, bool serialize) {
@@ -39,8 +41,8 @@ static inline uint32_t dma_done() {
 }
 
 static inline void dma_wait() {
-  // while (!dma_done())
-  while (!dma_idle())
+  while (!dma_done())
+    // while (!dma_idle())
     ;
 }
 
@@ -60,6 +62,10 @@ void dma_memcpy_nonblocking(void *dest, const void *src, size_t len) {
   *_dma_src_reg = (uint32_t)src;
   *_dma_dst_reg = (uint32_t)dest;
   *_dma_len_reg = (uint32_t)len;
+  // TODO: We need a fence here!
+  asm volatile("" ::: "memory");
+  mempool_wait(32);
+  asm volatile("" ::: "memory");
   // Launch the transfer
   (void)*_dma_id_reg;
 }
