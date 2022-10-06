@@ -18,7 +18,7 @@
 // #include "convolution_riscv.h"
 // #include "halide_runtime.h"
 
-#define M (96)
+#define M (92)
 #define N (4 * NUM_CORES)
 #define KERNEL_N 3
 // #define VERBOSE
@@ -27,8 +27,44 @@ dump(time, 0);
 
 volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
 volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
-volatile int32_t out_l2[M * N] __attribute__((section(".l2")));
+volatile int32_t out_l2[M * N] __attribute__((section(".l2"))) __attribute__((aligned(NUM_CORES*BANKING_FACTOR*4)));;
 // volatile int32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
+
+
+
+uint32_t mempool_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
+  uint32_t log_barrier = (uint32_t *)(((core_id / step) * step + (step >> log2_radix) - 1) * 1024);
+
+  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
+  if (val == (1 << log2_radix - 1)) {
+    // Last core of this stage
+    __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
+    if (step == NUM_CORES) {
+      // Last stage
+      // Clear wfi that was triggered by the first core
+      mempool_wfi();
+      return 1;
+    } else {
+      return mempool_log_barrier(step << log2_radix, log2_radix, core_id);
+    }
+  } else if (val == 0 && step == NUM_CORES) {
+    // First core of last stage
+    // Check that the DMA from the previous iteration is done
+    dma_wait();
+    // Wake up all cores to get to work
+    wake_up_all();
+    mempool_wfi();
+  } else {
+    // Middle cores, sleep
+    mempool_wfi();
+  }
+  return 0;
+}
+
+
+
+
+
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -57,21 +93,21 @@ int main() {
   kernel[7] = 2;
   kernel[8] = 1;
 
+  // Double-buffered convolution
+  const int last_round = 6;
+  const int first = 0;
+  const int last = (int)num_cores - 1;
+  int32_t *round_barrier = (int32_t *)(core_id * 1024);
+
+  // Initial setup
+  // if (core_id == 0) {
+    *round_barrier = 0;
+    // wake_up_all();
+  // }
+
   // Matrices are initialized --> Start calculating
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
-
-  // Double-buffered convolution
-  int last_round = 6;
-  int first = 0;
-  int last = 2 * (int)num_cores;
-  int32_t *round_barrier = (int32_t *)(64 * 1024);
-
-  // Initial setup
-  if (core_id == 0) {
-    *round_barrier = 0;
-    wake_up_all();
-  }
 
   const int32_t *in_comp;
   const int32_t *in_dma;
@@ -91,11 +127,24 @@ int main() {
     }
     mempool_start_benchmark();
     // Barrier, launch DMA for next iteration
-    mempool_wfi();
-    int bar = __atomic_fetch_add(round_barrier, 2, __ATOMIC_RELAXED);
+    mempool_log_barrier(1, 2, core_id);
+    // mempool_wfi();
+    while(*round_barrier > last) {
+      mempool_wait(num_cores);
+    }
+    int bar = __atomic_fetch_add(round_barrier, 1, __ATOMIC_RELAXED);
     // Are we the first to reach the next round?
     if (bar == first) {
+      // Check that the DMA from the previous iteration is done
       dma_wait();
+      // Wake up all cores to get to work
+      wake_up_all();
+      mempool_wfi();
+    } else if (bar == last) {
+      // We are the last one, reset the barrier
+      // Wait until the core checking the DMA gives the signal
+      mempool_wfi();
+      // The old data can now be overwritten with a new DMA request
       if (round != last_round - 1) {
         dma_memcpy_nonblocking((void *)in_dma, (void *)in_l2,
                                M * N / 2 * sizeof(int32_t));
@@ -104,14 +153,15 @@ int main() {
         dma_memcpy_nonblocking((void *)out_l2, (void *)out_dma,
                                M * N / 2 * sizeof(int32_t));
       }
-      bar = __atomic_fetch_add(round_barrier, 2, __ATOMIC_RELAXED);
-    }
-    // Are we the last one?
-    if (bar == last) {
+      // We are the last one, reset the barrier
+      // __atomic_fetch_add(round_barrier, -num_cores, __ATOMIC_RELAXED);
       *round_barrier = 0;
-      if (round != last_round - 1) {
-        wake_up_all();
-      }
+      // if (round != last_round - 1) {
+      //   wake_up_all();
+      // }
+    } else {
+      // Wait until the core checking the DMA gives the signal
+      mempool_wfi();
     }
     mempool_stop_benchmark();
     mempool_start_benchmark();
