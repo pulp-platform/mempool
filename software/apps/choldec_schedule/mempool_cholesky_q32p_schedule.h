@@ -4,20 +4,17 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#include "mempool_sqrt_q32s.h"
-
 void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
                                 int32_t *pLR, const uint32_t n,
-                                const uint32_t n_row, const uint32_t n_col,
-                                const uint32_t fracBits);
+                                const uint32_t n_row, const uint32_t n_col);
 
 void mempool_cholesky_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL,
-                                     uint32_t core_id, const uint32_t j,
-                                     const uint32_t fracBits);
+                                     uint32_t core_id, const uint32_t n,
+                                     const uint32_t j);
 
 void mempool_cholesky_q32p_FRsqrtsum(int32_t *pSrc, int32_t *pL,
                                      uint32_t core_id, const uint32_t n,
-                                     const uint32_t j, const uint32_t fracBits);
+                                     const uint32_t j);
 
 void mempool_cholesky_q32p_FLdivisum(int32_t *pSrc, int32_t *pL,
                                      uint32_t core_id, const uint32_t n,
@@ -29,8 +26,7 @@ void mempool_cholesky_q32p_FRdivisum(int32_t *pSrc, int32_t *pL,
 
 void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
                                 int32_t *pLR, const uint32_t n,
-                                const uint32_t n_row, const uint32_t n_col,
-                                const uint32_t fracBits) {
+                                const uint32_t n_row, const uint32_t n_col) {
 
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t column_id = absolute_core_id / (n >> 2U);
@@ -43,10 +39,10 @@ void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
       for (idx_row = 0; idx_row < n_row; idx_row++) {
         mempool_cholesky_q32p_FLsqrtsum(
             pSrcA + column_id * n, pLL + idx_col * n + idx_row * (n * N_BANKS),
-            core_id, j, fracBits);
+            core_id, n, j);
         mempool_cholesky_q32p_FRsqrtsum(
             pSrcB + column_id * n, pLR + idx_col * n + idx_row * (n * N_BANKS),
-            core_id, n, j, fracBits);
+            core_id, n, j);
       }
     }
     mempool_log_partial_barrier(2, absolute_core_id, n_col * (n >> 2U));
@@ -65,8 +61,8 @@ void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
 }
 
 void mempool_cholesky_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL,
-                                     uint32_t core_id, const uint32_t j,
-                                     const uint32_t fracBits) {
+                                     uint32_t core_id, const uint32_t n,
+                                     const uint32_t j) {
   int32_t sum;
   int32_t pivot;
   uint32_t k;
@@ -151,14 +147,13 @@ void mempool_cholesky_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL,
     case 0:
       break;
     }
-    pL[j * N_BANKS + j] = mempool_sqrt_q32s((pivot - sum), fracBits);
+    pL[j * N_BANKS + j] = mempool_sqrt_q32s(pivot - sum);
   }
 }
 
 void mempool_cholesky_q32p_FRsqrtsum(int32_t *pSrc, int32_t *pL,
                                      uint32_t core_id, const uint32_t n,
-                                     const uint32_t j,
-                                     const uint32_t fracBits) {
+                                     const uint32_t j) {
   int32_t sum;
   int32_t pivot;
   uint32_t k;
@@ -243,7 +238,7 @@ void mempool_cholesky_q32p_FRsqrtsum(int32_t *pSrc, int32_t *pL,
     case 0:
       break;
     }
-    pL[j * N_BANKS + n - 1 - j] = mempool_sqrt_q32s((pivot - sum), fracBits);
+    pL[j * N_BANKS + n - 1 - j] = mempool_sqrt_q32s(pivot - sum);
   }
 }
 
