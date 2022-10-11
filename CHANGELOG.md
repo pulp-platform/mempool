@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Increase the default AXI width to 512 for MemPool and TeraPool
 - Register all control signals at hierarchy boundaries
 - Upgrade to LLVM 14
+- Support multiple outstanding wake-up calls in Snitch
 
 ## 0.5.0 - 2022-08-03
 
