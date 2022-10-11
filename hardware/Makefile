@@ -47,6 +47,8 @@ verilator_top   ?= mempool_tb_verilator
 python          ?= python3
 # Enable tracing
 snitch_trace    ?= 0
+# Ideal instruction path
+ideal_instr     ?= 0
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -73,6 +75,11 @@ ifdef preload
 	vcs_args += +PRELOAD=$(preload)
 endif
 
+# Boot directly from the L2
+ifeq (1, $(ideal_instr))
+  boot_addr = $(l2_base)
+endif
+
 # DPI source files
 dpi     := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
 dpi_vcs := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%_vcs.o,$(wildcard tb/dpi/*.cpp))
@@ -91,6 +98,7 @@ vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 vlog_defs += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
 vlog_defs += -DBOOT_ADDR=$(boot_addr) -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
+vlog_defs += -DIDEAL_INSTR=$(ideal_instr)
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)

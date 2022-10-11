@@ -135,6 +135,9 @@ package mempool_pkg;
   localparam int unsigned ICacheSets      = NumCoresPerCache / 2;       // Number of sets
   localparam int unsigned ICacheLineWidth = 32 * 2 * NumCoresPerCache;  // Size of each cache line in bits
 
+  // Replaces core with a traffic generator
+  parameter bit IdealInstructionInterface  = `ifdef IDEAL_INSTR `IDEAL_INSTR `else 0 `endif;
+
   /*********************
    *  READ-ONLY CACHE  *
    *********************/
