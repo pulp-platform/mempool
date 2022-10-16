@@ -14,8 +14,8 @@
 // Must match the unroll factor in the code
 #define DOTP_UNROLL (4)
 
-void dotp_parallel(const int32_t *a, const int32_t *b, uint32_t N, int32_t *c,
-                   uint32_t core_id, uint32_t num_cores) {
+int32_t dotp_parallel(const int32_t *a, const int32_t *b, uint32_t N,
+                      uint32_t core_id, uint32_t num_cores) {
   int32_t tmp_sum[DOTP_UNROLL] = {0, 0, 0, 0};
   for (uint32_t i = DOTP_UNROLL * core_id; i < N;
        i += DOTP_UNROLL * num_cores) {
@@ -28,9 +28,10 @@ void dotp_parallel(const int32_t *a, const int32_t *b, uint32_t N, int32_t *c,
   sum += tmp_sum[1];
   sum += tmp_sum[2];
   sum += tmp_sum[3];
-  __atomic_fetch_add(c, sum, __ATOMIC_RELAXED);
+  return sum;
 }
 
+/*
 void dotp_parallel_dma(const int32_t *a, const int32_t *b, uint32_t N,
                        const int32_t *a_remote, const int32_t *b_remote,
                        uint32_t N_remote, int32_t *c, uint32_t core_id,
@@ -81,3 +82,4 @@ void dotp_parallel_dma(const int32_t *a, const int32_t *b, uint32_t N,
   sum += tmp_sum[3];
   __atomic_fetch_add(c, sum, __ATOMIC_RELAXED);
 }
+*/

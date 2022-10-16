@@ -7,32 +7,80 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "data.h"
+#include "dma.h"
 #include "encoding.h"
 #include "kernel/dotp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
-#define N (1024 * 32)
+#define N (1024 * 96)
 
 dump(time, 0);
 
-int32_t vec_a[N] __attribute__((section(".l1_prio")));
-int32_t vec_b[N] __attribute__((section(".l1_prio")));
+int32_t vec_x[N] __attribute__((section(".l1_prio")));
+int32_t vec_y[N] __attribute__((section(".l1_prio")));
 
-volatile int32_t vec_a_l2[N] __attribute__((section(".l2")));
-volatile int32_t vec_b_l2[N] __attribute__((section(".l2")));
+// vec_x_l2_flat from `data.h`
+// vec_y_l2_flat from `data.h`
+int32_t result __attribute__((section(".l2")));
 
-void init_vector(volatile int32_t *vec, uint32_t size, uint32_t core_id,
-                 uint32_t num_cores) {
-  const int32_t unroll = 4;
-  for (int32_t i = unroll * (int32_t)core_id; i < (int32_t)size;
-       i += unroll * (int32_t)num_cores) {
-    vec[i + 0] = i - (int32_t)num_cores;
-    vec[i + 1] = -i - (int32_t)num_cores;
-    vec[i + 2] = i + (int32_t)num_cores;
-    vec[i + 3] = -i + (int32_t)num_cores;
+uint32_t final_log_barrier(uint32_t step, uint32_t log2_radix,
+                           uint32_t core_id) {
+  uint32_t *log_barrier =
+      (uint32_t *)(((core_id / step) * step + (step >> log2_radix) - 1) *
+                   SEQ_MEM_SIZE);
+
+  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
+  // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
+  if (val == (uint32_t)((1 << log2_radix) - 1)) {
+    // Last core of this stage
+    if (step == NUM_CORES) {
+      // Last stage
+      // Clear wfi that was triggered by the first core
+      return (uint32_t)log_barrier;
+    } else {
+      __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
+      return final_log_barrier(step << log2_radix, log2_radix, core_id);
+    }
+  } else {
+    // Middle cores, sleep
+    mempool_wfi();
   }
+  return 0;
+}
+
+uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
+  uint32_t *log_barrier =
+      (uint32_t *)(((core_id / step) * step + (step >> log2_radix) - 1) *
+                   SEQ_MEM_SIZE);
+
+  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
+  // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
+  if (val == (uint32_t)((1 << log2_radix) - 1)) {
+    // Last core of this stage
+    if (step == NUM_CORES) {
+      // Last stage
+      // Clear wfi that was triggered by the first core
+      mempool_wfi();
+      return (uint32_t)log_barrier;
+    } else {
+      __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
+      return dma_log_barrier(step << log2_radix, log2_radix, core_id);
+    }
+  } else if (val == 0 && (uint32_t)log_barrier == 0) {
+    // First core of first barrier in first stage
+    // Check that the DMA from the previous iteration is done
+    dma_wait();
+    // Wake up all cores to get to work
+    wake_up_all();
+    mempool_wfi();
+  } else {
+    // Middle cores, sleep
+    mempool_wfi();
+  }
+  return 0;
 }
 
 int main() {
@@ -40,74 +88,104 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
 
-  int32_t *c = (int32_t *)(128 * 1024);
-  int32_t *dotp_barrier_a = (int32_t *)(64 * 1024);
-  int32_t *dotp_barrier_b = (int32_t *)(192 * 1024);
+  // Initial setup
+  int32_t *round_barrier = (int32_t *)(core_id * SEQ_MEM_SIZE);
+  if (core_id != 0) {
+    *round_barrier = 0;
+  }
 
   // Initialize img
-  init_vector(vec_a, N, core_id, num_cores);
-  init_vector(vec_b, N, core_id, num_cores);
-  mempool_barrier(num_cores);
   if (core_id == 0) {
-    *c = 0;
-    *dotp_barrier_a = 0;
-    *dotp_barrier_b = 0;
-    dma_memcpy_blocking(vec_a_l2, vec_a, N * sizeof(int32_t));
-    dma_memcpy_blocking(vec_b_l2, vec_b, N * sizeof(int32_t));
+    dma_memcpy_nonblocking((void *)vec_x, (void *)vec_x_l2_flat,
+                           N / 2 * sizeof(int32_t));
+    dma_memcpy_blocking((void *)vec_y, (void *)vec_y_l2_flat,
+                        N / 2 * sizeof(int32_t));
   }
 
-  // Vectors are initialized --> Start calculating
+  // Double-buffered convolution
+  const int last_round = 4;
+  // const int first = 0;
+  const uint32_t log2_radix = 4;
+  const uint32_t radix = 1 << log2_radix;
+  const uint32_t last = radix - 1; // Radix 4 barrier
+
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
-  uint32_t start = mempool_get_timer();
-  mempool_start_benchmark();
-  // dotp_parallel((const int32_t *)vec_a, (const int32_t *)vec_b, N, c,
-  // core_id, num_cores);
-  dotp_parallel_dma((const int32_t *)vec_a, (const int32_t *)vec_b, N,
-                    (const int32_t *)vec_a_l2, (const int32_t *)vec_b_l2, N, c,
-                    core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
   mempool_start_benchmark();
 
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  uint32_t stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
+  // Initial launch, Core 0 transfered the data in
+  if (core_id == 0) {
+    wake_up_all();
   }
+  const int32_t *vec_x_comp;
+  const int32_t *vec_x_dma;
+  const int32_t *vec_y_comp;
+  const int32_t *vec_y_dma;
 
-  // Hot cache
-  start = mempool_get_timer();
+  const int32_t *vec_x_in;
+  const int32_t *vec_y_in;
+  uint32_t bar;
+
+  int32_t sum = 0;
+
+  for (int round = 0; round < last_round; ++round) {
+    if (round % 2 == 0) {
+      vec_x_comp = (const int32_t *)&vec_x[0];
+      vec_x_dma = (const int32_t *)&vec_x[N / 2];
+      vec_y_comp = (const int32_t *)&vec_y[0];
+      vec_y_dma = (const int32_t *)&vec_y[N / 2];
+
+      vec_x_in = (const int32_t *)&vec_x_l2_flat[N / 2];
+      vec_y_in = (const int32_t *)&vec_y_l2_flat[N / 2];
+    } else {
+      vec_x_comp = (const int32_t *)&vec_x[N / 2];
+      vec_x_dma = (const int32_t *)&vec_x[0];
+      vec_y_comp = (const int32_t *)&vec_y[N / 2];
+      vec_y_dma = (const int32_t *)&vec_y[0];
+
+      vec_x_in = (const int32_t *)&vec_x_l2_flat[0];
+      vec_y_in = (const int32_t *)&vec_y_l2_flat[0];
+    }
+    mempool_start_benchmark();
+    mempool_wfi();
+    // Barrier, launch DMA for next iteration
+    bar = dma_log_barrier(radix, log2_radix, core_id);
+    if (bar) {
+      // We are the last one, reset the barrier
+      // The old data can now be overwritten with a new DMA request
+      if (round != last_round - 1) {
+        dma_memcpy_nonblocking((void *)vec_x_dma, (void *)vec_x_in,
+                               N / 2 * sizeof(int32_t));
+        dma_memcpy_nonblocking((void *)vec_y_dma, (void *)vec_y_in,
+                               N / 2 * sizeof(int32_t));
+      }
+      // We are the last one, reset the barrier
+      __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
+      if (round != last_round - 1) {
+        wake_up_all();
+      }
+    }
+    mempool_stop_benchmark();
+    mempool_start_benchmark();
+    sum += dotp_parallel((const int32_t *)vec_x_comp, (int32_t *)vec_y_comp,
+                         N / 2, core_id, num_cores);
+    mempool_stop_benchmark();
+  }
+  __atomic_fetch_add((int32_t *)(4), sum, __ATOMIC_RELAXED);
+
+  // Last write back
   mempool_start_benchmark();
-  // dotp_parallel((const int32_t *)vec_a, (const int32_t *)vec_b, N, c,
-  // core_id,
-  //               num_cores);
-  dotp_parallel_dma((const int32_t *)vec_a, (const int32_t *)vec_b, N,
-                    (const int32_t *)vec_a_l2, (const int32_t *)vec_b_l2, N, c,
-                    core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
-
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
+  bar = final_log_barrier(radix, log2_radix, core_id);
+  if (bar) {
+    // We are the last one, reset the barrier
+    // The old data can now be overwritten with a new DMA request
+    result = *((int32_t *)(4));
+    // We are the last one, reset the barrier
+    __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
+    wake_up_all();
   }
 
-  // Check result
-  // TODO
-
-  // wait until all cores have finished
-  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 
   return 0;
 }
