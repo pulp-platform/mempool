@@ -137,6 +137,7 @@ module mempool_dma #(
   assign dma_id_o = '0;
 
   // pragma translate_off
+  integer poll;
   integer cycle;
   integer transfer;
   integer size;
@@ -144,6 +145,27 @@ module mempool_dma #(
   string str;
 
   /* verilator lint_off BLKSEQ */
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      poll = 0;
+    end else begin
+      if (valid_o && ready_i) begin
+        $timeformat(-9, 0, " ns", 0);
+        $display("[DMA] Launch %t", $time);
+        poll = 0;
+      end
+      if (trans_complete_i) begin
+        $timeformat(-9, 0, " ns", 0);
+        $display("[DMA] Complete %t", $time);
+      end
+      if (config_req_i.ar_valid && config_res_o.ar_ready && poll == 0) begin
+        $timeformat(-9, 0, " ns", 0);
+        $display("[DMA] Poll %t", $time);
+        poll = 1;
+      end
+    end
+  end
+
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       cycle = 0;
