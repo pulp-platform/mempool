@@ -29,16 +29,43 @@ dump(barrier, 2);
 
 volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
 volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
-volatile int32_t out_l2[M * N] __attribute__((section(".l2"))) __attribute__((aligned(NUM_CORES*BANKING_FACTOR*4)));;
+volatile int32_t out_l2[M * N] __attribute__((section(".l2")))
+__attribute__((aligned(NUM_CORES * BANKING_FACTOR * 4)));
+;
 // volatile int32_t kernel[KERNEL_N * KERNEL_N] __attribute__((section(".l1")));
 
-
-
-uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
-  uint32_t* log_barrier = (uint32_t *)(((core_id / step) * step + (step >> log2_radix) - 1) * 1024);
+uint32_t final_log_barrier(uint32_t step, uint32_t log2_radix,
+                           uint32_t core_id) {
+  uint32_t *log_barrier =
+      (uint32_t *)(((core_id / step) * step + (step >> log2_radix) - 1) *
+                   SEQ_MEM_SIZE);
 
   uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
-  // dump_barrier(step * 1024*1024+(uint32_t)log_barrier + val);
+  // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
+  if (val == (uint32_t)((1 << log2_radix) - 1)) {
+    // Last core of this stage
+    if (step == NUM_CORES) {
+      // Last stage
+      // Clear wfi that was triggered by the first core
+      return (uint32_t)log_barrier;
+    } else {
+      __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
+      return final_log_barrier(step << log2_radix, log2_radix, core_id);
+    }
+  } else {
+    // Middle cores, sleep
+    mempool_wfi();
+  }
+  return 0;
+}
+
+uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
+  uint32_t *log_barrier =
+      (uint32_t *)(((core_id / step) * step + (step >> log2_radix) - 1) *
+                   SEQ_MEM_SIZE);
+
+  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
+  // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
   if (val == (uint32_t)((1 << log2_radix) - 1)) {
     // Last core of this stage
     if (step == NUM_CORES) {
@@ -64,17 +91,12 @@ uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
   return 0;
 }
 
-
-
-
-
-
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
   // Initial setup
-  int32_t *round_barrier = (int32_t *)(core_id * 1024);
+  int32_t *round_barrier = (int32_t *)(core_id * SEQ_MEM_SIZE);
   if (core_id != 0) {
     *round_barrier = 0;
   }
@@ -150,7 +172,7 @@ int main() {
                                M * N / 2 * sizeof(int32_t));
       }
       // We are the last one, reset the barrier
-      __atomic_store_n((uint32_t*)bar, 0, __ATOMIC_RELAXED);
+      __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
       // __atomic_fetch_add(round_barrier, -num_cores, __ATOMIC_RELAXED);
       // *round_barrier = 0;
       if (round != last_round - 1) {
@@ -167,35 +189,22 @@ int main() {
                               core_id, num_cores);
     mempool_stop_benchmark();
   }
-  // Last write back
-  // bar = dma_log_barrier(radix, log2_radix, core_id);
-  // if (bar) {
-  //   // We are the last one, reset the barrier
-  //   // The old data can now be overwritten with a new DMA request
-  //   if (round != last_round - 1) {
-  //     dma_memcpy_nonblocking((void *)in_dma, (void *)in_l2,
-  //                            M * N / 2 * sizeof(int32_t));
-  //   }
-  //   if (round != 0) {
-  //     dma_memcpy_nonblocking((void *)out_l2, (void *)out_dma,
-  //                            M * N / 2 * sizeof(int32_t));
-  //   }
-  //   // We are the last one, reset the barrier
-  //   __atomic_store_n((uint32_t*)bar, 0, __ATOMIC_RELAXED);
-  //   // __atomic_fetch_add(round_barrier, -num_cores, __ATOMIC_RELAXED);
-  //   // *round_barrier = 0;
-  //   if (round != last_round - 1) {
-  //     wake_up_all();
-  //   }
-  // }
 
+  // Last write back
   mempool_start_benchmark();
+  bar = final_log_barrier(radix, log2_radix, core_id);
+  if (bar) {
+    // We are the last one, reset the barrier
+    // The old data can now be overwritten with a new DMA request
+    dma_memcpy_blocking((void *)out_l2, (void *)out_dma,
+                        M * N / 2 * sizeof(int32_t));
+    // We are the last one, reset the barrier
+    __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
+    wake_up_all();
+  }
 
   // Wait at barrier befor checking
-  mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  // TODO Verify
 
   return 0;
 }
