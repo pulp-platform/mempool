@@ -236,8 +236,10 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
       int32_t const *addr_b = &B[j];
       int32_t const *end_b = &B[N * P + j];
       int32_t const *addr_c = &C[i * P + j];
-      int32_t const N3_1 = (-3 * (int32_t)N + 1) * 4;
-      int32_t const P_3 = ((int32_t)P - 3) * 4;
+      int32_t N3_1 = (-3 * (int32_t)N + 1) * 4;
+      int32_t N4 = (int32_t)N * 4;
+      int32_t P_3 = ((int32_t)P - 3) * 4;
+      int32_t a0;
 
       register int32_t k asm("x1") = (int32_t)end_b;
 
@@ -251,15 +253,18 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
       //
       __asm__ volatile(
           ".balign 16 \n\t"
+          // Create some space on the stack
+          // We push: addr_c
+          "addi sp, sp, -4 \n\t"
+          "sw   %[addr_c], 0(sp) \n\t"
           // Outer loop: Initialize and preload. Execute this loop P times
-          // TODO arrange
           "p.lw  x3, %[N](%[addr_a]!) \n\t"
           "p.lw x12, 4(%[addr_b]!) \n\t"
           "p.lw x13, 4(%[addr_b]!) \n\t"
           "p.lw x14, 4(%[addr_b]!) \n\t"
           "p.lw x15, %[P_3](%[addr_b]!) \n\t" // Increment by P-3
           "p.lw  x4, %[N](%[addr_a]!) \n\t"
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
+          "p.lw %[a0], %[N](%[addr_a]!) \n\t"
           "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
           // Initial computation + prefetching
           "mul x16,  x3, x12 \n\t"
@@ -272,11 +277,11 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
           "mul x22,  x4, x14 \n\t"
           "mul x23,  x4, x15 \n\t"
           "p.lw  x4, %[N](%[addr_a]!) \n\t"
-          "mul x24, x10, x12 \n\t"
-          "mul x25, x10, x13 \n\t"
-          "mul x26, x10, x14 \n\t"
-          "mul x27, x10, x15 \n\t"
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
+          "mul x24, %[a0], x12 \n\t"
+          "mul x25, %[a0], x13 \n\t"
+          "mul x26, %[a0], x14 \n\t"
+          "mul x27, %[a0], x15 \n\t"
+          "p.lw %[a0], %[N](%[addr_a]!) \n\t"
           "mul x28, x11, x12 \n\t"
           "p.lw x12, 4(%[addr_b]!) \n\t"
           "mul x29, x11, x13 \n\t"
@@ -298,61 +303,64 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
           "p.lw  x3, %[N](%[addr_a]!) \n\t"
           "p.mac x23,  x4, x15 \n\t"
           "p.lw  x4, %[N](%[addr_a]!) \n\t"
-          "p.mac x24, x10, x12 \n\t"
+          "p.mac x24, %[a0], x12 \n\t"
           "p.mac x28, x11, x12 \n\t"
           "p.lw x12, 4(%[addr_b]!) \n\t"
-          "p.mac x25, x10, x13 \n\t"
+          "p.mac x25, %[a0], x13 \n\t"
           "p.mac x29, x11, x13 \n\t"
           "p.lw x13, 4(%[addr_b]!) \n\t"
-          "p.mac x26, x10, x14 \n\t"
+          "p.mac x26, %[a0], x14 \n\t"
           "p.mac x30, x11, x14 \n\t"
           "p.lw x14, 4(%[addr_b]!) \n\t"
-          "p.mac x27, x10, x15 \n\t"
+          "p.mac x27, %[a0], x15 \n\t"
           "p.mac x31, x11, x15 \n\t"
           "p.lw x15, %[P_3](%[addr_b]!) \n\t" // Increment by P-3
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
+          "p.lw %[a0], %[N](%[addr_a]!) \n\t"
           "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
           "bne %[addr_b], x1, 1b \n\t"
           // Loop done store
+          "lw   %[addr_a], 0(sp) \n\t"
+          "addi sp, sp, 4 \n\t"
           "p.mac x16,  x3, x12 \n\t"
           "p.mac x17,  x3, x13 \n\t"
           "p.mac x18,  x3, x14 \n\t"
-          "p.sw x16, 4(%[addr_c]!) \n\t"
+          "p.sw x16, 4(%[addr_a]!) \n\t"
           "p.mac x19,  x3, x15 \n\t"
-          "p.sw x17, 4(%[addr_c]!) \n\t"
+          "p.sw x17, 4(%[addr_a]!) \n\t"
           "p.mac x20,  x4, x12 \n\t"
-          "p.sw x18, 4(%[addr_c]!) \n\t"
+          "p.sw x18, 4(%[addr_a]!) \n\t"
           "p.mac x21,  x4, x13 \n\t"
-          "p.sw x19, %[P_3](%[addr_c]!) \n\t"
+          "p.sw x19, %[P_3](%[addr_a]!) \n\t"
           "p.mac x22,  x4, x14 \n\t"
-          "p.sw x20, 4(%[addr_c]!) \n\t"
+          "p.sw x20, 4(%[addr_a]!) \n\t"
           "p.mac x23,  x4, x15 \n\t"
-          "p.sw x21, 4(%[addr_c]!) \n\t"
-          "p.mac x24, x10, x12 \n\t"
-          "p.sw x22, 4(%[addr_c]!) \n\t"
-          "p.mac x25, x10, x13 \n\t"
-          "p.sw x23, %[P_3](%[addr_c]!) \n\t"
-          "p.mac x26, x10, x14 \n\t"
-          "p.sw x24, 4(%[addr_c]!) \n\t"
-          "p.mac x27, x10, x15 \n\t"
-          "p.sw x25, 4(%[addr_c]!) \n\t"
+          "p.sw x21, 4(%[addr_a]!) \n\t"
+          "p.mac x24, %[a0], x12 \n\t"
+          "p.sw x22, 4(%[addr_a]!) \n\t"
+          "p.mac x25, %[a0], x13 \n\t"
+          "p.sw x23, %[P_3](%[addr_a]!) \n\t"
+          "p.mac x26, %[a0], x14 \n\t"
+          "p.sw x24, 4(%[addr_a]!) \n\t"
+          "p.mac x27, %[a0], x15 \n\t"
+          "p.sw x25, 4(%[addr_a]!) \n\t"
           "p.mac x28, x11, x12 \n\t"
-          "p.sw x26, 4(%[addr_c]!) \n\t"
+          "p.sw x26, 4(%[addr_a]!) \n\t"
           "p.mac x29, x11, x13 \n\t"
-          "p.sw x27, %[P_3](%[addr_c]!) \n\t"
+          "p.sw x27, %[P_3](%[addr_a]!) \n\t"
           "p.mac x30, x11, x14 \n\t"
-          "p.sw x28, 4(%[addr_c]!) \n\t"
+          "p.sw x28, 4(%[addr_a]!) \n\t"
           "p.mac x31, x11, x15 \n\t"
-          "p.sw x29, 4(%[addr_c]!) \n\t"
-          "p.sw x30, 4(%[addr_c]!) \n\t"
-          "p.sw x31, %[P_3](%[addr_c]!) \n\t"
+          "p.sw x29, 4(%[addr_a]!) \n\t"
+          "p.sw x30, 4(%[addr_a]!) \n\t"
+          "p.sw x31, %[P_3](%[addr_a]!) \n\t"
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
-            [addr_c] "+&r"(addr_c) // Outputs
-          : [N3_1] "r"(N3_1), [P_3] "r"(P_3), [x1] "r"(k),
-            [N] "I"(NN * 4) // Inputs
-          : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
-            "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
-            "x27", "x28", "x29", "x30", "x31", "memory"); // Clobber
+            [a0] "=r"(a0), // Outputs
+            [N3_1] "+r"(N3_1), [P_3] "+r"(P_3), [x1] "+r"(k),
+            [N] "+r"(N4)
+          : [addr_c] "r"(addr_c) // Inputs
+          : "x3", "x4", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18",
+            "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27",
+            "x28", "x29", "x30", "x31", "memory"); // Clobber
     }
   }
 }
