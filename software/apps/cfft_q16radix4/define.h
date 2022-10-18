@@ -6,7 +6,7 @@
 
 /* DEFINES */
 
-//#define TEST_64
+#define TEST_64
 
 #if defined(TEST_64)
 #define N_CSAMPLES (64)
@@ -17,21 +17,22 @@
 #elif defined(TEST_4096)
 #define N_CSAMPLES (4096)
 #endif
-#define N_RSAMPLES (2*N_CSAMPLES)
+#define N_RSAMPLES (2 * N_CSAMPLES)
 
 #define ASM
 #define BITREVERSETABLE
 #define BIT_REV 1
 
-#define SINGLE
-#define XPULP
+//#define SINGLE
+//#define XPULP
+//#define PRINT_SINGLE
 
-// #define PARALLEL
-// #define MEMSIZED
-// #define TWIDDLE_MODIFIER
+//#define PARALLEL
+//#define PRINT_PARALLEL
 
-// #define PRINT_PARALLEL
-// #define PRINT_SINGLE
+//#define FOLDED
+//#define FOLDED_TWIDDLES
+//#define PRINT_FOLDED
 
 /* DATA */
 #define N_BANKS (1024)
