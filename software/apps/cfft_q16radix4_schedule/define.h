@@ -6,7 +6,7 @@
 
 /* DEFINES */
 #define N_CSAMPLES 4096
-#define N_RSAMPLES (2*N_CSAMPLES)
+#define N_RSAMPLES (2 * N_CSAMPLES)
 #define N_BANKS (NUM_CORES * 4)
 
 #define BIT_REV 1
@@ -22,7 +22,6 @@
 //#define N_FFTs_ROW 4
 //#define N_FFTs_COL 1
 //#define MAX_COL (N_BANKS / (N_CSAMPLES / 4))
-
 
 /* FUNCTIONS */
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
