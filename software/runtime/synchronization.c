@@ -12,8 +12,8 @@
 
 // uint32_t volatile barrier __attribute__((section(".l1")));
 uint32_t volatile __l1_start;
-uint32_t volatile log_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+// uint32_t volatile log_barrier[NUM_CORES * 4]
+// __attribute__((aligned(NUM_CORES * 4), section(".l1")));
 // uint32_t volatile partial_barrier[NUM_CORES * 4]
 //     __attribute__((aligned(NUM_CORES * 4), section(".l1")));
 

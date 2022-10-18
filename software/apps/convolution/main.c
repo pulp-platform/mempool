@@ -24,8 +24,6 @@
 // #define VERBOSE
 
 dump(time, 0);
-dump(val, 1);
-dump(barrier, 2);
 
 volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
 volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
@@ -46,6 +44,7 @@ uint32_t final_log_barrier(uint32_t step, uint32_t log2_radix,
     // Last core of this stage
     if (step == NUM_CORES) {
       // Last stage
+      dump_time(2);
       // Clear wfi that was triggered by the first core
       return (uint32_t)log_barrier;
     } else {
@@ -53,6 +52,8 @@ uint32_t final_log_barrier(uint32_t step, uint32_t log2_radix,
       return final_log_barrier(step << log2_radix, log2_radix, core_id);
     }
   } else {
+    if (val == 0 && (uint32_t)log_barrier == 0)
+      dump_time(1);
     // Middle cores, sleep
     mempool_wfi();
   }
@@ -70,6 +71,7 @@ uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
     // Last core of this stage
     if (step == NUM_CORES) {
       // Last stage
+      dump_time(2);
       // Clear wfi that was triggered by the first core
       mempool_wfi();
       return (uint32_t)log_barrier;
@@ -79,11 +81,13 @@ uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
     }
   } else if (val == 0 && (uint32_t)log_barrier == 0) {
     // First core of first barrier in first stage
+    dump_time(1);
     // Check that the DMA from the previous iteration is done
     dma_wait();
     // Wake up all cores to get to work
     wake_up_all();
     mempool_wfi();
+    dump_time(0);
   } else {
     // Middle cores, sleep
     mempool_wfi();
@@ -124,11 +128,10 @@ int main() {
   kernel[8] = 1;
 
   // Double-buffered convolution
-  const int last_round = 6;
+  const int last_round = 4;
   // const int first = 0;
   const uint32_t log2_radix = 4;
   const uint32_t radix = 1 << log2_radix;
-  const uint32_t last = radix - 1; // Radix 4 barrier
 
   // Matrices are initialized --> Start calculating
   // Wait at barrier until everyone is ready
