@@ -45,3 +45,6 @@
 
 // Flush streams after each $display. The timing impact is usually nonmeasurable
 --autoflush
+
+// Set timescale to get consistent results with Modelsim/VCS
+--timescale 1ns/1ns

@@ -277,6 +277,7 @@ module mempool_cc
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "is_seq_insn", 1'b0);
           extras_str = $sformatf("%s}", extras_str);
 
+          $timeformat(-9, 0, "", 10);
           $sformat(trace_entry, "%t %8d 0x%h DASM(%h) #; %s\n",
               $time, cycle, i_snitch.pc_q, i_snitch.inst_data_i, extras_str);
           $fwrite(f, trace_entry);
