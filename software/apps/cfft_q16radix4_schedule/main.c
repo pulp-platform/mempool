@@ -32,6 +32,8 @@
 
 #if defined(SINGLE)
 
+int volatile error __attribute__((section(".l1")));
+
 #define N_BANKS_SINGLE (N_BANKS * ((N_CSAMPLES + N_BANKS - 1) / N_BANKS))
 int16_t pSrc16[N_FFTs * 2 * N_BANKS_SINGLE]
     __attribute__((aligned(N_FFTs * 2 * N_BANKS_SINGLE), section(".l1")));
@@ -39,7 +41,6 @@ int16_t pCoef16[3 * N_CSAMPLES / 4]
     __attribute__((aligned(N_BANKS), section(".l1")));
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
-int volatile error __attribute__((section(".l1")));
 void initialize_vector_s(int16_t *pSrc, uint32_t fftLen) {
   int32_t lower = SHRT_MIN, upper = SHRT_MAX;
   uint32_t idx_fft, i;
@@ -77,7 +78,6 @@ int16_t pCoef16_dst[8 * N_BANKS]
     __attribute__((aligned(8 * N_BANKS), section(".l1")));
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
-int volatile error __attribute__((section(".l1")));
 void initialize_vector_p(int16_t *pSrc, int16_t *pDst, uint32_t fftLen,
                          int16_t *twiddleCoef, int16_t *pCoef_src,
                          int16_t *pCoef_dst) {

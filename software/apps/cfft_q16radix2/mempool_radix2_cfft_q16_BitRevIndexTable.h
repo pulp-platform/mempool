@@ -1,3 +1,9 @@
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Author: Marco Bertuletti, ETH Zurich
+
 #include "define.h"
 
 #define BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH ((uint16_t)16)

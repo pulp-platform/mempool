@@ -1,3 +1,9 @@
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Author: Marco Bertuletti, ETH Zurich
+
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define __HAL_RISCV_BUILTINS_V2_H__
 #include "define.h"
