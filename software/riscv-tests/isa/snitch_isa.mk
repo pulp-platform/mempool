@@ -69,6 +69,7 @@ ifeq ($(xpulpimg),1)
 		pv_sdotusp \
 		pv_sdotsp \
 		pv_shuffle2 \
+		pv_pack \
 
 endif
 
