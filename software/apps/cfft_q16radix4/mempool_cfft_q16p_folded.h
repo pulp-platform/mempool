@@ -43,8 +43,7 @@ static void mempool_cfft_q16p_folded(uint16_t fftLen, int16_t *pCoef,
   }
   if (bitReverseFlag) {
 #ifndef BITREVERSETABLE
-    pSrc16 = pDst16;
-    mempool_bitrev_q16p_xpulpimg((uint16_t *)pSrc16, (uint16_t *)pDst16, fftLen,
+    mempool_bitrev_q16p_xpulpimg((uint16_t *)pDst16, (uint16_t *)pSrc16, fftLen,
                                  nPE);
 #else
     mempool_bitrev_q16p_xpulpimg((uint16_t *)pDst16, bitReverseLen,

@@ -10,17 +10,21 @@
 
 #if defined(TEST_64)
 #define N_CSAMPLES (64)
+#define LOG2 (6)
 #elif defined(TEST_256)
 #define N_CSAMPLES (256)
+#define LOG2 (8)
 #elif defined(TEST_1024)
 #define N_CSAMPLES (1024)
+#define LOG2 (10)
 #elif defined(TEST_4096)
 #define N_CSAMPLES (4096)
+#define LOG2 (12)
 #endif
 #define N_RSAMPLES (2 * N_CSAMPLES)
 
 #define ASM
-#define BITREVERSETABLE
+//#define BITREVERSETABLE
 #define BIT_REV 1
 
 //#define SINGLE
@@ -30,9 +34,9 @@
 //#define PARALLEL
 //#define PRINT_PARALLEL
 
-//#define FOLDED
-//#define FOLDED_TWIDDLES
-//#define PRINT_FOLDED
+#define FOLDED
+#define FOLDED_TWIDDLES
+#define PRINT_FOLDED
 
 /* DATA */
 #define N_BANKS (1024)
