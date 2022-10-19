@@ -202,8 +202,7 @@ static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc,
     addr2 = *(v2s *)&pBitRevTab[i + 2];
     addr3 = *(v2s *)&pBitRevTab[i + 4];
     addr4 = *(v2s *)&pBitRevTab[i + 6];
-    asm volatile(
-                 "pv.sra.h  %[addr1],%[addr1],%[s2];"
+    asm volatile("pv.sra.h  %[addr1],%[addr1],%[s2];"
                  "pv.sra.h  %[addr2],%[addr2],%[s2];"
                  "pv.sra.h  %[addr3],%[addr3],%[s2];"
                  "pv.sra.h  %[addr4],%[addr4],%[s2];"

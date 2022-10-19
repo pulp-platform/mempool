@@ -291,8 +291,8 @@ static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
                  [t4] "=&r"(t4), [t5] "=&r"(t5), [s1] "=&r"(s1), [s2] "=&r"(s2)
-               : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3),
-                 [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
+               : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
+                 [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                :);
   *((v2s *)&pIn[i0 * 2U]) = A;
   *((v2s *)&pIn[i1 * 2U]) = E;
@@ -437,8 +437,8 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
                  [t4] "=&r"(t4), [t5] "=&r"(t5), [s1] "=&r"(s1)
-               : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3),
-                 [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
+               : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
+                 [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                :);
   *((v2s *)&pIn[i0 * 2U]) = D;
   *((v2s *)&pIn[i1 * 2U]) = A;
