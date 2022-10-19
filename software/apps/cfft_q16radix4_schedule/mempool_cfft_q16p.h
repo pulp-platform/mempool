@@ -208,25 +208,20 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
 #else
     uint16_t *ptr1 = (uint16_t *)(pSrc + col_id * fftLen);
     uint16_t *ptr2 = (uint16_t *)(pDst + col_id * fftLen);
-    uint32_t addr, n;
+    uint32_t idx, idx_result;
     core_id = absolute_core_id % (fftLen >> 2U);
-    for (j = core_id; j < (core_id + 4); j++) {
-      n = j + fftLen;
-      addr = 0;
-      while (n > 0) {
-        if (addr != 0)
-          addr = addr << 1;
-        if ((n & 1) == 1)
-          addr = addr ^ 1;
-        n = n >> 1U;
+    for (i = core_id; i < (core_id + 4); i++) {
+      idx = i;
+      idx_result = 0;
+      for (j = 0; j < LOG2; j++) {
+        idx_result = (idx_result << 1U) | (idx & 1U);
+        idx = idx >> 1U;
       }
-      addr = (addr >> 1);
       for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-        *((uint32_t *)&ptr2[2 * addr + idx_row * (N_BANKS * 8)]) =
-            (uint32_t)ptr1[2 * j + idx_row * (N_BANKS * 8)];
+        *((uint32_t *)&ptr2[2 * idx_result + idx_row * (N_BANKS * 8)]) =
+            (uint32_t)ptr1[2 * i + idx_row * (N_BANKS * 8)];
       }
     }
-    pSrc = pDst;
 #endif
   }
 }

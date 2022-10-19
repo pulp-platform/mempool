@@ -197,7 +197,11 @@ int main() {
 #ifdef PRINT_FOLDED
     printf("Done PARALLEL!\n");
     for (uint32_t i = 0; i < N_RSAMPLES; i += 2) {
+#ifndef BITREVERSETABLE
+      printf("{%6d; %6d} \n", pSrc[i], pSrc[i + 1]);
+#else
       printf("{%6d; %6d} \n", pDst[i], pDst[i + 1]);
+#endif
     }
 #endif
   }
