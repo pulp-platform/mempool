@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly
+- Fix the allocator initialization
 
 ### Changed
 - Increase the default AXI width
