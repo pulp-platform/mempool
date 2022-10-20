@@ -628,6 +628,7 @@ def safe_div(dividend, divisor):
 
 
 def eval_perf_metrics(perf_metrics: list, id: int):
+    tile_id = int(id // 4)
     for seg in perf_metrics:
         end = seg['end']
         cycles = end - seg['start'] + 1
@@ -640,7 +641,6 @@ def eval_perf_metrics(perf_metrics: list, id: int):
         seg['total_ipc'] = seg['snitch_occupancy']
         # Detailed load/store info
         if seg['snitch_loads'] > 0:
-            tile_id = int(id // 4)
             seq_region = [x == MEM_REGIONS['Sequential']
                           for x in seg['snitch_load_region']]
             itl_region = [x == MEM_REGIONS['Interleaved']
