@@ -11,6 +11,9 @@ MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPO
 # Include configuration
 include $(MEMPOOL_DIR)/config/config.mk
 
+# Python version
+python             ?= python3
+
 INSTALL_DIR        ?= $(MEMPOOL_DIR)/install
 GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
@@ -129,7 +132,7 @@ RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibili
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
 %.h: %.args
-	cat $< | xargs $(MEMPOOL_DIR)/scripts/gen_data.py --clangformat=$(LLVM_INSTALL_DIR)/bin/clang-format -o $@
+	cat $< | xargs $(python) $(MEMPOOL_DIR)/scripts/gen_data.py --clangformat=$(LLVM_INSTALL_DIR)/bin/clang-format -o $@
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)

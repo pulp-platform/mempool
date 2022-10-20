@@ -74,6 +74,13 @@ add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mem
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/retire_load
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/retire_i
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/retire_acc
+add wave -noupdate -group core[$1][$2][$3] -group Internal -divider Register
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/i_snitch_regfile/raddr_i
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/i_snitch_regfile/waddr_i
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/i_snitch_regfile/wdata_i
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/i_snitch_regfile/we_i
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/i_snitch_regfile/rdata_o
+add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/i_snitch_regfile/mem
 add wave -noupdate -group core[$1][$2][$3] -group Internal -divider ALU
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/opa
 add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/opb
