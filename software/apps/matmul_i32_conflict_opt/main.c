@@ -34,9 +34,9 @@ int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1")));
 int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1")));
 int32_t matrix_c[matrix_M * matrix_P] __attribute__((section(".l1")));
 #if (CONCURRENT_MODE == 1)
-  int32_t matrix_d[matrix_M * matrix_N] __attribute__((section(".l1")));
-  int32_t matrix_e[matrix_N * matrix_P] __attribute__((section(".l1")));
-  int32_t matrix_f[matrix_M * matrix_P] __attribute__((section(".l1")));
+int32_t matrix_d[matrix_M * matrix_N] __attribute__((section(".l1")));
+int32_t matrix_e[matrix_N * matrix_P] __attribute__((section(".l1")));
+int32_t matrix_f[matrix_M * matrix_P] __attribute__((section(".l1")));
 #endif
 int volatile error __attribute__((section(".l2")));
 
@@ -112,70 +112,73 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   // Initialize Matrices
   init_matrix(A, M, N, A_a, A_b, A_c, core_id, num_cores);
   init_matrix(B, N, P, B_a, B_b, B_c, core_id, num_cores);
-  #if (CONCURRENT_MODE == 1)
-    init_matrix(D, M, N, A_a, A_b, A_c, core_id, num_cores);
-    init_matrix(E, N, P, B_a, B_b, B_c, core_id, num_cores);
-  #endif
+#if (CONCURRENT_MODE == 1)
+  init_matrix(D, M, N, A_a, A_b, A_c, core_id, num_cores);
+  init_matrix(E, N, P, B_a, B_b, B_c, core_id, num_cores);
+#endif
   mempool_barrier(num_cores);
 
-  // Serial Benchmark
-  #if (SERIAL_MODE == 1)
-    if (core_id == 0) {
-      printf("Serial Calculation Start\n");
-      mempool_start_benchmark();
-      mat_mul_unrolled_4x4_serial(A, B, C, M, N, P);
-      mempool_stop_benchmark();
-      printf("Calculation Finish\n");
-    }
-  #endif
+// Serial Benchmark
+#if (SERIAL_MODE == 1)
+  if (core_id == 0) {
+    printf("Serial Calculation Start\n");
+    mempool_start_benchmark();
+    mat_mul_unrolled_4x4_serial(A, B, C, M, N, P);
+    mempool_stop_benchmark();
+    printf("Calculation Finish\n");
+  }
+#endif
 
-  // Parallel Benchmark
-  #if (PARALLEL_MODE == 1)
-    if (core_id == 0) {
-      printf("Parallel Calculation Start\n");
-    }
-    mempool_barrier(num_cores);
+// Parallel Benchmark
+#if (PARALLEL_MODE == 1)
+  if (core_id == 0) {
+    printf("Parallel Calculation Start\n");
+  }
+  mempool_barrier(num_cores);
 
-    if (core_id < NUM_PARALLEL_CORES) {
-      mempool_start_benchmark();
-      mat_mul_unrolled_4x4_conflict_opt_parallel_asm(A, B, C, M, N, P, core_id, NUM_PARALLEL_CORES);
-      mempool_start_benchmark();
-      mempool_log_partial_barrier(2, core_id, NUM_PARALLEL_CORES);
-      mempool_stop_benchmark();
-    }
-    mempool_barrier(num_cores);
-  #endif
+  if (core_id < NUM_PARALLEL_CORES) {
+    mempool_start_benchmark();
+    mat_mul_unrolled_4x4_conflict_opt_parallel_asm(A, B, C, M, N, P, core_id,
+                                                   NUM_PARALLEL_CORES);
+    mempool_start_benchmark();
+    mempool_log_partial_barrier(2, core_id, NUM_PARALLEL_CORES);
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
+#endif
 
-  // Concurrent Benchmark
-  #if (CONCURRENT_MODE == 1)
-    if (core_id == 0) {
-      printf("Concurrent Calculation Start\n");
-    }
-    mempool_barrier(num_cores);
+// Concurrent Benchmark
+#if (CONCURRENT_MODE == 1)
+  if (core_id == 0) {
+    printf("Concurrent Calculation Start\n");
+  }
+  mempool_barrier(num_cores);
 
-    if (core_id < 512) {
-      mempool_start_benchmark();
-      mat_mul_unrolled_4x4_conflict_opt_parallel_asm(A, B, C, M, N, P, core_id, 512);
-      mempool_start_benchmark();
-      mempool_log_partial_barrier(2, core_id, 512);
-      mempool_stop_benchmark();
-    }
-    if (core_id >=512) {
-      uint32_t core_id_new = core_id - 512;
-      mempool_start_benchmark();
-      mat_mul_unrolled_4x4_conflict_opt_parallel_asm(D, E, F, M, N, P, core_id_new, 512);
-      mempool_start_benchmark();
-      mempool_log_partial_barrier(2, core_id, 512);
-      mempool_stop_benchmark();
-    }
-    mempool_barrier(num_cores);
-  #endif
-  
+  if (core_id < 512) {
+    mempool_start_benchmark();
+    mat_mul_unrolled_4x4_conflict_opt_parallel_asm(A, B, C, M, N, P, core_id,
+                                                   512);
+    mempool_start_benchmark();
+    mempool_log_partial_barrier(2, core_id, 512);
+    mempool_stop_benchmark();
+  }
+  if (core_id >= 512) {
+    uint32_t core_id_new = core_id - 512;
+    mempool_start_benchmark();
+    mat_mul_unrolled_4x4_conflict_opt_parallel_asm(D, E, F, M, N, P,
+                                                   core_id_new, 512);
+    mempool_start_benchmark();
+    mempool_log_partial_barrier(2, core_id, 512);
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
+#endif
+
   // Verify results
   if (core_id == 0) {
     printf("Start Verify Results\n");
   }
-  mempool_barrier(num_cores);  
+  mempool_barrier(num_cores);
   if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
                     num_cores)) {
     error = 1;

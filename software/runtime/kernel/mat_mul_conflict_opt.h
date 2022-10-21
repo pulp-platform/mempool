@@ -277,18 +277,22 @@ void mat_mul_unrolled_4x4_parallel(int32_t const *__restrict__ A,
   }
 }
 
-void mat_mul_unrolled_4x4_conflict_opt_parallel(
-    int32_t const *__restrict__ A, int32_t const *__restrict__ B,
-    int32_t *__restrict__ C, uint32_t M, uint32_t N, uint32_t P, uint32_t id,
-    uint32_t numThreads) {
-  
+void mat_mul_unrolled_4x4_conflict_opt_parallel(int32_t const *__restrict__ A,
+                                                int32_t const *__restrict__ B,
+                                                int32_t *__restrict__ C,
+                                                uint32_t M, uint32_t N,
+                                                uint32_t P, uint32_t id,
+                                                uint32_t numThreads) {
+
   /////////////////////////////
   //      Configuration      //
   /////////////////////////////
   // Parallelize by assigning each core one row
   // How many cores per window
   uint32_t c = numThreads / (M / 4);
-  if (numThreads * 4 < M) { c = 1; }
+  if (numThreads * 4 < M) {
+    c = 1;
+  }
   uint32_t const c_start = (P / c) * (id % c);
   uint32_t const c_end = (P / c) * ((id % c) + 1);
 
@@ -299,7 +303,9 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel(
   uint32_t jump_lines_A = group_bank_nums / N; // Used for i control
   uint32_t jump_lines_B = group_bank_nums / P; // Used for k control
   // Window size limit, min jump lines is 4 for MatrixA
-  if (jump_lines_A < 4) { jump_lines_A = 4; }
+  if (jump_lines_A < 4) {
+    jump_lines_A = 4;
+  }
 
   /////////////////////////////
   //      LOOP   OFFSET      //
@@ -318,25 +324,28 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel(
   /////////////////////////////
   //      LOOP  CONTROL      //
   /////////////////////////////
-  // Inner Round-Robin 
+  // Inner Round-Robin
   if (k_offset >= N) {
     k_offset = k_offset - N * (k_offset / N);
   }
-  // Middle Round-Robin 
+  // Middle Round-Robin
   uint32_t window_in_P = (P / c) / 4;
   if (j_offset >= window_in_P) {
     j_offset = j_offset - window_in_P * (j_offset / window_in_P);
   }
-  //Outer Loop Control
+  // Outer Loop Control
   uint32_t outer_loop_counter = 0;
   uint32_t outer_loop_time = M / (4 * numThreads);
-  if (outer_loop_time < 1) { outer_loop_time = 1; }
+  if (outer_loop_time < 1) {
+    outer_loop_time = 1;
+  }
   uint32_t M_partition = M / outer_loop_time;
 
   /////////////////////////////
   //      *LOOP  START*      //
   /////////////////////////////
-  for (uint32_t i_ori = 4 * (id / c); i_ori < M; i_ori += 4 * (numThreads / c)) {
+  for (uint32_t i_ori = 4 * (id / c); i_ori < M;
+       i_ori += 4 * (numThreads / c)) {
     outer_loop_counter += 1;
     uint32_t i = i_ori + i_offset;
     // Round-Robin control, if offset lines > M, back to the first window
@@ -346,8 +355,8 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel(
     // Backup counter for mid-loop
     uint32_t j_offset_counter = c_start + j_offset * 4;
     uint32_t P_counter = c_end;
-  
-    Mid_loop:
+
+  Mid_loop:
     for (uint32_t j = j_offset_counter; j < P_counter; j += 4) {
       // Initialize 4x4 output tile
       int32_t c00 = 0, c01 = 0, c02 = 0, c03 = 0;
@@ -359,7 +368,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel(
       uint32_t k_offset_counter = k_offset;
       uint32_t N_counter = N;
 
-      Inner_Loop:
+    Inner_Loop:
       for (uint32_t k = k_offset_counter; k < N_counter; k += 1) {
         // Explicitly load the values first to help with scheduling
         int32_t b0 = B[k * P + j + 0];
@@ -442,8 +451,10 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
                                        uint32_t numThreads) {
   // Parallelize by assigning each tile one row
   uint32_t c = numThreads / (M / 4);
-  if (numThreads * 4 < M) { c = 1; }
-  //numThreads / (M / 4); // How many columns to split the matrix into
+  if (numThreads * 4 < M) {
+    c = 1;
+  }
+  // numThreads / (M / 4); // How many columns to split the matrix into
   uint32_t const c_start = (P / c) * (id % c);
   uint32_t const c_end = (P / c) * ((id % c) + 1);
   for (uint32_t i = 4 * (id / c); i < M; i += 4 * (numThreads / c)) {
@@ -574,17 +585,19 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
 }
 
 void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
-  int32_t const *__restrict__ A, int32_t const *__restrict__ B,
-  int32_t *__restrict__ C, uint32_t M, uint32_t N, uint32_t P, uint32_t id,
-  uint32_t numThreads) {
-  
+    int32_t const *__restrict__ A, int32_t const *__restrict__ B,
+    int32_t *__restrict__ C, uint32_t M, uint32_t N, uint32_t P, uint32_t id,
+    uint32_t numThreads) {
+
   /////////////////////////////
   //      Configuration      //
   /////////////////////////////
   // Parallelize by assigning each core one row
   // How many cores per window
   uint32_t c = numThreads / (M / 4);
-  if (numThreads * 4 < M) { c = 1; }
+  if (numThreads * 4 < M) {
+    c = 1;
+  }
   uint32_t const c_start = (P / c) * (id % c);
   uint32_t const c_end = (P / c) * ((id % c) + 1);
 
@@ -595,7 +608,9 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
   uint32_t jump_lines_A = group_bank_nums / N; // Used for i control
   uint32_t jump_lines_B = group_bank_nums / P; // Used for k control
   // Window size limit, min jump lines is 4 for MatrixA
-  if (jump_lines_A < 4) { jump_lines_A = 4; }
+  if (jump_lines_A < 4) {
+    jump_lines_A = 4;
+  }
 
   /////////////////////////////
   //      LOOP   OFFSET      //
@@ -614,25 +629,28 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
   /////////////////////////////
   //      LOOP  CONTROL      //
   /////////////////////////////
-  // Inner Round-Robin 
+  // Inner Round-Robin
   if (k_offset >= N) {
     k_offset = k_offset - N * (k_offset / N);
   }
-  // Middle Round-Robin 
+  // Middle Round-Robin
   uint32_t window_in_P = (P / c) / 4;
   if (j_offset >= window_in_P) {
     j_offset = j_offset - window_in_P * (j_offset / window_in_P);
   }
-  //Outer Loop Control
+  // Outer Loop Control
   uint32_t outer_loop_counter = 0;
   uint32_t outer_loop_time = M / (4 * numThreads);
-  if (outer_loop_time < 1) { outer_loop_time = 1; }
+  if (outer_loop_time < 1) {
+    outer_loop_time = 1;
+  }
   uint32_t M_partition = M / outer_loop_time;
 
   /////////////////////////////
   //      *LOOP  START*      //
   /////////////////////////////
-  for (uint32_t i_ori = 4 * (id / c); i_ori < M; i_ori += 4 * (numThreads / c)) {
+  for (uint32_t i_ori = 4 * (id / c); i_ori < M;
+       i_ori += 4 * (numThreads / c)) {
     outer_loop_counter += 1;
     uint32_t i = i_ori + i_offset;
     // Round-Robin control, if offset lines > M, back to the first window
@@ -642,8 +660,8 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
     // Backup counter for mid-loop
     uint32_t j_offset_counter = c_start + j_offset * 4;
     uint32_t P_counter = c_end;
-  
-    Mid_loop:
+
+  Mid_loop:
     for (uint32_t j = j_offset_counter; j < P_counter; j += 4) {
       // Address registers
       int32_t const *addr_a_ori = &A[i * N];
@@ -653,7 +671,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
       int32_t const *end_b = &B[N * P + j];
       int32_t const *addr_c = &C[i * P + j];
       register int32_t k asm("x1") = (int32_t)end_b;
-  
+
       __asm__ volatile(
           ".balign 16 \n\t"
           // Outer loop: Initialize and preload. Execute this loop P times
@@ -669,14 +687,14 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "p.lw  x4, %[N](%[addr_a]!) \n\t"
           "p.lw x10, %[N](%[addr_a]!) \n\t"
           "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
-  
+
           // If reach endpoint, swap address
           "bne %[addr_b], x1, init_comp \n\t"
           "lw x1, 0(sp) \n\t"
           "addi %[addr_a], %[addr_a_ori], 0 \n\t"
           "addi %[addr_b], %[addr_b_ori], 0 \n\t"
           "sw %[addr_b], 0(sp) \n\t"
-  
+
           // Initial computation + prefetching
           "init_comp: \n\t"
           "mul x16,  x3, x12 \n\t"
@@ -703,7 +721,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "mul %[addr_a_ori], x11, x15 \n\t"   // Use addr_a_ori instead of x31
           "p.lw x15, %[P_3](%[addr_b]!) \n\t"  // Increment by P-3
           "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
-  
+
           // If reach endpoint, swap address
           "bne %[addr_b], x1, inner_loop \n\t"
           "sw %[addr_a_ori], 8(sp) \n\t" // backup x31
@@ -713,7 +731,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "addi %[addr_b], %[addr_b_ori], 0 \n\t"
           "sw %[addr_b], 0(sp) \n\t"
           "lw %[addr_a_ori], 8(sp) \n\t" // load back x31
-  
+
           // Inner loop: Do this loop N times
           "inner_loop: \n\t"
           "1: \n\t"
@@ -742,7 +760,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "p.lw x10, %[N](%[addr_a]!) \n\t"
           "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
           "bne %[addr_b], x1, 1b \n\t"
-  
+
           // Case1: Loop done if k_offset = 0
           // Case2: Loop done when 2nd time to here
           // Case3: If reach endpoint, swap address
@@ -756,7 +774,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "sw %[addr_b], 0(sp) \n\t"
           "lw %[addr_a_ori], 8(sp) \n\t" // load back x31
           "j 1b \n\t"
-  
+
           // Loop done store
           "store: \n\t"
           "p.mac x16,  x3, x12 \n\t"
@@ -798,8 +816,8 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           : [N3_1] "r"(N31), [P_3] "I"(P3), [x1] "r"(k),
             [N] "I"(matrix_N * 4) // Inputs
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
-            "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27",
-            "x28", "x29", "x30", "memory"); // Clobber
+            "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
+            "x27", "x28", "x29", "x30", "memory"); // Clobber
     }
     if (j_offset_counter != c_start) {
       P_counter = j_offset_counter;
