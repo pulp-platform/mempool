@@ -36,6 +36,7 @@ rv32uxpulpimg_sc_tests = \
   pv_dotup \
   pv_dotusp \
   pv_dotsp \
+  pv_pack \
   pv_sdotup \
   pv_sdotusp \
   pv_sdotsp \
