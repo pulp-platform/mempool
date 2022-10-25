@@ -8,6 +8,7 @@ Thanks to all.
 * Haoran Zhao
 * Joan Mihali
 * Lorena Oswald
+* Luca Rufer
 * Marc Gantenbein
 * Marco Bertuletti
 * Sergio Mazzola

@@ -90,6 +90,7 @@ module snitch
 
   localparam int RegWidth = RVE ? 4 : 5;
   localparam int RegNrReadPorts = snitch_pkg::XPULPIMG ? 3 : 2;
+  localparam logic [RegWidth-1:0] SP = 2;
 
   logic illegal_inst;
   logic zero_lsb;
@@ -1368,24 +1369,32 @@ module snitch
 
   // CSR logic
   logic csr_dump;
-  logic csr_trace_en;
-  logic csr_trace_q;
+  logic csr_trace_en, csr_stack_limit_en;
+  logic [31:0] csr_trace_q, csr_stack_limit_q;
+  logic [11:0] csr_source_dest;
+
+  assign csr_source_dest = inst_data_i[31:20];
 
   always_comb begin
     csr_rvalue = '0;
     csr_dump = 1'b0;
     csr_trace_en = 1'b0;
+    csr_stack_limit_en = 1'b0;
 
     // TODO(zarubaf): Needs some more input handling, like illegal instruction exceptions.
     // Right now we skip this due to simplicity.
     if (csr_en) begin
-      unique case (inst_data_i[31:20])
+      unique case (csr_source_dest)
         riscv_instr::CSR_MHARTID: begin
           csr_rvalue = hart_id_i;
         end
         riscv_instr::CSR_TRACE: begin
           csr_rvalue = csr_trace_q;
           csr_trace_en = 1'b1;
+        end
+        riscv_instr::CSR_STACKLIMIT: begin
+          csr_rvalue = csr_stack_limit_q;
+          csr_stack_limit_en = 1'b1;
         end
         `ifdef SNITCH_ENABLE_PERF
         riscv_instr::CSR_MCYCLE: begin
@@ -1420,6 +1429,7 @@ module snitch
 
   // CSR registers
   `FFLAR(csr_trace_q, alu_result, csr_trace_en, '0, clk_i, rst_i);
+  `FFLAR(csr_stack_limit_q, alu_result, csr_stack_limit_en, 32'hFFFF_FFFF, clk_i, rst_i);
 
   // pragma translate_off
   always_ff @(posedge clk_i or posedge rst_i) begin
@@ -1740,6 +1750,22 @@ module snitch
   end else begin
     $fatal(1, "[snitch] Unsupported RegNrWritePorts.");
   end
+
+  // --------------------
+  // Stack overflow check
+  // --------------------
+
+  // pragma translate_off
+  for (genvar i = 0; i < RegNrWritePorts; i++) begin : gen_stack_overflow_check
+    logic [31:0] sp_new_value;
+    assign sp_new_value = gpr_wdata[i];
+    always_ff @(posedge clk_i or posedge rst_i) begin
+      if (!rst_i && gpr_we[i] && gpr_waddr[i] == SP && csr_stack_limit_q != 32'hFFFF_FFFF && ($signed(sp_new_value) < $signed(csr_stack_limit_q))) begin
+        $warning("[Stackoverflow: Core %0d] Set SP to 0x%08h, limit is 0x%08h", hart_id_i, sp_new_value, csr_stack_limit_q);
+      end
+    end
+  end
+  // pragma translate_on
 
   // --------------------------
   // RISC-V Formal Interface
