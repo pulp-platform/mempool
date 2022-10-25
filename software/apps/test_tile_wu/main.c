@@ -18,6 +18,8 @@ int main() {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t num_cores_per_tile = mempool_get_core_count_per_tile();
+  uint32_t num_cores_per_group = mempool_get_core_count_per_group();
 
   mempool_barrier_init(core_id);
   if (core_id == 0) {
@@ -25,8 +27,8 @@ int main() {
   }
   mempool_barrier(num_cores);
 
-  if (core_id > (5 * NUM_CORES_PER_TILE - 1) &&
-      core_id < (6 * NUM_CORES_PER_TILE)) {
+  if (core_id > (5 * num_cores_per_tile - 1) &&
+      core_id < (6 * num_cores_per_tile)) {
     if (3 == __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
       __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
       __sync_synchronize();
@@ -39,8 +41,8 @@ int main() {
   mempool_barrier(num_cores);
 
   for (uint32_t i = 0; i < NUM_TILES_PER_GROUP; i++) {
-    if (core_id < (i + 1) * NUM_CORES_PER_TILE) {
-      if ((i + 1) * NUM_CORES_PER_TILE - 1 ==
+    if (core_id < (i + 1) * num_cores_per_tile) {
+      if ((i + 1) * num_cores_per_tile - 1 ==
           __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
         __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
         __sync_synchronize();
@@ -56,9 +58,9 @@ int main() {
   mempool_barrier(num_cores);
 
   for (uint32_t i = 0; i < NUM_TILES_PER_GROUP; i++) {
-    if (core_id < NUM_CORES_PER_GROUP + (i + 1) * NUM_CORES_PER_TILE &&
-        core_id > NUM_CORES_PER_GROUP - 1) {
-      if ((i + 1) * NUM_CORES_PER_TILE - 1 ==
+    if (core_id < num_cores_per_group + (i + 1) * num_cores_per_tile &&
+        core_id > num_cores_per_group - 1) {
+      if ((i + 1) * num_cores_per_tile - 1 ==
           __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
         __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
         __sync_synchronize();
@@ -74,9 +76,9 @@ int main() {
   mempool_barrier(num_cores);
 
   for (uint32_t i = 0; i < NUM_TILES_PER_GROUP; i++) {
-    if (core_id < 2 * NUM_CORES_PER_GROUP + (i + 1) * NUM_CORES_PER_TILE &&
-        core_id > 2 * NUM_CORES_PER_GROUP - 1) {
-      if ((i + 1) * NUM_CORES_PER_TILE - 1 ==
+    if (core_id < 2 * num_cores_per_group + (i + 1) * num_cores_per_tile &&
+        core_id > 2 * num_cores_per_group - 1) {
+      if ((i + 1) * num_cores_per_tile - 1 ==
           __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
         __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
         __sync_synchronize();
@@ -90,9 +92,9 @@ int main() {
   }
 
   for (uint32_t i = 0; i < NUM_TILES_PER_GROUP; i++) {
-    if (core_id < 3 * NUM_CORES_PER_GROUP + (i + 1) * NUM_CORES_PER_TILE &&
-        core_id > 3 * NUM_CORES_PER_GROUP - 1) {
-      if ((i + 1) * NUM_CORES_PER_TILE - 1 ==
+    if (core_id < 3 * num_cores_per_group + (i + 1) * num_cores_per_tile &&
+        core_id > 3 * num_cores_per_group - 1) {
+      if ((i + 1) * num_cores_per_tile - 1 ==
           __atomic_fetch_add(&sleep, 1, __ATOMIC_RELAXED)) {
         __atomic_store_n(&sleep, 0, __ATOMIC_RELAXED);
         __sync_synchronize();

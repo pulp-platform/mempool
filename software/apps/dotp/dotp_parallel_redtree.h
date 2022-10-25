@@ -97,6 +97,7 @@ void mempool_log_reduction(int32_t *sum, uint32_t volatile step,
   uint32_t idx_sum, idx = (step * (core_id / step)) * 4;
   uint32_t next_step, previous_step;
   register int32_t local_sum;
+  uint32_t num_cores = mempool_get_core_count();
 
   previous_step = step >> 1;
   if ((step - previous_step) ==
@@ -114,7 +115,7 @@ void mempool_log_reduction(int32_t *sum, uint32_t volatile step,
     next_step = step << 1;
     __atomic_store_n(&red_barrier[idx + previous_step - 1], 0,
                      __ATOMIC_RELAXED);
-    if (NUM_CORES == step) {
+    if (num_cores == step) {
       sum[0] = sum[idx];
       __sync_synchronize(); // Full memory barrier
       wake_up_all();

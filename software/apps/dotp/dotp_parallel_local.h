@@ -22,8 +22,9 @@ void dotp_parallel_local(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
   uint32_t const remainder = Len % 4;
   uint32_t const idx_stop = Len - remainder;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
 
-  if (nPE == NUM_CORES) {
+  if (nPE == num_cores) {
     register int32_t local_sum = 0;
     uint32_t idx = core_id * 4;
     while (idx < idx_stop) {
@@ -45,7 +46,7 @@ void dotp_parallel_local(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
 #ifdef LOG_BARRIERS
     mempool_log_barrier(2, core_id);
 #else
-    mempool_barrier(NUM_CORES);
+    mempool_barrier(num_cores);
 #endif
   } else {
     register int32_t local_sum = 0;
@@ -71,7 +72,7 @@ void dotp_parallel_local(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
 #ifdef LOG_BARRIERS
     mempool_log_partial_barrier(2, core_id, nPE);
 #else
-    mempool_barrier(NUM_CORES);
+    mempool_barrier(num_cores);
 #endif
   }
 }
@@ -83,12 +84,13 @@ void dotp_parallel_local_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
   uint32_t const remainder = Len % 4;
   uint32_t const idx_stop = Len - remainder;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   register int32_t local_sum_1 = 0;
   register int32_t local_sum_2 = 0;
   register int32_t local_sum_3 = 0;
   register int32_t local_sum_4 = 0;
 
-  if (nPE == NUM_CORES) {
+  if (nPE == num_cores) {
     uint32_t idx = core_id * 4;
     while (idx < idx_stop) {
       int32_t in_a1 = in_a[idx];
@@ -120,7 +122,7 @@ void dotp_parallel_local_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
 #ifdef LOG_BARRIERS
     mempool_log_barrier(2, core_id);
 #else
-    mempool_barrier(NUM_CORES);
+    mempool_barrier(num_cores);
 #endif
   } else {
     uint32_t idx = core_id * 4;
@@ -154,7 +156,7 @@ void dotp_parallel_local_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
 #ifdef LOG_BARRIERS
     mempool_log_partial_barrier(2, core_id, nPE);
 #else
-    mempool_barrier(NUM_CORES);
+    mempool_barrier(num_cores);
 #endif
   }
 }

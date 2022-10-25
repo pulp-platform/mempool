@@ -8,6 +8,7 @@
 void dotp_single(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len) {
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   if (core_id == 0) {
 
     mempool_start_benchmark();
@@ -21,7 +22,7 @@ void dotp_single(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len) {
     *s = local_sum;
     mempool_stop_benchmark();
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 }
 
 /* Single-core dot-product unrolled4 */
@@ -29,6 +30,7 @@ void dotp_single_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
                            uint32_t Len) {
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   if (core_id == 0) {
 
     mempool_start_benchmark();
@@ -67,6 +69,6 @@ void dotp_single_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
     *s = local_sum_1;
     mempool_stop_benchmark();
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
   // mempool_log_barrier(2, core_id);
 }

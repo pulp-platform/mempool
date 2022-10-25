@@ -40,9 +40,36 @@ static inline mempool_id_t mempool_get_core_id() {
   return r;
 }
 
+/// Obtain the number of tiles in the current cluster.
+static inline uint32_t mempool_get_tile_count() {
+  return NUM_CORES / NUM_CORES_PER_TILE;
+}
+
+/// Obtain the ID of the tile the current core is in.
+static inline uint32_t mempool_get_tile_id() {
+  return mempool_get_core_id() / NUM_CORES_PER_TILE;
+}
+
+/// Obtain the number of groups in the current cluster.
+static inline uint32_t mempool_get_group_count() { return NUM_GROUPS; }
+
+/// Obtain the ID of the group the current core is in.
+static inline uint32_t mempool_get_group_id() {
+  return mempool_get_core_id() / (NUM_CORES / NUM_GROUPS);
+}
+
+/// Obtain the number of cores per tile in the current cluster
+static inline uint32_t mempool_get_core_count_per_tile() {
+  return NUM_CORES_PER_TILE;
+}
+
+/// Obtain the number of cores per group in the current cluster
+static inline uint32_t mempool_get_core_count_per_group() {
+  return NUM_CORES / NUM_GROUPS;
+}
+
 /// Initialization
-static inline void mempool_init(const uint32_t core_id,
-                                const uint32_t num_cores) {
+static inline void mempool_init(const uint32_t core_id) {
   if (core_id == 0) {
     // Initialize L1 Interleaved Heap Allocator
     extern uint32_t __heap_start, __heap_end;
@@ -60,7 +87,7 @@ static inline void mempool_init(const uint32_t core_id,
     // The base is the start address + the offset due to the queues and stack
     uint32_t seq_heap_base = (uint32_t)&__seq_start + seq_heap_offset;
     uint32_t seq_heap_size = seq_total_size - seq_heap_offset;
-    uint32_t num_tiles = num_cores / NUM_CORES_PER_TILE;
+    uint32_t num_tiles = mempool_get_tile_count();
     for (uint32_t tile_id = 0; tile_id < num_tiles; ++tile_id) {
       alloc_t *tile_allocator = get_alloc_tile(tile_id);
       alloc_init(tile_allocator, (uint32_t *)seq_heap_base, seq_heap_size);

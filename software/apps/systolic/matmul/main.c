@@ -56,13 +56,13 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t tile_id = core_id / NUM_CORES_PER_TILE;
+  uint32_t tile_id = mempool_get_tile_id();
 
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
 
   // Initialization
-  mempool_init(core_id, num_cores);
+  mempool_init(core_id);
 
   // Allocate systolic grid mapping
   if (core_id == 0) {
