@@ -16,7 +16,7 @@ typedef unsigned char v4u __attribute__((vector_size(4)));
 
 inline v2s __PACK2(const int32_t x, const int32_t y) {
   v2s output;
-  asm volatile("pv.pack.h %[z], %[x], %[y];"
+  asm volatile("pv.pack %[z], %[x], %[y];"
                : [z] "=r"(output)
                : [x] "r"(x), [y] "r"(y));
   return output;
