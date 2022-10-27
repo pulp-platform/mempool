@@ -1,7 +1,7 @@
 # See LICENSE for license details.
 
 #*****************************************************************************
-# pv_pack_h.S
+# pv_pack.S
 #-----------------------------------------------------------------------------
 #
 # Test pv.pack instructions.
@@ -17,17 +17,17 @@ RVTEST_CODE_BEGIN
   # Arithmetic tests
   #-------------------------------------------------------------
 
-  # pv.pack
-  TEST_RR_OP(  2, pv.pack, 0x3F6E26D0, 0x00003F6E, 0x000026D0 );
-  TEST_RR_OP(  3, pv.pack, 0x07067322, 0x511B0706, 0xEB397322 );
-  TEST_RR_OP(  4, pv.pack, 0x15F2278E, 0x9D2D15F2, 0x5C71278E );
-  TEST_RR_OP(  5, pv.pack, 0xD28E7E80, 0x4887D28E, 0x2C487E80 );
-  TEST_RR_OP(  6, pv.pack, 0xE999D68F, 0xADE8E999, 0xD26AD68F );
-  TEST_RR_OP(  7, pv.pack, 0xAF790059, 0xEFB6AF79, 0x6BF30059 );
-  TEST_RR_OP(  8, pv.pack, 0x1058D864, 0x5BBB1058, 0xB7FED864 );
-  TEST_RR_OP(  9, pv.pack, 0xCF23EA55, 0x7292CF23, 0xFDC2EA55 );
-  TEST_RR_OP( 10, pv.pack, 0xBE72060F, 0x32CBBE72, 0x6DB6060F );
-  TEST_RR_OP( 11, pv.pack, 0xA2A3DD22, 0xCB19A2A3, 0x00BCDD22 );
+  # pv.pack.h
+  TEST_RR_OP(  2, pv.pack.h, 0x00000000, 0x00003F6E, 0x000026D0 );
+  TEST_RR_OP(  3, pv.pack.h, 0x511BEB39, 0x511B0706, 0xEB397322 );
+  TEST_RR_OP(  4, pv.pack.h, 0x9D2D5C71, 0x9D2D15F2, 0x5C71278E );
+  TEST_RR_OP(  5, pv.pack.h, 0x48872C48, 0x4887D28E, 0x2C487E80 );
+  TEST_RR_OP(  6, pv.pack.h, 0xADE8D26A, 0xADE8E999, 0xD26AD68F );
+  TEST_RR_OP(  7, pv.pack.h, 0xEFB66BF3, 0xEFB6AF79, 0x6BF30059 );
+  TEST_RR_OP(  8, pv.pack.h, 0x5BBBB7FE, 0x5BBB1058, 0xB7FED864 );
+  TEST_RR_OP(  9, pv.pack.h, 0x7292FDC2, 0x7292CF23, 0xFDC2EA55 );
+  TEST_RR_OP( 10, pv.pack.h, 0x32CB6DB6, 0x32CBBE72, 0x6DB6060F );
+  TEST_RR_OP( 11, pv.pack.h, 0xCB1900BC, 0xCB19A2A3, 0x00BCDD22 );
 
   #-------------------------------------------------------------
   # Source/Destination tests
