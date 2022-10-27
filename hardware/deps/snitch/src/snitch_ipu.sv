@@ -219,6 +219,7 @@ module snitch_ipu #(
       riscv_instr::PV_SDOTSP_SCI_B,       // Xpulpimg: pv.sdotsp.sci.b
       riscv_instr::PV_SHUFFLE2_H,         // Xpulpimg: pv.shuffle2.h
       riscv_instr::PV_SHUFFLE2_B,         // Xpulpimg: pv.shuffle2.b
+      riscv_instr::PV_PACK,               // Xpulpimg: pv.pack
       riscv_instr::PV_PACK_H: begin       // Xpulpimg: pv.pack.h
         if (snitch_pkg::XPULPIMG) begin
           dsp_valid_op = acc_qvalid_i;
@@ -379,7 +380,7 @@ module dspu #(
     HalfWord, Byte
   } simd_size;                 // SIMD granularity
   enum logic [1:0] {
-    Vect, Sc, Sci
+    Vect, Sc, Sci, High
   } simd_mode;                 // SIMD mode
   logic simd_signed;           // SIMD operation is signed and uses sign-extended imm6
   logic simd_dotp_op_a_signed; // signedness of SIMD dotp operand a
@@ -1262,8 +1263,13 @@ module dspu #(
         simd_size = Byte;
         res_sel = Simd;
       end
+      riscv_instr::PV_PACK: begin
+        simd_op = SimdPack;
+        res_sel = Simd;
+      end
       riscv_instr::PV_PACK_H: begin
         simd_op = SimdPack;
+        simd_mode = High;
         res_sel = Simd;
       end
       default: ;
@@ -1366,7 +1372,7 @@ module dspu #(
         for (int i = 0; i < Width/16; i++) begin
           simd_op_a[2*i +: 2] = op_a_i[16*i +: 16]; // operands A are the half-words of op_a_i
           // operands B are the half-words of op_b_i, replicated lowest half-word of op_b_i or replicated 6-bit immediate
-          simd_op_b[2*i +: 2] = (simd_mode == Vect) ? op_b_i[16*i +: 16] : ((simd_mode == Sc) ? op_b_i[15:0] : simd_imm);
+          simd_op_b[2*i +: 2] = ((simd_mode == Vect) | simd_mode == High) ? op_b_i[16*i +: 16] : ((simd_mode == Sc) ? op_b_i[15:0] : simd_imm);
           simd_op_c[2*i +: 2] = op_c_i[16*i +: 16]; // operands C are the half-words of op_c_i
         end
       // byte granularity
@@ -1445,8 +1451,8 @@ module dspu #(
               simd_result[2*i +: 2] = simd_op_b[2*i][1] ? simd_op_a[2*simd_op_b[2*i][0] +: 2] : simd_op_c[2*simd_op_b[2*i][0] +: 2];
             end
           SimdPack: begin
-            simd_result[3:2] = simd_op_a[1:0];
-            simd_result[1:0] = simd_op_b[1:0];
+            simd_result[3:2] = (simd_mode == High) ? simd_op_a[3:2] : simd_op_a[1:0];
+            simd_result[1:0] = (simd_mode == High) ? simd_op_b[3:2] : simd_op_b[1:0];
           end
           default: ;
         endcase
