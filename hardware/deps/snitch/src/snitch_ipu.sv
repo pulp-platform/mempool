@@ -1372,7 +1372,7 @@ module dspu #(
         for (int i = 0; i < Width/16; i++) begin
           simd_op_a[2*i +: 2] = op_a_i[16*i +: 16]; // operands A are the half-words of op_a_i
           // operands B are the half-words of op_b_i, replicated lowest half-word of op_b_i or replicated 6-bit immediate
-          simd_op_b[2*i +: 2] = ((simd_mode == Vect) | simd_mode == High) ? op_b_i[16*i +: 16] : ((simd_mode == Sc) ? op_b_i[15:0] : simd_imm);
+          simd_op_b[2*i +: 2] = ((simd_mode == Vect) || (simd_mode == High)) ? op_b_i[16*i +: 16] : ((simd_mode == Sc) ? op_b_i[15:0] : simd_imm);
           simd_op_c[2*i +: 2] = op_c_i[16*i +: 16]; // operands C are the half-words of op_c_i
         end
       // byte granularity
