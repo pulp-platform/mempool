@@ -394,9 +394,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
   /* ya' = ya + yb + yc + yd */
   /* xa' = xa + xb + xc + xd */
   A = __ADD2(A, B);
-  E = __PACK2(t0, t1);
-  F = __PACK2(t2, t3);
-  G = __PACK2(t4, t5);
+  E = __PACK2(t1, t0);
+  F = __PACK2(t3, t2);
+  G = __PACK2(t5, t4);
   *((v2s *)&pOut[i0_store * 2U]) = A;
   *((v2s *)&pOut[i1_store * 2U]) = E;
   *((v2s *)&pOut[i2_store * 2U]) = F;
@@ -431,9 +431,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                "sub           %[t1],zero,%[t1];"
                "sub           %[t3],zero,%[t3];"
                "sub           %[t5],zero,%[t5];"
-               "pv.pack.h %[C1],%[t1],%[t0];"
-               "pv.pack.h %[C2],%[t3],%[t2];"
-               "pv.pack.h %[C3],%[t5],%[t4];"
+               "pv.pack %[C1],%[t1],%[t0];"
+               "pv.pack %[C2],%[t3],%[t2];"
+               "pv.pack %[C3],%[t5],%[t4];"
                "pv.sra.h  %[B],%[B],%[s2];"
                "pv.sra.h  %[D],%[D],%[s2];"
                "pv.sra.h  %[A],%[A],%[s2];"
@@ -447,9 +447,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                "pv.sra.h  %[A],%[E],%[s1];"
                "pv.sra.h  %[B],%[G],%[s1];"
                "sub %[t3],zero,%[t1];"
-               "pv.pack.h %[C],%[t3],%[t0];"
+               "pv.pack %[C],%[t3],%[t0];"
                "sub %[t4],zero,%[t0];"
-               "pv.pack.h %[D],%[t1],%[t4];"
+               "pv.pack %[D],%[t1],%[t4];"
                "pv.sub.h  %[E],%[E],%[G];"
                "pv.add.h  %[G],%[F],%[C];"
                "pv.add.h  %[H],%[F],%[D];"
@@ -466,9 +466,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                "srai  %[t4],%[C],0x10;"
                "srai  %[t5],%[D],0x10;"
                "pv.add.h  %[A],%[A],%[B];"
-               "pv.pack.h %[E],%[t0],%[t1];"
-               "pv.pack.h %[F],%[t2],%[t3];"
-               "pv.pack.h %[G],%[t4],%[t5];"
+               "pv.pack %[E],%[t1],%[t0];"
+               "pv.pack %[F],%[t3],%[t2];"
+               "pv.pack %[G],%[t5],%[t4];"
                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
@@ -618,9 +618,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
                "sub           %[t1],zero,%[t1];"
                "sub           %[t3],zero,%[t3];"
                "sub           %[t5],zero,%[t5];"
-               "pv.pack.h %[C1],%[t1],%[t0];"
-               "pv.pack.h %[C2],%[t3],%[t2];"
-               "pv.pack.h %[C3],%[t5],%[t4];"
+               "pv.pack %[C1],%[t1],%[t0];"
+               "pv.pack %[C2],%[t3],%[t2];"
+               "pv.pack %[C3],%[t5],%[t4];"
                "pv.add.h  %[G],%[B],%[D];"
                "pv.sub.h  %[H],%[B],%[D];"
                "pv.add.h  %[E],%[A],%[C];"
@@ -634,9 +634,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
                "pv.sub.h  %[C],%[E],%[G];"
                "pv.add.h  %[D],%[E],%[G];"
                "sub %[t3],zero,%[t0];"
-               "pv.pack.h %[A],%[t1],%[t3];"
+               "pv.pack %[A],%[t1],%[t3];"
                "sub %[t4],zero,%[t1];"
-               "pv.pack.h %[B],%[t4],%[t0];"
+               "pv.pack %[B],%[t4],%[t0];"
                "pv.sra.h  %[D],%[D],%[s1];"
                "pv.add.h  %[E],%[F],%[A];"
                "pv.add.h  %[F],%[F],%[B];"
@@ -652,9 +652,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
                "srai  %[t3],%[B],0x10;"
                "srai  %[t4],%[G],0x10;"
                "srai  %[t5],%[H],0x10;"
-               "pv.pack.h %[A],%[t0],%[t1];"
-               "pv.pack.h %[B],%[t2],%[t3];"
-               "pv.pack.h %[C],%[t4],%[t5];"
+               "pv.pack %[A],%[t0],%[t1];"
+               "pv.pack %[B],%[t2],%[t3];"
+               "pv.pack %[C],%[t4],%[t5];"
                : [A] "+&r"(A), [B] "+&r"(B), [C] "+r"(C), [D] "+&r"(D),
                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
@@ -776,9 +776,9 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
       "pv.extract.h  %[t1],%[H],1;"
       "pv.sra.h  %[F],%[F],%[s1];"
       "sub %[t2], zero, %[t0];"
-      "pv.pack.h %[A],%[t1],%[t2];"
+      "pv.pack %[A],%[t1],%[t2];"
       "sub %[t3],zero,%[t1];"
-      "pv.pack.h %[B],%[t3],%[t0];"
+      "pv.pack %[B],%[t3],%[t0];"
       "pv.add.h  %[H],%[E],%[G];"
       "pv.sub.h  %[E],%[E],%[G];"
       "pv.add.h  %[A],%[F],%[A];"

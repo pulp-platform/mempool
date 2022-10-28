@@ -20,10 +20,11 @@
 /* CFFT mempool libraries */
 #include "define.h"
 #include "mempool_cfft_q16_BitRevIndexTable.h"
-#include "mempool_cfft_q16_bitreversal.h"
 #include "mempool_cfft_q16_twiddleCoef.h"
 
 #if defined(FOLDED)
+
+#include "mempool_cfft_q16_bitreversal.h"
 
 #include "mempool_cfft_q16p_butterfly_folded.h"
 
@@ -33,6 +34,8 @@
 
 #if defined(PARALLEL)
 
+#include "mempool_cfft_q16_bitreversal.h"
+
 #include "mempool_cfft_q16p_butterfly.h"
 
 #include "mempool_cfft_q16p.h"
@@ -40,6 +43,8 @@
 #endif
 
 #if defined(SINGLE)
+
+#include "mempool_cfft_q16_bitreversal.h"
 
 #include "mempool_cfft_q16s_butterfly.h"
 
@@ -75,13 +80,12 @@ int volatile error __attribute__((section(".l1")));
 void initialize_vector(int16_t volatile *pSrc, int16_t volatile *pDst,
                        uint32_t N_el) {
 
-  int32_t lower = SHRT_MIN, upper = SHRT_MAX;
   uint32_t core_id = mempool_get_core_id();
   uint32_t i;
   srand((unsigned)1);
   for (i = core_id; i < 8 * N_BANKS; i += NUM_CORES) {
     if (i < N_el) {
-      pSrc[i] = (int16_t)(1200 + 5 * i);
+      pSrc[i] = (int16_t)(13 * i - 5 * (i % 3) + 575);
     } else {
       pSrc[i] = (int16_t)0;
     }

@@ -94,9 +94,9 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
                  "sub           %[t1],zero,%[t1];"
                  "sub           %[t3],zero,%[t3];"
                  "sub           %[t5],zero,%[t5];"
-                 "pv.pack.h %[C1],%[t1],%[t0];"
-                 "pv.pack.h %[C2],%[t3],%[t2];"
-                 "pv.pack.h %[C3],%[t5],%[t4];"
+                 "pv.pack %[C1],%[t1],%[t0];"
+                 "pv.pack %[C2],%[t3],%[t2];"
+                 "pv.pack %[C3],%[t5],%[t4];"
                  : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),
                    [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
                    [t4] "=&r"(t4), [t5] "=&r"(t5)
@@ -154,9 +154,9 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
                    "sub           %[t1],zero,%[t1];"
                    "sub           %[t3],zero,%[t3];"
                    "sub           %[t5],zero,%[t5];"
-                   "pv.pack.h %[C1],%[t1],%[t0];"
-                   "pv.pack.h %[C2],%[t3],%[t2];"
-                   "pv.pack.h %[C3],%[t5],%[t4];"
+                   "pv.pack %[C1],%[t1],%[t0];"
+                   "pv.pack %[C2],%[t3],%[t2];"
+                   "pv.pack %[C3],%[t5],%[t4];"
                    : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),
                      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
                      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
@@ -210,16 +210,16 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
     uint16_t *ptr2 = (uint16_t *)(pDst + col_id * fftLen);
     uint32_t idx, idx_result;
     core_id = absolute_core_id % (fftLen >> 2U);
-    for (i = core_id; i < (core_id + 4); i++) {
-      idx = i;
+    for (j = core_id; j < (core_id + 4); j++) {
+      idx = j;
       idx_result = 0;
-      for (j = 0; j < LOG2; j++) {
+      for (k = 0; k < LOG2; k++) {
         idx_result = (idx_result << 1U) | (idx & 1U);
         idx = idx >> 1U;
       }
       for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
         *((uint32_t *)&ptr2[2 * idx_result + idx_row * (N_BANKS * 8)]) =
-            (uint32_t)ptr1[2 * i + idx_row * (N_BANKS * 8)];
+            (uint32_t)ptr1[2 * j + idx_row * (N_BANKS * 8)];
       }
     }
 #endif
@@ -292,9 +292,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
   /* ya' = ya + yb + yc + yd */
   /* xa' = xa + xb + xc + xd */
   A = __ADD2(A, B);
-  E = __PACK2(t0, t1);
-  F = __PACK2(t2, t3);
-  G = __PACK2(t4, t5);
+  E = __PACK2(t1, t0);
+  F = __PACK2(t3, t2);
+  G = __PACK2(t5, t4);
   *((v2s *)&pOut[i0_store * 2U]) = A;
   *((v2s *)&pOut[i1_store * 2U]) = E;
   *((v2s *)&pOut[i2_store * 2U]) = F;
@@ -337,9 +337,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                "pv.sra.h  %[A],%[E],%[s1];"
                "pv.sra.h  %[B],%[G],%[s1];"
                "sub %[t2],zero,%[t1];"
-               "pv.pack.h %[C],%[t2],%[t0];"
+               "pv.pack %[C],%[t2],%[t0];"
                "sub %[t3],zero,%[t0];"
-               "pv.pack.h %[D],%[t1],%[t3];"
+               "pv.pack %[D],%[t1],%[t3];"
                "pv.sub.h  %[E],%[E],%[G];"
                "pv.add.h  %[G],%[F],%[C];"
                "pv.add.h  %[H],%[F],%[D];"
@@ -356,9 +356,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                "srai  %[C],%[C],0x10;"
                "srai  %[D],%[D],0x10;"
                "pv.add.h  %[A],%[A],%[B];"
-               "pv.pack.h %[E],%[t0],%[t1];"
-               "pv.pack.h %[F],%[t2],%[t3];"
-               "pv.pack.h %[G],%[C],%[D];"
+               "pv.pack %[E],%[t1],%[t0];"
+               "pv.pack %[F],%[t3],%[t2];"
+               "pv.pack %[G],%[D],%[C];"
                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
@@ -494,9 +494,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
       "pv.sub.h  %[C],%[E],%[G];"
       "pv.add.h  %[D],%[E],%[G];"
       "sub %[t2],zero,%[t0];"
-      "pv.pack.h %[A],%[t1],%[t2];"
+      "pv.pack %[A],%[t1],%[t2];"
       "sub %[t3],zero,%[t1];"
-      "pv.pack.h %[B],%[t3],%[t0];"
+      "pv.pack %[B],%[t3],%[t0];"
       "pv.sra.h  %[D],%[D],%[s1];"
       "pv.add.h  %[E],%[F],%[A];"
       "pv.add.h  %[F],%[F],%[B];"
@@ -512,9 +512,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
       "srai  %[t3],%[B],0x10;"
       "srai  %[G],%[G],0x10;"
       "srai  %[H],%[H],0x10;"
-      "pv.pack.h %[A],%[t0],%[t1];"
-      "pv.pack.h %[B],%[t2],%[t3];"
-      "pv.pack.h %[C],%[G],%[H];"
+      "pv.pack %[A],%[t0],%[t1];"
+      "pv.pack %[B],%[t2],%[t3];"
+      "pv.pack %[C],%[G],%[H];"
       : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D), [E] "=&r"(E),
         [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H), [t0] "=&r"(t0),
         [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3), [s1] "=&r"(s1)
@@ -626,9 +626,9 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
       "pv.extract.h  %[t1],%[H],1;"
       "pv.sra.h  %[F],%[F],%[s1];"
       "sub %[t2], zero, %[t0];"
-      "pv.pack.h %[A],%[t1],%[t2];"
+      "pv.pack %[A],%[t1],%[t2];"
       "sub %[t3],zero,%[t1];"
-      "pv.pack.h %[B],%[t3],%[t0];"
+      "pv.pack %[B],%[t3],%[t0];"
       "pv.add.h  %[H],%[E],%[G];"
       "pv.sub.h  %[E],%[E],%[G];"
       "pv.add.h  %[A],%[F],%[A];"
