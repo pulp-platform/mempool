@@ -42,10 +42,6 @@ void matrixmult(int32_t *matrix_1, int32_t *matrix_2, int32_t *matrix_product,
 }
 
 void display(int32_t *matrix, uint32_t num_rows, uint32_t num_columns) {
-//    uint32_t i;
-//    for (i = 0; i < num_rows * num_columns; i++) {
-//      printf("Output[%d] = %8d\n", i, matrix[i]);
-//    }
 #if defined(FOLDED)
   uint32_t i, j;
   for (i = 0; i < num_rows; i++) {

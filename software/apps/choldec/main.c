@@ -4,39 +4,20 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#define N 4
-#define N_BANKS (NUM_CORES * 4)
-
-//#define SINGLE
-//#define PARALLEL
-//#define FOLDED
-
-//#define BANACHIEWICZ
-#define CROUT
-#define VERBOSE
-
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+
+#include "define.h"
 
 #include "initialization.h"
 #include "mempool_sqrt_q32s.h"
 
 #include "mempool_cholesky_q32p.h"
 #include "mempool_cholesky_q32s.h"
-
-int32_t A_matrix[N * N] __attribute__((aligned(N_BANKS), section(".l1")));
-int32_t AT_matrix[N * N] __attribute__((aligned(N_BANKS), section(".l1")));
-int32_t M_matrix[N * N] __attribute__((aligned(N_BANKS), section(".l1")));
-int32_t In[N] __attribute__((aligned(N_BANKS), section(".l1")));
-
-int32_t LL_matrix[N * N_BANKS]
-    __attribute__((aligned(N_BANKS), section(".l1")));
-int32_t LR_matrix[N * N_BANKS]
-    __attribute__((aligned(N_BANKS), section(".l1")));
-
-int32_t L_matrix[N * N] __attribute__((aligned(N_BANKS), section(".l1")));
+#include "mempool_linearsolver_q32p.h"
+#include "mempool_linearsolver_q32s.h"
 
 void initialize() {
   uint32_t core_id = mempool_get_core_id();
@@ -71,9 +52,12 @@ void single_core() {
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
+#if defined(LINSOLVER)
+    mempool_linearsolver_q32s(M_matrix, L_matrix, In, N);
+    mempool_uprtrisolver_q32s(L_matrix, In, N);
+#else
     mempool_cholesky_q32s(M_matrix, L_matrix, N);
-    // mempool_linearsolver_q32s(M_matrix, L_matrix, In, N);
-    // mempool_uprtrisolver_q32s(L_matrix, In, N);
+#endif
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -121,10 +105,13 @@ void parallel_folded() {
   /* Benchmark */
   if (core_id < nPE) {
     mempool_start_benchmark();
+#if defined(LINSOLVER)
+    mempool_linearsolver_q32p_fold(M_matrix, M_matrix, LL_matrix, LR_matrix, In,
+                                   In, N, nPE);
+#else
     mempool_cholesky_q32p_fold(M_matrix, M_matrix, LL_matrix, LR_matrix, N,
                                nPE);
-    // mempool_linearsolver_q32p_fold(M_matrix, M_matrix, LL_matrix, LR_matrix,
-    // In, N, nPE);
+#endif
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);

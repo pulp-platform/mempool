@@ -9,8 +9,7 @@ void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
                                 const uint32_t n_row, const uint32_t n_col);
 
 void mempool_cholesky_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL,
-                                     uint32_t core_id, const uint32_t n,
-                                     const uint32_t j);
+                                     uint32_t core_id, const uint32_t j);
 
 void mempool_cholesky_q32p_FRsqrtsum(int32_t *pSrc, int32_t *pL,
                                      uint32_t core_id, const uint32_t n,
@@ -39,7 +38,7 @@ void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
       for (idx_row = 0; idx_row < n_row; idx_row++) {
         mempool_cholesky_q32p_FLsqrtsum(
             pSrcA + column_id * n, pLL + idx_col * n + idx_row * (n * N_BANKS),
-            core_id, n, j);
+            core_id, j);
         mempool_cholesky_q32p_FRsqrtsum(
             pSrcB + column_id * n, pLR + idx_col * n + idx_row * (n * N_BANKS),
             core_id, n, j);
@@ -61,8 +60,7 @@ void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
 }
 
 void mempool_cholesky_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL,
-                                     uint32_t core_id, const uint32_t n,
-                                     const uint32_t j) {
+                                     uint32_t core_id, const uint32_t j) {
   int32_t sum;
   int32_t pivot;
   uint32_t k;

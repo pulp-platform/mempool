@@ -9,8 +9,7 @@ void mempool_linsolver_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
                                  const uint32_t n_row, const uint32_t n_col);
 
 void mempool_linsolver_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
-                                      uint32_t core_id, const uint32_t n,
-                                      const uint32_t j);
+                                      uint32_t core_id, const uint32_t j);
 
 void mempool_linsolver_q32p_FRsqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
                                       uint32_t core_id, const uint32_t n,
@@ -25,8 +24,7 @@ void mempool_linsolver_q32p_FRdivisum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
                                       const uint32_t j);
 
 void mempool_linsolver_q32p_trisolverL(int32_t *pL, int32_t *pIn,
-                                       uint32_t core_id, const uint32_t n,
-                                       const uint32_t nPE);
+                                       uint32_t core_id, const uint32_t n);
 
 void mempool_linsolver_q32p_trisolverR(int32_t *pL, int32_t *pIn,
                                        uint32_t core_id, const uint32_t n,
@@ -47,7 +45,7 @@ void mempool_linsolver_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
       for (idx_row = 0; idx_row < n_row; idx_row++) {
         mempool_linsolver_q32p_FLsqrtsum(
             pSrcA + idx_col * n, pLL + idx_col * n + idx_row * (n * N_BANKS),
-            pIn + idx_col * n, core_id, n, j);
+            pIn + idx_col * n, core_id, j);
         mempool_linsolver_q32p_FRsqrtsum(
             pSrcB + idx_col * n, pLR + idx_col * n + idx_row * (n * N_BANKS),
             pIn + idx_col * n, core_id, n, j);
@@ -69,9 +67,9 @@ void mempool_linsolver_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
 
   for (idx_col = column_id; idx_col < n_col; idx_col += n_col) {
     for (idx_row = 0; idx_row < n_row; idx_row++) {
-      mempool_linsolver_q32p_trisolverL(
-          pLL + idx_col * n + idx_row * (n * N_BANKS), pIn + idx_col * n,
-          core_id, n, n_col * (n >> 2U));
+      mempool_linsolver_q32p_trisolverL(pLL + idx_col * n +
+                                            idx_row * (n * N_BANKS),
+                                        pIn + idx_col * n, core_id, n);
       mempool_linsolver_q32p_trisolverR(
           pLR + idx_col * n + idx_row * (n * N_BANKS), pIn + idx_col * n,
           core_id, n, n_col * (n >> 2U));
@@ -81,8 +79,7 @@ void mempool_linsolver_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
 }
 
 void mempool_linsolver_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
-                                      uint32_t core_id, const uint32_t n,
-                                      const uint32_t j) {
+                                      uint32_t core_id, const uint32_t j) {
   int32_t sum, in, result;
   int32_t pivot;
   uint32_t k;
@@ -492,8 +489,7 @@ void mempool_linsolver_q32p_FRdivisum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
 }
 
 void mempool_linsolver_q32p_trisolverL(int32_t *pL, int32_t *pIn,
-                                       uint32_t core_id, const uint32_t n,
-                                       const uint32_t nPE) {
+                                       uint32_t core_id, const uint32_t n) {
   int32_t sum;
   uint32_t i, k;
   int32_t a0, a1, a2, a3;
