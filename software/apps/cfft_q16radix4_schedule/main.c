@@ -30,9 +30,9 @@
 #include "mempool_cfft_q16p.h"
 #endif
 
-#if defined(SINGLE)
-
 int volatile error __attribute__((section(".l1")));
+
+#if defined(SINGLE)
 
 #define N_BANKS_SINGLE (N_BANKS * ((N_CSAMPLES + N_BANKS - 1) / N_BANKS))
 int16_t pSrc16[N_FFTs * 2 * N_BANKS_SINGLE]
