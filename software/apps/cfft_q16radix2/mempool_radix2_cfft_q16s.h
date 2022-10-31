@@ -5,7 +5,6 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#define __HAL_RISCV_BUILTINS_V2_H__
 #include "define.h"
 #include "xpulp/builtins_v2.h"
 
