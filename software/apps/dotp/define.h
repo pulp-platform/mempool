@@ -19,20 +19,20 @@
 //////////////////////////////////
 /*          SELECT ONE          */
 
-//#define SINGLE
-//#define SINGLE_UNROLLED
+// #define SINGLE
+// #define SINGLE_UNROLLED
 
-//#define PARALLEL
-//#define PARALLEL_UNROLLED
+// #define PARALLEL
+// #define PARALLEL_UNROLLED
 
-//#define PARALLEL_LOCAL
-//#define LOCAL_UNROLLED
+// #define PARALLEL_LOCAL
+// #define LOCAL_UNROLLED
 
-//#define PARALLEL_RED0
-//#define PARALLEL_UNROLLED_RED0
+// #define PARALLEL_RED0
+// #define PARALLEL_UNROLLED_RED0
 
-//#define PARALLEL_REDTREE
-//#define PARALLEL_UNROLLED_REDTREE
+// #define PARALLEL_REDTREE
+// #define PARALLEL_UNROLLED_REDTREE
 
 //////////////////////////////////
 
