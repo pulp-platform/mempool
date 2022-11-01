@@ -92,7 +92,7 @@ tc-llvm:
 		-DLLVM_BUILD_DOCS="0" \
 		-DLLVM_ENABLE_BINDINGS="0" \
 		-DLLVM_ENABLE_TERMINFO="0"  \
-		-DLLVM_ENABLE_ASSERTIONS=ON \
+		-DLLVM_OPTIMIZED_TABLEGEN=ON \
 		-DCMAKE_BUILD_TYPE=Release \
 		../llvm && \
 	make -j4 all && \
