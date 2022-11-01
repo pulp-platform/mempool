@@ -1140,6 +1140,7 @@ package riscv_instr;
   localparam logic [11:0] CSR_MHPMEVENT30 = 12'h33e;
   localparam logic [11:0] CSR_MHPMEVENT31 = 12'h33f;
   localparam logic [11:0] CSR_TRACE = 12'h7d0;
+  localparam logic [11:0] CSR_STACKLIMIT = 12'h7d1;
   localparam logic [11:0] CSR_MVENDORID = 12'hf11;
   localparam logic [11:0] CSR_MARCHID = 12'hf12;
   localparam logic [11:0] CSR_MIMPID = 12'hf13;

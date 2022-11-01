@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add a DMA
 - Add pv.pack.h xpulpv2 instruction
 - Add a script to generate random data to preload the L2 memory
+- Add stack overflow simulator warning using dedicated CSR
 
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly

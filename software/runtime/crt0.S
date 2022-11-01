@@ -72,6 +72,9 @@ _reset_vector:
     li      t0, XQUEUE_SIZE                                     // XQUEUE_SIZE (in words)
     slli    t0, t0, (4+2)                                       // XQUEUE_SIZE * BANKS_PER_TILE * BYTES_PER_WORD
     add     sp, sp, t0                                          // offset += 16 * xqueue_size * 4
+    // Write the stack limit into the dedicated CSR
+    addi    t0, sp, -(STACK_SIZE-4)                             // stack_limit = sp - (STACK_SIZE - 1)
+    csrw    stacklimit, t0                                     // write stack limit into CSR
     // Configure the RO cache or directly jump to main
     bnez    a0, _jump_main
     la      t0, ro_cache_end_0                                  // Get peripheral register to set cacheable region
