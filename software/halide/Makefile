@@ -33,7 +33,7 @@ $(BINARIES):  $(BIN_DIR)/$(APP_PREFIX)%: %/$(PIPELINE) %/main.c.o $(RUNTIME) $(L
 
 # Build Halide application
 %.bin: %.cpp
-	$(CXX) $< -g -I $(HALIDE_INCLUDE) -L$(HALIDE_LIB) $(DEFINES) -lHalide -lpthread -ldl -std=c++11 -o $@
+	$(CXX) $< -g -I $(HALIDE_INCLUDE) -L$(HALIDE_LIB) $(DEFINES) -lHalide -lpthread -ldl -std=c++17 -o $@
 
 # Run Halide cross-compilation
 %.riscv.o: %.bin
