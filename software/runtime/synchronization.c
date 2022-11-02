@@ -26,6 +26,8 @@ void mempool_barrier_init(uint32_t core_id) {
     for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
       partial_barrier[i] = 0;
     }
+    set_wake_up_stride(1U);
+    set_wake_up_offset(0U);
     wake_up_all();
     mempool_wfi();
   } else {
