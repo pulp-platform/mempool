@@ -33,6 +33,8 @@ void mempool_barrier_init(uint32_t core_id) {
   mempool_barrier(NUM_CORES);
 }
 
+/* PLAIN BARRIER */
+
 void mempool_barrier(uint32_t num_cores) {
   // Increment the barrier counter
   if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
@@ -44,6 +46,24 @@ void mempool_barrier(uint32_t num_cores) {
   // Clear the wake-up trigger for the last core reaching the barrier as well
   mempool_wfi();
 }
+
+void mempool_strided_barrier(uint32_t *barrier, uint32_t num_cores,
+                             uint32_t stride, uint32_t offset) {
+
+  // Increment the barrier counter
+  if ((num_cores - 1) == __atomic_fetch_add(barrier, 1, __ATOMIC_RELAXED)) {
+    __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
+    __sync_synchronize(); // Full memory barrier
+    set_wake_up_stride(stride);
+    set_wake_up_offset(offset);
+    wake_up_all();
+    set_wake_up_stride(1U);
+    set_wake_up_offset(0U);
+  }
+  mempool_wfi();
+}
+
+/* LOG BARRIER */
 
 void mempool_log_barrier(uint32_t step, uint32_t core_id) {
 
@@ -68,6 +88,37 @@ void mempool_log_barrier(uint32_t step, uint32_t core_id) {
   } else
     mempool_wfi();
 }
+
+void mempool_strided_log_barrier(uint32_t step, uint32_t core_id,
+                                 uint32_t stride, uint32_t offset) {
+
+  uint32_t idx = (step * (core_id / step)) * 4 + offset;
+  uint32_t next_step, previous_step;
+  uint32_t num_cores = mempool_get_core_count();
+
+  previous_step = step >> 1;
+  if ((step - previous_step) ==
+      __atomic_fetch_add(&log_barrier[idx + previous_step - 1], previous_step,
+                         __ATOMIC_RELAXED)) {
+    next_step = step << 1;
+    __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
+                     __ATOMIC_RELAXED);
+    if (num_cores == step) {
+      __sync_synchronize(); // Full memory barrier
+      set_wake_up_stride(stride);
+      set_wake_up_offset(offset);
+      wake_up_all();
+      set_wake_up_stride(1U);
+      set_wake_up_offset(0U);
+      mempool_wfi();
+    } else {
+      mempool_log_barrier(next_step, core_id);
+    }
+  } else
+    mempool_wfi();
+}
+
+/* PARTIAL BARRIER */
 
 void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
                                  uint32_t num_cores_barrier) {
