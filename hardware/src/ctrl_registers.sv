@@ -49,21 +49,23 @@ module ctrl_registers
   // [3 :0 ]:eoc_reg                        (rw)
   // [7 :4 ]:wake_up_reg                    (rw)
   // [11:8 ]:wake_up_group_reg              (rw)
-  // [15:12]:tcdm_start_adress_reg          (ro)
-  // [19:16]:tcdm_end_address_reg           (ro)
-  // [23:20]:nr_cores_address_reg           (ro)
-  // [27:24]:ro_cache_enable                (rw)
-  // [31:28]:ro_cache_flush                 (rw)
-  // [35:32]:ro_cache_start_0               (rw)
-  // [39:36]:ro_cache_end_0                 (rw)
-  // [43:40]:ro_cache_start_1               (rw)
-  // [47:44]:ro_cache_end_1                 (rw)
-  // [51:48]:ro_cache_start_2               (rw)
-  // [55:52]:ro_cache_end_2                 (rw)
-  // [59:56]:ro_cache_start_3               (rw)
-  // [63:60]:ro_cache_end_3                 (rw)
+  // [15:12]:wake_up_stride_reg             (rw)
+  // [19:16]:wake_up_offset_reg             (rw)
+  // [23:20]:tcdm_start_adress_reg          (ro)
+  // [27:24]:tcdm_end_address_reg           (ro)
+  // [31:28]:nr_cores_address_reg           (ro)
+  // [35:32]:ro_cache_enable                (rw)
+  // [39:36]:ro_cache_flush                 (rw)
+  // [43:40]:ro_cache_start_0               (rw)
+  // [47:44]:ro_cache_end_0                 (rw)
+  // [51:48]:ro_cache_start_1               (rw)
+  // [55:52]:ro_cache_end_1                 (rw)
+  // [59:56]:ro_cache_start_2               (rw)
+  // [63:60]:ro_cache_end_2                 (rw)
+  // [67:64]:ro_cache_start_3               (rw)
+  // [71:68]:ro_cache_end_3                 (rw)
 
-  // [95:64]:wake_up_tile[7:0]              (rw)
+  // [103:72]:wake_up_tile[7:0]              (rw)
 
   localparam logic [MAX_NumGroups*DataWidth-1:0] RegRstVal_TileWakeUp = '{MAX_NumGroups*DataWidth{1'b0}};
   localparam logic [NumRegs-MAX_NumGroups-1:0][DataWidth-1:0] RegRstVal = '{
@@ -80,6 +82,8 @@ module ctrl_registers
     NumCores,
     TCDMBaseAddr + TCDMSize,
     TCDMBaseAddr,
+    {DataWidth{1'b0}},
+    32'h0000_0001,
     {DataWidth{1'b0}},
     {DataWidth{1'b0}},
     {DataWidth{1'b0}}
@@ -102,6 +106,8 @@ module ctrl_registers
     ReadOnlyReg,
     ReadWriteReg,
     ReadWriteReg,
+    ReadWriteReg,
+    ReadWriteReg,
     ReadWriteReg
   };
 
@@ -111,6 +117,8 @@ module ctrl_registers
   logic [DataWidth-1:0]   eoc;
   logic [DataWidth-1:0]   wake_up;
   logic [DataWidth-1:0]   wake_up_group;
+  logic [DataWidth-1:0]   wake_up_stride;
+  logic [DataWidth-1:0]   wake_up_offset;
   logic [DataWidth-1:0]   tcdm_start_address;
   logic [DataWidth-1:0]   tcdm_end_address;
   logic [DataWidth-1:0]   num_cores;
@@ -126,6 +134,9 @@ module ctrl_registers
   logic [DataWidth-1:0]   ro_cache_end_3;
   logic [MAX_NumGroups*DataWidth-1:0] wake_up_tile;
 
+
+  logic [NumCores-1:0]   wake_up_trigger;
+  logic [NumCores-1:0]   wake_up_mask_q, wake_up_mask_d;
   logic [RegNumBytes-1:0] wr_active_d;
   logic [RegNumBytes-1:0] wr_active_q;
 
@@ -152,7 +163,8 @@ module ctrl_registers
                     ro_cache_end_1, ro_cache_start_1,
                     ro_cache_end_0, ro_cache_start_0,
                     ro_cache_flush, ro_cache_enable,
-                    num_cores, tcdm_end_address, tcdm_start_address, wake_up_group, wake_up, eoc  })
+                    num_cores, tcdm_end_address, tcdm_start_address,
+                    wake_up_offset, wake_up_stride, wake_up_group, wake_up, eoc  })
   );
 
   /***************
@@ -175,38 +187,59 @@ module ctrl_registers
   assign ro_cache_ctrl_o.end_addr[2]   = ro_cache_end_2;
   assign ro_cache_ctrl_o.end_addr[3]   = ro_cache_end_3;
 
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if(~rst_ni) begin
+      wake_up_mask_d <= '1;
+      wake_up_mask_q <= '1;
+    end else begin
+
+      // Change state
+      wake_up_mask_q <= wake_up_mask_d;
+      // Initialize wake up mask
+      if (wr_active_q[15:12] || wr_active_q[19:16]) begin
+        wake_up_mask_d <= '0;
+        for (int i = wake_up_offset; i < NumCores; i = i + wake_up_stride) begin
+          wake_up_mask_d[i] <= 1'b1;
+        end
+      end
+
+    end
+  end
+
   always_comb begin
     wake_up_o = '0;
+    wake_up_trigger = '0;
+
     // converts 32 bit wake up to 256 bit
     if (wr_active_q[7:4]) begin
       if (wake_up < NumCores) begin
-        wake_up_o = 1 << wake_up;
+        wake_up_trigger = 1 << wake_up;
       end else if (wake_up == {DataWidth{1'b1}}) begin
-        wake_up_o = {NumCores{1'b1}};
+        wake_up_trigger = {NumCores{1'b1}};
       end
+      wake_up_o = wake_up_trigger & wake_up_mask_q;
     end
+
     // converts 32 bit group wake up mask to 256 bit core wake up mask
     if (wr_active_q[11:8]) begin
       if (wake_up_group <= {NumGroups{1'b1}}) begin
-        for(int i = 0; i < NumGroups; i = i + 1) begin
-          wake_up_o[NumCoresPerGroup * i +: NumCoresPerGroup] = {NumCoresPerGroup{wake_up_group[i]}};
+        for (int i_g = 0; i_g < NumGroups; i_g = i_g + 1) begin: wake_up_groups
+          wake_up_trigger[NumCoresPerGroup * i_g +: NumCoresPerGroup] = {NumCoresPerGroup{wake_up_group[i_g]}};
         end
-      end else if (wake_up_group == {DataWidth{1'b1}}) begin
-        wake_up_o = {NumCores{1'b1}};
       end
+      wake_up_o = wake_up_trigger & wake_up_mask_q;
     end
 
-    // converts 32 bit tile wake up mask to 256 bit core wake up mask
+    // converts 32 bit tile wake up masks to 256 bit core wake up mask
     for(int i_g = 0; i_g < NumGroups; i_g = i_g + 1) begin
-
-      if (wr_active_q[64 + 4 * i_g +: 4]) begin
+      if (wr_active_q[72 + 4 * i_g +: 4]) begin
         if (wake_up_tile[i_g * DataWidth +: DataWidth] <= {NumTilesPerGroup{1'b1}}) begin
-          for (int i = 0; i < NumTilesPerGroup; i = i + 1) begin
-            wake_up_o[NumCoresPerGroup * i_g + NumCoresPerTile * i +: NumCoresPerTile] = {NumCoresPerTile{wake_up_tile[i_g * DataWidth + i]}};
+          for (int i_t = 0; i_t < NumTilesPerGroup; i_t = i_t + 1) begin: wake_up_tiles
+            wake_up_trigger[NumCoresPerGroup * i_g + NumCoresPerTile * i_t +: NumCoresPerTile] = {NumCoresPerTile{wake_up_tile[i_g * DataWidth + i_t]}};
           end
         end
       end
-
+      wake_up_o = wake_up_trigger & wake_up_mask_q;
     end
 
   end
