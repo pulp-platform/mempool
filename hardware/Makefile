@@ -96,6 +96,7 @@ vlog_args += -work $(library)
 # Defines
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DNUM_GROUPS=$(num_groups) -DBANKING_FACTOR=$(banking_factor)
 vlog_defs += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
+vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
 vlog_defs += -DBOOT_ADDR=$(boot_addr) -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
 vlog_defs += -DIDEAL_INSTR=$(ideal_instr)
