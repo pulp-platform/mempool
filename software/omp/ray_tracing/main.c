@@ -2,17 +2,17 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
-#include <limits.h>
 #include "encoding.h"
 #include "libgomp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include <limits.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #define WIDTH (256)
 #define HEIGHT (160)
@@ -22,7 +22,7 @@
 #define PRECISION (1024)
 #define PRECISION_SQRT (32)
 
-#define VEC3_xyz(X, Y, Z) ((Vec3) { .x = X, .y = Y, .z = Z })
+#define VEC3_xyz(X, Y, Z) ((Vec3){.x = X, .y = Y, .z = Z})
 #define VEC3_x(X) VEC3_xyz(X, X, X)
 #define VEC3 VEC3_x(0)
 typedef struct Vec3 {
@@ -37,7 +37,7 @@ static inline int sqrtint(int x) {
   } else if (x < 2) {
     return x; /* avoid div/0 */
   }
-  unsigned val = (unsigned) x;
+  unsigned val = (unsigned)x;
   /* starting point is relatively unimportant */
   unsigned a = PRECISION;
   unsigned b;
@@ -51,7 +51,7 @@ static inline int sqrtint(int x) {
   b = val / a;
   a = (a + b) / 2;
 
-  return (int) a;
+  return (int)a;
   // return sqrt(x);
 }
 
@@ -96,16 +96,16 @@ static inline Vec3 vec_abs(Vec3 v) {
 }
 
 static inline Vec3 vec_add(Vec3 a, Vec3 b) {
-  return (Vec3) { .x = a.x + b.x, .y = a.y + b.y, .z = a.z + b.z };
+  return (Vec3){.x = a.x + b.x, .y = a.y + b.y, .z = a.z + b.z};
 }
 static inline Vec3 vec_subtract(Vec3 a, Vec3 b) {
-  return (Vec3) { .x = a.x - b.x, .y = a.y - b.y, .z = a.z - b.z };
+  return (Vec3){.x = a.x - b.x, .y = a.y - b.y, .z = a.z - b.z};
 }
 static inline Vec3 vec_negate(Vec3 v) {
-  return (Vec3) { .x = -v.x, .y = -v.y, .z = -v.z };
+  return (Vec3){.x = -v.x, .y = -v.y, .z = -v.z};
 }
 static inline Vec3 vec_multiply(Vec3 a, Vec3 b) {
-  return (Vec3) { .x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z };
+  return (Vec3){.x = a.x * b.x, .y = a.y * b.y, .z = a.z * b.z};
 }
 
 static inline Vec3 vec_normalize2(Vec3 v) {
@@ -161,8 +161,7 @@ typedef struct Sphere {
   int transparency, reflection;     /// surface transparency and reflectivity
 } Sphere;
 
-Sphere* spheres_ptr[NUM_CORES];
-
+Sphere *spheres_ptr[NUM_CORES];
 
 // Compute a ray-sphere intersection using the geometric solution
 bool intersect(const Sphere sphere, const Vec3 rayorig, const Vec3 raydir,
@@ -316,8 +315,7 @@ Vec3 trace(const Vec3 rayorig, const Vec3 raydir, const Sphere *spheres,
                 vec_scale(refraction,
                           (PRECISION - fresneleffect) * sphere->transparency)),
         sphere->surfaceColor);
-    surfaceColor =
-        vec_divide(surfaceColor, 256 * PRECISION); // Divide by 256
+    surfaceColor = vec_divide(surfaceColor, 256 * PRECISION); // Divide by 256
   } else {
     // it's a diffuse object, no need to raytrace any further
     for (unsigned i = 0; i < num_spheres; ++i) {
@@ -365,9 +363,9 @@ Vec3 trace(const Vec3 rayorig, const Vec3 raydir, const Sphere *spheres,
 //[/comment]
 void render(const Sphere *spheres, unsigned num_spheres) {
   Vec3 *pixel = image;
-  // Trace rays
-  // #pragma omp parallel for firstprivate(pixel) schedule(static)
-  #pragma omp parallel for collapse(2) firstprivate(pixel) schedule(dynamic, 8)
+// Trace rays
+// #pragma omp parallel for firstprivate(pixel) schedule(static)
+#pragma omp parallel for collapse(2) firstprivate(pixel) schedule(dynamic, 8)
   for (int x = 0; x < WIDTH; ++x) {
     for (int y = 0; y < HEIGHT; ++y) {
       Vec3 raydir = VEC3_xyz(-WIDTH / 2 + x, HEIGHT / 2 - y, -WIDTH * 1);
@@ -375,8 +373,9 @@ void render(const Sphere *spheres, unsigned num_spheres) {
       raydir = vec_normalize(raydir);
       // printf("Check pixel %04d, raydir %d %d %d\n", x + y * WIDTH, raydir.x,
       //       raydir.y, raydir.z);
-      const Sphere* local_spheres = spheres_ptr[mempool_get_core_id()];
-      pixel[x + y * WIDTH] = trace(VEC3_x(0), raydir, local_spheres, num_spheres, 0);
+      const Sphere *local_spheres = spheres_ptr[mempool_get_core_id()];
+      pixel[x + y * WIDTH] =
+          trace(VEC3_x(0), raydir, local_spheres, num_spheres, 0);
     }
   }
   // Save result to a PPM image (keep these flags if you compile under Windows)
@@ -405,56 +404,56 @@ int main() {
   const unsigned num_spheres = 7;
   Sphere spheres[num_spheres];
   // position, radius, surface color, reflectivity, transparency, emission color
-  spheres[0] = (Sphere) { .center = VEC3_xyz(0, -1004, 0),
-                          .radius = 1000,
-                          .radius2 = 1000 * 1000,
-                          .surfaceColor = VEC3_xyz(80, 80, 80),
-                          .emissionColor = VEC3,
-                          .transparency = 0,
-                          .reflection = 0 };
-  spheres[1] = (Sphere) { .center = VEC3_xyz(0, 0, -20),
-                          .radius = 4,
-                          .radius2 = 4 * 4,
-                          .surfaceColor = VEC3_xyz(87, 117, 144),
-                          .emissionColor = VEC3,
-                          .transparency = 0,
-                          .reflection = 0 };
-  spheres[2] = (Sphere) { .center = VEC3_xyz(5, -1, -15),
-                          .radius = 2,
-                          .radius2 = 2 * 2,
-                          .surfaceColor = VEC3_xyz(249, 199, 79),
-                          .emissionColor = VEC3,
-                          .transparency = 0,
-                          .reflection = 0 };
-  spheres[3] = (Sphere) { .center = VEC3_xyz(5, 0, -25),
-                          .radius = 3,
-                          .radius2 = 3 * 3,
-                          .surfaceColor = VEC3_xyz(144, 190, 109),
-                          .emissionColor = VEC3,
-                          .transparency = 0,
-                          .reflection = 0 };
-  spheres[4] = (Sphere) { .center = VEC3_xyz(-5, 0, -15),
-                          .radius = 3,
-                          .radius2 = 3 * 3,
-                          .surfaceColor = VEC3_xyz(255, 255, 255),
-                          .emissionColor = VEC3,
-                          .transparency = 0,
-                          .reflection = 0 };
+  spheres[0] = (Sphere){.center = VEC3_xyz(0, -1004, 0),
+                        .radius = 1000,
+                        .radius2 = 1000 * 1000,
+                        .surfaceColor = VEC3_xyz(80, 80, 80),
+                        .emissionColor = VEC3,
+                        .transparency = 0,
+                        .reflection = 0};
+  spheres[1] = (Sphere){.center = VEC3_xyz(0, 0, -20),
+                        .radius = 4,
+                        .radius2 = 4 * 4,
+                        .surfaceColor = VEC3_xyz(87, 117, 144),
+                        .emissionColor = VEC3,
+                        .transparency = 0,
+                        .reflection = 0};
+  spheres[2] = (Sphere){.center = VEC3_xyz(5, -1, -15),
+                        .radius = 2,
+                        .radius2 = 2 * 2,
+                        .surfaceColor = VEC3_xyz(249, 199, 79),
+                        .emissionColor = VEC3,
+                        .transparency = 0,
+                        .reflection = 0};
+  spheres[3] = (Sphere){.center = VEC3_xyz(5, 0, -25),
+                        .radius = 3,
+                        .radius2 = 3 * 3,
+                        .surfaceColor = VEC3_xyz(144, 190, 109),
+                        .emissionColor = VEC3,
+                        .transparency = 0,
+                        .reflection = 0};
+  spheres[4] = (Sphere){.center = VEC3_xyz(-5, 0, -15),
+                        .radius = 3,
+                        .radius2 = 3 * 3,
+                        .surfaceColor = VEC3_xyz(255, 255, 255),
+                        .emissionColor = VEC3,
+                        .transparency = 0,
+                        .reflection = 0};
   // light
-  spheres[5] = (Sphere) { .center = VEC3_xyz(30, 40, -5),
-                          .radius = 1,
-                          .radius2 = 1 * 1,
-                          .surfaceColor = VEC3_xyz(0, 0, 0),
-                          .emissionColor = VEC3_x(255),
-                          .transparency = 0,
-                          .reflection = 0 };
-  spheres[6] = (Sphere) { .center = VEC3_xyz(-20, 60, 50),
-                          .radius = 1,
-                          .radius2 = 1 * 1,
-                          .surfaceColor = VEC3_xyz(0, 0, 0),
-                          .emissionColor = VEC3_x(255),
-                          .transparency = 0,
-                          .reflection = 0 };
+  spheres[5] = (Sphere){.center = VEC3_xyz(30, 40, -5),
+                        .radius = 1,
+                        .radius2 = 1 * 1,
+                        .surfaceColor = VEC3_xyz(0, 0, 0),
+                        .emissionColor = VEC3_x(255),
+                        .transparency = 0,
+                        .reflection = 0};
+  spheres[6] = (Sphere){.center = VEC3_xyz(-20, 60, 50),
+                        .radius = 1,
+                        .radius2 = 1 * 1,
+                        .surfaceColor = VEC3_xyz(0, 0, 0),
+                        .emissionColor = VEC3_x(255),
+                        .transparency = 0,
+                        .reflection = 0};
   for (unsigned i = 0; i < num_spheres; ++i) {
     spheres[i].center = vec_scale(spheres[i].center, PRECISION);
     spheres[i].radius = spheres[i].radius * PRECISION;
