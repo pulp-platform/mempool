@@ -21,7 +21,9 @@ module snitch
   parameter logic [31:0] MTVEC     = BootAddr, // Exception Base Address (see privileged spec 3.1.7)
   parameter bit          RVE       = 0,   // Reduced-register Extension
   parameter bit          RVM       = 1,   // Enable IntegerMmultiplication & Division Extension
-  parameter bit          ZFINX_RV  = 1,   // (mbertuletti)
+  parameter bit          RVF       = `ifdef FPU `FPU `else 0 `endif,
+  parameter bit          RVD       = `ifdef FPU `FPU `else 0 `endif,
+  parameter bit          ZFINX_RV  = `ifdef FPU `FPU `else 0 `endif,
   parameter int    RegNrWritePorts = 2    // Implement one or two write ports into the register file
 ) (
   input  logic          clk_i,
