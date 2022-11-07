@@ -21,7 +21,7 @@ num_cores_per_tile ?= 8
 banking_factor ?= 4
 
 # Radix for hierarchical AXI interconnect
-axi_hier_radix ?= 8
+axi_hier_radix ?= 10
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 2
