@@ -287,6 +287,11 @@ spyglass/tmp/files: $(bender)
 ################
 # Tracing      #
 ################
+
+# Give configuration in env
+trace_env += NUM_CORES=$(num_cores)
+trace_env += SEQ_MEM_SIZE=$(seq_mem_size)
+
 benchmark: log simcvcs
 	# Call `make` again to get variable extension with all traces
 	result_dir=$(result_dir) $(MAKE) trace
@@ -318,7 +323,7 @@ post_trace:
 $(buildpath)/%.trace: $(buildpath)/%.dasm
 	mkdir -p $(tracepath)
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
-	$(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
+	$(trace_env) $(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
 
 tracevis:
 	$(MEMPOOL_DIR)/scripts/tracevis.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json

@@ -91,6 +91,7 @@ module snitch
   localparam int RegWidth = RVE ? 4 : 5;
   localparam int RegNrReadPorts = snitch_pkg::XPULPIMG ? 3 : 2;
   localparam logic [RegWidth-1:0] SP = 2;
+  localparam int OutstandingWfi = 8;
 
   logic illegal_inst;
   logic zero_lsb;
@@ -98,7 +99,7 @@ module snitch
   // Instruction fetch
   logic [31:0] pc_d, pc_q;
   logic wfi_d, wfi_q;
-  logic wake_up_d, wake_up_q;
+  logic [$clog2(OutstandingWfi)-1:0] wake_up_d, wake_up_q;
   logic [31:0] consec_pc;
   // Immediates
   logic [31:0] iimm, uimm, jimm, bimm, simm, pbimm;
@@ -346,7 +347,7 @@ module snitch
     // Wake up if a wake-up is incoming or pending
     wfi_d = (wake_up_q || wake_up_sync_i) ? 1'b0 : wfi_q;
     // Only store a pending wake-up if we are not asleep
-    wake_up_d = (wake_up_sync_i && !wfi_q) ? 1'b1 : wake_up_q;
+    wake_up_d = (wake_up_sync_i && !wfi_q) ? wake_up_q + 1 : wake_up_q;
 
     unique casez (inst_data_i)
       riscv_instr::ADD: begin
@@ -643,7 +644,14 @@ module snitch
           if (wake_up_q || wake_up_sync_i) begin
             // Do not sleep if a wake-up is pending
             wfi_d = 1'b0;
-            wake_up_d = 1'b0;
+            if (wake_up_q) begin
+              // Decrement outstanding wake_up pulses
+              wake_up_d = wake_up_q - 1;
+            end
+            if (wake_up_sync_i) begin
+              // Keep counter constant due to simultaneous pulse
+              wake_up_d = wake_up_q;
+            end
           end
         end
       end
@@ -1361,7 +1369,7 @@ module snitch
     if (!rst_i && illegal_inst && inst_valid_o && inst_ready_i) begin
       $display("[Illegal Instruction Core %0d] PC: %h Data: %h", hart_id_i, inst_addr_o, inst_data_i);
     end
-    if (!rst_i && wake_up_sync_i && wake_up_q) begin
+    if (!rst_i && wake_up_sync_i && &wake_up_q) begin
       $display("[Missed wake-up Core %0d] Cycle: %d, Time: %t", hart_id_i, cycle_q, $time);
     end
   end
@@ -1435,7 +1443,8 @@ module snitch
   always_ff @(posedge clk_i or posedge rst_i) begin
     // Display CSR write if the CSR does not exist
     if (!rst_i && csr_dump && inst_valid_o && inst_ready_i && !stall) begin
-      $display("[DUMP] %3d: 0x%3h = 0x%08h, %d", hart_id_i, inst_data_i[31:20], alu_result, alu_result);
+      $timeformat(-9, 0, " ns", 0);
+      $display("[DUMP] %t Core %3d: 0x%3h = 0x%08h, %d", $time, hart_id_i, inst_data_i[31:20], alu_result, alu_result);
     end
   end
   // pragma translate_on
