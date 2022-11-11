@@ -34,23 +34,15 @@ RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
 ifeq ($(COMPILER),gcc)
 	# Use GCC
 	# GCC compiler -march
-	RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
-	ifeq ($(fpu), 1)
-		RISCV_ARCH    += fd
-		# Define fpu if the extension is active
-		DEFINES 	  += -DFPU=$(fpu)
-	endif
 	ifeq ($(XPULPIMG),1)
-		RISCV_ARCH    += Xpulpimg
+		RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)
 		# Define __XPULPIMG if the extension is active
 		DEFINES       += -D__XPULPIMG
-	endif
-	ifeq ($(XPULPIMG),1)
-		RISCV_ARCH_AS ?= $(RISCV_ARCH)
 	else
+		RISCV_ARCH_AS ?= rv$(RISCV_ARCH)ima
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
 	endif
-
 	# GCC Toolchain
 	RISCV_PREFIX  ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-
 	RISCV_CC      ?= $(RISCV_PREFIX)gcc
@@ -59,16 +51,17 @@ ifeq ($(COMPILER),gcc)
 else
 	# Use LLVM by default
 	# LLVM compiler -march
-	RISCV_ARCH ?= rv$(RISCV_XLEN)ima
-	ifeq ($(fpu), 1)
-		RISCV_ARCH += fdv0p10
+	ifeq ($(fpu), 0)
+		RISCV_ARCH ?= rv$(RISCV_XLEN)ima
+	else
+		RISCV_ARCH ?= rv$(RISCV_XLEN)imazfinx_zhinx_zquarterinx_zvechalfinx_zexpauxvechalfinx_xmempool
 	endif
 
 	# GCC Toolchain
 	RISCV_PREFIX  ?= $(LLVM_INSTALL_DIR)/bin/llvm-
 	RISCV_CC      ?= $(LLVM_INSTALL_DIR)/bin/clang
 	RISCV_CXX     ?= $(LLVM_INSTALL_DIR)/bin/clang++
-	RISCV_OBJDUMP ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-objdump
+	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 endif
 RISCV_OBJCOPY ?= $(RISCV_PREFIX)objcopy
 RISCV_AS      ?= $(RISCV_PREFIX)as
@@ -107,7 +100,7 @@ RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
 RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -std=gnu99 -O3  -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -fno-tree-loop-distribute-patterns # -falign-loops=32 -falign-jumps=32
-RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown
+RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown -menable-experimental-extensions
 
 ifeq ($(COMPILER),gcc)
 	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
@@ -118,7 +111,7 @@ else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
-	RISCV_OBJDUMP_FLAGS +=
+	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+zfinx
 endif
 
 LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld
