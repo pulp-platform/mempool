@@ -16,10 +16,11 @@ typedef uint32_t omp_lock_t;
 /* gomp_hal_lock() - block until able to acquire lock "lock" */
 static inline void gomp_hal_lock(omp_lock_t *lock) {
   uint32_t islocked;
+  uint32_t num_cores = mempool_get_core_count();
 
   islocked = __atomic_fetch_or(lock, 1, __ATOMIC_SEQ_CST);
   while (islocked) {
-    mempool_wait(NUM_CORES);
+    mempool_wait(num_cores);
     islocked = __atomic_fetch_or(lock, 1, __ATOMIC_SEQ_CST);
   }
 }

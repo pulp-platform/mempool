@@ -14,17 +14,18 @@ event_t event;
 work_t works;
 
 void set_event(void (*fn)(void *), void *data, uint32_t nthreads) {
+  uint32_t num_cores = mempool_get_core_count();
   event.fn = fn;
   event.data = data;
   if (nthreads == 0) {
-    event.nthreads = NUM_CORES;
-    event.barrier = NUM_CORES;
+    event.nthreads = num_cores;
+    event.barrier = num_cores;
   } else {
     event.nthreads = nthreads;
     event.barrier = nthreads;
   }
 
-  for (uint32_t i = 0; i < NUM_CORES; i++) {
+  for (uint32_t i = 0; i < num_cores; i++) {
     event.thread_pool[i] = (i < event.nthreads) ? 1 : 0;
   }
 }
@@ -44,8 +45,9 @@ void GOMP_parallel_start(void (*fn)(void *), void *data,
 }
 
 void GOMP_parallel_end(void) {
+  uint32_t num_cores = mempool_get_core_count();
   while (event.barrier > 0) {
-    mempool_wait(4 * NUM_CORES);
+    mempool_wait(4 * num_cores);
   }
 }
 

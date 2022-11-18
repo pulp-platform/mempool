@@ -24,6 +24,7 @@ void dotp_parallel_red0(int32_t *in_a, int32_t *in_b, int32_t *s,
   uint32_t const remainder = Len % 4;
   uint32_t const idx_stop = Len - remainder;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   int32_t local_sum = 0;
 
   uint32_t idx = core_id * 4;
@@ -45,7 +46,7 @@ void dotp_parallel_red0(int32_t *in_a, int32_t *in_b, int32_t *s,
   mempool_stop_benchmark();
 
   mempool_start_benchmark();
-  if ((NUM_CORES - 1) ==
+  if ((num_cores - 1) ==
       __atomic_fetch_add(&red_barrier[0], 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(&red_barrier[0], 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
@@ -68,6 +69,7 @@ void dotp_parallel_unrolled4_red0(int32_t *in_a, int32_t *in_b, int32_t *s,
   uint32_t const remainder = Len % 4;
   uint32_t const idx_stop = Len - remainder;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   int32_t local_sum_1 = 0;
   int32_t local_sum_2 = 0;
   int32_t local_sum_3 = 0;
@@ -103,7 +105,7 @@ void dotp_parallel_unrolled4_red0(int32_t *in_a, int32_t *in_b, int32_t *s,
   mempool_stop_benchmark();
 
   mempool_start_benchmark();
-  if ((NUM_CORES - 1) ==
+  if ((num_cores - 1) ==
       __atomic_fetch_add(&red_barrier[0], 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(&red_barrier[0], 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier

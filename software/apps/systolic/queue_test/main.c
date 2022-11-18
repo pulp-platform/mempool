@@ -29,7 +29,7 @@ int main() {
   mempool_barrier_init(core_id);
 
   // Initialization
-  mempool_init(core_id, num_cores);
+  mempool_init(core_id);
 
   // Setup
   if (core_id == 0) {

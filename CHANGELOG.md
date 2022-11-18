@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Upgrade to LLVM 14
 - Support multiple outstanding wake-up calls in Snitch
 - Clean out tracing script and improve the traces' size and checks
+- Replace NUM_CORES and similar macros with function calls in software
 
 ## 0.5.0 - 2022-08-03
 

@@ -24,7 +24,7 @@ int main() {
   mempool_barrier_init(core_id);
 
   // Initialization
-  mempool_init(core_id, num_cores);
+  mempool_init(core_id);
 
   // Test
   if (core_id == 0) {
@@ -129,8 +129,7 @@ int main() {
     // ------------------------------------------------------------------------
     // Sequential Memory Basic Tests
     // ------------------------------------------------------------------------
-    for (uint32_t tile_id = 0; tile_id < num_cores / NUM_CORES_PER_TILE;
-         ++tile_id) {
+    for (uint32_t tile_id = 0; tile_id < mempool_get_tile_count(); ++tile_id) {
       printf("Test tile allocator %u:\n", tile_id);
 
       // Get tile allocator

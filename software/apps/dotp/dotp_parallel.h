@@ -9,6 +9,7 @@ void dotp_parallel(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
                    uint32_t nPE) {
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t step = Len / nPE;
 
   register int32_t local_sum = 0;
@@ -23,8 +24,9 @@ void dotp_parallel(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
   __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
 #ifdef LOG_BARRIERS
   mempool_log_barrier(2, core_id);
+  (void)num_cores;
 #else
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 #endif
 }
 
@@ -33,6 +35,7 @@ void dotp_parallel_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
                              uint32_t Len, uint32_t nPE) {
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t step = Len / nPE;
   uint32_t reminder = step % 4;
   uint32_t i;
@@ -67,7 +70,7 @@ void dotp_parallel_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
   local_sum0 += local_sum1;
   local_sum2 += local_sum3;
   local_sum0 += local_sum2;
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
   mempool_stop_benchmark();
   mempool_start_benchmark();
@@ -75,6 +78,6 @@ void dotp_parallel_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
 #ifdef LOG_BARRIERS
   mempool_log_barrier(2, core_id);
 #else
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 #endif
 }

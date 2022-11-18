@@ -26,8 +26,9 @@ void init_vectors(int32_t *in_a, int32_t *in_b, int32_t *s, int32_t *p_result,
   *p_result = 0;
   *p_check = 0;
   uint32_t j = 0;
+  uint32_t num_cores = mempool_get_core_count();
   while (j < Len) {
-    int32_t a = (int32_t)(j % NUM_CORES);
+    int32_t a = (int32_t)(j % num_cores);
     int32_t b = (int32_t)(j % 4 + 3);
     in_a[j] = a;
     in_b[j] = b;
@@ -48,6 +49,7 @@ void init_vectors(int32_t *in_a, int32_t *in_b, int32_t *s, int32_t *p_result,
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t time_init, time_end;
   // initialize synchronization variables
   mempool_barrier_init(core_id);
@@ -63,7 +65,7 @@ int main() {
     init_vectors(vector_a, vector_b, &sum, &result, &check, LEN);
 #endif
   }
-  mempool_barrier(NUM_CORES); // wait until all cores have finished
+  mempool_barrier(num_cores); // wait until all cores have finished
 
   // Kernel execution
 
@@ -117,7 +119,7 @@ int main() {
     time_end = mempool_get_timer();
   }
 
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
   // Check results
   if (core_id == 0) {
     uint32_t clock_cycles = (time_end - time_init);
@@ -131,7 +133,7 @@ int main() {
     printf("Result ==> %d\n", result);
     printf("Check  ==> %d\n\n", check);
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
   return error;
 }
