@@ -11,11 +11,12 @@ module mempool_cc
   parameter logic [31:0] MTVEC      = BootAddr,
   parameter bit          RVE        = 0,  // Reduced-register extension
   parameter bit          RVM        = 1,  // Enable IntegerMmultiplication & Division Extension
-  parameter bit          ZFINX_RV   = `ifdef FPU 1 `else 0 `endif,
+  parameter bit FPUSequencer        = 1, // Insert instruction buffer for FPU
   parameter bit RegisterOffloadReq  = 1,
   parameter bit RegisterOffloadResp = 1,
   parameter bit RegisterTCDMReq     = 0,
-  parameter bit RegisterTCDMResp    = 0
+  parameter bit RegisterTCDMResp    = 0,
+  parameter bit RegisterSequencer   = 0  // Insert Pipeline registers after sequencer
 ) (
   input  logic               clk_i,
   input  logic               rst_i,
@@ -56,9 +57,13 @@ module mempool_cc
   snitch_pkg::acc_resp_t acc_resp_d, acc_resp_q;
   snitch_pkg::acc_resp_t ipu_resp_d, fpu_resp_d;
 
-  logic acc_req_dvalid, acc_req_dready, acc_resp_dvalid, acc_resp_dready;
-  logic ipu_dvalid, ipu_dready, fpu_dvalid, fpu_dready;
-  logic ipu_qvalid, ipu_qready, fpu_qvalid, fpu_qready;
+  logic acc_req_dvalid, acc_req_dready, acc_req_qvalid, acc_req_qready;
+  logic acc_resp_dvalid, acc_resp_dready, acc_resp_qvalid, acc_resp_qready;
+
+  logic ipu_req_qvalid, ipu_req_qready;
+  logic fpu_req_qvalid, fpu_req_qready;
+  logic ipu_resp_dvalid, ipu_resp_dready;
+  logic fpu_resp_dvalid, fpu_resp_dready;
 
   fpnew_pkg::roundmode_e fpu_rnd_mode;
   fpnew_pkg::status_t    fpu_status;
@@ -68,11 +73,10 @@ module mempool_cc
 
   // Snitch Integer Core
   snitch #(
-    .BootAddr ( BootAddr ),
-    .MTVEC    ( MTVEC    ),
-    .RVE      ( RVE      ),
-    .RVM      ( RVM      ),
-    .ZFINX_RV ( ZFINX_RV )
+    .BootAddr ( BootAddr             ),
+    .MTVEC    ( MTVEC                ),
+    .RVE      ( RVE                  ),
+    .RVM      ( RVM                  )
   ) i_snitch (
     .clk_i                                   ,
     .rst_i                                   ,
@@ -134,7 +138,7 @@ module mempool_cc
   ) i_stream_demux_offload (
     .inp_valid_i  ( acc_req_qvalid  ),
     .inp_ready_o  ( acc_req_qready  ),
-    .oup_sel_i    ( acc_req_q.addr[$clog2(2)-1:0]             ),
+    .oup_sel_i    ( acc_req_q.addr[$clog2(2)-1:0]    ),
     .oup_valid_o  ( {ipu_req_qvalid, fpu_req_qvalid} ),
     .oup_ready_i  ( {ipu_req_qready, fpu_req_qready} )
   );
