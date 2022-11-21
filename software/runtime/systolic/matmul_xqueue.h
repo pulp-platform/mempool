@@ -28,7 +28,7 @@
 #include "printf.h"
 
 // Dimensions of square systolic array
-#define SYSTOLIC_SIZE 4
+#define SYSTOLIC_SIZE 16
 
 // Systolic matrix
 typedef struct {
