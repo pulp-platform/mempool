@@ -70,6 +70,7 @@ int main() {
     core_mapping = (uint32_t *)simple_malloc(num_cores * 4);
   }
 
+#if NUM_CORES == 16
   // ----------
   // 16 CORES
   // ----------
@@ -89,7 +90,7 @@ int main() {
   // uint32_t row_idx = tile_id / 2;
   // row_idx *= 2;
   // row_idx += (core_id % 4) / 2;
-
+#elif NUM_CORES == 256
   // ----------
   // 256 CORES
   // ----------
@@ -99,8 +100,8 @@ int main() {
   // uint32_t row_idx = core_id / 16;
 
   // Assign grid position (col wise)
-  // uint32_t col_idx = core_id / 16;
-  // uint32_t row_idx = core_id % 16;
+  uint32_t col_idx = core_id / 16;
+  uint32_t row_idx = core_id % 16;
 
   // Assign grid position (square wise)
   // uint32_t col_idx = tile_id % 8;
@@ -122,6 +123,9 @@ int main() {
   // row_idx *= 2;
   // row_idx += (core_id % 4) / 2;
   // row_idx += add_row * 8;
+#else
+#error Unsupported NUM_CORES
+#endif
 
   // Wait for all cores
   mempool_barrier(num_cores);
@@ -138,10 +142,10 @@ int main() {
     printf("> Initialize\n");
 
     // Print out tile mapping
-    // print_matrix((int32_t *)tile_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
+    //print_matrix((int32_t *)tile_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
 
     // Print out core mapping
-    // print_matrix((int32_t *)core_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
+    //print_matrix((int32_t *)core_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
 
     // Initialize systolic array
     systolic_init(tile_mapping, core_mapping);
