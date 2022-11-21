@@ -9,12 +9,15 @@
 module snitch_fp_ss
   import snitch_pkg::*;
 #(
+  parameter bit RegisterSequencer = 1,
+  parameter bit FPUSequencer = 0,
   parameter fpnew_pkg::fpu_implementation_t FPUImplementation = '0
 ) (
   input  logic             clk_i,
   input  logic             rst_i,
   // pragma translate_off
   output fpu_trace_port_t  trace_port_o,
+  output fpu_sequencer_trace_port_t sequencer_tracer_port_o,
   // pragma translate_on
   // Accelerator Interface - Slave
   input  acc_req_t         acc_req_i,
@@ -74,15 +77,43 @@ module snitch_fp_ss
   snitch_pkg::acc_req_t   acc_req, acc_req_q;
   logic                   acc_req_valid, acc_req_valid_q;
   logic                   acc_req_ready, acc_req_ready_q;
-
-  assign acc_req_ready_o = acc_req_ready;
-  assign acc_req_valid = acc_req_valid_i;
-  assign acc_req = acc_req_i;
+  if (FPUSequencer) begin : gen_fpu_sequencer
+    snitch_sequencer #(
+      .Depth    ( snitch_pkg::FPUSequencerInstr )
+    ) i_snitch_fpu_sequencer (
+      .clk_i,
+      .rst_i,
+      // pragma translate_off
+      .trace_port_o     ( sequencer_tracer_port_o ),
+      // pragma translate_on
+      .inp_qaddr_i      ( acc_req_i.addr      ),
+      .inp_qid_i        ( acc_req_i.id        ),
+      .inp_qdata_op_i   ( acc_req_i.data_op   ),
+      .inp_qdata_arga_i ( acc_req_i.data_arga ),
+      .inp_qdata_argb_i ( acc_req_i.data_argb ),
+      .inp_qdata_argc_i ( acc_req_i.data_argc ),
+      .inp_qvalid_i     ( acc_req_valid_i     ),
+      .inp_qready_o     ( acc_req_ready_o     ),
+      .oup_qaddr_o      ( acc_req.addr        ),
+      .oup_qid_o        ( acc_req.id          ),
+      .oup_qdata_op_o   ( acc_req.data_op     ),
+      .oup_qdata_arga_o ( acc_req.data_arga   ),
+      .oup_qdata_argb_o ( acc_req.data_argb   ),
+      .oup_qdata_argc_o ( acc_req.data_argc   ),
+      .oup_qvalid_o     ( acc_req_valid       ),
+      .oup_qready_i     ( acc_req_ready       )
+    );
+  end else begin : gen_no_fpu_sequencer
+    assign sequencer_tracer_port_o = 0;
+    assign acc_req_ready_o = acc_req_ready;
+    assign acc_req_valid = acc_req_valid_i;
+    assign acc_req = acc_req_i;
+  end
 
   // Optional spill-register
   spill_register  #(
-    .T      ( snitch_pkg::acc_req_t        ),
-    .Bypass ( 1                            )
+    .T      ( snitch_pkg::acc_req_t               ),
+    .Bypass ( !RegisterSequencer || !FPUSequencer )
   ) i_spill_register_acc (
     .clk_i   ,
     .rst_ni  ( ~rst_i          ),
