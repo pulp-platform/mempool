@@ -96,7 +96,7 @@ vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
-vlog_defs += -DFPU=$(fpu)
+vlog_defs += -DZFINX_RV=$(zfinx_rv)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
 # This parameter is only used for TeraPool configurations

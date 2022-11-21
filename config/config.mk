@@ -70,7 +70,7 @@ xqueue_size ?= 0
 xpulpimg ?= 1
 
 # FPU is deactivated by default
-fpu ?= 0
+zfinx_rv ?= 1
 
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
