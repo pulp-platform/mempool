@@ -78,7 +78,8 @@ tc-riscv-gcc:
 	mkdir -p $(GCC_INSTALL_DIR)
 	cd $(CURDIR)/toolchain/riscv-gnu-toolchain && rm -rf build && mkdir -p build && cd build && \
 	../configure --prefix=$(GCC_INSTALL_DIR) --with-arch=rv32im --with-cmodel=medlow --enable-multilib && \
-	$(MAKE) MAKEINFO=true -j4
+	$(MAKE) MAKEINFO=true -j4 && \
+	cp ../riscv.ld $(GCC_INSTALL_DIR)/riscv32-unknown-elf/lib
 
 tc-llvm:
 	mkdir -p $(LLVM_INSTALL_DIR)
