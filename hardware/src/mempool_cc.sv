@@ -139,8 +139,8 @@ module mempool_cc
     .inp_valid_i  ( acc_req_qvalid  ),
     .inp_ready_o  ( acc_req_qready  ),
     .oup_sel_i    ( acc_req_q.addr[$clog2(2)-1:0]    ),
-    .oup_valid_o  ( {ipu_req_qvalid, fpu_req_qvalid} ),
-    .oup_ready_i  ( {ipu_req_qready, fpu_req_qready} )
+    .oup_valid_o  ( {fpu_req_qvalid, ipu_req_qvalid} ),
+    .oup_ready_i  ( {fpu_req_qready, ipu_req_qready} )
   );
 
   // Accelerator output arbiter
@@ -151,9 +151,9 @@ module mempool_cc
   ) i_stream_arbiter_offload (
     .clk_i       ( clk_i                              ),
     .rst_ni      ( ~rst_i                             ),
-    .inp_data_i  ( {ipu_resp_d, fpu_resp_d}           ),
-    .inp_valid_i ( {ipu_resp_dvalid, fpu_resp_dvalid} ),
-    .inp_ready_o ( {ipu_resp_dready, fpu_resp_dready} ),
+    .inp_data_i  ( {fpu_resp_d, ipu_resp_d}           ),
+    .inp_valid_i ( {fpu_resp_dvalid, ipu_resp_dvalid} ),
+    .inp_ready_o ( {fpu_resp_dready, ipu_resp_dready} ),
     .oup_data_o  ( acc_resp_d                         ),
     .oup_valid_o ( acc_resp_dvalid                    ),
     .oup_ready_i ( acc_resp_dready                    )
