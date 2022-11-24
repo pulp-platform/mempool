@@ -12,7 +12,7 @@
 #include "synchronization.h"
 
 volatile float a, b, c;
-dump(c,1);
+dump(c, 1);
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -21,12 +21,12 @@ int main() {
   mempool_barrier_init(core_id);
 
   if (core_id == 0) {
-    a = 6.3f + (float) core_id;
+    a = 6.3f + (float)core_id;
     b = 7.77f;
     asm volatile("fmul.s %[c], %[a], %[b];"
-                : [c] "=r"(c)
-                : [a] "r"(a), [b] "r"(b));
-//    c = a * b;
+                 : [c] "=r"(c)
+                 : [a] "r"(a), [b] "r"(b));
+    //    c = a * b;
   }
 
   // wait until all cores have finished
