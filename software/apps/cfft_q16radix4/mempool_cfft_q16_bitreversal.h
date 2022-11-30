@@ -13,7 +13,8 @@ static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc, uint16_t *pDst,
 static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc, uint16_t *pDst,
                                          const uint16_t fftLen,
                                          const uint32_t nPE) {
-  uint32_t core_id = mempool_get_core_id();
+  uint32_t absolute_core_id = mempool_get_core_id();
+  uint32_t core_id = absolute_core_id / WU_STRIDE;
   uint32_t idx_result, idx, i, j;
   for (i = core_id; i < fftLen; i += nPE) {
     idx_result = 0;
@@ -25,18 +26,18 @@ static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc, uint16_t *pDst,
     pDst[2 * idx_result] = pSrc[2 * i];
     pDst[2 * idx_result + 1] = pSrc[2 * i + 1];
   }
-  mempool_log_partial_barrier(2, core_id, nPE);
+  mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id, nPE * WU_STRIDE);
 }
 
 #else
 
-static void mempool_bitrev_q16s_riscv32(uint16_t *pSrc,
+static void mempool_bitrev_q16s_riscv32(uint16_t  *pSrc,
                                         const uint16_t bitRevLen,
                                         const uint16_t *pBitRevTab);
-static void mempool_bitrev_q16s_xpulpimg(uint16_t *pSrc,
+static void mempool_bitrev_q16s_xpulpimg(uint16_t  *pSrc,
                                          const uint16_t bitRevLen,
                                          const uint16_t *pBitRevTab);
-static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc,
+static void mempool_bitrev_q16p_xpulpimg(uint16_t  *pSrc,
                                          const uint16_t bitRevLen,
                                          const uint16_t *pBitRevTab,
                                          const uint32_t nPE);
@@ -49,10 +50,16 @@ static void mempool_bitrev_q16s_riscv32(uint16_t *pSrc,
   for (uint32_t i = 0; i < bitRevLen; i += 2) {
     addr1 = pBitRevTab[i] >> 2U;
     addr2 = pBitRevTab[i + 1] >> 2U;
+
     tmpa = pSrc[addr1];
     tmpb = pSrc[addr2];
     pSrc[addr1] = tmpb;
     pSrc[addr2] = tmpa;
+
+    tmpa = pSrc[addr1 + 1];
+    tmpb = pSrc[addr2 + 1];
+    pSrc[addr1 + 1] = tmpb;
+    pSrc[addr2 + 1] = tmpa;
   }
 }
 
@@ -156,7 +163,8 @@ static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc,
                                          const uint16_t *pBitRevTab,
                                          const uint32_t nPE) {
   uint32_t i;
-  uint32_t core_id = mempool_get_core_id();
+  uint32_t absolute_core_id = mempool_get_core_id();
+  uint32_t core_id = absolute_core_id / WU_STRIDE;
   v2s addr1, addr2, addr3, addr4;
   v2s s2 = (v2s){2, 2};
   v2s tmpa1, tmpa2, tmpa3, tmpa4;
@@ -238,7 +246,7 @@ static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc,
     *((v2s *)&pSrc[b4]) = tmpa4;
 #endif
   }
-  mempool_log_partial_barrier(2, core_id, nPE);
+  mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id, nPE);
 }
 
 #endif

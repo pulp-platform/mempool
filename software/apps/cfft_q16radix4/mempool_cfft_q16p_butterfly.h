@@ -26,13 +26,12 @@ static void mempool_radix4_butterfly_q16p_xpulpimg(int16_t *pSrc16,
                                                    const int16_t *pCoef16,
                                                    uint32_t twidCoefModifier,
                                                    uint32_t nPE) {
-
+  uint32_t absolute_core_id = mempool_get_core_id();
+  uint32_t core_id = absolute_core_id % nPE;
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
   int16_t t0, t1, t2, t3, t4, t5;
   uint32_t n1, n2, ic, i0, j, k;
-  uint32_t absolute_core_id = mempool_get_core_id();
-  uint32_t core_id = absolute_core_id % nPE;
   uint32_t step, steps;
 
   /* START OF FIRST STAGE PROCESS */
@@ -50,25 +49,25 @@ static void mempool_radix4_butterfly_q16p_xpulpimg(int16_t *pSrc16,
     /* co3 & si3 are read from Coefficient pointer */
     CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
 #ifndef ASM
-    t1 = (int16_t)CoSi1[1];
-    t3 = (int16_t)CoSi2[1];
-    t5 = (int16_t)CoSi3[1];
-    t0 = (int16_t)CoSi1[0];
-    t2 = (int16_t)CoSi2[0];
-    t4 = (int16_t)CoSi3[0];
-    C1 = __PACK2(-t1, t0);
-    C2 = __PACK2(-t3, t2);
-    C3 = __PACK2(-t5, t4);
+    t1 = (int16_t)CoSi1[0];
+    t3 = (int16_t)CoSi2[0];
+    t5 = (int16_t)CoSi3[0];
+    t0 = (int16_t)CoSi1[1];
+    t2 = (int16_t)CoSi2[1];
+    t4 = (int16_t)CoSi3[1];
+    C1 = __PACK2(t1, -t0);
+    C2 = __PACK2(t3, -t2);
+    C3 = __PACK2(t5, -t4);
 #else
-    asm volatile("pv.extract.h  %[t1],%[CoSi1],1;"
-                 "pv.extract.h  %[t3],%[CoSi2],1;"
-                 "pv.extract.h  %[t5],%[CoSi3],1;"
-                 "pv.extract.h  %[t0],%[CoSi1],0;"
-                 "pv.extract.h  %[t2],%[CoSi2],0;"
-                 "pv.extract.h  %[t4],%[CoSi3],0;"
-                 "sub           %[t1],zero,%[t1];"
-                 "sub           %[t3],zero,%[t3];"
-                 "sub           %[t5],zero,%[t5];"
+    asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
+                 "pv.extract.h  %[t3],%[CoSi2],0;"
+                 "pv.extract.h  %[t5],%[CoSi3],0;"
+                 "pv.extract.h  %[t0],%[CoSi1],1;"
+                 "pv.extract.h  %[t2],%[CoSi2],1;"
+                 "pv.extract.h  %[t4],%[CoSi3],1;"
+                 "sub           %[t0],zero,%[t0];"
+                 "sub           %[t2],zero,%[t2];"
+                 "sub           %[t4],zero,%[t4];"
                  "pv.pack %[C1],%[t1],%[t0];"
                  "pv.pack %[C2],%[t3],%[t2];"
                  "pv.pack %[C3],%[t5],%[t4];"
@@ -100,25 +99,25 @@ static void mempool_radix4_butterfly_q16p_xpulpimg(int16_t *pSrc16,
       CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
       CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
 #ifndef ASM
-      t1 = (int16_t)CoSi1[1];
-      t3 = (int16_t)CoSi2[1];
-      t5 = (int16_t)CoSi3[1];
-      t0 = (int16_t)CoSi1[0];
-      t2 = (int16_t)CoSi2[0];
-      t4 = (int16_t)CoSi3[0];
-      C1 = __PACK2(-t1, t0);
-      C2 = __PACK2(-t3, t2);
-      C3 = __PACK2(-t5, t4);
+      t1 = (int16_t)CoSi1[0];
+      t3 = (int16_t)CoSi2[0];
+      t5 = (int16_t)CoSi3[0];
+      t0 = (int16_t)CoSi1[1];
+      t2 = (int16_t)CoSi2[1];
+      t4 = (int16_t)CoSi3[1];
+      C1 = __PACK2(t1, -t0);
+      C2 = __PACK2(t3, -t2);
+      C3 = __PACK2(t5, -t4);
 #else
-      asm volatile("pv.extract.h  %[t1],%[CoSi1],1;"
-                   "pv.extract.h  %[t3],%[CoSi2],1;"
-                   "pv.extract.h  %[t5],%[CoSi3],1;"
-                   "pv.extract.h  %[t0],%[CoSi1],0;"
-                   "pv.extract.h  %[t2],%[CoSi2],0;"
-                   "pv.extract.h  %[t4],%[CoSi3],0;"
-                   "sub           %[t1],zero,%[t1];"
-                   "sub           %[t3],zero,%[t3];"
-                   "sub           %[t5],zero,%[t5];"
+      asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
+                   "pv.extract.h  %[t3],%[CoSi2],0;"
+                   "pv.extract.h  %[t5],%[CoSi3],0;"
+                   "pv.extract.h  %[t0],%[CoSi1],1;"
+                   "pv.extract.h  %[t2],%[CoSi2],1;"
+                   "pv.extract.h  %[t4],%[CoSi3],1;"
+                   "sub           %[t0],zero,%[t0];"
+                   "sub           %[t2],zero,%[t2];"
+                   "sub           %[t4],zero,%[t4];"
                    "pv.pack %[C1],%[t1],%[t0];"
                    "pv.pack %[C2],%[t3],%[t2];"
                    "pv.pack %[C3],%[t5],%[t4];"
@@ -205,9 +204,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
   A = __SRA2(E, s1);
   B = __SRA2(G, s1);
   /* C0 = (xb - xd), C1 = (yd - yb) */
-  C = __PACK2(-t1, t0);
+  C = __PACK2(t0, -t1);
   /* D0 = (xd - xb), D1 = (yb - yd) */
-  D = __PACK2(t1, -t0);
+  D = __PACK2(-t0, t1);
   /* E0 = (ya+yc) - (yb+yd), E1 = (xa+xc) - (xb+xd) */
   E = __SUB2(E, G);
   /* G1 = (ya-yc) + (xb-xd), G0 = (xa-xc) - (yb-yd) */
@@ -265,9 +264,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
                "pv.sra.h  %[A],%[E],%[s1];"
                "pv.sra.h  %[B],%[G],%[s1];"
                "sub %[t3],zero,%[t1];"
-               "pv.pack %[C],%[t3],%[t0];"
+               "pv.pack %[C],%[t0],%[t3];"
                "sub %[t4],zero,%[t0];"
-               "pv.pack %[D],%[t1],%[t4];"
+               "pv.pack %[D],%[t4],%[t1];"
                "pv.sub.h  %[E],%[E],%[G];"
                "pv.add.h  %[G],%[F],%[C];"
                "pv.add.h  %[H],%[F],%[D];"
@@ -358,9 +357,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
   /* D0 = (ya+yc) + (yb+yd), D1 = (xa+xc) + (xb+xd) */
   D = __ADD2(E, G);
   /* A0 = (xb-xd), A1 = (yd-yb) */
-  A = __PACK2(t1, -t0);
+  A = __PACK2(t0, -t1);
   /* B0 = (xd-xb), B1 = (yb-yd) */
-  B = __PACK2(-t1, t0);
+  B = __PACK2(-t0, t1);
   /* xa' = xa + xb + xc + xd */
   /* ya' = ya + yb + yc + yd */
   *((v2s *)&pIn[i0 * 2U]) = __SRA2(D, s1);
@@ -380,9 +379,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
   /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
   t4 = (int16_t)(__DOTP2(CoSi3, E) >> 16U);
   t5 = (int16_t)(__DOTP2(C3, E) >> 16U);
-  A = __PACK2(t0, t1);
-  B = __PACK2(t2, t3);
-  C = __PACK2(t4, t5);
+  A = __PACK2(t1, t0);
+  B = __PACK2(t3, t2);
+  C = __PACK2(t5, t4);
   *((v2s *)&pIn[i1 * 2U]) = A;
   *((v2s *)&pIn[i2 * 2U]) = B;
   *((v2s *)&pIn[i3 * 2U]) = C;
@@ -411,10 +410,10 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
                "pv.extract.h  %[t1],%[H],1;"
                "pv.sub.h  %[C],%[E],%[G];"
                "pv.add.h  %[D],%[E],%[G];"
-               "sub %[t3],zero,%[t0];"
-               "pv.pack %[A],%[t1],%[t3];"
                "sub %[t4],zero,%[t1];"
-               "pv.pack %[B],%[t4],%[t0];"
+               "sub %[t3],zero,%[t0];"
+               "pv.pack %[A],%[t0],%[t4];"
+               "pv.pack %[B],%[t3],%[t1];"
                "pv.sra.h  %[D],%[D],%[s1];"
                "pv.add.h  %[E],%[F],%[A];"
                "pv.add.h  %[F],%[F],%[B];"
@@ -430,9 +429,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
                "srai  %[t3],%[B],0x10;"
                "srai  %[t4],%[G],0x10;"
                "srai  %[t5],%[H],0x10;"
-               "pv.pack %[A],%[t0],%[t1];"
-               "pv.pack %[B],%[t2],%[t3];"
-               "pv.pack %[C],%[t4],%[t5];"
+               "pv.pack %[A],%[t1],%[t0];"
+               "pv.pack %[B],%[t3],%[t2];"
+               "pv.pack %[C],%[t5],%[t4];"
                : [A] "+&r"(A), [B] "+&r"(B), [C] "+r"(C), [D] "+&r"(D),
                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
@@ -496,9 +495,9 @@ static inline void radix4_butterfly_last(int16_t *pIn, uint32_t i0,
   /* ya' = (ya+yb+yc+yd) */
   *((v2s *)&pIn[i0 * 2U]) = __ADD2(E, G);
   /* A0 = (xb-xd), A1 = (yd-yb) */
-  A = __PACK2(t1, -t0);
+  A = __PACK2(-t0, t1);
   /* B0 = (xd-xb), B1 = (yb-yd) */
-  B = __PACK2(-t1, t0);
+  B = __PACK2(t0, -t1);
   /* xc' = (xa-xb+xc-xd) */
   /* yc' = (ya-yb+yc-yd) */
   E = __SUB2(E, G);
@@ -537,9 +536,9 @@ static inline void radix4_butterfly_last(int16_t *pIn, uint32_t i0,
       "pv.extract.h  %[t1],%[H],1;"
       "pv.sra.h  %[F],%[F],%[s1];"
       "sub %[t2], zero, %[t0];"
-      "pv.pack %[A],%[t1],%[t2];"
-      "sub %[t3],zero,%[t1];"
-      "pv.pack %[B],%[t3],%[t0];"
+      "sub %[t3], zero, %[t1];"
+      "pv.pack %[A],%[t2],%[t1];"
+      "pv.pack %[B],%[t0],%[t3];"
       "pv.add.h  %[H],%[E],%[G];"
       "pv.sub.h  %[E],%[E],%[G];"
       "pv.add.h  %[A],%[F],%[A];"
