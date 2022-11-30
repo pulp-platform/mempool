@@ -4,7 +4,6 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,30 +16,17 @@
 #include "synchronization.h"
 #include "xpulp/builtins_v2.h"
 
-/* CFFT mempool libraries */
+/* CFFT data libraries */
+#include "data_cfftq16.h"
 #include "define.h"
 #include "mempool_cfft_q16_BitRevIndexTable.h"
 #include "mempool_cfft_q16_twiddleCoef.h"
 
-#if defined(FOLDED)
 
-#include "mempool_cfft_q16_bitreversal.h"
 
-#include "mempool_cfft_q16p_butterfly_folded.h"
-
-#include "mempool_cfft_q16p_folded.h"
-
-#endif
-
-#if defined(PARALLEL)
-
-#include "mempool_cfft_q16_bitreversal.h"
-
-#include "mempool_cfft_q16p_butterfly.h"
-
-#include "mempool_cfft_q16p.h"
-
-#endif
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* SINGLE-CORE */
 
 #if defined(SINGLE)
 
@@ -50,9 +36,6 @@
 
 #include "mempool_cfft_q16s.h"
 
-#endif
-
-#ifndef FOLDED
 int16_t pSrc[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pDst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pCoef16[3 * N_CSAMPLES / 4]
@@ -60,81 +43,139 @@ int16_t pCoef16[3 * N_CSAMPLES / 4]
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
-#else
+
+#endif
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* MULTI-CORE */
+
+#if defined(PARALLEL)
+
+#include "mempool_cfft_q16_bitreversal.h"
+
+#include "mempool_cfft_q16p_butterfly.h"
+
+#include "mempool_cfft_q16p.h"
+
 int16_t pSrc[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pDst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
+int16_t pCoef16[3 * N_CSAMPLES / 4]
+    __attribute__((aligned(N_BANKS), section(".l1")));
+uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
+    __attribute__((aligned(N_BANKS), section(".l1")));
+int volatile error __attribute__((section(".l1")));
+
+#endif
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* MULTI-CORE FOLDED*/
+
+#if defined(FOLDED)
+
+#include "mempool_cfft_q16_bitreversal.h"
+
+#include "mempool_cfft_q16p_butterfly_folded.h"
+
+#include "mempool_cfft_q16p_folded.h"
+
+int16_t  pSrc[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
+int16_t  pDst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
+
 #ifdef FOLDED_TWIDDLES
-int16_t pCoef16_src[8 * N_BANKS]
-    __attribute__((aligned(8 * N_BANKS), section(".l1")));
-int16_t pCoef16_dst[8 * N_BANKS]
-    __attribute__((aligned(8 * N_BANKS), section(".l1")));
+int16_t pCoef16_src[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
+int16_t pCoef16_dst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
+
 #else
-int16_t pCoef16[3 * N_CSAMPLES / 4]
-    __attribute__((aligned(N_BANKS), section(".l1")));
+int16_t pCoef16[3 * N_CSAMPLES / 4] __attribute__((aligned(N_BANKS), section(".l1")));
+
 #endif
-uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
-    __attribute__((aligned(N_BANKS), section(".l1")));
+
+uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH] __attribute__((aligned(N_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
+
 #endif
 
-void initialize_vector(int16_t volatile *pSrc, int16_t volatile *pDst,
-                       uint32_t N_el) {
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* INITIALIZATION FUNCTIONS*/
 
+
+void initialize_vector(int16_t  *pSrc, int16_t  *pDst,
+                       uint32_t N_el) {
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t i;
   srand((unsigned)1);
-  for (i = core_id; i < 8 * N_BANKS; i += NUM_CORES) {
+  for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
     if (i < N_el) {
-      pSrc[i] = (int16_t)(13 * i - 5 * (i % 3) + 575);
+      pSrc[i] = (int16_t)vector_inp[i];
     } else {
       pSrc[i] = (int16_t)0;
     }
     pDst[i] = (int16_t)0;
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 }
 
 #ifdef FOLDED_TWIDDLES
 
 void initialize_l1() {
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t i;
-  for (i = core_id; i < 8 * N_BANKS; i += NUM_CORES) {
+  for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
     pCoef16_src[i] = (int16_t)0;
     pCoef16_dst[i] = (int16_t)0;
   }
-  for (i = core_id; i < (N_CSAMPLES / 4); i += NUM_CORES) {
+  for (i = core_id; i < (N_CSAMPLES / 4); i += num_cores) {
     *(v2s *)&pCoef16_src[2U * i] = *(v2s *)&twiddleCoef_q16[2U * i];
     *(v2s *)&pCoef16_src[2U * (i + 1 * N_BANKS)] =
         *(v2s *)&twiddleCoef_q16[2U * (i * 2U)];
     *(v2s *)&pCoef16_src[2U * (i + 2 * N_BANKS)] =
         *(v2s *)&twiddleCoef_q16[2U * (i * 3U)];
   }
-  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += NUM_CORES) {
+  #ifdef BITREVERSETABLE
+  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += num_cores) {
     *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
   }
-  mempool_barrier(NUM_CORES);
+  #endif
+  mempool_barrier(num_cores);
 }
 
 #else
 
 void initialize_l1() {
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t i;
-  for (i = core_id; i < (3 * N_CSAMPLES / 4); i += NUM_CORES) {
+  for (i = core_id; i < (3 * N_CSAMPLES / 4); i += num_cores) {
     *(v2s *)&pCoef16[2U * i] = *(v2s *)&twiddleCoef_q16[2U * i];
   }
-  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += NUM_CORES) {
+  #ifdef BITREVERSETABLE
+  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += num_cores) {
     *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
+  #endif
 }
 
 #endif
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* MAIN */
+
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
 
   initialize_vector(pSrc, pDst, N_RSAMPLES);
@@ -143,73 +184,113 @@ int main() {
     printf("On the run...\n");
     error = 0;
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /* SINGLE-CORE */
+
 #ifdef SINGLE
   if (core_id == 0) {
     mempool_start_benchmark();
     mempool_cfft_q16s((uint16_t)N_CSAMPLES, pCoef16, pRevT16, pSrc,
                       BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 0, BIT_REV);
     mempool_stop_benchmark();
-#ifdef PRINT_SINGLE
+    #ifdef PRINT_SINGLE
     printf("Done SINGLE!\n");
-    for (uint32_t i = 0; i < N_RSAMPLES; i += 2) {
-      printf("{%6d; %6d} \n", pSrc[i], pSrc[i + 1]);
+    for (uint32_t i = 0; i < N_CSAMPLES; i++) {
+      if (ABS(((int32_t) pSrc[i] - (int32_t) vector_res[i])) > TOLERANCE)
+        printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pSrc[i], i, vector_res[i]);
     }
-#endif
+    #endif
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 #endif
 
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /* MULTI-CORE */
+
 #ifdef PARALLEL
   mempool_start_benchmark();
   mempool_cfft_q16p((uint16_t)N_CSAMPLES, pCoef16, pRevT16, pSrc,
-                    BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 0, BIT_REV, NUM_CORES);
+                    BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 0, BIT_REV, num_cores);
   mempool_stop_benchmark();
 #endif
   if (core_id == 0) {
-#ifdef PRINT_PARALLEL
+    #ifdef PRINT_PARALLEL
     printf("Done PARALLEL!\n");
-    for (uint32_t i = 0; i < N_RSAMPLES; i += 2) {
-      printf("{%6d; %6d} \n", pSrc[i], pSrc[i + 1]);
+    for (uint32_t i = 0; i < N_CSAMPLES; i++) {
+      if (ABS(((int32_t) pSrc[i] - (int32_t) vector_res[i])) > TOLERANCE)
+        printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pSrc[i], i, vector_res[i]);
     }
-#endif
+    #endif
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 /* MULTI-CORE FOLDED */
+
+  int16_t* pIn;
+  int16_t* pRes;
+  pIn  = (int16_t*)pSrc;
+  pRes = (int16_t*)pDst;
+
 #ifdef FOLDED
-  if (core_id < (N_CSAMPLES / 16)) {
+  if ((core_id < (N_CSAMPLES / 16)) && (core_id % WU_STRIDE == 0)) {
+
+    if (core_id == 0) {
+      set_wake_up_stride(WU_STRIDE);
+      set_wake_up_offset(0U);
+    }
+
 #ifdef FOLDED_TWIDDLES
     mempool_start_benchmark();
-    mempool_cfft_q16p_folded(
-        (uint16_t)N_CSAMPLES, pCoef16_src, pCoef16_dst, pRevT16, pSrc, pDst,
+    pRes = mempool_cfft_q16p_folded(
+        (uint16_t)N_CSAMPLES, pCoef16_src, pCoef16_dst, pRevT16, pIn, pRes,
         BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 0, BIT_REV, (N_CSAMPLES / 16));
     mempool_stop_benchmark();
 #else
     mempool_start_benchmark();
-    mempool_cfft_q16p_folded((uint16_t)N_CSAMPLES, pCoef16, pRevT16, pSrc, pDst,
+    pRes = mempool_cfft_q16p_folded((uint16_t)N_CSAMPLES, pCoef16, pRevT16, pIn, pRes,
                              BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 0, BIT_REV,
                              (N_CSAMPLES / 16));
     mempool_stop_benchmark();
 #endif
-  }
-#endif
-  if (core_id == 0) {
-#ifdef PRINT_FOLDED
-    printf("Done PARALLEL!\n");
-    for (uint32_t i = 0; i < N_RSAMPLES; i += 2) {
-#ifndef BITREVERSETABLE
-      printf("{%6d; %6d} \n", pSrc[i], pSrc[i + 1]);
-#else
-      printf("{%6d; %6d} \n", pDst[i], pDst[i + 1]);
-#endif
+
+    if (core_id == 0) {
+      set_wake_up_stride(1U);
+      set_wake_up_offset(0U);
     }
-#endif
+
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
+#endif
+
+  if (core_id == 0) {
+  #ifdef PRINT_FOLDED
+    printf("Done PARALLEL!\n");
+    #ifndef BITREVERSETABLE
+    for (uint32_t i = 0; i < N_CSAMPLES; i++) {
+      if (ABS(((int32_t) pRes[i] - (int32_t) vector_res[i])) > TOLERANCE)
+        printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pSrc[i], i, vector_res[i]);
+    }
+    #else
+    for (uint32_t i = 0; i < N_CSAMPLES; i++) {
+      if (ABS(((int32_t) pRes[i] - (int32_t) vector_res[i])) > TOLERANCE)
+        printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pDst[i], i, vector_res[i]);
+    }
+    #endif
+  #endif
+  }
+  mempool_barrier(num_cores);
 
   return error;
 }

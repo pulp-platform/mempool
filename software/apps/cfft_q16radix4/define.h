@@ -6,8 +6,6 @@
 
 /* DEFINES */
 
-#define TEST_64
-
 #if defined(TEST_64)
 #define N_CSAMPLES (64)
 #define LOG2 (6)
@@ -54,6 +52,13 @@
 dump(ic, 1);
 dump(ic_2, 2);
 dump(ic_3, 3);
+#define WU_STRIDE (1)
+#define STEP (4 * WU_STRIDE)
+
+dump(reg1, 1);
+dump(reg2, 2);
+dump(reg3, 3);
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) < (y)) ? (y) : (x))
+#define ABS(x) (((x) < 0) ? (-x) : (x))
