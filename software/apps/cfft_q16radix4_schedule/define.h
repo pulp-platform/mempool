@@ -18,10 +18,10 @@
    enabled. N_FFTs determines the number of FFTs that the single-core has to run
    in sequence. */
 
-// #define SINGLE
-// #define XPULP
-// #define N_BANKS_SINGLE (N_BANKS * ((N_CSAMPLES + N_BANKS - 1) / N_BANKS))
-// #define N_FFTs 1
+//#define SINGLE
+//#define XPULP
+//#define N_BANKS_SINGLE (N_BANKS * ((N_CSAMPLES + N_BANKS - 1) / N_BANKS))
+//#define N_FFTs 1
 
 /* Parallel implementation. Uncomment BITREVERSALTABLE to compute the
    permutation addresses on the run. N_FFTs_COL determines the number of FFTs
@@ -33,11 +33,17 @@
 
 //#define PARALLEL
 //#define BITREVERSALTABLE
-//#define N_FFTs_ROW 4
+//#define N_FFTs_ROW 16
 //#define N_FFTs_COL 1
 //#define MAX_COL (N_BANKS / (N_CSAMPLES / 4))
+
+#define WU_STRIDE (1)
+#define STEP (4)
 
 /* FUNCTIONS */
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) < (y)) ? (y) : (x))
-dump(id, 1);
+
+dump(reg1, 1);
+dump(reg2, 1);
+dump(reg3, 1);

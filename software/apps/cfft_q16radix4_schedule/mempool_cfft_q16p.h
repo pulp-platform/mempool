@@ -41,7 +41,7 @@ static void mempool_cfft_columnwrapper(int16_t *pSrc, int16_t *pDst,
                       pCoef_dst + 2 * col_id * col_fftLen, pBitRevTable,
                       bitReverseLen, bitReverseFlag, nPE);
   }
-  mempool_log_partial_barrier(2, core_id, N_FFTs_COL * (N_CSAMPLES >> 4U));
+  mempool_log_partial_barrier(2, core_id, N_FFTs_COL * nPE);
 }
 
 static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
@@ -49,12 +49,14 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
                               int16_t *pCoef_dst, uint16_t *pBitRevTable,
                               uint16_t bitReverseLen, uint8_t bitReverseFlag,
                               uint32_t nPE) {
+
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id % (fftLen >> 4U);
+  uint32_t row_id = core_id / WU_STRIDE;
 
   uint32_t n1, n2, i0, ic, j, k;
   uint32_t n2_store;
-  uint32_t offset, wing_id, bank_id;
+  uint32_t offset, wing_idx;
   int16_t *pTmp;
   int32_t t0, t1, t2, t3, t4, t5;
   v2s CoSi1, CoSi2, CoSi3;
@@ -64,7 +66,7 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
   n1 = fftLen;
   n2 = n1 >> 2U;
   n2_store = n2 >> 2U;
-  for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, n2); i0++) {
+  for (i0 = row_id * STEP; i0 < MIN(row_id * STEP + STEP, n2); i0++) {
     CoSi1 = *(v2s *)&pCoef_src[2U * i0];
     CoSi2 = *(v2s *)&pCoef_src[2U * (i0 + 1 * N_BANKS)];
     CoSi3 = *(v2s *)&pCoef_src[2U * (i0 + 2 * N_BANKS)];
@@ -85,15 +87,15 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
       *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi3;
       *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi3;
     }
-    asm volatile("pv.extract.h  %[t1],%[CoSi1],1;"
-                 "pv.extract.h  %[t3],%[CoSi2],1;"
-                 "pv.extract.h  %[t5],%[CoSi3],1;"
-                 "pv.extract.h  %[t0],%[CoSi1],0;"
-                 "pv.extract.h  %[t2],%[CoSi2],0;"
-                 "pv.extract.h  %[t4],%[CoSi3],0;"
-                 "sub           %[t1],zero,%[t1];"
-                 "sub           %[t3],zero,%[t3];"
-                 "sub           %[t5],zero,%[t5];"
+    asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
+                 "pv.extract.h  %[t3],%[CoSi2],0;"
+                 "pv.extract.h  %[t5],%[CoSi3],0;"
+                 "pv.extract.h  %[t0],%[CoSi1],1;"
+                 "pv.extract.h  %[t2],%[CoSi2],1;"
+                 "pv.extract.h  %[t4],%[CoSi3],1;"
+                 "sub           %[t0],zero,%[t0];"
+                 "sub           %[t2],zero,%[t2];"
+                 "sub           %[t4],zero,%[t4];"
                  "pv.pack %[C1],%[t1],%[t0];"
                  "pv.pack %[C2],%[t3],%[t2];"
                  "pv.pack %[C3],%[t5],%[t4];"
@@ -102,10 +104,13 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
                    [t4] "=&r"(t4), [t5] "=&r"(t5)
                  : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                  :);
-    for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-      radix4_butterfly_first(pSrc + idx_row * (N_BANKS * 8),
-                             pDst + idx_row * (N_BANKS * 8), i0, n2_store,
-                             CoSi1, CoSi2, CoSi3, C1, C2, C3);
+    for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW / WU_STRIDE; idx_row++) {
+      radix4_butterfly_first(
+          pSrc + (idx_row + (core_id % WU_STRIDE) * (N_FFTs_ROW / WU_STRIDE)) *
+                     (N_BANKS * 8),
+          pDst + (idx_row + (core_id % WU_STRIDE) * (N_FFTs_ROW / WU_STRIDE)) *
+                     (N_BANKS * 8),
+          i0, n2_store, CoSi1, CoSi2, CoSi3, C1, C2, C3);
     }
   }
   pTmp = pSrc;
@@ -121,15 +126,18 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
     n1 = n2;
     n2 >>= 2U;
     n2_store = n2 >> 2U;
-    bank_id = core_id / n2_store;
-    wing_id = core_id % n2_store;
-    offset = bank_id * n2;
-    for (j = wing_id * 4; j < MIN(wing_id * 4 + 4, n2); j++) {
-      CoSi1 = *(v2s *)&pCoef_src[2U * (j + offset)];
-      CoSi2 = *(v2s *)&pCoef_src[2U * (j + 1 * N_BANKS + offset)];
-      CoSi3 = *(v2s *)&pCoef_src[2U * (j + 2 * N_BANKS + offset)];
-      if (i0 % 4 == 0) {
-        ic = j / 4 + offset;
+
+    for (j = row_id * STEP; j < row_id * STEP + STEP; j++) {
+      CoSi1 = *(v2s *)&pCoef_src[2U * (j)];
+      CoSi2 = *(v2s *)&pCoef_src[2U * (j + 1 * N_BANKS)];
+      CoSi3 = *(v2s *)&pCoef_src[2U * (j + 2 * N_BANKS)];
+      if (j % 4 == 0) {
+
+        wing_idx = j % n2;
+        offset = (j / n2);
+        ic = wing_idx >> 2U;
+        ic += offset * n2;
+
         *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi1;
         *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi1;
         *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi1;
@@ -145,15 +153,15 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
         *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi3;
         *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi3;
       }
-      asm volatile("pv.extract.h  %[t1],%[CoSi1],1;"
-                   "pv.extract.h  %[t3],%[CoSi2],1;"
-                   "pv.extract.h  %[t5],%[CoSi3],1;"
-                   "pv.extract.h  %[t0],%[CoSi1],0;"
-                   "pv.extract.h  %[t2],%[CoSi2],0;"
-                   "pv.extract.h  %[t4],%[CoSi3],0;"
-                   "sub           %[t1],zero,%[t1];"
-                   "sub           %[t3],zero,%[t3];"
-                   "sub           %[t5],zero,%[t5];"
+      asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
+                   "pv.extract.h  %[t3],%[CoSi2],0;"
+                   "pv.extract.h  %[t5],%[CoSi3],0;"
+                   "pv.extract.h  %[t0],%[CoSi1],1;"
+                   "pv.extract.h  %[t2],%[CoSi2],1;"
+                   "pv.extract.h  %[t4],%[CoSi3],1;"
+                   "sub           %[t0],zero,%[t0];"
+                   "sub           %[t2],zero,%[t2];"
+                   "sub           %[t4],zero,%[t4];"
                    "pv.pack %[C1],%[t1],%[t0];"
                    "pv.pack %[C2],%[t3],%[t2];"
                    "pv.pack %[C3],%[t5],%[t4];"
@@ -162,10 +170,15 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
                      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
                    : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                    :);
-      for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-        radix4_butterfly_middle(pSrc + idx_row * (N_BANKS * 8),
-                                pDst + idx_row * (N_BANKS * 8), offset + j, n2,
-                                n2_store, CoSi1, CoSi2, CoSi3, C1, C2, C3);
+      for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW / WU_STRIDE; idx_row++) {
+        radix4_butterfly_middle(
+            pSrc +
+                (idx_row + (core_id % WU_STRIDE) * (N_FFTs_ROW / WU_STRIDE)) *
+                    (N_BANKS * 8),
+            pDst +
+                (idx_row + (core_id % WU_STRIDE) * (N_FFTs_ROW / WU_STRIDE)) *
+                    (N_BANKS * 8),
+            j, n2, n2_store, CoSi1, CoSi2, CoSi3, C1, C2, C3);
       }
     }
     pTmp = pSrc;
@@ -174,16 +187,20 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
     pTmp = pCoef_src;
     pCoef_src = pCoef_dst;
     pCoef_dst = pTmp;
-    mempool_log_partial_barrier(2, absolute_core_id, n2);
+    mempool_log_partial_barrier(2, absolute_core_id, nPE);
   }
 
   /*  LAST STAGE */
   n1 = n2;
   n2 >>= 2U;
-  for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, fftLen >> 2U); i0++) {
-    for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-      radix4_butterfly_last(pSrc + idx_row * (N_BANKS * 8),
-                            pDst + idx_row * (N_BANKS * 8), i0, col_id, fftLen);
+  for (i0 = row_id * STEP; i0 < MIN(row_id * STEP + STEP, fftLen >> 2U); i0++) {
+    for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW / WU_STRIDE; idx_row++) {
+      radix4_butterfly_last(
+          pSrc + (idx_row + (core_id % WU_STRIDE) * (N_FFTs_ROW / WU_STRIDE)) *
+                     (N_BANKS * 8),
+          pDst + (idx_row + (core_id % WU_STRIDE) * (N_FFTs_ROW / WU_STRIDE)) *
+                     (N_BANKS * 8),
+          i0, col_id, fftLen);
     }
   }
   pTmp = pSrc - 2 * col_id * (fftLen >> 2U);
@@ -209,17 +226,21 @@ static void mempool_cfft_q16p(uint32_t col_id, int16_t *pSrc, int16_t *pDst,
     uint16_t *ptr1 = (uint16_t *)(pSrc + col_id * fftLen);
     uint16_t *ptr2 = (uint16_t *)(pDst + col_id * fftLen);
     uint32_t idx, idx_result;
-    core_id = absolute_core_id % (fftLen >> 2U);
-    for (j = core_id; j < (core_id + 4); j++) {
-      idx = j;
+    for (j = row_id; j < fftLen; j += (nPE / WU_STRIDE)) {
       idx_result = 0;
+      idx = j;
       for (k = 0; k < LOG2; k++) {
         idx_result = (idx_result << 1U) | (idx & 1U);
         idx = idx >> 1U;
       }
-      for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-        *((uint32_t *)&ptr2[2 * idx_result + idx_row * (N_BANKS * 8)]) =
-            (uint32_t)ptr1[2 * j + idx_row * (N_BANKS * 8)];
+      for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW / WU_STRIDE; idx_row++) {
+        *((uint32_t *)&ptr2[2 * idx_result +
+                            (idx_row +
+                             (core_id % WU_STRIDE) * (N_FFTs_ROW / WU_STRIDE)) *
+                                (N_BANKS * 8)]) =
+            (uint32_t)ptr1[2 * j + (idx_row + (core_id % WU_STRIDE) *
+                                                  (N_FFTs_ROW / WU_STRIDE)) *
+                                       (N_BANKS * 8)];
       }
     }
 #endif
@@ -268,9 +289,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
   A = __SRA2(E, s1);
   B = __SRA2(G, s1);
   /* C0 = (xb - xd), C1 = (yd - yb) */
-  C = __PACK2(-t1, t0);
+  C = __PACK2(t0, -t1);
   /* D0 = (xd - xb), D1 = (yb - yd) */
-  D = __PACK2(t1, -t0);
+  D = __PACK2(-t0, t1);
   /* E0 = (ya+yc) - (yb+yd), E1 = (xa+xc) - (xb+xd) */
   E = __SUB2(E, G);
   /* G1 = (ya-yc) + (xb-xd), G0 = (xa-xc) - (yb-yd) */
@@ -336,10 +357,10 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                "pv.extract.h  %[t1],%[H],1;"
                "pv.sra.h  %[A],%[E],%[s1];"
                "pv.sra.h  %[B],%[G],%[s1];"
-               "sub %[t2],zero,%[t1];"
-               "pv.pack %[C],%[t2],%[t0];"
-               "sub %[t3],zero,%[t0];"
-               "pv.pack %[D],%[t1],%[t3];"
+               "sub %[t2],zero,%[t0];"
+               "sub %[t3],zero,%[t1];"
+               "pv.pack %[C],%[t0],%[t3];"
+               "pv.pack %[D],%[t2],%[t0];"
                "pv.sub.h  %[E],%[E],%[G];"
                "pv.add.h  %[G],%[F],%[C];"
                "pv.add.h  %[H],%[F],%[D];"
@@ -428,9 +449,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
   /* D0 = (ya+yc) + (yb+yd), D1 = (xa+xc) + (xb+xd) */
   D = __ADD2(E, G);
   /* A0 = (xb-xd), A1 = (yd-yb) */
-  A = __PACK2(t1, -t0);
+  A = __PACK2(t0, -t1);
   /* B0 = (xd-xb), B1 = (yb-yd) */
-  B = __PACK2(-t1, t0);
+  B = __PACK2(-t0, t1);
   /* xa' = xa + xb + xc + xd */
   /* ya' = ya + yb + yc + yd */
   D = __SRA2(D, s1);
@@ -450,9 +471,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
   /* yd' = (ya+xb-yc-xd)* Co3 - (xa-yb-xc+yd)* (si3) */
   t4 = (int16_t)(__DOTP2(CoSi3, E) >> 16U);
   t5 = (int16_t)(__DOTP2(C3, E) >> 16U);
-  A = __PACK2(t0, t1);
-  B = __PACK2(t2, t3);
-  C = __PACK2(t4, t5);
+  A = __PACK2(t1, t0);
+  B = __PACK2(t3, t2);
+  C = __PACK2(t5, t4);
   *((v2s *)&pOut[i0_store * 2U]) = D;
   *((v2s *)&pOut[i1_store * 2U]) = A;
   *((v2s *)&pOut[i2_store * 2U]) = B;
@@ -494,9 +515,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
       "pv.sub.h  %[C],%[E],%[G];"
       "pv.add.h  %[D],%[E],%[G];"
       "sub %[t2],zero,%[t0];"
-      "pv.pack %[A],%[t1],%[t2];"
       "sub %[t3],zero,%[t1];"
-      "pv.pack %[B],%[t3],%[t0];"
+      "pv.pack %[A],%[t0],%[t3];"
+      "pv.pack %[B],%[t2],%[t1];"
       "pv.sra.h  %[D],%[D],%[s1];"
       "pv.add.h  %[E],%[F],%[A];"
       "pv.add.h  %[F],%[F],%[B];"
@@ -512,9 +533,9 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
       "srai  %[t3],%[B],0x10;"
       "srai  %[G],%[G],0x10;"
       "srai  %[H],%[H],0x10;"
-      "pv.pack %[A],%[t0],%[t1];"
-      "pv.pack %[B],%[t2],%[t3];"
-      "pv.pack %[C],%[G],%[H];"
+      "pv.pack %[A],%[t1],%[t0];"
+      "pv.pack %[B],%[t3],%[t2];"
+      "pv.pack %[C],%[H],%[G];"
       : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D), [E] "=&r"(E),
         [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H), [t0] "=&r"(t0),
         [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3), [s1] "=&r"(s1)
@@ -579,9 +600,9 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
   /* ya' = (ya+yb+yc+yd) */
   *((v2s *)&pOut[i0_store * 2U]) = __ADD2(E, G);
   /* A0 = (xb-xd), A1 = (yd-yb) */
-  A = __PACK2(t1, -t0);
+  A = __PACK2(-t0, t1);
   /* B0 = (xd-xb), B1 = (yb-yd) */
-  B = __PACK2(-t1, t0);
+  B = __PACK2(t0, -t1);
   /* xc' = (xa-xb+xc-xd) */
   /* yc' = (ya-yb+yc-yd) */
   E = __SUB2(E, G);
@@ -626,9 +647,9 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
       "pv.extract.h  %[t1],%[H],1;"
       "pv.sra.h  %[F],%[F],%[s1];"
       "sub %[t2], zero, %[t0];"
-      "pv.pack %[A],%[t1],%[t2];"
       "sub %[t3],zero,%[t1];"
-      "pv.pack %[B],%[t3],%[t0];"
+      "pv.pack %[A],%[t2],%[t1];"
+      "pv.pack %[B],%[t0],%[t3];"
       "pv.add.h  %[H],%[E],%[G];"
       "pv.sub.h  %[E],%[E],%[G];"
       "pv.add.h  %[A],%[F],%[A];"
