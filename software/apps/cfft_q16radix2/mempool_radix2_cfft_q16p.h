@@ -43,6 +43,7 @@ static void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
   uint32_t i, j, k, l;
   uint32_t n1, n2, ia;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t step, steps, butt_id, offset;
   v2s T, S, R;
   v2s coeff;
@@ -201,5 +202,5 @@ void mempool_radix2_bitreversal_q16p(uint16_t *pSrc, const uint16_t bitRevLen,
     *((v2s *)&pSrc[addr[0]]) = tmpb;
     *((v2s *)&pSrc[addr[1]]) = tmpa;
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 }

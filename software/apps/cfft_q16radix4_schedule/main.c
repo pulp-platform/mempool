@@ -42,11 +42,14 @@ int16_t pCoef16[3 * N_CSAMPLES / 4]
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
 void initialize_vector_s(int16_t *pSrc, uint32_t fftLen) {
+
   int32_t lower = SHRT_MIN, upper = SHRT_MAX;
   uint32_t idx_fft, i;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
+
   for (idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
-    for (i = core_id; i < 2 * N_BANKS_SINGLE; i += NUM_CORES) {
+    for (i = core_id; i < 2 * N_BANKS_SINGLE; i += num_cores) {
       if (i < (2 * fftLen)) {
         pSrc[i + idx_fft * 2 * N_BANKS_SINGLE] =
             (int16_t)((int16_t)i % (upper - lower + 1));
@@ -55,13 +58,13 @@ void initialize_vector_s(int16_t *pSrc, uint32_t fftLen) {
       }
     }
   }
-  for (i = core_id; i < (3 * N_CSAMPLES / 4); i += NUM_CORES) {
+  for (i = core_id; i < (3 * N_CSAMPLES / 4); i += num_cores) {
     *(v2s *)&pCoef16[2U * i] = *(v2s *)&twiddleCoef_q16[2U * i];
   }
-  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += NUM_CORES) {
+  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += num_cores) {
     *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 }
 
 #endif
@@ -86,8 +89,10 @@ void initialize_vector_p(int16_t *pSrc, int16_t *pDst, uint32_t fftLen,
   uint32_t idx_row, idx_col;
   uint32_t i, ic;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
+
   for (idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-    for (i = core_id; i < 8 * N_BANKS; i += NUM_CORES) {
+    for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
       if (i < N_FFTs_COL * (fftLen >> 1U))
         pSrc[i + idx_row * 8 * N_BANKS] =
             (int16_t)((int32_t)i % (upper - lower + 1));
@@ -96,12 +101,12 @@ void initialize_vector_p(int16_t *pSrc, int16_t *pDst, uint32_t fftLen,
       pDst[i + idx_row * 8 * N_BANKS] = (int16_t)0;
     }
   }
-  for (i = core_id; i < 8 * N_BANKS; i += NUM_CORES) {
+  for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
     pCoef_src[i] = (int16_t)0;
     pCoef_dst[i] = (int16_t)0;
   }
   for (idx_col = 0; idx_col < N_FFTs_COL; idx_col++) {
-    for (ic = core_id; ic < (fftLen / 4); ic += NUM_CORES) {
+    for (ic = core_id; ic < (fftLen / 4); ic += num_cores) {
       *(v2s *)&pCoef_src[2U * ic + idx_col * (fftLen >> 2U)] =
           *(v2s *)&twiddleCoef[2U * ic];
       *(v2s *)&pCoef_src[2U * (ic + 1 * N_BANKS) + idx_col * (fftLen >> 2U)] =
@@ -111,11 +116,11 @@ void initialize_vector_p(int16_t *pSrc, int16_t *pDst, uint32_t fftLen,
     }
   }
 #ifdef BITREVERSALTABLE
-  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += NUM_CORES) {
+  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += num_cores) {
     *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
   }
 #endif
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 }
 
 #endif
@@ -123,12 +128,13 @@ void initialize_vector_p(int16_t *pSrc, int16_t *pDst, uint32_t fftLen,
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
   if (core_id == 0) {
     printf("On the run...\n");
     error = 0;
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
 #ifdef SINGLE
 
@@ -136,7 +142,7 @@ int main() {
   initialize_vector_s(pSrc16, N_CSAMPLES);
   if (core_id == 0)
     printf("Done initialization\n");
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     mempool_start_benchmark();
@@ -153,7 +159,7 @@ int main() {
                       pCoef16_dst);
   if (core_id == 0)
     printf("Done initialization\n");
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
   if (core_id < N_FFTs_COL * (N_CSAMPLES >> 4U)) {
     mempool_start_benchmark();
@@ -163,11 +169,11 @@ int main() {
     mempool_stop_benchmark();
   }
 #endif
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     printf("Done\n");
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
   return error;
 }

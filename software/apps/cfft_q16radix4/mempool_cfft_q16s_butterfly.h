@@ -315,7 +315,6 @@ static void mempool_radix4_butterfly_q16s_riscv32(int16_t *pIn, uint32_t fftLen,
     pIn[(i3 * 2U) + 1U] = (int16_t)((S1 >> 1U) + (T0 >> 1U));
   }
   /* END OF LAST STAGE PROCESSING */
-
 }
 
 static void mempool_radix4_butterfly_q16s_xpulpimg(int16_t *pSrc16,
@@ -368,15 +367,15 @@ static void mempool_radix4_butterfly_q16s_xpulpimg(int16_t *pSrc16,
       CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
       CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
 #ifndef ASM
-    t1 = (int16_t)CoSi1[0];
-    t3 = (int16_t)CoSi2[0];
-    t5 = (int16_t)CoSi3[0];
-    t0 = (int16_t)CoSi1[1];
-    t2 = (int16_t)CoSi2[1];
-    t4 = (int16_t)CoSi3[1];
-    C1 = __PACK2(t1, -t0);
-    C2 = __PACK2(t3, -t2);
-    C3 = __PACK2(t5, -t4);
+      t1 = (int16_t)CoSi1[0];
+      t3 = (int16_t)CoSi2[0];
+      t5 = (int16_t)CoSi3[0];
+      t0 = (int16_t)CoSi1[1];
+      t2 = (int16_t)CoSi2[1];
+      t4 = (int16_t)CoSi3[1];
+      C1 = __PACK2(t1, -t0);
+      C2 = __PACK2(t3, -t2);
+      C3 = __PACK2(t5, -t4);
 #endif
       /*  Twiddle coefficients index modifier */
       ic = ic + twidCoefModifier;
