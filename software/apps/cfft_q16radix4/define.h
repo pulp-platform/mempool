@@ -49,9 +49,6 @@
 #define N_BANKS (1024)
 #define N_TWIDDLES (3 * N_CSAMPLES / 4)
 
-dump(ic, 1);
-dump(ic_2, 2);
-dump(ic_3, 3);
 #define WU_STRIDE (1)
 #define STEP (4 * WU_STRIDE)
 

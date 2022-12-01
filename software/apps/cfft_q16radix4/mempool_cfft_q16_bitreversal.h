@@ -31,13 +31,13 @@ static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc, uint16_t *pDst,
 
 #else
 
-static void mempool_bitrev_q16s_riscv32(uint16_t  *pSrc,
+static void mempool_bitrev_q16s_riscv32(uint16_t *pSrc,
                                         const uint16_t bitRevLen,
                                         const uint16_t *pBitRevTab);
-static void mempool_bitrev_q16s_xpulpimg(uint16_t  *pSrc,
+static void mempool_bitrev_q16s_xpulpimg(uint16_t *pSrc,
                                          const uint16_t bitRevLen,
                                          const uint16_t *pBitRevTab);
-static void mempool_bitrev_q16p_xpulpimg(uint16_t  *pSrc,
+static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc,
                                          const uint16_t bitRevLen,
                                          const uint16_t *pBitRevTab,
                                          const uint32_t nPE);
@@ -181,14 +181,14 @@ static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc,
     addr2 = __SRA2(addr2, s2);
     addr3 = __SRA2(addr3, s2);
     addr4 = __SRA2(addr4, s2);
-    a1 = addr1[0];
-    a2 = addr2[0];
-    a3 = addr3[0];
-    a4 = addr4[0];
-    b1 = addr1[1];
-    b2 = addr2[1];
-    b3 = addr3[1];
-    b4 = addr4[1];
+    a1 = addr1[1];
+    a2 = addr2[1];
+    a3 = addr3[1];
+    a4 = addr4[1];
+    b1 = addr1[0];
+    b2 = addr2[0];
+    b3 = addr3[0];
+    b4 = addr4[0];
     tmpa1 = *(v2s *)&pSrc[a1];
     tmpa2 = *(v2s *)&pSrc[a2];
     tmpa3 = *(v2s *)&pSrc[a3];
@@ -214,14 +214,14 @@ static void mempool_bitrev_q16p_xpulpimg(uint16_t *pSrc,
                  "pv.sra.h  %[addr2],%[addr2],%[s2];"
                  "pv.sra.h  %[addr3],%[addr3],%[s2];"
                  "pv.sra.h  %[addr4],%[addr4],%[s2];"
-                 "pv.extract.h  %[a1],%[addr1],0;"
-                 "pv.extract.h  %[a2],%[addr2],0;"
-                 "pv.extract.h  %[a3],%[addr3],0;"
-                 "pv.extract.h  %[a4],%[addr4],0;"
-                 "pv.extract.h  %[b1],%[addr1],1;"
-                 "pv.extract.h  %[b2],%[addr2],1;"
-                 "pv.extract.h  %[b3],%[addr3],1;"
-                 "pv.extract.h  %[b4],%[addr4],1;"
+                 "pv.extract.h  %[a1],%[addr1],1;"
+                 "pv.extract.h  %[a2],%[addr2],1;"
+                 "pv.extract.h  %[a3],%[addr3],1;"
+                 "pv.extract.h  %[a4],%[addr4],1;"
+                 "pv.extract.h  %[b1],%[addr1],0;"
+                 "pv.extract.h  %[b2],%[addr2],0;"
+                 "pv.extract.h  %[b3],%[addr3],0;"
+                 "pv.extract.h  %[b4],%[addr4],0;"
                  : [a1] "=r"(a1), [a2] "=r"(a2), [a3] "=r"(a3), [a4] "=r"(a4),
                    [b1] "=r"(b1), [b2] "=r"(b2), [b3] "=r"(b3), [b4] "=r"(b4),
                    [addr1] "+&r"(addr1), [addr2] "+&r"(addr2),

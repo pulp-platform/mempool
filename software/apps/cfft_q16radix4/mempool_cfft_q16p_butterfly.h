@@ -245,12 +245,12 @@ static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
   A = *(v2s *)&pIn[i0 * 2U];
   /* Read yc (real), xc(imag) input */
   C = *(v2s *)&pIn[i2 * 2U];
-  asm volatile("addi %[s1], zero, 1;"
+  asm volatile("addi %[s1], zero, 0x01;"
                "slli %[s1], %[s1], 0x10;"
-               "addi %[s1], %[s1], 1;"
-               "addi %[s2], zero, 2;"
+               "addi %[s1], %[s1], 0x01;"
+               "addi %[s2], zero, 0x02;"
                "slli %[s2], %[s2], 0x10;"
-               "addi %[s2], %[s2], 2;"
+               "addi %[s2], %[s2], 0x02;"
                "pv.sra.h  %[B],%[B],%[s2];"
                "pv.sra.h  %[D],%[D],%[s2];"
                "pv.sra.h  %[A],%[A],%[s2];"
@@ -264,8 +264,8 @@ static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
                "pv.sra.h  %[A],%[E],%[s1];"
                "pv.sra.h  %[B],%[G],%[s1];"
                "sub %[t3],zero,%[t1];"
-               "pv.pack %[C],%[t0],%[t3];"
                "sub %[t4],zero,%[t0];"
+               "pv.pack %[C],%[t0],%[t3];"
                "pv.pack %[D],%[t4],%[t1];"
                "pv.sub.h  %[E],%[E],%[G];"
                "pv.add.h  %[G],%[F],%[C];"
@@ -522,9 +522,9 @@ static inline void radix4_butterfly_last(int16_t *pIn, uint32_t i0,
   int16_t t2, t3;
   v2s s1;
   asm volatile(
-      "addi %[s1], zero, 1;"
+      "addi %[s1], zero, 0x01;"
       "slli %[s1], %[s1], 0x10;"
-      "addi %[s1], %[s1], 1;"
+      "addi %[s1], %[s1], 0x01;"
       "pv.sub.h  %[H],%[B],%[D];"
       "pv.add.h  %[G],%[B],%[D];"
       "pv.add.h  %[E],%[A],%[C];"

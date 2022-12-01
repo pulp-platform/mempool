@@ -13,7 +13,8 @@
   @return        none
 */
 
-static inline void fold_radix4(int16_t  *pSrc16, uint32_t fftLen, uint32_t core_id, uint32_t nPE) {
+static inline void fold_radix4(int16_t *pSrc16, uint32_t fftLen,
+                               uint32_t core_id, uint32_t nPE) {
   uint32_t n2, i0, i1, i2, i3;
   uint32_t i1_store, i2_store, i3_store;
   volatile v2s A, B, C;
@@ -32,31 +33,32 @@ static inline void fold_radix4(int16_t  *pSrc16, uint32_t fftLen, uint32_t core_
     *(v2s *)&pSrc16[i2_store * 2U] = B;
     *(v2s *)&pSrc16[i3_store * 2U] = C;
   }
-  mempool_log_partial_barrier(2 * WU_STRIDE, WU_STRIDE * core_id, nPE * WU_STRIDE);
+  mempool_log_partial_barrier(2 * WU_STRIDE, WU_STRIDE * core_id,
+                              nPE * WU_STRIDE);
 }
 
 #ifdef FOLDED_TWIDDLES
-static inline int16_t*
-mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16, uint32_t fftLen,
-                              int16_t  *pCoef_src, int16_t  *pCoef_dst,
+static inline int16_t *
+mempool_butterfly_q16p_folded(int16_t *pSrc16, int16_t *pDst16, uint32_t fftLen,
+                              int16_t *pCoef_src, int16_t *pCoef_dst,
                               uint32_t nPE);
 #else
-static inline int16_t*
-mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16, uint32_t fftLen,
+static inline int16_t *
+mempool_butterfly_q16p_folded(int16_t *pSrc16, int16_t *pDst16, uint32_t fftLen,
                               int16_t *pCoef_src, uint32_t nPE);
 #endif
 
-static inline void radix4_butterfly_first(int16_t  *pIn, int16_t  *pOut,
+static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                                           uint32_t i0, uint32_t n2_store,
                                           v2s CoSi1, v2s CoSi2, v2s CoSi3,
                                           v2s C1, v2s C2, v2s C3);
 
-static inline void radix4_butterfly_middle(int16_t  *pIn, int16_t  *pOut,
+static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
                                            uint32_t i0, uint32_t n2,
                                            uint32_t n2_store, v2s CoSi1,
                                            v2s CoSi2, v2s CoSi3, v2s C1, v2s C2,
                                            v2s C3);
-static inline void radix4_butterfly_last(int16_t  *pIn, int16_t  *pOut,
+static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
                                          uint32_t i0);
 
 #ifdef FOLDED_TWIDDLES
@@ -72,16 +74,18 @@ static inline void radix4_butterfly_last(int16_t  *pIn, int16_t  *pOut,
   @param[in]     nPE Number of PE
   @return        pointer to output vector
 */
-static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16,
-                                          uint32_t fftLen, int16_t  *pCoef_src,
-                                          int16_t  *pCoef_dst, uint32_t nPE) {
+static int16_t *mempool_butterfly_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
+                                              uint32_t fftLen,
+                                              int16_t *pCoef_src,
+                                              int16_t *pCoef_dst,
+                                              uint32_t nPE) {
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id / WU_STRIDE;
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
   uint32_t n1, n2, n2_store, i0, j, k;
   uint32_t ic, offset, wing_idx;
-  int16_t  *pTmp;
+  int16_t *pTmp;
 
 #ifndef ASM
   int16_t t0, t1, t2, t3, t4, t5;
@@ -149,6 +153,7 @@ static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16
       CoSi1 = *(v2s *)&pCoef_src[2U * j];
       CoSi2 = *(v2s *)&pCoef_src[2U * (j + 1 * N_BANKS)];
       CoSi3 = *(v2s *)&pCoef_src[2U * (j + 2 * N_BANKS)];
+
       if (j % 4 == 0) {
 
         wing_idx = j % n2;
@@ -194,14 +199,24 @@ static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16
     pTmp = pCoef_src;
     pCoef_src = pCoef_dst;
     pCoef_dst = pTmp;
-    mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id, nPE * WU_STRIDE);
+    mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id,
+                                nPE * WU_STRIDE);
   }
   /* END OF MIDDLE STAGE PROCESSING */
+
+  //  if(mempool_get_core_id() == 0) {
+  //    for(int i = 0; i < fftLen; i++) {
+  //      v2s data = *(v2s *)&pSrc16[2 * (i/4 + ((i%4) * N_BANKS))];
+  //      printf("%6d %6d \n", data[1], data[0]);
+  //    }
+  //  }
+  //  mempool_log_partial_barrier(2, mempool_get_core_id(), nPE);
 
   /* START OF LAST STAGE PROCESSING */
   n1 = n2;
   n2 >>= 2U;
-  for (i0 = core_id * STEP; i0 < MIN(core_id * STEP + STEP, fftLen >> 2U); i0++) {
+  for (i0 = core_id * STEP; i0 < MIN(core_id * STEP + STEP, fftLen >> 2U);
+       i0++) {
     radix4_butterfly_last(pSrc16, pDst16, i0);
   }
   mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id, nPE * WU_STRIDE);
@@ -222,16 +237,17 @@ static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16
   @param[in]     nPE Number of PE
   @return        pointer to output vector
 */
-static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16,
-                                          uint32_t fftLen, int16_t *pCoef_src,
-                                          uint32_t nPE) {
+static int16_t *mempool_butterfly_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
+                                              uint32_t fftLen,
+                                              int16_t *pCoef_src,
+                                              uint32_t nPE) {
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id / WU_STRIDE;
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
   uint32_t n1, n2, n2_store, i0, j, k;
   uint32_t ic, offset, wing_id, bank_id;
-  int16_t  *pTmp;
+  int16_t *pTmp;
 
 #ifndef ASM
   int16_t t0, t1, t2, t3, t4, t5;
@@ -273,7 +289,7 @@ static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16
   /* START OF MIDDLE STAGE PROCESS */
   for (k = fftLen / 4U; k > 4U; k >>= 2U) {
     n1 = n2;
-    n2 = n2 >> 2U;
+    n2 >>= 2U;
     n2_store = n2 >> 2U;
     bank_id = core_id / n2_store;
     wing_id = core_id % n2_store;
@@ -281,9 +297,9 @@ static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16
 
     for (j = wing_id * 4; j < MIN(wing_id * 4 + 4, n2); j++) {
       ic = j * twidCoefModifier;
-      CoSi1 = *(v2s *)&pCoef_src[ic * 2U];
+      CoSi1 = *(v2s *)&pCoef_src[2U * ic];
       CoSi2 = *(v2s *)&pCoef_src[2U * (ic * 2U)];
-      CoSi3 = *(v2s *)&pCoef_src[3U * (ic * 2U)];
+      CoSi3 = *(v2s *)&pCoef_src[2U * (ic * 3U)];
 #ifndef ASM
       t1 = (int16_t)CoSi1[0];
       t3 = (int16_t)CoSi2[0];
@@ -306,6 +322,14 @@ static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16
     mempool_log_partial_barrier(2, core_id, nPE);
   }
   /* END OF MIDDLE STAGE PROCESSING */
+
+  //  if(mempool_get_core_id() == 0) {
+  //    for(int i = 0; i < fftLen; i++) {
+  //      v2s data = *(v2s *)&pSrc16[2 * (i/4 + ((i%4) * N_BANKS))];
+  //      printf("%6d %6d \n", data[1], data[0]);
+  //    }
+  //  }
+  //  mempool_log_partial_barrier(2, mempool_get_core_id(), nPE);
 
   /* START OF LAST STAGE PROCESSING */
   n1 = n2;
@@ -339,7 +363,7 @@ static int16_t* mempool_butterfly_q16p_folded(int16_t  *pSrc16, int16_t  *pDst16
   @return        none
 */
 
-static inline void radix4_butterfly_first(int16_t  *pIn, int16_t  *pOut,
+static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                                           uint32_t i0, uint32_t n2_store,
                                           v2s CoSi1, v2s CoSi2, v2s CoSi3,
                                           v2s C1, v2s C2, v2s C3) {
@@ -517,7 +541,7 @@ static inline void radix4_butterfly_first(int16_t  *pIn, int16_t  *pOut,
   @return        none
 */
 
-static inline void radix4_butterfly_middle(int16_t *pIn, int16_t  *pOut,
+static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
                                            uint32_t i0, uint32_t n2,
                                            uint32_t n2_store, v2s CoSi1,
                                            v2s CoSi2, v2s CoSi3, v2s C1, v2s C2,
@@ -695,7 +719,7 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t  *pOut,
   @return        none
 */
 
-static inline void radix4_butterfly_last(int16_t  *pIn, int16_t  *pOut,
+static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
                                          uint32_t i0) {
   int16_t t0, t1;
   uint32_t i1, i2, i3;
