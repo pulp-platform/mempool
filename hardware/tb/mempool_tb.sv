@@ -198,6 +198,183 @@ module mempool_tb;
 `endif
 
   /************************
+   *  Mempool Bank Trace  *
+   ************************/
+//Accessing Signals heirarchically not supported by Verilator
+`ifndef TARGET_SYNTHESIS
+`ifndef TARGET_VERILATOR
+  //Hierarchy for TCDM adapter
+  `ifdef XQUEUE_TCDM_ADAPTER 
+    `define TCDM_ADAPTER(group,tile,bank) \
+    dut.i_mempool_cluster.gen_groups[group].i_group.gen_tiles[tile].i_tile.gen_banks[bank].gen_tcdm_adapter_xqueue.i_tcdm_adapter 
+  `else
+    `define TCDM_ADAPTER(group,tile,bank) \
+    dut.i_mempool_cluster.gen_groups[group].i_group.gen_tiles[tile].i_tile.gen_banks[bank].gen_tcdm_adapter.i_tcdm_adapter
+  `endif
+  int f;
+
+  initial begin
+    f = $fopen("trace_bank.dasm", "w");
+  end
+
+  localparam int BankTrace = `ifdef BANK_TRACE `BANK_TRACE `else 0 `endif;
+
+  genvar i,j,k;
+  generate;
+    for (i=0; i<NumGroups; ++i) begin : gen_bank_trace_groups
+      for (j=0; j<NumTilesPerGroup; ++j) begin : gen_bank_trace_tiles
+        for (k=0; k<NumBanksPerTile; ++k) begin : gen_bank_trace_banks
+          int unsigned stall_d, stall_q, stall;
+          group_id_t group_id, ini_group;
+          tile_group_id_t ini_tile;
+          tile_core_id_t ini_core;
+          logic increment_head_q, increment_tail_q, vld_amo_op_q;
+          logic [DataWidth-1:0] q_push_data_d, q_push_data_q;
+          string trace_entry; 
+          typedef logic [$clog2(NumCoresPerTile + NumGroups)-1:0] local_req_interco_addr_t;
+          typedef struct packed {
+            local_req_interco_addr_t ini_addr;
+            meta_id_t meta_id;
+            tile_group_id_t tile_id;
+            tile_core_id_t core_id;
+            logic wide;
+          } metadata_t;
+          metadata_t metadata_sel; 
+          logic print_stall_d, print_stall_q, print_lw_d, print_lw_q, print_sw_d, print_sw_q;
+          logic [31:0] in_addr_d, in_addr_q;
+          logic [31:0] sw_d, sw_q;
+
+          always_comb begin
+            group_id      = i;
+            metadata_sel  = `TCDM_ADAPTER(i,j,k).in_meta_o;
+            stall_d       = stall_q;
+            q_push_data_d = q_push_data_q;
+            print_stall_d = 1'b0;
+            print_lw_d    = 1'b0;
+            print_sw_d    = 1'b0;
+            in_addr_d     = in_addr_q;
+            sw_d          = sw_q;
+            //Storing Qpush data
+            if(`TCDM_ADAPTER(i,j,k).in_valid_i && `TCDM_ADAPTER(i,j,k).in_amo_i == 4'hC) begin
+              q_push_data_d = `TCDM_ADAPTER(i,j,k).in_wdata_i;
+            end
+            //Calculating Intitiating core from Response Metadata 
+            if (metadata_sel.ini_addr >= NumCoresPerTile) begin
+              ini_group = $bits(group_id_t)'(metadata_sel.ini_addr - NumCoresPerTile) ^ group_id;
+              ini_tile  = metadata_sel.tile_id;
+              ini_core  = metadata_sel.core_id;
+            end else begin
+              ini_group = group_id;
+              ini_tile  = j;
+              ini_core  = metadata_sel.ini_addr;
+            end
+            `ifdef XQUEUE_TCDM_ADAPTER
+              //Stall calculation for queue operations
+              if (`TCDM_ADAPTER(i,j,k).increment_head || `TCDM_ADAPTER(i,j,k).increment_tail) begin
+                stall_d <= 0;
+              end else begin
+                if (`TCDM_ADAPTER(i,j,k).queue_stalled_q) begin
+                  stall_d <= stall_q + 1;
+                end
+              end
+              //Print the cycles of stalled queue operation when it is resolved 
+              if (`TCDM_ADAPTER(i,j,k).queue_stalled_q && !(`TCDM_ADAPTER(i,j,k).queue_stalled_d)) begin
+                print_stall_d = 1'b1;
+                stall = stall_q;
+              end
+            `endif
+            //Print Non-Atomic Loads and Stores 
+            if ((`TCDM_ADAPTER(i,j,k).in_amo_i == '0) && `TCDM_ADAPTER(i,j,k).in_valid_i && `TCDM_ADAPTER(i,j,k).in_ready_o) begin
+              in_addr_d = `TCDM_ADAPTER(i,j,k).in_address_i;
+              if (`TCDM_ADAPTER(i,j,k).in_write_i) begin
+                print_sw_d  = 1'b1;
+                sw_d        = `TCDM_ADAPTER(i,j,k).in_wdata_i;
+              end else begin
+                print_lw_d  = 1'b1;
+              end
+            end
+          end
+
+          always_ff @(posedge clk or negedge rst_n) begin
+            if (!rst_n) begin
+              stall_q           <= 0;
+              increment_head_q  <= '0;
+              increment_tail_q  <= '0;
+              vld_amo_op_q      <= '0;
+              q_push_data_q     <= '0;
+              print_stall_q     <= '0;
+              print_lw_q        <= '0;
+              print_sw_q        <= '0;
+              in_addr_q         <= '0;
+              sw_q              <= '0;
+            end else begin
+              stall_q           <= stall_d;
+              `ifdef XQUEUE_TCDM_ADAPTER
+                increment_head_q  <= `TCDM_ADAPTER(i,j,k).increment_head;
+                increment_tail_q  <= `TCDM_ADAPTER(i,j,k).increment_tail;
+                vld_amo_op_q      <= `TCDM_ADAPTER(i,j,k).vld_amo_op && `TCDM_ADAPTER(i,j,k).req_accepted;
+              `else 
+                increment_head_q  <= '0;
+                increment_tail_q  <= '0;
+                vld_amo_op_q      <= '0;
+              `endif
+              q_push_data_q     <= q_push_data_d;
+              print_stall_q     <= print_stall_d;
+              print_lw_q        <= print_lw_d;
+              print_sw_q        <= print_sw_d;
+              in_addr_q         <= in_addr_d;
+              sw_q              <= sw_d;
+              //Print when a Bank Operation is retired
+              if (BankTrace && `TCDM_ADAPTER(i,j,k).in_valid_o)begin
+                `ifdef XQUEUE_TCDM_ADAPTER
+                  //AMO excluding Qpush and Qpop
+                  if(vld_amo_op_q)begin
+                    trace_entry = $sformatf("%t: (%1d,%2d,%2d): %s, init=(%1d,%2d,%2d), address= 0x%h, data= %d\n",$time,i,j,k,`TCDM_ADAPTER(i,j,k).amo_op_q, ini_group, ini_tile, ini_core, `TCDM_ADAPTER(i,j,k).addr_q,`TCDM_ADAPTER(i,j,k).amo_result);
+                    $fwrite(f, trace_entry);
+                  end
+                  //Queue operations
+                  if(increment_head_q || increment_tail_q) begin
+                    if (increment_head_q) begin
+                      trace_entry = $sformatf("%t: (%1d,%2d,%2d): Qpop ,",$time,i,j,k); 
+                      trace_entry = $sformatf("%s init=(%1d,%2d,%2d), data= %d", trace_entry, ini_group, ini_tile, ini_core, `TCDM_ADAPTER(i,j,k).in_rdata_o);
+                    end else if (increment_tail_q)begin
+                      trace_entry = $sformatf("%t: (%1d,%2d,%2d): Qpush,",$time,i,j,k); 
+                      trace_entry = $sformatf("%s init=(%1d,%2d,%2d), data= %d", trace_entry, ini_group, ini_tile, ini_core, q_push_data_q);
+                    end
+                    if(print_stall_q) begin 
+                      trace_entry = $sformatf("%s: Qstall=%d\n", trace_entry, stall);
+                    end else begin
+                      trace_entry = $sformatf("%s\n",trace_entry);
+                    end
+                    $fwrite(f, trace_entry);
+                  end
+                `endif
+                //Load
+                if (print_lw_q) begin
+                  trace_entry =  $sformatf("%t: (%1d,%2d,%2d): Load Word , init=(%1d,%2d,%2d), address= 0x%h, data = %d\n",$time,i,j,k, ini_group, ini_tile, ini_core, in_addr_q, `TCDM_ADAPTER(i,j,k).in_rdata_o);
+                  $fwrite(f, trace_entry);
+                end
+                //Store
+                if (print_sw_q) begin
+                  trace_entry =  $sformatf("%t: (%1d,%2d,%2d): Store Word, init=(%1d,%2d,%2d), address= 0x%h, data = %d\n",$time,i,j,k, ini_group, ini_tile, ini_core, in_addr_q, sw_q);
+                  $fwrite(f, trace_entry);
+                end 
+              end
+            end
+          end 
+        end
+      end
+    end
+  endgenerate
+  
+  final begin
+    $fclose(f);
+  end
+
+`endif
+`endif
+
+  /************************
    *  Write/Read via AXI  *
    ************************/
 

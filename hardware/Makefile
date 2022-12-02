@@ -47,6 +47,7 @@ verilator_top   ?= mempool_tb_verilator
 python          ?= python3
 # Enable tracing
 snitch_trace    ?= 0
+bank_trace		  ?= 0
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -90,12 +91,16 @@ vlog_args += -work $(library)
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DNUM_GROUPS=$(num_groups) -DBANKING_FACTOR=$(banking_factor)
 vlog_defs += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
 vlog_defs += -DBOOT_ADDR=$(boot_addr) -DXPULPIMG=$(xpulpimg)
-vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
+vlog_defs += -DSNITCH_TRACE=$(snitch_trace) -DBANK_TRACE=$(bank_trace)
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE=$(xqueue) -DXQUEUE_SIZE=$(xqueue_size)
+
+ifeq ($(xqueue),1)
+	vlog_defs+= -DXQUEUE_TCDM_ADAPTER 
+endif
 
 # Traffic generation enabled
 ifdef tg
