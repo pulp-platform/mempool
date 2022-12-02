@@ -325,7 +325,7 @@ module snitch
   assign rd = inst_data_i[7 + RegWidth - 1:7];
   assign rs1 = inst_data_i[15 + RegWidth - 1:15];
   assign rs2 = inst_data_i[20 + RegWidth - 1:20];
-  assign rs3 = ((acc_qaddr_o == snitch_pkg::FP_SS) & (snitch_pkg::ZFINX_RV)) ? inst_data_i[31:27] : (((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0);
+  assign rs3 = ((acc_qaddr_o == snitch_pkg::FP_SS) & (snitch_pkg::ZFINX_RV)) ? inst_data_i[27 + RegWidth - 1:27] : (((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0);
 
   always_comb begin
     illegal_inst = 1'b0;
@@ -830,7 +830,19 @@ module snitch
       riscv_instr::FSGNJX_S,
       riscv_instr::FMIN_S,
       riscv_instr::FMAX_S,
-      riscv_instr::FSQRT_S,
+      riscv_instr::FSQRT_S: begin
+        if (snitch_pkg::ZFINX_RV) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
       riscv_instr::FMADD_S,
       riscv_instr::FMSUB_S,
       riscv_instr::FNMSUB_S,
@@ -841,6 +853,7 @@ module snitch
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
+          opc_select = Reg;
           acc_register_rd = 1'b1;
           acc_qaddr_o = snitch_pkg::FP_SS;
         end else begin
