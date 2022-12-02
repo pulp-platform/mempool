@@ -265,7 +265,11 @@ module snitch_fp_ss
           op_ready[i] = 1'b1;
         end
         AccBus: begin
-          op[i] = acc_qdata[i];
+          if ((i > 0) & (op_select[0] == None)) begin
+            op[i] = acc_qdata[i-1];
+          end else begin
+            op[i] = acc_qdata[i];
+          end
           op_ready[i] = acc_req_valid_q;
         end
         default: begin
