@@ -11,4 +11,5 @@ Thanks to all.
 * Marc Gantenbein
 * Marco Bertuletti
 * Sergio Mazzola
+* Vaibhav Krishna
 * Yichao Zhang

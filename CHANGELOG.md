@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add a DMA
 - Add support to hardrware-accelerated queues for CGRA (RV32A extension)
 - Add systolic implementation of matmul and 2d convolution exploiting hardware-accelerated queues
+- Add ability to Trace the operations retired by the TCDM adapters  
 
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly
