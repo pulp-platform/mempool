@@ -48,6 +48,12 @@ add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_pvalid
 add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_pready
 
+# Add TCDM adapter or Xqueue-extended TCDM adapter based on Xqueue parameter value in mempool_pkg
 for {set i 0} {$i < 16} {incr i} {
-	add wave -noupdate -group group_[$1] -group Tile_[$2] -group tcdm_adapter[$i] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_banks[$i]/i_tcdm_adapter/*
+  quiet set Xqueue [examine -radix binary sim:/mempool_pkg::Xqueue]
+  if {$Xqueue} {
+    add wave -noupdate -group group_[$1] -group Tile_[$2] -group tcdm_adapter[$i] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_banks[$i]/gen_tcdm_adapter_xqueue/i_tcdm_adapter/*
+  } else {
+    add wave -noupdate -group group_[$1] -group Tile_[$2] -group tcdm_adapter[$i] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_banks[$i]/gen_tcdm_adapter/i_tcdm_adapter/*
+  }
 }
