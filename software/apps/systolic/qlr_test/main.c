@@ -38,7 +38,7 @@
 #define QLR_CFG_IADDR (QLR_CFG_BASE + (4 << 2))
 #define QLR_CFG_OADDR (QLR_CFG_BASE + (5 << 2))
 
-register int32_t qlr_reg asm ("t0");
+register int32_t qlr_reg asm("t0");
 
 int32_t *qlr_t0_cfg_type = (int32_t *)(QLR_CFG_TYPE + QLR_REG_T0);
 int32_t *qlr_t0_cfg_req = (int32_t *)(QLR_CFG_REQ + QLR_REG_T0);
@@ -67,7 +67,7 @@ int main() {
     printf("Initialize\n");
     // Fill data array
     for (int32_t i = 0; i < DATA_SIZE; ++i) {
-     data[i] = i + 1;
+      data[i] = i + 1;
     }
     // Calculate bank addresses of queues
     for (uint32_t i = 0; i < num_cores; ++i) {
@@ -97,7 +97,7 @@ int main() {
     // Accumulation
     for (uint32_t i = 0; i < DATA_SIZE; ++i) {
       qlr_reg = data[i];
-      __asm__ __volatile__("":"=r"(qlr_reg));
+      __asm__ __volatile__("" : "=r"(qlr_reg));
       check += qlr_reg;
     }
   }
@@ -113,7 +113,7 @@ int main() {
     // Accumulation
     for (uint32_t i = 0; i < DATA_SIZE; ++i) {
       check += qlr_reg;
-      __asm__ __volatile__("":"=r"(qlr_reg));
+      __asm__ __volatile__("" : "=r"(qlr_reg));
     }
   }
 
@@ -127,7 +127,7 @@ int main() {
     // Accumulation
     for (uint32_t i = 0; i < DATA_SIZE; ++i) {
       check += qlr_reg;
-      __asm__ __volatile__("":"=r"(qlr_reg));
+      __asm__ __volatile__("" : "=r"(qlr_reg));
     }
   }
 
