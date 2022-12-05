@@ -8,9 +8,11 @@
  * using global code based orchestration
  */
 
-/* TODO DESCRIPTION
- * TODO: LIMITATION NUM_COLS_Y >= 2 <=> NUM_COLS >= 4
- * TODO: COMPLETELY FIXED TO KERNEL SIZE OF 3
+/* X is an M x N matrix, W is a 3 x 3 matrix and Y is an (M-2) x (N-2) matrix
+ * Y = X * W (without zero-padding)
+ * Each core loads the whole weight kernel and outputs a row of Y, while loading
+ * and passing rows of X to the next core NOTE: N must be at least 4 and the
+ * kernel size is fixed to 3 x 3
  */
 
 // FIXME: Does not work with GCC -O3 optimization as only a limited number of
