@@ -142,10 +142,10 @@ int main() {
     printf("> Initialize\n");
 
     // Print out tile mapping
-    //print_matrix((int32_t *)tile_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
+    // print_matrix((int32_t *)tile_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
 
     // Print out core mapping
-    //print_matrix((int32_t *)core_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
+    // print_matrix((int32_t *)core_mapping, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
 
     // Initialize systolic array
     systolic_init(tile_mapping, core_mapping);

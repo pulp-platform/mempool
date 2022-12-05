@@ -56,7 +56,7 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t tile_id = core_id / 4;
+  uint32_t tile_id = core_id / NUM_CORES_PER_TILE;
 
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
@@ -66,8 +66,8 @@ int main() {
 
   // Allocate tile and core maps
   if (core_id == 0) {
-    tile_map = (uint32_t *)simple_malloc(num_cores * 4);
-    core_map = (uint32_t *)simple_malloc(num_cores * 4);
+    tile_map = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
+    core_map = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
   }
 
   // Wait for all cores
