@@ -11,14 +11,16 @@
 /* TODO DESCRIPTION
  * TODO: LIMITATION NUM_COLS_Y >= 2 <=> NUM_COLS >= 4
  * TODO: COMPLETELY FIXED TO KERNEL SIZE OF 3
- *
- *
- *
- *
  */
+
+// FIXME: Does not work with GCC -O3 optimization as only a limited number of
+// outstanding queue ops are supported
 
 #include "alloc.h"
 #include "printf.h"
+
+// Queue dump macro
+dump(queue, 16);
 
 // Array of queue ptrs in row-major order (concatenated kernels)
 int32_t *queues_x_0[NUM_CORES];
@@ -49,23 +51,21 @@ void systolic_init(uint32_t const *tile_map, uint32_t const *core_map) {
   for (uint32_t i = 0; i < NUM_CORES; ++i) {
     tile_id = tile_map[i];
     core_id = core_map[i];
-    tile_offset = tile_id * 4 * SEQ_MEM_SIZE / 4;
-    core_offset = core_id % 4 * 4;
+    tile_offset = tile_id * NUM_CORES_PER_TILE * SEQ_MEM_SIZE / sizeof(int32_t);
+    core_offset = core_id % NUM_CORES_PER_TILE * 4;
     queues_x_0[i] = &__seq_start + tile_offset + core_offset + 0;
     queues_x_1[i] = &__seq_start + tile_offset + core_offset + 1;
   }
 
   // Print out queue addresses
-  // printf("queues_x_0\n");
+  // printf("\n[QUEUE] queues_x_0\n");
   // for (uint32_t i = 0; i < NUM_CORES; ++i) {
-  //   printf("%5d ", queues_x_0[i]);
-  // }
-  // printf("\n");
-  // printf("queues_x_1\n");
+  //  dump_queue((uint32_t)(queues_x_0[i]));
+  //}
+  // printf("\n[QUEUE] queues_x_1\n");
   // for (uint32_t i = 0; i < NUM_CORES; ++i) {
-  //   printf("%5d ", queues_x_1[i]);
-  // }
-  // printf("\n");
+  //  dump_queue((uint32_t)(queues_x_1[i]));
+  //}
 }
 
 void systolic_conv_front(const uint32_t num_rows, const uint32_t num_cols,
@@ -894,6 +894,19 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_rows,
     // ----------
     // POPULATE 0
     // ----------
+
+    curr_x[2] = X[row * num_cols + 0];
+    asm volatile(
+        "q.pop.w %[curr_x_1], 0(%[queue_1]) \n\t"
+        "q.pop.w %[curr_x_0], 0(%[queue_0]) \n\t"
+        "p.mac %[acc_y_2],  \n\t"
+        : [curr_x_0] "=r"(curr_x[0]), [curr_x_1] "=r"(curr_x[1]),
+          [acc_y_2] "+r"(acc_y[2])
+        : [queue_0] "r"(queue_prev_x_0), [queue_1] "r"(queue_prev_x_1),
+          [curr_x_2] "r"(curr_x[2])[weight_0_0] "r"(weights[0][0]),
+          [weight_1_0] "r"(weights[1][0]), [weight_2_0] "r"(weights[2][0])
+        : "memory");
+
     // Pop and load x vector
     queue_pop(queue_prev_x_1, &curr_x[1]);
     curr_x[2] = X[row * num_cols + 0];
