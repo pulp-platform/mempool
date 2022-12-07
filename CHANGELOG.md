@@ -10,7 +10,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Add a DMA
 - Add support to hardrware-accelerated queues for CGRA (RV32A extension)
-- Add systolic implementation of matmul and 2d convolution exploiting hardware-accelerated queues
+- Add systolic implementation of matmul and 2D convolution exploiting hardware-accelerated queues
+- Implement Queue Linked Registers (QLR) for implicit queue-regfile communication
+- Add systollic implementation of matmul and 2D convolution exploiting QLR
+- Add capability to simulate ideal instruction path
 
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly
