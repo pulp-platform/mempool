@@ -63,8 +63,8 @@ int main() {
 
   // Allocate systolic grid mapping
   if (core_id == 0) {
-    tile_mapping = (uint32_t *)simple_malloc(num_cores * 4);
-    core_mapping = (uint32_t *)simple_malloc(num_cores * 4);
+    tile_mapping = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
+    core_mapping = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
   }
 
 #if NUM_CORES == 16
@@ -81,12 +81,12 @@ int main() {
   // uint32_t row_idx = core_id % 4;
 
   // Assign grid position (square wise)
-  // uint32_t col_idx = tile_id % 2;
-  // col_idx *= 2;
-  // col_idx += core_id % 2;
-  // uint32_t row_idx = tile_id / 2;
-  // row_idx *= 2;
-  // row_idx += (core_id % 4) / 2;
+  uint32_t col_idx = tile_id % 2;
+  col_idx *= 2;
+  col_idx += core_id % 2;
+  uint32_t row_idx = tile_id / 2;
+  row_idx *= 2;
+  row_idx += (core_id % 4) / 2;
 #elif NUM_CORES == 256
   // ----------
   // 256 CORES
@@ -97,8 +97,8 @@ int main() {
   // uint32_t row_idx = core_id / 16;
 
   // Assign grid position (col wise)
-  uint32_t col_idx = core_id / 16;
-  uint32_t row_idx = core_id % 16;
+  //uint32_t col_idx = core_id / 16;
+  //uint32_t row_idx = core_id % 16;
 
   // Assign grid position (square wise)
   uint32_t col_idx = tile_id % 8;

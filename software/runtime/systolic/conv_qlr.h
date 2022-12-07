@@ -58,7 +58,7 @@ void systolic_init(uint32_t const *core_map) {
 
   for (uint32_t i = 0; i < NUM_CORES; ++i) {
     core_id = core_map[i];
-    offset = core_id * 4;
+    offset = core_id * sizeof(int32_t);
     queues_x_0[i] = (int32_t *)(offset + 0);
     queues_x_1[i] = (int32_t *)(offset + 1);
   }

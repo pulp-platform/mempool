@@ -75,16 +75,17 @@ int main() {
   uint32_t tile_id = core_id / 4;
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // Initialization
   mempool_init(core_id, num_cores);
 
   // Allocate systolic grid mapping
   if (core_id == 0) {
-    core_map = (uint32_t *)simple_malloc(num_cores * 4);
+    core_map = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
   }
 
+#if NUM_CORES == 16
   // ----------
   // 16 CORES
   // ----------
@@ -98,17 +99,17 @@ int main() {
   // uint32_t row_idx = core_id % 4;
 
   // Assign grid position (square wise)
-  // uint32_t col_idx = tile_id % 2;
-  // col_idx *= 2;
-  // col_idx += core_id % 2;
-  // uint32_t row_idx = tile_id / 2;
-  // row_idx *= 2;
-  // row_idx += (core_id % 4) / 2;
+  uint32_t col_idx = tile_id % 2;
+  col_idx *= 2;
+  col_idx += core_id % 2;
+  uint32_t row_idx = tile_id / 2;
+  row_idx *= 2;
+  row_idx += (core_id % 4) / 2;
 
+#elif NUM_CORES == 256
   // ----------
   // 256 CORES
   // ----------
-
   // Assign grid position (row wise)
   // uint32_t col_idx = core_id % 16;
   // uint32_t row_idx = core_id / 16;
@@ -137,6 +138,9 @@ int main() {
   // row_idx *= 2;
   // row_idx += (core_id % 4) / 2;
   // row_idx += add_row * 8;
+#else
+#error Unsupported NUM_CORES
+#endif
 
   // Wait for all cores
   mempool_sleep_barrier(num_cores);
