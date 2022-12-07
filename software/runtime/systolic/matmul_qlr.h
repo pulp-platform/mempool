@@ -85,7 +85,7 @@ void systolic_init(uint32_t const *core_map) {
   for (uint32_t y = 0; y < SYSTOLIC_SIZE; ++y) {
     for (uint32_t x = 0; x < SYSTOLIC_SIZE; ++x) {
       core_id = core_map[grid_pos];
-      offset = core_id * 4;
+      offset = core_id * sizeof(int32_t);
       queues_horz_0[y][x] = (int32_t *)(offset + 0);
       queues_horz_1[y][x] = (int32_t *)(offset + 1);
       queues_horz_2[y][x] = (int32_t *)(offset + 2);
