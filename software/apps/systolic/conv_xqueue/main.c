@@ -93,7 +93,7 @@ int main() {
 
     // Create and initialize matrices
     generate_gradient_matrix(&matrix_X, DIM_X_M, DIM_X_N);
-    matrix_Y = (int32_t *)simple_malloc(DIM_Y_M * DIM_Y_N * 4);
+    matrix_Y = (int32_t *)simple_malloc(DIM_Y_M * DIM_Y_N * sizeof(int32_t));
 
     // Print out matrix X
     // printf("> Print Matrix X\n");

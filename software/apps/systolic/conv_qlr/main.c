@@ -83,14 +83,14 @@ int main() {
   uint32_t num_chains = num_cores / SYSTOLIC_LENGTH;
 
   // Initialize synchronization variables
-  mempool_barrier_init(core_id, num_cores);
+  mempool_barrier_init(core_id);
 
   // Initialization
   mempool_init(core_id);
 
   // Allocate tile and core maps
   if (core_id == 0) {
-    core_map = (uint32_t *)simple_malloc(num_cores * 4);
+    core_map = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
   }
 
   // Wait for all cores
@@ -113,8 +113,8 @@ int main() {
     systolic_init(core_map);
 
     // Create and initialize matrices
-    matrix_X = (int32_t *)simple_malloc(DIM_M * DIM_N * 4);
-    matrix_Y = (int32_t *)simple_malloc(DIM_M * DIM_N * 4);
+    matrix_X = (int32_t *)simple_malloc(DIM_M * DIM_N * sizeof(int32_t));
+    matrix_Y = (int32_t *)simple_malloc(DIM_M * DIM_N * sizeof(int32_t));
   }
 
   // Setup: Distribute weights
@@ -123,7 +123,7 @@ int main() {
     alloc_t *tile_alloc = get_alloc_tile(tile_id);
 
     // Allocate local matrix_W
-    matrix_W[tile_id] = (int32_t *)domain_malloc(tile_alloc, 9 * 4);
+    matrix_W[tile_id] = (int32_t *)domain_malloc(tile_alloc, 9 * sizeof(int32_t));
 
     // Load weights
     for (uint32_t y = 0; y < 3; ++y) {

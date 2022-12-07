@@ -117,10 +117,10 @@ void systolic_matrix_allocate(systolic_matrix_t **syst_matrix,
   uint32_t syst_num_cols = (uint32_t)((num_cols + 1) & 0xFFFE);
 
   // Allocate matrix array
-  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * 4);
+  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * sizeof(int32_t));
 
   // Allocate systolic matrix
-  systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(3 * 4);
+  systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(sizeof(systolic_matrix_t));
 
   // Assign values to systolic matrix
   new_matrix->matrix = array;
@@ -137,7 +137,7 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
   uint32_t syst_num_cols = (uint32_t)((num_cols + 1) & 0xFFFE);
 
   // Allocate matrix array
-  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * 4);
+  int32_t *array = (int32_t *)simple_malloc(syst_num_rows * syst_num_cols * sizeof(int32_t));
 
   // Copy data into new matrix array
   for (uint32_t y = 0; y < num_rows; ++y) {
@@ -159,7 +159,7 @@ void systolic_matrix_create(systolic_matrix_t **syst_matrix, int32_t *matrix,
   }
 
   // Allocate systolic matrix
-  systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(3 * 4);
+  systolic_matrix_t *new_matrix = (systolic_matrix_t *)simple_malloc(sizeof(systolic_matrix_t));
 
   // Assign values to systolic matrix
   new_matrix->matrix = array;
