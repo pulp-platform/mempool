@@ -183,6 +183,7 @@ module mempool_tb;
 
 `ifndef TARGET_SYNTHESIS
 `ifndef TARGET_VERILATOR
+`ifndef POSTLAYOUT
 
   // Helper debug signal with the wfi of each core
   logic [NumCores-1:0]          wfi;
@@ -194,6 +195,7 @@ module mempool_tb;
     end: gen_wfi_tiles
   end: gen_wfi_groups
 
+`endif
 `endif
 `endif
 

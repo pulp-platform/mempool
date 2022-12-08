@@ -142,7 +142,46 @@ module mempool_cluster
   tcdm_master_resp_t [NumGroups-1:0][NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp;
   logic              [NumGroups-1:0][NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp_valid;
   logic              [NumGroups-1:0][NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp_ready;
-
+`ifdef POSTLAYOUT
+  for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
+    mempool_group i_group (
+      .clk_i                   (clk_i                                                           ),
+      .rst_ni                  (rst_ni                                                          ),
+      .testmode_i              (testmode_i                                                      ),
+      .scan_enable_i           (scan_enable_i                                                   ),
+      .scan_data_i             (/* Unconnected */                                               ),
+      .scan_data_o             (/* Unconnected */                                               ),
+      .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
+      // TCDM Master interfaces
+      .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
+      .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                                        ),
+      .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                                        ),
+      .tcdm_master_resp_i      (tcdm_master_resp[g]                                             ),
+      .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                                       ),
+      .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                                       ),
+      // TCDM banks interface
+      .tcdm_slave_req_i        (tcdm_slave_req[g]                                               ),
+      .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                                         ),
+      .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                                         ),
+      .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
+      .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
+      .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+      .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
+      .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
+      // DMA request
+      .dma_req_i               (dma_req[g]                                                      ),
+      .dma_req_valid_i         (dma_req_valid[g]                                                ),
+      .dma_req_ready_o         (dma_req_ready[g]                                                ),
+      // DMA status
+      .dma_meta_o_backend_idle_   (dma_meta[g][0]                                               ),
+      .dma_meta_o_trans_complete_ (dma_meta[g][1]                                               ),
+      //.dma_meta_o              (dma_meta[g]                                                     ),
+      // AXI interface
+      .axi_mst_req_o           (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
+      .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
+    );
+  end : gen_groups
+`else
   for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
     mempool_group #(
       .TCDMBaseAddr (TCDMBaseAddr         ),
@@ -182,6 +221,7 @@ module mempool_cluster
       .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
     );
   end : gen_groups
+`endif
 
   /*******************
    *  Interconnects  *
