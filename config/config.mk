@@ -16,7 +16,7 @@ ifndef config
     config := $(MEMPOOL_CONFIGURATION)
   else
     # Default configuration, if neither `config` nor `MEMPOOL_CONFIGURATION` was found
-    config := mempool
+    config := terapool
   endif
 endif
 include $(MEMPOOL_DIR)/config/$(config).mk
