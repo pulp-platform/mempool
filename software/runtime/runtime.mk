@@ -35,19 +35,19 @@ ifeq ($(COMPILER),gcc)
 	ifeq ($(fpu), 0)
 		RISCV_ARCH  ?= rv$(RISCV_XLEN)ima
 	else
-		RISCV_ARCH  ?= rv$(RISCV_XLEN)imaf
+		RISCV_ARCH  ?= rv$(RISCV_XLEN)imazfinx_xpulppostmod
 		# Define fpu if the extension is active
 		DEFINES 	  += -DFPU=$(fpu)
 	endif
 	ifeq ($(XPULPIMG),1)
-		RISCV_ARCH    += Xpulpimg
+		#RISCV_ARCH    += Xpulpimg
 		# Define __XPULPIMG if the extension is active
-		DEFINES       += -D__XPULPIMG
+		#DEFINES       += -D__XPULPIMG
 	endif
 	ifeq ($(XPULPIMG),1)
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)
 	else
-		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)#Xpulpv2
 	endif
 
 	# GCC Toolchain
