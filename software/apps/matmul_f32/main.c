@@ -17,61 +17,36 @@
 
 #define PARALLEL
 
-float matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
-float matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));
-float matrix_c[matrix_M * matrix_P] __attribute__((section(".l1_prio")));
+float matrix_a[matrix_M * matrix_N] __attribute__((section(".l1")));
+float matrix_b[matrix_N * matrix_P] __attribute__((section(".l1")));
+float matrix_c[matrix_M * matrix_P] __attribute__((section(".l1")));
 
 int volatile error __attribute__((section(".l1")));
 
 void init_matrix(float *matrix, float *input, uint32_t num_rows,
                  uint32_t num_columns, uint32_t core_id, uint32_t num_cores) {
-
-  uint32_t const split = 8; // How many rows/columns to split the matrix into
-  if (num_columns > num_rows) {
-    // Parallelize over columns
-    uint32_t const c_start = (num_rows / split) * (core_id % split);
-    uint32_t const c_end = (num_rows / split) * ((core_id % split) + 1);
-
-    for (uint32_t j = (core_id / split); j < num_columns;
-         j += (num_cores / split)) {
-      for (uint32_t i = c_start; i < c_end; ++i) {
-        matrix[i * num_columns + j] = input[i * num_columns + j];
-      }
-    }
-  } else {
-    // Parallelize over rows
-    uint32_t const c_start = (num_columns / split) * (core_id % split);
-    uint32_t const c_end = (num_columns / split) * ((core_id % split) + 1);
-    for (uint32_t i = (core_id / split); i < num_rows;
-         i += (num_cores / split)) {
-      for (uint32_t j = c_start; j < c_end; ++j) {
-        matrix[i * num_columns + j] = input[i * num_columns + j];
-        ;
-      }
-    }
+  for (uint32_t i = core_id; i < (num_columns * num_rows); i += num_cores) {
+    matrix[i] = input[i];
   }
 }
 
 int verify_result(float *__restrict__ C, float *__restrict__ Exp, uint32_t M,
                   uint32_t P, uint32_t core_id, uint32_t num_cores) {
-
   if (core_id == 0) {
-    for (uint32_t i = core_id; i < M * P; i += num_cores) {
+    for (uint32_t i = 0; i < M * P; i++) {
       float error = 0.0f;
-      float exp = C[i];
-      float res = Exp[i];
+      float exp = Exp[i];
+      float res = C[i];
       asm volatile("fsub.s %[error], %[res], %[exp];"
                    : [error] "+&r"(error)
                    : [res] "r"(res), [exp] "r"(exp));
-      if ((int32_t)error != 0) {
-        printf("ERROR!!! %d\n", i);
+      if (error != 0) {
+        printf("ERROR!!! %d %d\n", i, error);
       }
     }
+    // Wait at barrier before checking
+    mempool_barrier(num_cores);
   }
-
-  // Wait at barrier before checking
-  mempool_barrier(num_cores);
-
   return 0;
 }
 
@@ -94,7 +69,9 @@ int main() {
 #if defined(PARALLEL)
   // Execute function to test.
   mempool_start_benchmark();
-  matmul_2x2_parallel_f32_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
+  // matmul_2x2_parallel_f32_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
+  //                               matrix_N, matrix_P, core_id, num_cores);
+  matmul_4x4_parallel_f32_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
                                 matrix_N, matrix_P, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier before checking
