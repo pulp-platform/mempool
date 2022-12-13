@@ -49,9 +49,6 @@ axi_data_width ?= 512
 # Read-only cache line width in AXI interconnect (in bits)
 ro_line_width ?= 512
 
-# Number of DMA backends in each group
-dmas_per_group ?= 4
-
 #############################
 ##  Xqueues configuration  ##
 #############################

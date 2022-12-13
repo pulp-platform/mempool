@@ -17,6 +17,9 @@ num_groups ?= 8
 # Number of cores per Terapool tile
 num_cores_per_tile ?= 8
 
+# Number of sub groups per Terapool group
+num_sub_groups_per_group ?= 1
+
 # L1 scratchpad banking factor
 banking_factor ?= 4
 
@@ -25,3 +28,6 @@ axi_hier_radix ?= 10
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 2
+
+# Number of DMA backends in each group
+dmas_per_group ?= 4

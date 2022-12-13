@@ -37,3 +37,6 @@ axi_hier_radix ?= 2
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 1
+
+# Number of DMA backends in each group
+dmas_per_group ?= 4
