@@ -35,7 +35,7 @@ ifeq ($(COMPILER),gcc)
 	ifeq ($(fpu), 0)
 		RISCV_ARCH  ?= rv$(RISCV_XLEN)ima
 	else
-		RISCV_ARCH  ?= rv$(RISCV_XLEN)imazfinx_xpulppostmod
+		RISCV_ARCH  ?= rv$(RISCV_XLEN)imazfinx__xpulppostmod
 		# Define fpu if the extension is active
 		DEFINES 	  += -DFPU=$(fpu)
 	endif
@@ -61,7 +61,7 @@ else
 	ifeq ($(fpu), 0)
 		RISCV_ARCH ?= rv$(RISCV_XLEN)ima
 	else
-		RISCV_ARCH ?= rv$(RISCV_XLEN)imazfinx_xmempool
+		RISCV_ARCH ?= rv$(RISCV_XLEN)imazfinx_zhinx_zquarterinx_zvechalfinx_xmempool
 	endif
 
 	# GCC Toolchain
@@ -107,7 +107,7 @@ RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
 RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(HALIDE_INCLUDE) -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -std=gnu99 -O3 -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool # -falign-loops=32 -falign-jumps=32
-RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -misched-topdown
+RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -misched-topdown -menable-experimental-extensions
 
 ifeq ($(COMPILER),gcc)
 	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
