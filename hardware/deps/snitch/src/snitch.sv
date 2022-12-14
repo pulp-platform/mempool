@@ -216,7 +216,7 @@ module snitch
   } fcsr_t;
   fcsr_t fcsr_d, fcsr_q;
 
-  assign fpu_rnd_mode_o = fcsr_q.frm;
+  assign fpu_rnd_mode_o = fpnew_pkg::RNE;//fcsr_q.frm;
 
   // Registers
   `FFAR(pc_q, pc_d, BootAddr, clk_i, rst_i)
@@ -819,7 +819,7 @@ module snitch
         acc_qaddr_o = snitch_pkg::XPULP_IPU;
       end
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/* Zfinx_rv extension */
+/* Zfinx_rv extensions */
       // Single precision Floating-Point
       riscv_instr::FADD_S,
       riscv_instr::FSUB_S,
@@ -860,6 +860,60 @@ module snitch
           illegal_inst = 1'b1;
         end
       end
+      // Half Precision Floating-Point
+      riscv_instr::FADD_H,
+      riscv_instr::FSUB_H,
+      riscv_instr::FMUL_H,
+      riscv_instr::FDIV_H,
+      riscv_instr::FSGNJ_H,
+      riscv_instr::FSGNJN_H,
+      riscv_instr::FSGNJX_H,
+      riscv_instr::FMIN_H,
+      riscv_instr::FMAX_H,
+      riscv_instr::FSQRT_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF16) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::FMADD_H,
+      riscv_instr::FMSUB_H,
+      riscv_instr::FNMSUB_H,
+      riscv_instr::FNMADD_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF16) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          opc_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::FCVT_S_H,
+      riscv_instr::FCVT_H_S: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF16) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
       // Offload FP-Int Instructions - fire and forget
       // Single Precision Floating-Point
       riscv_instr::FLE_S,
@@ -869,6 +923,27 @@ module snitch
       riscv_instr::FCVT_W_S,
       riscv_instr::FCVT_WU_S,
       riscv_instr::FMV_X_W: begin
+        if (snitch_pkg::ZFINX_RV) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      // Offload FP-Int Instructions - fire and forget
+      // Half Precision Floating-Point
+      riscv_instr::FLE_H,
+      riscv_instr::FLT_H,
+      riscv_instr::FEQ_H,
+      riscv_instr::FCLASS_H,
+      riscv_instr::FCVT_W_H,
+      riscv_instr::FCVT_WU_H,
+      riscv_instr::FMV_X_H: begin
         if (snitch_pkg::ZFINX_RV) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
@@ -1544,6 +1619,27 @@ module snitch
         riscv_instr::CSR_MHPMCOUNTER5: begin
           csr_rvalue = stall_raw_q[31:0];
         end
+
+//        // F/D Extension
+//        CSR_FFLAGS: begin
+//          if (RVFD) begin
+//            csr_rvalue = {27'b0, fcsr_q.fflags};
+//            fcsr_d.fflags = fpnew_pkg::status_t'(alu_result[4:0]);
+//          end else illegal_csr = 1'b1;
+//        end
+//        CSR_FRM: begin
+//          if (RVFD) begin
+//            csr_rvalue = {29'b0, fcsr_q.frm};
+//            fcsr_d.frm = fpnew_pkg::roundmode_e'(alu_result[2:0]);
+//          end else illegal_csr = 1'b1;
+//        end
+//        CSR_FCSR: begin
+//          if (RVFD) begin
+//            csr_rvalue = {24'b0, fcsr_q};
+//            fcsr_d = fcsr_t'(alu_result[7:0]);
+//          end else illegal_csr = 1'b1;
+//        end
+
         `endif
         default: begin
           csr_rvalue = '0;
