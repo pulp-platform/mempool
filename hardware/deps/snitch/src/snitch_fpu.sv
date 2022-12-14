@@ -88,7 +88,7 @@ module snitch_fpu import snitch_pkg::*; (
     .src_fmt_i       ( fpu_in_q.src_fmt      ),
     .dst_fmt_i       ( fpu_in_q.dst_fmt      ),
     .int_fmt_i       ( fpu_in_q.int_fmt      ),
-    .vectorial_op_i  (                       ),
+    .vectorial_op_i  ( fpu_in_q.vectorial_op ),
     .tag_i           ( fpu_in_q.tag          ),
     .in_valid_i      ( in_valid_q            ),
     .in_ready_o      ( in_ready_q            ),
