@@ -46,7 +46,7 @@ void initialize_vector_s(int16_t *pSrc, uint32_t fftLen) {
   int32_t lower = SHRT_MIN, upper = SHRT_MAX;
   uint32_t idx_fft, i;
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_num_cores();
+  uint32_t num_cores = mempool_get_core_count();
 
   for (idx_fft = 0; idx_fft < N_FFTs; idx_fft++) {
     for (i = core_id; i < 2 * N_BANKS_SINGLE; i += num_cores) {
@@ -89,7 +89,7 @@ void initialize_vector_p(int16_t *pSrc, int16_t *pDst, uint32_t fftLen,
   uint32_t idx_row, idx_col;
   uint32_t i, ic;
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_num_cores();
+  uint32_t num_cores = mempool_get_core_count();
 
   for (idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
     for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
@@ -128,7 +128,7 @@ void initialize_vector_p(int16_t *pSrc, int16_t *pDst, uint32_t fftLen,
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_num_cores();
+  uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
   if (core_id == 0) {
     printf("On the run...\n");

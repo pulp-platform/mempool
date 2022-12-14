@@ -31,6 +31,7 @@ void initialize_vector(int16_t *pSrc, uint32_t N_el);
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
 
   /* SINGLE-CORE */
@@ -107,7 +108,7 @@ int main() {
 #endif
     printf("Done SINGLE!\n");
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
 #endif
 
@@ -120,62 +121,62 @@ int main() {
     error = 0;
     initialize_vector(pSrc, N_RSAMPLES);
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
 #ifdef TEST_16
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)16, twiddleCoef_16_q16, BitRevIndexTable_fixed_16, pSrc,
-      BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 
 #elif defined(TEST_32)
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)32, twiddleCoef_32_q16, BitRevIndexTable_fixed_32, pSrc,
-      BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 #elif defined(TEST_64)
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)64, twiddleCoef_64_q16, BitRevIndexTable_fixed_64, pSrc,
-      BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 #elif defined(TEST_128)
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)128, twiddleCoef_128_q16, BitRevIndexTable_fixed_128, pSrc,
-      BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 #elif defined(TEST_256)
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)256, twiddleCoef_256_q16, BitRevIndexTable_fixed_256, pSrc,
-      BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 #elif defined(TEST_512)
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)512, twiddleCoef_512_q16, BitRevIndexTable_fixed_512, pSrc,
-      BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 #elif defined(TEST_1024)
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)1024, twiddleCoef_1024_q16, BitRevIndexTable_fixed_1024, pSrc,
-      BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 #elif defined(TEST_2048)
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)2048, twiddleCoef_2048_q16, BitRevIndexTable_fixed_2048, pSrc,
-      BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 #elif defined(TEST_4096)
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p(
       (uint16_t)4096, twiddleCoef_4096_q16, BitRevIndexTable_fixed_4096, pSrc,
-      BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH, 0, 0, NUM_CORES);
+      BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH, 0, 0, num_cores);
   mempool_stop_benchmark();
 #endif
 
@@ -187,7 +188,7 @@ int main() {
 #endif
     printf("Done PARALLEL!\n");
   }
-  mempool_barrier(NUM_CORES);
+  mempool_barrier(num_cores);
 
 #endif
 
