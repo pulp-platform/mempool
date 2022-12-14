@@ -50,7 +50,9 @@ module mempool_cc
   snitch_pkg::dresp_t data_resp_d, data_resp_q;
 
   logic data_req_dvalid, data_req_dready;
-  logic data_resp_dvalid, data_resp_qready;
+  logic data_req_qvalid, data_req_qready;
+  logic data_resp_dvalid, data_resp_dready;
+  logic data_resp_qvalid, data_resp_qready;
 
   // Accelerator signals
   snitch_pkg::acc_req_t  acc_req_d, acc_req_q;
@@ -259,7 +261,7 @@ module mempool_cc
   assign data_resp_d.id    = data_pid_i;
   assign data_resp_d.write = 'x; // Don't care here
   assign data_resp_d.error = data_perror_i;
-  assign data_resp_dvalid = data_pvalid_i;
+  assign data_resp_dvalid  = data_pvalid_i;
   assign data_pready_o     = data_resp_dready;
 
 `ifndef POSTLAYOUT
