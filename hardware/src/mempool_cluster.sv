@@ -77,9 +77,9 @@ module mempool_cluster
   logic      dma_req_split_valid;
   logic      dma_req_split_ready;
   dma_meta_t dma_meta_split;
-  dma_req_t  [NumGroups-1:0] dma_req;
-  logic      [NumGroups-1:0] dma_req_valid;
-  logic      [NumGroups-1:0] dma_req_ready;
+  dma_req_t  [NumGroups-1:0] dma_req_group, dma_req_group_q;
+  logic      [NumGroups-1:0] dma_req_group_valid, dma_req_group_q_valid;
+  logic      [NumGroups-1:0] dma_req_group_ready, dma_req_group_q_ready;
   dma_meta_t [NumGroups-1:0] dma_meta, dma_meta_q;
 
   `FF(dma_meta_q, dma_meta, '0, clk_i, rst_ni);
@@ -119,11 +119,26 @@ module mempool_cluster
     .valid_i     (dma_req_split_valid),
     .ready_o     (dma_req_split_ready),
     .meta_o      (dma_meta_split     ),
-    .burst_req_o (dma_req            ),
-    .valid_o     (dma_req_valid      ),
-    .ready_i     (dma_req_ready      ),
+    .burst_req_o (dma_req_group      ),
+    .valid_o     (dma_req_group_valid),
+    .ready_i     (dma_req_group_ready),
     .meta_i      (dma_meta_q         )
   );
+
+  for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_dma_req_group_register
+    spill_register #(
+      .T(dma_req_t)
+    ) i_dma_req_group_register (
+      .clk_i  (clk_i                   ),
+      .rst_ni (rst_ni                  ),
+      .data_i (dma_req_group[g]        ),
+      .valid_i(dma_req_group_valid[g]  ),
+      .ready_o(dma_req_group_ready[g]  ),
+      .data_o (dma_req_group_q[g]      ),
+      .valid_o(dma_req_group_q_valid[g]),
+      .ready_i(dma_req_group_q_ready[g])
+    );
+  end : gen_dma_req_group_register
 
   /************
    *  Groups  *
@@ -172,9 +187,9 @@ module mempool_cluster
       .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
       .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
       // DMA request
-      .dma_req_i               (dma_req[g]                                                      ),
-      .dma_req_valid_i         (dma_req_valid[g]                                                ),
-      .dma_req_ready_o         (dma_req_ready[g]                                                ),
+      .dma_req_i               (dma_req_group_q[g]                                              ),
+      .dma_req_valid_i         (dma_req_group_q_valid[g]                                        ),
+      .dma_req_ready_o         (dma_req_group_q_ready[g]                                        ),
       // DMA status
       .dma_meta_o              (dma_meta[g]                                                     ),
       // AXI interface
