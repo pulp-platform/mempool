@@ -26,6 +26,7 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
   int32_t out1, out2, out3, out4;
 
   uint32_t absolute_core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t core_id = absolute_core_id;
   uint32_t i, j, k, l; /* loop counters */
   uint32_t m =
@@ -34,7 +35,7 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
   /* CREATE THE IDENTITY MATRIX */
 
   pDstT1 = pDst;
-  for (k = core_id * 4; k < m; k += NUM_CORES * 4) {
+  for (k = core_id * 4; k < m; k += num_cores * 4) {
     for (j = 0; j < n; j++) {
       pDstT1[k * n + j] = (uint32_t)(k == j);
       pDstT1[(k + 1) * n + j] = (uint32_t)((k + 1) == j);
@@ -43,7 +44,7 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
     }
   }
   //    pDstT1 = pDst;
-  //    for (i = absolute_core_id * 4; i < n * m; i += NUM_CORES * 4) {
+  //    for (i = absolute_core_id * 4; i < n * m; i += num_cores * 4) {
   //        k = i / n;
   //        j = i % n;
   //        pDstT1[k * n + j] = (uint32_t) (k == j);
@@ -147,8 +148,8 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
     in = *pPivotRowIn;
     /* Loop over columns to the right of pivot */
     core_id = absolute_core_id - (((l * n + l) % N_BANKS) >> 2U);
-    core_id = core_id > NUM_CORES ? core_id + NUM_CORES : core_id;
-    // for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += NUM_CORES * 4) {
+    core_id = core_id > num_cores ? core_id + num_cores : core_id;
+    // for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += num_cores * 4) {
     //    in1 = pSrcT1[j];
     //    in2 = pSrcT1[j + 1];
     //    in3 = pSrcT1[j + 2];
@@ -196,8 +197,8 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
     }
     /* Loop over columns */
     core_id = absolute_core_id - (((l * n) % N_BANKS) >> 2U);
-    core_id = core_id > NUM_CORES ? core_id + NUM_CORES : core_id;
-    for (j = core_id * 4; j < 4 * (n >> 2U); j += NUM_CORES * 4) {
+    core_id = core_id > num_cores ? core_id + num_cores : core_id;
+    for (j = core_id * 4; j < 4 * (n >> 2U); j += num_cores * 4) {
       in1 = pSrcT2[j];
       in2 = pSrcT2[j + 1];
       in3 = pSrcT2[j + 2];
@@ -224,7 +225,7 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
     /* REPLACE ROWS */
     pSrcT1 = pSrc;
     pSrcT2 = pDst;
-    for (k = absolute_core_id / (n >> 2U); k < m; k += NUM_CORES / (n >> 2U)) {
+    for (k = absolute_core_id / (n >> 2U); k < m; k += num_cores / (n >> 2U)) {
       /* Only the columns to the right of the pivot are to be processed */
       if (k != l) {
         pSrcT1 = pSrc + k * n;
@@ -369,7 +370,7 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
     //        uint32_t check = 0;
     //        if (absolute_core_id >= m * nPE)
     //            mempool_wfi();
-    //        for (k = absolute_core_id / nPE; k < m; k += NUM_CORES / nPE) {
+    //        for (k = absolute_core_id / nPE; k < m; k += num_cores / nPE) {
     //            /* Only the columns to the right of the pivot are to be
     //            processed */ if (k != l) {
     //                pSrcT1 = pSrc + k * n;
@@ -504,7 +505,7 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
     //        /* REPLACE ROWS */
     //        pSrcT1 = pSrc;
     //        pSrcT2 = pDst;
-    //        for (i = absolute_core_id * 4; i < (n * m); i += NUM_CORES * 4) {
+    //        for (i = absolute_core_id * 4; i < (n * m); i += num_cores * 4) {
     //            k = i / n;
     //            if (k != l) {
     //                in = *(pSrc + k * n);
@@ -559,7 +560,7 @@ int mempool_GJinv_q32p_memsized(int32_t *pSrc, int32_t *pDst, uint32_t n,
     //        pSrcT1 = pSrc;
     //        pSrcT2 = pDst;
     //        core_id = absolute_core_id;
-    //        for (k = core_id; k < m; k += NUM_CORES) {
+    //        for (k = core_id; k < m; k += num_cores) {
     //            /* Only the columns to the right of the pivot are to be
     //            processed */ if (k != l) {
     //                pSrcT1 = pSrc + k * n;

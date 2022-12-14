@@ -12,8 +12,9 @@ void fold_matrix(int32_t *pSrc, int32_t *pDst, uint32_t n);
 
 void fold_matrix(int32_t *pSrc, int32_t *pDst, uint32_t n) {
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t i, j, k, shift;
-  for (i = core_id * 4; i < n * n; i += NUM_CORES * 4) {
+  for (i = core_id * 4; i < n * n; i += num_cores * 4) {
     k = i / n;
     j = i % n;
     shift = N_BANKS * ((k * n) / N_USED_BANKS) + (k * n) % N_USED_BANKS;

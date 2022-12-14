@@ -24,6 +24,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
   int32_t out1, out2, out3, out4;
 
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t i, j, loopCnt, k, l; /* loop counters */
   uint32_t m =
       n; /* M is the number of rows. However, the matirces must be square. */
@@ -31,7 +32,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
   /* CREATE THE IDENTITY MATRIX */
 
   pDstT1 = pDst;
-  for (k = core_id * 4; k < m; k += 4 * NUM_CORES) {
+  for (k = core_id * 4; k < m; k += 4 * num_cores) {
     for (j = 0; j < m; j++) {
       pDstT1[k * m + j] = (uint32_t)(k == j);
       pDstT1[(k + 1) * m + j] = (uint32_t)((k + 1) == j);
@@ -39,7 +40,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
       pDstT1[(k + 3) * m + j] = (uint32_t)((k + 3) == j);
     }
   }
-  mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+  mempool_log_partial_barrier(2, core_id, MIN(num_cores, n / 4));
 
   /* Loop over the number of columns of the input matrix. */
   loopCnt = n;
@@ -125,7 +126,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
         return 1;
       }
     }
-    mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+    mempool_log_partial_barrier(2, core_id, MIN(num_cores, n / 4));
 
     /* DIVIDE BY THE PIVOT */
     /* Points to the pivot row of input and destination matrices */
@@ -138,7 +139,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
     in = *pPivotRowIn;
 
     ///* Loop over columns to the right of pivot */
-    for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += NUM_CORES * 4) {
+    for (j = core_id * 4; j < 4 * ((n - l) >> 2U); j += num_cores * 4) {
       in1 = pSrcT1[j];
       in2 = pSrcT1[j + 1];
       in3 = pSrcT1[j + 2];
@@ -151,7 +152,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
       pSrcT1[j + 1] = out2;
       pSrcT1[j + 2] = out3;
       pSrcT1[j + 3] = out4;
-      // j += NUM_CORES * 4;
+      // j += num_cores * 4;
     }
     if (core_id == (n >> 2U) - 1) {
       j = 4 * ((n - l) >> 2U);
@@ -162,7 +163,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
       }
     }
     /* Loop over columns */
-    for (j = core_id * 4; j < 4 * (n >> 2U); j += NUM_CORES * 4) {
+    for (j = core_id * 4; j < 4 * (n >> 2U); j += num_cores * 4) {
       in1 = pSrcT2[j];
       in2 = pSrcT2[j + 1];
       in3 = pSrcT2[j + 2];
@@ -184,13 +185,13 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
         j++;
       }
     }
-    mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+    mempool_log_partial_barrier(2, core_id, MIN(num_cores, n / 4));
 
     /* REPLACE ROWS */
     pSrcT1 = pSrc;
     pSrcT2 = pDst;
     /* Loop over rows */
-    for (k = core_id * 4; k < m; k += NUM_CORES * 4) {
+    for (k = core_id * 4; k < m; k += num_cores * 4) {
       i = 0U;
       while (i < 4) {
         if ((i + k) != l) {
@@ -250,7 +251,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
         i++;
       }
     }
-    mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+    mempool_log_partial_barrier(2, core_id, MIN(num_cores, n / 4));
 
     //        /* REPLACE ROWS */
     //        pSrcT1 = pSrc;
@@ -280,7 +281,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
     //                    pSrcT1[j + 1] = in2 - FIX_MUL(in, out2);
     //                    pSrcT1[j + 2] = in3 - FIX_MUL(in, out3);
     //                    pSrcT1[j + 3] = in4 - FIX_MUL(in, out4);
-    //                    j += 4 * NUM_CORES;
+    //                    j += 4 * num_cores;
     //                }
     //                if (core_id == (n >> 2U) - 1) {
     //                    j = 4 * ((n - l) >> 2U);
@@ -306,7 +307,7 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
     //                    pSrcT2[j + 1] = in2 - FIX_MUL(in, out2);
     //                    pSrcT2[j + 2] = in3 - FIX_MUL(in, out3);
     //                    pSrcT2[j + 3] = in4 - FIX_MUL(in, out4);
-    //                    j += 4 * NUM_CORES;
+    //                    j += 4 * num_cores;
     //                }
     //                if (core_id == (n >> 2U) - 1) {
     //                    j = 4 * (n >> 2U);
@@ -317,11 +318,11 @@ int mempool_GJinv_q32p(int32_t *pSrc, int32_t *pDst, uint32_t n,
     //                        j++;
     //                    }
     //                }
-    //                mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n /
+    //                mempool_log_partial_barrier(2, core_id, MIN(num_cores, n /
     //                4));
     //            }
     //        }
-    //        mempool_log_partial_barrier(2, core_id, MIN(NUM_CORES, n / 4));
+    //        mempool_log_partial_barrier(2, core_id, MIN(num_cores, n / 4));
 
     pSrc++;    /* Increment the input pointer */
     loopCnt--; /* Decrement the loop counter */
