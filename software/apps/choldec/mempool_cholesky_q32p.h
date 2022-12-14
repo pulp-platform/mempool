@@ -25,6 +25,7 @@ void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n) {
   int32_t b0, b1, b2, b3;
 
   uint32_t absolute_core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   uint32_t row_id;
   if (absolute_core_id % n == 0)
     row_id = absolute_core_id / n;
@@ -34,7 +35,7 @@ void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n) {
   for (j = 0; j < n; j++) {
 
     /* Elements on the diagonal are computed with a single core */
-    if (row_id == (j % NUM_CORES)) {
+    if (row_id == (j % num_cores)) {
       pivot = pSrc[j * n + j];
       sum = 0;
       for (k = 0; k < 4 * (j >> 2U); k++) {
@@ -118,7 +119,7 @@ void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n) {
     mempool_log_barrier(2, absolute_core_id);
 
     if (row_id >= (j + 1)) {
-      for (i = row_id; i < n; i += NUM_CORES) {
+      for (i = row_id; i < n; i += num_cores) {
         sum = 0;
         pivot = pSrc[i * n + j];
         diag = pL[j * n + j];
