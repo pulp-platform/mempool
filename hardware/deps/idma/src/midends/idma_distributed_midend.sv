@@ -133,7 +133,7 @@ module idma_distributed_midend #(
         valid_o[i] = 1'b0;
         ready[i] = 1'b1;
         // Inject trans complete
-        if (valid) begin
+        if (valid[i]) begin
           tie_off_trans_complete_d[i] = 1'b1;
         end
       end else if (($unsigned(start_addr) >= i*DmaRegionWidth)) begin
