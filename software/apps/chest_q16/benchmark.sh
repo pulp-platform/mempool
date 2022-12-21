@@ -28,7 +28,7 @@ do
         "./data_chest_q16.py" -b $n_tx -l $n_rx
         make $APP -C $APP
         app=$APP make simcvcs -C $HW_DIR
-        make trace -C $HW_DIR
+        make buildpath=build_che resultpath=results_che_sc trace -C $HW_DIR
 
     done
 done
