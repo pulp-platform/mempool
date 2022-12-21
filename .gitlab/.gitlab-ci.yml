@@ -11,13 +11,12 @@ variables:
   RUST_LOG: 'memora=debug'
   VERILATOR_ROOT: '$CI_PROJECT_DIR/install/verilator'
   CLANG_PATH: '/usr/pack/llvm-10.0.1-af'
-  PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin:$VERILATOR_ROOT/bin'
+  PATH: '/home/gitlabci/miniconda3/condabin:/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin:$VERILATOR_ROOT/bin'
   OBJCACHE: ''
   RISCV_WARNINGS: '-Werror'
   CC: 'gcc-8.2.0'
   CXX: 'g++-8.2.0'
   CMAKE: 'cmake-3.18.1'
-  python: 'python3.6'
 
 workflow:
   rules:
@@ -27,6 +26,8 @@ workflow:
 
 before_script:
   - env
+  - source /home/gitlabci/miniconda3/etc/profile.d/conda.sh
+  - conda activate mempool
 
 stages:
   - tools
@@ -67,11 +68,9 @@ verilator:
   stage: tools
   script:
     # The CI's ccache directory is very limited in size, so let's disable it.
-    # Verilator requires a more recent version of python than the default one.
     - |
       if ! $CI_PROJECT_DIR/scripts/memora_retry.sh lookup verilator; then
         git submodule update --init --recursive -- toolchain/verilator
-        export PYTHON3=$(which python3-3.6.5)
         export VERILATOR_CI="--disable-defenv"
         make verilator
         $CI_PROJECT_DIR/scripts/memora_retry.sh insert verilator
