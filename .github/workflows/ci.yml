@@ -11,7 +11,7 @@ jobs:
   #  Toolchains  #
   ################
   tc-gcc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: Recover the submodule commit hash
@@ -41,7 +41,7 @@ jobs:
         path: riscv-gnu-toolchain.tzst
 
   tc-llvm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: Recover the submodule commit hash
@@ -70,7 +70,7 @@ jobs:
         path: llvm-project.tzst
 
   tc-halide:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: tc-llvm
     steps:
     - uses: actions/checkout@v3
@@ -111,7 +111,7 @@ jobs:
   #  Tools  #
   ###########
   riscv-isa-sim:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: Cache riscv-isa-sim
@@ -137,7 +137,7 @@ jobs:
         path: riscv-isa-sim.tzst
 
   verilator:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: Recover the submodule commit hash
@@ -171,7 +171,7 @@ jobs:
   #  Build Hardware  #
   ####################
   verilator-model:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 60
     needs: verilator
     strategy:
@@ -216,7 +216,7 @@ jobs:
   #  Regenerate files  #
   ######################
   check-bootrom:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: tc-gcc
     steps:
     - uses: actions/checkout@v3
@@ -235,7 +235,7 @@ jobs:
         git diff --exit-code
 
   check-opcodes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: Regenerate opcodes
@@ -247,7 +247,7 @@ jobs:
   #  Build Software  #
   ####################
   build-apps-gcc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: tc-gcc
     strategy:
       matrix:
@@ -277,7 +277,7 @@ jobs:
         path: apps-gcc.tzst
 
   build-apps-llvm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [tc-gcc, tc-llvm]
     strategy:
       matrix:
@@ -313,7 +313,7 @@ jobs:
         path: apps-llvm.tzst
 
   build-apps-halide:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [tc-gcc, tc-llvm, tc-halide]
     strategy:
       matrix:
@@ -353,7 +353,7 @@ jobs:
         path: apps-halide.tzst
 
   build-apps-omp:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: tc-gcc
     strategy:
       matrix:
@@ -384,7 +384,7 @@ jobs:
   #  Run Software  #
   ##################
   run-apps-gcc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 20
     needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
     strategy:
@@ -422,7 +422,7 @@ jobs:
         make trace
 
   run-apps-llvm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 20
     needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
     strategy:
@@ -460,7 +460,7 @@ jobs:
         make trace
 
   run-apps-halide:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 20
     needs: [build-apps-halide, riscv-isa-sim, verilator-model]
     strategy:
@@ -498,7 +498,7 @@ jobs:
         make trace
 
   unit-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [tc-gcc, riscv-isa-sim, verilator-model]
     steps:
@@ -537,7 +537,7 @@ jobs:
   #  Clean-up  #
   ##############
   clean-up:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: always()
     needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
@@ -554,7 +554,7 @@ jobs:
           verilator
 
   clean-up-compile-runs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: always()
     needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
