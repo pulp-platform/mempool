@@ -13,6 +13,7 @@ package mempool_pkg;
 
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
+  `include "reqrsp_interface/typedef.svh"
 
   localparam integer unsigned NumCores             = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
   localparam integer unsigned NumCoresPerTile      = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
@@ -84,7 +85,7 @@ package mempool_pkg;
   localparam AxiTestbenchIdWidth = $clog2(NumTestbenchXbarMasters) + AxiSystemIdWidth;
   typedef logic [AxiTestbenchIdWidth-1:0] axi_tb_id_t;
 
-
+  `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
   `AXI_TYPEDEF_AW_CHAN_T(axi_core_aw_t, addr_t, axi_core_id_t, logic);
   `AXI_TYPEDEF_W_CHAN_T(axi_core_w_t, axi_data_t, axi_strb_t, logic);
   `AXI_TYPEDEF_B_CHAN_T(axi_core_b_t, axi_core_id_t, logic);
@@ -169,6 +170,7 @@ package mempool_pkg;
    *********/
 
   localparam int unsigned NumDmasPerGroup = `ifdef DMAS_PER_GROUP `DMAS_PER_GROUP `else 4 `endif;
+  localparam int unsigned NumDmasPerSubGroup = NumDmasPerGroup/NumSubGroupsPerGroup;
   localparam int unsigned NumTilesPerDma = NumTilesPerGroup/NumDmasPerGroup;
   localparam int unsigned DmaDataWidth = AxiDataWidth;
   localparam int unsigned DmaNumWords = DmaDataWidth/DataWidth;

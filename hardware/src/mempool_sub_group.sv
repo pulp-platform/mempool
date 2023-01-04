@@ -38,12 +38,8 @@ module mempool_sub_group
   output logic                            [NumGroups-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_valid_o,
   input  logic                            [NumGroups-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_ready_i,
   // TCDM DMA interfaces
-  input  `STRUCT_PORT(tcdm_dma_req_t)     [NumTilesPerSubGroup-1:0]                 tcdm_dma_req_i,
-  input  logic                            [NumTilesPerSubGroup-1:0]                 tcdm_dma_req_valid_i,
-  output logic                            [NumTilesPerSubGroup-1:0]                 tcdm_dma_req_ready_o,
-  output `STRUCT_PORT(tcdm_dma_resp_t)    [NumTilesPerSubGroup-1:0]                 tcdm_dma_resp_o,
-  output logic                            [NumTilesPerSubGroup-1:0]                 tcdm_dma_resp_valid_o,
-  input  logic                            [NumTilesPerSubGroup-1:0]                 tcdm_dma_resp_ready_i,
+  input  `STRUCT_PORT(reqrsp_req_t)       [NumDmasPerSubGroup-1:0]                  dma_reqrsp_req_i,
+  output `STRUCT_PORT(reqrsp_rsp_t)       [NumDmasPerSubGroup-1:0]                  dma_reqrsp_rsp_o,
   // AXI Interface
   output `STRUCT_PORT(axi_tile_req_t)     [NumTilesPerSubGroup-1:0]                 axi_mst_req_o,
   input  `STRUCT_PORT(axi_tile_resp_t)    [NumTilesPerSubGroup-1:0]                 axi_mst_resp_i,
@@ -176,6 +172,56 @@ module mempool_sub_group
   end : gen_tiles
 
   /***************
+   *    DMAs     *
+   ***************/
+  for (genvar d = 0; unsigned'(d) < NumDmasPerSubGroup; d++) begin: gen_dmas_mux_sg
+    localparam int unsigned a = NumTilesPerGroup + d;
+
+    reqrsp_req_t [NumTilesPerDma-1:0] dma_tile_req;
+    reqrsp_rsp_t [NumTilesPerDma-1:0] dma_tile_rsp;
+
+    if (NumTilesPerDma > 1) begin: gen_dma_reqrsp_demux
+      reqrsp_demux #(
+        .NrPorts  (NumTilesPerDma),
+        .req_t    (reqrsp_req_t  ),
+        .rsp_t    (reqrsp_rsp_t  ),
+        .RespDepth(2             )
+      ) i_reqrsp_demux (
+         .clk_i       (clk_i                                                                                       ),
+         .rst_ni      (rst_ni                                                                                      ),
+         .slv_select_i(dma_reqrsp_req_i[d].q.addr[idx_width(NumBanksPerTile)+ByteOffset+:idx_width(NumTilesPerDma)]),
+         .slv_req_i   (dma_reqrsp_req_i[d]                                                                         ),
+         .slv_rsp_o   (dma_reqrsp_rsp_o[d]                                                                         ),
+         .mst_req_o   (dma_tile_req                                                                                ),
+         .mst_rsp_i   (dma_tile_rsp                                                                                )
+      );
+    end else begin: gen_dma_reqrsp_bypass
+      assign dma_tile_req = dma_reqrsp_req_i[d];
+      assign dma_reqrsp_rsp_o[d] = dma_tile_rsp;
+    end
+
+    // Assignment to TCDM interconnect
+    // TODO: Reordering might be problematic
+    for (genvar t = 0; unsigned'(t) < NumTilesPerDma; t++) begin: gen_dma_tile_connection
+      assign tcdm_dma_req[d*NumTilesPerDma+t] = '{
+               wdata: dma_tile_req[t].q.data,
+               wen: dma_tile_req[t].q.write,
+               be: dma_tile_req[t].q.strb,
+               tgt_addr: {dma_tile_req[t].q.addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroups)+:TCDMAddrMemWidth],
+                          dma_tile_req[t].q.addr[ByteOffset+:idx_width(NumBanksPerTile)]}
+             };
+      assign tcdm_dma_req_valid[d*NumTilesPerDma+t]  = dma_tile_req[t].q_valid;
+      assign dma_tile_rsp[t].q_ready = tcdm_dma_req_ready[d*NumTilesPerDma+t];
+      assign dma_tile_rsp[t].p = '{
+               data: tcdm_dma_resp[d*NumTilesPerDma+t].rdata,
+               error: '0
+             };
+      assign dma_tile_rsp[t].p_valid = tcdm_dma_resp_valid[d*NumTilesPerDma+t];
+      assign tcdm_dma_resp_ready[d*NumTilesPerDma+t] =dma_tile_req[t].p_ready;
+    end
+  end
+
+  /***************
    *  Registers  *
    ***************/
 `ifdef NumTilesPerSubGroup != 1
@@ -241,34 +287,6 @@ module mempool_sub_group
     end: gen_tcdm_registers_t
   end: gen_tcdm_registers_g
 
-  //TCDM DMA
-  for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_dma_registers
-    spill_register #(
-      .T(tcdm_dma_req_t)
-    ) i_tcdm_dma_req_register (
-      .clk_i  (clk_i                   ),
-      .rst_ni (rst_ni                  ),
-      .data_i (tcdm_dma_req_i[t]       ),
-      .valid_i(tcdm_dma_req_valid_i[t] ),
-      .ready_o(tcdm_dma_req_ready_o[t] ),
-      .data_o (tcdm_dma_req[t]         ),
-      .valid_o(tcdm_dma_req_valid[t]   ),
-      .ready_i(tcdm_dma_req_ready[t]   )
-    );  	
-
-    spill_register #(
-      .T(tcdm_dma_resp_t)
-    ) i_tcdm_dma_resp_register (
-      .clk_i  (clk_i                    ),
-      .rst_ni (rst_ni                   ),
-      .data_i (tcdm_dma_resp[t]         ),
-      .valid_i(tcdm_dma_resp_valid[t]   ),
-      .ready_o(tcdm_dma_resp_ready[t]   ),
-      .data_o (tcdm_dma_resp_o[t]       ),
-      .valid_o(tcdm_dma_resp_valid_o[t] ),
-      .ready_i(tcdm_dma_resp_ready_i[t] )
-    );
-  end: gen_tcdm_dma_registers*/
 `else
   // Direct connection to group level
   // TCDM
@@ -285,13 +303,6 @@ module mempool_sub_group
   assign tcdm_slave_resp_valid_o = tcdm_slave_resp_valid;
   assign tcdm_slave_resp_ready = tcdm_slave_resp_ready_i;
 
-  //TCDM DMA
-  assign tcdm_dma_req = tcdm_dma_req_i;
-  assign tcdm_dma_req_valid = tcdm_dma_req_valid_i;
-  assign tcdm_dma_req_ready_o = tcdm_dma_req_ready;
-  assign tcdm_dma_resp_o = tcdm_dma_resp;
-  assign tcdm_dma_resp_valid_o = tcdm_dma_resp_valid;
-  assign tcdm_dma_resp_ready = tcdm_dma_resp_ready_i;
 `endif
 
 endmodule : mempool_sub_group

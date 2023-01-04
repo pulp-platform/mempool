@@ -122,6 +122,10 @@ module mempool_group
   axi_tile_req_t  [NumDmasPerGroup-1:0]  axi_dma_req;
   axi_tile_resp_t [NumDmasPerGroup-1:0]  axi_dma_resp;
 
+  // DMA interfaces
+  reqrsp_req_t [NumDmasPerGroup-1:0] dma_reqrsp_req;
+  reqrsp_rsp_t [NumDmasPerGroup-1:0] dma_reqrsp_rsp;
+
   for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_sub_groups
     sub_group_id_t id;
     assign id = (group_id_i << $clog2(NumSubGroupsPerGroup)) | sg[idx_width(NumSubGroupsPerGroup)-1:0];
@@ -163,13 +167,9 @@ module mempool_group
       .tcdm_slave_resp_o       (tran_tcdm_slave_resp                                              ),
       .tcdm_slave_resp_valid_o (tran_tcdm_slave_resp_valid                                        ),
       .tcdm_slave_resp_ready_i (tran_tcdm_slave_resp_ready                                        ),
-      // TCDM DMA interfaces
-      .tcdm_dma_req_i          (tcdm_dma_req[sg*NumTilesPerSubGroup +: NumTilesPerSubGroup]       ),
-      .tcdm_dma_req_valid_i    (tcdm_dma_req_valid[sg*NumTilesPerSubGroup +: NumTilesPerSubGroup] ),
-      .tcdm_dma_req_ready_o    (tcdm_dma_req_ready[sg*NumTilesPerSubGroup +: NumTilesPerSubGroup] ),
-      .tcdm_dma_resp_o         (tcdm_dma_resp[sg*NumTilesPerSubGroup +: NumTilesPerSubGroup]      ),
-      .tcdm_dma_resp_valid_o   (tcdm_dma_resp_valid[sg*NumTilesPerSubGroup +: NumTilesPerSubGroup]),
-      .tcdm_dma_resp_ready_i   (tcdm_dma_resp_ready[sg*NumTilesPerSubGroup +: NumTilesPerSubGroup]),
+      // DMA interfaces
+      .dma_reqrsp_req_i        (dma_reqrsp_req[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]       ),
+      .dma_reqrsp_rsp_o        (dma_reqrsp_rsp[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]       ),
       // AXI interface
       .axi_mst_req_o           (axi_tile_req[sg*NumTilesPerSubGroup +: NumTilesPerSubGroup]       ),
       .axi_mst_resp_i          (axi_tile_resp[sg*NumTilesPerSubGroup +: NumTilesPerSubGroup]      ),
@@ -501,9 +501,6 @@ module mempool_group
     }
   };
 
-  `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
-
-
   for (genvar d = 0; unsigned'(d) < NumDmasPerGroup; d++) begin: gen_dmas
     localparam int unsigned a = NumTilesPerGroup + d;
 
@@ -588,11 +585,6 @@ module mempool_group
       .default_mst_port_i   ('0                           )
     );
 
-    reqrsp_req_t dma_reqrsp_req;
-    reqrsp_rsp_t dma_reqrsp_rsp;
-    reqrsp_req_t [NumTilesPerDma-1:0] dma_tile_req;
-    reqrsp_rsp_t [NumTilesPerDma-1:0] dma_tile_rsp;
-
     axi_to_reqrsp #(
       .axi_req_t   (axi_tile_req_t ),
       .axi_rsp_t   (axi_tile_resp_t),
@@ -608,49 +600,9 @@ module mempool_group
       .busy_o      (/*unused*/    ),
       .axi_req_i   (tcdm_req      ),
       .axi_rsp_o   (tcdm_resp     ),
-      .reqrsp_req_o(dma_reqrsp_req),
-      .reqrsp_rsp_i(dma_reqrsp_rsp)
+      .reqrsp_req_o(dma_reqrsp_req[d]),
+      .reqrsp_rsp_i(dma_reqrsp_rsp[d])
     );
-
-    if (NumTilesPerDma > 1) begin: gen_dma_reqrsp_demux
-      reqrsp_demux #(
-        .NrPorts  (NumTilesPerDma),
-        .req_t    (reqrsp_req_t  ),
-        .rsp_t    (reqrsp_rsp_t  ),
-        .RespDepth(2             )
-      ) i_reqrsp_demux (
-         .clk_i       (clk_i                                                                                  ),
-         .rst_ni      (rst_ni                                                                                 ),
-         .slv_select_i(dma_reqrsp_req.q.addr[idx_width(NumBanksPerTile)+ByteOffset+:idx_width(NumTilesPerDma)]),
-         .slv_req_i   (dma_reqrsp_req                                                                         ),
-         .slv_rsp_o   (dma_reqrsp_rsp                                                                         ),
-         .mst_req_o   (dma_tile_req                                                                           ),
-         .mst_rsp_i   (dma_tile_rsp                                                                           )
-      );
-    end else begin: gen_dma_reqrsp_bypass
-      assign dma_tile_req = dma_reqrsp_req;
-      assign dma_reqrsp_rsp = dma_tile_rsp;
-    end
-
-    // Assignment to TCDM interconnect
-    // TODO: Reordering might be problematic
-    for (genvar t = 0; unsigned'(t) < NumTilesPerDma; t++) begin: gen_dma_tile_connection
-      assign tcdm_dma_req[d*NumTilesPerDma+t] = '{
-               wdata: dma_tile_req[t].q.data,
-               wen: dma_tile_req[t].q.write,
-               be: dma_tile_req[t].q.strb,
-               tgt_addr: {dma_tile_req[t].q.addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroups)+:TCDMAddrMemWidth],
-                          dma_tile_req[t].q.addr[ByteOffset+:idx_width(NumBanksPerTile)]}
-             };
-      assign tcdm_dma_req_valid[d*NumTilesPerDma+t]  = dma_tile_req[t].q_valid;
-      assign dma_tile_rsp[t].q_ready = tcdm_dma_req_ready[d*NumTilesPerDma+t];
-      assign dma_tile_rsp[t].p = '{
-               data: tcdm_dma_resp[d*NumTilesPerDma+t].rdata,
-               error: '0
-             };
-      assign dma_tile_rsp[t].p_valid = tcdm_dma_resp_valid[d*NumTilesPerDma+t];
-      assign tcdm_dma_resp_ready[d*NumTilesPerDma+t] =dma_tile_req[t].p_ready;
-    end
   end
 
-endmodule: mempool_group
+endmodule : mempool_group
