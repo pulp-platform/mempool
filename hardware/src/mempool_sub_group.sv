@@ -38,11 +38,16 @@ module mempool_sub_group
   output logic                            [NumGroups-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_valid_o,
   input  logic                            [NumGroups-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_ready_i,
   // TCDM DMA interfaces
-  input  `STRUCT_PORT(reqrsp_req_t)       [NumDmasPerSubGroup-1:0]                  dma_reqrsp_req_i,
-  output `STRUCT_PORT(reqrsp_rsp_t)       [NumDmasPerSubGroup-1:0]                  dma_reqrsp_rsp_o,
+  input  `STRUCT_PORT(dma_req_t)          [NumDmasPerSubGroup-1:0]                  dma_req_i,
+  input  logic                            [NumDmasPerSubGroup-1:0]                  dma_req_valid_i,
+  output logic                            [NumDmasPerSubGroup-1:0]                  dma_req_ready_o,
+  // DMA status
+  output `STRUCT_PORT(dma_meta_t)         [NumDmasPerSubGroup-1:0]                  dma_meta_o,
   // AXI Interface
-  output `STRUCT_PORT(axi_tile_req_t)     [NumTilesPerSubGroup-1:0]                 axi_mst_req_o,
-  input  `STRUCT_PORT(axi_tile_resp_t)    [NumTilesPerSubGroup-1:0]                 axi_mst_resp_i,
+  output `STRUCT_PORT(axi_tile_req_t)     [NumAXIMastersPerSubGroup-1:0]            axi_mst_req_o,
+  input  `STRUCT_PORT(axi_tile_resp_t)    [NumAXIMastersPerSubGroup-1:0]            axi_mst_resp_i,
+  // RO-Cache configuration
+  input  `STRUCT_PORT(ro_cache_ctrl_t)                                              ro_cache_ctrl_i,
   // Wake up interface
   input  logic                            [NumCoresPerSubGroup-1:0]                 wake_up_i
 );
@@ -58,6 +63,9 @@ module mempool_sub_group
    *********************/
   logic [NumCoresPerSubGroup-1:0] wake_up_q;
   `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
+
+  ro_cache_ctrl_t ro_cache_ctrl_q;
+  `FF(ro_cache_ctrl_q, ro_cache_ctrl_i, ro_cache_ctrl_default, clk_i, rst_ni);
 
   /**********************
    *  Ports to structs  *
@@ -85,6 +93,7 @@ module mempool_sub_group
   tcdm_slave_resp_t  [NumGroups-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp;
   logic              [NumGroups-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid;
   logic              [NumGroups-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready;
+  
   // DMA interfaces
   tcdm_dma_req_t  [NumTilesPerSubGroup-1:0] tcdm_dma_req;
   logic           [NumTilesPerSubGroup-1:0] tcdm_dma_req_valid;
@@ -96,8 +105,6 @@ module mempool_sub_group
   // AXI interfaces
   axi_tile_req_t  [NumTilesPerSubGroup-1:0] axi_tile_req;
   axi_tile_resp_t [NumTilesPerSubGroup-1:0] axi_tile_resp;
-  assign axi_mst_req_o = axi_tile_req;
-  assign axi_tile_resp = axi_mst_resp_i;
 
   for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tiles
     tile_id_t id;
@@ -171,14 +178,197 @@ module mempool_sub_group
     end: gen_tran_group_req
   end : gen_tiles
 
+  /**********************
+   *  AXI Interconnect  *
+   **********************/
+
+  axi_tile_req_t   [NumAXIMastersPerSubGroup-1:0] axi_mst_req;
+  axi_tile_resp_t  [NumAXIMastersPerSubGroup-1:0] axi_mst_resp;
+  axi_tile_req_t   [NumTilesPerSubGroup+NumDmasPerSubGroup-1:0] axi_slv_req;
+  axi_tile_resp_t  [NumTilesPerSubGroup+NumDmasPerSubGroup-1:0] axi_slv_resp;
+  axi_tile_req_t   [NumDmasPerSubGroup-1:0]  axi_dma_req;
+  axi_tile_resp_t  [NumDmasPerSubGroup-1:0]  axi_dma_resp;
+
+  for (genvar i = 0; i < NumDmasPerSubGroup; i++) begin : gen_axi_slv_vec
+    assign axi_slv_req[i*(NumTilesPerDma+1)+:NumTilesPerDma+1] = {axi_dma_req[i],axi_tile_req[i*NumTilesPerDma+:NumTilesPerDma]};
+    assign {axi_dma_resp[i],axi_tile_resp[i*NumTilesPerDma+:NumTilesPerDma]} = axi_slv_resp[i*(NumTilesPerDma+1)+:NumTilesPerDma+1];
+  end : gen_axi_slv_vec
+
+  axi_hier_interco #(
+    .NumSlvPorts    (NumTilesPerSubGroup+NumDmasPerSubGroup),
+    .NumMstPorts    (NumAXIMastersPerSubGroup              ),
+    .Radix          (AxiHierRadix                          ),
+    .EnableCache    (32'hFFFFFFFF                          ),
+    .CacheLineWidth (ROCacheLineWidth                      ),
+    .CacheSizeByte  (ROCacheSizeByte                       ),
+    .CacheSets      (ROCacheSets                           ),
+    .AddrWidth      (AddrWidth                             ),
+    .DataWidth      (AxiDataWidth                          ),
+    .SlvIdWidth     (AxiTileIdWidth                        ),
+    .MstIdWidth     (AxiTileIdWidth                        ),
+    .UserWidth      (1                                     ),
+    .slv_req_t      (axi_tile_req_t                        ),
+    .slv_resp_t     (axi_tile_resp_t                       ),
+    .mst_req_t      (axi_tile_req_t                        ),
+    .mst_resp_t     (axi_tile_resp_t                       )
+  ) i_axi_interco (
+    .clk_i           (clk_i          ),
+    .rst_ni          (rst_ni         ),
+    .test_i          (1'b0           ),
+    .ro_cache_ctrl_i (ro_cache_ctrl_q),
+    .slv_req_i       (axi_slv_req    ),
+    .slv_resp_o      (axi_slv_resp   ),
+    .mst_req_o       (axi_mst_req    ),
+    .mst_resp_i      (axi_mst_resp   )
+  );
+
+  for (genvar m = 0; m < NumAXIMastersPerSubGroup; m++) begin: gen_axi_group_cuts
+    axi_cut #(
+      .ar_chan_t (axi_tile_ar_t  ),
+      .aw_chan_t (axi_tile_aw_t  ),
+      .r_chan_t  (axi_tile_r_t   ),
+      .w_chan_t  (axi_tile_w_t   ),
+      .b_chan_t  (axi_tile_b_t   ),
+      .axi_req_t (axi_tile_req_t ),
+      .axi_resp_t(axi_tile_resp_t)
+    ) i_axi_cut (
+      .clk_i     (clk_i            ),
+      .rst_ni    (rst_ni           ),
+      .slv_req_i (axi_mst_req[m]   ),
+      .slv_resp_o(axi_mst_resp[m]  ),
+      .mst_req_o (axi_mst_req_o[m] ),
+      .mst_resp_i(axi_mst_resp_i[m])
+    );
+  end: gen_axi_group_cuts
+
   /***************
    *    DMAs     *
    ***************/
-  for (genvar d = 0; unsigned'(d) < NumDmasPerSubGroup; d++) begin: gen_dmas_mux_sg
-    localparam int unsigned a = NumTilesPerGroup + d;
 
+  // xbar
+  localparam int unsigned NumRules = 1;
+  typedef struct packed {
+    int unsigned idx;
+    logic [AddrWidth-1:0] start_addr;
+    logic [AddrWidth-1:0] end_addr;
+  } xbar_rule_t;
+  xbar_rule_t [NumRules-1:0] addr_map;
+  assign addr_map = '{
+    '{ // TCDM
+      start_addr: TCDMBaseAddr,
+      end_addr:   TCDMBaseAddr + TCDMSize,
+      idx:        1
+    }
+  };
+
+  for (genvar d = 0; unsigned'(d) < NumDmasPerSubGroup; d++) begin: gen_dmas
+    localparam int unsigned a = NumTilesPerSubGroup + d;
+
+    axi_tile_req_t  axi_dma_premux_req;
+    axi_tile_resp_t axi_dma_premux_resp;
+    axi_tile_req_t  tcdm_req;
+    axi_tile_resp_t tcdm_resp;
+
+    logic backend_idle;
+    logic trans_complete;
+
+    axi_dma_backend #(
+      .DataWidth       (AxiDataWidth   ),
+      .AddrWidth       (AddrWidth      ),
+      .IdWidth         (AxiTileIdWidth ),
+      .AxReqFifoDepth  (2              ),
+      .TransFifoDepth  (1              ),
+      .BufferDepth     (4              ),
+      .axi_req_t       (axi_tile_req_t ),
+      .axi_res_t       (axi_tile_resp_t),
+      .burst_req_t     (dma_req_t      ),
+      .DmaIdWidth      (1              ),
+      .DmaTracing      (0              )
+    ) i_axi_dma_backend (
+      .clk_i            (clk_i                     ),
+      .rst_ni           (rst_ni                    ),
+      .dma_id_i         (1'b0                      ),
+      .axi_dma_req_o    (axi_dma_premux_req        ),
+      .axi_dma_res_i    (axi_dma_premux_resp       ),
+      .burst_req_i      (dma_req_i[d]                ),
+      .valid_i          (dma_req_valid_i[d]          ),
+      .ready_o          (dma_req_ready_o[d]          ),
+      .backend_idle_o   (dma_meta_o[d].backend_idle  ),
+      .trans_complete_o (dma_meta_o[d].trans_complete)
+    );
+
+    // ------------------------------------------------------
+    // AXI connection to EXT/TCDM
+    // ------------------------------------------------------
+
+    localparam axi_pkg::xbar_cfg_t XbarCfg = '{
+      NoSlvPorts:         1,
+      NoMstPorts:         2,
+      MaxMstTrans:        8,
+      MaxSlvTrans:        8,
+      FallThrough:        1'b0,
+      LatencyMode:        axi_pkg::CUT_ALL_PORTS,
+      AxiIdWidthSlvPorts: AxiTileIdWidth,
+      AxiIdUsedSlvPorts:  AxiTileIdWidth,
+      UniqueIds:          1'b0,
+      AxiAddrWidth:       AddrWidth,
+      AxiDataWidth:       AxiDataWidth,
+      NoAddrRules:        NumRules
+    };
+
+    axi_xbar #(
+      .Cfg          (XbarCfg        ),
+      .slv_aw_chan_t(axi_tile_aw_t  ),
+      .mst_aw_chan_t(axi_tile_aw_t  ),
+      .w_chan_t     (axi_tile_w_t   ),
+      .slv_b_chan_t (axi_tile_b_t   ),
+      .mst_b_chan_t (axi_tile_b_t   ),
+      .slv_ar_chan_t(axi_tile_ar_t  ),
+      .mst_ar_chan_t(axi_tile_ar_t  ),
+      .slv_r_chan_t (axi_tile_r_t   ),
+      .mst_r_chan_t (axi_tile_r_t   ),
+      .slv_req_t    (axi_tile_req_t ),
+      .slv_resp_t   (axi_tile_resp_t),
+      .mst_req_t    (axi_tile_req_t ),
+      .mst_resp_t   (axi_tile_resp_t),
+      .rule_t       (xbar_rule_t    )
+    ) i_dma_axi_xbar (
+      .clk_i                (clk_i                        ),
+      .rst_ni               (rst_ni                       ),
+      .test_i               (1'b0                         ),
+      .slv_ports_req_i      (axi_dma_premux_req           ),
+      .slv_ports_resp_o     (axi_dma_premux_resp          ),
+      .mst_ports_req_o      ({tcdm_req,axi_dma_req[d]}    ),
+      .mst_ports_resp_i     ({tcdm_resp,axi_dma_resp[d]}  ),
+      .addr_map_i           (addr_map                     ),
+      .en_default_mst_port_i('1                           ),
+      .default_mst_port_i   ('0                           )
+    );
+
+    reqrsp_req_t dma_reqrsp_req;
+    reqrsp_rsp_t dma_reqrsp_rsp;
     reqrsp_req_t [NumTilesPerDma-1:0] dma_tile_req;
     reqrsp_rsp_t [NumTilesPerDma-1:0] dma_tile_rsp;
+
+    axi_to_reqrsp #(
+      .axi_req_t   (axi_tile_req_t ),
+      .axi_rsp_t   (axi_tile_resp_t),
+      .AddrWidth   (AddrWidth      ),
+      .DataWidth   (AxiDataWidth   ),
+      .IdWidth     (AxiTileIdWidth ),
+      .BufDepth    (2              ),
+      .reqrsp_req_t(reqrsp_req_t   ),
+      .reqrsp_rsp_t(reqrsp_rsp_t   )
+    ) i_axi_to_reqrsp (
+      .clk_i       (clk_i         ),
+      .rst_ni      (rst_ni        ),
+      .busy_o      (/*unused*/    ),
+      .axi_req_i   (tcdm_req      ),
+      .axi_rsp_o   (tcdm_resp     ),
+      .reqrsp_req_o(dma_reqrsp_req),
+      .reqrsp_rsp_i(dma_reqrsp_rsp)
+    );
+
 
     if (NumTilesPerDma > 1) begin: gen_dma_reqrsp_demux
       reqrsp_demux #(
@@ -187,17 +377,17 @@ module mempool_sub_group
         .rsp_t    (reqrsp_rsp_t  ),
         .RespDepth(2             )
       ) i_reqrsp_demux (
-         .clk_i       (clk_i                                                                                       ),
-         .rst_ni      (rst_ni                                                                                      ),
-         .slv_select_i(dma_reqrsp_req_i[d].q.addr[idx_width(NumBanksPerTile)+ByteOffset+:idx_width(NumTilesPerDma)]),
-         .slv_req_i   (dma_reqrsp_req_i[d]                                                                         ),
-         .slv_rsp_o   (dma_reqrsp_rsp_o[d]                                                                         ),
-         .mst_req_o   (dma_tile_req                                                                                ),
-         .mst_rsp_i   (dma_tile_rsp                                                                                )
+         .clk_i       (clk_i                                                                                  ),
+         .rst_ni      (rst_ni                                                                                 ),
+         .slv_select_i(dma_reqrsp_req.q.addr[idx_width(NumBanksPerTile)+ByteOffset+:idx_width(NumTilesPerDma)]),
+         .slv_req_i   (dma_reqrsp_req                                                                         ),
+         .slv_rsp_o   (dma_reqrsp_rsp                                                                         ),
+         .mst_req_o   (dma_tile_req                                                                           ),
+         .mst_rsp_i   (dma_tile_rsp                                                                           )
       );
     end else begin: gen_dma_reqrsp_bypass
-      assign dma_tile_req = dma_reqrsp_req_i[d];
-      assign dma_reqrsp_rsp_o[d] = dma_tile_rsp;
+      assign dma_tile_req = dma_reqrsp_req;
+      assign dma_reqrsp_rsp = dma_tile_rsp;
     end
 
     // Assignment to TCDM interconnect
@@ -224,6 +414,7 @@ module mempool_sub_group
   /***************
    *  Registers  *
    ***************/
+
 `ifdef NumTilesPerSubGroup != 1
   // Break paths between request and response with registers
   for (genvar h = 0; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_registers_g

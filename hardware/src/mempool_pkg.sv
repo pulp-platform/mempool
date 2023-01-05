@@ -36,18 +36,19 @@ package mempool_pkg;
    *  MEMORY PARAMETERS  *
    ***********************/
 
-  localparam integer unsigned AddrWidth        = 32;
-  localparam integer unsigned DataWidth        = 32;
-  localparam integer unsigned BeWidth          = DataWidth / 8;
-  localparam integer unsigned ByteOffset       = $clog2(BeWidth);
-  localparam integer unsigned BankingFactor    = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
-  localparam bit              LrScEnable       = 1'b1;
-  localparam integer unsigned TCDMSizePerBank  = 1024; // [B]
-  localparam integer unsigned NumBanks         = NumCores * BankingFactor;
-  localparam integer unsigned NumBanksPerTile  = NumBanks / NumTiles;
-  localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
-  localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
-  localparam integer unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
+  localparam integer unsigned AddrWidth           = 32;
+  localparam integer unsigned DataWidth           = 32;
+  localparam integer unsigned BeWidth             = DataWidth / 8;
+  localparam integer unsigned ByteOffset          = $clog2(BeWidth);
+  localparam integer unsigned BankingFactor       = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
+  localparam bit              LrScEnable          = 1'b1;
+  localparam integer unsigned TCDMSizePerBank     = 1024; // [B]
+  localparam integer unsigned NumBanks            = NumCores * BankingFactor;
+  localparam integer unsigned NumBanksPerTile     = NumBanks / NumTiles;
+  localparam integer unsigned NumBanksPerGroup    = NumBanks / NumGroups;
+  localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
+  localparam integer unsigned TCDMAddrMemWidth    = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
+  localparam integer unsigned TCDMAddrWidth       = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
 
   // L2
   localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 0 `endif; // [B]
@@ -76,6 +77,7 @@ package mempool_pkg;
   typedef logic [BeWidth-1:0] strb_t;
 
   localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
+  localparam integer unsigned NumAXIMastersPerSubGroup = NumAXIMastersPerGroup/NumSubGroupsPerGroup;
 
   localparam NumSystemXbarMasters = (NumGroups * NumAXIMastersPerGroup) + 1; // +1 because the external host is also a master
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
