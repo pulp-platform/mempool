@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+## 0.6.0 - 2023-01-09
+
 ### Added
 - Add a DMA
 - Add pv.pack.h xpulpv2 instruction
