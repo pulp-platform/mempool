@@ -118,6 +118,7 @@ module idma_distributed_midend #(
     // Do not interfere with metadata per default
     tie_off_trans_complete_d = '0;
     for (int i = 0; i < NoMstPorts; i++) begin
+      tie_off_trans_complete_d[i] = tie_off_trans_complete_q[i] && meta_i[i].trans_complete;
       // Feed metadata through directly
       burst_req_o[i] = burst_req_i;
       // Feed through the address bits
