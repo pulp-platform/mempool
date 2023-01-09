@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly
 - Fix the allocator initialization
+- After building GCC, copy `riscv.ld` required for cMake to install folder
+- Disable GCC tree-loop-distribute-patterns optimizations causing stack overflows
+- Disable problematic GCC `memset` and `memcpy` built-in functions
 
 ### Changed
 - Increase the default AXI width to 512 for MemPool and TeraPool

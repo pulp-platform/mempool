@@ -11,5 +11,6 @@ Thanks to all.
 * Luca Rufer
 * Marc Gantenbein
 * Marco Bertuletti
+* Philip Wiese
 * Sergio Mazzola
 * Yichao Zhang
