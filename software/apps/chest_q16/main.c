@@ -16,8 +16,10 @@
 
 #include "data_chest_q16.h"
 #include "chest_q16s.h"
+#include "chest_q16p.h"
 
-#define SINGLE
+//#define SINGLE
+#define PARALLEL
 
 int16_t PilotTX_l1[2*N_TX*N_SAMPLES] __attribute__((aligned(N_TX*N_SAMPLES), section(".l1")));
 int16_t PilotRX_l1[2*N_RX*N_SAMPLES] __attribute__((aligned(N_TX*N_SAMPLES), section(".l1")));
@@ -69,14 +71,25 @@ int main() {
 
   #ifdef SINGLE
   if (core_id == 0) {
-    mempool_chest_q16s_unrolled4(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX, N_SAMPLES);
+    mempool_chest_q16s_unrolled4_xpulpv2(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX, N_SAMPLES);
+    //mempool_chest_q16s_unrolled4(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX, N_SAMPLES);
     mempool_start_benchmark();
     mempool_chest_q16s_unrolled4_xpulpv2(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX, N_SAMPLES);
-    // mempool_chest_q16s_radix4(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX, N_SAMPLES);
+    //mempool_chest_q16s_unrolled4(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX, N_SAMPLES);
     mempool_stop_benchmark();
   }
-  #endif
   mempool_barrier(num_cores);
+  #endif
+
+  #ifdef PARALLEL
+  if (core_id < N_SAMPLES) {
+    mempool_chest_q16p_unrolled4_xpulpv2(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX, N_SAMPLES, core_id, num_cores);
+    mempool_start_benchmark();
+    mempool_chest_q16p_unrolled4_xpulpv2(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX, N_SAMPLES, core_id, num_cores);
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
+  #endif
 
   //check_result(HEST_l1, HEST, 2*N_RX*N_TX*N_SAMPLES);
 
