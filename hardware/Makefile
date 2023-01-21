@@ -65,7 +65,7 @@ ifdef preload
 	questa_args += +PRELOAD=$(preload)
 endif
 questa_args += -sv_lib $(dpi_library)/mempool_dpi -work $(library)
-questa_args += -suppress vsim-12070
+questa_args += -suppress vsim-12070 -suppress vsim-3009
 
 # VCS options
 vlogan_args += -assert svaext +v2k -override_timescale=1ns/1ps -kdb
@@ -270,6 +270,76 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 	cd $(buildpath) && $(VERILATOR_EXE) $(veril_flags) | tee transcript
 	# Avoid capturing the return status when running the load-throughput analysis
 	if [ $(tg) -ne 1 ]; then ./scripts/return_status.sh $(buildpath)/transcript; fi
+
+#########################
+# DRAMsys Co-simulation #
+#########################
+
+DRAMSYS_GIT_ROOT := $(ROOT_DIR)/dramsys/DRAMSys
+DRAMSYS_SRC_ROOT := $(ROOT_DIR)/dramsys/src
+DRAMSYS_BUILD_ROOT := $(ROOT_DIR)/dramsys/build
+DRAMSYS_BUILD_LIB := $(ROOT_DIR)/dramsys/build/dramsys_library
+DRAMSYS_BUILD_MEMPOOL_LIB := $(ROOT_DIR)/dramsys/build/mempool_library
+
+dramsys_init:
+	# initialize DRAMsys submodules
+	cd $(DRAMSYS_GIT_ROOT) && git submodule update --init --recursive
+	# build folder
+	rm -rf $(DRAMSYS_BUILD_ROOT); mkdir -p $(DRAMSYS_BUILD_ROOT)
+	# apply DRAMsys patch
+	cd $(DRAMSYS_GIT_ROOT) && git apply ../patch/dramsys.patch
+	# build dramsys library
+	mkdir -p $(DRAMSYS_BUILD_LIB) && cd $(DRAMSYS_BUILD_LIB) && cmake DENABLE_PHASE_CALLBACKS_TRACING=OFF $(DRAMSYS_GIT_ROOT)/DRAMSys/library/ && make
+	# modify dramsys simulator
+	cp $(DRAMSYS_SRC_ROOT)/AXI4_to_TLM.h $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
+	cp $(DRAMSYS_SRC_ROOT)/axi_sc_mem.h $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
+	cp $(DRAMSYS_SRC_ROOT)/elfloader.cpp $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
+	cp $(DRAMSYS_SRC_ROOT)/elfloader.h $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
+	rm $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator/main.cpp
+	cp $(DRAMSYS_SRC_ROOT)/main.cpp $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
+
+#systemc library path
+systemc_lib_path ?= $(abspath $(DRAMSYS_BUILD_LIB)/src/common/third_party/systemc/src)
+#systemc include path
+systemc_include_path ?= $(abspath $(DRAMSYS_GIT_ROOT)/DRAMSys/library/src/common/third_party/systemc/src)
+
+verilator_dramsys       ?= $(INSTALL_DIR)/verilator_dramsys/bin/verilator
+verilator_dramsys_build ?= $(DRAMSYS_BUILD_MEMPOOL_LIB)
+verilator_dramsys_files ?= $(verilator_dramsys_build)/files
+verilator_dramsys_top   ?= mempool_dramsys_tb
+
+VERILATOR_DRAMSYS_SRC   := $(DRAMSYS_SRC_ROOT)
+VERILATOR_DRAMSYS_EXE   := $(verilator_dramsys_build)/V$(verilator_dramsys_top)
+VERILATOR_DRAMSYS_MK    := $(VERILATOR_DRAMSYS_EXE).mk
+VERILATOR_DRAMSYS_WAIVE := $(shell find $(VERILATOR_DRAMSYS_SRC) -name "*.vlt" -print | sort)
+VERILATOR_DRAMSYS_CONF  := $(VERILATOR_DRAMSYS_SRC)/verilator.flags
+
+VERILATOR_DRAMSYS_FLAGS += -CFLAGS "-DTOPLEVEL_NAME=$(verilator_dramsys_top)"
+VERILATOR_DRAMSYS_FLAGS += --Mdir $(verilator_dramsys_build)
+VERILATOR_DRAMSYS_FLAGS += -f $(verilator_dramsys_files)
+VERILATOR_DRAMSYS_FLAGS += -f $(VERILATOR_DRAMSYS_CONF)
+VERILATOR_DRAMSYS_FLAGS += $(VERILATOR_DRAMSYS_WAIVE)
+
+VERILATOR_DRAMSYS_GROUP_MK    := $(verilator_dramsys_build)/Vmempool_group_a/Vmempool_group_a.mk
+VERILATOR_DRAMSYS_TILE_MK    	:= $(verilator_dramsys_build)/Vmempool_tile_f/Vmempool_tile_f.mk
+
+$(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
+	rm -rf $(verilator_dramsys_build); mkdir -p $(verilator_dramsys_build)
+	# Create Bender script of all RTL files
+	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_dramsys > $(verilator_dramsys_files)
+	# SystemC Envirnomnet adn Create Verilator Makefile
+	export SYSTEMC_INCLUDE=$(systemc_include_path) && \
+	export SYSTEMC_LIBDIR=$(systemc_lib_path) && \
+	$(verilator_dramsys) $(VERILATOR_DRAMSYS_FLAGS) --top-module $(verilator_dramsys_top)
+	#modify .mk files
+	sed -i "/VERILATOR_ROOT =/c\VERILATOR_ROOT = $(INSTALL_DIR)/verilator_dramsys/share/verilator" $(VERILATOR_DRAMSYS_MK)
+	sed -i "/VERILATOR_ROOT =/c\VERILATOR_ROOT = $(INSTALL_DIR)/verilator_dramsys/share/verilator" $(VERILATOR_DRAMSYS_GROUP_MK)
+	sed -i "/VERILATOR_ROOT =/c\VERILATOR_ROOT = $(INSTALL_DIR)/verilator_dramsys/share/verilator" $(VERILATOR_DRAMSYS_TILE_MK)
+	#build library
+	cd $(verilator_dramsys_build) && make -f V$(verilator_dramsys_top).mk
+
+dramsys_veri: ${VERILATOR_DRAMSYS_MK} $(shell find $(VERILATOR_SRC) -type f) Makefile
+	echo "verilator for dramsys translate and compiling has done!"
 
 #############
 # Lint      #

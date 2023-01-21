@@ -63,6 +63,16 @@ sources:
       # Level 2
       - hardware/tb/mempool_tb_verilator.sv
 
+  - target: mempool_dramsys
+    files:
+      # Level 1
+      - hardware/tb/axi_uart.sv
+      - hardware/tb/traffic_generator.sv
+      - hardware/dramsys/src/mempool_system_to_dram.sv
+      - hardware/dramsys/src/simulation_ctrl.sv
+      # Level 2
+      - hardware/dramsys/src/mempool_dramsys_tb.sv
+
   - target: fpga
     files:
       # Level 1

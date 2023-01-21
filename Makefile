@@ -22,6 +22,7 @@ LLVM_INSTALL_DIR      ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR    ?= ${INSTALL_DIR}/halide
 BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
+VERILATOR_DRAMSYS_INSTALL_DIR ?= ${INSTALL_DIR}/verilator_dramsys
 RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
 CMAKE ?= cmake
@@ -145,6 +146,16 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	cd $<; unset VERILATOR_ROOT; \
 	autoconf && CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=$(CLANG_CXXFLAGS) LDFLAGS=$(CLANG_LDFLAGS) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
 	make -j4 && make install
+
+verilator_dramsys:$(VERILATOR_DRAMSYS_INSTALL_DIR)/bin/verilator
+$(VERILATOR_DRAMSYS_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
+	cd $<;\
+	autoconf && CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=$(CLANG_CXXFLAGS) LDFLAGS=$(CLANG_LDFLAGS) ./configure --prefix=$(VERILATOR_DRAMSYS_INSTALL_DIR) && \
+	make -j4 && make install
+	sed -i "/CXX =/c\CXX = g++" $(VERILATOR_DRAMSYS_INSTALL_DIR)/share/verilator/include/verilated.mk
+	sed -i "/LINK =/c\LINK = g++" $(VERILATOR_DRAMSYS_INSTALL_DIR)/share/verilator/include/verilated.mk
+	sed -i "/CFG_CXXFLAGS_STD_NEWEST =/c\CFG_CXXFLAGS_STD_NEWEST = -std=gnu++17" $(VERILATOR_DRAMSYS_INSTALL_DIR)/share/verilator/include/verilated.mk
+	sed -i "/CFG_CXXFLAGS_NO_UNUSED =/c\CFG_CXXFLAGS_NO_UNUSED =  -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-tautological-bitwise-compare -Wno-parentheses-equality -Wno-sign-compare -Wno-uninitialized -Wno-unused-parameter -Wno-unused-variable -Wno-shadow" $(VERILATOR_DRAMSYS_INSTALL_DIR)/share/verilator/include/verilated.mk
 
 # Update and patch hardware dependencies for MemPool
 # Previous changes will be stashed. Clear all the stashes with `git stash clear`
