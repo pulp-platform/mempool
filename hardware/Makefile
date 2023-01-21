@@ -280,6 +280,8 @@ DRAMSYS_SRC_ROOT := $(ROOT_DIR)/dramsys/src
 DRAMSYS_BUILD_ROOT := $(ROOT_DIR)/dramsys/build
 DRAMSYS_BUILD_LIB := $(ROOT_DIR)/dramsys/build/dramsys_library
 DRAMSYS_BUILD_MEMPOOL_LIB := $(ROOT_DIR)/dramsys/build/mempool_library
+DRAMSYS_BUILD_SIMULATION := $(ROOT_DIR)/dramsys/build/main_program
+DRAMSYS_BUILD_SIMULATION_EXE := $(ROOT_DIR)/dramsys/build/main_program/simulator/DRAMSys
 
 dramsys_init:
 	# initialize DRAMsys submodules
@@ -323,6 +325,8 @@ VERILATOR_DRAMSYS_FLAGS += $(VERILATOR_DRAMSYS_WAIVE)
 VERILATOR_DRAMSYS_GROUP_MK    := $(verilator_dramsys_build)/Vmempool_group_a/Vmempool_group_a.mk
 VERILATOR_DRAMSYS_TILE_MK    	:= $(verilator_dramsys_build)/Vmempool_tile_f/Vmempool_tile_f.mk
 
+DRAMSYS_BUILD_MEMPOOL_LIB_FILE := $(DRAMSYS_BUILD_MEMPOOL_LIB)/V$(verilator_dramsys_top)__ALL.a
+
 $(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
 	rm -rf $(verilator_dramsys_build); mkdir -p $(verilator_dramsys_build)
 	# Create Bender script of all RTL files
@@ -337,8 +341,14 @@ $(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(
 	sed -i "/VERILATOR_ROOT =/c\VERILATOR_ROOT = $(INSTALL_DIR)/verilator_dramsys/share/verilator" $(VERILATOR_DRAMSYS_TILE_MK)
 	#build library
 	cd $(verilator_dramsys_build) && make -f V$(verilator_dramsys_top).mk
+	#modify Cmakefile for dramsys simulator
+	sed -i "/__ALL.a/c\    $(DRAMSYS_BUILD_MEMPOOL_LIB_FILE)" $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator/CMakeLists.txt
 
-dramsys_veri: ${VERILATOR_DRAMSYS_MK} $(shell find $(VERILATOR_SRC) -type f) Makefile
+$(DRAMSYS_BUILD_SIMULATION_EXE): $(VERILATOR_DRAMSYS_MK) 
+	rm -rf $(DRAMSYS_BUILD_SIMULATION); mkdir -p $(DRAMSYS_BUILD_SIMULATION)
+	cd $(DRAMSYS_BUILD_SIMULATION) && cmake DENABLE_PHASE_CALLBACKS_TRACING=OFF $(DRAMSYS_GIT_ROOT)/DRAMSys && make
+
+dramsys_sim: $(DRAMSYS_BUILD_SIMULATION_EXE) $(shell find $(VERILATOR_SRC) -type f) Makefile
 	echo "verilator for dramsys translate and compiling has done!"
 
 #############

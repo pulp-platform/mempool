@@ -114,7 +114,7 @@ int sc_main(int argc, char **argv)
     {
         // Get path of resources:
         resources = pathOfFile(argv[0])
-                    + std::string("/../../DRAMSys/library/resources/");
+                    + std::string("/../../../DRAMSys/DRAMSys/library/resources/");
         simulationJson = resources + "simulations/ddr3-example.json";
     }
     // Run with specific config but default resource folders:
@@ -122,7 +122,7 @@ int sc_main(int argc, char **argv)
     {
         // Get path of resources:
         resources = pathOfFile(argv[0])
-                    + std::string("/../../DRAMSys/library/resources/");
+                    + std::string("/../../../DRAMSys/DRAMSys/library/resources/");
         simulationJson = argv[1];
     }
     // Run with spefific config and specific resource folder:
@@ -306,7 +306,7 @@ int sc_main(int argc, char **argv)
     unsigned char * dram_memory_ptr = dramSys->getDramBasePointer();
 
     // elfloader_read_elf("hello_world.elf", conv->mem_size_bytes, conv->base_addr, conv->mem);
-    elfloader_read_elf("hello_world.elf", dramChannelSize, dram_base, dram_memory_ptr);
+    elfloader_read_elf("/scratch/msc22f8/dramsys_mempool/mempool/software/bin/hello_world", dramChannelSize, dram_base, dram_memory_ptr);
 
     std::cout << "Load program done" << std::endl; 
 
