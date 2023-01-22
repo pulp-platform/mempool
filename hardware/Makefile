@@ -329,7 +329,7 @@ VERILATOR_DRAMSYS_TILE_MK    	:= $(verilator_dramsys_build)/Vmempool_tile_f/Vmem
 
 DRAMSYS_BUILD_MEMPOOL_LIB_FILE := $(DRAMSYS_BUILD_MEMPOOL_LIB)/V$(verilator_dramsys_top)__ALL.a
 
-$(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
+$(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(MEMPOOL_DIR)/Bender.yml $(shell find $(VERILATOR_DRAMSYS_SRC) -type f) $(shell find {src,tb,deps} -type f) $(bender) $(config_mk) Makefile
 	rm -rf $(verilator_dramsys_build); mkdir -p $(verilator_dramsys_build)
 	# Create Bender script of all RTL files
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_dramsys > $(verilator_dramsys_files)
@@ -349,13 +349,16 @@ $(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(
 $(DRAMSYS_BUILD_SIMULATION_EXE): $(VERILATOR_DRAMSYS_MK) 
 	cd $(DRAMSYS_BUILD_SIMULATION) && cmake DENABLE_PHASE_CALLBACKS_TRACING=OFF $(DRAMSYS_GIT_ROOT)/DRAMSys && make
 
-dramsys_compile: $(DRAMSYS_BUILD_SIMULATION_EXE) $(shell find $(VERILATOR_SRC) -type f) Makefile
+dramsys_compile: $(DRAMSYS_BUILD_SIMULATION_EXE) $(shell find $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator -type f) Makefile
 	echo "Mempool + DRAMSys co-simulation is well prepared!"
 
 DRAMSYS_SIMULATION_RESOURCES_PATH := $(DRAMSYS_GIT_ROOT)/DRAMSys/library/resources/simulations
 dram ?= ddr3
 
 dramsys_sim: dramsys_compile
+	ifndef app
+	$(error app is not set)
+	endif
 	cd $(DRAMSYS_BUILD_SIMULATION)/simulator && ./DRAMSys $(preload) $(DRAMSYS_SIMULATION_RESOURCES_PATH)/$(dram)-example.json
 
 #############
