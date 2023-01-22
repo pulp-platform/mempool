@@ -109,28 +109,38 @@ int sc_main(int argc, char **argv)
 
     std::string resources;
     std::string simulationJson;
-    // Run only with default config (ddr3-example.json):
-    if (argc == 1)
+    std::string mempoolAppBinary;
+    if (argc <= 1)
     {
-        // Get path of resources:
-        resources = pathOfFile(argv[0])
-                    + std::string("/../../../DRAMSys/DRAMSys/library/resources/");
-        simulationJson = resources + "simulations/ddr3-example.json";
+        std::cout << "Please give me at least the application binary path" << std::endl;
+        return -1;
     }
-    // Run with specific config but default resource folders:
-    else if (argc == 2)
+    else
     {
-        // Get path of resources:
-        resources = pathOfFile(argv[0])
-                    + std::string("/../../../DRAMSys/DRAMSys/library/resources/");
-        simulationJson = argv[1];
-    }
-    // Run with spefific config and specific resource folder:
-    else if (argc == 3)
-    {
-        simulationJson = argv[1];
-        resources = argv[2];
-    }
+        mempoolAppBinary = argv[1];
+        // Run only with default config (ddr3-example.json):
+        if (argc == 2)
+        {
+            // Get path of resources:
+            resources = pathOfFile(argv[0])
+                        + std::string("/../../../DRAMSys/DRAMSys/library/resources/");
+            simulationJson = resources + "simulations/ddr3-example.json";
+        }
+        // Run with specific config but default resource folders:
+        else if (argc == 3)
+        {
+            // Get path of resources:
+            resources = pathOfFile(argv[0])
+                        + std::string("/../../../DRAMSys/DRAMSys/library/resources/");
+            simulationJson = argv[2];
+        }
+        // Run with spefific config and specific resource folder:
+        else if (argc == 4)
+        {
+            simulationJson = argv[2];
+            resources = argv[3];
+        }
+    }   
 
     std::vector<std::unique_ptr<TrafficInitiator>> players;
 
@@ -306,7 +316,7 @@ int sc_main(int argc, char **argv)
     unsigned char * dram_memory_ptr = dramSys->getDramBasePointer();
 
     // elfloader_read_elf("hello_world.elf", conv->mem_size_bytes, conv->base_addr, conv->mem);
-    elfloader_read_elf("/scratch/msc22f8/dramsys_mempool/mempool/software/bin/hello_world", dramChannelSize, dram_base, dram_memory_ptr);
+    elfloader_read_elf(mempoolAppBinary.c_str(), dramChannelSize, dram_base, dram_memory_ptr);
 
     std::cout << "Load program done" << std::endl; 
 
