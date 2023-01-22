@@ -356,9 +356,6 @@ DRAMSYS_SIMULATION_RESOURCES_PATH := $(DRAMSYS_GIT_ROOT)/DRAMSys/library/resourc
 dram ?= ddr3
 
 dramsys_sim: dramsys_compile
-	ifndef app
-	$(error app is not set)
-	endif
 	cd $(DRAMSYS_BUILD_SIMULATION)/simulator && ./DRAMSys $(preload) $(DRAMSYS_SIMULATION_RESOURCES_PATH)/$(dram)-example.json
 
 #############
