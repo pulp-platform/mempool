@@ -1,9 +1,17 @@
 diff --git a/DRAMSys/library/resources/configs/simulator/ddr3.json b/DRAMSys/library/resources/configs/simulator/ddr3.json
-index 99ccdb4..66a8f06 100644
+index 99ccdb4..c0b12f9 100644
 --- a/DRAMSys/library/resources/configs/simulator/ddr3.json
 +++ b/DRAMSys/library/resources/configs/simulator/ddr3.json
-@@ -11,7 +11,7 @@
-         "PowerAnalysis": false,
+@@ -5,13 +5,13 @@
+         "DatabaseRecording": true,
+         "Debug": false,
+         "ECCControllerMode": "Disabled",
+-        "EnableWindowing": false,
++        "EnableWindowing": true,
+         "ErrorCSVFile": "",
+         "ErrorChipSeed": 42,
+-        "PowerAnalysis": false,
++        "PowerAnalysis": true,
          "SimulationName": "ddr3",
          "SimulationProgressBar": true,
 -        "StoreMode": "NoStorage",
@@ -11,6 +19,67 @@ index 99ccdb4..66a8f06 100644
          "ThermalSimulation": false,
          "UseMalloc": false,
          "WindowSize": 1000
+diff --git a/DRAMSys/library/resources/configs/simulator/ddr4.json b/DRAMSys/library/resources/configs/simulator/ddr4.json
+index 05cd86e..4d0cdae 100644
+--- a/DRAMSys/library/resources/configs/simulator/ddr4.json
++++ b/DRAMSys/library/resources/configs/simulator/ddr4.json
+@@ -5,13 +5,13 @@
+         "DatabaseRecording": true,
+         "Debug": false,
+         "ECCControllerMode": "Disabled",
+-        "EnableWindowing": false,
++        "EnableWindowing": true,
+         "ErrorCSVFile": "",
+         "ErrorChipSeed": 42,
+-        "PowerAnalysis": false,
++        "PowerAnalysis": true,
+         "SimulationName": "ddr4",
+         "SimulationProgressBar": true,
+-        "StoreMode": "NoStorage",
++        "StoreMode": "Store",
+         "ThermalSimulation": false,
+         "UseMalloc": false,
+         "WindowSize": 1000
+diff --git a/DRAMSys/library/resources/configs/simulator/hbm2.json b/DRAMSys/library/resources/configs/simulator/hbm2.json
+index 608aec4..411aded 100644
+--- a/DRAMSys/library/resources/configs/simulator/hbm2.json
++++ b/DRAMSys/library/resources/configs/simulator/hbm2.json
+@@ -5,13 +5,13 @@
+         "DatabaseRecording": true,
+         "Debug": false,
+         "ECCControllerMode": "Disabled",
+-        "EnableWindowing": false,
++        "EnableWindowing": true,
+         "ErrorCSVFile": "",
+         "ErrorChipSeed": 42,
+         "PowerAnalysis": false,
+         "SimulationName": "hbm2",
+         "SimulationProgressBar": true,
+-        "StoreMode": "NoStorage",
++        "StoreMode": "Store",
+         "ThermalSimulation": false,
+         "UseMalloc": false,
+         "WindowSize": 1000
+diff --git a/DRAMSys/library/resources/configs/simulator/lpddr4.json b/DRAMSys/library/resources/configs/simulator/lpddr4.json
+index 6ea5b1b..5fbe427 100644
+--- a/DRAMSys/library/resources/configs/simulator/lpddr4.json
++++ b/DRAMSys/library/resources/configs/simulator/lpddr4.json
+@@ -5,13 +5,13 @@
+         "DatabaseRecording": true,
+         "Debug": false,
+         "ECCControllerMode": "Disabled",
+-        "EnableWindowing": false,
++        "EnableWindowing": true,
+         "ErrorCSVFile": "",
+         "ErrorChipSeed": 42,
+         "PowerAnalysis": false,
+         "SimulationName": "lpddr4",
+         "SimulationProgressBar": true,
+-        "StoreMode": "NoStorage",
++        "StoreMode": "Store",
+         "ThermalSimulation": false,
+         "UseMalloc": false,
+         "WindowSize": 100
 diff --git a/DRAMSys/library/src/simulation/DRAMSys.cpp b/DRAMSys/library/src/simulation/DRAMSys.cpp
 index 54567e8..ebe46cf 100644
 --- a/DRAMSys/library/src/simulation/DRAMSys.cpp
