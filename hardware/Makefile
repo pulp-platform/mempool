@@ -299,6 +299,8 @@ dramsys_init:
 	cp $(DRAMSYS_SRC_ROOT)/elfloader.h $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
 	rm $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator/main.cpp
 	cp $(DRAMSYS_SRC_ROOT)/main.cpp $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
+	# prepare the folder for dramsys-mempool co-simulation main program
+	rm -rf $(DRAMSYS_BUILD_SIMULATION); mkdir -p $(DRAMSYS_BUILD_SIMULATION)
 
 #systemc library path
 systemc_lib_path ?= $(abspath $(DRAMSYS_BUILD_LIB)/src/common/third_party/systemc/src)
@@ -345,11 +347,16 @@ $(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(
 	sed -i "/__ALL.a/c\    $(DRAMSYS_BUILD_MEMPOOL_LIB_FILE)" $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator/CMakeLists.txt
 
 $(DRAMSYS_BUILD_SIMULATION_EXE): $(VERILATOR_DRAMSYS_MK) 
-	rm -rf $(DRAMSYS_BUILD_SIMULATION); mkdir -p $(DRAMSYS_BUILD_SIMULATION)
 	cd $(DRAMSYS_BUILD_SIMULATION) && cmake DENABLE_PHASE_CALLBACKS_TRACING=OFF $(DRAMSYS_GIT_ROOT)/DRAMSys && make
 
-dramsys_sim: $(DRAMSYS_BUILD_SIMULATION_EXE) $(shell find $(VERILATOR_SRC) -type f) Makefile
-	echo "verilator for dramsys translate and compiling has done!"
+dramsys_compile: $(DRAMSYS_BUILD_SIMULATION_EXE) $(shell find $(VERILATOR_SRC) -type f) Makefile
+	echo "Mempool + DRAMSys co-simulation is well prepared!"
+
+DRAMSYS_SIMULATION_RESOURCES_PATH := $(DRAMSYS_GIT_ROOT)/DRAMSys/library/resources/simulations
+dram ?= ddr3
+
+dramsys_sim: dramsys_compile
+	cd $(DRAMSYS_BUILD_SIMULATION)/simulator && ./DRAMSys $(preload) $(DRAMSYS_SIMULATION_RESOURCES_PATH)/$(dram)-example.json
 
 #############
 # Lint      #
