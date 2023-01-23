@@ -79,7 +79,7 @@ index 6ea5b1b..5fbe427 100644
 +        "StoreMode": "Store",
          "ThermalSimulation": false,
          "UseMalloc": false,
-         "WindowSize": 100
+         "WindowSize": 1000
 diff --git a/DRAMSys/library/src/simulation/DRAMSys.cpp b/DRAMSys/library/src/simulation/DRAMSys.cpp
 index 54567e8..ebe46cf 100644
 --- a/DRAMSys/library/src/simulation/DRAMSys.cpp
