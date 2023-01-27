@@ -210,7 +210,10 @@ package mempool_pkg;
   typedef logic [MetaIdWidth-1:0] meta_id_t;
   typedef logic [idx_width(NumCoresPerTile)-1:0] tile_core_id_t;
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
+  typedef logic [idx_width(NumTilesPerSubGroup)-1:0] tile_sub_group_id_t;
+  typedef logic [idx_width(NumSubGroupsPerGroup)-1:0] sgroup_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
+  typedef logic [idx_width(NumGroups+NumSubGroupsPerGroup-1)-1:0] tile_remote_sel_t;
   typedef logic [3:0] amo_t;
 
   typedef struct packed {
