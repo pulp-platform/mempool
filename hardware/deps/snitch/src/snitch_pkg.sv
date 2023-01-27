@@ -91,7 +91,7 @@ package snitch_pkg;
   // Transprecision floating-point extensions configuration
   localparam bit XF16    = 1; // Is half-precision float extension (Xf16) enabled
   localparam bit XF16ALT = 0; // Is alt. half-precision float extension (Xf16alt) enabled
-  localparam bit XF8     = 0; // Is quarter-precision float extension (Xf8) enabled
+  localparam bit XF8     = 1; // Is quarter-precision float extension (Xf8) enabled
   localparam bit XFVEC   = 1; // Is vectorial float SIMD extension (Xfvec) enabled
   // Non-standard extension present
   localparam bit NSX = XF16 | XF16ALT | XF8 | XFVEC;
@@ -238,7 +238,7 @@ package snitch_pkg;
 
   // Latencies of FP ops (number of regs)
   localparam int unsigned LAT_COMP_FP32    = 'd3;
-  localparam int unsigned LAT_COMP_FP64    = 'd3;
+  localparam int unsigned LAT_COMP_FP64    = 'd0;
   localparam int unsigned LAT_COMP_FP16    = 'd3;
   localparam int unsigned LAT_COMP_FP16ALT = 'd3;
   localparam int unsigned LAT_COMP_FP8     = 'd3;

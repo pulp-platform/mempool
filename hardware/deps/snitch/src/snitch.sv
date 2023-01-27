@@ -914,6 +914,74 @@ module snitch
           illegal_inst = 1'b1;
         end
       end
+      // Half Precision Floating-Point
+      riscv_instr::FADD_B,
+      riscv_instr::FSUB_B,
+      riscv_instr::FMUL_B,
+      riscv_instr::FDIV_B,
+      riscv_instr::FSGNJ_B,
+      riscv_instr::FSGNJN_B,
+      riscv_instr::FSGNJX_B,
+      riscv_instr::FMIN_B,
+      riscv_instr::FMAX_B,
+      riscv_instr::FSQRT_B: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF8) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::FMADD_B,
+      riscv_instr::FMSUB_B,
+      riscv_instr::FNMSUB_B,
+      riscv_instr::FNMADD_B: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF8) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          opc_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::FCVT_S_B,
+      riscv_instr::FCVT_B_S: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF8) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::FCVT_H_B,
+      riscv_instr::FCVT_B_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF8) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
       // Offload FP-Int Instructions - fire and forget
       // Single Precision Floating-Point
       riscv_instr::FLE_S,
@@ -944,6 +1012,27 @@ module snitch
       riscv_instr::FCVT_W_H,
       riscv_instr::FCVT_WU_H,
       riscv_instr::FMV_X_H: begin
+        if (snitch_pkg::ZFINX_RV) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      // Offload FP-Int Instructions - fire and forget
+      // Quarter Precision Floating-Point
+      riscv_instr::FLE_B,
+      riscv_instr::FLT_B,
+      riscv_instr::FEQ_B,
+      riscv_instr::FCLASS_B,
+      riscv_instr::FCVT_W_B,
+      riscv_instr::FCVT_WU_B,
+      riscv_instr::FMV_X_B: begin
         if (snitch_pkg::ZFINX_RV) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
