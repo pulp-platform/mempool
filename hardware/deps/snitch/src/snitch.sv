@@ -914,6 +914,98 @@ module snitch
           illegal_inst = 1'b1;
         end
       end
+      // Vectorized Half Precision Floating-Point
+      riscv_instr::VFADD_H,
+      riscv_instr::VFADD_R_H,
+      riscv_instr::VFSUB_H,
+      riscv_instr::VFSUB_R_H,
+      riscv_instr::VFMUL_H,
+      riscv_instr::VFMUL_R_H,
+      riscv_instr::VFDIV_H,
+      riscv_instr::VFDIV_R_H,
+      riscv_instr::VFMIN_H,
+      riscv_instr::VFMIN_R_H,
+      riscv_instr::VFMAX_H,
+      riscv_instr::VFMAX_R_H,
+      riscv_instr::VFSQRT_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::VFMAC_H,
+      riscv_instr::VFMAC_R_H,
+      riscv_instr::VFMRE_H,
+      riscv_instr::VFMRE_R_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          opc_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::VFSGNJ_H,
+      riscv_instr::VFSGNJ_R_H,
+      riscv_instr::VFSGNJN_H,
+      riscv_instr::VFSGNJN_R_H,
+      riscv_instr::VFSGNJX_H,
+      riscv_instr::VFSGNJX_R_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::VFCPKA_H_S,
+      riscv_instr::VFCPKB_H_S: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          opc_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::VFCVT_H_S,
+      riscv_instr::VFCVTU_H_S,
+      riscv_instr::VFCVT_S_H,
+      riscv_instr::VFCVTU_S_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
       // Half Precision Floating-Point
       riscv_instr::FADD_B,
       riscv_instr::FSUB_B,
@@ -1012,7 +1104,7 @@ module snitch
       riscv_instr::FCVT_W_H,
       riscv_instr::FCVT_WU_H,
       riscv_instr::FMV_X_H: begin
-        if (snitch_pkg::ZFINX_RV) begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1033,7 +1125,7 @@ module snitch
       riscv_instr::FCVT_W_B,
       riscv_instr::FCVT_WU_B,
       riscv_instr::FMV_X_B: begin
-        if (snitch_pkg::ZFINX_RV) begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;

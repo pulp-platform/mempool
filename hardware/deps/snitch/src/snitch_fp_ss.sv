@@ -368,6 +368,173 @@ module snitch_fp_ss
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP32;
       end
+
+
+
+      // Vectorized Half Precision Floating-Point
+      riscv_instr::VFADD_H,
+      riscv_instr::VFADD_R_H: begin
+        fpu_op = fpnew_pkg::ADD;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFSUB_H,
+      riscv_instr::VFSUB_R_H: begin
+        fpu_op = fpnew_pkg::ADD;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        op_mode      = 1'b1;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFMUL_H,
+      riscv_instr::VFMUL_R_H: begin
+        fpu_op = fpnew_pkg::MUL;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFDIV_H,
+      riscv_instr::VFDIV_R_H: begin
+        fpu_op = fpnew_pkg::DIV;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFMIN_H,
+      riscv_instr::VFMIN_R_H: begin
+        fpu_op = fpnew_pkg::MINMAX;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        fpu_rnd_mode = fpnew_pkg::RNE;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+      end
+      riscv_instr::VFMAX_H,
+      riscv_instr::VFMAX_R_H: begin
+        fpu_op = fpnew_pkg::MINMAX;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        fpu_rnd_mode = fpnew_pkg::RTZ;
+        vectorial_op = 1'b1;
+      end
+      riscv_instr::VFSQRT_H: begin
+        fpu_op = fpnew_pkg::SQRT;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFMAC_H,
+      riscv_instr::VFMAC_R_H: begin
+        fpu_op = fpnew_pkg::FMADD;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFMRE_H,
+      riscv_instr::VFMRE_R_H: begin
+        fpu_op = fpnew_pkg::FNMSUB;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFSGNJ_H,
+      riscv_instr::VFSGNJ_R_H: begin
+        fpu_op = fpnew_pkg::SGNJ;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        fpu_rnd_mode = fpnew_pkg::RNE;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+      end
+      riscv_instr::VFSGNJN_H,
+      riscv_instr::VFSGNJN_R_H: begin
+        fpu_op = fpnew_pkg::SGNJ;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        fpu_rnd_mode = fpnew_pkg::RTZ;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+      end
+      riscv_instr::VFSGNJX_H,
+      riscv_instr::VFSGNJX_R_H: begin
+        fpu_op = fpnew_pkg::SGNJ;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        fpu_rnd_mode = fpnew_pkg::RDN;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+      end
+      riscv_instr::VFCPKA_H_S: begin
+        fpu_op = fpnew_pkg::CPKAB;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP32;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFCPKB_H_S: begin
+        fpu_op = fpnew_pkg::CPKAB;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        op_mode      = 1'b1;
+        src_fmt      = fpnew_pkg::FP32;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFCVT_S_H,
+      riscv_instr::VFCVTU_S_H: begin
+        fpu_op = fpnew_pkg::F2F;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP32;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFCVT_H_S,
+      riscv_instr::VFCVTU_H_S: begin
+        fpu_op = fpnew_pkg::F2F;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP32;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
       // Quarter Precision
       riscv_instr::FADD_B: begin
         fpu_op = fpnew_pkg::ADD;
