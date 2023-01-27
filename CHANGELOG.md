@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+## Changes
+- Extended `tracevis.py` to support the new Perfetto UI and compress large traces
+
 ## 0.6.0 - 2023-01-09
 
 ### Added
