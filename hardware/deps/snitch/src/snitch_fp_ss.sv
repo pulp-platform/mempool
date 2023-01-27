@@ -368,12 +368,120 @@ module snitch_fp_ss
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP32;
       end
-      riscv_instr::FCVT_H_S: begin
+      // Quarter Precision
+      riscv_instr::FADD_B: begin
+        fpu_op = fpnew_pkg::ADD;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FSUB_B: begin
+        fpu_op = fpnew_pkg::ADD;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        op_mode = 1'b1;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FMUL_B: begin
+        fpu_op = fpnew_pkg::MUL;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FDIV_B: begin
+        fpu_op = fpnew_pkg::DIV;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FSGNJ_B,
+      riscv_instr::FSGNJN_B,
+      riscv_instr::FSGNJX_B: begin
+        fpu_op = fpnew_pkg::SGNJ;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FMIN_B,
+      riscv_instr::FMAX_B: begin
+        fpu_op = fpnew_pkg::MINMAX;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FSQRT_B: begin
+        fpu_op = fpnew_pkg::SQRT;
+        op_select[0] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FMADD_B: begin
+        fpu_op = fpnew_pkg::FMADD;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FMSUB_B: begin
+        fpu_op = fpnew_pkg::FMADD;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        op_mode      = 1'b1;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FNMSUB_B: begin
+        fpu_op = fpnew_pkg::FNMSUB;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FNMADD_B: begin
+        fpu_op = fpnew_pkg::FNMSUB;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        op_mode      = 1'b1;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FCVT_S_B: begin
         fpu_op = fpnew_pkg::F2F;
         op_select[0] = AccBus;
         op_select[1] = AccBus;
         src_fmt      = fpnew_pkg::FP32;
+        dst_fmt      = fpnew_pkg::FP8;
+      end
+      riscv_instr::FCVT_B_S: begin
+        fpu_op = fpnew_pkg::F2F;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP32;
+      end
+      riscv_instr::FCVT_B_H: begin
+        fpu_op = fpnew_pkg::F2F;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP16;
+      end
+      riscv_instr::FCVT_H_B: begin
+        fpu_op = fpnew_pkg::F2F;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP8;
       end
       // FP - Int Operations
       // Single Precision Floating-Point
@@ -447,6 +555,44 @@ module snitch_fp_ss
         fpu_rnd_mode   = fpnew_pkg::RUP; // passthrough without checking nan-box
         src_fmt        = fpnew_pkg::FP16;
         dst_fmt        = fpnew_pkg::FP16;
+        op_mode        = 1'b1; // sign-extend result
+        op_select[0]   = AccBus;
+        fpu_tag_in.acc = 1'b1;
+      end
+      // FP - Int Operations
+      // Quarter Precision Floating-Point
+      riscv_instr::FLE_B,
+      riscv_instr::FLT_B,
+      riscv_instr::FEQ_B: begin
+        fpu_op = fpnew_pkg::CMP;
+        op_select[0]   = AccBus;
+        op_select[1]   = AccBus;
+        src_fmt        = fpnew_pkg::FP8;
+        dst_fmt        = fpnew_pkg::FP8;
+        fpu_tag_in.acc = 1'b1;
+      end
+      riscv_instr::FCLASS_B: begin
+        fpu_op = fpnew_pkg::CLASSIFY;
+        op_select[0]   = AccBus;
+        fpu_rnd_mode   = fpnew_pkg::RNE;
+        src_fmt        = fpnew_pkg::FP8;
+        dst_fmt        = fpnew_pkg::FP8;
+        fpu_tag_in.acc = 1'b1;
+      end
+      riscv_instr::FCVT_W_B,
+      riscv_instr::FCVT_WU_B: begin
+        fpu_op = fpnew_pkg::F2I;
+        op_select[0]   = AccBus;
+        src_fmt        = fpnew_pkg::FP8;
+        dst_fmt        = fpnew_pkg::FP8;
+        fpu_tag_in.acc = 1'b1;
+        if (acc_req_q.data_op inside {riscv_instr::FCVT_WU_B}) op_mode = 1'b1; // unsigned
+      end
+      riscv_instr::FMV_X_B: begin
+        fpu_op = fpnew_pkg::SGNJ;
+        fpu_rnd_mode   = fpnew_pkg::RUP; // passthrough without checking nan-box
+        src_fmt        = fpnew_pkg::FP8;
+        dst_fmt        = fpnew_pkg::FP8;
         op_mode        = 1'b1; // sign-extend result
         op_select[0]   = AccBus;
         fpu_tag_in.acc = 1'b1;
