@@ -515,6 +515,40 @@ module snitch_fp_ss
         vectorial_op = 1'b1;
         set_dyn_rm   = 1'b1;
       end
+      riscv_instr::VFDOTPEX_S_H,
+      riscv_instr::VFDOTPEX_S_R_H: begin
+        fpu_op = fpnew_pkg::SDOTP;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP32;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFNDOTPEX_S_H,
+      riscv_instr::VFNDOTPEX_S_R_H: begin
+        fpu_op = fpnew_pkg::SDOTP;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        op_select[2] = AccBus;
+        op_mode      = 1'b1;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP32;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFSUMEX_S_H,
+      riscv_instr::VFNSUMEX_S_H: begin
+        fpu_op = fpnew_pkg::EXVSUM;
+        op_select[0] = AccBus;
+        op_select[1] = AccBus;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP32;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+        if (acc_req_q.data_op inside {riscv_instr::VFNSUMEX_S_H}) op_mode = 1'b1;
+      end
       riscv_instr::VFCVT_S_H,
       riscv_instr::VFCVTU_S_H: begin
         fpu_op = fpnew_pkg::F2F;

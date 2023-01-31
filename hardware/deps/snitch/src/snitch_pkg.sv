@@ -92,6 +92,7 @@ package snitch_pkg;
   localparam bit XF16    = 1; // Is half-precision float extension (Xf16) enabled
   localparam bit XF16ALT = 0; // Is alt. half-precision float extension (Xf16alt) enabled
   localparam bit XF8     = 1; // Is quarter-precision float extension (Xf8) enabled
+  localparam bit XF8ALT  = 0; // Is alt. quarter-precision float extension (Xf8alt) enabled
   localparam bit XFVEC   = 1; // Is vectorial float SIMD extension (Xfvec) enabled
   // Non-standard extension present
   localparam bit NSX = XF16 | XF16ALT | XF8 | XFVEC;
@@ -111,7 +112,7 @@ package snitch_pkg;
     Width:         fpnew_pkg::maximum(FLEN, 32),
     EnableVectors: XFVEC,
     EnableNanBox:  1'b0,
-    FpFmtMask:     {RVF, RVD, XF16, XF8, XF16ALT},
+    FpFmtMask:     {RVF, RVD, XF16, XF8, XF16ALT, XF8ALT},
     IntFmtMask:    {XFVEC && XF8, XFVEC && (XF16 || XF16ALT), 1'b1, 1'b0}
   };
 

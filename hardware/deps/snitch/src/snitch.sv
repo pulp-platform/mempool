@@ -1006,7 +1006,26 @@ module snitch
           illegal_inst = 1'b1;
         end
       end
-      // Half Precision Floating-Point
+      riscv_instr::VFDOTPEX_S_H,
+      riscv_instr::VFDOTPEX_S_R_H,
+      riscv_instr::VFNDOTPEX_S_H,
+      riscv_instr::VFNDOTPEX_S_R_H,
+      riscv_instr::VFSUMEX_S_H,
+      riscv_instr::VFNSUMEX_S_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          opc_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      // Quarter Precision Floating-Point
       riscv_instr::FADD_B,
       riscv_instr::FSUB_B,
       riscv_instr::FMUL_B,

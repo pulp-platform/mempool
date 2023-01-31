@@ -32,24 +32,15 @@ RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
 ifeq ($(COMPILER),gcc)
 	# Use GCC
 	# GCC compiler -march
-	ifeq ($(fpu), 0)
-		RISCV_ARCH  ?= rv$(RISCV_XLEN)ima
-	else
-		RISCV_ARCH  ?= rv$(RISCV_XLEN)imazfinx__xpulppostmod
-		# Define fpu if the extension is active
-		DEFINES 	  += -DFPU=$(fpu)
-	endif
 	ifeq ($(XPULPIMG),1)
-		#RISCV_ARCH    += Xpulpimg
-		# Define __XPULPIMG if the extension is active
-		#DEFINES       += -D__XPULPIMG
-	endif
-	ifeq ($(XPULPIMG),1)
+		RISCV_ARCH    ?= rv$(RISCV_XLEN)imaXpulpimg
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)
+		# Define __XPULPIMG if the extension is active
+		DEFINES       += -D__XPULPIMG
 	else
-		RISCV_ARCH_AS ?= $(RISCV_ARCH)#Xpulpv2
+		RISCV_ARCH_AS ?= rv$(RISCV_ARCH)ima
+		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
 	endif
-
 	# GCC Toolchain
 	RISCV_PREFIX  ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-
 	RISCV_CC      ?= $(RISCV_PREFIX)gcc
@@ -61,7 +52,7 @@ else
 	ifeq ($(fpu), 0)
 		RISCV_ARCH ?= rv$(RISCV_XLEN)ima
 	else
-		RISCV_ARCH ?= rv$(RISCV_XLEN)imazfinx_zhinx_zquarterinx_zvechalfinx_xmempool
+		RISCV_ARCH ?= rv$(RISCV_XLEN)imazfinx_zhinx_zquarterinx_zvechalfinx_zexpauxvechalfinx_xmempool
 	endif
 
 	# GCC Toolchain
