@@ -39,7 +39,7 @@ packages:
       - common_cells
       - common_verification
   cvfpu:
-    revision: e5c91fefdb1cc072e832f7167c26b83e6075d3ab
+    revision: d4bd9cc844f7d86e24b9ae432919b28f747687e0
     version: ~
     source:
       Git: "git@github.com:openhwgroup/cvfpu.git"
