@@ -12,6 +12,7 @@
 # This script is inspired by https://github.com/SalvatoreDiGirolamo/tracevis
 # Author: Noah Huetter <huettern@student.ethz.ch>
 #         Samuel Riedel <sriedel@iis.ee.ethz.ch>
+#         Philip Wiese <wiesep@student.ethz.ch>
 
 import re
 import os
@@ -66,7 +67,98 @@ def addr2line_cache(addr):
     return os.popen(cmd).read().split('\n')
 
 
+functions = []
+prev_func = ""
+prev_ts = 0
+start_benchmark = 0
+
+
+def trace_instruction(
+        name, pid, time, pc, instr, duration, args, cyc, file, inlined):
+    # Assemble values for json
+    # Doc:
+    # https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
+
+    # The event categories. This is a comma separated list of categories
+    # for the event.
+    # The categories can be used to hide events in the Trace Viewer UI.
+    cat = 'instruction'
+
+    # args
+    arg_pc = pc
+    arg_instr = instr
+    arg_args = args
+    arg_cycles = cyc
+    arg_coords = file
+    arg_inlined = inlined
+
+    frame_args = (f'{{'
+                  f'"pc": "{arg_pc}", '
+                  f'"instr": "{arg_instr} {arg_args}", '
+                  f'"time": "{arg_cycles}", '
+                  f'"Origin": "{arg_coords}", '
+                  f'"inline": "{arg_inlined}", '
+                  f'"funcname": "{name}"'
+                  f'}}')
+
+    frame = (f'{{'
+             f'"name": "{instr}", '
+             f'"cat": "{cat}", '
+             f'"ph": "X", '
+             f'"ts": {time}, '
+             f'"dur": {duration}, '
+             f'"pid": {pid}, '
+             f'"tid": {functions.index(name)}, '
+             f'"args": {frame_args}'
+             f'}},\n')
+
+    output_file.write(frame)
+
+
+def trace_function(name, pid, time, cyc, file):
+    # Assemble values for json
+    # Doc:
+    # https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
+
+    # The event categories. This is a comma separated list of categories
+    # for the event.
+    # The categories can be used to hide events in the Trace Viewer UI.
+    cat = 'function'
+
+    # args
+    arg_cycles = cyc
+    arg_coords = file
+
+    if prev_func != "":
+        end_time = time if time > prev_ts else prev_ts + 1
+        output_file.write(
+            f'{{'
+            f'"name": "{prev_func}", '
+            f'"cat": "{cat}", '
+            f'"ph": "E", '
+            f'"ts": {end_time}, '
+            f'"pid": {pid}, '
+            f'"tid": {functions.index(prev_func)}'
+            f'}},\n'
+        )
+
+    frame = (f'{{'
+             f'"name": "{name}", '
+             f'"cat": "{cat}", '
+             f'"ph": "B", '
+             f'"ts": {time}, '
+             f'"pid": {pid}, '
+             f'"tid": {functions.index(name)}, '
+             f'"args": {{"time": "{arg_cycles}", "Origin": "{arg_coords}"}}'
+             f'}},\n')
+
+    output_file.write(frame)
+
+
 def flush(buf, hartid):
+    global prev_func
+    global prev_ts
+    global start_benchmark
     global output_file
     # get function names
     pcs = [x[3] for x in buf]
@@ -102,23 +194,21 @@ def flush(buf, hartid):
         inlined = ''
         while not a2ls[0].startswith('0x'):
             inlined += '(inlined by) ' + a2ls.pop(0)
-        # print(f'pc "{pc}", func "{func}", file "{file}"')
 
-        # assemble values for json
-        # Doc: https://docs.google.com/document/d/
-        # 1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
-        # The name of the event, as displayed in Trace Viewer
-        name = instr
-        # The event categories. This is a comma separated list of categories
-        # for the event. The categories can be used to hide events in the Trace
-        # Viewer UI.
-        cat = 'instr'
-        # The tracing clock timestamp of the event. The timestamps are provided
-        # at microsecond granularity.
-        ts = time
+        if func == "mempool_start_benchmark":
+            start_benchmark = 1
+            continue
+
+        if filter_benchmark and start_benchmark == 0:
+            continue
+
+        if func == "mempool_stop_benchmark":
+            start_benchmark = 0
+
         # There is an extra parameter dur to specify the tracing clock duration
         # of complete events in microseconds.
         duration = next_time - time
+        duration = duration if duration < 0 else 1
 
         if banshee:
             # Banshee stores all traces in a single file
@@ -126,24 +216,26 @@ def flush(buf, hartid):
             # In Banshee, each instruction takes one cycle
             duration = 1
 
-        pid = elf+':hartid'+str(hartid)
-        funcname = func
+        if func not in functions:
+            functions.append(func)
 
-        # args
-        arg_pc = pc
-        arg_instr = instr
-        arg_args = args
-        arg_cycles = cyc
-        arg_coords = file
-        arg_inlined = inlined
-
-        output_file.write((
-            f'{{"name": "{name}", "cat": "{cat}", "ph": "X", '
-            f'"ts": {ts}, "dur": {duration}, "pid": "{pid}", '
-            f'"tid": "{funcname}", "args": {{"pc": "{arg_pc}", '
-            f'"instr": "{arg_instr} {arg_args}", "time": "{arg_cycles}", '
-            f'"Origin": "{arg_coords}", "inline": "{arg_inlined}"'
-            f'}}}},\n'))
+        if compress_function:
+            if func != prev_func:
+                trace_function(name=func, pid=int(hartid),
+                               time=time, cyc=cyc, file=file)
+                prev_func = func
+                prev_ts = time
+        else:
+            trace_instruction(name=func,
+                              pid=int(hartid),
+                              time=time,
+                              pc=pc,
+                              instr=instr,
+                              duration=duration,
+                              args=args,
+                              cyc=cyc,
+                              file=file,
+                              inlined=inlined)
 
 
 def parse_line(line, hartid):
@@ -159,95 +251,6 @@ def parse_line(line, hartid):
     if len(buf) > 10:
         flush(buf, hartid)
     return 0
-
-
-# Argument parsing
-parser = argparse.ArgumentParser('tracevis', allow_abbrev=True)
-parser.add_argument(
-    'elf',
-    metavar='<elf>',
-    help='The binary executed to generate the traces',
-
-
-)
-parser.add_argument(
-    'traces',
-    metavar='<trace>',
-    nargs='+',
-    help='Snitch traces to visualize')
-parser.add_argument(
-    '-o',
-    '--output',
-    metavar='<json>',
-    nargs='?',
-    default='chrome.json',
-    help='Output JSON file')
-parser.add_argument(
-    '--addr2line',
-    metavar='<path>',
-    nargs='?',
-    default='addr2line',
-    help='`addr2line` binary to use for parsing')
-parser.add_argument(
-    '-t',
-    '--time',
-    action='store_true',
-    help='Use the traces time instead of cycles')
-parser.add_argument(
-    '-b',
-    '--banshee',
-    action='store_true',
-    help='Parse Banshee traces')
-parser.add_argument(
-    '--no-cache',
-    action='store_true',
-    help='Disable addr2line caching'
-    ' (slow but might give better traces in some cases)')
-parser.add_argument(
-    '--overlap-instructions',
-    action='store_true',
-    help='Lookahead for instruction duration and report their full duration')
-parser.add_argument(
-    '-s',
-    '--start',
-    metavar='<line>',
-    nargs='?',
-    type=int,
-    default=0,
-    help='First line to parse')
-parser.add_argument(
-    '-e',
-    '--end',
-    metavar='<line>',
-    nargs='?',
-    type=int,
-    default=-1,
-    help='Last line to parse')
-
-args = parser.parse_args()
-
-elf = args.elf
-traces = args.traces
-output = args.output
-use_time = args.time
-banshee = args.banshee
-addr2line = args.addr2line
-cache = not args.no_cache
-lookahead = args.overlap_instructions
-
-print('elf:', elf, file=sys.stderr)
-print('traces:', traces, file=sys.stderr)
-print('output:', output, file=sys.stderr)
-print('addr2line:', addr2line, file=sys.stderr)
-print('cache:', cache, file=sys.stderr)
-
-# Compile regex
-if banshee:
-    re_line = re.compile(BANSHEE_REGEX)
-else:
-    re_line = re.compile(RTL_REGEX)
-
-re_acc_line = re.compile(ACC_LINE_REGEX)
 
 
 def offload_lookahead(lines):
@@ -298,44 +301,172 @@ def offload_lookahead(lines):
 
 lah = {}
 
-with open(output, 'w') as output_file:
-    # JSON header
-    output_file.write('{"traceEvents": [\n')
+if __name__ == '__main__':
+    # Argument parsing
+    parser = argparse.ArgumentParser('tracevis', allow_abbrev=True)
+    parser.add_argument(
+        'elf',
+        metavar='<elf>',
+        help='The binary executed to generate the traces',
+    )
+    parser.add_argument('traces', metavar='<trace>',
+                        nargs='+', help='Snitch traces to visualize')
+    parser.add_argument('-o',
+                        '--output',
+                        metavar='<json>',
+                        nargs='?',
+                        default='chrome.json',
+                        help='Output JSON file')
+    parser.add_argument('--addr2line',
+                        metavar='<path>',
+                        nargs='?',
+                        default='addr2line',
+                        help='`addr2line` binary to use for parsing')
+    parser.add_argument('-t', '--time', action='store_true',
+                        help='Use the traces time instead of cycles')
+    parser.add_argument('-b', '--banshee', action='store_true',
+                        help='Parse Banshee traces')
+    parser.add_argument(
+        '--no-cache', action='store_true',
+        help=(
+            'Disable addr2line caching '
+            '(slow but might give better traces in some cases)'
+        ))
+    parser.add_argument('-s',
+                        '--start',
+                        metavar='<line>',
+                        nargs='?',
+                        type=int,
+                        default=0,
+                        help='First line to parse')
+    parser.add_argument('-e',
+                        '--end',
+                        metavar='<line>',
+                        nargs='?',
+                        type=int,
+                        default=-1,
+                        help='Last line to parse')
+    parser.add_argument(
+        '-cb', '--filter_benchmark', action='store_true',
+        help=(
+            'Filter out sections between '
+            'mempool_start_benchmark() and mempool_stop_benchmark() calls'
+        ))
+    parser.add_argument('-cf', '--compress_function',
+                        action='store_true', help='Only show function calls')
 
-    hartid = 0
-    for filename in traces:
-        hartid_hex = re.search(r'(0x[0-9a-fA-F]+)', filename)
-        hartid_dec = re.search(r'([\d]+)', filename)
-        if hartid_hex:
-            hartid = int(hartid_hex.group(1), 16)
-        elif hartid_dec:
-            hartid = int(hartid_dec.group(1))
-        else:
-            hartid = hartid+1
-        fails = lines = 0
-        last_time = last_cyc = 0
+    args = parser.parse_args()
 
-        print(
-            f'parsing hartid {hartid} with trace {filename}', file=sys.stderr)
-        tot_lines = len(open(filename).readlines())
-        with open(filename) as f:
-            all_lines = f.readlines()[args.start:args.end]
-            # offload lookahead
-            if lookahead:
-                lah = offload_lookahead(all_lines)
-            if has_progressbar:
-                for lino, line in progressbar.progressbar(
-                        enumerate(all_lines),
-                        max_value=tot_lines):
-                    fails += parse_line(line, hartid)
-                    lines += 1
+    elf = args.elf
+    traces = args.traces
+    output = args.output
+    use_time = args.time
+    banshee = args.banshee
+    addr2line = args.addr2line
+    cache = not args.no_cache
+    filter_benchmark = args.filter_benchmark
+    compress_function = args.compress_function
+
+    print('[CONFIG] elf              :', elf, file=sys.stderr)
+    print('[CONFIG] traces           :', traces, file=sys.stderr)
+    print('[CONFIG] output           :', output, file=sys.stderr)
+    print('[CONFIG] addr2line        :', addr2line, file=sys.stderr)
+    print('[CONFIG] filter_benchmark :', filter_benchmark, file=sys.stderr)
+    print('[CONFIG] compress_function:', compress_function, file=sys.stderr)
+
+    # Compile regex
+    if banshee:
+        re_line = re.compile(BANSHEE_REGEX)
+    else:
+        re_line = re.compile(RTL_REGEX)
+
+    re_acc_line = re.compile(ACC_LINE_REGEX)
+
+    with open(output, 'w') as output_file:
+        # JSON header
+        output_file.write('{"traceEvents": [\n')
+
+        for filename in traces:
+            prev_func = ""
+            prev_ts = 0
+            start_benchmark = 0
+            hartid = 0
+            parsed_nums = re.findall(
+                r'\d.+', filename.split(".")[0].split("/")[-1])
+            if "0x" in parsed_nums[-1]:
+                hartid = int(
+                    parsed_nums[-1], 16) if len(parsed_nums) else hartid + 1
             else:
-                for lino, line in enumerate(
-                        all_lines):
-                    fails += parse_line(line, hartid)
-                    lines += 1
-            flush(buf, hartid)
-            print(f' parsed {lines-fails} of {lines} lines', file=sys.stderr)
+                hartid = int(parsed_nums[-1]
+                             ) if len(parsed_nums) else hartid + 1
+            fails = lines = 0
+            last_time = last_cyc = 0
 
-    # JSON footer
-    output_file.write(r'{}]}''\n')
+            print(
+                f'Parsing hartid {hartid} with trace {filename}',
+                file=sys.stderr)
+            tot_lines = len(open(filename).readlines())
+            with open(filename) as f:
+                all_lines = f.readlines()[args.start:args.end]
+                # offload lookahead
+                if not banshee:
+                    lah = offload_lookahead(all_lines)
+                if has_progressbar:
+                    for lino, line in progressbar.progressbar(
+                            enumerate(all_lines),
+                            max_value=tot_lines):
+                        fails += parse_line(line, hartid)
+                        lines += 1
+                else:
+                    for lino, line in enumerate(all_lines):
+                        fails += parse_line(line, hartid)
+                        lines += 1
+                flush(buf, hartid)
+                print(f'=> Parsed {lines-fails} of {lines} lines',
+                      file=sys.stderr)
+
+                # Terminate last function all at end of file
+                if compress_function:
+                    output_file.write(
+                        f'{{'
+                        f'"name": "{prev_func}", '
+                        f'"cat": "function", '
+                        f'"ph": "E", '
+                        f'"ts": {prev_ts+1}, '
+                        f'"pid": {hartid}, '
+                        f'"tid": {functions.index(prev_func)}'
+                        f'}},\n'
+                    )
+
+                # Write Metadata
+                for func in functions:
+                    output_file.write(
+                        f'{{'
+                        f'"name": "thread_name", '
+                        f'"ph": "M", '
+                        f'"pid": {hartid}, '
+                        f'"tid": {functions.index(func)}, '
+                        f'"args": {{"name" : "{func}"}}'
+                        f'}},\n'
+                    )
+
+        for i in range(hartid + 1):
+            output_file.write(
+                f'{{'
+                f'"name": "process_name", '
+                f'"ph": "M", '
+                f'"pid": {i}, '
+                f'"args": {{"name" : "Core {i:02d}"}}'
+                f'}},\n'
+            )
+            output_file.write(
+                f'{{'
+                f'"name": "process_sort_index", '
+                f'"ph": "M", '
+                f'"pid": {i}, '
+                f'"args": {{"sort_index" : {i+1}}}'
+                f'}},\n'
+            )
+
+        # JSON footer
+        output_file.write(f'{"{}]}"}\n')
