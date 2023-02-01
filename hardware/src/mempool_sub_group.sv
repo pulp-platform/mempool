@@ -44,8 +44,8 @@ module mempool_sub_group
   // DMA status
   output `STRUCT_PORT(dma_meta_t)         [NumDmasPerSubGroup-1:0]                  dma_meta_o,
   // AXI Interface
-  output `STRUCT_PORT(axi_tile_req_t)     [NumAXIMastersPerSubGroup-1:0]            axi_mst_req_o,
-  input  `STRUCT_PORT(axi_tile_resp_t)    [NumAXIMastersPerSubGroup-1:0]            axi_mst_resp_i,
+  output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMastersPerSubGroup-1:0])           axi_mst_req_o,
+  input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMastersPerSubGroup-1:0])           axi_mst_resp_i,
   // RO-Cache configuration
   input  `STRUCT_PORT(ro_cache_ctrl_t)                                              ro_cache_ctrl_i,
   // Wake up interface
@@ -261,6 +261,10 @@ module mempool_sub_group
     }
   };
 
+  // Flatten dma_meta signal for output connection.
+  dma_meta_t [NumDmasPerSubGroup-1:0] dma_meta;
+  assign dma_meta_o = dma_meta;
+
   for (genvar d = 0; unsigned'(d) < NumDmasPerSubGroup; d++) begin: gen_dmas
     localparam int unsigned a = NumTilesPerSubGroup + d;
 
@@ -293,8 +297,8 @@ module mempool_sub_group
       .burst_req_i      (dma_req_i[d]                ),
       .valid_i          (dma_req_valid_i[d]          ),
       .ready_o          (dma_req_ready_o[d]          ),
-      .backend_idle_o   (dma_meta_o[d].backend_idle  ),
-      .trans_complete_o (dma_meta_o[d].trans_complete)
+      .backend_idle_o   (dma_meta[d].backend_idle  ),
+      .trans_complete_o (dma_meta[d].trans_complete)
     );
 
     // ------------------------------------------------------
