@@ -13,6 +13,7 @@ void mempool_barrier(uint32_t num_cores);
 void mempool_log_barrier(uint32_t step, uint32_t core_id);
 void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
                                  uint32_t num_cores_barrier);
+void mempool_linlog_barrier(uint32_t step, uint32_t core_id);
 void mempool_partial_barrier(uint32_t volatile core_id,
                              uint32_t volatile core_init,
                              uint32_t volatile num_sleeping_cores,

@@ -89,6 +89,29 @@ void mempool_log_barrier(uint32_t step, uint32_t core_id) {
     mempool_wfi();
 }
 
+void mempool_linlog_barrier(uint32_t step, uint32_t core_id) {
+
+  uint32_t idx = (step * (core_id / step)) * 4;
+  uint32_t next_step, previous_step;
+  uint32_t num_cores = mempool_get_core_count();
+
+  previous_step = step >> 1;
+  if ((step - 1) == __atomic_fetch_add(&log_barrier[idx + previous_step - 1], 1,
+                                       __ATOMIC_RELAXED)) {
+    next_step = step << 1;
+    __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
+                     __ATOMIC_RELAXED);
+    if (num_cores == step) {
+      __sync_synchronize(); // Full memory barrier
+      wake_up_all();
+      mempool_wfi();
+    } else {
+      mempool_log_barrier(next_step, core_id);
+    }
+  } else
+    mempool_wfi();
+}
+
 void mempool_strided_log_barrier(uint32_t step, uint32_t core_id,
                                  uint32_t stride, uint32_t offset) {
 
