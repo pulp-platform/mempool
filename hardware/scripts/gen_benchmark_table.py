@@ -15,23 +15,41 @@ import pandas as pd
 import numpy as np
 import re
 
-
-def create_dataframe(directory: str):
-    keys = ['cycles',
             'snitch_loads',
             'snitch_stores',
             'snitch_avg_load_latency',
             'snitch_occupancy',
             'total_ipc',
-            'snitch_issues   ',
+            'snitch_issues',
+            'max_snitch_issues',
+            'min_snitch_issues',
+            'std_snitch_issues',
             'stall_tot',
+            'max_stall_tot',
+            'min_stall_tot',
+            'std_stall_tot',
             'stall_ins',
+            'max_stall_ins',
+            'min_stall_ins',
+            'std_stall_ins',
             'stall_raw',
+            'max_stall_raw',
+            'min_stall_raw',
+            'std_stall_raw',
             'stall_raw_lsu',
             'stall_raw_acc',
             'stall_lsu',
+            'max_stall_lsu',
+            'min_stall_lsu',
+            'std_stall_lsu',
             'stall_acc',
+            'max_stall_acc',
+            'min_stall_acc',
+            'std_stall_acc',
             'stall_wfi',
+            'max_stall_wfi',
+            'min_stall_wfi',
+            'std_stall_wfi',
             'seq_loads_local',
             'seq_loads_global',
             'itl_loads_local',
@@ -48,25 +66,18 @@ def create_dataframe(directory: str):
     path = os.getcwd()
     df = pd.DataFrame(index=keys)
     for subdir in os.listdir(path):
-        filename = os.path.join(subdir, 'avg.txt')
+        filename = os.path.join(subdir, 'max.txt')
         filetext = open(filename).read()
         values = []
         for key in keys:
-            values.append(
-                re.findall(
-                    r'%s\s*[+-]?([0-9]*[.]?[0-9]+)' %
-                    (key), filetext))
+            values.append(re.findall(r'\b%s\b\s*[+-]?([0-9]*[.]?[0-9]+)' %(key), filetext))
         df[subdir] = (np.asarray(values)).flatten()
     return df
 
-
-def main():
-
+def main ():
     script_path = pathlib.Path(__file__).parent.absolute()
-
     # Parse arguments
-    parser = argparse.ArgumentParser(
-        description='Extract performance data from log files')
+    parser = argparse.ArgumentParser(description='Extract performance data from log files')
     parser.add_argument(
         "-i",
         "--input",
@@ -89,11 +100,9 @@ def main():
         action='store_true',
         help='Set verbose'
     )
-
     args = parser.parse_args()
     df = create_dataframe(args.input)
     df.to_excel(os.path.join(args.output, 'table.xls'))
-
 
 if __name__ == "__main__":
     main()
