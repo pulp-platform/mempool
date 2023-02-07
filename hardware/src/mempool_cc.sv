@@ -188,18 +188,18 @@ module mempool_cc
     .acc_qdata_arga_i ( acc_req_q.data_arga ),
     .acc_qdata_argb_i ( acc_req_q.data_argb ),
     .acc_qdata_argc_i ( acc_req_q.data_argc ),
-    .acc_qvalid_i     ( ipu_req_qvalid     ),
-    .acc_qready_o     ( ipu_req_qready     ),
+    .acc_qvalid_i     ( ipu_req_qvalid      ),
+    .acc_qready_o     ( ipu_req_qready      ),
     .acc_pdata_o      ( ipu_resp_d.data     ),
     .acc_pid_o        ( ipu_resp_d.id       ),
     .acc_perror_o     ( ipu_resp_d.error    ),
-    .acc_pvalid_o     ( ipu_resp_dvalid    ),
-    .acc_pready_i     ( ipu_resp_dready    )
+    .acc_pvalid_o     ( ipu_resp_dvalid     ),
+    .acc_pready_i     ( ipu_resp_dready     )
   );
 
   // Snitch FP sub-system
   snitch_fp_ss #(
-    .FPUImplementation          ( '0                    )
+    .FPUImplementation       (snitch_pkg::FPU_IMPLEMENTATION)
   ) i_snitch_fp_ss (
     .clk_i,
     .rst_i,
@@ -289,6 +289,7 @@ module mempool_cc
   always_ff @(posedge clk_i or posedge rst_i) begin
       automatic string trace_entry;
       automatic string extras_str;
+      automatic string extras_fpu;
 
       if (!rst_i) begin
         cycle <= cycle + 1;
@@ -342,35 +343,29 @@ module mempool_cc
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "acc_pdata_32",i_snitch.acc_pdata_i[31:0]);
           extras_str = $sformatf("%s}", extras_str);
 
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str, "source":       SrcFpu);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "acc_q_hs":     fpu_trace.acc_q_hs);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "fpu_out_hs":   fpu_trace.fpu_out_hs);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "lsu_q_hs":     fpu_trace.lsu_q_hs);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "op_in":        fpu_trace.op_in);
-//          // Operand addressing
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "rs1":          fpu_trace.rs1);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "rs2":          fpu_trace.rs2);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "rs3":          fpu_trace.rs3);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "rd":           fpu_trace.rd);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "op_sel_0":     fpu_trace.op_sel_0);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "op_sel_1":     fpu_trace.op_sel_1);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "op_sel_2":     fpu_trace.op_sel_2);
-//          // Operand format
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "src_fmt":      fpu_trace.src_fmt);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "dst_fmt":      fpu_trace.dst_fmt);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "int_fmt":      fpu_trace.int_fmt);
-//          // Operand values
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "acc_qdata_0":  fpu_trace.acc_qdata_0);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "acc_qdata_1":  fpu_trace.acc_qdata_1);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "acc_qdata_2":  fpu_trace.acc_qdata_2);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "op_0":         fpu_trace.op_0);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "op_1":         fpu_trace.op_1);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "op_2":         fpu_trace.op_2);
-//          // FPU
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "use_fpu":      fpu_trace.use_fpu);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "fpu_in_rd":    fpu_trace.fpu_in_rd);
-//          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_str,  "fpu_in_acc":   fpu_trace.fpu_in_acc);
-
+          extras_fpu = "{";
+          // State
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "acc_q_hs",     fpu_trace.acc_q_hs);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "fpu_out_hs",   fpu_trace.fpu_out_hs);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "op_in",        fpu_trace.op_in);
+          // Operand addressing
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "op_sel_0",     fpu_trace.op_sel_0);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "op_sel_1",     fpu_trace.op_sel_1);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "op_sel_2",     fpu_trace.op_sel_2);
+          // Operand format
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "src_fmt",      fpu_trace.src_fmt);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "dst_fmt",      fpu_trace.dst_fmt);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "int_fmt",      fpu_trace.int_fmt);
+          // Operand values
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "acc_qdata_0",  fpu_trace.acc_qdata_0);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "acc_qdata_1",  fpu_trace.acc_qdata_1);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "acc_qdata_2",  fpu_trace.acc_qdata_2);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "op_0",         fpu_trace.op_0);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "op_1",         fpu_trace.op_1);
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "op_2",         fpu_trace.op_2);
+          // FPU
+          extras_fpu = $sformatf("%s'%s': 0x%8x, ", extras_fpu,  "use_fpu",      fpu_trace.use_fpu);
+          extras_fpu = $sformatf("%s}", extras_fpu);
 
           $timeformat(-9, 0, "", 10);
           $sformat(trace_entry, "%t %8d 0x%h DASM(%h) #; %s\n",
