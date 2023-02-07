@@ -59,7 +59,9 @@ module snitch_fp_ss
 
   typedef enum logic [2:0] {
     None,
-    AccBus
+    AccBus_A,
+    AccBus_B,
+    AccBus_C
   } op_select_e;
   op_select_e [2:0] op_select;
 
@@ -182,30 +184,30 @@ module snitch_fp_ss
       // Single Precision
       riscv_instr::FADD_S: begin
         fpu_op = fpnew_pkg::ADD;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
       riscv_instr::FSUB_S: begin
         fpu_op = fpnew_pkg::ADD;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
         op_mode = 1'b1;
       end
       riscv_instr::FMUL_S: begin
         fpu_op = fpnew_pkg::MUL;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
       riscv_instr::FDIV_S: begin  // currently illegal
         fpu_op = fpnew_pkg::DIV;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
@@ -213,56 +215,56 @@ module snitch_fp_ss
       riscv_instr::FSGNJN_S,
       riscv_instr::FSGNJX_S: begin
         fpu_op = fpnew_pkg::SGNJ;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
       riscv_instr::FMIN_S,
       riscv_instr::FMAX_S: begin
         fpu_op = fpnew_pkg::MINMAX;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
       riscv_instr::FSQRT_S: begin  // currently illegal
         fpu_op = fpnew_pkg::SQRT;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
       riscv_instr::FMADD_S: begin
         fpu_op = fpnew_pkg::FMADD;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
       riscv_instr::FMSUB_S: begin
         fpu_op = fpnew_pkg::FMADD;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
         op_mode      = 1'b1;
       end
       riscv_instr::FNMSUB_S: begin
         fpu_op = fpnew_pkg::FNMSUB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
       riscv_instr::FNMADD_S: begin
         fpu_op = fpnew_pkg::FNMSUB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
         op_mode      = 1'b1;
@@ -270,30 +272,30 @@ module snitch_fp_ss
       // Half Precision
       riscv_instr::FADD_H: begin
         fpu_op = fpnew_pkg::ADD;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FSUB_H: begin
         fpu_op = fpnew_pkg::ADD;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         op_mode = 1'b1;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FMUL_H: begin
         fpu_op = fpnew_pkg::MUL;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FDIV_H: begin
         fpu_op = fpnew_pkg::DIV;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
@@ -301,70 +303,70 @@ module snitch_fp_ss
       riscv_instr::FSGNJN_H,
       riscv_instr::FSGNJX_H: begin
         fpu_op = fpnew_pkg::SGNJ;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FMIN_H,
       riscv_instr::FMAX_H: begin
         fpu_op = fpnew_pkg::MINMAX;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FSQRT_H: begin
         fpu_op = fpnew_pkg::SQRT;
-        op_select[0] = AccBus;
+        op_select[0] = AccBus_A;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FMADD_H: begin
         fpu_op = fpnew_pkg::FMADD;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FMSUB_H: begin
         fpu_op = fpnew_pkg::FMADD;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         op_mode      = 1'b1;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FNMSUB_H: begin
         fpu_op = fpnew_pkg::FNMSUB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FNMADD_H: begin
         fpu_op = fpnew_pkg::FNMSUB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         op_mode      = 1'b1;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FCVT_S_H: begin
         fpu_op = fpnew_pkg::F2F;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP32;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FCVT_H_S: begin
         fpu_op = fpnew_pkg::F2F;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP32;
       end
@@ -375,8 +377,8 @@ module snitch_fp_ss
       riscv_instr::VFADD_H,
       riscv_instr::VFADD_R_H: begin
         fpu_op = fpnew_pkg::ADD;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
@@ -385,8 +387,8 @@ module snitch_fp_ss
       riscv_instr::VFSUB_H,
       riscv_instr::VFSUB_R_H: begin
         fpu_op = fpnew_pkg::ADD;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         op_mode      = 1'b1;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
@@ -396,8 +398,8 @@ module snitch_fp_ss
       riscv_instr::VFMUL_H,
       riscv_instr::VFMUL_R_H: begin
         fpu_op = fpnew_pkg::MUL;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
@@ -406,8 +408,8 @@ module snitch_fp_ss
       riscv_instr::VFDIV_H,
       riscv_instr::VFDIV_R_H: begin
         fpu_op = fpnew_pkg::DIV;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
@@ -416,8 +418,8 @@ module snitch_fp_ss
       riscv_instr::VFMIN_H,
       riscv_instr::VFMIN_R_H: begin
         fpu_op = fpnew_pkg::MINMAX;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         fpu_rnd_mode = fpnew_pkg::RNE;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
@@ -426,8 +428,8 @@ module snitch_fp_ss
       riscv_instr::VFMAX_H,
       riscv_instr::VFMAX_R_H: begin
         fpu_op = fpnew_pkg::MINMAX;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         fpu_rnd_mode = fpnew_pkg::RTZ;
@@ -435,8 +437,8 @@ module snitch_fp_ss
       end
       riscv_instr::VFSQRT_H: begin
         fpu_op = fpnew_pkg::SQRT;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
@@ -445,9 +447,9 @@ module snitch_fp_ss
       riscv_instr::VFMAC_H,
       riscv_instr::VFMAC_R_H: begin
         fpu_op = fpnew_pkg::FMADD;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
@@ -456,9 +458,9 @@ module snitch_fp_ss
       riscv_instr::VFMRE_H,
       riscv_instr::VFMRE_R_H: begin
         fpu_op = fpnew_pkg::FNMSUB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
@@ -467,8 +469,8 @@ module snitch_fp_ss
       riscv_instr::VFSGNJ_H,
       riscv_instr::VFSGNJ_R_H: begin
         fpu_op = fpnew_pkg::SGNJ;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         fpu_rnd_mode = fpnew_pkg::RNE;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
@@ -477,8 +479,8 @@ module snitch_fp_ss
       riscv_instr::VFSGNJN_H,
       riscv_instr::VFSGNJN_R_H: begin
         fpu_op = fpnew_pkg::SGNJ;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         fpu_rnd_mode = fpnew_pkg::RTZ;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
@@ -487,8 +489,8 @@ module snitch_fp_ss
       riscv_instr::VFSGNJX_H,
       riscv_instr::VFSGNJX_R_H: begin
         fpu_op = fpnew_pkg::SGNJ;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         fpu_rnd_mode = fpnew_pkg::RDN;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
@@ -496,9 +498,9 @@ module snitch_fp_ss
       end
       riscv_instr::VFCPKA_H_S: begin
         fpu_op = fpnew_pkg::CPKAB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt      = fpnew_pkg::FP32;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
@@ -506,9 +508,9 @@ module snitch_fp_ss
       end
       riscv_instr::VFCPKB_H_S: begin
         fpu_op = fpnew_pkg::CPKAB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         op_mode      = 1'b1;
         src_fmt      = fpnew_pkg::FP32;
         dst_fmt      = fpnew_pkg::FP16;
@@ -518,9 +520,9 @@ module snitch_fp_ss
       riscv_instr::VFDOTPEX_S_H,
       riscv_instr::VFDOTPEX_S_R_H: begin
         fpu_op = fpnew_pkg::SDOTP;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP32;
         vectorial_op = 1'b1;
@@ -529,9 +531,9 @@ module snitch_fp_ss
       riscv_instr::VFNDOTPEX_S_H,
       riscv_instr::VFNDOTPEX_S_R_H: begin
         fpu_op = fpnew_pkg::SDOTP;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         op_mode      = 1'b1;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP32;
@@ -541,19 +543,18 @@ module snitch_fp_ss
       riscv_instr::VFSUMEX_S_H,
       riscv_instr::VFNSUMEX_S_H: begin
         fpu_op = fpnew_pkg::EXVSUM;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP32;
         vectorial_op = 1'b1;
         set_dyn_rm   = 1'b1;
-        if (acc_req_q.data_op inside {riscv_instr::VFNSUMEX_S_H}) op_mode = 1'b1;
       end
       riscv_instr::VFCVT_S_H,
       riscv_instr::VFCVTU_S_H: begin
         fpu_op = fpnew_pkg::F2F;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP32;
         vectorial_op = 1'b1;
@@ -562,8 +563,8 @@ module snitch_fp_ss
       riscv_instr::VFCVT_H_S,
       riscv_instr::VFCVTU_H_S: begin
         fpu_op = fpnew_pkg::F2F;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP32;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
@@ -572,30 +573,30 @@ module snitch_fp_ss
       // Quarter Precision
       riscv_instr::FADD_B: begin
         fpu_op = fpnew_pkg::ADD;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FSUB_B: begin
         fpu_op = fpnew_pkg::ADD;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[1] = AccBus_A;
+        op_select[2] = AccBus_B;
         op_mode = 1'b1;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FMUL_B: begin
         fpu_op = fpnew_pkg::MUL;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FDIV_B: begin
         fpu_op = fpnew_pkg::DIV;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
@@ -603,84 +604,84 @@ module snitch_fp_ss
       riscv_instr::FSGNJN_B,
       riscv_instr::FSGNJX_B: begin
         fpu_op = fpnew_pkg::SGNJ;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FMIN_B,
       riscv_instr::FMAX_B: begin
         fpu_op = fpnew_pkg::MINMAX;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FSQRT_B: begin
         fpu_op = fpnew_pkg::SQRT;
-        op_select[0] = AccBus;
+        op_select[0] = AccBus_A;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FMADD_B: begin
         fpu_op = fpnew_pkg::FMADD;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FMSUB_B: begin
         fpu_op = fpnew_pkg::FMADD;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         op_mode      = 1'b1;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FNMSUB_B: begin
         fpu_op = fpnew_pkg::FNMSUB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FNMADD_B: begin
         fpu_op = fpnew_pkg::FNMSUB;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
-        op_select[2] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
         op_mode      = 1'b1;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FCVT_S_B: begin
         fpu_op = fpnew_pkg::F2F;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP32;
         dst_fmt      = fpnew_pkg::FP8;
       end
       riscv_instr::FCVT_B_S: begin
         fpu_op = fpnew_pkg::F2F;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP32;
       end
       riscv_instr::FCVT_B_H: begin
         fpu_op = fpnew_pkg::F2F;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FCVT_H_B: begin
         fpu_op = fpnew_pkg::F2F;
-        op_select[0] = AccBus;
-        op_select[1] = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP8;
       end
@@ -690,15 +691,15 @@ module snitch_fp_ss
       riscv_instr::FLT_S,
       riscv_instr::FEQ_S: begin
         fpu_op = fpnew_pkg::CMP;
-        op_select[0]   = AccBus;
-        op_select[1]   = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
         fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCLASS_S: begin
         fpu_op = fpnew_pkg::CLASSIFY;
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         fpu_rnd_mode   = fpnew_pkg::RNE;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
@@ -707,7 +708,7 @@ module snitch_fp_ss
       riscv_instr::FCVT_W_S,
       riscv_instr::FCVT_WU_S: begin
         fpu_op = fpnew_pkg::F2I;
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
         fpu_tag_in.acc = 1'b1;
@@ -719,7 +720,7 @@ module snitch_fp_ss
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
         op_mode        = 1'b1; // sign-extend result
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         fpu_tag_in.acc = 1'b1;
       end
       // FP - Int Operations
@@ -728,15 +729,15 @@ module snitch_fp_ss
       riscv_instr::FLT_H,
       riscv_instr::FEQ_H: begin
         fpu_op = fpnew_pkg::CMP;
-        op_select[0]   = AccBus;
-        op_select[1]   = AccBus;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP16;
         dst_fmt        = fpnew_pkg::FP16;
         fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCLASS_H: begin
         fpu_op = fpnew_pkg::CLASSIFY;
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         fpu_rnd_mode   = fpnew_pkg::RNE;
         src_fmt        = fpnew_pkg::FP16;
         dst_fmt        = fpnew_pkg::FP16;
@@ -745,7 +746,7 @@ module snitch_fp_ss
       riscv_instr::FCVT_W_H,
       riscv_instr::FCVT_WU_H: begin
         fpu_op = fpnew_pkg::F2I;
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         src_fmt        = fpnew_pkg::FP16;
         dst_fmt        = fpnew_pkg::FP16;
         fpu_tag_in.acc = 1'b1;
@@ -757,7 +758,7 @@ module snitch_fp_ss
         src_fmt        = fpnew_pkg::FP16;
         dst_fmt        = fpnew_pkg::FP16;
         op_mode        = 1'b1; // sign-extend result
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         fpu_tag_in.acc = 1'b1;
       end
       // FP - Int Operations
@@ -766,15 +767,15 @@ module snitch_fp_ss
       riscv_instr::FLT_B,
       riscv_instr::FEQ_B: begin
         fpu_op = fpnew_pkg::CMP;
-        op_select[0]   = AccBus;
-        op_select[1]   = AccBus;
+        op_select[0]   = AccBus_A;
+        op_select[1]   = AccBus_B;
         src_fmt        = fpnew_pkg::FP8;
         dst_fmt        = fpnew_pkg::FP8;
         fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCLASS_B: begin
         fpu_op = fpnew_pkg::CLASSIFY;
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         fpu_rnd_mode   = fpnew_pkg::RNE;
         src_fmt        = fpnew_pkg::FP8;
         dst_fmt        = fpnew_pkg::FP8;
@@ -783,7 +784,7 @@ module snitch_fp_ss
       riscv_instr::FCVT_W_B,
       riscv_instr::FCVT_WU_B: begin
         fpu_op = fpnew_pkg::F2I;
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         src_fmt        = fpnew_pkg::FP8;
         dst_fmt        = fpnew_pkg::FP8;
         fpu_tag_in.acc = 1'b1;
@@ -795,7 +796,7 @@ module snitch_fp_ss
         src_fmt        = fpnew_pkg::FP8;
         dst_fmt        = fpnew_pkg::FP8;
         op_mode        = 1'b1; // sign-extend result
-        op_select[0]   = AccBus;
+        op_select[0]   = AccBus_A;
         fpu_tag_in.acc = 1'b1;
       end
       default: ;
@@ -817,13 +818,14 @@ module snitch_fp_ss
           op[i] = '1;
           op_ready[i] = 1'b1;
         end
-        AccBus: begin
-          if ((i > 0) && (op_select[0] == None)) begin
-            op[i] = acc_qdata[i-1];
-          end else begin
-            op[i] = acc_qdata[i];
-          end
-          op_ready[i] = acc_req_valid_q;
+        AccBus_A: begin
+          op[i] = acc_qdata[0];
+        end
+        AccBus_B: begin
+          op[i] = acc_qdata[1];
+        end
+        AccBus_C: begin
+          op[i] = acc_qdata[2];
         end
         default: begin
           op[i] = '0;
@@ -832,7 +834,6 @@ module snitch_fp_ss
       endcase
     end
   end
-
 
   // ----------------------
   // Floating Point Unit
