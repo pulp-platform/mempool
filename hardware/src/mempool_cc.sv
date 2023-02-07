@@ -205,7 +205,6 @@ module mempool_cc
     .rst_i,
     // pragma translate_off
     .trace_port_o            ( fpu_trace             ),
-    .sequencer_tracer_port_o (                       ),
     // pragma translate_on
     .acc_req_i               ( acc_req_q             ),
     .acc_req_valid_i         ( fpu_req_qvalid        ),
