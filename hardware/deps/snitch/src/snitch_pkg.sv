@@ -195,17 +195,19 @@ package snitch_pkg;
     logic retired_insts;     // number of instructions retired by the core
   } core_events_t;
 
+  // Event strobes per core, counted by the performance counters in the cluster
+  // peripherals.
+  typedef struct packed {
+    logic issue_fpu;         // core operations performed in the FPU
+    logic issue_core_to_fpu; // instructions issued from core to FPU
+    logic retired_insts;     // number of instructions retired by the core
+  } fp_ss_core_events_t;
+
   // Trace-Port Definitions
   typedef struct packed {
-    longint source;
     longint acc_q_hs;
     longint fpu_out_hs;
-    longint lsu_q_hs;
     longint op_in;
-    longint rs1;
-    longint rs2;
-    longint rs3;
-    longint rd;
     longint op_sel_0;
     longint op_sel_1;
     longint op_sel_2;
@@ -219,19 +221,7 @@ package snitch_pkg;
     longint op_1;
     longint op_2;
     longint use_fpu;
-    longint fpu_in_rd;
-    longint fpu_in_acc;
   } fpu_trace_port_t;
-
-  typedef struct packed {
-    longint source;
-    longint cbuf_push;
-    longint is_outer;
-    longint max_inst;
-    longint max_rpt;
-    longint stg_max;
-    longint stg_mask;
-  } fpu_sequencer_trace_port_t;
 
   // ------------------
   // FPU Configuration
