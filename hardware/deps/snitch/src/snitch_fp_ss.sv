@@ -9,15 +9,12 @@
 module snitch_fp_ss
   import snitch_pkg::*;
 #(
-  parameter bit RegisterSequencer = 1,
-  parameter bit FPUSequencer = 0,
   parameter fpnew_pkg::fpu_implementation_t FPUImplementation = '0
 ) (
   input  logic             clk_i,
   input  logic             rst_i,
   // pragma translate_off
   output fpu_trace_port_t  trace_port_o,
-  output fpu_sequencer_trace_port_t sequencer_tracer_port_o,
   // pragma translate_on
   // Accelerator Interface - Slave
   input  acc_req_t         acc_req_i,
@@ -31,7 +28,7 @@ module snitch_fp_ss
   input  fpnew_pkg::roundmode_e fpu_rnd_mode_i,
   output fpnew_pkg::status_t    fpu_status_o,
   // Core event strobes
-  output core_events_t core_events_o
+  output fp_ss_core_events_t    core_events_o
 );
 
   fpnew_pkg::operation_e  fpu_op;
@@ -73,65 +70,19 @@ module snitch_fp_ss
   logic op_mode;
   logic [4:0] rs1, rs2, rs3, rd;
 
-  // -------------
-  // FPU Sequencer
-  // -------------
-  snitch_pkg::acc_req_t   acc_req, acc_req_q;
-  logic                   acc_req_valid, acc_req_valid_q;
-  logic                   acc_req_ready, acc_req_ready_q;
-  if (FPUSequencer) begin : gen_fpu_sequencer
-    snitch_sequencer #(
-      .Depth    ( snitch_pkg::FPUSequencerInstr )
-    ) i_snitch_fpu_sequencer (
-      .clk_i,
-      .rst_i,
-      // pragma translate_off
-      .trace_port_o     ( sequencer_tracer_port_o ),
-      // pragma translate_on
-      .inp_qaddr_i      ( acc_req_i.addr      ),
-      .inp_qid_i        ( acc_req_i.id        ),
-      .inp_qdata_op_i   ( acc_req_i.data_op   ),
-      .inp_qdata_arga_i ( acc_req_i.data_arga ),
-      .inp_qdata_argb_i ( acc_req_i.data_argb ),
-      .inp_qdata_argc_i ( acc_req_i.data_argc ),
-      .inp_qvalid_i     ( acc_req_valid_i     ),
-      .inp_qready_o     ( acc_req_ready_o     ),
-      .oup_qaddr_o      ( acc_req.addr        ),
-      .oup_qid_o        ( acc_req.id          ),
-      .oup_qdata_op_o   ( acc_req.data_op     ),
-      .oup_qdata_arga_o ( acc_req.data_arga   ),
-      .oup_qdata_argb_o ( acc_req.data_argb   ),
-      .oup_qdata_argc_o ( acc_req.data_argc   ),
-      .oup_qvalid_o     ( acc_req_valid       ),
-      .oup_qready_i     ( acc_req_ready       )
-    );
-  end else begin : gen_no_fpu_sequencer
-    assign sequencer_tracer_port_o = 0;
-    assign acc_req_ready_o = acc_req_ready;
-    assign acc_req_valid = acc_req_valid_i;
-    assign acc_req = acc_req_i;
-  end
-
-  // Optional spill-register
-  spill_register  #(
-    .T      ( snitch_pkg::acc_req_t               ),
-    .Bypass ( !RegisterSequencer || !FPUSequencer )
-  ) i_spill_register_acc (
-    .clk_i   ,
-    .rst_ni  ( ~rst_i          ),
-    .valid_i ( acc_req_valid   ),
-    .ready_o ( acc_req_ready   ),
-    .data_i  ( acc_req         ),
-    .valid_o ( acc_req_valid_q ),
-    .ready_i ( acc_req_ready_q ),
-    .data_o  ( acc_req_q       )
-  );
+  snitch_pkg::acc_req_t   acc_req;
+  logic                   acc_req_valid;
+  logic                   acc_req_ready;
+  // Accelerator interface
+  assign acc_req_ready_o = acc_req_ready;
+  assign acc_req_valid = acc_req_valid_i;
+  assign acc_req = acc_req_i;
 
   // check that the FPU and all operands are ready
-  assign fpu_in_valid = use_fpu & acc_req_valid_q & (&op_ready);
-  assign acc_req_ready_q = ((fpu_in_ready & fpu_in_valid) // FPU ready
+  assign fpu_in_valid = use_fpu & acc_req_valid & (&op_ready);
+  assign acc_req_ready = ((fpu_in_ready & fpu_in_valid) // FPU ready
                                       | csr_instr
-                                      | (acc_req_valid_q && result_select == ResAccBus)); // Direct Reg Write
+                                      | (acc_req_valid && result_select == ResAccBus)); // Direct Reg Write
 
   // either the FPU or the regfile produced a result
   assign acc_resp_valid_o = (fpu_tag_out.acc & fpu_out_valid);
@@ -146,18 +97,18 @@ module snitch_fp_ss
   // accelerator bus write-port
   assign acc_resp_o.data = fpu_result;
 
-  assign rd = acc_req_q.data_op[11:7];
-  assign rs1 = acc_req_q.data_op[19:15];
-  assign rs2 = acc_req_q.data_op[24:20];
-  assign rs3 = acc_req_q.data_op[31:27];
+  assign rd = acc_req.data_op[11:7];
+  assign rs1 = acc_req.data_op[19:15];
+  assign rs2 = acc_req.data_op[24:20];
+  assign rs3 = acc_req.data_op[31:27];
 
   always_comb begin
     acc_resp_o.error = 1'b0;
     fpu_op = fpnew_pkg::ADD;
     use_fpu = 1'b1;
-    fpu_rnd_mode = (fpnew_pkg::roundmode_e'(acc_req_q.data_op[14:12]) == fpnew_pkg::DYN)
+    fpu_rnd_mode = (fpnew_pkg::roundmode_e'(acc_req.data_op[14:12]) == fpnew_pkg::DYN)
                    ? fpu_rnd_mode_i
-                   : fpnew_pkg::roundmode_e'(acc_req_q.data_op[14:12]);
+                   : fpnew_pkg::roundmode_e'(acc_req.data_op[14:12]);
 
     set_dyn_rm = 1'b0;
 
@@ -179,7 +130,7 @@ module snitch_fp_ss
 
     // Destination register is in FPR
     csr_instr = 1'b0; // is a csr instruction
-    unique casez (acc_req_q.data_op)
+    unique casez (acc_req.data_op)
       // FP - FP Operations
       // Single Precision
       riscv_instr::FADD_S: begin
@@ -370,9 +321,6 @@ module snitch_fp_ss
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP32;
       end
-
-
-
       // Vectorized Half Precision Floating-Point
       riscv_instr::VFADD_H,
       riscv_instr::VFADD_R_H: begin
@@ -695,7 +643,6 @@ module snitch_fp_ss
         op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
-        fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCLASS_S: begin
         fpu_op = fpnew_pkg::CLASSIFY;
@@ -703,7 +650,6 @@ module snitch_fp_ss
         fpu_rnd_mode   = fpnew_pkg::RNE;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
-        fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCVT_W_S,
       riscv_instr::FCVT_WU_S: begin
@@ -711,8 +657,7 @@ module snitch_fp_ss
         op_select[0]   = AccBus_A;
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
-        fpu_tag_in.acc = 1'b1;
-        if (acc_req_q.data_op inside {riscv_instr::FCVT_WU_S}) op_mode = 1'b1; // unsigned
+        if (acc_req.data_op inside {riscv_instr::FCVT_WU_S}) op_mode = 1'b1; // unsigned
       end
       riscv_instr::FMV_X_W: begin
         fpu_op = fpnew_pkg::SGNJ;
@@ -721,7 +666,6 @@ module snitch_fp_ss
         dst_fmt        = fpnew_pkg::FP32;
         op_mode        = 1'b1; // sign-extend result
         op_select[0]   = AccBus_A;
-        fpu_tag_in.acc = 1'b1;
       end
       // FP - Int Operations
       // Half Precision Floating-Point
@@ -733,7 +677,6 @@ module snitch_fp_ss
         op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP16;
         dst_fmt        = fpnew_pkg::FP16;
-        fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCLASS_H: begin
         fpu_op = fpnew_pkg::CLASSIFY;
@@ -741,7 +684,6 @@ module snitch_fp_ss
         fpu_rnd_mode   = fpnew_pkg::RNE;
         src_fmt        = fpnew_pkg::FP16;
         dst_fmt        = fpnew_pkg::FP16;
-        fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCVT_W_H,
       riscv_instr::FCVT_WU_H: begin
@@ -749,8 +691,7 @@ module snitch_fp_ss
         op_select[0]   = AccBus_A;
         src_fmt        = fpnew_pkg::FP16;
         dst_fmt        = fpnew_pkg::FP16;
-        fpu_tag_in.acc = 1'b1;
-        if (acc_req_q.data_op inside {riscv_instr::FCVT_WU_H}) op_mode = 1'b1; // unsigned
+        if (acc_req.data_op inside {riscv_instr::FCVT_WU_H}) op_mode = 1'b1; // unsigned
       end
       riscv_instr::FMV_X_H: begin
         fpu_op = fpnew_pkg::SGNJ;
@@ -759,7 +700,6 @@ module snitch_fp_ss
         dst_fmt        = fpnew_pkg::FP16;
         op_mode        = 1'b1; // sign-extend result
         op_select[0]   = AccBus_A;
-        fpu_tag_in.acc = 1'b1;
       end
       // FP - Int Operations
       // Quarter Precision Floating-Point
@@ -771,7 +711,6 @@ module snitch_fp_ss
         op_select[1]   = AccBus_B;
         src_fmt        = fpnew_pkg::FP8;
         dst_fmt        = fpnew_pkg::FP8;
-        fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCLASS_B: begin
         fpu_op = fpnew_pkg::CLASSIFY;
@@ -779,7 +718,6 @@ module snitch_fp_ss
         fpu_rnd_mode   = fpnew_pkg::RNE;
         src_fmt        = fpnew_pkg::FP8;
         dst_fmt        = fpnew_pkg::FP8;
-        fpu_tag_in.acc = 1'b1;
       end
       riscv_instr::FCVT_W_B,
       riscv_instr::FCVT_WU_B: begin
@@ -787,8 +725,7 @@ module snitch_fp_ss
         op_select[0]   = AccBus_A;
         src_fmt        = fpnew_pkg::FP8;
         dst_fmt        = fpnew_pkg::FP8;
-        fpu_tag_in.acc = 1'b1;
-        if (acc_req_q.data_op inside {riscv_instr::FCVT_WU_B}) op_mode = 1'b1; // unsigned
+        if (acc_req.data_op inside {riscv_instr::FCVT_WU_B}) op_mode = 1'b1; // unsigned
       end
       riscv_instr::FMV_X_B: begin
         fpu_op = fpnew_pkg::SGNJ;
@@ -797,7 +734,6 @@ module snitch_fp_ss
         dst_fmt        = fpnew_pkg::FP8;
         op_mode        = 1'b1; // sign-extend result
         op_select[0]   = AccBus_A;
-        fpu_tag_in.acc = 1'b1;
       end
       default: ;
     endcase
@@ -809,7 +745,7 @@ module snitch_fp_ss
   // Operand Select
   // ----------------------
   logic [2:0][FLEN-1:0] acc_qdata;
-  assign acc_qdata = {acc_req_q.data_argc, acc_req_q.data_argb, acc_req_q.data_arga};
+  assign acc_qdata = {acc_req.data_argc, acc_req.data_argb, acc_req.data_arga};
 
   for (genvar i = 0; i < 3; i++) begin: gen_operand_select
     always_comb begin
@@ -860,30 +796,24 @@ module snitch_fp_ss
   );
 
   logic [63:0] nan_boxed_arga;
-  assign nan_boxed_arga = {{32{1'b1}}, acc_req_q.data_arga[31:0]};
+  assign nan_boxed_arga = {{32{1'b1}}, acc_req.data_arga[31:0]};
 
   // Counter pipeline.
-  logic issue_fpu, issue_core_to_fpu, issue_fpu_seq;
+  logic issue_fpu, issue_core_to_fpu;
   `FFAR(issue_fpu, fpu_in_valid & fpu_in_ready, 1'b0, clk_i, rst_i)
   `FFAR(issue_core_to_fpu, acc_req_valid_i & acc_req_ready_o, 1'b0, clk_i, rst_i)
-  `FFAR(issue_fpu_seq, acc_req_valid & acc_req_ready, 1'b0, clk_i, rst_i)
 
   always_comb begin
     core_events_o = '0;
     core_events_o.issue_fpu = issue_fpu;
     core_events_o.issue_core_to_fpu = issue_core_to_fpu;
-    core_events_o.issue_fpu_seq = issue_fpu_seq;
   end
 
   // Tracer
   // pragma translate_off
-  assign trace_port_o.acc_q_hs     = (acc_req_valid_q  && acc_req_ready_q );
+  assign trace_port_o.acc_q_hs     = (acc_req_valid  && acc_req_ready );
   assign trace_port_o.fpu_out_hs   = (fpu_out_valid && fpu_out_ready );
-  assign trace_port_o.op_in        = acc_req_q.data_op;
-  assign trace_port_o.rs1          = rs1;
-  assign trace_port_o.rs2          = rs2;
-  assign trace_port_o.rs3          = rs3;
-  assign trace_port_o.rd           = rd;
+  assign trace_port_o.op_in        = acc_req.data_op;
   assign trace_port_o.op_sel_0     = op_select[0];
   assign trace_port_o.op_sel_1     = op_select[1];
   assign trace_port_o.op_sel_2     = op_select[2];
@@ -897,8 +827,6 @@ module snitch_fp_ss
   assign trace_port_o.op_1         = op[1];
   assign trace_port_o.op_2         = op[2];
   assign trace_port_o.use_fpu      = use_fpu;
-  assign trace_port_o.fpu_in_rd    = fpu_tag_in.rd;
-  assign trace_port_o.fpu_in_acc   = fpu_tag_in.acc;
   // pragma translate_on
 
 endmodule
