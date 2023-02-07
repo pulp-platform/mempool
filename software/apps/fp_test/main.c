@@ -7,17 +7,33 @@
 #include <stdint.h>
 #include <string.h>
 
-#define INT32
-#define INT16
+//#define XFP32
+//#define XFP16
+//#define XFP8
+#define XVFP16
 
 #include "encoding.h"
 #include "runtime.h"
 #include "synchronization.h"
-dump(x,1);
 
-//volatile float a, b, c;
-volatile float16 a, b;
-volatile float16 c;
+#if defined(XFP32)
+volatile float a, b, c;
+#elif defined(XFP16)
+volatile __fp16 a, b;
+volatile __fp16 c;
+#elif defined(XFP8)
+volatile __fp16 a, b; // __fp8 not supported, treat as int8
+volatile int8_t c;    // __fp8 not supported, treat as int8
+#elif defined(XVFP16)
+typedef __fp16 v2f16 __attribute__((vector_size(4)));
+typedef union {
+    float f32;
+    v2f16 vec;
+} v2h;
+volatile float aH, aL, bH, bL;
+volatile v2h a, b;
+volatile float c;
+#endif
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -25,7 +41,7 @@ int main() {
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
 
-#if defined(INT32)
+#if defined(XFP32)
   if (core_id == 0) {
     a = 6.3f + (float)core_id;
     b = 7.77f;
@@ -35,11 +51,40 @@ int main() {
   }
   // wait until all cores have finished
   mempool_barrier(num_cores);
-#elif defined(INT16)
+#elif defined(XFP16)
   if (core_id == 0) {
-    a = (float16)6.3f + (float16)core_id;
-    b = (float16)7.77f;
-    c = a * b;
+    a = (__fp16)6.3f + (__fp16)core_id;
+    b = (__fp16)7.77f;
+    asm volatile("fmul.h %[c], %[a], %[b];"
+                 : [c] "=r"(c)
+                 : [a] "r"(a), [b] "r"(b));
+  }
+  // wait until all cores have finished
+  mempool_barrier(num_cores);
+#elif defined(XFP8)
+  if (core_id == 0) {
+    a = (int8_t)6.3f + (int8_t)core_id;
+    b = (int8_t)7.77f;
+    asm volatile("fmul.b %[c], %[a], %[b];"
+                 : [c] "=r"(c)
+                 : [a] "r"(a), [b] "r"(b));
+  }
+  // wait until all cores have finished
+  mempool_barrier(num_cores);
+#elif defined(XVFP16)
+  if (core_id == 0) {
+
+    aH = 6.35f;
+    aL = 7.77f;
+    bH = 0.00f;
+    bL = 7.77f;
+    c = 1.0f;
+    asm volatile("vfcpka.h.s %[a], %[aH], %[aL];"
+                 "vfcpka.h.s %[b], %[bH], %[bL];"
+                 "vfdotpex.s.h %[c], %[a], %[b];"
+                 : [c] "=r"(c), [a] "+r"(a), [b] "+r"(b)
+                 : [aH] "r"(aH), [bH] "r"(bH), [aL] "r"(aL), [bL] "r"(bL)
+                 : );
   }
   // wait until all cores have finished
   mempool_barrier(num_cores);
