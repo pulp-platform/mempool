@@ -12,10 +12,17 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+typedef __fp16 v2f16 __attribute__((vector_size(4)));
+typedef union {
+    float f32;
+    v2f16 vec;
+} v2h;
+
 #include "data_matmulf32.h"
 #include "kernel/mat_mul_f32.h"
 
 #define PARALLEL
+#define ASM
 
 float matrix_a[matrix_M * matrix_N] __attribute__((section(".l1")));
 float matrix_b[matrix_N * matrix_P] __attribute__((section(".l1")));
@@ -40,8 +47,8 @@ int verify_result(float *__restrict__ C, float *__restrict__ Exp, uint32_t M,
       asm volatile("fsub.s %[error], %[res], %[exp];"
                    : [error] "+&r"(error)
                    : [res] "r"(res), [exp] "r"(exp));
-      if (error != 0) {
-        printf("ERROR!!! %d %d\n", i, error);
+      if (error != 0.0f) {
+        printf("ERROR!!! OUT[%d] = 0x%8x\n", i, *(uint32_t*)&error);
       }
     }
     // Wait at barrier before checking
