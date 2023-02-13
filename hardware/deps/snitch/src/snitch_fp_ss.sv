@@ -268,6 +268,7 @@ module snitch_fp_ss
       riscv_instr::FSQRT_H: begin
         fpu_op = fpnew_pkg::SQRT;
         op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end

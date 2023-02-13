@@ -253,7 +253,7 @@ package snitch_pkg;
                  '{default: LAT_SDOTP}},  // SDOTP
     UnitTypes: '{'{default: fpnew_pkg::MERGED},
                  // '{fpnew_pkg::PARALLEL, fpnew_pkg::PARALLEL, fpnew_pkg::MERGED, fpnew_pkg::MERGED, fpnew_pkg::MERGED}, // ADDMUL
-                 '{default: fpnew_pkg::DISABLED}, // DIVSQRT
+                 '{default: fpnew_pkg::MERGED}, // DIVSQRT
                  '{default: fpnew_pkg::PARALLEL}, // NONCOMP
                  '{default: fpnew_pkg::MERGED},   // CONV
                  '{default: fpnew_pkg::MERGED}},  // SDOTP

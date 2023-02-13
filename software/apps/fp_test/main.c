@@ -10,7 +10,8 @@
 //#define XFP32
 //#define XFP16
 //#define XFP8
-#define XVFP16
+//#define XVFP16
+#define SQRT
 
 #include "encoding.h"
 #include "runtime.h"
@@ -33,6 +34,8 @@ typedef union {
 volatile float aH, aL, bH, bL;
 volatile v2h a, b;
 volatile float c;
+#elif defined(SQRT)
+__fp16 a, c;
 #endif
 
 int main() {
@@ -85,6 +88,16 @@ int main() {
                  : [c] "=r"(c), [a] "+r"(a), [b] "+r"(b)
                  : [aH] "r"(aH), [bH] "r"(bH), [aL] "r"(aL), [bL] "r"(bL)
                  : );
+  }
+  // wait until all cores have finished
+  mempool_barrier(num_cores);
+#elif defined(SQRT)
+  if (core_id == 0) {
+    float in = 4.0f;
+    asm volatile("fcvt.s.h %[a], %[in];"
+                 "fsqrt.h %[c], %[a];"
+                 : [c] "=r"(c), [a] "=r" (a)
+                 : [in] "r" (in) :);
   }
   // wait until all cores have finished
   mempool_barrier(num_cores);
