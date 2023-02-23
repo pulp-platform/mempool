@@ -115,8 +115,8 @@ int main() {
   // uint32_t row_idx = core_id / 16;
 
   // Assign grid position (col wise)
-  uint32_t col_idx = core_id / 16;
-  uint32_t row_idx = core_id % 16;
+  //uint32_t col_idx = core_id / 16;
+  //uint32_t row_idx = core_id % 16;
 
   // Assign grid position (square wise)
   uint32_t col_idx = tile_id % 8;
@@ -143,13 +143,13 @@ int main() {
 #endif
 
   // Wait for all cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Set tile and core mapping
   core_map[row_idx * SYSTOLIC_SIZE + col_idx] = core_id;
 
   // Wait for all cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Setup
   if (core_id == 0) {
@@ -168,7 +168,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Fill matrices with gradient
   fill_gradient_matrix(matrix_A, DIM_M, DIM_N, core_id, num_cores);
@@ -185,7 +185,7 @@ int main() {
   }
 
   // Start benchmark for all cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   mempool_start_benchmark();
 
   if ((row_idx == 0) && (col_idx == 0)) {
@@ -207,7 +207,7 @@ int main() {
 
   // Stop benchmark for all cores
   mempool_stop_benchmark();
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Print out benchmark
   if (core_id == 0) {
@@ -219,6 +219,6 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   return 0;
 }

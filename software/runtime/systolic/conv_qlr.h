@@ -101,7 +101,7 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id, const 
   }
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   for (uint32_t rep = 0; rep < rep_count; ++rep) {
     // Set row
@@ -185,7 +185,7 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
   }
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   for (uint32_t rep = 0; rep < rep_count; ++rep) {
     // Start QLRs
@@ -735,7 +735,7 @@ void systolic_conv_end(const uint32_t core_id, const uint32_t chain_id, const ui
   qlr_cfg_t1[QLR_CFG_IADDR] = (int32_t)queues_x_1[core_id];
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   for (uint32_t rep = 0; rep < rep_count; ++rep) {
     // Start QLRs
