@@ -44,9 +44,9 @@ xqueue_size ?= 4
 ##  QLR configuration  ##
 #########################
 
-# QLR configuration address space (in hex)
+# QLR configuration address space (in dec)
 # (last 16 bits are ignored and must be set to 0)
-qlr_cfg_base ?= 40010000
+qlr_cfg_base ?= 1073807360 # 0x40010000
 
 qlr_fifo_size ?= 4
 qlr_max_requests ?= 4095

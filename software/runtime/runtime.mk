@@ -75,7 +75,7 @@ DEFINES += -DSEQ_MEM_SIZE=$(seq_mem_size)
 DEFINES += -DLOG2_SEQ_MEM_SIZE=$(shell awk 'BEGIN{print log($(seq_mem_size))/log(2)}')
 DEFINES += -DSTACK_SIZE=$(stack_size)
 DEFINES += -DLOG2_STACK_SIZE=$(shell awk 'BEGIN{print log($(stack_size))/log(2)}')
-DEFINES += -DXQUEUE_SIZE=$(xqueue_size) -DQLR_CFG_BASE=0x$(qlr_cfg_base)
+DEFINES += -DXQUEUE_SIZE=$(xqueue_size) -DQLR_CFG_BASE=$(qlr_cfg_base)
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
