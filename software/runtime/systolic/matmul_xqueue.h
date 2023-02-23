@@ -239,7 +239,7 @@ void systolic_rcp_pe(const uint32_t num_cores, const uint32_t rep_count,
   num_cols_C = C->num_cols;
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < num_rows_C; y += 2 * SYSTOLIC_SIZE) {
@@ -342,7 +342,7 @@ void systolic_cp_pe(const uint32_t num_cores, const uint32_t col_idx,
   num_cols_C = C->num_cols;
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Check if PE is at the right boundary
   if (queue_next_horz_0) {
@@ -531,7 +531,7 @@ void systolic_rp_pe(const uint32_t num_cores, const uint32_t row_idx,
   num_cols_C = C->num_cols;
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Check if PE is at the bottom boundary
   if (queue_next_vert_0) {
@@ -726,7 +726,7 @@ void systolic_np_pe(const uint32_t num_cores, const uint32_t row_idx,
   num_cols_C = C->num_cols;
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // PE is not at a boundary
   if (queue_next_horz_0 && queue_next_vert_0) {

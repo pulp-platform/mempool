@@ -101,14 +101,14 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   init_matrix(A, M, N, A_a, A_b, A_c, core_id, num_cores);
   init_matrix(B, N, P, B_a, B_b, B_c, core_id, num_cores);
   // Wait at barrier until everyone is ready
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   // Execute function to test.
   mempool_start_benchmark();
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   mat_mul_unrolled_2x2_parallel(A, B, C, M, N, P, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
                     num_cores)) {
     error = 1;
@@ -131,7 +131,7 @@ int main() {
   test_matrix_multiplication(matrix_a, matrix_b, matrix_c, DIM_M, DIM_N, DIM_P,
                              core_id, num_cores);
   // wait until all cores have finished
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   return error;
 }

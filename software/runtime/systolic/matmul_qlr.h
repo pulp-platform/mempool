@@ -50,7 +50,14 @@
 #include "synchronization.h"
 
 // Dimensions of square systolic array
+// TODO: SQRT ROOT OF NUM_CORES FOR SYSTOLIC SIZE
+#if NUM_CORES == 16
+#define SYSTOLIC_SIZE 4
+#elif NUM_CORES == 256
 #define SYSTOLIC_SIZE 16
+#else
+#error Unsupported NUM_CORES
+#endif
 
 // QLR configuration
 #define QLR_CFG_T0 (QLR_CFG_BASE | (5 << 5))
@@ -149,7 +156,7 @@ void systolic_rcp_pe(const uint32_t num_cores, const uint32_t M,
   qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[1][0];
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Execute step-wise matrix multiplication
   for (uint32_t y = 0; y < M; y += 3 * SYSTOLIC_SIZE) {
@@ -254,7 +261,7 @@ void systolic_cp_pe(const uint32_t num_cores, const uint32_t col_idx,
   }
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Check if PE is at the right boundary
   if (col_idx == SYSTOLIC_SIZE - 1) {
@@ -428,7 +435,7 @@ void systolic_rp_pe(const uint32_t num_cores, const uint32_t row_idx,
   }
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Check if PE is at the bottom boundary
   if (row_idx == SYSTOLIC_SIZE - 1) {
@@ -607,7 +614,7 @@ void systolic_np_pe(const uint32_t num_cores, const uint32_t row_idx,
   }
 
   // Synchronize cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // PE is not at a boundary
   if ((col_idx != SYSTOLIC_SIZE - 1) && (row_idx != SYSTOLIC_SIZE - 1)) {

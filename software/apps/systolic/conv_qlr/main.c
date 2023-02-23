@@ -94,13 +94,13 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Set tile and core maps
   core_map[core_id] = core_id;
 
   // Wait for all cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Setup: Systolic initialization and matrix_X
   if (core_id == 0) {
@@ -134,7 +134,7 @@ int main() {
   }
 
   // Wait for all cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Fill matrix with gradient
   fill_gradient_matrix(matrix_X, DIM_M, DIM_N, core_id, num_cores);
@@ -148,7 +148,7 @@ int main() {
   }
 
   // Start benchmark for all cores
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   mempool_start_benchmark();
 
   switch (core_id % SYSTOLIC_LENGTH) {
@@ -166,7 +166,7 @@ int main() {
 
   // Stop benchmark for all cores
   mempool_stop_benchmark();
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   // Print out benchmark
   if (core_id == 0) {
@@ -178,6 +178,6 @@ int main() {
   }
 
   // wait until all cores have finished
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   return 0;
 }

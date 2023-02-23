@@ -56,7 +56,7 @@ void conv2d_3x3_unrolled_parallel_vanilla(int32_t const *__restrict__ in, uint32
   }
 
   // Synchronize cores
-  mempool_sleep_barrier(numThreads);
+  mempool_barrier(numThreads);
 
   for (uint32_t i = start; i < end; ++i) {
     for (uint32_t j = 1; j < in_y - 1; j++) {
@@ -104,7 +104,7 @@ int main() {
   // zero_conv2d_image(out, DIM_N, DIM_M, core_id, num_cores);
 
 #ifdef VERBOSE
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   if (core_id == 0) {
     printf("A:\n");
@@ -131,7 +131,7 @@ int main() {
 #endif
 
   // Wait at barrier until everyone is ready
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   // Execute benchmark
   mempool_start_benchmark();
   conv2d_3x3_unrolled_parallel_vanilla((const int32_t *)in, DIM_N, DIM_M,
@@ -139,7 +139,7 @@ int main() {
                                core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
   // Check result
   if (verify_conv2d_image(out, DIM_N, DIM_M, core_id, num_cores)) {
     __atomic_fetch_or(&error, 1, __ATOMIC_SEQ_CST);
@@ -152,7 +152,7 @@ int main() {
 #endif
 
   // wait until all cores have finished
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -165,7 +165,7 @@ int main() {
     }
   }
 
-  mempool_sleep_barrier(num_cores);
+  mempool_barrier(num_cores);
 #endif
 
   return error;
