@@ -229,8 +229,8 @@ module snitch_qlr_group
   // Non-sequential address part contains the tile ID
   assign qlr_req_bank_sel  = qlr_req.bank_addr[BankSelBits-1:0];
   assign qlr_req_tile_sel  = qlr_req.bank_addr[BankAddrWidth-1:BankSelBits];
-  assign qlr_req_seq_addr  = {'b0, qlr_req_bank_sel, 2'b0};
-  assign qlr_req_rem_addr  = {'b0, qlr_req_tile_sel};
+  assign qlr_req_seq_addr  = {'0, qlr_req_bank_sel, 2'b0};
+  assign qlr_req_rem_addr  = {'0, qlr_req_tile_sel};
   assign qlr_req_full_addr = {qlr_req_rem_addr, qlr_req_seq_addr};
 
   // ----------------

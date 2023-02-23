@@ -280,7 +280,7 @@ package mempool_pkg;
    localparam int unsigned QlrFifoSize    = `ifdef QLR_FIFO_SIZE `QLR_FIFO_SIZE `else 0 `endif;
    localparam int unsigned QlrMaxRequests = `ifdef QLR_MAX_REQUESTS `QLR_MAX_REQUESTS `else 0 `endif;
    localparam int unsigned QlrMaxRfReads  = `ifdef QLR_MAX_RF_READS `QLR_MAX_RF_READS `else 0 `endif;
-   localparam bit          QlrEnabled     = !QlrFifoSize;
+   localparam bit          QlrEnabled     = |QlrFifoSize;
 
   /*****************
    *  ADDRESS MAP  *
