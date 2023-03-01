@@ -410,13 +410,22 @@ module mempool_tile
       .out_rdata_i (resp_rdata                                                                  )
     );
 
+    // Bank's clock gate
+    logic clk_sram;
+    tc_clk_gating i_clk_gate (
+      .clk_i    (clk_i    ),
+      .en_i     (req_valid),
+      .test_en_i(1'b0     ),
+      .clk_o    (clk_sram )
+    );
+
     // Bank
     tc_sram #(
       .DataWidth(DataWidth          ),
       .NumWords (2**TCDMAddrMemWidth),
       .NumPorts (1                  )
     ) mem_bank (
-      .clk_i  (clk_i     ),
+      .clk_i  (clk_sram  ),
       .rst_ni (rst_ni    ),
       .req_i  (req_valid ),
       .we_i   (req_write ),
