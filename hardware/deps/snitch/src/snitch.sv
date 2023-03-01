@@ -1599,17 +1599,23 @@ module snitch
   // --------------------
   // LSU
   // --------------------
+  logic [RegWidth-1:0] lsu_qtag;
+  logic [31:0] lsu_qdata;
+
+  assign lsu_qtag = lsu_qvalid ? rd : '0;
+  assign lsu_qdata = lsu_qvalid ? gpr_rdata[1] : '0;
+
   snitch_lsu #(
     .tag_t               ( logic[RegWidth-1:0]                ),
     .NumOutstandingLoads ( snitch_pkg::NumIntOutstandingLoads )
   ) i_snitch_lsu (
     .clk_i                                ,
     .rst_i                                ,
-    .lsu_qtag_i   ( rd                    ),
+    .lsu_qtag_i   ( lsu_qtag              ),
     .lsu_qwrite   ( is_store              ),
     .lsu_qsigned  ( is_signed             ),
     .lsu_qaddr_i  ( lsu_qaddr             ),
-    .lsu_qdata_i  ( gpr_rdata[1]          ),
+    .lsu_qdata_i  ( lsu_qdata             ),
     .lsu_qsize_i  ( ls_size               ),
     .lsu_qamo_i   ( ls_amo                ),
     .lsu_qvalid_i ( lsu_qvalid            ),
@@ -1635,7 +1641,7 @@ module snitch
   );
 
   // address can be alu_result (i.e. rs1 + iimm/simm) or rs1 (for post-increment load/stores)
-  assign lsu_qaddr = is_postincr ? gpr_rdata[0] : alu_result;
+  assign lsu_qaddr = lsu_qvalid ? (is_postincr ? gpr_rdata[0] : alu_result) : '0;
 
   assign lsu_qvalid = valid_instr & (is_load | is_store) & ~(ld_addr_misaligned | st_addr_misaligned);
 
