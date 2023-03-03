@@ -116,14 +116,14 @@ void mempool_anyradixlog_barrier(uint32_t radix, uint32_t core_id) {
         num_cores >>= radix;
         previous_step = step;
         step <<= radix;
-        // Last core wakes-up everyone
-        if (num_cores == 1U) {
-          __sync_synchronize(); // Full memory barrier
-          wake_up_all();
-        }
       } else {
         break;
       }
+    }
+    // Last core wakes-up everyone
+    if (num_cores == 1U) {
+      __sync_synchronize(); // Full memory barrier
+      wake_up_all();
     }
   }
   mempool_wfi();
