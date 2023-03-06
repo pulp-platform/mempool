@@ -649,74 +649,9 @@ module mempool_sub_group
     end
   end
 
-  /***************
-   *  Registers  *
-   ***************/
-
-`ifdef NumTilesPerSubGroup != 1
-  // Break paths between request and response with registers
-  for (genvar h = 1; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_registers_g
-  	for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_registers_t
-  	  //TCDM	
-      spill_register #(
-        .T(tcdm_master_req_t)
-      ) i_tcdm_master_req_register (
-        .clk_i  (clk_i                         ),
-        .rst_ni (rst_ni                        ),
-        .data_i (tcdm_master_req[h][t]         ),
-        .valid_i(tcdm_master_req_valid[h][t]   ),
-        .ready_o(tcdm_master_req_ready[h][t]   ),
-        .data_o (tcdm_master_req_o[h][t]       ),
-        .valid_o(tcdm_master_req_valid_o[h][t] ),
-        .ready_i(tcdm_master_req_ready_i[h][t] )
-      );
-
-      fall_through_register #(
-        .T(tcdm_master_resp_t)
-      ) i_tcdm_master_resp_register (
-        .clk_i     (clk_i                          ),
-        .rst_ni    (rst_ni                         ),
-        .clr_i     (1'b0                           ),
-        .testmode_i(1'b0                           ),
-        .data_i    (tcdm_master_resp_i[h][t]       ),
-        .valid_i   (tcdm_master_resp_valid_i[h][t] ),
-        .ready_o   (tcdm_master_resp_ready_o[h][t] ),
-        .data_o    (tcdm_master_resp[h][t]         ),
-        .valid_o   (tcdm_master_resp_valid[h][t]   ),
-        .ready_i   (tcdm_master_resp_ready[h][t]   )
-      );
-
-      fall_through_register #(
-        .T(tcdm_slave_req_t)
-      ) i_tcdm_slave_req_register (
-        .clk_i     (clk_i                        ),
-        .rst_ni    (rst_ni                       ),
-        .clr_i     (1'b0                         ),
-        .testmode_i(1'b0                         ),
-        .data_i    (tcdm_slave_req_i[h][t]       ),
-        .valid_i   (tcdm_slave_req_valid_i[h][t] ),
-        .ready_o   (tcdm_slave_req_ready_o[h][t] ),
-        .data_o    (tcdm_slave_req[h][t]         ),
-        .valid_o   (tcdm_slave_req_valid[h][t]   ),
-        .ready_i   (tcdm_slave_req_ready[h][t]   )
-      );
-
-      spill_register #(
-        .T(tcdm_slave_resp_t)
-      ) i_tcdm_slave_resp_register (
-        .clk_i  (clk_i                         ),
-        .rst_ni (rst_ni                        ),
-        .data_i (tcdm_slave_resp[h][t]         ),
-        .valid_i(tcdm_slave_resp_valid[h][t]   ),
-        .ready_o(tcdm_slave_resp_ready[h][t]   ),
-        .data_o (tcdm_slave_resp_o[h][t]       ),
-        .valid_o(tcdm_slave_resp_valid_o[h][t] ),
-        .ready_i(tcdm_slave_resp_ready_i[h][t] )
-      );
-    end: gen_tcdm_registers_t
-  end: gen_tcdm_registers_g
-
-`else
+  /*****************
+   *  Remote TCDM  *
+   *****************/
   // Direct connection to group level
   // TCDM
   assign tcdm_master_req_o        = tcdm_master_req;
@@ -731,7 +666,5 @@ module mempool_sub_group
   assign tcdm_slave_resp_o        = tcdm_slave_resp;
   assign tcdm_slave_resp_valid_o  = tcdm_slave_resp_valid;
   assign tcdm_slave_resp_ready    = tcdm_slave_resp_ready_i;
-
-`endif
 
 endmodule : mempool_sub_group
