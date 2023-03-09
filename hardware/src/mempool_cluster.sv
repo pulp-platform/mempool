@@ -191,7 +191,7 @@ module mempool_cluster
         for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_registers_t
           //TCDM  
           spill_register #(
-            .T(tcdm_master_req_t)
+            .T(tcdm_slave_req_t)
           ) i_tcdm_master_req_register (
             .clk_i  (clk_i                                         ),
             .rst_ni (rst_ni                                        ),
@@ -234,7 +234,7 @@ module mempool_cluster
           );
     
           spill_register #(
-            .T(tcdm_slave_resp_t)
+            .T(tcdm_master_resp_t)
           ) i_tcdm_slave_resp_register (
             .clk_i  (clk_i                                         ),
             .rst_ni (rst_ni                                        ),
@@ -281,9 +281,7 @@ module mempool_cluster
       .dma_req_valid_i         (dma_req_valid[g]                                                ),
       .dma_req_ready_o         (dma_req_ready[g]                                                ),
       // DMA status
-      .dma_meta_o_backend_idle_   (dma_meta[g][0]                                               ),
-      .dma_meta_o_trans_complete_ (dma_meta[g][1]                                               ),
-      //.dma_meta_o              (dma_meta[g]                                                     ),
+      .dma_meta_o              (dma_meta[g]                                                     ),
       // AXI interface
       .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
       .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
