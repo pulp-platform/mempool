@@ -37,9 +37,9 @@ sources:
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 2
-  - hardware/src/mempool_group.sv
-  # Level 3
   - hardware/src/mempool_sub_group.sv
+  # Level 3
+  - hardware/src/mempool_group.sv
   # Level 4
   - hardware/src/mempool_cluster.sv
   # Level 5
