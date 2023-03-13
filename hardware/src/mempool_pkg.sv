@@ -31,6 +31,8 @@ package mempool_pkg;
   localparam integer unsigned AxiTileIdWidth       = AxiCoreIdWidth+1; // + 1 for cache
   localparam integer unsigned AxiDataWidth         = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
   localparam integer unsigned AxiLiteDataWidth     = 32;
+  localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
+  localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
 
   /***********************
    *  MEMORY PARAMETERS  *

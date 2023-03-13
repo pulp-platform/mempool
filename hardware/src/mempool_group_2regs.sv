@@ -13,7 +13,9 @@ module mempool_group
   // TCDM
   parameter addr_t       TCDMBaseAddr = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr     = 32'h0000_1000
+  parameter logic [31:0] BootAddr     = 32'h0000_1000,
+  // For post-synthesis
+  parameter int unsigned GroupId      = 32'd0
 ) (
   // Clock and reset
   input  logic                                                    clk_i,
@@ -259,7 +261,7 @@ end: gen_tcdm_registers_g
   assign tcdm_master_resp_ready_o[NumGroups-1:1] = tcdm_master_resp_ready[NumGroups-1:1];
   assign tcdm_slave_req[NumGroups-1:1]           = tcdm_slave_req_i[NumGroups-1:1];
   assign tcdm_slave_req_valid[NumGroups-1:1]     = tcdm_slave_req_valid_i[NumGroups-1:1];
-  assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready[NumGroups-1:1]; 
+  assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready[NumGroups-1:1];
 
   // AXI interfaces
   axi_tile_req_t   [NumAXIMastersPerGroup-1:0] axi_mst_req;
@@ -282,58 +284,108 @@ end: gen_tcdm_registers_g
     logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp_valid;
     logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp_ready;
 
-    mempool_sub_group #(
-      .TCDMBaseAddr(TCDMBaseAddr),
-      .BootAddr    (BootAddr    )
-    ) i_sub_group (
-      .clk_i                   (clk_i                                                                 ),
-      .rst_ni                  (rst_ni                                                                ),
-      .scan_enable_i           (scan_enable_i                                                         ),
-      .scan_data_i             (/* Unconnected */                                                     ),
-      .scan_data_o             (/* Unconnected */                                                     ),
-      .sub_group_id_i          (id                                                                    ),
-      // TCDM Master interfaces for groups
-      .tcdm_master_req_o       (tran_tcdm_master_req                                                  ),
-      .tcdm_master_req_valid_o (tran_tcdm_master_req_valid                                            ),
-      .tcdm_master_req_ready_i (tran_tcdm_master_req_ready                                            ),
-      .tcdm_master_resp_i      (tran_tcdm_master_resp                                                 ),
-      .tcdm_master_resp_valid_i(tran_tcdm_master_resp_valid                                           ),
-      .tcdm_master_resp_ready_o(tran_tcdm_master_resp_ready                                           ),
-      // TCDM banks interface for groups
-      .tcdm_slave_req_i        (tran_tcdm_slave_req                                                   ),
-      .tcdm_slave_req_valid_i  (tran_tcdm_slave_req_valid                                             ),
-      .tcdm_slave_req_ready_o  (tran_tcdm_slave_req_ready                                             ),
-      .tcdm_slave_resp_o       (tran_tcdm_slave_resp                                                  ),
-      .tcdm_slave_resp_valid_o (tran_tcdm_slave_resp_valid                                            ),
-      .tcdm_slave_resp_ready_i (tran_tcdm_slave_resp_ready                                            ),
-      // TCDM Master interfaces for sub_groups
-      .tcdm_sg_master_req_o       (tcdm_sg_master_req[sg]                                             ),
-      .tcdm_sg_master_req_valid_o (tcdm_sg_master_req_valid[sg]                                       ),
-      .tcdm_sg_master_req_ready_i (tcdm_sg_master_req_ready[sg]                                       ),
-      .tcdm_sg_master_resp_i      (tcdm_sg_master_resp[sg]                                            ),
-      .tcdm_sg_master_resp_valid_i(tcdm_sg_master_resp_valid[sg]                                      ),
-      .tcdm_sg_master_resp_ready_o(tcdm_sg_master_resp_ready[sg]                                      ),
-      // TCDM banks interface for sub_groups
-      .tcdm_sg_slave_req_i        (tcdm_sg_slave_req[sg]                                              ),
-      .tcdm_sg_slave_req_valid_i  (tcdm_sg_slave_req_valid[sg]                                        ),
-      .tcdm_sg_slave_req_ready_o  (tcdm_sg_slave_req_ready[sg]                                        ),
-      .tcdm_sg_slave_resp_o       (tcdm_sg_slave_resp[sg]                                             ),
-      .tcdm_sg_slave_resp_valid_o (tcdm_sg_slave_resp_valid[sg]                                       ),
-      .tcdm_sg_slave_resp_ready_i (tcdm_sg_slave_resp_ready[sg]                                       ),
-      // DMA interfaces
-      .dma_req_i               (dma_req[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]                  ),
-      .dma_req_valid_i         (dma_req_valid[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]            ),
-      .dma_req_ready_o         (dma_req_ready[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]            ),
-      .dma_meta_o              (dma_meta[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]                 ),
-      // AXI interface
-      .axi_mst_req_o           (axi_mst_req[sg*NumAXIMastersPerSubGroup +: NumAXIMastersPerSubGroup]  ),
-      .axi_mst_resp_i          (axi_mst_resp[sg*NumAXIMastersPerSubGroup +: NumAXIMastersPerSubGroup] ),
-      // RO-Cache configuration
-      .ro_cache_ctrl_i         (ro_cache_ctrl_q                                                       ),
-      // Wake up interface
-      .wake_up_i      (wake_up_q[sg*NumCoresPerSubGroup +: NumCoresPerSubGroup]                       )
-    );
-
+    if (PostLayoutSg & (GroupId == 0) & (sg == 0)) begin: gen_postly_sg
+      mempool_sub_group_postlayout i_sub_group (
+        .clk_i                   (clk_i                                                                 ),
+        .rst_ni                  (rst_ni                                                                ),
+        .scan_enable_i           (scan_enable_i                                                         ),
+        .scan_data_i             (/* Unconnected */                                                     ),
+        .scan_data_o             (/* Unconnected */                                                     ),
+        .sub_group_id_i          (id                                                                    ),
+        // TCDM Master interfaces for groups
+        .tcdm_master_req_o       (tran_tcdm_master_req                                                  ),
+        .tcdm_master_req_valid_o (tran_tcdm_master_req_valid                                            ),
+        .tcdm_master_req_ready_i (tran_tcdm_master_req_ready                                            ),
+        .tcdm_master_resp_i      (tran_tcdm_master_resp                                                 ),
+        .tcdm_master_resp_valid_i(tran_tcdm_master_resp_valid                                           ),
+        .tcdm_master_resp_ready_o(tran_tcdm_master_resp_ready                                           ),
+        // TCDM banks interface for groups
+        .tcdm_slave_req_i        (tran_tcdm_slave_req                                                   ),
+        .tcdm_slave_req_valid_i  (tran_tcdm_slave_req_valid                                             ),
+        .tcdm_slave_req_ready_o  (tran_tcdm_slave_req_ready                                             ),
+        .tcdm_slave_resp_o       (tran_tcdm_slave_resp                                                  ),
+        .tcdm_slave_resp_valid_o (tran_tcdm_slave_resp_valid                                            ),
+        .tcdm_slave_resp_ready_i (tran_tcdm_slave_resp_ready                                            ),
+        // TCDM Master interfaces for sub_groups
+        .tcdm_sg_master_req_o       (tcdm_sg_master_req[sg]                                             ),
+        .tcdm_sg_master_req_valid_o (tcdm_sg_master_req_valid[sg]                                       ),
+        .tcdm_sg_master_req_ready_i (tcdm_sg_master_req_ready[sg]                                       ),
+        .tcdm_sg_master_resp_i      (tcdm_sg_master_resp[sg]                                            ),
+        .tcdm_sg_master_resp_valid_i(tcdm_sg_master_resp_valid[sg]                                      ),
+        .tcdm_sg_master_resp_ready_o(tcdm_sg_master_resp_ready[sg]                                      ),
+        // TCDM banks interface for sub_groups
+        .tcdm_sg_slave_req_i        (tcdm_sg_slave_req[sg]                                              ),
+        .tcdm_sg_slave_req_valid_i  (tcdm_sg_slave_req_valid[sg]                                        ),
+        .tcdm_sg_slave_req_ready_o  (tcdm_sg_slave_req_ready[sg]                                        ),
+        .tcdm_sg_slave_resp_o       (tcdm_sg_slave_resp[sg]                                             ),
+        .tcdm_sg_slave_resp_valid_o (tcdm_sg_slave_resp_valid[sg]                                       ),
+        .tcdm_sg_slave_resp_ready_i (tcdm_sg_slave_resp_ready[sg]                                       ),
+        // DMA interfaces
+        .dma_req_i               (dma_req[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]                  ),
+        .dma_req_valid_i         (dma_req_valid[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]            ),
+        .dma_req_ready_o         (dma_req_ready[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]            ),
+        .dma_meta_o              (dma_meta[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]                 ),
+        // AXI interface
+        .axi_mst_req_o           (axi_mst_req[sg*NumAXIMastersPerSubGroup +: NumAXIMastersPerSubGroup]  ),
+        .axi_mst_resp_i          (axi_mst_resp[sg*NumAXIMastersPerSubGroup +: NumAXIMastersPerSubGroup] ),
+        // RO-Cache configuration
+        .ro_cache_ctrl_i         (ro_cache_ctrl_q                                                       ),
+        // Wake up interface
+        .wake_up_i      (wake_up_q[sg*NumCoresPerSubGroup +: NumCoresPerSubGroup]                       )
+      );
+    end else begin: gen_rtl_sg
+      mempool_sub_group #(
+        .TCDMBaseAddr(TCDMBaseAddr),
+        .BootAddr    (BootAddr    )
+      ) i_sub_group (
+        .clk_i                   (clk_i                                                                 ),
+        .rst_ni                  (rst_ni                                                                ),
+        .scan_enable_i           (scan_enable_i                                                         ),
+        .scan_data_i             (/* Unconnected */                                                     ),
+        .scan_data_o             (/* Unconnected */                                                     ),
+        .sub_group_id_i          (id                                                                    ),
+        // TCDM Master interfaces for groups
+        .tcdm_master_req_o       (tran_tcdm_master_req                                                  ),
+        .tcdm_master_req_valid_o (tran_tcdm_master_req_valid                                            ),
+        .tcdm_master_req_ready_i (tran_tcdm_master_req_ready                                            ),
+        .tcdm_master_resp_i      (tran_tcdm_master_resp                                                 ),
+        .tcdm_master_resp_valid_i(tran_tcdm_master_resp_valid                                           ),
+        .tcdm_master_resp_ready_o(tran_tcdm_master_resp_ready                                           ),
+        // TCDM banks interface for groups
+        .tcdm_slave_req_i        (tran_tcdm_slave_req                                                   ),
+        .tcdm_slave_req_valid_i  (tran_tcdm_slave_req_valid                                             ),
+        .tcdm_slave_req_ready_o  (tran_tcdm_slave_req_ready                                             ),
+        .tcdm_slave_resp_o       (tran_tcdm_slave_resp                                                  ),
+        .tcdm_slave_resp_valid_o (tran_tcdm_slave_resp_valid                                            ),
+        .tcdm_slave_resp_ready_i (tran_tcdm_slave_resp_ready                                            ),
+        // TCDM Master interfaces for sub_groups
+        .tcdm_sg_master_req_o       (tcdm_sg_master_req[sg]                                             ),
+        .tcdm_sg_master_req_valid_o (tcdm_sg_master_req_valid[sg]                                       ),
+        .tcdm_sg_master_req_ready_i (tcdm_sg_master_req_ready[sg]                                       ),
+        .tcdm_sg_master_resp_i      (tcdm_sg_master_resp[sg]                                            ),
+        .tcdm_sg_master_resp_valid_i(tcdm_sg_master_resp_valid[sg]                                      ),
+        .tcdm_sg_master_resp_ready_o(tcdm_sg_master_resp_ready[sg]                                      ),
+        // TCDM banks interface for sub_groups
+        .tcdm_sg_slave_req_i        (tcdm_sg_slave_req[sg]                                              ),
+        .tcdm_sg_slave_req_valid_i  (tcdm_sg_slave_req_valid[sg]                                        ),
+        .tcdm_sg_slave_req_ready_o  (tcdm_sg_slave_req_ready[sg]                                        ),
+        .tcdm_sg_slave_resp_o       (tcdm_sg_slave_resp[sg]                                             ),
+        .tcdm_sg_slave_resp_valid_o (tcdm_sg_slave_resp_valid[sg]                                       ),
+        .tcdm_sg_slave_resp_ready_i (tcdm_sg_slave_resp_ready[sg]                                       ),
+        // DMA interfaces
+        .dma_req_i               (dma_req[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]                  ),
+        .dma_req_valid_i         (dma_req_valid[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]            ),
+        .dma_req_ready_o         (dma_req_ready[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]            ),
+        .dma_meta_o              (dma_meta[sg*NumDmasPerSubGroup +: NumDmasPerSubGroup]                 ),
+        // AXI interface
+        .axi_mst_req_o           (axi_mst_req[sg*NumAXIMastersPerSubGroup +: NumAXIMastersPerSubGroup]  ),
+        .axi_mst_resp_i          (axi_mst_resp[sg*NumAXIMastersPerSubGroup +: NumAXIMastersPerSubGroup] ),
+        // RO-Cache configuration
+        .ro_cache_ctrl_i         (ro_cache_ctrl_q                                                       ),
+        // Wake up interface
+        .wake_up_i      (wake_up_q[sg*NumCoresPerSubGroup +: NumCoresPerSubGroup]                       )
+      );
+    end
     // Transpose the group requests
     for (genvar g = 1; g < NumGroups; g++) begin: gen_tran_group_req
       assign tcdm_master_req_from_sg[g][sg]        = tran_tcdm_master_req[g];
