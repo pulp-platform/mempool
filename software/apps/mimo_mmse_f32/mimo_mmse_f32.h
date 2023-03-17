@@ -373,3 +373,89 @@ void mempool_Lttrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
   return;
 }
 
+void mempool_jacobi_f32s(float* pA, float* in, float* x, float tol, const uint32_t n, const uint32_t max_iter)
+{
+
+  uint32_t i, j, k;
+  float diff, error, den;
+  float as, bs;
+  float ab, bb;
+  float a, b;
+  float c, d;
+
+  for (k = 0; k < max_iter; k++) {
+    // Initialize the diff variable
+    diff = 0.0f;
+
+    /* COMPUTE THE SUM */
+    for (i = 0; i < n; i++) {
+      as = 0.0f;
+      bs = 0.0f;
+      ab = in[2U * i];
+      bb = in[2U * i + 1];
+      den = pA[2U * (i * n + i)];
+      // Compute the output
+      for (j = 0; j < n; j++) {
+        if (j != i) {
+          a = pA[2U * (i * n + j)];
+          b = pA[2U * (i * n + j) + 1U];
+          c = x[2U * j];
+          d = x[2U * j + 1U];
+          // (ac - bd) + j * (ad + bc)
+          asm volatile (
+            "fmadd.s  %[as], %[a], %[c], %[as];"
+            "fnmsub.s %[as], %[b], %[d], %[as];"
+            "fmadd.s  %[bs], %[a], %[d], %[bs];"
+            "fmadd.s  %[bs], %[b], %[c], %[bs];"
+            : [as] "+&r" (as), [bs] "+&r" (bs)
+            : [a] "r" (a), [b] "r" (b), [c] "r" (c), [d] "r" (d)
+            :);
+        }
+      }
+
+      /* COMPUTE THE NEW DATA */
+      asm volatile (
+        // subtract the sum from the input vector
+        "fsub.s %[as], %[ab], %[as];"
+        "fsub.s %[bs], %[bb], %[bs];"
+        // divide the result by the pivot
+        "fdiv.s    %[as], %[as], %[den];"
+        "fdiv.s    %[bs], %[bs], %[den];"
+        : [as] "+&r" (as), [bs] "+&r" (bs)
+        : [ab] "r" (ab), [bb] "r" (bb), [den] "r" (den)
+        :);
+
+      /* COMPUTE THE DIFFERENCE */
+      // Load the previous result
+      a = x[2U * i];
+      b = x[2U * i + 1];
+      // Compute diff
+      asm volatile (
+        "fsub.s %[a], %[a], %[as];"
+        "fsub.s %[b], %[b], %[bs];"
+        : [a] "+&r" (a), [b] "+&r" (b)
+        : [as] "r" (as), [bs] "r" (bs)
+        :);
+      a = (a > 0.0f) ? a : (-a);
+      b = (b > 0.0f) ? b : (-b);
+      asm volatile (
+        "fadd.s %[diff], %[a], %[diff];"
+        "fadd.s %[diff], %[b], %[diff];"
+        : [diff] "+&r" (diff)
+        : [a] "r" (a), [b] "r" (b)
+        :);
+
+      /* STORE THE RESULT */
+      x[2U * i] = as;
+      x[2U * i + 1U] = bs;
+
+    }
+    /* COMPUTE THE ERROR */
+    error = diff / (2.0f * (float)n);
+    if (error < tol){
+      break;
+    }
+  }
+  return;
+}
+
