@@ -150,21 +150,32 @@ void single_core_mimo_mmse() {
 
   /* Benchmark */
   if (core_id == 0) {
+    /* Computation of the Hermitian matrix */
     mempool_start_benchmark();
-
     mempool_hermitian_f16s(ch_matrix, in_matrix, sigma, N_RX, N_TX);
+    mempool_stop_benchmark();
+    /* Computation of the H^H*b vector */
+    mempool_start_benchmark();
     mempool_MVP_conjtransp_f16s(ch_matrix, b, s, N_RX, N_TX);
-
+    mempool_stop_benchmark();
+    /* Cholesky decomposition */
+    mempool_start_benchmark();
     mempool_cholesky_f16s(in_matrix, out_matrix, N_TX);
+    mempool_stop_benchmark();
+    /* Solution of L*y = s */
+    mempool_start_benchmark();
     mempool_Ltrisol_f16s(out_matrix, s, y, N_TX);
+    mempool_stop_benchmark();
+    /* Solution of L^T*s = b */
+    mempool_start_benchmark();
     mempool_Lttrisol_f16s(out_matrix, y, x, N_TX);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
 
-  //verify_result(in_matrix, In_G, N_TX, core_id);
-  //verify_result(out_matrix, Out_L,  N_TX, core_id);
-  //verify_result(s, Out_s, N_TX, core_id);
+  //verify_result(in_matrix, In_G, N_TX*N_TX, core_id);
+  //verify_result(out_matrix, Out_L,  N_TX*N_TX, core_id);
+  verify_result(s, Out_s, N_TX, core_id);
   verify_result(x, Out_x, N_TX, core_id);
   mempool_barrier(num_cores);
   return;
