@@ -11,6 +11,8 @@ description = "Minimal rust runtime for MemPool"
 [dependencies]
 riscv = "0.7"
 riscv-rt-macros = { path = "macros" }
+numtoa = "0.2.4"
+arrform = "0.1.1"
 
 [features]
 inline-asm = ["riscv/inline-asm"]

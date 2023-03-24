@@ -12,9 +12,22 @@ extern crate riscv;
 use rust_rt::entry;
 use riscv::register::*;
 
+use rust_rt::{*, Format::*,arrform::arrform, arrform::ArrForm};
+
+
+
 #[entry]
 fn main() -> usize {
-    let hartid : u32 = mhartid::read().try_into().unwrap();
 
-    return hartid + 0x4e110;
+    let test : &str = "ieie";
+    println!("{}", 10);
+    let hartid : u32 = mhartid::read().try_into().unwrap();
+    println!("{}",hartid);
+    //print_nr!("hart_id",hartid, Dec);
+    let a : u32 = (5*7)/10;
+    println!("{}",a);
+
+    
+
+    return 0x4e110;
 }
