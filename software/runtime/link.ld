@@ -31,12 +31,12 @@ SECTIONS {
     *(.text.startup)
     *(.text)
     *(.text.end)
-    . = ALIGN(0x40);
     _etext = .;
   } > l2
 
   /* RO Data on L2 */
   .rodata : {
+    . = ALIGN(0x40);
     *(.rodata .rodata.* .gnu.linkonce.r.*)
   } > l2
   .rodata1 : {

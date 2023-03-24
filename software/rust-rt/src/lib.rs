@@ -6,8 +6,12 @@
 
 extern crate riscv;
 extern crate riscv_rt_macros as macros;
+pub extern crate numtoa;
+pub extern crate arrform;
+
+pub use println::Format;
 
 pub use macros::{entry};
 
 pub mod init;
-// pub mod println;
+pub mod println;

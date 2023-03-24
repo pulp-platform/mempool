@@ -74,10 +74,6 @@ _reset_vector:
     addi    t0, t0, -4                 // Subtract one word to avoid overlapping
     add     sp, sp, t0
 #endif
-    bnez    a0, _jump_main
-    la      t0, ro_cache_end_0         // Get peripheral register to set cacheable region
-    la      t1, _erodata               // Write the end of the read-only data to be cacheable
-    sw      t1, 0(t0)
 _jump_main:
     call    _start_rust
 

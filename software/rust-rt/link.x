@@ -77,6 +77,7 @@ SECTIONS {
   /* RO Data on L2 */
   .rodata : {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
+    . = ALIGN(0x4);
   } > l2
   .rodata1 : {
     *(.rodata1)

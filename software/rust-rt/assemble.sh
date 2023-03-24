@@ -30,10 +30,10 @@ do
             ;;
     esac
 
-    riscv64-unknown-elf-gcc -ggdb3 -fdebug-prefix-map=$(pwd)=/riscv-rt -c -mabi=ilp32${abi} -march=rv32${ext} rrt0.S -o bin/$crate.o
+    riscv64-unknown-elf-gcc -ggdb3 -fdebug-prefix-map=$(pwd)=/riscv-rt -c -mabi=ilp32${abi} -march=rv32${ext}_zicsr rrt0.S -o bin/$crate.o
     riscv64-unknown-elf-ar crs bin/riscv32${ext}-unknown-none-elf.a bin/$crate.o
 
-    riscv64-unknown-elf-gcc -ggdb3 -fdebug-prefix-map=$(pwd)=/riscv-rt -c -mabi=lp64${abi} -march=rv64${ext} rrt0.S -o bin/$crate.o
+    riscv64-unknown-elf-gcc -ggdb3 -fdebug-prefix-map=$(pwd)=/riscv-rt -c -mabi=lp64${abi} -march=rv64${ext}_zicsr rrt0.S -o bin/$crate.o
     riscv64-unknown-elf-ar crs bin/riscv64${ext}-unknown-none-elf.a bin/$crate.o
 done
 
