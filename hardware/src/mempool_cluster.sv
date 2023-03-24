@@ -167,7 +167,7 @@ module mempool_cluster
   tcdm_master_resp_t [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp;
   logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid;
   logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready;
-  
+
   tcdm_slave_req_t   [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_postreg;
   logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_postreg;
   logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_postreg;
@@ -189,7 +189,7 @@ module mempool_cluster
     for (genvar h = 1; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_registers_h
       for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_tcdm_registers_sg
         for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_registers_t
-          //TCDM  
+          //TCDM
           spill_register #(
             .T(tcdm_slave_req_t)
           ) i_tcdm_master_req_register (
@@ -202,7 +202,7 @@ module mempool_cluster
             .valid_o(tcdm_master_req_valid_postreg[g][h][sg][t]    ),
             .ready_i(tcdm_master_req_ready_postreg[g][h][sg][t]    )
           );
-    
+
           fall_through_register #(
             .T(tcdm_master_resp_t)
           ) i_tcdm_master_resp_register (
@@ -217,7 +217,7 @@ module mempool_cluster
             .valid_o   (tcdm_master_resp_valid[g][h][sg][t]        ),
             .ready_i   (tcdm_master_resp_ready[g][h][sg][t]        )
           );
-    
+
           fall_through_register #(
             .T(tcdm_slave_req_t)
           ) i_tcdm_slave_req_register (
@@ -232,7 +232,7 @@ module mempool_cluster
             .valid_o   (tcdm_slave_req_valid[g][h][sg][t]          ),
             .ready_i   (tcdm_slave_req_ready[g][h][sg][t]          )
           );
-    
+
           spill_register #(
             .T(tcdm_master_resp_t)
           ) i_tcdm_slave_resp_register (
@@ -286,7 +286,7 @@ module mempool_cluster
         .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
         .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
       );
-      end else begin: gen_rtl_group
+      end else if ((PostLayoutGr == 0) & PostLayoutSg & (g == 0)) begin: gen_rtl_group_postly_sg
         mempool_group #(
           .TCDMBaseAddr (TCDMBaseAddr         ),
           .BootAddr     (BootAddr             ),
@@ -326,9 +326,46 @@ module mempool_cluster
           .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
           .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
         );
+      end else begin: gen_rtl_group
+        mempool_group #(
+          .TCDMBaseAddr (TCDMBaseAddr         ),
+          .BootAddr     (BootAddr             )
+        ) i_group (
+          .clk_i                   (clk_i                                                           ),
+          .rst_ni                  (rst_ni                                                          ),
+          .testmode_i              (testmode_i                                                      ),
+          .scan_enable_i           (scan_enable_i                                                   ),
+          .scan_data_i             (/* Unconnected */                                               ),
+          .scan_data_o             (/* Unconnected */                                               ),
+          .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
+          // TCDM Master interfaces
+          .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
+          .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                                        ),
+          .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                                        ),
+          .tcdm_master_resp_i      (tcdm_master_resp[g]                                             ),
+          .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                                       ),
+          .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                                       ),
+          // TCDM banks interface
+          .tcdm_slave_req_i        (tcdm_slave_req[g]                                               ),
+          .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                                         ),
+          .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                                         ),
+          .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
+          .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
+          .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+          .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
+          .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
+          // DMA request
+          .dma_req_i               (dma_req[g]                                                      ),
+          .dma_req_valid_i         (dma_req_valid[g]                                                ),
+          .dma_req_ready_o         (dma_req_ready[g]                                                ),
+          // DMA status
+          .dma_meta_o              (dma_meta[g]                                                     ),
+          // AXI interface
+          .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
+          .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
+        );
       end
   end : gen_groups
-//`endif
 
   /*******************
    *  Interconnects  *
