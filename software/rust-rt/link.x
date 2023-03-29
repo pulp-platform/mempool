@@ -70,12 +70,15 @@ SECTIONS {
     *(.text.main)
     *(.text)
     *(.text.end)
+    *(.text.*)
     /*. = ALIGN(0x40);*/
     _etext = .;
+    . = ALIGN(0x1000);
   } > l2
 
   /* RO Data on L2 */
   .rodata : {
+    . = ALIGN(0x1000);
     *(.rodata .rodata.* .gnu.linkonce.r.*)
     . = ALIGN(0x4);
   } > l2

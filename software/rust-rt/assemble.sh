@@ -11,7 +11,7 @@ crate=rust-rt
 # remove existing blobs because otherwise this will append object files to the old blobs
 rm -f bin/*.a
 
-exts=('i' 'ic' 'im' 'imc' 'if' 'ifc' 'imf' 'imfc' 'ifd' 'ifdc' 'imfd' 'imfdc')
+exts=('i' 'ic' 'im' 'ima' 'imc' 'if' 'ifc' 'imf' 'imfc' 'ifd' 'ifdc' 'imfd' 'imfdc')
 
 for ext in ${exts[@]}
 do
