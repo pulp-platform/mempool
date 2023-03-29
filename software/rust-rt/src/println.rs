@@ -1,8 +1,8 @@
-
+/*
+Based on https://github.com/noahzarro/pulp-print
+*/
 
 use core::arch::asm;
-
-use arrform::{arrform, ArrForm};
 
 pub use numtoa;
 
@@ -34,9 +34,10 @@ pub fn end_line(){
 #[macro_export]
 macro_rules! println {
     ( $($arg:tt ),*) => {{
-        
-        println::printf(arrform!(32,$($arg),*).as_str());
-        println::printf(" ");
+        $(   
+            println::printf($arg);
+            println::printf(" ");
+        )*
         println::end_line();
     }};
 
