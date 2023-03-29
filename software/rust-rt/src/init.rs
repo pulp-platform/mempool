@@ -4,11 +4,11 @@
 
 #[export_name = "_start_rust"]
 pub unsafe extern "C" fn start_rust() -> u32 {
-  extern "Rust" {
-    fn main() -> u32;
-  }
+    extern "Rust" {
+        fn main() -> u32;
+    }
 
-  let result = main();
+    let result = main();
 
-  return result;
+    return result;
 }

@@ -5,7 +5,7 @@
 [target.riscv32i-unknown-none-elf]
 rustflags = [
   "-C", "link-arg=-Tlink.x",
-  "-C", "target-feature=m"
+  "-C", "target-feature=+m,+a"
 ]
 
 [build]
