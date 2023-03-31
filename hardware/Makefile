@@ -189,12 +189,12 @@ $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bende
 compile_vcs_simv: elabvcs $(buildpath)/mempool_simv
 $(buildpath)/mempool_simv: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
 	cd $(buildpath) && \
-	$(vcs_cmd) vcs -full64 $(top_level) $(dpi_library)/mempool_vcs_dpi.so -debug_access=r -kdb -assert disable_cover -o mempool_simv
+	$(vcs_cmd) vcs -full64 $(top_level) -cc $(CC) -cpp $(CXX) -ld $(CXX) $(dpi_library)/mempool_vcs_dpi.so -debug_access=r -kdb -assert disable_cover -o mempool_simv
 
 compile_vcs_simvopt: elabvcs $(buildpath)/mempool_simvopt
 $(buildpath)/mempool_simvopt: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
 	cd $(buildpath) && \
-	$(vcs_cmd) vcs -full64 $(top_level) $(dpi_library)/mempool_vcs_dpi.so -assert disable_cover -o mempool_simvopt
+	$(vcs_cmd) vcs -full64 $(top_level) -cc $(CC) -cpp $(CXX) -ld $(CXX) $(dpi_library)/mempool_vcs_dpi.so -assert disable_cover -o mempool_simvopt
 
 # Simulation
 simvcs: compile_vcs_simv
