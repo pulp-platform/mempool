@@ -5,6 +5,26 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
 
+# Add a vector of the core's utilization signals to quickly get an overview of the systems activity
+set num_cores [examine -radix dec mempool_pkg::NumCores]
+
+add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $num_cores -radix unsigned /mempool_tb/snitch_utilization
+add wave -noupdate -group Utilization /mempool_tb/instruction_handshake
+add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $num_cores -radix unsigned /mempool_tb/lsu_utilization
+add wave -noupdate -group Utilization /mempool_tb/lsu_handshake
+add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $num_cores -radix unsigned /mempool_tb/lsu_pressure
+add wave -noupdate -group Utilization /mempool_tb/lsu_request
+if {[examine -radix dec /snitch_pkg::XPULPIMG]} {
+  add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $num_cores -radix unsigned /mempool_tb/gen_utilization/dspu_utilization
+  add wave -noupdate -group Utilization /mempool_tb/gen_utilization/dspu_handshake
+  add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $num_cores -radix unsigned /mempool_tb/gen_utilization/mac_utilization
+  add wave -noupdate -group Utilization /mempool_tb/gen_utilization/dspu_mac
+}
+set axi_channels [expr [examine -radix dec mempool_pkg::NumGroups] * [examine -radix dec mempool_pkg::NumAXIMastersPerGroup]]
+add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $axi_channels -radix unsigned /mempool_tb/axi_w_utilization
+add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $axi_channels -radix unsigned /mempool_tb/axi_r_utilization
+
+
 # Add a vector of the core's wfi signal to quickly see which cores are active
 add wave /mempool_tb/wfi
 
