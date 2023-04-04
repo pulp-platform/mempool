@@ -13,6 +13,7 @@ dependencies:
 sources:
   - defines:
       SNITCH_ENABLE_PERF: 1
+      SNITCH_ENABLE_STALL_COUNTER: 1
     files:
     # packages
     - src/riscv_instr.sv

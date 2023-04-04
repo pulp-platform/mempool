@@ -10,6 +10,7 @@
 `include "common_cells/assertions.svh"
 
 // `SNITCH_ENABLE_PERF Enables mcycle, minstret performance counters (read only)
+// `SNITCH_ENABLE_STALL_COUNTER Enables stall_ins, stall_raw, stall_lsu performance counters (read only)
 
 module snitch
   import snitch_pkg::meta_id_t;
@@ -291,11 +292,14 @@ module snitch
   `ifdef SNITCH_ENABLE_PERF
   logic [63:0] cycle_q;
   logic [63:0] instret_q;
+  `FFAR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
+  `FFLAR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
+  `endif
+
+  `ifdef SNITCH_ENABLE_STALL_COUNTER
   logic [31:0] stall_ins_q;
   logic [31:0] stall_raw_q;
   logic [31:0] stall_lsu_q;
-  `FFAR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
-  `FFLAR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
   `FFLAR(stall_ins_q, stall_ins_q + 1, stall && (!inst_ready_i) && inst_valid_o, '0, clk_i, rst_i)
   `FFLAR(stall_raw_q, stall_raw_q + 1, (!operands_ready) || (!dst_ready), '0, clk_i, rst_i)
   `FFLAR(stall_lsu_q, stall_lsu_q + 1, lsu_stall, '0, clk_i, rst_i)
@@ -1417,6 +1421,8 @@ module snitch
         riscv_instr::CSR_MINSTRETH: begin
           csr_rvalue = instret_q[63:32];
         end
+        `endif
+        `ifdef SNITCH_ENABLE_STALL_COUNTER
         riscv_instr::CSR_MHPMCOUNTER3: begin
           csr_rvalue = stall_ins_q[31:0];
         end
@@ -1436,8 +1442,13 @@ module snitch
   end
 
   // CSR registers
-  `FFLAR(csr_trace_q, alu_result, csr_trace_en, '0, clk_i, rst_i);
-  `FFLAR(csr_stack_limit_q, alu_result, csr_stack_limit_en, 32'hFFFF_FFFF, clk_i, rst_i);
+  `ifdef TARGET_ASIC
+    assign csr_trace_q = '0;
+    assign csr_stack_limit_q = '0;
+  `else
+    `FFLAR(csr_trace_q, alu_result, csr_trace_en, '0, clk_i, rst_i);
+    `FFLAR(csr_stack_limit_q, alu_result, csr_stack_limit_en, 32'hFFFF_FFFF, clk_i, rst_i);
+  `endif
 
   // pragma translate_off
   always_ff @(posedge clk_i or posedge rst_i) begin
