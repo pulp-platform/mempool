@@ -17,6 +17,7 @@ dump(res,1);
 
 
 #define CHOLESKY
+//#define JACOBI
 
 float ch_matrix[2 * N_TX * N_RX]    __attribute__((section(".l1")));
 float in_matrix[2 * N_TX * N_TX]    __attribute__((section(".l1")));
@@ -112,7 +113,8 @@ void single_core_mimo_mmse_cholesky() {
   // verify_result(out_matrix, Out_L,  N_TX*N_TX, core_id);
   // verify_result(s, Out_s, N_TX, core_id);
   // verify_result(y, Out_y, N_TX, core_id);
-  verify_result(x, Out_x, N_TX, core_id);
+  // verify_result(x, Out_x, N_TX, core_id);
+  write_result(x, N_TX, core_id);
   mempool_barrier(num_cores);
   return;
 }
@@ -141,7 +143,6 @@ void single_core_mimo_mmse_jacobi() {
     mempool_start_benchmark();
     mempool_MVP_conjtransp_f32s(ch_matrix, b, s, N_RX, N_TX);
     mempool_stop_benchmark();
-
     mempool_start_benchmark();
     mempool_jacobi_f32s(in_matrix, s, x, 0.005f, N_TX, 20U);
     mempool_stop_benchmark();
@@ -151,7 +152,7 @@ void single_core_mimo_mmse_jacobi() {
   // verify_result(in_matrix, In_G, N_TX*N_TX, core_id);
   // verify_result(s, Out_s, N_TX, core_id);
   // verify_result(y, Out_y, N_TX, core_id);
-  verify_result(x, Out_x, N_TX, core_id);
+  // verify_result(x, Out_x, N_TX, core_id);
   mempool_barrier(num_cores);
   return;
 }

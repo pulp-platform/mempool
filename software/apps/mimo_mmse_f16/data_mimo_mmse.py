@@ -83,7 +83,7 @@ def main():
     # Linear system solution
     s = np.transpose(np.dot(H_h, b))
     y = solve_triangular(L, s, lower=True)
-    x = solve_triangular(np.transpose(L), y)
+    x = solve_triangular(np.asmatrix(L).H, y)
 
     H = np.reshape(H, (N_tx*N_rx, -1), order='C')
     G = np.reshape(G, (N_tx*N_tx, -1), order='C')
