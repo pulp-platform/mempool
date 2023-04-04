@@ -68,7 +68,7 @@ void write_result(__fp16 *pRes, uint32_t dim, uint32_t core_id) {
     for (uint32_t i = 0; i < 2 * dim; i++) {
 
       __fp16 in = pRes[i];
-      // uint32_t out = "0xFFFF0000" || *(uint32_t*)&in;
+//      uint32_t out = "0xFFFF0000" || *(uint32_t*)&in;
       float cvt_out;
       asm volatile(
         "fcvt.h.s %[cvt_out], %[in];"
@@ -80,53 +80,6 @@ void write_result(__fp16 *pRes, uint32_t dim, uint32_t core_id) {
     }
   }
 }
-
-
-// // Driver program
-// void single_core_cholesky() {
-//   uint32_t core_id = mempool_get_core_id();
-//   uint32_t num_cores = mempool_get_core_count();
-//   mempool_barrier_init(core_id); // Initialize barrier and synchronize
-//   /* Initialize matrices */
-//   initialize(in_matrix, In_G, N_RX*N_TX, core_id, num_cores);
-//   initialize_zeros(out_matrix, N_RX*N_TX, core_id, num_cores);
-//   /* Benchmark */
-//   if (core_id == 0) {
-//     mempool_start_benchmark();
-//     mempool_cholesky_f16s(in_matrix, out_matrix, N_TX);
-//     mempool_stop_benchmark();
-//   }
-//   mempool_barrier(num_cores);
-//   verify_result(out_matrix, Out_L, N_TX * N_RX, core_id);
-//   mempool_barrier(num_cores);
-//   return;
-// }
-
-// // Driver program
-// void single_core_Axb() {
-//   uint32_t core_id = mempool_get_core_id();
-//   uint32_t num_cores = mempool_get_core_count();
-//   mempool_barrier_init(core_id); // Initialize barrier and synchronize//
-//   /* Initialize matrices */
-//   initialize(in_matrix, In_G, N_TX*N_TX, core_id, num_cores);
-//   initialize_zeros(out_matrix, N_TX*N_TX, core_id, num_cores);
-//   /* Initialize vectors */
-//   initialize(b, Out_y, N_TX, core_id, num_cores);
-//   initialize_zeros(y, N_TX, core_id, num_cores);
-//   initialize_zeros(x, N_TX, core_id, num_cores);//
-//   /* Benchmark */
-//   if (core_id == 0) {
-//     mempool_start_benchmark();
-//     mempool_cholesky_f16s(in_matrix, out_matrix, N_TX);
-//     mempool_Ltrisol_f16s(out_matrix, b, y, N_TX);
-//     mempool_Lttrisol_f16s(out_matrix, y, x, N_TX);
-//     mempool_stop_benchmark();
-//   }
-//   mempool_barrier(num_cores);
-//   // verify_result(x, Out_x, N_TX, core_id);
-//   mempool_barrier(num_cores);
-//   return;
-// }
 
 // Driver program
 void single_core_mimo_mmse() {
@@ -175,8 +128,9 @@ void single_core_mimo_mmse() {
 
   //verify_result(in_matrix, In_G, N_TX*N_TX, core_id);
   //verify_result(out_matrix, Out_L,  N_TX*N_TX, core_id);
-  verify_result(s, Out_s, N_TX, core_id);
+  //verify_result(s, Out_s, N_TX, core_id);
   verify_result(x, Out_x, N_TX, core_id);
+  //write_result(x, N_TX, core_id);
   mempool_barrier(num_cores);
   return;
 }

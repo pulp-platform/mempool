@@ -282,14 +282,14 @@ void mempool_Ltrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
   float c, d;
 
   float as, bs;
-  float ab, bb;
   float ax, bx;
   float diag;
 
   // Solve for each variable x_i in turn
   for (i = 0; i < n; i++) {
-    as = 0.0f;
-    bs = 0.0f;
+    as = in[2U * i];
+    bs = in[2U * i + 1];
+    diag = pL[2 * (i * n + i)];
     // Use the previously solved variables to calculate the sum
     for (j = 0; j < i; j++) {
       a = pL[2U * (i * n + j)];
@@ -297,26 +297,20 @@ void mempool_Ltrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
       c = x[2U * j];
       d = x[2U * j + 1];
       asm volatile (
-        "fmadd.s  %[as], %[a], %[c], %[as];"
-        "fnmsub.s %[as], %[b], %[d], %[as];"
-        "fmadd.s %[bs], %[a], %[d], %[bs];"
-        "fmadd.s %[bs], %[b], %[c], %[bs];"
+        "fnmsub.s %[as], %[a], %[c], %[as];"
+        "fnmsub.s %[bs], %[a], %[d], %[bs];"
+        "fmadd.s  %[as], %[b], %[d], %[as];"
+        "fnmsub.s %[bs], %[b], %[c], %[bs];"
         : [as] "+&r" (as), [bs] "+&r" (bs)
         : [a] "r" (a), [b] "r" (b), [c] "r" (c), [d] "r" (d)
         :);
     }
     // Subtract the sum from b_i and divide by the diagonal element L[i][i]
-    diag = pL[2 * (i * n + i)];
-    ab = in[2U * i];
-    bb = in[2U * i + 1];
     asm volatile (
-      "fsub.s %[ax], %[ab], %[as];"
-      "fsub.s %[bx], %[bb], %[bs];"
-      "fdiv.s %[ax], %[ax], %[diag];"
-      "fdiv.s %[bx], %[bx], %[diag];"
+      "fdiv.s %[ax], %[as], %[diag];"
+      "fdiv.s %[bx], %[bs], %[diag];"
       : [ax] "+&r" (ax), [bx] "+&r" (bx)
-      : [ab] "r" (ab), [bb] "r" (bb),
-        [as] "r" (as), [bs] "r" (bs), [diag] "r" (diag)
+      : [as] "r" (as), [bs] "r" (bs), [diag] "r" (diag)
       :);
     x[2U * i] = ax;
     x[2U * i + 1] = bx;
@@ -331,14 +325,14 @@ void mempool_Lttrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
   float c, d;
 
   float as, bs;
-  float ab, bb;
   float ax, bx;
   float diag;
 
   // Solve for each variable x_i in turn
   for (i = 0; i < n; i++) {
-    as = 0.0f;
-    bs = 0.0f;
+    diag = pL[2 * ((n - 1 - i) * n + (n - 1 - i))];
+    as = in[2 * (n - i - 1)];
+    bs = in[2 * (n - i - 1) + 1];
     // Use the previously solved variables to calculate the sum
     for (j = 0; j < i; j++) {
       a = pL[2U * ((n - 1 - j) * n + (n - 1 - i))];
@@ -346,26 +340,20 @@ void mempool_Lttrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
       c = x[2U * (n - 1 - j)];
       d = x[2U * (n - 1 - j) + 1];
       asm volatile (
-        "fmadd.s  %[as], %[a], %[c], %[as];"
+        "fnmsub.s  %[as], %[a], %[c], %[as];"
         "fnmsub.s %[as], %[b], %[d], %[as];"
-        "fmadd.s  %[bs], %[a], %[d], %[bs];"
+        "fnmsub.s  %[bs], %[a], %[d], %[bs];"
         "fmadd.s  %[bs], %[b], %[c], %[bs];"
         : [as] "+&r" (as), [bs] "+&r" (bs)
         : [a] "r" (a), [b] "r" (b), [c] "r" (c), [d] "r" (d)
         :);
     }
     // Subtract the sum from b_i and divide by the diagonal element L[i][i]
-    diag = pL[2 * ((n - 1 - i) * n + (n - 1 - i))];
-    ab = in[2 * (n - i - 1)];
-    bb = in[2 * (n - i - 1) + 1];
     asm volatile (
-      "fsub.s %[ax], %[ab], %[as];"
-      "fsub.s %[bx], %[bb], %[bs];"
-      "fdiv.s %[ax], %[ax], %[diag];"
-      "fdiv.s %[bx], %[bx], %[diag];"
+      "fdiv.s %[ax], %[as], %[diag];"
+      "fdiv.s %[bx], %[bs], %[diag];"
       : [ax] "+&r" (ax), [bx] "+&r" (bx)
-      : [ab] "r" (ab), [bb] "r" (bb),
-        [as] "r" (as), [bs] "r" (bs), [diag] "r" (diag)
+      : [as] "r" (as), [bs] "r" (bs), [diag] "r" (diag)
       :);
     x[2U * (n - i - 1)] = ax;
     x[2U * (n - i - 1) + 1] = bx;
@@ -458,4 +446,3 @@ void mempool_jacobi_f32s(float* pA, float* in, float* x, float tol, const uint32
   }
   return;
 }
-
