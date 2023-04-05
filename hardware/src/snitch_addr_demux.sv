@@ -38,16 +38,25 @@ module snitch_addr_demux
   input  address_map_t [NumRules-1:0]     address_map_i
 );
 
-  logic [LogNrOutput-1:0]      slave_select;
-  logic [NumRules-1:0]         addr_match;
-  logic [idx_width(NumRules)-1:0] rule_select;
+  localparam type idx_t = logic [LogNrOutput-1:0];
 
-  assign slave_select = address_map_i[rule_select].slave_idx;
+  idx_t                           slave_select;
+  address_map_t                   addr_select;
+  logic [NumRules-1:0]            addr_match;
+  logic [idx_width(NumRules)-1:0] rule_select;
 
   // Address Decoder
   always_comb begin : addr_decoder
+    addr_match = '0;
+    slave_select = '0;
+    addr_select = '0;
+
     for (int i = 0; i < NumRules; i++) begin
-      addr_match[i] = (req_addr_i & address_map_i[i].mask) == address_map_i[i].value;
+      if ((req_addr_i & address_map_i[i].mask) == address_map_i[i].value) begin
+        addr_match[i] = 1'b1;
+        addr_select = address_map_i[rule_select];
+        slave_select = idx_t'(addr_select.slave_idx);
+      end
     end
   end
 
