@@ -4,8 +4,11 @@
 
 #![no_std]
 
+extern crate embedded_alloc;
 extern crate riscv;
 extern crate riscv_rt_macros as macros;
+
+extern crate alloc;
 
 pub use macros::entry;
 
