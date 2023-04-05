@@ -23,6 +23,10 @@ SECTIONS {
   __stack_start = __l1_start;
   __stack_end = __l1_start + 0x400;
 
+  /*Heap size (start adress is re-assigned below)*/
+  __heap_start = __l1_start;
+  __heap_end = __l1_end;
+
   /* Hardware register location */
   eoc_reg                = 0x40000000;
   wake_up_reg            = 0x40000004;
@@ -61,6 +65,7 @@ SECTIONS {
     *(.l1)
     *(.bss)
     __l1_alloc_base = ALIGN(0x10);
+    __heap_start = .;
   } > l1
 
   /* Instructions on L2 */

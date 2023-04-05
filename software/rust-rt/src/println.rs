@@ -4,8 +4,6 @@ Based on https://github.com/noahzarro/pulp-print
 
 use core::arch::asm;
 
-pub use numtoa;
-
 pub fn printf(text: &str) {
     for byte in text.as_bytes() {
         unsafe {
@@ -30,11 +28,8 @@ pub fn end_line() {
 
 #[macro_export]
 macro_rules! println {
-    ( $($arg:tt ),*) => {{
-        $(
-            println::printf($arg);
-            println::printf(" ");
-        )*
+    ( $($arg:tt),*) => {{
+        println::printf(format!($($arg),*).as_str());
         println::end_line();
     }};
 
@@ -43,55 +38,6 @@ macro_rules! println {
 #[macro_export]
 macro_rules! print {
     ( $( $arg:tt ), *) => {{
-        $(
-            println::printf($arg);
-            println::printf(" ");
-        )*
-    }};
-}
-
-pub enum Format {
-    Dec,
-    Hex,
-    Bin,
-}
-
-#[macro_export]
-macro_rules! print_nr {
-    ($name:tt,$number:tt,$format:path) => {{
-        use println::numtoa::NumToA;
-        use println::printf;
-        printf($name);
-        printf(": ");
-        let mut buf = [0u8; 100];
-        let number = match $format {
-            Format::Hex => $number.numtoa_str(16, &mut buf),
-            Format::Bin => $number.numtoa_str(2, &mut buf),
-            _ => $number.numtoa_str(10, &mut buf),
-        };
-
-        match $format {
-            Format::Hex => printf("0x"),
-            Format::Bin => printf("0b"),
-            _ => (),
-        };
-        printf(number);
-        printf("\n");
-    }};
-}
-
-#[macro_export]
-macro_rules! print_nr_only {
-    ($number:tt,$format:path) => {{
-        use println::numtoa::NumToA;
-        use println::printf;
-        let mut buf = [0u8; 100];
-        let number = match $format {
-            Format::Hex => $number.numtoa_str(16, &mut buf),
-            Format::Bin => $number.numtoa_str(2, &mut buf),
-            _ => $number.numtoa_str(10, &mut buf),
-        };
-        printf(number);
-        printf("\n");
+        println::printf(format!($($arg),*).as_str());
     }};
 }
