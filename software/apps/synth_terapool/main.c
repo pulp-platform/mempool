@@ -16,7 +16,8 @@
 
 // Prototypes
 static inline void power_profile(int32_t *const a);
-static inline void power_profile_remote_lw(int32_t *const a, uint32_t remote_tile, uint32_t remote_sub_group, uint32_t remote_group);
+static inline void power_profile_lw_rtile(int32_t *const a, uint32_t remote_tile);
+static inline void power_profile_lw_rgrup(int32_t *const a, uint32_t remote_sub_group, uint32_t remote_group);
 
 // Globals
 int32_t block_a[N] __attribute__((aligned(NUM_CORES * 4), section(".l1")));
@@ -41,7 +42,7 @@ int main() {
   mempool_barrier(num_cores);
   power_profile(block_a);
 
-  // Remote lw testing
+  // Remote tile lw testing
   // Don't use core_0 to avoid lsu conflict with barrier
   mempool_barrier(num_cores);
   uint32_t tile_id = (core_id / NUM_CORES_PER_TILE) % NUM_TILES_PER_SUB_GROUP;
@@ -50,10 +51,18 @@ int main() {
   uint32_t number_banks_per_sub_group = BANKING_FACTOR * NUM_CORES_PER_SUB_GROUP;
   uint32_t number_banks_per_group = BANKING_FACTOR * NUM_CORES_PER_GROUP;
   uint32_t remote_tile = (core_id * BANKING_FACTOR + NUM_BANKS_PER_TILE) - (tile_id/(NUM_TILES_PER_SUB_GROUP-1)) * number_banks_per_sub_group;
-  uint32_t remote_sub_group = (core_id * BANKING_FACTOR + number_banks_per_sub_group) - (sub_group_id/(NUM_SUB_GROUPS_PER_GROUP-1)) * number_banks_per_group;
-  uint32_t remote_group = (core_id * BANKING_FACTOR + number_banks_per_group) - (group_id/(NUM_GROUPS-1)) * NUM_CORES * BANKING_FACTOR;
+  uint32_t remote_sub_group = (core_id * BANKING_FACTOR + ((core_id % 8) + 1) * number_banks_per_sub_group) - ((sub_group_id + (core_id % 8))/(NUM_SUB_GROUPS_PER_GROUP-1)) * number_banks_per_group;
+  uint32_t remote_group = (core_id * BANKING_FACTOR + ((core_id % 8) + 1) * number_banks_per_group) - ((group_id+ (core_id % 8))/(NUM_GROUPS-1)) * NUM_CORES * BANKING_FACTOR;
   if ((core_id % 8) == 6) {
-    power_profile_remote_lw(block_a, remote_tile, remote_sub_group, remote_group);
+    power_profile_lw_rtile(block_a, remote_tile);
+  } else {
+    mempool_wait(500);
+  }
+
+  // Remote sub-group/group lw testing
+  mempool_barrier(num_cores);
+  if ((core_id % 8) < 3) {
+    power_profile_lw_rgrup(block_a, remote_sub_group, remote_group);
   } else {
     mempool_wait(2000);
   }
@@ -258,13 +267,10 @@ static inline void power_profile(int32_t *const a) {
       : "memory");
 }
 
-
-static inline void power_profile_remote_lw(int32_t *const a, uint32_t remote_tile, uint32_t remote_sub_group, uint32_t remote_group) {
+static inline void power_profile_lw_rtile(int32_t *const a, uint32_t remote_tile) {
 
   // Address to load from are [addr:addr+3]
   volatile int32_t* addr_remote_tile = &a[remote_tile];
-  volatile int32_t* addr_remote_sub_group = &a[remote_sub_group];
-  volatile int32_t* addr_remote_group = &a[remote_group];
 
   // Do this loop M times
   int const num_loops = 2;
@@ -356,6 +362,111 @@ static inline void power_profile_remote_lw(int32_t *const a, uint32_t remote_til
       "addi %[idx], %[idx], -1 \n\t"
       "bne %[idx], %[im_0], 2b \n\t"
       "addi %[idx], %[idx], %[num_loops] \n\t"
+      ".balign 16 \n\t"
+      : [a0] "=&r"(a0), [a1] "=&r"(a1), [a2] "=&r"(a2),
+        [a3] "=&r"(a3), [a4] "=&r"(a4), [a5] "=&r"(a5), [a6] "=&r"(a6),
+        [a7] "=&r"(a7), [idx] "+&r"(idx)
+      : [im_0] "r"(im_0), [num_loops] "I"(num_loops),
+        [a_remote_tile] "r"(addr_remote_tile)
+      : "memory");
+}
+
+static inline void power_profile_lw_rgrup(int32_t *const a, uint32_t remote_sub_group, uint32_t remote_group) {
+
+  // Address to load from are [addr:addr+3]
+  volatile int32_t* addr_remote_sub_group = &a[remote_sub_group];
+  volatile int32_t* addr_remote_group = &a[remote_group];
+
+  // Do this loop M times
+  int const num_loops = 2;
+  int32_t idx = num_loops;
+  int32_t im_0 = 0;
+  // Temporary registers
+  register int32_t a0;
+  register int32_t a1;
+  register int32_t a2;
+  register int32_t a3;
+  register int32_t a4;
+  register int32_t a5;
+  register int32_t a6;
+  register int32_t a7;
+  __asm__ volatile(
+      // NOP to wait for instruction cache refill
+      ".balign 16 \n\t"
+      "1: \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "nop \n\t"
+      "addi %[idx], %[idx], -1 \n\t"
+      "bne %[idx], %[im_0], 1b \n\t"
+      "addi %[idx], %[idx], %[num_loops] \n\t"
+      // remote sub-group load from same group
+      ".balign 16 \n\t"
+      "2: \n\t"
+      "lw %[a0],  0(%[a_remote_sub_group]) \n\t"
+      "lw %[a1],  4(%[a_remote_sub_group]) \n\t"
+      "lw %[a2],  8(%[a_remote_sub_group]) \n\t"
+      "lw %[a3], 12(%[a_remote_sub_group]) \n\t"
+      "lw %[a4],  0(%[a_remote_sub_group]) \n\t"
+      "lw %[a5],  4(%[a_remote_sub_group]) \n\t"
+      "lw %[a6],  8(%[a_remote_sub_group]) \n\t"
+      "lw %[a7], 12(%[a_remote_sub_group]) \n\t"
+      "lw %[a0],  0(%[a_remote_sub_group]) \n\t"
+      "lw %[a1],  4(%[a_remote_sub_group]) \n\t"
+      "lw %[a2],  8(%[a_remote_sub_group]) \n\t"
+      "lw %[a3], 12(%[a_remote_sub_group]) \n\t"
+      "lw %[a4],  0(%[a_remote_sub_group]) \n\t"
+      "lw %[a5],  4(%[a_remote_sub_group]) \n\t"
+      "lw %[a6],  8(%[a_remote_sub_group]) \n\t"
+      "lw %[a7], 12(%[a_remote_sub_group]) \n\t"
+      "lw %[a0],  0(%[a_remote_sub_group]) \n\t"
+      "lw %[a1],  4(%[a_remote_sub_group]) \n\t"
+      "lw %[a2],  8(%[a_remote_sub_group]) \n\t"
+      "lw %[a3], 12(%[a_remote_sub_group]) \n\t"
+      "lw %[a4],  0(%[a_remote_sub_group]) \n\t"
+      "lw %[a5],  4(%[a_remote_sub_group]) \n\t"
+      "lw %[a6],  8(%[a_remote_sub_group]) \n\t"
+      "lw %[a7], 12(%[a_remote_sub_group]) \n\t"
+      "lw %[a0],  0(%[a_remote_sub_group]) \n\t"
+      "lw %[a1],  4(%[a_remote_sub_group]) \n\t"
+      "lw %[a2],  8(%[a_remote_sub_group]) \n\t"
+      "lw %[a3], 12(%[a_remote_sub_group]) \n\t"
+      "lw %[a4],  0(%[a_remote_sub_group]) \n\t"
+      "lw %[a5],  4(%[a_remote_sub_group]) \n\t"
+      "lw %[a6],  8(%[a_remote_sub_group]) \n\t"
+      "lw %[a7], 12(%[a_remote_sub_group]) \n\t"
+      "addi %[idx], %[idx], -1 \n\t"
+      "bne %[idx], %[im_0], 2b \n\t"
+      "addi %[idx], %[idx], %[num_loops] \n\t"
       // NOP to avoid not resolved instructions
       ".balign 16 \n\t"
       "3: \n\t"
@@ -394,85 +505,9 @@ static inline void power_profile_remote_lw(int32_t *const a, uint32_t remote_til
       "addi %[idx], %[idx], -1 \n\t"
       "bne %[idx], %[im_0], 3b \n\t"
       "addi %[idx], %[idx], %[num_loops] \n\t"
-      // remote sub-group load from same group
-      ".balign 16 \n\t"
-      "4: \n\t"
-      "lw %[a0],  0(%[a_remote_sub_group]) \n\t"
-      "lw %[a1],  4(%[a_remote_sub_group]) \n\t"
-      "lw %[a2],  8(%[a_remote_sub_group]) \n\t"
-      "lw %[a3], 12(%[a_remote_sub_group]) \n\t"
-      "lw %[a4],  0(%[a_remote_sub_group]) \n\t"
-      "lw %[a5],  4(%[a_remote_sub_group]) \n\t"
-      "lw %[a6],  8(%[a_remote_sub_group]) \n\t"
-      "lw %[a7], 12(%[a_remote_sub_group]) \n\t"
-      "lw %[a0],  0(%[a_remote_sub_group]) \n\t"
-      "lw %[a1],  4(%[a_remote_sub_group]) \n\t"
-      "lw %[a2],  8(%[a_remote_sub_group]) \n\t"
-      "lw %[a3], 12(%[a_remote_sub_group]) \n\t"
-      "lw %[a4],  0(%[a_remote_sub_group]) \n\t"
-      "lw %[a5],  4(%[a_remote_sub_group]) \n\t"
-      "lw %[a6],  8(%[a_remote_sub_group]) \n\t"
-      "lw %[a7], 12(%[a_remote_sub_group]) \n\t"
-      "lw %[a0],  0(%[a_remote_sub_group]) \n\t"
-      "lw %[a1],  4(%[a_remote_sub_group]) \n\t"
-      "lw %[a2],  8(%[a_remote_sub_group]) \n\t"
-      "lw %[a3], 12(%[a_remote_sub_group]) \n\t"
-      "lw %[a4],  0(%[a_remote_sub_group]) \n\t"
-      "lw %[a5],  4(%[a_remote_sub_group]) \n\t"
-      "lw %[a6],  8(%[a_remote_sub_group]) \n\t"
-      "lw %[a7], 12(%[a_remote_sub_group]) \n\t"
-      "lw %[a0],  0(%[a_remote_sub_group]) \n\t"
-      "lw %[a1],  4(%[a_remote_sub_group]) \n\t"
-      "lw %[a2],  8(%[a_remote_sub_group]) \n\t"
-      "lw %[a3], 12(%[a_remote_sub_group]) \n\t"
-      "lw %[a4],  0(%[a_remote_sub_group]) \n\t"
-      "lw %[a5],  4(%[a_remote_sub_group]) \n\t"
-      "lw %[a6],  8(%[a_remote_sub_group]) \n\t"
-      "lw %[a7], 12(%[a_remote_sub_group]) \n\t"
-      "addi %[idx], %[idx], -1 \n\t"
-      "bne %[idx], %[im_0], 4b \n\t"
-      "addi %[idx], %[idx], %[num_loops] \n\t"
-      // NOP to avoid not resolved instructions
-      ".balign 16 \n\t"
-      "5: \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "nop \n\t"
-      "addi %[idx], %[idx], -1 \n\t"
-      "bne %[idx], %[im_0], 5b \n\t"
-      "addi %[idx], %[idx], %[num_loops] \n\t"
       // remote group load
       ".balign 16 \n\t"
-      "6: \n\t"
+      "4: \n\t"
       "lw %[a0],  0(%[a_remote_group]) \n\t"
       "lw %[a1],  4(%[a_remote_group]) \n\t"
       "lw %[a2],  8(%[a_remote_group]) \n\t"
@@ -506,14 +541,13 @@ static inline void power_profile_remote_lw(int32_t *const a, uint32_t remote_til
       "lw %[a6],  8(%[a_remote_group]) \n\t"
       "lw %[a7], 12(%[a_remote_group]) \n\t"
       "addi %[idx], %[idx], -1 \n\t"
-      "bne %[idx], %[im_0], 6b \n\t"
+      "bne %[idx], %[im_0], 4b \n\t"
       "addi %[idx], %[idx], %[num_loops] \n\t"
       ".balign 16 \n\t"
       : [a0] "=&r"(a0), [a1] "=&r"(a1), [a2] "=&r"(a2),
         [a3] "=&r"(a3), [a4] "=&r"(a4), [a5] "=&r"(a5), [a6] "=&r"(a6),
         [a7] "=&r"(a7), [idx] "+&r"(idx)
       : [im_0] "r"(im_0), [num_loops] "I"(num_loops),
-        [a_remote_tile] "r"(addr_remote_tile),
         [a_remote_sub_group] "r"(addr_remote_sub_group),
         [a_remote_group] "r"(addr_remote_group)
       : "memory");
