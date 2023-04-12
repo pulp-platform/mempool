@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+# This script generates data for the Channel estimation.
+# Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
+
 import numpy as np
 import argparse
 import pathlib
@@ -90,7 +97,7 @@ def main():
         "--num_beams",
         type=int,
         required=False,
-        default=32,
+        default=4,
         help='Number beams'
     )
     parser.add_argument(
@@ -98,7 +105,7 @@ def main():
         "--num_layers",
         type=int,
         required=False,
-        default=32,
+        default=4,
         help='Number layers'
     )
     parser.add_argument(
@@ -161,22 +168,15 @@ def main():
     qvector_Hest = []
     for k in range(nb_samples):
         pilot_tx = 1 * np.exp(1j * np.random.randn(nb_tx))
-        pilot_rx = H * pilot_tx
-
+        pilot_rx = np.dot(H, pilot_tx)
         fixed_point = 12
         scaling_factor = 1
         q_pilot_tx = fixed_point_conversion(
             np.reshape(pilot_tx, [nb_tx]), fixed_point, 1)
         q_pilot_rx = fixed_point_conversion(
-            np.reshape(
-                pilot_rx,
-                [nb_rx]),
-            fixed_point,
-            scaling_factor)
+            np.reshape(pilot_rx, [nb_rx]), fixed_point, scaling_factor)
         q_H = fixed_point_conversion(
-            np.reshape(
-                H.channel_gains, [
-                    nb_tx * nb_rx]), fixed_point, scaling_factor)
+            np.reshape(H, [nb_tx * nb_rx]), fixed_point, scaling_factor)
         q_Hest = compute_result(q_pilot_rx, q_pilot_tx, fixed_point)
         qvector_pilot_tx.append(q_pilot_tx)
         qvector_pilot_rx.append(q_pilot_rx)
