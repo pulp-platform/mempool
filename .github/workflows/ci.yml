@@ -303,7 +303,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps all
+        COMPILER=llvm make -C software/apps all_llvm
     - name: Tar apps-llvm Model
       run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst software/bin
     - name: Upload apps-llvm

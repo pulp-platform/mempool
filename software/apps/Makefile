@@ -24,8 +24,13 @@ else
 	ALL := $(filter-out systolic/%,$(APPS))
 endif
 
+ALL_LLVM := $(filter-out chest_q16, $(ALL))
+
 # Make all applications
 all: $(ALL)
+
+# Make only applications with full llvm support
+all_llvm: $(ALL_LLVM)
 
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
