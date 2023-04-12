@@ -15,6 +15,12 @@ import pandas as pd
 import numpy as np
 import re
 
+
+def create_dataframe(directory: str):
+    keys = ['cycles',
+            'max_cycles',
+            'min_cycles',
+            'std_cycles',
             'snitch_loads',
             'snitch_stores',
             'snitch_avg_load_latency',
@@ -70,14 +76,19 @@ import re
         filetext = open(filename).read()
         values = []
         for key in keys:
-            values.append(re.findall(r'\b%s\b\s*[+-]?([0-9]*[.]?[0-9]+)' %(key), filetext))
+            values.append(
+                re.findall(
+                    r'\b%s\b\s*[+-]?([0-9]*[.]?[0-9]+)' %
+                    (key), filetext))
         df[subdir] = (np.asarray(values)).flatten()
     return df
 
-def main ():
+
+def main():
     script_path = pathlib.Path(__file__).parent.absolute()
     # Parse arguments
-    parser = argparse.ArgumentParser(description='Extract performance data from log files')
+    parser = argparse.ArgumentParser(
+        description='Extract performance data from log files')
     parser.add_argument(
         "-i",
         "--input",
@@ -103,6 +114,7 @@ def main ():
     args = parser.parse_args()
     df = create_dataframe(args.input)
     df.to_excel(os.path.join(args.output, 'table.xls'))
+
 
 if __name__ == "__main__":
     main()

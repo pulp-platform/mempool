@@ -10,10 +10,13 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#if NUM_CORES == (256)
+#if NUM_CORES == (16)
+#define LOG2_NUM_CORES (4)
+#elif NUM_CORES == (256)
 #define LOG2_NUM_CORES (8)
 #elif NUM_CORES == (1024)
 #define LOG2_NUM_CORES (10)
+
 #endif
 
 uint32_t volatile barrier __attribute__((section(".l1")));
@@ -41,6 +44,11 @@ void mempool_barrier_init(uint32_t core_id) {
 
 /* PLAIN BARRIER */
 
+/**
+  @brief         Central counter barrier
+  @param[in]     num_cores Number of cores arriving at the barrier
+  @return        none
+*/
 void mempool_barrier(uint32_t num_cores) {
   // Increment the barrier counter
   if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
@@ -53,6 +61,15 @@ void mempool_barrier(uint32_t num_cores) {
   mempool_wfi();
 }
 
+/**
+  @brief         Central counter barrier with stride and offset
+  @param[in]     barrier Pointer to the barrier variable (can be assigned
+  locally depending on the offset)
+  @param[in]     num_cores Number of cores arriving at the barrier
+  @param[in]     stride Stride between cores to wake up
+  @param[in]     offset ID of the first core involved in the barrier
+  @return        none
+*/
 void mempool_strided_barrier(uint32_t *barrier, uint32_t num_cores,
                              uint32_t stride, uint32_t offset) {
 
@@ -71,6 +88,12 @@ void mempool_strided_barrier(uint32_t *barrier, uint32_t num_cores,
 
 /* LOG BARRIER */
 
+/**
+  @brief         Log2 tree barrier
+  @param[in]     step Step of the logarithmic tree (must be set to 2)
+  @param[in]     core_id ID of the core arriving at the barrier
+  @return        none
+*/
 void mempool_log_barrier(uint32_t step, uint32_t core_id) {
   uint32_t idx = (step * (core_id / step)) * 4;
   uint32_t next_step, previous_step;
@@ -93,9 +116,18 @@ void mempool_log_barrier(uint32_t step, uint32_t core_id) {
     mempool_wfi();
 }
 
+/**
+  @brief         Tree barrier with any radix. In each step a central counter
+  barrier is used.
+  @param[in]     radix log2(barrier radix), e.g. radix 2 -> 1
+  @param[in]     core_id ID of the core arriving at the barrier
+  @return        none
+*/
 void mempool_anyradixlog_barrier(uint32_t radix, uint32_t core_id) {
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t first_step = (LOG2_NUM_CORES % radix) == 0 ? (1U << radix) : 1U << (LOG2_NUM_CORES % radix);
+  uint32_t first_step = (LOG2_NUM_CORES % radix) == 0
+                            ? (1U << radix)
+                            : 1U << (LOG2_NUM_CORES % radix);
   uint32_t step = 0, previous_step = 0;
   // At first step you take care of the remainder
   uint32_t idx = (first_step * (core_id / first_step)) * 4;
@@ -129,6 +161,13 @@ void mempool_anyradixlog_barrier(uint32_t radix, uint32_t core_id) {
   mempool_wfi();
 }
 
+/**
+  @brief         Central counter barrier on a subset of cores + log2 tree
+  barrier
+  @param[in]     step Number of cores in central counter barrier
+  @param[in]     core_id ID of the core arriving at the barrier
+  @return        none
+*/
 void mempool_linlog_barrier(uint32_t step, uint32_t core_id) {
 
   uint32_t idx = (step * (core_id / step)) * 4;
@@ -152,6 +191,13 @@ void mempool_linlog_barrier(uint32_t step, uint32_t core_id) {
     mempool_wfi();
 }
 
+/**
+  @brief         Log2 tree barrier with stride and offset
+  @param[in]     step Step of the logarithmic tree (must be set to 2)
+  @param[in]     stride Stride between cores to wake up
+  @param[in]     offset ID of the first core involved in the barrier
+  @return        none
+*/
 void mempool_strided_log_barrier(uint32_t step, uint32_t core_id,
                                  uint32_t stride, uint32_t offset) {
 
@@ -183,6 +229,13 @@ void mempool_strided_log_barrier(uint32_t step, uint32_t core_id,
 
 /* PARTIAL BARRIER */
 
+/**
+  @brief         Log2 tree barrier on a subset of cores
+  @param[in]     step Step of the logarithmic tree (must be set to 2)
+  @param[in]     core_id ID of the first core involved in the barrier
+  @param[in]     num_cores_barrier Number of cores involved in the barrier
+  @return        none
+*/
 void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
                                  uint32_t num_cores_barrier) {
 
@@ -233,6 +286,14 @@ void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
   }
 }
 
+/**
+  @brief         Central counter barrier on a subset of cores
+  @param[in]     core_id  ID of the first core involved in the barrier
+  @param[in]     core_init First core involved in the barrier
+  @param[in]     num_sleeping_cores Number of cores involved in the barrier
+  @param[in]     memloc Location of the barrier variable
+  @return        none
+*/
 void mempool_partial_barrier(uint32_t volatile core_id,
                              uint32_t volatile core_init,
                              uint32_t volatile num_sleeping_cores,
