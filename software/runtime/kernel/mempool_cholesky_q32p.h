@@ -4,17 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n);
-
-void mempool_cholesky_q32p_foldleft(int32_t *pSrc, int32_t *pL,
-                                    const uint32_t n, const uint32_t nPE);
-
-void mempool_cholesky_q32p_foldright(int32_t *pSrc, int32_t *pL,
-                                     const uint32_t n, const uint32_t nPE);
-
-void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
-                                int32_t *pLR, const uint32_t n,
-                                const uint32_t nPE);
+#include "kernel/mempool_sqrt_q32s.h"
 
 void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n) {
 
@@ -217,10 +207,11 @@ void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n) {
     }
     mempool_log_barrier(2, absolute_core_id);
   }
+  return;
 }
 
-void mempool_cholesky_q32p_foldleft(int32_t *pSrc, int32_t *pL,
-                                    const uint32_t n, const uint32_t nPE) {
+void mempool_cholesky_q32p_FL(int32_t *pSrc, int32_t *pL, const uint32_t n,
+                              const uint32_t nPE) {
 
   int32_t sum;
   int32_t pivot, diag;
@@ -416,10 +407,11 @@ void mempool_cholesky_q32p_foldleft(int32_t *pSrc, int32_t *pL,
     mempool_log_partial_barrier(2, absolute_core_id, nPE);
   }
   mempool_log_partial_barrier(2, absolute_core_id, nPE);
+  return;
 }
 
-void mempool_cholesky_q32p_foldright(int32_t *pSrc, int32_t *pL,
-                                     const uint32_t n, const uint32_t nPE) {
+void mempool_cholesky_q32p_FR(int32_t *pSrc, int32_t *pL, const uint32_t n,
+                              const uint32_t nPE) {
 
   int32_t sum;
   int32_t pivot, diag;
@@ -615,6 +607,7 @@ void mempool_cholesky_q32p_foldright(int32_t *pSrc, int32_t *pL,
     mempool_log_partial_barrier(2, absolute_core_id, nPE);
   }
   mempool_log_partial_barrier(2, absolute_core_id, nPE);
+  return;
 }
 
 void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
@@ -999,4 +992,5 @@ void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
     mempool_log_partial_barrier(2, absolute_core_id, nPE);
   }
   mempool_log_partial_barrier(2, absolute_core_id, nPE);
+  return;
 }

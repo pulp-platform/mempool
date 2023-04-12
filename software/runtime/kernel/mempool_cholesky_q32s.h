@@ -4,11 +4,18 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#if defined(BANACHIEWICZ)
+/**
+  @brief         Choleksy decomposition with Banachiewicz algorithm.
+  @param[in]     pSrc  points to input matrix
+  @param[in]     pL points to output lower triangular matrix
+  @param[in]     n dimension of the input data
+  @return        none
+*/
 
-void mempool_cholesky_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n);
+#include "kernel/mempool_sqrt_q32s.h"
 
-void mempool_cholesky_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n) {
+void mempool_cholesky_banachiewicz_q32s(int32_t *pSrc, int32_t *pL,
+                                        const uint32_t n) {
 
   int32_t sum, result;
   int32_t pivot, diag;
@@ -100,13 +107,18 @@ void mempool_cholesky_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n) {
       }
     }
   }
+  return;
 }
 
-#elif defined(CROUT)
+/**
+  @brief         Choleksy decomposition with Crout algorithm.
+  @param[in]     pSrc  points to input matrix
+  @param[in]     pL points to output lower triangular matrix
+  @param[in]     n dimension of the input data
+  @return        none
+*/
 
-void mempool_cholesky_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n);
-
-void mempool_cholesky_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n) {
+void mempool_cholesky_crout_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n) {
 
   register int32_t sum;
   int32_t pivot, diag, result = 0;
@@ -290,6 +302,25 @@ void mempool_cholesky_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n) {
     if (j < (n - 1))
       pL[(n - 1) * n + j] = result;
   }
+  return;
 }
 
-#endif
+/**
+  @brief         Multiple single-core decomposition executed in a loop.
+  @param[in]     pSrc  points to input matrix
+  @param[in]     pL points to output lower triangular matrix
+  @param[in]     n dimension of the input data
+  @return        none
+*/
+
+void mempool_cholesky_q32s_schedule(int32_t *pSrc, int32_t *pL,
+                                    const uint32_t n, const uint32_t n_row,
+                                    const uint32_t n_col) {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t idx_row, idx_col = core_id;
+  for (idx_row = 0; idx_row < n_row; idx_row++) {
+    mempool_cholesky_crout_q32s(pSrc + idx_col * n,
+                                pL + idx_col * n + idx_row * N_BANKS, n);
+  }
+  mempool_log_partial_barrier(2, core_id, n_col * (n >> 2U));
+}

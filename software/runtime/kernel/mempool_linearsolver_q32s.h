@@ -4,11 +4,16 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
-                               volatile int32_t *pIn, const uint32_t n);
+/**
+  @brief         Solution of a lower triangular system Lx=y.
+                 Output is computed in-place.
+  @param[in]     pIn  points to input data
+  @param[in]     pL points to input lower triangular matrix
+  @param[in]     n dimension of the input data
+  @return        none
+*/
 
-void mempool_lowtrisolver_q32s(int32_t *pL, int32_t *pIn, const uint32_t n);
-void mempool_uprtrisolver_q32s(int32_t *pL, int32_t *pIn, const uint32_t n);
+#include "kernel/mempool_sqrt_q32s.h"
 
 void mempool_lowtrisolver_q32s(int32_t *pL, int32_t *pIn, const uint32_t n) {
 
@@ -110,7 +115,17 @@ void mempool_lowtrisolver_q32s(int32_t *pL, int32_t *pIn, const uint32_t n) {
     }
     pIn[i] = FIX_DIV(sum, pL[i * n + i]);
   }
+  return;
 }
+
+/**
+  @brief         Solution of a upper triangular system L^Tx=y.
+                 Output is computed in-place.
+  @param[in]     pIn  points to input data
+  @param[in]     pL points to input lower triangular matrix
+  @param[in]     n dimension of the input data
+  @return        none
+*/
 
 void mempool_uprtrisolver_q32s(int32_t *pL, int32_t *pIn, const uint32_t n) {
 
@@ -213,6 +228,20 @@ void mempool_uprtrisolver_q32s(int32_t *pL, int32_t *pIn, const uint32_t n) {
     pIn[i] = FIX_DIV(sum, pL[i * n + i]);
   }
 }
+
+/**
+  @brief         Solution of a system Ax=y, with the Cholesky decomposition of
+  A=L^T*L.
+                 - The Cholesky decomposition of the input matrix A is computed
+                 - At the same time also the system L^T(Lx) = y is solved
+                 - One last step is needed (solution of the upper triangular
+  system)
+  @param[in]     pSrc points to input matrix
+  @param[in]     pIn  points to input data
+  @param[in]     pL points to the Choleksy decomposition of the input matrix
+  @param[in]     n dimension of the input data
+  @return        none
+*/
 
 void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
                                volatile int32_t *pIn, const uint32_t n) {
@@ -419,4 +448,5 @@ void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
     pIn[j] = in;
     pL[j * n + j] = diag;
   }
+  return;
 }

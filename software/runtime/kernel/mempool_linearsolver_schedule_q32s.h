@@ -4,34 +4,10 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-void mempool_lowtrisolver_q32s(int32_t *pL, int32_t *pIn, const uint32_t n);
-void mempool_uprtrisolver_q32s(int32_t *pL, int32_t volatile *pIn,
-                               const uint32_t n);
-void mempool_linearsolver_q32s_schedule(int32_t *pSrc, int32_t *pL,
-                                        int32_t volatile *pIn, const uint32_t n,
-                                        const uint32_t n_row,
-                                        const uint32_t n_col);
-void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
-                               int32_t volatile *pIn, const uint32_t n);
+#include "kernel/mempool_sqrt_q32s.h"
 
-void mempool_linearsolver_q32s_schedule(int32_t *pSrc, int32_t *pL,
-                                        int32_t volatile *pIn, const uint32_t n,
-                                        const uint32_t n_row,
-                                        const uint32_t n_col) {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t idx_row, idx_col = core_id;
-  for (idx_row = 0; idx_row < n_row; idx_row++) {
-    mempool_linearsolver_q32s(pSrc + idx_col * n,
-                              pL + idx_col * n + idx_row * N_BANKS,
-                              pIn + idx_col * n, n);
-    mempool_uprtrisolver_q32s(pL + idx_col * n + idx_row * N_BANKS,
-                              pIn + idx_col * n, n);
-  }
-  mempool_log_partial_barrier(2, core_id, n_col * (n >> 2U));
-}
-
-void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
-                               int32_t volatile *pIn, const uint32_t n) {
+void mempool_linearsolver_folded_q32s(int32_t *pSrc, int32_t *pL,
+                                      int32_t volatile *pIn, const uint32_t n) {
 
   int32_t sum;
   int32_t sum_r;
@@ -235,10 +211,11 @@ void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
     pIn[j] = in;
     pL[j * N_BANKS + j] = diag;
   }
+  return;
 }
 
-void mempool_uprtrisolver_q32s(int32_t *pL, int32_t volatile *pIn,
-                               const uint32_t n) {
+void mempool_uprtrisolver_folded_q32s(int32_t *pL, int32_t volatile *pIn,
+                                      const uint32_t n) {
 
   uint32_t i, j;
   int32_t sum;
@@ -338,4 +315,33 @@ void mempool_uprtrisolver_q32s(int32_t *pL, int32_t volatile *pIn,
     }
     pIn[i] = FIX_DIV(sum, pL[i * N_BANKS + i]);
   }
+  return;
+}
+
+/**
+  @brief         Solution of a Ax=b system, each core gets a different system.
+  @param[in]     pSrc points to input matrix
+  @param[in]     pIn  points to input data
+  @param[in]     pL points to the Choleksy decomposition of the input matrix
+  @param[in]     n dimension of the input data
+  @param[in]     n_row number of problems fitting on a memory row
+  @param[in]     n_col number of problems in column
+  @return        none
+*/
+
+void mempool_linearsolver_schedule_q32s(int32_t *pSrc, int32_t *pL,
+                                        int32_t volatile *pIn, const uint32_t n,
+                                        const uint32_t n_row,
+                                        const uint32_t n_col) {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t idx_row, idx_col = core_id;
+  for (idx_row = 0; idx_row < n_row; idx_row++) {
+    mempool_linearsolver_folded_q32s(pSrc + idx_col * n,
+                                     pL + idx_col * n + idx_row * N_BANKS,
+                                     pIn + idx_col * n, n);
+    mempool_uprtrisolver_folded_q32s(pL + idx_col * n + idx_row * N_BANKS,
+                                     pIn + idx_col * n, n);
+  }
+  mempool_log_partial_barrier(2, core_id, n_col * (n >> 2U));
+  return;
 }

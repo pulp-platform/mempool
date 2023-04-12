@@ -4,6 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#pragma once
+
 inline int32_t mempool_sqrt_q32s(int32_t number) {
 
   int32_t res = 1;

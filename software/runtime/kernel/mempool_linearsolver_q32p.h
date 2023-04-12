@@ -4,10 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-void mempool_linearsolver_q32p_fold(int32_t *pSrcA, int32_t *pSrcB,
-                                    int32_t *pLL, int32_t *pLR, int32_t *pInA,
-                                    int32_t *pInB, const uint32_t n,
-                                    const uint32_t nPE);
+#include "kernel/mempool_sqrt_q32s.h"
 
 void mempool_linearsolver_q32p_fold(int32_t *pSrcA, int32_t *pSrcB,
                                     int32_t *pLL, int32_t *pLR, int32_t *pInA,
@@ -599,4 +596,5 @@ void mempool_linearsolver_q32p_fold(int32_t *pSrcA, int32_t *pSrcB,
     }
   }
   mempool_log_partial_barrier(2, absolute_core_id, nPE);
+  return;
 }

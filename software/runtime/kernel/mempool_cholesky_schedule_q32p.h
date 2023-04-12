@@ -4,6 +4,27 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+/*
+
+The computation of the Cholesky decomposition is divided in two steps
+- First step = computation of the elements on the diagonal (requires square
+root)
+- Second step = computation of the off diagonal elements (requires division)
+Each kernel accesses data folded in memory. There is a left and a right folded
+version, to increase the utilization of the cores operating on multiple
+problems.
+
+    LEFT
+    x x x x /
+    x x x / x
+    x x / x x
+    x / x x x
+    / x x x x
+        RIGHT
+*/
+
+#include "kernel/mempool_sqrt_q32s.h"
+
 void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
                                 int32_t *pLR, const uint32_t n,
                                 const uint32_t n_row, const uint32_t n_col);
@@ -57,6 +78,7 @@ void mempool_cholesky_q32p_fold(int32_t *pSrcA, int32_t *pSrcB, int32_t *pLL,
     }
     mempool_log_partial_barrier(2, absolute_core_id, n_col * (n >> 2U));
   }
+  return;
 }
 
 void mempool_cholesky_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL,
@@ -147,6 +169,7 @@ void mempool_cholesky_q32p_FLsqrtsum(int32_t *pSrc, int32_t *pL,
     }
     pL[j * N_BANKS + j] = mempool_sqrt_q32s(pivot - sum);
   }
+  return;
 }
 
 void mempool_cholesky_q32p_FRsqrtsum(int32_t *pSrc, int32_t *pL,
@@ -238,6 +261,7 @@ void mempool_cholesky_q32p_FRsqrtsum(int32_t *pSrc, int32_t *pL,
     }
     pL[j * N_BANKS + n - 1 - j] = mempool_sqrt_q32s(pivot - sum);
   }
+  return;
 }
 
 void mempool_cholesky_q32p_FLdivisum(int32_t *pSrc, int32_t *pL,
@@ -346,6 +370,7 @@ void mempool_cholesky_q32p_FLdivisum(int32_t *pSrc, int32_t *pL,
       pL[i + j * N_BANKS] = FIX_DIV((pivot - sum), diag);
     }
   }
+  return;
 }
 
 void mempool_cholesky_q32p_FRdivisum(int32_t *pSrc, int32_t *pL,
@@ -453,4 +478,5 @@ void mempool_cholesky_q32p_FRdivisum(int32_t *pSrc, int32_t *pL,
       pL[n - 1 - i + j * N_BANKS] = FIX_DIV((pivot - sum), diag);
     }
   }
+  return;
 }
