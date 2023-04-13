@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+# This script generates data for the cfft kernel.
+# Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
+
 import numpy as np
 import argparse
 import pathlib
@@ -31,24 +38,42 @@ def compute_result(inp, len):
     # len=1024:  Q1.15 -> Q11.5
     # len=2048:  Q1.15 -> Q12.4
     # len=4096:  Q1.15 -> Q13.3
-    bit_shift_dict_q16 = {16:11, 32:10, 64: 9, 128: 8, 256: 7, 512: 6, 1024: 5, 2048: 4, 4096: 3}
+    bit_shift_dict_q16 = {
+        16: 11,
+        32: 10,
+        64: 9,
+        128: 8,
+        256: 7,
+        512: 6,
+        1024: 5,
+        2048: 4,
+        4096: 3}
     my_type = np.int16
     my_fixpoint = 15
     bit_shift_dict = bit_shift_dict_q16
     a = inp.astype(my_type)
     result = np.zeros(a.size, dtype=my_type)
-    complex_a = np.zeros(int(a.size/2), dtype=np.csingle)
-    complex_result = np.zeros(a.size>>1, dtype=np.csingle)
-    for i in range(a.size>>1):
-        complex_a[i] = a[2*i].astype(np.csingle)/(2**(my_fixpoint)) + (a[2*i + 1].astype(np.csingle)/(2**(my_fixpoint)))*1j
+    complex_a = np.zeros(int(a.size / 2), dtype=np.csingle)
+    complex_result = np.zeros(a.size >> 1, dtype=np.csingle)
+    for i in range(a.size >> 1):
+        complex_a[i] = a[2 * i].astype(np.csingle) / (2**(my_fixpoint)) + (
+            a[2 * i + 1].astype(np.csingle) / (2**(my_fixpoint))) * 1j
     complex_result = np.fft.fft(complex_a)
-    for i in range(int(a.size/2)):
-        result[2*i] = (np.real(complex_result[i])*(2**(bit_shift_dict[int(a.size/2)]))).astype(my_type)
-        result[2*i+1] = (np.imag(complex_result[i])*(2**(bit_shift_dict[int(a.size/2)]))).astype(my_type)
+    for i in range(int(a.size / 2)):
+        result[2 * i] = (np.real(complex_result[i]) *
+                         (2**(bit_shift_dict[int(a.size / 2)]))
+                         ).astype(my_type)
+        result[2 * i + 1] = (np.imag(complex_result[i]) *
+                             (2**(bit_shift_dict[int(a.size / 2)]))
+                             ).astype(my_type)
 
     return result
 
-def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **kwargs):
+
+def gen_data_header_file(
+        outdir: pathlib.Path.cwd(),
+        tpl: pathlib.Path.cwd(),
+        **kwargs):
 
     file = outdir / f"data_{kwargs['name']}.h"
 
@@ -57,6 +82,7 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **
     template = Template(filename=str(tpl))
     with file.open('w') as f:
         f.write(template.render(**kwargs))
+
 
 def main():
 
@@ -96,10 +122,19 @@ def main():
 
     # Create sparse matrix
     Len = args.dimension
-    Input = np.random.randint(-2**(15), 2**(15)-1, 2 * Len, dtype=np.int16)
+    Input = np.random.randint(-2**(15), 2**(15) - 1, 2 * Len, dtype=np.int16)
     Result = compute_result(Input, Len)
 
-    tolerance = {16:16, 32:20, 64:24, 128:28, 256:32, 512:48, 1024:64, 2048:96, 4096:128}
+    tolerance = {
+        16: 16,
+        32: 20,
+        64: 24,
+        128: 28,
+        256: 32,
+        512: 48,
+        1024: 64,
+        2048: 96,
+        4096: 128}
     if Len == 64:
         Lenstring = 'TEST_64'
     elif Len == 256:
@@ -113,9 +148,15 @@ def main():
     elif Len == 4096:
         Lenstring = 'TEST_4096'
 
-    kwargs = {'name': 'cfftq16', 'vector_inp': Input, 'vector_res': Result, 'Len' : Len, 'Lenstring' : Lenstring, 'tolerance': tolerance[int(Len)]}
+    kwargs = {'name': 'cfftq16',
+              'vector_inp': Input,
+              'vector_res': Result,
+              'Len': Len,
+              'Lenstring': Lenstring,
+              'tolerance': tolerance[int(Len)]}
 
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
+
 
 if __name__ == "__main__":
     main()
