@@ -8,6 +8,21 @@
 
 int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n);
 
+/* GAUSS JORDAN ALGORITHM
+  - Form the augmented matrix by the identity matrix
+  - LOOP OVER ROWS ...
+  - Check if the element on the diagonal of the input matrix is zero
+    > The element is zero, check if there is a nonzero element in one of the
+  rows below on the same column > Exchange the row with the row containing a
+  nonzero element on the same column > If there is no such element then the
+  matrix is singular and the algorithm fails
+
+  - Divide the current row by the element on the diagonal
+  - Replace all the rows below with the sum of that row and a multiple of the
+  current row (row i), so that each new element in column i, below row i is
+  zero.
+*/
+
 int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
 
   int32_t *pSrcT1, *pSrcT2; /* Temporary input data matrix pointer */
@@ -30,10 +45,10 @@ int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
   /* CREATE THE IDENTITY MATRIX */
   for (k = 0; k < m; k += 4) {
     for (j = 0; j < n; j++) {
-      pDstT1[k * m + j] = (uint32_t)(k == j);
-      pDstT1[(k + 1) * m + j] = (uint32_t)((k + 1) == j);
-      pDstT1[(k + 2) * m + j] = (uint32_t)((k + 2) == j);
-      pDstT1[(k + 3) * m + j] = (uint32_t)((k + 3) == j);
+      pDstT1[k * m + j] = (int32_t)(k == j);
+      pDstT1[(k + 1) * m + j] = (int32_t)((k + 1) == j);
+      pDstT1[(k + 2) * m + j] = (int32_t)((k + 2) == j);
+      pDstT1[(k + 3) * m + j] = (int32_t)((k + 3) == j);
     }
   }
 
@@ -133,7 +148,7 @@ int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
     /* Pivot element of the row */
     in = *pPivotRowIn;
 
-    /* Loop over number of columns to the right of the pilot element */
+    /* Loop over columns to the right of the pilot element */
     j = 0;
     while (j < 4 * ((n - l) >> 2U)) {
       in1 = *pSrcT1;
@@ -155,6 +170,8 @@ int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
       *pSrcT1++ = FIX_DIV(in1, in);
       j++;
     }
+
+    /* Alternative = remainder of loop unrolling using switch-case */
     // switch ((n - l) % 4) {
     //    case 3:
     //        in1 = *pSrcT1;
@@ -181,7 +198,8 @@ int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
     //        *pSrcT1++ = out1;
     //        break;
     //}
-    /* Loop over number of columns of the destination matrix */
+
+    /* Loop over columns of the destination matrix */
     j = 0;
     while (j < 4 * (n >> 2U)) {
       in1 = *pSrcT2;
@@ -243,6 +261,8 @@ int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
           *pSrcT1++ = in1 - FIX_MUL(in, out1);
           j++;
         }
+
+        /* Alternative = remainder of loop unrolling using switch-case */
         // switch ((n - l) % 4) {
         //    case 3:
         //        in1 = *pSrcT1;
@@ -269,7 +289,8 @@ int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
         //        *pSrcT1++ = in1 - FIX_MUL(in, out1);
         //        break;
         //}
-        /* Loop over the number of columns to
+
+        /* Loop over the columns to
            replace the elements in the destination matrix */
         j = 0;
         while (j < 4 * (n >> 2U)) {

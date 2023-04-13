@@ -11,21 +11,18 @@
 
 #define N 16
 #define M 16
-#define O 16
 #define N_BANKS (1024)
-#define N_USED_BANKS (64)
+#define N_USED_BANKS (16)
 
 #define VERBOSE
-// #define SINGLE
+#define SINGLE
 // #define PARALLEL
-#define MEMSIZED
+// #define MEMSIZED
 // #define FOLDED
 
 #include "initialization.h"
-#include "mempool_mat_inv_q32p.h"
-#include "mempool_mat_inv_q32p_folded.h"
-#include "mempool_mat_inv_q32p_memsized.h"
-#include "mempool_mat_inv_q32s.h"
+#include "kernel/mempool_mat_inv_q32p.h"
+#include "kernel/mempool_mat_inv_q32s.h"
 
 #ifdef FOLDED
 int32_t matrix[N * M] __attribute__((aligned(N_BANKS), section(".l1")));
@@ -107,7 +104,7 @@ void multi_core_memsized() {
   mempool_barrier(num_cores);
 
   mempool_start_benchmark();
-  mempool_GJinv_q32p_memsized(matrix, inv, M, &flag);
+  mempool_GJinv_memsized_q32p(matrix, inv, M, &flag);
   mempool_stop_benchmark();
 
   mempool_barrier(num_cores);
@@ -141,7 +138,7 @@ void multi_core_folded() {
   mempool_stop_benchmark();
   if (core_id < nPE) {
     mempool_start_benchmark();
-    mempool_GJinv_q32p_folded(folded_matrix, inv, M, &flag, nPE);
+    mempool_GJinv_folded_q32p(folded_matrix, inv, M, &flag, nPE);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);

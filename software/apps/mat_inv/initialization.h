@@ -31,13 +31,6 @@ void init_matrix_zeros(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
                        uint32_t core_id);
 
 void display(int32_t *A, int32_t n, int32_t m) {
-  // int32_t i, j;
-  // for (i = 0; i < n; i++) {
-  //  for (j = 0; j < m; j++) {
-  //    printf("%8d ", A[i * m + j]);
-  //  }
-  //  printf("\n");
-  //}
   int32_t i;
   for (i = 0; i < n * m; i++) {
     printf("Output[%d] = %8d\n", i, A[i]);
