@@ -36,8 +36,7 @@
 
 int16_t pSrc[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pDst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
-int16_t pCoef16[6 * N_CSAMPLES / 4] __attribute__((
-    aligned(2 * (N_CSAMPLES / N_BANKS) * N_BANKS), section(".l1")));
+int16_t pCoef16[6 * N_CSAMPLES / 4];
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
@@ -58,8 +57,7 @@ int volatile error __attribute__((section(".l1")));
 
 int16_t pSrc[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pDst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
-int16_t pCoef16[6 * N_CSAMPLES / 4] __attribute__((
-    aligned(2 * (N_CSAMPLES / N_BANKS) * N_BANKS), section(".l1")));
+int16_t pCoef16[6 * N_CSAMPLES / 4];
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
@@ -88,8 +86,7 @@ int16_t pCoef16_dst[8 * N_BANKS]
     __attribute__((aligned(8 * N_BANKS), section(".l1")));
 
 #else
-int16_t pCoef16[6 * N_CSAMPLES / 4] __attribute__((
-    aligned(2 * (N_CSAMPLES / N_BANKS) * N_BANKS), section(".l1")));
+int16_t pCoef16[6 * N_CSAMPLES / 4];
 
 #endif
 
@@ -154,10 +151,8 @@ void initialize_l1() {
     pCoef16[i] = (int16_t)0;
   }
   mempool_barrier(num_cores);
-  for (i = core_id; i < (N_CSAMPLES / 4); i += num_cores) {
-    *(v2s *)&pCoef16[2U * i] = *(v2s *)&twiddleCoef_q16[2U * i];
-    *(v2s *)&pCoef16[2U * (i * 2U)] = *(v2s *)&twiddleCoef_q16[2U * (i * 2U)];
-    *(v2s *)&pCoef16[2U * (i * 3U)] = *(v2s *)&twiddleCoef_q16[2U * (i * 3U)];
+  for (i = core_id; i < 6 * (N_CSAMPLES / 4); i += num_cores) {
+    pCoef16[i] = twiddleCoef_q16[i];
   }
 #ifdef BITREVERSETABLE
   for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += num_cores) {
@@ -242,10 +237,10 @@ int main() {
   pRes = (int16_t *)pDst;
   if ((core_id < (N_CSAMPLES / 16)) && (core_id % WU_STRIDE == 0)) {
 
-    if (core_id == 0) {
-      set_wake_up_stride(WU_STRIDE);
-      set_wake_up_offset(0U);
-    }
+    //    if (core_id == 0) {
+    //      set_wake_up_stride(WU_STRIDE);
+    //      set_wake_up_offset(0U);
+    //    }
 
 #ifdef FOLDED_TWIDDLES
     mempool_start_benchmark();
@@ -261,10 +256,10 @@ int main() {
     mempool_stop_benchmark();
 #endif
 
-    if (core_id == 0) {
-      set_wake_up_stride(1U);
-      set_wake_up_offset(0U);
-    }
+    //    if (core_id == 0) {
+    //      set_wake_up_stride(1U);
+    //      set_wake_up_offset(0U);
+    //    }
   }
   mempool_barrier(num_cores);
 #endif

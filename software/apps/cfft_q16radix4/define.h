@@ -34,9 +34,9 @@
    FOLDED + FOLDED_TWIDDLES --> parallel kernel with folding of input data and
    twiddles */
 
-// #define SINGLE
-// #define XPULP
-// #define PRINT_SINGLE
+#define SINGLE
+#define XPULP
+#define PRINT_SINGLE
 
 // #define PARALLEL
 // #define PRINT_PARALLEL

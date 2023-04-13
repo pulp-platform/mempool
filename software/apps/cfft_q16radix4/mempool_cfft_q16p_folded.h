@@ -13,7 +13,7 @@ static int16_t *mempool_cfft_q16p_folded(uint16_t fftLen, int16_t *pCoef_src,
                                          uint8_t ifftFlag,
                                          uint8_t bitReverseFlag, uint32_t nPE);
 #else
-static int16_t *mempool_cfft_q16p_folded(uint16_t fftLen, int16_t *pCoef_src,
+static int16_t *mempool_cfft_q16p_folded(uint16_t fftLen, int16_t *pCoef,
                                          uint16_t *pBitRevTable,
                                          int16_t *pSrc16, int16_t *pDst16,
                                          uint16_t bitReverseLen,
