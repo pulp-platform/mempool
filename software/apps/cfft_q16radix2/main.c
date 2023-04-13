@@ -18,15 +18,28 @@
 #include "xpulp/builtins_v2.h"
 
 /* CFFT mempool libraries */
-#include "define.h"
-#include "mempool_radix2_cfft_q16_BitRevIndexTable.h"
-#include "mempool_radix2_cfft_q16_twiddleCoef.h"
-#include "mempool_radix2_cfft_q16p.h"
-#include "mempool_radix2_cfft_q16s.h"
+#include "kernel/mempool_radix2_cfft_q16p.h"
+#include "kernel/mempool_radix2_cfft_q16s.h"
+#include "tables/mempool_radix2_cfft_q16_BitRevIndexTable.h"
+#include "tables/mempool_radix2_cfft_q16_twiddleCoef.h"
 
+#define N_CSAMPLES 4096
+#define N_RSAMPLES 2 * N_CSAMPLES
+//#define VERBOSE
+#define TEST_4096
+#define PARALLEL
+#define SINGLE
+
+/* CFFT mempool data */
 int16_t pSrc[N_RSAMPLES] __attribute__((aligned(N_CSAMPLES), section(".l1")));
-int volatile error __attribute__((section(".l1")));
-void initialize_vector(int16_t *pSrc, uint32_t N_el);
+
+void initialize_vector(int16_t *pSrc, uint32_t N_el) {
+  int lower = SHRT_MIN, upper = SHRT_MAX;
+  srand((unsigned)1);
+  for (uint32_t i = 0; i < N_el; i++) {
+    pSrc[i] = (int16_t)((rand() % (upper - lower + 1)) + lower);
+  }
+}
 
 int main() {
 
@@ -41,7 +54,6 @@ int main() {
   if (core_id == 0) {
 
     printf("On the run...\n");
-    error = 0;
     initialize_vector(pSrc, N_RSAMPLES);
 
 #ifdef TEST_16
@@ -118,7 +130,6 @@ int main() {
 
   if (core_id == 0) {
     printf("On the run...\n");
-    error = 0;
     initialize_vector(pSrc, N_RSAMPLES);
   }
   mempool_barrier(num_cores);
@@ -192,13 +203,5 @@ int main() {
 
 #endif
 
-  return error;
-}
-
-void initialize_vector(int16_t *pSrc, uint32_t N_el) {
-  int lower = SHRT_MIN, upper = SHRT_MAX;
-  srand((unsigned)1);
-  for (uint32_t i = 0; i < N_el; i++) {
-    pSrc[i] = (int16_t)((rand() % (upper - lower + 1)) + lower);
-  }
+  return 0;
 }

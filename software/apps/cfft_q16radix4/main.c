@@ -16,96 +16,157 @@
 #include "synchronization.h"
 #include "xpulp/builtins_v2.h"
 
+#define TEST_4096
+#define LOG2 (12)
+#define N_CSAMPLES (4096)
+#define N_RSAMPLES (2 * N_CSAMPLES)
+//#define BITREVERSETABLE
+
+#define N_FFTs_ROW 1
+#define N_FFTs_COL 1
+#define MAX_COL (N_BANKS / (N_CSAMPLES / 4))
+
+dump(reg1, 1);
+
+/* CHOOSE ONE */
+//#define SINGLE
+//#define PARALLEL
+//#define FOLDED
+//#define FOLDED_TWIDDLES
+#define SCHEDULED
+#define ASM // Use asm_volatile statements
+
+#define N_BANKS (1024)
+#define N_TWIDDLES (3 * N_CSAMPLES / 4)
+#define WU_STRIDE (1)
+#define STEP (4 * WU_STRIDE)
+
+#define ABS(x) (((x) < 0) ? (-x) : (x))
+
 /* CFFT data libraries */
 #include "data_cfftq16.h"
-#include "define.h"
-#include "mempool_cfft_q16_BitRevIndexTable.h"
-#include "mempool_cfft_q16_twiddleCoef.h"
+#include "tables/mempool_radix4_cfft_q16_BitRevIndexTable.h"
+#include "tables/mempool_radix4_cfft_q16_twiddleCoef.h"
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "kernel/mempool_radix4_cfft_butterfly_q16.h"
+#include "kernel/mempool_radix4_cfft_q16_bitreversal.h"
+#include "kernel/mempool_radix4_cfft_q16p.h"
+#include "kernel/mempool_radix4_cfft_q16s.h"
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* SINGLE-CORE */
 
 #if defined(SINGLE)
-
-#include "mempool_cfft_q16_bitreversal.h"
-
-#include "mempool_cfft_q16s_butterfly.h"
-
-#include "mempool_cfft_q16s.h"
-
 int16_t pSrc[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pDst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pCoef16[6 * N_CSAMPLES / 4];
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
-
 #endif
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* MULTI-CORE */
 
 #if defined(PARALLEL)
-
-#include "mempool_cfft_q16_bitreversal.h"
-
-#include "mempool_cfft_q16p_butterfly.h"
-
-#include "mempool_cfft_q16p.h"
-
 int16_t pSrc[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pDst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pCoef16[6 * N_CSAMPLES / 4];
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
-
 #endif
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* MULTI-CORE FOLDED*/
 
 #if defined(FOLDED)
-
-#include "mempool_cfft_q16_bitreversal.h"
-
-#include "mempool_cfft_q16p_butterfly_folded.h"
-
-#include "mempool_cfft_q16p_folded.h"
-
 int16_t pSrc[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pDst[8 * N_BANKS] __attribute__((aligned(8 * N_BANKS), section(".l1")));
-
 #ifdef FOLDED_TWIDDLES
 int16_t pCoef16_src[8 * N_BANKS]
     __attribute__((aligned(8 * N_BANKS), section(".l1")));
 int16_t pCoef16_dst[8 * N_BANKS]
     __attribute__((aligned(8 * N_BANKS), section(".l1")));
-
 #else
 int16_t pCoef16[6 * N_CSAMPLES / 4];
-
 #endif
-
 uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
     __attribute__((aligned(N_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
-
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+/* MULTI-CORE SCHEDULED */
+
+#if defined(SCHEDULED)
+
+int16_t pSrc[N_FFTs_ROW * 8 * N_BANKS]
+    __attribute__((aligned(N_FFTs_ROW * 8 * N_BANKS), section(".l1")));
+int16_t pDst[N_FFTs_ROW * 8 * N_BANKS]
+    __attribute__((aligned(N_FFTs_ROW * 8 * N_BANKS), section(".l1")));
+int16_t pCoef16_src[8 * N_BANKS]
+    __attribute__((aligned(8 * N_BANKS), section(".l1")));
+int16_t pCoef16_dst[8 * N_BANKS]
+    __attribute__((aligned(8 * N_BANKS), section(".l1")));
+uint16_t pRevT16[BITREVINDEXTABLE_FIXED_TABLE_LENGTH]
+    __attribute__((aligned(N_BANKS), section(".l1")));
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* INITIALIZATION FUNCTIONS*/
 
-void initialize_vector(int16_t *pSrc, int16_t *pDst, uint32_t N_el) {
+#ifdef SCHEDULED
+
+void initialize_l1() {
+  int32_t lower = -1000, upper = 1000;
+  uint32_t idx_row, idx_col;
+  uint32_t i, ic;
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t i;
+  for (idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
+    for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
+      if (i < N_FFTs_COL * (N_CSAMPLES >> 1U))
+        pSrc[i + idx_row * 8 * N_BANKS] =
+            (int16_t)((int32_t)i % (upper - lower + 1));
+      else
+        pSrc[i + idx_row * 8 * N_BANKS] = (int16_t)0;
+      pDst[i + idx_row * 8 * N_BANKS] = (int16_t)0;
+    }
+  }
   for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
-    if (i < N_el) {
+    pCoef16_src[i] = (int16_t)0;
+    pCoef16_dst[i] = (int16_t)0;
+  }
+  for (idx_col = 0; idx_col < N_FFTs_COL; idx_col++) {
+    for (ic = core_id; ic < (N_CSAMPLES / 4); ic += num_cores) {
+      *(v2s *)&pCoef16_src[2U * ic + idx_col * (N_CSAMPLES >> 2U)] =
+          *(v2s *)&twiddleCoef_q16[2U * ic];
+      *(v2s *)&pCoef16_src[2U * (ic + 1 * N_BANKS) +
+                           idx_col * (N_CSAMPLES >> 2U)] =
+          *(v2s *)&twiddleCoef_q16[2U * (ic * 2U)];
+      *(v2s *)&pCoef16_src[2U * (ic + 2 * N_BANKS) +
+                           idx_col * (N_CSAMPLES >> 2U)] =
+          *(v2s *)&twiddleCoef_q16[2U * (ic * 3U)];
+    }
+  }
+#ifdef BITREVERSALTABLE
+  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += num_cores) {
+    *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
+  }
+#endif
+  mempool_barrier(num_cores);
+}
+
+#else
+
+void initialize_l1() {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
+  uint32_t i = 0;
+  // Initialize the inputs and results from the data.h file
+  for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
+    if (i < N_RSAMPLES) {
       pSrc[i] = (int16_t)vector_inp[i];
     } else {
       pSrc[i] = (int16_t)0;
@@ -113,14 +174,8 @@ void initialize_vector(int16_t *pSrc, int16_t *pDst, uint32_t N_el) {
     pDst[i] = (int16_t)0;
   }
   mempool_barrier(num_cores);
-}
-
 #ifdef FOLDED_TWIDDLES
-
-void initialize_l1() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  uint32_t i = 0;
+  // Initialize the Twiddles
   for (i = core_id; i < 8 * N_BANKS; i += num_cores) {
     pCoef16_src[i] = (int16_t)0;
     pCoef16_dst[i] = (int16_t)0;
@@ -133,28 +188,14 @@ void initialize_l1() {
     *(v2s *)&pCoef16_src[2U * (i + 2 * N_BANKS)] =
         *(v2s *)&twiddleCoef_q16[2U * (i * 3U)];
   }
-#ifdef BITREVERSETABLE
-  for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += num_cores) {
-    *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
-  }
-#endif
-  mempool_barrier(num_cores);
-}
-
 #else
-
-void initialize_l1() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  uint32_t i = 0;
-  for (i = core_id; i < (6 * N_CSAMPLES / 4); i += num_cores) {
-    pCoef16[i] = (int16_t)0;
-  }
-  mempool_barrier(num_cores);
+  // Initialize the Twiddles
   for (i = core_id; i < 6 * (N_CSAMPLES / 4); i += num_cores) {
     pCoef16[i] = twiddleCoef_q16[i];
   }
+#endif
 #ifdef BITREVERSETABLE
+  // Initialize the Bitreversal table
   for (i = core_id; i < BITREVINDEXTABLE_FIXED_TABLE_LENGTH; i += num_cores) {
     *(v2s *)&pRevT16[2U * i] = *(v2s *)&BitRevIndexTable_fixed[2U * i];
   }
@@ -165,124 +206,104 @@ void initialize_l1() {
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 /* MAIN */
-
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
 
-  initialize_vector(pSrc, pDst, N_RSAMPLES);
   initialize_l1();
   if (core_id == 0) {
     printf("On the run...\n");
-    error = 0;
   }
   mempool_barrier(num_cores);
 
-  ///////////////////////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////////////////////
-  /* SINGLE-CORE */
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* SINGLE-CORE */
 #ifdef SINGLE
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_cfft_q16s((uint16_t)N_CSAMPLES, pCoef16, pRevT16, pSrc,
-                      BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 0, BIT_REV);
+    mempool_radix4_cfft_q16s_xpulpimg(pSrc, (uint16_t)N_CSAMPLES, pCoef16, 1);
+    mempool_bitrevtable_q16s_xpulpimg(
+        (uint16_t *)pSrc, BITREVINDEXTABLE_FIXED_TABLE_LENGTH, pRevT16);
     mempool_stop_benchmark();
-#ifdef PRINT_SINGLE
-    printf("Done SINGLE!\n");
-    for (uint32_t i = 0; i < N_CSAMPLES; i++) {
-      if (ABS(((int32_t)pSrc[i] - (int32_t)vector_res[i])) > TOLERANCE)
-        printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pSrc[i], i,
-               vector_res[i]);
-    }
-#endif
+    int16_t *pRes = pSrc;
   }
   mempool_barrier(num_cores);
 #endif
 
-  ///////////////////////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////////////////////
-  /* MULTI-CORE */
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* MULTI-CORE */
 #ifdef PARALLEL
   mempool_start_benchmark();
-  mempool_cfft_q16p((uint16_t)N_CSAMPLES, pCoef16, pRevT16, pSrc,
-                    BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 0, BIT_REV, num_cores);
+  mempool_radix4_cfft_q16p_xpulpimg(pSrc, (uint16_t)N_CSAMPLES, pCoef16, 1,
+                                    num_cores);
+  mempool_bitrevtable_q16p_xpulpimg((uint16_t *)pSrc,
+                                    BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
+                                    pRevT16, num_cores);
   mempool_stop_benchmark();
+  int16_t *pRes = pSrc;
 #endif
-  if (core_id == 0) {
-#ifdef PRINT_PARALLEL
-    printf("Done PARALLEL!\n");
-    for (uint32_t i = 0; i < N_CSAMPLES; i++) {
-      if (ABS(((int32_t)pSrc[i] - (int32_t)vector_res[i])) > TOLERANCE)
-        printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pSrc[i], i,
-               vector_res[i]);
-    }
-#endif
-  }
   mempool_barrier(num_cores);
 
-  ///////////////////////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////////////////////
-  /* MULTI-CORE FOLDED */
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* MULTI-CORE FOLDED */
 #ifdef FOLDED
-  int16_t *pIn;
-  int16_t *pRes;
-  pIn = (int16_t *)pSrc;
-  pRes = (int16_t *)pDst;
   if ((core_id < (N_CSAMPLES / 16)) && (core_id % WU_STRIDE == 0)) {
-
-    //    if (core_id == 0) {
-    //      set_wake_up_stride(WU_STRIDE);
-    //      set_wake_up_offset(0U);
-    //    }
-
 #ifdef FOLDED_TWIDDLES
     mempool_start_benchmark();
-    pRes = mempool_cfft_q16p_folded(
-        (uint16_t)N_CSAMPLES, pCoef16_src, pCoef16_dst, pRevT16, pIn, pRes,
-        BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 0, BIT_REV, (N_CSAMPLES / 16));
+    mempool_radix4_cfft_q16p_folded(pSrc, pDst, (uint16_t)N_CSAMPLES,
+                                    pCoef16_src, pCoef16_dst,
+                                    (N_CSAMPLES / 16));
+    mempool_bitrevtable_q16p_xpulpimg((uint16_t *)pSrc,
+                                      BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
+                                      pRevT16, (N_CSAMPLES / 16));
     mempool_stop_benchmark();
+    int16_t *pRes = pSrc;
 #else
     mempool_start_benchmark();
-    pRes = mempool_cfft_q16p_folded((uint16_t)N_CSAMPLES, pCoef16, pRevT16, pIn,
-                                    pRes, BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
-                                    0, BIT_REV, (N_CSAMPLES / 16));
+    mempool_radix4_cfft_q16p_folded(pSrc, pDst, (uint16_t)N_CSAMPLES, pCoef16,
+                                    (N_CSAMPLES / 16));
+    mempool_bitrevtable_q16p_xpulpimg((uint16_t *)pSrc,
+                                      BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
+                                      pRevT16, (N_CSAMPLES / 16));
     mempool_stop_benchmark();
+    int16_t *pRes = pSrc;
 #endif
-
-    //    if (core_id == 0) {
-    //      set_wake_up_stride(1U);
-    //      set_wake_up_offset(0U);
-    //    }
   }
   mempool_barrier(num_cores);
-#endif
-
   if (core_id == 0) {
-#ifdef PRINT_FOLDED
-    printf("Done PARALLEL!\n");
-#ifndef BITREVERSETABLE
+    printf("Done!\n");
     for (uint32_t i = 0; i < N_CSAMPLES; i++) {
       if (ABS(((int32_t)pRes[i] - (int32_t)vector_res[i])) > TOLERANCE)
         printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pSrc[i], i,
                vector_res[i]);
     }
-#else
-    for (uint32_t i = 0; i < N_CSAMPLES; i++) {
-      if (ABS(((int32_t)pRes[i] - (int32_t)vector_res[i])) > TOLERANCE)
-        printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pDst[i], i,
-               vector_res[i]);
-    }
-#endif
-#endif
   }
   mempool_barrier(num_cores);
+#endif
 
-  return error;
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/* MULTI-CORE SCHEDULED */
+#ifdef SCHEDULED
+  if (core_id < N_FFTs_COL * (N_CSAMPLES >> 4U)) {
+    mempool_start_benchmark();
+    uint32_t col_fftLen = N_CSAMPLES >> 2U;
+    uint32_t col_id = core_id / (N_CSAMPLES >> 4U);
+    if (col_id < N_FFTs_COL) {
+      mempool_radix4_cfft_q16p_scheduler(
+          col_id, pSrc + 2 * col_id * col_fftLen,
+          pDst + 2 * col_id * col_fftLen, N_CSAMPLES,
+          pCoef16_src + 2 * col_id * col_fftLen,
+          pCoef16_dst + 2 * col_id * col_fftLen, pRevT16,
+          BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 1, N_CSAMPLES >> 4U);
+    }
+    mempool_log_barrier(2, core_id);
+    mempool_stop_benchmark();
+  }
+#endif
+  mempool_barrier(num_cores);
+
+  return 0;
 }

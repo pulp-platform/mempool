@@ -4,157 +4,13 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-static void mempool_radix4_butterfly_q16p_xpulpimg(int16_t *pSrc16,
-                                                   uint32_t fftLen,
-                                                   const int16_t *pCoef16,
-                                                   uint32_t twidCoefModifier,
-                                                   uint32_t nPE);
-
-static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
-                                          uint32_t n2, v2s CoSi1, v2s CoSi2,
-                                          v2s CoSi3, v2s C1, v2s C2, v2s C3);
-
-static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
-                                           uint32_t n2, v2s CoSi1, v2s CoSi2,
-                                           v2s CoSi3, v2s C1, v2s C2, v2s C3);
-
-static inline void radix4_butterfly_last(int16_t *pIn, uint32_t i0,
-                                         uint32_t n2);
-
-static void mempool_radix4_butterfly_q16p_xpulpimg(int16_t *pSrc16,
-                                                   uint32_t fftLen,
-                                                   const int16_t *pCoef16,
-                                                   uint32_t twidCoefModifier,
-                                                   uint32_t nPE) {
-  uint32_t absolute_core_id = mempool_get_core_id();
-  uint32_t core_id = absolute_core_id % nPE;
-  v2s CoSi1, CoSi2, CoSi3;
-  v2s C1, C2, C3;
-  int16_t t0, t1, t2, t3, t4, t5;
-  uint32_t n1, n2, ic, i0, j, k;
-  uint32_t step, steps;
-
-  /* START OF FIRST STAGE PROCESS */
-  n1 = fftLen;
-  n2 = n1 >> 2U;
-  step = (n2 + nPE - 1) / nPE;
-  for (i0 = core_id * step; i0 < MIN(core_id * step + step, n2); i0++) {
-
-    /*  Twiddle coefficients index modifier */
-    ic = i0 * twidCoefModifier;
-    /* co1 & si1 are read from Coefficient pointer */
-    CoSi1 = *(v2s *)&pCoef16[ic * 2U];
-    /* co2 & si2 are read from Coefficient pointer */
-    CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
-    /* co3 & si3 are read from Coefficient pointer */
-    CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
-#ifndef ASM
-    t1 = (int16_t)CoSi1[0];
-    t3 = (int16_t)CoSi2[0];
-    t5 = (int16_t)CoSi3[0];
-    t0 = (int16_t)CoSi1[1];
-    t2 = (int16_t)CoSi2[1];
-    t4 = (int16_t)CoSi3[1];
-    C1 = __PACK2(t1, -t0);
-    C2 = __PACK2(t3, -t2);
-    C3 = __PACK2(t5, -t4);
-#else
-    asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
-                 "pv.extract.h  %[t3],%[CoSi2],0;"
-                 "pv.extract.h  %[t5],%[CoSi3],0;"
-                 "pv.extract.h  %[t0],%[CoSi1],1;"
-                 "pv.extract.h  %[t2],%[CoSi2],1;"
-                 "pv.extract.h  %[t4],%[CoSi3],1;"
-                 "sub           %[t0],zero,%[t0];"
-                 "sub           %[t2],zero,%[t2];"
-                 "sub           %[t4],zero,%[t4];"
-                 "pv.pack %[C1],%[t1],%[t0];"
-                 "pv.pack %[C2],%[t3],%[t2];"
-                 "pv.pack %[C3],%[t5],%[t4];"
-                 : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),
-                   [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                   [t4] "=&r"(t4), [t5] "=&r"(t5)
-                 : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
-                 :);
-#endif
-    radix4_butterfly_first(pSrc16, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2, C3);
-  }
-  mempool_log_barrier(2, absolute_core_id);
-  /* END OF FIRST STAGE PROCESS */
-
-  /* START OF MIDDLE STAGE PROCESS */
-  twidCoefModifier <<= 2U;
-  for (k = fftLen / 4U; k > 4U; k >>= 2U) {
-
-    uint32_t offset, butt_id;
-    n1 = n2;
-    n2 >>= 2U;
-    step = (n2 + nPE - 1) / nPE;
-    butt_id = core_id % n2;
-    offset = (core_id / n2) * n1;
-    for (j = butt_id * step; j < MIN(butt_id * step + step, n2); j++) {
-      /*  Twiddle coefficients index modifier */
-      ic = twidCoefModifier * j;
-      CoSi1 = *(v2s *)&pCoef16[ic * 2U];
-      CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
-      CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
-#ifndef ASM
-      t1 = (int16_t)CoSi1[0];
-      t3 = (int16_t)CoSi2[0];
-      t5 = (int16_t)CoSi3[0];
-      t0 = (int16_t)CoSi1[1];
-      t2 = (int16_t)CoSi2[1];
-      t4 = (int16_t)CoSi3[1];
-      C1 = __PACK2(t1, -t0);
-      C2 = __PACK2(t3, -t2);
-      C3 = __PACK2(t5, -t4);
-#else
-      asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
-                   "pv.extract.h  %[t3],%[CoSi2],0;"
-                   "pv.extract.h  %[t5],%[CoSi3],0;"
-                   "pv.extract.h  %[t0],%[CoSi1],1;"
-                   "pv.extract.h  %[t2],%[CoSi2],1;"
-                   "pv.extract.h  %[t4],%[CoSi3],1;"
-                   "sub           %[t0],zero,%[t0];"
-                   "sub           %[t2],zero,%[t2];"
-                   "sub           %[t4],zero,%[t4];"
-                   "pv.pack %[C1],%[t1],%[t0];"
-                   "pv.pack %[C2],%[t3],%[t2];"
-                   "pv.pack %[C3],%[t5],%[t4];"
-                   : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),
-                     [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
-                     [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
-                   : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
-                   :);
-#endif
-      /*  Butterfly implementation */
-      for (i0 = offset + j; i0 < fftLen; i0 += ((nPE + n2 - 1) / n2) * n1) {
-        radix4_butterfly_middle(pSrc16, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
-                                C3);
-      }
-    }
-    twidCoefModifier <<= 2U;
-    mempool_log_barrier(2, absolute_core_id);
-  }
-  /* END OF MIDDLE STAGE PROCESSING */
-
-  /* START OF LAST STAGE PROCESSING */
-  n1 = n2;
-  n2 >>= 2U;
-  steps = fftLen / n1;
-  step = (steps + nPE - 1) / nPE;
-  /*  Butterfly implementation */
-  for (i0 = core_id * step * n1; i0 < MIN((core_id * step + step) * n1, fftLen);
-       i0 += n1) {
-    radix4_butterfly_last(pSrc16, i0, n2);
-  }
-  mempool_log_barrier(2, absolute_core_id);
-  /* END OF LAST STAGE PROCESSING */
-}
+#include "xpulp/builtins_v2.h"
 
 /**
-  @brief         Last butterfly stage.
+  @brief         First butterfly stage.
   @param[in]     pIn  points to input buffer of 16b data, Re and Im parts are
+  interleaved
+  @param[out]    pOut  points to output buffer of 16b data, Re and Im parts are
   interleaved
   @param[in]     i0 points to the first element to be processed
   @param[in]     n2 number of elements in the first wing of the butterfly
@@ -166,19 +22,32 @@ static void mempool_radix4_butterfly_q16p_xpulpimg(int16_t *pSrc16,
   @param[in]     C3 packed sine and cosine third twiddle
   @return        none
 */
-
-static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
-                                          uint32_t n2, v2s CoSi1, v2s CoSi2,
-                                          v2s CoSi3, v2s C1, v2s C2, v2s C3) {
+static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
+                                          uint32_t i0, uint32_t n2, v2s CoSi1,
+                                          v2s CoSi2, v2s CoSi3, v2s C1, v2s C2,
+                                          v2s C3) {
   int16_t t0, t1, t2, t3, t4, t5;
   uint32_t i1, i2, i3;
   v2s A, B, C, D, E, F, G, H;
 
+#ifdef FOLDED
+  /* index calculation for the input as, */
+  /* pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
+  i1 = i0 + N_BANKS;
+  i2 = i1 + N_BANKS;
+  i3 = i2 + N_BANKS;
+  uint32_t n2_store = n2 >> 2U;
+  uint32_t i0_store = (i0 % n2_store) + (i0 / n2_store) * N_BANKS;
+  uint32_t i1_store = i0_store + n2_store;
+  uint32_t i2_store = i1_store + n2_store;
+  uint32_t i3_store = i2_store + n2_store;
+#else
   /* index calculation for the input as, */
   /* pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
   i1 = i0 + n2;
   i2 = i1 + n2;
   i3 = i2 + n2;
+#endif
 
 #ifndef ASM
   v2s s1 = {1, 1};
@@ -231,10 +100,17 @@ static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
   E = __PACK2(t1, t0);
   F = __PACK2(t3, t2);
   G = __PACK2(t5, t4);
-  *((v2s *)&pIn[i0 * 2U]) = A;
-  *((v2s *)&pIn[i1 * 2U]) = E;
-  *((v2s *)&pIn[i2 * 2U]) = F;
-  *((v2s *)&pIn[i3 * 2U]) = G;
+#ifdef FOLDED
+  *((v2s *)&pOut[i0_store * 2U]) = A;
+  *((v2s *)&pOut[i1_store * 2U]) = E;
+  *((v2s *)&pOut[i2_store * 2U]) = F;
+  *((v2s *)&pOut[i3_store * 2U]) = G;
+#else
+  *((v2s *)&pOut[i0 * 2U]) = A;
+  *((v2s *)&pOut[i1 * 2U]) = E;
+  *((v2s *)&pOut[i2 * 2U]) = F;
+  *((v2s *)&pOut[i3 * 2U]) = G;
+#endif
 #else
   v2s s1, s2;
   /* Read yb (real), xb(imag) input */
@@ -293,16 +169,25 @@ static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
                : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
                  [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                :);
-  *((v2s *)&pIn[i0 * 2U]) = A;
-  *((v2s *)&pIn[i1 * 2U]) = E;
-  *((v2s *)&pIn[i2 * 2U]) = F;
-  *((v2s *)&pIn[i3 * 2U]) = G;
+#ifdef FOLDED
+  *((v2s *)&pOut[i0_store * 2U]) = A;
+  *((v2s *)&pOut[i1_store * 2U]) = E;
+  *((v2s *)&pOut[i2_store * 2U]) = F;
+  *((v2s *)&pOut[i3_store * 2U]) = G;
+#else
+  *((v2s *)&pOut[i0 * 2U]) = A;
+  *((v2s *)&pOut[i1 * 2U]) = E;
+  *((v2s *)&pOut[i2 * 2U]) = F;
+  *((v2s *)&pOut[i3 * 2U]) = G;
+#endif
 #endif
 }
 
 /**
-  @brief         Last butterfly stage.
+  @brief         Middle butterfly stage.
   @param[in]     pIn  points to input buffer of 16b data, Re and Im parts are
+  interleaved
+  @param[out]    pOut  points to output buffer of 16b data, Re and Im parts are
   interleaved
   @param[in]     i0 points to the first element to be processed
   @param[in]     n2 number of elements in the first wing of the butterfly
@@ -314,19 +199,35 @@ static inline void radix4_butterfly_first(int16_t *pIn, uint32_t i0,
   @param[in]     C3 packed sine and cosine third twiddle
   @return        none
 */
-
-static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
-                                           uint32_t n2, v2s CoSi1, v2s CoSi2,
-                                           v2s CoSi3, v2s C1, v2s C2, v2s C3) {
+static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
+                                           uint32_t i0, uint32_t n2, v2s CoSi1,
+                                           v2s CoSi2, v2s CoSi3, v2s C1, v2s C2,
+                                           v2s C3) {
   int16_t t0, t1, t2, t3, t4, t5;
   uint32_t i1, i2, i3;
   v2s A, B, C, D, E, F, G, H;
+
+#ifdef FOLDED
+  /*  index calculation for the input as, */
+  /*  pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 +
+   * 3fftLen/4] */
+  i1 = i0 + N_BANKS;
+  i2 = i1 + N_BANKS;
+  i3 = i2 + N_BANKS;
+  uint32_t n2_store = n2 >> 2U;
+  uint32_t i0_store =
+      (i0 % n2_store) + (i0 / n2) * n2 + ((i0 % n2) / n2_store) * N_BANKS;
+  uint32_t i1_store = i0_store + n2_store;
+  uint32_t i2_store = i1_store + n2_store;
+  uint32_t i3_store = i2_store + n2_store;
+#else
   /*  index calculation for the input as, */
   /*  pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 +
    * 3fftLen/4] */
   i1 = i0 + n2;
   i2 = i1 + n2;
   i3 = i2 + n2;
+#endif
 
 #ifndef ASM
   v2s s1 = {1, 1};
@@ -362,7 +263,7 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
   B = __PACK2(-t0, t1);
   /* xa' = xa + xb + xc + xd */
   /* ya' = ya + yb + yc + yd */
-  *((v2s *)&pIn[i0 * 2U]) = __SRA2(D, s1);
+  D = __SRA2(D, s1);
   /* E1 = (ya-yc) + (xb-xd),  E0 = (xa-xc) - (yb-yd)) */
   E = __ADD2(F, A);
   /* F1 = (ya-yc) - (xb-xd), F0 = (xa-xc) + (yb-yd)) */
@@ -382,9 +283,17 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
   A = __PACK2(t1, t0);
   B = __PACK2(t3, t2);
   C = __PACK2(t5, t4);
-  *((v2s *)&pIn[i1 * 2U]) = A;
-  *((v2s *)&pIn[i2 * 2U]) = B;
-  *((v2s *)&pIn[i3 * 2U]) = C;
+#ifdef FOLDED
+  *((v2s *)&pOut[i0_store * 2U]) = D;
+  *((v2s *)&pOut[i1_store * 2U]) = A;
+  *((v2s *)&pOut[i2_store * 2U]) = B;
+  *((v2s *)&pOut[i3_store * 2U]) = C;
+#else
+  *((v2s *)&pOut[i0 * 2U]) = D;
+  *((v2s *)&pOut[i1 * 2U]) = A;
+  *((v2s *)&pOut[i2 * 2U]) = B;
+  *((v2s *)&pOut[i3 * 2U]) = C;
+#endif
 #else
   v2s s1;
   /* Read yb (real), xb(imag) input */
@@ -432,17 +341,25 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
                "pv.pack %[A],%[t1],%[t0];"
                "pv.pack %[B],%[t3],%[t2];"
                "pv.pack %[C],%[t5],%[t4];"
-               : [A] "+&r"(A), [B] "+&r"(B), [C] "+r"(C), [D] "+&r"(D),
+               : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
                  [t4] "=&r"(t4), [t5] "=&r"(t5), [s1] "=&r"(s1)
                : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
                  [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                :);
-  *((v2s *)&pIn[i0 * 2U]) = D;
-  *((v2s *)&pIn[i1 * 2U]) = A;
-  *((v2s *)&pIn[i2 * 2U]) = B;
-  *((v2s *)&pIn[i3 * 2U]) = C;
+
+#ifdef FOLDED
+  *((v2s *)&pOut[i0_store * 2U]) = D;
+  *((v2s *)&pOut[i1_store * 2U]) = A;
+  *((v2s *)&pOut[i2_store * 2U]) = B;
+  *((v2s *)&pOut[i3_store * 2U]) = C;
+#else
+  *((v2s *)&pOut[i0 * 2U]) = D;
+  *((v2s *)&pOut[i1 * 2U]) = A;
+  *((v2s *)&pOut[i2 * 2U]) = B;
+  *((v2s *)&pOut[i3 * 2U]) = C;
+#endif
 #endif
 }
 
@@ -450,23 +367,37 @@ static inline void radix4_butterfly_middle(int16_t *pIn, uint32_t i0,
   @brief         Last butterfly stage.
   @param[in]     pIn  points to input buffer of 16b data, Re and Im parts are
   interleaved
+  @param[out]    pOut  points to output buffer of 16b data, Re and Im parts are
+  interleaved
   @param[in]     i0 points to the first element to be processed
-  @param[in]     n2 number of elements in the first wing of the butterfly
   @return        none
 */
-
-static inline void radix4_butterfly_last(int16_t *pIn, uint32_t i0,
-                                         uint32_t n2) {
+static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
+                                         uint32_t i0) {
   int16_t t0, t1;
   uint32_t i1, i2, i3;
   v2s A, B, C, D, E, F, G, H;
 
+#ifdef FOLDED
   /*  index calculation for the input as, */
   /*  pIn[i0 + 0], pIn[i0 + fftLen/4],
       pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
-  i1 = i0 + n2;
-  i2 = i1 + n2;
-  i3 = i2 + n2;
+  i1 = i0 + N_BANKS;
+  i2 = i1 + N_BANKS;
+  i3 = i2 + N_BANKS;
+  uint32_t i0_store = i0 * 4;
+  uint32_t i1_store = i0_store + 1;
+  uint32_t i2_store = i1_store + 1;
+  uint32_t i3_store = i2_store + 1;
+#else
+  /*  index calculation for the input as, */
+  /*  pIn[i0 + 0], pIn[i0 + fftLen/4],
+      pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
+  i1 = i0 + 1U;
+  i2 = i1 + 1U;
+  i3 = i2 + 1U;
+#endif
+
 #ifndef ASM
   v2s s1 = {1, 1};
   /* Read yb (real), xb(imag) input */
@@ -491,9 +422,13 @@ static inline void radix4_butterfly_last(int16_t *pIn, uint32_t i0,
   t0 = (int16_t)H[0];
   t1 = (int16_t)H[1];
   F = __SRA2(F, s1);
-  /* xa' = (xa+xb+xc+xd) */
-  /* ya' = (ya+yb+yc+yd) */
-  *((v2s *)&pIn[i0 * 2U]) = __ADD2(E, G);
+/* xa' = (xa+xb+xc+xd) */
+/* ya' = (ya+yb+yc+yd) */
+#ifdef FOLDED
+  *((v2s *)&pOut[i0_store * 2U]) = __ADD2(E, G);
+#else
+  *((v2s *)&pOut[i0 * 2U]) = __ADD2(E, G);
+#endif
   /* A0 = (xb-xd), A1 = (yd-yb) */
   A = __PACK2(-t0, t1);
   /* B0 = (xd-xb), B1 = (yb-yd) */
@@ -507,9 +442,15 @@ static inline void radix4_butterfly_last(int16_t *pIn, uint32_t i0,
   /* xd' = (xa-yb-xc+yd) */
   /* yd' = (ya+xb-yc-xd) */
   B = __ADD2(F, B);
-  *((v2s *)&pIn[i1 * 2U]) = E;
-  *((v2s *)&pIn[i2 * 2U]) = A;
-  *((v2s *)&pIn[i3 * 2U]) = B;
+#ifdef FOLDED
+  *((v2s *)&pOut[i1_store * 2U]) = E;
+  *((v2s *)&pOut[i2_store * 2U]) = A;
+  *((v2s *)&pOut[i3_store * 2U]) = B;
+#else
+  *((v2s *)&pOut[i1 * 2U]) = E;
+  *((v2s *)&pOut[i2 * 2U]) = A;
+  *((v2s *)&pOut[i3 * 2U]) = B;
+#endif
 #else
   /* Read yb (real), xb(imag) input */
   B = *(v2s *)&pIn[i1 * 2U];
@@ -548,9 +489,16 @@ static inline void radix4_butterfly_last(int16_t *pIn, uint32_t i0,
         [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3), [s1] "=&r"(s1)
       :
       :);
-  *((v2s *)&pIn[i0 * 2U]) = H;
-  *((v2s *)&pIn[i1 * 2U]) = E;
-  *((v2s *)&pIn[i2 * 2U]) = A;
-  *((v2s *)&pIn[i3 * 2U]) = B;
+#ifdef FOLDED
+  *((v2s *)&pOut[i0_store * 2U]) = H;
+  *((v2s *)&pOut[i1_store * 2U]) = E;
+  *((v2s *)&pOut[i2_store * 2U]) = A;
+  *((v2s *)&pOut[i3_store * 2U]) = B;
+#else
+  *((v2s *)&pOut[i0 * 2U]) = H;
+  *((v2s *)&pOut[i1 * 2U]) = E;
+  *((v2s *)&pOut[i2 * 2U]) = A;
+  *((v2s *)&pOut[i3 * 2U]) = B;
+#endif
 #endif
 }

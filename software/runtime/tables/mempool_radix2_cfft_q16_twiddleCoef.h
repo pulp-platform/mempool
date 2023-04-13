@@ -4,10 +4,6 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#include "define.h"
-
-#ifdef TEST_16
-
 int16_t twiddleCoef_16_q16[32] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7641,  (int16_t)0X30FB,
     (int16_t)0X5A82,  (int16_t)0X5A82,  (int16_t)0X30FB,  (int16_t)0X7641,
@@ -17,8 +13,6 @@ int16_t twiddleCoef_16_q16[32] = {
     (int16_t)-0X5A82, (int16_t)-0X5A82, (int16_t)-0X30FB, (int16_t)-0X7641,
     (int16_t)0X0,     (int16_t)-0X8000, (int16_t)0X30FB,  (int16_t)-0X7641,
     (int16_t)0X5A82,  (int16_t)-0X5A82, (int16_t)0X7641,  (int16_t)-0X30FB};
-
-#elif defined(TEST_32)
 
 int16_t twiddleCoef_32_q16[64] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7D8A,  (int16_t)0X18F8,
@@ -37,8 +31,6 @@ int16_t twiddleCoef_32_q16[64] = {
     (int16_t)0X30FB,  (int16_t)-0X7641, (int16_t)0X471C,  (int16_t)-0X6A6D,
     (int16_t)0X5A82,  (int16_t)-0X5A82, (int16_t)0X6A6D,  (int16_t)-0X471C,
     (int16_t)0X7641,  (int16_t)-0X30FB, (int16_t)0X7D8A,  (int16_t)-0X18F8};
-
-#elif defined(TEST_64)
 
 int16_t twiddleCoef_64_q16[128] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7F62,  (int16_t)0XC8B,
@@ -73,8 +65,6 @@ int16_t twiddleCoef_64_q16[128] = {
     (int16_t)0X6A6D,  (int16_t)-0X471C, (int16_t)0X70E2,  (int16_t)-0X3C56,
     (int16_t)0X7641,  (int16_t)-0X30FB, (int16_t)0X7A7D,  (int16_t)-0X2528,
     (int16_t)0X7D8A,  (int16_t)-0X18F8, (int16_t)0X7F62,  (int16_t)-0XC8B};
-
-#elif defined(TEST_128)
 
 int16_t twiddleCoef_128_q16[256] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7FD8,  (int16_t)0X647,
@@ -141,8 +131,6 @@ int16_t twiddleCoef_128_q16[256] = {
     (int16_t)0X7A7D,  (int16_t)-0X2528, (int16_t)0X7C29,  (int16_t)-0X1F19,
     (int16_t)0X7D8A,  (int16_t)-0X18F8, (int16_t)0X7E9D,  (int16_t)-0X12C8,
     (int16_t)0X7F62,  (int16_t)-0XC8B,  (int16_t)0X7FD8,  (int16_t)-0X647};
-
-#elif defined(TEST_256)
 
 int16_t twiddleCoef_256_q16[512] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7FF6,  (int16_t)0X324,
@@ -274,8 +262,6 @@ int16_t twiddleCoef_256_q16[512] = {
     (int16_t)0X7F62,  (int16_t)-0XC8B,  (int16_t)0X7FA7,  (int16_t)-0X96A,
     (int16_t)0X7FD8,  (int16_t)-0X647,  (int16_t)0X7FF6,  (int16_t)-0X324};
 
-#elif defined(TEST_512)
-
 int16_t twiddleCoef_512_q16[1024] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7FF6,  (int16_t)0X324,
     (int16_t)0X7FD8,  (int16_t)0X647,   (int16_t)0X7FA7,  (int16_t)0X96A,
@@ -405,8 +391,6 @@ int16_t twiddleCoef_512_q16[1024] = {
     (int16_t)0X7E9D,  (int16_t)-0X12C8, (int16_t)0X7F09,  (int16_t)-0XFAB,
     (int16_t)0X7F62,  (int16_t)-0XC8B,  (int16_t)0X7FA7,  (int16_t)-0X96A,
     (int16_t)0X7FD8,  (int16_t)-0X647,  (int16_t)0X7FF6,  (int16_t)-0X324};
-
-#elif defined(TEST_1024)
 
 int16_t twiddleCoef_1024_q16[2048] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7FFF,  (int16_t)0XC9,
@@ -921,8 +905,6 @@ int16_t twiddleCoef_1024_q16[2048] = {
     (int16_t)0X7FE9,  (int16_t)-0X4B6,  (int16_t)0X7FF0,  (int16_t)-0X3ED,
     (int16_t)0X7FF6,  (int16_t)-0X324,  (int16_t)0X7FFA,  (int16_t)-0X25B,
     (int16_t)0X7FFD,  (int16_t)-0X192,  (int16_t)0X7FFF,  (int16_t)-0XC9};
-
-#elif defined(TEST_2048)
 
 int16_t twiddleCoef_2048_q16[4096] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7FFF,  (int16_t)0X64,
@@ -1949,8 +1931,6 @@ int16_t twiddleCoef_2048_q16[4096] = {
     (int16_t)0X7FFA,  (int16_t)-0X25B,  (int16_t)0X7FFC,  (int16_t)-0X1F6,
     (int16_t)0X7FFD,  (int16_t)-0X192,  (int16_t)0X7FFE,  (int16_t)-0X12D,
     (int16_t)0X7FFF,  (int16_t)-0XC9,   (int16_t)0X7FFF,  (int16_t)-0X64};
-
-#elif defined(TEST_4096)
 
 int16_t twiddleCoef_4096_q16[8192] = {
     (int16_t)0X8000,  (int16_t)0X0,     (int16_t)0X7FFF,  (int16_t)0X32,
@@ -4001,5 +3981,3 @@ int16_t twiddleCoef_4096_q16[8192] = {
     (int16_t)0X7FFE,  (int16_t)-0X12D,  (int16_t)0X7FFF,  (int16_t)-0XFB,
     (int16_t)0X7FFF,  (int16_t)-0XC9,   (int16_t)0X7FFF,  (int16_t)-0X96,
     (int16_t)0X7FFF,  (int16_t)-0X64,   (int16_t)0X7FFF,  (int16_t)-0X32};
-
-#endif
