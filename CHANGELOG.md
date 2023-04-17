@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
-## Changes
+### Changes
 - Extended `tracevis.py` to support the new Perfetto UI and compress large traces
+- Use custom compiler for VCS specified with `CC` and `CCX` environment variable
+
+### Fixed
+- Fix type issue in `snitch_addr_demux`
 
 ## 0.6.0 - 2023-01-09
 
