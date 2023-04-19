@@ -14,6 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // Author: Vaibhav Krishna, ETH Zurich
+// 256-point radix-4 DIT FFT. Many optimizations were made when compared to fft_256.h:
+// - Digit reversed order calculation moved to the first stage to reduce the initial address calculation time
+// - OQLRs used in first stage to remove xqueue push instruction
+// - First stage loop is unrolled and post-increment load instructions used too remove the address calculation overhead
+// - Calculation of constant shift values s1 and s2 moved out of loop, to reduce instruction s in the loop.
+// - Xqueue push instructions moved out of dedicated functions and directly used to reduce stack accesses.
+// - Number of registers used in the kernel reduced to fit the twiddle factors and the output addresses inside the register file.
 
 
 #include "alloc.h"
@@ -199,6 +206,7 @@ void systolic_first_fft_pe(uint32_t stage_idx, uint32_t idx_in_stage){
   int16_t t0, t1, t2;
   v2s A, B, C, D, E, F, G, H;
   //uint16_t i0,i1,i2,i3;
+  //Digit-reverse order calcuation
   int16_t sum,temp,digit,i, j,i0[4];
   for (i=0;i<4;i++){
     sum = 0;
@@ -218,12 +226,26 @@ void systolic_first_fft_pe(uint32_t stage_idx, uint32_t idx_in_stage){
               "addi %[s2], %[s2], 0x02;"
               :[s2] "=&r"(s2)
               :);
-  for (i=0;i<NUM_ITER;i++){
-    j = i%4;
-    A = *(v2s *)&pSrc[(i0[0] + j*FFTLEN) * 2U];
-    B = *(v2s *)&pSrc[(i0[1] + j*FFTLEN) * 2U];
-    C = *(v2s *)&pSrc[(i0[2] + j*FFTLEN) * 2U];
-    D = *(v2s *)&pSrc[(i0[3] + j*FFTLEN) * 2U];
+  int32_t* addr_0, addr_1, addr_2, addr_3;
+  int32_t addr_incr, addr_decr;
+  addr_0=&pSrc[(i0[0]*2U)];
+  addr_1=&pSrc[(i0[1]*2U)];
+  addr_2=&pSrc[(i0[2]*2U)];
+  addr_3=&pSrc[(i0[3]*2U)];
+  addr_incr = FFTLEN*4U;
+  addr_decr = -3*FFTLEN*4U;
+  //Unrolled loop for repeat over the 4 diffrent inputs
+  for (i=0;i<NUM_ITER/4;i++){
+    //post-increment loads
+    asm volatile("p.lw %[A], %[addr_incr](%[addr_0]!);"
+                "p.lw %[B], %[addr_incr](%[addr_1]!);"
+                "p.lw %[C], %[addr_incr](%[addr_2]!);"
+                "p.lw %[D], %[addr_incr](%[addr_3]!);"
+                : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),
+                [addr_0]"+&r"(addr_0),[addr_1]"+&r"(addr_1),
+                [addr_2]"+&r"(addr_2),[addr_3]"+&r"(addr_3)
+                :[addr_incr]"r"(addr_incr)
+                );
 
     asm volatile("pv.sra.h  %[A],%[A],%[s2];"
                 "pv.sra.h  %[C],%[C],%[s2];"
@@ -237,21 +259,115 @@ void systolic_first_fft_pe(uint32_t stage_idx, uint32_t idx_in_stage){
                 "pv.extract.h  %[t1],%[H],1;"
                 "sub %[t2],zero,%[t1];"
                 "pv.pack %[A],%[t0],%[t2];"
-                "pv.add.h  %[B],%[E],%[G];"
-                "pv.sub.h  %[D],%[E],%[G];"
-                "pv.sub.h  %[C],%[F],%[A];"
-                "pv.add.h  %[H],%[A],%[F];"
+                "pv.add.h  %[qlr_t0],%[E],%[G];"
+                "pv.sub.h  %[qlr_t2],%[E],%[G];"
+                "pv.sub.h  %[qlr_t1],%[F],%[A];"
+                "pv.add.h  %[qlr_t3],%[A],%[F];"
                 : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D), [E] "=&r"(E),
                 [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H), [t0] "=&r"(t0),
-                [t1] "=&r"(t1), [t2] "=&r"(t2)
+                [t1] "=&r"(t1), [t2] "=&r"(t2), [qlr_t0] "+&r"(qlr_t0),
+                [qlr_t1] "+&r"(qlr_t1), [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)
                 :[s2] "r"(s2)
                 :);
 
+    asm volatile("p.lw %[A], %[addr_incr](%[addr_0]!);"
+                "p.lw %[B], %[addr_incr](%[addr_1]!);"
+                "p.lw %[C], %[addr_incr](%[addr_2]!);"
+                "p.lw %[D], %[addr_incr](%[addr_3]!);"
+                : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),
+                [addr_0]"+&r"(addr_0),[addr_1]"+&r"(addr_1),
+                [addr_2]"+&r"(addr_2),[addr_3]"+&r"(addr_3)
+                :[addr_incr]"r"(addr_incr)
+                );
 
-    qlr_t0 = (int32_t)B;
-    qlr_t1 = (int32_t)C;
-    qlr_t2 = (int32_t)D;
-    qlr_t3 = (int32_t)H;
+    asm volatile("pv.sra.h  %[A],%[A],%[s2];"
+                "pv.sra.h  %[C],%[C],%[s2];"
+                "pv.sra.h  %[B],%[B],%[s2];"
+                "pv.sra.h  %[D],%[D],%[s2];"
+                "pv.add.h  %[E],%[A],%[C];"
+                "pv.sub.h  %[F],%[A],%[C];"
+                "pv.sub.h  %[H],%[B],%[D];"
+                "pv.add.h  %[G],%[B],%[D];"
+                "pv.extract.h  %[t0],%[H],0;"
+                "pv.extract.h  %[t1],%[H],1;"
+                "sub %[t2],zero,%[t1];"
+                "pv.pack %[A],%[t0],%[t2];"
+                "pv.add.h  %[qlr_t0],%[E],%[G];"
+                "pv.sub.h  %[qlr_t2],%[E],%[G];"
+                "pv.sub.h  %[qlr_t1],%[F],%[A];"
+                "pv.add.h  %[qlr_t3],%[A],%[F];"
+                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D), [E] "=&r"(E),
+                [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H), [t0] "=&r"(t0),
+                [t1] "=&r"(t1), [t2] "=&r"(t2), [qlr_t0] "+&r"(qlr_t0),
+                [qlr_t1] "+&r"(qlr_t1), [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)
+                :[s2] "r"(s2)
+                :);
+
+    asm volatile("p.lw %[A], %[addr_incr](%[addr_0]!);"
+                "p.lw %[B], %[addr_incr](%[addr_1]!);"
+                "p.lw %[C], %[addr_incr](%[addr_2]!);"
+                "p.lw %[D], %[addr_incr](%[addr_3]!);"
+                : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),
+                [addr_0]"+&r"(addr_0),[addr_1]"+&r"(addr_1),
+                [addr_2]"+&r"(addr_2),[addr_3]"+&r"(addr_3)
+                :[addr_incr]"r"(addr_incr)
+                );
+
+    asm volatile("pv.sra.h  %[A],%[A],%[s2];"
+                "pv.sra.h  %[C],%[C],%[s2];"
+                "pv.sra.h  %[B],%[B],%[s2];"
+                "pv.sra.h  %[D],%[D],%[s2];"
+                "pv.add.h  %[E],%[A],%[C];"
+                "pv.sub.h  %[F],%[A],%[C];"
+                "pv.sub.h  %[H],%[B],%[D];"
+                "pv.add.h  %[G],%[B],%[D];"
+                "pv.extract.h  %[t0],%[H],0;"
+                "pv.extract.h  %[t1],%[H],1;"
+                "sub %[t2],zero,%[t1];"
+                "pv.pack %[A],%[t0],%[t2];"
+                "pv.add.h  %[qlr_t0],%[E],%[G];"
+                "pv.sub.h  %[qlr_t2],%[E],%[G];"
+                "pv.sub.h  %[qlr_t1],%[F],%[A];"
+                "pv.add.h  %[qlr_t3],%[A],%[F];"
+                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D), [E] "=&r"(E),
+                [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H), [t0] "=&r"(t0),
+                [t1] "=&r"(t1), [t2] "=&r"(t2), [qlr_t0] "+&r"(qlr_t0),
+                [qlr_t1] "+&r"(qlr_t1), [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)
+                :[s2] "r"(s2)
+                :);
+
+    asm volatile("p.lw %[A], %[addr_decr](%[addr_0]!);"
+                "p.lw %[B], %[addr_decr](%[addr_1]!);"
+                "p.lw %[C], %[addr_decr](%[addr_2]!);"
+                "p.lw %[D], %[addr_decr](%[addr_3]!);"
+                : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),
+                [addr_0]"+&r"(addr_0),[addr_1]"+&r"(addr_1),
+                [addr_2]"+&r"(addr_2),[addr_3]"+&r"(addr_3)
+                :[addr_decr]"r"(addr_decr)
+                );
+
+    asm volatile("pv.sra.h  %[A],%[A],%[s2];"
+                "pv.sra.h  %[C],%[C],%[s2];"
+                "pv.sra.h  %[B],%[B],%[s2];"
+                "pv.sra.h  %[D],%[D],%[s2];"
+                "pv.add.h  %[E],%[A],%[C];"
+                "pv.sub.h  %[F],%[A],%[C];"
+                "pv.sub.h  %[H],%[B],%[D];"
+                "pv.add.h  %[G],%[B],%[D];"
+                "pv.extract.h  %[t0],%[H],0;"
+                "pv.extract.h  %[t1],%[H],1;"
+                "sub %[t2],zero,%[t1];"
+                "pv.pack %[A],%[t0],%[t2];"
+                "pv.add.h  %[qlr_t0],%[E],%[G];"
+                "pv.sub.h  %[qlr_t2],%[E],%[G];"
+                "pv.sub.h  %[qlr_t1],%[F],%[A];"
+                "pv.add.h  %[qlr_t3],%[A],%[F];"
+                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D), [E] "=&r"(E),
+                [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H), [t0] "=&r"(t0),
+                [t1] "=&r"(t1), [t2] "=&r"(t2), [qlr_t0] "+&r"(qlr_t0),
+                [qlr_t1] "+&r"(qlr_t1), [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)
+                :[s2] "r"(s2)
+                :);
   }
 }
 
@@ -279,12 +395,16 @@ void systolic_mid_pe(uint32_t stage_idx, uint32_t idx_in_stage, uint32_t core_id
   //Configure QLRs
   qlr_cfg_t0[QLR_CFG_REQ] = (int32_t)reqs;
   qlr_cfg_t0[QLR_CFG_IADDR] = (int32_t)(core_offset + 0);
+  qlr_cfg_t0[QLR_CFG_RF] = (int32_t)1;
   qlr_cfg_t1[QLR_CFG_REQ] = (int32_t)reqs;
   qlr_cfg_t1[QLR_CFG_IADDR] = (int32_t)(core_offset + 1);
+  qlr_cfg_t1[QLR_CFG_RF] = (int32_t)2;
   qlr_cfg_t2[QLR_CFG_REQ] = (int32_t)reqs;
   qlr_cfg_t2[QLR_CFG_IADDR] = (int32_t)(core_offset + 2);
+  qlr_cfg_t2[QLR_CFG_RF] = (int32_t)2;
   qlr_cfg_t3[QLR_CFG_REQ] = (int32_t)reqs;
   qlr_cfg_t3[QLR_CFG_IADDR] = (int32_t)(core_offset + 3);
+  qlr_cfg_t3[QLR_CFG_RF] = (int32_t)2;
 
   //Start QLR
   qlr_cfg_t0[QLR_CFG_TYPE] = 1;
@@ -334,34 +454,30 @@ void systolic_mid_pe(uint32_t stage_idx, uint32_t idx_in_stage, uint32_t core_id
   int32_t resp_1 __attribute__((unused)) = 0;
   int32_t resp_2 __attribute__((unused)) = 0;
   int32_t resp_3 __attribute__((unused)) = 0;
+  //Needs to be calculated only once
   asm volatile("addi %[s1], zero, 0x01;"
               "slli %[s1], %[s1], 0x10;"
               "addi %[s1], %[s1], 0x01;"
               :[s1] "=&r"(s1)
               :);
   for(int32_t i=0;i<reqs;i++){
-    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1),"=r"(qlr_t2),"=r"(qlr_t3));
-    B = (v2s)qlr_t1;
-    D = (v2s)qlr_t3;
-    A = (v2s)qlr_t0;
-    C = (v2s)qlr_t2;
 
-    asm volatile("pv.dotsp.h  %[E],%[CoSi1],%[B];"
-                "pv.dotsp.h  %[F],%[C1],%[B];"
-                "pv.dotsp.h  %[G],%[CoSi2],%[C];"
-                "pv.dotsp.h  %[H],%[C2],%[C];"
+    asm volatile("pv.dotsp.h  %[E],%[CoSi1],%[qlr_t1];"
+                "pv.dotsp.h  %[F],%[C1],%[qlr_t1];"
                 "srai  %[t0],%[E],0x10;"
                 "srai  %[t1],%[F],0x10;"
-                "pv.dotsp.h  %[E],%[CoSi3],%[D];"
-                "pv.dotsp.h  %[F],%[C3],%[D];"
-                "srai  %[t2],%[G],0x10;"
-                "srai  %[t3],%[H],0x10;"
-                "srai  %[t4],%[E],0x10;"
-                "srai  %[t5],%[F],0x10;"
                 "pv.pack %[B],%[t1],%[t0];"
-                "pv.pack %[D],%[t5],%[t4];"
-                "pv.pack %[C],%[t3],%[t2];"
-                "pv.sra.h  %[A],%[A],%[s1];"
+                "pv.dotsp.h  %[E],%[CoSi3],%[qlr_t3];"
+                "pv.dotsp.h  %[F],%[C3],%[qlr_t3];"
+                "srai  %[t0],%[E],0x10;"
+                "srai  %[t1],%[F],0x10;"
+                "pv.pack %[D],%[t1],%[t0];"
+                "pv.dotsp.h  %[G],%[CoSi2],%[qlr_t2];"
+                "pv.dotsp.h  %[H],%[C2],%[qlr_t2];"
+                "srai  %[t0],%[G],0x10;"
+                "srai  %[t1],%[H],0x10;"
+                "pv.pack %[C],%[t1],%[t0];"
+                "pv.sra.h  %[A],%[qlr_t0],%[s1];"
                 "pv.sub.h  %[H],%[B],%[D];"
                 "pv.add.h  %[E],%[A],%[C];"
                 "pv.sub.h  %[F],%[A],%[C];"
@@ -372,16 +488,16 @@ void systolic_mid_pe(uint32_t stage_idx, uint32_t idx_in_stage, uint32_t core_id
                 "pv.extract.h  %[t1],%[H],1;"
                 "pv.sra.h  %[F],%[F],%[s1];"
                 "pv.sra.h  %[G],%[G],%[s1];"
-                "sub %[t2],zero,%[t1];"
-                "pv.pack %[A],%[t0],%[t2];"
+                "sub %[t1],zero,%[t1];"
+                "pv.pack %[A],%[t0],%[t1];"
                 "pv.add.h  %[B],%[E],%[G];"
                 "pv.sub.h  %[D],%[E],%[G];"
                 "pv.sub.h  %[C],%[F],%[A];"
                 "pv.add.h  %[H],%[A],%[F];"
-                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
+                : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),
                   [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
-                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                  [t4] "=&r"(t4), [t5] "=&r"(t5)
+                  [t0] "=&r"(t0), [t1] "=&r"(t1), [qlr_t0] "+&r"(qlr_t0),
+                  [qlr_t1] "+&r"(qlr_t1), [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)
                 : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
                   [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3), [s1] "r"(s1)
                 :);
@@ -412,12 +528,16 @@ void systolic_end_pe(uint32_t stage_idx, uint32_t idx_in_stage, uint32_t core_id
   //Configure QLRs
   qlr_cfg_t0[QLR_CFG_REQ] = (int32_t)reqs;
   qlr_cfg_t0[QLR_CFG_IADDR] = (int32_t)(core_offset + 0);
+  qlr_cfg_t0[QLR_CFG_RF] = (int32_t)1;
   qlr_cfg_t1[QLR_CFG_REQ] = (int32_t)reqs;
   qlr_cfg_t1[QLR_CFG_IADDR] = (int32_t)(core_offset + 1);
+  qlr_cfg_t1[QLR_CFG_RF] = (int32_t)2;
   qlr_cfg_t2[QLR_CFG_REQ] = (int32_t)reqs;
   qlr_cfg_t2[QLR_CFG_IADDR] = (int32_t)(core_offset + 2);
+  qlr_cfg_t2[QLR_CFG_RF] = (int32_t)2;
   qlr_cfg_t3[QLR_CFG_REQ] = (int32_t)reqs;
   qlr_cfg_t3[QLR_CFG_IADDR] = (int32_t)(core_offset + 3);
+  qlr_cfg_t3[QLR_CFG_RF] = (int32_t)2;
 
   //Start QLR
   qlr_cfg_t0[QLR_CFG_TYPE] = 1;
@@ -462,34 +582,29 @@ void systolic_end_pe(uint32_t stage_idx, uint32_t idx_in_stage, uint32_t core_id
   i3 = shuffling_order[3*FFTLEN + 4*idx_in_stage + 3];
 //Radix4 calculation
   v2s s1;
+  //Needs to be calculated only once
   asm volatile("addi %[s1], zero, 0x01;"
               "slli %[s1], %[s1], 0x10;"
               "addi %[s1], %[s1], 0x01;"
               :[s1] "=&r"(s1)
               :);
   for(int32_t i=0;i<reqs;i++){
-    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1),"=r"(qlr_t2),"=r"(qlr_t3));
-    B = (v2s)qlr_t1;
-    D = (v2s)qlr_t3;
-    A = (v2s)qlr_t0;
-    C = (v2s)qlr_t2;
-
-    asm volatile("pv.dotsp.h  %[E],%[CoSi1],%[B];"
-                "pv.dotsp.h  %[F],%[C1],%[B];"
-                "pv.dotsp.h  %[G],%[CoSi2],%[C];"
-                "pv.dotsp.h  %[H],%[C2],%[C];"
+    asm volatile("pv.dotsp.h  %[E],%[CoSi1],%[qlr_t1];"
+                "pv.dotsp.h  %[F],%[C1],%[qlr_t1];"
                 "srai  %[t0],%[E],0x10;"
                 "srai  %[t1],%[F],0x10;"
-                "pv.dotsp.h  %[E],%[CoSi3],%[D];"
-                "pv.dotsp.h  %[F],%[C3],%[D];"
-                "srai  %[t2],%[G],0x10;"
-                "srai  %[t3],%[H],0x10;"
-                "srai  %[t4],%[E],0x10;"
-                "srai  %[t5],%[F],0x10;"
                 "pv.pack %[B],%[t1],%[t0];"
-                "pv.pack %[D],%[t5],%[t4];"
-                "pv.pack %[C],%[t3],%[t2];"
-                "pv.sra.h  %[A],%[A],%[s1];"
+                "pv.dotsp.h  %[E],%[CoSi3],%[qlr_t3];"
+                "pv.dotsp.h  %[F],%[C3],%[qlr_t3];"
+                "srai  %[t0],%[E],0x10;"
+                "srai  %[t1],%[F],0x10;"
+                "pv.pack %[D],%[t1],%[t0];"
+                "pv.dotsp.h  %[G],%[CoSi2],%[qlr_t2];"
+                "pv.dotsp.h  %[H],%[C2],%[qlr_t2];"
+                "srai  %[t0],%[G],0x10;"
+                "srai  %[t1],%[H],0x10;"
+                "pv.pack %[C],%[t1],%[t0];"
+                "pv.sra.h  %[A],%[qlr_t0],%[s1];"
                 "pv.sub.h  %[H],%[B],%[D];"
                 "pv.add.h  %[E],%[A],%[C];"
                 "pv.sub.h  %[F],%[A],%[C];"
@@ -500,16 +615,16 @@ void systolic_end_pe(uint32_t stage_idx, uint32_t idx_in_stage, uint32_t core_id
                 "pv.extract.h  %[t1],%[H],1;"
                 "pv.sra.h  %[F],%[F],%[s1];"
                 "pv.sra.h  %[G],%[G],%[s1];"
-                "sub %[t2],zero,%[t1];"
-                "pv.pack %[A],%[t0],%[t2];"
+                "sub %[t1],zero,%[t1];"
+                "pv.pack %[A],%[t0],%[t1];"
                 "pv.add.h  %[B],%[E],%[G];"
                 "pv.sub.h  %[D],%[E],%[G];"
                 "pv.sub.h  %[C],%[F],%[A];"
                 "pv.add.h  %[H],%[A],%[F];"
-                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
+                : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),
                   [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
-                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                  [t4] "=&r"(t4), [t5] "=&r"(t5)
+                  [t0] "=&r"(t0), [t1] "=&r"(t1), [qlr_t0] "+&r"(qlr_t0),
+                  [qlr_t1] "+&r"(qlr_t1), [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)
                 : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
                   [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3), [s1] "r"(s1)
                 :);
