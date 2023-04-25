@@ -21,52 +21,7 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **
     with file.open('w') as f:
         f.write(template.render(**kwargs))
 
-def main():
-
-    parser = argparse.ArgumentParser(description='Generate data for kernels')
-    parser.add_argument(
-        "-o",
-        "--outdir",
-        type=pathlib.Path,
-        default=pathlib.Path.cwd(),
-        required=False,
-        help='Select out directory of generated data files'
-    )
-    parser.add_argument(
-        "-t",
-        "--tpl",
-        type=pathlib.Path,
-        required=False,
-        default=pathlib.Path.cwd() / "data_mimo_mmse.h.tpl",
-        help='Path to mako template'
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action='store_true',
-        help='Set verbose'
-    )
-    parser.add_argument(
-        "-n",
-        "--transmitters",
-        type=int,
-        required=False,
-        default=4,
-        help='First dimension.'
-    )
-    parser.add_argument(
-        "-m",
-        "--receivers",
-        type=int,
-        required=False,
-        default=32,
-        help='First dimension.'
-    )
-
-    args = parser.parse_args()
-    N_tx=args.transmitters
-    N_rx=args.receivers
-
+def gen_input_data(N_rx, N_tx):
     # Create channel matrix
     H = np.random.rand(N_rx, N_tx).astype(np.float16) + 1.j * np.random.rand(N_rx, N_tx).astype(np.float16)
     # Create input vector
@@ -76,6 +31,7 @@ def main():
 
     # Matrix to be inverted in MMSE estimator
     H_h = (np.asmatrix(H).H)
+
     G = H_h * H
     G = G + np.diag(sigma)
     # Cholesky decomposition
@@ -124,14 +80,90 @@ def main():
     x_RI = x_RI.astype(np.float16)
     y_RI = y_RI.astype(np.float16)
     s_RI = s_RI.astype(np.float16)
-    print("Channel matrix in (Re, Im) format:\n", H_RI)
-    print("Hermitian matrix in (Re, Im) format:\n", G_RI)
-    print("Cholesky dec. in (Re, Im) format:\n", L_RI)
-    print("Input vector in (Re, Im) format:\n", b_RI)
-    print("Output vector in (Re, Im) format:\n", x_RI)
+    # print("Channel matrix in (Re, Im) format:\n", H_RI)
+    # print("Hermitian matrix in (Re, Im) format:\n", G_RI)
+    # print("Cholesky dec. in (Re, Im) format:\n", L_RI)
+    # print("Input vector in (Re, Im) format:\n", b_RI)
+    # print("Output vector in (Re, Im) format:\n", x_RI)
 
+    return sigma, H_RI, G_RI, b_RI, x_RI
 
-    kwargs = {'name': 'mimo_mmse_f16', 'H': H_RI, 'G': G_RI, 'sigma': sigma, 'L' : L_RI, 'b' : b_RI, 'x' : x_RI, 'y' : y_RI, 's' : s_RI, 'N_tx' : N_tx, 'N_rx' : N_rx}
+def main():
+
+    parser = argparse.ArgumentParser(description='Generate data for kernels')
+    parser.add_argument(
+        "-o",
+        "--outdir",
+        type=pathlib.Path,
+        default=pathlib.Path.cwd(),
+        required=False,
+        help='Select out directory of generated data files'
+    )
+    parser.add_argument(
+        "-t",
+        "--tpl",
+        type=pathlib.Path,
+        required=False,
+        default=pathlib.Path.cwd() / "data_mimo_mmse.h.tpl",
+        help='Path to mako template'
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action='store_true',
+        help='Set verbose'
+    )
+    parser.add_argument(
+        "-n",
+        "--transmitters",
+        type=int,
+        required=False,
+        default=4,
+        help='First dimension.'
+    )
+    parser.add_argument(
+        "-m",
+        "--receivers",
+        type=int,
+        required=False,
+        default=32,
+        help='First dimension.'
+    )
+    parser.add_argument(
+        "-k",
+        "--iterations",
+        type=int,
+        required=False,
+        default=256,
+        help='Iterations.'
+    )
+
+    args = parser.parse_args()
+    N_tx=args.transmitters
+    N_rx=args.receivers
+    itr=args.iterations
+
+    sigma = np.zeros([itr, N_tx])
+    H_RI = np.zeros([itr, 2*N_tx*N_rx])
+    G_RI = np.zeros([itr, 2*N_tx*N_tx])
+    b_RI = np.zeros([itr, 2*N_rx])
+    x_RI = np.zeros([itr, 2*N_tx])
+    for k in range(itr):
+        sigma[k,:], H_RI[k,:], G_RI[k,:], b_RI[k,:], x_RI[k,:] = gen_input_data(N_rx, N_tx)
+
+    sigma = np.reshape(sigma, (N_tx*itr))
+    H_RI = np.reshape(H_RI, (2*N_rx*N_tx*itr))
+    G_RI = np.reshape(G_RI, (2*N_tx*N_tx*itr))
+    b_RI = np.reshape(b_RI, (2*N_rx*itr))
+    x_RI = np.reshape(x_RI, (2*N_tx*itr))
+
+    sigma = sigma.astype(np.float16)
+    H_RI = H_RI.astype(np.float16)
+    G_RI = G_RI.astype(np.float16)
+    b_RI = b_RI.astype(np.float16)
+    x_RI = x_RI.astype(np.float16)
+
+    kwargs = {'name': 'mimo_mmse_f16', 'H': H_RI, 'G': G_RI, 'sigma': sigma, 'b' : b_RI, 'x' : x_RI, 'N_tx' : N_tx, 'N_rx' : N_rx, 'N_itr' : itr}
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
 
 if __name__ == "__main__":
