@@ -17,23 +17,18 @@
 
 #define N_TX (${N_tx})
 #define N_RX (${N_rx})
+#define N_ITR (${N_itr})
 
 // Inputs
 
-float In_H[${2 * N_tx * N_rx}] = ${array_to_cstr(H)};
+float In_H[${2 * N_tx * N_rx * N_itr}] = ${array_to_cstr(H)};
 
-float In_G[${2 * N_tx * N_tx}] = ${array_to_cstr(G)};
+float In_G[${2 * N_tx * N_tx * N_itr}] = ${array_to_cstr(G)};
 
-float In_b[${2 * N_rx}] = ${array_to_cstr(b)};
+float In_b[${2 * N_rx * N_itr}] = ${array_to_cstr(b)};
 
-float In_sigma[${N_tx}] = ${array_to_cstr(sigma)};
+float In_sigma[${N_tx * N_itr}] = ${array_to_cstr(sigma)};
 
 // Outputs
 
-float Out_L[${2 * N_tx * N_tx}] = ${array_to_cstr(L)};
-
-float Out_x[${2 * N_tx}] = ${array_to_cstr(x)};
-
-float Out_s[${2 * N_tx}] = ${array_to_cstr(s)};
-
-float Out_y[${2 * N_tx}] = ${array_to_cstr(y)};
+float Out_x[${2 * N_tx * N_itr}] = ${array_to_cstr(x)};
