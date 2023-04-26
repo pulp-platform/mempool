@@ -11,27 +11,24 @@ extern crate riscv;
 extern crate rust_rt;
 
 use alloc::format;
-use alloc::vec::Vec;
 use riscv::register::*;
+use rust_rt::barrier::*;
 use rust_rt::entry;
-use rust_rt::{print, println};
+use rust_rt::println;
 
 #[entry]
 fn main() -> usize {
-    let mut xs = Vec::new();
-    xs.push(1);
-    xs.push(3);
-
-    for item in xs {
-        println!("vec item: {}", item);
-    }
-
+    //conviniece function for mhartid::read()
     let hartid: u32 = mhartid::read().try_into().unwrap();
-    let a: u32 = (5 * 7) / 10 * hartid;
-    println!("hart id * 3.5: {}", a);
 
-    print!("simple print ");
-    print!("+ new line \n");
+    mempool_barrier_init(hartid);
+
+    for i in 0..3 {
+        if hartid == i {
+            println!("hart id: {}", hartid);
+        }
+        mempool_barrier(4);
+    }
 
     return 0x4e110;
 }

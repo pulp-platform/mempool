@@ -9,7 +9,7 @@ authors = ["Michael Rogenmoser <michaero@iis.ee.ethz.ch>"]
 description = "Minimal rust runtime for MemPool"
 
 [dependencies]
-riscv = "0.7"
+riscv = {version = "0.10.1", features = ["critical-section-single-hart"]}
 riscv-rt-macros = { path = "macros" }
 embedded-alloc = "0.5.0"
 

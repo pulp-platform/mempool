@@ -5,8 +5,8 @@
 /* Include the file processed by the preprocessor called arch.ld.c */
 
 MEMORY {
-  l1 (R) : ORIGIN = 0x00000000, LENGTH = 0x1000 /* NUM_CORES * 4 * 1KiB per bank */
-  l2     : ORIGIN = 0x80000000, LENGTH = 0x10000
+  l1 (R) : ORIGIN = 0x00000000, LENGTH = 0x10000 /* NUM_CORES * 4 * 1KiB per bank */
+  l2     : ORIGIN = 0x80000000, LENGTH = 0x100000
   rom (R): ORIGIN = 0xA0000000, LENGTH = 0x00001000
 }
 
@@ -21,7 +21,7 @@ SECTIONS {
 
   /* Stack size */
   __stack_start = __l1_start;
-  __stack_end = __l1_start + 0x400;
+  __stack_end = __l1_start + 0x400 * 16;
 
   /*Heap size (start adress is re-assigned below)*/
   __heap_start = __l1_start;
