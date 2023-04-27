@@ -65,117 +65,58 @@ void initialize() {
   mempool_barrier(num_cores);
 }
 
-// Driver program
-void single_core_cholesky() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id); // Initialize barrier and synchronize
-  /* Initialize matrices */
-  initialize();
-  /* Benchmark */
-  if (core_id == 0) {
-    mempool_start_benchmark();
-    mempool_cholesky_crout_q32s(M_matrix, L_matrix, N);
-    mempool_stop_benchmark();
-  }
-  mempool_barrier(num_cores);
-}
-
-// Driver program
-void single_core_linearsolver() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id); // Initialize barrier and synchronize
-  /* Initialize matrices */
-  initialize();
-  /* Benchmark */
-  if (core_id == 0) {
-    mempool_start_benchmark();
-    mempool_linearsolver_q32s(M_matrix, L_matrix, In, N);
-    mempool_uprtrisolver_q32s(L_matrix, In, N);
-    mempool_stop_benchmark();
-  }
-  mempool_barrier(num_cores);
-}
-
-// Driver program
-void parallel_cholesky() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id); // Initialize barrier and synchronize
-  /* Initialize matrices */
-  initialize();
-  /* Benchmark */
-  mempool_start_benchmark();
-  mempool_cholesky_q32p(M_matrix, L_matrix, N);
-  mempool_stop_benchmark();
-  mempool_barrier(num_cores);
-}
-
-// Driver program
-void parallel_cholesky_folded() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  uint32_t nPE = N / 4;
-  mempool_barrier_init(core_id); // Initialize barrier and synchronize
-  /* Initialize matrices */
-  initialize();
-  /* Benchmark */
-  if (core_id < nPE) {
-    mempool_start_benchmark();
-    mempool_cholesky_q32p_fold(M_matrix, M_matrix, LL_matrix, LR_matrix, N,
-                               nPE);
-    mempool_stop_benchmark();
-  }
-  mempool_barrier(num_cores);
-#ifdef VERBOSE
-  if (core_id == 0) {
-    display(LL_matrix, N, N);
-    display(LR_matrix, N, N);
-    display(In, 1, N);
-  }
-  mempool_barrier(num_cores);
-#endif
-}
-
-// Driver program
-void parallel_linearsolver_folded() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id); // Initialize barrier and synchronize
-  /* Initialize matrices */
-  initialize();
-  /* Benchmark */
-  uint32_t nPE = N / 4;
-  if (core_id < nPE) {
-    mempool_start_benchmark();
-    mempool_linearsolver_q32p_fold(M_matrix, M_matrix, LL_matrix, LR_matrix, In,
-                                   In, N, nPE);
-    mempool_stop_benchmark();
-  }
-  mempool_barrier(num_cores);
-}
-
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id); // Initialize barrier and synchronize
 
+  /* Initialize matrices */
+  initialize();
+  mempool_barrier(num_cores);
+
+  if (core_id == 0) {
 #ifdef SINGLE
-  single_core_cholesky();
+    mempool_start_benchmark();
+    mempool_cholesky_crout_q32s(M_matrix, L_matrix, N);
+    mempool_stop_benchmark();
 #endif
 #if defined(SINGLE) && defined(LINEARSOLVER)
-  single_core_linearsolver();
+    mempool_start_benchmark();
+    mempool_linearsolver_q32s(M_matrix, L_matrix, In, N);
+    mempool_uprtrisolver_q32s(L_matrix, In, N);
+    mempool_stop_benchmark();
 #endif
+  }
+  mempool_barrier(num_cores);
+
 #ifdef PARALLEL
-  parallel_cholesky();
+  mempool_start_benchmark();
+  mempool_cholesky_q32p(M_matrix, L_matrix, N);
+  mempool_stop_benchmark();
+  mempool_barrier(num_cores);
 #endif
+
 #if defined(PARALLEL) && defined(FOLDED)
-  parallel_cholesky_folded();
+  if (core_id < nPE) {
+    uint32_t nPE = N / 4;
+    mempool_start_benchmark();
+    mempool_cholesky_fold_q32p(M_matrix, M_matrix, LL_matrix, LR_matrix, N,
+                               nPE);
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
 #endif
+
 #if defined(PARALLEL) && defined(FOLDED) && defined(LINEARSOLVER)
-  parallel_linearsolver_folded();
+  if (core_id < nPE) {
+    uint32_t nPE = N / 4;
+    mempool_start_benchmark();
+    mempool_linearsolver_fold_q32p(M_matrix, M_matrix, LL_matrix, LR_matrix, In,
+                                   In, N, nPE);
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
 #endif
 
 #if defined(VERBOSE) && defined(FOLDED)

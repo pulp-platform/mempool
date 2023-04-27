@@ -313,7 +313,7 @@ void mempool_cholesky_crout_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n) {
   @return        none
 */
 
-void mempool_cholesky_q32s_schedule(int32_t *pSrc, int32_t *pL,
+void mempool_cholesky_schedule_q32s(int32_t *pSrc, int32_t *pL,
                                     const uint32_t n, const uint32_t n_row,
                                     const uint32_t n_col) {
   uint32_t core_id = mempool_get_core_id();
