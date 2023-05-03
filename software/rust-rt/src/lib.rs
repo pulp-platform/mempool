@@ -14,8 +14,8 @@ pub use macros::entry;
 
 use core::sync::atomic::AtomicU32;
 
+pub mod barrier;
 pub mod init;
 pub mod println;
-pub mod barrier;
 
-pub static BARRIER : AtomicU32 = AtomicU32::new(0);
+pub static BARRIER: AtomicU32 = AtomicU32::new(0);

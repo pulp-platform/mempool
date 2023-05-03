@@ -12,22 +12,20 @@ extern crate rust_rt;
 
 use alloc::format;
 use riscv::register::*;
-use rust_rt::barrier::*;
+use rust_rt::barrier::{get_core_count, mempool_barrier};
 use rust_rt::entry;
 use rust_rt::println;
 
 #[entry]
 fn main() -> usize {
-    //conviniece function for mhartid::read()
     let hartid: u32 = mhartid::read().try_into().unwrap();
+    let num_cores: u32 = get_core_count();
 
-    mempool_barrier_init(hartid);
-
-    for i in 0..3 {
+    for i in 0..num_cores {
         if hartid == i {
             println!("hart id: {}", hartid);
         }
-        mempool_barrier(4);
+        mempool_barrier(num_cores);
     }
 
     return 0x4e110;

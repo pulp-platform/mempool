@@ -75,6 +75,9 @@ _reset_vector:
     add     sp, sp, t0
 #endif
 _jump_main:
+    la      t0, HEAP
+    addi    t1, x0, 1
+    sw      x0, 0(t0)
     call    _start_rust
 
 _eoc:

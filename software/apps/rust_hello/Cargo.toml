@@ -10,5 +10,4 @@ edition = "2021"
 [dependencies]
 rust-rt = {path = "../../rust-rt"}
 panic-halt = "0.2"
-riscv = {version = "0.10.1", features = ["critical-section-single-hart"]}
-embedded-alloc = "0.5.0"
+riscv = {version = "0.10.1"}
