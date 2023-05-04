@@ -4,14 +4,14 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-void mempool_hermitian_f32p(float *pH, float *pG, float *sigma, const uint32_t n_rx, const uint32_t n_tx, const uint32_t core_id, const uint32_t nPE);
+void mempool_hermitian_f32p(float *pH, float *pG, float *sigma, const uint32_t n_rx, const uint32_t n_tx,  const uint32_t folded, const uint32_t core_id, const uint32_t nPE);
 void mempool_cholesky_f32p(float *pSrc, float *pL, const uint32_t n, const uint32_t nPE);
 void mempool_Ltrisol_f32p(float *pL, float *in, float *x, const uint32_t n, const uint32_t nPE);
 void mempool_Lttrisol_f32p(float *pL, float *in, float *x, const uint32_t n, const uint32_t nPE);
 
 /* Computes the Hermitian matrix G = (H'*H + sigma^2I) */
 void mempool_hermitian_f32p(float *pH, float *pG, float *sigma, const uint32_t n_rx,
-                            const uint32_t n_tx, const uint32_t core_id, const uint32_t nPE) {
+                            const uint32_t n_tx, const uint32_t folded, const uint32_t core_id, const uint32_t nPE) {
 
   uint32_t i, j, k;
   float a;
@@ -109,133 +109,28 @@ void mempool_hermitian_f32p(float *pH, float *pG, float *sigma, const uint32_t n
           :);
         bs3 = 0.0f;
       }
-      // Store
-      pG[2 * (i * n_tx + j)] = as0;
-      pG[2 * (i * n_tx + j + 1U)] = as1;
-      pG[2 * (i * n_tx + j + 2U)] = as2;
-      pG[2 * (i * n_tx + j + 3U)] = as3;
-      pG[2 * (i * n_tx + j) + 1U] = bs0;
-      pG[2 * (i * n_tx + j + 1U) + 1U] = bs1;
-      pG[2 * (i * n_tx + j + 2U) + 1U] = bs2;
-      pG[2 * (i * n_tx + j + 3U) + 1U] = bs3;
-    }
-  }
-  mempool_log_partial_barrier(2, mempool_get_core_id(), nPE);
-  return;
-}
-
-
-/* Computes the Hermitian matrix G = (H'*H + sigma^2I) */
-// The output hermitian matrix is folded
-void mempool_hermitian_folded_f32p(float *pH, float *pG, float *sigma, const uint32_t n_rx,
-                            const uint32_t n_tx, const uint32_t core_id, const uint32_t nPE) {
-
-  uint32_t i, j, k;
-  float a;
-  float b;
-  float c0, c1, c2, c3;
-  float d0, d1, d2, d3;
-  float as0, as1, as2, as3;
-  float bs0, bs1, bs2, bs3;
-  for (i = core_id; i < n_tx; i += nPE) {
-    for(j = 0; j < n_tx; j += 4) {
-      // Initialize the real part of sums
-      as0 = 0.0f;
-      as1 = 0.0f;
-      as2 = 0.0f;
-      as3 = 0.0f;
-      // Initialize the imag part of sums
-      bs0 = 0.0f;
-      bs1 = 0.0f;
-      bs2 = 0.0f;
-      bs3 = 0.0f;
-      // Inner Loop
-      for (k = 0; k < n_rx; k++) {
-        // inputs from matrix H_h
-        a = pH[2U * (k * n_tx + i)];
-        b = pH[2U * (k * n_tx + i) + 1U];
-        // inputs from matrix H
-        c0 = pH[2U * (k * n_tx + j)];
-        c1 = pH[2U * (k * n_tx + j + 1U)];
-        c2 = pH[2U * (k * n_tx + j + 2U)];
-        c3 = pH[2U * (k * n_tx + j + 3U)];
-        d0 = pH[2U * (k * n_tx + j) + 1U];
-        d1 = pH[2U * (k * n_tx + j + 1U) + 1U];
-        d2 = pH[2U * (k * n_tx + j + 2U) + 1U];
-        d3 = pH[2U * (k * n_tx + j + 3U) + 1U];
-        // dotproducts (ac + bd) + j (ad - bc)
-        asm volatile (
-          // a * c
-          "fmadd.s  %[as0], %[a], %[c0], %[as0];"
-          "fmadd.s  %[as1], %[a], %[c1], %[as1];"
-          "fmadd.s  %[as2], %[a], %[c2], %[as2];"
-          "fmadd.s  %[as3], %[a], %[c3], %[as3];"
-          // a * d
-          "fmadd.s  %[bs0], %[a], %[d0], %[bs0];"
-          "fmadd.s  %[bs1], %[a], %[d1], %[bs1];"
-          "fmadd.s  %[bs2], %[a], %[d2], %[bs2];"
-          "fmadd.s  %[bs3], %[a], %[d3], %[bs3];"
-          // b * d
-          "fmadd.s  %[as0], %[b], %[d0], %[as0];"
-          "fmadd.s  %[as1], %[b], %[d1], %[as1];"
-          "fmadd.s  %[as2], %[b], %[d2], %[as2];"
-          "fmadd.s  %[as3], %[b], %[d3], %[as3];"
-          // - b * c
-          "fnmsub.s %[bs0], %[b], %[c0], %[bs0];"
-          "fnmsub.s %[bs1], %[b], %[c1], %[bs1];"
-          "fnmsub.s %[bs2], %[b], %[c2], %[bs2];"
-          "fnmsub.s %[bs3], %[b], %[c3], %[bs3];"
-          : [as0] "+&r" (as0), [as1] "+&r" (as1), [as2] "+&r" (as2), [as3] "+&r" (as3),
-            [bs0] "+&r" (bs0), [bs1] "+&r" (bs1), [bs2] "+&r" (bs2), [bs3] "+&r" (bs3)
-          : [a] "r" (a), [b] "r" (b),
-            [c0] "r" (c0), [c1] "r" (c1), [c2] "r" (c2), [c3] "r" (c3),
-            [d0] "r" (d0), [d1] "r" (d1), [d2] "r" (d2), [d3] "r" (d3)
-          :);
+      if (!folded) {
+        // Store
+        pG[2 * (i * n_tx + j)] = as0;
+        pG[2 * (i * n_tx + j + 1U)] = as1;
+        pG[2 * (i * n_tx + j + 2U)] = as2;
+        pG[2 * (i * n_tx + j + 3U)] = as3;
+        pG[2 * (i * n_tx + j) + 1U] = bs0;
+        pG[2 * (i * n_tx + j + 1U) + 1U] = bs1;
+        pG[2 * (i * n_tx + j + 2U) + 1U] = bs2;
+        pG[2 * (i * n_tx + j + 3U) + 1U] = bs3;
+      } else {
+        // Store
+        uint32_t addr = i * ((n_tx / 2) * N_BANKS) + (j / 4) * (2 * N_BANKS);
+        pG[addr] = as0;
+        pG[addr + 1U] = bs0;
+        pG[addr + 2U] = as1;
+        pG[addr + 3U] = bs1;
+        pG[addr + N_BANKS] = as2;
+        pG[addr + N_BANKS + 1U] = bs2;
+        pG[addr + N_BANKS + 2U] = as3;
+        pG[addr + N_BANKS + 3U] = bs3;
       }
-      // Compute diagonal element
-      float s = sigma[i];
-      if (i == j) {
-        asm volatile (
-          "fadd.s  %[as0], %[as0], %[sigma];"
-          : [as0] "+&r" (as0)
-          : [sigma] "r" (s)
-          :);
-        bs0 = 0.0f;
-      }
-      else if (i == (j + 1U)) {
-        asm volatile (
-          "fadd.s  %[as1], %[as1], %[sigma];"
-          : [as1] "+&r" (as1)
-          : [sigma] "r" (s)
-          :);
-        bs1 = 0.0f;
-      }
-      else if (i == (j + 2U)) {
-        asm volatile (
-          "fadd.s  %[as2], %[as2], %[sigma];"
-          : [as2] "+&r" (as2)
-          : [sigma] "r" (s)
-          :);
-        bs2 = 0.0f;
-      }
-      else if (i == (j + 3U)) {
-        asm volatile (
-          "fadd.s  %[as3], %[as3], %[sigma];"
-          : [as3] "+&r" (as3)
-          : [sigma] "r" (s)
-          :);
-        bs3 = 0.0f;
-      }
-      // Store
-      uint32_t addr = i * ((n_tx / 2) * N_BANKS) + (j / 4) * (2 * N_BANKS);
-      pG[addr] = as0;
-      pG[addr + 1U] = bs0;
-      pG[addr + 2U] = as1;
-      pG[addr + 3U] = bs1;
-      pG[addr + N_BANKS] = as2;
-      pG[addr + N_BANKS + 1U] = bs2;
-      pG[addr + N_BANKS + 2U] = as3;
-      pG[addr + N_BANKS + 3U] = bs3;
     }
   }
   mempool_log_partial_barrier(2, mempool_get_core_id(), nPE);
