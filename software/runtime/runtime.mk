@@ -26,6 +26,7 @@ DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
+ZFINX_RV      ?= $(zfinx_rv)
 
 RISCV_XLEN    ?= 32
 
@@ -49,13 +50,23 @@ ifeq ($(COMPILER),gcc)
 	RISCV_CXX     ?= $(RISCV_PREFIX)g++
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 else
+	RISCV_ARCH ?= rv$(RISCV_XLEN)ima
 	# Use LLVM by default
 	# LLVM compiler -march
-	ifeq ($(fpu), 0)
-		RISCV_ARCH ?= rv$(RISCV_XLEN)ima
-	else
-		RISCV_ARCH ?= rv$(RISCV_XLEN)imazfinx_zhinx_zquarterinx_zvechalfinx_zexpauxvechalfinx_xmempool
+	ifeq ($(ZFINX_RV), 1)
+		RISCV_ARCH := $(RISCV_ARCH)_zfinx
+		RISCV_ARCH := $(RISCV_ARCH)_zhinx
+		RISCV_ARCH := $(RISCV_ARCH)_zquarterinx
+		RISCV_ARCH := $(RISCV_ARCH)_zvechalfinx
+		RISCV_ARCH := $(RISCV_ARCH)_zexpauxvechalfinx
 	endif
+  ifeq ($(XPULPIMG), 1)
+  	RISCV_ARCH := $(RISCV_ARCH)_xpulppostmod
+  	RISCV_ARCH := $(RISCV_ARCH)_xpulpmacsi
+  	RISCV_ARCH := $(RISCV_ARCH)_xpulpvect
+  	RISCV_ARCH := $(RISCV_ARCH)_xpulpvectshufflepack
+  endif
+  RISCV_ARCH := $(RISCV_ARCH)_xmempool
 
 	# GCC Toolchain
 	RISCV_PREFIX  ?= $(LLVM_INSTALL_DIR)/bin/llvm-
@@ -111,7 +122,7 @@ else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
-	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+zfinx
+	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
 endif
 
 LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld

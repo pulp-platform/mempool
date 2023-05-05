@@ -93,10 +93,11 @@ tc-llvm:
 		-DLLVM_BUILD_DOCS="0" \
 		-DLLVM_ENABLE_BINDINGS="0" \
 		-DLLVM_ENABLE_TERMINFO="0"  \
-		-DLLVM_OPTIMIZED_TABLEGEN=ON \
+		-DLLVM_ENABLE_ASSERTIONS=ON \
+		-DLLVM_ENABLE_LIBPFM=OFF \
 		-DCMAKE_BUILD_TYPE=Release \
 		../llvm && \
-	make -j4 all && \
+	make -j6 all && \
 	make install
 
 riscv-isa-sim: update_opcodes
