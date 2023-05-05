@@ -4,6 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#include "kernel/mempool_sqrt_q32s.h"
+
 /**
   @brief         Choleksy decomposition with Banachiewicz algorithm.
   @param[in]     pSrc  points to input matrix
@@ -11,8 +13,6 @@
   @param[in]     n dimension of the input data
   @return        none
 */
-
-#include "kernel/mempool_sqrt_q32s.h"
 
 void mempool_cholesky_banachiewicz_q32s(int32_t *pSrc, int32_t *pL,
                                         const uint32_t n) {
