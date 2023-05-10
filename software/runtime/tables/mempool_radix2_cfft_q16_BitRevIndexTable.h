@@ -4,8 +4,6 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#include "define.h"
-
 #define BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH ((uint16_t)16)
 #define BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH ((uint16_t)32)
 #define BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH ((uint16_t)64)
@@ -16,26 +14,18 @@
 #define BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH ((uint16_t)2048)
 #define BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH ((uint16_t)4096)
 
-#ifdef TEST_16
-
 uint16_t BitRevIndexTable_fixed_16[BITREVINDEXTABLE_FIXED_16_TABLE_LENGTH] = {
     0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15};
-
-#elif defined(TEST_32)
 
 uint16_t BitRevIndexTable_fixed_32[BITREVINDEXTABLE_FIXED_32_TABLE_LENGTH] = {
     0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30,
     1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31};
-
-#elif defined(TEST_64)
 
 uint16_t BitRevIndexTable_fixed_64[BITREVINDEXTABLE_FIXED_64_TABLE_LENGTH] = {
     0, 32, 16, 48, 8,  40, 24, 56, 4, 36, 20, 52, 12, 44, 28, 60,
     2, 34, 18, 50, 10, 42, 26, 58, 6, 38, 22, 54, 14, 46, 30, 62,
     1, 33, 17, 49, 9,  41, 25, 57, 5, 37, 21, 53, 13, 45, 29, 61,
     3, 35, 19, 51, 11, 43, 27, 59, 7, 39, 23, 55, 15, 47, 31, 63};
-
-#elif defined(TEST_128)
 
 uint16_t BitRevIndexTable_fixed_128[BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH] = {
     0, 64, 32, 96,  16, 80, 48, 112, 8,  72, 40, 104, 24, 88, 56, 120,
@@ -46,8 +36,6 @@ uint16_t BitRevIndexTable_fixed_128[BITREVINDEXTABLE_FIXED_128_TABLE_LENGTH] = {
     5, 69, 37, 101, 21, 85, 53, 117, 13, 77, 45, 109, 29, 93, 61, 125,
     3, 67, 35, 99,  19, 83, 51, 115, 11, 75, 43, 107, 27, 91, 59, 123,
     7, 71, 39, 103, 23, 87, 55, 119, 15, 79, 47, 111, 31, 95, 63, 127};
-
-#elif defined(TEST_256)
 
 uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] = {
     0,  128, 64, 192, 32, 160, 96,  224, 16, 144, 80, 208, 48, 176, 112, 240,
@@ -66,8 +54,6 @@ uint16_t BitRevIndexTable_fixed_256[BITREVINDEXTABLE_FIXED_256_TABLE_LENGTH] = {
     11, 139, 75, 203, 43, 171, 107, 235, 27, 155, 91, 219, 59, 187, 123, 251,
     7,  135, 71, 199, 39, 167, 103, 231, 23, 151, 87, 215, 55, 183, 119, 247,
     15, 143, 79, 207, 47, 175, 111, 239, 31, 159, 95, 223, 63, 191, 127, 255};
-
-#elif defined(TEST_512)
 
 uint16_t BitRevIndexTable_fixed_512[BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH] = {
     0,   256, 128, 384, 64,  320, 192, 448, 32,  288, 160, 416, 96,  352, 224,
@@ -105,8 +91,6 @@ uint16_t BitRevIndexTable_fixed_512[BITREVINDEXTABLE_FIXED_512_TABLE_LENGTH] = {
     15,  271, 143, 399, 79,  335, 207, 463, 47,  303, 175, 431, 111, 367, 239,
     495, 31,  287, 159, 415, 95,  351, 223, 479, 63,  319, 191, 447, 127, 383,
     255, 511};
-
-#elif defined(TEST_1024)
 
 uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] =
     {0,   512, 256, 768,  128, 640, 384, 896,  64,  576, 320, 832,
@@ -195,8 +179,6 @@ uint16_t BitRevIndexTable_fixed_1024[BITREVINDEXTABLE_FIXED_1024_TABLE_LENGTH] =
      159, 671, 415, 927,  95,  607, 351, 863,  223, 735, 479, 991,
      63,  575, 319, 831,  191, 703, 447, 959,  127, 639, 383, 895,
      255, 767, 511, 1023};
-
-#elif defined(TEST_2048)
 
 uint16_t BitRevIndexTable_fixed_2048[BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH] =
     {0,   1024, 512,  1536, 256, 1280, 768,  1792, 128, 1152, 640,  1664,
@@ -370,8 +352,6 @@ uint16_t BitRevIndexTable_fixed_2048[BITREVINDEXTABLE_FIXED_2048_TABLE_LENGTH] =
      63,  1087, 575,  1599, 319, 1343, 831,  1855, 191, 1215, 703,  1727,
      447, 1471, 959,  1983, 127, 1151, 639,  1663, 383, 1407, 895,  1919,
      255, 1279, 767,  1791, 511, 1535, 1023, 2047};
-
-#elif defined(TEST_4096)
 
 uint16_t BitRevIndexTable_fixed_4096[BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH] =
     {0,    2048, 1024, 3072, 512,  2560, 1536, 3584, 256,  2304, 1280, 3328,
@@ -716,5 +696,3 @@ uint16_t BitRevIndexTable_fixed_4096[BITREVINDEXTABLE_FIXED_4096_TABLE_LENGTH] =
      639,  2687, 1663, 3711, 383,  2431, 1407, 3455, 895,  2943, 1919, 3967,
      255,  2303, 1279, 3327, 767,  2815, 1791, 3839, 511,  2559, 1535, 3583,
      1023, 3071, 2047, 4095};
-
-#endif

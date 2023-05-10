@@ -5,7 +5,6 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#include "define.h"
 #include "xpulp/builtins_v2.h"
 
 static void mempool_radix2_cfft_q16p(uint16_t fftLen, int16_t *pTwiddle,
@@ -43,7 +42,6 @@ static void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
   uint32_t i, j, k, l;
   uint32_t n1, n2, ia;
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
   uint32_t step, steps, butt_id, offset;
   v2s T, S, R;
   v2s coeff;
@@ -192,6 +190,7 @@ void mempool_radix2_bitreversal_q16p(uint16_t *pSrc, const uint16_t bitRevLen,
                                      const uint16_t *pBitRevTab, uint32_t nPE) {
   uint32_t i;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
   v2s addr, tmpa, tmpb;
 
   for (i = 2 * core_id; i < bitRevLen; i += (2 * nPE)) {
