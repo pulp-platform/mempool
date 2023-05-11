@@ -307,16 +307,14 @@ static void mempool_radix4_cfft_q16s_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
   int16_t t0, t1, t2, t3, t4, t5;
   uint32_t n1, n2, ic, i0, j, k;
 
-  n2 = fftLen;
-  n1 = n2;
-  n2 >>= 2U;
-  ic = 0U;
+  n1 = fftLen;
+  n2 = n1 >> 2U;
 
   /* START OF FIRST STAGE PROCESS */
   for (i0 = 0; i0 < n2; i0++) {
-    CoSi1 = *(v2s *)&pCoef16[ic * 2U];
-    CoSi2 = *(v2s *)&pCoef16[2U * ic * 2U];
-    CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
+    CoSi1 = *(v2s *)&pCoef16[2U * i0];
+    CoSi2 = *(v2s *)&pCoef16[2U * i0 * 2U];
+    CoSi3 = *(v2s *)&pCoef16[2U * i0 * 3U];
 #ifndef ASM
     t1 = (int16_t)CoSi1[0];
     t3 = (int16_t)CoSi2[0];
@@ -348,7 +346,6 @@ static void mempool_radix4_cfft_q16s_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
 #endif
     radix4_butterfly_first(pSrc16, pSrc16, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                            C3);
-    ic = ic + twidCoefModifier;
   }
   /* END OF FIRST STAGE PROCESS */
 
@@ -509,5 +506,151 @@ void mempool_cfft_radix4by2_q16s_xpulpimg(int16_t *pSrc, uint32_t fftLen,
 
     *((v2s *)&pSrc[4 * i]) = pa;
     *((v2s *)&pSrc[4 * i + 2]) = pb;
+  }
+}
+
+void mempool_radix4_cfft_q16s_scheduler(
+    int16_t *pSrc16, uint16_t fftLen, int16_t *pCoef16, uint16_t *pBitRevTable,
+    uint16_t bitReverseLen, uint8_t bitReverseFlag, uint32_t nFFTs) {
+
+  /* Initializations for the first stage */
+  int16_t t0, t1, t2, t3, t4, t5;
+  uint32_t n1, n2, i0, ic, j, k, twidCoefModifier;
+  v2s CoSi1, CoSi2, CoSi3;
+  v2s C1, C2, C3;
+
+  /* FIRST STAGE */
+  n1 = fftLen;
+  n2 = n1 >> 2U;
+  for (i0 = 0; i0 < n2; i0++) {
+    CoSi1 = *(v2s *)&pCoef16[2U * i0];
+    CoSi2 = *(v2s *)&pCoef16[2U * i0 * 2U];
+    CoSi3 = *(v2s *)&pCoef16[2U * i0 * 3U];
+    asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
+                 "pv.extract.h  %[t3],%[CoSi2],0;"
+                 "pv.extract.h  %[t5],%[CoSi3],0;"
+                 "pv.extract.h  %[t0],%[CoSi1],1;"
+                 "pv.extract.h  %[t2],%[CoSi2],1;"
+                 "pv.extract.h  %[t4],%[CoSi3],1;"
+                 "sub           %[t0],zero,%[t0];"
+                 "sub           %[t2],zero,%[t2];"
+                 "sub           %[t4],zero,%[t4];"
+                 "pv.pack %[C1],%[t1],%[t0];"
+                 "pv.pack %[C2],%[t3],%[t2];"
+                 "pv.pack %[C3],%[t5],%[t4];"
+                 : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),
+                   [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
+                   [t4] "=&r"(t4), [t5] "=&r"(t5)
+                 : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
+                 :);
+    for (uint32_t idx_fft = 0; idx_fft < nFFTs; idx_fft++) {
+      radix4_butterfly_first(pSrc16 + (int32_t)idx_fft * (2 * fftLen),
+                             pSrc16 + (int32_t)idx_fft * (2 * fftLen), i0, n2,
+                             CoSi1, CoSi2, CoSi3, C1, C2, C3);
+    }
+  }
+
+  /* MIDDLE STAGE */
+  twidCoefModifier = 4;
+  for (k = fftLen / 4U; k > 4U; k >>= 2U) {
+    n1 = n2;
+    n2 >>= 2U;
+    ic = 0U;
+    for (j = 0U; j <= (n2 - 1U); j++) {
+      CoSi1 = *(v2s *)&pCoef16[2U * ic];
+      CoSi2 = *(v2s *)&pCoef16[2U * ic * 2U];
+      CoSi3 = *(v2s *)&pCoef16[2U * ic * 3U];
+      asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
+                   "pv.extract.h  %[t3],%[CoSi2],0;"
+                   "pv.extract.h  %[t5],%[CoSi3],0;"
+                   "pv.extract.h  %[t0],%[CoSi1],1;"
+                   "pv.extract.h  %[t2],%[CoSi2],1;"
+                   "pv.extract.h  %[t4],%[CoSi3],1;"
+                   "sub           %[t0],zero,%[t0];"
+                   "sub           %[t2],zero,%[t2];"
+                   "sub           %[t4],zero,%[t4];"
+                   "pv.pack %[C1],%[t1],%[t0];"
+                   "pv.pack %[C2],%[t3],%[t2];"
+                   "pv.pack %[C3],%[t5],%[t4];"
+                   : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),
+                     [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
+                     [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
+                   : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
+                   :);
+      ic = ic + twidCoefModifier;
+      for (i0 = j; i0 < fftLen; i0 += n1) {
+        for (uint32_t idx_fft = 0; idx_fft < nFFTs; idx_fft++) {
+          radix4_butterfly_middle(pSrc16 + (int32_t)idx_fft * (2 * fftLen),
+                                  pSrc16 + (int32_t)idx_fft * (2 * fftLen), i0,
+                                  n2, CoSi1, CoSi2, CoSi3, C1, C2, C3);
+        }
+      }
+    }
+    twidCoefModifier <<= 2U;
+  }
+
+  /* LAST STAGE */
+  n1 = n2;
+  n2 >>= 2U;
+  for (i0 = 0U; i0 < fftLen; i0 += n1) {
+    for (uint32_t idx_fft = 0; idx_fft < nFFTs; idx_fft++) {
+      radix4_butterfly_last(pSrc16 + (int32_t)idx_fft * (2 * fftLen),
+                            pSrc16 + (int32_t)idx_fft * (2 * fftLen), i0);
+    }
+  }
+
+  /* BITREVERSAL */
+  if (bitReverseFlag) {
+    v2s addr1, addr2, addr3, addr4;
+    v2s s2 = (v2s){2, 2};
+    v2s tmpa1, tmpa2, tmpa3, tmpa4;
+    v2s tmpb1, tmpb2, tmpb3, tmpb4;
+    int32_t a1, a2, a3, a4;
+    int32_t b1, b2, b3, b4;
+    uint16_t *ptr;
+    for (uint32_t i = 0; i < bitReverseLen; i += 8) {
+      addr1 = *(v2s *)&pBitRevTable[i];
+      addr2 = *(v2s *)&pBitRevTable[i + 2];
+      addr3 = *(v2s *)&pBitRevTable[i + 4];
+      addr4 = *(v2s *)&pBitRevTable[i + 6];
+      asm volatile("pv.sra.h  %[addr1],%[addr1],%[s2];"
+                   "pv.sra.h  %[addr2],%[addr2],%[s2];"
+                   "pv.sra.h  %[addr3],%[addr3],%[s2];"
+                   "pv.sra.h  %[addr4],%[addr4],%[s2];"
+                   "pv.extract.h  %[a1],%[addr1],0;"
+                   "pv.extract.h  %[a2],%[addr2],0;"
+                   "pv.extract.h  %[a3],%[addr3],0;"
+                   "pv.extract.h  %[a4],%[addr4],0;"
+                   "pv.extract.h  %[b1],%[addr1],1;"
+                   "pv.extract.h  %[b2],%[addr2],1;"
+                   "pv.extract.h  %[b3],%[addr3],1;"
+                   "pv.extract.h  %[b4],%[addr4],1;"
+                   : [a1] "=r"(a1), [a2] "=r"(a2), [a3] "=r"(a3), [a4] "=r"(a4),
+                     [b1] "=r"(b1), [b2] "=r"(b2), [b3] "=r"(b3), [b4] "=r"(b4),
+                     [addr1] "+r"(addr1), [addr2] "+r"(addr2),
+                     [addr3] "+r"(addr3), [addr4] "+r"(addr4)
+                   : [s2] "r"(s2)
+                   :);
+      ptr = (uint16_t *)pSrc16;
+      for (uint32_t idx_fft = 0; idx_fft < nFFTs; idx_fft++) {
+        tmpa1 = *(v2s *)&ptr[a1];
+        tmpa2 = *(v2s *)&ptr[a2];
+        tmpa3 = *(v2s *)&ptr[a3];
+        tmpa4 = *(v2s *)&ptr[a4];
+        tmpb1 = *(v2s *)&ptr[b1];
+        tmpb2 = *(v2s *)&ptr[b2];
+        tmpb3 = *(v2s *)&ptr[b3];
+        tmpb4 = *(v2s *)&ptr[b4];
+        *((v2s *)&ptr[a1]) = tmpb1;
+        *((v2s *)&ptr[a2]) = tmpb2;
+        *((v2s *)&ptr[a3]) = tmpb3;
+        *((v2s *)&ptr[a4]) = tmpb4;
+        *((v2s *)&ptr[b1]) = tmpa1;
+        *((v2s *)&ptr[b2]) = tmpa2;
+        *((v2s *)&ptr[b3]) = tmpa3;
+        *((v2s *)&ptr[b4]) = tmpa4;
+        ptr += (2 * fftLen);
+      }
+    }
   }
 }

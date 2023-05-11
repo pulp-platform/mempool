@@ -26,3 +26,14 @@ do
     make buildpath=build_cfft resultpath=result_cfft_mempoolsingle_single trace
     cd /scratch2/mbertuletti/mempool/software/apps/cfft_q16radix4
 done
+
+# for a in 1 4 8 16 32 64
+# do
+#     cd /scratch2/mbertuletti/mempool/software/apps
+#     DEFINES+=-DN_FFTs=$a \
+#     make cfft_q16radix4
+#     cd /scratch2/mbertuletti/mempool/hardware
+#     app=cfft_q16radix4 make buildpath=build_cfft simcvcs
+#     make buildpath=build_cfft resultpath=result_cfft_terapool_single trace
+#     cd /scratch2/mbertuletti/mempool/software/apps
+# done

@@ -480,3 +480,248 @@ mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
 
   return pDst16;
 }
+
+/**
+  SCHEDULER OF MULTIPLE FOLDED FFTS
+  Memory:
+
+  1st row of FFTS
+
+  col_idx1     col_idx2     col_idx3
+  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+
+  2nd row of FFTS
+
+  col_idx1     col_idx2     col_idx3
+  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+
+  ...
+
+  @brief         Scheduler of folded FFTs
+  @param[in]     column index of the current FFT
+  @param[in]     pSrc16  input buffer of 16b data, Re and Im are interleaved
+  @param[out]    pDst16  output buffer of 16b data, Re and Im are interleaved
+  @param[in]     fftLen  Length of the complex input vector
+  @param[in]     pCoef_src Twiddle coefficients vector
+  @param[in]     pCoef_dst Twiddle coefficients vector
+  @param[in]     pBitRevTable Bitreversal table
+  @param[in]     bitReverseLen Length of bitreversal table
+  @param[in]     bitReverseFlag Flag for bitreversal
+  @param[in]     nPE Number of PE
+  @return        void
+*/
+
+static void mempool_radix4_cfft_q16p_scheduler(
+    uint32_t col_id, int16_t *pSrc16, int16_t *pDst16, uint32_t fftLen,
+    int16_t *pCoef_src, int16_t *pCoef_dst, uint16_t *pBitRevTable,
+    uint16_t bitReverseLen, uint8_t bitReverseFlag, uint32_t nPE) {
+
+  uint32_t absolute_core_id = mempool_get_core_id();
+  uint32_t core_id = absolute_core_id % (fftLen >> 4U);
+  uint32_t row_id = core_id / WU_STRIDE;
+
+  uint32_t n1, n2, i0, ic, j, k;
+  uint32_t n2_store;
+  uint32_t offset, wing_idx;
+  int16_t *pTmp;
+  int32_t t0, t1, t2, t3, t4, t5;
+  v2s CoSi1, CoSi2, CoSi3;
+  v2s C1, C2, C3;
+
+  /* FIRST STAGE */
+  n1 = fftLen;
+  n2 = n1 >> 2U;
+  n2_store = n2 >> 2U;
+  for (i0 = row_id * STEP; i0 < MIN(row_id * STEP + STEP, n2); i0++) {
+    CoSi1 = *(v2s *)&pCoef_src[2U * i0];
+    CoSi2 = *(v2s *)&pCoef_src[2U * (i0 + 1 * N_BANKS)];
+    CoSi3 = *(v2s *)&pCoef_src[2U * (i0 + 2 * N_BANKS)];
+    if (i0 % 4 == 0) {
+      ic = i0 / 4;
+      *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi1;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi1;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi1;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi1;
+      ic += N_BANKS;
+      *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi2;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi2;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi2;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi2;
+      ic += N_BANKS;
+      *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi3;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi3;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi3;
+      *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi3;
+    }
+    asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
+                 "pv.extract.h  %[t3],%[CoSi2],0;"
+                 "pv.extract.h  %[t5],%[CoSi3],0;"
+                 "pv.extract.h  %[t0],%[CoSi1],1;"
+                 "pv.extract.h  %[t2],%[CoSi2],1;"
+                 "pv.extract.h  %[t4],%[CoSi3],1;"
+                 "sub           %[t0],zero,%[t0];"
+                 "sub           %[t2],zero,%[t2];"
+                 "sub           %[t4],zero,%[t4];"
+                 "pv.pack %[C1],%[t1],%[t0];"
+                 "pv.pack %[C2],%[t3],%[t2];"
+                 "pv.pack %[C3],%[t5],%[t4];"
+                 : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),
+                   [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
+                   [t4] "=&r"(t4), [t5] "=&r"(t5)
+                 : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
+                 :);
+    for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW / WU_STRIDE; idx_row++) {
+      int16_t *pIn = pSrc16 + (idx_row + (core_id % WU_STRIDE) *
+                                             (N_FFTs_ROW / WU_STRIDE)) *
+                                  (N_BANKS * 8);
+      int16_t *pOut = pDst16 + (idx_row + (core_id % WU_STRIDE) *
+                                              (N_FFTs_ROW / WU_STRIDE)) *
+                                   (N_BANKS * 8);
+      radix4_butterfly_first(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
+                             C3);
+    }
+  }
+  pTmp = pSrc16;
+  pSrc16 = pDst16;
+  pDst16 = pTmp;
+  pTmp = pCoef_src;
+  pCoef_src = pCoef_dst;
+  pCoef_dst = pTmp;
+  mempool_log_partial_barrier(2, absolute_core_id, nPE);
+
+  /* MIDDLE STAGE */
+  for (k = fftLen / 4U; k > 4U; k >>= 2U) {
+    n1 = n2;
+    n2 >>= 2U;
+    n2_store = n2 >> 2U;
+
+    for (j = row_id * STEP; j < row_id * STEP + STEP; j++) {
+      CoSi1 = *(v2s *)&pCoef_src[2U * (j)];
+      CoSi2 = *(v2s *)&pCoef_src[2U * (j + 1 * N_BANKS)];
+      CoSi3 = *(v2s *)&pCoef_src[2U * (j + 2 * N_BANKS)];
+      if (j % 4 == 0) {
+
+        wing_idx = j % n2;
+        offset = (j / n2);
+        ic = wing_idx >> 2U;
+        ic += offset * n2;
+
+        *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi1;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi1;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi1;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi1;
+        ic += N_BANKS;
+        *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi2;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi2;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi2;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi2;
+        ic += N_BANKS;
+        *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi3;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi3;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi3;
+        *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi3;
+      }
+      asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
+                   "pv.extract.h  %[t3],%[CoSi2],0;"
+                   "pv.extract.h  %[t5],%[CoSi3],0;"
+                   "pv.extract.h  %[t0],%[CoSi1],1;"
+                   "pv.extract.h  %[t2],%[CoSi2],1;"
+                   "pv.extract.h  %[t4],%[CoSi3],1;"
+                   "sub           %[t0],zero,%[t0];"
+                   "sub           %[t2],zero,%[t2];"
+                   "sub           %[t4],zero,%[t4];"
+                   "pv.pack %[C1],%[t1],%[t0];"
+                   "pv.pack %[C2],%[t3],%[t2];"
+                   "pv.pack %[C3],%[t5],%[t4];"
+                   : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),
+                     [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
+                     [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
+                   : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
+                   :);
+      for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW / WU_STRIDE; idx_row++) {
+        int16_t *pIn = pSrc16 + (idx_row + (core_id % WU_STRIDE) *
+                                               (N_FFTs_ROW / WU_STRIDE)) *
+                                    (N_BANKS * 8);
+        int16_t *pOut = pDst16 + (idx_row + (core_id % WU_STRIDE) *
+                                                (N_FFTs_ROW / WU_STRIDE)) *
+                                     (N_BANKS * 8);
+        radix4_butterfly_middle(pIn, pOut, j, n2, CoSi1, CoSi2, CoSi3, C1, C2,
+                                C3);
+      }
+    }
+    pTmp = pSrc16;
+    pSrc16 = pDst16;
+    pDst16 = pTmp;
+    pTmp = pCoef_src;
+    pCoef_src = pCoef_dst;
+    pCoef_dst = pTmp;
+    mempool_log_partial_barrier(2, absolute_core_id, nPE);
+  }
+
+  /*  LAST STAGE */
+  n1 = n2;
+  n2 >>= 2U;
+  for (i0 = row_id * STEP; i0 < MIN(row_id * STEP + STEP, fftLen >> 2U); i0++) {
+    for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW / WU_STRIDE; idx_row++) {
+      int16_t *pIn = pSrc16 + (idx_row + (core_id % WU_STRIDE) *
+                                             (N_FFTs_ROW / WU_STRIDE)) *
+                                  (N_BANKS * 8);
+      int16_t *pOut = pDst16 + (idx_row + (core_id % WU_STRIDE) *
+                                              (N_FFTs_ROW / WU_STRIDE)) *
+                                   (N_BANKS * 8);
+      pOut += col_id * fftLen -
+              col_id * (fftLen >>
+                        2U); // Last stage stores in the sequential addresses
+      radix4_butterfly_last(pIn, pOut, i0);
+    }
+  }
+  pTmp = pSrc16 - 2 * col_id * (fftLen >> 2U);
+  pSrc16 = pDst16 - 2 * col_id * (fftLen >> 2U);
+  pDst16 = pTmp;
+  mempool_log_partial_barrier(2, absolute_core_id, nPE);
+
+  /* BITREVERSAL */
+  if (bitReverseFlag) {
+#ifdef BITREVERSETABLE
+    pSrc16 = pSrc16 + col_id * fftLen;
+    for (j = 2 * core_id; j < bitReverseLen; j += 2 * nPE) {
+      v2s addr, tmpa, tmpb;
+      addr = __SRA2(*(v2s *)&pBitRevTable[j], ((v2s){2, 2}));
+      for (int32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
+        tmpa = *(v2s *)&pSrc16[addr[0] + idx_row * (N_BANKS * 8)];
+        tmpb = *(v2s *)&pSrc16[addr[1] + idx_row * (N_BANKS * 8)];
+        *((v2s *)&pSrc16[addr[0] + idx_row * (N_BANKS * 8)]) = tmpb;
+        *((v2s *)&pSrc16[addr[1] + idx_row * (N_BANKS * 8)]) = tmpa;
+      }
+    }
+#else
+    uint16_t *ptr1 = (uint16_t *)(pSrc16 + col_id * fftLen);
+    uint16_t *ptr2 = (uint16_t *)(pDst16 + col_id * fftLen);
+    uint32_t idx, idx_result;
+    for (j = row_id; j < fftLen; j += (nPE / WU_STRIDE)) {
+      idx_result = 0;
+      idx = j;
+      for (k = 0; k < LOG2; k++) {
+        idx_result = (idx_result << 1U) | (idx & 1U);
+        idx = idx >> 1U;
+      }
+      for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW / WU_STRIDE; idx_row++) {
+        *((uint32_t *)&ptr2[2 * idx_result +
+                            (idx_row +
+                             (core_id % WU_STRIDE) * (N_FFTs_ROW / WU_STRIDE)) *
+                                (N_BANKS * 8)]) =
+            (uint32_t)ptr1[2 * j + (idx_row + (core_id % WU_STRIDE) *
+                                                  (N_FFTs_ROW / WU_STRIDE)) *
+                                       (N_BANKS * 8)];
+      }
+    }
+#endif
+  }
+  mempool_log_partial_barrier(2, absolute_core_id, nPE);
+}

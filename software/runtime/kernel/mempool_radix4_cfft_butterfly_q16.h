@@ -289,7 +289,8 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
   *((v2s *)&pOut[i2_store * 2U]) = B;
   *((v2s *)&pOut[i3_store * 2U]) = C;
 #else
-  *((v2s *)&pOut[i0 * 2U]) = D * ((v2s *)&pOut[i1 * 2U]) = A;
+  *((v2s *)&pOut[i0 * 2U]) = D;
+  *((v2s *)&pOut[i1 * 2U]) = A;
   *((v2s *)&pOut[i2 * 2U]) = B;
   *((v2s *)&pOut[i3 * 2U]) = C;
 #endif
