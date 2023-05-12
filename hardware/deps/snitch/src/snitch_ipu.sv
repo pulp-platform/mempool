@@ -1703,6 +1703,26 @@ module dspu #(
   // --------------------
   logic [Width-1:0] mac_result;
 
+  // MAC unit operands gating
+  logic [Width-1:0] op_a_i_mac_gated;
+  logic [Width-1:0] op_b_i_mac_gated;
+  logic [Width-1:0] op_c_i_mac_gated;
+  logic             mac_msu_mac_gated;
+  logic             mul_op_a_sign_mac_gated;
+  logic             mac_op_b_sign_mac_gated;
+  mul_op_t          mul_op_mac_gated;
+
+  logic mac_used;
+  assign mac_used = (mul_op != NoMul);
+
+  operand_gating #(.data_t(logic [Width-1:0])) i_gating_mac_0  (.in_i(op_a_i       ), .en_i(mac_used), .out_o(op_a_i_mac_gated       ));
+  operand_gating #(.data_t(logic [Width-1:0])) i_gating_mac_1  (.in_i(op_b_i       ), .en_i(mac_used), .out_o(op_b_i_mac_gated       ));
+  operand_gating #(.data_t(logic [Width-1:0])) i_gating_mac_2  (.in_i(op_c_i       ), .en_i(mac_used), .out_o(op_c_i_mac_gated       ));
+  operand_gating #(.data_t(logic            )) i_gating_mac_3  (.in_i(mac_msu      ), .en_i(mac_used), .out_o(mac_msu_mac_gated      ));
+  operand_gating #(.data_t(logic            )) i_gating_mac_4  (.in_i(mul_op_a_sign), .en_i(mac_used), .out_o(mul_op_a_sign_mac_gated));
+  operand_gating #(.data_t(logic            )) i_gating_mac_5  (.in_i(mac_op_b_sign), .en_i(mac_used), .out_o(mac_op_b_sign_mac_gated));
+  operand_gating #(.data_t(mul_op_t         )) i_gating_mac_6  (.in_i(mul_op       ), .en_i(mac_used), .out_o(mul_op_mac_gated       ));
+
   dspu_mac #(
     .Width(Width),
     .mul_op_t(mul_op_t),
@@ -1710,13 +1730,13 @@ module dspu #(
     .MulHigh(MulHigh),
     .MulMac(MulMac)
   ) i_dspu_mac (
-    .op_a_i,
-    .op_b_i,
-    .op_c_i,
-    .mac_msu,
-    .mul_op_a_sign,
-    .mac_op_b_sign,
-    .mul_op,
+    .op_a_i(op_a_i_mac_gated),
+    .op_b_i(op_b_i_mac_gated),
+    .op_c_i(op_c_i_mac_gated),
+    .mac_msu(mac_msu_mac_gated),
+    .mul_op_a_sign(mul_op_a_sign_mac_gated),
+    .mac_op_b_sign(mac_op_b_sign_mac_gated),
+    .mul_op(mul_op_mac_gated),
     .mac_result
   );
 
@@ -1725,6 +1745,35 @@ module dspu #(
   // --------------------
   logic [3:0][7:0] simd_result;
 
+  // SIMD unit operands gating
+  logic [Width-1:0] op_a_i_simd_gated;
+  logic [Width-1:0] op_b_i_simd_gated;
+  logic [Width-1:0] op_c_i_simd_gated;
+  logic             simd_signed_simd_gated;
+  logic [5:0]       imm6_simd_gated;
+  simd_size_t       simd_size_simd_gated;
+  simd_mode_t       simd_mode_simd_gated;
+  simd_op_t         simd_op_simd_gated;
+  logic             simd_dotp_acc_simd_gated;
+  logic             simd_dotp_op_a_signed_simd_gated;
+  logic             simd_dotp_op_b_signed_simd_gated;
+
+  logic simd_used;
+  assign simd_used = (simd_op != SimdNop);
+
+  operand_gating #(.data_t(logic [Width-1:0])) i_gating_simd_0  (.in_i(op_a_i               ), .en_i(simd_used), .out_o(op_a_i_simd_gated               ));
+  operand_gating #(.data_t(logic [Width-1:0])) i_gating_simd_1  (.in_i(op_b_i               ), .en_i(simd_used), .out_o(op_b_i_simd_gated               ));
+  operand_gating #(.data_t(logic [Width-1:0])) i_gating_simd_2  (.in_i(op_c_i               ), .en_i(simd_used), .out_o(op_c_i_simd_gated               ));
+  operand_gating #(.data_t(logic            )) i_gating_simd_3  (.in_i(simd_signed          ), .en_i(simd_used), .out_o(simd_signed_simd_gated          ));
+  operand_gating #(.data_t(logic [5:0]      )) i_gating_simd_4  (.in_i(imm6                 ), .en_i(simd_used), .out_o(imm6_simd_gated                 ));
+  operand_gating #(.data_t(simd_size_t      )) i_gating_simd_5  (.in_i(simd_size            ), .en_i(simd_used), .out_o(simd_size_simd_gated            ));
+  operand_gating #(.data_t(simd_mode_t      )) i_gating_simd_6  (.in_i(simd_mode            ), .en_i(simd_used), .out_o(simd_mode_simd_gated            ));
+  operand_gating #(.data_t(simd_op_t        )) i_gating_simd_7  (.in_i(simd_op              ), .en_i(simd_used), .out_o(simd_op_simd_gated              ));
+  operand_gating #(.data_t(logic            )) i_gating_simd_8  (.in_i(simd_dotp_acc        ), .en_i(simd_used), .out_o(simd_dotp_acc_simd_gated        ));
+  operand_gating #(.data_t(logic            )) i_gating_simd_9  (.in_i(simd_dotp_op_a_signed), .en_i(simd_used), .out_o(simd_dotp_op_a_signed_simd_gated));
+  operand_gating #(.data_t(logic            )) i_gating_simd_10 (.in_i(simd_dotp_op_b_signed), .en_i(simd_used), .out_o(simd_dotp_op_b_signed_simd_gated));
+
+  // SIMD unit
   dspu_simd #(
     .Width(Width),
     .simd_size_t(simd_size_t),
@@ -1755,17 +1804,17 @@ module dspu #(
     .SimdShuffle(SimdShuffle),
     .SimdPack(SimdPack)
   ) i_dspu_simd (
-    .op_a_i,
-    .op_b_i,
-    .op_c_i,
-    .simd_signed,
-    .imm6,
-    .simd_size,
-    .simd_mode,
-    .simd_op,
-    .simd_dotp_acc,
-    .simd_dotp_op_a_signed,
-    .simd_dotp_op_b_signed,
+    .op_a_i(op_a_i_simd_gated),
+    .op_b_i(op_b_i_simd_gated),
+    .op_c_i(op_c_i_simd_gated),
+    .simd_signed(simd_signed_simd_gated),
+    .imm6(imm6_simd_gated),
+    .simd_size(simd_size_simd_gated),
+    .simd_mode(simd_mode_simd_gated),
+    .simd_op(simd_op_simd_gated),
+    .simd_dotp_acc(simd_dotp_acc_simd_gated),
+    .simd_dotp_op_a_signed(simd_dotp_op_a_signed_simd_gated),
+    .simd_dotp_op_b_signed(simd_dotp_op_b_signed_simd_gated),
     .simd_result
   );
 
