@@ -10,3 +10,6 @@ rustflags = [
 
 [build]
 target = "riscv32ima-unknown-none-elf.json"
+
+[profile.release]
+lto = true

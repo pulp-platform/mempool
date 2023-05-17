@@ -2,14 +2,16 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
+pub use alloc::format;
 use barrier::mempool_barrier_init;
 use core::convert::TryInto;
 use embedded_alloc::Heap;
+use println;
 use riscv::register::*;
 
 //wrap into if core_id == 0
 #[export_name = "_start_rust"]
-pub unsafe extern "C" fn start_rust() -> u32 {
+pub unsafe extern "C" fn start_rust() -> usize {
     #[global_allocator]
     #[no_mangle]
     static HEAP: Heap = Heap::empty();
@@ -19,7 +21,7 @@ pub unsafe extern "C" fn start_rust() -> u32 {
         static mut __heap_end: u8;
     }
 
-    let hartid: u32 = mhartid::read().try_into().unwrap();
+    let hartid: usize = mhartid::read().try_into().unwrap();
 
     //Initializing Heap
     if hartid == 0 {
@@ -29,7 +31,7 @@ pub unsafe extern "C" fn start_rust() -> u32 {
         use core::mem::MaybeUninit;
 
         let heap_size: usize = heap_end - heap_start;
-        const HEAP_SIZE: usize = 48000;
+        const HEAP_SIZE: usize = 2400;
 
         static S_HEAP_SIZE: usize = HEAP_SIZE;
         assert!(S_HEAP_SIZE < heap_size);
@@ -38,12 +40,15 @@ pub unsafe extern "C" fn start_rust() -> u32 {
         unsafe {
             HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE);
         }
+
+        let free_heap = Heap::free(&HEAP);
+        println!("free Heap: {}", free_heap);
     }
 
     mempool_barrier_init(hartid);
 
     extern "Rust" {
-        fn main() -> u32;
+        fn main() -> usize;
     }
 
     let result = main();
