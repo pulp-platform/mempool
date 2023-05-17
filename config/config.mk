@@ -30,6 +30,14 @@ boot_addr ?= 2684354560 # A0000000
 
 # L2 memory configuration (in dec)
 l2_base  ?= 2147483648 # 80000000
+<<<<<<< HEAD
+=======
+l2_size  ?= 4194304    # 400000
+l2_banks ?= 4
+ifeq ($(config), terapool)
+  l2_banks = 16
+endif
+>>>>>>> 8084412d... [TeraPool] Configurations Changes for TeraPool merge into MemPool
 
 # L1 size per bank (in dec)
 l1_bank_size ?= 1024
