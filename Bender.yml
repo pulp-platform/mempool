@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 package:
-  name: mempool
+  name: "terapool"
 
 dependencies:
   axi:                  { git: "https://github.com/pulp-platform/axi.git",                  version: 0.39.2 }
