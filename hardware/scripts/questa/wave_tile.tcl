@@ -49,7 +49,7 @@ if {$config == {terapool}} {
     add wave -noupdate -group group_[$1] -group sub_group_[$2] -group Tile_[$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/soc_pready
 
     for {set i 0} {$i < 16} {incr i} {
-    	add wave -noupdate -group group_[$1] -group sub_group_[$2] -group Tile_[$3] -group tcdm_adapter[$i] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_banks[$i]/i_tcdm_adapter/*
+		add wave -noupdate -group group_[$1] -group sub_group_[$2] -group Tile_[$3] -group tcdm_adapter[$i] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_banks[$i]/i_tcdm_adapter/*
     }
 } else {
     add wave -noupdate -group group_[$1] -group Tile_[$2] -group Params /mempool_pkg::NumBanksPerTile
@@ -97,6 +97,6 @@ if {$config == {terapool}} {
     add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_pready
 
     for {set i 0} {$i < 16} {incr i} {
-    	add wave -noupdate -group group_[$1] -group Tile_[$2] -group tcdm_adapter[$i] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_banks[$i]/i_tcdm_adapter/*
+		add wave -noupdate -group group_[$1] -group Tile_[$2] -group tcdm_adapter[$i] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_banks[$i]/i_tcdm_adapter/*
     }
 }

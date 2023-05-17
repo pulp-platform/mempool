@@ -21,7 +21,7 @@ if {$config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/inst_data_i
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/inst_valid_o
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/inst_ready_i
-  
+
   add wave -noupdate -group core[$1][$2][$3][$4] -divider Load/Store
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/data_qaddr_o
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/data_qwrite_o
@@ -49,7 +49,7 @@ if {$config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/acc_perror_i
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/acc_pvalid_i
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/acc_pready_o
-  
+
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/illegal_inst
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/stall
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/lsu_stall
@@ -158,13 +158,13 @@ if {$config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3] -group Params /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/RegisterTCDMResp
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/clk_i
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/rst_i
-  add wave -noupdate -group core[$1][$2][$3] -radix unsigned /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/hart_id_i  
+  add wave -noupdate -group core[$1][$2][$3] -radix unsigned /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/hart_id_i
 
   add wave -noupdate -group core[$1][$2][$3] -divider Instructions
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/inst_addr_o
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/inst_data_i
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/inst_valid_o
-  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/inst_ready_i  
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/inst_ready_i
 
   add wave -noupdate -group core[$1][$2][$3] -divider Load/Store
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/data_qaddr_o
@@ -177,7 +177,7 @@ if {$config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/data_pdata_i
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/data_perror_i
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/data_pvalid_i
-  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/data_pready_o  
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/data_pready_o
 
   add wave -noupdate -group core[$1][$2][$3] -divider Accelerator
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_qaddr_o
@@ -192,7 +192,7 @@ if {$config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_pid_i
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_perror_i
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_pvalid_i
-  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_pready_o  
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_pready_o
 
   add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/illegal_inst
   add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/stall
