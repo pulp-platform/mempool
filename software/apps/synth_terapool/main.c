@@ -12,12 +12,15 @@
 
 // Macros
 #define UNROLL (4)
-#define N (NUM_CORES*UNROLL)
+#define N (NUM_CORES * UNROLL)
 
 // Prototypes
 static inline void power_profile(int32_t *const a);
-static inline void power_profile_lw_rtile(int32_t *const a, uint32_t remote_tile);
-static inline void power_profile_lw_rgrup(int32_t *const a, uint32_t remote_sub_group, uint32_t remote_group);
+static inline void power_profile_lw_rtile(int32_t *const a,
+                                          uint32_t remote_tile);
+static inline void power_profile_lw_rgrup(int32_t *const a,
+                                          uint32_t remote_sub_group,
+                                          uint32_t remote_group);
 
 // Globals
 int32_t block_a[N] __attribute__((aligned(NUM_CORES * 4), section(".l1")));
@@ -30,12 +33,12 @@ int main() {
 
   // Initialize barrier and synchronize
   mempool_barrier_init(core_id);
-  for (int i = (int)core_id*UNROLL; i < N; i+=(int)(num_cores*UNROLL)) {
+  for (int i = (int)core_id * UNROLL; i < N; i += (int)(num_cores * UNROLL)) {
     // UNROLL
-    block_a[i+0] = -1111608459 + i * (   52918781);
-    block_a[i+1] =  -192269334 + i * (  942963224);
-    block_a[i+2] =   600576702 + i * (-1245786405);
-    block_a[i+3] =   132428405 + i * (  232792075);
+    block_a[i + 0] = -1111608459 + i * (52918781);
+    block_a[i + 1] = -192269334 + i * (942963224);
+    block_a[i + 2] = 600576702 + i * (-1245786405);
+    block_a[i + 3] = 132428405 + i * (232792075);
   }
 
   // normal instr testing
@@ -46,13 +49,24 @@ int main() {
   // Don't use core_0 to avoid lsu conflict with barrier
   mempool_barrier(num_cores);
   uint32_t tile_id = (core_id / NUM_CORES_PER_TILE) % NUM_TILES_PER_SUB_GROUP;
-  uint32_t sub_group_id = (core_id / NUM_CORES_PER_SUB_GROUP) % NUM_SUB_GROUPS_PER_GROUP;
-  uint32_t group_id =  (core_id / NUM_CORES_PER_GROUP) % NUM_GROUPS;
-  uint32_t number_banks_per_sub_group = BANKING_FACTOR * NUM_CORES_PER_SUB_GROUP;
+  uint32_t sub_group_id =
+      (core_id / NUM_CORES_PER_SUB_GROUP) % NUM_SUB_GROUPS_PER_GROUP;
+  uint32_t group_id = (core_id / NUM_CORES_PER_GROUP) % NUM_GROUPS;
+  uint32_t number_banks_per_sub_group =
+      BANKING_FACTOR * NUM_CORES_PER_SUB_GROUP;
   uint32_t number_banks_per_group = BANKING_FACTOR * NUM_CORES_PER_GROUP;
-  uint32_t remote_tile = (core_id * BANKING_FACTOR + NUM_BANKS_PER_TILE) - (tile_id/(NUM_TILES_PER_SUB_GROUP-1)) * number_banks_per_sub_group;
-  uint32_t remote_sub_group = (core_id * BANKING_FACTOR + ((core_id % 8) + 1) * number_banks_per_sub_group) - ((sub_group_id + (core_id % 8))/(NUM_SUB_GROUPS_PER_GROUP-1)) * number_banks_per_group;
-  uint32_t remote_group = (core_id * BANKING_FACTOR + ((core_id % 8) + 1) * number_banks_per_group) - ((group_id+ (core_id % 8))/(NUM_GROUPS-1)) * NUM_CORES * BANKING_FACTOR;
+  uint32_t remote_tile =
+      (core_id * BANKING_FACTOR + NUM_BANKS_PER_TILE) -
+      (tile_id / (NUM_TILES_PER_SUB_GROUP - 1)) * number_banks_per_sub_group;
+  uint32_t remote_sub_group =
+      (core_id * BANKING_FACTOR +
+       ((core_id % 8) + 1) * number_banks_per_sub_group) -
+      ((sub_group_id + (core_id % 8)) / (NUM_SUB_GROUPS_PER_GROUP - 1)) *
+          number_banks_per_group;
+  uint32_t remote_group = (core_id * BANKING_FACTOR +
+                           ((core_id % 8) + 1) * number_banks_per_group) -
+                          ((group_id + (core_id % 8)) / (NUM_GROUPS - 1)) *
+                              NUM_CORES * BANKING_FACTOR;
   if ((core_id % 8) == 6) {
     power_profile_lw_rtile(block_a, remote_tile);
   } else {
@@ -79,17 +93,18 @@ static inline void power_profile(int32_t *const a) {
   uint32_t core_id = mempool_get_core_id();
 
   // Address to load from are [addr:addr+3]
-  volatile int32_t* addr_local  = &a[core_id * (NUM_BANKS_PER_TILE/NUM_CORES_PER_TILE)];
+  volatile int32_t *addr_local =
+      &a[core_id * (NUM_BANKS_PER_TILE / NUM_CORES_PER_TILE)];
 
   // Do this loop M times
   int const num_loops = 2;
-  int32_t op_a0 =  1763350245;
-  int32_t op_a1 =  -473677120;
+  int32_t op_a0 = 1763350245;
+  int32_t op_a1 = -473677120;
   int32_t op_a2 = -1893217350;
-  int32_t op_a3 =  -915173234;
-  int32_t op_a4 =  -715022251;
-  int32_t op_a5 =  1755108161;
-  int32_t op_a6 =  1629317995;
+  int32_t op_a3 = -915173234;
+  int32_t op_a4 = -715022251;
+  int32_t op_a5 = 1755108161;
+  int32_t op_a6 = 1629317995;
   int32_t op_a7 = -1694958999;
   int32_t idx = num_loops;
   int32_t im_0 = 0;
@@ -267,10 +282,11 @@ static inline void power_profile(int32_t *const a) {
       : "memory");
 }
 
-static inline void power_profile_lw_rtile(int32_t *const a, uint32_t remote_tile) {
+static inline void power_profile_lw_rtile(int32_t *const a,
+                                          uint32_t remote_tile) {
 
   // Address to load from are [addr:addr+3]
-  volatile int32_t* addr_remote_tile = &a[remote_tile];
+  volatile int32_t *addr_remote_tile = &a[remote_tile];
 
   // Do this loop M times
   int const num_loops = 2;
@@ -363,19 +379,21 @@ static inline void power_profile_lw_rtile(int32_t *const a, uint32_t remote_tile
       "bne %[idx], %[im_0], 2b \n\t"
       "addi %[idx], %[idx], %[num_loops] \n\t"
       ".balign 16 \n\t"
-      : [a0] "=&r"(a0), [a1] "=&r"(a1), [a2] "=&r"(a2),
-        [a3] "=&r"(a3), [a4] "=&r"(a4), [a5] "=&r"(a5), [a6] "=&r"(a6),
-        [a7] "=&r"(a7), [idx] "+&r"(idx)
+      : [a0] "=&r"(a0), [a1] "=&r"(a1), [a2] "=&r"(a2), [a3] "=&r"(a3),
+        [a4] "=&r"(a4), [a5] "=&r"(a5), [a6] "=&r"(a6), [a7] "=&r"(a7),
+        [idx] "+&r"(idx)
       : [im_0] "r"(im_0), [num_loops] "I"(num_loops),
         [a_remote_tile] "r"(addr_remote_tile)
       : "memory");
 }
 
-static inline void power_profile_lw_rgrup(int32_t *const a, uint32_t remote_sub_group, uint32_t remote_group) {
+static inline void power_profile_lw_rgrup(int32_t *const a,
+                                          uint32_t remote_sub_group,
+                                          uint32_t remote_group) {
 
   // Address to load from are [addr:addr+3]
-  volatile int32_t* addr_remote_sub_group = &a[remote_sub_group];
-  volatile int32_t* addr_remote_group = &a[remote_group];
+  volatile int32_t *addr_remote_sub_group = &a[remote_sub_group];
+  volatile int32_t *addr_remote_group = &a[remote_group];
 
   // Do this loop M times
   int const num_loops = 2;
@@ -544,9 +562,9 @@ static inline void power_profile_lw_rgrup(int32_t *const a, uint32_t remote_sub_
       "bne %[idx], %[im_0], 4b \n\t"
       "addi %[idx], %[idx], %[num_loops] \n\t"
       ".balign 16 \n\t"
-      : [a0] "=&r"(a0), [a1] "=&r"(a1), [a2] "=&r"(a2),
-        [a3] "=&r"(a3), [a4] "=&r"(a4), [a5] "=&r"(a5), [a6] "=&r"(a6),
-        [a7] "=&r"(a7), [idx] "+&r"(idx)
+      : [a0] "=&r"(a0), [a1] "=&r"(a1), [a2] "=&r"(a2), [a3] "=&r"(a3),
+        [a4] "=&r"(a4), [a5] "=&r"(a5), [a6] "=&r"(a6), [a7] "=&r"(a7),
+        [idx] "+&r"(idx)
       : [im_0] "r"(im_0), [num_loops] "I"(num_loops),
         [a_remote_sub_group] "r"(addr_remote_sub_group),
         [a_remote_group] "r"(addr_remote_group)
