@@ -141,7 +141,6 @@ module mempool_group
     tcdm_slave_resp_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_from_sg;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_from_sg;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_to_sg;
-
     tcdm_master_req_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready;
@@ -154,7 +153,6 @@ module mempool_group
     tcdm_slave_resp_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready;
-
     // TCDM Spill Registers
     // Control by different target remote access cycles
     if (RemoteGroupLatencyCycle == 11) begin
@@ -272,7 +270,6 @@ module mempool_group
     for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_sub_groups
       sub_group_id_t id;
       assign id = (group_id_i << $clog2(NumSubGroupsPerGroup)) | sg[idx_width(NumSubGroupsPerGroup)-1:0];
-
       tcdm_master_req_t  [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req;
       logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req_valid;
       logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req_ready;
@@ -990,6 +987,24 @@ module mempool_group
       .ready_i     (dma_req_ready    ),
       .meta_i      (dma_meta         )
     );
+  
+    // xbar
+    localparam int unsigned NumRules = 1;
+    typedef struct packed {
+      int unsigned idx;
+      logic [AddrWidth-1:0] start_addr;
+      logic [AddrWidth-1:0] end_addr;
+    } xbar_rule_t;
+    xbar_rule_t [NumRules-1:0] addr_map;
+    assign addr_map = '{
+      '{ // TCDM
+        start_addr: TCDMBaseAddr,
+        end_addr:   TCDMBaseAddr + TCDMSize,
+        idx:        1
+      }
+    };
+  
+    `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
     // xbar
     localparam int unsigned NumRules = 1;
