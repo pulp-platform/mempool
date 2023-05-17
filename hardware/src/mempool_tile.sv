@@ -420,13 +420,30 @@ module mempool_tile
       .out_rdata_i (resp_rdata                                                                  )
     );
 
+    logic sram_clk;
+
+`ifndef VERILATOR
+    // Clock gate
+    logic sram_active_q;
+    `FF(sram_active_q, req_valid, 1'b0)
+
+    tc_clk_gating i_ckg (
+      .clk_i    (clk_i                     ),
+      .test_en_i(1'b0                      ),
+      .en_i     (req_valid || sram_active_q),
+      .clk_o    (sram_clk                  )
+    );
+`else
+    assign sram_clk = clk_i;
+`endif
+
     // Bank
     tc_sram #(
       .DataWidth(DataWidth          ),
       .NumWords (2**TCDMAddrMemWidth),
       .NumPorts (1                  )
     ) mem_bank (
-      .clk_i  (clk_i     ),
+      .clk_i  (sram_clk  ),
       .rst_ni (rst_ni    ),
       .req_i  (req_valid ),
       .we_i   (req_write ),
@@ -725,6 +742,7 @@ module mempool_tile
         end else begin : gen_remote_group_sel
           assign remote_req_interco_tgt_g_sel_tmp[c]  = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)]) ^ group_id;
           assign remote_req_interco_tgt_sg_sel_tmp[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerSubGroup) +: $clog2(NumSubGroupsPerGroup)]) ^ sub_group_id;
+
           always_comb begin : gen_remote_sub_group_sel
             if (remote_req_interco_tgt_g_sel_tmp[c] == 'b0) begin: gen_local_group_sel
               remote_req_interco_tgt_sel[c] = remote_req_interco_tgt_sg_sel_tmp[c];

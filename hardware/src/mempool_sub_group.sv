@@ -220,17 +220,17 @@ module mempool_sub_group
 
     // Transpose the group requests
     for (genvar g = 1; g < NumGroups; g++) begin: gen_tran_group_req
-      assign tcdm_master_req[g][t]          					             = tran_tcdm_master_req[g+NumSubGroupsPerGroup-1];
-      assign tcdm_master_req_valid[g][t]  						             = tran_tcdm_master_req_valid[g+NumSubGroupsPerGroup-1];
+      assign tcdm_master_req[g][t]                                 = tran_tcdm_master_req[g+NumSubGroupsPerGroup-1];
+      assign tcdm_master_req_valid[g][t]                           = tran_tcdm_master_req_valid[g+NumSubGroupsPerGroup-1];
       assign tran_tcdm_master_req_ready[g+NumSubGroupsPerGroup-1]  = tcdm_master_req_ready[g][t];
       assign tran_tcdm_master_resp[g+NumSubGroupsPerGroup-1]       = tcdm_master_resp[g][t];
       assign tran_tcdm_master_resp_valid[g+NumSubGroupsPerGroup-1] = tcdm_master_resp_valid[g][t];
-      assign tcdm_master_resp_ready[g][t]   					             = tran_tcdm_master_resp_ready[g+NumSubGroupsPerGroup-1];
+      assign tcdm_master_resp_ready[g][t]                          = tran_tcdm_master_resp_ready[g+NumSubGroupsPerGroup-1];
       assign tran_tcdm_slave_req[g+NumSubGroupsPerGroup-1]         = tcdm_slave_req[g][t];
       assign tran_tcdm_slave_req_valid[g+NumSubGroupsPerGroup-1]   = tcdm_slave_req_valid[g][t];
-      assign tcdm_slave_req_ready[g][t]   						             = tran_tcdm_slave_req_ready[g+NumSubGroupsPerGroup-1];
-      assign tcdm_slave_resp[g][t]        						             = tran_tcdm_slave_resp[g+NumSubGroupsPerGroup-1];
-      assign tcdm_slave_resp_valid[g][t]  						             = tran_tcdm_slave_resp_valid[g+NumSubGroupsPerGroup-1];
+      assign tcdm_slave_req_ready[g][t]                            = tran_tcdm_slave_req_ready[g+NumSubGroupsPerGroup-1];
+      assign tcdm_slave_resp[g][t]                                 = tran_tcdm_slave_resp[g+NumSubGroupsPerGroup-1];
+      assign tcdm_slave_resp_valid[g][t]                           = tran_tcdm_slave_resp_valid[g+NumSubGroupsPerGroup-1];
       assign tran_tcdm_slave_resp_ready[g+NumSubGroupsPerGroup-1]  = tcdm_slave_resp_ready[g][t];
     end: gen_tran_group_req
   end : gen_tiles
@@ -286,8 +286,8 @@ module mempool_sub_group
   end: gen_local_connections_t
 
   variable_latency_interconnect #(
-    .NumIn            (NumTilesPerSubGroup 						    ),
-    .NumOut           (NumTilesPerSubGroup  					    ),
+    .NumIn            (NumTilesPerSubGroup                ),
+    .NumOut           (NumTilesPerSubGroup                ),
     .AddrWidth        (TCDMAddrWidth                                ),
     .DataWidth        ($bits(tcdm_payload_t)                        ),
     .BeWidth          (DataWidth/8                                  ),
