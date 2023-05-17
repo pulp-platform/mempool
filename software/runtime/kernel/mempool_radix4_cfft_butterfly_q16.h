@@ -30,7 +30,7 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
   uint32_t i1, i2, i3;
   v2s A, B, C, D, E, F, G, H;
 
-#ifdef FOLDED
+#if defined(FOLDED) || defined(SCHEDULED)
   /* index calculation for the input as, */
   /* pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
   i1 = i0 + N_BANKS;
@@ -100,7 +100,7 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
   E = __PACK2(t1, t0);
   F = __PACK2(t3, t2);
   G = __PACK2(t5, t4);
-#ifdef FOLDED
+#if defined(FOLDED) || defined(SCHEDULED)
   *((v2s *)&pOut[i0_store * 2U]) = A;
   *((v2s *)&pOut[i1_store * 2U]) = E;
   *((v2s *)&pOut[i2_store * 2U]) = F;
@@ -169,7 +169,7 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
                  [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                :);
-#ifdef FOLDED
+#if defined(FOLDED) || defined(SCHEDULED)
   *((v2s *)&pOut[i0_store * 2U]) = A;
   *((v2s *)&pOut[i1_store * 2U]) = E;
   *((v2s *)&pOut[i2_store * 2U]) = F;
@@ -207,7 +207,7 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
   uint32_t i1, i2, i3;
   v2s A, B, C, D, E, F, G, H;
 
-#ifdef FOLDED
+#if defined(FOLDED) || defined(SCHEDULED)
   /*  index calculation for the input as, */
   /*  pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 +
    * 3fftLen/4] */
@@ -283,7 +283,7 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
   A = __PACK2(t1, t0);
   B = __PACK2(t3, t2);
   C = __PACK2(t5, t4);
-#ifdef FOLDED
+#if defined(FOLDED) || defined(SCHEDULED)
   *((v2s *)&pOut[i0_store * 2U]) = D;
   *((v2s *)&pOut[i1_store * 2U]) = A;
   *((v2s *)&pOut[i2_store * 2U]) = B;
@@ -349,7 +349,7 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
                  [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                :);
 
-#ifdef FOLDED
+#if defined(FOLDED) || defined(SCHEDULED)
   *((v2s *)&pOut[i0_store * 2U]) = D;
   *((v2s *)&pOut[i1_store * 2U]) = A;
   *((v2s *)&pOut[i2_store * 2U]) = B;
@@ -378,17 +378,19 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
   uint32_t i1, i2, i3;
   v2s A, B, C, D, E, F, G, H;
 
-#ifdef FOLDED
+#if defined(FOLDED) || defined(SCHEDULED)
   /*  index calculation for the input as, */
   /*  pIn[i0 + 0], pIn[i0 + fftLen/4],
       pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
   i1 = i0 + N_BANKS;
   i2 = i1 + N_BANKS;
   i3 = i2 + N_BANKS;
+#ifndef SCHEDULED
   uint32_t i0_store = i0 * 4;
   uint32_t i1_store = i0_store + 1;
   uint32_t i2_store = i1_store + 1;
   uint32_t i3_store = i2_store + 1;
+#endif
 #else
   /*  index calculation for the input as, */
   /*  pIn[i0 + 0], pIn[i0 + fftLen/4],
@@ -424,7 +426,7 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
   F = __SRA2(F, s1);
 /* xa' = (xa+xb+xc+xd) */
 /* ya' = (ya+yb+yc+yd) */
-#ifdef FOLDED
+#if defined(FOLDED)
   *((v2s *)&pOut[i0_store * 2U]) = __ADD2(E, G);
 #else
   *((v2s *)&pOut[i0 * 2U]) = __ADD2(E, G);
@@ -442,7 +444,7 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
   /* xd' = (xa-yb-xc+yd) */
   /* yd' = (ya+xb-yc-xd) */
   B = __ADD2(F, B);
-#ifdef FOLDED
+#if defined(FOLDED)
   *((v2s *)&pOut[i1_store * 2U]) = E;
   *((v2s *)&pOut[i2_store * 2U]) = A;
   *((v2s *)&pOut[i3_store * 2U]) = B;
@@ -489,7 +491,7 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
         [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3), [s1] "=&r"(s1)
       :
       :);
-#ifdef FOLDED
+#if defined(FOLDED)
   *((v2s *)&pOut[i0_store * 2U]) = H;
   *((v2s *)&pOut[i1_store * 2U]) = E;
   *((v2s *)&pOut[i2_store * 2U]) = A;

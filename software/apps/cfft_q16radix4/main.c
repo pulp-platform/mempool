@@ -22,7 +22,7 @@
 #define N_RSAMPLES (2 * N_CSAMPLES)
 //#define BITREVERSETABLE
 
-#define N_FFTs_ROW 1
+#define N_FFTs_ROW 2
 #define N_FFTs_COL 1
 #define MAX_COL (N_BANKS / (N_CSAMPLES / 4))
 
@@ -228,7 +228,6 @@ int main() {
     mempool_bitrevtable_q16s_xpulpimg(
         (uint16_t *)pSrc, BITREVINDEXTABLE_FIXED_TABLE_LENGTH, pRevT16);
     mempool_stop_benchmark();
-    int16_t *pRes = pSrc;
   }
   mempool_barrier(num_cores);
 #endif
@@ -243,7 +242,6 @@ int main() {
                                     BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
                                     pRevT16, num_cores);
   mempool_stop_benchmark();
-  int16_t *pRes = pSrc;
 #endif
   mempool_barrier(num_cores);
 
@@ -260,7 +258,6 @@ int main() {
                                       BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
                                       pRevT16, (N_CSAMPLES / 16));
     mempool_stop_benchmark();
-    int16_t *pRes = pSrc;
 #else
     mempool_start_benchmark();
     mempool_radix4_cfft_q16p_folded(pSrc, pDst, (uint16_t)N_CSAMPLES, pCoef16,
@@ -269,12 +266,15 @@ int main() {
                                       BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
                                       pRevT16, (N_CSAMPLES / 16));
     mempool_stop_benchmark();
-    int16_t *pRes = pSrc;
 #endif
   }
   mempool_barrier(num_cores);
+#endif
+
+#if defined(SINGLE) || defined(PARALLEL) || defined(FOLDED)
   if (core_id == 0) {
     printf("Done!\n");
+    int16_t *pRes = pSrc;
     for (uint32_t i = 0; i < N_CSAMPLES; i++) {
       if (ABS(((int32_t)pRes[i] - (int32_t)vector_res[i])) > TOLERANCE)
         printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pSrc[i], i,
