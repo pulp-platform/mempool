@@ -116,6 +116,46 @@ package snitch_pkg;
     IntFmtMask:    {XFVEC && XF8, XFVEC && (XF16 || XF16ALT), 1'b1, 1'b0}
   };
 
+  // Latencies of FP ops (number of regs)
+  localparam int unsigned LAT_COMP_FP32    = 'd3;
+  localparam int unsigned LAT_COMP_FP64    = 'd0;
+  localparam int unsigned LAT_COMP_FP16    = 'd3;
+  localparam int unsigned LAT_COMP_FP16ALT = 'd3;
+  localparam int unsigned LAT_COMP_FP8     = 'd3;
+  localparam int unsigned LAT_COMP_FP8ALT  = 'd3;
+  localparam int unsigned LAT_DIVSQRT      = 'd3;
+  localparam int unsigned LAT_NONCOMP      = 'd3;
+  localparam int unsigned LAT_CONV         = 'd3;
+  localparam int unsigned LAT_SDOTP        = 'd3;
+
+  localparam fpnew_pkg::fpu_implementation_t FPU_IMPLEMENTATION = '{
+    PipeRegs:  '{// FP32, FP64, FP16, FP8, FP16alt
+                 '{ LAT_COMP_FP32,
+                    LAT_COMP_FP64,
+                    LAT_COMP_FP16,
+                    LAT_COMP_FP8,
+                    LAT_COMP_FP16ALT,
+                    LAT_COMP_FP8ALT}, // ADDMUL
+                 '{default: LAT_DIVSQRT}, // DIVSQRT
+                 '{default: LAT_NONCOMP}, // NONCOMP
+                 '{default: LAT_CONV},    // CONV
+                 '{default: LAT_SDOTP}},  // SDOTP
+    UnitTypes: '{'{default: fpnew_pkg::MERGED},
+                 // '{fpnew_pkg::PARALLEL, fpnew_pkg::PARALLEL, fpnew_pkg::MERGED, fpnew_pkg::MERGED, fpnew_pkg::MERGED}, // ADDMUL
+                 '{default: fpnew_pkg::MERGED}, // DIVSQRT
+                 '{default: fpnew_pkg::PARALLEL}, // NONCOMP
+                 '{default: fpnew_pkg::MERGED},   // CONV
+                 '{default: fpnew_pkg::MERGED}},  // SDOTP
+    PipeConfig: fpnew_pkg::BEFORE
+  };
+
+  // Enable stocastic rounding
+  localparam fpnew_pkg::rsr_impl_t FPU_RSR = '{
+    EnableRSR:            1'b0,
+    RsrPrecision:           12,
+    LfsrInternalPrecision:  32
+  };
+
   // Amount of address bit which should be used for accesses from the SoC side.
   // This effectively determines the Address Space of a Snitch Cluster.
   localparam logic [31:0] SoCRequestAddrBits = 32;
@@ -222,42 +262,5 @@ package snitch_pkg;
     longint op_2;
     longint use_fpu;
   } fpu_trace_port_t;
-
-  // ------------------
-  // FPU Configuration
-  // ------------------
-
-  // Latencies of FP ops (number of regs)
-  localparam int unsigned LAT_COMP_FP32    = 'd3;
-  localparam int unsigned LAT_COMP_FP64    = 'd0;
-  localparam int unsigned LAT_COMP_FP16    = 'd3;
-  localparam int unsigned LAT_COMP_FP16ALT = 'd3;
-  localparam int unsigned LAT_COMP_FP8     = 'd3;
-  localparam int unsigned LAT_COMP_FP8ALT  = 'd3;
-  localparam int unsigned LAT_DIVSQRT      = 'd3;
-  localparam int unsigned LAT_NONCOMP      = 'd3;
-  localparam int unsigned LAT_CONV         = 'd3;
-  localparam int unsigned LAT_SDOTP        = 'd3;
-
-  localparam fpnew_pkg::fpu_implementation_t FPU_IMPLEMENTATION = '{
-    PipeRegs:  '{// FP32, FP64, FP16, FP8, FP16alt
-                 '{ LAT_COMP_FP32,
-                    LAT_COMP_FP64,
-                    LAT_COMP_FP16,
-                    LAT_COMP_FP8,
-                    LAT_COMP_FP16ALT,
-                    LAT_COMP_FP8ALT}, // ADDMUL
-                 '{default: LAT_DIVSQRT}, // DIVSQRT
-                 '{default: LAT_NONCOMP}, // NONCOMP
-                 '{default: LAT_CONV},    // CONV
-                 '{default: LAT_SDOTP}},  // SDOTP
-    UnitTypes: '{'{default: fpnew_pkg::MERGED},
-                 // '{fpnew_pkg::PARALLEL, fpnew_pkg::PARALLEL, fpnew_pkg::MERGED, fpnew_pkg::MERGED, fpnew_pkg::MERGED}, // ADDMUL
-                 '{default: fpnew_pkg::MERGED}, // DIVSQRT
-                 '{default: fpnew_pkg::PARALLEL}, // NONCOMP
-                 '{default: fpnew_pkg::MERGED},   // CONV
-                 '{default: fpnew_pkg::MERGED}},  // SDOTP
-    PipeConfig: fpnew_pkg::BEFORE
-  };
 
 endpackage
