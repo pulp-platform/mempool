@@ -73,14 +73,18 @@ module snitch_fpu import snitch_pkg::*; (
     .data_o  ( fpu_in_q   )
   );
 
+// If you want to use Stochastic Rounding, propagate the hart_id to the FPU (each FPU needs a different hart_id) and set EnableRSR to 1'b1s
   fpnew_top #(
     // FPU configuration
-    .Features       ( snitch_pkg::FPU_FEATURES       ),
-    .Implementation ( snitch_pkg::FPU_IMPLEMENTATION ),
-    .TagType        ( logic[5:0]                     )
+    .Features                   ( snitch_pkg::FPU_FEATURES       ),
+    .Implementation             ( snitch_pkg::FPU_IMPLEMENTATION ),
+    .TagType                    ( logic[5:0]                     ),
+    .StochasticRndImplementation( snitch_pkg::FPU_RSR            ),
+    .PulpDivsqrt                ( 1'b1                           )
   ) i_fpu (
     .clk_i                                    ,
     .rst_ni                                   ,
+    .hart_id_i       ( '0                    ),
     .operands_i      ( fpu_in_q.operands     ),
     .rnd_mode_i      ( fpu_in_q.rnd_mode     ),
     .op_i            ( fpu_in_q.op           ),
@@ -90,6 +94,7 @@ module snitch_fpu import snitch_pkg::*; (
     .int_fmt_i       ( fpu_in_q.int_fmt      ),
     .vectorial_op_i  ( fpu_in_q.vectorial_op ),
     .tag_i           ( fpu_in_q.tag          ),
+    .simd_mask_i     ( '1                    ),
     .in_valid_i      ( in_valid_q            ),
     .in_ready_o      ( in_ready_q            ),
     .flush_i         ( 1'b0                  ),

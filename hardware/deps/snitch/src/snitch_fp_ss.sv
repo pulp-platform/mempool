@@ -44,7 +44,6 @@ module snitch_fp_ss
   } tag_t;
   tag_t fpu_tag_in, fpu_tag_out;
 
-  logic use_fpu;
   logic [2:0][FLEN-1:0] op;
   logic [2:0] op_ready; // operand is ready
 
@@ -79,7 +78,7 @@ module snitch_fp_ss
   assign acc_req = acc_req_i;
 
   // check that the FPU and all operands are ready
-  assign fpu_in_valid = use_fpu & acc_req_valid & (&op_ready);
+  assign fpu_in_valid = acc_req_valid & (&op_ready);
   assign acc_req_ready = ((fpu_in_ready & fpu_in_valid) // FPU ready
                                       | csr_instr
                                       | (acc_req_valid && result_select == ResAccBus)); // Direct Reg Write
@@ -105,7 +104,6 @@ module snitch_fp_ss
   always_comb begin
     acc_resp_o.error = 1'b0;
     fpu_op = fpnew_pkg::ADD;
-    use_fpu = 1'b1;
     fpu_rnd_mode = (fpnew_pkg::roundmode_e'(acc_req.data_op[14:12]) == fpnew_pkg::DYN)
                    ? fpu_rnd_mode_i
                    : fpnew_pkg::roundmode_e'(acc_req.data_op[14:12]);
@@ -827,7 +825,7 @@ module snitch_fp_ss
   assign trace_port_o.op_0         = op[0];
   assign trace_port_o.op_1         = op[1];
   assign trace_port_o.op_2         = op[2];
-  assign trace_port_o.use_fpu      = use_fpu;
+  assign trace_port_o.use_fpu      = 1'b1;
   // pragma translate_on
 
 endmodule
