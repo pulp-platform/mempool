@@ -56,7 +56,7 @@ def parse_values(line):
     # print(match)
     if match:
         if int(match.group(1)):
-            values[curr_pos] += 1
+            values[curr_pos] += int(match.group(1))
         if curr_pos < end_limit:
             curr_pos += 1
             return 0
