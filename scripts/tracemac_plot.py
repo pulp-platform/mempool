@@ -123,13 +123,13 @@ ax.plot(norm_cycles, avg_values)
 ax.set_xlim([norm_cycles[0], norm_cycles[-1]])
 
 # ax.set_title('Performance')
-ax.set_ylabel('Throughput [MACs/cycle]')
+ax.set_ylabel('Throughput [OPs/cycle]')
 ax.set_xlabel('Cycles [.]')
 
-ax_right = ax.twinx()
-y_min, y_max = ax.get_ylim()
-ax_right.set_ylim(y_min/256*100, y_max/256*100)
-ax_right.set_ylabel('Utilization [%]')
+# ax_right = ax.twinx()
+# y_min, y_max = ax.get_ylim()
+# ax_right.set_ylim(y_min/256*100, y_max/256*100)
+# ax_right.set_ylabel('Utilization [%]')
 
 if show_settling:
     ax.axvspan(0, norm_cycles[settled_idx], alpha=0.5, color='tab:red', label='settling')
