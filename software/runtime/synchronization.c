@@ -29,12 +29,6 @@ void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {
     // Initialize the barrier
     barrier = 0;
-    for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
-      log_barrier[i] = 0;
-    }
-    for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
-      partial_barrier[i] = 0;
-    }
     set_wake_up_stride(1U);
     set_wake_up_offset(0U);
     wake_up_all();
@@ -42,6 +36,12 @@ void mempool_barrier_init(uint32_t core_id) {
   } else {
     mempool_wfi();
   }
+  // Initialize log-barriers synch variables in parallel
+  for (uint32_t i = core_id; i < NUM_CORES * 4; i += NUM_CORES) {
+    log_barrier[i] = 0;
+    partial_barrier[i] = 0;
+  }
+  mempool_barrier(NUM_CORES);
 }
 
 /* PLAIN BARRIER */
