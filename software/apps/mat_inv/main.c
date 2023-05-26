@@ -17,7 +17,6 @@
 #define VERBOSE
 #define SINGLE
 // #define PARALLEL
-// #define MEMSIZED
 // #define FOLDED
 
 #include "initialization.h"
@@ -37,102 +36,52 @@ int32_t inv[M * M] __attribute__((aligned(N), section(".l1")));
 uint32_t flag __attribute__((section(".l1")));
 #endif
 
-// Driver program
-void single_core() {
+int main() {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   // Initialize barrier and synchronize
   mempool_barrier_init(core_id);
 
+/* initialize the data */
+#if defined(SINGLE) || defined(PARALLEL)
   init_matrix(matrix, N, M, -156, 427, -219, core_id);
   init_matrix_zeros(inv, M, M, core_id);
+  if (core_id == 0) {
+    flag = 0U;
+  }
   mempool_barrier(num_cores);
 
+#elif defined(FOLDED)
+  uint32_t nPE = N_USED_BANKS >> 2U;
+  init_matrix(matrix, N, M, -156, 427, -219, core_id);
+  init_matrix_zeros(folded_matrix, ((N * M) / N_USED_BANKS), N_BANKS, core_id);
+  init_matrix_zeros(inv, ((N * M) / N_USED_BANKS), N_BANKS, core_id);
+  if (core_id == 0) {
+    flag = 0U;
+  }
+  mempool_barrier(num_cores);
+
+#endif
+
+/* Execute the kernel */
+#if defined(SINGLE)
   if (core_id == 0) {
     mempool_start_benchmark();
     mempool_GJinv_q32s(matrix, inv, M);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
-#ifdef VERBOSE
-  if (core_id == 0)
-    display(inv, N, M);
-#endif
-  mempool_barrier(num_cores);
-}
 
-void multi_core() {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  // Initialize barrier and synchronize
-  mempool_barrier_init(core_id);
-
-  init_matrix(matrix, N, M, -156, 427, -219, core_id);
-  init_matrix_zeros(inv, M, M, core_id);
-  if (core_id == 0) {
-    flag = 0U;
-  }
-  mempool_barrier(num_cores);
-
+#elif defined(PARALLEL)
   if (core_id < MIN(NUM_CORES, N / 4)) {
     mempool_start_benchmark();
     mempool_GJinv_q32p(matrix, inv, M, &flag);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
-#ifdef VERBOSE
-  if (core_id == 0)
-    display(inv, M, N);
-#endif
-  mempool_barrier(num_cores);
-}
 
-void multi_core_memsized() {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  // Initialize barrier and synchronize
-  mempool_barrier_init(core_id);
-
-  init_matrix(matrix, N, M, -156, 427, -219, core_id);
-  init_matrix_zeros(inv, N, M, core_id);
-  if (core_id == 0) {
-    flag = 0U;
-  }
-  mempool_barrier(num_cores);
-
-  mempool_start_benchmark();
-  mempool_GJinv_memsized_q32p(matrix, inv, M, &flag);
-  mempool_stop_benchmark();
-
-  mempool_barrier(num_cores);
-#ifdef VERBOSE
-  if (core_id == 0)
-    display(inv, M, N);
-#endif
-  mempool_barrier(num_cores);
-}
-
-#ifdef FOLDED
-void multi_core_folded() {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  uint32_t nPE = N_USED_BANKS >> 2U;
-  // Initialize barrier and synchronize
-  mempool_barrier_init(core_id);
-
-  init_matrix(matrix, N, M, -156, 427, -219, core_id);
-  init_matrix_zeros(folded_matrix, ((N * M) / N_USED_BANKS), N_BANKS, core_id);
-  init_matrix_zeros(inv, ((N * M) / N_USED_BANKS), N_BANKS, core_id);
-  if (core_id == 0) {
-    flag = 0U;
-    __atomic_store_n(&pivot_barrier, 0U, __ATOMIC_RELAXED);
-  }
-  mempool_barrier(num_cores);
-
+#elif defined(FOLDED)
   mempool_start_benchmark();
   fold_matrix(matrix, folded_matrix, N);
   mempool_stop_benchmark();
@@ -142,23 +91,15 @@ void multi_core_folded() {
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
-#ifdef VERBOSE
-  if (core_id == 0)
-    display_folded(inv, M, N);
-#endif
-  mempool_barrier(num_cores);
-}
+
 #endif
 
-int main() {
-#if defined(SINGLE)
-  single_core();
-#elif defined(PARALLEL)
-  multi_core();
-#elif defined(MEMSIZED)
-  multi_core_memsized();
-#elif defined(FOLDED)
-  multi_core_folded();
+/* Display the result of computation */
+#ifdef VERBOSE
+  if (core_id == 0)
+    display(inv, M, N);
+  mempool_barrier(num_cores);
 #endif
+
   return 0;
 }

@@ -171,34 +171,6 @@ int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
       j++;
     }
 
-    /* Alternative = remainder of loop unrolling using switch-case */
-    // switch ((n - l) % 4) {
-    //    case 3:
-    //        in1 = *pSrcT1;
-    //        in2 = *(pSrcT1 + 1);
-    //        in3 = *(pSrcT1 + 2);
-    //        out1 = FIX_DIV(in1, in);
-    //        out2 = FIX_DIV(in2, in);
-    //        out3 = FIX_DIV(in3, in);
-    //        *pSrcT1++ = out1;
-    //        *pSrcT1++ = out2;
-    //        *pSrcT1++ = out3;
-    //        break;
-    //    case 2:
-    //        in1 = *pSrcT1;
-    //        in2 = *(pSrcT1 + 1);
-    //        out1 = FIX_DIV(in1, in);
-    //        out2 = FIX_DIV(in2, in);
-    //        *pSrcT1++ = out1;
-    //        *pSrcT1++ = out2;
-    //        break;
-    //    case 1:
-    //        in1 = *pSrcT1;
-    //        out1 = FIX_DIV(in1, in);
-    //        *pSrcT1++ = out1;
-    //        break;
-    //}
-
     /* Loop over columns of the destination matrix */
     j = 0;
     while (j < 4 * (n >> 2U)) {
@@ -261,34 +233,6 @@ int mempool_GJinv_q32s(int32_t *pSrc, int32_t *pDst, uint32_t n) {
           *pSrcT1++ = in1 - FIX_MUL(in, out1);
           j++;
         }
-
-        /* Alternative = remainder of loop unrolling using switch-case */
-        // switch ((n - l) % 4) {
-        //    case 3:
-        //        in1 = *pSrcT1;
-        //        in2 = *(pSrcT1 + 1);
-        //        in3 = *(pSrcT1 + 2);
-        //        out1 = *pPRT_in++;
-        //        out2 = *pPRT_in++;
-        //        out3 = *pPRT_in++;
-        //        *pSrcT1++ = in1 - FIX_MUL(in, out1);
-        //        *pSrcT1++ = in2 - FIX_MUL(in, out2);
-        //        *pSrcT1++ = in3 - FIX_MUL(in, out3);
-        //        break;
-        //    case 2:
-        //        in1 = *pSrcT1;
-        //        in2 = *(pSrcT1 + 1);
-        //        out1 = *pPRT_in++;
-        //        out2 = *pPRT_in++;
-        //        *pSrcT1++ = in1 - FIX_MUL(in, out1);
-        //        *pSrcT1++ = in2 - FIX_MUL(in, out2);
-        //        break;
-        //    case 1:
-        //        in1 = *pSrcT1;
-        //        out1 = *pPRT_in++;
-        //        *pSrcT1++ = in1 - FIX_MUL(in, out1);
-        //        break;
-        //}
 
         /* Loop over the columns to
            replace the elements in the destination matrix */
