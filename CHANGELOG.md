@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update `register_interface` to 0.4.3
 - Updated Halide to version 15
 - Move instruction cache into its own dependency
+- Add Logk tree barrier and barrier with a fraction of linear and Log2 arrival
+- Add registers to wakeup cores with stride and offset
+- Add barrier with stride and offset
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
