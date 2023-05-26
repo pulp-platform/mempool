@@ -29,6 +29,8 @@ void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {
     // Initialize the barrier
     barrier = 0;
+    set_wake_up_stride(1U);
+    set_wake_up_offset(0U);
     wake_up_all();
     mempool_wfi();
   } else {
