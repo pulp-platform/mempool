@@ -46,7 +46,7 @@ verilator_top   ?= mempool_tb_verilator
 # Python
 python          ?= python3
 # Enable tracing
-snitch_trace    ?= 0
+snitch_trace    ?= 1
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -291,7 +291,7 @@ dramsys_init:
 	# apply DRAMsys patch
 	cd $(DRAMSYS_GIT_ROOT) && git apply ../patch/dramsys.patch
 	# build dramsys library
-	mkdir -p $(DRAMSYS_BUILD_LIB) && cd $(DRAMSYS_BUILD_LIB) && cmake DENABLE_PHASE_CALLBACKS_TRACING=OFF $(DRAMSYS_GIT_ROOT)/DRAMSys/library/ && make
+	mkdir -p $(DRAMSYS_BUILD_LIB) && cd $(DRAMSYS_BUILD_LIB) && cmake -DENABLE_PHASE_CALLBACKS_TRACING=OFF $(DRAMSYS_GIT_ROOT)/DRAMSys/library/ && make
 	# modify dramsys simulator
 	cp $(DRAMSYS_SRC_ROOT)/AXI4_to_TLM.h $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
 	cp $(DRAMSYS_SRC_ROOT)/axi_sc_mem.h $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator
@@ -336,7 +336,7 @@ $(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(
 	# SystemC Envirnomnet adn Create Verilator Makefile
 	export SYSTEMC_INCLUDE=$(systemc_include_path) && \
 	export SYSTEMC_LIBDIR=$(systemc_lib_path) && \
-	$(verilator_dramsys) $(VERILATOR_DRAMSYS_FLAGS) --top-module $(verilator_dramsys_top)
+	$(verilator_dramsys) $(VERILATOR_DRAMSYS_FLAGS) --trace --top-module $(verilator_dramsys_top)
 	#modify .mk files
 	sed -i "/VERILATOR_ROOT =/c\VERILATOR_ROOT = $(INSTALL_DIR)/verilator_dramsys/share/verilator" $(VERILATOR_DRAMSYS_MK)
 	sed -i "/VERILATOR_ROOT =/c\VERILATOR_ROOT = $(INSTALL_DIR)/verilator_dramsys/share/verilator" $(VERILATOR_DRAMSYS_GROUP_MK)
@@ -346,8 +346,8 @@ $(VERILATOR_DRAMSYS_MK): $(VERILATOR_DRAMSYS_CONF) $(VERILATOR_DRAMSYS_WAIVE) $(
 	#modify Cmakefile for dramsys simulator
 	sed -i "/__ALL.a/c\    $(DRAMSYS_BUILD_MEMPOOL_LIB_FILE)" $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator/CMakeLists.txt
 
-$(DRAMSYS_BUILD_SIMULATION_EXE): $(VERILATOR_DRAMSYS_MK) 
-	cd $(DRAMSYS_BUILD_SIMULATION) && cmake DENABLE_PHASE_CALLBACKS_TRACING=OFF $(DRAMSYS_GIT_ROOT)/DRAMSys && make
+$(DRAMSYS_BUILD_SIMULATION_EXE): $(shell find $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator -type f) Makefile $(VERILATOR_DRAMSYS_MK)
+	cd $(DRAMSYS_BUILD_SIMULATION) && cmake -DENABLE_PHASE_CALLBACKS_TRACING=OFF $(DRAMSYS_GIT_ROOT)/DRAMSys && make
 
 dramsys_compile: $(DRAMSYS_BUILD_SIMULATION_EXE) $(shell find $(DRAMSYS_GIT_ROOT)/DRAMSys/simulator -type f) Makefile
 	echo "Mempool + DRAMSys co-simulation is well prepared!"

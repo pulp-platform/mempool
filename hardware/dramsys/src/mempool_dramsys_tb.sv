@@ -119,6 +119,8 @@ module mempool_dramsys_tb #(
 
   axi_system_req_t    dram_req;
   axi_system_resp_t   dram_resp;
+  axi_system_req_t    axi_to_dram_req;
+  axi_system_resp_t   axi_to_dram_resp;
 
   mempool_system_to_dram #(
     .TCDMBaseAddr(32'h0   ),
@@ -129,14 +131,64 @@ module mempool_dramsys_tb #(
     .fetch_en_i     (fetch_en       ),
     .eoc_valid_o    (eoc_valid      ),
     .busy_o         (/*Unused*/     ),
-    .dram_req_o     (dram_req       ),
-    .dram_resp_i    (dram_resp      ),
+    .dram_req_o     (axi_to_dram_req),
+    .dram_resp_i    (axi_to_dram_resp),
     .mst_req_o      (axi_mst_req    ),
     .mst_resp_i     (axi_mst_resp   ),
     .slv_req_i      (to_mempool_req ),
     .slv_resp_o     (to_mempool_resp)
   );
 
+
+  /*******************
+   *  AXI Filtering  *
+   ******************/
+
+  `AXI_LITE_TYPEDEF_ALL(dram_axi_lite, dram_addr_t, dram_data_t, dram_strb_t)
+
+  dram_axi_lite_req_t dram_axi_lite_req;
+  dram_axi_lite_resp_t dram_axi_lite_rsp;
+
+
+  axi_to_axi_lite #(
+    .AxiAddrWidth   (AxiAddrWidth),
+    .AxiDataWidth   (AxiDataWidth),
+    .AxiIdWidth     (AxiIdWidth),
+    .AxiUserWidth   (AxiUserWidth),
+    .AxiMaxWriteTxns(8),
+    .AxiMaxReadTxns (8),
+    .FallThrough    (0),
+    .full_req_t     (axi_system_req_t),
+    .full_resp_t    (axi_system_resp_t),
+    .lite_req_t     (dram_axi_lite_req_t),
+    .lite_resp_t    (dram_axi_lite_resp_t)
+  ) i_axi_to_axi_lite (
+    .clk_i,
+    .rst_ni,
+    .test_i    ('0        ),
+    .slv_req_i (axi_to_dram_req ),
+    .slv_resp_o(axi_to_dram_resp),
+    .mst_req_o (dram_axi_lite_req ),
+    .mst_resp_i(dram_axi_lite_rsp )
+  );
+
+
+  axi_lite_to_axi #(
+    .AxiDataWidth    ( AxiDataWidth         ),
+    .req_lite_t      ( dram_axi_lite_req_t  ),
+    .resp_lite_t     ( dram_axi_lite_resp_t ),
+    .axi_req_t       ( axi_system_req_t     ),
+    .axi_resp_t      ( axi_system_resp_t    )
+  ) i_axi_lite_to_axi (
+    .slv_req_lite_i  ( dram_axi_lite_req    ),
+    .slv_resp_lite_o ( dram_axi_lite_rsp    ),
+    .slv_aw_cache_i  ('0),
+    .slv_ar_cache_i  ('0),
+    .mst_req_o       ( dram_req             ),
+    .mst_resp_i      ( dram_resp            )
+  );
+
+  
 
 
   /**************
@@ -259,6 +311,10 @@ module mempool_dramsys_tb #(
 
   initial begin
     $display("ahahahhaha ----------------------------------------- Good, running!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  end
+
+  always_ff @(posedge rst_ni) begin
+      $display("[Tracer] Logging Hart");
   end
 
 endmodule : mempool_dramsys_tb
