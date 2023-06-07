@@ -143,7 +143,7 @@ module axi_dram_sim #(
 
     assign read_req = '{
         we: 1'b0,
-        addr: ((dram_axi_lite_req.ar.addr)>>$clog2(DramDataWidth/8))<<$clog2(DramDataWidth/8),
+        addr: (((dram_axi_lite_req.ar.addr)>>$clog2(DramDataWidth/8))<<$clog2(DramDataWidth/8)) - BASE,
         wdata: '0
     };
     assign read_valid = dram_axi_lite_req.ar_valid;
@@ -162,7 +162,7 @@ module axi_dram_sim #(
 
     assign merge_write_req = '{
         we: 1'b1,
-        addr: ((dram_axi_lite_req.aw.addr)>>$clog2(DramDataWidth/8))<<$clog2(DramDataWidth/8),
+        addr: (((dram_axi_lite_req.aw.addr)>>$clog2(DramDataWidth/8))<<$clog2(DramDataWidth/8)) - BASE,
         wdata: dram_axi_lite_req.w.data
     };
     assign merge_write_valid = dram_axi_lite_req.aw_valid & dram_axi_lite_req.w_valid;
