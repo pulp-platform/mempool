@@ -18,6 +18,7 @@ import "DPI-C" function int dram_can_accept_req(input int dram_id);
 import "DPI-C" function int dram_has_rsp(input int dram_id);
 import "DPI-C" function void dram_send_req(input int dram_id, input longint addr, input longint length , input longint is_write, inout byte buffer[]);
 import "DPI-C" function void dram_get_rsp(input int dram_id, input longint length, inout byte buffer[]);
+import "DPI-C" function int dram_get_rsp_byte(input int dram_id);
 import "DPI-C" function void dram_load_elf(input int dram_id, input longint dram_base_addr, input string app_path);
 import "DPI-C" function void cloes_dram(input int dram_id);
 
@@ -123,8 +124,15 @@ always_ff @(negedge clk_i or posedge clk_i or negedge rst_ni) begin : proc_dram
         //rsponse 
         if (~rsp_valid_o) begin
             if (dram_has_rsp(dram_id)) begin
+                int get_byte_int;
+                byte bt;
+                // dram_get_rsp(dram_id, DataWidth/8, out_buffer);
+                for (int i = 0; i < (DataWidth/8); i++) begin
+                    get_byte_int = dram_get_rsp_byte(dram_id);
+                    bt = get_byte_int;
+                    out_buffer[i] = bt;
+                end
                 rsp_valid_o <= 1;
-                dram_get_rsp(dram_id, DataWidth/8, out_buffer);
             end
         end
             
