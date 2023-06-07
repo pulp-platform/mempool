@@ -74,7 +74,7 @@ initial begin
         $fatal(1,"no DRAMsys configuration found!");
     end
     dram_id = add_dram(resources_path, simulationJson_path);
-    void'($value$plusargs("app=%s", app_path));
+    void'($value$plusargs("PRELOAD=%s", app_path));
     if (app_path.len() == 0) begin
         $warning("No app found to preload in DRAM !!");
     end else begin
