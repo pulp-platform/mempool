@@ -48,6 +48,13 @@ python          ?= python3
 # Enable tracing
 snitch_trace    ?= 0
 
+# Path to DRAMsyslib
+dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/dram_rtl_sim/dramsys_lib/resources
+dramsys_simconfig_path ?= $(dramsys_resouces_path)/simulations/hbm2-example.json
+dramsys_lib_path ?= $(MEMPOOL_DIR)/hardware/dram_rtl_sim/dramsys_lib
+questa_args += +DRAMSYS_RES=$(dramsys_resouces_path) +DRAMSYS_CONF=$(dramsys_simconfig_path)
+questa_args += -sv_lib $(dramsys_lib_path)/libDRAMSysLibrary
+
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
   # Spaces are needed for indentation here!
