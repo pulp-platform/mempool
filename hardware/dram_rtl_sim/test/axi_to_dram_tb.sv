@@ -13,10 +13,10 @@
 
 module axi_to_dram_tb;
 
-	`include "axi/assign.svh"
+    `include "axi/assign.svh"
     `include "axi/typedef.svh"
 
-	//////////////////////
+    //////////////////////
     //  AXI Parameters  //
     //////////////////////
 
@@ -80,28 +80,28 @@ module axi_to_dram_tb;
     //        DUT       //
     //////////////////////
 
-	dram_sim_engine #(.ClkPeriodNs(10)) i_dram_sim_engine (.clk_i(clk), .rst_ni(rst_n));
+    dram_sim_engine #(.ClkPeriodNs(10)) i_dram_sim_engine (.clk_i(clk), .rst_ni(rst_n));
 
-	axi_dram_sim #(
-		.AxiAddrWidth(AXI_ADDR_WIDTH),
-		.AxiDataWidth(AXI_DATA_WIDTH),
-		.AxiIdWidth  (AXI_ID_WIDTH),
-		.AxiUserWidth(AXI_USER_WIDTH),
-		.axi_req_t   (axi_req_t),
-		.axi_resp_t  (axi_resp_t),
-		.axi_ar_t    (axi_ar_chan_t),
-		.axi_r_t     (axi_r_chan_t),
-		.axi_aw_t    (axi_aw_chan_t),
-		.axi_w_t     (axi_w_chan_t),
-		.axi_b_t     (axi_b_chan_t)
-	) i_axi_dram_sim (
-		.clk_i     (clk     ),
-		.rst_ni    (rst_n    ),
-		.axi_req_i (axi_req ),
-		.axi_resp_o(axi_resp)
-	);
+    axi_dram_sim #(
+        .AxiAddrWidth(AXI_ADDR_WIDTH),
+        .AxiDataWidth(AXI_DATA_WIDTH),
+        .AxiIdWidth  (AXI_ID_WIDTH),
+        .AxiUserWidth(AXI_USER_WIDTH),
+        .axi_req_t   (axi_req_t),
+        .axi_resp_t  (axi_resp_t),
+        .axi_ar_t    (axi_ar_chan_t),
+        .axi_r_t     (axi_r_chan_t),
+        .axi_aw_t    (axi_aw_chan_t),
+        .axi_w_t     (axi_w_chan_t),
+        .axi_b_t     (axi_b_chan_t)
+    ) i_axi_dram_sim (
+        .clk_i     (clk     ),
+        .rst_ni    (rst_n    ),
+        .axi_req_i (axi_req ),
+        .axi_resp_o(axi_resp)
+    );
 
-	//////////////////////////
+    //////////////////////////
     //        Driver        //
     //////////////////////////
 
@@ -121,10 +121,11 @@ module axi_to_dram_tb;
     axi_master_t axi_master = new(axi_bus_dv);
 
     initial begin
-    	axi_master.reset();
-        axi_master.add_memory_region(0, 65636, axi_pkg::DEVICE_BUFFERABLE);
-    	@(posedge rst_n);
-    	axi_master.run(100,100);
+        axi_master.reset();
+        axi_master.add_memory_region(0, 65636, axi_pkg::NORMAL_NONCACHEABLE_NONBUFFERABLE);
+        @(posedge rst_n);
+        axi_master.run(1000,1000);
+        $finish;
     end
 
 
