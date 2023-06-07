@@ -48,6 +48,7 @@ sources:
   - hardware/dram_rtl_sim/src/sim_dram.sv
   - hardware/dram_rtl_sim/src/axi_dram_sim.sv
   - hardware/dram_rtl_sim/src/dram_sim_engine.sv
+  - hardware/src/mempool_system_with_one_dram.sv
 
   - target: mempool_vsim
     files:

@@ -102,7 +102,7 @@ module mempool_tb;
   logic fetch_en;
   logic eoc_valid;
 
-  mempool_system #(
+  mempool_system_with_one_dram #(
     .TCDMBaseAddr(32'h0   ),
     .BootAddr    (BootAddr)
   ) dut (
