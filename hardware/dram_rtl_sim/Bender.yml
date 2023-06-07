@@ -1,0 +1,18 @@
+package:
+  name: dram_rtl_sim
+  authors:
+    - "Chi Zhang <chizhang@iis.ee.ethz.ch>"
+
+
+dependencies:
+  axi:                 { git: "https://github.com/pulp-platform/axi.git",                 version: 0.38.0 }
+
+sources:
+  #level 1 
+  - src/sim_dram.sv
+  - src/axi_dram_sim.sv
+  - src/dram_sim_engine.sv
+
+  - target: test
+    files:
+      - test/axi_to_dram_tb.sv
