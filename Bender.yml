@@ -46,6 +46,10 @@ sources:
   - hardware/src/ctrl_registers.sv
   # Level 6
   - hardware/src/mempool_system.sv
+  # Level 6
+  - hardware/dram_rtl_sim/src/sim_dram.sv
+  - hardware/dram_rtl_sim/src/axi_dram_sim.sv
+  - hardware/dram_rtl_sim/src/dram_sim_engine.sv
 
   - target: mempool_vsim
     files:
