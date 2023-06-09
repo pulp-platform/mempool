@@ -131,7 +131,7 @@ void *domain_malloc(alloc_t *alloc, const uint32_t size) {
   // Allocate memory
   void *block_ptr = allocate_memory(alloc, block_size);
   if (!block_ptr) {
-    printf("Memory allocator: No large enough block found\n");
+    printf("Memory allocator: No large enough block found (%d)\n", block_size);
     return NULL;
   }
 
@@ -214,8 +214,7 @@ void simple_free(void *const ptr) { domain_free(&alloc_l1, ptr); }
 void alloc_dump(alloc_t *alloc) {
   // Get first block of linked list of free blocks
   alloc_block_t *curr = alloc->first_block;
-
-  printf("======== Memory Allocator State ========\n");
+  printf("Memory Allocator State\n");
 
   // Print out linked list of free blocks
   while (curr) {
@@ -231,8 +230,6 @@ void alloc_dump(alloc_t *alloc) {
     // Go to next block
     curr = curr->next;
   }
-
-  printf("========================================\n");
 }
 
 // ----------------------------------------------------------------------------
