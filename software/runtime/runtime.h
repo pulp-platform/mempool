@@ -79,25 +79,25 @@ static inline uint32_t mempool_get_core_count_per_group() {
 static inline void mempool_init(const uint32_t core_id) {
   if (core_id == 0) {
     // Initialize L1 Interleaved Heap Allocator
-    extern uint32_t __heap_start, __heap_end;
-    uint32_t heap_size = (uint32_t)&__heap_end - (uint32_t)&__heap_start;
+    extern uint8_t __heap_start, __heap_end;
+    uint32_t heap_size = (uint32_t)(&__heap_end - &__heap_start);
     alloc_init(get_alloc_l1(), &__heap_start, heap_size);
 
     // Initialize L1 Sequential Heap Allocator per Tile
-    extern uint32_t __seq_start;
+    extern uint8_t __seq_start;
     // The stack is in the sequential region
     uint32_t seq_heap_offset = NUM_CORES_PER_TILE * STACK_SIZE;
     // preceded by the queues (XQUEUE_SIZE in words)
     seq_heap_offset += NUM_BANKS_PER_TILE * XQUEUE_SIZE * sizeof(uint32_t);
     // The total sequential memory per tile in bytes
     uint32_t seq_total_size = NUM_CORES_PER_TILE * SEQ_MEM_SIZE;
-    // The base is the start address + the offset due to the queues and stack
-    uint32_t seq_heap_base = (uint32_t)&__seq_start + seq_heap_offset;
+
+    // The base is the start address + the offset due to xqueues and stack
+    uint8_t *seq_heap_base = &__seq_start + seq_heap_offset;
     uint32_t seq_heap_size = seq_total_size - seq_heap_offset;
-    uint32_t num_tiles = mempool_get_tile_count();
-    for (uint32_t tile_id = 0; tile_id < num_tiles; ++tile_id) {
+    for (uint32_t tile_id = 0; tile_id < mempool_get_tile_count(); ++tile_id) {
       alloc_t *tile_allocator = get_alloc_tile(tile_id);
-      alloc_init(tile_allocator, (uint32_t *)seq_heap_base, seq_heap_size);
+      alloc_init(tile_allocator, seq_heap_base, seq_heap_size);
       seq_heap_base += seq_total_size;
     }
   }

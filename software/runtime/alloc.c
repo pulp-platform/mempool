@@ -216,7 +216,6 @@ void alloc_dump(alloc_t *alloc) {
   alloc_block_t *curr = alloc->first_block;
 
   printf("Memory Allocator State\n");
-
   // Print out linked list of free blocks
   while (curr) {
     // Print current block
