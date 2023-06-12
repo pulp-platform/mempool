@@ -34,9 +34,6 @@
 [submodule "toolchain/riscv-isa-sim"]
 	path = toolchain/riscv-isa-sim
 	url = https://github.com/riscv-software-src/riscv-isa-sim.git
-[submodule "hardware/deps/cvfpu"]
-	path = hardware/deps/cvfpu
-	url = "https://github.com/pulp-platform/cvfpu.git"
-[submodule "fpnew"]
+[submodule "hardware/deps/fpnew"]
 	path = hardware/deps/fpnew
 	url = https://github.com/pulp-platform/cvfpu.git
