@@ -28,8 +28,8 @@ volatile int8_t c;    // __fp8 not supported, treat as int8
 #elif defined(XVFP16)
 typedef __fp16 v2f16 __attribute__((vector_size(4)));
 typedef union {
-    float f32;
-    v2f16 vec;
+  float f32;
+  v2f16 vec;
 } v2h;
 volatile float aH, aL, bH, bL;
 volatile v2h a, b;
@@ -87,7 +87,7 @@ int main() {
                  "vfdotpex.s.h %[c], %[a], %[b];"
                  : [c] "=r"(c), [a] "+r"(a), [b] "+r"(b)
                  : [aH] "r"(aH), [bH] "r"(bH), [aL] "r"(aL), [bL] "r"(bL)
-                 : );
+                 :);
   }
   // wait until all cores have finished
   mempool_barrier(num_cores);
@@ -96,8 +96,9 @@ int main() {
     float in = 4.0f;
     asm volatile("fcvt.s.h %[a], %[in];"
                  "fsqrt.h %[c], %[a];"
-                 : [c] "=r"(c), [a] "=r" (a)
-                 : [in] "r" (in) :);
+                 : [c] "=r"(c), [a] "=r"(a)
+                 : [in] "r"(in)
+                 :);
   }
   // wait until all cores have finished
   mempool_barrier(num_cores);

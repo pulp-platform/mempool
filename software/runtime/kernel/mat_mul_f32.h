@@ -166,12 +166,10 @@ void matmul_2x2_parallel_f32_zfinx(float const *__restrict__ A,
   }
 }
 
-
 void matmul_4x2_parallel_f32vec_zfinx(const float *__restrict__ pSrcA,
                                       const float *__restrict__ pSrcB,
-                                      float *__restrict__ pDstC,
-                                      uint32_t M, uint32_t N,
-                                      uint32_t P, uint32_t core_id,
+                                      float *__restrict__ pDstC, uint32_t M,
+                                      uint32_t N, uint32_t P, uint32_t core_id,
                                       uint32_t numThreads) {
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
@@ -202,37 +200,37 @@ void matmul_4x2_parallel_f32vec_zfinx(const float *__restrict__ pSrcA,
         v2h aVec0, aVec1, aVec2, aVec3;
         v2h bVec0, bVec1;
         asm volatile(
-          "vfcpka.h.s %[aVec0], %[a00], %[a01];"
-          "vfcpka.h.s %[aVec1], %[a10], %[a11];"
-          "vfcpka.h.s %[aVec2], %[a20], %[a21];"
-          "vfcpka.h.s %[aVec3], %[a30], %[a31];"
-          "vfcpka.h.s %[bVec0], %[b00], %[b10];"
-          "vfcpka.h.s %[bVec1], %[b01], %[b11];"
-          "vfdotpex.s.h %[sum00], %[aVec0], %[bVec0];"
-          "vfdotpex.s.h %[sum01], %[aVec0], %[bVec1];"
-          "vfdotpex.s.h %[sum10], %[aVec1], %[bVec0];"
-          "vfdotpex.s.h %[sum11], %[aVec1], %[bVec1];"
-          "vfdotpex.s.h %[sum20], %[aVec2], %[bVec0];"
-          "vfdotpex.s.h %[sum21], %[aVec2], %[bVec1];"
-          "vfdotpex.s.h %[sum30], %[aVec3], %[bVec0];"
-          "vfdotpex.s.h %[sum31], %[aVec3], %[bVec1];"
-          : [sum00] "=r" (sum00), [sum01] "=r" (sum01), [sum10] "=r" (sum10), [sum11] "=r" (sum11),
-            [sum20] "=r" (sum20), [sum21] "=r" (sum21), [sum30] "=r" (sum30), [sum31] "=r" (sum31),
-            [aVec0] "=r" (aVec0), [aVec1] "=r" (aVec1), [aVec2] "=r" (aVec2), [aVec3] "=r" (aVec3),
-            [bVec0] "=r" (bVec0), [bVec1] "=r" (bVec1)
-          : [b00] "r" (b00), [b01] "r" (b01), [b10] "r" (b10), [b11] "r" (b11),
-            [a00] "r" (a00), [a01] "r" (a01), [a10] "r" (a10), [a11] "r" (a11),
-            [a20] "r" (a20), [a21] "r" (a21), [a30] "r" (a30), [a31] "r" (a31)
-          :
-        );
+            "vfcpka.h.s %[aVec0], %[a00], %[a01];"
+            "vfcpka.h.s %[aVec1], %[a10], %[a11];"
+            "vfcpka.h.s %[aVec2], %[a20], %[a21];"
+            "vfcpka.h.s %[aVec3], %[a30], %[a31];"
+            "vfcpka.h.s %[bVec0], %[b00], %[b10];"
+            "vfcpka.h.s %[bVec1], %[b01], %[b11];"
+            "vfdotpex.s.h %[sum00], %[aVec0], %[bVec0];"
+            "vfdotpex.s.h %[sum01], %[aVec0], %[bVec1];"
+            "vfdotpex.s.h %[sum10], %[aVec1], %[bVec0];"
+            "vfdotpex.s.h %[sum11], %[aVec1], %[bVec1];"
+            "vfdotpex.s.h %[sum20], %[aVec2], %[bVec0];"
+            "vfdotpex.s.h %[sum21], %[aVec2], %[bVec1];"
+            "vfdotpex.s.h %[sum30], %[aVec3], %[bVec0];"
+            "vfdotpex.s.h %[sum31], %[aVec3], %[bVec1];"
+            : [sum00] "=r"(sum00), [sum01] "=r"(sum01), [sum10] "=r"(sum10),
+              [sum11] "=r"(sum11), [sum20] "=r"(sum20), [sum21] "=r"(sum21),
+              [sum30] "=r"(sum30), [sum31] "=r"(sum31), [aVec0] "=r"(aVec0),
+              [aVec1] "=r"(aVec1), [aVec2] "=r"(aVec2), [aVec3] "=r"(aVec3),
+              [bVec0] "=r"(bVec0), [bVec1] "=r"(bVec1)
+            : [b00] "r"(b00), [b01] "r"(b01), [b10] "r"(b10), [b11] "r"(b11),
+              [a00] "r"(a00), [a01] "r"(a01), [a10] "r"(a10), [a11] "r"(a11),
+              [a20] "r"(a20), [a21] "r"(a21), [a30] "r"(a30), [a31] "r"(a31)
+            :);
       }
-      pDstC[(i * 4) * P + (k * 2)]         = sum00;
-      pDstC[(i * 4) * P + (k * 2 + 1)]     = sum01;
-      pDstC[(i * 4 + 1) * P + (k * 2)]     = sum10;
+      pDstC[(i * 4) * P + (k * 2)] = sum00;
+      pDstC[(i * 4) * P + (k * 2 + 1)] = sum01;
+      pDstC[(i * 4 + 1) * P + (k * 2)] = sum10;
       pDstC[(i * 4 + 1) * P + (k * 2 + 1)] = sum11;
-      pDstC[(i * 4 + 2) * P + (k * 2)]     = sum20;
+      pDstC[(i * 4 + 2) * P + (k * 2)] = sum20;
       pDstC[(i * 4 + 2) * P + (k * 2 + 1)] = sum21;
-      pDstC[(i * 4 + 3) * P + (k * 2)]     = sum30;
+      pDstC[(i * 4 + 3) * P + (k * 2)] = sum30;
       pDstC[(i * 4 + 3) * P + (k * 2 + 1)] = sum31;
     }
   }

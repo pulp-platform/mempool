@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+# This script generates data for the fp16 matmul.
+# Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
+
 import numpy as np
 import argparse
 import pathlib
@@ -10,7 +17,8 @@ from mako.template import Template
 # compute_result #
 ##################
 
-def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **kwargs):
+def gen_data_header_file(outdir: pathlib.Path.cwd(),
+                         tpl: pathlib.Path.cwd(), **kwargs):
 
     file = outdir / f"data_{kwargs['name']}.h"
 
@@ -19,6 +27,7 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **
     template = Template(filename=str(tpl))
     with file.open('w') as f:
         f.write(template.render(**kwargs))
+
 
 def main():
 
@@ -72,22 +81,30 @@ def main():
 
     args = parser.parse_args()
 
-    matrix_M=args.dim_m
-    matrix_N=args.dim_n
-    matrix_P=args.dim_p
+    matrix_M = args.dim_m
+    matrix_N = args.dim_n
+    matrix_P = args.dim_p
 
     # Create sparse matrix
     A = np.random.rand(matrix_M, matrix_N)
     B = np.random.rand(matrix_N, matrix_P)
     C = np.matmul(A, B)
 
-    A = np.reshape(A, (matrix_M*matrix_N), order='C').astype(np.float16)
-    B = np.reshape(B, (matrix_N*matrix_P), order='C').astype(np.float16)
-    C = np.reshape(C, (matrix_M*matrix_P), order='C').astype(np.float16)
+    A = np.reshape(A, (matrix_M * matrix_N), order='C').astype(np.float16)
+    B = np.reshape(B, (matrix_N * matrix_P), order='C').astype(np.float16)
+    C = np.reshape(C, (matrix_M * matrix_P), order='C').astype(np.float16)
 
-    kwargs = {'name': 'matmulf16', 'A': A, 'B': B, 'C' : C, 'matrix_M' : matrix_M, 'matrix_N' : matrix_N, 'matrix_P' : matrix_P}
+    kwargs = {
+        'name': 'matmulf16',
+        'A': A,
+        'B': B,
+        'C': C,
+        'matrix_M': matrix_M,
+        'matrix_N': matrix_N,
+        'matrix_P': matrix_P}
 
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
+
 
 if __name__ == "__main__":
     main()
