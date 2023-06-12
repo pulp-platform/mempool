@@ -13,8 +13,8 @@
 
 typedef __fp16 v2f16 __attribute__((vector_size(4)));
 typedef union {
-    float f32;
-    v2f16 vec;
+  float f32;
+  v2f16 vec;
 } v2h;
 
 #include "data_matmulf16.h"
@@ -22,9 +22,12 @@ typedef union {
 
 #define PARALLEL
 
-__fp16 matrix_a[matrix_M * matrix_N] __attribute__((aligned((matrix_M * matrix_N)/2), section(".l1")));
-__fp16 matrix_b[matrix_N * matrix_P] __attribute__((aligned((matrix_N * matrix_P)/2), section(".l1")));
-__fp16 matrix_c[matrix_M * matrix_P] __attribute__((aligned((matrix_M * matrix_P)/2), section(".l1")));
+__fp16 matrix_a[matrix_M * matrix_N]
+    __attribute__((aligned((matrix_M * matrix_N) / 2), section(".l1")));
+__fp16 matrix_b[matrix_N * matrix_P]
+    __attribute__((aligned((matrix_N * matrix_P) / 2), section(".l1")));
+__fp16 matrix_c[matrix_M * matrix_P]
+    __attribute__((aligned((matrix_M * matrix_P) / 2), section(".l1")));
 
 int volatile error __attribute__((section(".l1")));
 
@@ -43,13 +46,13 @@ int verify_result(__fp16 *__restrict__ C, __fp16 *__restrict__ Exp, uint32_t M,
       __fp16 error;
       __fp16 exp = Exp[i];
       __fp16 res = C[i];
-      asm volatile(
-        "fsub.h %[error], %[res], %[exp];"
-        : [error] "=&r"(error)
-        : [res] "r"(res), [exp] "r"(exp)
-        : );
-      if (*(int32_t*)&error != 0) {
-        printf("ERROR(%d): %d - %d - %d\n", i, *(int32_t*)&error, *(int32_t*)&exp, *(int32_t*)&res);
+      asm volatile("fsub.h %[error], %[res], %[exp];"
+                   : [error] "=&r"(error)
+                   : [res] "r"(res), [exp] "r"(exp)
+                   :);
+      if (*(int32_t *)&error != 0) {
+        printf("ERROR(%d): %d - %d - %d\n", i, *(int32_t *)&error,
+               *(int32_t *)&exp, *(int32_t *)&res);
       }
     }
     // Wait at barrier before checking
@@ -77,7 +80,7 @@ int main() {
   mempool_start_benchmark();
   matmul_2x2_parallel_f16_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
                                 matrix_N, matrix_P, core_id, num_cores);
-  //dump_id(core_id);
+  // dump_id(core_id);
   mempool_stop_benchmark();
   // Wait at barrier before checking
   mempool_barrier(num_cores);

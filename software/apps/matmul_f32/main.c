@@ -14,8 +14,8 @@
 
 typedef __fp16 v2f16 __attribute__((vector_size(4)));
 typedef union {
-    float f32;
-    v2f16 vec;
+  float f32;
+  v2f16 vec;
 } v2h;
 
 #include "data_matmulf32.h"
@@ -48,7 +48,7 @@ int verify_result(float *__restrict__ C, float *__restrict__ Exp, uint32_t M,
                    : [error] "+&r"(error)
                    : [res] "r"(res), [exp] "r"(exp));
       if (error != 0.0f) {
-        printf("ERROR!!! OUT[%d] = 0x%8x\n", i, *(uint32_t*)&error);
+        printf("ERROR!!! OUT[%d] = 0x%8x\n", i, *(uint32_t *)&error);
       }
     }
     // Wait at barrier before checking
