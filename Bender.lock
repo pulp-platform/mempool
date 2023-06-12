@@ -37,10 +37,10 @@ packages:
     - common_cells
     - fpu_div_sqrt_mvp
   fpu_div_sqrt_mvp:
-    revision: null
-    version: null
+    revision: 86e1f558b3c95e91577c41b2fc452c86b04e85ac
+    version: 1.0.4
     source:
-      Path: hardware/deps/fpu_div_sqrt_mvp
+      Git: https://github.com/pulp-platform/fpu_div_sqrt_mvp.git
     dependencies:
     - common_cells
   idma:
