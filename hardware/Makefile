@@ -138,6 +138,9 @@ vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)
 # TeraPool configurations
 vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group)
 vlog_defs += -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
+ifdef dram
+	vlog_defs += -DDRAM=${dram}
+endif
 
 # Traffic generation enabled
 ifdef tg
