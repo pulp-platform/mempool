@@ -121,6 +121,9 @@ vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_ma
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
 # This parameter is only used for TeraPool configurations
 vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group) -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
+ifdef dram
+	vlog_defs += -DDRAM=${dram}
+endif
 
 # Traffic generation enabled
 ifdef tg
