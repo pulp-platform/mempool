@@ -34,7 +34,7 @@ module mempool_system
    *  AXI  *
    *********/
 
-  // Overview of AXI buses
+  // Overview of AXI buses with SRAM L2
   //
   //      mst_demux
   //        / |
@@ -47,6 +47,20 @@ module mempool_system
   //       \  |      +----------+         +---------+       +--------+
   //        \_|
   //                  == axi ==>          -- tcdm -->
+  //
+  // Overview of AXI buses with DRAM L2
+  //
+  //      mst_demux
+  //        / |
+  //       /  | soc  +----------+ periph  +---------+
+  //      |  0|=====>| soc_xbar |========>| periph  |
+  //  mst |   |      +----------+         +---------+
+  // ====>|   |
+  //      |   | l2   +----------+  mem_one_port  +--------------+ 
+  //      |  1|=====>| AXI_Mux  |===============>| AXI Port Out |
+  //       \  |      +----------+                +--------------+
+  //        \_|
+  //                  == axi ==>
 
   localparam NumAXIMasters = NumSystemXbarMasters;
   localparam NumAXISlaves  = 3; // control regs, bootrom and the external mst ports
@@ -218,9 +232,12 @@ module mempool_system
     .default_mst_port_i   ({NumAXIMasters{External}})
   );
 
-  /********
-   *  L2  *
-   ********/
+`ifndef DRAM
+
+  /*************
+   *  L2 SRAM  *
+   *************/
+
   localparam int unsigned NumAXIMastersLog2 = NumAXIMasters == 1 ? 1 : $clog2(NumAXIMasters);
   typedef logic [L2AddrWidth-1:0] l2_mem_addr_t;
   typedef logic [L2BankAddrWidth-1:0] l2_bank_addr_t;
@@ -335,6 +352,70 @@ module mempool_system
       .rdata_o(bank_rdata[i])
     );
   end
+
+`else
+
+  /*************
+   *  L2 DRAM  *
+   *************/
+
+  axi_system_req_t    dram_req;
+  axi_system_resp_t   dram_resp;
+
+  // axi mux to form one port to DRAM
+  axi_mux #(
+    .SlvAxiIDWidth(AxiTileIdWidth   ),
+    .slv_ar_chan_t(axi_tile_ar_t    ),
+    .slv_aw_chan_t(axi_tile_aw_t    ),
+    .slv_b_chan_t (axi_tile_b_t     ),
+    .slv_r_chan_t (axi_tile_r_t     ),
+    .slv_req_t    (axi_tile_req_t   ),
+    .slv_resp_t   (axi_tile_resp_t  ),
+    .mst_ar_chan_t(axi_system_ar_t  ),
+    .mst_aw_chan_t(axi_system_aw_t  ),
+    .w_chan_t     (axi_system_w_t   ),
+    .mst_b_chan_t (axi_system_b_t   ),
+    .mst_r_chan_t (axi_system_r_t   ),
+    .mst_req_t    (axi_system_req_t ),
+    .mst_resp_t   (axi_system_resp_t),
+    .NoSlvPorts   (NumAXIMasters    ),
+    .SpillAr      (1'b1             ),
+    .SpillR       (1'b1             ),
+    .SpillAw      (1'b1             ),
+    .SpillW       (1'b1             ),
+    .SpillB       (1'b1             )
+  ) i_axi_mux (
+    .clk_i      (clk_i      ),
+    .rst_ni     (rst_ni     ),
+    .test_i     (1'b0       ),
+    .slv_reqs_i (axi_l2_req ),
+    .slv_resps_o(axi_l2_resp),
+    .mst_req_o  (dram_req   ),
+    .mst_resp_i (dram_resp  )
+  );
+
+  dram_sim_engine #(.ClkPeriodNs(2)) i_dram_sim_engine (.clk_i(clk_i), .rst_ni(rst_ni));
+
+  axi_dram_sim #(
+      .AxiAddrWidth(AddrWidth),
+      .AxiDataWidth(AxiDataWidth),
+      .AxiIdWidth  (AxiSystemIdWidth),
+      .AxiUserWidth(1),
+      .axi_req_t   (axi_system_req_t),
+      .axi_resp_t  (axi_system_resp_t),
+      .axi_ar_t    (axi_system_ar_t),
+      .axi_r_t     (axi_system_r_t),
+      .axi_aw_t    (axi_system_aw_t),
+      .axi_w_t     (axi_system_w_t),
+      .axi_b_t     (axi_system_b_t)
+  ) i_axi_dram_sim (
+      .clk_i,
+      .rst_ni,
+      .axi_req_i (dram_req ),
+      .axi_resp_o(dram_resp)
+  );
+
+`endif
 
   /*************
    *  Bootrom  *

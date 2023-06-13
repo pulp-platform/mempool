@@ -103,7 +103,7 @@ module mempool_tb;
   logic fetch_en;
   logic eoc_valid;
 
-  mempool_system_with_one_dram #(
+  mempool_system #(
     .TCDMBaseAddr(32'h0   ),
     .BootAddr    (BootAddr)
   ) dut (
@@ -309,6 +309,7 @@ module mempool_tb;
    *  L2 Initialization  *
    ***********************/
 
+`ifndef DRAM 
   for (genvar bank = 0; bank < NumL2Banks; bank++) begin : gen_l2_banks_init
     initial begin : l2_init
       automatic logic [L2BankWidth-1:0] mem_row;
@@ -345,6 +346,7 @@ module mempool_tb;
       end
     end : l2_init
   end : gen_l2_banks_init
+`endif
 
   /**************************************
    *  MAC Utilization                   *
