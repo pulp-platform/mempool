@@ -23,10 +23,10 @@
 #include "tables/mempool_radix2_cfft_q16_BitRevIndexTable.h"
 #include "tables/mempool_radix2_cfft_q16_twiddleCoef.h"
 
-#define N_CSAMPLES 4096
+#define N_CSAMPLES 256
 #define N_RSAMPLES 2 * N_CSAMPLES
 //#define VERBOSE
-#define TEST_4096
+#define TEST_256
 #define PARALLEL
 #define SINGLE
 

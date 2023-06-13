@@ -16,9 +16,9 @@
 #include "synchronization.h"
 #include "xpulp/builtins_v2.h"
 
-#define TEST_4096
+#define TEST_256
 #define LOG2 (12)
-#define N_CSAMPLES (4096)
+#define N_CSAMPLES (256)
 #define N_RSAMPLES (2 * N_CSAMPLES)
 //#define BITREVERSETABLE
 
@@ -30,10 +30,10 @@ dump(reg1, 1);
 
 /* CHOOSE ONE */
 //#define SINGLE
-//#define PARALLEL
+#define PARALLEL
 //#define FOLDED
 //#define FOLDED_TWIDDLES
-#define SCHEDULED
+//#define SCHEDULED
 #define ASM // Use asm_volatile statements
 
 #define N_BANKS (1024)

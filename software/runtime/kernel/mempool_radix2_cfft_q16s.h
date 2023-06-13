@@ -7,14 +7,13 @@
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #include "xpulp/builtins_v2.h"
 
-static void mempool_radix2_cfft_q16s(uint16_t fftLen, int16_t *pTwiddle,
-                                     uint16_t *pBitRevTable, int16_t *pSrc,
-                                     uint16_t bitReverseLen, uint8_t ifftFlag,
-                                     uint8_t bitReverseFlag);
+void mempool_radix2_cfft_q16s(uint16_t fftLen, int16_t *pTwiddle,
+                              uint16_t *pBitRevTable, int16_t *pSrc,
+                              uint16_t bitReverseLen, uint8_t ifftFlag,
+                              uint8_t bitReverseFlag);
 
-static void mempool_radix2_butterfly_q16s(int16_t *pSrc16, uint32_t fftLen,
-                                          int16_t *pCoef16,
-                                          uint32_t twidCoefModifier);
+void mempool_radix2_butterfly_q16s(int16_t *pSrc16, uint32_t fftLen,
+                                   int16_t *pCoef16, uint32_t twidCoefModifier);
 
 void mempool_radix2_bitreversal_q16s(uint16_t *pSrc, const uint16_t bitRevLen,
                                      const uint16_t *pBitRevTab);
@@ -33,9 +32,9 @@ void mempool_radix2_cfft_q16s(uint16_t fftLen, int16_t *pTwiddle,
   }
 }
 
-static void mempool_radix2_butterfly_q16s(int16_t *pSrc16, uint32_t fftLen,
-                                          int16_t *pCoef16,
-                                          uint32_t twidCoefModifier) {
+void mempool_radix2_butterfly_q16s(int16_t *pSrc16, uint32_t fftLen,
+                                   int16_t *pCoef16,
+                                   uint32_t twidCoefModifier) {
 
   uint32_t i, j, k, l;
   uint32_t n1, n2, ia;

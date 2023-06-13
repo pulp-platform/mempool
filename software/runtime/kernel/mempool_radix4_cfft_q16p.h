@@ -7,10 +7,10 @@
 #include "xpulp/builtins_v2.h"
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-static void mempool_radix4_cfft_q16p_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
-                                              const int16_t *pCoef16,
-                                              uint32_t twidCoefModifier,
-                                              uint32_t nPE) {
+void mempool_radix4_cfft_q16p_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
+                                       const int16_t *pCoef16,
+                                       uint32_t twidCoefModifier,
+                                       uint32_t nPE) {
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id % nPE;
   v2s CoSi1, CoSi2, CoSi3;
@@ -246,10 +246,9 @@ static inline void fold_radix4(int16_t *pSrc16, uint32_t fftLen,
   @param[in]     nPE Number of PE
   @return        pointer to output vector
 */
-static inline int16_t *
-mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
-                                uint32_t fftLen, int16_t *pCoef_src,
-                                int16_t *pCoef_dst, uint32_t nPE)
+int16_t *mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
+                                         uint32_t fftLen, int16_t *pCoef_src,
+                                         int16_t *pCoef_dst, uint32_t nPE)
 #else
 /**
   Twiddles are not folded in memory
@@ -263,10 +262,9 @@ mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
   @param[in]     nPE Number of PE
   @return        pointer to output vector
 */
-static inline int16_t *
-mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
-                                uint32_t fftLen, int16_t *pCoef_src,
-                                uint32_t nPE)
+int16_t *mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
+                                         uint32_t fftLen, int16_t *pCoef_src,
+                                         uint32_t nPE)
 #endif
 {
 
@@ -517,10 +515,14 @@ mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
   @return        void
 */
 
-static void mempool_radix4_cfft_q16p_scheduler(
-    uint32_t col_id, int16_t *pSrc16, int16_t *pDst16, uint32_t fftLen,
-    int16_t *pCoef_src, int16_t *pCoef_dst, uint16_t *pBitRevTable,
-    uint16_t bitReverseLen, uint8_t bitReverseFlag, uint32_t nPE) {
+void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
+                                        int16_t *pDst16, uint32_t fftLen,
+                                        int16_t *pCoef_src, int16_t *pCoef_dst,
+                                        __attribute__((unused))
+                                        uint16_t *pBitRevTable,
+                                        __attribute__((unused))
+                                        uint16_t bitReverseLen,
+                                        uint8_t bitReverseFlag, uint32_t nPE) {
 
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id % (fftLen >> 4U);
@@ -578,7 +580,8 @@ static void mempool_radix4_cfft_q16p_scheduler(
     for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
       int16_t *pIn = pSrc16 + idx_row * (N_BANKS * 8);
       int16_t *pOut = pDst16 + idx_row * (N_BANKS * 8);
-      radix4_butterfly_first(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2, C3);
+      radix4_butterfly_first(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
+                             C3);
     }
   }
   pTmp = pSrc16;
@@ -641,7 +644,8 @@ static void mempool_radix4_cfft_q16p_scheduler(
       for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
         int16_t *pIn = pSrc16 + idx_row * (N_BANKS * 8);
         int16_t *pOut = pDst16 + idx_row * (N_BANKS * 8);
-        radix4_butterfly_middle(pIn, pOut, j, n2, CoSi1, CoSi2, CoSi3, C1, C2, C3);
+        radix4_butterfly_middle(pIn, pOut, j, n2, CoSi1, CoSi2, CoSi3, C1, C2,
+                                C3);
       }
     }
     pTmp = pSrc16;
