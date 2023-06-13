@@ -26,41 +26,41 @@
 
 // Size in words
 #ifndef SIZE
-#define SIZE (264192)
+#define SIZE (32768)
 #endif
-// Assume banking factor of 4
 
+// Assume banking factor of 4
 int32_t l1_data[SIZE] __attribute__((section(".l1_prio")))
 __attribute__((aligned(NUM_CORES * 4 * 4)));
-// int32_t l2_data_move_out[SIZE]  __attribute__((section(".l2_prio")))
-// __attribute__((aligned(16 * 512)));
-//
- dump(addr, 0);
- dump(start, 2);
- dump(end, 3);
- dump(dma, 7);
+int32_t l2_data_move_out[SIZE]  __attribute__((section(".l2_prio")))
+__attribute__((aligned(16 * 512)));
 
-// void dump_data(volatile uint32_t *addr, uint32_t num_words) {
-//   for (uint32_t i = 0; i < num_words; ++i) {
-//     dump_dma((uint32_t)addr[i]);
-//   }
-// }
-//
-// void verify_dma(int32_t *addr, uint32_t num_words, int32_t *golden, int32_t error) {
-//   volatile int32_t *a = (volatile int32_t *)addr;
-//   for (uint32_t i = 0; i < num_words; ++i) {
-//     if (a[i] != *golden) {
-//       error = error + 1;
-//       printf("The %dth value is %d, the golden is %d \n", i, a[i], *golden);
-//     }
-//     golden += 1;
-//   }
-// }
+dump(addr, 0);
+dump(start, 2);
+dump(end, 3);
+dump(dma, 7);
+
+void dump_data(volatile uint32_t *addr, uint32_t num_words) {
+  for (uint32_t i = 0; i < num_words; ++i) {
+    dump_dma((uint32_t)addr[i]);
+  }
+}
+
+void verify_dma(int32_t *addr, uint32_t num_words, int32_t *golden, int32_t error) {
+  volatile int32_t *a = (volatile int32_t *)addr;
+  for (uint32_t i = 0; i < num_words; ++i) {
+    if (a[i] != *golden) {
+      error = error + 1;
+      printf("The %dth value is %d, the golden is %d \n", i, a[i], *golden);
+    }
+    golden += 1;
+  }
+}
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  int32_t error = 0;
+  int32_t  error = 0;
 
   // Initialize barrier and synchronize
   mempool_barrier_init(core_id);
@@ -68,10 +68,11 @@ int main() {
   if (core_id == 0) {
     // Benchmark
     dump_addr((uint32_t)l2_data);
-    //dump_addr((uint32_t)l2_data_move_out);
+    dump_addr((uint32_t)l2_data_move_out);
     dump_addr((uint32_t)l1_data);
 
     // Copy in
+    printf("Start copy %d words from L2 to L1 \n", SIZE);
     uint32_t time = mempool_get_timer();
     dma_memcpy_nonblocking(l1_data, l2_data, SIZE * sizeof(int32_t));
     do {
@@ -79,20 +80,23 @@ int main() {
     } while (!dma_done());
     time = mempool_get_timer() - time;
     dump_end(time);
+    printf("Copy-in Done! \n");
   }
 
-//  mempool_barrier(num_cores);
-//
-//  if (core_id == 0) {
-//    // Copy out
-//    uint32_t time = mempool_get_timer();
-//    dma_memcpy_nonblocking(l2_data_move_out, l1_data, SIZE * sizeof(int32_t));
-//    do {
-//      mempool_wait(128);
-//    } while (!dma_done());
-//    time = mempool_get_timer() - time;
-//    dump_end(time);
-//  }
+  mempool_barrier(num_cores);
+
+  if (core_id == 0) {
+    // Copy out
+    printf("Start copy %d words from L1 to L2 \n", SIZE);
+    uint32_t time = mempool_get_timer();
+    dma_memcpy_nonblocking(l2_data_move_out, l1_data, SIZE * sizeof(int32_t));
+    do {
+      mempool_wait(128);
+    } while (!dma_done());
+    time = mempool_get_timer() - time;
+    dump_end(time);
+    printf("Copy-out Done! \n");
+  }
 
   // wait until all cores have finished
   mempool_barrier(num_cores);
