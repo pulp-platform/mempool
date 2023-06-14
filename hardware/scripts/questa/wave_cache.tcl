@@ -4,7 +4,7 @@
 
 # Create cache for core $3 from group $1 tile $2 (core_id=NUM_CORES_PER_group*$1+NUM_CORES_PER_TILE*$2+$3)
 
-if {$config == {terapool}} {
+if {[string match "terapool_spatz*" $config] | $config == {terapool}} {
   add wave -noupdate -group cache[$1][$2][$3][$4] -divider Parameters
   add wave -noupdate -group cache[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_caches[$4]/i_snitch_icache/NR_FETCH_PORTS
   add wave -noupdate -group cache[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_caches[$4]/i_snitch_icache/L0_LINE_COUNT

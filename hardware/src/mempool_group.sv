@@ -111,18 +111,18 @@ module mempool_group
   end: gen_tcdm_struct
 
   `ifdef TERAPOOL
-  /*********************
-   *  TeraPool Section *
-   *********************/
-  // ----------------------------------------------------- //
-  // SubGroups Instantiation.
-  // PostLayout Simulation:
-  //   - Only SubGroup_0 Replaced by Netlist for simulation.
-  // TCDM interconnections:
-  //   - Local SubGroups;
-  //   - Remote Groups.
-  // Most of AXI/DMA logics put into SubGroup level.
-  // ----------------------------------------------------- //
+    /*********************
+     *  TeraPool Section *
+     *********************/
+    // ----------------------------------------------------- //
+    // SubGroups Instantiation.
+    // PostLayout Simulation:
+    //   - Only SubGroup_0 Replaced by Netlist for simulation.
+    // TCDM interconnections:
+    //   - Local SubGroups;
+    //   - Remote Groups.
+    // Most of AXI/DMA logics put into SubGroup level.
+    // ----------------------------------------------------- //
 
     /****************
      *  Sub_Groups  *
@@ -434,6 +434,7 @@ module mempool_group
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_ready;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_rdata;
+      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_wen;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_ready;
       tile_addr_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_tgt_addr;
@@ -445,6 +446,7 @@ module mempool_group
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_ready;
       tile_group_id_t [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_ini_addr;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_rdata;
+      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_wen;
 
       for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_remote_connections_sg
         for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_remote_connections_t
@@ -464,9 +466,11 @@ module mempool_group
           assign slave_remote_resp_valid[(sg * NumTilesPerSubGroup) + t]    = tcdm_slave_resp_valid[r][sg][t];
           assign slave_remote_resp_ini_addr[(sg * NumTilesPerSubGroup) + t] = tcdm_slave_resp[r][sg][t].ini_addr;
           assign slave_remote_resp_rdata[(sg * NumTilesPerSubGroup) + t]    = tcdm_slave_resp[r][sg][t].rdata;
+          assign slave_remote_resp_wen[(sg * NumTilesPerSubGroup) + t]      = tcdm_slave_resp[r][sg][t].wen;
           assign tcdm_slave_resp_ready[r][sg][t]                            = slave_remote_resp_ready[(sg * NumTilesPerSubGroup) + t];
           assign tcdm_slave_resp_valid_o[r][sg][t]                          = master_remote_resp_valid[(sg * NumTilesPerSubGroup) + t];
           assign tcdm_slave_resp_s[r][sg][t].rdata                          = master_remote_resp_rdata[(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_slave_resp_s[r][sg][t].wen                            = master_remote_resp_wen[(sg * NumTilesPerSubGroup) + t];
           assign master_remote_resp_ready[(sg * NumTilesPerSubGroup) + t]   = tcdm_slave_resp_ready_i[r][sg][t];
         end: gen_remote_connections_t
       end: gen_remote_connections_sg
@@ -496,6 +500,10 @@ module mempool_group
         .resp_valid_o   (master_remote_resp_valid  ),
         .resp_ready_i   (master_remote_resp_ready  ),
         .resp_rdata_o   (master_remote_resp_rdata  ),
+      `ifdef RESPWEN
+        .resp_write_o   (master_remote_resp_wen    ),
+        .resp_write_i   (slave_remote_resp_wen     ),
+      `endif
         .resp_ini_addr_i(slave_remote_resp_ini_addr),
         .resp_rdata_i   (slave_remote_resp_rdata   ),
         .resp_valid_i   (slave_remote_resp_valid   ),
@@ -579,16 +587,16 @@ module mempool_group
     );
 
   `else
-  /******************************
-   *  MemPool / MinPool Section *
-   ******************************/
-  // ----------------------------------------------------- //
-  // Tile Instantiation.
-  // TCDM interconnections:
-  //   - Local Tiles;
-  //   - Remote Groups;
-  // Most of AXI/DMA logics put on Group level.
-  // ----------------------------------------------------- //
+    /******************************
+     *  MemPool / MinPool Section *
+     ******************************/
+    // ----------------------------------------------------- //
+    // Tile Instantiation.
+    // TCDM interconnections:
+    //   - Local Tiles;
+    //   - Remote Groups;
+    // Most of AXI/DMA logics put on Group level.
+    // ----------------------------------------------------- //
 
     /***********
      *  Tiles  *
@@ -716,6 +724,7 @@ module mempool_group
     logic           [NumTilesPerGroup-1:0] master_local_resp_valid;
     logic           [NumTilesPerGroup-1:0] master_local_resp_ready;
     tcdm_payload_t  [NumTilesPerGroup-1:0] master_local_resp_rdata;
+    logic           [NumTilesPerGroup-1:0] master_local_resp_wen;
     logic           [NumTilesPerGroup-1:0] slave_local_req_valid;
     logic           [NumTilesPerGroup-1:0] slave_local_req_ready;
     tile_addr_t     [NumTilesPerGroup-1:0] slave_local_req_tgt_addr;
@@ -727,6 +736,7 @@ module mempool_group
     logic           [NumTilesPerGroup-1:0] slave_local_resp_ready;
     tile_group_id_t [NumTilesPerGroup-1:0] slave_local_resp_ini_addr;
     tcdm_payload_t  [NumTilesPerGroup-1:0] slave_local_resp_rdata;
+    logic           [NumTilesPerGroup-1:0] slave_local_resp_wen;
 
     for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_local_connections
       assign master_local_req_valid[t]     = tcdm_master_req_valid[0][t];
@@ -738,9 +748,11 @@ module mempool_group
       assign slave_local_resp_valid[t]     = tcdm_slave_resp_valid[0][t];
       assign slave_local_resp_ini_addr[t]  = tcdm_slave_resp[0][t].ini_addr;
       assign slave_local_resp_rdata[t]     = tcdm_slave_resp[0][t].rdata;
+      assign slave_local_resp_wen[t]       = tcdm_slave_resp[0][t].wen;
       assign tcdm_slave_resp_ready[0][t]   = slave_local_resp_ready[t];
       assign tcdm_master_resp_valid[0][t]  = master_local_resp_valid[t];
       assign tcdm_master_resp[0][t].rdata  = master_local_resp_rdata[t];
+      assign tcdm_master_resp[0][t].wen    = master_local_resp_wen[t];
       assign master_local_resp_ready[t]    = tcdm_master_resp_ready[0][t];
       assign tcdm_slave_req_valid[0][t]    = slave_local_req_valid[t];
       assign tcdm_slave_req[0][t].tgt_addr = slave_local_req_tgt_addr[t];
@@ -776,6 +788,10 @@ module mempool_group
       .resp_valid_o   (master_local_resp_valid  ),
       .resp_ready_i   (master_local_resp_ready  ),
       .resp_rdata_o   (master_local_resp_rdata  ),
+    `ifdef RESPWEN
+      .resp_write_o   (master_local_resp_wen    ),
+      .resp_write_i   (slave_local_resp_wen     ),
+    `endif
       .resp_ini_addr_i(slave_local_resp_ini_addr),
       .resp_rdata_i   (slave_local_resp_rdata   ),
       .resp_valid_i   (slave_local_resp_valid   ),
@@ -803,6 +819,7 @@ module mempool_group
       logic           [NumTilesPerGroup-1:0] master_remote_resp_valid;
       logic           [NumTilesPerGroup-1:0] master_remote_resp_ready;
       tcdm_payload_t  [NumTilesPerGroup-1:0] master_remote_resp_rdata;
+      logic           [NumTilesPerGroup-1:0] master_remote_resp_wen;
       logic           [NumTilesPerGroup-1:0] slave_remote_req_valid;
       logic           [NumTilesPerGroup-1:0] slave_remote_req_ready;
       tile_addr_t     [NumTilesPerGroup-1:0] slave_remote_req_tgt_addr;
@@ -814,6 +831,7 @@ module mempool_group
       logic           [NumTilesPerGroup-1:0] slave_remote_resp_ready;
       tile_group_id_t [NumTilesPerGroup-1:0] slave_remote_resp_ini_addr;
       tcdm_payload_t  [NumTilesPerGroup-1:0] slave_remote_resp_rdata;
+      logic           [NumTilesPerGroup-1:0] slave_remote_resp_wen;
 
       for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_remote_connections
         assign master_remote_req_valid[t]       = tcdm_master_req_valid[r][t];
@@ -832,9 +850,11 @@ module mempool_group
         assign slave_remote_resp_valid[t]       = tcdm_slave_resp_valid[r][t];
         assign slave_remote_resp_ini_addr[t]    = tcdm_slave_resp[r][t].ini_addr;
         assign slave_remote_resp_rdata[t]       = tcdm_slave_resp[r][t].rdata;
+        assign slave_remote_resp_wen[t]         = tcdm_slave_resp[r][t].wen;
         assign tcdm_slave_resp_ready[r][t]      = slave_remote_resp_ready[t];
         assign tcdm_slave_resp_valid_o[r][t]    = master_remote_resp_valid[t];
         assign tcdm_slave_resp_s[r][t].rdata    = master_remote_resp_rdata[t];
+        assign tcdm_slave_resp_s[r][t].wen      = master_remote_resp_wen[t];
         assign master_remote_resp_ready[t]      = tcdm_slave_resp_ready_i[r][t];
       end: gen_remote_connections
 
@@ -863,6 +883,10 @@ module mempool_group
         .resp_valid_o   (master_remote_resp_valid  ),
         .resp_ready_i   (master_remote_resp_ready  ),
         .resp_rdata_o   (master_remote_resp_rdata  ),
+      `ifdef RESPWEN
+        .resp_write_o   (master_remote_resp_wen    ),
+        .resp_write_i   (slave_remote_resp_wen     ),
+      `endif
         .resp_ini_addr_i(slave_remote_resp_ini_addr),
         .resp_rdata_i   (slave_remote_resp_rdata   ),
         .resp_valid_i   (slave_remote_resp_valid   ),
@@ -1004,24 +1028,6 @@ module mempool_group
       }
     };
   
-    `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
-
-    // xbar
-    localparam int unsigned NumRules = 1;
-    typedef struct packed {
-      int unsigned idx;
-      logic [AddrWidth-1:0] start_addr;
-      logic [AddrWidth-1:0] end_addr;
-    } xbar_rule_t;
-    xbar_rule_t [NumRules-1:0] addr_map;
-    assign addr_map = '{
-      '{ // TCDM
-        start_addr: TCDMBaseAddr,
-        end_addr:   TCDMBaseAddr + TCDMSize,
-        idx:        1
-      }
-    };
-
     `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
 

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: SHL-0.51
 
 # Create group for group $1 tile $2
-if {$config == {terapool}} {
+if {[string match "terapool_spatz*" $config] | $config == {terapool}} {
     add wave -noupdate -group group_[$1] -group sub_group_[$2] -group Tile_[$3] -group Params /mempool_pkg::NumBanksPerTile
     add wave -noupdate -group group_[$1] -group sub_group_[$2] -group Tile_[$3] -group Params /mempool_pkg::NumTiles
     add wave -noupdate -group group_[$1] -group sub_group_[$2] -group Tile_[$3] -group Params /mempool_pkg::NumBanks

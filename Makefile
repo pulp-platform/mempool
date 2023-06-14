@@ -1,4 +1,4 @@
-# Copyright 2021 ETH Zurich and University of Bologna.
+ # Copyright 2021 ETH Zurich and University of Bologna.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -52,6 +52,13 @@ else
   CLANG_CXX      ?= clang++
   CLANG_CXXFLAGS := ""
   CLANG_LDFLAGS  := ""
+endif
+
+ifeq ($(spatz), 1)
+	RV32XPULPIMG := opcodes-xpulpabs_CUSTOM opcodes-xpulpbr_CUSTOM opcodes-xpulpclip_CUSTOM opcodes-xpulpmacsi_CUSTOM opcodes-xpulpminmax_CUSTOM opcodes-xpulpslet_CUSTOM 
+	RV32XPULPIMG += opcodes-xpulpbitop_CUSTOM
+	MEMPOOL_ISA := opcodes-frep_CUSTOM $(RV32XPULPIMG) opcodes-xpulppostmod_CUSTOM
+	OPCODES := "$(MEMPOOL_ISA) opcodes-rvv opcodes-smallfloat"
 endif
 
 # Default target
@@ -203,13 +210,22 @@ apps:
 update_opcodes: software/runtime/encoding.h hardware/deps/snitch/src/riscv_instr.sv
 
 software/runtime/encoding.h: toolchain/riscv-opcodes/*
-	make -C toolchain/riscv-opcodes encoding_out.h
+ifeq ($(spatz), 1)
+		MY_OPCODES=$(OPCODES) make -C toolchain/riscv-opcodes encoding_out.h
+else
+		make -C toolchain/riscv-opcodes encoding_out.h
+endif
 	mv toolchain/riscv-opcodes/encoding_out.h $@
 	ln -fsr $@ toolchain/riscv-isa-sim/riscv/encoding.h
 	ln -fsr $@ software/riscv-tests/env/encoding.h #this will change when riscv-tests is a submodule
 
 hardware/deps/snitch/src/riscv_instr.sv: toolchain/riscv-opcodes/*
-	make -C toolchain/riscv-opcodes inst.sverilog
+ifeq ($(spatz), 1)
+		MY_OPCODES=$(OPCODES) make -C toolchain/riscv-opcodes inst.sverilog
+# 		make -C toolchain/riscv-opcodes inst.sverilog
+else
+		make -C toolchain/riscv-opcodes inst.sverilog
+endif
 	mv toolchain/riscv-opcodes/inst.sverilog $@
 
 toolchain/riscv-opcodes/*:

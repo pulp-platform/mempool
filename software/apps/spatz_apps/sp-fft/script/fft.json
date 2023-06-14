@@ -1,0 +1,11 @@
+// Copyright 2020 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
+// Parameters for an FFT
+
+{
+    npoints: 1024,
+    ncores: 8,
+    prec: 32
+}

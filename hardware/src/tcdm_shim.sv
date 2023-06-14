@@ -36,6 +36,7 @@ module tcdm_shim
   output logic         [NrTCDM-1:0]                     tcdm_resp_ready_o,
   input  logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_resp_rdata_i,
   input  logic         [NrTCDM-1:0][MetaIdWidth-1:0]    tcdm_resp_id_i,
+  input  logic         [NrTCDM-1:0]                     tcdm_resp_wen_i,
   // to SoC
   output logic         [NrSoC-1:0] [AddrWidth-1:0]      soc_qaddr_o,
   output logic         [NrSoC-1:0]                      soc_qwrite_o,
@@ -59,6 +60,7 @@ module tcdm_shim
   input  logic                                          data_qvalid_i,
   output logic                                          data_qready_o,
   output logic         [DataWidth-1:0]                  data_pdata_o,
+  output logic                                          data_pwrite_o,
   output logic                                          data_perror_o,
   output logic         [MetaIdWidth-1:0]                data_pid_o,
   output logic                                          data_pvalid_o,
@@ -85,7 +87,7 @@ module tcdm_shim
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_ppayload
     assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i]   ;
     assign tcdm_ppayload[i].data  = tcdm_resp_rdata_i[i];
-    assign tcdm_ppayload[i].write = 1'b0                ; // Don't care
+    assign tcdm_ppayload[i].write = tcdm_resp_wen_i[i]  ;
     assign tcdm_ppayload[i].error = 1'b0                ;
   end
 
@@ -193,6 +195,7 @@ module tcdm_shim
   assign data_pdata_o  = data_ppayload.data ;
   assign data_perror_o = data_ppayload.error;
   assign data_pid_o    = data_ppayload.id   ;
+  assign data_pwrite_o = data_ppayload.write;
 
   // Elaboration-time assertions
 

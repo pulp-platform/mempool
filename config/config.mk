@@ -80,3 +80,10 @@ remote_group_latency_cycles ?= 7
 # DRAMsys co-simulation: dram/sram
 l2_sim_type ?= sram
 dram_axi_width_interleaved ?= 16
+
+# Deactivate the FPU
+n_fpu ?= 0
+
+# Deactivate single-precision (rvf) and double-precision (rvd) floating-point
+rvf ?= 0
+rvd ?= 0

@@ -313,6 +313,10 @@ module mempool_system
     .resp_valid_o   (mem_rvalid ),
     .resp_ready_i   ('1         ),
     .resp_rdata_o   (mem_rdata  ),
+  `ifdef RESPWEN
+    .resp_write_o   (/*unused*/ ),
+    .resp_write_i   ('0         ),
+  `endif
     // slave side
     .req_valid_o    (bank_req   ),
     .req_ready_i    ('1         ),

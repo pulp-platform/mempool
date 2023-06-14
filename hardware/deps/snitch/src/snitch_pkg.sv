@@ -10,10 +10,14 @@ package snitch_pkg;
   localparam DataWidth                  = 32;
   localparam StrbWidth                  = DataWidth/8;
   localparam int NumFPOutstandingLoads  = 4;
+  localparam int AccIdWidth             = `ifdef TARGET_SPATZ 6 `else 5 `endif;
   // Use a high number of outstanding loads, if running a latency-throughput analysis
   localparam int NumIntOutstandingLoads = `ifdef TRAFFIC_GEN 2048 `else 8 `endif;
   localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads);
   // Xpulpimg extension enabled?
+`ifdef XPULPIMG
+  localparam bit XPULPIMG_EXTENSION = 1'b1;
+`endif
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
   // ZFINX extension enabled?
   localparam bit ZFINX = `ifdef ZFINX `ZFINX `else 1'bX `endif;
@@ -21,6 +25,7 @@ package snitch_pkg;
   localparam bit ZQUARTERINX = `ifdef ZQUARTERINX `ZQUARTERINX `else 1'bX `endif;
   // XDivSqrt extension enabled?
   localparam bit XDIVSQRT = `ifdef XDIVSQRT `XDIVSQRT `else 1'bX `endif;
+
 
   typedef logic [31:0]               addr_t;
   typedef logic [DataWidth-1:0]      data_t;
@@ -55,8 +60,8 @@ package snitch_pkg;
   } acc_addr_e;
 
   typedef struct packed {
-    acc_addr_e addr;
-    logic [4:0] id;
+    addr_t addr;
+    logic [AccIdWidth-1:0] id;
     logic [31:0] data_op;
     data_t data_arga;
     data_t data_argb;
@@ -64,19 +69,10 @@ package snitch_pkg;
   } acc_req_t;
 
   typedef struct packed {
-    acc_addr_e addr;
-    logic [4:0] id;
-    logic [5:0] hart_id;
-    logic [31:0] data_op;
-    data_t data_arga;
-    data_t data_argb;
-    data_t data_argc;
-  } sh_acc_req_t;
-
-  typedef struct packed {
-    logic [4:0] id;
+    logic [AccIdWidth-1:0] id;
     logic error;
     data_t data;
+    logic  write;
   } acc_resp_t;
 
   typedef struct packed {
