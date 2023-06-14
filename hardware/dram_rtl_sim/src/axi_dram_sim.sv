@@ -56,7 +56,7 @@ module axi_dram_sim #(
     dram_axi_resp_t                         dram_axi_resp;
 
     axi_dw_converter #(
-        .AxiMaxReads        (1                ),
+        .AxiMaxReads        (64               ),
         .AxiSlvPortDataWidth(AxiDataWidth     ),
         .AxiMstPortDataWidth(DramDataWidth    ),
         .AxiAddrWidth       (AxiAddrWidth     ),
@@ -91,8 +91,8 @@ module axi_dram_sim #(
     .AxiDataWidth   (DramDataWidth       ),
     .AxiIdWidth     (AxiIdWidth          ),
     .AxiUserWidth   (AxiUserWidth        ),
-    .AxiMaxWriteTxns(8                   ),
-    .AxiMaxReadTxns (8                   ),
+    .AxiMaxWriteTxns(256                 ),
+    .AxiMaxReadTxns (256                 ),
     .FallThrough    (0                   ),
     .full_req_t     (dram_axi_req_t      ),
     .full_resp_t    (dram_axi_resp_t     ),

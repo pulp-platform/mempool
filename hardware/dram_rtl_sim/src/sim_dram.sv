@@ -20,13 +20,14 @@ import "DPI-C" function void dram_send_req(input int dram_id, input longint addr
 import "DPI-C" function void dram_get_rsp(input int dram_id, input longint length, inout byte buffer[]);
 import "DPI-C" function int  dram_get_rsp_byte(input int dram_id);
 import "DPI-C" function void dram_load_elf(input int dram_id, input longint dram_base_addr, input string app_path);
+import "DPI-C" function void dram_load_memfile(input int dram_id, input longint addr_ofst, input string mem_path);
 import "DPI-C" function void cloes_dram(input int dram_id);
 
 module sim_dram #(
   parameter int     unsigned DataWidth = 32'd512,      // Data signal width
   parameter int     unsigned AddrWidth = 32'd64,       // Addr signal width
   parameter longint unsigned BASE      = 64'h80000000, // DRAM Base addr
-  // DEPENDENT PARAMETERS, DO NOT OITE!
+  // DEPENDENT PARAMETERS, DO NOT OVERWRITE!
   parameter type             addr_t    = logic [AddrWidth-1:0],
   parameter type             data_t    = logic [DataWidth-1:0]
 )(
@@ -63,6 +64,7 @@ initial begin
     string resources_path;
     string simulationJson_path;
     string app_path;
+    string mem_path;
     void'($value$plusargs("DRAMSYS_RES=%s", resources_path));
     void'($value$plusargs("DRAMSYS_CONF=%s", simulationJson_path));
     $display("resources_path= %s\n",resources_path);
@@ -78,6 +80,14 @@ initial begin
         $display("loading app: %s\n",app_path);
         dram_load_elf(dram_id, BASE, app_path);
     end
+
+    void'($value$plusargs("MEM=%s", mem_path));
+    if (mem_path.len() == 0) begin
+        $warning("No mem found to preload in DRAM !!");
+    end else begin
+        $display("loading mem: %s\n",mem_path);
+        dram_load_memfile(dram_id, 0, mem_path);
+    end
 end
 
 always_ff @(negedge clk_i or posedge clk_i or negedge rst_ni) begin : proc_dram
@@ -92,7 +102,7 @@ always_ff @(negedge clk_i or posedge clk_i or negedge rst_ni) begin : proc_dram
             rsp_valid_o <= 0;
             in_flight_read_this_module = in_flight_read_this_module -1;
         end
-        
+
         if (dram_can_accept_req(dram_id)) begin
             req_ready_o <= 1;
         end else begin
@@ -128,7 +138,7 @@ always_ff @(negedge clk_i or posedge clk_i or negedge rst_ni) begin : proc_dram
                 end
                 rsp_valid_o <= 1;
             end
-        end   
+        end
     end
 end
 

@@ -5,7 +5,7 @@
         "DatabaseRecording": true,
         "Debug": false,
         "ECCControllerMode": "Disabled",
-        "EnableWindowing": true,
+        "EnableWindowing": false,
         "ErrorCSVFile": "",
         "ErrorChipSeed": 42,
         "PowerAnalysis": false,
