@@ -362,36 +362,52 @@ module mempool_system
   axi_system_req_t    dram_req;
   axi_system_resp_t   dram_resp;
 
-  // axi mux to form one port to DRAM
-  axi_mux #(
-    .SlvAxiIDWidth(AxiTileIdWidth   ),
-    .slv_ar_chan_t(axi_tile_ar_t    ),
+  // axi xbar to form one port to DRAM
+  localparam NumDrams = 1;
+  localparam NumDramRules = NumDrams;
+  xbar_rule_32_t [NumDramRules-1:0] dram_xbar_rules;
+  localparam xbar_cfg_t DRAMXBarCfg = '{
+    NoSlvPorts         : NumAXIMasters,
+    NoMstPorts         : 1,
+    MaxMstTrans        : 4,
+    MaxSlvTrans        : 4,
+    FallThrough        : 1'b0,
+    LatencyMode        : axi_pkg::CUT_MST_PORTS,
+    AxiIdWidthSlvPorts : AxiTileIdWidth,
+    AxiIdUsedSlvPorts  : AxiTileIdWidth,
+    UniqueIds          : 0,
+    AxiAddrWidth       : AddrWidth,
+    AxiDataWidth       : AxiDataWidth,
+    NoAddrRules        : 1
+  };
+
+  axi_xbar #(
+    .Cfg          (DRAMXBarCfg      ),
     .slv_aw_chan_t(axi_tile_aw_t    ),
+    .mst_aw_chan_t(axi_system_aw_t  ),
+    .w_chan_t     (axi_system_w_t   ),//
     .slv_b_chan_t (axi_tile_b_t     ),
+    .mst_b_chan_t (axi_system_b_t   ),
+    .slv_ar_chan_t(axi_tile_ar_t    ),
+    .mst_ar_chan_t(axi_system_ar_t  ),
     .slv_r_chan_t (axi_tile_r_t     ),
+    .mst_r_chan_t (axi_system_r_t   ),
     .slv_req_t    (axi_tile_req_t   ),
     .slv_resp_t   (axi_tile_resp_t  ),
-    .mst_ar_chan_t(axi_system_ar_t  ),
-    .mst_aw_chan_t(axi_system_aw_t  ),
-    .w_chan_t     (axi_system_w_t   ),
-    .mst_b_chan_t (axi_system_b_t   ),
-    .mst_r_chan_t (axi_system_r_t   ),
     .mst_req_t    (axi_system_req_t ),
     .mst_resp_t   (axi_system_resp_t),
-    .NoSlvPorts   (NumAXIMasters    ),
-    .SpillAr      (1'b1             ),
-    .SpillR       (1'b1             ),
-    .SpillAw      (1'b1             ),
-    .SpillW       (1'b1             ),
-    .SpillB       (1'b1             )
-  ) i_axi_mux (
-    .clk_i      (clk_i      ),
-    .rst_ni     (rst_ni     ),
-    .test_i     (1'b0       ),
-    .slv_reqs_i (axi_l2_req ),
-    .slv_resps_o(axi_l2_resp),
-    .mst_req_o  (dram_req   ),
-    .mst_resp_i (dram_resp  )
+    .rule_t       (xbar_rule_32_t   )
+  ) i_dram_xbar (
+    .clk_i                (clk_i                    ),
+    .rst_ni               (rst_ni                   ),
+    .test_i               (1'b0                     ),
+    .slv_ports_req_i      (axi_l2_req               ),
+    .slv_ports_resp_o     (axi_l2_resp              ),
+    .mst_ports_req_o      (dram_req                 ),
+    .mst_ports_resp_i     (dram_resp                ),
+    .addr_map_i           (dram_xbar_rules          ),
+    .en_default_mst_port_i({NumAXIMasters{1'b1}}    ), // default all slave ports to master port External
+    .default_mst_port_i   ({NumAXIMasters{1'b0}}    )
   );
 
   dram_sim_engine #(.ClkPeriodNs(2)) i_dram_sim_engine (.clk_i(clk_i), .rst_ni(rst_ni));
