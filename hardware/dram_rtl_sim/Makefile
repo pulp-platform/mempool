@@ -3,6 +3,7 @@ VLOG_ARGS = -svinputport=compat -override_timescale 1ns/1ps -suppress 2583 -supp
 library ?= work
 top_level ?= axi_to_dram_tb
 app ?= ../../DRAMSys/hello_world
+mem_file ?= /usr/scratch2/xavier/chi/axi-pack/results/indir_stream_test_v2_CSR/tmp/stormG2_1000.mem.idx32
 
 
 # Path to DRAMsyslib
@@ -13,7 +14,8 @@ dramsys_lib_path ?= ../dramsys_lib
 questa_args    ?=
 questa_args += +DRAMSYS_RES=$(dramsys_resouces_path) +DRAMSYS_CONF=$(dramsys_simconfig_path)
 questa_args += -sv_lib $(dramsys_lib_path)/libDRAMSysLibrary
-questa_args += +app=$(app) 
+questa_args += +app=$(app)
+questa_args += +MEM=$(mem_file) 
 
 all: compile
 	cd vsim && questa vsim $(library).$(top_level) -t 1ps -voptargs=+acc $(questa_args) -do start.tcl

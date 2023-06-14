@@ -8,7 +8,7 @@
         "EnableWindowing": true,
         "ErrorCSVFile": "",
         "ErrorChipSeed": 42,
-        "PowerAnalysis": true,
+        "PowerAnalysis": false,
         "SimulationName": "ddr4",
         "SimulationProgressBar": true,
         "StoreMode": "Store",
