@@ -15,6 +15,7 @@
 // limitations under the License.
 
 // Author: Gua Hao Khov, ETH Zurich
+//         Sergio Mazzola, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>
@@ -27,9 +28,12 @@
 #include "synchronization.h"
 
 // Dimensions of matrices
-#define DIM_M 96 // TODO: ASSERT DIVISABLE BY 3
-#define DIM_N 96
-#define DIM_P 96 // TODO: ASSERT DIVISABLE BY 3
+// M and P must be multiples of SYSTOLIC_SIZE*degree of unrolling
+// e.g., degree of unrolling = 3 if every PE computes a 3x3 output chunk
+
+#define DIM_M 240
+#define DIM_N 240 // inner dimension
+#define DIM_P 144
 
 uint32_t *core_map;
 
@@ -37,9 +41,12 @@ int32_t *matrix_A;
 int32_t *matrix_B;
 int32_t *matrix_C;
 
+/**
+ * Allocate @param matrix and fill it with a gradient.
+ */
 void generate_gradient_matrix(int32_t **matrix, uint32_t num_rows,
                               uint32_t num_cols) {
-  int32_t *new_matrix = (int32_t *)simple_malloc(num_rows * num_cols * 4);
+  int32_t *new_matrix = (int32_t *)simple_malloc(num_rows * num_cols * sizeof(int32_t));
   for (uint32_t y = 0; y < num_rows; ++y) {
     for (uint32_t x = 0; x < num_cols; ++x) {
       new_matrix[y * num_cols + x] = (int32_t)(y + x);
@@ -48,6 +55,10 @@ void generate_gradient_matrix(int32_t **matrix, uint32_t num_rows,
   *matrix = new_matrix;
 }
 
+/**
+ * Fill @param matrix with a gradient in a parallelized way: each core fills
+ * all the rows of index y = core_id + i*num_cores
+ */
 void fill_gradient_matrix(int32_t *matrix, uint32_t num_rows,
                           uint32_t num_cols, uint32_t core_id,
                           uint32_t num_cores) {
@@ -72,7 +83,8 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t tile_id = core_id / 4;
+  uint32_t tile_id = core_id / NUM_CORES_PER_TILE;
+  uint32_t group_id = tile_id / NUM_TILES_PER_GROUP;
 
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
@@ -82,65 +94,49 @@ int main() {
 
   // Allocate systolic grid mapping
   if (core_id == 0) {
+    printf("Allocating core map...\n");
     core_map = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
   }
 
-#if NUM_CORES == 16
-  // ----------
-  // 16 CORES
-  // ----------
+  // Systolic cores mapping
+  // SYSTOLIC_SIZE, NUM_CORES_PER_TILE, and NUM_TILES_PER_GROUP must be perfect squares
 
-  // Assign grid position (row wise)
-  // uint32_t col_idx = core_id % 4;
-  // uint32_t row_idx = core_id / 4;
+  // Column index (x):
+  // horizontal position of group section = group id % how many group sections fit in one row
+  uint32_t col_idx = group_id % (SYSTOLIC_SIZE / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
+  // group section base 'x' = horizontal position * width of a group section (= tiles per group * width tile section)
+  col_idx *= SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE;
+  // add tile 'x' offset in the group section based on group section and tile section widths
+  col_idx += (tile_id % SQRT_NUM_TILES_PER_GROUP) * SQRT_NUM_CORES_PER_TILE;
+  // add core 'x' offset in each tile section
+  col_idx += core_id % SQRT_NUM_CORES_PER_TILE;
 
-  // Assign grid position (col wise)
-  // uint32_t col_idx = core_id / 4;
-  // uint32_t row_idx = core_id % 4;
+  // Row index (y):
+  // vertical position of group section = group id / how many group sections fit in one row
+  uint32_t row_idx = group_id / (SYSTOLIC_SIZE / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
+  // group section base 'y' = vertical position * width of a group section (= tiles per group * width tile section)
+  row_idx *= SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE;
+  // add tile 'y' offset in the group section based on group section and tile section widths
+  row_idx += ((tile_id % NUM_TILES_PER_GROUP) / SQRT_NUM_TILES_PER_GROUP) * SQRT_NUM_CORES_PER_TILE;
+  // add core 'y' offset in each tile section
+  row_idx += (core_id % NUM_CORES_PER_TILE) / SQRT_NUM_CORES_PER_TILE;
 
-  // Assign grid position (square wise)
-  uint32_t col_idx = tile_id % 2;
-  col_idx *= 2;
-  col_idx += core_id % 2;
-  uint32_t row_idx = tile_id / 2;
-  row_idx *= 2;
-  row_idx += (core_id % 4) / 2;
+  // // Column index (x):
+  // // get id of tile section based on how many tile sections per row
+  // uint32_t col_idx = tile_id % (SYSTOLIC_SIZE / SQRT_NUM_CORES_PER_TILE);
+  // // jump to the correct 'x' based on the tile section id and width
+  // col_idx *= SQRT_NUM_CORES_PER_TILE;
+  // // inside this tile section, jump to the correct 'x' based on the core id
+  // col_idx += core_id % SQRT_NUM_CORES_PER_TILE;
 
-#elif NUM_CORES == 256
-  // ----------
-  // 256 CORES
-  // ----------
-  // Assign grid position (row wise)
-  // uint32_t col_idx = core_id % 16;
-  // uint32_t row_idx = core_id / 16;
-
-  // Assign grid position (col wise)
-  //uint32_t col_idx = core_id / 16;
-  //uint32_t row_idx = core_id % 16;
-
-  // Assign grid position (square wise)
-  uint32_t col_idx = tile_id % 8;
-  col_idx *= 2;
-  col_idx += core_id % 2;
-  uint32_t row_idx = tile_id / 8;
-  row_idx *= 2;
-  row_idx += (core_id % 4) / 2;
-
-  // Assign grid position (square square wise)
-  // uint32_t group_id = tile_id / 16;
-  // uint32_t add_col = group_id % 2;
-  // uint32_t add_row = group_id / 2;
-  // uint32_t col_idx = tile_id % 4;
-  // col_idx *= 2;
-  // col_idx += core_id % 2;
-  // col_idx += add_col * 8;
-  // uint32_t row_idx = (tile_id % 16) / 4;
-  // row_idx *= 2;
-  // row_idx += (core_id % 4) / 2;
-  // row_idx += add_row * 8;
-#else
-#error Unsupported NUM_CORES
-#endif
+  // // Row index (y):
+  // // tile sections are placed in a row-wise fashion based on tile id, so to
+  // // get the row tile section id you must divide instead of doing modulo
+  // uint32_t row_idx = tile_id / (SYSTOLIC_SIZE / SQRT_NUM_CORES_PER_TILE);
+  // // as above, jumps to the correct 'y' based on tile section width
+  // row_idx *= SQRT_NUM_CORES_PER_TILE;
+  // // gets correct 'y' offset based on core id
+  // row_idx += (core_id % NUM_CORES_PER_TILE) / SQRT_NUM_CORES_PER_TILE;
 
   // Wait for all cores
   mempool_barrier(num_cores);
@@ -153,7 +149,7 @@ int main() {
 
   // Setup
   if (core_id == 0) {
-    printf("> Initialize\n");
+    printf("Initialize\n");
 
     // Print out core mapping
     // print_matrix((int32_t *)core_map, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
@@ -162,9 +158,12 @@ int main() {
     systolic_init(core_map);
 
     // Create matrices
-    matrix_A = (int32_t *)simple_malloc(DIM_M * DIM_N * 4);
-    matrix_B = (int32_t *)simple_malloc(DIM_N * DIM_P * 4);
-    matrix_C = (int32_t *)simple_malloc(DIM_M * DIM_P * 4);
+    printf("Allocating matrix A...\n");
+    matrix_A = (int32_t *)simple_malloc(DIM_M * DIM_N * sizeof(int32_t));
+    printf("Allocating matrix B...\n");
+    matrix_B = (int32_t *)simple_malloc(DIM_N * DIM_P * sizeof(int32_t));
+    printf("Allocating matrix C...\n");
+    matrix_C = (int32_t *)simple_malloc(DIM_M * DIM_P * sizeof(int32_t));
   }
 
   // Wait for all cores
@@ -177,11 +176,10 @@ int main() {
   // Start message
   if (core_id == 0) {
     // Print out matrices A & B
-    // printf("> Print Matrices A & B\n");
     // print_matrix(matrix_A, DIM_M, DIM_N);
     // print_matrix(matrix_B, DIM_N, DIM_P);
 
-    printf("> Start\n");
+    printf("Start\n");
   }
 
   // Start benchmark for all cores
@@ -211,10 +209,9 @@ int main() {
 
   // Print out benchmark
   if (core_id == 0) {
-    printf("> End\n");
+    printf("End\n");
 
     // Print out matrix C
-    // printf("> Print Matrix C\n");
     // print_matrix(matrix_C, DIM_M, DIM_P);
   }
 
