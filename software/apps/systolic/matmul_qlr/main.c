@@ -80,6 +80,23 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
   }
 }
 
+int verify_matrix(int32_t const *A, int32_t const *B, int32_t const *C,
+                  uint32_t num_rows, uint32_t inner_dim, uint32_t num_columns) {
+  for (uint32_t i = 0; i < num_rows; i++) {
+    for (uint32_t j = 0; j < num_columns; ++j) {
+      int32_t golden = 0;
+      for (uint32_t n = 0; n < inner_dim; n++) {
+        golden += A[i * inner_dim + n] * B[n * num_columns + j];
+      }
+      if (golden != C[i * num_columns + j]){
+        printf("ERROR: matrix_C[%d] = %d (instead of %d)\n", i * num_columns + j, C[i * num_columns + j], golden);
+        return i * num_columns + j == 0 ? -1 : (int)(i * num_columns + j);
+      }
+    }
+  }
+  return 0;
+}
+
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
@@ -213,6 +230,11 @@ int main() {
 
     // Print out matrix C
     // print_matrix(matrix_C, DIM_M, DIM_P);
+
+    // Verify result
+    int ret = verify_matrix(matrix_A, matrix_B, matrix_C, DIM_M, DIM_N, DIM_P);
+    if(ret)
+      return ret;
   }
 
   // wait until all cores have finished
