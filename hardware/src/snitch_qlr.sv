@@ -404,7 +404,7 @@ module snitch_qlr
   always_comb begin
     rf_snoop_data = rf_in_data_i[0];
     for (int ii = 0; ii < NumWritePorts; ii++) begin
-      if (rf_snoop_match[ii] == 1'b1) begin
+      if (rf_snoop_vld[ii] == 1'b1) begin
         rf_snoop_data = rf_in_data_i[ii];
       end
     end
