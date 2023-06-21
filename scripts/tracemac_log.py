@@ -28,7 +28,8 @@ import argparse
 # 3 -> instruction
 # 4 -> args
 LINE_REGEX = r' *(\d+) +(\d+) *(0x[0-9a-f]+) ([.\w]+) +(.+)#'
-START_REGEX = r' *(\d+) +(\d+) *(0x[0-9a-f]+) (ret) +(.+)#'
+START_REGEX = LINE_REGEX
+#START_REGEX = r' *(\d+) +(\d+) *(0x[0-9a-f]+) (ret) +(.+)#'
 
 re_line = re.compile(LINE_REGEX)
 re_start = re.compile(START_REGEX)
@@ -124,10 +125,21 @@ print('traces', traces, file=sys.stderr)
 print('output', output, file=sys.stderr)
 
 with open(output, 'w') as output_file:
+    hartid = 0
     for filename in traces:
-        hartid = 0
-        parsed_nums = re.findall(r'\d+', filename)
-        hartid = int(parsed_nums[-1]) if len(parsed_nums) else hartid+1
+        # parse hex number from filename, or any decimal number
+        # (take last group of matches)
+        parsed_nums = re.findall(r'0x([0-9a-f]+)|(\d+)', filename)[-1]
+        if len(parsed_nums[0]):
+            # hex hart id
+            hartid = int(parsed_nums[0], 16)
+        elif len(parsed_nums[1]):
+            # decimal hart id
+            hartid = int(parsed_nums[1])
+            pass
+        else:
+            #no hartid specified: go incrementally
+            hartid += 1
         fails = lines = first_line = 0
 
         print(
