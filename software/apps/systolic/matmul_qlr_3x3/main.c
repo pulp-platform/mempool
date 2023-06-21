@@ -22,7 +22,7 @@
 
 #include "alloc.h"
 #include "encoding.h"
-#include "systolic/matmul_qlr.h"
+#include "systolic/matmul_qlr_3x3.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -116,7 +116,7 @@ int main() {
   mempool_barrier_init(core_id);
 
   // Initialization
-  mempool_init(core_id, num_cores);
+  mempool_init(core_id);
 
   // Allocate systolic grid mapping
   if (core_id == 0) {
