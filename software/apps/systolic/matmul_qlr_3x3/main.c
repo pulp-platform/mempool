@@ -22,7 +22,7 @@
 
 #include "alloc.h"
 #include "encoding.h"
-#include "systolic/matmul_qlr.h"
+#include "systolic/matmul_qlr_3x3.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
