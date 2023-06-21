@@ -341,7 +341,7 @@ tracemac_csv:
 	$(MEMPOOL_DIR)/scripts/tracemac_csv.py $(preload) $(buildpath)/tracemac.txt -o $(buildpath)/tracemac.csv
 
 tracemac_plot:
-	$(MEMPOOL_DIR)/scripts/tracemac_plot.py $(preload) $(buildpath)/tracemac.csv --log $(buildpath)/tracemac.txt  -o $(buildpath)/tracemac.pdf
+	$(MEMPOOL_DIR)/scripts/tracemac_plot.py $(preload) $(buildpath)/tracemac.csv --log $(buildpath)/tracemac.txt  -s -a -o $(buildpath)/tracemac.pdf -p $(buildpath)/tracemac_perf.csv
 
 ############################
 # Unit tests simulation    #

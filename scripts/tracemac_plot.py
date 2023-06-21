@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 # 1 -> end cycle
 END_REGEX = r'Trace End (\d+) (\d+)'
 
+MOVING_AVERAGE_CYC = 100
+
 re_end = re.compile(END_REGEX)
 
 def moving_average(values, width):
@@ -56,6 +58,13 @@ parser.add_argument(
     default='tracemac.pdf',
     help='Output PDF file')
 parser.add_argument(
+    '-p',
+    '--perf',
+    metavar='<csv>',
+    nargs='?',
+    default='tracemac_perf.csv',
+    help='Output CSV file summarizing performance')
+parser.add_argument(
     '-s',
     '--settle',
     action='store_true',
@@ -86,24 +95,27 @@ with open(csvfile, newline='') as csvfile:
 cycles = np.array(cycles)
 values = np.array(values)
 
-if show_settling:
-    min_end = cycles[-1]
-    log = open(logfile)
-    for lino, line in enumerate(log.readlines()):
-        parse_ends(line)
-    norm_min_end = min_end-cycles[0]
+# compute cycle of trailing region
+# i.e., the cycle when the first core exits benchmarked region
+min_end = cycles[-1]
+log = open(logfile)
+for lino, line in enumerate(log.readlines()):
+    parse_ends(line)
+norm_min_end = min_end-cycles[0]
 
+# normalize x axis to benchmark time range, to start at 0
 norm_cycles = cycles-cycles[0]
 
-avg_values = moving_average(values, 100)
+avg_values = moving_average(values, MOVING_AVERAGE_CYC)
 
-if show_settling:
-    max_val = max(avg_values)
-    for idx, val in enumerate(avg_values):
-        if (val > 0.95 * max_val):
-            settled_idx = idx
-            settled_val = val
-            break
+# compute cycle of settling
+# i.e., when OPS/cycle is within 5% of max
+max_val = max(avg_values)
+for idx, val in enumerate(avg_values):
+    if (val > 0.95 * max_val):
+        settled_idx = idx
+        settled_val = val
+        break
 
 fig, ax = plt.subplots()
 ax.plot(norm_cycles, avg_values)
@@ -125,14 +137,18 @@ if show_settling:
     ax.axvspan(norm_min_end, norm_cycles[-1], alpha=0.5, color='tab:gray', label='trailing')
     ax.legend(framealpha=1, edgecolor='black')
 
+# average OPS/cycle over whole benchmarked region
+average = np.mean(values)
+# average OPS/cycle over during peak computation only (i.e., settled region)
+peak = np.mean(values[norm_cycles[settled_idx]:norm_min_end])
+
 if show_average:
-    average = np.mean(values)
     ax.axhline(average, color='black', ls=':', lw=1, label='average')
     print(f'avg: {average}')
     if show_settling:
-        peak = np.mean(values[norm_cycles[settled_idx]:norm_min_end])
         ax.axhline(peak, color='black', ls='--', lw=1, label='peak')
         print(f'peak: {peak}')
+        print(f'real peak ({MOVING_AVERAGE_CYC} cc avg): {max(avg_values)}')
     ax.legend(framealpha=1, edgecolor='black')
 
 ax.plot(norm_cycles, avg_values, color='tab:blue')
@@ -144,3 +160,9 @@ if show_settling:
 print(f'end: {norm_cycles[-1]}')
 
 fig.savefig(output)
+
+# save performance summary
+with open(args.perf, 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile, delimiter=',')
+    writer.writerow(['full_avg_ops_cycle', 'peak_avg_ops_cycle', 'cycle_settled', 'cycle_trailing', 'cycle_end', 'moving_avg_width', 'real_peak_moving_avg_ops_cycle'])
+    writer.writerow([average, peak, norm_cycles[settled_idx], norm_min_end, norm_cycles[-1], MOVING_AVERAGE_CYC, max(avg_values)])
