@@ -49,7 +49,7 @@
 #include "qlr.h"
 
 // Settings
-#define UNROLL_X 4 // hardcoded, do not change
+#define UNROLL_X 6 // hardcoded, do not change
 #define UNROLL_Y 3 // hardcoded, do not change
 #define PRINTF_OUT_CHUNK 0
 
@@ -78,6 +78,11 @@ void systolic_init(uint32_t const *core_map) {
   for (uint32_t row = 0; row < SYSTOLIC_SIZE; row++) {
     for (uint32_t col = 0; col < SYSTOLIC_SIZE; col++) {
       core_id = core_map[row * SYSTOLIC_SIZE + col];
+      // Every core is assigned its own 4 queues (banking factor
+      // should be 4), which are local to the core's tile. The
+      // queues are then placed in a 2D array in the same scheme
+      // of 'core_map'. Neighbouring cores are later connected
+      // through the QLRs configuration to form the systolic array.
       offset = core_id * NUM_QUEUES_PER_CORE;
       queues_horz_0[row][col] = (int32_t *)(offset + 0);
       queues_horz_1[row][col] = (int32_t *)(offset + 1);
@@ -121,6 +126,12 @@ void systolic_init(uint32_t const *core_map) {
     sub_C[9]  = 0;  \
     sub_C[10] = 0;  \
     sub_C[11] = 0;  \
+    sub_C[12] = 0;  \
+    sub_C[13] = 0;  \
+    sub_C[14] = 0;  \
+    sub_C[15] = 0;  \
+    sub_C[16] = 0;  \
+    sub_C[17] = 0;  \
   } while(0)
 
 #define STORE_SUB_C(BASE_Y, BASE_X)                     \
@@ -137,6 +148,12 @@ void systolic_init(uint32_t const *core_map) {
     C[((BASE_Y) + 0) * P + ((BASE_X) + 3)] = sub_C[9];  \
     C[((BASE_Y) + 1) * P + ((BASE_X) + 3)] = sub_C[10]; \
     C[((BASE_Y) + 2) * P + ((BASE_X) + 3)] = sub_C[11]; \
+    C[((BASE_Y) + 0) * P + ((BASE_X) + 4)] = sub_C[12]; \
+    C[((BASE_Y) + 1) * P + ((BASE_X) + 4)] = sub_C[13]; \
+    C[((BASE_Y) + 2) * P + ((BASE_X) + 4)] = sub_C[14]; \
+    C[((BASE_Y) + 0) * P + ((BASE_X) + 5)] = sub_C[15]; \
+    C[((BASE_Y) + 1) * P + ((BASE_X) + 5)] = sub_C[16]; \
+    C[((BASE_Y) + 2) * P + ((BASE_X) + 5)] = sub_C[17]; \
   } while(0)
 
 
@@ -149,7 +166,8 @@ void systolic_rcp_pe(const uint32_t M, const uint32_t N,
   // always keep output in regfile
   register int32_t sub_C[UNROLL_X * UNROLL_Y];
   // same for QLR buffer for B elements
-  register int32_t qlr_t3_buffer;
+  register int32_t qlr_t3_buffer_a;
+  register int32_t qlr_t3_buffer_b;
 
   // pointers to QLR config
   DEFINE_QLR_CONFIG;
@@ -190,19 +208,27 @@ void systolic_rcp_pe(const uint32_t M, const uint32_t N,
         qlr_t2 = A[(y + 2) * N + i];
         // prevent reordering of memory operations
         __asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3_buffer = B[i * P + x + 1];
+        qlr_t3_buffer_a = B[i * P + x + 1];
+        qlr_t3_buffer_b = B[i * P + x + 2];
         MAC_SUBCOL_3X1(0, 1, 2);
         __asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3 = qlr_t3_buffer;
-        qlr_t3_buffer = B[i * P + x + 2];
+        qlr_t3 = qlr_t3_buffer_a;
+        qlr_t3_buffer_a = B[i * P + x + 3];
         MAC_SUBCOL_3X1(3, 4, 5);
-        __asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3 = qlr_t3_buffer;
-        qlr_t3_buffer = B[i * P + x + 3];
+        //__asm__ __volatile__("" : "=m"(*(int32_t *)B));
+        qlr_t3 = qlr_t3_buffer_b;
+        qlr_t3_buffer_b = B[i * P + x + 4];
         MAC_SUBCOL_3X1(6, 7, 8);
         __asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3 = qlr_t3_buffer;
+        qlr_t3 = qlr_t3_buffer_a;
+        qlr_t3_buffer_a = B[i * P + x + 5];
         MAC_SUBCOL_3X1(9, 10, 11);
+        //__asm__ __volatile__("" : "=m"(*(int32_t *)B));
+        qlr_t3 = qlr_t3_buffer_b;
+        MAC_SUBCOL_3X1(12, 13, 14);
+        __asm__ __volatile__("" : "=m"(*(int32_t *)B));
+        qlr_t3 = qlr_t3_buffer_a;
+        MAC_SUBCOL_3X1(15, 16, 17);
       }
 
       // Store values
@@ -217,19 +243,27 @@ void systolic_rcp_pe(const uint32_t M, const uint32_t N,
     __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1), "=r"(qlr_t2)); \
     qlr_t3 = B[i * P + shifted_x + 0];                                   \
     __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3_buffer = B[i * P + shifted_x + 1];                            \
+    qlr_t3_buffer_a = B[i * P + shifted_x + 1];                          \
+    qlr_t3_buffer_b = B[i * P + shifted_x + 2];                          \
     MAC_SUBCOL_3X1(0, 1, 2);                                             \
     __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3 = qlr_t3_buffer;                                              \
-    qlr_t3_buffer = B[i * P + shifted_x + 2];                            \
+    qlr_t3 = qlr_t3_buffer_a;                                            \
+    qlr_t3_buffer_a = B[i * P + shifted_x + 3];                          \
     MAC_SUBCOL_3X1(3, 4, 5);                                             \
     __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3 = qlr_t3_buffer;                                              \
-    qlr_t3_buffer = B[i * P + shifted_x + 3];                            \
+    qlr_t3 = qlr_t3_buffer_b;                                            \
+    qlr_t3_buffer_b = B[i * P + shifted_x + 4];                          \
     MAC_SUBCOL_3X1(6, 7, 8);                                             \
     __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3 = qlr_t3_buffer;                                              \
+    qlr_t3 = qlr_t3_buffer_a;                                            \
+    qlr_t3_buffer_a = B[i * P + shifted_x + 5];                          \
     MAC_SUBCOL_3X1(9, 10, 11);                                           \
+    __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
+    qlr_t3 = qlr_t3_buffer_b;                                            \
+    MAC_SUBCOL_3X1(12, 13, 14);                                          \
+    __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
+    qlr_t3 = qlr_t3_buffer_a;                                            \
+    MAC_SUBCOL_3X1(15, 16, 17);                                          \
   } while (0)
 
 // column-producing processing element
@@ -239,7 +273,8 @@ void systolic_cp_pe(const uint32_t col_idx,
   // always keep output in regfile
   register int32_t sub_C[UNROLL_X * UNROLL_Y];
   // same for QLR buffer for B elements
-  register int32_t qlr_t3_buffer;
+  register int32_t qlr_t3_buffer_a;
+  register int32_t qlr_t3_buffer_b;
 
   // pointers to QLR config
   DEFINE_QLR_CONFIG;
@@ -358,6 +393,10 @@ void systolic_cp_pe(const uint32_t col_idx,
     MAC_SUBCOL_3X1(6, 7, 8);                                             \
     __asm__ __volatile__("" : "=r"(qlr_t3));                             \
     MAC_SUBCOL_3X1(9, 10, 11);                                           \
+    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
+    MAC_SUBCOL_3X1(12, 13, 14);                                          \
+    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
+    MAC_SUBCOL_3X1(15, 16, 17);                                          \
   } while (0)
 
 // row producing processing element
@@ -480,6 +519,10 @@ void systolic_rp_pe(const uint32_t row_idx,
     MAC_SUBCOL_3X1(6, 7, 8);                                             \
     __asm__ __volatile__("" : "=r"(qlr_t3));                             \
     MAC_SUBCOL_3X1(9, 10, 11);                                           \
+    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
+    MAC_SUBCOL_3X1(12, 13, 14);                                          \
+    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
+    MAC_SUBCOL_3X1(15, 16, 17);                                          \
   } while (0)
 
 // non-producing processing element
