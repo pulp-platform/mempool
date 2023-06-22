@@ -21,26 +21,16 @@
  * A is an M x N matrix, B is a N x P matrix, and C is a M x P matrix
  * C = AB
  *
- * Each PE processes C in 3x3 submatrices with the following indexing
+ * Each PE processes C in 4x2 submatrices.
+ * We use all four QLRs for A; B is loaded from memory by each individual PE.
  *
- *      B B B          B0 B1 B2 B3
+ *             B0 B1 < loaded from L1
  *
- *   A  C C C      A0  C0 C3 C6 C9
- *   A  C C C  =>  A1  C1 C4 C7 C10
- *   A  C C C      A2  C2 C5 C8 C11
- *
- * e.g. C0 = A0 * B0  or  C7 = A2 * B1
- *
- * We use three QLRs for A and one QLR for B, providing [A0, A1, A2] all
- * at once and iterating over the vector [B0, B1, B2], providing one element
- * at a time. This unbalanced submatrix multiplication requires 12 queue
- * operations (6 pops + 6 pushes) per 9 MACs
- *
- *    B3 B2 B1 B0 > t3
- *
- *   A0 > t0   C0 C3 C6 C9
- *   A1 > t1   C1 C4 C7 C10
- *   A2 > t2   C2 C5 C8 C11
+ *   A0 > t0   C0 C3
+ *   A1 > t1   C1 C4
+ *   A2 > t2   C2 C5
+ *   A3 > t3   C3 C6
+ *      (QLRs)
  */
 
 #include "alloc.h"
@@ -49,8 +39,8 @@
 #include "qlr.h"
 
 // Settings
-#define UNROLL_X 6 // hardcoded, do not change
-#define UNROLL_Y 3 // hardcoded, do not change
+#define UNROLL_X 2 // hardcoded, do not change
+#define UNROLL_Y 4 // hardcoded, do not change
 #define PRINTF_OUT_CHUNK 0
 
 // Systolic grid
@@ -69,7 +59,7 @@
 int32_t *queues_horz_0[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 int32_t *queues_horz_1[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 int32_t *queues_horz_2[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
-int32_t *queues_vert_0[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
+int32_t *queues_horz_3[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
 
 void systolic_init(uint32_t const *core_map) {
   // Create systolic array via queues
@@ -87,7 +77,7 @@ void systolic_init(uint32_t const *core_map) {
       queues_horz_0[row][col] = (int32_t *)(offset + 0);
       queues_horz_1[row][col] = (int32_t *)(offset + 1);
       queues_horz_2[row][col] = (int32_t *)(offset + 2);
-      queues_vert_0[row][col] = (int32_t *)(offset + 3);
+      queues_horz_3[row][col] = (int32_t *)(offset + 3);
     }
   }
 }
@@ -105,11 +95,12 @@ void systolic_init(uint32_t const *core_map) {
   volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
   volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
-#define MAC_SUBCOL_3X1(ROW_0, ROW_1, ROW_2)                                                     \
-  do {                                                                                          \
-    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"(sub_C[(ROW_0)]) : "r"(qlr_t0), "r"(qlr_t3)); \
-    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"(sub_C[(ROW_1)]) : "r"(qlr_t1), "r"(qlr_t3)); \
-    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"(sub_C[(ROW_2)]) : "r"(qlr_t2), "r"(qlr_t3)); \
+#define MAC_SUBCOL_3X1(C_0, C_1, C_2, C_3, B)                                       \
+  do {                                                                              \
+    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_0)) : "r"(qlr_t0), "r"((B))); \
+    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_1)) : "r"(qlr_t1), "r"((B))); \
+    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_2)) : "r"(qlr_t2), "r"((B))); \
+    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_3)) : "r"(qlr_t3), "r"((B))); \
   } while(0)
 
 #define RESET_SUB_C \
@@ -122,16 +113,6 @@ void systolic_init(uint32_t const *core_map) {
     sub_C[5]  = 0;  \
     sub_C[6]  = 0;  \
     sub_C[7]  = 0;  \
-    sub_C[8]  = 0;  \
-    sub_C[9]  = 0;  \
-    sub_C[10] = 0;  \
-    sub_C[11] = 0;  \
-    sub_C[12] = 0;  \
-    sub_C[13] = 0;  \
-    sub_C[14] = 0;  \
-    sub_C[15] = 0;  \
-    sub_C[16] = 0;  \
-    sub_C[17] = 0;  \
   } while(0)
 
 #define STORE_SUB_C(BASE_Y, BASE_X)                     \
@@ -139,272 +120,22 @@ void systolic_init(uint32_t const *core_map) {
     C[((BASE_Y) + 0) * P + ((BASE_X) + 0)] = sub_C[0];  \
     C[((BASE_Y) + 1) * P + ((BASE_X) + 0)] = sub_C[1];  \
     C[((BASE_Y) + 2) * P + ((BASE_X) + 0)] = sub_C[2];  \
-    C[((BASE_Y) + 0) * P + ((BASE_X) + 1)] = sub_C[3];  \
-    C[((BASE_Y) + 1) * P + ((BASE_X) + 1)] = sub_C[4];  \
-    C[((BASE_Y) + 2) * P + ((BASE_X) + 1)] = sub_C[5];  \
-    C[((BASE_Y) + 0) * P + ((BASE_X) + 2)] = sub_C[6];  \
-    C[((BASE_Y) + 1) * P + ((BASE_X) + 2)] = sub_C[7];  \
-    C[((BASE_Y) + 2) * P + ((BASE_X) + 2)] = sub_C[8];  \
-    C[((BASE_Y) + 0) * P + ((BASE_X) + 3)] = sub_C[9];  \
-    C[((BASE_Y) + 1) * P + ((BASE_X) + 3)] = sub_C[10]; \
-    C[((BASE_Y) + 2) * P + ((BASE_X) + 3)] = sub_C[11]; \
-    C[((BASE_Y) + 0) * P + ((BASE_X) + 4)] = sub_C[12]; \
-    C[((BASE_Y) + 1) * P + ((BASE_X) + 4)] = sub_C[13]; \
-    C[((BASE_Y) + 2) * P + ((BASE_X) + 4)] = sub_C[14]; \
-    C[((BASE_Y) + 0) * P + ((BASE_X) + 5)] = sub_C[15]; \
-    C[((BASE_Y) + 1) * P + ((BASE_X) + 5)] = sub_C[16]; \
-    C[((BASE_Y) + 2) * P + ((BASE_X) + 5)] = sub_C[17]; \
+    C[((BASE_Y) + 3) * P + ((BASE_X) + 0)] = sub_C[3];  \
+    C[((BASE_Y) + 0) * P + ((BASE_X) + 1)] = sub_C[4];  \
+    C[((BASE_Y) + 1) * P + ((BASE_X) + 1)] = sub_C[5];  \
+    C[((BASE_Y) + 2) * P + ((BASE_X) + 1)] = sub_C[6];  \
+    C[((BASE_Y) + 3) * P + ((BASE_X) + 1)] = sub_C[7];  \
   } while(0)
 
-
-// row- and column-producing processing element
-void systolic_rcp_pe(const uint32_t M, const uint32_t N,
-                     const uint32_t P,
-                     int32_t const *__restrict__ A,
-                     int32_t const *__restrict__ B,
-                     int32_t *__restrict__ C) {
-  // always keep output in regfile
-  register int32_t sub_C[UNROLL_X * UNROLL_Y];
-  // same for QLR buffer for B elements
-  register int32_t qlr_t3_buffer_a;
-  register int32_t qlr_t3_buffer_b;
-
-  // pointers to QLR config
-  DEFINE_QLR_CONFIG;
-
-  // Configure QLRs
-  // outputs (horizontal)
-  qlr_cfg_t0[QLR_CFG_REQ] = N;
-  qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_horz_0[0][1];
-  qlr_cfg_t1[QLR_CFG_REQ] = N;
-  qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_horz_1[0][1];
-  qlr_cfg_t2[QLR_CFG_REQ] = N;
-  qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[0][1];
-  // outputs (vertical)
-  qlr_cfg_t3[QLR_CFG_REQ] = UNROLL_X * N;
-  qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[1][0];
-
-  // Execute step-wise matrix multiplication
-  for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-    for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-      #if PRINTF_OUT_CHUNK
-      PRINT_CHUNK_XY(x, y);
-      #endif
-      // Start QLRs
-      qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-      qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-      qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-      qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-
-      // Reset submatrix accumulator
-      RESET_SUB_C;
-
-      // Systolic matrix multiplication through MACs
-      for (uint32_t i = 0; i < N; ++i) {
-        // load through normal load instructions
-        qlr_t3 = B[i * P + x + 0];
-        qlr_t0 = A[(y + 0) * N + i];
-        qlr_t1 = A[(y + 1) * N + i];
-        qlr_t2 = A[(y + 2) * N + i];
-        // prevent reordering of memory operations
-        __asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3_buffer_a = B[i * P + x + 1];
-        qlr_t3_buffer_b = B[i * P + x + 2];
-        MAC_SUBCOL_3X1(0, 1, 2);
-        __asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3 = qlr_t3_buffer_a;
-        qlr_t3_buffer_a = B[i * P + x + 3];
-        MAC_SUBCOL_3X1(3, 4, 5);
-        //__asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3 = qlr_t3_buffer_b;
-        qlr_t3_buffer_b = B[i * P + x + 4];
-        MAC_SUBCOL_3X1(6, 7, 8);
-        __asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3 = qlr_t3_buffer_a;
-        qlr_t3_buffer_a = B[i * P + x + 5];
-        MAC_SUBCOL_3X1(9, 10, 11);
-        //__asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3 = qlr_t3_buffer_b;
-        MAC_SUBCOL_3X1(12, 13, 14);
-        __asm__ __volatile__("" : "=m"(*(int32_t *)B));
-        qlr_t3 = qlr_t3_buffer_a;
-        MAC_SUBCOL_3X1(15, 16, 17);
-      }
-
-      // Store values
-      STORE_SUB_C(y, x);
-    }
-  }
-}
-
-
-#define COMPUTATION_CP_PE                                                \
-  do {                                                                   \
-    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1), "=r"(qlr_t2)); \
-    qlr_t3 = B[i * P + shifted_x + 0];                                   \
-    __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3_buffer_a = B[i * P + shifted_x + 1];                          \
-    qlr_t3_buffer_b = B[i * P + shifted_x + 2];                          \
-    MAC_SUBCOL_3X1(0, 1, 2);                                             \
-    __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3 = qlr_t3_buffer_a;                                            \
-    qlr_t3_buffer_a = B[i * P + shifted_x + 3];                          \
-    MAC_SUBCOL_3X1(3, 4, 5);                                             \
-    __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3 = qlr_t3_buffer_b;                                            \
-    qlr_t3_buffer_b = B[i * P + shifted_x + 4];                          \
-    MAC_SUBCOL_3X1(6, 7, 8);                                             \
-    __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3 = qlr_t3_buffer_a;                                            \
-    qlr_t3_buffer_a = B[i * P + shifted_x + 5];                          \
-    MAC_SUBCOL_3X1(9, 10, 11);                                           \
-    __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3 = qlr_t3_buffer_b;                                            \
-    MAC_SUBCOL_3X1(12, 13, 14);                                          \
-    __asm__ __volatile__("" : "=m"(*(int32_t *)B));                      \
-    qlr_t3 = qlr_t3_buffer_a;                                            \
-    MAC_SUBCOL_3X1(15, 16, 17);                                          \
-  } while (0)
-
-// column-producing processing element
-void systolic_cp_pe(const uint32_t col_idx,
-                    const uint32_t M, const uint32_t N, const uint32_t P,
-                    int32_t const *__restrict__ B, int32_t *__restrict__ C) {
-  // always keep output in regfile
-  register int32_t sub_C[UNROLL_X * UNROLL_Y];
-  // same for QLR buffer for B elements
-  register int32_t qlr_t3_buffer_a;
-  register int32_t qlr_t3_buffer_b;
-
-  // pointers to QLR config
-  DEFINE_QLR_CONFIG;
-
-  // actual C coordinates
-  uint32_t shifted_x;
-
-  // Configure QLRs
-
-  // inputs (horizontal)
-  qlr_cfg_t0[QLR_CFG_REQ] = N;
-  qlr_cfg_t0[QLR_CFG_RF] = UNROLL_X;
-  qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_horz_0[0][col_idx];
-  qlr_cfg_t1[QLR_CFG_REQ] = N;
-  qlr_cfg_t1[QLR_CFG_RF] = UNROLL_X;
-  qlr_cfg_t1[QLR_CFG_IADDR] = (uint32_t)queues_horz_1[0][col_idx];
-  qlr_cfg_t2[QLR_CFG_REQ] = N;
-  qlr_cfg_t2[QLR_CFG_RF] = UNROLL_X;
-  qlr_cfg_t2[QLR_CFG_IADDR] = (uint32_t)queues_horz_2[0][col_idx];
-  // outputs (horizontal)
-  if (col_idx != SYSTOLIC_SIZE - 1) {
-    qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_horz_0[0][col_idx + 1];
-    qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_horz_1[0][col_idx + 1];
-    qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[0][col_idx + 1];
-  }
-  // outputs (vertical)
-  qlr_cfg_t3[QLR_CFG_REQ] = UNROLL_X * N;
-  qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[1][col_idx];
-
-  // Check if PE is at the right boundary
-  if (col_idx == SYSTOLIC_SIZE - 1) {
-    // Execute step-wise matrix multiplication
-    for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-        // Shift x (y is constant)
-        // i.e., move to the correct C matrix output chunk (for parallelization)
-        shifted_x = x + UNROLL_X * col_idx;
-
-        // Check if this PE is currently within the matrix C
-        if (shifted_x < P) {
-          #if PRINTF_OUT_CHUNK
-          PRINT_CHUNK_XY(shifted_x, y);
-          #endif
-          // Start QLRs
-          qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-
-          // Reset submatrix accumulator
-          RESET_SUB_C;
-
-          // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
-            COMPUTATION_CP_PE;
-          }
-
-          // Store values
-          STORE_SUB_C(y, shifted_x);
-        }
-      }
-    }
-  } else {
-    // Execute step-wise matrix multiplication
-    for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-        // Shift x (y is constant)
-        // i.e., move to the correct C matrix output chunk (for parallelization)
-        shifted_x = x + UNROLL_X * col_idx;
-
-        // Check if this PE is currently within the matrix C
-        if (shifted_x < P) {
-          #if PRINTF_OUT_CHUNK
-          PRINT_CHUNK_XY(shifted_x, y);
-          #endif
-          // Start QLRs (do not push past boundary of matrix C)
-          // i.e., we are within SYSTOLIC_SIZE (not on boundary) but at the end of C
-          if (shifted_x == P - UNROLL_X) {
-            qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-            qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-            qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          } else {
-            qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-            qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-            qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-          }
-          qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-
-          // Reset submatrix accumulator
-          RESET_SUB_C;
-
-          // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
-            COMPUTATION_CP_PE;
-          }
-
-          // Store values
-          STORE_SUB_C(y, shifted_x);
-        }
-      }
-    }
-  }
-}
-
-
-#define COMPUTATION_RP_PE                                                \
-  do {                                                                   \
-    qlr_t0 = A[(shifted_y + 0) * N + i];                                 \
-    qlr_t1 = A[(shifted_y + 1) * N + i];                                 \
-    qlr_t2 = A[(shifted_y + 2) * N + i];                                 \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(0, 1, 2);                                             \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(3, 4, 5);                                             \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(6, 7, 8);                                             \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(9, 10, 11);                                           \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(12, 13, 14);                                          \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(15, 16, 17);                                          \
-  } while (0)
 
 // row producing processing element
 void systolic_rp_pe(const uint32_t row_idx,
                     const uint32_t M, const uint32_t N, const uint32_t P,
-                    int32_t const *__restrict__ A, int32_t *__restrict__ C) {
+                    int32_t const *__restrict__ A, int32_t const *__restrict__ B,
+                    int32_t *__restrict__ C) {
   // always keep output in regfile
   register int32_t sub_C[UNROLL_X * UNROLL_Y];
+  register int32_t sub_row_B[UNROLL_X];
 
   // pointers to QLR config
   DEFINE_QLR_CONFIG;
@@ -412,125 +143,79 @@ void systolic_rp_pe(const uint32_t row_idx,
   // actual C coordinates
   uint32_t shifted_y;
 
-  // Configure QLRs
-  if (row_idx == SYSTOLIC_SIZE - 1) {
-    qlr_cfg_t0[QLR_CFG_REQ] = N;
-    qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_horz_0[row_idx][1];
-    qlr_cfg_t1[QLR_CFG_REQ] = N;
-    qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_horz_1[row_idx][1];
-    qlr_cfg_t2[QLR_CFG_REQ] = N;
-    qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[row_idx][1];
-    qlr_cfg_t3[QLR_CFG_REQ] = UNROLL_X * N;
-    qlr_cfg_t3[QLR_CFG_RF] = UNROLL_Y;
-    qlr_cfg_t3[QLR_CFG_IADDR] = (uint32_t)queues_vert_0[row_idx][0];
-  } else {
-    qlr_cfg_t0[QLR_CFG_REQ] = N;
-    qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_horz_0[row_idx][1];
-    qlr_cfg_t1[QLR_CFG_REQ] = N;
-    qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_horz_1[row_idx][1];
-    qlr_cfg_t2[QLR_CFG_REQ] = N;
-    qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[row_idx][1];
-    qlr_cfg_t3[QLR_CFG_REQ] = UNROLL_X * N;
-    qlr_cfg_t3[QLR_CFG_RF] = UNROLL_Y;
-    qlr_cfg_t3[QLR_CFG_IADDR] = (uint32_t)queues_vert_0[row_idx][0];
-    qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[row_idx + 1][0];
-  }
+  // Configure QLRs (only output QLRs)
+  // load a 4-element sub-col of A and push through OQLRs
+  // for B, load directly from memory without using QLRs
+  qlr_cfg_t0[QLR_CFG_REQ] = N;
+  qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_horz_0[row_idx][1];
+  qlr_cfg_t1[QLR_CFG_REQ] = N;
+  qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_horz_1[row_idx][1];
+  qlr_cfg_t2[QLR_CFG_REQ] = N;
+  qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[row_idx][1];
+  qlr_cfg_t3[QLR_CFG_REQ] = N;
+  qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_horz_3[row_idx][1];
 
-  // Check if PE is at the bottom boundary
-  if (row_idx == SYSTOLIC_SIZE - 1) {
-    // Execute step-wise matrix multiplication
-    for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-        // Shift y (x is constant)
-        // i.e., move to the correct C matrix output chunk (for parallelization)
-        shifted_y = y + UNROLL_Y * row_idx;
+  // Execute step-wise matrix multiplication
+  for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
+    for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * SYSTOLIC_SIZE) {
+      // Shift base_y (base_x is constant)
+      // i.e., move to the correct C matrix output chunk (for parallelization)
+      shifted_y = base_y + UNROLL_Y * row_idx;
 
-        // Check if this PE is currently within the matrix C
-        if (shifted_y < M) {
-          #if PRINTF_OUT_CHUNK
-          PRINT_CHUNK_XY(x, shifted_y);
-          #endif
-          // Start QLRs
-          qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-          qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-          qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-          qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+      // Check if this PE is currently within the matrix C
+      if (shifted_y < M) {
+        #if PRINTF_OUT_CHUNK
+        PRINT_CHUNK_XY(base_x, shifted_y);
+        #endif
+        // Start QLRs
+        qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
+        qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
+        qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
+        qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
-          // Reset submatrix accumulator
-          RESET_SUB_C;
+        // Reset submatrix accumulator
+        RESET_SUB_C;
 
-          // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
-            COMPUTATION_RP_PE;
-          }
-
-          // Store values
-          STORE_SUB_C(shifted_y, x);
+        // Systolic matrix multiplication through MACs
+        for (uint32_t i = 0; i < N; ++i) {
+          sub_row_B[0] = B[i * P + base_x + 0];
+          qlr_t0 = A[(shifted_y + 0) * N + i];
+          qlr_t1 = A[(shifted_y + 1) * N + i];
+          qlr_t2 = A[(shifted_y + 2) * N + i];
+          qlr_t3 = A[(shifted_y + 3) * N + i];
+          sub_row_B[1] = B[i * P + base_x + 1];
+          __asm__ __volatile__("" : "=m"(*(int32_t *)B));
+          // column 1
+          MAC_SUBCOL_3X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);
+          // column 2
+          MAC_SUBCOL_3X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);
         }
-      }
-    }
-  } else {
-    // Execute step-wise matrix multiplication
-    for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-        // Shift y
-        shifted_y = y + UNROLL_Y * row_idx;
 
-        // Check if this PE is currently within the matrix C
-        if (shifted_y < M) {
-          #if PRINTF_OUT_CHUNK
-          PRINT_CHUNK_XY(x, shifted_y);
-          #endif
-          // Start QLRs (do not push past boundary of matrix C)
-          qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-          qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-          qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
-          if (shifted_y == M - UNROLL_Y) {
-            qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          } else {
-            qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-          }
-
-          // Reset submatrix accumulator
-          RESET_SUB_C;
-
-          // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
-            COMPUTATION_RP_PE;
-          }
-
-          // Store values
-          STORE_SUB_C(shifted_y, x);
-        }
+        // Store values
+        STORE_SUB_C(shifted_y, base_x);
       }
     }
   }
 }
 
 
-#define COMPUTATION_NP_PE                                                \
-  do {                                                                   \
-    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1), "=r"(qlr_t2)); \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(0, 1, 2);                                             \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(3, 4, 5);                                             \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(6, 7, 8);                                             \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(9, 10, 11);                                           \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(12, 13, 14);                                          \
-    __asm__ __volatile__("" : "=r"(qlr_t3));                             \
-    MAC_SUBCOL_3X1(15, 16, 17);                                          \
+#define COMPUTATION_NP_PE                                                              \
+  do {                                                                                 \
+    sub_row_B[0] = B[i * P + shifted_x + 0];                                                   \
+    sub_row_B[1] = B[i * P + shifted_x + 1];                                                   \
+    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1), "=r"(qlr_t2), "=r"(qlr_t3)); \
+    MAC_SUBCOL_3X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);              \
+    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1), "=r"(qlr_t2), "=r"(qlr_t3)); \
+    MAC_SUBCOL_3X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);              \
   } while (0)
 
 // non-producing processing element
 void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
                     const uint32_t M, const uint32_t N, const uint32_t P,
-                    int32_t *__restrict__ C) {
+                    int32_t const *__restrict__ B, int32_t *__restrict__ C) {
   // always keep output in regfile
   register int32_t sub_C[UNROLL_X * UNROLL_Y];
+  register int32_t sub_row_B[UNROLL_X];
 
   // pointers to QLR config
   DEFINE_QLR_CONFIG;
@@ -541,7 +226,7 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
   // Configure QLRs
 
-  // inputs (horizontal)
+  // horizontal inputs (from col 1 to SYSTOLIC_SIZE-1)
   qlr_cfg_t0[QLR_CFG_REQ] = N;
   qlr_cfg_t0[QLR_CFG_RF] = UNROLL_X;
   qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_horz_0[row_idx][col_idx];
@@ -551,28 +236,24 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   qlr_cfg_t2[QLR_CFG_REQ] = N;
   qlr_cfg_t2[QLR_CFG_RF] = UNROLL_X;
   qlr_cfg_t2[QLR_CFG_IADDR] = (uint32_t)queues_horz_2[row_idx][col_idx];
-  // inputs (vertical)
-  qlr_cfg_t3[QLR_CFG_REQ] = UNROLL_X * N;
-  qlr_cfg_t3[QLR_CFG_RF] = UNROLL_Y;
-  qlr_cfg_t3[QLR_CFG_IADDR] = (uint32_t)queues_vert_0[row_idx][col_idx];
-  // outputs (horizontal)
+  qlr_cfg_t3[QLR_CFG_REQ] = N;
+  qlr_cfg_t3[QLR_CFG_RF] = UNROLL_X;
+  qlr_cfg_t3[QLR_CFG_IADDR] = (uint32_t)queues_horz_3[row_idx][col_idx];
+  // horizontal outputs (from col 1 to SYSTOLIC_SIZE-2)
   if (col_idx != SYSTOLIC_SIZE - 1) {
     qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_horz_0[row_idx][col_idx + 1];
     qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_horz_1[row_idx][col_idx + 1];
     qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[row_idx][col_idx + 1];
-  }
-  if (row_idx != SYSTOLIC_SIZE - 1) {
-    qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_vert_0[row_idx + 1][col_idx];
+    qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_horz_3[row_idx][col_idx + 1];
   }
 
-  // PE is not at a boundary
-  if ((col_idx != SYSTOLIC_SIZE - 1) && (row_idx != SYSTOLIC_SIZE - 1)) {
+  if (col_idx != SYSTOLIC_SIZE - 1) {
     // Execute step-wise matrix multiplication
-    for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-        // Shift x and y
-        shifted_x = x + UNROLL_X * col_idx;
-        shifted_y = y + UNROLL_Y * row_idx;
+    for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
+      for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * SYSTOLIC_SIZE) {
+        // Shift base_x and base_y
+        shifted_x = base_x + UNROLL_X * col_idx;
+        shifted_y = base_y + UNROLL_Y * row_idx;
 
         // Check if this PE is currently within the matrix C
         if (shifted_x < P && shifted_y < M) {
@@ -584,14 +265,12 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
             qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
             qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
             qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+            qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
           } else {
+            // only activate output QLRs if we are not in the last matrix column
             qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
             qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
             qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-          }
-          if (shifted_y == M - UNROLL_Y) {
-            qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          } else {
             qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
           }
 
@@ -608,16 +287,13 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
         }
       }
     }
-  }
-
-  // PE is at the right boundary
-  if ((col_idx == SYSTOLIC_SIZE - 1) && (row_idx != SYSTOLIC_SIZE - 1)) {
+  } else {
     // Execute step-wise matrix multiplication
-    for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-        // Shift x and y
-        shifted_x = x + UNROLL_X * col_idx;
-        shifted_y = y + UNROLL_Y * row_idx;
+    for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
+      for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * SYSTOLIC_SIZE) {
+        // Shift base_x and base_y
+        shifted_x = base_x + UNROLL_X * col_idx;
+        shifted_y = base_y + UNROLL_Y * row_idx;
 
         // Check if this PE is currently within the matrix C
         if (shifted_x < P && shifted_y < M) {
@@ -625,86 +301,7 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
           PRINT_CHUNK_XY(shifted_x, shifted_y);
           #endif
           // Start QLRs
-          qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          if (shifted_y == M - 3) {
-            qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          } else {
-            qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-          }
-
-          // Reset submatrix accumulator
-          RESET_SUB_C;
-
-          // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
-            COMPUTATION_NP_PE;
-          }
-
-          // Store values
-          STORE_SUB_C(shifted_y, shifted_x);
-        }
-      }
-    }
-  }
-
-  // PE is at the bottom boundary
-  if ((col_idx != SYSTOLIC_SIZE - 1) && (row_idx == SYSTOLIC_SIZE - 1)) {
-    // Execute step-wise matrix multiplication
-    for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-        // Shift x and y
-        shifted_x = x + UNROLL_X * col_idx;
-        shifted_y = y + UNROLL_Y * row_idx;
-
-        // Check if this PE is currently within the matrix C
-        if (shifted_x < P && shifted_y < M) {
-          #if PRINTF_OUT_CHUNK
-          PRINT_CHUNK_XY(shifted_x, shifted_y);
-          #endif
-          // Start QLRs
-          if (shifted_x == P - UNROLL_X) {
-            qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-            qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-            qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          } else {
-            qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-            qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-            qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-          }
-          qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-
-          // Reset submatrix accumulator
-          RESET_SUB_C;
-
-          // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
-            COMPUTATION_NP_PE;
-          }
-
-          // Store values
-          STORE_SUB_C(shifted_y, shifted_x);
-        }
-      }
-    }
-  }
-
-  // PE is at the bottom right corner
-  if ((col_idx == SYSTOLIC_SIZE - 1) && (row_idx == SYSTOLIC_SIZE - 1)) {
-    // Execute step-wise matrix multiplication
-    for (uint32_t y = 0; y < M; y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t x = 0; x < P; x += UNROLL_X * SYSTOLIC_SIZE) {
-        // Shift x and y
-        shifted_x = x + UNROLL_X * col_idx;
-        shifted_y = y + UNROLL_Y * row_idx;
-
-        // Check if this PE is currently within the matrix C
-        if (shifted_x < P && shifted_y < M) {
-          #if PRINTF_OUT_CHUNK
-          PRINT_CHUNK_XY(shifted_x, shifted_y);
-          #endif
-          // Start QLRs
+          // we are in the last PE column, no output QLRs
           qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
           qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
           qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
