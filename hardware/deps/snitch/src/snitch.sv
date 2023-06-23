@@ -326,7 +326,8 @@ module snitch
   assign rd = inst_data_i[7 + RegWidth - 1:7];
   assign rs1 = inst_data_i[15 + RegWidth - 1:15];
   assign rs2 = inst_data_i[20 + RegWidth - 1:20];
-  assign rs3 = ((acc_qaddr_o == snitch_pkg::FP_SS) & (snitch_pkg::ZFINX_RV)) ? inst_data_i[27 + RegWidth - 1:27] : (((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0);
+  assign rs3 = ((acc_qaddr_o == snitch_pkg::FP_SS) & (snitch_pkg::ZFINX_RV)) ? inst_data_i[27 + RegWidth - 1:27] :
+               ((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0;
 
   always_comb begin
     illegal_inst = 1'b0;
@@ -1022,7 +1023,7 @@ module snitch
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
-          opc_select = Reg;
+          opc_select = RegRd;
           acc_register_rd = 1'b1;
           acc_qaddr_o = snitch_pkg::FP_SS;
         end else begin
@@ -1920,6 +1921,7 @@ module snitch
       unique case (opc_select)
         None: opc = '0;
         Reg: opc = gpr_rdata[2];
+        RegRd: opc = gpr_rdata[2];
         IImmediate: opc = iimm;
         SFImmediate, SImmediate: opc = simm;
         default: opc = '0;
@@ -1931,7 +1933,8 @@ module snitch
   assign gpr_raddr[1] = rs2;
   // connect third read port only if present
   if (RegNrReadPorts >= 3) begin : gpr_raddr_2
-    assign gpr_raddr[2] = ((snitch_pkg::ZFINX_RV) || (snitch_pkg::XPULPIMG)) ? rs3 : '0;
+    assign gpr_raddr[2] = ((snitch_pkg::ZFINX_RV) || (snitch_pkg::XPULPIMG) && (opc_select == RegRd)) ? rd  :
+                          ((snitch_pkg::ZFINX_RV) || (snitch_pkg::XPULPIMG) && (opc_select == Reg))   ? rs3 : '0;
   end
 
   // --------------------
