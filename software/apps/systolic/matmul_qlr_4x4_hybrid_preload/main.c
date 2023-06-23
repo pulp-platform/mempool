@@ -39,14 +39,14 @@ int32_t *matrix_A;
 int32_t *matrix_B;
 int32_t *matrix_C;
 
-/// Fill @param matrix with a custom gradient, parallelizing row-wise
-void fill_matrix_gradient(int32_t *matrix,
-                        uint32_t num_rows, uint32_t num_cols,
-                        uint32_t core_id, uint32_t num_cores,
-                        int32_t a, int32_t b, int32_t c) {
-  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
-    for (uint32_t j = 0; j < num_cols; ++j) {
-      matrix[i * num_cols + j] = a * (int32_t)i + b * (int32_t)j + c;
+/// Fill @param matrix with a gradient in a parallelized way:
+/// each core fills all the rows of index y = core_id + i*num_cores
+void fill_gradient_matrix(int32_t *matrix, uint32_t num_rows,
+                          uint32_t num_cols, uint32_t core_id,
+                          uint32_t num_cores) {
+  for (uint32_t y = core_id; y < num_rows; y += num_cores) {
+    for (uint32_t x = 0; x < num_cols; x++) {
+      matrix[y * num_cols + x] = (int32_t)(y + x);
     }
   }
 }
@@ -63,26 +63,20 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 }
 
 /// Verify @param C matmul output parallelizing row-wise
-int verify_matrix(int32_t const *C,
-                  uint32_t num_rows, uint32_t inner_dim, uint32_t num_cols,
-                  uint32_t core_id, uint32_t num_cores) {
-  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
-    for (uint32_t j = 0; j < num_cols; ++j) {
-      // Compute C without looping through inner dim
-      int32_t ii = (int32_t)i;
-      int32_t jj = (int32_t)j;
-      int32_t aa = 1, ab = 1, ac = -32;
-      int32_t ba = 2, bb = 1, bc = 16;
-      int32_t n = (int32_t)inner_dim;
-      int32_t golden = (aa * bb * ii * jj + aa * bc * ii + ac * bb * jj + ac * bc) * n +
-              ((aa * ba * ii + ab * bb * jj + ab * bc + ba * ac) * (n * (n - 1))) / 2 +
-              ((ab * ba) * (n * (n - 1) * (2 * n - 1))) / 6;
-      // Check correctness
-      if (golden != C[i * num_cols + j]){
-        // #if PRINTF_VERBOSE
-        // printf("ERROR: matrix_C[%d] = %d (instead of %d)\n", i * num_cols + j, C[i * num_cols + j], golden);
-        // #endif
-        return (i + j) == 0 ? -1 : (int)(i * num_cols + j);
+int verify_matrix(int32_t const *A, int32_t const *B, int32_t const *C,
+                  uint32_t num_rows, uint32_t inner_dim, uint32_t num_columns,
+                  uint32_t num_cores) {
+  for (uint32_t i = 0; i < num_rows; i += num_cores) {
+    for (uint32_t j = 0; j < num_columns; ++j) {
+      int32_t golden = 0;
+      for (uint32_t n = 0; n < inner_dim; n++) {
+        golden += A[i * inner_dim + n] * B[n * num_columns + j];
+      }
+      if (golden != C[i * num_columns + j]){
+        #if PRINTF_VERBOSE
+        printf("ERROR: matrix_C[%d] = %d (instead of %d)\n", i * num_columns + j, C[i * num_columns + j], golden);
+        #endif
+        return i * num_columns + j == 0 ? -1 : (int)(i * num_columns + j);
       }
     }
   }
@@ -202,10 +196,9 @@ int main() {
   // Wait for all cores
   mempool_barrier(num_cores);
 
-  // Fill matrix
-  fill_matrix_gradient(matrix_A, DIM_M, DIM_N, core_id, num_cores, 1, 1, -32);
-  fill_matrix_gradient(matrix_B, DIM_N, DIM_P, core_id, num_cores, 2, 1, 16);
-  // use: a=1, b=1, c=0 for normal, unweighted gradient
+  // Fill matrices with gradient
+  fill_gradient_matrix(matrix_A, DIM_M, DIM_N, core_id, num_cores);
+  fill_gradient_matrix(matrix_B, DIM_N, DIM_P, core_id, num_cores);
 
   // Start message
   if (core_id == 0) {
@@ -244,20 +237,17 @@ int main() {
     // Print out matrix C
     print_matrix(matrix_C, DIM_M, DIM_P);
     #endif
-  }
 
-  mempool_barrier(num_cores);
-
-  // Verify result
-  #if VERIFY_OUTPUT
-  #if PRINTF_VERBOSE
-  if (core_id == 0)
+    #if VERIFY_OUTPUT
+    // Verify result
+    #if PRINTF_VERBOSE
     printf("Verifying result...\n");
-  #endif
-  int ret = verify_matrix(matrix_C, DIM_M, DIM_N, DIM_P, core_id, num_cores);
-  if(ret)
-    return ret;
-  #endif
+    #endif
+    int ret = verify_matrix(matrix_A, matrix_B, matrix_C, DIM_M, DIM_N, DIM_P, num_cores);
+    if(ret)
+      return ret;
+    #endif
+  }
 
   // wait until all cores have finished
   mempool_barrier(num_cores);
