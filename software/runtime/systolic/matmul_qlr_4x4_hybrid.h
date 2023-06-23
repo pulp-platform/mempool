@@ -340,7 +340,7 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
           __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[2]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
           __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[3]), [addr] "+&r"(b_ptr) : [incr] "I"(B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t)) : "memory");
           // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
+          for (uint32_t i = 0; i < N - 1; ++i) {
             COMPUTATION_NP_PE;
           }
           // unroll last computation iteration
@@ -385,7 +385,7 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
           __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[2]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
           __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[3]), [addr] "+&r"(b_ptr) : [incr] "I"(B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t)) : "memory");
           // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
+          for (uint32_t i = 0; i < N - 1; ++i) {
             COMPUTATION_NP_PE;
           }
           // unroll last computation iteration
