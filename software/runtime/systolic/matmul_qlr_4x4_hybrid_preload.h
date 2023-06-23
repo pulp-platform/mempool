@@ -117,14 +117,6 @@ void systolic_init(uint32_t const *core_map) {
   volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
   volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
-#define MAC_SUBCOL_4X1(C_0, C_1, C_2, C_3, B)                                       \
-  do {                                                                              \
-    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_0)) : "r"(qlr_t0), "r"((B))); \
-    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_1)) : "r"(qlr_t1), "r"((B))); \
-    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_2)) : "r"(qlr_t2), "r"((B))); \
-    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_3)) : "r"(qlr_t3), "r"((B))); \
-  } while(0)
-
 #define RESET_SUB_C \
   do {              \
     sub_C[0]  = 0;  \
@@ -143,6 +135,22 @@ void systolic_init(uint32_t const *core_map) {
     sub_C[13] = 0;  \
     sub_C[14] = 0;  \
     sub_C[15] = 0;  \
+  } while(0)
+
+#define MAC_SUBCOL_4X1(C_0, C_1, C_2, C_3, B)                                       \
+  do {                                                                              \
+    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_0)) : "r"(qlr_t0), "r"((B))); \
+    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_1)) : "r"(qlr_t1), "r"((B))); \
+    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_2)) : "r"(qlr_t2), "r"((B))); \
+    __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_3)) : "r"(qlr_t3), "r"((B))); \
+  } while(0)
+
+#define LOAD_SUBROW_POSTINCR(B, PTR, INCR)                \
+  do {                                                    \
+    __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)"     \
+                         : "=r"((B)), [addr] "+&r"((PTR)) \
+                         : [incr] "I"((INCR))             \
+                         : "memory");                     \
   } while(0)
 
 #define STORE_SUB_C(BASE_Y, BASE_X)                     \
@@ -173,11 +181,9 @@ void systolic_init(uint32_t const *core_map) {
 // row producing processing element
 void systolic_rp_pe(const uint32_t row_idx,
                     const uint32_t M, const uint32_t N, const uint32_t P,
-                    int32_t const *__restrict__ A, int32_t const *__restrict__ B,
-                    int32_t *__restrict__ C) {
+                    int32_t const *__restrict__ A) {
   // always keep output in regfile
-  register int32_t sub_C[UNROLL_X * UNROLL_Y];
-  register int32_t sub_row_B[UNROLL_X];
+  register int32_t sub_col_A[UNROLL_Y];
 
   // pointers to QLR config
   DEFINE_QLR_CONFIG;
@@ -197,16 +203,13 @@ void systolic_rp_pe(const uint32_t row_idx,
   qlr_cfg_t3[QLR_CFG_REQ] = N;
   qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_horz_3[row_idx][1];
 
-  // Execute step-wise matrix multiplication
+  // Go step-wise through the input matrix A
   for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
-    for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * SYSTOLIC_SIZE) {
+    // SYSTOLIC_SIZE - 1 because 1st col does not process C
+    for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * (SYSTOLIC_SIZE - 1)) {
       // Shift base_y (base_x is constant)
       // i.e., move to the correct C matrix output chunk (for parallelization)
       shifted_y = base_y + UNROLL_Y * row_idx;
-      // pointers to A and B starting point processed by this PE at this step
-      // for post-increment addressing
-      const int32_t *a_ptr = &A[shifted_y * N];
-      const int32_t *b_ptr = &B[base_x];
 
       // Check if this PE is currently within the matrix C
       if (shifted_y < M) {
@@ -219,50 +222,41 @@ void systolic_rp_pe(const uint32_t row_idx,
         qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
         qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
-        // Reset submatrix accumulator
-        RESET_SUB_C;
-
-        // Systolic matrix multiplication through MACs
-        for (uint32_t i = 0; i < N; ++i) {
-          // Load first B value
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[0]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          // Load the A matrix
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(qlr_t0), [addr] "+&r"(a_ptr) : [incr] "I"(A_ROW_INCR) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(qlr_t1), [addr] "+&r"(a_ptr) : [incr] "I"(A_ROW_INCR) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(qlr_t2), [addr] "+&r"(a_ptr) : [incr] "I"(A_ROW_INCR) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(qlr_t3), [addr] "+&r"(a_ptr) : [incr] "I"(sizeof(int32_t) - (UNROLL_Y - 1) * A_ROW_INCR) : "memory");
-          // Load remaining B values
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[1]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[2]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[3]), [addr] "+&r"(b_ptr) : [incr] "I"(B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t)) : "memory");
-          // column 0
-          MAC_SUBCOL_4X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);
-          // column 1
-          MAC_SUBCOL_4X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);
-          // column 2
-          MAC_SUBCOL_4X1(sub_C[8], sub_C[9], sub_C[10], sub_C[11], sub_row_B[2]);
-          // column 3
-          MAC_SUBCOL_4X1(sub_C[12], sub_C[13], sub_C[14], sub_C[15], sub_row_B[3]);
+        // Push A sub-columns through the systolic array
+        sub_col_A[0] = A[(shifted_y + 0) * N + 0];
+        sub_col_A[1] = A[(shifted_y + 1) * N + 0];
+        sub_col_A[2] = A[(shifted_y + 2) * N + 0];
+        sub_col_A[3] = A[(shifted_y + 3) * N + 0];
+        for (uint32_t i = 1; i < N; ++i) {
+          __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t0) : "r"(sub_col_A[0]));
+          sub_col_A[0] = A[(shifted_y + 0) * N + i];
+          __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t1) : "r"(sub_col_A[1]));
+          sub_col_A[1] = A[(shifted_y + 1) * N + i];
+          __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t2) : "r"(sub_col_A[2]));
+          sub_col_A[2] = A[(shifted_y + 2) * N + i];
+          __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t3) : "r"(sub_col_A[3]));
+          sub_col_A[3] = A[(shifted_y + 3) * N + i];
         }
-
-        // Store values
-        STORE_SUB_C(shifted_y, base_x);
+        __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t0) : "r"(sub_col_A[0]));
+        __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t1) : "r"(sub_col_A[1]));
+        __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t2) : "r"(sub_col_A[2]));
+        __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t3) : "r"(sub_col_A[3]));
       }
     }
   }
 }
 
 
-#define COMPUTATION_NP_PE                                                                                                                                                \
-  do {                                                                                                                                                                   \
-    MAC_SUBCOL_4X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);                                                                                                \
-    __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[0]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");                               \
-    MAC_SUBCOL_4X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);                                                                                                \
-    __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[1]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");                               \
-    MAC_SUBCOL_4X1(sub_C[8], sub_C[9], sub_C[10], sub_C[11], sub_row_B[2]);                                                                                              \
-    __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[2]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");                               \
-    MAC_SUBCOL_4X1(sub_C[12], sub_C[13], sub_C[14], sub_C[15], sub_row_B[3]);                                                                                            \
-    __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[3]), [addr] "+&r"(b_ptr) : [incr] "I"(B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t)) : "memory"); \
+#define COMPUTATION_NP_PE                                                                     \
+  do {                                                                                        \
+    MAC_SUBCOL_4X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);                     \
+    LOAD_SUBROW_POSTINCR(sub_row_B[0], b_ptr, sizeof(int32_t));                               \
+    MAC_SUBCOL_4X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);                     \
+    LOAD_SUBROW_POSTINCR(sub_row_B[1], b_ptr, sizeof(int32_t));                               \
+    MAC_SUBCOL_4X1(sub_C[8], sub_C[9], sub_C[10], sub_C[11], sub_row_B[2]);                   \
+    LOAD_SUBROW_POSTINCR(sub_row_B[2], b_ptr, sizeof(int32_t));                               \
+    MAC_SUBCOL_4X1(sub_C[12], sub_C[13], sub_C[14], sub_C[15], sub_row_B[3]);                 \
+    LOAD_SUBROW_POSTINCR(sub_row_B[3], b_ptr, B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t)); \
   } while (0)
 
 // non-producing processing element
@@ -306,9 +300,10 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   if (col_idx != SYSTOLIC_SIZE - 1) {
     // Execute step-wise matrix multiplication
     for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * SYSTOLIC_SIZE) {
+    // SYSTOLIC_SIZE - 1 because 1st col does not process C
+      for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * (SYSTOLIC_SIZE - 1)) {
         // Shift base_x and base_y
-        shifted_x = base_x + UNROLL_X * col_idx;
+        shifted_x = base_x + UNROLL_X * (col_idx - 1); // -1 because 1st col does not process C
         shifted_y = base_y + UNROLL_Y * row_idx;
         // for post-increment addressing
         const int32_t *b_ptr = &B[shifted_x];
@@ -336,12 +331,12 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
           RESET_SUB_C;
 
           // unroll first iteration of the loop to schedule the load from iteration N in iteration N-1
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[0]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[1]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[2]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[3]), [addr] "+&r"(b_ptr) : [incr] "I"(B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t)) : "memory");
+          LOAD_SUBROW_POSTINCR(sub_row_B[0], b_ptr, sizeof(int32_t));
+          LOAD_SUBROW_POSTINCR(sub_row_B[1], b_ptr, sizeof(int32_t));
+          LOAD_SUBROW_POSTINCR(sub_row_B[2], b_ptr, sizeof(int32_t));
+          LOAD_SUBROW_POSTINCR(sub_row_B[3], b_ptr, B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t));
           // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
+          for (uint32_t i = 0; i < N - 1; i++) {
             COMPUTATION_NP_PE;
           }
           // unroll last computation iteration
@@ -358,9 +353,10 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   } else {
     // Execute step-wise matrix multiplication
     for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
-      for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * SYSTOLIC_SIZE) {
+    // SYSTOLIC_SIZE - 1 because 1st col does not process C
+      for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * (SYSTOLIC_SIZE - 1)) {
         // Shift base_x and base_y
-        shifted_x = base_x + UNROLL_X * col_idx;
+        shifted_x = base_x + UNROLL_X * (col_idx - 1); // -1 because 1st col does not process C
         shifted_y = base_y + UNROLL_Y * row_idx;
         // for post-increment addressing
         const int32_t *b_ptr = &B[shifted_x];
@@ -381,12 +377,12 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
           RESET_SUB_C;
 
           // unroll first iteration of the loop to schedule the load from iteration N in iteration N-1
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[0]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[1]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[2]), [addr] "+&r"(b_ptr) : [incr] "I"(sizeof(int32_t)) : "memory");
-          __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)" : "=r"(sub_row_B[3]), [addr] "+&r"(b_ptr) : [incr] "I"(B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t)) : "memory");
+          LOAD_SUBROW_POSTINCR(sub_row_B[0], b_ptr, sizeof(int32_t));
+          LOAD_SUBROW_POSTINCR(sub_row_B[1], b_ptr, sizeof(int32_t));
+          LOAD_SUBROW_POSTINCR(sub_row_B[2], b_ptr, sizeof(int32_t));
+          LOAD_SUBROW_POSTINCR(sub_row_B[3], b_ptr, B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t));
           // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N; ++i) {
+          for (uint32_t i = 0; i < N - 1; i++) {
             COMPUTATION_NP_PE;
           }
           // unroll last computation iteration
