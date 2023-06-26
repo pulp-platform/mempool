@@ -4,7 +4,7 @@
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-# This script generates data for the fp16 matmul.
+# This script generates data for the fp32 matmul.
 # Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
 
 import numpy as np
@@ -20,7 +20,7 @@ from mako.template import Template
 def gen_data_header_file(outdir: pathlib.Path.cwd(),
                          tpl: pathlib.Path.cwd(), **kwargs):
 
-    file = outdir / f"data_{kwargs['name']}.h"
+    file = outdir / f"{kwargs['name']}.h"
 
     print(tpl, outdir, kwargs['name'])
 
@@ -36,7 +36,7 @@ def main():
         "-o",
         "--outdir",
         type=pathlib.Path,
-        default=pathlib.Path.cwd(),
+        default=pathlib.Path(__file__).parent.absolute(),
         required=False,
         help='Select out directory of generated data files'
     )
@@ -45,7 +45,8 @@ def main():
         "--tpl",
         type=pathlib.Path,
         required=False,
-        default=pathlib.Path.cwd() / "data_matmulf16.h.tpl",
+        default=pathlib.Path(__file__).parent.absolute() /
+        "data_matmul_f32.h.tpl",
         help='Path to mako template'
     )
     parser.add_argument(
@@ -54,6 +55,7 @@ def main():
         action='store_true',
         help='Set verbose'
     )
+
     parser.add_argument(
         "-m",
         "--dim_m",
@@ -90,12 +92,12 @@ def main():
     B = np.random.rand(matrix_N, matrix_P)
     C = np.matmul(A, B)
 
-    A = np.reshape(A, (matrix_M * matrix_N), order='C').astype(np.float16)
-    B = np.reshape(B, (matrix_N * matrix_P), order='C').astype(np.float16)
-    C = np.reshape(C, (matrix_M * matrix_P), order='C').astype(np.float16)
+    A = np.reshape(A, (matrix_M * matrix_N), order='C').astype(np.float32)
+    B = np.reshape(B, (matrix_N * matrix_P), order='C').astype(np.float32)
+    C = np.reshape(C, (matrix_M * matrix_P), order='C').astype(np.float32)
 
     kwargs = {
-        'name': 'matmulf16',
+        'name': 'data_matmul_f32',
         'A': A,
         'B': B,
         'C': C,
