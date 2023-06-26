@@ -17,8 +17,8 @@ typedef union {
   v2f16 vec;
 } v2h;
 
-#include "data_matmulf16.h"
-#include "kernel/mat_mul_f16.h"
+#include "data/data_matmul_f16.h"
+#include "kernel/matmul_f16.h"
 
 #define PARALLEL
 

@@ -18,8 +18,8 @@ typedef union {
   v2f16 vec;
 } v2h;
 
-#include "data_matmulf32.h"
-#include "kernel/mat_mul_f32.h"
+#include "data/data_matmul_f32.h"
+#include "kernel/matmul_f32.h"
 
 #define PARALLEL
 #define ASM
