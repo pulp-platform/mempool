@@ -755,12 +755,15 @@ module snitch_fp_ss
         end
         AccBus_A: begin
           op[i] = acc_qdata[0];
+          op_ready[i] = acc_req_valid;
         end
         AccBus_B: begin
           op[i] = acc_qdata[1];
+          op_ready[i] = acc_req_valid;
         end
         AccBus_C: begin
           op[i] = acc_qdata[2];
+          op_ready[i] = acc_req_valid;
         end
         default: begin
           op[i] = '0;
