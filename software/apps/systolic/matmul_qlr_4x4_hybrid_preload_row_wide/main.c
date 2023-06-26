@@ -22,16 +22,15 @@
 
 #include "alloc.h"
 #include "encoding.h"
-#include "systolic/matmul_qlr_4x4_hybrid_preload_row.h"
+#include "systolic/matmul_qlr_4x4_hybrid_preload_row_wide.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
 // Settings
-#define TOPOLOGY       2
-#define VERIFY_OUTPUT  0
+#define VERIFY_OUTPUT  1
 #define PRINTF_MATRIX  0
-#define PRINTF_VERBOSE 0
+#define PRINTF_VERBOSE 1
 
 // Global variables
 uint32_t *core_map;
@@ -52,11 +51,11 @@ void fill_matrix_gradient(int32_t *matrix,
 }
 
 void print_matrix(int32_t const *matrix, uint32_t num_rows,
-                  uint32_t num_columns) {
+                  uint32_t num_cols) {
   printf("Matrix at 0x%08X\n", (uint32_t)matrix);
   for (uint32_t i = 0; i < num_rows; i++) {
-    for (uint32_t j = 0; j < num_columns; j++) {
-      printf("%5d ", matrix[i * num_columns + j]);
+    for (uint32_t j = 0; j < num_cols; j++) {
+      printf("%5d ", matrix[i * num_cols + j]);
     }
     printf("\n");
   }
@@ -64,10 +63,10 @@ void print_matrix(int32_t const *matrix, uint32_t num_rows,
 
 /// Verify @param C matmul output parallelizing row-wise
 int verify_matrix(int32_t const *C,
-                  uint32_t num_rows, uint32_t inner_dim, uint32_t num_columns,
+                  uint32_t num_rows, uint32_t inner_dim, uint32_t num_cols,
                   uint32_t core_id, uint32_t num_cores) {
   for (uint32_t i = core_id; i < num_rows; i += num_cores) {
-    for (uint32_t j = 0; j < num_columns; ++j) {
+    for (uint32_t j = 0; j < num_cols; ++j) {
       // Compute C without looping through inner dim
       int32_t ii = (int32_t)i;
       int32_t jj = (int32_t)j;
@@ -78,11 +77,11 @@ int verify_matrix(int32_t const *C,
               ((aa * ba * ii + ab * bb * jj + ab * bc + ba * ac) * (n * (n - 1))) / 2 +
               ((ab * ba) * (n * (n - 1) * (2 * n - 1))) / 6;
       // Check correctness
-      if (golden != C[i * num_columns + j]){
+      if (golden != C[i * num_cols + j]){
         // #if PRINTF_VERBOSE
-        // printf("ERROR: matrix_C[%d] = %d (instead of %d)\n", i * num_columns + j, C[i * num_columns + j], golden);
+        // printf("ERROR: matrix_C[%d] = %d (instead of %d)\n", i * num_cols + j, C[i * num_cols + j], golden);
         // #endif
-        return (i + j) == 0 ? -1 : (int)(i * num_columns + j);
+        return (i + j) == 0 ? -1 : (int)(i * num_cols + j);
       }
     }
   }
@@ -113,68 +112,16 @@ int main() {
     }
   }
 
-  // Systolic cores mapping
-
-#if TOPOLOGY == 0 /* SQUARE */
-  //NOTE: SYSTOLIC_ARRAY_DIM, NUM_CORES_PER_TILE, and NUM_TILES_PER_GROUP must be perfect squares
-
-  // Column index (x):
-  // get id of tile section based on how many tile sections per row
-  uint32_t col_idx = tile_id % (SYSTOLIC_ARRAY_DIM / SQRT_NUM_CORES_PER_TILE);
-  // jump to the correct 'x' based on the tile section id and width
-  col_idx *= SQRT_NUM_CORES_PER_TILE;
-  // inside this tile section, jump to the correct 'x' based on the core id
-  col_idx += core_id % SQRT_NUM_CORES_PER_TILE;
-
-  // Row index (y):
-  // tile sections are placed in a row-wise fashion based on tile id, so to
-  // get the row tile section id you must divide instead of doing modulo
-  uint32_t row_idx = tile_id / (SYSTOLIC_ARRAY_DIM / SQRT_NUM_CORES_PER_TILE);
-  // as above, jumps to the correct 'y' based on tile section width
-  row_idx *= SQRT_NUM_CORES_PER_TILE;
-  // gets correct 'y' offset based on core id
-  row_idx += (core_id % NUM_CORES_PER_TILE) / SQRT_NUM_CORES_PER_TILE;
-
-#elif TOPOLOGY == 1 /* SQUARE SQUARE */
-  //NOTE: SYSTOLIC_ARRAY_DIM, NUM_CORES_PER_TILE, and NUM_TILES_PER_GROUP must be perfect squares
-
-  // Column index (x):
-  // horizontal position of group section = group id % how many group sections fit in one row
-  uint32_t col_idx = group_id % (SYSTOLIC_ARRAY_DIM / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
-  // group section base 'x' = horizontal position * width of a group section (= tiles per group * width tile section)
-  col_idx *= SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE;
-  // add tile 'x' offset in the group section based on group section and tile section widths
-  col_idx += (tile_id % SQRT_NUM_TILES_PER_GROUP) * SQRT_NUM_CORES_PER_TILE;
-  // add core 'x' offset in each tile section
-  col_idx += core_id % SQRT_NUM_CORES_PER_TILE;
-
-  // Row index (y):
-  // vertical position of group section = group id / how many group sections fit in one row
-  uint32_t row_idx = group_id / (SYSTOLIC_ARRAY_DIM / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
-  // group section base 'y' = vertical position * width of a group section (= tiles per group * width tile section)
-  row_idx *= SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE;
-  // add tile 'y' offset in the group section based on group section and tile section widths
-  row_idx += ((tile_id % NUM_TILES_PER_GROUP) / SQRT_NUM_TILES_PER_GROUP) * SQRT_NUM_CORES_PER_TILE;
-  // add core 'y' offset in each tile section
-  row_idx += (core_id % NUM_CORES_PER_TILE) / SQRT_NUM_CORES_PER_TILE;
-
-#elif TOPOLOGY == 2 /* ROW-WISE */
-  // Cores of the same tile are on the same systolic grid row
-
-  // Column index (x):
-  uint32_t col_idx = core_id % SYSTOLIC_ARRAY_DIM;
-  // Row index (y):
-  uint32_t row_idx = core_id / SYSTOLIC_ARRAY_DIM;
-
-#else
-#error Unsupported topology.
-#endif
+  /* Systolic cores mapping */
+  // Row-wise: cores of the same tile are on the same systolic grid row=
+  uint32_t col_idx = core_id % SYSTOLIC_ARRAY_DIM_X; // column index (x)
+  uint32_t row_idx = core_id / SYSTOLIC_ARRAY_DIM_X; // row index (y)
 
   // Wait for all cores
   mempool_barrier(num_cores);
 
   // Set tile and core mapping
-  core_map[row_idx * SYSTOLIC_ARRAY_DIM + col_idx] = core_id;
+  core_map[row_idx * SYSTOLIC_ARRAY_DIM_X + col_idx] = core_id;
 
   // Wait for all cores
   mempool_barrier(num_cores);
@@ -187,7 +134,7 @@ int main() {
 
     #if PRINTF_MATRIX
     // Print out core mapping
-    print_matrix((int32_t *)core_map, SYSTOLIC_ARRAY_DIM, SYSTOLIC_ARRAY_DIM);
+    print_matrix((int32_t *)core_map, SYSTOLIC_ARRAY_DIM_Y, SYSTOLIC_ARRAY_DIM_X);
     #endif
 
     // Initialize systolic array
@@ -264,7 +211,7 @@ int main() {
   // Verify result
   #if VERIFY_OUTPUT
   #if PRINTF_VERBOSE
-  if (core_id == 0){}
+  if (core_id == 0)
     printf("Verifying result...\n");
   #endif
   int ret = verify_matrix(matrix_C, DIM_M, DIM_N, DIM_P, core_id, num_cores);
