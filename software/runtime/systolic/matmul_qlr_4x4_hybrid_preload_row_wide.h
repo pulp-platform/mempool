@@ -31,9 +31,9 @@
  * Boundary PEs (column 0 of the systolic grid) only act as loaders of
  * matrix A: they do not compute MACs. Computation is left to the
  * remaining PEs.
- * Post-increment addressing is (manually) employed to reduce register
- * occupation and prevent stack spills. Loads are also scheduled one
- * iteration before the related MACs to decrease stalls.
+ * Post-increment addressing to load matrix B is (manually) employed to
+ * reduce register occupation and prevent stack spills. Loads are also
+ * scheduled one iteration before the related MACs to decrease stalls.
  *
  *             B3 B2 B1 B0 < loaded from L1
  *
@@ -56,12 +56,15 @@
 
 /* Systolic array grid for core-PE mapping */
 // hardcoded, do not change
+
 #if NUM_CORES == 16
-// 16 cores -> 4x4 systolic array
-#define SYSTOLIC_ARRAY_DIM 4
+// 16 cores -> 2x8 systolic array
+#define SYSTOLIC_ARRAY_DIM_X 8
+#define SYSTOLIC_ARRAY_DIM_Y 2
 #elif NUM_CORES == 256
-// 256 cores -> 16x16 systolic array
-#define SYSTOLIC_ARRAY_DIM 16
+// 256 cores -> 8x32 systolic array
+#define SYSTOLIC_ARRAY_DIM_X 32
+#define SYSTOLIC_ARRAY_DIM_Y 8
 #else
 // unsupported number of cores
 #error Unsupported NUM_CORES
@@ -70,8 +73,8 @@
 /* Dimension of matrix chunks processed by the systolic array */
 // '-1' to columns number because first column is only loader PEs
 // hardcoded, do not change
-#define SYSTOLIC_MATRIX_DIM_X (SYSTOLIC_ARRAY_DIM - 1)
-#define SYSTOLIC_MATRIX_DIM_Y (SYSTOLIC_ARRAY_DIM)
+#define SYSTOLIC_MATRIX_DIM_X (SYSTOLIC_ARRAY_DIM_X - 1)
+#define SYSTOLIC_MATRIX_DIM_Y (SYSTOLIC_ARRAY_DIM_Y)
 
 /* Dimensions of matrices */
 // A = M x N, B = N x P, C = M x N
@@ -83,31 +86,31 @@
 
 // rows
 #ifndef DIM_M
-#define DIM_M (SYSTOLIC_MATRIX_DIM_Y * UNROLL_Y * 2)
+#define DIM_M (SYSTOLIC_MATRIX_DIM_Y * UNROLL_Y * 4)
 #endif
 // inner dimension
 #ifndef DIM_N
-#define DIM_N (30)
+#define DIM_N (100)
 #endif
 // columns
 #ifndef DIM_P
-#define DIM_P (SYSTOLIC_MATRIX_DIM_X * UNROLL_X * 2)
+#define DIM_P (SYSTOLIC_MATRIX_DIM_X * UNROLL_X * 1)
 #endif
 
 /* Array of queue pointers in row-major order */
-int32_t *queues_horz_0[SYSTOLIC_ARRAY_DIM][SYSTOLIC_ARRAY_DIM];
-int32_t *queues_horz_1[SYSTOLIC_ARRAY_DIM][SYSTOLIC_ARRAY_DIM];
-int32_t *queues_horz_2[SYSTOLIC_ARRAY_DIM][SYSTOLIC_ARRAY_DIM];
-int32_t *queues_horz_3[SYSTOLIC_ARRAY_DIM][SYSTOLIC_ARRAY_DIM];
+int32_t *queues_horz_0[SYSTOLIC_ARRAY_DIM_Y][SYSTOLIC_ARRAY_DIM_X];
+int32_t *queues_horz_1[SYSTOLIC_ARRAY_DIM_Y][SYSTOLIC_ARRAY_DIM_X];
+int32_t *queues_horz_2[SYSTOLIC_ARRAY_DIM_Y][SYSTOLIC_ARRAY_DIM_X];
+int32_t *queues_horz_3[SYSTOLIC_ARRAY_DIM_Y][SYSTOLIC_ARRAY_DIM_X];
 
 
 void systolic_init(uint32_t const *core_map) {
   // Create systolic array via queues
   uint32_t core_id;
   uint32_t offset;
-  for (uint32_t row = 0; row < SYSTOLIC_ARRAY_DIM; row++) {
-    for (uint32_t col = 0; col < SYSTOLIC_ARRAY_DIM; col++) {
-      core_id = core_map[row * SYSTOLIC_ARRAY_DIM + col];
+  for (uint32_t row = 0; row < SYSTOLIC_ARRAY_DIM_Y; row++) {
+    for (uint32_t col = 0; col < SYSTOLIC_ARRAY_DIM_X; col++) {
+      core_id = core_map[row * SYSTOLIC_ARRAY_DIM_X + col];
       // Every core is assigned its own 4 queues (banking factor
       // should be 4), which are local to the core's tile. The
       // queues are then placed in a 2D array in the same scheme
@@ -253,7 +256,7 @@ void systolic_rp_pe(const uint32_t row_idx,
         sub_col_A[1] = A[(shifted_y + 1) * N + 0];
         sub_col_A[2] = A[(shifted_y + 2) * N + 0];
         sub_col_A[3] = A[(shifted_y + 3) * N + 0];
-        for (uint32_t i = 1; i < N; ++i) {
+        for (uint32_t i = 1; i < N; i++) {
           MV_TO_REG(qlr_t0, sub_col_A[0]);
           sub_col_A[0] = A[(shifted_y + 0) * N + i];
           MV_TO_REG(qlr_t1, sub_col_A[1]);
@@ -290,7 +293,7 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
   // Configure QLRs
 
-  // horizontal inputs (from col 1 to SYSTOLIC_ARRAY_DIM-1)
+  // horizontal inputs (from col 1 to SYSTOLIC_ARRAY_DIM_X-1)
   qlr_cfg_t0[QLR_CFG_REQ] = N;
   qlr_cfg_t0[QLR_CFG_RF] = UNROLL_X;
   qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_horz_0[row_idx][col_idx];
@@ -303,8 +306,8 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   qlr_cfg_t3[QLR_CFG_REQ] = N;
   qlr_cfg_t3[QLR_CFG_RF] = UNROLL_X;
   qlr_cfg_t3[QLR_CFG_IADDR] = (uint32_t)queues_horz_3[row_idx][col_idx];
-  // horizontal outputs (from col 1 to SYSTOLIC_ARRAY_DIM-2)
-  if (col_idx != SYSTOLIC_ARRAY_DIM - 1) {
+  // horizontal outputs (from col 1 to SYSTOLIC_ARRAY_DIM_X-2)
+  if (col_idx != SYSTOLIC_ARRAY_DIM_X - 1) {
     qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_horz_0[row_idx][col_idx + 1];
     qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_horz_1[row_idx][col_idx + 1];
     qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[row_idx][col_idx + 1];
@@ -326,7 +329,7 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
         PRINT_CHUNK_XY(shifted_x, shifted_y);
         #endif
         // Start QLRs
-        if ((col_idx == SYSTOLIC_ARRAY_DIM - 1) || (shifted_x == P - UNROLL_X)) {
+        if ((col_idx == SYSTOLIC_ARRAY_DIM_X - 1) || (shifted_x == P - UNROLL_X)) {
           // do not activate output QLRs if we are on:
           // - the last column of the systolic grid (would go out of queues_horz_*)
           // - inside systolic grid but on the last column of the processed matrix
