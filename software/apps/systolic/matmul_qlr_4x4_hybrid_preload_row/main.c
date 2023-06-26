@@ -28,7 +28,7 @@
 #include "synchronization.h"
 
 // Settings
-#define TOPOLOGY       1
+#define TOPOLOGY       2
 #define VERIFY_OUTPUT  1
 #define PRINTF_MATRIX  0
 #define PRINTF_VERBOSE 1
@@ -39,44 +39,50 @@ int32_t *matrix_A;
 int32_t *matrix_B;
 int32_t *matrix_C;
 
-/// Fill @param matrix with a gradient in a parallelized way:
-/// each core fills all the rows of index y = core_id + i*num_cores
-void fill_gradient_matrix(int32_t *matrix, uint32_t num_rows,
-                          uint32_t num_cols, uint32_t core_id,
-                          uint32_t num_cores) {
-  for (uint32_t y = core_id; y < num_rows; y += num_cores) {
-    for (uint32_t x = 0; x < num_cols; x++) {
-      matrix[y * num_cols + x] = (int32_t)(y + x);
+/// Fill @param matrix with a custom gradient, parallelizing row-wise
+void fill_matrix_gradient(int32_t *matrix,
+                        uint32_t num_rows, uint32_t num_cols,
+                        uint32_t core_id, uint32_t num_cores,
+                        int32_t a, int32_t b, int32_t c) {
+  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
+    for (uint32_t j = 0; j < num_cols; ++j) {
+      matrix[i * num_cols + j] = a * (int32_t)i + b * (int32_t)j + c;
     }
   }
 }
 
 void print_matrix(int32_t const *matrix, uint32_t num_rows,
-                  uint32_t num_columns) {
+                  uint32_t num_cols) {
   printf("Matrix at 0x%08X\n", (uint32_t)matrix);
   for (uint32_t i = 0; i < num_rows; i++) {
-    for (uint32_t j = 0; j < num_columns; j++) {
-      printf("%5d ", matrix[i * num_columns + j]);
+    for (uint32_t j = 0; j < num_cols; j++) {
+      printf("%5d ", matrix[i * num_cols + j]);
     }
     printf("\n");
   }
 }
 
 /// Verify @param C matmul output parallelizing row-wise
-int verify_matrix(int32_t const *A, int32_t const *B, int32_t const *C,
-                  uint32_t num_rows, uint32_t inner_dim, uint32_t num_columns,
-                  uint32_t num_cores) {
-  for (uint32_t i = 0; i < num_rows; i += num_cores) {
-    for (uint32_t j = 0; j < num_columns; ++j) {
-      int32_t golden = 0;
-      for (uint32_t n = 0; n < inner_dim; n++) {
-        golden += A[i * inner_dim + n] * B[n * num_columns + j];
-      }
-      if (golden != C[i * num_columns + j]){
+int verify_matrix(int32_t const *C,
+                  uint32_t num_rows, uint32_t inner_dim, uint32_t num_cols,
+                  uint32_t core_id, uint32_t num_cores) {
+  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
+    for (uint32_t j = 0; j < num_cols; ++j) {
+      // Compute C without looping through inner dim
+      int32_t ii = (int32_t)i;
+      int32_t jj = (int32_t)j;
+      int32_t aa = 1, ab = 1, ac = -32;
+      int32_t ba = 2, bb = 1, bc = 16;
+      int32_t n = (int32_t)inner_dim;
+      int32_t golden = (aa * bb * ii * jj + aa * bc * ii + ac * bb * jj + ac * bc) * n +
+              ((aa * ba * ii + ab * bb * jj + ab * bc + ba * ac) * (n * (n - 1))) / 2 +
+              ((ab * ba) * (n * (n - 1) * (2 * n - 1))) / 6;
+      // Check correctness
+      if (golden != C[i * num_cols + j]){
         // #if PRINTF_VERBOSE
-        // printf("ERROR: matrix_C[%d] = %d (instead of %d)\n", i * num_columns + j, C[i * num_columns + j], golden);
+        // printf("ERROR: matrix_C[%d] = %d (instead of %d)\n", i * num_cols + j, C[i * num_cols + j], golden);
         // #endif
-        return i * num_columns + j == 0 ? -1 : (int)(i * num_columns + j);
+        return (i + j) == 0 ? -1 : (int)(i * num_cols + j);
       }
     }
   }
@@ -108,9 +114,10 @@ int main() {
   }
 
   // Systolic cores mapping
-  //NOTE: SYSTOLIC_ARRAY_DIM, NUM_CORES_PER_TILE, and NUM_TILES_PER_GROUP must be perfect squares
 
 #if TOPOLOGY == 0 /* SQUARE */
+  //NOTE: SYSTOLIC_ARRAY_DIM, NUM_CORES_PER_TILE, and NUM_TILES_PER_GROUP must be perfect squares
+
   // Column index (x):
   // get id of tile section based on how many tile sections per row
   uint32_t col_idx = tile_id % (SYSTOLIC_ARRAY_DIM / SQRT_NUM_CORES_PER_TILE);
@@ -127,7 +134,10 @@ int main() {
   row_idx *= SQRT_NUM_CORES_PER_TILE;
   // gets correct 'y' offset based on core id
   row_idx += (core_id % NUM_CORES_PER_TILE) / SQRT_NUM_CORES_PER_TILE;
+
 #elif TOPOLOGY == 1 /* SQUARE SQUARE */
+  //NOTE: SYSTOLIC_ARRAY_DIM, NUM_CORES_PER_TILE, and NUM_TILES_PER_GROUP must be perfect squares
+
   // Column index (x):
   // horizontal position of group section = group id % how many group sections fit in one row
   uint32_t col_idx = group_id % (SYSTOLIC_ARRAY_DIM / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
@@ -147,6 +157,15 @@ int main() {
   row_idx += ((tile_id % NUM_TILES_PER_GROUP) / SQRT_NUM_TILES_PER_GROUP) * SQRT_NUM_CORES_PER_TILE;
   // add core 'y' offset in each tile section
   row_idx += (core_id % NUM_CORES_PER_TILE) / SQRT_NUM_CORES_PER_TILE;
+
+#elif TOPOLOGY == 2 /* ROW-WISE */
+  // Cores of the same tile are on the same systolic grid row
+
+  // Column index (x):
+  uint32_t col_idx = core_id % SYSTOLIC_ARRAY_DIM;
+  // Row index (y):
+  uint32_t row_idx = core_id / SYSTOLIC_ARRAY_DIM;
+
 #else
 #error Unsupported topology.
 #endif
@@ -196,9 +215,10 @@ int main() {
   // Wait for all cores
   mempool_barrier(num_cores);
 
-  // Fill matrices with gradient
-  fill_gradient_matrix(matrix_A, DIM_M, DIM_N, core_id, num_cores);
-  fill_gradient_matrix(matrix_B, DIM_N, DIM_P, core_id, num_cores);
+  // Fill matrix
+  fill_matrix_gradient(matrix_A, DIM_M, DIM_N, core_id, num_cores, 1, 1, -32);
+  fill_matrix_gradient(matrix_B, DIM_N, DIM_P, core_id, num_cores, 2, 1, 16);
+  // use: a=1, b=1, c=0 for normal, unweighted gradient
 
   // Start message
   if (core_id == 0) {
@@ -247,7 +267,7 @@ int main() {
   if (core_id == 0)
     printf("Verifying result...\n");
   #endif
-  int ret = verify_matrix(matrix_A, matrix_B, matrix_C, DIM_M, DIM_N, DIM_P, num_cores);
+  int ret = verify_matrix(matrix_C, DIM_M, DIM_N, DIM_P, core_id, num_cores);
   if(ret)
     return ret;
   #endif

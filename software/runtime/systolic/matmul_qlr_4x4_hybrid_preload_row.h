@@ -174,14 +174,13 @@ void systolic_init(uint32_t const *core_map) {
   } while(0)
 
 // Load 1 matrix element with post-increment addressing
-#define LOAD_POSTINCR(B, PTR, INCR)                       \
-    __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)"     \
-                         : "=r"((B)), [addr] "+&r"((PTR)) \
-                         : [incr] "I"((INCR))             \
-                         : "memory")
+#define LOAD_POSTINCR(DEST, PTR, INCR)                      \
+  __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)"         \
+                        : "=r"((DEST)), [addr] "+&r"((PTR)) \
+                        : [incr] "I"((INCR))                \
+                        : "memory")
 
 // Let the compiler compute matrix A and B increments, for performance
-#define A_ROW_INCR (sizeof(int32_t) * DIM_N)
 #define B_ROW_INCR (sizeof(int32_t) * DIM_P)
 
 // Store the resulting output chunk assigned to the PE
@@ -237,8 +236,6 @@ void systolic_rp_pe(const uint32_t row_idx,
       // Shift base_y (base_x is constant)
       // i.e., move to the correct C matrix output chunk (for parallelization)
       shifted_y = base_y + UNROLL_Y * row_idx;
-      // for post-increment addressing
-      const int32_t *a_ptr = &A[shifted_y * N];
 
       // Check if this PE is currently within the matrix C
       if (shifted_y < M) {
@@ -252,19 +249,19 @@ void systolic_rp_pe(const uint32_t row_idx,
         qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
         // Push A sub-columns through the systolic array
-        LOAD_POSTINCR(sub_col_A[0], a_ptr, A_ROW_INCR);
-        LOAD_POSTINCR(sub_col_A[1], a_ptr, A_ROW_INCR);
-        LOAD_POSTINCR(sub_col_A[2], a_ptr, A_ROW_INCR);
-        LOAD_POSTINCR(sub_col_A[3], a_ptr, sizeof(int32_t) - (UNROLL_Y - 1) * A_ROW_INCR);
+        sub_col_A[0] = A[(shifted_y + 0) * N + 0];
+        sub_col_A[1] = A[(shifted_y + 1) * N + 0];
+        sub_col_A[2] = A[(shifted_y + 2) * N + 0];
+        sub_col_A[3] = A[(shifted_y + 3) * N + 0];
         for (uint32_t i = 1; i < N; ++i) {
           MV_TO_REG(qlr_t0, sub_col_A[0]);
-          LOAD_POSTINCR(sub_col_A[0], a_ptr, A_ROW_INCR);
+          sub_col_A[0] = A[(shifted_y + 0) * N + i];
           MV_TO_REG(qlr_t1, sub_col_A[1]);
-          LOAD_POSTINCR(sub_col_A[1], a_ptr, A_ROW_INCR);
+          sub_col_A[1] = A[(shifted_y + 1) * N + i];
           MV_TO_REG(qlr_t2, sub_col_A[2]);
-          LOAD_POSTINCR(sub_col_A[2], a_ptr, A_ROW_INCR);
+          sub_col_A[2] = A[(shifted_y + 2) * N + i];
           MV_TO_REG(qlr_t3, sub_col_A[3]);
-          LOAD_POSTINCR(sub_col_A[3], a_ptr, sizeof(int32_t) - (UNROLL_Y - 1) * A_ROW_INCR);
+          sub_col_A[3] = A[(shifted_y + 3) * N + i];
         }
         MV_TO_REG(qlr_t0, sub_col_A[0]);
         MV_TO_REG(qlr_t1, sub_col_A[1]);
