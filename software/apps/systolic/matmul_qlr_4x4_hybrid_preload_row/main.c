@@ -22,16 +22,16 @@
 
 #include "alloc.h"
 #include "encoding.h"
-#include "systolic/matmul_qlr_4x4_hybrid_preload.h"
+#include "systolic/matmul_qlr_4x4_hybrid_preload_row.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
 // Settings
 #define TOPOLOGY       1
-#define VERIFY_OUTPUT  0
+#define VERIFY_OUTPUT  1
 #define PRINTF_MATRIX  0
-#define PRINTF_VERBOSE 0
+#define PRINTF_VERBOSE 1
 
 // Global variables
 uint32_t *core_map;
@@ -108,12 +108,12 @@ int main() {
   }
 
   // Systolic cores mapping
-  //NOTE: SYSTOLIC_SIZE, NUM_CORES_PER_TILE, and NUM_TILES_PER_GROUP must be perfect squares
+  //NOTE: SYSTOLIC_ARRAY_DIM, NUM_CORES_PER_TILE, and NUM_TILES_PER_GROUP must be perfect squares
 
 #if TOPOLOGY == 0 /* SQUARE */
   // Column index (x):
   // get id of tile section based on how many tile sections per row
-  uint32_t col_idx = tile_id % (SYSTOLIC_SIZE / SQRT_NUM_CORES_PER_TILE);
+  uint32_t col_idx = tile_id % (SYSTOLIC_ARRAY_DIM / SQRT_NUM_CORES_PER_TILE);
   // jump to the correct 'x' based on the tile section id and width
   col_idx *= SQRT_NUM_CORES_PER_TILE;
   // inside this tile section, jump to the correct 'x' based on the core id
@@ -122,7 +122,7 @@ int main() {
   // Row index (y):
   // tile sections are placed in a row-wise fashion based on tile id, so to
   // get the row tile section id you must divide instead of doing modulo
-  uint32_t row_idx = tile_id / (SYSTOLIC_SIZE / SQRT_NUM_CORES_PER_TILE);
+  uint32_t row_idx = tile_id / (SYSTOLIC_ARRAY_DIM / SQRT_NUM_CORES_PER_TILE);
   // as above, jumps to the correct 'y' based on tile section width
   row_idx *= SQRT_NUM_CORES_PER_TILE;
   // gets correct 'y' offset based on core id
@@ -130,7 +130,7 @@ int main() {
 #elif TOPOLOGY == 1 /* SQUARE SQUARE */
   // Column index (x):
   // horizontal position of group section = group id % how many group sections fit in one row
-  uint32_t col_idx = group_id % (SYSTOLIC_SIZE / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
+  uint32_t col_idx = group_id % (SYSTOLIC_ARRAY_DIM / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
   // group section base 'x' = horizontal position * width of a group section (= tiles per group * width tile section)
   col_idx *= SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE;
   // add tile 'x' offset in the group section based on group section and tile section widths
@@ -140,7 +140,7 @@ int main() {
 
   // Row index (y):
   // vertical position of group section = group id / how many group sections fit in one row
-  uint32_t row_idx = group_id / (SYSTOLIC_SIZE / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
+  uint32_t row_idx = group_id / (SYSTOLIC_ARRAY_DIM / (SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE));
   // group section base 'y' = vertical position * width of a group section (= tiles per group * width tile section)
   row_idx *= SQRT_NUM_TILES_PER_GROUP * SQRT_NUM_CORES_PER_TILE;
   // add tile 'y' offset in the group section based on group section and tile section widths
@@ -155,7 +155,7 @@ int main() {
   mempool_barrier(num_cores);
 
   // Set tile and core mapping
-  core_map[row_idx * SYSTOLIC_SIZE + col_idx] = core_id;
+  core_map[row_idx * SYSTOLIC_ARRAY_DIM + col_idx] = core_id;
 
   // Wait for all cores
   mempool_barrier(num_cores);
@@ -168,7 +168,7 @@ int main() {
 
     #if PRINTF_MATRIX
     // Print out core mapping
-    print_matrix((int32_t *)core_map, SYSTOLIC_SIZE, SYSTOLIC_SIZE);
+    print_matrix((int32_t *)core_map, SYSTOLIC_ARRAY_DIM, SYSTOLIC_ARRAY_DIM);
     #endif
 
     // Initialize systolic array

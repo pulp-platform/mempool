@@ -22,7 +22,18 @@
  * C = AB
  *
  * Each PE processes C in 4x4 submatrices.
- * We use all four QLRs for A's rows; B is loaded from memory by each individual PE.
+ * Row-wise mapping is employed for the systolic core-PE mapping,
+ * which increases locality of queue operations as there are no
+ * vertical queues. An elongated systolic network is also employed
+ * to reduce the number of loader PEs.
+ * We use all four QLRs to push A's rows through the systolic array.
+ * B's columns are loaded directly from memory by each individual PE.
+ * Boundary PEs (column 0 of the systolic grid) only act as loaders of
+ * matrix A: they do not compute MACs. Computation is left to the
+ * remaining PEs.
+ * Post-increment addressing is (manually) employed to reduce register
+ * occupation and prevent stack spills. Loads are also scheduled one
+ * iteration before the related MACs to decrease stalls.
  *
  *             B3 B2 B1 B0 < loaded from L1
  *
@@ -38,58 +49,65 @@
 #include "synchronization.h"
 #include "qlr.h"
 
-// Settings
+/* Settings */
 #define UNROLL_X 4 // hardcoded, do not change
 #define UNROLL_Y 4 // hardcoded, do not change
 #define PRINTF_OUT_CHUNK 0
 
-// Systolic grid
+/* Systolic array grid for core-PE mapping */
+// hardcoded, do not change
 #if NUM_CORES == 16
 // 16 cores -> 4x4 systolic array
-#define SYSTOLIC_SIZE 4
+#define SYSTOLIC_ARRAY_DIM 4
 #elif NUM_CORES == 256
 // 256 cores -> 16x16 systolic array
-#define SYSTOLIC_SIZE 16
+#define SYSTOLIC_ARRAY_DIM 16
 #else
 // unsupported number of cores
 #error Unsupported NUM_CORES
 #endif
 
-// Dimensions of matrices
+/* Dimension of matrix chunks processed by the systolic array */
+// '-1' to columns number because first column is only loader PEs
+// hardcoded, do not change
+#define SYSTOLIC_MATRIX_DIM_X (SYSTOLIC_ARRAY_DIM - 1)
+#define SYSTOLIC_MATRIX_DIM_Y (SYSTOLIC_ARRAY_DIM)
+
+/* Dimensions of matrices */
 // A = M x N, B = N x P, C = M x N
 
-// M and P must be multiples of 'degree of unrolling'
-// e.g., degree of unrolling = 3 if every PE computes a 3x3 output chunk
-// For better performance, multiple of 'systolic size' * 'degree of unrolling'
-// N can be any value; N >> M, N >> P is recommended for compute-boundness
+// M and P must be multiples of 'degree of unrolling'. For better performance,
+// use multiples of 'systolic array dim' * 'degree of unrolling', which fills
+// the whole systolic grid.
+// N can be any value; N >> M, N >> P is recommended for compute-boundness.
 
-// Note that 'systolic size' and 'degree of unrolling' might be different
-// based on the considered dimension (row, column)
-
+// rows
 #ifndef DIM_M
-#define DIM_M (16 * 4 * 2)
+#define DIM_M (SYSTOLIC_MATRIX_DIM_Y * UNROLL_Y * 2)
 #endif
-#ifndef DIM_N
 // inner dimension
+#ifndef DIM_N
 #define DIM_N (30)
 #endif
+// columns
 #ifndef DIM_P
-#define DIM_P (16 * 4 * 2)
+#define DIM_P (SYSTOLIC_MATRIX_DIM_X * UNROLL_X * 2)
 #endif
 
-// Array of queue pointers in row-major order
-int32_t *queues_horz_0[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
-int32_t *queues_horz_1[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
-int32_t *queues_horz_2[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
-int32_t *queues_horz_3[SYSTOLIC_SIZE][SYSTOLIC_SIZE];
+/* Array of queue pointers in row-major order */
+int32_t *queues_horz_0[SYSTOLIC_ARRAY_DIM][SYSTOLIC_ARRAY_DIM];
+int32_t *queues_horz_1[SYSTOLIC_ARRAY_DIM][SYSTOLIC_ARRAY_DIM];
+int32_t *queues_horz_2[SYSTOLIC_ARRAY_DIM][SYSTOLIC_ARRAY_DIM];
+int32_t *queues_horz_3[SYSTOLIC_ARRAY_DIM][SYSTOLIC_ARRAY_DIM];
+
 
 void systolic_init(uint32_t const *core_map) {
   // Create systolic array via queues
   uint32_t core_id;
   uint32_t offset;
-  for (uint32_t row = 0; row < SYSTOLIC_SIZE; row++) {
-    for (uint32_t col = 0; col < SYSTOLIC_SIZE; col++) {
-      core_id = core_map[row * SYSTOLIC_SIZE + col];
+  for (uint32_t row = 0; row < SYSTOLIC_ARRAY_DIM; row++) {
+    for (uint32_t col = 0; col < SYSTOLIC_ARRAY_DIM; col++) {
+      core_id = core_map[row * SYSTOLIC_ARRAY_DIM + col];
       // Every core is assigned its own 4 queues (banking factor
       // should be 4), which are local to the core's tile. The
       // queues are then placed in a 2D array in the same scheme
@@ -104,19 +122,22 @@ void systolic_init(uint32_t const *core_map) {
   }
 }
 
-// print starting point of parallelized 3x3 output chunk
+
+// Print base x,y of matrix chunk assigned to PE
 #define PRINT_CHUNK_XY(X, Y) \
   do {                       \
     write_csr(0, (X));       \
     write_csr(1, (Y));       \
   } while(0)
 
+// QLR CSR addresses
 #define DEFINE_QLR_CONFIG                                 \
   volatile uint32_t *qlr_cfg_t0 = (uint32_t *)QLR_CFG_T0; \
   volatile uint32_t *qlr_cfg_t1 = (uint32_t *)QLR_CFG_T1; \
   volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
   volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
+// Reset output chunk assigned to this PE
 #define RESET_SUB_C \
   do {              \
     sub_C[0]  = 0;  \
@@ -137,6 +158,13 @@ void systolic_init(uint32_t const *core_map) {
     sub_C[15] = 0;  \
   } while(0)
 
+// Move to register (to generate QLR push)
+#define MV_TO_REG(REG, SRC)          \
+  __asm__ __volatile__("mv %0, %1"   \
+                       : "=r"((REG)) \
+                       : "r"((SRC)))
+
+// Compute the partial sums of 1 col of the output chunk
 #define MAC_SUBCOL_4X1(C_0, C_1, C_2, C_3, B)                                       \
   do {                                                                              \
     __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_0)) : "r"(qlr_t0), "r"((B))); \
@@ -145,14 +173,18 @@ void systolic_init(uint32_t const *core_map) {
     __asm__ __volatile__("p.mac %0, %1, %2" : "+r"((C_3)) : "r"(qlr_t3), "r"((B))); \
   } while(0)
 
-#define LOAD_SUBROW_POSTINCR(B, PTR, INCR)                \
-  do {                                                    \
+// Load 1 matrix element with post-increment addressing
+#define LOAD_POSTINCR(B, PTR, INCR)                       \
     __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)"     \
                          : "=r"((B)), [addr] "+&r"((PTR)) \
                          : [incr] "I"((INCR))             \
-                         : "memory");                     \
-  } while(0)
+                         : "memory")
 
+// Let the compiler compute matrix A and B increments, for performance
+#define A_ROW_INCR (sizeof(int32_t) * DIM_N)
+#define B_ROW_INCR (sizeof(int32_t) * DIM_P)
+
+// Store the resulting output chunk assigned to the PE
 #define STORE_SUB_C(BASE_Y, BASE_X)                     \
   do {                                                  \
     C[((BASE_Y) + 0) * P + ((BASE_X) + 0)] = sub_C[0];  \
@@ -173,12 +205,8 @@ void systolic_init(uint32_t const *core_map) {
     C[((BASE_Y) + 3) * P + ((BASE_X) + 3)] = sub_C[15]; \
   } while(0)
 
-// for faster post-addressing instructions
-#define A_ROW_INCR (sizeof(int32_t) * DIM_N)
-#define B_ROW_INCR (sizeof(int32_t) * DIM_P)
 
-
-// row producing processing element
+/* Row-producing processing element */
 void systolic_rp_pe(const uint32_t row_idx,
                     const uint32_t M, const uint32_t N, const uint32_t P,
                     int32_t const *__restrict__ A) {
@@ -204,12 +232,13 @@ void systolic_rp_pe(const uint32_t row_idx,
   qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_horz_3[row_idx][1];
 
   // Go step-wise through the input matrix A
-  for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
-    // SYSTOLIC_SIZE - 1 because 1st col does not process C
-    for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * (SYSTOLIC_SIZE - 1)) {
+  for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_MATRIX_DIM_Y) {
+    for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * SYSTOLIC_MATRIX_DIM_X) {
       // Shift base_y (base_x is constant)
       // i.e., move to the correct C matrix output chunk (for parallelization)
       shifted_y = base_y + UNROLL_Y * row_idx;
+      // for post-increment addressing
+      const int32_t *a_ptr = &A[shifted_y * N];
 
       // Check if this PE is currently within the matrix C
       if (shifted_y < M) {
@@ -223,43 +252,31 @@ void systolic_rp_pe(const uint32_t row_idx,
         qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
         // Push A sub-columns through the systolic array
-        sub_col_A[0] = A[(shifted_y + 0) * N + 0];
-        sub_col_A[1] = A[(shifted_y + 1) * N + 0];
-        sub_col_A[2] = A[(shifted_y + 2) * N + 0];
-        sub_col_A[3] = A[(shifted_y + 3) * N + 0];
+        LOAD_POSTINCR(sub_col_A[0], a_ptr, A_ROW_INCR);
+        LOAD_POSTINCR(sub_col_A[1], a_ptr, A_ROW_INCR);
+        LOAD_POSTINCR(sub_col_A[2], a_ptr, A_ROW_INCR);
+        LOAD_POSTINCR(sub_col_A[3], a_ptr, sizeof(int32_t) - (UNROLL_Y - 1) * A_ROW_INCR);
         for (uint32_t i = 1; i < N; ++i) {
-          __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t0) : "r"(sub_col_A[0]));
-          sub_col_A[0] = A[(shifted_y + 0) * N + i];
-          __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t1) : "r"(sub_col_A[1]));
-          sub_col_A[1] = A[(shifted_y + 1) * N + i];
-          __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t2) : "r"(sub_col_A[2]));
-          sub_col_A[2] = A[(shifted_y + 2) * N + i];
-          __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t3) : "r"(sub_col_A[3]));
-          sub_col_A[3] = A[(shifted_y + 3) * N + i];
+          MV_TO_REG(qlr_t0, sub_col_A[0]);
+          LOAD_POSTINCR(sub_col_A[0], a_ptr, A_ROW_INCR);
+          MV_TO_REG(qlr_t1, sub_col_A[1]);
+          LOAD_POSTINCR(sub_col_A[1], a_ptr, A_ROW_INCR);
+          MV_TO_REG(qlr_t2, sub_col_A[2]);
+          LOAD_POSTINCR(sub_col_A[2], a_ptr, A_ROW_INCR);
+          MV_TO_REG(qlr_t3, sub_col_A[3]);
+          LOAD_POSTINCR(sub_col_A[3], a_ptr, sizeof(int32_t) - (UNROLL_Y - 1) * A_ROW_INCR);
         }
-        __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t0) : "r"(sub_col_A[0]));
-        __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t1) : "r"(sub_col_A[1]));
-        __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t2) : "r"(sub_col_A[2]));
-        __asm__ __volatile__("mv %0, %1" : "=r"(qlr_t3) : "r"(sub_col_A[3]));
+        MV_TO_REG(qlr_t0, sub_col_A[0]);
+        MV_TO_REG(qlr_t1, sub_col_A[1]);
+        MV_TO_REG(qlr_t2, sub_col_A[2]);
+        MV_TO_REG(qlr_t3, sub_col_A[3]);
       }
     }
   }
 }
 
 
-#define COMPUTATION_NP_PE                                                                     \
-  do {                                                                                        \
-    MAC_SUBCOL_4X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);                     \
-    LOAD_SUBROW_POSTINCR(sub_row_B[0], b_ptr, sizeof(int32_t));                               \
-    MAC_SUBCOL_4X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);                     \
-    LOAD_SUBROW_POSTINCR(sub_row_B[1], b_ptr, sizeof(int32_t));                               \
-    MAC_SUBCOL_4X1(sub_C[8], sub_C[9], sub_C[10], sub_C[11], sub_row_B[2]);                   \
-    LOAD_SUBROW_POSTINCR(sub_row_B[2], b_ptr, sizeof(int32_t));                               \
-    MAC_SUBCOL_4X1(sub_C[12], sub_C[13], sub_C[14], sub_C[15], sub_row_B[3]);                 \
-    LOAD_SUBROW_POSTINCR(sub_row_B[3], b_ptr, B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t)); \
-  } while (0)
-
-// non-producing processing element
+/* Non-producing processing element */
 void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
                     const uint32_t M, const uint32_t N, const uint32_t P,
                     int32_t const *__restrict__ B, int32_t *__restrict__ C) {
@@ -276,7 +293,7 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
 
   // Configure QLRs
 
-  // horizontal inputs (from col 1 to SYSTOLIC_SIZE-1)
+  // horizontal inputs (from col 1 to SYSTOLIC_ARRAY_DIM-1)
   qlr_cfg_t0[QLR_CFG_REQ] = N;
   qlr_cfg_t0[QLR_CFG_RF] = UNROLL_X;
   qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_horz_0[row_idx][col_idx];
@@ -289,111 +306,73 @@ void systolic_np_pe(const uint32_t row_idx, const uint32_t col_idx,
   qlr_cfg_t3[QLR_CFG_REQ] = N;
   qlr_cfg_t3[QLR_CFG_RF] = UNROLL_X;
   qlr_cfg_t3[QLR_CFG_IADDR] = (uint32_t)queues_horz_3[row_idx][col_idx];
-  // horizontal outputs (from col 1 to SYSTOLIC_SIZE-2)
-  if (col_idx != SYSTOLIC_SIZE - 1) {
+  // horizontal outputs (from col 1 to SYSTOLIC_ARRAY_DIM-2)
+  if (col_idx != SYSTOLIC_ARRAY_DIM - 1) {
     qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_horz_0[row_idx][col_idx + 1];
     qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_horz_1[row_idx][col_idx + 1];
     qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_horz_2[row_idx][col_idx + 1];
     qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_horz_3[row_idx][col_idx + 1];
   }
 
-  if (col_idx != SYSTOLIC_SIZE - 1) {
-    // Execute step-wise matrix multiplication
-    for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
-    // SYSTOLIC_SIZE - 1 because 1st col does not process C
-      for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * (SYSTOLIC_SIZE - 1)) {
-        // Shift base_x and base_y
-        shifted_x = base_x + UNROLL_X * (col_idx - 1); // -1 because 1st col does not process C
-        shifted_y = base_y + UNROLL_Y * row_idx;
-        // for post-increment addressing
-        const int32_t *b_ptr = &B[shifted_x];
+  // Execute step-wise matrix multiplication
+  for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_MATRIX_DIM_Y) {
+    for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * SYSTOLIC_MATRIX_DIM_X) {
+      // Shift base_x and base_y
+      shifted_x = base_x + UNROLL_X * (col_idx - 1); // -1 because 1st col does not process C
+      shifted_y = base_y + UNROLL_Y * row_idx;
+      // for post-increment addressing
+      const int32_t *b_ptr = &B[shifted_x];
 
-        // Check if this PE is currently within the matrix C
-        if (shifted_x < P && shifted_y < M) {
-          #if PRINTF_OUT_CHUNK
-          PRINT_CHUNK_XY(shifted_x, shifted_y);
-          #endif
-          // Start QLRs
-          if (shifted_x == P - UNROLL_X) {
-            qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-            qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-            qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-            qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-          } else {
-            // only activate output QLRs if we are not in the last matrix column
-            qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-            qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-            qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-            qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
-          }
-
-          // Reset submatrix accumulator
-          RESET_SUB_C;
-
-          // unroll first iteration of the loop to schedule the load from iteration N in iteration N-1
-          LOAD_SUBROW_POSTINCR(sub_row_B[0], b_ptr, sizeof(int32_t));
-          LOAD_SUBROW_POSTINCR(sub_row_B[1], b_ptr, sizeof(int32_t));
-          LOAD_SUBROW_POSTINCR(sub_row_B[2], b_ptr, sizeof(int32_t));
-          LOAD_SUBROW_POSTINCR(sub_row_B[3], b_ptr, B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t));
-          // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N - 1; i++) {
-            COMPUTATION_NP_PE;
-          }
-          // unroll last computation iteration
-          MAC_SUBCOL_4X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);
-          MAC_SUBCOL_4X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);
-          MAC_SUBCOL_4X1(sub_C[8], sub_C[9], sub_C[10], sub_C[11], sub_row_B[2]);
-          MAC_SUBCOL_4X1(sub_C[12], sub_C[13], sub_C[14], sub_C[15], sub_row_B[3]);
-
-          // Store values
-          STORE_SUB_C(shifted_y, shifted_x);
-        }
-      }
-    }
-  } else {
-    // Execute step-wise matrix multiplication
-    for (uint32_t base_y = 0; base_y < M; base_y += UNROLL_Y * SYSTOLIC_SIZE) {
-    // SYSTOLIC_SIZE - 1 because 1st col does not process C
-      for (uint32_t base_x = 0; base_x < P; base_x += UNROLL_X * (SYSTOLIC_SIZE - 1)) {
-        // Shift base_x and base_y
-        shifted_x = base_x + UNROLL_X * (col_idx - 1); // -1 because 1st col does not process C
-        shifted_y = base_y + UNROLL_Y * row_idx;
-        // for post-increment addressing
-        const int32_t *b_ptr = &B[shifted_x];
-
-        // Check if this PE is currently within the matrix C
-        if (shifted_x < P && shifted_y < M) {
-          #if PRINTF_OUT_CHUNK
-          PRINT_CHUNK_XY(shifted_x, shifted_y);
-          #endif
-          // Start QLRs
-          // we are in the last PE column, no output QLRs
+      // Check if this PE is currently within the matrix C
+      if (shifted_x < P && shifted_y < M) {
+        #if PRINTF_OUT_CHUNK
+        PRINT_CHUNK_XY(shifted_x, shifted_y);
+        #endif
+        // Start QLRs
+        if ((col_idx == SYSTOLIC_ARRAY_DIM - 1) || (shifted_x == P - UNROLL_X)) {
+          // do not activate output QLRs if we are on:
+          // - the last column of the systolic grid (would go out of queues_horz_*)
+          // - inside systolic grid but on the last column of the processed matrix
+          //   (happens when DIM_P is multiple of UNROLL_X and not of
+          //   UNROLL_X * UNROLL_X * SYSTOLIC_MATRIX_DIM_X)
           qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
           qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
           qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
           qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
-
-          // Reset submatrix accumulator
-          RESET_SUB_C;
-
-          // unroll first iteration of the loop to schedule the load from iteration N in iteration N-1
-          LOAD_SUBROW_POSTINCR(sub_row_B[0], b_ptr, sizeof(int32_t));
-          LOAD_SUBROW_POSTINCR(sub_row_B[1], b_ptr, sizeof(int32_t));
-          LOAD_SUBROW_POSTINCR(sub_row_B[2], b_ptr, sizeof(int32_t));
-          LOAD_SUBROW_POSTINCR(sub_row_B[3], b_ptr, B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t));
-          // Systolic matrix multiplication through MACs
-          for (uint32_t i = 0; i < N - 1; i++) {
-            COMPUTATION_NP_PE;
-          }
-          // unroll last computation iteration
-          MAC_SUBCOL_4X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);
-          MAC_SUBCOL_4X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);
-          MAC_SUBCOL_4X1(sub_C[8], sub_C[9], sub_C[10], sub_C[11], sub_row_B[2]);
-          MAC_SUBCOL_4X1(sub_C[12], sub_C[13], sub_C[14], sub_C[15], sub_row_B[3]);
-
-          // Store values
-          STORE_SUB_C(shifted_y, shifted_x);
+        } else {
+          qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
+          qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
+          qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
+          qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IOQLR;
         }
+
+        // Reset submatrix accumulator
+        RESET_SUB_C;
+
+        // unroll first iteration of the loop to schedule the load from iteration N in iteration N-1
+        LOAD_POSTINCR(sub_row_B[0], b_ptr, sizeof(int32_t));
+        LOAD_POSTINCR(sub_row_B[1], b_ptr, sizeof(int32_t));
+        LOAD_POSTINCR(sub_row_B[2], b_ptr, sizeof(int32_t));
+        LOAD_POSTINCR(sub_row_B[3], b_ptr, B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t));
+        // Systolic matrix multiplication through MACs
+        for (uint32_t i = 0; i < N - 1; i++) {
+          MAC_SUBCOL_4X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);
+          LOAD_POSTINCR(sub_row_B[0], b_ptr, sizeof(int32_t));
+          MAC_SUBCOL_4X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);
+          LOAD_POSTINCR(sub_row_B[1], b_ptr, sizeof(int32_t));
+          MAC_SUBCOL_4X1(sub_C[8], sub_C[9], sub_C[10], sub_C[11], sub_row_B[2]);
+          LOAD_POSTINCR(sub_row_B[2], b_ptr, sizeof(int32_t));
+          MAC_SUBCOL_4X1(sub_C[12], sub_C[13], sub_C[14], sub_C[15], sub_row_B[3]);
+          LOAD_POSTINCR(sub_row_B[3], b_ptr, B_ROW_INCR - (UNROLL_Y - 1) * sizeof(int32_t));
+        }
+        // unroll last computation iteration
+        MAC_SUBCOL_4X1(sub_C[0], sub_C[1], sub_C[2], sub_C[3], sub_row_B[0]);
+        MAC_SUBCOL_4X1(sub_C[4], sub_C[5], sub_C[6], sub_C[7], sub_row_B[1]);
+        MAC_SUBCOL_4X1(sub_C[8], sub_C[9], sub_C[10], sub_C[11], sub_row_B[2]);
+        MAC_SUBCOL_4X1(sub_C[12], sub_C[13], sub_C[14], sub_C[15], sub_row_B[3]);
+
+        // Store values
+        STORE_SUB_C(shifted_y, shifted_x);
       }
     }
   }
