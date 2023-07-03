@@ -11,436 +11,6 @@
 
 // `SNITCH_ENABLE_PERF Enables mcycle, minstret performance counters (read only)
 
-
-module snitch_sb #(
-  parameter int         RegWidth = 5,
-  parameter logic [3:0] Reg = 0,
-  parameter logic [3:0] RegRs2 = 0,
-  parameter logic [3:0] RegRd = 0,
-  parameter logic [3:0] SImmediate = 0,
-  parameter type        op_sel_t = logic
-) (
-  output logic                   operands_ready,
-  output logic                   dst_ready,
-  output logic                   stall,
-  output logic                   valid_instr,
-  output logic                   acc_stall,
-  output logic                   lsu_stall,
-  output logic [2**RegWidth-1:0] sb_d,
-  input  logic [2**RegWidth-1:0] sb_q,
-  input  op_sel_t                opa_select,
-  input  op_sel_t                opb_select,
-  input  op_sel_t                opc_select,
-  input  logic                   retire_load,
-  input  logic [RegWidth-1:0]    lsu_rd,
-  input  logic                   is_load,
-  input  logic                   acc_register_rd,
-  input  logic                   exception,
-  input  logic [RegWidth-1:0]    rd,
-  input  logic [RegWidth-1:0]    rs1,
-  input  logic [RegWidth-1:0]    rs2,
-  input  logic                   retire_acc,
-  input  logic [4:0]             acc_pid_i,
-  input  logic                   uses_rd,
-  input  logic                   uses_rs1,
-  input  logic                   inst_ready_i,
-  input  logic                   inst_valid_o,
-  input  logic                   acc_qvalid_o,
-  input  logic                   acc_qready_i,
-  input  logic                   lsu_qvalid,
-  input  logic                   lsu_qready
-);
-
-  // Scoreboard: Keep track of rd dependencies (only loads at the moment)
-  always_comb begin
-    sb_d = sb_q;
-    if (retire_load) sb_d[lsu_rd] = 1'b0;
-    // only place the reservation if we actually executed the load or offload instruction
-    if ((is_load | acc_register_rd) && !stall && !exception) sb_d[rd] = 1'b1;
-    if (retire_acc) sb_d[acc_pid_i[RegWidth-1:0]] = 1'b0;
-    sb_d[0] = 1'b0;
-  end
-  // TODO(zarubaf): This can probably be described a bit more efficient
-  assign opa_ready = (opa_select != Reg) | ~sb_q[rs1];
-  assign opb_ready = ((opb_select != Reg & opb_select != SImmediate) | ~sb_q[rs2]) & ((opb_select != RegRd) | ~sb_q[rd]);
-  assign opc_ready = ((opc_select != Reg) | ~sb_q[rd]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
-  assign operands_ready = opa_ready & opb_ready & opc_ready;
-  // either we are not using the destination register or we need to make
-  // sure that its destination operand is not marked busy in the scoreboard.
-  assign dstrd_ready = ~uses_rd | (uses_rd & ~sb_q[rd]);
-  assign dstrs1_ready = ~uses_rs1 | (uses_rs1 & ~sb_q[rs1]);
-  assign dst_ready = dstrd_ready & dstrs1_ready;
-
-  assign valid_instr = (inst_ready_i & inst_valid_o) & operands_ready & dst_ready;
-  // the accelerator interface stalled us
-  assign acc_stall = (acc_qvalid_o & ~acc_qready_i);
-  // the LSU Interface didn't accept our request yet
-  assign lsu_stall = (lsu_qvalid & ~lsu_qready);
-  // Stall the stage if we either didn't get a valid instruction or the LSU/Accelerator is not ready
-  assign stall = ~valid_instr | lsu_stall | acc_stall;
-endmodule
-
-module snitch_alu #(
-  parameter type        alu_op_t = logic,
-  parameter logic [3:0] Add = 0,
-  parameter logic [3:0] Sub = 0,
-  parameter logic [3:0] Sll = 0,
-  parameter logic [3:0] Srl = 0,
-  parameter logic [3:0] Sra = 0,
-  parameter logic [3:0] LXor = 0,
-  parameter logic [3:0] LOr = 0,
-  parameter logic [3:0] LAnd = 0,
-  parameter logic [3:0] LNAnd = 0,
-  parameter logic [3:0] Eq = 0,
-  parameter logic [3:0] Neq = 0,
-  parameter logic [3:0] Ge = 0,
-  parameter logic [3:0] Geu = 0,
-  parameter logic [3:0] Slt = 0,
-  parameter logic [3:0] Sltu = 0,
-  parameter logic [3:0] BypassA = 0
-) (
-  input  logic [31:0] opa,
-  input  logic [31:0] opb,
-  input  alu_op_t     alu_op,
-  output logic [31:0] alu_result
-);
-// Main Shifter
-  logic [31:0] shift_opa, shift_opa_reversed;
-  logic [31:0] shift_right_result, shift_left_result;
-  logic [32:0] shift_opa_ext, shift_right_result_ext;
-  logic shift_left, shift_arithmetic; // shift control
-  for (genvar i = 0; i < 32; i++) begin : gen_reverse_opa
-    assign shift_opa_reversed[i] = opa[31-i];
-    assign shift_left_result[i] = shift_right_result[31-i];
-  end
-  assign shift_opa = shift_left ? shift_opa_reversed : opa;
-  assign shift_opa_ext = {shift_opa[31] & shift_arithmetic, shift_opa};
-  assign shift_right_result_ext = $unsigned($signed(shift_opa_ext) >>> opb[4:0]);
-  assign shift_right_result = shift_right_result_ext[31:0];
-
-  // Main Adder
-  logic [32:0] alu_opa, alu_opb;
-  logic [32:0] adder_result;
-  assign adder_result = alu_opa + alu_opb;
-
-  // ALU
-  /* verilator lint_off WIDTH */
-  always_comb begin
-    alu_opa = $signed(opa);
-    alu_opb = $signed(opb);
-
-    alu_result = adder_result[31:0];
-    shift_left = 1'b0;
-    shift_arithmetic = 1'b0;
-
-    unique case (alu_op)
-      // Arithmetical operations
-      Sub: alu_opb = -$signed(opb);
-      // Comparisons
-      Slt: begin
-        alu_opb = -$signed(opb);
-        alu_result = {30'b0, adder_result[32]};
-      end
-      Ge: begin
-        alu_opb = -$signed(opb);
-        alu_result = {30'b0, ~adder_result[32]};
-      end
-      Sltu: begin
-        alu_opa = $unsigned(opa);
-        alu_opb = -$unsigned(opb);
-        alu_result = {30'b0, adder_result[32]};
-      end
-      Geu: begin
-        alu_opa = $unsigned(opa);
-        alu_opb = -$unsigned(opb);
-        alu_result = {30'b0, ~adder_result[32]};
-      end
-      // Shifts
-      Sll: begin
-        shift_left = 1'b1;
-        alu_result = shift_left_result;
-      end
-      Srl: alu_result = shift_right_result;
-      Sra: begin
-        shift_arithmetic = 1'b1;
-        alu_result = shift_right_result;
-      end
-      // Logical operations
-      LXor: alu_result = opa ^ opb;
-      LAnd: alu_result = opa & opb;
-      LNAnd: alu_result = (~opa) & opb;
-      LOr: alu_result = opa | opb;
-      // Equal, not equal
-      Eq: begin
-        alu_opb = -$signed(opb);
-        alu_result = ~|adder_result;
-      end
-      Neq: begin
-        alu_opb = -$signed(opb);
-        alu_result = |adder_result;
-      end
-      // Miscellaneous
-      BypassA: begin
-        alu_result = opa;
-      end
-      default: alu_result = adder_result[31:0];
-    endcase
-  end
-  /* verilator lint_on WIDTH */
-endmodule
-
-module snitch_pc #(
-  parameter type         next_pc_t = logic,
-  parameter logic [1:0]  Consec = 0,
-  parameter logic [1:0]  Alu = 0,
-  parameter logic [1:0]  Exception = 0,
-  parameter logic [31:0] MTVEC = 0
-) (
-  input  logic [31:0] pc_q,
-  input  logic        is_branch,
-  input  logic [31:0] bimm,
-  input  logic [31:0] alu_result,
-  input  logic        stall,
-  input  logic        wfi_q,
-  input  logic        zero_lsb,
-  input  next_pc_t    next_pc,
-  output logic [31:0] pc_d,
-  output logic [31:0] consec_pc
-);
-  assign consec_pc = pc_q + ((is_branch & alu_result[0]) ? bimm : 'd4);
-
-  always_comb begin
-    pc_d = pc_q;
-    // if we got a valid instruction word increment the PC unless we are waiting for an event
-    if (!stall && !wfi_q) begin
-      casez (next_pc)
-        Consec: pc_d = consec_pc;
-        Alu: pc_d = alu_result & {{31{1'b1}}, ~zero_lsb};
-        Exception: pc_d = MTVEC;
-      endcase
-    end
-  end
-endmodule
-
-module snitch_perfcnt #(
-  // to avoid collision between gate-level and RTL modules in post-synthesis sim
-  parameter int dummy_param = 0
-) (
-  input  logic        clk_i,
-  input  logic        rst_i,
-  input  logic        stall,
-  input  logic        inst_ready_i,
-  input  logic        inst_valid_o,
-  input  logic        operands_ready,
-  input  logic        dst_ready,
-  input  logic        lsu_stall,
-  output logic [63:0] cycle_q,
-  output logic [63:0] instret_q,
-  output logic [31:0] stall_ins_q,
-  output logic [31:0] stall_raw_q,
-  output logic [31:0] stall_lsu_q
-);
-  `FFAR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
-  `FFLAR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
-  `FFLAR(stall_ins_q, stall_ins_q + 1, stall && (!inst_ready_i) && inst_valid_o, '0, clk_i, rst_i)
-  `FFLAR(stall_raw_q, stall_raw_q + 1, (!operands_ready) || (!dst_ready), '0, clk_i, rst_i)
-  `FFLAR(stall_lsu_q, stall_lsu_q + 1, lsu_stall, '0, clk_i, rst_i)
-endmodule
-
-module snitch_opsel #(
-  parameter int         RegWidth = 0,
-  parameter int         RegNrReadPorts = 0,
-  parameter type        op_sel_t = logic,
-  parameter logic [3:0] None = 0,
-  parameter logic [3:0] Reg = 0,
-  parameter logic [3:0] UImmediate = 0,
-  parameter logic [3:0] JImmediate = 0,
-  parameter logic [3:0] CSRImmediate = 0,
-  parameter logic [3:0] IImmediate = 0,
-  parameter logic [3:0] SFImmediate = 0,
-  parameter logic [3:0] SImmediate = 0,
-  parameter logic [3:0] PC = 0,
-  parameter logic [3:0] CSR = 0,
-  parameter logic [3:0] PBImmediate = 0,
-  parameter logic [3:0] RegRd = 0
-) (
-  input  op_sel_t                                 opa_select,
-  input  op_sel_t                                 opb_select,
-  input  logic [RegNrReadPorts-1:0][31:0]         gpr_rdata,
-  input  logic [31:0]                             uimm,
-  input  logic [31:0]                             jimm,
-  input  logic [31:0]                             iimm,
-  input  logic [31:0]                             simm,
-  input  logic [31:0]                             pbimm,
-  input  logic [RegWidth-1:0]                     rs1,
-  input  logic [RegWidth-1:0]                     rs2,
-  input  logic [RegWidth-1:0]                     rd,
-  input  logic [31:0]                             pc_q,
-  input  logic [31:0]                             csr_rvalue,
-  output logic [31:0]                             opa,
-  output logic [31:0]                             opb,
-  output logic [RegNrReadPorts-1:0][RegWidth-1:0] gpr_raddr
-);
-
-  always_comb begin
-    unique case (opa_select)
-      None: opa = '0;
-      Reg: opa = gpr_rdata[0];
-      UImmediate: opa = uimm;
-      JImmediate: opa = jimm;
-      CSRImmediate: opa = {{{32-RegWidth}{1'b0}}, rs1};
-      default: opa = '0;
-    endcase
-  end
-
-  always_comb begin
-    unique case (opb_select)
-      None: opb = '0;
-      Reg: opb = gpr_rdata[1];
-      IImmediate: opb = iimm;
-      SFImmediate, SImmediate: opb = simm;
-      PC: opb = pc_q;
-      CSR: opb = csr_rvalue;
-      PBImmediate: opb = pbimm;
-      RegRd: opb = gpr_rdata[2];
-      default: opb = '0;
-    endcase
-  end
-
-  assign gpr_raddr[0] = rs1;
-  assign gpr_raddr[1] = rs2;
-  // connect third read port only if present
-  if (RegNrReadPorts >= 3) begin : gpr_raddr_2
-    assign gpr_raddr[2] = rd;
-  end
-endmodule
-
-module snitch_wb #(
-  parameter int         RegWidth = 0,
-  parameter int         RegNrWritePorts = 0,
-  parameter type        rd_select_t = logic,
-  parameter logic [1:0] RdAlu = 0,
-  parameter logic [1:0] RdConsecPC = 0,
-  parameter logic [1:0] RdBypass = 0
-) (
-  input  rd_select_t                               rd_select,
-  input  logic [31:0]                              alu_result,
-  input  logic [31:0]                              consec_pc,
-  input  logic [31:0]                              rd_bypass,
-  input  logic                                     retire_p,
-  input  logic                                     retire_i,
-  input  logic                                     lsu_pvalid,
-  input  logic [RegWidth-1:0]                      lsu_rd,
-  input  logic [RegWidth-1:0]                      rd,
-  input  logic [RegWidth-1:0]                      rs1,
-  input  logic [31:0]                              ld_result,
-  input  logic                                     acc_pvalid_i,
-  input  logic [31:0]                              acc_pdata_i,
-  input  logic [4:0]                               acc_pid_i,
-  output logic [31:0]                              alu_writeback,
-  output logic [RegNrWritePorts-1:0]               gpr_we,
-  output logic [RegNrWritePorts-1:0][RegWidth-1:0] gpr_waddr,
-  output logic [RegNrWritePorts-1:0][31:0]         gpr_wdata,
-  output logic                                     lsu_pready,
-  output logic                                     acc_pready_o,
-  output logic                                     retire_acc,
-  output logic                                     retire_load
-);
-  // Write-back data, can come from:
-  // 1. ALU/Jump Target/Bypass
-  // 2. LSU
-  // 3. Accelerator Bus
-  always_comb begin
-    casez (rd_select)
-      RdAlu: alu_writeback = alu_result;
-      RdConsecPC: alu_writeback = consec_pc;
-      RdBypass: alu_writeback = rd_bypass;
-      default: alu_writeback = alu_result;
-    endcase
-  end
-
-  if (RegNrWritePorts == 1) begin
-    always_comb begin
-      gpr_we[0] = 1'b0;
-      // NOTE(smazzola): this works because write-backs on rd and rs1 in the same cycle are mutually
-      // exclusive; if this should change, the following statement has to be written in another form
-      gpr_waddr[0] = retire_p ? rs1 : rd; // choose whether to writeback at RF[rs1] for post-increment load/stores
-      gpr_wdata[0] = alu_writeback;
-      // external interfaces
-      lsu_pready = 1'b0;
-      acc_pready_o = 1'b0;
-      retire_acc = 1'b0;
-      retire_load = 1'b0;
-
-      if (retire_i | retire_p) begin
-        gpr_we[0] = 1'b1;
-      end else begin
-        // if we are not retiring another instruction retire the load now
-        lsu_pready = 1'b1;
-        if (lsu_pvalid) begin
-          retire_load = 1'b1;
-          gpr_we[0] = 1'b1;
-          gpr_waddr[0] = lsu_rd;
-          gpr_wdata[0] = ld_result[31:0];
-        end else if (acc_pvalid_i) begin
-          // if we are not retiring another instruction retire the accelerated one now
-          retire_acc = 1'b1;
-          gpr_we[0] = 1'b1;
-          gpr_waddr[0] = acc_pid_i;
-          gpr_wdata[0] = acc_pdata_i[31:0];
-          acc_pready_o = 1'b1;
-        end
-      end
-    end
-  end else if (RegNrWritePorts == 2) begin
-    always_comb begin
-      gpr_we[0] = 1'b0;
-      // NOTE(smazzola): this works because write-backs on rd and rs1 in the same cycle are mutually
-      // exclusive; if this should change, the following statement has to be written in another form
-      gpr_waddr[0] = retire_p ? rs1 : rd; // choose whether to writeback at RF[rs1] for post-increment load/stores
-      gpr_wdata[0] = alu_writeback;
-      gpr_we[1] = 1'b0;
-      gpr_waddr[1] = lsu_rd;
-      gpr_wdata[1] = ld_result[31:0];
-      // external interfaces
-      // Snitch and LSU have priority
-      lsu_pready = 1'b1;
-      acc_pready_o = 1'b0;
-      retire_acc = 1'b0;
-      retire_load = 1'b0;
-
-      if (retire_i | retire_p) begin
-        gpr_we[0] = 1'b1;
-        if (lsu_pvalid) begin
-          retire_load = 1'b1;
-          gpr_we[1] = 1'b1;
-        end else if (acc_pvalid_i) begin
-          retire_acc = 1'b1;
-          gpr_we[1] = 1'b1;
-          gpr_waddr[1] = acc_pid_i;
-          gpr_wdata[1] = acc_pdata_i[31:0];
-          acc_pready_o = 1'b1;
-        end
-      // if we are not retiring another instruction retire the load now
-      end else begin
-        if (acc_pvalid_i) begin
-          retire_acc = 1'b1;
-          gpr_we[0] = 1'b1;
-          gpr_waddr[0] = acc_pid_i;
-          gpr_wdata[0] = acc_pdata_i[31:0];
-          acc_pready_o = 1'b1;
-        end
-        if (lsu_pvalid) begin
-          retire_load = 1'b1;
-          gpr_we[1] = 1'b1;
-        end
-      end
-    end
-  end else begin
-    $fatal(1, "[snitch] Unsupported RegNrWritePorts.");
-  end
-endmodule
-
 module snitch
   import snitch_pkg::meta_id_t;
 #(
@@ -545,6 +115,7 @@ module snitch
   /* verilator lint_on WIDTH */
 
   logic [31:0] opa, opb;
+  logic [32:0] adder_result;
   logic [31:0] alu_result;
 
   logic [RegWidth-1:0] rd, rs1, rs2;
@@ -602,7 +173,7 @@ module snitch
   logic exception;
 
   // ALU Operations
-  typedef enum logic [3:0]  {
+  enum logic [3:0]  {
     // Arithmetical operations
     Add, Sub,
     // Shifts
@@ -614,26 +185,19 @@ module snitch
     Slt, Sltu,
     // Miscellaneous
     BypassA
-  } alu_op_t;
+  } alu_op;
 
-  alu_op_t alu_op;
-
-  typedef enum logic [3:0] {
+  enum logic [3:0] {
     None, Reg, IImmediate, UImmediate, JImmediate, SImmediate, SFImmediate, PC, CSR, CSRImmediate, PBImmediate, RegRd, RegRs2
-  } op_sel_t;
-
-  op_sel_t opa_select, opb_select, opc_select;
+  } opa_select, opb_select, opc_select;
 
   logic write_rd; // write rd desitnation this cycle
   logic uses_rd;
   logic write_rs1; // write rs1 destination this cycle
   logic uses_rs1;
-  typedef enum logic [1:0] {Consec, Alu, Exception} next_pc_t;
-  next_pc_t next_pc;
+  enum logic [1:0] {Consec, Alu, Exception} next_pc;
 
-
-  typedef enum logic [1:0] {RdAlu, RdConsecPC, RdBypass} rd_select_t;
-  rd_select_t rd_select;
+  enum logic [1:0] {RdAlu, RdConsecPC, RdBypass} rd_select;
   logic [31:0] rd_bypass;
 
   logic is_branch;
@@ -670,72 +234,55 @@ module snitch
   // --------------------
   // Control
   // --------------------
-
-  // Scoreboard
+  // Scoreboard: Keep track of rd dependencies (only loads at the moment)
   logic operands_ready;
   logic dst_ready;
+  logic opa_ready, opb_ready, opc_ready;
+  logic dstrd_ready, dstrs1_ready;
 
-  snitch_sb #(
-    .RegWidth(RegWidth),
-    .Reg(Reg),
-    .RegRs2(RegRs2),
-    .RegRd(RegRd),
-    .SImmediate(SImmediate),
-    .op_sel_t(op_sel_t)
-  ) i_snitch_sb (
-    .operands_ready,
-    .dst_ready,
-    .stall,
-    .valid_instr,
-    .lsu_stall,
-    .acc_stall,
-    .sb_d,
-    .sb_q,
-    .opa_select,
-    .opb_select,
-    .opc_select,
-    .retire_load,
-    .lsu_rd,
-    .is_load,
-    .acc_register_rd,
-    .exception,
-    .rd,
-    .rs1,
-    .rs2,
-    .retire_acc,
-    .acc_pid_i,
-    .uses_rd,
-    .uses_rs1,
-    .inst_ready_i,
-    .inst_valid_o,
-    .acc_qvalid_o,
-    .acc_qready_i,
-    .lsu_qvalid,
-    .lsu_qready
-  );
+  always_comb begin
+    sb_d = sb_q;
+    if (retire_load) sb_d[lsu_rd] = 1'b0;
+    // only place the reservation if we actually executed the load or offload instruction
+    if ((is_load | acc_register_rd) && !stall && !exception) sb_d[rd] = 1'b1;
+    if (retire_acc) sb_d[acc_pid_i[RegWidth-1:0]] = 1'b0;
+    sb_d[0] = 1'b0;
+  end
+  // TODO(zarubaf): This can probably be described a bit more efficient
+  assign opa_ready = (opa_select != Reg) | ~sb_q[rs1];
+  assign opb_ready = ((opb_select != Reg & opb_select != SImmediate) | ~sb_q[rs2]) & ((opb_select != RegRd) | ~sb_q[rd]);
+  assign opc_ready = ((opc_select != Reg) | ~sb_q[rd]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
+  assign operands_ready = opa_ready & opb_ready & opc_ready;
+  // either we are not using the destination register or we need to make
+  // sure that its destination operand is not marked busy in the scoreboard.
+  assign dstrd_ready = ~uses_rd | (uses_rd & ~sb_q[rd]);
+  assign dstrs1_ready = ~uses_rs1 | (uses_rs1 & ~sb_q[rs1]);
+  assign dst_ready = dstrd_ready & dstrs1_ready;
+
+  assign valid_instr = (inst_ready_i & inst_valid_o) & operands_ready & dst_ready;
+  // the accelerator interface stalled us
+  assign acc_stall = (acc_qvalid_o & ~acc_qready_i);
+  // the LSU Interface didn't accept our request yet
+  assign lsu_stall = (lsu_qvalid & ~lsu_qready);
+  // Stall the stage if we either didn't get a valid instruction or the LSU/Accelerator is not ready
+  assign stall = ~valid_instr | lsu_stall | acc_stall;
 
   // --------------------
   // Instruction Frontend
   // --------------------
+  assign consec_pc = pc_q + ((is_branch & alu_result[0]) ? bimm : 'd4);
 
-  snitch_pc #(
-    .next_pc_t(next_pc_t),
-    .Consec(Consec),
-    .Alu(Alu),
-    .Exception(Exception),
-    .MTVEC(MTVEC)
-  ) i_snitch_pc (
-    .pc_q,
-    .is_branch,
-    .bimm,
-    .alu_result,
-    .stall,
-    .wfi_q,
-    .zero_lsb,
-    .next_pc,
-    .pc_d,
-    .consec_pc
-  );
+  always_comb begin
+    pc_d = pc_q;
+    // if we got a valid instruction word increment the PC unless we are waiting for an event
+    if (!stall && !wfi_q) begin
+      casez (next_pc)
+        Consec: pc_d = consec_pc;
+        Alu: pc_d = alu_result & {{31{1'b1}}, ~zero_lsb};
+        Exception: pc_d = MTVEC;
+      endcase
+    end
+  end
 
   // --------------------
   // Performance Counter
@@ -747,25 +294,13 @@ module snitch
   logic [31:0] stall_ins_q;
   logic [31:0] stall_raw_q;
   logic [31:0] stall_lsu_q;
-  snitch_perfcnt #(
-    // to avoid collision between gate-level and RTL modules in post-synthesis sim
-    .dummy_param(49)
-  ) i_snitch_perfcnt (
-    .clk_i,
-    .rst_i,
-    .stall,
-    .inst_ready_i,
-    .inst_valid_o,
-    .operands_ready,
-    .dst_ready,
-    .lsu_stall,
-    .cycle_q,
-    .instret_q,
-    .stall_ins_q,
-    .stall_raw_q,
-    .stall_lsu_q
-  );
+  `FFAR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
+  `FFLAR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
+  `FFLAR(stall_ins_q, stall_ins_q + 1, stall && (!inst_ready_i) && inst_valid_o, '0, clk_i, rst_i)
+  `FFLAR(stall_raw_q, stall_raw_q + 1, (!operands_ready) || (!dst_ready), '0, clk_i, rst_i)
+  `FFLAR(stall_lsu_q, stall_lsu_q + 1, lsu_stall, '0, clk_i, rst_i)
   `endif
+
 
   // --------------------
   // Decoder
@@ -1932,70 +1467,123 @@ module snitch
   // --------------------
   // Operand Select
   // --------------------
+  always_comb begin
+    unique case (opa_select)
+      None: opa = '0;
+      Reg: opa = gpr_rdata[0];
+      UImmediate: opa = uimm;
+      JImmediate: opa = jimm;
+      CSRImmediate: opa = {{{32-RegWidth}{1'b0}}, rs1};
+      default: opa = '0;
+    endcase
+  end
 
-  snitch_opsel #(
-    .RegWidth(RegWidth),
-    .RegNrReadPorts(RegNrReadPorts),
-    .op_sel_t(op_sel_t),
-    .None(None),
-    .Reg(Reg),
-    .UImmediate(UImmediate),
-    .JImmediate(JImmediate),
-    .CSRImmediate(CSRImmediate),
-    .IImmediate(IImmediate),
-    .SFImmediate(SFImmediate),
-    .SImmediate(SImmediate),
-    .PC(PC),
-    .CSR(CSR),
-    .PBImmediate(PBImmediate),
-    .RegRd(RegRd)
-  ) i_snitch_opsel (
-    .opa_select,
-    .opb_select,
-    .gpr_rdata,
-    .uimm,
-    .jimm,
-    .iimm,
-    .simm,
-    .pbimm,
-    .rs1,
-    .rs2,
-    .rd,
-    .pc_q,
-    .csr_rvalue,
-    .opa,
-    .opb,
-    .gpr_raddr
-  );
+  always_comb begin
+    unique case (opb_select)
+      None: opb = '0;
+      Reg: opb = gpr_rdata[1];
+      IImmediate: opb = iimm;
+      SFImmediate, SImmediate: opb = simm;
+      PC: opb = pc_q;
+      CSR: opb = csr_rvalue;
+      PBImmediate: opb = pbimm;
+      RegRd: opb = gpr_rdata[2];
+      default: opb = '0;
+    endcase
+  end
+
+  assign gpr_raddr[0] = rs1;
+  assign gpr_raddr[1] = rs2;
+  // connect third read port only if present
+  if (RegNrReadPorts >= 3) begin : gpr_raddr_2
+    assign gpr_raddr[2] = rd;
+  end
 
   // --------------------
   // ALU
   // --------------------
+  // Main Shifter
+  logic [31:0] shift_opa, shift_opa_reversed;
+  logic [31:0] shift_right_result, shift_left_result;
+  logic [32:0] shift_opa_ext, shift_right_result_ext;
+  logic shift_left, shift_arithmetic; // shift control
+  for (genvar i = 0; i < 32; i++) begin : gen_reverse_opa
+    assign shift_opa_reversed[i] = opa[31-i];
+    assign shift_left_result[i] = shift_right_result[31-i];
+  end
+  assign shift_opa = shift_left ? shift_opa_reversed : opa;
+  assign shift_opa_ext = {shift_opa[31] & shift_arithmetic, shift_opa};
+  assign shift_right_result_ext = $unsigned($signed(shift_opa_ext) >>> opb[4:0]);
+  assign shift_right_result = shift_right_result_ext[31:0];
 
-  snitch_alu #(
-    .alu_op_t(alu_op_t),
-    .Add(Add),
-    .Sub(Sub),
-    .Sll(Sll),
-    .Srl(Srl),
-    .Sra(Sra),
-    .LXor(LXor),
-    .LOr(LOr),
-    .LAnd(LAnd),
-    .LNAnd(LNAnd),
-    .Eq(Eq),
-    .Neq(Neq),
-    .Ge(Ge),
-    .Geu(Geu),
-    .Slt(Slt),
-    .Sltu(Sltu),
-    .BypassA(BypassA)
-  ) i_snitch_alu (
-    .opa,
-    .opb,
-    .alu_op,
-    .alu_result
-  );
+  // Main Adder
+  logic [32:0] alu_opa, alu_opb;
+  assign adder_result = alu_opa + alu_opb;
+
+  // ALU
+  /* verilator lint_off WIDTH */
+  always_comb begin
+    alu_opa = $signed(opa);
+    alu_opb = $signed(opb);
+
+    alu_result = adder_result[31:0];
+    shift_left = 1'b0;
+    shift_arithmetic = 1'b0;
+
+    unique case (alu_op)
+      // Arithmetical operations
+      Sub: alu_opb = -$signed(opb);
+      // Comparisons
+      Slt: begin
+        alu_opb = -$signed(opb);
+        alu_result = {30'b0, adder_result[32]};
+      end
+      Ge: begin
+        alu_opb = -$signed(opb);
+        alu_result = {30'b0, ~adder_result[32]};
+      end
+      Sltu: begin
+        alu_opa = $unsigned(opa);
+        alu_opb = -$unsigned(opb);
+        alu_result = {30'b0, adder_result[32]};
+      end
+      Geu: begin
+        alu_opa = $unsigned(opa);
+        alu_opb = -$unsigned(opb);
+        alu_result = {30'b0, ~adder_result[32]};
+      end
+      // Shifts
+      Sll: begin
+        shift_left = 1'b1;
+        alu_result = shift_left_result;
+      end
+      Srl: alu_result = shift_right_result;
+      Sra: begin
+        shift_arithmetic = 1'b1;
+        alu_result = shift_right_result;
+      end
+      // Logical operations
+      LXor: alu_result = opa ^ opb;
+      LAnd: alu_result = opa & opb;
+      LNAnd: alu_result = (~opa) & opb;
+      LOr: alu_result = opa | opb;
+      // Equal, not equal
+      Eq: begin
+        alu_opb = -$signed(opb);
+        alu_result = ~|adder_result;
+      end
+      Neq: begin
+        alu_opb = -$signed(opb);
+        alu_result = |adder_result;
+      end
+      // Miscellaneous
+      BypassA: begin
+        alu_result = opa;
+      end
+      default: alu_result = adder_result[31:0];
+    endcase
+  end
+  /* verilator lint_on WIDTH */
 
   // --------------------
   // LSU
@@ -2077,40 +1665,100 @@ module snitch
   // --------------------
   // Write-Back
   // --------------------
-
+  // Write-back data, can come from:
+  // 1. ALU/Jump Target/Bypass
+  // 2. LSU
+  // 3. Accelerator Bus
   logic [31:0] alu_writeback;
+  always_comb begin
+    casez (rd_select)
+      RdAlu: alu_writeback = alu_result;
+      RdConsecPC: alu_writeback = consec_pc;
+      RdBypass: alu_writeback = rd_bypass;
+      default: alu_writeback = alu_result;
+    endcase
+  end
 
-  snitch_wb #(
-    .RegWidth(RegWidth),
-    .RegNrWritePorts(RegNrWritePorts),
-    .rd_select_t(rd_select_t),
-    .RdAlu(RdAlu),
-    .RdConsecPC(RdConsecPC),
-    .RdBypass(RdBypass)
-  ) i_snitch_wb (
-    .rd_select,
-    .alu_result,
-    .consec_pc,
-    .rd_bypass,
-    .retire_p,
-    .retire_i,
-    .lsu_pvalid,
-    .lsu_rd,
-    .rd,
-    .rs1,
-    .ld_result,
-    .acc_pvalid_i,
-    .acc_pdata_i,
-    .acc_pid_i,
-    .alu_writeback,
-    .gpr_we,
-    .gpr_waddr,
-    .gpr_wdata,
-    .lsu_pready,
-    .acc_pready_o,
-    .retire_acc,
-    .retire_load
-  );
+  if (RegNrWritePorts == 1) begin
+    always_comb begin
+      gpr_we[0] = 1'b0;
+      // NOTE(smazzola): this works because write-backs on rd and rs1 in the same cycle are mutually
+      // exclusive; if this should change, the following statement has to be written in another form
+      gpr_waddr[0] = retire_p ? rs1 : rd; // choose whether to writeback at RF[rs1] for post-increment load/stores
+      gpr_wdata[0] = alu_writeback;
+      // external interfaces
+      lsu_pready = 1'b0;
+      acc_pready_o = 1'b0;
+      retire_acc = 1'b0;
+      retire_load = 1'b0;
+
+      if (retire_i | retire_p) begin
+        gpr_we[0] = 1'b1;
+      end else begin
+        // if we are not retiring another instruction retire the load now
+        lsu_pready = 1'b1;
+        if (lsu_pvalid) begin
+          retire_load = 1'b1;
+          gpr_we[0] = 1'b1;
+          gpr_waddr[0] = lsu_rd;
+          gpr_wdata[0] = ld_result[31:0];
+        end else if (acc_pvalid_i) begin
+          // if we are not retiring another instruction retire the accelerated one now
+          retire_acc = 1'b1;
+          gpr_we[0] = 1'b1;
+          gpr_waddr[0] = acc_pid_i;
+          gpr_wdata[0] = acc_pdata_i[31:0];
+          acc_pready_o = 1'b1;
+        end
+      end
+    end
+  end else if (RegNrWritePorts == 2) begin
+    always_comb begin
+      gpr_we[0] = 1'b0;
+      // NOTE(smazzola): this works because write-backs on rd and rs1 in the same cycle are mutually
+      // exclusive; if this should change, the following statement has to be written in another form
+      gpr_waddr[0] = retire_p ? rs1 : rd; // choose whether to writeback at RF[rs1] for post-increment load/stores
+      gpr_wdata[0] = alu_writeback;
+      gpr_we[1] = 1'b0;
+      gpr_waddr[1] = lsu_rd;
+      gpr_wdata[1] = ld_result[31:0];
+      // external interfaces
+      // Snitch and LSU have priority
+      lsu_pready = 1'b1;
+      acc_pready_o = 1'b0;
+      retire_acc = 1'b0;
+      retire_load = 1'b0;
+
+      if (retire_i | retire_p) begin
+        gpr_we[0] = 1'b1;
+        if (lsu_pvalid) begin
+          retire_load = 1'b1;
+          gpr_we[1] = 1'b1;
+        end else if (acc_pvalid_i) begin
+          retire_acc = 1'b1;
+          gpr_we[1] = 1'b1;
+          gpr_waddr[1] = acc_pid_i;
+          gpr_wdata[1] = acc_pdata_i[31:0];
+          acc_pready_o = 1'b1;
+        end
+      // if we are not retiring another instruction retire the load now
+      end else begin
+        if (acc_pvalid_i) begin
+          retire_acc = 1'b1;
+          gpr_we[0] = 1'b1;
+          gpr_waddr[0] = acc_pid_i;
+          gpr_wdata[0] = acc_pdata_i[31:0];
+          acc_pready_o = 1'b1;
+        end
+        if (lsu_pvalid) begin
+          retire_load = 1'b1;
+          gpr_we[1] = 1'b1;
+        end
+      end
+    end
+  end else begin
+    $fatal(1, "[snitch] Unsupported RegNrWritePorts.");
+  end
 
   // --------------------
   // Stack overflow check
