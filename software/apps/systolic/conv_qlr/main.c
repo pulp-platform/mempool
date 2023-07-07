@@ -15,6 +15,7 @@
 // limitations under the License.
 
 // Author: Gua Hao Khov, ETH Zurich
+//         Sergio Mazzola, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>
@@ -26,142 +27,223 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-// Dimensions of matrices X and Y
-#define DIM_M 240
-#define DIM_N 61
+// Settings
+#define VERIFY_OUTPUT  1
+#define PRINTF_MATRIX  0
+#define PRINTF_VERBOSE 1
 
-// Repetition count
-#define REP_COUNT 5
-
-// Systolic Length (must be divisor of NUM_CORES)
-#define SYSTOLIC_LENGTH 16
-
+// Global variables
 uint32_t *core_map;
-
 int32_t *matrix_X;
 int32_t *matrix_Y;
+const int32_t weights[K][K] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+// Tile-local matrix for weights
+int32_t *matrix_W[NUM_CORES / NUM_CORES_PER_TILE];
 
-const int32_t weights[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
-int32_t *matrix_W[NUM_CORES / 4];
-
-void generate_gradient_matrix(int32_t **matrix, uint32_t num_rows,
-                              uint32_t num_cols) {
-  int32_t *new_matrix = (int32_t *)simple_malloc(num_rows * num_cols * 4);
-  for (uint32_t y = 0; y < num_rows; ++y) {
-    for (uint32_t x = 0; x < num_cols; ++x) {
-      new_matrix[y * num_cols + x] = (int32_t)(y + x);
-    }
-  }
-  *matrix = new_matrix;
-}
-
-void fill_gradient_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_cols,
+/// Fill @param matrix with a custom gradient, parallelizing row-wise
+void fill_matrix_gradient(int32_t *matrix,
+                          uint32_t num_rows, uint32_t num_cols,
                           uint32_t core_id, uint32_t num_cores) {
-  for (uint32_t y = core_id; y < num_rows; y += num_cores) {
-    for (uint32_t x = 0; x < num_cols; ++x) {
-      matrix[y * num_cols + x] = (int32_t)(y + x);
+  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
+    for (uint32_t j = 0; j < num_cols; j++) {
+      matrix[i * num_cols + j] = ((int32_t)i % 16) + ((int32_t)j % 4);
     }
   }
 }
 
-void print_matrix(int32_t const *matrix, uint32_t num_rows,
-                  uint32_t num_columns) {
-  printf("Matrix at 0x%8X\n", (uint32_t)matrix);
-  for (uint32_t i = 0; i < num_rows; ++i) {
-    for (uint32_t j = 0; j < num_columns; ++j) {
-      printf("%5d ", matrix[i * num_columns + j]);
+/// Reset @param matrix to 0, parallelizing row-wise
+void reset_matrix(int32_t *matrix,
+                  uint32_t num_rows, uint32_t num_cols,
+                  uint32_t core_id, uint32_t num_cores) {
+  for (uint32_t i = core_id; i < num_rows; i += num_cores) {
+    for (uint32_t j = 0; j < num_cols; j++) {
+      matrix[i * num_cols + j] = 0;
+    }
+  }
+}
+
+void print_matrix(int32_t *matrix, uint32_t num_rows,
+                  uint32_t num_cols) {
+  printf("Matrix at 0x%08X\n", (uint32_t)matrix);
+  for (uint32_t i = 0; i < num_rows; i++) {
+    for (uint32_t j = 0; j < num_cols; j++) {
+      printf("%5d ", matrix[i * num_cols + j]);
     }
     printf("\n");
   }
 }
 
+#if VERIFY_OUTPUT
+typedef struct {
+  uint32_t error;
+  uint32_t i;
+  uint32_t j;
+  int32_t wrong_value;
+  int32_t golden_value;
+} error_verif_t;
+
+error_verif_t error_verif[NUM_CORES];
+
+/// Verify @param C matmul output parallelizing row-wise
+int verify_matrix(int32_t *X, uint32_t num_rows, uint32_t num_cols,
+                  uint32_t core_id, uint32_t num_cores) {
+  error_verif[core_id].error = 0;
+  // do not consider halo
+  for (uint32_t i = core_id + 1; i < num_rows - 1; i += num_cores) {
+    int32_t x, y;
+    // determine y
+    if (i % 16 == 0)
+      y = 4;
+    else if (i % 16 == 15)
+      y = 11;
+    else
+      y = (int32_t)i % 16;
+    for (uint32_t j = 1; j < num_cols - 1; j++) {
+      // determine x
+      x = (((int32_t)j % 4) / 2) + 1;
+      int32_t golden = x + y;
+      // systolic conv does not do division by sum(weights)
+      int32_t x_div_w = X[i * num_cols + j]/16;
+      // Check correctness (do not check halo)
+      if (golden != x_div_w) {
+          error_verif[core_id].error = 1;
+          error_verif[core_id].i = i;
+          error_verif[core_id].j = j;
+          error_verif[core_id].wrong_value = x_div_w;
+          error_verif[core_id].golden_value = golden;
+          return 1;
+      }
+    }
+  }
+  return 0;
+}
+#endif
+
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t tile_id = core_id / 4;
+  uint32_t tile_id = core_id / NUM_CORES_PER_TILE;
+  // Systolic convolution chain
   uint32_t chain_id = core_id / SYSTOLIC_LENGTH;
   uint32_t num_chains = num_cores / SYSTOLIC_LENGTH;
 
-  // Initialize synchronization variables
-  mempool_barrier_init(core_id);
-
   // Initialization
+  mempool_barrier_init(core_id);
   mempool_init(core_id, num_cores);
 
-  // Allocate tile and core maps
+  // Allocate core map
   if (core_id == 0) {
+    #if PRINTF_VERBOSE
+    printf("Allocating core map...\n");
+    #endif
     core_map = (uint32_t *)simple_malloc(num_cores * sizeof(uint32_t));
+    if (core_map == NULL) {
+      printf("ERROR: failed to allocate core map\n");
+      return -1;
+    }
   }
-
   // Wait for all cores
   mempool_barrier(num_cores);
 
-  // Set tile and core maps
+  // Set core map
   core_map[core_id] = core_id;
-
   // Wait for all cores
   mempool_barrier(num_cores);
 
-  // Setup: Systolic initialization and matrix_X
+  // Setup
   if (core_id == 0) {
-    printf("> Initialize\n");
+    #if PRINTF_VERBOSE
+    printf("Initialize\n");
+    #endif
 
-    // Print out map
-    // print_matrix((int32_t *)core_map, 1, num_cores);
+    #if PRINTF_MATRIX
+    // Print out core mapping
+    print_matrix((int32_t *)core_map, 1, num_cores);
+    #endif
 
     // Initialize systolic array
     systolic_init(core_map);
 
-    // Create and initialize matrices
+    // Allocate in and out matrices
+    #if PRINTF_VERBOSE
+    printf("Allocating matrix X...\n");
+    #endif
     matrix_X = (int32_t *)simple_malloc(DIM_M * DIM_N * sizeof(int32_t));
+    #if PRINTF_VERBOSE
+    printf("Allocating matrix Y...\n");
+    #endif
     matrix_Y = (int32_t *)simple_malloc(DIM_M * DIM_N * sizeof(int32_t));
+    if ((matrix_X == NULL) || (matrix_Y == NULL)) {
+      printf("ERROR: failed to allocate matrices\n");
+      return -1;
+    }
   }
+  // Wait for all cores
+  mempool_barrier(num_cores);
 
-  // Setup: Distribute weights
-  if (core_id % 4 == 1) {
+  // Initialize output to 0
+  // (prevents problem in verification/printing)
+  reset_matrix(matrix_Y, DIM_M, DIM_N, core_id, num_cores);
+  // Wait for all cores
+  mempool_barrier(num_cores);
+
+  // Setup: Distribute weights (only first core of each tile)
+  if (core_id % NUM_CORES_PER_TILE == 1) {
     // Get tile allocator
     alloc_t *tile_alloc = get_alloc_tile(tile_id);
 
     // Allocate local matrix_W
-    matrix_W[tile_id] = (int32_t *)domain_malloc(tile_alloc, 9 * sizeof(int32_t));
+    matrix_W[tile_id] = (int32_t *)domain_malloc(tile_alloc, K*K * sizeof(int32_t));
 
-    // Load weights
-    for (uint32_t y = 0; y < 3; ++y) {
-      for (uint32_t x = 0; x < 3; ++x) {
-        (matrix_W[tile_id])[y * 3 + x] = weights[y][x];
-      }
-    }
+    // Load weights into tile local memory banks
+    for (uint32_t y = 0; y < K; ++y)
+      for (uint32_t x = 0; x < K; ++x)
+        (matrix_W[tile_id])[y * K + x] = weights[y][x];
   }
-
   // Wait for all cores
   mempool_barrier(num_cores);
 
-  // Fill matrix with gradient
-  fill_gradient_matrix(matrix_X, DIM_M, DIM_N, core_id, num_cores);
+  // Fill input matrix
+  fill_matrix_gradient(matrix_X, DIM_M, DIM_N, core_id, num_cores);
+  // weights matrix already hardcoded to {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}}
 
+  // Start message
   if (core_id == 0) {
-    // Print out matrix X
-    // printf("> Print Matrix X\n");
-    // print_matrix(matrix_X, DIM_M, DIM_N);
+    #if PRINTF_MATRIX
+    // Print matrix X
+    print_matrix(matrix_X, DIM_M, DIM_N);
+    #endif
 
-    printf("> Start\n");
+    #if PRINTF_VERBOSE
+    printf("Start\n");
+    #endif
   }
+  mempool_barrier(num_cores);
 
   // Start benchmark for all cores
-  mempool_barrier(num_cores);
   mempool_start_benchmark();
 
+  // based on where is the core in a chain of SYSTOLIC_LENGTH PEs
   switch (core_id % SYSTOLIC_LENGTH) {
-  case 0:
-    systolic_conv_front(core_id, chain_id, num_chains, num_cores, DIM_M, DIM_N, matrix_X, REP_COUNT);
-    break;
-  case (SYSTOLIC_LENGTH - 1):
-    systolic_conv_end(core_id, chain_id, num_chains, num_cores, DIM_M, DIM_N, matrix_X,
-                      matrix_W[tile_id], matrix_Y, REP_COUNT);
-    break;
-  default:
-    systolic_conv_mid(core_id, chain_id, num_chains, num_cores, DIM_M, DIM_N, matrix_X,
-                      matrix_W[tile_id], matrix_Y, REP_COUNT);
+    // front core of a chain
+    case 0:
+      systolic_conv_front(core_id, chain_id, num_chains, num_cores,
+                          DIM_M, DIM_N, matrix_X,
+                          REP_COUNT);
+      break;
+    // final core of a chain
+    case (SYSTOLIC_LENGTH - 1):
+      systolic_conv_end(core_id, chain_id, num_chains, num_cores,
+                        DIM_M, DIM_N, matrix_X,
+                        matrix_W[tile_id], matrix_Y,
+                        REP_COUNT);
+      break;
+    // cores internal to the each chain
+    default:
+      systolic_conv_mid(core_id, chain_id, num_chains, num_cores,
+                        DIM_M, DIM_N, matrix_X,
+                        matrix_W[tile_id], matrix_Y,
+                        REP_COUNT);
   }
 
   // Stop benchmark for all cores
@@ -170,14 +252,53 @@ int main() {
 
   // Print out benchmark
   if (core_id == 0) {
-    printf("> End\n");
+    #if PRINTF_VERBOSE
+    printf("End\n");
+    #endif
 
+    #if PRINTF_MATRIX
     // Print out matrix Y
-    // printf("> Print Matrix Y\n");
-    // print_matrix(matrix_Y, DIM_M, DIM_N);
+    print_matrix(matrix_Y, DIM_M, DIM_N);
+    #endif
   }
+  mempool_barrier(num_cores);
 
-  // wait until all cores have finished
+  // Verify result
+  #if VERIFY_OUTPUT
+  #if PRINTF_VERBOSE
+  if (core_id == 0)
+    printf("Verifying result...\n");
+  #endif
+  verify_matrix(matrix_Y, DIM_M, DIM_N, core_id, num_cores);
+  mempool_barrier(num_cores);
+
+  // return the index of the first error
+  if (core_id == 0){
+    uint32_t min_error_core_id = 0;
+    uint32_t min_error_i = UINT32_MAX;
+    for (uint32_t c = 0; c < num_cores; c++) {
+      if (error_verif[c].error) {
+        if (error_verif[c].i * DIM_N + error_verif[c].j < min_error_i) {
+          min_error_i = error_verif[c].i * DIM_N + error_verif[c].j;
+          min_error_core_id = c;
+        }
+      }
+    }
+    // if found, then print out and return error index
+    if (error_verif[min_error_core_id].error) {
+      printf("ERROR: wrong value at X[%d][%d] == X[%d]: %d (golden == %d)\n",
+             error_verif[min_error_core_id].i,
+             error_verif[min_error_core_id].j,
+             error_verif[min_error_core_id].i * DIM_N + error_verif[min_error_core_id].j,
+             error_verif[min_error_core_id].wrong_value,
+             error_verif[min_error_core_id].golden_value);
+      return (error_verif[min_error_core_id].i + error_verif[min_error_core_id].j) == 0 ?
+        -1 : (int)(error_verif[min_error_core_id].i * DIM_N + error_verif[min_error_core_id].j);
+    }
+  }
+  #endif
+
+  // Wait until all cores have finished
   mempool_barrier(num_cores);
   return 0;
 }
