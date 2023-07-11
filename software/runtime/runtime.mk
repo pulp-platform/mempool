@@ -85,6 +85,22 @@ DEFINES += -DQLR_FIFO_SIZE=$(qlr_fifo_size)
 ifneq ($(qlr_fifo_size), 0)
 	DEFINES += -DQLR_CFG_BASE=$(qlr_cfg_base) -DQLR_MAX_REQUESTS=$(qlr_max_requests) -DQLR_MAX_RF_READS=$(qlr_max_rf_reads)
 endif
+# For systolic benchmarks' matrix dims
+ifneq ($(DIM_M),)
+DEFINES += -DDIM_M=$(DIM_M)
+endif
+ifneq ($(DIM_N),)
+DEFINES += -DDIM_N=$(DIM_N)
+endif
+ifneq ($(DIM_P),)
+DEFINES += -DDIM_P=$(DIM_P)
+endif
+ifneq ($(REP_COUNT),)
+DEFINES += -DREP_COUNT=$(REP_COUNT)
+endif
+ifneq ($(SYSTOLIC_LENGTH),)
+DEFINES += -DSYSTOLIC_LENGTH=$(SYSTOLIC_LENGTH)
+endif
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)

@@ -71,7 +71,9 @@
 #define K    3 // hardcoded, do not change
 
 // Repetition count
+#ifndef REP_COUNT
 #define REP_COUNT 1
+#endif
 // Systolic Length (must be divisor of NUM_CORES)
 #ifndef SYSTOLIC_LENGTH
 #define SYSTOLIC_LENGTH 16
