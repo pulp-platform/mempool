@@ -15,12 +15,35 @@
 // limitations under the License.
 
 // Author: Gua Hao Khov, ETH Zurich
+//         Sergio Mazzola, ETH Zurich
 
 /*
  * X is an M x N matrix, W is a 3 x 3 matrix and Y is an M x N matrix
- * Y = X * W (with zero-padding)
- * Each core loads the whole weight kernel and outputs a row of Y, while loading
- * and passing rows of X to the next core
+ * Y = conv2d(X, W), X is padded with zeros to compute Y's halo
+ *
+ * All cores are connected in a chain of PEs communicating through systolic
+ * queues maximizing the systolic links going through the same tile and the
+ * same group.
+ * To avoid deep queue dependencies, the systolic array is divided into
+ * multiple chains of PEs. The front PE of each chain directly access memory to
+ * load 2 rows of X. The inner PEs pop rows 0 and 1 from the previous PE, load
+ * row 2 directly from memory with load instructions, and push rows 1 and 2 to
+ * the subsequent PE. The last PE of each chain does not pop to anything.
+ *
+ * Before the systolic computation, each PE laods the 3x3 weight kernel directly
+ * from memory and stores it in its register file.
+ *
+ * Inner PEs and end PEs are computing PEs; front PEs are only mover PEs.
+ * Computing PEs compute the convolution of 3 3x3 kernels in a pipelined,
+ * interleaved fashion, to maximize the data reuse of each loaded element of
+ * X's rows. Receiving 3 input rows, each PE computes 1 output row.
+ *
+ *            *********** Core n ******
+ *            t0 > W(0,0) W(0,1) W(0,2)   ********** Core n+1 **********
+ *            t1 > W(1,0) W(1,1) W(1,2) > t0 > W(0,0) W(0,1) W(0,2)
+ *  load X(i,j:) > W(2,0) W(2,1) W(2,2) > t1 > W(1,0) W(1,1) W(1,2) > t1
+ *                            load X(i+1,j:) > W(2,0) W(2,1) W(2,2) > t2
+ *
  * NOTE: M and N must be at least 3 and the kernel size is fixed to 3 x 3
  */
 
@@ -108,7 +131,7 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
   // every chain has 1 non-processing core (frontal cores), i.e., to get the
   // ID of the actually processed row we have to subtract one more for each
   // chain. This is the same of subtracting chain_id
-  uint32_t row_assign = core_id - chain_id;
+  uint32_t row_base_assign = core_id - chain_id;
 
   // pointers to QLR config
   DEFINE_QLR_CFG_CSR(1);
@@ -117,27 +140,25 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
   /* Calculate queue requests */
   // "remaining_rows / tot_processing_cores" is the number of times this PE
   // has to let a whole input matrix row pass through the systolic array
-  if (row_assign < num_rows - 1) {
-    // (tot rows) - (rows assigned so far) - (this one) + (-1 for ceil before div)
-    qpush_reqs = (((num_rows - row_assign - 1 - 1 // number of remaining rows
+  if (row_base_assign < num_rows) {
+    // (tot rows) - (rows assigned so far) + (-1 for ceil before div)
+    qpush_reqs = (((num_rows - row_base_assign - 1 // number of remaining rows
                  ) / (computing_cores)             // actual number of computing cores
-                 ) + 1                            // +1 for ceil after div
-                 ) * num_cols;                    // elements per row
+                 ) + 1                             // +1 for ceil after div
+                 ) * num_cols;                     // elements per row
   } else {
     return;
   }
 
   // Configure QLRs
-  if (qpush_reqs != 0) {
-    qlr_cfg_t1[QLR_CFG_REQ]   = (uint32_t)qpush_reqs;
-    qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_x_0[core_id + 1];
-    qlr_cfg_t2[QLR_CFG_REQ]   = (uint32_t)qpush_reqs;
-    qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_x_1[core_id + 1];
-  }
+  qlr_cfg_t1[QLR_CFG_REQ]   = (uint32_t)qpush_reqs;
+  qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_x_0[core_id + 1];
+  qlr_cfg_t2[QLR_CFG_REQ]   = (uint32_t)qpush_reqs;
+  qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_x_1[core_id + 1];
 
   for (uint32_t rep = 0; rep < rep_count; rep++) {
     // Set row
-    row = row_assign;
+    row = row_base_assign;
 
     // Start QLRs
     qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
@@ -374,7 +395,7 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
   /* Row assigned to this PE */
   // same of frontal cores but subtract 1 more, to
   // compensate for the non-processing frontal cores
-  uint32_t row_assign = core_id - (chain_id + 1);
+  uint32_t row_base_assign = core_id - (chain_id + 1);
 
   // pointers to QLR config
   DEFINE_QLR_CFG_CSR(0);
@@ -382,31 +403,37 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
   DEFINE_QLR_CFG_CSR(2);
 
   /* Calculate queue requests */
-  if (row_assign == num_rows - 1) {
-    // special case: kernel is at the last row
+  if (row_base_assign == num_rows - 1) {
+    // special case: kernel is at the last row and num_rows does not wrap around computing_cores
     qpopush_reqs = 0;
-  } else if (row_assign < num_rows - 1) {
-    // (tot rows) - (rows assigned so far) - (this one) + (-1 for ceil before div)
-    qpopush_reqs = (((num_rows - row_assign - 1 - 1 // number of remaining rows
-                 ) / computing_cores                // actual number of processing cores
-                 ) + 1                              // +1 for ceil after div
-                 ) * num_cols;                      // elements per row
+  } else if (row_base_assign < num_rows - 1) {
+    // (tot rows) - (rows assigned so far) + (-1 for ceil before div) + (-1 in case it's last row)
+    qpopush_reqs = (((num_rows - row_base_assign - 1 - 1 // number of remaining rows
+                 ) / computing_cores                     // actual number of processing cores
+                 ) + 1                                   // +1 for ceil after div
+                 ) * num_cols;                           // elements per row
   } else {
     return;
   }
+  // NOTE: We need -1 to trick the ceil operation into rounding down in case this
+  // mid PE is processing the last row. This is because, when the last row is processed
+  // the QLRs must be configured only to IQLR, otherwise a deadlock occurs.
+  // QLRs cannot be re-configured unless they finished the programmed requests, hence we
+  // need to configure them for one less row and re-configure them to process one further
+  // row as IQLR just before the last matrix row is processed.
 
   // Configure QLRs
   if (qpopush_reqs != 0) {
-    // row_assign - 1 (pop from previous PE)
+    // row_base_assign - 1 (pop from previous PE)
     qlr_cfg_t0[QLR_CFG_REQ]   = (uint32_t)qpopush_reqs;
     qlr_cfg_t0[QLR_CFG_RF]    = K;
     qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_x_0[core_id];
-    // row_assign (pop from previous PE + push into next)
+    // row_base_assign (pop from previous PE + push into next)
     qlr_cfg_t1[QLR_CFG_REQ]   = (uint32_t)qpopush_reqs;
     qlr_cfg_t1[QLR_CFG_RF]    = K;
     qlr_cfg_t1[QLR_CFG_IADDR] = (uint32_t)queues_x_1[core_id];
     qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_x_0[core_id + 1];
-    // row_assign + 1 (load from memory)
+    // row_base_assign + 1 (load from memory)
     qlr_cfg_t2[QLR_CFG_REQ]   = (uint32_t)qpopush_reqs;
     qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_x_1[core_id + 1];
   }
@@ -418,7 +445,7 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
     qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
     // Execute row-wise systolic 2d convolution
-    for (row = row_assign; row < num_rows - 1; row += computing_cores) {
+    for (row = row_base_assign; row < num_rows - 1; row += computing_cores) {
       #if PRINT_ROW_PROC
       PRINT_ROW_ID(row);
       #endif
@@ -432,9 +459,18 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
       PRINT_ROW_ID(row);
       #endif
 
-      // Request one row (qpop only)
-      qlr_cfg_t0[QLR_CFG_REQ] = (uint32_t)num_cols;
-      qlr_cfg_t1[QLR_CFG_REQ] = (uint32_t)num_cols;
+      // We have to change qlr_t1 QLR to IQLR only instead of OQLR
+      // because this is the last row and there will be no other QLR
+      // downstream popping from this one.
+      // Setting QLR type == re-starting QLR, so we have to make sure
+      // we are asking for only one more row (i.e., num_cols requests)
+      qlr_cfg_t0[QLR_CFG_REQ]   = (uint32_t)num_cols;
+      qlr_cfg_t0[QLR_CFG_RF]    = K;
+      qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_x_0[core_id];
+      qlr_cfg_t1[QLR_CFG_REQ]   = (uint32_t)num_cols;
+      qlr_cfg_t1[QLR_CFG_RF]    = K;
+      qlr_cfg_t1[QLR_CFG_IADDR] = (uint32_t)queues_x_1[core_id];
+      // Start with new config for very last row
       qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
       qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
 
@@ -471,19 +507,19 @@ void systolic_conv_end(const uint32_t core_id, const uint32_t chain_id, const ui
   /* Row assigned to this PE */
   // same of frontal cores but subtract 1 more, to
   // compensate for the non-processing frontal cores
-  uint32_t row_assign = core_id - (chain_id + 1);
+  uint32_t row_base_assign = core_id - (chain_id + 1);
 
   // pointers to QLR config
   DEFINE_QLR_CFG_CSR(0);
   DEFINE_QLR_CFG_CSR(1);
 
   // Calculate queue requests
-  if (row_assign < num_rows) {
+  if (row_base_assign < num_rows) {
     // (tot rows) - (rows assigned so far) + (-1 for ceil before div)
-    qpop_reqs = (((num_rows - row_assign - 1 // number of remaining rows
-                ) / computing_cores          // actual number of processing cores
-                ) + 1                        // +1 for ceil after div
-                ) * num_cols;                // elements per row
+    qpop_reqs = (((num_rows - row_base_assign - 1 // number of remaining rows
+                ) / computing_cores               // actual number of processing cores
+                ) + 1                             // +1 for ceil after div
+                ) * num_cols;                     // elements per row
   } else {
     return;
   }
@@ -500,9 +536,11 @@ void systolic_conv_end(const uint32_t core_id, const uint32_t chain_id, const ui
     // Start QLRs
     qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
     qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+    // OQLR qlr_t2 not required as this is the last PE in the chain:
+    // only loading row+1 for itself
 
     // Execute row-wise systolic 2d convolution
-    for (row = row_assign; row < num_rows - 1; row += computing_cores) {
+    for (row = row_base_assign; row < num_rows - 1; row += computing_cores) {
       #if PRINT_ROW_PROC
       PRINT_ROW_ID(row);
       #endif

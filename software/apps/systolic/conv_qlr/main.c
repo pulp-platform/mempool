@@ -212,6 +212,8 @@ int main() {
     #if PRINTF_MATRIX
     // Print matrix X
     print_matrix(matrix_X, DIM_M, DIM_N);
+    // Print matrix W
+    print_matrix((int32_t *)weights, K, K);
     #endif
 
     #if PRINTF_VERBOSE
