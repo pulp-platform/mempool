@@ -117,16 +117,16 @@ package snitch_pkg;
   };
 
   // Latencies of FP ops (number of regs)
-  localparam int unsigned LAT_COMP_FP32    = 'd3;
+  localparam int unsigned LAT_COMP_FP32    = 'd1;
   localparam int unsigned LAT_COMP_FP64    = 'd0;
-  localparam int unsigned LAT_COMP_FP16    = 'd3;
-  localparam int unsigned LAT_COMP_FP16ALT = 'd3;
-  localparam int unsigned LAT_COMP_FP8     = 'd3;
-  localparam int unsigned LAT_COMP_FP8ALT  = 'd3;
-  localparam int unsigned LAT_DIVSQRT      = 'd3;
-  localparam int unsigned LAT_NONCOMP      = 'd3;
-  localparam int unsigned LAT_CONV         = 'd3;
-  localparam int unsigned LAT_SDOTP        = 'd3;
+  localparam int unsigned LAT_COMP_FP16    = 'd0;
+  localparam int unsigned LAT_COMP_FP16ALT = 'd0;
+  localparam int unsigned LAT_COMP_FP8     = 'd0;
+  localparam int unsigned LAT_COMP_FP8ALT  = 'd0;
+  localparam int unsigned LAT_DIVSQRT      = 'd2;
+  localparam int unsigned LAT_NONCOMP      = 'd1;
+  localparam int unsigned LAT_CONV         = 'd2;
+  localparam int unsigned LAT_SDOTP        = 'd2;
 
   localparam fpnew_pkg::fpu_implementation_t FPU_IMPLEMENTATION = '{
     PipeRegs:  '{// FP32, FP64, FP16, FP8, FP16alt
