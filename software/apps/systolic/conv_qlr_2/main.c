@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Author: Gua Hao Khov, ETH Zurich
-//         Sergio Mazzola, ETH Zurich
+// Author: Sergio Mazzola, ETH Zurich
+//         Samuel Riedel, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>

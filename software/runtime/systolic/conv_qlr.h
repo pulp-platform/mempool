@@ -73,7 +73,9 @@
 // Repetition count
 #define REP_COUNT 1
 // Systolic Length (must be divisor of NUM_CORES)
+#ifndef SYSTOLIC_LENGTH
 #define SYSTOLIC_LENGTH 16
+#endif
 // How many pipelined convolutions per PE
 #define CONV_UNROLL (K)
 
