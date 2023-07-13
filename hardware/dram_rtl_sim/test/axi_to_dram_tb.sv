@@ -128,7 +128,7 @@ module axi_to_dram_tb;
         automatic axi_master_t::r_beat_t r = new ;
 
         ar = axi_master.new_rand_burst(0);
-        ar.ax_len = 0;
+        ar.ax_len = 255;
         ar.ax_size = $clog2(AXI_DATA_WIDTH/8);
         ar.ax_atop = axi_pkg::ATOP_NONE;
         ar.ax_addr = (ar.ax_addr>>$clog2(AXI_DATA_WIDTH/8))<<$clog2(AXI_DATA_WIDTH/8);
@@ -139,7 +139,7 @@ module axi_to_dram_tb;
             //send ar
             begin
                 for (int i = 0; i < count; i++) begin
-                    ar.ax_addr = ar.ax_addr + 64;
+                    ar.ax_addr = ar.ax_addr + (64*(ar.ax_len+1));
                     axi_master.drv.send_ar(ar);
                 end
             end
@@ -159,7 +159,14 @@ module axi_to_dram_tb;
         axi_master.add_memory_region(BASE + 0, BASE + 65636, axi_pkg::NORMAL_NONCACHEABLE_NONBUFFERABLE);
         @(posedge rst_n);
         // axi_master.run(1000,1000);
-        speedTest(10000);
+
+        //try to preload content to DRAM
+        for (int i = 0; i < 10; i++) begin
+            i_axi_dram_sim.i_sim_dram.load_to_dram(i, i*i);
+        end
+        
+
+        speedTest(100);
         $finish;
     end
 

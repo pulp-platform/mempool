@@ -3,9 +3,8 @@ package:
   authors:
     - "Chi Zhang <chizhang@iis.ee.ethz.ch>"
 
-
 dependencies:
-  axi:                 { git: "https://github.com/pulp-platform/axi.git",                 version: 0.38.0 }
+  axi: {git: "https://github.com/pulp-platform/axi.git", version: 0.38.0}
 
 sources:
   #level 1 
@@ -16,3 +15,4 @@ sources:
   - target: test
     files:
       - test/axi_to_dram_tb.sv
+      - test/axi_to_multi_dram_tb.sv
