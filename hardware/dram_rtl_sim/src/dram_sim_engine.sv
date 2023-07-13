@@ -15,16 +15,16 @@ import "DPI-C" function void run_ns(input int ns);
 
 module dram_sim_engine #(
 	parameter int unsigned ClkPeriodNs = 10
-	)(
-	input logic clk_i,  // Clock
-	input logic rst_ni  // Asynchronous reset active low
+)(
+	input logic clk_i, // Clock
+	input logic rst_ni // Asynchronous reset active low
 );
 
-	always_ff @(posedge clk_i or negedge rst_ni) begin : proc_dram_engine
-		if(rst_ni) begin
-			// run DRAMsys every clk
-			run_ns(ClkPeriodNs);
-		end
-	end
+  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_dram_engine
+  	if(rst_ni) begin
+  	  // run DRAMsys every clk
+  	  run_ns(ClkPeriodNs);
+  	end
+  end
 
 endmodule : dram_sim_engine
