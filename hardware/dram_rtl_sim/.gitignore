@@ -9,6 +9,7 @@ vsim/result/*
 vsim/DRAMSys*
 **/*.wlf
 **/*.vstf
+vsim/.nfs*
 .bender
 log.txt
 Bender.lock
