@@ -22,7 +22,7 @@
  * Y = conv2d(X, W), X is padded with zeros to compute Y's halo
  *
  * All cores are connected in a chain-like systolic array. Each computing PE
- * receives 4 rows of X and computes 2 rows of Y.
+ * receives 5 rows of X and computes 3 rows of Y.
  * In each PE, to maximize the data reuse of each loaded element of X's rows, 3
  * 3x3 kernels for each row are computed at the same time, column by column, in a
  * pipelined, interleaved fashion.
@@ -32,16 +32,28 @@
  * To avoid deep queue dependencies, the systolic array is divided into
  * multiple chains of PEs. The front PE of each chain (i.e., 'mover PE') directly
  * accesses memory to load 2 rows of X. The inner PEs (i.e., 'computing PEs') pop
- * rows 0 and 1 from the previous PE, load row 2 and 3 directly from memory with
- * load instructions, and push rows 2 and 3 to the subsequent PE. The last PE of
- * each chain is a computing PE which does not push to anything.
- * (rows 0,1,2 -> 1st output row; rows 1,2,3 -> 2nd output row)
+ * rows -1 and 0 from the previous PE, load row 1, 2, and 3 directly from memory
+ * with load instructions, and push rows 2 and 3 to the subsequent PE. The last PE
+ * of each chain is a computing PE which does not push to anything.
  *
  * Before the systolic computation, each PE laods the 3x3 weight kernel directly
  * from memory and stores it in its register file.
  *
  * NOTE: M and N must be at least 3. The kernel size is hardcoded to 3x3.
- *       Due to the 2-row unrolling, M must be an even number.
+ *       Due to the 3-row unrolling, M must be a multiple of 3.
+ *
+ * Schematic dataflow of each computing PE:
+ * ----------------------------------------------------
+ * row -1 -> from qlr_t0
+ * row  0 -> from qlr_t1 (same id as row_base_assign*i)
+ * row  1 -> loaded from memory
+ * row  2 -> loaded from memory (and pushed to qlr_t2)
+ * row  3 -> loaded from memory (and pushed to qlr_t3)
+ * ----------------------------------------------------
+ * rows -1,0,1 -> 1st output row
+ * rows  0,1,2 -> 2nd output row
+ * rows  1,2,3 -> 3rd output row
+ * ----------------------------------------------------
  */
 
 #include "alloc.h"
@@ -50,17 +62,17 @@
 #include "qlr.h"
 
 /* Settings */
-#define PRINT_ROW_PROC 0
+#define PRINT_ROW_PROC 1
 
 /* Dimensions of matrices */
 // X,Y = MxN; kernel = KxK
 // rows
 #ifndef DIM_M
-#define DIM_M 240
+#define DIM_M 3*240
 #endif
 // columns
 #ifndef DIM_N
-#define DIM_N 61
+#define DIM_N 84
 #endif
 // Kernel dimension
 #define K 3 // hardcoded, do not change
@@ -77,7 +89,7 @@
 // How many pipelined convolutions per row, per PE
 #define CONV_UNROLL (K) // hardcoded, do not change
 // How many rows per PE
-#define ROWS_UNROLL 2 // hardcoded, do not change
+#define ROWS_UNROLL 3 // hardcoded, do not change
 
 /* Array of queue pointers in row-major order */
 uint32_t *queues_x_0[NUM_CORES];
@@ -202,6 +214,15 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
   }
 }
 
+// Load 1 matrix element with post-increment addressing
+#define LOAD_POSTINCR(DEST, PTR, INCR)                      \
+  __asm__ __volatile__("p.lw %0, %[incr](%[addr]!)"         \
+                        : "=r"((DEST)), [addr] "+&r"((PTR)) \
+                        : [incr] "I"((INCR))                \
+                        : "memory")
+
+// Let the compiler compute the increment for loads, for higher performance
+#define COL_INCR (DIM_N * sizeof(int32_t))
 
 #define OP_ACC_QLR_WEIGHT(op, accum_col, qlr, weight) \
   __asm__ __volatile__(op" %0, %1, %2": "+r"((accum_col)): "r"((qlr)), "r"((weight)))
@@ -218,22 +239,34 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
     OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)], qlr_t1, weights[0][2]); \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)], qlr_t1, weights[0][1]); \
     OP_ACC_QLR_WEIGHT(  "mul",   kernel_acc_col[1][(init)], qlr_t1, weights[0][0]); \
+    /* MACs with 1st row of weights (3rd output row) */                             \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[2][(last)],   in_0, weights[0][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][(middle)],   in_0, weights[0][1]); \
+    OP_ACC_QLR_WEIGHT(  "mul",   kernel_acc_col[2][(init)],   in_0, weights[0][0]); \
     /* MACs with 2nd row of weights (1st output row) */                             \
     OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(last)], qlr_t1, weights[1][2]); \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][(middle)], qlr_t1, weights[1][1]); \
     OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(init)], qlr_t1, weights[1][0]); \
     /* MACs with 2nd row of weights (2nd output row) */                             \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)], qlr_t2, weights[1][2]); \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)], qlr_t2, weights[1][1]); \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(init)], qlr_t2, weights[1][0]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)],   in_0, weights[1][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)],   in_0, weights[1][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(init)],   in_0, weights[1][0]); \
+    /* MACs with 1st row of weights (3rd output row) */                             \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[2][(last)], qlr_t2, weights[1][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][(middle)], qlr_t2, weights[1][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[2][(init)], qlr_t2, weights[1][0]); \
     /* MACs with 3rd row of weights (1st output row) */                             \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(last)], qlr_t2, weights[2][2]); \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][(middle)], qlr_t2, weights[2][1]); \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(init)], qlr_t2, weights[2][0]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(last)],   in_0, weights[2][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][(middle)],   in_0, weights[2][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(init)],   in_0, weights[2][0]); \
     /* MACs with 3rd row of weights (2nd output row) */                             \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)], qlr_t3, weights[2][2]); \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)], qlr_t3, weights[2][1]); \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(init)], qlr_t3, weights[2][0]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)], qlr_t2, weights[2][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)], qlr_t2, weights[2][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(init)], qlr_t2, weights[2][0]); \
+    /* MACs with 1st row of weights (3rd output row) */                             \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[2][(last)], qlr_t3, weights[2][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][(middle)], qlr_t3, weights[2][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[2][(init)], qlr_t3, weights[2][0]); \
   } while (0)
 
 
@@ -247,18 +280,30 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
     OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)], qlr_t1, weights[0][2]); \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)], qlr_t1, weights[0][1]); \
     OP_ACC_QLR_WEIGHT(  "mul",   kernel_acc_col[1][(init)], qlr_t1, weights[0][0]); \
+    /* MACs with 1st row of weights (3rd output row) */                             \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[2][(last)],   in_0, weights[0][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][(middle)],   in_0, weights[0][1]); \
+    OP_ACC_QLR_WEIGHT(  "mul",   kernel_acc_col[2][(init)],   in_0, weights[0][0]); \
     /* MACs with 2nd row of weights (1st output row) */                             \
     OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(last)], qlr_t1, weights[1][2]); \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][(middle)], qlr_t1, weights[1][1]); \
     OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(init)], qlr_t1, weights[1][0]); \
     /* MACs with 2nd row of weights (2nd output row) */                             \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)], qlr_t2, weights[1][2]); \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)], qlr_t2, weights[1][1]); \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(init)], qlr_t2, weights[1][0]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)],   in_0, weights[1][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)],   in_0, weights[1][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(init)],   in_0, weights[1][0]); \
+    /* MACs with 1st row of weights (3rd output row) */                             \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[2][(last)], qlr_t2, weights[1][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][(middle)], qlr_t2, weights[1][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[2][(init)], qlr_t2, weights[1][0]); \
     /* MACs with 3rd row of weights (1st output row) */                             \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(last)], qlr_t2, weights[2][2]); \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][(middle)], qlr_t2, weights[2][1]); \
-    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(init)], qlr_t2, weights[2][0]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(last)],   in_0, weights[2][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][(middle)],   in_0, weights[2][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[0][(init)],   in_0, weights[2][0]); \
+    /* MACs with 3rd row of weights (2nd output row) */                             \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(last)], qlr_t2, weights[2][2]); \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][(middle)], qlr_t2, weights[2][1]); \
+    OP_ACC_QLR_WEIGHT("p.mac",   kernel_acc_col[1][(init)], qlr_t2, weights[2][0]); \
   } while (0)
 
 
@@ -268,30 +313,43 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
     __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                           \
     /* MACs with 1st row of weights (1st output row) */                                                              \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][1], qlr_t0, weights[0][2]); /* dummy (0, 0, X[i,0]) */              \
-    qlr_t2 = X[(row + 1) * num_cols];                                        /* Re-ordered load (optimization) */    \
-    qlr_t3 = X[(row + 2) * num_cols];                                                                                \
+    in_0   = X[(row + 1) * num_cols];                                        /* Re-ordered load (optimization) */    \
+    qlr_t2 = X[(row + 2) * num_cols];                                                                                \
+    qlr_t3 = X[(row + 3) * num_cols];                                                                                \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][2], qlr_t0, weights[0][1]); /* halo (0, X[i,0], X[i,1]) */          \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][0], qlr_t0, weights[0][0]); /* kernel_0 (X[i,0], X[i,1], X[i,2]) */ \
     /* MACs with 1st row of weights (2nd output row) */                                                              \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[1][1], qlr_t1, weights[0][2]);                                         \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[1][2], qlr_t1, weights[0][1]);                                         \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[1][0], qlr_t1, weights[0][0]);                                         \
+    /* MACs with 1st row of weights (3rd output row) */                                                              \
+    OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[2][1],   in_0, weights[0][2]);                                         \
+    OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[2][2],   in_0, weights[0][1]);                                         \
+    OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[2][0],   in_0, weights[0][0]);                                         \
     /* MACs with 2nd row of weights (1st output row) */                                                              \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][1], qlr_t1, weights[1][2]);                                         \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][2], qlr_t1, weights[1][1]);                                         \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][0], qlr_t1, weights[1][0]);                                         \
     /* MACs with 2nd row of weights (2nd output row) */                                                              \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][1], qlr_t2, weights[1][2]);                                         \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][2], qlr_t2, weights[1][1]);                                         \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][0], qlr_t2, weights[1][0]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][1],   in_0, weights[1][2]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][2],   in_0, weights[1][1]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][0],   in_0, weights[1][0]);                                         \
+    /* MACs with 2nd row of weights (3rd output row) */                                                              \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][1], qlr_t2, weights[1][2]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][2], qlr_t2, weights[1][1]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][0], qlr_t2, weights[1][0]);                                         \
     /* MACs with 3rd row of weights (1st output row) */                                                              \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][1], qlr_t2, weights[2][2]);                                         \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][2], qlr_t2, weights[2][1]);                                         \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][0], qlr_t2, weights[2][0]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][1],   in_0, weights[2][2]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][2],   in_0, weights[2][1]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][0],   in_0, weights[2][0]);                                         \
     /* MACs with 3rd row of weights (2nd output row) */                                                              \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][1], qlr_t3, weights[2][2]);                                         \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][2], qlr_t3, weights[2][1]);                                         \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][0], qlr_t3, weights[2][0]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][1], qlr_t2, weights[2][2]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][2], qlr_t2, weights[2][1]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][0], qlr_t2, weights[2][0]);                                         \
+    /* MACs with 3rd row of weights (3rd output row) */                                                              \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][1], qlr_t3, weights[2][2]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][2], qlr_t3, weights[2][1]);                                         \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][0], qlr_t3, weights[2][0]);                                         \
                                                                                                                      \
     /* CONVOLUTION BURST */                                                                                          \
     /* Compute 3 3x3 kernels at a time in a interleaved, pipelined way, to maximize                                  \
@@ -303,63 +361,78 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
     */                                                                                                               \
     for (col = 1; col < num_cols - 2; col += K) {                                                                    \
       /* ITERATION 0 */                                                                                              \
-      qlr_t2 = X[(row + 1) * num_cols + col + 0];                                                                    \
-      qlr_t3 = X[(row + 2) * num_cols + col + 0];                                                                    \
+      in_0   = X[(row + 1) * num_cols + col + 0];                                                                    \
+      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                                    \
+      qlr_t3 = X[(row + 3) * num_cols + col + 0];                                                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                                               \
       Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */                    \
       Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */                    \
+      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */                    \
       /* ITERATION 1 */                                                                                              \
-      qlr_t2 = X[(row + 1) * num_cols + col + 1];                                                                    \
-      qlr_t3 = X[(row + 2) * num_cols + col + 1];                                                                    \
+      in_0   = X[(row + 1) * num_cols + col + 1];                                                                    \
+      qlr_t2 = X[(row + 2) * num_cols + col + 1];                                                                    \
+      qlr_t3 = X[(row + 3) * num_cols + col + 1];                                                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(2, 1, 0);                                                                               \
       Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */                    \
       Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */                    \
+      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */                    \
       /* ITERATION 2 */                                                                                              \
-      qlr_t2 = X[(row + 1) * num_cols + col + 2];                                                                    \
-      qlr_t3 = X[(row + 2) * num_cols + col + 2];                                                                    \
+      in_0   = X[(row + 1) * num_cols + col + 2];                                                                    \
+      qlr_t2 = X[(row + 2) * num_cols + col + 2];                                                                    \
+      qlr_t3 = X[(row + 3) * num_cols + col + 2];                                                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(0, 2, 1);                                                                               \
       Y[row * num_cols + col + 1] = kernel_acc_col[0][1];       /* store finished accumulation */                    \
       Y[(row + 1) * num_cols + col + 1] = kernel_acc_col[1][1]; /* store finished accumulation */                    \
+      Y[(row + 2) * num_cols + col + 1] = kernel_acc_col[2][1]; /* store finished accumulation */                    \
     }                                                                                                                \
                                                                                                                      \
     /* CONVOLUTION REMAINDER */                                                                                      \
     if (col == num_cols - 2) {                                                                                       \
       /* ITERATION 0 */                                                                                              \
-      qlr_t2 = X[(row + 1) * num_cols + col + 0];                                                                    \
-      qlr_t3 = X[(row + 2) * num_cols + col + 0];                                                                    \
+      in_0   = X[(row + 1) * num_cols + col + 0];                                                                    \
+      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                                    \
+      qlr_t3 = X[(row + 3) * num_cols + col + 0];                                                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                                               \
       Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */                    \
       Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */                    \
+      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */                    \
       /* ITERATION 1 */                                                                                              \
-      qlr_t2 = X[(row + 1) * num_cols + col + 1];                                                                    \
-      qlr_t3 = X[(row + 2) * num_cols + col + 1];                                                                    \
+      in_0   = X[(row + 1) * num_cols + col + 1];                                                                    \
+      qlr_t2 = X[(row + 2) * num_cols + col + 1];                                                                    \
+      qlr_t3 = X[(row + 3) * num_cols + col + 1];                                                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(2, 1, 0);                                                                               \
       Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */                    \
       Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */                    \
+      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */                    \
       /* Store partial accumulation (zero-padding) */                                                                \
       Y[row * num_cols + col + 1] = kernel_acc_col[0][1];                                                            \
       Y[(row + 1) * num_cols + col + 1] = kernel_acc_col[1][1];                                                      \
+      Y[(row + 2) * num_cols + col + 1] = kernel_acc_col[2][1];                                                      \
                                                                                                                      \
     } else if (col == num_cols - 1) {                                                                                \
       /* ITERATION 0 */                                                                                              \
-      qlr_t2 = X[(row + 1) * num_cols + col + 0];                                                                    \
-      qlr_t3 = X[(row + 2) * num_cols + col + 0];                                                                    \
+      in_0   = X[(row + 1) * num_cols + col + 0];                                                                    \
+      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                                    \
+      qlr_t3 = X[(row + 3) * num_cols + col + 0];                                                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                                               \
       Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */                    \
       Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */                    \
+      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */                    \
       /* Store partial accumulation (zero-padding) */                                                                \
       Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */                    \
       Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */                    \
+      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */                    \
     } else {                                                                                                         \
       /* Store partial accumulation (zero-padding) */                                                                \
       Y[row * num_cols + col - 1] = kernel_acc_col[0][2];                                                            \
       Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2];                                                      \
+      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2];                                                      \
     }                                                                                                                \
   } while (0)                                                                                                        \
 
@@ -375,83 +448,109 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
     __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                        \
     /* MACs with 1st row of weights (1st output row) */                                           \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][1], qlr_t0, weights[0][2]);                      \
-    qlr_t2 = X[(row + 1) * num_cols]; /* Re-ordered load (optimization) */                        \
+    in_0   = X[(row + 1) * num_cols]; /* Re-ordered load (optimization) */                        \
+    qlr_t2 = X[(row + 2) * num_cols];                                                             \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][2], qlr_t0, weights[0][1]);                      \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][0], qlr_t0, weights[0][0]);                      \
     /* MACs with 1st row of weights (2nd output row) */                                           \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[1][1], qlr_t1, weights[0][2]);                      \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[1][2], qlr_t1, weights[0][1]);                      \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[1][0], qlr_t1, weights[0][0]);                      \
+    /* MACs with 1st row of weights (3rd output row) */                                           \
+    OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[2][1],   in_0, weights[0][2]);                      \
+    OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[2][2],   in_0, weights[0][1]);                      \
+    OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[2][0],   in_0, weights[0][0]);                      \
     /* MACs with 2nd row of weights (1st output row) */                                           \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][1], qlr_t1, weights[1][2]);                      \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][2], qlr_t1, weights[1][1]);                      \
     OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][0], qlr_t1, weights[1][0]);                      \
     /* MACs with 2nd row of weights (2nd output row) */                                           \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][1], qlr_t2, weights[1][2]);                      \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][2], qlr_t2, weights[1][1]);                      \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][0], qlr_t2, weights[1][0]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][1],   in_0, weights[1][2]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][2],   in_0, weights[1][1]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][0],   in_0, weights[1][0]);                      \
+    /* MACs with 2nd row of weights (3rd output row) */                                           \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][1], qlr_t2, weights[1][2]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][2], qlr_t2, weights[1][1]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[2][0], qlr_t2, weights[1][0]);                      \
     /* MACs with 3rd row of weights (1st output row) */                                           \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][1], qlr_t2, weights[2][2]);                      \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][2], qlr_t2, weights[2][1]);                      \
-    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][0], qlr_t2, weights[2][0]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][1],   in_0, weights[2][2]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][2],   in_0, weights[2][1]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[0][0],   in_0, weights[2][0]);                      \
+    /* MACs with 3rd row of weights (2nd output row) */                                           \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][1], qlr_t2, weights[2][2]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][2], qlr_t2, weights[2][1]);                      \
+    OP_ACC_QLR_WEIGHT("p.mac", kernel_acc_col[1][0], qlr_t2, weights[2][0]);                      \
                                                                                                   \
-    /* CONVOLUTION BURST */                                                                       \
     for (col = 1; col < num_cols - 2; col += K) {                                                 \
       /* ITERATION 0 */                                                                           \
-      qlr_t2 = X[(row + 1) * num_cols + col + 0];                                                 \
+      in_0   = X[(row + 1) * num_cols + col + 0];                                                 \
+      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                 \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
-      CONV_KERNEL_STAGE_HALO(1, 0, 2);                                                            \
+      CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                            \
       Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */ \
       Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */ \
+      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */ \
       /* ITERATION 1 */                                                                           \
-      qlr_t2 = X[(row + 1) * num_cols + col + 1];                                                 \
+      in_0   = X[(row + 1) * num_cols + col + 1];                                                 \
+      qlr_t2 = X[(row + 2) * num_cols + col + 1];                                                 \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
-      CONV_KERNEL_STAGE_HALO(2, 1, 0);                                                            \
+      CONV_KERNEL_STAGE_FULL(2, 1, 0);                                                            \
       Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */ \
       Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */ \
+      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */ \
       /* ITERATION 2 */                                                                           \
-      qlr_t2 = X[(row + 1) * num_cols + col + 2];                                                 \
+      in_0   = X[(row + 1) * num_cols + col + 2];                                                 \
+      qlr_t2 = X[(row + 2) * num_cols + col + 2];                                                 \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
-      CONV_KERNEL_STAGE_HALO(0, 2, 1);                                                            \
+      CONV_KERNEL_STAGE_FULL(0, 2, 1);                                                            \
       Y[row * num_cols + col + 1] = kernel_acc_col[0][1];       /* store finished accumulation */ \
       Y[(row + 1) * num_cols + col + 1] = kernel_acc_col[1][1]; /* store finished accumulation */ \
+      Y[(row + 2) * num_cols + col + 1] = kernel_acc_col[2][1]; /* store finished accumulation */ \
     }                                                                                             \
                                                                                                   \
     /* CONVOLUTION REMAINDER */                                                                   \
     if (col == num_cols - 2) {                                                                    \
       /* ITERATION 0 */                                                                           \
-      qlr_t2 = X[(row + 1) * num_cols + col + 0];                                                 \
+      in_0   = X[(row + 1) * num_cols + col + 0];                                                 \
+      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                 \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
-      CONV_KERNEL_STAGE_HALO(1, 0, 2);                                                            \
+      CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                            \
       Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */ \
       Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */ \
+      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */ \
       /* ITERATION 1 */                                                                           \
-      qlr_t2 = X[(row + 1) * num_cols + col + 1];                                                 \
+      in_0   = X[(row + 1) * num_cols + col + 1];                                                 \
+      qlr_t2 = X[(row + 2) * num_cols + col + 1];                                                 \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
-      CONV_KERNEL_STAGE_HALO(2, 1, 0);                                                            \
+      CONV_KERNEL_STAGE_FULL(2, 1, 0);                                                            \
       Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */ \
       Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */ \
+      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */ \
       /* Store partial accumulation (zero-padding) */                                             \
       Y[row * num_cols + col + 1] = kernel_acc_col[0][1];                                         \
       Y[(row + 1) * num_cols + col + 1] = kernel_acc_col[1][1];                                   \
+      Y[(row + 2) * num_cols + col + 1] = kernel_acc_col[2][1];                                   \
                                                                                                   \
     } else if (col == num_cols - 1) {                                                             \
       /* ITERATION 0 */                                                                           \
-      qlr_t2 = X[(row + 1) * num_cols + col + 0];                                                 \
+      in_0   = X[(row + 1) * num_cols + col + 0];                                                 \
+      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                 \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
-      CONV_KERNEL_STAGE_HALO(1, 0, 2);                                                            \
+      CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                            \
       Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */ \
       Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */ \
+      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */ \
       /* Store partial accumulation (zero-padding) */                                             \
-      Y[row * num_cols + col + 0] = kernel_acc_col[0][0];                                         \
-      Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0];                                   \
-                                                                                                  \
+      Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */ \
+      Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */ \
+      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */ \
     } else {                                                                                      \
       /* Store partial accumulation (zero-padding) */                                             \
       Y[row * num_cols + col - 1] = kernel_acc_col[0][2];                                         \
       Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2];                                   \
+      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2];                                   \
     }                                                                                             \
-  } while (0)
+  } while (0)                                                                                     \
 
 /*
  * Inner cores of the systolic convolution chain
@@ -470,7 +569,8 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
   /* Column accumulator for each kernel */
   // we perform the convolution for each kernel in a column-interleaved fashion
   // so a number of accumulator equal to the kernel size is required
-  register int32_t kernel_acc_col[ROWS_UNROLL][K] = {{0, 0, 0}, {0, 0, 0}};
+  register int32_t kernel_acc_col[ROWS_UNROLL][K] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+  register int32_t in_0;
 
   // Load weights
   for (uint32_t y = 0; y < K; y++)
@@ -513,11 +613,11 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
   if (qpopush_reqs != 0) {
     // row_base_assign - 1 (pop from previous PE)
     qlr_cfg_t0[QLR_CFG_REQ]   = (uint32_t)qpopush_reqs;
-    qlr_cfg_t0[QLR_CFG_RF]    = K; // read each value "1 row * K cols" times
+    qlr_cfg_t0[QLR_CFG_RF]    = 1 * K; // read each value "1 row * K cols" times
     qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_x_0[core_id];
     // row_base_assign (pop from previous PE)
     qlr_cfg_t1[QLR_CFG_REQ]   = (uint32_t)qpopush_reqs;
-    qlr_cfg_t1[QLR_CFG_RF]    =  ROWS_UNROLL * K; // read each value "ROWS_UNROLL rows * K cols" times
+    qlr_cfg_t1[QLR_CFG_RF]    =  2 * K; // read each value "2 rows * K cols" times
     qlr_cfg_t1[QLR_CFG_IADDR] = (uint32_t)queues_x_1[core_id];
     // row_base_assign + 1 (load from memory + push into next)
     qlr_cfg_t2[QLR_CFG_REQ]   = (uint32_t)qpopush_reqs;
@@ -553,10 +653,10 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
       // Setting QLR type == re-starting QLR, so we have to make sure
       // we are asking for only one more row (i.e., num_cols requests)
       qlr_cfg_t0[QLR_CFG_REQ]   = (uint32_t)num_cols;
-      qlr_cfg_t0[QLR_CFG_RF]    = K;
+      qlr_cfg_t0[QLR_CFG_RF]    = 1 * K;
       qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_x_0[core_id];
       qlr_cfg_t1[QLR_CFG_REQ]   = (uint32_t)num_cols;
-      qlr_cfg_t1[QLR_CFG_RF]    = ROWS_UNROLL * K;
+      qlr_cfg_t1[QLR_CFG_RF]    = 2 * K;
       qlr_cfg_t1[QLR_CFG_IADDR] = (uint32_t)queues_x_1[core_id];
       // Start with new config for very last row
       qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
@@ -582,7 +682,8 @@ void systolic_conv_end(const uint32_t core_id, const uint32_t chain_id, const ui
 
   int32_t weights[K][K];
   /* Column accumulator for each kernel */
-  register int32_t kernel_acc_col[ROWS_UNROLL][K] = {{0, 0, 0}, {0, 0, 0}};
+  register int32_t kernel_acc_col[ROWS_UNROLL][K] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+  register int32_t in_0;
 
   // Load weights
   for (uint32_t y = 0; y < K; y++)
@@ -610,11 +711,11 @@ void systolic_conv_end(const uint32_t core_id, const uint32_t chain_id, const ui
   /* Configure QLRs */
   // row_base_assign - 1 (pop from previous PE)
   qlr_cfg_t0[QLR_CFG_REQ]   = (uint32_t)qpop_reqs;
-  qlr_cfg_t0[QLR_CFG_RF]    = K; // read each value "1 row * K cols" times
+  qlr_cfg_t0[QLR_CFG_RF]    = 1 * K; // read each value "1 row * K cols" times
   qlr_cfg_t0[QLR_CFG_IADDR] = (uint32_t)queues_x_0[core_id];
   // row_base_assign (pop from previous PE)
   qlr_cfg_t1[QLR_CFG_REQ]   = (uint32_t)qpop_reqs;
-  qlr_cfg_t1[QLR_CFG_RF]    =  ROWS_UNROLL * K; // read each value "ROWS_UNROLL rows * K cols" times
+  qlr_cfg_t1[QLR_CFG_RF]    =  2 * K; // read each value "2 rows * K cols" times
   qlr_cfg_t1[QLR_CFG_IADDR] = (uint32_t)queues_x_1[core_id];
 
   for (uint32_t rep = 0; rep < rep_count; rep++) {
