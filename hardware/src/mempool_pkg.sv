@@ -60,6 +60,33 @@ package mempool_pkg;
   localparam integer unsigned L2ByteOffset     = $clog2(L2BeWidth);
   localparam integer unsigned L2AddrWidth      = $clog2(L2Size);
 
+  // L2 DRAM
+  localparam integer unsigned NumDrams         = `ifdef L2_BANKS `L2_BANKS `else 1 `endif;
+  localparam integer unsigned L2DramWidth      = AxiDataWidth;
+  localparam integer unsigned L2DramBeWidth    = L2DramWidth/8;
+  localparam integer unsigned L2DramByteOffset = $clog2(L2DramBeWidth);
+
+  `ifdef DRAM
+    // DRAM Interleaving Functions
+    typedef struct packed {
+      int                                             dram_ctrl_id;
+      logic [AddrWidth-1:0]                           dram_ctrl_addr;
+    } dram_ctrl_interleave_t;
+
+    localparam int unsigned Interleave  = `ifdef DRAM_AXI_WIDTH_INTERLEAVED `DRAM_AXI_WIDTH_INTERLEAVED `else 16 `endif;
+
+    function automatic dram_ctrl_interleave_t getDramCTRLInfo(addr_t addr);
+      automatic dram_ctrl_interleave_t res;
+      localparam int unsigned ConstantBits = $clog2(L2BankBeWidth * Interleave);
+      localparam int unsigned ScrambleBits = (NumDrams == 1) ? 1 : $clog2(NumDrams);
+      localparam int unsigned ReminderBits = AddrWidth - ScrambleBits - ConstantBits;
+      automatic addr_t reminder_addr = addr[AddrWidth-1: AddrWidth-ReminderBits];
+
+      res.dram_ctrl_id = addr[ScrambleBits + ConstantBits - 1: ConstantBits ];
+      res.dram_ctrl_addr = {reminder_addr, addr[ConstantBits-1:0]};
+      return res;
+    endfunction
+  `endif
 
   typedef logic [AxiCoreIdWidth-1:0] axi_core_id_t;
   typedef logic [AxiTileIdWidth-1:0] axi_tile_id_t;

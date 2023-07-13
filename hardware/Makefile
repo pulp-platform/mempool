@@ -140,6 +140,14 @@ vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group)
 vlog_defs += -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
 ifdef dram
 	vlog_defs += -DDRAM=${dram}
+	#vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED
+	#vlog_defs += -DDRAM_AXI_4WIDTH_INTERLEAVED
+	#vlog_defs += -DDRAM_AXI_8WIDTH_INTERLEAVED
+	vlog_defs += -DDRAM_AXI_16WIDTH_INTERLEAVED
+	#vlog_defs += -DDRAM_AXI_32WIDTH_INTERLEAVED
+	#vlog_defs += -DDRAM_AXI_64WIDTH_INTERLEAVED
+	#vlog_defs += -DDRAM_GROUP_INTERLEAVED
+	#vlog_defs += -DDRAM_SUB_GROUP_INTERLEAVED
 endif
 
 # Traffic generation enabled
