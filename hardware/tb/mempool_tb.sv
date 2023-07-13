@@ -56,7 +56,11 @@ module mempool_tb;
 
     rst_n = 1'b1;
   end
-
+  
+  `ifdef DRAM
+    dram_sim_engine #(.ClkPeriodNs(2)) i_dram_sim_engine (.clk_i(clk), .rst_ni(rst_n));
+  `endif
+  
   /*********
    *  AXI  *
    *********/
@@ -346,6 +350,45 @@ module mempool_tb;
       end
     end : l2_init
   end : gen_l2_banks_init
+
+`else
+
+  for (genvar bank = 0; bank < NumDrams; bank++) begin : gen_drams_init
+    initial begin : l2_init
+      automatic logic [L2BankWidth-1:0] mem_row;
+      byte buffer [];
+      addr_t address;
+      addr_t length;
+      string binary;
+
+      // Initialize memories
+      void'($value$plusargs("PRELOAD=%s", binary));
+      if (binary != "") begin
+        // Read ELF
+        read_elf(binary);
+        $display("Loading %s", binary);
+        while (get_section(address, length)) begin
+          // Read sections
+          automatic int nwords = (length + L2DramBeWidth - 1)/L2DramBeWidth;
+          $display("Loading section %x of length %x", address, length);
+          buffer = new[nwords * L2DramBeWidth];
+          void'(read_section(address, buffer));
+          if (address >= dut.L2MemoryBaseAddr) begin
+            for (int i = 0; i < nwords * L2DramBeWidth; i++) begin //per byte
+              automatic dram_ctrl_interleave_t dram_ctrl_info;
+              dram_ctrl_info = getDramCTRLInfo(address + i - dut.L2MemoryBaseAddr);
+              if (dram_ctrl_info.dram_ctrl_id == bank) begin
+                dut.gen_drams[bank].i_axi_dram_sim.i_sim_dram.load_to_dram(dram_ctrl_info.dram_ctrl_addr, buffer[i]);
+              end
+            end
+          end else begin
+            $display("Cannot initialize address %x, which doesn't fall into the L2 DRAM region.", address);
+          end
+        end
+      end
+    end : l2_init
+  end : gen_drams_init
+
 `endif
 
   /**************************************
