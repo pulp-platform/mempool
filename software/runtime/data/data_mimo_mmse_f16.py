@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+# This script generates data for the fp16 mmse.
+# Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
+
 import numpy as np
 import argparse
 import pathlib
@@ -13,7 +20,7 @@ from scipy.linalg import solve_triangular
 
 def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **kwargs):
 
-    file = outdir / f"data_{kwargs['name']}.h"
+    file = outdir / f"{kwargs['name']}.h"
 
     print(tpl, outdir, kwargs['name'])
 
@@ -21,21 +28,18 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **
     with file.open('w') as f:
         f.write(template.render(**kwargs))
 
-
 def gen_input_data(N_rx, N_tx):
-
     # Create channel matrix
-    H = np.random.rand(N_rx, N_tx).astype(np.float32) + 1.j * np.random.rand(N_rx, N_tx).astype(np.float32)
+    H = np.random.rand(N_rx, N_tx).astype(np.float16) + 1.j * np.random.rand(N_rx, N_tx).astype(np.float16)
     # Create input vector
-    b = np.random.rand(N_rx).astype(np.float32) + 1.j * np.random.rand(N_rx).astype(np.float32)
+    b = np.random.rand(N_rx).astype(np.float16) + 1.j * np.random.rand(N_rx).astype(np.float16)
     # Generate noise variance
-    sigma = np.diag(np.random.rand(N_tx, N_tx).astype(np.float32))
+    sigma = np.diag(np.random.rand(N_tx, N_tx).astype(np.float16))
 
     # Matrix to be inverted in MMSE estimator
-    H_h = np.asmatrix(H).H
+    H_h = (np.asmatrix(H).H)
 
     G = H_h * H
-    print(sigma)
     G = G + np.diag(sigma)
     # Cholesky decomposition
     L = np.linalg.cholesky(G)
@@ -75,14 +79,14 @@ def gen_input_data(N_rx, N_tx):
         y_RI[2*i]   = y[i].real
         y_RI[2*i+1] = y[i].imag
 
-    sigma = sigma.astype(np.float32)
-    H_RI = H_RI.astype(np.float32)
-    G_RI = G_RI.astype(np.float32)
-    L_RI = L_RI.astype(np.float32)
-    b_RI = b_RI.astype(np.float32)
-    x_RI = x_RI.astype(np.float32)
-    y_RI = y_RI.astype(np.float32)
-    s_RI = s_RI.astype(np.float32)
+    sigma = sigma.astype(np.float16)
+    H_RI = H_RI.astype(np.float16)
+    G_RI = G_RI.astype(np.float16)
+    L_RI = L_RI.astype(np.float16)
+    b_RI = b_RI.astype(np.float16)
+    x_RI = x_RI.astype(np.float16)
+    y_RI = y_RI.astype(np.float16)
+    s_RI = s_RI.astype(np.float16)
     # print("Channel matrix in (Re, Im) format:\n", H_RI)
     # print("Hermitian matrix in (Re, Im) format:\n", G_RI)
     # print("Cholesky dec. in (Re, Im) format:\n", L_RI)
@@ -91,7 +95,6 @@ def gen_input_data(N_rx, N_tx):
 
     return sigma, H_RI, G_RI, b_RI, x_RI
 
-
 def main():
 
     parser = argparse.ArgumentParser(description='Generate data for kernels')
@@ -99,7 +102,7 @@ def main():
         "-o",
         "--outdir",
         type=pathlib.Path,
-        default=pathlib.Path.cwd(),
+        default=pathlib.Path( __file__ ).parent.absolute(),
         required=False,
         help='Select out directory of generated data files'
     )
@@ -108,7 +111,7 @@ def main():
         "--tpl",
         type=pathlib.Path,
         required=False,
-        default=pathlib.Path.cwd() / "data_mimo_mmse.h.tpl",
+        default=pathlib.Path( __file__ ).parent.absolute() / "data_mimo_mmse_f16.h.tpl",
         help='Path to mako template'
     )
     parser.add_argument(
@@ -131,7 +134,7 @@ def main():
         type=int,
         required=False,
         default=32,
-        help='Second dimension.'
+        help='First dimension.'
     )
     parser.add_argument(
         "-k",
@@ -161,8 +164,13 @@ def main():
     b_RI = np.reshape(b_RI, (2*N_rx*itr))
     x_RI = np.reshape(x_RI, (2*N_tx*itr))
 
+    sigma = sigma.astype(np.float16)
+    H_RI = H_RI.astype(np.float16)
+    G_RI = G_RI.astype(np.float16)
+    b_RI = b_RI.astype(np.float16)
+    x_RI = x_RI.astype(np.float16)
 
-    kwargs = {'name': 'mimo_mmse_f32', 'H': H_RI, 'G': G_RI, 'sigma': sigma, 'b' : b_RI, 'x' : x_RI, 'N_tx' : N_tx, 'N_rx' : N_rx, 'N_itr' : itr}
+    kwargs = {'name': 'data_mimo_mmse_f16', 'H': H_RI, 'G': G_RI, 'sigma': sigma, 'b' : b_RI, 'x' : x_RI, 'N_tx' : N_tx, 'N_rx' : N_rx, 'N_itr' : itr}
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
 
 if __name__ == "__main__":

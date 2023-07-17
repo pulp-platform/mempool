@@ -15,11 +15,8 @@
     return out
 %> \
 
-#define N_TX (${N_tx})
-#define N_RX (${N_rx})
+#define N (${N})
 
-__fp16 In_G[${2 * N_tx * N_rx}] = ${array_to_cstr(G)};
-__fp16 In_b[${2 * N_tx * N_rx}] = ${array_to_cstr(b)};
+__fp16 In_G[${2 * N * N}] = ${array_to_cstr(G)};
 
-__fp16 Out_L[${2 * N_tx * N_rx}] = ${array_to_cstr(L)};
-__fp16 Out_x[${2 * N_tx * N_rx}] = ${array_to_cstr(x)};
+__fp16 Out_L[${2 * N * N}] = ${array_to_cstr(L)};
