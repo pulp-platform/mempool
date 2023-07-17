@@ -30,10 +30,12 @@ boot_addr ?= 2684354560 # A0000000
 
 # L2 memory configuration (in dec)
 l2_base  ?= 2147483648 # 80000000
-l2_size  ?= 4194304    # 400000
-l2_banks ?= 4
 ifeq ($(config), terapool)
-  l2_banks = 16
+    l2_size  ?= 16777216 # 1000000
+    l2_banks ?= 16
+else
+    l2_size  ?= 4194304  # 400000
+    l2_banks ?= 4
 endif
 
 # L1 size per bank (in dec)
