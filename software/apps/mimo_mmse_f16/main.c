@@ -23,14 +23,14 @@ typedef union {
 
 //#define SINGLE
 #define PARALLEL
-#define FOLDED
+//#define FOLDED
 
 #ifdef SINGLE
 __fp16 ch_matrix[2 * N_TX * N_RX]    __attribute__((section(".l1")));
 __fp16 in_matrix[2 * N_TX * N_TX]    __attribute__((section(".l1")));
 __fp16 out_matrix[2 * N_TX * N_TX]   __attribute__((section(".l1")));
-__fp16 sigma[2 * N_TX]   __attribute__((section(".l1")));
-__fp16 b[2 * N_RX]   __attribute__((section(".l1")));
+__fp16 sigma[2 * N_TX]  __attribute__((section(".l1")));
+__fp16 b[2 * N_RX]      __attribute__((section(".l1")));
 
 __fp16 s[2 * N_TX]   __attribute__((section(".l1")));
 __fp16 x[2 * N_TX]   __attribute__((section(".l1")));
@@ -38,15 +38,15 @@ __fp16 y[2 * N_TX]   __attribute__((section(".l1")));
 #endif
 
 #ifdef PARALLEL
-__fp16 ch_matrix[2 * N_TX * N_RX * N_ITR]    __attribute__((section(".l1")));
-__fp16 b[2 * N_RX * N_ITR]   __attribute__((section(".l1")));
-__fp16 sigma[2 * N_TX * N_ITR]   __attribute__((section(".l1"), aligned(N_BANKS)));
+__fp16 in_matrix[2 * N_TX * N_TX * N_ITR]    __attribute__((section(".l1_prio"), aligned(N_BANKS)));
+__fp16 out_matrix[2 * N_TX * N_TX * N_ITR]   __attribute__((section(".l1_prio"), aligned(N_BANKS)));
+__fp16 s[2 * N_TX * N_ITR]   __attribute__((section(".l1_prio"), aligned(N_BANKS)));
+__fp16 x[2 * N_TX * N_ITR]   __attribute__((section(".l1_prio"), aligned(N_BANKS)));
+__fp16 y[2 * N_TX * N_ITR]   __attribute__((section(".l1_prio"), aligned(N_BANKS)));
 
-__fp16 in_matrix[2 * N_TX * N_TX * N_ITR]    __attribute__((section(".l1_prio")));
-__fp16 out_matrix[2 * N_TX * N_TX * N_ITR]   __attribute__((section(".l1_prio")));
-__fp16 s[2 * N_TX * N_ITR]   __attribute__((section(".l1"), aligned(N_BANKS)));
-__fp16 x[2 * N_TX * N_ITR]   __attribute__((section(".l1"), aligned(N_BANKS)));
-__fp16 y[2 * N_TX * N_ITR]   __attribute__((section(".l1"), aligned(N_BANKS)));
+__fp16 ch_matrix[2 * N_TX * N_RX * N_ITR]    __attribute__((section(".l1_prio")));
+__fp16 b[2 * N_RX * N_ITR]        __attribute__((section(".l1_prio")));
+__fp16 sigma[2 * N_TX * N_ITR]    __attribute__((section(".l1_prio")));
 #endif
 
 void initialize(__fp16 *matrix, __fp16 *data, uint32_t dim, uint32_t core_id, uint32_t num_cores) {
@@ -134,11 +134,7 @@ void single_core_mimo_mmse() {
   }
   mempool_barrier(num_cores);
 
-  //verify_result(in_matrix, In_G, N_TX*N_TX, core_id);
-  //verify_result(out_matrix, Out_L,  N_TX*N_TX, core_id);
-  //verify_result(s, Out_s, N_TX, core_id);
   verify_result(x, Out_x, N_TX, core_id);
-  //write_result(x, N_TX, core_id);
   mempool_barrier(num_cores);
   return;
 }
@@ -171,14 +167,17 @@ void parallel_mimo_mmse_cholesky() {
 #ifdef FOLDED
   mempool_start_benchmark();
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
-    __fp16* ch_matrix_ptr = ch_matrix + 2*N_TX*N_RX * itr;
-    __fp16* sigma_ptr = sigma + 2*N_TX * itr;
-    __fp16* b_ptr = b + 2*N_RX * itr;
-    __fp16* in_matrix_ptr = in_matrix + itr * 2*N_TX + (itr / num_cores) * (N_TX * N_BANKS);
-    __fp16* out_matrix_ptr = out_matrix + itr * 2*N_TX + (itr / num_cores) * (N_TX * N_BANKS);
-    __fp16* s_ptr = s + itr * 2*N_TX + (itr / num_cores) * (N_BANKS);
-    __fp16* y_ptr = y + itr * 2*N_TX + (itr / num_cores) * (N_BANKS);
-    __fp16* x_ptr = x + 2*N_TX * itr;
+
+    __fp16* ch_matrix_ptr = ch_matrix + itr * (2 * N_TX * N_RX);
+    __fp16* sigma_ptr = sigma + itr * (2 * N_TX);
+    __fp16* b_ptr = b + itr * (2 * N_RX);
+
+    __fp16* in_matrix_ptr = in_matrix + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_TX * N_BANKS);
+    __fp16* out_matrix_ptr = out_matrix + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_TX * N_BANKS);
+    __fp16* s_ptr = s + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_BANKS);
+    __fp16* y_ptr = y + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_BANKS);
+    __fp16* x_ptr = x + itr * (2 * N_TX);
+
     mempool_hermitian_f16s(ch_matrix_ptr, in_matrix_ptr, sigma_ptr, N_RX, N_TX, 1);
     mempool_MVP_conjtransp_f16s(ch_matrix_ptr, b_ptr, s_ptr, N_RX, N_TX, 1);
     mempool_cholesky_folded_f16s(in_matrix_ptr, out_matrix_ptr, N_TX);
@@ -191,14 +190,17 @@ void parallel_mimo_mmse_cholesky() {
   // Each iteration is assigned to a processor
   mempool_start_benchmark();
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
-    __fp16* ch_matrix_ptr = ch_matrix + 2*N_TX*N_RX * itr;
-    __fp16* sigma_ptr = sigma + 2*N_TX * itr;
-    __fp16* b_ptr = b + 2*N_RX * itr;
-    __fp16* in_matrix_ptr = in_matrix + 2*N_TX*N_TX * itr;
-    __fp16* out_matrix_ptr = out_matrix + 2*N_TX*N_TX  * itr;
-    __fp16* s_ptr = s + 2*N_TX * itr;
-    __fp16* y_ptr = y + 2*N_TX * itr;
-    __fp16* x_ptr = x + 2*N_TX * itr;
+
+    __fp16* ch_matrix_ptr = ch_matrix + itr * (2 * N_TX * N_RX);
+    __fp16* sigma_ptr = sigma + itr * (2 * N_TX);
+    __fp16* b_ptr = b + itr * (2 * N_RX);
+
+    __fp16* in_matrix_ptr = in_matrix + itr * (2 * N_TX * N_TX);
+    __fp16* out_matrix_ptr = out_matrix + itr * (2 * N_TX * N_TX);
+    __fp16* s_ptr = s + itr * (2 * N_TX);
+    __fp16* y_ptr = y + itr * (2 * N_TX);
+    __fp16* x_ptr = x + itr * (2 * N_TX);
+
     mempool_hermitian_f16s(ch_matrix_ptr, in_matrix_ptr, sigma_ptr, N_RX, N_TX, 0);
     mempool_MVP_conjtransp_f16s(ch_matrix_ptr, b_ptr, s_ptr, N_RX, N_TX, 0);
     mempool_cholesky_f16s(in_matrix_ptr, out_matrix_ptr, N_TX);
