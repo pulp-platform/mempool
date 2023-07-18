@@ -59,7 +59,7 @@ module axi_dram_sim #(
   dram_axi_resp_t dram_axi_resp;
 
   axi_dw_converter #(
-    .AxiMaxReads        (64               ),
+    .AxiMaxReads        (16               ),
     .AxiSlvPortDataWidth(AxiDataWidth     ),
     .AxiMstPortDataWidth(DramDataWidth    ),
     .AxiAddrWidth       (AxiAddrWidth     ),
@@ -94,8 +94,8 @@ module axi_dram_sim #(
     .AxiDataWidth   (DramDataWidth       ),
     .AxiIdWidth     (AxiIdWidth          ),
     .AxiUserWidth   (AxiUserWidth        ),
-    .AxiMaxWriteTxns(256                 ),
-    .AxiMaxReadTxns (256                 ),
+    .AxiMaxWriteTxns(32                  ),
+    .AxiMaxReadTxns (32                  ),
     .FallThrough    (0                   ),
     .full_req_t     (dram_axi_req_t      ),
     .full_resp_t    (dram_axi_resp_t     ),
@@ -191,7 +191,7 @@ module axi_dram_sim #(
 
   fifo_v3 #(
     .FALL_THROUGH (1'b0 ),
-    .DEPTH        (8    ),
+    .DEPTH        (16   ),
     .dtype        (logic)
   ) i_AXI_pack_req_fifo (
     .clk_i,
