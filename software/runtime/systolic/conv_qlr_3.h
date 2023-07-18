@@ -62,7 +62,7 @@
 #include "qlr.h"
 
 /* Settings */
-#define PRINT_ROW_PROC 1
+#define PRINT_ROW_PROC 0
 
 /* Dimensions of matrices */
 // X,Y = MxN; kernel = KxK
@@ -221,6 +221,12 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
                         : [incr] "I"((INCR))                \
                         : "memory")
 
+#define STORE_POSTINCR(SRC, PTR, INCR)                         \
+  __asm__ __volatile__("p.sw %[val], %[incr](%[addr]!)"        \
+                        : [addr] "+&r"((PTR))                  \
+                        : [val] "r"((SRC)), [incr] "I"((INCR)) \
+                        : "memory")
+
 // Let the compiler compute the increment for loads, for higher performance
 #define COL_INCR (DIM_N * sizeof(int32_t))
 
@@ -313,9 +319,9 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
     __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                           \
     /* MACs with 1st row of weights (1st output row) */                                                              \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][1], qlr_t0, weights[0][2]); /* dummy (0, 0, X[i,0]) */              \
-    in_0   = X[(row + 1) * num_cols];                                        /* Re-ordered load (optimization) */    \
-    qlr_t2 = X[(row + 2) * num_cols];                                                                                \
-    qlr_t3 = X[(row + 3) * num_cols];                                                                                \
+    LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                  /* Re-ordered load (optimization) */    \
+    LOAD_POSTINCR(qlr_t2, x_ptr, COL_INCR);                                                                          \
+    LOAD_POSTINCR(qlr_t3, x_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                                      \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][2], qlr_t0, weights[0][1]); /* halo (0, X[i,0], X[i,1]) */          \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][0], qlr_t0, weights[0][0]); /* kernel_0 (X[i,0], X[i,1], X[i,2]) */ \
     /* MACs with 1st row of weights (2nd output row) */                                                              \
@@ -361,78 +367,78 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
     */                                                                                                               \
     for (col = 1; col < num_cols - 2; col += K) {                                                                    \
       /* ITERATION 0 */                                                                                              \
-      in_0   = X[(row + 1) * num_cols + col + 0];                                                                    \
-      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                                    \
-      qlr_t3 = X[(row + 3) * num_cols + col + 0];                                                                    \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t2, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t3, x_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                                               \
-      Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */                    \
-      Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */                    \
-      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */                    \
+      STORE_POSTINCR(kernel_acc_col[0][2], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][2], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][2], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
       /* ITERATION 1 */                                                                                              \
-      in_0   = X[(row + 1) * num_cols + col + 1];                                                                    \
-      qlr_t2 = X[(row + 2) * num_cols + col + 1];                                                                    \
-      qlr_t3 = X[(row + 3) * num_cols + col + 1];                                                                    \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t2, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t3, x_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(2, 1, 0);                                                                               \
-      Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */                    \
-      Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */                    \
-      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */                    \
+      STORE_POSTINCR(kernel_acc_col[0][0], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][0], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][0], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
       /* ITERATION 2 */                                                                                              \
-      in_0   = X[(row + 1) * num_cols + col + 2];                                                                    \
-      qlr_t2 = X[(row + 2) * num_cols + col + 2];                                                                    \
-      qlr_t3 = X[(row + 3) * num_cols + col + 2];                                                                    \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t2, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t3, x_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(0, 2, 1);                                                                               \
-      Y[row * num_cols + col + 1] = kernel_acc_col[0][1];       /* store finished accumulation */                    \
-      Y[(row + 1) * num_cols + col + 1] = kernel_acc_col[1][1]; /* store finished accumulation */                    \
-      Y[(row + 2) * num_cols + col + 1] = kernel_acc_col[2][1]; /* store finished accumulation */                    \
+      STORE_POSTINCR(kernel_acc_col[0][1], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][1], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][1], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
     }                                                                                                                \
                                                                                                                      \
     /* CONVOLUTION REMAINDER */                                                                                      \
     if (col == num_cols - 2) {                                                                                       \
       /* ITERATION 0 */                                                                                              \
-      in_0   = X[(row + 1) * num_cols + col + 0];                                                                    \
-      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                                    \
-      qlr_t3 = X[(row + 3) * num_cols + col + 0];                                                                    \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t2, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t3, x_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                                               \
-      Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */                    \
-      Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */                    \
-      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */                    \
+      STORE_POSTINCR(kernel_acc_col[0][2], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][2], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][2], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
       /* ITERATION 1 */                                                                                              \
-      in_0   = X[(row + 1) * num_cols + col + 1];                                                                    \
-      qlr_t2 = X[(row + 2) * num_cols + col + 1];                                                                    \
-      qlr_t3 = X[(row + 3) * num_cols + col + 1];                                                                    \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t2, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t3, x_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(2, 1, 0);                                                                               \
-      Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */                    \
-      Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */                    \
-      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */                    \
+      STORE_POSTINCR(kernel_acc_col[0][0], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][0], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][0], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
       /* Store partial accumulation (zero-padding) */                                                                \
-      Y[row * num_cols + col + 1] = kernel_acc_col[0][1];                                                            \
-      Y[(row + 1) * num_cols + col + 1] = kernel_acc_col[1][1];                                                      \
-      Y[(row + 2) * num_cols + col + 1] = kernel_acc_col[2][1];                                                      \
+      STORE_POSTINCR(kernel_acc_col[0][1], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][1], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][1], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
                                                                                                                      \
     } else if (col == num_cols - 1) {                                                                                \
       /* ITERATION 0 */                                                                                              \
-      in_0   = X[(row + 1) * num_cols + col + 0];                                                                    \
-      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                                    \
-      qlr_t3 = X[(row + 3) * num_cols + col + 0];                                                                    \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t2, x_ptr, COL_INCR);                                                                        \
+      LOAD_POSTINCR(qlr_t3, x_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                                    \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                                         \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                                               \
-      Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */                    \
-      Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */                    \
-      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */                    \
+      STORE_POSTINCR(kernel_acc_col[0][2], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][2], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][2], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
       /* Store partial accumulation (zero-padding) */                                                                \
-      Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */                    \
-      Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */                    \
-      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */                    \
+      STORE_POSTINCR(kernel_acc_col[0][0], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][0], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][0], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
     } else {                                                                                                         \
       /* Store partial accumulation (zero-padding) */                                                                \
-      Y[row * num_cols + col - 1] = kernel_acc_col[0][2];                                                            \
-      Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2];                                                      \
-      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2];                                                      \
+      STORE_POSTINCR(kernel_acc_col[0][2], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[1][2], y_ptr, COL_INCR);                                                         \
+      STORE_POSTINCR(kernel_acc_col[2][2], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);                     \
     }                                                                                                                \
   } while (0)                                                                                                        \
 
@@ -448,8 +454,8 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
     __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                        \
     /* MACs with 1st row of weights (1st output row) */                                           \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][1], qlr_t0, weights[0][2]);                      \
-    in_0   = X[(row + 1) * num_cols]; /* Re-ordered load (optimization) */                        \
-    qlr_t2 = X[(row + 2) * num_cols];                                                             \
+    LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                       \
+    LOAD_POSTINCR(qlr_t2, x_ptr, sizeof(int32_t) - COL_INCR);                                     \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][2], qlr_t0, weights[0][1]);                      \
     OP_ACC_QLR_WEIGHT(  "mul", kernel_acc_col[0][0], qlr_t0, weights[0][0]);                      \
     /* MACs with 1st row of weights (2nd output row) */                                           \
@@ -483,72 +489,72 @@ void systolic_conv_front(const uint32_t core_id, const uint32_t chain_id,
                                                                                                   \
     for (col = 1; col < num_cols - 2; col += K) {                                                 \
       /* ITERATION 0 */                                                                           \
-      in_0   = X[(row + 1) * num_cols + col + 0];                                                 \
-      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                 \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                     \
+      LOAD_POSTINCR(qlr_t2, x_ptr, sizeof(int32_t) - COL_INCR);                                   \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                            \
-      Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */ \
-      Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */ \
-      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */ \
+      STORE_POSTINCR(kernel_acc_col[0][2], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][2], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][2], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
       /* ITERATION 1 */                                                                           \
-      in_0   = X[(row + 1) * num_cols + col + 1];                                                 \
-      qlr_t2 = X[(row + 2) * num_cols + col + 1];                                                 \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                     \
+      LOAD_POSTINCR(qlr_t2, x_ptr, sizeof(int32_t) - COL_INCR);                                   \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
       CONV_KERNEL_STAGE_FULL(2, 1, 0);                                                            \
-      Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */ \
-      Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */ \
-      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */ \
+      STORE_POSTINCR(kernel_acc_col[0][0], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][0], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][0], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
       /* ITERATION 2 */                                                                           \
-      in_0   = X[(row + 1) * num_cols + col + 2];                                                 \
-      qlr_t2 = X[(row + 2) * num_cols + col + 2];                                                 \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                     \
+      LOAD_POSTINCR(qlr_t2, x_ptr, sizeof(int32_t) - COL_INCR);                                   \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
       CONV_KERNEL_STAGE_FULL(0, 2, 1);                                                            \
-      Y[row * num_cols + col + 1] = kernel_acc_col[0][1];       /* store finished accumulation */ \
-      Y[(row + 1) * num_cols + col + 1] = kernel_acc_col[1][1]; /* store finished accumulation */ \
-      Y[(row + 2) * num_cols + col + 1] = kernel_acc_col[2][1]; /* store finished accumulation */ \
+      STORE_POSTINCR(kernel_acc_col[0][1], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][1], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][1], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
     }                                                                                             \
                                                                                                   \
     /* CONVOLUTION REMAINDER */                                                                   \
     if (col == num_cols - 2) {                                                                    \
       /* ITERATION 0 */                                                                           \
-      in_0   = X[(row + 1) * num_cols + col + 0];                                                 \
-      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                 \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                     \
+      LOAD_POSTINCR(qlr_t2, x_ptr, sizeof(int32_t) - COL_INCR);                                   \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                            \
-      Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */ \
-      Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */ \
-      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */ \
+      STORE_POSTINCR(kernel_acc_col[0][2], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][2], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][2], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
       /* ITERATION 1 */                                                                           \
-      in_0   = X[(row + 1) * num_cols + col + 1];                                                 \
-      qlr_t2 = X[(row + 2) * num_cols + col + 1];                                                 \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                     \
+      LOAD_POSTINCR(qlr_t2, x_ptr, sizeof(int32_t) - COL_INCR);                                   \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
       CONV_KERNEL_STAGE_FULL(2, 1, 0);                                                            \
-      Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */ \
-      Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */ \
-      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */ \
+      STORE_POSTINCR(kernel_acc_col[0][0], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][0], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][0], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
       /* Store partial accumulation (zero-padding) */                                             \
-      Y[row * num_cols + col + 1] = kernel_acc_col[0][1];                                         \
-      Y[(row + 1) * num_cols + col + 1] = kernel_acc_col[1][1];                                   \
-      Y[(row + 2) * num_cols + col + 1] = kernel_acc_col[2][1];                                   \
+      STORE_POSTINCR(kernel_acc_col[0][1], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][1], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][1], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
                                                                                                   \
     } else if (col == num_cols - 1) {                                                             \
       /* ITERATION 0 */                                                                           \
-      in_0   = X[(row + 1) * num_cols + col + 0];                                                 \
-      qlr_t2 = X[(row + 2) * num_cols + col + 0];                                                 \
+      LOAD_POSTINCR(  in_0, x_ptr, COL_INCR);                                                     \
+      LOAD_POSTINCR(qlr_t2, x_ptr, sizeof(int32_t) - COL_INCR);                                   \
       __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1));                                      \
       CONV_KERNEL_STAGE_FULL(1, 0, 2);                                                            \
-      Y[row * num_cols + col - 1] = kernel_acc_col[0][2];       /* store finished accumulation */ \
-      Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2]; /* store finished accumulation */ \
-      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2]; /* store finished accumulation */ \
+      STORE_POSTINCR(kernel_acc_col[0][2], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][2], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][2], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
       /* Store partial accumulation (zero-padding) */                                             \
-      Y[row * num_cols + col + 0] = kernel_acc_col[0][0];       /* store finished accumulation */ \
-      Y[(row + 1) * num_cols + col + 0] = kernel_acc_col[1][0]; /* store finished accumulation */ \
-      Y[(row + 2) * num_cols + col + 0] = kernel_acc_col[2][0]; /* store finished accumulation */ \
+      STORE_POSTINCR(kernel_acc_col[0][0], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][0], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][0], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
     } else {                                                                                      \
       /* Store partial accumulation (zero-padding) */                                             \
-      Y[row * num_cols + col - 1] = kernel_acc_col[0][2];                                         \
-      Y[(row + 1) * num_cols + col - 1] = kernel_acc_col[1][2];                                   \
-      Y[(row + 2) * num_cols + col - 1] = kernel_acc_col[2][2];                                   \
+      STORE_POSTINCR(kernel_acc_col[0][2], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[1][2], y_ptr, COL_INCR);                                      \
+      STORE_POSTINCR(kernel_acc_col[2][2], y_ptr, sizeof(int32_t) - (ROWS_UNROLL-1) * COL_INCR);  \
     }                                                                                             \
   } while (0)                                                                                     \
 
@@ -562,6 +568,8 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
                        const uint32_t rep_count) {
   uint32_t qpopush_reqs;
   uint32_t row, col;
+  // pointers for post-increment loads
+  int32_t *x_ptr, *y_ptr;
   // as we loose 1 computing PE for each chain
   const uint32_t computing_cores = num_cores - num_chains;
 
@@ -640,6 +648,10 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
       PRINT_ROW_ID(row);
       #endif
 
+      x_ptr = (int32_t*)&X[(row+1) * num_cols];       // first element to load (row+1, as row-1 and row+0 are from QLRs)
+      y_ptr = (int32_t*)&Y[(row * num_cols + 1) - 1]; // first element to store (the start is [row+0, col+0], but we need
+                                                      // to actually start from [row+0, col-1] for halo computation)
+
       ROW_BULK_COMPUTATION;
     }
 
@@ -648,6 +660,9 @@ void systolic_conv_mid(const uint32_t core_id, const uint32_t chain_id, const ui
       #if PRINT_ROW_PROC
       PRINT_ROW_ID(row);
       #endif
+
+      x_ptr = (int32_t*)&X[(row+1) * num_cols];
+      y_ptr = (int32_t*)&Y[(row * num_cols + 1) - 1];
 
       /* Reconfigure only QLRs t0 and t1 for special case (no OQLRs) */
       // Setting QLR type == re-starting QLR, so we have to make sure
@@ -678,6 +693,8 @@ void systolic_conv_end(const uint32_t core_id, const uint32_t chain_id, const ui
                        const uint32_t rep_count) {
   uint32_t qpop_reqs;
   uint32_t row, col;
+  // pointers for post-increment loads
+  int32_t *x_ptr, *y_ptr;
   const uint32_t computing_cores = num_cores - num_chains;
 
   int32_t weights[K][K];
@@ -731,6 +748,9 @@ void systolic_conv_end(const uint32_t core_id, const uint32_t chain_id, const ui
       PRINT_ROW_ID(row);
       #endif
 
+      x_ptr = (int32_t*)&X[(row+1) * num_cols];
+      y_ptr = (int32_t*)&Y[(row * num_cols + 1) - 1];
+
       ROW_BULK_COMPUTATION;
     }
 
@@ -739,6 +759,9 @@ void systolic_conv_end(const uint32_t core_id, const uint32_t chain_id, const ui
       #if PRINT_ROW_PROC
       PRINT_ROW_ID(row);
       #endif
+
+      x_ptr = (int32_t*)&X[(row+1) * num_cols];
+      y_ptr = (int32_t*)&Y[(row * num_cols + 1) - 1];
 
       ROW_LAST_COMPUTATION;
     }
