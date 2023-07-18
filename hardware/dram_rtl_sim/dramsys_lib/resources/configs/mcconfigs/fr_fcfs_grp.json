@@ -11,6 +11,8 @@
         "RefreshMaxPulledin": 8, 
         "PowerDownPolicy": "NoPowerDown",
         "Arbiter": "Simple",
-        "MaxActiveTransactions": 128
+        "MaxActiveTransactions": 128,
+        "PhyDelayFw": 20,
+        "PhyDelayBw": 20
     }
 }
