@@ -41,7 +41,8 @@ static inline uint32_t dma_done() {
 }
 
 static inline void dma_wait() {
-  while (!dma_done());
+  while (!dma_done())
+    ;
   // do {
   //   mempool_wait(128);
   // } while (!dma_done());

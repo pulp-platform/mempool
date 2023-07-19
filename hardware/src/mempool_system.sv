@@ -56,7 +56,7 @@ module mempool_system
   //      |  0|=====>| soc_xbar |========>| periph  |
   //  mst |   |      +----------+         +---------+
   // ====>|   |
-  //      |   | l2   +----------+  mem_one_port  +--------------+ 
+  //      |   | l2   +----------+  mem_one_port  +--------------+
   //      |  1|=====>| AXI_Mux  |===============>| AXI Port Out |
   //       \  |      +----------+                +--------------+
   //        \_|
@@ -436,12 +436,12 @@ module mempool_system
   logic [NumAXIMasters-1:0][ReminderBits-1:0] ar_reminder;
   logic [NumAXIMasters-1:0][AddrWidth-1   :0] ar_scramble_addr;
 
-  for (genvar i = 0; unsigned'(i) < NumAXIMasters; i++) begin: gen_dram_scrambler   
+  for (genvar i = 0; unsigned'(i) < NumAXIMasters; i++) begin: gen_dram_scrambler
     assign aw_const[i]         = axi_l2_req_splitted[i].aw.addr[ConstantBits-1 : 0];
     assign aw_scramble[i]      = axi_l2_req_splitted[i].aw.addr[ScrambleBits+ConstantBits-1 : ConstantBits];
     assign aw_reminder[i]      = axi_l2_req_splitted[i].aw.addr[AddrWidth-1 : ScrambleBits+ConstantBits];
     assign aw_scramble_addr[i] = {aw_scramble[i], aw_reminder[i], aw_const[i]};
-    
+
     assign ar_const[i]         = axi_l2_req_splitted[i].ar.addr[ConstantBits-1 : 0];
     assign ar_scramble[i]      = axi_l2_req_splitted[i].ar.addr[ScrambleBits+ConstantBits-1 : ConstantBits];
     assign ar_reminder[i]      = axi_l2_req_splitted[i].ar.addr[AddrWidth-1 : ScrambleBits+ConstantBits];
@@ -519,13 +519,13 @@ module mempool_system
     assign aw_scramble = dram_req_interleaved[i].aw.addr[AddrWidth-1 : AddrWidth-ScrambleBits];
     assign aw_reminder = dram_req_interleaved[i].aw.addr[AddrWidth-ScrambleBits-1 : ConstantBits] - L2MemoryBaseAddr[AddrWidth-1: AddrWidth-ReminderBits];
     assign aw_const    = dram_req_interleaved[i].aw.addr[ConstantBits-1 : 0];
-    
+
     if (NumDrams == 1) begin
       assign aw_scramble_addr_reset = {aw_reminder, aw_scramble, aw_const};
     end else begin
       assign aw_scramble_addr_reset = {{ScrambleBits{1'b0}}, aw_reminder, aw_const};
     end
-    
+
     // req.ar scrambling
     logic [ConstantBits-1:0] ar_const;
     logic [ScrambleBits-1:0] ar_scramble;
@@ -534,7 +534,7 @@ module mempool_system
     assign ar_scramble = dram_req_interleaved[i].ar.addr[AddrWidth-1 : AddrWidth-ScrambleBits];
     assign ar_reminder = dram_req_interleaved[i].ar.addr[AddrWidth-ScrambleBits-1 : ConstantBits] - L2MemoryBaseAddr[AddrWidth-1: AddrWidth-ReminderBits];
     assign ar_const    = dram_req_interleaved[i].ar.addr[ConstantBits-1 : 0];
-    
+
     if (NumDrams == 1) begin
       assign ar_scramble_addr_reset = {ar_reminder, ar_scramble, ar_const};
     end else begin
