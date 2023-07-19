@@ -1,3 +1,10 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+# Author: Chi Zhang,    ETH Zurich
+#         Yichao Zhang, ETH Zurich
+
 BENDER    ?= bender
 VLOG_ARGS = -svinputport=compat -override_timescale 1ns/1ps -suppress 2583 -suppress 13314
 library   ?= work
