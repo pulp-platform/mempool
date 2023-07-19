@@ -17,8 +17,8 @@
 // Macros
 #define UNROLL (4)
 #define N (NUM_CORES * UNROLL)
-#define TARGET_MEMPOOL (0)
-#define TARGET_TERAPOOL (1)
+#define TARGET_MEMPOOL (1)
+#define TARGET_TERAPOOL (0)
 
 // Globals
 int32_t block_a[N] __attribute__((aligned(NUM_CORES * 4), section(".l1")));
