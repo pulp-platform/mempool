@@ -35,4 +35,3 @@ axi_hier_radix ?= 10
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 4
-
