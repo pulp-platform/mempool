@@ -160,7 +160,7 @@ module mempool_cluster
     tcdm_master_resp_t [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp;
     logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid;
     logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready;
-  
+
     tcdm_slave_req_t   [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_postreg;
     logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_postreg;
     logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_postreg;
@@ -173,7 +173,7 @@ module mempool_cluster
     tcdm_master_resp_t [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_postreg;
     logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_postreg;
     logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_postreg;
-  
+
     /***************
      *  Registers  *
      ***************/
@@ -195,7 +195,7 @@ module mempool_cluster
               .valid_o(tcdm_master_req_valid_postreg[g][h][sg][t]    ),
               .ready_i(tcdm_master_req_ready_postreg[g][h][sg][t]    )
             );
-  
+
             fall_through_register #(
               .T(tcdm_master_resp_t)
             ) i_tcdm_master_resp_register (
@@ -210,7 +210,7 @@ module mempool_cluster
               .valid_o   (tcdm_master_resp_valid[g][h][sg][t]        ),
               .ready_i   (tcdm_master_resp_ready[g][h][sg][t]        )
             );
-  
+
             fall_through_register #(
               .T(tcdm_slave_req_t)
             ) i_tcdm_slave_req_register (
@@ -225,7 +225,7 @@ module mempool_cluster
               .valid_o   (tcdm_slave_req_valid[g][h][sg][t]          ),
               .ready_i   (tcdm_slave_req_ready[g][h][sg][t]          )
             );
-  
+
             spill_register #(
               .T(tcdm_master_resp_t)
             ) i_tcdm_slave_resp_register (
@@ -246,11 +246,11 @@ module mempool_cluster
     /**********************
      *    AXI Register    *
      **********************/
-    // Additional AXI registers for breaking TeraPool's long paths 
+    // Additional AXI registers for breaking TeraPool's long paths
     // AXI interfaces
     axi_tile_req_t   [NumAXIMasters-1:0] axi_mst_req;
     axi_tile_resp_t  [NumAXIMasters-1:0] axi_mst_resp;
-  
+
     for (genvar m = 0; m < NumAXIMasters; m++) begin: gen_axi_group_cuts
       axi_cut #(
         .ar_chan_t (axi_tile_ar_t  ),
@@ -269,7 +269,7 @@ module mempool_cluster
         .mst_resp_i(axi_mst_resp_i[m])
       );
     end: gen_axi_group_cuts
-  
+
     for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
       if (PostLayoutGr & (g == 0)) begin: gen_postly_group
         mempool_group_postlayout i_group (
@@ -387,11 +387,11 @@ module mempool_cluster
           );
         end
     end : gen_groups
-  
+
     /*******************
      *  Interconnects  *
      *******************/
-  
+
     for (genvar ini = 0; ini < NumGroups; ini++) begin: gen_interconnections_ini
       for (genvar tgt = 0; tgt < NumGroups; tgt++) begin: gen_interconnections_tgt
         // The local connections are inside the groups
@@ -399,7 +399,7 @@ module mempool_cluster
           assign tcdm_slave_req_postreg[tgt][ini ^ tgt]        = tcdm_master_req_postreg[ini][ini ^ tgt];
           assign tcdm_slave_req_valid_postreg[tgt][ini ^ tgt]  = tcdm_master_req_valid_postreg[ini][ini ^ tgt];
           assign tcdm_master_req_ready_postreg[ini][ini ^ tgt] = tcdm_slave_req_ready_postreg[tgt][ini ^ tgt];
-  
+
           assign tcdm_master_resp_postreg[tgt][ini ^ tgt]       = tcdm_slave_resp_postreg[ini][ini ^ tgt];
           assign tcdm_master_resp_valid_postreg[tgt][ini ^ tgt] = tcdm_slave_resp_valid_postreg[ini][ini ^ tgt];
           assign tcdm_slave_resp_ready_postreg[ini][ini ^ tgt]  = tcdm_master_resp_ready_postreg[tgt][ini ^ tgt];
@@ -415,7 +415,7 @@ module mempool_cluster
     /************
      *  Groups  *
      ************/
-  
+
     // TCDM interfaces
     tcdm_slave_req_t   [NumGroups-1:0][NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_master_req;
     logic              [NumGroups-1:0][NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_master_req_valid;
@@ -429,7 +429,7 @@ module mempool_cluster
     tcdm_master_resp_t [NumGroups-1:0][NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp;
     logic              [NumGroups-1:0][NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp_valid;
     logic              [NumGroups-1:0][NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp_ready;
-  
+
     for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
       mempool_group #(
         .TCDMBaseAddr (TCDMBaseAddr         ),
@@ -469,11 +469,11 @@ module mempool_cluster
         .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
       );
     end : gen_groups
-  
+
     /*******************
      *  Interconnects  *
      *******************/
-  
+
     for (genvar ini = 0; ini < NumGroups; ini++) begin: gen_interconnections_ini
       for (genvar tgt = 0; tgt < NumGroups; tgt++) begin: gen_interconnections_tgt
         // The local connections are inside the groups
@@ -481,7 +481,7 @@ module mempool_cluster
           assign tcdm_slave_req[tgt][ini ^ tgt]        = tcdm_master_req[ini][ini ^ tgt];
           assign tcdm_slave_req_valid[tgt][ini ^ tgt]  = tcdm_master_req_valid[ini][ini ^ tgt];
           assign tcdm_master_req_ready[ini][ini ^ tgt] = tcdm_slave_req_ready[tgt][ini ^ tgt];
-  
+
           assign tcdm_master_resp[tgt][ini ^ tgt]       = tcdm_slave_resp[ini][ini ^ tgt];
           assign tcdm_master_resp_valid[tgt][ini ^ tgt] = tcdm_slave_resp_valid[ini][ini ^ tgt];
           assign tcdm_slave_resp_ready[ini][ini ^ tgt]  = tcdm_master_resp_ready[tgt][ini ^ tgt];

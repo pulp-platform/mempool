@@ -126,7 +126,7 @@ module mempool_sub_group
   tcdm_slave_resp_t  [NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_sg_slave_resp;
   logic              [NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_sg_slave_resp_valid;
   logic              [NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_sg_slave_resp_ready;
-  
+
   // DMA interfaces
   tcdm_dma_req_t  [NumTilesPerSubGroup-1:0] tcdm_dma_req;
   logic           [NumTilesPerSubGroup-1:0] tcdm_dma_req_valid;

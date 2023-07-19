@@ -705,7 +705,7 @@ module mempool_tile
       assign local_req_interco_payload[c].tgt_addr =
        tcdm_addr_t'({local_req_interco_addr_int[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
                local_req_interco_addr_int[ByteOffset +: idx_width(NumBanksPerTile)]}); // Bank
-  
+
       // Switch tile and bank indexes for correct upper level routing, and remove the group index
       addr_t prescramble_tcdm_req_tgt_addr;
       if (NumTilesPerGroup == 1) begin : gen_remote_req_interco_tgt_addr
@@ -727,7 +727,7 @@ module mempool_tile
           end
         end
       end
-  
+
       // Remote selection signal
       if (NumGroups == 1) begin : gen_remote_req_interco_tgt_sel
         if (NumSubGroupsPerGroup == 1) begin : gen_const_sel
@@ -741,7 +741,7 @@ module mempool_tile
           assign remote_req_interco_tgt_sel[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)]) ^ group_id;
         end else begin : gen_remote_group_sel
           assign remote_req_interco_tgt_g_sel_tmp[c]  = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)]) ^ group_id;
-          assign remote_req_interco_tgt_sg_sel_tmp[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerSubGroup) +: $clog2(NumSubGroupsPerGroup)]) ^ sub_group_id; 
+          assign remote_req_interco_tgt_sg_sel_tmp[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerSubGroup) +: $clog2(NumSubGroupsPerGroup)]) ^ sub_group_id;
           always_comb begin : gen_remote_sub_group_sel
             if (remote_req_interco_tgt_g_sel_tmp[c] == 'b0) begin: gen_local_group_sel
               remote_req_interco_tgt_sel[c] = remote_req_interco_tgt_sg_sel_tmp[c];
@@ -757,7 +757,7 @@ module mempool_tile
       assign local_req_interco_payload[c].tgt_addr =
        tcdm_addr_t'({local_req_interco_addr_int[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
                local_req_interco_addr_int[ByteOffset +: idx_width(NumBanksPerTile)]}); // Bank
-  
+
       // Switch tile and bank indexes for correct upper level routing, and remove the group index
       addr_t prescramble_tcdm_req_tgt_addr;
       if (NumTilesPerGroup == 1) begin : gen_remote_req_interco_tgt_addr

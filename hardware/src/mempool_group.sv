@@ -121,7 +121,7 @@ module mempool_group
   // TCDM interconnections:
   //   - Local SubGroups;
   //   - Remote Groups.
-  // Most of AXI/DMA logics put into SubGroup level.  
+  // Most of AXI/DMA logics put into SubGroup level.
   // ----------------------------------------------------- //
 
     /****************
@@ -141,7 +141,7 @@ module mempool_group
     tcdm_slave_resp_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_from_sg;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_from_sg;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_to_sg;
-  
+
     tcdm_master_req_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready;
@@ -154,7 +154,7 @@ module mempool_group
     tcdm_slave_resp_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid;
     logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready;
-    
+
     // TCDM Spill Registers
     // Control by different target remote access cycles
     if (RemoteGroupLatencyCycle == 11) begin
@@ -188,7 +188,7 @@ module mempool_group
           end: gen_tcdm_registers_to_intrco_t
         end: gen_tcdm_registers_to_intrco_sg
       end: gen_tcdm_registers_to_intrco_g
-    end else begin 
+    end else begin
       assign tcdm_master_req             = tcdm_master_req_from_sg;
       assign tcdm_master_req_valid       = tcdm_master_req_valid_from_sg;
       assign tcdm_master_req_ready_to_sg = tcdm_master_req_ready;
@@ -196,7 +196,7 @@ module mempool_group
       assign tcdm_slave_resp_valid       = tcdm_slave_resp_valid_from_sg;
       assign tcdm_slave_resp_ready_to_sg = tcdm_slave_resp_ready;
     end
-  
+
     if (RemoteGroupLatencyCycle == 9 || RemoteGroupLatencyCycle == 11) begin
       for (genvar h = 1; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_registers_to_sg_g
         for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_tcdm_registers_to_sg_sg
@@ -236,7 +236,7 @@ module mempool_group
       assign tcdm_slave_req_valid_to_sg   = tcdm_slave_req_valid;
       assign tcdm_slave_req_ready         = tcdm_slave_req_ready_from_sg;
     end
-  
+
     // TCDM interfaces for sub_groups
     tcdm_slave_req_t   [NumSubGroupsPerGroup-1:0][NumSubGroupsPerGroup-1:1][NumTilesPerSubGroup-1:0] tcdm_sg_master_req;
     logic              [NumSubGroupsPerGroup-1:0][NumSubGroupsPerGroup-1:1][NumTilesPerSubGroup-1:0] tcdm_sg_master_req_valid;
@@ -250,13 +250,13 @@ module mempool_group
     tcdm_master_resp_t [NumSubGroupsPerGroup-1:0][NumSubGroupsPerGroup-1:1][NumTilesPerSubGroup-1:0] tcdm_sg_slave_resp;
     logic              [NumSubGroupsPerGroup-1:0][NumSubGroupsPerGroup-1:1][NumTilesPerSubGroup-1:0] tcdm_sg_slave_resp_valid;
     logic              [NumSubGroupsPerGroup-1:0][NumSubGroupsPerGroup-1:1][NumTilesPerSubGroup-1:0] tcdm_sg_slave_resp_ready;
-  
+
     // DMA interfaces
     dma_req_t  [NumDmasPerGroup-1:0] dma_req;
     logic      [NumDmasPerGroup-1:0] dma_req_valid;
     logic      [NumDmasPerGroup-1:0] dma_req_ready;
     dma_meta_t [NumDmasPerGroup-1:0] dma_meta;
-  
+
     // Connect the IOs to the SubGroups' signals
     assign tcdm_master_resp[NumGroups-1:1]         = tcdm_master_resp_i[NumGroups-1:1];
     assign tcdm_master_resp_valid[NumGroups-1:1]   = tcdm_master_resp_valid_i[NumGroups-1:1];
@@ -264,15 +264,15 @@ module mempool_group
     assign tcdm_slave_req[NumGroups-1:1]           = tcdm_slave_req_i[NumGroups-1:1];
     assign tcdm_slave_req_valid[NumGroups-1:1]     = tcdm_slave_req_valid_i[NumGroups-1:1];
     assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready[NumGroups-1:1];
-  
+
     // AXI interfaces
     axi_tile_req_t   [NumAXIMastersPerGroup-1:0] axi_mst_req;
     axi_tile_resp_t  [NumAXIMastersPerGroup-1:0] axi_mst_resp;
-  
+
     for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_sub_groups
       sub_group_id_t id;
       assign id = (group_id_i << $clog2(NumSubGroupsPerGroup)) | sg[idx_width(NumSubGroupsPerGroup)-1:0];
-  
+
       tcdm_master_req_t  [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req;
       logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req_valid;
       logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req_ready;
@@ -285,7 +285,7 @@ module mempool_group
       tcdm_slave_resp_t  [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp;
       logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp_valid;
       logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp_ready;
-  
+
       if (PostLayoutSg & (GroupId == 0) & (sg == 0)) begin: gen_postly_sg
         mempool_sub_group_postlayout i_sub_group (
           .clk_i                   (clk_i                                                                 ),
@@ -404,11 +404,11 @@ module mempool_group
         assign tran_tcdm_slave_resp_ready[g]         = tcdm_slave_resp_ready_to_sg[g][sg];
       end: gen_tran_group_req
     end : gen_sub_groups
-  
+
     /******************************
      *  Sub_Groups Interconnects  *
      *****************************/
-  
+
     for (genvar ini = 0; ini < NumSubGroupsPerGroup; ini++) begin: gen_sg_interconnections_ini
       for (genvar tgt = 0; tgt < NumSubGroupsPerGroup; tgt++) begin: gen_sg_interconnections_tgt
         // The local connections are inside the groups
@@ -422,11 +422,11 @@ module mempool_group
         end: gen_remote_sg_interconnections
       end: gen_sg_interconnections_tgt
     end: gen_sg_interconnections_ini
-  
+
     /********************************
      *  Remote Group Interconnects  *
      ********************************/
-  
+
     for (genvar r = 1; r < NumGroups; r++) begin: gen_remote_interco
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_ready;
@@ -448,7 +448,7 @@ module mempool_group
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_ready;
       tile_group_id_t [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_ini_addr;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_rdata;
-  
+
       for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_remote_connections_sg
         for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_remote_connections_t
           assign master_remote_req_valid[(sg * NumTilesPerSubGroup) + t]    = tcdm_master_req_valid[r][sg][t];
@@ -473,7 +473,7 @@ module mempool_group
           assign master_remote_resp_ready[(sg * NumTilesPerSubGroup) + t]   = tcdm_slave_resp_ready_i[r][sg][t];
         end: gen_remote_connections_t
       end: gen_remote_connections_sg
-  
+
       variable_latency_interconnect #(
         .NumIn              (NumSubGroupsPerGroup * NumTilesPerSubGroup   ),
         .NumOut             (NumSubGroupsPerGroup * NumTilesPerSubGroup   ),
@@ -511,13 +511,13 @@ module mempool_group
         .req_ini_addr_o (slave_remote_req_ini_addr ),
         .req_tgt_addr_o (slave_remote_req_tgt_addr )
       );
-  
+
     end: gen_remote_interco
-  
+
     /**********************
      *    AXI Register    *
      **********************/
-  
+
     for (genvar m = 0; m < NumAXIMastersPerGroup; m++) begin: gen_axi_group_cuts
       axi_cut #(
         .ar_chan_t (axi_tile_ar_t  ),
@@ -536,7 +536,7 @@ module mempool_group
         .mst_resp_i(axi_mst_resp_i[m])
       );
     end: gen_axi_group_cuts
-  
+
     /********************
      *  DMA Distribute  *
      ********************/
@@ -544,7 +544,7 @@ module mempool_group
     logic      dma_req_cut_valid;
     logic      dma_req_cut_ready;
     dma_meta_t dma_meta_cut;
-  
+
     spill_register #(
       .T(dma_req_t)
     ) i_dma_req_register (
@@ -557,9 +557,9 @@ module mempool_group
       .valid_o(dma_req_cut_valid),
       .ready_i(dma_req_cut_ready)
     );
-  
+
     `FF(dma_meta_o, dma_meta_cut, '0, clk_i, rst_ni);
-  
+
     idma_distributed_midend #(
       .NoMstPorts     (NumDmasPerGroup                         ),
       .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup      ),
@@ -596,7 +596,7 @@ module mempool_group
     /***********
      *  Tiles  *
      ***********/
-  
+
     // TCDM interfaces
     tcdm_master_req_t  [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_req;
     logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_req_valid;
@@ -617,7 +617,7 @@ module mempool_group
     tcdm_dma_resp_t [NumTilesPerGroup-1:0] tcdm_dma_resp;
     logic           [NumTilesPerGroup-1:0] tcdm_dma_resp_valid;
     logic           [NumTilesPerGroup-1:0] tcdm_dma_resp_ready;
-  
+
     // Connect the IOs to the tiles' signals
     assign tcdm_master_resp[NumGroups-1:1]         = tcdm_master_resp_i[NumGroups-1:1];
     assign tcdm_master_resp_valid[NumGroups-1:1]   = tcdm_master_resp_valid_i[NumGroups-1:1];
@@ -625,17 +625,17 @@ module mempool_group
     assign tcdm_slave_req[NumGroups-1:1]           = tcdm_slave_req_i[NumGroups-1:1];
     assign tcdm_slave_req_valid[NumGroups-1:1]     = tcdm_slave_req_valid_i[NumGroups-1:1];
     assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready[NumGroups-1:1];
-  
+
     // AXI interfaces
     axi_tile_req_t  [NumTilesPerGroup-1:0] axi_tile_req;
     axi_tile_resp_t [NumTilesPerGroup-1:0] axi_tile_resp;
     axi_tile_req_t  [NumDmasPerGroup-1:0]  axi_dma_req;
     axi_tile_resp_t [NumDmasPerGroup-1:0]  axi_dma_resp;
-  
+
     for (genvar t = 0; unsigned'(t) < NumTilesPerGroup; t++) begin: gen_tiles
       tile_id_t id;
       assign id = (group_id_i << $clog2(NumTilesPerGroup)) | t[idx_width(NumTilesPerGroup)-1:0];
-  
+
       tcdm_master_req_t  [NumGroups-1:0] tran_tcdm_master_req;
       logic              [NumGroups-1:0] tran_tcdm_master_req_valid;
       logic              [NumGroups-1:0] tran_tcdm_master_req_ready;
@@ -648,7 +648,7 @@ module mempool_group
       tcdm_slave_resp_t  [NumGroups-1:0] tran_tcdm_slave_resp;
       logic              [NumGroups-1:0] tran_tcdm_slave_resp_valid;
       logic              [NumGroups-1:0] tran_tcdm_slave_resp_ready;
-  
+
       mempool_tile #(
         .TCDMBaseAddr(TCDMBaseAddr),
         .BootAddr    (BootAddr    )
@@ -686,7 +686,7 @@ module mempool_group
         // Wake up interface
         .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile])
       );
-  
+
       // Transpose the group requests
       for (genvar g = 0; g < NumGroups; g++) begin: gen_tran_group_req
         assign tcdm_master_req[g][t]          = tran_tcdm_master_req[g];
@@ -703,13 +703,13 @@ module mempool_group
         assign tran_tcdm_slave_resp_ready[g]  = tcdm_slave_resp_ready[g][t];
       end: gen_tran_group_req
     end : gen_tiles
-  
+
     /*************************
      *  Local Interconnect  *
      *************************/
-  
+
     // The local port is always at the index 0 out of the NumGroups TCDM ports of the tile.
-  
+
     logic           [NumTilesPerGroup-1:0] master_local_req_valid;
     logic           [NumTilesPerGroup-1:0] master_local_req_ready;
     tcdm_addr_t     [NumTilesPerGroup-1:0] master_local_req_tgt_addr;
@@ -730,7 +730,7 @@ module mempool_group
     logic           [NumTilesPerGroup-1:0] slave_local_resp_ready;
     tile_group_id_t [NumTilesPerGroup-1:0] slave_local_resp_ini_addr;
     tcdm_payload_t  [NumTilesPerGroup-1:0] slave_local_resp_rdata;
-  
+
     for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_local_connections
       assign master_local_req_valid[t]     = tcdm_master_req_valid[0][t];
       assign master_local_req_tgt_addr[t]  = tcdm_master_req[0][t].tgt_addr;
@@ -753,7 +753,7 @@ module mempool_group
       assign tcdm_slave_req[0][t].be       = slave_local_req_be[t];
       assign slave_local_req_ready[t]      = tcdm_slave_req_ready[0][t];
     end
-  
+
     variable_latency_interconnect #(
       .NumIn            (NumTilesPerGroup                             ),
       .NumOut           (NumTilesPerGroup                             ),
@@ -791,11 +791,11 @@ module mempool_group
       .req_ini_addr_o (slave_local_req_ini_addr ),
       .req_tgt_addr_o (slave_local_req_tgt_addr )
     );
-  
+
     /**************************
      *  Remote Interconnects  *
      **************************/
-  
+
     for (genvar r = 1; r < NumGroups; r++) begin: gen_remote_interco
       logic           [NumTilesPerGroup-1:0] master_remote_req_valid;
       logic           [NumTilesPerGroup-1:0] master_remote_req_ready;
@@ -817,7 +817,7 @@ module mempool_group
       logic           [NumTilesPerGroup-1:0] slave_remote_resp_ready;
       tile_group_id_t [NumTilesPerGroup-1:0] slave_remote_resp_ini_addr;
       tcdm_payload_t  [NumTilesPerGroup-1:0] slave_remote_resp_rdata;
-  
+
       for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_remote_connections
         assign master_remote_req_valid[t]       = tcdm_master_req_valid[r][t];
         assign master_remote_req_tgt_addr[t]    = tcdm_master_req[r][t].tgt_addr;
@@ -840,7 +840,7 @@ module mempool_group
         assign tcdm_slave_resp_s[r][t].rdata    = master_remote_resp_rdata[t];
         assign master_remote_resp_ready[t]      = tcdm_slave_resp_ready_i[r][t];
       end: gen_remote_connections
-  
+
       variable_latency_interconnect #(
         .NumIn              (NumTilesPerGroup                             ),
         .NumOut             (NumTilesPerGroup                             ),
@@ -878,23 +878,23 @@ module mempool_group
         .req_ini_addr_o (slave_remote_req_ini_addr ),
         .req_tgt_addr_o (slave_remote_req_tgt_addr )
       );
-  
+
     end: gen_remote_interco
-  
+
     /**********************
      *  AXI Interconnect  *
      **********************/
-  
+
     axi_tile_req_t   [NumAXIMastersPerGroup-1:0] axi_mst_req;
     axi_tile_resp_t  [NumAXIMastersPerGroup-1:0] axi_mst_resp;
     axi_tile_req_t  [NumTilesPerGroup+NumDmasPerGroup-1:0] axi_slv_req;
     axi_tile_resp_t [NumTilesPerGroup+NumDmasPerGroup-1:0] axi_slv_resp;
-  
+
     for (genvar i = 0; i < NumDmasPerGroup; i++) begin : gen_axi_slv_vec
       assign axi_slv_req[i*(NumTilesPerDma+1)+:NumTilesPerDma+1] = {axi_dma_req[i],axi_tile_req[i*NumTilesPerDma+:NumTilesPerDma]};
       assign {axi_dma_resp[i],axi_tile_resp[i*NumTilesPerDma+:NumTilesPerDma]} = axi_slv_resp[i*(NumTilesPerDma+1)+:NumTilesPerDma+1];
     end : gen_axi_slv_vec
-  
+
     axi_hier_interco #(
       .NumSlvPorts    (NumTilesPerGroup+NumDmasPerGroup),
       .NumMstPorts    (NumAXIMastersPerGroup           ),
@@ -922,7 +922,7 @@ module mempool_group
       .mst_req_o       (axi_mst_req    ),
       .mst_resp_i      (axi_mst_resp   )
     );
-  
+
     for (genvar m = 0; m < NumAXIMastersPerGroup; m++) begin: gen_axi_group_cuts
       axi_cut #(
         .ar_chan_t (axi_tile_ar_t  ),
@@ -941,7 +941,7 @@ module mempool_group
         .mst_resp_i(axi_mst_resp_i[m])
       );
     end: gen_axi_group_cuts
-  
+
     /*********
      *  DMA  *
      *********/
@@ -949,7 +949,7 @@ module mempool_group
     logic      dma_req_cut_valid;
     logic      dma_req_cut_ready;
     dma_meta_t dma_meta_cut;
-  
+
     spill_register #(
       .T(dma_req_t)
     ) i_dma_req_register (
@@ -962,14 +962,14 @@ module mempool_group
       .valid_o(dma_req_cut_valid),
       .ready_i(dma_req_cut_ready)
     );
-  
+
     `FF(dma_meta_o, dma_meta_cut, '0, clk_i, rst_ni);
-  
+
     dma_req_t  [NumDmasPerGroup-1:0] dma_req;
     logic      [NumDmasPerGroup-1:0] dma_req_valid;
     logic      [NumDmasPerGroup-1:0] dma_req_ready;
     dma_meta_t [NumDmasPerGroup-1:0] dma_meta;
-  
+
     idma_distributed_midend #(
       .NoMstPorts     (NumDmasPerGroup                   ),
       .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup),
@@ -990,7 +990,7 @@ module mempool_group
       .ready_i     (dma_req_ready    ),
       .meta_i      (dma_meta         )
     );
-  
+
     // xbar
     localparam int unsigned NumRules = 1;
     typedef struct packed {
@@ -1006,21 +1006,21 @@ module mempool_group
         idx:        1
       }
     };
-  
+
     `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
-  
+
     for (genvar d = 0; unsigned'(d) < NumDmasPerGroup; d++) begin: gen_dmas
       localparam int unsigned a = NumTilesPerGroup + d;
-  
+
       axi_tile_req_t  axi_dma_premux_req;
       axi_tile_resp_t axi_dma_premux_resp;
       axi_tile_req_t  tcdm_req;
       axi_tile_resp_t tcdm_resp;
-  
+
       logic backend_idle;
       logic trans_complete;
-  
+
       axi_dma_backend #(
         .DataWidth       (AxiDataWidth   ),
         .AddrWidth       (AddrWidth      ),
@@ -1045,11 +1045,11 @@ module mempool_group
         .backend_idle_o   (dma_meta[d].backend_idle  ),
         .trans_complete_o (dma_meta[d].trans_complete)
       );
-  
+
       // ------------------------------------------------------
       // AXI connection to EXT/TCDM
       // ------------------------------------------------------
-  
+
       localparam axi_pkg::xbar_cfg_t XbarCfg = '{
         NoSlvPorts:         1,
         NoMstPorts:         2,
@@ -1064,7 +1064,7 @@ module mempool_group
         AxiDataWidth:       AxiDataWidth,
         NoAddrRules:        NumRules
       };
-  
+
       axi_xbar #(
         .Cfg          (XbarCfg        ),
         .slv_aw_chan_t(axi_tile_aw_t  ),
@@ -1093,12 +1093,12 @@ module mempool_group
         .en_default_mst_port_i('1                           ),
         .default_mst_port_i   ('0                           )
       );
-  
+
       reqrsp_req_t dma_reqrsp_req;
       reqrsp_rsp_t dma_reqrsp_rsp;
       reqrsp_req_t [NumTilesPerDma-1:0] dma_tile_req;
       reqrsp_rsp_t [NumTilesPerDma-1:0] dma_tile_rsp;
-  
+
       axi_to_reqrsp #(
         .axi_req_t   (axi_tile_req_t ),
         .axi_rsp_t   (axi_tile_resp_t),
@@ -1117,7 +1117,7 @@ module mempool_group
         .reqrsp_req_o(dma_reqrsp_req),
         .reqrsp_rsp_i(dma_reqrsp_rsp)
       );
-  
+
       if (NumTilesPerDma > 1) begin: gen_dma_reqrsp_demux
         reqrsp_demux #(
           .NrPorts  (NumTilesPerDma),
@@ -1137,7 +1137,7 @@ module mempool_group
         assign dma_tile_req = dma_reqrsp_req;
         assign dma_reqrsp_rsp = dma_tile_rsp;
       end
-  
+
       // Assignment to TCDM interconnect
       // TODO: Reordering might be problematic
       for (genvar t = 0; unsigned'(t) < NumTilesPerDma; t++) begin: gen_dma_tile_connection
