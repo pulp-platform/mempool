@@ -1,4 +1,4 @@
-// Copyright 2023 ETH Zurich and 
+// Copyright 2023 ETH Zurich and
 // University of Bologna
 
 // Solderpad Hardware License
@@ -164,7 +164,7 @@ module axi_to_dram_tb;
         for (int i = 0; i < 10; i++) begin
             i_axi_dram_sim.i_sim_dram.load_to_dram(i, i*i);
         end
-        
+
 
         speedTest(100);
         $finish;

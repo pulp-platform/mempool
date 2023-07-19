@@ -1,4 +1,4 @@
-// Copyright 2023 ETH Zurich and 
+// Copyright 2023 ETH Zurich and
 // University of Bologna
 
 // Solderpad Hardware License
@@ -38,7 +38,7 @@ module sim_dram #(
   input  logic           clk_i,      // Clock
   input  logic           rst_ni,     // Asynchronous reset active low
   // requests ports
-  input  logic           req_valid_i,// request valid 
+  input  logic           req_valid_i,// request valid
   output logic           req_ready_o,// request ready
   input  logic           we_i,       // write enable
   input  addr_t          addr_i,     // request address
@@ -139,7 +139,7 @@ always_ff @(negedge clk_i or posedge clk_i or negedge rst_ni) begin : proc_dram
     in_flight_read_dram = dram_get_inflight_read(dram_id);
 
   end else begin//negedge clk
-    //rsponse 
+    //rsponse
     if (~rsp_valid_o) begin
       if (dram_has_rsp(dram_id)) begin
         int get_byte_int;
@@ -152,7 +152,7 @@ always_ff @(negedge clk_i or posedge clk_i or negedge rst_ni) begin : proc_dram
         end
         rsp_valid_o <= 1;
       end
-    end     
+    end
   end
 end
 
