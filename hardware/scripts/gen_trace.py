@@ -397,9 +397,9 @@ def annotate_snitch(
     # QLR requests
     if extras['qlr_req'] == QLR_REQ['pop']:
         gpr_wb_info[extras['qlr_reg']].appendleft((cycle, extras['alu_result']))
-        ret.append('Qpop {:<3}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
+        ret.append('Qpop {:<2}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
     elif extras['qlr_req'] == QLR_REQ['push']:
-        ret.append('Qpush {:<3}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
+        ret.append('Qpush {:<2}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
     # Count stalls, but only in cycles that execute an instruction
     if not extras['stall']:
         if extras['stall_tot']:
@@ -417,6 +417,9 @@ def annotate_snitch(
                             k, REG_ABI_NAMES_I[raw_stall[k]]))
                         perf_metrics[-1]['stall_raw_{}'.format(
                             k)] += extras['stall_raw']
+            if extras['stall_qlr']:
+                perf_metrics[-1]['stall_qlr'] += extras['stall_qlr']
+                ret.append('({} qlr)'.format(extras['stall_qlr']))
             if extras['stall_lsu']:
                 perf_metrics[-1]['stall_lsu'] += extras['stall_lsu']
                 ret.append('({} lsu)'.format(extras['stall_lsu']))
@@ -735,7 +738,7 @@ def sanity_check_perf_metrics(perf_metrics: list, idx: int):
     # Sum up all stalls
     sum_tot = perf_metric.get('stall_ins', 0) + \
         perf_metric.get('stall_lsu', 0) + perf_metric.get('stall_raw', 0) + \
-        perf_metric.get('stall_wfi', 0)
+        perf_metric.get('stall_wfi', 0) + perf_metric.get('stall_qlr', 0)
     if (sum_tot != perf_metric.get('stall_tot', 0)):
         error['total_stalls'] = sum_tot
     # Sum up all cycles
@@ -771,6 +774,7 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'stall_raw',
         'stall_raw_lsu',
         'stall_raw_acc',
+        'stall_qlr',
         'stall_lsu',
         'stall_acc',
         'stall_wfi',

@@ -205,8 +205,8 @@ module mempool_cc
   int f;
   string fn;
   logic [63:0] cycle;
-  int unsigned stall, stall_ins, stall_raw, stall_lsu, stall_acc;
-  logic qlr_req;
+  int unsigned stall, stall_ins, stall_raw, stall_lsu, stall_acc, stall_qlr;
+  logic qlr_req, qlr_pending;
 
   assign qlr_req = i_snitch.lsu_req_valid && i_snitch.lsu_req_ready && i_snitch.lsu_req_qlr;
 
@@ -246,6 +246,7 @@ module mempool_cc
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_raw",   stall_raw);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_lsu",   stall_lsu);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_acc",   stall_acc);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_qlr",   stall_qlr);
           // Decoding
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs1",         i_snitch.rs1);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs2",         i_snitch.rs2);
@@ -291,11 +292,23 @@ module mempool_cc
           $fwrite(f, trace_entry);
         end
 
+        if (
+          (i_snitch.qlr_sb_enabled[0] ? i_snitch.qlr_sb[0] : ~i_snitch.qlr_ready[0]) ||
+          (i_snitch.qlr_sb_enabled[1] ? i_snitch.qlr_sb[1] : ~i_snitch.qlr_ready[1]) ||
+          (i_snitch.qlr_sb_enabled[2] ? i_snitch.qlr_sb[2] : ~i_snitch.qlr_ready[2]) ||
+          (i_snitch.qlr_sb_enabled[3] ? i_snitch.qlr_sb[3] : ~i_snitch.qlr_ready[3])
+        ) begin
+          qlr_pending = 1;
+        end else begin
+          qlr_pending = 0;
+        end
+
         // Reset all stalls when we execute an instruction
         if (!i_snitch.stall) begin
             stall <= 0;
             stall_ins <= 0;
             stall_raw <= 0;
+            stall_qlr <= 0;
             stall_lsu <= 0;
             stall_acc <= 0;
         end else begin
@@ -307,7 +320,11 @@ module mempool_cc
             stall_ins <= stall_ins + 1;
           end
           if ((!i_snitch.operands_ready) || (!i_snitch.dst_ready)) begin
-            stall_raw <= stall_raw + 1;
+            if (qlr_pending) begin
+              stall_qlr <= stall_qlr + 1;
+            end else begin
+              stall_raw <= stall_raw + 1;
+            end
           end
           if (i_snitch.lsu_stall) begin
             stall_lsu <= stall_lsu + 1;
@@ -321,6 +338,7 @@ module mempool_cc
         stall <= 0;
         stall_ins <= 0;
         stall_raw <= 0;
+        stall_qlr <= 0;
         stall_lsu <= 0;
         stall_acc <= 0;
       end
