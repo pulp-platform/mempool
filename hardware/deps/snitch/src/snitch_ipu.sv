@@ -324,7 +324,6 @@ module snitch_ipu #(
   assign acc_pid_o = oup.id;
 endmodule
 
-
 module dspu #(
   parameter int unsigned Width = 32,
   parameter int unsigned IdWidth = 5
@@ -344,6 +343,13 @@ module dspu #(
     output logic [Width-1:0]   result_o
 );
 
+  typedef struct packed {
+    logic [31:0] op_a;
+    logic [31:0] op_b;
+    logic [31:0] op_c;
+    logic [5:0] imm6;
+  } dspu_input_t;
+
   // Control signals
   assign out_valid_o = in_valid_i;
   assign in_ready_o = out_ready_i;
@@ -362,16 +368,16 @@ module dspu #(
   } cmp_op_b_sel;              // selection of shared comparator operands
   logic clip_unsigned;         // clip operation has "0" as lower bound
   logic clip_register;         // if 1 clip operation uses rs2, else imm5
+
+  dspu_input_t mac_gated;
   enum logic [1:0] {
     NoMul, MulLow, MulHigh, MulMac
-  } mul_op;                    // type of multiplication operation
+  } mac_op;                    // type of multiplication operation
   logic mac_msu;               // multiplication operation is MSU
-  logic mul_op_a_sign;         // sign of multiplier operand a
+  logic mac_op_a_sign;         // sign of multiplier operand a
   logic mac_op_b_sign;         // sign of multiplier operand b
-  enum logic [3:0] {
-    Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip, Mac, Simd
-  } res_sel;                   // result selection
 
+  dspu_input_t simd_gated;
   enum logic [4:0] {
     SimdNop, SimdAdd, SimdSub, SimdAvg, SimdMin, SimdMax, SimdSrl, SimdSra, SimdSll, SimdOr,
     SimdXor, SimdAnd, SimdAbs, SimdExt, SimdIns, SimdDotp, SimdShuffle, SimdPack
@@ -387,18 +393,39 @@ module dspu #(
   logic simd_dotp_op_b_signed; // signedness of SIMD dotp operand b
   logic simd_dotp_acc;         // accumulate result of SIMD dotp on destination reg
 
+  enum logic [3:0] {
+    Nop, Abs, Sle, Min, Max, Exths, Exthz, Extbs, Extbz, Clip, Mac, Simd
+  } res_sel;                   // result selection
+
   // --------------------
   // Decoder
   // --------------------
+
+  // decoder plugin for gating
+  always_comb begin
+    mac_gated = 'b0;
+    simd_gated = 'b0;
+    if (mac_op != NoMul) begin
+      mac_gated.op_a = op_a_i;
+      mac_gated.op_b = op_b_i;
+      mac_gated.op_c = op_c_i;
+      mac_gated.imm6 = imm6;
+    end else if (simd_op != SimdNop) begin
+      simd_gated.op_a = op_a_i;
+      simd_gated.op_b = op_b_i;
+      simd_gated.op_c = op_c_i;
+      simd_gated.imm6 = imm6;
+    end
+  end
 
   always_comb begin
     cmp_signed = 1'b1;
     cmp_op_b_sel = None;
     clip_unsigned = 1'b0;
     clip_register = 1'b0;
-    mul_op = NoMul;
+    mac_op = NoMul;
     mac_msu = 1'b0;
-    mul_op_a_sign = 1'b0;
+    mac_op_a_sign = 1'b0;
     mac_op_b_sign = 1'b0;
     res_sel = Nop;
     simd_op = SimdNop;
@@ -411,24 +438,24 @@ module dspu #(
     unique casez (operator_i)
       // Multiplications from M extension
       riscv_instr::MUL: begin
-        mul_op = MulLow;
-        mul_op_a_sign = 1'b1;
+        mac_op = MulLow;
+        mac_op_a_sign = 1'b1;
         mac_op_b_sign = 1'b1;
         res_sel = Mac;
       end
       riscv_instr::MULH: begin
-        mul_op = MulHigh;
-        mul_op_a_sign = 1'b1;
+        mac_op = MulHigh;
+        mac_op_a_sign = 1'b1;
         mac_op_b_sign = 1'b1;
         res_sel = Mac;
       end
       riscv_instr::MULHSU: begin
-        mul_op = MulHigh;
-        mul_op_a_sign = 1'b1;
+        mac_op = MulHigh;
+        mac_op_a_sign = 1'b1;
         res_sel = Mac;
       end
       riscv_instr::MULHU: begin
-        mul_op = MulHigh;
+        mac_op = MulHigh;
         res_sel = Mac;
       end
       // Instructions from Xpulpimg
@@ -500,15 +527,15 @@ module dspu #(
         res_sel = Clip;
       end
       riscv_instr::P_MAC: begin
-        mul_op = MulMac;
-        mul_op_a_sign = 1'b1;
+        mac_op = MulMac;
+        mac_op_a_sign = 1'b1;
         mac_op_b_sign = 1'b1;
         res_sel = Mac;
       end
       riscv_instr::P_MSU: begin
-        mul_op = MulMac;
+        mac_op = MulMac;
         mac_msu = 1'b1;
-        mul_op_a_sign = 1'b1;
+        mac_op_a_sign = 1'b1;
         mac_op_b_sign = 1'b1;
         res_sel = Mac;
       end
@@ -1330,20 +1357,20 @@ module dspu #(
   // --------------------
 
   // 32x32 into 32 bits multiplier & accumulator
-  logic [Width-1:0] mul_op_a;
+  logic [Width-1:0] mac_op_a;
   logic [2*Width-1:0] mul_result;
   logic [Width-1:0] mac_result;
 
-  assign mul_op_a = mac_msu ? -op_a_i : op_a_i; // op_a_i is sign-inverted if mac_msu=1, to have -op_a*op_b
+  assign mac_op_a = mac_msu ? -mac_gated.op_a : mac_gated.op_a; // op_a_i is sign-inverted if mac_msu=1, to have -op_a*op_b
 
   // 32-bits input, 64-bits output multiplier
-  assign mul_result = $signed({mul_op_a[Width-1] & mul_op_a_sign, mul_op_a}) * $signed({op_b_i[Width-1] & mac_op_b_sign, op_b_i});
+  assign mul_result = $signed({mac_op_a[Width-1] & mac_op_a_sign, mac_op_a}) * $signed({mac_gated.op_b[Width-1] & mac_op_b_sign, mac_gated.op_b});
 
   always_comb begin
-    unique case (mul_op)
+    unique case (mac_op)
       MulLow: mac_result = mul_result[Width-1:0]; // mul, take lowest 32 bits
       MulHigh: mac_result = mul_result[2*Width-1:Width]; // mul high, take highest 32 bits
-      MulMac: mac_result = op_c_i + mul_result[Width-1:0]; // accumulate
+      MulMac: mac_result = mac_gated.op_c + mul_result[Width-1:0]; // accumulate
       default: mac_result = '0;
     endcase
   end
@@ -1358,8 +1385,8 @@ module dspu #(
 
   // half-word and byte immediate extensions
   always_comb
-    if(simd_signed) simd_imm = $signed(imm6);
-    else simd_imm = $unsigned(imm6);
+    if(simd_signed) simd_imm = $signed(simd_gated.imm6);
+    else simd_imm = $unsigned(simd_gated.imm6);
 
   // SIMD operands composition
   always_comb begin
@@ -1370,18 +1397,18 @@ module dspu #(
       // half-word granularity
       HalfWord:
         for (int i = 0; i < Width/16; i++) begin
-          simd_op_a[2*i +: 2] = op_a_i[16*i +: 16]; // operands A are the half-words of op_a_i
+          simd_op_a[2*i +: 2] = simd_gated.op_a[16*i +: 16]; // operands A are the half-words of op_a_i
           // operands B are the half-words of op_b_i, replicated lowest half-word of op_b_i or replicated 6-bit immediate
-          simd_op_b[2*i +: 2] = ((simd_mode == Vect) || (simd_mode == High)) ? op_b_i[16*i +: 16] : ((simd_mode == Sc) ? op_b_i[15:0] : simd_imm);
-          simd_op_c[2*i +: 2] = op_c_i[16*i +: 16]; // operands C are the half-words of op_c_i
+          simd_op_b[2*i +: 2] = ((simd_mode == Vect) || (simd_mode == High)) ? simd_gated.op_b[16*i +: 16] : ((simd_mode == Sc) ? simd_gated.op_b[15:0] : simd_imm);
+          simd_op_c[2*i +: 2] = simd_gated.op_c[16*i +: 16]; // operands C are the half-words of op_c_i
         end
       // byte granularity
       Byte:
         for (int i = 0; i < Width/8; i++) begin
-          simd_op_a[i] = op_a_i[8*i +: 8]; // operands A are the bytes of op_a_i
+          simd_op_a[i] = simd_gated.op_a[8*i +: 8]; // operands A are the bytes of op_a_i
           // operands B are the bytes of op_b_i, replicated lowest byte of op_b_i or replicated 6-bit immediate
-          simd_op_b[i] = (simd_mode == Vect) ? op_b_i[8*i +: 8] : ((simd_mode == Sc) ? op_b_i[7:0] : simd_imm[0]);
-          simd_op_c[i] = op_c_i[8*i +: 8]; // operands C are the bytes of op_c_i
+          simd_op_b[i] = (simd_mode == Vect) ? simd_gated.op_b[8*i +: 8] : ((simd_mode == Sc) ? simd_gated.op_b[7:0] : simd_imm[0]);
+          simd_op_c[i] = simd_gated.op_c[8*i +: 8]; // operands C are the bytes of op_c_i
         end
       default: ;
     endcase
@@ -1431,13 +1458,13 @@ module dspu #(
             for (int i = 0; i < Width/16; i++)
               simd_result[2*i +: 2] = $signed(simd_op_a[2*i +: 2]) > 0 ? simd_op_a[2*i +: 2] : -$signed(simd_op_a[2*i +: 2]);
           SimdExt: begin
-            simd_result[1:0] = simd_op_a[2*imm6[0] +: 2];
+            simd_result[1:0] = simd_op_a[2*simd_gated.imm6[0] +: 2];
             // sign- or zero-extend
-            simd_result[3:2] = {16{simd_op_a[2*imm6[0]+1][7] & simd_signed}};
+            simd_result[3:2] = {16{simd_op_a[2*simd_gated.imm6[0]+1][7] & simd_signed}};
           end
           SimdIns: begin
-            simd_result = op_c_i;
-            simd_result[2*imm6[0] +: 2] = simd_op_a[1:0];
+            simd_result = simd_gated.op_c;
+            simd_result[2*simd_gated.imm6[0] +: 2] = simd_op_a[1:0];
           end
           SimdDotp: begin
             simd_result = op_c_i & {(Width){simd_dotp_acc}}; // accumulate on rd or start from zero
@@ -1497,16 +1524,16 @@ module dspu #(
             for (int i = 0; i < Width/8; i++)
               simd_result[i] = $signed(simd_op_a[i]) > 0 ? simd_op_a[i] : -$signed(simd_op_a[i]);
           SimdExt: begin
-            simd_result[0] = simd_op_a[imm6[1:0]];
+            simd_result[0] = simd_op_a[simd_gated.imm6[1:0]];
             // sign- or zero-extend
-            simd_result[3:1] = {24{simd_op_a[imm6[1:0]][7] & simd_signed}};
+            simd_result[3:1] = {24{simd_op_a[simd_gated.imm6[1:0]][7] & simd_signed}};
           end
           SimdIns: begin
-            simd_result = op_c_i;
-            simd_result[imm6[1:0]] = simd_op_a[0];
+            simd_result = simd_gated.op_c;
+            simd_result[simd_gated.imm6[1:0]] = simd_op_a[0];
           end
           SimdDotp: begin
-            simd_result = op_c_i & {(Width){simd_dotp_acc}}; // accumulate on rd or start from zero
+            simd_result = simd_gated.op_c & {(Width){simd_dotp_acc}}; // accumulate on rd or start from zero
             for (int i = 0; i < Width/8; i++)
               simd_result = $signed(simd_result) + $signed({simd_op_a[i][7] & simd_dotp_op_a_signed, simd_op_a[i]}) *
                                                    $signed({simd_op_b[i][7] & simd_dotp_op_b_signed, simd_op_b[i]});
