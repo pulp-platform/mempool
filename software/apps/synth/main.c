@@ -15,13 +15,13 @@
 #include "synchronization.h"
 
 // Macros
-#define UNROLL (4)
-#define N (NUM_CORES * UNROLL)
+#define UNROLL (BANKING_FACTOR)
+#define N (NUM_CORES * BANKING_FACTOR)
 #define TARGET_MEMPOOL (1)
 #define TARGET_TERAPOOL (0)
 
 // Globals
-int32_t block_a[N] __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+int32_t block_a[N] __attribute__((aligned(NUM_CORES * BANKING_FACTOR), section(".l1")));
 
 /* Main */
 

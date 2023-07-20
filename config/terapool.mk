@@ -35,3 +35,9 @@ axi_hier_radix ?= 10
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 4
+
+# L2 Banks/Channels
+l2_banks = 16
+
+# DMA backend per group
+dmas_per_group = 8
