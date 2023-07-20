@@ -9,6 +9,12 @@
 typedef signed short v2s __attribute__((vector_size(4)));
 typedef unsigned short v2u __attribute__((vector_size(4)));
 
+typedef __fp16 v2f16 __attribute__((vector_size(4)));
+typedef union {
+  float f32;
+  v2f16 vec;
+} v2h;
+
 typedef signed char v4s __attribute__((vector_size(4)));
 typedef unsigned char v4u __attribute__((vector_size(4)));
 

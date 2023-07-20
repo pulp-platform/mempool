@@ -11,12 +11,6 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-typedef __fp16 v2f16 __attribute__((vector_size(4)));
-typedef union {
-  float f32;
-  v2f16 vec;
-} v2h;
-
 #include "data/data_matmul_f16.h"
 #include "kernel/matmul_f16.h"
 
@@ -39,19 +33,24 @@ void init_matrix(__fp16 *matrix, __fp16 *input, uint32_t num_rows,
   return;
 }
 
-int verify_result(__fp16 *__restrict__ C, __fp16 *__restrict__ Exp, uint32_t M,
-                  uint32_t P, uint32_t core_id, uint32_t num_cores) {
+int verify_result(__fp16 *__restrict__ Res, __fp16 *__restrict__ Exp,
+                  uint32_t M, uint32_t P, uint32_t core_id,
+                  uint32_t num_cores) {
   if (core_id == 0) {
     for (uint32_t i = 0; i < M * P; i++) {
-      __fp16 error;
       __fp16 exp = Exp[i];
-      __fp16 res = C[i];
-      asm volatile("fsub.h %[error], %[res], %[exp];"
-                   : [error] "=&r"(error)
+      __fp16 res = Res[i];
+      __fp16 dif;
+      float tol = (__fp16)0.05f;
+      float dif_f32;
+      asm volatile("fsub.h %[dif], %[res], %[exp];"
+                   "fcvt.h.s %[dif_f32], %[dif];"
+                   : [dif] "+&r"(dif), [dif_f32] "+&r"(dif_f32)
                    : [res] "r"(res), [exp] "r"(exp)
                    :);
-      if (*(int32_t *)&error != 0) {
-        printf("ERROR(%d): %d - %d - %d\n", i, *(int32_t *)&error,
+
+      if ((dif_f32 > tol) || (dif_f32 < (-tol))) {
+        printf("ERROR(%d): %x - %x - %x\n", i, *(int32_t *)&dif,
                *(int32_t *)&exp, *(int32_t *)&res);
       }
     }
@@ -78,8 +77,10 @@ int main() {
 #if defined(PARALLEL)
   // Execute function to test.
   mempool_start_benchmark();
-  matmul_2x2_parallel_f16_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
-                                matrix_N, matrix_P, core_id, num_cores);
+  //  matmul_2x2_parallel_f16(matrix_a, matrix_b, matrix_c, matrix_M,
+  //                                matrix_N, matrix_P, core_id, num_cores);
+  matmul_4x2_parallel_f16vec(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
+                             matrix_P, core_id, num_cores);
   // dump_id(core_id);
   mempool_stop_benchmark();
   // Wait at barrier before checking
@@ -88,8 +89,8 @@ int main() {
   if (core_id == 0) {
     // Execute function to test.
     mempool_start_benchmark();
-    matmul_2x2_single_f16_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
-                                matrix_N, matrix_P);
+    matmul_2x2_single_f16(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
+                          matrix_P);
     mempool_stop_benchmark();
   }
   // Wait at barrier before checking

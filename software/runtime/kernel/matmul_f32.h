@@ -11,10 +11,11 @@
  * C = AB
  */
 
-void matmul_2x2_single_f32_zfinx(float const *__restrict__ A,
-                                 float const *__restrict__ B,
-                                 float *__restrict__ C, uint32_t M, uint32_t N,
-                                 uint32_t P) {
+#include "xpulp/builtins_v2.h"
+
+void matmul_2x2_single_f32(float const *__restrict__ A,
+                           float const *__restrict__ B, float *__restrict__ C,
+                           uint32_t M, uint32_t N, uint32_t P) {
 
   for (uint32_t i = 0; i < M; i++) {
     for (uint32_t j = 0; j < P; j += 2) {
@@ -86,11 +87,10 @@ void matmul_2x2_single_f32_zfinx(float const *__restrict__ A,
   }
 }
 
-void matmul_2x2_parallel_f32_zfinx(float const *__restrict__ A,
-                                   float const *__restrict__ B,
-                                   float *__restrict__ C, uint32_t M,
-                                   uint32_t N, uint32_t P, uint32_t id,
-                                   uint32_t numThreads) {
+void matmul_2x2_parallel_f32(float const *__restrict__ A,
+                             float const *__restrict__ B, float *__restrict__ C,
+                             uint32_t M, uint32_t N, uint32_t P, uint32_t id,
+                             uint32_t numThreads) {
 
   // Parallelize by assigning each core one row
   uint32_t const c = 8; // How many columns to split the matrix into
@@ -166,11 +166,11 @@ void matmul_2x2_parallel_f32_zfinx(float const *__restrict__ A,
   }
 }
 
-void matmul_4x2_parallel_f32vec_zfinx(const float *__restrict__ pSrcA,
-                                      const float *__restrict__ pSrcB,
-                                      float *__restrict__ pDstC, uint32_t M,
-                                      uint32_t N, uint32_t P, uint32_t core_id,
-                                      uint32_t numThreads) {
+void matmul_4x2_parallel_f32vec(const float *__restrict__ pSrcA,
+                                const float *__restrict__ pSrcB,
+                                float *__restrict__ pDstC, uint32_t M,
+                                uint32_t N, uint32_t P, uint32_t core_id,
+                                uint32_t numThreads) {
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
   uint32_t k = 0; // loop counter for P
@@ -246,11 +246,10 @@ void matmul_4x2_parallel_f32vec_zfinx(const float *__restrict__ pSrcA,
 #define P3 (matrix_P - 3) * 4
 #define P31 (-3 * matrix_N + 1) * 4
 
-void matmul_4x4_parallel_f32_zfinx(float const *__restrict__ A,
-                                   float const *__restrict__ B,
-                                   float *__restrict__ C, uint32_t M,
-                                   uint32_t N, uint32_t P, uint32_t id,
-                                   uint32_t numThreads) {
+void matmul_4x4_parallel_f32(float const *__restrict__ A,
+                             float const *__restrict__ B, float *__restrict__ C,
+                             uint32_t M, uint32_t N, uint32_t P, uint32_t id,
+                             uint32_t numThreads) {
 
 #ifndef ASM
 

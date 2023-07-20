@@ -8,15 +8,8 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-
-typedef __fp16 v2f16 __attribute__((vector_size(4)));
-typedef union {
-  float f32;
-  v2f16 vec;
-} v2h;
 
 #include "data/data_matmul_f32.h"
 #include "kernel/matmul_f32.h"
@@ -76,10 +69,10 @@ int main() {
 #if defined(PARALLEL)
   // Execute function to test.
   mempool_start_benchmark();
-  // matmul_2x2_parallel_f32_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
+  // matmul_2x2_parallel_f32(matrix_a, matrix_b, matrix_c, matrix_M,
   //                               matrix_N, matrix_P, core_id, num_cores);
-  matmul_4x4_parallel_f32_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
-                                matrix_N, matrix_P, core_id, num_cores);
+  matmul_4x4_parallel_f32(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
+                          matrix_P, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier before checking
   mempool_barrier(num_cores);
@@ -87,8 +80,8 @@ int main() {
   if (core_id == 0) {
     // Execute function to test.
     mempool_start_benchmark();
-    matmul_2x2_single_f32_zfinx(matrix_a, matrix_b, matrix_c, matrix_M,
-                                matrix_N, matrix_P);
+    matmul_2x2_single_f32(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
+                          matrix_P);
     mempool_stop_benchmark();
   }
   // Wait at barrier before checking
