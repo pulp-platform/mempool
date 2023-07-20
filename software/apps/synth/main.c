@@ -21,7 +21,8 @@
 #define TARGET_TERAPOOL (0)
 
 // Globals
-int32_t block_a[N] __attribute__((aligned(NUM_CORES * BANKING_FACTOR), section(".l1")));
+int32_t block_a[N]
+    __attribute__((aligned(NUM_CORES * BANKING_FACTOR), section(".l1")));
 
 /* Main */
 
