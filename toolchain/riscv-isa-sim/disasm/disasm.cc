@@ -1517,6 +1517,10 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_RTYPE(pv_pack);
   DEFINE_RTYPE(pv_pack_h);
 
+  // Xqueues extension
+  DEFINE_XAMO(q_push)
+  DEFINE_XAMO_LR(q_pop)
+
   // provide a default disassembly for all instructions as a fallback
   #define DECLARE_INSN(code, match, mask) \
    add_insn(new disasm_insn_t(#code " (args unknown)", match, mask, {}));
