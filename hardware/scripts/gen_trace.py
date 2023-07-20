@@ -71,7 +71,7 @@ CSR_NAMES = {0xb00: 'mcycle', 0xb02: 'minstret',
 
 MEM_REGIONS = {'Other': 0, 'Sequential': 1, 'Interleaved': 2}
 
-RAW_TYPES = ['lsu', 'acc']
+RAW_TYPES = ['lsu', 'acc', 'qlr']
 
 QLR_REQ = {'push': 0xC, 'pop': 0xD}
 
@@ -140,6 +140,8 @@ def read_annotations(dict_str: str) -> dict:
                                     "", dict_str))})
     return annot
 
+waiting_for_lsu = 0
+lsu_waiting_reg = 'zero'
 
 def annotate_snitch(
     extras: dict,
@@ -153,6 +155,8 @@ def annotate_snitch(
     force_hex_addr: bool = True,
     permissive: bool = False
 ) -> (str, dict):
+    global waiting_for_lsu
+    global lsu_waiting_reg
     # Compound annotations in datapath order
     ret = []
     # Remember if we had a potential RAW stall
@@ -165,7 +169,7 @@ def annotate_snitch(
         # Check whether a register that is accessed was retired earlier
         for k in RAW_TYPES:
             for reg in ['rs1', 'rs2', 'rd']:
-                if extras[reg] == retired_reg.get(k, -1):
+                if (extras[reg] == retired_reg.get(k, -1)):
                     raw_stall[k] = retired_reg[k]
         # Operand registers
         # Check whether we read opc from rd
@@ -235,7 +239,20 @@ def annotate_snitch(
         ret.append('(lsu) {:<3} <-- {}'.format(
             REG_ABI_NAMES_I[extras['lsu_rd']],
             int_lit(extras['ld_result_32'])))
-        retired_reg['lsu'] = extras['lsu_rd']
+        if extras['qlr_req'] == QLR_REQ['pop']:
+            retired_reg['qlr'] = extras['qlr_reg']
+            # if it is still stalling after the Qpop is issued, it is the LSU's fault
+            # but we still want to count it as QLR RAW
+            if extras['stall']:
+                waiting_for_lsu = 1
+                lsu_waiting_reg = extras['qlr_reg']
+        else:
+            if waiting_for_lsu and extras['lsu_rd'] == lsu_waiting_reg:
+                # reset flag
+                waiting_for_lsu = 0
+                # do not count this stall as a RAW stall, otherwise it counts double
+            else:
+                retired_reg['lsu'] = extras['lsu_rd']
     if extras['retire_acc'] and extras['acc_pid'] != 0:
         ret.append('(acc) {:<3} <-- {}'.format(
             REG_ABI_NAMES_I[extras['acc_pid']],
@@ -247,9 +264,9 @@ def annotate_snitch(
     # QLR requests
     if extras['qlr_req'] == QLR_REQ['pop']:
         gpr_wb_info[extras['qlr_reg']].appendleft((cycle, extras['alu_result']))
-        ret.append('Qpop {:<3}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
+        ret.append('Qpop {:<2}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
     elif extras['qlr_req'] == QLR_REQ['push']:
-        ret.append('Qpush {:<3}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
+        ret.append('Qpush {:<2}'.format(REG_ABI_NAMES_I[extras['qlr_reg']]))
     # Count stalls, but only in cycles that execute an instruction
     if not extras['stall']:
         if extras['stall_tot']:
@@ -267,6 +284,9 @@ def annotate_snitch(
                             k, REG_ABI_NAMES_I[raw_stall[k]]))
                         perf_metrics[-1]['stall_raw_{}'.format(
                             k)] += extras['stall_raw']
+            if extras['stall_qlr']:
+                perf_metrics[-1]['stall_qlr'] += extras['stall_qlr']
+                ret.append('({} qlr)'.format(extras['stall_qlr']))
             if extras['stall_lsu']:
                 perf_metrics[-1]['stall_lsu'] += extras['stall_lsu']
                 ret.append('({} lsu)'.format(extras['stall_lsu']))
@@ -277,7 +297,7 @@ def annotate_snitch(
                 perf_metrics[-1]['stall_wfi'] += cycle - prev_wfi_time - 1
                 ret.append('({} wfi)'.format(cycle - prev_wfi_time - 1))
         elif (extras['stall_ins'] or extras['stall_raw'] or extras['stall_lsu']
-              or extras['stall_acc']):
+              or extras['stall_acc'] or extras['stall_qlr']):
             ret.append('// Missed specific stall!!!')
         elif cycle - last_cycle > 1:
             # Check if we did not skip a cycle, otherwise we probably had a
@@ -449,13 +469,14 @@ def sanity_check_perf_metrics(perf_metrics: list, idx: int):
     perf_metric = perf_metrics[idx]
     # Sum up RAW stalls
     sum_raw = perf_metric.get('stall_raw_acc', 0) + \
-        perf_metric.get('stall_raw_lsu', 0)
+        perf_metric.get('stall_raw_lsu', 0) + \
+        perf_metric.get('stall_raw_qlr', 0)
     if (sum_raw != perf_metric.get('stall_raw', 0)):
         error['raw_stalls'] = sum_raw
     # Sum up all stalls
     sum_tot = perf_metric.get('stall_ins', 0) + \
         perf_metric.get('stall_lsu', 0) + perf_metric.get('stall_raw', 0) + \
-        perf_metric.get('stall_wfi', 0)
+        perf_metric.get('stall_wfi', 0) + perf_metric.get('stall_qlr', 0)
     if (sum_tot != perf_metric.get('stall_tot', 0)):
         error['total_stalls'] = sum_tot
     # Sum up all cycles
@@ -491,6 +512,8 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'stall_raw',
         'stall_raw_lsu',
         'stall_raw_acc',
+        'stall_raw_qlr',
+        'stall_qlr',
         'stall_lsu',
         'stall_acc',
         'stall_wfi',

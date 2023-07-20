@@ -205,7 +205,7 @@ module mempool_cc
   int f;
   string fn;
   logic [63:0] cycle;
-  int unsigned stall, stall_ins, stall_raw, stall_lsu, stall_acc;
+  int unsigned stall, stall_ins, stall_raw, stall_lsu, stall_acc, stall_qlr;
   logic qlr_req;
 
   assign qlr_req = i_snitch.lsu_req_valid && i_snitch.lsu_req_ready && i_snitch.lsu_req_qlr;
@@ -246,6 +246,7 @@ module mempool_cc
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_raw",   stall_raw);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_lsu",   stall_lsu);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_acc",   stall_acc);
+          extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "stall_qlr",   stall_qlr);
           // Decoding
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs1",         i_snitch.rs1);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "rs2",         i_snitch.rs2);
@@ -294,6 +295,7 @@ module mempool_cc
             stall <= 0;
             stall_ins <= 0;
             stall_raw <= 0;
+            stall_qlr <= 0;
             stall_lsu <= 0;
             stall_acc <= 0;
         end else begin
@@ -304,9 +306,30 @@ module mempool_cc
           if ((!i_snitch.inst_ready_i) && (i_snitch.inst_valid_o)) begin
             stall_ins <= stall_ins + 1;
           end
-          if ((!i_snitch.operands_ready) || (!i_snitch.dst_ready)) begin
-            stall_raw <= stall_raw + 1;
-          end
+          // Operands not ready, are QLR enabled?
+          // hack to avoid further parameter: QLR_MAX_REQUESTS is only defined if QLR extension is enabled
+          `ifdef QLR_MAX_REQUESTS
+            // QLR enabled
+            // first check if it's a OQLR FIFO stall
+            if (
+              (i_snitch.gen_qlr_group.i_qlr_group.gen_qlrs[0].i_qlr.oqlr_enabled_q && i_snitch.rd == mempool_pkg::QlrTags[0] && ~i_snitch.qlr_ready[0]) ||
+              (i_snitch.gen_qlr_group.i_qlr_group.gen_qlrs[1].i_qlr.oqlr_enabled_q && i_snitch.rd == mempool_pkg::QlrTags[1] && ~i_snitch.qlr_ready[1]) ||
+              (i_snitch.gen_qlr_group.i_qlr_group.gen_qlrs[2].i_qlr.oqlr_enabled_q && i_snitch.rd == mempool_pkg::QlrTags[2] && ~i_snitch.qlr_ready[2]) ||
+              (i_snitch.gen_qlr_group.i_qlr_group.gen_qlrs[3].i_qlr.oqlr_enabled_q && i_snitch.rd == mempool_pkg::QlrTags[3] && ~i_snitch.qlr_ready[3])
+            ) begin
+              // capture stalls due to Output QLR FIFO full
+              stall_qlr <= stall_qlr + 1;
+            end else if ((!i_snitch.operands_ready) || (!i_snitch.dst_ready)) begin
+              // if it's not a OQLR stall, then it's a normal RAW
+              stall_raw <= stall_raw + 1;
+            end
+          `else
+            // QLR disabled
+            if ((!i_snitch.operands_ready) || (!i_snitch.dst_ready)) begin
+              stall_raw <= stall_raw + 1;
+            end
+          `endif
+
           if (i_snitch.lsu_stall) begin
             stall_lsu <= stall_lsu + 1;
           end
@@ -319,6 +342,7 @@ module mempool_cc
         stall <= 0;
         stall_ins <= 0;
         stall_raw <= 0;
+        stall_qlr <= 0;
         stall_lsu <= 0;
         stall_acc <= 0;
       end
