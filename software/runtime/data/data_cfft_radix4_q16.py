@@ -8,9 +8,11 @@
 # Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
 
 import numpy as np
+import math as M
 import argparse
 import pathlib
 from mako.template import Template
+from sympy.combinatorics import Permutation
 
 
 ##################
@@ -70,12 +72,55 @@ def compute_result(inp, len):
     return result
 
 
+def compute_twiddles(length):
+    PI = 3.14159265358979
+    N = length
+    twiddleCoefq15 = np.zeros((int)(2 * 3 * N / 4), np.int16)
+    for i in range(0, (int)(3 * N / 4)):
+        twiddleCoefq15_cos = M.cos(i * 2 * PI / N)
+        twiddleCoefq15_sin = M.sin(i * 2 * PI / N)
+        twiddleCoefq15[2 * i] = int(round(twiddleCoefq15_cos * (2**15 - 1)))
+        twiddleCoefq15[2 * i +
+                       1] = int(round(twiddleCoefq15_sin * (2**15 - 1)))
+    return twiddleCoefq15
+
+
+def compute_bitreversal(N, R):
+
+    # Decompose
+    logR2 = []
+    idx = N
+    while (idx >= R):
+        logR2.append(int(M.log2(R)))
+        idx = idx // R
+    if (idx > 1):
+        logR2.append(int(M.log2(idx)))
+
+    # Bitreversal
+    indexes = []
+    for x in range(N):
+        result = 0
+        for bits in logR2:
+            mask = (0xffffffff >> (32 - bits))
+            result = (result << bits) | (x & mask)
+            x = x >> bits
+        indexes.append(result)
+
+    # Create transpositions table
+    tps = []
+    for c in Permutation.from_sequence(indexes).cyclic_form:
+        for i in range(len(c) - 1):
+            tps.append([c[i] * 8, c[-1] * 8])
+
+    return tps
+
+
 def gen_data_header_file(
         outdir: pathlib.Path.cwd(),
         tpl: pathlib.Path.cwd(),
         **kwargs):
 
-    file = outdir / f"data_{kwargs['name']}.h"
+    file = outdir / f"{kwargs['name']}.h"
 
     print(tpl, outdir, kwargs['name'])
 
@@ -91,7 +136,7 @@ def main():
         "-o",
         "--outdir",
         type=pathlib.Path,
-        default=pathlib.Path.cwd(),
+        default=pathlib.Path(__file__).parent.absolute(),
         required=False,
         help='Select out directory of generated data files'
     )
@@ -100,9 +145,9 @@ def main():
         "--tpl",
         type=pathlib.Path,
         required=False,
-        default=pathlib.Path.cwd() / "data_cfftq16.h.tpl",
-        help='Path to mako template'
-    )
+        default=pathlib.Path(__file__).parent.absolute() /
+        "data_cfft_radix4_q16.h.tpl",
+        help='Path to mako template')
     parser.add_argument(
         "-v",
         "--verbose",
@@ -124,6 +169,8 @@ def main():
     Len = args.dimension
     Input = np.random.randint(-2**(15), 2**(15) - 1, 2 * Len, dtype=np.int16)
     Result = compute_result(Input, Len)
+    Twiddles = compute_twiddles(Len)
+    Bitreversal = np.ndarray.flatten(np.array(compute_bitreversal(Len, 2)))
 
     tolerance = {
         16: 16,
@@ -135,24 +182,15 @@ def main():
         1024: 64,
         2048: 96,
         4096: 128}
-    if Len == 64:
-        Lenstring = 'TEST_64'
-    elif Len == 256:
-        Lenstring = 'TEST_256'
-    elif Len == 512:
-        Lenstring = 'TEST_512'
-    elif Len == 1024:
-        Lenstring = 'TEST_1024'
-    elif Len == 2048:
-        Lenstring = 'TEST_2048'
-    elif Len == 4096:
-        Lenstring = 'TEST_4096'
 
-    kwargs = {'name': 'cfftq16',
+    kwargs = {'name': 'data_cfft_radix4_q16',
               'vector_inp': Input,
               'vector_res': Result,
+              'vector_twi': Twiddles,
+              'vector_bitrev': Bitreversal,
               'Len': Len,
-              'Lenstring': Lenstring,
+              'Log2Len': int(np.log2(Len)),
+              'BitrevLen': int(2 * len(Bitreversal)),
               'tolerance': tolerance[int(Len)]}
 
     gen_data_header_file(args.outdir, args.tpl, **kwargs)

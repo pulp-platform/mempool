@@ -26,4 +26,4 @@ runtime/arch.ld
 
 # Generated data files
 data.h
-runtime/data/*.h
+runtime/data/data*.h
