@@ -136,6 +136,7 @@ void mempool_radix4_cfft_q16p_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
   }
   mempool_log_barrier(2, absolute_core_id);
   /* END OF LAST STAGE PROCESSING */
+  return;
 }
 
 void mempool_radix4by2_cfft_q16p(int16_t *pSrc, uint32_t fftLen,
@@ -198,6 +199,7 @@ void mempool_radix4by2_cfft_q16p(int16_t *pSrc, uint32_t fftLen,
     *((v2s *)&pSrc[4 * i + 2]) = pb;
   }
   mempool_log_barrier(2, core_id);
+  return;
 }
 
 /**
@@ -231,6 +233,7 @@ static inline void fold_radix4(int16_t *pSrc16, uint32_t fftLen,
   }
   mempool_log_partial_barrier(2 * WU_STRIDE, WU_STRIDE * core_id,
                               nPE * WU_STRIDE);
+  return;
 }
 
 #ifdef FOLDED_TWIDDLES
@@ -246,9 +249,9 @@ static inline void fold_radix4(int16_t *pSrc16, uint32_t fftLen,
   @param[in]     nPE Number of PE
   @return        pointer to output vector
 */
-int16_t *mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
-                                         uint32_t fftLen, int16_t *pCoef_src,
-                                         int16_t *pCoef_dst, uint32_t nPE)
+void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
+                                     uint32_t fftLen, int16_t *pCoef_src,
+                                     int16_t *pCoef_dst, uint32_t nPE)
 #else
 /**
   Twiddles are not folded in memory
@@ -262,9 +265,9 @@ int16_t *mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
   @param[in]     nPE Number of PE
   @return        pointer to output vector
 */
-int16_t *mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
-                                         uint32_t fftLen, int16_t *pCoef_src,
-                                         uint32_t nPE)
+void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
+                                     uint32_t fftLen, int16_t *pCoef_src,
+                                     uint32_t nPE)
 #endif
 {
 
@@ -476,7 +479,7 @@ int16_t *mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
   mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id, nPE * WU_STRIDE);
   /* END OF LAST STAGE PROCESSING */
 
-  return pDst16;
+  return;
 }
 
 /**
@@ -534,6 +537,9 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
   int32_t t0, t1, t2, t3, t4, t5;
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
+
+  if (fftLen <= N_BANKS)
+    fold_radix4(pSrc16, fftLen, core_id, nPE);
 
   /* FIRST STAGE */
   n1 = fftLen;
@@ -741,4 +747,5 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
 #endif
   }
   mempool_log_partial_barrier(2, absolute_core_id, nPE);
+  return;
 }

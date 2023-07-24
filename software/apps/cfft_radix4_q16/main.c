@@ -34,14 +34,15 @@
       - ASM:             Use asm_volatile statements
 */
 
-#define PARALLEL
+#define FOLDED
+#define FOLDED_TWIDDLES
 #define BITREVERSETABLE
 #define ASM // Use asm_volatile statements
 
 #define WU_STRIDE (1)
 #define STEP (4 * WU_STRIDE)
 #if !(defined(N_FFTs_ROW) && defined(N_FFTs_COL))
-#define N_FFTs_ROW 1
+#define N_FFTs_ROW 2
 #define N_FFTs_COL 1
 #endif
 
@@ -129,12 +130,14 @@ int main() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* SINGLE-CORE */
 #ifdef SINGLE
+  int16_t *pRes; // Result pointer
   if (core_id == 0) {
     mempool_start_benchmark();
     mempool_radix4_cfft_q16s_xpulpimg(pSrc, (uint16_t)N_CSAMPLES, pCoef16_src,
                                       1);
     mempool_bitrevtable_q16s_xpulpimg(
         (uint16_t *)pSrc, BITREVINDEXTABLE_FIXED_TABLE_LENGTH, pRevT16);
+    pRes = pSrc;
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -143,12 +146,14 @@ int main() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* MULTI-CORE */
 #ifdef PARALLEL
+  int16_t *pRes; // Result pointer
   mempool_start_benchmark();
   mempool_radix4_cfft_q16p_xpulpimg(pSrc, (uint16_t)N_CSAMPLES, pCoef16_src, 1,
                                     num_cores);
   mempool_bitrevtable_q16p_xpulpimg((uint16_t *)pSrc,
                                     BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
                                     pRevT16, num_cores);
+  pRes = pSrc;
   mempool_stop_benchmark();
 #endif
   mempool_barrier(num_cores);
@@ -156,6 +161,7 @@ int main() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* MULTI-CORE FOLDED */
 #ifdef FOLDED
+  int16_t *pRes; // Result pointer
   if ((core_id < (N_CSAMPLES / 16)) && (core_id % WU_STRIDE == 0)) {
     mempool_start_benchmark();
 #ifdef FOLDED_TWIDDLES
@@ -166,7 +172,8 @@ int main() {
     mempool_radix4_cfft_q16p_folded(pSrc, pDst, (uint16_t)N_CSAMPLES,
                                     pCoef16_src, (N_CSAMPLES / 16));
 #endif
-    mempool_bitrevtable_q16p_xpulpimg((uint16_t *)pSrc,
+    pRes = (LOG2 % 2) == 0 ? pDst : pSrc;
+    mempool_bitrevtable_q16p_xpulpimg((uint16_t *)pRes,
                                       BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
                                       pRevT16, (N_CSAMPLES / 16));
     mempool_stop_benchmark();
@@ -179,7 +186,6 @@ int main() {
 #if defined(SINGLE) || defined(PARALLEL) || defined(FOLDED)
   if (core_id == 0) {
     printf("Done!\n");
-    int16_t *pRes = pSrc;
     for (uint32_t i = 0; i < N_RSAMPLES; i++) {
       if (ABS(((int32_t)pRes[i] - (int32_t)vector_res[i])) > TOLERANCE)
         printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, pSrc[i], i,
