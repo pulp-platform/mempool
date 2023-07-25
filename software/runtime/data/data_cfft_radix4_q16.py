@@ -190,7 +190,7 @@ def main():
               'vector_bitrev': Bitreversal,
               'Len': Len,
               'Log2Len': int(np.log2(Len)),
-              'BitrevLen': int(2 * len(Bitreversal)),
+              'BitrevLen': len(Bitreversal),
               'tolerance': tolerance[int(Len)]}
 
     gen_data_header_file(args.outdir, args.tpl, **kwargs)

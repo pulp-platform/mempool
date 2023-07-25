@@ -172,7 +172,7 @@ int main() {
     mempool_radix4_cfft_q16p_folded(pSrc, pDst, (uint16_t)N_CSAMPLES,
                                     pCoef16_src, (N_CSAMPLES / 16));
 #endif
-    pRes = (LOG2 % 2) == 0 ? pDst : pSrc;
+    pRes = ((LOG2 / 2) % 2) == 0 ? pSrc : pDst;
     mempool_bitrevtable_q16p_xpulpimg((uint16_t *)pRes,
                                       BITREVINDEXTABLE_FIXED_TABLE_LENGTH,
                                       pRevT16, (N_CSAMPLES / 16));
@@ -210,7 +210,7 @@ int main() {
           pCoef16_dst + 2 * col_id * col_fftLen, pRevT16,
           BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 1, N_CSAMPLES >> 4U);
     }
-    mempool_log_barrier(2, core_id);
+    mempool_log_partial_barrier(2, core_id, N_CSAMPLES >> 4U);
     mempool_stop_benchmark();
   }
 #endif
