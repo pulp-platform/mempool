@@ -23,7 +23,7 @@ def gen_data_header_file(
         tpl: pathlib.Path.cwd(),
         **kwargs):
 
-    file = outdir / f"data_{kwargs['name']}.h"
+    file = outdir / f"{kwargs['name']}.h"
 
     print(tpl, outdir, kwargs['name'])
 
@@ -74,7 +74,7 @@ def main():
         "-o",
         "--outdir",
         type=pathlib.Path,
-        default=pathlib.Path.cwd(),
+        default=pathlib.Path(__file__).parent.absolute(),
         required=False,
         help='Select out directory of generated data files'
     )
@@ -83,9 +83,9 @@ def main():
         "--tpl",
         type=pathlib.Path,
         required=False,
-        default=pathlib.Path.cwd() / "data_chest_q16.h.tpl",
-        help='Path to mako template'
-    )
+        default=pathlib.Path(__file__).parent.absolute() /
+        "data_chest_q16.h.tpl",
+        help='Path to mako template')
     parser.add_argument(
         "-v",
         "--verbose",
@@ -175,25 +175,21 @@ def main():
             np.reshape(pilot_tx, [nb_tx]), fixed_point, 1)
         q_pilot_rx = fixed_point_conversion(
             np.reshape(pilot_rx, [nb_rx]), fixed_point, scaling_factor)
-        q_H = fixed_point_conversion(
-            np.reshape(H, [nb_tx * nb_rx]), fixed_point, scaling_factor)
         q_Hest = compute_result(q_pilot_rx, q_pilot_tx, fixed_point)
         qvector_pilot_tx.append(q_pilot_tx)
         qvector_pilot_rx.append(q_pilot_rx)
         qvector_Hest.append(q_Hest)
-        print(q_H)
-        print(q_Hest)
 
     qvector_pilot_tx = np.reshape(qvector_pilot_tx, [2 * nb_tx * nb_samples])
     qvector_pilot_rx = np.reshape(qvector_pilot_rx, [2 * nb_rx * nb_samples])
     qvector_Hest = np.reshape(qvector_Hest, [2 * nb_tx * nb_rx * nb_samples])
 
-    kwargs = {'name': 'chest_q16', 'pilot_tx': qvector_pilot_tx,
-                                   'pilot_rx': qvector_pilot_rx,
-                                   'Hest': qvector_Hest,
-                                   'nb_tx': nb_tx,
-                                   'nb_rx': nb_rx,
-                                   'nb_samples': nb_samples}
+    kwargs = {'name': 'data_chest_q16', 'pilot_tx': qvector_pilot_tx,
+              'pilot_rx': qvector_pilot_rx,
+              'Hest': qvector_Hest,
+              'nb_tx': nb_tx,
+              'nb_rx': nb_rx,
+              'nb_samples': nb_samples}
 
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
 

@@ -14,7 +14,7 @@
 #include "synchronization.h"
 #include "xpulp/builtins_v2.h"
 
-#include "data_chest_q16.h"
+#include "data/data_chest_q16.h"
 
 #include "kernel/chest_q16p.h"
 #include "kernel/chest_q16s.h"
