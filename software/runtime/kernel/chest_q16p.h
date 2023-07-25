@@ -54,10 +54,10 @@ void mempool_chest_q16p_unrolled4_xpulpv2(int16_t *volatile pH,
             [zero] "r"((v2s){0, 0}), [mask] "r"((v2s){0x1, 0x2})
           :);
       for (uint32_t j = 0; j < nTX; j += 4) {
-        inner_loop(pTX, pOut, nTX, ab0, ab_n0, i, j);
-        inner_loop(pTX, pOut, nTX, ab1, ab_n1, i + 1, j);
-        inner_loop(pTX, pOut, nTX, ab2, ab_n2, i + 2, j);
-        inner_loop(pTX, pOut, nTX, ab3, ab_n3, i + 3, j);
+        chest_unrolled4_inner_loop(pTX, pOut, nTX, ab0, ab_n0, i, j);
+        chest_unrolled4_inner_loop(pTX, pOut, nTX, ab1, ab_n1, i + 1, j);
+        chest_unrolled4_inner_loop(pTX, pOut, nTX, ab2, ab_n2, i + 2, j);
+        chest_unrolled4_inner_loop(pTX, pOut, nTX, ab3, ab_n3, i + 3, j);
       }
     }
   }
@@ -105,7 +105,7 @@ void mempool_chest_q16p_unrolled4_xpulpv2_local(int16_t *volatile pH,
         : [ab_n] "=&r"(ab_n)
         : [ab] "r"(ab), [zero] "r"((v2s){0, 0}), [mask] "r"((v2s){0x1, 0x2})
         :);
-    inner_loop(pTX, pOut, nTX, ab, ab_n, i, j);
+    chest_unrolled4_inner_loop(pTX, pOut, nTX, ab, ab_n, i, j);
   }
   // dump_x(core_id);
   mempool_log_partial_barrier(2, core_id, N_SAMPLES);

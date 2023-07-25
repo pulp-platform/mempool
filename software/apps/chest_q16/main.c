@@ -106,7 +106,6 @@ int main() {
   }
 
   mempool_barrier(num_cores);
-  mempool_barrier(num_cores);
 #endif
 
   check_result(HEST_l1, HEST, 2 * N_RX * N_TX * N_SAMPLES);
