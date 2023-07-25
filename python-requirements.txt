@@ -13,3 +13,4 @@ numpy
 pandas
 progressbar2
 tabulate
+sympy
