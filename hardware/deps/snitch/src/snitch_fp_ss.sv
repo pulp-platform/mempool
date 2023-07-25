@@ -355,8 +355,8 @@ module snitch_fp_ss
       riscv_instr::VFDIV_H,
       riscv_instr::VFDIV_R_H: begin
         fpu_op = fpnew_pkg::DIV;
-        op_select[1] = AccBus_A;
-        op_select[2] = AccBus_B;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
