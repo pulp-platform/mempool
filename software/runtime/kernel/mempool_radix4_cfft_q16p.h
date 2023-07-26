@@ -295,9 +295,6 @@ void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
   uint32_t twidCoefModifier = 1U;
 #endif
 
-  if (fftLen <= N_BANKS)
-    fold_radix4(pSrc16, fftLen, nPE);
-
   /* START OF FIRST STAGE PROCESS */
   n1 = fftLen;
   n2 = n1 >> 2U;
@@ -473,8 +470,6 @@ void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
   /* END OF MIDDLE STAGE PROCESSING */
 
   /* START OF LAST STAGE PROCESSING */
-  n1 = n2;
-  n2 >>= 2U;
   for (i0 = core_id * STEP; i0 < MIN(core_id * STEP + STEP, fftLen >> 2U);
        i0++) {
     radix4_butterfly_last(pSrc16, pDst16, i0);
@@ -541,12 +536,6 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
 
-  if (fftLen <= N_BANKS)
-    fold_radix4(pSrc16, fftLen, nPE);
-
-  mempool_stop_benchmark();
-  mempool_start_benchmark();
-
   /* FIRST STAGE */
   n1 = fftLen;
   n2 = n1 >> 2U;
@@ -590,8 +579,8 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
                  : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                  :);
     for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-      int16_t *pIn = pSrc16 + idx_row * (N_BANKS * 8);
-      int16_t *pOut = pDst16 + idx_row * (N_BANKS * 8);
+      int16_t *pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * N_BANKS;
+      int16_t *pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * N_BANKS;
       radix4_butterfly_first(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                              C3);
     }
@@ -654,8 +643,10 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
                    : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
                    :);
       for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-        int16_t *pIn = pSrc16 + idx_row * (N_BANKS * 8);
-        int16_t *pOut = pDst16 + idx_row * (N_BANKS * 8);
+        int16_t *pIn =
+            pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+        int16_t *pOut =
+            pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
         radix4_butterfly_middle(pIn, pOut, j, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                                 C3);
       }
@@ -670,12 +661,12 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
   }
 
   /*  LAST STAGE */
-  n1 = n2;
-  n2 >>= 2U;
   for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, fftLen >> 2U); i0++) {
     for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-      int16_t *pIn = pSrc16 + idx_row * (N_BANKS * 8);
-      int16_t *pOut = pDst16 + idx_row * (N_BANKS * 8);
+      int16_t *pIn =
+          pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+      int16_t *pOut =
+          pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
       radix4_butterfly_last(pIn, pOut, i0);
     }
   }
@@ -692,7 +683,7 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
   if (bitReverseFlag) {
 #ifdef BITREVERSETABLE
     uint16_t *ptr1 = (uint16_t *)(pSrc16);
-    uint16_t *ptr2 = (uint16_t *)(pDst16 - 2 * col_id * (fftLen / 4));
+    uint16_t *ptr2 = (uint16_t *)(pDst16 + 2 * col_id * fftLen);
     for (j = 2 * core_id; j < bitReverseLen; j += 2 * nPE) {
       v2s addr, tmpa, tmpb;
       addr = __SRA2(*(v2s *)&pBitRevTable[j], ((v2s){2, 2}));
@@ -708,8 +699,8 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
       }
     }
 #else
-    uint16_t *ptr1 = (uint16_t *)(pSrc16 + 2 * col_id * (fftLen >> 2U));
-    uint16_t *ptr2 = (uint16_t *)(pDst16 + 2 * col_id * (3 * (fftLen >> 2)));
+    uint16_t *ptr1 = (uint16_t *)(pSrc16);
+    uint16_t *ptr2 = (uint16_t *)(pDst16 + 2 * col_id * fftLen);
     for (j = core_id * 16; j < MIN(core_id * 16 + 16, fftLen >> 2U); j += 4) {
       uint32_t idx0 = j;
       uint32_t idx1 = j + 1;

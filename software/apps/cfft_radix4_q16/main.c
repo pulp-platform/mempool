@@ -204,9 +204,7 @@ int main() {
     uint32_t col_id = core_id / (N_CSAMPLES >> 4U);
     if (col_id < N_FFTs_COL) {
       mempool_radix4_cfft_q16p_scheduler(
-          col_id, pSrc + 2 * col_id * col_fftLen,
-          pDst + 2 * col_id * col_fftLen, N_CSAMPLES,
-          pCoef16_src + 2 * col_id * col_fftLen,
+          col_id, pSrc, pDst, N_CSAMPLES, pCoef16_src + 2 * col_id * col_fftLen,
           pCoef16_dst + 2 * col_id * col_fftLen, pRevT16,
           BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 1, N_CSAMPLES >> 4U);
     }

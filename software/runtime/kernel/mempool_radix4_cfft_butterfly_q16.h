@@ -33,9 +33,9 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
 #if defined(FOLDED) || defined(SCHEDULED)
   /* index calculation for the input as, */
   /* pIn[i0 + 0], pIn[i0 + fftLen/4], pIn[i0 + fftLen/2], pIn[i0 + 3fftLen/4] */
-  i1 = i0 + N_BANKS;
-  i2 = i1 + N_BANKS;
-  i3 = i2 + N_BANKS;
+  i1 = i0 + n2;
+  i2 = i1 + n2;
+  i3 = i2 + n2;
   uint32_t n2_store = n2 >> 2U;
   uint32_t i0_store = (i0 % n2_store) + (i0 / n2_store) * N_BANKS;
   uint32_t i1_store = i0_store + n2_store;
