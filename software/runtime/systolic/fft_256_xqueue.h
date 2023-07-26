@@ -32,7 +32,8 @@
 #define LEN_FFT      256                        // hardcoded, do not change
 #define NUM_STAGES   (NUM_CORES_PER_TILE)       // hardcoded, do not change
 #define PE_PER_STAGE ((LEN_FFT) / (NUM_STAGES)) // hardcoded, do not change
-#define NUM_ITER     10
+//TODO: Not used, if > 1 it breaks the result
+#define NUM_ITER     1
 
 #if NUM_CORES_PER_TILE != 4
 #error "Only supports 4 cores per tile (as RADIX, and NUM_STAGES)"
@@ -49,8 +50,9 @@ uint32_t *queues_out_3[NUM_STAGES-1][PE_PER_STAGE];
 // Global arrays
 uint16_t core_mapping[NUM_STAGES][PE_PER_STAGE] __attribute__((section(".l1")));
 uint16_t shuffling_order[NUM_STAGES][LEN_FFT] __attribute__((section(".l1")));
-int16_t pSrc[2048] __attribute__((aligned(2048), section(".l1")));
-int16_t  vector_output[2*LEN_FFT] __attribute__((section(".l1")));
+
+extern int16_t vector_input[2 * LEN_FFT];
+extern int16_t vector_output[2 * LEN_FFT];
 
 void input_shuffling_order_r4(uint32_t stage_i, uint16_t* order){
   // stage index in the inverted order (= remaining stages)
@@ -76,6 +78,8 @@ void input_shuffling_order_r4(uint32_t stage_i, uint16_t* order){
 }
 
 void invert_shuffling_order(uint16_t* order, uint16_t* reverse_order){
+  // Map the values of 'order' to their indices
+  // reverse_order[order[i]] = i
   uint16_t temp;
   for (uint32_t i = 0; i < LEN_FFT; i++){
     temp = order[i];
@@ -189,10 +193,10 @@ void systolic_first_fft_pe(uint32_t stage_idx, uint32_t idx_in_stage){
               :);
   for (i=0;i<NUM_ITER;i++){
     j = i%4;
-    A = *(v2s *)&pSrc[(i0[0] + j*LEN_FFT) * 2U];
-    B = *(v2s *)&pSrc[(i0[1] + j*LEN_FFT) * 2U];
-    C = *(v2s *)&pSrc[(i0[2] + j*LEN_FFT) * 2U];
-    D = *(v2s *)&pSrc[(i0[3] + j*LEN_FFT) * 2U];
+    A = *(v2s *)&vector_input[(i0[0] + j*LEN_FFT) * 2U];
+    B = *(v2s *)&vector_input[(i0[1] + j*LEN_FFT) * 2U];
+    C = *(v2s *)&vector_input[(i0[2] + j*LEN_FFT) * 2U];
+    D = *(v2s *)&vector_input[(i0[3] + j*LEN_FFT) * 2U];
 
     asm volatile(//"addi %[s2], zero, 0x02;"
                 //"slli %[s2], %[s2], 0x10;"

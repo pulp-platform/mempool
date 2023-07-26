@@ -22,6 +22,12 @@
 
 /* Settings */
 #define PRINTF_VERBOSE 1
+#define VERIFY_OUTPUT  1
+
+/* Global variables */
+// '2 *' for complex FFT: each of the 256 points is a complex number with 2 16-bit values
+int16_t vector_input[2 * LEN_FFT] __attribute__((section(".l1")));
+int16_t vector_output[2 * LEN_FFT] __attribute__((section(".l1")));
 
 int main(){
   uint32_t core_id = mempool_get_core_id();
@@ -48,23 +54,23 @@ int main(){
     #endif
     shuffling_order_calc();
   }
+
+  // copy input data to L1
+  for(uint32_t i = core_id; i < 2 * LEN_FFT; i+= num_cores)
+    vector_input[i] = vector_inp[i];
   mempool_barrier(num_cores);
 
   systolic_init(stage_i, pe_i);
-
-  mempool_barrier(num_cores);
-
-  for(int16_t i=core_id;i<2048;i+=num_cores)
-    pSrc[i]=vector_inp[i];
-
   mempool_barrier(num_cores);
 
   if (core_id == 0) {
-    printf("> Start\n");
+    #if PRINTF_VERBOSE
+    printf("Start\n");
+    #endif
   }
-
-  //Start benchmark for all cores
   mempool_barrier(num_cores);
+
+  // Start benchmark for all cores
   mempool_start_benchmark();
 
   if (stage_i == 0) {
@@ -79,14 +85,30 @@ int main(){
   mempool_stop_benchmark();
   mempool_barrier(num_cores);
 
-  // Print out benchmark
   if (core_id == 0) {
-    // for (uint32_t i=0;i<(2*LEN_FFT);i++){
-    //   if (abs((vector_output[i] - vector_res[i])) > TOLERANCE)
-    //     printf("ERROR!!! Result[%d]: %6d Expected[%d]: %6d\n", i, vector_output[i], i,
-    //            vector_res[i]);
-    // }
-    printf("> End\n");
+    #if PRINTF_VERBOSE
+    printf("End\n");
+    #endif
+
+    // Verify result
+    #if VERIFY_OUTPUT
+    #if PRINTF_VERBOSE
+    printf("Verifying output...\n");
+    #endif
+    uint32_t error_found = 0;
+    // '2 *' for complex FFT: each of the 256 points is a complex number with 2 16-bit values
+    for (uint32_t i = 0; i < (2 * LEN_FFT); i++){
+      printf("vector_output[%d] = %6d, expected is %6d\n", i, vector_output[i], vector_res[i]);
+      if (abs((vector_output[i] - vector_res[i])) > TOLERANCE) {
+        #if PRINTF_VERBOSE
+        printf("ERROR: vector_output[%d] = %6d, expected is %6d\n", i, vector_output[i], vector_res[i]);
+        #endif
+        error_found = 1;
+      }
+    }
+    if (error_found)
+      return -1;
+    #endif
   }
 
   mempool_barrier(num_cores);

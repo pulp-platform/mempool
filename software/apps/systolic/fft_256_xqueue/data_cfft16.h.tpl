@@ -18,9 +18,9 @@
 #define ${Lenstring}
 #define TOLERANCE (${tolerance})
 
-% for m, m_str in zip([vector_inp], ['vector_inp']):
+% for m, m_str in zip([vector_inp, vector_res], ['vector_inp', 'vector_res']):
 
 // Data arrays for matrix ${m_str}
-int16_t ${m_str}[${2*4*Len}] = ${array_to_cstr(m)};
+int16_t ${m_str}[${2*Len}] = ${array_to_cstr(m)};
 
 % endfor \

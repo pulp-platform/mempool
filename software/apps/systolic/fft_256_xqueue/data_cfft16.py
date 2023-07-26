@@ -96,8 +96,8 @@ def main():
 
     # Create sparse matrix
     Len = args.dimension
-    Input = np.random.randint(-2**(15), 2**(15)-1, 2 * 4 * Len, dtype=np.int16)
-    # Result = compute_result(Input, Len)
+    Input = np.random.randint(-2**(15), 2**(15)-1, 2 * Len, dtype=np.int16)
+    Result = compute_result(Input, Len)
 
     tolerance = {16:16, 32:20, 64:24, 128:28, 256:32, 512:48, 1024:64, 2048:96, 4096:128}
     if Len == 64:
@@ -113,7 +113,7 @@ def main():
     elif Len == 4096:
         Lenstring = 'TEST_4096'
 
-    kwargs = {'name': 'cfftq16', 'vector_inp': Input, 'Len' : Len, 'Lenstring' : Lenstring, 'tolerance': tolerance[int(Len)]}
+    kwargs = {'name': 'cfftq16', 'vector_inp': Input, 'vector_res': Result, 'Len' : Len, 'Lenstring' : Lenstring, 'tolerance': tolerance[int(Len)]}
 
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
 
