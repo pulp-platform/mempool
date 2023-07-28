@@ -420,30 +420,13 @@ module mempool_tile
       .out_rdata_i (resp_rdata                                                                  )
     );
 
-    logic sram_clk;
-
-`ifndef VERILATOR
-    // Clock gate
-    logic sram_active_q;
-    `FF(sram_active_q, req_valid, 1'b0)
-
-    tc_clk_gating i_ckg (
-      .clk_i    (clk_i                     ),
-      .test_en_i(1'b0                      ),
-      .en_i     (req_valid || sram_active_q),
-      .clk_o    (sram_clk                  )
-    );
-`else
-    assign sram_clk = clk_i;
-`endif
-
     // Bank
     tc_sram #(
       .DataWidth(DataWidth          ),
       .NumWords (2**TCDMAddrMemWidth),
       .NumPorts (1                  )
     ) mem_bank (
-      .clk_i  (sram_clk  ),
+      .clk_i  (clk_i     ),
       .rst_ni (rst_ni    ),
       .req_i  (req_valid ),
       .we_i   (req_write ),
