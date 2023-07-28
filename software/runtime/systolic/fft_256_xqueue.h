@@ -13,9 +13,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 // Author: Vaibhav Krishna, ETH Zurich
+//         Sergio Mazzola, ETH Zurich
+
 // Intial Implementation 256-point radix-4 DIT FFT. First stage uses xqueue extension for pushing even though QLRs are available.
 // The output address calculation is revamped and instead of observation, a formulaic way is used to calculate address.
+// decimation in time FFT, where scrambling in bitreversal order is at the input.
 // For an optimized version look at fft_oqlr.h
 
 
@@ -54,7 +58,11 @@ uint16_t shuffling_order[NUM_STAGES][LEN_FFT] __attribute__((section(".l1")));
 extern int16_t vector_input[2 * LEN_FFT];
 extern int16_t vector_output[2 * LEN_FFT];
 
+// Shuffle the input points to stage_i, according to RADIX
 void input_shuffling_order_r4(uint32_t stage_i, uint16_t* order){
+  // The points are shuffled individually over the whole LEN_FFT, not considering that every
+  // PE processes RADIX points (this will be considered later, in the queues assignment)
+
   // stage index in the inverted order (= remaining stages)
   uint32_t stage_i_inv = NUM_STAGES - (stage_i + 1);
   // number of point groups in this stage
@@ -77,8 +85,8 @@ void input_shuffling_order_r4(uint32_t stage_i, uint16_t* order){
   }
 }
 
+// Map the values of 'order' to their indices
 void invert_shuffling_order(uint16_t* order, uint16_t* reverse_order){
-  // Map the values of 'order' to their indices
   // reverse_order[order[i]] = i
   uint16_t temp;
   for (uint32_t i = 0; i < LEN_FFT; i++){
@@ -119,22 +127,22 @@ void shuffling_order_calc(){
   simple_free(temp_next);
 }
 
+
 void systolic_init(uint32_t stage_i, uint32_t pe_i) {
   // Create systolic array via queues
   extern uint8_t __seq_start;
   uint32_t index_out;
-  //TODO: Fix all the "4"
   uint32_t tile_id_out[NUM_QUEUES_PER_CORE], core_id_out[NUM_QUEUES_PER_CORE], queue_id_out[NUM_QUEUES_PER_CORE];
   uint32_t tile_offset[NUM_QUEUES_PER_CORE], core_offset[NUM_QUEUES_PER_CORE], queue_offset[NUM_QUEUES_PER_CORE];
 
   // Compute output PEs for all stages, but the last one
   if (stage_i < (NUM_STAGES - 1)) {
     // Each PE has 4 outputs: make them correspond to the 4 available queues of each PE
-    for (uint32_t i = 0; i < NUM_QUEUES_PER_CORE; i++){
+    for (uint32_t i = 0; i < RADIX; i++){
       index_out = shuffling_order[stage_i][(pe_i * RADIX) + i];
       core_id_out[i]  = core_mapping[stage_i + 1][index_out / RADIX];
       tile_id_out[i]  = core_id_out[i] / NUM_CORES_PER_TILE;
-      queue_id_out[i] = index_out % RADIX;
+      queue_id_out[i] = index_out % RADIX; // index_out % NUM_QUEUES_PER_CORE
 
       // base address of this tile's sequential memory region
       tile_offset[i] = tile_id_out[i] * NUM_CORES_PER_TILE * SEQ_MEM_SIZE;
@@ -144,6 +152,7 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
       queue_offset[i] = queue_id_out[i] * sizeof(int32_t);
     }
 
+    // Output queues (for usage with Xqueue, so physical addresses)
     queues_out_0[stage_i][pe_i] = (uint32_t*)((uint32_t)(&__seq_start) + tile_offset[0] + core_offset[0] + queue_offset[0]);
     queues_out_1[stage_i][pe_i] = (uint32_t*)((uint32_t)(&__seq_start) + tile_offset[1] + core_offset[1] + queue_offset[1]);
     queues_out_2[stage_i][pe_i] = (uint32_t*)((uint32_t)(&__seq_start) + tile_offset[2] + core_offset[2] + queue_offset[2]);
@@ -151,365 +160,364 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
   }
 }
 
-//first fft stage
-void systolic_first_fft_pe(uint32_t stage_idx, uint32_t idx_in_stage){
-  int32_t O0, O1, O2, O3;
-  uint32_t *queue_next_0;
-  uint32_t *queue_next_1;
-  uint32_t *queue_next_2;
-  uint32_t *queue_next_3;
 
-  // Assign queues
-  queue_next_0 = queues_out_0[stage_idx][idx_in_stage];
-  queue_next_1 = queues_out_1[stage_idx][idx_in_stage];
-  queue_next_2 = queues_out_2[stage_idx][idx_in_stage];
-  queue_next_3 = queues_out_3[stage_idx][idx_in_stage];
-
-  int16_t t0, t1, t2;
-  v2s A, B, C, D, E, F, G, H;
-  //uint16_t i0,i1,i2,i3;
-  int16_t sum,temp,digit,i, j,i0[4];
-  for (i=0;i<4;i++){
-    sum = 0;
-    temp = idx_in_stage*4 +i;
-    for (j=0;j<NUM_STAGES;j++){
-      digit = temp%4;
-      sum = sum*4 + digit;
-      temp = temp/4;
+/*
+ * First FFT stage
+ *
+ * Get inputs from memory and push to stage 2 through Xqueue.
+ * 'pe_i' is the PE index in the current stage (0 to LEN_FFT/NUM_STAGES-1).
+ */
+void systolic_first_fft_pe(uint32_t pe_i){
+  /* Configure input address */
+  int16_t input_base[RADIX];
+  // Compute base addresses for vector_input of first stage
+  for (uint32_t i = 0; i < RADIX; i++){
+    int16_t sum = 0;
+    int16_t temp = (int16_t)(pe_i * RADIX + i);
+    for (uint32_t j = 0; j < NUM_STAGES; j++){
+      int16_t digit = temp % RADIX;
+      sum = (int16_t)(sum * RADIX + digit);
+      temp = temp / RADIX;
     }
-    i0[i] = sum;
+    input_base[i] = sum;
   }
 
-  //Radix4 calculation
-  v2s s2;
+  /* Configure Xqueue */
+  // Assign output queues (Xqueue)
+  uint32_t *queue_next_0 = queues_out_0[0][pe_i];
+  uint32_t *queue_next_1 = queues_out_1[0][pe_i];
+  uint32_t *queue_next_2 = queues_out_2[0][pe_i];
+  uint32_t *queue_next_3 = queues_out_3[0][pe_i];
+  // Xqueue response
   int32_t resp_0 __attribute__((unused)) = 0;
   int32_t resp_1 __attribute__((unused)) = 0;
   int32_t resp_2 __attribute__((unused)) = 0;
   int32_t resp_3 __attribute__((unused)) = 0;
-  asm volatile("addi %[s2], zero, 0x02;"
-              "slli %[s2], %[s2], 0x10;"
-              "addi %[s2], %[s2], 0x02;"
-              :[s2] "=&r"(s2)
-              :);
-  for (i=0;i<NUM_ITER;i++){
-    j = i%4;
-    A = *(v2s *)&vector_input[(i0[0] + j*LEN_FFT) * 2U];
-    B = *(v2s *)&vector_input[(i0[1] + j*LEN_FFT) * 2U];
-    C = *(v2s *)&vector_input[(i0[2] + j*LEN_FFT) * 2U];
-    D = *(v2s *)&vector_input[(i0[3] + j*LEN_FFT) * 2U];
 
-    asm volatile(//"addi %[s2], zero, 0x02;"
-                //"slli %[s2], %[s2], 0x10;"
-                //"addi %[s2], %[s2], 0x02;"
-                "pv.sra.h  %[A],%[A],%[s2];"
-                "pv.sra.h  %[C],%[C],%[s2];"
-                "pv.sra.h  %[B],%[B],%[s2];"
-                "pv.sra.h  %[D],%[D],%[s2];"
-                "pv.add.h  %[E],%[A],%[C];"
-                "pv.sub.h  %[F],%[A],%[C];"
-                "pv.sub.h  %[H],%[B],%[D];"
-                "pv.add.h  %[G],%[B],%[D];"
-                "pv.extract.h  %[t0],%[H],0;"
-                "pv.extract.h  %[t1],%[H],1;"
-                "sub %[t2],zero,%[t1];"
-                "pv.pack %[A],%[t0],%[t2];"
-                "pv.add.h  %[B],%[E],%[G];"
-                "pv.sub.h  %[D],%[E],%[G];"
-                "pv.sub.h  %[C],%[F],%[A];"
-                "pv.add.h  %[H],%[A],%[F];"
-                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D), [E] "=&r"(E),
-                [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H), [t0] "=&r"(t0),
-                [t1] "=&r"(t1), [t2] "=&r"(t2)
-                :[s2] "r"(s2)
-                :);
+  // radix-4 calculation constant (mult by 4 with right shift)
+  v2s shift_2 = (v2s){0x0002, 0x0002};
 
-    O0 = (int32_t)B;
-    O1 = (int32_t)C;
-    O2 = (int32_t)D;
-    O3 = (int32_t)H;
+  /* Load inputs and compute FFT */
 
-    //Push the results to the output queue
-    queue_push(queue_next_0, O0, &resp_0);
-    queue_push(queue_next_1, O1, &resp_1);
-    queue_push(queue_next_2, O2, &resp_2);
-    queue_push(queue_next_3, O3, &resp_3);
-  }
+  v2s A, B, C, D, E, F, G, H;
+  int16_t t0, t1, t2;
+
+  //TODO: Repeat NUM_ITER times
+
+  // Load input
+  A = ((v2s*)&vector_input)[input_base[0]];
+  B = ((v2s*)&vector_input)[input_base[1]];
+  C = ((v2s*)&vector_input)[input_base[2]];
+  D = ((v2s*)&vector_input)[input_base[3]];
+
+  // Compute FFT
+  __asm__ volatile (
+    "pv.sra.h     %[A],%[A],%[shift_2] \n\t"
+    "pv.sra.h     %[C],%[C],%[shift_2] \n\t"
+    "pv.sra.h     %[B],%[B],%[shift_2] \n\t"
+    "pv.sra.h     %[D],%[D],%[shift_2] \n\t"
+    "pv.add.h     %[E],%[A],%[C]       \n\t"
+    "pv.sub.h     %[F],%[A],%[C]       \n\t"
+    "pv.sub.h     %[H],%[B],%[D]       \n\t"
+    "pv.add.h     %[G],%[B],%[D]       \n\t"
+    "pv.extract.h %[t0],%[H],0         \n\t"
+    "pv.extract.h %[t1],%[H],1         \n\t"
+    "sub          %[t2],zero,%[t1]     \n\t"
+    "pv.pack      %[A],%[t0],%[t2]     \n\t"
+    "pv.add.h     %[B],%[E],%[G]       \n\t"
+    "pv.sub.h     %[D],%[E],%[G]       \n\t"
+    "pv.sub.h     %[C],%[F],%[A]       \n\t"
+    "pv.add.h     %[H],%[A],%[F]       \n\t"
+    : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
+      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
+      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2)
+    : [shift_2] "r"(shift_2) :
+  );
+
+  // Push the results to the output queue (Xqueue)
+  queue_push(queue_next_0, (int32_t)B, &resp_0);
+  queue_push(queue_next_1, (int32_t)C, &resp_1);
+  queue_push(queue_next_2, (int32_t)D, &resp_2);
+  queue_push(queue_next_3, (int32_t)H, &resp_3);
 }
 
 
-//Middle stages
-
-void systolic_mid_pe(uint32_t stage_idx, uint32_t idx_in_stage, uint32_t core_id){
-  int32_t O0, O1, O2, O3;
-  uint32_t *queue_next_0;
-  uint32_t *queue_next_1;
-  uint32_t *queue_next_2;
-  uint32_t *queue_next_3;
-  volatile int32_t *qlr_cfg_t0 = (int32_t *)QLR_CFG_T0;
-  volatile int32_t *qlr_cfg_t1 = (int32_t *)QLR_CFG_T1;
-  volatile int32_t *qlr_cfg_t2 = (int32_t *)QLR_CFG_T2;
-  volatile int32_t *qlr_cfg_t3 = (int32_t *)QLR_CFG_T3;
-  uint32_t core_offset = core_id * sizeof(int32_t);
-  // Assign queues
-  queue_next_0 = queues_out_0[stage_idx][idx_in_stage];
-  queue_next_1 = queues_out_1[stage_idx][idx_in_stage];
-  queue_next_2 = queues_out_2[stage_idx][idx_in_stage];
-  queue_next_3 = queues_out_3[stage_idx][idx_in_stage];
-
-  int32_t reqs = NUM_ITER;
-  //Configure QLRs
-  qlr_cfg_t0[QLR_CFG_REQ] = (int32_t)reqs;
-  qlr_cfg_t0[QLR_CFG_IADDR] = (int32_t)(core_offset + 0);
-  qlr_cfg_t1[QLR_CFG_REQ] = (int32_t)reqs;
-  qlr_cfg_t1[QLR_CFG_IADDR] = (int32_t)(core_offset + 1);
-  qlr_cfg_t2[QLR_CFG_REQ] = (int32_t)reqs;
-  qlr_cfg_t2[QLR_CFG_IADDR] = (int32_t)(core_offset + 2);
-  qlr_cfg_t3[QLR_CFG_REQ] = (int32_t)reqs;
-  qlr_cfg_t3[QLR_CFG_IADDR] = (int32_t)(core_offset + 3);
-
-  //Start QLR
-  qlr_cfg_t0[QLR_CFG_TYPE] = 1;
-  qlr_cfg_t1[QLR_CFG_TYPE] = 1;
-  qlr_cfg_t2[QLR_CFG_TYPE] = 1;
-  qlr_cfg_t3[QLR_CFG_TYPE] = 1;
-
-  //twiddle coef calculation
-  v2s CoSi1, CoSi2, CoSi3;
-  v2s C1, C2, C3;
-  int16_t t0, t1, t2, t3, t4, t5;
-  int32_t ic, nvar_group_by_4, twiddle_multiplier;
-
-  nvar_group_by_4 = 1 << (2*(stage_idx));//4^(stage_idx)
-  twiddle_multiplier = 1 <<(2*(NUM_STAGES-stage_idx-1));//4^(NUM_STAGES-stage_idx-1)
-
-  ic = (idx_in_stage % nvar_group_by_4) * twiddle_multiplier;
-
-  CoSi1 = *(v2s *)&twiddleCoef_q16[ic * 2U];
-  CoSi2 = *(v2s *)&twiddleCoef_q16[2 * (ic * 2U)];
-  CoSi3 = *(v2s *)&twiddleCoef_q16[3 * (ic * 2U)];
+// QLR CSR addresses
+#define DEFINE_QLR_CONFIG                                 \
+  volatile uint32_t *qlr_cfg_t0 = (uint32_t *)QLR_CFG_T0; \
+  volatile uint32_t *qlr_cfg_t1 = (uint32_t *)QLR_CFG_T1; \
+  volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
+  volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
 
-  asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
-                "pv.extract.h  %[t3],%[CoSi2],0;"
-                "pv.extract.h  %[t5],%[CoSi3],0;"
-                "pv.extract.h  %[t0],%[CoSi1],1;"
-                "pv.extract.h  %[t2],%[CoSi2],1;"
-                "pv.extract.h  %[t4],%[CoSi3],1;"
-                "sub           %[t0],zero,%[t0];"
-                "sub           %[t2],zero,%[t2];"
-                "sub           %[t4],zero,%[t4];"
-                "pv.pack %[C1],%[t1],%[t0];"
-                "pv.pack %[C2],%[t3],%[t2];"
-                "pv.pack %[C3],%[t5],%[t4];"
-                : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),
-                  [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                  [t4] "=&r"(t4), [t5] "=&r"(t5)
-                : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
-                :);
+/*
+ * Middle FFT stage
+ *
+ * Pop points from previous stage through QLRs, compute FFT, and push to
+ * next stage through Xqueue.
+ * 'stage_i' is the stage index (0 to NUM_STAGES-1),
+ * 'pe_i' is the PE index in the current stage (0 to LEN_FFT/NUM_STAGES-1)
+ */
+void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
+  /* Configure QLRs */
+  DEFINE_QLR_CONFIG;
+  // Base address (ID only) for the memory banks (queues) of this core
+  uint32_t core_offset = core_id * NUM_QUEUES_PER_CORE;
 
-  v2s A, B, C, D, E, F, G, H;
+  qlr_cfg_t0[QLR_CFG_REQ] = NUM_ITER;
+  qlr_cfg_t0[QLR_CFG_IADDR] = core_offset + 0;
+  qlr_cfg_t1[QLR_CFG_REQ] = NUM_ITER;
+  qlr_cfg_t1[QLR_CFG_IADDR] = core_offset + 1;
+  qlr_cfg_t2[QLR_CFG_REQ] = NUM_ITER;
+  qlr_cfg_t2[QLR_CFG_IADDR] = core_offset + 2;
+  qlr_cfg_t3[QLR_CFG_REQ] = NUM_ITER;
+  qlr_cfg_t3[QLR_CFG_IADDR] = core_offset + 3;
 
-// Radix4 calculation
-  v2s s1;
+  /* Configure Xqueue */
+  // Assign output queues (Xqueue)
+  uint32_t *queue_next_0 = queues_out_0[stage_i][pe_i];
+  uint32_t *queue_next_1 = queues_out_1[stage_i][pe_i];
+  uint32_t *queue_next_2 = queues_out_2[stage_i][pe_i];
+  uint32_t *queue_next_3 = queues_out_3[stage_i][pe_i];
+  // Xqueue response
   int32_t resp_0 __attribute__((unused)) = 0;
   int32_t resp_1 __attribute__((unused)) = 0;
   int32_t resp_2 __attribute__((unused)) = 0;
   int32_t resp_3 __attribute__((unused)) = 0;
-  asm volatile("addi %[s1], zero, 0x01;"
-              "slli %[s1], %[s1], 0x10;"
-              "addi %[s1], %[s1], 0x01;"
-              :[s1] "=&r"(s1)
-              :);
-  for(int32_t i=0;i<reqs;i++){
-    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1),"=r"(qlr_t2),"=r"(qlr_t3));
-    B = (v2s)qlr_t1;
-    D = (v2s)qlr_t3;
-    A = (v2s)qlr_t0;
-    C = (v2s)qlr_t2;
 
-    asm volatile(//"addi %[s1], zero, 0x01;"
-                //"slli %[s1], %[s1], 0x10;"
-                //"addi %[s1], %[s1], 0x01;"
-                "pv.dotsp.h  %[E],%[CoSi1],%[B];"
-                "pv.dotsp.h  %[F],%[C1],%[B];"
-                "pv.dotsp.h  %[G],%[CoSi2],%[C];"
-                "pv.dotsp.h  %[H],%[C2],%[C];"
-                "srai  %[t0],%[E],0x10;"
-                "srai  %[t1],%[F],0x10;"
-                "pv.dotsp.h  %[E],%[CoSi3],%[D];"
-                "pv.dotsp.h  %[F],%[C3],%[D];"
-                "srai  %[t2],%[G],0x10;"
-                "srai  %[t3],%[H],0x10;"
-                "srai  %[t4],%[E],0x10;"
-                "srai  %[t5],%[F],0x10;"
-                "pv.pack %[B],%[t1],%[t0];"
-                "pv.pack %[D],%[t5],%[t4];"
-                "pv.pack %[C],%[t3],%[t2];"
-                "pv.sra.h  %[A],%[A],%[s1];"
-                "pv.sub.h  %[H],%[B],%[D];"
-                "pv.add.h  %[E],%[A],%[C];"
-                "pv.sub.h  %[F],%[A],%[C];"
-                "pv.sra.h  %[H],%[H],%[s1];"
-                "pv.add.h  %[G],%[B],%[D];"
-                "pv.sra.h  %[E],%[E],%[s1];"
-                "pv.extract.h  %[t0],%[H],0;"
-                "pv.extract.h  %[t1],%[H],1;"
-                "pv.sra.h  %[F],%[F],%[s1];"
-                "pv.sra.h  %[G],%[G],%[s1];"
-                "sub %[t2],zero,%[t1];"
-                "pv.pack %[A],%[t0],%[t2];"
-                "pv.add.h  %[B],%[E],%[G];"
-                "pv.sub.h  %[D],%[E],%[G];"
-                "pv.sub.h  %[C],%[F],%[A];"
-                "pv.add.h  %[H],%[A],%[F];"
-                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
-                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
-                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                  [t4] "=&r"(t4), [t5] "=&r"(t5)
-                : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
-                  [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3), [s1] "r"(s1)
-                :);
-
-    O0 = (int32_t)B;
-    O1 = (int32_t)C;
-    O2 = (int32_t)D;
-    O3 = (int32_t)H;
-
-    //Push the results to the output queue
-    queue_push(queue_next_0, O0, &resp_0);
-    queue_push(queue_next_1, O1, &resp_1);
-    queue_push(queue_next_2, O2, &resp_2);
-    queue_push(queue_next_3, O3, &resp_3);
-  }
-}
-
-//Last stage
-void systolic_end_pe(uint32_t stage_idx, uint32_t idx_in_stage, uint32_t core_id){
-  int32_t O0, O1, O2, O3;
-  volatile int32_t *qlr_cfg_t0 = (int32_t *)QLR_CFG_T0;
-  volatile int32_t *qlr_cfg_t1 = (int32_t *)QLR_CFG_T1;
-  volatile int32_t *qlr_cfg_t2 = (int32_t *)QLR_CFG_T2;
-  volatile int32_t *qlr_cfg_t3 = (int32_t *)QLR_CFG_T3;
-  uint32_t core_offset = core_id * sizeof(int32_t);
-
-  int32_t reqs = NUM_ITER;
-  //Configure QLRs
-  qlr_cfg_t0[QLR_CFG_REQ] = (int32_t)reqs;
-  qlr_cfg_t0[QLR_CFG_IADDR] = (int32_t)(core_offset + 0);
-  qlr_cfg_t1[QLR_CFG_REQ] = (int32_t)reqs;
-  qlr_cfg_t1[QLR_CFG_IADDR] = (int32_t)(core_offset + 1);
-  qlr_cfg_t2[QLR_CFG_REQ] = (int32_t)reqs;
-  qlr_cfg_t2[QLR_CFG_IADDR] = (int32_t)(core_offset + 2);
-  qlr_cfg_t3[QLR_CFG_REQ] = (int32_t)reqs;
-  qlr_cfg_t3[QLR_CFG_IADDR] = (int32_t)(core_offset + 3);
-
-  //Start QLR
-  qlr_cfg_t0[QLR_CFG_TYPE] = 1;
-  qlr_cfg_t1[QLR_CFG_TYPE] = 1;
-  qlr_cfg_t2[QLR_CFG_TYPE] = 1;
-  qlr_cfg_t3[QLR_CFG_TYPE] = 1;
-
-  //twiddle coef calculation
-  v2s CoSi1, CoSi2, CoSi3;
+  /* Twiddle coefficients calculation */
   v2s C1, C2, C3;
   int16_t t0, t1, t2, t3, t4, t5;
-  int32_t ic;
 
-  ic = idx_in_stage;
-  CoSi1 = *(v2s *)&twiddleCoef_q16[ic * 2U];
-  CoSi2 = *(v2s *)&twiddleCoef_q16[2 * (ic * 2U)];
-  CoSi3 = *(v2s *)&twiddleCoef_q16[3 * (ic * 2U)];
+  uint32_t nvar_group_by_4 = (uint32_t)1 << (2 * (stage_i));
+  uint32_t twiddle_multiplier = (uint32_t)1 << (2 * (NUM_STAGES - (stage_i + 1)));
+  uint32_t ic = (pe_i % nvar_group_by_4) * twiddle_multiplier;
 
-  asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
-                "pv.extract.h  %[t3],%[CoSi2],0;"
-                "pv.extract.h  %[t5],%[CoSi3],0;"
-                "pv.extract.h  %[t0],%[CoSi1],1;"
-                "pv.extract.h  %[t2],%[CoSi2],1;"
-                "pv.extract.h  %[t4],%[CoSi3],1;"
-                "sub           %[t0],zero,%[t0];"
-                "sub           %[t2],zero,%[t2];"
-                "sub           %[t4],zero,%[t4];"
-                "pv.pack %[C1],%[t1],%[t0];"
-                "pv.pack %[C2],%[t3],%[t2];"
-                "pv.pack %[C3],%[t5],%[t4];"
-                : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),
-                  [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                  [t4] "=&r"(t4), [t5] "=&r"(t5)
-                : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
-                :);
+  v2s CoSi1 = ((v2s*)&twiddleCoef_q16)[ic * 1];
+  v2s CoSi2 = ((v2s*)&twiddleCoef_q16)[ic * 2];
+  v2s CoSi3 = ((v2s*)&twiddleCoef_q16)[ic * 3];
+
+  // Prepare 16-bit twiddle factors
+  __asm__ volatile (
+    "pv.extract.h  %[t1],%[CoSi1],0  \n\t"
+    "pv.extract.h  %[t3],%[CoSi2],0  \n\t"
+    "pv.extract.h  %[t5],%[CoSi3],0  \n\t"
+    "pv.extract.h  %[t0],%[CoSi1],1  \n\t"
+    "pv.extract.h  %[t2],%[CoSi2],1  \n\t"
+    "pv.extract.h  %[t4],%[CoSi3],1  \n\t"
+    "sub           %[t0],zero,%[t0]  \n\t"
+    "sub           %[t2],zero,%[t2]  \n\t"
+    "sub           %[t4],zero,%[t4]  \n\t"
+    "pv.pack       %[C1],%[t1],%[t0] \n\t"
+    "pv.pack       %[C2],%[t3],%[t2] \n\t"
+    "pv.pack       %[C3],%[t5],%[t4] \n\t"
+    : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),
+      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
+      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
+    : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3) :
+  );
+
+  /* Preparation */
+  // radix-4 calculation constant (mult by 2 with right shift)
+  v2s shift_1 = (v2s){0x0001, 0x0001};
+
+  /* Compute FFT */
 
   v2s A, B, C, D, E, F, G, H;
-  uint32_t i0,i1,i2,i3;
-  i0 = shuffling_order[3][4*idx_in_stage + 0];
-  i1 = shuffling_order[3][4*idx_in_stage + 1];
-  i2 = shuffling_order[3][4*idx_in_stage + 2];
-  i3 = shuffling_order[3][4*idx_in_stage + 3];
-//Radix4 calculation
-  v2s s1;
-  asm volatile("addi %[s1], zero, 0x01;"
-              "slli %[s1], %[s1], 0x10;"
-              "addi %[s1], %[s1], 0x01;"
-              :[s1] "=&r"(s1)
-              :);
-  for(int32_t i=0;i<reqs;i++){
-    __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1),"=r"(qlr_t2),"=r"(qlr_t3));
-    B = (v2s)qlr_t1;
-    D = (v2s)qlr_t3;
-    A = (v2s)qlr_t0;
-    C = (v2s)qlr_t2;
 
-    asm volatile(//"addi %[s1], zero, 0x01;"
-                //"slli %[s1], %[s1], 0x10;"
-                //"addi %[s1], %[s1], 0x01;"
-                "pv.dotsp.h  %[E],%[CoSi1],%[B];"
-                "pv.dotsp.h  %[F],%[C1],%[B];"
-                "pv.dotsp.h  %[G],%[CoSi2],%[C];"
-                "pv.dotsp.h  %[H],%[C2],%[C];"
-                "srai  %[t0],%[E],0x10;"
-                "srai  %[t1],%[F],0x10;"
-                "pv.dotsp.h  %[E],%[CoSi3],%[D];"
-                "pv.dotsp.h  %[F],%[C3],%[D];"
-                "srai  %[t2],%[G],0x10;"
-                "srai  %[t3],%[H],0x10;"
-                "srai  %[t4],%[E],0x10;"
-                "srai  %[t5],%[F],0x10;"
-                "pv.pack %[B],%[t1],%[t0];"
-                "pv.pack %[D],%[t5],%[t4];"
-                "pv.pack %[C],%[t3],%[t2];"
-                "pv.sra.h  %[A],%[A],%[s1];"
-                "pv.sub.h  %[H],%[B],%[D];"
-                "pv.add.h  %[E],%[A],%[C];"
-                "pv.sub.h  %[F],%[A],%[C];"
-                "pv.sra.h  %[H],%[H],%[s1];"
-                "pv.add.h  %[G],%[B],%[D];"
-                "pv.sra.h  %[E],%[E],%[s1];"
-                "pv.extract.h  %[t0],%[H],0;"
-                "pv.extract.h  %[t1],%[H],1;"
-                "pv.sra.h  %[F],%[F],%[s1];"
-                "pv.sra.h  %[G],%[G],%[s1];"
-                "sub %[t2],zero,%[t1];"
-                "pv.pack %[A],%[t0],%[t2];"
-                "pv.add.h  %[B],%[E],%[G];"
-                "pv.sub.h  %[D],%[E],%[G];"
-                "pv.sub.h  %[C],%[F],%[A];"
-                "pv.add.h  %[H],%[A],%[F];"
-                : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
-                  [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
-                  [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                  [t4] "=&r"(t4), [t5] "=&r"(t5)
-                : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [CoSi1] "r"(CoSi1),
-                  [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3), [s1] "r"(s1)
-                :);
+  // Start QLR
+  qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+  qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+  qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+  qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
 
-    O0 = (int32_t)B;
-    O1 = (int32_t)C;
-    O2 = (int32_t)D;
-    O3 = (int32_t)H;
+  //TODO: Repeat NUM_ITER times
 
-    //Store the results to the output vector
-    *(int32_t *)&vector_output[i0 * 2U] = O0;
-    *(int32_t *)&vector_output[i1 * 2U] = O1;
-    *(int32_t *)&vector_output[i2 * 2U] = O2;
-    *(int32_t *)&vector_output[i3 * 2U] = O3;
+  __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1),"=r"(qlr_t2),"=r"(qlr_t3));
+
+  //TODO: This can be optimized by exploiting the number of requests instead of mv
+  B = (v2s)qlr_t1;
+  D = (v2s)qlr_t3;
+  A = (v2s)qlr_t0;
+  C = (v2s)qlr_t2;
+
+  /* Compute FFT */
+  __asm__ volatile (
+    "pv.dotsp.h   %[E],%[CoSi1],%[B]   \n\t"
+    "pv.dotsp.h   %[F],%[C1],%[B]      \n\t"
+    "pv.dotsp.h   %[G],%[CoSi2],%[C]   \n\t"
+    "pv.dotsp.h   %[H],%[C2],%[C]      \n\t"
+    "srai         %[t0],%[E],0x10      \n\t"
+    "srai         %[t1],%[F],0x10      \n\t"
+    "pv.dotsp.h   %[E],%[CoSi3],%[D]   \n\t"
+    "pv.dotsp.h   %[F],%[C3],%[D]      \n\t"
+    "srai         %[t2],%[G],0x10      \n\t"
+    "srai         %[t3],%[H],0x10      \n\t"
+    "srai         %[t4],%[E],0x10      \n\t"
+    "srai         %[t5],%[F],0x10      \n\t"
+    "pv.pack      %[B],%[t1],%[t0]     \n\t"
+    "pv.pack      %[D],%[t5],%[t4]     \n\t"
+    "pv.pack      %[C],%[t3],%[t2]     \n\t"
+    "pv.sra.h     %[A],%[A],%[shift_1] \n\t"
+    "pv.sub.h     %[H],%[B],%[D]       \n\t"
+    "pv.add.h     %[E],%[A],%[C]       \n\t"
+    "pv.sub.h     %[F],%[A],%[C]       \n\t"
+    "pv.sra.h     %[H],%[H],%[shift_1] \n\t"
+    "pv.add.h     %[G],%[B],%[D]       \n\t"
+    "pv.sra.h     %[E],%[E],%[shift_1] \n\t"
+    "pv.extract.h %[t0],%[H],0         \n\t"
+    "pv.extract.h %[t1],%[H],1         \n\t"
+    "pv.sra.h     %[F],%[F],%[shift_1] \n\t"
+    "pv.sra.h     %[G],%[G],%[shift_1] \n\t"
+    "sub          %[t2],zero,%[t1]     \n\t"
+    "pv.pack      %[A],%[t0],%[t2]     \n\t"
+    "pv.add.h     %[B],%[E],%[G]       \n\t"
+    "pv.sub.h     %[D],%[E],%[G]       \n\t"
+    "pv.sub.h     %[C],%[F],%[A]       \n\t"
+    "pv.add.h     %[H],%[A],%[F]       \n\t"
+    : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
+      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
+      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
+      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
+    : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [shift_1] "r"(shift_1),
+      [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3) :
+  );
+
+  // Push the results to the output queue (Xqueue)
+  queue_push(queue_next_0, (int32_t)B, &resp_0);
+  queue_push(queue_next_1, (int32_t)C, &resp_1);
+  queue_push(queue_next_2, (int32_t)D, &resp_2);
+  queue_push(queue_next_3, (int32_t)H, &resp_3);
+}
+
+
+/*
+ * Last FFT stage
+ *
+ * Pop points from previous stage through QLRs and compute FFT output
+ * 'pe_i' is the PE index in the current stage (0 to LEN_FFT/NUM_STAGES-1)
+ */
+
+void systolic_end_pe(uint32_t pe_i, uint32_t core_id){
+  /* Configure QLRs */
+  DEFINE_QLR_CONFIG;
+  // Base address (ID only) for the memory banks (queues) of this core
+  uint32_t core_offset = core_id * NUM_QUEUES_PER_CORE;
+
+  qlr_cfg_t0[QLR_CFG_REQ] = NUM_ITER;
+  qlr_cfg_t0[QLR_CFG_IADDR] = core_offset + 0;
+  qlr_cfg_t1[QLR_CFG_REQ] = NUM_ITER;
+  qlr_cfg_t1[QLR_CFG_IADDR] = core_offset + 1;
+  qlr_cfg_t2[QLR_CFG_REQ] = NUM_ITER;
+  qlr_cfg_t2[QLR_CFG_IADDR] = core_offset + 2;
+  qlr_cfg_t3[QLR_CFG_REQ] = NUM_ITER;
+  qlr_cfg_t3[QLR_CFG_IADDR] = core_offset + 3;
+
+  /* Configure output address */
+  uint32_t output_base[RADIX];
+  for (uint32_t i = 0; i < RADIX; i++) {
+    output_base[i] = shuffling_order[NUM_STAGES - 1][RADIX * pe_i + i];
   }
+
+  /* Twiddle coefficients calculation */
+  v2s C1, C2, C3;
+  int16_t t0, t1, t2, t3, t4, t5;
+
+  uint32_t ic = pe_i;
+
+  v2s CoSi1 = ((v2s*)&twiddleCoef_q16)[ic * 1];
+  v2s CoSi2 = ((v2s*)&twiddleCoef_q16)[ic * 2];
+  v2s CoSi3 = ((v2s*)&twiddleCoef_q16)[ic * 3];
+
+  // Prepare 16-bit twiddle factors
+  __asm__ volatile (
+    "pv.extract.h  %[t1],%[CoSi1],0  \n\t"
+    "pv.extract.h  %[t3],%[CoSi2],0  \n\t"
+    "pv.extract.h  %[t5],%[CoSi3],0  \n\t"
+    "pv.extract.h  %[t0],%[CoSi1],1  \n\t"
+    "pv.extract.h  %[t2],%[CoSi2],1  \n\t"
+    "pv.extract.h  %[t4],%[CoSi3],1  \n\t"
+    "sub           %[t0],zero,%[t0]  \n\t"
+    "sub           %[t2],zero,%[t2]  \n\t"
+    "sub           %[t4],zero,%[t4]  \n\t"
+    "pv.pack       %[C1],%[t1],%[t0] \n\t"
+    "pv.pack       %[C2],%[t3],%[t2] \n\t"
+    "pv.pack       %[C3],%[t5],%[t4] \n\t"
+    : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),
+      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
+      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
+    : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3) :
+  );
+
+  /* Preparation */
+  // radix-4 calculation constant (mult by 2 with right shift)
+  v2s shift_1 = (v2s){0x0001, 0x0001};
+
+  /* Compute FFT */
+
+  v2s A, B, C, D, E, F, G, H;
+
+  // Start QLR
+  qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+  qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+  qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+  qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
+
+  //TODO: Repeat NUM_ITER times
+
+  __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1),"=r"(qlr_t2),"=r"(qlr_t3));
+
+  //TODO: This can be optimized by exploiting the number of requests instead of mv
+  B = (v2s)qlr_t1;
+  D = (v2s)qlr_t3;
+  A = (v2s)qlr_t0;
+  C = (v2s)qlr_t2;
+
+  /* Compute FFT */
+  __asm__ volatile (
+    "pv.dotsp.h   %[E],%[CoSi1],%[B]   \n\t"
+    "pv.dotsp.h   %[F],%[C1],%[B]      \n\t"
+    "pv.dotsp.h   %[G],%[CoSi2],%[C]   \n\t"
+    "pv.dotsp.h   %[H],%[C2],%[C]      \n\t"
+    "srai         %[t0],%[E],0x10      \n\t"
+    "srai         %[t1],%[F],0x10      \n\t"
+    "pv.dotsp.h   %[E],%[CoSi3],%[D]   \n\t"
+    "pv.dotsp.h   %[F],%[C3],%[D]      \n\t"
+    "srai         %[t2],%[G],0x10      \n\t"
+    "srai         %[t3],%[H],0x10      \n\t"
+    "srai         %[t4],%[E],0x10      \n\t"
+    "srai         %[t5],%[F],0x10      \n\t"
+    "pv.pack      %[B],%[t1],%[t0]     \n\t"
+    "pv.pack      %[D],%[t5],%[t4]     \n\t"
+    "pv.pack      %[C],%[t3],%[t2]     \n\t"
+    "pv.sra.h     %[A],%[A],%[shift_1] \n\t"
+    "pv.sub.h     %[H],%[B],%[D]       \n\t"
+    "pv.add.h     %[E],%[A],%[C]       \n\t"
+    "pv.sub.h     %[F],%[A],%[C]       \n\t"
+    "pv.sra.h     %[H],%[H],%[shift_1] \n\t"
+    "pv.add.h     %[G],%[B],%[D]       \n\t"
+    "pv.sra.h     %[E],%[E],%[shift_1] \n\t"
+    "pv.extract.h %[t0],%[H],0         \n\t"
+    "pv.extract.h %[t1],%[H],1         \n\t"
+    "pv.sra.h     %[F],%[F],%[shift_1] \n\t"
+    "pv.sra.h     %[G],%[G],%[shift_1] \n\t"
+    "sub          %[t2],zero,%[t1]     \n\t"
+    "pv.pack      %[A],%[t0],%[t2]     \n\t"
+    "pv.add.h     %[B],%[E],%[G]       \n\t"
+    "pv.sub.h     %[D],%[E],%[G]       \n\t"
+    "pv.sub.h     %[C],%[F],%[A]       \n\t"
+    "pv.add.h     %[H],%[A],%[F]       \n\t"
+    : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
+      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
+      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
+      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
+    : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [shift_1] "r"(shift_1),
+      [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3) :
+  );
+
+  // Store the results to the output vector
+  ((int32_t*)&vector_output)[output_base[0]] = (int32_t)B;
+  ((int32_t*)&vector_output)[output_base[1]] = (int32_t)C;
+  ((int32_t*)&vector_output)[output_base[2]] = (int32_t)D;
+  ((int32_t*)&vector_output)[output_base[3]] = (int32_t)H;
 }

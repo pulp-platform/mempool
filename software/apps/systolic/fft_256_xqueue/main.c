@@ -44,7 +44,7 @@ int main(){
   uint32_t pe_i    = core_id / NUM_CORES_PER_TILE; // tile ID
   // NUM_CORES_PER_TILE is equal to NUM_STAGES, i.e. 4
 
-  core_mapping[stage_i][pe_i] = core_id;
+  core_mapping[stage_i][pe_i] = (uint16_t)core_id;
   mempool_barrier(num_cores);
 
   // Setup
@@ -74,9 +74,9 @@ int main(){
   mempool_start_benchmark();
 
   if (stage_i == 0) {
-    systolic_first_fft_pe(stage_i, pe_i);
+    systolic_first_fft_pe(pe_i);
   } else if (stage_i == (NUM_STAGES-1)){
-    systolic_end_pe(stage_i, pe_i, core_id);
+    systolic_end_pe(pe_i, core_id);
   } else {
     systolic_mid_pe(stage_i, pe_i, core_id);
   }
@@ -98,7 +98,7 @@ int main(){
     uint32_t error_found = 0;
     // '2 *' for complex FFT: each of the 256 points is a complex number with 2 16-bit values
     for (uint32_t i = 0; i < (2 * LEN_FFT); i++){
-      printf("vector_output[%d] = %6d, expected is %6d\n", i, vector_output[i], vector_res[i]);
+      //printf("vector_output[%d] = %6d (expected = %6d)\n", i, vector_output[i], vector_res[i]);
       if (abs((vector_output[i] - vector_res[i])) > TOLERANCE) {
         #if PRINTF_VERBOSE
         printf("ERROR: vector_output[%d] = %6d, expected is %6d\n", i, vector_output[i], vector_res[i]);
