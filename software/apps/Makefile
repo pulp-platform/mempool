@@ -25,6 +25,7 @@ endif
 BUILD_TARGETS := $(patsubst $(ROOT_DIR)/%,%,$(shell find $(ROOT_DIR) -mindepth 1 -maxdepth 1 -type d))
 CLEAN_TARGETS := $(addprefix clean-,$(BUILD_TARGETS))
 
+
 # Make all applications
 all: $(ALL)
 
