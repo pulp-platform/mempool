@@ -5,6 +5,8 @@
 // Author: Vaibhav Krishna, ETH Zurich
 //         Sergio Mazzola, ETH Zurich
 
+// Intial, systolic implementation of 256-point radix-4 DIT complex FFT
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
@@ -40,7 +42,7 @@ int main(){
   /* Systolic grid mapping */
   // stage_i = index of this PE's stage (FFT stage); ROW index
   // pe_i    = index of this PE in its stage; COLUMN index
-  uint32_t stage_i = core_id % NUM_CORES_PER_TILE;
+  uint32_t stage_i = core_id % NUM_CORES_PER_TILE; // core index in tile
   uint32_t pe_i    = core_id / NUM_CORES_PER_TILE; // tile ID
   // NUM_CORES_PER_TILE is equal to NUM_STAGES, i.e. 4
 
@@ -98,7 +100,7 @@ int main(){
     uint32_t error_found = 0;
     // '2 *' for complex FFT: each of the 256 points is a complex number with 2 16-bit values
     for (uint32_t i = 0; i < (2 * LEN_FFT); i++){
-      //printf("vector_output[%d] = %6d (expected = %6d)\n", i, vector_output[i], vector_res[i]);
+      //printf("output[%d] = %6d (expected = %6d)\n", i, vector_output[i], vector_res[i]);
       if (abs((vector_output[i] - vector_res[i])) > TOLERANCE) {
         #if PRINTF_VERBOSE
         printf("ERROR: vector_output[%d] = %6d, expected is %6d\n", i, vector_output[i], vector_res[i]);
