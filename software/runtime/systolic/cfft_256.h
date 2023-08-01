@@ -201,7 +201,6 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
   volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
   volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
-
 /*
  * First FFT stage
  *
@@ -211,7 +210,7 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
 void systolic_first_fft_pe(uint32_t pe_i){
   /* Configure input address */
   register int32_t input_base[RADIX];
-  // Compute base addresses for vector_input of first stage
+  // Compute base addresses for vector_input of first stage (digit-reverse order)
   for (uint32_t i = 0; i < RADIX; i++){
     int16_t sum = 0;
     int16_t temp = (int16_t)(pe_i * RADIX + i);
@@ -269,6 +268,8 @@ void systolic_first_fft_pe(uint32_t pe_i){
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
   for (uint32_t i = 0; i < NUM_REPS; i++) {
+    //TODO: Once multiple FFTs are looped through as input, implement unrolling with post-increment addressing
+
     //TODO: Verify that this is actually done at every iteration (maybe set volatile?)
     // Load input
     A = ((v2s*)&vector_input)[input_base[0]];
@@ -290,22 +291,17 @@ void systolic_first_fft_pe(uint32_t pe_i){
       "pv.extract.h %[t1],%[H],1         \n\t"
       "sub          %[t2],zero,%[t1]     \n\t"
       "pv.pack      %[A],%[t0],%[t2]     \n\t"
-      "pv.add.h     %[B],%[E],%[G]       \n\t"
-      "pv.sub.h     %[D],%[E],%[G]       \n\t"
-      "pv.sub.h     %[C],%[F],%[A]       \n\t"
-      "pv.add.h     %[H],%[A],%[F]       \n\t"
+      "pv.add.h     %[qlr_t0],%[E],%[G]  \n\t"
+      "pv.sub.h     %[qlr_t2],%[E],%[G]  \n\t"
+      "pv.sub.h     %[qlr_t1],%[F],%[A]  \n\t"
+      "pv.add.h     %[qlr_t3],%[A],%[F]  \n\t"
       : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
         [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
-        [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2)
+        [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
+        [qlr_t0] "+&r" (qlr_t0), [qlr_t1] "+&r"(qlr_t1),
+        [qlr_t2] "+&r" (qlr_t2), [qlr_t3] "+&r" (qlr_t3)
       : [shift_2] "r"(shift_2) :
     );
-
-    // Push the results to output QLRs
-    //TODO: Can it be optimized without using mv?
-    qlr_t0 = (int32_t)B;
-    qlr_t1 = (int32_t)C;
-    qlr_t2 = (int32_t)D;
-    qlr_t3 = (int32_t)H;
   }
 }
 
@@ -314,89 +310,87 @@ void systolic_first_fft_pe(uint32_t pe_i){
   do {                                           \
     qlr_cfg_t0[QLR_CFG_REQ] = NUM_REPS;          \
     qlr_cfg_t0[QLR_CFG_IADDR] = core_offset + 0; \
+    qlr_cfg_t0[QLR_CFG_RF] = 1;                  \
     qlr_cfg_t1[QLR_CFG_REQ] = NUM_REPS;          \
     qlr_cfg_t1[QLR_CFG_IADDR] = core_offset + 1; \
+    qlr_cfg_t1[QLR_CFG_RF] = 2;                  \
     qlr_cfg_t2[QLR_CFG_REQ] = NUM_REPS;          \
     qlr_cfg_t2[QLR_CFG_IADDR] = core_offset + 2; \
+    qlr_cfg_t2[QLR_CFG_RF] = 2;                  \
     qlr_cfg_t3[QLR_CFG_REQ] = NUM_REPS;          \
     qlr_cfg_t3[QLR_CFG_IADDR] = core_offset + 3; \
+    qlr_cfg_t3[QLR_CFG_RF] = 2;                  \
   } while (0)
 
-#define INNER_PE_COMPUTE_TWIDFACT                                    \
-  v2s CoSi1 = ((v2s*)&twiddleCoef_q16)[ic * 1];                      \
-  v2s CoSi2 = ((v2s*)&twiddleCoef_q16)[ic * 2];                      \
-  v2s CoSi3 = ((v2s*)&twiddleCoef_q16)[ic * 3];                      \
-                                                                     \
-  /* Prepare 16-bit twiddle factors */                               \
-  __asm__ volatile (                                                 \
-    "pv.extract.h  %[t1],%[CoSi1],0  \n\t"                           \
-    "pv.extract.h  %[t3],%[CoSi2],0  \n\t"                           \
-    "pv.extract.h  %[t5],%[CoSi3],0  \n\t"                           \
-    "pv.extract.h  %[t0],%[CoSi1],1  \n\t"                           \
-    "pv.extract.h  %[t2],%[CoSi2],1  \n\t"                           \
-    "pv.extract.h  %[t4],%[CoSi3],1  \n\t"                           \
-    "sub           %[t0],zero,%[t0]  \n\t"                           \
-    "sub           %[t2],zero,%[t2]  \n\t"                           \
-    "sub           %[t4],zero,%[t4]  \n\t"                           \
-    "pv.pack       %[C1],%[t1],%[t0] \n\t"                           \
-    "pv.pack       %[C2],%[t3],%[t2] \n\t"                           \
-    "pv.pack       %[C3],%[t5],%[t4] \n\t"                           \
-    : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),                   \
-      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),                \
-      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)                 \
-    : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3) :   \
-  )
+#define INNER_PE_COMPUTE_TWIDFACT                                \
+  v2s CoSi1 = ((v2s*)&twiddleCoef_q16)[ic * 1];                  \
+  v2s CoSi2 = ((v2s*)&twiddleCoef_q16)[ic * 2];                  \
+  v2s CoSi3 = ((v2s*)&twiddleCoef_q16)[ic * 3];                  \
+                                                                 \
+  /* Prepare 16-bit twiddle factors */                           \
+  __asm__ volatile (                                             \
+    "pv.extract.h  %[t1],%[CoSi1],0  \n\t"                       \
+    "pv.extract.h  %[t3],%[CoSi2],0  \n\t"                       \
+    "pv.extract.h  %[t5],%[CoSi3],0  \n\t"                       \
+    "pv.extract.h  %[t0],%[CoSi1],1  \n\t"                       \
+    "pv.extract.h  %[t2],%[CoSi2],1  \n\t"                       \
+    "pv.extract.h  %[t4],%[CoSi3],1  \n\t"                       \
+    "sub           %[t0],zero,%[t0]  \n\t"                       \
+    "sub           %[t2],zero,%[t2]  \n\t"                       \
+    "sub           %[t4],zero,%[t4]  \n\t"                       \
+    "pv.pack       %[C1],%[t1],%[t0] \n\t"                       \
+    "pv.pack       %[C2],%[t3],%[t2] \n\t"                       \
+    "pv.pack       %[C3],%[t5],%[t4] \n\t"                       \
+    : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),               \
+      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),            \
+      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)             \
+    : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3) \
+  :)
 
-#define INNER_PE_FFT_COMPUTATION                                                      \
-__asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1),"=r"(qlr_t2),"=r"(qlr_t3));      \
-                                                                                      \
-  /*TODO: This can be optimized by exploiting the number of requests instead of mv */ \
-  B = (v2s)qlr_t1;                                                                    \
-  D = (v2s)qlr_t3;                                                                    \
-  A = (v2s)qlr_t0;                                                                    \
-  C = (v2s)qlr_t2;                                                                    \
-                                                                                      \
-  /* Compute FFT */                                                                   \
-  __asm__ volatile (                                                                  \
-    "pv.dotsp.h   %[E],%[CoSi1],%[B]   \n\t"                                          \
-    "pv.dotsp.h   %[F],%[C1],%[B]      \n\t"                                          \
-    "pv.dotsp.h   %[G],%[CoSi2],%[C]   \n\t"                                          \
-    "pv.dotsp.h   %[H],%[C2],%[C]      \n\t"                                          \
-    "srai         %[t0],%[E],0x10      \n\t"                                          \
-    "srai         %[t1],%[F],0x10      \n\t"                                          \
-    "pv.dotsp.h   %[E],%[CoSi3],%[D]   \n\t"                                          \
-    "pv.dotsp.h   %[F],%[C3],%[D]      \n\t"                                          \
-    "srai         %[t2],%[G],0x10      \n\t"                                          \
-    "srai         %[t3],%[H],0x10      \n\t"                                          \
-    "srai         %[t4],%[E],0x10      \n\t"                                          \
-    "srai         %[t5],%[F],0x10      \n\t"                                          \
-    "pv.pack      %[B],%[t1],%[t0]     \n\t"                                          \
-    "pv.pack      %[D],%[t5],%[t4]     \n\t"                                          \
-    "pv.pack      %[C],%[t3],%[t2]     \n\t"                                          \
-    "pv.sra.h     %[A],%[A],%[shift_1] \n\t"                                          \
-    "pv.sub.h     %[H],%[B],%[D]       \n\t"                                          \
-    "pv.add.h     %[E],%[A],%[C]       \n\t"                                          \
-    "pv.sub.h     %[F],%[A],%[C]       \n\t"                                          \
-    "pv.sra.h     %[H],%[H],%[shift_1] \n\t"                                          \
-    "pv.add.h     %[G],%[B],%[D]       \n\t"                                          \
-    "pv.sra.h     %[E],%[E],%[shift_1] \n\t"                                          \
-    "pv.extract.h %[t0],%[H],0         \n\t"                                          \
-    "pv.extract.h %[t1],%[H],1         \n\t"                                          \
-    "pv.sra.h     %[F],%[F],%[shift_1] \n\t"                                          \
-    "pv.sra.h     %[G],%[G],%[shift_1] \n\t"                                          \
-    "sub          %[t2],zero,%[t1]     \n\t"                                          \
-    "pv.pack      %[A],%[t0],%[t2]     \n\t"                                          \
-    "pv.add.h     %[B],%[E],%[G]       \n\t"                                          \
-    "pv.sub.h     %[D],%[E],%[G]       \n\t"                                          \
-    "pv.sub.h     %[C],%[F],%[A]       \n\t"                                          \
-    "pv.add.h     %[H],%[A],%[F]       \n\t"                                          \
-    : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),                         \
-      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),                         \
-      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),                                 \
-      [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)                                  \
-    : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3), [shift_1] "r"(shift_1),               \
-      [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3) :                    \
-  )
+
+#define INNER_PE_FFT_COMPUTATION                                                   \
+  __asm__ volatile (                                                               \
+    "pv.dotsp.h   %[E],%[CoSi1],%[qlr_t1];   \n\t"                                 \
+    "pv.dotsp.h   %[F],%[C1],%[qlr_t1];      \n\t"                                 \
+    "srai         %[t0],%[E],0x10;           \n\t"                                 \
+    "srai         %[t1],%[F],0x10;           \n\t"                                 \
+    "pv.pack      %[B],%[t1],%[t0];          \n\t"                                 \
+    "pv.dotsp.h   %[E],%[CoSi3],%[qlr_t3];   \n\t"                                 \
+    "pv.dotsp.h   %[F],%[C3],%[qlr_t3];      \n\t"                                 \
+    "srai         %[t0],%[E],0x10;           \n\t"                                 \
+    "srai         %[t1],%[F],0x10;           \n\t"                                 \
+    "pv.pack      %[D],%[t1],%[t0];          \n\t"                                 \
+    "pv.dotsp.h   %[G],%[CoSi2],%[qlr_t2];   \n\t"                                 \
+    "pv.dotsp.h   %[H],%[C2],%[qlr_t2];      \n\t"                                 \
+    "srai         %[t0],%[G],0x10;           \n\t"                                 \
+    "srai         %[t1],%[H],0x10;           \n\t"                                 \
+    "pv.pack      %[C],%[t1],%[t0];          \n\t"                                 \
+    "pv.sra.h     %[A],%[qlr_t0],%[shift_1]; \n\t"                                 \
+    "pv.sub.h     %[H],%[B],%[D];            \n\t"                                 \
+    "pv.add.h     %[E],%[A],%[C];            \n\t"                                 \
+    "pv.sub.h     %[F],%[A],%[C];            \n\t"                                 \
+    "pv.sra.h     %[H],%[H],%[shift_1];      \n\t"                                 \
+    "pv.add.h     %[G],%[B],%[D];            \n\t"                                 \
+    "pv.sra.h     %[E],%[E],%[shift_1];      \n\t"                                 \
+    "pv.extract.h %[t0],%[H],0;              \n\t"                                 \
+    "pv.extract.h %[t1],%[H],1;              \n\t"                                 \
+    "pv.sra.h     %[F],%[F],%[shift_1];      \n\t"                                 \
+    "pv.sra.h     %[G],%[G],%[shift_1];      \n\t"                                 \
+    "sub          %[t1],zero,%[t1];          \n\t"                                 \
+    "pv.pack      %[A],%[t0],%[t1];          \n\t"                                 \
+    "pv.add.h     %[B],%[E],%[G];            \n\t"                                 \
+    "pv.sub.h     %[D],%[E],%[G];            \n\t"                                 \
+    "pv.sub.h     %[C],%[F],%[A];            \n\t"                                 \
+    "pv.add.h     %[H],%[A],%[F];            \n\t"                                 \
+    : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),                      \
+      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),                      \
+      [t0] "=&r"(t0), [t1] "=&r"(t1),                                              \
+      [qlr_t0] "+&r"(qlr_t0), [qlr_t1] "+&r"(qlr_t1),                              \
+      [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)                               \
+    : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3),                                    \
+      [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3),                  \
+      [shift_1] "r"(shift_1)                                                       \
+  :)
 
 
 /*
