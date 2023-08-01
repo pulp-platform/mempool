@@ -18,12 +18,11 @@
 //         Sergio Mazzola, ETH Zurich
 
 /*
- * Intial, systolic implementation of 256-point radix-4 DIT complex FFT. The cluster is partitioned into 4
- * stages of 64 PEs each, interconnected in a radix-4 butterfly. DIT is used, where crambling in bitreversal
+ * Systolic implementation of 256-point radix-4 DIT complex FFT. The cluster is partitioned into 4 stages
+ * of 64 PEs each, interconnected in a radix-4 butterfly. DIT is used, where scrambling in bitreversal
  * order is at the input (first stage).
- * First stage's PEs load the 256 input elements (4 per PE) and use Xqueue extension to push them through
- * the butterfly systolic array. A formulaic implementation is used for the shuffled output addresses
- * calculation.
+ * First stage's PEs load the 256 input elements (4 per PE) and use QLRs to push them through the butterfly
+ * systolic array. A formulaic implementation is used for the shuffled output addresses calculation.
  *
  * The stages of the systolic butterfly allow up to 4 FFTs to be executed at the same time in a pipelined
  * fashion, with each 64-PE stage processing a different FFT at that stage. With the same PES always processing
@@ -55,7 +54,11 @@
 
 #define ASM
 
-// Array of queue ptrs
+// Array of queue pointers for stages' outputs
+// - queues_out_n[0][:] are memory bank indexes, used to configure QLR output
+//   addresses for stage 0 (loader PEs)
+// - queues_out_n[1:][:] are physical memory addresses, used to push stages'
+//   outputs through Xqueue (from stage 1 on), as QLRs are fully used for inputs
 uint32_t *queues_out_0[NUM_STAGES-1][PE_PER_STAGE];
 uint32_t *queues_out_1[NUM_STAGES-1][PE_PER_STAGE];
 uint32_t *queues_out_2[NUM_STAGES-1][PE_PER_STAGE];
@@ -146,7 +149,27 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
   uint32_t tile_offset[NUM_QUEUES_PER_CORE], core_offset[NUM_QUEUES_PER_CORE], queue_offset[NUM_QUEUES_PER_CORE];
 
   // Compute output PEs for all stages, but the last one
-  if (stage_i < (NUM_STAGES - 1)) {
+  if (stage_i == 0) {
+    /* Stage 0: input stage, load inputs from memory and push outputs through QLRs */
+
+    for (uint32_t i = 0; i < RADIX; i++){
+      index_out = shuffling_order[0][(pe_i * RADIX) + i];
+      core_id_out[i] = core_mapping[0 + 1][index_out / RADIX];
+      queue_id_out[i] = index_out % RADIX;
+
+      // ID (not physical address) of the first of the four memory banks assigned to the computed output core
+      // Summing up the queue_id_out (i.e., which one of the four cores), you get the correct output memory bank ID
+      core_offset[i] = core_id_out[i] * NUM_QUEUES_PER_CORE;
+    }
+
+    queues_out_0[0][pe_i] = (uint32_t*)((uint32_t)core_offset[0] + queue_id_out[0]);
+    queues_out_1[0][pe_i] = (uint32_t*)((uint32_t)core_offset[1] + queue_id_out[1]);
+    queues_out_2[0][pe_i] = (uint32_t*)((uint32_t)core_offset[2] + queue_id_out[2]);
+    queues_out_3[0][pe_i] = (uint32_t*)((uint32_t)core_offset[3] + queue_id_out[3]);
+
+  } else if (stage_i < (NUM_STAGES - 1)) {
+    /* Stages 1,2 (inner): input through QLRs, output through Xqueue */
+
     // Each PE has 4 outputs: make them correspond to the 4 available queues of each PE
     for (uint32_t i = 0; i < RADIX; i++){
       index_out = shuffling_order[stage_i][(pe_i * RADIX) + i];
@@ -169,6 +192,14 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
     queues_out_3[stage_i][pe_i] = (uint32_t*)((uint32_t)(&__seq_start) + tile_offset[3] + core_offset[3] + queue_offset[3]);
   }
 }
+
+
+// QLR CSR addresses
+#define DEFINE_QLR_CONFIG                                 \
+  volatile uint32_t *qlr_cfg_t0 = (uint32_t *)QLR_CFG_T0; \
+  volatile uint32_t *qlr_cfg_t1 = (uint32_t *)QLR_CFG_T1; \
+  volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
+  volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
 
 /*
@@ -211,17 +242,17 @@ void systolic_first_fft_pe(uint32_t pe_i){
     }
   }
 
-  /* Configure Xqueue */
-  // Assign output queues (Xqueue)
-  uint32_t *queue_next_0 = queues_out_0[0][pe_i];
-  uint32_t *queue_next_1 = queues_out_1[0][pe_i];
-  uint32_t *queue_next_2 = queues_out_2[0][pe_i];
-  uint32_t *queue_next_3 = queues_out_3[0][pe_i];
-  // Xqueue response
-  int32_t resp_0 __attribute__((unused)) = 0;
-  int32_t resp_1 __attribute__((unused)) = 0;
-  int32_t resp_2 __attribute__((unused)) = 0;
-  int32_t resp_3 __attribute__((unused)) = 0;
+  /* Configure output QLRs */
+  DEFINE_QLR_CONFIG;
+
+  qlr_cfg_t0[QLR_CFG_REQ] = NUM_REPS;
+  qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_out_0[0][pe_i];
+  qlr_cfg_t1[QLR_CFG_REQ] = NUM_REPS;
+  qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_out_1[0][pe_i];
+  qlr_cfg_t2[QLR_CFG_REQ] = NUM_REPS;
+  qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_out_2[0][pe_i];
+  qlr_cfg_t3[QLR_CFG_REQ] = NUM_REPS;
+  qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_out_3[0][pe_i];
 
   /* Preparation */
   // radix-4 calculation constant (mult by 4 with right shift)
@@ -230,6 +261,12 @@ void systolic_first_fft_pe(uint32_t pe_i){
   /* Load inputs and compute FFT */
   v2s A, B, C, D, E, F, G, H;
   int16_t t0, t1, t2;
+
+  // Start OQLRs
+  qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
+  qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
+  qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
+  qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
   for (uint32_t i = 0; i < NUM_REPS; i++) {
     //TODO: Verify that this is actually done at every iteration (maybe set volatile?)
@@ -263,21 +300,15 @@ void systolic_first_fft_pe(uint32_t pe_i){
       : [shift_2] "r"(shift_2) :
     );
 
-    // Push the results to the output queue (Xqueue)
-    queue_push(queue_next_0, (int32_t)B, &resp_0);
-    queue_push(queue_next_1, (int32_t)C, &resp_1);
-    queue_push(queue_next_2, (int32_t)D, &resp_2);
-    queue_push(queue_next_3, (int32_t)H, &resp_3);
+    // Push the results to output QLRs
+    //TODO: Can it be optimized without using mv?
+    qlr_t0 = (int32_t)B;
+    qlr_t1 = (int32_t)C;
+    qlr_t2 = (int32_t)D;
+    qlr_t3 = (int32_t)H;
   }
 }
 
-
-// QLR CSR addresses
-#define INNER_PE_DEFINE_QLR_CONFIG                        \
-  volatile uint32_t *qlr_cfg_t0 = (uint32_t *)QLR_CFG_T0; \
-  volatile uint32_t *qlr_cfg_t1 = (uint32_t *)QLR_CFG_T1; \
-  volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
-  volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
 #define INNER_PE_CONFIG_QLR                      \
   do {                                           \
@@ -378,7 +409,7 @@ __asm__ __volatile__("" : "=r"(qlr_t0), "=r"(qlr_t1),"=r"(qlr_t2),"=r"(qlr_t3));
  */
 void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
   /* Configure QLRs */
-  INNER_PE_DEFINE_QLR_CONFIG;
+  DEFINE_QLR_CONFIG;
   // Base address (ID only) for the memory banks (queues) of this core
   uint32_t core_offset = core_id * NUM_QUEUES_PER_CORE;
 
@@ -422,10 +453,17 @@ void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
   for (uint32_t i = 0; i < NUM_REPS; i++) {
     INNER_PE_FFT_COMPUTATION;
     // Push the results to the output queue (Xqueue)
-    queue_push(queue_next_0, (int32_t)B, &resp_0);
-    queue_push(queue_next_1, (int32_t)C, &resp_1);
-    queue_push(queue_next_2, (int32_t)D, &resp_2);
-    queue_push(queue_next_3, (int32_t)H, &resp_3);
+    __asm__ volatile (
+      "q.push.w %[resp_0], %[B], (%[queue_next_0]); \n\t"
+      "q.push.w %[resp_1], %[C], (%[queue_next_1]); \n\t"
+      "q.push.w %[resp_2], %[D], (%[queue_next_2]); \n\t"
+      "q.push.w %[resp_3], %[H], (%[queue_next_3]); \n\t"
+      : [resp_0] "=rm" (resp_0), [resp_1] "=rm" (resp_1),
+        [resp_2] "=rm" (resp_2), [resp_3] "=rm" (resp_3)
+      : [B] "r" (B), [C] "r" (C), [D] "r" (D), [H] "r" (H),
+        [queue_next_0] "r" (queue_next_0), [queue_next_1] "r" (queue_next_1),
+        [queue_next_2] "r" (queue_next_2), [queue_next_3] "r" (queue_next_3)
+    );
   }
 }
 
@@ -437,7 +475,7 @@ void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
  */
 void systolic_end_pe(uint32_t pe_i, uint32_t core_id){
   /* Configure QLRs */
-  INNER_PE_DEFINE_QLR_CONFIG;
+  DEFINE_QLR_CONFIG;
   // Base address (ID only) for the memory banks (queues) of this core
   uint32_t core_offset = core_id * NUM_QUEUES_PER_CORE;
 

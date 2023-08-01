@@ -24,6 +24,7 @@
 
 /* Settings */
 #define PRINTF_VERBOSE 1
+#define PRINTF_ARRAY   0
 #define VERIFY_OUTPUT  1
 
 /* Global variables */
@@ -92,6 +93,11 @@ int main(){
     printf("End\n");
     #endif
 
+    #if PRINTF_ARRAY
+    for (uint32_t i = 0; i < (2 * LEN_FFT); i++)
+      printf("vector_output[%d] = %6d | vector_res[%d] = %6d)\n", i, vector_output[i], i, vector_res[i]);
+    #endif
+
     // Verify result
     #if VERIFY_OUTPUT
     #if PRINTF_VERBOSE
@@ -100,7 +106,6 @@ int main(){
     uint32_t error_found = 0;
     // '2 *' for complex FFT: each of the 256 points is a complex number with 2 16-bit values
     for (uint32_t i = 0; i < (2 * LEN_FFT); i++){
-      //printf("output[%d] = %6d (expected = %6d)\n", i, vector_output[i], vector_res[i]);
       if (abs((vector_output[i] - vector_res[i])) > TOLERANCE) {
         #if PRINTF_VERBOSE
         printf("ERROR: vector_output[%d] = %6d, expected is %6d\n", i, vector_output[i], vector_res[i]);
