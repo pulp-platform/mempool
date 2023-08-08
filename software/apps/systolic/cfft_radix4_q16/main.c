@@ -2,8 +2,8 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-// Author: Vaibhav Krishna, ETH Zurich
-//         Sergio Mazzola, ETH Zurich
+// Author: Sergio Mazzola, ETH Zurich
+//         Vaibhav Krishna, ETH Zurich
 
 // Systolic implementation of 256-point radix-4 DIT complex FFT
 
@@ -18,9 +18,7 @@
 #include "synchronization.h"
 #include "xpulp/builtins_v2.h"
 
-#include "data_cfftq16.h"
-#include "mempool_cfft_q16_twiddleCoef.h"
-#include "systolic/cfft_256.h"
+#include "systolic/cfft_radix4_q16.h"
 
 /* Settings */
 #define PRINTF_VERBOSE 1
@@ -78,7 +76,7 @@ int main(){
 
   if (stage_i == 0) {
     systolic_first_fft_pe(pe_i);
-  } else if (stage_i == (NUM_STAGES-1)){
+  } else if (stage_i == (NUM_STAGES - 1)){
     systolic_end_pe(pe_i, core_id);
   } else {
     systolic_mid_pe(stage_i, pe_i, core_id);

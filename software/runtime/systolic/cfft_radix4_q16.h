@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Author: Vaibhav Krishna, ETH Zurich
-//         Sergio Mazzola, ETH Zurich
+// Author: Sergio Mazzola, ETH Zurich
+//         Vaibhav Krishna, ETH Zurich
 
 /*
  * Systolic implementation of 256-point radix-4 DIT complex FFT. The cluster is partitioned into 4 stages
@@ -36,6 +36,8 @@
 #include "printf.h"
 #include "synchronization.h"
 #include "xpulp/builtins_v2.h"
+
+#include "data/data_cfft_radix4_q16.h"
 
 #include "xqueue.h"
 #include "qlr.h"
@@ -268,7 +270,7 @@ void systolic_first_fft_pe(uint32_t pe_i){
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
   for (uint32_t i = 0; i < NUM_REPS; i++) {
-    //TODO: Once multiple FFTs are looped through as input, implement unrolling with post-increment addressing
+    //TODO: Once multiple FFTs are looped through as input, implement unrolling and post-increment addressing
 
     //TODO: Verify that this is actually done at every iteration (maybe set volatile?)
     // Load input
