@@ -162,13 +162,23 @@ def main():
         default=64,
         help='Input dimension'
     )
+    parser.add_argument(
+        "-n",
+        "--number",
+        type=int,
+        required=False,
+        default=1,
+        help='Number of FFTs to be generated'
+    )
 
     args = parser.parse_args()
 
     # Create sparse matrix
     Len = args.dimension
-    Input = np.random.randint(-2**(15), 2**(15) - 1, 2 * Len, dtype=np.int16)
-    Result = compute_result(Input, Len)
+    Input = []; Result = []
+    for i in range(args.number):
+        Input.append(np.random.randint(-2**(15), 2**(15) - 1, 2 * Len, dtype=np.int16))
+        Result.append(compute_result(Input[i], Len))
     Twiddles = compute_twiddles(Len)
     Bitreversal = np.ndarray.flatten(np.array(compute_bitreversal(Len, 2)))
 
@@ -189,6 +199,7 @@ def main():
               'vector_twi': Twiddles,
               'vector_bitrev': Bitreversal,
               'Len': Len,
+              'NumFFTs': args.number,
               'Log2Len': int(np.log2(Len)),
               'BitrevLen': len(Bitreversal),
               'tolerance': tolerance[int(Len)]}
