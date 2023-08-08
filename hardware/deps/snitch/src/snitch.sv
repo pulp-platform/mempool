@@ -1105,7 +1105,9 @@ module snitch
       riscv_instr::FEQ_S,
       riscv_instr::FCLASS_S,
       riscv_instr::FCVT_W_S,
+      riscv_instr::FCVT_S_W,
       riscv_instr::FCVT_WU_S,
+      riscv_instr::FCVT_S_WU,
       riscv_instr::FMV_X_W: begin
         if (snitch_pkg::ZFINX_RV) begin
           write_rd = 1'b0;
@@ -1126,8 +1128,14 @@ module snitch
       riscv_instr::FEQ_H,
       riscv_instr::FCLASS_H,
       riscv_instr::FCVT_W_H,
+      riscv_instr::FCVT_H_W,
       riscv_instr::FCVT_WU_H,
-      riscv_instr::FMV_X_H: begin
+      riscv_instr::FCVT_H_WU,
+      riscv_instr::FMV_X_H,
+      riscv_instr::VFCVT_X_H,
+      riscv_instr::VFCVT_XU_H,
+      riscv_instr::VFCVT_H_X,
+      riscv_instr::VFCVT_H_XU: begin
         if (snitch_pkg::ZFINX_RV && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
@@ -1147,8 +1155,14 @@ module snitch
       riscv_instr::FEQ_B,
       riscv_instr::FCLASS_B,
       riscv_instr::FCVT_W_B,
+      riscv_instr::FCVT_B_W,
       riscv_instr::FCVT_WU_B,
-      riscv_instr::FMV_X_B: begin
+      riscv_instr::FCVT_B_WU,
+      riscv_instr::FMV_X_B,
+      riscv_instr::VFCVT_X_B,
+      riscv_instr::VFCVT_XU_B,
+      riscv_instr::VFCVT_B_X,
+      riscv_instr::VFCVT_B_XU: begin
         if (snitch_pkg::ZFINX_RV && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;

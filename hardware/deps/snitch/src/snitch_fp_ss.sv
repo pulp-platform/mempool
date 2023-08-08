@@ -658,6 +658,13 @@ module snitch_fp_ss
         dst_fmt        = fpnew_pkg::FP32;
         if (acc_req.data_op inside {riscv_instr::FCVT_WU_S}) op_mode = 1'b1; // unsigned
       end
+      riscv_instr::FCVT_S_W,
+      riscv_instr::FCVT_S_WU: begin
+        fpu_op = fpnew_pkg::I2F;
+        op_select[0]   = AccBus_A;
+        dst_fmt        = fpnew_pkg::FP32;
+        if (acc_req.data_op inside {riscv_instr::FCVT_S_WU}) op_mode = 1'b1; // unsigned
+      end
       riscv_instr::FMV_X_W: begin
         fpu_op = fpnew_pkg::SGNJ;
         fpu_rnd_mode   = fpnew_pkg::RUP; // passthrough without checking nan-box
@@ -692,6 +699,14 @@ module snitch_fp_ss
         dst_fmt        = fpnew_pkg::FP16;
         if (acc_req.data_op inside {riscv_instr::FCVT_WU_H}) op_mode = 1'b1; // unsigned
       end
+      riscv_instr::FCVT_H_W,
+      riscv_instr::FCVT_H_WU: begin
+        fpu_op = fpnew_pkg::I2F;
+        op_select[0]   = AccBus_A;
+        src_fmt        = fpnew_pkg::FP16;
+        dst_fmt        = fpnew_pkg::FP16;
+        if (acc_req.data_op inside {riscv_instr::FCVT_H_WU}) op_mode = 1'b1; // unsigned
+      end
       riscv_instr::FMV_X_H: begin
         fpu_op = fpnew_pkg::SGNJ;
         fpu_rnd_mode   = fpnew_pkg::RUP; // passthrough without checking nan-box
@@ -699,6 +714,29 @@ module snitch_fp_ss
         dst_fmt        = fpnew_pkg::FP16;
         op_mode        = 1'b1; // sign-extend result
         op_select[0]   = AccBus_A;
+      end
+      riscv_instr::VFCVT_X_H,
+      riscv_instr::VFCVT_XU_H: begin
+        fpu_op = fpnew_pkg::F2I;
+        op_select[0]   = AccBus_A;
+        src_fmt        = fpnew_pkg::FP16;
+        dst_fmt        = fpnew_pkg::FP16;
+        int_fmt        = fpnew_pkg::INT16;
+        vectorial_op   = 1'b1;
+        fpu_tag_in.acc = 1'b1;
+        set_dyn_rm     = 1'b1;
+        if (acc_req.data_op inside {riscv_instr::VFCVT_XU_H}) op_mode = 1'b1; // upper
+      end
+      riscv_instr::VFCVT_H_X,
+      riscv_instr::VFCVT_H_XU: begin
+        fpu_op = fpnew_pkg::I2F;
+        op_select[0] = AccBus_A;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        int_fmt      = fpnew_pkg::INT16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+        if (acc_req.data_op inside {riscv_instr::VFCVT_H_XU}) op_mode = 1'b1; // upper
       end
       // FP - Int Operations
       // Quarter Precision Floating-Point
@@ -726,13 +764,44 @@ module snitch_fp_ss
         dst_fmt        = fpnew_pkg::FP8;
         if (acc_req.data_op inside {riscv_instr::FCVT_WU_B}) op_mode = 1'b1; // unsigned
       end
+      riscv_instr::FCVT_B_W,
+      riscv_instr::FCVT_B_WU: begin
+        fpu_op = fpnew_pkg::I2F;
+        op_select[0] = AccBus_A;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+        if (acc_req.data_op inside {riscv_instr::FCVT_B_WU}) op_mode = 1'b1; // unsigned
+      end
       riscv_instr::FMV_X_B: begin
         fpu_op = fpnew_pkg::SGNJ;
+        op_select[0]   = AccBus_A;
         fpu_rnd_mode   = fpnew_pkg::RUP; // passthrough without checking nan-box
         src_fmt        = fpnew_pkg::FP8;
         dst_fmt        = fpnew_pkg::FP8;
         op_mode        = 1'b1; // sign-extend result
+      end
+      riscv_instr::VFCVT_X_B,
+      riscv_instr::VFCVT_XU_B: begin
+        fpu_op = fpnew_pkg::F2I;
         op_select[0]   = AccBus_A;
+        src_fmt        = fpnew_pkg::FP8;
+        dst_fmt        = fpnew_pkg::FP8;
+        int_fmt        = fpnew_pkg::INT8;
+        vectorial_op   = 1'b1;
+        fpu_tag_in.acc = 1'b1;
+        set_dyn_rm     = 1'b1;
+        if (acc_req.data_op inside {riscv_instr::VFCVT_XU_B}) op_mode = 1'b1; // upper
+      end
+      riscv_instr::VFCVT_B_X,
+      riscv_instr::VFCVT_B_XU: begin
+        fpu_op = fpnew_pkg::I2F;
+        op_select[0] = AccBus_A;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+        int_fmt      = fpnew_pkg::INT8;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+        if (acc_req.data_op inside {riscv_instr::VFCVT_B_XU}) op_mode = 1'b1; // upper
       end
       default: ;
     endcase
