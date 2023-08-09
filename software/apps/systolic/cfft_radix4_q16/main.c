@@ -27,8 +27,7 @@
 
 /* Global variables */
 // '2 *' for complex FFT: each of the 256 points is a complex number with 2 16-bit values
-int16_t vector_input[2 * LEN_FFT] __attribute__((section(".l1")));
-int16_t vector_output[2 * LEN_FFT] __attribute__((section(".l1")));
+int16_t vector_output[N_FFTS][2 * LEN_FFT] __attribute__((section(".l1")));
 
 int main(){
   uint32_t core_id = mempool_get_core_id();
@@ -50,15 +49,18 @@ int main(){
 
   // Setup
   if(core_id == 0){
+    #if PRINTF_ARRAY
+    for (uint32_t f = 0; f < N_FFTS; f++)
+      for (uint32_t i = 0; i < (2 * LEN_FFT); i+=2)
+        printf("vector_inp[%d][%d:%d] = %6d + i*%6d\n", f, i, i+1, vector_inp[f][i], vector_inp[f][i+1]);
+    #endif
+
     #if PRINTF_VERBOSE
     printf("Initialize\n");
     #endif
     shuffling_order_calc();
   }
 
-  // copy input data to L1
-  for(uint32_t i = core_id; i < 2 * LEN_FFT; i+= num_cores)
-    vector_input[i] = vector_inp[i];
   mempool_barrier(num_cores);
 
   systolic_init(stage_i, pe_i);
@@ -75,9 +77,9 @@ int main(){
   mempool_start_benchmark();
 
   if (stage_i == 0) {
-    systolic_first_fft_pe(pe_i);
+    systolic_first_fft_pe(pe_i, vector_inp);
   } else if (stage_i == (NUM_STAGES - 1)){
-    systolic_end_pe(pe_i, core_id);
+    systolic_end_pe(pe_i, core_id, vector_output);
   } else {
     systolic_mid_pe(stage_i, pe_i, core_id);
   }
@@ -92,8 +94,9 @@ int main(){
     #endif
 
     #if PRINTF_ARRAY
-    for (uint32_t i = 0; i < (2 * LEN_FFT); i++)
-      printf("vector_output[%d] = %6d | vector_res[%d] = %6d)\n", i, vector_output[i], i, vector_res[i]);
+    for (uint32_t f = 0; f < N_FFTS; f++)
+      for (uint32_t i = 0; i < (2 * LEN_FFT); i++)
+        printf("vector_output[%d][%d] = %6d | vector_res[%d][%d] = %6d\n", f, i, vector_output[f][i], f, i, vector_res[f][i]);
     #endif
 
     // Verify result
@@ -104,11 +107,13 @@ int main(){
     uint32_t error_found = 0;
     // '2 *' for complex FFT: each of the 256 points is a complex number with 2 16-bit values
     for (uint32_t i = 0; i < (2 * LEN_FFT); i++){
-      if (abs((vector_output[i] - vector_res[i])) > TOLERANCE) {
-        #if PRINTF_VERBOSE
-        printf("ERROR: vector_output[%d] = %6d, expected is %6d\n", i, vector_output[i], vector_res[i]);
-        #endif
-        error_found = 1;
+      for (uint32_t f = 0; f < N_FFTS; f++) {
+        if (abs((vector_output[f][i] - vector_res[f][i])) > TOLERANCE) {
+          #if PRINTF_VERBOSE
+          printf("ERROR: vector_output[%d][%d] = %6d, expected is %6d\n", f, i, vector_output[f][i], vector_res[f][i]);
+          #endif
+          error_found = 1;
+        }
       }
     }
     if (error_found)

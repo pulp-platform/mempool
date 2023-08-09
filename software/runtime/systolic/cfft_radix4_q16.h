@@ -47,14 +47,12 @@
 #define LEN_FFT      256                        // hardcoded, do not change
 #define NUM_STAGES   (NUM_CORES_PER_TILE)       // hardcoded, do not change
 #define PE_PER_STAGE ((LEN_FFT) / (NUM_STAGES)) // hardcoded, do not change
-#define NUM_REPS     150                        // repeat the same FFT multiple times, for benchmarking
+#define NUM_REPS     160                         // repeat the same FFT multiple times, for benchmarking
 //TODO: Check whether performance changes if repeating NUM_REPS/4 times but with 4 different FFTs in each iteration
 
 #if NUM_CORES_PER_TILE != 4
 #error "Only supports 4 cores per tile (as RADIX, and NUM_STAGES)"
 #endif
-
-#define ASM
 
 // Array of queue pointers for stages' outputs
 // - queues_out_n[0][:] are memory bank indexes, used to configure QLR output
@@ -69,9 +67,6 @@ uint32_t *queues_out_3[NUM_STAGES-1][PE_PER_STAGE];
 // Global arrays
 uint16_t core_mapping[NUM_STAGES][PE_PER_STAGE] __attribute__((section(".l1")));
 uint16_t shuffling_order[NUM_STAGES][LEN_FFT] __attribute__((section(".l1")));
-
-extern int16_t vector_input[2 * LEN_FFT];
-extern int16_t vector_output[2 * LEN_FFT];
 
 // Shuffle the input points to stage_i, according to RADIX
 void input_shuffling_order_r4(uint32_t stage_i, uint16_t* order){
@@ -209,7 +204,7 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
  * Get inputs from memory and push to stage 2 through Xqueue.
  * 'pe_i' is the PE index in the current stage (0 to LEN_FFT/NUM_STAGES-1).
  */
-void systolic_first_fft_pe(uint32_t pe_i){
+void systolic_first_fft_pe(uint32_t pe_i, int16_t (*vector_input)[2*LEN_FFT]){
   /* Configure input address */
   register int32_t input_base[RADIX];
   // Compute base addresses for vector_input of first stage (digit-reverse order)
@@ -246,13 +241,13 @@ void systolic_first_fft_pe(uint32_t pe_i){
   /* Configure output QLRs */
   DEFINE_QLR_CONFIG;
 
-  qlr_cfg_t0[QLR_CFG_REQ] = NUM_REPS;
+  qlr_cfg_t0[QLR_CFG_REQ] = NUM_REPS * N_FFTS;
   qlr_cfg_t0[QLR_CFG_OADDR] = (uint32_t)queues_out_0[0][pe_i];
-  qlr_cfg_t1[QLR_CFG_REQ] = NUM_REPS;
+  qlr_cfg_t1[QLR_CFG_REQ] = NUM_REPS * N_FFTS;
   qlr_cfg_t1[QLR_CFG_OADDR] = (uint32_t)queues_out_1[0][pe_i];
-  qlr_cfg_t2[QLR_CFG_REQ] = NUM_REPS;
+  qlr_cfg_t2[QLR_CFG_REQ] = NUM_REPS * N_FFTS;
   qlr_cfg_t2[QLR_CFG_OADDR] = (uint32_t)queues_out_2[0][pe_i];
-  qlr_cfg_t3[QLR_CFG_REQ] = NUM_REPS;
+  qlr_cfg_t3[QLR_CFG_REQ] = NUM_REPS * N_FFTS;
   qlr_cfg_t3[QLR_CFG_OADDR] = (uint32_t)queues_out_3[0][pe_i];
 
   /* Preparation */
@@ -270,56 +265,59 @@ void systolic_first_fft_pe(uint32_t pe_i){
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
   for (uint32_t i = 0; i < NUM_REPS; i++) {
-    //TODO: Once multiple FFTs are looped through as input, implement unrolling and post-increment addressing
+    for (uint32_t f = 0; f < N_FFTS; f++) {
+      //TODO: Once multiple FFTs are looped through as input, implement unrolling and post-increment addressing
 
-    //TODO: Verify that this is actually done at every iteration (maybe set volatile?)
-    // Load input
-    A = ((v2s*)&vector_input)[input_base[0]];
-    B = ((v2s*)&vector_input)[input_base[1]];
-    C = ((v2s*)&vector_input)[input_base[2]];
-    D = ((v2s*)&vector_input)[input_base[3]];
+      //TODO: Verify that this is actually done at every iteration (maybe set volatile?)
+      // Load input
+      A = ((v2s*)vector_input[f])[input_base[0]];
+      B = ((v2s*)vector_input[f])[input_base[1]];
+      C = ((v2s*)vector_input[f])[input_base[2]];
+      D = ((v2s*)vector_input[f])[input_base[3]];
 
-    // Compute FFT
-    __asm__ volatile (
-      "pv.sra.h     %[A],%[A],%[shift_2] \n\t"
-      "pv.sra.h     %[C],%[C],%[shift_2] \n\t"
-      "pv.sra.h     %[B],%[B],%[shift_2] \n\t"
-      "pv.sra.h     %[D],%[D],%[shift_2] \n\t"
-      "pv.add.h     %[E],%[A],%[C]       \n\t"
-      "pv.sub.h     %[F],%[A],%[C]       \n\t"
-      "pv.sub.h     %[H],%[B],%[D]       \n\t"
-      "pv.add.h     %[G],%[B],%[D]       \n\t"
-      "pv.extract.h %[t0],%[H],0         \n\t"
-      "pv.extract.h %[t1],%[H],1         \n\t"
-      "sub          %[t2],zero,%[t1]     \n\t"
-      "pv.pack      %[A],%[t0],%[t2]     \n\t"
-      "pv.add.h     %[qlr_t0],%[E],%[G]  \n\t"
-      "pv.sub.h     %[qlr_t2],%[E],%[G]  \n\t"
-      "pv.sub.h     %[qlr_t1],%[F],%[A]  \n\t"
-      "pv.add.h     %[qlr_t3],%[A],%[F]  \n\t"
-      : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
-        [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
-        [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
-        [qlr_t0] "+&r" (qlr_t0), [qlr_t1] "+&r"(qlr_t1),
-        [qlr_t2] "+&r" (qlr_t2), [qlr_t3] "+&r" (qlr_t3)
-      : [shift_2] "r"(shift_2) :
-    );
+      // Compute FFT
+      __asm__ volatile (
+        "pv.sra.h     %[A],%[A],%[shift_2] \n\t"
+        "pv.sra.h     %[C],%[C],%[shift_2] \n\t"
+        "pv.sra.h     %[B],%[B],%[shift_2] \n\t"
+        "pv.sra.h     %[D],%[D],%[shift_2] \n\t"
+        "pv.add.h     %[E],%[A],%[C]       \n\t"
+        "pv.sub.h     %[F],%[A],%[C]       \n\t"
+        "pv.sub.h     %[H],%[B],%[D]       \n\t"
+        "pv.add.h     %[G],%[B],%[D]       \n\t"
+        "pv.extract.h %[t0],%[H],0         \n\t"
+        "pv.extract.h %[t1],%[H],1         \n\t"
+        "sub          %[t2],zero,%[t1]     \n\t"
+        "pv.pack      %[A],%[t0],%[t2]     \n\t"
+        "pv.add.h     %[qlr_t0],%[E],%[G]  \n\t"
+        "pv.sub.h     %[qlr_t2],%[E],%[G]  \n\t"
+        "pv.sub.h     %[qlr_t1],%[F],%[A]  \n\t"
+        "pv.add.h     %[qlr_t3],%[A],%[F]  \n\t"
+        : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
+          [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
+          [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
+          [qlr_t0] "+&r" (qlr_t0), [qlr_t1] "+&r"(qlr_t1),
+          [qlr_t2] "+&r" (qlr_t2), [qlr_t3] "+&r" (qlr_t3)
+        : [shift_2] "r"(shift_2)
+        :
+      );
+    }
   }
 }
 
 
 #define INNER_PE_CONFIG_QLR                      \
   do {                                           \
-    qlr_cfg_t0[QLR_CFG_REQ] = NUM_REPS;          \
+    qlr_cfg_t0[QLR_CFG_REQ] = NUM_REPS * N_FFTS; \
     qlr_cfg_t0[QLR_CFG_IADDR] = core_offset + 0; \
     qlr_cfg_t0[QLR_CFG_RF] = 1;                  \
-    qlr_cfg_t1[QLR_CFG_REQ] = NUM_REPS;          \
+    qlr_cfg_t1[QLR_CFG_REQ] = NUM_REPS * N_FFTS; \
     qlr_cfg_t1[QLR_CFG_IADDR] = core_offset + 1; \
     qlr_cfg_t1[QLR_CFG_RF] = 2;                  \
-    qlr_cfg_t2[QLR_CFG_REQ] = NUM_REPS;          \
+    qlr_cfg_t2[QLR_CFG_REQ] = NUM_REPS * N_FFTS; \
     qlr_cfg_t2[QLR_CFG_IADDR] = core_offset + 2; \
     qlr_cfg_t2[QLR_CFG_RF] = 2;                  \
-    qlr_cfg_t3[QLR_CFG_REQ] = NUM_REPS;          \
+    qlr_cfg_t3[QLR_CFG_REQ] = NUM_REPS * N_FFTS; \
     qlr_cfg_t3[QLR_CFG_IADDR] = core_offset + 3; \
     qlr_cfg_t3[QLR_CFG_RF] = 2;                  \
   } while (0)
@@ -347,7 +345,8 @@ void systolic_first_fft_pe(uint32_t pe_i){
       [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),            \
       [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)             \
     : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3) \
-  :)
+    :                                                            \
+  )
 
 
 #define INNER_PE_FFT_COMPUTATION                                                   \
@@ -392,7 +391,8 @@ void systolic_first_fft_pe(uint32_t pe_i){
     : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3),                                    \
       [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3),                  \
       [shift_1] "r"(shift_1)                                                       \
-  :)
+    :                                                                              \
+  )
 
 
 /*
@@ -446,7 +446,7 @@ void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
   qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
 
-  for (uint32_t i = 0; i < NUM_REPS; i++) {
+  for (uint32_t i = 0; i < NUM_REPS * N_FFTS; i++) {
     INNER_PE_FFT_COMPUTATION;
     // Push the results to the output queue (Xqueue)
     __asm__ volatile (
@@ -459,6 +459,7 @@ void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
       : [B] "r" (B), [C] "r" (C), [D] "r" (D), [H] "r" (H),
         [queue_next_0] "r" (queue_next_0), [queue_next_1] "r" (queue_next_1),
         [queue_next_2] "r" (queue_next_2), [queue_next_3] "r" (queue_next_3)
+      :
     );
   }
 }
@@ -469,7 +470,7 @@ void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
  * Pop points from previous stage through QLRs and compute FFT output
  * 'pe_i' is the PE index in the current stage (0 to LEN_FFT/NUM_STAGES-1)
  */
-void systolic_end_pe(uint32_t pe_i, uint32_t core_id){
+void systolic_end_pe(uint32_t pe_i, uint32_t core_id, int16_t (*vector_output)[2*LEN_FFT]){
   /* Configure QLRs */
   DEFINE_QLR_CONFIG;
   // Base address (ID only) for the memory banks (queues) of this core
@@ -505,11 +506,13 @@ void systolic_end_pe(uint32_t pe_i, uint32_t core_id){
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
 
   for (uint32_t i = 0; i < NUM_REPS; i++) {
-    INNER_PE_FFT_COMPUTATION;
-    // Store the results to the output vector
-    ((int32_t*)&vector_output)[output_base[0]] = (int32_t)B;
-    ((int32_t*)&vector_output)[output_base[1]] = (int32_t)C;
-    ((int32_t*)&vector_output)[output_base[2]] = (int32_t)D;
-    ((int32_t*)&vector_output)[output_base[3]] = (int32_t)H;
+    for (uint32_t f = 0; f < N_FFTS; f++) {
+      INNER_PE_FFT_COMPUTATION;
+      // Store the results to the output vector
+      ((int32_t*)vector_output[f])[output_base[0]] = (int32_t)B;
+      ((int32_t*)vector_output[f])[output_base[1]] = (int32_t)C;
+      ((int32_t*)vector_output[f])[output_base[2]] = (int32_t)D;
+      ((int32_t*)vector_output[f])[output_base[3]] = (int32_t)H;
+    }
   }
 }
