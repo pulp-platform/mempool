@@ -43,15 +43,21 @@
 #include "qlr.h"
 
 /* Convolution configuration */
-#define RADIX        4                          // hardcoded, do not change
-#define LEN_FFT      256                        // hardcoded, do not change
-#define NUM_STAGES   (NUM_CORES_PER_TILE)       // hardcoded, do not change
-#define PE_PER_STAGE ((LEN_FFT) / (NUM_STAGES)) // hardcoded, do not change
-#define NUM_REPS     160                         // repeat the same FFT multiple times, for benchmarking
+#define RADIX         4                          // hardcoded, do not change
+#define LEN_FFT       256                        // hardcoded, do not change
+#define NUM_STAGES    (NUM_CORES_PER_TILE)       // hardcoded, do not change
+#define PE_PER_STAGE  ((LEN_FFT) / (NUM_STAGES)) // hardcoded, do not change
+#define FFT_UNROLLING 4                          // hardcoded, do not change
+#define NUM_REPS      40                         // repeat the same FFT multiple times, for benchmarking
+#define LD_POSTINCR   0                          // use loads with post-increment addressing mode
 //TODO: Check whether performance changes if repeating NUM_REPS/4 times but with 4 different FFTs in each iteration
 
 #if NUM_CORES_PER_TILE != 4
 #error "Only supports 4 cores per tile (as RADIX, and NUM_STAGES)"
+#endif
+
+#if N_FFTS != 4
+#error "Only supports 4 individual FFTs"
 #endif
 
 // Array of queue pointers for stages' outputs
@@ -198,6 +204,59 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
   volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
   volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
+/* Loading of input from memory and computation performed by first stage's PEs */
+// Load inputs
+#if LD_POSTINCR
+#define FIRST_PE_LOAD(INCR_TYPE, ADDR_INCR)                       \
+  __asm__ volatile (                                              \
+    "p.lw %[A], %[incr](%[addr_a]!) \n\t"                         \
+    "p.lw %[B], %[incr](%[addr_b]!) \n\t"                         \
+    "p.lw %[C], %[incr](%[addr_c]!) \n\t"                         \
+    "p.lw %[D], %[incr](%[addr_d]!) \n\t"                         \
+    : [A] "=&r" (A), [B] "=&r" (B), [C] "=&r" (C), [D] "=&r" (D), \
+      [addr_a] "+&r" (addr_a), [addr_b] "+&r" (addr_b),           \
+      [addr_c] "+&r" (addr_c), [addr_d] "+&r" (addr_d)            \
+    : [incr] INCR_TYPE (ADDR_INCR)                                \
+    :                                                             \
+  )
+#else
+#define FIRST_PE_LOAD(FFT_i)                          \
+  do {                                                \
+    A = ((v2s*)vector_input[(FFT_i)])[input_base[0]]; \
+    B = ((v2s*)vector_input[(FFT_i)])[input_base[1]]; \
+    C = ((v2s*)vector_input[(FFT_i)])[input_base[2]]; \
+    D = ((v2s*)vector_input[(FFT_i)])[input_base[3]]; \
+  } while (0)
+#endif
+
+// Compute FFT
+#define FIRST_PE_COMPUTATION                                      \
+  __asm__ volatile (                                              \
+    "pv.sra.h     %[A],%[A],%[shift_2] \n\t"                      \
+    "pv.sra.h     %[C],%[C],%[shift_2] \n\t"                      \
+    "pv.sra.h     %[B],%[B],%[shift_2] \n\t"                      \
+    "pv.sra.h     %[D],%[D],%[shift_2] \n\t"                      \
+    "pv.add.h     %[E],%[A],%[C]       \n\t"                      \
+    "pv.sub.h     %[F],%[A],%[C]       \n\t"                      \
+    "pv.sub.h     %[H],%[B],%[D]       \n\t"                      \
+    "pv.add.h     %[G],%[B],%[D]       \n\t"                      \
+    "pv.extract.h %[t0],%[H],0         \n\t"                      \
+    "pv.extract.h %[t1],%[H],1         \n\t"                      \
+    "sub          %[t2],zero,%[t1]     \n\t"                      \
+    "pv.pack      %[A],%[t0],%[t2]     \n\t"                      \
+    "pv.add.h     %[qlr_t0],%[E],%[G]  \n\t"                      \
+    "pv.sub.h     %[qlr_t2],%[E],%[G]  \n\t"                      \
+    "pv.sub.h     %[qlr_t1],%[F],%[A]  \n\t"                      \
+    "pv.add.h     %[qlr_t3],%[A],%[F]  \n\t"                      \
+    : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),     \
+      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),     \
+      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),             \
+      [qlr_t0] "+&r" (qlr_t0), [qlr_t1] "+&r"(qlr_t1),            \
+      [qlr_t2] "+&r" (qlr_t2), [qlr_t3] "+&r" (qlr_t3)            \
+    : [shift_2] "r"(shift_2)                                      \
+    :                                                             \
+  )
+
 /*
  * First FFT stage
  *
@@ -258,6 +317,15 @@ void systolic_first_fft_pe(uint32_t pe_i, int16_t (*vector_input)[2*LEN_FFT]){
   v2s A, B, C, D, E, F, G, H;
   int16_t t0, t1, t2;
 
+  // 4 address registers, for a 4-degree unrolling (FFT-wise)
+  #if LD_POSTINCR
+  int32_t* addr_a = &((int32_t*)vector_input[0])[input_base[0]];
+  int32_t* addr_b = &((int32_t*)vector_input[0])[input_base[1]];
+  int32_t* addr_c = &((int32_t*)vector_input[0])[input_base[2]];
+  int32_t* addr_d = &((int32_t*)vector_input[0])[input_base[3]];
+  int32_t addr_decr = -(int32_t)(LEN_FFT * sizeof(int32_t)) * (FFT_UNROLLING - 1);
+  #endif
+
   // Start OQLRs
   qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
   qlr_cfg_t1[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
@@ -265,43 +333,37 @@ void systolic_first_fft_pe(uint32_t pe_i, int16_t (*vector_input)[2*LEN_FFT]){
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
   for (uint32_t i = 0; i < NUM_REPS; i++) {
-    for (uint32_t f = 0; f < N_FFTS; f++) {
-      //TODO: Once multiple FFTs are looped through as input, implement unrolling and post-increment addressing
+    // FFT 0
+    #if LD_POSTINCR
+    FIRST_PE_LOAD("I", LEN_FFT * sizeof(int32_t));
+    #else
+    FIRST_PE_LOAD(0);
+    #endif
+    FIRST_PE_COMPUTATION;
 
-      //TODO: Verify that this is actually done at every iteration (maybe set volatile?)
-      // Load input
-      A = ((v2s*)vector_input[f])[input_base[0]];
-      B = ((v2s*)vector_input[f])[input_base[1]];
-      C = ((v2s*)vector_input[f])[input_base[2]];
-      D = ((v2s*)vector_input[f])[input_base[3]];
+    // FFT 1
+    #if LD_POSTINCR
+    FIRST_PE_LOAD("I", LEN_FFT * sizeof(int32_t));
+    #else
+    FIRST_PE_LOAD(1);
+    #endif
+    FIRST_PE_COMPUTATION;
 
-      // Compute FFT
-      __asm__ volatile (
-        "pv.sra.h     %[A],%[A],%[shift_2] \n\t"
-        "pv.sra.h     %[C],%[C],%[shift_2] \n\t"
-        "pv.sra.h     %[B],%[B],%[shift_2] \n\t"
-        "pv.sra.h     %[D],%[D],%[shift_2] \n\t"
-        "pv.add.h     %[E],%[A],%[C]       \n\t"
-        "pv.sub.h     %[F],%[A],%[C]       \n\t"
-        "pv.sub.h     %[H],%[B],%[D]       \n\t"
-        "pv.add.h     %[G],%[B],%[D]       \n\t"
-        "pv.extract.h %[t0],%[H],0         \n\t"
-        "pv.extract.h %[t1],%[H],1         \n\t"
-        "sub          %[t2],zero,%[t1]     \n\t"
-        "pv.pack      %[A],%[t0],%[t2]     \n\t"
-        "pv.add.h     %[qlr_t0],%[E],%[G]  \n\t"
-        "pv.sub.h     %[qlr_t2],%[E],%[G]  \n\t"
-        "pv.sub.h     %[qlr_t1],%[F],%[A]  \n\t"
-        "pv.add.h     %[qlr_t3],%[A],%[F]  \n\t"
-        : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),
-          [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),
-          [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
-          [qlr_t0] "+&r" (qlr_t0), [qlr_t1] "+&r"(qlr_t1),
-          [qlr_t2] "+&r" (qlr_t2), [qlr_t3] "+&r" (qlr_t3)
-        : [shift_2] "r"(shift_2)
-        :
-      );
-    }
+    // FFT 2
+    #if LD_POSTINCR
+    FIRST_PE_LOAD("I", LEN_FFT * sizeof(int32_t));
+    #else
+    FIRST_PE_LOAD(2);
+    #endif
+    FIRST_PE_COMPUTATION;
+
+    // FFT 3
+    #if LD_POSTINCR
+    FIRST_PE_LOAD("r", addr_decr); // addr_decr too big for immediate
+    #else
+    FIRST_PE_LOAD(3);
+    #endif
+    FIRST_PE_COMPUTATION;
   }
 }
 
