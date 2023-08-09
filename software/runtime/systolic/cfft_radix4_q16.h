@@ -23,6 +23,9 @@
  * order is at the input (first stage).
  * First stage's PEs load the 256 input elements (4 per PE) and use QLRs to push them through the butterfly
  * systolic array. A formulaic implementation is used for the shuffled output addresses calculation.
+ * In radix-4 DIT butterfly, the first stage's twiddle factors are 1, so no MAC operations are required. This
+ * relieves the first stage (i.e., the input stage) from a portion of the computation so that it can schedule
+ * the input data loading from L1 without being a bottleneck.
  *
  * The stages of the systolic butterfly allow up to 4 FFTs to be executed at the same time in a pipelined
  * fashion, with each 64-PE stage processing a different FFT at that stage. With the same PES always processing
@@ -43,21 +46,18 @@
 #include "qlr.h"
 
 /* Convolution configuration */
-#define RADIX         4                          // hardcoded, do not change
-#define LEN_FFT       256                        // hardcoded, do not change
-#define NUM_STAGES    (NUM_CORES_PER_TILE)       // hardcoded, do not change
-#define PE_PER_STAGE  ((LEN_FFT) / (NUM_STAGES)) // hardcoded, do not change
-#define FFT_UNROLLING 4                          // hardcoded, do not change
-#define NUM_REPS      40                         // repeat the same FFT multiple times, for benchmarking
-#define LD_POSTINCR   0                          // use loads with post-increment addressing mode
-//TODO: Check whether performance changes if repeating NUM_REPS/4 times but with 4 different FFTs in each iteration
+#define RADIX          4                          // hardcoded, do not change
+#define LEN_FFT        256                        // hardcoded, do not change
+#define NUM_STAGES     (NUM_CORES_PER_TILE)       // hardcoded, do not change
+#define PE_PER_STAGE   ((LEN_FFT) / (NUM_STAGES)) // hardcoded, do not change
+#define NUM_REPS       100                        // repeat the same FFT multiple times, for benchmarking
 
 #if NUM_CORES_PER_TILE != 4
 #error "Only supports 4 cores per tile (as RADIX, and NUM_STAGES)"
 #endif
 
-#if N_FFTS != 4
-#error "Only supports 4 individual FFTs"
+#if N_FFTS != 2
+#error "Only supports 2 individually generated FFTs"
 #endif
 
 // Array of queue pointers for stages' outputs
@@ -204,57 +204,47 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
   volatile uint32_t *qlr_cfg_t2 = (uint32_t *)QLR_CFG_T2; \
   volatile uint32_t *qlr_cfg_t3 = (uint32_t *)QLR_CFG_T3
 
-/* Loading of input from memory and computation performed by first stage's PEs */
-// Load inputs
-#if LD_POSTINCR
-#define FIRST_PE_LOAD(INCR_TYPE, ADDR_INCR)                       \
-  __asm__ volatile (                                              \
-    "p.lw %[A], %[incr](%[addr_a]!) \n\t"                         \
-    "p.lw %[B], %[incr](%[addr_b]!) \n\t"                         \
-    "p.lw %[C], %[incr](%[addr_c]!) \n\t"                         \
-    "p.lw %[D], %[incr](%[addr_d]!) \n\t"                         \
-    : [A] "=&r" (A), [B] "=&r" (B), [C] "=&r" (C), [D] "=&r" (D), \
-      [addr_a] "+&r" (addr_a), [addr_b] "+&r" (addr_b),           \
-      [addr_c] "+&r" (addr_c), [addr_d] "+&r" (addr_d)            \
-    : [incr] INCR_TYPE (ADDR_INCR)                                \
-    :                                                             \
+// Load inputs from memory
+#define FIRST_PE_LOAD(A_var, B_var, C_var, D_var, INCR_TYPE, ADDR_INCR) \
+  __asm__ volatile (                                                    \
+    "p.lw %[A], %[incr](%[addr_a]!) \n\t"                               \
+    "p.lw %[B], %[incr](%[addr_b]!) \n\t"                               \
+    "p.lw %[C], %[incr](%[addr_c]!) \n\t"                               \
+    "p.lw %[D], %[incr](%[addr_d]!) \n\t"                               \
+    : [A] "=&r" (A_var), [B] "=&r" (B_var),                             \
+      [C] "=&r" (C_var), [D] "=&r" (D_var),                             \
+      [addr_a] "+&r" (addr_a), [addr_b] "+&r" (addr_b),                 \
+      [addr_c] "+&r" (addr_c), [addr_d] "+&r" (addr_d)                  \
+    : [incr] INCR_TYPE (ADDR_INCR)                                      \
+    :                                                                   \
   )
-#else
-#define FIRST_PE_LOAD(FFT_i)                          \
-  do {                                                \
-    A = ((v2s*)vector_input[(FFT_i)])[input_base[0]]; \
-    B = ((v2s*)vector_input[(FFT_i)])[input_base[1]]; \
-    C = ((v2s*)vector_input[(FFT_i)])[input_base[2]]; \
-    D = ((v2s*)vector_input[(FFT_i)])[input_base[3]]; \
-  } while (0)
-#endif
 
-// Compute FFT
-#define FIRST_PE_COMPUTATION                                      \
-  __asm__ volatile (                                              \
-    "pv.sra.h     %[A],%[A],%[shift_2] \n\t"                      \
-    "pv.sra.h     %[C],%[C],%[shift_2] \n\t"                      \
-    "pv.sra.h     %[B],%[B],%[shift_2] \n\t"                      \
-    "pv.sra.h     %[D],%[D],%[shift_2] \n\t"                      \
-    "pv.add.h     %[E],%[A],%[C]       \n\t"                      \
-    "pv.sub.h     %[F],%[A],%[C]       \n\t"                      \
-    "pv.sub.h     %[H],%[B],%[D]       \n\t"                      \
-    "pv.add.h     %[G],%[B],%[D]       \n\t"                      \
-    "pv.extract.h %[t0],%[H],0         \n\t"                      \
-    "pv.extract.h %[t1],%[H],1         \n\t"                      \
-    "sub          %[t2],zero,%[t1]     \n\t"                      \
-    "pv.pack      %[A],%[t0],%[t2]     \n\t"                      \
-    "pv.add.h     %[qlr_t0],%[E],%[G]  \n\t"                      \
-    "pv.sub.h     %[qlr_t2],%[E],%[G]  \n\t"                      \
-    "pv.sub.h     %[qlr_t1],%[F],%[A]  \n\t"                      \
-    "pv.add.h     %[qlr_t3],%[A],%[F]  \n\t"                      \
-    : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D),     \
-      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),     \
-      [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),             \
-      [qlr_t0] "+&r" (qlr_t0), [qlr_t1] "+&r"(qlr_t1),            \
-      [qlr_t2] "+&r" (qlr_t2), [qlr_t3] "+&r" (qlr_t3)            \
-    : [shift_2] "r"(shift_2)                                      \
-    :                                                             \
+// Twiddle factors are 1 in the first stage of the radix-4 DIT butterfly,
+// so no MAC operations are needed
+#define FIRST_PE_COMPUTATION(A_var, B_var, C_var, D_var)                      \
+  __asm__ volatile (                                                          \
+    "pv.sra.h      %[A],%[A],%[shift_2] \n\t"                                 \
+    "pv.sra.h      %[C],%[C],%[shift_2] \n\t"                                 \
+    "pv.sra.h      %[B],%[B],%[shift_2] \n\t"                                 \
+    "pv.sra.h      %[D],%[D],%[shift_2] \n\t"                                 \
+    "pv.add.h      %[E],%[A],%[C]       \n\t"                                 \
+    "pv.sub.h      %[F],%[A],%[C]       \n\t"                                 \
+    "pv.sub.h      %[H],%[B],%[D]       \n\t"                                 \
+    "pv.add.h      %[G],%[B],%[D]       \n\t"                                 \
+    "pv.extract.h  %[t0],%[H],1         \n\t"                                 \
+    "sub           %[t0],zero,%[t0]     \n\t"                                 \
+    "pv.pack       %[A],%[H],%[t0]      \n\t"                                 \
+    "pv.add.h      %[qlr_t0],%[E],%[G]  \n\t"                                 \
+    "pv.sub.h      %[qlr_t2],%[E],%[G]  \n\t"                                 \
+    "pv.sub.h      %[qlr_t1],%[F],%[A]  \n\t"                                 \
+    "pv.add.h      %[qlr_t3],%[A],%[F]  \n\t"                                 \
+    : [A] "+&r"(A_var), [B] "+&r"(B_var), [C] "+&r"(C_var), [D] "+&r"(D_var), \
+      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),                 \
+      [t0] "=&r"(temp0),                                                      \
+      [qlr_t0] "+&r" (qlr_t0), [qlr_t1] "+&r"(qlr_t1),                        \
+      [qlr_t2] "+&r" (qlr_t2), [qlr_t3] "+&r" (qlr_t3)                        \
+    : [shift_2] "r"(shift_2)                                                  \
+    :                                                                         \
   )
 
 /*
@@ -265,7 +255,7 @@ void systolic_init(uint32_t stage_i, uint32_t pe_i) {
  */
 void systolic_first_fft_pe(uint32_t pe_i, int16_t (*vector_input)[2*LEN_FFT]){
   /* Configure input address */
-  register int32_t input_base[RADIX];
+  int32_t input_base[RADIX];
   // Compute base addresses for vector_input of first stage (digit-reverse order)
   for (uint32_t i = 0; i < RADIX; i++){
     int16_t sum = 0;
@@ -275,26 +265,7 @@ void systolic_first_fft_pe(uint32_t pe_i, int16_t (*vector_input)[2*LEN_FFT]){
       sum = (int16_t)(sum * RADIX + digit);
       temp = temp / RADIX;
     }
-    // hack to cope with input_base's 'register' specifier (index must be hardcoded)
-    // it is better to use 'register' so that the array is not stored in the stack, slowing
-    // down the A, B, C, D FFT input loading due to address retrieval from stack
-    switch (i) {
-      case 0:
-        input_base[0] = sum;
-        break;
-      case 1:
-        input_base[1] = sum;
-        break;
-      case 2:
-        input_base[2] = sum;
-        break;
-      case 3:
-        input_base[3] = sum;
-        break;
-      default:
-        printf("Error: wrong radix\n");
-        return;
-    }
+    input_base[i] = sum;
   }
 
   /* Configure output QLRs */
@@ -313,18 +284,15 @@ void systolic_first_fft_pe(uint32_t pe_i, int16_t (*vector_input)[2*LEN_FFT]){
   // radix-4 calculation constant (mult by 4 with right shift)
   v2s shift_2 = (v2s){0x0002, 0x0002};
 
-  /* Load inputs and compute FFT */
-  v2s A, B, C, D, E, F, G, H;
-  int16_t t0, t1, t2;
+  v2s A[N_FFTS], B[N_FFTS], C[N_FFTS], D[N_FFTS];
+  v2s E, F, G, H;
+  v2s temp0;
 
-  // 4 address registers, for a 4-degree unrolling (FFT-wise)
-  #if LD_POSTINCR
-  int32_t* addr_a = &((int32_t*)vector_input[0])[input_base[0]];
-  int32_t* addr_b = &((int32_t*)vector_input[0])[input_base[1]];
-  int32_t* addr_c = &((int32_t*)vector_input[0])[input_base[2]];
-  int32_t* addr_d = &((int32_t*)vector_input[0])[input_base[3]];
-  int32_t addr_decr = -(int32_t)(LEN_FFT * sizeof(int32_t)) * (FFT_UNROLLING - 1);
-  #endif
+  int32_t *addr_a = &((int32_t*)vector_input[0])[input_base[0]];
+  int32_t *addr_b = &((int32_t*)vector_input[0])[input_base[1]];
+  int32_t *addr_c = &((int32_t*)vector_input[0])[input_base[2]];
+  int32_t *addr_d = &((int32_t*)vector_input[0])[input_base[3]];
+  int32_t addr_decr = -(int32_t)(LEN_FFT * sizeof(int32_t)) * (N_FFTS - 1);
 
   // Start OQLRs
   qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
@@ -332,39 +300,22 @@ void systolic_first_fft_pe(uint32_t pe_i, int16_t (*vector_input)[2*LEN_FFT]){
   qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_OQLR;
 
-  for (uint32_t i = 0; i < NUM_REPS; i++) {
+  /* Load inputs and compute FFT */
+
+  // Schedule loads one iteration before, to hide some latency
+  FIRST_PE_LOAD(A[0], B[0], C[0], D[0], "I", LEN_FFT * sizeof(int32_t));
+  FIRST_PE_LOAD(A[1], B[1], C[1], D[1], "r", addr_decr);
+  __asm__ __volatile__ (".balign 16");
+  for (uint32_t i = 0; i < NUM_REPS - 1; i++) {
     // FFT 0
-    #if LD_POSTINCR
-    FIRST_PE_LOAD("I", LEN_FFT * sizeof(int32_t));
-    #else
-    FIRST_PE_LOAD(0);
-    #endif
-    FIRST_PE_COMPUTATION;
-
+    FIRST_PE_COMPUTATION(A[0], B[0], C[0], D[0]);
+    FIRST_PE_LOAD(A[0], B[0], C[0], D[0], "I", LEN_FFT * sizeof(int32_t));
     // FFT 1
-    #if LD_POSTINCR
-    FIRST_PE_LOAD("I", LEN_FFT * sizeof(int32_t));
-    #else
-    FIRST_PE_LOAD(1);
-    #endif
-    FIRST_PE_COMPUTATION;
-
-    // FFT 2
-    #if LD_POSTINCR
-    FIRST_PE_LOAD("I", LEN_FFT * sizeof(int32_t));
-    #else
-    FIRST_PE_LOAD(2);
-    #endif
-    FIRST_PE_COMPUTATION;
-
-    // FFT 3
-    #if LD_POSTINCR
-    FIRST_PE_LOAD("r", addr_decr); // addr_decr too big for immediate
-    #else
-    FIRST_PE_LOAD(3);
-    #endif
-    FIRST_PE_COMPUTATION;
+    FIRST_PE_COMPUTATION(A[1], B[1], C[1], D[1]);
+    FIRST_PE_LOAD(A[1], B[1], C[1], D[1], "r", addr_decr);
   }
+  FIRST_PE_COMPUTATION(A[0], B[0], C[0], D[0]);
+  FIRST_PE_COMPUTATION(A[1], B[1], C[1], D[1]);
 }
 
 
@@ -411,49 +362,42 @@ void systolic_first_fft_pe(uint32_t pe_i, int16_t (*vector_input)[2*LEN_FFT]){
   )
 
 
-#define INNER_PE_FFT_COMPUTATION                                                   \
-  __asm__ volatile (                                                               \
-    "pv.dotsp.h   %[E],%[CoSi1],%[qlr_t1];   \n\t"                                 \
-    "pv.dotsp.h   %[F],%[C1],%[qlr_t1];      \n\t"                                 \
-    "srai         %[t0],%[E],0x10;           \n\t"                                 \
-    "srai         %[t1],%[F],0x10;           \n\t"                                 \
-    "pv.pack      %[B],%[t1],%[t0];          \n\t"                                 \
-    "pv.dotsp.h   %[E],%[CoSi3],%[qlr_t3];   \n\t"                                 \
-    "pv.dotsp.h   %[F],%[C3],%[qlr_t3];      \n\t"                                 \
-    "srai         %[t0],%[E],0x10;           \n\t"                                 \
-    "srai         %[t1],%[F],0x10;           \n\t"                                 \
-    "pv.pack      %[D],%[t1],%[t0];          \n\t"                                 \
-    "pv.dotsp.h   %[G],%[CoSi2],%[qlr_t2];   \n\t"                                 \
-    "pv.dotsp.h   %[H],%[C2],%[qlr_t2];      \n\t"                                 \
-    "srai         %[t0],%[G],0x10;           \n\t"                                 \
-    "srai         %[t1],%[H],0x10;           \n\t"                                 \
-    "pv.pack      %[C],%[t1],%[t0];          \n\t"                                 \
-    "pv.sra.h     %[A],%[qlr_t0],%[shift_1]; \n\t"                                 \
-    "pv.sub.h     %[H],%[B],%[D];            \n\t"                                 \
-    "pv.add.h     %[E],%[A],%[C];            \n\t"                                 \
-    "pv.sub.h     %[F],%[A],%[C];            \n\t"                                 \
-    "pv.sra.h     %[H],%[H],%[shift_1];      \n\t"                                 \
-    "pv.add.h     %[G],%[B],%[D];            \n\t"                                 \
-    "pv.sra.h     %[E],%[E],%[shift_1];      \n\t"                                 \
-    "pv.extract.h %[t0],%[H],0;              \n\t"                                 \
-    "pv.extract.h %[t1],%[H],1;              \n\t"                                 \
-    "pv.sra.h     %[F],%[F],%[shift_1];      \n\t"                                 \
-    "pv.sra.h     %[G],%[G],%[shift_1];      \n\t"                                 \
-    "sub          %[t1],zero,%[t1];          \n\t"                                 \
-    "pv.pack      %[A],%[t0],%[t1];          \n\t"                                 \
-    "pv.add.h     %[B],%[E],%[G];            \n\t"                                 \
-    "pv.sub.h     %[D],%[E],%[G];            \n\t"                                 \
-    "pv.sub.h     %[C],%[F],%[A];            \n\t"                                 \
-    "pv.add.h     %[H],%[A],%[F];            \n\t"                                 \
-    : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),                      \
-      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),                      \
-      [t0] "=&r"(t0), [t1] "=&r"(t1),                                              \
-      [qlr_t0] "+&r"(qlr_t0), [qlr_t1] "+&r"(qlr_t1),                              \
-      [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)                               \
-    : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3),                                    \
-      [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3),                  \
-      [shift_1] "r"(shift_1)                                                       \
-    :                                                                              \
+#define INNER_PE_FFT_COMPUTATION                                     \
+  __asm__ volatile (                                                 \
+    "pv.dotsp.h   %[E],%[CoSi1],%[qlr_t1];   \n\t"                   \
+    "pv.dotsp.h   %[F],%[C1],%[qlr_t1];      \n\t"                   \
+    "pv.dotsp.h   %[G],%[CoSi3],%[qlr_t3];   \n\t" /* rescheduled */ \
+    "pv.dotsp.h   %[H],%[C3],%[qlr_t3];      \n\t" /* rescheduled */ \
+    "pv.pack.h    %[B],%[F],%[E];            \n\t"                   \
+    "pv.dotsp.h   %[E],%[CoSi2],%[qlr_t2];   \n\t" /* rescheduled */ \
+    "pv.dotsp.h   %[F],%[C2],%[qlr_t2];      \n\t" /* rescheduled */ \
+    "pv.pack.h    %[D],%[H],%[G];            \n\t"                   \
+    "pv.sra.h     %[A],%[qlr_t0],%[shift_1]; \n\t" /* rescheduled */ \
+    "pv.pack.h    %[C],%[F],%[E];            \n\t"                   \
+    "pv.sub.h     %[H],%[B],%[D];            \n\t"                   \
+    "pv.add.h     %[G],%[B],%[D];            \n\t"                   \
+    "pv.add.h     %[E],%[A],%[C];            \n\t"                   \
+    "pv.sra.h     %[H],%[H],%[shift_1];      \n\t"                   \
+    "pv.sub.h     %[F],%[A],%[C];            \n\t"                   \
+    "pv.sra.h     %[E],%[E],%[shift_1];      \n\t"                   \
+    "pv.extract.h %[temp],%[H],1;            \n\t"                   \
+    "pv.sra.h     %[F],%[F],%[shift_1];      \n\t"                   \
+    "pv.sra.h     %[G],%[G],%[shift_1];      \n\t"                   \
+    "sub          %[temp],zero,%[temp];      \n\t"                   \
+    "pv.pack      %[A],%[H],%[temp];         \n\t"                   \
+    "pv.add.h     %[B],%[E],%[G];            \n\t"                   \
+    "pv.sub.h     %[D],%[E],%[G];            \n\t"                   \
+    "pv.sub.h     %[C],%[F],%[A];            \n\t"                   \
+    "pv.add.h     %[H],%[A],%[F];            \n\t"                   \
+    : [A] "=&r"(A), [B] "=&r"(B), [C] "=&r"(C), [D] "=&r"(D),        \
+      [E] "=&r"(E), [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H),        \
+      [temp] "=&r"(t0),                                              \
+      [qlr_t0] "+&r"(qlr_t0), [qlr_t1] "+&r"(qlr_t1),                \
+      [qlr_t2] "+&r"(qlr_t2), [qlr_t3] "+&r"(qlr_t3)                 \
+    : [C1] "r"(C1), [C2] "r"(C2), [C3] "r"(C3),                      \
+      [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3),    \
+      [shift_1] "r"(shift_1)                                         \
+    :                                                                \
   )
 
 
@@ -500,7 +444,8 @@ void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
   v2s shift_1 = (v2s){0x0001, 0x0001};
 
   /* Compute FFT */
-  v2s A, B, C, D, E, F, G, H;
+  v2s A, B, C, D;
+  v2s E, F, G, H;
 
   // Start QLR
   qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
@@ -508,6 +453,7 @@ void systolic_mid_pe(uint32_t stage_i, uint32_t pe_i, uint32_t core_id){
   qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
 
+  __asm__ __volatile__ (".balign 16");
   for (uint32_t i = 0; i < NUM_REPS * N_FFTS; i++) {
     INNER_PE_FFT_COMPUTATION;
     // Push the results to the output queue (Xqueue)
@@ -559,7 +505,8 @@ void systolic_end_pe(uint32_t pe_i, uint32_t core_id, int16_t (*vector_output)[2
   v2s shift_1 = (v2s){0x0001, 0x0001};
 
   /* Compute FFT */
-  v2s A, B, C, D, E, F, G, H;
+  v2s A, B, C, D;
+  v2s E, F, G, H;
 
   // Start QLR
   qlr_cfg_t0[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
@@ -567,6 +514,7 @@ void systolic_end_pe(uint32_t pe_i, uint32_t core_id, int16_t (*vector_output)[2
   qlr_cfg_t2[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
   qlr_cfg_t3[QLR_CFG_TYPE] = QLR_TYPE_IQLR;
 
+  __asm__ __volatile__ (".balign 16");
   for (uint32_t i = 0; i < NUM_REPS; i++) {
     for (uint32_t f = 0; f < N_FFTS; f++) {
       INNER_PE_FFT_COMPUTATION;

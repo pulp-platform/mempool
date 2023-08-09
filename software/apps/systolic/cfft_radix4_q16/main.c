@@ -27,7 +27,8 @@
 
 /* Global variables */
 // '2 *' for complex FFT: each of the 256 points is a complex number with 2 16-bit values
-int16_t vector_output[N_FFTS][2 * LEN_FFT] __attribute__((section(".l1")));
+int16_t vector_input[N_FFTS][2 * LEN_FFT] __attribute__((aligned(N_FFTS * 2 * LEN_FFT), section(".l1")));
+int16_t vector_output[N_FFTS][2 * LEN_FFT] __attribute__((aligned(N_FFTS * 2 * LEN_FFT), section(".l1")));
 
 int main(){
   uint32_t core_id = mempool_get_core_id();
@@ -49,15 +50,22 @@ int main(){
 
   // Setup
   if(core_id == 0){
+    // Prepare input array
+    for (uint32_t f = 0; f < N_FFTS; f++)
+      for (uint32_t i = 0; i < (2 * LEN_FFT); i++)
+        vector_input[f][i] = vector_inp[f][i];
+
     #if PRINTF_ARRAY
     for (uint32_t f = 0; f < N_FFTS; f++)
       for (uint32_t i = 0; i < (2 * LEN_FFT); i+=2)
-        printf("vector_inp[%d][%d:%d] = %6d + i*%6d\n", f, i, i+1, vector_inp[f][i], vector_inp[f][i+1]);
+        printf("vector_input[%d][%d:%d] = %6d + i*%6d\n", f, i, i+1, vector_input[f][i], vector_input[f][i+1]);
     #endif
 
     #if PRINTF_VERBOSE
     printf("Initialize\n");
     #endif
+
+    // Shuffling order computation offline
     shuffling_order_calc();
   }
 
@@ -77,7 +85,7 @@ int main(){
   mempool_start_benchmark();
 
   if (stage_i == 0) {
-    systolic_first_fft_pe(pe_i, vector_inp);
+    systolic_first_fft_pe(pe_i, vector_input);
   } else if (stage_i == (NUM_STAGES - 1)){
     systolic_end_pe(pe_i, core_id, vector_output);
   } else {
