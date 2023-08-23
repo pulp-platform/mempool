@@ -113,7 +113,7 @@ module snitch_lsu
     sign_ext: lsu_qsigned,
     offset:   lsu_qaddr_i[1:0],
     size:     lsu_qsize_i,
-    qlr:      lsu_qqlr_i
+    qlr:      Qlr ? lsu_qqlr_i : 'b0
   };
 
   assign resp_metadata = metadata_q[resp_id];
@@ -192,9 +192,7 @@ module snitch_lsu
   assign lsu_ptag_o    = resp_metadata.tag;
   assign lsu_pvalid_o  = data_pvalid_i && !resp_metadata.write;
   assign data_pready_o = lsu_pready_i || resp_metadata.write;
-  if (Qlr) begin
-    assign lsu_pqlr_o    = resp_metadata.qlr;
-  end
+  assign lsu_pqlr_o    = Qlr ? resp_metadata.qlr : 'b0;
 
   // ----------------
   // SEQUENTIAL

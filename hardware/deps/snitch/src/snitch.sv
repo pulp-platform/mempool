@@ -1736,6 +1736,21 @@ module snitch
     assign instr_reads_rs1 = (opa_select == Reg);
     assign instr_reads_rs2 = (opb_select inside {Reg, SImmediate}) | (opc_select == RegRs2);
     assign instr_reads_rd  = (opb_select == RegRd) | (opc_select == Reg);
+  end else begin: gen_lsu_signals
+    assign lsu_req_tag = rd;
+    assign lsu_req_write = is_store;
+    assign lsu_req_signed = is_signed;
+    assign lsu_req_addr = lsu_qaddr;
+    assign lsu_req_data = gpr_rdata[1];
+    assign lsu_req_size = ls_size;
+    assign lsu_req_amo = ls_amo;
+    assign lsu_req_qlr = 'b0;
+    assign lsu_req_valid = lsu_qvalid;
+    assign lsu_qready = lsu_req_ready;
+    assign ld_result = lsu_resp_data;
+    assign lsu_rd = lsu_resp_tag;
+    assign lsu_pvalid = lsu_resp_valid;
+    assign lsu_resp_ready = lsu_pready;
   end
 
   // --------------------
