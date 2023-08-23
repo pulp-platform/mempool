@@ -48,12 +48,14 @@ def flush(buf, hartid):
         for skip in range(last_cyc+1, cyc):
             output_file.write('0 #stall\n')
 
-        if instr == 'pv.dotsp.h':
-          output_file.write(f'3 #{instr}\n')
-        elif instr == 'pv.add.h' or instr == 'pv.sub.h':
-          output_file.write(f'2 #{instr}\n')
-        # if instr == 'p.mac' or instr == 'mul':
-        #     output_file.write(f'1 #{instr}\n')
+        # if instr == 'pv.dotsp.h':
+        #   output_file.write(f'3 #{instr}\n')
+        # elif instr == 'pv.add.h' or instr == 'pv.sub.h' or instr == 'pv.sra.h':
+        #   output_file.write(f'2 #{instr}\n')
+        # elif instr == 'pv.extract.h':
+        #   output_file.write(f'1 #{instr}\n')
+        if instr == 'p.mac' or instr == 'mul':
+            output_file.write(f'1 #{instr}\n')
         else:
             output_file.write(f'0 #{instr}\n')
 
