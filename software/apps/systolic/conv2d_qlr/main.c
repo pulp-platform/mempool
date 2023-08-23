@@ -154,6 +154,11 @@ int main() {
   if (core_id == 0) {
     #if PRINTF_VERBOSE
     printf("Initialize\n");
+    // Print params of this run
+    printf("DIM_M = %d; DIM_N = %d\n", DIM_M, DIM_N);
+    printf("K = %d\n", K);
+    printf("SYSTOLIC_LENGTH = %d\n", SYSTOLIC_LENGTH);
+    printf("REP_COUNT = %d\n", REP_COUNT);
     #endif
 
     #if PRINTF_MATRIX

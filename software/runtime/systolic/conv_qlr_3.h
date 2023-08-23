@@ -68,11 +68,11 @@
 // X,Y = MxN; kernel = KxK
 // rows
 #ifndef DIM_M
-#define DIM_M 3*240
+#define DIM_M 3*254
 #endif
 // columns
 #ifndef DIM_N
-#define DIM_N 84
+#define DIM_N 40
 #endif
 // Kernel dimension
 #define K 3 // hardcoded, do not change
@@ -80,11 +80,11 @@
 /* Convolution configuration */
 // Repetition count
 #ifndef REP_COUNT
-#define REP_COUNT 1
+#define REP_COUNT 5
 #endif
 // Systolic length (must be divisor of NUM_CORES)
 #ifndef SYSTOLIC_LENGTH
-#define SYSTOLIC_LENGTH 16
+#define SYSTOLIC_LENGTH 128
 #endif
 // How many pipelined convolutions per row, per PE
 #define CONV_UNROLL (K) // hardcoded, do not change

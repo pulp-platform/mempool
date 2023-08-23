@@ -30,47 +30,29 @@
 #include "alloc.h"
 #include "printf.h"
 #include "synchronization.h"
+#include "systolic/queue.h"
 
 // Array of queue ptrs in row-major order (concatenated kernels)
-int32_t *queues_x_0[NUM_CORES];
-int32_t *queues_x_1[NUM_CORES];
-
-// queue push
-static inline void queue_push(void *const queue, int32_t data,
-                              int32_t *const ret) {
-  asm volatile("q.push.w %0, %1, (%2)" : "+r"(*ret) : "r"(data), "r"(queue));
-}
-
-// queue pop
-inline void queue_pop(void *const queue, int32_t *const ret) {
-  asm volatile("q.pop.w %0, 0(%1)" : "=r"(*ret) : "r"(queue));
-}
+queue_t *queues_x_0[NUM_CORES];
+queue_t *queues_x_1[NUM_CORES];
 
 void systolic_init(uint32_t const *tile_map, uint32_t const *core_map) {
   // Create systolic array via queues
-  extern uint8_t __seq_start;
   uint32_t tile_id;
-  uint32_t core_id;
-  uint32_t tile_offset;
-  uint32_t core_offset;
+  alloc_t *alloc;
   // We want all cores connected in a chain, each one taking care of a row
   // Serially connecting all cores in a chain with the order based on their
   // core_id maximizes the systolic links going through the same tile and
   // the same group
   for (uint32_t i = 0; i < NUM_CORES; i++) {
-    core_id = core_map[i];
     tile_id = tile_map[i];
-
-    /* Xqueue addresses */
-    // first memory address of the tile
-    tile_offset = tile_id * NUM_CORES_PER_TILE * SEQ_MEM_SIZE; // bytes
-    // in-tile sequential addresses: each subsequent word to a subsequent bank
-    core_offset = (core_id % NUM_CORES_PER_TILE) * BANKING_FACTOR * sizeof(int32_t); // bytes
-    queues_x_0[i] = (int32_t *)(&__seq_start + tile_offset + core_offset) + 0;
-    queues_x_1[i] = (int32_t *)(&__seq_start + tile_offset + core_offset) + 1;
 
     // only 2 queues used (but you want to always use each core's
     // local memory banks, so keep the offset multiple of NUM_QUEUES_PER_CORE)
+
+    alloc = get_alloc_tile(tile_id);
+    queue_domain_create(alloc, &queues_x_0[i], 4);
+    queue_domain_create(alloc, &queues_x_1[i], 4);
   }
   // Print out queue addresses
   // printf("\n[QUEUE] queues_x_0\n");
@@ -86,17 +68,15 @@ void systolic_init(uint32_t const *tile_map, uint32_t const *core_map) {
 void systolic_conv_front(const uint32_t num_cores, const uint32_t num_rows,
                          const uint32_t num_cols, int32_t const *__restrict__ X,
                          const uint32_t rep_count) {
-  int32_t *queue_next_x_0;
-  int32_t *queue_next_x_1;
-  int32_t resp_x_0 __attribute__((unused)) = 0;
-  int32_t resp_x_1 __attribute__((unused)) = 0;
+  queue_t *queue_next_x_0;
+  queue_t *queue_next_x_1;
   int32_t qlr_t1, qlr_t2;
   uint32_t row = 0;
   uint32_t col;
 
   // Assign queues
-  queue_next_x_0 = queues_x_0[1];
-  queue_next_x_1 = queues_x_1[1];
+  queue_next_x_0 = (queue_t *)queues_x_0[1];
+  queue_next_x_1 = (queue_t *)queues_x_1[1];
 
   // Synchronize cores
 
@@ -109,8 +89,8 @@ void systolic_conv_front(const uint32_t num_cores, const uint32_t num_rows,
       __asm__ __volatile__("li %0, 0" : "=r"(qlr_t1));
       qlr_t2 = X[col];
       // Push lower part of x vector
-      queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-      queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+      blocking_queue_push(queue_next_x_0, &qlr_t1);
+      blocking_queue_push(queue_next_x_1, &qlr_t2);
     }
 
     // Execute row-wise systolic 2d convolution
@@ -122,8 +102,8 @@ void systolic_conv_front(const uint32_t num_cores, const uint32_t num_rows,
         qlr_t1 = X[(row - 1) * num_cols + col];
         qlr_t2 = X[(row + 0) * num_cols + col];
         // Push lower part of x vector
-        queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-        queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+        blocking_queue_push(queue_next_x_0, &qlr_t1);
+        blocking_queue_push(queue_next_x_1, &qlr_t2);
       }
     }
   }
@@ -134,22 +114,20 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
                        int32_t const *__restrict__ X,
                        int32_t const *__restrict__ W, int32_t *__restrict__ Y,
                        const uint32_t rep_count) {
-  int32_t *queue_prev_x_0;
-  int32_t *queue_next_x_0;
-  int32_t *queue_prev_x_1;
-  int32_t *queue_next_x_1;
-  int32_t resp_x_0 __attribute__((unused)) = 0;
-  int32_t resp_x_1 __attribute__((unused)) = 0;
+  queue_t *queue_prev_x_0;
+  queue_t *queue_next_x_0;
+  queue_t *queue_prev_x_1;
+  queue_t *queue_next_x_1;
   int32_t weights[3][3];
   int32_t qlr_t0, qlr_t1, qlr_t2;
   register int32_t acc_y[3] = {0, 0, 0};
   uint32_t row, col;
 
   // Assign queues
-  queue_prev_x_0 = queues_x_0[kernel_id + 1];
-  queue_next_x_0 = queues_x_0[kernel_id + 2];
-  queue_prev_x_1 = queues_x_1[kernel_id + 1];
-  queue_next_x_1 = queues_x_1[kernel_id + 2];
+  queue_prev_x_0 = (queue_t *)queues_x_0[kernel_id + 1];
+  queue_next_x_0 = (queue_t *)queues_x_0[kernel_id + 2];
+  queue_prev_x_1 = (queue_t *)queues_x_1[kernel_id + 1];
+  queue_next_x_1 = (queue_t *)queues_x_1[kernel_id + 2];
 
   // Load weights
   for (uint32_t y = 0; y < 3; ++y) {
@@ -168,12 +146,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
       // POPULATE
       // --------
       // Pop and load x vector
-      queue_pop(queue_prev_x_1, &qlr_t1);
+      blocking_queue_pop(queue_prev_x_0, &qlr_t0);
       qlr_t2 = X[(row + 1) * num_cols];
-      queue_pop(queue_prev_x_0, &qlr_t0);
+      blocking_queue_pop(queue_prev_x_1, &qlr_t1);
       // Push lower part of x vector
-      queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-      queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+      blocking_queue_push(queue_next_x_0, &qlr_t1);
+      blocking_queue_push(queue_next_x_1, &qlr_t2);
       // MACs with 1st row of weights
       __asm__ __volatile__("mul   %0, %1, %2"
                            : "+r"(acc_y[1])
@@ -212,12 +190,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 0];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // Push lower part of x vector
-        queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-        queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+        blocking_queue_push(queue_next_x_0, &qlr_t1);
+        blocking_queue_push(queue_next_x_1, &qlr_t2);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -254,12 +232,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 1
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 1];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // Push lower part of x vector
-        queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-        queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+        blocking_queue_push(queue_next_x_0, &qlr_t1);
+        blocking_queue_push(queue_next_x_1, &qlr_t2);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[0])
@@ -296,12 +274,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 2
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 2];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // Push lower part of x vector
-        queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-        queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+        blocking_queue_push(queue_next_x_0, &qlr_t1);
+        blocking_queue_push(queue_next_x_1, &qlr_t2);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[1])
@@ -343,12 +321,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 0];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // Push lower part of x vector
-        queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-        queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+        blocking_queue_push(queue_next_x_0, &qlr_t1);
+        blocking_queue_push(queue_next_x_1, &qlr_t2);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -385,12 +363,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 1
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 1];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // Push lower part of x vector
-        queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-        queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+        blocking_queue_push(queue_next_x_0, &qlr_t1);
+        blocking_queue_push(queue_next_x_1, &qlr_t2);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[0])
@@ -430,12 +408,12 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 0];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // Push lower part of x vector
-        queue_push(queue_next_x_0, qlr_t1, &resp_x_0);
-        queue_push(queue_next_x_1, qlr_t2, &resp_x_1);
+        blocking_queue_push(queue_next_x_0, &qlr_t1);
+        blocking_queue_push(queue_next_x_1, &qlr_t2);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -483,8 +461,8 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
       // POPULATE
       // --------
       // Pop x vector
-      queue_pop(queue_prev_x_1, &qlr_t1);
-      queue_pop(queue_prev_x_0, &qlr_t0);
+      blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+      blocking_queue_pop(queue_prev_x_0, &qlr_t0);
       // MACs with 1st row of weights
       __asm__ __volatile__("mul   %0, %1, %2"
                            : "+r"(acc_y[1])
@@ -513,8 +491,8 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -541,8 +519,8 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 1
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[0])
@@ -569,8 +547,8 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 2
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[1])
@@ -602,8 +580,8 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -630,8 +608,8 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 1
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[0])
@@ -661,8 +639,8 @@ void systolic_conv_mid(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -700,16 +678,16 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
                        int32_t const *__restrict__ X,
                        int32_t const *__restrict__ W, int32_t *__restrict__ Y,
                        const uint32_t rep_count) {
-  int32_t *queue_prev_x_0;
-  int32_t *queue_prev_x_1;
+  queue_t *queue_prev_x_0;
+  queue_t *queue_prev_x_1;
   int32_t weights[3][3];
   int32_t qlr_t0, qlr_t1, qlr_t2;
   register int32_t acc_y[3] = {0, 0, 0};
   uint32_t row, col;
 
   // Assign queues
-  queue_prev_x_0 = queues_x_0[kernel_id + 1];
-  queue_prev_x_1 = queues_x_1[kernel_id + 1];
+  queue_prev_x_0 = (queue_t *)queues_x_0[kernel_id + 1];
+  queue_prev_x_1 = (queue_t *)queues_x_1[kernel_id + 1];
 
   // Load weights
   for (uint32_t y = 0; y < 3; ++y) {
@@ -728,9 +706,9 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
       // POPULATE
       // --------
       // Pop and load x vector
-      queue_pop(queue_prev_x_1, &qlr_t1);
+      blocking_queue_pop(queue_prev_x_1, &qlr_t1);
       qlr_t2 = X[(row + 1) * num_cols];
-      queue_pop(queue_prev_x_0, &qlr_t0);
+      blocking_queue_pop(queue_prev_x_0, &qlr_t0);
       // MACs with 1st row of weights
       __asm__ __volatile__("mul   %0, %1, %2"
                            : "+r"(acc_y[1])
@@ -769,9 +747,9 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 0];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -808,9 +786,9 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 1
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 1];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[0])
@@ -847,9 +825,9 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 2
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 2];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[1])
@@ -891,9 +869,9 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 0];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -930,9 +908,9 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 1
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 1];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[0])
@@ -972,9 +950,9 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop and load x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
         qlr_t2 = X[(row + 1) * num_cols + col + 0];
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -1022,8 +1000,8 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
       // POPULATE
       // --------
       // Pop x vector
-      queue_pop(queue_prev_x_1, &qlr_t1);
-      queue_pop(queue_prev_x_0, &qlr_t0);
+      blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+      blocking_queue_pop(queue_prev_x_0, &qlr_t0);
       // MACs with 1st row of weights
       __asm__ __volatile__("mul   %0, %1, %2"
                            : "+r"(acc_y[1])
@@ -1052,8 +1030,8 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -1080,8 +1058,8 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 1
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[0])
@@ -1108,8 +1086,8 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 2
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[1])
@@ -1141,8 +1119,8 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])
@@ -1169,8 +1147,8 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 1
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[0])
@@ -1200,8 +1178,8 @@ void systolic_conv_end(const uint32_t kernel_id, const uint32_t num_cores,
         // ITERATION 0
         // -----------
         // Pop x vector
-        queue_pop(queue_prev_x_1, &qlr_t1);
-        queue_pop(queue_prev_x_0, &qlr_t0);
+        blocking_queue_pop(queue_prev_x_1, &qlr_t1);
+        blocking_queue_pop(queue_prev_x_0, &qlr_t0);
         // MACs with 1st row of weights
         __asm__ __volatile__("p.mac %0, %1, %2"
                              : "+r"(acc_y[2])

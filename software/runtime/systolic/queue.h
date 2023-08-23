@@ -43,7 +43,7 @@ void queue_destroy(queue_t *queue) {
   queue_domain_destroy(get_alloc_l1(), queue);
 }
 
-int32_t queue_pop(queue_t *const queue, int32_t *data) {
+int32_t queue_pop(queue_t *queue, int32_t *data) {
   uint32_t current_head = queue->head;
   // Check if empty
   if (current_head == queue->tail) {
@@ -56,7 +56,7 @@ int32_t queue_pop(queue_t *const queue, int32_t *data) {
   return 0;
 }
 
-int32_t queue_push(queue_t *const queue, int32_t *data) {
+int32_t queue_push(queue_t *queue, int32_t *data) {
   uint32_t current_tail = queue->tail;
   uint32_t next_tail = (current_tail + 1) % queue->size;
   // Check if full (with one slot constantly open)
@@ -71,24 +71,24 @@ int32_t queue_push(queue_t *const queue, int32_t *data) {
   return 0;
 }
 
-void blocking_queue_pop(queue_t *const queue, int32_t *data) {
+void blocking_queue_pop(queue_t *queue, int32_t *data) {
   while (queue_pop(queue, data)) {
   };
 }
 
-void blocking_queue_push(queue_t *const queue, int32_t *data) {
+void blocking_queue_push(queue_t *queue, int32_t *data) {
   while (queue_push(queue, data)) {
   };
 }
 
-void counting_queue_pop(queue_t *const queue, int32_t *data,
+void counting_queue_pop(queue_t *queue, int32_t *data,
                         uint32_t *counter) {
   while (queue_pop(queue, data)) {
     (*counter)++;
   };
 }
 
-void counting_queue_push(queue_t *const queue, int32_t *data,
+void counting_queue_push(queue_t *queue, int32_t *data,
                          uint32_t *counter) {
   while (queue_push(queue, data)) {
     (*counter)++;
