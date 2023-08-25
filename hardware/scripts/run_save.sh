@@ -12,15 +12,16 @@ if [ $(basename "$PWD") != "hardware" ]; then
 fi
 
 APP=$1
+H_PATH=$2
 
 rm -rf ./build/trace*
 mkdir -p ./build
 
 # compile software
-make -C ../software/apps systolic/${APP} 2>&1 | tee ./build/gcc.log
+make -C ../software/apps ${APP} 2>&1 | tee ./build/gcc.log
 
 # execute simcvcs and parse return status
-app=systolic/${APP} make simcvcs 2>&1 | tee ./build/simcvcs.log
+app=${APP} make simcvcs 2>&1 | tee ./build/simcvcs.log
 
 RET=$(grep '\[EOC\]' ./build/simcvcs.log | grep -Poh -- '(?<=\(retval = )-?[0-9]+(?=\))')
 echo "Parsed return status: $RET"
@@ -44,12 +45,14 @@ mv ../build/simcvcs.log ./$DIR/logs
 git diff > ./$DIR/logs/git_diff.log
 
 mkdir -p ./$DIR/app
-cp ../../software/bin/systolic/${APP} ../../software/bin/systolic/${APP}.dump ./$DIR/app
-cp ../../software/apps/systolic/${APP}/main.c ../../software/runtime/systolic/${APP}.h ./$DIR/app
+cp ../../software/bin/${APP} ../../software/bin/${APP}.dump ./$DIR/app
+cp ../../software/apps/${APP}/main.c ../${H_PATH} ./$DIR/app
 
 mv ../build/tracemac* ./$DIR/
 
 mkdir -p ../../results_journal
+# strip "systolic/" from APP
+APP=${APP#systolic/}
 mv $DIR ${APP}_${DIR}
 mv ${APP}_${DIR} ../../results_journal
 

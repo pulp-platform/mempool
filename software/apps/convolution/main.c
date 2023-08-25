@@ -16,10 +16,18 @@
 // #include "convolution_riscv.h"
 // #include "halide_runtime.h"
 
-#define M (20)
-#define N (4 * NUM_CORES)
+#define M (40)
+#define N (3 * NUM_CORES)
 #define KERNEL_N 3
 // #define VERBOSE
+
+#define CONV2D_PARALLEL                      (0)
+#define CONV2D_SHIFTED_PARALLEL              (1)
+#define CONV2D_3X3_UNROLLED_PARALLEL         (2)
+#define CONV2D_3X3_SHIFTED_UNROLLED_PARALLEL (3)
+
+// Set conv2d version to use
+#define CONV_V CONV2D_SHIFTED_PARALLEL
 
 volatile int32_t in[M * N] __attribute__((section(".l1_prio")));
 volatile int32_t out[M * N] __attribute__((section(".l1_prio")));
@@ -81,7 +89,27 @@ int main() {
 #endif
 
   // Matrices are initialized --> Start calculating
-  for (int i = 2; i < 3; ++i) {
+  for (int i = CONV_V; i < CONV_V + 1; ++i) {
+    if (core_id == 0) {
+      printf("Running ");
+      switch (i) {
+      case 0:
+        printf("conv2d_parallel");
+        break;
+      case 1:
+        printf("conv2d_shifted_parallel");
+        break;
+      case 2:
+        printf("conv2d_3x3_unrolled_parallel");
+        break;
+      case 3:
+        printf("conv2d_3x3_shifted_unrolled_parallel");
+        break;
+      case 4:
+        break;
+      }
+      printf("...\n");
+    }
     // Wait at barrier until everyone is ready
     mempool_barrier(num_cores);
     mempool_start_benchmark();

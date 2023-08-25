@@ -60,11 +60,11 @@
 
 // rows
 #ifndef DIM_M
-#define DIM_M 240
+#define DIM_M 255*3
 #endif
 // columns
 #ifndef DIM_N
-#define DIM_N 61
+#define DIM_N 40
 #endif
 
 // Kernel dimension
@@ -72,11 +72,11 @@
 
 // Repetition count
 #ifndef REP_COUNT
-#define REP_COUNT 1
+#define REP_COUNT 5
 #endif
 // Systolic Length (must be divisor of NUM_CORES)
 #ifndef SYSTOLIC_LENGTH
-#define SYSTOLIC_LENGTH 16
+#define SYSTOLIC_LENGTH 256
 #endif
 // How many pipelined convolutions per PE
 #define CONV_UNROLL (K)
