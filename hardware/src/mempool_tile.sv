@@ -445,8 +445,8 @@ module mempool_tile
     tc_sram #(
       .DataWidth(DataWidth          ),
       .NumWords (2**TCDMAddrMemWidth),
-      .NumPorts (1                  ),
-      .SimInit  ("zeros"            )
+      .NumPorts (1                  )
+      //.SimInit  ("zeros"            )
     ) mem_bank (
       .clk_i  (clk_i     ),
       .rst_ni (rst_ni    ),
