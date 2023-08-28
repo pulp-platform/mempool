@@ -86,15 +86,18 @@
 
 // rows
 #ifndef DIM_M
-#define DIM_M (SYSTOLIC_MATRIX_DIM_Y * UNROLL_Y * 4)
+//#define DIM_M (SYSTOLIC_MATRIX_DIM_Y * UNROLL_Y * 4)
+#define DIM_M 128
 #endif
 // inner dimension
 #ifndef DIM_N
-#define DIM_N (100)
+//#define DIM_N (100)
+#define DIM_N 400
 #endif
 // columns
 #ifndef DIM_P
-#define DIM_P (SYSTOLIC_MATRIX_DIM_X * UNROLL_X * 1)
+//#define DIM_P (SYSTOLIC_MATRIX_DIM_X * UNROLL_X * 1)
+#define DIM_P 124
 #endif
 
 /* Array of queue pointers in row-major order */
