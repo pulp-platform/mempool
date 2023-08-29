@@ -315,35 +315,8 @@ void mempool_radix4_cfft_q16s_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
     CoSi1 = *(v2s *)&pCoef16[2U * i0];
     CoSi2 = *(v2s *)&pCoef16[2U * i0 * 2U];
     CoSi3 = *(v2s *)&pCoef16[2U * i0 * 3U];
-#ifndef ASM
-    t1 = (int16_t)CoSi1[0];
-    t3 = (int16_t)CoSi2[0];
-    t5 = (int16_t)CoSi3[0];
-    t0 = (int16_t)CoSi1[1];
-    t2 = (int16_t)CoSi2[1];
-    t4 = (int16_t)CoSi3[1];
-    C1 = __PACK2(t1, -t0);
-    C2 = __PACK2(t3, -t2);
-    C3 = __PACK2(t5, -t4);
-#else
-    asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
-                 "pv.extract.h  %[t3],%[CoSi2],0;"
-                 "pv.extract.h  %[t5],%[CoSi3],0;"
-                 "pv.extract.h  %[t0],%[CoSi1],1;"
-                 "pv.extract.h  %[t2],%[CoSi2],1;"
-                 "pv.extract.h  %[t4],%[CoSi3],1;"
-                 "sub           %[t0],zero,%[t0];"
-                 "sub           %[t2],zero,%[t2];"
-                 "sub           %[t4],zero,%[t4];"
-                 "pv.pack %[C1],%[t1],%[t0];"
-                 "pv.pack %[C2],%[t3],%[t2];"
-                 "pv.pack %[C3],%[t5],%[t4];"
-                 : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),
-                   [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                   [t4] "=&r"(t4), [t5] "=&r"(t5)
-                 : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
-                 :);
-#endif
+    SHUFFLE_TWIDDLEFACT;
+
     radix4_butterfly_first(pSrc16, pSrc16, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                            C3);
   }
@@ -360,35 +333,8 @@ void mempool_radix4_cfft_q16s_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
       CoSi1 = *(v2s *)&pCoef16[ic * 2U];
       CoSi2 = *(v2s *)&pCoef16[2U * (ic * 2U)];
       CoSi3 = *(v2s *)&pCoef16[3U * (ic * 2U)];
-#ifndef ASM
-      t1 = (int16_t)CoSi1[0];
-      t3 = (int16_t)CoSi2[0];
-      t5 = (int16_t)CoSi3[0];
-      t0 = (int16_t)CoSi1[1];
-      t2 = (int16_t)CoSi2[1];
-      t4 = (int16_t)CoSi3[1];
-      C1 = __PACK2(t1, -t0);
-      C2 = __PACK2(t3, -t2);
-      C3 = __PACK2(t5, -t4);
-#else
-      asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
-                   "pv.extract.h  %[t3],%[CoSi2],0;"
-                   "pv.extract.h  %[t5],%[CoSi3],0;"
-                   "pv.extract.h  %[t0],%[CoSi1],1;"
-                   "pv.extract.h  %[t2],%[CoSi2],1;"
-                   "pv.extract.h  %[t4],%[CoSi3],1;"
-                   "sub           %[t0],zero,%[t0];"
-                   "sub           %[t2],zero,%[t2];"
-                   "sub           %[t4],zero,%[t4];"
-                   "pv.pack %[C1],%[t1],%[t0];"
-                   "pv.pack %[C2],%[t3],%[t2];"
-                   "pv.pack %[C3],%[t5],%[t4];"
-                   : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),
-                     [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
-                     [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
-                   : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
-                   :);
-#endif
+      SHUFFLE_TWIDDLEFACT;
+
       /*  Twiddle coefficients index modifier */
       ic = ic + twidCoefModifier;
       /*  Butterfly implementation */
@@ -526,23 +472,8 @@ void mempool_radix4_cfft_q16s_scheduler(
     CoSi1 = *(v2s *)&pCoef16[2U * i0];
     CoSi2 = *(v2s *)&pCoef16[2U * i0 * 2U];
     CoSi3 = *(v2s *)&pCoef16[2U * i0 * 3U];
-    asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
-                 "pv.extract.h  %[t3],%[CoSi2],0;"
-                 "pv.extract.h  %[t5],%[CoSi3],0;"
-                 "pv.extract.h  %[t0],%[CoSi1],1;"
-                 "pv.extract.h  %[t2],%[CoSi2],1;"
-                 "pv.extract.h  %[t4],%[CoSi3],1;"
-                 "sub           %[t0],zero,%[t0];"
-                 "sub           %[t2],zero,%[t2];"
-                 "sub           %[t4],zero,%[t4];"
-                 "pv.pack %[C1],%[t1],%[t0];"
-                 "pv.pack %[C2],%[t3],%[t2];"
-                 "pv.pack %[C3],%[t5],%[t4];"
-                 : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),
-                   [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),
-                   [t4] "=&r"(t4), [t5] "=&r"(t5)
-                 : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
-                 :);
+    SHUFFLE_TWIDDLEFACT;
+
     for (uint32_t idx_fft = 0; idx_fft < nFFTs; idx_fft++) {
       radix4_butterfly_first(pSrc16 + (int32_t)idx_fft * (2 * fftLen),
                              pSrc16 + (int32_t)idx_fft * (2 * fftLen), i0, n2,
@@ -560,23 +491,8 @@ void mempool_radix4_cfft_q16s_scheduler(
       CoSi1 = *(v2s *)&pCoef16[2U * ic];
       CoSi2 = *(v2s *)&pCoef16[2U * ic * 2U];
       CoSi3 = *(v2s *)&pCoef16[2U * ic * 3U];
-      asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"
-                   "pv.extract.h  %[t3],%[CoSi2],0;"
-                   "pv.extract.h  %[t5],%[CoSi3],0;"
-                   "pv.extract.h  %[t0],%[CoSi1],1;"
-                   "pv.extract.h  %[t2],%[CoSi2],1;"
-                   "pv.extract.h  %[t4],%[CoSi3],1;"
-                   "sub           %[t0],zero,%[t0];"
-                   "sub           %[t2],zero,%[t2];"
-                   "sub           %[t4],zero,%[t4];"
-                   "pv.pack %[C1],%[t1],%[t0];"
-                   "pv.pack %[C2],%[t3],%[t2];"
-                   "pv.pack %[C3],%[t5],%[t4];"
-                   : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3),
-                     [t0] "=&r"(t0), [t1] "=&r"(t1), [t2] "=&r"(t2),
-                     [t3] "=&r"(t3), [t4] "=&r"(t4), [t5] "=&r"(t5)
-                   : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)
-                   :);
+      SHUFFLE_TWIDDLEFACT;
+
       ic = ic + twidCoefModifier;
       for (i0 = j; i0 < fftLen; i0 += n1) {
         for (uint32_t idx_fft = 0; idx_fft < nFFTs; idx_fft++) {
