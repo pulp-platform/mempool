@@ -8,52 +8,66 @@
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 #ifndef ASM
-#define SHUFFLE_TWIDDLEFACT                                                     \
-    t1 = (int16_t)CoSi1[0];                                                     \
-    t3 = (int16_t)CoSi2[0];                                                     \
-    t5 = (int16_t)CoSi3[0];                                                     \
-    t0 = (int16_t)CoSi1[1];                                                     \
-    t2 = (int16_t)CoSi2[1];                                                     \
-    t4 = (int16_t)CoSi3[1];                                                     \
-    C1 = __PACK2(t1, -t0);                                                      \
-    C2 = __PACK2(t3, -t2);                                                      \
-    C3 = __PACK2(t5, -t4);
+#define SHUFFLE_TWIDDLEFACT                                                    \
+  t1 = (int16_t)CoSi1[0];                                                      \
+  t3 = (int16_t)CoSi2[0];                                                      \
+  t5 = (int16_t)CoSi3[0];                                                      \
+  t0 = (int16_t)CoSi1[1];                                                      \
+  t2 = (int16_t)CoSi2[1];                                                      \
+  t4 = (int16_t)CoSi3[1];                                                      \
+  C1 = __PACK2(t1, -t0);                                                       \
+  C2 = __PACK2(t3, -t2);                                                       \
+  C3 = __PACK2(t5, -t4);
 #else
-#define SHUFFLE_TWIDDLEFACT                                                     \
-    asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"                              \
-                 "pv.extract.h  %[t3],%[CoSi2],0;"                              \
-                 "pv.extract.h  %[t5],%[CoSi3],0;"                              \
-                 "pv.extract.h  %[t0],%[CoSi1],1;"                              \
-                 "pv.extract.h  %[t2],%[CoSi2],1;"                              \
-                 "pv.extract.h  %[t4],%[CoSi3],1;"                              \
-                 "sub           %[t0],zero,%[t0];"                              \
-                 "sub           %[t2],zero,%[t2];"                              \
-                 "sub           %[t4],zero,%[t4];"                              \
-                 "pv.pack %[C1],%[t1],%[t0];"                                   \
-                 "pv.pack %[C2],%[t3],%[t2];"                                   \
-                 "pv.pack %[C3],%[t5],%[t4];"                                   \
-                 : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0), \
-                   [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),              \
-                   [t4] "=&r"(t4), [t5] "=&r"(t5)                               \
-                 : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)   \
-                 :);
+#define SHUFFLE_TWIDDLEFACT                                                    \
+  asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"                               \
+               "pv.extract.h  %[t3],%[CoSi2],0;"                               \
+               "pv.extract.h  %[t5],%[CoSi3],0;"                               \
+               "pv.extract.h  %[t0],%[CoSi1],1;"                               \
+               "pv.extract.h  %[t2],%[CoSi2],1;"                               \
+               "pv.extract.h  %[t4],%[CoSi3],1;"                               \
+               "sub           %[t0],zero,%[t0];"                               \
+               "sub           %[t2],zero,%[t2];"                               \
+               "sub           %[t4],zero,%[t4];"                               \
+               "pv.pack %[C1],%[t1],%[t0];"                                    \
+               "pv.pack %[C2],%[t3],%[t2];"                                    \
+               "pv.pack %[C3],%[t5],%[t4];"                                    \
+               : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),  \
+                 [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),               \
+                 [t4] "=&r"(t4), [t5] "=&r"(t5)                                \
+               : [CoSi1] "r"(CoSi1), [CoSi2] "r"(CoSi2), [CoSi3] "r"(CoSi3)    \
+               :);
 #endif
 
-#define STORE_TWIDDLEFACT                                                       \
-        *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi1;                                \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi1;                 \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi1;                 \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi1;                 \
-        ic += N_BANKS;                                                          \
-        *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi2;                                \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi2;                 \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi2;                 \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi2;                 \
-        ic += N_BANKS;                                                          \
-        *((v2s *)&pCoef_dst[2U * (ic)]) = CoSi3;                                \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic)]) = CoSi3;                 \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic)]) = CoSi3;                 \
-        *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic)]) = CoSi3;
+#ifdef FOLDED_TWIDDLES
+
+#define LOAD_STORE_TWIDDLEFACT                                                 \
+  CoSi1 = *(v2s *)&pCoef_src[2U * ic];                                         \
+  CoSi2 = *(v2s *)&pCoef_src[2U * (ic + 1 * N_BANKS)];                         \
+  CoSi3 = *(v2s *)&pCoef_src[2U * (ic + 2 * N_BANKS)];                         \
+  if (ic % 4 == 0) {                                                           \
+    *((v2s *)&pCoef_dst[2U * (ic_store)]) = CoSi1;                             \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic_store)]) = CoSi1;              \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic_store)]) = CoSi1;              \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic_store)]) = CoSi1;              \
+    ic_store += N_BANKS;                                                       \
+    *((v2s *)&pCoef_dst[2U * (ic_store)]) = CoSi2;                             \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic_store)]) = CoSi2;              \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic_store)]) = CoSi2;              \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic_store)]) = CoSi2;              \
+    ic_store += N_BANKS;                                                       \
+    *((v2s *)&pCoef_dst[2U * (ic_store)]) = CoSi3;                             \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 1 + ic_store)]) = CoSi3;              \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 2 + ic_store)]) = CoSi3;              \
+    *((v2s *)&pCoef_dst[2U * (n2_store * 3 + ic_store)]) = CoSi3;              \
+  }
+
+#else
+#define LOAD_STORE_TWIDDLEFACT                                                 \
+  CoSi1 = *(v2s *)&pCoef_src[2U * ic];                                         \
+  CoSi2 = *(v2s *)&pCoef_src[2U * (ic * 2U)];                                  \
+  CoSi3 = *(v2s *)&pCoef_src[2U * (ic * 3U)];
+#endif
 
 void mempool_radix4_cfft_q16p_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
                                        const int16_t *pCoef16,
@@ -87,9 +101,9 @@ void mempool_radix4_cfft_q16p_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
                            C3);
   }
   mempool_log_barrier(2, absolute_core_id);
-  /* END OF FIRST STAGE PROCESS */
+  /* END OF FIRST STAGE PROCESSING */
 
-  /* START OF MIDDLE STAGE PROCESS */
+  /* START OF MIDDLE STAGE PROCESSING */
   twidCoefModifier <<= 2U;
   for (k = fftLen / 4U; k > 4U; k >>= 2U) {
 
@@ -215,7 +229,7 @@ static inline void fold_radix4(int16_t *pSrc16, uint32_t fftLen, uint32_t nPE) {
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id % 4U;
   n2 = fftLen >> 2U;
-  for (i0 = core_id * STEP; i0 < MIN(core_id * STEP + STEP, n2); i0++) {
+  for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, n2); i0++) {
     i1 = i0 + n2;
     i2 = i1 + n2;
     i3 = i2 + n2;
@@ -231,8 +245,7 @@ static inline void fold_radix4(int16_t *pSrc16, uint32_t fftLen, uint32_t nPE) {
       *(v2s *)&pSrc16[i3_store * 2U + idx_row * (8 * N_BANKS)] = C;
     }
   }
-  mempool_log_partial_barrier(2 * WU_STRIDE, WU_STRIDE * absolute_core_id,
-                              nPE * WU_STRIDE);
+  mempool_log_partial_barrier(2, absolute_core_id, nPE);
   return;
 }
 
@@ -271,48 +284,35 @@ void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
 #endif
 {
 
-#ifdef FOLDED_TWIDDLES
   uint32_t absolute_core_id = mempool_get_core_id();
-  uint32_t core_id = absolute_core_id / WU_STRIDE;
+  uint32_t core_id = absolute_core_id;
   int16_t t0, t1, t2, t3, t4, t5;
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
-  uint32_t n1, n2, n2_store, i0, j, k;
-  uint32_t ic, offset, wing_idx;
+#ifdef FOLDED_TWIDDLES
+  uint32_t n1, n2, n2_store;
+  uint32_t i0, k, ic, ic_store;
   int16_t *pTmp;
 #else
-  uint32_t absolute_core_id = mempool_get_core_id();
-  uint32_t core_id = absolute_core_id / WU_STRIDE;
-  int16_t t0, t1, t2, t3, t4, t5;
-  v2s CoSi1, CoSi2, CoSi3;
-  v2s C1, C2, C3;
-  uint32_t n1, n2, n2_store, i0, j, k;
-  uint32_t ic, offset, wing_id, bank_id;
+  uint32_t n1, n2;
+  uint32_t i0, k, ic;
   int16_t *pTmp;
   uint32_t twidCoefModifier = 1U;
 #endif
 
-  /* START OF FIRST STAGE PROCESS */
+  /* START OF FIRST STAGE PROCESSING */
   n1 = fftLen;
   n2 = n1 >> 2U;
-  n2_store = n2 >> 2U;
-  for (i0 = core_id * STEP; i0 < MIN(core_id * STEP + STEP, n2); i0++) {
-
+  for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, n2); i0++) {
 #ifdef FOLDED_TWIDDLES
-    CoSi1 = *(v2s *)&pCoef_src[2U * i0];
-    CoSi2 = *(v2s *)&pCoef_src[2U * (i0 + 1 * N_BANKS)];
-    CoSi3 = *(v2s *)&pCoef_src[2U * (i0 + 2 * N_BANKS)];
-    if (i0 % 4 == 0) {
-      ic = i0 >> 2U;
-      STORE_TWIDDLEFACT;
-    }
+    ic = i0;
+    ic_store = ic >> 2U;
+    n2_store = n2 >> 2U;
 #else
-    CoSi1 = *(v2s *)&pCoef_src[2U * i0];
-    CoSi2 = *(v2s *)&pCoef_src[2U * (i0 * 2U)];
-    CoSi3 = *(v2s *)&pCoef_src[2U * (i0 * 3U)];
+    ic = i0;
 #endif
+    LOAD_STORE_TWIDDLEFACT;
     SHUFFLE_TWIDDLEFACT;
-
     radix4_butterfly_first(pSrc16, pDst16, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                            C3);
   }
@@ -326,50 +326,28 @@ void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
 #else
   twidCoefModifier <<= 2U;
 #endif
-  mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id, nPE * WU_STRIDE);
+  mempool_log_partial_barrier(2, absolute_core_id, nPE);
   /* END OF FIRST STAGE PROCESSING */
 
-  /* START OF MIDDLE STAGE PROCESS */
+  /* START OF MIDDLE STAGE PROCESSING */
   for (k = fftLen / 4U; k > 4U; k >>= 2U) {
     n1 = n2;
     n2 >>= 2U;
-    n2_store = n2 >> 2U;
-
+    for (i0 = core_id * 4; i0 < core_id * 4 + 4; i0++) {
 #ifdef FOLDED_TWIDDLES
-    for (j = core_id * STEP; j < core_id * STEP + STEP; j++) {
-      CoSi1 = *(v2s *)&pCoef_src[2U * j];
-      CoSi2 = *(v2s *)&pCoef_src[2U * (j + 1 * N_BANKS)];
-      CoSi3 = *(v2s *)&pCoef_src[2U * (j + 2 * N_BANKS)];
-      if (j % 4 == 0) {
-        wing_idx = j % n2;
-        offset = (j / n2);
-        ic = wing_idx >> 2U;
-        ic += offset * n2;
-        STORE_TWIDDLEFACT;
-      }
+      ic = i0;
+      // (ic % n2) / 4 take only every 4th index in the wing
+      // (ic / n2) * n2 shift of the wing size
+      ic_store = ((ic % n2) >> 2) + (ic / n2) * n2;
+      n2_store = n2 >> 2U;
 #else
-    bank_id = core_id / n2_store;
-    wing_id = core_id % n2_store;
-    offset = bank_id * n2;
-    for (j = wing_id * 4; j < MIN(wing_id * 4 + 4, n2); j++) {
-      ic = j * twidCoefModifier;
-      CoSi1 = *(v2s *)&pCoef_src[2U * ic];
-      CoSi2 = *(v2s *)&pCoef_src[2U * (ic * 2U)];
-      CoSi3 = *(v2s *)&pCoef_src[2U * (ic * 3U)];
+      ic = (i0 % n2) * twidCoefModifier;
 #endif
+      LOAD_STORE_TWIDDLEFACT;
       SHUFFLE_TWIDDLEFACT;
-
-#ifdef FOLDED_TWIDDLES
-      i0 = j;
       radix4_butterfly_middle(pSrc16, pDst16, i0, n2, CoSi1, CoSi2, CoSi3, C1,
                               C2, C3);
-#else
-      i0 = offset + j;
-      radix4_butterfly_middle(pSrc16, pDst16, i0, n2, CoSi1, CoSi2, CoSi3, C1,
-                              C2, C3);
-#endif
     }
-
     pTmp = pSrc16;
     pSrc16 = pDst16;
     pDst16 = pTmp;
@@ -380,17 +358,15 @@ void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
 #else
     twidCoefModifier <<= 2U;
 #endif
-    mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id,
-                                nPE * WU_STRIDE);
+    mempool_log_partial_barrier(2, absolute_core_id, nPE);
   }
   /* END OF MIDDLE STAGE PROCESSING */
 
   /* START OF LAST STAGE PROCESSING */
-  for (i0 = core_id * STEP; i0 < MIN(core_id * STEP + STEP, fftLen >> 2U);
-       i0++) {
+  for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, fftLen >> 2U); i0++) {
     radix4_butterfly_last(pSrc16, pDst16, i0);
   }
-  mempool_log_partial_barrier(2 * WU_STRIDE, absolute_core_id, nPE * WU_STRIDE);
+  mempool_log_partial_barrier(2, absolute_core_id, nPE);
   /* END OF LAST STAGE PROCESSING */
 
   return;
@@ -432,43 +408,36 @@ void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
   @return        void
 */
 
-void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
-                                        int16_t *pDst16, uint32_t fftLen,
-                                        int16_t *pCoef_src, int16_t *pCoef_dst,
-                                        __attribute__((unused))
-                                        uint16_t *pBitRevTable,
-                                        __attribute__((unused))
-                                        uint16_t bitReverseLen,
-                                        uint8_t bitReverseFlag, uint32_t nPE) {
+void mempool_radix4_cfft_q16p_scheduler(
+    int16_t *pSrc16, int16_t *pDst16, uint32_t fftLen, int16_t *pCoef_src,
+    int16_t *pCoef_dst, __attribute__((unused)) uint16_t *pBitRevTable,
+    __attribute__((unused)) uint16_t bitReverseLen, uint8_t bitReverseFlag,
+    uint32_t nPE) {
 
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id % (fftLen >> 4U);
+  uint32_t col_id = absolute_core_id / (fftLen >> 4U);
 
-  uint32_t n1, n2, i0, ic, j, k;
-  uint32_t n2_store;
-  uint32_t offset, wing_idx;
-  int16_t *pTmp;
-  int32_t t0, t1, t2, t3, t4, t5;
+  int16_t t0, t1, t2, t3, t4, t5;
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
+  uint32_t n1, n2, n2_store;
+  uint32_t i0, k, ic, ic_store;
+  int16_t *pTmp;
 
   /* FIRST STAGE */
   n1 = fftLen;
   n2 = n1 >> 2U;
-  n2_store = n2 >> 2U;
   for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, n2); i0++) {
-    CoSi1 = *(v2s *)&pCoef_src[2U * i0];
-    CoSi2 = *(v2s *)&pCoef_src[2U * (i0 + 1 * N_BANKS)];
-    CoSi3 = *(v2s *)&pCoef_src[2U * (i0 + 2 * N_BANKS)];
-    if (i0 % 4 == 0) {
-      ic = i0 / 4;
-      STORE_TWIDDLEFACT;
-    }
+    ic = i0;
+    ic_store = ic >> 2U;
+    n2_store = n2 >> 2U;
+    LOAD_STORE_TWIDDLEFACT;
     SHUFFLE_TWIDDLEFACT;
-
     for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
       int16_t *pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * fftLen;
-      int16_t *pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+      int16_t *pOut =
+          pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
       radix4_butterfly_first(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                              C3);
     }
@@ -485,18 +454,11 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
   for (k = fftLen / 4U; k > 4U; k >>= 2U) {
     n1 = n2;
     n2 >>= 2U;
-    n2_store = n2 >> 2U;
-    for (j = core_id * 4; j < core_id * 4 + 4; j++) {
-      CoSi1 = *(v2s *)&pCoef_src[2U * (j)];
-      CoSi2 = *(v2s *)&pCoef_src[2U * (j + 1 * N_BANKS)];
-      CoSi3 = *(v2s *)&pCoef_src[2U * (j + 2 * N_BANKS)];
-      if (j % 4 == 0) {
-        wing_idx = j % n2;
-        offset = (j / n2);
-        ic = wing_idx >> 2U;
-        ic += offset * n2;
-        STORE_TWIDDLEFACT;
-      }
+    for (i0 = core_id * 4; i0 < core_id * 4 + 4; i0++) {
+      ic = i0;
+      ic_store = ((ic % n2) >> 2) + (ic / n2) * n2;
+      n2_store = n2 >> 2U;
+      LOAD_STORE_TWIDDLEFACT;
       SHUFFLE_TWIDDLEFACT;
 
       for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
@@ -504,7 +466,7 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
             pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
         int16_t *pOut =
             pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
-        radix4_butterfly_middle(pIn, pOut, j, n2, CoSi1, CoSi2, CoSi3, C1, C2,
+        radix4_butterfly_middle(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                                 C3);
       }
     }
@@ -539,7 +501,7 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
 #ifdef BITREVERSETABLE
     pSrc16 = pSrc16 + 2 * col_id * (fftLen / 4);
     pDst16 = pDst16 + 2 * col_id * fftLen;
-    for (j = 8 * core_id; j < bitReverseLen; j += 8 * nPE) {
+    for (ic = 8 * core_id; ic < bitReverseLen; ic += 8 * nPE) {
       uint32_t addr1, addr2, addr3, addr4;
       uint32_t tmpa1, tmpa2, tmpa3, tmpa4;
       uint32_t tmpb1, tmpb2, tmpb3, tmpb4;
@@ -548,29 +510,28 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
       uint32_t a1_load, a2_load, a3_load, a4_load;
       uint32_t b1_load, b2_load, b3_load, b4_load;
       uint32_t s2 = 0x00020002;
-      addr1 = *(uint32_t *)&pBitRevTable[j];
-      addr2 = *(uint32_t *)&pBitRevTable[j + 2];
-      addr3 = *(uint32_t *)&pBitRevTable[j + 4];
-      addr4 = *(uint32_t *)&pBitRevTable[j + 6];
-      asm volatile(
-          "pv.sra.h  %[addr1],%[addr1],%[s2];"
-          "pv.sra.h  %[addr2],%[addr2],%[s2];"
-          "pv.sra.h  %[addr3],%[addr3],%[s2];"
-          "pv.sra.h  %[addr4],%[addr4],%[s2];"
-          "pv.extract.h  %[a1],%[addr1],0;"
-          "pv.extract.h  %[a2],%[addr2],0;"
-          "pv.extract.h  %[a3],%[addr3],0;"
-          "pv.extract.h  %[a4],%[addr4],0;"
-          "pv.extract.h  %[b1],%[addr1],1;"
-          "pv.extract.h  %[b2],%[addr2],1;"
-          "pv.extract.h  %[b3],%[addr3],1;"
-          "pv.extract.h  %[b4],%[addr4],1;"
-          : [a1] "=r"(a1), [a2] "=r"(a2), [a3] "=r"(a3), [a4] "=r"(a4),
-            [b1] "=r"(b1), [b2] "=r"(b2), [b3] "=r"(b3), [b4] "=r"(b4),
-            [addr1] "+&r"(addr1), [addr2] "+&r"(addr2),
-            [addr3] "+&r"(addr3), [addr4] "+&r"(addr4)
-          : [s2] "r"(s2)
-          :);
+      addr1 = *(uint32_t *)&pBitRevTable[ic];
+      addr2 = *(uint32_t *)&pBitRevTable[ic + 2];
+      addr3 = *(uint32_t *)&pBitRevTable[ic + 4];
+      addr4 = *(uint32_t *)&pBitRevTable[ic + 6];
+      asm volatile("pv.sra.h  %[addr1],%[addr1],%[s2];"
+                   "pv.sra.h  %[addr2],%[addr2],%[s2];"
+                   "pv.sra.h  %[addr3],%[addr3],%[s2];"
+                   "pv.sra.h  %[addr4],%[addr4],%[s2];"
+                   "pv.extract.h  %[a1],%[addr1],0;"
+                   "pv.extract.h  %[a2],%[addr2],0;"
+                   "pv.extract.h  %[a3],%[addr3],0;"
+                   "pv.extract.h  %[a4],%[addr4],0;"
+                   "pv.extract.h  %[b1],%[addr1],1;"
+                   "pv.extract.h  %[b2],%[addr2],1;"
+                   "pv.extract.h  %[b3],%[addr3],1;"
+                   "pv.extract.h  %[b4],%[addr4],1;"
+                   : [a1] "=r"(a1), [a2] "=r"(a2), [a3] "=r"(a3), [a4] "=r"(a4),
+                     [b1] "=r"(b1), [b2] "=r"(b2), [b3] "=r"(b3), [b4] "=r"(b4),
+                     [addr1] "+&r"(addr1), [addr2] "+&r"(addr2),
+                     [addr3] "+&r"(addr3), [addr4] "+&r"(addr4)
+                   : [s2] "r"(s2)
+                   :);
       // Compute the local addresses from the natural order ones
       a1_load = (a1 % 4) * 2 * N_BANKS + 2 * (a1 / 4);
       a2_load = (a2 % 4) * 2 * N_BANKS + 2 * (a2 / 4);
@@ -608,11 +569,12 @@ void mempool_radix4_cfft_q16p_scheduler(uint32_t col_id, int16_t *pSrc16,
 #else
     uint16_t *ptr1 = (uint16_t *)(pSrc16 + 2 * col_id * (fftLen / 4));
     uint16_t *ptr2 = (uint16_t *)(pDst16 + 2 * col_id * fftLen);
-    for (j = core_id * 16; j < MIN(core_id * 16 + 16, fftLen >> 2U); j += 4) {
-      uint32_t idx0 = j;
-      uint32_t idx1 = j + 1;
-      uint32_t idx2 = j + 2;
-      uint32_t idx3 = j + 3;
+    for (ic = core_id * 16; ic < MIN(core_id * 16 + 16, fftLen >> 2U);
+         ic += 4) {
+      uint32_t idx0 = ic;
+      uint32_t idx1 = ic + 1;
+      uint32_t idx2 = ic + 2;
+      uint32_t idx3 = ic + 3;
       uint32_t idx_result0 = 0;
       uint32_t idx_result1 = 0;
       uint32_t idx_result2 = 0;

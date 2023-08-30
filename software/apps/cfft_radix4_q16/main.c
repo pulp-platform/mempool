@@ -39,10 +39,8 @@
 #define BITREVERSETABLE
 #define ASM // Use asm_volatile statements
 
-#define WU_STRIDE (1)
-#define STEP (4 * WU_STRIDE)
-#if !(defined(N_FFTs_ROW) && defined(N_FFTs_COL))
-#define N_FFTs_ROW 2
+#if !(defined(N_FFT_ROW) && defined(N_FFTs_COL))
+#define N_FFTs_ROW 1
 #define N_FFTs_COL 1
 #endif
 
@@ -162,7 +160,7 @@ int main() {
 /* MULTI-CORE FOLDED */
 #ifdef FOLDED
   int16_t *pRes; // Result pointer
-  if ((core_id < (N_CSAMPLES / 16)) && (core_id % WU_STRIDE == 0)) {
+  if (core_id < (N_CSAMPLES / 16)) {
     mempool_start_benchmark();
 #ifdef FOLDED_TWIDDLES
     mempool_radix4_cfft_q16p_folded(pSrc, pDst, (uint16_t)N_CSAMPLES,
@@ -202,12 +200,10 @@ int main() {
     mempool_start_benchmark();
     uint32_t col_fftLen = N_CSAMPLES >> 2U;
     uint32_t col_id = core_id / (N_CSAMPLES >> 4U);
-    if (col_id < N_FFTs_COL) {
-      mempool_radix4_cfft_q16p_scheduler(
-          col_id, pSrc, pDst, N_CSAMPLES, pCoef16_src + 2 * col_id * col_fftLen,
-          pCoef16_dst + 2 * col_id * col_fftLen, pRevT16,
-          BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 1, N_CSAMPLES >> 4U);
-    }
+    mempool_radix4_cfft_q16p_scheduler(
+        pSrc, pDst, N_CSAMPLES, pCoef16_src + 2 * col_id * col_fftLen,
+        pCoef16_dst + 2 * col_id * col_fftLen, pRevT16,
+        BITREVINDEXTABLE_FIXED_TABLE_LENGTH, 1, N_CSAMPLES >> 4U);
     mempool_log_partial_barrier(2, core_id, N_CSAMPLES >> 4U);
     mempool_stop_benchmark();
   }
