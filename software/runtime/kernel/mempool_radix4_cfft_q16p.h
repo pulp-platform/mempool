@@ -410,7 +410,8 @@ void mempool_radix4_cfft_q16p_folded(int16_t *pSrc16, int16_t *pDst16,
 
 void mempool_radix4_cfft_q16p_scheduler(
     int16_t *pSrc16, int16_t *pDst16, uint32_t fftLen, int16_t *pCoef_src,
-    int16_t *pCoef_dst, __attribute__((unused)) uint16_t *pBitRevTable,
+    __attribute__((unused)) int16_t *pCoef_dst,
+    __attribute__((unused)) uint16_t *pBitRevTable,
     __attribute__((unused)) uint16_t bitReverseLen, uint8_t bitReverseFlag,
     uint32_t nPE) {
 
@@ -421,8 +422,14 @@ void mempool_radix4_cfft_q16p_scheduler(
   int16_t t0, t1, t2, t3, t4, t5;
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
+#ifdef FOLDED_TWIDDLES
   uint32_t n1, n2, n2_store;
   uint32_t i0, k, ic, ic_store;
+#else
+  uint32_t n1, n2;
+  uint32_t i0, k, ic;
+  uint32_t twidCoefModifier = 1U;
+#endif
   int16_t *pTmp;
 
   /* FIRST STAGE */
@@ -430,8 +437,10 @@ void mempool_radix4_cfft_q16p_scheduler(
   n2 = n1 >> 2U;
   for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, n2); i0++) {
     ic = i0;
+#ifdef FOLDED_TWIDDLES
     ic_store = ic >> 2U;
     n2_store = n2 >> 2U;
+#endif
     LOAD_STORE_TWIDDLEFACT;
     SHUFFLE_TWIDDLEFACT;
     for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
@@ -445,9 +454,13 @@ void mempool_radix4_cfft_q16p_scheduler(
   pTmp = pSrc16;
   pSrc16 = pDst16;
   pDst16 = pTmp;
+#ifdef FOLDED_TWIDDLES
   pTmp = pCoef_src;
   pCoef_src = pCoef_dst;
   pCoef_dst = pTmp;
+#else
+  twidCoefModifier <<= 2U;
+#endif
   mempool_log_partial_barrier(2, absolute_core_id, nPE);
 
   /* MIDDLE STAGE */
@@ -455,9 +468,13 @@ void mempool_radix4_cfft_q16p_scheduler(
     n1 = n2;
     n2 >>= 2U;
     for (i0 = core_id * 4; i0 < core_id * 4 + 4; i0++) {
+#ifdef FOLDED_TWIDDLES
       ic = i0;
       ic_store = ((ic % n2) >> 2) + (ic / n2) * n2;
       n2_store = n2 >> 2U;
+#else
+      ic = (i0 % n2) * twidCoefModifier;
+#endif
       LOAD_STORE_TWIDDLEFACT;
       SHUFFLE_TWIDDLEFACT;
 
@@ -473,9 +490,13 @@ void mempool_radix4_cfft_q16p_scheduler(
     pTmp = pSrc16;
     pSrc16 = pDst16;
     pDst16 = pTmp;
+#ifdef FOLDED_TWIDDLES
     pTmp = pCoef_src;
     pCoef_src = pCoef_dst;
     pCoef_dst = pTmp;
+#else
+    twidCoefModifier <<= 2U;
+#endif
     mempool_log_partial_barrier(2, absolute_core_id, N_FFTs_COL * nPE);
   }
 
