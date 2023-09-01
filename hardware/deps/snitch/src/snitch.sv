@@ -325,7 +325,7 @@ module snitch
   assign rd = inst_data_i[7 + RegWidth - 1:7];
   assign rs1 = inst_data_i[15 + RegWidth - 1:15];
   assign rs2 = inst_data_i[20 + RegWidth - 1:20];
-  assign rs3 = ((acc_qaddr_o == snitch_pkg::FP_SS) & (snitch_pkg::ZFINX_RV)) ? inst_data_i[27 + RegWidth - 1:27] :
+  assign rs3 = (((acc_qaddr_o == snitch_pkg::FP_SS) || (acc_qaddr_o == snitch_pkg::FP_DIVSQRT)) & (snitch_pkg::ZFINX_RV)) ? inst_data_i[27 + RegWidth - 1:27] :
                ((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0;
 
   always_comb begin
@@ -843,7 +843,7 @@ module snitch
           opa_select = Reg;
           opb_select = Reg;
           acc_register_rd = 1'b1;
-          acc_qaddr_o = snitch_pkg::FP_SS;
+          acc_qaddr_o = snitch_pkg::FP_DIVSQRT;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -906,7 +906,7 @@ module snitch
           opa_select = Reg;
           opb_select = Reg;
           acc_register_rd = 1'b1;
-          acc_qaddr_o = snitch_pkg::FP_SS;
+          acc_qaddr_o = snitch_pkg::FP_DIVSQRT;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -981,7 +981,7 @@ module snitch
           opa_select = Reg;
           opb_select = Reg;
           acc_register_rd = 1'b1;
-          acc_qaddr_o = snitch_pkg::FP_SS;
+          acc_qaddr_o = snitch_pkg::FP_DIVSQRT;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1109,7 +1109,7 @@ module snitch
           opa_select = Reg;
           opb_select = Reg;
           acc_register_rd = 1'b1;
-          acc_qaddr_o = snitch_pkg::FP_SS;
+          acc_qaddr_o = snitch_pkg::FP_DIVSQRT;
         end else begin
           illegal_inst = 1'b1;
         end
@@ -1185,7 +1185,7 @@ module snitch
           opa_select = Reg;
           opb_select = Reg;
           acc_register_rd = 1'b1;
-          acc_qaddr_o = snitch_pkg::FP_SS;
+          acc_qaddr_o = snitch_pkg::FP_DIVSQRT;
         end else begin
           illegal_inst = 1'b1;
         end
