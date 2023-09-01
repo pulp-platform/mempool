@@ -26,6 +26,13 @@ module mempool_cc
   input  logic [31:0]        inst_data_i,
   output logic               inst_valid_o,
   input  logic               inst_ready_i,
+  // Shared operational-units ports
+  output snitch_pkg::sh_acc_req_t   sh_acc_req_o,
+  output logic                      sh_acc_req_valid_o,
+  input  logic                      sh_acc_req_ready_i,
+  input  snitch_pkg::sh_acc_resp_t  sh_acc_resp_i,
+  input  logic                      sh_acc_resp_valid_i,
+  output logic                      sh_acc_resp_ready_o,
   // TCDM Ports
   output logic [31:0]        data_qaddr_o,
   output logic               data_qwrite_o,
@@ -57,15 +64,17 @@ module mempool_cc
   // Accelerator signals
   snitch_pkg::acc_req_t  acc_req_d, acc_req_q;
   snitch_pkg::acc_resp_t acc_resp_d, acc_resp_q;
-  snitch_pkg::acc_resp_t ipu_resp_d, fpu_resp_d;
+  snitch_pkg::acc_resp_t ipu_resp_d, fpu_resp_d, divsqrt_resp_d;
 
   logic acc_req_dvalid, acc_req_dready, acc_req_qvalid, acc_req_qready;
   logic acc_resp_dvalid, acc_resp_dready, acc_resp_qvalid, acc_resp_qready;
 
   logic ipu_req_qvalid, ipu_req_qready;
   logic fpu_req_qvalid, fpu_req_qready;
+  logic divsqrt_req_qvalid, divsqrt_req_qready;
   logic ipu_resp_dvalid, ipu_resp_dready;
   logic fpu_resp_dvalid, fpu_resp_dready;
+  logic divsqrt_resp_dvalid, divsqrt_resp_dready;
 
   fpnew_pkg::roundmode_e fpu_rnd_mode;
   fpnew_pkg::status_t    fpu_status;
@@ -136,26 +145,26 @@ module mempool_cc
 
   // Accelerator Demux Port
   stream_demux #(
-    .N_OUP ( 2 )
+    .N_OUP ( 3 )
   ) i_stream_demux_offload (
     .inp_valid_i  ( acc_req_qvalid  ),
     .inp_ready_o  ( acc_req_qready  ),
-    .oup_sel_i    ( acc_req_q.addr[$clog2(2)-1:0]    ),
-    .oup_valid_o  ( {fpu_req_qvalid, ipu_req_qvalid} ),
-    .oup_ready_i  ( {fpu_req_qready, ipu_req_qready} )
+    .oup_sel_i    ( acc_req_q.addr[$clog2(3)-1:0]    ),
+    .oup_valid_o  ( {divsqrt_req_qvalid, fpu_req_qvalid, ipu_req_qvalid} ),
+    .oup_ready_i  ( {divsqrt_req_qready, fpu_req_qready, ipu_req_qready} )
   );
 
   // Accelerator output arbiter
   stream_arbiter #(
     .DATA_T      ( snitch_pkg::acc_resp_t      ),
-    .N_INP       ( 2                           ),
+    .N_INP       ( 3                           ),
     .ARBITER     ( "rr"                        )
   ) i_stream_arbiter_offload (
     .clk_i       ( clk_i                              ),
     .rst_ni      ( ~rst_i                             ),
-    .inp_data_i  ( {fpu_resp_d, ipu_resp_d}           ),
-    .inp_valid_i ( {fpu_resp_dvalid, ipu_resp_dvalid} ),
-    .inp_ready_o ( {fpu_resp_dready, ipu_resp_dready} ),
+    .inp_data_i  ( {divsqrt_resp_d, fpu_resp_d, ipu_resp_d}                ),
+    .inp_valid_i ( {divsqrt_resp_dvalid, fpu_resp_dvalid, ipu_resp_dvalid} ),
+    .inp_ready_o ( {divsqrt_resp_dready, fpu_resp_dready, ipu_resp_dready} ),
     .oup_data_o  ( acc_resp_d                         ),
     .oup_valid_o ( acc_resp_dvalid                    ),
     .oup_ready_i ( acc_resp_dready                    )
@@ -218,6 +227,25 @@ module mempool_cc
     .core_events_o           (                       )
   );
 
+  // Snitch FP divsqrt unit
+  // divsqrt unit is shared between the processors of a Tile
+  // output
+  assign sh_acc_req_o.addr      = acc_req_q.addr;
+  assign sh_acc_req_o.id        = acc_req_q.id;
+  assign sh_acc_req_o.hart_id   = hart_id_i[5:0];
+  assign sh_acc_req_o.data_op   = acc_req_q.data_op;
+  assign sh_acc_req_o.data_arga = acc_req_q.data_arga;
+  assign sh_acc_req_o.data_argb = acc_req_q.data_argb;
+  assign sh_acc_req_o.data_argc = acc_req_q.data_argc;
+  assign sh_acc_req_valid_o     = divsqrt_req_qvalid;
+  assign divsqrt_req_qready     = sh_acc_req_ready_i;
+  // input
+  assign divsqrt_resp_d.id      = sh_acc_resp_i.id;
+  assign divsqrt_resp_d.error   = sh_acc_resp_i.error;
+  assign divsqrt_resp_d.data    = sh_acc_resp_i.data;
+  assign divsqrt_resp_dvalid    = sh_acc_resp_valid_i;
+  assign sh_acc_resp_ready_o    = divsqrt_resp_dready;
+
   // Cut TCDM data request path
   spill_register #(
     .T      ( snitch_pkg::dreq_t ),
@@ -256,7 +284,7 @@ module mempool_cc
   assign data_qstrb_o      = data_req_q.strb;
   assign data_qid_o        = data_req_q.id;
   assign data_qvalid_o     = data_req_dvalid;
-  assign data_req_qready  = data_qready_i;
+  assign data_req_qready   = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
   assign data_resp_d.id    = data_pid_i;
   assign data_resp_d.write = 'x; // Don't care here
