@@ -46,7 +46,8 @@ package snitch_pkg;
 
   typedef enum logic [31:0] {
     XPULP_IPU = 0,
-    FP_SS = 1
+    FP_SS = 1,
+    FP_DIVSQRT = 2
   } acc_addr_e;
 
   typedef struct packed {
@@ -59,10 +60,27 @@ package snitch_pkg;
   } acc_req_t;
 
   typedef struct packed {
+    acc_addr_e addr;
+    logic [4:0] id;
+    logic [5:0] hart_id;
+    logic [31:0] data_op;
+    data_t data_arga;
+    data_t data_argb;
+    data_t data_argc;
+  } sh_acc_req_t;
+
+  typedef struct packed {
     logic [4:0] id;
     logic error;
     data_t data;
   } acc_resp_t;
+
+  typedef struct packed {
+    logic [4:0] id;
+    logic [5:0] hart_id;
+    logic error;
+    data_t data;
+  } sh_acc_resp_t;
 
   // Number of instructions the sequencer can hold
   localparam int FPUSequencerInstr      = 16;
@@ -145,6 +163,29 @@ package snitch_pkg;
                  '{default: fpnew_pkg::PARALLEL}, // NONCOMP
                  '{default: fpnew_pkg::MERGED},   // CONV
                  '{default: fpnew_pkg::MERGED}},  // SDOTP
+    PipeConfig: fpnew_pkg::BEFORE
+  };
+
+  // Tile-shared divsqrt unit implemented as fpnew
+  localparam fpnew_pkg::fpu_implementation_t DIVSQRT_IMPLEMENTATION = '{
+    PipeRegs:  '{// FP32, FP64, FP16, FP8, FP16alt
+                 '{ LAT_COMP_FP32,
+                    LAT_COMP_FP64,
+                    LAT_COMP_FP16,
+                    LAT_COMP_FP8,
+                    LAT_COMP_FP16ALT,
+                    LAT_COMP_FP8ALT}, // ADDMUL
+                 '{default: LAT_DIVSQRT}, // DIVSQRT
+                 '{default: LAT_NONCOMP}, // NONCOMP
+                 '{default: LAT_CONV},    // CONV
+                 '{default: LAT_SDOTP}},  // SDOTP
+    UnitTypes: '{'{default: fpnew_pkg::DISABLED},   // ADDMUL
+                 '{default:
+                 `ifdef XDIVSQRT (fpnew_pkg::MERGED)
+                 `else (fpnew_pkg::DISABLED) `endif}, // DIVSQRT
+                 '{default: fpnew_pkg::DISABLED},   // NONCOMP
+                 '{default: fpnew_pkg::DISABLED},   // CONV
+                 '{default: fpnew_pkg::DISABLED}},  // SDOTP
     PipeConfig: fpnew_pkg::BEFORE
   };
 
