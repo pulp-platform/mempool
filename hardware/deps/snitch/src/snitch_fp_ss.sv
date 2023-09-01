@@ -1344,7 +1344,10 @@ module snitch_fp_ss
   // ----------------------
   // Floating Point Unit
   // ----------------------
-  snitch_fpu i_fpu (
+  snitch_fpu #(
+    .TagType            ( logic[5:0]        ),
+    .FPUImplementation  ( FPUImplementation )
+  ) i_fpu (
     .clk_i                           ,
     .rst_ni         ( ~rst_i        ),
     .hart_id_i      ( hart_id_i     ),
