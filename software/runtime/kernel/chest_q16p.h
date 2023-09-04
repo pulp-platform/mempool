@@ -5,7 +5,7 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 // Includes inner loop
-#include "chest_q16s.h"
+#include "mempool_chest_q16s.h"
 
 /**
   @brief         Block-type channel estimation.
