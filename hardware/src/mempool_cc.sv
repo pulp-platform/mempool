@@ -27,10 +27,10 @@ module mempool_cc
   output logic               inst_valid_o,
   input  logic               inst_ready_i,
   // Shared operational-units ports
-  output snitch_pkg::sh_acc_req_t   sh_acc_req_o,
+  output snitch_pkg::acc_req_t      sh_acc_req_o,
   output logic                      sh_acc_req_valid_o,
   input  logic                      sh_acc_req_ready_i,
-  input  snitch_pkg::sh_acc_resp_t  sh_acc_resp_i,
+  input  snitch_pkg::acc_resp_t     sh_acc_resp_i,
   input  logic                      sh_acc_resp_valid_i,
   output logic                      sh_acc_resp_ready_o,
   // TCDM Ports
@@ -230,21 +230,13 @@ module mempool_cc
   // Snitch FP divsqrt unit
   // divsqrt unit is shared between the processors of a Tile
   // output
-  assign sh_acc_req_o.addr      = acc_req_q.addr;
-  assign sh_acc_req_o.id        = acc_req_q.id;
-  assign sh_acc_req_o.hart_id   = hart_id_i[5:0];
-  assign sh_acc_req_o.data_op   = acc_req_q.data_op;
-  assign sh_acc_req_o.data_arga = acc_req_q.data_arga;
-  assign sh_acc_req_o.data_argb = acc_req_q.data_argb;
-  assign sh_acc_req_o.data_argc = acc_req_q.data_argc;
-  assign sh_acc_req_valid_o     = divsqrt_req_qvalid;
-  assign divsqrt_req_qready     = sh_acc_req_ready_i;
+  assign sh_acc_req_o         = acc_req_q;
+  assign sh_acc_req_valid_o   = divsqrt_req_qvalid;
+  assign divsqrt_req_qready   = sh_acc_req_ready_i;
   // input
-  assign divsqrt_resp_d.id      = sh_acc_resp_i.id;
-  assign divsqrt_resp_d.error   = sh_acc_resp_i.error;
-  assign divsqrt_resp_d.data    = sh_acc_resp_i.data;
-  assign divsqrt_resp_dvalid    = sh_acc_resp_valid_i;
-  assign sh_acc_resp_ready_o    = divsqrt_resp_dready;
+  assign divsqrt_resp_d       = sh_acc_resp_i;
+  assign divsqrt_resp_dvalid  = sh_acc_resp_valid_i;
+  assign sh_acc_resp_ready_o  = divsqrt_resp_dready;
 
   // Cut TCDM data request path
   spill_register #(
