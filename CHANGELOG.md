@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Use custom compiler for VCS specified with `CC` and `CCX` environment variable
 - Implement operand gating for SIMD and MAC Units in Snitch IPU's DSP Unit
 - Add Channel Estimation application and kernels
+- Add Gauss-Jordan matrix inversion kernel
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
