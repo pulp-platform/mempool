@@ -20,17 +20,17 @@ void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {
     // Initialize the barrier
     barrier = 0;
-    for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
-      log_barrier[i] = 0;
-    }
-    for (uint32_t i = 0; i < NUM_CORES * 4; i++) {
-      partial_barrier[i] = 0;
-    }
     wake_up_all();
     mempool_wfi();
   } else {
     mempool_wfi();
   }
+  // Initialize log-barriers synch variables in parallel
+  for (uint32_t i = core_id; i < NUM_CORES * 4; i += NUM_CORES) {
+    log_barrier[i] = 0;
+    partial_barrier[i] = 0;
+  }
+  mempool_barrier(NUM_CORES);
 }
 
 void mempool_barrier(uint32_t num_cores) {
