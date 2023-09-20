@@ -8,6 +8,7 @@ package:
 
 dependencies:
   common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 1.19.0 }
+  axi: { git: "https://github.com/pulp-platform/axi.git", version: 0.36.0 }
 
 sources:
   - defines:

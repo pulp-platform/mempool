@@ -1,4 +1,3 @@
----
 packages:
   axi:
     revision: 32ce14ca80c555bb7dc33558f228df8babe95323
@@ -6,23 +5,23 @@ packages:
     source:
       Git: "https://github.com/pulp-platform/axi.git"
     dependencies:
-      - common_cells
-      - common_verification
+    - common_cells
+    - common_verification
   cluster_interconnect:
     revision: 7d0a4f8acae71a583a6713cab5554e60b9bb8d27
     version: 1.2.1
     source:
       Git: "https://github.com/pulp-platform/cluster_interconnect.git"
     dependencies:
-      - common_cells
+    - common_cells
   common_cells:
     revision: dc555643226419b7a602f0aa39d449545ea4c1f2
     version: 1.23.0
     source:
       Git: "https://github.com/pulp-platform/common_cells.git"
     dependencies:
-      - common_verification
-      - tech_cells_generic
+    - common_verification
+    - tech_cells_generic
   common_verification:
     revision: 6fc76fb013315af9fabbb90b431863d498df2d6d
     version: 0.2.0
@@ -30,41 +29,43 @@ packages:
       Git: "https://github.com/pulp-platform/common_verification.git"
     dependencies: []
   idma:
-    revision: ~
-    version: ~
+    revision: null
+    version: null
     source:
       Path: hardware/deps/idma
     dependencies:
-      - axi
-      - common_cells
-      - common_verification
+    - axi
+    - common_cells
+    - common_verification
+    - register_interface
   register_interface:
     revision: 73de8e51b79f416350229b1d2420b2c527e002b8
     version: 0.3.1
     source:
       Git: "https://github.com/pulp-platform/register_interface.git"
     dependencies:
-      - axi
-      - common_cells
+    - axi
+    - common_cells
   reqrsp_interface:
-    revision: ~
-    version: ~
+    revision: null
+    version: null
     source:
       Path: hardware/deps/reqrsp_interface
     dependencies:
-      - axi
-      - common_cells
+    - axi
+    - common_cells
   snitch:
-    revision: ~
-    version: ~
+    revision: null
+    version: null
     source:
       Path: hardware/deps/snitch
     dependencies:
-      - common_cells
+    - axi
+    - common_cells
   tech_cells_generic:
     revision: 78e817972307bcb9f6c77d18d64480ef595f03c9
     version: 0.2.5
     source:
       Git: "https://github.com/pulp-platform/tech_cells_generic.git"
     dependencies:
-      - common_verification
+    - common_verification
