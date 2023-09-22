@@ -26,7 +26,7 @@ axi_masters_per_group ?= 1
 
 # Size of sequential memory per core (in bytes)
 # (must be a power of two)
-seq_mem_size ?= 2048
+seq_mem_size ?= 1024
 
 #############################
 ##  Xqueues configuration  ##
