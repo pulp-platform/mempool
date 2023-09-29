@@ -7,12 +7,14 @@
 #pragma once
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
-void mempool_Ltrisol_f32s(float *pL, float *in, float *x, const uint32_t n);
-void mempool_Lttrisol_f32s(float *pL, float *in, float *x, const uint32_t n);
-void mempool_Ltrisol_folded_f32s(float *pL, float *in, float *x,
-                                 const uint32_t n);
-void mempool_Lttrisol_folded_f32s(float *pL, float *in, float *x,
-                                  const uint32_t n);
+/**
+  @brief         Single-core solution of lower triangular system
+  @param[in]     pL input triangular matrix
+  @param[in]     in known variables vector
+  @param[in]     x unknown solutions vector
+  @param[in]     n dimension of the system
+  @return        none
+*/
 
 void mempool_Ltrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
 
@@ -55,6 +57,16 @@ void mempool_Ltrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
   return;
 }
 
+/**
+  @brief         Single-core solution of upper triangular system
+                 (from transposed lower triangular system)
+  @param[in]     pL input triangular matrix to be transposed
+  @param[in]     in known variables vector
+  @param[in]     x unknown solutions vector
+  @param[in]     n dimension of the system
+  @return        none
+*/
+
 void mempool_Lttrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
 
   uint32_t i, j;
@@ -95,6 +107,16 @@ void mempool_Lttrisol_f32s(float *pL, float *in, float *x, const uint32_t n) {
   }
   return;
 }
+
+/**
+  @brief        Single-core solution of lower triangular system
+                (from transposed lower triangular system)
+  @param[in]    pL input triangular matrix
+  @param[in]    in known variables vector
+  @param[in]    x unknown solutions vector
+  @param[in]    n dimension of the system
+  @return       none
+*/
 
 void mempool_Ltrisol_folded_f32s(float *pL, float *in, float *x,
                                  const uint32_t n) {
@@ -138,6 +160,17 @@ void mempool_Ltrisol_folded_f32s(float *pL, float *in, float *x,
   }
   return;
 }
+
+/**
+  @brief        Single-core solution of upper triangular system
+                Output data is folded to the core's local memory.
+                (from transposed lower triangular system)
+  @param[in]    pL input triangular matrix to be transposed
+  @param[in]    in known variables vector
+  @param[in]    x unknown solutions vector
+  @param[in]    n dimension of the system
+  @return       none
+*/
 
 void mempool_Lttrisol_folded_f32s(float *pL, float *in, float *x,
                                   const uint32_t n) {
