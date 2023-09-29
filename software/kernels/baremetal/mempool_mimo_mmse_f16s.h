@@ -145,14 +145,14 @@ void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *pS,
 /**
   @brief         Computes the matrix-vector product y = H' * x.
   @param[in]     pH     points to input matrix
-  @param[in]     pb     points to input vector
+  @param[in]     px     points to input vector
   @param[in]     py     points to output vector
   @param[in]     nrx    number of received samples
   @param[in]     ntx    number of transmitted samples
   @param[in]     folded controls if output is folded
   @return        none
 */
-void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *pb, __fp16 *py,
+void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *px, __fp16 *py,
                                  const uint32_t n_rx, const uint32_t n_tx,
                                  const uint32_t folded) {
 
@@ -187,8 +187,8 @@ void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *pb, __fp16 *py,
       b2 = pH[2U * (j * n_tx + i + 2U) + 1U];
       b3 = pH[2U * (j * n_tx + i + 3U) + 1U];
       // inputs from b
-      c = pb[2U * j];
-      d = pb[2U * j + 1U];
+      c = px[2U * j];
+      d = px[2U * j + 1U];
       asm volatile(
           // a * c
           "fmadd.h  %[as0], %[a0], %[c], %[as0];"
