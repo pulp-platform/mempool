@@ -7,12 +7,17 @@
 #pragma once
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
-void mempool_hermitian_f32p(float *pH, float *pG, float *sigma,
-                            const uint32_t n_rx, const uint32_t n_tx,
-                            const uint32_t folded, const uint32_t zf,
-                            const uint32_t core_id, const uint32_t nPE);
-
-/* Computes the Hermitian matrix G = (H'*H + sigma^2I) */
+/**
+  @brief         Computes the Hermitian matrix G = (H'*H + pS^2I).
+  @param[in]     pH     points to input matrix
+  @param[in]     pG     points to output matrix
+  @param[in]     pS     points to the noise vector
+  @param[in]     nrx    number of received samples
+  @param[in]     ntx    number of transmitted samples
+  @param[in]     folded controls if output is folded
+  @param[in]     zf     controls if the zero forcing is used
+  @return        none
+*/
 void mempool_hermitian_f32p(float *pH, float *pG, float *sigma,
                             const uint32_t n_rx, const uint32_t n_tx,
                             const uint32_t folded, const uint32_t zf,
@@ -138,6 +143,16 @@ void mempool_hermitian_f32p(float *pH, float *pG, float *sigma,
   return;
 }
 
+/**
+  @brief         Computes the matrix-vector product y = H' * x.
+  @param[in]     pH     points to input matrix
+  @param[in]     pb     points to input vector
+  @param[in]     py     points to output vector
+  @param[in]     nrx    number of received samples
+  @param[in]     ntx    number of transmitted samples
+  @param[in]     folded controls if output is folded
+  @return        none
+*/
 void mempool_MVP_conjtransp_f32p(float *pH, float *pb, float *py,
                                  const uint32_t n_rx, const uint32_t n_tx,
                                  const uint32_t core_id, const uint32_t nPE) {

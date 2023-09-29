@@ -7,9 +7,13 @@
 #pragma once
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
-void mempool_cholesky_f32s(float *pSrc, float *pL, const uint32_t n);
-void mempool_cholesky_folded_f32s(float *pSrc, float *pL, const uint32_t n);
-
+/**
+  @brief         Cholesky decomposition with Crout algorithm.
+  @param[in]     pSrc  points to input matrix
+  @param[in]     pL points to output lower triangular matrix
+  @param[in]     n dimension of the input data
+  @return        none
+*/
 void mempool_cholesky_f32s(float *pSrc, float *pL, const uint32_t n) {
 
   register float sum;
