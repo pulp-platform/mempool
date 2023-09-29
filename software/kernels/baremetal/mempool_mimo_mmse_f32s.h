@@ -7,17 +7,18 @@
 #pragma once
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
-void mempool_hermitian_f32s(float *pH, float *pG, float *sigma,
-                            const uint32_t n_rx, const uint32_t n_tx,
-                            const uint32_t folded, const uint32_t zf);
-void mempool_MVP_conjtransp_f32s(float *pH, float *pb, float *py,
-                                 const uint32_t n_rx, const uint32_t n_tx,
-                                 const uint32_t folded);
-void mempool_jacobi_f32s(float *pA, float *in, float *x, float tol,
-                         const uint32_t n, const uint32_t max_iter);
-
-/* Computes the Hermitian matrix G = (H'*H + sigma^2I) */
-void mempool_hermitian_f32s(float *pH, float *pG, float *sigma,
+/**
+  @brief         Computes the Hermitian matrix G = (H'*H + pS^2I).
+  @param[in]     pH     points to input matrix
+  @param[in]     pG     points to output matrix
+  @param[in]     pS     points to the noise vector
+  @param[in]     nrx    number of received samples
+  @param[in]     ntx    number of transmitted samples
+  @param[in]     folded controls if output is folded
+  @param[in]     zf     controls if the zero forcing is used
+  @return        none
+*/
+void mempool_hermitian_f32s(float *pH, float *pG, float *pS,
                             const uint32_t n_rx, const uint32_t n_tx,
                             const uint32_t folded, const uint32_t zf) {
 
@@ -87,27 +88,27 @@ void mempool_hermitian_f32s(float *pH, float *pG, float *sigma,
       if (zf == 0) {
         // Compute diagonal elements
         if (i == j) {
-          asm volatile("fadd.s  %[as0], %[as0], %[sigma];"
+          asm volatile("fadd.s  %[as0], %[as0], %[pS];"
                        : [as0] "+&r"(as0)
-                       : [sigma] "r"(sigma[i])
+                       : [pS] "r"(pS[i])
                        :);
           bs0 = 0.0f;
         } else if (i == (j + 1U)) {
-          asm volatile("fadd.s  %[as1], %[as1], %[sigma];"
+          asm volatile("fadd.s  %[as1], %[as1], %[pS];"
                        : [as1] "+&r"(as1)
-                       : [sigma] "r"(sigma[i])
+                       : [pS] "r"(pS[i])
                        :);
           bs1 = 0.0f;
         } else if (i == (j + 2U)) {
-          asm volatile("fadd.s  %[as2], %[as2], %[sigma];"
+          asm volatile("fadd.s  %[as2], %[as2], %[pS];"
                        : [as2] "+&r"(as2)
-                       : [sigma] "r"(sigma[i])
+                       : [pS] "r"(pS[i])
                        :);
           bs2 = 0.0f;
         } else if (i == (j + 3U)) {
-          asm volatile("fadd.s  %[as3], %[as3], %[sigma];"
+          asm volatile("fadd.s  %[as3], %[as3], %[pS];"
                        : [as3] "+&r"(as3)
-                       : [sigma] "r"(sigma[i])
+                       : [pS] "r"(pS[i])
                        :);
           bs3 = 0.0f;
         }
@@ -139,7 +140,17 @@ void mempool_hermitian_f32s(float *pH, float *pG, float *sigma,
   return;
 }
 
-void mempool_MVP_conjtransp_f32s(float *pH, float *pb, float *py,
+/**
+  @brief         Computes the matrix-vector product y = H' * x.
+  @param[in]     pH     points to input matrix
+  @param[in]     pb     points to input vector
+  @param[in]     py     points to output vector
+  @param[in]     nrx    number of received samples
+  @param[in]     ntx    number of transmitted samples
+  @param[in]     folded controls if output is folded
+  @return        none
+*/
+void mempool_MVP_conjtransp_f32s(float *pH, float *px, float *py,
                                  const uint32_t n_rx, const uint32_t n_tx,
                                  const uint32_t folded) {
 
@@ -174,8 +185,8 @@ void mempool_MVP_conjtransp_f32s(float *pH, float *pb, float *py,
       b2 = pH[2U * (j * n_tx + i + 2U) + 1U];
       b3 = pH[2U * (j * n_tx + i + 3U) + 1U];
       // inputs from b
-      c = pb[2U * j];
-      d = pb[2U * j + 1U];
+      c = px[2U * j];
+      d = px[2U * j + 1U];
       asm volatile(
           // a * c
           "fmadd.s  %[as0], %[a0], %[c], %[as0];"
@@ -232,8 +243,18 @@ void mempool_MVP_conjtransp_f32s(float *pH, float *pb, float *py,
   return;
 }
 
-void mempool_jacobi_f32s(float *pA, float *in, float *x, float tol,
-                         const uint32_t n, const uint32_t max_iter) {
+/**
+  @brief         Inverts a system using the Jacobi method
+  @param[in]     pA     points to input matrix
+  @param[in]     py     points to the known vector
+  @param[in]     px     points to the unknowns vector
+  @param[in]     n      dimension of the system
+  @param[in]     tol    tolerance on the result
+  @param[in]     max_iter max number of iterations
+  @return        none
+*/
+void mempool_jacobi_f32s(float *pA, float *in, float *px, const uint32_t n,
+                         const float tol, const uint32_t max_iter) {
   uint32_t i, j, k;
   float error;
   float register diff, den;
@@ -268,8 +289,8 @@ void mempool_jacobi_f32s(float *pA, float *in, float *x, float tol,
         if (i == j) {
           a0 = pA[2U * (i * n + j + 1U)];
           b0 = pA[2U * (i * n + j + 1U) + 1U];
-          c0 = x[2U * (j + 1U)];
-          d0 = x[2U * (j + 1U) + 1U];
+          c0 = px[2U * (j + 1U)];
+          d0 = px[2U * (j + 1U) + 1U];
           // (ac - bd) + j * (ad + bc)
           asm volatile("fnmsub.s  %[as0], %[a0], %[c0], %[as0];"
                        "fnmsub.s  %[bs0], %[b0], %[c0], %[bs0];"
@@ -281,8 +302,8 @@ void mempool_jacobi_f32s(float *pA, float *in, float *x, float tol,
         } else if (i == (j + 1U)) {
           a0 = pA[2U * (i * n + j)];
           b0 = pA[2U * (i * n + j) + 1U];
-          c0 = x[2U * j];
-          d0 = x[2U * j + 1U];
+          c0 = px[2U * j];
+          d0 = px[2U * j + 1U];
           // (ac - bd) + j * (ad + bc)
           asm volatile("fnmsub.s  %[as0], %[a0], %[c0], %[as0];"
                        "fnmsub.s  %[bs0], %[b0], %[c0], %[bs0];"
@@ -296,10 +317,10 @@ void mempool_jacobi_f32s(float *pA, float *in, float *x, float tol,
           a1 = pA[2U * (i * n + j + 1U)];
           b0 = pA[2U * (i * n + j) + 1U];
           b1 = pA[2U * (i * n + j + 1U) + 1U];
-          c0 = x[2U * j];
-          c1 = x[2U * (j + 1U)];
-          d0 = x[2U * j + 1U];
-          d1 = x[2U * (j + 1U) + 1U];
+          c0 = px[2U * j];
+          c1 = px[2U * (j + 1U)];
+          d0 = px[2U * j + 1U];
+          d1 = px[2U * (j + 1U) + 1U];
           // (ac - bd) + j * (ad + bc)
           asm volatile("fnmsub.s  %[as0], %[a0], %[c0], %[as0];"
                        "fnmsub.s  %[as1], %[a1], %[c1], %[as1];"
@@ -332,8 +353,8 @@ void mempool_jacobi_f32s(float *pA, float *in, float *x, float tol,
           : [den] "r"(den)
           :);
       // Load the previous result
-      a0 = x[2U * i];
-      b0 = x[2U * i + 1];
+      a0 = px[2U * i];
+      b0 = px[2U * i + 1];
       asm volatile("fsub.s    %[a0], %[a0], %[as0];"
                    "fsub.s    %[b0], %[b0], %[bs0];"
                    : [a0] "+&r"(a0), [b0] "+&r"(b0)
@@ -349,8 +370,8 @@ void mempool_jacobi_f32s(float *pA, float *in, float *x, float tol,
                    :);
 
       /* STORE THE RESULT */
-      x[2U * i] = as0;
-      x[2U * i + 1U] = bs0;
+      px[2U * i] = as0;
+      px[2U * i + 1U] = bs0;
     }
 
     /* COMPUTE THE ERROR */
