@@ -3,19 +3,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Author: Marco Bertuletti, ETH Zurich
+// Author: Aofeng Aoshen, ETH Zurich
 
 #pragma once
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
-void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *sigma,
-                            const uint32_t n_rx, const uint32_t n_tx,
-                            const uint32_t folded, const uint32_t zf);
-void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *pb, __fp16 *py,
-                                 const uint32_t n_rx, const uint32_t n_tx,
-                                 const uint32_t folded);
-
-/* Computes the Hermitian matrix G = (H'*H + sigma^2I) */
-void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *sigma,
+/**
+  @brief         Computes the Hermitian matrix G = (H'*H + pS^2I).
+  @param[in]     pH     points to input matrix
+  @param[in]     pG     points to output matrix
+  @param[in]     pS     points to the noise vector
+  @param[in]     nrx    number of received samples
+  @param[in]     ntx    number of transmitted samples
+  @param[in]     folded controls if output is folded
+  @param[in]     zf     controls if the zero forcing is used
+  @return        none
+*/
+void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *pS,
                             const uint32_t n_rx, const uint32_t n_tx,
                             const uint32_t folded, const uint32_t zf) {
 
@@ -85,27 +89,27 @@ void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *sigma,
       if (zf == 0) {
         // Compute diagonal elements
         if (i == j) {
-          asm volatile("fadd.h  %[as0], %[as0], %[sigma];"
+          asm volatile("fadd.h  %[as0], %[as0], %[pS];"
                        : [as0] "+&r"(as0)
-                       : [sigma] "r"(sigma[2 * i])
+                       : [pS] "r"(pS[2 * i])
                        :);
           bs0 = (__fp16)0.0f;
         } else if (i == (j + 1U)) {
-          asm volatile("fadd.h  %[as1], %[as1], %[sigma];"
+          asm volatile("fadd.h  %[as1], %[as1], %[pS];"
                        : [as1] "+&r"(as1)
-                       : [sigma] "r"(sigma[2 * i])
+                       : [pS] "r"(pS[2 * i])
                        :);
           bs1 = (__fp16)0.0f;
         } else if (i == (j + 2U)) {
-          asm volatile("fadd.h  %[as2], %[as2], %[sigma];"
+          asm volatile("fadd.h  %[as2], %[as2], %[pS];"
                        : [as2] "+&r"(as2)
-                       : [sigma] "r"(sigma[2 * i])
+                       : [pS] "r"(pS[2 * i])
                        :);
           bs2 = (__fp16)0.0f;
         } else if (i == (j + 3U)) {
-          asm volatile("fadd.h  %[as3], %[as3], %[sigma];"
+          asm volatile("fadd.h  %[as3], %[as3], %[pS];"
                        : [as3] "+&r"(as3)
-                       : [sigma] "r"(sigma[2 * i])
+                       : [pS] "r"(pS[2 * i])
                        :);
           bs3 = (__fp16)0.0f;
         }
@@ -138,120 +142,16 @@ void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *sigma,
   return;
 }
 
-/* Computes the Hermitian matrix G = (H'*H + sigma^2I) */
-void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *sigma,
-                               const uint32_t n_rx, const uint32_t n_tx) {
-
-  uint32_t i, j, k;
-  v2h ab;
-  v2h cd0, cd1, cd2, cd3;
-  float as0, as1, as2, as3;
-  float bs0, bs1, bs2, bs3;
-  for (i = 0; i < n_tx; i++) {
-    j = 0;
-    do {
-      // Initialize the real part of sums
-      as0 = 0.0f;
-      as1 = 0.0f;
-      as2 = 0.0f;
-      as3 = 0.0f;
-      // Initialize the imag part of sums
-      bs0 = 0.0f;
-      bs1 = 0.0f;
-      bs2 = 0.0f;
-      bs3 = 0.0f;
-      // Inner Loop
-      for (k = 0; k < n_rx; k++) {
-        // inputs from matrix H_h
-        ab = (*(v2h *)&pH[2U * (k * n_tx + i)]);
-        // inputs from matrix H
-        cd0 = (*(v2h *)&pH[2U * (k * n_tx + j)]);
-        cd1 = (*(v2h *)&pH[2U * (k * n_tx + j + 1U)]);
-        cd2 = (*(v2h *)&pH[2U * (k * n_tx + j + 2U)]);
-        cd3 = (*(v2h *)&pH[2U * (k * n_tx + j + 3U)]);
-
-        uint32_t ndc0, ndc1, ndc2, ndc3;
-        const uint32_t val = 0x3C00BC00;
-        const uint32_t mask = 0x00010002;
-
-        // dotproducts (ac + bd) + j (ad - bc)
-        asm volatile(
-            // a * c + b * d
-            "vfdotpex.s.h  %[as0], %[ab], %[cd0];"
-            "vfdotpex.s.h  %[as1], %[ab], %[cd1];"
-            "vfdotpex.s.h  %[as2], %[ab], %[cd2];"
-            "vfdotpex.s.h  %[as3], %[ab], %[cd3];"
-            //
-            "pv.shuffle2.h  %[ndc0], %[cd0], %[mask];"
-            "pv.shuffle2.h  %[ndc1], %[cd1], %[mask];"
-            "pv.shuffle2.h  %[ndc2], %[cd2], %[mask];"
-            "pv.shuffle2.h  %[ndc3], %[cd3], %[mask];"
-            //
-            "vfmul.h %[ndc0], %[val], %[ndc0];"
-            "vfmul.h %[ndc1], %[val], %[ndc1];"
-            "vfmul.h %[ndc2], %[val], %[ndc2];"
-            "vfmul.h %[ndc3], %[val], %[ndc3];"
-            // a * d - b * c
-            "vfdotpex.s.h  %[as0], %[ab], %[ndc0];"
-            "vfdotpex.s.h  %[as1], %[ab], %[ndc1];"
-            "vfdotpex.s.h  %[as2], %[ab], %[ndc2];"
-            "vfdotpex.s.h  %[as3], %[ab], %[ndc3];"
-            : [as0] "+&r"(as0), [as1] "+&r"(as1), [as2] "+&r"(as2),
-              [as3] "+&r"(as3), [bs0] "+&r"(bs0), [bs1] "+&r"(bs1),
-              [bs2] "+&r"(bs2), [bs3] "+&r"(bs3), [ndc0] "+r"(ndc0),
-              [ndc1] "+r"(ndc1), [ndc2] "+r"(ndc2), [ndc3] "+r"(ndc3)
-            : [ab] "r"(ab), [val] "r"(val), [mask] "r"(mask), [cd0] "r"(cd0),
-              [cd1] "r"(cd1), [cd2] "r"(cd2), [cd3] "r"(cd3)
-            :);
-      }
-      // Compute diagonal elements
-      if (i == j) {
-        asm volatile("fadd.s  %[as0], %[as0], %[sigma];"
-                     : [as0] "+&r"(as0)
-                     : [sigma] "r"(sigma[2 * i])
-                     :);
-        bs0 = 0.0f;
-      } else if (i == (j + 1U)) {
-        asm volatile("fadd.s  %[as1], %[as1], %[sigma];"
-                     : [as1] "+&r"(as1)
-                     : [sigma] "r"(sigma[2 * i])
-                     :);
-        bs1 = 0.0f;
-      } else if (i == (j + 2U)) {
-        asm volatile("fadd.s  %[as2], %[as2], %[sigma];"
-                     : [as2] "+&r"(as2)
-                     : [sigma] "r"(sigma[2 * i])
-                     :);
-        bs2 = 0.0f;
-      } else if (i == (j + 3U)) {
-        asm volatile("fadd.s  %[as3], %[as3], %[sigma];"
-                     : [as3] "+&r"(as3)
-                     : [sigma] "r"(sigma[2 * i])
-                     :);
-        bs3 = 0.0f;
-      }
-      // Store
-      v2h res0, res1, res2, res3;
-      asm volatile(
-          "vfcpka.h.s %[res0], %[as0], %[bs0];"
-          "vfcpka.h.s %[res1], %[as1], %[bs1];"
-          "vfcpka.h.s %[res2], %[as2], %[bs2];"
-          "vfcpka.h.s %[res3], %[as3], %[bs3];"
-          : [res0] "=&r"(res0), [res1] "=&r"(res1), [res2] "=&r"(res2),
-            [res3] "=&r"(res3)
-          : [as0] "r"(as0), [as1] "r"(as1), [as2] "r"(as2), [as3] "r"(as3),
-            [bs0] "r"(bs0), [bs1] "r"(bs1), [bs2] "r"(bs2), [bs3] "r"(bs3)
-          :);
-      (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
-      (*(v2h *)&pG[2 * (i * n_tx + j + 1U)]) = res1;
-      (*(v2h *)&pG[2 * (i * n_tx + j + 2U)]) = res2;
-      (*(v2h *)&pG[2 * (i * n_tx + j + 3U)]) = res3;
-      j += 4;
-    } while (j < (n_tx >> 2U));
-  }
-  return;
-}
-
+/**
+  @brief         Computes the matrix-vector product y = H' * x.
+  @param[in]     pH     points to input matrix
+  @param[in]     pb     points to input vector
+  @param[in]     py     points to output vector
+  @param[in]     nrx    number of received samples
+  @param[in]     ntx    number of transmitted samples
+  @param[in]     folded controls if output is folded
+  @return        none
+*/
 void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *pb, __fp16 *py,
                                  const uint32_t n_rx, const uint32_t n_tx,
                                  const uint32_t folded) {
@@ -339,6 +239,223 @@ void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *pb, __fp16 *py,
       py[addr + 5U] = bs2;
       py[addr + 6U] = as3;
       py[addr + 7U] = bs3;
+      i += 4;
+    }
+
+  } while (i < n_tx);
+  return;
+}
+
+/** VECTORIZED CODE
+  @brief         Computes the Hermitian matrix G = (H'*H + pS^2I).
+  @param[in]     pH     points to input matrix
+  @param[in]     pG     points to output matrix
+  @param[in]     pS     points to the noise vector
+  @param[in]     nrx    number of received samples
+  @param[in]     ntx    number of transmitted samples
+  @param[in]     folded controls if output is folded
+  @param[in]     zf     controls if the zero forcing is used
+  @return        none
+*/
+void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS, const uint32_t n_rx, const uint32_t n_tx) {
+
+  uint32_t i, j, k;
+  v2h ab;
+  v2h cd0, cd1, cd2, cd3;
+  float as0, as1, as2, as3;
+  float bs0, bs1, bs2, bs3;
+  for (i = 0; i < n_tx; i++) {
+    j = 0;
+    do {
+      // Initialize the real part of sums
+      as0 = 0.0f;
+      as1 = 0.0f;
+      as2 = 0.0f;
+      as3 = 0.0f;
+      // Initialize the imag part of sums
+      bs0 = 0.0f;
+      bs1 = 0.0f;
+      bs2 = 0.0f;
+      bs3 = 0.0f;
+      // Inner Loop
+      for (k = 0; k < n_rx; k++) {
+        // inputs from matrix H_h
+        ab =  ( *(v2h*)&pH[2U * (k * n_tx + i)] );
+        // inputs from matrix H
+        cd0 = ( *(v2h*)&pH[2U * (k * n_tx + j)] );
+        cd1 = ( *(v2h*)&pH[2U * (k * n_tx + j + 1U)] );
+        cd2 = ( *(v2h*)&pH[2U * (k * n_tx + j + 2U)] );
+        cd3 = ( *(v2h*)&pH[2U * (k * n_tx + j + 3U)] );
+        const uint32_t val = 0x80000000;
+        const uint32_t mask = 0x00020003;
+
+        // dotproducts (ac + bd) + j (ad - bc)
+        asm volatile (
+          // a * c + b * d
+          "vfdotpex.s.h  %[as0], %[ab], %[cd0];"
+          "vfdotpex.s.h  %[as1], %[ab], %[cd1];"
+          "vfdotpex.s.h  %[as2], %[ab], %[cd2];"
+          "vfdotpex.s.h  %[as3], %[ab], %[cd3];"
+          //
+          "pv.shuffle2.h  %[cd0], %[cd0], %[mask];"
+          "pv.shuffle2.h  %[cd1], %[cd1], %[mask];"
+          "pv.shuffle2.h  %[cd2], %[cd2], %[mask];"
+          "pv.shuffle2.h  %[cd3], %[cd3], %[mask];"
+          //
+          "xor %[cd0], %[val], %[cd0];"
+          "xor %[cd1], %[val], %[cd1];"
+          "xor %[cd2], %[val], %[cd2];"
+          "xor %[cd3], %[val], %[cd3];"
+          // a * d - b * c
+          "vfdotpex.s.h  %[bs0], %[ab], %[cd0];"
+          "vfdotpex.s.h  %[bs1], %[ab], %[cd1];"
+          "vfdotpex.s.h  %[bs2], %[ab], %[cd2];"
+          "vfdotpex.s.h  %[bs3], %[ab], %[cd3];"
+          : [cd0] "+&r" (cd0), [cd1] "+&r" (cd1), [cd2] "+&r" (cd2), [cd3] "+&r" (cd3),
+            [as0] "+&r" (as0), [as1] "+&r" (as1), [as2] "+&r" (as2), [as3] "+&r" (as3),
+            [bs0] "+&r" (bs0), [bs1] "+&r" (bs1), [bs2] "+&r" (bs2), [bs3] "+&r" (bs3)
+          : [ab] "r" (ab), [val] "r" (val), [mask] "r" (mask)
+          :);
+      }
+      // Compute diagonal elements
+      if (i == j) {
+        asm volatile (
+          "fadd.s  %[as0], %[as0], %[pS];"
+          : [as0] "+&r" (as0)
+          : [pS] "r" (pS[2 * i])
+          :);
+        bs0 = 0.0f;
+      }
+      else if (i == (j + 1U)) {
+        asm volatile (
+          "fadd.s  %[as1], %[as1], %[pS];"
+          : [as1] "+&r" (as1)
+          : [pS] "r" (pS[2 * i])
+          :);
+        bs1 = 0.0f;
+      }
+      else if (i == (j + 2U)) {
+        asm volatile (
+          "fadd.s  %[as2], %[as2], %[pS];"
+          : [as2] "+&r" (as2)
+          : [pS] "r" (pS[2 * i])
+          :);
+        bs2 = 0.0f;
+      }
+      else if (i == (j + 3U)) {
+        asm volatile (
+          "fadd.s  %[as3], %[as3], %[pS];"
+          : [as3] "+&r" (as3)
+          : [pS] "r" (pS[2 * i])
+          :);
+        bs3 = 0.0f;
+      }
+      // Store
+      v2h res0, res1, res2, res3;
+      asm volatile(
+        "vfcpka.h.s %[res0], %[as0], %[bs0];"
+        "vfcpka.h.s %[res1], %[as1], %[bs1];"
+        "vfcpka.h.s %[res2], %[as2], %[bs2];"
+        "vfcpka.h.s %[res3], %[as3], %[bs3];"
+        : [res0] "=&r" (res0), [res1] "=&r" (res1), [res2] "=&r" (res2), [res3] "=&r" (res3)
+        : [as0] "r" (as0), [as1] "r" (as1), [as2] "r" (as2), [as3] "r" (as3),
+          [bs0] "r" (bs0), [bs1] "r" (bs1), [bs2] "r" (bs2), [bs3] "r" (bs3)
+        :
+      );
+
+      ( *(v2h*)&pG[2 * (i * n_tx + j)] ) = res0;
+      ( *(v2h*)&pG[2 * (i * n_tx + j + 1U)] ) = res1;
+      ( *(v2h*)&pG[2 * (i * n_tx + j + 2U)] ) = res2;
+      ( *(v2h*)&pG[2 * (i * n_tx + j + 3U)] ) = res3;
+      j += 4;
+    } while (j < n_tx);
+  }
+  return;
+}
+
+/** VECTORIZED CODE
+  @brief         Computes the matrix-vector product y = H' * x.
+  @param[in]     pH     points to input matrix
+  @param[in]     px     points to input vector
+  @param[in]     py     points to output vector
+  @param[in]     nrx    number of received samples
+  @param[in]     ntx    number of transmitted samples
+  @param[in]     folded controls if output is folded
+  @return        none
+*/
+void mempool_MVP_conjtransp_f16vecs(__fp16 *pH, __fp16 *px, __fp16 *py, const uint32_t n_rx, const uint32_t n_tx, const uint32_t folded) {
+
+  uint32_t i, j;
+  float  as0, as1, as2, as3;
+  float  bs0, bs1, bs2, bs3;
+  v2h    ab0, ab1, ab2, ab3;
+  v2h    cd;
+  uint32_t ndc;
+  const uint32_t val = 0x80000000;
+  const uint32_t mask = 0x00020003;
+
+  i = 0;
+  do {
+    // Initialize the real part of sums
+    as0 = 0.0f;
+    as1 = 0.0f;
+    as2 = 0.0f;
+    as3 = 0.0f;
+    // Initialize the imag part of sums
+    bs0 = 0.0f;
+    bs1 = 0.0f;
+    bs2 = 0.0f;
+    bs3 = 0.0f;
+    for (j = 0; j < n_rx; j++) {
+      // inputs from matrix H_h
+      ab0 = *(v2h*)&pH[2U * (j * n_tx + i)];
+      ab1 = *(v2h*)&pH[2U * (j * n_tx + i + 1U)];
+      ab2 = *(v2h*)&pH[2U * (j * n_tx + i + 2U)];
+      ab3 = *(v2h*)&pH[2U * (j * n_tx + i + 3U)];
+
+      // inputs from b
+      cd = *(v2h*)&px[2U * j];
+
+        // dotproducts (ac + bd) + j (ad - bc)
+        asm volatile (
+          // a * c + b * d
+          "vfdotpex.s.h  %[as0], %[ab0], %[cd];"
+          "vfdotpex.s.h  %[as1], %[ab1], %[cd];"
+          "vfdotpex.s.h  %[as2], %[ab2], %[cd];"
+          "vfdotpex.s.h  %[as3], %[ab3], %[cd];"
+          //
+          "pv.shuffle2.h  %[ndc], %[cd], %[mask];"
+          //
+          "xor %[ndc], %[val], %[ndc];"
+          // a * d - b * c
+          "vfdotpex.s.h  %[bs0], %[ab0], %[ndc];"
+          "vfdotpex.s.h  %[bs1], %[ab1], %[ndc];"
+          "vfdotpex.s.h  %[bs2], %[ab2], %[ndc];"
+          "vfdotpex.s.h  %[bs3], %[ab3], %[ndc];"
+          : [as0] "+&r" (as0), [as1] "+&r" (as1), [as2] "+&r" (as2), [as3] "+&r" (as3),
+            [bs0] "+&r" (bs0), [bs1] "+&r" (bs1), [bs2] "+&r" (bs2), [bs3] "+&r" (bs3),
+            [ndc] "+r" (ndc)
+          : [cd] "r" (cd), [val] "r" (val), [mask] "r" (mask),
+            [ab0] "r" (ab0), [ab1] "r" (ab1), [ab2] "r" (ab2), [ab3] "r" (ab3)
+          :);
+    }
+    if (!folded) {
+      v2h res0, res1, res2, res3;
+      asm volatile(
+        "vfcpka.h.s %[res0], %[as0], %[bs0];"
+        "vfcpka.h.s %[res1], %[as1], %[bs1];"
+        "vfcpka.h.s %[res2], %[as2], %[bs2];"
+        "vfcpka.h.s %[res3], %[as3], %[bs3];"
+        : [res0] "=&r" (res0), [res1] "=&r" (res1), [res2] "=&r" (res2), [res3] "=&r" (res3)
+        : [as0] "r" (as0), [as1] "r" (as1), [as2] "r" (as2), [as3] "r" (as3),
+          [bs0] "r" (bs0), [bs1] "r" (bs1), [bs2] "r" (bs2), [bs3] "r" (bs3)
+        :
+      );
+      // Store
+      *(v2h *)&py[2U * i]        = res0;
+      *(v2h *)&py[2U * (i + 1U)] = res1;
+      *(v2h *)&py[2U * (i + 2U)] = res2;
+      *(v2h *)&py[2U * (i + 3U)] = res3;
       i += 4;
     }
 
