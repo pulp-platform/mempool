@@ -15,9 +15,9 @@
     return out
 %> \
 
-#define matrix_M (${matrix_M})
-#define matrix_N (${matrix_N})
-#define matrix_P (${matrix_P})
+#define dim_M (${matrix_M})
+#define dim_N (${matrix_N})
+#define dim_P (${matrix_P})
 
 __fp16 A[${2 * matrix_M * matrix_N}] = ${array_to_cstr(A)};
 

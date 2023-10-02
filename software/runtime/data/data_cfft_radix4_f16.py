@@ -96,8 +96,8 @@ def main():
     src = np.random.rand(Len) + 1.j * np.random.rand(Len)
     dst = np.fft.fft(src)
 
-    twi_RI = np.zeros(2 * int(3 * Len / 4))
-    for i in range(int(3 * Len / 4)):
+    twi_RI = np.zeros(int(2 * 3 * Len / 4), np.float16)
+    for i in range(0, int(3 * Len / 4)):
         twi_RI[2 * i] = np.cos(i * 2 * np.pi / Len).astype(np.float16)
         twi_RI[2 * i + 1] = np.sin(i * 2 * np.pi / Len).astype(np.float16)
 

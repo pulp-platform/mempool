@@ -31,6 +31,7 @@ def gen_data_header_file(
     with file.open('w') as f:
         f.write(template.render(**kwargs))
 
+
 def main():
 
     parser = argparse.ArgumentParser(description='Generate data for kernels')
@@ -99,10 +100,13 @@ def main():
         Hest = pilot_rx[:, np.newaxis] / pilot_tx[np.newaxis, :]
 
         # Interleaved real and imaginary parts
-        pilot_tx = np.column_stack((pilot_tx.real, pilot_tx.imag)).astype(np.float16).flatten()
-        pilot_rx = np.column_stack((pilot_rx.real, pilot_rx.imag)).astype(np.float16).flatten()
+        pilot_tx = np.column_stack(
+            (pilot_tx.real, pilot_tx.imag)).astype(np.float16).flatten()
+        pilot_rx = np.column_stack(
+            (pilot_rx.real, pilot_rx.imag)).astype(np.float16).flatten()
         Hest = Hest.flatten()
-        Hest = np.column_stack((Hest.real, Hest.imag)).astype(np.float16).flatten()
+        Hest = np.column_stack((Hest.real, Hest.imag)
+                               ).astype(np.float16).flatten()
 
         # Output vectors
         vector_pilot_tx.append(pilot_tx)

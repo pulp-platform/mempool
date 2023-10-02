@@ -87,13 +87,16 @@ def main():
     matrix_P = args.dim_p
 
     # Create sparse matrix
-    A = np.random.rand(matrix_M, matrix_N) + 1j * np.random.rand(matrix_M, matrix_N)
-    B = np.random.rand(matrix_N, matrix_P) + 1j * np.random.rand(matrix_N, matrix_P)
+    A = np.random.rand(matrix_M, matrix_N) + 1j * \
+        np.random.rand(matrix_M, matrix_N)
+    B = np.random.rand(matrix_N, matrix_P) + 1j * \
+        np.random.rand(matrix_N, matrix_P)
     C = np.matmul(A, B)
 
     A = np.reshape(A, (matrix_M * matrix_N), order='C')
     B = np.reshape(B, (matrix_N * matrix_P), order='C')
     C = np.reshape(C, (matrix_M * matrix_P), order='C')
+    print(A)
 
     A = np.column_stack((A.real, A.imag)).astype(np.float16).flatten()
     B = np.column_stack((B.real, B.imag)).astype(np.float16).flatten()

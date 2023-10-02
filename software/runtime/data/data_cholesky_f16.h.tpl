@@ -7,7 +7,7 @@
     i = 0
     out += '\n'
     for a in array:
-        out += '{}f, '.format(a)
+        out += '(__fp16){:0.5f}f, '.format(a)
         i += 1
         if i % 8 == 0:
             out += '\n'
@@ -15,8 +15,9 @@
     return out
 %> \
 
-#define N (${N})
+#define dim_N (${n_matrix})
+#define N_SAMPLES (${n_samples})
 
-__fp16 In_G[${2 * N * N}] = ${array_to_cstr(G)};
+__fp16 In_G[2 * ${n_samples * n_matrix * n_matrix}] = ${array_to_cstr(G)};
 
-__fp16 Out_L[${2 * N * N}] = ${array_to_cstr(L)};
+__fp16 Out_L[2 * ${n_samples * n_matrix * n_matrix}] = ${array_to_cstr(L)};
