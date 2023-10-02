@@ -32,9 +32,11 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **
 def gen_input_data(N_rx, N_tx):
 
     # Create channel matrix
-    H = np.random.rand(N_rx, N_tx).astype(np.float32) + 1.j * np.random.rand(N_rx, N_tx).astype(np.float32)
+    H = np.random.rand(N_rx, N_tx).astype(np.float32) + 1.j * \
+        np.random.rand(N_rx, N_tx).astype(np.float32)
     # Create input vector
-    b = np.random.rand(N_rx).astype(np.float32) + 1.j * np.random.rand(N_rx).astype(np.float32)
+    b = np.random.rand(N_rx).astype(np.float32) + 1.j * \
+        np.random.rand(N_rx).astype(np.float32)
     # Generate noise variance
     sigma = np.diag(np.random.rand(N_tx, N_tx).astype(np.float32))
 
@@ -42,7 +44,6 @@ def gen_input_data(N_rx, N_tx):
     H_h = np.asmatrix(H).H
 
     G = H_h * H
-    print(sigma)
     G = G + np.diag(sigma)
     # Cholesky decomposition
     L = np.linalg.cholesky(G)
@@ -51,52 +52,19 @@ def gen_input_data(N_rx, N_tx):
     y = solve_triangular(L, s, lower=True)
     x = solve_triangular(np.asmatrix(L).H, y)
 
-    H = np.reshape(H, (N_tx*N_rx, -1), order='C')
-    G = np.reshape(G, (N_tx*N_tx, -1), order='C')
-    L = np.reshape(L, (N_tx*N_tx, -1), order='C')
-    H_RI = np.zeros(2*N_tx*N_rx)
-    G_RI = np.zeros(2*N_tx*N_tx)
-    L_RI = np.zeros(2*N_tx*N_tx)
-    b_RI = np.zeros(2*N_rx)
-    s_RI = np.zeros(2*N_tx)
-    x_RI = np.zeros(2*N_tx)
-    y_RI = np.zeros(2*N_tx)
+    H = np.reshape(np.asarray(H), (N_tx*N_rx), order='C')
+    G = np.reshape(np.asarray(G), (N_tx*N_tx), order='C')
+    L = np.reshape(np.asarray(L), (N_tx*N_tx), order='C')
+    H = np.column_stack((H.real, H.imag)).astype(np.float32).flatten()
+    G = np.column_stack((G.real, G.imag)).astype(np.float32).flatten()
+    L = np.column_stack((L.real, L.imag)).astype(np.float32).flatten()
 
-    for i in range(N_tx*N_rx):
-        H_RI[2*i]   = H[i].real
-        H_RI[2*i+1] = H[i].imag
-    for i in range(N_tx*N_tx):
-        G_RI[2*i]   = G[i].real
-        G_RI[2*i+1] = G[i].imag
-        L_RI[2*i]   = L[i].real
-        L_RI[2*i+1] = L[i].imag
+    b = np.column_stack((b.real, b.imag)).astype(np.float32).flatten()
+    s = np.column_stack((s.real, s.imag)).astype(np.float32).flatten()
+    x = np.column_stack((x.real, x.imag)).astype(np.float32).flatten()
+    y = np.column_stack((y.real, y.imag)).astype(np.float32).flatten()
 
-    for i in range(N_rx):
-        b_RI[2*i]   = b[i].real
-        b_RI[2*i+1] = b[i].imag
-    for i in range(N_tx):
-        s_RI[2*i]   = s[i].real
-        s_RI[2*i+1] = s[i].imag
-        x_RI[2*i]   = x[i].real
-        x_RI[2*i+1] = x[i].imag
-        y_RI[2*i]   = y[i].real
-        y_RI[2*i+1] = y[i].imag
-
-    sigma = sigma.astype(np.float32)
-    H_RI = H_RI.astype(np.float32)
-    G_RI = G_RI.astype(np.float32)
-    L_RI = L_RI.astype(np.float32)
-    b_RI = b_RI.astype(np.float32)
-    x_RI = x_RI.astype(np.float32)
-    y_RI = y_RI.astype(np.float32)
-    s_RI = s_RI.astype(np.float32)
-    # print("Channel matrix in (Re, Im) format:\n", H_RI)
-    # print("Hermitian matrix in (Re, Im) format:\n", G_RI)
-    # print("Cholesky dec. in (Re, Im) format:\n", L_RI)
-    # print("Input vector in (Re, Im) format:\n", b_RI)
-    # print("Output vector in (Re, Im) format:\n", x_RI)
-
-    return sigma, H_RI, G_RI, b_RI, x_RI
+    return sigma, H, G, b, x
 
 
 def main():
@@ -106,7 +74,7 @@ def main():
         "-o",
         "--outdir",
         type=pathlib.Path,
-        default=pathlib.Path( __file__ ).parent.absolute(),
+        default=pathlib.Path(__file__).parent.absolute(),
         required=False,
         help='Select out directory of generated data files'
     )
@@ -115,7 +83,8 @@ def main():
         "--tpl",
         type=pathlib.Path,
         required=False,
-        default=pathlib.Path( __file__ ).parent.absolute() / "data_mimo_mmse_f32.h.tpl",
+        default=pathlib.Path(__file__).parent.absolute() /
+        "data_mimo_mmse_f32.h.tpl",
         help='Path to mako template'
     )
     parser.add_argument(
@@ -150,9 +119,9 @@ def main():
     )
 
     args = parser.parse_args()
-    N_tx=args.transmitters
-    N_rx=args.receivers
-    itr=args.iterations
+    N_tx = args.transmitters
+    N_rx = args.receivers
+    itr = args.iterations
 
     sigma = np.zeros([itr, N_tx])
     H_RI = np.zeros([itr, 2*N_tx*N_rx])
@@ -160,7 +129,8 @@ def main():
     b_RI = np.zeros([itr, 2*N_rx])
     x_RI = np.zeros([itr, 2*N_tx])
     for k in range(itr):
-        sigma[k,:], H_RI[k,:], G_RI[k,:], b_RI[k,:], x_RI[k,:] = gen_input_data(N_rx, N_tx)
+        sigma[k, :], H_RI[k, :], G_RI[k, :], b_RI[k,
+                                                  :], x_RI[k, :] = gen_input_data(N_rx, N_tx)
 
     sigma = np.reshape(sigma, (N_tx*itr))
     H_RI = np.reshape(H_RI, (2*N_rx*N_tx*itr))
@@ -168,9 +138,18 @@ def main():
     b_RI = np.reshape(b_RI, (2*N_rx*itr))
     x_RI = np.reshape(x_RI, (2*N_tx*itr))
 
+    kwargs = {'name': 'data_mimo_mmse_f32',
+              'H': H_RI,
+              'G': G_RI,
+              'sigma': sigma,
+              'b': b_RI,
+              'x': x_RI,
+              'N_tx': N_tx,
+              'N_rx': N_rx,
+              'N_itr': itr}
 
-    kwargs = {'name': 'data_mimo_mmse_f32', 'H': H_RI, 'G': G_RI, 'sigma': sigma, 'b' : b_RI, 'x' : x_RI, 'N_tx' : N_tx, 'N_rx' : N_rx, 'N_itr' : itr}
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
+
 
 if __name__ == "__main__":
     main()
