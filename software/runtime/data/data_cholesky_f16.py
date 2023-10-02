@@ -28,6 +28,7 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **
     with file.open('w') as f:
         f.write(template.render(**kwargs))
 
+
 def main():
 
     parser = argparse.ArgumentParser(description='Generate data for kernels')
@@ -35,7 +36,7 @@ def main():
         "-o",
         "--outdir",
         type=pathlib.Path,
-        default=pathlib.Path( __file__ ).parent.absolute(),
+        default=pathlib.Path(__file__).parent.absolute(),
         required=False,
         help='Select out directory of generated data files'
     )
@@ -44,7 +45,8 @@ def main():
         "--tpl",
         type=pathlib.Path,
         required=False,
-        default=pathlib.Path( __file__ ).parent.absolute() / "data_cholesky_f16.h.tpl",
+        default=pathlib.Path(__file__).parent.absolute() /
+        "data_cholesky_f16.h.tpl",
         help='Path to mako template'
     )
     parser.add_argument(
@@ -61,36 +63,46 @@ def main():
         default=4,
         help='Matrix dimension'
     )
+    parser.add_argument(
+        "-s",
+        "--num_samples",
+        type=int,
+        required=False,
+        default=256,
+        help='Number samples'
+    )
 
     args = parser.parse_args()
-    N=args.dimension
+    n_matrix = args.dimension
+    n_samples = args.num_samples
 
-    # Create hermitian matrix
-    H = np.random.rand(N, N) + 1.j * np.random.rand(N, N)
-    # Matrix to be inverted
-    G = H*(np.asmatrix(H).H)
-    # Cholesky decomposition
-    L = np.linalg.cholesky(G)
+    vector_G = []
+    vector_L = []
+    for k in range(n_samples):
+        # Create hermitian matrix
+        H = np.random.rand(n_matrix, n_matrix) + 1.j * \
+            np.random.rand(n_matrix, n_matrix)
+        # Matrix to be inverted
+        # H_H = np.asmatrix(H).H
+        G = np.matmul(H, np.asmatrix(H).H)
+        # Cholesky decomposition
+        L = np.linalg.cholesky(G)
+        # Reshape
+        G = np.reshape(np.asarray(G), (n_matrix * n_matrix), order='C')
+        L = np.reshape(np.asarray(L), (n_matrix * n_matrix), order='C')
+        G = np.column_stack((G.real, G.imag)).astype(np.float16).flatten()
+        L = np.column_stack((L.real, L.imag)).astype(np.float16).flatten()
+        # Output vectors
+        vector_G.append(G)
+        vector_L.append(L)
 
-    G = np.reshape(G, (N*N, -1), order='C')
-    L = np.reshape(L, (N*N, -1), order='C')
-    G_RI = np.zeros(2*N*N)
-    L_RI = np.zeros(2*N*N)
+    vector_G = np.concatenate(vector_G, axis=0)
+    vector_L = np.concatenate(vector_L, axis=0)
 
-    for i in range(N*N):
-        G_RI[2*i]   = G[i].real
-        G_RI[2*i+1] = G[i].imag
-        L_RI[2*i]   = L[i].real
-        L_RI[2*i+1] = L[i].imag
-
-    G_RI = G_RI.astype(np.float16)
-    L_RI = L_RI.astype(np.float16)
-    print("Input matrix in (Re, Im) format:\n",  G_RI)
-    print("Output matrix in (Re, Im) format:\n", L_RI)
-
-
-    kwargs = {'name': 'data_cholesky_f16', 'G': G_RI, 'L' : L_RI, 'N' : N}
+    kwargs = {'name': 'data_cholesky_f16', 'G': vector_G,
+              'L': vector_L, 'n_matrix': n_matrix, 'n_samples': n_samples}
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
+
 
 if __name__ == "__main__":
     main()
