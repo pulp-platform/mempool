@@ -2034,6 +2034,7 @@ module snitch
     .ADDR_WIDTH     ( RegWidth        )
   ) i_snitch_regfile (
     .clk_i,
+    .rst_ni,
     .raddr_i   ( gpr_raddr ),
     .rdata_o   ( gpr_rdata ),
     .waddr_i   ( gpr_waddr ),
