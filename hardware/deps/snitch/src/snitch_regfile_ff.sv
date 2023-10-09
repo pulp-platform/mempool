@@ -13,6 +13,7 @@ module snitch_regfile #(
 ) (
   // clock and reset
   input  logic                                      clk_i,
+  input  logic                                      rst_ni,
   // read port
   input  logic [NR_READ_PORTS-1:0][ADDR_WIDTH-1:0]  raddr_i,
   output logic [NR_READ_PORTS-1:0][DATA_WIDTH-1:0]  rdata_o,
@@ -38,10 +39,12 @@ module snitch_regfile #(
     end
 
     // loop from 1 to NUM_WORDS-1 as R0 is nil
-    always_ff @(posedge clk_i) begin : register_write_behavioral
+    always_ff @(posedge clk_i or negedge rst_ni) begin : register_write_behavioral
       for (int unsigned j = 0; j < NR_WRITE_PORTS; j++) begin
         for (int unsigned i = 0; i < NUM_WORDS; i++) begin
-          if (we_dec[j][i]) begin
+          if (!rst_ni) begin
+            mem[i] <= '0;
+          end else if (we_dec[j][i]) begin
             mem[i] <= wdata_i[j];
           end
         end
