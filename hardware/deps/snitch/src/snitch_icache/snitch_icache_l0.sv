@@ -164,7 +164,7 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
       end
       /* verilator lint_on NOLATCH */
     end else begin : gen_ff
-      `FFLNR(data[i], out_rsp_data_i, validate_strb[i], clk_i)
+      `FFL(data[i], out_rsp_data_i, validate_strb[i], '0)
     end
   end
 
@@ -237,7 +237,7 @@ module snitch_icache_l0 import snitch_icache_pkg::*; #(
   assign refill.is_prefetch = 1'b0;
   assign refill_valid = miss;
 
-  `FFLNR(pending_line_refill_q, evict_strb, evict_req, clk_i)
+  `FFL(pending_line_refill_q, evict_strb, evict_req, '0)
   `FF(pending_refill_q, pending_refill_d, '0)
 
   always_comb begin
