@@ -667,8 +667,8 @@ module l0_to_bypass #(
         logic [CFG.FILL_DW-1:0] fill_rsp_data;
         assign fill_rsp_data =
           refill_rsp_data_i >> (in_addr_i[i][CFG.LINE_ALIGN-1:CFG.FETCH_ALIGN] * CFG.FETCH_DW);
-        `FFLNR({in_data_o[i], in_error_o[i]}, {fill_rsp_data[CFG.FETCH_DW-1:0], refill_rsp_error_i},
-                rsp_valid[i], clk_i)
+        `FFL({in_data_o[i], in_error_o[i]}, {fill_rsp_data[CFG.FETCH_DW-1:0], refill_rsp_error_i},
+                rsp_valid[i], '0)
     end
 
     `FF(state_q, state_d, '{default: Idle})
