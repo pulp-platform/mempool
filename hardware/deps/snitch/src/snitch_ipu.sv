@@ -12,7 +12,7 @@ module snitch_ipu
   parameter int unsigned IdWidth = 5
 ) (
   input  logic                     clk_i,
-  input  logic                     rst_i,
+  input  logic                     rst_ni,
   // Accelerator Interface - Slave
   input  acc_addr_e                acc_qaddr_i,      // unused
   input  logic [IdWidth-1:0]       acc_qid_i,
@@ -239,8 +239,8 @@ module snitch_ipu
       .WIDTH       ( 32      ),
       .IdWidth     ( IdWidth )
   ) i_div (
-      .clk_i       ( clk_i                ),
-      .rst_ni      ( ~rst_i               ),
+      .clk_i       ( clk_i                  ),
+      .rst_ni      ( rst_ni                 ),
       .id_i        ( acc_qid_i              ),
       .operator_i  ( acc_qdata_op_i         ),
       .op_a_i      ( acc_qdata_arga_i       ),
@@ -260,7 +260,7 @@ module snitch_ipu
         .IdWidth  ( IdWidth )
     ) i_dspu (
         .clk_i       ( clk_i                ),
-        .rst_i       ( rst_i                ),
+        .rst_ni      ( rst_ni               ),
         .id_i        ( acc_qid_i            ),
         .operator_i  ( acc_qdata_op_i       ),
         .op_a_i      ( acc_qdata_arga_i     ),
@@ -279,7 +279,7 @@ module snitch_ipu
       .N_INP  ( 2        )
     ) i_stream_arbiter (
       .clk_i,
-      .rst_ni      ( ~rst_i                 ),
+      .rst_ni,
       .inp_data_i  ( {div, dsp}             ),
       .inp_valid_i ( {div_valid, dsp_valid} ),
       .inp_ready_o ( {div_ready, dsp_ready} ),
@@ -294,7 +294,7 @@ module snitch_ipu
       .IdWidth  ( IdWidth )
     ) i_multiplier (
       .clk_i,
-      .rst_i,
+      .rst_ni,
       .id_i        ( acc_qid_i              ),
       .operator_i  ( acc_qdata_op_i         ),
       .operand_a_i ( acc_qdata_arga_i       ),
@@ -312,7 +312,7 @@ module snitch_ipu
       .N_INP  ( 2        )
     ) i_stream_arbiter (
       .clk_i,
-      .rst_ni      ( ~rst_i                 ),
+      .rst_ni,
       .inp_data_i  ( {div, mul}             ),
       .inp_valid_i ( {div_valid, mul_valid} ),
       .inp_ready_o ( {div_ready, mul_ready} ),
@@ -331,7 +331,7 @@ module dspu #(
   parameter int unsigned IdWidth = 5
 ) (
     input  logic               clk_i,      // unused
-    input  logic               rst_i,      // unused
+    input  logic               rst_ni,     // unused
     input  logic [IdWidth-1:0] id_i,
     input  logic [31:0]        operator_i,
     input  logic [Width-1:0]   op_a_i,
