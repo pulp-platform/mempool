@@ -296,7 +296,7 @@ module mempool_cc
   assign data_req_qready   = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
   assign data_resp_d.id    = data_pid_i;
-  assign data_resp_d.write = 'x; // Don't care here
+  assign data_resp_d.write = '0; // Don't care here
   assign data_resp_d.error = data_perror_i;
   assign data_resp_dvalid  = data_pvalid_i;
   assign data_pready_o     = data_resp_dready;
