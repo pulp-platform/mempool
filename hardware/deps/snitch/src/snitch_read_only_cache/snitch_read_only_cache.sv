@@ -169,7 +169,7 @@ module snitch_read_only_cache #(
       slv_ar_select = Bypass;
     end
     // Only accept bursts that use full AXI width
-    if (axi_slv_req_i.ar.len && (axi_slv_req_i.ar.size < $clog2(AxiDataWidth/8))) begin
+    if ((axi_slv_req_i.ar.len > 0) && (axi_slv_req_i.ar.size < $clog2(AxiDataWidth/8))) begin
       slv_ar_select = Bypass;
     end
     // Bypass cache if disabled
