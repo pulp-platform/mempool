@@ -374,7 +374,7 @@ module snitch
     csr_en = 1'b0;
     fence_stall = 1'b0;
     // Wake up if a wake-up is incoming or pending
-    wfi_d = (wake_up_q || wake_up_sync_i) ? 1'b0 : wfi_q;
+    wfi_d = ((wake_up_q > 0) || wake_up_sync_i) ? 1'b0 : wfi_q;
     // Only store a pending wake-up if we are not asleep
     wake_up_d = (wake_up_sync_i && !wfi_q) ? wake_up_q + 1 : wake_up_q;
 
@@ -677,10 +677,10 @@ module snitch
       riscv_instr::WFI: begin
         if (valid_instr) begin
           wfi_d = 1'b1;
-          if (wake_up_q || wake_up_sync_i) begin
+          if ((wake_up_q > 0) || wake_up_sync_i) begin
             // Do not sleep if a wake-up is pending
             wfi_d = 1'b0;
-            if (wake_up_q) begin
+            if (wake_up_q > 0) begin
               // Decrement outstanding wake_up pulses
               wake_up_d = wake_up_q - 1;
             end
