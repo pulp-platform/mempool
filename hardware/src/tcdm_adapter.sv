@@ -64,7 +64,7 @@ module tcdm_adapter #(
       AMOSC   = 4'hB
   } amo_op_t;
 
-  logic meta_valid, meta_ready;
+  logic meta_valid;
   logic rdata_valid, rdata_ready;
 
   /// read signal before register
@@ -80,7 +80,6 @@ module tcdm_adapter #(
   logic                 load_amo;
   amo_op_t              amo_op_q;
   logic                 amo_wb;
-  logic [BeWidth-1:0]   be_expand;
   logic [AddrWidth-1:0] addr_q;
 
   logic [31:0] amo_operand_a;
@@ -95,7 +94,7 @@ module tcdm_adapter #(
     .clk_i  (clk_i                   ),
     .rst_ni (rst_ni                  ),
     .valid_i(in_valid_i && in_ready_o),
-    .ready_o(meta_ready              ),
+    .ready_o(/*unused*/              ),
     .data_i (in_meta_i               ),
     .valid_o(meta_valid              ),
     .ready_i(pop_resp                ),

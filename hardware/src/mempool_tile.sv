@@ -825,7 +825,7 @@ module mempool_tile
   logic soc_pready;
 
   // We don't care about this
-  assign soc_resp_i.id = 'x;
+  assign soc_resp_i.id = '0;
 
   snitch_demux #(
     .NrPorts (NumCoresPerTile    ),
