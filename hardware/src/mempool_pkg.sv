@@ -37,7 +37,7 @@ package mempool_pkg;
   localparam integer unsigned ByteOffset       = $clog2(BeWidth);
   localparam integer unsigned BankingFactor    = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
   localparam bit              LrScEnable       = 1'b1;
-  localparam integer unsigned TCDMSizePerBank  = 1024; // [B]
+  localparam integer unsigned TCDMSizePerBank  = `ifdef L1_BANK_SIZE `L1_BANK_SIZE `else 0 `endif;
   localparam integer unsigned NumBanks         = NumCores * BankingFactor;
   localparam integer unsigned NumBanksPerTile  = NumBanks / NumTiles;
   localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
