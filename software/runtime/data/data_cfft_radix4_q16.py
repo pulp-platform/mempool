@@ -198,33 +198,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-######################
-# Fixpoint Functions #
-######################
-
-
-def q_sat(x):
-    if x > 2**31 - 1:
-        return x - 2**32
-    elif x < -2**31:
-        return x + 2**32
-    else:
-        return x
-
-
-def q_add(a, b):
-    return q_sat(a + b)
-
-
-def q_sub(a, b):
-    return q_sat(a - b)
-
-
-def q_mul(a, b, p):
-    return q_roundnorm(a * b, p)
-
-
-def q_roundnorm(a, p):
-    rounding = 1 << (p - 1)
-    return q_sat((a + rounding) >> p)
