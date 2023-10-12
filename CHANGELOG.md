@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update Bender to version 0.27.3
 - Update default Questasim version to 2022.3
 - Decrease stack size to 128 words
+- Add CFFT radix-4 and radix-2 kernels
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
