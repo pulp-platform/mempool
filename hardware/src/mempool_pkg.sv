@@ -290,7 +290,7 @@ package mempool_pkg;
    *  TeraPool PARAMETERS  *
    *************************/
 
-  localparam integer unsigned NumSubGroupsPerGroup = `ifdef TERAPOOL `NUM_SUB_GROUPS_PER_GROUP `else 1 `endif;
+  localparam integer unsigned NumSubGroupsPerGroup = `ifdef NUM_SUB_GROUPS_PER_GROUP `NUM_SUB_GROUPS_PER_GROUP `else 1 `endif;
 
   // TeraPool Tile Config
   localparam integer unsigned NumSubGroups         = NumGroups * NumSubGroupsPerGroup;
