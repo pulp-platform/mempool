@@ -53,7 +53,7 @@ axi_data_width ?= 512
 ro_line_width ?= 512
 
 # Number of DMA backends in each group
-dmas_per_group ?= 8
+dmas_per_group ?= 4
 
 #############################
 ##  Xqueues configuration  ##
