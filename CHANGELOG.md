@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
 - Properly disable the debugging CSRs in ASIC implementations
+- Fix a bug in the  DMA's distributed midend
 
 ## 0.6.0 - 2023-01-09
 

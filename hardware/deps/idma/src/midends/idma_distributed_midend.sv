@@ -118,6 +118,7 @@ module idma_distributed_midend #(
     // Do not interfere with metadata per default
     tie_off_trans_complete_d = '0;
     for (int i = 0; i < NoMstPorts; i++) begin
+      tie_off_trans_complete_d[i] = tie_off_trans_complete_q[i] && meta_i[i].trans_complete;
       // Feed metadata through directly
       burst_req_o[i] = burst_req_i;
       // Feed through the address bits
@@ -133,7 +134,7 @@ module idma_distributed_midend #(
         valid_o[i] = 1'b0;
         ready[i] = 1'b1;
         // Inject trans complete
-        if (valid) begin
+        if (valid[i]) begin
           tie_off_trans_complete_d[i] = 1'b1;
         end
       end else if (($unsigned(start_addr) >= i*DmaRegionWidth)) begin
