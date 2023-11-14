@@ -12,8 +12,8 @@ please find some of the most important points below.
 * Changes should only be made via pull request, with review. A pull request will
   be committed by a "committer" (an account listed in `CODEOWNERS`) once it has
   had an explicit positive review.
-* Make sure you update the [CHANGELOG](CHANGELOG.md) when submitting a MR.
-* When creating your first MR, enter your name in the [CONTRIBUTORS](CONTRIBUTORS.md)
+* Make sure you update the [CHANGELOG](CHANGELOG.md) when submitting a PR.
+* When creating your first PR, enter your name in the [CONTRIBUTORS](CONTRIBUTORS.md)
   list in alphabetical order.
 * When changes are restricted to a specific area, you are recommended to add a
   tag to the beginning of the first line of the commit message in square
@@ -23,6 +23,8 @@ please find some of the most important points below.
   license without discussing first.
 * If a relevant bug or tracking issue exists, reference it in the pull request
   and commits.
+* When not working on your own fork, please prefix your branch with your username
+  to keep the branches organized. I.e., "myname/amazing-feature"
 
 ## Git Considerations
 
