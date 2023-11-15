@@ -55,49 +55,127 @@ module mempool_cc
   logic acc_req_d_valid, acc_req_d_ready, acc_resp_d_valid, acc_resp_d_ready;
   logic acc_req_q_valid, acc_req_q_ready, acc_resp_q_valid, acc_resp_q_ready;
 
+  //  // Snitch Integer Core
+  // snitch #(
+  //   .BootAddr ( BootAddr ),
+  //   .MTVEC    ( MTVEC    ),
+  //   .RVE      ( RVE      ),
+  //   .RVM      ( RVM      )
+  // ) i_snitch (
+  //   .clk_i                                   ,
+  //   .rst_i                                   ,
+  //   .hart_id_i                               ,
+  //   .inst_addr_o                             ,
+  //   .inst_data_i                             ,
+  //   .inst_valid_o                            ,
+  //   .inst_ready_i                            ,
+  //   .acc_qaddr_o      ( acc_req_d.addr      ),
+  //   .acc_qid_o        ( acc_req_d.id        ),
+  //   .acc_qdata_op_o   ( acc_req_d.data_op   ),
+  //   .acc_qdata_arga_o ( acc_req_d.data_arga ),
+  //   .acc_qdata_argb_o ( acc_req_d.data_argb ),
+  //   .acc_qdata_argc_o ( acc_req_d.data_argc ),
+  //   .acc_qvalid_o     ( acc_req_d_valid     ),
+  //   .acc_qready_i     ( acc_req_d_ready     ),
+  //   .acc_pdata_i      ( acc_resp_q.data     ),
+  //   .acc_pid_i        ( acc_resp_q.id       ),
+  //   .acc_perror_i     ( acc_resp_q.error    ),
+  //   .acc_pvalid_i     ( acc_resp_q_valid    ),
+  //   .acc_pready_o     ( acc_resp_q_ready    ),
+  //   .data_qaddr_o     ( data_req_d.addr     ),
+  //   .data_qwrite_o    ( data_req_d.write    ),
+  //   .data_qamo_o      ( data_req_d.amo      ),
+  //   .data_qdata_o     ( data_req_d.data     ),
+  //   .data_qstrb_o     ( data_req_d.strb     ),
+  //   .data_qid_o       ( data_req_d.id       ),
+  //   .data_qvalid_o    ( data_req_d_valid    ),
+  //   .data_qready_i    ( data_req_d_ready    ),
+  //   .data_pdata_i     ( data_resp_q.data    ),
+  //   .data_perror_i    ( data_resp_q.error   ),
+  //   .data_pid_i       ( data_resp_q.id      ),
+  //   .data_pvalid_i    ( data_resp_q_valid   ),
+  //   .data_pready_o    ( data_resp_q_ready   ),
+  //   .wake_up_sync_i   ( wake_up_sync_i      ),
+  //   .core_events_o    ( core_events_o       )
+  // );
+
+  typedef struct packed {
+    logic accept;
+    logic writeback;
+    logic loadstore;
+    logic exception;
+    logic isfloat;
+  } acc_issue_rsp_t;
+
+  fpnew_pkg::roundmode_e fpu_rnd_mode;
+  fpnew_pkg::fmt_mode_t fpu_fmt_mode;
+  fpnew_pkg::status_t fpu_status;
+  acc_issue_rsp_t acc_req_rsp;
+  // Spatz Memory consistency signals
+  logic [1:0] spatz_mem_finished;
+  logic [1:0] spatz_mem_str_finished;
+
   // Snitch Integer Core
   snitch #(
-    .BootAddr ( BootAddr ),
-    .MTVEC    ( MTVEC    ),
-    .RVE      ( RVE      ),
-    .RVM      ( RVM      )
+    .BootAddr   ( BootAddr  ),
+    .MTVEC      ( MTVEC     ),
+    .RVE        ( RVE       ),
+    .RVM        ( RVM       ),
+    .acc_issue_rsp_t  ( acc_issue_rsp_t )
   ) i_snitch (
-    .clk_i                                   ,
-    .rst_i                                   ,
-    .hart_id_i                               ,
-    .inst_addr_o                             ,
-    .inst_data_i                             ,
-    .inst_valid_o                            ,
-    .inst_ready_i                            ,
-    .acc_qaddr_o      ( acc_req_d.addr      ),
-    .acc_qid_o        ( acc_req_d.id        ),
-    .acc_qdata_op_o   ( acc_req_d.data_op   ),
-    .acc_qdata_arga_o ( acc_req_d.data_arga ),
-    .acc_qdata_argb_o ( acc_req_d.data_argb ),
-    .acc_qdata_argc_o ( acc_req_d.data_argc ),
-    .acc_qvalid_o     ( acc_req_d_valid     ),
-    .acc_qready_i     ( acc_req_d_ready     ),
-    .acc_pdata_i      ( acc_resp_q.data     ),
-    .acc_pid_i        ( acc_resp_q.id       ),
-    .acc_perror_i     ( acc_resp_q.error    ),
-    .acc_pvalid_i     ( acc_resp_q_valid    ),
-    .acc_pready_o     ( acc_resp_q_ready    ),
-    .data_qaddr_o     ( data_req_d.addr     ),
-    .data_qwrite_o    ( data_req_d.write    ),
-    .data_qamo_o      ( data_req_d.amo      ),
-    .data_qdata_o     ( data_req_d.data     ),
-    .data_qstrb_o     ( data_req_d.strb     ),
-    .data_qid_o       ( data_req_d.id       ),
-    .data_qvalid_o    ( data_req_d_valid    ),
-    .data_qready_i    ( data_req_d_ready    ),
-    .data_pdata_i     ( data_resp_q.data    ),
-    .data_perror_i    ( data_resp_q.error   ),
-    .data_pid_i       ( data_resp_q.id      ),
-    .data_pvalid_i    ( data_resp_q_valid   ),
-    .data_pready_o    ( data_resp_q_ready   ),
-    .wake_up_sync_i   ( wake_up_sync_i      ),
-    .core_events_o    ( core_events_o       )
+    .clk_i                  ( clk_i                  ), 
+    .rst_i                  ( rst_i                  ), 
+    .hart_id_i              ( hart_id_i              ), 
+    .inst_addr_o            ( inst_addr_o            ), 
+    .inst_data_i            ( inst_data_i            ), 
+    .inst_valid_o           ( inst_valid_o           ), 
+    .inst_ready_i           ( inst_ready_i           ), 
+    .acc_qaddr_o            ( acc_req_d.addr         ), 
+    .acc_qid_o              ( acc_req_d.id           ),
+    .acc_qdata_op_o         ( acc_req_d.data_op      ), 
+    .acc_qdata_arga_o       ( acc_req_d.data_arga    ), 
+    .acc_qdata_argb_o       ( acc_req_d.data_argb    ), 
+    .acc_qdata_argc_o       ( acc_req_d.data_argc    ), 
+    .acc_qvalid_o           ( acc_req_d_valid        ), 
+    .acc_qready_i           ( acc_req_d_ready        ), 
+    .acc_pdata_i            ( acc_resp_q.data        ), 
+    .acc_pid_i              ( acc_resp_q.id          ), 
+    .acc_pwrite_i           ( 1'b1                   ), // only used for Spatz, tie to 1 here
+    .acc_perror_i           ( acc_resp_q.error       ), 
+    .acc_pvalid_i           ( acc_resp_q_valid       ), 
+    .acc_pready_o           ( acc_resp_q_ready       ), 
+    .acc_qdata_rsp_i        ( acc_req_rsp            ),
+    .acc_mem_finished_i     ( spatz_mem_finished     ),
+    .acc_mem_str_finished_i ( spatz_mem_str_finished ),
+    .data_qaddr_o           ( data_req_d.addr        ), 
+    .data_qwrite_o          ( data_req_d.write       ), 
+    .data_qamo_o            ( data_req_d.amo         ), 
+    .data_qdata_o           ( data_req_d.data        ), 
+    .data_qstrb_o           ( data_req_d.strb        ), 
+    .data_qid_o             ( data_req_d.id          ),
+    .data_qvalid_o          ( data_req_d_valid       ), 
+    .data_qready_i          ( data_req_d_ready       ), 
+    .data_pdata_i           ( data_resp_q.data       ),  
+    .data_perror_i          ( data_resp_q.error      ),
+    .data_pid_i             ( data_resp_q.id         ),
+    .data_pvalid_i          ( data_resp_q_valid      ), 
+    .data_pready_o          ( data_resp_q_ready      ), 
+    .wake_up_sync_i         ( wake_up_sync_i         ), 
+    .fpu_fmt_mode_o         ( fpu_fmt_mode           ), 
+    .fpu_rnd_mode_o         ( fpu_rnd_mode           ),
+    .fpu_status_i           ( fpu_status             ),
+    .core_events_o          ( core_events_o          )  
   );
+
+  assign spatz_mem_finished     = '0;
+  assign spatz_mem_str_finished = '0;
+  assign fpu_status = '0;
+  assign acc_req_rsp.accept = 1'b1;
+  assign acc_req_rsp.writeback = 1'b1;
+  assign acc_req_rsp.loadstore = 1'b0;
+  assign acc_req_rsp.exception = 1'b0;
+  assign acc_req_rsp.isfloat = 1'b0;
+
 
   // Cut off-loading request path
   spill_register #(
@@ -261,7 +339,9 @@ module mempool_cc
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "writeback",   i_snitch.alu_writeback);
           // Load/Store
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "gpr_rdata_1", i_snitch.gpr_rdata[1]);
+`ifdef XPULPIMG_EXTENSION
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "gpr_rdata_2", i_snitch.gpr_rdata[2]);
+`endif
           extras_str = $sformatf("%s'%s': 0x%1x, ", extras_str, "ls_size",     i_snitch.ls_size);
           extras_str = $sformatf("%s'%s': 0x%8x, ", extras_str, "ld_result_32",i_snitch.ld_result[31:0]);
           extras_str = $sformatf("%s'%s': 0x%2x, ", extras_str, "lsu_rd",      i_snitch.lsu_rd);

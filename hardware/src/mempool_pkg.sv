@@ -27,18 +27,45 @@ package mempool_pkg;
   localparam integer unsigned AxiDataWidth     = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
   localparam integer unsigned AxiLiteDataWidth = 32;
 
+  // Extension support
+  localparam bit RVV        = `ifdef RVV `RVV `else 0 `endif;
+  localparam bit RVF        = `ifdef RVF `RVF `else 0 `endif;
+  localparam bit RVD        = `ifdef RVD `RVD `else 0 `endif;
+  localparam bit XFVEC      = 0;
+  localparam bit XFDOTP     = (RVF|RVD) ? 1 : 0;
+  localparam bit XFAUX      = 0;
+  localparam bit XF16       = (RVF|RVD) ? 1 : 0;
+  localparam bit XF16ALT    = 0;
+  localparam bit XF8        = (RVF|RVD) ? 1 : 0;
+  localparam bit XF8ALT     = 0;
+  /// Enable div/sqrt unit (buggy - use with caution)
+  localparam bit XDivSqrt   = 0;
+
+  // Derived parameters
+  localparam integer unsigned NumIPUsPerCore      = `ifdef N_IPU `N_IPU `else 1 `endif;
+  localparam integer unsigned NumFPUsPerCore      = `ifdef N_FPU `N_FPU `else 1 `endif;
+  localparam integer unsigned NumFUsPerCore       = NumIPUsPerCore > NumFPUsPerCore ? NumIPUsPerCore : NumFPUsPerCore;
+  localparam integer unsigned NumFUsPerTile       = NumFUsPerCore * NumCoresPerTile;
+  localparam integer unsigned NumMemPortsPerSpatz = NumFUsPerCore;
+  localparam integer unsigned NumDataPortsPerCore = 1 + RVV*NumMemPortsPerSpatz;
+
   /***********************
    *  MEMORY PARAMETERS  *
    ***********************/
+  // Element widths
+  localparam integer unsigned XLEN = 32; // Snitch always operates on 32 bit integers
+  localparam integer unsigned FLEN = RVD ? 64 : 32;
+  localparam integer unsigned ELEN = RVD ? 64 : 32;
 
   localparam integer unsigned AddrWidth        = 32;
-  localparam integer unsigned DataWidth        = 32;
+  localparam integer unsigned DataWidth        = ELEN;
   localparam integer unsigned BeWidth          = DataWidth / 8;
   localparam integer unsigned ByteOffset       = $clog2(BeWidth);
   localparam integer unsigned BankingFactor    = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
   localparam bit              LrScEnable       = 1'b1;
   localparam integer unsigned TCDMSizePerBank  = `ifdef L1_BANK_SIZE `L1_BANK_SIZE `else 0 `endif;
-  localparam integer unsigned NumBanks         = NumCores * BankingFactor;
+  // localparam integer unsigned NumBanks         = NumCores * BankingFactor;
+  localparam integer unsigned NumBanks         = NumCores * NumFUsPerCore * BankingFactor;
   localparam integer unsigned NumBanksPerTile  = NumBanks / NumTiles;
   localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
@@ -131,16 +158,20 @@ package mempool_pkg;
    *  INSTRUCTION CACHE  *
    ***********************/
 
-  localparam int unsigned ICacheSizeByte  = 512 * NumCoresPerCache;     // Total Size of instruction cache in bytes
-  localparam int unsigned ICacheSets      = NumCoresPerCache / 2;       // Number of sets
-  localparam int unsigned ICacheLineWidth = 32 * 2 * NumCoresPerCache;  // Size of each cache line in bits
+  // localparam int unsigned ICacheSizeByte  = 512 * NumCoresPerCache;     // Total Size of instruction cache in bytes
+  // localparam int unsigned ICacheSets      = NumCoresPerCache / 2;       // Number of sets
+  // localparam int unsigned ICacheLineWidth = 32 * 2 * NumCoresPerCache;  // Size of each cache line in bits
+  localparam int unsigned ICacheSizeByte  = 512 * NumFUsPerTile;      // Total Size of instruction cache in bytes
+  localparam int unsigned ICacheSets      = NumFUsPerTile;            // Number of sets
+  localparam int unsigned ICacheLineWidth = 32 * 2 * NumFUsPerTile;   // Size of each cache line in bits
 
   /*********************
    *  READ-ONLY CACHE  *
    *********************/
 
   localparam int unsigned AxiHierRadix      = `ifdef AXI_HIER_RADIX `AXI_HIER_RADIX `else NumTilesPerGroup `endif;
-  localparam int unsigned ROCacheLineWidth  = `ifdef RO_LINE_WIDTH `RO_LINE_WIDTH `else 0 `endif;
+  // localparam int unsigned ROCacheLineWidth  = `ifdef RO_LINE_WIDTH `RO_LINE_WIDTH `else 0 `endif;
+  localparam int unsigned ROCacheLineWidth  = `ifdef RO_LINE_WIDTH `RO_LINE_WIDTH `else ICacheLineWidth `endif;
   localparam int unsigned ROCacheSizeByte   = 8192;
   localparam int unsigned ROCacheSets       = 2;
 
@@ -200,7 +231,8 @@ package mempool_pkg;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
   typedef logic [MetaIdWidth-1:0] meta_id_t;
-  typedef logic [idx_width(NumCoresPerTile)-1:0] tile_core_id_t;
+  // typedef logic [idx_width(NumCoresPerTile)-1:0] tile_core_id_t;
+  typedef logic [idx_width(NumCoresPerTile * NumDataPortsPerCore)-1:0] tile_core_id_t;
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
   typedef logic [3:0] amo_t;

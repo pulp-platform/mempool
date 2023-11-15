@@ -47,6 +47,7 @@ module tcdm_adapter #(
   import mempool_pkg::NumCores;
   import mempool_pkg::NumGroups;
   import mempool_pkg::NumCoresPerTile;
+  import mempool_pkg::NumDataPortsPerCore;
   import cf_math_pkg::idx_width;
 
   typedef enum logic [3:0] {
@@ -94,6 +95,7 @@ module tcdm_adapter #(
   ) i_metadata_register (
     .clk_i  (clk_i                   ),
     .rst_ni (rst_ni                  ),
+    // .valid_i(in_valid_i && in_ready_o && !in_write_i),
     .valid_i(in_valid_i && in_ready_o),
     .ready_o(meta_ready              ),
     .data_i (in_meta_i               ),
@@ -130,6 +132,7 @@ module tcdm_adapter #(
 
   localparam int unsigned CoreIdWidth  = idx_width(NumCores);
   localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroups);
+  // localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile*NumDataPortsPerCore + NumGroups);
 
   logic sc_successful_d, sc_successful_q;
   logic sc_q;
@@ -145,6 +148,7 @@ module tcdm_adapter #(
 
   // Generate out_gnt one cycle after sending a request to the bank, except an AMO's write-back
   `FF(out_gnt, out_req_o && !amo_wb, 1'b0, clk_i, rst_ni);
+  // `FF(out_gnt, (out_req_o && !out_write_o && !amo_wb) || sc_successful_d, 1'b0, clk_i, rst_ni);
 
   // ----------------
   // LR/SC
@@ -237,6 +241,7 @@ module tcdm_adapter #(
   always_comb begin
     // feed-through
     in_ready_o  = rdata_ready;
+    // in_ready_o  = in_valid_o && !in_ready_i ? 1'b0 : 1'b1;
     out_req_o   = in_valid_i && in_ready_o;
     out_add_o   = in_address_i;
     out_write_o = in_write_i || (sc_successful_d && (amo_op_t'(in_amo_i) == AMOSC));

@@ -69,7 +69,7 @@ module mempool_tile
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
 
   // Local interconnect address width
-  typedef logic [idx_width(NumCoresPerTile + NumGroups + NumSubGroupsPerGroup - 1)-1:0] local_req_interco_addr_t;
+  typedef logic [idx_width(NumCoresPerTile*NumDataPortsPerCore + NumGroups + NumSubGroupsPerGroup-1)-1:0] local_req_interco_addr_t;
 
   /*********************
    *  Control Signals  *
@@ -106,28 +106,54 @@ module mempool_tile
   logic  [NumCaches-1:0][NumCoresPerCache-1:0] snitch_inst_ready;
 
   // Data interfaces
-  addr_t    [NumCoresPerTile-1:0] snitch_data_qaddr;
-  logic     [NumCoresPerTile-1:0] snitch_data_qwrite;
-  amo_t     [NumCoresPerTile-1:0] snitch_data_qamo;
-  data_t    [NumCoresPerTile-1:0] snitch_data_qdata;
-  strb_t    [NumCoresPerTile-1:0] snitch_data_qstrb;
-  meta_id_t [NumCoresPerTile-1:0] snitch_data_qid;
-  logic     [NumCoresPerTile-1:0] snitch_data_qvalid;
-  logic     [NumCoresPerTile-1:0] snitch_data_qready;
-  data_t    [NumCoresPerTile-1:0] snitch_data_pdata;
-  logic     [NumCoresPerTile-1:0] snitch_data_perror;
-  meta_id_t [NumCoresPerTile-1:0] snitch_data_pid;
-  logic     [NumCoresPerTile-1:0] snitch_data_pvalid;
-  logic     [NumCoresPerTile-1:0] snitch_data_pready;
+  addr_t    [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qaddr;
+  logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qwrite;
+  amo_t     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qamo;
+  data_t    [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qdata;
+  strb_t    [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qstrb;
+  meta_id_t [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qid;
+  logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qvalid;
+  logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qready;
+  data_t    [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_pdata;
+  logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_perror;
+  meta_id_t [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_pid;
+  logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_pvalid;
+  logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_pready;
 
   for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_cores
     logic [31:0] hart_id;
-    assign hart_id = {unsigned'(tile_id_i), c[idx_width(NumCoresPerTile)-1:0]};
+    // assign hart_id = {unsigned'(tile_id_i), c[idx_width(NumCoresPerTile)-1:0]};
+    if (NumCoresPerTile == 1) begin
+      assign hart_id = unsigned'(tile_id_i);
+    end else begin
+      assign hart_id = {unsigned'(tile_id_i), c[idx_width(NumCoresPerTile)-1:0]};
+    end
 
     if (!TrafficGeneration) begin: gen_mempool_cc
+`ifndef TARGET_SPATZ
       mempool_cc #(
         .BootAddr (BootAddr)
-      ) riscv_core (
+      )
+`else
+      spatz_mempool_cc #(
+        .BootAddr             ( BootAddr            ),
+        .RVE                  ( 0                   ),
+        .RVM                  ( 1                   ),
+        .RVV                  ( RVV                 ),
+        .XFVEC                ( XFVEC               ),
+        .XFDOTP               ( XFDOTP              ),
+        .XFAUX                ( XFAUX               ),
+        .RVF                  ( RVF                 ),
+        .RVD                  ( RVD                 ),
+        .XF16                 ( XF16                ),
+        .XF16ALT              ( XF16ALT             ),
+        .XF8                  ( XF8                 ),
+        .XDivSqrt             ( XDivSqrt            ),
+        .NumMemPortsPerSpatz  ( NumMemPortsPerSpatz ),
+        .TCDMPorts            ( NumDataPortsPerCore )
+      )
+`endif
+      riscv_core (
         .clk_i         (clk_i                                                    ),
         .rst_i         (!rst_ni                                                  ),
         .hart_id_i     (hart_id                                                  ),
@@ -540,12 +566,22 @@ module mempool_tile
    *   Remote Interconnects   *
    ****************************/
 
+<<<<<<< HEAD
   tcdm_master_req_t  [NumCoresPerTile-1:0] remote_req_interco;
   logic              [NumCoresPerTile-1:0] remote_req_interco_valid;
   logic              [NumCoresPerTile-1:0] remote_req_interco_ready;
   tcdm_master_resp_t [NumCoresPerTile-1:0] remote_resp_interco;
   logic              [NumCoresPerTile-1:0] remote_resp_interco_valid;
   logic              [NumCoresPerTile-1:0] remote_resp_interco_ready;
+=======
+  tcdm_master_req_t  [NumCoresPerTile*NumDataPortsPerCore-1:0] remote_req_interco;
+  logic              [NumCoresPerTile*NumDataPortsPerCore-1:0] remote_req_interco_valid;
+  logic              [NumCoresPerTile*NumDataPortsPerCore-1:0] remote_req_interco_ready;
+  group_id_t         [NumCoresPerTile*NumDataPortsPerCore-1:0] remote_req_interco_tgt_sel;
+  tcdm_master_resp_t [NumCoresPerTile*NumDataPortsPerCore-1:0] remote_resp_interco;
+  logic              [NumCoresPerTile*NumDataPortsPerCore-1:0] remote_resp_interco_valid;
+  logic              [NumCoresPerTile*NumDataPortsPerCore-1:0] remote_resp_interco_ready;
+>>>>>>> e17227cc... WIP:[MemPool-Spatz]
 
   `ifdef TERAPOOL
     tile_remote_sel_t  [NumCoresPerTile-1:0] remote_req_interco_tgt_sel;
@@ -556,9 +592,15 @@ module mempool_tile
   `endif
 
   stream_xbar #(
+<<<<<<< HEAD
     .NumInp   (NumCoresPerTile                 ),
     .NumOut   (NumGroups+NumSubGroupsPerGroup-1),
     .payload_t(tcdm_master_req_t               )
+=======
+    .NumInp   (NumCoresPerTile*NumDataPortsPerCore  ),
+    .NumOut   (NumGroups                            ),
+    .payload_t(tcdm_master_req_t                    )
+>>>>>>> e17227cc... WIP:[MemPool-Spatz]
   ) i_remote_req_interco (
     .clk_i  (clk_i                       ),
     .rst_ni (rst_ni                      ),
@@ -578,9 +620,15 @@ module mempool_tile
   );
 
   stream_xbar #(
+<<<<<<< HEAD
     .NumInp   (NumGroups+NumSubGroupsPerGroup-1),
     .NumOut   (NumCoresPerTile                 ),
     .payload_t(tcdm_master_resp_t              )
+=======
+    .NumInp   (NumGroups                            ),
+    .NumOut   (NumCoresPerTile*NumDataPortsPerCore  ),
+    .payload_t(tcdm_master_resp_t                   )
+>>>>>>> e17227cc... WIP:[MemPool-Spatz]
   ) i_remote_resp_interco (
     .clk_i  (clk_i                           ),
     .rst_ni (rst_ni                          ),
@@ -603,13 +651,14 @@ module mempool_tile
    *   Local Intercos   *
    **********************/
 
-  logic             [NumCoresPerTile-1:0] local_req_interco_valid;
-  logic             [NumCoresPerTile-1:0] local_req_interco_ready;
-  tcdm_slave_req_t  [NumCoresPerTile-1:0] local_req_interco_payload;
-  logic             [NumCoresPerTile-1:0] local_resp_interco_valid;
-  logic             [NumCoresPerTile-1:0] local_resp_interco_ready;
-  tcdm_slave_resp_t [NumCoresPerTile-1:0] local_resp_interco_payload;
+  logic             [NumCoresPerTile*NumDataPortsPerCore-1:0] local_req_interco_valid;
+  logic             [NumCoresPerTile*NumDataPortsPerCore-1:0] local_req_interco_ready;
+  tcdm_slave_req_t  [NumCoresPerTile*NumDataPortsPerCore-1:0] local_req_interco_payload;
+  logic             [NumCoresPerTile*NumDataPortsPerCore-1:0] local_resp_interco_valid;
+  logic             [NumCoresPerTile*NumDataPortsPerCore-1:0] local_resp_interco_ready;
+  tcdm_slave_resp_t [NumCoresPerTile*NumDataPortsPerCore-1:0] local_resp_interco_payload;
 
+<<<<<<< HEAD
   logic [NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1-1:0][idx_width(NumBanksPerTile)-1:0] local_req_interco_tgt_sel;
   for (genvar j = 0; unsigned'(j) < NumCoresPerTile; j++) begin: gen_local_req_interco_tgt_sel_local
     assign local_req_interco_tgt_sel[j]  = local_req_interco_payload[j].tgt_addr[idx_width(NumBanksPerTile)-1:0];
@@ -622,6 +671,20 @@ module mempool_tile
     .NumInp   (NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1),
     .NumOut   (NumBanksPerTile                                 ),
     .payload_t(tcdm_slave_req_t                                )
+=======
+  logic [NumCoresPerTile*NumDataPortsPerCore+NumGroups-1:0][idx_width(NumBanksPerTile)-1:0] local_req_interco_tgt_sel;
+  for (genvar j = 0; unsigned'(j) < NumCoresPerTile*NumDataPortsPerCore; j++) begin: gen_local_req_interco_tgt_sel_local
+    assign local_req_interco_tgt_sel[j]  = local_req_interco_payload[j].tgt_addr[idx_width(NumBanksPerTile)-1:0];
+  end: gen_local_req_interco_tgt_sel_local
+  for (genvar j = 0; unsigned'(j) < NumGroups; j++) begin: gen_local_req_interco_tgt_sel_remote
+    assign local_req_interco_tgt_sel[j + NumCoresPerTile*NumDataPortsPerCore]  = postreg_tcdm_slave_req[j].tgt_addr[idx_width(NumBanksPerTile)-1:0];
+  end: gen_local_req_interco_tgt_sel_remote
+
+  stream_xbar #(
+    .NumInp   (NumCoresPerTile*NumDataPortsPerCore+NumGroups),
+    .NumOut   (NumBanksPerTile                              ),
+    .payload_t(tcdm_slave_req_t                             )
+>>>>>>> e17227cc... WIP:[MemPool-Spatz]
   ) i_local_req_interco (
     .clk_i  (clk_i                                                  ),
     .rst_ni (rst_ni                                                 ),
@@ -641,9 +704,15 @@ module mempool_tile
   );
 
   stream_xbar #(
+<<<<<<< HEAD
     .NumInp   (NumBanksPerTile                                 ),
     .NumOut   (NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1),
     .payload_t(tcdm_slave_resp_t                               )
+=======
+    .NumInp   (NumBanksPerTile                              ),
+    .NumOut   (NumCoresPerTile*NumDataPortsPerCore+NumGroups),
+    .payload_t(tcdm_slave_resp_t                            )
+>>>>>>> e17227cc... WIP:[MemPool-Spatz]
   ) i_local_resp_interco (
     .clk_i  (clk_i                                                   ),
     .rst_ni (rst_ni                                                  ),
@@ -667,12 +736,12 @@ module mempool_tile
    *******************/
 
   // SoC requests
-  dreq_t  [NumCoresPerTile-1:0] soc_data_q;
-  logic   [NumCoresPerTile-1:0] soc_data_qvalid;
-  logic   [NumCoresPerTile-1:0] soc_data_qready;
-  dresp_t [NumCoresPerTile-1:0] soc_data_p;
-  logic   [NumCoresPerTile-1:0] soc_data_pvalid;
-  logic   [NumCoresPerTile-1:0] soc_data_pready;
+  dreq_t  [NumCoresPerTile*NumDataPortsPerCore-1:0] soc_data_q;
+  logic   [NumCoresPerTile*NumDataPortsPerCore-1:0] soc_data_qvalid;
+  logic   [NumCoresPerTile*NumDataPortsPerCore-1:0] soc_data_qready;
+  dresp_t [NumCoresPerTile*NumDataPortsPerCore-1:0] soc_data_p;
+  logic   [NumCoresPerTile*NumDataPortsPerCore-1:0] soc_data_pvalid;
+  logic   [NumCoresPerTile*NumDataPortsPerCore-1:0] soc_data_pready;
 
   // Address map
   typedef enum int unsigned {
@@ -699,16 +768,25 @@ module mempool_tile
   };
 
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_core_mux
+<<<<<<< HEAD
     `ifdef TERAPOOL
       // Remove tile index from local_req_interco_addr_int, since it will not be used for routing.
       addr_t local_req_interco_addr_int;
       assign local_req_interco_payload[c].tgt_addr =
+=======
+    for (genvar p = 0; p < NumDataPortsPerCore; p++) begin: gen_core_port_mux
+      localparam int unsigned idx = NumDataPortsPerCore*c + p;
+      // Remove tile index from local_req_interco_addr_int, since it will not be used for routing.
+      addr_t local_req_interco_addr_int;
+      assign local_req_interco_payload[idx].tgt_addr =
+>>>>>>> e17227cc... WIP:[MemPool-Spatz]
        tcdm_addr_t'({local_req_interco_addr_int[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
                local_req_interco_addr_int[ByteOffset +: idx_width(NumBanksPerTile)]}); // Bank
 
       // Switch tile and bank indexes for correct upper level routing, and remove the group index
       addr_t prescramble_tcdm_req_tgt_addr;
       if (NumTilesPerGroup == 1) begin : gen_remote_req_interco_tgt_addr
+<<<<<<< HEAD
         assign remote_req_interco[c].tgt_addr =
         tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumGroups) +: TCDMAddrMemWidth], // Bank address
            prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)]}); // Tile
@@ -767,11 +845,19 @@ module mempool_tile
            prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)]}); // Tile
       end else begin : gen_remote_req_interco_tgt_addr
         assign remote_req_interco[c].tgt_addr =
+=======
+        assign remote_req_interco[idx].tgt_addr =
+        tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumGroups) +: TCDMAddrMemWidth], // Bank address
+           prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)]}); // Tile
+      end else begin : gen_remote_req_interco_tgt_addr
+        assign remote_req_interco[idx].tgt_addr =
+>>>>>>> e17227cc... WIP:[MemPool-Spatz]
         tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroups) +: TCDMAddrMemWidth], // Bank address
            prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)],                                                                              // Bank
            prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) +: $clog2(NumTilesPerGroup)]}); // Tile
       end
       if (NumGroups == 1) begin : gen_remote_req_interco_tgt_sel
+<<<<<<< HEAD
         assign remote_req_interco_tgt_sel[c] = 1'b0;
       end else begin : gen_remote_req_interco_tgt_sel
         // Output port depends on both the target and initiator group
@@ -883,21 +969,135 @@ module mempool_tile
             remote_resp_interco[c].rdata.data} ),
         .tcdm_resp_id_i ({local_resp_interco_payload[c].rdata.meta_id,
             remote_resp_interco[c].rdata.meta_id})
+=======
+        assign remote_req_interco_tgt_sel[idx] = 1'b0;
+      end else begin : gen_remote_req_interco_tgt_sel
+        // Output port depends on both the target and initiator group
+        assign remote_req_interco_tgt_sel[idx] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)]) ^ group_id;
+      end
+
+      // We don't care about these
+      assign local_req_interco_payload[idx].wdata.core_id = idx;
+      assign local_req_interco_payload[idx].ini_addr      = '0;
+      assign soc_data_q[idx].id                           = '0;
+
+      // Constant value
+      // assign remote_req_interco[c].wdata.core_id = c[idx_width(NumCoresPerTile)-1:0];
+      assign remote_req_interco[idx].wdata.core_id = idx;
+
+      // Scramble address before entering TCDM shim for sequential+interleaved memory map
+      addr_t snitch_data_qaddr_scrambled;
+      address_scrambler #(
+        .AddrWidth         (AddrWidth        ),
+        .ByteOffset        (ByteOffset       ),
+        .NumTiles          (NumTiles         ),
+        .NumBanksPerTile   (NumBanksPerTile  ),
+        .Bypass            (0                ),
+        .SeqMemSizePerTile (SeqMemSizePerTile)
+      ) i_address_scrambler (
+        .address_i (snitch_data_qaddr[c][p]    ),
+        .address_o (snitch_data_qaddr_scrambled)
+>>>>>>> e17227cc... WIP:[MemPool-Spatz]
       );
 
-      // Tie unused signals
-      assign soc_data_q[c].addr    = '0;
-      assign soc_data_q[c].write   = '0;
-      assign soc_data_q[c].amo     = '0;
-      assign soc_data_q[c].data    = '0;
-      assign soc_data_q[c].strb    = '0;
-      assign soc_data_qvalid[c]    = '0;
-      assign soc_data_pready[c]    = '0;
-      assign snitch_data_qready[c] = '0;
-      assign snitch_data_pdata[c]  = '0;
-      assign snitch_data_perror[c] = '0;
-      assign snitch_data_pid[c]    = '0;
-      assign snitch_data_pvalid[c] = '0;
+      if (!TrafficGeneration) begin: gen_tcdm_shim
+        tcdm_shim #(
+          .AddrWidth           (AddrWidth                         ),
+          .DataWidth           (DataWidth                         ),
+          .MaxOutStandingTrans (snitch_pkg::NumIntOutstandingLoads),
+          .NrTCDM              (2                                 ),
+          .NrSoC               (1                                 ),
+          .NumRules            (3                                 )
+        ) i_tcdm_shim (
+          .clk_i              (clk_i                                                                              ),
+          .rst_ni             (rst_ni                                                                             ),
+          // to TCDM --> FF Connection to outside of tile
+          .tcdm_req_valid_o   ({local_req_interco_valid[idx], remote_req_interco_valid[idx]}                          ),
+          .tcdm_req_tgt_addr_o({local_req_interco_addr_int, prescramble_tcdm_req_tgt_addr}                        ),
+          .tcdm_req_wen_o     ({local_req_interco_payload[idx].wen, remote_req_interco[idx].wen}                      ),
+          .tcdm_req_wdata_o   ({local_req_interco_payload[idx].wdata.data, remote_req_interco[idx].wdata.data}        ),
+          .tcdm_req_amo_o     ({local_req_interco_payload[idx].wdata.amo, remote_req_interco[idx].wdata.amo}          ),
+          .tcdm_req_id_o      ({local_req_interco_payload[idx].wdata.meta_id, remote_req_interco[idx].wdata.meta_id}  ),
+          .tcdm_req_be_o      ({local_req_interco_payload[idx].be, remote_req_interco[idx].be}                        ),
+          .tcdm_req_ready_i   ({local_req_interco_ready[idx], remote_req_interco_ready[idx]}                          ),
+          .tcdm_resp_valid_i  ({local_resp_interco_valid[idx], remote_resp_interco_valid[idx]}                        ),
+          .tcdm_resp_ready_o  ({local_resp_interco_ready[idx], remote_resp_interco_ready[idx]}                        ),
+          .tcdm_resp_rdata_i  ({local_resp_interco_payload[idx].rdata.data, remote_resp_interco[idx].rdata.data}      ),
+          .tcdm_resp_id_i     ({local_resp_interco_payload[idx].rdata.meta_id, remote_resp_interco[idx].rdata.meta_id}),
+          // to SoC
+          .soc_qaddr_o        (soc_data_q[idx].addr                                                                 ),
+          .soc_qwrite_o       (soc_data_q[idx].write                                                                ),
+          .soc_qamo_o         (soc_data_q[idx].amo                                                                  ),
+          .soc_qdata_o        (soc_data_q[idx].data                                                                 ),
+          .soc_qstrb_o        (soc_data_q[idx].strb                                                                 ),
+          .soc_qvalid_o       (soc_data_qvalid[idx]                                                                 ),
+          .soc_qready_i       (soc_data_qready[idx]                                                                 ),
+          .soc_pdata_i        (soc_data_p[idx].data                                                                 ),
+          .soc_pwrite_i       (soc_data_p[idx].write                                                                ),
+          .soc_perror_i       (soc_data_p[idx].error                                                                ),
+          .soc_pvalid_i       (soc_data_pvalid[idx]                                                                 ),
+          .soc_pready_o       (soc_data_pready[idx]                                                                 ),
+          // from core
+          .data_qaddr_i       (snitch_data_qaddr_scrambled                                                        ),
+          .data_qwrite_i      (snitch_data_qwrite[c][p]                                                              ),
+          .data_qamo_i        (snitch_data_qamo[c][p]                                                                ),
+          .data_qdata_i       (snitch_data_qdata[c][p]                                                               ),
+          .data_qstrb_i       (snitch_data_qstrb[c][p]                                                               ),
+          .data_qid_i         (snitch_data_qid[c][p]                                                                 ),
+          .data_qvalid_i      (snitch_data_qvalid[c][p]                                                              ),
+          .data_qready_o      (snitch_data_qready[c][p]                                                              ),
+          .data_pdata_o       (snitch_data_pdata[c][p]                                                               ),
+          .data_perror_o      (snitch_data_perror[c][p]                                                              ),
+          .data_pid_o         (snitch_data_pid[c][p]                                                                 ),
+          .data_pvalid_o      (snitch_data_pvalid[c][p]                                                              ),
+          .data_pready_i      (snitch_data_pready[c][p]                                                              ),
+          .address_map_i      (mask_map                                                                           )
+        );
+      end else begin: gen_traffic_generator
+        traffic_generator #(
+          .NumRules           (3                                 ),
+          .TCDMBaseAddr       (TCDMBaseAddr                      ),
+          .MaxOutStandingReads(snitch_pkg::NumIntOutstandingLoads)
+        ) i_traffic_gen (
+          .clk_i              (clk_i                                                        ),
+          .rst_ni             (rst_ni                                                       ),
+          .core_id_i          ({tile_id_i, c[idx_width(NumCoresPerTile)-1:0]}               ),
+          // Address map
+          .address_map_i      (mask_map                                                     ),
+          // To TCDM
+          .tcdm_req_valid_o   ({local_req_interco_valid[idx], remote_req_interco_valid[idx]}    ),
+          .tcdm_req_tgt_addr_o({local_req_interco_addr_int, prescramble_tcdm_req_tgt_addr}  ),
+          .tcdm_req_wen_o     ({local_req_interco_payload[idx].wen, remote_req_interco[idx].wen}),
+          .tcdm_req_wdata_o   ({local_req_interco_payload[idx].wdata.data,
+              remote_req_interco[idx].wdata.data}),
+          .tcdm_req_amo_o({local_req_interco_payload[idx].wdata.amo,
+              remote_req_interco[idx].wdata.amo}),
+          .tcdm_req_id_o({local_req_interco_payload[idx].wdata.meta_id,
+              remote_req_interco[idx].wdata.meta_id}),
+          .tcdm_req_be_o    ({local_req_interco_payload[idx].be, remote_req_interco[idx].be}),
+          .tcdm_req_ready_i ({local_req_interco_ready[idx], remote_req_interco_ready[idx]}  ),
+          .tcdm_resp_valid_i({local_resp_interco_valid[idx], remote_resp_interco_valid[idx]}),
+          .tcdm_resp_ready_o({local_resp_interco_ready[idx], remote_resp_interco_ready[idx]}),
+          .tcdm_resp_rdata_i({local_resp_interco_payload[idx].rdata.data,
+              remote_resp_interco[idx].rdata.data} ),
+          .tcdm_resp_id_i ({local_resp_interco_payload[idx].rdata.meta_id,
+              remote_resp_interco[idx].rdata.meta_id})
+        );
+
+        // Tie unused signals
+        assign soc_data_q[idx].addr    = '0;
+        assign soc_data_q[idx].write   = '0;
+        assign soc_data_q[idx].amo     = '0;
+        assign soc_data_q[idx].data    = '0;
+        assign soc_data_q[idx].strb    = '0;
+        assign soc_data_qvalid[idx]    = '0;
+        assign soc_data_pready[idx]    = '0;
+        assign snitch_data_qready[idx] = '0;
+        assign snitch_data_pdata[idx]  = '0;
+        assign snitch_data_perror[idx] = '0;
+        assign snitch_data_pid[idx]    = '0;
+        assign snitch_data_pvalid[idx] = '0;
+      end
     end
   end
 
@@ -914,12 +1114,13 @@ module mempool_tile
   logic soc_pready;
 
   // We don't care about this
-  assign soc_resp_i.id = 'x;
+  // assign soc_resp_i.id = 'x;
+  assign soc_resp_i.id = '0;
 
   snitch_demux #(
-    .NrPorts (NumCoresPerTile    ),
-    .req_t   (snitch_pkg::dreq_t ),
-    .resp_t  (snitch_pkg::dresp_t)
+    .NrPorts (NumCoresPerTile*NumDataPortsPerCore ),
+    .req_t   (snitch_pkg::dreq_t                  ),
+    .resp_t  (snitch_pkg::dresp_t                 )
   ) i_snitch_demux_data (
     .clk_i         (clk_i          ),
     .rst_ni        (rst_ni         ),

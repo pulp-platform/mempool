@@ -47,6 +47,8 @@ verilator_top   ?= mempool_tb_verilator
 python          ?= python3
 # Enable tracing
 snitch_trace    ?= 0
+# Enable spatz (automatically set when using spatz configuration)
+spatz           ?= 0
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -91,8 +93,9 @@ vlog_defs += -D$(config)
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DNUM_GROUPS=$(num_groups) -DBANKING_FACTOR=$(banking_factor)
 vlog_defs += -DL2_BASE=32\'d$(l2_base) -DL2_SIZE=32\'d$(l2_size) -DL2_BANKS=$(l2_banks)
 vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
-vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr) -DXPULPIMG=$(xpulpimg)
+vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr) -DXPULPIMG=$(xpulpimg) -DRVV=$(spatz)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
+vlog_defs += -DRVF=$(rvf) -DRVD=$(rvd)
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
@@ -100,6 +103,12 @@ vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_ma
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
 # This parameter is only used for TeraPool configurations
 vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group) -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
+
+ifeq ($(spatz), 1)
+	vlog_defs   += -DVLEN=$(vlen) -DN_IPU=$(n_ipu) -DN_FPU=$(n_fpu) -DN_FU=$(shell awk 'BEGIN{print ($(n_ipu) > $(n_fpu)) ? $(n_ipu) : $(n_fpu)}')
+	vlog_defs   += -DMEMPOOL_SPATZ=$(spatz)
+	bender_defs += -t spatz
+endif
 
 # Traffic generation enabled
 ifdef tg
@@ -143,7 +152,7 @@ $(buildpath)/$(library):
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
+	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool -t mempool_vsim $(bender_defs) > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
@@ -180,7 +189,7 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 .PHONY: elabvcs
 elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
 $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compilevcs.sh
+	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool -t mempool_vsim $(bender_defs) > $(buildpath)/compilevcs.sh
 	echo "exit" >> $(buildpath)/compilevcs.sh
 	# Call VCS
 	cd $(buildpath) && \
@@ -254,7 +263,8 @@ $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml 
 	# Overwrite Bootaddress to L2 base while we don't have a DPI to write a wake-up
 	$(eval boot_addr=$(l2_base))
 	# Create Bender script of all RTL files
-	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(verilator_files)
+	$(bender) script verilator $(vlog_defs) -t rtl -t mempool -t mempool_verilator $(bender_defs) > $(verilator_files)
+	if [ "${subgroup_rtl}" -eq "0" ]; then awk '!/mempool_sub_group/' $(verilator_files) > tmpfile && mv tmpfile $(verilator_files); fi
 	# Append the verilator library files
 	@echo '' >> $(verilator_files)
 	# Append the verilator library files: Includes
@@ -286,7 +296,7 @@ lint: spyglass/tmp/files spyglass/sdc/func.sdc spyglass/scripts/run_lint.tcl
 
 spyglass/tmp/files: $(bender)
 	mkdir -p spyglass/tmp
-	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > spyglass/tmp/files
+	$(bender) script verilator $(vlog_defs) -t rtl -t mempool -t mempool_verilator $(bender_defs) > spyglass/tmp/files
 
 ################
 # Tracing      #

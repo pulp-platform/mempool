@@ -35,7 +35,9 @@ vlen ?= 512
 # Number of IPUs
 n_ipu ?= 4
 
-n_fpu ?= 0
+n_fpu ?= 4
 
 # Deactivate the XpulpIMG extension
 xpulpimg ?= 0
+
+rvf ?= 1

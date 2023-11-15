@@ -11,7 +11,11 @@ module snitch_lsu
   import cf_math_pkg::idx_width;
 #(
   parameter type tag_t                       = logic [4:0],
+  parameter type dreq_t                      = logic,
+  parameter type drsp_t                      = logic,
   parameter int unsigned NumOutstandingLoads = 1,
+  // unused here, always 32 in MemPool
+  parameter int unsigned DataWidth           = 32,
   parameter bit NaNBox                       = 0,
   // Dependent parameters. DO NOT CHANGE.
   localparam int unsigned IdWidth = idx_width(NumOutstandingLoads)
@@ -20,8 +24,8 @@ module snitch_lsu
   input  logic               rst_i,
   // request channel
   input  tag_t               lsu_qtag_i,
-  input  logic               lsu_qwrite,
-  input  logic               lsu_qsigned,
+  input  logic               lsu_qwrite_i,
+  input  logic               lsu_qsigned_i,
   input  logic [31:0]        lsu_qaddr_i,
   input  logic [31:0]        lsu_qdata_i,
   input  logic [1:0]         lsu_qsize_i,
@@ -104,9 +108,9 @@ module snitch_lsu
   end
 
   assign req_metadata = '{
-    write:    lsu_qwrite,
+    write:    lsu_qwrite_i,
     tag:      lsu_qtag_i,
-    sign_ext: lsu_qsigned,
+    sign_ext: lsu_qsigned_i,
     offset:   lsu_qaddr_i[1:0],
     size:     lsu_qsize_i
   };
@@ -135,7 +139,7 @@ module snitch_lsu
   // also check that we can actually store the necessary information to process
   // it in the upcoming cycle(s).
   assign data_qvalid_o = lsu_qvalid_i && !id_table_full;
-  assign data_qwrite_o = lsu_qwrite;
+  assign data_qwrite_o = lsu_qwrite_i;
   assign data_qaddr_o  = {lsu_qaddr_i[31:2], 2'b0};
   assign data_qamo_o   = lsu_qamo_i;
   assign data_qid_o    = req_id;

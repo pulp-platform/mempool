@@ -29,6 +29,21 @@ packages:
     source:
       Git: "https://github.com/pulp-platform/common_verification.git"
     dependencies: []
+  fpnew:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/fpnew
+    dependencies:
+    - common_cells
+    - fpu_div_sqrt_mvp
+  fpu_div_sqrt_mvp:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/fpu_div_sqrt_mvp
+    dependencies:
+    - common_cells
   idma:
     revision: ~
     version: ~
@@ -54,6 +69,14 @@ packages:
     dependencies:
       - axi
       - common_cells
+  riscv-dbg:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/riscv-dbg
+    dependencies:
+    - common_cells
+    - tech_cells_generic
   snitch:
     revision: ~
     version: ~
@@ -61,6 +84,20 @@ packages:
       Path: hardware/deps/snitch
     dependencies:
       - common_cells
+  spatz:
+    revision: 5e854f1fd9e82df236565a61a710d3092059f471
+    version: null
+    source:
+      Git: git@iis-git.ee.ethz.ch:spatz/spatz.git
+    dependencies:
+    - axi
+    - axi_riscv_atomics
+    - common_cells
+    - fpnew
+    - idma
+    - register_interface
+    - riscv-dbg
+    - tech_cells_generic
   tech_cells_generic:
     revision: 78e817972307bcb9f6c77d18d64480ef595f03c9
     version: 0.2.5

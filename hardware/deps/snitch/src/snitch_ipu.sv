@@ -72,6 +72,7 @@ module snitch_ipu #(
         div_valid_op = acc_qvalid_i;
         acc_qready_o = div_ready_op;
       end
+`ifdef XPULPIMG_EXTENSION
       riscv_instr::P_ABS,                 // Xpulpimg: p.abs
       riscv_instr::P_SLET,                // Xpulpimg: p.slet
       riscv_instr::P_SLETU,               // Xpulpimg: p.sletu
@@ -228,6 +229,7 @@ module snitch_ipu #(
           illegal_instruction = 1'b1;
         end
       end
+`endif
       default: illegal_instruction = 1'b1;
     endcase
   end
@@ -458,6 +460,7 @@ module dspu #(
         mac_op = MulHigh;
         res_sel = Mac;
       end
+`ifdef XPULPIMG_EXTENSION
       // Instructions from Xpulpimg
       riscv_instr::P_ABS: begin
         cmp_op_b_sel = Zero;
@@ -1299,6 +1302,7 @@ module dspu #(
         simd_mode = High;
         res_sel = Simd;
       end
+`endif
       default: ;
     endcase
   end

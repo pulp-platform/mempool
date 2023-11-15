@@ -1,0 +1,11 @@
+// Copyright 2020 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
+// Parameters for an AXPY
+
+{
+    kernel: "AXPY"
+    M: 4096,
+    prec: 32
+}
