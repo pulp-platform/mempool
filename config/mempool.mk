@@ -25,7 +25,7 @@ num_divsqrt_per_tile ?= 1
 banking_factor ?= 4
 
 # Radix for hierarchical AXI interconnect
-axi_hier_radix ?= 20
+axi_hier_radix ?= 17
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 1

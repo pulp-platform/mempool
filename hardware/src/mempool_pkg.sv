@@ -197,6 +197,7 @@ package mempool_pkg;
   localparam int unsigned DmaDataWidth = AxiDataWidth;
   localparam int unsigned DmaNumWords = DmaDataWidth/DataWidth;
   localparam int unsigned NumSuperbanks = NumBanksPerTile/DmaNumWords;
+  localparam int unsigned DmaBrustLen = (NumBanksPerGroup / NumDmasPerGroup) / DmaNumWords;
 
   typedef logic [DmaNumWords*DataWidth-1:0] dma_data_t;
   typedef logic [DmaNumWords*DataWidth/8-1:0] dma_strb_t;
