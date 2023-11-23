@@ -372,57 +372,35 @@ module mempool_system
   axi_tile_resp_t [NumAXIMasters-1:0] axi_l2_resp_splitted;
   axi_tile_req_t  [NumAXIMasters-1:0] axi_l2_req_interleaved;
 
-  `ifdef DRAM_AXI_WIDTH_INTERLEAVED
-    for (genvar i = 0; unsigned'(i) < NumAXIMasters; i++) begin: gen_axi_splitter
-      axi_burst_splitter #(
-        .MaxReadTxns (16             ),
-        .MaxWriteTxns(16             ),
-        .AddrWidth   (AddrWidth      ),
-        .DataWidth   (AxiDataWidth   ),
-        .IdWidth     (AxiTileIdWidth ),
-        .UserWidth   (1              ),
-        .axi_req_t   (axi_tile_req_t ),
-        .axi_resp_t  (axi_tile_resp_t)
-      ) i_axi_burst_splitter (
-        .clk_i     (clk_i                  ),
-        .rst_ni    (rst_ni                 ),
-        .slv_req_i (axi_l2_req[i]          ),
-        .slv_resp_o(axi_l2_resp[i]         ),
-        .mst_req_o (axi_l2_req_splitted[i] ),
-        .mst_resp_i(axi_l2_resp_splitted[i])
-      );
-    end: gen_axi_splitter
-  `else
-    // Do not need a splitter
-    assign axi_l2_req_splitted  = axi_l2_req;
-    assign axi_l2_resp          = axi_l2_resp_splitted;
-  `endif
+  generate
+    if (DmaBrustLen > Interleave) begin : gen_axi_splitter
+      for (genvar i = 0; unsigned'(i) < NumAXIMasters; i++) begin: brust_splitter
+        axi_burst_splitter #(
+          .MaxReadTxns (16             ),
+          .MaxWriteTxns(16             ),
+          .AddrWidth   (AddrWidth      ),
+          .DataWidth   (AxiDataWidth   ),
+          .IdWidth     (AxiTileIdWidth ),
+          .UserWidth   (1              ),
+          .axi_req_t   (axi_tile_req_t ),
+          .axi_resp_t  (axi_tile_resp_t)
+        ) i_axi_burst_splitter (
+          .clk_i     (clk_i                  ),
+          .rst_ni    (rst_ni                 ),
+          .slv_req_i (axi_l2_req[i]          ),
+          .slv_resp_o(axi_l2_resp[i]         ),
+          .mst_req_o (axi_l2_req_splitted[i] ),
+          .mst_resp_i(axi_l2_resp_splitted[i])
+        );
+      end: brust_splitter
+    end else begin : splitter_bypass
+      // Do not need a splitter
+      assign axi_l2_req_splitted  = axi_l2_req;
+      assign axi_l2_resp          = axi_l2_resp_splitted;
+    end: splitter_bypass
+  endgenerate
 
-  // Addr Scrambler for DRAM interleaving
-  `ifdef DRAM_AXI_WIDTH_INTERLEAVED
-    localparam int unsigned ConstantBits = $clog2(L2BankBeWidth);
-  `elsif DRAM_AXI_4WIDTH_INTERLEAVED
-    localparam int unsigned ConstantBits = $clog2(L2BankBeWidth*4);
-  `elsif DRAM_AXI_8WIDTH_INTERLEAVED
-    localparam int unsigned ConstantBits = $clog2(L2BankBeWidth*8);
-  `elsif DRAM_AXI_16WIDTH_INTERLEAVED
-    localparam int unsigned ConstantBits = $clog2(L2BankBeWidth*16);
-  `elsif DRAM_AXI_32WIDTH_INTERLEAVED
-    localparam int unsigned ConstantBits = $clog2(L2BankBeWidth*32);
-  `elsif DRAM_AXI_64WIDTH_INTERLEAVED
-    localparam int unsigned ConstantBits = $clog2(L2BankBeWidth*64);
-  `elsif DRAM_GROUP_INTERLEAVED
-    localparam int unsigned ConstantBits = $clog2(NumBanksPerGroup*TCDMSizePerBank);
-  `elsif DRAM_SUB_GROUP_INTERLEAVED
-    `ifdef TERAPOOL
-      localparam int unsigned ConstantBits = $clog2(NumBanksPerSubGroup*TCDMSizePerBank);
-    `else
-      initial $fatal(1, "Error: DRAM_SUB_GROUP_INTERLEAVED style is only supported when TERAPOOL is defined");
-    `endif
-  `else
-    initial $fatal(1, "Error: Unsupported/Undefined interleaving style of DRAM access ");
-  `endif
-
+  localparam int unsigned ConstantBits = $clog2(L2BankBeWidth * Interleave);
   localparam int unsigned ScrambleBits = (NumDrams == 1) ? 1 : $clog2(NumDrams);
   localparam int unsigned ReminderBits = AddrWidth - ScrambleBits - ConstantBits;
   // req.aw scrambling

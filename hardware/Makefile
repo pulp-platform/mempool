@@ -50,7 +50,7 @@ snitch_trace    ?= 1
 
 # Path to DRAMsyslib
 dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/dram_rtl_sim/dramsys_lib/resources
-dramsys_simconfig_path ?= $(dramsys_resouces_path)/simulations/hbm2-example.json
+dramsys_simconfig_path ?= $(dramsys_resouces_path)/simulations/HBM2E-3600.json
 dramsys_lib_path ?= $(MEMPOOL_DIR)/hardware/dram_rtl_sim/dramsys_lib
 questa_args += +DRAMSYS_RES=$(dramsys_resouces_path) +DRAMSYS_CONF=$(dramsys_simconfig_path)
 questa_args += -sv_lib $(dramsys_lib_path)/libDRAMSysLibrary
@@ -123,14 +123,7 @@ vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
 vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group) -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
 ifdef dram
 	vlog_defs += -DDRAM=${dram}
-	#vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED
-	#vlog_defs += -DDRAM_AXI_4WIDTH_INTERLEAVED
-	#vlog_defs += -DDRAM_AXI_8WIDTH_INTERLEAVED
-	vlog_defs += -DDRAM_AXI_16WIDTH_INTERLEAVED
-	#vlog_defs += -DDRAM_AXI_32WIDTH_INTERLEAVED
-	#vlog_defs += -DDRAM_AXI_64WIDTH_INTERLEAVED
-	#vlog_defs += -DDRAM_GROUP_INTERLEAVED
-	#vlog_defs += -DDRAM_SUB_GROUP_INTERLEAVED
+	vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${dram_axi_width_interleaved}
 endif
 
 # Traffic generation enabled
