@@ -14,7 +14,7 @@ app       ?= ../../DRAMSys/hello_world
 
 # Path to DRAMsyslib
 dramsys_resouces_path  ?= ../dramsys_lib/resources/
-dramsys_simconfig_path ?= ../dramsys_lib/resources/simulations/hbm2-example.json
+dramsys_simconfig_path ?= ../dramsys_lib/resources/simulations/HBM2E-3600.json
 dramsys_lib_path       ?= ../dramsys_lib
 # QuestaSim arguments
 questa_args ?=

@@ -1,0 +1,48 @@
+{
+    "memspec": {
+        "memarchitecturespec": {
+            "burstLength": 4,
+            "dataRate": 2,
+            "nbrOfBankGroups": 8,
+            "nbrOfBanks": 32,
+            "nbrOfColumns": 128,
+            "nbrOfPseudoChannels": 2,
+            "nbrOfRows": 32768,
+            "width": 64,
+            "nbrOfDevices": 1,
+            "nbrOfChannels": 1
+        },
+        "memoryId": "Micron MT54A16G808A00AC-36 (16Gb, Single Channel)",
+        "memoryType": "HBM2",
+        "memtimingspec": {
+            "CCDL": 4,
+            "CCDS": 2,
+            "CKE": 8,
+            "DQSCK": 2,
+            "FAW": 9,
+            "PL": 2,
+            "RAS": 30,
+            "RC": 45,
+            "RCDRD": 16,
+            "RCDWR": 12,
+            "REFI": 3900,
+            "REFISB": 122,
+            "RFC": 260,
+            "RFCSB": 200,
+            "RL": 41,
+            "RP": 15,
+            "RRDL": 2.22,
+            "RRDS": 2.22,
+            "RREFD": 8,
+            "RTP": 4,
+            "RTW": 18,
+            "WL": 8,
+            "WR": 41,
+            "WTRL": 6,
+            "WTRS": 4,
+            "XP": 10,
+            "XS": 270,
+            "clkMhz": 1800
+        }
+    }
+}
