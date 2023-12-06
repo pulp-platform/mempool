@@ -33,6 +33,7 @@ RISCV_XLEN    ?= 32
 RISCV_ABI     ?= ilp32
 RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
 ifeq ($(COMPILER),gcc)
+
 	# Use GCC
 	# GCC compiler -march
 	ifeq ($(XPULPIMG),1)
@@ -49,10 +50,12 @@ ifeq ($(COMPILER),gcc)
 	RISCV_CC      ?= $(RISCV_PREFIX)gcc
 	RISCV_CXX     ?= $(RISCV_PREFIX)g++
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
+
 else
-	RISCV_ARCH ?= rv$(RISCV_XLEN)ima
+
 	# Use LLVM by default
 	# LLVM compiler -march
+	RISCV_ARCH ?= rv$(RISCV_XLEN)ima
 	ifeq ($(ZFINX_RV), 1)
 		RISCV_ARCH := $(RISCV_ARCH)_zfinx
 		RISCV_ARCH := $(RISCV_ARCH)_zhinx
@@ -67,12 +70,12 @@ else
   	RISCV_ARCH := $(RISCV_ARCH)_xpulpvectshufflepack
   endif
   RISCV_ARCH := $(RISCV_ARCH)_xmempool
-
-	# GCC Toolchain
+	# LLVM Toolchain
 	RISCV_PREFIX  ?= $(LLVM_INSTALL_DIR)/bin/llvm-
 	RISCV_CC      ?= $(LLVM_INSTALL_DIR)/bin/clang
 	RISCV_CXX     ?= $(LLVM_INSTALL_DIR)/bin/clang++
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
+
 endif
 RISCV_OBJCOPY ?= $(RISCV_PREFIX)objcopy
 RISCV_AS      ?= $(RISCV_PREFIX)as

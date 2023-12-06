@@ -8,4 +8,8 @@ rv64uc_sc_tests = \
 rv64uc_p_tests = $(addprefix rv64uc-p-, $(rv64uc_sc_tests))
 rv64uc_v_tests = $(addprefix rv64uc-v-, $(rv64uc_sc_tests))
 
+ifeq ($(COMPILER), llvm)
+spike_tests += $(rv64uc_p_tests)
+else
 spike_tests += $(rv64uc_p_tests) $(rv64uc_v_tests)
+endif

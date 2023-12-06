@@ -24,6 +24,8 @@ BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
 RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
+COMPILER ?= gcc
+
 CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
 # the variable if it is only defined by the Makefile (its origin in the Makefile's default).
@@ -110,7 +112,7 @@ riscv-isa-sim: update_opcodes
 riscv-tests: build-riscv-tests
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
-	config=minpool COMPILER=gcc make -C $(SOFTWARE_DIR) riscv-tests && \
+	config=minpool make -C $(SOFTWARE_DIR) riscv-tests && \
 	config=minpool make -C hardware verilate_test
 
 build-riscv-tests: update_opcodes
