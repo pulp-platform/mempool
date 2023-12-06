@@ -2,6 +2,7 @@
 # Makefrag for rv32uf tests
 #-----------------------------------------------------------------------
 
+ifeq ($(COMPILER), llvm)
 rv32uf_sc_tests = fadd \
                   fdiv \
                   fclass \
@@ -13,6 +14,19 @@ rv32uf_sc_tests = fadd \
                   ldst \
                   move \
                   recoding
+else
+rv32uf_sc_tests = fadd \
+                  fdiv \
+                  fclass \
+                  fcmp \
+                  fcvt \
+                  fcvt_w \
+                  fmadd \
+                  fmin \
+                  ldst \
+                  move \
+                  recoding
+endif
 
 rv32uf_p_tests = $(addprefix rv32uf-p-, $(rv32uf_sc_tests))
 rv32uf_v_tests = $(addprefix rv32uf-v-, $(rv32uf_sc_tests))
