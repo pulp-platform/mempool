@@ -156,7 +156,11 @@ RVTEST_CODE_BEGIN
   TEST_PASSFAIL
 
   .align 2
+  #ifdef LLVM
+  .weak stvec_handler
+  #else
   .global stvec_handler
+  #endif
 stvec_handler:
   # tests 2, 4, 5, 6, and 8 should trap
   li a0, 2

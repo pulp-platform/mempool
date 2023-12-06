@@ -93,21 +93,26 @@ endif
 # 	sbreak \
 # 	shamt \
 
-rv32ui_mempool_tests = $(addprefix rv32ui-mempool-, $(rv32ui_snitch_sc_tests))
-rv32ua_mempool_tests = $(addprefix rv32ua-mempool-, $(rv32ua_snitch_sc_tests))
-rv32um_mempool_tests = $(addprefix rv32um-mempool-, $(rv32um_snitch_sc_tests))
-ifeq ($(xpulpimg),1)
-	rv32uxpulpimg_mempool_tests = $(addprefix rv32uxpulpimg-mempool-, $(rv32uxpulpimg_snitch_sc_tests))
+ifeq (COMPILER, llvm)
+	RISCV_ARCH = mempool
+else
+	RISCV_ARCH = mempool-rv32
 endif
-# rv32si_mempool_tests = $(addprefix rv32si-mempool-, $(rv32si_snitch_sc_tests))
-# rv32mi_mempool_tests = $(addprefix rv32mi-mempool-, $(rv32mi_snitch_sc_tests))
+rv32ui_mempool_tests = $(addprefix rv32ui-$(RISCV_ARCH)-, $(rv32ui_snitch_sc_tests))
+rv32ua_mempool_tests = $(addprefix rv32ua-$(RISCV_ARCH)-, $(rv32ua_snitch_sc_tests))
+rv32um_mempool_tests = $(addprefix rv32um-$(RISCV_ARCH)-, $(rv32um_snitch_sc_tests))
+ifeq ($(xpulpimg),1)
+	rv32uxpulpimg_mempool_tests = $(addprefix rv32uxpulpimg-$(RISCV_ARCH)-, $(rv32uxpulpimg_snitch_sc_tests))
+endif
+# rv32si_mempool_tests = $(addprefix rv32si-$(RISCV_ARCH)-, $(rv32si_snitch_sc_tests))
+# rv32mi_mempool_tests = $(addprefix rv32mi-$(RISCV_ARCH)-, $(rv32mi_snitch_sc_tests))
 
 rtl_mempool_tests = \
-	$(rv32ui_mempool_tests) \
-	$(rv32ua_mempool_tests) \
-	$(rv32um_mempool_tests)
-#	$(rv32si_mempool_tests) \
-#	$(rv32mi_mempool_tests)
+	$(rv32ui_$(RISCV_ARCH)_tests) \
+	$(rv32ua_$(RISCV_ARCH)_tests) \
+	$(rv32um_$(RISCV_ARCH)_tests)
+#	$(rv32si_$(RISCV_ARCH)_tests) \
+#	$(rv32mi_$(RISCV_ARCH)_tests)
 ifeq ($(xpulpimg),1)
-	rtl_mempool_tests += $(rv32uxpulpimg_mempool_tests)
+	rtl_mempool_tests += $(rv32uxpulpimg_$(RISCV_ARCH)_tests)
 endif

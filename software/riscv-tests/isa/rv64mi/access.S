@@ -43,7 +43,11 @@ RVTEST_CODE_BEGIN
   TEST_PASSFAIL
 
   .align 2
+  #ifdef LLVM
+  .weak mtvec_handler
+  #else
   .global mtvec_handler
+  #endif
 mtvec_handler:
   li a0, 2
   beq TESTNUM, a0, 2f

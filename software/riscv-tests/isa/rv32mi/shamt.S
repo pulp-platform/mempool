@@ -21,7 +21,11 @@ RVTEST_CODE_BEGIN
 
   TEST_PASSFAIL
 
+#ifdef LLVM
+.weak mtvec_handler
+#else
 .global mtvec_handler
+#endif
 mtvec_handler:
   # Trapping on test 3 is good.
   # Note that since the test didn't complete, TESTNUM is smaller by 1.

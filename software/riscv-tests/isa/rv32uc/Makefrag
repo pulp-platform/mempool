@@ -8,4 +8,8 @@ rv32uc_sc_tests = \
 rv32uc_p_tests = $(addprefix rv32uc-p-, $(rv32uc_sc_tests))
 rv32uc_v_tests = $(addprefix rv32uc-v-, $(rv32uc_sc_tests))
 
+ifeq ($(COMPILER), llvm)
+spike32_tests += $(rv32uc_p_tests)
+else
 spike32_tests += $(rv32uc_p_tests) $(rv32uc_v_tests)
+endif

@@ -26,9 +26,10 @@ else
 endif
 
 ALL_LLVM := $(filter-out synth chest_q16 cfft_radix2_q16 cfft_radix4_q16, $(ALL))
+ALL_GCC := $(filter-out matmul_f16 matmul_f32, $(ALL))
 
 # Make all applications
-all: $(ALL)
+all: $(ALL_GCC)
 
 # Make only applications with full llvm support
 all_llvm: $(ALL_LLVM)

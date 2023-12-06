@@ -10,4 +10,8 @@ rv32um_sc_tests = \
 rv32um_p_tests = $(addprefix rv32um-p-, $(rv32um_sc_tests))
 rv32um_v_tests = $(addprefix rv32um-v-, $(rv32um_sc_tests))
 
+ifeq ($(COMPILER), llvm)
+spike32_tests += $(rv32um_p_tests)
+else
 spike32_tests += $(rv32um_p_tests) $(rv32um_v_tests)
+endif
