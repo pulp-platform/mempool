@@ -110,7 +110,7 @@ riscv-isa-sim: update_opcodes
 test: build_test
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
-	config=minpool COMPILER=gcc make -C $(SOFTWARE_DIR) test && \
+	config=minpool make -C $(SOFTWARE_DIR) test && \
 	config=minpool make -C hardware verilate_test
 
 build_test: update_opcodes

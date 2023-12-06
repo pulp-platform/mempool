@@ -117,7 +117,11 @@ finish:
   TEST_PASSFAIL
 
   .align 2
+  #ifdef LLVM
+  .weak stvec_handler
+  #else
   .global stvec_handler
+  #endif
 stvec_handler:
   # Trapping on tests 13-15 is good news.
   # Note that since the test didn't complete, TESTNUM is smaller by 1.
