@@ -35,7 +35,6 @@ clean-halide-apps:
 TESTS := $(addprefix bin/,$(rtl_mempool_tests))
 
 define rtl_mempool_tests_template
-
 TESTS_$(1) := $(addprefix bin/,$($(1)_mempool_tests))
 
 $$(TESTS_$(1)): bin/$(1)-mempool-%: $(TESTS_DIR)/$(1)/%.S $(LINKER_SCRIPT)
@@ -43,13 +42,20 @@ $$(TESTS_$(1)): bin/$(1)-mempool-%: $(TESTS_DIR)/$(1)/%.S $(LINKER_SCRIPT)
 	$$(RISCV_CC) $$(RISCV_CCFLAGS_TESTS) -T$$(RUNTIME_DIR)/link.ld $$< -o $$@
 	$$(RISCV_STRIP) $$@ -g -S -d --strip-debug
 	$$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $$@ > $$@.dump
-
 endef
 
+ifeq ($(COMPILER), llvm)
+$(eval $(call rtl_mempool_tests_template,rv32ui))
+$(eval $(call rtl_mempool_tests_template,rv32um))
+$(eval $(call rtl_mempool_tests_template,rv32ua))
+$(eval $(call rtl_mempool_tests_template,rv32uzfinx))
+$(eval $(call rtl_mempool_tests_template,rv32uzhinx))
+else
 $(eval $(call rtl_mempool_tests_template,rv32ui))
 $(eval $(call rtl_mempool_tests_template,rv32um))
 $(eval $(call rtl_mempool_tests_template,rv32ua))
 $(eval $(call rtl_mempool_tests_template,rv32uxpulpimg))
+endif
 
 test: update_opcodes $(TESTS)
 
