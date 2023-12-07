@@ -26,6 +26,8 @@ include $(src_dir)/rv32um/Makefrag
 include $(src_dir)/rv32ua/Makefrag
 include $(src_dir)/rv32uf/Makefrag
 include $(src_dir)/rv32ud/Makefrag
+include $(src_dir)/rv32uzfinx/Makefrag
+include $(src_dir)/rv32uzhinx/Makefrag
 ifneq ($(COMPILER), llvm)
 include $(src_dir)/rv32si/Makefrag
 include $(src_dir)/rv32mi/Makefrag
@@ -52,7 +54,7 @@ ifeq ($(COMPILER), llvm)
 	RISCV_TARGET ?= riscv$(XLEN)-unknown-elf
 	RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 	RISCV_CC_OPTS ?= -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles $(RISCV_LLVM_TARGET)
-	RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+f
+	RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+f,+zfinx,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump $(RISCV_OBJDUMP_FLAGS) --disassemble-all --disassemble-zeroes --section=.text --section=.text.startup --section=.text.init --section=.data
 else
 	# Default compilation with GCC
@@ -123,7 +125,10 @@ $(eval $(call compile_template,rv32um,-march=rv32g -mabi=ilp32))
 $(eval $(call compile_template,rv32ua,-march=rv32g -mabi=ilp32))
 $(eval $(call compile_template,rv32uf,-march=rv32g -mabi=ilp32))
 $(eval $(call compile_template,rv32ud,-march=rv32g -mabi=ilp32))
-RISCV_ARCH ?= rv$(XLEN)ima_xpulppostmod_xpulpmacsi_xpulpvect_xpulpvectshufflepack_xmempool
+RISCV_ARCH := rv$(XLEN)ima_zfinx_zhinx_zquarterinx_zvechalfinx_zexpauxvechalfinx
+RISCV_ARCH := $(RISCV_ARCH)_xpulppostmod_xpulpmacsi_xpulpvect_xpulpvectshufflepack_xmempool
+$(eval $(call compile_template,rv32uzfinx,-march=$(RISCV_ARCH) -mabi=ilp32))
+$(eval $(call compile_template,rv32uzhinx,-march=$(RISCV_ARCH) -mabi=ilp32))
 $(eval $(call compile_template,rv32uxpulpimg,-march=$(RISCV_ARCH) -mabi=ilp32))
 else
 $(eval $(call compile_template,rv32ui,-march=rv32g -mabi=ilp32))

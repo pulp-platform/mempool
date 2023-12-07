@@ -1,0 +1,16 @@
+#=======================================================================
+# Makefrag for rv32uzfinx tests
+#-----------------------------------------------------------------------
+
+ifeq ($(COMPILER), llvm)
+rv32uzhinx_sc_tests = \
+                      fadd_h \
+                      fdiv_h \
+                      fmadd_h \
+                      fmin_h \
+                      fsgnj_h
+endif
+
+rv32uzhinx_p_tests = $(addprefix rv32uzhinx-p-, $(rv32uzhinx_sc_tests))
+
+# Zhinx extensions are not tested on Spike

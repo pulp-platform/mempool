@@ -47,10 +47,18 @@ $$(RISCV-TESTS-$(1)): bin/$(1)-mempool-%: $(RISCV_TESTS_DIR)/$(1)/%.S $(LINKER_S
 
 endef
 
+ifeq ($(COMPILER), llvm)
+$(eval $(call rtl_mempool_tests_template,rv32ui))
+$(eval $(call rtl_mempool_tests_template,rv32um))
+$(eval $(call rtl_mempool_tests_template,rv32ua))
+$(eval $(call rtl_mempool_tests_template,rv32uzfinx))
+$(eval $(call rtl_mempool_tests_template,rv32uzhinx))
+else
 $(eval $(call rtl_mempool_tests_template,rv32ui))
 $(eval $(call rtl_mempool_tests_template,rv32um))
 $(eval $(call rtl_mempool_tests_template,rv32ua))
 $(eval $(call rtl_mempool_tests_template,rv32uxpulpimg))
+endif
 
 riscv-tests: update_opcodes $(RISCV_TESTS)
 
