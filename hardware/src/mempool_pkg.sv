@@ -301,7 +301,7 @@ package mempool_pkg;
   localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
 
   // TeraPool Remote Groups Latency Control (in Cycles)
-  localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 9 `endif;
+  localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 7 `endif;
 
   //TeraPool AXI/DMA Config
   localparam integer unsigned NumAXIMastersPerSubGroup = NumAXIMastersPerGroup/NumSubGroupsPerGroup;

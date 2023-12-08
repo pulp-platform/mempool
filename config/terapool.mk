@@ -31,13 +31,16 @@ banking_factor ?= 4
 remote_group_latency_cycles ?= 7
 
 # Radix for hierarchical AXI interconnect
-axi_hier_radix ?= 10
+axi_hier_radix ?= 9
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 4
 
 # Number of DMA backends in each group
-dmas_per_group ?= 8
+dmas_per_group ?= 4
 
 # L2 Banks/Channels
 l2_banks = 16
+
+# Makefile RTL Filtering Control
+subgroup_rtl = 1

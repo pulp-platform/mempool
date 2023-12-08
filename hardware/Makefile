@@ -87,6 +87,7 @@ endif
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
+vlog_defs += -D$(config)
 vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DNUM_GROUPS=$(num_groups) -DBANKING_FACTOR=$(banking_factor)
 vlog_defs += -DL2_BASE=32\'d$(l2_base) -DL2_SIZE=32\'d$(l2_size) -DL2_BANKS=$(l2_banks)
 vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
@@ -97,14 +98,8 @@ vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
-ifdef terapool
-	subgroup_rtl = 1
-  vlog_defs += -DTERAPOOL=$(terapool)
-  vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group)
-  vlog_defs += -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
-else
-	subgroup_rtl = 0
-endif
+# This parameter is only used for TeraPool configurations
+vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group) -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
 
 # Traffic generation enabled
 ifdef tg
@@ -150,13 +145,14 @@ compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
+	if [ "${subgroup_rtl}" -eq "0" ]; then awk '!/mempool_sub_group/' $(buildpath)/compile.tcl > tmpfile && mv tmpfile $(buildpath)/compile.tcl; fi
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
 # Simulation
 .PHONY: sim
 sim: clean-dasm compile
 	cd $(buildpath) && \
-	$(questa_cmd) vsim -voptargs=+acc $(questa_args) $(library).$(top_level) -do ../scripts/questa/run.tcl
+	$(questa_cmd) vsim -voptargs=+acc $(questa_args) $(library).$(top_level) -do "set config ${config}" -do ../scripts/questa/run.tcl
 	./scripts/return_status.sh $(buildpath)/transcript
 
 .PHONY: simc
@@ -187,6 +183,7 @@ elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
 $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compilevcs.sh
 	echo "exit" >> $(buildpath)/compilevcs.sh
+	if [ "${subgroup_rtl}" -eq "0" ]; then awk '!/mempool_sub_group/' $(buildpath)/compilevcs.sh > tmpfile && mv tmpfile $(buildpath)/compilevcs.sh; fi
 	# Call VCS
 	cd $(buildpath) && \
 	chmod +x compilevcs.sh && \
@@ -260,6 +257,7 @@ $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml 
 	$(eval boot_addr=$(l2_base))
 	# Create Bender script of all RTL files
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(verilator_files)
+	if [ "${subgroup_rtl}" -eq "0" ]; then awk '!/mempool_sub_group/' $(verilator_files) > tmpfile && mv tmpfile $(verilator_files); fi
 	# Append the verilator library files
 	@echo '' >> $(verilator_files)
 	# Append the verilator library files: Includes
