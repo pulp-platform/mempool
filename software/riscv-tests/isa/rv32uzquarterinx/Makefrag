@@ -1,0 +1,15 @@
+#=======================================================================
+# Makefrag for rv32uzquarterinx tests
+#-----------------------------------------------------------------------
+
+ifeq ($(COMPILER), llvm)
+rv32uzquarterinx_sc_tests = \
+                      fadd_b \
+                      fmadd_b \
+                      fmin_b \
+                      fsgnj_b
+endif
+
+rv32uzquarterinx_p_tests = $(addprefix rv32uzquarterinx-p-, $(rv32uzquarterinx_sc_tests))
+
+# Zquarterinx extensions are not tested on Spike
