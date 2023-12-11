@@ -159,7 +159,7 @@ int main() {
     int error = verify_matrix(y, r, esize, cid);
     printf("Errors: %d\n", error);
     if (error != 0)
-      return error
+      return error;
   }
 
   // Wait for core 0 to finish displaying results
