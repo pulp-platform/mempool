@@ -158,10 +158,12 @@ int main() {
   if (cid == 0) {
     int error = verify_matrix(y, r, esize, cid);
     printf("Errors: %d\n", error);
+    if (error != 0)
+      return error
   }
 
   // Wait for core 0 to finish displaying results
   mempool_barrier(num_cores);
 
-  return error;
+  return 0;
 }
