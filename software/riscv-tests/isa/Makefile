@@ -29,6 +29,7 @@ include $(src_dir)/rv32ud/Makefrag
 include $(src_dir)/rv32uzfinx/Makefrag
 include $(src_dir)/rv32uzhinx/Makefrag
 include $(src_dir)/rv32uzquarterinx/Makefrag
+include $(src_dir)/rv32uzvechalfinx/Makefrag
 ifneq ($(COMPILER), llvm)
 include $(src_dir)/rv32si/Makefrag
 include $(src_dir)/rv32mi/Makefrag
@@ -131,6 +132,7 @@ RISCV_ARCH := $(RISCV_ARCH)_xpulppostmod_xpulpmacsi_xpulpvect_xpulpvectshufflepa
 $(eval $(call compile_template,rv32uzfinx,-march=$(RISCV_ARCH) -mabi=ilp32))
 $(eval $(call compile_template,rv32uzhinx,-march=$(RISCV_ARCH) -mabi=ilp32))
 $(eval $(call compile_template,rv32uzquarterinx,-march=$(RISCV_ARCH) -mabi=ilp32))
+$(eval $(call compile_template,rv32uzvechalfinx,-march=$(RISCV_ARCH) -mabi=ilp32))
 $(eval $(call compile_template,rv32uxpulpimg,-march=$(RISCV_ARCH) -mabi=ilp32))
 else
 $(eval $(call compile_template,rv32ui,-march=rv32g -mabi=ilp32))
