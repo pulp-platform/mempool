@@ -5,7 +5,7 @@
         "DatabaseRecording": true,
         "Debug": false,
         "ECCControllerMode": "Disabled",
-        "EnableWindowing": false,
+        "EnableWindowing": true,
         "ErrorCSVFile": "",
         "ErrorChipSeed": 42,
         "PowerAnalysis": false,
@@ -14,6 +14,6 @@
         "StoreMode": "Store",
         "ThermalSimulation": false,
         "UseMalloc": false,
-        "WindowSize": 1000
+        "WindowSize": 300
     }
 }

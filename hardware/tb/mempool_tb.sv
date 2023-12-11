@@ -30,7 +30,7 @@ module mempool_tb;
   localparam BootAddr = 0;
   `endif
 
-  localparam ClockPeriod = 2ns;
+  localparam ClockPeriod = 1ns;
   localparam TA          = 0.2ns;
   localparam TT          = 0.8ns;
 
@@ -58,7 +58,7 @@ module mempool_tb;
   end
   
   `ifdef DRAM
-    dram_sim_engine #(.ClkPeriodNs(2)) i_dram_sim_engine (.clk_i(clk), .rst_ni(rst_n));
+    dram_sim_engine #(.ClkPeriodNs(ClockPeriod)) i_dram_sim_engine (.clk_i(clk), .rst_ni(rst_n));
   `endif
   
   /*********
