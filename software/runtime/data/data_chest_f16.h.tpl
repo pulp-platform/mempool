@@ -23,8 +23,8 @@
 #define N_RX (${nb_rx})
 #define N_SAMPLES (${nb_samples})
 
-__fp16 PilotRX[${2*nb_rx*nb_samples}] = ${array_to_cstr(pilot_rx)};
+__fp16 l2_PilotRX[${2*nb_rx*nb_samples}] = ${array_to_cstr(pilot_rx)};
 
-__fp16 PilotTX[${2*nb_tx*nb_samples}] = ${array_to_cstr(pilot_tx)};
+__fp16 l2_PilotTX[${2*nb_tx*nb_samples}] = ${array_to_cstr(pilot_tx)};
 
-__fp16 HEST[${2*nb_rx*nb_tx*nb_samples}] = ${array_to_cstr(Hest)};
+__fp16 l2_HEST[${2*nb_rx*nb_tx*nb_samples}] = ${array_to_cstr(Hest)};

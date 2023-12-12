@@ -33,13 +33,13 @@
 #define N_RSAMPLES (2 * N_CSAMPLES)
 #define N_TWIDDLES (3 * N_CSAMPLES / 4)
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
-#define BITREVINDEXTABLE_FIXED_TABLE_LENGTH (${BitrevLen})
+#define BITREVINDEXTABLE_LENGTH (${BitrevLen})
 
-__fp16 pSrc[${2 * Len}] = ${array_to_cstr(src)};
+__fp16 l2_pSrc[${2 * Len}] = ${array_to_cstr(src)};
 
-__fp16 pDst[${2 * Len}] = ${array_to_cstr(dst)};
+__fp16 l2_pRes[${2 * Len}] = ${array_to_cstr(dst)};
 
-__fp16 pTwi[${2 * Len}] = ${array_to_cstr(twi)};
+__fp16 l2_twiddleCoef_f16[${2 * Len}] = ${array_to_cstr(twi)};
 
 // Bitreversal
-uint16_t BitRevIndexTable[${BitrevLen}] = ${array_to_str(bitrev)};
+uint16_t l2_BitRevIndexTable[${BitrevLen}] = ${array_to_str(bitrev)};
