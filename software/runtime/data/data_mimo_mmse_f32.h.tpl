@@ -21,14 +21,14 @@
 
 // Inputs
 
-float In_H[${2 * N_tx * N_rx * N_itr}] = ${array_to_cstr(H)};
+float l2_H[${2 * N_tx * N_rx * N_itr}] = ${array_to_cstr(H)};
 
-float In_G[${2 * N_tx * N_tx * N_itr}] = ${array_to_cstr(G)};
+float l2_G[${2 * N_tx * N_tx * N_itr}] = ${array_to_cstr(G)};
 
-float In_b[${2 * N_rx * N_itr}] = ${array_to_cstr(b)};
+float l2_y[${2 * N_rx * N_itr}] = ${array_to_cstr(y)};
 
-float In_sigma[${N_tx * N_itr}] = ${array_to_cstr(sigma)};
+float l2_Sigma[${N_tx * N_itr}] = ${array_to_cstr(sigma)};
 
 // Outputs
 
-float Out_x[${2 * N_tx * N_itr}] = ${array_to_cstr(x)};
+float l2_x[${2 * N_tx * N_itr}] = ${array_to_cstr(x)};
