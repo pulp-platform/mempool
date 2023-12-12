@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Unreleased
 
 ### Changes
+- Add physical feasible TeraPool configuration with SubGroup hierarchy.
 - Extended `tracevis.py` to support the new Perfetto UI and compress large traces
 - Use custom compiler for VCS specified with `CC` and `CCX` environment variable
 - Implement operand gating for SIMD and MAC Units in Snitch IPU's DSP Unit
