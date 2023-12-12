@@ -4,233 +4,323 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "xpulp/builtins_v2.h"
 
-typedef signed short v2s __attribute__((vector_size(4)));
-typedef __fp16 v2f16 __attribute__((vector_size(4)));
-typedef union {
-  float f32;
-  v2f16 vec;
-} v2h;
-
+#include "data/data_mimo_mmse_f16.h"
+#include "kernel/mempool_checks.h"
 #include "kernel/mempool_cholesky_f16s.h"
 #include "kernel/mempool_linearsolver_f16s.h"
 #include "kernel/mempool_mimo_mmse_f16s.h"
 
-/* DATA */
-#include "data/data_mimo_mmse_f16.h"
+#define DOUBLE_BUFFERING
 
-//#define SINGLE
-#define PARALLEL
+#ifndef DOUBLE_BUFFERING
+
+#define SINGLE
+//#define PARALLEL
 //#define FOLDED
 
-#ifdef SINGLE
-__fp16 ch_matrix[2 * N_TX * N_RX] __attribute__((section(".l1")));
-__fp16 in_matrix[2 * N_TX * N_TX] __attribute__((section(".l1")));
-__fp16 out_matrix[2 * N_TX * N_TX] __attribute__((section(".l1")));
-__fp16 sigma[2 * N_TX] __attribute__((section(".l1")));
-__fp16 b[2 * N_RX] __attribute__((section(".l1")));
+__fp16 l1_H[2 * N_TX * N_RX * N_ITR]
+    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
+                   section(".l1_prio")));
+__fp16 l1_G[2 * N_TX * N_TX * N_ITR]
+    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
+                   section(".l1_prio")));
+__fp16 l1_L[2 * N_TX * N_TX * N_ITR]
+    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
+                   section(".l1_prio")));
 
-__fp16 s[2 * N_TX] __attribute__((section(".l1")));
-__fp16 x[2 * N_TX] __attribute__((section(".l1")));
-__fp16 y[2 * N_TX] __attribute__((section(".l1")));
-#endif
-
-#ifdef PARALLEL
-__fp16 in_matrix[2 * N_TX * N_TX * N_ITR]
-    __attribute__((section(".l1_prio"), aligned(N_BANKS)));
-__fp16 out_matrix[2 * N_TX * N_TX * N_ITR]
-    __attribute__((section(".l1_prio"), aligned(N_BANKS)));
-__fp16 s[2 * N_TX * N_ITR]
-    __attribute__((section(".l1_prio"), aligned(N_BANKS)));
-__fp16 x[2 * N_TX * N_ITR]
-    __attribute__((section(".l1_prio"), aligned(N_BANKS)));
-__fp16 y[2 * N_TX * N_ITR]
-    __attribute__((section(".l1_prio"), aligned(N_BANKS)));
-
-__fp16 ch_matrix[2 * N_TX * N_RX * N_ITR] __attribute__((section(".l1_prio")));
-__fp16 b[2 * N_RX * N_ITR] __attribute__((section(".l1_prio")));
-__fp16 sigma[2 * N_TX * N_ITR] __attribute__((section(".l1_prio")));
-#endif
-
-void initialize(__fp16 *matrix, __fp16 *data, uint32_t dim, uint32_t core_id,
-                uint32_t num_cores) {
-  uint32_t i = 0;
-  for (i = core_id; i < 2 * dim; i += num_cores) {
-    matrix[i] = data[i];
-  }
-  mempool_barrier(num_cores);
-  return;
-}
-
-void initialize_zeros(__fp16 *matrix, uint32_t dim, uint32_t core_id,
-                      uint32_t num_cores) {
-  uint32_t i = 0;
-  __fp16 zero = (__fp16)(0x0000);
-  for (i = core_id; i < 2 * dim; i += num_cores) {
-    matrix[i] = zero;
-  }
-  mempool_barrier(num_cores);
-  return;
-}
-
-void verify_result(__fp16 *pRes, __fp16 *pExp, uint32_t dim, uint32_t core_id) {
-  if (core_id == 0) {
-    for (uint32_t i = 0; i < 2 * dim; i++) {
-      __fp16 error;
-      __fp16 exp = pExp[i];
-      __fp16 res = pRes[i];
-      asm volatile("fsub.h %[error], %[res], %[exp];"
-                   : [error] "=&r"(error)
-                   : [res] "r"(res), [exp] "r"(exp)
-                   :);
-      if (*(int32_t *)&error != 0) {
-        printf("(%d): 0x%08x - 0x%08x - 0x%08x\n", i / 2, *(int32_t *)&error,
-               *(int32_t *)&exp, *(int32_t *)&res);
-      }
-    }
-  }
-}
-
-void write_result(__fp16 *pRes, uint32_t dim, uint32_t core_id) {
-  if (core_id == 0) {
-    for (uint32_t i = 0; i < 2 * dim; i++) {
-
-      __fp16 in = pRes[i];
-      //      uint32_t out = "0xFFFF0000" || *(uint32_t*)&in;
-      float cvt_out;
-      asm volatile("fcvt.h.s %[cvt_out], %[in];"
-                   : [cvt_out] "=&r"(cvt_out)
-                   : [in] "r"(in)
-                   :);
-    }
-  }
-}
+__fp16 l1_Sigma[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_y[2 * N_RX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+__fp16 y2[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+__fp16 y3[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+__fp16 l1_x[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
 
 // Driver program
-void single_core_mimo_mmse() {
+int main() {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id); // Initialize barrier and synchronize//
+  mempool_barrier_init(core_id); // Initialize barrier and synchronize
 
   /* Initialize matrices */
-  initialize(ch_matrix, In_H, N_RX * N_TX, core_id, num_cores);
-  initialize_zeros(in_matrix, N_TX * N_TX, core_id, num_cores);
-  initialize_zeros(out_matrix, N_TX * N_TX, core_id, num_cores);
-  /* Initialize vectors */
-  initialize(sigma, In_sigma, N_TX, core_id, num_cores);
-  initialize(b, In_b, N_RX, core_id, num_cores);
-  /* Initialize results */
-  initialize_zeros(s, N_TX, core_id, num_cores);
-  initialize_zeros(y, N_TX, core_id, num_cores);
-  initialize_zeros(x, N_TX, core_id, num_cores);
+  if (core_id == 0) {
+    dma_memcpy_blocking(l1_H, l2_H, N_TX * N_RX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1_Sigma, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
+  }
+  mempool_barrier(num_cores);
 
   /* Benchmark */
+#ifdef SINGLE
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_hermitian_f16s(ch_matrix, in_matrix, sigma, N_RX, N_TX, 0, 0);
-    mempool_MVP_conjtransp_f16s(ch_matrix, b, s, N_RX, N_TX, 0);
-    mempool_cholesky_f16s(in_matrix, out_matrix, N_TX);
-    mempool_Ltrisol_f16s(out_matrix, s, y, N_TX);
-    mempool_Lttrisol_f16s(out_matrix, y, x, N_TX);
+    mempool_hermitian_f16s(l1_H, l1_G, l1_Sigma, N_RX, N_TX, 0, 0);
+    mempool_MVP_conjtransp_f16s(l1_H, l1_y, y2, N_RX, N_TX, 0);
+    mempool_cholesky_f16s(l1_G, l1_L, N_TX);
+    mempool_Ltrisol_f16s(l1_L, y2, y3, N_TX);
+    mempool_Lttrisol_f16s(l1_L, y3, l1_x, N_TX);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
+#endif
 
-  verify_result(x, Out_x, N_TX, core_id);
-  mempool_barrier(num_cores);
-  return;
-}
-
-// Driver program
-void parallel_mimo_mmse_cholesky() {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id); // Initialize barrier and synchronize//
-
-  /* Initialize matrices */
-  initialize(ch_matrix, In_H, N_RX * N_TX * N_ITR, core_id, num_cores);
-  initialize_zeros(in_matrix, N_TX * N_TX * N_ITR, core_id, num_cores);
-  initialize_zeros(out_matrix, N_TX * N_TX * N_ITR, core_id, num_cores);
-  /* Initialize vectors */
-  uint32_t i = 0;
-  for (i = core_id; i < (N_TX * N_ITR); i += num_cores) {
-    sigma[2 * i] = In_sigma[i];
-  }
-  mempool_barrier(num_cores);
-  initialize(b, In_b, N_RX * N_ITR, core_id, num_cores);
-  /* Initialize results */
-  initialize_zeros(s, N_TX * N_ITR, core_id, num_cores);
-  initialize_zeros(y, N_TX * N_ITR, core_id, num_cores);
-  initialize_zeros(x, N_TX * N_ITR, core_id, num_cores);
-
-  /* Benchmark */
-#ifdef FOLDED
-  mempool_start_benchmark();
-  for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
-
-    __fp16 *ch_matrix_ptr = ch_matrix + itr * (2 * N_TX * N_RX);
-    __fp16 *sigma_ptr = sigma + itr * (2 * N_TX);
-    __fp16 *b_ptr = b + itr * (2 * N_RX);
-
-    __fp16 *in_matrix_ptr = in_matrix + (itr % num_cores) * (2 * N_TX) +
-                            (itr / num_cores) * (N_TX * N_BANKS);
-    __fp16 *out_matrix_ptr = out_matrix + (itr % num_cores) * (2 * N_TX) +
-                             (itr / num_cores) * (N_TX * N_BANKS);
-    __fp16 *s_ptr =
-        s + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_BANKS);
-    __fp16 *y_ptr =
-        y + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_BANKS);
-    __fp16 *x_ptr = x + itr * (2 * N_TX);
-
-    mempool_hermitian_f16s(ch_matrix_ptr, in_matrix_ptr, sigma_ptr, N_RX, N_TX,
-                           1, 0);
-    mempool_MVP_conjtransp_f16s(ch_matrix_ptr, b_ptr, s_ptr, N_RX, N_TX, 1);
-    mempool_cholesky_folded_f16s(in_matrix_ptr, out_matrix_ptr, N_TX);
-    mempool_Ltrisol_folded_f16s(out_matrix_ptr, s_ptr, y_ptr, N_TX);
-    mempool_Lttrisol_folded_f16s(out_matrix_ptr, y_ptr, x_ptr, N_TX);
-  }
-  mempool_log_barrier(2, core_id);
-  mempool_stop_benchmark();
-#else
+#ifdef PARALLEL
   // Each iteration is assigned to a processor
   mempool_start_benchmark();
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
 
-    __fp16 *ch_matrix_ptr = ch_matrix + itr * (2 * N_TX * N_RX);
-    __fp16 *sigma_ptr = sigma + itr * (2 * N_TX);
-    __fp16 *b_ptr = b + itr * (2 * N_RX);
+    __fp16 *PtrH = l1_H + itr * (2 * N_TX * N_RX);
+    __fp16 *Ptry = l1_y + itr * (2 * N_RX);
+    __fp16 *PtrSigma = l1_Sigma + itr * (2 * N_TX);
 
-    __fp16 *in_matrix_ptr = in_matrix + itr * (2 * N_TX * N_TX);
-    __fp16 *out_matrix_ptr = out_matrix + itr * (2 * N_TX * N_TX);
-    __fp16 *s_ptr = s + itr * (2 * N_TX);
-    __fp16 *y_ptr = y + itr * (2 * N_TX);
-    __fp16 *x_ptr = x + itr * (2 * N_TX);
+    __fp16 *PtrG = l1_G + itr * (2 * N_TX * N_TX);
+    __fp16 *PtrL = l1_L + itr * (2 * N_TX * N_TX);
+    __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
+    __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
+    __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
 
-    mempool_hermitian_f16s(ch_matrix_ptr, in_matrix_ptr, sigma_ptr, N_RX, N_TX,
-                           0, 0);
-    mempool_MVP_conjtransp_f16s(ch_matrix_ptr, b_ptr, s_ptr, N_RX, N_TX, 0);
-    mempool_cholesky_f16s(in_matrix_ptr, out_matrix_ptr, N_TX);
-    mempool_Ltrisol_f16s(out_matrix_ptr, s_ptr, y_ptr, N_TX);
-    mempool_Lttrisol_f16s(out_matrix_ptr, y_ptr, x_ptr, N_TX);
+    mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
+    mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
+    mempool_cholesky_f16s(PtrG, PtrL, N_TX);
+    mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
+    mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
   }
   mempool_log_barrier(2, core_id);
   mempool_stop_benchmark();
 #endif
-  mempool_barrier(num_cores);
-  return;
-}
 
-int main() {
-#ifdef SINGLE
-  single_core_mimo_mmse();
-#elif defined(PARALLEL)
-  parallel_mimo_mmse_cholesky();
+#ifdef FOLDED
+  // Each iteration is assigned to a processor
+  mempool_start_benchmark();
+  for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
+
+    __fp16 *PtrH = l1_H + itr * (2 * N_TX * N_RX);
+    __fp16 *Ptry = l1_y + itr * (2 * N_RX);
+    __fp16 *PtrSigma = l1_Sigma + itr * (2 * N_TX);
+
+    __fp16 *PtrG = l1_G + (itr % num_cores) * (2 * N_TX) +
+                   (itr / num_cores) * (N_TX * N_BANKS);
+    __fp16 *PtrL = l1_L + (itr % num_cores) * (2 * N_TX) +
+                   (itr / num_cores) * (N_TX * N_BANKS);
+    __fp16 *Ptry2 =
+        y2 + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_BANKS);
+    __fp16 *Ptry3 =
+        y3 + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_BANKS);
+    __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
+
+    mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
+    mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
+    mempool_cholesky_f16s(PtrG, PtrL, N_TX);
+    mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
+    mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+  }
+  mempool_log_barrier(2, core_id);
+  mempool_stop_benchmark();
 #endif
+
+  // Check the result
+  mempool_check_f16(l1_x, l2_x, 2 * N_TX, 0.1f, 0);
+  mempool_barrier(num_cores);
   return 0;
 }
+
+#else
+
+#define N_ROUNDS (3)
+#define DMA_TRANSFER2
+
+// Inputs-Outputs even double-buffering rounds
+__fp16 l1A_H[2 * N_TX * N_RX * N_ITR]
+    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
+                   section(".l1_prio")));
+__fp16 l1A_Sigma[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1A_y[2 * N_RX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+__fp16 l1A_x[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+
+// Inputs-Outputs odd double-buffering rounds
+__fp16 l1B_H[2 * N_TX * N_RX * N_ITR]
+    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
+                   section(".l1_prio")));
+__fp16 l1B_Sigma[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1B_y[2 * N_RX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+__fp16 l1B_x[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+
+// Auxiliary vectors
+__fp16 G[2 * N_TX * N_TX * N_ITR]
+    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
+                   section(".l1_prio")));
+__fp16 L[2 * N_TX * N_TX * N_ITR]
+    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
+                   section(".l1_prio")));
+__fp16 y2[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+__fp16 y3[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+
+// Driver program
+int main() {
+
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
+  mempool_barrier_init(core_id); // Initialize barrier and synchronize
+
+#ifdef DMA_TRANSFER1
+
+  // INITIALIZATION
+  mempool_start_benchmark();
+  if (core_id == 0) {
+    dma_memcpy_blocking(l1A_H, l2_H, N_TX * N_RX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1A_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1A_Sigma, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
+  }
+  mempool_barrier(num_cores);
+
+  for (uint32_t round = 0; round < N_ROUNDS; round++) {
+
+    // TRANSFER
+    mempool_start_benchmark();
+    // Transfer vectors
+    __fp16 *trsf_H = ((round % 2) == 1) ? l1A_H : l1B_H;
+    __fp16 *trsf_y = ((round % 2) == 1) ? l1A_y : l1B_y;
+    __fp16 *trsf_Sigma = ((round % 2) == 1) ? l1A_Sigma : l1B_Sigma;
+    // Compute vectors
+    __fp16 *cmpt_H = ((round % 2) == 0) ? l1A_H : l1B_H;
+    __fp16 *cmpt_y = ((round % 2) == 0) ? l1A_y : l1B_y;
+    __fp16 *cmpt_Sigma = ((round % 2) == 0) ? l1A_Sigma : l1B_Sigma;
+    // On even rounds we transfer the result of odd computation and viceversa
+    __fp16 *trsf_x = ((round % 2) == 0) ? l1A_x : l1B_x;
+    __fp16 *cmpt_x = ((round % 2) == 1) ? l1A_x : l1B_x;
+    if (core_id == 0) {
+      dma_memcpy_nonblocking(trsf_H, l2_H,
+                             N_TX * N_RX * N_ITR * sizeof(int32_t));
+      dma_memcpy_nonblocking(trsf_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
+      dma_memcpy_nonblocking(trsf_Sigma, l2_Sigma,
+                             N_TX * N_ITR * sizeof(int32_t));
+      if (round >= 1) // Transfer to L2 is done only if not the
+        dma_memcpy_nonblocking(l2_x, trsf_x, (N_TX * N_ITR) * sizeof(int32_t));
+    }
+
+    // COMPUTATION
+    // Each iteration is assigned to a processor
+    mempool_start_benchmark();
+    for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
+      __fp16 *PtrH = cmpt_H + itr * (2 * N_TX * N_RX);
+      __fp16 *Ptry = cmpt_y + itr * (2 * N_RX);
+      __fp16 *Ptrx = cmpt_x + itr * (2 * N_TX);
+      __fp16 *PtrSigma = cmpt_Sigma + itr * (2 * N_TX);
+      __fp16 *PtrG = G + itr * (2 * N_TX * N_TX);
+      __fp16 *PtrL = L + itr * (2 * N_TX * N_TX);
+      __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
+      __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
+      mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
+      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
+      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
+      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
+      mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+    }
+    mempool_log_barrier(2, core_id);
+
+    // WAIT FOR DMA
+    mempool_start_benchmark();
+    dma_wait(); // Wait for the end of the dma transfer
+    mempool_stop_benchmark();
+  }
+
+#endif
+
+#ifdef DMA_TRANSFER2
+
+  // INITIALIZATION
+  mempool_start_benchmark();
+  if (core_id == 0) {
+    dma_memcpy_blocking(l1A_H, l2_H, N_TX * N_RX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1A_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1A_Sigma, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
+  }
+  mempool_barrier(num_cores);
+
+  for (uint32_t round = 0; round < N_ROUNDS; round++) {
+
+    // Transfer vectors
+    __fp16 *trsf_H = ((round % 2) == 1) ? l1A_H : l1B_H;
+    __fp16 *trsf_y = ((round % 2) == 1) ? l1A_y : l1B_y;
+    __fp16 *trsf_Sigma = ((round % 2) == 1) ? l1A_Sigma : l1B_Sigma;
+    // Compute vectors
+    __fp16 *cmpt_H = ((round % 2) == 0) ? l1A_H : l1B_H;
+    __fp16 *cmpt_y = ((round % 2) == 0) ? l1A_y : l1B_y;
+    __fp16 *cmpt_Sigma = ((round % 2) == 0) ? l1A_Sigma : l1B_Sigma;
+    // On even rounds we transfer the result of odd computation and viceversa
+    __fp16 *trsf_x = ((round % 2) == 0) ? l1A_x : l1B_x;
+    __fp16 *cmpt_x = ((round % 2) == 1) ? l1A_x : l1B_x;
+
+    // COMPUTATION
+    // Each iteration is assigned to a processor
+    mempool_start_benchmark();
+    for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
+      __fp16 *PtrH = cmpt_H + itr * (2 * N_TX * N_RX);
+      __fp16 *Ptry = cmpt_y + itr * (2 * N_RX);
+      __fp16 *PtrSigma = cmpt_Sigma + itr * (2 * N_TX);
+      __fp16 *PtrG = G + itr * (2 * N_TX * N_TX);
+      __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
+      mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
+      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
+    }
+    mempool_log_barrier(2, core_id);
+
+    // TRANSFER
+    mempool_start_benchmark();
+    if (core_id == 0) {
+      dma_memcpy_nonblocking(trsf_H, l2_H,
+                             N_TX * N_RX * N_ITR * sizeof(int32_t));
+      dma_memcpy_nonblocking(trsf_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
+      dma_memcpy_nonblocking(trsf_Sigma, l2_Sigma,
+                             N_TX * N_ITR * sizeof(int32_t));
+      if (round >= 1) // Transfer to L2 is done only if not the
+        dma_memcpy_nonblocking(l2_x, trsf_x, (N_TX * N_ITR) * sizeof(int32_t));
+    }
+
+    // COMPUTATION
+    // Each iteration is assigned to a processor
+    mempool_start_benchmark();
+    for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
+      __fp16 *Ptrx = cmpt_x + itr * (2 * N_TX);
+      __fp16 *PtrG = G + itr * (2 * N_TX * N_TX);
+      __fp16 *PtrL = L + itr * (2 * N_TX * N_TX);
+      __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
+      __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
+      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
+      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
+      mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+    }
+    mempool_log_barrier(2, core_id);
+
+    // WAIT FOR DMA
+    mempool_start_benchmark();
+    dma_wait(); // Wait for the end of the dma transfer
+    mempool_stop_benchmark();
+  }
+
+#endif
+
+  mempool_barrier(num_cores);
+  return 0;
+}
+
+#endif

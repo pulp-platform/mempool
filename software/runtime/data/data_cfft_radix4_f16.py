@@ -95,26 +95,19 @@ def main():
 
     src = np.random.rand(Len) + 1.j * np.random.rand(Len)
     dst = np.fft.fft(src)
-
-    twi_RI = np.zeros(int(2 * 3 * Len / 4), np.float16)
-    for i in range(0, int(3 * Len / 4)):
-        twi_RI[2 * i] = np.cos(i * 2 * np.pi / Len).astype(np.float16)
-        twi_RI[2 * i + 1] = np.sin(i * 2 * np.pi / Len).astype(np.float16)
-
+    src = np.column_stack((src.real, src.imag)).astype(np.float16).flatten()
+    dst = np.column_stack((dst.real, dst.imag)).astype(np.float16).flatten()
     Bitreversal = np.ndarray.flatten(np.array(compute_bitreversal(Len, 2)))
 
-    src_RI = np.zeros(2 * Len)
-    dst_RI = np.zeros(2 * Len)
-    for i in range(Len):
-        src_RI[2 * i] = (src[i].real).astype(np.float16)
-        src_RI[2 * i + 1] = (src[i].imag).astype(np.float16)
-        dst_RI[2 * i] = (dst[i].real).astype(np.float16)
-        dst_RI[2 * i + 1] = (dst[i].imag).astype(np.float16)
+    twi = np.zeros(int(2 * 3 * Len / 4), np.float16)
+    for i in range(0, int(3 * Len / 4)):
+        twi[2 * i] = np.cos(i * 2 * np.pi / Len).astype(np.float16)
+        twi[2 * i + 1] = np.sin(i * 2 * np.pi / Len).astype(np.float16)
 
     kwargs = {'name': 'data_cfft_radix4_f16',
-              'src': src_RI,
-              'dst': dst_RI,
-              'twi': twi_RI,
+              'src': src,
+              'dst': dst,
+              'twi': twi,
               'bitrev': Bitreversal,
               'Len': Len,
               'Log2Len': int(np.log2(Len)),
