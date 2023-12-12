@@ -297,95 +297,95 @@ module mempool_cluster
           .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
           .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
           // DMA request
-          .dma_req_i               (dma_req_group_q[g]                                                      ),
-          .dma_req_valid_i         (dma_req_group_q_valid[g]                                                ),
-          .dma_req_ready_o         (dma_req_group_q_ready[g]                                                ),
+          .dma_req_i               (dma_req_group_q[g]                                              ),
+          .dma_req_valid_i         (dma_req_group_q_valid[g]                                        ),
+          .dma_req_ready_o         (dma_req_group_q_ready[g]                                        ),
           // DMA status
-          .dma_meta_o_backend_idle_ (dma_meta[g][1]                                                  ),
-          .dma_meta_o_trans_complete_ (dma_meta[g][0]                                                  ),
+          .dma_meta_o_backend_idle_ (dma_meta[g][1]                                                 ),
+          .dma_meta_o_trans_complete_ (dma_meta[g][0]                                               ),
           // AXI interface
-          .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
-          .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
+          .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup]   ),
+          .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup]  )
         );
-        end else if ((PostLayoutGr == 0) & PostLayoutSg & (g == 0)) begin: gen_rtl_group_postly_sg
-          mempool_group #(
-            .TCDMBaseAddr (TCDMBaseAddr         ),
-            .BootAddr     (BootAddr             ),
-            // For post-synthesis
-            .GroupId      (g[idx_width(NumGroups)-1:0])
-          ) i_group (
-            .clk_i                   (clk_i                                                           ),
-            .rst_ni                  (rst_ni                                                          ),
-            .testmode_i              (testmode_i                                                      ),
-            .scan_enable_i           (scan_enable_i                                                   ),
-            .scan_data_i             (/* Unconnected */                                               ),
-            .scan_data_o             (/* Unconnected */                                               ),
-            .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
-            // TCDM Master interfaces
-            .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
-            .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                                        ),
-            .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                                        ),
-            .tcdm_master_resp_i      (tcdm_master_resp[g]                                             ),
-            .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                                       ),
-            .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                                       ),
-            // TCDM banks interface
-            .tcdm_slave_req_i        (tcdm_slave_req[g]                                               ),
-            .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                                         ),
-            .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                                         ),
-            .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
-            .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
-            .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
-            .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
-            .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
-            // DMA request
-            .dma_req_i               (dma_req_group_q[g]                                                      ),
-            .dma_req_valid_i         (dma_req_group_q_valid[g]                                                ),
-            .dma_req_ready_o         (dma_req_group_q_ready[g]                                                ),
-            // DMA status
-            .dma_meta_o              (dma_meta[g]                                                     ),
-            // AXI interface
-            .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
-            .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
-          );
-        end else begin: gen_rtl_group
-          mempool_group #(
-            .TCDMBaseAddr (TCDMBaseAddr         ),
-            .BootAddr     (BootAddr             )
-          ) i_group (
-            .clk_i                   (clk_i                                                           ),
-            .rst_ni                  (rst_ni                                                          ),
-            .testmode_i              (testmode_i                                                      ),
-            .scan_enable_i           (scan_enable_i                                                   ),
-            .scan_data_i             (/* Unconnected */                                               ),
-            .scan_data_o             (/* Unconnected */                                               ),
-            .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
-            // TCDM Master interfaces
-            .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
-            .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                                        ),
-            .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                                        ),
-            .tcdm_master_resp_i      (tcdm_master_resp[g]                                             ),
-            .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                                       ),
-            .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                                       ),
-            // TCDM banks interface
-            .tcdm_slave_req_i        (tcdm_slave_req[g]                                               ),
-            .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                                         ),
-            .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                                         ),
-            .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
-            .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
-            .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
-            .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
-            .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
-            // DMA request
-            .dma_req_i               (dma_req_group_q[g]                                                      ),
-            .dma_req_valid_i         (dma_req_group_q_valid[g]                                                ),
-            .dma_req_ready_o         (dma_req_group_q_ready[g]                                                ),
-            // DMA status
-            .dma_meta_o              (dma_meta[g]                                                     ),
-            // AXI interface
-            .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
-            .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
-          );
-        end
+      end else if ((PostLayoutGr == 0) & PostLayoutSg) begin: gen_rtl_group_postly_sg
+        mempool_group #(
+          .TCDMBaseAddr (TCDMBaseAddr               ),
+          .BootAddr     (BootAddr                   ),
+          // For post-synthesis
+          .GroupId      (g[idx_width(NumGroups)-1:0])
+        ) i_group (
+          .clk_i                   (clk_i                                                           ),
+          .rst_ni                  (rst_ni                                                          ),
+          .testmode_i              (testmode_i                                                      ),
+          .scan_enable_i           (scan_enable_i                                                   ),
+          .scan_data_i             (/* Unconnected */                                               ),
+          .scan_data_o             (/* Unconnected */                                               ),
+          .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
+          // TCDM Master interfaces
+          .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
+          .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                                        ),
+          .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                                        ),
+          .tcdm_master_resp_i      (tcdm_master_resp[g]                                             ),
+          .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                                       ),
+          .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                                       ),
+          // TCDM banks interface
+          .tcdm_slave_req_i        (tcdm_slave_req[g]                                               ),
+          .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                                         ),
+          .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                                         ),
+          .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
+          .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
+          .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+          .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
+          .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
+          // DMA request
+          .dma_req_i               (dma_req_group_q[g]                                              ),
+          .dma_req_valid_i         (dma_req_group_q_valid[g]                                        ),
+          .dma_req_ready_o         (dma_req_group_q_ready[g]                                        ),
+          // DMA status
+          .dma_meta_o              (dma_meta[g]                                                     ),
+          // AXI interface
+          .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup]   ),
+          .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup]  )
+        );
+      end else begin: gen_rtl_group
+        mempool_group #(
+          .TCDMBaseAddr (TCDMBaseAddr         ),
+          .BootAddr     (BootAddr             )
+        ) i_group (
+          .clk_i                   (clk_i                                                           ),
+          .rst_ni                  (rst_ni                                                          ),
+          .testmode_i              (testmode_i                                                      ),
+          .scan_enable_i           (scan_enable_i                                                   ),
+          .scan_data_i             (/* Unconnected */                                               ),
+          .scan_data_o             (/* Unconnected */                                               ),
+          .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
+          // TCDM Master interfaces
+          .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
+          .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                                        ),
+          .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                                        ),
+          .tcdm_master_resp_i      (tcdm_master_resp[g]                                             ),
+          .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                                       ),
+          .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                                       ),
+          // TCDM banks interface
+          .tcdm_slave_req_i        (tcdm_slave_req[g]                                               ),
+          .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                                         ),
+          .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                                         ),
+          .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
+          .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
+          .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+          .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
+          .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
+          // DMA request
+          .dma_req_i               (dma_req_group_q[g]                                              ),
+          .dma_req_valid_i         (dma_req_group_q_valid[g]                                        ),
+          .dma_req_ready_o         (dma_req_group_q_ready[g]                                        ),
+          // DMA status
+          .dma_meta_o              (dma_meta[g]                                                     ),
+          // AXI interface
+          .axi_mst_req_o           (axi_mst_req[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup]   ),
+          .axi_mst_resp_i          (axi_mst_resp[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup]  )
+        );
+      end
     end : gen_groups
 
     /*******************
@@ -459,9 +459,9 @@ module mempool_cluster
         .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
         .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
         // DMA request
-        .dma_req_i               (dma_req_group_q[g]                                                      ),
-        .dma_req_valid_i         (dma_req_group_q_valid[g]                                                ),
-        .dma_req_ready_o         (dma_req_group_q_ready[g]                                                ),
+        .dma_req_i               (dma_req_group_q[g]                                              ),
+        .dma_req_valid_i         (dma_req_group_q_valid[g]                                        ),
+        .dma_req_ready_o         (dma_req_group_q_ready[g]                                        ),
         // DMA status
         .dma_meta_o              (dma_meta[g]                                                     ),
         // AXI interface
