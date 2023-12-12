@@ -4,78 +4,61 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "xpulp/builtins_v2.h"
 
 #include "data/data_cholesky_f16.h"
+#include "kernel/mempool_checks.h"
 #include "kernel/mempool_cholesky_f16s.h"
 
-__fp16 in_matrix[2 * N * N] __attribute__((section(".l1")));
-__fp16 out_matrix[2 * N * N] __attribute__((section(".l1")));
+#define SINGLE
 
-void initialize(__fp16 *matrix, __fp16 *data, uint32_t dim, uint32_t core_id,
-                uint32_t num_cores) {
-  uint32_t i = 0;
-  for (i = core_id; i < 2 * dim; i += num_cores) {
-    matrix[i] = data[i];
-  }
-  mempool_barrier(num_cores);
-  return;
-}
+__fp16 l1_GIn[2 * dim_N * dim_N * N_SAMPLES]
+    __attribute__((section(".l1_prio")));
+__fp16 l1_LOut[2 * dim_N * dim_N * N_SAMPLES]
+    __attribute__((section(".l1_prio")));
 
-void initialize_zeros(__fp16 *matrix, uint32_t dim, uint32_t core_id,
-                      uint32_t num_cores) {
-  uint32_t i = 0;
-  __fp16 zero = (__fp16)(0x0000);
-  for (i = core_id; i < 2 * dim; i += num_cores) {
-    matrix[i] = zero;
-  }
-  mempool_barrier(num_cores);
-  return;
-}
-
-void verify_result(__fp16 *pRes, __fp16 *pExp, uint32_t dim,
-                   uint32_t core_id) {
-  if (core_id == 0) {
-    for (uint32_t i = 0; i < 2 * dim; i++) {
-      __fp16 error;
-      __fp16 exp = pExp[i];
-      __fp16 res = pRes[i];
-      asm volatile("fsub.h %[error], %[res], %[exp];"
-                   : [error] "=&r"(error)
-                   : [res] "r"(res), [exp] "r"(exp)
-                   :);
-      if (*(int32_t *)&error != 0) {
-        printf("(%d): 0x%08x - 0x%08x - 0x%08x\n", i / 2, *(int32_t *)&error,
-               *(int32_t *)&exp, *(int32_t *)&res);
-      }
-    }
-  }
-}
-
-// Driver program
-void single_core() {
+int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id); // Initialize barrier and synchronize
+
   /* Initialize matrices */
-  initialize(in_matrix, In_G, N * N, core_id, num_cores);
-  initialize_zeros(out_matrix, N * N, core_id, num_cores);
+  if (core_id == 0) {
+    dma_memcpy_blocking(l1_GIn, l2_GIn,
+                        dim_N * dim_N * N_SAMPLES * sizeof(int32_t));
+    dma_memcpy_blocking(l1_LOut, l2_LOut,
+                        dim_N * dim_N * N_SAMPLES * sizeof(int32_t));
+  }
+  // Wait at barrier until everyone is ready
+  mempool_barrier(num_cores);
+
+#ifdef SINGLE
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_cholesky_f16s(in_matrix, out_matrix, N);
+    mempool_cholesky_f16s(l1_GIn, l1_LOut, dim_N);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
-  verify_result(out_matrix, Out_L, N * N, core_id);
-  mempool_barrier(num_cores);
-  return;
-}
+#endif
 
-int main() {
-  single_core();
+#ifdef PARALLEL
+  for (uint32_t i = core_id; i < N_SAMPLES; i += num_cores) {
+    mempool_start_benchmark();
+    __fp16 *ptr_in_matrix = l1_GIn + i * 2 * dim_N * dim_N;
+    __fp16 *ptr_out_matrix = l1_LOut + i * 2 * dim_N * dim_N;
+    mempool_cholesky_f16s(ptr_in_matrix, ptr_out_matrix, dim_N);
+  }
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+#endif
+
+  mempool_check_f16(l1_LOut, l2_LOut, 2 * dim_N * dim_N, 0.01f, 0);
+  mempool_barrier(num_cores);
   return 0;
 }
