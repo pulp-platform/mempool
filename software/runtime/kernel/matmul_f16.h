@@ -272,10 +272,10 @@ void matmul_4x2_parallel_f16vec(const __fp16 *__restrict__ pSrcA,
         asm volatile(
             "pv.extract.h %[TempH], %[bVecTemp0], 1;"
             "pv.extract.h %[TempL], %[bVecTemp1], 1;"
-            "pv.pack %[bVec0], %[TempL], %[TempH];"
+            "pv.pack.h %[bVec0], %[TempL], %[TempH];"
             "pv.extract.h %[TempH], %[bVecTemp0], 0;"
             "pv.extract.h %[TempL], %[bVecTemp1], 0;"
-            "pv.pack %[bVec1], %[TempL], %[TempH];"
+            "pv.pack.h %[bVec1], %[TempL], %[TempH];"
             "vfdotpex.s.h %[sum00], %[aVec0], %[bVec0];"
             "vfdotpex.s.h %[sum01], %[aVec0], %[bVec1];"
             "vfdotpex.s.h %[sum10], %[aVec1], %[bVec0];"
