@@ -196,6 +196,7 @@ module mempool_cc
   assign data_resp_d_valid = data_pvalid_i;
   assign data_pready_o     = data_resp_d_ready;
 
+`ifndef POSTLAYOUT
   // --------------------------
   // Tracer
   // --------------------------
@@ -319,5 +320,6 @@ module mempool_cc
     $fclose(f);
   end
   // pragma translate_on
+`endif
 
 endmodule

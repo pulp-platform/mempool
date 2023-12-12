@@ -286,4 +286,36 @@ package mempool_pkg;
   // Replaces core with a traffic generator
   parameter bit TrafficGeneration  = `ifdef TRAFFIC_GEN `TRAFFIC_GEN `else 0 `endif;
 
+  /*************************
+   *  TeraPool PARAMETERS  *
+   *************************/
+
+  localparam integer unsigned NumSubGroupsPerGroup = `ifdef NUM_SUB_GROUPS_PER_GROUP `NUM_SUB_GROUPS_PER_GROUP `else 1 `endif;
+
+  // TeraPool Tile Config
+  localparam integer unsigned NumSubGroups         = NumGroups * NumSubGroupsPerGroup;
+  localparam integer unsigned NumTilesPerSubGroup  = NumTilesPerGroup / NumSubGroupsPerGroup;
+  localparam integer unsigned NumCoresPerSubGroup  = NumTilesPerSubGroup * NumCoresPerTile;
+
+  // TeraPool Mem Config
+  localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
+
+  // TeraPool Remote Groups Latency Control (in Cycles)
+  localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 7 `endif;
+
+  //TeraPool AXI/DMA Config
+  localparam integer unsigned NumAXIMastersPerSubGroup = NumAXIMastersPerGroup/NumSubGroupsPerGroup;
+  localparam int unsigned NumDmasPerSubGroup = NumDmasPerGroup/NumSubGroupsPerGroup;
+
+  //TeraPool Parameters
+  `include "reqrsp_interface/typedef.svh"
+  `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
+  typedef logic [idx_width(NumTilesPerSubGroup)-1:0] tile_sub_group_id_t;
+  typedef logic [idx_width(NumSubGroupsPerGroup)-1:0] sgroup_group_id_t;
+  typedef logic [idx_width(NumGroups+NumSubGroupsPerGroup-1)-1:0] tile_remote_sel_t;
+
+  // TeraPool PostLayout Control
+  localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
+  localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
+
 endpackage : mempool_pkg
