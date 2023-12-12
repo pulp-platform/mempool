@@ -7,76 +7,36 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "dma.h"
 #include "encoding.h"
 #include "runtime.h"
 #include "synchronization.h"
 
 #include "data/data_matmul_f32.h"
 #include "kernel/matmul_f32.h"
+#include "kernel/mempool_checks.h"
 
 #define PARALLEL
 #define ASM
 
-float matrix_a[matrix_M * matrix_N] __attribute__((section(".l1")));
-float matrix_b[matrix_N * matrix_P] __attribute__((section(".l1")));
-float matrix_c[matrix_M * matrix_P] __attribute__((section(".l1")));
-
-int volatile error __attribute__((section(".l1")));
-
-void init_matrix(float *matrix, float *input, uint32_t num_rows,
-                 uint32_t num_columns, uint32_t core_id, uint32_t num_cores) {
-  for (uint32_t i = core_id; i < (num_columns * num_rows); i += num_cores) {
-    matrix[i] = input[i];
-  }
-}
-
-int verify_result(float *__restrict__ C, float *__restrict__ Exp, uint32_t M,
-                  uint32_t P, uint32_t core_id, uint32_t num_cores) {
-  if (core_id == 0) {
-    for (uint32_t i = 0; i < M * P; i++) {
-      float error = 0.0f;
-      float exp = Exp[i];
-      float res = C[i];
-      asm volatile("fsub.s %[error], %[res], %[exp];"
-                   : [error] "+&r"(error)
-                   : [res] "r"(res), [exp] "r"(exp));
-      if (error != 0.0f) {
-        printf("ERROR!!! OUT[%d] = 0x%8x\n", i, *(uint32_t *)&error);
-      }
-    }
-    // Wait at barrier before checking
-    mempool_barrier(num_cores);
-  }
-  return 0;
-}
+float matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
+float matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));
+float matrix_c[matrix_M * matrix_P] __attribute__((section(".l1_prio")));
 
 int main() {
+
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  // Initialize barrier and synchronize
   mempool_barrier_init(core_id);
 
-  if (core_id == 0) {
-    error = 0;
-  }
-
   // Initialize Matrices
-  init_matrix(matrix_a, A, matrix_M, matrix_N, core_id, num_cores);
-  init_matrix(matrix_b, B, matrix_N, matrix_P, core_id, num_cores);
-  // Wait at barrier until everyone is ready
+  if (core_id == 0) {
+    dma_memcpy_blocking(matrix_a, A, matrix_M * matrix_N * sizeof(int32_t));
+    dma_memcpy_blocking(matrix_b, B, matrix_N * matrix_P * sizeof(int32_t));
+  }
   mempool_barrier(num_cores);
 
-#if defined(PARALLEL)
-  // Execute function to test.
-  mempool_start_benchmark();
-  // matmul_2x2_parallel_f32(matrix_a, matrix_b, matrix_c, matrix_M,
-  //                               matrix_N, matrix_P, core_id, num_cores);
-  matmul_4x4_parallel_f32(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
-                          matrix_P, core_id, num_cores);
-  mempool_stop_benchmark();
-  // Wait at barrier before checking
-  mempool_barrier(num_cores);
-#elif defined(SINGLE)
+#if defined(SINGLE)
   if (core_id == 0) {
     // Execute function to test.
     mempool_start_benchmark();
@@ -84,12 +44,19 @@ int main() {
                           matrix_P);
     mempool_stop_benchmark();
   }
-  // Wait at barrier before checking
   mempool_barrier(num_cores);
 #endif
 
-  verify_result(matrix_c, C, matrix_M, matrix_P, core_id, num_cores);
+#if defined(PARALLEL)
+  // Execute function to test.
+  mempool_start_benchmark();
+  matmul_2x2_parallel_f32(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
+                          matrix_P, core_id, num_cores);
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+#endif
 
-  return error;
+  mempool_check_f32(matrix_c, C, matrix_M * matrix_P, 0.01f, 0);
+  mempool_barrier(num_cores);
+  return 0;
 }
