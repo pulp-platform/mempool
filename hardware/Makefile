@@ -145,7 +145,6 @@ compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
-	if [ "${subgroup_rtl}" -eq "0" ]; then awk '!/mempool_sub_group/' $(buildpath)/compile.tcl > tmpfile && mv tmpfile $(buildpath)/compile.tcl; fi
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
 # Simulation
@@ -183,7 +182,6 @@ elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
 $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compilevcs.sh
 	echo "exit" >> $(buildpath)/compilevcs.sh
-	if [ "${subgroup_rtl}" -eq "0" ]; then awk '!/mempool_sub_group/' $(buildpath)/compilevcs.sh > tmpfile && mv tmpfile $(buildpath)/compilevcs.sh; fi
 	# Call VCS
 	cd $(buildpath) && \
 	chmod +x compilevcs.sh && \
@@ -257,7 +255,6 @@ $(VERILATOR_MK): $(VERILATOR_CONF) $(VERILATOR_WAIVE) $(MEMPOOL_DIR)/Bender.yml 
 	$(eval boot_addr=$(l2_base))
 	# Create Bender script of all RTL files
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > $(verilator_files)
-	if [ "${subgroup_rtl}" -eq "0" ]; then awk '!/mempool_sub_group/' $(verilator_files) > tmpfile && mv tmpfile $(verilator_files); fi
 	# Append the verilator library files
 	@echo '' >> $(verilator_files)
 	# Append the verilator library files: Includes

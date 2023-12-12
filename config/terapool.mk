@@ -41,6 +41,3 @@ dmas_per_group ?= 4
 
 # L2 Banks/Channels
 l2_banks = 16
-
-# Makefile RTL Filtering Control
-subgroup_rtl = 1

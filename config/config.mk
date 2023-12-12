@@ -72,6 +72,3 @@ xpulpimg ?= 1
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
 remote_group_latency_cycles ?= 7
-
-# Makefile RTL Filtering Control
-subgroup_rtl ?= 0
