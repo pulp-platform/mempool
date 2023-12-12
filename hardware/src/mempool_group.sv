@@ -1006,24 +1006,6 @@ module mempool_group
   
     `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
-    // xbar
-    localparam int unsigned NumRules = 1;
-    typedef struct packed {
-      int unsigned idx;
-      logic [AddrWidth-1:0] start_addr;
-      logic [AddrWidth-1:0] end_addr;
-    } xbar_rule_t;
-    xbar_rule_t [NumRules-1:0] addr_map;
-    assign addr_map = '{
-      '{ // TCDM
-        start_addr: TCDMBaseAddr,
-        end_addr:   TCDMBaseAddr + TCDMSize,
-        idx:        1
-      }
-    };
-
-    `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
-
 
     for (genvar d = 0; unsigned'(d) < NumDmasPerGroup; d++) begin: gen_dmas
       localparam int unsigned a = NumTilesPerGroup + d;
