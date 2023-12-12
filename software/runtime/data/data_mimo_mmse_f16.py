@@ -34,7 +34,7 @@ def gen_input_data(N_rx, N_tx):
     H = np.random.rand(N_rx, N_tx).astype(np.float16) + 1.j * \
         np.random.rand(N_rx, N_tx).astype(np.float16)
     # Create input vector
-    b = np.random.rand(N_rx).astype(np.float16) + 1.j * \
+    y = np.random.rand(N_rx).astype(np.float16) + 1.j * \
         np.random.rand(N_rx).astype(np.float16)
     # Generate noise variance
     sigma = np.diag(np.random.rand(N_tx, N_tx).astype(np.float16))
@@ -47,23 +47,24 @@ def gen_input_data(N_rx, N_tx):
     # Cholesky decomposition
     L = np.linalg.cholesky(G)
     # Linear system solution
-    s = np.transpose(np.dot(H_h, b))
-    y = solve_triangular(L, s, lower=True)
-    x = solve_triangular(np.asmatrix(L).H, y)
+    y1 = np.transpose(np.dot(H_h, y))
+    y2 = solve_triangular(L, y1, lower=True)
+    x = solve_triangular(np.asmatrix(L).H, y2)
 
+    sigma = sigma + 0j
     H = np.reshape(np.asarray(H), (N_tx*N_rx), order='C')
     G = np.reshape(np.asarray(G), (N_tx*N_tx), order='C')
     L = np.reshape(np.asarray(L), (N_tx*N_tx), order='C')
+    sigma = np.column_stack((sigma.real, sigma.imag)
+                            ).astype(np.float16).flatten()
     H = np.column_stack((H.real, H.imag)).astype(np.float16).flatten()
     G = np.column_stack((G.real, G.imag)).astype(np.float16).flatten()
     L = np.column_stack((L.real, L.imag)).astype(np.float16).flatten()
 
-    b = np.column_stack((b.real, b.imag)).astype(np.float16).flatten()
-    s = np.column_stack((s.real, s.imag)).astype(np.float16).flatten()
-    x = np.column_stack((x.real, x.imag)).astype(np.float16).flatten()
     y = np.column_stack((y.real, y.imag)).astype(np.float16).flatten()
+    x = np.column_stack((x.real, x.imag)).astype(np.float16).flatten()
 
-    return sigma, H, G, b, x
+    return sigma, H, G, y, x
 
 
 def main():
@@ -122,26 +123,26 @@ def main():
     N_rx = args.receivers
     itr = args.iterations
 
-    sigma = np.zeros([itr, N_tx])
+    sigma = np.zeros([itr, 2*N_tx])
     H_RI = np.zeros([itr, 2*N_tx*N_rx])
     G_RI = np.zeros([itr, 2*N_tx*N_tx])
-    b_RI = np.zeros([itr, 2*N_rx])
+    y_RI = np.zeros([itr, 2*N_rx])
     x_RI = np.zeros([itr, 2*N_tx])
     for k in range(itr):
-        sigma[k, :], H_RI[k, :], G_RI[k, :], b_RI[k,
+        sigma[k, :], H_RI[k, :], G_RI[k, :], y_RI[k,
                                                   :], x_RI[k, :] = gen_input_data(N_rx, N_tx)
 
-    sigma = np.reshape(sigma, (N_tx*itr)).astype(np.float16)
+    sigma = np.reshape(sigma, (2*N_tx*itr)).astype(np.float16)
     H_RI = np.reshape(H_RI, (2*N_rx*N_tx*itr)).astype(np.float16)
     G_RI = np.reshape(G_RI, (2*N_tx*N_tx*itr)).astype(np.float16)
-    b_RI = np.reshape(b_RI, (2*N_rx*itr)).astype(np.float16)
+    y_RI = np.reshape(y_RI, (2*N_rx*itr)).astype(np.float16)
     x_RI = np.reshape(x_RI, (2*N_tx*itr)).astype(np.float16)
 
     kwargs = {'name': 'data_mimo_mmse_f16',
               'H': H_RI,
               'G': G_RI,
               'sigma': sigma,
-              'b': b_RI,
+              'y': y_RI,
               'x': x_RI,
               'N_tx': N_tx,
               'N_rx': N_rx,
