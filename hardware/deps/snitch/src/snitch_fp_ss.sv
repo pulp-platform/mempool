@@ -739,6 +739,48 @@ module snitch_fp_ss
         vectorial_op = 1'b1;
         set_dyn_rm   = 1'b1;
       end
+      riscv_instr::FCDOTPEX_S_H: begin
+        fpu_op = fpnew_pkg::CSDOTP;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::FCNDOTPEX_S_H: begin
+        fpu_op = fpnew_pkg::CSDOTP;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
+        op_mode      = 1'b1;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::FCCDOTPEX_S_H: begin
+        fpu_op = fpnew_pkg::CCSDOTP;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::FCCNDOTPEX_S_H: begin
+        fpu_op = fpnew_pkg::CCSDOTP;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
+        op_mode      = 1'b1;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
 
       ///////////////////////
       // Quarter Precision //
