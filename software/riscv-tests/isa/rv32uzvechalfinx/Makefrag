@@ -8,7 +8,8 @@ rv32uzvechalfinx_sc_tests = \
                       vfmac_h \
                       vfmin_h \
                       vfsgnj_h \
-                      vfcpka_h
+                      vfcpka_h \
+                      fcdotpex_h
 endif
 
 rv32uzvechalfinx_p_tests = $(addprefix rv32uzvechalfinx-p-, $(rv32uzvechalfinx_sc_tests))
