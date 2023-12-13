@@ -134,7 +134,8 @@ ifeq ($(zfinx_rv),1)
 		vfcpka_h \
 		vfmac_h \
 		vfmin_h \
-		vfsgnj_h
+		vfsgnj_h \
+		fcdotpex_h
 	rv32uzvecquarterinx_snitch_sc_tests = \
 		vfadd_b
 
