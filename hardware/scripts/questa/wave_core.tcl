@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: SHL-0.51
 
 # Create group for core $3 from group $1 tile $2 (core_id=NUM_CORES_PER_group*$1+NUM_CORES_PER_TILE*$2+$3)
-if {$config == {terapool}} {
+if {$config == {terapool_spatz4_fpu} | $config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3][$4] -group Params /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/BootAddr
   add wave -noupdate -group core[$1][$2][$3][$4] -group Params /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/MTVEC
   add wave -noupdate -group core[$1][$2][$3][$4] -group Params /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/RVE

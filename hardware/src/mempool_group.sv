@@ -111,18 +111,18 @@ module mempool_group
   end: gen_tcdm_struct
 
   `ifdef TERAPOOL
-  /*********************
-   *  TeraPool Section *
-   *********************/
-  // ----------------------------------------------------- //
-  // SubGroups Instantiation.
-  // PostLayout Simulation:
-  //   - Only SubGroup_0 Replaced by Netlist for simulation.
-  // TCDM interconnections:
-  //   - Local SubGroups;
-  //   - Remote Groups.
-  // Most of AXI/DMA logics put into SubGroup level.
-  // ----------------------------------------------------- //
+    /*********************
+     *  TeraPool Section *
+     *********************/
+    // ----------------------------------------------------- //
+    // SubGroups Instantiation.
+    // PostLayout Simulation:
+    //   - Only SubGroup_0 Replaced by Netlist for simulation.
+    // TCDM interconnections:
+    //   - Local SubGroups;
+    //   - Remote Groups.
+    // Most of AXI/DMA logics put into SubGroup level.
+    // ----------------------------------------------------- //
 
     /****************
      *  Sub_Groups  *
@@ -579,16 +579,16 @@ module mempool_group
     );
 
   `else
-  /******************************
-   *  MemPool / MinPool Section *
-   ******************************/
-  // ----------------------------------------------------- //
-  // Tile Instantiation.
-  // TCDM interconnections:
-  //   - Local Tiles;
-  //   - Remote Groups;
-  // Most of AXI/DMA logics put on Group level.
-  // ----------------------------------------------------- //
+    /******************************
+     *  MemPool / MinPool Section *
+     ******************************/
+    // ----------------------------------------------------- //
+    // Tile Instantiation.
+    // TCDM interconnections:
+    //   - Local Tiles;
+    //   - Remote Groups;
+    // Most of AXI/DMA logics put on Group level.
+    // ----------------------------------------------------- //
 
     /***********
      *  Tiles  *

@@ -29,8 +29,8 @@
 #endif
 
 // dump(result, 1);
-const unsigned int csize = 256;
-const unsigned int core_count = 16;
+const unsigned int csize = 64;
+const unsigned int core_count = 64;
 const unsigned int esize = csize*core_count;
 
 float x[esize];
