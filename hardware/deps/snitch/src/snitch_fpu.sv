@@ -80,7 +80,8 @@ module snitch_fpu import snitch_pkg::*; (
     .Implementation             ( snitch_pkg::FPU_IMPLEMENTATION ),
     .TagType                    ( logic[5:0]                     ),
     .StochasticRndImplementation( snitch_pkg::FPU_RSR            ),
-    .PulpDivsqrt                ( 1'b1                           )
+    .PulpDivsqrt                ( 1'b1                           ),
+    .ComplexDotp                ( 1'b1                           )
   ) i_fpu (
     .clk_i                                    ,
     .rst_ni                                   ,
