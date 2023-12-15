@@ -55,6 +55,7 @@ $(eval $(call rtl_mempool_tests_template,rv32uzfinx))
 $(eval $(call rtl_mempool_tests_template,rv32uzhinx))
 $(eval $(call rtl_mempool_tests_template,rv32uzquarterinx))
 $(eval $(call rtl_mempool_tests_template,rv32uzvechalfinx))
+$(eval $(call rtl_mempool_tests_template,rv32uzvecquarterinx))
 else
 $(eval $(call rtl_mempool_tests_template,rv32ui))
 $(eval $(call rtl_mempool_tests_template,rv32um))
