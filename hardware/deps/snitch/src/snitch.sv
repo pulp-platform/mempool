@@ -98,7 +98,7 @@ module snitch
   localparam logic [RegWidth-1:0] SP = 2;
   localparam int OutstandingWfi = 8;
 
-  logic illegal_inst;
+  logic illegal_inst, illegal_csr;
   logic zero_lsb;
 
   // Instruction fetch
@@ -217,7 +217,7 @@ module snitch
   } fcsr_t;
   fcsr_t fcsr_d, fcsr_q;
 
-  assign fpu_rnd_mode_o = fpnew_pkg::RNE;//fcsr_q.frm;
+  assign fpu_rnd_mode_o = fcsr_q.frm;
 
   // Registers
   `FFAR(pc_q, pc_d, BootAddr, clk_i, rst_i)
@@ -1920,6 +1920,7 @@ module snitch
   always_comb begin
     csr_rvalue = '0;
     csr_dump = 1'b0;
+    illegal_csr = '0;
     csr_trace_en = 1'b0;
     csr_stack_limit_en = 1'b0;
 
@@ -1966,25 +1967,25 @@ module snitch
           csr_rvalue = stall_raw_q[31:0];
         end
 
-//        // F/D Extension
-//        CSR_FFLAGS: begin
-//          if (RVFD) begin
-//            csr_rvalue = {27'b0, fcsr_q.fflags};
-//            fcsr_d.fflags = fpnew_pkg::status_t'(alu_result[4:0]);
-//          end else illegal_csr = 1'b1;
-//        end
-//        CSR_FRM: begin
-//          if (RVFD) begin
-//            csr_rvalue = {29'b0, fcsr_q.frm};
-//            fcsr_d.frm = fpnew_pkg::roundmode_e'(alu_result[2:0]);
-//          end else illegal_csr = 1'b1;
-//        end
-//        CSR_FCSR: begin
-//          if (RVFD) begin
-//            csr_rvalue = {24'b0, fcsr_q};
-//            fcsr_d = fcsr_t'(alu_result[7:0]);
-//          end else illegal_csr = 1'b1;
-//        end
+        // F/D Extension
+        riscv_instr::CSR_FFLAGS: begin
+          if (snitch_pkg::ZFINX_RV) begin
+            csr_rvalue = {27'b0, fcsr_q.fflags};
+            fcsr_d.fflags = fpnew_pkg::status_t'(alu_result[4:0]);
+          end else illegal_csr = 1'b1;
+        end
+        riscv_instr::CSR_FRM: begin
+          if (snitch_pkg::ZFINX_RV) begin
+            csr_rvalue = {29'b0, fcsr_q.frm};
+            fcsr_d.frm = fpnew_pkg::roundmode_e'(alu_result[2:0]);
+          end else illegal_csr = 1'b1;
+        end
+        riscv_instr::CSR_FCSR: begin
+          if (snitch_pkg::ZFINX_RV) begin
+            csr_rvalue = {24'b0, fcsr_q};
+            fcsr_d = fcsr_t'(alu_result[7:0]);
+          end else illegal_csr = 1'b1;
+        end
 
         `endif
         default: begin
