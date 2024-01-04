@@ -1263,8 +1263,29 @@ module snitch
         end
       end
       // Extended dotp
-      riscv_instr::VFDOTPEX_S_B,
-      riscv_instr::VFDOTPEX_S_R_B: begin
+      riscv_instr::VFDOTPEX_H_B,
+      riscv_instr::VFDOTPEX_H_R_B,
+      riscv_instr::VFNDOTPEX_H_B,
+      riscv_instr::VFNDOTPEX_H_R_B,
+      riscv_instr::VFSUMEX_H_B,
+      riscv_instr::VFNSUMEX_H_B: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          opc_select = RegRd;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::VFDOTPEXA_S_B,
+      riscv_instr::VFDOTPEXB_S_B,
+      riscv_instr::VFDOTPEXA_S_R_B,
+      riscv_instr::VFDOTPEXB_S_R_B: begin
         if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
