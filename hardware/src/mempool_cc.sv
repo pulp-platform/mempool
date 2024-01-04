@@ -206,6 +206,7 @@ module mempool_cc
     // pragma translate_off
     .trace_port_o            ( fpu_trace             ),
     // pragma translate_on
+    .hart_id_i               ( hart_id_i             ),
     .acc_req_i               ( acc_req_q             ),
     .acc_req_valid_i         ( fpu_req_qvalid        ),
     .acc_req_ready_o         ( fpu_req_qready        ),

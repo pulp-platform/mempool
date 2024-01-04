@@ -16,6 +16,7 @@ module snitch_fp_ss
   // pragma translate_off
   output fpu_trace_port_t  trace_port_o,
   // pragma translate_on
+  input  logic [31:0]      hart_id_i,
   // Accelerator Interface - Slave
   input  acc_req_t         acc_req_i,
   input  logic             acc_req_valid_i,
@@ -1346,6 +1347,7 @@ module snitch_fp_ss
   snitch_fpu i_fpu (
     .clk_i                           ,
     .rst_ni         ( ~rst_i        ),
+    .hart_id_i      ( hart_id_i     ),
     .operands_i     ( op            ),
     .rnd_mode_i     ( fpu_rnd_mode  ),
     .op_i           ( fpu_op        ),
