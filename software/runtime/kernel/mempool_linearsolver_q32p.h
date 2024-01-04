@@ -212,7 +212,7 @@ void mempool_linearsolver_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
     case 0:
       break;
     }
-    result = mempool_sqrt_q32s(pivot - sum);
+    result = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
     pIn[j] = FIX_DIV(in, result);
     pL[matrix_row + j * N_BANKS] = result;
   }

@@ -61,7 +61,6 @@ void mempool_chest_q16p_unrolled4_xpulpv2(int16_t *volatile pH,
       }
     }
   }
-  // dump_x(core_id);
   mempool_barrier(nPE);
   return;
 }
@@ -107,7 +106,6 @@ void mempool_chest_q16p_unrolled4_xpulpv2_local(int16_t *volatile pH,
         :);
     chest_unrolled4_inner_loop(pTX, pOut, nTX, ab, ab_n, i, j);
   }
-  // dump_x(core_id);
   mempool_log_partial_barrier(2, core_id, N_SAMPLES);
   return;
 }
