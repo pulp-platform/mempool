@@ -37,6 +37,7 @@ module snitch_fp_ss
   fpnew_pkg::int_format_e int_fmt;
   logic                   vectorial_op;
   logic                   set_dyn_rm;
+  logic                   select_upper_half;
 
   typedef struct packed {
     logic       acc; // write-back to result bus
@@ -122,6 +123,7 @@ module snitch_fp_ss
 
     vectorial_op = 1'b0;
     op_mode = 1'b0;
+    select_upper_half = 1'b0;
 
     fpu_tag_in.rd = rd;
     fpu_tag_in.acc = 1'b1;
@@ -1236,8 +1238,8 @@ module snitch_fp_ss
         vectorial_op = 1'b1;
         set_dyn_rm   = 1'b1;
       end
-      riscv_instr::VFDOTPEX_S_B,
-      riscv_instr::VFDOTPEX_S_R_B: begin
+      riscv_instr::VFDOTPEX_H_B,
+      riscv_instr::VFDOTPEX_H_R_B: begin
         fpu_op = fpnew_pkg::SDOTP;
         op_select[0] = AccBus_A;
         op_select[1] = AccBus_B;
@@ -1247,6 +1249,52 @@ module snitch_fp_ss
         vectorial_op = 1'b1;
         set_dyn_rm   = 1'b1;
       end
+      riscv_instr::VFNDOTPEX_H_B,
+      riscv_instr::VFNDOTPEX_H_R_B: begin
+        fpu_op = fpnew_pkg::SDOTP;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
+        op_mode      = 1'b1;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFSUMEX_H_B,
+      riscv_instr::VFNSUMEX_H_B: begin
+        fpu_op = fpnew_pkg::EXVSUM;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP16;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFDOTPEXA_S_B,
+      riscv_instr::VFDOTPEXA_S_R_B: begin
+        fpu_op = fpnew_pkg::SDOTP;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP32;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFDOTPEXB_S_B,
+      riscv_instr::VFDOTPEXB_S_R_B: begin
+        select_upper_half = 1'b1;
+        fpu_op = fpnew_pkg::SDOTP;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        op_select[2] = AccBus_C;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP32;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+
       default: ;
     endcase
     // fix round mode for vectors and fp16alt
@@ -1283,6 +1331,12 @@ module snitch_fp_ss
           op_ready[i] = 1'b1;
         end
       endcase
+      // Select upper half if needed - only required by VFDOTPEXB_S_B, VFDOTPEXB_S_R_B
+      if (i != 2) begin
+        if (select_upper_half) begin
+          op[i] = {{(FLEN/2){1'b1}}, op[i][FLEN-1:FLEN/2]};
+        end
+      end
     end
   end
 
