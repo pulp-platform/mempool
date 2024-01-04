@@ -24,7 +24,7 @@ void mempool_cholesky_banachiewicz_q32s(int32_t *pSrc, int32_t *pL,
   int32_t b0, b1, b2, b3;
 
   pivot = pSrc[0];
-  pL[0] = mempool_sqrt_q32s(pivot);
+  pL[0] = mempool_sqrt_q32s(pivot, FIXED_POINT);
 
   /* Loop over rows */
   for (i = 1; i < n; i++) {
@@ -101,7 +101,7 @@ void mempool_cholesky_banachiewicz_q32s(int32_t *pSrc, int32_t *pL,
         pL[i * n + l] = result;
       }
       if (j == i) {
-        pL[i * n + j] = mempool_sqrt_q32s(pivot - sum);
+        pL[i * n + j] = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
       } else {
         result = FIX_DIV((pivot - sum), diag);
       }
@@ -206,7 +206,7 @@ void mempool_cholesky_crout_q32s(int32_t *pSrc, int32_t *pL, const uint32_t n) {
     case 0:
       break;
     }
-    pL[j * n + j] = mempool_sqrt_q32s(pivot - sum);
+    pL[j * n + j] = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
 
     for (i = j + 1; i < n; i++) {
       sum = 0;
