@@ -43,10 +43,8 @@ module snitch_fpu import snitch_pkg::*; (
     logic [5:0]      tag;
   } fpu_out_t;
 
-  fpu_in_t fpu_in_q, fpu_in;
-  fpu_out_t fpu_out_q, fpu_out;
-  logic in_valid_q, in_ready_q;
-  logic out_valid, out_ready;
+  fpu_in_t fpu_in;
+  fpu_out_t fpu_out;
 
   assign fpu_in = '{
     operands: operands_i,
@@ -60,20 +58,6 @@ module snitch_fpu import snitch_pkg::*; (
     tag: tag_i
   };
 
-  spill_register #(
-    .T      ( fpu_in_t ),
-    .Bypass ( snitch_pkg::TinyFPU )
-  ) i_spill_register_fpu_in (
-    .clk_i                 ,
-    .rst_ni                ,
-    .valid_i ( in_valid_i ),
-    .ready_o ( in_ready_o ),
-    .data_i  ( fpu_in     ),
-    .valid_o ( in_valid_q ),
-    .ready_i ( in_ready_q ),
-    .data_o  ( fpu_in_q   )
-  );
-
 // If you want to use Stochastic Rounding, propagate the hart_id to the FPU (each FPU needs a different hart_id) and set EnableRSR to 1'b1s
   fpnew_top #(
     // FPU configuration
@@ -86,45 +70,30 @@ module snitch_fpu import snitch_pkg::*; (
   ) i_fpu (
     .clk_i                                    ,
     .rst_ni                                   ,
-    .hart_id_i       ( '0                    ),
-    .operands_i      ( fpu_in_q.operands     ),
-    .rnd_mode_i      ( fpu_in_q.rnd_mode     ),
-    .op_i            ( fpu_in_q.op           ),
-    .op_mod_i        ( fpu_in_q.op_mod       ),
-    .src_fmt_i       ( fpu_in_q.src_fmt      ),
-    .dst_fmt_i       ( fpu_in_q.dst_fmt      ),
-    .int_fmt_i       ( fpu_in_q.int_fmt      ),
-    .vectorial_op_i  ( fpu_in_q.vectorial_op ),
-    .tag_i           ( fpu_in_q.tag          ),
     .hart_id_i       ( hart_id_i             ),
+    .operands_i      ( fpu_in.operands       ),
+    .rnd_mode_i      ( fpu_in.rnd_mode       ),
+    .op_i            ( fpu_in.op             ),
+    .op_mod_i        ( fpu_in.op_mod         ),
+    .src_fmt_i       ( fpu_in.src_fmt        ),
+    .dst_fmt_i       ( fpu_in.dst_fmt        ),
+    .int_fmt_i       ( fpu_in.int_fmt        ),
+    .vectorial_op_i  ( fpu_in.vectorial_op   ),
+    .tag_i           ( fpu_in.tag            ),
     .simd_mask_i     ( '1                    ),
-    .in_valid_i      ( in_valid_q            ),
-    .in_ready_o      ( in_ready_q            ),
+    .in_valid_i      ( in_valid_i            ),
+    .in_ready_o      ( in_ready_o            ),
     .flush_i         ( 1'b0                  ),
     .result_o        ( fpu_out.result        ),
     .status_o        ( fpu_out.status        ),
     .tag_o           ( fpu_out.tag           ),
-    .out_valid_o     ( out_valid             ),
-    .out_ready_i     ( out_ready             ),
+    .out_valid_o     ( out_valid_o           ),
+    .out_ready_i     ( out_ready_i           ),
     .busy_o          (                       )
   );
 
-  spill_register #(
-    .T      ( fpu_out_t ),
-    .Bypass ( snitch_pkg::TinyFPU      )
-  ) i_spill_register_fpu_out (
-    .clk_i                  ,
-    .rst_ni                 ,
-    .valid_i ( out_valid   ),
-    .ready_o ( out_ready   ),
-    .data_i  ( fpu_out     ),
-    .valid_o ( out_valid_o ),
-    .ready_i ( out_ready_i ),
-    .data_o  ( fpu_out_q   )
-  );
-
-  assign result_o = fpu_out_q.result;
-  assign status_o = fpu_out_q.status;
-  assign tag_o = fpu_out_q.tag;
+  assign result_o = fpu_out.result;
+  assign status_o = fpu_out.status;
+  assign tag_o = fpu_out.tag;
 
 endmodule
