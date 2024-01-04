@@ -25,7 +25,7 @@ else
 	ALL := $(filter-out systolic/%,$(APPS))
 endif
 
-ALL_LLVM := $(filter-out synth chest_q16 cfft_radix2_q16 cfft_radix4_q16, $(ALL))
+ALL_LLVM := $(filter-out synth chest_q16 cfft_radix2_q16 cfft_radix4_q16 cholesky_q16 mimo_mmse_q16, $(ALL))
 ALL_GCC := $(filter-out matmul_f16 matmul_f32, $(ALL))
 
 # Make all applications
