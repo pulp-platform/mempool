@@ -17,7 +17,8 @@ RVTEST_CODE_BEGIN
   # Arithmetic tests
   #-------------------------------------------------------------
 
-  # TO DO
+  #                         CHECK       RS1         RS2         RD
+  TEST_RRR_OP( 2,  vfmac.b, 0x45564F45, 0x423E3442, 0x3E34563E, 0x34564234 );
 
   TEST_PASSFAIL
 

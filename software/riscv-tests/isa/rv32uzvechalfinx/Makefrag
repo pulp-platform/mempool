@@ -9,6 +9,7 @@ rv32uzvechalfinx_sc_tests = \
                       vfmin_h \
                       vfsgnj_h \
                       vfcpka_h \
+                      vfdotpex_h \
                       fcdotpex_h
 endif
 
