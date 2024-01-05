@@ -1,7 +1,7 @@
 # See LICENSE for license details.
 
 #*****************************************************************************
-# vfcpka_h.S
+# vfdotpex_h.S
 #-----------------------------------------------------------------------------
 #
 # Test add instruction.
@@ -17,18 +17,14 @@ RVTEST_CODE_BEGIN
   # Arithmetic tests
   #-------------------------------------------------------------
 
-  # 0x4048F5C3;   // 3.14
-  # 0xC048F5C3;  // -3.14
-  # 0x3FCF1AA0;   // 1.618
-  # 0xBFCF1AA0;  // -1.618
+  # 4100 2.5
+  # E4D3 -1235
+  # 3C00 1
 
-  # 0xFFFF4248;   // 3.14
-  # 0xFFFFC248;  // -3.14
-  # 0xFFFF3E79;   // 1.618
-  # 0xFFFFBE79;  // -1.618
-
-  TEST_RR_OP( 2,  vfcpka.h.s, 0x3E794248, 0x4048F5C3, 0x3FCF1AA0 );
-  TEST_RR_OP( 3,  vfcpka.h.s, 0xBE79C248, 0xC048F5C3, 0xBFCF1AA0 );
+  #                               CHECK       RS1         RS2         RD
+  TEST_RRR_OP( 2,  vfdotpex.s.h,  0xC49A1000, 0x3C003C00, 0x4100E4D3, 0x00000000 );
+  TEST_RRR_OP( 3,  vfdotpex.s.h,  0xC50B8800, 0x3C003C00, 0x4100E4D3, 0xC47A0000 );
+  TEST_RRR_OP( 4,  vfndotpex.s.h, 0x43688000, 0x3C003C00, 0x4100E4D3, 0xC47A0000 );
 
   TEST_PASSFAIL
 

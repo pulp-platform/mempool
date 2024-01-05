@@ -128,7 +128,7 @@ $(eval $(call compile_template,rv32um,-march=rv32g -mabi=ilp32))
 $(eval $(call compile_template,rv32ua,-march=rv32g -mabi=ilp32))
 $(eval $(call compile_template,rv32uf,-march=rv32g -mabi=ilp32))
 $(eval $(call compile_template,rv32ud,-march=rv32g -mabi=ilp32))
-RISCV_ARCH := rv$(XLEN)ima_zfinx_zhinx_zquarterinx_zvechalfinx_zvecquarterinx_zexpauxvechalfinx
+RISCV_ARCH := rv$(XLEN)ima_zfinx_zhinx_zquarterinx_zvechalfinx_zvecquarterinx_zexpauxvechalfinx_zexpauxvecquarterinx
 RISCV_ARCH := $(RISCV_ARCH)_xpulppostmod_xpulpmacsi_xpulpvect_xpulpvectshufflepack_xmempool
 $(eval $(call compile_template,rv32uzfinx,-march=$(RISCV_ARCH) -mabi=ilp32))
 $(eval $(call compile_template,rv32uzhinx,-march=$(RISCV_ARCH) -mabi=ilp32))

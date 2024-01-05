@@ -17,7 +17,13 @@ RVTEST_CODE_BEGIN
   # Arithmetic tests
   #-------------------------------------------------------------
 
-  # TO DO
+  # 0xFFFFFF42;   // 3.14
+  # 0xFFFFFF3E;   // 1.618
+  # 0xFFFFFF34;   // 0.250244
+  # 0xFFFFFF56;   // 100.123456789
+
+  TEST_RR_OP( 2,  vfmin.b, 0x3E343442, 0x423E3456, 0x3E345642 );
+  TEST_RR_OP( 3,  vfmax.b, 0x423E5656, 0x423E3456, 0x3E345642 );
 
   TEST_PASSFAIL
 
