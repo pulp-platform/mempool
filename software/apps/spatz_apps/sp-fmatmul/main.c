@@ -27,29 +27,25 @@
 #include "runtime.h"
 #include "synchronization.h"
 #endif
-#include "data/data_64_64_64.h"
+// #include "data/data_64_64_64.h"
+// #include "data/data_128_128_128.h"
+// #include "data/data_128_256_128.h"
+// #include "data/data_4096_32_64.h"
+#include "data/data_1024_32_64.h"
+// #include "data/data_512_32_64.h"
+// #include "data/data_256_32_64.h"
+// #include "data/data_256_256_256.h"
 #include "kernel/sp-fmatmul.c"
 
-
+// set the number of cores used to calculate
+const unsigned int active_core = 128;
 
 // Initialize the matrices
 void init_matrix(float *matrix, const float *src,
-                 const unsigned int size) {
-  for (unsigned int j = 0; j < size; ++j)
+                 const unsigned int size, const unsigned int cid) {
+  for (unsigned int j = cid*size; j < (cid+1)*size; ++j)
     matrix[j] = src[j];
 }
-
-const unsigned int core_count = 16;
-
-// void init_matrix(float *matrix, const float *src,
-//                  const unsigned int rows_start, const unsigned int rows_end,
-//                  const unsigned int num_columns) {
-//   for (unsigned int i = rows_start; i < rows_end; ++i) {
-//     for (unsigned int j = 0; j < num_columns; ++j) {
-//       matrix[i * num_columns + j] = src[i * num_columns + j];
-//     }
-//   }
-// }
 
 // Verify the matrices
 int verify_matrix(float *matrix, const float *checksum,
@@ -66,7 +62,6 @@ int verify_matrix(float *matrix, const float *checksum,
       diff = -diff;
     if (diff > 0.001f) {
       return i == 0 ? -1 : (int)i;
-      // error ++;
     }
   }
   return error;
@@ -96,21 +91,25 @@ int main() {
   // Work over complete P dimension
   p_start = 0;
   p_end = gemm_l.N;
-  m_start = (gemm_l.M / core_count) * cid;
-  m_end = (gemm_l.M / core_count) * (cid + 1);
+  m_start = (gemm_l.M / active_core) * cid;
+  m_end = (gemm_l.M / active_core) * (cid + 1);
 
   // Wait for all cores to finish
   mempool_barrier(num_cores);
 
-  if (cid == 0) {
-    printf("init a\n");
-    init_matrix(a, gemm_A_dram, gemm_l.M * gemm_l.K);
-    printf("init b\n");
-    init_matrix(b, gemm_B_dram, gemm_l.K * gemm_l.N);
-    printf("init c\n");
-    init_matrix(c, gemm_C_dram, gemm_l.M * gemm_l.N);
-    printf("init r\n");
-    init_matrix(r, gemm_checksum, gemm_l.M);
+  if (cid < active_core) {
+    if (cid == 0)
+      printf("init a\n");
+    init_matrix(a, gemm_A_dram,   (gemm_l.M * gemm_l.K)/active_core, cid);
+    if (cid == 0)
+      printf("init b\n");
+    init_matrix(b, gemm_B_dram,   (gemm_l.K * gemm_l.N)/active_core, cid);
+    if (cid == 0)
+      printf("init c\n");
+    init_matrix(c, gemm_C_dram,   (gemm_l.M * gemm_l.N)/active_core, cid);
+    if (cid == 0)
+      printf("init r\n");
+    init_matrix(r, gemm_checksum, (gemm_l.M)/active_core, cid);
   }
 
   if (cid == 0) {
@@ -120,17 +119,27 @@ int main() {
   // Wait for all cores to finish
   mempool_barrier(num_cores);
 
+  if (cid == 0) {
+    printf("start calc\n");
+  }
+
   // Calculate matmul
   for (unsigned int i = 0; i < measure_iterations; ++i) {
     timer_start = mempool_get_timer();
 
-    if (cid < core_count) {
+    if (cid < active_core) {
       if (kernel_size == 2) {
+        mempool_start_benchmark();
         matmul_2xVL(c, a, b, m_start, m_end, gemm_l.K, gemm_l.N, p_start, p_end);
+        mempool_stop_benchmark();
       } else if (kernel_size == 4) {
+        mempool_start_benchmark();
         matmul_4xVL(c, a, b, m_start, m_end, gemm_l.K, gemm_l.N, p_start, p_end);
+        mempool_stop_benchmark();
       } else if (kernel_size == 8) {
+        mempool_start_benchmark();
         matmul_8xVL(c, a, b, m_start, m_end, gemm_l.K, gemm_l.N, p_start, p_end);
+        mempool_stop_benchmark();
       } else {
         return -2;
       }
@@ -152,7 +161,7 @@ int main() {
   if (cid == 0) {
     long unsigned int performance =
         1000 * 2 * gemm_l.M * gemm_l.N * gemm_l.K / timer;
-    long unsigned int utilization = performance / (2 * num_cores * 8);
+    long unsigned int utilization = performance / (2 * active_core * N_FPU);
 
     printf("\n----- (%dx%d) sp fmatmul -----\n", gemm_l.M, gemm_l.N);
     printf("The execution took %u cycles.\n", timer);
@@ -165,8 +174,7 @@ int main() {
         verify_matrix(c, (const float *)gemm_checksum, gemm_l.M, gemm_l.N);
 
     if (error != 0) {
-      // printf("Error core %d: c[%d]=%u\n", cid, error, (int)c[error]);
-      printf("Error count:%d", error);
+      printf("Error core %d: c[%d]=%u\n", cid, error, (int)c[error]);
       return error;
     }
   }

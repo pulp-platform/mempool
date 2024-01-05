@@ -2799,7 +2799,7 @@ module snitch
           gpr_we[0] = 1'b1;
           gpr_waddr[0] = lsu_rd;
           gpr_wdata[0] = ld_result[31:0];
-        end else if (acc_pvalid_i & acc_pwrite_i) begin
+        end else if (acc_pvalid_i) begin
           // if we are not retiring another instruction retire the accelerated one now
           retire_acc = 1'b1;
           gpr_we[0] = 1'b1;
@@ -2836,7 +2836,7 @@ module snitch
           retire_load = 1'b1;
           gpr_we[1] = 1'b1;
           lsu_pready = 1'b1;
-        end else if (acc_pvalid_i & acc_pwrite_i) begin
+        end else if (acc_pvalid_i) begin
           retire_acc = 1'b1;
           gpr_we[1] = 1'b1;
           gpr_waddr[1] = acc_pid_i;
@@ -2845,7 +2845,7 @@ module snitch
         end
       // if we are not retiring another instruction retire the load now
       end else begin
-        if (acc_pvalid_i & acc_pwrite_i) begin
+        if (acc_pvalid_i) begin
           retire_acc = 1'b1;
           gpr_we[0] = 1'b1;
           gpr_waddr[0] = acc_pid_i;

@@ -9,8 +9,8 @@ packages:
       - common_cells
       - common_verification
   cluster_interconnect:
-    revision: 7d0a4f8acae71a583a6713cab5554e60b9bb8d27
-    version: 1.2.1
+    revision: 8c6c2273d60077002834d2cb5d8e44ee0de3e32c
+    version: null
     source:
       Git: "https://github.com/pulp-platform/cluster_interconnect.git"
     dependencies:
@@ -85,7 +85,7 @@ packages:
     dependencies:
       - common_cells
   spatz:
-    revision: 5e854f1fd9e82df236565a61a710d3092059f471
+    revision: 32038321ecb42d14f5f28444fff2d7e7248d8e41
     version: null
     source:
       Git: git@iis-git.ee.ethz.ch:spatz/spatz.git

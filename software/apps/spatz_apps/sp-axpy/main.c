@@ -29,14 +29,13 @@
 #endif
 
 // dump(result, 1);
-const unsigned int csize = 64;
-const unsigned int core_count = 64;
+const unsigned int csize = 128;
+const unsigned int core_count = 128;
 const unsigned int esize = csize*core_count;
 
 float x[esize];
 float y[esize];
 float r[esize];
-float alpha;
 
 // 32-bit AXPY: y = a * x + y
 void faxpy_v32b(const float a, const float *x, const float *y,
@@ -106,9 +105,7 @@ int main() {
   mempool_barrier(num_cores);
 
   float *x_, *y_;
-  alpha = axpy_alpha_dram;
-  unsigned int remaining_elem;
-
+  float alpha = axpy_alpha_dram;
 
   if (cid < core_count) {
     init_matrix(x, axpy_X_dram, csize, cid);
@@ -122,17 +119,21 @@ int main() {
     printf("start calc\n");
 
   mempool_barrier(num_cores);
+  mempool_start_benchmark();
+  timer_start = mempool_get_timer();
 
   if (cid < core_count) {
-    timer_start = mempool_get_timer();
     faxpy_v32b(alpha, x_, y_, csize);
   }
 
   // Wait for all cores to finish matmul
   mempool_barrier(num_cores);
 
-  // End timer and check if new best runtime
   timer_end = mempool_get_timer();
+  mempool_stop_benchmark();
+  
+
+  // End timer and check if new best runtime
   if (cid == 0) {
     unsigned int timer_temp = timer_end - timer_start;
     if (timer_temp < timer) {
@@ -142,7 +143,7 @@ int main() {
 
   // Check and display results
   if (cid == 0) {
-    unsigned int performance = 1000 * 2 * 16 / timer;
+    unsigned int performance = 1000 * 2 * esize / timer;
     unsigned int utilization = performance / (2 * core_count * N_FPU);
 
     printf("\n----- (%u) axpy -----\n", esize);

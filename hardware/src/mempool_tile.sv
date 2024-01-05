@@ -115,6 +115,7 @@ module mempool_tile
   logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qvalid;
   logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_qready;
   data_t    [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_pdata;
+  logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_pwrite;
   logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_perror;
   meta_id_t [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_pid;
   logic     [NumCoresPerTile-1:0][NumDataPortsPerCore-1:0] snitch_data_pvalid;
@@ -172,6 +173,7 @@ module mempool_tile
         .data_qvalid_o (snitch_data_qvalid[c]                                    ),
         .data_qready_i (snitch_data_qready[c]                                    ),
         .data_pdata_i  (snitch_data_pdata[c]                                     ),
+        .data_pwrite_i (snitch_data_pwrite[c]                                    ),
         .data_perror_i (snitch_data_perror[c]                                    ),
         .data_pid_i    (snitch_data_pid[c]                                       ),
         .data_pvalid_i (snitch_data_pvalid[c]                                    ),
@@ -268,6 +270,7 @@ module mempool_tile
     tile_group_id_t tile_id;
     tile_core_id_t core_id;
     logic wide;
+    logic write;
   } bank_metadata_t;
 
   // Memory interfaces
@@ -408,12 +411,14 @@ module mempool_tile
       meta_id   : bank_req_payload[b].wdata.meta_id,
       core_id   : bank_req_payload[b].wdata.core_id,
       tile_id   : bank_req_payload[b].ini_addr,
-      wide      : bank_req_wide[b]
+      wide      : bank_req_wide[b],
+      write     : bank_req_payload[b].wen
     };
     assign bank_resp_ini_addr[b]              = meta_out.ini_addr;
     assign bank_resp_payload[b].rdata.meta_id = meta_out.meta_id;
     assign bank_resp_payload[b].ini_addr      = meta_out.tile_id;
     assign bank_resp_payload[b].rdata.core_id = meta_out.core_id;
+    assign bank_resp_payload[b].wen           = meta_out.write;
     assign bank_resp_payload[b].rdata.amo     = '0; // Don't care
     assign bank_resp_wide[b]                  = meta_out.wide;
 
@@ -854,6 +859,7 @@ module mempool_tile
           .tcdm_resp_ready_o  ({local_resp_interco_ready[idx], remote_resp_interco_ready[idx]}                        ),
           .tcdm_resp_rdata_i  ({local_resp_interco_payload[idx].rdata.data, remote_resp_interco[idx].rdata.data}      ),
           .tcdm_resp_id_i     ({local_resp_interco_payload[idx].rdata.meta_id, remote_resp_interco[idx].rdata.meta_id}),
+          .tcdm_resp_wen_i    ({local_resp_interco_payload[idx].wen, remote_resp_interco[idx].wen}                    ),
           // to SoC
           .soc_qaddr_o        (soc_data_q[idx].addr                                                                 ),
           .soc_qwrite_o       (soc_data_q[idx].write                                                                ),
@@ -877,6 +883,7 @@ module mempool_tile
           .data_qvalid_i      (snitch_data_qvalid[c][p]                                                             ),
           .data_qready_o      (snitch_data_qready[c][p]                                                             ),
           .data_pdata_o       (snitch_data_pdata[c][p]                                                              ),
+          .data_pwrite_o      (snitch_data_pwrite[c][p]                                                             ),
           .data_perror_o      (snitch_data_perror[c][p]                                                             ),
           .data_pid_o         (snitch_data_pid[c][p]                                                                ),
           .data_pvalid_o      (snitch_data_pvalid[c][p]                                                             ),
@@ -924,6 +931,7 @@ module mempool_tile
         assign soc_data_pready[idx]    = '0;
         assign snitch_data_qready[idx] = '0;
         assign snitch_data_pdata[idx]  = '0;
+        assign snitch_data_pwrite[idx] = '0;
         assign snitch_data_perror[idx] = '0;
         assign snitch_data_pid[idx]    = '0;
         assign snitch_data_pvalid[idx] = '0;

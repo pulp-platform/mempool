@@ -6,8 +6,8 @@
 
 {
     kernel: "GEMM"
-    M: 64,
-    N: 128,
+    M: 2048,
+    N: 32,
     K: 64,
     alpha: 0,
     transpose_A: false,

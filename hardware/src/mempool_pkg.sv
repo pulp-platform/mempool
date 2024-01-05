@@ -253,6 +253,7 @@ package mempool_pkg;
 
   typedef struct packed {
     tcdm_payload_t rdata;
+    logic wen;
   } tcdm_master_resp_t;
 
   typedef struct packed {
@@ -266,6 +267,7 @@ package mempool_pkg;
   typedef struct packed {
     tcdm_payload_t rdata;
     tile_group_id_t ini_addr;
+    logic wen;
   } tcdm_slave_resp_t;
 
   typedef struct packed {

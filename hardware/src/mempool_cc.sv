@@ -32,6 +32,7 @@ module mempool_cc
   output logic               data_qvalid_o,
   input  logic               data_qready_i,
   input  logic [31:0]        data_pdata_i,
+  input  logic               data_pwrite_i,
   input  logic               data_perror_i,
   input  meta_id_t           data_pid_i,
   input  logic               data_pvalid_i,
@@ -55,50 +56,6 @@ module mempool_cc
   logic acc_req_d_valid, acc_req_d_ready, acc_resp_d_valid, acc_resp_d_ready;
   logic acc_req_q_valid, acc_req_q_ready, acc_resp_q_valid, acc_resp_q_ready;
 
-  //  // Snitch Integer Core
-  // snitch #(
-  //   .BootAddr ( BootAddr ),
-  //   .MTVEC    ( MTVEC    ),
-  //   .RVE      ( RVE      ),
-  //   .RVM      ( RVM      )
-  // ) i_snitch (
-  //   .clk_i                                   ,
-  //   .rst_i                                   ,
-  //   .hart_id_i                               ,
-  //   .inst_addr_o                             ,
-  //   .inst_data_i                             ,
-  //   .inst_valid_o                            ,
-  //   .inst_ready_i                            ,
-  //   .acc_qaddr_o      ( acc_req_d.addr      ),
-  //   .acc_qid_o        ( acc_req_d.id        ),
-  //   .acc_qdata_op_o   ( acc_req_d.data_op   ),
-  //   .acc_qdata_arga_o ( acc_req_d.data_arga ),
-  //   .acc_qdata_argb_o ( acc_req_d.data_argb ),
-  //   .acc_qdata_argc_o ( acc_req_d.data_argc ),
-  //   .acc_qvalid_o     ( acc_req_d_valid     ),
-  //   .acc_qready_i     ( acc_req_d_ready     ),
-  //   .acc_pdata_i      ( acc_resp_q.data     ),
-  //   .acc_pid_i        ( acc_resp_q.id       ),
-  //   .acc_perror_i     ( acc_resp_q.error    ),
-  //   .acc_pvalid_i     ( acc_resp_q_valid    ),
-  //   .acc_pready_o     ( acc_resp_q_ready    ),
-  //   .data_qaddr_o     ( data_req_d.addr     ),
-  //   .data_qwrite_o    ( data_req_d.write    ),
-  //   .data_qamo_o      ( data_req_d.amo      ),
-  //   .data_qdata_o     ( data_req_d.data     ),
-  //   .data_qstrb_o     ( data_req_d.strb     ),
-  //   .data_qid_o       ( data_req_d.id       ),
-  //   .data_qvalid_o    ( data_req_d_valid    ),
-  //   .data_qready_i    ( data_req_d_ready    ),
-  //   .data_pdata_i     ( data_resp_q.data    ),
-  //   .data_perror_i    ( data_resp_q.error   ),
-  //   .data_pid_i       ( data_resp_q.id      ),
-  //   .data_pvalid_i    ( data_resp_q_valid   ),
-  //   .data_pready_o    ( data_resp_q_ready   ),
-  //   .wake_up_sync_i   ( wake_up_sync_i      ),
-  //   .core_events_o    ( core_events_o       )
-  // );
-
   typedef struct packed {
     logic accept;
     logic writeback;
@@ -110,6 +67,8 @@ module mempool_cc
   fpnew_pkg::roundmode_e fpu_rnd_mode;
   fpnew_pkg::fmt_mode_t fpu_fmt_mode;
   fpnew_pkg::status_t fpu_status;
+
+  // These signals are for Spatz
   acc_issue_rsp_t acc_req_rsp;
   // Spatz Memory consistency signals
   logic [1:0] spatz_mem_finished;
@@ -269,7 +228,7 @@ module mempool_cc
   assign data_req_q_ready  = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
   assign data_resp_d.id    = data_pid_i;
-  assign data_resp_d.write = 'x; // Don't care here
+  assign data_resp_d.write = data_pwrite_i;
   assign data_resp_d.error = data_perror_i;
   assign data_resp_d_valid = data_pvalid_i;
   assign data_pready_o     = data_resp_d_ready;

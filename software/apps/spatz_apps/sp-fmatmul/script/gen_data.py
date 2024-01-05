@@ -151,6 +151,7 @@ def emit_GEMM_layer(name="gemm", **kwargs):
         layer_str += f'{dtype} a[{m}*{k}]  __attribute__((section(".l1")));\n'
         layer_str += f'{dtype} b[{k}*{n}]  __attribute__((section(".l1")));\n'
         layer_str += f'{dtype} c[{m}*{n}]  __attribute__((section(".l1")));\n'
+        layer_str += f'{dtype} r[{m}]  __attribute__((section(".l1")));\n'
         layer_str += (
             f'static {dtype} {name}_A_dram [{m}*{k}] __attribute__((section(".data"))) = '
             + array_to_cstr(mat_A)
@@ -167,7 +168,7 @@ def emit_GEMM_layer(name="gemm", **kwargs):
             + ";\n\n\n"
         )
         layer_str += (
-            f"static const {dtype} {name}_checksum[{m}] = "
+            f'static {dtype} {name}_checksum[{m}] __attribute__((section(".data"))) = '
             + array_to_cstr(torch.sum(result, dim=-1))
             + ";\n\n\n"
         )
