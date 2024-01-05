@@ -135,9 +135,15 @@ ifeq ($(zfinx_rv),1)
 		vfmac_h \
 		vfmin_h \
 		vfsgnj_h \
+		vfdotpex_h \
 		fcdotpex_h
 	rv32uzvecquarterinx_snitch_sc_tests = \
-		vfadd_b
+		vfadd_b \
+		vfcpka_b \
+		vfdotpex_b \
+		vfmac_b	\
+		vfmin_b \
+		vfsgnj_b
 
 	rv32uzfinx_mempool_tests = $(addprefix rv32uzfinx-mempool-, $(rv32uzfinx_snitch_sc_tests))
 	rv32uzhinx_mempool_tests = $(addprefix rv32uzhinx-mempool-, $(rv32uzhinx_snitch_sc_tests))
