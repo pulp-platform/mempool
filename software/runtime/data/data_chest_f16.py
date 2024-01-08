@@ -116,7 +116,6 @@ def main():
     vector_pilot_rx = np.concatenate(vector_pilot_rx, axis=0)
     vector_pilot_tx = np.concatenate(vector_pilot_tx, axis=0)
     vector_Hest = np.concatenate(vector_Hest, axis=0)
-    print(vector_Hest)
 
     kwargs = {'name': 'data_chest_f16',
               'pilot_rx': vector_pilot_rx,

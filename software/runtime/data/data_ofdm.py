@@ -1,22 +1,22 @@
+#!/usr/bin/env python3
+
 # Copyright 2022 ETH Zurich and University of Bologna.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
 # Author: Marco Bertuletti, ETH Zurich
 
-#!/usr/bin/env python3
-
 import numpy as np
 import math as M
 import argparse
 import pathlib
 from mako.template import Template
-from scipy.linalg import solve_triangular
 from sympy.combinatorics import Permutation
 
 ##################
 # compute_result #
 ##################
+
 
 def compute_bitreversal(N, R):
     # Decompose
@@ -44,7 +44,9 @@ def compute_bitreversal(N, R):
             tps.append([c[i] * 8, c[-1] * 8])
     return tps
 
-def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **kwargs):
+
+def gen_data_header_file(outdir: pathlib.Path.cwd(),
+                         tpl: pathlib.Path.cwd(), **kwargs):
 
     file = outdir / f"data_{kwargs['name']}.h"
 
@@ -53,6 +55,7 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **
     template = Template(filename=str(tpl))
     with file.open('w') as f:
         f.write(template.render(**kwargs))
+
 
 def main():
 
@@ -105,29 +108,30 @@ def main():
     )
 
     args = parser.parse_args()
-    N_rx=args.receivers
-    N_bs=args.beams
-    N_sc=args.subcarriers
+    N_rx = args.receivers
+    N_bs = args.beams
+    N_sc = args.subcarriers
 
-    pFFT_src = ( np.random.rand(2 * N_rx * N_sc)  ).astype(np.float16)
-    pTw_coef = ( np.random.rand(int(3 * N_sc / 4))     ).astype(np.float16)
-    pBF_coef = ( np.random.rand(2 * N_rx * N_bs)  ).astype(np.float16)
-    pBF_dst = ( np.random.rand(2 * N_bs * N_sc)  ).astype(np.float16)
+    pFFT_src = (np.random.rand(2 * N_rx * N_sc)).astype(np.float16)
+    pTw_coef = (np.random.rand(int(3 * N_sc / 4))).astype(np.float16)
+    pBF_coef = (np.random.rand(2 * N_rx * N_bs)).astype(np.float16)
+    pBF_dst = (np.random.rand(2 * N_bs * N_sc)).astype(np.float16)
 
     Bitreversal = np.ndarray.flatten(np.array(compute_bitreversal(N_sc, 2)))
 
     kwargs = {'name': 'ofdm',
-    'pFFT_src': pFFT_src,
-    'pTw_coef': pTw_coef,
-    'pBF_coef': pBF_coef,
-    'pBF_dst': pBF_dst,
-    'bitrev': Bitreversal,
-    'N_rx' : N_rx,
-    'N_bs' : N_bs,
-    'N_sc' : N_sc,
-    'Log2Len': int(np.log2(N_sc)),
-    'BitrevLen': len(Bitreversal)}
+              'pFFT_src': pFFT_src,
+              'pTw_coef': pTw_coef,
+              'pBF_coef': pBF_coef,
+              'pBF_dst': pBF_dst,
+              'bitrev': Bitreversal,
+              'N_rx': N_rx,
+              'N_bs': N_bs,
+              'N_sc': N_sc,
+              'Log2Len': int(np.log2(N_sc)),
+              'BitrevLen': len(Bitreversal)}
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
+
 
 if __name__ == "__main__":
     main()

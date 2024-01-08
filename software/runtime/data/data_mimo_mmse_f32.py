@@ -18,7 +18,8 @@ from scipy.linalg import solve_triangular
 # compute_result #
 ##################
 
-def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **kwargs):
+def gen_data_header_file(outdir: pathlib.Path.cwd(),
+                         tpl: pathlib.Path.cwd(), **kwargs):
 
     file = outdir / f"{kwargs['name']}.h"
 
@@ -52,9 +53,9 @@ def gen_input_data(N_rx, N_tx):
     y2 = solve_triangular(L, y1, lower=True)
     x = solve_triangular(np.asmatrix(L).H, y2)
 
-    H = np.reshape(np.asarray(H), (N_tx*N_rx), order='C')
-    G = np.reshape(np.asarray(G), (N_tx*N_tx), order='C')
-    L = np.reshape(np.asarray(L), (N_tx*N_tx), order='C')
+    H = np.reshape(np.asarray(H), (N_tx * N_rx), order='C')
+    G = np.reshape(np.asarray(G), (N_tx * N_tx), order='C')
+    L = np.reshape(np.asarray(L), (N_tx * N_tx), order='C')
     H = np.column_stack((H.real, H.imag)).astype(np.float32).flatten()
     G = np.column_stack((G.real, G.imag)).astype(np.float32).flatten()
     L = np.column_stack((L.real, L.imag)).astype(np.float32).flatten()
@@ -122,19 +123,19 @@ def main():
     itr = args.iterations
 
     sigma = np.zeros([itr, N_tx])
-    H_RI = np.zeros([itr, 2*N_tx*N_rx])
-    G_RI = np.zeros([itr, 2*N_tx*N_tx])
-    y_RI = np.zeros([itr, 2*N_rx])
-    x_RI = np.zeros([itr, 2*N_tx])
+    H_RI = np.zeros([itr, 2 * N_tx * N_rx])
+    G_RI = np.zeros([itr, 2 * N_tx * N_tx])
+    y_RI = np.zeros([itr, 2 * N_rx])
+    x_RI = np.zeros([itr, 2 * N_tx])
     for k in range(itr):
-        sigma[k, :], H_RI[k, :], G_RI[k, :], y_RI[k,
-                                                  :], x_RI[k, :] = gen_input_data(N_rx, N_tx)
+        sigma[k, :], H_RI[k, :], G_RI[k, :], \
+            y_RI[k, :], x_RI[k, :] = gen_input_data(N_rx, N_tx)
 
-    sigma = np.reshape(sigma, (N_tx*itr))
-    H_RI = np.reshape(H_RI, (2*N_rx*N_tx*itr))
-    G_RI = np.reshape(G_RI, (2*N_tx*N_tx*itr))
-    y_RI = np.reshape(y_RI, (2*N_rx*itr))
-    x_RI = np.reshape(x_RI, (2*N_tx*itr))
+    sigma = np.reshape(sigma, (N_tx * itr))
+    H_RI = np.reshape(H_RI, (2 * N_rx * N_tx * itr))
+    G_RI = np.reshape(G_RI, (2 * N_tx * N_tx * itr))
+    y_RI = np.reshape(y_RI, (2 * N_rx * itr))
+    x_RI = np.reshape(x_RI, (2 * N_tx * itr))
 
     kwargs = {'name': 'data_mimo_mmse_f32',
               'H': H_RI,
