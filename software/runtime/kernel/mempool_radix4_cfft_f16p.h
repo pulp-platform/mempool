@@ -7,6 +7,7 @@
 #include "xpulp/builtins_v2.h"
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
+// CoSi: (Si, Co) -> C: (Co, -Si)
 #define SHUFFLE_TWIDDLEFACT                                                    \
   asm volatile("pv.extract.h  %[t1],%[CoSi1],0;"                               \
                "pv.extract.h  %[t3],%[CoSi2],0;"                               \
@@ -14,12 +15,12 @@
                "pv.extract.h  %[t0],%[CoSi1],1;"                               \
                "pv.extract.h  %[t2],%[CoSi2],1;"                               \
                "pv.extract.h  %[t4],%[CoSi3],1;"                               \
-               "xor           %[t1],%[t1],%[neg_mask];"                        \
-               "xor           %[t3],%[t3],%[neg_mask];"                        \
-               "xor           %[t5],%[t5],%[neg_mask];"                        \
-               "pv.pack.h %[C1],%[t0],%[t1];"                                    \
-               "pv.pack.h %[C2],%[t2],%[t3];"                                    \
-               "pv.pack.h %[C3],%[t4],%[t5];"                                    \
+               "xor           %[t0],%[t0],%[neg_mask];"                        \
+               "xor           %[t2],%[t2],%[neg_mask];"                        \
+               "xor           %[t4],%[t4],%[neg_mask];"                        \
+               "pv.pack   %[C1],%[t1],%[t0];"                                  \
+               "pv.pack   %[C2],%[t3],%[t2];"                                  \
+               "pv.pack   %[C3],%[t5],%[t4];"                                  \
                : [C1] "=r"(C1), [C2] "=r"(C2), [C3] "=r"(C3), [t0] "=&r"(t0),  \
                  [t1] "=&r"(t1), [t2] "=&r"(t2), [t3] "=&r"(t3),               \
                  [t4] "=&r"(t4), [t5] "=&r"(t5)                                \
@@ -56,8 +57,6 @@
   CoSi2 = *(v2h *)&pCoef_src[2U * (ic * 2U)];                                  \
   CoSi3 = *(v2h *)&pCoef_src[2U * (ic * 3U)];
 #endif
-
-
 
 #ifdef FOLDED_TWIDDLES
 /**
@@ -219,10 +218,10 @@ void mempool_radix4_cfft_f16p_folded(__fp16 *pSrc16, __fp16 *pDst16,
 */
 
 void mempool_radix4_cfft_f16p_scheduler(
-  __fp16 *pSrc16, __fp16 *pDst16, uint32_t fftLen,
-  __fp16 *pCoef_src, __fp16 *pCoef_dst, __attribute__((unused))
-  uint16_t *pBitRevTable, __attribute__((unused)) uint16_t bitReverseLen,
-  uint8_t bitReverseFlag, uint32_t nPE) {
+    __fp16 *pSrc16, __fp16 *pDst16, uint32_t fftLen, __fp16 *pCoef_src,
+    __fp16 *pCoef_dst, __attribute__((unused)) uint16_t *pBitRevTable,
+    __attribute__((unused)) uint16_t bitReverseLen, uint8_t bitReverseFlag,
+    uint32_t nPE) {
 
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id % (fftLen >> 4U);
