@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-// Author: Samuel Riedel, ETH Zurich
+// Author: Marco Bertuletti, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>
@@ -38,8 +38,8 @@ int main() {
 
   // Initialize Matrices
   if (core_id == 0) {
-    dma_memcpy_blocking(matrix_a, A, dim_M * dim_N * sizeof(int32_t));
-    dma_memcpy_blocking(matrix_b, B, dim_N * dim_P * sizeof(int32_t));
+    dma_memcpy_blocking(matrix_a, A, 2 * dim_M * dim_N * sizeof(int16_t));
+    dma_memcpy_blocking(matrix_b, B, 2 * dim_N * dim_P * sizeof(int16_t));
   }
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
@@ -48,7 +48,7 @@ int main() {
   // Execute function to test.
   if (core_id == 0) {
     mempool_start_benchmark();
-    cmatmul_2x4_f16s(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P);
+    cmatmul_2x2_f16s(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -81,7 +81,7 @@ int main() {
 #endif
 
 #if defined(TEST)
-  mempool_check_f32(matrix_c, C, 2 * dim_M * dim_P, 0.01f, 0);
+  mempool_check_f16(matrix_c, C, 2 * dim_M * dim_P, 0.1f, 0);
   mempool_barrier(num_cores);
 #endif
 
