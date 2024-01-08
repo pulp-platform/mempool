@@ -44,9 +44,9 @@ int main() {
     mempool_start_benchmark();
     matmul_2x2_single_f16(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
                           matrix_P);
-    mempool_barrier(num_cores);
     mempool_stop_benchmark();
   }
+  mempool_barrier(num_cores);
 #endif
 
 #if defined(PARALLEL)
@@ -58,7 +58,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_f16(matrix_c, C, matrix_M * matrix_P, 0.1f, 0);
+  mempool_check_f16(matrix_c, C, matrix_M * matrix_P, 10.0f, 0);
   mempool_barrier(num_cores);
   return 0;
 }

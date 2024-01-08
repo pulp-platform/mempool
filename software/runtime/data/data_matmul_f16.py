@@ -87,8 +87,8 @@ def main():
     matrix_P = args.dim_p
 
     # Create sparse matrix
-    A = np.random.rand(matrix_M, matrix_N)
-    B = np.random.rand(matrix_N, matrix_P)
+    A = np.random.rand(matrix_M, matrix_N).astype(np.float16)
+    B = np.random.rand(matrix_N, matrix_P).astype(np.float16)
     C = np.matmul(A, B)
 
     A = np.reshape(A, (matrix_M * matrix_N), order='C').astype(np.float16)
