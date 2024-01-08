@@ -97,9 +97,9 @@ def main():
     B = np.reshape(B, (matrix_N * matrix_P), order='C')
     C = np.reshape(C, (matrix_M * matrix_P), order='C')
 
-    A = np.column_stack((A.real, A.imag)).astype(np.float16).flatten()
-    B = np.column_stack((B.real, B.imag)).astype(np.float16).flatten()
-    C = np.column_stack((C.real, C.imag)).astype(np.float16).flatten()
+    A = np.column_stack((A.imag, A.real)).astype(np.float16).flatten()
+    B = np.column_stack((B.imag, B.real)).astype(np.float16).flatten()
+    C = np.column_stack((C.imag, C.real)).astype(np.float16).flatten()
 
     kwargs = {
         'name': 'data_cmatmul_f16',

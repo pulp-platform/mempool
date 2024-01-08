@@ -101,8 +101,8 @@ int main() {
 
   /* BEAMFORMING */
   mempool_start_benchmark();
-  cmatmul_2x4_folded_f16p(l1_pBF_Coef_folded, l1_pFFT_Src, l1_pFFT_Dst, N_BEAMS,
-                          N_RX, N_SC, core_id, num_cores);
+  cmatmul_2x4_folded_f16p(l1_pBF_Coef_folded, l1_pBF_Coef_folded, l1_pFFT_Src,
+                          l1_pFFT_Dst, N_BEAMS, N_RX, N_SC, core_id, num_cores);
   mempool_stop_benchmark();
   dump_prova(2);
 

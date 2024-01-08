@@ -7,7 +7,7 @@
     i = 0
     out += '\n'
     for a in array:
-        out += '(__fp16){:.5f}, '.format(a)
+        out += '(__fp16){:.4f}, '.format(a)
         i += 1
         if i % 8 == 0:
             out += '\n'
