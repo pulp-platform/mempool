@@ -10,7 +10,6 @@
 import numpy as np
 import argparse
 import pathlib
-from scipy.linalg import solve_triangular
 from mako.template import Template
 
 
@@ -18,7 +17,8 @@ from mako.template import Template
 # compute_result #
 ##################
 
-def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **kwargs):
+def gen_data_header_file(outdir: pathlib.Path.cwd(),
+                         tpl: pathlib.Path.cwd(), **kwargs):
 
     file = outdir / f"{kwargs['name']}.h"
 

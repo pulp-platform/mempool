@@ -96,7 +96,6 @@ def main():
     A = np.reshape(A, (matrix_M * matrix_N), order='C')
     B = np.reshape(B, (matrix_N * matrix_P), order='C')
     C = np.reshape(C, (matrix_M * matrix_P), order='C')
-    print(A)
 
     A = np.column_stack((A.real, A.imag)).astype(np.float16).flatten()
     B = np.column_stack((B.real, B.imag)).astype(np.float16).flatten()

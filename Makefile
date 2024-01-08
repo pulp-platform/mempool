@@ -181,6 +181,7 @@ toolchain/riscv-opcodes/*:
 
 format:
 	$(ROOT_DIR)/scripts/run_clang_format.py --clang-format-executable=$(LLVM_INSTALL_DIR)/bin/clang-format -i -r $(ROOT_DIR)
+	find ./software/runtime/data -name '*.py' -exec autopep8 --in-place --aggressive {} +
 
 clean: clean_test
 	rm -rf $(INSTALL_DIR)

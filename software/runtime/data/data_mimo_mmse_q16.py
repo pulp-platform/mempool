@@ -18,7 +18,8 @@ from scipy.linalg import solve_triangular
 # compute_result #
 ##################
 
-def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **kwargs):
+def gen_data_header_file(outdir: pathlib.Path.cwd(),
+                         tpl: pathlib.Path.cwd(), **kwargs):
 
     file = outdir / f"{kwargs['name']}.h"
 
@@ -32,12 +33,14 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **
 def gen_input_data(N_rx, N_tx):
 
     # Create channel matrix
-    H = np.random.randint(-2**(15), 2**(15) - 1, N_rx * N_tx, dtype=np.int16) + 1.j * \
-        np.random.randint(-2**(15), 2**(15) - 1, N_rx * N_tx, dtype=np.int16)
+    H = np.random.randint(-2**(15), 2**(15) - 1,
+                          N_rx * N_tx, dtype=np.int16) \
+        + 1.j * np.random.randint(-2**(15), 2**(15) - 1,
+                                  N_rx * N_tx, dtype=np.int16)
     H = H.reshape(N_rx, N_tx)
     # Create input vector
-    y = np.random.randint(-2**(15), 2**(15) - 1, N_rx, dtype=np.int16) + 1.j * \
-        np.random.randint(-2**(15), 2**(15) - 1, N_rx, dtype=np.int16)
+    y = np.random.randint(-2**(15), 2**(15) - 1, N_rx, dtype=np.int16) + \
+        1.j * np.random.randint(-2**(15), 2**(15) - 1, N_rx, dtype=np.int16)
     # Generate noise variance
     sigma = np.random.randint(-2**(15), 2**(15) - 1, N_tx, dtype=np.int16)
 
@@ -50,17 +53,19 @@ def gen_input_data(N_rx, N_tx):
     y1 = np.transpose(np.dot(H_h, y))
 
     # Cholesky decomposition
-    #L = np.linalg.cholesky(G)
+    # L = np.linalg.cholesky(G)
     L = G
     # Linear system solution
     y2 = solve_triangular(L, y1, lower=True)
     x = solve_triangular(np.asmatrix(L).H, y2)
 
     sigma = sigma + 0j
-    H = np.reshape(np.asarray(H), (N_rx*N_tx), order='C')
-    G = np.reshape(np.asarray(G), (N_tx*N_tx), order='C')
-    L = np.reshape(np.asarray(L), (N_tx*N_tx), order='C')
-    sigma = np.column_stack((sigma.real, sigma.imag)).astype(np.int16).flatten()
+    H = np.reshape(np.asarray(H), (N_rx * N_tx), order='C')
+    G = np.reshape(np.asarray(G), (N_tx * N_tx), order='C')
+    L = np.reshape(np.asarray(L), (N_tx * N_tx), order='C')
+    sigma = np.column_stack(
+        (sigma.real, sigma.imag)).astype(
+        np.int16).flatten()
     H = np.column_stack((H.real, H.imag)).astype(np.int16).flatten()
     G = np.column_stack((G.real, G.imag)).astype(np.int16).flatten()
     L = np.column_stack((L.real, L.imag)).astype(np.int16).flatten()
@@ -126,23 +131,23 @@ def main():
     N_rx = args.receivers
     itr = args.iterations
 
-    sigma = np.zeros([itr, 2*N_tx], dtype=np.int16)
-    H_RI = np.zeros([itr, 2*N_tx*N_rx], dtype=np.int16)
-    G_RI = np.zeros([itr, 2*N_tx*N_tx], dtype=np.int16)
-    y_RI = np.zeros([itr, 2*N_rx], dtype=np.int16)
-    x_RI = np.zeros([itr, 2*N_tx], dtype=np.int16)
+    sigma = np.zeros([itr, 2 * N_tx], dtype=np.int16)
+    H_RI = np.zeros([itr, 2 * N_tx * N_rx], dtype=np.int16)
+    G_RI = np.zeros([itr, 2 * N_tx * N_tx], dtype=np.int16)
+    y_RI = np.zeros([itr, 2 * N_rx], dtype=np.int16)
+    x_RI = np.zeros([itr, 2 * N_tx], dtype=np.int16)
     for k in range(itr):
-        [   sigma[k, :],
+        [sigma[k, :],
             H_RI[k, :],
             G_RI[k, :],
             y_RI[k, :],
-            x_RI[k, :] ] = gen_input_data(N_rx, N_tx)
+            x_RI[k, :]] = gen_input_data(N_rx, N_tx)
 
-    sigma = np.reshape(sigma, (2*N_tx*itr)).astype(np.int16)
-    H_RI = np.reshape(H_RI, (2*N_rx*N_tx*itr)).astype(np.int16)
-    G_RI = np.reshape(G_RI, (2*N_tx*N_tx*itr)).astype(np.int16)
-    y_RI = np.reshape(y_RI, (2*N_rx*itr)).astype(np.int16)
-    x_RI = np.reshape(x_RI, (2*N_tx*itr)).astype(np.int16)
+    sigma = np.reshape(sigma, (2 * N_tx * itr)).astype(np.int16)
+    H_RI = np.reshape(H_RI, (2 * N_rx * N_tx * itr)).astype(np.int16)
+    G_RI = np.reshape(G_RI, (2 * N_tx * N_tx * itr)).astype(np.int16)
+    y_RI = np.reshape(y_RI, (2 * N_rx * itr)).astype(np.int16)
+    x_RI = np.reshape(x_RI, (2 * N_tx * itr)).astype(np.int16)
 
     kwargs = {'name': 'data_mimo_mmse_q16',
               'H': H_RI,

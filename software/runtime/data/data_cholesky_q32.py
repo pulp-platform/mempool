@@ -18,7 +18,8 @@ from mako.template import Template
 # compute_result #
 ##################
 
-def gen_data_header_file(outdir: pathlib.Path.cwd(), tpl: pathlib.Path.cwd(), **kwargs):
+def gen_data_header_file(outdir: pathlib.Path.cwd(),
+                         tpl: pathlib.Path.cwd(), **kwargs):
 
     file = outdir / f"{kwargs['name']}.h"
 
@@ -68,23 +69,29 @@ def main():
     n_matrix = args.dimension
 
     # Create hermitian matrix
-    H = np.random.randint(-2**(15), 2**(15) - 1, n_matrix * n_matrix, dtype=np.int32)
-    y = np.random.randint(-2**(15), 2**(15) - 1, n_matrix, dtype=np.int32)
+    L = np.random.randint(-2**(15), 2**(15) - 1,
+                          size=(n_matrix, n_matrix), dtype=np.int32)
+    L = np.tril(L).astype(np.int32)
+    G = np.dot(np.asmatrix(L), np.asmatrix(L).transpose())
 
-    H = H.reshape(n_matrix, n_matrix)
-    G = H * np.asmatrix(H).T
-    # Cholesky decomposition
-    L = np.linalg.cholesky(G)
+    y = np.random.randint(-2**(15), 2**(15) - 1, n_matrix, dtype=np.int32)
 
     # Linear system solution
     y = solve_triangular(L, y, lower=True)
-    x = solve_triangular(np.asmatrix(L).H, y)
+    # x = solve_triangular(np.asmatrix(L).T, y)
 
     # Reshape
-    G = np.reshape(np.asarray(G), (n_matrix * n_matrix), order='C').astype(np.int32)
-    L = np.reshape(np.asarray(L), (n_matrix * n_matrix), order='C').astype(np.int32)
+    G = np.reshape(
+        np.asarray(G),
+        (n_matrix * n_matrix),
+        order='C').astype(
+        np.int32)
+    L = np.reshape(
+        np.asarray(L),
+        (n_matrix * n_matrix),
+        order='C').astype(
+        np.int32)
     y = np.reshape(np.asarray(y), (n_matrix), order='C').astype(np.int32)
-
 
     kwargs = {'name': 'data_cholesky_q32',
               'G': G,
@@ -93,6 +100,7 @@ def main():
               'n_matrix': n_matrix}
 
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
+
 
 if __name__ == "__main__":
     main()
