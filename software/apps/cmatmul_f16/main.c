@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-// Author: Samuel Riedel, ETH Zurich
+// Author: Marco Bertuletti, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>
@@ -15,7 +15,9 @@
 #include "data/data_cmatmul_f16.h"
 #include "kernel/mempool_checks.h"
 #include "kernel/mempool_cmatmul_f16.h"
-#define PARALLEL_2x2
+#define PARALLEL
+#define LOOP_2x4
+#define TEST
 
 __fp16 matrix_a[2 * dim_M * dim_N]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
@@ -38,50 +40,51 @@ int main() {
 
   // Initialize Matrices
   if (core_id == 0) {
-    dma_memcpy_blocking(matrix_a, A, dim_M * dim_N * sizeof(int32_t));
-    dma_memcpy_blocking(matrix_b, B, dim_N * dim_P * sizeof(int32_t));
+    dma_memcpy_blocking(matrix_a, A, 2 * dim_M * dim_N * sizeof(int16_t));
+    dma_memcpy_blocking(matrix_b, B, 2 * dim_N * dim_P * sizeof(int16_t));
   }
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
 
-#if defined(SINGLE)
-  // Execute function to test.
+  // 2x2 SINGLE
   if (core_id == 0) {
     mempool_start_benchmark();
-    cmatmul_2x4_f16s(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P);
+    cmatmul_2x2_f16s(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
-#endif
-
-#if defined(PARALLEL_2x2)
-  // Execute function to test.
-  uint32_t nPE = core_id < (dim_P / 2) ? num_cores : (dim_P / 2);
-  if (core_id < nPE) {
-    mempool_start_benchmark();
-    cmatmul_2x2_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id,
-                     nPE);
-    mempool_log_partial_barrier(2, core_id, nPE);
-    mempool_stop_benchmark();
-  }
-  mempool_barrier(num_cores);
-#endif
-
-#if defined(PARALLEL_2x4)
-  // Execute function to test.
-  uint32_t nPE = core_id < (dim_P / 4) ? num_cores : (dim_P / 4);
-  if (core_id < nPE) {
-    mempool_start_benchmark();
-    cmatmul_2x4_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id,
-                     nPE);
-    mempool_log_partial_barrier(2, core_id, nPE);
-    mempool_stop_benchmark();
-  }
-  mempool_barrier(num_cores);
-#endif
-
 #if defined(TEST)
-  mempool_check_f32(matrix_c, C, 2 * dim_M * dim_P, 0.01f, 0);
+  mempool_check_f16(matrix_c, C, 2 * dim_M * dim_P, 0.1f, 0);
+  mempool_barrier(num_cores);
+#endif
+
+  uint32_t nPE;
+
+  // 2x2 PARALLEL
+  nPE = num_cores < (dim_P / 2) ? num_cores : (dim_P / 2); // 2x2
+  if (core_id < nPE) {
+    mempool_start_benchmark();
+    cmatmul_2x2_f16p(matrix_a, matrix_b, matrix_c, dim_M,
+                     dim_N, dim_P, core_id, nPE);
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
+#if defined(TEST)
+  mempool_check_f16(matrix_c, C, 2 * dim_M * dim_P, 0.1f, 0);
+  mempool_barrier(num_cores);
+#endif
+
+  // 2x4 PARALLEL
+  nPE = num_cores < (dim_P / 4) ? num_cores : (dim_P / 4); // 2x4
+  if (core_id < nPE) {
+    mempool_start_benchmark();
+    cmatmul_2x4_f16p((v2h *)matrix_a, (v2h *)matrix_b, (v2h *)matrix_c, dim_M,
+                     dim_N, dim_P, core_id, nPE);
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
+#if defined(TEST)
+  mempool_check_f16(matrix_c, C, 2 * dim_M * dim_P, 0.1f, 0);
   mempool_barrier(num_cores);
 #endif
 

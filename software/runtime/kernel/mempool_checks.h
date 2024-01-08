@@ -22,7 +22,7 @@ void mempool_check_q32(int32_t *__restrict__ pRes, int32_t *__restrict__ pExp,
       int32_t exp = pExp[i];
       int32_t res = pRes[i];
       error = exp - res;
-      bool print = ((error > TOL) || (error < (-TOL))) | verbose;
+      bool print = ((error > TOL) || (error < (-TOL))) || verbose;
       if (print) {
         printf("CHECK(%d): EXP = %x - RESP = %x\n", i, exp, res);
         ERRORS++;
@@ -48,9 +48,9 @@ void mempool_check_q16(int16_t *__restrict__ pRes, int16_t *__restrict__ pExp,
   if (core_id == 0) {
     uint32_t ERRORS = 0;
     for (uint32_t i = 0; i < NEL; i++) {
-      int16_t exp = (int16_t) pExp[i];
-      int16_t res = (int16_t) pRes[i];
-      error = (int16_t) (exp - res);
+      int16_t exp = (int16_t)pExp[i];
+      int16_t res = (int16_t)pRes[i];
+      error = (int16_t)(exp - res);
       bool print = ((error > TOL) || (error < (-TOL))) | verbose;
       if (print) {
         printf("CHECK(%d): EXP = %x - RESP = %x\n", i, exp, res);
@@ -84,7 +84,7 @@ void mempool_check_f32(float *__restrict__ pRes, float *__restrict__ pExp,
                    : [error] "+&r"(error)
                    : [res] "r"(res), [exp] "r"(exp)
                    :);
-      bool print = ((error > TOL) || (error < (-TOL))) | verbose;
+      bool print = ((error > TOL) || (error < (-TOL))) || verbose;
       if (print) {
         printf("CHECK(%d): EXP = %x - RESP = %x\n", i, exp, res);
         ERRORS++;
@@ -117,7 +117,7 @@ void mempool_check_f16(__fp16 *__restrict__ pRes, __fp16 *__restrict__ pExp,
                    : [error] "+&r"(error)
                    : [res] "r"(res), [exp] "r"(exp)
                    :);
-      bool print = ((error > TOL) || (error < (-TOL))) | verbose;
+      bool print = ((error > TOL) || (error < (-TOL))) || verbose;
       if (print) {
         printf("CHECK(%d): EXP = %x - RESP = %x\n", i, *(int32_t *)&exp,
                *(int32_t *)&res);
