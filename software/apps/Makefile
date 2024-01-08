@@ -25,10 +25,10 @@ else
 	ALL := $(filter-out systolic/%,$(APPS))
 endif
 
+ALL_GCC := $(filter-out matmul_f32 matmul_f16 cfft_radix4_f16 cmatmul_f16 chest_f16 cholesky_f16 mimo_mmse_f16 mimo_mmse_f32 ofdm, $(ALL))
 ALL_LLVM := $(filter-out synth chest_q16 cfft_radix2_q16 cfft_radix4_q16 cholesky_q16 mimo_mmse_q16, $(ALL))
-ALL_GCC := $(filter-out matmul_f16 matmul_f32, $(ALL))
 
-# Make all applications
+# Make only applications with full gcc support
 all: $(ALL_GCC)
 
 # Make only applications with full llvm support

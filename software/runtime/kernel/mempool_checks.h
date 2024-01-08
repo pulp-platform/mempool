@@ -48,9 +48,9 @@ void mempool_check_q16(int16_t *__restrict__ pRes, int16_t *__restrict__ pExp,
   if (core_id == 0) {
     uint32_t ERRORS = 0;
     for (uint32_t i = 0; i < NEL; i++) {
-      int16_t exp = pExp[i];
-      int16_t res = pRes[i];
-      error = exp - res;
+      int16_t exp = (int16_t) pExp[i];
+      int16_t res = (int16_t) pRes[i];
+      error = (int16_t) (exp - res);
       bool print = ((error > TOL) || (error < (-TOL))) | verbose;
       if (print) {
         printf("CHECK(%d): EXP = %x - RESP = %x\n", i, exp, res);
@@ -62,6 +62,7 @@ void mempool_check_q16(int16_t *__restrict__ pRes, int16_t *__restrict__ pExp,
   return;
 }
 
+#ifdef __clang__
 /**
   @brief         Check for f32 kernels.
   @param[in]     pRes points to the result
@@ -73,7 +74,7 @@ void mempool_check_q16(int16_t *__restrict__ pRes, int16_t *__restrict__ pExp,
 void mempool_check_f32(float *__restrict__ pRes, float *__restrict__ pExp,
                        uint32_t NEL, float TOL, bool verbose) {
   uint32_t core_id = mempool_get_core_id();
-  float error;
+  float error = 0.0f;
   if (core_id == 0) {
     uint32_t ERRORS = 0;
     for (uint32_t i = 0; i < NEL; i++) {
@@ -85,8 +86,7 @@ void mempool_check_f32(float *__restrict__ pRes, float *__restrict__ pExp,
                    :);
       bool print = ((error > TOL) || (error < (-TOL))) | verbose;
       if (print) {
-        printf("CHECK(%d): EXP = %x - RESP = %x\n", i, *(int32_t *)&exp,
-               *(int32_t *)&res);
+        printf("CHECK(%d): EXP = %x - RESP = %x\n", i, exp, res);
         ERRORS++;
       }
     }
@@ -128,3 +128,4 @@ void mempool_check_f16(__fp16 *__restrict__ pRes, __fp16 *__restrict__ pExp,
   }
   return;
 }
+#endif
