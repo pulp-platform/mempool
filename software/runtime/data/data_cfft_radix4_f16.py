@@ -93,16 +93,17 @@ def main():
     args = parser.parse_args()
     Len = args.dimension
 
-    src = np.random.rand(Len) + 1.j * np.random.rand(Len)
+    src = np.random.rand(Len).astype(np.float16)
+    src = src + 1.j * np.random.rand(Len).astype(np.float16)
     dst = np.fft.fft(src)
-    src = np.column_stack((src.real, src.imag)).astype(np.float16).flatten()
-    dst = np.column_stack((dst.real, dst.imag)).astype(np.float16).flatten()
+    src = np.column_stack((src.imag, src.real)).astype(np.float16).flatten()
+    dst = np.column_stack((dst.imag, dst.real)).astype(np.float16).flatten()
     Bitreversal = np.ndarray.flatten(np.array(compute_bitreversal(Len, 2)))
 
     twi = np.zeros(int(2 * 3 * Len / 4), np.float16)
     for i in range(0, int(3 * Len / 4)):
-        twi[2 * i] = np.cos(i * 2 * np.pi / Len).astype(np.float16)
-        twi[2 * i + 1] = np.sin(i * 2 * np.pi / Len).astype(np.float16)
+        twi[2 * i] = np.sin(i * 2 * np.pi / Len).astype(np.float16)
+        twi[2 * i + 1] = np.cos(i * 2 * np.pi / Len).astype(np.float16)
 
     kwargs = {'name': 'data_cfft_radix4_f16',
               'src': src,
