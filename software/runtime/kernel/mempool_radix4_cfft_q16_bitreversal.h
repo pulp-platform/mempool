@@ -26,14 +26,14 @@ void mempool_bitrevtable_q16s_riscv32(uint16_t *pSrc, const uint16_t bitRevLen,
 
 #ifndef ASM
 #define SWAP_ITEMS                                                             \
-  addr1 = *(uint32_t *)&pBitRevTab[i];                                              \
-  addr2 = *(uint32_t *)&pBitRevTab[i + 2];                                          \
-  addr3 = *(uint32_t *)&pBitRevTab[i + 4];                                          \
-  addr4 = *(uint32_t *)&pBitRevTab[i + 6];                                          \
-  addr1 = __SRA2(*(v2s*)&addr1, *(v2s*)&s2);                                                   \
-  addr2 = __SRA2(*(v2s*)&addr2, *(v2s*)&s2);                                                   \
-  addr3 = __SRA2(*(v2s*)&addr3, *(v2s*)&s2);                                                   \
-  addr4 = __SRA2(*(v2s*)&addr4, *(v2s*)&s2);                                                   \
+  addr1 = *(uint32_t *)&pBitRevTab[i];                                         \
+  addr2 = *(uint32_t *)&pBitRevTab[i + 2];                                     \
+  addr3 = *(uint32_t *)&pBitRevTab[i + 4];                                     \
+  addr4 = *(uint32_t *)&pBitRevTab[i + 6];                                     \
+  addr1 = __SRA2(*(v2s *)&addr1, *(v2s *)&s2);                                 \
+  addr2 = __SRA2(*(v2s *)&addr2, *(v2s *)&s2);                                 \
+  addr3 = __SRA2(*(v2s *)&addr3, *(v2s *)&s2);                                 \
+  addr4 = __SRA2(*(v2s *)&addr4, *(v2s *)&s2);                                 \
   a1 = addr1[1];                                                               \
   a2 = addr2[1];                                                               \
   a3 = addr3[1];                                                               \
@@ -42,28 +42,28 @@ void mempool_bitrevtable_q16s_riscv32(uint16_t *pSrc, const uint16_t bitRevLen,
   b2 = addr2[0];                                                               \
   b3 = addr3[0];                                                               \
   b4 = addr4[0];                                                               \
-  tmpa1 = *(uint32_t *)&pSrc[a1];                                                   \
-  tmpa2 = *(uint32_t *)&pSrc[a2];                                                   \
-  tmpa3 = *(uint32_t *)&pSrc[a3];                                                   \
-  tmpa4 = *(uint32_t *)&pSrc[a4];                                                   \
-  tmpb1 = *(uint32_t *)&pSrc[b1];                                                   \
-  tmpb2 = *(uint32_t *)&pSrc[b2];                                                   \
-  tmpb3 = *(uint32_t *)&pSrc[b3];                                                   \
-  tmpb4 = *(uint32_t *)&pSrc[b4];                                                   \
-  *((uint32_t *)&pSrc[a1]) = tmpb1;                                                 \
-  *((uint32_t *)&pSrc[a2]) = tmpb2;                                                 \
-  *((uint32_t *)&pSrc[a3]) = tmpb3;                                                 \
-  *((uint32_t *)&pSrc[a4]) = tmpb4;                                                 \
-  *((uint32_t *)&pSrc[b1]) = tmpa1;                                                 \
-  *((uint32_t *)&pSrc[b2]) = tmpa2;                                                 \
-  *((uint32_t *)&pSrc[b3]) = tmpa3;                                                 \
+  tmpa1 = *(uint32_t *)&pSrc[a1];                                              \
+  tmpa2 = *(uint32_t *)&pSrc[a2];                                              \
+  tmpa3 = *(uint32_t *)&pSrc[a3];                                              \
+  tmpa4 = *(uint32_t *)&pSrc[a4];                                              \
+  tmpb1 = *(uint32_t *)&pSrc[b1];                                              \
+  tmpb2 = *(uint32_t *)&pSrc[b2];                                              \
+  tmpb3 = *(uint32_t *)&pSrc[b3];                                              \
+  tmpb4 = *(uint32_t *)&pSrc[b4];                                              \
+  *((uint32_t *)&pSrc[a1]) = tmpb1;                                            \
+  *((uint32_t *)&pSrc[a2]) = tmpb2;                                            \
+  *((uint32_t *)&pSrc[a3]) = tmpb3;                                            \
+  *((uint32_t *)&pSrc[a4]) = tmpb4;                                            \
+  *((uint32_t *)&pSrc[b1]) = tmpa1;                                            \
+  *((uint32_t *)&pSrc[b2]) = tmpa2;                                            \
+  *((uint32_t *)&pSrc[b3]) = tmpa3;                                            \
   *((uint32_t *)&pSrc[b4]) = tmpa4;
 #else
 #define SWAP_ITEMS                                                             \
-  addr1 = *(uint32_t *)&pBitRevTab[i];                                              \
-  addr2 = *(uint32_t *)&pBitRevTab[i + 2];                                          \
-  addr3 = *(uint32_t *)&pBitRevTab[i + 4];                                          \
-  addr4 = *(uint32_t *)&pBitRevTab[i + 6];                                          \
+  addr1 = *(uint32_t *)&pBitRevTab[i];                                         \
+  addr2 = *(uint32_t *)&pBitRevTab[i + 2];                                     \
+  addr3 = *(uint32_t *)&pBitRevTab[i + 4];                                     \
+  addr4 = *(uint32_t *)&pBitRevTab[i + 6];                                     \
   asm volatile("pv.sra.h  %[addr1],%[addr1],%[s2];"                            \
                "pv.sra.h  %[addr2],%[addr2],%[s2];"                            \
                "pv.sra.h  %[addr3],%[addr3],%[s2];"                            \
@@ -82,21 +82,21 @@ void mempool_bitrevtable_q16s_riscv32(uint16_t *pSrc, const uint16_t bitRevLen,
                  [addr3] "+&r"(addr3), [addr4] "+&r"(addr4)                    \
                : [s2] "r"(s2)                                                  \
                :);                                                             \
-  tmpa1 = *(uint32_t *)&pSrc[a1];                                                   \
-  tmpa2 = *(uint32_t *)&pSrc[a2];                                                   \
-  tmpa3 = *(uint32_t *)&pSrc[a3];                                                   \
-  tmpa4 = *(uint32_t *)&pSrc[a4];                                                   \
-  tmpb1 = *(uint32_t *)&pSrc[b1];                                                   \
-  tmpb2 = *(uint32_t *)&pSrc[b2];                                                   \
-  tmpb3 = *(uint32_t *)&pSrc[b3];                                                   \
-  tmpb4 = *(uint32_t *)&pSrc[b4];                                                   \
-  *((uint32_t *)&pSrc[a1]) = tmpb1;                                                 \
-  *((uint32_t *)&pSrc[a2]) = tmpb2;                                                 \
-  *((uint32_t *)&pSrc[a3]) = tmpb3;                                                 \
-  *((uint32_t *)&pSrc[a4]) = tmpb4;                                                 \
-  *((uint32_t *)&pSrc[b1]) = tmpa1;                                                 \
-  *((uint32_t *)&pSrc[b2]) = tmpa2;                                                 \
-  *((uint32_t *)&pSrc[b3]) = tmpa3;                                                 \
+  tmpa1 = *(uint32_t *)&pSrc[a1];                                              \
+  tmpa2 = *(uint32_t *)&pSrc[a2];                                              \
+  tmpa3 = *(uint32_t *)&pSrc[a3];                                              \
+  tmpa4 = *(uint32_t *)&pSrc[a4];                                              \
+  tmpb1 = *(uint32_t *)&pSrc[b1];                                              \
+  tmpb2 = *(uint32_t *)&pSrc[b2];                                              \
+  tmpb3 = *(uint32_t *)&pSrc[b3];                                              \
+  tmpb4 = *(uint32_t *)&pSrc[b4];                                              \
+  *((uint32_t *)&pSrc[a1]) = tmpb1;                                            \
+  *((uint32_t *)&pSrc[a2]) = tmpb2;                                            \
+  *((uint32_t *)&pSrc[a3]) = tmpb3;                                            \
+  *((uint32_t *)&pSrc[a4]) = tmpb4;                                            \
+  *((uint32_t *)&pSrc[b1]) = tmpa1;                                            \
+  *((uint32_t *)&pSrc[b2]) = tmpa2;                                            \
+  *((uint32_t *)&pSrc[b3]) = tmpa3;                                            \
   *((uint32_t *)&pSrc[b4]) = tmpa4;
 #endif
 

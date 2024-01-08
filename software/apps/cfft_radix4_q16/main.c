@@ -35,7 +35,7 @@
       - ASM:             Use asm_volatile statements
 */
 
-#define SCHEDULED
+#define FOLDED
 #define FOLDED_TWIDDLES
 #define BITREVERSETABLE
 #define ASM // Use asm_volatile statements
@@ -153,7 +153,7 @@ int main() {
 #endif
     pRes = ((LOG2 / 2) % 2) == 0 ? l1_pSrc : l1_pDst;
     mempool_bitrevtable_q16p_xpulpimg((uint16_t *)pRes, BITREVINDEXTABLE_LENGTH,
-                                      pRevT16, (N_CSAMPLES / 16));
+                                      l1_BitRevIndexTable, (N_CSAMPLES / 16));
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
