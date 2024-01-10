@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update to the latest GitHub CI actions
 - Update `axi` to 0.39.2
 - Update `tech_cells_generic` to 0.2.13
+- Update `common_cells` to 1.33.0
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
