@@ -15,11 +15,26 @@
     return out
 %> \
 
+<% def array_to_str(array):
+    out = '{'
+    i = 0
+    out += '\n'
+    for a in array:
+        out += '{}, '.format(a)
+        i += 1
+        if i % 16 == 0:
+            out += '\n'
+    out = out[:-2] + '}'
+    return out
+%> \
+
 #define N_TX (${N_tx})
 #define N_RX (${N_rx})
 #define N_ITR (${N_itr})
 
 // Inputs
+
+uint32_t l2_beamgroups[${N_itr}] = ${array_to_str(beamgroups)};
 
 __fp16 l2_H[${2 * N_tx * N_rx * N_itr}] = ${array_to_cstr(H)};
 
