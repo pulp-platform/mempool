@@ -212,14 +212,14 @@
         [sum10_imag] "r"(sum10_imag), [sum11_imag] "r"(sum11_imag),            \
         [sum12_imag] "r"(sum12_imag), [sum13_imag] "r"(sum13_imag)             \
       :);                                                                      \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 0)]) = (v2h) sum00_real;                  \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 1)]) = (v2h) sum01_real;                  \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 2)]) = (v2h) sum02_real;                  \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 3)]) = (v2h) sum03_real;                  \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 0)]) = (v2h) sum10_real;                  \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 1)]) = (v2h) sum11_real;                  \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 2)]) = (v2h) sum12_real;                  \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 3)]) = (v2h) sum13_real;
+  C[(i + 0) * P + k + 0] = (v2h)sum00_real;                                    \
+  C[(i + 0) * P + k + 1] = (v2h)sum01_real;                                    \
+  C[(i + 0) * P + k + 2] = (v2h)sum02_real;                                    \
+  C[(i + 0) * P + k + 3] = (v2h)sum03_real;                                    \
+  C[(i + 1) * P + k + 0] = (v2h)sum10_real;                                    \
+  C[(i + 1) * P + k + 1] = (v2h)sum11_real;                                    \
+  C[(i + 1) * P + k + 2] = (v2h)sum12_real;                                    \
+  C[(i + 1) * P + k + 3] = (v2h)sum13_real;
 
 /**************************************************************************/
 /**************************************************************************/
@@ -369,9 +369,9 @@ void cmatmul_2x2_f16p(__fp16 const *__restrict__ A,
 }
 
 #define __SHIFT_A
-void cmatmul_2x4_f16p(__fp16 *__restrict__ A, __fp16 const *__restrict__ B,
-                      __fp16 *__restrict__ C, uint32_t M, uint32_t N,
-                      uint32_t P, uint32_t core_id, uint32_t numThreads) {
+void cmatmul_2x4_f16p(v2h *__restrict__ A, v2h const *__restrict__ B,
+                      v2h *__restrict__ C, uint32_t M, uint32_t N, uint32_t P,
+                      uint32_t core_id, uint32_t numThreads) {
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
   uint32_t k = 0; // loop counter for P
@@ -418,20 +418,20 @@ void cmatmul_2x4_folded_f16p(v2h *A, v2h const *__restrict__ B,
   // Copy multiple A matrices in memory
   uint32_t num_copy = NUM_BANKS / (N * M);
   for (k = core_id * 4; k < N * M; k += 4 * numThreads) {
-    v2h a0 = *(v2h *)&A[2 * k];
-    v2h a1 = *(v2h *)&A[2 * (k + 1)];
-    v2h a2 = *(v2h *)&A[2 * (k + 2)];
-    v2h a3 = *(v2h *)&A[2 * (k + 3)];
+    v2h a0 = A[k];
+    v2h a1 = A[k + 1];
+    v2h a2 = A[k + 2];
+    v2h a3 = A[k + 3];
     i = k / N; // row_index
     j = k % N; // col_index
     for (uint32_t idx_copy = 0; idx_copy < num_copy; idx_copy++) {
-      (*(v2h *)&A_folded[2 * (idx_copy * N * M + i * N + j)]) = a0;
-      (*(v2h *)&A_folded[2 * (idx_copy * N * M + i * N + j + 1)]) = a1;
-      (*(v2h *)&A_folded[2 * (idx_copy * N * M + i * N + j + 2)]) = a2;
-      (*(v2h *)&A_folded[2 * (idx_copy * N * M + i * N + j + 3)]) = a3;
+      A_folded[idx_copy * N * M + i * N + j] = a0;
+      A_folded[idx_copy * N * M + i * N + j + 1] = a1;
+      A_folded[idx_copy * N * M + i * N + j + 2] = a2;
+      A_folded[idx_copy * N * M + i * N + j + 3] = a3;
     }
   }
-  A = A_folded + 2 * (N * M) * ((core_id * BANKING_FACTOR) / (N * M));
+  A = A_folded + (N * M) * ((core_id * BANKING_FACTOR) / (N * M));
   mempool_log_partial_barrier(2, core_id, numThreads);
   // Compute
 #ifndef __SHIFT_A
@@ -461,7 +461,5 @@ void cmatmul_2x4_folded_f16p(v2h *A, v2h const *__restrict__ B,
   }
 #endif
   mempool_log_partial_barrier(2, core_id, numThreads);
-  dump_prova(2);
-
   return;
 }

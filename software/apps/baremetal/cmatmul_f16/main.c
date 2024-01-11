@@ -61,7 +61,6 @@ int main() {
     mempool_start_benchmark();
     cmatmul_2x2_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id,
                      nPE);
-    mempool_log_partial_barrier(2, core_id, nPE);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
