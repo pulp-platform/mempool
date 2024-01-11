@@ -30,13 +30,10 @@ def gen_data_header_file(outdir: pathlib.Path.cwd(),
         f.write(template.render(**kwargs))
 
 
-def gen_input_data(N_rx, N_tx):
+def gen_input_data(N_rx, N_tx, y):
     # Create channel matrix
     H = np.random.rand(N_rx, N_tx).astype(np.float16) + 1.j * \
         np.random.rand(N_rx, N_tx).astype(np.float16)
-    # Create input vector
-    y = np.random.rand(N_rx).astype(np.float16) + 1.j * \
-        np.random.rand(N_rx).astype(np.float16)
     # Generate noise variance
     sigma = np.diag(np.random.rand(N_tx, N_tx).astype(np.float16))
 
@@ -118,26 +115,57 @@ def main():
         default=256,
         help='Iterations.'
     )
+    parser.add_argument(
+        "-r",
+        "--randomize",
+        type=int,
+        required=False,
+        default=0,
+        help='Randomizes the number of beamgroups on each subcarrier.'
+    )
 
     args = parser.parse_args()
     N_tx = args.transmitters
     N_rx = args.receivers
-    itr = args.iterations
+    N_itr = args.iterations
 
-    sigma = np.zeros([itr, 2 * N_tx])
-    H_RI = np.zeros([itr, 2 * N_tx * N_rx])
-    G_RI = np.zeros([itr, 2 * N_tx * N_tx])
-    y_RI = np.zeros([itr, 2 * N_rx])
-    x_RI = np.zeros([itr, 2 * N_tx])
-    for k in range(itr):
-        sigma[k, :], H_RI[k, :], G_RI[k, :], \
-            y_RI[k, :], x_RI[k, :] = gen_input_data(N_rx, N_tx)
+    sigma = np.zeros([N_itr, 2 * N_tx])
+    H_RI = np.zeros([N_itr, 2 * N_tx * N_rx])
+    G_RI = np.zeros([N_itr, 2 * N_tx * N_tx])
+    y_RI = np.zeros([N_itr, 2 * N_rx])
+    x_RI = np.zeros([N_itr, 2 * N_tx])
+    beamgroups = np.zeros(N_itr)
 
-    sigma = np.reshape(sigma, (2 * N_tx * itr)).astype(np.float16)
-    H_RI = np.reshape(H_RI, (2 * N_rx * N_tx * itr)).astype(np.float16)
-    G_RI = np.reshape(G_RI, (2 * N_tx * N_tx * itr)).astype(np.float16)
-    y_RI = np.reshape(y_RI, (2 * N_rx * itr)).astype(np.float16)
-    x_RI = np.reshape(x_RI, (2 * N_tx * itr)).astype(np.float16)
+    for k in range(N_itr):
+
+        # Create input vector
+        y_bg = np.random.rand(N_rx).astype(np.float16) + 1.j * \
+            np.random.rand(N_rx).astype(np.float16)
+        if (args.randomize == 1):
+            N_beamgroups = 2 ** np.random.randint(0, np.log2(2 * N_tx))
+        else:
+            N_beamgroups = 1
+        N_tx_itr = N_tx // N_beamgroups
+        beamgroups[k] = N_beamgroups
+
+        for i in range(N_beamgroups):
+
+            sigma_itr, H_itr, G_itr, y_itr, x_itr = gen_input_data(
+                N_rx, N_tx_itr, y_bg)
+            sigma[k, (i * 2 * N_tx_itr):((i + 1) * 2 * N_tx_itr)] = sigma_itr
+            H_RI[k, (i * 2 * N_tx_itr * N_rx)
+                     :((i + 1) * 2 * N_tx_itr * N_rx)] = H_itr
+            G_RI[k, (i * 2 * N_tx_itr * N_tx_itr)
+                     :((i + 1) * 2 * N_tx_itr * N_tx_itr)] = G_itr
+            y_RI[k, :] = y_itr
+            x_RI[k, (i * 2 * N_tx_itr):((i + 1) * 2 * N_tx_itr)] = x_itr
+
+    sigma = np.reshape(sigma, (2 * N_tx * N_itr)).astype(np.float16)
+    H_RI = np.reshape(H_RI, (2 * N_rx * N_tx * N_itr)).astype(np.float16)
+    G_RI = np.reshape(G_RI, (2 * N_tx * N_tx * N_itr)).astype(np.float16)
+    y_RI = np.reshape(y_RI, (2 * N_rx * N_itr)).astype(np.float16)
+    x_RI = np.reshape(x_RI, (2 * N_tx * N_itr)).astype(np.float16)
+    beamgroups = beamgroups.astype(np.int32)
 
     kwargs = {'name': 'data_mimo_mmse_f16',
               'H': H_RI,
@@ -145,9 +173,10 @@ def main():
               'sigma': sigma,
               'y': y_RI,
               'x': x_RI,
+              'beamgroups': beamgroups,
               'N_tx': N_tx,
               'N_rx': N_rx,
-              'N_itr': itr}
+              'N_itr': N_itr}
 
     gen_data_header_file(args.outdir, args.tpl, **kwargs)
 
