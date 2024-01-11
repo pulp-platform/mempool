@@ -64,8 +64,8 @@ int main() {
   nPE = num_cores < (dim_P / 2) ? num_cores : (dim_P / 2); // 2x2
   if (core_id < nPE) {
     mempool_start_benchmark();
-    cmatmul_2x2_f16p(matrix_a, matrix_b, matrix_c, dim_M,
-                     dim_N, dim_P, core_id, nPE);
+    cmatmul_2x2_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id,
+                     nPE);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
