@@ -34,6 +34,8 @@ __fp16 l1_L[2 * N_TX * N_TX * N_ITR]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
                    section(".l1_prio")));
 
+uint32_t l1_beamgroups[N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
 __fp16 l1_Sigma[2 * N_TX * N_ITR]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_y[2 * N_RX * N_ITR]
@@ -54,6 +56,7 @@ int main() {
 
   /* Initialize matrices */
   if (core_id == 0) {
+    dma_memcpy_blocking(l1_beamgroups, l2_beamgroups, N_ITR * sizeof(int32_t));
     dma_memcpy_blocking(l1_H, l2_H, N_TX * N_RX * N_ITR * sizeof(int32_t));
     dma_memcpy_blocking(l1_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
     dma_memcpy_blocking(l1_Sigma, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
@@ -79,6 +82,9 @@ int main() {
   mempool_start_benchmark();
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
 
+    uint32_t N_bg = l1_beamgroups[itr];
+    uint32_t N_TX_bg = N_TX / N_bg;
+
     __fp16 *PtrH = l1_H + itr * (2 * N_TX * N_RX);
     __fp16 *Ptry = l1_y + itr * (2 * N_RX);
     __fp16 *PtrSigma = l1_Sigma + itr * (2 * N_TX);
@@ -89,11 +95,18 @@ int main() {
     __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
     __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
 
-    mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
-    mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
-    mempool_cholesky_f16s(PtrG, PtrL, N_TX);
-    mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
-    mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+    for (uint32_t itr_bg = 0; itr_bg < N_bg; itr_bg++) {
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrSigma, N_RX, N_TX_bg);
+      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX_bg);
+      mempool_cholesky_f16s(PtrG, PtrL, N_TX_bg);
+      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX_bg);
+      mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX_bg);
+
+      // Shift over the subsequent beamgroup
+      PtrH += 2 * itr_bg * N_TX_bg * N_RX;
+      PtrSigma += 2 * itr_bg * N_TX_bg;
+      Ptrx += 2 * itr_bg * N_TX_bg;
+    }
   }
   mempool_log_barrier(2, core_id);
   mempool_stop_benchmark();
@@ -129,15 +142,16 @@ int main() {
 #endif
 
   // Check the result
-  mempool_check_f16(l1_x, l2_x, 2 * N_TX, 0.1f, 0);
+  mempool_check_f16(l1_x, l2_x, 2 * N_TX, 0.01f, 0);
   mempool_barrier(num_cores);
   return 0;
 }
 
 #else
 
-#define N_ROUNDS (3)
-#define DMA_TRANSFER2
+/*******************************************/
+/* TEST OF THE KERNELS WITH DATA MOVEMENTS */
+/*******************************************/
 
 // Inputs-Outputs even double-buffering rounds
 __fp16 l1A_H[2 * N_TX * N_RX * N_ITR]
