@@ -142,18 +142,18 @@
   float register volatile sum13_imag = 0.0f;                                   \
   v2h a00s, a01s, a10s, a11s;                                                  \
   for (j = 0; j < N; j += 2) {                                                 \
-    v2h a00 = *(v2h *)&A[2 * ((i + 0) * N + (j + 0))];                         \
-    v2h a01 = *(v2h *)&A[2 * ((i + 0) * N + (j + 1))];                         \
-    v2h a10 = *(v2h *)&A[2 * ((i + 1) * N + (j + 0))];                         \
-    v2h a11 = *(v2h *)&A[2 * ((i + 1) * N + (j + 1))];                         \
-    v2h b00 = *(v2h *)&B[2 * ((j + 0) * P + (k + 0))];                         \
-    v2h b01 = *(v2h *)&B[2 * ((j + 0) * P + (k + 1))];                         \
-    v2h b02 = *(v2h *)&B[2 * ((j + 0) * P + (k + 2))];                         \
-    v2h b03 = *(v2h *)&B[2 * ((j + 0) * P + (k + 3))];                         \
-    v2h b10 = *(v2h *)&B[2 * ((j + 1) * P + (k + 0))];                         \
-    v2h b11 = *(v2h *)&B[2 * ((j + 1) * P + (k + 1))];                         \
-    v2h b12 = *(v2h *)&B[2 * ((j + 1) * P + (k + 2))];                         \
-    v2h b13 = *(v2h *)&B[2 * ((j + 1) * P + (k + 3))];                         \
+    v2h a00 = A[(i + 0) * N + (j + 0)];                                        \
+    v2h a01 = A[(i + 0) * N + (j + 1)];                                        \
+    v2h a10 = A[(i + 1) * N + (j + 0)];                                        \
+    v2h a11 = A[(i + 1) * N + (j + 1)];                                        \
+    v2h b00 = B[(j + 0) * P + (k + 0)];                                        \
+    v2h b01 = B[(j + 0) * P + (k + 1)];                                        \
+    v2h b02 = B[(j + 0) * P + (k + 2)];                                        \
+    v2h b03 = B[(j + 0) * P + (k + 3)];                                        \
+    v2h b10 = B[(j + 1) * P + (k + 0)];                                        \
+    v2h b11 = B[(j + 1) * P + (k + 1)];                                        \
+    v2h b12 = B[(j + 1) * P + (k + 2)];                                        \
+    v2h b13 = B[(j + 1) * P + (k + 3)];                                        \
     asm volatile(                                                              \
         "pv.shuffle2.h  %[a00s], %[a00], %[mask];"                             \
         "pv.shuffle2.h  %[a10s], %[a10], %[mask];"                             \
@@ -175,12 +175,12 @@
         "vfdotpex.s.h  %[sum12_imag], %[a11s], %[b12];"                        \
         "vfdotpex.s.h  %[sum03_imag], %[a01s], %[b13];"                        \
         "vfdotpex.s.h  %[sum13_imag], %[a11s], %[b13];"                        \
-        : [a00s] "=&r"(a00s), [a01s] "=&r"(a01s),                              \
-          [a10s] "=&r"(a10s), [a11s] "=&r"(a11s),                              \
-          [sum00_imag] "+&r"(sum00_imag), [sum01_imag] "+&r"(sum01_imag),      \
-          [sum02_imag] "+&r"(sum02_imag), [sum03_imag] "+&r"(sum03_imag),      \
-          [sum10_imag] "+&r"(sum10_imag), [sum11_imag] "+&r"(sum11_imag),      \
-          [sum12_imag] "+&r"(sum12_imag), [sum13_imag] "+&r"(sum13_imag)       \
+        : [a00s] "=&r"(a00s), [a01s] "=&r"(a01s), [a10s] "=&r"(a10s),          \
+          [a11s] "=&r"(a11s), [sum00_imag] "+&r"(sum00_imag),                  \
+          [sum01_imag] "+&r"(sum01_imag), [sum02_imag] "+&r"(sum02_imag),      \
+          [sum03_imag] "+&r"(sum03_imag), [sum10_imag] "+&r"(sum10_imag),      \
+          [sum11_imag] "+&r"(sum11_imag), [sum12_imag] "+&r"(sum12_imag),      \
+          [sum13_imag] "+&r"(sum13_imag)                                       \
         : [a00] "r"(a00), [a01] "r"(a01), [a10] "r"(a10), [a11] "r"(a11),      \
           [b00] "r"(b00), [b01] "r"(b01), [b02] "r"(b02), [b03] "r"(b03),      \
           [b10] "r"(b10), [b11] "r"(b11), [b12] "r"(b12), [b13] "r"(b13),      \
@@ -207,12 +207,12 @@
         "vfdotpex.s.h  %[sum12_real], %[a11s], %[b12];"                        \
         "vfdotpex.s.h  %[sum03_real], %[a01s], %[b13];"                        \
         "vfdotpex.s.h  %[sum13_real], %[a11s], %[b13];"                        \
-        : [a00s] "=&r"(a00s), [a01s] "=&r"(a01s),                              \
-          [a10s] "=&r"(a10s), [a11s] "=&r"(a11s),                              \
-          [sum00_real] "+&r"(sum00_real), [sum01_real] "+&r"(sum01_real),      \
-          [sum02_real] "+&r"(sum02_real), [sum03_real] "+&r"(sum03_real),      \
-          [sum10_real] "+&r"(sum10_real), [sum11_real] "+&r"(sum11_real),      \
-          [sum12_real] "+&r"(sum12_real), [sum13_real] "+&r"(sum13_real)       \
+        : [a00s] "=&r"(a00s), [a01s] "=&r"(a01s), [a10s] "=&r"(a10s),          \
+          [a11s] "=&r"(a11s), [sum00_real] "+&r"(sum00_real),                  \
+          [sum01_real] "+&r"(sum01_real), [sum02_real] "+&r"(sum02_real),      \
+          [sum03_real] "+&r"(sum03_real), [sum10_real] "+&r"(sum10_real),      \
+          [sum11_real] "+&r"(sum11_real), [sum12_real] "+&r"(sum12_real),      \
+          [sum13_real] "+&r"(sum13_real)                                       \
         : [a00] "r"(a00), [a01] "r"(a01), [a10] "r"(a10), [a11] "r"(a11),      \
           [b00] "r"(b00), [b01] "r"(b01), [b02] "r"(b02), [b03] "r"(b03),      \
           [b10] "r"(b10), [b11] "r"(b11), [b12] "r"(b12), [b13] "r"(b13),      \
@@ -237,14 +237,14 @@
         [sum10_imag] "r"(sum10_imag), [sum11_imag] "r"(sum11_imag),            \
         [sum12_imag] "r"(sum12_imag), [sum13_imag] "r"(sum13_imag)             \
       :);                                                                      \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 0)]) = (v2h) sum00_real;                  \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 1)]) = (v2h) sum01_real;                  \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 2)]) = (v2h) sum02_real;                  \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 3)]) = (v2h) sum03_real;                  \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 0)]) = (v2h) sum10_real;                  \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 1)]) = (v2h) sum11_real;                  \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 2)]) = (v2h) sum12_real;                  \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 3)]) = (v2h) sum13_real;
+  C[(i + 0) * P + k + 0] = (v2h)sum00_real;                                    \
+  C[(i + 0) * P + k + 1] = (v2h)sum01_real;                                    \
+  C[(i + 0) * P + k + 2] = (v2h)sum02_real;                                    \
+  C[(i + 0) * P + k + 3] = (v2h)sum03_real;                                    \
+  C[(i + 1) * P + k + 0] = (v2h)sum10_real;                                    \
+  C[(i + 1) * P + k + 1] = (v2h)sum11_real;                                    \
+  C[(i + 1) * P + k + 2] = (v2h)sum12_real;                                    \
+  C[(i + 1) * P + k + 3] = (v2h)sum13_real;
 
 /**************************************************************************/
 /**************************************************************************/
@@ -255,11 +255,10 @@
   for (j = 0; j < N; j++) {                                                    \
     v2h a = *(v2h *)&A[2 * (i * M + j)];                                       \
     v2h b = *(v2h *)&B[2 * (j * P + k)];                                       \
-    asm volatile(                                                              \
-        "fcdotpex.s.h  %[sum], %[a], %[b];"                                    \
-        : [sum] "+&r"(sum)                                                     \
-        : [a] "r"(a), [b] "r"(b)                                               \
-        :);                                                                    \
+    asm volatile("fcdotpex.s.h  %[sum], %[a], %[b];"                           \
+                 : [sum] "+&r"(sum)                                            \
+                 : [a] "r"(a), [b] "r"(b)                                      \
+                 :);                                                           \
   }                                                                            \
   (*(v2h *)&C[2 * ((i + 0) * P + k + 0)]) = sum;
 
@@ -286,11 +285,10 @@
         "fcdotpex.s.h  %[sum10], %[a11], %[b10];"                              \
         "fcdotpex.s.h  %[sum01], %[a01], %[b11];"                              \
         "fcdotpex.s.h  %[sum11], %[a11], %[b11];"                              \
-        : [sum00] "+&r"(sum00), [sum01] "+&r"(sum01),                          \
-          [sum10] "+&r"(sum10), [sum11] "+&r"(sum11)                           \
+        : [sum00] "+&r"(sum00), [sum01] "+&r"(sum01), [sum10] "+&r"(sum10),    \
+          [sum11] "+&r"(sum11)                                                 \
         : [a00] "r"(a00), [a01] "r"(a01), [a10] "r"(a10), [a11] "r"(a11),      \
-          [b00] "r"(b00), [b01] "r"(b01),                                      \
-          [b10] "r"(b10), [b11] "r"(b11)                                       \
+          [b00] "r"(b00), [b01] "r"(b01), [b10] "r"(b10), [b11] "r"(b11)       \
         :);                                                                    \
   }                                                                            \
   (*(v2h *)&C[2 * ((i + 0) * P + k + 0)]) = sum00;                             \
@@ -308,18 +306,18 @@
   v2h sum12 = (v2h)0.0f;                                                       \
   v2h sum13 = (v2h)0.0f;                                                       \
   for (j = 0; j < N; j += 2) {                                                 \
-    v2h a00 = *(v2h *)&A[2 * ((i + 0) * M + (j + 0))];                         \
-    v2h a01 = *(v2h *)&A[2 * ((i + 0) * M + (j + 1))];                         \
-    v2h a10 = *(v2h *)&A[2 * ((i + 1) * M + (j + 0))];                         \
-    v2h a11 = *(v2h *)&A[2 * ((i + 1) * M + (j + 1))];                         \
-    v2h b00 = *(v2h *)&B[2 * ((j + 0) * P + (k + 0))];                         \
-    v2h b01 = *(v2h *)&B[2 * ((j + 0) * P + (k + 1))];                         \
-    v2h b02 = *(v2h *)&B[2 * ((j + 0) * P + (k + 2))];                         \
-    v2h b03 = *(v2h *)&B[2 * ((j + 0) * P + (k + 3))];                         \
-    v2h b10 = *(v2h *)&B[2 * ((j + 1) * P + (k + 0))];                         \
-    v2h b11 = *(v2h *)&B[2 * ((j + 1) * P + (k + 1))];                         \
-    v2h b12 = *(v2h *)&B[2 * ((j + 1) * P + (k + 2))];                         \
-    v2h b13 = *(v2h *)&B[2 * ((j + 1) * P + (k + 3))];                         \
+    v2h a00 = A[i * M + j + 0];                                                \
+    v2h a01 = A[i * M + j + 1];                                                \
+    v2h a10 = A[(i + 1) * M + j + 0];                                          \
+    v2h a11 = A[(i + 1) * M + j + 1];                                          \
+    v2h b00 = B[j * P + k + 0];                                                \
+    v2h b01 = B[j * P + k + 1];                                                \
+    v2h b02 = B[j * P + k + 2];                                                \
+    v2h b03 = B[j * P + k + 3];                                                \
+    v2h b10 = B[(j + 1) * P + k + 0];                                          \
+    v2h b11 = B[(j + 1) * P + k + 1];                                          \
+    v2h b12 = B[(j + 1) * P + k + 2];                                          \
+    v2h b13 = B[(j + 1) * P + k + 3];                                          \
     asm volatile(                                                              \
         "fcdotpex.s.h  %[sum00], %[a00], %[b00];"                              \
         "fcdotpex.s.h  %[sum10], %[a10], %[b00];"                              \
@@ -345,15 +343,14 @@
           [b10] "r"(b10), [b11] "r"(b11), [b12] "r"(b12), [b13] "r"(b13)       \
         :);                                                                    \
   }                                                                            \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 0)]) = sum00;                             \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 1)]) = sum01;                             \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 2)]) = sum02;                             \
-  (*(v2h *)&C[2 * ((i + 0) * P + k + 3)]) = sum03;                             \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 0)]) = sum10;                             \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 1)]) = sum11;                             \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 2)]) = sum12;                             \
-  (*(v2h *)&C[2 * ((i + 1) * P + k + 3)]) = sum13;
-
+  C[i * P + k + 0] = sum00;                                                    \
+  C[i * P + k + 1] = sum01;                                                    \
+  C[i * P + k + 2] = sum02;                                                    \
+  C[i * P + k + 3] = sum03;                                                    \
+  C[(i + 1) * P + k + 0] = sum10;                                              \
+  C[(i + 1) * P + k + 1] = sum11;                                              \
+  C[(i + 1) * P + k + 2] = sum12;                                              \
+  C[(i + 1) * P + k + 3] = sum13;
 
 void cmatmul_2x2_f16s(__fp16 const *__restrict__ A,
                       __fp16 const *__restrict__ B, __fp16 *__restrict__ C,
@@ -364,8 +361,8 @@ void cmatmul_2x2_f16s(__fp16 const *__restrict__ A,
   uint32_t k = 0; // loop counter for P
   for (k = 0; k < P; k += 2) {
     for (i = 0; i < M; i += 2) {
-      // CMATMUL_2x2_LOOP;
-      CMATMUL_CDOTP_2x2_LOOP;
+      CMATMUL_2x2_LOOP;
+      // CMATMUL_CDOTP_2x2_LOOP;
     }
   }
   return;
@@ -381,8 +378,8 @@ void cmatmul_2x2_f16p(__fp16 const *__restrict__ A,
   uint32_t k = 0; // loop counter for P
   for (k = core_id * 2; k < P; k += 2 * numThreads) {
     for (i = 0; i < M; i += 2) {
-      // CMATMUL_2x2_LOOP;
-      CMATMUL_CDOTP_2x2_LOOP;
+      CMATMUL_2x2_LOOP;
+      // CMATMUL_CDOTP_2x2_LOOP;
     }
   }
   mempool_log_partial_barrier(2, core_id, numThreads);
@@ -390,29 +387,29 @@ void cmatmul_2x2_f16p(__fp16 const *__restrict__ A,
 }
 
 #define __SHIFT_A
-void cmatmul_2x4_f16p(__fp16 *__restrict__ A, __fp16 const *__restrict__ B,
-                      __fp16 *__restrict__ C, uint32_t M, uint32_t N,
-                      uint32_t P, uint32_t core_id, uint32_t numThreads) {
+void cmatmul_2x4_f16p(v2h *__restrict__ A, v2h const *__restrict__ B,
+                      v2h *__restrict__ C, uint32_t M, uint32_t N, uint32_t P,
+                      uint32_t core_id, uint32_t numThreads) {
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
   uint32_t k = 0; // loop counter for P
 #ifndef __SHIFT_A
   for (k = core_id * 4; k < P; k += 4 * numThreads) {
     for (i = 0; i < M; i += 2) {
-      // CMATMUL_2x4_LOOP;
-      CMATMUL_CDOTP_2x4_LOOP;
+      CMATMUL_2x4_LOOP;
+      // CMATMUL_CDOTP_2x4_LOOP;
     }
   }
 #else
   uint32_t shift_id = 2 * (core_id % NUM_CORES_PER_TILE);
   for (k = core_id * 4; k < P; k += 4 * numThreads) {
     for (i = shift_id; i < M; i += 2) {
-      // CMATMUL_2x4_LOOP;
-      CMATMUL_CDOTP_2x4_LOOP;
+      CMATMUL_2x4_LOOP;
+      // CMATMUL_CDOTP_2x4_LOOP;
     }
     for (i = 0; i < shift_id; i += 2) {
-      // CMATMUL_2x4_LOOP;
-      CMATMUL_CDOTP_2x4_LOOP;
+      CMATMUL_2x4_LOOP;
+      // CMATMUL_CDOTP_2x4_LOOP;
     }
   }
 #endif
@@ -421,37 +418,32 @@ void cmatmul_2x4_f16p(__fp16 *__restrict__ A, __fp16 const *__restrict__ B,
 }
 
 dump(prova, 8);
-void cmatmul_2x4_folded_f16p(__fp16 * A,
-                             __fp16 const *__restrict__ B,
-                             __fp16 *__restrict__ A_folded,
-                             __fp16 *__restrict__ C, uint32_t M, uint32_t N,
-                             uint32_t P, uint32_t core_id,
-                             uint32_t numThreads) {
-
+void cmatmul_2x4_folded_f16p(v2h *A, v2h const *__restrict__ B,
+                             v2h *__restrict__ A_folded, v2h *__restrict__ C,
+                             uint32_t M, uint32_t N, uint32_t P,
+                             uint32_t core_id, uint32_t numThreads) {
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
   uint32_t k = 0; // loop counter for P
-
   // Copy multiple A matrices in memory
   uint32_t num_copy = NUM_BANKS / (N * M);
   for (k = core_id * 4; k < N * M; k += 4 * numThreads) {
-    v2h a0 = *(v2h *)&A[2 * k];
-    v2h a1 = *(v2h *)&A[2 * (k + 1)];
-    v2h a2 = *(v2h *)&A[2 * (k + 2)];
-    v2h a3 = *(v2h *)&A[2 * (k + 3)];
+    v2h a0 = A[k];
+    v2h a1 = A[k + 1];
+    v2h a2 = A[k + 2];
+    v2h a3 = A[k + 3];
     i = k / N; // row_index
     j = k % N; // col_index
     for (uint32_t idx_copy = 0; idx_copy < num_copy; idx_copy++) {
-      (*(v2h *)&A_folded[2 * (idx_copy * N * M + i * N + j)]) = a0;
-      (*(v2h *)&A_folded[2 * (idx_copy * N * M + i * N + j + 1)]) = a1;
-      (*(v2h *)&A_folded[2 * (idx_copy * N * M + i * N + j + 2)]) = a2;
-      (*(v2h *)&A_folded[2 * (idx_copy * N * M + i * N + j + 3)]) = a3;
+      A_folded[idx_copy * N * M + i * N + j] = a0;
+      A_folded[idx_copy * N * M + i * N + j + 1] = a1;
+      A_folded[idx_copy * N * M + i * N + j + 2] = a2;
+      A_folded[idx_copy * N * M + i * N + j + 3] = a3;
     }
   }
-  A = A_folded + 2 * (N * M) * ((core_id * BANKING_FACTOR) / (N * M));
+  A = A_folded + (N * M) * ((core_id * BANKING_FACTOR) / (N * M));
   mempool_log_partial_barrier(2, core_id, numThreads);
   dump_prova(1);
-
   // Compute
 #ifndef __SHIFT_A
   for (k = core_id * 4; k < P; k += 4 * numThreads) {
@@ -475,6 +467,5 @@ void cmatmul_2x4_folded_f16p(__fp16 * A,
 #endif
   mempool_log_partial_barrier(2, core_id, numThreads);
   dump_prova(2);
-
   return;
 }

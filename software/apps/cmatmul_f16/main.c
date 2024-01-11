@@ -61,8 +61,8 @@ int main() {
   uint32_t nPE = num_cores < (dim_P / 2) ? num_cores : (dim_P / 2); // 2x2
   if (core_id < nPE) {
     mempool_start_benchmark();
-    cmatmul_2x2_f16p(matrix_a, matrix_b, matrix_c, dim_M,
-                     dim_N, dim_P, core_id, nPE);
+    cmatmul_2x2_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id,
+                     nPE);
     mempool_stop_benchmark();
   }
 #endif
@@ -71,10 +71,12 @@ int main() {
   if (core_id < nPE) {
     mempool_start_benchmark();
 #if defined(FOLDED)
-    cmatmul_2x4_folded_f16p(matrix_a, matrix_b, matrix_a_folded, matrix_c,
-                            dim_M, dim_N, dim_P, core_id, nPE);
+    cmatmul_2x4_folded_f16p((v2h *)matrix_a, (v2h *)matrix_b,
+                            (v2h *)matrix_a_folded, (v2h *)matrix_c, dim_M,
+                            dim_N, dim_P, core_id, nPE);
 #else
-    cmatmul_2x4_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id, nPE);
+    cmatmul_2x4_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id,
+                     nPE);
 #endif
     mempool_stop_benchmark();
   }
@@ -83,7 +85,7 @@ int main() {
 #endif
 
 #if defined(TEST)
-  mempool_check_f16(matrix_c, C, 2 * dim_M * dim_P, 0.1f, 0);
+  mempool_check_f16(matrix_c, C, 2 * dim_M * dim_P, 0.1f, 1);
   mempool_barrier(num_cores);
 #endif
 
