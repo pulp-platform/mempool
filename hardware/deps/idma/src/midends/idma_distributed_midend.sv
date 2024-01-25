@@ -145,14 +145,13 @@ module idma_distributed_midend #(
         end else begin
           burst_req_o[i].num_bytes = DmaRegionWidth-start_addr[DmaRegionAddressBits-1:0];
         end
-      // end else if (($unsigned(start_addr) < i*DmaRegionWidth)) begin
       end else begin
         // Round up the address to the next DMA boundary
         if (($unsigned(burst_req_i.src) >= DmaRegionStart) && ($unsigned(burst_req_i.src) < DmaRegionEnd)) begin
           burst_req_o[i].src[FullRegionAddressBits-1:0] = i*DmaRegionWidth;
-          burst_req_o[i].dst = burst_req_i.dst+i*DmaRegionWidth-start_addr[DmaRegionAddressBits-1:0];
+          burst_req_o[i].dst = burst_req_i.dst+i*DmaRegionWidth-start_addr;
         end else begin
-          burst_req_o[i].src = burst_req_i.src+i*DmaRegionWidth-start_addr[DmaRegionAddressBits-1:0];
+          burst_req_o[i].src = burst_req_i.src+i*DmaRegionWidth-start_addr;
           burst_req_o[i].dst[FullRegionAddressBits-1:0] = i*DmaRegionWidth;
         end
         if ($unsigned(end_addr) >= (i+1)*DmaRegionWidth) begin
