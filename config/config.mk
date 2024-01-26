@@ -72,6 +72,9 @@ xpulpimg ?= 1
 # FPU is deactivated by default
 zfinx_rv ?= 1
 
+# DivSqrt deactivated by default
+xDivSqrt ?= 0
+
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
 remote_group_latency_cycles ?= 7

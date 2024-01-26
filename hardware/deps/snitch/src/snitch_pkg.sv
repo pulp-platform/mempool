@@ -17,6 +17,8 @@ package snitch_pkg;
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
   // Zfinx_rv extension enabled?
   localparam bit ZFINX_RV = `ifdef ZFINX_RV `ZFINX_RV `else 1'bX `endif;
+  // XDivSqrt extension enabled?
+  localparam bit XDIVSQRT = `ifdef XDIVSQRT `XDIVSQRT `else 1'bX `endif;
 
   typedef logic [31:0]               addr_t;
   typedef logic [DataWidth-1:0]      data_t;
@@ -104,7 +106,6 @@ package snitch_pkg;
   // Floating-point extensions configuration
   localparam bit RVF = 1; // Is F extension enabled - MUST BE 1 IF D ENABLED!
   localparam bit RVD = 0; // Is D extension enabled
-  localparam bit TinyFPU = 0; // Instantiate Floatli (1) or FPnew (0)
 
   // Transprecision floating-point extensions configuration
   localparam bit XF16    = 1; // Is half-precision float extension (Xf16) enabled
@@ -112,6 +113,7 @@ package snitch_pkg;
   localparam bit XF8     = 1; // Is quarter-precision float extension (Xf8) enabled
   localparam bit XF8ALT  = 0; // Is alt. quarter-precision float extension (Xf8alt) enabled
   localparam bit XFVEC   = 1; // Is vectorial float SIMD extension (Xfvec) enabled
+  localparam bit XDivSqrt = XDIVSQRT; // Enable div/sqrt unit (buggy - use with caution)
   // Non-standard extension present
   localparam bit NSX = XF16 | XF16ALT | XF8 | XFVEC;
   // ------------------
