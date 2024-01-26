@@ -114,13 +114,11 @@ ifeq ($(zfinx_rv),1)
 
 	rv32uzfinx_snitch_sc_tests = \
 		fadd \
-		fdiv \
 		fmadd \
 		fmin \
 		fsgnj
 	rv32uzhinx_snitch_sc_tests = \
 		fadd_h \
-		fdiv_h \
 		fmadd_h \
 		fmin_h \
 		fsgnj_h
@@ -144,6 +142,11 @@ ifeq ($(zfinx_rv),1)
 		vfmac_b	\
 		vfmin_b \
 		vfsgnj_b
+
+ifeq ($(xDivSqrt), 1)
+		rv32uzfinx_snitch_sc_tests += fdiv
+		rv32uzhinx_snitch_sc_tests += fdiv_h
+endif
 
 	rv32uzfinx_mempool_tests = $(addprefix rv32uzfinx-mempool-, $(rv32uzfinx_snitch_sc_tests))
 	rv32uzhinx_mempool_tests = $(addprefix rv32uzhinx-mempool-, $(rv32uzhinx_snitch_sc_tests))

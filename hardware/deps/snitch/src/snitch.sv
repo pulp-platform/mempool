@@ -833,14 +833,26 @@ module snitch
       riscv_instr::FADD_S,
       riscv_instr::FSUB_S,
       riscv_instr::FMUL_S,
-      riscv_instr::FDIV_S,
       riscv_instr::FSGNJ_S,
       riscv_instr::FSGNJN_S,
       riscv_instr::FSGNJX_S,
       riscv_instr::FMIN_S,
-      riscv_instr::FMAX_S,
-      riscv_instr::FSQRT_S: begin
+      riscv_instr::FMAX_S: begin
         if (snitch_pkg::ZFINX_RV) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::FDIV_S,
+      riscv_instr::FSQRT_S: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XDivSqrt) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -896,14 +908,26 @@ module snitch
       riscv_instr::FADD_H,
       riscv_instr::FSUB_H,
       riscv_instr::FMUL_H,
-      riscv_instr::FDIV_H,
       riscv_instr::FSGNJ_H,
       riscv_instr::FSGNJN_H,
       riscv_instr::FSGNJX_H,
       riscv_instr::FMIN_H,
-      riscv_instr::FMAX_H,
-      riscv_instr::FSQRT_H: begin
+      riscv_instr::FMAX_H: begin
         if (snitch_pkg::ZFINX_RV && snitch_pkg::XF16) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::FDIV_H,
+      riscv_instr::FSQRT_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XDivSqrt && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -964,8 +988,6 @@ module snitch
       riscv_instr::VFSUB_R_H,
       riscv_instr::VFMUL_H,
       riscv_instr::VFMUL_R_H,
-      riscv_instr::VFDIV_H,
-      riscv_instr::VFDIV_R_H,
       riscv_instr::VFMIN_H,
       riscv_instr::VFMIN_R_H,
       riscv_instr::VFMAX_H,
@@ -976,9 +998,23 @@ module snitch
       riscv_instr::VFSGNJN_H,
       riscv_instr::VFSGNJN_R_H,
       riscv_instr::VFSGNJX_H,
-      riscv_instr::VFSGNJX_R_H,
-      riscv_instr::VFSQRT_H: begin
+      riscv_instr::VFSGNJX_R_H: begin
         if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::VFDIV_H,
+      riscv_instr::VFDIV_R_H,
+      riscv_instr::VFSQRT_H: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XDivSqrt && snitch_pkg::XFVEC) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1099,14 +1135,26 @@ module snitch
       riscv_instr::FADD_B,
       riscv_instr::FSUB_B,
       riscv_instr::FMUL_B,
-      riscv_instr::FDIV_B,
       riscv_instr::FSGNJ_B,
       riscv_instr::FSGNJN_B,
       riscv_instr::FSGNJX_B,
       riscv_instr::FMIN_B,
-      riscv_instr::FMAX_B,
-      riscv_instr::FSQRT_B: begin
+      riscv_instr::FMAX_B: begin
         if (snitch_pkg::ZFINX_RV && snitch_pkg::XF8) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::FDIV_B,
+      riscv_instr::FSQRT_B: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XDivSqrt && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1168,8 +1216,6 @@ module snitch
       riscv_instr::VFSUB_R_B,
       riscv_instr::VFMUL_B,
       riscv_instr::VFMUL_R_B,
-      riscv_instr::VFDIV_B,
-      riscv_instr::VFDIV_R_B,
       riscv_instr::VFMIN_B,
       riscv_instr::VFMIN_R_B,
       riscv_instr::VFMAX_B,
@@ -1180,9 +1226,23 @@ module snitch
       riscv_instr::VFSGNJN_B,
       riscv_instr::VFSGNJN_R_B,
       riscv_instr::VFSGNJX_B,
-      riscv_instr::VFSGNJX_R_B,
-      riscv_instr::VFSQRT_B: begin
+      riscv_instr::VFSGNJX_R_B: begin
         if (snitch_pkg::ZFINX_RV && snitch_pkg::XFVEC) begin
+          write_rd = 1'b0;
+          uses_rd = 1'b1;
+          acc_qvalid_o = valid_instr;
+          opa_select = Reg;
+          opb_select = Reg;
+          acc_register_rd = 1'b1;
+          acc_qaddr_o = snitch_pkg::FP_SS;
+        end else begin
+          illegal_inst = 1'b1;
+        end
+      end
+      riscv_instr::VFDIV_B,
+      riscv_instr::VFDIV_R_B,
+      riscv_instr::VFSQRT_B: begin
+        if (snitch_pkg::ZFINX_RV && snitch_pkg::XDivSqrt && snitch_pkg::XFVEC) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
