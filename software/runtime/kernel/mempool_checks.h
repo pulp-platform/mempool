@@ -55,7 +55,7 @@ void mempool_check_f16(__fp16 *__restrict__ pRes, __fp16 *__restrict__ pExp,
       __fp16 exp = pExp[i];
       __fp16 res = pRes[i];
       asm volatile("fsub.h %[error], %[res], %[exp];"
-                   "fcvt.h.s %[error], %[error];"
+                   "fcvt.s.h %[error], %[error];"
                    : [error] "+&r"(error)
                    : [res] "r"(res), [exp] "r"(exp)
                    :);

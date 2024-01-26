@@ -304,15 +304,15 @@ module snitch_fp_ss
         fpu_op = fpnew_pkg::F2F;
         op_select[0] = AccBus_A;
         op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP32;
-        dst_fmt      = fpnew_pkg::FP16;
+        src_fmt      = fpnew_pkg::FP16;
+        dst_fmt      = fpnew_pkg::FP32;
       end
       riscv_instr::FCVT_H_S: begin
         fpu_op = fpnew_pkg::F2F;
         op_select[0] = AccBus_A;
         op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP16;
-        dst_fmt      = fpnew_pkg::FP32;
+        src_fmt      = fpnew_pkg::FP32;
+        dst_fmt      = fpnew_pkg::FP16;
       end
       riscv_instr::FLE_H,
       riscv_instr::FLT_H,
