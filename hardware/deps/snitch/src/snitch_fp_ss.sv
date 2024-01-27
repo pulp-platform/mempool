@@ -159,13 +159,6 @@ module snitch_fp_ss
         src_fmt        = fpnew_pkg::FP32;
         dst_fmt        = fpnew_pkg::FP32;
       end
-      riscv_instr::FDIV_S: begin  // currently illegal
-        fpu_op = fpnew_pkg::DIV;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt        = fpnew_pkg::FP32;
-        dst_fmt        = fpnew_pkg::FP32;
-      end
       riscv_instr::FSGNJ_S,
       riscv_instr::FSGNJN_S,
       riscv_instr::FSGNJX_S: begin
@@ -178,13 +171,6 @@ module snitch_fp_ss
       riscv_instr::FMIN_S,
       riscv_instr::FMAX_S: begin
         fpu_op = fpnew_pkg::MINMAX;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt        = fpnew_pkg::FP32;
-        dst_fmt        = fpnew_pkg::FP32;
-      end
-      riscv_instr::FSQRT_S: begin  // currently illegal
-        fpu_op = fpnew_pkg::SQRT;
         op_select[0] = AccBus_A;
         op_select[1] = AccBus_B;
         src_fmt        = fpnew_pkg::FP32;
@@ -297,13 +283,6 @@ module snitch_fp_ss
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
       end
-      riscv_instr::FDIV_H: begin
-        fpu_op = fpnew_pkg::DIV;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP16;
-        dst_fmt      = fpnew_pkg::FP16;
-      end
       riscv_instr::FSGNJ_H,
       riscv_instr::FSGNJN_H,
       riscv_instr::FSGNJX_H: begin
@@ -316,13 +295,6 @@ module snitch_fp_ss
       riscv_instr::FMIN_H,
       riscv_instr::FMAX_H: begin
         fpu_op = fpnew_pkg::MINMAX;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP16;
-        dst_fmt      = fpnew_pkg::FP16;
-      end
-      riscv_instr::FSQRT_H: begin
-        fpu_op = fpnew_pkg::SQRT;
         op_select[0] = AccBus_A;
         op_select[1] = AccBus_B;
         src_fmt      = fpnew_pkg::FP16;
@@ -459,16 +431,6 @@ module snitch_fp_ss
         vectorial_op = 1'b1;
         set_dyn_rm   = 1'b1;
       end
-      riscv_instr::VFDIV_H,
-      riscv_instr::VFDIV_R_H: begin
-        fpu_op = fpnew_pkg::DIV;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP16;
-        dst_fmt      = fpnew_pkg::FP16;
-        vectorial_op = 1'b1;
-        set_dyn_rm   = 1'b1;
-      end
       riscv_instr::VFMIN_H,
       riscv_instr::VFMIN_R_H: begin
         fpu_op = fpnew_pkg::MINMAX;
@@ -527,15 +489,6 @@ module snitch_fp_ss
         src_fmt      = fpnew_pkg::FP16;
         dst_fmt      = fpnew_pkg::FP16;
         vectorial_op = 1'b1;
-      end
-      riscv_instr::VFSQRT_H: begin
-        fpu_op = fpnew_pkg::SQRT;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP16;
-        dst_fmt      = fpnew_pkg::FP16;
-        vectorial_op = 1'b1;
-        set_dyn_rm   = 1'b1;
       end
       riscv_instr::VFCVT_H_S,
       riscv_instr::VFCVTU_H_S: begin
@@ -811,13 +764,6 @@ module snitch_fp_ss
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
-      riscv_instr::FDIV_B: begin
-        fpu_op = fpnew_pkg::DIV;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP8;
-        dst_fmt      = fpnew_pkg::FP8;
-      end
       riscv_instr::FSGNJ_B,
       riscv_instr::FSGNJN_B,
       riscv_instr::FSGNJX_B: begin
@@ -832,12 +778,6 @@ module snitch_fp_ss
         fpu_op = fpnew_pkg::MINMAX;
         op_select[0] = AccBus_A;
         op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP8;
-        dst_fmt      = fpnew_pkg::FP8;
-      end
-      riscv_instr::FSQRT_B: begin
-        fpu_op = fpnew_pkg::SQRT;
-        op_select[0] = AccBus_A;
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
@@ -979,16 +919,6 @@ module snitch_fp_ss
         vectorial_op = 1'b1;
         set_dyn_rm   = 1'b1;
       end
-      riscv_instr::VFDIV_B,
-      riscv_instr::VFDIV_R_B: begin
-        fpu_op = fpnew_pkg::DIV;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP8;
-        dst_fmt      = fpnew_pkg::FP8;
-        vectorial_op = 1'b1;
-        set_dyn_rm   = 1'b1;
-      end
       riscv_instr::VFMIN_B,
       riscv_instr::VFMIN_R_B: begin
         fpu_op = fpnew_pkg::MINMAX;
@@ -1047,15 +977,6 @@ module snitch_fp_ss
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
         vectorial_op = 1'b1;
-      end
-      riscv_instr::VFSQRT_B: begin
-        fpu_op = fpnew_pkg::SQRT;
-        op_select[0] = AccBus_A;
-        op_select[1] = AccBus_B;
-        src_fmt      = fpnew_pkg::FP8;
-        dst_fmt      = fpnew_pkg::FP8;
-        vectorial_op = 1'b1;
-        set_dyn_rm   = 1'b1;
       end
       riscv_instr::VFCVT_B_S,
       riscv_instr::VFCVTU_B_S: begin
