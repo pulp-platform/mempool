@@ -36,7 +36,7 @@
 #define N_CSAMPLES (${Len})
 #define N_RSAMPLES (2 * N_CSAMPLES)
 #define N_TWIDDLES (3 * N_CSAMPLES / 4)
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
+#define N_BANKS (NUM_CORES * BANKING_FACTOR * N_FU)
 #define BITREVINDEXTABLE_LENGTH (${BitrevLen})
 
 // Tolerance for correctness check

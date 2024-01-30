@@ -14,7 +14,7 @@ dependencies:
   reqrsp_interface:     { path: "hardware/deps/reqrsp_interface"                                                }
   snitch:               { path: "hardware/deps/snitch"                                                          }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.5      }
-  spatz:                { git: "git@iis-git.ee.ethz.ch:spatz/spatz.git",                    rev:   32038321     }
+  spatz:                { git: "git@iis-git.ee.ethz.ch:spatz/spatz.git",                    rev:   bc564237     }
   FPnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev:   pulp-v0.1.3  }
 
 workspace:

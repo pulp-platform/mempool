@@ -22,23 +22,21 @@
 #include <string.h>
 
 #include "printf.h"
-#ifdef MEMPOOL
 #include "alloc.h"
 #include "runtime.h"
 #include "synchronization.h"
-#endif
-// #include "data/data_64_64_64.h"
+#include "data/data_64_64_64.h"
 // #include "data/data_128_128_128.h"
 // #include "data/data_128_256_128.h"
 // #include "data/data_4096_32_64.h"
-#include "data/data_1024_32_64.h"
+// #include "data/data_1024_32_64.h"
 // #include "data/data_512_32_64.h"
 // #include "data/data_256_32_64.h"
 // #include "data/data_256_256_256.h"
 #include "kernel/sp-fmatmul.c"
 
 // set the number of cores used to calculate
-const unsigned int active_core = 128;
+const unsigned int active_core = 4;
 
 // Initialize the matrices
 void init_matrix(float *matrix, const float *src,
@@ -86,7 +84,7 @@ int main() {
   timer = (unsigned int)-1;
 
   // Set matrix dimension
-  kernel_size = 4;
+  kernel_size = 8;
 
   // Work over complete P dimension
   p_start = 0;
