@@ -85,10 +85,10 @@ packages:
     dependencies:
       - common_cells
   spatz:
-    revision: bc564237a0489ace9655b46219feafd5ce84aa3e
+    revision: d57a31873bed255abd28f460cb99eda1fe64911d
     version: null
     source:
-      Git: git@iis-git.ee.ethz.ch:spatz/spatz.git
+      Git: git@github.com:pulp-platform/spatz.git
     dependencies:
     - axi
     - axi_riscv_atomics
