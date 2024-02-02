@@ -6,6 +6,8 @@
 
 #pragma once
 
+#ifdef __XDIVSQRT
+
 /* a[i] = ar[i] + i * ai[j]
 
    out[i][j] = a[i] / c[j]
@@ -66,6 +68,79 @@ static inline void chest_unrolled4_inner_loop_f16(__fp16 *pPilotTX, __fp16 *pH,
   *((uint32_t *)&pH[2 * (i * nTX + j + 3)]) = *(uint32_t *)&re3;
   return;
 }
+
+#else
+
+/* a[i] = ar[i] + i * ai[j]
+
+   out[i][j] = a[i] / c[j]
+   out[i][j + 1] = a[i] / c[j + 1h
+   out[i][j + 2] = a[i] / c[j + 2]
+   out[i][j + 3] = a[i] / c[j + 3]*/
+
+static inline void chest_unrolled4_inner_loop_f16(__fp16 *pPilotTX, __fp16 *pH,
+                                                  uint32_t nTX, uint32_t ab,
+                                                  uint32_t ab_n, uint32_t i,
+                                                  uint32_t j) {
+
+  uint32_t cd0, cd1, cd2, cd3;
+  float re0 = 0.0f, re1 = 0.0f, re2 = 0.0f, re3 = 0.0f;
+  float im0 = 0.0f, im1 = 0.0f, im2 = 0.0f, im3 = 0.0f;
+  float D0 = 0.0f, D1 = 0.0f, D2 = 0.0f, D3 = 0.0f;
+  cd0 = *(uint32_t *)&pPilotTX[2U * j];
+  cd1 = *(uint32_t *)&pPilotTX[2U * (j + 1)];
+  cd2 = *(uint32_t *)&pPilotTX[2U * (j + 2)];
+  cd3 = *(uint32_t *)&pPilotTX[2U * (j + 3)];
+  asm volatile(
+      // Compute denominator
+      "vfdotpex.s.h   %[D0],  %[cd0],  %[cd0];"
+      "vfdotpex.s.h   %[D1],  %[cd1],  %[cd1];"
+      "vfdotpex.s.h   %[D2],  %[cd2],  %[cd2];"
+      "vfdotpex.s.h   %[D3],  %[cd3],  %[cd3];"
+      // Compute numerator
+      "vfdotpex.s.h   %[re0], %[ab],   %[cd0];"
+      "vfdotpex.s.h   %[re1], %[ab],   %[cd1];"
+      "vfdotpex.s.h   %[re2], %[ab],   %[cd2];"
+      "vfdotpex.s.h   %[re3], %[ab],   %[cd3];"
+      "vfdotpex.s.h   %[im0], %[ab_n], %[cd0];"
+      "vfdotpex.s.h   %[im1], %[ab_n], %[cd1];"
+      "vfdotpex.s.h   %[im2], %[ab_n], %[cd2];"
+      "vfdotpex.s.h   %[im3], %[ab_n], %[cd3];"
+      : [D0] "+&r"(D0), [D1] "+&r"(D1), [D2] "+&r"(D2), [D3] "+&r"(D3),
+        [re0] "+&r"(re0), [re1] "+&r"(re1), [re2] "+&r"(re2), [re3] "+&r"(re3),
+        [im0] "+&r"(im0), [im1] "+&r"(im1), [im2] "+&r"(im2), [im3] "+&r"(im3)
+      : [cd0] "r"(cd0), [cd1] "r"(cd1), [cd2] "r"(cd2), [cd3] "r"(cd3),
+        [ab] "r"(ab), [ab_n] "r"(ab_n)
+      :);
+  re0 = re0 / D0;
+  re1 = re1 / D1;
+  re2 = re2 / D2;
+  re3 = re3 / D3;
+  im0 = im0 / D0;
+  im1 = im1 / D1;
+  im2 = im2 / D2;
+  im3 = im3 / D3;
+  asm volatile(
+      // Pack in 32b word
+      "vfcpka.h.s       %[re0], %[re0], %[im0];"
+      "vfcpka.h.s       %[re1], %[re1], %[im1];"
+      "vfcpka.h.s       %[re2], %[re2], %[im2];"
+      "vfcpka.h.s       %[re3], %[re3], %[im3];"
+      : [D0] "+&r"(D0), [D1] "+&r"(D1), [D2] "+&r"(D2), [D3] "+&r"(D3),
+        [re0] "+&r"(re0), [re1] "+&r"(re1), [re2] "+&r"(re2), [re3] "+&r"(re3),
+        [im0] "+&r"(im0), [im1] "+&r"(im1), [im2] "+&r"(im2), [im3] "+&r"(im3)
+      : [cd0] "r"(cd0), [cd1] "r"(cd1), [cd2] "r"(cd2), [cd3] "r"(cd3),
+        [ab] "r"(ab), [ab_n] "r"(ab_n)
+      :);
+
+  *((uint32_t *)&pH[2 * (i * nTX + j)]) = *(uint32_t *)&re0;
+  *((uint32_t *)&pH[2 * (i * nTX + j + 1)]) = *(uint32_t *)&re1;
+  *((uint32_t *)&pH[2 * (i * nTX + j + 2)]) = *(uint32_t *)&re2;
+  *((uint32_t *)&pH[2 * (i * nTX + j + 3)]) = *(uint32_t *)&re3;
+  return;
+}
+
+#endif
 
 /**
   @brief         Block-type channel estimation.

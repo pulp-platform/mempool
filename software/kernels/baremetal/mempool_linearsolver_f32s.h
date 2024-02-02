@@ -7,6 +7,8 @@
 #pragma once
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
+#ifdef __XDIVSQRT
+
 /**
   @brief         Single-core solution of lower triangular system
   @param[in]     pL input triangular matrix
@@ -219,3 +221,5 @@ void mempool_Lttrisol_folded_f32s(float *pL, float *in, float *x,
   }
   return;
 }
+
+#endif
