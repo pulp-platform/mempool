@@ -7,6 +7,8 @@
 #pragma once
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
+#ifdef __XDIVSQRT
+
 /**
   @brief         Cholesky decomposition with Crout algorithm.
   @param[in]     pSrc  points to input matrix
@@ -162,3 +164,5 @@ void mempool_cholesky_folded_f32s(float *pSrc, float *pL, const uint32_t n) {
   }
   return;
 }
+
+#endif

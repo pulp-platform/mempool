@@ -243,6 +243,8 @@ void mempool_MVP_conjtransp_f32s(float *pH, float *px, float *py,
   return;
 }
 
+#ifdef __XDIVSQRT
+
 /**
   @brief         Inverts a system using the Jacobi method
   @param[in]     pA     points to input matrix
@@ -386,3 +388,5 @@ void mempool_jacobi_f32s(float *pA, float *in, float *px, const uint32_t n,
   }
   return;
 }
+
+#endif
