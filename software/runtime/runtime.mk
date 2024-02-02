@@ -24,7 +24,8 @@ OMP_DIR            ?= $(ROOT_DIR)/omp
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
-ZFINX      		?= $(zfinx)
+ZFINX         ?= $(zfinx)
+XDIVSQRT	  ?= $(xDivSqrt)
 
 RISCV_XLEN    ?= 32
 
@@ -116,6 +117,14 @@ RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -std=gnu99 -O3 -ffast-math 
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool # -falign-loops=32 -falign-jumps=32
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -misched-topdown -menable-experimental-extensions
 
+# Disable division and square root
+ifeq ($(XDIVSQRT), 0)
+	RISCV_FLAGS_LLVM += -mno-fdiv
+else
+	# Define if the extension is active
+	DEFINES       += -D__XDIVSQRT
+endif
+
 ifeq ($(COMPILER),gcc)
 	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
@@ -127,7 +136,11 @@ else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
-	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+	ifeq ($(XDIVSQRT), 0)
+		RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx,+nofdiv
+	else
+		RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+	endif
 	# For unit tests
 	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 endif
