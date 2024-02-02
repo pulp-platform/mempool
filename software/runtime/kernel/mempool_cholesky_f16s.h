@@ -8,6 +8,8 @@
 #pragma once
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
+#ifdef __XDIVSQRT
+
 /**
   @brief         Cholesky decomposition with Crout algorithm.
   @param[in]     pSrc  points to input matrix
@@ -421,3 +423,88 @@ void mempool_cholesky_f16vecs_unroll4(__fp16 *pSrc, __fp16 *pL,
   }
   return;
 }
+
+#else
+
+/** VECTORIZED CODE
+  @brief         Cholesky decomposition with Crout algorithm.
+  Output data is folded to the core's local memory.
+  @param[in]     pSrc  points to input matrix
+  @param[in]     pL points to output lower triangular matrix
+  @param[in]     n dimension of the input data
+  @return        none
+*/
+void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
+
+  float sum;            // register float sum
+  float as, bs;         // real and imaginary sums
+  float diag_f32;       // Diagonal element
+  float ap_f32, bp_f32; // real and imaginary pivot
+
+  __fp16 diag;   // Diagonal element
+  __fp16 ap, bp; // real and imaginary pivot
+
+  v2h vec_sum;
+  v2h ab, cd, ndc;
+
+  uint32_t i, j, k;
+
+  for (j = 0; j < n; j++) {
+
+    // Elements on diagonal (input matrix is positive-definite)
+    ap = pSrc[2U * (j * n + j)];
+    asm volatile("fcvt.s.h %0, %1;" : "=r"(sum) : "r"(ap) :);
+    for (k = 0; k < j; k++) {
+      ab = (*(v2h *)&pL[2U * (j * n + k)]);
+      asm volatile("vfndotpex.s.h %[sum], %[ab], %[ab];"
+                   : [sum] "+&r"(sum)
+                   : [ab] "r"(ab)
+                   :);
+    }
+    sum = (float)sqrt(sum);
+    asm volatile("fcvt.h.s %0, %1;" : "=r"(ap) : "r"(sum) :);
+    pL[2U * (j * n + j)] = ap;
+
+    // Elements on rows
+    for (i = j + 1; i < n; i++) {
+      // Pivot
+      ap = pSrc[2U * (i * n + j)];
+      bp = pSrc[2U * (i * n + j + 1)];
+      // Diag
+      diag = pL[2U * (j * n + j)];
+
+      // Sum -> s = s + (ac + bd) + j*(bc - ad)
+      as = (float)0.0f;
+      bs = (float)0.0f;
+      asm volatile("fcvt.s.h %0, %1;" : "=r"(ap_f32) : "r"(ap) :);
+      asm volatile("fcvt.s.h %0, %1;" : "=r"(bp_f32) : "r"(bp) :);
+      asm volatile("fcvt.s.h %0, %1;" : "=r"(diag_f32) : "r"(diag) :);
+      for (k = 0; k < j; k++) {
+        ab = (*(v2h *)&pL[2U * (i * n + k)]);
+        cd = (*(v2h *)&pL[2U * (j * n + k)]);
+        const uint32_t neg_mask = 0x00008000;
+        const uint32_t shuffle_mask = 0x00020003;
+        asm volatile(
+            // s = s + (ac + bd) + j(bc - ad)
+            "vfdotpex.s.h  %[as],  %[ab], %[cd];"
+            "pv.shuffle2.h %[ndc], %[cd], %[shuffle_mask];"
+            "xor %[ndc], %[neg_mask], %[ndc];"
+            "vfdotpex.s.h  %[bs],  %[ab], %[ndc];"
+            : [as] "+&r"(as), [bs] "+&r"(bs), [ndc] "+r"(ndc)
+            : [ab] "r"(ab), [cd] "r"(cd), [neg_mask] "r"(neg_mask),
+              [shuffle_mask] "r"(shuffle_mask)
+            :);
+      }
+      as = (ap_f32 - as) / diag_f32;
+      bs = (bp_f32 - bs) / diag_f32;
+      asm volatile("vfcpka.h.s %0, %1, %2;"
+                   : "=r"(vec_sum)
+                   : "r"(as), "r"(bs)
+                   :);
+      (*(v2h *)&pL[2U * (i * n + j)]) = vec_sum;
+    }
+  }
+  return;
+}
+
+#endif
