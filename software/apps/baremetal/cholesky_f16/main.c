@@ -4,6 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#include <math.h>
+
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
@@ -42,7 +44,7 @@ int main() {
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_cholesky_f16s(l1_GIn, l1_LOut, dim_N);
+    mempool_cholesky_f16vecs(l1_GIn, l1_LOut, dim_N);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -53,7 +55,7 @@ int main() {
     mempool_start_benchmark();
     __fp16 *ptr_in_matrix = l1_GIn + i * 2 * dim_N * dim_N;
     __fp16 *ptr_out_matrix = l1_LOut + i * 2 * dim_N * dim_N;
-    mempool_cholesky_f16s(ptr_in_matrix, ptr_out_matrix, dim_N);
+    mempool_cholesky_f16vecs(ptr_in_matrix, ptr_out_matrix, dim_N);
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();

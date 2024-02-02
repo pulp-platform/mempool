@@ -4,6 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#include <math.h>
+
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
@@ -69,7 +71,7 @@ int main() {
     mempool_start_benchmark();
     mempool_hermitian_f16s(l1_H, l1_G, l1_Sigma, N_RX, N_TX, 0, 0);
     mempool_MVP_conjtransp_f16s(l1_H, l1_y, y2, N_RX, N_TX, 0);
-    mempool_cholesky_f16s(l1_G, l1_L, N_TX);
+    mempool_cholesky_f16vecs(l1_G, l1_L, N_TX);
     mempool_Ltrisol_f16s(l1_L, y2, y3, N_TX);
     mempool_Lttrisol_f16s(l1_L, y3, l1_x, N_TX);
     mempool_stop_benchmark();
@@ -98,7 +100,7 @@ int main() {
     for (uint32_t itr_bg = 0; itr_bg < N_bg; itr_bg++) {
       mempool_hermitian_f16vecs(PtrH, PtrG, PtrSigma, N_RX, N_TX_bg);
       mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX_bg);
-      mempool_cholesky_f16s(PtrG, PtrL, N_TX_bg);
+      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX_bg);
       mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX_bg);
       mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX_bg);
 
@@ -131,11 +133,11 @@ int main() {
         y3 + (itr % num_cores) * (2 * N_TX) + (itr / num_cores) * (N_BANKS);
     __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
 
-    mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
-    mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
-    mempool_cholesky_f16s(PtrG, PtrL, N_TX);
-    mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
-    mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+    mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 1, 0);
+    mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 1);
+    mempool_cholesky_folded_f16s(PtrG, PtrL, N_TX);
+    mempool_Ltrisol_folded_f16s(PtrL, Ptry2, Ptry3, N_TX);
+    mempool_Lttrisol_folded_f16s(PtrL, Ptry3, Ptrx, N_TX);
   }
   mempool_log_barrier(2, core_id);
   mempool_stop_benchmark();
