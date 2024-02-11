@@ -10,6 +10,7 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+uint32_t volatile cluster_barrier __attribute__((section(".l2")));
 uint32_t volatile barrier __attribute__((section(".l1")));
 uint32_t volatile log_barrier[NUM_CORES * 4]
     __attribute__((aligned(NUM_CORES * 4), section(".l1")));
@@ -19,6 +20,7 @@ uint32_t volatile partial_barrier[NUM_CORES * 4]
 void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {
     // Initialize the barrier
+    cluster_barrier = 0;
     barrier = 0;
     wake_up_all();
     mempool_wfi();
@@ -43,6 +45,35 @@ void mempool_barrier(uint32_t num_cores) {
   // Some threads have not reached the barrier --> Let's wait
   // Clear the wake-up trigger for the last core reaching the barrier as well
   mempool_wfi();
+}
+
+// Cluster 0 is the master all cluster synchronize with
+void mempool_cluster_barrier(uint32_t core_id, uint32_t cluster_id, uint32_t num_cores) {
+
+  // MASTER
+  if (cluster_id == 1) {
+    if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
+      __atomic_store_n(&barrier, 0, __ATOMIC_RELAXED);
+      __sync_synchronize();
+      cluster_barrier = 1;
+      // Core 0 loops until the other cluster is ready
+      while(cluster_barrier == 1) { mempool_wait(100); }
+      wake_up_all();
+    }
+    mempool_wfi();
+  // SLAVE
+  } else {
+    if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
+      __atomic_store_n(&barrier, 0, __ATOMIC_RELAXED);
+      __sync_synchronize();
+      // Core 0 loops until the other cluster is ready
+      while(cluster_barrier == 0) { mempool_wait(100); }
+      wake_up_all();
+    }
+    mempool_wfi();
+  }
+  cluster_barrier = 0;
+
 }
 
 void mempool_log_barrier(uint32_t step, uint32_t core_id) {

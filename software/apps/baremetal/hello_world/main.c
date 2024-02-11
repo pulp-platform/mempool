@@ -14,18 +14,30 @@
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
+  uint32_t cluster_id = mempool_get_cluster_id();
   uint32_t num_cores = mempool_get_core_count();
   // Initialize synchronization variables
   mempool_barrier_init(core_id);
 
-  if (core_id != 0) {
-    mempool_wfi();
+  if (cluster_id == 0) {
+    if (core_id != 0) {
+      mempool_wfi();
+    }
+    printf("Core %3d, Cluster %3d says Hello!\n", core_id, cluster_id);
+    wake_up(core_id + 1);
   }
+  // wait until all clusters have finished
+  mempool_cluster_barrier(core_id, cluster_id, num_cores);
 
-  printf("Core %3d says Hello!\n", core_id);
-  wake_up(core_id + 1);
+  if (cluster_id == 1) {
+    if (core_id != 0) {
+      mempool_wfi();
+    }
+    printf("Core %3d, Cluster %3d says Hello!\n", core_id, cluster_id);
+    wake_up(core_id + 1);
+  }
+  // wait until all clusters have finished
+  mempool_cluster_barrier(core_id, cluster_id, num_cores);
 
-  // wait until all cores have finished
-  mempool_barrier(num_cores);
   return 0;
 }
