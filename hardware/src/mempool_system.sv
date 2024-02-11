@@ -62,7 +62,6 @@ module mempool_system
   //        \_|
   //                  == axi ==>
 
-  localparam NumAXIMasters = NumSystemXbarMasters;
   localparam NumAXISlaves  = 3; // control regs, bootrom and the external mst ports
   localparam NumSoCRules   = NumAXISlaves - 1;
 
@@ -77,23 +76,24 @@ module mempool_system
     L2Memory = 1
   } axi_mst_demux_slave_target;
 
-  axi_tile_req_t    [NumAXIMasters-1:0] axi_mst_req;
-  axi_tile_resp_t   [NumAXIMasters-1:0] axi_mst_resp;
-  axi_tile_req_t    [NumAXIMasters-1:0] axi_l2_req;
-  axi_tile_resp_t   [NumAXIMasters-1:0] axi_l2_resp;
-  axi_tile_req_t    [NumAXIMasters-1:0] axi_soc_req;
-  axi_tile_resp_t   [NumAXIMasters-1:0] axi_soc_resp;
+  axi_tile_req_t    [NumSystemXbarMasters-1:0] axi_mst_req;
+  axi_tile_resp_t   [NumSystemXbarMasters-1:0] axi_mst_resp;
+  axi_tile_req_t    [NumSystemXbarMasters-1:0] axi_cluster_req;
+  axi_tile_req_t    [NumSystemXbarMasters-1:0] axi_l2_req;
+  axi_tile_resp_t   [NumSystemXbarMasters-1:0] axi_l2_resp;
+  axi_tile_req_t    [NumSystemXbarMasters-1:0] axi_soc_req;
+  axi_tile_resp_t   [NumSystemXbarMasters-1:0] axi_soc_resp;
   axi_system_req_t  [NumAXISlaves-1:0]  axi_periph_req;
   axi_system_resp_t [NumAXISlaves-1:0]  axi_periph_resp;
-  logic             [NumCores-1:0]      wake_up;
-  logic             [DataWidth-1:0]     eoc;
-  ro_cache_ctrl_t                       ro_cache_ctrl;
 
-  dma_req_t  dma_req;
-  logic      dma_req_valid;
-  logic      dma_req_ready;
-  dma_meta_t dma_meta;
-  logic      [1-1:0] dma_id;
+  logic             [NumClusters-1:0][NumCores-1:0]      wake_up;
+  logic             [NumClusters-1:0]                    eoc_valid;
+  ro_cache_ctrl_t   [NumClusters-1:0]                    ro_cache_ctrl;
+  dma_req_t  [NumClusters-1:0]dma_req;
+  logic      [NumClusters-1:0]dma_req_valid;
+  logic      [NumClusters-1:0]dma_req_ready;
+  dma_meta_t [NumClusters-1:0]dma_meta;
+  logic      [NumClusters-1:0][1-1:0] dma_id;
 
   localparam xbar_cfg_t MstDemuxCfg = '{
     NoSlvPorts         : 1, // Each master has a private demux
@@ -112,7 +112,7 @@ module mempool_system
   };
 
   localparam xbar_cfg_t SoCXBarCfg = '{
-    NoSlvPorts         : NumAXIMasters,
+    NoSlvPorts         : NumSystemXbarMasters,
     NoMstPorts         : NumAXISlaves,
     MaxMstTrans        : 4,
     MaxSlvTrans        : 4,
@@ -130,26 +130,64 @@ module mempool_system
   /*********************
    *  MemPool Cluster  *
    ********************/
+  assign eoc_valid_o = eoc_valid[0];
+  for(genvar i = 0; i < NumClusters; i++) begin: gen_clusters
+    mempool_cluster #(
+      .TCDMBaseAddr(TCDMBaseAddr),
+      .BootAddr    (BootAddr    )
+    ) i_mempool_cluster (
+      .clk_i          (clk_i                          ),
+      .rst_ni         (rst_ni                         ),
+      .cluster_id_i   (i                              ),
+      .wake_up_i      (wake_up[i]                     ),
+      .testmode_i     (1'b0                           ),
+      .scan_enable_i  (1'b0                           ),
+      .scan_data_i    (1'b0                           ),
+      .scan_data_o    (/* Unused */                   ),
+      .ro_cache_ctrl_i(ro_cache_ctrl[i]                  ),
+      .dma_req_i      (dma_req[i]                        ),
+      .dma_req_valid_i(dma_req_valid[i]                  ),
+      .dma_req_ready_o(dma_req_ready[i]                  ),
+      .dma_meta_o     (dma_meta[i]                       ),
+      .axi_mst_req_o  (axi_cluster_req[i*NumClusterAXIMasters +: NumClusterAXIMasters] ),
+      .axi_mst_resp_i (axi_mst_resp[i*NumClusterAXIMasters +: NumClusterAXIMasters])
+    );
 
-  mempool_cluster #(
-    .TCDMBaseAddr(TCDMBaseAddr),
-    .BootAddr    (BootAddr    )
-  ) i_mempool_cluster (
-    .clk_i          (clk_i                          ),
-    .rst_ni         (rst_ni                         ),
-    .wake_up_i      (wake_up                        ),
-    .testmode_i     (1'b0                           ),
-    .scan_enable_i  (1'b0                           ),
-    .scan_data_i    (1'b0                           ),
-    .scan_data_o    (/* Unused */                   ),
-    .ro_cache_ctrl_i(ro_cache_ctrl                  ),
-    .dma_req_i      (dma_req                        ),
-    .dma_req_valid_i(dma_req_valid                  ),
-    .dma_req_ready_o(dma_req_ready                  ),
-    .dma_meta_o     (dma_meta                       ),
-    .axi_mst_req_o  (axi_mst_req[NumAXIMasters-2:0] ),
-    .axi_mst_resp_i (axi_mst_resp[NumAXIMasters-2:0])
-  );
+    for(genvar j = 0; j < NumClusterAXIMasters; j++) begin: gen_axi_assignment
+      // address_write
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.id = axi_cluster_req[i*NumClusterAXIMasters+j].aw.id;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.addr = axi_cluster_req[i*NumClusterAXIMasters+j].aw.addr;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.len = axi_cluster_req[i*NumClusterAXIMasters+j].aw.len;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.size = axi_cluster_req[i*NumClusterAXIMasters+j].aw.size;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.burst = axi_cluster_req[i*NumClusterAXIMasters+j].aw.burst;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.lock = axi_cluster_req[i*NumClusterAXIMasters+j].aw.lock;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.cache = axi_cluster_req[i*NumClusterAXIMasters+j].aw.cache;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.prot = axi_cluster_req[i*NumClusterAXIMasters+j].aw.prot;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.qos = axi_cluster_req[i*NumClusterAXIMasters+j].aw.qos;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.region = axi_cluster_req[i*NumClusterAXIMasters+j].aw.region;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.atop = axi_cluster_req[i*NumClusterAXIMasters+j].aw.atop;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw.user = i;
+      // address_read
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.id = axi_cluster_req[i*NumClusterAXIMasters+j].ar.id;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.addr = axi_cluster_req[i*NumClusterAXIMasters+j].ar.addr;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.len = axi_cluster_req[i*NumClusterAXIMasters+j].ar.len;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.size = axi_cluster_req[i*NumClusterAXIMasters+j].ar.size;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.burst = axi_cluster_req[i*NumClusterAXIMasters+j].ar.burst;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.lock = axi_cluster_req[i*NumClusterAXIMasters+j].ar.lock;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.cache = axi_cluster_req[i*NumClusterAXIMasters+j].ar.cache;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.prot = axi_cluster_req[i*NumClusterAXIMasters+j].ar.prot;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.qos = axi_cluster_req[i*NumClusterAXIMasters+j].ar.qos;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.region = axi_cluster_req[i*NumClusterAXIMasters+j].ar.region;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar.user = i;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].aw_valid = axi_cluster_req[i*NumClusterAXIMasters+j].aw_valid;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].w = axi_cluster_req[i*NumClusterAXIMasters+j].w;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].w_valid = axi_cluster_req[i*NumClusterAXIMasters+j].w_valid;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].b_ready = axi_cluster_req[i*NumClusterAXIMasters+j].b_ready;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].ar_valid = axi_cluster_req[i*NumClusterAXIMasters+j].ar_valid;
+      assign axi_mst_req[i*NumClusterAXIMasters+j].r_ready = axi_cluster_req[i*NumClusterAXIMasters+j].r_ready;
+    end
+
+  end
 
   /**********************
    *  AXI Interconnect  *
@@ -172,7 +210,7 @@ module mempool_system
     '{idx: Bootrom, start_addr: BootromBaseAddr, end_addr: BootromEndAddr}
   };
 
-  for (genvar i = 0; i < NumAXIMasters; i++) begin : gen_mst_demux
+  for (genvar i = 0; i < NumSystemXbarMasters; i++) begin : gen_mst_demux
     axi_xbar #(
       .Cfg          (MstDemuxCfg      ),
       .slv_aw_chan_t(axi_tile_aw_t    ),
@@ -228,8 +266,8 @@ module mempool_system
     .mst_ports_req_o      (axi_periph_req           ),
     .mst_ports_resp_i     (axi_periph_resp          ),
     .addr_map_i           (soc_xbar_rules           ),
-    .en_default_mst_port_i({NumAXIMasters{1'b1}}    ), // default all slave ports to master port External
-    .default_mst_port_i   ({NumAXIMasters{External}})
+    .en_default_mst_port_i({NumSystemXbarMasters{1'b1}}    ), // default all slave ports to master port External
+    .default_mst_port_i   ({NumSystemXbarMasters{External}})
   );
 
 `ifndef DRAM
@@ -238,20 +276,20 @@ module mempool_system
    *  L2 SRAM  *
    *************/
 
-  localparam int unsigned NumAXIMastersLog2 = NumAXIMasters == 1 ? 1 : $clog2(NumAXIMasters);
+  localparam int unsigned NumAXIMastersLog2 = NumSystemXbarMasters == 1 ? 1 : $clog2(NumSystemXbarMasters);
   typedef logic [L2AddrWidth-1:0] l2_mem_addr_t;
   typedef logic [L2BankAddrWidth-1:0] l2_bank_addr_t;
   typedef logic [NumAXIMastersLog2-1:0] bank_ini_t;
   // Axi2Mems to l2_xbar
-  logic         [NumAXIMasters-1:0] mem_req;
-  logic         [NumAXIMasters-1:0] mem_gnt;
-  logic         [NumAXIMasters-1:0] mem_rvalid;
-  addr_t        [NumAXIMasters-1:0] mem_addr_full;
-  l2_mem_addr_t [NumAXIMasters-1:0] mem_addr;
-  axi_data_t    [NumAXIMasters-1:0] mem_wdata;
-  axi_strb_t    [NumAXIMasters-1:0] mem_strb;
-  logic         [NumAXIMasters-1:0] mem_we;
-  axi_data_t    [NumAXIMasters-1:0] mem_rdata;
+  logic         [NumSystemXbarMasters-1:0] mem_req;
+  logic         [NumSystemXbarMasters-1:0] mem_gnt;
+  logic         [NumSystemXbarMasters-1:0] mem_rvalid;
+  addr_t        [NumSystemXbarMasters-1:0] mem_addr_full;
+  l2_mem_addr_t [NumSystemXbarMasters-1:0] mem_addr;
+  axi_data_t    [NumSystemXbarMasters-1:0] mem_wdata;
+  axi_strb_t    [NumSystemXbarMasters-1:0] mem_strb;
+  logic         [NumSystemXbarMasters-1:0] mem_we;
+  axi_data_t    [NumSystemXbarMasters-1:0] mem_rdata;
   // l2_xbar to banks
   logic          [NumL2Banks-1:0] bank_req;
   logic          [NumL2Banks-1:0] bank_gnt;
@@ -263,7 +301,7 @@ module mempool_system
   logic          [NumL2Banks-1:0] bank_we;
   axi_data_t     [NumL2Banks-1:0] bank_rdata;
 
-  for (genvar i = 0; i < NumAXIMasters; i++) begin : gen_l2_adapters
+  for (genvar i = 0; i < NumSystemXbarMasters; i++) begin : gen_l2_adapters
     axi2mem #(
       .axi_req_t (axi_tile_req_t ),
       .axi_resp_t(axi_tile_resp_t),
@@ -291,7 +329,7 @@ module mempool_system
   end
 
   variable_latency_interconnect #(
-    .NumIn            (NumAXIMasters  ),
+    .NumIn            (NumSystemXbarMasters  ),
     .NumOut           (NumL2Banks     ),
     .AddrWidth        (L2AddrWidth    ),
     .DataWidth        (L2BankWidth    ),
@@ -368,13 +406,13 @@ module mempool_system
   axi_system_resp_t [NumDrams-1:0]     dram_resp;
 
   // AXI brust splitter for DRAM interleaving
-  axi_tile_req_t  [NumAXIMasters-1:0] axi_l2_req_splitted;
-  axi_tile_resp_t [NumAXIMasters-1:0] axi_l2_resp_splitted;
-  axi_tile_req_t  [NumAXIMasters-1:0] axi_l2_req_interleaved;
+  axi_tile_req_t  [NumSystemXbarMasters-1:0] axi_l2_req_splitted;
+  axi_tile_resp_t [NumSystemXbarMasters-1:0] axi_l2_resp_splitted;
+  axi_tile_req_t  [NumSystemXbarMasters-1:0] axi_l2_req_interleaved;
 
   generate
     if (DmaBrustLen > Interleave) begin : gen_axi_splitter
-      for (genvar i = 0; unsigned'(i) < NumAXIMasters; i++) begin: brust_splitter
+      for (genvar i = 0; unsigned'(i) < NumSystemXbarMasters; i++) begin: brust_splitter
         axi_burst_splitter #(
           .MaxReadTxns (16             ),
           .MaxWriteTxns(16             ),
@@ -404,17 +442,17 @@ module mempool_system
   localparam int unsigned ScrambleBits = (NumDrams == 1) ? 1 : $clog2(NumDrams);
   localparam int unsigned ReminderBits = AddrWidth - ScrambleBits - ConstantBits;
   // req.aw scrambling
-  logic [NumAXIMasters-1:0][ConstantBits-1:0] aw_const;
-  logic [NumAXIMasters-1:0][ScrambleBits-1:0] aw_scramble;
-  logic [NumAXIMasters-1:0][ReminderBits-1:0] aw_reminder;
-  logic [NumAXIMasters-1:0][AddrWidth-1   :0] aw_scramble_addr;
+  logic [NumSystemXbarMasters-1:0][ConstantBits-1:0] aw_const;
+  logic [NumSystemXbarMasters-1:0][ScrambleBits-1:0] aw_scramble;
+  logic [NumSystemXbarMasters-1:0][ReminderBits-1:0] aw_reminder;
+  logic [NumSystemXbarMasters-1:0][AddrWidth-1   :0] aw_scramble_addr;
   // req.ar scrambling
-  logic [NumAXIMasters-1:0][ConstantBits-1:0] ar_const;
-  logic [NumAXIMasters-1:0][ScrambleBits-1:0] ar_scramble;
-  logic [NumAXIMasters-1:0][ReminderBits-1:0] ar_reminder;
-  logic [NumAXIMasters-1:0][AddrWidth-1   :0] ar_scramble_addr;
+  logic [NumSystemXbarMasters-1:0][ConstantBits-1:0] ar_const;
+  logic [NumSystemXbarMasters-1:0][ScrambleBits-1:0] ar_scramble;
+  logic [NumSystemXbarMasters-1:0][ReminderBits-1:0] ar_reminder;
+  logic [NumSystemXbarMasters-1:0][AddrWidth-1   :0] ar_scramble_addr;
 
-  for (genvar i = 0; unsigned'(i) < NumAXIMasters; i++) begin: gen_dram_scrambler
+  for (genvar i = 0; unsigned'(i) < NumSystemXbarMasters; i++) begin: gen_dram_scrambler
     assign aw_const[i]         = axi_l2_req_splitted[i].aw.addr[ConstantBits-1 : 0];
     assign aw_scramble[i]      = axi_l2_req_splitted[i].aw.addr[ScrambleBits+ConstantBits-1 : ConstantBits];
     assign aw_reminder[i]      = axi_l2_req_splitted[i].aw.addr[AddrWidth-1 : ScrambleBits+ConstantBits];
@@ -444,7 +482,7 @@ module mempool_system
 
   // AXI Crossbar
   localparam xbar_cfg_t DRAMXBarCfg = '{
-    NoSlvPorts         : NumAXIMasters,
+    NoSlvPorts         : NumSystemXbarMasters,
     NoMstPorts         : NumDrams,
     MaxMstTrans        : 16,
     MaxSlvTrans        : 16,
@@ -483,7 +521,7 @@ module mempool_system
     .mst_ports_req_o      (dram_req_interleaved  ),
     .mst_ports_resp_i     (dram_resp             ),
     .addr_map_i           (dram_xbar_rules       ),
-    .en_default_mst_port_i({NumAXIMasters{1'b1}} ),
+    .en_default_mst_port_i({NumSystemXbarMasters{1'b1}} ),
     .default_mst_port_i   ('0                    )
   );
 
@@ -610,10 +648,14 @@ module mempool_system
 
   axi_periph_req_t                     axi_periph_narrow_req;
   axi_periph_resp_t                    axi_periph_narrow_resp;
-  axi_lite_slv_req_t                   axi_lite_mst_req;
-  axi_lite_slv_resp_t                  axi_lite_mst_resp;
-  axi_lite_slv_req_t  [NumPeriphs-1:0] axi_lite_slv_req;
-  axi_lite_slv_resp_t [NumPeriphs-1:0] axi_lite_slv_resp;
+  axi_periph_req_t    [NumClusters-1:0] axi_demuxed_narrow_req;
+  axi_periph_resp_t   [NumClusters-1:0] axi_demuxed_narrow_resp;
+  axi_lite_slv_req_t  [NumClusters-1:0] axi_lite_mst_req;
+  axi_lite_slv_resp_t [NumClusters-1:0] axi_lite_mst_resp;
+  axi_lite_slv_req_t  [NumClusters-1:0][NumPeriphs-1:0] axi_lite_slv_req;
+  axi_lite_slv_resp_t [NumClusters-1:0][NumPeriphs-1:0] axi_lite_slv_resp;
+
+
 
   localparam xbar_cfg_t AXILiteXBarCfg = '{
     NoSlvPorts         : 1,
@@ -670,90 +712,118 @@ module mempool_system
     .mst_resp_i (axi_periph_narrow_resp      )
   );
 
-  axi_to_axi_lite #(
-    .AxiAddrWidth   (AddrWidth          ),
-    .AxiDataWidth   (AxiLiteDataWidth   ),
-    .AxiIdWidth     (AxiSystemIdWidth   ),
-    .AxiUserWidth   (1                  ),
-    .AxiMaxReadTxns (1                  ),
-    .AxiMaxWriteTxns(1                  ),
-    .FallThrough    (1'b0               ),
-    .full_req_t     (axi_periph_req_t   ),
-    .full_resp_t    (axi_periph_resp_t  ),
-    .lite_req_t     (axi_lite_slv_req_t ),
-    .lite_resp_t    (axi_lite_slv_resp_t)
-  ) i_axi_to_axi_lite (
-    .clk_i     (clk_i                 ),
-    .rst_ni    (rst_ni                ),
-    .test_i    (1'b0                  ),
-    .slv_req_i (axi_periph_narrow_req ),
-    .slv_resp_o(axi_periph_narrow_resp),
-    .mst_req_o (axi_lite_mst_req      ),
-    .mst_resp_i(axi_lite_mst_resp     )
+  // Demux AXI signal between peripherals for each cluster
+  axi_demux #(
+    .AxiIdWidth          (AxiSystemIdWidth ), // ID width
+    .aw_chan_t           (axi_system_aw_t  ), // AW Channel Type
+    .w_chan_t            (axi_periph_w_t   ), //  W Channel Type
+    .b_chan_t            (axi_system_b_t   ), //  B Channel Type
+    .ar_chan_t           (axi_system_ar_t  ), // AR Channel Type
+    .r_chan_t            (axi_periph_r_t   ), //  R Channel Type
+    .axi_req_t           (axi_periph_req_t ), // AXI Request Type
+    .axi_resp_t          (axi_periph_resp_t), // AXI Response Type
+    .NoMstPorts (NumClusters        ), // Number of instantiated ports
+    .MaxTrans   (4                  )  // Maximum number of open transactions per channel
+  ) axi_periph_demux_i(
+    .clk_i            (clk_i                         ),
+    .rst_ni           (rst_ni                        ),
+    .test_i           (/*unused*/                    ),
+    // Slave Port
+    .slv_req_i        (axi_periph_narrow_req         ),
+    .slv_aw_select_i  (axi_periph_narrow_req.aw.user  ),
+    .slv_ar_select_i  (axi_periph_narrow_req.ar.user ),
+    .slv_resp_o       (axi_periph_narrow_resp        ),
+    // Master Ports
+    .mst_reqs_o       (axi_demuxed_narrow_req        ),
+    .mst_resps_i      (axi_demuxed_narrow_resp       )
   );
 
-  axi_lite_xbar #(
-    .Cfg       (AXILiteXBarCfg     ),
-    .aw_chan_t (axi_lite_slv_aw_t  ),
-    .w_chan_t  (axi_lite_slv_w_t   ),
-    .b_chan_t  (axi_lite_slv_b_t   ),
-    .ar_chan_t (axi_lite_slv_ar_t  ),
-    .r_chan_t  (axi_lite_slv_r_t   ),
-    .axi_req_t (axi_lite_slv_req_t ),
-    .axi_resp_t(axi_lite_slv_resp_t),
-    .rule_t    (xbar_rule_32_t     )
-  ) i_axi_lite_xbar (
-    .clk_i                (clk_i              ),
-    .rst_ni               (rst_ni             ),
-    .test_i               (1'b0               ),
-    .slv_ports_req_i      (axi_lite_mst_req   ),
-    .slv_ports_resp_o     (axi_lite_mst_resp  ),
-    .mst_ports_req_o      (axi_lite_slv_req   ),
-    .mst_ports_resp_i     (axi_lite_slv_resp  ),
-    .addr_map_i           (axi_lite_xbar_rules),
-    .en_default_mst_port_i('1                 ),
-    .default_mst_port_i   (CtrlRegisters      )
-  );
+  // Generate cluster peripherals
+  for(genvar i = 0; i < NumClusters; i++) begin: gen_cluster_peripherals
 
-  ctrl_registers #(
-    .NumRegs          (16 + 8             ),
-    .TCDMBaseAddr     (TCDMBaseAddr       ),
-    .TCDMSize         (TCDMSize           ),
-    .NumCores         (NumCores           ),
-    .axi_lite_req_t (axi_lite_slv_req_t ),
-    .axi_lite_resp_t(axi_lite_slv_resp_t)
-  ) i_ctrl_registers (
-    .clk_i                (clk_i                           ),
-    .rst_ni               (rst_ni                          ),
-    .axi_lite_slave_req_i (axi_lite_slv_req[CtrlRegisters] ),
-    .axi_lite_slave_resp_o(axi_lite_slv_resp[CtrlRegisters]),
-    .ro_cache_ctrl_o      (ro_cache_ctrl                   ),
-    .tcdm_start_address_o (/* Unused */                    ),
-    .tcdm_end_address_o   (/* Unused */                    ),
-    .num_cores_o          (/* Unused */                    ),
-    .wake_up_o            (wake_up                         ),
-    .eoc_o                (/* Unused */                    ),
-    .eoc_valid_o          (eoc_valid_o                     )
-  );
+    axi_to_axi_lite #(
+      .AxiAddrWidth   (AddrWidth          ),
+      .AxiDataWidth   (AxiLiteDataWidth   ),
+      .AxiIdWidth     (AxiSystemIdWidth   ),
+      .AxiUserWidth   (1                  ),
+      .AxiMaxReadTxns (1                  ),
+      .AxiMaxWriteTxns(1                  ),
+      .FallThrough    (1'b0               ),
+      .full_req_t     (axi_periph_req_t   ),
+      .full_resp_t    (axi_periph_resp_t  ),
+      .lite_req_t     (axi_lite_slv_req_t ),
+      .lite_resp_t    (axi_lite_slv_resp_t)
+    ) i_axi_to_axi_lite (
+      .clk_i     (clk_i                     ),
+      .rst_ni    (rst_ni                    ),
+      .test_i    (1'b0                      ),
+      .slv_req_i (axi_demuxed_narrow_req[i] ),
+      .slv_resp_o(axi_demuxed_narrow_resp[i]),
+      .mst_req_o (axi_lite_mst_req[i]       ),
+      .mst_resp_i(axi_lite_mst_resp[i]      )
+    );
+    axi_lite_xbar #(
+      .Cfg       (AXILiteXBarCfg     ),
+      .aw_chan_t (axi_lite_slv_aw_t  ),
+      .w_chan_t  (axi_lite_slv_w_t   ),
+      .b_chan_t  (axi_lite_slv_b_t   ),
+      .ar_chan_t (axi_lite_slv_ar_t  ),
+      .r_chan_t  (axi_lite_slv_r_t   ),
+      .axi_req_t (axi_lite_slv_req_t ),
+      .axi_resp_t(axi_lite_slv_resp_t),
+      .rule_t    (xbar_rule_32_t     )
+    ) i_axi_lite_xbar (
+      .clk_i                (clk_i                 ),
+      .rst_ni               (rst_ni                ),
+      .test_i               (1'b0                  ),
+      .slv_ports_req_i      (axi_lite_mst_req[i]   ),
+      .slv_ports_resp_o     (axi_lite_mst_resp[i]  ),
+      .mst_ports_req_o      (axi_lite_slv_req[i]   ),
+      .mst_ports_resp_i     (axi_lite_slv_resp[i]  ),
+      .addr_map_i           (axi_lite_xbar_rules   ),
+      .en_default_mst_port_i('1                    ),
+      .default_mst_port_i   (CtrlRegisters         )
+    );
 
-  mempool_dma #(
-    .axi_lite_req_t(axi_lite_slv_req_t       ),
-    .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
-    .burst_req_t   (dma_req_t                ),
-    .NumBackends   (NumGroups                ),
-    .DmaIdWidth    (1                        )
-  ) i_mempool_dma (
-    .clk_i           (clk_i                  ),
-    .rst_ni          (rst_ni                 ),
-    .config_req_i    (axi_lite_slv_req[DMA]  ),
-    .config_res_o    (axi_lite_slv_resp[DMA] ),
-    .burst_req_o     (dma_req                ),
-    .valid_o         (dma_req_valid          ),
-    .ready_i         (dma_req_ready          ),
-    .backend_idle_i  (dma_meta.backend_idle  ),
-    .trans_complete_i(dma_meta.trans_complete),
-    .dma_id_o        (dma_id                 )
-  );
+    ctrl_registers #(
+      .NumRegs          (16 + 8             ),
+      .TCDMBaseAddr     (TCDMBaseAddr       ),
+      .TCDMSize         (TCDMSize           ),
+      .NumCores         (NumCores           ),
+      .axi_lite_req_t (axi_lite_slv_req_t ),
+      .axi_lite_resp_t(axi_lite_slv_resp_t)
+    ) i_ctrl_registers (
+      .clk_i                (clk_i                               ),
+      .rst_ni               (rst_ni                              ),
+      .axi_lite_slave_req_i (axi_lite_slv_req[i][CtrlRegisters]  ),
+      .axi_lite_slave_resp_o(axi_lite_slv_resp[i][CtrlRegisters] ),
+      .ro_cache_ctrl_o      (ro_cache_ctrl[i]                    ),
+      .tcdm_start_address_o (/* Unused */                        ),
+      .tcdm_end_address_o   (/* Unused */                        ),
+      .num_cores_o          (/* Unused */                        ),
+      .wake_up_o            (wake_up[i]                          ),
+      .eoc_o                (/* Unused */                        ),
+      .eoc_valid_o          (eoc_valid[i]                        )
+    );
+    mempool_dma #(
+      .axi_lite_req_t(axi_lite_slv_req_t       ),
+      .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
+      .burst_req_t   (dma_req_t                ),
+      .NumBackends   (NumGroups                ),
+      .DmaIdWidth    (1                        )
+    ) i_mempool_dma (
+      .clk_i           (clk_i                           ),
+      .rst_ni          (rst_ni                          ),
+      .config_req_i    (axi_lite_slv_req[i][DMA]        ),
+      .config_res_o    (axi_lite_slv_resp[i][DMA]       ),
+      .burst_req_o     (dma_req[i]                      ),
+      .valid_o         (dma_req_valid[i]                ),
+      .ready_i         (dma_req_ready[i]                ),
+      .backend_idle_i  (dma_meta[i].backend_idle        ),
+      .trans_complete_i(dma_meta[i].trans_complete      ),
+      .dma_id_o        (dma_id[i]                       )
+    );
+  end
 
   assign busy_o = 1'b0;
 
@@ -775,8 +845,8 @@ module mempool_system
     .rst_ni    (rst_ni                       ),
     .slv_req_i (slv_req_i                    ),
     .slv_resp_o(slv_resp_o                   ),
-    .mst_req_o (axi_mst_req[NumAXIMasters-1] ),
-    .mst_resp_i(axi_mst_resp[NumAXIMasters-1])
+    .mst_req_o (axi_mst_req[NumSystemXbarMasters-1] ),
+    .mst_resp_i(axi_mst_resp[NumSystemXbarMasters-1])
   );
 
 endmodule : mempool_system

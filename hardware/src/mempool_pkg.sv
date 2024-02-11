@@ -14,6 +14,7 @@ package mempool_pkg;
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
+  localparam integer unsigned NumClusters      = 2;
   localparam integer unsigned NumCores         = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
   localparam integer unsigned NumCoresPerTile  = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
   localparam integer unsigned NumGroups        = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
@@ -99,7 +100,8 @@ package mempool_pkg;
 
   localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
 
-  localparam NumSystemXbarMasters = (NumGroups * NumAXIMastersPerGroup) + 1; // +1 because the external host is also a master
+  localparam NumClusterAXIMasters = NumGroups * NumAXIMastersPerGroup;
+  localparam NumSystemXbarMasters = (NumClusters * NumGroups * NumAXIMastersPerGroup) + 1; // +1 because the external host is also a master
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
   typedef logic [AxiSystemIdWidth-1:0] axi_system_id_t;
 
