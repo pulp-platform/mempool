@@ -24,6 +24,7 @@ module mempool_cluster
   input  logic                               scan_enable_i,
   input  logic                               scan_data_i,
   output logic                               scan_data_o,
+  input  logic                   [31:0]      cluster_id_i,
   // Wake up signal
   input  logic           [NumCores-1:0]      wake_up_i,
   // RO-Cache configuration
@@ -320,6 +321,7 @@ module mempool_cluster
           .scan_enable_i           (scan_enable_i                                                   ),
           .scan_data_i             (/* Unconnected */                                               ),
           .scan_data_o             (/* Unconnected */                                               ),
+          .cluster_id_i            (cluster_id_i                                                    ),
           .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
           // TCDM Master interfaces
           .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
@@ -358,6 +360,7 @@ module mempool_cluster
           .scan_enable_i           (scan_enable_i                                                   ),
           .scan_data_i             (/* Unconnected */                                               ),
           .scan_data_o             (/* Unconnected */                                               ),
+          .cluster_id_i            (cluster_id_i                                                    ),
           .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
           // TCDM Master interfaces
           .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
@@ -441,6 +444,7 @@ module mempool_cluster
         .scan_enable_i           (scan_enable_i                                                   ),
         .scan_data_i             (/* Unconnected */                                               ),
         .scan_data_o             (/* Unconnected */                                               ),
+        .cluster_id_i            (cluster_id_i                                                    ),
         .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
         // TCDM Master interfaces
         .tcdm_master_req_o       (tcdm_master_req[g]                                              ),

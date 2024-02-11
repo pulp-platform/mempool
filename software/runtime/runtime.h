@@ -40,6 +40,13 @@ static inline mempool_id_t mempool_get_core_id() {
   return r;
 }
 
+/// Obtain the ID of the current cluster.
+static inline mempool_id_t mempool_get_cluster_id() {
+  mempool_id_t r;
+  asm volatile("csrr %0, 0xf15" : "=r"(r));
+  return r;
+}
+
 /// Obtain the number of tiles in the current cluster.
 static inline uint32_t mempool_get_tile_count() {
   return NUM_CORES / NUM_CORES_PER_TILE;

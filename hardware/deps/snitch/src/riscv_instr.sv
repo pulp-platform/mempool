@@ -1145,6 +1145,7 @@ package riscv_instr;
   localparam logic [11:0] CSR_MARCHID = 12'hf12;
   localparam logic [11:0] CSR_MIMPID = 12'hf13;
   localparam logic [11:0] CSR_MHARTID = 12'hf14;
+  localparam logic [11:0] CSR_MCLUSTERID = 12'hf15;
   localparam logic [11:0] CSR_SSR = 12'h7c0;
   localparam logic [11:0] CSR_FPMODE = 12'h7c1;
   localparam logic [11:0] CSR_HTIMEDELTAH = 12'h615;

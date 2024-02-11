@@ -25,6 +25,7 @@ module mempool_group
   input  logic                                                    scan_enable_i,
   input  logic                                                    scan_data_i,
   output logic                                                    scan_data_o,
+  input  logic [31:0]                                             cluster_id_i,
   // Group ID
   input  logic [idx_width(NumGroups)-1:0]                         group_id_i,
   `ifdef TERAPOOL
@@ -345,6 +346,7 @@ module mempool_group
           .scan_enable_i           (scan_enable_i                                                         ),
           .scan_data_i             (/* Unconnected */                                                     ),
           .scan_data_o             (/* Unconnected */                                                     ),
+          .cluster_id_i            (cluster_id_i                                                          ),
           .sub_group_id_i          (id                                                                    ),
           // TCDM Master interfaces for groups
           .tcdm_master_req_o       (tran_tcdm_master_req                                                  ),
@@ -658,6 +660,7 @@ module mempool_group
         .scan_enable_i           (scan_enable_i                                  ),
         .scan_data_i             (/* Unconnected */                              ),
         .scan_data_o             (/* Unconnected */                              ),
+        .cluster_id_i            (cluster_id_i                                   ),
         .tile_id_i               (id                                             ),
         // TCDM Master interfaces
         .tcdm_master_req_o       (tran_tcdm_master_req                           ),

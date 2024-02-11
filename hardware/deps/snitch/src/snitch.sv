@@ -23,6 +23,7 @@ module snitch
 ) (
   input  logic          clk_i,
   input  logic          rst_i,
+  input  logic [31:0]   cluster_id_i,
   input  logic [31:0]   hart_id_i,
   // Instruction Refill Port
   output logic [31:0]   inst_addr_o,
@@ -1401,6 +1402,9 @@ module snitch
     // Right now we skip this due to simplicity.
     if (csr_en) begin
       unique case (csr_source_dest)
+        riscv_instr::CSR_MCLUSTERID: begin
+          csr_rvalue = cluster_id_i;
+        end
         riscv_instr::CSR_MHARTID: begin
           csr_rvalue = hart_id_i;
         end

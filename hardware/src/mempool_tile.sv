@@ -23,6 +23,7 @@ module mempool_tile
   input  logic                                                                    scan_enable_i,
   input  logic                                                                    scan_data_i,
   output logic                                                                    scan_data_o,
+  input  logic                   [31:0]      cluster_id_i,
   // Tile ID
   input  logic              [idx_width(NumTiles)-1:0]                             tile_id_i,
   // TCDM Master interfaces
@@ -130,6 +131,7 @@ module mempool_tile
       ) riscv_core (
         .clk_i         (clk_i                                                    ),
         .rst_i         (!rst_ni                                                  ),
+        .cluster_id_i  (cluster_id_i                                             ),
         .hart_id_i     (hart_id                                                  ),
         // IMEM Port
         .inst_addr_o   (snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache] ),

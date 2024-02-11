@@ -16,6 +16,7 @@ module mempool_cc
 ) (
   input  logic               clk_i,
   input  logic               rst_i,
+  input  logic [31:0]        cluster_id_i,
   input  logic [31:0]        hart_id_i,
   // Instruction Port
   output logic [31:0]        inst_addr_o,
@@ -64,6 +65,7 @@ module mempool_cc
   ) i_snitch (
     .clk_i                                   ,
     .rst_i                                   ,
+    .cluster_id_i                            ,
     .hart_id_i                               ,
     .inst_addr_o                             ,
     .inst_data_i                             ,
