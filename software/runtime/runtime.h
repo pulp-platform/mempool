@@ -17,6 +17,7 @@ extern char l1_alloc_base;
 extern uint32_t atomic_barrier;
 extern volatile uint32_t wake_up_reg;
 extern volatile uint32_t wake_up_group_reg;
+extern volatile uint32_t barrier_cluster_reg;
 
 extern volatile uint32_t wake_up_tile_g0_reg;
 extern volatile uint32_t wake_up_tile_g1_reg;

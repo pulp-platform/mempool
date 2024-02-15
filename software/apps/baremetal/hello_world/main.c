@@ -27,7 +27,7 @@ int main() {
     wake_up(core_id + 1);
   }
   // wait until all clusters have finished
-  mempool_cluster_barrier(core_id, cluster_id, num_cores);
+  mempool_cluster_barrier(num_cores);
 
   if (cluster_id == 1) {
     if (core_id != 0) {
@@ -37,7 +37,7 @@ int main() {
     wake_up(core_id + 1);
   }
   // wait until all clusters have finished
-  mempool_cluster_barrier(core_id, cluster_id, num_cores);
+  mempool_cluster_barrier(num_cores);
 
   return 0;
 }

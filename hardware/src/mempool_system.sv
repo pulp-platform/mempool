@@ -87,6 +87,10 @@ module mempool_system
   axi_system_resp_t [NumAXISlaves-1:0]  axi_periph_resp;
 
   logic             [NumClusters-1:0][NumCores-1:0]      wake_up;
+  logic             [NumClusters-1:0][NumCores-1:0]      wake_up_cluster;
+  logic             [NumClusters-1:0]                    barrier_cluster;
+  logic             [NumClusters-1:0]                    cluster_synch_q;
+  logic             [NumClusters-1:0]                    cluster_synch_d;
   logic             [NumClusters-1:0]                    eoc_valid;
   ro_cache_ctrl_t   [NumClusters-1:0]                    ro_cache_ctrl;
   dma_req_t  [NumClusters-1:0]dma_req;
@@ -131,6 +135,25 @@ module mempool_system
    *  MemPool Cluster  *
    ********************/
   assign eoc_valid_o = eoc_valid[0];
+
+  // Wake up logic
+  always_comb begin
+    if(~rst_ni) begin
+      // Reset cluster_synch to zero
+      cluster_synch_d = '0;
+      wake_up_cluster = '0;
+    end else begin
+      // Wait trigger from all clusters
+      for(int i = 0; i < NumClusters; i++) begin
+        cluster_synch_d[i] = &cluster_synch_q ? 1'b0 : (barrier_cluster[i] ? 1 : cluster_synch_q[i]);
+        // Wake up clusters when all triggers arrived
+        wake_up_cluster[i] = &cluster_synch_q ? '1 : wake_up[i];
+      end
+    end
+  end
+
+  `FF(cluster_synch_q, cluster_synch_d, '0, clk_i, rst_ni)
+
   for(genvar i = 0; i < NumClusters; i++) begin: gen_clusters
     mempool_cluster #(
       .TCDMBaseAddr(TCDMBaseAddr),
@@ -139,7 +162,7 @@ module mempool_system
       .clk_i          (clk_i                          ),
       .rst_ni         (rst_ni                         ),
       .cluster_id_i   (i                              ),
-      .wake_up_i      (wake_up[i]                     ),
+      .wake_up_i      (wake_up_cluster[i]             ),
       .testmode_i     (1'b0                           ),
       .scan_enable_i  (1'b0                           ),
       .scan_data_i    (1'b0                           ),
@@ -655,8 +678,6 @@ module mempool_system
   axi_lite_slv_req_t  [NumClusters-1:0][NumPeriphs-1:0] axi_lite_slv_req;
   axi_lite_slv_resp_t [NumClusters-1:0][NumPeriphs-1:0] axi_lite_slv_resp;
 
-
-
   localparam xbar_cfg_t AXILiteXBarCfg = '{
     NoSlvPorts         : 1,
     NoMstPorts         : NumPeriphs,
@@ -786,7 +807,7 @@ module mempool_system
     );
 
     ctrl_registers #(
-      .NumRegs          (16 + 8             ),
+      .NumRegs          (17 + 8             ),
       .TCDMBaseAddr     (TCDMBaseAddr       ),
       .TCDMSize         (TCDMSize           ),
       .NumCores         (NumCores           ),
@@ -802,6 +823,7 @@ module mempool_system
       .tcdm_end_address_o   (/* Unused */                        ),
       .num_cores_o          (/* Unused */                        ),
       .wake_up_o            (wake_up[i]                          ),
+      .barrier_cluster_o    (barrier_cluster[i]                  ),
       .eoc_o                (/* Unused */                        ),
       .eoc_valid_o          (eoc_valid[i]                        )
     );

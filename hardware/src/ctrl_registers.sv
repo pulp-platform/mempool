@@ -26,6 +26,7 @@ module ctrl_registers
   output logic      [DataWidth-1:0]      eoc_o,
   output logic                           eoc_valid_o,
   output logic      [NumCores-1:0]       wake_up_o,
+  output logic                           barrier_cluster_o,
   output logic      [DataWidth-1:0]      tcdm_start_address_o,
   output logic      [DataWidth-1:0]      tcdm_end_address_o,
   output logic      [DataWidth-1:0]      num_cores_o,
@@ -82,6 +83,7 @@ module ctrl_registers
     TCDMBaseAddr,
     {DataWidth{1'b0}},
     {DataWidth{1'b0}},
+    {DataWidth{1'b0}},
     {DataWidth{1'b0}}
   };
 
@@ -102,6 +104,7 @@ module ctrl_registers
     ReadOnlyReg,
     ReadWriteReg,
     ReadWriteReg,
+    ReadWriteReg,
     ReadWriteReg
   };
 
@@ -111,6 +114,7 @@ module ctrl_registers
   logic [DataWidth-1:0]   eoc;
   logic [DataWidth-1:0]   wake_up;
   logic [DataWidth-1:0]   wake_up_group;
+  logic [DataWidth-1:0]   wake_up_cluster;
   logic [DataWidth-1:0]   tcdm_start_address;
   logic [DataWidth-1:0]   tcdm_end_address;
   logic [DataWidth-1:0]   num_cores;
@@ -152,7 +156,8 @@ module ctrl_registers
                     ro_cache_end_1, ro_cache_start_1,
                     ro_cache_end_0, ro_cache_start_0,
                     ro_cache_flush, ro_cache_enable,
-                    num_cores, tcdm_end_address, tcdm_start_address, wake_up_group, wake_up, eoc  })
+                    num_cores, tcdm_end_address, tcdm_start_address,
+                    wake_up_cluster, wake_up_group, wake_up, eoc  })
   );
 
   /***************
@@ -177,6 +182,13 @@ module ctrl_registers
 
   always_comb begin
     wake_up_o = '0;
+    barrier_cluster_o = '0;
+
+    // Sends a barrier trigger to synchronize clusters
+    if (wr_active_q[15:12]) begin
+      barrier_cluster_o = 1;
+    end
+
     // converts 32 bit wake up to 256 bit
     if (wr_active_q[7:4]) begin
       if (wake_up < NumCores) begin
@@ -199,7 +211,7 @@ module ctrl_registers
     // converts 32 bit tile wake up mask to 256 bit core wake up mask
     for(int i_g = 0; i_g < NumGroups; i_g = i_g + 1) begin
 
-      if (wr_active_q[64 + 4 * i_g +: 4]) begin
+      if (wr_active_q[68 + 4 * i_g +: 4]) begin
         if (wake_up_tile[i_g * DataWidth +: DataWidth] <= {NumTilesPerGroup{1'b1}}) begin
           for (int i = 0; i < NumTilesPerGroup; i = i + 1) begin
             wake_up_o[NumCoresPerGroup * i_g + NumCoresPerTile * i +: NumCoresPerTile] = {NumCoresPerTile{wake_up_tile[i_g * DataWidth + i]}};
