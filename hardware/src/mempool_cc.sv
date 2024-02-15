@@ -212,9 +212,9 @@ module mempool_cc
     if(!rst_i) begin
       // Format in hex because vcs and vsim treat decimal differently
       // Format with 8 digits because Verilator does not support anything else
-      $sformat(fn, "trace_hart_0x%08x.dasm", hart_id_i);
+      $sformat(fn, "trace_hart_0x%08x.dasm", hart_id_i + mempool_pkg::NumCores * cluster_id_i);
       f = $fopen(fn, "w");
-      $display("[Tracer] Logging Hart %d to %s", hart_id_i, fn);
+      $display("[Tracer] Logging Hart %d to %s", hart_id_i + mempool_pkg::NumCores * cluster_id_i, fn);
     end
   end
 
