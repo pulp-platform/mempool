@@ -41,7 +41,8 @@ static inline uint32_t dma_done() {
 }
 
 static inline void dma_wait() {
-  while (!dma_done());
+  while (!dma_done())
+    ;
 }
 
 void dma_memcpy_nonblocking(void *dest, const void *src, size_t len) {

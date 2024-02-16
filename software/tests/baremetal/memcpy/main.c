@@ -17,12 +17,11 @@
 
 // Size in words
 #ifndef SIZE
-#define SIZE (16384)
+#define SIZE (8192)
 #endif
 
 #define DMA_ADDRESS (0x40010000)
 //#define VERIFY
-
 
 // Assume banking factor of 4
 int32_t l1_data[SIZE] __attribute__((section(".l1_prio")))
@@ -102,14 +101,14 @@ int main() {
   // wait until all cores have finished
   mempool_barrier(num_cores);
 
-  // Verify
-  #ifdef VERIFY
-    if (core_id == 0) {
-      verify_dma_single_core(l2_data_move_out, SIZE, l2_data, error);
-    }
-    // wait until all cores have finished
-    mempool_barrier(num_cores);
-  #endif
+// Verify
+#ifdef VERIFY
+  if (core_id == 0) {
+    verify_dma_single_core(l2_data_move_out, SIZE, l2_data, error);
+  }
+  // wait until all cores have finished
+  mempool_barrier(num_cores);
+#endif
 
   return error;
 }
