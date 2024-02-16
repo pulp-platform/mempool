@@ -36,26 +36,28 @@ for files in os.listdir(path):
         print("*******************************")
 
         print("")
-        for section in set(csvread['section']):
-            print("Section %d:\n" % section)
-            sectionread = csvread.loc[csvread['section'] == section]
-            keys = csvread.columns
-            remove_keys = ['core',
-                           'section',
-                           'start',
-                           'end',
-                           'snitch_load_latency',
-                           'snitch_load_region',
-                           'snitch_load_tile',
-                           'snitch_store_region',
-                           'snitch_store_tile']
-            keys = keys.drop(remove_keys, errors='raise')
-            for key in keys:
-                try:
-                    column = sectionread[key].replace(np.nan, 0)
-                    column = column.to_numpy()
-                    avg = np.average(column)
-                except Exception:
-                    # Key could not be averaged
-                    continue
-                print("%-30s %4.4f" % (key, avg))
+        for cluster in set(csvread['cluster']):
+            for section in set(csvread['section']):
+                print("\nSection {} Cluster {}:\n".format(section, cluster))
+                sectionread = csvread.loc[csvread['section'] == section]
+                keys = csvread.columns
+                remove_keys = ['core',
+                               'cluster',
+                               'section',
+                               'start',
+                               'end',
+                               'snitch_load_latency',
+                               'snitch_load_region',
+                               'snitch_load_tile',
+                               'snitch_store_region',
+                               'snitch_store_tile']
+                keys = keys.drop(remove_keys, errors='raise')
+                for key in keys:
+                    try:
+                        column = sectionread[key].replace(np.nan, 0)
+                        column = column.to_numpy()
+                        avg = np.average(column)
+                    except Exception:
+                        # Key could not be averaged
+                        continue
+                    print("%-30s %4.4f" % (key, avg))

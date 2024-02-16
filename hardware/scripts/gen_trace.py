@@ -467,6 +467,7 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
     keys = perf_metrics[0].keys()
     known_keys = [
         'core',
+        'cluster',
         'section',
         'start',
         'end',
@@ -564,6 +565,7 @@ def main():
         core_id = int(core_id_dec.group(1))
     else:
         core_id = -1
+    cluster_id = core_id // NUM_CORES
     # Prepare stateful data structures
     time_info = (0, 0)
     prev_wfi_time = 0
@@ -607,8 +609,9 @@ def main():
     # Add metadata
     for sec in perf_metrics:
         sec['core'] = core_id
+        sec['cluster'] = cluster_id
     # Emit metrics
-    print('\n## Performance metrics')
+    print('\n## Performance metrics cluster {}'.format(cluster_id))
     for idx in range(len(perf_metrics)):
         print('\n' + fmt_perf_metrics(perf_metrics, idx, not args.allkeys))
         sanity_check = sanity_check_perf_metrics(perf_metrics, idx)
