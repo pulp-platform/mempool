@@ -17,7 +17,7 @@
 
 // Size in words
 #ifndef SIZE
-#define SIZE (196608)
+#define SIZE (16384)
 #endif
 
 #define DMA_ADDRESS (0x40010000)
