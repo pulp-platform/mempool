@@ -30,17 +30,6 @@ boot_addr ?= 2684354560 # A0000000
 
 # L2 memory configuration (in dec)
 l2_base  ?= 2147483648 # 80000000
-ifeq ($(config), terapool)
-    l2_size  ?= 16777216 # 1000000
-    l2_banks ?= 16
-    dmas_per_group ?= 4  # Brust Length = 16
-    dram_axi_width_interleaved ?= 16
-else
-    l2_size  ?= 4194304  # 400000
-    l2_banks ?= 4
-    dmas_per_group ?= 1  # Brust Length = 16
-    dram_axi_width_interleaved ?= 16
-endif
 
 # L1 size per bank (in dec)
 l1_bank_size ?= 1024
@@ -74,3 +63,7 @@ xqueue_size ?= 0
 
 # Enable the XpulpIMG extension
 xpulpimg ?= 1
+
+# This parameter is only used for TeraPool configurations
+num_sub_groups_per_group ?= 1
+remote_group_latency_cycles ?= 7

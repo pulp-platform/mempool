@@ -15,19 +15,14 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#ifndef UNROLL
-#define UNROLL 1
-#endif
-#ifndef GROUP
-#define GROUP 1
+// Size in words
+#ifndef SIZE
+#define SIZE (196608)
 #endif
 
 #define DMA_ADDRESS (0x40010000)
+//#define VERIFY
 
-// Size in words
-#ifndef SIZE
-#define SIZE (16384)
-#endif
 
 // Assume banking factor of 4
 int32_t l1_data[SIZE] __attribute__((section(".l1_prio")))
@@ -92,8 +87,6 @@ int main() {
     dma_memcpy_blocking(l1_data, l2_data, SIZE * sizeof(int32_t));
     time = mempool_get_timer() - time;
     dump_end(time);
-    printf("Copy-in from L2 to L1 done! Transfer %d words takes %d cycles. \n",
-           SIZE, time);
   }
 
   mempool_barrier(num_cores);
@@ -104,19 +97,19 @@ int main() {
     dma_memcpy_blocking(l2_data_move_out, l1_data, SIZE * sizeof(int32_t));
     time = mempool_get_timer() - time;
     dump_end(time);
-    printf("Copy-out from L1 to L2 done! Transfer %d words takes %d cycles. \n",
-           SIZE, time);
   }
 
   // wait until all cores have finished
   mempool_barrier(num_cores);
 
   // Verify
-  verify_dma_parallel(l2_data_move_out, SIZE, core_id, num_cores, l2_data,
-                      error);
-
-  // wait until all cores have finished
-  mempool_barrier(num_cores);
+  #ifdef VERIFY
+    if (core_id == 0) {
+      verify_dma_single_core(l2_data_move_out, SIZE, l2_data, error);
+    }
+    // wait until all cores have finished
+    mempool_barrier(num_cores);
+  #endif
 
   return error;
 }
