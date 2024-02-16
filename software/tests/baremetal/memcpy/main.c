@@ -30,7 +30,6 @@ int32_t l2_data_move_out[SIZE] __attribute__((section(".l2_prio")))
 __attribute__((aligned(16 * 512)));
 
 dump(addr, 0);
-dump(start, 2);
 dump(end, 3);
 dump(dma, 7);
 
