@@ -66,11 +66,21 @@ package mempool_pkg;
   localparam integer unsigned L2DramBeWidth    = L2DramWidth/8;
   localparam integer unsigned L2DramByteOffset = $clog2(L2DramBeWidth);
 
+  typedef logic [AxiCoreIdWidth-1:0    ] axi_core_id_t;
+  typedef logic [AxiTileIdWidth-1:0    ] axi_tile_id_t;
+  typedef logic [AxiDataWidth-1:0      ] axi_data_t;
+  typedef logic [AxiDataWidth/8-1:0    ] axi_strb_t;
+  typedef logic [AxiLiteDataWidth-1:0  ] axi_lite_data_t;
+  typedef logic [AxiLiteDataWidth/8-1:0] axi_lite_strb_t;
+  typedef logic [AddrWidth-1:0         ] addr_t;
+  typedef logic [DataWidth-1:0         ] data_t;
+  typedef logic [BeWidth-1:0           ] strb_t;
+
   `ifdef DRAM
     // DRAM Interleaving Functions
     typedef struct packed {
-      int                                             dram_ctrl_id;
-      logic [AddrWidth-1:0]                           dram_ctrl_addr;
+      int                   dram_ctrl_id;
+      logic [AddrWidth-1:0] dram_ctrl_addr;
     } dram_ctrl_interleave_t;
 
     localparam int unsigned Interleave  = `ifdef DRAM_AXI_WIDTH_INTERLEAVED `DRAM_AXI_WIDTH_INTERLEAVED `else 16 `endif;
@@ -87,16 +97,6 @@ package mempool_pkg;
       return res;
     endfunction
   `endif
-
-  typedef logic [AxiCoreIdWidth-1:0] axi_core_id_t;
-  typedef logic [AxiTileIdWidth-1:0] axi_tile_id_t;
-  typedef logic [AxiDataWidth-1:0] axi_data_t;
-  typedef logic [AxiDataWidth/8-1:0] axi_strb_t;
-  typedef logic [AxiLiteDataWidth-1:0] axi_lite_data_t;
-  typedef logic [AxiLiteDataWidth/8-1:0] axi_lite_strb_t;
-  typedef logic [AddrWidth-1:0] addr_t;
-  typedef logic [DataWidth-1:0] data_t;
-  typedef logic [BeWidth-1:0] strb_t;
 
   localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
 
