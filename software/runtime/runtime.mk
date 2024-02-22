@@ -24,7 +24,7 @@ OMP_DIR            ?= $(ROOT_DIR)/omp
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
-ZFINX_RV      ?= $(zfinx_rv)
+ZFINX      		?= $(zfinx)
 
 RISCV_XLEN    ?= 32
 
@@ -54,7 +54,7 @@ else
 	# Use LLVM by default
 	# LLVM compiler -march
 	RISCV_ARCH ?= rv$(RISCV_XLEN)ima
-	ifeq ($(ZFINX_RV), 1)
+	ifeq ($(ZFINX), 1)
 		RISCV_ARCH := $(RISCV_ARCH)_zfinx
 		RISCV_ARCH := $(RISCV_ARCH)_zhinx
 		RISCV_ARCH := $(RISCV_ARCH)_zquarterinx
