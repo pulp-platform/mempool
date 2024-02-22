@@ -36,13 +36,13 @@
 #define BITREVINDEXTABLE_LENGTH (${BitrevLen})
 
 
-__fp16 l2_pFFT_Src[${2 * N_sc * N_rx}] = ${array_to_cstr(pFFT_src)};
+__fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_pFFT_Src[${2 * N_sc * N_rx}] = ${array_to_cstr(pFFT_src)};
 
-__fp16 l2_twiddleCoef_f16[${2 * N_sc}] = ${array_to_cstr(pTw_coef)};
+__fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_twiddleCoef_f16[${2 * N_sc}] = ${array_to_cstr(pTw_coef)};
 
-__fp16 l2_pBF_Coef[${2 * N_bs * N_rx}] = ${array_to_cstr(pBF_coef)};
+__fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_pBF_Coef[${2 * N_bs * N_rx}] = ${array_to_cstr(pBF_coef)};
 
-__fp16 l2_pBF_Dst[${2 * N_bs * N_sc}] = ${array_to_cstr(pBF_dst)};
+__fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_pBF_Dst[${2 * N_bs * N_sc}] = ${array_to_cstr(pBF_dst)};
 
 // Bitreversal
 uint16_t l2_BitRevIndexTable[${BitrevLen}] = ${array_to_str(bitrev)};

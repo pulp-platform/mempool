@@ -17,6 +17,6 @@
 
 #define N (${n_matrix})
 
-int32_t l2_GIn[${n_matrix * n_matrix}] = ${array_to_cstr(G)};
-int32_t l2_LOut[${n_matrix * n_matrix}] = ${array_to_cstr(L)};
-int32_t l2_y[${n_matrix}] = ${array_to_cstr(y)};
+int32_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_GIn[${n_matrix * n_matrix}] = ${array_to_cstr(G)};
+int32_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_LOut[${n_matrix * n_matrix}] = ${array_to_cstr(L)};
+int32_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_y[${n_matrix}] = ${array_to_cstr(y)};

@@ -17,7 +17,5 @@
 
 #define dim_N (${n_matrix})
 #define N_SAMPLES (${n_samples})
-
-__fp16 l2_GIn[2 * ${n_samples * n_matrix * n_matrix}] = ${array_to_cstr(G)};
-
-__fp16 l2_LOut[2 * ${n_samples * n_matrix * n_matrix}] = ${array_to_cstr(L)};
+__fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_GIn[2 * ${n_samples * n_matrix * n_matrix}] = ${array_to_cstr(G)};
+__fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_LOut[2 * ${n_samples * n_matrix * n_matrix}] = ${array_to_cstr(L)};
