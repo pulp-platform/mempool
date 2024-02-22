@@ -98,7 +98,7 @@ module mempool_system
   localparam xbar_cfg_t MstDemuxCfg = '{
     NoSlvPorts         : 1, // Each master has a private demux
     NoMstPorts         : 2, // going to either the xbar or L2
-    MaxMstTrans        : 4,
+    MaxMstTrans        : 8,
     MaxSlvTrans        : 4,
     FallThrough        : 1'b0,
     LatencyMode        : axi_pkg::NO_LATENCY,
@@ -446,9 +446,9 @@ module mempool_system
   localparam xbar_cfg_t DRAMXBarCfg = '{
     NoSlvPorts         : NumAXIMasters,
     NoMstPorts         : NumDrams,
-    MaxMstTrans        : 16,
-    MaxSlvTrans        : 16,
-    FallThrough        : 16,
+    MaxMstTrans        : 8,
+    MaxSlvTrans        : 4,
+    FallThrough        : 1'b0,
     LatencyMode        : axi_pkg::CUT_MST_PORTS,
     AxiIdWidthSlvPorts : AxiTileIdWidth,
     AxiIdUsedSlvPorts  : AxiTileIdWidth,

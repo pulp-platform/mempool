@@ -259,7 +259,7 @@ module axi_hier_interco
     axi_id_remap #(
       .AxiSlvPortIdWidth    (CacheIdWidth ),
       .AxiSlvPortMaxUniqIds (2**MstIdWidth),
-      .AxiMaxTxnsPerId      (4            ),
+      .AxiMaxTxnsPerId      (8            ),
       .AxiMstPortIdWidth    (MstIdWidth   ),
       .slv_req_t            (cache_req_t  ),
       .slv_resp_t           (cache_resp_t ),
