@@ -15,8 +15,8 @@ package snitch_pkg;
   localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads);
   // Xpulpimg extension enabled?
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
-  // Zfinx_rv extension enabled?
-  localparam bit ZFINX_RV = `ifdef ZFINX_RV `ZFINX_RV `else 1'bX `endif;
+  // ZFINX extension enabled?
+  localparam bit ZFINX = `ifdef ZFINX `ZFINX `else 1'bX `endif;
   // XDivSqrt extension enabled?
   localparam bit XDIVSQRT = `ifdef XDIVSQRT `XDIVSQRT `else 1'bX `endif;
 

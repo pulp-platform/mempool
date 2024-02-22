@@ -110,7 +110,7 @@ endif
 endif
 
 ifeq ($(COMPILER), llvm)
-ifeq ($(zfinx_rv),1)
+ifeq ($(zfinx),1)
 
 	rv32uzfinx_snitch_sc_tests = \
 		fadd \

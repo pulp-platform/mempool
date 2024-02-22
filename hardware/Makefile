@@ -107,7 +107,7 @@ vlog_defs += -DL2_BASE=32\'d$(l2_base) -DL2_SIZE=32\'d$(l2_size) -DL2_BANKS=$(l2
 vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
 vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr)
 vlog_defs += -DXPULPIMG=$(xpulpimg)
-vlog_defs += -DZFINX_RV=$(zfinx_rv)
+vlog_defs += -DZFINX=$(zfinx)
 vlog_defs += -DXDIVSQRT=$(xDivSqrt)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
