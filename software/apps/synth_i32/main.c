@@ -9,7 +9,7 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "kernel/synth.h"
+#include "mempool_synth_i32p.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"

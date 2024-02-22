@@ -4,7 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#include "xpulp/builtins_v2.h"
+#include "builtins_v2.h"
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 #ifndef ASM

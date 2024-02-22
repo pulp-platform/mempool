@@ -6,7 +6,7 @@
 //         Davide Schiavone, ETH Zurich
 //         Sergio Mazzola, ETH Zurich
 
-#include "xpulp/builtins_v2.h"
+#include "builtins_v2.h"
 #include <stdint.h>
 #include <string.h>
 

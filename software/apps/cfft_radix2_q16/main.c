@@ -11,17 +11,17 @@
 #include <string.h>
 
 /* Mempool runtime libraries */
+#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "xpulp/builtins_v2.h"
 
 /* CFFT mempool libraries */
-#include "data/data_cfft_radix2_q16.h"
-#include "kernel/mempool_radix2_cfft_q16p.h"
-#include "kernel/mempool_radix2_cfft_q16s.h"
+#include "data_cfft_radix2_q16.h"
+#include "mempool_radix2_cfft_q16p.h"
+#include "mempool_radix2_cfft_q16s.h"
 
 #define PARALLEL
 #define SINGLE

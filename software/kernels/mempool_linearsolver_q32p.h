@@ -24,7 +24,7 @@ increase the utilization of the cores operating on multiple problems.
         RIGHT
 */
 
-#include "kernel/mempool_sqrt_q32s.h"
+#include "mempool_sqrt_q32s.h"
 
 /**
   @brief         First step of Cholesky.

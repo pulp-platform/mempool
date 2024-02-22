@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "kernel/mat_mul.h"
 #include "libgomp.h"
 #include "printf.h"
 #include "runtime.h"

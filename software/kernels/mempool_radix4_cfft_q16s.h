@@ -4,7 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#include "xpulp/builtins_v2.h"
+#include "builtins_v2.h"
 
 void mempool_radix4_cfft_q16s_riscv32(int16_t *pIn, uint32_t fftLen,
                                       int16_t *pCoef16,

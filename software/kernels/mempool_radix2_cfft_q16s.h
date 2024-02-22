@@ -5,7 +5,7 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#include "xpulp/builtins_v2.h"
+#include "builtins_v2.h"
 
 void mempool_radix2_cfft_q16s(uint16_t fftLen, int16_t *pTwiddle,
                               uint16_t *pBitRevTable, int16_t *pSrc,

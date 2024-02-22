@@ -6,8 +6,10 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "kernel/mat_mul.h"
 #include "libgomp.h"
+#include "mempool_matmul_i32p.h"
+#include "mempool_matmul_i32s.h"
+#include "omp/mempool_matmul_i32.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"

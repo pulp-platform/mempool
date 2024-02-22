@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "kernel/dct.h"
+#include "mempool_dct_i32p.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"

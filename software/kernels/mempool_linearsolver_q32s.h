@@ -4,7 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#include "kernel/mempool_sqrt_q32s.h"
+#include "mempool_sqrt_q32s.h"
 
 /**
   @brief         Solution of a lower triangular system Lx=y.

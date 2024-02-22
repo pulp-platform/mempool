@@ -5,7 +5,7 @@
 // Author: Samuel Riedel, ETH Zurich
 //         Sergio Mazzola, ETH Zurich
 
-#include "xpulp/builtins_v2.h"
+#include "builtins_v2.h"
 
 /* This library implements the matrix multiplication for several data widths
  * in Zmultiple different ways. The functions all follow the following format:

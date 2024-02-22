@@ -8,10 +8,10 @@
 #include <string.h>
 
 #include "encoding.h"
+#include "mempool_conv2d_i8s.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "xpulp/conv_2d.h"
 
 #define M 32
 #define N 32

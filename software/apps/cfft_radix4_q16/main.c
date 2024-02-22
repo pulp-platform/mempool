@@ -10,15 +10,15 @@
 #include <string.h>
 
 /* Mempool runtime libraries */
+#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "xpulp/builtins_v2.h"
 
 /* CFFT data libraries */
-#include "data/data_cfft_radix4_q16.h"
+#include "data_cfft_radix4_q16.h"
 
 /*
   CHOOSE ONE
@@ -46,10 +46,10 @@
 #endif
 
 #define ABS(x) (((x) < 0) ? (-x) : (x))
-#include "kernel/mempool_radix4_cfft_butterfly_q16.h"
-#include "kernel/mempool_radix4_cfft_q16_bitreversal.h"
-#include "kernel/mempool_radix4_cfft_q16p.h"
-#include "kernel/mempool_radix4_cfft_q16s.h"
+#include "mempool_radix4_cfft_butterfly_q16.h"
+#include "mempool_radix4_cfft_q16_bitreversal.h"
+#include "mempool_radix4_cfft_q16p.h"
+#include "mempool_radix4_cfft_q16s.h"
 
 int16_t l1_pSrc[N_FFTs_ROW * 8 * N_BANKS]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));

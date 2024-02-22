@@ -8,10 +8,10 @@
 #include <string.h>
 
 #include "encoding.h"
+#include "mempool_matmul_i32p.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "xpulp/mat_mul.h"
 
 // Define Matrix dimensions:
 // C = AB with A=[MxN], B=[NxP], C=[MxP]

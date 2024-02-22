@@ -4,7 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#include "kernel/mempool_sqrt_q32s.h"
+#include "mempool_sqrt_q32s.h"
 
 /**
   @brief         Choleksy decomposition with Banachiewicz algorithm.

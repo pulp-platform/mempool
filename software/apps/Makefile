@@ -9,15 +9,16 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 SOFTWARE_DIR := $(abspath $(ROOT_DIR)/..)
-RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
-BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin)
 APPS_DIR := $(ROOT_DIR)
+BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin)
+DATA_DIR := $(abspath $(SOFTWARE_DIR)/data)
+RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
 
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
 DATA := $(patsubst %.args,%.h,$(shell find $(APPS_DIR) -name "data.args"))
-ALLPYS := $(patsubst %.py,%.h,$(wildcard $(RUNTIME_DIR)/data/*.py))
+ALLPYS := $(patsubst %.py,%.h,$(wildcard $(DATA_DIR)/*.py))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ifeq ($(config), systolic)
 	ALL := $(APPS)
@@ -25,7 +26,7 @@ else
 	ALL := $(filter-out systolic/%,$(APPS))
 endif
 
-ALL_LLVM := $(filter-out synth chest_q16 cfft_radix2_q16 cfft_radix4_q16, $(ALL))
+ALL_LLVM := $(filter-out synth_i32 chest_q16 cfft_radix2_q16 cfft_radix4_q16, $(ALL))
 
 # Make all applications
 all: $(ALL)

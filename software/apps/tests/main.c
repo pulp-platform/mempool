@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "kernel/mat_mul.h"
+#include "mempool_matmul_i32p.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -104,7 +104,7 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   mempool_barrier(num_cores);
   // Execute function to test.
   mempool_start_benchmark();
-  mat_mul_unrolled_2x2_parallel(A, B, C, M, N, P, core_id, num_cores);
+  matmul_unrolled_2x2_parallel_i32_rv32im(A, B, C, M, N, P, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
   mempool_barrier(num_cores);

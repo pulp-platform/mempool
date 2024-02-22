@@ -6,8 +6,8 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "kernel/convolution.h"
 #include "libgomp.h"
+#include "mempool_conv2d_i32p.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
