@@ -21,14 +21,14 @@
 
 // Inputs
 
-float l2_H[${2 * N_tx * N_rx * N_itr}] = ${array_to_cstr(H)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_H[${2 * N_tx * N_rx * N_itr}] = ${array_to_cstr(H)};
 
-float l2_G[${2 * N_tx * N_tx * N_itr}] = ${array_to_cstr(G)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_G[${2 * N_tx * N_tx * N_itr}] = ${array_to_cstr(G)};
 
-float l2_y[${2 * N_rx * N_itr}] = ${array_to_cstr(y)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_y[${2 * N_rx * N_itr}] = ${array_to_cstr(y)};
 
-float l2_Sigma[${N_tx * N_itr}] = ${array_to_cstr(sigma)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_Sigma[${N_tx * N_itr}] = ${array_to_cstr(sigma)};
 
 // Outputs
 
-float l2_x[${2 * N_tx * N_itr}] = ${array_to_cstr(x)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_x[${2 * N_tx * N_itr}] = ${array_to_cstr(x)};

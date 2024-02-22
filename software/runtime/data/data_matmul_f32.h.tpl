@@ -19,8 +19,8 @@
 #define matrix_N (${matrix_N})
 #define matrix_P (${matrix_P})
 
-float A[${matrix_M * matrix_N}] = ${array_to_cstr(A)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) A[${matrix_M * matrix_N}] = ${array_to_cstr(A)};
 
-float B[${matrix_N * matrix_P}] = ${array_to_cstr(B)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) B[${matrix_N * matrix_P}] = ${array_to_cstr(B)};
 
-float C[${matrix_M * matrix_P}] = ${array_to_cstr(C)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) C[${matrix_M * matrix_P}] = ${array_to_cstr(C)};
