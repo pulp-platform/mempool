@@ -101,7 +101,6 @@ module snitch_read_only_cache #(
     .NoMstPorts  ( NoMstPorts    ),
     .MaxTrans    ( MaxTrans      ),
     .AxiLookBits ( AxiIdWidth    ),
-    .FallThrough ( 1'b1          ),
     .SpillAw     ( 1'b0          ),
     .SpillW      ( 1'b0          ),
     .SpillB      ( 1'b0          ),
