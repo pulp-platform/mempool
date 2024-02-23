@@ -536,7 +536,7 @@ jobs:
         touch $GITHUB_WORKSPACE/hardware/deps/snitch/src/riscv_instr.sv
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator.mk
         touch $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
-        make test
+        make riscv-tests
 
   ##############
   #  Clean-up  #

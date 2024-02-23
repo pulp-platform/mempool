@@ -217,7 +217,7 @@ unit-tests:
     - touch $ROOT_DIR/hardware/deps/snitch/src/riscv_instr.sv
     - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator.mk
     - touch $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
-    - make test
+    - make riscv-tests
   variables:
     COMPILER: "gcc"
   needs: ["tc-gcc","riscv-isa-sim","verilator-model"]
