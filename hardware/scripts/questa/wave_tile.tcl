@@ -89,13 +89,9 @@ if {$config == {terapool}} {
     add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/local_resp_*
     add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_data_*
     add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/mask_map
-    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_req_o
-    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_resp_i
-    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_qvalid
-    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_qready
-    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_pvalid
-    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/soc_pready
-
+    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/snitch_to_soc_*
+    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/mux_to_soc_*
+    add wave -noupdate -group group_[$1] -group Tile_[$2] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/mux_to_soc_*
     for {set i 0} {$i < 16} {incr i} {
 		add wave -noupdate -group group_[$1] -group Tile_[$2] -group tcdm_adapter[$i] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_banks[$i]/i_tcdm_adapter/*
     }

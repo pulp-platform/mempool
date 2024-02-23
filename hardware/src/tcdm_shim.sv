@@ -45,7 +45,6 @@ module tcdm_shim
   output logic         [NrSoC-1:0]                      soc_qvalid_o,
   input  logic         [NrSoC-1:0]                      soc_qready_i,
   input  logic         [NrSoC-1:0] [DataWidth-1:0]      soc_pdata_i,
-  input  logic         [NrSoC-1:0]                      soc_pwrite_i,
   input  logic         [NrSoC-1:0]                      soc_perror_i,
   input  logic         [NrSoC-1:0]                      soc_pvalid_i,
   output logic         [NrSoC-1:0]                      soc_pready_o,
@@ -68,67 +67,46 @@ module tcdm_shim
 );
 
   // Imports
-  import snitch_pkg::dreq_t ;
+  import snitch_pkg::dreq_t;
   import snitch_pkg::dresp_t;
 
   // Includes
   `include "common_cells/registers.svh"
 
-  dreq_t              data_qpayload ;
-  dreq_t [NrSoC-1:0]  soc_qpayload ;
+  dreq_t              data_qpayload;
+  dreq_t [NrSoC-1:0]  soc_qpayload;
   dreq_t [NrTCDM-1:0] tcdm_qpayload;
 
-  dresp_t              data_ppayload ;
-  dresp_t [NrSoC-1:0]  soc_ppayload ;
+  dresp_t              data_ppayload;
+  dresp_t [NrSoC-1:0]  soc_ppayload;
   dresp_t [NrTCDM-1:0] tcdm_ppayload;
 
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_ppayload
-    assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i]   ;
+    assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i];
     assign tcdm_ppayload[i].data  = tcdm_resp_rdata_i[i];
-    assign tcdm_ppayload[i].write = 1'b0                ; // Don't care
-    assign tcdm_ppayload[i].error = 1'b0                ;
+    assign tcdm_ppayload[i].write = 1'b0; // Don't care
+    assign tcdm_ppayload[i].error = 1'b0;
   end
 
   // ROB IDs of the SoC requests (come back in order)
   logic [NrSoC-1:0][MetaIdWidth-1:0] soc_meta_id;
 
   for (genvar i = 0; i < NrSoC; i++) begin: gen_soc_meta_id_fifo
-    logic [NrSoC-1:0][MetaIdWidth-1:0] meta_read;
-    logic [NrSoC-1:0][MetaIdWidth-1:0] meta_write;
-
-    assign soc_meta_id[i] = soc_pwrite_i ? meta_write : meta_read;
-
     fifo_v3 #(
       .DEPTH     (MaxOutStandingTrans),
       .DATA_WIDTH(MetaIdWidth        )
-    ) i_soc_meta_id_read_fifo (
-      .clk_i     (clk_i                                              ),
-      .rst_ni    (rst_ni                                             ),
-      .flush_i   (1'b0                                               ),
-      .testmode_i(1'b0                                               ),
-      .data_i    (data_qid_i                                         ),
-      .push_i    (soc_qvalid_o[i] & soc_qready_i[i] &!soc_qwrite_o[i]),
-      .full_o    (/* Unused */                                       ),
-      .data_o    (meta_read                                          ),
-      .pop_i     (soc_pvalid_i[i] & soc_pready_o[i] & !soc_pwrite_i  ),
-      .empty_o   (/* Unused */                                       ),
-      .usage_o   (/* Unused */                                       )
-    );
-    fifo_v3 #(
-      .DEPTH     (MaxOutStandingTrans),
-      .DATA_WIDTH(MetaIdWidth        )
-    ) i_soc_meta_id_write_fifo (
-      .clk_i     (clk_i                                              ),
-      .rst_ni    (rst_ni                                             ),
-      .flush_i   (1'b0                                               ),
-      .testmode_i(1'b0                                               ),
-      .data_i    (data_qid_i                                         ),
-      .push_i    (soc_qvalid_o[i] & soc_qready_i[i] & soc_qwrite_o[i]),
-      .full_o    (/* Unused */                                       ),
-      .data_o    (meta_write                                         ),
-      .pop_i     (soc_pvalid_i[i] & soc_pready_o[i] & soc_pwrite_i   ),
-      .empty_o   (/* Unused */                                       ),
-      .usage_o   (/* Unused */                                       )
+    ) i_soc_meta_id_fifo (
+      .clk_i     (clk_i                            ),
+      .rst_ni    (rst_ni                           ),
+      .flush_i   (1'b0                             ),
+      .testmode_i(1'b0                             ),
+      .data_i    (data_qid_i                       ),
+      .push_i    (soc_qvalid_o[i] & soc_qready_i[i]),
+      .full_o    (/* Unused */                     ),
+      .data_o    (soc_meta_id                      ),
+      .pop_i     (soc_pvalid_i[i] & soc_pready_o[i]),
+      .empty_o   (/* Unused */                     ),
+      .usage_o   (/* Unused */                     )
     );
   end: gen_soc_meta_id_fifo
 
@@ -160,39 +138,39 @@ module tcdm_shim
 
   // Connect TCDM output ports
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_con
-    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr ;
-    assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data ;
-    assign tcdm_req_amo_o[i]      = tcdm_qpayload[i].amo  ;
-    assign tcdm_req_id_o[i]       = tcdm_qpayload[i].id   ;
+    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr;
+    assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data;
+    assign tcdm_req_amo_o[i]      = tcdm_qpayload[i].amo;
+    assign tcdm_req_id_o[i]       = tcdm_qpayload[i].id;
     assign tcdm_req_wen_o[i]      = tcdm_qpayload[i].write;
-    assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb ;
+    assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb;
   end
 
   // Connect SOCs
   for (genvar i = 0; i < NrSoC; i++) begin : gen_soc_con
-    assign soc_qaddr_o[i]        = soc_qpayload[i].addr ;
+    assign soc_qaddr_o[i]        = soc_qpayload[i].addr;
     assign soc_qwrite_o[i]       = soc_qpayload[i].write;
-    assign soc_qamo_o[i]         = soc_qpayload[i].amo  ;
-    assign soc_qdata_o[i]        = soc_qpayload[i].data ;
-    assign soc_qstrb_o[i]        = soc_qpayload[i].strb ;
-    assign soc_ppayload[i].data  = soc_pdata_i[i]       ;
-    assign soc_ppayload[i].id    = soc_meta_id[i]       ;
-    assign soc_ppayload[i].write = soc_pwrite_i[i]      ;
-    assign soc_ppayload[i].error = soc_perror_i[i]      ;
+    assign soc_qamo_o[i]         = soc_qpayload[i].amo;
+    assign soc_qdata_o[i]        = soc_qpayload[i].data;
+    assign soc_qstrb_o[i]        = soc_qpayload[i].strb;
+    assign soc_ppayload[i].data  = soc_pdata_i[i];
+    assign soc_ppayload[i].id    = soc_meta_id[i];
+    assign soc_ppayload[i].write = '0; // Don't care
+    assign soc_ppayload[i].error = soc_perror_i[i];
   end
 
   // Request interface
-  assign data_qpayload.addr  = data_qaddr_i ;
+  assign data_qpayload.addr  = data_qaddr_i;
   assign data_qpayload.write = data_qwrite_i;
-  assign data_qpayload.amo   = data_qamo_i  ;
-  assign data_qpayload.data  = data_qdata_i ;
-  assign data_qpayload.id    = data_qid_i   ;
-  assign data_qpayload.strb  = data_qstrb_i ;
+  assign data_qpayload.amo   = data_qamo_i;
+  assign data_qpayload.data  = data_qdata_i;
+  assign data_qpayload.id    = data_qid_i;
+  assign data_qpayload.strb  = data_qstrb_i;
 
   // Response interface
-  assign data_pdata_o  = data_ppayload.data ;
+  assign data_pdata_o  = data_ppayload.data;
   assign data_perror_o = data_ppayload.error;
-  assign data_pid_o    = data_ppayload.id   ;
+  assign data_pid_o    = data_ppayload.id;
 
   // Elaboration-time assertions
 
