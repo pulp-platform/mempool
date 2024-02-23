@@ -29,5 +29,3 @@ sources:
     - src/snitch_fp_divsqrt.sv
     - src/snitch_fpu.sv
     - src/snitch_shared_muldiv.sv
-    - src/snitch_demux.sv
-    - src/snitch_axi_adapter.sv
