@@ -82,12 +82,20 @@ package mempool_pkg;
 
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_core_aw_t, addr_t, axi_core_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_core_w_t, axi_data_t, axi_strb_t, logic);
+  `AXI_TYPEDEF_W_CHAN_T(axi_core_w_t, data_t, strb_t, logic);
   `AXI_TYPEDEF_B_CHAN_T(axi_core_b_t, axi_core_id_t, logic);
   `AXI_TYPEDEF_AR_CHAN_T(axi_core_ar_t, addr_t, axi_core_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_core_r_t, axi_data_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_core_r_t, data_t, axi_core_id_t, logic);
   `AXI_TYPEDEF_REQ_T(axi_core_req_t, axi_core_aw_t, axi_core_w_t, axi_core_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_core_resp_t, axi_core_b_t, axi_core_r_t );
+
+  `AXI_TYPEDEF_AW_CHAN_T(axi_cache_aw_t, addr_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_W_CHAN_T(axi_cache_w_t, axi_data_t, axi_strb_t, logic);
+  `AXI_TYPEDEF_B_CHAN_T(axi_cache_b_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_cache_ar_t, addr_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_R_CHAN_T(axi_cache_r_t, axi_data_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_REQ_T(axi_cache_req_t, axi_cache_aw_t, axi_cache_w_t, axi_cache_ar_t);
+  `AXI_TYPEDEF_RESP_T(axi_cache_resp_t, axi_cache_b_t, axi_cache_r_t );
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_tile_aw_t, addr_t, axi_tile_id_t, logic);
   `AXI_TYPEDEF_W_CHAN_T(axi_tile_w_t, axi_data_t, axi_strb_t, logic);
