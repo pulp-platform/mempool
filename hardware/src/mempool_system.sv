@@ -88,6 +88,7 @@ module mempool_system
     MaxSlvTrans        : 4,
     FallThrough        : 1'b0,
     LatencyMode        : axi_pkg::NO_LATENCY,
+    PipelineStages     : 0,
     AxiIdWidthSlvPorts : AxiTileIdWidth,
     AxiIdUsedSlvPorts  : AxiTileIdWidth,
     UniqueIds          : 0,
@@ -103,6 +104,7 @@ module mempool_system
     MaxSlvTrans        : 4,
     FallThrough        : 1'b0,
     LatencyMode        : axi_pkg::CUT_MST_PORTS,
+    PipelineStages     : 0,
     AxiIdWidthSlvPorts : AxiTileIdWidth,
     AxiIdUsedSlvPorts  : AxiTileIdWidth,
     UniqueIds          : 0,
@@ -400,6 +402,7 @@ module mempool_system
     MaxSlvTrans        : 1,
     FallThrough        : 1'b0,
     LatencyMode        : axi_pkg::NO_LATENCY,
+    PipelineStages     : 0,
     AxiIdWidthSlvPorts : 0, /* Not used for AXI lite */
     AxiIdUsedSlvPorts  : 0, /* Not used for AXI lite */
     UniqueIds          : 0, /* Not used for AXI lite */

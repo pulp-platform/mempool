@@ -87,6 +87,7 @@ module mempool_tb;
     MaxSlvTrans       : 4,
     FallThrough       : 1'b0,
     LatencyMode       : axi_pkg::CUT_MST_PORTS,
+    PipelineStages    : 0,
     AxiIdWidthSlvPorts: AxiSystemIdWidth,
     AxiIdUsedSlvPorts : AxiSystemIdWidth,
     UniqueIds         : 0,

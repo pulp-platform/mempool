@@ -1057,6 +1057,7 @@ module mempool_group
         MaxSlvTrans:        8,
         FallThrough:        1'b0,
         LatencyMode:        axi_pkg::CUT_ALL_PORTS,
+        PipelineStages:     0,
         AxiIdWidthSlvPorts: AxiTileIdWidth,
         AxiIdUsedSlvPorts:  AxiTileIdWidth,
         UniqueIds:          1'b0,
