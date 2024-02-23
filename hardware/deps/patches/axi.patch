@@ -1,0 +1,42 @@
+diff --git a/hardware/deps/axi/src/axi_to_mem_interleaved.sv b/hardware/deps/axi/src/axi_to_mem_interleaved.sv
+index 9a5f8780..06dc1c2a 100644
+--- a/hardware/deps/axi/src/axi_to_mem_interleaved.sv
++++ b/hardware/deps/axi/src/axi_to_mem_interleaved.sv
+@@ -282,6 +282,8 @@ module axi_to_mem_interleaved_intf #(
+   input  logic                          clk_i,
+   /// Asynchronous reset, active low
+   input  logic                          rst_ni,
++  /// Testmode enable
++  input  logic                          test_i,
+   /// Status output, busy flag of `axi_to_mem`
+   output logic                          busy_o,
+   /// AXI4+ATOP slave port
+@@ -337,6 +339,7 @@ module axi_to_mem_interleaved_intf #(
+   ) i_axi_to_mem_interleaved (
+     .clk_i,
+     .rst_ni,
++    .test_i,
+     .busy_o,
+     .axi_req_i  ( mem_axi_req  ),
+     .axi_resp_o ( mem_axi_resp ),
+diff --git a/hardware/deps/axi/src/axi_to_mem_split.sv b/hardware/deps/axi/src/axi_to_mem_split.sv
+index 28ce4083..3e98bda2 100644
+--- a/hardware/deps/axi/src/axi_to_mem_split.sv
++++ b/hardware/deps/axi/src/axi_to_mem_split.sv
+@@ -196,6 +196,8 @@ module axi_to_mem_split_intf #(
+   input  logic                               clk_i,
+   /// Asynchronous reset, active low.
+   input  logic                               rst_ni,
++  /// Testmode enable
++  input  logic                               test_i,
+   /// See `axi_to_mem_split`, port `busy_o`.
+   output logic                               busy_o,
+   /// AXI4+ATOP slave interface port.
+@@ -244,6 +246,7 @@ module axi_to_mem_split_intf #(
+   ) i_axi_to_mem_split (
+     .clk_i,
+     .rst_ni,
++    .test_i,
+     .busy_o,
+     .axi_req_i (axi_req),
+     .axi_resp_o (axi_resp),
