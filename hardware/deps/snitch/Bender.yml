@@ -27,8 +27,6 @@ sources:
     - src/snitch_lsu.sv
     - src/snitch_ipu.sv
     - src/snitch_shared_muldiv.sv
-    - src/snitch_demux.sv
-    - src/snitch_axi_adapter.sv
     - src/snitch_icache/snitch_icache.sv
     - src/snitch_icache/snitch_icache_l0.sv
     - src/snitch_icache/snitch_icache_handler.sv
