@@ -6,7 +6,7 @@ package:
   name: mempool
 
 dependencies:
-  axi:                  { git: "https://github.com/pulp-platform/axi.git",                  version: 0.36.0 }
+  axi:                  { git: "https://github.com/pulp-platform/axi.git",                  version: 0.39.2 }
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.2.1  }
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.23.0 }
   idma:                 { path: "hardware/deps/idma"                                                        }
