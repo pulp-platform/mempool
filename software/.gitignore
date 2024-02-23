@@ -26,4 +26,5 @@ runtime/arch.ld
 
 # Generated data files
 data.h
-data/data*.h
+apps/*/*/data*.h
+data/__pyc*

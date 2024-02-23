@@ -8,32 +8,6 @@
 # Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
 
 import numpy as np
-import argparse
-import pathlib
-
-from mako.template import Template
-
-##################
-#  write_result  #
-##################
-
-
-def gen_data_header_file(
-        outdir: pathlib.Path.cwd(),
-        tpl: pathlib.Path.cwd(),
-        **kwargs):
-
-    file = outdir / f"{kwargs['name']}.h"
-
-    print(tpl, outdir, kwargs['name'])
-
-    template = Template(filename=str(tpl))
-    with file.open('w') as f:
-        f.write(template.render(**kwargs))
-
-######################
-# Fixpoint Functions #
-######################
 
 
 def q_sat(x):
@@ -101,60 +75,3 @@ def generate_chest_q16(nb_tx, nb_rx, nb_samples):
     qvector_pilot_rx = np.reshape(qvector_pilot_rx, [2 * nb_rx * nb_samples])
     qvector_Hest = np.reshape(qvector_Hest, [2 * nb_tx * nb_rx * nb_samples])
     return qvector_pilot_tx, qvector_pilot_rx, qvector_Hest
-
-
-def main():
-
-    parser = argparse.ArgumentParser(description='Generate data for kernels')
-    parser.add_argument(
-        "-o",
-        "--outdir",
-        type=pathlib.Path,
-        default=pathlib.Path(__file__).parent.absolute(),
-        required=False,
-        help='Select out directory of generated data files'
-    )
-    parser.add_argument(
-        "-b",
-        "--num_rx",
-        type=int,
-        required=False,
-        default=32,
-        help='Number beams'
-    )
-    parser.add_argument(
-        "-l",
-        "--num_tx",
-        type=int,
-        required=False,
-        default=4,
-        help='Number layers'
-    )
-    parser.add_argument(
-        "-s",
-        "--num_samples",
-        type=int,
-        required=False,
-        default=32,
-        help='Number samples'
-    )
-
-    args = parser.parse_args()
-    nb_tx = args.num_tx
-    nb_rx = args.num_rx
-    nb_samples = args.num_samples
-
-    pilot_tx, pilot_rx, Hest = generate_chest_q16(nb_tx, nb_rx, nb_samples)
-    tpl = pathlib.Path(__file__).parent.absolute() / "data_chest_q16.h.tpl"
-    kwargs = {'name': 'data_chest_q16',
-              'pilot_tx': pilot_tx,
-              'pilot_rx': pilot_rx,
-              'Hest': Hest,
-              'nb_tx': nb_tx,
-              'nb_rx': nb_rx,
-              'nb_samples': nb_samples}
-    gen_data_header_file(args.outdir, tpl, **kwargs)
-
-
-if __name__ == "__main__":
-    main()
