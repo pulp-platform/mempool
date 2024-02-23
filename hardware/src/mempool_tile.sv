@@ -60,6 +60,7 @@ module mempool_tile
    ****************/
 
   `include "common_cells/registers.svh"
+  `include "reqrsp_interface/typedef.svh"
 
   /*****************
    *  Definitions  *
@@ -283,8 +284,8 @@ module mempool_tile
    *  Instruction Cache  *
    ***********************/
   // Instruction interface
-  axi_core_req_t  [NumCaches-1:0] axi_cache_req_d, axi_cache_req_q;
-  axi_core_resp_t [NumCaches-1:0] axi_cache_resp_d, axi_cache_resp_q;
+  axi_cache_req_t  [NumCaches-1:0] axi_cache_req_d, axi_cache_req_q;
+  axi_cache_resp_t [NumCaches-1:0] axi_cache_resp_d, axi_cache_resp_q;
 
   for (genvar c = 0; unsigned'(c) < NumCaches; c++) begin: gen_caches
     snitch_icache #(
@@ -309,8 +310,8 @@ module mempool_tile
       .EARLY_LATCH        (1                                                   ),
       .L0_EARLY_TAG_WIDTH (11                                                  ),
       .ISO_CROSSING       (0                                                   ),
-      .axi_req_t          (axi_core_req_t                                      ),
-      .axi_rsp_t          (axi_core_resp_t                                     )
+      .axi_req_t          (axi_cache_req_t                                     ),
+      .axi_rsp_t          (axi_cache_resp_t                                    )
     ) i_snitch_icache (
       .clk_i                (clk_i                   ),
       .clk_d2_i             (clk_i                   ),
@@ -331,13 +332,13 @@ module mempool_tile
       .axi_rsp_i            (axi_cache_resp_q[c]     )
     );
     axi_cut #(
-      .aw_chan_t (axi_core_aw_t  ),
-      .w_chan_t  (axi_core_w_t   ),
-      .b_chan_t  (axi_core_b_t   ),
-      .ar_chan_t (axi_core_ar_t  ),
-      .r_chan_t  (axi_core_r_t   ),
-      .axi_req_t (axi_core_req_t ),
-      .axi_resp_t(axi_core_resp_t)
+      .aw_chan_t (axi_cache_aw_t  ),
+      .w_chan_t  (axi_cache_w_t   ),
+      .b_chan_t  (axi_cache_b_t   ),
+      .ar_chan_t (axi_cache_ar_t  ),
+      .r_chan_t  (axi_cache_r_t   ),
+      .axi_req_t (axi_cache_req_t ),
+      .axi_resp_t(axi_cache_resp_t)
     ) axi_cache_slice (
       .clk_i     (clk_i              ),
       .rst_ni    (rst_ni             ),
@@ -933,7 +934,6 @@ module mempool_tile
         .soc_qvalid_o       (soc_data_qvalid[c]                                                                 ),
         .soc_qready_i       (soc_data_qready[c]                                                                 ),
         .soc_pdata_i        (soc_data_p[c].data                                                                 ),
-        .soc_pwrite_i       (soc_data_p[c].write                                                                ),
         .soc_perror_i       (soc_data_p[c].error                                                                ),
         .soc_pvalid_i       (soc_data_pvalid[c]                                                                 ),
         .soc_pready_o       (soc_data_pready[c]                                                                 ),
@@ -1004,72 +1004,67 @@ module mempool_tile
    *   AXI Plug   *
    ****************/
 
-  snitch_pkg::dreq_t soc_req_o;
-  snitch_pkg::dresp_t soc_resp_i;
+  `REQRSP_TYPEDEF_ALL(soc, snitch_pkg::addr_t, snitch_pkg::data_t, snitch_pkg::strb_t)
 
-  logic soc_qvalid;
-  logic soc_qready;
-  logic soc_pvalid;
-  logic soc_pready;
-
-  // We don't care about this
-  assign soc_resp_i.id = 'x;
-
-  snitch_demux #(
-    .NrPorts (NumCoresPerTile    ),
-    .req_t   (snitch_pkg::dreq_t ),
-    .resp_t  (snitch_pkg::dresp_t)
-  ) i_snitch_demux_data (
-    .clk_i         (clk_i          ),
-    .rst_ni        (rst_ni         ),
-    // Inputs
-    .req_payload_i (soc_data_q     ),
-    .req_valid_i   (soc_data_qvalid),
-    .req_ready_o   (soc_data_qready),
-    .resp_payload_o(soc_data_p     ),
-    .resp_last_o   (/* Unused */   ),
-    .resp_valid_o  (soc_data_pvalid),
-    .resp_ready_i  (soc_data_pready),
-    // Output
-    .req_payload_o (soc_req_o      ),
-    .req_valid_o   (soc_qvalid     ),
-    .req_ready_i   (soc_qready     ),
-    .resp_payload_i(soc_resp_i     ),
-    .resp_last_i   (1'b1           ),
-    .resp_valid_i  (soc_pvalid     ),
-    .resp_ready_o  (soc_pready     )
-  );
-
-  // Core request
+  // Pack the cores' soc_req/rsp into a reqrsp bus
+  soc_req_t [NumCoresPerTile-1:0] snitch_to_soc_req;
+  soc_rsp_t [NumCoresPerTile-1:0] snitch_to_soc_rsp;
+  soc_req_t mux_to_soc_req;
+  soc_rsp_t mux_to_soc_rsp;
+  // AXI core request
   axi_core_req_t  axi_cores_req_d, axi_cores_req_q;
   axi_core_resp_t axi_cores_resp_d, axi_cores_resp_q;
+  axi_cache_req_t  axi_cores_wide_req;
+  axi_cache_resp_t axi_cores_wide_resp;
 
-  snitch_axi_adapter #(
-    .addr_t         (snitch_pkg::addr_t),
-    .data_t         (snitch_pkg::data_t),
-    .strb_t         (snitch_pkg::strb_t),
-    .axi_mst_req_t  (axi_core_req_t    ),
-    .axi_mst_resp_t (axi_core_resp_t   )
-  ) i_snitch_core_axi_adapter (
-    .clk_i       (clk_i           ),
-    .rst_ni      (rst_ni          ),
-    .slv_qaddr_i (soc_req_o.addr  ),
-    .slv_qwrite_i(soc_req_o.write ),
-    .slv_qamo_i  (soc_req_o.amo   ),
-    .slv_qdata_i (soc_req_o.data  ),
-    .slv_qsize_i (3'b010          ),
-    .slv_qstrb_i (soc_req_o.strb  ),
-    .slv_qrlen_i ('0              ),
-    .slv_qvalid_i(soc_qvalid      ),
-    .slv_qready_o(soc_qready      ),
-    .slv_pdata_o (soc_resp_i.data ),
-    .slv_pwrite_o(soc_resp_i.write),
-    .slv_perror_o(soc_resp_i.error),
-    .slv_plast_o (/* Unused */    ),
-    .slv_pvalid_o(soc_pvalid      ),
-    .slv_pready_i(soc_pready      ),
-    .axi_req_o   (axi_cores_req_d ),
-    .axi_resp_i  (axi_cores_resp_q)
+  for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_core_soc_reqrsp
+    assign snitch_to_soc_req[c].q.addr  = soc_data_q[c].addr;
+    assign snitch_to_soc_req[c].q.write = soc_data_q[c].write;
+    assign snitch_to_soc_req[c].q.amo   = reqrsp_pkg::amo_op_e'(soc_data_q[c].amo);
+    assign snitch_to_soc_req[c].q.data  = soc_data_q[c].data;
+    assign snitch_to_soc_req[c].q.strb  = soc_data_q[c].strb;
+    assign snitch_to_soc_req[c].q.size  = 3'b010; // AXI-style size: 2^x bytes
+    assign snitch_to_soc_req[c].q_valid = soc_data_qvalid[c];
+    assign soc_data_qready[c]           = snitch_to_soc_rsp[c].q_ready;
+    assign soc_data_p[c].data           = snitch_to_soc_rsp[c].p.data;
+    assign soc_data_p[c].error          = snitch_to_soc_rsp[c].p.error;
+    assign soc_data_p[c].id             = '0; // Don't care
+    assign soc_data_p[c].write          = '0; // Don't care
+    assign soc_data_pvalid[c]           = snitch_to_soc_rsp[c].p_valid;
+    assign snitch_to_soc_req[c].p_ready = soc_data_pready[c];
+  end
+
+  reqrsp_mux #(
+    .NrPorts     (NumCoresPerTile),
+    .AddrWidth   (AddrWidth      ),
+    .DataWidth   (DataWidth      ),
+    .req_t       (soc_req_t      ),
+    .rsp_t       (soc_rsp_t      ),
+    .RespDepth   (NumCoresPerTile),
+    .RegisterReq ('0             )
+  ) i_reqrsp_mux_snitch_soc (
+    .clk_i     (clk_i            ),
+    .rst_ni    (rst_ni           ),
+    .slv_req_i (snitch_to_soc_req),
+    .slv_rsp_o (snitch_to_soc_rsp),
+    .mst_req_o (mux_to_soc_req   ),
+    .mst_rsp_i (mux_to_soc_rsp   )
+  );
+
+  reqrsp_to_axi #(
+    .MaxTrans     (NumCoresPerTile),
+    .DataWidth    (DataWidth      ),
+    .reqrsp_req_t (soc_req_t      ),
+    .reqrsp_rsp_t (soc_rsp_t      ),
+    .axi_req_t    (axi_core_req_t ),
+    .axi_rsp_t    (axi_core_resp_t)
+  ) i_reqrsp_snitch_to_axi (
+    .clk_i        (clk_i           ),
+    .rst_ni       (rst_ni          ),
+    .reqrsp_req_i (mux_to_soc_req  ),
+    .reqrsp_rsp_o (mux_to_soc_rsp  ),
+    .axi_req_o    (axi_cores_req_d ),
+    .axi_rsp_i    (axi_cores_resp_q)
   );
 
   axi_cut #(
@@ -1089,32 +1084,58 @@ module mempool_tile
     .mst_resp_i(axi_cores_resp_d)
   );
 
+  axi_dw_converter #(
+    .AxiMaxReads         (NumCoresPerTile ),
+    .AxiSlvPortDataWidth (DataWidth       ),
+    .AxiMstPortDataWidth (AxiDataWidth    ),
+    .AxiAddrWidth        (AddrWidth       ),
+    .AxiIdWidth          (AxiCoreIdWidth  ),
+    .aw_chan_t           (axi_core_aw_t   ),
+    .mst_w_chan_t        (axi_cache_w_t   ),
+    .slv_w_chan_t        (axi_core_w_t    ),
+    .b_chan_t            (axi_core_b_t    ),
+    .ar_chan_t           (axi_core_ar_t   ),
+    .mst_r_chan_t        (axi_cache_r_t   ),
+    .slv_r_chan_t        (axi_core_r_t    ),
+    .axi_mst_req_t       (axi_cache_req_t ),
+    .axi_mst_resp_t      (axi_cache_resp_t),
+    .axi_slv_req_t       (axi_core_req_t  ),
+    .axi_slv_resp_t      (axi_core_resp_t )
+  ) i_axi_dw_converter_cores (
+    .clk_i      (clk_i              ),
+    .rst_ni     (rst_ni             ),
+    .slv_req_i  (axi_cores_req_q    ),
+    .slv_resp_o (axi_cores_resp_d   ),
+    .mst_req_o  (axi_cores_wide_req ),
+    .mst_resp_i (axi_cores_wide_resp)
+  );
+
   axi_mux #(
-    .SlvAxiIDWidth (AxiCoreIdWidth ),
-    .slv_aw_chan_t (axi_core_aw_t  ),
-    .mst_aw_chan_t (axi_tile_aw_t  ),
-    .w_chan_t      (axi_tile_w_t   ),
-    .slv_b_chan_t  (axi_core_b_t   ),
-    .mst_b_chan_t  (axi_tile_b_t   ),
-    .slv_ar_chan_t (axi_core_ar_t  ),
-    .mst_ar_chan_t (axi_tile_ar_t  ),
-    .slv_r_chan_t  (axi_core_r_t   ),
-    .mst_r_chan_t  (axi_tile_r_t   ),
-    .slv_req_t     (axi_core_req_t ),
-    .slv_resp_t    (axi_core_resp_t),
-    .mst_req_t     (axi_tile_req_t ),
-    .mst_resp_t    (axi_tile_resp_t),
-    .NoSlvPorts    (1+NumCaches    ),
-    .MaxWTrans     (8              ),
-    .FallThrough   (1              )
+    .SlvAxiIDWidth (AxiCoreIdWidth  ),
+    .slv_aw_chan_t (axi_cache_aw_t  ),
+    .mst_aw_chan_t (axi_tile_aw_t   ),
+    .w_chan_t      (axi_cache_w_t   ),
+    .slv_b_chan_t  (axi_cache_b_t   ),
+    .mst_b_chan_t  (axi_tile_b_t    ),
+    .slv_ar_chan_t (axi_cache_ar_t  ),
+    .mst_ar_chan_t (axi_tile_ar_t   ),
+    .slv_r_chan_t  (axi_cache_r_t   ),
+    .mst_r_chan_t  (axi_tile_r_t    ),
+    .slv_req_t     (axi_cache_req_t ),
+    .slv_resp_t    (axi_cache_resp_t),
+    .mst_req_t     (axi_tile_req_t  ),
+    .mst_resp_t    (axi_tile_resp_t ),
+    .NoSlvPorts    (1+NumCaches     ),
+    .MaxWTrans     (NumCoresPerTile ),
+    .FallThrough   (1               )
   ) i_axi_mux (
-    .clk_i      (clk_i                               ),
-    .rst_ni     (rst_ni                              ),
-    .test_i     (1'b0                                ),
-    .slv_reqs_i ({axi_cores_req_q, axi_cache_req_q}  ),
-    .slv_resps_o({axi_cores_resp_d, axi_cache_resp_d}),
-    .mst_req_o  (axi_mst_req_o                       ),
-    .mst_resp_i (axi_mst_resp_i                      )
+    .clk_i      (clk_i                                  ),
+    .rst_ni     (rst_ni                                 ),
+    .test_i     (1'b0                                   ),
+    .slv_reqs_i ({axi_cores_wide_req, axi_cache_req_q}  ),
+    .slv_resps_o({axi_cores_wide_resp, axi_cache_resp_d}),
+    .mst_req_o  (axi_mst_req_o                          ),
+    .mst_resp_i (axi_mst_resp_i                         )
   );
 
   /******************
