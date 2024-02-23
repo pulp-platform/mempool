@@ -17,8 +17,6 @@ RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 include $(RUNTIME_DIR)/runtime.mk
 
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
-DATA := $(patsubst %.args,%.h,$(shell find $(APPS_DIR) -name "data.args"))
-ALLPYS := $(patsubst %.py,%.h,$(wildcard $(DATA_DIR)/*.py))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL := $(APPS)
 
@@ -34,7 +32,7 @@ all_llvm: $(ALL_LLVM)
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
 .PHONY: $(BINARIES)
-$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) $(DATA) $(ALLPYS) update_opcodes
+$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) data_%.h update_opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude -o $@ $< $(RUNTIME) $(RISCV_LDFLAGS) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
@@ -50,5 +48,6 @@ clean:
 	rm -vf $(addsuffix /main.c.o,$(APPS))
 	rm -vf $(RUNTIME)
 	rm -vf $(LINKER_SCRIPT)
+	rm -vf $(wildcard $(DATA_DIR)/data_*.h)
 
 .INTERMEDIATE: $(addsuffix /main.c.o,$(APPS))

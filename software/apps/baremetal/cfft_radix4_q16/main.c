@@ -19,6 +19,8 @@
 
 /* CFFT data libraries */
 #include "data_cfft_radix4_q16.h"
+#define N_BANKS (NUM_CORES * BANKING_FACTOR)
+#define MAX_COL (N_BANKS / (N_CSAMPLES / 4))
 
 /* CHOOSE ONE */
 //#define SINGLE // Single core FFT.
