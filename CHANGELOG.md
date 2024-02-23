@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Parametrize the performance counters
 - Restructure the software folder by moving kernels, data, and tests to dedicated folders
 - Gate the LSU output to ensure a stable handshake interface and save energy
+- Update `axi` to 0.39.2
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
