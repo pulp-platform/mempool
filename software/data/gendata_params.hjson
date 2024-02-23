@@ -1,0 +1,145 @@
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
+// This script generates data.h files.
+// Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
+
+{
+  "axpy_i32": {
+    "type": "int32",
+    "defines": [
+      ("ALPHA",      6)
+      ("array_N", 1024)
+    ]
+    "arrays": [
+      ("int32_t", "l2_X")
+      ("int32_t", "l2_Y")
+      ("int32_t", "l2_Z")
+    ]
+  },
+
+  "cfft_radix4_q16": {
+    "type": "int16",
+    "defines": [
+      ("N_CSAMPLES", 1024)
+    ]
+    "arrays": [
+      ("int16_t", "l2_pSrc")
+      ("int16_t", "l2_pRes")
+      ("int16_t", "l2_twiddleCoef_q16")
+      ("int16_t", "l2_BitRevIndexTable")
+    ]
+  },
+
+  "cfft_radix2_q16": {
+    "type": "int16",
+    "defines": [
+      ("N_CSAMPLES", 1024)
+    ]
+    "arrays": [
+      ("int16_t", "l2_pSrc")
+      ("int16_t", "l2_pRes")
+      ("int16_t", "l2_twiddleCoef_q16")
+      ("int16_t", "l2_BitRevIndexTable")
+    ]
+  },
+
+  "chest_q16": {
+    "type": "int32",
+    "defines": [
+      ("N_TX",        4)
+      ("N_RX",        4)
+      ("N_SAMPLES", 512)
+    ]
+    "arrays": [
+      ("int16_t", "l2_PilotTX")
+      ("int16_t", "l2_PilotRX")
+      ("int16_t", "l2_HEST")
+    ]
+  },
+
+  "cholesky_q32": {
+    "type": "int32",
+    "defines": [
+      ("matrix_N",    32)
+      ("FIXED_POINT", 10)
+    ]
+    "arrays": [
+      ("int32_t", "l2_A")
+      ("int32_t", "l2_L")
+      ("int32_t", "l2_y")
+    ]
+  },
+
+  "matmul_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 32)
+      ("matrix_N", 32)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+      ("__fp16", "l2_C")
+    ]
+  },
+
+  "matmul_f32": {
+    "type": "float32",
+    "defines": [
+      ("matrix_M", 16)
+      ("matrix_N", 16)
+      ("matrix_P", 16)
+    ]
+    "arrays": [
+      ("float", "l2_A")
+      ("float", "l2_B")
+      ("float", "l2_C")
+    ]
+  }
+
+  "matmul_i32": {
+    "type": "int32",
+    "defines": [
+      ("matrix_M", 32)
+      ("matrix_N", 32)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("int32_t", "l2_A")
+      ("int32_t", "l2_B")
+      ("int32_t", "l2_C")
+    ]
+  }
+
+  "matmul_i16": {
+    "type": "int16",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
+    ]
+    "arrays": [
+      ("int16_t", "l2_A")
+      ("int16_t", "l2_B")
+      ("int32_t", "l2_C")
+    ]
+  }
+
+  "matmul_i8": {
+    "type": "int8",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
+    ]
+    "arrays": [
+      ("int8_t", "l2_A")
+      ("int8_t", "l2_B")
+      ("int32_t", "l2_C")
+    ]
+  }
+
+}
