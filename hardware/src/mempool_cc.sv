@@ -206,8 +206,8 @@ module mempool_cc
   logic [63:0] cycle;
   int unsigned stall, stall_ins, stall_raw, stall_lsu, stall_acc;
 
-  always_ff @(posedge rst_i) begin
-    if(rst_i) begin
+  always_ff @(negedge rst_i) begin
+    if(!rst_i) begin
       // Format in hex because vcs and vsim treat decimal differently
       // Format with 8 digits because Verilator does not support anything else
       $sformat(fn, "trace_hart_0x%08x.dasm", hart_id_i);

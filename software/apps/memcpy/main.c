@@ -68,7 +68,7 @@ int main() {
     dump_addr((uint32_t)l2_data);
     dump_addr((uint32_t)l1_data);
     // Copy in
-    mempool_start_benchmark();
+    // mempool_start_benchmark();
     uint32_t time = mempool_get_timer();
     dma_memcpy_nonblocking(l1_data, l2_data, SIZE * sizeof(uint32_t));
     do {
@@ -76,18 +76,20 @@ int main() {
     } while (!dma_done());
     time = mempool_get_timer() - time;
     dump_end(time);
-    mempool_stop_benchmark();
+    printf("Core %3d Copy in is done\n", core_id);
+    // mempool_stop_benchmark();
 
     // Copy out
-    mempool_start_benchmark();
-    time = mempool_get_timer();
-    dump_start(time);
-    dma_memcpy_nonblocking(l2_data, l1_data, SIZE * sizeof(uint32_t));
-    do {
-      mempool_wait(512);
-    } while (!dma_done());
-    time = mempool_get_timer() - time;
-    dump_end(time);
+    // printf("Core %3d Now we want to start copy out\n", core_id);
+    // // mempool_start_benchmark();
+    // time = mempool_get_timer();
+    // dump_start(time);
+    // dma_memcpy_nonblocking(l2_data, l1_data, SIZE * sizeof(uint32_t));
+    // do {
+    //   mempool_wait(512);
+    // } while (!dma_done());
+    // time = mempool_get_timer() - time;
+    // dump_end(time);
   }
 
   // wait until all cores have finished

@@ -31,3 +31,6 @@
 [submodule "toolchain/riscv-opcodes"]
 	path = toolchain/riscv-opcodes
 	url = https://github.com/pulp-platform/riscv-opcodes.git
+[submodule "hardware/dramsys/DRAMSys"]
+	path = hardware/dramsys/DRAMSys
+	url = https://github.com/tukl-msd/DRAMSys.git
