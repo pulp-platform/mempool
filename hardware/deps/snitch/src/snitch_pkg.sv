@@ -17,6 +17,8 @@ package snitch_pkg;
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
   // ZFINX extension enabled?
   localparam bit ZFINX = `ifdef ZFINX `ZFINX `else 1'bX `endif;
+  // ZQUARTERINX extension enabled?
+  localparam bit ZQUARTERINX = `ifdef ZQUARTERINX `ZQUARTERINX `else 1'bX `endif;
   // XDivSqrt extension enabled?
   localparam bit XDIVSQRT = `ifdef XDIVSQRT `XDIVSQRT `else 1'bX `endif;
 
@@ -110,7 +112,7 @@ package snitch_pkg;
   // Transprecision floating-point extensions configuration
   localparam bit XF16    = 1; // Is half-precision float extension (Xf16) enabled
   localparam bit XF16ALT = 0; // Is alt. half-precision float extension (Xf16alt) enabled
-  localparam bit XF8     = 1; // Is quarter-precision float extension (Xf8) enabled
+  localparam bit XF8     = ZQUARTERINX; // Is quarter-precision float extension (Xf8) enabled
   localparam bit XF8ALT  = 0; // Is alt. quarter-precision float extension (Xf8alt) enabled
   localparam bit XFVEC   = 1; // Is vectorial float SIMD extension (Xfvec) enabled
   localparam bit XDivSqrt = XDIVSQRT; // Enable div/sqrt unit (buggy - use with caution)

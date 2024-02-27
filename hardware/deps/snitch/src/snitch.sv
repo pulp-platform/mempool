@@ -999,7 +999,7 @@ module snitch
       riscv_instr::VFSGNJN_R_H,
       riscv_instr::VFSGNJX_H,
       riscv_instr::VFSGNJX_R_H: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1014,7 +1014,7 @@ module snitch
       riscv_instr::VFDIV_H,
       riscv_instr::VFDIV_R_H,
       riscv_instr::VFSQRT_H: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1048,7 +1048,7 @@ module snitch
       riscv_instr::VFCVT_XU_H,
       riscv_instr::VFCVT_H_X,
       riscv_instr::VFCVT_H_XU: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1064,7 +1064,7 @@ module snitch
       riscv_instr::VFMAC_R_H,
       riscv_instr::VFMRE_H,
       riscv_instr::VFMRE_R_H: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1077,9 +1077,8 @@ module snitch
           illegal_inst = 1'b1;
         end
       end
-      riscv_instr::VFCPKA_H_S,
-      riscv_instr::VFCPKB_H_S: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+      riscv_instr::VFCPKA_H_S: begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1099,7 +1098,7 @@ module snitch
       riscv_instr::VFNDOTPEX_S_R_H,
       riscv_instr::VFSUMEX_S_H,
       riscv_instr::VFNSUMEX_S_H: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1117,7 +1116,7 @@ module snitch
       riscv_instr::FCNDOTPEX_S_H,
       riscv_instr::FCCDOTPEX_S_H,
       riscv_instr::FCCNDOTPEX_S_H: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1227,7 +1226,7 @@ module snitch
       riscv_instr::VFSGNJN_R_B,
       riscv_instr::VFSGNJX_B,
       riscv_instr::VFSGNJX_R_B: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1242,7 +1241,7 @@ module snitch
       riscv_instr::VFDIV_B,
       riscv_instr::VFDIV_R_B,
       riscv_instr::VFSQRT_B: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1278,7 +1277,7 @@ module snitch
       riscv_instr::VFCVT_XU_B,
       riscv_instr::VFCVT_B_X,
       riscv_instr::VFCVT_B_XU: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1294,7 +1293,7 @@ module snitch
       riscv_instr::VFMAC_R_B,
       riscv_instr::VFMRE_B,
       riscv_instr::VFMRE_R_B: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1309,7 +1308,7 @@ module snitch
       end
       riscv_instr::VFCPKA_B_S,
       riscv_instr::VFCPKB_B_S: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1329,7 +1328,7 @@ module snitch
       riscv_instr::VFNDOTPEX_H_R_B,
       riscv_instr::VFSUMEX_H_B,
       riscv_instr::VFNSUMEX_H_B: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1346,7 +1345,7 @@ module snitch
       riscv_instr::VFDOTPEXB_S_B,
       riscv_instr::VFDOTPEXA_S_R_B,
       riscv_instr::VFDOTPEXB_S_R_B: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
