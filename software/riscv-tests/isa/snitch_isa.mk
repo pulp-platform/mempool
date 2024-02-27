@@ -122,11 +122,6 @@ ifeq ($(zfinx),1)
 		fmadd_h \
 		fmin_h \
 		fsgnj_h
-	rv32uzquarterinx_snitch_sc_tests = \
-		fadd_b \
-		fmadd_b \
-		fmin_b \
-		fsgnj_b
 	rv32uzvechalfinx_snitch_sc_tests = \
 		vfadd_h \
 		vfcpka_h \
@@ -135,6 +130,13 @@ ifeq ($(zfinx),1)
 		vfsgnj_h \
 		vfdotpex_h \
 		fcdotpex_h
+
+ifeq ($(zquarterinx), 1)
+	rv32uzquarterinx_snitch_sc_tests = \
+		fadd_b \
+		fmadd_b \
+		fmin_b \
+		fsgnj_b
 	rv32uzvecquarterinx_snitch_sc_tests = \
 		vfadd_b \
 		vfcpka_b \
@@ -142,6 +144,7 @@ ifeq ($(zfinx),1)
 		vfmac_b	\
 		vfmin_b \
 		vfsgnj_b
+endif
 
 ifeq ($(xDivSqrt), 1)
 		rv32uzfinx_snitch_sc_tests += fdiv
