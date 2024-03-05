@@ -31,8 +31,6 @@
 %> \
 #define LOG2 (${Log2Len})
 #define N_CSAMPLES (${Len})
-#define N_RSAMPLES (2 * N_CSAMPLES)
-#define N_TWIDDLES (3 * N_CSAMPLES / 4)
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 #define BITREVINDEXTABLE_LENGTH (${BitrevLen})
 
