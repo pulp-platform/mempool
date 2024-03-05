@@ -2,12 +2,16 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
-// Parameters for a DOTP
+// Parameters for a GEMM
 
 {
-    kernel: "DOTP"
-    M: 32768,
+    kernel: "GEMM"
+    M: 512,
+    N: 512,
+    K: 512,
+    alpha: 0,
+    transpose_A: false,
+    transpose_B: false,
     prec: 32,
-    core: 64,
     expand: 0
 }

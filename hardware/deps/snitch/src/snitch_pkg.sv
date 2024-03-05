@@ -6,13 +6,14 @@
 package snitch_pkg;
 
   import cf_math_pkg::idx_width;
+  import tcdm_burst_pkg::*;
 
   localparam DataWidth                  = 32;
   localparam StrbWidth                  = DataWidth/8;
   localparam int NumFPOutstandingLoads  = 4;
   localparam int AccIdWidth             = `ifdef TARGET_SPATZ 6 `else 5 `endif;
   // Use a high number of outstanding loads, if running a latency-throughput analysis
-  localparam int NumIntOutstandingLoads = `ifdef TRAFFIC_GEN 2048 `else 8 `endif;
+  localparam int NumIntOutstandingLoads = `ifdef TRAFFIC_GEN 2048 `else 32 `endif;
   localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads);
   // Xpulpimg extension enabled?
 `ifdef XPULPIMG
@@ -31,6 +32,13 @@ package snitch_pkg;
     int unsigned NrCores;
   } SnitchCfg;
 
+  // typedef struct packed {
+  //   logic       burst;
+  //   // max 16 currently
+  //   logic [4:0] blen;
+  //   logic       blocal;
+  // } breq_t;
+
   typedef struct packed {
     addr_t addr;
     meta_id_t id;
@@ -38,6 +46,7 @@ package snitch_pkg;
     logic write;
     data_t data;
     strb_t strb;
+    tcdm_breq_t rburst;
   } dreq_t;
 
   typedef struct packed {
@@ -45,6 +54,7 @@ package snitch_pkg;
     meta_id_t id;
     logic write;
     logic error;
+    tcdm_gre_t gdata;
   } dresp_t;
 
   typedef struct packed {

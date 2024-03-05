@@ -21,13 +21,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "data/data_4096_2.h"
-// #include "data/data_4096_16.h"
-// #include "data/data_8192_2.h"
-// #include "data/data_8192_16.h"
-// #include "data/data_8192_32.h"
-// #include "data/data_16384_64.h"
-// #include "kernel/fdotp.c"
+#include "data/data_dotp.h"
 
 #include "dma.h"
 #include "encoding.h"
@@ -40,18 +34,9 @@
 
 uint32_t timer = (unsigned int)-1;
 // 32-bit dot-product: a * b
-float fdotp_v32b(const float *a, const float *b, unsigned int avl, const uint32_t cid) {
+void fdotp_v32b_p1(const float *a, const float *b, unsigned int avl) {
   const unsigned int orig_avl = avl;
   unsigned int vl;
-
-  float red;
-
-  #ifdef PARTIAL_TIMER
-  uint32_t timer_start, timer_end;
-  if (cid == 0) {
-    timer_start = mempool_get_timer();
-  }
-  #endif
 
   // Stripmine and accumulate a partial reduced vector
   do {
@@ -70,25 +55,12 @@ float fdotp_v32b(const float *a, const float *b, unsigned int avl, const uint32_
       asm volatile("vfmacc.vv v24, v8, v16");
     }
     avl -= vl;
-    // asm volatile("vle32.v v8,  (%0)" ::"r"(a));
-    // asm volatile("vle32.v v16, (%0)" ::"r"(b));
-    // asm volatile("vfmacc.vv v24, v8, v16");
-
-    // // Bump pointers
-    // a += vl;
-    // b += vl;
-    // avl -= vl;
-    // mempool_wait(1000);
   } while (avl > 0);
+}
 
-  #ifdef PARTIAL_TIMER
-  if (cid == 0) {
-    timer_end = mempool_get_timer();
-    timer = timer_end - timer_start;
-  }
-  #endif
-
+float fdotp_v32b_p2(){
   // Reduce and return
+  float red;
   asm volatile("vfredusum.vs v0, v24, v0");
   asm volatile("vfmv.f.s %0, v0" : "=f"(red));
   return red;
@@ -114,9 +86,7 @@ int main() {
   // Initialize multicore barrier
   mempool_barrier_init(cid);
 
-  #ifndef PARTIAL_TIMER
   uint32_t timer_start, timer_end;
-  #endif
 
   // Block dimension of core
   const unsigned int dim_core = dim / active_cores;
@@ -148,13 +118,22 @@ int main() {
   if (is_core_active) {
     // Start dump
     mempool_start_benchmark();
-    #ifndef PARTIAL_TIMER
     // Start timer
     if (cid == 0)
       timer_start = mempool_get_timer();
-    #endif
     // Calculate the result
-    acc = fdotp_v32b(a_int, b_int, dim_core, cid);
+    // acc = fdotp_v32b(a_int, b_int, dim_core);
+    fdotp_v32b_p1(a_int, b_int, dim_core);
+  }
+  mempool_barrier(num_cores);
+  #ifdef PARTIAL_TIMER
+  if (cid == 0) {
+    timer_end = mempool_get_timer();
+    timer = timer_end - timer_start;
+  }
+  #endif
+  if (is_core_active) {
+    acc = fdotp_v32b_p2();
     result[cid] = acc;
   }
 
@@ -199,7 +178,6 @@ int main() {
     uint32_t *calc = (uint32_t *) output;
     printf("calc:%x\n", (uint32_t) *calc);
     if (fp_check(dotp_result, *output)) {
-      printf("Mismatch!\n");
       return 1;
     }
   }

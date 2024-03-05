@@ -30,14 +30,13 @@
 
 
 #include "kernel/fft.c"
-// #include "data/data_256_2.h"
 // #include "data/data_256_4.h"
 // #include "data/data_256_8.h"
 // #include "data/data_512_2.h"
 // #include "data/data_512_4.h"
-// #include "data/data_1024_2.h"
 // #include "data/data_1024_4.h"
-#include "data/data_1024_8.h"
+// #include "data/data_1024_8.h"
+#include "data/data_fft.h"
 
 dump(p1, 5)
 // each bit of DUMP controls one dumping selection
@@ -69,7 +68,7 @@ int main() {
 
   // Reset timer
   unsigned int timer = (unsigned int)-1;
-  if (cid == 0) { 
+  if (cid == 0) {
     // DMA has a problem with copying unaligned L1 and L2 data
     // Twiddle's size may not be a power of 2, so we'd better use mannual copy instead of DMA
     // TODO: Fix DMA and let it copy the data!
@@ -80,12 +79,17 @@ int main() {
     for (uint32_t i = 0; i < 2*NTWI_P1; i++) {
       twiddle_p1[i]   = twiddle_dram[i];
     }
+  }
 
-    for (uint32_t i = 0; i < (active_cores*NTWI_P2*2); i++) {
+  if (cid < active_cores) {
+    // for (uint32_t i = 0; i < (active_cores*NTWI_P2*2); i++) {
+    for (uint32_t i = cid*(NTWI_P2*2); i < (cid+1)*(NTWI_P2*2); i++) {
       // Each core has its own P2 twiddle copy to reduce bank conflicts
       twiddle_p2[i] = twiddle_dram[i + (NTWI_P1<<1)];
     }
-
+  }
+  
+  if (cid == 0) {
     for (uint32_t i = 0; i < (log2_nfft2-1) * (NFFTpc >> 1); i++) {
       // Each stages in phase 2 except last one need store index
       store_idx[i] = store_idx_dram[i];
@@ -112,7 +116,7 @@ int main() {
   // TODO: Optimize for MemPool data layout
   float *twi_p2 = twiddle_p2 + cid * (NTWI_P2<<1);
   float *out_p2 = out + core_offset[cid];
-  
+
   uint32_t  p2_switch = 0;
 
   float *src_p1 = samples;

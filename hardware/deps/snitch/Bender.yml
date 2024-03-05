@@ -16,6 +16,7 @@ sources:
       SNITCH_ENABLE_STALL_COUNTER: 1
     files:
     # packages
+    - src/tcdm_burst_pkg.sv
     - src/riscv_instr.sv
     - src/snitch_pkg.sv
     - src/snitch_axi_pkg.sv

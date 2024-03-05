@@ -116,6 +116,13 @@ ifeq ($(spatz), 1)
 	SPATZ_CLUSTER_DIR := $(SPATZ_DIR)/hw/system/spatz_cluster
 endif
 
+ifdef tcdm_blen
+	vlog_defs += -DTCDM_BLEN=$(tcdm_blen)
+	ifdef rsp_gf
+		vlog_defs += -DRSP_GF=$(rsp_gf)
+	endif
+endif
+
 # Traffic generation enabled
 ifdef tg
 	tg_ncycles ?= 10000

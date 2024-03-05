@@ -328,7 +328,8 @@ def main():
         2 * NFFT) + ' __attribute__((section(".data"))) = {' + ', '.join(map(str, gold_out_s.astype(dtype).tolist())) + '};\n'
 
     file_path = pathlib.Path(__file__).parent.parent / 'data'
-    file = file_path / ('data_' + str(NFFT) + "_" + str(CORES) + ".h")
+    # file = file_path / ('data_' + str(NFFT) + "_" + str(CORES) + ".h")
+    file = file_path / ("data_fft.h")
     with file.open('w') as f:
         f.write(emit_str)
 

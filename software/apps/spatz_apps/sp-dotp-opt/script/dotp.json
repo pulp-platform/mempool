@@ -6,8 +6,8 @@
 
 {
     kernel: "DOTP"
-    M: 32768,
+    M: 8192,
     prec: 32,
-    core: 64,
+    core: 2,
     expand: 0
 }

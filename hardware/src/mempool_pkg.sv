@@ -6,6 +6,7 @@ package mempool_pkg;
 
   import snitch_pkg::MetaIdWidth;
   import cf_math_pkg::idx_width;
+  import tcdm_burst_pkg::*;
 
   /*********************
    *  TILE PARAMETERS  *
@@ -70,6 +71,7 @@ package mempool_pkg;
   localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
   localparam integer unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
+  localparam integer unsigned TCDMTileAddrWidth= TCDMAddrMemWidth + idx_width(NumBanksPerTile);
 
   // L2
   localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 0 `endif; // [B]
@@ -226,6 +228,11 @@ package mempool_pkg;
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
+  localparam int MaxBurstLen = 16;
+  // 0 to MaxBurstLen
+  localparam int BurstLenWidth = $clog2(MaxBurstLen)+1;
+  // 1 bit for burst indicator, 1 bits for local
+  localparam int BurstWidth = BurstLenWidth + 1 + 1;
 
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
@@ -236,6 +243,25 @@ package mempool_pkg;
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
   typedef logic [3:0] amo_t;
+
+//   typedef struct packed {
+//     logic burst;
+//     // max 16 currently
+//     logic [BurstLenWidth-1:0] blen;
+//     logic blocal;
+//   } tcdm_breq_t;
+
+
+//   typedef struct packed {
+// `ifdef Rsp_GF
+//     data_t [RspGF-2:0] data; 
+//     logic  [RspGF-2:0] valid;
+// `else
+//     // still define the type but mimize the wire if not used
+//     logic data;
+//     logic valid;
+// `endif
+//   } tcdm_gre_t;
 
   typedef struct packed {
     meta_id_t meta_id;
@@ -249,11 +275,13 @@ package mempool_pkg;
     logic wen;
     strb_t be;
     tcdm_addr_t tgt_addr;
+    tcdm_breq_t rburst;
   } tcdm_master_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
     logic wen;
+    tcdm_gre_t gdata; // GRE group data
   } tcdm_master_resp_t;
 
   typedef struct packed {
@@ -262,12 +290,14 @@ package mempool_pkg;
     strb_t be;
     tile_addr_t tgt_addr;
     tile_group_id_t ini_addr;
+    tcdm_breq_t rburst;
   } tcdm_slave_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
     tile_group_id_t ini_addr;
     logic wen;
+    tcdm_gre_t gdata;
   } tcdm_slave_resp_t;
 
   typedef struct packed {

@@ -74,7 +74,7 @@ def emit_dotp_layer(name='dotp', **kwargs):
 
     dtype = ctypes[str(kwargs['prec'])]
     if dtype != 'char':
-        layer_str += f'const uint32_t active_cores = {cores};\n'
+        # layer_str += f'const uint32_t active_cores = {cores};\n'
         layer_str += f'{dtype} a[{m}] __attribute__((section(".l1_prio")))' + ';\n'
         layer_str += f'{dtype} b[{m}] __attribute__((section(".l1_prio")))' + ';\n'
         layer_str += f'{dtype} result[{cores+1}] __attribute__((section(".l1_prio")))' + ';\n\n\n'

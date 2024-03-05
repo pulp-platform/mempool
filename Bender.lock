@@ -9,10 +9,10 @@ packages:
       - common_cells
       - common_verification
   cluster_interconnect:
-    revision: 8c6c2273d60077002834d2cb5d8e44ee0de3e32c
+    revision: 2f16a3aa4de875ea4f0b8764ebb30842a446e494
     version: null
     source:
-      Git: "https://github.com/pulp-platform/cluster_interconnect.git"
+      Git: "https://github.com/DiyouS/cluster_interconnect.git"
     dependencies:
       - common_cells
   common_cells:
@@ -85,10 +85,10 @@ packages:
     dependencies:
       - common_cells
   spatz:
-    revision: d57a31873bed255abd28f460cb99eda1fe64911d
+    revision: 7d4d3907ce86930d8e1f6e254b0d33c62b5816f2
     version: null
     source:
-      Git: git@github.com:pulp-platform/spatz.git
+      Git: https://iis-git.ee.ethz.ch/spatz/spatz.git
     dependencies:
     - axi
     - axi_riscv_atomics

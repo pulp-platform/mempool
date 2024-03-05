@@ -1,0 +1,5 @@
+{
+    npoints: 512,
+    ncores: 4,
+    prec: 32
+}

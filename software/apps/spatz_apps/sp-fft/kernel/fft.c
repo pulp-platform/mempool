@@ -22,7 +22,7 @@
 /* This function would be run several times in main with barrier*/
 
 void fft_p1 (float *src, float *buf, const float *twi,
-             const uint32_t nfft,  const uint32_t ntwi, 
+             const uint32_t nfft,  const uint32_t ntwi,
              const uint32_t cid,   const uint32_t num_cores,
              const uint32_t stage, const uint32_t len) {
 
@@ -50,7 +50,6 @@ void fft_p1 (float *src, float *buf, const float *twi,
       // offset for different groups
       uint32_t offset = (nfft >> stage) * group;
       uint32_t idx    = cid - (num_cores >> stage) * group;
-      
 
       // inputs pointer
       re_u_i = i_buf  + offset + idx * len;
@@ -95,9 +94,9 @@ void fft_p1 (float *src, float *buf, const float *twi,
     im_u_i += vl;
     asm volatile("vle32.v v12, (%0);" ::"r"(im_l_i)); // v12: Im lower wing
     im_l_i += vl;
-    
+
     asm volatile("vfadd.vv v20, v8, v12"); // v20: Im butterfly output upper wing
-    
+
     asm volatile("vfsub.vv v4, v8, v12"); // v4: Im butterfly output upper wing
 
     // Load the twiddle vector
@@ -134,7 +133,7 @@ void fft_p1 (float *src, float *buf, const float *twi,
 // At every iteration, we store indexed
 void fft_p2(float *s, float *buf, const float *twi, float *out,
             const uint16_t *seq_idx, const uint32_t nfft,
-            const uint32_t nfft_ori, const uint32_t log2_nfft, 
+            const uint32_t nfft_ori, const uint32_t log2_nfft,
             const uint32_t stride,   const uint32_t stride_e, const uint32_t ntwi) {
 
   // Always run in dual-core mode
@@ -202,14 +201,14 @@ void fft_p2(float *s, float *buf, const float *twi, float *out,
       im_u_i += vl;
       asm volatile("vle32.v v12, (%0);" ::"r"(im_l_i)); // v12: Im lower wing
       im_l_i += vl;
-      
+
       asm volatile("vfadd.vv v20, v8, v12"); // v20: Im butterfly output upper wing
       asm volatile("vfsub.vv v4, v8, v12"); // v4: Im butterfly output upper wing
 
       // Load the index vector. If last step, do strided store
       // Otherwise, it's the helper index for the permutations (this is a mask
       // vector)
-      if (bf == log2_nfft - 1) { 
+      if (bf == log2_nfft - 1) {
         // Last store is a strided pattern
         // use strided store instead of index store to improve performance
         asm volatile("vsse32.v v16, (%0), %1" ::"r"(re_u_s),"r"(stride));
@@ -249,7 +248,7 @@ void fft_p2(float *s, float *buf, const float *twi, float *out,
         asm volatile("vsuxei16.v v20, (%0), v12" ::"r"(im_u_o));
         asm volatile("vsuxei16.v v24, (%0), v12" ::"r"(re_l_o));
         asm volatile("vsuxei16.v v28, (%0), v12" ::"r"(im_l_o));
-      }   
+      }
     }
   }
 }

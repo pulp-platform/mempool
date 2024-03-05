@@ -149,8 +149,7 @@ def annotate_snitch(
     retired_reg: dict,
     perf_metrics: list,
     force_hex_addr: bool = True,
-    permissive: bool = False,
-    spatz_active: int = 0
+    permissive: bool = False
 ) -> (str, dict):
     # Compound annotations in datapath order
     ret = []
@@ -243,20 +242,6 @@ def annotate_snitch(
     # Any kind of PC change: Branch, Jump, etc.
     if not extras['stall'] and extras['pc_d'] != pc + 4:
         ret.append('goto {}'.format(int_lit(extras['pc_d'])))
-    if not extras['stall_spatz']:
-        if extras['stall_totacc']:
-            ret.append('// spatz stall {} cycles'.format(extras['stall_totacc']))
-            perf_metrics[-1]['stall_totacc'] += extras['stall_totacc']
-            if extras['stall_vfu']:
-                perf_metrics[-1]['stall_vfu'] += extras['stall_vfu']
-                ret.append('({} vfu)'.format(extras['stall_vfu']))
-            if extras['stall_vlsu']:
-                perf_metrics[-1]['stall_vlsu'] += extras['stall_vlsu']
-                ret.append('({} vlsu)'.format(extras['stall_vlsu']))
-            if extras['stall_vsldu']:
-                perf_metrics[-1]['stall_vsldu'] += extras['stall_vsldu']
-                ret.append('({} vsldu)'.format(extras['stall_vsldu']))
-    perf_metrics[-1]['spatz_active'] = extras['spatz_active']
     # Count stalls, but only in cycles that execute an instruction
     if not extras['stall']:
         if extras['stall_tot']:
@@ -324,19 +309,16 @@ def annotate_insn(
     show_time_info = (dupl_time_info or time_info != last_time_info)
     time_info_strs = tuple((str(elem) if show_time_info else '')
                            for elem in time_info)
-    spatz_active = 0
     # Annotated trace
     if extras_str:
         extras = read_annotations(extras_str)
-        if 'spatz_active' in extras:
-            spatz_active = extras['spatz_active']
         # Annotate snitch
         (annot, retired_reg) = annotate_snitch(
             extras, time_info[1], last_time_info[1],
             int(pc_str, 16), gpr_wb_info, prev_wfi_time, retired_reg,
             perf_metrics, force_hex_addr,
-            permissive, spatz_active)
-        if extras['stall'] or extras['stall_spatz']:
+            permissive)
+        if extras['stall']:
             insn, pc_str = ('', '')
         else:
             perf_metrics[-1]['snitch_issues'] += 1
@@ -441,7 +423,6 @@ def eval_perf_metrics(perf_metrics: list, id: int):
 def fmt_perf_metrics(perf_metrics: list, idx: int, omit_keys: bool = True):
     ret = ['Performance metrics for section {} @ ({}, {}):'.format(
         idx, perf_metrics[idx]['start'], perf_metrics[idx]['end'])]
-    ret.append('{:<40}{:>10}'.format('Spatz Active', int_lit(perf_metrics[idx]['spatz_active'])))
     for key, val in sorted(perf_metrics[idx].items()):
         if omit_keys and key in PERF_EVAL_KEYS_OMIT:
             continue
@@ -466,7 +447,7 @@ def sanity_check_perf_metrics(perf_metrics: list, idx: int):
     # Sum up all stalls
     sum_tot = perf_metric.get('stall_ins', 0) + \
         perf_metric.get('stall_lsu', 0) + perf_metric.get('stall_raw', 0) + \
-        perf_metric.get('stall_wfi', 0) + perf_metric.get('stall_acc', 0)
+        perf_metric.get('stall_wfi', 0)
     if (sum_tot != perf_metric.get('stall_tot', 0)):
         error['total_stalls'] = sum_tot
     # Sum up all cycles
@@ -522,13 +503,7 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'seq_stores_local',
         'seq_stores_global',
         'itl_stores_local',
-        'itl_stores_global',
-        'stall_spatz',
-        'stall_totacc',
-        'stall_vfu',
-        'stall_vlsu',
-        'stall_vsldu',
-        'spatz_active']
+        'itl_stores_global']
     for key in keys:
         if key not in known_keys:
             known_keys.append(key)
