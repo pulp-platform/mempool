@@ -510,17 +510,18 @@ module mempool_tile
     assign bank_resp_wide[b]                  = meta_out.wide;
 
     tcdm_adapter #(
-      .AddrWidth  (TCDMAddrMemWidth),
-      .DataWidth  (DataWidth       ),
-      .metadata_t (bank_metadata_t ),
-      .LrScEnable (LrScEnable      ),
-      .RegisterAmo(1'b0            )
+      .AddrWidth     (TCDMAddrMemWidth+ByteOffset),
+      .BankAddrWidth (TCDMAddrMemWidth           ),
+      .DataWidth     (DataWidth                  ),
+      .metadata_t    (bank_metadata_t            ),
+      .LrScEnable    (LrScEnable                 ),
+      .RegisterAmo   (1'b0                       )
     ) i_tcdm_adapter (
       .clk_i       (clk_i                                                                       ),
       .rst_ni      (rst_ni                                                                      ),
       .in_valid_i  (bank_req_valid[b]                                                           ),
       .in_ready_o  (bank_req_ready[b]                                                           ),
-      .in_address_i(bank_req_payload[b].tgt_addr[idx_width(NumBanksPerTile) +: TCDMAddrMemWidth]),
+      .in_address_i({bank_req_payload[b].tgt_addr[idx_width(NumBanksPerTile) +: TCDMAddrMemWidth],{ByteOffset{1'b0}}}),
       .in_amo_i    (bank_req_payload[b].wdata.amo                                               ),
       .in_write_i  (bank_req_payload[b].wen                                                     ),
       .in_wdata_i  (bank_req_payload[b].wdata.data                                              ),

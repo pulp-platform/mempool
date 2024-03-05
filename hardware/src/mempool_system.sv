@@ -357,18 +357,22 @@ module mempool_system
   localparam L2SimInit = `ifdef VERILATOR "none" `else "custom" `endif;
   localparam L2BankAddrIndex = $clog2(L2BankBeWidth)+$clog2(NumL2Banks);
   for (genvar i = 0; i < NumL2Banks; i++) begin : gen_l2_banks
+    // Address scrambling: Cut out the bits used to index the individual banks
+    logic [AddrWidth-1:0] addr_scrambled;
+    assign addr_scrambled = {'0, mem_req_chan[i].addr[AddrWidth-1:L2BankAddrIndex], mem_req_chan[i].addr[0+:$clog2(L2BankBeWidth)]};
     tcdm_adapter #(
-      .AddrWidth  (L2BankAddrWidth ),
-      .DataWidth  (L2BankWidth     ),
-      .metadata_t (l2_axi_idx_t    ),
-      .LrScEnable (1'b0            ),
-      .RegisterAmo(1'b0            )
+      .AddrWidth     (AddrWidth       ),
+      .BankAddrWidth (L2BankAddrWidth ),
+      .DataWidth     (L2BankWidth     ),
+      .metadata_t    (l2_axi_idx_t    ),
+      .LrScEnable    (1'b0            ),
+      .RegisterAmo   (1'b0            )
     ) i_bank_adapter (
       .clk_i       (clk_i                                                 ),
       .rst_ni      (rst_ni                                                ),
       .in_valid_i  (mem_req_valid[i]                                      ),
       .in_ready_o  (mem_req_ready[i]                                      ),
-      .in_address_i(mem_req_chan[i].addr[L2BankAddrIndex+:L2BankAddrWidth]),
+      .in_address_i(addr_scrambled                                        ),
       .in_amo_i    (mem_req_chan[i].amo                                   ),
       .in_write_i  (mem_req_chan[i].write                                 ),
       .in_wdata_i  (mem_req_chan[i].data                                  ),
