@@ -51,6 +51,11 @@ PERF_EVAL_KEYS_OMIT = (
     'snitch_store_region',
     'snitch_store_tile')
 
+# Instructions we want to count
+PERF_EVAL_KEY_INSTRUCTIONS = (
+    'mul',
+    'p.mac')
+
 # -------------------- Architectural constants and enums  --------------------
 
 REG_ABI_NAMES_I = (
@@ -322,6 +327,10 @@ def annotate_insn(
             insn, pc_str = ('', '')
         else:
             perf_metrics[-1]['snitch_issues'] += 1
+            # Check whether we executed an instruction we want to count
+            for instruction in PERF_EVAL_KEY_INSTRUCTIONS:
+                if instruction in insn:
+                    perf_metrics[-1]['inst_' + instruction] += 1
         # omit empty trace lines (due to double stalls, performance measures)
         empty = not (insn or annot)
         if empty:
@@ -504,6 +513,8 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         'seq_stores_global',
         'itl_stores_local',
         'itl_stores_global']
+    for instruction in PERF_EVAL_KEY_INSTRUCTIONS:
+        known_keys.append('inst_' + instruction)
     for key in keys:
         if key not in known_keys:
             known_keys.append(key)

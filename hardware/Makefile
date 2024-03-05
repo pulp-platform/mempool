@@ -111,6 +111,7 @@ vlog_defs += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 vlog_defs += -DNUM_DIVSQRT_PER_TILE=$(num_divsqrt_per_tile)
 vlog_defs += -DNUM_GROUPS=$(num_groups)
 vlog_defs += -DBANKING_FACTOR=$(banking_factor)
+vlog_defs += -DNUM_CLUSTERS=$(num_clusters)
 vlog_defs += -DL2_BASE=32\'d$(l2_base)
 vlog_defs += -DL2_SIZE=32\'d$(l2_size)
 vlog_defs += -DL2_BANKS=$(l2_banks)
@@ -128,6 +129,7 @@ vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix)
 vlog_defs += -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
+vlog_defs += -DAXI_MASTERS_ALL_CLUSTERS=$(axi_masters_all_clusters)
 # Systolic configurations
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size)
 vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)
@@ -418,6 +420,10 @@ src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img $(config_mk) Makefil
 
 $(MEMPOOL_DIR)/software/runtime/bootrom.img:
 	make -C $(MEMPOOL_DIR)/software runtime/bootrom.img
+
+# Control Registers
+src/control_registers/control_registers_reg_top.sv: src/control_registers/control_registers.hjson
+	make -C src/control_registers all
 
 # Clean targets
 .PHONY: clean clean-dasm clean-trace update_opcodes

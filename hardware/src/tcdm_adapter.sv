@@ -11,43 +11,46 @@
 `include "common_cells/registers.svh"
 
 module tcdm_adapter #(
-  parameter int unsigned  AddrWidth    = 32,
-  parameter int unsigned  DataWidth    = 32,
-  parameter type          metadata_t   = logic,
-  parameter bit           LrScEnable   = 1,
+  parameter int unsigned  AddrWidth     = 32,
+  parameter int unsigned  BankAddrWidth = AddrWidth,
+  parameter int unsigned  DataWidth     = 32,
+  parameter type          metadata_t    = logic,
+  parameter bit           LrScEnable    = 1,
   // Cut path between request and response at the cost of increased AMO latency
   parameter bit           RegisterAmo  = 1'b0,
   // Dependent parameters. DO NOT CHANGE.
   localparam int unsigned BeWidth      = DataWidth/8
 ) (
-  input  logic                 clk_i,
-  input  logic                 rst_ni,
+  input  logic                     clk_i,
+  input  logic                     rst_ni,
   // master side
-  input  logic                 in_valid_i,   // Bank request
-  output logic                 in_ready_o,   // Bank grant
-  input  logic [AddrWidth-1:0] in_address_i, // Address
-  input  logic [3:0]           in_amo_i,     // Atomic Memory Operation
-  input  logic                 in_write_i,   // 1: Store, 0: Load
-  input  logic [DataWidth-1:0] in_wdata_i,   // Write data
-  input  metadata_t            in_meta_i,    // Meta data
-  input  logic [BeWidth-1:0]   in_be_i,      // Byte enable
-  output logic                 in_valid_o,   // Read data
-  input  logic                 in_ready_i,   // Read data
-  output logic [DataWidth-1:0] in_rdata_o,   // Read data
-  output metadata_t            in_meta_o,    // Meta data
+  input  logic                     in_valid_i,   // Bank request
+  output logic                     in_ready_o,   // Bank grant
+  input  logic [AddrWidth-1:0]     in_address_i, // Address
+  input  logic [3:0]               in_amo_i,     // Atomic Memory Operation
+  input  logic                     in_write_i,   // 1: Store, 0: Load
+  input  logic [DataWidth-1:0]     in_wdata_i,   // Write data
+  input  metadata_t                in_meta_i,    // Meta data
+  input  logic [BeWidth-1:0]       in_be_i,      // Byte enable
+  output logic                     in_valid_o,   // Read data
+  input  logic                     in_ready_i,   // Read data
+  output logic [DataWidth-1:0]     in_rdata_o,   // Read data
+  output metadata_t                in_meta_o,    // Meta data
   // slave side
-  output logic                 out_req_o,   // Bank request
-  output logic [AddrWidth-1:0] out_add_o,   // Address
-  output logic                 out_write_o, // 1: Store, 0: Load
-  output logic [DataWidth-1:0] out_wdata_o, // Write data
-  output logic [BeWidth-1:0]   out_be_o,    // Bit enable
-  input  logic [DataWidth-1:0] out_rdata_i  // Read data
+  output logic                     out_req_o,   // Bank request
+  output logic [BankAddrWidth-1:0] out_add_o,   // Address
+  output logic                     out_write_o, // 1: Store, 0: Load
+  output logic [DataWidth-1:0]     out_wdata_o, // Write data
+  output logic [BeWidth-1:0]       out_be_o,    // Bit enable
+  input  logic [DataWidth-1:0]     out_rdata_i  // Read data
 );
 
-  import mempool_pkg::NumCores;
-  import mempool_pkg::NumGroups;
+  import mempool_pkg::NumCoresPerCluster;
+  import mempool_pkg::NumGroupsPerCluster;
   import mempool_pkg::NumCoresPerTile;
   import cf_math_pkg::idx_width;
+
+  localparam int unsigned AmoWidth = 32; // Only 32 is tested for now
 
   typedef enum logic [3:0] {
       AMONone = 4'h0,
@@ -77,15 +80,19 @@ module tcdm_adapter #(
       Idle, DoAMO, WriteBackAMO
   } state_q, state_d;
 
-  logic                 load_amo;
-  amo_op_t              amo_op_q;
-  logic                 amo_wb;
-  logic [BeWidth-1:0]   be_expand;
-  logic [AddrWidth-1:0] addr_q;
+  logic                     load_amo;
+  amo_op_t                  amo_op_q;
+  logic                     amo_wb;
+  logic [BankAddrWidth-1:0] in_address_bank;
 
-  logic [31:0] amo_operand_a;
-  logic [31:0] amo_operand_b_q;
-  logic [31:0] amo_result, amo_result_q;
+  logic [AddrWidth-1:0] amo_addr_q;
+  logic [BeWidth-1:0]   amo_be_q;
+  logic [AmoWidth-1:0]  amo_operand_a;
+  logic [AmoWidth-1:0]  amo_operand_b_q;
+  logic [AmoWidth-1:0]  amo_result, amo_result_q;
+
+  // Cut off the bits indexing the bytes of the same bank word
+  assign in_address_bank = in_address_i[$clog2(BeWidth)+:BankAddrWidth];
 
   // Store the metadata at handshake
   spill_register #(
@@ -128,8 +135,8 @@ module tcdm_adapter #(
     .pop_i      (pop_resp && !rdata_empty)
   );
 
-  localparam int unsigned CoreIdWidth  = idx_width(NumCores);
-  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroups);
+  localparam int unsigned CoreIdWidth  = idx_width(NumCoresPerCluster);
+  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroupsPerCluster);
 
   logic sc_successful_d, sc_successful_q;
   logic sc_q;
@@ -161,7 +168,7 @@ module tcdm_adapter #(
       /// This address is aligned to the memory size
       /// implying that the reservation happen on a set size
       /// equal to the word width of the memory (32 or 64 bit).
-      logic [AddrWidth-1:0] addr;
+      logic [BankAddrWidth-1:0] addr;
       /// Which core made this reservation. Important to
       /// track the reservations from different cores and
       /// to prevent any live-locking.
@@ -200,7 +207,7 @@ module tcdm_adapter #(
         if (amo_op_t'(in_amo_i) == AMOLR &&
             (!reservation_q.valid || reservation_q.core == unique_core_id)) begin
           reservation_d.valid = 1'b1;
-          reservation_d.addr = in_address_i;
+          reservation_d.addr = in_address_bank;
           reservation_d.core = unique_core_id;
         end
 
@@ -211,7 +218,7 @@ module tcdm_adapter #(
 
         // check whether another core has made a write attempt
         if ((unique_core_id != reservation_q.core) &&
-            (in_address_i == reservation_q.addr) &&
+            (in_address_bank == reservation_q.addr) &&
             (!(amo_op_t'(in_amo_i) inside {AMONone, AMOLR, AMOSC}) || in_write_i)) begin
           reservation_d.valid = 1'b0;
         end
@@ -220,7 +227,7 @@ module tcdm_adapter #(
         if (reservation_q.valid && amo_op_t'(in_amo_i) == AMOSC
             && reservation_q.core == unique_core_id) begin
           reservation_d.valid = 1'b0;
-          sc_successful_d = (reservation_q.addr == in_address_i);
+          sc_successful_d = (reservation_q.addr == in_address_bank);
         end
       end
     end // always_comb
@@ -238,7 +245,7 @@ module tcdm_adapter #(
     // feed-through
     in_ready_o  = rdata_ready;
     out_req_o   = in_valid_i && in_ready_o;
-    out_add_o   = in_address_i;
+    out_add_o   = in_address_bank;
     out_write_o = in_write_i || (sc_successful_d && (amo_op_t'(in_amo_i) == AMOSC));
     out_wdata_o = in_wdata_i;
     out_be_o    = in_be_i;
@@ -262,13 +269,13 @@ module tcdm_adapter #(
         amo_wb      = 1'b1;
         out_req_o   = 1'b1;
         out_write_o = 1'b1;
-        out_add_o   = addr_q;
-        out_be_o    = 4'b1111;
+        out_add_o   = amo_addr_q[$clog2(BeWidth)+:BankAddrWidth];
+        out_be_o    = amo_be_q;
         // serve from register if we cut the path
         if (RegisterAmo) begin
-          out_wdata_o = amo_result_q;
+          out_wdata_o[amo_addr_q[0+:$clog2(BeWidth)]*8+:AmoWidth] = amo_result_q;
         end else begin
-          out_wdata_o = amo_result;
+          out_wdata_o[amo_addr_q[0+:$clog2(BeWidth)]*8+:AmoWidth] = amo_result;
         end
       end
       default:;
@@ -285,14 +292,16 @@ module tcdm_adapter #(
     if (!rst_ni) begin
       state_q         <= Idle;
       amo_op_q        <= amo_op_t'('0);
-      addr_q          <= '0;
+      amo_addr_q      <= '0;
+      amo_be_q        <= '0;
       amo_operand_b_q <= '0;
     end else begin
       state_q         <= state_d;
       if (load_amo) begin
         amo_op_q        <= amo_op_t'(in_amo_i);
-        addr_q          <= in_address_i;
-        amo_operand_b_q <= in_wdata_i;
+        amo_addr_q      <= in_address_i;
+        amo_be_q        <= in_be_i;
+        amo_operand_b_q <= in_wdata_i[in_address_i[0+:$clog2(BeWidth)]*8+:AmoWidth];
       end else begin
         amo_op_q        <= AMONone;
       end
@@ -305,7 +314,7 @@ module tcdm_adapter #(
   logic [33:0] adder_sum;
   logic [32:0] adder_operand_a, adder_operand_b;
 
-  assign amo_operand_a = out_rdata_i;
+  assign amo_operand_a = out_rdata_i[amo_addr_q[0+:$clog2(BeWidth)]*8+:AmoWidth];
   assign adder_sum     = adder_operand_a + adder_operand_b;
   /* verilator lint_off WIDTH */
   always_comb begin : amo_alu
@@ -346,9 +355,9 @@ module tcdm_adapter #(
 
   // pragma translate_off
   // Check for unsupported parameters
-  if (DataWidth != 32) begin
-    $error($sformatf("Module currently only supports DataWidth = 32. DataWidth is currently set to: %0d", DataWidth));
-  end
+  // if (DataWidth != 32) begin
+  //   $error($sformatf("Module currently only supports DataWidth = 32. DataWidth is currently set to: %0d", DataWidth));
+  // end
 
   `ifndef VERILATOR
     assert_rdata_full : assert property(

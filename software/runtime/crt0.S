@@ -7,6 +7,8 @@
 
 // #define TOP4_STACK
 
+#include "addrmap.h"
+
 .globl _start
 .globl _eoc
 .section .text;
@@ -55,9 +57,16 @@ _reset_vector:
     li      x31, 0
     la      sp, __stack_start                                   // load stack
     csrr    a0, mhartid                                         // get hart id
+    // Calculate L1 offset for our cluster
+    srli    t1, a0, LOG2_NUM_CORES_PER_CLUSTER                  // cluster_id = id / NUM_CORES_PER_CLUSTER
+    slli    t1, t1, LOG2_L1_SIZE_PER_CLUSTER                    // cluster_offset = cluster_id * NUM_CORES_PER_CLUSTER * BANKING_FACTOR * BANK_SIZE
     // Calculate sequential region offset for our tile
     srli    t0, a0, LOG2_NUM_CORES_PER_TILE                     // tile_id = id / NUM_CORES_PER_TILE
-    slli    t0, t0, (LOG2_NUM_CORES_PER_TILE+LOG2_SEQ_MEM_SIZE) // tile_offset = tile_id * NUM_CORES_PER_TILE * SEQ_MEM_SIZE
+    li      t2, NUM_TILES_PER_CLUSTER                           // NUM_TILES_PER_CLUSTER
+    addi    t2, t2, -1                                          // Create mask for NUM_TILES_PER_CLUSTER
+    and     t0, t0, t2                                          // tile_cluster_id = tile_id % NUM_TILES_PER_CLUSTER
+    slli    t0, t0, (LOG2_NUM_CORES_PER_TILE+LOG2_SEQ_MEM_SIZE) // tile_offset = tile_cluster_id * NUM_CORES_PER_TILE * SEQ_MEM_SIZE
+    add     t0, t0, t1                                          // offset = cluster_offset + tile_offset
     // Calculate stack offset within tile
     li      t1, NUM_CORES_PER_TILE                              // NUM_CORES_PER_TILE
     addi    t1, t1, -1                                          // Create mask for NUM_CORES_PER_TILE
@@ -77,14 +86,14 @@ _reset_vector:
     csrw    stacklimit, t0                                     // write stack limit into CSR
     // Configure the RO cache or directly jump to main
     bnez    a0, _jump_main
-    la      t0, ro_cache_end_0                                  // Get peripheral register to set cacheable region
+    li      t0, (CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_RO_CACHE_END_0_REG_OFFSET) // Get peripheral register to set cacheable region
     la      t1, _erodata                                        // Write the end of the read-only data to be cacheable
     sw      t1, 0(t0)
 _jump_main:
     call    main
 
 _eoc:
-    la      t0, eoc_reg
+    li      t0, (CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_EOC_REG_OFFSET)
     slli    t1, a0, 1
     addi    t1, t1, 1
     sw      t1, 0(t0)
