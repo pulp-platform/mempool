@@ -31,10 +31,6 @@ def gen_data_header_file(
     with file.open('w') as f:
         f.write(template.render(**kwargs))
 
-######################
-# Fixpoint Functions #
-######################
-
 
 def q_sat(x):
     if x > 2**15 - 1:
@@ -45,22 +41,6 @@ def q_sat(x):
         return x
 
 
-def q_add(a, b):
-    return q_sat(a + b)
-
-
-def q_sub(a, b):
-    return q_sat(a - b)
-
-
-def q_mul(a, b, p):
-    return a * b
-
-
-def q_div(a, b, p):
-    return a / b
-
-
 def generate_chest_f16(nb_tx, nb_rx, nb_samples):
     H = np.random.randn(nb_rx, nb_tx) + 1j * np.random.randn(nb_rx, nb_tx)
     vector_pilot_tx = []
@@ -68,19 +48,27 @@ def generate_chest_f16(nb_tx, nb_rx, nb_samples):
     vector_Hest = []
     for k in range(nb_samples):
 
-        # Compute data
+        # Compute data division
+        #        pilot_tx = 1 * np.exp(1j * np.random.randn(nb_tx))
+        #        pilot_rx = np.dot(H, pilot_tx)
+        #        Hest = pilot_rx[:, np.newaxis] / pilot_tx[np.newaxis, :]
+
+        # Compute data multiplication
         pilot_tx = 1 * np.exp(1j * np.random.randn(nb_tx))
         pilot_rx = np.dot(H, pilot_tx)
-        Hest = pilot_rx[:, np.newaxis] / pilot_tx[np.newaxis, :]
+        pilot_tx = np.reciprocal(pilot_tx)
+        Hest = pilot_rx[:, np.newaxis] * pilot_tx[np.newaxis, :]
 
         # Interleaved real and imaginary parts
         pilot_tx = np.column_stack(
-            (pilot_tx.real, pilot_tx.imag)).astype(np.float16).flatten()
+            (pilot_tx.imag, pilot_tx.real)).astype(
+            np.float16).flatten()
         pilot_rx = np.column_stack(
-            (pilot_rx.real, pilot_rx.imag)).astype(np.float16).flatten()
+            (pilot_rx.imag, pilot_rx.real)).astype(
+            np.float16).flatten()
         Hest = Hest.flatten()
         Hest = np.column_stack(
-            (Hest.real, Hest.imag)).astype(
+            (Hest.imag, Hest.real)).astype(
             np.float16).flatten()
 
         # Output vectors
@@ -93,66 +81,61 @@ def generate_chest_f16(nb_tx, nb_rx, nb_samples):
     vector_Hest = np.concatenate(vector_Hest, axis=0)
     return vector_pilot_tx, vector_pilot_rx, vector_Hest
 
-# Convert to fixed point
-
-
-def fixed_point_conversion(v_input, fixed_point, scaling_factor):
-    real = (np.multiply(v_input.real,
-                        scaling_factor * 2**(np.log2(fixed_point))))
-    imag = (np.multiply(v_input.imag,
-                        scaling_factor * 2**(np.log2(fixed_point))))
-    output = np.zeros(len(real) * 2)
-    for i in range(0, len(real)):
-        output[2 * i] = real[i]
-        output[2 * i + 1] = imag[i]
-    return output.astype(np.int16)
-
 # Compute the channel estimate
 
 
 def compute_chest_q16(in_rx, in_tx, p):
-    my_type = np.int16
-    a = in_rx.astype(my_type)
-    b = in_tx.astype(my_type)
-    n_rx = a.size >> 1
-    n_tx = b.size >> 1
-    result = np.zeros(2 * (n_tx * n_rx), dtype=my_type)
+    n_rx = in_rx.size
+    n_tx = in_tx.size
+    result = np.zeros(2 * (n_tx * n_rx), dtype=np.int16)
     for i in range(n_rx):
-        a_r = a[2 * i]
-        a_i = a[2 * i + 1]
+        a_r = in_rx[i].real
+        a_i = in_rx[i].imag
         for j in range(n_tx):
-            b_r = b[2 * j]
-            b_i = b[2 * j + 1]
-            den = q_mul(b_r, b_r, p) + q_mul(b_i, b_i, p)
-            num_r = q_add(q_mul(a_r, b_r, p), q_mul(a_i, b_i, p))
-            num_i = q_sub(q_mul(a_i, b_r, p), q_mul(a_r, b_i, p))
-            result[2 * (i * n_tx + j)] = q_div(num_r, den, p)
-            result[2 * (i * n_tx + j) + 1] = q_div(num_i, den, p)
+            b_r = in_tx[j].real
+            b_i = in_tx[j].imag
+
+#            # Compute data division
+#            den = (2**16) // (b_r * b_r + b_i * b_i)
+#            num_r = (a_r * b_r) + (a_i * b_i)
+#            num_i = (a_i * b_r) - (a_r * b_i)
+#            result[2 * (i * n_tx + j)] = q_sat((num_r * den) // 2**p)
+#            result[2 * (i * n_tx + j) + 1] = q_sat((num_i * den) // 2**p)
+
+            # Compute data multiplication
+            num_r = (a_r * b_r) + (a_i * b_i)
+            num_i = (a_i * b_r) - (a_r * b_i)
+            result[2 * (i * n_tx + j)] = q_sat(num_r // 2**p)
+            result[2 * (i * n_tx + j) + 1] = q_sat(num_i // 2**p)
     return result
 
 
 def generate_chest_q16(nb_tx, nb_rx, nb_samples):
-    H = np.random.randn(nb_rx, nb_tx) + 1j * np.random.randn(nb_rx, nb_tx)
+    FIXED_POINT = 8
+    MAX = 2**7
+
     qvector_pilot_tx = []
     qvector_pilot_rx = []
     qvector_Hest = []
     for k in range(nb_samples):
-        pilot_tx = 1 * np.exp(1j * np.random.randn(nb_tx))
-        pilot_rx = np.dot(H, pilot_tx)
-        fixed_point = 12
-        scaling_factor = 1
-        q_pilot_tx = fixed_point_conversion(
-            np.reshape(pilot_tx, [nb_tx]), fixed_point, 1)
-        q_pilot_rx = fixed_point_conversion(
-            np.reshape(
-                pilot_rx,
-                [nb_rx]),
-            fixed_point,
-            scaling_factor)
-        q_Hest = compute_chest_q16(q_pilot_rx, q_pilot_tx, fixed_point)
-        qvector_pilot_tx.append(q_pilot_tx)
-        qvector_pilot_rx.append(q_pilot_rx)
-        qvector_Hest.append(q_Hest)
+        # Create pilots
+        pilot_rx = np.random.randint(-MAX, MAX - 1, size=nb_rx) + 1j * \
+            np.random.randint(-MAX, MAX - 1, size=nb_rx)
+        pilot_tx = np.random.randint(-MAX, MAX - 1, size=nb_tx) + 1j * \
+            np.random.randint(-MAX, MAX - 1, size=nb_tx)
+        # Compute Hest
+        Hest = compute_chest_q16(pilot_rx, pilot_tx, FIXED_POINT)
+
+        pilot_tx = np.column_stack(
+            (pilot_tx.imag, pilot_tx.real)).astype(
+            np.int16).flatten()
+        pilot_rx = np.column_stack(
+            (pilot_rx.imag, pilot_rx.real)).astype(
+            np.int16).flatten()
+        qvector_pilot_tx.append(pilot_tx)
+        qvector_pilot_rx.append(pilot_rx)
+        qvector_Hest.append(Hest)
+
     qvector_pilot_tx = np.reshape(qvector_pilot_tx, [2 * nb_tx * nb_samples])
     qvector_pilot_rx = np.reshape(qvector_pilot_rx, [2 * nb_rx * nb_samples])
     qvector_Hest = np.reshape(qvector_Hest, [2 * nb_tx * nb_rx * nb_samples])
@@ -175,7 +158,7 @@ def main():
         "--num_rx",
         type=int,
         required=False,
-        default=4,
+        default=32,
         help='Number beams'
     )
     parser.add_argument(
