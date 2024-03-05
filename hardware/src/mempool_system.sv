@@ -502,7 +502,6 @@ module mempool_system
   );
 
   ctrl_registers #(
-    .NumRegs          (16 + 8             ),
     .TCDMBaseAddr     (TCDMBaseAddr       ),
     .TCDMSize         (TCDMSize           ),
     .NumCores         (NumCores           ),
@@ -513,13 +512,10 @@ module mempool_system
     .rst_ni               (rst_ni                          ),
     .axi_lite_slave_req_i (axi_lite_slv_req[CtrlRegisters] ),
     .axi_lite_slave_resp_o(axi_lite_slv_resp[CtrlRegisters]),
-    .ro_cache_ctrl_o      (ro_cache_ctrl                   ),
-    .tcdm_start_address_o (/* Unused */                    ),
-    .tcdm_end_address_o   (/* Unused */                    ),
-    .num_cores_o          (/* Unused */                    ),
-    .wake_up_o            (wake_up                         ),
     .eoc_o                (/* Unused */                    ),
-    .eoc_valid_o          (eoc_valid_o                     )
+    .eoc_valid_o          (eoc_valid_o                     ),
+    .wake_up_o            (wake_up                         ),
+    .ro_cache_ctrl_o      (ro_cache_ctrl                   )
   );
 
   mempool_dma #(

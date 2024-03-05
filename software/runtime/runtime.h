@@ -6,6 +6,7 @@
 //         Matheus Cavalcante, ETH Zurich
 
 #pragma once
+#include "addrmap.h"
 #include "alloc.h"
 #include "encoding.h"
 #include <stddef.h>
@@ -14,18 +15,17 @@
 #define NUM_BANKS_PER_TILE NUM_CORES_PER_TILE *BANKING_FACTOR
 
 extern char l1_alloc_base;
-extern uint32_t atomic_barrier;
-extern volatile uint32_t wake_up_reg;
-extern volatile uint32_t wake_up_group_reg;
+static uint32_t volatile* wake_up_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_REG_OFFSET);
+static uint32_t volatile* wake_up_group_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_GROUP_REG_OFFSET);
 
-extern volatile uint32_t wake_up_tile_g0_reg;
-extern volatile uint32_t wake_up_tile_g1_reg;
-extern volatile uint32_t wake_up_tile_g2_reg;
-extern volatile uint32_t wake_up_tile_g3_reg;
-extern volatile uint32_t wake_up_tile_g4_reg;
-extern volatile uint32_t wake_up_tile_g5_reg;
-extern volatile uint32_t wake_up_tile_g6_reg;
-extern volatile uint32_t wake_up_tile_g7_reg;
+static uint32_t volatile* wake_up_tile_g0_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_0_REG_OFFSET);
+static uint32_t volatile* wake_up_tile_g1_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_1_REG_OFFSET);
+static uint32_t volatile* wake_up_tile_g2_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_2_REG_OFFSET);
+static uint32_t volatile* wake_up_tile_g3_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_3_REG_OFFSET);
+static uint32_t volatile* wake_up_tile_g4_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_4_REG_OFFSET);
+static uint32_t volatile* wake_up_tile_g5_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_5_REG_OFFSET);
+static uint32_t volatile* wake_up_tile_g6_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_6_REG_OFFSET);
+static uint32_t volatile* wake_up_tile_g7_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_7_REG_OFFSET);
 
 typedef uint32_t mempool_id_t;
 typedef uint32_t mempool_timer_t;
@@ -127,10 +127,10 @@ static inline void mempool_wfi() { asm volatile("wfi"); }
 
 // Wake up core with given core_id by writing in the wake up control register.
 // If core_id equals -1, wake up all cores.
-static inline void wake_up(uint32_t core_id) { wake_up_reg = core_id; }
+static inline void wake_up(uint32_t core_id) { *wake_up_reg = core_id; }
 static inline void wake_up_all() { wake_up((uint32_t)-1); }
 static inline void wake_up_group(uint32_t group_mask) {
-  wake_up_group_reg = group_mask;
+  *wake_up_group_reg = group_mask;
 }
 static inline void wake_up_all_group() { wake_up_group((uint32_t)-1); }
 
@@ -138,31 +138,31 @@ static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
 
   switch (group_id) {
   case 0:
-    wake_up_tile_g0_reg = tile_mask;
+    *wake_up_tile_g0_reg = tile_mask;
     break;
   case 1:
-    wake_up_tile_g1_reg = tile_mask;
+    *wake_up_tile_g1_reg = tile_mask;
     break;
   case 2:
-    wake_up_tile_g2_reg = tile_mask;
+    *wake_up_tile_g2_reg = tile_mask;
     break;
   case 3:
-    wake_up_tile_g3_reg = tile_mask;
+    *wake_up_tile_g3_reg = tile_mask;
     break;
   case 4:
-    wake_up_tile_g4_reg = tile_mask;
+    *wake_up_tile_g4_reg = tile_mask;
     break;
   case 5:
-    wake_up_tile_g5_reg = tile_mask;
+    *wake_up_tile_g5_reg = tile_mask;
     break;
   case 6:
-    wake_up_tile_g6_reg = tile_mask;
+    *wake_up_tile_g6_reg = tile_mask;
     break;
   case 7:
-    wake_up_tile_g7_reg = tile_mask;
+    *wake_up_tile_g7_reg = tile_mask;
     break;
   default:
-    wake_up_tile_g0_reg = tile_mask;
+    *wake_up_tile_g0_reg = tile_mask;
     break;
   }
 }
