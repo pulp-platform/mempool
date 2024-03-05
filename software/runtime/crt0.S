@@ -7,6 +7,8 @@
 
 // #define TOP4_STACK
 
+#include "addrmap.h"
+
 .globl _start
 .globl _eoc
 .section .text;
@@ -77,14 +79,14 @@ _reset_vector:
     csrw    stacklimit, t0                                     // write stack limit into CSR
     // Configure the RO cache or directly jump to main
     bnez    a0, _jump_main
-    la      t0, ro_cache_end_0                                  // Get peripheral register to set cacheable region
+    li      t0, (CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_RO_CACHE_END_0_REG_OFFSET) // Get peripheral register to set cacheable region
     la      t1, _erodata                                        // Write the end of the read-only data to be cacheable
     sw      t1, 0(t0)
 _jump_main:
     call    main
 
 _eoc:
-    la      t0, eoc_reg
+    li      t0, (CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_EOC_REG_OFFSET)
     slli    t1, a0, 1
     addi    t1, t1, 1
     sw      t1, 0(t0)

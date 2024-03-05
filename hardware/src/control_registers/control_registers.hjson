@@ -1,0 +1,127 @@
+// Copyright 2024 ETH Zurich and University of Bologna.
+// Solderpad Hardware License Version 0.51 see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+// Licensed under Solderpad Hardware License, Version 0.51, see LICENSE for details.
+
+{
+  name: "control_registers"
+  clock_primary: "clk_i"
+  reset_primary: "rst_ni"
+  bus_interfaces: [
+    { protocol: "reg_iface"
+      direction: "device"
+    }
+  ]
+  param_list: [
+    { name: "ROCacheNumAddrRules",
+      desc: "Number of programmable address regions for the read-only cache",
+      type: "int",
+      default: "4"
+    },
+    { name: "MAX_NumGroups",
+      desc: "Maximum number of groups that we support in any configuration",
+      type: "int",
+      default: "8"
+    }
+  ],
+  regwidth: 32
+  registers: [
+    { name: "eoc"
+      desc: "End-of-Computation Register"
+      swaccess: "rw"
+      hwaccess: "hro"
+      fields: [{ bits: "31:0" }]
+    },
+    { name: "wake_up"
+      desc: "Wake Up Register"
+      swaccess: "wo"
+      hwaccess: "hro"
+      hwqe: "true"
+      fields: [{ bits: "31:0" }]
+    },
+    { multireg:
+      {
+        name: "wake_up_tile"
+        desc: "Wake Up Tile Register"
+        swaccess: "wo"
+        hwaccess: "hro"
+        hwqe: "true"
+        count: "MAX_NumGroups"
+        cname: "wake_up_tile"
+        fields: [{ bits: "31:0" }]
+      },
+    },
+    { name: "wake_up_group"
+      desc: "Wake Up Group Register"
+      swaccess: "wo"
+      hwaccess: "hro"
+      hwqe: "true"
+      fields: [{ bits: "31:0" }]
+    },
+    { name: "tcdm_start_address"
+      desc: "TCDM Start Address Register"
+      swaccess: "ro"
+      hwaccess: "hwo"
+      // External because we want to define the reset from a parameter
+      hwext: "true"
+      fields: [{ bits: "31:0" }]
+    },
+    { name: "tcdm_end_address"
+      desc: "TCDM End Address Register"
+      swaccess: "ro"
+      hwaccess: "hwo"
+      // External because we want to define the reset from a parameter
+      hwext: "true"
+      fields: [{ bits: "31:0" }]
+    },
+    { name: "nr_cores_reg"
+      desc: "Number of Cores Register"
+      swaccess: "ro"
+      hwaccess: "hwo"
+      // External because we want to define the reset from a parameter
+      hwext: "true"
+      fields: [{ bits: "31:0" }]
+    },
+    { name: "ro_cache_enable"
+      desc: "Read-only cache Enable"
+      swaccess: "rw"
+      hwaccess: "hro"
+      resval: "1"
+      fields: [{ bits: "31:0" }]
+    },
+    { name: "ro_cache_flush"
+      desc: "Read-only cache Flush"
+      swaccess: "rw"
+      hwaccess: "hro"
+      fields: [{ bits: "31:0" }]
+    },
+    { multireg:
+      {
+        name: "ro_cache_start"
+        desc: "Read-only cache Region Start"
+        swaccess: "rw"
+        hwaccess: "hrw"
+        hwqe: "true"
+        // External because we want to define the reset from a parameter
+        hwext: "true"
+        count: "ROCacheNumAddrRules"
+        cname: "ro_cache_start"
+        fields: [{ bits: "31:0" }]
+      },
+    },
+    { multireg:
+      {
+        name: "ro_cache_end"
+        desc: "Read-only cache Region End"
+        swaccess: "rw"
+        hwaccess: "hrw"
+        hwqe: "true"
+        // External because we want to define the reset from a parameter
+        hwext: "true"
+        count: "ROCacheNumAddrRules"
+        cname: "ro_cache_end"
+        fields: [{ bits: "31:0" }]
+      }
+    }
+  ]
+}
