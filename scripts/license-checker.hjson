@@ -13,6 +13,7 @@
   match_regex: 'true'
   exclude_paths: [
     # Exclude anything that is explicitly mentioned in the README
+    'software/runtime/control_registers.h'
     'software/runtime/printf*'
     'software/runtime/encoding.h'
     'software/runtime/mempool_dma_frontend.h'

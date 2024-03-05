@@ -25,6 +25,9 @@ lint_off -rule PINCONNECTEMPTY -file "*/deps/*" -match "*"
 lint_off -rule DECLFILENAME -file "*/deps/*" -match "*"
 lint_off -rule LITENDIAN -file "*/deps/fpnew/*" -match "*"
 
+// Ignore unused register ports in lowRISC's prims
+lint_off -rule PINCONNECTEMPTY -file "*/src/control_registers/*" -match "*"
+
 // Ignore unused RISCV instruction encoding parameters
 lint_off -rule UNUSED -file "*/deps/snitch/src/riscv_instr.sv" -match "*"
 
