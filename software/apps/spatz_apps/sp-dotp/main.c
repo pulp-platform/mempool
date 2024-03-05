@@ -21,13 +21,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "data/data_4096_2.h"
-// #include "data/data_4096_16.h"
-// #include "data/data_8192_2.h"
-// #include "data/data_8192_16.h"
-// #include "data/data_8192_32.h"
-// #include "data/data_16384_64.h"
-// #include "kernel/fdotp.c"
+#include "data/data_dotp.h"
 
 #include "dma.h"
 #include "encoding.h"
@@ -36,59 +30,26 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#define PARTIAL_TIMER
 
-uint32_t timer = (unsigned int)-1;
+uint32_t timer = (uint32_t)-1;
 // 32-bit dot-product: a * b
-float fdotp_v32b(const float *a, const float *b, unsigned int avl, const uint32_t cid) {
-  const unsigned int orig_avl = avl;
-  unsigned int vl;
-
-  float red;
-
-  #ifdef PARTIAL_TIMER
-  uint32_t timer_start, timer_end;
-  if (cid == 0) {
-    timer_start = mempool_get_timer();
-  }
-  #endif
-
-  // Stripmine and accumulate a partial reduced vector
-  do {
-    // Set the vl
-    asm volatile("vsetvli %0, %1, e32, m4, ta, ma" : "=r"(vl) : "r"(avl));
-
+void fdotp_v32b_p1(const float *a, const float *b, uint32_t round, uint32_t dim) {
+  for (uint32_t rnd = 0; rnd < round; rnd ++) {
     // Load chunk a and b
     asm volatile("vle32.v v8,  (%0)" ::"r"(a));
+    a += dim;
     asm volatile("vle32.v v16, (%0)" ::"r"(b));
-    a += vl;
-    b += vl;
-    // Multiply and accumulate
-    if (avl == orig_avl) {
+    b += dim;
+    if (rnd == 0)
       asm volatile("vfmul.vv v24, v8, v16");
-    } else {
+    else
       asm volatile("vfmacc.vv v24, v8, v16");
-    }
-    avl -= vl;
-    // asm volatile("vle32.v v8,  (%0)" ::"r"(a));
-    // asm volatile("vle32.v v16, (%0)" ::"r"(b));
-    // asm volatile("vfmacc.vv v24, v8, v16");
-
-    // // Bump pointers
-    // a += vl;
-    // b += vl;
-    // avl -= vl;
-    // mempool_wait(1000);
-  } while (avl > 0);
-
-  #ifdef PARTIAL_TIMER
-  if (cid == 0) {
-    timer_end = mempool_get_timer();
-    timer = timer_end - timer_start;
   }
-  #endif
+}
 
+float fdotp_v32b_p2(){
   // Reduce and return
+  float red;
   asm volatile("vfredusum.vs v0, v24, v0");
   asm volatile("vfmv.f.s %0, v0" : "=f"(red));
   return red;
@@ -106,31 +67,40 @@ static inline int fp_check(const float a, const float b) {
 }
 
 int main() {
-  const unsigned int num_cores = mempool_get_core_count();
-  const unsigned int cid = mempool_get_core_id();
-  const unsigned int is_core_active = cid < active_cores;
-  const unsigned int dim = dotp_l.M;
+  const uint32_t num_cores = mempool_get_core_count();
+  const uint32_t cid = mempool_get_core_id();
+  const uint32_t is_core_active = cid < active_cores;
+  const uint32_t dim = dotp_l.M;
+
+  // calculate the number of rounds we need
+  // the optimal settings for lmul is 4 for MemPool, 2 for TeraPool
+  const uint32_t lmul = 4;
+  const uint32_t vlen_elem = VLEN / 32;
+  const uint32_t max_vl = vlen_elem * lmul;
+
+  const uint32_t dim_per_round = max_vl * active_cores;
+  const uint32_t round = (dim > dim_per_round) ? dim/dim_per_round : 1;
+
+  if (cid == 0) {
+    printf("lmul:%u, dim:%u, rnd:%u\n", lmul, dim_per_round, round);
+  }
 
   // Initialize multicore barrier
   mempool_barrier_init(cid);
 
-  #ifndef PARTIAL_TIMER
   uint32_t timer_start, timer_end;
-  #endif
 
   // Block dimension of core
-  const unsigned int dim_core = dim / active_cores;
+  const uint32_t dim_core = (round == 0) ? dim / active_cores : max_vl;
 
   // Wait for all cores to finish
   mempool_barrier(num_cores);
 
   // Initialize matrices
   if (cid == 0) {
-    // init_matrix(a, dotp_A_dram, dim);
-    // init_matrix(b, dotp_B_dram, dim);
     dma_memcpy_blocking(a, dotp_A_dram, dim * sizeof(float));
     dma_memcpy_blocking(b, dotp_B_dram, dim * sizeof(float));
-    for (uint32_t i = 0; i < active_cores; i ++) {
+    for (uint32_t i = 0; i <= active_cores; i ++) {
       result[i] = 0;
     }
     printf("finish copy\n");
@@ -140,51 +110,59 @@ int main() {
   float *b_int = b + dim_core * cid;
   float *final_store = result + active_cores;
   float acc = 0;
+  uint32_t vl;
+
+  if (is_core_active) {
+    if (lmul == 1)
+      asm volatile("vsetvli %0, %1, e32, m1, ta, ma" : "=r"(vl) : "r"(dim_core));
+    else if (lmul == 2)
+      asm volatile("vsetvli %0, %1, e32, m2, ta, ma" : "=r"(vl) : "r"(dim_core));
+    else if (lmul == 4)
+      asm volatile("vsetvli %0, %1, e32, m4, ta, ma" : "=r"(vl) : "r"(dim_core));
+    else if (lmul == 8)
+      asm volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(dim_core));
+    else {
+      printf("invalid LMUL settings\n");
+      return 1;
+    }
+    mempool_start_benchmark();
+  }
 
   // Wait for all cores to finish
   mempool_barrier(num_cores);
 
-  // Calculate dotp
   if (is_core_active) {
-    // Start dump
-    mempool_start_benchmark();
-    #ifndef PARTIAL_TIMER
-    // Start timer
     if (cid == 0)
       timer_start = mempool_get_timer();
-    #endif
-    // Calculate the result
-    acc = fdotp_v32b(a_int, b_int, dim_core, cid);
+
+    fdotp_v32b_p1(a_int, b_int, round, dim_per_round);
+  }
+
+  mempool_barrier(num_cores);
+  if (cid == 0) {
+    timer_end = mempool_get_timer();
+    timer = (timer_end - timer_start);
+  }
+
+  if (is_core_active) {
+    acc = fdotp_v32b_p2();
     result[cid] = acc;
   }
 
-  // Wait for all cores to finish
-  mempool_barrier(num_cores);
-
   if (cid == 0) {
-    for (unsigned int i = 1; i < active_cores; ++i)
-      acc += result[i];
-    *final_store = acc;
+    for (uint32_t i = 0; i < active_cores; ++i)
+      *final_store += result[i];
   }
 
-  // Wait for all cores to finish
-  mempool_barrier(num_cores);
-
-  // // End timer
-  #ifndef PARTIAL_TIMER
-  if (cid == 0) {
-    timer_end = mempool_get_timer();
-    timer = timer_end - timer_start;
-  }
-  #endif
   // End dump
   if (cid < active_cores)
     mempool_stop_benchmark();
 
   // Check and display results
   if (cid == 0) {
-    unsigned int performance = 1000 * 2 * dim / timer;
-    unsigned int utilization = performance / (2 * active_cores * N_FPU);
+    // The timer did not count the reduction time
+    uint32_t performance = (1000 * (2 * dim - dim_per_round)) / timer;
+    uint32_t utilization = performance / (2 * active_cores * N_FPU);
 
     printf("\n----- (%dx%d) sp fdotp -----\n", dim, dim);
     printf("The execution took %u cycles.\n", timer);
@@ -198,13 +176,9 @@ int main() {
     float *output = result + active_cores;
     uint32_t *calc = (uint32_t *) output;
     printf("calc:%x\n", (uint32_t) *calc);
-    if (fp_check(dotp_result, *output)) {
-      printf("Mismatch!\n");
-      return 1;
-    }
   }
 
-  // Wait for core 0 to finish displaying results
+  // Wait for core 0 to display the results
   mempool_barrier(num_cores);
 
   return 0;

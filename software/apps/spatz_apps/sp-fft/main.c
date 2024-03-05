@@ -30,18 +30,9 @@
 
 
 #include "kernel/fft.c"
-// #include "data/data_256_2.h"
-// #include "data/data_256_4.h"
-// #include "data/data_256_8.h"
-// #include "data/data_512_2.h"
-// #include "data/data_512_4.h"
-// #include "data/data_1024_2.h"
-// #include "data/data_1024_4.h"
-#include "data/data_1024_8.h"
+#include "data/data_fft.h"
 
-dump(p1, 5)
-// each bit of DUMP controls one dumping selection
-uint32_t DUMP = 0;
+#define USE_DMA
 
 static inline int fp_check(const float a, const float b) {
   const float threshold = 0.01f;
@@ -53,6 +44,13 @@ static inline int fp_check(const float a, const float b) {
 
   return comp > threshold;
 }
+
+// max(#Core) = (NFFT/4)/(N_FU)
+// Helper index in 16-bits, needs to fit in a vector word (1/2 * 1/(N_FU))
+// We also need to one additional round for strided store into bitrev order (another 1/2)
+// 256  -> 16
+// 512  -> 32
+// 1024 -> 64
 
 int main() {
   // twiddle layout: [re_p1, im_p1, re_p2, im_p2]
@@ -67,38 +65,67 @@ int main() {
   // distance in bits
   const uint32_t stride = stride_e * element_size;
 
+  const uint32_t CHECK = 1;
+
+  if (active_cores > ((NFFT/4)/N_FU)) {
+    if (cid == 0)
+      printf("Too many cores");
+
+    return -1;
+  }
+
   // Reset timer
   unsigned int timer = (unsigned int)-1;
-  if (cid == 0) { 
+  if (cid == 0) {
     // DMA has a problem with copying unaligned L1 and L2 data
     // Twiddle's size may not be a power of 2, so we'd better use mannual copy instead of DMA
     // TODO: Fix DMA and let it copy the data!
     dma_memcpy_blocking(samples,     samples_dram,   (NFFT*2) * sizeof(float));
+    // Not necessary, but can make sure address of samples, buffer and out are aligned
     dma_memcpy_blocking(buffer,      buffer_dram,    (NFFT*2) * sizeof(float));
     dma_memcpy_blocking(out,         buffer_dram,    (NFFT*2) * sizeof(float));
 
+  #ifdef USE_DMA
+    dma_memcpy_blocking(twiddle_p1,  twiddle_dram,   (NTWI_P1*2) * sizeof(float));
+    dma_memcpy_blocking(twiddle_p1,  twiddle_dram,   (NTWI_P1*2) * sizeof(float));
+    dma_memcpy_blocking(store_idx,   store_idx_dram, (log2_nfft2-1) * (NFFTpc >> 1) * sizeof(uint16_t));
+    dma_memcpy_blocking(core_offset, coffset_dram,   active_cores * sizeof(uint32_t));
+
+    float *p2_twi = twiddle_p2;
+    float *p2_twi_dram = twiddle_dram + (NTWI_P1<<1);
+    for (uint32_t i = 0; i < active_cores; i ++) {
+      dma_memcpy_blocking(p2_twi,    p2_twi_dram,    (NTWI_P2*2) * sizeof(float));
+      p2_twi += (NTWI_P2*2);
+    }
+  #else
+
+    printf("load twi part 1\n");
     for (uint32_t i = 0; i < 2*NTWI_P1; i++) {
       twiddle_p1[i]   = twiddle_dram[i];
     }
+  }
 
-    for (uint32_t i = 0; i < (active_cores*NTWI_P2*2); i++) {
+  if (cid < active_cores) {
+    if (cid == 0) {
+      printf("load twi part 2\n");
+    }
+    for (uint32_t i = cid*(NTWI_P2*2); i < (cid+1)*(NTWI_P2*2); i++) {
       // Each core has its own P2 twiddle copy to reduce bank conflicts
+      // parallel the load across multi cores
       twiddle_p2[i] = twiddle_dram[i + (NTWI_P1<<1)];
     }
+  }
 
+  if (cid == 0) {
     for (uint32_t i = 0; i < (log2_nfft2-1) * (NFFTpc >> 1); i++) {
       // Each stages in phase 2 except last one need store index
       store_idx[i] = store_idx_dram[i];
     }
-
-    for (uint32_t i = 0; i < (NFFTpc >> 1); i++) {
-      bitrev[i]    = bitrev_dram[i];
-    }
-
     for (uint32_t i = 0; i < active_cores; i++) {
+      // The offset of address used to calculate the pointer
       core_offset[i]    = coffset_dram[i];
     }
-
+  #endif
     printf("finish copy!\n");
   }
 
@@ -112,7 +139,7 @@ int main() {
   // TODO: Optimize for MemPool data layout
   float *twi_p2 = twiddle_p2 + cid * (NTWI_P2<<1);
   float *out_p2 = out + core_offset[cid];
-  
+
   uint32_t  p2_switch = 0;
 
   float *src_p1 = samples;
@@ -139,16 +166,7 @@ int main() {
       twi_p1 += (NFFT >> (i+1));
       p2_switch = (i & 1);
     }
-    // first bit of DUMP
-    if (DUMP & 1) {
-      if (cid == 0) {
-        uint32_t *out_p1 = (uint32_t *) src_p1;
-        for (uint32_t i = 0; i < NFFT*2; i ++) {
-          dump_p1((uint32_t) out_p1[i]);
-        }
-        printf("\n");
-      }
-    }
+    // In first part of calculation, we need barrier after each round
     mempool_barrier(num_cores);
   }
 
@@ -171,14 +189,6 @@ int main() {
     timer = mempool_get_timer()- timer;
     mempool_stop_benchmark();
   }
-  // second bit of DUMP
-  if (cid == 0 && (DUMP & 2)) {
-    uint32_t *out_dump = (uint32_t *) out;
-    for (uint32_t i = 0; i < NFFT*2; i ++) {
-      dump_p1((uint32_t) out_dump[i]);
-    }
-    printf("\n");
-  }
 
   // Display runtime
   if (cid == 0) {
@@ -196,24 +206,26 @@ int main() {
     printf("The performance is %ld OP/1000cycle (%ld%%o utilization).\n",
            performance, utilization);
 
-    uint32_t rerror = 0;
-    uint32_t ierror = 0;
+    if (CHECK) {
+      uint32_t rerror = 0;
+      uint32_t ierror = 0;
 
-    // Verify the real part
-    for (unsigned int i = 0; i < NFFT; i++) {
-      if (fp_check(out[i], gold_out_dram[2 * i])) {
-        rerror ++;
+      // Verify the real part
+      for (unsigned int i = 0; i < NFFT; i++) {
+        if (fp_check(out[i], gold_out_dram[2 * i])) {
+          rerror ++;
+        }
       }
-    }
 
-    // Verify the imac part
-    for (unsigned int i = 0; i < NFFT; i++) {
-      if (fp_check(out[i + NFFT], gold_out_dram[2 * i + 1])) {
-        ierror ++;
+      // Verify the imac part
+      for (unsigned int i = 0; i < NFFT; i++) {
+        if (fp_check(out[i + NFFT], gold_out_dram[2 * i + 1])) {
+          ierror ++;
+        }
       }
-    }
 
-    printf ("r:%d,i:%d\n", rerror, ierror);
+      printf ("r:%d,i:%d\n", rerror, ierror);
+    }
   }
 
   // Wait for core 0 to finish displaying results

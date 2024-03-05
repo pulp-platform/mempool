@@ -15,7 +15,7 @@
 	url = https://github.com/pulp-platform/axi.git
 [submodule "hardware/deps/cluster_interconnect"]
 	path = hardware/deps/cluster_interconnect
-	url = https://github.com/pulp-platform/cluster_interconnect.git
+	url = https://github.com/DiyouS/cluster_interconnect.git
 [submodule "hardware/deps/common_cells"]
 	path = hardware/deps/common_cells
 	url = https://github.com/pulp-platform/common_cells.git
@@ -45,4 +45,4 @@
 	url = https://github.com/pulp-platform/dram_rtl_sim.git
 [submodule "hardware/deps/spatz"]
 	path = hardware/deps/spatz
-	url = https://github.com/pulp-platform/spatz.git
+	url = git@iis-git.ee.ethz.ch:spatz/spatz.git

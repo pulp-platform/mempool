@@ -87,3 +87,12 @@ n_fpu ?= 0
 # Deactivate single-precision (rvf) and double-precision (rvd) floating-point
 rvf ?= 0
 rvd ?= 0
+
+# Enable TCDM Burst?
+tcdm_burst ?= 0
+
+# Enable Group Rsp?
+group_rsp ?= 0
+
+# Enable Parallel Burst Managers?
+parallel_manager ?= 0

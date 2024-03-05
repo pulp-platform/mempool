@@ -122,6 +122,34 @@ Otherwise, if new Xpulpimg instructions have been implemented in Snitch, but the
 
 If `XPULPIMG` is not forced while launching `make`, it will be defaulted to the `xpulpimg` value configured in `config/config.mk`. Note that such parameter in the configuration file also defines whether the Xpulpimg extension is enabled or not in the RTL of the Snitch core, and whether such Xpulpimg functionalities have to be tested or not by the `riscv-tests` unit tests.
 
+### Spatz Applications
+
+The MemPool-Sparz requires its own applications, which stored in `software/apps/spatz_apps` folder. The `config` option is required to be set to the configuration supporting Spatz to build the Spatz applications. Please refer to the `README.md` in `config` folder to select the correct configuration. Any applications starting with `sp-` means it requires the `RVF` extension to support single-precision floating point. For these kernels, configurations with `fpu` are requried.
+
+Some applications are configurable through a `json` file, stored under `software/apps/spatz_apps/APP_NAME/script` folder. Please replace the `APP_NAME` with the application you wish to run. To generate the data required for the test, run the following command:
+
+```bash
+# Build data for bare-metal applications
+cd software/apps
+python3 spatz_apps/APP_NAME/script/gen_data.py --cfg spatz_apps/APP_NAME/script/*.json
+```
+
+You can build these bare-metal tests using the following commands, e.g., `sp-fft`:
+
+```bash
+# Bare-metal applications
+cd software/apps
+make spatz_apps/sp-fft config=mempool_spatz4_fpu
+```
+
+To simplify this process, a `Makefile` is provided under `software/apps/spatz_apps/auto_benchmark` to generate data, build software and run simulation with one-click. However, only few applications can be executed in this way. You can have more knowledge on how to use it in the `help` target of the `Makefile`:
+
+```bash 
+# Run help target
+cd software/apps
+make -C spatz_apps/auto_benchmark help
+```
+
 ### Unit tests
 
 The system is provided with an automatic unit tests suit for verification purposes; the tests are located in `riscv-tests/isa`, and can be launched from the top-level directory with:
@@ -165,6 +193,16 @@ make trace
 app=hello_world make tracevis
 # Automatically run the benchmark (headless), extract the traces, and log the results
 app=hello_world make benchmark
+```
+
+To simulate the MemPool-Spatz system, Spatz's auto-generated packge needs to be built before running the simulation for the first time. The generated package is under `hardware/deps/spatz/hw/ip/spatz/src/generated/spatz_pkg.sv` Use the following commands to build and run the simulation:
+```bash
+# Go to the hardware folder
+cd hardware
+# First-Time Use Only: build Spatz package
+make buildspatz
+# Run the simulation with *sp-fft* binary loaded using mempool_spatz4_fpu configutation
+app=spatz_apps/sp-fft config=mempool_spatz4_fpu make sim 
 ```
 
 You can set up the configuration of the system in the file `config/config.mk`, controlling the total number of cores, the number of cores per tile and whether the Xpulpimg extension is enabled or not in the Snitch core; the `xpulpimg` parameter also control the default core architecture considered when compiling applications for MemPool.

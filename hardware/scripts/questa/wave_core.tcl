@@ -535,4 +535,8 @@ if {[string match "terapool_spatz*" $config] | $config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3] -group Spatz -group VSLDU /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_spatz/i_vsldu/*
 
   add wave -noupdate -group core[$1][$2][$3] -group Spatz -group VFU /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_spatz/i_vfu/*
+
+  add wave -noupdate -group core[$1][$2][$3] -group Burst_Manager0 /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_burst_manager/gen_parallel_manager[0]/i_burst_manager/*
+  add wave -noupdate -group core[$1][$2][$3] -group Burst_Manager0 -group Data_Grouper /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_burst_manager/gen_parallel_manager[0]/i_burst_manager/gen_grouper/gen_data_grouper[0]/i_data_grouper/*
+  add wave -noupdate -group core[$1][$2][$3] -group Burst_Cutter /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/i_burst_cutter/*
 }

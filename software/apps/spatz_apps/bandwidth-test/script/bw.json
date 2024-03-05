@@ -1,0 +1,15 @@
+// Copyright 2020 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
+// Parameters for Bandwidth Test
+
+{
+    M: 128,
+    round: 10,
+    prec: 32,
+    core: 4,
+    step: 1,
+    expand: 0,
+    dual: 0
+}

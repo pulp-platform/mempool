@@ -8,13 +8,13 @@ package:
 dependencies:
   axi:                  { git: "https://github.com/pulp-platform/axi.git",                  version: 0.39.2     }
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.33.0     }
+  cluster_interconnect: { git: "https://github.com/DiyouS/cluster_interconnect.git",        rev:   d6eb72e      }
   idma:                 { path: "hardware/deps/idma"                                                            }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.4.3      }
   reqrsp_interface:     { path: "hardware/deps/reqrsp_interface"                                                }
   snitch:               { path: "hardware/deps/snitch"                                                          }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.13     }
-  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", rev:   8c6c227      }
-  spatz:                { git: "git@github.com:pulp-platform/spatz.git",                    rev:   d57a3187     }
+  spatz:                { git: "git@iis-git.ee.ethz.ch:spatz/spatz.git",                    rev:   ee32f12e     }
   FPnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev:   pulp-v0.1.3  }
 
 workspace:
@@ -37,6 +37,9 @@ sources:
   - hardware/src/axi2mem.sv
   - hardware/src/bootrom.sv
   - hardware/src/latch_scm.sv
+  - hardware/src/data_grouper.sv
+  - hardware/src/burst_cutter.sv
+  - hardware/src/burst_manager.sv
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 2

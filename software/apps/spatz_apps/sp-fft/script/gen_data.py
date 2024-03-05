@@ -167,8 +167,8 @@ def main():
     NFFTh = NFFT // 2
     N_TWID_P2 = int(np.log2(NFFTpc) * NFFTpc / 2)
     N_TWID_P1 = int(NFFT*(1-0.5**(np.log2(CORES))))
-    # N_TWID_P2 = int(np.log2(NFFTh) * NFFTh / 2)
-
+    dual = param['dual']
+    
     dtype = np.float32
     idx_dtype = np.uint32
     # Complex data type with int16 for real and img parts
@@ -258,16 +258,6 @@ def main():
             offset += N_T_BUF
             tbuf_im = np.concatenate((tbuf_im, tbuf[offset:offset+size]))
 
-        # print(tbuf_re)
-        # print(twiddle_v_s[1::2])
-        # print(tbuf_im)
-
-        # # Attach 1bf img part
-        # twiddle_vec_reim = np.concatenate(
-        #     (tbuf[N_T_BUF:N_T_BUF + N_TWID_P1], twiddle_vec_reim))
-        # # Attach 1bf real part
-        # twiddle_vec_reim = np.concatenate((tbuf[:N_TWID_P1], twiddle_vec_reim))
-
         # Attach 1bf img part
         twiddle_vec_reim = np.concatenate((tbuf_im, twiddle_vec_reim))
         # Attach 1bf real part
@@ -284,8 +274,9 @@ def main():
         + "// This file was generated automatically.\n\n"
     )
 
-    # store_delta = [0, 2, 4, 6, 8, 10, 12, 14]
-    # bitrev = [0, 4, 2, 6, 1, 5, 3, 7]
+    if dual != 0:
+        emit_str += '#define DUAL_LOAD\n'
+
     # Create the file
     # Constants
     emit_str += 'static uint32_t NFFT = {};\n'.format(NFFT)
@@ -305,7 +296,7 @@ def main():
     emit_str += 'float twiddle_p2[{}]'.format(2 * N_TWID_P2 * CORES) + ' __attribute__((section(".l1_prio")));\n'
     emit_str += 'uint16_t store_idx[{}]'.format(int(np.log2(NFFTpc / 2) * NFFTpc / 2)) + ' __attribute__((section(".l1_prio")));\n'
     emit_str += 'uint32_t core_offset[{}]'.format(CORES) + ' __attribute__((section(".l1_prio")));\n'
-    emit_str += 'uint16_t bitrev[{}]'.format(int(NFFTpc // 2)) + ' __attribute__((section(".l1_prio")));\n\n'
+    # emit_str += 'uint16_t bitrev[{}]'.format(int(NFFTpc // 2)) + ' __attribute__((section(".l1_prio")));\n\n'
 
     # L2 Data
     emit_str += 'static float samples_dram[{}]'.format(2 * NFFT) + ' __attribute__((section(".data"))) = {' + ', '.join(
@@ -320,15 +311,16 @@ def main():
             map(str, twiddle_vec_reim.astype(dtype).tolist())) + '};\n'
     emit_str += 'static uint16_t store_idx_dram[{}]'.format(int(np.log2(NFFTpc / 2) * NFFTpc / 2)) + ' __attribute__((section(".data"))) = {' + ', '.join(
         map(str, np.array(store_delta).astype(idx_dtype).tolist())) + '};\n'
-    emit_str += 'static uint16_t bitrev_dram[{}]'.format(int(
-        NFFTpc / 2)) + ' __attribute__((section(".data"))) = {' + ', '.join(map(str, bitrev)) + '};\n'
+    # emit_str += 'static uint16_t bitrev_dram[{}]'.format(int(
+    #     NFFTpc / 2)) + ' __attribute__((section(".data"))) = {' + ', '.join(map(str, bitrev)) + '};\n'
     emit_str += 'static uint32_t coffset_dram[{}]'.format(int(
         CORES)) + ' __attribute__((section(".data"))) = {' + ', '.join(map(str, core_offsets)) + '};\n'
     emit_str += 'static float gold_out_dram[{}]'.format(
         2 * NFFT) + ' __attribute__((section(".data"))) = {' + ', '.join(map(str, gold_out_s.astype(dtype).tolist())) + '};\n'
 
     file_path = pathlib.Path(__file__).parent.parent / 'data'
-    file = file_path / ('data_' + str(NFFT) + "_" + str(CORES) + ".h")
+    # file = file_path / ('data_' + str(NFFT) + "_" + str(CORES) + ".h")
+    file = file_path / ("data_fft.h")
     with file.open('w') as f:
         f.write(emit_str)
 

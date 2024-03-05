@@ -76,6 +76,7 @@ module mempool_group
   /*****************
    *  Definitions  *
    *****************/
+  import tcdm_burst_pkg::*;
   `ifdef TERAPOOL
     typedef logic [idx_width(NumSubGroups)-1:0] sub_group_id_t;
   `else
@@ -430,48 +431,56 @@ module mempool_group
       tcdm_addr_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_tgt_addr;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_wen;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_wdata;
+      tcdm_breq_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_burst;
       strb_t          [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_be;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_ready;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_rdata;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_wen;
+      tcdm_gre_t      [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_gdata;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_ready;
       tile_addr_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_tgt_addr;
       tile_group_id_t [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_ini_addr;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_wen;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_wdata;
+      tcdm_breq_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_burst;
       strb_t          [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_be;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_ready;
       tile_group_id_t [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_ini_addr;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_rdata;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_wen;
+      tcdm_gre_t      [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_gdata;
 
       for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_remote_connections_sg
         for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_remote_connections_t
-          assign master_remote_req_valid[(sg * NumTilesPerSubGroup) + t]    = tcdm_master_req_valid[r][sg][t];
-          assign master_remote_req_tgt_addr[(sg * NumTilesPerSubGroup) + t] = tcdm_master_req[r][sg][t].tgt_addr;
-          assign master_remote_req_wen[(sg * NumTilesPerSubGroup) + t]      = tcdm_master_req[r][sg][t].wen;
-          assign master_remote_req_wdata[(sg * NumTilesPerSubGroup) + t]    = tcdm_master_req[r][sg][t].wdata;
-          assign master_remote_req_be[(sg * NumTilesPerSubGroup) + t]       = tcdm_master_req[r][sg][t].be;
-          assign tcdm_master_req_ready[r][sg][t]                            = master_remote_req_ready[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_valid_o[r][sg][t]                          = slave_remote_req_valid[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].tgt_addr                       = slave_remote_req_tgt_addr[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].ini_addr                       = slave_remote_req_ini_addr[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].wen                            = slave_remote_req_wen[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].wdata                          = slave_remote_req_wdata[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].be                             = slave_remote_req_be[(sg * NumTilesPerSubGroup) + t];
-          assign slave_remote_req_ready[(sg * NumTilesPerSubGroup) + t]     = tcdm_master_req_ready_i[r][sg][t];
-          assign slave_remote_resp_valid[(sg * NumTilesPerSubGroup) + t]    = tcdm_slave_resp_valid[r][sg][t];
-          assign slave_remote_resp_ini_addr[(sg * NumTilesPerSubGroup) + t] = tcdm_slave_resp[r][sg][t].ini_addr;
-          assign slave_remote_resp_rdata[(sg * NumTilesPerSubGroup) + t]    = tcdm_slave_resp[r][sg][t].rdata;
-          assign slave_remote_resp_wen[(sg * NumTilesPerSubGroup) + t]      = tcdm_slave_resp[r][sg][t].wen;
-          assign tcdm_slave_resp_ready[r][sg][t]                            = slave_remote_resp_ready[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_slave_resp_valid_o[r][sg][t]                          = master_remote_resp_valid[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_slave_resp_s[r][sg][t].rdata                          = master_remote_resp_rdata[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_slave_resp_s[r][sg][t].wen                            = master_remote_resp_wen[(sg * NumTilesPerSubGroup) + t];
-          assign master_remote_resp_ready[(sg * NumTilesPerSubGroup) + t]   = tcdm_slave_resp_ready_i[r][sg][t];
+          assign master_remote_req_valid   [(sg * NumTilesPerSubGroup) + t] = tcdm_master_req_valid    [r][sg][t];
+          assign master_remote_req_tgt_addr[(sg * NumTilesPerSubGroup) + t] = tcdm_master_req          [r][sg][t].tgt_addr;
+          assign master_remote_req_wen     [(sg * NumTilesPerSubGroup) + t] = tcdm_master_req          [r][sg][t].wen;
+          assign master_remote_req_wdata   [(sg * NumTilesPerSubGroup) + t] = tcdm_master_req          [r][sg][t].wdata;
+          assign master_remote_req_burst   [(sg * NumTilesPerSubGroup) + t] = tcdm_master_req          [r][sg][t].rburst;
+          assign master_remote_req_be      [(sg * NumTilesPerSubGroup) + t] = tcdm_master_req          [r][sg][t].be;
+          assign tcdm_master_req_ready     [r][sg][t]                       = master_remote_req_ready  [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_master_req_valid_o   [r][sg][t]                       = slave_remote_req_valid   [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_master_req_s         [r][sg][t].tgt_addr              = slave_remote_req_tgt_addr[(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_master_req_s         [r][sg][t].ini_addr              = slave_remote_req_ini_addr[(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_master_req_s         [r][sg][t].wen                   = slave_remote_req_wen     [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_master_req_s         [r][sg][t].wdata                 = slave_remote_req_wdata   [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_master_req_s         [r][sg][t].rburst                = slave_remote_req_burst   [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_master_req_s         [r][sg][t].be                    = slave_remote_req_be      [(sg * NumTilesPerSubGroup) + t];
+          assign slave_remote_req_ready    [(sg * NumTilesPerSubGroup) + t] = tcdm_master_req_ready_i  [r][sg][t];
+          assign slave_remote_resp_valid   [(sg * NumTilesPerSubGroup) + t] = tcdm_slave_resp_valid    [r][sg][t];
+          assign slave_remote_resp_ini_addr[(sg * NumTilesPerSubGroup) + t] = tcdm_slave_resp          [r][sg][t].ini_addr;
+          assign slave_remote_resp_rdata   [(sg * NumTilesPerSubGroup) + t] = tcdm_slave_resp          [r][sg][t].rdata;
+          assign slave_remote_resp_wen     [(sg * NumTilesPerSubGroup) + t] = tcdm_slave_resp          [r][sg][t].wen;
+          assign slave_remote_resp_gdata   [(sg * NumTilesPerSubGroup) + t] = tcdm_slave_resp          [r][sg][t].gdata;
+          assign tcdm_slave_resp_ready     [r][sg][t]                       = slave_remote_resp_ready  [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_slave_resp_valid_o   [r][sg][t]                       = master_remote_resp_valid [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_slave_resp_s         [r][sg][t].rdata                 = master_remote_resp_rdata [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_slave_resp_s         [r][sg][t].wen                   = master_remote_resp_wen   [(sg * NumTilesPerSubGroup) + t];
+          assign tcdm_slave_resp_s         [r][sg][t].gdata                 = master_remote_resp_gdata [(sg * NumTilesPerSubGroup) + t];
+          assign master_remote_resp_ready  [(sg * NumTilesPerSubGroup) + t] = tcdm_slave_resp_ready_i  [r][sg][t];
         end: gen_remote_connections_t
       end: gen_remote_connections_sg
 
@@ -481,6 +490,8 @@ module mempool_group
         .AddrWidth          (TCDMAddrWidth                                ),
         .DataWidth          ($bits(tcdm_payload_t)                        ),
         .BeWidth            (DataWidth/8                                  ),
+        .BurstWidth         ($bits(tcdm_breq_t)                           ),
+        .GreWidth           ($bits(tcdm_gre_t)                            ),
         .ByteOffWidth       (0                                            ),
         .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
         .Topology           (tcdm_interconnect_pkg::LIC                   ),
@@ -496,22 +507,26 @@ module mempool_group
         .req_tgt_addr_i (master_remote_req_tgt_addr),
         .req_wen_i      (master_remote_req_wen     ),
         .req_wdata_i    (master_remote_req_wdata   ),
+        .req_burst_i    (master_remote_req_burst   ),
         .req_be_i       (master_remote_req_be      ),
         .resp_valid_o   (master_remote_resp_valid  ),
         .resp_ready_i   (master_remote_resp_ready  ),
         .resp_rdata_o   (master_remote_resp_rdata  ),
-      `ifdef RESPWEN
+        .resp_gdata_o   (master_remote_resp_gdata  ),
+      `ifdef TARGET_SPATZ
         .resp_write_o   (master_remote_resp_wen    ),
         .resp_write_i   (slave_remote_resp_wen     ),
       `endif
         .resp_ini_addr_i(slave_remote_resp_ini_addr),
         .resp_rdata_i   (slave_remote_resp_rdata   ),
+        .resp_gdata_i   (slave_remote_resp_gdata   ),
         .resp_valid_i   (slave_remote_resp_valid   ),
         .resp_ready_o   (slave_remote_resp_ready   ),
         .req_valid_o    (slave_remote_req_valid    ),
         .req_ready_i    (slave_remote_req_ready    ),
         .req_be_o       (slave_remote_req_be       ),
         .req_wdata_o    (slave_remote_req_wdata    ),
+        .req_burst_o    (slave_remote_req_burst    ),
         .req_wen_o      (slave_remote_req_wen      ),
         .req_ini_addr_o (slave_remote_req_ini_addr ),
         .req_tgt_addr_o (slave_remote_req_tgt_addr )
@@ -721,10 +736,12 @@ module mempool_group
     logic           [NumTilesPerGroup-1:0] master_local_req_wen;
     tcdm_payload_t  [NumTilesPerGroup-1:0] master_local_req_wdata;
     strb_t          [NumTilesPerGroup-1:0] master_local_req_be;
+    tcdm_breq_t     [NumTilesPerGroup-1:0] master_local_req_burst;
     logic           [NumTilesPerGroup-1:0] master_local_resp_valid;
     logic           [NumTilesPerGroup-1:0] master_local_resp_ready;
     tcdm_payload_t  [NumTilesPerGroup-1:0] master_local_resp_rdata;
     logic           [NumTilesPerGroup-1:0] master_local_resp_wen;
+    tcdm_gre_t      [NumTilesPerGroup-1:0] master_local_resp_gdata;
     logic           [NumTilesPerGroup-1:0] slave_local_req_valid;
     logic           [NumTilesPerGroup-1:0] slave_local_req_ready;
     tile_addr_t     [NumTilesPerGroup-1:0] slave_local_req_tgt_addr;
@@ -732,35 +749,41 @@ module mempool_group
     logic           [NumTilesPerGroup-1:0] slave_local_req_wen;
     tcdm_payload_t  [NumTilesPerGroup-1:0] slave_local_req_wdata;
     strb_t          [NumTilesPerGroup-1:0] slave_local_req_be;
+    tcdm_breq_t     [NumTilesPerGroup-1:0] slave_local_req_burst;
     logic           [NumTilesPerGroup-1:0] slave_local_resp_valid;
     logic           [NumTilesPerGroup-1:0] slave_local_resp_ready;
     tile_group_id_t [NumTilesPerGroup-1:0] slave_local_resp_ini_addr;
     tcdm_payload_t  [NumTilesPerGroup-1:0] slave_local_resp_rdata;
     logic           [NumTilesPerGroup-1:0] slave_local_resp_wen;
+    tcdm_gre_t      [NumTilesPerGroup-1:0] slvae_local_resp_gdata;
 
     for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_local_connections
-      assign master_local_req_valid[t]     = tcdm_master_req_valid[0][t];
-      assign master_local_req_tgt_addr[t]  = tcdm_master_req[0][t].tgt_addr;
-      assign master_local_req_wen[t]       = tcdm_master_req[0][t].wen;
-      assign master_local_req_wdata[t]     = tcdm_master_req[0][t].wdata;
-      assign master_local_req_be[t]        = tcdm_master_req[0][t].be;
-      assign tcdm_master_req_ready[0][t]   = master_local_req_ready[t];
-      assign slave_local_resp_valid[t]     = tcdm_slave_resp_valid[0][t];
-      assign slave_local_resp_ini_addr[t]  = tcdm_slave_resp[0][t].ini_addr;
-      assign slave_local_resp_rdata[t]     = tcdm_slave_resp[0][t].rdata;
-      assign slave_local_resp_wen[t]       = tcdm_slave_resp[0][t].wen;
-      assign tcdm_slave_resp_ready[0][t]   = slave_local_resp_ready[t];
-      assign tcdm_master_resp_valid[0][t]  = master_local_resp_valid[t];
-      assign tcdm_master_resp[0][t].rdata  = master_local_resp_rdata[t];
-      assign tcdm_master_resp[0][t].wen    = master_local_resp_wen[t];
-      assign master_local_resp_ready[t]    = tcdm_master_resp_ready[0][t];
-      assign tcdm_slave_req_valid[0][t]    = slave_local_req_valid[t];
-      assign tcdm_slave_req[0][t].tgt_addr = slave_local_req_tgt_addr[t];
-      assign tcdm_slave_req[0][t].ini_addr = slave_local_req_ini_addr[t];
-      assign tcdm_slave_req[0][t].wen      = slave_local_req_wen[t];
-      assign tcdm_slave_req[0][t].wdata    = slave_local_req_wdata[t];
-      assign tcdm_slave_req[0][t].be       = slave_local_req_be[t];
-      assign slave_local_req_ready[t]      = tcdm_slave_req_ready[0][t];
+      assign master_local_req_valid   [t]          = tcdm_master_req_valid [0][t];
+      assign master_local_req_tgt_addr[t]          = tcdm_master_req       [0][t].tgt_addr;
+      assign master_local_req_wen     [t]          = tcdm_master_req       [0][t].wen;
+      assign master_local_req_wdata   [t]          = tcdm_master_req       [0][t].wdata;
+      assign master_local_req_be      [t]          = tcdm_master_req       [0][t].be;
+      assign master_local_req_burst   [t]          = tcdm_master_req       [0][t].rburst;
+      assign tcdm_master_req_ready [0][t]          = master_local_req_ready   [t];
+      assign slave_local_resp_valid   [t]          = tcdm_slave_resp_valid [0][t];
+      assign slave_local_resp_ini_addr[t]          = tcdm_slave_resp       [0][t].ini_addr;
+      assign slave_local_resp_rdata   [t]          = tcdm_slave_resp       [0][t].rdata;
+      assign slave_local_resp_wen     [t]          = tcdm_slave_resp       [0][t].wen;
+      assign slvae_local_resp_gdata   [t]          = tcdm_slave_resp       [0][t].gdata;
+      assign tcdm_slave_resp_ready [0][t]          = slave_local_resp_ready   [t];
+      assign tcdm_master_resp_valid[0][t]          = master_local_resp_valid  [t];
+      assign tcdm_master_resp      [0][t].rdata    = master_local_resp_rdata  [t];
+      assign tcdm_master_resp      [0][t].wen      = master_local_resp_wen    [t];
+      assign tcdm_master_resp      [0][t].gdata    = master_local_resp_gdata  [t];
+      assign master_local_resp_ready  [t]          = tcdm_master_resp_ready[0][t];
+      assign tcdm_slave_req_valid  [0][t]          = slave_local_req_valid    [t];
+      assign tcdm_slave_req        [0][t].tgt_addr = slave_local_req_tgt_addr [t];
+      assign tcdm_slave_req        [0][t].ini_addr = slave_local_req_ini_addr [t];
+      assign tcdm_slave_req        [0][t].wen      = slave_local_req_wen      [t];
+      assign tcdm_slave_req        [0][t].wdata    = slave_local_req_wdata    [t];
+      assign tcdm_slave_req        [0][t].be       = slave_local_req_be       [t];
+      assign tcdm_slave_req        [0][t].rburst   = slave_local_req_burst    [t];
+      assign slave_local_req_ready    [t]          = tcdm_slave_req_ready  [0][t];
     end
 
     variable_latency_interconnect #(
@@ -769,6 +792,8 @@ module mempool_group
       .AddrWidth        (TCDMAddrWidth                                ),
       .DataWidth        ($bits(tcdm_payload_t)                        ),
       .BeWidth          (DataWidth/8                                  ),
+      .BurstWidth       ($bits(tcdm_breq_t)                           ),
+      .GreWidth         ($bits(tcdm_gre_t)                            ),
       .ByteOffWidth     (0                                            ),
       .AddrMemWidth     (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
       .Topology         (tcdm_interconnect_pkg::LIC                   ),
@@ -784,16 +809,19 @@ module mempool_group
       .req_tgt_addr_i (master_local_req_tgt_addr),
       .req_wen_i      (master_local_req_wen     ),
       .req_wdata_i    (master_local_req_wdata   ),
+      .req_burst_i    (master_local_req_burst   ),
       .req_be_i       (master_local_req_be      ),
       .resp_valid_o   (master_local_resp_valid  ),
       .resp_ready_i   (master_local_resp_ready  ),
       .resp_rdata_o   (master_local_resp_rdata  ),
-    `ifdef RESPWEN
+      .resp_gdata_o   (master_local_resp_gdata  ),
+    `ifdef TARGET_SPATZ
       .resp_write_o   (master_local_resp_wen    ),
       .resp_write_i   (slave_local_resp_wen     ),
     `endif
       .resp_ini_addr_i(slave_local_resp_ini_addr),
       .resp_rdata_i   (slave_local_resp_rdata   ),
+      .resp_gdata_i   (slvae_local_resp_gdata   ),
       .resp_valid_i   (slave_local_resp_valid   ),
       .resp_ready_o   (slave_local_resp_ready   ),
       .req_valid_o    (slave_local_req_valid    ),
@@ -801,6 +829,7 @@ module mempool_group
       .req_be_o       (slave_local_req_be       ),
       .req_wdata_o    (slave_local_req_wdata    ),
       .req_wen_o      (slave_local_req_wen      ),
+      .req_burst_o    (slave_local_req_burst    ),
       .req_ini_addr_o (slave_local_req_ini_addr ),
       .req_tgt_addr_o (slave_local_req_tgt_addr )
     );
@@ -815,47 +844,55 @@ module mempool_group
       tcdm_addr_t     [NumTilesPerGroup-1:0] master_remote_req_tgt_addr;
       logic           [NumTilesPerGroup-1:0] master_remote_req_wen;
       tcdm_payload_t  [NumTilesPerGroup-1:0] master_remote_req_wdata;
+      tcdm_breq_t     [NumTilesPerGroup-1:0] master_remote_req_burst;
       strb_t          [NumTilesPerGroup-1:0] master_remote_req_be;
       logic           [NumTilesPerGroup-1:0] master_remote_resp_valid;
       logic           [NumTilesPerGroup-1:0] master_remote_resp_ready;
       tcdm_payload_t  [NumTilesPerGroup-1:0] master_remote_resp_rdata;
       logic           [NumTilesPerGroup-1:0] master_remote_resp_wen;
+      tcdm_gre_t      [NumTilesPerGroup-1:0] master_remote_resp_gdata;
       logic           [NumTilesPerGroup-1:0] slave_remote_req_valid;
       logic           [NumTilesPerGroup-1:0] slave_remote_req_ready;
       tile_addr_t     [NumTilesPerGroup-1:0] slave_remote_req_tgt_addr;
       tile_group_id_t [NumTilesPerGroup-1:0] slave_remote_req_ini_addr;
       logic           [NumTilesPerGroup-1:0] slave_remote_req_wen;
       tcdm_payload_t  [NumTilesPerGroup-1:0] slave_remote_req_wdata;
+      tcdm_breq_t     [NumTilesPerGroup-1:0] slave_remote_req_burst;
       strb_t          [NumTilesPerGroup-1:0] slave_remote_req_be;
       logic           [NumTilesPerGroup-1:0] slave_remote_resp_valid;
       logic           [NumTilesPerGroup-1:0] slave_remote_resp_ready;
       tile_group_id_t [NumTilesPerGroup-1:0] slave_remote_resp_ini_addr;
       tcdm_payload_t  [NumTilesPerGroup-1:0] slave_remote_resp_rdata;
       logic           [NumTilesPerGroup-1:0] slave_remote_resp_wen;
+      tcdm_gre_t      [NumTilesPerGroup-1:0] slave_remote_resp_gdata;
 
       for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_remote_connections
-        assign master_remote_req_valid[t]       = tcdm_master_req_valid[r][t];
-        assign master_remote_req_tgt_addr[t]    = tcdm_master_req[r][t].tgt_addr;
-        assign master_remote_req_wen[t]         = tcdm_master_req[r][t].wen;
-        assign master_remote_req_wdata[t]       = tcdm_master_req[r][t].wdata;
-        assign master_remote_req_be[t]          = tcdm_master_req[r][t].be;
-        assign tcdm_master_req_ready[r][t]      = master_remote_req_ready[t];
-        assign tcdm_master_req_valid_o[r][t]    = slave_remote_req_valid[t];
-        assign tcdm_master_req_s[r][t].tgt_addr = slave_remote_req_tgt_addr[t];
-        assign tcdm_master_req_s[r][t].ini_addr = slave_remote_req_ini_addr[t];
-        assign tcdm_master_req_s[r][t].wen      = slave_remote_req_wen[t];
-        assign tcdm_master_req_s[r][t].wdata    = slave_remote_req_wdata[t];
-        assign tcdm_master_req_s[r][t].be       = slave_remote_req_be[t];
-        assign slave_remote_req_ready[t]        = tcdm_master_req_ready_i[r][t];
-        assign slave_remote_resp_valid[t]       = tcdm_slave_resp_valid[r][t];
-        assign slave_remote_resp_ini_addr[t]    = tcdm_slave_resp[r][t].ini_addr;
-        assign slave_remote_resp_rdata[t]       = tcdm_slave_resp[r][t].rdata;
-        assign slave_remote_resp_wen[t]         = tcdm_slave_resp[r][t].wen;
-        assign tcdm_slave_resp_ready[r][t]      = slave_remote_resp_ready[t];
-        assign tcdm_slave_resp_valid_o[r][t]    = master_remote_resp_valid[t];
-        assign tcdm_slave_resp_s[r][t].rdata    = master_remote_resp_rdata[t];
-        assign tcdm_slave_resp_s[r][t].wen      = master_remote_resp_wen[t];
-        assign master_remote_resp_ready[t]      = tcdm_slave_resp_ready_i[r][t];
+        assign master_remote_req_valid   [t]          = tcdm_master_req_valid [r][t];
+        assign master_remote_req_tgt_addr[t]          = tcdm_master_req       [r][t].tgt_addr;
+        assign master_remote_req_wen     [t]          = tcdm_master_req       [r][t].wen;
+        assign master_remote_req_wdata   [t]          = tcdm_master_req       [r][t].wdata;
+        assign master_remote_req_burst   [t]          = tcdm_master_req       [r][t].rburst;
+        assign master_remote_req_be      [t]          = tcdm_master_req       [r][t].be;
+        assign tcdm_master_req_ready  [r][t]          = master_remote_req_ready  [t];
+        assign tcdm_master_req_valid_o[r][t]          = slave_remote_req_valid   [t];
+        assign tcdm_master_req_s      [r][t].tgt_addr = slave_remote_req_tgt_addr[t];
+        assign tcdm_master_req_s      [r][t].ini_addr = slave_remote_req_ini_addr[t];
+        assign tcdm_master_req_s      [r][t].wen      = slave_remote_req_wen     [t];
+        assign tcdm_master_req_s      [r][t].wdata    = slave_remote_req_wdata   [t];
+        assign tcdm_master_req_s      [r][t].rburst   = slave_remote_req_burst   [t];
+        assign tcdm_master_req_s      [r][t].be       = slave_remote_req_be      [t];
+        assign slave_remote_req_ready    [t]          = tcdm_master_req_ready_i[r][t];
+        assign slave_remote_resp_valid   [t]          = tcdm_slave_resp_valid  [r][t];
+        assign slave_remote_resp_ini_addr[t]          = tcdm_slave_resp        [r][t].ini_addr;
+        assign slave_remote_resp_rdata   [t]          = tcdm_slave_resp        [r][t].rdata;
+        assign slave_remote_resp_wen     [t]          = tcdm_slave_resp        [r][t].wen;
+        assign slave_remote_resp_gdata   [t]          = tcdm_slave_resp        [r][t].gdata;
+        assign tcdm_slave_resp_ready  [r][t]          = slave_remote_resp_ready   [t];
+        assign tcdm_slave_resp_valid_o[r][t]          = master_remote_resp_valid  [t];
+        assign tcdm_slave_resp_s      [r][t].rdata    = master_remote_resp_rdata  [t];
+        assign tcdm_slave_resp_s      [r][t].wen      = master_remote_resp_wen    [t];
+        assign tcdm_slave_resp_s      [r][t].gdata    = master_remote_resp_gdata  [t];
+        assign master_remote_resp_ready  [t]          = tcdm_slave_resp_ready_i[r][t];
       end: gen_remote_connections
 
       variable_latency_interconnect #(
@@ -864,6 +901,8 @@ module mempool_group
         .AddrWidth          (TCDMAddrWidth                                ),
         .DataWidth          ($bits(tcdm_payload_t)                        ),
         .BeWidth            (DataWidth/8                                  ),
+        .BurstWidth         ($bits(tcdm_breq_t)                           ),
+        .GreWidth           ($bits(tcdm_gre_t)                            ),
         .ByteOffWidth       (0                                            ),
         .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
         .Topology           (tcdm_interconnect_pkg::LIC                   ),
@@ -879,20 +918,24 @@ module mempool_group
         .req_tgt_addr_i (master_remote_req_tgt_addr),
         .req_wen_i      (master_remote_req_wen     ),
         .req_wdata_i    (master_remote_req_wdata   ),
+        .req_burst_i    (master_remote_req_burst   ),
         .req_be_i       (master_remote_req_be      ),
         .resp_valid_o   (master_remote_resp_valid  ),
         .resp_ready_i   (master_remote_resp_ready  ),
         .resp_rdata_o   (master_remote_resp_rdata  ),
-      `ifdef RESPWEN
+        .resp_gdata_o   (master_remote_resp_gdata  ),
+      `ifdef TARGET_SPATZ
         .resp_write_o   (master_remote_resp_wen    ),
         .resp_write_i   (slave_remote_resp_wen     ),
       `endif
         .resp_ini_addr_i(slave_remote_resp_ini_addr),
         .resp_rdata_i   (slave_remote_resp_rdata   ),
+        .resp_gdata_i   (slave_remote_resp_gdata   ),
         .resp_valid_i   (slave_remote_resp_valid   ),
         .resp_ready_o   (slave_remote_resp_ready   ),
         .req_valid_o    (slave_remote_req_valid    ),
         .req_ready_i    (slave_remote_req_ready    ),
+        .req_burst_o    (slave_remote_req_burst    ),
         .req_be_o       (slave_remote_req_be       ),
         .req_wdata_o    (slave_remote_req_wdata    ),
         .req_wen_o      (slave_remote_req_wen      ),
@@ -1011,7 +1054,7 @@ module mempool_group
       .ready_i     (dma_req_ready    ),
       .meta_i      (dma_meta         )
     );
-  
+
     // xbar
     localparam int unsigned NumRules = 1;
     typedef struct packed {
@@ -1027,7 +1070,7 @@ module mempool_group
         idx:        1
       }
     };
-  
+
     `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
 
