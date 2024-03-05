@@ -4,6 +4,7 @@
 
 # Exclude files from formatting requirement
 # External dependencies
+*/software/runtime/control_registers.h
 */software/runtime/encoding.h
 */software/riscv-tests
 */toolchain

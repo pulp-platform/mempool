@@ -8,6 +8,7 @@
 #define _ENV_PHYSICAL_SINGLE_CORE_H
 
 #include "encoding.h"
+#include "addrmap.h"
 
 //-----------------------------------------------------------------------
 // Begin Macro
@@ -95,7 +96,7 @@ reset_vector:                                                                  \
 
 #define RVTEST_CODE_END                                                        \
 _eoc:                                                                          \
-        la t0, eoc_reg;                                                        \
+        li t0, (CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_EOC_REG_OFFSET);   \
         slli t1, a0, 1;                                                        \
         addi t1, t1, 1;                                                        \
         sw t1, 0(t0);                                                          \
