@@ -297,6 +297,7 @@ module mempool_system
     .DataWidth        (L2BankWidth    ),
     .BeWidth          (L2BankBeWidth  ),
     .AddrMemWidth     (L2BankAddrWidth),
+    .BurstWidth       (1'b1           ),
     .AxiVldRdy        (1'b1           ),
     .SpillRegisterReq (64'b1          ),
     .SpillRegisterResp(64'b1          )
@@ -310,10 +311,12 @@ module mempool_system
     .req_wen_i      (mem_we     ),
     .req_wdata_i    (mem_wdata  ),
     .req_be_i       (mem_strb   ),
+    .req_burst_i    ('0         ),
     .resp_valid_o   (mem_rvalid ),
     .resp_ready_i   ('1         ),
     .resp_rdata_o   (mem_rdata  ),
-  `ifdef RESPWEN
+    .resp_gdata_o   (/*unused*/ ),
+  `ifdef TARGET_SPATZ
     .resp_write_o   (/*unused*/ ),
     .resp_write_i   ('0         ),
   `endif
@@ -324,11 +327,13 @@ module mempool_system
     .req_tgt_addr_o (bank_addr  ),
     .req_wen_o      (bank_we    ),
     .req_wdata_o    (bank_wdata ),
+    .req_burst_o    (/*unused*/ ),
     .req_be_o       (bank_strb  ),
     .resp_valid_i   (bank_rvalid),
     .resp_ready_o   (/*unused*/ ), // This only works because resp_ready_i = 1
     .resp_ini_addr_i(bank_ini_q ),
-    .resp_rdata_i   (bank_rdata )
+    .resp_rdata_i   (bank_rdata ),
+    .resp_gdata_i   ('0         )
   );
 
   `FF(bank_rvalid, bank_req, 1'b0, clk_i, rst_ni)

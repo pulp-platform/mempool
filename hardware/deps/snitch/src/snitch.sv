@@ -175,6 +175,7 @@ module snitch
   // Load/Store Defines
   logic is_load, is_store, is_signed, is_postincr;
   logic is_fp_load, is_fp_store;
+  logic is_acc_mem, is_acc;
   logic ls_misaligned;
   logic ld_addr_misaligned;
   logic st_addr_misaligned;
@@ -353,14 +354,26 @@ module snitch
   // the accelerator interface stalled us
   assign acc_stall = (acc_qvalid_o & ~acc_qready_i) || (read_fcsr && acc_qdata_rsp_i.isfloat);
   // the LSU Interface didn't accept our request yet
-  assign lsu_stall = (lsu_qvalid & ~lsu_qready) | acc_mem_stall;
+  // assign lsu_stall = (lsu_qvalid & ~lsu_qready) | acc_mem_stall;
 `else
   assign acc_stall = (acc_qvalid_o & ~acc_qready_i);
-  assign lsu_stall = (lsu_qvalid & ~lsu_qready);
+  // assign lsu_stall = (lsu_qvalid & ~lsu_qready);
 `endif
 
   // Stall the stage if we either didn't get a valid instruction or the LSU/Accelerator is not ready
-  assign stall = ~valid_instr | lsu_stall | acc_stall | fence_stall;
+  always_comb begin
+    lsu_stall = (lsu_qvalid & ~lsu_qready);
+    stall = ~valid_instr | lsu_stall | acc_stall;
+    if (acc_mem_stall) begin
+      // If acc memory is stalling, it is not necessary to stall the snich
+      // only memory instructions cannot be forward to avoid data hazards
+      if (is_acc_mem | is_store | is_load) begin
+        // If is a acc insn or snitch mem insn, we stall
+        lsu_stall = 1'b1;
+        stall     = 1'b1;
+      end
+    end
+  end
 
   // --------------------
   // Instruction Frontend
@@ -441,6 +454,9 @@ module snitch
     is_signed = 1'b0;
     ls_size = Byte;
     ls_amo = AMONone;
+
+    is_acc_mem = 1'b0;
+    is_acc     = 1'b0;
 
     acc_qvalid_o = 1'b0;
     acc_qaddr_o = snitch_pkg::XPULP_IPU;
@@ -690,6 +706,7 @@ module snitch
             if (RVV) begin
               write_rd = 1'b0;
               uses_rd = rd != 0;
+              is_acc = 1'b1;
               acc_qvalid_o = valid_instr;
               opa_select = Reg;
               acc_register_rd = rd != 0;
@@ -720,6 +737,7 @@ module snitch
             if (RVV) begin
               write_rd = 1'b0;
               uses_rd = rd != 0;
+              is_acc = 1'b1;
               acc_qvalid_o = valid_instr;
               acc_register_rd = rd != 0;
             end else begin
@@ -749,6 +767,7 @@ module snitch
             if (RVV) begin
               write_rd = 1'b0;
               uses_rd = 1'b1;
+              is_acc = 1'b1;
               acc_qvalid_o = valid_instr;
               opa_select = Reg;
               acc_register_rd = 1'b1;
@@ -780,6 +799,7 @@ module snitch
             if (RVV) begin
               write_rd = 1'b0;
               uses_rd = 1'b1;
+              is_acc = 1'b1;
               acc_qvalid_o = valid_instr;
               acc_register_rd = 1'b1;
             end else begin
@@ -814,6 +834,7 @@ module snitch
             if (RVV) begin
               write_rd = 1'b0;
               uses_rd = 1'b1;
+              is_acc = 1'b1;
               acc_qvalid_o = valid_instr;
               opa_select = Reg;
               acc_register_rd = 1'b1;
@@ -845,6 +866,7 @@ module snitch
             if (RVV) begin
               write_rd = 1'b0;
               uses_rd = 1'b1;
+              is_acc = 1'b1;
               acc_qvalid_o = valid_instr;
               acc_register_rd = 1'b1;
             end else begin
@@ -1373,6 +1395,7 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           acc_register_rd = 1'b1;
 >>>>>>> db59f588... [software] Teporarily disable llvm compilation for xpulpimg in CI
@@ -1397,6 +1420,7 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select      = Reg;
           acc_register_rd = 1'b1;
@@ -1433,6 +1457,7 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select      = Reg;
           opb_select      = Reg;
@@ -1462,6 +1487,7 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           acc_register_rd = 1'b1;
 >>>>>>> db59f588... [software] Teporarily disable llvm compilation for xpulpimg in CI
@@ -1574,6 +1600,7 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b0;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           acc_register_rd = 1'b0;
 >>>>>>> db59f588... [software] Teporarily disable llvm compilation for xpulpimg in CI
@@ -1640,6 +1667,7 @@ module snitch
         if (RVV && RVF) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b0;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           acc_register_rd = 1'b0;
 >>>>>>> db59f588... [software] Teporarily disable llvm compilation for xpulpimg in CI
@@ -1737,6 +1765,7 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b0;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select      = Reg;
           acc_register_rd = 1'b0;
@@ -1794,6 +1823,7 @@ module snitch
         if (RVV && RVF) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b0;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           acc_register_rd = 1'b0;
 >>>>>>> db59f588... [software] Teporarily disable llvm compilation for xpulpimg in CI
@@ -1829,7 +1859,9 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b0;
-          acc_qvalid_o = valid_instr && !acc_mem_stall;
+          is_acc          = 1'b1;
+          is_acc_mem      = 1'b1;
+          acc_qvalid_o    = valid_instr && !acc_mem_stall;
           opa_select      = Reg;
           acc_register_rd = 1'b0;
 >>>>>>> db59f588... [software] Teporarily disable llvm compilation for xpulpimg in CI
@@ -1871,6 +1903,8 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b0;
+          is_acc          = 1'b1;
+          is_acc_mem      = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           opa_select      = Reg;
           acc_register_rd = 1'b0;
@@ -1903,6 +1937,8 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b0;
+          is_acc          = 1'b1;
+          is_acc_mem      = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           opa_select      = Reg;
           opb_select      = Reg;
@@ -1927,6 +1963,8 @@ module snitch
         if (RVV) begin
           write_rd        = 1'b0;
           uses_rd         = 1'b0;
+          is_acc          = 1'b1;
+          is_acc_mem      = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           opa_select      = Reg;
           opb_select      = Reg;
@@ -2542,6 +2580,7 @@ module snitch
       riscv_instr::FNMADD_S: begin
         if (FP_EN && RVF && (!(inst_data_i inside {riscv_instr::FDIV_S, riscv_instr::FSQRT_S}) || XDivSqrt)) begin
           write_rd        = 1'b0;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2565,6 +2604,7 @@ module snitch
       riscv_instr::FNMADD_D: begin
         if (FP_EN && RVD && (!(inst_data_i inside {riscv_instr::FDIV_D, riscv_instr::FSQRT_D}) || XDivSqrt)) begin
           write_rd        = 1'b0;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2574,6 +2614,7 @@ module snitch
       riscv_instr::FCVT_D_S: begin
         if (FP_EN && RVF && (!(inst_data_i inside {riscv_instr::FDIV_S, riscv_instr::FSQRT_S}) || XDivSqrt)) begin
           write_rd        = 1'b0;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2598,10 +2639,12 @@ module snitch
         if (FP_EN && XF16 && fcsr_q.fmode.dst == 1'b0 &&
             (!(inst_data_i inside {riscv_instr::FDIV_H, riscv_instr::FSQRT_H}) || XDivSqrt)) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else if (FP_EN && XF16ALT && fcsr_q.fmode.dst == 1'b1 &&
             (!(inst_data_i inside {riscv_instr::FDIV_H, riscv_instr::FSQRT_H}) || XDivSqrt)) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2610,9 +2653,11 @@ module snitch
       riscv_instr::FCVT_S_H: begin
         if (FP_EN && RVF && XF16 && fcsr_q.fmode.src == 1'b0) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else if (FP_EN && RVF && XF16ALT && fcsr_q.fmode.src == 1'b1) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2621,9 +2666,11 @@ module snitch
       riscv_instr::FCVT_H_S: begin
         if (FP_EN && RVF && XF16 && fcsr_q.fmode.dst == 1'b0) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else if (FP_EN && RVF && XF16ALT && fcsr_q.fmode.dst == 1'b1) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2632,9 +2679,11 @@ module snitch
       riscv_instr::FCVT_D_H: begin
         if (FP_EN && RVD && XF16 && fcsr_q.fmode.src == 1'b0) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else if (FP_EN && RVD && XF16ALT && fcsr_q.fmode.src == 1'b1) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2643,9 +2692,11 @@ module snitch
       riscv_instr::FCVT_H_D: begin
         if (FP_EN && RVD && XF16 && fcsr_q.fmode.dst == 1'b0) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else if (FP_EN && RVD && XF16ALT && fcsr_q.fmode.dst == 1'b1) begin
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2669,6 +2720,7 @@ module snitch
       riscv_instr::FNMADD_B: begin
         if (FP_EN && XF8 && fcsr_q.fmode.dst == 1'b0 && (!(inst_data_i inside {riscv_instr::FDIV_B, riscv_instr::FSQRT_B}) || XDivSqrt)) begin
           write_rd        = 1'b0;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2682,6 +2734,7 @@ module snitch
             if ((XF8 && fcsr_q.fmode.dst == 1'b0) ||
                (XF8ALT && fcsr_q.fmode.dst == 1'b1)) begin
               write_rd = 1'b0;
+              is_acc       = 1'b1;
               acc_qvalid_o = valid_instr;
             end else begin
               illegal_inst = 1'b1;
@@ -2700,6 +2753,7 @@ module snitch
             if ((XF16 && fcsr_q.fmode.dst == 1'b0) ||
                (XF16ALT && fcsr_q.fmode.dst == 1'b1)) begin
               write_rd = 1'b0;
+              is_acc   = 1'b1;
               acc_qvalid_o = valid_instr;
             end else begin
               illegal_inst = 1'b1;
@@ -2723,6 +2777,7 @@ module snitch
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_register_rd = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2740,6 +2795,7 @@ module snitch
       riscv_instr::FMV_X_W: begin
         if (FP_EN && RVF) begin
           acc_register_rd = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2758,10 +2814,12 @@ module snitch
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_register_rd = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else if (FP_EN && XF16ALT && fcsr_q.fmode.src == 1'b1) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           acc_register_rd = 1'b1; // No RS in GPR but RD in GPR, register in int scoreboard
         end else begin
@@ -2780,11 +2838,13 @@ module snitch
         if (FP_EN && XF8 && fcsr_q.fmode.src == 1'b0) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           acc_register_rd = 1'b1; // No RS in GPR but RD in GPR, register in int scoreboard
         end else if (FP_EN && XF8ALT && fcsr_q.fmode.src == 1'b1) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
           acc_register_rd = 1'b1; // No RS in GPR but RD in GPR, register in int scoreboard
         end else begin
@@ -2798,6 +2858,7 @@ module snitch
       riscv_instr::FCVT_D_WU: begin
         if (FP_EN && RVD) begin
           opa_select      = Reg;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2811,6 +2872,7 @@ module snitch
       riscv_instr::FCVT_S_WU: begin
         if (FP_EN && RVF) begin
           opa_select      = Reg;
+          is_acc          = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2824,10 +2886,12 @@ module snitch
         if (FP_EN && XF16 && (fcsr_q.fmode.dst == 1'b0)) begin
           opa_select = Reg;
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else if (FP_EN && XF16ALT && (fcsr_q.fmode.dst == 1'b1)) begin
           opa_select = Reg;
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2841,10 +2905,12 @@ module snitch
         if (FP_EN && XF8 && fcsr_q.fmode.dst == 1'b0) begin
           opa_select = Reg;
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else if (FP_EN && XF8ALT && fcsr_q.fmode.dst == 1'b1) begin
           opa_select = Reg;
           write_rd = 1'b0;
+          is_acc   = 1'b1;
           acc_qvalid_o = valid_instr;
         end else begin
           illegal_inst = 1'b1;
@@ -2858,6 +2924,8 @@ module snitch
           opa_select = Reg;
           opb_select = IImmediate;
           write_rd = 1'b0;
+          is_acc     = 1'b1;
+          is_acc_mem = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           ls_size = Word;
           is_fp_load = 1'b1;
@@ -2870,6 +2938,8 @@ module snitch
           opa_select = Reg;
           opb_select = SFImmediate;
           write_rd = 1'b0;
+          is_acc     = 1'b1;
+          is_acc_mem = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           ls_size = Word;
           is_fp_store = 1'b1;
@@ -2884,6 +2954,8 @@ module snitch
           opa_select = Reg;
           opb_select = IImmediate;
           write_rd = 1'b0;
+          is_acc     = 1'b1;
+          is_acc_mem = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           ls_size = Double;
           is_fp_load = 1'b1;
@@ -2896,6 +2968,8 @@ module snitch
           opa_select = Reg;
           opb_select = SFImmediate;
           write_rd = 1'b0;
+          is_acc     = 1'b1;
+          is_acc_mem = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           ls_size = Double;
           is_fp_store = 1'b1;
@@ -2910,6 +2984,8 @@ module snitch
           opa_select = Reg;
           opb_select = IImmediate;
           write_rd = 1'b0;
+          is_acc     = 1'b1;
+          is_acc_mem = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           ls_size = HalfWord;
           is_fp_load = 1'b1;
@@ -2922,6 +2998,8 @@ module snitch
           opa_select = Reg;
           opb_select = SFImmediate;
           write_rd = 1'b0;
+          is_acc     = 1'b1;
+          is_acc_mem = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           ls_size = HalfWord;
           is_fp_store = 1'b1;
@@ -2936,6 +3014,8 @@ module snitch
           opa_select = Reg;
           opb_select = IImmediate;
           write_rd = 1'b0;
+          is_acc     = 1'b1;
+          is_acc_mem = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           ls_size = Byte;
           is_fp_load = 1'b1;
@@ -2948,6 +3028,8 @@ module snitch
           opa_select = Reg;
           opb_select = SFImmediate;
           write_rd = 1'b0;
+          is_acc     = 1'b1;
+          is_acc_mem = 1'b1;
           acc_qvalid_o = valid_instr && !acc_mem_stall;
           ls_size = Byte;
           is_fp_store = 1'b1;
@@ -3286,6 +3368,7 @@ module snitch
   assign lsu_qtag = (lsu_qvalid && (!is_store || ls_amo != AMONone)) ? rd : '0;
   // Send the data if it is a write or an AMO
   assign lsu_qdata = (lsu_qvalid && (is_store || ls_amo != AMONone)) ? gpr_rdata[1] : '0;
+  localparam int unsigned NumIOLoadBit = $clog2(snitch_pkg::NumIntOutstandingLoads);
 
   snitch_lsu #(
     .tag_t               ( logic[RegWidth-1:0]                ),
@@ -3313,15 +3396,19 @@ module snitch
     .data_qdata_o                          ,
     .data_qamo_o                           ,
     .data_qstrb_o                          ,
-    .data_qid_o                            ,
+    .data_qid_o   ( data_qid_o[NumIOLoadBit-1:0])                         ,
     .data_qvalid_o                         ,
     .data_qready_i                         ,
     .data_pdata_i                          ,
     .data_perror_i                         ,
-    .data_pid_i                            ,
+    // We may have more ID fields due to enlarged Spatz ROB
+    .data_pid_i   ( data_pid_i[NumIOLoadBit-1:0]),
     .data_pvalid_i                         ,
     .data_pready_o
   );
+  if (snitch_pkg::NumIntOutstandingLoads < snitch_pkg::RobDepth) begin
+    assign data_qid_o[$clog2(snitch_pkg::RobDepth)-1:NumIOLoadBit] = '0;
+  end
 
 `ifdef TARGET_SPATZ
   // Number of memory operations in the accelerator
