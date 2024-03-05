@@ -4,6 +4,10 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#pragma once
+#define BITREVERSETABLE
+#define ASM
+
 void mempool_bitrevtable_q16s_riscv32(uint16_t *pSrc, const uint16_t bitRevLen,
                                       const uint16_t *pBitRevTab) {
   uint16_t addr1, addr2;

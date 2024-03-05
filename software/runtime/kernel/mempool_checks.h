@@ -24,11 +24,11 @@ void mempool_check_q32(int32_t *__restrict__ pRes, int32_t *__restrict__ pExp,
       error = exp - res;
       bool print = ((error > TOL) || (error < (-TOL))) || verbose;
       if (print) {
-        printf("CHECK(%d): EXP = %x - RESP = %x\n", i, exp, res);
+        printf("CHECK(%d): EXP = %08X - RESP = %08X\n", i, exp, res);
         ERRORS++;
       }
     }
-    printf("\n%d ERRORS out of %d CHECKS\n\n", ERRORS, NEL);
+    printf("%d ERRORS out of %d CHECKS\n", ERRORS, NEL);
   }
   return;
 }
@@ -53,11 +53,11 @@ void mempool_check_q16(int16_t *__restrict__ pRes, int16_t *__restrict__ pExp,
       error = (int16_t)(exp - res);
       bool print = ((error > TOL) || (error < (-TOL))) | verbose;
       if (print) {
-        printf("CHECK(%d): EXP = %x - RESP = %x\n", i, exp, res);
+        printf("CHECK(%d): EXP = %08X - RESP = %08X\n", i, exp, res);
         ERRORS++;
       }
     }
-    printf("\n%d ERRORS out of %d CHECKS\n\n", ERRORS, NEL);
+    printf("%d ERRORS out of %d CHECKS\n", ERRORS, NEL);
   }
   return;
 }
@@ -86,11 +86,11 @@ void mempool_check_f32(float *__restrict__ pRes, float *__restrict__ pExp,
                    :);
       bool print = ((error > TOL) || (error < (-TOL))) || verbose;
       if (print) {
-        printf("CHECK(%d): EXP = %x - RESP = %x\n", i, exp, res);
+        printf("CHECK(%d): EXP = %08X - RESP = %08X\n", i, exp, res);
         ERRORS++;
       }
     }
-    printf("\n%d ERRORS out of %d CHECKS\n\n", ERRORS, NEL);
+    printf("%d ERRORS out of %d CHECKS\n", ERRORS, NEL);
   }
   return;
 }
@@ -119,12 +119,12 @@ void mempool_check_f16(__fp16 *__restrict__ pRes, __fp16 *__restrict__ pExp,
                    :);
       bool print = ((error > TOL) || (error < (-TOL))) || verbose;
       if (print) {
-        printf("CHECK(%d): EXP = %x - RESP = %x\n", i, *(int32_t *)&exp,
+        printf("CHECK(%d): EXP = %08X - RESP = %08X\n", i, *(int32_t *)&exp,
                *(int32_t *)&res);
         ERRORS++;
       }
     }
-    printf("\n%d ERRORS out of %d CHECKS\n\n", ERRORS, NEL);
+    printf("%d ERRORS out of %d CHECKS\n", ERRORS, NEL);
   }
   return;
 }

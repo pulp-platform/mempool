@@ -25,11 +25,12 @@
 
 #define PARALLEL
 #define SINGLE
+#define ASM
 
 /* CFFT mempool data */
-int16_t l1_pSrc[N_RSAMPLES]
+int16_t l1_pSrc[2 * N_CSAMPLES]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
-int16_t l1_twiddleCoef_q16[6 * N_CSAMPLES / 4]
+int16_t l1_twiddleCoef_q16[2 * (3 * N_CSAMPLES / 4)]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
 uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
@@ -45,11 +46,10 @@ int main() {
     dma_memcpy_blocking(l1_twiddleCoef_q16, l2_twiddleCoef_q16,
                         (3 * N_CSAMPLES / 4) * sizeof(int32_t));
     dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
-                        BITREVINDEXTABLE_LENGTH * sizeof(int32_t));
+                        BITREVINDEXTABLE_LENGTH * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
 
-  /* SINGLE-CORE */
 #ifdef SINGLE
   if (core_id == 0) {
     mempool_start_benchmark();
@@ -60,8 +60,6 @@ int main() {
   }
   mempool_barrier(num_cores);
 #endif
-
-  /* PARALLEL-CORE */
 #ifdef PARALLEL
   mempool_start_benchmark();
   mempool_radix2_cfft_q16p((uint16_t)16, l1_twiddleCoef_q16,
@@ -70,12 +68,6 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  if (core_id == 0) {
-    for (uint32_t i = 0; i < N_RSAMPLES; i += 2) {
-      printf("{%6d;%6d } \n", l1_pSrc[i], l1_pSrc[i + 1]);
-    }
-    printf("Done!\n");
-  }
   mempool_barrier(num_cores);
   return 0;
 }

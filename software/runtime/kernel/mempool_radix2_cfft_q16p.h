@@ -78,14 +78,6 @@ void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
     *((v2s *)&pSrc16[l * 2U]) = __PACK2(out2, out1);
 
   } /* groups loop end */
-
-  // if(core_id==0) {
-  //  for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-  //    printf("{%6d;%6d } \n", pSrc16[i], pSrc16[i+1]);
-  //  }
-  //  printf("Done PARALLEL!\n");
-  //}
-
   mempool_barrier(nPE);
 
   twidCoefModifier = twidCoefModifier << 1U;
@@ -140,14 +132,6 @@ void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
     mempool_barrier(nPE);
   } /* stages loop end */
 
-  // if(core_id==0) {
-  //  for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-  //    printf("{%6d;%6d } \n", pSrc16[i], pSrc16[i+1]);
-  //  }
-  //  printf("Done PARALLEL!\n");
-  //}
-  // mempool_barrier(nPE);
-
   n1 = n2;
   n2 = n2 >> 1;
   steps = fftLen / n1;
@@ -173,14 +157,6 @@ void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
     *((v2s *)&pSrc16[l * 2U]) = R;
 
   } /* groups loop end */
-
-  // if(core_id==0) {
-  //  for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-  //    printf("{%6d;%6d } \n", pSrc16[i], pSrc16[i+1]);
-  //  }
-  //  printf("Done PARALLEL!\n");
-  //}
-
   mempool_barrier(nPE);
 }
 

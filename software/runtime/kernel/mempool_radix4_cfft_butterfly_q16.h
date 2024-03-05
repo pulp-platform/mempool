@@ -4,6 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#pragma once
+#define ASM
 #include "xpulp/builtins_v2.h"
 
 /**
