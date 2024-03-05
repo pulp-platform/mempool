@@ -252,6 +252,8 @@ module mempool_system
   typedef logic [NumL2BanksWidth-1:0] l2_bank_idx_t;
   axi_to_l2_req_chan_t [NumAXIMasters-1:0] axi_to_l2_req_chan;
   axi_to_l2_rsp_chan_t [NumAXIMasters-1:0] axi_to_l2_rsp_chan;
+  logic                [NumAXIMasters-1:0] axi_to_l2_q_throttle_valid;
+  logic                [NumAXIMasters-1:0] axi_to_l2_q_throttle_ready;
   logic                [NumAXIMasters-1:0] axi_to_l2_q_valid;
   logic                [NumAXIMasters-1:0] axi_to_l2_q_ready;
   l2_bank_idx_t        [NumAXIMasters-1:0] axi_to_l2_q_sel;
@@ -281,7 +283,7 @@ module mempool_system
       .AddrWidth    (L2AddrWidth    ),
       .DataWidth    (AxiDataWidth   ),
       .IdWidth      (AxiTileIdWidth ),
-      .BufDepth     (3              ),
+      .BufDepth     (2              ),
       .reqrsp_req_t (axi_to_l2_req_t),
       .reqrsp_rsp_t (axi_to_l2_rsp_t)
     ) i_axi_to_reqrsp (
@@ -302,6 +304,20 @@ module mempool_system
     assign axi_to_l2_p_ready[i]     = axi_to_l2_req[i].p_ready;
     // Generate the selection signal
     assign axi_to_l2_q_sel[i] = axi_to_l2_req_chan[i].addr[$clog2(L2BankBeWidth)+:NumL2BanksWidth];
+    // Throttle the to one oustanding transaction to avoid reordering without a ROB
+    stream_throttle #(
+      .MaxNumPending (1)
+    ) i_stream_throttle (
+      .clk_i       (clk_i                        ),
+      .rst_ni      (rst_ni                       ),
+      .req_valid_i (axi_to_l2_q_valid[i]         ),
+      .req_valid_o (axi_to_l2_q_throttle_valid[i]),
+      .req_ready_i (axi_to_l2_q_throttle_ready[i]),
+      .req_ready_o (axi_to_l2_q_ready[i]         ),
+      .rsp_valid_i (axi_to_l2_p_valid[i]         ),
+      .rsp_ready_i (axi_to_l2_p_ready[i]         ),
+      .credit_i    (1'b1                         )
+    );
   end
 
   stream_xbar #(
@@ -313,18 +329,18 @@ module mempool_system
     .AxiVldRdy   (1'b1                ),
     .LockIn      (1'b1                )
   ) i_l2_req_xbar (
-    .clk_i   (clk_i             ),
-    .rst_ni  (rst_ni            ),
-    .flush_i (1'b0              ),
-    .rr_i    ('0                ),
-    .data_i  (axi_to_l2_req_chan),
-    .sel_i   (axi_to_l2_q_sel   ),
-    .valid_i (axi_to_l2_q_valid ),
-    .ready_o (axi_to_l2_q_ready ),
-    .data_o  (mem_req_chan      ),
-    .idx_o   (axi_to_l2_q_idx   ),
-    .valid_o (mem_req_valid     ),
-    .ready_i (mem_req_ready     )
+    .clk_i   (clk_i                     ),
+    .rst_ni  (rst_ni                    ),
+    .flush_i (1'b0                      ),
+    .rr_i    ('0                        ),
+    .data_i  (axi_to_l2_req_chan        ),
+    .sel_i   (axi_to_l2_q_sel           ),
+    .valid_i (axi_to_l2_q_throttle_valid),
+    .ready_o (axi_to_l2_q_throttle_ready),
+    .data_o  (mem_req_chan              ),
+    .idx_o   (axi_to_l2_q_idx           ),
+    .valid_o (mem_req_valid             ),
+    .ready_i (mem_req_ready             )
   );
 
   stream_xbar #(
@@ -357,33 +373,37 @@ module mempool_system
   localparam L2SimInit = `ifdef VERILATOR "none" `else "custom" `endif;
   localparam L2BankAddrIndex = $clog2(L2BankBeWidth)+$clog2(NumL2Banks);
   for (genvar i = 0; i < NumL2Banks; i++) begin : gen_l2_banks
+    // Address scrambling: Cut out the bits used to index the individual banks
+    logic [AddrWidth-1:0] addr_scrambled;
+    assign addr_scrambled = {'0, mem_req_chan[i].addr[AddrWidth-1:L2BankAddrIndex], mem_req_chan[i].addr[0+:$clog2(L2BankBeWidth)]};
     tcdm_adapter #(
-      .AddrWidth  (L2BankAddrWidth ),
-      .DataWidth  (L2BankWidth     ),
-      .metadata_t (l2_axi_idx_t    ),
-      .LrScEnable (1'b0            ),
-      .RegisterAmo(1'b0            )
+      .AddrWidth     (AddrWidth       ),
+      .BankAddrWidth (L2BankAddrWidth ),
+      .DataWidth     (L2BankWidth     ),
+      .metadata_t    (l2_axi_idx_t    ),
+      .LrScEnable    (1'b0            ),
+      .RegisterAmo   (1'b0            )
     ) i_bank_adapter (
-      .clk_i       (clk_i                                                 ),
-      .rst_ni      (rst_ni                                                ),
-      .in_valid_i  (mem_req_valid[i]                                      ),
-      .in_ready_o  (mem_req_ready[i]                                      ),
-      .in_address_i(mem_req_chan[i].addr[L2BankAddrIndex+:L2BankAddrWidth]),
-      .in_amo_i    (mem_req_chan[i].amo                                   ),
-      .in_write_i  (mem_req_chan[i].write                                 ),
-      .in_wdata_i  (mem_req_chan[i].data                                  ),
-      .in_meta_i   (axi_to_l2_q_idx[i]                                    ),
-      .in_be_i     (mem_req_chan[i].strb                                  ),
-      .in_valid_o  (mem_rsp_valid[i]                                      ),
-      .in_ready_i  (mem_rsp_ready[i]                                      ),
-      .in_rdata_o  (mem_rsp_chan[i].data                                  ),
-      .in_meta_o   (axi_to_l2_p_sel[i]                                    ),
-      .out_req_o   (bank_req[i]                                           ),
-      .out_add_o   (bank_addr[i]                                          ),
-      .out_write_o (bank_we[i]                                            ),
-      .out_wdata_o (bank_wdata[i]                                         ),
-      .out_be_o    (bank_strb[i]                                          ),
-      .out_rdata_i (bank_rdata[i]                                         )
+      .clk_i       (clk_i                ),
+      .rst_ni      (rst_ni               ),
+      .in_valid_i  (mem_req_valid[i]     ),
+      .in_ready_o  (mem_req_ready[i]     ),
+      .in_address_i(addr_scrambled       ),
+      .in_amo_i    (mem_req_chan[i].amo  ),
+      .in_write_i  (mem_req_chan[i].write),
+      .in_wdata_i  (mem_req_chan[i].data ),
+      .in_meta_i   (axi_to_l2_q_idx[i]   ),
+      .in_be_i     (mem_req_chan[i].strb ),
+      .in_valid_o  (mem_rsp_valid[i]     ),
+      .in_ready_i  (mem_rsp_ready[i]     ),
+      .in_rdata_o  (mem_rsp_chan[i].data ),
+      .in_meta_o   (axi_to_l2_p_sel[i]   ),
+      .out_req_o   (bank_req[i]          ),
+      .out_add_o   (bank_addr[i]         ),
+      .out_write_o (bank_we[i]           ),
+      .out_wdata_o (bank_wdata[i]        ),
+      .out_be_o    (bank_strb[i]         ),
+      .out_rdata_i (bank_rdata[i]        )
     );
     assign mem_rsp_chan[i].error = 1'b0;
 
@@ -764,7 +784,7 @@ module mempool_system
     .mst_ports_req_o      (axi_lite_slv_req   ),
     .mst_ports_resp_i     (axi_lite_slv_resp  ),
     .addr_map_i           (axi_lite_xbar_rules),
-    .en_default_mst_port_i('1                 ),
+    .en_default_mst_port_i(1'b1               ),
     .default_mst_port_i   (CtrlRegisters      )
   );
 
