@@ -53,7 +53,7 @@ def emit_header_file(layer_type: str, **kwargs):
         file = file_path / "data_conv2d.h"
         emit_str += emit_conv2d_layer(**kwargs)
     elif layer_type == "GEMM":
-        file = file_path / ("data_" + str(kwargs["M"]) + "_" + str(kwargs["N"]) + "_" + str(kwargs["K"]) + ".h")
+        file = file_path / ("data_gemm.h")
         emit_str += emit_GEMM_layer(**kwargs)
     elif layer_type == "BatchNorm":
         file = file_path / "data_batchnorm.h"
@@ -128,15 +128,15 @@ def emit_GEMM_layer(name="gemm", **kwargs):
     result = kwargs["result"]
 
     m = kwargs["M"]
+    p = kwargs["P"]
     n = kwargs["N"]
-    k = kwargs["K"]
 
     layer_str = ""
     layer_str += '#include "layer.h"\n\n'
     layer_str += f"const gemm_layer {name}_l = {{\n"
     layer_str += f"\t.M = {m},\n"
     layer_str += f"\t.N = {n},\n"
-    layer_str += f"\t.K = {k},\n"
+    layer_str += f"\t.P = {p},\n"
     layer_str += f'\t.TA = {int(kwargs["ta"])},\n'
     layer_str += f'\t.TB = {int(kwargs["tb"])},\n'
     layer_str += f'\t.ALPHA = {kwargs["alpha"]},\n'
@@ -148,22 +148,22 @@ def emit_GEMM_layer(name="gemm", **kwargs):
 
     dtype = ctypes[str(kwargs["prec"])]
     if dtype != "char":
-        layer_str += f'{dtype} a[{m}*{k}]  __attribute__((section(".l1")));\n'
-        layer_str += f'{dtype} b[{k}*{n}]  __attribute__((section(".l1")));\n'
-        layer_str += f'{dtype} c[{m}*{n}]  __attribute__((section(".l1")));\n'
+        layer_str += f'{dtype} a[{m}*{n}]  __attribute__((section(".l1")));\n'
+        layer_str += f'{dtype} b[{n}*{p}]  __attribute__((section(".l1")));\n'
+        layer_str += f'{dtype} c[{m}*{p}]  __attribute__((section(".l1")));\n'
         layer_str += f'{dtype} r[{m}]  __attribute__((section(".l1")));\n'
         layer_str += (
-            f'static {dtype} {name}_A_dram [{m}*{k}] __attribute__((section(".data"))) = '
+            f'static {dtype} {name}_A_dram [{m}*{n}] __attribute__((section(".data"))) = '
             + array_to_cstr(mat_A)
             + ";\n\n\n"
         )
         layer_str += (
-            f'static {dtype} {name}_B_dram [{k}*{n}] __attribute__((section(".data"))) = '
+            f'static {dtype} {name}_B_dram [{n}*{p}] __attribute__((section(".data"))) = '
             + array_to_cstr(mat_B)
             + ";\n\n\n"
         )
         layer_str += (
-            f'static {dtype} {name}_C_dram [{m}*{n}] __attribute__((section(".data"))) = '
+            f'static {dtype} {name}_C_dram [{m}*{p}] __attribute__((section(".data"))) = '
             + array_to_cstr(mat_C)
             + ";\n\n\n"
         )
@@ -174,17 +174,17 @@ def emit_GEMM_layer(name="gemm", **kwargs):
         )
     else:
         layer_str += (
-            f"static {dtype} {name}_A_dram [{m}][{k}] = "
+            f"static {dtype} {name}_A_dram [{m}][{n}] = "
             + array_to_cstr(kwargs["bits_A"], fmt="char")
             + ";\n\n\n"
         )
         layer_str += (
-            f"static {dtype} {name}_B_dram [{k}][{n}] = "
+            f"static {dtype} {name}_B_dram [{n}][{p}] = "
             + array_to_cstr(kwargs["bits_B"], fmt="char")
             + ";\n\n\n"
         )
         layer_str += (
-            f"static {dtype} {name}_C_dram [{m}][{n}] = "
+            f"static {dtype} {name}_C_dram [{m}][{p}] = "
             + array_to_cstr(kwargs["bits_C"], fmt="char")
             + ";\n\n\n"
         )
@@ -560,9 +560,9 @@ def main():
         emit_header_file("Conv2d", **kwargs)
 
     elif param["kernel"] == "GEMM":
-        mat_A, bits_A = rand_data_generator((param["M"], param["K"]), param["prec"])
-        mat_B, bits_B = rand_data_generator((param["K"], param["N"]), param["prec"])
-        mat_C, bits_C = rand_data_generator((param["M"], param["N"]), param["prec"])
+        mat_A, bits_A = rand_data_generator((param["M"], param["N"]), param["prec"])
+        mat_B, bits_B = rand_data_generator((param["N"], param["P"]), param["prec"])
+        mat_C, bits_C = rand_data_generator((param["M"], param["P"]), param["prec"])
 
         result = param["alpha"] * mat_C + torch.matmul(mat_A, mat_B)
 
@@ -578,7 +578,7 @@ def main():
             "result": result,
             "M": param["M"],
             "N": param["N"],
-            "K": param["K"],
+            "P": param["P"],
             "ta": param["transpose_A"],
             "tb": param["transpose_B"],
             "alpha": param["alpha"],

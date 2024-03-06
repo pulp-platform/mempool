@@ -20,10 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 
-// #include "data/data_gemm.h"
-// #include "data/data_512_512_512.h"
-#include "data/data_256_256_256.h"
-// #include "data/data_64_64_64.h"
+#include "data/data_gemm.h"
 #include "kernel/sp-fmatmul.c"
 #include "printf.h"
 #ifdef MEMPOOL

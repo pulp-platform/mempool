@@ -25,7 +25,8 @@ else
 	echo "Not supported configuration, exit"
 	exit 2
 fi
-
+make -B update_opcodes config=$1
+make -C hardware buildspatz config=$1
 ################
 echo ""
 echo ""
@@ -57,4 +58,4 @@ echo "fft 32 cores"
 make -C software/apps/spatz_apps/run_sim fft config=$1 size=4096 cores=32
 echo ""
 echo "fmatmul"
-make -C software/apps/spatz_apps/run_sim fmatmul config=$1
+make -C software/apps/spatz_apps/run_sim fmatmul config=$1 

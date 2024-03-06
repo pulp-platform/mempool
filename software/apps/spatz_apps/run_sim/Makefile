@@ -69,6 +69,8 @@ fft: log_clean
 # currently only run 256x256x256
 .PHONY: fmatmul
 fmatmul: log_clean
+	$(python) $(ROOT_DIR)/gen_config.py "fmatmul" 256 256 256 32
+	$(python) $(app_path)/spatz_apps/sp-fft/script/gen_data.py --cfg $(ROOT_DIR)/fft.json
 	config=$(config) make -C $(app_path) spatz_apps/sp-fmatmul-opt
 	config=$(config) make -C $(hw_path) $(sim) app=spatz_apps/sp-fmatmul-opt>> $(ROOT_DIR)/result.log
 	if [ "$(log)" = "true" ]; then \

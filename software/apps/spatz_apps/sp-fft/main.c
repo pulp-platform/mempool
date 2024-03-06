@@ -82,7 +82,6 @@ int main() {
   }
 
   if (cid < active_cores) {
-    // for (uint32_t i = 0; i < (active_cores*NTWI_P2*2); i++) {
     for (uint32_t i = cid*(NTWI_P2*2); i < (cid+1)*(NTWI_P2*2); i++) {
       // Each core has its own P2 twiddle copy to reduce bank conflicts
       twiddle_p2[i] = twiddle_dram[i + (NTWI_P1<<1)];

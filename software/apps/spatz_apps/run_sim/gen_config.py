@@ -45,7 +45,7 @@ def fft_config(M=1024, prec=32, core=16):
     with open(filename, "w") as file:
         file.write(formatted_config_str)
 
-def fmatmul_config(M=256, prec=32):
+def fmatmul_config(M=256, N=256, P=256, prec=32):
     # Create a dictionary with the configuration
     filename = "matmul.json"
     kernel   = "GEMM"
@@ -56,8 +56,8 @@ def fmatmul_config(M=256, prec=32):
     config = {
         "kernel": kernel,
         "M": M,
-        "N": M,
-        "K": K,
+        "N": N,
+        "P": P,
         "alpha": a,
         "transpose_A": transpose,
         "transpose_B": transpose,
