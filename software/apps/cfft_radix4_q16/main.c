@@ -35,15 +35,19 @@
 //#define SCHEDULED
 
 #ifdef PARALLEL
-int16_t l1_pSrc[2 * N_CSAMPLES] __attribute__((section(".l1_prio")));
-int16_t l1_pDst[2 * N_CSAMPLES] __attribute__((section(".l1_prio")));
+int16_t l1_pSrc[2 * N_CSAMPLES]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+int16_t l1_pDst[2 * N_CSAMPLES]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 int16_t l1_twiddleCoef_q16_src[2 * 3 * N_CSAMPLES / 4]
-    __attribute__((section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 int16_t l1_twiddleCoef_q16_dst[2 * 3 * N_CSAMPLES / 4]
-    __attribute__((section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
-    __attribute__((section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 #endif
+
+dump(prova, 8);
 
 #include "kernel/mempool_checks.h"
 #include "kernel/mempool_radix4_cfft_butterfly_q16.h"
@@ -87,8 +91,13 @@ int main() {
   }
   mempool_barrier(num_cores);
   mempool_start_benchmark();
-  mempool_radix4_cfft_q16p_xpulpimg(l1_pSrc, N_CSAMPLES, l1_twiddleCoef_q16_src,
-                                    1, num_cores);
+  if (LOG2 % 2 == 0) {
+    mempool_radix4_cfft_q16p_xpulpimg(l1_pSrc, N_CSAMPLES,
+                                      l1_twiddleCoef_q16_src, 1, num_cores);
+  } else {
+    mempool_radix4by2_cfft_q16p(l1_pSrc, N_CSAMPLES, l1_twiddleCoef_q16_src,
+                                num_cores);
+  }
   mempool_bitrevtable_q16p_xpulpimg((uint16_t *)l1_pSrc,
                                     BITREVINDEXTABLE_LENGTH,
                                     l1_BitRevIndexTable, num_cores);

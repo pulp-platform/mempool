@@ -154,9 +154,8 @@ void mempool_radix4by2_cfft_q16p(int16_t *pSrc, uint32_t fftLen,
 
   uint32_t i;
   uint32_t n2, step;
-  v2s pa, pb;
+  int16_t pa, pb, pc, pd;
 
-  uint32_t l;
   v2s CoSi;
   v2s a, b, t;
   int16_t testa, testb;
@@ -165,48 +164,36 @@ void mempool_radix4by2_cfft_q16p(int16_t *pSrc, uint32_t fftLen,
   n2 = fftLen >> 1;
   step = (n2 + nPE - 1) / nPE;
   for (i = core_id * step; i < MIN(core_id * step + step, n2); i++) {
-
     CoSi = *(v2s *)&pCoef[i * 2];
-    l = i + n2;
     a = __SRA2(*(v2s *)&pSrc[2 * i], ((v2s){1, 1}));
-    b = __SRA2(*(v2s *)&pSrc[2 * l], ((v2s){1, 1}));
+    b = __SRA2(*(v2s *)&pSrc[2 * (i + n2)], ((v2s){1, 1}));
     t = __SUB2(a, b);
-    *((v2s *)&pSrc[i * 2]) = __SRA2(__ADD2(a, b), ((v2s){1, 1}));
-
     testa = (int16_t)(__DOTP2(t, CoSi) >> 16);
-    testb = (int16_t)(__DOTP2(t, __PACK2(-CoSi[1], CoSi[0])) >> 16);
-    *((v2s *)&pSrc[l * 2]) = __PACK2(testa, testb);
+    testb = (int16_t)(__DOTP2(t, __PACK2(CoSi[0], -CoSi[1])) >> 16);
+    *((v2s *)&pSrc[i * 2]) = __SRA2(__ADD2(a, b), ((v2s){1, 1}));
+    *((v2s *)&pSrc[(i + n2) * 2]) = __PACK2(testb, testa);
   }
   mempool_log_barrier(2, core_id);
 
-  if (nPE > 1) {
-    if (core_id < nPE / 2) {
-      // first col
-      mempool_radix4_cfft_q16p_xpulpimg(pSrc, n2, (int16_t *)pCoef, 2U,
-                                        nPE / 2);
-    } else {
-      // second col
-      mempool_radix4_cfft_q16p_xpulpimg(pSrc + fftLen, n2, (int16_t *)pCoef, 2U,
-                                        nPE - nPE / 2);
-    }
-  } else {
-    // first col
-    mempool_radix4_cfft_q16p_xpulpimg(pSrc, n2, (int16_t *)pCoef, 2U, nPE);
-    // second col
-    mempool_radix4_cfft_q16p_xpulpimg(pSrc + fftLen, n2, (int16_t *)pCoef, 2U,
-                                      nPE);
-  }
+  // first col
+  mempool_radix4_cfft_q16p_xpulpimg(pSrc, n2, (int16_t *)pCoef, 2U, nPE);
+  // second col
+  mempool_radix4_cfft_q16p_xpulpimg(pSrc + fftLen, n2, (int16_t *)pCoef, 2U,
+                                    nPE);
 
   for (i = core_id * step; i < MIN(core_id * step + step, n2); i++) {
-
-    pa = *(v2s *)&pSrc[4 * i];
-    pb = *(v2s *)&pSrc[4 * i + 2];
-
-    pa = __SLL2(pa, ((v2s){1, 1}));
-    pb = __SLL2(pb, ((v2s){1, 1}));
-
-    *((v2s *)&pSrc[4 * i]) = pa;
-    *((v2s *)&pSrc[4 * i + 2]) = pb;
+    pa = *(int16_t *)&pSrc[4 * i + 0];
+    pb = *(int16_t *)&pSrc[4 * i + 1];
+    pc = *(int16_t *)&pSrc[4 * i + 2];
+    pd = *(int16_t *)&pSrc[4 * i + 3];
+    pa = (int16_t)(pa << 1U);
+    pb = (int16_t)(pb << 1U);
+    pc = (int16_t)(pc << 1U);
+    pd = (int16_t)(pd << 1U);
+    pSrc[4 * i + 0] = pa;
+    pSrc[4 * i + 1] = pb;
+    pSrc[4 * i + 2] = pc;
+    pSrc[4 * i + 3] = pd;
   }
   mempool_log_barrier(2, core_id);
   return;

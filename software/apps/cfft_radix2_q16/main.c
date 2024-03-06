@@ -20,20 +20,19 @@
 
 /* CFFT mempool libraries */
 #include "data/data_cfft_radix2_q16.h"
+#include "kernel/mempool_checks.h"
 #include "kernel/mempool_radix2_cfft_q16p.h"
 #include "kernel/mempool_radix2_cfft_q16s.h"
 
 #define PARALLEL
-#define SINGLE
-#define ASM
 
 /* CFFT mempool data */
 int16_t l1_pSrc[2 * N_CSAMPLES]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 int16_t l1_twiddleCoef_q16[2 * (3 * N_CSAMPLES / 4)]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 
 int main() {
 
@@ -46,28 +45,30 @@ int main() {
     dma_memcpy_blocking(l1_twiddleCoef_q16, l2_twiddleCoef_q16,
                         (3 * N_CSAMPLES / 4) * sizeof(int32_t));
     dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
-                        BITREVINDEXTABLE_LENGTH * sizeof(int16_t));
+                        BITREVINDEXTABLE_LENGTH * sizeof(uint16_t));
   }
   mempool_barrier(num_cores);
 
 #ifdef SINGLE
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_radix2_cfft_q16s((uint16_t)16, l1_twiddleCoef_q16,
-                             l1_BitRevIndexTable, l1_pSrc,
-                             BITREVINDEXTABLE_LENGTH, 0, 0);
+    mempool_radix2_cfft_q16s(l1_pSrc, N_CSAMPLES, l1_twiddleCoef_q16);
+    mempool_radix2_bitreversal_q16s(l1_pSrc, BITREVINDEXTABLE_LENGTH,
+                                    l1_BitRevIndexTable);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
 #endif
 #ifdef PARALLEL
   mempool_start_benchmark();
-  mempool_radix2_cfft_q16p((uint16_t)16, l1_twiddleCoef_q16,
-                           l1_BitRevIndexTable, l1_pSrc,
-                           BITREVINDEXTABLE_LENGTH, 0, 0, num_cores);
+  mempool_radix2_butterfly_q16p(l1_pSrc, N_CSAMPLES, l1_twiddleCoef_q16,
+                                num_cores);
+  mempool_radix2_bitreversal_q16p(l1_pSrc, BITREVINDEXTABLE_LENGTH,
+                                  l1_BitRevIndexTable, num_cores);
   mempool_stop_benchmark();
 #endif
 
+  mempool_check_q16(l1_pSrc, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
   mempool_barrier(num_cores);
   return 0;
 }
