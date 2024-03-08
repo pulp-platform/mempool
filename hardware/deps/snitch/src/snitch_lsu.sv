@@ -34,6 +34,7 @@ module snitch_lsu
   output logic               lsu_perror_o,
   output logic               lsu_pvalid_o,
   input  logic               lsu_pready_i,
+  output logic               lsu_empty_o,
   // Memory Interface Channel
   output logic [31:0]        data_qaddr_o,
   output logic               data_qwrite_o,
@@ -123,6 +124,9 @@ module snitch_lsu
     .cnt_o  ( req_id         ),
     .empty_o( id_table_full  )
   );
+
+  // No pending requests if all IDs are available
+  assign lsu_empty_o = &id_available_q;
 
   // Pop if response accepted
   assign id_table_pop = data_pvalid_i & data_pready_o;

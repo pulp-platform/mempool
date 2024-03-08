@@ -120,7 +120,7 @@ module snitch
   logic [31:0] alu_result;
 
   logic [RegWidth-1:0] rd, rs1, rs2;
-  logic stall, lsu_stall;
+  logic stall, lsu_stall, fence_stall;
   // Register connections
   logic [RegNrReadPorts-1:0][RegWidth-1:0]  gpr_raddr;
   logic [RegNrReadPorts-1:0][31:0]          gpr_rdata;
@@ -161,6 +161,7 @@ module snitch
   logic [31:0] ld_result;
   logic lsu_qready, lsu_qvalid;
   logic lsu_pvalid, lsu_pready;
+  logic lsu_empty;
   logic [RegWidth-1:0] lsu_rd;
   logic [31:0] lsu_qaddr;
 
@@ -266,7 +267,7 @@ module snitch
   // the LSU Interface didn't accept our request yet
   assign lsu_stall = (lsu_qvalid & ~lsu_qready);
   // Stall the stage if we either didn't get a valid instruction or the LSU/Accelerator is not ready
-  assign stall = ~valid_instr | lsu_stall | acc_stall;
+  assign stall = ~valid_instr | lsu_stall | acc_stall | fence_stall;
 
   // --------------------
   // Instruction Frontend
@@ -348,6 +349,7 @@ module snitch
     acc_register_rd = 1'b0;
 
     csr_en = 1'b0;
+    fence_stall = 1'b0;
     // Wake up if a wake-up is incoming or pending
     wfi_d = (wake_up_q || wake_up_sync_i) ? 1'b0 : wfi_q;
     // Only store a pending wake-up if we are not asleep
@@ -641,6 +643,8 @@ module snitch
       // NOP Instructions
       riscv_instr::FENCE: begin
         write_rd = 1'b0;
+        // Stall until the LSU is empty
+        fence_stall = !lsu_empty;
       end
       riscv_instr::WFI: begin
         if (valid_instr) begin
@@ -1627,6 +1631,7 @@ module snitch
     .lsu_perror_o (                       ), // ignored for the moment
     .lsu_pvalid_o ( lsu_pvalid            ),
     .lsu_pready_i ( lsu_pready            ),
+    .lsu_empty_o  ( lsu_empty             ),
     .data_qaddr_o                          ,
     .data_qwrite_o                         ,
     .data_qdata_o                          ,
