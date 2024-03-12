@@ -7,35 +7,92 @@
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #include "builtins_v2.h"
 
-void mempool_radix2_cfft_q16p(uint16_t fftLen, int16_t *pTwiddle,
-                              uint16_t *pBitRevTable, int16_t *pSrc,
-                              uint16_t bitReverseLen, uint8_t ifftFlag,
-                              uint8_t bitReverseFlag, uint32_t nPE);
+void mempool_radix2_cfft_q16s(int16_t *pSrc16, uint32_t fftLen,
+                              int16_t *pCoef16) {
 
-void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
-                                   int16_t *pCoef16, uint32_t twidCoefModifier,
-                                   uint32_t nPE);
+  uint32_t i, j, k, l;
+  uint32_t n1, n2, ia;
+  int16_t xt, yt, cosVal, sinVal;
+  uint32_t twidCoefModifier = 1;
 
-void mempool_radix2_bitreversal_q16p(uint16_t *pSrc, const uint16_t bitRevLen,
-                                     const uint16_t *pBitRevTab, uint32_t nPE);
+  n2 = fftLen;
+  n1 = n2;
+  n2 = n2 >> 1;
+  ia = 0;
 
-void mempool_radix2_cfft_q16p(uint16_t fftLen, int16_t *pTwiddle,
-                              uint16_t *pBitRevTable, int16_t *pSrc,
-                              uint16_t bitReverseLen, uint8_t ifftFlag,
-                              uint8_t bitReverseFlag, uint32_t nPE) {
-  if (ifftFlag == 0) {
-    mempool_radix2_butterfly_q16p(pSrc, fftLen, pTwiddle, 1U, nPE);
+  for (i = 0; i < n2; i++) {
+
+    cosVal = pCoef16[i * 2];
+    sinVal = pCoef16[(i * 2) + 1];
+    l = i + n2;
+
+    xt = (int16_t)((pSrc16[2 * i] >> 1U) - (pSrc16[2 * l] >> 1U));
+    yt = (int16_t)((pSrc16[2 * i + 1] >> 1U) - (pSrc16[2 * l + 1] >> 1U));
+
+    pSrc16[2 * i] =
+        (int16_t)(((pSrc16[2 * i] >> 1U) + (pSrc16[2 * l] >> 1U)) >> 1U);
+    pSrc16[2 * i + 1] =
+        (int16_t)(((pSrc16[2 * l + 1] >> 1U) + (pSrc16[2 * i + 1] >> 1U)) >>
+                  1U);
+    pSrc16[2U * l] = (int16_t)(((int16_t)(((int32_t)xt * cosVal) >> 16)) +
+                               ((int16_t)(((int32_t)yt * sinVal) >> 16)));
+    pSrc16[2U * l + 1] = (int16_t)(((int16_t)(((int32_t)yt * cosVal) >> 16)) -
+                                   ((int16_t)(((int32_t)xt * sinVal) >> 16)));
   }
+  twidCoefModifier = twidCoefModifier << 1U;
 
-  if (bitReverseFlag) {
-    mempool_radix2_bitreversal_q16p((uint16_t *)pSrc, bitReverseLen,
-                                    pBitRevTable, nPE);
-  }
+  /* loop for stage */
+  for (k = fftLen / 2; k > 2; k = k >> 1) {
+    n1 = n2;
+    n2 = n2 >> 1;
+    ia = 0;
+
+    /* loop for groups */
+    for (j = 0; j < n2; j++) {
+      cosVal = pCoef16[ia * 2];
+      sinVal = pCoef16[(ia * 2) + 1];
+      ia = ia + twidCoefModifier;
+
+      /* loop for butterfly */
+      for (i = j; i < fftLen; i += n1) {
+        l = i + n2;
+
+        xt = (int16_t)(pSrc16[2 * i] - pSrc16[2 * l]);
+        yt = (int16_t)(pSrc16[2 * i + 1] - pSrc16[2 * l + 1]);
+
+        pSrc16[2 * i] = (int16_t)((pSrc16[2 * i] + pSrc16[2 * l]) >> 1U);
+        pSrc16[2 * i + 1] =
+            (int16_t)((pSrc16[2 * l + 1] + pSrc16[2 * i + 1]) >> 1U);
+
+        pSrc16[2U * l] = (int16_t)(((int16_t)(((int32_t)xt * cosVal) >> 16)) +
+                                   ((int16_t)(((int32_t)yt * sinVal) >> 16)));
+        pSrc16[2U * l + 1] =
+            (int16_t)(((int16_t)(((int32_t)yt * cosVal) >> 16)) -
+                      ((int16_t)(((int32_t)xt * sinVal) >> 16)));
+
+      } /* butterfly loop end */
+
+    } /* groups loop end */
+
+    twidCoefModifier = twidCoefModifier << 1U;
+  } /* stages loop end */
+
+  n1 = n2;
+  n2 = n2 >> 1;
+  /* loop for groups */
+  for (i = 0; i < fftLen; i += n1) {
+    l = i + n2;
+    xt = (int16_t)(pSrc16[2 * i] - pSrc16[2 * l]);
+    yt = (int16_t)(pSrc16[2 * i + 1] - pSrc16[2 * l + 1]);
+    pSrc16[2 * i] = (int16_t)(pSrc16[2 * i] + pSrc16[2 * l]);
+    pSrc16[2 * i + 1] = (int16_t)(pSrc16[2 * l + 1] + pSrc16[2 * i + 1]);
+    pSrc16[2U * l] = xt;
+    pSrc16[2U * l + 1] = yt;
+  } /* groups loop end */
 }
 
 void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
-                                   int16_t *pCoef16, uint32_t twidCoefModifier,
-                                   uint32_t nPE) {
+                                   int16_t *pCoef16, uint32_t nPE) {
 
   uint32_t i, j, k, l;
   uint32_t n1, n2, ia;
@@ -44,6 +101,7 @@ void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
   v2s T, S, R;
   v2s coeff;
   int16_t out1, out2;
+  uint32_t twidCoefModifier = 1;
 
   n1 = fftLen;
   n2 = n1 >> 1;
@@ -78,23 +136,13 @@ void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
     *((v2s *)&pSrc16[l * 2U]) = __PACK2(out2, out1);
 
   } /* groups loop end */
-
-  // if(core_id==0) {
-  //  for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-  //    printf("{%6d;%6d } \n", pSrc16[i], pSrc16[i+1]);
-  //  }
-  //  printf("Done PARALLEL!\n");
-  //}
-
   mempool_barrier(nPE);
 
   twidCoefModifier = twidCoefModifier << 1U;
   /* loop for stage */
   for (k = fftLen / 2; k > 2; k = k >> 1) {
-
     n1 = n2;
     n2 = n2 >> 1;
-
     step = (n2 + nPE - 1) / nPE;
     butt_id = core_id % n2;
     offset = (core_id / n2) * n1;
@@ -102,23 +150,19 @@ void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
 
     /* loop for groups */
     for (j = butt_id * step; j < MIN(butt_id * step + step, n2); j++) {
-      // for (j = core_id * step; j < MIN(core_id*step + step, n2); j++) {
-
+      ia = twidCoefModifier * j;
       coeff = *(v2s *)&pCoef16[ia * 2U];
-      ia = ia + twidCoefModifier;
 
       /* loop for butterfly */
-      for (i = offset + j; i < fftLen; i += ((nPE / n2) + 1) * n1)
-      // for (i = j; i < fftLen; i += n1)
-      {
+      for (i = offset + j; i < fftLen; i += ((nPE + n2 - 1) / n2) * n1) {
 
         /* Reading i and i+fftLen/2 inputs */
         /* Input is downscaled by 1 to avoid overflow */
         l = i + n2;
         /* Read ya (real), xa (imag) input */
-        T = __SRA2(*(v2s *)&pSrc16[i * 2U], ((v2s){1, 1}));
+        T = *(v2s *)&pSrc16[i * 2U];
         /* Read yb (real), xb (imag) input */
-        S = __SRA2(*(v2s *)&pSrc16[l * 2U], ((v2s){1, 1}));
+        S = *(v2s *)&pSrc16[l * 2U];
         /* R0 = (ya - yb) */
         /* R1 = (xa - xb) */
         R = __SUB2(T, S);
@@ -136,17 +180,9 @@ void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
 
     } /* groups loop end */
 
-    twidCoefModifier = twidCoefModifier << 1U;
+    twidCoefModifier <<= 1U;
     mempool_barrier(nPE);
   } /* stages loop end */
-
-  // if(core_id==0) {
-  //  for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-  //    printf("{%6d;%6d } \n", pSrc16[i], pSrc16[i+1]);
-  //  }
-  //  printf("Done PARALLEL!\n");
-  //}
-  // mempool_barrier(nPE);
 
   n1 = n2;
   n2 = n2 >> 1;
@@ -159,45 +195,16 @@ void mempool_radix2_butterfly_q16p(int16_t *pSrc16, uint32_t fftLen,
 
     l = i + n2;
     /* Read ya (real), xa (imag) input */
-    T = __SRA2(*(v2s *)&pSrc16[i * 2U], ((v2s){1, 1}));
+    T = *(v2s *)&pSrc16[i * 2U];
     /* Read yb (real), xb (imag) input */
-    S = __SRA2(*(v2s *)&pSrc16[l * 2U], ((v2s){1, 1}));
-    /* R0 = (ya - yb) */
-    /* R1 = (xa - xb) */
-    R = __SUB2(T, S);
+    S = *(v2s *)&pSrc16[l * 2U];
     /* ya' = ya + yb */
     /* xa' = xa + xb */
     *((v2s *)&pSrc16[i * 2U]) = __ADD2(T, S);
     /* yb' = ya - yb */
     /* xb' = xa - xb */
-    *((v2s *)&pSrc16[l * 2U]) = R;
+    *((v2s *)&pSrc16[l * 2U]) = __SUB2(T, S);
 
   } /* groups loop end */
-
-  // if(core_id==0) {
-  //  for(uint32_t i=0; i<N_RSAMPLES; i+=2) {
-  //    printf("{%6d;%6d } \n", pSrc16[i], pSrc16[i+1]);
-  //  }
-  //  printf("Done PARALLEL!\n");
-  //}
-
   mempool_barrier(nPE);
-}
-
-void mempool_radix2_bitreversal_q16p(uint16_t *pSrc, const uint16_t bitRevLen,
-                                     const uint16_t *pBitRevTab, uint32_t nPE) {
-  uint32_t i;
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  v2s addr, tmpa, tmpb;
-
-  for (i = 2 * core_id; i < bitRevLen; i += (2 * nPE)) {
-
-    addr = *(v2s *)&pBitRevTab[i] >> 2;
-    tmpa = *(v2s *)&pSrc[addr[0]];
-    tmpb = *(v2s *)&pSrc[addr[1]];
-    *((v2s *)&pSrc[addr[0]]) = tmpb;
-    *((v2s *)&pSrc[addr[1]]) = tmpa;
-  }
-  mempool_barrier(num_cores);
 }
