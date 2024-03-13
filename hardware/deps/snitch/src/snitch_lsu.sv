@@ -74,6 +74,8 @@ module snitch_lsu
   metadata_t                           req_metadata;
   metadata_t                           resp_metadata;
   meta_id_t                            req_id;
+  meta_id_t                            req_id_d, req_id_q;
+  logic                                handshake_pending_d, handshake_pending_q;
   meta_id_t                            resp_id;
   logic                                id_table_push;
   logic                                id_table_pop;
@@ -125,8 +127,16 @@ module snitch_lsu
   // Pop if response accepted
   assign id_table_pop = data_pvalid_i & data_pready_o;
 
-  // Push if load request accepted
-  assign id_table_push = data_qready_i & data_qvalid_o;
+  // Push if load requested even if downstream is not ready yet, to keep the interface stable.
+  assign id_table_push = data_qvalid_o && !handshake_pending_q;
+
+  // Buffer whether we are pushing an ID but still waiting for the ready
+  always_comb begin
+    req_id_d = req_id_q;
+    if (id_table_push && !data_qready_i) begin
+      req_id_d = req_id;
+    end
+  end
 
   // ----------------
   // REQUEST
@@ -134,11 +144,11 @@ module snitch_lsu
   // only make a request when we got a valid request and if it is a load
   // also check that we can actually store the necessary information to process
   // it in the upcoming cycle(s).
-  assign data_qvalid_o = lsu_qvalid_i && !id_table_full;
+  assign data_qvalid_o = lsu_qvalid_i && (!id_table_full || handshake_pending_q);
   assign data_qwrite_o = lsu_qwrite;
   assign data_qaddr_o  = {lsu_qaddr_i[31:2], 2'b0};
   assign data_qamo_o   = lsu_qamo_i;
-  assign data_qid_o    = req_id;
+  assign data_qid_o    = handshake_pending_q ? req_id_q : req_id;
   // generate byte enable mask
   always_comb begin
     unique case (lsu_qsize_i)
@@ -163,7 +173,8 @@ module snitch_lsu
   /* verilator lint_on WIDTH */
 
   // the interface didn't accept our request yet
-  assign lsu_qready_o = ~(data_qvalid_o & ~data_qready_i) & ~id_table_full;
+  assign handshake_pending_d = data_qvalid_o && !data_qready_i;
+  assign lsu_qready_o = !handshake_pending_d && (!id_table_full || handshake_pending_q);
 
   // ----------------
   // RESPONSE
@@ -193,11 +204,15 @@ module snitch_lsu
   // ----------------
   always_ff @(posedge clk_i or posedge rst_i) begin
     if (rst_i) begin
-      id_available_q <= '1;
-      metadata_q     <= 'b0;
+      id_available_q      <= '1;
+      metadata_q          <= 'b0;
+      req_id_q            <= 'b0;
+      handshake_pending_q <= 'b0;
     end else begin
-      id_available_q <= id_available_d;
-      metadata_q     <= metadata_d;
+      id_available_q      <= id_available_d;
+      metadata_q          <= metadata_d;
+      req_id_q            <= req_id_d;
+      handshake_pending_q <= handshake_pending_d;
     end
   end
 
