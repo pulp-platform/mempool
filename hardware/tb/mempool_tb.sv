@@ -336,7 +336,7 @@ module mempool_tb;
               mem_row[8 * b +: 8] = buffer[(bank + w * NumL2Banks) * L2BankBeWidth + b];
             end
             if (address >= dut.L2MemoryBaseAddr && address < dut.L2MemoryEndAddr) begin
-              dut.gen_l2_banks[bank].l2_mem.init_val[(address - dut.L2MemoryBaseAddr + (w << L2ByteOffset)) >> L2ByteOffset] = mem_row;
+              dut.gen_l2_banks[bank].l2_mem.sram[(address - dut.L2MemoryBaseAddr + (w << L2ByteOffset)) >> L2ByteOffset] = mem_row;
             end else begin
               $display("Cannot initialize address %x, which doesn't fall into the L2 region.", address);
             end
