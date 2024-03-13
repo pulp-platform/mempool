@@ -19,9 +19,9 @@
 #include "synchronization.h"
 
 /* CFFT mempool libraries */
+#include "baremetal/mempool_radix2_cfft_q16p.h"
+#include "baremetal/mempool_radix2_cfft_q16s.h"
 #include "data_cfft_radix2_q16.h"
-#include "mempool_radix2_cfft_q16p.h"
-#include "mempool_radix2_cfft_q16s.h"
 
 #define PARALLEL
 #define SINGLE

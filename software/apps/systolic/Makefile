@@ -2,9 +2,6 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-# Author: Matheus Cavalcante, ETH Zurich
-#         Samuel Riedel, ETH Zurich
-
 SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
@@ -20,15 +17,12 @@ APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c
 DATA := $(patsubst %.args,%.h,$(shell find $(APPS_DIR) -name "data.args"))
 ALLPYS := $(patsubst %.py,%.h,$(wildcard $(DATA_DIR)/*.py))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
-ALL := $(APPS)
-
-ALL_LLVM := $(filter-out synth_i32 chest_q16 cfft_radix2_q16 cfft_radix4_q16, $(ALL))
+ifneq ($(config), systolic)
+  $(error "Config ($(config)) must be systolic to build systolic applications.")
+endif
 
 # Make all applications
-all: $(ALL)
-
-# Make only applications with full llvm support
-all_llvm: $(ALL_LLVM)
+all: $(BINARIES)
 
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 

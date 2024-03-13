@@ -8,8 +8,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "baremetal/mempool_synth_i32p.h"
 #include "encoding.h"
-#include "mempool_synth_i32p.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"

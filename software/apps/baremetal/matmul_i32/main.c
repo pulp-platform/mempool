@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "baremetal/mempool_matmul_i32p.h"
 #include "encoding.h"
-#include "mempool_matmul_i32p.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"

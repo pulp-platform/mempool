@@ -24,10 +24,6 @@ apps:
 tests:
 	make -C $(TESTS_DIR) all
 
-.PHONY: halide-apps
-halide-apps:
-	make -C $(HALIDE_DIR) all
-
 .PHONY: clean-apps
 clean-apps:
 	make -C $(APPS_DIR) clean
@@ -35,10 +31,6 @@ clean-apps:
 .PHONY: clean-tests
 clean-tests:
 	make -C $(TESTS_DIR) clean
-
-.PHONY: clean-halide-apps
-clean-halide-apps:
-	make -C $(HALIDE_DIR) clean
 
 # Unit tests
 RISCV_TESTS := $(addprefix bin/,$(rtl_mempool_tests))

@@ -4,10 +4,10 @@
 
 SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-SOFTWARE_DIR := $(abspath $(ROOT_DIR)/..)
-RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
-BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin)
+SOFTWARE_DIR := $(abspath $(ROOT_DIR)/../..)
 APPS_DIR := $(ROOT_DIR)
+BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
+RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 # This will overwrite the ROOT_DIR variable from the included Makefile
 include $(RUNTIME_DIR)/runtime.mk
 
@@ -15,18 +15,17 @@ RUNTIME += $(RUNTIME_DIR)/halide_runtime.c.o
 PIPELINE := halide_pipeline.riscv.o
 
 # Create convenience target
-APP_PREFIX := halide-
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
-BINARIES := $(addprefix $(BIN_DIR)/$(APP_PREFIX),$(APPS))
+BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 
 # Make all applications
 all: $(BINARIES)
 
 # RISC-V applications
-$(APPS): % : $(BIN_DIR)/$(APP_PREFIX)% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
+$(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
 .PHONY: $(BINARIES)
-$(BINARIES):  $(BIN_DIR)/$(APP_PREFIX)%: %/$(PIPELINE) %/main.c.o $(RUNTIME) $(LINKER_SCRIPT)
+$(BINARIES):  $(BIN_DIR)/%: %/$(PIPELINE) %/main.c.o $(RUNTIME) $(LINKER_SCRIPT)
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -I$(HALIDE_INCLUDE) $(RISCV_LDFLAGS) -o $@ $(filter-out $(LINKER_SCRIPT),$^) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump

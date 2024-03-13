@@ -16,8 +16,8 @@
 
 #include "data_chest_q16.h"
 
-#include "mempool_chest_q16p.h"
-#include "mempool_chest_q16s.h"
+#include "baremetal/mempool_chest_q16p.h"
+#include "baremetal/mempool_chest_q16s.h"
 
 //#define SINGLE
 #define PARALLEL

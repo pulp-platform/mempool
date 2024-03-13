@@ -46,10 +46,10 @@
 #endif
 
 #define ABS(x) (((x) < 0) ? (-x) : (x))
-#include "mempool_radix4_cfft_butterfly_q16.h"
-#include "mempool_radix4_cfft_q16_bitreversal.h"
-#include "mempool_radix4_cfft_q16p.h"
-#include "mempool_radix4_cfft_q16s.h"
+#include "baremetal/mempool_radix4_cfft_butterfly_q16.h"
+#include "baremetal/mempool_radix4_cfft_q16_bitreversal.h"
+#include "baremetal/mempool_radix4_cfft_q16p.h"
+#include "baremetal/mempool_radix4_cfft_q16s.h"
 
 int16_t l1_pSrc[N_FFTs_ROW * 8 * N_BANKS]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));

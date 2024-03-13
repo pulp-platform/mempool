@@ -41,11 +41,12 @@ int32_t In[N_BANKS] __attribute__((aligned(N_BANKS), section(".l1")));
 #endif
 
 #include "initialization.h"
-#include "mempool_cholesky_q32s.h"
-#include "mempool_linearsolver_q32s.h"
 
-#include "mempool_cholesky_q32p.h"
-#include "mempool_linearsolver_q32p.h"
+#include "baremetal/mempool_cholesky_q32s.h"
+#include "baremetal/mempool_linearsolver_q32s.h"
+
+#include "baremetal/mempool_cholesky_q32p.h"
+#include "baremetal/mempool_linearsolver_q32p.h"
 
 void initialize() {
 

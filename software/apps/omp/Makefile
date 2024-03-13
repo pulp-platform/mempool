@@ -5,10 +5,10 @@
 SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
-SOFTWARE_DIR := $(abspath $(ROOT_DIR)/..)
-RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
-BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin)
+SOFTWARE_DIR := $(abspath $(ROOT_DIR)/../..)
 APPS_DIR := $(ROOT_DIR)
+BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
+RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 
 # OpenMP runtime
 OMP_DIR       ?= $(RUNTIME_DIR)/omp
@@ -19,17 +19,16 @@ RISCV_CCFLAGS += -I$(OMP_DIR)
 include $(RUNTIME_DIR)/runtime.mk
 
 # Create convenience target
-APP_PREFIX := omp/
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
-BINARIES := $(addprefix $(BIN_DIR)/$(APP_PREFIX),$(APPS))
+BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 
 # Make all applications
 all: $(BINARIES)
 
-$(APPS): % : $(BIN_DIR)/$(APP_PREFIX)% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
+$(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
 .PHONY: $(BINARIES)
-$(BINARIES): $(BIN_DIR)/$(APP_PREFIX)%: %/main.c.o $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT) update_opcodes
+$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT) update_opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) $(OMP_RUNTIME) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump

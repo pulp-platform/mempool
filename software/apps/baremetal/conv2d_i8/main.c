@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "baremetal/mempool_conv2d_i8s.h"
 #include "encoding.h"
-#include "mempool_conv2d_i8s.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
