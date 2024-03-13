@@ -1,0 +1,5 @@
+package:
+  name: scm
+
+sources:
+  - latch_scm/register_file_1r_1w.sv
