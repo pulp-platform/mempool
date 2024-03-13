@@ -111,12 +111,14 @@ module latch_scm #(
   //-- Data is sampled on rising clock edge
 
   /* verilator lint_off NOLATCH */
+  /* verilator lint_off COMBDLY */
   always_latch begin : latch_wdata
     for(k=0; k<NUM_WORDS; k++) begin : w_WordIter
       if( ClocksxC[k] == 1'b1)
         MemContentxDP[k] <= WDataIntxD;
     end
   end
+  /* verilator lint_on COMBDLY */
   /* verilator lint_on NOLATCH */
 
 endmodule

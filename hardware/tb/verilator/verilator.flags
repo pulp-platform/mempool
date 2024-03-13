@@ -14,13 +14,15 @@
 -Wno-UNSIGNED
 -Wno-UNUSED
 -Wno-UNOPTFLAT
+-Wno-GENUNNAMED
+-Wno-STMTDLY
 // Continue despite warnings
 // -Wno-fatal
 
 // C++ mode and flags
 --cc
 -O3
--CFLAGS "-std=c++11 -Wall -g -O3"
+-CFLAGS "-Wall -g -O3"
 -LDFLAGS "-pthread -lutil -lelf"
 
 // Specifies the maximum number of loop iterations that may be unrolled.
@@ -48,3 +50,6 @@
 
 // Set timescale to get consistent results with Modelsim/VCS
 --timescale 1ns/1ns
+
+// Disable timing delays
+--no-timing

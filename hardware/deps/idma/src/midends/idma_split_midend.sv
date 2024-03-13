@@ -135,6 +135,7 @@ module idma_split_midend #(
   end
 
   // pragma translate_off
+  /* verilator lint_off BLKSEQ */
   int f;
   always_ff @(posedge clk_i or negedge rst_ni) begin
     automatic string str;
@@ -152,6 +153,7 @@ module idma_split_midend #(
       $fclose(f);
     end
   end
+  /* verilator lint_on BLKSEQ */
   // pragma translate_on
 
 endmodule
