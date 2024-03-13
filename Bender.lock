@@ -85,7 +85,7 @@ packages:
     dependencies:
       - common_cells
   spatz:
-    revision: 79e969a42105b1bd8e79f3dad526b2f3ca4e8c94
+    revision: 2ab95c5390a4f319c859dd50cc6b80f5f0c85b62
     version: null
     source:
       Git: https://iis-git.ee.ethz.ch/spatz/spatz.git
