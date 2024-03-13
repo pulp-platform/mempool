@@ -392,15 +392,20 @@ void mempool_radix4_cfft_q16p_scheduler(
   int16_t t0, t1, t2, t3, t4, t5;
   v2s CoSi1, CoSi2, CoSi3;
   v2s C1, C2, C3;
+  int16_t *pIn;
+  int16_t *pOut;
+  int16_t *pTmp;
+
 #ifdef FOLDED_TWIDDLES
   uint32_t n1, n2, n2_store;
   uint32_t i0, k, ic, ic_store;
+  pCoef_src += 2 * col_id * fftLen / 4;
+  pCoef_dst += 2 * col_id * fftLen / 4;
 #else
   uint32_t n1, n2;
   uint32_t i0, k, ic;
   uint32_t twidCoefModifier = 1U;
 #endif
-  int16_t *pTmp;
 
   /* FIRST STAGE */
   n1 = fftLen;
@@ -414,9 +419,8 @@ void mempool_radix4_cfft_q16p_scheduler(
     LOAD_STORE_TWIDDLEFACT;
     SHUFFLE_TWIDDLEFACT;
     for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-      int16_t *pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * fftLen;
-      int16_t *pOut =
-          pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+      pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * fftLen;
+      pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
       radix4_butterfly_first(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                              C3);
     }
@@ -449,10 +453,8 @@ void mempool_radix4_cfft_q16p_scheduler(
       SHUFFLE_TWIDDLEFACT;
 
       for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-        int16_t *pIn =
-            pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
-        int16_t *pOut =
-            pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+        pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+        pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
         radix4_butterfly_middle(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                                 C3);
       }
@@ -480,25 +482,75 @@ void mempool_radix4_cfft_q16p_scheduler(
       uint32_t col_shift = fftLen / 4;
 #endif
 
-      int16_t *pIn =
-          pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
-      int16_t *pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * col_shift;
+      pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+      pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * col_shift;
       radix4_butterfly_last(pIn, pOut, i0);
     }
   }
+  pTmp = pSrc16;
+  pSrc16 = pDst16;
+  pDst16 = pTmp;
   mempool_log_partial_barrier(2, absolute_core_id, n_FFTs_COL * nPE);
   mempool_stop_benchmark();
 
   if (bitReverseFlag) {
 #ifdef BITREVERSETABLE
     /* BITREVERSAL */
-    for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-      int16_t *pIn = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * fftLen;
-      mempool_bitrevtable_q16p_xpulpimg(pIn, bitReverseLen, pBitRevTable,
-                                        fftLen / 16);
+    mempool_start_benchmark();
+    pIn = pSrc16 + 2 * col_id * fftLen;
+    uint32_t addr1, addr2, addr3, addr4;
+    uint32_t s2 = 0x00020002;
+    uint32_t tmpa1, tmpa2, tmpa3, tmpa4;
+    uint32_t tmpb1, tmpb2, tmpb3, tmpb4;
+    int32_t a1, a2, a3, a4;
+    int32_t b1, b2, b3, b4;
+    for (ic = 8 * core_id; ic < bitReverseLen; ic += 8 * nPE) {
+      addr1 = *(uint32_t *)&pBitRevTable[ic];
+      addr2 = *(uint32_t *)&pBitRevTable[ic + 2];
+      addr3 = *(uint32_t *)&pBitRevTable[ic + 4];
+      addr4 = *(uint32_t *)&pBitRevTable[ic + 6];
+      asm volatile("pv.sra.h  %[addr1],%[addr1],%[s2];"
+                   "pv.sra.h  %[addr2],%[addr2],%[s2];"
+                   "pv.sra.h  %[addr3],%[addr3],%[s2];"
+                   "pv.sra.h  %[addr4],%[addr4],%[s2];"
+                   "pv.extract.h  %[a1],%[addr1],1;"
+                   "pv.extract.h  %[a2],%[addr2],1;"
+                   "pv.extract.h  %[a3],%[addr3],1;"
+                   "pv.extract.h  %[a4],%[addr4],1;"
+                   "pv.extract.h  %[b1],%[addr1],0;"
+                   "pv.extract.h  %[b2],%[addr2],0;"
+                   "pv.extract.h  %[b3],%[addr3],0;"
+                   "pv.extract.h  %[b4],%[addr4],0;"
+                   : [a1] "=r"(a1), [a2] "=r"(a2), [a3] "=r"(a3), [a4] "=r"(a4),
+                     [b1] "=r"(b1), [b2] "=r"(b2), [b3] "=r"(b3), [b4] "=r"(b4),
+                     [addr1] "+&r"(addr1), [addr2] "+&r"(addr2),
+                     [addr3] "+&r"(addr3), [addr4] "+&r"(addr4)
+                   : [s2] "r"(s2)
+                   :);
+      for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
+        uint16_t *ptr = (uint16_t *)(pIn + idx_row * (N_BANKS * 8));
+        // Load at address a
+        tmpa1 = *(uint32_t *)&ptr[a1];
+        tmpa2 = *(uint32_t *)&ptr[a2];
+        tmpa3 = *(uint32_t *)&ptr[a3];
+        tmpa4 = *(uint32_t *)&ptr[a4];
+        // Load at address b
+        tmpb1 = *(uint32_t *)&ptr[b1];
+        tmpb2 = *(uint32_t *)&ptr[b2];
+        tmpb3 = *(uint32_t *)&ptr[b3];
+        tmpb4 = *(uint32_t *)&ptr[b4];
+        // Swap a with b
+        *((uint32_t *)&ptr[b1]) = tmpa1;
+        *((uint32_t *)&ptr[b2]) = tmpa2;
+        *((uint32_t *)&ptr[b3]) = tmpa3;
+        *((uint32_t *)&ptr[b4]) = tmpa4;
+        // Swap b with a
+        *((uint32_t *)&ptr[a1]) = tmpb1;
+        *((uint32_t *)&ptr[a2]) = tmpb2;
+        *((uint32_t *)&ptr[a3]) = tmpb3;
+        *((uint32_t *)&ptr[a4]) = tmpb4;
+      }
     }
-    mempool_log_partial_barrier(2, absolute_core_id, n_FFTs_COL * nPE);
-    mempool_stop_benchmark();
 #else
     pTmp = pSrc16;
     pSrc16 = pDst16;

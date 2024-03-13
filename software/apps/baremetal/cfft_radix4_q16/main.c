@@ -25,8 +25,15 @@
 //#define PARALLEL // Parallel FFT not "memory-aware".
 #define FOLDED // Parallel FFT with "memory-aware" load/store.
 //#define SCHEDULED // Folded FFTs arranged in rows and cols.
+// Bitreversal index from table.
+#define BITREVERSETABLE
+// Independent FFTs scheduled on one row (default 1).
+#define N_FFTs_ROW 1
+// Independent FFTs scheduled on columns (default 1).
+#define N_FFTs_COL 1
+// Also the twiddles have "memory-aware" load/stores.
+#define FOLDED_TWIDDLES
 
-#define BITREVERSETABLE // Bitreversal index from table.
 #include "baremetal/mempool_cfft_q16_bitreversal.h"
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_radix4_cfft_butterfly_q16.h"
@@ -47,12 +54,6 @@ uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
 #endif
 
 #if (defined(SCHEDULED) || defined(FOLDED))
-// Independent FFTs scheduled on one row (default 1).
-#define N_FFTs_ROW 1
-// Independent FFTs scheduled on columns (default 1).
-#define N_FFTs_COL 1
-// Also the twiddles have "memory-aware" load/stores.
-#define FOLDED_TWIDDLES
 int16_t l1_pSrc[N_FFTs_ROW * 8 * N_BANKS]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
 int16_t l1_pDst[N_FFTs_ROW * 8 * N_BANKS]
@@ -85,6 +86,7 @@ int main() {
   mempool_barrier(num_cores);
 #endif
 #if (defined(SCHEDULED) || defined(FOLDED))
+
   if (core_id == 0) {
     for (uint32_t j = 0; j < N_FFTs_ROW; j++) {
       for (uint32_t i = 0; i < N_FFTs_COL; i++) {
@@ -94,9 +96,9 @@ int main() {
     }
     dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
                         BITREVINDEXTABLE_LENGTH * sizeof(int32_t));
-    dma_memcpy_blocking(l1_twiddleCoef_q16_src, l2_twiddleCoef_q16,
-                        3 * (N_CSAMPLES / 4) * sizeof(int32_t));
   }
+  mempool_barrier(num_cores);
+
 #ifdef FOLDED_TWIDDLES
   for (uint32_t j = 0; j < N_FFTs_COL; j++) {
     uint32_t N_WORDS_COL = N_CSAMPLES >> 2;
@@ -109,8 +111,13 @@ int main() {
           *(v2s *)&l2_twiddleCoef_q16[2 * (i * 3U)];
     }
   }
-  mempool_barrier(num_cores);
+#else
+  if (core_id == 0) {
+    dma_memcpy_blocking(l1_twiddleCoef_q16_src, l2_twiddleCoef_q16, 3 * (N_CSAMPLES / 4) * sizeof(int32_t));
+  }
 #endif
+  mempool_barrier(num_cores);
+
   if (core_id == 0) {
     printf("01: END INITIALIZATION\n");
   }
@@ -175,30 +182,29 @@ int main() {
 // columns for independent FFTs. Independent FFTs can also be run over different
 // rows.
 /*
-  1st row of FFTS
-  col_idx1     col_idx2     col_idx3
-  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
-  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
-  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
-  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+  1st row col_idx1-FFT11 col_idx2-FFT12 col_idx3-FFT13
+  MEMROW1 xxxxxxxxxxxxxx xxxxxxxxxxxxxx xxxxxxxxxxxxxx ...
+  MEMROW2 xxxxxxxxxxxxxx xxxxxxxxxxxxxx xxxxxxxxxxxxxx ...
+  MEMROW3 xxxxxxxxxxxxxx xxxxxxxxxxxxxx xxxxxxxxxxxxxx ...
+  MEMROW4 xxxxxxxxxxxxxx xxxxxxxxxxxxxx xxxxxxxxxxxxxx ...
 
-  2nd row of FFTS
-  col_idx1     col_idx2     col_idx3
-  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
-  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
-  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
-  xxxxxxxxxxxx xxxxxxxxxxxx xxxxxxxxxxxx ...
+  2nd row col_idx1-FFT21 col_idx2-FFT22 col_idx3-FFT23
+  MEMROW5 xxxxxxxxxxxxxx xxxxxxxxxxxxxx xxxxxxxxxxxxxx ...
+  MEMROW6 xxxxxxxxxxxxxx xxxxxxxxxxxxxx xxxxxxxxxxxxxx ...
+  MEMROW7 xxxxxxxxxxxxxx xxxxxxxxxxxxxx xxxxxxxxxxxxxx ...
+  MEMROW8 xxxxxxxxxxxxxx xxxxxxxxxxxxxx xxxxxxxxxxxxxx ...
 
   ...
 */
 #ifdef SCHEDULED
-  if (core_id < N_FFTs_COL * (N_CSAMPLES >> 4U)) {
+  uint32_t CORES_USED = (N_CSAMPLES / 4) / BANKING_FACTOR;
+  if (core_id < N_FFTs_COL * CORES_USED) {
     mempool_start_benchmark();
     mempool_radix4_cfft_q16p_scheduler(
         l1_pSrc, l1_pDst, N_CSAMPLES, N_FFTs_ROW, N_FFTs_COL,
         l1_twiddleCoef_q16_src, l1_twiddleCoef_q16_dst, l1_BitRevIndexTable,
-        BITREVINDEXTABLE_LENGTH, 0, N_CSAMPLES >> 4U);
-    mempool_log_partial_barrier(2, core_id, N_CSAMPLES >> 4U);
+        BITREVINDEXTABLE_LENGTH, 1, CORES_USED);
+    mempool_log_partial_barrier(2, core_id, N_FFTs_COL * CORES_USED);
     mempool_stop_benchmark();
   }
   pRes = ((LOG2 / 2) % 2) == 0 ? l1_pDst : l1_pDst;
