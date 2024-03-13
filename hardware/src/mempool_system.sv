@@ -313,11 +313,17 @@ module mempool_system
   `FF(bank_rvalid, bank_req, 1'b0, clk_i, rst_ni)
   `FF(bank_ini_q, bank_ini_d, 1'b0, clk_i, rst_ni)
 
+  // The initialization at reset is not supported by Verilator. Therefore, we disable the SimInit at
+  // reset for Verilator. Since our preloading through the SystemVerilog testbench requires the
+  // SimInit value to be assigned at reset, we use the "custom" string to invoke the initialization
+  // without setting the memory to known values like "ones" or "zeros".
+  localparam L2SimInit = `ifdef VERILATOR "none" `else "custom" `endif;
   for (genvar i = 0; i < NumL2Banks; i++) begin : gen_l2_banks
     tc_sram #(
       .DataWidth(L2BankWidth   ),
       .NumWords (L2BankNumWords),
-      .NumPorts (1             )
+      .NumPorts (1             ),
+      .SimInit  (L2SimInit     )
     ) l2_mem (
       .clk_i  (clk_i        ),
       .rst_ni (rst_ni       ),
