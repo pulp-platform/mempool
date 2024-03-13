@@ -90,10 +90,10 @@ packages:
     - axi
     - common_cells
   scm:
-    revision: 998466d2a3c2d7d572e43d2666d93c4f767d8d60
-    version: 1.1.1
+    revision: null
+    version: null
     source:
-      Git: https://github.com/pulp-platform/scm.git
+      Path: hardware/deps/scm
     dependencies: []
   snitch:
     revision: null
