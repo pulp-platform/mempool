@@ -10,7 +10,7 @@ dependencies:
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.2.1  }
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.33.0 }
   idma:                 { path: "hardware/deps/idma"                                                        }
-  register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.3.1  }
+  register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.4.3  }
   reqrsp_interface:     { path: "hardware/deps/reqrsp_interface"                                            }
   snitch:               { path: "hardware/deps/snitch"                                                      }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.13 }
