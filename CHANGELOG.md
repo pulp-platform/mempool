@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Use custom compiler for VCS specified with `CC` and `CCX` environment variable
 - Implement operand gating for SIMD and MAC Units in Snitch IPU's DSP Unit
 - Add Channel Estimation application and kernels
-- Update Bender to version 0.27.3
+- Update Bender to version 0.28.1
 - Update default Questasim version to 2022.3
 - Decrease stack size to 128 words
 - Add CFFT radix-4 and radix-2 kernels
