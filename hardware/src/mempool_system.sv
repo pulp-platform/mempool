@@ -297,7 +297,7 @@ module mempool_system
     .resp_ready_i   ('1         ),
     .resp_rdata_o   (mem_rdata  ),
     .resp_gdata_o   (/*unused*/ ),
-  `ifdef RESPWEN
+  `ifdef TARGET_SPATZ
     .resp_write_o   (/*unused*/ ),
     .resp_write_i   ('0         ),
   `endif

@@ -39,12 +39,4 @@ package tcdm_burst_pkg;
 `endif
   } tcdm_gre_t;
 
-  // localparam integer unsigned RspGF = 8;
-
-  // typedef struct packed {
-  //   logic  [RspGF-2:0][31:0] data;
-  //   logic  valid;
-  // } tcdm_gre_t;
-
-
 endpackage : tcdm_burst_pkg

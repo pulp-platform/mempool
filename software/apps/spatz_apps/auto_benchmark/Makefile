@@ -10,7 +10,7 @@ MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPO
 
 hw_path        	?= $(abspath $(MEMPOOL_DIR)/hardware)
 app_path 				?= $(abspath $(MEMPOOL_DIR)/software/apps)
-python          ?= python3
+python          = python3
 config 					?= mempool_spatz4_fpu
 size 						?= 4096
 cores						?= 64
@@ -96,13 +96,15 @@ help:
 	@echo "clean:        cleans configuration. call before changing the configurations"
 	@echo ""
 	@echo "-------------"
-	@echo "inputs | default 					 | descriptions"
+	@echo "inputs | default            | descriptions"
 	@echo ""
 	@echo "config | mempool_spatz4_fpu | configurations"
-	@echo "size   | 4096 							 | size of the kernel"
-	@echo "cores  | 64 								 | number of cores used in calculation"
-	@echo "sim    | simcvcs 					 | simulation tool"
+	@echo "size   | 4096               | size of the kernel"
+	@echo "cores  | 64                 | number of cores used in calculation"
+	@echo "sim    | simcvcs            | simulation tool"
 	@echo "log    | true               | log data into results?"
 	@echo ""
-	@echo "Example of use: make -C PATH_TO_MF dotp config=mempool_spatz4_fpu size=16384 cores=64"
+	@echo "Example of use:"
+	@echo "make dotp config=mempool_spatz4_fpu size=16384 cores=64"
+	@echo "make fft config=mempool_spatz4_fpu size=512 cores=8"
 	@echo ""

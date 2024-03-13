@@ -9,7 +9,7 @@
 module tcdm_id_remapper
   import mempool_pkg::*;
   import snitch_pkg::MetaIdWidth;
-  import snitch_pkg::NumIntOutstandingLoads;
+  import snitch_pkg::RobDepth;
   #(
     parameter int unsigned NumIn = 1
   ) (
@@ -52,16 +52,16 @@ module tcdm_id_remapper
     typedef logic [cf_math_pkg::idx_width(NumIn)-1:0] id_t;
     id_t id;
 
-    meta_id_t [NumIntOutstandingLoads-1:0] remapped_id_q, remapped_id_d;
-    logic [NumIntOutstandingLoads-1:0] remapped_id_valid_q, remapped_id_valid_d;
-    id_t [NumIntOutstandingLoads-1:0] id_q, id_d;
+    meta_id_t [RobDepth-1:0] remapped_id_q, remapped_id_d;
+    logic [RobDepth-1:0] remapped_id_valid_q, remapped_id_valid_d;
+    id_t [RobDepth-1:0] id_q, id_d;
 
     `FF(remapped_id_q, remapped_id_d, '0)
     `FF(remapped_id_valid_q, remapped_id_valid_d, '0)
     `FF(id_q, id_d, '0)
 
     lzc #(
-      .WIDTH(NumIntOutstandingLoads)
+      .WIDTH(RobDepth)
     ) i_next_id_lzc (
       .in_i   (~remapped_id_valid_q),
       .cnt_o  (next_id             ),

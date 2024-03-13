@@ -20,7 +20,7 @@ module tcdm_shim
   parameter int unsigned NumRules            = 1             , // Routing rules
   localparam int unsigned StrbWidth          = DataWidth/8   ,
   localparam int unsigned NumOutput          = NrTCDM + NrSoC,
-  localparam int unsigned MetaIdWidth        = idx_width(MaxOutStandingTrans)
+  parameter int unsigned MetaIdWidth        = idx_width(MaxOutStandingTrans)
 ) (
   input  logic                                          clk_i,
   input  logic                                          rst_ni,
@@ -185,7 +185,7 @@ module tcdm_shim
     assign soc_qamo_o[i]         = soc_qpayload[i].amo   ;
     assign soc_qdata_o[i]        = soc_qpayload[i].data  ;
     assign soc_qstrb_o[i]        = soc_qpayload[i].strb  ;
-    assign soc_qburst_o[i]       = soc_qpayload[i].rburst;
+    assign soc_qburst_o[i]       = '0                    ;
     assign soc_ppayload[i].data  = soc_pdata_i[i]        ;
     assign soc_ppayload[i].id    = soc_meta_id[i]        ;
     assign soc_ppayload[i].write = soc_pwrite_i[i]       ;

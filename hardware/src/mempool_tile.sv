@@ -126,7 +126,6 @@ module mempool_tile
 
   for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_cores
     logic [31:0] hart_id;
-    // assign hart_id = {unsigned'(tile_id_i), c[idx_width(NumCoresPerTile)-1:0]};
     if (NumCoresPerTile == 1) begin
       assign hart_id = unsigned'(tile_id_i);
     end else begin
@@ -154,10 +153,12 @@ module mempool_tile
         .XF16ALT              ( XF16ALT             ),
         .XF8                  ( XF8                 ),
         .XDivSqrt             ( XDivSqrt            ),
-        // .tcdm_breq_t          ( tcdm_breq_t         ),
-        // .tcdm_gre_t           ( tcdm_gre_t          ),
         .NumMemPortsPerSpatz  ( NumMemPortsPerSpatz ),
-        .TCDMPorts            ( NumDataPortsPerCore )
+        .TCDMPorts            ( NumDataPortsPerCore ),
+        .BankOffset           ( ByteOffset+$clog2(NumBanksPerTile)),
+        .NumCoresPerTile      ( NumCoresPerTile     ),
+        .TileLen              ( $clog2(NumTiles)    ),
+        .NumBanks             ( NumBanks            )
       )
     `endif
       riscv_core (
@@ -1013,7 +1014,8 @@ module mempool_tile
           .MaxOutStandingTrans (snitch_pkg::NumIntOutstandingLoads),
           .NrTCDM              (2                                 ),
           .NrSoC               (1                                 ),
-          .NumRules            (3                                 )
+          .NumRules            (3                                 ),
+          .MetaIdWidth         (snitch_pkg::MetaIdWidth           )
         ) i_tcdm_shim (
           .clk_i              (clk_i                                                                                  ),
           .rst_ni             (rst_ni                                                                                 ),

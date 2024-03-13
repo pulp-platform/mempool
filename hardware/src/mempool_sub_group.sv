@@ -326,7 +326,7 @@ module mempool_sub_group
     .resp_ready_i   (master_local_resp_ready  ),
     .resp_rdata_o   (master_local_resp_rdata  ),
     .resp_gdata_o   (master_local_resp_gdata  ),
-  `ifdef RESPWEN
+  `ifdef TARGET_SPATZ
     .resp_write_o   (master_local_resp_wen    ),
     .resp_write_i   (slave_local_resp_wen     ),
   `endif
@@ -435,7 +435,7 @@ module mempool_sub_group
       .resp_ready_i   (master_remote_resp_ready  ),
       .resp_rdata_o   (master_remote_resp_rdata  ),
       .resp_gdata_o   (master_remote_resp_gdata  ),
-    `ifdef RESPWEN
+    `ifdef TARGET_SPATZ
       .resp_write_o   (master_remote_resp_wen    ),
       .resp_write_i   (slave_remote_resp_wen     ),
     `endif

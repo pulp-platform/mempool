@@ -130,7 +130,7 @@ module burst_manager #(
     .clk_i   ( clk_i           ),
     .rst_ni  ( rst_ni          ),
     .flush_i ( 1'b0            ),
-    .rr_i    ( '0              ), /* not used when ExtPrio = 0 */
+    .rr_i    ( '0              ),
     .req_i   ( prearb_valid    ),
     .gnt_o   ( prearb_ready    ),
     .data_i  ( prearb_data     ),
@@ -349,20 +349,6 @@ module burst_manager #(
     assign rsp_wide_o    = rsp_wide_i;
     assign rsp_payload_o = rsp_payload_i;
 
-    // always_comb begin
-    //   for (int unsigned i = 0; i < NrInOut; i ++) begin
-    //     rsp_valid_o[i]   = rsp_valid_i[i];
-    //     rsp_ready_o[i]   = rsp_ready_i[i];
-    //     rsp_addr_o[i]    = rsp_addr_i[i];
-    //     rsp_wide_o[i]    = rsp_wide_i[i];
-    //     rsp_payload_o[i] = rsp_payload_i[i];
-
-    //     if (rsp_payload_i[i].wen) begin
-    //       // assign to 0 instead of letting it floating
-    //       rsp_payload_o[i].rdata.data = '0;
-    //     end
-    //   end
-    // end
   end else begin : gen_grouper
     for (genvar i = 0; i < NumGroup; i ++) begin
       data_grouper #(
@@ -372,7 +358,8 @@ module burst_manager #(
       ) i_data_grouper (
         .clk_i          ( clk_i                          ),
         .rst_ni         ( rst_ni                         ),
-        .group_mask_i   ( group_mask    [i*RspGF+:RspGF] ),
+        // Only group the response if all response can be grouped
+        .group_i        ( &group_mask   [i*RspGF+:RspGF] ),
 
         .rsp_payload_o  ( rsp_payload_o [i*RspGF+:RspGF] ),
         .rsp_addr_o     ( rsp_addr_o    [i*RspGF+:RspGF] ),

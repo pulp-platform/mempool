@@ -18,8 +18,8 @@ module data_grouper #(
 ) (
   input  logic                        clk_i,
   input  logic                        rst_ni,
-  /// Input mask for grouping information
-  input  logic          [RspGF-1:0]   group_mask_i,
+  /// Do we group the response?
+  input  logic                        group_i,
 
   input  rsp_payload_t  [RspGF-1:0]   rsp_payload_i,
   input  addr_t         [RspGF-1:0]   rsp_addr_i,
@@ -42,13 +42,10 @@ module data_grouper #(
     logic           wide;
   } reg_data_t;
 
-  logic [RspGF-1:0] group_mask_d, group_mask_q;
-  `FF(group_mask_q, group_mask_d, '0)
+  logic [RspGF-1:0] group_d, group_q;
+  `FF(group_q, group_d, '0)
 
   logic pending_rsp;
-
-  // Pending rsp check
-  // assign pending_rsp = |(rsp_valid_i ^ rsp_ready_o);
 
   always_comb begin
     // default bypassing signals
@@ -58,20 +55,19 @@ module data_grouper #(
     rsp_valid_o   = rsp_valid_i;
     rsp_ready_o   = rsp_ready_i;
     // default FF passing
-    group_mask_d  = group_mask_q;
+    group_d  = group_q;
 
-    if (&group_mask_i) begin
+    if (group_i) begin
       // we received a mask, put it into FF
-      group_mask_d = group_mask_i;
+      group_d = group_i;
     end
 
     // It is possible that previous response has not been picked yet
     // We should wait until it is picked
-    // if (~pending_rsp) begin
-    if (&(rsp_valid_i & group_mask_q)) begin
+    if ((&rsp_valid_i) & group_q) begin
       if (rsp_ready_i[0]) begin
         // response is picked, clear mask
-        group_mask_d = '0;
+        group_d = '0;
       end
       // we need to group these responses
       // mark grouped response as valid

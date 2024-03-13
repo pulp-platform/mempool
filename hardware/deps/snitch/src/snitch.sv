@@ -2728,6 +2728,7 @@ module snitch
   // --------------------
   // LSU
   // --------------------
+  localparam int unsigned NumIOLoadBit = $clog2(snitch_pkg::NumIntOutstandingLoads);
   snitch_lsu #(
     .tag_t               ( logic[RegWidth-1:0]                ),
     .NumOutstandingLoads ( snitch_pkg::NumIntOutstandingLoads )
@@ -2753,15 +2754,19 @@ module snitch
     .data_qdata_o                          ,
     .data_qamo_o                           ,
     .data_qstrb_o                          ,
-    .data_qid_o                            ,
+    .data_qid_o   ( data_qid_o[NumIOLoadBit-1:0])                         ,
     .data_qvalid_o                         ,
     .data_qready_i                         ,
     .data_pdata_i                          ,
     .data_perror_i                         ,
-    .data_pid_i                            ,
+    // We may have more ID fields due to enlarged Spatz ROB
+    .data_pid_i   ( data_pid_i[NumIOLoadBit-1:0]),
     .data_pvalid_i                         ,
     .data_pready_o
   );
+  if (snitch_pkg::NumIntOutstandingLoads < snitch_pkg::RobDepth) begin
+    assign data_qid_o[$clog2(snitch_pkg::RobDepth)-1:NumIOLoadBit] = '0;
+  end
 
 `ifdef TARGET_SPATZ
   // Number of memory operations in the accelerator

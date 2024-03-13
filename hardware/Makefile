@@ -110,7 +110,6 @@ vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group) -DREMOTE_GRO
 ifeq ($(spatz), 1)
 	vlog_defs   += -DVLEN=$(vlen) -DN_IPU=$(n_ipu) -DN_FPU=$(n_fpu) -DN_FU=$(shell awk 'BEGIN{print ($(n_ipu) > $(n_fpu)) ? $(n_ipu) : $(n_fpu)}')
 	# spatz need wen signal on TCDM response channel for ACK handling
-	vlog_defs   += -DMEMPOOL_SPATZ=$(spatz) -DRESPWEN=$(spatz)
 	bender_defs += -t spatz
 	SPATZ_DIR 	:= $(shell $(bender) path spatz)
 	SPATZ_CLUSTER_DIR := $(SPATZ_DIR)/hw/system/spatz_cluster
@@ -155,6 +154,7 @@ $(bender):
 .PHONY: buildspatz
 buildspatz:
 	@if [ "$(spatz)" = "1" ]; then \
+		export PYTHON=python3; \
 		$(MAKE) -BC $(SPATZ_CLUSTER_DIR) SPATZ_CLUSTER_CFG=$(SPATZ_CLUSTER_DIR)/cfg/mempool.hjson generate; \
 	fi
 
