@@ -154,3 +154,7 @@ RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibili
 
 %.img: %.bin
 	dd if=$< of=$@ bs=128
+
+# Convenience formatting
+format:
+	make -C $(MEMPOOL_DIR) format
