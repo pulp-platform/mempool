@@ -4,6 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#pragma once
+#define ASM
 #include "builtins_v2.h"
 
 /**
@@ -116,13 +118,13 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
   *((v2s *)&pOut[i3_store * 2U]) = G;
 #else
   v2s s1, s2;
-  /* Read yb (real), xb(imag) input */
+  /* Read xb (real), yb(imag) input */
   B = *(v2s *)&pIn[i1 * 2U];
-  /* Read yd (real), xd(imag) input */
+  /* Read xd (real), yd(imag) input */
   D = *(v2s *)&pIn[i3 * 2U];
-  /* Read ya (real), xa (imag) input */
+  /* Read xa (real), ya (imag) input */
   A = *(v2s *)&pIn[i0 * 2U];
-  /* Read yc (real), xc(imag) input */
+  /* Read xc (real), yc(imag) input */
   C = *(v2s *)&pIn[i2 * 2U];
   asm volatile("addi %[s1], zero, 0x01;"
                "slli %[s1], %[s1], 0x10;"
@@ -134,6 +136,10 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                "pv.sra.h  %[D],%[D],%[s2];"
                "pv.sra.h  %[A],%[A],%[s2];"
                "pv.sra.h  %[C],%[C],%[s2];"
+               /* G = (xb + xd), (yb + yd) */
+               /* H = (xb - xd), (yb - yd) */
+               /* E = (xa + xc), (ya + yc) */
+               /* F = (xa - xc), (ya - yc) */
                "pv.add.h  %[G],%[B],%[D];"
                "pv.sub.h  %[H],%[B],%[D];"
                "pv.add.h  %[E],%[A],%[C];"
@@ -144,11 +150,23 @@ static inline void radix4_butterfly_first(int16_t *pIn, int16_t *pOut,
                "pv.sra.h  %[B],%[G],%[s1];"
                "sub %[t3],zero,%[t1];"
                "sub %[t4],zero,%[t0];"
+               /* C = (yb - yd), (xd - xb) */
+               /* D = (yd - yb), (xb - xd) */
                "pv.pack %[C],%[t0],%[t3];"
                "pv.pack %[D],%[t4],%[t1];"
+               /* E = (xa + xc - xb - xd), (ya + yc - yb - yd) */
+               /* G = (xa - xc + yb - yd), (ya - yc + xd - xb) */
+               /* H = (xa - xc + yd - yb), (ya - yc + xb - xd) */
+               /* A = (xa + xc + xb + xd), (ya + yc + yb + yd) */
                "pv.sub.h  %[E],%[E],%[G];"
                "pv.add.h  %[G],%[F],%[C];"
                "pv.add.h  %[H],%[F],%[D];"
+               /* t0 = Co2 * (xa + xc - xb - xd) + Si2 * (ya + yc - yb - yd) */
+               /* t1 = Si2 * (xa + xc - xb - xd) - Co2 * (ya + yc - yb - yd) */
+               /* t2 = Co1 * (xa - xc + yd - yb) + Si2 * (ya - yc + xb - xd) */
+               /* t3 = Si1 * (xa - xc + yd - yb) - Co2 * (ya - yc + xb - xd) */
+               /* t4 = Co3 * (xa - xc + yb - yd) + Si3 * (ya - yc + xd - xb) */
+               /* t5 = Si3 * (xa - xc + yb - yd) - Co3 * (ya - yc + xd - xb) */
                "pv.dotsp.h  %[C],%[CoSi2],%[E];"
                "pv.dotsp.h  %[D],%[C2],%[E];"
                "pv.dotsp.h  %[E],%[CoSi1],%[H];"
@@ -295,17 +313,21 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
   *((v2s *)&pOut[i3_store * 2U]) = C;
 #else
   v2s s1;
-  /* Read yb (real), xb(imag) input */
+  /* Read xb (real), yb(imag) input */
   B = *(v2s *)&pIn[i1 * 2U];
-  /* Read yd (real), xd(imag) input */
+  /* Read xd (real), yd(imag) input */
   D = *(v2s *)&pIn[i3 * 2U];
-  /* Read ya (real), xa(imag) input */
+  /* Read xa (real), ya(imag) input */
   A = *(v2s *)&pIn[i0 * 2U];
-  /* Read yc (real), xc(imag) input */
+  /* Read xc (real), yc(imag) input */
   C = *(v2s *)&pIn[i2 * 2U];
   asm volatile("addi %[s1], zero, 0x01;"
                "slli %[s1], %[s1], 0x10;"
                "addi %[s1], %[s1], 0x01;"
+               /* G = (xb + xd), (yb + yd) */
+               /* H = (xb - xd), (yb - yd) */
+               /* E = (xa + xc), (ya + yc) */
+               /* F = (xa - xc), (ya - yc) */
                "pv.add.h  %[G],%[B],%[D];"
                "pv.sub.h  %[H],%[B],%[D];"
                "pv.add.h  %[E],%[A],%[C];"
@@ -314,6 +336,8 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
                "pv.sra.h  %[H],%[H],%[s1];"
                "pv.sra.h  %[E],%[E],%[s1];"
                "pv.sra.h  %[F],%[F],%[s1];"
+               /* A = (yb - yd), (xd - xb) */
+               /* B = (yd - yb), (xb - xd) */
                "pv.extract.h  %[t0],%[H],0;"
                "pv.extract.h  %[t1],%[H],1;"
                "pv.sub.h  %[C],%[E],%[G];"
@@ -325,6 +349,10 @@ static inline void radix4_butterfly_middle(int16_t *pIn, int16_t *pOut,
                "pv.sra.h  %[D],%[D],%[s1];"
                "pv.add.h  %[E],%[F],%[A];"
                "pv.add.h  %[F],%[F],%[B];"
+               /* C = (xa + xc - xb - xd), (ya + yc - yb - yd) */
+               /* D = (xa + xc + xb + xd), (ya + yc + yb + yd) */
+               /* E = (xa - xc + yb - yd), (ya - yc + xd - xb) */
+               /* F = (xa - xc + yd - yb), (ya - yc + xb - xd) */
                "pv.dotsp.h  %[G],%[CoSi2],%[C];"
                "pv.dotsp.h  %[H],%[C2],%[C];"
                "pv.dotsp.h  %[A],%[CoSi1],%[F];"
@@ -387,7 +415,7 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
   i3 = i2 + 1U;
 #endif
 // STORE INDEXES
-#if defined(FOLDED)
+#if defined(FOLDED) || (defined(SCHEDULED) && defined(BITREVERSETABLE))
   i0_store = i0 * 4;
   i1_store = i0_store + 1;
   i2_store = i1_store + 1;
@@ -443,13 +471,13 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
   *((v2s *)&pOut[i2_store * 2U]) = A;
   *((v2s *)&pOut[i3_store * 2U]) = B;
 #else
-  /* Read yb (real), xb(imag) input */
+  /* Read xb (real), yb(imag) input */
   B = *(v2s *)&pIn[i1 * 2U];
-  /* Read yd (real), xd(imag) input */
+  /* Read xd (real), yd(imag) input */
   D = *(v2s *)&pIn[i3 * 2U];
-  /* Read ya (real), xa(imag) input */
+  /* Read xa (real), ya(imag) input */
   A = *(v2s *)&pIn[i0 * 2U];
-  /* Read yc (real), xc(imag) input */
+  /* Read xc (real), yc(imag) input */
   C = *(v2s *)&pIn[i2 * 2U];
   int16_t t2, t3;
   v2s s1;
@@ -457,6 +485,10 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
       "addi %[s1], zero, 0x01;"
       "slli %[s1], %[s1], 0x10;"
       "addi %[s1], %[s1], 0x01;"
+      /* H = xb - xd, yb - yd */
+      /* G = xb + xd, yb + yd */
+      /* E = xa + xc, ya + yc */
+      /* F = xa - xc, ya - yc */
       "pv.sub.h  %[H],%[B],%[D];"
       "pv.add.h  %[G],%[B],%[D];"
       "pv.add.h  %[E],%[A],%[C];"
@@ -464,6 +496,8 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
       "pv.sra.h  %[H],%[H],%[s1];"
       "pv.sra.h  %[G],%[G],%[s1];"
       "pv.sra.h  %[E],%[E],%[s1];"
+      /* A = yd - yb, xb - xd */
+      /* B = yb - yd, xd - xb */
       "pv.extract.h  %[t0],%[H],0;"
       "pv.extract.h  %[t1],%[H],1;"
       "pv.sra.h  %[F],%[F],%[s1];"
@@ -471,6 +505,10 @@ static inline void radix4_butterfly_last(int16_t *pIn, int16_t *pOut,
       "sub %[t3], zero, %[t1];"
       "pv.pack %[A],%[t2],%[t1];"
       "pv.pack %[B],%[t0],%[t3];"
+      /* H = xa + xc + xb + xd */
+      /* E = xa + xc - xb - xd */
+      /* A = xa - xc + yd - yb */
+      /* B = xa - xc + yb - yd */
       "pv.add.h  %[H],%[E],%[G];"
       "pv.sub.h  %[E],%[E],%[G];"
       "pv.add.h  %[A],%[F],%[A];"
