@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update `tech_cells_generic` to 0.2.13
 - Update `common_cells` to 1.33.0
 - Update `common_verification` to 0.2.3
+- Update `register_interface` to 0.4.3
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
