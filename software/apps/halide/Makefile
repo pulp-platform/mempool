@@ -11,7 +11,15 @@ RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 # This will overwrite the ROOT_DIR variable from the included Makefile
 include $(RUNTIME_DIR)/runtime.mk
 
-RUNTIME += $(RUNTIME_DIR)/halide_runtime.c.o
+# Halide runtime
+HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
+HALIDE_INCLUDE     ?= $(HALIDE_INSTALL_DIR)/include
+HALIDE_LIB         ?= $(HALIDE_INSTALL_DIR)/lib
+HALIDE_RUNTIME_DIR := $(abspath $(RUNTIME_DIR)/halide)
+# Add Halide runtime to compile command
+RUNTIME            += $(HALIDE_RUNTIME_DIR)/halide_runtime.c.o
+RISCV_CCFLAGS      += -I$(HALIDE_INCLUDE) -I$(HALIDE_RUNTIME_DIR)
+# Define the pipeline name
 PIPELINE := halide_pipeline.riscv.o
 
 # Create convenience target

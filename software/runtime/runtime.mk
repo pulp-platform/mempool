@@ -17,9 +17,9 @@ python             ?= python3
 INSTALL_DIR        ?= $(MEMPOOL_DIR)/install
 GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
-HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
-HALIDE_INCLUDE     ?= $(HALIDE_INSTALL_DIR)/include
-HALIDE_LIB         ?= $(HALIDE_INSTALL_DIR)/lib
+# HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
+# HALIDE_INCLUDE     ?= $(HALIDE_INSTALL_DIR)/include
+# HALIDE_LIB         ?= $(HALIDE_INSTALL_DIR)/lib
 OMP_DIR            ?= $(ROOT_DIR)/omp
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
@@ -92,7 +92,7 @@ endif
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
 RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
-RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -I$(HALIDE_INCLUDE) -static
+RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -std=gnu99 -O3  -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -fno-tree-loop-distribute-patterns # -falign-loops=32 -falign-jumps=32
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown
