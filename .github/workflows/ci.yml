@@ -272,7 +272,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=gcc make -C software/apps all
+        COMPILER=gcc make -C software/apps baremetal omp
     - name: Tar apps-gcc Model
       run: tar --posix --use-compress-program zstd -cf apps-gcc.tzst software/bin
     - name: Upload apps-gcc
@@ -308,7 +308,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps all_llvm
+        COMPILER=llvm make -C software/apps/baremetal all_llvm
     - name: Tar apps-llvm Model
       run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst software/bin
     - name: Upload apps-llvm
@@ -348,7 +348,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/halide all
+        COMPILER=llvm make -C software/apps/halide all
     - name: Tar apps-halide Model
       run: tar --posix --use-compress-program zstd -cf apps-halide.tzst software/bin
     - name: Upload apps-halide
@@ -356,34 +356,6 @@ jobs:
       with:
         name: apps-halide-${{ matrix.mempool_config }}
         path: apps-halide.tzst
-
-  build-apps-omp:
-    runs-on: ubuntu-20.04
-    needs: tc-gcc
-    strategy:
-      matrix:
-        mempool_config: [minpool, mempool]
-    steps:
-    - uses: actions/checkout@v3
-    - name: Get riscv-gnu-toolchain artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: riscv-gnu-toolchain
-    - name: Untar riscv-gnu-toolchain
-      run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
-    - name: Build Apps
-      env:
-        config: ${{ matrix.mempool_config }}
-        RISCV_WARNINGS: '-Werror'
-      run: |
-        COMPILER=gcc make -C software/omp all
-    - name: Tar apps-omp
-      run: tar --posix --use-compress-program zstd -cf apps-omp.tzst software/bin
-    - name: Upload apps-omp
-      uses: actions/upload-artifact@v3
-      with:
-        name: apps-omp-${{ matrix.mempool_config }}
-        path: apps-omp.tzst
 
   ##################
   #  Run Software  #
@@ -423,7 +395,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-llvm:
@@ -461,7 +433,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-halide:
@@ -499,7 +471,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=halide-2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=apps/halide/2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   unit-test:

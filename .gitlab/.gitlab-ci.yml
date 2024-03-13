@@ -7,7 +7,7 @@
 variables:
   GIT_SUBMODULE_STRATEGY: none
   ROOT_DIR: '$CI_PROJECT_DIR'
-  APPS: "tests"
+  APPS: "apps/baremetal/tests"
   RUST_LOG: 'memora=debug'
   VERILATOR_ROOT: '$CI_PROJECT_DIR/install/verilator'
   CLANG_PATH: '/usr/pack/llvm-10.0.1-af'
@@ -147,7 +147,7 @@ check-opcodes:
   script: &apps-script-anchor
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
-    - cd software/apps
+    - cd software/apps/baremetal
     - make COMPILER=${COMPILER} all
     - cd ../..
     - git submodule update --init --recursive -- hardware/deps/*
@@ -182,13 +182,13 @@ apps-halide:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-llvm
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get halide
-    - cd software/halide
+    - cd software/apps/halide
     - make COMPILER=${COMPILER} all
     - cd ../..
     - git submodule update --init --recursive -- hardware/deps/*
     - make update-deps
     - cd hardware
-    - app=halide-2d_convolution make simc
+    - app=apps/halide/2d_convolution make simc
   variables:
     COMPILER: "llvm"
     APP: "halide-2d_convolution"
@@ -198,7 +198,7 @@ apps-omp:
   <<: *apps-job-anchor
   script:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
-    - cd software/omp
+    - cd software/apps/omp
     - make COMPILER=${COMPILER} all
   variables:
     COMPILER: "gcc"
