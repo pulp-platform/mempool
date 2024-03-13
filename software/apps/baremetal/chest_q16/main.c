@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtins_v2.h"
+#include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
@@ -19,49 +19,14 @@
 #include "baremetal/mempool_chest_q16p.h"
 #include "baremetal/mempool_chest_q16s.h"
 
-//#define SINGLE
-#define PARALLEL
+#define SINGLE
 
-int16_t PilotTX_l1[2 * N_TX * N_SAMPLES]
+int16_t l1_PilotTX[2 * N_TX * N_SAMPLES]
     __attribute__((aligned(N_TX * N_SAMPLES), section(".l1")));
-int16_t PilotRX_l1[2 * N_RX * N_SAMPLES]
+int16_t l1_PilotRX[2 * N_RX * N_SAMPLES]
     __attribute__((aligned(N_TX * N_SAMPLES), section(".l1")));
-int16_t HEST_l1[2 * N_RX * N_TX * N_SAMPLES]
+int16_t l1_HEST[2 * N_RX * N_TX * N_SAMPLES]
     __attribute__((aligned(N_TX * N_SAMPLES), section(".l1")));
-
-void initialize_vector(int16_t *pSrc_l2, int16_t *pDst_l1, uint32_t N_el) {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  for (uint32_t i = core_id; i < N_el; i += num_cores) {
-    pDst_l1[i] = (int16_t)pSrc_l2[i];
-  }
-  mempool_barrier(num_cores);
-  return;
-}
-
-void zeros(int16_t *pSrc_l1, uint32_t N_el) {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  for (uint32_t i = core_id; i < N_el; i += num_cores) {
-    pSrc_l1[i] = (int16_t)0;
-  }
-  mempool_barrier(num_cores);
-  return;
-}
-
-void check_result(int16_t *pRes, int16_t *pExp, uint32_t N_el) {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  if (core_id == 0) {
-    for (uint32_t i = 0; i < N_el; i++) {
-      if (pExp[i] != pRes[i]) {
-        printf("ERROR: Exp[%6d]=%6d Res[%6d]=%6d\n", i, pExp[i], i, pRes[i]);
-      }
-    }
-  }
-  mempool_barrier(num_cores);
-  return;
-}
 
 int main() {
 
@@ -69,46 +34,36 @@ int main() {
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
 
-  initialize_vector(PilotTX, PilotTX_l1, 2 * (N_TX * N_SAMPLES));
-  initialize_vector(PilotRX, PilotRX_l1, 2 * (N_RX * N_SAMPLES));
-  zeros(HEST_l1, 2 * (N_RX * N_TX * N_SAMPLES));
+  /* Initialize matrices */
+  if (core_id == 0) {
+    dma_memcpy_blocking(l1_PilotRX, l2_PilotRX,
+                        (N_RX * N_SAMPLES) * sizeof(int32_t));
+    dma_memcpy_blocking(l1_PilotTX, l2_PilotTX,
+                        (N_TX * N_SAMPLES) * sizeof(int32_t));
+  }
+  mempool_barrier(num_cores);
 
+  /* Kernel */
 #ifdef SINGLE
   if (core_id == 0) {
-    mempool_chest_q16s_unrolled4_xpulpv2(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX,
-                                         N_TX, N_SAMPLES);
-    // mempool_chest_q16s_unrolled4(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX,
-    // N_SAMPLES);
     mempool_start_benchmark();
-    mempool_chest_q16s_unrolled4_xpulpv2(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX,
-                                         N_TX, N_SAMPLES);
-    // mempool_chest_q16s_unrolled4(HEST_l1, PilotRX_l1, PilotTX_l1, N_RX, N_TX,
-    // N_SAMPLES);
+    mempool_chest_q16s_unrolled4(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX, N_TX,
+                                 N_SAMPLES);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
 #endif
 
 #ifdef PARALLEL
-
-  //  mempool_chest_q16p_unrolled4_xpulpv2(HEST_l1, PilotRX_l1, PilotTX_l1,
-  //  N_RX, N_TX, N_SAMPLES, core_id, num_cores); mempool_start_benchmark();
-  //  mempool_chest_q16p_unrolled4_xpulpv2(HEST_l1, PilotRX_l1, PilotTX_l1,
-  //  N_RX, N_TX, N_SAMPLES, core_id, num_cores); mempool_stop_benchmark();
-
-  if (core_id < N_SAMPLES) {
-    mempool_chest_q16p_unrolled4_xpulpv2_local(HEST_l1, PilotRX_l1, PilotTX_l1,
-                                               N_RX, N_TX, N_SAMPLES, core_id);
-    mempool_start_benchmark();
-    mempool_chest_q16p_unrolled4_xpulpv2_local(HEST_l1, PilotRX_l1, PilotTX_l1,
-                                               N_RX, N_TX, N_SAMPLES, core_id);
-    mempool_stop_benchmark();
-  }
-
+  mempool_start_benchmark();
+  mempool_chest_q16s_unrolled4(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX, N_TX,
+                               N_SAMPLES, core_id, num_cores);
+  mempool_stop_benchmark();
   mempool_barrier(num_cores);
 #endif
 
-  check_result(HEST_l1, HEST, 2 * N_RX * N_TX * N_SAMPLES);
-
+  /* Check */
+  mempool_check_q16(l1_HEST, l2_HEST, 2 * N_TX * N_RX, 100, 0);
+  mempool_barrier(num_cores);
   return 0;
 }

@@ -11,7 +11,7 @@
     i = 0
     out += '\n'
     for a in array:
-        out += '{}, '.format(a)
+        out += '(int16_t) 0X{:04X}, '.format(a&0xffff)
         i += 1
         if i % 32 == 0:
             out += '\n'
@@ -23,8 +23,8 @@
 #define N_RX (${nb_rx})
 #define N_SAMPLES (${nb_samples})
 
-int16_t PilotRX[${2*nb_rx*nb_samples}] = ${array_to_cstr(pilot_rx)};
+int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_PilotRX[${2*nb_rx*nb_samples}] = ${array_to_cstr(pilot_rx)};
 
-int16_t PilotTX[${2*nb_tx*nb_samples}] = ${array_to_cstr(pilot_tx)};
+int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_PilotTX[${2*nb_tx*nb_samples}] = ${array_to_cstr(pilot_tx)};
 
-int16_t HEST[${2*nb_rx*nb_tx*nb_samples}] = ${array_to_cstr(Hest)};
+int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_HEST[${2*nb_rx*nb_tx*nb_samples}] = ${array_to_cstr(Hest)};
