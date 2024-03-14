@@ -46,7 +46,7 @@ verilator_top   ?= mempool_tb_verilator
 # Python
 python          ?= python3
 # Enable tracing
-snitch_trace    ?= 0
+snitch_trace    ?= 1
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -59,7 +59,21 @@ QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)/questasim
 VCS_HOME       ?= /usr/pack/vcs-$(vcs_version)/vcs
 
 ifdef app
-	preload ?= "$(app_path)/$(app)"
+  preload := "$(app_path)/$(app)"
+  ifeq ("$(shell test -f $(preload))","")
+    # The file doesn't exist, let's search for the app in the bin folder
+    # since we might just be missing the hierarchy
+    search_app := $(shell find $(app_path) -type f -path "*$(app)")
+    num_matches := $(words $(search_app))
+    ifeq ($(num_matches),0)
+      $(error "App ($(app)) not found in bin dir $(app_path)")
+    else ifeq ($(num_matches),1)
+      preload := "$(search_app)"
+      $(warning "Running application $(preload)")
+    else
+      $(error "Multiple apps ($(app)) found in bin dir $(app_path): $(search_app)")
+    endif
+  endif
 endif
 ifdef preload
 	questa_args += +PRELOAD=$(preload)

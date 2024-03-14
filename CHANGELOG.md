@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Decrease stack size to 128 words
 - Add CFFT radix-4 and radix-2 kernels
 - Parametrize the performance counters
+- Restructure the software folder by moving kernels, data, and tests to dedicated folders
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`

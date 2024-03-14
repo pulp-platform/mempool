@@ -104,21 +104,21 @@ riscv-isa-sim: update_opcodes
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 # Unit tests for verification
-.PHONY: test build_test clean_test
+.PHONY: riscv-tests build-riscv-tests clean-riscv-tests
 
-test: build_test
+riscv-tests: build-riscv-tests
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
-	config=minpool COMPILER=gcc make -C $(SOFTWARE_DIR) test && \
+	config=minpool COMPILER=gcc make -C $(SOFTWARE_DIR) riscv-tests && \
 	config=minpool make -C hardware verilate_test
 
-build_test: update_opcodes
+build-riscv-tests: update_opcodes
 	cd $(RISCV_TESTS_DIR); \
 	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
 	make isa -j4 && make install && \
 	cd isa && make -j4 all
 
-clean_test:
+clean-riscv-tests:
 	$(MAKE) -C hardware clean
 	$(MAKE) -C $(SOFTWARE_DIR) clean
 	$(MAKE) -C $(RISCV_TESTS_DIR) clean

@@ -126,7 +126,7 @@ If `XPULPIMG` is not forced while launching `make`, it will be defaulted to the 
 
 The system is provided with an automatic unit tests suit for verification purposes; the tests are located in `riscv-tests/isa`, and can be launched from the top-level directory with:
 ```bash
-make test
+make riscv-tests
 ```
 The unit tests will be compiled, simulated in Spike, and run in RTL simulation of MemPool.
 The compilation and simulation (for both Spike simulator and MemPool RTL) of the unit tests also depends on the `xpulpimg` parameter in `config/config.mk`: the test cases dedicated to the Xpulpimg instructions will be compiled and simulated only if `xpulpimg=1`.
@@ -134,7 +134,7 @@ To add more tests, you must add your own ones to the `riscv-isa` infrastructure;
 
 The unit tests are included in the software package of `software` and can be compiled for MemPool by launching in the `software` directory:
 ```bash
-make COMPILER=gcc test
+make COMPILER=gcc riscv-tests
 ```
 Note that the unit tests need to be compiled with `gcc`. The same logic of normal applications concerning the `XPULPIMG` parameter applies for tests.
 

@@ -8,37 +8,38 @@ MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPO
 APPS_DIR := $(ROOT_DIR)/apps
 HALIDE_DIR := $(ROOT_DIR)/halide
 RUNTIME_DIR := $(ROOT_DIR)/runtime
-TESTS_DIR := $(ROOT_DIR)/riscv-tests/isa
+TESTS_DIR := $(ROOT_DIR)/tests
+RISCV_TESTS_DIR := $(ROOT_DIR)/riscv-tests/isa
 TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
-include $(TESTS_DIR)/snitch_isa.mk
+include $(RISCV_TESTS_DIR)/snitch_isa.mk
 
 # Applications
 .PHONY: apps
 apps:
 	make -C $(APPS_DIR) all
 
-.PHONY: halide-apps
-halide-apps:
-	make -C $(HALIDE_DIR) all
+.PHONY: tests
+tests:
+	make -C $(TESTS_DIR) all
 
 .PHONY: clean-apps
 clean-apps:
 	make -C $(APPS_DIR) clean
 
-.PHONY: clean-halide-apps
-clean-halide-apps:
-	make -C $(HALIDE_DIR) clean
+.PHONY: clean-tests
+clean-tests:
+	make -C $(TESTS_DIR) clean
 
 # Unit tests
-TESTS := $(addprefix bin/,$(rtl_mempool_tests))
+RISCV_TESTS := $(addprefix bin/,$(rtl_mempool_tests))
 
 define rtl_mempool_tests_template
 
-TESTS_$(1) := $(addprefix bin/,$($(1)_mempool_tests))
+RISCV-TESTS-$(1) := $(addprefix bin/,$($(1)_mempool_tests))
 
-$$(TESTS_$(1)): bin/$(1)-mempool-%: $(TESTS_DIR)/$(1)/%.S $(LINKER_SCRIPT)
+$$(RISCV-TESTS-$(1)): bin/$(1)-mempool-%: $(RISCV_TESTS_DIR)/$(1)/%.S $(LINKER_SCRIPT)
 	mkdir -p $$(shell dirname $$@)
 	$$(RISCV_CC) $$(RISCV_CCFLAGS_TESTS) -T$$(RUNTIME_DIR)/link.ld $$< -o $$@
 	$$(RISCV_STRIP) $$@ -g -S -d --strip-debug
@@ -51,13 +52,13 @@ $(eval $(call rtl_mempool_tests_template,rv32um))
 $(eval $(call rtl_mempool_tests_template,rv32ua))
 $(eval $(call rtl_mempool_tests_template,rv32uxpulpimg))
 
-test: update_opcodes $(TESTS)
+riscv-tests: update_opcodes $(RISCV_TESTS)
 
-clean-test:
+clean-riscv-test:
 	rm -vf $(RUNTIME)
 	rm -vf $(LINKER_SCRIPT)
-	rm -vf $(TESTS)
-	rm -vf $(addsuffix .dump,$(TESTS))
+	rm -vf $(RISCV_TESTS)
+	rm -vf $(addsuffix .dump,$(RISCV_TESTS))
 
 # Helper targets
 update_opcodes:
