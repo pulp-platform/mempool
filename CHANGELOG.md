@@ -19,11 +19,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add CFFT radix-4 and radix-2 kernels
 - Parametrize the performance counters
 - Restructure the software folder by moving kernels, data, and tests to dedicated folders
+- Add Channel Estimation based on multiplication by (1 / pilot)
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
 - Properly disable the debugging CSRs in ASIC implementations
 - Fix a bug in the  DMA's distributed midend
+- Fix bugs in radix2, radix4by2 parallelization and loading of data for radix4 CFFT
 
 ## 0.6.0 - 2023-01-09
 
