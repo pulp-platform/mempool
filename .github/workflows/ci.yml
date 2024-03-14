@@ -273,6 +273,7 @@ jobs:
         RISCV_WARNINGS: '-Werror'
       run: |
         COMPILER=gcc make -C software/apps baremetal omp
+        COMPILER=gcc make -C software/tests baremetal omp
     - name: Tar apps-gcc Model
       run: tar --posix --use-compress-program zstd -cf apps-gcc.tzst software/bin
     - name: Upload apps-gcc
@@ -309,6 +310,7 @@ jobs:
         RISCV_WARNINGS: '-Werror'
       run: |
         COMPILER=llvm make -C software/apps/baremetal all_llvm
+        COMPILER=llvm make -C software/tests baremetal
     - name: Tar apps-llvm Model
       run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst software/bin
     - name: Upload apps-llvm
