@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Added
+- Add `apb` dependency of version 0.2.4
+
 ### Changes
 - Add physical feasible TeraPool configuration with SubGroup hierarchy.
 - Extended `tracevis.py` to support the new Perfetto UI and compress large traces
