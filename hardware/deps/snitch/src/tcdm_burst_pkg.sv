@@ -11,15 +11,17 @@ package tcdm_burst_pkg;
 	/***************************
    *  TCDM BURST PARAMETERS  *
    ***************************/
-  localparam bit UseBurst = `ifdef TCDM_BLEN 1 `else 0 `endif;
-  // localparam bit UseBurst 	   = 1;
-  localparam int MaxBurstLen   = `ifdef TCDM_BLEN `TCDM_BLEN `else 1 `endif;
+  localparam bit UseBurst = `ifdef TCDM_BURST `TCDM_BURST `else 0 `endif;
+
+  // Maximum length of burst
+  localparam int MaxBurstLen   = UseBurst ? 2 : 1;
+
   // 0 to MaxBurstLen
-  localparam int BurstLenWidth = UseBurst ? $clog2(MaxBurstLen)+1 : 1;
+  localparam int BurstLenWidth = $clog2(MaxBurstLen);
 
   typedef struct packed {
     logic burst;
-    logic [BurstLenWidth-1:0] blen;
+    logic [BurstLenWidth:0] blen;
   } tcdm_breq_t;
 
   /*********************************
@@ -27,16 +29,24 @@ package tcdm_burst_pkg;
    *********************************/
 
 	// Grouped Response Extension
-  localparam integer unsigned RspGF = `ifdef RSP_GF `RSP_GF `else 1 `endif;
-	typedef struct packed {
-`ifdef RSP_GF
-    logic  [RspGF-2:0][31:0] data;
-    logic  valid;
-`else
-    // still define the type but mimize the wire if not used
-    logic data;
-    logic valid;
-`endif
-  } tcdm_gre_t;
+  localparam bit GroupRsp = `ifdef GROUP_RSP `GROUP_RSP `else 0 `endif;
 
+  // Parallel Burst Manager
+  localparam bit ParallelManager = (GroupRsp > 1) ? `PARALLEL_MANAGER : 0;
+
+  // Grouping Factor of response data
+  localparam integer unsigned RspGF = GroupRsp ? 2 : 1;
+
+  `ifdef GROUP_RSP
+  	typedef struct packed {
+      logic  [RspGF-2:0][31:0] data;
+      logic  valid;
+    } tcdm_gre_t;
+  `else
+    // still define the type but mimize the wire if not used
+    typedef struct packed {
+      logic data;
+      logic valid;
+    } tcdm_gre_t;
+  `endif
 endpackage : tcdm_burst_pkg

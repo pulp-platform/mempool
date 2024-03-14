@@ -30,17 +30,12 @@
 
 
 #include "kernel/fft.c"
-// #include "data/data_256_4.h"
-// #include "data/data_256_8.h"
-// #include "data/data_512_2.h"
-// #include "data/data_512_4.h"
-// #include "data/data_1024_4.h"
-// #include "data/data_1024_8.h"
 #include "data/data_fft.h"
 
 dump(p1, 5)
 // each bit of DUMP controls one dumping selection
 uint32_t DUMP = 0;
+uint32_t CHECK = 1;
 
 static inline int fp_check(const float a, const float b) {
   const float threshold = 0.01f;
@@ -199,24 +194,26 @@ int main() {
     printf("The performance is %ld OP/1000cycle (%ld%%o utilization).\n",
            performance, utilization);
 
-    uint32_t rerror = 0;
-    uint32_t ierror = 0;
+    if (CHECK) {
+      uint32_t rerror = 0;
+      uint32_t ierror = 0;
 
-    // Verify the real part
-    for (unsigned int i = 0; i < NFFT; i++) {
-      if (fp_check(out[i], gold_out_dram[2 * i])) {
-        rerror ++;
+      // Verify the real part
+      for (unsigned int i = 0; i < NFFT; i++) {
+        if (fp_check(out[i], gold_out_dram[2 * i])) {
+          rerror ++;
+        }
       }
-    }
 
-    // Verify the imac part
-    for (unsigned int i = 0; i < NFFT; i++) {
-      if (fp_check(out[i + NFFT], gold_out_dram[2 * i + 1])) {
-        ierror ++;
+      // Verify the imac part
+      for (unsigned int i = 0; i < NFFT; i++) {
+        if (fp_check(out[i + NFFT], gold_out_dram[2 * i + 1])) {
+          ierror ++;
+        }
       }
-    }
 
-    printf ("r:%d,i:%d\n", rerror, ierror);
+      printf ("r:%d,i:%d\n", rerror, ierror);
+    }
   }
 
   // Wait for core 0 to finish displaying results

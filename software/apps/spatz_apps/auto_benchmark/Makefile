@@ -16,6 +16,7 @@ size 						?= 4096
 cores						?= 64
 sim 						?= simcvcs
 log 						?= true
+outfile					?= false
 
 .PHONY: json_clean
 json_clean:
@@ -40,30 +41,42 @@ clean-all: log_clean txt_clean clean
 dotp: log_clean
 	$(python) $(ROOT_DIR)/gen_config.py "dotp" 32 $(size) $(cores)
 	$(python) $(app_path)/spatz_apps/sp-dotp/script/gen_data.py --cfg $(ROOT_DIR)/dotp.json
-	config=$(config) make -C $(app_path) spatz_apps/sp-dotp
+	config=$(config) make -C $(app_path) spatz_apps/sp-dotp >> $(ROOT_DIR)/buildsw.log
 	config=$(config) make -C $(hw_path) $(sim) app=spatz_apps/sp-dotp >> $(ROOT_DIR)/result.log
 	if [ "$(log)" = "true" ]; then \
-		$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_dotp_$(cores).txt; \
+		if [ "$(outfile)" = "false" ]; then \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_dotp_$(cores).txt $(config); \
+		else \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(outfile).txt $(config); \
+		fi \
 	fi
 
 .PHONY: dotp-opt
 dotp-opt: log_clean
 	$(python) $(ROOT_DIR)/gen_config.py "dotp" 32 $(size) $(cores)
 	$(python) $(app_path)/spatz_apps/sp-dotp-opt/script/gen_data.py --cfg $(ROOT_DIR)/dotp.json
-	config=$(config) make -C $(app_path) spatz_apps/sp-dotp-opt
+	config=$(config) make -C $(app_path) spatz_apps/sp-dotp-opt >> $(ROOT_DIR)/buildsw.log
 	config=$(config) make -C $(hw_path) $(sim) app=spatz_apps/sp-dotp-opt >> $(ROOT_DIR)/result.log
 	if [ "$(log)" = "true" ]; then \
-		$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_dotp_opt_$(cores).txt; \
+		if [ "$(outfile)" = "false" ]; then \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_dotp_opt_$(cores).txt $(config); \
+		else \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(outfile).txt $(config); \
+		fi \
 	fi
 
 .PHONY: fft
 fft: log_clean
 	$(python) $(ROOT_DIR)/gen_config.py "fft" 32 $(size) $(cores)
 	$(python) $(app_path)/spatz_apps/sp-fft/script/gen_data.py --cfg $(ROOT_DIR)/fft.json
-	config=$(config) make -C $(app_path) spatz_apps/sp-fft
+	config=$(config) make -C $(app_path) spatz_apps/sp-fft >> $(ROOT_DIR)/buildsw.log
 	config=$(config) make -C $(hw_path) $(sim) app=spatz_apps/sp-fft >> $(ROOT_DIR)/result.log
 	if [ "$(log)" = "true" ]; then \
-		$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_fft_$(cores).txt; \
+		if [ "$(outfile)" = "false" ]; then \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_fft_$(cores).txt $(config); \
+		else \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(outfile).txt $(config); \
+		fi \
 	fi
 
 # currently only run 256x256x256
@@ -71,10 +84,14 @@ fft: log_clean
 fmatmul: log_clean
 	$(python) $(ROOT_DIR)/gen_config.py "fmatmul" 256 256 256 32
 	$(python) $(app_path)/spatz_apps/sp-fft/script/gen_data.py --cfg $(ROOT_DIR)/fft.json
-	config=$(config) make -C $(app_path) spatz_apps/sp-fmatmul-opt
+	config=$(config) make -C $(app_path) spatz_apps/sp-fmatmul-opt >> $(ROOT_DIR)/buildsw.log
 	config=$(config) make -C $(hw_path) $(sim) app=spatz_apps/sp-fmatmul-opt>> $(ROOT_DIR)/result.log
 	if [ "$(log)" = "true" ]; then \
-		$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_fmatmul.txt; \
+		if [ "$(outfile)" = "false" ]; then \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_fmatmul.txt $(config); \
+		else \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(outfile).txt $(config); \
+		fi \
 	fi
 
 # --------------

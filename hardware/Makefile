@@ -115,10 +115,11 @@ ifeq ($(spatz), 1)
 	SPATZ_CLUSTER_DIR := $(SPATZ_DIR)/hw/system/spatz_cluster
 endif
 
-ifdef tcdm_blen
-	vlog_defs += -DTCDM_BLEN=$(tcdm_blen)
-	ifdef rsp_gf
-		vlog_defs += -DRSP_GF=$(rsp_gf)
+ifdef tcdm_burst
+	vlog_defs += -DTCDM_BURST=$(tcdm_burst)
+	vlog_defs += -DPARALLEL_MANAGER=$(parallel_manager)
+	ifeq ($(group_rsp), 1)
+		vlog_defs += -DGROUP_RSP=$(group_rsp)
 	endif
 endif
 

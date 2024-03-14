@@ -481,7 +481,7 @@ module mempool_tile
 
   localparam NrManager = NumBanksPerTile / RspGF;
 
-  if (RspGF > 1) begin
+  if (ParallelManager) begin
     for (genvar d = 0; unsigned'(d) < NrManager; d++) begin : gen_burst_manager
       burst_manager #(
         .NrInOut        ( RspGF                    ),

@@ -61,8 +61,11 @@ xpulpimg ?= 0
 
 rvf ?= 1
 
-# TCDM Burst length
-tcdm_blen = 4
+# Enable TCDM Burst?
+tcdm_burst ?= 1
 
-# Group 4 rsponses
-rsp_gf ?= 2
+# Enable Group Rsp?
+group_rsp ?= 1
+
+# Enable Parallel Burst Managers?
+parallel_manager ?= 1
