@@ -552,22 +552,20 @@ void mempool_radix4_cfft_q16p_scheduler(
       }
     }
 #else
-    pTmp = pSrc16;
-    pSrc16 = pDst16;
-    pDst16 = pTmp;
     mempool_start_benchmark();
-    uint16_t *ptr1 = (uint16_t *)(pSrc16 + 2 * col_id * (fftLen / 4));
-    uint16_t *ptr2 = (uint16_t *)(pDst16 + 2 * col_id * fftLen);
-    for (ic = core_id * 16; ic < MIN(core_id * 16 + 16, fftLen >> 2U);
-         ic += 4) {
-      uint32_t idx0 = ic;
-      uint32_t idx1 = ic + 1;
-      uint32_t idx2 = ic + 2;
-      uint32_t idx3 = ic + 3;
-      uint32_t idx_result0 = 0;
-      uint32_t idx_result1 = 0;
-      uint32_t idx_result2 = 0;
-      uint32_t idx_result3 = 0;
+    int16_t *ptr1;
+    int16_t *ptr2;
+    uint32_t idx0, idx1, idx2, idx3;
+    uint32_t idx_result0, idx_result1, idx_result2, idx_result3;
+    for (ic = core_id * 4; ic < fftLen; ic += nPE * 4) {
+      idx_result0 = 0;
+      idx_result1 = 0;
+      idx_result2 = 0;
+      idx_result3 = 0;
+      idx0 = ic;
+      idx1 = ic + 1;
+      idx2 = ic + 2;
+      idx3 = ic + 3;
       for (k = 0; k < LOG2; k++) {
         idx_result0 = (idx_result0 << 1U) | (idx0 & 1U);
         idx_result1 = (idx_result1 << 1U) | (idx1 & 1U);
@@ -578,32 +576,22 @@ void mempool_radix4_cfft_q16p_scheduler(
         idx2 = idx2 >> 1U;
         idx3 = idx3 >> 1U;
       }
+      idx0 = ic / 4;
+      idx1 = ic / 4 + N_BANKS;
+      idx2 = ic / 4 + 2 * N_BANKS;
+      idx3 = ic / 4 + 3 * N_BANKS;
       for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-        uint32_t addr_src0 = (ic / 4);
-        uint32_t addr_src1 = (ic / 4) + N_BANKS;
-        uint32_t addr_src2 = (ic / 4) + 2 * N_BANKS;
-        uint32_t addr_src3 = (ic / 4) + 3 * N_BANKS;
-        uint32_t addr_dst0 = idx_result0;
-        uint32_t addr_dst1 = idx_result1;
-        uint32_t addr_dst2 = idx_result2;
-        uint32_t addr_dst3 = idx_result3;
-        addr_src0 += idx_row * (N_BANKS * 8);
-        addr_src1 += idx_row * (N_BANKS * 8);
-        addr_src2 += idx_row * (N_BANKS * 8);
-        addr_src3 += idx_row * (N_BANKS * 8);
-        addr_dst0 += idx_row * (N_BANKS * 8);
-        addr_dst1 += idx_row * (N_BANKS * 8);
-        addr_dst2 += idx_row * (N_BANKS * 8);
-        addr_dst3 += idx_row * (N_BANKS * 8);
-        *((uint32_t *)&ptr2[addr_dst0]) = (uint32_t)ptr1[addr_src0];
-        *((uint32_t *)&ptr2[addr_dst1]) = (uint32_t)ptr1[addr_src1];
-        *((uint32_t *)&ptr2[addr_dst2]) = (uint32_t)ptr1[addr_src2];
-        *((uint32_t *)&ptr2[addr_dst3]) = (uint32_t)ptr1[addr_src3];
+        ptr1 = pSrc16 + 2 * col_id * (fftLen / 4) + idx_row * (N_BANKS * 8);
+        ptr2 = pDst16 + 2 * col_id * fftLen + idx_row * (N_BANKS * 8);
+        *((uint32_t *)&ptr2[2 * idx_result0]) = *((uint32_t *)&ptr1[2 * idx0]);
+        *((uint32_t *)&ptr2[2 * idx_result1]) = *((uint32_t *)&ptr1[2 * idx1]);
+        *((uint32_t *)&ptr2[2 * idx_result2]) = *((uint32_t *)&ptr1[2 * idx2]);
+        *((uint32_t *)&ptr2[2 * idx_result3]) = *((uint32_t *)&ptr1[2 * idx3]);
       }
     }
-    mempool_log_partial_barrier(2, core_id, n_FFTs_COL * nPE);
     mempool_stop_benchmark();
 #endif
   }
+  mempool_log_partial_barrier(2, absolute_core_id, n_FFTs_COL * nPE);
   return;
 }

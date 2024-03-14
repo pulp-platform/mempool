@@ -23,14 +23,18 @@
 /* CHOOSE ONE */
 //#define SINGLE // Single core FFT.
 //#define PARALLEL // Parallel FFT not "memory-aware".
-#define FOLDED // Parallel FFT with "memory-aware" load/store.
-//#define SCHEDULED // Folded FFTs arranged in rows and cols.
+//#define FOLDED // Parallel FFT with "memory-aware" load/store.
+#define SCHEDULED // Folded FFTs arranged in rows and cols.'''
+
 // Bitreversal index from table.
 #define BITREVERSETABLE
 // Independent FFTs scheduled on one row (default 1).
-#define N_FFTs_ROW 1
+#define N_FFTs_ROW 2
 // Independent FFTs scheduled on columns (default 1).
-#define N_FFTs_COL 1
+#define N_FFTs_COL 2
+#if (N_FFTs_COL > MAX_COL)
+#error Parallelization not supporting N_FFTs_COL > [N_BANKS / (N_CSAMPLES / 4)]
+#endif
 // Also the twiddles have "memory-aware" load/stores.
 #define FOLDED_TWIDDLES
 
@@ -85,6 +89,7 @@ int main() {
   }
   mempool_barrier(num_cores);
 #endif
+
 #if (defined(SCHEDULED) || defined(FOLDED))
 
   if (core_id == 0) {
@@ -113,7 +118,8 @@ int main() {
   }
 #else
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_twiddleCoef_q16_src, l2_twiddleCoef_q16, 3 * (N_CSAMPLES / 4) * sizeof(int32_t));
+    dma_memcpy_blocking(l1_twiddleCoef_q16_src, l2_twiddleCoef_q16,
+                        3 * (N_CSAMPLES / 4) * sizeof(int32_t));
   }
 #endif
   mempool_barrier(num_cores);
@@ -207,13 +213,18 @@ int main() {
     mempool_log_partial_barrier(2, core_id, N_FFTs_COL * CORES_USED);
     mempool_stop_benchmark();
   }
-  pRes = ((LOG2 / 2) % 2) == 0 ? l1_pDst : l1_pDst;
+#ifdef BITREVERSETABLE
+  pRes = ((LOG2 / 2) % 2) == 0 ? l1_pSrc : l1_pDst;
+#else
+  pRes = ((LOG2 / 2) % 2) == 0 ? l1_pDst : l1_pSrc;
+#endif
 #endif
 
   mempool_barrier(num_cores);
   if (core_id == 0) {
     printf("02: END COMPUTATION\n");
   }
+
   mempool_check_q16(pRes, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
   mempool_barrier(num_cores);
   return 0;
