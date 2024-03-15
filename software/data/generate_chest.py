@@ -10,6 +10,9 @@
 import numpy as np
 
 
+__all__ = ['generate_chest_q16']
+
+
 def q_sat(x):
     if x > 2**15 - 1:
         return x - 2**16

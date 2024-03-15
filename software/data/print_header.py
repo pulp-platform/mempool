@@ -10,9 +10,8 @@
 import argparse
 import os
 import math
-from generate_cfft import *
-from generate_chest import *
-import numpy as np
+import generate_cfft as cfft
+import generate_chest as chest
 
 
 def extract_data_args(filename):
@@ -97,12 +96,12 @@ if __name__ == '__main__':
 
         if app_name == "cfft_radix4_q16":
             # cfft_radix4_q16
-            src_cfft_q16, dst_cfft_q16, tolerance_q16 = generate_cfft_q16(
+            src_cfft_q16, dst_cfft_q16, tolerance_q16 = cfft.generate_cfft_q16(
                 data_args.LEN)
-            brv_cfft_q16 = generate_bitreversal(data_args.LEN, 2)
-            twi_cfft_q16 = generate_twiddleCoefq15(data_args.LEN)
+            brv_cfft_q16 = cfft.generate_bitreversal(data_args.LEN, 2)
+            twi_cfft_q16 = cfft.generate_twiddleCoefq15(data_args.LEN)
             string += "#define LOG2 ({})\n".format(
-                np.int(math.log2(data_args.LEN)))
+                int(math.log2(data_args.LEN)))
             string += "#define N_CSAMPLES ({})\n".format(data_args.LEN)
             string += "#define N_TWIDDLES ({})\n".format(3 *
                                                          data_args.LEN // 4)
@@ -121,12 +120,12 @@ if __name__ == '__main__':
 
         elif app_name == "cfft_radix2_q16":
             # cfft_radix2_q16
-            src_cfft_q16, dst_cfft_q16, tolerance_q16 = generate_cfft_q16(
+            src_cfft_q16, dst_cfft_q16, tolerance_q16 = cfft.generate_cfft_q16(
                 data_args.LEN)
-            brv_cfft_q16 = generate_bitreversal(data_args.LEN, 2)
-            twi_cfft_q16 = generate_twiddleCoefq15(data_args.LEN)
+            brv_cfft_q16 = cfft.generate_bitreversal(data_args.LEN, 2)
+            twi_cfft_q16 = cfft.generate_twiddleCoefq15(data_args.LEN)
             string += "#define LOG2 ({})\n".format(
-                np.int(math.log2(data_args.LEN)))
+                int(math.log2(data_args.LEN)))
             string += "#define N_CSAMPLES ({})\n".format(data_args.LEN)
             string += "#define N_TWIDDLES ({})\n".format(3 *
                                                          data_args.LEN // 4)
@@ -143,8 +142,9 @@ if __name__ == '__main__':
             filename = app_path + "/data_cfft_radix2_q16.h"
 
         elif app_name == "chest_q16":
-            src1_chest_q16, src2_chest_q16, dst_chest_q16 = generate_chest_q16(
-                data_args.N_TX, data_args.N_RX, data_args.N_SAMPLES)
+            src1_chest_q16, src2_chest_q16, dst_chest_q16 = \
+                chest.generate_chest_q16(data_args.N_TX, data_args.N_RX,
+                                         data_args.N_SAMPLES)
             string += "#define N_TX ({})\n".format(data_args.N_TX)
             string += "#define N_RX ({})\n".format(data_args.N_RX)
             string += "#define N_SAMPLES ({})\n".format(data_args.N_SAMPLES)
