@@ -34,7 +34,6 @@
 
 #define LOG2 (${Log2Len})
 #define N_CSAMPLES (${Len})
-#define N_RSAMPLES (2 * N_CSAMPLES)
 #define N_TWIDDLES (3 * N_CSAMPLES / 4)
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 #define BITREVINDEXTABLE_LENGTH (${BitrevLen})
@@ -45,12 +44,12 @@
 % for m, m_str in zip([vector_inp, vector_res], ['l2_pSrc', 'l2_pRes']):
 
 // Data arrays for matrix ${m_str}
-int16_t ${m_str}[${2*Len}] = ${array_to_cstr(m)};
+int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) ${m_str}[${2*Len}] = ${array_to_cstr(m)};
 
 % endfor \
 
 // Twiddles
-int16_t l2_twiddleCoef_q16[${int(6*Len/4)}] = ${array_to_cstr(vector_twi)};
+int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_twiddleCoef_q16[${int(6*Len/4)}] = ${array_to_cstr(vector_twi)};
 
 // Bitreversal
-uint16_t l2_BitRevIndexTable[${BitrevLen}] = ${array_to_str(vector_bitrev)};
+uint16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_BitRevIndexTable[${BitrevLen}] = ${array_to_str(vector_bitrev)};
