@@ -31,3 +31,6 @@
 [submodule "toolchain/riscv-opcodes"]
 	path = toolchain/riscv-opcodes
 	url = https://github.com/pulp-platform/riscv-opcodes.git
+[submodule "hardware/deps/apb"]
+	path = hardware/deps/apb
+	url = https://github.com/pulp-platform/apb.git

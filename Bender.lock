@@ -1,70 +1,81 @@
----
 packages:
+  apb:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/apb
+    dependencies:
+    - common_cells
   axi:
-    revision: 32ce14ca80c555bb7dc33558f228df8babe95323
-    version: 0.36.0
+    revision: null
+    version: null
     source:
-      Git: "https://github.com/pulp-platform/axi.git"
+      Path: hardware/deps/axi
     dependencies:
-      - common_cells
-      - common_verification
+    - common_cells
+    - common_verification
+    - tech_cells_generic
   cluster_interconnect:
-    revision: 7d0a4f8acae71a583a6713cab5554e60b9bb8d27
-    version: 1.2.1
+    revision: null
+    version: null
     source:
-      Git: "https://github.com/pulp-platform/cluster_interconnect.git"
+      Path: hardware/deps/cluster_interconnect
     dependencies:
-      - common_cells
+    - common_cells
   common_cells:
-    revision: dc555643226419b7a602f0aa39d449545ea4c1f2
-    version: 1.23.0
+    revision: null
+    version: null
     source:
-      Git: "https://github.com/pulp-platform/common_cells.git"
+      Path: hardware/deps/common_cells
     dependencies:
-      - common_verification
-      - tech_cells_generic
+    - common_verification
+    - tech_cells_generic
   common_verification:
-    revision: 6fc76fb013315af9fabbb90b431863d498df2d6d
-    version: 0.2.0
+    revision: null
+    version: null
     source:
-      Git: "https://github.com/pulp-platform/common_verification.git"
+      Path: hardware/deps/common_verification
     dependencies: []
   idma:
-    revision: ~
-    version: ~
+    revision: null
+    version: null
     source:
       Path: hardware/deps/idma
     dependencies:
-      - axi
-      - common_cells
-      - common_verification
+    - axi
+    - common_cells
+    - common_verification
+    - register_interface
   register_interface:
-    revision: 73de8e51b79f416350229b1d2420b2c527e002b8
-    version: 0.3.1
+    revision: null
+    version: null
     source:
-      Git: "https://github.com/pulp-platform/register_interface.git"
+      Path: hardware/deps/register_interface
     dependencies:
-      - axi
-      - common_cells
+    - apb
+    - axi
+    - common_cells
+    - common_verification
   reqrsp_interface:
-    revision: ~
-    version: ~
+    revision: null
+    version: null
     source:
       Path: hardware/deps/reqrsp_interface
     dependencies:
-      - axi
-      - common_cells
+    - axi
+    - common_cells
   snitch:
-    revision: ~
-    version: ~
+    revision: null
+    version: null
     source:
       Path: hardware/deps/snitch
     dependencies:
-      - common_cells
+    - axi
+    - common_cells
   tech_cells_generic:
-    revision: 78e817972307bcb9f6c77d18d64480ef595f03c9
-    version: 0.2.5
+    revision: null
+    version: null
     source:
-      Git: "https://github.com/pulp-platform/tech_cells_generic.git"
+      Path: hardware/deps/tech_cells_generic
     dependencies:
-      - common_verification
+    - common_verification

@@ -1,44 +1,19 @@
-diff --git a/hardware/deps/tech_cells_generic/Bender.yml b/hardware/deps/tech_cells_generic/Bender.yml
-index 4efe945..386cf62 100644
---- a/hardware/deps/tech_cells_generic/Bender.yml
-+++ b/hardware/deps/tech_cells_generic/Bender.yml
-@@ -10,7 +10,7 @@ sources:
-   - src/deprecated/cluster_clk_cells.sv
-   - src/deprecated/pulp_clk_cells.sv
-
--  - target: all(rtl, not(synthesis))
-+  - target: any(all(rtl, not(synthesis)), verilator)
-     files:
-       # level 0
-       - src/rtl/tc_sram.sv
-@@ -22,7 +22,7 @@ sources:
-       - src/fpga/tc_clk_xilinx.sv
-       - src/fpga/tc_sram_xilinx.sv
-
--  - target: all(not(all(fpga, xilinx)), not(synthesis))
-+  - target: any(all(not(all(fpga, xilinx)), not(synthesis)), verilator)
-     files:
-       # Level 0
-       - src/rtl/tc_clk.sv
 diff --git a/hardware/deps/tech_cells_generic/src/deprecated/pulp_clk_cells.sv b/hardware/deps/tech_cells_generic/src/deprecated/pulp_clk_cells.sv
-index 53ad07f..4ddd4e1 100644
+index 53ad07f..4f47d47 100644
 --- a/hardware/deps/tech_cells_generic/src/deprecated/pulp_clk_cells.sv
 +++ b/hardware/deps/tech_cells_generic/src/deprecated/pulp_clk_cells.sv
-@@ -94,6 +94,7 @@ module pulp_clock_xor2 (
- endmodule
-
- `ifndef SYNTHESIS
-+`ifndef VERILATOR
- module pulp_clock_delay(
+@@ -98,9 +98,9 @@ module pulp_clock_delay(
    input  logic in_i,
    output logic out_o
-@@ -103,5 +104,6 @@ module pulp_clock_delay(
-
+ );
+-
++  /* verilator lint_off ASSIGNDLY */
+   assign #(300ps) out_o = in_i;
+-
++  /* verilator lint_on ASSIGNDLY */
  endmodule
  `endif
-+`endif
-
-
+ 
 diff --git a/hardware/deps/tech_cells_generic/src/deprecated/pulp_clock_gating_async.sv b/hardware/deps/tech_cells_generic/src/deprecated/pulp_clock_gating_async.sv
 index 5c95b55..88e9707 100644
 --- a/hardware/deps/tech_cells_generic/src/deprecated/pulp_clock_gating_async.sv
@@ -46,66 +21,32 @@ index 5c95b55..88e9707 100644
 @@ -41,4 +41,4 @@ module pulp_clock_gating_async #(
      .clk_o
    );
-
+ 
 -endmodule
 \ No newline at end of file
 +endmodule
+diff --git a/hardware/deps/tech_cells_generic/src/rtl/tc_clk.sv b/hardware/deps/tech_cells_generic/src/rtl/tc_clk.sv
+index 3ab329e..491c719 100644
+--- a/hardware/deps/tech_cells_generic/src/rtl/tc_clk.sv
++++ b/hardware/deps/tech_cells_generic/src/rtl/tc_clk.sv
+@@ -43,10 +43,11 @@ module tc_clk_gating #(
+ );
+ 
+   logic clk_en;
+-
++  /* verilator lint_off COMBDLY */
+   always_latch begin
+     if (clk_i == 1'b0) clk_en <= en_i | test_en_i;
+   end
++  /* verilator lint_on COMBDLY */
+ 
+   assign clk_o = clk_i & clk_en;
+ 
 diff --git a/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv b/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
-index 53530e0..1e5ff2d 100644
+index b702a11..a3cb149 100644
 --- a/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
 +++ b/hardware/deps/tech_cells_generic/src/rtl/tc_sram.sv
-@@ -124,9 +124,11 @@ module tc_sram #(
-   // write memory array
-   always_ff @(posedge clk_i or negedge rst_ni) begin
-     if (!rst_ni) begin
-+      `ifndef VERILATOR
-       for (int unsigned i = 0; i < NumWords; i++) begin
-         sram[i] <= init_val[i];
-       end
-+      `endif
-       for (int i = 0; i < NumPorts; i++) begin
-         r_addr_q[i] <= {AddrWidth{1'b0}};
-         // initialize the read output register for each port
-@@ -149,12 +151,14 @@ module tc_sram #(
-       for (int unsigned i = 0; i < NumPorts; i++) begin
-         if (req_i[i]) begin
-           if (we_i[i]) begin
-+            `ifndef VERILATOR
-             // update value when write is set at clock
-             for (int unsigned j = 0; j < DataWidth; j++) begin
-               if (be_i[i][j/ByteWidth]) begin
-                 sram[addr_i[i]][j] <= wdata_i[i][j];
-               end
-             end
-+            `endif
-           end else begin
-             // otherwise update read address for subsequent non request cycles
-             r_addr_q[i] <= addr_i[i];
-@@ -164,6 +168,23 @@ module tc_sram #(
-     end // if !rst_ni
-   end
-
-+  `ifdef VERILATOR
-+  for (genvar i = 0; i < NumPorts; i++) begin
-+    // update value when write is set at clock
-+    for (genvar j = 0; j < DataWidth; j++) begin
-+      always_ff @(posedge clk_i or negedge rst_ni) begin
-+        if (!rst_ni) begin
-+        end else begin
-+          if (req_i[i])
-+            if (we_i[i])
-+              if (be_i[i][j/ByteWidth])
-+                sram[addr_i[i]][j] <= wdata_i[i][j];
-+        end
-+      end
-+    end
-+  end
-+  `endif
-+
- // Validate parameters.
- // pragma translate_off
- `ifndef VERILATOR
-@@ -204,4 +225,69 @@ module tc_sram #(
+@@ -242,4 +242,69 @@ module tc_sram #(
  `endif
  `endif
  // pragma translate_on

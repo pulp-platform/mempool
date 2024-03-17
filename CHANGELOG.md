@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+### Added
+- Add `apb` dependency of version 0.2.4
+
 ### Changes
 - Add physical feasible TeraPool configuration with SubGroup hierarchy.
 - Extended `tracevis.py` to support the new Perfetto UI and compress large traces
 - Use custom compiler for VCS specified with `CC` and `CCX` environment variable
 - Implement operand gating for SIMD and MAC Units in Snitch IPU's DSP Unit
 - Add Channel Estimation application and kernels
-- Update Bender to version 0.27.3
+- Update Bender to version 0.28.1
 - Update default Questasim version to 2022.3
 - Decrease stack size to 128 words
 - Add CFFT radix-4 and radix-2 kernels
@@ -22,6 +25,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add Channel Estimation based on multiplication by (1 / pilot)
 - Gate the LSU output to ensure a stable handshake interface and save energy
 - Update to the latest GitHub CI actions
+- Update `axi` to 0.39.2
+- Update `tech_cells_generic` to 0.2.13
+- Update `common_cells` to 1.33.0
+- Update `common_verification` to 0.2.3
+- Update `register_interface` to 0.4.3
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
