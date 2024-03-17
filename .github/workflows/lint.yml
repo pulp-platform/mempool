@@ -13,7 +13,7 @@ jobs:
   check-license:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
     - name: Check license
@@ -27,7 +27,7 @@ jobs:
     name: C/C++ Sources
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: DoozyX/clang-format-lint-action@v0.14
       with:
         clangFormatVersion: 14
@@ -39,7 +39,7 @@ jobs:
     name: Python Sources
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Python requirements
       run: pip install flake8
     # Check that all python sources conform to the `pep8` standard
@@ -53,7 +53,7 @@ jobs:
   check-trailing-whitespaces:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Determine base commit
