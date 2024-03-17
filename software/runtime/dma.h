@@ -62,12 +62,12 @@ void dma_memcpy_nonblocking(void *dest, const void *src, size_t len) {
   *_dma_src_reg = (uint32_t)src;
   *_dma_dst_reg = (uint32_t)dest;
   *_dma_len_reg = (uint32_t)len;
-  // TODO: We need a fence here!
-  asm volatile("" ::: "memory");
-  mempool_wait(32);
-  asm volatile("" ::: "memory");
+  // Full memory barrier
+  __sync_synchronize();
   // Launch the transfer
   (void)*_dma_id_reg;
+  // Full memory barrier
+  __sync_synchronize();
 }
 
 void dma_memcpy_blocking(void *dest, const void *src, size_t len) {
