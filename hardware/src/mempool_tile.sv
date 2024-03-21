@@ -298,7 +298,9 @@ module mempool_tile
       .FETCH_DW           (DataWidth                                           ),
       .FILL_AW            (AddrWidth                                           ),
       .FILL_DW            (AxiDataWidth                                        ),
+      .SERIAL_LOOKUP      (1                                                   ),
       .L1_TAG_SCM         (1                                                   ),
+      .NUM_AXI_OUTSTANDING(8                                                   ),
       /// Make the early cache latch-based. This reduces latency at the cost of
       /// increased combinatorial path lengths and the hassle of having latches in
       /// the design.
@@ -321,6 +323,8 @@ module mempool_tile
       .inst_valid_i         (snitch_inst_valid[c]    ),
       .inst_ready_o         (snitch_inst_ready[c]    ),
       .inst_error_o         (/* Unused */            ),
+      .sram_cfg_data_i      ('0                      ),
+      .sram_cfg_tag_i       ('0                      ),
       .axi_req_o            (axi_cache_req_d[c]      ),
       .axi_rsp_i            (axi_cache_resp_q[c]     )
     );
