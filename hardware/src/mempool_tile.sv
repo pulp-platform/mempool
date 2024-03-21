@@ -298,6 +298,7 @@ module mempool_tile
       .FETCH_DW           (DataWidth                                           ),
       .FILL_AW            (AddrWidth                                           ),
       .FILL_DW            (AxiDataWidth                                        ),
+      .FETCH_PRIORITY     (0                                                   ),
       .SERIAL_LOOKUP      (1                                                   ),
       .L1_TAG_SCM         (1                                                   ),
       .NUM_AXI_OUTSTANDING(8                                                   ),
