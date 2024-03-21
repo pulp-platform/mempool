@@ -15,6 +15,16 @@ packages:
     - common_cells
     - common_verification
     - tech_cells_generic
+  cluster_icache:
+    revision: 9520b991d78f95c0384d7d9531c5ae01dd791530
+    version: null
+    source:
+      Git: https://github.com/pulp-platform/cluster_icache.git
+    dependencies:
+    - axi
+    - common_cells
+    - scm
+    - tech_cells_generic
   cluster_interconnect:
     revision: null
     version: null
@@ -64,6 +74,12 @@ packages:
     dependencies:
     - axi
     - common_cells
+  scm:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/scm
+    dependencies: []
   snitch:
     revision: null
     version: null
