@@ -16,8 +16,8 @@ packages:
     - common_verification
     - tech_cells_generic
   cluster_icache:
-    revision: 95035dcb3a420d85cf5d8de9a8cde760363d8967
-    version: 0.1.0
+    revision: 9520b991d78f95c0384d7d9531c5ae01dd791530
+    version: null
     source:
       Git: https://github.com/pulp-platform/cluster_icache.git
     dependencies:
