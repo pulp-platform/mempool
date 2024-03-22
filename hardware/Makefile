@@ -48,12 +48,11 @@ python          ?= python3
 # Enable tracing
 snitch_trace    ?= 1
 
-# Path to DRAMsyslib
-dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/dram_rtl_sim/dramsys_lib/resources
-dramsys_simconfig_path ?= $(dramsys_resouces_path)/simulations/HBM2E-3600.json
-dramsys_lib_path ?= $(MEMPOOL_DIR)/hardware/dram_rtl_sim/dramsys_lib
-questa_args += +DRAMSYS_RES=$(dramsys_resouces_path) +DRAMSYS_CONF=$(dramsys_simconfig_path)
-questa_args += -sv_lib $(dramsys_lib_path)/libDRAMSysLibrary
+# Path to DRAMsys
+dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/configs
+dramsys_lib_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/build/lib
+questa_args += +DRAMSYS_RES=$(dramsys_resouces_path)
+questa_args += -sv_lib $(dramsys_lib_path)/libsystemc -sv_lib $(dramsys_lib_path)/libDRAMSys_Simulator
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -119,12 +118,11 @@ vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
-# This parameter is only used for TeraPool configurations
+# The below parameter is only used for TeraPool configurations
 vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group) -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
-ifdef dram
-	vlog_defs += -DDRAM=${dram}
-	vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${dram_axi_width_interleaved}
-endif
+# The below parameter is only used for DRAMsys co-simulation
+vlog_defs += -D${l2_sim_type}
+vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${dram_axi_width_interleaved}
 
 # Traffic generation enabled
 ifdef tg
