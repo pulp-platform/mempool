@@ -352,7 +352,6 @@ module mempool_tb;
   end : gen_l2_banks_init
 
 `else
-
   for (genvar bank = 0; bank < NumDrams; bank++) begin : gen_drams_init
     initial begin : l2_init
       automatic logic [L2BankWidth-1:0] mem_row;
@@ -360,7 +359,6 @@ module mempool_tb;
       addr_t address;
       addr_t length;
       string binary;
-
       // Initialize memories
       void'($value$plusargs("PRELOAD=%s", binary));
       if (binary != "") begin
@@ -378,7 +376,7 @@ module mempool_tb;
               automatic dram_ctrl_interleave_t dram_ctrl_info;
               dram_ctrl_info = getDramCTRLInfo(address + i - dut.L2MemoryBaseAddr);
               if (dram_ctrl_info.dram_ctrl_id == bank) begin
-                dut.gen_drams[bank].i_axi_dram_sim.i_sim_dram.load_to_dram(dram_ctrl_info.dram_ctrl_addr, buffer[i]);
+                dut.gen_drams[bank].i_axi_dram_sim.i_sim_dram.load_a_byte_to_dram(dram_ctrl_info.dram_ctrl_addr, buffer[i]);
               end
             end
           end else begin
