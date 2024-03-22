@@ -1,0 +1,15 @@
+{
+    "simconfig": {
+        "AddressOffset": 0,
+        "CheckTLM2Protocol": false,
+        "DatabaseRecording": true,
+        "Debug": false,
+        "EnableWindowing": true,
+        "PowerAnalysis": false,
+        "SimulationName": "hbm2e",
+        "SimulationProgressBar": true,
+        "StoreMode": "Store",
+        "UseMalloc": false,
+        "WindowSize": 300
+    }
+}
