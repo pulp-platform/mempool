@@ -42,6 +42,3 @@ dmas_per_group ?= 4 # Brust Length = 16
 # L2 Banks/Channels
 l2_banks = 16
 l2_size  ?= 16777216 # 1000000
-
-# DRAM channel interleaving
-dram_axi_width_interleaved ?= 16
