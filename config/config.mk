@@ -30,8 +30,6 @@ boot_addr ?= 2684354560 # A0000000
 
 # L2 memory configuration (in dec)
 l2_base  ?= 2147483648 # 80000000
-l2_size  ?= 4194304    # 400000
-l2_banks ?= 4
 
 # L1 size per bank (in dec)
 l1_bank_size ?= 1024
@@ -52,9 +50,6 @@ axi_data_width ?= 512
 # Read-only cache line width in AXI interconnect (in bits)
 ro_line_width ?= 512
 
-# Number of DMA backends in each group
-dmas_per_group ?= 4
-
 #############################
 ##  Xqueues configuration  ##
 #############################
@@ -72,3 +67,7 @@ xpulpimg ?= 1
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
 remote_group_latency_cycles ?= 7
+
+# DRAMsys co-simulation: dram/sram
+l2_sim_type ?= sram
+dram_axi_width_interleaved ?= 16

@@ -514,7 +514,7 @@ module mempool_sub_group
       .DataWidth       (AxiDataWidth   ),
       .AddrWidth       (AddrWidth      ),
       .IdWidth         (AxiTileIdWidth ),
-      .AxReqFifoDepth  (2              ),
+      .AxReqFifoDepth  (8              ),
       .TransFifoDepth  (1              ),
       .BufferDepth     (4              ),
       .axi_req_t       (axi_tile_req_t ),
