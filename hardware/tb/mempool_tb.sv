@@ -56,11 +56,11 @@ module mempool_tb;
 
     rst_n = 1'b1;
   end
-  
+
   `ifdef DRAM
     dram_sim_engine #(.ClkPeriodNs(ClockPeriod)) i_dram_sim_engine (.clk_i(clk), .rst_ni(rst_n));
   `endif
-  
+
   /*********
    *  AXI  *
    *********/
@@ -313,7 +313,7 @@ module mempool_tb;
    *  L2 Initialization  *
    ***********************/
 
-`ifndef DRAM 
+`ifndef DRAM
   for (genvar bank = 0; bank < NumL2Banks; bank++) begin : gen_l2_banks_init
     initial begin : l2_init
       automatic logic [L2BankWidth-1:0] mem_row;

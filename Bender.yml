@@ -34,9 +34,6 @@ sources:
   - hardware/src/axi2mem.sv
   - hardware/src/bootrom.sv
   - hardware/src/latch_scm.sv
-  - hardware/deps/dram_rtl_sim/src/sim_dram.sv
-  - hardware/deps/dram_rtl_sim/src/axi_dram_sim.sv
-  - hardware/deps/dram_rtl_sim/src/dram_sim_engine.sv
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 2
@@ -59,6 +56,10 @@ sources:
       - hardware/tb/traffic_generator.sv
       # Level 2
       - hardware/tb/mempool_tb.sv
+      # DRAMsys
+      - hardware/deps/dram_rtl_sim/src/sim_dram.sv
+      - hardware/deps/dram_rtl_sim/src/axi_dram_sim.sv
+      - hardware/deps/dram_rtl_sim/src/dram_sim_engine.sv
 
   - target: mempool_verilator
     files:
