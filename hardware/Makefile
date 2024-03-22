@@ -48,12 +48,11 @@ python          ?= python3
 # Enable tracing
 snitch_trace    ?= 1
 
-# Path to DRAMsyslib
-dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/dram_rtl_sim/dramsys_lib/resources
-dramsys_simconfig_path ?= $(dramsys_resouces_path)/simulations/HBM2E-3600.json
-dramsys_lib_path ?= $(MEMPOOL_DIR)/hardware/dram_rtl_sim/dramsys_lib
-questa_args += +DRAMSYS_RES=$(dramsys_resouces_path) +DRAMSYS_CONF=$(dramsys_simconfig_path)
-questa_args += -sv_lib $(dramsys_lib_path)/libDRAMSysLibrary
+# Path to DRAMsys
+dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/configs
+dramsys_lib_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/build/lib
+questa_args += +DRAMSYS_RES=$(dramsys_resouces_path)
+questa_args += -sv_lib $(dramsys_lib_path)/libsystemc -sv_lib $(dramsys_lib_path)/libDRAMSys_Simulator
 
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
@@ -138,10 +137,9 @@ vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)
 # TeraPool configurations
 vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group)
 vlog_defs += -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
-ifdef dram
-	vlog_defs += -DDRAM=${dram}
-	vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${dram_axi_width_interleaved}
-endif
+# DRAMsys co-simulation
+vlog_defs += -D${l2_sim_type}
+vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${dram_axi_width_interleaved}
 
 # Traffic generation enabled
 ifdef tg
