@@ -11,9 +11,12 @@ BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
 RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 
 # OpenMP runtime
-OMP_DIR       ?= $(RUNTIME_DIR)/omp
 RISCV_CCFLAGS += -fopenmp -DNTHREADS=$(num_cores)
 RISCV_CCFLAGS += -I$(OMP_DIR)
+
+ifeq ($(COMPILER),llvm)
+	RISCV_LDFLAGS += -Wl,-wrap,main
+endif
 
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
