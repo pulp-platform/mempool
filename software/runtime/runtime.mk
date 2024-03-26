@@ -136,7 +136,7 @@ ifeq ($(COMPILER),gcc)
 else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON) -std=gnu99
 	RISCV_CXXFLAGS      += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
-	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
+	RISCV_LDFLAGS       += -static -nostartfiles -lm -fuse-ld=lld -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
 	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32
 	ifeq ($(xDivSqrt), 0)
 		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+nofdiv,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
