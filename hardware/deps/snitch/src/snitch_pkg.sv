@@ -48,7 +48,7 @@ package snitch_pkg;
     logic error;
   } dresp_t;
 
-  typedef enum logic [31:0] {
+  typedef enum logic [2:0] {
     XPULP_IPU = 0,
     FP_SS = 1,
     FP_DIVSQRT = 2
