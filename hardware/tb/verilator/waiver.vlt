@@ -35,3 +35,13 @@ lint_off -rule CASEOVERLAP -file "*/deps/axi/src/axi_id_remap.sv" -match "*"
 
 // Ignore underflow in parameter that will not be used in that case
 lint_off -rule LITENDIAN -file "*/deps/cluster_interconnect/rtl/variable_latency_interconnect/variable_latency_interconnect.sv" -match "*"
+
+// Ignore FPU warnings
+lint_off -rule IMPORTSTAR -file "*/deps/fpu_div_sqrt_mvp/hdl/control_mvp.sv" -match "*"
+lint_off -rule IMPORTSTAR -file "*/deps/fpu_div_sqrt_mvp/hdl/norm_div_sqrt_mvp.sv" -match "*"
+lint_off -rule IMPORTSTAR -file "*/deps/fpu_div_sqrt_mvp/hdl/preprocess_mvp.sv" -match "*"
+lint_off -rule IMPORTSTAR -file "*/deps/fpu_div_sqrt_mvp/hdl/nrbd_nrsc_mvp.sv" -match "*"
+lint_off -rule IMPORTSTAR -file "*/deps/fpu_div_sqrt_mvp/hdl/div_sqrt_top_mvp.sv" -match "*"
+lint_off -rule IMPORTSTAR -file "*/deps/fpu_div_sqrt_mvp/hdl/div_sqrt_mvp_wrapper.sv" -match "*"
+
+lint_off -rule LITENDIAN -file "*/deps/cvfpu/src/fpnew_pkg.sv" -match "*"
