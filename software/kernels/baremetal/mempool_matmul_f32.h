@@ -107,31 +107,6 @@ void matmul_2x2_parallel_f32(float const *__restrict__ A,
               [val_a10] "r"(val_a10), [val_a11] "r"(val_a11),
               [val_b00] "r"(val_b00), [val_b01] "r"(val_b01),
               [val_b10] "r"(val_b10), [val_b11] "r"(val_b11));
-        //        asm volatile(
-        //          "fmul.s %[mul00], %[val_a00], %[val_b00];"
-        //          "fmul.s %[mul01], %[val_a01], %[val_b10];"
-        //          "fmul.s %[mul10], %[val_a00], %[val_b01];"
-        //          "fmul.s %[mul11], %[val_a01], %[val_b11];"
-        //          "fadd.s %[c00], %[c00], %[mul00];"
-        //          "fadd.s %[c00], %[c00], %[mul01];"
-        //          "fadd.s %[c01], %[c01], %[mul10];"
-        //          "fadd.s %[c01], %[c01], %[mul11];"
-        //          "fmul.s %[mul00], %[val_a10], %[val_b00];"
-        //          "fmul.s %[mul01], %[val_a11], %[val_b10];"
-        //          "fmul.s %[mul10], %[val_a10], %[val_b01];"
-        //          "fmul.s %[mul11], %[val_a11], %[val_b11];"
-        //          "fadd.s %[c10], %[c10], %[mul00];"
-        //          "fadd.s %[c10], %[c10], %[mul01];"
-        //          "fadd.s %[c11], %[c11], %[mul10];"
-        //          "fadd.s %[c11], %[c11], %[mul11];"
-        //          : [c00] "+&r"(c00), [c01] "+&r"(c01), [c10] "+&r"(c10),
-        //          [c11] "+&r"(c11),
-        //            [mul00] "+&r"(mul00), [mul01] "+&r"(mul01), [mul10]
-        //            "+&r"(mul10), [mul11] "+&r"(mul11)
-        //          : [val_a00] "r"(val_a00), [val_a01] "r"(val_a01), [val_a10]
-        //          "r"(val_a10), [val_a11] "r"(val_a11),
-        //            [val_b00] "r"(val_b00), [val_b01] "r"(val_b01), [val_b10]
-        //            "r"(val_b10), [val_b11] "r"(val_b11));
       }
       C[(i + 0) * P + j + 0] = c00;
       C[(i + 0) * P + j + 1] = c01;
