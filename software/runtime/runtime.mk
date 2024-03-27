@@ -61,7 +61,9 @@ else
 		RISCV_ARCH := $(RISCV_ARCH)_zhinx
 		RISCV_ARCH := $(RISCV_ARCH)_zquarterinx
 		RISCV_ARCH := $(RISCV_ARCH)_zvechalfinx
+		RISCV_ARCH := $(RISCV_ARCH)_zvecquarterinx
 		RISCV_ARCH := $(RISCV_ARCH)_zexpauxvechalfinx
+		RISCV_ARCH := $(RISCV_ARCH)_zexpauxvecquarterinx
 	endif
   ifeq ($(XPULPIMG), 1)
   	RISCV_ARCH := $(RISCV_ARCH)_xpulppostmod
