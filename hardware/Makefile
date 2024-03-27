@@ -102,29 +102,46 @@ vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
 vlog_defs += -D$(config)
-vlog_defs += -DNUM_CORES=$(num_cores) -DNUM_CORES_PER_TILE=$(num_cores_per_tile) -DNUM_DIVSQRT_PER_TILE=$(num_divsqrt_per_tile) -DNUM_GROUPS=$(num_groups) -DBANKING_FACTOR=$(banking_factor)
-vlog_defs += -DL2_BASE=32\'d$(l2_base) -DL2_SIZE=32\'d$(l2_size) -DL2_BANKS=$(l2_banks)
+# Cluster configurations
+vlog_defs += -DNUM_CORES=$(num_cores)
+vlog_defs += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
+vlog_defs += -DNUM_DIVSQRT_PER_TILE=$(num_divsqrt_per_tile)
+vlog_defs += -DNUM_GROUPS=$(num_groups)
+vlog_defs += -DBANKING_FACTOR=$(banking_factor)
+vlog_defs += -DL2_BASE=32\'d$(l2_base)
+vlog_defs += -DL2_SIZE=32\'d$(l2_size)
+vlog_defs += -DL2_BANKS=$(l2_banks)
 vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
 vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr)
+# Snitch ISA
 vlog_defs += -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DZFINX=$(zfinx)
 vlog_defs += -DZQUARTERINX=$(zquarterinx)
 vlog_defs += -DXDIVSQRT=$(xDivSqrt)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
+# AXI & DMA
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
-vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
-vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
-# This parameter is only used for TeraPool configurations
-vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group) -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
+vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix)
+vlog_defs += -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
+# Systolic configurations
+vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size)
+vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)
+# TeraPool configurations
+vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group)
+vlog_defs += -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
 
 # Traffic generation enabled
 ifdef tg
 	tg_ncycles ?= 10000
 
 	vlog_defs += -DTRAFFIC_GEN=1
-	cpp_defs  += -DTRAFFIC_GEN=1 -DTG_REQ_PROB=$(tg_reqprob) -DTG_SEQ_PROB=$(tg_seqprob) -DTG_NCYCLES=$(tg_ncycles) -DNUM_CORES=$(num_cores)
+	cpp_defs  += -DTRAFFIC_GEN=1
+	cpp_defs  += -DTG_REQ_PROB=$(tg_reqprob)
+	cpp_defs  += -DTG_SEQ_PROB=$(tg_seqprob)
+	cpp_defs  += -DTG_NCYCLES=$(tg_ncycles)
+	cpp_defs  += -DNUM_CORES=$(num_cores)
 
 	# How many cycles should we execute?
 	veril_flags := --term-after-cycles=$(tg_ncycles)
@@ -137,7 +154,9 @@ cpp_defs += -DL2_BASE=$(l2_base)
 cpp_defs += -DL2_SIZE=$(l2_size)
 cpp_defs += -DL2_BANKS=$(l2_banks)
 cpp_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
-cpp_defs  += -DL2_BASE=$(l2_base) -DL2_SIZE=$(l2_size) -DL2_BANKS=$(l2_banks)
+cpp_defs += -DL2_BASE=$(l2_base)
+cpp_defs += -DL2_SIZE=$(l2_size)
+cpp_defs += -DL2_BANKS=$(l2_banks)
 
 .DEFAULT_GOAL := compile
 
