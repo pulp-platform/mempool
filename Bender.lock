@@ -36,6 +36,21 @@ packages:
     source:
       Path: hardware/deps/common_verification
     dependencies: []
+  fpnew:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/fpnew
+    dependencies:
+    - common_cells
+    - fpu_div_sqrt_mvp
+  fpu_div_sqrt_mvp:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/fpu_div_sqrt_mvp
+    dependencies:
+    - common_cells
   idma:
     revision: null
     version: null
