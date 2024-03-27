@@ -107,7 +107,7 @@ package snitch_pkg;
   // FPU
   // Floating-point extensions configuration
   localparam bit RVF = 1; // Is F extension enabled - MUST BE 1 IF D ENABLED!
-  localparam bit RVD = 0; // Is D extension enabled
+  localparam bit RVD = 0; // Is D extension enabled - NOT SUPPORTED IN MEMPOOL
 
   // Transprecision floating-point extensions configuration
   localparam bit XF16    = 1; // Is half-precision float extension (Xf16) enabled
