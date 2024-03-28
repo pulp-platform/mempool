@@ -207,6 +207,7 @@ module mempool_cc
   );
 
   // Snitch FP sub-system
+  if (snitch_pkg::ZFINX) begin: gen_fpu
   snitch_fp_ss #(
     .FPUImplementation (snitch_pkg::FPU_IMPLEMENTATION)
   ) i_snitch_fp_ss (
@@ -226,6 +227,12 @@ module mempool_cc
     .fpu_status_o            ( fpu_status            ),
     .core_events_o           (                       )
   );
+  end else begin: gen_silence_fpu
+    assign fpu_req_qready   = '0;
+    assign fpu_resp_d       = '0;
+    assign fpu_resp_dvalid  = '0;
+    assign fpu_status       = '0;
+  end
 
   // Snitch FP divsqrt unit
   if (snitch_pkg::XDIVSQRT) begin: gen_sh_acc_interface
