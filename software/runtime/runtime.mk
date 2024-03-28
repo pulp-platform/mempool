@@ -117,6 +117,11 @@ RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -std=gnu99 -O3  -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -fno-tree-loop-distribute-patterns # -falign-loops=32 -falign-jumps=32
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown -menable-experimental-extensions
+# Enable soft-divsqrt when the hardware is not supported.
+ifeq ($(xDivSqrt), 0)
+	RISCV_FLAGS_LLVM_TESTS := $(RISCV_FLAGS_LLVM)
+	RISCV_FLAGS_LLVM += -mno-fdiv
+endif
 
 ifeq ($(COMPILER),gcc)
 	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
@@ -129,9 +134,15 @@ else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
-	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32
+	ifeq ($(xDivSqrt), 0)
+		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+nofdiv,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+	else
+		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+	endif
+
 	# For unit tests
-	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
+	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_LLVM_TESTS) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 endif
 
 LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld
