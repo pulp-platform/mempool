@@ -22,10 +22,11 @@ ALLPYS := $(patsubst %.py,%.h,$(wildcard $(DATA_DIR)/*.py))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL := $(APPS)
 
+ALL_GCC := $(filter-out matmul_f16 matmul_f32, $(ALL))
 ALL_LLVM := $(filter-out synth_i32 chest_q16 cfft_radix2_q16 cfft_radix4_q16, $(ALL))
 
 # Make all applications
-all: $(ALL)
+all: $(ALL_GCC)
 
 # Make only applications with full llvm support
 all_llvm: $(ALL_LLVM)
