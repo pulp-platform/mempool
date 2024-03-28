@@ -34,3 +34,9 @@
 [submodule "hardware/deps/apb"]
 	path = hardware/deps/apb
 	url = https://github.com/pulp-platform/apb.git
+[submodule "hardware/deps/fpnew"]
+	path = hardware/deps/fpnew
+	url = https://github.com/pulp-platform/cvfpu.git
+[submodule "hardware/deps/fpu_div_sqrt_mvp"]
+	path = hardware/deps/fpu_div_sqrt_mvp
+	url = https://github.com/pulp-platform/fpu_div_sqrt_mvp.git

@@ -24,4 +24,8 @@ rv64ui_sc_tests = \
 rv64ui_p_tests = $(addprefix rv64ui-p-, $(rv64ui_sc_tests))
 rv64ui_v_tests = $(addprefix rv64ui-v-, $(rv64ui_sc_tests))
 
+ifeq ($(COMPILER), llvm)
+spike_tests += $(rv64ui_p_tests)
+else
 spike_tests += $(rv64ui_p_tests) $(rv64ui_v_tests)
+endif

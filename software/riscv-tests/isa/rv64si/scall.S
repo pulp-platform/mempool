@@ -64,7 +64,11 @@ do_scall:
 # Either way, we'll get the coverage we desire: such a handler must check
 # both mcause and TESTNUM, just like the following handler.
   .align 2
+  #ifdef LLVM
+  .weak stvec_handler
+  #else
   .global stvec_handler
+  #endif
 stvec_handler:
   csrr t0, scause
   bne t0, t1, fail

@@ -6,13 +6,15 @@
 /// Based on Snitch Shared Muliplier/Divider
 /// Author: Sergio Mazzola, <smazzola@student.ethz.ch>
 
-module snitch_ipu #(
+module snitch_ipu
+  import snitch_pkg::acc_addr_e;
+#(
   parameter int unsigned IdWidth = 5
 ) (
   input  logic                     clk_i,
   input  logic                     rst_i,
   // Accelerator Interface - Slave
-  input  logic [31:0]              acc_qaddr_i,      // unused
+  input  acc_addr_e                acc_qaddr_i,      // unused
   input  logic [IdWidth-1:0]       acc_qid_i,
   input  logic [31:0]              acc_qdata_op_i,   // RISC-V instruction
   input  logic [31:0]              acc_qdata_arga_i,

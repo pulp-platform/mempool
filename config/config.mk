@@ -69,6 +69,15 @@ xqueue_size ?= 0
 # Enable the XpulpIMG extension
 xpulpimg ?= 1
 
+# Enable FPU extensions
+zfinx ?= 1
+
+# Enable FPU extensions
+zquarterinx ?= 0
+
+# DivSqrt deactivated by default
+xDivSqrt ?= 0
+
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
 remote_group_latency_cycles ?= 7
