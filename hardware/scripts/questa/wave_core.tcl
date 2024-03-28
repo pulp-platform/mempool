@@ -72,7 +72,7 @@ if {$config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch_fp_ss/i_fpu/tag_o
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch_fp_ss/i_fpu/out_valid_o
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch_fp_ss/i_fpu/out_ready_i
-  
+
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/illegal_inst
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/stall
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/lsu_stall
