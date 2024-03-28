@@ -24,6 +24,7 @@ num_cores_per_tile ?= 8
 num_sub_groups_per_group ?= 4
 
 # Number of shared divsqrt units per MemPool tile
+# Defaults to 1 if xDivSqrt is activated
 num_divsqrt_per_tile ?= 2
 
 # L1 scratchpad banking factor

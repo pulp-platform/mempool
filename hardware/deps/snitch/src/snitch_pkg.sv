@@ -115,7 +115,6 @@ package snitch_pkg;
   localparam bit XF8     = ZQUARTERINX; // Is quarter-precision float extension (Xf8) enabled
   localparam bit XF8ALT  = 0; // Is alt. quarter-precision float extension (Xf8alt) enabled
   localparam bit XFVEC   = 1; // Is vectorial float SIMD extension (Xfvec) enabled
-  localparam bit XDivSqrt = XDIVSQRT; // Enable div/sqrt unit (buggy - use with caution)
   // Non-standard extension present
   localparam bit NSX = XF16 | XF16ALT | XF8 | XFVEC;
   // ------------------
@@ -184,9 +183,7 @@ package snitch_pkg;
                  '{default: LAT_CONV},    // CONV
                  '{default: LAT_SDOTP}},  // SDOTP
     UnitTypes: '{'{default: fpnew_pkg::DISABLED},   // ADDMUL
-                 '{default:
-                 `ifdef XDIVSQRT (fpnew_pkg::MERGED)
-                 `else (fpnew_pkg::DISABLED) `endif}, // DIVSQRT
+                 '{default: fpnew_pkg::MERGED}, // DIVSQRT
                  '{default: fpnew_pkg::DISABLED},   // NONCOMP
                  '{default: fpnew_pkg::DISABLED},   // CONV
                  '{default: fpnew_pkg::DISABLED}},  // SDOTP

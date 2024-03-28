@@ -852,7 +852,7 @@ module snitch
       end
       riscv_instr::FDIV_S,
       riscv_instr::FSQRT_S: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -927,7 +927,7 @@ module snitch
       end
       riscv_instr::FDIV_H,
       riscv_instr::FSQRT_H: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt && snitch_pkg::XF16) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1014,7 +1014,7 @@ module snitch
       riscv_instr::VFDIV_H,
       riscv_instr::VFDIV_R_H,
       riscv_instr::VFSQRT_H: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1153,7 +1153,7 @@ module snitch
       end
       riscv_instr::FDIV_B,
       riscv_instr::FSQRT_B: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt && snitch_pkg::XF8) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
@@ -1241,7 +1241,7 @@ module snitch
       riscv_instr::VFDIV_B,
       riscv_instr::VFDIV_R_B,
       riscv_instr::VFSQRT_B: begin
-        if (snitch_pkg::ZFINX && snitch_pkg::XDivSqrt && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
+        if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
           uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;

@@ -208,7 +208,7 @@ module mempool_cc
 
   // Snitch FP sub-system
   snitch_fp_ss #(
-    .FPUImplementation       (snitch_pkg::FPU_IMPLEMENTATION)
+    .FPUImplementation (snitch_pkg::FPU_IMPLEMENTATION)
   ) i_snitch_fp_ss (
     .clk_i,
     .rst_i,
@@ -228,15 +228,24 @@ module mempool_cc
   );
 
   // Snitch FP divsqrt unit
-  // divsqrt unit is shared between the processors of a Tile
-  // output
-  assign sh_acc_req_o         = acc_req_q;
-  assign sh_acc_req_valid_o   = divsqrt_req_qvalid;
-  assign divsqrt_req_qready   = sh_acc_req_ready_i;
-  // input
-  assign divsqrt_resp_d       = sh_acc_resp_i;
-  assign divsqrt_resp_dvalid  = sh_acc_resp_valid_i;
-  assign sh_acc_resp_ready_o  = divsqrt_resp_dready;
+  if (snitch_pkg::XDIVSQRT) begin: gen_sh_acc_interface
+    // divsqrt unit is shared between the processors of a Tile
+    // output
+    assign sh_acc_req_o         = acc_req_q;
+    assign sh_acc_req_valid_o   = divsqrt_req_qvalid;
+    assign divsqrt_req_qready   = sh_acc_req_ready_i;
+    // input
+    assign divsqrt_resp_d       = sh_acc_resp_i;
+    assign divsqrt_resp_dvalid  = sh_acc_resp_valid_i;
+    assign sh_acc_resp_ready_o  = divsqrt_resp_dready;
+  end else begin: gen_silence_sh_acc
+    assign sh_acc_req_o         = '0;
+    assign sh_acc_req_valid_o   = '0;
+    assign divsqrt_req_qready   = '0;
+    assign divsqrt_resp_d       = '0;
+    assign divsqrt_resp_dvalid  = '0;
+    assign sh_acc_resp_ready_o  = '0;
+  end
 
   // Cut TCDM data request path
   spill_register #(

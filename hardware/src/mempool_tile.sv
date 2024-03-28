@@ -15,7 +15,7 @@ module mempool_tile
   parameter logic [31:0] BootAddr     = 32'h0000_1000,
   // Dependent parameters. DO NOT CHANGE.
   parameter int unsigned NumCaches    = NumCoresPerTile / NumCoresPerCache,
-  parameter int unsigned NumCoresPerDivsqrt = NumCoresPerTile/NumDivsqrtPerTile
+  parameter int unsigned NumCoresPerDivsqrt = |NumDivsqrtPerTile ? (NumCoresPerTile/NumDivsqrtPerTile) : (NumCoresPerTile*snitch_pkg::XDIVSQRT)
 ) (
   // Clock and reset
   input  logic                                                                    clk_i,
@@ -115,13 +115,6 @@ module mempool_tile
   snitch_pkg::sh_acc_req_t   [NumCoresPerTile-1:0] sh_acc_req;
   snitch_pkg::acc_resp_t     [NumCoresPerTile-1:0] acc_resp;
 
-  logic       [NumCoresPerDivsqrt-1:0]divsqrt_req_valid;
-  logic       [NumCoresPerDivsqrt-1:0]divsqrt_req_ready;
-  logic       [NumCoresPerDivsqrt-1:0]divsqrt_resp_valid;
-  logic       [NumCoresPerDivsqrt-1:0]divsqrt_resp_ready;
-  snitch_pkg::sh_acc_req_t  [NumDivsqrtPerTile-1:0]divsqrt_req;
-  snitch_pkg::sh_acc_resp_t [NumDivsqrtPerTile-1:0]divsqrt_resp;
-
   // Data interfaces
   addr_t    [NumCoresPerTile-1:0] snitch_data_qaddr;
   logic     [NumCoresPerTile-1:0] snitch_data_qwrite;
@@ -136,6 +129,13 @@ module mempool_tile
   meta_id_t [NumCoresPerTile-1:0] snitch_data_pid;
   logic     [NumCoresPerTile-1:0] snitch_data_pvalid;
   logic     [NumCoresPerTile-1:0] snitch_data_pready;
+
+  logic       [(NumDivsqrtPerTile > 1 ? NumDivsqrtPerTile-1 : 0):0] divsqrt_req_valid;
+  logic       [(NumDivsqrtPerTile > 1 ? NumDivsqrtPerTile-1 : 0):0] divsqrt_req_ready;
+  logic       [(NumDivsqrtPerTile > 1 ? NumDivsqrtPerTile-1 : 0):0] divsqrt_resp_valid;
+  logic       [(NumDivsqrtPerTile > 1 ? NumDivsqrtPerTile-1 : 0):0] divsqrt_resp_ready;
+  snitch_pkg::sh_acc_req_t  [(NumDivsqrtPerTile > 1 ? NumDivsqrtPerTile-1 : 0):0] divsqrt_req;
+  snitch_pkg::sh_acc_resp_t [(NumDivsqrtPerTile > 1 ? NumDivsqrtPerTile-1 : 0):0] divsqrt_resp;
 
   for (genvar c = 0; unsigned'(c) < NumDivsqrtPerTile; c++) begin: gen_divsqrt
 
@@ -228,22 +228,31 @@ module mempool_tile
         // Core Events
         .core_events_o (/* Unused */                                             )
       );
-      // Assign the corresponding hart_id each core shared accelerator request
-      assign sh_acc_req[c].addr      = acc_req[c].addr;
-      assign sh_acc_req[c].id        = acc_req[c].id;
-      assign sh_acc_req[c].hart_id   = hart_id;
-      assign sh_acc_req[c].data_op   = acc_req[c].data_op;
-      assign sh_acc_req[c].data_arga = acc_req[c].data_arga;
-      assign sh_acc_req[c].data_argb = acc_req[c].data_argb;
-      assign sh_acc_req[c].data_argc = acc_req[c].data_argc;
-      // Assign the output of shared accelerator to all the ports
-      assign acc_resp[c].id     = divsqrt_resp[c/NumCoresPerDivsqrt].id;
-      assign acc_resp[c].error  = divsqrt_resp[c/NumCoresPerDivsqrt].error;
-      assign acc_resp[c].data   = divsqrt_resp[c/NumCoresPerDivsqrt].data;
+      if (snitch_pkg::XDIVSQRT) begin: gen_sh_acc_interface
+        // Assign the cores' hart_id to the corresponding shared accelerator
+        assign sh_acc_req[c].addr      = acc_req[c].addr;
+        assign sh_acc_req[c].id        = acc_req[c].id;
+        assign sh_acc_req[c].hart_id   = hart_id[$clog2(NumCoresPerDivsqrt)-1:0];
+        assign sh_acc_req[c].data_op   = acc_req[c].data_op;
+        assign sh_acc_req[c].data_arga = acc_req[c].data_arga;
+        assign sh_acc_req[c].data_argb = acc_req[c].data_argb;
+        assign sh_acc_req[c].data_argc = acc_req[c].data_argc;
+        // Assign the output of shared accelerator to its corresponding cores
+        assign acc_resp[c].id     = divsqrt_resp[c/NumCoresPerDivsqrt].id;
+        assign acc_resp[c].error  = divsqrt_resp[c/NumCoresPerDivsqrt].error;
+        assign acc_resp[c].data   = divsqrt_resp[c/NumCoresPerDivsqrt].data;
+      end else begin: silence_sh_acc_interface
+        assign sh_acc_req[c]        = '0;
+        assign acc_resp[c]          = '0;
+        assign sh_acc_resp_valid[c] = '0;
+        assign sh_acc_req_ready[c]  = '0;
+      end
     end else begin
-      assign acc_resp[c]                                               = '0;
-      assign sh_acc_resp_valid[c]                                      = '0;
-      assign sh_acc_req_ready[c]                                       = '0;
+      if (snitch_pkg::XDIVSQRT) begin: gen_sh_acc_interface
+        assign acc_resp[c]                                               = '0;
+        assign sh_acc_resp_valid[c]                                      = '0;
+        assign sh_acc_req_ready[c]                                       = '0;
+      end: gen_sh_acc_interface
       assign snitch_data_qaddr[c]                                      = '0;
       assign snitch_data_qwrite[c]                                     = '0;
       assign snitch_data_qamo[c]                                       = '0;
