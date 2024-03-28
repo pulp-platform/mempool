@@ -184,5 +184,5 @@ toolchain/riscv-opcodes/*:
 format:
 	$(ROOT_DIR)/scripts/run_clang_format.py --clang-format-executable=$(LLVM_INSTALL_DIR)/bin/clang-format -i -r $(ROOT_DIR)
 
-clean: clean_test
+clean: clean-riscv-tests
 	rm -rf $(INSTALL_DIR)

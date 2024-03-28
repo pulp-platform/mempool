@@ -37,15 +37,15 @@ RISCV_TESTS := $(addprefix bin/,$(rtl_mempool_tests))
 
 define rtl_mempool_tests_template
 
-RISCV-TESTS-$(1) := $(addprefix bin/,$($(1)_mempool_tests))
+RISCV_TESTS_$(1) := $(addprefix bin/,$($(1)_mempool_tests))
 
-$$(RISCV-TESTS-$(1)): bin/$(1)-mempool-%: $(RISCV_TESTS_DIR)/$(1)/%.S $(LINKER_SCRIPT)
+$$(RISCV_TESTS_$(1)): bin/$(1)-mempool-%: $(RISCV_TESTS_DIR)/$(1)/%.S $(LINKER_SCRIPT)
 	mkdir -p $$(shell dirname $$@)
 	$$(RISCV_CC) $$(RISCV_CCFLAGS_TESTS) -T$$(RUNTIME_DIR)/link.ld $$< -o $$@
 	$$(RISCV_STRIP) $$@ -g -S -d --strip-debug
 	$$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $$@ > $$@.dump
-
 endef
+
 
 ifeq ($(COMPILER), llvm)
 $(eval $(call rtl_mempool_tests_template,rv32ui))
@@ -76,4 +76,4 @@ update_opcodes:
 	make -C $(MEMPOOL_DIR) update_opcodes
 
 .PHONY: clean
-clean: clean-test clean-apps clean-halide-apps
+clean: clean-tests clean-apps clean-riscv-test
