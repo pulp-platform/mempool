@@ -1,5 +1,18 @@
+#pragma once
 
+#include "stdarg.h"
 #include "stdint.h"
+
+#ifndef NUM_THREADS
+#define NUM_THREADS 1
+#endif
+
+typedef struct {
+  void (*fn)(void *);
+  void *data;
+} kmp_event_t;
+
+extern kmp_event_t kmp_event;
 
 typedef struct {
   int reserved_1;
@@ -27,6 +40,11 @@ void __kmpc_for_static_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
                               kmp_int32 incr, kmp_int32 chunk);
 
 void __kmpc_for_static_fini(ident_t *loc, kmp_int32 global_tid);
+
+int __kmp_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask,
+                    va_list ap);
+
+void __kmp_run_task(kmp_int32 gtid);
 
 #ifdef __cplusplus
 }
