@@ -1,9 +1,14 @@
 #include "kmp.h"
+#include "printf.h"
 #include "runtime.h"
 
+// Parallel
+
 void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...) {
-  uint32_t core_id = mempool_get_core_id();
-  printf("%u\n", core_id);
+  va_list ap;
+  va_start(ap, microtask);
+
+  __kmp_fork_call(loc, argc, microtask, ap);
 };
 
 void __kmpc_for_static_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,

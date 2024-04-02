@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <stdint.h>
 #include "kmp.h"
+#include "runtime.h"
+#include <stdint.h>
 
-/* parallel.c */
-extern uint32_t omp_get_num_threads(void);
-extern uint32_t omp_get_thread_num(void);
+uint32_t omp_get_num_threads(void);
+extern uint32_t omp_get_thread_num(void) { return mempool_get_core_id(); };
