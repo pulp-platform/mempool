@@ -63,7 +63,7 @@ SECTIONS {
   .bss : {
     __bss_start = .;
     *(.bss)
-    *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*);
+    *(.sbss .sbss2 .sbss2.* .gnu.linkonce.sb2.*);
     __bss_end = .;
   } > l2
 
