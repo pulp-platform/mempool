@@ -9,7 +9,11 @@ int __wrap_main() {
   if (core_id == 0) {
     printf("Running OpenMP program on %d cores\n", mempool_get_core_count());
 
-    int res = __real_main();
+    // Init heap allocators
+    mempool_init(0);
+
+    // Run the program
+    __real_main();
 
     // Go to sleep since progam is done
     mempool_wfi();
