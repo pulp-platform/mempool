@@ -1,5 +1,8 @@
-#include "runtime.h"
 #include <stdint.h>
+
+extern "C" {
+#include "runtime.h"
+}
 
 void __kmp_barrier(volatile uint32_t *barrier, uint32_t num_cores) {
   // Increment the barrier counter

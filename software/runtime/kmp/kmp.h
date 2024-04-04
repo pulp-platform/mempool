@@ -1,11 +1,6 @@
 #pragma once
 
-#include "stdarg.h"
 #include "stdint.h"
-
-#ifndef NUM_THREADS
-#define NUM_THREADS 1
-#endif
 
 typedef struct {
   void (*fn)(void *);
@@ -32,6 +27,7 @@ typedef void (*kmpc_micro_bound)(kmp_int32 *bound_tid, kmp_int32 *bound_nth,
 extern "C" {
 #endif
 
+// C interface
 void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...);
 
 void __kmpc_for_static_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
@@ -41,8 +37,8 @@ void __kmpc_for_static_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
 
 void __kmpc_for_static_fini(ident_t *loc, kmp_int32 global_tid);
 
-int __kmp_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask,
-                    va_list ap);
+// C++ interface
+void __kmp_init();
 
 void __kmp_run_task(kmp_int32 gtid);
 
