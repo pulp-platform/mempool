@@ -6,9 +6,15 @@
 
 #pragma once
 
-#include "kmp.h"
-#include "runtime.h"
 #include <stdint.h>
 
-uint32_t omp_get_num_threads(void);
-extern uint32_t omp_get_thread_num(void) { return mempool_get_core_id(); };
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern uint32_t omp_get_num_threads(void);
+extern uint32_t omp_get_thread_num(void);
+
+#ifdef __cplusplus
+}
+#endif

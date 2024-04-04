@@ -1,9 +1,12 @@
 #include "kmp.h"
+#include "parallel.hpp"
 #include "printf.h"
+
+extern "C" {
 #include "runtime.h"
+}
 
 // Parallel
-
 void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...) {
   va_list ap;
   va_start(ap, microtask);
