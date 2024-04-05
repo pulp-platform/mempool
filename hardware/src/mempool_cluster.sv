@@ -17,32 +17,32 @@ module mempool_cluster
   parameter int    unsigned        NumAXIMasters = NumGroups * NumAXIMastersPerGroup
 ) (
   // Clock and reset
-  input  logic                               clk_i,
-  input  logic                               rst_ni,
-  input  logic                               testmode_i,
+  input  logic                                    clk_i,
+  input  logic                                    rst_ni,
+  input  logic                                    testmode_i,
   // Scan chain
-  input  logic                               scan_enable_i,
-  input  logic                               scan_data_i,
-  output logic                               scan_data_o,
+  input  logic                                    scan_enable_i,
+  input  logic                                    scan_data_i,
+  output logic                                    scan_data_o,
   // Wake up signal
-  input  logic           [NumCores-1:0]      wake_up_i,
+  input  logic           [NumCoresPerCluster-1:0] wake_up_i,
   // RO-Cache configuration
-  input  ro_cache_ctrl_t                     ro_cache_ctrl_i,
+  input  ro_cache_ctrl_t                          ro_cache_ctrl_i,
   // DMA request
-  input  dma_req_t                           dma_req_i,
-  input  logic                               dma_req_valid_i,
-  output logic                               dma_req_ready_o,
+  input  dma_req_t                                dma_req_i,
+  input  logic                                    dma_req_valid_i,
+  output logic                                    dma_req_ready_o,
   // DMA status
-  output dma_meta_t                          dma_meta_o,
+  output dma_meta_t                               dma_meta_o,
   // AXI Interface
-  output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
-  input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
+  output axi_tile_req_t  [NumAXIMasters-1:0]      axi_mst_req_o,
+  input  axi_tile_resp_t [NumAXIMasters-1:0]      axi_mst_resp_i
 );
 
   /*********************
    *  Control Signals  *
    *********************/
-  logic [NumCores-1:0] wake_up_q;
+  logic [NumCoresPerCluster-1:0] wake_up_q;
   `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
 
   ro_cache_ctrl_t [NumGroups-1:0] ro_cache_ctrl_q;
@@ -494,13 +494,13 @@ module mempool_cluster
    *  Assertions  *
    ****************/
 
-  if (NumCores > 1024)
-    $fatal(1, "[mempool] MemPool is currently limited to 1024 cores.");
+  if (NumCoresPerCluster > 1024)
+    $fatal(1, "[mempool] The MemPool cluster is currently limited to 1024 cores.");
 
-  if (NumTiles < NumGroups)
+  if (NumTilesPerCluster < NumGroupsPerCluster)
     $fatal(1, "[mempool] MemPool requires more tiles than groups.");
 
-  if (NumCores != NumTiles * NumCoresPerTile)
+  if (NumCoresPerCluster != NumTilesPerCluster * NumCoresPerTile)
     $fatal(1, "[mempool] The number of cores is not divisible by the number of cores per tile.");
 
   if (BankingFactor < 1)

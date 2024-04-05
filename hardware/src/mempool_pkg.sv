@@ -14,19 +14,23 @@ package mempool_pkg;
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
-  localparam integer unsigned NumCores          = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
-  localparam integer unsigned NumCoresPerTile   = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
-  localparam integer unsigned NumDivsqrtPerTile = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
-  localparam integer unsigned NumGroups         = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
-  localparam integer unsigned MAX_NumGroups     = 8;
-  localparam integer unsigned NumTiles          = NumCores / NumCoresPerTile;
-  localparam integer unsigned NumTilesPerGroup  = NumTiles / NumGroups;
-  localparam integer unsigned NumCoresPerGroup  = NumCores / NumGroups;
-  localparam integer unsigned NumCoresPerCache  = NumCoresPerTile;
-  localparam integer unsigned AxiCoreIdWidth    = 1;
-  localparam integer unsigned AxiTileIdWidth    = AxiCoreIdWidth+1; // + 1 for cache
-  localparam integer unsigned AxiDataWidth      = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
-  localparam integer unsigned AxiLiteDataWidth  = 32;
+  localparam integer unsigned NumCores            = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
+  localparam integer unsigned NumCoresPerTile     = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
+  localparam integer unsigned NumDivsqrtPerTile   = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
+  localparam integer unsigned NumGroups           = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
+  localparam integer unsigned NumClusters         = `ifdef NUM_CLUSTERS `NUM_CLUSTERS `else 0 `endif;
+  localparam integer unsigned MAX_NumGroups       = 32;
+  localparam integer unsigned NumGroupsPerCluster = NumGroups / NumClusters;
+  localparam integer unsigned NumTiles            = NumCores / NumCoresPerTile;
+  localparam integer unsigned NumTilesPerCluster  = NumTiles / NumClusters;
+  localparam integer unsigned NumTilesPerGroup    = NumTiles / NumGroups;
+  localparam integer unsigned NumCoresPerCluster  = NumCores / NumClusters;
+  localparam integer unsigned NumCoresPerGroup    = NumCores / NumGroups;
+  localparam integer unsigned NumCoresPerCache    = NumCoresPerTile;
+  localparam integer unsigned AxiCoreIdWidth      = 1;
+  localparam integer unsigned AxiTileIdWidth      = AxiCoreIdWidth+1; // + 1 for cache
+  localparam integer unsigned AxiDataWidth        = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
+  localparam integer unsigned AxiLiteDataWidth    = 32;
 
   /***********************
    *  MEMORY PARAMETERS  *
@@ -36,10 +40,13 @@ package mempool_pkg;
   localparam integer unsigned DataWidth        = 32;
   localparam integer unsigned BeWidth          = DataWidth / 8;
   localparam integer unsigned ByteOffset       = $clog2(BeWidth);
+  // L1 SPM memory
   localparam integer unsigned BankingFactor    = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
   localparam bit              LrScEnable       = 1'b1;
   localparam integer unsigned TCDMSizePerBank  = `ifdef L1_BANK_SIZE `L1_BANK_SIZE `else 0 `endif;
   localparam integer unsigned NumBanks         = NumCores * BankingFactor;
+  localparam integer unsigned L1Size           = NumCores * BankingFactor * TCDMSizePerBank;
+  localparam integer unsigned L1SizePerCluster = L1Size / NumClusters;
   localparam integer unsigned NumBanksPerTile  = NumBanks / NumTiles;
   localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
