@@ -16,10 +16,13 @@ ifndef config
     config := $(MEMPOOL_CONFIGURATION)
   else
     # Default configuration, if neither `config` nor `MEMPOOL_CONFIGURATION` was found
-    config := mempool
+    config := multipool
   endif
 endif
 include $(MEMPOOL_DIR)/config/$(config).mk
+
+# Number of clusters
+num_clusters ?= 1
 
 #############################
 ##  Address configuration  ##

@@ -77,11 +77,11 @@ module mempool_system
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
 
-  dma_req_t  dma_req;
-  logic      dma_req_valid;
-  logic      dma_req_ready;
-  dma_meta_t dma_meta;
-  logic      [1-1:0] dma_id;
+  dma_req_t[NumClusters-1:0]    dma_req;
+  logic[NumClusters-1:0]        dma_req_valid;
+  logic[NumClusters-1:0]        dma_req_ready;
+  dma_meta_t[NumClusters-1:0]   dma_meta;
+  logic[NumClusters-1:0][1-1:0] dma_id;
 
   localparam xbar_cfg_t MstDemuxCfg = '{
     NoSlvPorts         : 1, // Each master has a private demux
@@ -118,26 +118,27 @@ module mempool_system
   /*********************
    *  MemPool Cluster  *
    ********************/
-
-  mempool_cluster #(
-    .TCDMBaseAddr(TCDMBaseAddr),
-    .BootAddr    (BootAddr    )
-  ) i_mempool_cluster (
-    .clk_i          (clk_i                          ),
-    .rst_ni         (rst_ni                         ),
-    .wake_up_i      (wake_up                        ),
-    .testmode_i     (1'b0                           ),
-    .scan_enable_i  (1'b0                           ),
-    .scan_data_i    (1'b0                           ),
-    .scan_data_o    (/* Unused */                   ),
-    .ro_cache_ctrl_i(ro_cache_ctrl                  ),
-    .dma_req_i      (dma_req                        ),
-    .dma_req_valid_i(dma_req_valid                  ),
-    .dma_req_ready_o(dma_req_ready                  ),
-    .dma_meta_o     (dma_meta                       ),
-    .axi_mst_req_o  (axi_mst_req[NumAXIMasters-2:0] ),
-    .axi_mst_resp_i (axi_mst_resp[NumAXIMasters-2:0])
-  );
+  for (genvar i = 0; i < NumClusters; i++) begin : gen_clusters
+    mempool_cluster #(
+      .TCDMBaseAddr(i*L1SizePerCluster),
+      .BootAddr    (BootAddr          )
+    ) i_mempool_cluster (
+      .clk_i          (clk_i                                                       ),
+      .rst_ni         (rst_ni                                                      ),
+      .wake_up_i      (wake_up[i*NumCoresPerCluster+:NumCoresPerCluster]           ),
+      .testmode_i     (1'b0                                                        ),
+      .scan_enable_i  (1'b0                                                        ),
+      .scan_data_i    (1'b0                                                        ),
+      .scan_data_o    (/* Unused */                                                ),
+      .ro_cache_ctrl_i(ro_cache_ctrl                                               ),
+      .dma_req_i      (dma_req[i]                                                  ),
+      .dma_req_valid_i(dma_req_valid[i]                                            ),
+      .dma_req_ready_o(dma_req_ready[i]                                            ),
+      .dma_meta_o     (dma_meta[i]                                                 ),
+      .axi_mst_req_o  (axi_mst_req[i*NumAXIMastersPerGroup+:NumAXIMastersPerGroup] ),
+      .axi_mst_resp_i (axi_mst_resp[i*NumAXIMastersPerGroup+:NumAXIMastersPerGroup])
+    );
+  end
 
   /**********************
    *  AXI Interconnect  *
@@ -445,12 +446,14 @@ module mempool_system
    *  Control Registers  *
    ***********************/
 
-  localparam NumPeriphs = 2; // Control registers + DMA
+  localparam NumPeriphs = 1 + NumClusters; // Control registers + (NumClusters * DMA)
 
-  typedef enum logic [$clog2(NumPeriphs) - 1:0] {
-    CtrlRegisters,
-    DMA
-  } axi_lite_xbar_slave_target;
+  localparam CtrlRegisters = 0;
+  localparam DMA = 1;
+  // typedef enum logic [$clog2(NumPeriphs) - 1:0] {
+  //   CtrlRegisters,
+  //   DMA
+  // } axi_lite_xbar_slave_target;
 
   axi_periph_req_t                     axi_periph_narrow_req;
   axi_periph_resp_t                    axi_periph_narrow_resp;
@@ -479,12 +482,13 @@ module mempool_system
   localparam addr_t CtrlRegistersEndAddr  = 32'h4001_0000;
   localparam addr_t DMABaseAddr           = 32'h4001_0000;
   localparam addr_t DMAEndAddr            = 32'h4002_0000;
+  localparam addr_t DMARangeAddr          = DMAEndAddr - DMABaseAddr;
 
   xbar_rule_32_t [NumPeriphs-1:0] axi_lite_xbar_rules;
-  assign axi_lite_xbar_rules = '{
-    '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
-    '{idx: DMA, start_addr: DMABaseAddr, end_addr: DMAEndAddr}
-  };
+  assign axi_lite_xbar_rules[CtrlRegisters] = '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr};
+  for (genvar i = 0; i < NumClusters; i++) begin : gen_dma_addr_map
+    assign axi_lite_xbar_rules[DMA + i] = '{idx: DMA + i, start_addr: DMABaseAddr+(i*DMARangeAddr), end_addr: DMAEndAddr+(i*DMARangeAddr)};
+  end
 
   axi_dw_converter #(
     .AxiMaxReads         (1                ), // Number of outstanding reads
@@ -576,24 +580,26 @@ module mempool_system
     .ro_cache_ctrl_o      (ro_cache_ctrl                   )
   );
 
-  mempool_dma #(
-    .axi_lite_req_t(axi_lite_slv_req_t       ),
-    .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
-    .burst_req_t   (dma_req_t                ),
-    .NumBackends   (NumGroups                ),
-    .DmaIdWidth    (1                        )
-  ) i_mempool_dma (
-    .clk_i           (clk_i                 ),
-    .rst_ni          (rst_ni                ),
-    .config_req_i    (axi_lite_slv_req[DMA] ),
-    .config_res_o    (axi_lite_slv_resp[DMA]),
-    .burst_req_o     (dma_req               ),
-    .valid_o         (dma_req_valid         ),
-    .ready_i         (dma_req_ready         ),
-    .backend_idle_i  (dma_meta.backend_idle),
-    .trans_complete_i(dma_meta.trans_complete),
-    .dma_id_o        (dma_id                )
-  );
+  for (genvar i = 0; i < NumClusters; i++) begin : gen_mempool_dma
+    mempool_dma #(
+      .axi_lite_req_t(axi_lite_slv_req_t       ),
+      .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
+      .burst_req_t   (dma_req_t                ),
+      .NumBackends   (NumGroupsPerCluster      ),
+      .DmaIdWidth    (1                        )
+    ) i_mempool_dma (
+      .clk_i           (clk_i                     ),
+      .rst_ni          (rst_ni                    ),
+      .config_req_i    (axi_lite_slv_req[DMA+i]   ),
+      .config_res_o    (axi_lite_slv_resp[DMA+i]  ),
+      .burst_req_o     (dma_req[i]                ),
+      .valid_o         (dma_req_valid[i]          ),
+      .ready_i         (dma_req_ready[i]          ),
+      .backend_idle_i  (dma_meta[i].backend_idle  ),
+      .trans_complete_i(dma_meta[i].trans_complete),
+      .dma_id_o        (dma_id[i]                 )
+    );
+  end
 
   assign busy_o = 1'b0;
 
