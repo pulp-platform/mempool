@@ -28,19 +28,19 @@ module mempool_tile
   // Tile ID
   input  logic              [idx_width(NumTiles)-1:0]                             tile_id_i,
   // TCDM Master interfaces
-  output `STRUCT_VECT(tcdm_master_req_t,  [NumGroups+NumSubGroupsPerGroup-1-1:0]) tcdm_master_req_o,
-  output logic              [NumGroups+NumSubGroupsPerGroup-1-1:0]                tcdm_master_req_valid_o,
-  input  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0]                tcdm_master_req_ready_i,
-  input  `STRUCT_VECT(tcdm_master_resp_t, [NumGroups+NumSubGroupsPerGroup-1-1:0]) tcdm_master_resp_i,
-  input  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0]                tcdm_master_resp_valid_i,
-  output logic              [NumGroups+NumSubGroupsPerGroup-1-1:0]                tcdm_master_resp_ready_o,
+  output `STRUCT_VECT(tcdm_master_req_t,  [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]) tcdm_master_req_o,
+  output logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]                tcdm_master_req_valid_o,
+  input  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]                tcdm_master_req_ready_i,
+  input  `STRUCT_VECT(tcdm_master_resp_t, [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]) tcdm_master_resp_i,
+  input  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]                tcdm_master_resp_valid_i,
+  output logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]                tcdm_master_resp_ready_o,
   // TCDM slave interfaces
-  input  `STRUCT_VECT(tcdm_slave_req_t,   [NumGroups+NumSubGroupsPerGroup-1-1:0]) tcdm_slave_req_i,
-  input  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0]                tcdm_slave_req_valid_i,
-  output logic              [NumGroups+NumSubGroupsPerGroup-1-1:0]                tcdm_slave_req_ready_o,
-  output `STRUCT_VECT(tcdm_slave_resp_t,  [NumGroups+NumSubGroupsPerGroup-1-1:0]) tcdm_slave_resp_o,
-  output logic              [NumGroups+NumSubGroupsPerGroup-1-1:0]                tcdm_slave_resp_valid_o,
-  input  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0]                tcdm_slave_resp_ready_i,
+  input  `STRUCT_VECT(tcdm_slave_req_t,   [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]) tcdm_slave_req_i,
+  input  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]                tcdm_slave_req_valid_i,
+  output logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]                tcdm_slave_req_ready_o,
+  output `STRUCT_VECT(tcdm_slave_resp_t,  [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]) tcdm_slave_resp_o,
+  output logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]                tcdm_slave_resp_valid_o,
+  input  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0]                tcdm_slave_resp_ready_i,
   // TCDM DMA interfaces
   input  `STRUCT_PORT(tcdm_dma_req_t)                                             tcdm_dma_req_i,
   input  logic                                                                    tcdm_dma_req_valid_i,
@@ -69,10 +69,10 @@ module mempool_tile
   import snitch_pkg::dreq_t;
   import snitch_pkg::dresp_t;
 
-  typedef logic [idx_width(NumGroups)-1:0] group_id_t;
+  typedef logic [idx_width(NumGroupsPerCluster)-1:0] group_id_t;
 
   // Local interconnect address width
-  typedef logic [idx_width(NumCoresPerTile + NumGroups + NumSubGroupsPerGroup - 1)-1:0] local_req_interco_addr_t;
+  typedef logic [idx_width(NumCoresPerTile + NumGroupsPerCluster + NumSubGroupsPerGroup - 1)-1:0] local_req_interco_addr_t;
 
   /*********************
    *  Control Signals  *
@@ -81,9 +81,9 @@ module mempool_tile
   `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
 
   // Group ID
-  logic [idx_width(NumGroups)-1:0] group_id;
-  if (NumGroups != 1) begin: gen_group_id
-    assign group_id = tile_id_i[$clog2(NumTiles)-1 -: $clog2(NumGroups)];
+  logic [idx_width(NumGroupsPerCluster)-1:0] group_id;
+  if (NumGroupsPerCluster != 1) begin: gen_group_id
+    assign group_id = tile_id_i[$clog2(NumTilesPerCluster)-1 -: $clog2(NumGroupsPerCluster)];
   end else begin: gen_group_id
     assign group_id = '0;
   end: gen_group_id
@@ -92,7 +92,7 @@ module mempool_tile
     // SubGroup ID
     logic [idx_width(NumSubGroupsPerGroup)-1:0] sub_group_id;
     if (NumSubGroupsPerGroup != 1) begin: gen_sub_group_id
-      assign sub_group_id = tile_id_i[$clog2(NumTiles)-$clog2(NumGroups)-1 -: $clog2(NumSubGroupsPerGroup)];
+      assign sub_group_id = tile_id_i[$clog2(NumTilesPerCluster)-$clog2(NumGroupsPerCluster)-1 -: $clog2(NumSubGroupsPerGroup)];
     end else begin: gen_sub_group_id
       assign sub_group_id = '0;
     end: gen_sub_group_id
@@ -562,22 +562,22 @@ module mempool_tile
 
   // These are required to break dependencies between request and response, establishing a correct
   // valid/ready handshake.
-  tcdm_master_req_t  [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_master_req;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_master_req_valid;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_master_req_ready;
-  tcdm_slave_req_t   [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_slave_req;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_slave_req_valid;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_slave_req_ready;
-  tcdm_slave_resp_t  [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_valid;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_ready;
-  tcdm_master_resp_t [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp;
-  tile_core_id_t     [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_ini_sel;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_valid;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_ready;
+  tcdm_master_req_t  [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_master_req;
+  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_master_req_valid;
+  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_master_req_ready;
+  tcdm_slave_req_t   [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_slave_req;
+  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_slave_req_valid;
+  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_slave_req_ready;
+  tcdm_slave_resp_t  [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp;
+  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_valid;
+  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_ready;
+  tcdm_master_resp_t [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp;
+  tile_core_id_t     [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_ini_sel;
+  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_valid;
+  logic              [NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_ready;
 
   // Break paths between request and response with registers
-  for (genvar h = 0; unsigned'(h) < NumGroups+NumSubGroupsPerGroup-1; h++) begin: gen_tcdm_registers
+  for (genvar h = 0; unsigned'(h) < NumGroupsPerCluster+NumSubGroupsPerGroup-1; h++) begin: gen_tcdm_registers
     spill_register #(
       .T(tcdm_master_req_t)
     ) i_tcdm_master_req_register (
@@ -659,7 +659,7 @@ module mempool_tile
 
   stream_xbar #(
     .NumInp   (NumCoresPerTile                 ),
-    .NumOut   (NumGroups+NumSubGroupsPerGroup-1),
+    .NumOut   (NumGroupsPerCluster+NumSubGroupsPerGroup-1),
     .payload_t(tcdm_master_req_t               )
   ) i_remote_req_interco (
     .clk_i  (clk_i                       ),
@@ -680,7 +680,7 @@ module mempool_tile
   );
 
   stream_xbar #(
-    .NumInp   (NumGroups+NumSubGroupsPerGroup-1),
+    .NumInp   (NumGroupsPerCluster+NumSubGroupsPerGroup-1),
     .NumOut   (NumCoresPerTile                 ),
     .payload_t(tcdm_master_resp_t              )
   ) i_remote_resp_interco (
@@ -712,16 +712,16 @@ module mempool_tile
   logic             [NumCoresPerTile-1:0] local_resp_interco_ready;
   tcdm_slave_resp_t [NumCoresPerTile-1:0] local_resp_interco_payload;
 
-  logic [NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1-1:0][idx_width(NumBanksPerTile)-1:0] local_req_interco_tgt_sel;
+  logic [NumCoresPerTile+NumGroupsPerCluster+NumSubGroupsPerGroup-1-1:0][idx_width(NumBanksPerTile)-1:0] local_req_interco_tgt_sel;
   for (genvar j = 0; unsigned'(j) < NumCoresPerTile; j++) begin: gen_local_req_interco_tgt_sel_local
     assign local_req_interco_tgt_sel[j]  = local_req_interco_payload[j].tgt_addr[idx_width(NumBanksPerTile)-1:0];
   end: gen_local_req_interco_tgt_sel_local
-  for (genvar j = 0; unsigned'(j) < NumGroups+NumSubGroupsPerGroup-1; j++) begin: gen_local_req_interco_tgt_sel_remote
+  for (genvar j = 0; unsigned'(j) < NumGroupsPerCluster+NumSubGroupsPerGroup-1; j++) begin: gen_local_req_interco_tgt_sel_remote
     assign local_req_interco_tgt_sel[j + NumCoresPerTile]  = postreg_tcdm_slave_req[j].tgt_addr[idx_width(NumBanksPerTile)-1:0];
   end: gen_local_req_interco_tgt_sel_remote
 
   stream_xbar #(
-    .NumInp   (NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1),
+    .NumInp   (NumCoresPerTile+NumGroupsPerCluster+NumSubGroupsPerGroup-1),
     .NumOut   (NumBanksPerTile                                 ),
     .payload_t(tcdm_slave_req_t                                )
   ) i_local_req_interco (
@@ -744,7 +744,7 @@ module mempool_tile
 
   stream_xbar #(
     .NumInp   (NumBanksPerTile                                 ),
-    .NumOut   (NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1),
+    .NumOut   (NumCoresPerTile+NumGroupsPerCluster+NumSubGroupsPerGroup-1),
     .payload_t(tcdm_slave_resp_t                               )
   ) i_local_resp_interco (
     .clk_i  (clk_i                                                   ),
@@ -795,7 +795,7 @@ module mempool_tile
     },
     // Highest priority: send request through the local TCDM port
     '{slave_idx: TCDM_LOCAL,
-      mask     : TCDMMask | ({idx_width(NumTiles){1'b1}} << (ByteOffset + $clog2(NumBanksPerTile))),
+      mask     : TCDMMask | ({idx_width(NumTilesPerCluster){1'b1}} << (ByteOffset + $clog2(NumBanksPerTile))),
       value    : TCDMBaseAddr | (tile_id_i << (ByteOffset + $clog2(NumBanksPerTile)))
     }
   };
@@ -805,25 +805,25 @@ module mempool_tile
       // Remove tile index from local_req_interco_addr_int, since it will not be used for routing.
       addr_t local_req_interco_addr_int;
       assign local_req_interco_payload[c].tgt_addr =
-       tcdm_addr_t'({local_req_interco_addr_int[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
+       tcdm_addr_t'({local_req_interco_addr_int[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerCluster) +: TCDMAddrMemWidth], // Bank address
                local_req_interco_addr_int[ByteOffset +: idx_width(NumBanksPerTile)]}); // Bank
 
       // Switch tile and bank indexes for correct upper level routing, and remove the group index
       addr_t prescramble_tcdm_req_tgt_addr;
       if (NumTilesPerGroup == 1) begin : gen_remote_req_interco_tgt_addr
         assign remote_req_interco[c].tgt_addr =
-        tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumGroups) +: TCDMAddrMemWidth], // Bank address
+        tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumGroupsPerCluster) +: TCDMAddrMemWidth], // Bank address
            prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)]}); // Tile
       end else begin : gen_remote_req_interco_tgt_addr
         always_comb begin
           if (remote_req_interco_tgt_g_sel_tmp[c] == 'b0) begin
             remote_req_interco[c].tgt_addr =
-            tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroups) +: TCDMAddrMemWidth], // Bank address
+            tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroupsPerCluster) +: TCDMAddrMemWidth], // Bank address
             prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)], // Bank
             prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) +: $clog2(NumTilesPerSubGroup)]}); // Tile
           end else begin
             remote_req_interco[c].tgt_addr =
-            tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroups) +: TCDMAddrMemWidth], // Bank address
+            tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroupsPerCluster) +: TCDMAddrMemWidth], // Bank address
             prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)], // Bank
             prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) +: $clog2(NumTilesPerGroup)]}); // Tile
           end
@@ -831,7 +831,7 @@ module mempool_tile
       end
 
       // Remote selection signal
-      if (NumGroups == 1) begin : gen_remote_req_interco_tgt_sel
+      if (NumGroupsPerCluster == 1) begin : gen_remote_req_interco_tgt_sel
         if (NumSubGroupsPerGroup == 1) begin : gen_const_sel
           assign remote_req_interco_tgt_sel[c] = 1'b0;
         end else begin : gen_const_sel
@@ -840,9 +840,9 @@ module mempool_tile
       end else begin : gen_remote_req_interco_tgt_sel
         // Output port depends on both the target and initiator group and sub-group
         if (NumSubGroupsPerGroup == 1) begin : gen_remote_group_sel
-          assign remote_req_interco_tgt_sel[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)]) ^ group_id;
+          assign remote_req_interco_tgt_sel[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroupsPerCluster)]) ^ group_id;
         end else begin : gen_remote_group_sel
-          assign remote_req_interco_tgt_g_sel_tmp[c]  = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)]) ^ group_id;
+          assign remote_req_interco_tgt_g_sel_tmp[c]  = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroupsPerCluster)]) ^ group_id;
           assign remote_req_interco_tgt_sg_sel_tmp[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerSubGroup) +: $clog2(NumSubGroupsPerGroup)]) ^ sub_group_id;
           always_comb begin : gen_remote_sub_group_sel
             if (remote_req_interco_tgt_g_sel_tmp[c] == 'b0) begin: gen_local_group_sel
@@ -857,26 +857,26 @@ module mempool_tile
       // Remove tile index from local_req_interco_addr_int, since it will not be used for routing.
       addr_t local_req_interco_addr_int;
       assign local_req_interco_payload[c].tgt_addr =
-       tcdm_addr_t'({local_req_interco_addr_int[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth], // Bank address
+       tcdm_addr_t'({local_req_interco_addr_int[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerCluster) +: TCDMAddrMemWidth], // Bank address
                local_req_interco_addr_int[ByteOffset +: idx_width(NumBanksPerTile)]}); // Bank
 
       // Switch tile and bank indexes for correct upper level routing, and remove the group index
       addr_t prescramble_tcdm_req_tgt_addr;
       if (NumTilesPerGroup == 1) begin : gen_remote_req_interco_tgt_addr
         assign remote_req_interco[c].tgt_addr =
-        tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumGroups) +: TCDMAddrMemWidth], // Bank address
+        tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumGroupsPerCluster) +: TCDMAddrMemWidth], // Bank address
            prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)]}); // Tile
       end else begin : gen_remote_req_interco_tgt_addr
         assign remote_req_interco[c].tgt_addr =
-        tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroups) +: TCDMAddrMemWidth], // Bank address
+        tcdm_addr_t'({prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroupsPerCluster) +: TCDMAddrMemWidth], // Bank address
            prescramble_tcdm_req_tgt_addr[ByteOffset +: idx_width(NumBanksPerTile)],                                                                              // Bank
            prescramble_tcdm_req_tgt_addr[ByteOffset + idx_width(NumBanksPerTile) +: $clog2(NumTilesPerGroup)]}); // Tile
       end
-      if (NumGroups == 1) begin : gen_remote_req_interco_tgt_sel
+      if (NumGroupsPerCluster == 1) begin : gen_remote_req_interco_tgt_sel
         assign remote_req_interco_tgt_sel[c] = 1'b0;
       end else begin : gen_remote_req_interco_tgt_sel
         // Output port depends on both the target and initiator group
-        assign remote_req_interco_tgt_sel[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)]) ^ group_id;
+        assign remote_req_interco_tgt_sel[c] = (prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroupsPerCluster)]) ^ group_id;
       end
     `endif
 
@@ -891,12 +891,13 @@ module mempool_tile
     // Scramble address before entering TCDM shim for sequential+interleaved memory map
     addr_t snitch_data_qaddr_scrambled;
     address_scrambler #(
-      .AddrWidth         (AddrWidth        ),
-      .ByteOffset        (ByteOffset       ),
-      .NumTiles          (NumTiles         ),
-      .NumBanksPerTile   (NumBanksPerTile  ),
-      .Bypass            (0                ),
-      .SeqMemSizePerTile (SeqMemSizePerTile)
+      .AddrWidth         (AddrWidth         ),
+      .ByteOffset        (ByteOffset        ),
+      .NumTiles          (NumTilesPerCluster),
+      .NumBanksPerTile   (NumBanksPerTile   ),
+      .Bypass            (0                 ),
+      .SeqMemSizePerTile (SeqMemSizePerTile ),
+      .BaseAddr          (TCDMBaseAddr      )
     ) i_address_scrambler (
       .address_i (snitch_data_qaddr[c]       ),
       .address_o (snitch_data_qaddr_scrambled)

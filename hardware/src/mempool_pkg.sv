@@ -36,21 +36,22 @@ package mempool_pkg;
    *  MEMORY PARAMETERS  *
    ***********************/
 
-  localparam integer unsigned AddrWidth        = 32;
-  localparam integer unsigned DataWidth        = 32;
-  localparam integer unsigned BeWidth          = DataWidth / 8;
-  localparam integer unsigned ByteOffset       = $clog2(BeWidth);
+  localparam integer unsigned AddrWidth          = 32;
+  localparam integer unsigned DataWidth          = 32;
+  localparam integer unsigned BeWidth            = DataWidth / 8;
+  localparam integer unsigned ByteOffset         = $clog2(BeWidth);
   // L1 SPM memory
-  localparam integer unsigned BankingFactor    = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
-  localparam bit              LrScEnable       = 1'b1;
-  localparam integer unsigned TCDMSizePerBank  = `ifdef L1_BANK_SIZE `L1_BANK_SIZE `else 0 `endif;
-  localparam integer unsigned NumBanks         = NumCores * BankingFactor;
-  localparam integer unsigned L1Size           = NumCores * BankingFactor * TCDMSizePerBank;
-  localparam integer unsigned L1SizePerCluster = L1Size / NumClusters;
-  localparam integer unsigned NumBanksPerTile  = NumBanks / NumTiles;
-  localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
-  localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
-  localparam integer unsigned TCDMAddrWidth    = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
+  localparam integer unsigned BankingFactor      = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
+  localparam bit              LrScEnable         = 1'b1;
+  localparam integer unsigned TCDMSizePerBank    = `ifdef L1_BANK_SIZE `L1_BANK_SIZE `else 0 `endif;
+  localparam integer unsigned NumBanks           = NumCores * BankingFactor;
+  localparam integer unsigned L1Size             = NumCores * BankingFactor * TCDMSizePerBank;
+  localparam integer unsigned L1SizePerCluster   = L1Size / NumClusters;
+  localparam integer unsigned NumBanksPerTile    = NumBanks / NumTiles;
+  localparam integer unsigned NumBanksPerGroup   = NumBanks / NumGroups;
+  localparam integer unsigned NumBanksPerCluster = NumBanks / NumClusters;
+  localparam integer unsigned TCDMAddrMemWidth   = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
+  localparam integer unsigned TCDMAddrWidth      = TCDMAddrMemWidth + idx_width(NumBanksPerGroup);
 
   // L2
   localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 0 `endif; // [B]
@@ -106,6 +107,7 @@ package mempool_pkg;
   `endif
 
   localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
+  localparam integer unsigned NumAXIMastersPerCluster = NumAXIMastersPerGroup * NumGroupsPerCluster;
 
   localparam NumSystemXbarMasters = (NumGroups * NumAXIMastersPerGroup) + 1; // +1 because the external host is also a master
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
@@ -310,8 +312,7 @@ package mempool_pkg;
    *****************/
 
   // TCDM Memory Region
-  localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
-  localparam addr_t TCDMMask = ~(TCDMSize - 1);
+  localparam addr_t TCDMMask = ~(L1SizePerCluster - 1);
 
   // Size in bytes of memory that is sequentially addressable per tile
   localparam int unsigned SeqMemSizePerCore = `ifdef SEQ_MEM_SIZE `SEQ_MEM_SIZE `else 0 `endif;

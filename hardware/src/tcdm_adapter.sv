@@ -45,8 +45,8 @@ module tcdm_adapter #(
   input  logic [DataWidth-1:0]     out_rdata_i  // Read data
 );
 
-  import mempool_pkg::NumCores;
-  import mempool_pkg::NumGroups;
+  import mempool_pkg::NumCoresPerCluster;
+  import mempool_pkg::NumGroupsPerCluster;
   import mempool_pkg::NumCoresPerTile;
   import cf_math_pkg::idx_width;
 
@@ -135,8 +135,8 @@ module tcdm_adapter #(
     .pop_i      (pop_resp && !rdata_empty)
   );
 
-  localparam int unsigned CoreIdWidth  = idx_width(NumCores);
-  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroups);
+  localparam int unsigned CoreIdWidth  = idx_width(NumCoresPerCluster);
+  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroupsPerCluster);
 
   logic sc_successful_d, sc_successful_q;
   logic sc_q;
