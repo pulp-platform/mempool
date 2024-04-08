@@ -120,11 +120,12 @@ module mempool_system
    ********************/
   for (genvar i = 0; i < NumClusters; i++) begin : gen_clusters
     mempool_cluster #(
-      .TCDMBaseAddr(i*L1SizePerCluster),
+      .TCDMBaseAddr(i*L1SizePerCluster), // TODO: i*L1SizePerCluster
       .BootAddr    (BootAddr          )
     ) i_mempool_cluster (
       .clk_i          (clk_i                                                       ),
       .rst_ni         (rst_ni                                                      ),
+      .cluster_id_i   (i                                                           ),
       .wake_up_i      (wake_up[i*NumCoresPerCluster+:NumCoresPerCluster]           ),
       .testmode_i     (1'b0                                                        ),
       .scan_enable_i  (1'b0                                                        ),
@@ -135,8 +136,8 @@ module mempool_system
       .dma_req_valid_i(dma_req_valid[i]                                            ),
       .dma_req_ready_o(dma_req_ready[i]                                            ),
       .dma_meta_o     (dma_meta[i]                                                 ),
-      .axi_mst_req_o  (axi_mst_req[i*NumAXIMastersPerGroup+:NumAXIMastersPerGroup] ),
-      .axi_mst_resp_i (axi_mst_resp[i*NumAXIMastersPerGroup+:NumAXIMastersPerGroup])
+      .axi_mst_req_o  (axi_mst_req[i*NumAXIMastersPerCluster+:NumAXIMastersPerCluster] ),
+      .axi_mst_resp_i (axi_mst_resp[i*NumAXIMastersPerCluster+:NumAXIMastersPerCluster])
     );
   end
 
@@ -268,7 +269,7 @@ module mempool_system
       .AddrWidth    (L2AddrWidth    ),
       .DataWidth    (AxiDataWidth   ),
       .IdWidth      (AxiTileIdWidth ),
-      .BufDepth     (3              ),
+      .BufDepth     (0              ),
       .reqrsp_req_t (axi_to_l2_req_t),
       .reqrsp_rsp_t (axi_to_l2_rsp_t)
     ) i_axi_to_reqrsp (
@@ -295,7 +296,7 @@ module mempool_system
     .NumInp      (NumAXIMasters       ),
     .NumOut      (NumL2Banks          ),
     .payload_t   (axi_to_l2_req_chan_t),
-    .OutSpillReg (1'b1                ),
+    .OutSpillReg (1'b0                ),
     .ExtPrio     (1'b0                ),
     .AxiVldRdy   (1'b1                ),
     .LockIn      (1'b1                )
@@ -565,7 +566,7 @@ module mempool_system
 
   ctrl_registers #(
     .TCDMBaseAddr     (TCDMBaseAddr       ),
-    .TCDMSize         (TCDMSize           ),
+    .TCDMSize         (L1Size             ),
     .NumCores         (NumCores           ),
     .axi_lite_req_t (axi_lite_slv_req_t ),
     .axi_lite_resp_t(axi_lite_slv_resp_t)
