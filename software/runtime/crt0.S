@@ -57,9 +57,16 @@ _reset_vector:
     li      x31, 0
     la      sp, __stack_start                                   // load stack
     csrr    a0, mhartid                                         // get hart id
+    // Calculate L1 offset for our cluster
+    srli    t1, a0, LOG2_NUM_CORES_PER_CLUSTER                  // cluster_id = id / NUM_CORES_PER_CLUSTER
+    slli    t1, t1, LOG2_L1_SIZE_PER_CLUSTER                    // cluster_offset = cluster_id * NUM_CORES_PER_CLUSTER * BANKING_FACTOR * BANK_SIZE
     // Calculate sequential region offset for our tile
     srli    t0, a0, LOG2_NUM_CORES_PER_TILE                     // tile_id = id / NUM_CORES_PER_TILE
-    slli    t0, t0, (LOG2_NUM_CORES_PER_TILE+LOG2_SEQ_MEM_SIZE) // tile_offset = tile_id * NUM_CORES_PER_TILE * SEQ_MEM_SIZE
+    li      t2, NUM_TILES_PER_CLUSTER                           // NUM_TILES_PER_CLUSTER
+    addi    t2, t2, -1                                          // Create mask for NUM_TILES_PER_CLUSTER
+    and     t0, t0, t2                                          // tile_cluster_id = tile_id % NUM_TILES_PER_CLUSTER
+    slli    t0, t0, (LOG2_NUM_CORES_PER_TILE+LOG2_SEQ_MEM_SIZE) // tile_offset = tile_cluster_id * NUM_CORES_PER_TILE * SEQ_MEM_SIZE
+    add     t0, t0, t1                                          // offset = cluster_offset + tile_offset
     // Calculate stack offset within tile
     li      t1, NUM_CORES_PER_TILE                              // NUM_CORES_PER_TILE
     addi    t1, t1, -1                                          // Create mask for NUM_CORES_PER_TILE
