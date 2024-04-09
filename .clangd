@@ -1,0 +1,10 @@
+CompileFlags:
+  Add: [-DNUM_CORES, -DNUM_CORES_PER_TILE, -DNUM_GROUPS, -DSTACK_SIZE,
+  -D__riscv, -DXQUEUE_SIZE, -DSEQ_MEM_SIZE, -DBANKING_FACTOR, -march=rv32ima]
+
+---
+
+If:
+  PathMatch: [.*/runtime/*/.*]
+CompileFlags:
+  Add: [-xc++, -I../]
