@@ -1,16 +1,22 @@
-#include "kmp.h"
+#include "kmp.hpp"
 #include "printf.h"
+
+extern "C" {
 #include "runtime.h"
+}
 
-int __real_main();
+extern "C" int __real_main();
 
-int __wrap_main() {
+extern "C" int __wrap_main() {
   mempool_id_t core_id = mempool_get_core_id();
   if (core_id == 0) {
     printf("Running OpenMP program on %d cores\n", mempool_get_core_count());
 
     // Init heap allocators
     mempool_init(0);
+
+    // Init OpenMP runtime
+    __kmp_init();
 
     // Run the program
     __real_main();
