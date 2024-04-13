@@ -1,12 +1,67 @@
 #pragma once
 
-#include <cstdint>
+#include "barrier.hpp"
+#include "etl/list.h"
+#include "etl/optional.h"
+#include "etl/vector.h"
+#include "printf.h"
+#include <etl/functional.h>
+
+extern "C" {
+#include "alloc.h"
+}
 
 typedef uint32_t kmp_int32;
 
 typedef void (*kmpc_micro)(kmp_int32 *global_tid, kmp_int32 *bound_tid, ...);
 typedef void (*kmpc_micro_bound)(kmp_int32 *bound_tid, kmp_int32 *bound_nth,
                                  ...);
+
+namespace kmp {
+
+void errorPrinter(const etl::exception &e);
+
+class Microtask {
+public:
+  Microtask(kmpc_micro fn, va_list args);
+  void run();
+
+private:
+  kmpc_micro fn;
+  etl::vector<void *, 10> args;
+};
+
+class Task {
+public:
+  Task(Microtask &microtask);
+  Task(Microtask &microtask, Barrier &barrier);
+
+  void run();
+
+private:
+  Microtask microtask;
+  etl::optional<etl::reference_wrapper<Barrier>> barrier;
+};
+
+class Thread {
+public:
+  void run();
+
+public:
+  etl::list<Task, 10> tasks;
+};
+
+namespace runtime {
+
+void init();
+
+void runThread(kmp_int32 core_id);
+
+extern etl::vector<Thread, NUM_CORES> threads;
+
+} // namespace runtime
+
+} // namespace kmp
 
 typedef struct {
   void (*fn)(void *);
@@ -15,8 +70,6 @@ typedef struct {
   kmp_int32 barrier;
 } kmp_event_t;
 
-extern kmp_event_t kmp_event;
-
 typedef struct {
   int reserved_1;
   int flags;
@@ -24,28 +77,3 @@ typedef struct {
   int reserved_3;
   char *psource;
 } ident_t;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// C interface
-void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...);
-
-void __kmpc_for_static_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
-                              kmp_int32 *plastiter, kmp_int32 *plower,
-                              kmp_int32 *pupper, kmp_int32 *pstride,
-                              kmp_int32 incr, kmp_int32 chunk);
-
-void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid);
-
-void __kmpc_for_static_fini(ident_t *loc, kmp_int32 global_tid);
-
-// C++ interface
-void __kmp_init();
-
-void __kmp_run_task(kmp_int32 gtid);
-
-#ifdef __cplusplus
-}
-#endif
