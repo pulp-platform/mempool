@@ -40,3 +40,6 @@
 [submodule "hardware/deps/fpu_div_sqrt_mvp"]
 	path = hardware/deps/fpu_div_sqrt_mvp
 	url = https://github.com/pulp-platform/fpu_div_sqrt_mvp.git
+[submodule "software/runtime/kmp/etl"]
+	path = software/ext/etl
+	url = git@github.com:ETLCPP/etl.git
