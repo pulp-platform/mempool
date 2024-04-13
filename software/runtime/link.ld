@@ -35,6 +35,14 @@ SECTIONS {
     _etext = .;
   } > l2
 
+  /* Init array on L2 */
+  .init_array : {
+      HIDDEN (__init_array_start = .);
+      KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*)))
+      KEEP (*(.init_array))
+      HIDDEN (__init_array_end = .);
+  } > l2
+
   /* RO Data on L2 */
   .rodata : {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
