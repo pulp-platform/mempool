@@ -5,7 +5,21 @@ extern "C" {
 #include "runtime.h"
 }
 
+// https://etherealwake.com/2021/09/crt-startup/
+typedef void (*init_func)(void);
+extern init_func __init_array_start[];
+extern init_func __init_array_end[];
+
+void initGlobals() {
+  uint32_t n = __init_array_end - __init_array_start;
+  for (size_t i = 0; i < n; i++) {
+    __init_array_start[i]();
+  }
+}
+
 extern "C" int __real_main();
+
+volatile bool initLock = true;
 
 extern "C" int __wrap_main() {
   mempool_id_t core_id = mempool_get_core_id();
@@ -15,8 +29,15 @@ extern "C" int __wrap_main() {
     // Init heap allocators
     mempool_init(0);
 
+    // Call C++ global constructors
+    initGlobals();
+
     // Init OpenMP runtime
-    __kmp_init();
+    kmp::runtime::init();
+
+    __atomic_and_fetch(&initLock, false, __ATOMIC_SEQ_CST);
+
+    printf("Init done\n");
 
     // Run the program
     __real_main();
