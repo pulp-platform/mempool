@@ -1,12 +1,20 @@
+#include "barrier.hpp"
 #include <stdint.h>
 
 extern "C" {
 #include "runtime.h"
+#include "alloc.h"
 }
 
-void __kmp_barrier(volatile uint32_t *barrier, uint32_t num_cores) {
+namespace kmp {
+Barrier::Barrier(uint32_t root, uint32_t numCores)
+    : root(root), numCores(numCores) {
+  barrier = static_cast<uint32_t *>(simple_malloc(sizeof(uint32_t)));
+}
+
+void Barrier::wait() {
   // Increment the barrier counter
-  if ((num_cores - 1) == __atomic_fetch_add(barrier, 1, __ATOMIC_RELAXED)) {
+  if ((numCores - 1) == __atomic_fetch_add(barrier, 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
     wake_up_all();
@@ -14,11 +22,11 @@ void __kmp_barrier(volatile uint32_t *barrier, uint32_t num_cores) {
   // Some threads have not reached the barrier --> Let's wait
   // Clear the wake-up trigger for the last core reaching the barrier as well
   mempool_wfi();
-}
+};
 
-void __kmp_barrier_init(volatile uint32_t *barrier, uint32_t core_id,
-                        uint32_t root) {
-  if (core_id == root) {
+void Barrier::reset() {
+  auto coreId = mempool_get_core_id();
+  if (coreId == root) {
     // Initialize the barrier
     barrier = 0;
     wake_up_all();
@@ -27,3 +35,7 @@ void __kmp_barrier_init(volatile uint32_t *barrier, uint32_t core_id,
     mempool_wfi();
   }
 }
+
+Barrier::~Barrier() { simple_free(static_cast<void *>(barrier)); }
+
+}; // namespace kmp
