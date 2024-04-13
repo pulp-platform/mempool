@@ -45,10 +45,12 @@ extern "C" int __wrap_main() {
     // Go to sleep since progam is done
     mempool_wfi();
   } else {
-    while (1) {
-      mempool_wfi();
-      __kmp_run_task(core_id);
+    while (__atomic_or_fetch(&initLock, false, __ATOMIC_SEQ_CST)) {
+      // printf("Core %d waiting for init, current value: %d\n", core_id, initDone);
+      mempool_wait(10);
     }
+
+    kmp::runtime::runThread(core_id);
   }
 
   return 0;
