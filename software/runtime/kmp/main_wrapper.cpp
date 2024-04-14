@@ -42,11 +42,12 @@ extern "C" int __wrap_main() {
     // Run the program
     __real_main();
 
+    printf("Program done\n");
+
     // Go to sleep since progam is done
     mempool_wfi();
   } else {
     while (__atomic_or_fetch(&initLock, false, __ATOMIC_SEQ_CST)) {
-      // printf("Core %d waiting for init, current value: %d\n", core_id, initDone);
       mempool_wait(10);
     }
 

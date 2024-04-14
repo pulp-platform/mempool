@@ -2,14 +2,13 @@
 #include <stdint.h>
 
 extern "C" {
-#include "runtime.h"
 #include "alloc.h"
+#include "runtime.h"
 }
 
 namespace kmp {
-Barrier::Barrier(uint32_t root, uint32_t numCores)
-    : root(root), numCores(numCores) {
-  barrier = static_cast<uint32_t *>(simple_malloc(sizeof(uint32_t)));
+Barrier::Barrier(uint32_t numCores) : numCores(numCores) {
+  barrier = static_cast<volatile uint32_t *>(simple_malloc(sizeof(uint32_t)));
 }
 
 void Barrier::wait() {
@@ -17,6 +16,7 @@ void Barrier::wait() {
   if ((numCores - 1) == __atomic_fetch_add(barrier, 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
+    printf("Barrier done\n");
     wake_up_all();
   }
   // Some threads have not reached the barrier --> Let's wait
@@ -24,18 +24,8 @@ void Barrier::wait() {
   mempool_wfi();
 };
 
-void Barrier::reset() {
-  auto coreId = mempool_get_core_id();
-  if (coreId == root) {
-    // Initialize the barrier
-    barrier = 0;
-    wake_up_all();
-    mempool_wfi();
-  } else {
-    mempool_wfi();
-  }
+Barrier::~Barrier() {
+  simple_free(const_cast<void *>(static_cast<volatile void *>(barrier)));
 }
-
-Barrier::~Barrier() { simple_free(static_cast<void *>(barrier)); }
 
 }; // namespace kmp
