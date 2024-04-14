@@ -1,4 +1,4 @@
-#include "kmp.hpp"
+#include "runtime.hpp"
 #include "printf.h"
 
 extern "C" {
