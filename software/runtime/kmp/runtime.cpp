@@ -7,7 +7,7 @@ namespace kmp {
 
 namespace runtime {
 
-etl::vector<kmp::Thread, NUM_CORES> threads(NUM_CORES);
+etl::vector<kmp::Thread, NUM_CORES> threads;
 
 void printError(const etl::exception &e) {
   printf("%s %s %d\n", e.what(), e.file_name(), e.line_number());
@@ -19,7 +19,7 @@ void init() {
   etl::error_handler::set_callback<printError>();
 
   for (kmp_int32 i = 0; i < NUM_CORES; i++) {
-    threads[i].coreId = i;
+    threads.emplace_back(i);
   }
 };
 
