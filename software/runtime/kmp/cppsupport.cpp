@@ -1,6 +1,3 @@
-#include <cstdlib>
-#include <new>
-
 extern "C" {
 #include "alloc.h"
 }

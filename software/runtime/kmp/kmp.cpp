@@ -1,6 +1,8 @@
 #include "kmp.hpp"
 #include "printf.h"
+#include <atomic>
 #include <memory>
+#include <mutex>
 
 extern "C" {
 #include "runtime.h"
@@ -20,28 +22,37 @@ void init() {
   printf("Initializing runtime\n");
 
   etl::error_handler::set_callback<printError>();
+
+  for (kmp_int32 i = 0; i < NUM_CORES; i++) {
+    threads[i].coreId = i;
+  }
 };
 
 void runThread(kmp_int32 core_id) { threads[core_id].run(); };
 
 } // namespace runtime
 
-Task::Task(Microtask &microtask) : microtask(microtask){};
-
-Task::Task(Microtask &microtask, Barrier &barrier)
+Task::Task(const Microtask &microtask, Barrier &barrier)
     : microtask(microtask), barrier(etl::ref(barrier)){};
+
+void Task::barrierWait() const { barrier.get().wait(); };
 
 void Task::run() {
   microtask.run();
-
-  if (barrier) {
-    barrier->get().wait();
-  }
+  barrierWait();
 };
 
-Microtask::Microtask(kmpc_micro fn, va_list args) : fn(fn) {
-  void *arg;
-  while ((arg = va_arg(args, void *)) != NULL) {
+Microtask::Microtask(kmpc_micro fn, va_list args, kmp_int32 argc) : fn(fn) {
+  if (argc > 15) {
+    printf("Unsupported number of microtask arguments, max is 15 and %d were "
+           "passed\n",
+           argc);
+    return;
+  }
+
+  void *arg = nullptr;
+  for (kmp_int32 i = 0; i < argc; i++) {
+    arg = va_arg(args, void *);
     this->args.push_back(arg);
   }
 };
@@ -119,14 +130,53 @@ void Microtask::run() {
   }
 };
 
+Thread::Thread(const Thread &other){};
+
 void Thread::run() {
   while (1) {
-    mempool_wfi();
-    if (tasks.size() > 0) {
-      Task task = tasks.front();
-      tasks.pop_front();
-      task.run();
+    while (!running) {
+      mempool_wfi();
     }
+
+    tasksLock.lock();
+    if (tasks.size() > 0) {
+      Task &task = tasks.front();
+      tasksLock.unlock();
+
+      task.run();
+
+      tasksLock.lock();
+      tasks.pop_front();
+      tasksLock.unlock();
+    } else {
+      running = false;
+      tasksLock.unlock();
+    }
+  }
+};
+
+void Thread::wakeUp() {
+  if (running) {
+    return;
+  } else {
+    running = true;
+    wake_up(coreId);
+  }
+};
+
+void Thread::pushTask(const Task &task) {
+  std::lock_guard<Mutex> lock(tasksLock);
+
+  tasks.push_back(task);
+};
+
+etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {
+  std::lock_guard<Mutex> lock(tasksLock);
+
+  if (tasks.size() > 0) {
+    return etl::cref(tasks.front());
+  } else {
+    return etl::nullopt;
   }
 };
 
