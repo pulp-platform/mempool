@@ -18,13 +18,15 @@ private:
 
 class Task {
 public:
-  Task(const Microtask &microtask, Barrier &barrier);
+  Task(const Microtask &microtask, kmp_int32 numThreads);
 
   void run();
   void barrierWait() const;
+  kmp_int32 getNumThreads() const;
 
 private:
+  Barrier barrier;
   Microtask microtask;
-  etl::reference_wrapper<Barrier> barrier;
+  kmp_int32 numThreads;
 };
 };

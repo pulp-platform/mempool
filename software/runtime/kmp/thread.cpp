@@ -1,5 +1,6 @@
 #include "thread.hpp"
 #include "mutex.hpp"
+#include "runtime.hpp"
 #include <mutex>
 
 extern "C" {
@@ -8,7 +9,9 @@ extern "C" {
 
 namespace kmp {
 
-Thread::Thread(const Thread &other){};
+Thread::Thread(kmp_int32 gtid) : gtid(gtid) {};
+
+Thread::Thread(const Thread &){};
 
 void Thread::run() {
   while (1) {
@@ -38,7 +41,7 @@ void Thread::wakeUp() {
     return;
   } else {
     running = true;
-    wake_up(coreId);
+    wake_up(gtid);
   }
 };
 
@@ -46,6 +49,42 @@ void Thread::pushTask(const Task &task) {
   std::lock_guard<Mutex> lock(tasksLock);
 
   tasks.push_back(task);
+};
+
+void Thread::pushNumThreads(kmp_int32 numThreads) {
+  this->numThreads = numThreads;
+}
+
+void Thread::forkCall(const Microtask &microtask) {
+  auto numThreads = this->numThreads.value_or(mempool_get_core_count());
+  this->numThreads.reset();
+
+  printf("Forking call with %d threads\n", numThreads);
+
+  kmp::Task task(microtask, numThreads);
+
+  for (kmp_int32 tid = 0; tid < numThreads; tid++) {
+    Thread &thread = kmp::runtime::threads[tid];
+    thread.pushTask(task);
+    thread.tid = tid;
+
+    if (thread.gtid != this->gtid) {
+      thread.wakeUp();
+    }
+  }
+
+  task.run();
+
+  std::lock_guard<Mutex> lock(tasksLock);
+  tasks.pop_front();
+};
+
+kmp_int32 Thread::getGtid() const {
+  return gtid;
+};
+
+kmp_int32 Thread::getTid() const {
+  return tid;
 };
 
 etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {

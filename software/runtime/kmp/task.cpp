@@ -5,15 +5,17 @@ extern "C" {
 }
 
 namespace kmp {
-Task::Task(const Microtask &microtask, Barrier &barrier)
-    : microtask(microtask), barrier(etl::ref(barrier)){};
+Task::Task(const Microtask &microtask, kmp_int32 numThreads)
+    : barrier(numThreads), microtask(microtask), numThreads(numThreads) {};
 
-void Task::barrierWait() const { barrier.get().wait(); };
+void Task::barrierWait() const { barrier.wait(); };
 
 void Task::run() {
   microtask.run();
   barrierWait();
 };
+
+kmp_int32 Task::getNumThreads() const { return numThreads; };
 
 Microtask::Microtask(kmpc_micro fn, va_list args, kmp_int32 argc) : fn(fn) {
   if (argc > 15) {
