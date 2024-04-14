@@ -1,7 +1,7 @@
 #include "barrier.hpp"
-#include "kmp.hpp"
-#include "parallel.hpp"
-#include <cassert>
+#include "types.h"
+#include "task.hpp"
+#include "runtime.hpp"
 
 extern "C" {
 #include "runtime.h"

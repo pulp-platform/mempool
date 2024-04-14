@@ -1,37 +1,10 @@
-#include "kmp.hpp"
-#include "printf.h"
-#include <atomic>
-#include <memory>
-#include <mutex>
+#include "task.hpp"
 
 extern "C" {
 #include "runtime.h"
 }
 
 namespace kmp {
-
-namespace runtime {
-
-etl::vector<kmp::Thread, NUM_CORES> threads(NUM_CORES);
-
-void printError(const etl::exception &e) {
-  printf("%s %s %d\n", e.what(), e.file_name(), e.line_number());
-};
-
-void init() {
-  printf("Initializing runtime\n");
-
-  etl::error_handler::set_callback<printError>();
-
-  for (kmp_int32 i = 0; i < NUM_CORES; i++) {
-    threads[i].coreId = i;
-  }
-};
-
-void runThread(kmp_int32 core_id) { threads[core_id].run(); };
-
-} // namespace runtime
-
 Task::Task(const Microtask &microtask, Barrier &barrier)
     : microtask(microtask), barrier(etl::ref(barrier)){};
 
@@ -127,56 +100,6 @@ void Microtask::run() {
        args[6], args[7], args[8], args[9], args[10], args[11], args[12],
        args[13], args[14]);
     break;
-  }
-};
-
-Thread::Thread(const Thread &other){};
-
-void Thread::run() {
-  while (1) {
-    while (!running) {
-      mempool_wfi();
-    }
-
-    tasksLock.lock();
-    if (tasks.size() > 0) {
-      Task &task = tasks.front();
-      tasksLock.unlock();
-
-      task.run();
-
-      tasksLock.lock();
-      tasks.pop_front();
-      tasksLock.unlock();
-    } else {
-      running = false;
-      tasksLock.unlock();
-    }
-  }
-};
-
-void Thread::wakeUp() {
-  if (running) {
-    return;
-  } else {
-    running = true;
-    wake_up(coreId);
-  }
-};
-
-void Thread::pushTask(const Task &task) {
-  std::lock_guard<Mutex> lock(tasksLock);
-
-  tasks.push_back(task);
-};
-
-etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {
-  std::lock_guard<Mutex> lock(tasksLock);
-
-  if (tasks.size() > 0) {
-    return etl::cref(tasks.front());
-  } else {
-    return etl::nullopt;
   }
 };
 
