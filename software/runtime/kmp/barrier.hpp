@@ -1,15 +1,20 @@
 #pragma once
 
+#include "kmp/types.h"
+#include <atomic>
 #include <stdint.h>
 
 namespace kmp {
-  class Barrier {
-    public:
-      Barrier(uint32_t numCores);
-      ~Barrier();
-      void wait();
-    private:
-      volatile uint32_t* barrier;
-      uint32_t numCores;
-  };
+class Barrier {
+public:
+  Barrier(uint32_t numCores);
+  Barrier(const Barrier& other);
+  ~Barrier();
+  void wait() const;
+
+private:
+  std::atomic<kmp_int32> *barrier;
+  std::atomic<kmp_int32> *counter;
+  uint32_t numCores;
 };
+}; // namespace kmp
