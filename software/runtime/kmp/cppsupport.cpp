@@ -9,3 +9,10 @@ void operator delete(void *p) noexcept { return simple_free(p); }
 namespace std {
 void __throw_bad_alloc() { printf("Bad alloc\n"); }
 } // namespace std
+
+extern "C" int __cxa_atexit(void (*func)(void *), void *arg, void *dso_handle) {
+  (void)func;
+  (void)arg;
+  (void)dso_handle;
+  return 0;
+}
