@@ -19,7 +19,7 @@ void initGlobals() {
 
 extern "C" int __real_main();
 
-volatile bool initLock = true;
+std::atomic<bool> initLock = true;
 
 extern "C" int __wrap_main() {
   mempool_id_t core_id = mempool_get_core_id();
@@ -35,7 +35,7 @@ extern "C" int __wrap_main() {
     // Init OpenMP runtime
     kmp::runtime::init();
 
-    __atomic_and_fetch(&initLock, false, __ATOMIC_SEQ_CST);
+    initLock = false;
 
     printf("Init done\n");
 
@@ -47,7 +47,7 @@ extern "C" int __wrap_main() {
     // Go to sleep since progam is done
     mempool_wfi();
   } else {
-    while (__atomic_or_fetch(&initLock, false, __ATOMIC_SEQ_CST)) {
+    while (initLock) {
       mempool_wait(10);
     }
 
