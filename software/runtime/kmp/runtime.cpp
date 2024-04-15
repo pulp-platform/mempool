@@ -1,7 +1,11 @@
 #include "etl/vector.h"
-#include "kmp/types.h"
 #include "kmp/thread.hpp"
+#include "kmp/types.h"
 #include "printf.h"
+
+extern "C" {
+#include "runtime.h"
+}
 
 namespace kmp {
 
@@ -25,8 +29,8 @@ void init() {
 
 void runThread(kmp_int32 core_id) { threads[core_id].run(); };
 
+Thread &getCurrentThread() { return threads[mempool_get_core_id()]; };
+
 } // namespace runtime
-
-
 
 } // namespace kmp
