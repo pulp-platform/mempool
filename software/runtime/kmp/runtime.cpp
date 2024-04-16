@@ -13,8 +13,8 @@ namespace runtime {
 
 etl::vector<kmp::Thread, NUM_CORES> threads;
 
-void printError(const etl::exception &e) {
-  printf("%s %s %d\n", e.what(), e.file_name(), e.line_number());
+void assertWrapper(const etl::exception &e) {
+  __assert_func(e.file_name(), e.line_number(), "n/a", e.what());
 };
 
 void init() {
