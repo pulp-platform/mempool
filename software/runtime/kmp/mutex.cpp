@@ -22,8 +22,6 @@ bool Mutex::tryLock() {
   return !locked.exchange(true, std::memory_order_acquire);
 }
 
-void Mutex::unlock() {
-  locked.store(false, std::memory_order_release);
-}
+void Mutex::unlock() { locked.store(false, std::memory_order_release); }
 
 } // namespace kmp

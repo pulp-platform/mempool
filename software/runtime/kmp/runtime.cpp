@@ -1,7 +1,6 @@
 #include "etl/vector.h"
 #include "kmp/thread.hpp"
 #include "kmp/types.h"
-#include "printf.h"
 
 extern "C" {
 #include "runtime.h"
@@ -20,14 +19,16 @@ void assertWrapper(const etl::exception &e) {
 void init() {
   printf("Initializing runtime\n");
 
-  etl::error_handler::set_callback<printError>();
+#ifdef ETL_LOG_ERRORS
+  etl::error_handler::set_callback<assertWrapper>();
+#endif
 
-  for (kmp_int32 i = 0; i < NUM_CORES; i++) {
+  for (kmp_uint32 i = 0; i < NUM_CORES; i++) {
     threads.emplace_back(i);
   }
 };
 
-void runThread(kmp_int32 core_id) { threads[core_id].run(); };
+void runThread(kmp_uint32 core_id) { threads[core_id].run(); };
 
 Thread &getCurrentThread() { return threads[mempool_get_core_id()]; };
 

@@ -1,8 +1,8 @@
 #include <cstdlib>
 
 extern "C" {
-#include "runtime.h"
 #include "alloc.h"
+#include "runtime.h"
 }
 
 void *operator new(size_t size) { return simple_malloc(size); }

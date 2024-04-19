@@ -9,7 +9,7 @@ extern "C" {
 
 namespace kmp {
 
-Thread::Thread(kmp_int32 gtid) : gtid(gtid) {};
+Thread::Thread(kmp_uint32 gtid) : gtid(gtid){};
 
 Thread::Thread(const Thread &){};
 
@@ -56,14 +56,14 @@ void Thread::pushNumThreads(kmp_int32 numThreads) {
 }
 
 void Thread::forkCall(const Microtask &microtask) {
-  auto numThreads = this->numThreads.value_or(mempool_get_core_count());
+  kmp_uint32 numThreads = this->numThreads.value_or(mempool_get_core_count());
   this->numThreads.reset();
 
   printf("Forking call with %d threads\n", numThreads);
 
   kmp::Task task(microtask, numThreads);
 
-  for (kmp_int32 tid = 0; tid < numThreads; tid++) {
+  for (kmp_uint32 tid = 0; tid < numThreads; tid++) {
     Thread &thread = kmp::runtime::threads[tid];
     thread.pushTask(task);
     thread.tid = tid;
@@ -79,13 +79,9 @@ void Thread::forkCall(const Microtask &microtask) {
   tasks.pop_front();
 };
 
-kmp_int32 Thread::getGtid() const {
-  return gtid;
-};
+kmp_uint32 Thread::getGtid() const { return gtid; };
 
-kmp_int32 Thread::getTid() const {
-  return tid;
-};
+kmp_uint32 Thread::getTid() const { return tid; };
 
 etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {
   std::lock_guard<Mutex> lock(tasksLock);
@@ -96,4 +92,5 @@ etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {
     return etl::nullopt;
   }
 };
+
 } // namespace kmp

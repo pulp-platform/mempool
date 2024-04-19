@@ -1,5 +1,6 @@
-#include "runtime.hpp"
+#include "etl/vector.h"
 #include "printf.h"
+#include "runtime.hpp"
 
 extern "C" {
 #include "runtime.h"
