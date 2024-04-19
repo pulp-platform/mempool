@@ -26,7 +26,6 @@ void Barrier::wait() const {
   if ((numCores - 1) == barrier->fetch_add(1, std::memory_order_relaxed)) {
     barrier->store(0, std::memory_order_relaxed);
     std::atomic_thread_fence(std::memory_order_seq_cst);
-    printf("Barrier done\n");
     wake_up_all();
   }
   // Some threads have not reached the barrier --> Let's wait

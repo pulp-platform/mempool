@@ -1,7 +1,7 @@
 #pragma once
 
-#include "etl/vector.h"
 #include "barrier.hpp"
+#include "etl/vector.h"
 #include "types.h"
 
 namespace kmp {
@@ -29,4 +29,4 @@ private:
   Microtask microtask;
   kmp_int32 numThreads;
 };
-};
+}; // namespace kmp

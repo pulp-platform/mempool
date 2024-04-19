@@ -8,7 +8,7 @@ namespace kmp::runtime {
 
 void init();
 
-void runThread(kmp_int32 core_id);
+void runThread(kmp_uint32 core_id);
 
 Thread &getCurrentThread();
 
