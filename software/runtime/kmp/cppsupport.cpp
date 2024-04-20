@@ -1,13 +1,23 @@
+#include "kmp/mutex.hpp"
 #include <cstdlib>
+#include <mutex>
 
 extern "C" {
 #include "alloc.h"
 #include "runtime.h"
 }
 
-void *operator new(size_t size) { return simple_malloc(size); }
+kmp::Mutex allocLock;
 
-void operator delete(void *p) noexcept { return simple_free(p); }
+void *operator new(size_t size) {
+  std::lock_guard<kmp::Mutex> lock(allocLock);
+  return simple_malloc(size);
+}
+
+void operator delete(void *p) noexcept {
+  std::lock_guard<kmp::Mutex> lock(allocLock);
+  return simple_free(p);
+}
 
 namespace std {
 void __throw_bad_alloc() { printf("Bad alloc\n"); }
