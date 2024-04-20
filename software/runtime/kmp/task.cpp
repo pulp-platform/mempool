@@ -6,9 +6,9 @@ extern "C" {
 
 namespace kmp {
 Task::Task(const Microtask &microtask, kmp_int32 numThreads)
-    : barrier(numThreads), microtask(microtask), numThreads(numThreads){};
+    : barrier(new Barrier(numThreads)), microtask(microtask), numThreads(numThreads){};
 
-void Task::barrierWait() const { barrier.wait(); };
+void Task::barrierWait() const { barrier->wait(); };
 
 void Task::run() {
   microtask.run();

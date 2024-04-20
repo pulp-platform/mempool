@@ -1,4 +1,5 @@
 #include "barrier.hpp"
+#include <cassert>
 #include <stdint.h>
 
 extern "C" {
@@ -8,17 +9,7 @@ extern "C" {
 
 namespace kmp {
 Barrier::Barrier(uint32_t numCores) : numCores(numCores) {
-  barrier =
-      static_cast<std::atomic<uint32_t> *>(simple_malloc(sizeof(uint32_t)));
-  counter = static_cast<std::atomic<uint32_t> *>(
-      simple_malloc(sizeof(std::atomic<uint32_t>)));
-  *counter = 1;
-  *barrier = 0;
-}
-
-Barrier::Barrier(const Barrier &other)
-    : barrier(other.barrier), counter(other.counter), numCores(other.numCores) {
-  (*counter)++;
+  barrier = new std::atomic<kmp_uint32>(0);
 }
 
 void Barrier::wait() const {
@@ -34,10 +25,7 @@ void Barrier::wait() const {
 };
 
 Barrier::~Barrier() {
-  if (--(*counter) == 0) {
-    simple_free(counter);
-    simple_free(const_cast<void *>(static_cast<volatile void *>(barrier)));
-  }
+  delete barrier;
 }
 
 }; // namespace kmp
