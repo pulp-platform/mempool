@@ -2,6 +2,7 @@
 
 #include "barrier.hpp"
 #include "etl/vector.h"
+#include "kmp/util.hpp"
 #include "types.h"
 
 namespace kmp {
@@ -25,7 +26,7 @@ public:
   kmp_int32 getNumThreads() const;
 
 private:
-  Barrier barrier;
+  SharedPointer<Barrier> barrier;
   Microtask microtask;
   kmp_int32 numThreads;
 };
