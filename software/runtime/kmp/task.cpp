@@ -1,21 +1,14 @@
-#include "task.hpp"
+#include "kmp/task.hpp"
+#include "kmp/runtime.hpp"
 
 extern "C" {
 #include "runtime.h"
 }
 
 namespace kmp {
-Task::Task(const Microtask &microtask, kmp_int32 numThreads)
-    : barrier(new Barrier(numThreads)), microtask(microtask), numThreads(numThreads){};
+Task::Task(const Microtask &microtask) : microtask(microtask){};
 
-void Task::barrierWait() const { barrier->wait(); };
-
-void Task::run() {
-  microtask.run();
-  barrierWait();
-};
-
-kmp_int32 Task::getNumThreads() const { return numThreads; };
+void Task::run() { microtask.run(); };
 
 Microtask::Microtask(kmpc_micro fn, va_list args, kmp_int32 argc) : fn(fn) {
   if (argc > 15) {
@@ -34,7 +27,7 @@ Microtask::Microtask(kmpc_micro fn, va_list args, kmp_int32 argc) : fn(fn) {
 
 void Microtask::run() {
   kmp_int32 gtid = mempool_get_core_id();
-  kmp_int32 tid = gtid; // TODO: Change this
+  kmp_int32 tid = runtime::getCurrentThread().getTid();
 
   // There seems to not be a better way to do this without custom passes or ASM
   switch (args.size()) {

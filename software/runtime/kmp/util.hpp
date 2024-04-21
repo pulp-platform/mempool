@@ -1,13 +1,41 @@
 #pragma once
 
-#include "printf.h"
 #include <atomic>
+
+extern "C" {
+#include "printf.h"
+#include "runtime.h"
+}
 
 namespace kmp {
 
+class Mutex {
+public:
+  inline void lock() {
+    while (true) {
+      if (!locked.exchange(true, std::memory_order_acquire)) {
+        return;
+      }
+
+      while (locked.load(std::memory_order_relaxed)) {
+        mempool_wait(10);
+      }
+    }
+  }
+
+  inline bool tryLock() {
+    return !locked.exchange(true, std::memory_order_acquire);
+  }
+
+  inline void unlock() { locked.store(false, std::memory_order_release); }
+
+private:
+  std::atomic<bool> locked = false;
+};
+
 template <typename T> class SharedPointer {
 public:
-  SharedPointer(T *ptr) : ptr(ptr) {
+  explicit SharedPointer(T *ptr) : ptr(ptr) {
     refCount = new std::atomic<uint32_t>(1);
   }
 

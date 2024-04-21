@@ -1,6 +1,6 @@
-#include "thread.hpp"
-#include "mutex.hpp"
-#include "runtime.hpp"
+#include "kmp/thread.hpp"
+#include "kmp/runtime.hpp"
+#include "kmp/util.hpp"
 #include <mutex>
 
 extern "C" {
@@ -9,7 +9,14 @@ extern "C" {
 
 namespace kmp {
 
-Thread::Thread(kmp_uint32 gtid) : gtid(gtid){};
+Thread::Thread(kmp_uint32 gtid) : gtid(gtid) {
+  // If gtid is 0, the thread is the initial thread and should be running
+  if (gtid == 0) {
+    running = true;
+  } else {
+    running = false;
+  }
+};
 
 Thread::Thread(const Thread &){};
 
@@ -19,19 +26,25 @@ void Thread::run() {
       mempool_wfi();
     }
 
-    tasksLock.lock();
+    std::unique_lock<Mutex> lock(tasksMutex);
     if (tasks.size() > 0) {
       Task &task = tasks.front();
-      tasksLock.unlock();
+      lock.unlock();
 
       task.run();
 
-      tasksLock.lock();
+      {
+        std::lock_guard<Mutex> lock(teamsMutex);
+        teams.top()->barrierWait();
+        teams.pop();
+      }
+
+      lock.lock();
       tasks.pop_front();
-      tasksLock.unlock();
+      lock.unlock();
     } else {
       running = false;
-      tasksLock.unlock();
+      lock.unlock();
     }
   }
 };
@@ -45,46 +58,70 @@ void Thread::wakeUp() {
   }
 };
 
+bool Thread::isRunning() const { return running; };
+
 void Thread::pushTask(const Task &task) {
-  std::lock_guard<Mutex> lock(tasksLock);
+  std::lock_guard<Mutex> lock(tasksMutex);
 
   tasks.push_back(task);
 };
 
-void Thread::pushNumThreads(kmp_int32 numThreads) {
-  this->numThreads = numThreads;
+void Thread::requestNumThreads(kmp_int32 numThreads) {
+  this->requestedNumThreads = numThreads;
 }
 
 void Thread::forkCall(const Microtask &microtask) {
-  kmp_uint32 numThreads = this->numThreads.value_or(mempool_get_core_count());
-  this->numThreads.reset();
+  kmp_uint32 numThreads =
+      this->requestedNumThreads.value_or(mempool_get_core_count());
+  this->requestedNumThreads.reset();
 
   printf("Forking call with %d threads\n", numThreads);
 
-  kmp::Task task(microtask, numThreads);
-
-  for (kmp_uint32 tid = 0; tid < numThreads; tid++) {
-    Thread &thread = kmp::runtime::threads[tid];
-    thread.pushTask(task);
-    thread.tid = tid;
-
-    if (thread.gtid != this->gtid) {
-      thread.wakeUp();
-    }
-  }
+  kmp::Task task(microtask);
+  Team *team = new Team(numThreads); // Do not use shared pointer here since it
+                                     // will cause double free
+  team->pushTaskAll(task);
 
   task.run();
 
-  std::lock_guard<Mutex> lock(tasksLock);
+  std::lock_guard<Mutex> teamsLock(teamsMutex);
+  teams.top()->barrierWait();
+  teams.pop();
+
+  std::lock_guard<Mutex> tasksLock(tasksMutex);
   tasks.pop_front();
 };
 
 kmp_uint32 Thread::getGtid() const { return gtid; };
 
-kmp_uint32 Thread::getTid() const { return tid; };
+kmp_uint32 Thread::getTid() {
+  std::lock_guard<Mutex> lock(teamsMutex);
+
+  return teams.size() > 0 ? teams.top()->getThreadTid(gtid)
+                          : 0; // If thread is part of no team, assume it is the
+                               // inital thread
+};
+
+void Thread::pushTeam(SharedPointer<Team> team) {
+  std::lock_guard<Mutex> lock(teamsMutex);
+
+  teams.push(team); // TODO: Maybe use std::move here
+};
+
+void Thread::popTeam() {
+  std::lock_guard<Mutex> lock(teamsMutex);
+
+  teams.pop();
+};
+
+SharedPointer<Team> Thread::getCurrentTeam() {
+  std::lock_guard<Mutex> lock(teamsMutex);
+
+  return teams.top();
+};
 
 etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {
-  std::lock_guard<Mutex> lock(tasksLock);
+  std::lock_guard<Mutex> lock(tasksMutex);
 
   if (tasks.size() > 0) {
     return etl::cref(tasks.front());
