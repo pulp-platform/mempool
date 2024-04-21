@@ -1,8 +1,8 @@
 #pragma once
 
 #include "etl/vector.h"
-#include "thread.hpp"
-#include "types.h"
+#include "kmp/thread.hpp"
+#include "kmp/types.h"
 
 namespace kmp::runtime {
 

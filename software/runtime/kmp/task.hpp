@@ -1,8 +1,6 @@
 #pragma once
 
-#include "barrier.hpp"
 #include "etl/vector.h"
-#include "kmp/util.hpp"
 #include "types.h"
 
 namespace kmp {
@@ -19,15 +17,11 @@ private:
 
 class Task {
 public:
-  Task(const Microtask &microtask, kmp_int32 numThreads);
+  Task(const Microtask &microtask);
 
   void run();
-  void barrierWait() const;
-  kmp_int32 getNumThreads() const;
 
 private:
-  SharedPointer<Barrier> barrier;
   Microtask microtask;
-  kmp_int32 numThreads;
 };
 }; // namespace kmp

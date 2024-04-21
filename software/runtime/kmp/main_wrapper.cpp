@@ -1,6 +1,4 @@
-#include "etl/vector.h"
-#include "printf.h"
-#include "runtime.hpp"
+#include "kmp/runtime.hpp"
 
 extern "C" {
 #include "runtime.h"

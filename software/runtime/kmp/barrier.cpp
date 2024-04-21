@@ -1,20 +1,19 @@
 #include "barrier.hpp"
 #include <cassert>
-#include <stdint.h>
+#include <cstdint>
 
 extern "C" {
-#include "alloc.h"
 #include "runtime.h"
 }
 
 namespace kmp {
-Barrier::Barrier(uint32_t numCores) : numCores(numCores) {
+Barrier::Barrier(uint32_t numThreads) : numThreads(numThreads) {
   barrier = new std::atomic<kmp_uint32>(0);
 }
 
 void Barrier::wait() const {
   // Increment the barrier counter
-  if ((numCores - 1) == barrier->fetch_add(1, std::memory_order_relaxed)) {
+  if ((numThreads - 1) == barrier->fetch_add(1, std::memory_order_relaxed)) {
     barrier->store(0, std::memory_order_relaxed);
     std::atomic_thread_fence(std::memory_order_seq_cst);
     wake_up_all();
@@ -24,8 +23,12 @@ void Barrier::wait() const {
   mempool_wfi();
 };
 
-Barrier::~Barrier() {
-  delete barrier;
+void Barrier::setNumThreads(uint32_t numThreads) {
+  assert(*barrier == 0 &&
+         "Cannot change the number of threads while the barrier is active");
+  this->numThreads = numThreads;
 }
+
+Barrier::~Barrier() { delete barrier; }
 
 }; // namespace kmp

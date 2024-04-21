@@ -40,7 +40,7 @@ enum kmp_sched_type : kmp_int32 {
 
   /* static with chunk adjustment (e.g., simd) */
   kmp_sch_static_balanced_chunked = 45,
-  kmp_sch_guided_simd = 46, /**< guided with chunk adjustment */
+  kmp_sch_guided_simd = 46,  /**< guided with chunk adjustment */
   kmp_sch_runtime_simd = 47, /**< runtime with chunk adjustment */
 
   /* accessible only through KMP_SCHEDULE environment variable */
@@ -58,7 +58,7 @@ enum kmp_sched_type : kmp_int32 {
 
   /* Schedules for Distribute construct */
   kmp_distribute_static_chunked = 91, /**< distribute static chunked */
-  kmp_distribute_static = 92, /**< distribute static unspecialized */
+  kmp_distribute_static = 92,         /**< distribute static unspecialized */
 
   /* For the "nomerge" versions, kmp_dispatch_next*() will always return a
      single iteration/chunk, even if the loop is serialized. For the schedule
@@ -113,17 +113,17 @@ enum kmp_sched_type : kmp_int32 {
       (1 << 30), /**< Set if the nonmonotonic schedule modifier was present */
 
 #define SCHEDULE_WITHOUT_MODIFIERS(s)                                          \
-  (enum sched_type)(                                                           \
+  (kmp_sched_type)(                                                            \
       (s) & ~(kmp_sch_modifier_nonmonotonic | kmp_sch_modifier_monotonic))
 #define SCHEDULE_HAS_MONOTONIC(s) (((s)&kmp_sch_modifier_monotonic) != 0)
 #define SCHEDULE_HAS_NONMONOTONIC(s) (((s)&kmp_sch_modifier_nonmonotonic) != 0)
 #define SCHEDULE_HAS_NO_MODIFIERS(s)                                           \
   (((s) & (kmp_sch_modifier_nonmonotonic | kmp_sch_modifier_monotonic)) == 0)
 #define SCHEDULE_GET_MODIFIERS(s)                                              \
-  ((enum sched_type)(                                                          \
-      (s) & (kmp_sch_modifier_nonmonotonic | kmp_sch_modifier_monotonic)))
+  ((kmp_sched_type)((s) & (kmp_sch_modifier_nonmonotonic |                     \
+                           kmp_sch_modifier_monotonic)))
 #define SCHEDULE_SET_MODIFIERS(s, m)                                           \
-  (s = (enum sched_type)((kmp_int32)s | (kmp_int32)m))
+  (s = (kmp_sched_type)((kmp_int32)s | (kmp_int32)m))
 #define SCHEDULE_NONMONOTONIC 0
 #define SCHEDULE_MONOTONIC 1
 

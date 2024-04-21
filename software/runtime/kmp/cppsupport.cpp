@@ -1,6 +1,5 @@
-#include "kmp/mutex.hpp"
-#include <cstdlib>
 #include <mutex>
+#include "kmp/util.hpp"
 
 extern "C" {
 #include "alloc.h"
