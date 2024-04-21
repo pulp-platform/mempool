@@ -3,7 +3,9 @@
 
 namespace kmp {
 
-Team::Team(uint32_t numThreads) : numThreads(numThreads), barrier(numThreads) {
+Team::Team(uint32_t numThreads)
+    : numThreads(numThreads), barrier(numThreads),
+      dynamicSchedule{.valid = false} {
   printf("Creating team with %d threads\n", numThreads);
 
   SharedPointer<Team> sharedThis(this);
@@ -13,6 +15,8 @@ Team::Team(uint32_t numThreads) : numThreads(numThreads), barrier(numThreads) {
   threads.push_back(currentThread);
   currentThread.pushTeam(sharedThis);
   tidMap.insert({currentThread.getGtid(), 0});
+
+  // TODO: I feel like this can be done better
 
   kmp_uint32 foundThreads = 1;
   for (Thread &thread : runtime::threads) {
