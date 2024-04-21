@@ -5,7 +5,9 @@
 #include "kmp/barrier.hpp"
 #include "kmp/thread.hpp"
 #include "kmp/types.h"
+#include "kmp/util.hpp"
 #include "printf.h"
+#include <mutex>
 
 namespace kmp {
 
@@ -13,6 +15,18 @@ namespace kmp {
 class Thread;
 
 class Team {
+
+  struct DynamicSchedule {
+    kmp_uint32 lowerNext;
+    kmp_uint32 upper;
+    kmp_uint32 chunk;
+    kmp_uint32 incr;
+    kmp_uint32 stride;
+
+    std::atomic<bool> valid;
+    Mutex mutex;
+  };
+
 public:
   Team(kmp_uint32 numThreads);
 
@@ -109,6 +123,26 @@ public:
 
     switch (schedtype) {
     case kmp_sch_dynamic_chunked: {
+      std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
+      if (dynamicSchedule.valid) {
+        return;
+      }
+
+      kmp_uint32 span = incr * chunk;
+
+      dynamicSchedule.lowerNext = lower;
+      dynamicSchedule.upper = upper;
+      dynamicSchedule.chunk = chunk;
+      dynamicSchedule.incr = incr;
+      dynamicSchedule.stride = span * numThreads;
+
+      printf("Dynamic schedule: lowerNext=%d, upper=%d, chunk=%d, incr=%d, "
+             "stride=%d\n",
+             dynamicSchedule.lowerNext, dynamicSchedule.upper,
+             dynamicSchedule.chunk, dynamicSchedule.incr,
+             dynamicSchedule.stride);
+
+      dynamicSchedule.valid = true;
       break;
     }
     default: {
@@ -123,7 +157,29 @@ public:
   bool dispatchNext(ident_t *loc, kmp_int32 gtid,
                     typename std::make_signed<T>::type *plastiter, T *plower,
                     T *pupper, typename std::make_signed<T>::type *pstride) {
-    assert(false);
+
+    std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
+    assert(dynamicSchedule.valid && "Dynamic schedule not initialized");
+
+    if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
+      return false;
+    } else {
+
+      *plower = dynamicSchedule.lowerNext;
+
+      dynamicSchedule.lowerNext += dynamicSchedule.chunk;
+      if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
+        *pupper = dynamicSchedule.upper;
+        *plastiter = true;
+      } else {
+        *pupper = dynamicSchedule.lowerNext - 1;
+        *plastiter = false;
+      }
+
+      *pstride = dynamicSchedule.stride;
+
+      return true;
+    }
   };
 
 private:
@@ -135,6 +191,8 @@ private:
   kmp_uint32 numThreads;
 
   Barrier barrier;
+
+  DynamicSchedule dynamicSchedule;
 };
 
 } // namespace kmp
