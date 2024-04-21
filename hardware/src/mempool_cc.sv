@@ -228,6 +228,7 @@ module mempool_cc
     .core_events_o           (                       )
   );
   end else begin: gen_silence_fpu
+    assign fpu_trace        = '0;
     assign fpu_req_qready   = '0;
     assign fpu_resp_d       = '0;
     assign fpu_resp_dvalid  = '0;
