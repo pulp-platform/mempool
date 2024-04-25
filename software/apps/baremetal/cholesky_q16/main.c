@@ -9,11 +9,10 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "xpulp/builtins_v2.h"
 
+#include "baremetal/mempool_checks.h"
+#include "baremetal/mempool_cholesky_q16s.h"
 #include "data_cholesky_q16.h"
-#include "kernel/mempool_checks.h"
-#include "kernel/mempool_cholesky_q16s.h"
 
 #define SINGLE
 

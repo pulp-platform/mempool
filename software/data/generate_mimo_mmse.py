@@ -137,9 +137,10 @@ def generate_mimo_mmse_f16(N_tx, N_rx, N_itr, randomize):
             x = np.column_stack((x.real, x.imag)).astype(np.float16).flatten()
 
             vSigma[k, (i * 2 * N_tx_itr):((i + 1) * 2 * N_tx_itr)] = sigma
-            vH[k, (i * 2 * N_tx_itr * N_rx):((i + 1) * 2 * N_tx_itr * N_rx)] = H
-            vG[k, (i * 2 * N_tx_itr * N_tx_itr)
-                   :((i + 1) * 2 * N_tx_itr * N_tx_itr)] = G
+            vH[k, (i * 2 * N_tx_itr * N_rx):(
+                (i + 1) * 2 * N_tx_itr * N_rx)] = H
+            vG[k, (i * 2 * N_tx_itr * N_tx_itr):(
+                (i + 1) * 2 * N_tx_itr * N_tx_itr)] = G
             vy[k, :] = y
             vx[k, (i * 2 * N_tx_itr):((i + 1) * 2 * N_tx_itr)] = x
 
@@ -162,13 +163,15 @@ def generate_mimo_mmse_q16(N_tx, N_rx, N_itr):
     vx = np.zeros([N_itr, 2 * N_tx], dtype=np.int16)
     for k in range(N_itr):
         # Create channel matrix
-        H = np.random.randint(-2**(15), 2**(15) - 1, N_rx * N_tx, dtype=np.int16) \
-            + 1.j * np.random.randint(-2**(15), 2 **
-                                      (15) - 1, N_rx * N_tx, dtype=np.int16)
+        H = np.random.randint(-2**(15), 2**(15) - 1, N_rx * N_tx,
+                              dtype=np.int16) + \
+            1.j * np.random.randint(-2**(15), 2 ** (15) - 1,
+                                    N_rx * N_tx, dtype=np.int16)
         # Create input vector
-        y = np.random.randint(-2**(15), 2**(15) - 1, N_rx, dtype=np.int16) \
-            + 1.j * np.random.randint(-2**(15), 2 **
-                                      (15) - 1, N_rx, dtype=np.int16)
+        y = np.random.randint(-2**(15), 2**(15) - 1, N_rx,
+                              dtype=np.int16) + \
+            1.j * np.random.randint(-2**(15), 2 ** (15) - 1, N_rx,
+                                    dtype=np.int16)
         # Generate noise variance
         sigma = np.random.randint(-2**(15), 2**(15) - 1, N_tx, dtype=np.int16)
 
@@ -238,7 +241,7 @@ def main():
         "--iterations",
         type=int,
         required=False,
-        default=1,
+        default=32,
         help='Iterations.'
     )
 
@@ -261,7 +264,7 @@ def main():
     gen_data_header_file(args.outdir, tpl, **kwargs)
 
     vSigma, vH, vG, vy, vx, beamgroups = generate_mimo_mmse_f16(
-        N_tx, N_rx, N_itr, 1)
+        N_tx, N_rx, N_itr, 0)
     tpl = pathlib.Path(__file__).parent.absolute() / "data_mimo_mmse_f16.h.tpl"
     kwargs = {'name': 'data_mimo_mmse_f16',
               'H': vH,

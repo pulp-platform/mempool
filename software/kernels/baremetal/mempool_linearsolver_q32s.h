@@ -4,6 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#pragma once
 #include "mempool_sqrt_q32s.h"
 
 /**

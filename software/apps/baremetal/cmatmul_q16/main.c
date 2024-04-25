@@ -12,9 +12,9 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "data/data_cmatmul_q16.h"
-#include "kernel/mempool_checks.h"
-#include "kernel/mempool_cmatmul_q16.h"
+#include "baremetal/mempool_checks.h"
+#include "baremetal/mempool_cmatmul_q16.h"
+#include "data_cmatmul_q16.h"
 
 #define PARALLEL
 
