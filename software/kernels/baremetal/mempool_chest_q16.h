@@ -16,10 +16,6 @@
 
 #define DIV_LOOP(ab, ab_n)                                                     \
   {                                                                            \
-    cd0 = *(v2s *)&pPilotTX_itr[2U * j];                                       \
-    cd1 = *(v2s *)&pPilotTX_itr[2U * (j + 1)];                                 \
-    cd2 = *(v2s *)&pPilotTX_itr[2U * (j + 2)];                                 \
-    cd3 = *(v2s *)&pPilotTX_itr[2U * (j + 3)];                                 \
     D0 = (1 << 16U) / __DOTP2(cd0, cd0);                                       \
     D1 = (1 << 16U) / __DOTP2(cd1, cd1);                                       \
     D2 = (1 << 16U) / __DOTP2(cd2, cd2);                                       \
@@ -54,10 +50,6 @@
 
 #define MUL_LOOP(ab, ab_n)                                                     \
   {                                                                            \
-    cd0 = *(v2s *)&pPilotTX_itr[2U * j];                                       \
-    cd1 = *(v2s *)&pPilotTX_itr[2U * (j + 1)];                                 \
-    cd2 = *(v2s *)&pPilotTX_itr[2U * (j + 2)];                                 \
-    cd3 = *(v2s *)&pPilotTX_itr[2U * (j + 3)];                                 \
     re0 = __DOTP2(ab_n, cd0);                                                  \
     re1 = __DOTP2(ab_n, cd1);                                                  \
     re2 = __DOTP2(ab_n, cd2);                                                  \
@@ -173,6 +165,10 @@ void mempool_chest_q16s_unrolled4(int16_t *pH, int16_t *pPilotRX,
       ab3 = *(v2s *)&pPilotRX_itr[2U * (i + 3)];
       SHUFFLE_A;
       for (j = 0; j < nTX; j += 4) {
+        cd0 = *(v2s *)&pPilotTX_itr[2U * j];
+        cd1 = *(v2s *)&pPilotTX_itr[2U * (j + 1)];
+        cd2 = *(v2s *)&pPilotTX_itr[2U * (j + 2)];
+        cd3 = *(v2s *)&pPilotTX_itr[2U * (j + 3)];
 #ifdef __MUL
         MUL_LOOP(ab0, ab_n0);
         *((v2s *)&pH_itr[2 * (i * nTX + j)]) = (v2s)re0;
@@ -261,6 +257,10 @@ void mempool_chest_q16p_unrolled4(int16_t *volatile pH,
       ab3 = *(v2s *)&pPilotRX_itr[2U * (i + 3)];
       SHUFFLE_A;
       for (uint32_t j = 0; j < nTX; j += 4) {
+        cd0 = *(v2s *)&pPilotTX_itr[2U * j];
+        cd1 = *(v2s *)&pPilotTX_itr[2U * (j + 1)];
+        cd2 = *(v2s *)&pPilotTX_itr[2U * (j + 2)];
+        cd3 = *(v2s *)&pPilotTX_itr[2U * (j + 3)];
 #ifdef __MUL
         MUL_LOOP(ab0, ab_n0);
         *((v2s *)&pH_itr[2 * (i * nTX + j)]) = (v2s)re0;
@@ -343,6 +343,10 @@ void mempool_chest_q16p_unrolled4_local(int16_t *volatile pH,
     ab3 = *(v2s *)&pPilotRX_itr[2U * (i + 3)];
     SHUFFLE_A;
     for (j = 0; j < nTX; j += 4) {
+      cd0 = *(v2s *)&pPilotTX_itr[2U * j];
+      cd1 = *(v2s *)&pPilotTX_itr[2U * (j + 1)];
+      cd2 = *(v2s *)&pPilotTX_itr[2U * (j + 2)];
+      cd3 = *(v2s *)&pPilotTX_itr[2U * (j + 3)];
       MUL_LOOP(ab0, ab_n0);
       *((v2s *)&pH_itr[2 * (i * nTX + j)]) = (v2s)re0;
       *((v2s *)&pH_itr[2 * (i * nTX + j + 1)]) = (v2s)re1;
