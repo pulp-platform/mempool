@@ -165,4 +165,8 @@ void mempool_cholesky_folded_f32s(float *pSrc, float *pL, const uint32_t n) {
   return;
 }
 
+#else
+
+#error "ERROR: f32 MMSE functions available only for __XDIVSQRT."
+
 #endif

@@ -10,14 +10,14 @@
 #include <string.h>
 
 /* Mempool runtime libraries */
+#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "xpulp/builtins_v2.h"
 
-#include "data/data_ofdm.h"
+#include "data_ofdm.h"
 
 // CFFT Parameters
 #define SCHEDULED
@@ -28,17 +28,20 @@
 #define N_FFTs_ROW (N_RX / N_FFTs_COL)
 // CMATMUL Parameters
 #define NUM_COPIES (N_BANKS / (N_BEAMS * N_RX))
+#define dim_M (N_BEAMS)
+#define dim_N (N_RX)
+#define dim_P (N_SC)
 
 #define ROUNDS 3
-dump(prova, 1);
+dump(checkpoint, 1);
 
-#include "kernel/mempool_cmatmul_f16.h"
-#include "kernel/mempool_radix4_cfft_butterfly_f16.h"
-#include "kernel/mempool_radix4_cfft_f16p.h"
-#include "kernel/mempool_radix4_cfft_q16_bitreversal.h"
+#include "baremetal/mempool_cfft_q16_bitreversal.h"
+#include "baremetal/mempool_cmatmul_f16.h"
+#include "baremetal/mempool_radix4_cfft_butterfly_f16.h"
+#include "baremetal/mempool_radix4_cfft_f16p.h"
 
 uint32_t arrival_index __attribute__((section(".l1_prio")));
-__fp16 l1_pBF_Coef_folded[2 * N_BEAMS * N_RX * NUM_COPIES]
+__fp16 l1_pBF_Coef_folded[2 * BANKING_FACTOR * NUM_CORES]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
 
 __fp16 l1_pFFT_Src[N_FFTs_ROW * 8 * N_BANKS]
@@ -69,9 +72,9 @@ int main() {
                         (N_RX * N_SC) * sizeof(int32_t));
     dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
                         BITREVINDEXTABLE_LENGTH * sizeof(int16_t));
-    for (uint32_t i = 0; i < NUM_COPIES; i++) {
-      dma_memcpy_blocking(l1_pBF_Coef_folded + i * (N_BEAMS * N_RX),
-                          l2_pBF_Coef, (N_BEAMS * N_RX) * sizeof(int32_t));
+    for (uint32_t i = 0; i < BANKING_FACTOR * NUM_CORES; i += dim_M * dim_N) {
+      dma_memcpy_blocking(&l1_pBF_Coef_folded[2 * i], l2_pBF_Coef,
+                          dim_M * dim_N * sizeof(int32_t));
     }
     for (uint32_t i = 0; i < N_FFTs_COL; i++) {
       dma_memcpy_blocking(l1_twiddleCoef_f16_src + (2 * i * N_BANKS),
@@ -80,31 +83,27 @@ int main() {
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-  dump_prova(0);
-
-  //  // Start of the iterations
-  //  for (uint32_t round = 0; round < ROUNDS; round++) {
+  dump_checkpoint(0);
 
   /* FFT */
   mempool_start_benchmark();
-  uint32_t col_fftLen = N_SC / 4;
-  uint32_t col_id = core_id / (N_SC / 16);
+  uint32_t CORES_USED = (N_SC / 4) / BANKING_FACTOR;
   // Distribute FFTs over columns
   mempool_radix4_cfft_f16p_scheduler(
-      l1_pFFT_Src, l1_pFFT_Dst, N_SC,
-      l1_twiddleCoef_f16_src + 2 * col_id * col_fftLen,
-      l1_twiddleCoef_f16_dst + 2 * col_id * col_fftLen, l1_BitRevIndexTable,
-      BITREVINDEXTABLE_LENGTH, 1, (N_SC / 16));
+      l1_pFFT_Src, l1_pFFT_Dst, N_SC, N_FFTs_ROW, N_FFTs_COL,
+      l1_twiddleCoef_f16_src, l1_twiddleCoef_f16_dst, l1_BitRevIndexTable,
+      BITREVINDEXTABLE_LENGTH, 1, CORES_USED);
   mempool_log_barrier(2, core_id);
   mempool_stop_benchmark();
-  dump_prova(1);
+  dump_checkpoint(1);
 
   /* BEAMFORMING */
   mempool_start_benchmark();
-  cmatmul_2x4_folded_f16p(l1_pBF_Coef_folded, l1_pBF_Coef_folded, l1_pFFT_Src,
-                          l1_pFFT_Dst, N_BEAMS, N_RX, N_SC, core_id, num_cores);
+  cmatmul_4x4_f16p((int32_t *)l1_pBF_Coef_folded, (int32_t *)l1_pFFT_Src,
+                   (int32_t *)l1_pFFT_Dst, dim_M, dim_N, dim_P, core_id,
+                   num_cores);
   mempool_stop_benchmark();
-  dump_prova(2);
+  dump_checkpoint(2);
 
   mempool_start_benchmark();
   // Transfer and synchronization
@@ -124,9 +123,7 @@ int main() {
   }
   mempool_wfi();
   mempool_stop_benchmark();
-  dump_prova(3);
-
-  //  }
+  dump_checkpoint(3);
 
   return 0;
 }

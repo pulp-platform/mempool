@@ -10,12 +10,16 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "data_mimo_mmse_f32.h"
 #include "baremetal/mempool_checks.h"
-#include "baremetal/mempool_cholesky_f32s.h"
-#include "baremetal/mempool_linearsolver_f32s.h"
 #include "baremetal/mempool_mimo_mmse_f32p.h"
 #include "baremetal/mempool_mimo_mmse_f32s.h"
+
+#if defined(__XDIVSQRT)
+#include "baremetal/mempool_cholesky_f32s.h"
+#include "baremetal/mempool_linearsolver_f32s.h"
+#endif
+
+#include "data_mimo_mmse_f32.h"
 
 //#define SINGLE
 //#define JACOBI
@@ -52,7 +56,7 @@ int main() {
   }
   mempool_barrier(num_cores);
 
-#ifdef SINGLE
+#if defined(SINGLE) && defined(__XDIVSQRT)
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
@@ -80,7 +84,7 @@ int main() {
   mempool_barrier(num_cores);
 #endif
 
-#ifdef PARALLEL
+#if defined(PARALLEL) && defined(__XDIVSQRT)
   // Each iteration is assigned to a processor
   mempool_start_benchmark();
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
@@ -104,7 +108,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-#ifdef PARALLEL_HERMITIAN
+#if defined(PARALLEL_HERMITIAN) && defined(__XDIVSQRT)
   mempool_start_benchmark();
   // Each iteration is assigned to a pool of processors
   // In a pool each PE gets a column of the H matrix, accumulating a row of the
@@ -139,7 +143,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-#ifdef FOLDED
+#if defined(FOLDED) && defined(__XDIVSQRT)
   mempool_start_benchmark();
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
     // Inputs

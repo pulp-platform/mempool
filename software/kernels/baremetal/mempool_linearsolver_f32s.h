@@ -222,4 +222,8 @@ void mempool_Lttrisol_folded_f32s(float *pL, float *in, float *x,
   return;
 }
 
+#else
+
+#error "ERROR: f32 MMSE functions available only for __XDIVSQRT."
+
 #endif

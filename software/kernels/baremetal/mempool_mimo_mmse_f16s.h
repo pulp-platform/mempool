@@ -6,6 +6,7 @@
 // Author: Aofeng Aoshen, ETH Zurich
 
 #pragma once
+#include "builtins_v2.h"
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 /**

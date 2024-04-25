@@ -6,6 +6,7 @@
 // Author: Bowen Wang, ETH Zurich
 
 #pragma once
+#include "builtins_v2.h"
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 #ifdef __XDIVSQRT

@@ -64,11 +64,10 @@ def generate_cholesky_q16(n_matrix, n_samples):
     vector_L = []
     for k in range(n_samples):
         # Create hermitian matrix
-        H = np.random.randint(-2**(15), 2**(15) - 1, n_matrix * n_matrix, dtype=np.int16) \
-            + 1.j * np.random.randint(-2**(15),
-                                      2**(15) - 1,
-                                      n_matrix * n_matrix,
-                                      dtype=np.int16)
+        H = np.random.randint(-2**(15), 2**(15) - 1, n_matrix * n_matrix,
+                              dtype=np.int16) + \
+            1.j * np.random.randint(-2**(15), 2**(15) - 1, n_matrix * n_matrix,
+                                    dtype=np.int16)
         H = H.reshape(n_matrix, n_matrix)
         # Matrix to be inverted
         H_h = (np.asmatrix(H).H)

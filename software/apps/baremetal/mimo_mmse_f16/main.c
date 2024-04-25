@@ -11,19 +11,26 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "builtins_v2.h"
 
-#include "data_mimo_mmse_f16.h"
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_cholesky_f16s.h"
 #include "baremetal/mempool_linearsolver_f16s.h"
 #include "baremetal/mempool_mimo_mmse_f16s.h"
 
-//#define DOUBLE_BUFFERING
+#include "data_mimo_mmse_f16.h"
+
+// #define DOUBLE_BUFFERING
+// #define N_ROUNDS (1)
+// #define DMA_TRANSFER2
+
 #ifndef DOUBLE_BUFFERING
 
-#define SINGLE
-//#define PARALLEL
+/**********************************************/
+/* TEST OF THE KERNELS WITH NO DATA MOVEMENTS */
+/**********************************************/
+
+//#define SINGLE
+#define PARALLEL
 //#define FOLDED
 
 __fp16 l1_H[2 * N_TX * N_RX * N_ITR]
@@ -110,7 +117,7 @@ int main() {
       Ptrx += 2 * itr_bg * N_TX_bg;
     }
   }
-  mempool_log_barrier(2, core_id);
+  mempool_barrier(num_cores);
   mempool_stop_benchmark();
 #endif
 
@@ -139,7 +146,7 @@ int main() {
     mempool_Ltrisol_folded_f16s(PtrL, Ptry2, Ptry3, N_TX);
     mempool_Lttrisol_folded_f16s(PtrL, Ptry3, Ptrx, N_TX);
   }
-  mempool_log_barrier(2, core_id);
+  mempool_barrier(num_cores);
   mempool_stop_benchmark();
 #endif
 
@@ -244,8 +251,8 @@ int main() {
       __fp16 *PtrL = L + itr * (2 * N_TX * N_TX);
       __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
       __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
-      mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
-      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrSigma, N_RX, N_TX);
+      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
       mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
       mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
       mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
@@ -294,8 +301,8 @@ int main() {
       __fp16 *PtrSigma = cmpt_Sigma + itr * (2 * N_TX);
       __fp16 *PtrG = G + itr * (2 * N_TX * N_TX);
       __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
-      mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
-      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrSigma, N_RX, N_TX);
+      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
     }
     mempool_log_barrier(2, core_id);
 

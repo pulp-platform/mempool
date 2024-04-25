@@ -10,35 +10,53 @@
 #include <string.h>
 
 /* Mempool runtime libraries */
+#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "xpulp/builtins_v2.h"
 
 /* CFFT data libraries */
-#include "data/data_cfft_radix4_f16.h"
+#include "data_cfft_radix4_f16.h"
 
-/*
-   - FOLDED:    Parallel FFT with "memory-aware" load/store scheme
-   - SCHEDULED: Scheduling of multiple parallel FFTs with "memory-aware"
-   load/store scheme
-      - N_FFTs_COL: Independent FFTs scheduled on one row (default 1)
-      - N_FFTs_ROW: Independent FFTs scheduled on columns (default 1)
-      - FOLDED_TWIDDLES: Also the twiddles have "memory-aware" load/stores
-*/
+/* CHOOSE ONE */
+//#define SINGLE // Single core FFT.
+//#define PARALLEL // Parallel FFT not "memory-aware".
+//#define FOLDED // Parallel FFT with "memory-aware" load/store.
+#define SCHEDULED // Folded FFTs arranged in rows and cols.'''
 
-#define FOLDED
+// Bitreversal index from table.
+#define BITREVERSETABLE
+// Independent FFTs scheduled on one row (default 1).
+#define N_FFTs_ROW 2
+// Independent FFTs scheduled on columns (default 1).
+#define N_FFTs_COL 2
+#if (N_FFTs_COL > MAX_COL)
+#error Parallelization not supporting N_FFTs_COL > [N_BANKS / (N_CSAMPLES / 4)]
+#endif
+// Also the twiddles have "memory-aware" load/stores.
 #define FOLDED_TWIDDLES
-#define N_FFTs_ROW 1
-#define N_FFTs_COL 1
 
-#include "kernel/mempool_checks.h"
-#include "kernel/mempool_radix4_cfft_butterfly_f16.h"
-#include "kernel/mempool_radix4_cfft_f16p.h"
-#include "kernel/mempool_radix4_cfft_q16_bitreversal.h"
+#include "baremetal/mempool_cfft_q16_bitreversal.h"
+#include "baremetal/mempool_checks.h"
+#include "baremetal/mempool_radix4_cfft_butterfly_f16.h"
+#include "baremetal/mempool_radix4_cfft_f16p.h"
 
+#if (defined(SINGLE) || defined(PARALLEL))
+__fp16 l1_pSrc[2 * N_CSAMPLES]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_pDst[2 * N_CSAMPLES]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_twiddleCoef_f16_src[2 * 3 * N_CSAMPLES / 4]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_twiddleCoef_f16_dst[2 * 3 * N_CSAMPLES / 4]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+#endif
+
+#if (defined(SCHEDULED) || defined(FOLDED))
 __fp16 l1_pSrc[N_FFTs_ROW * 8 * N_BANKS]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
 __fp16 l1_pDst[N_FFTs_ROW * 8 * N_BANKS]
@@ -49,49 +67,44 @@ __fp16 l1_twiddleCoef_f16_dst[8 * N_BANKS]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
 uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
     __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+#endif
 
 int main() {
-
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier_init(core_id);
   __fp16 *pRes = (__fp16 *)0;
+  mempool_barrier_init(core_id);
+
+  /* INITIALIZATION */
 
   if (core_id == 0) {
-    // Each FFT is folded over 4 memory rows
-    // Each memory row is 2 * N_BANKS (real-imag) samples
     for (uint32_t j = 0; j < N_FFTs_ROW; j++) {
-      dma_memcpy_blocking(l1_pSrc + j * (8 * N_BANKS), l2_pSrc,
-                          (N_CSAMPLES * N_FFTs_COL) * sizeof(int32_t));
+      for (uint32_t i = 0; i < N_FFTs_COL; i++) {
+        dma_memcpy_blocking(l1_pSrc + i * 2 * N_CSAMPLES + j * (8 * N_BANKS),
+                            l2_pSrc, N_CSAMPLES * sizeof(int32_t));
+      }
     }
-    dma_memcpy_blocking(l1_pSrc, l2_pSrc, N_CSAMPLES * sizeof(int32_t));
     dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
-                        BITREVINDEXTABLE_LENGTH * sizeof(int16_t));
-    dma_memcpy_blocking(l1_twiddleCoef_f16_src, l2_twiddleCoef_f16,
-                        3 * (N_CSAMPLES / 4) * sizeof(int32_t));
+                        BITREVINDEXTABLE_LENGTH * sizeof(int32_t));
   }
-// Initialize the Twiddles folded
-#ifdef FOLDED_TWIDDLES
+  mempool_barrier(num_cores);
   for (uint32_t j = 0; j < N_FFTs_COL; j++) {
-    uint32_t N_WORDS_COL = (N_CSAMPLES / 4);
+    uint32_t N_WORDS_COL = N_CSAMPLES >> 2;
     for (uint32_t i = core_id; i < N_WORDS_COL; i += num_cores) {
-      *(v2h *)&l1_twiddleCoef_f16_src[2U * (i + j * N_WORDS_COL)] =
-          *(v2h *)&l2_twiddleCoef_f16[2U * i];
-      *(v2h *)&l1_twiddleCoef_f16_src[2U *
-                                      (i + j * N_WORDS_COL + 1 * N_BANKS)] =
-          *(v2h *)&l2_twiddleCoef_f16[2U * (i * 2U)];
-      *(v2h *)&l1_twiddleCoef_f16_src[2U *
-                                      (i + j * N_WORDS_COL + 2 * N_BANKS)] =
-          *(v2h *)&l2_twiddleCoef_f16[2U * (i * 3U)];
+      *(v2h *)&l1_twiddleCoef_f16_src[2 * (i + j * N_WORDS_COL)] =
+          *(v2h *)&l2_twiddleCoef_f16[2 * i];
+      *(v2h *)&l1_twiddleCoef_f16_src[2 * (i + j * N_WORDS_COL + 1 * N_BANKS)] =
+          *(v2h *)&l2_twiddleCoef_f16[2 * (i * 2U)];
+      *(v2h *)&l1_twiddleCoef_f16_src[2 * (i + j * N_WORDS_COL + 2 * N_BANKS)] =
+          *(v2h *)&l2_twiddleCoef_f16[2 * (i * 3U)];
     }
   }
-#endif
   if (core_id == 0) {
     printf("01: END INITIALIZATION\n");
   }
   mempool_barrier(num_cores);
 
-#if (defined(FOLDED) && defined(FOLDED_TWIDDLES))
+#ifdef FOLDED
   if (core_id < (N_CSAMPLES / 16)) {
     mempool_start_benchmark();
     mempool_radix4_cfft_f16p_folded(l1_pSrc, l1_pDst, N_CSAMPLES,
@@ -105,26 +118,28 @@ int main() {
 #endif
 
 #ifdef SCHEDULED
-  uint32_t nPE = (N_CSAMPLES / 16);
-  if (core_id < N_FFTs_COL * nPE) {
+  uint32_t CORES_USED = (N_CSAMPLES / 4) / BANKING_FACTOR;
+  if (core_id < N_FFTs_COL * CORES_USED) {
     mempool_start_benchmark();
-    uint32_t N_WORDS_COL = N_CSAMPLES / 4;
-    uint32_t col_id = core_id / nPE;
     mempool_radix4_cfft_f16p_scheduler(
         l1_pSrc, l1_pDst, N_CSAMPLES, N_FFTs_ROW, N_FFTs_COL,
-        l1_twiddleCoef_f16_src + 2 * col_id * N_WORDS_COL,
-        l1_twiddleCoef_f16_dst + 2 * col_id * N_WORDS_COL, l1_BitRevIndexTable,
-        BITREVINDEXTABLE_LENGTH, 1, nPE);
-    pRes = l1_pDst;
-    mempool_log_partial_barrier(2, core_id, N_FFTs_COL * nPE);
+        l1_twiddleCoef_f16_src, l1_twiddleCoef_f16_dst, l1_BitRevIndexTable,
+        BITREVINDEXTABLE_LENGTH, 1, CORES_USED);
+    mempool_log_partial_barrier(2, core_id, N_FFTs_COL * CORES_USED);
     mempool_stop_benchmark();
   }
+#ifdef BITREVERSETABLE
+  pRes = ((LOG2 / 2) % 2) == 0 ? l1_pSrc : l1_pDst;
+#else
+  pRes = ((LOG2 / 2) % 2) == 0 ? l1_pDst : l1_pSrc;
+#endif
 #endif
 
   mempool_barrier(num_cores);
   if (core_id == 0) {
     printf("02: END COMPUTATION\n");
   }
+
   mempool_check_f16(pRes, l2_pRes, 2 * N_CSAMPLES, 0.5, 0);
   mempool_barrier(num_cores);
   return 0;

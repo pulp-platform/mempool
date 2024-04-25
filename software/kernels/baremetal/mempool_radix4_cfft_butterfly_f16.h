@@ -5,7 +5,7 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #pragma once
-#include "xpulp/builtins_v2.h"
+#include "builtins_v2.h"
 
 /**
   @brief         First butterfly stage.

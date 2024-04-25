@@ -13,9 +13,11 @@
 #include "synchronization.h"
 
 #include "data_cmatmul_f16.h"
+
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_cmatmul_f16.h"
-#define PARALLEL_2x2
+#define PARALLEL_2x4
+#define TEST
 
 __fp16 matrix_a[2 * dim_M * dim_N]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
@@ -26,7 +28,7 @@ __fp16 matrix_b[2 * dim_N * dim_P]
 __fp16 matrix_c[2 * dim_M * dim_P]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
                    section(".l1_prio")));
-__fp16 matrix_a_folded[2 * dim_M * (4 * NUM_CORES)]
+__fp16 matrix_a_folded[2 * (BANKING_FACTOR * NUM_CORES)]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
                    section(".l1_prio")));
 
@@ -73,7 +75,6 @@ int main() {
     mempool_start_benchmark();
     cmatmul_2x4_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id,
                      nPE);
-    mempool_log_partial_barrier(2, core_id, nPE);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);

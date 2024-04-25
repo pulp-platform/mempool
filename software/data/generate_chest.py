@@ -103,8 +103,8 @@ def compute_chest_q16(in_rx, in_tx, p):
 #            result[2 * (i * n_tx + j) + 1] = q_sat((num_i * den) // 2**p)
 
             # Compute data multiplication
-            num_r = (a_r * b_r) + (a_i * b_i)
-            num_i = (a_i * b_r) - (a_r * b_i)
+            num_r = (a_r * b_r) - (a_i * b_i)
+            num_i = (a_i * b_r) + (a_r * b_i)
             result[2 * (i * n_tx + j)] = q_sat(num_r // 2**p)
             result[2 * (i * n_tx + j) + 1] = q_sat(num_i // 2**p)
     return result

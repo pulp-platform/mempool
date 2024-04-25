@@ -5,7 +5,8 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #pragma once
-#include "kernel/mempool_sqrt_q32s.h"
+#include "baremetal/mempool_sqrt_q32s.h"
+#include "builtins_v2.h"
 #define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 /** VECTORIZED CODE

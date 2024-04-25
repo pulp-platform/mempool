@@ -12,7 +12,7 @@
  */
 
 #pragma once
-#include "xpulp/builtins_v2.h"
+#include "builtins_v2.h"
 #define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
 
 #define CMATMUL_1x1_LOOP                                                       \
