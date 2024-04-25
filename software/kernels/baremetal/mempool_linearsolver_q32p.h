@@ -24,6 +24,7 @@ increase the utilization of the cores operating on multiple problems.
         RIGHT
 */
 
+#pragma once
 #include "mempool_sqrt_q32s.h"
 
 /**

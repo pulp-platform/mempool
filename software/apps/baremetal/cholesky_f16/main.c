@@ -11,7 +11,6 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "builtins_v2.h"
 
 #include "data_cholesky_f16.h"
 

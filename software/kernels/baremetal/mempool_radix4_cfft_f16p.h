@@ -6,7 +6,7 @@
 
 #pragma once
 #define BITREVERSETABLE
-#include "xpulp/builtins_v2.h"
+#include "builtins_v2.h"
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 // CoSi: (Si, Co) -> C: (Co, -Si)
@@ -215,6 +215,10 @@ void mempool_radix4_cfft_f16p_scheduler(
   __fp16 t0, t1, t2, t3, t4, t5;
   v2h CoSi1, CoSi2, CoSi3;
   v2h C1, C2, C3;
+  __fp16 *pIn;
+  __fp16 *pOut;
+  __fp16 *pTmp;
+
 #ifdef FOLDED_TWIDDLES
   uint32_t n1, n2, n2_store;
   uint32_t i0, k, ic, ic_store;
@@ -223,7 +227,6 @@ void mempool_radix4_cfft_f16p_scheduler(
   uint32_t i0, k, ic;
   uint32_t twidCoefModifier = 1U;
 #endif
-  __fp16 *pTmp;
 
   /* FIRST STAGE */
   n1 = fftLen;
@@ -237,9 +240,8 @@ void mempool_radix4_cfft_f16p_scheduler(
     LOAD_STORE_TWIDDLEFACT;
     SHUFFLE_TWIDDLEFACT;
     for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-      __fp16 *pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * fftLen;
-      __fp16 *pOut =
-          pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+      pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * fftLen;
+      pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
       radix4_butterfly_first(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                              C3);
     }
@@ -268,10 +270,8 @@ void mempool_radix4_cfft_f16p_scheduler(
       SHUFFLE_TWIDDLEFACT;
 
       for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-        __fp16 *pIn =
-            pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
-        __fp16 *pOut =
-            pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+        pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+        pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
         radix4_butterfly_middle(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                                 C3);
       }
@@ -288,10 +288,15 @@ void mempool_radix4_cfft_f16p_scheduler(
   /*  LAST STAGE */
   for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, fftLen >> 2U); i0++) {
     for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-      __fp16 *pIn =
-          pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
-      __fp16 *pOut =
-          pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+
+#if defined(BITREVERSETABLE)
+      uint32_t col_shift = fftLen;
+#else
+      uint32_t col_shift = fftLen / 4;
+#endif
+
+      pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+      pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * col_shift;
       radix4_butterfly_last(pIn, pOut, i0);
     }
   }
@@ -300,22 +305,19 @@ void mempool_radix4_cfft_f16p_scheduler(
   pDst16 = pTmp;
   mempool_log_partial_barrier(2, absolute_core_id, n_FFTs_COL * nPE);
   mempool_stop_benchmark();
-  mempool_start_benchmark();
-  /* BITREVERSAL */
-  // Bitreversal stage stores in the sequential addresses
+
   if (bitReverseFlag) {
 #ifdef BITREVERSETABLE
-    pSrc16 = pSrc16 + 2 * col_id * (fftLen / 4);
-    pDst16 = pDst16 + 2 * col_id * fftLen;
+    /* BITREVERSAL */
+    mempool_start_benchmark();
+    pIn = pSrc16 + 2 * col_id * fftLen;
+    uint32_t addr1, addr2, addr3, addr4;
+    uint32_t s2 = 0x00020002;
+    uint32_t tmpa1, tmpa2, tmpa3, tmpa4;
+    uint32_t tmpb1, tmpb2, tmpb3, tmpb4;
+    int32_t a1, a2, a3, a4;
+    int32_t b1, b2, b3, b4;
     for (ic = 8 * core_id; ic < bitReverseLen; ic += 8 * nPE) {
-      uint32_t addr1, addr2, addr3, addr4;
-      uint32_t tmpa1, tmpa2, tmpa3, tmpa4;
-      uint32_t tmpb1, tmpb2, tmpb3, tmpb4;
-      uint32_t a1, a2, a3, a4;
-      uint32_t b1, b2, b3, b4;
-      uint32_t a1_load, a2_load, a3_load, a4_load;
-      uint32_t b1_load, b2_load, b3_load, b4_load;
-      uint32_t s2 = 0x00020002;
       addr1 = *(uint32_t *)&pBitRevTable[ic];
       addr2 = *(uint32_t *)&pBitRevTable[ic + 2];
       addr3 = *(uint32_t *)&pBitRevTable[ic + 4];
@@ -324,67 +326,59 @@ void mempool_radix4_cfft_f16p_scheduler(
                    "pv.sra.h  %[addr2],%[addr2],%[s2];"
                    "pv.sra.h  %[addr3],%[addr3],%[s2];"
                    "pv.sra.h  %[addr4],%[addr4],%[s2];"
-                   "pv.extract.h  %[a1],%[addr1],0;"
-                   "pv.extract.h  %[a2],%[addr2],0;"
-                   "pv.extract.h  %[a3],%[addr3],0;"
-                   "pv.extract.h  %[a4],%[addr4],0;"
-                   "pv.extract.h  %[b1],%[addr1],1;"
-                   "pv.extract.h  %[b2],%[addr2],1;"
-                   "pv.extract.h  %[b3],%[addr3],1;"
-                   "pv.extract.h  %[b4],%[addr4],1;"
+                   "pv.extract.h  %[a1],%[addr1],1;"
+                   "pv.extract.h  %[a2],%[addr2],1;"
+                   "pv.extract.h  %[a3],%[addr3],1;"
+                   "pv.extract.h  %[a4],%[addr4],1;"
+                   "pv.extract.h  %[b1],%[addr1],0;"
+                   "pv.extract.h  %[b2],%[addr2],0;"
+                   "pv.extract.h  %[b3],%[addr3],0;"
+                   "pv.extract.h  %[b4],%[addr4],0;"
                    : [a1] "=r"(a1), [a2] "=r"(a2), [a3] "=r"(a3), [a4] "=r"(a4),
                      [b1] "=r"(b1), [b2] "=r"(b2), [b3] "=r"(b3), [b4] "=r"(b4),
                      [addr1] "+&r"(addr1), [addr2] "+&r"(addr2),
                      [addr3] "+&r"(addr3), [addr4] "+&r"(addr4)
                    : [s2] "r"(s2)
                    :);
-      // Compute the local addresses from the natural order ones
-      a1_load = (a1 % 4) * 2 * N_BANKS + 2 * (a1 / 4);
-      a2_load = (a2 % 4) * 2 * N_BANKS + 2 * (a2 / 4);
-      a3_load = (a3 % 4) * 2 * N_BANKS + 2 * (a3 / 4);
-      a4_load = (a4 % 4) * 2 * N_BANKS + 2 * (a4 / 4);
-      b1_load = (b1 % 4) * 2 * N_BANKS + 2 * (b1 / 4);
-      b2_load = (b2 % 4) * 2 * N_BANKS + 2 * (b2 / 4);
-      b3_load = (b3 % 4) * 2 * N_BANKS + 2 * (b3 / 4);
-      b4_load = (b4 % 4) * 2 * N_BANKS + 2 * (b4 / 4);
-      for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-        uint16_t *ptr1 = (uint16_t *)(pSrc16 + idx_row * (N_BANKS * 8));
-        uint16_t *ptr2 = (uint16_t *)(pDst16 + idx_row * (N_BANKS * 8));
+      for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
+        uint16_t *ptr = (uint16_t *)(pIn + idx_row * (N_BANKS * 8));
         // Load at address a
-        tmpa1 = *(uint32_t *)&ptr1[a1_load];
-        tmpa2 = *(uint32_t *)&ptr1[a2_load];
-        tmpa3 = *(uint32_t *)&ptr1[a3_load];
-        tmpa4 = *(uint32_t *)&ptr1[a4_load];
+        tmpa1 = *(uint32_t *)&ptr[a1];
+        tmpa2 = *(uint32_t *)&ptr[a2];
+        tmpa3 = *(uint32_t *)&ptr[a3];
+        tmpa4 = *(uint32_t *)&ptr[a4];
         // Load at address b
-        tmpb1 = *(uint32_t *)&ptr1[b1_load];
-        tmpb2 = *(uint32_t *)&ptr1[b2_load];
-        tmpb3 = *(uint32_t *)&ptr1[b3_load];
-        tmpb4 = *(uint32_t *)&ptr1[b4_load];
+        tmpb1 = *(uint32_t *)&ptr[b1];
+        tmpb2 = *(uint32_t *)&ptr[b2];
+        tmpb3 = *(uint32_t *)&ptr[b3];
+        tmpb4 = *(uint32_t *)&ptr[b4];
         // Swap a with b
-        *((uint32_t *)&ptr2[b1]) = tmpa1;
-        *((uint32_t *)&ptr2[b2]) = tmpa2;
-        *((uint32_t *)&ptr2[b3]) = tmpa3;
-        *((uint32_t *)&ptr2[b4]) = tmpa4;
+        *((uint32_t *)&ptr[b1]) = tmpa1;
+        *((uint32_t *)&ptr[b2]) = tmpa2;
+        *((uint32_t *)&ptr[b3]) = tmpa3;
+        *((uint32_t *)&ptr[b4]) = tmpa4;
         // Swap b with a
-        *((uint32_t *)&ptr2[a1]) = tmpb1;
-        *((uint32_t *)&ptr2[a2]) = tmpb2;
-        *((uint32_t *)&ptr2[a3]) = tmpb3;
-        *((uint32_t *)&ptr2[a4]) = tmpb4;
+        *((uint32_t *)&ptr[a1]) = tmpb1;
+        *((uint32_t *)&ptr[a2]) = tmpb2;
+        *((uint32_t *)&ptr[a3]) = tmpb3;
+        *((uint32_t *)&ptr[a4]) = tmpb4;
       }
     }
 #else
-    uint16_t *ptr1 = (uint16_t *)(pSrc16 + 2 * col_id * (fftLen / 4));
-    uint16_t *ptr2 = (uint16_t *)(pDst16 + 2 * col_id * fftLen);
-    for (ic = core_id * 16; ic < MIN(core_id * 16 + 16, fftLen >> 2U);
-         ic += 4) {
-      uint32_t idx0 = ic;
-      uint32_t idx1 = ic + 1;
-      uint32_t idx2 = ic + 2;
-      uint32_t idx3 = ic + 3;
-      uint32_t idx_result0 = 0;
-      uint32_t idx_result1 = 0;
-      uint32_t idx_result2 = 0;
-      uint32_t idx_result3 = 0;
+    mempool_start_benchmark();
+    int16_t *ptr1;
+    int16_t *ptr2;
+    uint32_t idx0, idx1, idx2, idx3;
+    uint32_t idx_result0, idx_result1, idx_result2, idx_result3;
+    for (ic = core_id * 4; ic < fftLen; ic += nPE * 4) {
+      idx_result0 = 0;
+      idx_result1 = 0;
+      idx_result2 = 0;
+      idx_result3 = 0;
+      idx0 = ic;
+      idx1 = ic + 1;
+      idx2 = ic + 2;
+      idx3 = ic + 3;
       for (k = 0; k < LOG2; k++) {
         idx_result0 = (idx_result0 << 1U) | (idx0 & 1U);
         idx_result1 = (idx_result1 << 1U) | (idx1 & 1U);
@@ -395,29 +389,20 @@ void mempool_radix4_cfft_f16p_scheduler(
         idx2 = idx2 >> 1U;
         idx3 = idx3 >> 1U;
       }
+      idx0 = ic / 4;
+      idx1 = ic / 4 + N_BANKS;
+      idx2 = ic / 4 + 2 * N_BANKS;
+      idx3 = ic / 4 + 3 * N_BANKS;
       for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-        uint32_t addr_src0 = (idx0 / 4) + (idx0 % 4) * N_BANKS;
-        uint32_t addr_src1 = (idx1 / 4) + (idx1 % 4) * N_BANKS;
-        uint32_t addr_src2 = (idx2 / 4) + (idx2 % 4) * N_BANKS;
-        uint32_t addr_src3 = (idx3 / 4) + (idx3 % 4) * N_BANKS;
-        uint32_t addr_dst0 = idx_result0;
-        uint32_t addr_dst1 = idx_result1;
-        uint32_t addr_dst2 = idx_result2;
-        uint32_t addr_dst3 = idx_result3;
-        addr_src0 += idx_row * (N_BANKS * 8);
-        addr_src1 += idx_row * (N_BANKS * 8);
-        addr_src2 += idx_row * (N_BANKS * 8);
-        addr_src3 += idx_row * (N_BANKS * 8);
-        addr_dst0 += idx_row * (N_BANKS * 8);
-        addr_dst1 += idx_row * (N_BANKS * 8);
-        addr_dst2 += idx_row * (N_BANKS * 8);
-        addr_dst3 += idx_row * (N_BANKS * 8);
-        *((uint32_t *)&ptr2[addr_dst0]) = (uint32_t)ptr1[addr_src0];
-        *((uint32_t *)&ptr2[addr_dst1]) = (uint32_t)ptr1[addr_src1];
-        *((uint32_t *)&ptr2[addr_dst2]) = (uint32_t)ptr1[addr_src2];
-        *((uint32_t *)&ptr2[addr_dst3]) = (uint32_t)ptr1[addr_src3];
+        ptr1 = pSrc16 + 2 * col_id * (fftLen / 4) + idx_row * (N_BANKS * 8);
+        ptr2 = pDst16 + 2 * col_id * fftLen + idx_row * (N_BANKS * 8);
+        *((uint32_t *)&ptr2[2 * idx_result0]) = *((uint32_t *)&ptr1[2 * idx0]);
+        *((uint32_t *)&ptr2[2 * idx_result1]) = *((uint32_t *)&ptr1[2 * idx1]);
+        *((uint32_t *)&ptr2[2 * idx_result2]) = *((uint32_t *)&ptr1[2 * idx2]);
+        *((uint32_t *)&ptr2[2 * idx_result3]) = *((uint32_t *)&ptr1[2 * idx3]);
       }
     }
+    mempool_stop_benchmark();
 #endif
   }
   mempool_log_partial_barrier(2, absolute_core_id, nPE);

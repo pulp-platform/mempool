@@ -5,9 +5,6 @@
 // Author: Marco Bertuletti, ETH Zurich
 // Author: Aofeng Aoshen, ETH Zurich
 
-#pragma once
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
-
 /** VECTORIZED CODE
   @brief         Computes the Hermitian matrix G = (H'*H + pS^2I).
   @param[in]     pH     points to input matrix

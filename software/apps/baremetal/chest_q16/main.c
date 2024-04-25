@@ -55,8 +55,8 @@ int main() {
 #endif
 #ifdef PARALLEL
   mempool_start_benchmark();
-  mempool_chest_q16p_unrolled4_local(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX,
-                                     N_TX, N_SAMPLES, core_id, num_cores);
+  mempool_chest_q16p_unrolled4(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX, N_TX,
+                               N_SAMPLES, core_id, num_cores);
   mempool_stop_benchmark();
   mempool_barrier(num_cores);
 #endif

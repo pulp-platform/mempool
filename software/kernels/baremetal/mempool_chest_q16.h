@@ -307,7 +307,7 @@ void mempool_chest_q16p_unrolled4(int16_t *volatile pH,
       }
     }
   }
-  mempool_barrier(nPE);
+  mempool_log_partial_barrier(2, core_id, nPE);
   return;
 }
 

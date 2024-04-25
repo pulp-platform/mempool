@@ -22,8 +22,8 @@ ALLPYS := $(patsubst %.py,%.h,$(wildcard $(DATA_DIR)/*.py))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL := $(APPS)
 
-ALL_GCC := $(filter-out matmul_f16 matmul_f32, $(ALL))
-ALL_LLVM := $(filter-out synth_i32 chest_q16 cfft_radix2_q16 cfft_radix4_q16, $(ALL))
+ALL_GCC := $(filter-out cfft_radix4_f16 chest_f16 cholesky_f16 cmatmul_f16 matmul_f16 matmul_f32 mimo_mmse_f32 mimo_mmse_f16 ofdm, $(ALL))
+ALL_LLVM := $(filter-out synth_i32 cfft_radix2_q16 cfft_radix4_q16 chest_q16 cholesky_q16 cholesky_q32 cmatmul_q16 mimo_mmse_q16, $(ALL))
 
 # Make all applications
 all: $(ALL_GCC)

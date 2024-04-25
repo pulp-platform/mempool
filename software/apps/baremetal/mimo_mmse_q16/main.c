@@ -9,12 +9,12 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "xpulp/builtins_v2.h"
 
-#include "data/data_mimo_mmse_q16.h"
-#include "kernel/mempool_cholesky_q16s.h"
-#include "kernel/mempool_linearsolver_q16s.h"
-#include "kernel/mempool_mimo_mmse_q16s.h"
+#include "data_mimo_mmse_q16.h"
+
+#include "baremetal/mempool_cholesky_q16s.h"
+#include "baremetal/mempool_linearsolver_q16s.h"
+#include "baremetal/mempool_mimo_mmse_q16s.h"
 
 #define PARALLEL
 

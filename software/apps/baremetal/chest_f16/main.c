@@ -8,17 +8,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
-#include "builtins_v2.h"
 
-#include "data_chest_f16.h"
 #include "baremetal/mempool_checks.h"
-#include "baremetal/mempool_chest_f16p.h"
-#include "baremetal/mempool_chest_f16s.h"
+#include "baremetal/mempool_chest_f16.h"
+#include "data_chest_f16.h"
 
 //#define SINGLE
 #define PARALLEL
