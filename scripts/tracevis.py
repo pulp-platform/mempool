@@ -151,7 +151,7 @@ def trace_function(name, pid, time, cyc, file, instr, sp):
                 f'}},\n'
             )
 
-            print(f'Stackless function {prev_func} ended')
+            # print(f'Stackless function {prev_func} ended')
 
         if name not in function_stack:
             output_file.write(f'{{'
@@ -164,23 +164,24 @@ def trace_function(name, pid, time, cyc, file, instr, sp):
                               f'"args": {{"time": "{arg_cycles}", "Origin": "{arg_coords}"}}'
                               f'}},\n')
 
-            print(f'Begin {name}')
+            # print(f'Begin {name}')
         else:
-            print(f'Function {name} already in stack')
+            pass
+            # print(f'Function {name} already in stack')
 
     elif sp < prev_sp:
         function_stack.append(name)
-        print(f'Pushed {name} to stack')
-        print(f'Function stack: {function_stack}')
-        print()
+        # print(f'Pushed {name} to stack')
+        # print(f'Function stack: {function_stack}')
+        # print()
 
     elif sp > prev_sp and len(function_stack) > 0:
         # pop prev function
         prev_func = function_stack.pop()
 
-        print(f'Popped {prev_func} from stack')
-        print(f'Function stack: {function_stack}')
-        print()
+        # print(f'Popped {prev_func} from stack')
+        # print(f'Function stack: {function_stack}')
+        # print()
 
         end_time = time if time > prev_ts else prev_ts + 1
         output_file.write(
