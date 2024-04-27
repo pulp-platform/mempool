@@ -15,7 +15,8 @@ module mempool_tile
   parameter logic [31:0] BootAddr     = 32'h0000_1000,
   // Dependent parameters. DO NOT CHANGE.
   parameter int unsigned NumCaches    = NumCoresPerTile / NumCoresPerCache,
-  parameter int unsigned NumCoresPerDivsqrt = |NumDivsqrtPerTile ? (NumCoresPerTile/NumDivsqrtPerTile) : (NumCoresPerTile*snitch_pkg::XDIVSQRT)
+  // If NumDivsqrtPerTile is set, otherwise the parameter defaults to 1.
+  parameter int unsigned NumCoresPerDivsqrt = |NumDivsqrtPerTile ? (NumCoresPerTile/NumDivsqrtPerTile) : NumCoresPerTile
 ) (
   // Clock and reset
   input  logic                                                                    clk_i,
@@ -114,7 +115,7 @@ module mempool_tile
   snitch_pkg::acc_req_t      [NumCoresPerTile-1:0] acc_req;
   snitch_pkg::acc_resp_t     [NumCoresPerTile-1:0] acc_resp;
   snitch_pkg::sh_acc_req_t   [NumCoresPerTile-1:0] sh_acc_req;
-  snitch_pkg::sh_acc_resp_t  [(NumDivsqrtPerTile > 1 ? NumDivsqrtPerTile-1 : 0):0] sh_acc_resp;
+  snitch_pkg::sh_acc_resp_t  [NumCoresPerTile-1:0] sh_acc_resp;
 
   // Data interfaces
   addr_t    [NumCoresPerTile-1:0] snitch_data_qaddr;
@@ -131,62 +132,67 @@ module mempool_tile
   logic     [NumCoresPerTile-1:0] snitch_data_pvalid;
   logic     [NumCoresPerTile-1:0] snitch_data_pready;
 
-  for (genvar c = 0; unsigned'(c) < NumDivsqrtPerTile; c++) begin: gen_divsqrt
-    logic                     divsqrt_req_valid;
-    logic                     divsqrt_req_ready;
-    logic                     divsqrt_resp_valid;
-    logic                     divsqrt_resp_ready;
-    snitch_pkg::sh_acc_req_t  divsqrt_req;
-    snitch_pkg::sh_acc_resp_t divsqrt_resp;
-    // Assign output to shared response
-    assign sh_acc_resp[c] = divsqrt_resp;
+  if (snitch_pkg::XDIVSQRT && !TrafficGeneration) begin: gen_divsqrt
+    for (genvar c = 0; unsigned'(c) < NumDivsqrtPerTile; c++) begin: gen_divsqrt
+      logic                     divsqrt_req_valid;
+      logic                     divsqrt_req_ready;
+      logic                     divsqrt_resp_valid;
+      logic                     divsqrt_resp_ready;
+      snitch_pkg::sh_acc_req_t  divsqrt_req;
+      snitch_pkg::sh_acc_resp_t divsqrt_resp;
 
-    // Shared accelerator arbiter
-    stream_arbiter #(
-      .DATA_T      ( snitch_pkg::sh_acc_req_t    ),
-      .N_INP       ( NumCoresPerDivsqrt          ),
-      .ARBITER     ( "rr"                        )
-    ) i_stream_arbiter_offload (
-      .clk_i       ( clk_i                                                                  ),
-      .rst_ni      ( rst_ni                                                                 ),
-      .inp_data_i  ( sh_acc_req[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]        ),
-      .inp_valid_i ( sh_acc_req_valid[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]  ),
-      .inp_ready_o ( sh_acc_req_ready[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]  ),
-      .oup_data_o  ( divsqrt_req                                                            ),
-      .oup_valid_o ( divsqrt_req_valid                                                      ),
-      .oup_ready_i ( divsqrt_req_ready                                                      )
-    );
+      // Assign output to shared response
+      for (genvar i = 0; unsigned'(i) < NumCoresPerDivsqrt; i++) begin
+        assign sh_acc_resp[c*NumCoresPerDivsqrt + i] = divsqrt_resp;
+      end
 
-    // Shared accelerator output demux
-    stream_demux #(
-      .N_OUP ( NumCoresPerDivsqrt )
-    ) i_stream_demux_offload (
-      .inp_valid_i  ( divsqrt_resp_valid                                                      ),
-      .inp_ready_o  ( divsqrt_resp_ready                                                      ),
-      .oup_sel_i    ( sh_acc_resp[c].hart_id[$clog2(NumCoresPerDivsqrt)-1:0]                  ),
-      .oup_valid_o  ( sh_acc_resp_valid[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]  ),
-      .oup_ready_i  ( sh_acc_resp_ready[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]  )
-    );
+      // Shared accelerator arbiter
+      stream_arbiter #(
+        .DATA_T      ( snitch_pkg::sh_acc_req_t    ),
+        .N_INP       ( NumCoresPerDivsqrt          ),
+        .ARBITER     ( "rr"                        )
+      ) i_stream_arbiter_offload (
+        .clk_i       ( clk_i                                                                  ),
+        .rst_ni      ( rst_ni                                                                 ),
+        .inp_data_i  ( sh_acc_req[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]        ),
+        .inp_valid_i ( sh_acc_req_valid[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]  ),
+        .inp_ready_o ( sh_acc_req_ready[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]  ),
+        .oup_data_o  ( divsqrt_req                                                            ),
+        .oup_valid_o ( divsqrt_req_valid                                                      ),
+        .oup_ready_i ( divsqrt_req_ready                                                      )
+      );
 
-    // Tile shared divsqrt unit
-    snitch_fp_divsqrt #(
-      .FPUImplementation       (snitch_pkg::DIVSQRT_IMPLEMENTATION)
-    ) i_snitch_divsqrt (
-      .clk_i,
-      .rst_i                   (!rst_ni                ),
-      // pragma translate_off
-      .trace_port_o            (                       ),
-      // pragma translate_on
-      .acc_req_i               ( divsqrt_req        ),
-      .acc_req_valid_i         ( divsqrt_req_valid  ),
-      .acc_req_ready_o         ( divsqrt_req_ready  ),
-      .acc_resp_o              ( divsqrt_resp       ),
-      .acc_resp_valid_o        ( divsqrt_resp_valid ),
-      .acc_resp_ready_i        ( divsqrt_resp_ready ),
-      .divsqrt_rnd_mode_i      ( fpnew_pkg::RNE     ),
-      .divsqrt_status_o        (                    ),
-      .core_events_o           (                    )
-    );
+      // Shared accelerator output demux
+      stream_demux #(
+        .N_OUP ( NumCoresPerDivsqrt )
+      ) i_stream_demux_offload (
+        .inp_valid_i  ( divsqrt_resp_valid                                                        ),
+        .inp_ready_o  ( divsqrt_resp_ready                                                        ),
+        .oup_sel_i    ( sh_acc_resp[c*NumCoresPerDivsqrt].hart_id[$clog2(NumCoresPerDivsqrt)-1:0] ),
+        .oup_valid_o  ( sh_acc_resp_valid[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]    ),
+        .oup_ready_i  ( sh_acc_resp_ready[((c+1)*NumCoresPerDivsqrt)-1:(c*NumCoresPerDivsqrt)]    )
+      );
+
+      // Tile shared divsqrt unit
+      snitch_fp_divsqrt #(
+        .FPUImplementation       (snitch_pkg::DIVSQRT_IMPLEMENTATION)
+      ) i_snitch_divsqrt (
+        .clk_i,
+        .rst_i                   (!rst_ni                ),
+        // pragma translate_off
+        .trace_port_o            (                       ),
+        // pragma translate_on
+        .acc_req_i               ( divsqrt_req        ),
+        .acc_req_valid_i         ( divsqrt_req_valid  ),
+        .acc_req_ready_o         ( divsqrt_req_ready  ),
+        .acc_resp_o              ( divsqrt_resp       ),
+        .acc_resp_valid_o        ( divsqrt_resp_valid ),
+        .acc_resp_ready_i        ( divsqrt_resp_ready ),
+        .divsqrt_rnd_mode_i      ( fpnew_pkg::RNE     ),
+        .divsqrt_status_o        (                    ),
+        .core_events_o           (                    )
+      );
+    end
   end
 
   for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_cores
@@ -240,17 +246,24 @@ module mempool_tile
         assign sh_acc_req[c].data_argb = acc_req[c].data_argb;
         assign sh_acc_req[c].data_argc = acc_req[c].data_argc;
         // Redistribute shared response to cores
-        assign acc_resp[c].id     = sh_acc_resp[c/NumCoresPerDivsqrt].id;
-        assign acc_resp[c].error  = sh_acc_resp[c/NumCoresPerDivsqrt].error;
-        assign acc_resp[c].data   = sh_acc_resp[c/NumCoresPerDivsqrt].data;
+        assign acc_resp[c].id     = sh_acc_resp[c].id;
+        assign acc_resp[c].error  = sh_acc_resp[c].error;
+        assign acc_resp[c].data   = sh_acc_resp[c].data;
       end else begin: silence_sh_acc_interface
-        assign sh_acc_req[c]        = '0;
         assign acc_resp[c]          = '0;
+        assign sh_acc_req[c]        = '0;
+        assign sh_acc_req_ready[c]  = '0;
+        assign sh_acc_resp[c]       = '0;
+        assign sh_acc_resp_valid[c] = '0;
       end
     end else begin
       // Silence acc interfaces
+      assign acc_req[c]                                                = '0;
       assign sh_acc_req[c]                                             = '0;
       assign sh_acc_req_valid[c]                                       = '0;
+      assign sh_acc_req_ready[c]                                       = '0;
+      assign sh_acc_resp[c]                                            = '0;
+      assign sh_acc_resp_valid[c]                                      = '0;
       assign sh_acc_resp_ready[c]                                      = '0;
       // Silence memory interfaces
       assign snitch_data_qaddr[c]                                      = '0;

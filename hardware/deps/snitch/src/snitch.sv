@@ -124,9 +124,8 @@ module snitch
   logic [31:0] alu_result;
 
   logic [RegWidth-1:0] rd, rs1, rs2;
-`ifdef ZFINX
   logic [RegWidth-1:0] rs3;
-`endif
+
   logic stall, lsu_stall, fence_stall;
   // Register connections
   logic [RegNrReadPorts-1:0][RegWidth-1:0]  gpr_raddr;
@@ -214,23 +213,21 @@ module snitch
   logic [31:0] csr_rvalue;
   logic csr_en;
 
-`ifdef ZFINX
   typedef struct packed {
     fpnew_pkg::roundmode_e frm;
     fpnew_pkg::status_t    fflags;
   } fcsr_t;
   fcsr_t fcsr_d, fcsr_q;
-  assign fpu_rnd_mode_o = fcsr_q.frm;
-`endif
 
   // Registers
   `FFAR(pc_q, pc_d, BootAddr, clk_i, rst_i)
   `FFAR(wfi_q, wfi_d, '0, clk_i, rst_i)
   `FFAR(wake_up_q, wake_up_d, '0, clk_i, rst_i)
   `FFAR(sb_q, sb_d, '0, clk_i, rst_i)
-`ifdef ZFINX
-  `FFAR(fcsr_q, fcsr_d, '0, clk_i, rst_i)
-`endif
+  if (snitch_pkg::ZFINX) begin
+    `FFAR(fcsr_q, fcsr_d, '0, clk_i, rst_i)
+    assign fpu_rnd_mode_o = fcsr_q.frm;
+  end
 
   always_comb begin
     core_events_o = '0;
@@ -271,11 +268,11 @@ module snitch
   // TODO(zarubaf): This can probably be described a bit more efficient
   assign opa_ready = (opa_select != Reg) | ~sb_q[rs1];
   assign opb_ready = ((opb_select != Reg & opb_select != SImmediate) | ~sb_q[rs2]) & ((opb_select != RegRd) | ~sb_q[rd]);
-`ifdef ZFINX
-  assign opc_ready = ((opc_select != Reg & opc_select != SImmediate) | ~sb_q[rs3]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
-`else
-  assign opc_ready = ((opc_select != Reg) | ~sb_q[rd]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
-`endif
+  if (snitch_pkg::ZFINX) begin
+    assign opc_ready = ((opc_select != Reg & opc_select != SImmediate) | ~sb_q[rs3]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
+  end else begin
+    assign opc_ready = ((opc_select != Reg) | ~sb_q[rd]) & ((opc_select != RegRs2) | ~sb_q[rs2]);
+  end
   assign operands_ready = opa_ready & opb_ready & opc_ready;
 
   // either we are not using the destination register or we need to make
@@ -336,10 +333,10 @@ module snitch
   assign rd = inst_data_i[7 + RegWidth - 1:7];
   assign rs1 = inst_data_i[15 + RegWidth - 1:15];
   assign rs2 = inst_data_i[20 + RegWidth - 1:20];
-`ifdef ZFINX
-  assign rs3 = (((acc_qaddr_o == snitch_pkg::FP_SS) || (acc_qaddr_o == snitch_pkg::FP_DIVSQRT)) & (snitch_pkg::ZFINX)) ? inst_data_i[27 + RegWidth - 1:27] :
-               ((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0;
-`endif
+  if (snitch_pkg::ZFINX) begin
+    assign rs3 = (((acc_qaddr_o == snitch_pkg::FP_SS) || (acc_qaddr_o == snitch_pkg::FP_DIVSQRT)) & (snitch_pkg::ZFINX)) ? inst_data_i[27 + RegWidth - 1:27] :
+                 ((acc_qaddr_o == snitch_pkg::XPULP_IPU) & (snitch_pkg::XPULPIMG)) ? inst_data_i[7 + RegWidth - 1:7] : '0;
+  end
 
   always_comb begin
     illegal_inst = 1'b0;
@@ -840,7 +837,6 @@ module snitch
       /* ZFINX extensions */
       /////////////////////////
 
-`ifdef ZFINX
       /////////////////////////////////////
       /* Single precision Floating-Point */
       riscv_instr::FADD_S,
@@ -1142,7 +1138,7 @@ module snitch
           illegal_inst = 1'b1;
         end
       end
-`ifdef ZQUARTERINX
+
       //////////////////////////////////////
       /* Quarter Precision Floating-Point */
       riscv_instr::FADD_B,
@@ -1372,16 +1368,11 @@ module snitch
           illegal_inst = 1'b1;
         end
       end
-`endif
-/* end of Zquarterinx extension */
-`endif
-/* end of Zfinx extension */
 
       ////////////////////////
       /* Xpulpimg extension */
       ////////////////////////
 
-`ifdef XPULPIMG
       // Post-increment loads/stores
       riscv_instr::P_LB_IRPOST: begin // Xpulpimg: p.lb rd,iimm(rs1!)
         if (snitch_pkg::XPULPIMG) begin
@@ -1955,8 +1946,6 @@ module snitch
           illegal_inst = 1'b1;
         end
       end
-`endif
-/* end of Xpulpimg extension */
 
       // TODO(zarubaf): Illegal Instructions
       default: begin
@@ -2045,21 +2034,25 @@ module snitch
           csr_rvalue = stall_raw_q[31:0];
         end
         `endif
-        `ifdef ZFINX
         // F/D Extension
         riscv_instr::CSR_FFLAGS: begin
-          csr_rvalue = {27'b0, fcsr_q.fflags};
-          fcsr_d.fflags = fpnew_pkg::status_t'(alu_result[4:0]);
+          if (snitch_pkg::ZFINX) begin
+            csr_rvalue = {27'b0, fcsr_q.fflags};
+            fcsr_d.fflags = fpnew_pkg::status_t'(alu_result[4:0]);
+          end
         end
         riscv_instr::CSR_FRM: begin
-          csr_rvalue = {29'b0, fcsr_q.frm};
-          fcsr_d.frm = fpnew_pkg::roundmode_e'(alu_result[2:0]);
+          if (snitch_pkg::ZFINX) begin
+            csr_rvalue = {29'b0, fcsr_q.frm};
+            fcsr_d.frm = fpnew_pkg::roundmode_e'(alu_result[2:0]);
+          end
         end
         riscv_instr::CSR_FCSR: begin
-          csr_rvalue = {24'b0, fcsr_q};
-          fcsr_d = fcsr_t'(alu_result[7:0]);
+          if (snitch_pkg::ZFINX) begin
+            csr_rvalue = {24'b0, fcsr_q};
+            fcsr_d = fcsr_t'(alu_result[7:0]);
+          end
         end
-        `endif
         default: begin
           csr_rvalue = '0;
           csr_dump = 1'b1;
@@ -2134,12 +2127,12 @@ module snitch
   assign gpr_raddr[1] = rs2;
   // connect third read port only if present
   if (RegNrReadPorts >= 3) begin : gpr_raddr_2
-`ifdef ZFINX
-    assign gpr_raddr[2] = ((snitch_pkg::ZFINX) || (snitch_pkg::XPULPIMG) && (opc_select == RegRd)) ? rd  :
-                          ((snitch_pkg::ZFINX) || (snitch_pkg::XPULPIMG) && (opc_select == Reg))   ? rs3 : '0;
-`else
-    assign gpr_raddr[2] = rd;
-`endif
+    if (snitch_pkg::ZFINX) begin
+      assign gpr_raddr[2] = ((snitch_pkg::ZFINX) || (snitch_pkg::XPULPIMG) && (opc_select == RegRd)) ? rd  :
+                            ((snitch_pkg::ZFINX) || (snitch_pkg::XPULPIMG) && (opc_select == Reg))   ? rs3 : '0;
+    end else begin
+      assign gpr_raddr[2] = rd;
+    end
   end
 
   // --------------------
