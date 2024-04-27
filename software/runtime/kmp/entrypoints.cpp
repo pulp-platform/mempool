@@ -14,7 +14,7 @@ void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid) {
 void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...) {
   va_list ap;
   va_start(ap, microtask);
-  kmp::Microtask kmpMicrotask(microtask, ap, argc);
+  kmp::SharedPointer<kmp::Microtask> kmpMicrotask(new kmp::Microtask(microtask, ap, argc));
   va_end(ap);
 
   kmp::runtime::getCurrentThread().forkCall(kmpMicrotask);

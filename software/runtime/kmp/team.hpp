@@ -136,11 +136,11 @@ public:
       dynamicSchedule.incr = incr;
       dynamicSchedule.stride = span * numThreads;
 
-      printf("Dynamic schedule: lowerNext=%d, upper=%d, chunk=%d, incr=%d, "
-             "stride=%d\n",
-             dynamicSchedule.lowerNext, dynamicSchedule.upper,
-             dynamicSchedule.chunk, dynamicSchedule.incr,
-             dynamicSchedule.stride);
+      DEBUG_PRINT(
+          "Dynamic schedule: lowerNext=%d, upper=%d, chunk=%d, incr=%d, "
+          "stride=%d\n",
+          dynamicSchedule.lowerNext, dynamicSchedule.upper,
+          dynamicSchedule.chunk, dynamicSchedule.incr, dynamicSchedule.stride);
 
       dynamicSchedule.valid = true;
       break;
