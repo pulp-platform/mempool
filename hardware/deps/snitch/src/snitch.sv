@@ -2415,7 +2415,7 @@ module snitch
     assign sp_new_value = gpr_wdata[i];
     always_ff @(posedge clk_i or posedge rst_i) begin
       if (!rst_i && gpr_we[i] && gpr_waddr[i] == SP && csr_stack_limit_q != 32'hFFFF_FFFF && ($signed(sp_new_value) < $signed(csr_stack_limit_q))) begin
-        $warning("[Stackoverflow: Core %0d] Set SP to 0x%08h, limit is 0x%08h", hart_id_i, sp_new_value, csr_stack_limit_q);
+        $warning("[Stackoverflow: Core %0d, PC: %0d] Set SP to 0x%08h, limit is 0x%08h", hart_id_i, inst_addr_o, sp_new_value, csr_stack_limit_q);
       end
     end
   end
