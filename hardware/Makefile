@@ -334,11 +334,13 @@ spyglass/tmp/files: $(bender)
 trace_env += NUM_CORES=$(num_cores)
 trace_env += SEQ_MEM_SIZE=$(seq_mem_size)
 
+.PHONY: benchmark trace log pre_trace post_trace tracevis
+
 benchmark: log simcvcs
 	# Call `make` again to get variable extension with all traces
 	result_dir=$(result_dir) $(MAKE) trace
 
-trace: pre_trace $(trace) post_trace
+trace: post_trace
 
 log:
 	mkdir -p "$(result_dir)"
@@ -355,20 +357,20 @@ log:
 pre_trace:
 	rm -rf $(tracepath)
 
-post_trace:
+post_trace: $(trace)
 	mkdir -p "$(result_dir)"
 	cp $(buildpath)/transcript "$(result_dir)/" | true
 	cp $(traceresult) "$(result_dir)"
 	cp $(trace) "$(result_dir)"
 	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(result_dir)/avg.txt
 
-$(buildpath)/%.trace: $(buildpath)/%.dasm
+$(buildpath)/%.trace: $(buildpath)/%.dasm pre_trace
 	mkdir -p $(tracepath)
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
 	$(trace_env) $(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
 
-tracevis:
-	$(MEMPOOL_DIR)/scripts/tracevis.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json
+tracevis: $(trace)
+	$(MEMPOOL_DIR)/scripts/tracevis.py -cf $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json
 
 ############################
 # Unit tests simulation    #
