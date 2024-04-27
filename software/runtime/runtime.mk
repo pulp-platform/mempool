@@ -117,12 +117,14 @@ endif
 
 ifndef NDEBUG
 	DEFINES += -DETL_CHECK_PUSH_POP -DETL_LOG_ERRORS -DETL_VERBOSE_ERRORS
+else
+	DEFINES += -DNDEBUG
 endif
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
-RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
+RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra -Wframe-larger-than=$$(( $(stack_size) >> 3 ))  # -Werror
 RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -O3 -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -fno-tree-loop-distribute-patterns # -falign-loops=32 -falign-jumps=32
