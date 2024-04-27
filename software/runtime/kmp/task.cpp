@@ -6,9 +6,9 @@ extern "C" {
 }
 
 namespace kmp {
-Task::Task(const Microtask &microtask) : microtask(microtask){};
+Task::Task(const SharedPointer<Microtask> &microtask) : microtask(microtask){};
 
-void Task::run() { microtask.run(); };
+void Task::run() { microtask->run(); };
 
 Microtask::Microtask(kmpc_micro fn, va_list args, kmp_int32 argc) : fn(fn) {
   if (argc > 15) {

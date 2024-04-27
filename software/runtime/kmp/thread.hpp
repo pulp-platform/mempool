@@ -34,7 +34,7 @@ public:
   kmp_uint32 getTid();
 
   void requestNumThreads(kmp_int32 numThreads);
-  void forkCall(const Microtask &microtask);
+  void forkCall(const SharedPointer<Microtask> &microtask);
 
 public:
   etl::list<Task, 10> tasks;

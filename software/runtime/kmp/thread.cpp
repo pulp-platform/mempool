@@ -70,12 +70,12 @@ void Thread::requestNumThreads(kmp_int32 numThreads) {
   this->requestedNumThreads = numThreads;
 }
 
-void Thread::forkCall(const Microtask &microtask) {
+void Thread::forkCall(const SharedPointer<Microtask> &microtask) {
   kmp_uint32 numThreads =
       this->requestedNumThreads.value_or(mempool_get_core_count());
   this->requestedNumThreads.reset();
 
-  printf("Forking call with %d threads\n", numThreads);
+  DEBUG_PRINT("Forking call with %d threads\n", numThreads);
 
   kmp::Task task(microtask);
   Team *team = new Team(numThreads); // Do not use shared pointer here since it
@@ -84,12 +84,18 @@ void Thread::forkCall(const Microtask &microtask) {
 
   task.run();
 
+  DEBUG_PRINT("Done running task\n");
+
   std::lock_guard<Mutex> teamsLock(teamsMutex);
   teams.top()->barrierWait();
   teams.pop();
 
+  DEBUG_PRINT("Popped team\n");
+
   std::lock_guard<Mutex> tasksLock(tasksMutex);
   tasks.pop_front();
+
+  DEBUG_PRINT("Popped task\n");
 };
 
 kmp_uint32 Thread::getGtid() const { return gtid; };

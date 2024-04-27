@@ -1,6 +1,7 @@
 #pragma once
 
 #include "etl/vector.h"
+#include "kmp/util.hpp"
 #include "types.h"
 
 namespace kmp {
@@ -17,11 +18,11 @@ private:
 
 class Task {
 public:
-  Task(const Microtask &microtask);
+  Task(const SharedPointer<Microtask> &microtask);
 
   void run();
 
 private:
-  Microtask microtask;
+  SharedPointer<Microtask> microtask;
 };
 }; // namespace kmp

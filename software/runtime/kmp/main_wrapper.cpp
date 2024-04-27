@@ -9,7 +9,7 @@ typedef void (*init_func)(void);
 extern init_func __init_array_start[];
 extern init_func __init_array_end[];
 
-void initGlobals() {
+static inline void initGlobals() {
   uint32_t n = __init_array_end - __init_array_start;
   for (size_t i = 0; i < n; i++) {
     __init_array_start[i]();
@@ -21,7 +21,7 @@ extern "C" int __real_main();
 std::atomic<bool> initLock = true;
 
 extern "C" int __wrap_main() {
-  mempool_id_t core_id = mempool_get_core_id();
+  const mempool_id_t core_id = mempool_get_core_id();
   if (core_id == 0) {
     printf("Running OpenMP program on %d cores\n", mempool_get_core_count());
 

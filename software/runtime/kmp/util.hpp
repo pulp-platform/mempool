@@ -9,6 +9,12 @@ extern "C" {
 
 namespace kmp {
 
+#ifndef NDEBUG
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...)
+#endif
+
 class Mutex {
 public:
   inline void lock() {

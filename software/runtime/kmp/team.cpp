@@ -6,7 +6,7 @@ namespace kmp {
 Team::Team(uint32_t numThreads)
     : numThreads(numThreads), barrier(numThreads),
       dynamicSchedule{.valid = false} {
-  printf("Creating team with %d threads\n", numThreads);
+  DEBUG_PRINT("Creating team with %d threads\n", numThreads);
 
   SharedPointer<Team> sharedThis(this);
 
@@ -54,6 +54,8 @@ kmp_uint32 Team::getThreadGtid(kmp_uint32 tid) const {
 
 kmp_uint32 Team::getNumThreads() const { return numThreads; }
 
-void Team::barrierWait() const { barrier.wait(); }
+void Team::barrierWait() const {
+  barrier.wait();
+}
 
 } // namespace kmp
