@@ -7,6 +7,7 @@ extern "C" {
 #include "runtime.h"
 
 void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid) {
+  DEBUG_PRINT("__kmpc_barrier called by %d\n", global_tid);
   kmp::runtime::getCurrentThread().getCurrentTeam()->barrierWait();
 };
 
@@ -14,7 +15,8 @@ void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid) {
 void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...) {
   va_list ap;
   va_start(ap, microtask);
-  kmp::SharedPointer<kmp::Microtask> kmpMicrotask(new kmp::Microtask(microtask, ap, argc));
+  kmp::SharedPointer<kmp::Microtask> kmpMicrotask(
+      new kmp::Microtask(microtask, ap, argc));
   va_end(ap);
 
   kmp::runtime::getCurrentThread().forkCall(kmpMicrotask);
@@ -121,6 +123,69 @@ void __kmpc_push_num_threads(ident_t *loc, kmp_int32 global_tid,
                              kmp_int32 num_threads) {
   kmp::runtime::getCurrentThread().requestNumThreads(num_threads);
 };
+
+// Critical sections
+void __kmpc_critical(ident_t *, kmp_int32 gtid, kmp_critical_name *crit) {
+  static_assert(sizeof(kmp::Mutex) <= sizeof(kmp_critical_name));
+  kmp::Mutex *mutex = reinterpret_cast<kmp::Mutex *>(*crit);
+  mutex->lock();
+};
+
+void __kmpc_end_critical(ident_t *, kmp_int32 gtid, kmp_critical_name *crit) {
+  kmp::Mutex *mutex = reinterpret_cast<kmp::Mutex *>(*crit);
+  mutex->unlock();
+};
+
+// Master
+kmp_int32 __kmpc_master(ident_t *loc, int32_t gtid) {
+  return kmp::runtime::getCurrentThread().getTid() == 0;
+};
+
+void __kmpc_end_master(ident_t *loc, int32_t gtid){/* NOOP */};
+
+// Single (same as master for now)
+kmp_int32 __kmpc_single(ident_t *loc, int32_t gtid) {
+  return kmp::runtime::getCurrentThread().getTid() == 0;
+};
+
+void __kmpc_end_single(ident_t *loc, int32_t gtid){/* NOOP */};
+
+// Copyprivate
+void __kmpc_copyprivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
+                        void *cpy_data, void (*cpy_func)(void *, void *),
+                        kmp_int32 didit) {
+  kmp::runtime::getCurrentThread().copyPrivate(loc, gtid, cpy_size, cpy_data,
+                                               cpy_func, didit);
+};
+
+// Reduction
+
+kmp_int32
+__kmpc_reduce_nowait(ident_t *loc, kmp_int32 global_tid, kmp_int32 num_vars,
+                     size_t reduce_size, void *reduce_data,
+                     void (*reduce_func)(void *lhs_data, void *rhs_data),
+                     kmp_critical_name *lck) {
+  return 2; // Atomic reduction
+}
+
+void __kmpc_end_reduce_nowait(ident_t *loc, kmp_int32 global_tid,
+                              kmp_critical_name *lck) {
+  /* NOOP */
+}
+
+kmp_int32 __kmpc_reduce(ident_t *loc, kmp_int32 global_tid, kmp_int32 num_vars,
+                        size_t reduce_size, void *reduce_data,
+                        void (*reduce_func)(void *lhs_data, void *rhs_data),
+                        kmp_critical_name *lck) {
+
+  return __kmpc_reduce_nowait(loc, global_tid, num_vars, reduce_size,
+                              reduce_data, reduce_func, lck);
+}
+
+void __kmpc_end_reduce(ident_t *loc, kmp_int32 global_tid,
+                       kmp_critical_name *lck) {
+  return __kmpc_barrier(loc, global_tid);
+}
 
 kmp_int32 __kmpc_global_thread_num(ident_t *loc) {
   return mempool_get_core_id();

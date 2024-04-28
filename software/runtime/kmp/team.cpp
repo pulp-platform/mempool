@@ -54,8 +54,10 @@ kmp_uint32 Team::getThreadGtid(kmp_uint32 tid) const {
 
 kmp_uint32 Team::getNumThreads() const { return numThreads; }
 
-void Team::barrierWait() const {
-  barrier.wait();
-}
+void Team::setCopyPrivateData(void *data) { copyPrivateData = data; }
+
+void *Team::getCopyPrivateData() const { return copyPrivateData; }
+
+void Team::barrierWait() const { barrier.wait(); }
 
 } // namespace kmp

@@ -11,7 +11,6 @@ BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(TESTS_DIR)))
 RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 
 # OpenMP runtime
-OMP_DIR       ?= $(RUNTIME_DIR)/omp
 RISCV_CCFLAGS += -fopenmp -DNTHREADS=$(num_cores)
 RISCV_CCFLAGS += -I$(OMP_DIR)
 

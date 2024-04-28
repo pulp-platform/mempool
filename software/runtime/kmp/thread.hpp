@@ -36,6 +36,10 @@ public:
   void requestNumThreads(kmp_int32 numThreads);
   void forkCall(const SharedPointer<Microtask> &microtask);
 
+  void copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
+                   void *cpy_data, void (*cpy_func)(void *, void *),
+                   kmp_int32 didit);
+
 public:
   etl::list<Task, 10> tasks;
 
