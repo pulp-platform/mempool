@@ -136,4 +136,25 @@ etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {
   }
 };
 
+void Thread::copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
+                         void *cpy_data, void (*cpy_func)(void *, void *),
+                         kmp_int32 didit) {
+  auto team = getCurrentTeam();
+
+  if (didit) {
+    team->setCopyPrivateData(cpy_data);
+    DEBUG_PRINT("Thread %d set copyprivate data to %p\n", gtid, cpy_data);
+  }
+
+  team->barrierWait();
+
+  if (!didit) {
+    DEBUG_PRINT("Thread %d copying copyprivate data from %p to %p\n", gtid,
+                team->getCopyPrivateData(), cpy_data);
+    cpy_func(cpy_data, team->getCopyPrivateData());
+  }
+
+  team->barrierWait();
+};
+
 } // namespace kmp

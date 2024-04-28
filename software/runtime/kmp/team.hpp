@@ -45,6 +45,10 @@ public:
 
   void barrierWait() const;
 
+  void setCopyPrivateData(void *data);
+
+  void *getCopyPrivateData() const;
+
   /**
    * @brief Schedule a static for loop. See
    * https://github.com/llvm/llvm-project/blob/f28c006a5895fc0e329fe15fead81e37457cb1d1/clang/lib/CodeGen/CGStmtOpenMP.cpp#L2900
@@ -193,6 +197,8 @@ private:
   Barrier barrier;
 
   DynamicSchedule dynamicSchedule;
+
+  void *copyPrivateData;
 };
 
 } // namespace kmp
