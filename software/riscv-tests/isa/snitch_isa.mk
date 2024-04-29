@@ -29,6 +29,38 @@ rv32um_snitch_sc_tests = \
 	mul mulh mulhsu mulhu \
 	rem remu \
 
+# rv32si_snitch_sc_tests = \
+# 	csr \
+# 	dirty \
+# 	ma_fetch \
+# 	scall \
+# 	sbreak \
+# 	wfi \
+
+# rv32mi_snitch_sc_tests = \
+# 	breakpoint \
+# 	csr \
+# 	mcsr \
+# 	illegal \
+# 	ma_fetch \
+# 	ma_addr \
+# 	scall \
+# 	sbreak \
+# 	shamt \
+
+rv32ui_mempool_tests = $(addprefix rv32ui-mempool-, $(rv32ui_snitch_sc_tests))
+rv32ua_mempool_tests = $(addprefix rv32ua-mempool-, $(rv32ua_snitch_sc_tests))
+rv32um_mempool_tests = $(addprefix rv32um-mempool-, $(rv32um_snitch_sc_tests))
+# rv32si_mempool_tests = $(addprefix rv32si-mempool-, $(rv32si_snitch_sc_tests))
+# rv32mi_mempool_tests = $(addprefix rv32mi-mempool-, $(rv32mi_snitch_sc_tests))
+
+rtl_mempool_tests = $(rv32ui_mempool_tests)
+rtl_mempool_tests += $(rv32ua_mempool_tests)
+rtl_mempool_tests += $(rv32um_mempool_tests)
+#rtl_mempool_tests += $(rv32si_mempool_tests)
+#rtl_mempool_tests += $(rv32mi_mempool_tests)
+
+ifneq ($(COMPILER), llvm)
 ifeq ($(xpulpimg),1)
 
 	rv32uxpulpimg_snitch_sc_tests = \
@@ -70,44 +102,66 @@ ifeq ($(xpulpimg),1)
 		pv_sdotsp \
 		pv_shuffle2 \
 		pv_pack \
-		pv_pack_h \
-
-endif
-
-# rv32si_snitch_sc_tests = \
-# 	csr \
-# 	dirty \
-# 	ma_fetch \
-# 	scall \
-# 	sbreak \
-# 	wfi \
-
-# rv32mi_snitch_sc_tests = \
-# 	breakpoint \
-# 	csr \
-# 	mcsr \
-# 	illegal \
-# 	ma_fetch \
-# 	ma_addr \
-# 	scall \
-# 	sbreak \
-# 	shamt \
-
-rv32ui_mempool_tests = $(addprefix rv32ui-mempool-, $(rv32ui_snitch_sc_tests))
-rv32ua_mempool_tests = $(addprefix rv32ua-mempool-, $(rv32ua_snitch_sc_tests))
-rv32um_mempool_tests = $(addprefix rv32um-mempool-, $(rv32um_snitch_sc_tests))
-ifeq ($(xpulpimg),1)
+		pv_pack_h
 	rv32uxpulpimg_mempool_tests = $(addprefix rv32uxpulpimg-mempool-, $(rv32uxpulpimg_snitch_sc_tests))
-endif
-# rv32si_mempool_tests = $(addprefix rv32si-mempool-, $(rv32si_snitch_sc_tests))
-# rv32mi_mempool_tests = $(addprefix rv32mi-mempool-, $(rv32mi_snitch_sc_tests))
-
-rtl_mempool_tests = \
-	$(rv32ui_mempool_tests) \
-	$(rv32ua_mempool_tests) \
-	$(rv32um_mempool_tests)
-#	$(rv32si_mempool_tests) \
-#	$(rv32mi_mempool_tests)
-ifeq ($(xpulpimg),1)
 	rtl_mempool_tests += $(rv32uxpulpimg_mempool_tests)
+
+endif
+endif
+
+ifeq ($(COMPILER), llvm)
+ifeq ($(zfinx),1)
+
+	rv32uzfinx_snitch_sc_tests = \
+		fadd \
+		fmadd \
+		fmin \
+		fsgnj
+	rv32uzhinx_snitch_sc_tests = \
+		fadd_h \
+		fmadd_h \
+		fmin_h \
+		fsgnj_h
+	rv32uzvechalfinx_snitch_sc_tests = \
+		vfadd_h \
+		vfcpka_h \
+		vfmac_h \
+		vfmin_h \
+		vfsgnj_h \
+		vfdotpex_h \
+		fcdotpex_h
+
+ifeq ($(zquarterinx), 1)
+	rv32uzquarterinx_snitch_sc_tests = \
+		fadd_b \
+		fmadd_b \
+		fmin_b \
+		fsgnj_b
+	rv32uzvecquarterinx_snitch_sc_tests = \
+		vfadd_b \
+		vfcpka_b \
+		vfdotpex_b \
+		vfmac_b	\
+		vfmin_b \
+		vfsgnj_b
+endif
+
+ifeq ($(xDivSqrt), 1)
+		rv32uzfinx_snitch_sc_tests += fdiv
+		rv32uzhinx_snitch_sc_tests += fdiv_h
+endif
+
+	rv32uzfinx_mempool_tests = $(addprefix rv32uzfinx-mempool-, $(rv32uzfinx_snitch_sc_tests))
+	rv32uzhinx_mempool_tests = $(addprefix rv32uzhinx-mempool-, $(rv32uzhinx_snitch_sc_tests))
+	rv32uzquarterinx_mempool_tests = $(addprefix rv32uzquarterinx-mempool-, $(rv32uzquarterinx_snitch_sc_tests))
+	rv32uzvechalfinx_mempool_tests = $(addprefix rv32uzvechalfinx-mempool-, $(rv32uzvechalfinx_snitch_sc_tests))
+	rv32uzvecquarterinx_mempool_tests = $(addprefix rv32uzvecquarterinx-mempool-, $(rv32uzvecquarterinx_snitch_sc_tests))
+
+	rtl_mempool_tests += $(rv32uzfinx_mempool_tests)
+	rtl_mempool_tests += $(rv32uzhinx_mempool_tests)
+	rtl_mempool_tests += $(rv32uzquarterinx_mempool_tests)
+	rtl_mempool_tests += $(rv32uzvechalfinx_mempool_tests)
+	rtl_mempool_tests += $(rv32uzvecquarterinx_mempool_tests)
+
+endif
 endif

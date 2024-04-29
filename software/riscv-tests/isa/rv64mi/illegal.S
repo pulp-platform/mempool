@@ -106,7 +106,11 @@ bad9:
   TEST_PASSFAIL
 
   .align 8
+  #ifdef LLVM
+  .weak mtvec_handler
+  #else
   .global mtvec_handler
+  #endif
 mtvec_handler:
   j synchronous_exception
   j msip

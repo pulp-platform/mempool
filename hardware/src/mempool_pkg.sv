@@ -14,18 +14,19 @@ package mempool_pkg;
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
-  localparam integer unsigned NumCores         = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
-  localparam integer unsigned NumCoresPerTile  = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
-  localparam integer unsigned NumGroups        = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
-  localparam integer unsigned MAX_NumGroups    = 8;
-  localparam integer unsigned NumTiles         = NumCores / NumCoresPerTile;
-  localparam integer unsigned NumTilesPerGroup = NumTiles / NumGroups;
-  localparam integer unsigned NumCoresPerGroup = NumCores / NumGroups;
-  localparam integer unsigned NumCoresPerCache = NumCoresPerTile;
-  localparam integer unsigned AxiCoreIdWidth   = 1;
-  localparam integer unsigned AxiTileIdWidth   = AxiCoreIdWidth+1; // + 1 for cache
-  localparam integer unsigned AxiDataWidth     = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
-  localparam integer unsigned AxiLiteDataWidth = 32;
+  localparam integer unsigned NumCores          = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
+  localparam integer unsigned NumCoresPerTile   = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
+  localparam integer unsigned NumDivsqrtPerTile = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
+  localparam integer unsigned NumGroups         = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
+  localparam integer unsigned MAX_NumGroups     = 8;
+  localparam integer unsigned NumTiles          = NumCores / NumCoresPerTile;
+  localparam integer unsigned NumTilesPerGroup  = NumTiles / NumGroups;
+  localparam integer unsigned NumCoresPerGroup  = NumCores / NumGroups;
+  localparam integer unsigned NumCoresPerCache  = NumCoresPerTile;
+  localparam integer unsigned AxiCoreIdWidth    = 1;
+  localparam integer unsigned AxiTileIdWidth    = AxiCoreIdWidth+1; // + 1 for cache
+  localparam integer unsigned AxiDataWidth      = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
+  localparam integer unsigned AxiLiteDataWidth  = 32;
 
   /***********************
    *  MEMORY PARAMETERS  *

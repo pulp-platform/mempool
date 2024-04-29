@@ -24,6 +24,8 @@ BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
 RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
+COMPILER ?= gcc
+
 CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
 # the variable if it is only defined by the Makefile (its origin in the Makefile's default).
@@ -93,10 +95,11 @@ tc-llvm:
 		-DLLVM_BUILD_DOCS="0" \
 		-DLLVM_ENABLE_BINDINGS="0" \
 		-DLLVM_ENABLE_TERMINFO="0"  \
-		-DLLVM_OPTIMIZED_TABLEGEN=ON \
+		-DLLVM_ENABLE_ASSERTIONS=ON \
+		-DLLVM_ENABLE_LIBPFM=OFF \
 		-DCMAKE_BUILD_TYPE=Release \
 		../llvm && \
-	make -j4 all && \
+	make -j6 all && \
 	make install
 
 riscv-isa-sim: update_opcodes
@@ -109,7 +112,7 @@ riscv-isa-sim: update_opcodes
 riscv-tests: build-riscv-tests
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
-	config=minpool COMPILER=gcc make -C $(SOFTWARE_DIR) riscv-tests && \
+	config=minpool make -C $(SOFTWARE_DIR) riscv-tests && \
 	config=minpool make -C hardware verilate_test
 
 build-riscv-tests: update_opcodes
@@ -181,5 +184,5 @@ toolchain/riscv-opcodes/*:
 format:
 	$(ROOT_DIR)/scripts/run_clang_format.py --clang-format-executable=$(LLVM_INSTALL_DIR)/bin/clang-format -i -r $(ROOT_DIR)
 
-clean: clean_test
+clean: clean-riscv-tests
 	rm -rf $(INSTALL_DIR)

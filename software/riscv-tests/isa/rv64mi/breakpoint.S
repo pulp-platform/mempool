@@ -101,7 +101,11 @@ RVTEST_CODE_BEGIN
   TEST_PASSFAIL
 
   .align 2
+  #ifdef LLVM
+  .weak mtvec_handler
+  #else
   .global mtvec_handler
+  #endif
 mtvec_handler:
   # Only even-numbered tests should trap.
   andi t0, TESTNUM, 1

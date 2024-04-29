@@ -31,7 +31,11 @@ do_break:
   TEST_PASSFAIL
 
   .align 2
+  #ifdef LLVM
+  .weak stvec_handler
+  #else
   .global stvec_handler
+  #endif
 stvec_handler:
   li t1, CAUSE_BREAKPOINT
   csrr t0, scause

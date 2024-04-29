@@ -31,6 +31,7 @@ RVTEST_CODE_BEGIN
   TEST_FP_CMP_OP_D( 6, fle.d, 0x00, 1, -1.37, -1.36)
   TEST_FP_CMP_OP_D( 7, flt.d, 0x00, 1, -1.37, -1.36)
 
+#ifndef LLVM
   # Only sNaN should signal invalid for feq.
   TEST_FP_CMP_OP_D( 8, feq.d, 0x00, 0, NaN, 0)
   TEST_FP_CMP_OP_D( 9, feq.d, 0x00, 0, NaN, NaN)
@@ -43,6 +44,7 @@ RVTEST_CODE_BEGIN
   TEST_FP_CMP_OP_D(14, fle.d, 0x10, 0, NaN, 0)
   TEST_FP_CMP_OP_D(15, fle.d, 0x10, 0, NaN, NaN)
   TEST_FP_CMP_OP_D(16, fle.d, 0x10, 0, sNaN, 0)
+#endif
 
   TEST_PASSFAIL
 

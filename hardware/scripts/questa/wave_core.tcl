@@ -50,6 +50,29 @@ if {$config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/acc_pvalid_i
   add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/acc_pready_o
 
+  add wave -noupdate -group core[$1][$2][$3][$4] -divider FPSS
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/acc_req_valid_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/acc_req_ready_o
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/acc_resp_valid_o
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/acc_resp_ready_i
+  add wave -noupdate -group core[$1][$2][$3][$4] -divider FPU
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/operands_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/rnd_mode_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/op_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/op_mod_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/src_fmt_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/dst_fmt_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/int_fmt_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/vectorial_op_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/tag_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/in_valid_i
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/in_ready_o
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/result_o
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/status_o
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/tag_o
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/out_valid_o
+  add wave -noupdate -group core[$1][$2][$3][$4] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/out_ready_i
+
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/illegal_inst
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/stall
   add wave -noupdate -group core[$1][$2][$3][$4] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/i_tile/gen_cores[$4]/gen_mempool_cc/riscv_core/i_snitch/lsu_stall
@@ -195,6 +218,29 @@ if {$config == {terapool}} {
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_perror_i
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_pvalid_i
   add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/acc_pready_o
+
+  add wave -noupdate -group core[$1][$2][$3] -divider FPSS
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/acc_req_valid_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/acc_req_ready_o
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/acc_resp_valid_o
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/acc_resp_ready_i
+  add wave -noupdate -group core[$1][$2][$3] -divider FPU
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/operands_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/rnd_mode_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/op_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/op_mod_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/src_fmt_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/dst_fmt_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/int_fmt_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/vectorial_op_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/tag_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/in_valid_i
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/in_ready_o
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/result_o
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/status_o
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/tag_o
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/out_valid_o
+  add wave -noupdate -group core[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/gen_fpu/i_snitch_fp_ss/i_fpu/out_ready_i
 
   add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/illegal_inst
   add wave -noupdate -group core[$1][$2][$3] -group Internal /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/i_group/gen_tiles[$2]/i_tile/gen_cores[$3]/gen_mempool_cc/riscv_core/i_snitch/stall

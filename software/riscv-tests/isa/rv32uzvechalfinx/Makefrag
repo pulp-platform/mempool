@@ -1,0 +1,18 @@
+#=======================================================================
+# Makefrag for rv32uzquarterinx tests
+#-----------------------------------------------------------------------
+
+ifeq ($(COMPILER), llvm)
+rv32uzvechalfinx_sc_tests = \
+                      vfadd_h \
+                      vfmac_h \
+                      vfmin_h \
+                      vfsgnj_h \
+                      vfcpka_h \
+                      vfdotpex_h \
+                      fcdotpex_h
+endif
+
+rv32uzvechalfinx_p_tests = $(addprefix rv32uzvechalfinx-p-, $(rv32uzvechalfinx_sc_tests))
+
+# Zvechalfinx extensions are not tested on Spike

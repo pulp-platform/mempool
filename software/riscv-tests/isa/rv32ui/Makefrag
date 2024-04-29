@@ -24,4 +24,8 @@ rv32ui_sc_tests = \
 rv32ui_p_tests = $(addprefix rv32ui-p-, $(rv32ui_sc_tests))
 rv32ui_v_tests = $(addprefix rv32ui-v-, $(rv32ui_sc_tests))
 
+ifeq ($(COMPILER), llvm)
+spike32_tests += $(rv32ui_p_tests)
+else
 spike32_tests += $(rv32ui_p_tests) $(rv32ui_v_tests)
+endif

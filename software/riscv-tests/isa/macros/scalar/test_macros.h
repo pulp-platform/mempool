@@ -497,6 +497,19 @@ test_ ## testnum: \
     )
 
 #-----------------------------------------------------------------------
+# Tests for instructions with 3 register operands & 1 dst register
+#-----------------------------------------------------------------------
+
+#define TEST_RRR_PLUSD_OP( testnum, inst, result, val1, val2, val3) \
+    TEST_CASE( testnum, x14, result, \
+      li  x1, MASK_XLEN(val1); \
+      li  x2, MASK_XLEN(val2); \
+      li x14, MASK_XLEN(val3); \
+      inst x14, x1, x2, x14; \
+    )
+
+
+#-----------------------------------------------------------------------
 # Tests for Xpulpimg instructions with 2 register operands (rd and rs1)
 # and a 6-bit unsigned immediate input
 #-----------------------------------------------------------------------
@@ -1075,10 +1088,17 @@ test_ ## testnum: \
 # Tests floating-point instructions
 #-----------------------------------------------------------------------
 
+#ifdef LLVM
+#define qNaNf NaN
+#define sNaNf NaN
+#define qNaN NaN
+#define sNaN NaN
+#else
 #define qNaNf 0f:7fc00000
 #define sNaNf 0f:7f800001
 #define qNaN 0d:7ff8000000000000
 #define sNaN 0d:7ff0000000000001
+#endif
 
 #define TEST_FP_OP_S_INTERNAL( testnum, flags, result, val1, val2, val3, code... ) \
 test_ ## testnum: \

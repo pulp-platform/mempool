@@ -93,7 +93,11 @@ RVTEST_CODE_BEGIN
   TEST_PASSFAIL
 
   .align 3
+  #ifdef LLVM
+  .weak mtvec_handler
+  #else
   .global mtvec_handler
+  #endif
 mtvec_handler:
   csrr t0, mcause
   bne t0, s1, fail
