@@ -26,14 +26,14 @@ RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
 COMPILER ?= gcc
 
-CMAKE ?= cmake-3.28.3
+CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
 # the variable if it is only defined by the Makefile (its origin in the Makefile's default).
 ifeq ($(origin CC),default)
-  CC  = gcc
+  CC  ?= gcc
 endif
 ifeq ($(origin CXX),default)
-  CXX = g++
+  CXX ?= g++
 endif
 BENDER_VERSION = 0.28.1
 
@@ -190,7 +190,7 @@ setup-dram: config-dram
 	cd $(DRAMSYS_PATH) && \
 	if [ ! -d "build" ]; then \
 		mkdir build && cd build; \
-		CC=gcc-11.2.0 CXX=g++-11.2.0 cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
+		cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
 		make -j; \
 	fi
 
