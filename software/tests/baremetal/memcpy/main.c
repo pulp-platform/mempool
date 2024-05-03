@@ -30,7 +30,7 @@ int32_t l2_data_move_out[SIZE] __attribute__((section(".l2_prio")))
 __attribute__((aligned(16 * 512)));
 
 dump(addr, 0);
-dump(end, 3);
+dump(end, 8);
 dump(dma, 7);
 
 void dump_data(volatile uint32_t *addr, uint32_t num_words) {
