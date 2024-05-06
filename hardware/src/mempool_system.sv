@@ -34,7 +34,7 @@ module mempool_system
    *  AXI  *
    *********/
 
-  // Overview of AXI buses
+  // Overview of AXI buses with SRAM L2
   //
   //      mst_demux
   //        / |
@@ -47,6 +47,20 @@ module mempool_system
   //       \  |      +----------+         +---------+       +--------+
   //        \_|
   //                  == axi ==>          -- tcdm -->
+  //
+  // Overview of AXI buses with DRAM L2
+  //
+  //      mst_demux
+  //        / |
+  //       /  | soc  +----------+ periph  +---------+
+  //      |  0|=====>| soc_xbar |========>| periph  |
+  //  mst |   |      +----------+         +---------+
+  // ====>|   |
+  //      |   | l2   +----------+  mem_one_port  +--------------+
+  //      |  1|=====>| AXI_Mux  |===============>| AXI Port Out |
+  //       \  |      +----------+                +--------------+
+  //        \_|
+  //                  == axi ==>
 
   localparam NumAXIMasters = NumSystemXbarMasters;
   localparam NumAXISlaves  = 3; // control regs, bootrom and the external mst ports
@@ -84,7 +98,7 @@ module mempool_system
   localparam xbar_cfg_t MstDemuxCfg = '{
     NoSlvPorts         : 1, // Each master has a private demux
     NoMstPorts         : 2, // going to either the xbar or L2
-    MaxMstTrans        : 4,
+    MaxMstTrans        : 8,
     MaxSlvTrans        : 4,
     FallThrough        : 1'b0,
     LatencyMode        : axi_pkg::NO_LATENCY,
@@ -218,9 +232,12 @@ module mempool_system
     .default_mst_port_i   ({NumAXIMasters{External}})
   );
 
-  /********
-   *  L2  *
-   ********/
+`ifndef DRAM
+
+  /*************
+   *  L2 SRAM  *
+   *************/
+
   localparam int unsigned NumAXIMastersLog2 = NumAXIMasters == 1 ? 1 : $clog2(NumAXIMasters);
   typedef logic [L2AddrWidth-1:0] l2_mem_addr_t;
   typedef logic [L2BankAddrWidth-1:0] l2_bank_addr_t;
@@ -335,6 +352,205 @@ module mempool_system
       .rdata_o(bank_rdata[i])
     );
   end
+
+`else
+
+  /*************
+   *  L2 DRAM  *
+   *************/
+
+  // AXI xbar to form one port to DRAM
+  localparam NumDramRules = NumDrams;
+
+  xbar_rule_32_t    [NumDramRules-1:0] dram_xbar_rules;
+  axi_system_req_t  [NumDrams-1:0]     dram_req_interleaved;
+  axi_system_req_t  [NumDrams-1:0]     dram_req;
+  axi_system_resp_t [NumDrams-1:0]     dram_resp;
+
+  // AXI brust splitter for DRAM interleaving
+  axi_tile_req_t  [NumAXIMasters-1:0] axi_l2_req_splitted;
+  axi_tile_resp_t [NumAXIMasters-1:0] axi_l2_resp_splitted;
+  axi_tile_req_t  [NumAXIMasters-1:0] axi_l2_req_interleaved;
+
+  generate
+    if (DmaBrustLen > Interleave) begin : gen_axi_splitter
+      for (genvar i = 0; unsigned'(i) < NumAXIMasters; i++) begin: brust_splitter
+        axi_burst_splitter #(
+          .MaxReadTxns (16             ),
+          .MaxWriteTxns(16             ),
+          .AddrWidth   (AddrWidth      ),
+          .DataWidth   (AxiDataWidth   ),
+          .IdWidth     (AxiTileIdWidth ),
+          .UserWidth   (1              ),
+          .axi_req_t   (axi_tile_req_t ),
+          .axi_resp_t  (axi_tile_resp_t)
+        ) i_axi_burst_splitter (
+          .clk_i     (clk_i                  ),
+          .rst_ni    (rst_ni                 ),
+          .slv_req_i (axi_l2_req[i]          ),
+          .slv_resp_o(axi_l2_resp[i]         ),
+          .mst_req_o (axi_l2_req_splitted[i] ),
+          .mst_resp_i(axi_l2_resp_splitted[i])
+        );
+      end: brust_splitter
+    end else begin : splitter_bypass
+      // Do not need a splitter
+      assign axi_l2_req_splitted  = axi_l2_req;
+      assign axi_l2_resp          = axi_l2_resp_splitted;
+    end: splitter_bypass
+  endgenerate
+
+  localparam int unsigned ConstantBits = $clog2(L2BankBeWidth * Interleave);
+  localparam int unsigned ScrambleBits = (NumDrams == 1) ? 1 : $clog2(NumDrams);
+  localparam int unsigned ReminderBits = AddrWidth - ScrambleBits - ConstantBits;
+  // req.aw scrambling
+  logic [NumAXIMasters-1:0][ConstantBits-1:0] aw_const;
+  logic [NumAXIMasters-1:0][ScrambleBits-1:0] aw_scramble;
+  logic [NumAXIMasters-1:0][ReminderBits-1:0] aw_reminder;
+  logic [NumAXIMasters-1:0][AddrWidth-1   :0] aw_scramble_addr;
+  // req.ar scrambling
+  logic [NumAXIMasters-1:0][ConstantBits-1:0] ar_const;
+  logic [NumAXIMasters-1:0][ScrambleBits-1:0] ar_scramble;
+  logic [NumAXIMasters-1:0][ReminderBits-1:0] ar_reminder;
+  logic [NumAXIMasters-1:0][AddrWidth-1   :0] ar_scramble_addr;
+
+  for (genvar i = 0; unsigned'(i) < NumAXIMasters; i++) begin: gen_dram_scrambler
+    assign aw_const[i]         = axi_l2_req_splitted[i].aw.addr[ConstantBits-1 : 0];
+    assign aw_scramble[i]      = axi_l2_req_splitted[i].aw.addr[ScrambleBits+ConstantBits-1 : ConstantBits];
+    assign aw_reminder[i]      = axi_l2_req_splitted[i].aw.addr[AddrWidth-1 : ScrambleBits+ConstantBits];
+    assign aw_scramble_addr[i] = {aw_scramble[i], aw_reminder[i], aw_const[i]};
+
+    assign ar_const[i]         = axi_l2_req_splitted[i].ar.addr[ConstantBits-1 : 0];
+    assign ar_scramble[i]      = axi_l2_req_splitted[i].ar.addr[ScrambleBits+ConstantBits-1 : ConstantBits];
+    assign ar_reminder[i]      = axi_l2_req_splitted[i].ar.addr[AddrWidth-1 : ScrambleBits+ConstantBits];
+    assign ar_scramble_addr[i] = {ar_scramble[i], ar_reminder[i], ar_const[i]};
+
+    // Scrambled AXI req assignment
+    always_comb begin
+      axi_l2_req_interleaved[i]         = axi_l2_req_splitted[i];
+      axi_l2_req_interleaved[i].aw.addr = aw_scramble_addr[i];
+      axi_l2_req_interleaved[i].ar.addr = ar_scramble_addr[i];
+    end
+  end: gen_dram_scrambler
+
+  // DRAM Xbar rules
+  for (genvar i = 0; unsigned'(i) < NumDramRules; i++) begin: gen_dram_xbar_rules
+    logic [AddrWidth-1:0] start_dram_addr;
+    logic [AddrWidth-1:0] end_dram_addr;
+    assign start_dram_addr    = {{ScrambleBits{i}}, 1'b1, {AddrWidth-ScrambleBits-1{1'b0}}};
+    assign end_dram_addr      = {{ScrambleBits{i}}, 1'b1, {AddrWidth-ScrambleBits-1{1'b1}}};
+    assign dram_xbar_rules[i] = '{idx: i, start_addr: start_dram_addr, end_addr: end_dram_addr};
+  end: gen_dram_xbar_rules
+
+  // AXI Crossbar
+  localparam xbar_cfg_t DRAMXBarCfg = '{
+    NoSlvPorts         : NumAXIMasters,
+    NoMstPorts         : NumDrams,
+    MaxMstTrans        : 8,
+    MaxSlvTrans        : 4,
+    FallThrough        : 1'b0,
+    LatencyMode        : axi_pkg::CUT_MST_PORTS,
+    PipelineStages     : 0,
+    AxiIdWidthSlvPorts : AxiTileIdWidth,
+    AxiIdUsedSlvPorts  : AxiTileIdWidth,
+    UniqueIds          : 0,
+    AxiAddrWidth       : AddrWidth,
+    AxiDataWidth       : AxiDataWidth,
+    NoAddrRules        : NumDramRules
+  };
+
+  axi_xbar #(
+    .Cfg          (DRAMXBarCfg      ),
+    .slv_aw_chan_t(axi_tile_aw_t    ),
+    .mst_aw_chan_t(axi_system_aw_t  ),
+    .w_chan_t     (axi_system_w_t   ),
+    .slv_b_chan_t (axi_tile_b_t     ),
+    .mst_b_chan_t (axi_system_b_t   ),
+    .slv_ar_chan_t(axi_tile_ar_t    ),
+    .mst_ar_chan_t(axi_system_ar_t  ),
+    .slv_r_chan_t (axi_tile_r_t     ),
+    .mst_r_chan_t (axi_system_r_t   ),
+    .slv_req_t    (axi_tile_req_t   ),
+    .slv_resp_t   (axi_tile_resp_t  ),
+    .mst_req_t    (axi_system_req_t ),
+    .mst_resp_t   (axi_system_resp_t),
+    .rule_t       (xbar_rule_32_t   )
+  ) i_dram_xbar (
+    .clk_i                (clk_i                 ),
+    .rst_ni               (rst_ni                ),
+    .test_i               (1'b0                  ),
+    .slv_ports_req_i      (axi_l2_req_interleaved),
+    .slv_ports_resp_o     (axi_l2_resp_splitted  ),
+    .mst_ports_req_o      (dram_req_interleaved  ),
+    .mst_ports_resp_i     (dram_resp             ),
+    .addr_map_i           (dram_xbar_rules       ),
+    .en_default_mst_port_i({NumAXIMasters{1'b1}} ),
+    .default_mst_port_i   ('0                    )
+  );
+
+  // Scrambled Addr reset, and detect base address before go to DRAM
+  for (genvar i = 0; unsigned'(i) < NumDrams; i++) begin: gen_dram_scrambler_reset
+    // req.aw scrambling
+    logic [ConstantBits-1:0] aw_const;
+    logic [ScrambleBits-1:0] aw_scramble;
+    logic [ReminderBits-1:0] aw_reminder;
+    logic [AddrWidth-1   :0] aw_scramble_addr_reset;
+    assign aw_scramble = dram_req_interleaved[i].aw.addr[AddrWidth-1 : AddrWidth-ScrambleBits];
+    assign aw_reminder = dram_req_interleaved[i].aw.addr[AddrWidth-ScrambleBits-1 : ConstantBits] - L2MemoryBaseAddr[AddrWidth-1: AddrWidth-ReminderBits];
+    assign aw_const    = dram_req_interleaved[i].aw.addr[ConstantBits-1 : 0];
+
+    if (NumDrams == 1) begin
+      assign aw_scramble_addr_reset = {aw_reminder, aw_scramble, aw_const};
+    end else begin
+      assign aw_scramble_addr_reset = {{ScrambleBits{1'b0}}, aw_reminder, aw_const};
+    end
+
+    // req.ar scrambling
+    logic [ConstantBits-1:0] ar_const;
+    logic [ScrambleBits-1:0] ar_scramble;
+    logic [ReminderBits-1:0] ar_reminder;
+    logic [AddrWidth-1   :0] ar_scramble_addr_reset;
+    assign ar_scramble = dram_req_interleaved[i].ar.addr[AddrWidth-1 : AddrWidth-ScrambleBits];
+    assign ar_reminder = dram_req_interleaved[i].ar.addr[AddrWidth-ScrambleBits-1 : ConstantBits] - L2MemoryBaseAddr[AddrWidth-1: AddrWidth-ReminderBits];
+    assign ar_const    = dram_req_interleaved[i].ar.addr[ConstantBits-1 : 0];
+
+    if (NumDrams == 1) begin
+      assign ar_scramble_addr_reset = {ar_reminder, ar_scramble, ar_const};
+    end else begin
+      assign ar_scramble_addr_reset = {{ScrambleBits{1'b0}}, ar_reminder, ar_const};
+    end
+
+    // Scrambled AXI req assignment
+    always_comb begin
+      dram_req[i]         = dram_req_interleaved[i];
+      dram_req[i].aw.addr = aw_scramble_addr_reset;
+      dram_req[i].ar.addr = ar_scramble_addr_reset;
+    end
+  end: gen_dram_scrambler_reset
+
+  for (genvar i = 0; unsigned'(i) < NumDrams; i++) begin: gen_drams
+    axi_dram_sim #(
+        .AxiAddrWidth(AddrWidth        ),
+        .AxiDataWidth(AxiDataWidth     ),
+        .AxiIdWidth  (AxiSystemIdWidth ),
+        .AxiUserWidth(1                ),
+        .DRAMType    ("HBM2"           ),
+        .BASE        ('b0              ),
+        .axi_req_t   (axi_system_req_t ),
+        .axi_resp_t  (axi_system_resp_t),
+        .axi_ar_t    (axi_system_ar_t  ),
+        .axi_r_t     (axi_system_r_t   ),
+        .axi_aw_t    (axi_system_aw_t  ),
+        .axi_w_t     (axi_system_w_t   ),
+        .axi_b_t     (axi_system_b_t   )
+    ) i_axi_dram_sim (
+        .clk_i,
+        .rst_ni,
+        .axi_req_i (dram_req[i] ),
+        .axi_resp_o(dram_resp[i])
+    );
+  end: gen_drams
+`endif
 
   /*************
    *  Bootrom  *
@@ -529,16 +745,16 @@ module mempool_system
     .NumBackends   (NumGroups                ),
     .DmaIdWidth    (1                        )
   ) i_mempool_dma (
-    .clk_i           (clk_i                 ),
-    .rst_ni          (rst_ni                ),
-    .config_req_i    (axi_lite_slv_req[DMA] ),
-    .config_res_o    (axi_lite_slv_resp[DMA]),
-    .burst_req_o     (dma_req               ),
-    .valid_o         (dma_req_valid         ),
-    .ready_i         (dma_req_ready         ),
-    .backend_idle_i  (dma_meta.backend_idle),
+    .clk_i           (clk_i                  ),
+    .rst_ni          (rst_ni                 ),
+    .config_req_i    (axi_lite_slv_req[DMA]  ),
+    .config_res_o    (axi_lite_slv_resp[DMA] ),
+    .burst_req_o     (dma_req                ),
+    .valid_o         (dma_req_valid          ),
+    .ready_i         (dma_req_ready          ),
+    .backend_idle_i  (dma_meta.backend_idle  ),
     .trans_complete_i(dma_meta.trans_complete),
-    .dma_id_o        (dma_id                )
+    .dma_id_o        (dma_id                 )
   );
 
   assign busy_o = 1'b0;

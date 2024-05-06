@@ -565,7 +565,7 @@ module mempool_group
       .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup      ),
       .DmaRegionStart (TCDMBaseAddr                            ),
       .DmaRegionEnd   (TCDMBaseAddr+TCDMSize                   ),
-      .TransFifoDepth (8                                       ),
+      .TransFifoDepth (16                                      ),
       .burst_req_t    (dma_req_t                               ),
       .meta_t         (dma_meta_t                              )
     ) i_idma_distributed_midend (
@@ -975,7 +975,7 @@ module mempool_group
       .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup),
       .DmaRegionStart (TCDMBaseAddr                      ),
       .DmaRegionEnd   (TCDMBaseAddr+TCDMSize             ),
-      .TransFifoDepth (8                                 ),
+      .TransFifoDepth (16                                ),
       .burst_req_t    (dma_req_t                         ),
       .meta_t         (dma_meta_t                        )
     ) i_idma_distributed_midend (
@@ -1025,7 +1025,7 @@ module mempool_group
         .DataWidth       (AxiDataWidth   ),
         .AddrWidth       (AddrWidth      ),
         .IdWidth         (AxiTileIdWidth ),
-        .AxReqFifoDepth  (2              ),
+        .AxReqFifoDepth  (8              ),
         .TransFifoDepth  (1              ),
         .BufferDepth     (4              ),
         .axi_req_t       (axi_tile_req_t ),

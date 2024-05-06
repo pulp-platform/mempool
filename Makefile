@@ -30,10 +30,10 @@ CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
 # the variable if it is only defined by the Makefile (its origin in the Makefile's default).
 ifeq ($(origin CC),default)
-  CC  = gcc
+  CC  ?= gcc
 endif
 ifeq ($(origin CXX),default)
-  CXX = g++
+  CXX ?= g++
 endif
 BENDER_VERSION = 0.28.1
 
@@ -159,6 +159,40 @@ update-deps:
 	  git submodule update --init --recursive -- $${dep}; \
 	done
 	git apply hardware/deps/patches/*
+
+# Build, update and patch the DRAMsys submodule
+$(eval DRAM_PATH=$(realpath $(shell git config --file .gitmodules --get-regexp dram_rtl_sim.path | awk '/hardware/{ print $$2 }')))
+$(eval DRAM_LIB_PATH=$(DRAM_PATH)/dramsys_lib)
+$(eval DRAMSYS_PATH=$(DRAM_LIB_PATH)/DRAMSys)
+$(eval DRAMSYS_PATCH_PATH=$(DRAM_LIB_PATH)/dramsys_lib_patch)
+$(eval DRAMSYS_SO_PATH=$(DRAMSYS_PATH)/build)
+
+clean-dram:
+	if [ -d "$(DRAMSYS_PATH)" ]; then \
+		rm -rf $(DRAMSYS_PATH); \
+	fi
+
+build-dram: clean-dram
+	if [ ! -d "$(DRAMSYS_PATH)" ]; then \
+		git clone https://github.com/tukl-msd/DRAMSys.git $(DRAMSYS_PATH); \
+	fi
+	cd $(DRAMSYS_PATH) && git reset --hard 8e021ea && git apply $(DRAMSYS_PATCH_PATH)
+
+config-dram: build-dram
+	@cp hardware/include/dram_config/am_hbm2e_16Gb_pc_brc.json $(DRAMSYS_PATH)/configs/addressmapping/.
+	@cp hardware/include/dram_config/mc_hbm2e_fr_fcfs_grp.json $(DRAMSYS_PATH)/configs/mcconfig/.
+	@cp hardware/include/dram_config/ms_hbm2e_16Gb_3600.json $(DRAMSYS_PATH)/configs/memspec/.
+	@cp hardware/include/dram_config/simconfig_hbm2e.json $(DRAMSYS_PATH)/configs/simconfig/.
+	@mv $(DRAMSYS_PATH)/configs/hbm2-example.json $(DRAMSYS_PATH)/configs/hbm2-example.json.ori
+	@cp hardware/include/dram_config/HBM2E-3600.json $(DRAMSYS_PATH)/configs/hbm2-example.json
+
+setup-dram: config-dram
+	cd $(DRAMSYS_PATH) && \
+	if [ ! -d "build" ]; then \
+		mkdir build && cd build; \
+		cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
+		make -j; \
+	fi
 
 # Helper targets
 .PHONY: clean format apps

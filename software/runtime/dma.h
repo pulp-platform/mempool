@@ -42,7 +42,6 @@ static inline uint32_t dma_done() {
 
 static inline void dma_wait() {
   while (!dma_done())
-    // while (!dma_idle())
     ;
 }
 

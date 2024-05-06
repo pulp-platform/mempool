@@ -40,3 +40,6 @@
 [submodule "hardware/deps/fpu_div_sqrt_mvp"]
 	path = hardware/deps/fpu_div_sqrt_mvp
 	url = https://github.com/pulp-platform/fpu_div_sqrt_mvp.git
+[submodule "hardware/deps/dram_rtl_sim"]
+	path = hardware/deps/dram_rtl_sim
+	url = https://github.com/pulp-platform/dram_rtl_sim.git

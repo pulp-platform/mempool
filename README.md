@@ -187,6 +187,39 @@ To get a visualization of the traces, check out the `scripts/tracevis.py` script
 
 We also provide Synopsys Spyglass linting scripts in the `hardware/spyglass`. Run `make lint` in the `hardware` folder, with a specific MemPool configuration, to run the tests associated with the `lint_rtl` target.
 
+## DRAMsys Co-Simulation
+
+The MemPool system supports both on-chip SRAM or off-chip DRAM co-simulation for higher hierarchy memory transfering. For off-chip DRAM co-simulation, it incorporates the `dram_rtl_sim` tool as a submodule, build at `hardware/deps/dram_rtl_sim`. Leveraging DRAMSys5.0, it facilitates an effective co-simulation environment between RTL models and DRAMSys5.0 for the simulation of DRAM + CTRL models, with contemporary off-chip DRAM technologies (e.g., LPDDR, DDR, HBM).
+
+The DRAMsys tool aids are open-sourced and can be found here:
+[https://github.com/pulp-platform/dram_rtl_sim](https://github.com/pulp-platform/dram_rtl_sim)
+
+### Building DRAMsys Co-Simulation
+
+To prepare for DRAMsys co-simulation, adjust the system configuration by setting `l2_sim_type` to `dram` in `config/config.mk`. Then, execute the following command in the project's root directory to establish the DRAMsys tool aids environment:
+
+```bash
+make setup-dram
+```
+
+This makefile target automates several tasks:
+1. Cleans up the existing DRAMSys5.0 repository, if previously built.
+2. Rebuilds the DRAMSys5.0 repository and applies necessary patches within `hardware/deps/dramsys_rtl_sim/dramsys_lib/`.
+3. Applies HBM2 DRAM configuration patches tailored for the MemPool system simulation.
+4. Compiles the DRAMSys dynamic linkable library located at `hardware/deps/dramsys_rtl_sim/dramsys_lib/DRAMSys`.
+
+**Important:** This environment requires `cmake` version 3.28.1 or higher and GCC version 11.2.0 or above.
+
+### DRAM Chip Configuration
+
+DRAMsys supports a range of contemporary off-chip DRAM technologies, including LPDDR, DDR, and HBM. Configuration files, formatted as `.json`, are accessible in the following directory: `hardware/deps/dramsys_rtl_sim/dramsys_lib/DRAMSys/configs`. Additionally, we provide a recommended HBM2 configuration for the MemPool system located within `hardware/deps/dramsys_rtl_sim/dramsys_lib/DRAMSys`. This configuration is automatically applied as the default setting when establishing the DRAMsys tool aids environment. You are encouraged to review and modify these configurations as necessary to meet your specific simulation requirements.
+
+### Testing MemPool-DRAMSys Co-Simulation
+
+For data transfer testing between the MemPool system and higher hierarchy memory through DMA transfer, use the prepared example kernel located in `software/tests/baremetal/memcpy`. For more detailed methods on building applications and setting up RTL simulation, please refer to the sections aboves.
+
+**Note:** Currently, the simulation crafting tool for off-chip DRAM co-simulation is not open-sourced. We utilize the `Questasim` simulator exclusively.
+
 ## Publications
 If you use MemPool in your work or research, you can cite us:
 
@@ -601,6 +634,11 @@ We use the following RISC-V tools to parse simulation traces and keep opcodes co
 The open-source simulator [Verilator](https://www.veripool.org/verilator) can be used for RTL simulation.
 
 - `toolchain/verilator` is licensed under GPL. See [Verilator's license](https://github.com/verilator/verilator/blob/master/LICENSE) for more details.
+
+### DRAMsys5.0
+
+- The `dram_rtl_sim` submodule, located at `hardware/deps/dram_rtl_sim`, is licensed under the Solderpad Hardware License 0.51. You can review the license [here](https://github.com/pulp-platform/dram_rtl_sim/blob/main/LICENSE).
+- [DRAMSys5.0](https://github.com/tukl-msd/DRAMSys) is utilized for DRAM simulations. For details on its usage and licensing, please refer to the DRAMSys5.0 [license information](https://github.com/tukl-msd/DRAMSys).
 
 </p>
 </details>
