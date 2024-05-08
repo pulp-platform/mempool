@@ -8,25 +8,29 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "data_chest_q16.h"
-
 #include "baremetal/mempool_checks.h"
-#include "baremetal/mempool_chest_q16.h"
+#include "baremetal/mempool_chest_f16.h"
+#include "data_chest_f16.h"
 
+//#define SINGLE
 #define PARALLEL
 
-int16_t l1_PilotTX[2 * N_TX * N_SAMPLES]
-    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
-int16_t l1_PilotRX[2 * N_RX * N_SAMPLES]
-    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
-int16_t l1_HEST[2 * N_RX * N_TX * N_SAMPLES]
-    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+__fp16 l1_PilotTX[2 * N_TX * N_SAMPLES]
+    __attribute__((aligned(NUM_CORES * BANKING_FACTOR * sizeof(int32_t)),
+                   section(".l1_prio")));
+__fp16 l1_PilotRX[2 * N_RX * N_SAMPLES]
+    __attribute__((aligned(NUM_CORES * BANKING_FACTOR * sizeof(int32_t)),
+                   section(".l1_prio")));
+__fp16 l1_HEST[2 * N_RX * N_TX * N_SAMPLES]
+    __attribute__((aligned(NUM_CORES * BANKING_FACTOR * sizeof(int32_t)),
+                   section(".l1_prio")));
 
 int main() {
 
@@ -41,28 +45,31 @@ int main() {
     dma_memcpy_blocking(l1_PilotTX, l2_PilotTX,
                         (N_TX * N_SAMPLES) * sizeof(int32_t));
   }
+  // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
 
-  /* Kernel */
 #ifdef SINGLE
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_chest_q16s_unrolled4(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX, N_TX,
+    mempool_chest_f16s_unrolled4(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX, N_TX,
                                  N_SAMPLES);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
 #endif
+
 #ifdef PARALLEL
-  mempool_start_benchmark();
-  mempool_chest_q16p_unrolled4(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX, N_TX,
-                               N_SAMPLES, core_id, num_cores);
-  mempool_stop_benchmark();
+  uint32_t nPE = N_SAMPLES < num_cores ? N_SAMPLES : num_cores;
+  if (core_id < N_SAMPLES) {
+    mempool_start_benchmark();
+    mempool_chest_f16p_unrolled4(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX, N_TX,
+                                 N_SAMPLES, core_id, nPE);
+    mempool_stop_benchmark();
+  }
   mempool_barrier(num_cores);
 #endif
 
-  /* Check */
-  mempool_check_q16(l1_HEST, l2_HEST, 2 * N_TX * N_RX, 0, 0);
+  mempool_check_f16(l1_HEST, l2_HEST, 2 * N_RX * N_TX, 0.01f, 0);
   mempool_barrier(num_cores);
   return 0;
 }

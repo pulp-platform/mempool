@@ -6,7 +6,7 @@
 
 #pragma once
 
-inline int32_t mempool_sqrt_q32s(int32_t number) {
+inline int32_t mempool_sqrt_q32s(int32_t number, uint32_t fixed_point) {
 
   int32_t res = 1;
   // register int32_t end = 46341; // smallest integer that is larger than
@@ -36,7 +36,7 @@ inline int32_t mempool_sqrt_q32s(int32_t number) {
     while (start <= end) {
       asm volatile("srai  %[mid2],%[mid2],%[imm];"
                    : [mid2] "+&r"(mid2)
-                   : [imm] "I"(FIXED_POINT)
+                   : [imm] "I"(fixed_point)
                    :);
       if (mid2 == number) {
         res = mid;

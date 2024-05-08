@@ -347,7 +347,7 @@ void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
     case 0:
       break;
     }
-    diag = mempool_sqrt_q32s(pivot - sum);
+    diag = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
     in = FIX_DIV(in, diag);
 
     sum_r = 0;
