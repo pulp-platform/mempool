@@ -8,9 +8,12 @@ extern "C" {
 namespace kmp {
 Task::Task(const SharedPointer<Microtask> &microtask) : microtask(microtask){};
 
-void Task::run() { microtask->run(); };
+void Task::run() const { microtask->run(); };
 
-Microtask::Microtask(kmpc_micro fn, va_list args, kmp_int32 argc) : fn(fn) {
+Microtask::Microtask(kmpc_micro fn, va_list args, kmp_int32 argc)
+    : fn(fn), argc(argc) {
+  this->args = new void *[argc];
+
   if (argc > 15) {
     printf("Unsupported number of microtask arguments, max is 15 and %d were "
            "passed\n",
@@ -21,20 +24,43 @@ Microtask::Microtask(kmpc_micro fn, va_list args, kmp_int32 argc) : fn(fn) {
   void *arg = nullptr;
   for (kmp_int32 i = 0; i < argc; i++) {
     arg = va_arg(args, void *);
-    this->args.push_back(arg);
+    this->args[i] = arg;
   }
 };
 
-void Microtask::run() {
+Microtask::Microtask(Microtask &&other)
+    : fn(other.fn), args(other.args), argc(other.argc) {
+  other.args = nullptr;
+  other.argc = 0;
+};
+
+Microtask &Microtask::operator=(Microtask &&other) {
+  if (this != &other) {
+    fn = other.fn;
+    args = other.args;
+    argc = other.argc;
+    other.args = nullptr;
+    other.argc = 0;
+  }
+  return *this;
+};
+
+Microtask::~Microtask() {
+  if (args != nullptr) {
+    delete[] args;
+  }
+};
+
+void Microtask::run() const {
   kmp_int32 gtid = mempool_get_core_id();
   kmp_int32 tid = runtime::getCurrentThread().getTid();
 
   // There seems to not be a better way to do this without custom passes or ASM
-  switch (args.size()) {
+  switch (argc) {
   default:
     printf("Unsupported number of microtask arguments, max is 15 and %d were "
            "passed\n",
-           args.size());
+           argc);
     return;
   case 0:
     fn(&gtid, &tid);

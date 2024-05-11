@@ -9,18 +9,29 @@ namespace kmp {
 class Microtask {
 public:
   Microtask(kmpc_micro fn, va_list args, kmp_int32 argc);
-  void run();
+
+  Microtask(Microtask &&);
+  Microtask &operator=(Microtask &&);
+
+  // Disallow copy constructor and assignment
+  Microtask(const Microtask &) = delete;
+  Microtask &operator=(const Microtask &) = delete;
+
+  ~Microtask();
+
+  void run() const;
 
 private:
   kmpc_micro fn;
-  etl::vector<void *, 15> args;
+  void **args;
+  kmp_int32 argc;
 };
 
 class Task {
 public:
   Task(const SharedPointer<Microtask> &microtask);
 
-  void run();
+  void run() const;
 
 private:
   SharedPointer<Microtask> microtask;
