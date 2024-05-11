@@ -26,6 +26,8 @@ static inline void init() {
 
 static inline void runThread(kmp_uint32 core_id) { threads[core_id].run(); };
 
-static inline Thread &getCurrentThread() { return threads[mempool_get_core_id()]; };
+static inline Thread &getCurrentThread() {
+  return threads[mempool_get_core_id()];
+};
 
 } // namespace kmp::runtime
