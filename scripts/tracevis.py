@@ -223,7 +223,7 @@ def flush(buf, hartid):
             time = int(time)
         else:
             next_time = int(buf[0][1])
-            time = int(cyc)
+            time = float(cyc) / 1000
 
         # Have lookahead time to this instruction?
         next_time = lah[time] if time in lah else next_time
