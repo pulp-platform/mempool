@@ -42,9 +42,6 @@ extern "C" int __wrap_main() {
     __real_main();
 
     printf("Program done\n");
-
-    // Go to sleep since progam is done
-    mempool_wfi();
   } else {
     while (initLock) {
       mempool_wait(10);
