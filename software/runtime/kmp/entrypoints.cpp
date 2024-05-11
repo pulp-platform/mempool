@@ -6,6 +6,8 @@
 extern "C" {
 #include "runtime.h"
 
+// NOLINTBEGIN(bugprone-reserved-identifier)
+
 void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid) {
   DEBUG_PRINT("__kmpc_barrier called by %d\n", global_tid);
   kmp::runtime::getCurrentThread().getCurrentTeam()->barrierWait();
@@ -15,11 +17,10 @@ void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid) {
 void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...) {
   va_list ap;
   va_start(ap, microtask);
-  kmp::SharedPointer<kmp::Microtask> kmpMicrotask(
-      new kmp::Microtask(microtask, ap, argc));
+  kmp::Microtask kmpMicrotask(microtask, ap, argc);
   va_end(ap);
 
-  kmp::runtime::getCurrentThread().forkCall(kmpMicrotask);
+  kmp::runtime::getCurrentThread().forkCall(std::move(kmpMicrotask));
 };
 
 // Static loops
@@ -190,4 +191,6 @@ void __kmpc_end_reduce(ident_t *loc, kmp_int32 global_tid,
 kmp_int32 __kmpc_global_thread_num(ident_t *loc) {
   return mempool_get_core_id();
 };
+
+// NOLINTEND(bugprone-reserved-identifier)
 }

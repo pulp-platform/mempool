@@ -1,17 +1,18 @@
 #pragma once
 
-#include "etl/vector.h"
-#include "kmp/util.hpp"
 #include "types.h"
+#include <cstdarg>
+
+#define MAX_ARGS 15
 
 namespace kmp {
 
 class Microtask {
 public:
-  Microtask(kmpc_micro fn, va_list args, kmp_int32 argc);
+  Microtask(kmpc_micro func, va_list args, kmp_int32 argc);
 
-  Microtask(Microtask &&);
-  Microtask &operator=(Microtask &&);
+  Microtask(Microtask &&) noexcept;
+  Microtask &operator=(Microtask &&) noexcept;
 
   // Disallow copy constructor and assignment
   Microtask(const Microtask &) = delete;
@@ -22,18 +23,18 @@ public:
   void run() const;
 
 private:
-  kmpc_micro fn;
+  kmpc_micro func;
   void **args;
   kmp_int32 argc;
 };
 
 class Task {
 public:
-  Task(const SharedPointer<Microtask> &microtask);
+  Task(Microtask microtask);
 
   void run() const;
 
 private:
-  SharedPointer<Microtask> microtask;
+  Microtask microtask;
 };
 }; // namespace kmp
