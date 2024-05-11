@@ -5,9 +5,9 @@
 namespace kmp {
 
 Team::Team(uint32_t numThreads, Task implicitTask)
-    : numThreads(numThreads), barrier(numThreads),
-      dynamicSchedule{.valid = false}, implicitTask(std::move(implicitTask)),
-      copyPrivateData(nullptr),
+    : numThreads(numThreads),
+      barrier(numThreads), dynamicSchedule{.valid = false},
+      implicitTask(std::move(implicitTask)), copyPrivateData(nullptr),
       masterGtid(runtime::getCurrentThread().getGtid()) {
 
   DEBUG_PRINT("Creating team with %d threads\n", numThreads);
@@ -53,23 +53,5 @@ void Team::pushTaskAll(Task task) const {
     thread->wakeUp();
   }
 }
-
-kmp_uint32 Team::getThreadTid(kmp_uint32 gtid) const {
-  return gtid - masterGtid;
-}
-
-kmp_uint32 Team::getThreadGtid(kmp_uint32 tid) const {
-  return masterGtid + tid;
-}
-
-kmp_uint32 Team::getNumThreads() const { return numThreads; }
-
-void Team::setCopyPrivateData(void *data) { copyPrivateData = data; }
-
-void *Team::getCopyPrivateData() const { return copyPrivateData; }
-
-const Task &Team::getImplicitTask() const { return implicitTask; }
-
-void Team::barrierWait() const { barrier.wait(); }
 
 } // namespace kmp
