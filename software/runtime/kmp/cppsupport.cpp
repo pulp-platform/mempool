@@ -10,12 +10,26 @@ kmp::Mutex allocLock;
 
 void *operator new(size_t size) {
   std::lock_guard<kmp::Mutex> lock(allocLock);
+  DEBUG_PRINT("Allocating %d bytes\n", size);
   return simple_malloc(size);
 }
 
-void operator delete(void *p) noexcept {
+void *operator new[](size_t size) {
   std::lock_guard<kmp::Mutex> lock(allocLock);
-  return simple_free(p);
+  DEBUG_PRINT("Allocating %d bytes\n", size);
+  return simple_malloc(size);
+}
+
+void operator delete(void *ptr) noexcept {
+  std::lock_guard<kmp::Mutex> lock(allocLock);
+  DEBUG_PRINT("Freeing %p\n", ptr);
+  return simple_free(ptr);
+}
+
+void operator delete[](void *ptr) noexcept {
+  std::lock_guard<kmp::Mutex> lock(allocLock);
+  DEBUG_PRINT("Freeing %p\n", ptr);
+  return simple_free(ptr);
 }
 
 namespace std {

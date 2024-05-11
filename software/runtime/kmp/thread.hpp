@@ -18,11 +18,17 @@ public:
   Thread(kmp_uint32 gtid);
   Thread(const Thread &other);
 
+  Thread(Thread &&) = delete;
+  Thread &operator=(const Thread &) = delete;
+  Thread &operator=(Thread &&) = delete;
+
+  ~Thread() = default;
+
   void run();
   void wakeUp();
   bool isRunning() const;
 
-  void pushTask(const Task &task);
+  void pushTask(Task task);
   etl::optional<etl::reference_wrapper<const Task>> getCurrentTask();
 
   void pushTeam(SharedPointer<Team> team);
@@ -34,19 +40,16 @@ public:
   kmp_uint32 getTid();
 
   void requestNumThreads(kmp_int32 numThreads);
-  void forkCall(const SharedPointer<Microtask> &microtask);
+  void forkCall(Microtask microtask);
 
   void copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
                    void *cpy_data, void (*cpy_func)(void *, void *),
                    kmp_int32 didit);
 
-public:
   etl::list<Task, 10> tasks;
 
-protected:
-  kmp_uint32 gtid;
-
 private:
+  kmp_uint32 gtid;
   std::atomic<bool> running = false;
 
   Mutex teamsMutex;

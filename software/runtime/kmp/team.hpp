@@ -1,12 +1,10 @@
 #pragma once
 
-#include "etl/list.h"
-#include "etl/map.h"
+#include "etl/flat_map.h"
 #include "kmp/barrier.hpp"
 #include "kmp/thread.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
-#include "printf.h"
 #include <mutex>
 
 namespace kmp {
@@ -28,14 +26,14 @@ class Team {
   };
 
 public:
-  Team(kmp_uint32 numThreads);
+  Team(kmp_uint32 numThreads, Task implicitTask);
 
   /**
    * @brief Push task to all threads in the team
    *
    * @param task Taks to push
    */
-  void pushTaskAll(const Task &task) const;
+  void pushTaskAll(Task task) const;
 
   kmp_uint32 getThreadTid(kmp_uint32 gtid) const;
 
@@ -48,6 +46,8 @@ public:
   void setCopyPrivateData(void *data);
 
   void *getCopyPrivateData() const;
+
+  const Task &getImplicitTask() const;
 
   /**
    * @brief Schedule a static for loop. See
@@ -77,7 +77,7 @@ public:
     assert((static_cast<T>(chunk) <= *pupper - *plower + 1) &&
            "Chunk size is greater than loop size");
 
-    kmp_uint32 tid = tidMap.at(gtid);
+    kmp_uint32 tid = getThreadTid(gtid);
     kmp_uint32 numChunks = (pupper - plower + chunk) / chunk;
 
     switch (schedtype) {
@@ -187,10 +187,9 @@ public:
   };
 
 private:
-  etl::list<std::reference_wrapper<Thread>, NUM_CORES> threads;
+  etl::vector<Thread *, NUM_CORES> threads;
 
-  // gtid -> tid map
-  etl::map<kmp_uint32, kmp_uint32, NUM_CORES> tidMap;
+  kmp_uint32 masterGtid;
 
   kmp_uint32 numThreads;
 
@@ -199,6 +198,8 @@ private:
   DynamicSchedule dynamicSchedule;
 
   void *copyPrivateData;
+
+  Task implicitTask;
 };
 
 } // namespace kmp
