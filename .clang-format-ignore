@@ -6,6 +6,7 @@
 # External dependencies
 */software/runtime/encoding.h
 */software/riscv-tests
+*/software/ext/*
 */toolchain
 */hardware/deps
 */hardware/tb/dpi/elfloader.cpp
