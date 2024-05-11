@@ -1,6 +1,8 @@
+import textwrap
 import subprocess
 import os
 import re
+import shutil
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,9 +14,16 @@ KMP_APPS_DIR=APPS_DIR + "/kmp"
 OMP_APPS_DIR=APPS_DIR + "/omp"
 OUTPUT="results.csv"
 UART_REGEX=re.compile(r"\[UART\] (.*): (\d+)")
+GIT_COMMIT_HASH=subprocess.check_output(["git", "describe", "--always", "--dirty"]).strip().decode("utf-8")
 
 def main():
     df = pd.read_csv(OUTPUT)
+
+    if ("dirty" in GIT_COMMIT_HASH):
+        print("WARNING: The current commit is dirty.")
+
+    os.makedirs(f'results/{GIT_COMMIT_HASH}', exist_ok=True)
+    shutil.copy(OUTPUT, f'results/{GIT_COMMIT_HASH}/{OUTPUT}')
 
 # Separate LLVM and GCC data
     llvm_data = df[df['compiler'] == 'llvm']
@@ -36,6 +45,7 @@ def main():
 
         # Unique test names
         test_names = app_data['name']
+        test_names = ['\n'.join(textwrap.wrap(name, width=10)) for name in test_names]
 
         # Speedup values
         speedup_values = app_data['speedup']
@@ -53,6 +63,8 @@ def main():
         # Add value labels on top of each bar
         for bar, value in zip(bars, speedup_values):
             height = bar.get_height()
+            _, top = plt.ylim()
+            plt.ylim(top=max(top, height + 0.3))
             plt.text(bar.get_x() + bar.get_width() / 2, height + 0.05, f'{value:.2f}', ha='center', va='bottom')
 
         # Set x-axis labels, title, etc.
@@ -62,7 +74,7 @@ def main():
         plt.axhline(y=1, color='red', linestyle='--', linewidth=1, label='Baseline (GCC)')
         plt.legend()
         plt.tight_layout()  # Adjust layout for readability
-        plt.savefig(f'results/after/{app}_speedup.png')
+        plt.savefig(f'results/{GIT_COMMIT_HASH}/{app}_speedup.png')
         # plt.show()  # Display plot
 
 
