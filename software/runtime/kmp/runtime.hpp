@@ -26,6 +26,10 @@ static inline void init() {
 
 static inline void runThread(kmp_uint32 core_id) { threads[core_id].run(); };
 
+static inline Thread &getCurrentThread(kmp_int32 gtid) {
+  return threads[gtid];
+};
+
 static inline Thread &getCurrentThread() {
   return threads[mempool_get_core_id()];
 };

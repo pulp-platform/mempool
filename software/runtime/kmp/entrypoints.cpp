@@ -10,7 +10,10 @@ extern "C" {
 
 void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid) {
   DEBUG_PRINT("__kmpc_barrier called by %d\n", global_tid);
-  kmp::runtime::getCurrentThread().getCurrentTeam()->barrierWait();
+  kmp::runtime::getCurrentThread(global_tid)
+      .getCurrentTeam()
+      ->getBarrier()
+      .wait();
 };
 
 // Parallel

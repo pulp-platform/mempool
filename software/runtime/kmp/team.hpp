@@ -35,19 +35,19 @@ public:
    */
   void pushTaskAll(Task task) const;
 
-  kmp_uint32 getThreadTid(kmp_uint32 gtid) const;
+  inline const Barrier &getBarrier() const { return barrier; }
 
-  kmp_uint32 getThreadGtid(kmp_uint32 tid) const;
+  inline const Task &getImplicitTask() const { return implicitTask; }
 
-  kmp_uint32 getNumThreads() const;
+  inline auto getThreadTid(kmp_uint32 gtid) const { return gtid - masterGtid; }
 
-  void barrierWait() const;
+  inline auto getThreadGtid(kmp_uint32 tid) const { return masterGtid + tid; }
 
-  void setCopyPrivateData(void *data);
+  inline auto getNumThreads() const { return numThreads; }
 
-  void *getCopyPrivateData() const;
+  inline auto setCopyPrivateData(void *data) { copyPrivateData = data; }
 
-  const Task &getImplicitTask() const;
+  inline auto getCopyPrivateData() const { return copyPrivateData; }
 
   /**
    * @brief Schedule a static for loop. See

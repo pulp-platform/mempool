@@ -34,7 +34,7 @@ public:
   void pushTeam(SharedPointer<Team> team);
   void popTeam();
 
-  SharedPointer<Team> getCurrentTeam();
+  inline SharedPointer<Team> getCurrentTeam() { return teams.top(); };
 
   kmp_uint32 getGtid() const;
   kmp_uint32 getTid();
@@ -52,7 +52,6 @@ private:
   kmp_uint32 gtid;
   std::atomic<bool> running = false;
 
-  Mutex teamsMutex;
   etl::stack<SharedPointer<Team>, 10> teams;
 
   Mutex tasksMutex;
