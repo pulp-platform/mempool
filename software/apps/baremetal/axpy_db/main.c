@@ -15,56 +15,66 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+// Max N is NUM_BANKS_PER_CLUSTER * rows that fit L1
+#if NUM_CORES_PER_CLUSTER == 16
+#define N (64 * 96)
+#define LOG_RADIX 2
+#elif NUM_CORES_PER_CLUSTER == 32
+#define N (128 * 96)
+#define LOG_RADIX 5
+#elif NUM_CORES_PER_CLUSTER == 64
+#define N (256 * 96)
+#define LOG_RADIX 3
+#elif NUM_CORES_PER_CLUSTER == 128
+#define N (512 * 96)
+#define LOG_RADIX 7
+#elif NUM_CORES_PER_CLUSTER == 256
 #define N (1024 * 96)
+#define LOG_RADIX 4
+#endif
 
 dump(time, 0);
-
-int32_t vec_x[N] __attribute__((section(".l1_prio")));
-int32_t vec_y[N] __attribute__((section(".l1_prio")));
 
 // vec_x_l2_flat from `data.h`
 // vec_y_l2_flat from `data.h`
 int32_t vec_y_l2_out[N] __attribute__((section(".l2")))
 __attribute__((aligned(NUM_CORES * BANKING_FACTOR * 4)));
 
-uint32_t final_log_barrier(uint32_t step, uint32_t log2_radix,
+uint32_t final_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_radix,
                            uint32_t core_id) {
-  uint32_t *log_barrier =
-      (uint32_t *)(((core_id / step) * step + (step >> log2_radix) - 1) *
-                   SEQ_MEM_SIZE);
+  uint32_t *log_barrier = &round_barrier[(core_id / step) * step + (step >> log2_radix) - 1];
 
   uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
   // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
   if (val == (uint32_t)((1 << log2_radix) - 1)) {
     // Last core of this stage
-    if (step == NUM_CORES) {
+    if (step == NUM_CORES_PER_CLUSTER) {
       // Last stage
       dump_time(2);
       // Clear wfi that was triggered by the first core
       return (uint32_t)log_barrier;
     } else {
       __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
-      return final_log_barrier(step << log2_radix, log2_radix, core_id);
+      return final_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
     }
   } else {
-    if (val == 0 && (uint32_t)log_barrier == 0)
+    if (val == 0 && log_barrier == &round_barrier[0]) {
       dump_time(1);
+    }
     // Middle cores, sleep
     mempool_wfi();
   }
   return 0;
 }
 
-uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
-  uint32_t *log_barrier =
-      (uint32_t *)(((core_id / step) * step + (step >> log2_radix) - 1) *
-                   SEQ_MEM_SIZE);
+uint32_t dma_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_radix, uint32_t core_id) {
+  uint32_t *log_barrier = &round_barrier[(core_id / step) * step + (step >> log2_radix) - 1];
 
   uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
   // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
   if (val == (uint32_t)((1 << log2_radix) - 1)) {
     // Last core of this stage
-    if (step == NUM_CORES) {
+    if (step == NUM_CORES_PER_CLUSTER) {
       // Last stage
       dump_time(2);
       // Clear wfi that was triggered by the first core
@@ -72,15 +82,16 @@ uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
       return (uint32_t)log_barrier;
     } else {
       __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
-      return dma_log_barrier(step << log2_radix, log2_radix, core_id);
+      return dma_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
     }
-  } else if (val == 0 && (uint32_t)log_barrier == 0) {
+  } else if (val == 0 && log_barrier == &round_barrier[0]) {
     // First core of first barrier in first stage
     dump_time(1);
     // Check that the DMA from the previous iteration is done
-    dma_wait();
+    uint32_t cluster_id = mempool_get_core_id()/NUM_CORES_PER_CLUSTER;
+    dma_wait(cluster_id);
     // Wake up all cores to get to work
-    wake_up_all();
+    wake_up_cluster(cluster_id);
     mempool_wfi();
     dump_time(0);
   } else {
@@ -92,27 +103,38 @@ uint32_t dma_log_barrier(uint32_t step, uint32_t log2_radix, uint32_t core_id) {
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
+  uint32_t cluster_id = core_id / NUM_CORES_PER_CLUSTER;
+  uint32_t core_cluster_id = core_id % NUM_CORES_PER_CLUSTER;
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id);
 
+  // Allocation
+  void* alloc_base = (void*)(cluster_id*L1_SIZE_PER_CLUSTER + NUM_CORES_PER_CLUSTER*STACK_SIZE);
+  // Local matrices per cluster
+  int32_t* vec_x = (int32_t*)(alloc_base); // Size [matrix_M*matrix_N]
+  alloc_base += N*sizeof(int32_t);
+  int32_t* vec_y = (int32_t*)(alloc_base); // Size [matrix_M*matrix_N]
+  alloc_base += N*sizeof(int32_t);
+  // Allocate barriers for each core
+  uint32_t *round_barrier = (uint32_t*)(alloc_base); // Size [NUM_CORES_PER_CLUSTER]
+  alloc_base += NUM_CORES_PER_CLUSTER*sizeof(uint32_t);
+
   // Initial setup
-  int32_t *round_barrier = (int32_t *)(core_id * SEQ_MEM_SIZE);
-  if (core_id != 0) {
-    *round_barrier = 0;
-  }
+  round_barrier[core_cluster_id] = 0;
 
   // Initialize img
-  if (core_id == 0) {
-    dma_memcpy_nonblocking((void *)vec_x, (void *)vec_x_l2_flat,
+  mempool_start_benchmark();
+  if (core_cluster_id == 0) {
+    dma_memcpy_nonblocking(cluster_id, (void *)vec_x, (void *)vec_x_l2_flat,
                            N / 2 * sizeof(int32_t));
-    dma_memcpy_blocking((void *)vec_y, (void *)vec_y_l2_flat,
+    dma_memcpy_blocking(cluster_id, (void *)vec_y, (void *)vec_y_l2_flat,
                         N / 2 * sizeof(int32_t));
   }
 
   // Double-buffered convolution
-  const int last_round = 4;
+  const int last_round = 8;
   // const int first = 0;
-  const uint32_t log2_radix = 4;
+  const uint32_t log2_radix = LOG_RADIX;
   const uint32_t radix = 1 << log2_radix;
 
   // Wait at barrier until everyone is ready
@@ -120,8 +142,8 @@ int main() {
   mempool_start_benchmark();
 
   // Initial launch, Core 0 transfered the data in
-  if (core_id == 0) {
-    wake_up_all();
+  if (core_cluster_id == 0) {
+    wake_up_cluster(cluster_id);
   }
   const int32_t *vec_x_comp;
   const int32_t *vec_x_dma;
@@ -153,49 +175,51 @@ int main() {
       vec_y_in = (const int32_t *)&vec_y_l2_flat[0];
       vec_y_out = (const int32_t *)&vec_y_l2_out[0];
     }
-    mempool_start_benchmark();
     mempool_wfi();
     // Barrier, launch DMA for next iteration
-    bar = dma_log_barrier(radix, log2_radix, core_id);
+    bar = dma_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
+    mempool_start_benchmark();
     if (bar) {
       // We are the last one, reset the barrier
       // The old data can now be overwritten with a new DMA request
       if (round != 0) {
-        dma_memcpy_nonblocking((void *)vec_y_out, (void *)vec_y_dma,
+        dma_memcpy_nonblocking(cluster_id, (void *)vec_y_out, (void *)vec_y_dma,
                                N / 2 * sizeof(int32_t));
       }
       if (round != last_round - 1) {
-        dma_memcpy_nonblocking((void *)vec_x_dma, (void *)vec_x_in,
+        dma_memcpy_nonblocking(cluster_id, (void *)vec_x_dma, (void *)vec_x_in,
                                N / 2 * sizeof(int32_t));
-        dma_memcpy_nonblocking((void *)vec_y_dma, (void *)vec_y_in,
+        dma_memcpy_nonblocking(cluster_id, (void *)vec_y_dma, (void *)vec_y_in,
                                N / 2 * sizeof(int32_t));
       }
       // We are the last one, reset the barrier
       __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
       if (round != last_round - 1) {
-        wake_up_all();
+        wake_up_cluster(cluster_id);
       }
     }
-    mempool_stop_benchmark();
     mempool_start_benchmark();
     axpy_parallel_asm((const int32_t *)vec_x_comp, (int32_t *)vec_y_comp, 7,
-                      N / 2, core_id, num_cores);
-    mempool_stop_benchmark();
+                      N / 2, core_cluster_id, NUM_CORES_PER_CLUSTER);
+    mempool_start_benchmark();
   }
 
   // Last write back
+  bar = final_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
   mempool_start_benchmark();
-  bar = final_log_barrier(radix, log2_radix, core_id);
   if (bar) {
     // We are the last one, reset the barrier
     // The old data can now be overwritten with a new DMA request
-    dma_memcpy_blocking((void *)vec_y_out, (void *)vec_y_dma,
+    dma_memcpy_blocking(cluster_id, (void *)vec_y_out, (void *)vec_y_dma,
                         N / 2 * sizeof(int32_t));
     // We are the last one, reset the barrier
     __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
-    wake_up_all();
+    wake_up_cluster(cluster_id);
+    mempool_wfi();
   }
 
+  mempool_start_benchmark();
+  mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
   return 0;
