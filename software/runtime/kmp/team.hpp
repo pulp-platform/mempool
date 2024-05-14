@@ -187,11 +187,10 @@ public:
   };
 
 private:
-  etl::vector<Thread *, NUM_CORES> threads;
-
   kmp_uint32 masterGtid;
 
   kmp_uint32 numThreads;
+  std::vector<Thread *, kmp::Allocator<Thread *>> threads;
 
   Barrier barrier;
 

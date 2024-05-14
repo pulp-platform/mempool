@@ -1,11 +1,20 @@
 #pragma once
 
 #include <atomic>
+#include <cassert>
+#include <limits>
+#include <mutex>
 
 extern "C" {
 #include "printf.h"
 #include "runtime.h"
 }
+
+namespace kmp {
+class Mutex;
+}
+
+extern kmp::Mutex allocLock;
 
 namespace kmp {
 
@@ -41,6 +50,8 @@ private:
 
 template <typename T> class SharedPointer {
 public:
+  SharedPointer() : refCount(nullptr), ptr(nullptr) {}
+
   explicit SharedPointer(T *ptr)
       : refCount(new std::atomic<uint32_t>(1)), ptr(ptr) {}
 
@@ -55,12 +66,10 @@ public:
     other.refCount = nullptr;
   }
 
-  SharedPointer &operator=(SharedPointer && other) noexcept {
+  SharedPointer &operator=(SharedPointer &&other) noexcept {
     if (this != &other) {
-      ptr = other.ptr;
-      refCount = other.refCount;
-      other.ptr = nullptr;
-      other.refCount = nullptr;
+      std::swap(ptr, other.ptr);
+      std::swap(refCount, other.refCount);
     }
     return *this;
   }
@@ -80,7 +89,6 @@ public:
     }
 
     if (--(*refCount) == 0) {
-      DEBUG_PRINT("Deleting shared pointer %p\n", ptr);
       delete ptr;
       delete refCount;
     }
@@ -94,6 +102,21 @@ public:
 
   T &operator*() { return *ptr; }
   const T &operator*() const { return *ptr; }
+
+  inline void reset() {
+    DEBUG_PRINT("Resetting shared pointer\n");
+    if (refCount == nullptr) {
+      return;
+    }
+
+    if (--(*refCount) == 0) {
+      delete ptr;
+      delete refCount;
+    }
+
+    refCount = nullptr;
+    ptr = nullptr;
+  }
 
 private:
   std::atomic<uint32_t> *refCount;
@@ -137,4 +160,35 @@ public:
 private:
   T *ptr;
 };
+
+template <class T> struct Allocator {
+  typedef T value_type;
+
+  Allocator() = default;
+
+  template <class U>
+  constexpr Allocator(const Allocator<U> & /*unused*/) noexcept {}
+
+  [[nodiscard]] T *allocate(std::size_t n) {
+    assert(n <= std::numeric_limits<std::size_t>::max() / sizeof(T));
+    std::lock_guard<kmp::Mutex> lock(allocLock);
+
+    DEBUG_PRINT("Allocating %lu bytes\n", n * sizeof(T));
+    if (auto ptr = static_cast<T *>(simple_malloc(n * sizeof(T)))) {
+      DEBUG_PRINT("Allocated %lu bytes at %p\n", n * sizeof(T), ptr);
+      return ptr;
+    }
+
+    assert(false && "Allocation failed");
+    return nullptr;
+  }
+
+  void deallocate(T *ptr, std::size_t n) noexcept {
+    std::lock_guard<kmp::Mutex> lock(allocLock);
+
+    simple_free(ptr);
+    DEBUG_PRINT("Deallocated %lu bytes at %p\n", n * sizeof(T), ptr);
+  }
+};
+
 } // namespace kmp

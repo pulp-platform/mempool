@@ -16,8 +16,9 @@ class Team;
 class Thread {
 public:
   Thread(kmp_uint32 gtid);
-  Thread(const Thread &other);
+  Thread(kmp_uint32 gtid, kmp_uint32 tid);
 
+  Thread(const Thread &other) = delete;
   Thread(Thread &&) = delete;
   Thread &operator=(const Thread &) = delete;
   Thread &operator=(Thread &&) = delete;
@@ -31,13 +32,20 @@ public:
   void pushTask(Task task);
   etl::optional<etl::reference_wrapper<const Task>> getCurrentTask();
 
-  void pushTeam(SharedPointer<Team> team);
-  void popTeam();
+  // void pushTeam(SharedPointer<Team> team);
+  // void popTeam();
 
-  inline SharedPointer<Team> getCurrentTeam() { return teams.top(); };
+  inline SharedPointer<Team> getCurrentTeam() { return currentTeam; };
+  inline void setCurrentTeam(SharedPointer<Team> team) {
+    DEBUG_PRINT("Setting current team for %d\n", this->gtid);
+    currentTeam = std::move(team);
+  };
 
-  kmp_uint32 getGtid() const;
-  kmp_uint32 getTid();
+  inline kmp_uint32 getGtid() const { return gtid; };
+
+  inline kmp_uint32 getTid() const { return tid; };
+
+  inline void setTid(kmp_uint32 tid) { this->tid = tid; };
 
   void requestNumThreads(kmp_int32 numThreads);
   void forkCall(Microtask microtask);
@@ -50,9 +58,11 @@ public:
 
 private:
   kmp_uint32 gtid;
+  volatile kmp_uint32 tid;
+
   std::atomic<bool> running = false;
 
-  etl::stack<SharedPointer<Team>, 10> teams;
+  SharedPointer<Team> currentTeam;
 
   Mutex tasksMutex;
   etl::optional<kmp_int32> requestedNumThreads;

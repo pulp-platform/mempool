@@ -9,7 +9,7 @@ extern "C" {
 // NOLINTBEGIN(bugprone-reserved-identifier)
 
 void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid) {
-  DEBUG_PRINT("__kmpc_barrier called by %d\n", global_tid);
+  // DEBUG_PRINT("__kmpc_barrier called by %d\n", global_tid);
   kmp::runtime::getCurrentThread(global_tid)
       .getCurrentTeam()
       ->getBarrier()
@@ -142,14 +142,14 @@ void __kmpc_end_critical(ident_t *, kmp_int32 gtid, kmp_critical_name *crit) {
 
 // Master
 kmp_int32 __kmpc_master(ident_t *loc, int32_t gtid) {
-  return kmp::runtime::getCurrentThread().getTid() == 0;
+  return static_cast<kmp_int32>(kmp::runtime::getCurrentThread().getTid() == 0);
 };
 
 void __kmpc_end_master(ident_t *loc, int32_t gtid){/* NOOP */};
 
 // Single (same as master for now)
 kmp_int32 __kmpc_single(ident_t *loc, int32_t gtid) {
-  return kmp::runtime::getCurrentThread().getTid() == 0;
+  return static_cast<kmp_int32>(kmp::runtime::getCurrentThread().getTid() == 0);
 };
 
 void __kmpc_end_single(ident_t *loc, int32_t gtid){/* NOOP */};
@@ -163,7 +163,6 @@ void __kmpc_copyprivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
 };
 
 // Reduction
-
 kmp_int32
 __kmpc_reduce_nowait(ident_t *loc, kmp_int32 global_tid, kmp_int32 num_vars,
                      size_t reduce_size, void *reduce_data,

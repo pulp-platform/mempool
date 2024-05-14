@@ -9,7 +9,7 @@ extern "C" {
 
 namespace kmp {
 
-Thread::Thread(kmp_uint32 gtid) : gtid(gtid) {
+Thread::Thread(kmp_uint32 gtid, kmp_uint32 tid) : gtid(gtid), tid(tid) {
   // If gtid is 0, the thread is the initial thread and should be running
   if (gtid == 0) {
     running = true;
@@ -18,7 +18,7 @@ Thread::Thread(kmp_uint32 gtid) : gtid(gtid) {
   }
 };
 
-Thread::Thread(const Thread & /*unused*/) : gtid(0){};
+Thread::Thread(kmp_uint32 gtid) : Thread(gtid, 0) {};
 
 void Thread::run() {
   while (true) {
@@ -26,16 +26,16 @@ void Thread::run() {
       mempool_wfi();
     }
 
-    if (!teams.empty()) {
-      const Task &task = teams.top()->getImplicitTask();
+    const Task &task = currentTeam->getImplicitTask();
 
-      task.run();
+    task.run();
+    DEBUG_PRINT("Done running task\n", gtid);
+    currentTeam->getBarrier().wait();
 
-      teams.top()->getBarrier().wait();
-      teams.pop();
-    } else {
-      running = false;
-    }
+    currentTeam.reset();
+    tid = 0;
+
+    running = false;
   }
 };
 
@@ -86,21 +86,14 @@ void Thread::forkCall(Microtask microtask) {
   // tasks.pop_front();
 
   // DEBUG_PRINT("Popped task\n");
+  currentTeam.reset();
 };
 
-kmp_uint32 Thread::getGtid() const { return gtid; };
+// void Thread::pushTeam(SharedPointer<Team> team) {
+// teams.push(std::move(team));
+// };
 
-kmp_uint32 Thread::getTid() {
-  return !teams.empty() ? teams.top()->getThreadTid(gtid)
-                        : 0; // If thread is part of no team, assume it is the
-                             // inital thread
-};
-
-void Thread::pushTeam(SharedPointer<Team> team) {
-  teams.push(std::move(team));
-};
-
-void Thread::popTeam() { teams.pop(); };
+// void Thread::popTeam() { teams.pop(); };
 
 etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {
   if (!tasks.empty()) {

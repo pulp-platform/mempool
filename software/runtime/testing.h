@@ -11,7 +11,7 @@ typedef struct {
   void (*func)(char const **out_error_message);
 } test_t;
 
-test_t tests[MAX_TESTS] __attribute__((section(".l2"))); // NOLINT
+test_t tests[MAX_TESTS]; // NOLINT
 
 int tests_run = 0;    // NOLINT(*-global-variables)
 int tests_failed = 0; // NOLINT(*-global-variables)

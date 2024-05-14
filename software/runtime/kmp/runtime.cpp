@@ -10,7 +10,8 @@ namespace kmp {
 
 namespace runtime {
 
-etl::vector<kmp::Thread, NUM_CORES> threads;
+std::array<char, sizeof(Thread) * NUM_CORES> theadBuffer;
+etl::vector_ext<kmp::Thread> threads(theadBuffer.data(), NUM_CORES);
 
 } // namespace runtime
 

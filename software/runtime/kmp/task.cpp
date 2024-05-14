@@ -12,7 +12,7 @@ Task::Task(Microtask microtask) : microtask(std::move(microtask)){};
 void Task::run() const { microtask.run(); };
 
 Microtask::Microtask(kmpc_micro func, va_list args, kmp_int32 argc)
-    : func(func), args(new void *[argc]), argc(argc) {
+    : func(func), args(nullptr), argc(argc) {
 
   if (argc > MAX_ARGS) {
     printf("Unsupported number of microtask arguments, max is %d and %d were "
@@ -20,6 +20,10 @@ Microtask::Microtask(kmpc_micro func, va_list args, kmp_int32 argc)
            MAX_ARGS, argc);
     return;
   }
+
+  this->args = new void *[argc];
+
+  DEBUG_PRINT("Microtask constructor, args: %p\n", this->args);
 
   void *arg = nullptr;
   for (kmp_int32 i = 0; i < argc; i++) {
