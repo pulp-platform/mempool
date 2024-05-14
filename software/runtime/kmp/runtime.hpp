@@ -6,7 +6,8 @@
 
 namespace kmp::runtime {
 
-extern etl::vector<Thread, NUM_CORES> threads;
+extern etl::vector_ext<Thread> threads;
+extern std::array<char, sizeof(Thread) * NUM_CORES> theadBuffer;
 
 static inline void assertWrapper(const etl::exception &e) {
   __assert_func(e.file_name(), e.line_number(), "n/a", e.what());

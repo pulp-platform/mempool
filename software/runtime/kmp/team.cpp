@@ -5,21 +5,18 @@
 namespace kmp {
 
 Team::Team(uint32_t numThreads, Task implicitTask)
-    : numThreads(numThreads),
-      barrier(numThreads), dynamicSchedule{.valid = false},
-      implicitTask(std::move(implicitTask)), copyPrivateData(nullptr),
+    : numThreads(numThreads), barrier(numThreads),
+      dynamicSchedule{.valid = false}, implicitTask(std::move(implicitTask)),
+      copyPrivateData(nullptr),
       masterGtid(runtime::getCurrentThread().getGtid()) {
 
-  DEBUG_PRINT("Creating team with %d threads\n", numThreads);
-
   SharedPointer<Team> sharedThis(this);
+  DEBUG_PRINT("Creating team with %d threads at %p\n", numThreads, this);
 
   // Make current thread part of the team
   Thread &currentThread = runtime::getCurrentThread();
-  threads.push_back(&currentThread);
-  currentThread.pushTeam(sharedThis);
-
-  // TODO: I feel like this can be done better
+  this->threads.push_back(&currentThread);
+  currentThread.setCurrentTeam(sharedThis);
 
   kmp_uint32 foundThreads = 1;
   for (Thread &thread : runtime::threads) {
@@ -28,13 +25,22 @@ Team::Team(uint32_t numThreads, Task implicitTask)
     }
 
     if (thread.getGtid() == currentThread.getGtid()) {
-    } else if (!thread.isRunning()) { // TODO: Check this
-      threads.push_back(&thread);
-
-      thread.pushTeam(sharedThis);
-
-      foundThreads++;
+      continue;
     }
+
+    if (thread.isRunning()) {
+      continue;
+    }
+
+    thread.setCurrentTeam(sharedThis);
+    DEBUG_PRINT("Pushing thread %d to team\n", thread.getGtid());
+
+    thread.setTid(foundThreads);
+
+    this->threads.push_back(&thread);
+    DEBUG_PRINT("Done pushing thread %d to team\n", thread.getGtid());
+
+    foundThreads++;
   }
 
   this->barrier.setNumThreads(foundThreads);
