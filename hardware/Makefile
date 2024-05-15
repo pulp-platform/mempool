@@ -15,6 +15,9 @@ TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
 config_mk = $(abspath $(ROOT_DIR)/../config/config.mk)
 include $(config_mk)
 
+# Banshee config
+banshee_config = $(MEMPOOL_DIR)/banshee-config.yaml
+
 # build path
 buildpath       ?= build
 resultpath      ?= results
@@ -312,6 +315,13 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 	cd $(buildpath) && $(VERILATOR_EXE) $(veril_flags) | tee transcript
 	# Avoid capturing the return status when running the load-throughput analysis
 	if [ $(tg) -ne 1 ]; then ./scripts/return_status.sh $(buildpath)/transcript; fi
+
+################
+# Banshee      #
+################
+
+banshee:
+	banshee --configuration $(banshee_config) --num-clusters 1 --num-cores $(num_cores) -l $(preload)
 
 #############
 # Lint      #
