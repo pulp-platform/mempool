@@ -7,169 +7,239 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "baremetal/mempool_matmul_i32p.h"
+#include "data.h"
+#include "dma.h"
 #include "encoding.h"
+#include "baremetal/mempool_matmul_i32p.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
 // Define Matrix dimensions:
 // C = AB with A=[MxN], B=[NxP], C=[MxP]
-#if NUM_CORES > 32
-#define matrix_M 256
-#define matrix_N 256
-#define matrix_P 256
-#else
-#define matrix_M (NUM_CORES)
-#define matrix_N (NUM_CORES)
-#define matrix_P (NUM_CORES)
+
+//// SWEEP SIZES
+// #if NUM_CORES_PER_CLUSTER == 16
+// #define LOG_RADIX 2
+// #elif NUM_CORES_PER_CLUSTER == 32
+// #define LOG_RADIX 5
+// #elif NUM_CORES_PER_CLUSTER == 64
+// #define LOG_RADIX 3
+// #elif NUM_CORES_PER_CLUSTER == 128
+// #define LOG_RADIX 7
+// #elif NUM_CORES_PER_CLUSTER == 256
+// #define LOG_RADIX 4
+// #endif
+// #define matrix_M (MATRIX_SIZE)
+// #define matrix_N (MATRIX_SIZE)
+// #define matrix_P (MATRIX_SIZE)
+
+//// MAX SIZES
+#if NUM_CORES_PER_CLUSTER == 16
+#define matrix_M 48
+#define matrix_N 48
+#define matrix_P 48
+#define LOG_RADIX 2
+#elif NUM_CORES_PER_CLUSTER == 32
+#define matrix_M 64
+#define matrix_N 64
+#define matrix_P 64
+#define LOG_RADIX 5
+#elif NUM_CORES_PER_CLUSTER == 64
+#define matrix_M 96
+#define matrix_N 96
+#define matrix_P 96
+#define LOG_RADIX 3
+#elif NUM_CORES_PER_CLUSTER == 128
+#define matrix_M 128
+#define matrix_N 128
+#define matrix_P 128
+#define LOG_RADIX 7
+#elif NUM_CORES_PER_CLUSTER == 256
+#define matrix_M 192
+#define matrix_N 192
+#define matrix_P 192
+#define LOG_RADIX 4
 #endif
 
-int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
-int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));
-int32_t matrix_c[matrix_M * matrix_P] __attribute__((section(".l1_prio")));
-
-int volatile error __attribute__((section(".l1")));
-
 dump(time, 0);
+dump(debug, 1);
 
-void init_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
-                 int32_t a, int32_t b, int32_t c, uint32_t core_id,
-                 uint32_t num_cores) {
-  uint32_t const split = 8; // How many rows/columns to split the matrix into
-  if (num_columns > num_rows) {
-    // Parallelize over columns
-    uint32_t const c_start = (num_rows / split) * (core_id % split);
-    uint32_t const c_end = (num_rows / split) * ((core_id % split) + 1);
-    for (uint32_t j = (core_id / split); j < num_columns;
-         j += (num_cores / split)) {
-      for (uint32_t i = c_start; i < c_end; ++i) {
-        matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
-      }
+// a_l2_flat from `data.h`
+// b_l2_flat from `data.h`
+int32_t matrix_out[matrix_M * matrix_P] __attribute__((section(".l2")))
+__attribute__((aligned(NUM_CORES * BANKING_FACTOR * 4)));
+
+uint32_t final_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_radix,
+                           uint32_t core_id) {
+  uint32_t *log_barrier = &round_barrier[(core_id / step) * step + (step >> log2_radix) - 1];
+
+  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
+  // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
+  if (val == (uint32_t)((1 << log2_radix) - 1)) {
+    // Last core of this stage
+    if (step == NUM_CORES_PER_CLUSTER) {
+      // Last stage
+      dump_time(2);
+      // Clear wfi that was triggered by the first core
+      return (uint32_t)log_barrier;
+    } else {
+      __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
+      return final_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
     }
   } else {
-    // Parallelize over rows
-    uint32_t const c_start = (num_columns / split) * (core_id % split);
-    uint32_t const c_end = (num_columns / split) * ((core_id % split) + 1);
-    for (uint32_t i = (core_id / split); i < num_rows;
-         i += (num_cores / split)) {
-      for (uint32_t j = c_start; j < c_end; ++j) {
-        matrix[i * num_columns + j] = a * (int32_t)i + b * (int32_t)j + c;
-      }
-    }
-  }
-}
-
-// Initialize the matrices in parallel
-int verify_matrix(int32_t *matrix, uint32_t num_rows, uint32_t num_columns,
-                  uint32_t inner_dim, int32_t aa, int32_t ab, int32_t ac,
-                  int32_t ba, int32_t bb, int32_t bc, uint32_t core_id,
-                  uint32_t num_cores) {
-  // Convert to signed
-  int32_t n = (int32_t)inner_dim;
-  // Parallelize over tiles
-  uint32_t const c = 16; // How many columns to split the matrix into
-  uint32_t const c_start = (num_columns / c) * (core_id % c);
-  uint32_t const c_end = (num_columns / c) * ((core_id % c) + 1);
-  for (uint32_t i = core_id / c; i < num_rows; i += num_cores / c) {
-    for (uint32_t j = c_start; j < c_end; j++) {
-      int32_t ii = (int32_t)i;
-      int32_t jj = (int32_t)j;
-      int32_t lin =
-          (aa * bb * ii * jj + aa * bc * ii + ac * bb * jj + ac * bc) * n;
-      int32_t qua =
-          ((aa * ba * ii + ab * bb * jj + ab * bc + ba * ac) * (n * (n - 1))) /
-          2;
-      int32_t cub = ((ab * ba) * (n * (n - 1) * (2 * n - 1))) / 6;
-      int32_t golden = lin + qua + cub;
-      // printf("C %3d %3d 0x%08x\n", i, j, (uint32_t)&matrix[i * num_columns +
-      // j]);
-      if (matrix[i * num_columns + j] != golden) {
-        return (i + j) == 0 ? -1 : (int)(i * num_columns + j);
-      }
-      matrix[i * num_columns + j] = 0;
-    }
+    if (val == 0 && log_barrier == &round_barrier[0])
+      dump_time(1);
+    // Middle cores, sleep
+    mempool_wfi();
   }
   return 0;
 }
 
-int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
-                               int32_t *__restrict__ C, uint32_t M, uint32_t N,
-                               uint32_t P, uint32_t core_id,
-                               uint32_t num_cores) {
-  int32_t const A_a = 1;
-  int32_t const A_b = 1;
-  int32_t const A_c = -32;
-  int32_t const B_a = 2;
-  int32_t const B_b = 1;
-  int32_t const B_c = 16;
+uint32_t dma_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_radix, uint32_t core_id) {
+  uint32_t *log_barrier = &round_barrier[(core_id / step) * step + (step >> log2_radix) - 1];
 
-  // Initialize Matrices
-  init_matrix(A, M, N, A_a, A_b, A_c, core_id, num_cores);
-  init_matrix(B, N, P, B_a, B_b, B_c, core_id, num_cores);
-  // Wait at barrier until everyone is ready
-  mempool_barrier(num_cores);
-
-  // Cold cache
-  uint32_t start = mempool_get_timer();
-  mempool_start_benchmark();
-  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
-
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  uint32_t stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
-  }
-
-  // Hot cache
-  mempool_barrier(num_cores);
-  start = mempool_get_timer();
-  mempool_start_benchmark();
-  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
-  mempool_stop_benchmark();
-  if (core_id == 44) {
-    dump_time(mempool_get_timer() - start);
-  }
-  mempool_start_benchmark();
-
-  // Wait at barrier befor checking
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-  stop = mempool_get_timer();
-  if (core_id == 44) {
-    dump_time(stop - start);
-  }
-
-  if (verify_matrix(C, M, P, N, A_a, A_b, A_c, B_a, B_b, B_c, core_id,
-                    num_cores)) {
-    error = 1;
-    return -1;
+  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
+  // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
+  if (val == (uint32_t)((1 << log2_radix) - 1)) {
+    // Last core of this stage
+    if (step == NUM_CORES_PER_CLUSTER) {
+      // Last stage
+      dump_time(2);
+      // Clear wfi that was triggered by the first core
+      mempool_wfi();
+      return (uint32_t)log_barrier;
+    } else {
+      __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
+      return dma_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
+    }
+  } else if (val == 0 && log_barrier == &round_barrier[0]) {
+    // First core of first barrier in first stage
+    dump_time(1);
+    // Check that the DMA from the previous iteration is done
+    uint32_t cluster_id = mempool_get_core_id()/NUM_CORES_PER_CLUSTER;
+    dma_wait(cluster_id);
+    // Wake up all cores to get to work
+    wake_up_cluster(cluster_id);
+    mempool_wfi();
+    dump_time(0);
+  } else {
+    // Middle cores, sleep
+    mempool_wfi();
   }
   return 0;
 }
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
+  uint32_t cluster_id = core_id / NUM_CORES_PER_CLUSTER;
+  uint32_t core_cluster_id = core_id % NUM_CORES_PER_CLUSTER;
   uint32_t num_cores = mempool_get_core_count();
-  // Initialize barrier and synchronize
   mempool_barrier_init(core_id);
 
-  if (core_id == 0) {
-    error = 0;
+  // Allocation
+  void* alloc_base = (void*)(cluster_id*L1_SIZE_PER_CLUSTER + NUM_CORES_PER_CLUSTER*STACK_SIZE);
+  // Local matrices per cluster
+  int32_t* matrix_a1 = (int32_t*)(alloc_base); // Size [matrix_M*matrix_N]
+  alloc_base += matrix_M*matrix_N*sizeof(int32_t);
+  int32_t* matrix_a2 = (int32_t*)(alloc_base); // Size [matrix_M*matrix_N]
+  alloc_base += matrix_M*matrix_N*sizeof(int32_t);
+  int32_t* matrix_b1 = (int32_t*)(alloc_base); // Size [matrix_N * matrix_P]
+  alloc_base += matrix_N*matrix_P*sizeof(int32_t);
+  int32_t* matrix_b2 = (int32_t*)(alloc_base); // Size [matrix_N * matrix_P]
+  alloc_base += matrix_N*matrix_P*sizeof(int32_t);
+  int32_t* matrix_c = (int32_t*)(alloc_base); // Size [matrix_M * matrix_P]
+  alloc_base += matrix_M*matrix_P*sizeof(int32_t);
+  // Allocate barriers for each core
+  uint32_t *round_barrier = (uint32_t*)(alloc_base); // Size [NUM_CORES_PER_CLUSTER]
+  alloc_base += NUM_CORES_PER_CLUSTER*sizeof(uint32_t);
+
+  // Initial setup
+  round_barrier[core_cluster_id] = 0;
+
+  // Initialize img
+  mempool_start_benchmark();
+  if (core_cluster_id == 0) {
+    dma_memcpy_nonblocking(cluster_id, (void *)matrix_a1, (void *)a_l2_flat,
+                           matrix_M * matrix_N * sizeof(int32_t));
+    dma_memcpy_blocking(cluster_id, (void *)matrix_b1, (void *)b_l2_flat,
+                        matrix_N * matrix_P * sizeof(int32_t));
   }
 
-  // Test the Matrix multiplication
-  test_matrix_multiplication(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
-                             matrix_P, core_id, num_cores);
-  // wait until all cores have finished
-  mempool_barrier(num_cores);
+  // Double-buffered convolution
+  const int last_round = 8;
+  // const int first = 0;
+  const uint32_t log2_radix = LOG_RADIX;
+  const uint32_t radix = 1 << log2_radix;
 
-  return error;
+  // Wait at barrier until everyone is ready
+  mempool_barrier(num_cores);
+  mempool_start_benchmark();
+
+  // Initial launch, Core 0 transfered the data in
+  if (core_cluster_id == 0) {
+    wake_up_cluster(cluster_id);
+  }
+  const int32_t *a_comp;
+  const int32_t *b_comp;
+  const int32_t *a_dma;
+  const int32_t *b_dma;
+  uint32_t bar;
+
+  for (int round = 0; round < last_round; ++round) {
+    if (round % 2 == 0) {
+      a_comp = (const int32_t *)matrix_a1;
+      b_comp = (const int32_t *)matrix_b1;
+      a_dma = (const int32_t *)matrix_a2;
+      b_dma = (const int32_t *)matrix_b2;
+    } else {
+      a_dma = (const int32_t *)matrix_a1;
+      b_dma = (const int32_t *)matrix_b1;
+      a_comp = (const int32_t *)matrix_a2;
+      b_comp = (const int32_t *)matrix_b2;
+    }
+    mempool_wfi();
+    // Barrier, launch DMA for next iteration
+    bar = dma_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
+    mempool_start_benchmark();
+    if (bar) {
+      // We are the last one, reset the barrier
+      // The old data can now be overwritten with a new DMA request
+      if (round != last_round - 1) {
+        dma_memcpy_nonblocking(cluster_id, (void *)a_dma, (void *)a_l2_flat,
+                               matrix_M * matrix_N * sizeof(int32_t));
+        dma_memcpy_nonblocking(cluster_id, (void *)b_dma, (void *)b_l2_flat,
+                               matrix_N * matrix_P * sizeof(int32_t));
+      }
+      // We are the last one, reset the barrier
+      __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
+      if (round != last_round - 1) {
+        wake_up_cluster(cluster_id);
+      }
+    }
+    mempool_start_benchmark();
+    mat_mul_unrolled_4x4_parallel_asm(a_comp, b_comp, matrix_c, matrix_M,
+                                      matrix_N, matrix_P, core_cluster_id, NUM_CORES_PER_CLUSTER);
+    mempool_start_benchmark();
+  }
+
+  // Last write back
+  bar = final_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
+  mempool_start_benchmark();
+  if (bar) {
+    // We are the last one, reset the barrier
+    // The old data can now be overwritten with a new DMA request
+    dma_memcpy_blocking(cluster_id, (void *)matrix_out, (void *)matrix_c,
+                        matrix_M * matrix_P * sizeof(int32_t));
+    // We are the last one, reset the barrier
+    __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
+    wake_up_cluster(cluster_id);
+    mempool_wfi();
+  }
+
+  mempool_start_benchmark();
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  return 0;
 }

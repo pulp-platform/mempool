@@ -210,17 +210,40 @@ void mat_mul_unrolled_4x4_parallel(int32_t const *__restrict__ A,
   }
 }
 
+#if NUM_CORES_PER_CLUSTER == 16
+#define PARALLEL_COLUMNS 4
+#elif NUM_CORES_PER_CLUSTER == 32
+#define PARALLEL_COLUMNS 8
+#elif NUM_CORES_PER_CLUSTER == 64
+#define PARALLEL_COLUMNS 8
+#elif NUM_CORES_PER_CLUSTER == 128
+#define PARALLEL_COLUMNS 16
+#elif NUM_CORES_PER_CLUSTER == 256
+#define PARALLEL_COLUMNS 16
+#endif
+
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
 void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
                                        int32_t const *__restrict__ B,
                                        int32_t *__restrict__ C, uint32_t M,
                                        uint32_t N, uint32_t P, uint32_t id,
                                        uint32_t numThreads) {
   // Parallelize by assigning each tile one row
-  uint32_t const c = 16; // How many columns to split the matrix into
-  uint32_t const c_start = (P / c) * (id % c);
-  uint32_t const c_end = (P / c) * ((id % c) + 1);
-  for (uint32_t i = 4 * (id / c); i < M; i += 4 * (numThreads / c)) {
-    for (uint32_t j = c_start; j < c_end; j += 4) {
+  // uint32_t const c = PARALLEL_COLUMNS; // How many columns to split the matrix into
+  // uint32_t const c_start = (P / c) * (id % c);
+  // uint32_t const c_end = (P / c) * ((id % c) + 1);
+  // Flat loop
+  uint32_t tiles = (M * P) / 16;
+  uint32_t chunk_size = tiles / numThreads;
+  uint32_t chunk_remainder = tiles % numThreads;
+  uint32_t start = id*chunk_size + MIN(id, chunk_remainder);
+  uint32_t end = (id+1)*chunk_size + MIN(id+1, chunk_remainder);
+  for (uint32_t h = start; h < end; h++) {
+    uint32_t i = (h / (P/4)) * 4;
+    uint32_t j = (h % (P/4)) * 4;
+  // for (uint32_t i = 4 * (id / c); i < M; i += 4 * (numThreads / c)) {
+  //   for (uint32_t j = c_start; j < c_end; j += 4) {
 
       // Address registers
       int32_t const *addr_a = &A[i * N];
@@ -242,7 +265,7 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
       // x11  x28 x29 x30 x31
 
       __asm__ volatile(
-          ".balign 16 \n\t"
+          // ".balign 16 \n\t"
           // Create some space on the stack
           // We push: addr_c
           "addi sp, sp, -4 \n\t"
@@ -350,7 +373,8 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
           : "x3", "x4", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
             "x27", "x28", "x29", "x30", "x31", "memory"); // Clobber
-    }
+  //   }
+  // }
   }
 }
 
