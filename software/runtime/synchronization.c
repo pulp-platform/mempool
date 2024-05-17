@@ -30,7 +30,7 @@ void mempool_barrier_init(uint32_t core_id) {
   //   log_barrier[i] = 0;
   //   partial_barrier[i] = 0;
   // }
-  mempool_barrier(NUM_CORES);
+  // mempool_barrier(NUM_CORES);
 }
 
 void mempool_barrier(uint32_t num_cores) {
