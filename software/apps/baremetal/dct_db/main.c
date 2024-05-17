@@ -125,7 +125,6 @@ uint32_t hard_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_
     // Wake up all cores to get to the next phase of the barrier
     wake_up_cluster(cluster_id);
     mempool_wfi();
-    dump_time(0);
     // Sleep until all cores hit the barrier
     mempool_wfi();
   } else {
@@ -218,6 +217,7 @@ int main() {
       // Wake up all cores waiting at the hard barrier
       wake_up_cluster(cluster_id);
       mempool_wfi();
+      dump_time(0);
     }
     mempool_start_benchmark();
     fdct_8x8_parallel((const int32_t *)img_comp, N, M / 2, (int32_t *)img_comp,
