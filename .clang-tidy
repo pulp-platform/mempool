@@ -29,6 +29,7 @@ CheckOptions:
   llvm-qualified-auto.AddConstToQualified: 'false'
   llvm-else-after-return.WarnOnConditionVariables: 'false'
   cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField: 'false'
+  cppcoreguidelines-avoid-do-while.IgnoreMacros: 'true'
 SystemHeaders:   false
 ...
 
