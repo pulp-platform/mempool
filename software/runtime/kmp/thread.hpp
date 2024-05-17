@@ -1,12 +1,10 @@
 #pragma once
 
-#include "etl/list.h"
 #include "etl/optional.h"
-#include "etl/stack.h"
 #include "kmp/task.hpp"
-#include "kmp/team.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
+#include "kmp/barrier.hpp"
 
 namespace kmp {
 
@@ -14,6 +12,7 @@ namespace kmp {
 class Team;
 
 class Thread {
+
 public:
   Thread(kmp_uint32 gtid);
   Thread(kmp_uint32 gtid, kmp_uint32 tid);
@@ -30,12 +29,8 @@ public:
   bool isRunning() const;
 
   void pushTask(Task task);
-  etl::optional<etl::reference_wrapper<const Task>> getCurrentTask();
 
-  // void pushTeam(SharedPointer<Team> team);
-  // void popTeam();
-
-  inline SharedPointer<Team> getCurrentTeam() { return currentTeam; };
+  inline Team *getCurrentTeam() { return currentTeam.get(); };
   inline void setCurrentTeam(SharedPointer<Team> team) {
     DEBUG_PRINT("Setting current team for %d\n", this->gtid);
     currentTeam = std::move(team);
@@ -43,7 +38,7 @@ public:
 
   inline kmp_uint32 getGtid() const { return gtid; };
 
-  inline kmp_uint32 getTid() const { return tid; };
+  inline kmp_uint32 getTid() const { return tid.value_or(0); };
 
   inline void setTid(kmp_uint32 tid) { this->tid = tid; };
 
@@ -54,17 +49,17 @@ public:
                    void *cpy_data, void (*cpy_func)(void *, void *),
                    kmp_int32 didit);
 
-  etl::list<Task, 10> tasks;
-
 private:
   kmp_uint32 gtid;
-  volatile kmp_uint32 tid;
+  etl::optional<volatile kmp_uint32> tid;
 
   std::atomic<bool> running = false;
 
   SharedPointer<Team> currentTeam;
 
-  Mutex tasksMutex;
   etl::optional<kmp_int32> requestedNumThreads;
+
+  // Cached values
+  etl::optional<SharedPointer<Barrier>> barrier;
 };
 }; // namespace kmp

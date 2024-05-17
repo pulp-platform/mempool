@@ -22,11 +22,11 @@ public:
   ~Barrier();
 
   inline void wait() const {
-    DEBUG_PRINT("Entering barrier\n");
+    DEBUG_PRINT("Entering barrier at %p\n", this);
 
     // Increment the barrier counter
     if ((numThreads - 1) == barrier->fetch_add(1, std::memory_order_relaxed)) {
-      DEBUG_PRINT("Barrier done\n");
+      DEBUG_PRINT("Barrier done at %p\n", this);
       barrier->store(0, std::memory_order_relaxed);
       std::atomic_thread_fence(std::memory_order_seq_cst);
       wake_up_all();
@@ -45,6 +45,6 @@ public:
 
 private:
   std::atomic<kmp_uint32> *barrier;
-  uint32_t numThreads;
+  volatile uint32_t numThreads;
 };
 }; // namespace kmp

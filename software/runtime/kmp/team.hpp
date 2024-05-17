@@ -1,11 +1,13 @@
 #pragma once
 
-#include "etl/flat_map.h"
 #include "kmp/barrier.hpp"
-#include "kmp/thread.hpp"
+#include "kmp/runtime.hpp"
+#include "kmp/task.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
+#include "printf.h"
 #include <mutex>
+#include <vector>
 
 namespace kmp {
 
@@ -38,10 +40,6 @@ public:
   inline const Barrier &getBarrier() const { return barrier; }
 
   inline const Task &getImplicitTask() const { return implicitTask; }
-
-  inline auto getThreadTid(kmp_uint32 gtid) const { return gtid - masterGtid; }
-
-  inline auto getThreadGtid(kmp_uint32 tid) const { return masterGtid + tid; }
 
   inline auto getNumThreads() const { return numThreads; }
 
@@ -77,7 +75,7 @@ public:
     assert((static_cast<T>(chunk) <= *pupper - *plower + 1) &&
            "Chunk size is greater than loop size");
 
-    kmp_uint32 tid = getThreadTid(gtid);
+    kmp_uint32 tid = runtime::getCurrentThread().getTid();
     kmp_uint32 numChunks = (pupper - plower + chunk) / chunk;
 
     switch (schedtype) {

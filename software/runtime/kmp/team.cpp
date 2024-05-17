@@ -12,6 +12,7 @@ Team::Team(uint32_t numThreads, Task implicitTask)
 
   SharedPointer<Team> sharedThis(this);
   DEBUG_PRINT("Creating team with %d threads at %p\n", numThreads, this);
+  DEBUG_PRINT("Team barrier at %p\n", &this->barrier);
 
   // Make current thread part of the team
   Thread &currentThread = runtime::getCurrentThread();
@@ -50,14 +51,7 @@ Team::Team(uint32_t numThreads, Task implicitTask)
     thread->wakeUp();
   }
 
-  DEBUG_PRINT("Team created with %d threads\n", numThreads);
-}
-
-void Team::pushTaskAll(Task task) const {
-  for (Thread *thread : threads) {
-    thread->pushTask(std::move(task));
-    thread->wakeUp();
-  }
+  DEBUG_PRINT("Team created with %d threads\n", foundThreads);
 }
 
 } // namespace kmp
