@@ -2,6 +2,7 @@
 #include "kmp/task.hpp"
 #include "kmp/thread.hpp"
 #include "kmp/types.h"
+#include "kmp/team.hpp"
 
 extern "C" {
 #include "runtime.h"
@@ -61,9 +62,7 @@ void __kmpc_for_static_init_8u(ident_t *loc, kmp_int32 gtid,
   assert(false && "Unsupported loop index type");
 };
 
-void __kmpc_for_static_fini(ident_t *loc, kmp_int32 global_tid) {
-  __kmpc_barrier(loc, global_tid);
-};
+void __kmpc_for_static_fini(ident_t *loc, kmp_int32 global_tid){};
 
 // Dynamic loops
 void __kmpc_dispatch_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,

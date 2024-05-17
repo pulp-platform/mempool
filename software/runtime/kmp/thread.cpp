@@ -1,7 +1,6 @@
 #include "kmp/thread.hpp"
-#include "kmp/runtime.hpp"
 #include "kmp/util.hpp"
-#include <mutex>
+#include "kmp/team.hpp"
 
 extern "C" {
 #include "runtime.h"
@@ -50,8 +49,6 @@ void Thread::wakeUp() {
 
 bool Thread::isRunning() const { return running; };
 
-void Thread::pushTask(Task task) { tasks.push_back(std::move(task)); };
-
 void Thread::requestNumThreads(kmp_int32 numThreads) {
   this->requestedNumThreads = numThreads;
 }
@@ -94,14 +91,6 @@ void Thread::forkCall(Microtask microtask) {
 // };
 
 // void Thread::popTeam() { teams.pop(); };
-
-etl::optional<etl::reference_wrapper<const Task>> Thread::getCurrentTask() {
-  if (!tasks.empty()) {
-    return etl::cref(tasks.front());
-  }
-
-  return etl::nullopt;
-};
 
 void Thread::copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
                          void *cpy_data, void (*cpy_func)(void *, void *),
