@@ -10,59 +10,33 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "testing.h"
 
 #define REPETITIONS 10 /* Number of times to run each test */
 
-int test_omp_critical() {
-  int sum;
-  int known_sum, mysum;
+TEST(test_omp_critical) {
   int num_cores = (int)mempool_get_core_count();
 
-  sum = 0;
+  for (int r = 0; r < REPETITIONS; r++) {
+    int sum1 = 0;
+    int sum2 = 0;
+
 #pragma omp parallel
-  {
-    mysum = 0;
-    int i;
-
-#pragma omp single
     {
-      for (i = 0; i < 100; i++) {
-        mysum = mysum + i;
-      }
-      printf("Single mysum: %d, thread_id: %d\n", mysum, omp_get_thread_num());
-    }
-
 #pragma omp critical
-    {
-      sum = mysum + sum;
-      printf("Critical mysum: %d, sum: %d, thread_id: %d\n", mysum, sum,
-             omp_get_thread_num());
+      {
+        sum1 += 1;
+        sum2 += 2;
+      }
     }
-  }
 
-  known_sum = 99 * 100 / 2 * num_cores;
-  printf("sum: %d, known_sum: %d\n", sum, known_sum);
-  return (known_sum == sum);
+    ASSERT_EQ(sum1, num_cores);
+    ASSERT_EQ(sum2, 2 * sum1);
+    ASSERT_EQ(sum2, 2 * num_cores);
+  }
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  uint32_t i;
-  uint32_t num_failed = 0;
-
-  mempool_wait(2 * num_cores);
-
-  printf("Master Thread start\n");
-  for (i = 0; i < REPETITIONS; i++) {
-    printf("test: %d\n", i);
-    if (!test_omp_critical()) {
-      num_failed++;
-    }
-    printf("num_failed: %d\n", num_failed);
-  }
-  printf("Master Thread end\n\n\n");
-  printf("num_failed: %d\n", num_failed);
-
+  RUN_ALL_TESTS();
   return 0;
 }
