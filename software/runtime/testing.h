@@ -18,6 +18,12 @@ int tests_failed = 0; // NOLINT(*-global-variables)
 int num_tests = 0;    // NOLINT(*-global-variables)
 
 // NOLINTNEXTLINE
+#define STRINGIFY(x) #x
+// NOLINTNEXTLINE
+#define TOSTRING(x) STRINGIFY(x)
+#define LINE_STRING TOSTRING(__LINE__)
+
+// NOLINTNEXTLINE
 #define ASSERT_TRUE(condition, error_message)                                  \
   do {                                                                         \
     if (!(condition)) {                                                        \
@@ -30,7 +36,18 @@ int num_tests = 0;    // NOLINT(*-global-variables)
 #define ASSERT_EQ(left, right)                                                 \
   do {                                                                         \
     if (!((left) == (right))) {                                                \
-      *out_error_message = #left " is not equal to " #right;                   \
+      *out_error_message =                                                     \
+          #left " is not equal to " #right ", " __FILE__ ":" LINE_STRING;      \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
+
+// NOLINTNEXTLINE
+#define ASSERT_NEQ(left, right)                                                \
+  do {                                                                         \
+    if (!((left) != (right))) {                                                \
+      *out_error_message =                                                     \
+          #left " is equal to " #right ", " __FILE__ ":" LINE_STRING;          \
       return;                                                                  \
     }                                                                          \
   } while (0)
@@ -39,7 +56,8 @@ int num_tests = 0;    // NOLINT(*-global-variables)
 #define EXPECT_TRUE(condition, error_message)                                  \
   do {                                                                         \
     if (!(condition))                                                          \
-      printf("\t[CHECK FAILED]: %s\n", (error_message));                       \
+      printf("\t[CHECK FAILED]: %s, %s:%d\n", (error_message), __FILE__,       \
+             __LINE__);                                                        \
   } while (0)
 
 // NOLINTNEXTLINE
