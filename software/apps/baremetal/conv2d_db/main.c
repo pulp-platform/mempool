@@ -100,43 +100,6 @@ uint32_t dma_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_r
   return 0;
 }
 
-uint32_t hard_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_radix, uint32_t core_id) {
-  uint32_t *log_barrier = &round_barrier[(core_id / step) * step + (step >> log2_radix) - 1];
-
-  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
-  if (val == (uint32_t)((1 << log2_radix) - 1)) {
-    // Last core of this stage
-    if (step == NUM_CORES_PER_CLUSTER) {
-      // Last stage
-      dump_time(2);
-      // Sleep until the DMA is done
-      mempool_wfi();
-      // Get ready to program the next DMA transfer
-      return (uint32_t)log_barrier;
-    } else {
-      __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
-      return hard_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
-    }
-  } else if (val == 0 && log_barrier == &round_barrier[0]) {
-    // First core of first barrier in first stage
-    dump_time(1);
-    // Check that the DMA from the previous iteration is done
-    uint32_t cluster_id = mempool_get_core_id()/NUM_CORES_PER_CLUSTER;
-    dma_wait(cluster_id);
-    // Wake up all cores to get to the next phase of the barrier
-    wake_up_cluster(cluster_id);
-    mempool_wfi();
-    // Sleep until all cores hit the barrier
-    mempool_wfi();
-  } else {
-    // Middle cores, sleep until the DMA is done
-    mempool_wfi();
-    // Middle cores, sleep until all cores hit the barrier
-    mempool_wfi();
-  }
-  return 0;
-}
-
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t cluster_id = core_id / NUM_CORES_PER_CLUSTER;
@@ -152,8 +115,6 @@ int main() {
   int32_t* out = (int32_t*)(alloc_base); // Size [M*N]
   alloc_base += M*N*sizeof(int32_t);
   // Allocate barriers for each core
-  // Align alloc_base to have the barriers aligned in memory
-  alloc_base = (void*)((uint32_t)(alloc_base + (NUM_BANKS_PER_CLUSTER*sizeof(void) - 1)) & ~(NUM_BANKS_PER_CLUSTER*sizeof(void) - 1));
   uint32_t *round_barrier = (uint32_t*)(alloc_base); // Size [NUM_CORES_PER_CLUSTER]
   alloc_base += NUM_CORES_PER_CLUSTER*sizeof(uint32_t);
 
@@ -161,6 +122,12 @@ int main() {
   round_barrier[core_cluster_id] = 0;
 
   int32_t kernel[KERNEL_N * KERNEL_N];
+
+  // Initialize img
+  mempool_start_benchmark();
+  if (core_cluster_id == 0) {
+    dma_memcpy_blocking(cluster_id, (void *)in, (void *)in_l2, M * N / 2 * sizeof(int32_t));
+  }
 
   kernel[0] = 1;
   kernel[1] = 2;
@@ -180,30 +147,20 @@ int main() {
   const uint32_t log2_radix = LOG_RADIX;
   const uint32_t radix = 1 << log2_radix;
 
+  // Wait at barrier until everyone is ready
+  mempool_barrier(num_cores);
+  mempool_start_benchmark();
+
+  // Initial launch, Core 0 transfered the data in
+  if (core_cluster_id == 0) {
+    wake_up_cluster(cluster_id);
+  }
+
   const int32_t *in_comp;
   const int32_t *in_dma;
   int32_t *out_comp;
   int32_t *out_dma;
   uint32_t bar;
-
-  // Wait at barrier until everyone is ready
-  mempool_barrier(num_cores);
-  mempool_start_benchmark();
-
-  // Initialize img
-  if (core_cluster_id == 0) {
-    dma_memcpy_blocking(cluster_id, (void *)in, (void *)in_l2, M * N / 2 * sizeof(int32_t));
-    // Set `bar` to mimic this core being the first passing the `hard_log_barrier`
-    // and programing the next transfer and waking up all other cores afterward.
-    bar = (uint32_t)round_barrier;
-  } else {
-    // Wait for the DMA to be done
-    mempool_wfi();
-    bar = 0;
-  }
-
-  mempool_start_benchmark();
-
   for (int round = 0; round < last_round; ++round) {
     if (round % 2 == 0) {
       in_comp = (const int32_t *)&in[0];
@@ -216,7 +173,10 @@ int main() {
       in_comp = (const int32_t *)&in[N * M / 2];
       out_comp = (int32_t *)&out[N * M / 2];
     }
-    // Launch DMA for next iteration
+    mempool_start_benchmark();
+    mempool_wfi();
+    // Barrier, launch DMA for next iteration
+    bar = dma_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
     mempool_start_benchmark();
     if (bar) {
       // We are the last one, reset the barrier
@@ -231,21 +191,24 @@ int main() {
       }
       // We are the last one, reset the barrier
       __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
-      // Wake up all cores waiting at the hard barrier
-      wake_up_cluster(cluster_id);
-      mempool_wfi();
-      dump_time(0);
+      // __atomic_fetch_add(round_barrier, -num_cores, __ATOMIC_RELAXED);
+      // *round_barrier = 0;
+      if (round != last_round - 1) {
+        wake_up_cluster(cluster_id);
+      }
+    } else {
+      // Wait until the core checking the DMA gives the signal
+      // mempool_wfi();
     }
     mempool_start_benchmark();
     conv2d_3x3_crazy_parallel((const int32_t *)in_comp, N, M / 2,
                               (const int32_t *)kernel, (int32_t *)out_comp,
                               core_cluster_id, NUM_CORES_PER_CLUSTER);
     mempool_start_benchmark();
-    // Barrier
-    bar = hard_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
   }
 
   // Last write back
+  bar = final_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
   mempool_start_benchmark();
   if (bar) {
     // We are the last one, reset the barrier
@@ -254,7 +217,6 @@ int main() {
                         M * N / 2 * sizeof(int32_t));
     // We are the last one, reset the barrier
     __atomic_store_n((uint32_t *)bar, 0, __ATOMIC_RELAXED);
-    // Wake up all cores waiting at the hard barrier
     wake_up_cluster(cluster_id);
     mempool_wfi();
   }
