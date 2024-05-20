@@ -1,10 +1,10 @@
 #pragma once
 
 #include "etl/optional.h"
+#include "kmp/barrier.hpp"
 #include "kmp/task.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
-#include "kmp/barrier.hpp"
 
 namespace kmp {
 
@@ -25,8 +25,16 @@ public:
   ~Thread() = default;
 
   void run();
-  void wakeUp();
-  bool isRunning() const;
+
+  inline void wakeUp() {
+    if (running.exchange(true)) {
+      return;
+    }
+
+    wake_up(gtid);
+  };
+
+  inline bool isRunning() const { return running; };
 
   void pushTask(Task task);
 
