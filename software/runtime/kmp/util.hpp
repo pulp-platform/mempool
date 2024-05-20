@@ -27,14 +27,7 @@ namespace kmp {
 class Mutex {
 public:
   inline void lock() {
-    while (true) {
-      if (!locked.exchange(true, std::memory_order_acquire)) {
-        return;
-      }
-
-      while (locked.load(std::memory_order_relaxed)) {
-        mempool_wait(10);
-      }
+    while (locked.exchange(true, std::memory_order_acquire)) {
     }
   }
 

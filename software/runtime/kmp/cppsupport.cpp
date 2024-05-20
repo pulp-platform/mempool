@@ -26,6 +26,7 @@ void operator delete[](void *ptr) noexcept { return operator delete(ptr); }
 
 namespace std {
 void __throw_bad_alloc() { printf("Bad alloc\n"); }
+void __throw_length_error(const char *msg) { printf("Length error: %s\n", msg); }
 } // namespace std
 
 extern "C" int __cxa_atexit(void (*func)(void *), void *arg, void *dso_handle) {

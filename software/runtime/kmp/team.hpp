@@ -28,7 +28,7 @@ class Team {
   };
 
 public:
-  Team(kmp_uint32 numThreads, Task implicitTask);
+  Team(kmp_int32 masterGtid, kmp_uint32 numThreads, Task implicitTask);
 
   /**
    * @brief Push task to all threads in the team
@@ -37,7 +37,7 @@ public:
    */
   void pushTaskAll(Task task) const;
 
-  inline const Barrier &getBarrier() const { return barrier; }
+  inline Barrier &getBarrier() { return barrier; }
 
   inline const Task &getImplicitTask() const { return implicitTask; }
 
@@ -46,6 +46,8 @@ public:
   inline auto setCopyPrivateData(void *data) { copyPrivateData = data; }
 
   inline auto getCopyPrivateData() const { return copyPrivateData; }
+
+  inline auto isReady() const { return ready.load(); }
 
   /**
    * @brief Schedule a static for loop. See
@@ -186,6 +188,8 @@ public:
 
 private:
   kmp_uint32 masterGtid;
+
+  std::atomic<bool> ready = false;
 
   kmp_uint32 numThreads;
   std::vector<Thread *, kmp::Allocator<Thread *>> threads;

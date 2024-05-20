@@ -1,6 +1,6 @@
 #include "kmp/thread.hpp"
-#include "kmp/util.hpp"
 #include "kmp/team.hpp"
+#include "kmp/util.hpp"
 
 extern "C" {
 #include "runtime.h"
@@ -17,7 +17,7 @@ Thread::Thread(kmp_uint32 gtid, kmp_uint32 tid) : gtid(gtid), tid(tid) {
   }
 };
 
-Thread::Thread(kmp_uint32 gtid) : Thread(gtid, 0) {};
+Thread::Thread(kmp_uint32 gtid) : Thread(gtid, 0){};
 
 void Thread::run() {
   while (true) {
@@ -26,6 +26,8 @@ void Thread::run() {
     }
 
     const Task &task = currentTeam->getImplicitTask();
+    while (!currentTeam->isReady()) {
+    }
 
     task.run();
     DEBUG_PRINT("Done running task\n", gtid);
@@ -37,17 +39,6 @@ void Thread::run() {
     running = false;
   }
 };
-
-void Thread::wakeUp() {
-  if (running) {
-    return;
-  }
-
-  running = true;
-  wake_up(gtid);
-};
-
-bool Thread::isRunning() const { return running; };
 
 void Thread::requestNumThreads(kmp_int32 numThreads) {
   this->requestedNumThreads = numThreads;
@@ -61,9 +52,9 @@ void Thread::forkCall(Microtask microtask) {
   DEBUG_PRINT("Forking call with %d threads\n", numThreads);
 
   kmp::Task task(std::move(microtask));
-  Team *team =
-      new Team(numThreads, std::move(task)); // Do not use shared pointer here
-                                             // since it will cause double free
+  Team *team = new Team(this->gtid, numThreads,
+                        std::move(task)); // Do not use shared pointer here
+                                          // since it will cause double free
 
   // team->pushTaskAll(task);
 
