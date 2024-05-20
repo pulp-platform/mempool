@@ -118,32 +118,32 @@ int main() {
   // Initial setup
   round_barrier[core_cluster_id] = 0;
 
- // Initialize img
-  mempool_start_benchmark();
-  if (core_cluster_id == 0) {
-    dma_memcpy_blocking(cluster_id, (void *)img_l1, (void *)img_l2_flat,
-                        M * N / 2 * sizeof(int32_t));
-  }
-
   // Double-buffered convolution
   const int last_round = 8;
   // const int first = 0;
   const uint32_t log2_radix = LOG_RADIX;
   const uint32_t radix = 1 << log2_radix;
 
-  // Wait at barrier until everyone is ready
-  mempool_barrier(num_cores);
-  mempool_start_benchmark();
-
-  // Initial launch, Core 0 transfered the data in
-  if (core_cluster_id == 0) {
-    wake_up_cluster(cluster_id);
-  }
   const int32_t *img_comp;
   const int32_t *img_dma;
   const int32_t *in_dma;
   const int32_t *out_dma;
   uint32_t bar;
+
+  // Wait at barrier until everyone is ready
+  mempool_barrier(num_cores);
+  mempool_start_benchmark();
+
+  // Initialize img
+  if (core_cluster_id == 0) {
+    dma_memcpy_nonblocking(cluster_id, (void *)img_l1, (void *)img_l2_flat,
+                        M * N / 2 * sizeof(int32_t));
+    // Initial launch, Core 0 launched the data transfer
+    wake_up_cluster(cluster_id);
+    dump_time(0);
+  }
+
+  mempool_start_benchmark();
 
   for (int round = 0; round < last_round; ++round) {
     if (round % 2 == 0) {

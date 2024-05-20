@@ -117,22 +117,13 @@ int main() {
   int32_t* cluster_result = (int32_t*)(alloc_base); // Size 1
   alloc_base += sizeof(int32_t);
   // Allocate barriers for each core
+  // Align alloc_base to have the barriers aligned in memory
+  alloc_base = (void*)((uint32_t)(alloc_base + (NUM_BANKS_PER_CLUSTER*sizeof(void) - 1)) & ~(NUM_BANKS_PER_CLUSTER*sizeof(void) - 1));
   uint32_t *round_barrier = (uint32_t*)(alloc_base); // Size [NUM_CORES_PER_CLUSTER]
   alloc_base += NUM_CORES_PER_CLUSTER*sizeof(uint32_t);
 
   // Initial setup
   round_barrier[core_cluster_id] = 0;
-
-  // Initialize img
-  mempool_start_benchmark();
-  if (core_cluster_id == 0) {
-    result = 0;
-    *cluster_result = 0;
-    dma_memcpy_nonblocking(cluster_id, (void *)vec_x, (void *)vec_x_l2_flat,
-                           N / 2 * sizeof(int32_t));
-    dma_memcpy_blocking(cluster_id, (void *)vec_y, (void *)vec_y_l2_flat,
-                        N / 2 * sizeof(int32_t));
-  }
 
   // Double-buffered convolution
   const int last_round = 8;
@@ -140,14 +131,6 @@ int main() {
   const uint32_t log2_radix = LOG_RADIX;
   const uint32_t radix = 1 << log2_radix;
 
-  // Wait at barrier until everyone is ready
-  mempool_barrier(num_cores);
-  mempool_start_benchmark();
-
-  // Initial launch, Core 0 transfered the data in
-  if (core_cluster_id == 0) {
-    wake_up_cluster(cluster_id);
-  }
   const int32_t *vec_x_comp;
   const int32_t *vec_x_dma;
   const int32_t *vec_y_comp;
@@ -158,6 +141,25 @@ int main() {
   uint32_t bar;
 
   int32_t sum = 0;
+
+  // Wait at barrier until everyone is ready
+  mempool_barrier(num_cores);
+  mempool_start_benchmark();
+
+  // Initialize img
+  if (core_cluster_id == 0) {
+    result = 0;
+    *cluster_result = 0;
+    dma_memcpy_nonblocking(cluster_id, (void *)vec_x, (void *)vec_x_l2_flat,
+                           N / 2 * sizeof(int32_t));
+    dma_memcpy_nonblocking(cluster_id, (void *)vec_y, (void *)vec_y_l2_flat,
+                        N / 2 * sizeof(int32_t));
+    // Initial launch, Core 0 launched the data transfer
+    wake_up_cluster(cluster_id);
+    dump_time(0);
+  }
+
+  mempool_start_benchmark();
 
   for (int round = 0; round < last_round; ++round) {
     if (round % 2 == 0) {

@@ -115,6 +115,8 @@ int main() {
   int32_t* out = (int32_t*)(alloc_base); // Size [M*N]
   alloc_base += M*N*sizeof(int32_t);
   // Allocate barriers for each core
+  // Align alloc_base to have the barriers aligned in memory
+  alloc_base = (void*)((uint32_t)(alloc_base + (NUM_BANKS_PER_CLUSTER*sizeof(void) - 1)) & ~(NUM_BANKS_PER_CLUSTER*sizeof(void) - 1));
   uint32_t *round_barrier = (uint32_t*)(alloc_base); // Size [NUM_CORES_PER_CLUSTER]
   alloc_base += NUM_CORES_PER_CLUSTER*sizeof(uint32_t);
 
@@ -122,12 +124,6 @@ int main() {
   round_barrier[core_cluster_id] = 0;
 
   int32_t kernel[KERNEL_N * KERNEL_N];
-
-  // Initialize img
-  mempool_start_benchmark();
-  if (core_cluster_id == 0) {
-    dma_memcpy_blocking(cluster_id, (void *)in, (void *)in_l2, M * N / 2 * sizeof(int32_t));
-  }
 
   kernel[0] = 1;
   kernel[1] = 2;
@@ -147,20 +143,26 @@ int main() {
   const uint32_t log2_radix = LOG_RADIX;
   const uint32_t radix = 1 << log2_radix;
 
-  // Wait at barrier until everyone is ready
-  mempool_barrier(num_cores);
-  mempool_start_benchmark();
-
-  // Initial launch, Core 0 transfered the data in
-  if (core_cluster_id == 0) {
-    wake_up_cluster(cluster_id);
-  }
-
   const int32_t *in_comp;
   const int32_t *in_dma;
   int32_t *out_comp;
   int32_t *out_dma;
   uint32_t bar;
+
+  // Wait at barrier until everyone is ready
+  mempool_barrier(num_cores);
+  mempool_start_benchmark();
+
+  // Initialize img
+  if (core_cluster_id == 0) {
+    dma_memcpy_nonblocking(cluster_id, (void *)in, (void *)in_l2, M * N / 2 * sizeof(int32_t));
+    // Initial launch, Core 0 launched the data transfer
+    wake_up_cluster(cluster_id);
+    dump_time(0);
+  }
+
+  mempool_start_benchmark();
+
   for (int round = 0; round < last_round; ++round) {
     if (round % 2 == 0) {
       in_comp = (const int32_t *)&in[0];
@@ -173,7 +175,6 @@ int main() {
       in_comp = (const int32_t *)&in[N * M / 2];
       out_comp = (int32_t *)&out[N * M / 2];
     }
-    mempool_start_benchmark();
     mempool_wfi();
     // Barrier, launch DMA for next iteration
     bar = dma_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
