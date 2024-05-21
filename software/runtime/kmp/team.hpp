@@ -1,18 +1,18 @@
 #pragma once
 
-#include "kmp/barrier.hpp"
 #include "kmp/runtime.hpp"
-#include "kmp/task.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
 #include "printf.h"
 #include <mutex>
-#include <vector>
+#include <optional>
+#include <array>
 
 namespace kmp {
 
-// Forward declaration
 class Thread;
+class Task;
+class Barrier;
 
 class Team {
 
@@ -28,26 +28,34 @@ class Team {
   };
 
 public:
-  Team(kmp_int32 masterGtid, kmp_uint32 numThreads, Task implicitTask);
-
-  /**
-   * @brief Push task to all threads in the team
-   *
-   * @param task Taks to push
-   */
-  void pushTaskAll(Task task) const;
+  Team(kmp_int32 masterGtid, kmp_uint32 numThreads,
+       std::optional<Task> implicitTask = std::nullopt);
 
   inline Barrier &getBarrier() { return barrier; }
 
-  inline const Task &getImplicitTask() const { return implicitTask; }
+  inline const std::optional<Task> &getImplicitTask() const {
+    return implicitTask;
+  }
+
+  inline void setImplicitTask(Task task) { implicitTask = std::move(task); }
 
   inline auto getNumThreads() const { return numThreads; }
+
+  inline void setNumThreads(kmp_uint32 numThreads) {
+    this->numThreads = numThreads;
+    this->barrier.setNumThreads(numThreads);
+  }
 
   inline auto setCopyPrivateData(void *data) { copyPrivateData = data; }
 
   inline auto getCopyPrivateData() const { return copyPrivateData; }
 
-  inline auto isReady() const { return ready.load(); }
+  inline void run() {
+    for (kmp_uint32 i = 0; i < numThreads; i++) {
+      runtime::threads[i].setCurrentTeam(this);
+      runtime::threads[i].wakeUp();
+    }
+  }
 
   /**
    * @brief Schedule a static for loop. See
@@ -125,12 +133,14 @@ public:
     assert((static_cast<T>(chunk) <= upper - lower + 1) &&
            "Chunk size is greater than loop size");
 
+    if (dynamicSchedule.valid) {
+      DEBUG_PRINT("Dynamic schedule is already valid\n");
+      return;
+    }
+
     switch (schedtype) {
     case kmp_sch_dynamic_chunked: {
       std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
-      if (dynamicSchedule.valid) {
-        return;
-      }
 
       kmp_uint32 span = incr * chunk;
 
@@ -162,45 +172,49 @@ public:
                     typename std::make_signed<T>::type *plastiter, T *plower,
                     T *pupper, typename std::make_signed<T>::type *pstride) {
 
+    if (!dynamicSchedule.valid) {
+      DEBUG_PRINT("Dynamic schedule is not valid\n");
+      return false;
+    }
+
     std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
-    assert(dynamicSchedule.valid && "Dynamic schedule not initialized");
+
+    DEBUG_PRINT("Dispatch next\n");
 
     if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
+      DEBUG_PRINT("Dynamic loop done, invalidating dynamic schedule\n");
+      dynamicSchedule.valid = false;
       return false;
-    } else {
-
-      *plower = dynamicSchedule.lowerNext;
-
-      dynamicSchedule.lowerNext += dynamicSchedule.chunk;
-      if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
-        *pupper = dynamicSchedule.upper;
-        *plastiter = true;
-      } else {
-        *pupper = dynamicSchedule.lowerNext - 1;
-        *plastiter = false;
-      }
-
-      *pstride = dynamicSchedule.stride;
-
-      return true;
     }
+
+    *plower = dynamicSchedule.lowerNext;
+
+    dynamicSchedule.lowerNext += dynamicSchedule.chunk;
+    if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
+      *pupper = dynamicSchedule.upper;
+      *plastiter = true;
+    } else {
+      *pupper = dynamicSchedule.lowerNext - 1;
+      *plastiter = false;
+    }
+
+    *pstride = dynamicSchedule.stride;
+
+    return true;
   };
 
 private:
   kmp_uint32 masterGtid;
 
-  std::atomic<bool> ready = false;
-
   kmp_uint32 numThreads;
-  std::vector<Thread *, kmp::Allocator<Thread *>> threads;
 
   Barrier barrier;
 
   DynamicSchedule dynamicSchedule;
 
-  void *copyPrivateData;
+  void *copyPrivateData = nullptr;
 
-  Task implicitTask;
+  std::optional<Task> implicitTask;
 };
 
 } // namespace kmp
