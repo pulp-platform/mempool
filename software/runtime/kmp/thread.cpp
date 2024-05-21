@@ -8,80 +8,60 @@ extern "C" {
 
 namespace kmp {
 
-Thread::Thread(kmp_uint32 gtid, kmp_uint32 tid) : gtid(gtid), tid(tid) {
-  // If gtid is 0, the thread is the initial thread and should be running
-  if (gtid == 0) {
-    running = true;
-  } else {
-    running = false;
-  }
-};
+Thread::Thread(kmp_uint32 gtid) : Thread(gtid, gtid) {}
 
-Thread::Thread(kmp_uint32 gtid) : Thread(gtid, 0){};
+Thread::Thread(kmp_uint32 gtid, std::optional<kmp_uint32> tid)
+    : gtid(gtid), tid(tid), currentTeam(nullptr){};
 
 void Thread::run() {
   while (true) {
-    while (!running) {
-      mempool_wfi();
+    mempool_wfi();
+    std::lock_guard<Mutex> lock(running);
+
+    DEBUG_PRINT("Thread %d woke up\n", gtid);
+    if (currentTeam == nullptr) {
+      DEBUG_PRINT("Thread %d has no team\n", gtid);
+      continue;
     }
 
-    const Task &task = currentTeam->getImplicitTask();
-    while (!currentTeam->isReady()) {
-    }
+    (*currentTeam).getImplicitTask()->run();
 
-    task.run();
-    DEBUG_PRINT("Done running task\n", gtid);
-    currentTeam->getBarrier().wait();
+    DEBUG_PRINT("Done running task\n");
 
-    currentTeam.reset();
-    tid = 0;
+    auto &barrier = (*currentTeam).getBarrier();
 
-    running = false;
+    currentTeam = nullptr;
+
+    barrier.wait();
   }
 };
 
-void Thread::requestNumThreads(kmp_int32 numThreads) {
-  this->requestedNumThreads = numThreads;
-}
-
 void Thread::forkCall(Microtask microtask) {
-  kmp_uint32 numThreads =
-      this->requestedNumThreads.value_or(mempool_get_core_count());
+  kmp_uint32 numThreads = this->requestedNumThreads.value_or(NUM_CORES);
   this->requestedNumThreads.reset();
 
   DEBUG_PRINT("Forking call with %d threads\n", numThreads);
 
   kmp::Task task(std::move(microtask));
-  Team *team = new Team(this->gtid, numThreads,
-                        std::move(task)); // Do not use shared pointer here
-                                          // since it will cause double free
+  Team *team = &runtime::defaultTeam; // new Team(this->gtid, numThreads,
+                                      ////        std::move(task)); // Do not
+                                      /// use shared pointer here
+                                      // since it will cause double free
 
-  // team->pushTaskAll(task);
+  team->setNumThreads(numThreads);
+  team->setImplicitTask(std::move(task));
+  team->run();
 
-  team->getImplicitTask().run();
+  team->getImplicitTask()->run();
 
   DEBUG_PRINT("Done running task\n");
 
-  // std::lock_guard<Mutex> teamsLock(teamsMutex);
-  // teams.top()->barrierWait();
-  // teams.pop();
-
   team->getBarrier().wait();
-
-  // DEBUG_PRINT("Popped team\n");
-
-  // std::lock_guard<Mutex> tasksLock(tasksMutex);
-  // tasks.pop_front();
-
-  // DEBUG_PRINT("Popped task\n");
-  currentTeam.reset();
 };
 
-// void Thread::pushTeam(SharedPointer<Team> team) {
-// teams.push(std::move(team));
-// };
-
-// void Thread::popTeam() { teams.pop(); };
+void Thread::requestNumThreads(kmp_int32 numThreads) {
+  this->requestedNumThreads = numThreads;
+}
 
 void Thread::copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
                          void *cpy_data, void (*cpy_func)(void *, void *),

@@ -1,10 +1,11 @@
 #pragma once
 
-#include "etl/optional.h"
 #include "kmp/barrier.hpp"
 #include "kmp/task.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
+
+#include <optional>
 
 namespace kmp {
 
@@ -15,7 +16,7 @@ class Thread {
 
 public:
   Thread(kmp_uint32 gtid);
-  Thread(kmp_uint32 gtid, kmp_uint32 tid);
+  Thread(kmp_uint32 gtid, std::optional<kmp_uint32> tid);
 
   Thread(const Thread &other) = delete;
   Thread(Thread &&) = delete;
@@ -27,21 +28,16 @@ public:
   void run();
 
   inline void wakeUp() {
-    if (running.exchange(true)) {
-      return;
-    }
-
+    DEBUG_PRINT("Waking up thread %d\n", gtid);
+    std::lock_guard<Mutex> lock(running);
     wake_up(gtid);
   };
 
-  inline bool isRunning() const { return running; };
+  inline Team *getCurrentTeam() { return currentTeam; };
 
-  void pushTask(Task task);
-
-  inline Team *getCurrentTeam() { return currentTeam.get(); };
-  inline void setCurrentTeam(SharedPointer<Team> team) {
+  inline void setCurrentTeam(Team *team) {
     DEBUG_PRINT("Setting current team for %d\n", this->gtid);
-    currentTeam = std::move(team);
+    currentTeam = team;
   };
 
   inline kmp_uint32 getGtid() const { return gtid; };
@@ -51,6 +47,7 @@ public:
   inline void setTid(kmp_uint32 tid) { this->tid = tid; };
 
   void requestNumThreads(kmp_int32 numThreads);
+
   void forkCall(Microtask microtask);
 
   void copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
@@ -59,15 +56,11 @@ public:
 
 private:
   kmp_uint32 gtid;
-  etl::optional<volatile kmp_uint32> tid;
+  std::optional<kmp_uint32> tid;
 
-  std::atomic<bool> running = false;
+  std::atomic<Team *> currentTeam;
+  Mutex running;
 
-  SharedPointer<Team> currentTeam;
-
-  etl::optional<kmp_int32> requestedNumThreads;
-
-  // Cached values
-  etl::optional<SharedPointer<Barrier>> barrier;
+  std::optional<kmp_int32> requestedNumThreads;
 };
 }; // namespace kmp
