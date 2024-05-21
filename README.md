@@ -25,8 +25,6 @@ This repository contains the open-sourced documents for the project. Sharing and
   - **terapool_work/**: Documentation specific to TeraPool.
 
 ## Publications
-
-## Publications
 If you use one/some of MemPool family in your work or research, you can cite us:
 
 **MemPool: A Scalable Manycore Architecture with a Low-Latency Shared L1 Memory**
@@ -391,7 +389,7 @@ This paper is available on [arXiv:2402.12986 [cs.AR]](https://arxiv.org/abs/2402
 </details>
 
 <details>
-<summary><i>TeraPool-SDR: An 1.89TOPS 1024 RV-Cores 4MiB Shared-L1 Cluster for Next-Generation Open-Source Software-Defined Radios</i></summary>
+<summary><i>MX: Enhancing RISC-V's Vector ISA for Ultra-Low Overhead, Energy-Efficient Matrix Multiplication</i></summary>
 <p>
 
 ```
