@@ -57,6 +57,8 @@ void Thread::forkCall(Microtask microtask) {
   DEBUG_PRINT("Done running task\n");
 
   team->getBarrier().wait();
+
+  team->invalidateSchedule();
 };
 
 void Thread::requestNumThreads(kmp_int32 numThreads) {

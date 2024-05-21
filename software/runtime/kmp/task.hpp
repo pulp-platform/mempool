@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include <cstdarg>
+#include <utility>
 
 #define MAX_ARGS 15
 
@@ -30,9 +31,9 @@ private:
 
 class Task {
 public:
-  Task(Microtask microtask);
+  Task(Microtask microtask) : microtask(std::move(microtask)){};
 
-  void run() const;
+  inline void run() const { microtask.run(); };
 
 private:
   Microtask microtask;

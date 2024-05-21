@@ -44,7 +44,7 @@ extern "C" int __wrap_main() {
     printf("Program done\n");
   } else {
     while (initLock) {
-      mempool_wait(10);
+      // Wait for initialization to finish
     }
 
     kmp::runtime::runThread(core_id);
