@@ -22,7 +22,7 @@ RESET = "\033[0m"
 
 def kill_timeout(p):
     print(f'{RED}[FAIL]{RESET}: Timeout')
-    # p.terminate()
+    p.terminate()
 
 
 def enqueue_output(out, queue):
@@ -90,7 +90,6 @@ def run_test(test, args):
     output = ''
     timer = None
 
-    print()
     print(f"Running {test}")
 
     stats = {'num_tests': 0, 'num_success': 0}
@@ -141,6 +140,12 @@ def run_test(test, args):
 
                             if args.verbose:
                                 print(line, end='')
+
+                            if ('Error 117') in line:
+                                print(f'{RED}[FAIL]{RESET}: Banshee called '
+                                      'the police, most likely a deadlock')
+                                p.terminate()
+                                return False
 
                             if ('Stackoverflow' in line):
                                 print(f'{RED}[FAIL]{RESET}: Stackoverflow')
@@ -204,10 +209,12 @@ def main():
 
     print(f"Running tests: {matching_tests}")
 
-    for test in set(matching_tests):
+    for test in sorted(set(matching_tests)):
 
         if args.simulator == 'verilator':
             args.simulator = 'verilate'
+
+        print()
 
         if (args.compiler
                 and not compile_test(test, args)):
