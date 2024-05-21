@@ -35,6 +35,7 @@ public:
     // Some threads have not reached the barrier --> Let's wait
     // Clear the wake-up trigger for the last core reaching the barrier as well
     mempool_wfi();
+    DEBUG_PRINT("Exiting barrier at %p\n", this);
   };
 
   inline void setNumThreads(uint32_t numThreads) {

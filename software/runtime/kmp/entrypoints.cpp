@@ -1,6 +1,4 @@
 #include "kmp/runtime.hpp"
-#include "kmp/task.hpp"
-#include "kmp/thread.hpp"
 #include "kmp/types.h"
 #include "kmp/team.hpp"
 
@@ -19,10 +17,12 @@ void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid) {
 
 // Parallel
 void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...) {
-  va_list ap;
-  va_start(ap, microtask);
-  kmp::Microtask kmpMicrotask(microtask, ap, argc);
-  va_end(ap);
+  // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg,cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  va_list args;
+  va_start(args, microtask);
+  kmp::Microtask kmpMicrotask(microtask, args, argc);
+  va_end(args);
+  // NOLINTEND(cppcoreguidelines-pro-type-vararg,cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
   kmp::runtime::getCurrentThread().forkCall(std::move(kmpMicrotask));
 };

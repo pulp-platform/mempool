@@ -1,6 +1,7 @@
-#include "etl/vector.h"
-#include "kmp/thread.hpp"
+#include "kmp/team.hpp"
 #include "kmp/types.h"
+#include <array>
+#include <utility>
 
 extern "C" {
 #include "runtime.h"
@@ -10,8 +11,16 @@ namespace kmp {
 
 namespace runtime {
 
-std::array<char, sizeof(Thread) * NUM_CORES> threadBuffer;
-etl::vector_ext<kmp::Thread> threads(threadBuffer.data(), NUM_CORES);
+template <std::size_t... Is>
+constexpr std::array<Thread, sizeof...(Is)>
+sequencetoArray(std::integer_sequence<kmp_uint32, Is...> /*unused*/) {
+  return {{Is...}};
+}
+
+std::array<Thread, NUM_CORES> threads =
+    sequencetoArray(std::make_integer_sequence<kmp_uint32, NUM_CORES>{});
+
+Team defaultTeam(0, NUM_CORES, std::nullopt);
 
 } // namespace runtime
 

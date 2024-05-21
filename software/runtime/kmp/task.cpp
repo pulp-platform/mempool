@@ -7,12 +7,10 @@ extern "C" {
 }
 
 namespace kmp {
-Task::Task(Microtask microtask) : microtask(std::move(microtask)){};
-
-void Task::run() const { microtask.run(); };
-
 Microtask::Microtask(kmpc_micro func, va_list args, kmp_int32 argc)
     : func(func), args(nullptr), argc(argc) {
+
+  assert(argc <= MAX_ARGS && "Unsupported number of microtask arguments");
 
   if (argc > MAX_ARGS) {
     printf("Unsupported number of microtask arguments, max is %d and %d were "
@@ -58,6 +56,8 @@ Microtask::~Microtask() {
 void Microtask::run() const {
   kmp_int32 gtid = static_cast<kmp_int32>(mempool_get_core_id());
   kmp_int32 tid = static_cast<kmp_int32>(runtime::getCurrentThread().getTid());
+
+  assert(argc <= MAX_ARGS && "Unsupported number of microtask arguments");
 
   // There seems to not be a better way to do this without custom passes or ASM
   switch (argc) {

@@ -4,9 +4,9 @@
 #include "kmp/types.h"
 #include "kmp/util.hpp"
 #include "printf.h"
+#include <array>
 #include <mutex>
 #include <optional>
-#include <array>
 
 namespace kmp {
 
@@ -23,7 +23,8 @@ class Team {
     kmp_uint32 incr;
     kmp_uint32 stride;
 
-    std::atomic<bool> valid;
+    bool valid;
+
     Mutex mutex;
   };
 
@@ -50,10 +51,15 @@ public:
 
   inline auto getCopyPrivateData() const { return copyPrivateData; }
 
+  inline void invalidateSchedule() { dynamicSchedule.valid = false; }
+
   inline void run() {
     for (kmp_uint32 i = 0; i < numThreads; i++) {
       runtime::threads[i].setCurrentTeam(this);
-      runtime::threads[i].wakeUp();
+
+      if (i != masterGtid) {
+        runtime::threads[i].wakeUp();
+      }
     }
   }
 
@@ -133,14 +139,16 @@ public:
     assert((static_cast<T>(chunk) <= upper - lower + 1) &&
            "Chunk size is greater than loop size");
 
-    if (dynamicSchedule.valid) {
-      DEBUG_PRINT("Dynamic schedule is already valid\n");
-      return;
-    }
+    DEBUG_PRINT("Dispatch init\n");
 
     switch (schedtype) {
     case kmp_sch_dynamic_chunked: {
       std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
+
+      if (dynamicSchedule.valid) {
+        DEBUG_PRINT("Dynamic schedule is already valid\n");
+        return;
+      }
 
       kmp_uint32 span = incr * chunk;
 
@@ -152,9 +160,10 @@ public:
 
       DEBUG_PRINT(
           "Dynamic schedule: lowerNext=%d, upper=%d, chunk=%d, incr=%d, "
-          "stride=%d\n",
+          "stride=%d, addr: %p\n",
           dynamicSchedule.lowerNext, dynamicSchedule.upper,
-          dynamicSchedule.chunk, dynamicSchedule.incr, dynamicSchedule.stride);
+          dynamicSchedule.chunk, dynamicSchedule.incr, dynamicSchedule.stride,
+          &dynamicSchedule);
 
       dynamicSchedule.valid = true;
       break;
@@ -172,18 +181,13 @@ public:
                     typename std::make_signed<T>::type *plastiter, T *plower,
                     T *pupper, typename std::make_signed<T>::type *pstride) {
 
-    if (!dynamicSchedule.valid) {
-      DEBUG_PRINT("Dynamic schedule is not valid\n");
-      return false;
-    }
-
-    std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
-
     DEBUG_PRINT("Dispatch next\n");
 
+    std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
+    assert(dynamicSchedule.valid && "Dynamic schedule is not valid");
+
     if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
-      DEBUG_PRINT("Dynamic loop done, invalidating dynamic schedule\n");
-      dynamicSchedule.valid = false;
+      DEBUG_PRINT("Dynamic loop done\n");
       return false;
     }
 
