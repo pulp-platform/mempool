@@ -10,6 +10,7 @@ MemPool Family is a scalable many-core cluster shared L1 memory system. It mainl
 - **MinPool**: 16 cores cluster shared 64KiB L1 SPM
 - **MemPool**: 256 cores cluster shared 1MiB L1 SPM
 - **TeraPool**: 1024 cores cluster shared 4MiB SPM
+
 For more technical details, please refer to our main branch.
 
 ## Repository Structure
