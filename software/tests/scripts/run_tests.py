@@ -120,7 +120,7 @@ def run_test(test, args):
             stderr_thread.start()
 
             while True:
-                time.sleep(1)
+                time.sleep(0.1)
 
                 while not stdout_queue.empty() or not stderr_queue.empty():
                     try:
@@ -143,7 +143,8 @@ def run_test(test, args):
 
                             if ('Error 117') in line:
                                 print(f'{RED}[FAIL]{RESET}: Banshee called '
-                                      'the police, most likely a deadlock')
+                                      'the police, most likely a deadlock '
+                                      '(all threads called wfi)')
                                 p.terminate()
                                 return False
 
