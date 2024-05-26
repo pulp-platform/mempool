@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Add `apb` dependency of version 0.2.4
 - Add support for the `FENCE` instruction
+- Add KMP runtime
+- Add new runtime testing infrastructure
+- Add automated benchmark running and plotting
+- Add Embedded Template Library
+- Add clangd and clang-tidy configs
+- Add Banshee config
 
 ### Changes
 - Add physical feasible TeraPool configuration with SubGroup hierarchy.
@@ -32,12 +38,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update `common_verification` to 0.2.3
 - Update `register_interface` to 0.4.3
 - Updated Halide to version 15
+- Include SP in Snitch traces to aid in building better tracevis
+- Make the `tracevis` target depend on the `trace` target and use `-cf`
+- Rename the `omp` runtime directory to `gomp`
+- Link with `lld` when using clang
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
 - Properly disable the debugging CSRs in ASIC implementations
 - Fix a bug in the  DMA's distributed midend
 - Fix bugs in radix2, radix4by2 parallelization and loading of data for radix4 CFFT
+- Fix building verilator on newer clang and gcc versions
+- Fix tracing targets missing some harts
+- Fix clang warnings about the .comment section
 
 ## 0.6.0 - 2023-01-09
 
