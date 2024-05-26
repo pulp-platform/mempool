@@ -30,6 +30,7 @@ class Team {
     SignedT stride = 0;
 
     bool valid = false;
+    kmp_uint32 numDone = 0;
 
     Mutex mutex;
   };
@@ -56,10 +57,6 @@ public:
   inline auto setCopyPrivateData(void *data) { copyPrivateData = data; }
 
   inline auto getCopyPrivateData() const { return copyPrivateData; }
-
-  inline void invalidateSchedule() {
-    std::get<DynamicSchedule<kmp_int32>>(this->dynamicSchedule).valid = false;
-  }
 
   inline void run() {
     for (kmp_uint32 i = 0; i < numThreads; i++) {
@@ -199,6 +196,11 @@ public:
 
     if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
       DEBUG_PRINT("Dynamic loop done\n");
+      if (++dynamicSchedule.numDone == numThreads) {
+        dynamicSchedule.valid = false;
+        dynamicSchedule.numDone = 0;
+      }
+
       return false;
     }
 
