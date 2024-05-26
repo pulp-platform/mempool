@@ -1,18 +1,16 @@
 #pragma once
 
+#include "etl/error_handler.h"
 #include "kmp/thread.hpp"
 #include "kmp/types.h"
-#include "etl/error_handler.h"
-
-extern "C" {
-#include "runtime.h"
-}
 
 // NOLINTNEXTLINE(bugprone-reserved-identifier)
 extern void __assert_func(const char *file, int line, const char *func,
                           const char *failedexpr);
-static inline void assertWrapper(const etl::exception &e) {
-  __assert_func(e.file_name(), e.line_number(), "n/a", e.what());
+
+static inline void assertWrapper(const etl::exception &exception) {
+  __assert_func(exception.file_name(), exception.line_number(), "n/a",
+                exception.what());
 };
 
 namespace kmp {
@@ -33,7 +31,7 @@ static inline void init() {
 
 static inline void runThread(kmp_uint32 core_id) { threads[core_id].run(); };
 
-static inline Thread &getCurrentThread(kmp_int32 gtid) {
+static inline Thread &getCurrentThread(kmp_uint32 gtid) {
   return threads[gtid];
 };
 

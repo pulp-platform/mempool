@@ -1,5 +1,6 @@
 #pragma once
 
+#include "kmp/barrier.hpp"
 #include "kmp/runtime.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
@@ -7,6 +8,7 @@
 #include <array>
 #include <mutex>
 #include <optional>
+#include <variant>
 
 namespace kmp {
 
@@ -16,20 +18,24 @@ class Barrier;
 
 class Team {
 
+  template <typename T, typename SignedT = typename std::make_signed<T>::type,
+            typename UnsignedT = typename std::make_unsigned<T>::type>
   struct DynamicSchedule {
-    kmp_uint32 lowerNext;
-    kmp_uint32 upper;
-    kmp_uint32 chunk;
-    kmp_uint32 incr;
-    kmp_uint32 stride;
+    DynamicSchedule() {}
 
-    bool valid;
+    T lowerNext = 0;
+    T upper = 0;
+    SignedT chunk = 0;
+    SignedT incr = 0;
+    SignedT stride = 0;
+
+    bool valid = false;
 
     Mutex mutex;
   };
 
 public:
-  Team(kmp_int32 masterGtid, kmp_uint32 numThreads,
+  Team(kmp_uint32 masterGtid, kmp_uint32 numThreads,
        std::optional<Task> implicitTask = std::nullopt);
 
   inline Barrier &getBarrier() { return barrier; }
@@ -51,7 +57,9 @@ public:
 
   inline auto getCopyPrivateData() const { return copyPrivateData; }
 
-  inline void invalidateSchedule() { dynamicSchedule.valid = false; }
+  inline void invalidateSchedule() {
+    std::get<DynamicSchedule<kmp_int32>>(this->dynamicSchedule).valid = false;
+  }
 
   inline void run() {
     for (kmp_uint32 i = 0; i < numThreads; i++) {
@@ -79,12 +87,12 @@ public:
    * @param incr Loop increment (this is always 1 in LLVM 14)
    * @param chunk Chunk size
    */
-  template <typename T>
-  void forStaticInit(ident_t *loc, kmp_int32 gtid, kmp_sched_type schedtype,
-                     T *plastiter, T *plower, T *pupper,
-                     typename std::make_signed<T>::type *pstride,
-                     typename std::make_signed<T>::type incr,
-                     typename std::make_signed<T>::type chunk) const {
+  template <typename T, typename SignedT = typename std::make_signed<T>::type,
+            typename UnsignedT = typename std::make_unsigned<T>::type>
+  void forStaticInit(ident_t * /*loc*/, kmp_int32 /*gtid*/,
+                     kmp_sched_type schedtype, T *plastiter, T *plower,
+                     T *pupper, SignedT *pstride, SignedT incr,
+                     SignedT chunk) const {
 
     assert(incr == 1 && "Loop increment is not 1");
     assert(chunk > 0 && "Chunk size is not positive");
@@ -92,32 +100,31 @@ public:
            "Chunk size is greater than loop size");
 
     kmp_uint32 tid = runtime::getCurrentThread().getTid();
-    kmp_uint32 numChunks = (pupper - plower + chunk) / chunk;
+
+    UnsignedT numChunks = (static_cast<UnsignedT>(pupper - plower) +
+                           static_cast<UnsignedT>(chunk)) /
+                          static_cast<UnsignedT>(chunk);
 
     switch (schedtype) {
     case kmp_sch_static: {
 
       // Calculate chunk size
       // https://stackoverflow.com/a/14878734
-      chunk = (*pupper - *plower + 1) / numThreads +
-              ((*pupper - *plower + 1) % numThreads != 0);
+      chunk = static_cast<SignedT>(*pupper - *plower + 1) /
+                  static_cast<SignedT>(numThreads) +
+              (static_cast<SignedT>(*pupper - *plower + 1) %
+                   static_cast<SignedT>(numThreads) !=
+               0);
 
-      // Same as static chunked
-      kmp_uint32 span = incr * chunk;
-      *pstride = span * numThreads;
-      *plower = *plower + tid * span;
-      *pupper = *plower + span - incr;
-      *plastiter = (tid == (numChunks - 1) % numThreads);
-
-      break;
+      // Fall through to static chunked
     }
     case kmp_sch_static_chunked: {
       assert(incr != 0 && "Loop increment must be non-zero");
 
-      kmp_uint32 span = incr * chunk;
-      *pstride = span * numThreads;
-      *plower = *plower + tid * span;
-      *pupper = *plower + span - incr;
+      SignedT span = incr * chunk;
+      *pstride = span * static_cast<SignedT>(numThreads);
+      *plower = *plower + static_cast<T>(tid) * static_cast<T>(span);
+      *pupper = *plower + static_cast<T>(span - incr);
       *plastiter = (tid == (numChunks - 1) % numThreads);
 
       break;
@@ -129,10 +136,11 @@ public:
     }
   }
 
-  template <typename T>
-  void dispatchInit(ident_t *loc, kmp_int32 gtid, kmp_sched_type schedtype,
-                    T lower, T upper, typename std::make_signed<T>::type incr,
-                    typename std::make_signed<T>::type chunk) {
+  template <typename T, typename SignedT = typename std::make_signed<T>::type,
+            typename UnsignedT = typename std::make_unsigned<T>::type>
+  void dispatchInit(ident_t * /*loc*/, kmp_int32 /*gtid*/,
+                    kmp_sched_type schedtype, T lower, T upper, SignedT incr,
+                    SignedT chunk) {
 
     assert(incr == 1 && "Loop increment is not 1");
     assert(chunk > 0 && "Chunk size is not positive");
@@ -140,6 +148,8 @@ public:
            "Chunk size is greater than loop size");
 
     DEBUG_PRINT("Dispatch init\n");
+
+    auto &dynamicSchedule = std::get<DynamicSchedule<T>>(this->dynamicSchedule);
 
     switch (schedtype) {
     case kmp_sch_dynamic_chunked: {
@@ -150,13 +160,13 @@ public:
         return;
       }
 
-      kmp_uint32 span = incr * chunk;
+      SignedT span = incr * chunk;
 
       dynamicSchedule.lowerNext = lower;
       dynamicSchedule.upper = upper;
       dynamicSchedule.chunk = chunk;
       dynamicSchedule.incr = incr;
-      dynamicSchedule.stride = span * numThreads;
+      dynamicSchedule.stride = span * static_cast<SignedT>(numThreads);
 
       DEBUG_PRINT(
           "Dynamic schedule: lowerNext=%d, upper=%d, chunk=%d, incr=%d, "
@@ -176,12 +186,13 @@ public:
     };
   }
 
-  template <typename T>
-  bool dispatchNext(ident_t *loc, kmp_int32 gtid,
-                    typename std::make_signed<T>::type *plastiter, T *plower,
-                    T *pupper, typename std::make_signed<T>::type *pstride) {
+  template <typename T, typename SignedT = typename std::make_signed<T>::type>
+  bool dispatchNext(ident_t * /*loc*/, kmp_int32 /*gtid*/, SignedT *plastiter,
+                    T *plower, T *pupper, SignedT *pstride) {
 
     DEBUG_PRINT("Dispatch next\n");
+
+    auto &dynamicSchedule = std::get<DynamicSchedule<T>>(this->dynamicSchedule);
 
     std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
     assert(dynamicSchedule.valid && "Dynamic schedule is not valid");
@@ -193,7 +204,7 @@ public:
 
     *plower = dynamicSchedule.lowerNext;
 
-    dynamicSchedule.lowerNext += dynamicSchedule.chunk;
+    dynamicSchedule.lowerNext += static_cast<T>(dynamicSchedule.chunk);
     if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
       *pupper = dynamicSchedule.upper;
       *plastiter = true;
@@ -214,7 +225,8 @@ private:
 
   Barrier barrier;
 
-  DynamicSchedule dynamicSchedule;
+  std::variant<DynamicSchedule<kmp_int32>, DynamicSchedule<kmp_uint32>>
+      dynamicSchedule;
 
   void *copyPrivateData = nullptr;
 

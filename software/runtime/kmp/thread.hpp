@@ -1,6 +1,5 @@
 #pragma once
 
-#include "kmp/barrier.hpp"
 #include "kmp/task.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
@@ -61,6 +60,6 @@ private:
   std::atomic<Team *> currentTeam;
   Mutex running;
 
-  std::optional<kmp_int32> requestedNumThreads;
+  std::optional<kmp_uint32> requestedNumThreads;
 };
 }; // namespace kmp

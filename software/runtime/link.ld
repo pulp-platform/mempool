@@ -84,5 +84,5 @@ SECTIONS {
 
   .comment : {
     *(.comment)
-  } > l2
+  }
 }

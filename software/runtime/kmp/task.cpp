@@ -19,7 +19,7 @@ Microtask::Microtask(kmpc_micro func, va_list args, kmp_int32 argc)
     return;
   }
 
-  this->args = new void *[argc];
+  this->args = new void *[static_cast<kmp_uint32>(argc)];
 
   DEBUG_PRINT("Microtask constructor, args: %p\n", this->args);
 
@@ -49,9 +49,7 @@ Microtask &Microtask::operator=(Microtask &&other) noexcept {
   return *this;
 };
 
-Microtask::~Microtask() {
-  delete[] args;
-};
+Microtask::~Microtask() { delete[] args; };
 
 void Microtask::run() const {
   kmp_int32 gtid = static_cast<kmp_int32>(mempool_get_core_id());

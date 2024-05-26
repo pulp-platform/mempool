@@ -6,12 +6,15 @@ extern "C" {
 
 // https://etherealwake.com/2021/09/crt-startup/
 typedef void (*init_func)(void);
-extern init_func __init_array_start[];
-extern init_func __init_array_end[];
+extern init_func *__init_array_start;
+extern init_func *__init_array_end;
 
 static inline void initGlobals() {
-  uint32_t n = __init_array_end - __init_array_start;
-  for (size_t i = 0; i < n; i++) {
+  //NOLINTNEXTLINE(*-narrowing-conversions)
+  int32_t len = __init_array_end - __init_array_start;
+  for (int32_t i = 0; i < len; i++) {
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     __init_array_start[i]();
   }
 }
@@ -23,7 +26,7 @@ std::atomic<bool> initLock = true;
 extern "C" int __wrap_main() {
   const mempool_id_t core_id = mempool_get_core_id();
   if (core_id == 0) {
-    printf("Running OpenMP program on %d cores\n", mempool_get_core_count());
+    DEBUG_PRINT("Running OpenMP program on %d cores\n", mempool_get_core_count());
 
     // Init heap allocators
     mempool_init(0);
@@ -36,7 +39,7 @@ extern "C" int __wrap_main() {
 
     initLock = false;
 
-    printf("Init done\n");
+    DEBUG_PRINT("Init done\n");
 
     // Run the program
     __real_main();

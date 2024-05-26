@@ -57,18 +57,16 @@ void Thread::forkCall(Microtask microtask) {
   DEBUG_PRINT("Done running task\n");
 
   team->getBarrier().wait();
-
-  team->invalidateSchedule();
 };
 
 void Thread::requestNumThreads(kmp_int32 numThreads) {
   this->requestedNumThreads = numThreads;
 }
 
-void Thread::copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
+void Thread::copyPrivate(ident_t * /*loc*/, kmp_int32 gtid, size_t  /*cpy_size*/,
                          void *cpy_data, void (*cpy_func)(void *, void *),
                          kmp_int32 didit) {
-  auto team = getCurrentTeam();
+  auto *team = getCurrentTeam();
 
   if (didit != 0) {
     team->setCopyPrivateData(cpy_data);
