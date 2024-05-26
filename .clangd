@@ -1,10 +1,29 @@
 CompileFlags:
-  Add: [-DNUM_CORES, -DNUM_CORES_PER_TILE, -DNUM_GROUPS, -DSTACK_SIZE,
-  -D__riscv, -DXQUEUE_SIZE, -DSEQ_MEM_SIZE, -DBANKING_FACTOR, -march=rv32ima]
+  Add: [
+    -std=c++17,
+    -D__riscv,
+    -DNUM_CORES,
+    -DNUM_CORES_PER_TILE,
+    -DNUM_GROUPS,
+    -DSTACK_SIZE,
+    -DXQUEUE_SIZE,
+    -DSEQ_MEM_SIZE,
+    -DBANKING_FACTOR,
+    -DETL_CHECK_PUSH_POP,
+    -DETL_LOG_ERRORS,
+    -DETL_VERBOSE_ERRORS
+  ]
 
 ---
 
 If:
-  PathMatch: [.*/runtime/*/.*]
+  PathMatch: [.*/runtime/.*/.*]
 CompileFlags:
-  Add: [-xc++, -I../]
+  Add: [-xc++, -I.., -I../../ext/etl/include/]
+
+---
+
+If:
+  PathMatch: [.*/tests/.*/.*]
+CompileFlags:
+  Add: [-xc++, -I.., -I../../ext/etl/include/, -I../../runtime/]
