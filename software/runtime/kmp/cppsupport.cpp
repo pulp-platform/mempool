@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <mutex>
 
 // Comment so that <mutex> is imported before
@@ -25,13 +26,24 @@ void *operator new[](size_t size) { return operator new(size); }
 void operator delete[](void *ptr) noexcept { return operator delete(ptr); }
 
 namespace std {
-void __throw_bad_alloc() { printf("Bad alloc\n"); }
-void __throw_length_error(const char *msg) { printf("Length error: %s\n", msg); }
+void __throw_bad_alloc() {
+  printf("Bad alloc\n");
+  abort();
+}
+
+void __throw_length_error(const char *msg) {
+  printf("Length error: %s\n", msg);
+  abort();
+}
+
 void __throw_bad_optional_access() { printf("Bad optional access\n"); }
 } // namespace std
 
 extern "C" void abort() {
   printf("Aborting\n");
+  while (true) {
+    mempool_wfi();
+  }
 }
 
 extern "C" int __cxa_atexit(void (*func)(void *), void *arg, void *dso_handle) {
@@ -45,5 +57,5 @@ extern "C" void __assert_func(const char *file, int line, const char *func,
                               const char *failedexpr) {
   printf("Assertion failed: %s, file %s, line %d, function %s\n", failedexpr,
          file, line, func);
-  mempool_wfi();
+  abort();
 }

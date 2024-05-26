@@ -3,10 +3,6 @@
 #include <array>
 #include <utility>
 
-extern "C" {
-#include "runtime.h"
-}
-
 namespace kmp {
 
 namespace runtime {
