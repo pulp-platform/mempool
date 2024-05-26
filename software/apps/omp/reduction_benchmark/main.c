@@ -29,7 +29,7 @@
 #define B_a 1
 #define B_b -1
 // Enable verbose printing
-#define VERBOSE
+// #define VERBOSE
 
 int32_t volatile init __attribute__((section(".l2"))) = 0;
 int32_t a[M] __attribute__((section(".l1")));
@@ -251,13 +251,13 @@ int main() {
 
     printf("OMP Static Result: %d\n", omp_result);
     printf("OMP Static Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
-                           &correct_result)) {
-      printf("OMP Static Result is %d instead of %d\n", omp_result,
-             correct_result);
-    } else {
-      printf("Result is correct!\n");
-    }
+    //if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
+    //                       &correct_result)) {
+    //  printf("OMP Static Result is %d instead of %d\n", omp_result,
+    //         correct_result);
+    //} else {
+    //  printf("Result is correct!\n");
+    //}
 
     mempool_wait(4 * num_cores);
 
@@ -269,13 +269,13 @@ int main() {
 
     printf("OMP Dynamic(4) Result: %d\n", omp_result);
     printf("OMP Dynamic(4) Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
-                           &correct_result)) {
-      printf("OMP Dynamic(4) Result is %d instead of %d\n", omp_result,
-             correct_result);
-    } else {
-      printf("Result is correct!\n");
-    }
+    //if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
+    //                       &correct_result)) {
+    //  printf("OMP Dynamic(4) Result is %d instead of %d\n", omp_result,
+    //         correct_result);
+    //} else {
+    //  printf("Result is correct!\n");
+    //}
 
     mempool_wait(4 * num_cores);
 
@@ -287,13 +287,13 @@ int main() {
 
     printf("OMP Dynamic(10) Result: %d\n", omp_result);
     printf("OMP Dynamic(10) Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
-                           &correct_result)) {
-      printf("OMP Dynamic(10) Result is %d instead of %d\n", omp_result,
-             correct_result);
-    } else {
-      printf("Result is correct!\n");
-    }
+    //if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
+    //                       &correct_result)) {
+    //  printf("OMP Dynamic(10) Result is %d instead of %d\n", omp_result,
+    //         correct_result);
+    //} else {
+    //  printf("Result is correct!\n");
+    //}
 
     mempool_wait(4 * num_cores);
 

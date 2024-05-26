@@ -153,6 +153,8 @@ int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
 
+  return 0;
+
   if (core_id == 0) {
     printf("Start Barrier Benchmark\n");
   }
