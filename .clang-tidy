@@ -1,5 +1,17 @@
 ---
-Checks:          'bugprone-*,cppcoreguidelines-*,performance-*,readability-*'
+Checks: >
+  bugprone-*,
+  cppcoreguidelines-*,
+  performance-*,
+  readability-*,$
+  clang-analyzer-*,
+  misc-unused-parameters,
+
+  -bugprone-easily-swappable-parameters,
+  -bugprone-reserved-identifier,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+
 WarningsAsErrors: ''
 HeaderFileExtensions:
   - ''
@@ -14,8 +26,7 @@ ImplementationFileExtensions:
   - cxx
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false
-FormatStyle:     none
-User:            santos
+FormatStyle:     file
 CheckOptions:
   cert-dcl16-c.NewSuffixes: 'L;LL;LU;LLU'
   google-readability-namespace-comments.ShortNamespaceLines: '10'
