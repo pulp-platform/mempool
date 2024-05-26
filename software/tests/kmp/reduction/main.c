@@ -17,7 +17,7 @@
 
 #define MAX_FACTOR 10
 #define KNOWN_PRODUCT 3628800 /* 10! */
-#define LOOPCOUNT 100         /* Number of iterations to split amongst threads */
+#define LOOPCOUNT 100 /* Number of iterations to split amongst threads */
 
 TEST(test_omp_parallel_for_sum) {
   for (int rep = 0; rep < REPETITIONS; rep++) {

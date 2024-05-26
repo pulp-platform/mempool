@@ -10,7 +10,7 @@ extern init_func __init_array_start[];
 extern init_func __init_array_end[];
 
 static inline void initGlobals() {
-  //NOLINTNEXTLINE(*-narrowing-conversions)
+  // NOLINTNEXTLINE(*-narrowing-conversions)
   int32_t len = __init_array_end - __init_array_start;
   for (int32_t i = 0; i < len; i++) {
 
@@ -26,7 +26,8 @@ std::atomic<bool> initLock = true;
 extern "C" int __wrap_main() {
   const mempool_id_t core_id = mempool_get_core_id();
   if (core_id == 0) {
-    DEBUG_PRINT("Running OpenMP program on %d cores\n", mempool_get_core_count());
+    DEBUG_PRINT("Running OpenMP program on %d cores\n",
+                mempool_get_core_count());
 
     // Init heap allocators
     mempool_init(0);
