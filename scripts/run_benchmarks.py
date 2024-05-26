@@ -96,7 +96,7 @@ def run_benchmark(app, simulator, config):
                             if ('Stackoverflow' in line):
                                 print("Stackoverflow")
                                 p.terminate()
-                                return False
+                                return output
 
                             if (simulator == "banshee" and "Program done" in line):
                                 p.terminate()
@@ -108,11 +108,11 @@ def run_benchmark(app, simulator, config):
 
             if p.returncode is not None and p.returncode > 0:
                 print(f'Non-zero return code {p.returncode}')
-                return False
+                return output
 
     except Exception as e:
         print(e)
-        return False
+        return output
 
     finally:
         if timer:

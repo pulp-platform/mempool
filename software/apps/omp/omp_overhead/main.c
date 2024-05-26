@@ -78,6 +78,24 @@ void section_parallel() {
   }
 }
 
+#define REPETITIONS 10
+
+void startup_time() {
+
+  uint32_t duration = 0;
+
+  for (int i = 0; i < REPETITIONS; i++) {
+    uint32_t time = mempool_get_timer();
+#pragma omp parallel
+    {
+#pragma omp single
+      duration += mempool_get_timer() - time;
+    }
+  }
+
+  printf("Startup time duration: %d\n", duration / REPETITIONS);
+}
+
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t cycles;
@@ -117,6 +135,8 @@ int main() {
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;
     printf("Section Duration: %d\n", cycles);
+
+    startup_time();
 
   } else {
     while (1) {

@@ -98,11 +98,13 @@ int main() {
                 omp_get_num_threads());
   }
 
+  printf("Start sequential\n");
+
   mempool_wait(1000);
 
   cycles = mempool_get_timer();
   mempool_start_benchmark();
-  mat_mul_sequential(a, b, c, M, N, P);
+  // mat_mul_sequential(a, b, c, M, N, P);
   mempool_stop_benchmark();
   cycles = mempool_get_timer() - cycles;
   printf("Sequqntial Duration: %d\n", cycles);
