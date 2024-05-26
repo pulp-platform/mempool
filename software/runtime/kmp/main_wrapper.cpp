@@ -6,8 +6,8 @@ extern "C" {
 
 // https://etherealwake.com/2021/09/crt-startup/
 typedef void (*init_func)(void);
-extern init_func *__init_array_start;
-extern init_func *__init_array_end;
+extern init_func __init_array_start[];
+extern init_func __init_array_end[];
 
 static inline void initGlobals() {
   //NOLINTNEXTLINE(*-narrowing-conversions)
