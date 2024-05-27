@@ -10,7 +10,7 @@ from pprint import pp
 HARDWARE_DIR = "../hardware"
 APPS_DIR = "../software/apps"
 KMP_APPS_DIR = APPS_DIR + "/kmp"
-OMP_APPS_DIR = APPS_DIR + "/omp"
+GOMP_APPS_DIR = APPS_DIR + "/gomp"
 UART_REGEX = re.compile(r"\[UART\] ((?!.*\bresult\b).*): (\d+)", re.IGNORECASE)
 GIT_COMMIT_HASH = subprocess.check_output(
     ["git", "describe", "--always", "--dirty"]).strip().decode("utf-8")
@@ -160,8 +160,8 @@ def main():
     compileAll(KMP_APPS_DIR, "llvm")
     runAll(KMP_APPS_DIR, "llvm")
 
-    compileAll(OMP_APPS_DIR, "gcc")
-    runAll(OMP_APPS_DIR, "gcc")
+    compileAll(GOMP_APPS_DIR, "gcc")
+    runAll(GOMP_APPS_DIR, "gcc")
 
 
 if __name__ == '__main__':
