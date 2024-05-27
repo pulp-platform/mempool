@@ -9,6 +9,7 @@ SOFTWARE_DIR := $(abspath $(ROOT_DIR)/../..)
 APPS_DIR := $(ROOT_DIR)
 BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
 RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
+COMPILER ?= gcc
 
 # OpenMP runtime
 RISCV_CCFLAGS += -fopenmp -DNTHREADS=$(num_cores)
