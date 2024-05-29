@@ -21,13 +21,13 @@
 #define LOG_RADIX 2
 #elif NUM_CORES_PER_CLUSTER == 32
 #define N (128 * 96)
-#define LOG_RADIX 5
+#define LOG_RADIX 3
 #elif NUM_CORES_PER_CLUSTER == 64
 #define N (256 * 96)
 #define LOG_RADIX 3
 #elif NUM_CORES_PER_CLUSTER == 128
 #define N (512 * 96)
-#define LOG_RADIX 7
+#define LOG_RADIX 4
 #elif NUM_CORES_PER_CLUSTER == 256
 #define N (1024 * 96)
 #define LOG_RADIX 4
@@ -41,21 +41,19 @@ int32_t result __attribute__((section(".l2")));
 
 uint32_t final_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_radix,
                            uint32_t core_id) {
-  uint32_t *log_barrier = &round_barrier[(core_id / step) * step + (step >> log2_radix) - 1];
+  uint32_t next_step = step << log2_radix;
+  uint32_t barrier_idx = (core_id / next_step) * next_step + step - 1;
+  uint32_t *log_barrier = &round_barrier[barrier_idx*BANKING_FACTOR];
 
-  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
-  // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
-  if (val == (uint32_t)((1 << log2_radix) - 1)) {
+  uint32_t val = __atomic_fetch_add(log_barrier, step, __ATOMIC_RELAXED);
+  if (val == NUM_CORES_PER_CLUSTER - step) {
+    // Last core of last stage
+    dump_time(2);
+    return (uint32_t)log_barrier;
+  } else if (val == (uint32_t)(next_step - step)) {
     // Last core of this stage
-    if (step == NUM_CORES_PER_CLUSTER) {
-      // Last stage
-      dump_time(2);
-      // Clear wfi that was triggered by the first core
-      return (uint32_t)log_barrier;
-    } else {
-      __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
-      return final_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
-    }
+    __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
+    return final_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
   } else {
     if (val == 0 && log_barrier == &round_barrier[0]) {
       dump_time(1);
@@ -67,22 +65,21 @@ uint32_t final_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2
 }
 
 uint32_t dma_log_barrier(uint32_t* round_barrier, uint32_t step, uint32_t log2_radix, uint32_t core_id) {
-  uint32_t *log_barrier = &round_barrier[(core_id / step) * step + (step >> log2_radix) - 1];
+  uint32_t next_step = step << log2_radix;
+  uint32_t barrier_idx = (core_id / next_step) * next_step + step - 1;
+  uint32_t *log_barrier = &round_barrier[barrier_idx*BANKING_FACTOR];
 
-  uint32_t val = __atomic_fetch_add(log_barrier, 1, __ATOMIC_RELAXED);
-  // dump_barrier(step * SEQ_MEM_SIZE*SEQ_MEM_SIZE+(uint32_t)log_barrier + val);
-  if (val == (uint32_t)((1 << log2_radix) - 1)) {
+  uint32_t val = __atomic_fetch_add(log_barrier, step, __ATOMIC_RELAXED);
+  if (val == NUM_CORES_PER_CLUSTER - step) {
+    // Last core of last stage
+    dump_time(2);
+    // Clear wfi that was triggered by the first core
+    mempool_wfi();
+    return (uint32_t)log_barrier;
+  } else if (val == (uint32_t)(next_step - step)) {
     // Last core of this stage
-    if (step == NUM_CORES_PER_CLUSTER) {
-      // Last stage
-      dump_time(2);
-      // Clear wfi that was triggered by the first core
-      mempool_wfi();
-      return (uint32_t)log_barrier;
-    } else {
-      __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
-      return dma_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
-    }
+    __atomic_store_n(log_barrier, 0, __ATOMIC_RELAXED);
+    return dma_log_barrier(round_barrier, step << log2_radix, log2_radix, core_id);
   } else if (val == 0 && log_barrier == &round_barrier[0]) {
     // First core of first barrier in first stage
     dump_time(1);
@@ -120,16 +117,14 @@ int main() {
   // Align alloc_base to have the barriers aligned in memory
   alloc_base = (void*)((uint32_t)(alloc_base + (NUM_BANKS_PER_CLUSTER*sizeof(void) - 1)) & ~(NUM_BANKS_PER_CLUSTER*sizeof(void) - 1));
   uint32_t *round_barrier = (uint32_t*)(alloc_base); // Size [NUM_CORES_PER_CLUSTER]
-  alloc_base += NUM_CORES_PER_CLUSTER*sizeof(uint32_t);
+  alloc_base += NUM_BANKS_PER_CLUSTER*sizeof(uint32_t);
 
   // Initial setup
-  round_barrier[core_cluster_id] = 0;
+  round_barrier[core_cluster_id*BANKING_FACTOR] = 0;
 
   // Double-buffered convolution
   const int last_round = 8;
-  // const int first = 0;
   const uint32_t log2_radix = LOG_RADIX;
-  const uint32_t radix = 1 << log2_radix;
 
   const int32_t *vec_x_comp;
   const int32_t *vec_x_dma;
@@ -181,7 +176,7 @@ int main() {
     }
     mempool_wfi();
     // Barrier, launch DMA for next iteration
-    bar = dma_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
+    bar = dma_log_barrier(round_barrier, 1, log2_radix, core_cluster_id);
     mempool_start_benchmark();
     if (bar) {
       // We are the last one, reset the barrier
@@ -206,7 +201,7 @@ int main() {
   __atomic_fetch_add(cluster_result, sum, __ATOMIC_RELAXED);
 
   // Last write back
-  bar = final_log_barrier(round_barrier, radix, log2_radix, core_cluster_id);
+  bar = final_log_barrier(round_barrier, 1, log2_radix, core_cluster_id);
   mempool_start_benchmark();
   if (bar) {
     // We are the last one, reset the barrier
