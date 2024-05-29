@@ -46,7 +46,7 @@ ifeq ($(COMPILER),gcc)
 		# Define __XPULPIMG if the extension is active
 		DEFINES       += -D__XPULPIMG
 	else
-		RISCV_ARCH_AS ?= rv$(RISCV_ARCH)ima
+		RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
 	endif
 	# GCC Toolchain
