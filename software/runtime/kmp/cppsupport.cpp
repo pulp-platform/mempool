@@ -39,12 +39,7 @@ void __throw_length_error(const char *msg) {
 void __throw_bad_optional_access() { printf("Bad optional access\n"); }
 } // namespace std
 
-extern "C" void abort() {
-  printf("Aborting\n");
-  while (true) {
-    mempool_wfi();
-  }
-}
+extern "C" void abort() { printf("Aborting\n"); }
 
 extern "C" int __cxa_atexit(void (*func)(void *), void *arg, void *dso_handle) {
   (void)func;

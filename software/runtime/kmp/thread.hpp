@@ -39,6 +39,10 @@ public:
     currentTeam = team;
   };
 
+  inline void setTeamsRegion(Task teamsRegion) {
+    this->teamsRegion = std::move(teamsRegion);
+  };
+
   inline kmp_uint32 getGtid() const { return gtid; };
 
   inline kmp_uint32 getTid() const { return tid.value_or(0); };
@@ -49,6 +53,8 @@ public:
 
   void forkCall(Microtask microtask);
 
+  void forkTeams(Microtask microtask);
+
   void copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
                    void *cpy_data, void (*cpy_func)(void *, void *),
                    kmp_int32 didit);
@@ -56,6 +62,9 @@ public:
 private:
   kmp_uint32 gtid;
   std::optional<kmp_uint32> tid;
+
+  // Contains task if this is the initial thread (master) of the teams region
+  std::optional<Task> teamsRegion;
 
   std::atomic<Team *> currentTeam;
   Mutex running;

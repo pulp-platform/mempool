@@ -1,6 +1,7 @@
 #pragma once
 
 #include "etl/error_handler.h"
+#include "kmp/barrier.hpp"
 #include "kmp/thread.hpp"
 #include "kmp/types.h"
 
@@ -20,6 +21,11 @@ namespace runtime {
 extern std::array<Thread, NUM_CORES> threads;
 
 extern Team defaultTeam;
+
+extern std::optional<kmp_uint32> requestedNumTeams;
+extern kmp_uint32 numTeams;
+
+extern Barrier teamsBarrier;
 
 static inline void init() {
   printf("Initializing runtime\n");

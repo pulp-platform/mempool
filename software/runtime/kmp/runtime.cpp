@@ -16,7 +16,12 @@ sequencetoArray(std::integer_sequence<kmp_uint32, Is...> /*unused*/) {
 std::array<Thread, NUM_CORES> threads =
     sequencetoArray(std::make_integer_sequence<kmp_uint32, NUM_CORES>{});
 
-Team defaultTeam(0, NUM_CORES, std::nullopt);
+Team defaultTeam(0, 0);
+
+std::optional<kmp_uint32> requestedNumTeams;
+kmp_uint32 numTeams = 1;
+
+Barrier teamsBarrier(NUM_GROUPS);
 
 } // namespace runtime
 

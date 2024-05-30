@@ -1,7 +1,6 @@
 #pragma once
 
 #include "types.h"
-#include <cstdarg>
 #include <utility>
 
 #define MAX_ARGS 15
@@ -15,9 +14,11 @@ public:
   Microtask(Microtask &&) noexcept;
   Microtask &operator=(Microtask &&) noexcept;
 
+  ~Microtask() = default;
+
   // Disallow copy constructor and assignment
-  Microtask(const Microtask &) = delete;
-  Microtask &operator=(const Microtask &) = delete;
+  Microtask(const Microtask &) = default;
+  Microtask &operator=(const Microtask &) = default;
 
   void run() const;
 

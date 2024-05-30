@@ -36,8 +36,8 @@ class Team {
   };
 
 public:
-  Team(kmp_uint32 masterGtid, kmp_uint32 numThreads,
-       std::optional<Task> implicitTask = std::nullopt);
+  inline Team(kmp_uint32 masterGtid, kmp_uint32 teamId)
+      : masterGtid(masterGtid), teamId(teamId), barrier(numThreads) {}
 
   inline Barrier &getBarrier() { return barrier; }
 
@@ -50,6 +50,16 @@ public:
   inline auto getNumThreads() const { return numThreads; }
 
   inline void setNumThreads(kmp_uint32 numThreads) {
+    if (teamId == runtime::numTeams - 1) {
+      // Last team gets the remaining threads
+      numThreads = std::min(numThreads, NUM_CORES - masterGtid);
+    } else {
+      // Limit thread number
+      numThreads = std::min(numThreads, NUM_CORES / runtime::numTeams);
+    }
+
+    DEBUG_PRINT("Team %d has %d threads\n", teamId, numThreads);
+
     this->numThreads = numThreads;
     this->barrier.setNumThreads(numThreads);
   }
@@ -59,7 +69,7 @@ public:
   inline auto getCopyPrivateData() const { return copyPrivateData; }
 
   inline void run() {
-    for (kmp_uint32 i = 0; i < numThreads; i++) {
+    for (kmp_uint32 i = masterGtid; i < masterGtid + numThreads; i++) {
       runtime::threads[i].setCurrentTeam(this);
 
       if (i != masterGtid) {
@@ -221,9 +231,9 @@ public:
   };
 
 private:
-  kmp_uint32 masterGtid;
-
-  kmp_uint32 numThreads;
+  kmp_uint32 masterGtid = 0;
+  kmp_uint32 teamId = 0;
+  kmp_uint32 numThreads = 1;
 
   Barrier barrier;
 

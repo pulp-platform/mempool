@@ -14,6 +14,7 @@ extern "C" {
 
 extern uint32_t omp_get_num_threads(void);
 extern uint32_t omp_get_thread_num(void);
+extern uint32_t omp_get_num_teams(void);
 
 #ifdef __cplusplus
 }

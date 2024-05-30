@@ -11,3 +11,5 @@ uint32_t omp_get_num_threads(void) {
 uint32_t omp_get_thread_num(void) {
   return kmp::runtime::getCurrentThread().getTid();
 };
+
+uint32_t omp_get_num_teams(void) { return kmp::runtime::numTeams; }

@@ -17,14 +17,15 @@ void __kmpc_barrier(ident_t * /*loc*/, kmp_int32 global_tid) {
 // Parallel
 void __kmpc_fork_call(ident_t * /*loc*/, kmp_int32 argc, kmpc_micro microtask,
                       ...) {
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  // cppcoreguidelines-pro-type-reinterpret-cast)
   va_list args;
   va_start(args, microtask);
   kmp::Microtask kmpMicrotask(microtask, reinterpret_cast<void **>(args), argc);
-  va_end(args);
-  // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-
   kmp::runtime::getCurrentThread().forkCall(std::move(kmpMicrotask));
+  va_end(args);
+  // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  // cppcoreguidelines-pro-type-reinterpret-cast)
 };
 
 // Static loops
@@ -199,6 +200,20 @@ kmp_int32 __kmpc_reduce(ident_t *loc, kmp_int32 global_tid, kmp_int32 num_vars,
 void __kmpc_end_reduce(ident_t *loc, kmp_int32 global_tid,
                        kmp_critical_name * /*lck*/) {
   return __kmpc_barrier(loc, global_tid);
+}
+
+// Teams
+void __kmpc_fork_teams(ident_t * /*loc*/, kmp_int32 argc, kmpc_micro microtask,
+                       ...) {
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  // cppcoreguidelines-pro-type-reinterpret-cast)
+  va_list args;
+  va_start(args, microtask);
+  kmp::Microtask kmpMicrotask(microtask, reinterpret_cast<void **>(args), argc);
+  kmp::runtime::getCurrentThread().forkTeams(std::move(kmpMicrotask));
+  va_end(args);
+  // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  // cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
 kmp_int32 __kmpc_global_thread_num(ident_t * /*loc*/) {
