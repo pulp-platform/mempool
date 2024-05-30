@@ -20,7 +20,7 @@ void __kmpc_fork_call(ident_t * /*loc*/, kmp_int32 argc, kmpc_micro microtask,
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
   va_list args;
   va_start(args, microtask);
-  kmp::Microtask kmpMicrotask(microtask, args, argc);
+  kmp::Microtask kmpMicrotask(microtask, reinterpret_cast<void **>(args), argc);
   va_end(args);
   // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 

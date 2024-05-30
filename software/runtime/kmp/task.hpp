@@ -10,7 +10,7 @@ namespace kmp {
 
 class Microtask {
 public:
-  Microtask(kmpc_micro func, va_list args, kmp_int32 argc);
+  Microtask(kmpc_micro func, void **args, kmp_int32 argc);
 
   Microtask(Microtask &&) noexcept;
   Microtask &operator=(Microtask &&) noexcept;
@@ -19,14 +19,12 @@ public:
   Microtask(const Microtask &) = delete;
   Microtask &operator=(const Microtask &) = delete;
 
-  ~Microtask();
-
   void run() const;
 
 private:
   kmpc_micro func;
-  void **args;
   kmp_int32 argc;
+  void **args;
 };
 
 class Task {

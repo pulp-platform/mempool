@@ -7,33 +7,16 @@ extern "C" {
 }
 
 namespace kmp {
-Microtask::Microtask(kmpc_micro func, va_list args, kmp_int32 argc)
-    : func(func), args(nullptr), argc(argc) {
+Microtask::Microtask(kmpc_micro func, void **args, kmp_int32 argc)
+    : func(func), argc(argc), args(args) {
 
   assert(argc <= MAX_ARGS && "Unsupported number of microtask arguments");
 
-  if (argc > MAX_ARGS) {
-    printf("Unsupported number of microtask arguments, max is %d and %d were "
-           "passed\n",
-           MAX_ARGS, argc);
-    return;
-  }
-
-  this->args = new void *[static_cast<kmp_uint32>(argc)];
-
-  DEBUG_PRINT("Microtask constructor, args: %p\n", this->args);
-
-  void *arg = nullptr;
-  for (kmp_int32 i = 0; i < argc; i++) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
-    arg = va_arg(args, void *);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    this->args[i] = arg;
-  }
+  DEBUG_PRINT("Microtask constructor\n");
 };
 
 Microtask::Microtask(Microtask &&other) noexcept
-    : func(other.func), args(other.args), argc(other.argc) {
+    : func(other.func), argc(other.argc), args(other.args) {
   other.args = nullptr;
   other.argc = 0;
 };
@@ -41,15 +24,14 @@ Microtask::Microtask(Microtask &&other) noexcept
 Microtask &Microtask::operator=(Microtask &&other) noexcept {
   if (this != &other) {
     func = other.func;
-    args = other.args;
     argc = other.argc;
-    other.args = nullptr;
+    args = other.args;
+    other.func = nullptr;
     other.argc = 0;
+    other.args = nullptr;
   }
   return *this;
 };
-
-Microtask::~Microtask() { delete[] args; };
 
 void Microtask::run() const {
   kmp_int32 gtid = static_cast<kmp_int32>(mempool_get_core_id());
