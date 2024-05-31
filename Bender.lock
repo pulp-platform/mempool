@@ -15,6 +15,15 @@ packages:
     - common_cells
     - common_verification
     - tech_cells_generic
+  axi_riscv_atomics:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/axi_riscv_atomics
+    dependencies:
+    - axi
+    - common_cells
+    - common_verification
   cluster_interconnect:
     revision: null
     version: null
@@ -36,6 +45,17 @@ packages:
     source:
       Path: hardware/deps/common_verification
     dependencies: []
+  floo_noc:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/FlooNoC
+    dependencies:
+    - axi
+    - axi_riscv_atomics
+    - common_cells
+    - common_verification
+    - idma
   fpnew:
     revision: null
     version: null
