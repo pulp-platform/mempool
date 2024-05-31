@@ -60,3 +60,10 @@ n_fpu ?= 2
 xpulpimg ?= 0
 
 rvf ?= 1
+
+# L2 Banks/Channels
+l2_banks = 16
+l2_size  ?= 16777216 # 1000000
+
+# Number of DMA backends in each group
+dmas_per_group ?= 4 # Brust Length = 16

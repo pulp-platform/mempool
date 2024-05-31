@@ -21,7 +21,7 @@ num_cores_per_tile ?= 2
 banking_factor ?= 4
 
 # Radix for hierarchical AXI interconnect
-axi_hier_radix ?= 20
+axi_hier_radix ?= 17
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 1
@@ -42,3 +42,10 @@ xpulpimg ?= 0
 
 rvf ?= 1
 rvd ?= 0
+
+# L2 Banks/Channels
+l2_size  ?= 4194304  # 400000
+l2_banks ?= 4
+
+# Number of DMA backends in each group
+dmas_per_group ?= 1 # Brust Length = 16

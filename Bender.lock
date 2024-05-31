@@ -15,11 +15,20 @@ packages:
     - common_cells
     - common_verification
     - tech_cells_generic
+  axi_riscv_atomics:
+    revision: 97dcb14ef057cbe5bd70dda2060b5bb9e7e04c6d
+    version: 0.7.0
+    source:
+      Git: https://github.com/pulp-platform/axi_riscv_atomics.git
+    dependencies:
+    - axi
+    - common_cells
+    - common_verification
   cluster_interconnect:
-    revision: d6eb72eed6f407261c3cf115e144c14c29c824ad
+    revision: null
     version: null
     source:
-      Git: "https://github.com/DiyouS/cluster_interconnect.git"
+      Path: hardware/deps/cluster_interconnect
     dependencies:
     - common_cells
   common_cells:
@@ -79,6 +88,14 @@ packages:
     dependencies:
     - axi
     - common_cells
+  riscv-dbg:
+    revision: 122510063a02e0d012f0497ffdbafca53d4e716b
+    version: 0.7.0
+    source:
+      Git: https://github.com/pulp-platform/riscv-dbg.git
+    dependencies:
+    - common_cells
+    - tech_cells_generic
   snitch:
     revision: null
     version: null
@@ -88,10 +105,10 @@ packages:
     - axi
     - common_cells
   spatz:
-    revision: ee32f12ef0886a733b088a413743113dfafa8692
+    revision: null
     version: null
     source:
-      Git: git@iis-git.ee.ethz.ch:spatz/spatz.git
+      Path: hardware/deps/spatz
     dependencies:
     - axi
     - axi_riscv_atomics

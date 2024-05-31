@@ -6,7 +6,6 @@
 package snitch_pkg;
 
   import cf_math_pkg::idx_width;
-  import tcdm_burst_pkg::*;
 
   localparam DataWidth                  = 32;
   localparam StrbWidth                  = DataWidth/8;
@@ -46,7 +45,6 @@ package snitch_pkg;
     logic write;
     data_t data;
     strb_t strb;
-    tcdm_breq_t rburst;
   } dreq_t;
 
   typedef struct packed {
@@ -54,7 +52,6 @@ package snitch_pkg;
     meta_id_t id;
     logic write;
     logic error;
-    tcdm_gre_t gdata;
   } dresp_t;
 
   typedef enum logic [2:0] {

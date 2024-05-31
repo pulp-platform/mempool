@@ -6,7 +6,6 @@ package mempool_pkg;
 
   import snitch_pkg::MetaIdWidth;
   import cf_math_pkg::idx_width;
-  import tcdm_burst_pkg::*;
 
   /*********************
    *  TILE PARAMETERS  *
@@ -17,7 +16,6 @@ package mempool_pkg;
 
   localparam integer unsigned NumCores          = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
   localparam integer unsigned NumCoresPerTile   = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
-  localparam integer unsigned NumDivsqrtPerTile = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
   localparam integer unsigned NumGroups         = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
   localparam integer unsigned MAX_NumGroups     = 8;
   localparam integer unsigned NumTiles          = NumCores / NumCoresPerTile;
@@ -257,12 +255,6 @@ package mempool_pkg;
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
-  localparam int MaxBurstLen = 16;
-  // 0 to MaxBurstLen
-  localparam int BurstLenWidth = $clog2(MaxBurstLen)+1;
-  // 1 bit for burst indicator, 1 bits for local
-  localparam int BurstWidth = BurstLenWidth + 1 + 1;
-
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
@@ -285,13 +277,11 @@ package mempool_pkg;
     logic wen;
     strb_t be;
     tcdm_addr_t tgt_addr;
-    tcdm_breq_t rburst;
   } tcdm_master_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
     logic wen;
-    tcdm_gre_t gdata; // GRE group data
   } tcdm_master_resp_t;
 
   typedef struct packed {
@@ -300,14 +290,12 @@ package mempool_pkg;
     strb_t be;
     tile_addr_t tgt_addr;
     tile_group_id_t ini_addr;
-    tcdm_breq_t rburst;
   } tcdm_slave_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
     tile_group_id_t ini_addr;
     logic wen;
-    tcdm_gre_t gdata;
   } tcdm_slave_resp_t;
 
   typedef struct packed {

@@ -62,13 +62,7 @@ xqueue_size ?= 0
 ################################
 
 # Enable the XpulpIMG extension
-xpulpimg ?= 1
-
-# Enable FPU extensions
-zfinx ?= 1
-
-# Enable FPU extensions
-zquarterinx ?= 0
+xpulpimg ?= 0
 
 # DivSqrt deactivated by default
 xDivSqrt ?= 0

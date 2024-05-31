@@ -16,16 +16,13 @@ flavors of MemPool. We currently support three flavors:
 ## MemPool-Spatz Configutations
 
 Besides the above configurations, MemPool-Spatz has its own variates, under the
-naming rule: `mempool-type_spatz-type_fpu_burst`.
+naming rule: `mempool-type_spatz-type_fpu`.
 Here is the discriptions for the selected variates, others can be easily understood
 from the naming rule:
 - `terapool_spatz8`: 128 cores, organized into 128 tiles with one Snitch and one Spatz8
 	core each. We have 1024 FUs for Spatz in total.
 - `mempool_spatz2_fpu`: 128 cores, organized into 64 tiles with one Snitch and two
 	Spatz2 cores each. FPUs are added into Spatz. We have 256 FUs for Spatz in total.
-- `minpool_spatz4_fpu_burst`: 4 cores, organized into 4 tiles with one Snitch and
-  one Spatz4 cores each. Support FPU, TCDM Burst, Grouped RSP and parallel burst
-	handling. 
 
 All MemPool-Spatz configurations does not support XPULPIMG due to the instruction
 confilct with RVV.

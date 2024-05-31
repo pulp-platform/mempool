@@ -55,7 +55,7 @@ else
 endif
 
 ifeq ($(spatz), 1)
-	RV32XPULPIMG := opcodes-xpulpabs_CUSTOM opcodes-xpulpbr_CUSTOM opcodes-xpulpclip_CUSTOM opcodes-xpulpmacsi_CUSTOM opcodes-xpulpminmax_CUSTOM opcodes-xpulpslet_CUSTOM 
+	RV32XPULPIMG := opcodes-xpulpabs_CUSTOM opcodes-xpulpbr_CUSTOM opcodes-xpulpclip_CUSTOM opcodes-xpulpmacsi_CUSTOM opcodes-xpulpminmax_CUSTOM opcodes-xpulpslet_CUSTOM
 	RV32XPULPIMG += opcodes-xpulpbitop_CUSTOM
 	MEMPOOL_ISA := opcodes-frep_CUSTOM $(RV32XPULPIMG) opcodes-xpulppostmod_CUSTOM
 	OPCODES := "$(MEMPOOL_ISA) opcodes-rvv opcodes-smallfloat"

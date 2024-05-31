@@ -10,7 +10,6 @@
 module tcdm_shim
   import mempool_pkg::address_map_t;
   import cf_math_pkg::idx_width;
-  import tcdm_burst_pkg::*;
 #(
   parameter int unsigned AddrWidth           = 32            ,
   parameter int unsigned DataWidth           = 32            ,
@@ -32,21 +31,18 @@ module tcdm_shim
   output logic         [NrTCDM-1:0][3:0]                tcdm_req_amo_o,
   output logic         [NrTCDM-1:0][MetaIdWidth-1:0]    tcdm_req_id_o,
   output logic         [NrTCDM-1:0][StrbWidth-1:0]      tcdm_req_be_o,
-  output tcdm_breq_t   [NrTCDM-1:0]                     tcdm_req_burst_o,
   input  logic         [NrTCDM-1:0]                     tcdm_req_ready_i,
   input  logic         [NrTCDM-1:0]                     tcdm_resp_valid_i,
   output logic         [NrTCDM-1:0]                     tcdm_resp_ready_o,
   input  logic         [NrTCDM-1:0][DataWidth-1:0]      tcdm_resp_rdata_i,
   input  logic         [NrTCDM-1:0][MetaIdWidth-1:0]    tcdm_resp_id_i,
   input  logic         [NrTCDM-1:0]                     tcdm_resp_wen_i,
-  input  tcdm_gre_t    [NrTCDM-1:0]                     tcdm_resp_gdata_i,
   // to SoC
   output logic         [NrSoC-1:0] [AddrWidth-1:0]      soc_qaddr_o,
   output logic         [NrSoC-1:0]                      soc_qwrite_o,
   output logic         [NrSoC-1:0] [3:0]                soc_qamo_o,
   output logic         [NrSoC-1:0] [DataWidth-1:0]      soc_qdata_o,
   output logic         [NrSoC-1:0] [StrbWidth-1:0]      soc_qstrb_o,
-  output tcdm_breq_t   [NrSoC-1:0]                      soc_qburst_o,
   output logic         [NrSoC-1:0]                      soc_qvalid_o,
   input  logic         [NrSoC-1:0]                      soc_qready_i,
   input  logic         [NrSoC-1:0] [DataWidth-1:0]      soc_pdata_i,
@@ -61,7 +57,6 @@ module tcdm_shim
   input  logic         [DataWidth-1:0]                  data_qdata_i,
   input  logic         [StrbWidth-1:0]                  data_qstrb_i,
   input  logic         [MetaIdWidth-1:0]                data_qid_i,
-  input  tcdm_breq_t                                    data_qburst_i,
   input  logic                                          data_qvalid_i,
   output logic                                          data_qready_o,
   output logic         [DataWidth-1:0]                  data_pdata_o,
@@ -70,7 +65,6 @@ module tcdm_shim
   output logic         [MetaIdWidth-1:0]                data_pid_o,
   output logic                                          data_pvalid_o,
   input  logic                                          data_pready_i,
-  output tcdm_gre_t                                     data_pgdata_o,
   // Address map
   input  address_map_t [NumRules-1:0]                   address_map_i
 );
@@ -94,7 +88,6 @@ module tcdm_shim
     assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i]   ;
     assign tcdm_ppayload[i].data  = tcdm_resp_rdata_i[i];
     assign tcdm_ppayload[i].write = tcdm_resp_wen_i[i]  ;
-    assign tcdm_ppayload[i].gdata = tcdm_resp_gdata_i[i];
     assign tcdm_ppayload[i].error = 1'b0                ;
   end
 
@@ -169,28 +162,25 @@ module tcdm_shim
 
   // Connect TCDM output ports
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_con
-    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr  ;
-    assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data  ;
-    assign tcdm_req_amo_o[i]      = tcdm_qpayload[i].amo   ;
-    assign tcdm_req_id_o[i]       = tcdm_qpayload[i].id    ;
-    assign tcdm_req_wen_o[i]      = tcdm_qpayload[i].write ;
-    assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb  ;
-    assign tcdm_req_burst_o[i]    = tcdm_qpayload[i].rburst;
+    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr ;
+    assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data ;
+    assign tcdm_req_amo_o[i]      = tcdm_qpayload[i].amo  ;
+    assign tcdm_req_id_o[i]       = tcdm_qpayload[i].id   ;
+    assign tcdm_req_wen_o[i]      = tcdm_qpayload[i].write;
+    assign tcdm_req_be_o[i]       = tcdm_qpayload[i].strb ;
   end
 
   // Connect SOCs
   for (genvar i = 0; i < NrSoC; i++) begin : gen_soc_con
-    assign soc_qaddr_o[i]        = soc_qpayload[i].addr  ;
-    assign soc_qwrite_o[i]       = soc_qpayload[i].write ;
-    assign soc_qamo_o[i]         = soc_qpayload[i].amo   ;
-    assign soc_qdata_o[i]        = soc_qpayload[i].data  ;
-    assign soc_qstrb_o[i]        = soc_qpayload[i].strb  ;
-    assign soc_qburst_o[i]       = '0                    ;
-    assign soc_ppayload[i].data  = soc_pdata_i[i]        ;
-    assign soc_ppayload[i].id    = soc_meta_id[i]        ;
-    assign soc_ppayload[i].write = soc_pwrite_i[i]       ;
-    assign soc_ppayload[i].error = soc_perror_i[i]       ;
-    assign soc_ppayload[i].gdata = '0                    ;
+    assign soc_qaddr_o[i]        = soc_qpayload[i].addr ;
+    assign soc_qwrite_o[i]       = soc_qpayload[i].write;
+    assign soc_qamo_o[i]         = soc_qpayload[i].amo  ;
+    assign soc_qdata_o[i]        = soc_qpayload[i].data ;
+    assign soc_qstrb_o[i]        = soc_qpayload[i].strb ;
+    assign soc_ppayload[i].data  = soc_pdata_i[i]       ;
+    assign soc_ppayload[i].id    = soc_meta_id[i]       ;
+    assign soc_ppayload[i].write = soc_pwrite_i[i]      ;
+    assign soc_ppayload[i].error = soc_perror_i[i]      ;
   end
 
   // Request interface
@@ -198,7 +188,6 @@ module tcdm_shim
   assign data_qpayload.write = data_qwrite_i;
   assign data_qpayload.amo   = data_qamo_i  ;
   assign data_qpayload.data  = data_qdata_i ;
-  assign data_qpayload.rburst= data_qburst_i;
   assign data_qpayload.id    = data_qid_i   ;
   assign data_qpayload.strb  = data_qstrb_i ;
 
@@ -207,7 +196,6 @@ module tcdm_shim
   assign data_perror_o = data_ppayload.error;
   assign data_pid_o    = data_ppayload.id   ;
   assign data_pwrite_o = data_ppayload.write;
-  assign data_pgdata_o = data_ppayload.gdata;
 
   // Elaboration-time assertions
 

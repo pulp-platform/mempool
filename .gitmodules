@@ -3,7 +3,7 @@
 	url = https://github.com/pulp-platform/pulp-riscv-gnu-toolchain.git
 [submodule "toolchain/llvm-project"]
 	path = toolchain/llvm-project
-	url = git@iis-git.ee.ethz.ch:iis-compilers/llvm-project.git
+	url = https://github.com/pulp-platform/llvm-project.git
 [submodule "toolchain/halide"]
 	path = toolchain/halide
 	url = https://github.com/SamuelRiedel/Halide.git
@@ -45,4 +45,4 @@
 	url = https://github.com/pulp-platform/dram_rtl_sim.git
 [submodule "hardware/deps/spatz"]
 	path = hardware/deps/spatz
-	url = git@iis-git.ee.ethz.ch:spatz/spatz.git
+	url = https://github.com/pulp-platform/spatz.git

@@ -75,14 +75,9 @@ void fdotp_v32b_opt_p1(const float *a, const float *b, uint32_t avl, const uint3
       avl   =  orig_avl;
     }
   }
-  // float red;
-  // // Reduce and return
-  // asm volatile("vfredusum.vs v0, v24, v0");
-  // asm volatile("vfmv.f.s %0, v0" : "=f"(red));
-  // return red;
 }
 
-float fdotp_v32b_opt_p2 () {
+float fdotp_v32b_opt_p2() {
   float red;
   // Reduce and return
   asm volatile("vfredusum.vs v0, v24, v0");
@@ -160,8 +155,6 @@ int main() {
 
   // Calculate dotp
   if (is_core_active) {
-    // // Start dump
-    // mempool_start_benchmark();
     // Start timer
     if (cid == 0) {
       mempool_start_benchmark();
@@ -169,8 +162,6 @@ int main() {
     }
 
     // Calculate the result
-    // acc = fdotp_v32b_opt_p1(a_init, b_init, v_len, loops, linesize);
-    // result[cid] = acc;
     fdotp_v32b_opt_p1(a_init, b_init, v_len, loops, linesize);
   }
 
@@ -183,9 +174,7 @@ int main() {
     timer = timer_end - timer_start;
     mempool_stop_benchmark();
   }
-  // End dump
-  // if (is_core_active)
-  //   mempool_stop_benchmark();
+
   #endif
 
   if (is_core_active) {
