@@ -22,6 +22,7 @@ outfile					?= false
 # Build bootrom and spatz
 .PHONY: generate
 generate:
+	config=$(config) make -C $(abspath $(MEMPOOL_DIR)) update_opcodes
 	config=$(config) make -BC $(hw_path) src/bootrom.sv buildspatz
 
 .PHONY: json_clean
