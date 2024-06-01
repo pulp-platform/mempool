@@ -83,6 +83,9 @@ void Thread::forkTeams(Microtask microtask) {
 
     thread.setCurrentTeam(new Team(coreId, i));
     thread.setTeamsRegion(teamsRegion);
+    if (runtime::requestedThreadLimit.has_value()) {
+      thread.requestNumThreads(runtime::requestedThreadLimit.value());
+    }
 
     thread.wakeUp();
   }
@@ -96,7 +99,7 @@ void Thread::forkTeams(Microtask microtask) {
   runtime::numTeams = 1;
 };
 
-void Thread::requestNumThreads(kmp_int32 numThreads) {
+void Thread::requestNumThreads(kmp_uint32 numThreads) {
   this->requestedNumThreads = numThreads;
 }
 

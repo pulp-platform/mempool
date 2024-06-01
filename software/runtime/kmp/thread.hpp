@@ -49,7 +49,7 @@ public:
 
   inline void setTid(kmp_uint32 tid) { this->tid = tid; };
 
-  void requestNumThreads(kmp_int32 numThreads);
+  void requestNumThreads(kmp_uint32 numThreads);
 
   void forkCall(Microtask microtask);
 

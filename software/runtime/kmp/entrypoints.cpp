@@ -216,6 +216,18 @@ void __kmpc_fork_teams(ident_t * /*loc*/, kmp_int32 argc, kmpc_micro microtask,
   // cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
+void __kmpc_push_num_teams(ident_t * /*loc*/, kmp_int32 global_tid,
+                           kmp_int32 num_teams, kmp_int32 num_threads) {
+  DEBUG_PRINT("num_teams: %d, num_threads: %d\n", num_teams, num_threads);
+  if (num_teams > 0) {
+    kmp::runtime::requestedNumTeams = num_teams;
+  }
+
+  if (num_threads > 0) {
+    kmp::runtime::requestedThreadLimit = num_threads;
+  }
+}
+
 kmp_int32 __kmpc_global_thread_num(ident_t * /*loc*/) {
   return static_cast<kmp_int32>(mempool_get_core_id());
 };

@@ -19,6 +19,7 @@ std::array<Thread, NUM_CORES> threads =
 Team defaultTeam(0, 0);
 
 std::optional<kmp_uint32> requestedNumTeams;
+std::optional<kmp_uint32> requestedThreadLimit;
 kmp_uint32 numTeams = 1;
 
 Barrier teamsBarrier(NUM_GROUPS);

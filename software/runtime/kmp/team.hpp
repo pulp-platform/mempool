@@ -78,6 +78,8 @@ public:
     }
   }
 
+  inline kmp_uint32 getTeamId() const { return teamId; }
+
   /**
    * @brief Schedule a static for loop. See
    * https://github.com/llvm/llvm-project/blob/f28c006a5895fc0e329fe15fead81e37457cb1d1/clang/lib/CodeGen/CGStmtOpenMP.cpp#L2900
@@ -108,10 +110,6 @@ public:
 
     kmp_uint32 tid = runtime::getCurrentThread().getTid();
 
-    UnsignedT numChunks = (static_cast<UnsignedT>(pupper - plower) +
-                           static_cast<UnsignedT>(chunk)) /
-                          static_cast<UnsignedT>(chunk);
-
     switch (schedtype) {
     case kmp_sch_static: {
 
@@ -128,11 +126,42 @@ public:
     case kmp_sch_static_chunked: {
       assert(incr != 0 && "Loop increment must be non-zero");
 
+      UnsignedT numChunks = (static_cast<UnsignedT>(pupper - plower) +
+                             static_cast<UnsignedT>(chunk)) /
+                            static_cast<UnsignedT>(chunk);
+
       SignedT span = incr * chunk;
       *pstride = span * static_cast<SignedT>(numThreads);
       *plower = *plower + static_cast<T>(tid) * static_cast<T>(span);
       *pupper = *plower + static_cast<T>(span - incr);
       *plastiter = (tid == (numChunks - 1) % numThreads);
+
+      break;
+    }
+    case kmp_distribute_static: {
+
+      // Calculate chunk size
+      // https://stackoverflow.com/a/14878734
+      chunk = static_cast<SignedT>(*pupper - *plower + 1) /
+                  static_cast<SignedT>(runtime::numTeams) +
+              (static_cast<SignedT>(*pupper - *plower + 1) %
+                   static_cast<SignedT>(runtime::numTeams) !=
+               0);
+
+      // Fall through to static chunked
+    }
+    case kmp_distribute_static_chunked: {
+      assert(incr != 0 && "Loop increment must be non-zero");
+
+      UnsignedT numChunks = (static_cast<UnsignedT>(pupper - plower) +
+                             static_cast<UnsignedT>(chunk)) /
+                            static_cast<UnsignedT>(chunk);
+
+      SignedT span = incr * chunk;
+      *pstride = span * static_cast<SignedT>(runtime::numTeams);
+      *plower = *plower + static_cast<T>(teamId) * static_cast<T>(span);
+      *pupper = *plower + static_cast<T>(span - incr);
+      *plastiter = (teamId == (numChunks - 1) % runtime::numTeams);
 
       break;
     }

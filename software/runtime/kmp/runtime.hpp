@@ -23,6 +23,7 @@ extern std::array<Thread, NUM_CORES> threads;
 extern Team defaultTeam;
 
 extern std::optional<kmp_uint32> requestedNumTeams;
+extern std::optional<kmp_uint32> requestedThreadLimit;
 extern kmp_uint32 numTeams;
 
 extern Barrier teamsBarrier;
