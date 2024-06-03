@@ -83,7 +83,7 @@ mempool_group #(
   .scan_data_o             (scan_data_o),
   .group_id_i              (group_id_i),
   .tcdm_master_req_o       (tcdm_master_req),
-  .tcdm_master_req_valid_o (tcdm_master_retcdm_req_tq_valid),
+  .tcdm_master_req_valid_o (tcdm_master_req_valid),
   .tcdm_master_req_ready_i (tcdm_master_req_ready),
   .tcdm_master_resp_i      (tcdm_master_resp),
   .tcdm_master_resp_valid_i(tcdm_master_resp_valid),
@@ -106,7 +106,62 @@ mempool_group #(
 
 
 // Instantiate the floo_tcdm_chimney for each tile
-  for (genvar i = 0; i < NumTilesPerGroup; i++) begin : floo_tcdm_chimney_connection
+tcdm_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_req_to_chimney, tcdm_req_from_chimney;
+tcdm_resp_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_resp_to_chimney, tcdm_resp_from_chimney;
+
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_floo_tcdm_chimney_connection_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_floo_tcdm_chimney_connection_j
+    assign tcdm_req_to_chimney[i][j] = tcdm_req_t'{
+      payload: tcdm_req_payload_t'{
+        amo : tcdm_master_req.wdata.amo,
+        wen : tcdm_master_req.wen,
+        be  : tcdm_master_req.be,
+        data: tcdm_master_req.wdata.data
+      },
+      meta: tcdm_req_meta_t'{
+        meta_id : tcdm_master_req.wdata.meta_id,
+        core_id : tcdm_master_req.wdata.core_id,
+        tile_id : i,
+        group_id: group_id_i,
+        tgt_addr: tcdm_master_req.tgt_addr
+      }
+    };
+
+    assign tcdm_resp_to_chimney[i][j] = tcdm_resp_t'{
+      payload: tcdm_resp_payload_t'{
+        amo : tcdm_slave_resp.rdata.amo,
+        data: tcdm_slave_resp.rdata.data
+      },
+      meta: tcdm_resp_meta_t'{
+        meta_id : tcdm_slave_resp.rdata.meta_id,
+        core_id : tcdm_slave_resp.rdata.core_id,
+        tile_id : tcdm_slave_resp.ini_addr,
+        group_id: '0 // TODO: should get this info from group
+      }
+    };
+
+    assign tcdm_master_resp[i][j] = tcdm_master_resp_t'{
+      rdata: tcdm_payload_t'{
+        meta_id : tcdm_resp_from_chimney.meta.meta_id,
+        core_id : tcdm_resp_from_chimney.meta.core_id,
+        amo     : tcdm_resp_from_chimney.payload.amo,
+        data    : tcdm_resp_from_chimney.payload.data
+      }
+    };
+
+    assign tcdm_slave_req[i][j] = tcdm_slave_req_t'{
+      wdata: tcdm_payload_t'{
+        meta_id : tcdm_req_from_chimney.meta.meta_id,
+        core_id : tcdm_req_from_chimney.meta.core_id,
+        amo     : tcdm_req_from_chimney.payload.amo,
+        data    : tcdm_req_from_chimney.payload.data
+      },
+      wen     : tcdm_req_from_chimney.payload.wen,
+      be      : tcdm_req_from_chimney.payload.be,
+      tgt_addr: tcdm_req_from_chimney.meta.tgt_addr,
+      ini_addr: tcdm_req_from_chimney.meta.group_id
+    };
+
     floo_tcdm_chimney #(
       .tcdm_req_t        (tcdm_req_t),
       .tcdm_rsp_t        (tcdm_rsp_t),
@@ -119,6 +174,20 @@ mempool_group #(
     ) u_floo_tcdm_chimney (
       .clk_i             (clk_i),
       .rst_ni            (rst_ni),
+      /// TCDM to NoC interface
+      .tcdm_req_i        (tcdm_req_to_chimney   [i][j]),
+      .tcdm_req_valid_i  (tcdm_master_req_valid [i][j]),
+      .tcdm_req_ready_o  (tcdm_master_req_ready [i][j]),
+      .tcdm_rsp_o        (tcdm_resp_from_chimney[i][j]),
+      .tcdm_rsp_valid_o  (tcdm_master_resp_valid[i][j]),
+      .tcdm_rsp_ready_i  (tcdm_master_resp_ready[i][j]),
+      /// NoC to TCDM interface
+      .tcdm_req_o        (tcdm_req_from_chimney [i][j]),
+      .tcdm_req_valid_o  (tcdm_slave_req_valid  [i][j]),
+      .tcdm_req_ready_i  (tcdm_slave_req_ready  [i][j]),
+      .tcdm_rsp_i        (tcdm_resp_to_chimney  [i][j]),
+      .tcdm_rsp_valid_i  (tcdm_slave_resp_valid [i][j]),
+      .tcdm_rsp_ready_o  (tcdm_slave_resp_ready [i][j]),
       // Coordinates/ID of the current tile
       .id_i              (group_id),
       // Routing table and address map
@@ -139,7 +208,8 @@ mempool_group #(
       .floo_rsp_valid_i  (floo_rsp_valid[i]),
       .floo_rsp_ready_o  (floo_rsp_ready[i])
     );
-  end : floo_tcdm_chimney_connection
+  end : floo_tcdm_chimney_connection_j
+end : floo_tcdm_chimney_connection_i
 
 
 

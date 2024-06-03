@@ -285,6 +285,46 @@ package mempool_pkg;
     dma_payload_t rdata;
   } tcdm_dma_resp_t;
 
+
+  // noc req types
+  typedef struct packed {
+    amo_t amo;
+    logic wen;
+    strb_t be;
+    data_t data;
+  } tcdm_req_payload_t;
+ 
+  typedef struct packed {
+    meta_id_t meta_id;
+    tile_core_id_t core_id;
+    tile_group_id_t tile_id;
+    group_id_t group_id;
+    tile_addr_t tgt_addr;
+  } tcdm_req_meta_t;
+
+  typedef struct packed {
+    tcdm_req_payload_t payload;
+    tcdm_req_meta_t meta;
+  } tcdm_req_t;
+
+  // noc resp types
+  typedef struct packed {
+    amo_t amo;
+    data_t data;
+  } tcdm_resp_payload_t;
+ 
+  typedef struct packed {
+    meta_id_t meta_id;
+    tile_core_id_t core_id;
+    tile_group_id_t tile_id;
+    group_id_t group_id;
+  } tcdm_resp_meta_t;
+
+  typedef struct packed {
+    tcdm_resp_payload_t payload;
+    tcdm_resp_meta_t meta;
+  } tcdm_resp_t;
+
   /**********************
    *  QUEUE PARAMETERS  *
    **********************/
