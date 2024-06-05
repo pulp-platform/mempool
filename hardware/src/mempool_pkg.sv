@@ -247,6 +247,7 @@ package mempool_pkg;
     tcdm_payload_t wdata;
     logic wen;
     strb_t be;
+    group_id_t tgt_group_id;
     tcdm_addr_t tgt_addr;
   } tcdm_master_req_t;
 
@@ -285,8 +286,7 @@ package mempool_pkg;
     dma_payload_t rdata;
   } tcdm_dma_resp_t;
 
-
-  // noc req types
+  // FlooNoC req types
   typedef struct packed {
     amo_t amo;
     logic wen;
@@ -297,9 +297,10 @@ package mempool_pkg;
   typedef struct packed {
     meta_id_t meta_id;
     tile_core_id_t core_id;
-    tile_group_id_t tile_id;
-    group_id_t group_id;
-    tile_addr_t tgt_addr;
+    tile_group_id_t src_tile_id;
+    group_id_t src_group_id;
+    group_id_t tgt_group_id;
+    tcdm_addr_t tgt_addr;
   } tcdm_req_meta_t;
 
   typedef struct packed {
@@ -307,7 +308,7 @@ package mempool_pkg;
     tcdm_req_meta_t meta;
   } tcdm_req_t;
 
-  // noc resp types
+  // FlooNoC resp types
   typedef struct packed {
     amo_t amo;
     data_t data;

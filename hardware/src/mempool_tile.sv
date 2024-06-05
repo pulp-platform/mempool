@@ -80,7 +80,7 @@ module mempool_tile
   `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
 
   // Group ID
-  logic [idx_width(NumGroups)-1:0] group_id;
+  group_id_t group_id;
   if (NumGroups != 1) begin: gen_group_id
     assign group_id = tile_id_i[$clog2(NumTiles)-1 -: $clog2(NumGroups)];
   end else begin: gen_group_id
@@ -340,6 +340,7 @@ module mempool_tile
   typedef struct packed {
     local_req_interco_addr_t ini_addr;
     meta_id_t meta_id;
+    group_id_t group_id;
     tile_group_id_t tile_id;
     tile_core_id_t core_id;
     logic wide;
@@ -796,13 +797,15 @@ module mempool_tile
       end
       if (NumGroups == 1) begin : gen_remote_req_interco_tgt_sel
         assign remote_req_interco_tgt_sel[c] = 1'b0;
+        assign remote_req_interco[c].tgt_group_id = '0;
       end else begin : gen_remote_req_interco_tgt_sel
         // Output port depends on both the target and initiator group
         // If the target group is the same as the initiator group, the target is the local Group, through port 0
         // Otherwise, the target is a remote group, through port 1 to NumRemotePortsPerTile, used in a round-robin fashion by modulus
-        logic [idx_width(NumGroups)-1:0] tgt_group_id;
+        group_id_t tgt_group_id;
         assign tgt_group_id = prescramble_tcdm_req_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)];
         assign remote_req_interco_tgt_sel[c] = (tgt_group_id == group_id) ? 0 : (1 + (tgt_group_id % (NumRemotePortsPerTile - 1)));
+        assign remote_req_interco[c].tgt_group_id = tgt_group_id;
       end
 
     // We don't care about these
