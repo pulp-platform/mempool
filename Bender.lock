@@ -105,10 +105,10 @@ packages:
     - axi
     - common_cells
   spatz:
-    revision: 5dd9da2ed048a6d58849267198c926e158a01f10
+    revision: null
     version: null
     source:
-      Git: git@iis-git.ee.ethz.ch:spatz/spatz.git
+      Path: hardware/deps/spatz
     dependencies:
     - axi
     - axi_riscv_atomics

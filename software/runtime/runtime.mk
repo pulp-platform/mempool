@@ -44,8 +44,8 @@ ifeq ($(COMPILER),gcc)
 	else
 		RISCV_ARCH_AS ?= rv$(RISCV_ARCH)ima
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
-
 	endif
+
 	RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
 	# GCC Toolchain
 	RISCV_PREFIX  ?= $(GCC_INSTALL_DIR)/bin/$(RISCV_TARGET)-

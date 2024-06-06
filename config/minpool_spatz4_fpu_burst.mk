@@ -62,3 +62,10 @@ parallel_manager ?= 1
 
 # Deactivate the XpulpIMG extension
 xpulpimg ?= 0
+
+# L2 Banks/Channels
+l2_size  ?= 4194304  # 400000
+l2_banks ?= 4
+
+# Number of DMA backends in each group
+dmas_per_group ?= 1 # Brust Length = 16

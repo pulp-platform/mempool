@@ -694,7 +694,37 @@ def main():
         emit_header_file("FusedConv", **kwargs)
 
     else:
-        print("No valid kernel selected")
+        print("No valid kernel selected, default to matmul")
+        mat_A, bits_A = rand_data_generator((param["M"], param["N"]), param["prec"])
+        mat_B, bits_B = rand_data_generator((param["N"], param["P"]), param["prec"])
+        mat_C, bits_C = rand_data_generator((param["M"], param["P"]), param["prec"])
+
+        result = param["alpha"] * mat_C + torch.matmul(mat_A, mat_B)
+
+        if param["transpose_A"]:
+            mat_A = mat_A.T
+        if param["transpose_B"]:
+            mat_B = mat_B.T
+
+        kwargs = {
+            "A": mat_A,
+            "B": mat_B,
+            "C": mat_C,
+            "result": result,
+            "M": param["M"],
+            "N": param["N"],
+            "P": param["P"],
+            "ta": param["transpose_A"],
+            "tb": param["transpose_B"],
+            "alpha": param["alpha"],
+            "prec": param["prec"],
+            "expand": param["expand"],
+            "bits_A": bits_A,
+            "bits_B": bits_B,
+            "bits_C": bits_C,
+        }
+
+        emit_header_file("GEMM", **kwargs)
 
 
 if __name__ == "__main__":

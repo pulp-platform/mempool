@@ -91,9 +91,7 @@ module mempool_cc
     logic isfloat;
   } acc_issue_rsp_t;
 
-  fpnew_pkg::roundmode_e fpu_rnd_mode;
   fpnew_pkg::fmt_mode_t fpu_fmt_mode;
-  fpnew_pkg::status_t fpu_status;
 
   // These signals are for Spatz
   acc_issue_rsp_t acc_req_rsp;

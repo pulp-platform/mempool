@@ -10,6 +10,7 @@ RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin)
 APPS_DIR := $(ROOT_DIR)
 TESTS_DIR := $(abspath $(SOFTWARE_DIR)/riscv-tests/isa)
+
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
 
@@ -35,7 +36,6 @@ else
 endif
 
 BUILD_TARGETS := $(patsubst $(ROOT_DIR)/%,%,$(shell find $(ROOT_DIR) -mindepth 1 -maxdepth 1 -type d))
-CLEAN_TARGETS := $(addprefix clean-,$(BUILD_TARGETS))
 
 # Make all applications
 all: $(ALL)
@@ -58,9 +58,16 @@ $(BUILD_TARGETS):
 
 # Clean all applications
 .PHONY: clean
-clean: $(CLEAN_TARGETS)
+clean:
+	rm -vf $(BINARIES)
+	rm -vf $(SPATZ_BINARIES)
+	rm -vf $(addsuffix .dump,$(BINARIES))
+	rm -vf $(addsuffix .dump,$(SPATZ_BINARIES))
+	rm -vf $(addsuffix /main.c.o,$(APPS))
+	rm -vf $(RUNTIME)
+	rm -vf $(LINKER_SCRIPT)
 
 .PHONY: $(CLEAN_TARGETS)
 $(CLEAN_TARGETS): clean-% :
+	echo $(BUILD_TARGETS)
 	make -C $* clean
-
