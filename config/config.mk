@@ -16,7 +16,7 @@ ifndef config
     config := $(MEMPOOL_CONFIGURATION)
   else
     # Default configuration, if neither `config` nor `MEMPOOL_CONFIGURATION` was found
-    config := mempool
+    config := minpool
   endif
 endif
 include $(MEMPOOL_DIR)/config/$(config).mk
@@ -67,10 +67,10 @@ xqueue_size ?= 0
 ################################
 
 # Enable the XpulpIMG extension
-xpulpimg ?= 1
+xpulpimg ?= 0
 
 # Enable FPU extensions
-zfinx ?= 1
+zfinx ?= 0
 
 # Enable FPU extensions
 zquarterinx ?= 0

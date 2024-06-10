@@ -9,7 +9,7 @@
 ###############
 
 # Number of cores
-num_cores ?= 16
+num_cores ?= 32
 
 # Number of groups
 num_groups ?= 4
@@ -37,7 +37,7 @@ ro_line_width ?= 256
 dmas_per_group ?= 1
 
 # Radix for hierarchical AXI interconnect
-axi_hier_radix ?= 2
+axi_hier_radix ?= 3
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 1
