@@ -41,10 +41,10 @@ l1_bank_size ?= 1024
 
 # Size of sequential memory per core (in bytes)
 # (must be a power of two)
-seq_mem_size ?= 512
+seq_mem_size ?= 1024
 
 # Size of stack in sequential memory per core (in bytes)
-stack_size ?= 512
+stack_size ?= 1024
 
 #########################
 ##  AXI configuration  ##
