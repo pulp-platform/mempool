@@ -29,6 +29,7 @@ module mempool_system
 
   import axi_pkg::xbar_cfg_t;
   import axi_pkg::xbar_rule_32_t;
+  import cf_math_pkg::idx_width;
 
   `include "reqrsp_interface/typedef.svh"
 
@@ -79,6 +80,8 @@ module mempool_system
     L2Memory = 1
   } axi_mst_demux_slave_target;
 
+  axi_tile_req_t    [NumClusters*NumAXIMastersPerCluster-1:0] axi_cluster_req;
+  axi_tile_resp_t   [NumClusters*NumAXIMastersPerCluster-1:0] axi_cluster_resp;
   axi_tile_req_t    [NumAXIMasters-1:0] axi_mst_req;
   axi_tile_resp_t   [NumAXIMasters-1:0] axi_mst_resp;
   axi_tile_req_t    [NumAXIMasters-1:0] axi_l2_req;
@@ -133,34 +136,63 @@ module mempool_system
    *  MemPool Cluster  *
    ********************/
   for (genvar i = 0; i < NumClusters; i++) begin : gen_clusters
+    logic [idx_width(NumClusters)-1:0] cluster_id = i;
     mempool_cluster #(
       .TCDMBaseAddr(i*L1SizePerCluster), // TODO: i*L1SizePerCluster
       .BootAddr    (BootAddr          )
     ) i_mempool_cluster (
-      .clk_i          (clk_i                                                       ),
-      .rst_ni         (rst_ni                                                      ),
-      .cluster_id_i   (i                                                           ),
-      .wake_up_i      (wake_up[i*NumCoresPerCluster+:NumCoresPerCluster]           ),
-      .testmode_i     (1'b0                                                        ),
-      .scan_enable_i  (1'b0                                                        ),
-      .scan_data_i    (1'b0                                                        ),
-      .scan_data_o    (/* Unused */                                                ),
-      .ro_cache_ctrl_i(ro_cache_ctrl                                               ),
-      .dma_req_i      (dma_req[i]                                                  ),
-      .dma_req_valid_i(dma_req_valid[i]                                            ),
-      .dma_req_ready_o(dma_req_ready[i]                                            ),
-      .dma_meta_o     (dma_meta[i]                                                 ),
-      .axi_mst_req_o  (axi_mst_req[i*NumAXIMastersPerCluster+:NumAXIMastersPerCluster] ),
-      .axi_mst_resp_i (axi_mst_resp[i*NumAXIMastersPerCluster+:NumAXIMastersPerCluster])
+      .clk_i          (clk_i                                                               ),
+      .rst_ni         (rst_ni                                                              ),
+      .cluster_id_i   (cluster_id                                                          ),
+      .wake_up_i      (wake_up[i*NumCoresPerCluster+:NumCoresPerCluster]                   ),
+      .testmode_i     (1'b0                                                                ),
+      .scan_enable_i  (1'b0                                                                ),
+      .scan_data_i    (1'b0                                                                ),
+      .scan_data_o    (/* Unused */                                                        ),
+      .ro_cache_ctrl_i(ro_cache_ctrl                                                       ),
+      .dma_req_i      (dma_req[i]                                                          ),
+      .dma_req_valid_i(dma_req_valid[i]                                                    ),
+      .dma_req_ready_o(dma_req_ready[i]                                                    ),
+      .dma_meta_o     (dma_meta[i]                                                         ),
+      .axi_mst_req_o  (axi_cluster_req[i*NumAXIMastersPerCluster+:NumAXIMastersPerCluster] ),
+      .axi_mst_resp_i (axi_cluster_resp[i*NumAXIMastersPerCluster+:NumAXIMastersPerCluster])
     );
   end
+
+  axi_hier_interco #(
+    .NumSlvPorts    (NumAXIMastersPerCluster*NumClusters                           ),
+    .NumMstPorts    (NumAXIMastersAllClusters                                      ),
+    .Radix          ((NumAXIMastersPerCluster*NumClusters)/NumAXIMastersAllClusters),
+    .EnableCache    (32'h00000000                                                  ),
+    .CacheLineWidth (ROCacheLineWidth                ),
+    .CacheSizeByte  (ROCacheSizeByte                 ),
+    .CacheSets      (ROCacheSets                     ),
+    .AddrWidth      (AddrWidth                       ),
+    .DataWidth      (AxiDataWidth                    ),
+    .SlvIdWidth     (AxiTileIdWidth                  ),
+    .MstIdWidth     (AxiTileIdWidth                  ),
+    .UserWidth      (1                               ),
+    .slv_req_t      (axi_tile_req_t                  ),
+    .slv_resp_t     (axi_tile_resp_t                 ),
+    .mst_req_t      (axi_tile_req_t                  ),
+    .mst_resp_t     (axi_tile_resp_t                 )
+  ) i_axi_interco (
+    .clk_i           (clk_i                                     ),
+    .rst_ni          (rst_ni                                    ),
+    .test_i          (1'b0                                      ),
+    .ro_cache_ctrl_i (ro_cache_ctrl                             ),
+    .slv_req_i       (axi_cluster_req                           ),
+    .slv_resp_o      (axi_cluster_resp                          ),
+    .mst_req_o       (axi_mst_req[NumAXIMastersAllClusters-1:0] ),
+    .mst_resp_i      (axi_mst_resp[NumAXIMastersAllClusters-1:0])
+  );
 
   /**********************
    *  AXI Interconnect  *
    **********************/
 
   localparam addr_t PeripheralsBaseAddr   = 32'h4000_0000;
-  localparam addr_t PeripheralsEndAddr    = 32'h4002_0000;
+  localparam addr_t PeripheralsEndAddr    = 32'h6000_0000;
   localparam addr_t L2MemoryBaseAddr      = `ifdef L2_BASE `L2_BASE `else 32'h8000_0000 `endif;
   localparam addr_t L2MemoryEndAddr       = L2MemoryBaseAddr + L2Size;
   localparam addr_t BootromBaseAddr       = 32'hA000_0000;
@@ -254,6 +286,8 @@ module mempool_system
   typedef logic [NumL2BanksWidth-1:0] l2_bank_idx_t;
   axi_to_l2_req_chan_t [NumAXIMasters-1:0] axi_to_l2_req_chan;
   axi_to_l2_rsp_chan_t [NumAXIMasters-1:0] axi_to_l2_rsp_chan;
+  logic                [NumAXIMasters-1:0] axi_to_l2_q_throttle_valid;
+  logic                [NumAXIMasters-1:0] axi_to_l2_q_throttle_ready;
   logic                [NumAXIMasters-1:0] axi_to_l2_q_valid;
   logic                [NumAXIMasters-1:0] axi_to_l2_q_ready;
   l2_bank_idx_t        [NumAXIMasters-1:0] axi_to_l2_q_sel;
@@ -283,7 +317,7 @@ module mempool_system
       .AddrWidth    (L2AddrWidth    ),
       .DataWidth    (AxiDataWidth   ),
       .IdWidth      (AxiTileIdWidth ),
-      .BufDepth     (0              ),
+      .BufDepth     (2              ),
       .reqrsp_req_t (axi_to_l2_req_t),
       .reqrsp_rsp_t (axi_to_l2_rsp_t)
     ) i_axi_to_reqrsp (
@@ -304,6 +338,20 @@ module mempool_system
     assign axi_to_l2_p_ready[i]     = axi_to_l2_req[i].p_ready;
     // Generate the selection signal
     assign axi_to_l2_q_sel[i] = axi_to_l2_req_chan[i].addr[$clog2(L2BankBeWidth)+:NumL2BanksWidth];
+    // Throttle the to one oustanding transaction to avoid reordering without a ROB
+    stream_throttle #(
+      .MaxNumPending (1)
+    ) i_stream_throttle (
+      .clk_i       (clk_i                        ),
+      .rst_ni      (rst_ni                       ),
+      .req_valid_i (axi_to_l2_q_valid[i]         ),
+      .req_valid_o (axi_to_l2_q_throttle_valid[i]),
+      .req_ready_i (axi_to_l2_q_throttle_ready[i]),
+      .req_ready_o (axi_to_l2_q_ready[i]         ),
+      .rsp_valid_i (axi_to_l2_p_valid[i]         ),
+      .rsp_ready_i (axi_to_l2_p_ready[i]         ),
+      .credit_i    (1'b1                         )
+    );
   end
 
   stream_xbar #(
@@ -315,18 +363,18 @@ module mempool_system
     .AxiVldRdy   (1'b1                ),
     .LockIn      (1'b1                )
   ) i_l2_req_xbar (
-    .clk_i   (clk_i             ),
-    .rst_ni  (rst_ni            ),
-    .flush_i (1'b0              ),
-    .rr_i    ('0                ),
-    .data_i  (axi_to_l2_req_chan),
-    .sel_i   (axi_to_l2_q_sel   ),
-    .valid_i (axi_to_l2_q_valid ),
-    .ready_o (axi_to_l2_q_ready ),
-    .data_o  (mem_req_chan      ),
-    .idx_o   (axi_to_l2_q_idx   ),
-    .valid_o (mem_req_valid     ),
-    .ready_i (mem_req_ready     )
+    .clk_i   (clk_i                     ),
+    .rst_ni  (rst_ni                    ),
+    .flush_i (1'b0                      ),
+    .rr_i    ('0                        ),
+    .data_i  (axi_to_l2_req_chan        ),
+    .sel_i   (axi_to_l2_q_sel           ),
+    .valid_i (axi_to_l2_q_throttle_valid),
+    .ready_o (axi_to_l2_q_throttle_ready),
+    .data_o  (mem_req_chan              ),
+    .idx_o   (axi_to_l2_q_idx           ),
+    .valid_o (mem_req_valid             ),
+    .ready_i (mem_req_ready             )
   );
 
   stream_xbar #(
@@ -773,7 +821,7 @@ module mempool_system
     .mst_ports_req_o      (axi_lite_slv_req   ),
     .mst_ports_resp_i     (axi_lite_slv_resp  ),
     .addr_map_i           (axi_lite_xbar_rules),
-    .en_default_mst_port_i('1                 ),
+    .en_default_mst_port_i(1'b1               ),
     .default_mst_port_i   (CtrlRegisters      )
   );
 
@@ -796,6 +844,7 @@ module mempool_system
 
   for (genvar i = 0; i < NumClusters; i++) begin : gen_mempool_dma
     mempool_dma #(
+      .DmaReportID   (i                        ),
       .axi_lite_req_t(axi_lite_slv_req_t       ),
       .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
       .burst_req_t   (dma_req_t                ),

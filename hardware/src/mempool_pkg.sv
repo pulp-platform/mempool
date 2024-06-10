@@ -19,7 +19,7 @@ package mempool_pkg;
   localparam integer unsigned NumDivsqrtPerTile   = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
   localparam integer unsigned NumGroups           = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
   localparam integer unsigned NumClusters         = `ifdef NUM_CLUSTERS `NUM_CLUSTERS `else 0 `endif;
-  localparam integer unsigned MAX_NumGroups       = 32;
+  localparam integer unsigned MAX_NumGroups       = 64;
   localparam integer unsigned NumGroupsPerCluster = NumGroups / NumClusters;
   localparam integer unsigned NumTiles            = NumCores / NumCoresPerTile;
   localparam integer unsigned NumTilesPerCluster  = NumTiles / NumClusters;
@@ -106,10 +106,11 @@ package mempool_pkg;
     endfunction
   `endif
 
-  localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
+  localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;
   localparam integer unsigned NumAXIMastersPerCluster = NumAXIMastersPerGroup * NumGroupsPerCluster;
+  localparam integer unsigned NumAXIMastersAllClusters = `ifdef AXI_MASTERS_ALL_CLUSTERS `AXI_MASTERS_ALL_CLUSTERS `else 1 `endif;
 
-  localparam NumSystemXbarMasters = (NumGroups * NumAXIMastersPerGroup) + 1; // +1 because the external host is also a master
+  localparam NumSystemXbarMasters = (NumAXIMastersAllClusters) + 1; // +1 because the external host is also a master
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
   typedef logic [AxiSystemIdWidth-1:0] axi_system_id_t;
 

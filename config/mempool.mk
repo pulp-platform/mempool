@@ -30,6 +30,9 @@ axi_hier_radix ?= 17
 # Number of AXI masters per group
 axi_masters_per_group ?= 1
 
+# Numer of AXI masters for all clusters
+axi_masters_all_clusters ?= 4
+
 # Number of DMA backends in each group
 dmas_per_group ?= 1 # Brust Length = 16
 

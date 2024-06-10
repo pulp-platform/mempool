@@ -132,6 +132,7 @@ vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix)
 vlog_defs += -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
+vlog_defs += -DAXI_MASTERS_ALL_CLUSTERS=$(axi_masters_all_clusters)
 # Systolic configurations
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size)
 vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)

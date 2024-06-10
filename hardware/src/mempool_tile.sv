@@ -796,7 +796,7 @@ module mempool_tile
     // Highest priority: send request through the local TCDM port
     '{slave_idx: TCDM_LOCAL,
       mask     : TCDMMask | ({idx_width(NumTilesPerCluster){1'b1}} << (ByteOffset + $clog2(NumBanksPerTile))),
-      value    : TCDMBaseAddr | (tile_id_i << (ByteOffset + $clog2(NumBanksPerTile)))
+      value    : TCDMBaseAddr | (tile_id_i[idx_width(NumTilesPerCluster)-1:0] << (ByteOffset + $clog2(NumBanksPerTile)))
     }
   };
 
