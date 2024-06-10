@@ -20,7 +20,7 @@ if {[examine -radix dec /snitch_pkg::XPULPIMG]} {
   add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $num_cores -radix unsigned /mempool_tb/gen_utilization/mac_utilization
   add wave -noupdate -group Utilization /mempool_tb/gen_utilization/dspu_mac
 }
-set axi_channels [expr [examine -radix dec mempool_pkg::NumGroups] * [examine -radix dec mempool_pkg::NumAXIMastersPerGroup]]
+set axi_channels [examine -radix dec mempool_pkg::NumAXIMastersAllClusters]
 add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $axi_channels -radix unsigned /mempool_tb/axi_w_utilization
 add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-Step -height 84 -max $axi_channels -radix unsigned /mempool_tb/axi_r_utilization
 
@@ -28,39 +28,27 @@ add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-St
 # Add a vector of the core's wfi signal to quickly see which cores are active
 add wave /mempool_tb/wfi
 
-# Add all cores from group 0 tile 0
-for {set core 0}  {$core < [examine -radix dec mempool_pkg::NumCoresPerTile]} {incr core} {
-    if {$config == {terapool}} {
-        do ../scripts/questa/wave_core.tcl 0 0 0 0 $core
-    } else {
-        do ../scripts/questa/wave_core.tcl 0 0 0 $core
-    }
-}
-
-# Add specific cores from different tiles
-if {$config == {terapool}} {
-    do ../scripts/questa/wave_core.tcl 0 1 0 0 0
-} else {
-    do ../scripts/questa/wave_core.tcl 0 1 0 0
-}
-
 # Add groups
 for {set cluster 0} {$cluster < [examine -radix dec /mempool_pkg::NumClusters]} {incr cluster} {
     # Add cluster
     do ../scripts/questa/wave_cluster.tcl $cluster
-    add wave -Group cluster_[$cluster] -Group dma /mempool_tb/dut/gen_mempool_dma[$cluster]/i_mempool_dma/*
-    add wave -Group cluster_[$cluster] -Group dma -Group reg /mempool_tb/dut/gen_mempool_dma[$cluster]/i_mempool_dma/i_mempool_dma_frontend_reg_top/*
     # Add groups
     for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroupsPerCluster]} {incr group} {
         # Add tiles
         if {$config == {terapool}} {
             for {set subgroup 0} {$subgroup < [expr min(4,[examine -radix dec /mempool_pkg::NumSubGroupsPerGroup])]} {incr subgroup} {
                 for {set tile 0} {$tile < [expr min(4,[examine -radix dec /mempool_pkg::NumTilesPerSubGroup])]} {incr tile} {
+                    for {set core 0} {$core < [expr min(4,[examine -radix dec /mempool_pkg::NumCoresPerTile])]} {incr core} {
+                        do ../scripts/questa/wave_core.tcl $cluster $group $subgroup $tile $core
+                    }
                     do ../scripts/questa/wave_tile.tcl $cluster $group $subgroup $tile
                 }
             }
         } else {
             for {set tile 0} {$tile < [expr min(4,[examine -radix dec /mempool_pkg::NumTilesPerGroup])]} {incr tile} {
+                for {set core 0} {$core < [expr min(4,[examine -radix dec /mempool_pkg::NumCoresPerTile])]} {incr core} {
+                    do ../scripts/questa/wave_core.tcl $cluster $group $tile $core
+                }
                 do ../scripts/questa/wave_tile.tcl $cluster $group $tile
             }
         }
@@ -80,9 +68,20 @@ for {set cluster 0} {$cluster < [examine -radix dec /mempool_pkg::NumClusters]} 
             add wave -group cluster_[$cluster] -group group_[$group] -group interconnect_local /mempool_tb/dut/gen_clusters[$cluster]/i_mempool_cluster/gen_groups[$group]/i_group/i_local_interco/*
         }
     }
+    add wave -Group cluster_[$cluster] -Group dma /mempool_tb/dut/gen_mempool_dma[$cluster]/i_mempool_dma/*
+    add wave -Group cluster_[$cluster] -Group dma -Group reg /mempool_tb/dut/gen_mempool_dma[$cluster]/i_mempool_dma/i_mempool_dma_frontend_reg_top/*
 }
 
 add wave -Group Control_Registers /mempool_tb/dut/i_ctrl_registers/*
+
+add wave -Group hier_interco /mempool_tb/dut/i_axi_interco/clk_i
+add wave -Group hier_interco /mempool_tb/dut/i_axi_interco/rst_ni
+add wave -Group hier_interco /mempool_tb/dut/i_axi_interco/test_i
+add wave -Group hier_interco /mempool_tb/dut/i_axi_interco/ro_cache_ctrl_i
+add wave -Group hier_interco /mempool_tb/dut/i_axi_interco/slv_req_i
+add wave -Group hier_interco /mempool_tb/dut/i_axi_interco/slv_resp_o
+add wave -Group hier_interco /mempool_tb/dut/i_axi_interco/mst_req_o
+add wave -Group hier_interco /mempool_tb/dut/i_axi_interco/mst_resp_i
 
 # for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr group} {
 #   if  {$config == {terapool}} {
