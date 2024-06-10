@@ -449,17 +449,15 @@ module mempool_tb;
   end
 
   // AXI
-  logic [NumGroups*NumAXIMastersPerGroup-1:0] w_valid, w_ready, r_ready, r_valid;
+  logic [NumAXIMastersAllClusters-1:0] w_valid, w_ready, r_ready, r_valid;
   int unsigned axi_w_utilization, axi_r_utilization;
   assign axi_w_utilization = $countones(w_valid & w_ready);
   assign axi_r_utilization = $countones(r_ready & r_valid);
-  for (genvar cl = 0; cl < NumClusters; cl++) begin
-    for (genvar a = 0; a < NumGroupsPerCluster*NumAXIMastersPerGroup; a++) begin
-      assign w_valid[cl*NumGroupsPerCluster*NumAXIMastersPerGroup+a] = dut.gen_clusters[cl].i_mempool_cluster.axi_mst_req_o[a].w_valid;
-      assign w_ready[cl*NumGroupsPerCluster*NumAXIMastersPerGroup+a] = dut.gen_clusters[cl].i_mempool_cluster.axi_mst_resp_i[a].w_ready;
-      assign r_ready[cl*NumGroupsPerCluster*NumAXIMastersPerGroup+a] = dut.gen_clusters[cl].i_mempool_cluster.axi_mst_req_o[a].r_ready;
-      assign r_valid[cl*NumGroupsPerCluster*NumAXIMastersPerGroup+a] = dut.gen_clusters[cl].i_mempool_cluster.axi_mst_resp_i[a].r_valid;
-    end
+  for (genvar a = 0; a < NumAXIMastersAllClusters; a++) begin
+    assign w_valid[a] = dut.axi_mst_req[a].w_valid;
+    assign w_ready[a] = dut.axi_mst_resp[a].w_ready;
+    assign r_ready[a] = dut.axi_mst_req[a].r_ready;
+    assign r_valid[a] = dut.axi_mst_resp[a].r_valid;
   end
 
 `endif

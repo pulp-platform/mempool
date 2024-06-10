@@ -11,6 +11,7 @@ module mempool_dma #(
   parameter int unsigned AddrWidth   = 32,
   parameter int unsigned DataWidth   = 32,
   parameter int unsigned NumBackends = 1,
+  parameter int unsigned DmaReportID = 0,
   /// AXI4+ATOP request struct definition.
   parameter type         axi_lite_req_t = logic,
   /// AXI4+ATOP response struct definition.
@@ -151,16 +152,16 @@ module mempool_dma #(
     end else begin
       if (valid_o && ready_i) begin
         $timeformat(-9, 0, " ns", 0);
-        $display("[DMA] Launch %t", $time);
+        $display("[DMA %d] Launch %t", DmaReportID, $time);
         poll = 0;
       end
       if (trans_complete_i) begin
         $timeformat(-9, 0, " ns", 0);
-        $display("[DMA] Complete %t", $time);
+        $display("[DMA %d] Complete %t", DmaReportID, $time);
       end
       if (config_req_i.ar_valid && config_res_o.ar_ready && poll == 0) begin
         $timeformat(-9, 0, " ns", 0);
-        $display("[DMA] Poll %t", $time);
+        $display("[DMA %d] Poll %t", DmaReportID, $time);
         poll = 1;
       end
     end

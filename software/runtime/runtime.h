@@ -12,11 +12,33 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define NUM_BANKS_PER_TILE NUM_CORES_PER_TILE *BANKING_FACTOR
+// Useful defines for common parameters
+// The config will define:
+// NUM_CORES
+// NUM_CORES_PER_TILE
+// NUM_GROUPS
+// NUM_CLUSTERS
+// BANKING_FACTOR
+// L1_BANK_SIZE
+// NUM_CORES_PER_GROUP
+// NUM_CORES_PER_CLUSTER
+// NUM_TILES_PER_GROUP
+// NUM_TILES_PER_CLUSTER
+#define NUM_TILES (NUM_CORES/NUM_CORES_PER_TILE)
+#define NUM_GROUPS_PER_CLUSTER (NUM_GROUPS/NUM_CLUSTERS)
+#define NUM_BANKS (NUM_CORES*BANKING_FACTOR)
+#define NUM_BANKS_PER_TILE (NUM_BANKS/NUM_TILES)
+#define NUM_BANKS_PER_GROUP (NUM_BANKS/NUM_GROUPS)
+#define NUM_BANKS_PER_CLUSTER (NUM_BANKS/NUM_CLUSTERS)
+#define L1_SIZE (NUM_BANKS*L1_BANK_SIZE)
+#define L1_SIZE_PER_TILE (L1_SIZE/NUM_TILES)
+#define L1_SIZE_PER_GROUP (L1_SIZE/NUM_GROUPS)
+#define L1_SIZE_PER_CLUSTER (L1_SIZE/NUM_CLUSTERS)
 
 extern char l1_alloc_base;
 static uint32_t volatile* wake_up_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_REG_OFFSET);
 static uint32_t volatile* wake_up_group_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_GROUP_REG_OFFSET);
+static uint32_t volatile* wake_up_cluster_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_CLUSTER_REG_OFFSET);
 
 static uint32_t volatile* wake_up_tile_g0_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_0_REG_OFFSET);
 static uint32_t volatile* wake_up_tile_g1_reg = (uint32_t volatile*)(CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_WAKE_UP_TILE_1_REG_OFFSET);
@@ -131,6 +153,12 @@ static inline void wake_up(uint32_t core_id) { *wake_up_reg = core_id; }
 static inline void wake_up_all() { wake_up((uint32_t)-1); }
 static inline void wake_up_group(uint32_t group_mask) {
   *wake_up_group_reg = group_mask;
+}
+static inline void wake_up_cluster_mask(uint32_t cluster_mask) {
+  *wake_up_cluster_reg = cluster_mask;
+}
+static inline void wake_up_cluster(uint32_t cluster) {
+  wake_up_cluster_mask((uint32_t)1 << cluster);
 }
 static inline void wake_up_all_group() { wake_up_group((uint32_t)-1); }
 

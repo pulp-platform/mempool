@@ -112,6 +112,7 @@ vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix) -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
+vlog_defs += -DAXI_MASTERS_ALL_CLUSTERS=$(axi_masters_all_clusters)
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size) -DXQUEUE_SIZE=$(xqueue_size)
 # This parameter is only used for TeraPool configurations
 vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group) -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
