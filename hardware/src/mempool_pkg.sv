@@ -79,9 +79,9 @@ package mempool_pkg;
   typedef logic [DataWidth-1:0] data_t;
   typedef logic [BeWidth-1:0] strb_t;
 
-  localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
+  localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;
   localparam integer unsigned NumAXIMastersPerCluster = NumAXIMastersPerGroup * NumGroupsPerCluster;
-  localparam integer unsigned NumAXIMastersAllClusters = `ifdef AXI_MASTERS_ALL_CLUSTERS `AXI_MASTERS_ALL_CLUSTERS `else 1 `endif;;
+  localparam integer unsigned NumAXIMastersAllClusters = `ifdef AXI_MASTERS_ALL_CLUSTERS `AXI_MASTERS_ALL_CLUSTERS `else 1 `endif;
 
   localparam NumSystemXbarMasters = (NumAXIMastersAllClusters) + 1; // +1 because the external host is also a master
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;

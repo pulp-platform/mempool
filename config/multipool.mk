@@ -9,35 +9,32 @@
 ###############
 
 # Number of cores
-num_cores ?= 64
+num_cores ?= 32
 
 # Number of groups
-num_groups ?= 16
+num_groups ?= 8
 
 # Number of clusters
-num_clusters ?= 4
+num_clusters ?= 2
 
 # Number of cores per MemPool tile
 num_cores_per_tile ?= 4
 
+# Number of shared divsqrt units per MemPool tile
+# Defaults to 1 if xDivSqrt is activated
+num_divsqrt_per_tile ?= 1
+
 # L1 scratchpad banking factor
 banking_factor ?= 4
-
-# Radix for hierarchical AXI interconnect
-axi_hier_radix ?= 20
-
-# Number of AXI masters per group
-axi_masters_per_group ?= 1
-
 
 #########################
 ##  AXI configuration  ##
 #########################
 # AXI bus data width (in bits)
-axi_data_width ?= 512
+axi_data_width ?= 256
 
 # Read-only cache line width in AXI interconnect (in bits)
-ro_line_width ?= 512
+ro_line_width ?= 256
 
 # Number of DMA backends in each group
 dmas_per_group ?= 1
@@ -47,3 +44,6 @@ axi_hier_radix ?= 2
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 1
+
+# Numer of AXI masters for all clusters
+axi_masters_all_clusters ?= 2
