@@ -311,8 +311,8 @@ module mempool_tb;
 
   for (genvar bank = 0; bank < NumL2Banks; bank++) begin : gen_l2_banks_init
     initial begin : l2_init
-      automatic logic [L2BankWidth-1:0] mem_row;
       byte buffer [];
+      automatic int a;
       addr_t address;
       addr_t length;
       string binary;
@@ -327,16 +327,17 @@ module mempool_tb;
           // Read sections
           automatic int nwords = (length + L2BeWidth - 1)/L2BeWidth;
           $display("Loading section %x of length %x", address, length);
-          buffer = new[nwords * L2BeWidth];
+          buffer = new[length];
           void'(read_section(address, buffer));
           // Initializing memories
-          for (int w = 0; w < nwords; w++) begin
-            mem_row = '0;
-            for (int b = 0; b < L2BankBeWidth; b++) begin
-              mem_row[8 * b +: 8] = buffer[(bank + w * NumL2Banks) * L2BankBeWidth + b];
-            end
-            if (address >= dut.L2MemoryBaseAddr && address < dut.L2MemoryEndAddr) begin
-              dut.gen_l2_banks[bank].l2_mem.init_val[(address - dut.L2MemoryBaseAddr + (w << L2ByteOffset)) >> L2ByteOffset] = mem_row;
+          for (int w = 0; w < length; w++) begin
+            a = w+address-dut.L2MemoryBaseAddr;
+            if (a >= 0 && a < (dut.L2MemoryEndAddr-dut.L2MemoryBaseAddr)) begin
+              if ((a / L2BankBeWidth) % NumL2Banks == bank) begin
+                // Only preload if the address belongs to our bank. This is required because we need
+                // to have the `bank` variable as a genvar on the outermost loop.
+                dut.gen_l2_banks[bank].l2_mem.init_val[a / L2BeWidth][8 * (a % L2BankBeWidth) +: 8] = buffer[w];
+              end
             end else begin
               $display("Cannot initialize address %x, which doesn't fall into the L2 region.", address);
             end
