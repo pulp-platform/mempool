@@ -101,9 +101,11 @@ module ctrl_registers
   /************************
    *  Wakeup Pulse Logic  *
    ************************/
+  import mempool_pkg::NumCoresPerCluster;
   import mempool_pkg::NumCoresPerGroup;
   import mempool_pkg::NumCoresPerTile;
   import mempool_pkg::NumTilesPerGroup;
+  import mempool_pkg::NumClusters;
   import mempool_pkg::NumGroups;
 
   // Delay the write-enable signal by one cycle so it arrives
@@ -111,12 +113,14 @@ module ctrl_registers
   logic wake_up_pulse;
   logic [MAX_NumGroups-1:0] wake_up_tile_pulse;
   logic wake_up_group_pulse;
+  logic wake_up_cluster_pulse;
 
   `FF(wake_up_pulse, ctrl_reg2hw.wake_up.qe, '0)
   for (genvar i = 0; i < MAX_NumGroups; i++) begin : gen_wake_up_tile_reg
     `FF(wake_up_tile_pulse[i], ctrl_reg2hw.wake_up_tile[i].qe, '0)
   end
   `FF(wake_up_group_pulse, ctrl_reg2hw.wake_up_group.qe, '0)
+  `FF(wake_up_cluster_pulse, ctrl_reg2hw.wake_up_cluster.qe, '0)
 
   always_comb begin
     wake_up_o = '0;
@@ -145,6 +149,16 @@ module ctrl_registers
           wake_up_o[NumCoresPerGroup * i +: NumCoresPerGroup] = {NumCoresPerGroup{ctrl_reg2hw.wake_up_group.q[i]}};
         end
       end else if (ctrl_reg2hw.wake_up_group.q == {DataWidth{1'b1}}) begin
+        wake_up_o = {NumCores{1'b1}};
+      end
+    end
+    // converts 32-bit cluster wake-up mask into a 'NumCores'-bit mask
+    if (wake_up_cluster_pulse) begin
+      if (ctrl_reg2hw.wake_up_cluster.q <= {NumClusters{1'b1}}) begin
+        for(int i = 0; i < NumClusters; i = i + 1) begin
+          wake_up_o[NumCoresPerCluster * i +: NumCoresPerCluster] = {NumCoresPerCluster{ctrl_reg2hw.wake_up_cluster.q[i]}};
+        end
+      end else if (ctrl_reg2hw.wake_up_cluster.q == {DataWidth{1'b1}}) begin
         wake_up_o = {NumCores{1'b1}};
       end
     end

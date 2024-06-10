@@ -414,6 +414,10 @@ src/bootrom.sv: $(MEMPOOL_DIR)/software/runtime/bootrom.img $(config_mk) Makefil
 $(MEMPOOL_DIR)/software/runtime/bootrom.img:
 	make -C $(MEMPOOL_DIR)/software runtime/bootrom.img
 
+# Control Registers
+src/control_registers/control_registers_reg_top.sv: src/control_registers/control_registers.hjson
+	make -C src/control_registers all
+
 # Clean targets
 .PHONY: clean clean-dasm clean-trace update_opcodes
 

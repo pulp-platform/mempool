@@ -20,7 +20,7 @@
     { name: "MAX_NumGroups",
       desc: "Maximum number of groups that we support in any configuration",
       type: "int",
-      default: "8"
+      default: "64"
     }
   ],
   regwidth: 32
@@ -52,6 +52,13 @@
     },
     { name: "wake_up_group"
       desc: "Wake Up Group Register"
+      swaccess: "wo"
+      hwaccess: "hro"
+      hwqe: "true"
+      fields: [{ bits: "31:0" }]
+    },
+    { name: "wake_up_cluster"
+      desc: "Wake Up Cluster Register"
       swaccess: "wo"
       hwaccess: "hro"
       hwqe: "true"

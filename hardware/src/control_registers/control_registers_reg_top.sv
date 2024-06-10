@@ -10,7 +10,7 @@
 module control_registers_reg_top #(
   parameter type reg_req_t = logic,
   parameter type reg_rsp_t = logic,
-  parameter int AW = 7
+  parameter int AW = 9
 ) (
   input logic clk_i,
   input logic rst_ni,
@@ -89,8 +89,122 @@ module control_registers_reg_top #(
   logic wake_up_tile_6_we;
   logic [31:0] wake_up_tile_7_wd;
   logic wake_up_tile_7_we;
+  logic [31:0] wake_up_tile_8_wd;
+  logic wake_up_tile_8_we;
+  logic [31:0] wake_up_tile_9_wd;
+  logic wake_up_tile_9_we;
+  logic [31:0] wake_up_tile_10_wd;
+  logic wake_up_tile_10_we;
+  logic [31:0] wake_up_tile_11_wd;
+  logic wake_up_tile_11_we;
+  logic [31:0] wake_up_tile_12_wd;
+  logic wake_up_tile_12_we;
+  logic [31:0] wake_up_tile_13_wd;
+  logic wake_up_tile_13_we;
+  logic [31:0] wake_up_tile_14_wd;
+  logic wake_up_tile_14_we;
+  logic [31:0] wake_up_tile_15_wd;
+  logic wake_up_tile_15_we;
+  logic [31:0] wake_up_tile_16_wd;
+  logic wake_up_tile_16_we;
+  logic [31:0] wake_up_tile_17_wd;
+  logic wake_up_tile_17_we;
+  logic [31:0] wake_up_tile_18_wd;
+  logic wake_up_tile_18_we;
+  logic [31:0] wake_up_tile_19_wd;
+  logic wake_up_tile_19_we;
+  logic [31:0] wake_up_tile_20_wd;
+  logic wake_up_tile_20_we;
+  logic [31:0] wake_up_tile_21_wd;
+  logic wake_up_tile_21_we;
+  logic [31:0] wake_up_tile_22_wd;
+  logic wake_up_tile_22_we;
+  logic [31:0] wake_up_tile_23_wd;
+  logic wake_up_tile_23_we;
+  logic [31:0] wake_up_tile_24_wd;
+  logic wake_up_tile_24_we;
+  logic [31:0] wake_up_tile_25_wd;
+  logic wake_up_tile_25_we;
+  logic [31:0] wake_up_tile_26_wd;
+  logic wake_up_tile_26_we;
+  logic [31:0] wake_up_tile_27_wd;
+  logic wake_up_tile_27_we;
+  logic [31:0] wake_up_tile_28_wd;
+  logic wake_up_tile_28_we;
+  logic [31:0] wake_up_tile_29_wd;
+  logic wake_up_tile_29_we;
+  logic [31:0] wake_up_tile_30_wd;
+  logic wake_up_tile_30_we;
+  logic [31:0] wake_up_tile_31_wd;
+  logic wake_up_tile_31_we;
+  logic [31:0] wake_up_tile_32_wd;
+  logic wake_up_tile_32_we;
+  logic [31:0] wake_up_tile_33_wd;
+  logic wake_up_tile_33_we;
+  logic [31:0] wake_up_tile_34_wd;
+  logic wake_up_tile_34_we;
+  logic [31:0] wake_up_tile_35_wd;
+  logic wake_up_tile_35_we;
+  logic [31:0] wake_up_tile_36_wd;
+  logic wake_up_tile_36_we;
+  logic [31:0] wake_up_tile_37_wd;
+  logic wake_up_tile_37_we;
+  logic [31:0] wake_up_tile_38_wd;
+  logic wake_up_tile_38_we;
+  logic [31:0] wake_up_tile_39_wd;
+  logic wake_up_tile_39_we;
+  logic [31:0] wake_up_tile_40_wd;
+  logic wake_up_tile_40_we;
+  logic [31:0] wake_up_tile_41_wd;
+  logic wake_up_tile_41_we;
+  logic [31:0] wake_up_tile_42_wd;
+  logic wake_up_tile_42_we;
+  logic [31:0] wake_up_tile_43_wd;
+  logic wake_up_tile_43_we;
+  logic [31:0] wake_up_tile_44_wd;
+  logic wake_up_tile_44_we;
+  logic [31:0] wake_up_tile_45_wd;
+  logic wake_up_tile_45_we;
+  logic [31:0] wake_up_tile_46_wd;
+  logic wake_up_tile_46_we;
+  logic [31:0] wake_up_tile_47_wd;
+  logic wake_up_tile_47_we;
+  logic [31:0] wake_up_tile_48_wd;
+  logic wake_up_tile_48_we;
+  logic [31:0] wake_up_tile_49_wd;
+  logic wake_up_tile_49_we;
+  logic [31:0] wake_up_tile_50_wd;
+  logic wake_up_tile_50_we;
+  logic [31:0] wake_up_tile_51_wd;
+  logic wake_up_tile_51_we;
+  logic [31:0] wake_up_tile_52_wd;
+  logic wake_up_tile_52_we;
+  logic [31:0] wake_up_tile_53_wd;
+  logic wake_up_tile_53_we;
+  logic [31:0] wake_up_tile_54_wd;
+  logic wake_up_tile_54_we;
+  logic [31:0] wake_up_tile_55_wd;
+  logic wake_up_tile_55_we;
+  logic [31:0] wake_up_tile_56_wd;
+  logic wake_up_tile_56_we;
+  logic [31:0] wake_up_tile_57_wd;
+  logic wake_up_tile_57_we;
+  logic [31:0] wake_up_tile_58_wd;
+  logic wake_up_tile_58_we;
+  logic [31:0] wake_up_tile_59_wd;
+  logic wake_up_tile_59_we;
+  logic [31:0] wake_up_tile_60_wd;
+  logic wake_up_tile_60_we;
+  logic [31:0] wake_up_tile_61_wd;
+  logic wake_up_tile_61_we;
+  logic [31:0] wake_up_tile_62_wd;
+  logic wake_up_tile_62_we;
+  logic [31:0] wake_up_tile_63_wd;
+  logic wake_up_tile_63_we;
   logic [31:0] wake_up_group_wd;
   logic wake_up_group_we;
+  logic [31:0] wake_up_cluster_wd;
+  logic wake_up_cluster_we;
   logic [31:0] tcdm_start_address_qs;
   logic tcdm_start_address_re;
   logic [31:0] tcdm_end_address_qs;
@@ -399,6 +513,1462 @@ module control_registers_reg_top #(
     .qs     ()
   );
 
+  // Subregister 8 of Multireg wake_up_tile
+  // R[wake_up_tile_8]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_8 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_8_we),
+    .wd     (wake_up_tile_8_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[8].qe),
+    .q      (reg2hw.wake_up_tile[8].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 9 of Multireg wake_up_tile
+  // R[wake_up_tile_9]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_9 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_9_we),
+    .wd     (wake_up_tile_9_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[9].qe),
+    .q      (reg2hw.wake_up_tile[9].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 10 of Multireg wake_up_tile
+  // R[wake_up_tile_10]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_10 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_10_we),
+    .wd     (wake_up_tile_10_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[10].qe),
+    .q      (reg2hw.wake_up_tile[10].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 11 of Multireg wake_up_tile
+  // R[wake_up_tile_11]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_11 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_11_we),
+    .wd     (wake_up_tile_11_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[11].qe),
+    .q      (reg2hw.wake_up_tile[11].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 12 of Multireg wake_up_tile
+  // R[wake_up_tile_12]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_12 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_12_we),
+    .wd     (wake_up_tile_12_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[12].qe),
+    .q      (reg2hw.wake_up_tile[12].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 13 of Multireg wake_up_tile
+  // R[wake_up_tile_13]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_13 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_13_we),
+    .wd     (wake_up_tile_13_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[13].qe),
+    .q      (reg2hw.wake_up_tile[13].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 14 of Multireg wake_up_tile
+  // R[wake_up_tile_14]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_14 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_14_we),
+    .wd     (wake_up_tile_14_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[14].qe),
+    .q      (reg2hw.wake_up_tile[14].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 15 of Multireg wake_up_tile
+  // R[wake_up_tile_15]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_15 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_15_we),
+    .wd     (wake_up_tile_15_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[15].qe),
+    .q      (reg2hw.wake_up_tile[15].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 16 of Multireg wake_up_tile
+  // R[wake_up_tile_16]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_16 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_16_we),
+    .wd     (wake_up_tile_16_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[16].qe),
+    .q      (reg2hw.wake_up_tile[16].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 17 of Multireg wake_up_tile
+  // R[wake_up_tile_17]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_17 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_17_we),
+    .wd     (wake_up_tile_17_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[17].qe),
+    .q      (reg2hw.wake_up_tile[17].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 18 of Multireg wake_up_tile
+  // R[wake_up_tile_18]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_18 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_18_we),
+    .wd     (wake_up_tile_18_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[18].qe),
+    .q      (reg2hw.wake_up_tile[18].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 19 of Multireg wake_up_tile
+  // R[wake_up_tile_19]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_19 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_19_we),
+    .wd     (wake_up_tile_19_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[19].qe),
+    .q      (reg2hw.wake_up_tile[19].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 20 of Multireg wake_up_tile
+  // R[wake_up_tile_20]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_20 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_20_we),
+    .wd     (wake_up_tile_20_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[20].qe),
+    .q      (reg2hw.wake_up_tile[20].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 21 of Multireg wake_up_tile
+  // R[wake_up_tile_21]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_21 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_21_we),
+    .wd     (wake_up_tile_21_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[21].qe),
+    .q      (reg2hw.wake_up_tile[21].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 22 of Multireg wake_up_tile
+  // R[wake_up_tile_22]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_22 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_22_we),
+    .wd     (wake_up_tile_22_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[22].qe),
+    .q      (reg2hw.wake_up_tile[22].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 23 of Multireg wake_up_tile
+  // R[wake_up_tile_23]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_23 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_23_we),
+    .wd     (wake_up_tile_23_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[23].qe),
+    .q      (reg2hw.wake_up_tile[23].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 24 of Multireg wake_up_tile
+  // R[wake_up_tile_24]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_24 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_24_we),
+    .wd     (wake_up_tile_24_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[24].qe),
+    .q      (reg2hw.wake_up_tile[24].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 25 of Multireg wake_up_tile
+  // R[wake_up_tile_25]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_25 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_25_we),
+    .wd     (wake_up_tile_25_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[25].qe),
+    .q      (reg2hw.wake_up_tile[25].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 26 of Multireg wake_up_tile
+  // R[wake_up_tile_26]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_26 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_26_we),
+    .wd     (wake_up_tile_26_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[26].qe),
+    .q      (reg2hw.wake_up_tile[26].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 27 of Multireg wake_up_tile
+  // R[wake_up_tile_27]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_27 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_27_we),
+    .wd     (wake_up_tile_27_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[27].qe),
+    .q      (reg2hw.wake_up_tile[27].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 28 of Multireg wake_up_tile
+  // R[wake_up_tile_28]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_28 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_28_we),
+    .wd     (wake_up_tile_28_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[28].qe),
+    .q      (reg2hw.wake_up_tile[28].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 29 of Multireg wake_up_tile
+  // R[wake_up_tile_29]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_29 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_29_we),
+    .wd     (wake_up_tile_29_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[29].qe),
+    .q      (reg2hw.wake_up_tile[29].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 30 of Multireg wake_up_tile
+  // R[wake_up_tile_30]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_30 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_30_we),
+    .wd     (wake_up_tile_30_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[30].qe),
+    .q      (reg2hw.wake_up_tile[30].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 31 of Multireg wake_up_tile
+  // R[wake_up_tile_31]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_31 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_31_we),
+    .wd     (wake_up_tile_31_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[31].qe),
+    .q      (reg2hw.wake_up_tile[31].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 32 of Multireg wake_up_tile
+  // R[wake_up_tile_32]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_32 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_32_we),
+    .wd     (wake_up_tile_32_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[32].qe),
+    .q      (reg2hw.wake_up_tile[32].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 33 of Multireg wake_up_tile
+  // R[wake_up_tile_33]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_33 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_33_we),
+    .wd     (wake_up_tile_33_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[33].qe),
+    .q      (reg2hw.wake_up_tile[33].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 34 of Multireg wake_up_tile
+  // R[wake_up_tile_34]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_34 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_34_we),
+    .wd     (wake_up_tile_34_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[34].qe),
+    .q      (reg2hw.wake_up_tile[34].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 35 of Multireg wake_up_tile
+  // R[wake_up_tile_35]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_35 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_35_we),
+    .wd     (wake_up_tile_35_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[35].qe),
+    .q      (reg2hw.wake_up_tile[35].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 36 of Multireg wake_up_tile
+  // R[wake_up_tile_36]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_36 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_36_we),
+    .wd     (wake_up_tile_36_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[36].qe),
+    .q      (reg2hw.wake_up_tile[36].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 37 of Multireg wake_up_tile
+  // R[wake_up_tile_37]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_37 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_37_we),
+    .wd     (wake_up_tile_37_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[37].qe),
+    .q      (reg2hw.wake_up_tile[37].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 38 of Multireg wake_up_tile
+  // R[wake_up_tile_38]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_38 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_38_we),
+    .wd     (wake_up_tile_38_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[38].qe),
+    .q      (reg2hw.wake_up_tile[38].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 39 of Multireg wake_up_tile
+  // R[wake_up_tile_39]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_39 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_39_we),
+    .wd     (wake_up_tile_39_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[39].qe),
+    .q      (reg2hw.wake_up_tile[39].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 40 of Multireg wake_up_tile
+  // R[wake_up_tile_40]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_40 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_40_we),
+    .wd     (wake_up_tile_40_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[40].qe),
+    .q      (reg2hw.wake_up_tile[40].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 41 of Multireg wake_up_tile
+  // R[wake_up_tile_41]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_41 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_41_we),
+    .wd     (wake_up_tile_41_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[41].qe),
+    .q      (reg2hw.wake_up_tile[41].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 42 of Multireg wake_up_tile
+  // R[wake_up_tile_42]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_42 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_42_we),
+    .wd     (wake_up_tile_42_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[42].qe),
+    .q      (reg2hw.wake_up_tile[42].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 43 of Multireg wake_up_tile
+  // R[wake_up_tile_43]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_43 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_43_we),
+    .wd     (wake_up_tile_43_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[43].qe),
+    .q      (reg2hw.wake_up_tile[43].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 44 of Multireg wake_up_tile
+  // R[wake_up_tile_44]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_44 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_44_we),
+    .wd     (wake_up_tile_44_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[44].qe),
+    .q      (reg2hw.wake_up_tile[44].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 45 of Multireg wake_up_tile
+  // R[wake_up_tile_45]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_45 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_45_we),
+    .wd     (wake_up_tile_45_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[45].qe),
+    .q      (reg2hw.wake_up_tile[45].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 46 of Multireg wake_up_tile
+  // R[wake_up_tile_46]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_46 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_46_we),
+    .wd     (wake_up_tile_46_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[46].qe),
+    .q      (reg2hw.wake_up_tile[46].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 47 of Multireg wake_up_tile
+  // R[wake_up_tile_47]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_47 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_47_we),
+    .wd     (wake_up_tile_47_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[47].qe),
+    .q      (reg2hw.wake_up_tile[47].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 48 of Multireg wake_up_tile
+  // R[wake_up_tile_48]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_48 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_48_we),
+    .wd     (wake_up_tile_48_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[48].qe),
+    .q      (reg2hw.wake_up_tile[48].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 49 of Multireg wake_up_tile
+  // R[wake_up_tile_49]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_49 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_49_we),
+    .wd     (wake_up_tile_49_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[49].qe),
+    .q      (reg2hw.wake_up_tile[49].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 50 of Multireg wake_up_tile
+  // R[wake_up_tile_50]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_50 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_50_we),
+    .wd     (wake_up_tile_50_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[50].qe),
+    .q      (reg2hw.wake_up_tile[50].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 51 of Multireg wake_up_tile
+  // R[wake_up_tile_51]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_51 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_51_we),
+    .wd     (wake_up_tile_51_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[51].qe),
+    .q      (reg2hw.wake_up_tile[51].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 52 of Multireg wake_up_tile
+  // R[wake_up_tile_52]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_52 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_52_we),
+    .wd     (wake_up_tile_52_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[52].qe),
+    .q      (reg2hw.wake_up_tile[52].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 53 of Multireg wake_up_tile
+  // R[wake_up_tile_53]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_53 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_53_we),
+    .wd     (wake_up_tile_53_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[53].qe),
+    .q      (reg2hw.wake_up_tile[53].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 54 of Multireg wake_up_tile
+  // R[wake_up_tile_54]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_54 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_54_we),
+    .wd     (wake_up_tile_54_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[54].qe),
+    .q      (reg2hw.wake_up_tile[54].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 55 of Multireg wake_up_tile
+  // R[wake_up_tile_55]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_55 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_55_we),
+    .wd     (wake_up_tile_55_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[55].qe),
+    .q      (reg2hw.wake_up_tile[55].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 56 of Multireg wake_up_tile
+  // R[wake_up_tile_56]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_56 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_56_we),
+    .wd     (wake_up_tile_56_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[56].qe),
+    .q      (reg2hw.wake_up_tile[56].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 57 of Multireg wake_up_tile
+  // R[wake_up_tile_57]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_57 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_57_we),
+    .wd     (wake_up_tile_57_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[57].qe),
+    .q      (reg2hw.wake_up_tile[57].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 58 of Multireg wake_up_tile
+  // R[wake_up_tile_58]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_58 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_58_we),
+    .wd     (wake_up_tile_58_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[58].qe),
+    .q      (reg2hw.wake_up_tile[58].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 59 of Multireg wake_up_tile
+  // R[wake_up_tile_59]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_59 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_59_we),
+    .wd     (wake_up_tile_59_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[59].qe),
+    .q      (reg2hw.wake_up_tile[59].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 60 of Multireg wake_up_tile
+  // R[wake_up_tile_60]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_60 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_60_we),
+    .wd     (wake_up_tile_60_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[60].qe),
+    .q      (reg2hw.wake_up_tile[60].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 61 of Multireg wake_up_tile
+  // R[wake_up_tile_61]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_61 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_61_we),
+    .wd     (wake_up_tile_61_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[61].qe),
+    .q      (reg2hw.wake_up_tile[61].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 62 of Multireg wake_up_tile
+  // R[wake_up_tile_62]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_62 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_62_we),
+    .wd     (wake_up_tile_62_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[62].qe),
+    .q      (reg2hw.wake_up_tile[62].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 63 of Multireg wake_up_tile
+  // R[wake_up_tile_63]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_tile_63 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_tile_63_we),
+    .wd     (wake_up_tile_63_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_tile[63].qe),
+    .q      (reg2hw.wake_up_tile[63].q ),
+
+    .qs     ()
+  );
+
 
   // R[wake_up_group]: V(False)
 
@@ -421,6 +1991,32 @@ module control_registers_reg_top #(
     // to internal hardware
     .qe     (reg2hw.wake_up_group.qe),
     .q      (reg2hw.wake_up_group.q ),
+
+    .qs     ()
+  );
+
+
+  // R[wake_up_cluster]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_wake_up_cluster (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (wake_up_cluster_we),
+    .wd     (wake_up_cluster_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (reg2hw.wake_up_cluster.qe),
+    .q      (reg2hw.wake_up_cluster.q ),
 
     .qs     ()
   );
@@ -662,7 +2258,7 @@ module control_registers_reg_top #(
 
 
 
-  logic [23:0] addr_hit;
+  logic [80:0] addr_hit;
   always_comb begin
     addr_hit = '0;
     addr_hit[ 0] = (reg_addr == CONTROL_REGISTERS_EOC_OFFSET);
@@ -675,20 +2271,77 @@ module control_registers_reg_top #(
     addr_hit[ 7] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_5_OFFSET);
     addr_hit[ 8] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_6_OFFSET);
     addr_hit[ 9] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_7_OFFSET);
-    addr_hit[10] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_GROUP_OFFSET);
-    addr_hit[11] = (reg_addr == CONTROL_REGISTERS_TCDM_START_ADDRESS_OFFSET);
-    addr_hit[12] = (reg_addr == CONTROL_REGISTERS_TCDM_END_ADDRESS_OFFSET);
-    addr_hit[13] = (reg_addr == CONTROL_REGISTERS_NR_CORES_REG_OFFSET);
-    addr_hit[14] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_ENABLE_OFFSET);
-    addr_hit[15] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_FLUSH_OFFSET);
-    addr_hit[16] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_START_0_OFFSET);
-    addr_hit[17] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_START_1_OFFSET);
-    addr_hit[18] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_START_2_OFFSET);
-    addr_hit[19] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_START_3_OFFSET);
-    addr_hit[20] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_0_OFFSET);
-    addr_hit[21] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_1_OFFSET);
-    addr_hit[22] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_2_OFFSET);
-    addr_hit[23] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_3_OFFSET);
+    addr_hit[10] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_8_OFFSET);
+    addr_hit[11] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_9_OFFSET);
+    addr_hit[12] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_10_OFFSET);
+    addr_hit[13] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_11_OFFSET);
+    addr_hit[14] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_12_OFFSET);
+    addr_hit[15] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_13_OFFSET);
+    addr_hit[16] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_14_OFFSET);
+    addr_hit[17] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_15_OFFSET);
+    addr_hit[18] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_16_OFFSET);
+    addr_hit[19] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_17_OFFSET);
+    addr_hit[20] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_18_OFFSET);
+    addr_hit[21] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_19_OFFSET);
+    addr_hit[22] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_20_OFFSET);
+    addr_hit[23] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_21_OFFSET);
+    addr_hit[24] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_22_OFFSET);
+    addr_hit[25] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_23_OFFSET);
+    addr_hit[26] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_24_OFFSET);
+    addr_hit[27] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_25_OFFSET);
+    addr_hit[28] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_26_OFFSET);
+    addr_hit[29] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_27_OFFSET);
+    addr_hit[30] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_28_OFFSET);
+    addr_hit[31] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_29_OFFSET);
+    addr_hit[32] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_30_OFFSET);
+    addr_hit[33] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_31_OFFSET);
+    addr_hit[34] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_32_OFFSET);
+    addr_hit[35] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_33_OFFSET);
+    addr_hit[36] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_34_OFFSET);
+    addr_hit[37] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_35_OFFSET);
+    addr_hit[38] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_36_OFFSET);
+    addr_hit[39] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_37_OFFSET);
+    addr_hit[40] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_38_OFFSET);
+    addr_hit[41] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_39_OFFSET);
+    addr_hit[42] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_40_OFFSET);
+    addr_hit[43] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_41_OFFSET);
+    addr_hit[44] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_42_OFFSET);
+    addr_hit[45] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_43_OFFSET);
+    addr_hit[46] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_44_OFFSET);
+    addr_hit[47] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_45_OFFSET);
+    addr_hit[48] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_46_OFFSET);
+    addr_hit[49] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_47_OFFSET);
+    addr_hit[50] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_48_OFFSET);
+    addr_hit[51] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_49_OFFSET);
+    addr_hit[52] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_50_OFFSET);
+    addr_hit[53] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_51_OFFSET);
+    addr_hit[54] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_52_OFFSET);
+    addr_hit[55] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_53_OFFSET);
+    addr_hit[56] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_54_OFFSET);
+    addr_hit[57] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_55_OFFSET);
+    addr_hit[58] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_56_OFFSET);
+    addr_hit[59] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_57_OFFSET);
+    addr_hit[60] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_58_OFFSET);
+    addr_hit[61] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_59_OFFSET);
+    addr_hit[62] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_60_OFFSET);
+    addr_hit[63] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_61_OFFSET);
+    addr_hit[64] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_62_OFFSET);
+    addr_hit[65] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_TILE_63_OFFSET);
+    addr_hit[66] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_GROUP_OFFSET);
+    addr_hit[67] = (reg_addr == CONTROL_REGISTERS_WAKE_UP_CLUSTER_OFFSET);
+    addr_hit[68] = (reg_addr == CONTROL_REGISTERS_TCDM_START_ADDRESS_OFFSET);
+    addr_hit[69] = (reg_addr == CONTROL_REGISTERS_TCDM_END_ADDRESS_OFFSET);
+    addr_hit[70] = (reg_addr == CONTROL_REGISTERS_NR_CORES_REG_OFFSET);
+    addr_hit[71] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_ENABLE_OFFSET);
+    addr_hit[72] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_FLUSH_OFFSET);
+    addr_hit[73] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_START_0_OFFSET);
+    addr_hit[74] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_START_1_OFFSET);
+    addr_hit[75] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_START_2_OFFSET);
+    addr_hit[76] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_START_3_OFFSET);
+    addr_hit[77] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_0_OFFSET);
+    addr_hit[78] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_1_OFFSET);
+    addr_hit[79] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_2_OFFSET);
+    addr_hit[80] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_3_OFFSET);
   end
 
   assign addrmiss = (reg_re || reg_we) ? ~|addr_hit : 1'b0 ;
@@ -719,7 +2372,64 @@ module control_registers_reg_top #(
                (addr_hit[20] & (|(CONTROL_REGISTERS_PERMIT[20] & ~reg_be))) |
                (addr_hit[21] & (|(CONTROL_REGISTERS_PERMIT[21] & ~reg_be))) |
                (addr_hit[22] & (|(CONTROL_REGISTERS_PERMIT[22] & ~reg_be))) |
-               (addr_hit[23] & (|(CONTROL_REGISTERS_PERMIT[23] & ~reg_be)))));
+               (addr_hit[23] & (|(CONTROL_REGISTERS_PERMIT[23] & ~reg_be))) |
+               (addr_hit[24] & (|(CONTROL_REGISTERS_PERMIT[24] & ~reg_be))) |
+               (addr_hit[25] & (|(CONTROL_REGISTERS_PERMIT[25] & ~reg_be))) |
+               (addr_hit[26] & (|(CONTROL_REGISTERS_PERMIT[26] & ~reg_be))) |
+               (addr_hit[27] & (|(CONTROL_REGISTERS_PERMIT[27] & ~reg_be))) |
+               (addr_hit[28] & (|(CONTROL_REGISTERS_PERMIT[28] & ~reg_be))) |
+               (addr_hit[29] & (|(CONTROL_REGISTERS_PERMIT[29] & ~reg_be))) |
+               (addr_hit[30] & (|(CONTROL_REGISTERS_PERMIT[30] & ~reg_be))) |
+               (addr_hit[31] & (|(CONTROL_REGISTERS_PERMIT[31] & ~reg_be))) |
+               (addr_hit[32] & (|(CONTROL_REGISTERS_PERMIT[32] & ~reg_be))) |
+               (addr_hit[33] & (|(CONTROL_REGISTERS_PERMIT[33] & ~reg_be))) |
+               (addr_hit[34] & (|(CONTROL_REGISTERS_PERMIT[34] & ~reg_be))) |
+               (addr_hit[35] & (|(CONTROL_REGISTERS_PERMIT[35] & ~reg_be))) |
+               (addr_hit[36] & (|(CONTROL_REGISTERS_PERMIT[36] & ~reg_be))) |
+               (addr_hit[37] & (|(CONTROL_REGISTERS_PERMIT[37] & ~reg_be))) |
+               (addr_hit[38] & (|(CONTROL_REGISTERS_PERMIT[38] & ~reg_be))) |
+               (addr_hit[39] & (|(CONTROL_REGISTERS_PERMIT[39] & ~reg_be))) |
+               (addr_hit[40] & (|(CONTROL_REGISTERS_PERMIT[40] & ~reg_be))) |
+               (addr_hit[41] & (|(CONTROL_REGISTERS_PERMIT[41] & ~reg_be))) |
+               (addr_hit[42] & (|(CONTROL_REGISTERS_PERMIT[42] & ~reg_be))) |
+               (addr_hit[43] & (|(CONTROL_REGISTERS_PERMIT[43] & ~reg_be))) |
+               (addr_hit[44] & (|(CONTROL_REGISTERS_PERMIT[44] & ~reg_be))) |
+               (addr_hit[45] & (|(CONTROL_REGISTERS_PERMIT[45] & ~reg_be))) |
+               (addr_hit[46] & (|(CONTROL_REGISTERS_PERMIT[46] & ~reg_be))) |
+               (addr_hit[47] & (|(CONTROL_REGISTERS_PERMIT[47] & ~reg_be))) |
+               (addr_hit[48] & (|(CONTROL_REGISTERS_PERMIT[48] & ~reg_be))) |
+               (addr_hit[49] & (|(CONTROL_REGISTERS_PERMIT[49] & ~reg_be))) |
+               (addr_hit[50] & (|(CONTROL_REGISTERS_PERMIT[50] & ~reg_be))) |
+               (addr_hit[51] & (|(CONTROL_REGISTERS_PERMIT[51] & ~reg_be))) |
+               (addr_hit[52] & (|(CONTROL_REGISTERS_PERMIT[52] & ~reg_be))) |
+               (addr_hit[53] & (|(CONTROL_REGISTERS_PERMIT[53] & ~reg_be))) |
+               (addr_hit[54] & (|(CONTROL_REGISTERS_PERMIT[54] & ~reg_be))) |
+               (addr_hit[55] & (|(CONTROL_REGISTERS_PERMIT[55] & ~reg_be))) |
+               (addr_hit[56] & (|(CONTROL_REGISTERS_PERMIT[56] & ~reg_be))) |
+               (addr_hit[57] & (|(CONTROL_REGISTERS_PERMIT[57] & ~reg_be))) |
+               (addr_hit[58] & (|(CONTROL_REGISTERS_PERMIT[58] & ~reg_be))) |
+               (addr_hit[59] & (|(CONTROL_REGISTERS_PERMIT[59] & ~reg_be))) |
+               (addr_hit[60] & (|(CONTROL_REGISTERS_PERMIT[60] & ~reg_be))) |
+               (addr_hit[61] & (|(CONTROL_REGISTERS_PERMIT[61] & ~reg_be))) |
+               (addr_hit[62] & (|(CONTROL_REGISTERS_PERMIT[62] & ~reg_be))) |
+               (addr_hit[63] & (|(CONTROL_REGISTERS_PERMIT[63] & ~reg_be))) |
+               (addr_hit[64] & (|(CONTROL_REGISTERS_PERMIT[64] & ~reg_be))) |
+               (addr_hit[65] & (|(CONTROL_REGISTERS_PERMIT[65] & ~reg_be))) |
+               (addr_hit[66] & (|(CONTROL_REGISTERS_PERMIT[66] & ~reg_be))) |
+               (addr_hit[67] & (|(CONTROL_REGISTERS_PERMIT[67] & ~reg_be))) |
+               (addr_hit[68] & (|(CONTROL_REGISTERS_PERMIT[68] & ~reg_be))) |
+               (addr_hit[69] & (|(CONTROL_REGISTERS_PERMIT[69] & ~reg_be))) |
+               (addr_hit[70] & (|(CONTROL_REGISTERS_PERMIT[70] & ~reg_be))) |
+               (addr_hit[71] & (|(CONTROL_REGISTERS_PERMIT[71] & ~reg_be))) |
+               (addr_hit[72] & (|(CONTROL_REGISTERS_PERMIT[72] & ~reg_be))) |
+               (addr_hit[73] & (|(CONTROL_REGISTERS_PERMIT[73] & ~reg_be))) |
+               (addr_hit[74] & (|(CONTROL_REGISTERS_PERMIT[74] & ~reg_be))) |
+               (addr_hit[75] & (|(CONTROL_REGISTERS_PERMIT[75] & ~reg_be))) |
+               (addr_hit[76] & (|(CONTROL_REGISTERS_PERMIT[76] & ~reg_be))) |
+               (addr_hit[77] & (|(CONTROL_REGISTERS_PERMIT[77] & ~reg_be))) |
+               (addr_hit[78] & (|(CONTROL_REGISTERS_PERMIT[78] & ~reg_be))) |
+               (addr_hit[79] & (|(CONTROL_REGISTERS_PERMIT[79] & ~reg_be))) |
+               (addr_hit[80] & (|(CONTROL_REGISTERS_PERMIT[80] & ~reg_be)))));
   end
 
   assign eoc_we = addr_hit[0] & reg_we & !reg_error;
@@ -752,52 +2462,223 @@ module control_registers_reg_top #(
   assign wake_up_tile_7_we = addr_hit[9] & reg_we & !reg_error;
   assign wake_up_tile_7_wd = reg_wdata[31:0];
 
-  assign wake_up_group_we = addr_hit[10] & reg_we & !reg_error;
+  assign wake_up_tile_8_we = addr_hit[10] & reg_we & !reg_error;
+  assign wake_up_tile_8_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_9_we = addr_hit[11] & reg_we & !reg_error;
+  assign wake_up_tile_9_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_10_we = addr_hit[12] & reg_we & !reg_error;
+  assign wake_up_tile_10_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_11_we = addr_hit[13] & reg_we & !reg_error;
+  assign wake_up_tile_11_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_12_we = addr_hit[14] & reg_we & !reg_error;
+  assign wake_up_tile_12_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_13_we = addr_hit[15] & reg_we & !reg_error;
+  assign wake_up_tile_13_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_14_we = addr_hit[16] & reg_we & !reg_error;
+  assign wake_up_tile_14_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_15_we = addr_hit[17] & reg_we & !reg_error;
+  assign wake_up_tile_15_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_16_we = addr_hit[18] & reg_we & !reg_error;
+  assign wake_up_tile_16_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_17_we = addr_hit[19] & reg_we & !reg_error;
+  assign wake_up_tile_17_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_18_we = addr_hit[20] & reg_we & !reg_error;
+  assign wake_up_tile_18_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_19_we = addr_hit[21] & reg_we & !reg_error;
+  assign wake_up_tile_19_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_20_we = addr_hit[22] & reg_we & !reg_error;
+  assign wake_up_tile_20_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_21_we = addr_hit[23] & reg_we & !reg_error;
+  assign wake_up_tile_21_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_22_we = addr_hit[24] & reg_we & !reg_error;
+  assign wake_up_tile_22_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_23_we = addr_hit[25] & reg_we & !reg_error;
+  assign wake_up_tile_23_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_24_we = addr_hit[26] & reg_we & !reg_error;
+  assign wake_up_tile_24_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_25_we = addr_hit[27] & reg_we & !reg_error;
+  assign wake_up_tile_25_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_26_we = addr_hit[28] & reg_we & !reg_error;
+  assign wake_up_tile_26_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_27_we = addr_hit[29] & reg_we & !reg_error;
+  assign wake_up_tile_27_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_28_we = addr_hit[30] & reg_we & !reg_error;
+  assign wake_up_tile_28_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_29_we = addr_hit[31] & reg_we & !reg_error;
+  assign wake_up_tile_29_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_30_we = addr_hit[32] & reg_we & !reg_error;
+  assign wake_up_tile_30_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_31_we = addr_hit[33] & reg_we & !reg_error;
+  assign wake_up_tile_31_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_32_we = addr_hit[34] & reg_we & !reg_error;
+  assign wake_up_tile_32_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_33_we = addr_hit[35] & reg_we & !reg_error;
+  assign wake_up_tile_33_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_34_we = addr_hit[36] & reg_we & !reg_error;
+  assign wake_up_tile_34_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_35_we = addr_hit[37] & reg_we & !reg_error;
+  assign wake_up_tile_35_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_36_we = addr_hit[38] & reg_we & !reg_error;
+  assign wake_up_tile_36_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_37_we = addr_hit[39] & reg_we & !reg_error;
+  assign wake_up_tile_37_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_38_we = addr_hit[40] & reg_we & !reg_error;
+  assign wake_up_tile_38_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_39_we = addr_hit[41] & reg_we & !reg_error;
+  assign wake_up_tile_39_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_40_we = addr_hit[42] & reg_we & !reg_error;
+  assign wake_up_tile_40_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_41_we = addr_hit[43] & reg_we & !reg_error;
+  assign wake_up_tile_41_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_42_we = addr_hit[44] & reg_we & !reg_error;
+  assign wake_up_tile_42_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_43_we = addr_hit[45] & reg_we & !reg_error;
+  assign wake_up_tile_43_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_44_we = addr_hit[46] & reg_we & !reg_error;
+  assign wake_up_tile_44_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_45_we = addr_hit[47] & reg_we & !reg_error;
+  assign wake_up_tile_45_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_46_we = addr_hit[48] & reg_we & !reg_error;
+  assign wake_up_tile_46_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_47_we = addr_hit[49] & reg_we & !reg_error;
+  assign wake_up_tile_47_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_48_we = addr_hit[50] & reg_we & !reg_error;
+  assign wake_up_tile_48_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_49_we = addr_hit[51] & reg_we & !reg_error;
+  assign wake_up_tile_49_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_50_we = addr_hit[52] & reg_we & !reg_error;
+  assign wake_up_tile_50_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_51_we = addr_hit[53] & reg_we & !reg_error;
+  assign wake_up_tile_51_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_52_we = addr_hit[54] & reg_we & !reg_error;
+  assign wake_up_tile_52_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_53_we = addr_hit[55] & reg_we & !reg_error;
+  assign wake_up_tile_53_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_54_we = addr_hit[56] & reg_we & !reg_error;
+  assign wake_up_tile_54_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_55_we = addr_hit[57] & reg_we & !reg_error;
+  assign wake_up_tile_55_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_56_we = addr_hit[58] & reg_we & !reg_error;
+  assign wake_up_tile_56_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_57_we = addr_hit[59] & reg_we & !reg_error;
+  assign wake_up_tile_57_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_58_we = addr_hit[60] & reg_we & !reg_error;
+  assign wake_up_tile_58_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_59_we = addr_hit[61] & reg_we & !reg_error;
+  assign wake_up_tile_59_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_60_we = addr_hit[62] & reg_we & !reg_error;
+  assign wake_up_tile_60_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_61_we = addr_hit[63] & reg_we & !reg_error;
+  assign wake_up_tile_61_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_62_we = addr_hit[64] & reg_we & !reg_error;
+  assign wake_up_tile_62_wd = reg_wdata[31:0];
+
+  assign wake_up_tile_63_we = addr_hit[65] & reg_we & !reg_error;
+  assign wake_up_tile_63_wd = reg_wdata[31:0];
+
+  assign wake_up_group_we = addr_hit[66] & reg_we & !reg_error;
   assign wake_up_group_wd = reg_wdata[31:0];
 
-  assign tcdm_start_address_re = addr_hit[11] & reg_re & !reg_error;
+  assign wake_up_cluster_we = addr_hit[67] & reg_we & !reg_error;
+  assign wake_up_cluster_wd = reg_wdata[31:0];
 
-  assign tcdm_end_address_re = addr_hit[12] & reg_re & !reg_error;
+  assign tcdm_start_address_re = addr_hit[68] & reg_re & !reg_error;
 
-  assign nr_cores_reg_re = addr_hit[13] & reg_re & !reg_error;
+  assign tcdm_end_address_re = addr_hit[69] & reg_re & !reg_error;
 
-  assign ro_cache_enable_we = addr_hit[14] & reg_we & !reg_error;
+  assign nr_cores_reg_re = addr_hit[70] & reg_re & !reg_error;
+
+  assign ro_cache_enable_we = addr_hit[71] & reg_we & !reg_error;
   assign ro_cache_enable_wd = reg_wdata[31:0];
 
-  assign ro_cache_flush_we = addr_hit[15] & reg_we & !reg_error;
+  assign ro_cache_flush_we = addr_hit[72] & reg_we & !reg_error;
   assign ro_cache_flush_wd = reg_wdata[31:0];
 
-  assign ro_cache_start_0_we = addr_hit[16] & reg_we & !reg_error;
+  assign ro_cache_start_0_we = addr_hit[73] & reg_we & !reg_error;
   assign ro_cache_start_0_wd = reg_wdata[31:0];
-  assign ro_cache_start_0_re = addr_hit[16] & reg_re & !reg_error;
+  assign ro_cache_start_0_re = addr_hit[73] & reg_re & !reg_error;
 
-  assign ro_cache_start_1_we = addr_hit[17] & reg_we & !reg_error;
+  assign ro_cache_start_1_we = addr_hit[74] & reg_we & !reg_error;
   assign ro_cache_start_1_wd = reg_wdata[31:0];
-  assign ro_cache_start_1_re = addr_hit[17] & reg_re & !reg_error;
+  assign ro_cache_start_1_re = addr_hit[74] & reg_re & !reg_error;
 
-  assign ro_cache_start_2_we = addr_hit[18] & reg_we & !reg_error;
+  assign ro_cache_start_2_we = addr_hit[75] & reg_we & !reg_error;
   assign ro_cache_start_2_wd = reg_wdata[31:0];
-  assign ro_cache_start_2_re = addr_hit[18] & reg_re & !reg_error;
+  assign ro_cache_start_2_re = addr_hit[75] & reg_re & !reg_error;
 
-  assign ro_cache_start_3_we = addr_hit[19] & reg_we & !reg_error;
+  assign ro_cache_start_3_we = addr_hit[76] & reg_we & !reg_error;
   assign ro_cache_start_3_wd = reg_wdata[31:0];
-  assign ro_cache_start_3_re = addr_hit[19] & reg_re & !reg_error;
+  assign ro_cache_start_3_re = addr_hit[76] & reg_re & !reg_error;
 
-  assign ro_cache_end_0_we = addr_hit[20] & reg_we & !reg_error;
+  assign ro_cache_end_0_we = addr_hit[77] & reg_we & !reg_error;
   assign ro_cache_end_0_wd = reg_wdata[31:0];
-  assign ro_cache_end_0_re = addr_hit[20] & reg_re & !reg_error;
+  assign ro_cache_end_0_re = addr_hit[77] & reg_re & !reg_error;
 
-  assign ro_cache_end_1_we = addr_hit[21] & reg_we & !reg_error;
+  assign ro_cache_end_1_we = addr_hit[78] & reg_we & !reg_error;
   assign ro_cache_end_1_wd = reg_wdata[31:0];
-  assign ro_cache_end_1_re = addr_hit[21] & reg_re & !reg_error;
+  assign ro_cache_end_1_re = addr_hit[78] & reg_re & !reg_error;
 
-  assign ro_cache_end_2_we = addr_hit[22] & reg_we & !reg_error;
+  assign ro_cache_end_2_we = addr_hit[79] & reg_we & !reg_error;
   assign ro_cache_end_2_wd = reg_wdata[31:0];
-  assign ro_cache_end_2_re = addr_hit[22] & reg_re & !reg_error;
+  assign ro_cache_end_2_re = addr_hit[79] & reg_re & !reg_error;
 
-  assign ro_cache_end_3_we = addr_hit[23] & reg_we & !reg_error;
+  assign ro_cache_end_3_we = addr_hit[80] & reg_we & !reg_error;
   assign ro_cache_end_3_wd = reg_wdata[31:0];
-  assign ro_cache_end_3_re = addr_hit[23] & reg_re & !reg_error;
+  assign ro_cache_end_3_re = addr_hit[80] & reg_re & !reg_error;
 
   // Read data return
   always_comb begin
@@ -848,54 +2729,282 @@ module control_registers_reg_top #(
       end
 
       addr_hit[11]: begin
-        reg_rdata_next[31:0] = tcdm_start_address_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[12]: begin
-        reg_rdata_next[31:0] = tcdm_end_address_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[13]: begin
-        reg_rdata_next[31:0] = nr_cores_reg_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[14]: begin
-        reg_rdata_next[31:0] = ro_cache_enable_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[15]: begin
-        reg_rdata_next[31:0] = ro_cache_flush_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[16]: begin
-        reg_rdata_next[31:0] = ro_cache_start_0_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[17]: begin
-        reg_rdata_next[31:0] = ro_cache_start_1_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[18]: begin
-        reg_rdata_next[31:0] = ro_cache_start_2_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[19]: begin
-        reg_rdata_next[31:0] = ro_cache_start_3_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[20]: begin
-        reg_rdata_next[31:0] = ro_cache_end_0_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[21]: begin
-        reg_rdata_next[31:0] = ro_cache_end_1_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[22]: begin
-        reg_rdata_next[31:0] = ro_cache_end_2_qs;
+        reg_rdata_next[31:0] = '0;
       end
 
       addr_hit[23]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[24]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[25]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[26]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[27]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[28]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[29]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[30]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[31]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[32]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[33]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[34]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[35]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[36]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[37]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[38]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[39]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[40]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[41]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[42]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[43]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[44]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[45]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[46]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[47]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[48]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[49]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[50]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[51]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[52]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[53]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[54]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[55]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[56]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[57]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[58]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[59]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[60]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[61]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[62]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[63]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[64]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[65]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[66]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[67]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[68]: begin
+        reg_rdata_next[31:0] = tcdm_start_address_qs;
+      end
+
+      addr_hit[69]: begin
+        reg_rdata_next[31:0] = tcdm_end_address_qs;
+      end
+
+      addr_hit[70]: begin
+        reg_rdata_next[31:0] = nr_cores_reg_qs;
+      end
+
+      addr_hit[71]: begin
+        reg_rdata_next[31:0] = ro_cache_enable_qs;
+      end
+
+      addr_hit[72]: begin
+        reg_rdata_next[31:0] = ro_cache_flush_qs;
+      end
+
+      addr_hit[73]: begin
+        reg_rdata_next[31:0] = ro_cache_start_0_qs;
+      end
+
+      addr_hit[74]: begin
+        reg_rdata_next[31:0] = ro_cache_start_1_qs;
+      end
+
+      addr_hit[75]: begin
+        reg_rdata_next[31:0] = ro_cache_start_2_qs;
+      end
+
+      addr_hit[76]: begin
+        reg_rdata_next[31:0] = ro_cache_start_3_qs;
+      end
+
+      addr_hit[77]: begin
+        reg_rdata_next[31:0] = ro_cache_end_0_qs;
+      end
+
+      addr_hit[78]: begin
+        reg_rdata_next[31:0] = ro_cache_end_1_qs;
+      end
+
+      addr_hit[79]: begin
+        reg_rdata_next[31:0] = ro_cache_end_2_qs;
+      end
+
+      addr_hit[80]: begin
         reg_rdata_next[31:0] = ro_cache_end_3_qs;
       end
 
@@ -922,7 +3031,7 @@ endmodule
 /* verilator lint_off DECLFILENAME */
 module control_registers_reg_top_intf
 #(
-  parameter int AW = 7,
+  parameter int AW = 9,
   localparam int DW = 32
 ) (
   input logic clk_i,
