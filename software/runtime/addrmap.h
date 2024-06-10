@@ -9,6 +9,6 @@
 
 #define CONTROL_REGISTER_OFFSET (0x40000000)
 
-#include "../../../hardware/src/control_registers/control_registers.h"
+#include "../../hardware/src/control_registers/control_registers.h"
 
 #endif // _DMA_H_
