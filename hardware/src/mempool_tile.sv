@@ -484,12 +484,14 @@ module mempool_tile
       meta_id   : bank_req_payload[b].wdata.meta_id,
       core_id   : bank_req_payload[b].wdata.core_id,
       tile_id   : bank_req_payload[b].ini_addr,
+      group_id  : bank_req_payload[b].src_group_id,
       wide      : bank_req_wide[b]
     };
     assign bank_resp_ini_addr[b]              = meta_out.ini_addr;
     assign bank_resp_payload[b].rdata.meta_id = meta_out.meta_id;
     assign bank_resp_payload[b].ini_addr      = meta_out.tile_id;
     assign bank_resp_payload[b].rdata.core_id = meta_out.core_id;
+    assign bank_resp_payload[b].src_group_id  = meta_out.group_id;
     assign bank_resp_payload[b].rdata.amo     = '0; // Don't care
     assign bank_resp_wide[b]                  = meta_out.wide;
 

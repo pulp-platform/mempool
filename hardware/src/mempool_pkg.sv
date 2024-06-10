@@ -261,11 +261,13 @@ package mempool_pkg;
     strb_t be;
     tile_addr_t tgt_addr;
     tile_group_id_t ini_addr;
+    group_id_t src_group_id;
   } tcdm_slave_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
     tile_group_id_t ini_addr;
+    group_id_t src_group_id;
   } tcdm_slave_resp_t;
 
   typedef struct packed {
