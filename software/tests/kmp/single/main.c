@@ -9,7 +9,9 @@
 #include "synchronization.h"
 #include "testing.h"
 
-#define REPETITIONS 10 /* Number of times to run each test */
+#ifndef REPETITIONS
+#define REPETITIONS 100 /* Number of times to run each test */
+#endif
 
 TEST(test_omp_parallel_single) {
   for (int rep = 0; rep < REPETITIONS; rep++) {

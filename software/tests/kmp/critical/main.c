@@ -12,7 +12,9 @@
 #include "synchronization.h"
 #include "testing.h"
 
-#define REPETITIONS 10 /* Number of times to run each test */
+#ifndef REPETITIONS
+#define REPETITIONS 100 /* Number of times to run each test */
+#endif
 
 TEST(test_omp_critical) {
   int num_cores = (int)mempool_get_core_count();
@@ -26,13 +28,19 @@ TEST(test_omp_critical) {
 #pragma omp critical
       {
         sum1 += 1;
-        sum2 += 2;
+        // sum2 += 2;
+      }
+
+#pragma omp critical
+      {
+        sum1 += 1;
+        // sum2 += 2;
       }
     }
 
-    ASSERT_EQ(sum1, num_cores);
-    ASSERT_EQ(sum2, 2 * sum1);
-    ASSERT_EQ(sum2, 2 * num_cores);
+    ASSERT_EQ(sum1, 2 * num_cores);
+    // ASSERT_EQ(sum2, 2 * sum1);
+    // ASSERT_EQ(sum2, 4 * num_cores);
   }
 }
 

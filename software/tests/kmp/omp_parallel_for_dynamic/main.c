@@ -12,8 +12,9 @@
 #include "synchronization.h"
 #include "testing.h"
 
+int buf[64];
+
 TEST(gcc_omp_parallel_for_schedule_dynamic) {
-  int buf[64];
   int i, j;
   int result = 0;
 

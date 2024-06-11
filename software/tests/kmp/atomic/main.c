@@ -12,10 +12,15 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+#ifndef REPETITIONS
 #define REPETITIONS 100 /* Number of times to run each test */
+#endif
+
 #define MAX_FACTOR 10
 #define KNOWN_PRODUCT 3628800 /* 10! */
 #define LOOPCOUNT 100         /* Number of iterations to slit amongst threads */
+
+int logics[LOOPCOUNT];
 
 TEST(sum_of_integers) {
   for (int count = 0; count < REPETITIONS; count++) {
@@ -93,11 +98,8 @@ TEST(division_of_integers) {
 }
 
 TEST(atomic_increment) {
-  int x = 0;
-
   for (int count = 0; count < REPETITIONS; count++) {
-
-    x = 0;
+    int x = 0;
 #pragma omp parallel
     {
       int i;
@@ -133,10 +135,9 @@ TEST(atomic_decrement) {
 }
 
 TEST(atomic_bit_and_1) {
-  int logics[LOOPCOUNT];
-  int bit_and = 1;
-
   for (int count = 0; count < REPETITIONS; count++) {
+    memset(logics, 0, LOOPCOUNT);
+    int bit_and = 1;
 
     for (int j = 0; j < LOOPCOUNT; ++j) {
       logics[j] = 1;
@@ -157,10 +158,9 @@ TEST(atomic_bit_and_1) {
 }
 
 TEST(atomic_bit_and_2) {
-  int logics[LOOPCOUNT];
-  int bit_and = 1;
-
   for (int count = 0; count < REPETITIONS; count++) {
+    memset(logics, 0, LOOPCOUNT);
+    int bit_and = 1;
 
     bit_and = 1;
     logics[LOOPCOUNT / 2] = 0;
@@ -179,125 +179,138 @@ TEST(atomic_bit_and_2) {
 }
 
 TEST(atomic_bit_or_1) {
-  int logics[LOOPCOUNT];
-  int bit_or = 1;
+  for (int count = 0; count < REPETITIONS; count++) {
+    memset(logics, 0, LOOPCOUNT);
+    int bit_or = 1;
 
-  for (int j = 0; j < LOOPCOUNT; j++) {
-    logics[j] = 0;
-  }
-
-  bit_or = 0;
-#pragma omp parallel
-  {
-    int i;
-#pragma omp for
-    for (i = 0; i < LOOPCOUNT; ++i) {
-#pragma omp atomic
-      bit_or |= logics[i];
+    for (int j = 0; j < LOOPCOUNT; j++) {
+      logics[j] = 0;
     }
-  }
 
-  ASSERT_EQ(0, bit_or);
+    bit_or = 0;
+#pragma omp parallel
+    {
+      int i;
+#pragma omp for
+      for (i = 0; i < LOOPCOUNT; ++i) {
+#pragma omp atomic
+        bit_or |= logics[i];
+      }
+    }
+
+    ASSERT_EQ(0, bit_or);
+  }
 }
 
 TEST(atomic_bit_or_2) {
-  int logics[LOOPCOUNT];
-  int bit_or = 1;
+  for (int count = 0; count < REPETITIONS; count++) {
+    memset(logics, 0, LOOPCOUNT);
+    int bit_or = 1;
 
-  for (int j = 0; j < LOOPCOUNT; j++) {
-    logics[j] = 0;
-  }
+    for (int j = 0; j < LOOPCOUNT; j++) {
+      logics[j] = 0;
+    }
 
-  bit_or = 0;
-  logics[LOOPCOUNT / 2] = 1;
+    bit_or = 0;
+    logics[LOOPCOUNT / 2] = 1;
 
 #pragma omp parallel
-  {
+    {
 
-    int i;
+      int i;
 #pragma omp for
-    for (i = 0; i < LOOPCOUNT; ++i) {
+      for (i = 0; i < LOOPCOUNT; ++i) {
 #pragma omp atomic
-      bit_or |= logics[i];
+        bit_or |= logics[i];
+      }
     }
+    ASSERT_EQ(1, bit_or);
   }
-  ASSERT_EQ(1, bit_or);
 }
 
 TEST(atomix_bit_xor_1) {
-  int logics[LOOPCOUNT];
-  int exclusiv_bit_or = 0;
-  for (int j = 0; j < LOOPCOUNT; j++) {
-    logics[j] = 0;
-  }
+  for (int count = 0; count < REPETITIONS; count++) {
+    memset(logics, 0, LOOPCOUNT);
+    int exclusiv_bit_or = 0;
+
+    for (int j = 0; j < LOOPCOUNT; j++) {
+      logics[j] = 0;
+    }
 
 #pragma omp parallel
-  {
-    int i;
+    {
+      int i;
 #pragma omp for
-    for (i = 0; i < LOOPCOUNT; ++i) {
+      for (i = 0; i < LOOPCOUNT; ++i) {
 #pragma omp atomic
-      exclusiv_bit_or ^= logics[i];
+        exclusiv_bit_or ^= logics[i];
+      }
     }
-  }
 
-  ASSERT_EQ(0, exclusiv_bit_or);
+    ASSERT_EQ(0, exclusiv_bit_or);
+  }
 }
 
 TEST(atomic_bit_xor_2) {
-  int logics[LOOPCOUNT];
-  int exclusiv_bit_or = 0;
+  for (int count = 0; count < REPETITIONS; count++) {
+    memset(logics, 0, LOOPCOUNT);
+    int exclusiv_bit_or = 0;
 
-  for (int j = 0; j < LOOPCOUNT; j++) {
-    logics[j] = 0;
-  }
+    for (int j = 0; j < LOOPCOUNT; j++) {
+      logics[j] = 0;
+    }
 
-  exclusiv_bit_or = 0;
-  logics[LOOPCOUNT / 2] = 1;
+    exclusiv_bit_or = 0;
+    logics[LOOPCOUNT / 2] = 1;
 
 #pragma omp parallel
-  {
-    int i;
+    {
+      int i;
 #pragma omp for
-    for (i = 0; i < LOOPCOUNT; ++i) {
+      for (i = 0; i < LOOPCOUNT; ++i) {
 #pragma omp atomic
-      exclusiv_bit_or ^= logics[i];
+        exclusiv_bit_or ^= logics[i];
+      }
     }
-  }
 
-  ASSERT_EQ(1, exclusiv_bit_or);
+    ASSERT_EQ(1, exclusiv_bit_or);
+  }
 }
 //
 TEST(atomic_left_shift) {
-  int x = 1;
+  for (int count = 0; count < REPETITIONS; count++) {
+    int x = 1;
 
 #pragma omp parallel
-  {
-    int i;
+    {
+      int i;
 #pragma omp for
-    for (i = 0; i < 10; ++i) {
+      for (i = 0; i < 10; ++i) {
 #pragma omp atomic
-      x <<= 1;
+        x <<= 1;
+      }
     }
-  }
 
-  ASSERT_EQ(1024, x);
+    ASSERT_EQ(1024, x);
+  }
 }
 
 TEST(atomic_right_shift) {
-  int x = 1024;
+  for (int count = 0; count < REPETITIONS; count++) {
+    int x = 1024;
 
 #pragma omp parallel
-  {
-    int i;
+    {
+      int i;
 #pragma omp for
-    for (i = 0; i < 10; ++i) {
+      for (i = 0; i < 10; ++i) {
 #pragma omp atomic
-      x >>= 1;
+        x >>= 1;
+      }
     }
-  }
 
-  ASSERT_EQ(1, x);
+    ASSERT_EQ(1, x);
+  }
 }
 
 int main() {
