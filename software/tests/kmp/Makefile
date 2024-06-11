@@ -15,6 +15,10 @@ COMPILER ?= llvm
 RISCV_CCFLAGS += -fopenmp -DNTHREADS=$(num_cores)
 RISCV_CCFLAGS += -I$(OMP_DIR)
 
+# Test repetitions
+REPETITIONS ?= 10
+RISCV_CCFLAGS += -DREPETITIONS=$(REPETITIONS)
+
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
 
