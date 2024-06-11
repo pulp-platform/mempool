@@ -55,6 +55,11 @@ module mempool_group_floonoc_wrapper
   input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMastersPerGroup-1:0]) axi_mst_resp_i
 );
 
+// Parse the address width to calculate the offset
+localparam integer unsigned NumTilesPerGroupWidth = idx_width(NumTilesPerGroup);
+localparam integer unsigned NumBanksPerTileWidth = idx_width(NumBanksPerTile);
+localparam integer unsigned TileBankRowOffset = TCDMAddrMemWidth + NumBanksPerTileWidth;
+
 // TCDM Master interfaces
 tcdm_master_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]   tcdm_master_req;
 logic              [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]   tcdm_master_req_valid;
@@ -104,7 +109,6 @@ mempool_group #(
   .axi_mst_resp_i           (axi_mst_resp_i        )
 );
 
-
 // Instantiate the floo_tcdm_chimney for each tile
 tcdm_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_req_to_chimney,  tcdm_req_from_chimney;
 tcdm_resp_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_resp_to_chimney, tcdm_resp_from_chimney;
@@ -126,8 +130,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_chimney_
         core_id : tcdm_master_req[i][j].wdata.core_id,    // For Core
         src_tile_id : i,                                  // For Crossbar when response back
         src_group_id: group_id_i,                         // For NoC Router when response back
-        tgt_group_id: tcdm_master_req[i][j].tgt_group_id, // For NoC Router when request
-        tgt_addr: tcdm_master_req[i][j].tgt_addr          // For Crossbar when request to TCDM (bank rows per group)
+        tgt_group_id: tcdm_master_req[i][j].tgt_group_id, // For NoC Router when request send
+        tgt_addr: tcdm_master_req[i][j].tgt_addr          // For Crossbar when request send (bank rows per Group)
       }
     };
   end : gen_master_req_to_chimney_req_j
@@ -138,23 +142,18 @@ end : gen_master_req_to_chimney_req_i
 // TODO: This is a consitent assignment to Tile's port,               //
 //       Should be improved for confict resolution.                   //  
 // ------------------------------------------------------------------ //
-tile_group_id_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tile_sel;
+tile_group_id_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] req_tile_sel;
 tcdm_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_req_from_chimney_after_xbar;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_req_from_chimney_after_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_req_from_chimney_after_xbar_ready;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_req_from_chimney_before_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_req_from_chimney_before_xbar_ready;
 
-// Select signal extract from chimney tgt request to select which Tile will be the target
-localparam integer unsigned NumTilesPerGroupWidth = idx_width(NumTilesPerGroup);
-localparam integer unsigned NumBanksPerTileWidth = idx_width(NumBanksPerTile);
-localparam integer unsigned TileBankRowOffset = TCDMAddrMemWidth + NumBanksPerTileWidth;
-
-for (gen var i = 0; i < NumTilesPerGroup; i++) begin : gen_sel_tgt_tile_i
-  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_sel_tgt_tile_j
-    assign tile_sel[i][j] = tcdm_req_from_chimney[i][j].meta.tgt_addr[TileBankRowOffset +: NumTilesPerGroupWidth];
-  end : gen_sel_tgt_tile_j
-end : gen_sel_tgt_tile_i
+for (gen var i = 0; i < NumTilesPerGroup; i++) begin : gen_req_sel_tgt_tile_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_req_sel_tgt_tile_j
+    assign req_tile_sel[i][j] = tcdm_req_from_chimney[i][j].meta.tgt_addr[TileBankRowOffset +: NumTilesPerGroupWidth];
+  end : gen_req_sel_tgt_tile_j
+end : gen_req_sel_tgt_tile_i
 
 for (genvar i = 1; i < NumRemotePortsPerTile; i++) begin : floo_req_xbar
   stream_xbar #(
@@ -171,10 +170,10 @@ for (genvar i = 1; i < NumRemotePortsPerTile; i++) begin : floo_req_xbar
     .data_i (tcdm_req_from_chimney[NumTilesPerGroup-1:0][i]                   ),
     .valid_i(tcdm_req_from_chimney_before_xbar_valid[NumTilesPerGroup-1:0][i] ),
     .ready_o(tcdm_req_from_chimney_before_xbar_ready[NumTilesPerGroup-1:0][i] ),
-    .sel_i  (tile_sel[NumTilesPerGroup-1:0][i]                                ),
+    .sel_i  (req_tile_sel[NumTilesPerGroup-1:0][i]                            ),
     // Slave
     .data_o (tcdm_req_from_chimney_after_xbar[NumTilesPerGroup-1:0][i]        ),
-    .valid_o(tcdm_req_from_chimney_after_xbar_valid[NumTilesPerGroup-1:0][i]),
+    .valid_o(tcdm_req_from_chimney_after_xbar_valid[NumTilesPerGroup-1:0][i]  ),
     .ready_i(tcdm_req_from_chimney_after_xbar_ready[NumTilesPerGroup-1:0][i]  ),
     .idx_o  (/* Unused, TODO?: this is the data comes from index */           )
   );
@@ -187,16 +186,16 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_chimney_req_to_slave_r
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_chimney_req_to_slave_req_j
     assign tcdm_slave_req[i][j] = tcdm_slave_req_t'{
       wdata: tcdm_payload_t'{
-        meta_id : tcdm_req_from_chimney_after_xbar[i][j].meta.meta_id,
-        core_id : tcdm_req_from_chimney_after_xbar[i][j].meta.core_id,
+        meta_id : tcdm_req_from_chimney_after_xbar[i][j].meta.meta_id,       // For Register File
+        core_id : tcdm_req_from_chimney_after_xbar[i][j].meta.core_id,       // For Core
         amo     : tcdm_req_from_chimney_after_xbar[i][j].payload.amo,
         data    : tcdm_req_from_chimney_after_xbar[i][j].payload.data
       },
       wen     : tcdm_req_from_chimney_after_xbar[i][j].payload.wen,
       be      : tcdm_req_from_chimney_after_xbar[i][j].payload.be,
-      tgt_addr: tcdm_req_from_chimney_after_xbar[i][j].meta.tgt_addr[0 +: TileBankRowOffset],
-      ini_addr: tcdm_req_from_chimney_after_xbar[i][j].meta.src_tile_id,
-      src_group_id: tcdm_req_from_chimney_after_xbar[i][j].meta.src_group_id
+      tgt_addr: tcdm_req_from_chimney_after_xbar[i][j].meta.tgt_addr[0 +: TileBankRowOffset], // For TCDM Bank (bank rows per Tile, remove Group offset)
+      ini_addr: tcdm_req_from_chimney_after_xbar[i][j].meta.src_tile_id,     // For Crossbar when response back
+      src_group_id: tcdm_req_from_chimney_after_xbar[i][j].meta.src_group_id // For NoC Router when response back
     };
   assign tcdm_slave_req_valid[i][j] = tcdm_req_from_chimney_after_xbar_valid[i][j];
   assign tcdm_req_from_chimney_after_xbar_ready[i][j] = tcdm_slave_req_ready[i][j];
@@ -206,7 +205,6 @@ end : gen_chimney_req_to_slave_req_i
 // -------------------------------------------------------------------- //
 // Remapping: From MemPool "Slave Response" to FlooNoC "TCDM Response" //
 // -------------------------------------------------------------------- //
-
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_chimney_req_to_slave_req_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_chimney_req_to_slave_req_j
     assign tcdm_resp_to_chimney[i][j] = tcdm_resp_t'{
@@ -215,34 +213,80 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_chimney_req_to_slave_r
         data: tcdm_slave_resp[i][j].rdata.data
       },
       meta: tcdm_resp_meta_t'{
-        meta_id : tcdm_slave_resp[i][j].rdata.meta_id,
-        core_id : tcdm_slave_resp[i][j].rdata.core_id,
-        tile_id : tcdm_slave_resp[i][j].ini_addr,
-        group_id: tcdm_slave_resp[i][j].src_group_id
+        meta_id : tcdm_slave_resp[i][j].rdata.meta_id, // For Register File
+        core_id : tcdm_slave_resp[i][j].rdata.core_id, // For Core
+        tile_id : tcdm_slave_resp[i][j].ini_addr,      // For Crossbar when response back (Sender's Tile ID, propagated from request)
+        group_id: tcdm_slave_resp[i][j].src_group_id   // For NoC Router when response back (Sender's Group ID, propagated from request)
       }
     };
   end : gen_chimney_req_to_slave_req_j
 end : gen_chimney_req_to_slave_req_i
 
+// ------------------------------------------------------------------ //
+// Crossbar: FlooNoC "TCDM reponse" input select target tile          //
+// TODO: This is a consitent assignment to Tile's port,               //
+//       Should be improved for confict resolution.                   //  
+// ------------------------------------------------------------------ //
+tile_group_id_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] resp_tile_sel;
+tcdm_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_resp_from_chimney_after_xbar;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_resp_from_chimney_after_xbar_valid;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_resp_from_chimney_after_xbar_ready;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_resp_from_chimney_before_xbar_valid;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_resp_from_chimney_before_xbar_ready;
 
-// TODO #2: Crossbar design from FlooNoC "TCDM response" to the correct Tile in target GROUP
+for (gen var i = 0; i < NumTilesPerGroup; i++) begin : gen_resp_sel_tgt_tile_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_resp_sel_tgt_tile_j
+    assign resp_tile_sel[i][j] = tcdm_resp_from_chimney[i][j].meta.tile_id;
+  end : gen_resp_sel_tgt_tile_j
+end : gen_resp_sel_tgt_tile_i
 
-// TODO #3: Response remapping from FlooNoC "TCDM response" (from Chimney) to MemPool "Slave Response"
-// Tamplate:
-    // assign tcdm_master_resp[i][j] = tcdm_master_resp_t'{
-    //   rdata: tcdm_payload_t'{
-    //     meta_id : tcdm_resp_from_chimney.meta.meta_id,
-    //     core_id : tcdm_resp_from_chimney.meta.core_id,
-    //     amo     : tcdm_resp_from_chimney.payload.amo,
-    //     data    : tcdm_resp_from_chimney.payload.data
-    //   }
-    // };
+for (genvar i = 1; i < NumRemotePortsPerTile; i++) begin : floo_resp_xbar
+  stream_xbar #(
+    .NumInp   (NumTilesPerGroup                                                ),
+    .NumOut   (NumTilesPerGroup                                                ),
+    .payload_t(tcdm_resp_t                                                     )
+  ) i_local_resp_interco (
+    .clk_i  (clk_i                                                             ),
+    .rst_ni (rst_ni                                                            ),
+    .flush_i(1'b0                                                              ),
+    // External priority flag
+    .rr_i   ('0                                                                ),
+    // Master
+    .data_i (tcdm_resp_from_chimney[NumTilesPerGroup-1:0][i]                   ),
+    .valid_i(tcdm_resp_from_chimney_before_xbar_valid[NumTilesPerGroup-1:0][i] ),
+    .ready_o(tcdm_resp_from_chimney_before_xbar_ready[NumTilesPerGroup-1:0][i] ),
+    .sel_i  (resp_tile_sel[NumTilesPerGroup-1:0][i]                            ),
+    // Slave
+    .data_o (tcdm_resp_from_chimney_after_xbar[NumTilesPerGroup-1:0][i]        ),
+    .valid_o(tcdm_resp_from_chimney_after_xbar_valid[NumTilesPerGroup-1:0][i]  ),
+    .ready_i(tcdm_resp_from_chimney_after_xbar_ready[NumTilesPerGroup-1:0][i]  ),
+    .idx_o  (/* Unused, TODO?: this is the data comes from index */            )
+  );
+end : floo_resp_xbar
 
+// --------------------------------------------------------------------- //
+// Remapping: From FlooNoC "TCDM response" to MemPool "Master Response"  //
+// --------------------------------------------------------------------- //
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_chimney_resp_to_master_resp_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_chimney_resp_to_master_resp_j
+    assign tcdm_master_resp[i][j] = tcdm_master_resp_t'{
+      rdata: tcdm_payload_t'{
+        meta_id : tcdm_resp_from_chimney_after_xbar[i][j].meta.meta_id, // For Register File
+        core_id : tcdm_resp_from_chimney_after_xbar[i][j].meta.core_id, // For Core
+        amo     : tcdm_resp_from_chimney_after_xbar[i][j].payload.amo,
+        data    : tcdm_resp_from_chimney_after_xbar[i][j].payload.data
+      }
+    };
+    assign tcdm_master_resp_valid[i][j] = tcdm_resp_from_chimney_after_xbar_valid[i][j];
+    assign tcdm_resp_from_chimney_after_xbar_ready[i][j] = tcdm_master_resp_ready[i][j];
+  end : gen_chimney_resp_to_master_resp_j
+end : gen_chimney_resp_to_master_resp_i
 
 // ------------------------------------------------------------------ //
 // ----------------------       Chimney      -------------------------//
 // ------------------------------------------------------------------ //
-// TODO: Missing for loop
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_chimney_router_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_chimney_router_j
     floo_tcdm_chimney #(
       .tcdm_req_t        (tcdm_req_t                                    ),
       .tcdm_rsp_t        (tcdm_rsp_t                                    ),
@@ -250,19 +294,19 @@ end : gen_chimney_req_to_slave_req_i
       .floo_rsp_flit_t   (floo_rsp_flit_t                               ),
       .id_t              (id_t                                          ),
       .RouteAlgo         (floo_pkg::XYRouting                           ),
-      .XYAddrOffsetX     (XYAddrOffsetX                                 ),
-      .XYAddrOffsetY     (XYAddrOffsetY                                 )
+      .XYAddrOffsetX     (XYAddrOffsetX                                 ), //TODO: Use Group ID as offset
+      .XYAddrOffsetY     (XYAddrOffsetY                                 )  //TODO: Use Group ID as offset //TODO: How about response?
     ) u_floo_tcdm_chimney (
       .clk_i             (clk_i                                         ),
       .rst_ni            (rst_ni                                        ),
-      /// TCDM to NoC interface
+      /// Master interface
       .tcdm_req_i        (tcdm_req_to_chimney   [i][j]                  ),
       .tcdm_req_valid_i  (tcdm_master_req_valid [i][j]                  ),
       .tcdm_req_ready_o  (tcdm_master_req_ready [i][j]                  ),
       .tcdm_rsp_o        (tcdm_resp_from_chimney[i][j]                  ),
-      .tcdm_rsp_valid_o  (tcdm_master_resp_valid[i][j]                  ),
-      .tcdm_rsp_ready_i  (tcdm_master_resp_ready[i][j]                  ),
-      /// NoC to TCDM interface
+      .tcdm_rsp_valid_o  (tcdm_resp_from_chimney_before_xbar_valid[i][j]),
+      .tcdm_rsp_ready_i  (tcdm_resp_from_chimney_before_xbar_ready[i][j]),
+      /// Slave interface
       .tcdm_req_o        (tcdm_req_from_chimney [i][j]                  ),
       .tcdm_req_valid_o  (tcdm_req_from_chimney_before_xbar_valid[i][j] ),
       .tcdm_req_ready_i  (tcdm_req_from_chimney_before_xbar_ready[i][j] ),
@@ -289,13 +333,14 @@ end : gen_chimney_req_to_slave_req_i
       .floo_rsp_valid_i  (floo_rsp_valid[i]                             ),
       .floo_rsp_ready_o  (floo_rsp_ready[i]                             )
     );
-  end : floo_tcdm_chimney_connection_j
-end : floo_tcdm_chimney_connection_i
 
 // ------------------------------------------------------------------ //
 // ----------------------       Router      --------------------------//
 // ------------------------------------------------------------------ //
 // TODO: Router design
 // TODO: Correct the Module interface, which connect from/to the Router
+
+  end : gen_chimney_router_j
+end : gen_chimney_router_i
 
 endmodule

@@ -247,7 +247,7 @@ package mempool_pkg;
     tcdm_payload_t wdata;
     logic wen;
     strb_t be;
-    group_id_t tgt_group_id;
+    group_id_t tgt_group_id; // FlooNoC Added
     tcdm_addr_t tgt_addr;
   } tcdm_master_req_t;
 
@@ -261,13 +261,13 @@ package mempool_pkg;
     strb_t be;
     tile_addr_t tgt_addr;
     tile_group_id_t ini_addr;
-    group_id_t src_group_id;
+    group_id_t src_group_id; // FlooNoC Added
   } tcdm_slave_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
     tile_group_id_t ini_addr;
-    group_id_t src_group_id;
+    group_id_t src_group_id; // FlooNoC Added
   } tcdm_slave_resp_t;
 
   typedef struct packed {
@@ -288,6 +288,9 @@ package mempool_pkg;
     dma_payload_t rdata;
   } tcdm_dma_resp_t;
 
+  /*************************************
+   *  FlooNoC INTERCONNECT PARAMETERS  *
+   *************************************/
   // FlooNoC req types
   typedef struct packed {
     amo_t amo;
