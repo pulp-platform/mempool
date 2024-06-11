@@ -98,7 +98,8 @@ def plot_cycles(df):
             gcc_cycle = app_data[(app_data['name'] == test) & (
                 app_data['compiler'] == 'gcc')]['cycles']
 
-            # Add cycles only if both GCC and LLVM data are available for the test
+            # Add cycles only if both GCC and LLVM data are available for the
+            # test
             if not llvm_cycle.empty and not gcc_cycle.empty:
                 llvm_cycles.append(llvm_cycle.iloc[0])
                 gcc_cycles.append(gcc_cycle.iloc[0])

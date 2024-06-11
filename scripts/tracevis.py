@@ -49,7 +49,8 @@ except ImportError as e:
 # 5 -> instruction
 # 6 -> args (RTL) / empty (banshee)
 # 7 -> comment (RTL) / instruction arguments (banshee)
-RTL_REGEX = r' *(\d+) +(\d+) +([3M1S0U]?) *(0x[0-9a-f]+) *(0x[0-9a-f]+) ([.\w]+) +(.+)#; (.*)'
+RTL_REGEX = (r' *(\d+) +(\d+) +([3M1S0U]?) *(0x[0-9a-f]+)'
+             r'*(0x[0-9a-f]+) ([.\w]+) +(.+)#; (.*)')
 BANSHEE_REGEX = r' *(\d+) (\d+) (\d+) ([0-9a-f]+) *.+ +.+# ([\w\.]*)( +)(.*)'
 
 # regex matches a line of instruction retired by the accelerator
@@ -161,7 +162,8 @@ def trace_function(name, pid, time, cyc, file, instr, sp):
                               f'"ts": {time}, '
                               f'"pid": {pid}, '
                               f'"tid": {pid}, '
-                              f'"args": {{"time": "{arg_cycles}", "Origin": "{arg_coords}"}}'
+                              f'"args": {{"time": "{arg_cycles}", '
+                              f' "Origin": "{arg_coords}"}}'
                               f'}},\n')
 
             # print(f'Begin {name}')
@@ -264,7 +266,7 @@ def flush(buf, hartid):
 
         if compress_function:
             trace_function(name=func, pid=int(hartid),
-                            time=time, cyc=cyc, file=file, instr=instr, sp=sp)
+                           time=time, cyc=cyc, file=file, instr=instr, sp=sp)
         else:
             trace_instruction(name=func,
                               pid=int(hartid),

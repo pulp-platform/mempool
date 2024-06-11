@@ -50,7 +50,8 @@ def run_benchmark(app, simulator, config):
     try:
         # https://stackoverflow.com/a/76624958
         with subprocess.Popen(["make", "-C", HARDWARE_DIR, simulator],
-                              env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              env=env, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
                               text=True, bufsize=1,
                               errors='replace') as p:
 
@@ -98,7 +99,8 @@ def run_benchmark(app, simulator, config):
                                 p.terminate()
                                 return output
 
-                            if (simulator == "banshee" and "Program done" in line):
+                            if (simulator == "banshee" and
+                                    "Program done" in line):
                                 p.terminate()
                                 break
 

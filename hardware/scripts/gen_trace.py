@@ -28,7 +28,8 @@ EXTRA_WB_WARN = 'WARNING: {} transactions still in flight for {}.'
 GENERAL_WARN = ('WARNING: Inconsistent final state; performance metrics may '
                 'be inaccurate. Is this trace complete?\n')
 
-TRACE_IN_REGEX = r'(\d+)\s+(\d+)\s+(0x[0-9A-Fa-fz]+)\s+(0x[0-9A-Fa-fz]+)\s+([^#;]*)(\s*#;\s*(.*))?'
+TRACE_IN_REGEX = (r'(\d+)\s+(\d+)\s+(0x[0-9A-Fa-fz]+)\s+(0x[0-9A-Fa-fz]+)\s+'
+                  r'([^#;]*)(\s*#;\s*(.*))?')
 
 TRACE_OUT_FMT = '{:>8} {:>8} {:>8} {:>10} {:<30}'
 
@@ -337,8 +338,9 @@ def annotate_insn(
                 time_info, prev_wfi_time, retired_reg, empty)
     # Vanilla trace
     else:
-        return TRACE_OUT_FMT.format(
-            *time_info_strs, pc_str, sp_str, insn), time_info, 0, retired_reg, False
+        return (TRACE_OUT_FMT.format(
+            *time_info_strs, pc_str, sp_str, insn), time_info, 0, retired_reg,
+            False)
 
 
 # -------------------- Performance metrics --------------------

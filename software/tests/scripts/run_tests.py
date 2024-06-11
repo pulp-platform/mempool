@@ -81,9 +81,12 @@ def parse_line(line, stats):
 
 
 def print_results(stats):
+    color = (GREEN if stats["num_success"] > 0 and
+             stats["num_success"] == stats["num_tests"] else RED)
     print(
-        f'{GREEN if stats["num_success"] > 0 and stats["num_success"] == stats["num_tests"] else RED}'
-        f'[RESULT]{RESET}: {stats["num_success"]}/{stats["num_tests"]} tests passed'
+        f'{color}'
+        f'[RESULT]{RESET}: '
+        f'{stats["num_success"]}/{stats["num_tests"]} tests passed'
     )
 
 
@@ -167,7 +170,8 @@ def run_test(test, args):
                                 p.terminate()
                                 return False
 
-                            if args.simulator == "banshee" and "Program done" in line:
+                            if (args.simulator == "banshee" and
+                                    "Program done" in line):
                                 p.terminate()
                                 break
 
@@ -179,7 +183,8 @@ def run_test(test, args):
                     break
 
             if p.returncode is not None and p.returncode > 0:
-                print(f"{RED}[FAIL]{RESET}: Non-zero return code {p.returncode}")
+                print(
+                    f"{RED}[FAIL]{RESET}: Non-zero return code {p.returncode}")
                 return False
 
     except Exception as e:
@@ -212,7 +217,8 @@ def main():
         help="Test repetitions (not all tests use this)",
     )
     parser.add_argument(
-        "-s", "--simulator", type=str, default="verilator", help="Simulator to use"
+        "-s", "--simulator", type=str, default="verilator",
+        help="Simulator to use"
     )
     parser.add_argument(
         "-c",
@@ -228,10 +234,12 @@ def main():
         help="Compile test before running",
     )
     parser.add_argument(
-        "--verbose", action="store_true", default=False, help="Print verbose output"
+        "--verbose", action="store_true", default=False,
+        help="Print verbose output"
     )
     parser.add_argument(
-        "--debug", action="store_true", default=False, help="Compile in debug mode"
+        "--debug", action="store_true", default=False,
+        help="Compile in debug mode"
     )
 
     args = parser.parse_args()
