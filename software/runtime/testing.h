@@ -1,3 +1,7 @@
+// Copyright 2024 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 // Inspired by https://jera.com/techinfo/jtns/jtn002
 
 #pragma once
@@ -16,6 +20,12 @@ test_t tests[MAX_TESTS]; // NOLINT
 int tests_run = 0;    // NOLINT(*-global-variables)
 int tests_failed = 0; // NOLINT(*-global-variables)
 int num_tests = 0;    // NOLINT(*-global-variables)
+
+#ifndef NDEBUG
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...)
+#endif
 
 // NOLINTNEXTLINE
 #define STRINGIFY(x) #x
