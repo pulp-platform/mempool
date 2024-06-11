@@ -31,6 +31,7 @@ package mempool_pkg;
   localparam integer unsigned AxiTileIdWidth      = AxiCoreIdWidth+1; // + 1 for cache
   localparam integer unsigned AxiDataWidth        = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
   localparam integer unsigned AxiLiteDataWidth    = 32;
+  localparam integer unsigned AxiUserWidth        = $clog2(NumCores);
 
   /***********************
    *  MEMORY PARAMETERS  *
@@ -73,6 +74,7 @@ package mempool_pkg;
   typedef logic [AxiTileIdWidth-1:0] axi_tile_id_t;
   typedef logic [AxiDataWidth-1:0] axi_data_t;
   typedef logic [AxiDataWidth/8-1:0] axi_strb_t;
+  typedef logic [AxiUserWidth-1:0] axi_user_t;
   typedef logic [AxiLiteDataWidth-1:0] axi_lite_data_t;
   typedef logic [AxiLiteDataWidth/8-1:0] axi_lite_strb_t;
   typedef logic [AddrWidth-1:0] addr_t;
@@ -92,49 +94,49 @@ package mempool_pkg;
   typedef logic [AxiTestbenchIdWidth-1:0] axi_tb_id_t;
 
 
-  `AXI_TYPEDEF_AW_CHAN_T(axi_core_aw_t, addr_t, axi_core_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_core_w_t, data_t, strb_t, logic);
-  `AXI_TYPEDEF_B_CHAN_T(axi_core_b_t, axi_core_id_t, logic);
-  `AXI_TYPEDEF_AR_CHAN_T(axi_core_ar_t, addr_t, axi_core_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_core_r_t, data_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_AW_CHAN_T(axi_core_aw_t, addr_t, axi_core_id_t, axi_user_t);
+  `AXI_TYPEDEF_W_CHAN_T(axi_core_w_t, data_t, strb_t, axi_user_t);
+  `AXI_TYPEDEF_B_CHAN_T(axi_core_b_t, axi_core_id_t, axi_user_t);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_core_ar_t, addr_t, axi_core_id_t, axi_user_t);
+  `AXI_TYPEDEF_R_CHAN_T(axi_core_r_t, data_t, axi_core_id_t, axi_user_t);
   `AXI_TYPEDEF_REQ_T(axi_core_req_t, axi_core_aw_t, axi_core_w_t, axi_core_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_core_resp_t, axi_core_b_t, axi_core_r_t );
 
-  `AXI_TYPEDEF_AW_CHAN_T(axi_cache_aw_t, addr_t, axi_core_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_cache_w_t, axi_data_t, axi_strb_t, logic);
-  `AXI_TYPEDEF_B_CHAN_T(axi_cache_b_t, axi_core_id_t, logic);
-  `AXI_TYPEDEF_AR_CHAN_T(axi_cache_ar_t, addr_t, axi_core_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_cache_r_t, axi_data_t, axi_core_id_t, logic);
+  `AXI_TYPEDEF_AW_CHAN_T(axi_cache_aw_t, addr_t, axi_core_id_t, axi_user_t);
+  `AXI_TYPEDEF_W_CHAN_T(axi_cache_w_t, axi_data_t, axi_strb_t, axi_user_t);
+  `AXI_TYPEDEF_B_CHAN_T(axi_cache_b_t, axi_core_id_t, axi_user_t);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_cache_ar_t, addr_t, axi_core_id_t, axi_user_t);
+  `AXI_TYPEDEF_R_CHAN_T(axi_cache_r_t, axi_data_t, axi_core_id_t, axi_user_t);
   `AXI_TYPEDEF_REQ_T(axi_cache_req_t, axi_cache_aw_t, axi_cache_w_t, axi_cache_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_cache_resp_t, axi_cache_b_t, axi_cache_r_t );
 
-  `AXI_TYPEDEF_AW_CHAN_T(axi_tile_aw_t, addr_t, axi_tile_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_tile_w_t, axi_data_t, axi_strb_t, logic);
-  `AXI_TYPEDEF_B_CHAN_T(axi_tile_b_t, axi_tile_id_t, logic);
-  `AXI_TYPEDEF_AR_CHAN_T(axi_tile_ar_t, addr_t, axi_tile_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_tile_r_t, axi_data_t, axi_tile_id_t, logic);
+  `AXI_TYPEDEF_AW_CHAN_T(axi_tile_aw_t, addr_t, axi_tile_id_t, axi_user_t);
+  `AXI_TYPEDEF_W_CHAN_T(axi_tile_w_t, axi_data_t, axi_strb_t, axi_user_t);
+  `AXI_TYPEDEF_B_CHAN_T(axi_tile_b_t, axi_tile_id_t, axi_user_t);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_tile_ar_t, addr_t, axi_tile_id_t, axi_user_t);
+  `AXI_TYPEDEF_R_CHAN_T(axi_tile_r_t, axi_data_t, axi_tile_id_t, axi_user_t);
   `AXI_TYPEDEF_REQ_T(axi_tile_req_t, axi_tile_aw_t, axi_tile_w_t, axi_tile_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_tile_resp_t, axi_tile_b_t, axi_tile_r_t );
 
-  `AXI_TYPEDEF_AW_CHAN_T(axi_system_aw_t, addr_t, axi_system_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_system_w_t, axi_data_t, axi_strb_t, logic);
-  `AXI_TYPEDEF_B_CHAN_T(axi_system_b_t, axi_system_id_t, logic);
-  `AXI_TYPEDEF_AR_CHAN_T(axi_system_ar_t, addr_t, axi_system_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_system_r_t, axi_data_t, axi_system_id_t, logic);
+  `AXI_TYPEDEF_AW_CHAN_T(axi_system_aw_t, addr_t, axi_system_id_t, axi_user_t);
+  `AXI_TYPEDEF_W_CHAN_T(axi_system_w_t, axi_data_t, axi_strb_t, axi_user_t);
+  `AXI_TYPEDEF_B_CHAN_T(axi_system_b_t, axi_system_id_t, axi_user_t);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_system_ar_t, addr_t, axi_system_id_t, axi_user_t);
+  `AXI_TYPEDEF_R_CHAN_T(axi_system_r_t, axi_data_t, axi_system_id_t, axi_user_t);
   `AXI_TYPEDEF_REQ_T(axi_system_req_t, axi_system_aw_t, axi_system_w_t, axi_system_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_system_resp_t, axi_system_b_t, axi_system_r_t);
 
   // AXI to periph
-  `AXI_TYPEDEF_W_CHAN_T(axi_periph_w_t, axi_lite_data_t, axi_lite_strb_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_periph_r_t, axi_lite_data_t, axi_system_id_t, logic);
+  `AXI_TYPEDEF_W_CHAN_T(axi_periph_w_t, axi_lite_data_t, axi_lite_strb_t, axi_user_t);
+  `AXI_TYPEDEF_R_CHAN_T(axi_periph_r_t, axi_lite_data_t, axi_system_id_t, axi_user_t);
   `AXI_TYPEDEF_REQ_T(axi_periph_req_t, axi_system_aw_t, axi_periph_w_t, axi_system_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_periph_resp_t, axi_system_b_t, axi_periph_r_t);
 
-  `AXI_TYPEDEF_AW_CHAN_T(axi_tb_aw_t, addr_t, axi_tb_id_t, logic);
-  `AXI_TYPEDEF_W_CHAN_T(axi_tb_w_t, axi_data_t, axi_strb_t, logic);
-  `AXI_TYPEDEF_B_CHAN_T(axi_tb_b_t, axi_tb_id_t, logic);
-  `AXI_TYPEDEF_AR_CHAN_T(axi_tb_ar_t, addr_t, axi_tb_id_t, logic);
-  `AXI_TYPEDEF_R_CHAN_T(axi_tb_r_t, axi_data_t, axi_tb_id_t, logic);
+  `AXI_TYPEDEF_AW_CHAN_T(axi_tb_aw_t, addr_t, axi_tb_id_t, axi_user_t);
+  `AXI_TYPEDEF_W_CHAN_T(axi_tb_w_t, axi_data_t, axi_strb_t, axi_user_t);
+  `AXI_TYPEDEF_B_CHAN_T(axi_tb_b_t, axi_tb_id_t, axi_user_t);
+  `AXI_TYPEDEF_AR_CHAN_T(axi_tb_ar_t, addr_t, axi_tb_id_t, axi_user_t);
+  `AXI_TYPEDEF_R_CHAN_T(axi_tb_r_t, axi_data_t, axi_tb_id_t, axi_user_t);
   `AXI_TYPEDEF_REQ_T(axi_tb_req_t, axi_tb_aw_t, axi_tb_w_t, axi_tb_ar_t);
   `AXI_TYPEDEF_RESP_T(axi_tb_resp_t, axi_tb_b_t, axi_tb_r_t);
 

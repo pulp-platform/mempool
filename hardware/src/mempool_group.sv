@@ -907,7 +907,7 @@ module mempool_group
       .DataWidth      (AxiDataWidth                    ),
       .SlvIdWidth     (AxiTileIdWidth                  ),
       .MstIdWidth     (AxiTileIdWidth                  ),
-      .UserWidth      (1                               ),
+      .UserWidth      (AxiUserWidth                    ),
       .slv_req_t      (axi_tile_req_t                  ),
       .slv_resp_t     (axi_tile_resp_t                 ),
       .mst_req_t      (axi_tile_req_t                  ),

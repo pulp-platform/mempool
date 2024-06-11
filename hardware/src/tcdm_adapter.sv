@@ -16,6 +16,7 @@ module tcdm_adapter #(
   parameter int unsigned  DataWidth     = 32,
   parameter type          metadata_t    = logic,
   parameter bit           LrScEnable    = 1,
+  parameter bit           LrScL2Enable  = 0,
   // Cut path between request and response at the cost of increased AMO latency
   parameter bit           RegisterAmo  = 1'b0,
   // Dependent parameters. DO NOT CHANGE.
@@ -142,7 +143,9 @@ module tcdm_adapter #(
   logic sc_q;
 
   // In case of a SC we must forward SC result from the cycle earlier.
-  assign out_rdata = (sc_q && LrScEnable) ? $unsigned(!sc_successful_q) : out_rdata_i;
+  if (!LrScEnable) begin : gen_out_no_lrsc
+    assign out_rdata = out_rdata_i;
+  end
 
   // Ready to output data if both meta and read data
   // are available (the read data will always be last)
@@ -180,21 +183,29 @@ module tcdm_adapter #(
     `FF(reservation_q, reservation_d, 1'b0, clk_i, rst_ni);
     `FF(sc_q, in_valid_i && in_ready_o && (amo_op_t'(in_amo_i) == AMOSC), 1'b0, clk_i, rst_ni);
 
-    always_comb begin
-      // {group_id, tile_id, core_id}
-      // MSB of ini_addr determines if request is coming from local or remote tile
-      if (in_meta_i.ini_addr[IniAddrWidth-1] == 0) begin
-        // Request is coming from the local tile
-        // take group id of TCDM adapter
-        unique_core_id = {'0, in_meta_i.tile_id, in_meta_i.ini_addr[IniAddrWidth-2:0]};
-      end else begin
-        // Request is coming from a remote tile
-        // take group id from ini_addr
-        // Ignore first bit of IniAddr to obtain the group address
-        unique_core_id = {in_meta_i.ini_addr[IniAddrWidth-2:0],
-                          in_meta_i.tile_id, in_meta_i.core_id};
+    if (LrScL2Enable) begin : gen_lrsc_l2
+      assign unique_core_id = in_meta_i.core_id;
+      assign out_rdata = sc_q ? sc_successful_q : out_rdata_i;
+    end else begin : gen_lrsc_tcdm
+      assign out_rdata = sc_q ? $unsigned(!sc_successful_q) : out_rdata_i;
+      always_comb begin
+        // {group_id, tile_id, core_id}
+        // MSB of ini_addr determines if request is coming from local or remote tile
+        if (in_meta_i.ini_addr[IniAddrWidth-1] == 0) begin
+          // Request is coming from the local tile
+          // take group id of TCDM adapter
+          unique_core_id = {'0, in_meta_i.tile_id, in_meta_i.ini_addr[IniAddrWidth-2:0]};
+        end else begin
+          // Request is coming from a remote tile
+          // take group id from ini_addr
+          // Ignore first bit of IniAddr to obtain the group address
+          unique_core_id = {in_meta_i.ini_addr[IniAddrWidth-2:0],
+                            in_meta_i.tile_id, in_meta_i.core_id};
+        end
       end
+    end
 
+    always_comb begin
       reservation_d = reservation_q;
       sc_successful_d = 1'b0;
       // new valid transaction

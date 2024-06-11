@@ -1063,6 +1063,18 @@ module mempool_tile
     .axi_rsp_i    (axi_cores_resp_q)
   );
 
+  axi_core_req_t  axi_cores_req_user;
+  axi_core_resp_t axi_cores_resp_user;
+  always_comb begin
+    axi_cores_req_user = axi_cores_req_d;
+    axi_cores_resp_q = axi_cores_resp_user;
+    // Assign user signals
+    axi_cores_req_user.aw.user = {unsigned'(tile_id_i), i_reqrsp_mux_snitch_soc.idx};
+    axi_cores_req_user.ar.user = {unsigned'(tile_id_i), i_reqrsp_mux_snitch_soc.idx};
+    axi_cores_req_user.w.user = {unsigned'(tile_id_i), i_reqrsp_mux_snitch_soc.idx};
+  end
+
+
   axi_cut #(
     .aw_chan_t (axi_core_aw_t  ),
     .w_chan_t  (axi_core_w_t   ),
@@ -1074,8 +1086,8 @@ module mempool_tile
   ) axi_core_slice (
     .clk_i     (clk_i           ),
     .rst_ni    (rst_ni          ),
-    .slv_req_i (axi_cores_req_d ),
-    .slv_resp_o(axi_cores_resp_q),
+    .slv_req_i (axi_cores_req_user ),
+    .slv_resp_o(axi_cores_resp_user),
     .mst_req_o (axi_cores_req_q ),
     .mst_resp_i(axi_cores_resp_d)
   );

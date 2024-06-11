@@ -157,7 +157,7 @@ module mempool_system
     .DataWidth      (AxiDataWidth                    ),
     .SlvIdWidth     (AxiTileIdWidth                  ),
     .MstIdWidth     (AxiTileIdWidth                  ),
-    .UserWidth      (1                               ),
+    .UserWidth      (AxiUserWidth                    ),
     .slv_req_t      (axi_tile_req_t                  ),
     .slv_resp_t     (axi_tile_resp_t                 ),
     .mst_req_t      (axi_tile_req_t                  ),
@@ -258,6 +258,10 @@ module mempool_system
    *  L2  *
    ********/
   `REQRSP_TYPEDEF_ALL(axi_to_l2, addr_t, axi_data_t, axi_strb_t)
+  typedef struct packed {
+    axi_to_l2_req_chan_t req;
+    axi_user_t user;
+  } axi_to_l2_user_req_chan_t;
 
   // localparam int unsigned NumAXIMastersLog2 = NumAXIMasters == 1 ? 1 : $clog2(NumAXIMasters);
   // typedef logic [L2AddrWidth-1:0] l2_mem_addr_t;
@@ -270,7 +274,11 @@ module mempool_system
   localparam int unsigned NumL2BanksWidth = (NumL2Banks > 32'd1) ? unsigned'($clog2(NumL2Banks)) : 32'd1;
   typedef logic [NumAXIMastersWidth-1:0] l2_axi_idx_t;
   typedef logic [NumL2BanksWidth-1:0] l2_bank_idx_t;
-  axi_to_l2_req_chan_t [NumAXIMasters-1:0] axi_to_l2_req_chan;
+  typedef struct packed {
+    l2_axi_idx_t idx;
+    axi_user_t core_id;
+  } l2_axi_meta_t;
+  axi_to_l2_user_req_chan_t [NumAXIMasters-1:0] axi_to_l2_req_chan;
   axi_to_l2_rsp_chan_t [NumAXIMasters-1:0] axi_to_l2_rsp_chan;
   logic                [NumAXIMasters-1:0] axi_to_l2_q_throttle_valid;
   logic                [NumAXIMasters-1:0] axi_to_l2_q_throttle_ready;
@@ -278,11 +286,13 @@ module mempool_system
   logic                [NumAXIMasters-1:0] axi_to_l2_q_ready;
   l2_bank_idx_t        [NumAXIMasters-1:0] axi_to_l2_q_sel;
   l2_axi_idx_t         [NumL2Banks-1:0] axi_to_l2_q_idx;
+  l2_axi_meta_t        [NumL2Banks-1:0] axi_to_l2_q_meta;
   logic                [NumAXIMasters-1:0] axi_to_l2_p_valid;
   logic                [NumAXIMasters-1:0] axi_to_l2_p_ready;
   l2_axi_idx_t         [NumL2Banks-1:0] axi_to_l2_p_sel;
+  l2_axi_meta_t        [NumL2Banks-1:0] axi_to_l2_p_meta;
   // Axi2ReqRsp to bank_adapter
-  axi_to_l2_req_chan_t [NumL2Banks-1:0] mem_req_chan;
+  axi_to_l2_user_req_chan_t [NumL2Banks-1:0] mem_req_chan;
   axi_to_l2_rsp_chan_t [NumL2Banks-1:0] mem_rsp_chan;
   logic [NumL2Banks-1:0] mem_req_valid;
   logic [NumL2Banks-1:0] mem_req_ready;
@@ -316,14 +326,15 @@ module mempool_system
       .reqrsp_rsp_i (axi_to_l2_rsp[i])
     );
     // Repack the structs for the xbar
-    assign axi_to_l2_req_chan[i]    = axi_to_l2_req[i].q;
-    assign axi_to_l2_q_valid[i]     = axi_to_l2_req[i].q_valid;
-    assign axi_to_l2_rsp[i].q_ready = axi_to_l2_q_ready[i];
-    assign axi_to_l2_rsp[i].p       = axi_to_l2_rsp_chan[i];
-    assign axi_to_l2_rsp[i].p_valid = axi_to_l2_p_valid[i];
-    assign axi_to_l2_p_ready[i]     = axi_to_l2_req[i].p_ready;
+    assign axi_to_l2_req_chan[i].req  = axi_to_l2_req[i].q;
+    assign axi_to_l2_req_chan[i].user = i_axi_to_reqrsp.meta_sel_d ? axi_l2_req[i].aw.user : axi_l2_req[i].ar.user;
+    assign axi_to_l2_q_valid[i]       = axi_to_l2_req[i].q_valid;
+    assign axi_to_l2_rsp[i].q_ready   = axi_to_l2_q_ready[i];
+    assign axi_to_l2_rsp[i].p         = axi_to_l2_rsp_chan[i];
+    assign axi_to_l2_rsp[i].p_valid   = axi_to_l2_p_valid[i];
+    assign axi_to_l2_p_ready[i]       = axi_to_l2_req[i].p_ready;
     // Generate the selection signal
-    assign axi_to_l2_q_sel[i] = axi_to_l2_req_chan[i].addr[$clog2(L2BankBeWidth)+:NumL2BanksWidth];
+    assign axi_to_l2_q_sel[i] = axi_to_l2_req_chan[i].req.addr[$clog2(L2BankBeWidth)+:NumL2BanksWidth];
     // Throttle the to one oustanding transaction to avoid reordering without a ROB
     stream_throttle #(
       .MaxNumPending (1)
@@ -341,13 +352,13 @@ module mempool_system
   end
 
   stream_xbar #(
-    .NumInp      (NumAXIMasters       ),
-    .NumOut      (NumL2Banks          ),
-    .payload_t   (axi_to_l2_req_chan_t),
-    .OutSpillReg (1'b0                ),
-    .ExtPrio     (1'b0                ),
-    .AxiVldRdy   (1'b1                ),
-    .LockIn      (1'b1                )
+    .NumInp      (NumAXIMasters            ),
+    .NumOut      (NumL2Banks               ),
+    .payload_t   (axi_to_l2_user_req_chan_t),
+    .OutSpillReg (1'b0                     ),
+    .ExtPrio     (1'b0                     ),
+    .AxiVldRdy   (1'b1                     ),
+    .LockIn      (1'b1                     )
   ) i_l2_req_xbar (
     .clk_i   (clk_i                     ),
     .rst_ni  (rst_ni                    ),
@@ -392,16 +403,22 @@ module mempool_system
   // without setting the memory to known values like "ones" or "zeros".
   localparam L2SimInit = `ifdef VERILATOR "none" `else "custom" `endif;
   localparam L2BankAddrIndex = $clog2(L2BankBeWidth)+$clog2(NumL2Banks);
+
+
   for (genvar i = 0; i < NumL2Banks; i++) begin : gen_l2_banks
     // Address scrambling: Cut out the bits used to index the individual banks
     logic [AddrWidth-1:0] addr_scrambled;
-    assign addr_scrambled = {'0, mem_req_chan[i].addr[AddrWidth-1:L2BankAddrIndex], mem_req_chan[i].addr[0+:$clog2(L2BankBeWidth)]};
+    assign addr_scrambled = {'0, mem_req_chan[i].req.addr[AddrWidth-1:L2BankAddrIndex], mem_req_chan[i].req.addr[0+:$clog2(L2BankBeWidth)]};
+    assign axi_to_l2_q_meta[i].idx = axi_to_l2_q_idx[i];
+    assign axi_to_l2_q_meta[i].core_id = mem_req_chan[i].user;
+    assign axi_to_l2_p_sel[i] = axi_to_l2_p_meta[i].idx;
     tcdm_adapter #(
       .AddrWidth     (AddrWidth       ),
       .BankAddrWidth (L2BankAddrWidth ),
       .DataWidth     (L2BankWidth     ),
-      .metadata_t    (l2_axi_idx_t    ),
-      .LrScEnable    (1'b0            ),
+      .metadata_t    (l2_axi_meta_t   ),
+      .LrScEnable    (1'b1            ),
+      .LrScL2Enable  (1'b1            ),
       .RegisterAmo   (1'b0            )
     ) i_bank_adapter (
       .clk_i       (clk_i                                                 ),
@@ -409,15 +426,15 @@ module mempool_system
       .in_valid_i  (mem_req_valid[i]                                      ),
       .in_ready_o  (mem_req_ready[i]                                      ),
       .in_address_i(addr_scrambled                                        ),
-      .in_amo_i    (mem_req_chan[i].amo                                   ),
-      .in_write_i  (mem_req_chan[i].write                                 ),
-      .in_wdata_i  (mem_req_chan[i].data                                  ),
-      .in_meta_i   (axi_to_l2_q_idx[i]                                    ),
-      .in_be_i     (mem_req_chan[i].strb                                  ),
+      .in_amo_i    (mem_req_chan[i].req.amo                               ),
+      .in_write_i  (mem_req_chan[i].req.write                             ),
+      .in_wdata_i  (mem_req_chan[i].req.data                              ),
+      .in_meta_i   (axi_to_l2_q_meta[i]                                   ),
+      .in_be_i     (mem_req_chan[i].req.strb                              ),
       .in_valid_o  (mem_rsp_valid[i]                                      ),
       .in_ready_i  (mem_rsp_ready[i]                                      ),
       .in_rdata_o  (mem_rsp_chan[i].data                                  ),
-      .in_meta_o   (axi_to_l2_p_sel[i]                                    ),
+      .in_meta_o   (axi_to_l2_p_meta[i]                                   ),
       .out_req_o   (bank_req[i]                                           ),
       .out_add_o   (bank_addr[i]                                          ),
       .out_write_o (bank_we[i]                                            ),
@@ -571,7 +588,7 @@ module mempool_system
     .AxiAddrWidth   (AddrWidth          ),
     .AxiDataWidth   (AxiLiteDataWidth   ),
     .AxiIdWidth     (AxiSystemIdWidth   ),
-    .AxiUserWidth   (1                  ),
+    .AxiUserWidth   (AxiUserWidth       ),
     .AxiMaxReadTxns (1                  ),
     .AxiMaxWriteTxns(1                  ),
     .FallThrough    (1'b0               ),
