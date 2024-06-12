@@ -270,6 +270,10 @@ package mempool_pkg;
     group_id_t src_group_id; // FlooNoC Added
   } tcdm_slave_resp_t;
 
+  /********************
+   *  DMA PARAMETERS  *
+   *******************/
+
   typedef struct packed {
     meta_id_t meta_id;
     tile_core_id_t core_id;
@@ -291,45 +295,56 @@ package mempool_pkg;
   /*************************************
    *  FlooNoC INTERCONNECT PARAMETERS  *
    *************************************/
+
+  // Router Direction
+  localparam integer unsigned NumDirections = `ifdef NUM_DIRECTIONS `NUM_DIRECTIONS `else 5 `endif;
+
+  // FlooNoC group id types for XY routing
+  typedef struct packed {
+    logic [idx_width(NumGroups)/2-1:0] x;
+    logic [idx_width(NumGroups)/2-1:0] y;
+  } group_xy_id_t;
+
   // FlooNoC req types
   typedef struct packed {
-    amo_t amo;
-    logic wen;
-    strb_t be;
-    data_t data;
-  } tcdm_req_payload_t;
+    amo_t               amo;
+    logic               wen;
+    strb_t              be;
+    data_t              data;
+  } floo_req_payload_t;
  
   typedef struct packed {
-    meta_id_t meta_id;
-    tile_core_id_t core_id;
-    tile_group_id_t src_tile_id;
-    group_id_t src_group_id;
-    group_id_t tgt_group_id;
-    tcdm_addr_t tgt_addr;
-  } tcdm_req_meta_t;
+    meta_id_t           meta_id;
+    tile_core_id_t      core_id;
+    tile_group_id_t     src_tile_id;
+    group_xy_id_t       src_id;
+    group_xy_id_t       dst_id;
+    tcdm_addr_t         tgt_addr;
+    logic               last;
+  } floo_req_meta_t;
 
   typedef struct packed {
-    tcdm_req_payload_t payload;
-    tcdm_req_meta_t meta;
-  } tcdm_req_t;
+    floo_req_payload_t  payload;
+    floo_req_meta_t     hdr;
+  } floo_req_t;
 
   // FlooNoC resp types
   typedef struct packed {
-    amo_t amo;
-    data_t data;
-  } tcdm_resp_payload_t;
+    amo_t               amo;
+    data_t              data;
+  } floo_resp_payload_t;
  
   typedef struct packed {
-    meta_id_t meta_id;
-    tile_core_id_t core_id;
-    tile_group_id_t tile_id;
-    group_id_t group_id;
-  } tcdm_resp_meta_t;
+    meta_id_t           meta_id;
+    tile_core_id_t      core_id;
+    tile_group_id_t     tile_id;
+    group_xy_id_t       dst_id;
+  } floo_resp_meta_t;
 
   typedef struct packed {
-    tcdm_resp_payload_t payload;
-    tcdm_resp_meta_t meta;
-  } tcdm_resp_t;
+    floo_resp_payload_t payload;
+    floo_resp_meta_t    hdr;
+  } floo_resp_t;
 
   /**********************
    *  QUEUE PARAMETERS  *
