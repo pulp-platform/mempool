@@ -141,7 +141,7 @@ end : gen_master_req_to_router_req_i
 // ------------------------------------------------------------------ //
 // Crossbar: FlooNoC "TCDM request" input select target tile          //
 // TODO: This is a consitent assignment to Tile's port,               //
-//       Should be improved for confict resolution.                   //  
+//       Should be improved for confict resolution.                   //
 // ------------------------------------------------------------------ //
 tile_group_id_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] req_tile_sel;
 floo_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_after_xbar;
@@ -226,7 +226,7 @@ end : gen_slave_resp_to_router_resp_i
 // ------------------------------------------------------------------ //
 // Crossbar: FlooNoC "TCDM reponse" input select target tile          //
 // TODO: This is a consitent assignment to Tile's port,               //
-//       Should be improved for confict resolution.                   //  
+//       Should be improved for confict resolution.                   //
 // ------------------------------------------------------------------ //
 tile_group_id_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] resp_tile_sel;
 floo_resp_t     [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_after_xbar;

@@ -312,7 +312,7 @@ package mempool_pkg;
     strb_t              be;
     data_t              data;
   } floo_req_payload_t;
- 
+
   typedef struct packed {
     meta_id_t           meta_id;
     tile_core_id_t      core_id;
@@ -333,7 +333,7 @@ package mempool_pkg;
     amo_t               amo;
     data_t              data;
   } floo_resp_payload_t;
- 
+
   typedef struct packed {
     meta_id_t           meta_id;
     tile_core_id_t      core_id;
