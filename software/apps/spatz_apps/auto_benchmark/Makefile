@@ -110,8 +110,10 @@ fft-multi: log_clean
 	@case "$(config)" in \
 	mempool*) \
 		$(python) $(ROOT_DIR)/gen_config.py "fft-multi" 32 $(size) $(cores) 1 1 0 64;; \
-	minpool*) \
+	minpool*spatz4*) \
 		$(python) $(ROOT_DIR)/gen_config.py "fft-multi" 32 $(size) $(cores) 1 1 0 4;; \
+	minpool*spatz2*) \
+		$(python) $(ROOT_DIR)/gen_config.py "fft-multi" 32 $(size) $(cores) 1 1 0 8;; \
 	*) \
 		$(python) $(ROOT_DIR)/gen_config.py "fft-multi" 32 $(size) $(cores) 1 1 0 128;; \
 	esac

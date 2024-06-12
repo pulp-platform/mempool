@@ -277,7 +277,6 @@ module snitch
   assign acc_qid_o = rd;
   assign acc_qdata_op_o = inst_data_i;
   assign acc_qdata_arga_o = {{32{gpr_rdata[0][31]}}, gpr_rdata[0]};
-  // assign acc_qdata_argb_o = {{32{gpr_rdata[1][31]}}, gpr_rdata[1]};
   assign acc_qdata_argb_o = opb_select inside {IImmediate, SImmediate, SFImmediate} ?
     {{32{alu_result[31]}}, alu_result} : {{32{gpr_rdata[1][31]}}, gpr_rdata[1]};
 
@@ -326,16 +325,14 @@ module snitch
   // the accelerator interface stalled us
   assign acc_stall = (acc_qvalid_o & ~acc_qready_i) || (read_fcsr && acc_qdata_rsp_i.isfloat);
   // the LSU Interface didn't accept our request yet
-  // assign lsu_stall = (lsu_qvalid & ~lsu_qready) | acc_mem_stall;
 `else
   assign acc_stall = (acc_qvalid_o & ~acc_qready_i);
-  // assign lsu_stall = (lsu_qvalid & ~lsu_qready);
 `endif
 
   // Stall the stage if we either didn't get a valid instruction or the LSU/Accelerator is not ready
   always_comb begin
     lsu_stall = (lsu_qvalid & ~lsu_qready);
-    stall = ~valid_instr | lsu_stall | acc_stall;
+    stall = ~valid_instr | lsu_stall | acc_stall | fence_stall;
     if (acc_mem_stall) begin
       // If acc memory is stalling, it is not necessary to stall the snich
       // only memory instructions cannot be forward to avoid data hazards

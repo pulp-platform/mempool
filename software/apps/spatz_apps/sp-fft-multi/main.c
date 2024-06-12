@@ -76,7 +76,6 @@ int main() {
     if (cid == 0) {
       // DMA has a problem with copying unaligned L1 and L2 data
       // Twiddle's size may not be a power of 2, so we'd better use mannual copy instead of DMA
-      // TODO: Fix DMA and let it copy the data!
 
       dma_memcpy_blocking(samples[n_fft],     samples_dram,   (NFFT*2) * sizeof(float));
       // Not necessary, but can make sure address of samples, buffer and out are aligned
