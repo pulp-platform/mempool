@@ -209,11 +209,11 @@ end : gen_router_req_to_slave_req_i
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_router_resp_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_slave_resp_to_router_resp_j
     assign floo_resp_to_router[i][j] = floo_resp_t'{
-      payload: tcdm_resp_payload_t'{
+      payload: floo_resp_payload_t'{
         amo : tcdm_slave_resp[i][j].rdata.amo,
         data: tcdm_slave_resp[i][j].rdata.data
       },
-      hdr: tcdm_resp_meta_t'{
+      hdr: floo_resp_meta_t'{
         meta_id : tcdm_slave_resp[i][j].rdata.meta_id,             // For Register File
         core_id : tcdm_slave_resp[i][j].rdata.core_id,             // For Core
         tile_id : tcdm_slave_resp[i][j].ini_addr,                  // For Crossbar when response back (Sender's Tile ID, propagated from request)
@@ -235,7 +235,7 @@ logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_ready;
 
-for (gen var i = 0; i < NumTilesPerGroup; i++) begin : gen_resp_sel_tgt_tile_i
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_resp_sel_tgt_tile_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_resp_sel_tgt_tile_j
     assign resp_tile_sel[i][j] = floo_resp_from_router[i][j].hdr.tile_id;
   end : gen_resp_sel_tgt_tile_j
@@ -291,7 +291,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_router_router_j
 
     floo_router #(
-      .NumRoutes        (NumDirections),
+      .NumRoutes        (mempool_pkg::NumDirections),
       .flit_t           (floo_req_t   ),
       .ChannelFifoDepth (2            ), // Input buffer depth
       .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
@@ -308,10 +308,10 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .valid_o        ({floo_req_valid_o, floo_req_from_router_before_xbar_valid[i][j]}),
       .ready_i        ({floo_req_ready_i, floo_req_from_router_before_xbar_ready[i][j]}),
       .data_o         ({floo_req_o,       floo_req_from_router[i][j]}                  )
-    )
+    );
 
     floo_router #(
-      .NumRoutes       (NumDirections),
+      .NumRoutes       (mempool_pkg::NumDirections),
       .flit_t          (floo_resp_t  ),
       .ChannelFifoDepth(2            ), // Input buffer depth
       .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
@@ -328,7 +328,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .valid_o        ({floo_resp_valid_o, floo_resp_from_router_before_xbar_valid[i][j]}),
       .ready_i        ({floo_resp_ready_i, floo_resp_from_router_before_xbar_ready[i][j]}),
       .data_o         ({floo_resp_o,       floo_resp_from_router[i][j]}                  )
-    )
+    );
 
   end : gen_router_router_j
 end : gen_router_router_i
