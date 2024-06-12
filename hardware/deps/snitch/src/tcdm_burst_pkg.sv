@@ -50,4 +50,15 @@ package tcdm_burst_pkg;
     } tcdm_gre_t;
   `endif
 
+  /***************
+   *  Dual Load  *
+   ***************/
+
+  localparam logic [11:0] CSR_DUAL = 12'hb;
+
+  typedef enum logic {
+    Disable,
+    Interleave
+  } dual_load_mode_e;
+
 endpackage : tcdm_burst_pkg

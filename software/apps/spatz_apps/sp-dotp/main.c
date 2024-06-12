@@ -30,6 +30,7 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+#define DUAL_LOAD
 
 uint32_t timer = (uint32_t)-1;
 // 32-bit dot-product: a * b
@@ -53,17 +54,6 @@ float fdotp_v32b_p2(){
   asm volatile("vfredusum.vs v0, v24, v0");
   asm volatile("vfmv.f.s %0, v0" : "=f"(red));
   return red;
-}
-
-static inline int fp_check(const float a, const float b) {
-  const float threshold = 0.01f;
-
-  // Absolute value
-  float comp = a - b;
-  if (comp < 0)
-    comp = -comp;
-
-  return comp > threshold;
 }
 
 int main() {
@@ -99,6 +89,11 @@ int main() {
   // Initialize matrices
   if (cid == 0) {
     dma_memcpy_blocking(a, dotp_A_dram, dim * sizeof(float));
+  #ifdef DUAL_LOAD
+    // l1_offset is used to shift array B in the L1, so that A and B are misaligned
+    // This shift can boost the performance for dual load to avoid port conflicts
+    dma_memcpy_blocking(l1_offset, dotp_A_dram, OFFSET * sizeof(float));
+  #endif
     dma_memcpy_blocking(b, dotp_B_dram, dim * sizeof(float));
     for (uint32_t i = 0; i <= active_cores; i ++) {
       result[i] = 0;
@@ -130,6 +125,13 @@ int main() {
 
   // Wait for all cores to finish
   mempool_barrier(num_cores);
+
+  // Set mode of dual load
+  // 0: Disable
+  // 1: Interleave
+#ifdef DUAL_LOAD
+  asm volatile("csrrsi x0, 0xb, 0x1");
+#endif
 
   if (is_core_active) {
     if (cid == 0)

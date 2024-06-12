@@ -759,7 +759,8 @@ module snitch
           riscv_instr::CSR_VLENB,
           riscv_instr::CSR_VXSAT,
           riscv_instr::CSR_VXRM,
-          riscv_instr::CSR_VCSR: begin
+          riscv_instr::CSR_VCSR,
+          tcdm_burst_pkg::CSR_DUAL: begin
             if (RVV) begin
               write_rd = 1'b0;
               uses_rd = 1'b1;
