@@ -13,7 +13,7 @@ module mempool_group_floonoc_wrapper
 #(
   // Parameters for mempool_group
   parameter addr_t       TCDMBaseAddr = 32'b0,
-  parameter logic [31:0] BootAddr     = 32'h0000_1000,
+  parameter logic [31:0] BootAddr     = 32'h0000_1000
 ) (
   // Clock and reset
   input  logic                                                                         clk_i,
@@ -38,7 +38,7 @@ module mempool_group_floonoc_wrapper
   output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_ready_o,
   input  floo_resp_t     [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_i,
   input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_valid_i,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_ready_o
+  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_ready_o,
 
   // Wake up interface
   input  logic           [NumCoresPerGroup-1:0]                                        wake_up_i,
@@ -150,7 +150,7 @@ logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_before_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_before_xbar_ready;
 
-for (gen var i = 0; i < NumTilesPerGroup; i++) begin : gen_req_sel_tgt_tile_i
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_req_sel_tgt_tile_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_req_sel_tgt_tile_j
     assign req_tile_sel[i][j] = floo_req_from_router[i][j].hdr.tgt_addr[TileBankRowOffset +: NumTilesPerGroupWidth];
   end : gen_req_sel_tgt_tile_j
