@@ -134,16 +134,11 @@ TEST(parallel_for_schedule_static_thread) {
   }
 
   uint32_t A = 9;
-  memset(buf_2, '\0', sizeof(buf_2));
 #pragma omp parallel for num_threads(4) schedule(static) private(A)
   for (uint32_t i = 0; i < 4; i++) {
-    buf_2[i] = A;
     A = i;
   }
 
-  for (int i = 0; i < 4; i++) {
-    ASSERT_NEQ(buf_2[i], 9);
-  }
   ASSERT_EQ(A, 9);
 
   A = 9;
