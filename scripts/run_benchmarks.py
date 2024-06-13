@@ -161,11 +161,11 @@ def runAll(dir, compiler, simulator="verilate", config="minpool-no-xpulp"):
 def main():
     os.makedirs(f'results/{GIT_COMMIT_HASH}', exist_ok=True)
 
-    compileAll(OMP_APPS_DIR, "llvm")
-    runAll(OMP_APPS_DIR, "llvm")
-
     compileAll(OMP_APPS_DIR, "gcc")
     runAll(OMP_APPS_DIR, "gcc")
+
+    compileAll(OMP_APPS_DIR, "llvm")
+    runAll(OMP_APPS_DIR, "llvm")
 
 
 if __name__ == '__main__':

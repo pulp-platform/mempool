@@ -11,7 +11,6 @@ import numpy as np
 
 HARDWARE_DIR = "../../hardware"
 APPS_DIR = "../apps"
-KMP_APPS_DIR = APPS_DIR + "/kmp"
 OMP_APPS_DIR = APPS_DIR + "/omp"
 UART_REGEX = re.compile(r"\[UART\] (.*): (\d+)")
 GIT_COMMIT_HASH = subprocess.check_output(
