@@ -55,8 +55,7 @@ TEST(gcc_omp_parallel_for_schedule_dynamic) {
 
   memset(buf, '\0', sizeof(buf));
 #pragma omp parallel for schedule(dynamic, 3)
-  for (j = 53; j > 9; --j)
-  {
+  for (j = 53; j > 9; --j) {
     DEBUG_PRINT("%d\n", j);
     buf[j] = 5;
   }
