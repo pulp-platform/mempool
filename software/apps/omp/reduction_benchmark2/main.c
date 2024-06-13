@@ -37,14 +37,13 @@ int32_t dot_product_omp_dynamic(int32_t const *__restrict__ A,
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_timer_t cycles;
 
   mempool_wait(4 * num_cores);
 
-  for (int i = 1; i <= 8192; i *= 2) {
-    int32_t a = simple_malloc(i * sizeof(int32_t));
+  for (unsigned int i = 1; i <= 8192; i *= 2) {
+    int32_t *a = simple_malloc(i * sizeof(int32_t));
     cycles = mempool_get_timer();
     dot_product_omp_static(a, a, i);
     cycles = mempool_get_timer() - cycles;
@@ -52,8 +51,8 @@ int main() {
     printf("Static duration with %d elements: %d\n", i, cycles);
   }
 
-  for (int i = 1; i <= 8192; i *= 2) {
-    int32_t a = simple_malloc(i * sizeof(int32_t));
+  for (unsigned int i = 1; i <= 8192; i *= 2) {
+    int32_t *a = simple_malloc(i * sizeof(int32_t));
     cycles = mempool_get_timer();
     dot_product_omp_dynamic(a, a, i);
     cycles = mempool_get_timer() - cycles;

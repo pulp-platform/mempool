@@ -18,11 +18,10 @@ uint32_t buf_2[NUM_CORES];
 TEST(omp_parallel_for_schedule_static) {
   uint32_t i;
   int *p;
-  int result = 0;
   memset(buf_1, '\0', sizeof(buf_1));
 
 #pragma omp parallel for
-  for (int i = 0; i < omp_get_num_threads(); i++) {
+  for (int i = 0; i < (int)omp_get_num_threads(); i++) {
     buf_1[i] = i;
   }
 
@@ -119,8 +118,8 @@ TEST(parallel_for_schedule_static_thread) {
     buf_2[i] = omp_get_thread_num();
   }
 
-  int chunkSize = (10 + 4 - 1) / 4; // ceil(10/4)
-  for (int i = 0; i < 10; i++) {
+  uint32_t chunkSize = (10 + 4 - 1) / 4; // ceil(10/4)
+  for (uint32_t i = 0; i < 10; i++) {
     ASSERT_EQ(buf_2[i], (i / chunkSize) % 4);
   }
 
@@ -130,14 +129,14 @@ TEST(parallel_for_schedule_static_thread) {
     buf_2[i] = omp_get_thread_num();
   }
 
-  for (int i = 0; i < 10; i++) {
+  for (uint32_t i = 0; i < 10; i++) {
     ASSERT_EQ(buf_2[i], (i / 2) % 4);
   }
 
-  int A = 9;
+  uint32_t A = 9;
   memset(buf_2, '\0', sizeof(buf_2));
 #pragma omp parallel for num_threads(4) schedule(static) private(A)
-  for (int i = 0; i < 4; i++) {
+  for (uint32_t i = 0; i < 4; i++) {
     buf_2[i] = A;
     A = i;
   }
@@ -150,7 +149,7 @@ TEST(parallel_for_schedule_static_thread) {
   A = 9;
   memset(buf_2, '\0', sizeof(buf_2));
 #pragma omp parallel for num_threads(4) schedule(static) firstprivate(A)
-  for (int i = 0; i < 4; i++) {
+  for (uint32_t i = 0; i < 4; i++) {
     buf_2[i] = A;
     A = i;
   }
@@ -162,7 +161,7 @@ TEST(parallel_for_schedule_static_thread) {
 
   A = 9;
 #pragma omp parallel for num_threads(4) schedule(static) lastprivate(A)
-  for (int i = 0; i < 4; i++) {
+  for (uint32_t i = 0; i < 4; i++) {
     A = i;
   }
 

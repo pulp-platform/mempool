@@ -19,7 +19,7 @@
 TEST(test_omp_parallel_8) {
   for (int i = 0; i < REPETITIONS; i++) {
     printf("Master Thread: Parallel start\n");
-    int nthreads = 0;
+    uint32_t nthreads = 0;
 
 #pragma omp parallel num_threads(8)
     {
@@ -34,7 +34,7 @@ TEST(test_omp_parallel_8) {
 TEST(test_omp_parallel) {
   for (int i = 0; i < REPETITIONS; i++) {
     printf("Master Thread: Parallel start\n");
-    int nthreads = 0;
+    uint32_t nthreads = 0;
 
     printf("Master Thread: Parallel start\n");
 #pragma omp parallel

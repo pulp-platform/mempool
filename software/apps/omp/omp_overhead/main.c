@@ -14,12 +14,14 @@
 #define N 16
 #define M 4
 
-void work2(unsigned long num) {
+uint32_t work2(unsigned long num) {
   uint32_t i;
   uint32_t cnt = 0;
 
   for (i = 0; i < num; i++)
     cnt += i;
+
+  return cnt;
 }
 
 void sequential() {
@@ -97,7 +99,6 @@ void startup_time() {
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
   uint32_t cycles;
 
   printf("Sequential Start\n");

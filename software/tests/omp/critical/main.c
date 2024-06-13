@@ -28,19 +28,19 @@ TEST(test_omp_critical) {
 #pragma omp critical
       {
         sum1 += 1;
-        // sum2 += 2;
+        sum2 += 2;
       }
 
 #pragma omp critical
       {
         sum1 += 1;
-        // sum2 += 2;
+        sum2 += 2;
       }
     }
 
     ASSERT_EQ(sum1, 2 * num_cores);
-    // ASSERT_EQ(sum2, 2 * sum1);
-    // ASSERT_EQ(sum2, 4 * num_cores);
+    ASSERT_EQ(sum2, 2 * sum1);
+    ASSERT_EQ(sum2, 4 * num_cores);
   }
 }
 

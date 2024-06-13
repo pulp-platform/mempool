@@ -51,7 +51,6 @@ TEST(test_omp_parallel_for_dynamic) {
 TEST(test_omp_parallel_for_dynamic_static) {
   for (int i = 0; i < REPETITIONS; i++) {
     int sum = 0;
-    int sum1, sum2 = 0;
 
 #pragma omp parallel shared(sum)
     {

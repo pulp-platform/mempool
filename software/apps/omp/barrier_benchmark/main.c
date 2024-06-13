@@ -17,9 +17,9 @@
 int main() {
 #pragma omp parallel
   {
-    int counter = 0;
-    int cycles = 0;
-    int start_time = 0;
+    unsigned int counter = 0;
+    unsigned int cycles = 0;
+    unsigned int start_time = 0;
 
     for (int i = 1; i < MAX_BARRIERS + 1; i++) {
 

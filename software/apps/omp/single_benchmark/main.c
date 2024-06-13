@@ -22,9 +22,8 @@ void work1() {
 }
 
 void parallel_single_manual() {
-  uint32_t core_id;
+  uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  core_id = mempool_get_core_id();
 
   work1();
 
@@ -71,7 +70,6 @@ void omp_parallel_single() {
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
 
 #pragma omp parallel
   {

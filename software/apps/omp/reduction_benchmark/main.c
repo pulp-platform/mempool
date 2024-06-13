@@ -244,7 +244,7 @@ int main() {
 
   /*  OPENMP IMPLEMENTATION  */
   int32_t omp_result;
-  int32_t result, correct_result;
+  int32_t correct_result;
 
   mempool_wait(4 * num_cores);
 

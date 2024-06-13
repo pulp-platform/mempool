@@ -16,7 +16,6 @@ int buf[64];
 
 TEST(gcc_omp_parallel_for_schedule_dynamic) {
   int i, j;
-  int result = 0;
 
   memset(buf, '\0', sizeof(buf));
 #pragma omp parallel for schedule(dynamic, 3)

@@ -21,7 +21,7 @@
 #define KNOWN_PRODUCT 3628800 /* 10! */
 #define LOOPCOUNT 100 /* Number of iterations to split amongst threads */
 
-int logics[LOOPCOUNT];
+uint32_t logics[LOOPCOUNT];
 
 TEST(test_omp_parallel_for_sum) {
   for (int rep = 0; rep < REPETITIONS; rep++) {
@@ -135,7 +135,7 @@ TEST(test_omp_parallel_for_logic_or_part2) {
 
 TEST(test_omp_parallel_for_bit_and_part1) {
   for (int rep = 0; rep < REPETITIONS; rep++) {
-    int bit_and = 1;
+    uint32_t bit_and = 1;
     memset(logics, 0, LOOPCOUNT);
     for (int i = 0; i < LOOPCOUNT; ++i) {
       logics[i] = 1;
@@ -152,7 +152,7 @@ TEST(test_omp_parallel_for_bit_and_part1) {
 
 TEST(test_omp_parallel_for_bit_and_part2) {
   for (int rep = 0; rep < REPETITIONS; rep++) {
-    int bit_and = 1;
+    uint32_t bit_and = 1;
     memset(logics, 0, LOOPCOUNT);
     for (int i = 0; i < LOOPCOUNT; ++i) {
       logics[i] = 1;
@@ -170,7 +170,7 @@ TEST(test_omp_parallel_for_bit_and_part2) {
 
 TEST(test_omp_parallel_for_bit_or_part1) {
   for (int rep = 0; rep < REPETITIONS; rep++) {
-    int bit_or = 0;
+    uint32_t bit_or = 0;
     memset(logics, 0, LOOPCOUNT);
     for (int i = 0; i < LOOPCOUNT; i++) {
       logics[i] = 0;
@@ -187,7 +187,7 @@ TEST(test_omp_parallel_for_bit_or_part1) {
 
 TEST(test_omp_parallel_for_bit_or_part2) {
   for (int rep = 0; rep < REPETITIONS; rep++) {
-    int bit_or = 0;
+    uint32_t bit_or = 0;
     memset(logics, 0, LOOPCOUNT);
     for (int i = 0; i < LOOPCOUNT; i++) {
       logics[i] = 0;
@@ -205,7 +205,7 @@ TEST(test_omp_parallel_for_bit_or_part2) {
 
 TEST(test_omp_parallel_for_exclusiv_bit_or_part1) {
   for (int rep = 0; rep < REPETITIONS; rep++) {
-    int exclusiv_bit_or = 0;
+    uint32_t exclusiv_bit_or = 0;
     memset(logics, 0, LOOPCOUNT);
     for (int i = 0; i < LOOPCOUNT; i++) {
       logics[i] = 0;
@@ -222,7 +222,7 @@ TEST(test_omp_parallel_for_exclusiv_bit_or_part1) {
 
 TEST(test_omp_parallel_for_exclusiv_bit_or_part2) {
   for (int rep = 0; rep < REPETITIONS; rep++) {
-    int exclusiv_bit_or = 0;
+    uint32_t exclusiv_bit_or = 0;
     memset(logics, 0, LOOPCOUNT);
     for (int i = 0; i < LOOPCOUNT; i++) {
       logics[i] = 0;

@@ -30,8 +30,7 @@ TEST(test_omp_barrier) {
       uint32_t rank;
       rank = omp_get_thread_num();
       if (rank == 1) {
-        mempool_wait(((double)SLEEPTIME) /
-                     REPETITIONS); // give 1 sec to whole test
+        mempool_wait(((uint32_t)(double)SLEEPTIME / REPETITIONS)); // give 1 sec to whole test
         result2 = 3;
       }
 #pragma omp barrier
