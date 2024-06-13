@@ -124,7 +124,7 @@ endif
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
-RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
+RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra -Werror
 RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -gdwarf-4 -O3 -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -fno-tree-loop-distribute-patterns # -falign-loops=32 -falign-jumps=32
@@ -145,7 +145,7 @@ ifeq ($(COMPILER),gcc)
 else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON) -std=gnu99
 	RISCV_CXXFLAGS      += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON) -std=c++17 -fno-exceptions -fno-threadsafe-statics -isystem $(ETL_DIR)
-	RISCV_LDFLAGS       += -static -nostartfiles -nostdlib -lm -fuse-ld=lld -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
+	RISCV_LDFLAGS       += -static -nostartfiles -nostdlib -lgcc -lm -fuse-ld=lld -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
 	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32
 	ifeq ($(xDivSqrt), 0)
 		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+nofdiv,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
