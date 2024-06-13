@@ -15,9 +15,8 @@ COMPILER ?= llvm
 RISCV_CCFLAGS += -fopenmp -DNTHREADS=$(num_cores)
 RISCV_CCFLAGS += -I$(OMP_DIR)
 
-ifeq ($(COMPILER),llvm)
-	RISCV_LDFLAGS += -Wl,-wrap,main
-endif
+# Wrap main function
+RISCV_LDFLAGS += -Wl,-wrap,main
 
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk

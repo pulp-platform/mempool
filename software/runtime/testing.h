@@ -110,7 +110,7 @@ int num_tests = 0;    // NOLINT(*-global-variables)
       tests[num_tests].func = testname;                                        \
       num_tests++;                                                             \
     } else {                                                                   \
-      printf("Too many tests added, max is %s\n", MAX_TESTS);                  \
+      printf("Too many tests added, max is %d\n", MAX_TESTS);                  \
     }                                                                          \
   }                                                                            \
   void testname(char const **out_error_message)

@@ -13,8 +13,7 @@ from pprint import pp
 
 HARDWARE_DIR = "../hardware"
 APPS_DIR = "../software/apps"
-KMP_APPS_DIR = APPS_DIR + "/kmp"
-GOMP_APPS_DIR = APPS_DIR + "/gomp"
+OMP_APPS_DIR = APPS_DIR + "/omp"
 UART_REGEX = re.compile(r"\[UART\] ((?!.*\bresult\b).*): (\d+)", re.IGNORECASE)
 GIT_COMMIT_HASH = subprocess.check_output(
     ["git", "describe", "--always", "--dirty"]).strip().decode("utf-8")
@@ -134,8 +133,7 @@ def runAll(dir, compiler, simulator="verilate", config="minpool-no-xpulp"):
     env["config"] = config
 
     for app in os.listdir(dir):
-        if (os.path.isfile(os.path.join(dir, app)) or app.startswith(".")
-                or "benchmark" not in app):
+        if (os.path.isfile(os.path.join(dir, app)) or app.startswith(".")):
             continue
 
         print(f"Running {app}")
@@ -163,11 +161,11 @@ def runAll(dir, compiler, simulator="verilate", config="minpool-no-xpulp"):
 def main():
     os.makedirs(f'results/{GIT_COMMIT_HASH}', exist_ok=True)
 
-    compileAll(KMP_APPS_DIR, "llvm")
-    runAll(KMP_APPS_DIR, "llvm")
+    compileAll(OMP_APPS_DIR, "llvm")
+    runAll(OMP_APPS_DIR, "llvm")
 
-    compileAll(GOMP_APPS_DIR, "gcc")
-    runAll(GOMP_APPS_DIR, "gcc")
+    compileAll(OMP_APPS_DIR, "gcc")
+    runAll(OMP_APPS_DIR, "gcc")
 
 
 if __name__ == '__main__':
