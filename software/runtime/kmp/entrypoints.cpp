@@ -134,7 +134,8 @@ int __kmpc_dispatch_next_8u(ident_t * /*loc*/, kmp_int64 /*gtid*/,
 
 void __kmpc_push_num_threads(ident_t * /*loc*/, kmp_int32 /*global_tid*/,
                              kmp_int32 num_threads) {
-  kmp::runtime::getCurrentThread().requestNumThreads(num_threads);
+  kmp::runtime::getCurrentThread().requestNumThreads(
+      static_cast<kmp_uint32>(num_threads));
 };
 
 // Critical sections
@@ -220,7 +221,7 @@ void __kmpc_fork_teams(ident_t * /*loc*/, kmp_int32 argc, kmpc_micro microtask,
   // cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
-void __kmpc_push_num_teams(ident_t * /*loc*/, kmp_int32 global_tid,
+void __kmpc_push_num_teams(ident_t * /*loc*/, kmp_int32 /*global_tid*/,
                            kmp_int32 num_teams, kmp_int32 num_threads) {
   DEBUG_PRINT("num_teams: %d, num_threads: %d\n", num_teams, num_threads);
   if (num_teams > 0) {
