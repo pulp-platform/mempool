@@ -13,6 +13,8 @@ extern "C" {
 #include "runtime.h"
 }
 
+extern void (*_eoc)(void);
+
 kmp::Mutex allocLock;
 
 void *operator new(size_t size) {
@@ -40,10 +42,18 @@ void __throw_length_error(const char *msg) {
   abort();
 }
 
-void __throw_bad_optional_access() { printf("Bad optional access\n"); }
+void __throw_bad_optional_access() {
+  printf("Bad optional access\n");
+  abort();
+}
 } // namespace std
 
-extern "C" void abort() { printf("Aborting\n"); }
+extern "C" void abort() {
+  printf("Aborting\n");
+  while (true) {
+    asm("j _eoc");
+  }
+}
 
 extern "C" int __cxa_atexit(void (*func)(void *), void *arg, void *dso_handle) {
   (void)func;
