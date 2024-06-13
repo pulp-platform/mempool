@@ -12,7 +12,6 @@
 #include <array>
 #include <mutex>
 #include <optional>
-#include <variant>
 
 namespace kmp {
 
@@ -22,16 +21,12 @@ class Barrier;
 
 class Team {
 
-  template <typename T, typename SignedT = typename std::make_signed<T>::type,
-            typename UnsignedT = typename std::make_unsigned<T>::type>
   struct DynamicSchedule {
-    DynamicSchedule() {}
-
-    T lowerNext = 0;
-    T upper = 0;
-    SignedT chunk = 0;
-    SignedT incr = 0;
-    SignedT stride = 0;
+    kmp_uint32 lowerNext = 0;
+    kmp_uint32 upper = 0;
+    kmp_uint32 chunk = 0; // Chunk size assumed to be positive
+    kmp_int32 incr = 0;
+    kmp_int32 stride = 0;
 
     bool valid = false;
     kmp_uint32 numDone = 0;
@@ -189,7 +184,7 @@ public:
 
     DEBUG_PRINT("Dispatch init\n");
 
-    auto &dynamicSchedule = std::get<DynamicSchedule<T>>(this->dynamicSchedule);
+    DEBUG_PRINT("Got dynamic schedule\n");
 
     switch (schedtype) {
     case kmp_sch_dynamic_chunked: {
@@ -202,9 +197,9 @@ public:
 
       SignedT span = incr * chunk;
 
-      dynamicSchedule.lowerNext = lower;
-      dynamicSchedule.upper = upper;
-      dynamicSchedule.chunk = chunk;
+      dynamicSchedule.lowerNext = static_cast<kmp_uint32>(lower);
+      dynamicSchedule.upper = static_cast<kmp_uint32>(upper);
+      dynamicSchedule.chunk = static_cast<kmp_uint32>(chunk);
       dynamicSchedule.incr = incr;
       dynamicSchedule.stride = span * static_cast<SignedT>(numThreads);
 
@@ -232,8 +227,6 @@ public:
 
     DEBUG_PRINT("Dispatch next\n");
 
-    auto &dynamicSchedule = std::get<DynamicSchedule<T>>(this->dynamicSchedule);
-
     std::lock_guard<Mutex> lock(dynamicSchedule.mutex);
     assert(dynamicSchedule.valid && "Dynamic schedule is not valid");
 
@@ -247,14 +240,14 @@ public:
       return false;
     }
 
-    *plower = dynamicSchedule.lowerNext;
+    *plower = static_cast<T>(dynamicSchedule.lowerNext);
 
-    dynamicSchedule.lowerNext += static_cast<T>(dynamicSchedule.chunk);
+    dynamicSchedule.lowerNext += dynamicSchedule.chunk;
     if (dynamicSchedule.lowerNext > dynamicSchedule.upper) {
-      *pupper = dynamicSchedule.upper;
+      *pupper = static_cast<T>(dynamicSchedule.upper);
       *plastiter = true;
     } else {
-      *pupper = dynamicSchedule.lowerNext - 1;
+      *pupper = static_cast<T>(dynamicSchedule.lowerNext - 1);
       *plastiter = false;
     }
 
@@ -270,8 +263,7 @@ private:
 
   Barrier barrier;
 
-  std::variant<DynamicSchedule<kmp_int32>, DynamicSchedule<kmp_uint32>>
-      dynamicSchedule;
+  DynamicSchedule dynamicSchedule;
 
   void *copyPrivateData = nullptr;
 
