@@ -156,26 +156,48 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_req_sel_tgt_tile_i
   end : gen_req_sel_tgt_tile_j
 end : gen_req_sel_tgt_tile_i
 
+tile_group_id_t [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] req_tile_sel_per_port;
+floo_req_t      [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_per_port;
+logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_before_xbar_valid_per_port;
+logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_before_xbar_ready_per_port;
+
+floo_req_t      [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_after_xbar_per_port;
+logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_after_xbar_valid_per_port;
+logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_after_xbar_ready_per_port;
+
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_floo_req_from_router_per_port_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_floo_req_from_router_per_port_j
+    assign req_tile_sel_per_port                            [j][i] = req_tile_sel                           [i][j];
+    assign floo_req_from_router_per_port                    [j][i] = floo_req_from_router                   [i][j];
+    assign floo_req_from_router_before_xbar_valid_per_port  [j][i] = floo_req_from_router_before_xbar_valid [i][j];
+    assign floo_req_from_router_before_xbar_ready_per_port  [j][i] = floo_req_from_router_before_xbar_ready [i][j];
+
+    assign floo_req_from_router_after_xbar                  [i][j] = floo_req_from_router_after_xbar_per_port       [i][j];
+    assign floo_req_from_router_after_xbar_valid            [i][j] = floo_req_from_router_after_xbar_valid_per_port [i][j];
+    assign floo_req_from_router_after_xbar_ready            [i][j] = floo_req_from_router_after_xbar_ready_per_port [i][j];
+  end : gen_floo_req_from_router_per_port_j
+end : gen_floo_req_from_router_per_port_i
+
 for (genvar i = 1; i < NumRemotePortsPerTile; i++) begin : floo_req_xbar
   stream_xbar #(
     .NumInp   (NumTilesPerGroup                                              ),
     .NumOut   (NumTilesPerGroup                                              ),
     .payload_t(floo_req_t                                                    )
-  ) i_local_resp_interco (
+  ) i_local_req_interco (
     .clk_i  (clk_i                                                           ),
     .rst_ni (rst_ni                                                          ),
     .flush_i(1'b0                                                            ),
     // External priority flag
     .rr_i   ('0                                                              ),
     // Master
-    .data_i (floo_req_from_router[NumTilesPerGroup-1:0][i]                   ),
-    .valid_i(floo_req_from_router_before_xbar_valid[NumTilesPerGroup-1:0][i] ),
-    .ready_o(floo_req_from_router_before_xbar_ready[NumTilesPerGroup-1:0][i] ),
-    .sel_i  (req_tile_sel[NumTilesPerGroup-1:0][i]                           ),
+    .data_i (floo_req_from_router_per_port                    [i]            ),
+    .valid_i(floo_req_from_router_before_xbar_valid_per_port  [i]            ),
+    .ready_o(floo_req_from_router_before_xbar_ready_per_port  [i]            ),
+    .sel_i  (req_tile_sel_per_port                            [i]            ),
     // Slave
-    .data_o (floo_req_from_router_after_xbar[NumTilesPerGroup-1:0][i]        ),
-    .valid_o(floo_req_from_router_after_xbar_valid[NumTilesPerGroup-1:0][i]  ),
-    .ready_i(floo_req_from_router_after_xbar_ready[NumTilesPerGroup-1:0][i]  ),
+    .data_o (floo_req_from_router_after_xbar_per_port         [i]            ),
+    .valid_o(floo_req_from_router_after_xbar_valid_per_port   [i]            ),
+    .ready_i(floo_req_from_router_after_xbar_ready_per_port   [i]            ),
     .idx_o  (/* Unused, TODO?: this is the data comes from index */          )
   );
 end : floo_req_xbar
@@ -241,6 +263,29 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_resp_sel_tgt_tile_i
   end : gen_resp_sel_tgt_tile_j
 end : gen_resp_sel_tgt_tile_i
 
+tile_group_id_t [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] resp_tile_sel_per_port;
+floo_resp_t     [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_per_port;
+logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_before_xbar_valid_per_port;
+logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_before_xbar_ready_per_port;
+
+floo_resp_t     [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_per_port;
+logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_valid_per_port;
+logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_ready_per_port;
+
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_floo_resp_from_router_per_port_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_floo_resp_from_router_per_port_j
+    assign resp_tile_sel_per_port                            [j][i] = resp_tile_sel                           [i][j];
+    assign floo_resp_from_router_per_port                    [j][i] = floo_resp_from_router                   [i][j];
+    assign floo_resp_from_router_before_xbar_valid_per_port  [j][i] = floo_resp_from_router_before_xbar_valid [i][j];
+    assign floo_resp_from_router_before_xbar_ready_per_port  [j][i] = floo_resp_from_router_before_xbar_ready [i][j];
+
+    assign floo_resp_from_router_after_xbar                  [i][j] = floo_resp_from_router_after_xbar_per_port       [i][j];
+    assign floo_resp_from_router_after_xbar_valid            [i][j] = floo_resp_from_router_after_xbar_valid_per_port [i][j];
+    assign floo_resp_from_router_after_xbar_ready            [i][j] = floo_resp_from_router_after_xbar_ready_per_port [i][j];
+  end : gen_floo_resp_from_router_per_port_j
+end : gen_floo_resp_from_router_per_port_i
+
+
 for (genvar i = 1; i < NumRemotePortsPerTile; i++) begin : floo_resp_xbar
   stream_xbar #(
     .NumInp   (NumTilesPerGroup                                               ),
@@ -253,14 +298,14 @@ for (genvar i = 1; i < NumRemotePortsPerTile; i++) begin : floo_resp_xbar
     // External priority flag
     .rr_i   ('0                                                               ),
     // Master
-    .data_i (floo_resp_from_router[NumTilesPerGroup-1:0][i]                   ),
-    .valid_i(floo_resp_from_router_before_xbar_valid[NumTilesPerGroup-1:0][i] ),
-    .ready_o(floo_resp_from_router_before_xbar_ready[NumTilesPerGroup-1:0][i] ),
-    .sel_i  (resp_tile_sel[NumTilesPerGroup-1:0][i]                           ),
+    .data_i (floo_resp_from_router_per_port                    [i]            ),
+    .valid_i(floo_resp_from_router_before_xbar_valid_per_port  [i]            ),
+    .ready_o(floo_resp_from_router_before_xbar_ready_per_port  [i]            ),
+    .sel_i  (resp_tile_sel_per_port                            [i]            ),
     // Slave
-    .data_o (floo_resp_from_router_after_xbar[NumTilesPerGroup-1:0][i]        ),
-    .valid_o(floo_resp_from_router_after_xbar_valid[NumTilesPerGroup-1:0][i]  ),
-    .ready_i(floo_resp_from_router_after_xbar_ready[NumTilesPerGroup-1:0][i]  ),
+    .data_o (floo_resp_from_router_after_xbar_per_port         [i]            ),
+    .valid_o(floo_resp_from_router_after_xbar_valid_per_port   [i]            ),
+    .ready_i(floo_resp_from_router_after_xbar_ready_per_port   [i]            ),
     .idx_o  (/* Unused, TODO?: this is the data comes from index */           )
   );
 end : floo_resp_xbar
