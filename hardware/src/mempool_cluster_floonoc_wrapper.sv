@@ -318,4 +318,4 @@ module mempool_cluster_floonoc_wrapper
   if (BankingFactor != 2**$clog2(BankingFactor))
     $fatal(1, "[mempool] The banking factor must be a power of two.");
 
-endmodule : mempool_cluster
+endmodule : mempool_cluster_floonoc_wrapper

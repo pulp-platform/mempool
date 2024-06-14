@@ -38,12 +38,10 @@ sources:
   - hardware/src/latch_scm.sv
   # Level 1
   - hardware/src/mempool_tile.sv
-  # Level 2
-  - hardware/src/mempool_sub_group.sv
   # Level 3
-  - hardware/src/mempool_group.sv
+  - hardware/src/mempool_group_floonoc_wrapper.sv
   # Level 4
-  - hardware/src/mempool_cluster.sv
+  - hardware/src/mempool_cluster_floonoc_wrapper.sv
   # Level 5
   - hardware/src/ctrl_registers.sv
   # Level 6
