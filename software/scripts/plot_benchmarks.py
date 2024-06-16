@@ -60,7 +60,7 @@ def plot_speedup(df):
 
         # Add value labels on top of each bar
         for bar, value in zip(bars, speedup_values):
-            height = bar.get_height()
+            height = max(1, bar.get_height())
             _, top = plt.ylim()
             plt.ylim(top=max(top, height + 0.3))
             plt.text(bar.get_x() + bar.get_width() / 2, height +
