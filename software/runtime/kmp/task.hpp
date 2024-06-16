@@ -5,26 +5,16 @@
 #pragma once
 
 #include "types.h"
-#include <utility>
 
 #define MAX_ARGS 15
 
 namespace kmp {
 
-class Microtask {
+class Task {
 public:
-  Microtask(kmpc_micro func, void **args, kmp_int32 argc);
+  Task(kmpc_micro func, void **args, kmp_int32 argc);
 
-  Microtask(Microtask &&) noexcept;
-  Microtask &operator=(Microtask &&) noexcept;
-
-  ~Microtask() = default;
-
-  // Disallow copy constructor and assignment
-  Microtask(const Microtask &) = default;
-  Microtask &operator=(const Microtask &) = default;
-
-  void run() const;
+  void run(kmp_int32 gtid, kmp_int32 tid) const;
 
 private:
   kmpc_micro func;
@@ -32,13 +22,4 @@ private:
   void **args;
 };
 
-class Task {
-public:
-  Task(Microtask microtask) : microtask(std::move(microtask)){};
-
-  inline void run() const { microtask.run(); };
-
-private:
-  Microtask microtask;
-};
 }; // namespace kmp

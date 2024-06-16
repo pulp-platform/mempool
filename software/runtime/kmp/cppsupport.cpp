@@ -5,21 +5,20 @@
 #include <cstdlib>
 #include <mutex>
 
-// Comment so that <mutex> is imported before
 #include "kmp/util.hpp"
 
 extern "C" {
 #include "alloc.h"
-#include "runtime.h"
 }
 
 extern void (*_eoc)(void);
 
-kmp::Mutex allocLock;
+kmp::Mutex allocLock __attribute__((section(".l1")));
 
 void *operator new(size_t size) {
   std::lock_guard<kmp::Mutex> lock(allocLock);
-  return simple_malloc(size);
+  void *ptr = simple_malloc(size);
+  return ptr;
 }
 
 void operator delete(void *ptr) noexcept {

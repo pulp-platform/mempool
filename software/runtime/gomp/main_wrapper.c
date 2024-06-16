@@ -30,6 +30,8 @@ int __wrap_main() {
   if (core_id == 0) {
     initGlobals();
     __real_main();
+
+    printf("Program done\n");
   } else {
     while (1) {
       mempool_wfi();

@@ -12,10 +12,7 @@ extern "C" {
 #include "runtime.h"
 
 void __kmpc_barrier(ident_t * /*loc*/, kmp_int32 global_tid) {
-  kmp::runtime::getCurrentThread(static_cast<kmp_uint32>(global_tid))
-      .getCurrentTeam()
-      ->getBarrier()
-      .wait();
+  kmp::runtime::getThread(global_tid).getCurrentTeam()->getBarrier().wait();
 };
 
 // Parallel
@@ -25,8 +22,8 @@ void __kmpc_fork_call(ident_t * /*loc*/, kmp_int32 argc, kmpc_micro microtask,
   // cppcoreguidelines-pro-type-reinterpret-cast)
   va_list args;
   va_start(args, microtask);
-  kmp::Microtask kmpMicrotask(microtask, reinterpret_cast<void **>(args), argc);
-  kmp::runtime::getCurrentThread().forkCall(std::move(kmpMicrotask));
+  kmp::Task kmpMicrotask(microtask, reinterpret_cast<void **>(args), argc);
+  kmp::runtime::getCurrentThread().forkCall(kmpMicrotask);
   va_end(args);
   // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   // cppcoreguidelines-pro-type-reinterpret-cast)
@@ -134,8 +131,7 @@ int __kmpc_dispatch_next_8u(ident_t * /*loc*/, kmp_int64 /*gtid*/,
 
 void __kmpc_push_num_threads(ident_t * /*loc*/, kmp_int32 /*global_tid*/,
                              kmp_int32 num_threads) {
-  kmp::runtime::getCurrentThread().requestNumThreads(
-      static_cast<kmp_uint32>(num_threads));
+  kmp::runtime::getCurrentThread().requestNumThreads(num_threads);
 };
 
 // Critical sections
@@ -214,8 +210,8 @@ void __kmpc_fork_teams(ident_t * /*loc*/, kmp_int32 argc, kmpc_micro microtask,
   // cppcoreguidelines-pro-type-reinterpret-cast)
   va_list args;
   va_start(args, microtask);
-  kmp::Microtask kmpMicrotask(microtask, reinterpret_cast<void **>(args), argc);
-  kmp::runtime::getCurrentThread().forkTeams(std::move(kmpMicrotask));
+  kmp::Task kmpMicrotask(microtask, reinterpret_cast<void **>(args), argc);
+  kmp::runtime::getCurrentThread().forkTeams(kmpMicrotask);
   va_end(args);
   // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   // cppcoreguidelines-pro-type-reinterpret-cast)

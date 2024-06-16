@@ -113,4 +113,4 @@ int num_tests = 0;    // NOLINT(*-global-variables)
       printf("Too many tests added, max is %d\n", MAX_TESTS);                  \
     }                                                                          \
   }                                                                            \
-  void testname(char const **out_error_message)
+  inline void testname(char const **out_error_message)

@@ -24,13 +24,12 @@ namespace runtime {
 
 extern std::array<Thread, NUM_CORES> threads;
 
-extern Team defaultTeam;
+extern Team defaultTeam __attribute__((section(".l1")));
 
-extern std::optional<kmp_uint32> requestedNumTeams;
-extern std::optional<kmp_uint32> requestedThreadLimit;
-extern kmp_uint32 numTeams;
+extern std::optional<kmp_int32> requestedNumTeams;
+extern std::optional<kmp_int32> requestedThreadLimit;
 
-extern Barrier teamsBarrier;
+extern Barrier teamsBarrier __attribute__((section(".l1")));
 
 static inline void init() {
   printf("Initializing runtime\n");
@@ -40,10 +39,12 @@ static inline void init() {
 #endif
 };
 
-static inline void runThread(kmp_uint32 core_id) { threads[core_id].run(); };
+static inline void runThread(kmp_int32 core_id) {
+  threads[static_cast<kmp_uint32>(core_id)].run();
+};
 
-static inline Thread &getCurrentThread(kmp_uint32 gtid) {
-  return threads[gtid];
+static inline Thread &getThread(kmp_int32 gtid) {
+  return threads[static_cast<kmp_uint32>(gtid)];
 };
 
 static inline Thread &getCurrentThread() {

@@ -6,17 +6,15 @@
 
 #pragma once
 
-#include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern uint32_t omp_get_num_threads(void);
-extern uint32_t omp_get_thread_num(void);
+extern int omp_get_num_threads(void);
+extern int omp_get_thread_num(void);
 
-extern uint32_t omp_get_num_teams(void);
-extern uint32_t omp_get_team_num(void);
+extern int omp_get_num_teams(void);
+extern int omp_get_team_num(void);
 
 #ifdef __cplusplus
 }

@@ -4,14 +4,15 @@
 
 #pragma once
 
+#include <array>
+#include <mutex>
+#include <optional>
+
 #include "kmp/barrier.hpp"
 #include "kmp/runtime.hpp"
 #include "kmp/types.h"
 #include "kmp/util.hpp"
 #include "printf.h"
-#include <array>
-#include <mutex>
-#include <optional>
 
 namespace kmp {
 
@@ -29,13 +30,13 @@ class Team {
     kmp_int32 stride = 0;
 
     bool valid = false;
-    kmp_uint32 numDone = 0;
+    kmp_int32 numDone = 0;
 
     Mutex mutex;
   };
 
 public:
-  inline Team(kmp_uint32 masterGtid, kmp_uint32 teamId)
+  inline Team(kmp_int32 masterGtid, kmp_int32 teamId)
       : masterGtid(masterGtid), teamId(teamId), barrier(numThreads) {}
 
   inline Barrier &getBarrier() { return barrier; }
@@ -44,11 +45,11 @@ public:
     return implicitTask;
   }
 
-  inline void setImplicitTask(Task task) { implicitTask = std::move(task); }
+  inline void setImplicitTask(Task task) { implicitTask = task; }
 
   inline auto getNumThreads() const { return numThreads; }
 
-  inline void setNumThreads(kmp_uint32 numThreads) {
+  inline void setNumThreads(kmp_int32 numThreads) {
     if (teamId == runtime::numTeams - 1) {
       // Last team gets the remaining threads
       numThreads = std::min(numThreads, NUM_CORES - masterGtid);
@@ -68,16 +69,18 @@ public:
   inline auto getCopyPrivateData() const { return copyPrivateData; }
 
   inline void run() {
-    for (kmp_uint32 i = masterGtid; i < masterGtid + numThreads; i++) {
-      runtime::threads[i].setCurrentTeam(this);
+    for (kmp_int32 i = masterGtid; i < masterGtid + numThreads; i++) {
+      auto &thread = runtime::getThread(i);
+      thread.setCurrentTeam(this);
+      thread.setTid(i - masterGtid);
 
       if (i != masterGtid) {
-        runtime::threads[i].wakeUp();
+        thread.wakeUp();
       }
     }
   }
 
-  inline kmp_uint32 getTeamId() const { return teamId; }
+  inline auto getTeamId() const { return teamId; }
 
   /**
    * @brief Schedule a static for loop. See
@@ -92,7 +95,6 @@ public:
    * @param plower Pointer to lower bound for this thread
    * @param pupper Pointer to upper bound for this thread
    * @param pstride Pointer to stride for this thread
-   * @param incr Loop increment (this is always 1 in LLVM 14)
    * @param chunk Chunk size
    */
   template <typename T, typename SignedT = typename std::make_signed<T>::type,
@@ -103,31 +105,27 @@ public:
                      SignedT chunk) const {
 
     assert(incr == 1 && "Loop increment is not 1");
-    assert(chunk > 0 && "Chunk size is not positive");
-    assert((static_cast<T>(chunk) <= *pupper - *plower + 1) &&
-           "Chunk size is greater than loop size");
-
-    kmp_uint32 tid = runtime::getCurrentThread().getTid();
 
     switch (schedtype) {
     case kmp_sch_static: {
 
       // Calculate chunk size
       // https://stackoverflow.com/a/14878734
-      chunk = static_cast<SignedT>(*pupper - *plower + 1) /
-                  static_cast<SignedT>(numThreads) +
-              (static_cast<SignedT>(*pupper - *plower + 1) %
-                   static_cast<SignedT>(numThreads) !=
-               0);
+      chunk = static_cast<SignedT>(*pupper - *plower + 1) / numThreads +
+              (static_cast<SignedT>(*pupper - *plower + 1) % numThreads != 0);
 
       // Fall through to static chunked
     }
     case kmp_sch_static_chunked: {
       assert(incr != 0 && "Loop increment must be non-zero");
+      assert(chunk > 0 && "Chunk size is not positive");
+      assert((static_cast<T>(chunk) <= *pupper - *plower + 1) &&
+             "Chunk size is greater than loop size");
 
-      UnsignedT numChunks = (static_cast<UnsignedT>(pupper - plower) +
-                             static_cast<UnsignedT>(chunk)) /
-                            static_cast<UnsignedT>(chunk);
+      kmp_int32 tid = runtime::getCurrentThread().getTid();
+
+      SignedT numChunks =
+          (static_cast<SignedT>(*pupper - *plower) + chunk) / chunk;
 
       SignedT span = incr * chunk;
       *pstride = span * static_cast<SignedT>(numThreads);
@@ -137,24 +135,27 @@ public:
 
       break;
     }
+
+    // Distribute (teams)
     case kmp_distribute_static: {
 
       // Calculate chunk size
       // https://stackoverflow.com/a/14878734
-      chunk = static_cast<SignedT>(*pupper - *plower + 1) /
-                  static_cast<SignedT>(runtime::numTeams) +
-              (static_cast<SignedT>(*pupper - *plower + 1) %
-                   static_cast<SignedT>(runtime::numTeams) !=
-               0);
+      chunk =
+          static_cast<SignedT>(*pupper - *plower + 1) / runtime::numTeams +
+          (static_cast<SignedT>(*pupper - *plower + 1) % runtime::numTeams !=
+           0);
 
       // Fall through to static chunked
     }
     case kmp_distribute_static_chunked: {
       assert(incr != 0 && "Loop increment must be non-zero");
+      assert(chunk > 0 && "Chunk size is not positive");
+      assert((static_cast<T>(chunk) <= *pupper - *plower + 1) &&
+             "Chunk size is greater than loop size");
 
-      UnsignedT numChunks = (static_cast<UnsignedT>(pupper - plower) +
-                             static_cast<UnsignedT>(chunk)) /
-                            static_cast<UnsignedT>(chunk);
+      SignedT numChunks =
+          (static_cast<SignedT>(*pupper - *plower) + chunk) / chunk;
 
       SignedT span = incr * chunk;
       *pstride = span * static_cast<SignedT>(runtime::numTeams);
@@ -257,9 +258,9 @@ public:
   };
 
 private:
-  kmp_uint32 masterGtid = 0;
-  kmp_uint32 teamId = 0;
-  kmp_uint32 numThreads = 1;
+  volatile kmp_int32 masterGtid = 0;
+  volatile kmp_int32 teamId = 0;
+  volatile kmp_int32 numThreads = 1;
 
   Barrier barrier;
 

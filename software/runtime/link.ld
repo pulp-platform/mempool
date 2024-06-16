@@ -76,7 +76,7 @@ SECTIONS {
     *(.bss)
     *(.sbss .sbss2 .sbss2.* .gnu.linkonce.sb2.*);
     __bss_end = .;
-  } > l1
+  } > l2
 
   .l2 : {
     . = ALIGN(0x10);

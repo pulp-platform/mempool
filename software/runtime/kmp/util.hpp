@@ -9,9 +9,10 @@
 #include <limits>
 #include <mutex>
 
-extern "C" {
 #include "printf.h"
-#include "runtime.h"
+
+extern "C" {
+#include "alloc.h"
 }
 
 namespace kmp {

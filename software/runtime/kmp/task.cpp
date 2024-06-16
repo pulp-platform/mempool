@@ -4,14 +4,13 @@
 
 #include "kmp/task.hpp"
 #include "kmp/runtime.hpp"
-#include "printf.h"
 
 extern "C" {
 #include "runtime.h"
 }
 
 namespace kmp {
-Microtask::Microtask(kmpc_micro func, void **args, kmp_int32 argc)
+Task::Task(kmpc_micro func, void **args, kmp_int32 argc)
     : func(func), argc(argc), args(args) {
 
   assert(argc <= MAX_ARGS && "Unsupported number of microtask arguments");
@@ -19,36 +18,11 @@ Microtask::Microtask(kmpc_micro func, void **args, kmp_int32 argc)
   DEBUG_PRINT("Microtask constructor\n");
 };
 
-Microtask::Microtask(Microtask &&other) noexcept
-    : func(other.func), argc(other.argc), args(other.args) {
-  other.args = nullptr;
-  other.argc = 0;
-};
-
-Microtask &Microtask::operator=(Microtask &&other) noexcept {
-  if (this != &other) {
-    func = other.func;
-    argc = other.argc;
-    args = other.args;
-    other.func = nullptr;
-    other.argc = 0;
-    other.args = nullptr;
-  }
-  return *this;
-};
-
-void Microtask::run() const {
-  kmp_int32 gtid = static_cast<kmp_int32>(mempool_get_core_id());
-  kmp_int32 tid = static_cast<kmp_int32>(runtime::getCurrentThread().getTid());
-
-  assert(argc <= MAX_ARGS && "Unsupported number of microtask arguments");
-
-  // There seems to not be a better way to do this without custom passes or ASM
+void Task::run(kmp_int32 gtid, kmp_int32 tid) const {
+  // There seems to not be a better way to do this without custom passes or
+  // ASM
   switch (argc) {
   default:
-    printf("Unsupported number of microtask arguments, max is %d and %d were "
-           "passed\n",
-           MAX_ARGS, argc);
     return;
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,*-magic-numbers)

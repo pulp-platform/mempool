@@ -25,7 +25,7 @@ static inline void initGlobals() {
 
 extern "C" int __real_main();
 
-std::atomic<bool> initLock = true;
+bool initLock = true;
 
 extern "C" int __wrap_main() {
   const mempool_id_t core_id = mempool_get_core_id();
@@ -55,7 +55,7 @@ extern "C" int __wrap_main() {
       // Wait for initialization to finish
     }
 
-    kmp::runtime::runThread(core_id);
+    kmp::runtime::runThread(static_cast<kmp_int32>(core_id));
   }
 
   return 0;
