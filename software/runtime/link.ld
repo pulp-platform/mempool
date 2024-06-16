@@ -20,15 +20,9 @@ SECTIONS {
   .l1 (NOLOAD): {
     *(.l1_prio)
     *(.l1)
+    *(COMMON)
     __l1_alloc_base = ALIGN(0x10);
     __heap_start = .;
-  } > l1
-
-  .bss : {
-    __bss_start = .;
-    *(.bss)
-    *(.sbss .sbss2 .sbss2.* .gnu.linkonce.sb2.*);
-    __bss_end = .;
   } > l1
 
   /* Instructions on L2 */
@@ -65,15 +59,24 @@ SECTIONS {
     . = ALIGN(0x10);
     *(.data)
   } > l2
+
   .sdata2 : {
     *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
   } > l2
+
   .sdata : {
     __global_pointer$ = . + 0x800;
     *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
     *(.sdata .sdata.* .gnu.linkonce.s.*)
     . = ALIGN(0x10);
   } > l2
+
+  .bss : {
+    __bss_start = .;
+    *(.bss)
+    *(.sbss .sbss2 .sbss2.* .gnu.linkonce.sb2.*);
+    __bss_end = .;
+  } > l1
 
   .l2 : {
     . = ALIGN(0x10);
