@@ -207,7 +207,7 @@ module mempool_tile
         localparam CutLen = (RspGF > 1) ? RspGF : NumBanksPerTile;
 
         burst_cutter #(
-          .NrCut           ( 1'b1                   ),
+          .NrCut           ( 1                      ),
           .AddrWidth       ( AddrWidth              ),
           .ByteOffset      ( ByteOffset             ),
           .NumTiles        ( NumTiles               ),
