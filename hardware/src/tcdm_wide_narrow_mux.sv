@@ -19,12 +19,16 @@ module tcdm_wide_narrow_mux #(
   parameter type wide_req_t          = logic,
   // Response type of wide inputs.
   parameter type wide_rsp_t          = logic,
+  // Group ID type, FlooNoC Added
+  parameter type group_id_t          = logic,
   // Derived. *Do not override*
   // Number of narrow inputs.
   parameter int unsigned NrPorts = WideDataWidth / NarrowDataWidth
 ) (
   input  logic                          clk_i,
   input  logic                          rst_ni,
+  // Group ID, FlooNoC Added
+  input  group_id_t                     group_id_i,
   // Narrow inputs
   input  narrow_req_t [NrPorts-1:0] slv_narrow_req_i,
   input  logic        [NrPorts-1:0] slv_narrow_req_valid_i,
@@ -88,7 +92,8 @@ module tcdm_wide_narrow_mux #(
           wen: slv_wide_req_i.wen,
           be: slv_wide_req_i.be[i*NarrowBeWidth+:NarrowBeWidth],
           tgt_addr: slv_wide_req_i.tgt_addr,
-          ini_addr: '0
+          ini_addr: '0,
+          src_group_id: group_id_i // FlooNoC Added
         };
         // Block access from narrow ports.
         slv_narrow_req_ready_o[i] = 1'b0;

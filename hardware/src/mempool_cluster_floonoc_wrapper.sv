@@ -284,17 +284,17 @@ module mempool_cluster_floonoc_wrapper
         .floo_resp_i             (floo_resp_in[x][y]                                              ),
         .floo_resp_valid_i       (floo_resp_in_valid[x][y]                                        ),
         .floo_resp_ready_o       (floo_resp_out_ready[x][y]                                       ),
-        .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
-        .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
+        .wake_up_i               (wake_up_q[(NumY*x+y)*NumCoresPerGroup +: NumCoresPerGroup]      ),
+        .ro_cache_ctrl_i         (ro_cache_ctrl_q[(NumY*x+y)]                                     ),
         // DMA request
-        .dma_req_i               (dma_req_group_q[g]                                              ),
-        .dma_req_valid_i         (dma_req_group_q_valid[g]                                        ),
-        .dma_req_ready_o         (dma_req_group_q_ready[g]                                        ),
+        .dma_req_i               (dma_req_group_q[(NumY*x+y)]                                     ),
+        .dma_req_valid_i         (dma_req_group_q_valid[(NumY*x+y)]                               ),
+        .dma_req_ready_o         (dma_req_group_q_ready[(NumY*x+y)]                               ),
         // DMA status
-        .dma_meta_o              (dma_meta[g]                                                     ),
+        .dma_meta_o              (dma_meta[(NumY*x+y)]                                            ),
         // AXI interface
-        .axi_mst_req_o           (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
-        .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
+        .axi_mst_req_o           (axi_mst_req_o[(NumY*x+y)*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
+        .axi_mst_resp_i          (axi_mst_resp_i[(NumY*x+y)*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
       );
     end : gen_groups_y
   end : gen_groups_x

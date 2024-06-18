@@ -131,7 +131,7 @@ module mempool_system
    *  MemPool Cluster  *
    ********************/
 
-  mempool_cluster #(
+  mempool_cluster_floonoc_wrapper #(
     .TCDMBaseAddr(TCDMBaseAddr),
     .BootAddr    (BootAddr    )
   ) i_mempool_cluster (

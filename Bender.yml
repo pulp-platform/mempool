@@ -39,6 +39,7 @@ sources:
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 3
+  - hardware/src/mempool_group.sv
   - hardware/src/mempool_group_floonoc_wrapper.sv
   # Level 4
   - hardware/src/mempool_cluster_floonoc_wrapper.sv

@@ -272,7 +272,7 @@ module mempool_group
     for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_remote_connections
       // master req
       assign tcdm_master_req_valid_o[t][r]  = tcdm_master_req_valid[r][t];
-      assign tcdm_master_req_o[t][r]        = tcdm_master_req[r][t]
+      assign tcdm_master_req_o[t][r]        = tcdm_master_req[r][t];
       assign tcdm_master_req_ready[r][t]    = tcdm_master_req_ready_i[t][r];
       // master resp
       assign tcdm_master_resp[r][t]         = tcdm_master_resp_i[t][r];

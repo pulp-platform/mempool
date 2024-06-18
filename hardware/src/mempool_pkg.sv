@@ -298,7 +298,7 @@ package mempool_pkg;
 
   // Router Direction
   localparam integer unsigned NumDirections = `ifdef NUM_DIRECTIONS `NUM_DIRECTIONS `else 5 `endif;
-  localparam integer unsigned NumX = 4;
+  localparam integer unsigned NumX = 2;
   localparam integer unsigned NumY = NumGroups/NumX;
   
   // FlooNoC group id types for XY routing
@@ -341,6 +341,7 @@ package mempool_pkg;
     tile_core_id_t      core_id;
     tile_group_id_t     tile_id;
     group_xy_id_t       dst_id;
+    logic               last;
   } floo_resp_meta_t;
 
   typedef struct packed {

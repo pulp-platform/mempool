@@ -441,10 +441,12 @@ module mempool_tile
       .narrow_req_t   (tcdm_slave_req_t ),
       .narrow_rsp_t   (tcdm_slave_resp_t),
       .wide_req_t     (tcdm_dma_req_t   ),
-      .wide_rsp_t     (tcdm_dma_resp_t  )
+      .wide_rsp_t     (tcdm_dma_resp_t  ),
+      .group_id_t     (group_id_t       )
     ) i_tcdm_wide_narrow_mux (
       .clk_i                 (clk_i                                             ),
       .rst_ni                (rst_ni                                            ),
+      .group_id_i            (group_id                                          ), // FlooNoC Added
       .slv_narrow_req_i      (superbank_req_payload[d*DmaNumWords+:DmaNumWords] ),
       .slv_narrow_req_valid_i(superbank_req_valid[d*DmaNumWords+:DmaNumWords]   ),
       .slv_narrow_req_ready_o(superbank_req_ready[d*DmaNumWords+:DmaNumWords]   ),
