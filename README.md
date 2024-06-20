@@ -552,15 +552,16 @@ This paper was published on [IEEE Xplore](https://ieeexplore.ieee.org/document/1
 <p>
 
 ```
-@article{Riedel2024LRSCwait,
-      title={{LRSCwait}: Enabling Scalable and Efficient Synchronization in Manycore Systems through Polling-Free and Retry-Free Operation},
-      author={Samuel Riedel and Marc Gantenbein and Alessandro Ottaviano and Torsten Hoefler and Luca Benini},
-      journal={arXiv:2401.09359 [cs.AR]},
-      year={2024},
-      month=jan
+@inproceedings{Riedel2024LRSCwait,
+  author={Riedel, Samuel and Gantenbein, Marc and Ottaviano, Alessandro and Hoefler, Torsten and Benini, Luca},
+  title={{LRSCwait}: Enabling Scalable and Efficient Synchronization in Manycore Systems Through Polling-Free and Retry-Free Operation},
+  booktitle={2024 Design, Automation \& Test in Europe Conference \& Exhibition (DATE)},
+  year={2024},
+  month=mar,
+  pages={1-6}
 }
 ```
-This paper is available on [arXiv:2401.09359 [cs.AR]](https://arxiv.org/abs/2401.09359).
+This paper was published on [IEEE Xplore](https://ieeexplore.ieee.org/document/10546857) and is also available on [arXiv:2401.09359 [cs.AR]](https://arxiv.org/abs/2401.09359).
 
 </p>
 </details>
