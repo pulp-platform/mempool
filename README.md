@@ -93,7 +93,7 @@ The `software/apps` folder contains example applications that work on MemPool. M
 
 ```bash
 # Bare-metal applications
-cd software/apps
+cd software/apps/baremetal
 make hello_world
 # Halide applications
 cd software/halide
@@ -152,7 +152,7 @@ cd hardware
 # Only compile the hardware without running the simulation.
 make compile
 # Run the simulation with the *hello_world* binary loaded
-app=hello_world make sim
+app=baremetal/hello_world make sim
 # For Halide applications use the `halide-` prefix: E.g., to run `matmul`:
 app=halide-matmul make sim
 # Run the simulation with the *some_binary* binary. This allows specifying the full path to the binary
@@ -552,15 +552,16 @@ This paper was published on [IEEE Xplore](https://ieeexplore.ieee.org/document/1
 <p>
 
 ```
-@article{Riedel2024LRSCwait,
-      title={{LRSCwait}: Enabling Scalable and Efficient Synchronization in Manycore Systems through Polling-Free and Retry-Free Operation},
-      author={Samuel Riedel and Marc Gantenbein and Alessandro Ottaviano and Torsten Hoefler and Luca Benini},
-      journal={arXiv:2401.09359 [cs.AR]},
-      year={2024},
-      month=jan
+@inproceedings{Riedel2024LRSCwait,
+  author={Riedel, Samuel and Gantenbein, Marc and Ottaviano, Alessandro and Hoefler, Torsten and Benini, Luca},
+  title={{LRSCwait}: Enabling Scalable and Efficient Synchronization in Manycore Systems Through Polling-Free and Retry-Free Operation},
+  booktitle={2024 Design, Automation \& Test in Europe Conference \& Exhibition (DATE)},
+  year={2024},
+  month=mar,
+  pages={1-6}
 }
 ```
-This paper is available on [arXiv:2401.09359 [cs.AR]](https://arxiv.org/abs/2401.09359).
+This paper was published on [IEEE Xplore](https://ieeexplore.ieee.org/document/10546857) and is also available on [arXiv:2401.09359 [cs.AR]](https://arxiv.org/abs/2401.09359).
 
 </p>
 </details>
@@ -584,12 +585,57 @@ This paper is available on [arXiv:2402.12986 [cs.AR]](https://arxiv.org/abs/2402
 </p>
 </details>
 
+<details>
+<summary><i>MX: Enhancing RISC-V's Vector ISA for Ultra-Low Overhead, Energy-Efficient Matrix Multiplication</i></summary>
+<p>
+
+```
+@inproceedings{perotti2024mx,
+      author={Perotti, Matteo and Zhang, Yichao and Cavalcante, Matheus and Mustafa, Enis and Benini, Luca},
+      booktitle={2024 Design, Automation & Test in Europe Conference & Exhibition (DATE)},
+      title={MX: Enhancing RISC-V's Vector ISA for Ultra-Low Overhead, Energy-Efficient Matrix Multiplication},
+      year={2024},
+      pages={1-6},
+      isbn = {979-8-3503-4860-6}
+}
+
+```
+This paper is available on [IEEE Xplore](https://ieeexplore.ieee.org/document/10546720).
+
+</p>
+</details>
+
+<details>
+<summary><i>TeraPool-SDR: An 1.89TOPS 1024 RV-Cores 4MiB Shared-L1 Cluster for Next-Generation Open-Source Software-Defined Radios</i></summary>
+<p>
+
+```
+@inproceedings{Yichao2024Terapool,
+      author={Zhang, Yichao and Bertuletti, Marco and Riedel, Samuel and Cavalcante, Matheus and Vanelli-Coralli, Alessandro and Benini, Luca},
+      title={TeraPool-SDR: An 1.89TOPS 1024 RV-Cores 4MiB Shared-L1 Cluster for Next-Generation Open-Source Software-Defined Radios},
+      year={2024},
+      isbn={9798400706059},
+      publisher={Association for Computing Machinery},
+      address={New York, NY, USA},
+      url={https://doi.org/10.1145/3649476.3658735},
+      doi={10.1145/3649476.3658735},
+      booktitle={Proceedings of the Great Lakes Symposium on VLSI 2024},
+      pages={86–91},
+      numpages={6},
+      series={GLSVLSI '24}
+}
+```
+This paper is available on [ACM DIGITAL LIBRARY](https://dl.acm.org/doi/10.1145/3649476.3658735).
+
+</p>
+</details>
+
 ## Chips
 
 The MemPool architecture has been taped out in the following chips:
 
 - 2021 [**MinPool**](http://asic.ethz.ch/2021/Minpool.html): A 16-core prototype of MemPool.
-- 2024 [**Heartstream**](http://asic.ethz.ch/2024/Heartstream.html): A 64-core version of MemPool with systolic and FPU support.
+- 2024 [**Heartstream**](http://asic.ethz.ch/2024/Heartstream.html): A 64-core version of MemPool with systolic, FPU and S-DIVSQRT(Shared Division Square-Root) unit support.
 
 ## License
 MemPool is released under permissive open source licenses. Most of MemPool's source code is released under the Apache License 2.0 (`Apache-2.0`) see [`LICENSE`](LICENSE). The code in `hardware` is released under Solderpad v0.51 (`SHL-0.51`) see [`hardware/LICENSE`](hardware/LICENSE).

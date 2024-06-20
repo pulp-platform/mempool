@@ -152,7 +152,7 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 # Update and patch hardware dependencies for MemPool
 # Previous changes will be stashed. Clear all the stashes with `git stash clear`
 .PHONY: update-deps
-update-deps:
+update-deps: setup-dram
 	for dep in $(shell git config --file .gitmodules --get-regexp path \
 	| awk '/hardware/{ print $$2 }'); do \
 	  git -C $${dep} diff --quiet || { echo $${dep}; git -C $${dep} stash -u; }; \
