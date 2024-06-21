@@ -59,6 +59,7 @@ module mempool_group_floonoc_wrapper
 localparam integer unsigned NumTilesPerGroupWidth = idx_width(NumTilesPerGroup);
 localparam integer unsigned NumBanksPerTileWidth = idx_width(NumBanksPerTile);
 localparam integer unsigned TileBankRowOffset = TCDMAddrMemWidth + NumBanksPerTileWidth;
+localparam integer unsigned TileOffset        = NumBanksPerTileWidth + ByteOffset;
 
 // TCDM Master interfaces
 tcdm_master_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_master_req;
@@ -152,7 +153,7 @@ logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_
 
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_req_sel_tgt_tile_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_req_sel_tgt_tile_j
-    assign req_tile_sel[i][j] = floo_req_from_router[i][j].hdr.tgt_addr[TileBankRowOffset +: NumTilesPerGroupWidth];
+    assign req_tile_sel[i][j] = floo_req_from_router[i][j].hdr.tgt_addr[NumTilesPerGroupWidth-1:0];
   end : gen_req_sel_tgt_tile_j
 end : gen_req_sel_tgt_tile_i
 
@@ -216,7 +217,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_req_to_slave_re
       },
       wen     : floo_req_from_router_after_xbar[i][j].payload.wen,
       be      : floo_req_from_router_after_xbar[i][j].payload.be,
-      tgt_addr: floo_req_from_router_after_xbar[i][j].hdr.tgt_addr[0 +: TileBankRowOffset], // For TCDM Bank (bank rows per Tile, remove Group offset)
+      // row | bank  <= row | bank | tile
+      tgt_addr: floo_req_from_router_after_xbar[i][j].hdr.tgt_addr[NumTilesPerGroupWidth +: (idx_width(NumBanksPerTile) + TCDMAddrMemWidth)], // For TCDM Bank, remove tile offset, it is selected by "req_tile_sel"
       ini_addr: floo_req_from_router_after_xbar[i][j].hdr.src_tile_id,                      // For Crossbar when response back
       src_group_id: group_id_t'(floo_req_from_router_after_xbar[i][j].hdr.src_id)           // For NoC Router when response back
     };
