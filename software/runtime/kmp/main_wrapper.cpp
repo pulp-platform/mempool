@@ -39,9 +39,6 @@ extern "C" int __wrap_main() {
     // Call C++ global constructors
     initGlobals();
 
-    // Init OpenMP runtime
-    kmp::runtime::init();
-
     initLock = false;
 
     DEBUG_PRINT("Init done\n");

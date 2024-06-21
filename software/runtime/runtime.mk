@@ -26,8 +26,6 @@ KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 EXT_DIR						 ?= $(abspath $(ROOT_DIR)/../ext)
 
-ETL_DIR            ?= $(abspath $(EXT_DIR)/etl/include)
-
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
 ZFINX      		?= $(zfinx)
@@ -115,9 +113,7 @@ ifdef terapool
 	DEFINES += -DNUM_TILES_PER_SUB_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_cores_per_tile)/$(num_sub_groups_per_group)}')
 endif
 
-ifndef NDEBUG
-	DEFINES += -DETL_CHECK_PUSH_POP -DETL_LOG_ERRORS -DETL_VERBOSE_ERRORS
-else
+ifdef NDEBUG
 	DEFINES += -DNDEBUG
 endif
 
@@ -144,7 +140,7 @@ ifeq ($(COMPILER),gcc)
 	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON) -std=gnu99
-	RISCV_CXXFLAGS      += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON) -std=c++17 -fno-exceptions -fno-threadsafe-statics -isystem $(ETL_DIR)
+	RISCV_CXXFLAGS      += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON) -std=c++17 -fno-exceptions -fno-threadsafe-statics
 	RISCV_LDFLAGS       += -static -nostartfiles -nostdlib -lgcc -lm -fuse-ld=lld -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
 	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32
 	ifeq ($(xDivSqrt), 0)

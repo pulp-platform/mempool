@@ -43,6 +43,3 @@
 [submodule "hardware/deps/dram_rtl_sim"]
 	path = hardware/deps/dram_rtl_sim
 	url = https://github.com/pulp-platform/dram_rtl_sim.git
-[submodule "software/runtime/kmp/etl"]
-	path = software/ext/etl
-	url = git@github.com:ETLCPP/etl.git

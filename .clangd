@@ -19,11 +19,11 @@ CompileFlags:
 If:
   PathMatch: [.*/runtime/.*/.*]
 CompileFlags:
-  Add: [-xc++, -I.., -I../../ext/etl/include/]
+  Add: [-xc++, -I..]
 
 ---
 
 If:
   PathMatch: [.*/tests/.*/.*]
 CompileFlags:
-  Add: [-xc++, -I.., -I../../ext/etl/include/, -I../../runtime/]
+  Add: [-xc++, -I.., -I../../runtime/]
