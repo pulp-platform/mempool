@@ -32,8 +32,8 @@ public:
   void run();
 
   inline void wakeUp() {
-    DEBUG_PRINT("Waking up thread %d\n", gtid);
     std::lock_guard<Mutex> lock(running);
+    DEBUG_PRINT("Waking up thread %d\n", gtid);
     wake_up(static_cast<uint32_t>(gtid));
   };
 
@@ -53,6 +53,8 @@ public:
   inline auto getTid() const { return tid.value_or(0); };
 
   inline void setTid(kmp_int32 tid) { this->tid = tid; };
+
+  inline bool isRunning() { return running.isLocked(); };
 
   void requestNumThreads(kmp_int32 numThreads);
 

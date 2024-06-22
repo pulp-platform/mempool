@@ -39,6 +39,15 @@ public:
   inline Team(kmp_int32 masterGtid, kmp_int32 teamId)
       : masterGtid(masterGtid), teamId(teamId), barrier(numThreads) {}
 
+  inline ~Team() {
+    for (kmp_int32 i = masterGtid + 1; i < masterGtid + numThreads; i++) {
+      while (runtime::getThread(i).isRunning()) {
+        // Wait for thread to finish
+        DEBUG_PRINT("Waiting for thread %d to finish\n", i);
+      }
+    }
+  }
+
   inline Barrier &getBarrier() { return barrier; }
 
   inline const std::optional<Task> &getImplicitTask() const {
@@ -99,7 +108,7 @@ public:
    */
   template <typename T, typename SignedT = typename std::make_signed<T>::type,
             typename UnsignedT = typename std::make_unsigned<T>::type>
-  void forStaticInit(ident_t * /*loc*/, kmp_int32 /*gtid*/,
+  void forStaticInit(ident_t * /*loc*/, kmp_int32 gtid,
                      kmp_sched_type schedtype, T *plastiter, T *plower,
                      T *pupper, SignedT *pstride, SignedT incr,
                      SignedT chunk) const {
@@ -122,7 +131,7 @@ public:
       assert((static_cast<T>(chunk) <= *pupper - *plower + 1) &&
              "Chunk size is greater than loop size");
 
-      kmp_int32 tid = runtime::getCurrentThread().getTid();
+      kmp_int32 tid = runtime::getThread(gtid).getTid();
 
       SignedT numChunks =
           (static_cast<SignedT>(*pupper - *plower) + chunk) / chunk;

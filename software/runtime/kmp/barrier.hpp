@@ -33,11 +33,11 @@ public:
   ~Barrier();
 
   inline void wait() {
-    if (runtime::numTeams > 0) {
-      DEBUG_PRINT("Entering spin barrier at %p\n", this);
+    if (runtime::numTeams > 1) {
       // Spin generation barrier
-
       kmp_int32 gen = generation;
+
+      DEBUG_PRINT("Entering spin barrier at %p, gen %d\n", this, gen);
 
       // Increment the barrier counter
       if ((numThreads - 1) == barrier.fetch_add(1, std::memory_order_relaxed)) {
@@ -50,6 +50,8 @@ public:
       while (gen == generation.load(std::memory_order_relaxed)) {
         // Spin
       }
+
+      DEBUG_PRINT("Exiting spin barrier at %p, gen %d\n", this, gen);
 
     } else {
       DEBUG_PRINT("Entering wfi barrier at %p\n", this);
@@ -67,9 +69,8 @@ public:
       // Clear the wake-up trigger for the last core reaching the barrier as
       // well
       mempool_wfi();
+      DEBUG_PRINT("Exiting wfi barrier at %p\n", this);
     }
-
-    DEBUG_PRINT("Exiting barrier at %p\n", this);
   };
 
   inline void setNumThreads(int32_t numThreads) {

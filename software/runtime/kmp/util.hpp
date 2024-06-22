@@ -40,6 +40,8 @@ public:
     return !locked.exchange(true, std::memory_order_acquire);
   }
 
+  inline bool isLocked() { return locked.load(std::memory_order_acquire); }
+
   inline void unlock() { locked.store(false, std::memory_order_release); }
 
 private:

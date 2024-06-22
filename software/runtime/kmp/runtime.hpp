@@ -16,7 +16,7 @@ namespace kmp {
 
 namespace runtime {
 
-extern std::array<Thread, NUM_CORES> threads;
+extern std::array<Thread, NUM_CORES> threads __attribute__((section(".l1")));
 
 extern Team defaultTeam __attribute__((section(".l1")));
 

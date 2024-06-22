@@ -20,6 +20,7 @@ Thread::Thread(kmp_int32 gtid, std::optional<kmp_int32> tid)
 
 void Thread::run() {
   while (true) {
+    DEBUG_PRINT("Thread %d went to sleep\n", gtid);
     mempool_wfi();
     std::lock_guard<Mutex> lock(running);
 
@@ -30,21 +31,26 @@ void Thread::run() {
       (*currentTeam).getImplicitTask()->run(gtid, *tid);
       DEBUG_PRINT("Done running task\n");
 
-      (*currentTeam).getBarrier().wait();
-
+      Team *prevTeam = currentTeam;
       currentTeam = nullptr;
+
+      (*prevTeam).getBarrier().wait();
+
     } else if (teamsRegion.has_value()) {
       teamsRegion->run(gtid, *tid);
       DEBUG_PRINT("Done running teams region\n");
 
       teamsRegion.reset();
 
-      runtime::teamsBarrier.wait();
-
       delete currentTeam;
       currentTeam = nullptr;
+
+      runtime::teamsBarrier.wait();
+
     } else {
-      DEBUG_PRINT("Thread %d woke up to no work\n", gtid);
+      DEBUG_PRINT("Thread %d woke up to no work. currentTeam: %p, "
+                  "teamsRegion.has_value(): %d\n",
+                  gtid, currentTeam.load(), teamsRegion.has_value());
     }
   }
 };
@@ -68,6 +74,7 @@ void Thread::forkCall(Task microtask) {
   task.run(gtid, *tid);
 
   DEBUG_PRINT("Done running task\n");
+  DEBUG_PRINT("Fork call done\n");
 
   team->getBarrier().wait();
 };
@@ -105,6 +112,8 @@ void Thread::forkTeams(Task microtask) {
   }
   teamsRegion.run(gtid, *tid);
   this->teamsRegion.reset();
+
+  DEBUG_PRINT("Fork teams done\n");
 
   runtime::teamsBarrier.wait();
 
