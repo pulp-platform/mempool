@@ -378,7 +378,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .ChannelFifoDepth (2            ), // Input buffer depth
       .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo        (XYRouting    ),
-      .id_t             (group_xy_id_t)
+      .id_t             (group_xy_id_t),
+      .NumAddrRules     (1            )
     ) i_floo_req_router (
       .clk_i,
       .rst_ni,
@@ -400,7 +401,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .ChannelFifoDepth(2            ), // Input buffer depth
       .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo       (XYRouting    ),
-      .id_t            (group_xy_id_t)
+      .id_t            (group_xy_id_t),
+      .NumAddrRules    (1            )
     ) i_floo_resp_router (
       .clk_i,
       .rst_ni,
