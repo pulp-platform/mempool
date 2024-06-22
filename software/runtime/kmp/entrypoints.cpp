@@ -34,7 +34,7 @@ void __kmpc_for_static_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
                               kmp_int32 *plastiter, kmp_int32 *plower,
                               kmp_int32 *pupper, kmp_int32 *pstride,
                               kmp_int32 incr, kmp_int32 chunk) {
-  kmp::runtime::getCurrentThread().getCurrentTeam()->forStaticInit(
+  kmp::runtime::getThread(gtid).getCurrentTeam()->forStaticInit(
       loc, gtid, static_cast<kmp_sched_type>(schedtype), plastiter, plower,
       pupper, pstride, incr, chunk);
 };
@@ -44,7 +44,7 @@ void __kmpc_for_static_init_4u(ident_t *loc, kmp_int32 gtid,
                                kmp_uint32 *plower, kmp_uint32 *pupper,
                                kmp_int32 *pstride, kmp_int32 incr,
                                kmp_int32 chunk) {
-  kmp::runtime::getCurrentThread().getCurrentTeam()->forStaticInit(
+  kmp::runtime::getThread(gtid).getCurrentTeam()->forStaticInit(
       loc, gtid, static_cast<kmp_sched_type>(schedtype), plastiter, plower,
       pupper, pstride, incr, chunk);
 };
@@ -72,7 +72,7 @@ void __kmpc_for_static_fini(ident_t * /*loc*/, kmp_int32 /*global_tid*/){};
 void __kmpc_dispatch_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
                             kmp_int32 lower, kmp_int32 upper, kmp_int32 incr,
                             kmp_int32 chunk) {
-  kmp::runtime::getCurrentThread().getCurrentTeam()->dispatchInit(
+  kmp::runtime::getThread(gtid).getCurrentTeam()->dispatchInit(
       loc, gtid,
       static_cast<kmp_sched_type>(SCHEDULE_WITHOUT_MODIFIERS(schedtype)), lower,
       upper, incr, chunk);
@@ -81,7 +81,7 @@ void __kmpc_dispatch_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
 void __kmpc_dispatch_init_4u(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
                              kmp_uint32 lower, kmp_uint32 upper, kmp_int32 incr,
                              kmp_int32 chunk) {
-  kmp::runtime::getCurrentThread().getCurrentTeam()->dispatchInit(
+  kmp::runtime::getThread(gtid).getCurrentTeam()->dispatchInit(
       loc, gtid,
       static_cast<kmp_sched_type>(SCHEDULE_WITHOUT_MODIFIERS(schedtype)), lower,
       upper, incr, chunk);
@@ -105,7 +105,7 @@ int __kmpc_dispatch_next_4(ident_t *loc, kmp_int32 gtid, kmp_int32 *plastiter,
                            kmp_int32 *plower, kmp_int32 *pupper,
                            kmp_int32 *pstride) {
   return static_cast<int>(
-      kmp::runtime::getCurrentThread().getCurrentTeam()->dispatchNext(
+      kmp::runtime::getThread(gtid).getCurrentTeam()->dispatchNext(
           loc, gtid, plastiter, plower, pupper, pstride));
 }
 
@@ -113,7 +113,7 @@ int __kmpc_dispatch_next_4u(ident_t *loc, kmp_int32 gtid, kmp_int32 *plastiter,
                             kmp_uint32 *plower, kmp_uint32 *pupper,
                             kmp_int32 *pstride) {
   return static_cast<int>(
-      kmp::runtime::getCurrentThread().getCurrentTeam()->dispatchNext(
+      kmp::runtime::getThread(gtid).getCurrentTeam()->dispatchNext(
           loc, gtid, plastiter, plower, pupper, pstride));
 }
 
@@ -129,9 +129,9 @@ int __kmpc_dispatch_next_8u(ident_t * /*loc*/, kmp_int64 /*gtid*/,
   assert(false && "Unsupported loop index type");
 }
 
-void __kmpc_push_num_threads(ident_t * /*loc*/, kmp_int32 /*global_tid*/,
+void __kmpc_push_num_threads(ident_t * /*loc*/, kmp_int32 global_tid,
                              kmp_int32 num_threads) {
-  kmp::runtime::getCurrentThread().requestNumThreads(num_threads);
+  kmp::runtime::getThread(global_tid).requestNumThreads(num_threads);
 };
 
 // Critical sections
@@ -153,15 +153,15 @@ void __kmpc_end_critical(ident_t * /*unused*/, kmp_int32 /*gtid*/,
 };
 
 // Master
-kmp_int32 __kmpc_master(ident_t * /*loc*/, kmp_int32 /*gtid*/) {
-  return static_cast<kmp_int32>(kmp::runtime::getCurrentThread().getTid() == 0);
+kmp_int32 __kmpc_master(ident_t * /*loc*/, kmp_int32 gtid) {
+  return static_cast<kmp_int32>(kmp::runtime::getThread(gtid).getTid() == 0);
 };
 
 void __kmpc_end_master(ident_t * /*loc*/, kmp_int32 /*gtid*/){/* NOOP */};
 
 // Single (same as master for now)
-kmp_int32 __kmpc_single(ident_t * /*loc*/, kmp_int32 /*gtid*/) {
-  return static_cast<kmp_int32>(kmp::runtime::getCurrentThread().getTid() == 0);
+kmp_int32 __kmpc_single(ident_t * /*loc*/, kmp_int32 gtid) {
+  return static_cast<kmp_int32>(kmp::runtime::getThread(gtid).getTid() == 0);
 };
 
 void __kmpc_end_single(ident_t * /*loc*/, kmp_int32 /*gtid*/){/* NOOP */};
@@ -170,8 +170,8 @@ void __kmpc_end_single(ident_t * /*loc*/, kmp_int32 /*gtid*/){/* NOOP */};
 void __kmpc_copyprivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
                         void *cpy_data, void (*cpy_func)(void *, void *),
                         kmp_int32 didit) {
-  kmp::runtime::getCurrentThread().copyPrivate(loc, gtid, cpy_size, cpy_data,
-                                               cpy_func, didit);
+  kmp::runtime::getThread(gtid).copyPrivate(loc, gtid, cpy_size, cpy_data,
+                                            cpy_func, didit);
 };
 
 // Reduction
