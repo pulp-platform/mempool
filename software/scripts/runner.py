@@ -157,7 +157,7 @@ def run(prog, args, env_extra, line_callback):
 
         if proc.returncode is not None and proc.returncode > 0:
             return (False, "Non-zero return code")
-        elif not timer.is_alive():
+        elif timer is not None and not timer.is_alive():
             return (False, "Timeout")
         else:
             return (True, output)
