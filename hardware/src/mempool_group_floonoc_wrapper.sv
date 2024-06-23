@@ -151,11 +151,15 @@ logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_before_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_before_xbar_ready;
 
-for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_req_sel_tgt_tile_i
-  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_req_sel_tgt_tile_j
-    assign req_tile_sel[i][j] = floo_req_from_router[i][j].hdr.tgt_addr[NumTilesPerGroupWidth-1:0];
-  end : gen_req_sel_tgt_tile_j
-end : gen_req_sel_tgt_tile_i
+if (NumTilesPerGroup == 1) begin
+  assign req_tile_sel = '0;
+end else begin
+  for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_req_sel_tgt_tile_i
+    for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_req_sel_tgt_tile_j
+      assign req_tile_sel[i][j] = floo_req_from_router[i][j].hdr.tgt_addr[NumTilesPerGroupWidth-1:0];
+    end : gen_req_sel_tgt_tile_j
+  end : gen_req_sel_tgt_tile_i
+end
 
 tile_group_id_t [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] req_tile_sel_per_port;
 floo_req_t      [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_per_port;
@@ -218,7 +222,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_req_to_slave_re
       wen     : floo_req_from_router_after_xbar[i][j].payload.wen,
       be      : floo_req_from_router_after_xbar[i][j].payload.be,
       // row | bank  <= row | bank | tile
-      tgt_addr: floo_req_from_router_after_xbar[i][j].hdr.tgt_addr[NumTilesPerGroupWidth +: (idx_width(NumBanksPerTile) + TCDMAddrMemWidth)], // For TCDM Bank, remove tile offset, it is selected by "req_tile_sel"
+      tgt_addr: floo_req_from_router_after_xbar[i][j].hdr.tgt_addr[(NumTilesPerGroupWidth == 1 ? 0 : NumTilesPerGroupWidth) +: (idx_width(NumBanksPerTile) + TCDMAddrMemWidth)], // For TCDM Bank, remove tile offset, it is selected by "req_tile_sel"
       ini_addr: floo_req_from_router_after_xbar[i][j].hdr.src_tile_id,                      // For Crossbar when response back
       src_group_id: group_id_t'(floo_req_from_router_after_xbar[i][j].hdr.src_id)           // For NoC Router when response back
     };
@@ -260,11 +264,15 @@ logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_ready;
 
-for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_resp_sel_tgt_tile_i
-  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_resp_sel_tgt_tile_j
-    assign resp_tile_sel[i][j] = floo_resp_from_router[i][j].hdr.tile_id;
-  end : gen_resp_sel_tgt_tile_j
-end : gen_resp_sel_tgt_tile_i
+if (NumTilesPerGroup == 1) begin
+  assign resp_tile_sel = '0;
+end else begin
+  for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_resp_sel_tgt_tile_i
+    for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_resp_sel_tgt_tile_j
+      assign resp_tile_sel[i][j] = floo_resp_from_router[i][j].hdr.tile_id;
+    end : gen_resp_sel_tgt_tile_j
+  end : gen_resp_sel_tgt_tile_i
+end
 
 tile_group_id_t [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] resp_tile_sel_per_port;
 floo_resp_t     [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_per_port;
