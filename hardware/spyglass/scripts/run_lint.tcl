@@ -16,10 +16,10 @@ set_option language_mode mixed
 set_option allow_module_override yes
 set_option designread_disable_flatten no
 set_option mthresh 32768
-set_option top mempool_group
+set_option top mempool_cluster_floonoc_wrapper
 
 # Read constraints
-current_design mempool_group
+current_design mempool_cluster_floonoc_wrapper
 set_option sdc2sgdc yes
 sdc_data -file sdc/func.sdc
 

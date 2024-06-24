@@ -815,6 +815,7 @@ module mempool_tile
     // We don't care about these
     assign local_req_interco_payload[c].wdata.core_id = '0;
     assign local_req_interco_payload[c].ini_addr      = '0;
+    assign local_req_interco_payload[c].src_group_id  = '0;
     assign soc_data_q[c].id                           = '0;
 
     // Constant value

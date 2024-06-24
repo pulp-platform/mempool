@@ -203,26 +203,27 @@ module mempool_group
   tcdm_payload_t  [NumTilesPerGroup-1:0] slave_local_resp_rdata;
 
   for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_local_connections
-    assign master_local_req_valid[t]     = tcdm_master_req_valid[0][t];
-    assign master_local_req_tgt_addr[t]  = tcdm_master_req[0][t].tgt_addr;
-    assign master_local_req_wen[t]       = tcdm_master_req[0][t].wen;
-    assign master_local_req_wdata[t]     = tcdm_master_req[0][t].wdata;
-    assign master_local_req_be[t]        = tcdm_master_req[0][t].be;
-    assign tcdm_master_req_ready[0][t]   = master_local_req_ready[t];
-    assign slave_local_resp_valid[t]     = tcdm_slave_resp_valid[0][t];
-    assign slave_local_resp_ini_addr[t]  = tcdm_slave_resp[0][t].ini_addr;
-    assign slave_local_resp_rdata[t]     = tcdm_slave_resp[0][t].rdata;
-    assign tcdm_slave_resp_ready[0][t]   = slave_local_resp_ready[t];
-    assign tcdm_master_resp_valid[0][t]  = master_local_resp_valid[t];
-    assign tcdm_master_resp[0][t].rdata  = master_local_resp_rdata[t];
-    assign master_local_resp_ready[t]    = tcdm_master_resp_ready[0][t];
-    assign tcdm_slave_req_valid[0][t]    = slave_local_req_valid[t];
-    assign tcdm_slave_req[0][t].tgt_addr = slave_local_req_tgt_addr[t];
-    assign tcdm_slave_req[0][t].ini_addr = slave_local_req_ini_addr[t];
-    assign tcdm_slave_req[0][t].wen      = slave_local_req_wen[t];
-    assign tcdm_slave_req[0][t].wdata    = slave_local_req_wdata[t];
-    assign tcdm_slave_req[0][t].be       = slave_local_req_be[t];
-    assign slave_local_req_ready[t]      = tcdm_slave_req_ready[0][t];
+    assign master_local_req_valid[t]          = tcdm_master_req_valid[0][t];
+    assign master_local_req_tgt_addr[t]       = tcdm_master_req[0][t].tgt_addr;
+    assign master_local_req_wen[t]            = tcdm_master_req[0][t].wen;
+    assign master_local_req_wdata[t]          = tcdm_master_req[0][t].wdata;
+    assign master_local_req_be[t]             = tcdm_master_req[0][t].be;
+    assign tcdm_master_req_ready[0][t]        = master_local_req_ready[t];
+    assign slave_local_resp_valid[t]          = tcdm_slave_resp_valid[0][t];
+    assign slave_local_resp_ini_addr[t]       = tcdm_slave_resp[0][t].ini_addr;
+    assign slave_local_resp_rdata[t]          = tcdm_slave_resp[0][t].rdata;
+    assign tcdm_slave_resp_ready[0][t]        = slave_local_resp_ready[t];
+    assign tcdm_master_resp_valid[0][t]       = master_local_resp_valid[t];
+    assign tcdm_master_resp[0][t].rdata       = master_local_resp_rdata[t];
+    assign master_local_resp_ready[t]         = tcdm_master_resp_ready[0][t];
+    assign tcdm_slave_req_valid[0][t]         = slave_local_req_valid[t];
+    assign tcdm_slave_req[0][t].tgt_addr      = slave_local_req_tgt_addr[t];
+    assign tcdm_slave_req[0][t].ini_addr      = slave_local_req_ini_addr[t];
+    assign tcdm_slave_req[0][t].wen           = slave_local_req_wen[t];
+    assign tcdm_slave_req[0][t].wdata         = slave_local_req_wdata[t];
+    assign tcdm_slave_req[0][t].be            = slave_local_req_be[t];
+    assign tcdm_slave_req[0][t].src_group_id  = group_id_i;
+    assign slave_local_req_ready[t]           = tcdm_slave_req_ready[0][t];
   end
 
   variable_latency_interconnect #(
