@@ -144,7 +144,7 @@ module mempool_cluster_floonoc_wrapper
   /************
     *  Groups  *
     ************/
-  
+
   floo_req_t  [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_in;
   logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_in_ready, floo_req_in_valid;
   floo_req_t  [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_out;
@@ -258,7 +258,7 @@ module mempool_cluster_floonoc_wrapper
         assign floo_resp_in_valid[x][y][South]   = floo_resp_out_valid[x][y-1][North];
         assign floo_resp_in_ready[x][y][South]   = floo_resp_out_ready[x][y-1][North];
       end
-      
+
       mempool_group_floonoc_wrapper #(
         .TCDMBaseAddr (TCDMBaseAddr         ),
         .BootAddr     (BootAddr             )

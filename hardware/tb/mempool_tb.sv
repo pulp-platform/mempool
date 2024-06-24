@@ -390,7 +390,7 @@ module mempool_tb;
   assign snitch_utilization = $countones(instruction_handshake);
   assign lsu_utilization = $countones(lsu_handshake);
   assign lsu_pressure = $countones(lsu_request);
- 
+
   for (genvar g = 0; g < NumGroups; g++) begin
     for (genvar t = 0; t < NumTilesPerGroup; t++) begin
       for (genvar c = 0; c < NumCoresPerTile; c++) begin

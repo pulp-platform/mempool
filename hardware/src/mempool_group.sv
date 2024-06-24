@@ -88,7 +88,7 @@ module mempool_group
   tcdm_slave_resp_t  [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp;
   logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_valid;
   logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_ready;
-  
+
   // DMA interfaces
   tcdm_dma_req_t  [NumTilesPerGroup-1:0] tcdm_dma_req;
   logic           [NumTilesPerGroup-1:0] tcdm_dma_req_valid;
