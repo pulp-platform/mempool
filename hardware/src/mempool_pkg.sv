@@ -18,10 +18,9 @@ package mempool_pkg;
   localparam integer unsigned NumCoresPerTile         = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
   localparam integer unsigned NumDivsqrtPerTile       = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
   localparam integer unsigned NumGroups               = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
-  localparam integer unsigned MAX_NumGroups           = 8;
+  localparam integer unsigned MAX_NumGroups           = 16;
   localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 7 `endif;
   localparam integer unsigned NumTiles                = NumCores / NumCoresPerTile;
-  localparam integer unsigned NumRemotePortsPerTile   = `ifdef NUM_REMOTE_PORTS_PER_TILE `NUM_REMOTE_PORTS_PER_TILE `else 2 `endif;
   localparam integer unsigned NumTilesPerGroup        = NumTiles / NumGroups;
   localparam integer unsigned NumCoresPerGroup        = NumCores / NumGroups;
   localparam integer unsigned NumCoresPerCache        = NumCoresPerTile;
@@ -296,9 +295,10 @@ package mempool_pkg;
    *  FlooNoC INTERCONNECT PARAMETERS  *
    *************************************/
 
-  // Router Direction
+  // FlooNoC parameters
+  localparam integer unsigned NumRemotePortsPerTile   = `ifdef NUM_REMOTE_PORTS_PER_TILE `NUM_REMOTE_PORTS_PER_TILE `else 2 `endif;
   localparam integer unsigned NumDirections = `ifdef NUM_DIRECTIONS `NUM_DIRECTIONS `else 5 `endif;
-  localparam integer unsigned NumX = 2;
+  localparam integer unsigned NumX = `ifdef NUM_X `NUM_X `else 2 `endif;
   localparam integer unsigned NumY = NumGroups/NumX;
   
   // FlooNoC group id types for XY routing

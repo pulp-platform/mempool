@@ -49,14 +49,22 @@ SECTIONS {
   ro_cache_start_3       = 0x40000038;
   ro_cache_end_3         = 0x4000003C;
 
-  wake_up_tile_g0_reg = 0x40000040;
-  wake_up_tile_g1_reg = 0x40000044;
-  wake_up_tile_g2_reg = 0x40000048;
-  wake_up_tile_g3_reg = 0x4000004C;
-  wake_up_tile_g4_reg = 0x40000050;
-  wake_up_tile_g5_reg = 0x40000054;
-  wake_up_tile_g6_reg = 0x40000058;
-  wake_up_tile_g7_reg = 0x4000005C;
+  wake_up_tile_g0_reg    = 0x40000040;
+  wake_up_tile_g1_reg    = 0x40000044;
+  wake_up_tile_g2_reg    = 0x40000048;
+  wake_up_tile_g3_reg    = 0x4000004C;
+  wake_up_tile_g4_reg    = 0x40000050;
+  wake_up_tile_g5_reg    = 0x40000054;
+  wake_up_tile_g6_reg    = 0x40000058;
+  wake_up_tile_g7_reg    = 0x4000005C;
+  wake_up_tile_g8_reg    = 0x40000060;
+  wake_up_tile_g9_reg    = 0x40000064;
+  wake_up_tile_g10_reg   = 0x40000068;
+  wake_up_tile_g11_reg   = 0x4000006C;
+  wake_up_tile_g12_reg   = 0x40000070;
+  wake_up_tile_g13_reg   = 0x40000074;
+  wake_up_tile_g14_reg   = 0x40000078;
+  wake_up_tile_g15_reg   = 0x4000007C;
 
   fake_uart              = 0xC0000000;
 }

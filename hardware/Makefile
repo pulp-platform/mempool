@@ -119,6 +119,10 @@ vlog_defs += -DL2_SIZE=32\'d$(l2_size)
 vlog_defs += -DL2_BANKS=$(l2_banks)
 vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
 vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr)
+# FlooNoC configurations
+vlog_defs += -DNUM_REMOTE_PORTS_PER_TILE=$(num_remote_ports_per_tile)
+vlog_defs += -DNUM_DIRECTIONS=$(num_directions)
+vlog_defs += -DNUM_X=$(num_x)
 # Snitch ISA
 vlog_defs += -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DZFINX=$(zfinx)
@@ -134,9 +138,6 @@ vlog_defs += -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
 # Systolic configurations
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size)
 vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)
-# TeraPool configurations
-vlog_defs += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group)
-vlog_defs += -DREMOTE_GROUP_LATENCY_CYCLES=$(remote_group_latency_cycles)
 # DRAMsys co-simulation
 vlog_defs += -D${l2_sim_type}
 vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${dram_axi_width_interleaved}

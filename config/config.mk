@@ -73,10 +73,6 @@ zquarterinx ?= 0
 # DivSqrt deactivated by default
 xDivSqrt ?= 0
 
-# This parameter is only used for TeraPool configurations
-num_sub_groups_per_group ?= 1
-remote_group_latency_cycles ?= 7
-
 # DRAMsys co-simulation: dram/sram
 l2_sim_type ?= sram
 dram_axi_width_interleaved ?= 16

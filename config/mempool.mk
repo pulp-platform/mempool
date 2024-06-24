@@ -21,6 +21,11 @@ num_cores_per_tile ?= 4
 # Defaults to 1 if xDivSqrt is activated
 num_divsqrt_per_tile ?= 1
 
+# FlooNoC configuration
+num_remote_ports_per_tile ?= 2
+num_directions ?= 5
+num_x ?= 2
+
 # L1 scratchpad banking factor
 banking_factor ?= 4
 

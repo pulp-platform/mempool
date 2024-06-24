@@ -1,8 +1,8 @@
-# Copyright 2021 ETH Zurich and University of Bologna.
+# Copyright 2024 ETH Zurich and University of Bologna.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-# Author: Matheus Cavalcante, ETH Zurich
+# Author: Yichao Zhang, ETH Zurich
 
 ################
 ##  TeraPool  ##
@@ -15,33 +15,31 @@ terapool ?= 1
 num_cores ?= 1024
 
 # Number of groups
-num_groups ?= 4
+num_groups ?= 16
 
 # Number of cores per Terapool tile
-num_cores_per_tile ?= 8
-
-# Number of sub groups per Terapool group
-num_sub_groups_per_group ?= 4
+num_cores_per_tile ?= 4
 
 # Number of shared divsqrt units per MemPool tile
 # Defaults to 1 if xDivSqrt is activated
 num_divsqrt_per_tile ?= 2
 
+# FlooNoC configuration
+num_remote_ports_per_tile ?= 5
+num_directions ?= 5
+num_x ?= 4
+
 # L1 scratchpad banking factor
 banking_factor ?= 4
 
-# Access latency between remote groups
-# Options: "7", "9" or "11":
-remote_group_latency_cycles ?= 7
-
 # Radix for hierarchical AXI interconnect
-axi_hier_radix ?= 9
+axi_hier_radix ?= 17
 
 # Number of AXI masters per group
-axi_masters_per_group ?= 4
+axi_masters_per_group ?= 1
 
 # Number of DMA backends in each group
-dmas_per_group ?= 4 # Brust Length = 16
+dmas_per_group ?= 1 # Brust Length = 16
 
 # L2 Banks/Channels
 l2_banks = 16
