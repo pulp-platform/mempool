@@ -47,6 +47,7 @@ module tcdm_adapter #(
   import mempool_pkg::NumCores;
   import mempool_pkg::NumGroups;
   import mempool_pkg::NumCoresPerTile;
+  import mempool_pkg::NumRemotePortsPerTile;
   import cf_math_pkg::idx_width;
 
   typedef enum logic [3:0] {
@@ -129,7 +130,7 @@ module tcdm_adapter #(
   );
 
   localparam int unsigned CoreIdWidth  = idx_width(NumCores);
-  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumGroups);
+  localparam int unsigned IniAddrWidth = idx_width(NumCoresPerTile + NumRemotePortsPerTile);
 
   logic sc_successful_d, sc_successful_q;
   logic sc_q;
@@ -176,15 +177,17 @@ module tcdm_adapter #(
     always_comb begin
       // {group_id, tile_id, core_id}
       // MSB of ini_addr determines if request is coming from local or remote tile
-      if (in_meta_i.ini_addr[IniAddrWidth-1] == 0) begin
+      localparam int unsigned LocalAddrWidth = idx_width(NumCoresPerTile);
+      localparam int unsigned RemotePortAddrWidth = IniAddrWidth - LocalAddrWidth;
+      if (in_meta_i.ini_addr[IniAddrWidth-1 -: LocalAddrWidth] < NumCoresPerTile) begin
         // Request is coming from the local tile
         // take group id of TCDM adapter
-        unique_core_id = {'0, in_meta_i.tile_id, in_meta_i.ini_addr[IniAddrWidth-2:0]};
+        unique_core_id = {'0, in_meta_i.tile_id, in_meta_i.ini_addr[IniAddrWidth-RemotePortAddrWidth-1:0]};
       end else begin
         // Request is coming from a remote tile
         // take group id from ini_addr
         // Ignore first bit of IniAddr to obtain the group address
-        unique_core_id = {in_meta_i.ini_addr[IniAddrWidth-2:0],
+        unique_core_id = {in_meta_i.ini_addr[IniAddrWidth-RemotePortAddrWidth-1:0],
                           in_meta_i.tile_id, in_meta_i.core_id};
       end
 
