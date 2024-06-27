@@ -445,4 +445,185 @@ module mempool_tb;
 `endif
 `endif
 
+
+`ifndef TARGET_SYNTHESIS
+`ifndef TARGET_VERILATOR
+`ifdef SPM_PROFILING
+  int f_0, f_final_0;
+  int f_1, f_final_1;
+  string fn_0, fn_final_0;
+  string fn_1, fn_final_1;
+
+  string app;
+  string log_path;
+  initial begin
+    void'($value$plusargs("APP=%s", app));
+    $sformat(log_path, "../scripts/spm_profiling/run_logs/%s", app);
+  end
+
+
+  profile_t dbg_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][NumBanksPerTile-1:0][2**TCDMAddrMemWidth-1:0];
+
+  logic [63:0] cycle_q;
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if(~rst_n) begin
+      cycle_q   <= '0;
+    end else begin
+      cycle_q   <= cycle_q + 64'd1;
+    end
+  end
+
+  generate
+    for (genvar g = 0; g < NumGroups; g++) begin
+      for (genvar t = 0; t < NumTilesPerGroup; t++) begin
+        for (genvar b = 0; b < NumBanksPerTile; b++) begin
+          for(genvar i = 0; i < 2**TCDMAddrMemWidth; i++) begin
+            always_ff @(posedge clk or posedge rst_n) begin
+              if(cycle_q[7:0] == 'h80) begin
+                dbg_profile_q[g][t][b][i].initiated            = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].initiated;
+                dbg_profile_q[g][t][b][i].initial_cycle        = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].initial_cycle;
+                dbg_profile_q[g][t][b][i].last_read_cycle      = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].last_read_cycle;
+                dbg_profile_q[g][t][b][i].last_write_cycle     = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].last_write_cycle;
+                dbg_profile_q[g][t][b][i].last_access_cycle    = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].last_access_cycle;
+                dbg_profile_q[g][t][b][i].access_read_number   = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].access_read_number;
+                dbg_profile_q[g][t][b][i].access_write_number  = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].access_write_number;
+                dbg_profile_q[g][t][b][i].access_number        = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].access_number;
+                dbg_profile_q[g][t][b][i].read_cycles          = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].read_cycles;
+                dbg_profile_q[g][t][b][i].write_cycles         = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.profile_d[b][i].write_cycles;
+              end
+            end
+          end
+        end
+      end
+    end
+  endgenerate
+
+
+  always_ff @(posedge clk or posedge rst_n) begin
+    if (rst_n) begin
+      // if(cycle_q[19:0] == 'h80000) begin
+      if((cycle_q[63:0] == 'h100) || 
+        (cycle_q[63:0] == 'h200) || 
+        (cycle_q[63:0] == 'h400) || 
+        (cycle_q[63:0] == 'h800) ||
+        (cycle_q[63:0] == 'h1000) ||
+        (cycle_q[13:0] == 'h2000)) begin
+      // if(cycle_q[8:0] == 'h100) begin
+        $sformat(fn_0, "%s/trace_banks_cyc_%8x.dasm", log_path, cycle_q);
+        f_0 = $fopen(fn_0, "w");
+        $sformat(fn_1, "%s/trace_banks_cyc_%8x_inited.dasm", log_path, cycle_q);
+        f_1 = $fopen(fn_1, "w");
+        $display("[Tracer] Logging Banks to %s, %s", fn_0, fn_1);
+
+        for (int g = 0; g < NumGroups; g++) begin
+          // extras_str = $sformatf("%s\n\n\n[GROUP %03d]", extras_str, g);
+          for (int t = 0; t < NumTilesPerGroup; t++) begin
+            // extras_str = $sformatf("%s\n> [GROUP %03d, TILE %03d]", extras_str, g, t);          
+            for (int b = 0; b < NumBanksPerTile; b++) begin
+              // extras_str = $sformatf("%s\n>> [GROUP %03d, TILE %03d, BANK %03d]", extras_str, g, t, b);          
+              for(int i = 0; i < 2**TCDMAddrMemWidth; i++) begin
+                automatic string trace_entry;
+                automatic string extras_str;
+                extras_str = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'BANK': %03d, 'IDX': 0x%x, 'inited': %03d, 'ini_cyc': %03d, 'last_rd_cyc': %03d, 'last_wr_cyc': %03d, 'last_acc_cyc': %03d, 'acc_rd_num': %03d, 'acc_wr_num': %03d, 'acc_num': %03d, ", 
+                  g, t, b, i,
+                  dbg_profile_q[g][t][b][i].initiated,
+                  dbg_profile_q[g][t][b][i].initial_cycle,
+                  dbg_profile_q[g][t][b][i].last_read_cycle,
+                  dbg_profile_q[g][t][b][i].last_write_cycle,
+                  dbg_profile_q[g][t][b][i].last_access_cycle,
+                  dbg_profile_q[g][t][b][i].access_read_number,
+                  dbg_profile_q[g][t][b][i].access_write_number,
+                  dbg_profile_q[g][t][b][i].access_number
+                );
+                // read cycles
+                extras_str = $sformatf("%s'rd_cyc': ", extras_str);
+                foreach (dbg_profile_q[g][t][b][i].read_cycles[cycle_idx]) begin
+                  extras_str = $sformatf("%s%03d ", extras_str, dbg_profile_q[g][t][b][i].read_cycles[cycle_idx]);
+                end
+                extras_str = $sformatf("%s, ", extras_str);
+                // write cycles
+                extras_str = $sformatf("%s'wr_cyc': ", extras_str);
+                foreach (dbg_profile_q[g][t][b][i].write_cycles[cycle_idx]) begin
+                  extras_str = $sformatf("%s%03d ", extras_str, dbg_profile_q[g][t][b][i].write_cycles[cycle_idx]);
+                end
+                extras_str = $sformatf("%s}", extras_str);
+                // $timeformat(-9, 0, "", 10);
+                // $sformat(trace_entry, "%t %8d #; %s\n",
+                //     $time, cycle_q, extras_str);
+                if(dbg_profile_q[g][t][b][i].initiated) begin
+                  $sformat(trace_entry, "%8d #; %s\n",
+                      cycle_q, extras_str);
+                  $fwrite(f_1, trace_entry);
+                end
+                $sformat(trace_entry, "%8d #; %s\n",
+                    cycle_q, extras_str);
+                $fwrite(f_0, trace_entry);
+              end
+            end
+          end
+        end
+        $fclose(f_0);
+        $fclose(f_1);
+      end
+    end
+  end
+
+
+  final begin
+    $sformat(fn_final_0, "%s/trace_banks_cyc_%8x_final.dasm", log_path, cycle_q);
+    f_final_0 = $fopen(fn_final_0, "w");
+    $sformat(fn_final_1, "%s/trace_banks_cyc_%8x_inited_final.dasm", log_path, cycle_q);
+    f_final_1 = $fopen(fn_final_1, "w");
+    $display("[Tracer] Final Logging Banks to %s, %s", fn_final_0, f_final_1);
+
+    for (int g = 0; g < NumGroups; g++) begin
+      for (int t = 0; t < NumTilesPerGroup; t++) begin
+        for (int b = 0; b < NumBanksPerTile; b++) begin
+          for(int i = 0; i < 2**TCDMAddrMemWidth; i++) begin
+            automatic string trace_entry_final;
+            automatic string extras_str_final;
+            extras_str_final = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'BANK': %03d, 'IDX': 0x%x, 'inited': %03d, 'ini_cyc': %03d, 'last_rd_cyc': %03d, 'last_wr_cyc': %03d, 'last_acc_cyc': %03d, 'acc_rd_num': %03d, 'acc_wr_num': %03d, 'acc_num': %03d, ", 
+              g, t, b, i,
+              dbg_profile_q[g][t][b][i].initiated,
+              dbg_profile_q[g][t][b][i].initial_cycle,
+              dbg_profile_q[g][t][b][i].last_read_cycle,
+              dbg_profile_q[g][t][b][i].last_write_cycle,
+              dbg_profile_q[g][t][b][i].last_access_cycle,
+              dbg_profile_q[g][t][b][i].access_read_number,
+              dbg_profile_q[g][t][b][i].access_write_number,
+              dbg_profile_q[g][t][b][i].access_number
+            );
+            // read cycles
+            extras_str_final = $sformatf("%s'rd_cyc': ", extras_str_final);
+            foreach (dbg_profile_q[g][t][b][i].read_cycles[cycle_idx]) begin
+              extras_str_final = $sformatf("%s%03d ", extras_str_final, dbg_profile_q[g][t][b][i].read_cycles[cycle_idx]);
+            end
+            extras_str_final = $sformatf("%s, ", extras_str_final);
+            // write cycles
+            extras_str_final = $sformatf("%s'wr_cyc': ", extras_str_final);
+            foreach (dbg_profile_q[g][t][b][i].write_cycles[cycle_idx]) begin
+              extras_str_final = $sformatf("%s%03d ", extras_str_final, dbg_profile_q[g][t][b][i].write_cycles[cycle_idx]);
+            end
+            extras_str_final = $sformatf("%s}", extras_str_final);
+            // $timeformat(-9, 0, "", 10);
+            if(dbg_profile_q[g][t][b][i].initiated) begin
+              $sformat(trace_entry_final, "%8d #; %s\n",
+                  cycle_q, extras_str_final);
+              $fwrite(f_final_1, trace_entry_final);
+            end
+            $sformat(trace_entry_final, "%8d #; %s\n",
+                cycle_q, extras_str_final);
+            $fwrite(f_final_0, trace_entry_final);
+          end
+        end
+      end
+    end
+    $fclose(f_final_0);
+    $fclose(f_final_1);
+  end
+`endif
+`endif
+`endif
+
 endmodule : mempool_tb

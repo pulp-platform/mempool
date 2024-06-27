@@ -389,4 +389,20 @@ package mempool_pkg;
   localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
   localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
 
+  `ifndef TARGET_VERILATOR
+  typedef struct {
+    int unsigned initiated;
+    int unsigned initial_cycle;
+    int unsigned last_read_cycle;
+    int unsigned last_write_cycle;
+    int unsigned last_access_cycle;
+    int unsigned access_read_number;
+    int unsigned access_write_number;
+    int unsigned access_number;
+    int unsigned read_cycles[$];       // dynamic array to store cycles of read accesses
+    int unsigned write_cycles[$];      // dynamic array to store cycles of write accesses
+  } profile_t;
+  `endif
+
+
 endpackage : mempool_pkg

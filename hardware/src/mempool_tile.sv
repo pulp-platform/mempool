@@ -469,6 +469,27 @@ module mempool_tile
       .mst_rsp_ready_o       (bank_resp_ready[d*DmaNumWords+:DmaNumWords]       )
     );
   end
+  
+  `ifndef TARGET_SYNTHESIS
+  `ifndef TARGET_VERILATOR
+  `ifdef SPM_PROFILING
+    logic [63:0] cycle_q;
+
+    profile_t profile_d [NumBanksPerTile-1:0][2**TCDMAddrMemWidth-1:0];
+    // profile_t profile_q [NumBanksPerTile-1:0][2**TCDMAddrMemWidth-1:0];
+
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+      if(~rst_ni) begin
+        cycle_q   <= '0;
+        // profile_q <= '0;
+      end else begin
+        cycle_q   <= cycle_q + 64'd1;
+        // profile_q <= profile_d;
+      end
+    end
+  `endif
+  `endif
+  `endif
 
   for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_banks
     bank_metadata_t meta_in;
@@ -541,6 +562,46 @@ module mempool_tile
       .be_i   (req_be    ),
       .rdata_o(resp_rdata)
     );
+
+  `ifndef TARGET_SYNTHESIS
+  `ifndef TARGET_VERILATOR
+  `ifdef SPM_PROFILING
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+      // profile_d[b] = profile_q[b];
+      if(~rst_ni) begin
+        for(int j = 0; j < 2**TCDMAddrMemWidth; j++) begin
+          profile_d[b][j].initiated = 0;
+          profile_d[b][j].initial_cycle = 0;
+          profile_d[b][j].last_read_cycle = 0;
+          profile_d[b][j].last_write_cycle = 0;
+          profile_d[b][j].last_access_cycle = 0;
+          profile_d[b][j].access_read_number = 0;
+          profile_d[b][j].access_write_number = 0;
+          profile_d[b][j].access_number = 0;
+        end
+      end else begin
+        if(req_valid) begin
+          profile_d[b][req_addr].last_access_cycle = cycle_q;
+          profile_d[b][req_addr].access_number     = profile_d[b][req_addr].access_number + 1;
+          if(req_write) begin
+            profile_d[b][req_addr].last_write_cycle = cycle_q;
+            profile_d[b][req_addr].access_write_number = profile_d[b][req_addr].access_write_number + 1;
+            profile_d[b][req_addr].write_cycles.push_back(cycle_q);
+            if(!profile_d[b][req_addr].initiated) begin
+              profile_d[b][req_addr].initiated = 1;
+              profile_d[b][req_addr].initial_cycle = cycle_q;
+            end
+          end else begin
+            profile_d[b][req_addr].last_read_cycle = cycle_q;
+            profile_d[b][req_addr].access_read_number = profile_d[b][req_addr].access_read_number + 1;
+            profile_d[b][req_addr].read_cycles.push_back(cycle_q);
+          end
+        end
+      end
+    end
+  `endif
+  `endif
+  `endif
   end
 
   /***************

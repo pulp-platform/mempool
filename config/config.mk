@@ -76,3 +76,6 @@ xDivSqrt ?= 0
 # DRAMsys co-simulation: dram/sram
 l2_sim_type ?= sram
 dram_axi_width_interleaved ?= 16
+
+# Enable the spm access pattern profiling
+spm_profiling ?= 0
