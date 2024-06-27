@@ -36,8 +36,14 @@ class Team {
   };
 
 public:
+  Team(const Team &) = delete;
+  Team(Team &&) = delete;
+  Team &operator=(const Team &) = delete;
+  Team &operator=(Team &&) = delete;
+
   inline Team(kmp_int32 masterGtid, kmp_int32 teamId)
-      : masterGtid(masterGtid), teamId(teamId), barrier(numThreads) {}
+      : masterGtid(masterGtid), teamId(teamId), barrier(numThreads),
+        implicitTask(nullptr, nullptr, 0) {}
 
   inline ~Team() {
     for (kmp_int32 i = masterGtid + 1; i < masterGtid + numThreads; i++) {
@@ -50,9 +56,7 @@ public:
 
   inline Barrier &getBarrier() { return barrier; }
 
-  inline const std::optional<Task> &getImplicitTask() const {
-    return implicitTask;
-  }
+  inline const Task &getImplicitTask() const { return implicitTask; }
 
   inline void setImplicitTask(Task task) { implicitTask = task; }
 
@@ -78,14 +82,24 @@ public:
   inline auto getCopyPrivateData() const { return copyPrivateData; }
 
   inline void run() {
-    for (kmp_int32 i = masterGtid; i < masterGtid + numThreads; i++) {
-      auto &thread = runtime::getThread(i);
-      thread.setCurrentTeam(this);
-      thread.setTid(i - masterGtid);
+    if (runtime::numTeams > 1) {
+      for (kmp_int32 i = masterGtid + 1; i < masterGtid + numThreads; i++) {
+        auto &thread = runtime::getThread(i);
+        thread.setTid(i - masterGtid);
 
-      if (i != masterGtid) {
-        thread.wakeUp();
+        if (i != masterGtid) {
+          thread.setCurrentTeam(this);
+          thread.wakeUp();
+        }
       }
+    } else {
+      for (kmp_int32 i = masterGtid + 1; i < masterGtid + numThreads; i++) {
+        auto &thread = runtime::getThread(i);
+        thread.setCurrentTeam(this);
+      }
+
+      wake_up_all();
+      mempool_wfi();
     }
   }
 
@@ -266,10 +280,29 @@ public:
     return true;
   };
 
+  inline void copyPrivate(ident_t * /*loc*/, kmp_int32 gtid,
+                          size_t /*cpy_size*/, void *cpy_data,
+                          void (*cpy_func)(void *, void *), kmp_int32 didit) {
+    if (didit != 0) {
+      copyPrivateData = cpy_data;
+      DEBUG_PRINT("Thread %d set copyprivate data to %p\n", gtid, cpy_data);
+    }
+
+    barrier.wait();
+
+    if (didit == 0) {
+      DEBUG_PRINT("Thread %d copying copyprivate data from %p to %p\n", gtid,
+                  copyPrivateData, cpy_data);
+      cpy_func(cpy_data, copyPrivateData);
+    }
+
+    barrier.wait();
+  };
+
 private:
-  volatile kmp_int32 masterGtid = 0;
-  volatile kmp_int32 teamId = 0;
-  volatile kmp_int32 numThreads = 1;
+  kmp_int32 masterGtid = 0;
+  kmp_int32 teamId = 0;
+  kmp_int32 numThreads = 1;
 
   Barrier barrier;
 
@@ -277,7 +310,7 @@ private:
 
   void *copyPrivateData = nullptr;
 
-  std::optional<Task> implicitTask;
+  Task implicitTask;
 };
 
 } // namespace kmp

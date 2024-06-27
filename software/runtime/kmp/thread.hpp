@@ -20,7 +20,7 @@ class Thread {
 
 public:
   Thread(kmp_int32 gtid);
-  Thread(kmp_int32 gtid, std::optional<kmp_int32> tid);
+  Thread(kmp_int32 gtid, kmp_int32 tid);
 
   Thread(const Thread &other) = delete;
   Thread(Thread &&) = delete;
@@ -50,31 +50,30 @@ public:
 
   inline auto getGtid() const { return gtid; };
 
-  inline auto getTid() const { return tid.value_or(0); };
+  inline auto getTid() const { return tid; };
 
   inline void setTid(kmp_int32 tid) { this->tid = tid; };
 
   inline bool isRunning() { return running.isLocked(); };
 
-  void requestNumThreads(kmp_int32 numThreads);
+  inline void requestNumThreads(kmp_int32 numThreads) {
+    this->requestedNumThreads = numThreads;
+  }
 
-  void forkCall(Task microtask);
+  void forkCall(Task parallelRegion);
 
-  void forkTeams(Task microtask);
-
-  void copyPrivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
-                   void *cpy_data, void (*cpy_func)(void *, void *),
-                   kmp_int32 didit);
+  void forkTeams(Task teamsRegion);
 
 private:
   kmp_int32 gtid;
-  std::optional<kmp_int32> tid;
+  kmp_int32 tid;
+
+  Mutex running;
+
+  Team *currentTeam;
 
   // Contains task if this is the initial thread (master) of the teams region
   std::optional<Task> teamsRegion;
-
-  std::atomic<Team *> currentTeam;
-  Mutex running;
 
   std::optional<kmp_int32> requestedNumThreads;
 };

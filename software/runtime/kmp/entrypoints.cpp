@@ -170,8 +170,8 @@ void __kmpc_end_single(ident_t * /*loc*/, kmp_int32 /*gtid*/){/* NOOP */};
 void __kmpc_copyprivate(ident_t *loc, kmp_int32 gtid, size_t cpy_size,
                         void *cpy_data, void (*cpy_func)(void *, void *),
                         kmp_int32 didit) {
-  kmp::runtime::getThread(gtid).copyPrivate(loc, gtid, cpy_size, cpy_data,
-                                            cpy_func, didit);
+  kmp::runtime::getThread(gtid).getCurrentTeam()->copyPrivate(
+      loc, gtid, cpy_size, cpy_data, cpy_func, didit);
 };
 
 // Reduction
@@ -221,7 +221,7 @@ void __kmpc_push_num_teams(ident_t * /*loc*/, kmp_int32 /*global_tid*/,
                            kmp_int32 num_teams, kmp_int32 num_threads) {
   DEBUG_PRINT("num_teams: %d, num_threads: %d\n", num_teams, num_threads);
   if (num_teams > 0) {
-    kmp::runtime::requestedNumTeams = num_teams;
+    kmp::runtime::requestedNumTeams = std::min(num_teams, NUM_CORES / 2);
   }
 
   if (num_threads > 0) {

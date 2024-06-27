@@ -33,7 +33,25 @@ public:
   ~Barrier();
 
   inline void wait() {
-    if (runtime::numTeams > 1) {
+    if (runtime::numTeams == 1) {
+      DEBUG_PRINT("Entering wfi barrier at %p\n", this);
+      // WFI barrier
+
+      // Increment the barrier counter
+      if ((numThreads - 1) == barrier.fetch_add(1, std::memory_order_relaxed)) {
+        DEBUG_PRINT("Barrier done at %p\n", this);
+        barrier.store(0, std::memory_order_relaxed);
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+        wake_up_all();
+      }
+
+      // Some threads have not reached the barrier --> Let's wait
+      // Clear the wake-up trigger for the last core reaching the barrier as
+      // well
+      mempool_wfi();
+      DEBUG_PRINT("Exiting wfi barrier at %p\n", this);
+
+    } else {
       // Spin generation barrier
       kmp_int32 gen = generation;
 
@@ -52,24 +70,6 @@ public:
       }
 
       DEBUG_PRINT("Exiting spin barrier at %p, gen %d\n", this, gen);
-
-    } else {
-      DEBUG_PRINT("Entering wfi barrier at %p\n", this);
-      // WFI barrier
-
-      // Increment the barrier counter
-      if ((numThreads - 1) == barrier.fetch_add(1, std::memory_order_relaxed)) {
-        DEBUG_PRINT("Barrier done at %p\n", this);
-        barrier.store(0, std::memory_order_relaxed);
-        std::atomic_thread_fence(std::memory_order_seq_cst);
-        wake_up_all();
-      }
-
-      // Some threads have not reached the barrier --> Let's wait
-      // Clear the wake-up trigger for the last core reaching the barrier as
-      // well
-      mempool_wfi();
-      DEBUG_PRINT("Exiting wfi barrier at %p\n", this);
     }
   };
 
@@ -88,6 +88,6 @@ public:
 private:
   std::atomic<kmp_int32> barrier;
   std::atomic<kmp_int32> generation;
-  volatile int32_t numThreads;
+  int32_t numThreads;
 };
 }; // namespace kmp
