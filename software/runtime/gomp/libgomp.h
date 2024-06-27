@@ -115,6 +115,6 @@ typedef struct {
   omp_lock_t atomic_lock;
 } work_t;
 
-extern event_t event;
-extern work_t works;
+extern event_t event __attribute__((section(".l1")));
+extern work_t works __attribute__((section(".l1")));
 #endif /* __LIBGOMP_H__ */
