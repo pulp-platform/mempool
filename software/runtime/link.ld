@@ -16,11 +16,18 @@ SECTIONS {
     . = __seq_end;
   } > l1
 
+  /* BSS on L1 */
+  .bss : {
+    __bss_start = .;
+    *(.bss)
+    *(.sbss .sbss2 .sbss2.* .gnu.linkonce.sb2.*);
+    __bss_end = .;
+  } > l1
+
   /* Interleaved region on L1 */
   .l1 (NOLOAD): {
     *(.l1_prio)
     *(.l1)
-    *(COMMON)
     __l1_alloc_base = ALIGN(0x10);
     __heap_start = .;
   } > l1
@@ -69,13 +76,6 @@ SECTIONS {
     *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
     *(.sdata .sdata.* .gnu.linkonce.s.*)
     . = ALIGN(0x10);
-  } > l2
-
-  .bss : {
-    __bss_start = .;
-    *(.bss)
-    *(.sbss .sbss2 .sbss2.* .gnu.linkonce.sb2.*);
-    __bss_end = .;
   } > l2
 
   .l2 : {
