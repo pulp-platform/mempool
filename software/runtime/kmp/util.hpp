@@ -184,6 +184,8 @@ template <class T> struct Allocator {
   }
 
   void deallocate(T *ptr, std::size_t n) noexcept {
+    (void)n;
+
     std::lock_guard<kmp::Mutex> lock(allocLock);
 
     simple_free(ptr);

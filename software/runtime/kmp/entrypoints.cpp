@@ -121,12 +121,14 @@ int __kmpc_dispatch_next_8(ident_t * /*loc*/, kmp_int64 /*gtid*/,
                            kmp_int64 * /*plastiter*/, kmp_int64 * /*plower*/,
                            kmp_int64 * /*pupper*/, kmp_int64 * /*pstride*/) {
   assert(false && "Unsupported loop index type");
+  return 0;
 }
 
 int __kmpc_dispatch_next_8u(ident_t * /*loc*/, kmp_int64 /*gtid*/,
                             kmp_int64 * /*plastiter*/, kmp_uint64 * /*plower*/,
                             kmp_uint64 * /*pupper*/, kmp_int64 * /*pstride*/) {
   assert(false && "Unsupported loop index type");
+  return 0;
 }
 
 void __kmpc_push_num_threads(ident_t * /*loc*/, kmp_int32 global_tid,

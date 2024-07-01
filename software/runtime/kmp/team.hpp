@@ -283,6 +283,8 @@ public:
   inline void copyPrivate(ident_t * /*loc*/, kmp_int32 gtid,
                           size_t /*cpy_size*/, void *cpy_data,
                           void (*cpy_func)(void *, void *), kmp_int32 didit) {
+    (void)gtid;
+
     if (didit != 0) {
       copyPrivateData = cpy_data;
       DEBUG_PRINT("Thread %d set copyprivate data to %p\n", gtid, cpy_data);

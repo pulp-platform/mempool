@@ -92,10 +92,10 @@ int main() {
 #pragma omp parallel
   {
     // Initialize Matrices
-    init_matrix(a, M, N, A_a, A_b, A_c, omp_get_thread_num(),
-                omp_get_num_threads());
-    init_matrix(b, N, P, B_a, B_b, B_c, omp_get_thread_num(),
-                omp_get_num_threads());
+    init_matrix(a, M, N, A_a, A_b, A_c, (uint32_t)omp_get_thread_num(),
+                (uint32_t)omp_get_num_threads());
+    init_matrix(b, N, P, B_a, B_b, B_c, (uint32_t)omp_get_thread_num(),
+                (uint32_t)omp_get_num_threads());
   }
 
   printf("Start sequential\n");
