@@ -7,228 +7,238 @@
 
 #include "baremetal/mempool_conv2d_i32p.h"
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "testing.h"
 
-#define REPETITIONS 10 /* Number of times to run each test */
+#ifndef REPETITIONS
+#define REPETITIONS 100 /* Number of times to run each test */
+#endif
 
 #define MAX_FACTOR 10
 #define KNOWN_PRODUCT 3628800 /* 10! */
-#define LOOPCOUNT 100         /* Number of iterations to slit amongst threads */
+#define LOOPCOUNT 100 /* Number of iterations to split amongst threads */
 
-int test_omp_parallel_for_reduction() {
-  int sum;
-  int known_sum;
-  int diff;
-  int product;
-  int known_product;
-  int logic_and;
-  int logic_or;
-  int bit_and;
-  int bit_or;
-  int exclusiv_bit_or;
-  int logics[LOOPCOUNT];
-  int i;
-  int result;
+uint32_t logics[LOOPCOUNT];
 
-  sum = 0;
-  result = 0;
-  product = 1;
-  logic_and = 1;
-  logic_or = 0;
-  bit_and = 1;
-  bit_or = 0;
-  exclusiv_bit_or = 0;
+TEST(test_omp_parallel_for_sum) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    int sum = 0;
+    int known_sum = (LOOPCOUNT * (LOOPCOUNT + 1)) / 2;
 
-  /* Tests for integers */
-  known_sum = (LOOPCOUNT * (LOOPCOUNT + 1)) / 2;
-#pragma omp parallel for schedule(static, 1) private(i) reduction(+ : sum)
-  for (i = 1; i <= LOOPCOUNT; i++) {
-    sum = sum + i;
-  }
-  if (known_sum != sum) {
-    result++;
-    printf("Error in sum with integers: Result was %d"
-           " instead of %d\n",
-           sum, known_sum);
-  }
+#pragma omp parallel for schedule(static, 1) reduction(+ : sum)
+    for (int i = 1; i <= LOOPCOUNT; i++) {
+      sum += i;
+    }
 
-  diff = (LOOPCOUNT * (LOOPCOUNT + 1)) / 2;
-#pragma omp parallel for schedule(static, 1) private(i) reduction(- : diff)
-  for (i = 1; i <= LOOPCOUNT; ++i) {
-    diff = diff - i;
+    ASSERT_EQ(sum, known_sum);
   }
-  if (diff != 0) {
-    result++;
-    printf("Error in difference with integers: Result was %d"
-           " instead of 0.\n",
-           diff);
-  }
+}
 
-/* Tests for integers */
-#pragma omp parallel for schedule(static, 1) private(i) reduction(* : product)
-  for (i = 1; i <= MAX_FACTOR; i++) {
-    product *= i;
-  }
-  known_product = KNOWN_PRODUCT;
-  if (known_product != product) {
-    result++;
-    printf("Error in Product with integers: Result was %d"
-           " instead of %d\n\n",
-           product, known_product);
-  }
+TEST(test_omp_parallel_for_diff) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    int diff = (LOOPCOUNT * (LOOPCOUNT + 1)) / 2;
 
-  /* Tests for logic AND */
-  for (i = 0; i < LOOPCOUNT; i++) {
-    logics[i] = 1;
-  }
+#pragma omp parallel for schedule(static, 1) reduction(- : diff)
+    for (int i = 1; i <= LOOPCOUNT; ++i) {
+      diff -= i;
+    }
 
-#pragma omp parallel for private(i) schedule(static,1) reduction(&&:logic_and)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    logic_and = (logic_and && logics[i]);
+    ASSERT_EQ(diff, 0);
   }
-  if (!logic_and) {
-    result++;
-    printf("Error in logic AND part 1.\n");
-  }
+}
 
-  logic_and = 1;
-  logics[LOOPCOUNT / 2] = 0;
+TEST(test_omp_parallel_for_product) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    int product = 1;
+    int known_product = KNOWN_PRODUCT;
 
-#pragma omp parallel for schedule(static,1) private(i) reduction(&&:logic_and)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    logic_and = logic_and && logics[i];
-  }
-  if (logic_and) {
-    result++;
-    printf("Error in logic AND part 2.\n");
-  }
+#pragma omp parallel for schedule(static, 1) reduction(* : product)
+    for (int i = 1; i <= MAX_FACTOR; i++) {
+      product *= i;
+    }
 
-  /* Tests for logic OR */
-  for (i = 0; i < LOOPCOUNT; i++) {
-    logics[i] = 0;
+    ASSERT_EQ(product, known_product);
   }
+}
 
-#pragma omp parallel for schedule(static, 1) private(i) reduction(|| : logic_or)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    logic_or = logic_or || logics[i];
-  }
-  if (logic_or) {
-    result++;
-    printf("Error in logic OR part 1.\n");
-  }
-  logic_or = 0;
-  logics[LOOPCOUNT / 2] = 1;
+TEST(test_omp_parallel_for_logic_and_part1) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    int logic_and = 1;
+    for (int i = 0; i < LOOPCOUNT; i++) {
+      logics[i] = 1;
+    }
 
-#pragma omp parallel for schedule(static, 1) private(i) reduction(|| : logic_or)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    logic_or = logic_or || logics[i];
-  }
-  if (!logic_or) {
-    result++;
-    printf("Error in logic OR part 2.\n");
-  }
+#pragma omp parallel for schedule(static, 1) reduction(&& : logic_and)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      logic_and = logic_and && logics[i];
+    }
 
-  /* Tests for bitwise AND */
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    logics[i] = 1;
+    ASSERT_EQ(logic_and, 1);
   }
+}
 
-#pragma omp parallel for schedule(static, 1) private(i) reduction(& : bit_and)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    bit_and = (bit_and & logics[i]);
-  }
-  if (!bit_and) {
-    result++;
-    printf("Error in BIT AND part 1.\n");
-  }
+TEST(test_omp_parallel_for_logic_and_part2) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    int logic_and = 1;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; i++) {
+      logics[i] = 1;
+    }
+    logics[LOOPCOUNT / 2] = 0;
 
-  bit_and = 1;
-  logics[LOOPCOUNT / 2] = 0;
+#pragma omp parallel for schedule(static, 1) reduction(&& : logic_and)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      logic_and = logic_and && logics[i];
+    }
 
-#pragma omp parallel for schedule(static, 1) private(i) reduction(& : bit_and)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    bit_and = bit_and & logics[i];
+    ASSERT_EQ(logic_and, 0);
   }
-  if (bit_and) {
-    result++;
-    printf("Error in BIT AND part 2.\n");
-  }
+}
 
-  /* Tests for bitwise OR */
-  for (i = 0; i < LOOPCOUNT; i++) {
-    logics[i] = 0;
-  }
+TEST(test_omp_parallel_for_logic_or_part1) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    int logic_or = 0;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; i++) {
+      logics[i] = 0;
+    }
 
-#pragma omp parallel for schedule(static, 1) private(i) reduction(| : bit_or)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    bit_or = bit_or | logics[i];
-  }
-  if (bit_or) {
-    result++;
-    printf("Error in BIT OR part 1\n");
-  }
-  bit_or = 0;
-  logics[LOOPCOUNT / 2] = 1;
+#pragma omp parallel for schedule(static, 1) reduction(|| : logic_or)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      logic_or = logic_or || logics[i];
+    }
 
-#pragma omp parallel for schedule(static, 1) private(i) reduction(| : bit_or)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    bit_or = bit_or | logics[i];
+    ASSERT_EQ(logic_or, 0);
   }
-  if (!bit_or) {
-    result++;
-    printf("Error in BIT OR part 2\n");
-  }
+}
 
-  /* Tests for bitwise XOR */
-  for (i = 0; i < LOOPCOUNT; i++) {
-    logics[i] = 0;
-  }
+TEST(test_omp_parallel_for_logic_or_part2) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    int logic_or = 0;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; i++) {
+      logics[i] = 0;
+    }
+    logics[LOOPCOUNT / 2] = 1;
 
-#pragma omp parallel for schedule(static,1) private(i) reduction(^:exclusiv_bit_or)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    exclusiv_bit_or = exclusiv_bit_or ^ logics[i];
-  }
-  if (exclusiv_bit_or) {
-    result++;
-    printf("Error in EXCLUSIV BIT OR part 1\n");
-  }
+#pragma omp parallel for schedule(static, 1) reduction(|| : logic_or)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      logic_or = logic_or || logics[i];
+    }
 
-  exclusiv_bit_or = 0;
-  logics[LOOPCOUNT / 2] = 1;
+    ASSERT_EQ(logic_or, 1);
+  }
+}
 
-#pragma omp parallel for schedule(static,1) private(i) reduction(^:exclusiv_bit_or)
-  for (i = 0; i < LOOPCOUNT; ++i) {
-    exclusiv_bit_or = exclusiv_bit_or ^ logics[i];
+TEST(test_omp_parallel_for_bit_and_part1) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    uint32_t bit_and = 1;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      logics[i] = 1;
+    }
+
+#pragma omp parallel for schedule(static, 1) reduction(& : bit_and)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      bit_and = bit_and & logics[i];
+    }
+
+    ASSERT_EQ(bit_and, 1);
   }
-  if (!exclusiv_bit_or) {
-    result++;
-    printf("Error in EXCLUSIV BIT OR part 2\n");
+}
+
+TEST(test_omp_parallel_for_bit_and_part2) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    uint32_t bit_and = 1;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      logics[i] = 1;
+    }
+    logics[LOOPCOUNT / 2] = 0;
+
+#pragma omp parallel for schedule(static, 1) reduction(& : bit_and)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      bit_and = bit_and & logics[i];
+    }
+
+    ASSERT_EQ(bit_and, 0);
   }
-  return (result);
+}
+
+TEST(test_omp_parallel_for_bit_or_part1) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    uint32_t bit_or = 0;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; i++) {
+      logics[i] = 0;
+    }
+
+#pragma omp parallel for schedule(static, 1) reduction(| : bit_or)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      bit_or = bit_or | logics[i];
+    }
+
+    ASSERT_EQ(bit_or, 0);
+  }
+}
+
+TEST(test_omp_parallel_for_bit_or_part2) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    uint32_t bit_or = 0;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; i++) {
+      logics[i] = 0;
+    }
+    logics[LOOPCOUNT / 2] = 1;
+
+#pragma omp parallel for schedule(static, 1) reduction(| : bit_or)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      bit_or = bit_or | logics[i];
+    }
+
+    ASSERT_EQ(bit_or, 1);
+  }
+}
+
+TEST(test_omp_parallel_for_exclusiv_bit_or_part1) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    uint32_t exclusiv_bit_or = 0;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; i++) {
+      logics[i] = 0;
+    }
+
+#pragma omp parallel for schedule(static, 1) reduction(^ : exclusiv_bit_or)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      exclusiv_bit_or = exclusiv_bit_or ^ logics[i];
+    }
+
+    ASSERT_EQ(exclusiv_bit_or, 0);
+  }
+}
+
+TEST(test_omp_parallel_for_exclusiv_bit_or_part2) {
+  for (int rep = 0; rep < REPETITIONS; rep++) {
+    uint32_t exclusiv_bit_or = 0;
+    memset(logics, 0, LOOPCOUNT);
+    for (int i = 0; i < LOOPCOUNT; i++) {
+      logics[i] = 0;
+    }
+    logics[LOOPCOUNT / 2] = 1;
+
+#pragma omp parallel for schedule(static, 1) reduction(^ : exclusiv_bit_or)
+    for (int i = 0; i < LOOPCOUNT; ++i) {
+      exclusiv_bit_or = exclusiv_bit_or ^ logics[i];
+    }
+
+    ASSERT_EQ(exclusiv_bit_or, 1);
+  }
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
-  int i;
-  int num_failed = 0;
-
-  if (core_id == 0) {
-    printf("Master Thread start\n");
-    for (i = 0; i < REPETITIONS; i++) {
-      printf("test: %d\n", i);
-      num_failed = test_omp_parallel_for_reduction();
-      printf("num_failed: %d\n", num_failed);
-    }
-    printf("Master Thread end\n\n\n");
-  } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
-    }
-  }
-
-  return num_failed;
+  RUN_ALL_TESTS();
+  PRINT_TEST_RESULTS();
 }

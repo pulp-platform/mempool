@@ -1,0 +1,53 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+---
+address:
+  scratch_reg: 0x40000000
+  wakeup_reg: 0x40000004
+  tcdm_start: 0x40000008
+  tcdm_end: 0x4000000C
+  nr_cores: 0x40000010
+  uart: 0xC0000000
+  # Not supported in MemPool
+  barrier_reg:
+    start: 0x50000000
+    offset: 0x100000
+  cluster_base_hartid: 0x50000001
+  cluster_num: 0x50000002
+  cluster_id: 0x50000003
+  cl_clint: 0x40000060
+  clint: 0xFFFF0000
+memory:
+  tcdm:
+    start: 0x0
+    size: 0x100000
+    offset: 0x100000
+    latency: 5
+  dram:
+    start: 0x80000000
+    size: 0x01000000
+    offset: 0x0
+    latency: 10
+  periphs:
+    start: 0x40000000
+    size: 0x20000
+    offset: 0x0
+    latency: 5
+    callbacks:
+      - name: zero-memory
+        size: 0x10000
+      - name: mempool-dma
+        size: 0x1C
+inst_latency:
+  mul: 3
+  mulh: 3
+  mulhsu: 3
+  mulhu: 3
+  div: 3
+  divu: 3
+  rem: 3
+  remu: 3
+ssr:
+  num_dm: 3

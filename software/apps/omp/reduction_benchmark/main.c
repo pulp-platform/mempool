@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -144,164 +144,160 @@ int32_t dot_product_omp_dynamic(int32_t const *__restrict__ A,
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
   mempool_timer_t cycles;
+  uint32_t num_cores = mempool_get_core_count();
 
-  // Initialize synchronization variables
-  mempool_barrier_init(core_id);
+#pragma omp parallel
+  {
+    uint32_t core_id = mempool_get_core_id();
 
-#ifdef VERBOSE
-  if (core_id == 0) {
-    printf("Initialize\n");
-  }
-#endif
-
-  // Initialize Matrices
-  init_vector(a, M, A_a, A_b, core_id, num_cores);
-  init_vector(b, M, B_a, B_b, core_id, num_cores);
+    // Initialize synchronization variables
+    mempool_barrier_init(core_id);
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores);
-  if (core_id == 0) {
-    // print_vector(a, M);
-    // print_vector(b, M);
-  }
+    if (core_id == 0) {
+      printf("Initialize\n");
+    }
 #endif
 
-  mempool_barrier(num_cores);
-  int32_t result, correct_result;
+    // Initialize Matrices
+    init_vector(a, M, A_a, A_b, core_id, num_cores);
+    init_vector(b, M, B_a, B_b, core_id, num_cores);
 
-  if (core_id == 0) {
-    mempool_wait(4 * num_cores);
+#ifdef VERBOSE
+    mempool_barrier(num_cores);
+    if (core_id == 0) {
+      // print_vector(a, M);
+      // print_vector(b, M);
+    }
+#endif
+
+    mempool_barrier(num_cores);
+    int32_t result, correct_result;
+
+    if (core_id == 0) {
+      mempool_wait(4 * num_cores);
+      cycles = mempool_get_timer();
+      mempool_start_benchmark();
+      result = dot_product_sequential(a, b, M);
+      mempool_stop_benchmark();
+      cycles = mempool_get_timer() - cycles;
+    }
+
+#ifdef VERBOSE
+    mempool_barrier(num_cores);
+    if (core_id == 0) {
+      printf("Sequential Result: %d\n", result);
+      printf("Sequential Duration: %d\n", cycles);
+      if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
+        printf("Sequential Result is %d instead of %d\n", result,
+               correct_result);
+      } else {
+        printf("Result is correct!\n");
+      }
+    }
+#endif
+    mempool_barrier(num_cores);
+
     cycles = mempool_get_timer();
     mempool_start_benchmark();
-    result = dot_product_sequential(a, b, M);
+    result = dot_product_parallel1(a, b, c, M, core_id, num_cores);
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;
-  }
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores);
-  if (core_id == 0) {
-    printf("Sequential Result: %d\n", result);
-    printf("Sequential Duration: %d\n", cycles);
-    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
-      printf("Sequential Result is %d instead of %d\n", result, correct_result);
-    } else {
-      printf("Result is correct!\n");
+    mempool_barrier(num_cores);
+    if (core_id == 0) {
+      printf("Manual Parallel1 Result: %d\n", result);
+      printf("Manual Parallel1 Duration: %d\n", cycles);
+      if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
+        printf("Manual Parallel1 Result is %d instead of %d\n", result,
+               correct_result);
+      } else {
+        printf("Result is correct!\n");
+      }
     }
-  }
 #endif
-  mempool_barrier(num_cores);
+    mempool_barrier(num_cores);
 
-  cycles = mempool_get_timer();
-  mempool_start_benchmark();
-  result = dot_product_parallel1(a, b, c, M, core_id, num_cores);
-  mempool_stop_benchmark();
-  cycles = mempool_get_timer() - cycles;
+    cycles = mempool_get_timer();
+    mempool_start_benchmark();
+    result = dot_product_parallel2(a, b, c, M, core_id, num_cores);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer() - cycles;
 
 #ifdef VERBOSE
-  mempool_barrier(num_cores);
-  if (core_id == 0) {
-    printf("Manual Parallel1 Result: %d\n", result);
-    printf("Manual Parallel1 Duration: %d\n", cycles);
-    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
-      printf("Manual Parallel1 Result is %d instead of %d\n", result,
-             correct_result);
-    } else {
-      printf("Result is correct!\n");
+    mempool_barrier(num_cores);
+    if (core_id == 0) {
+      printf("Manual Parallel2 Result: %d\n", result);
+      printf("Manual Parallel2 Duration: %d\n", cycles);
+      if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
+        printf("Manual Parallel2 Result is %d instead of %d\n", result,
+               correct_result);
+      } else {
+        printf("Result is correct!\n");
+      }
     }
-  }
 #endif
-  mempool_barrier(num_cores);
-
-  cycles = mempool_get_timer();
-  mempool_start_benchmark();
-  result = dot_product_parallel2(a, b, c, M, core_id, num_cores);
-  mempool_stop_benchmark();
-  cycles = mempool_get_timer() - cycles;
-
-#ifdef VERBOSE
-  mempool_barrier(num_cores);
-  if (core_id == 0) {
-    printf("Manual Parallel2 Result: %d\n", result);
-    printf("Manual Parallel2 Duration: %d\n", cycles);
-    if (!verify_dotproduct(result, M, A_a, A_b, B_a, B_b, &correct_result)) {
-      printf("Manual Parallel2 Result is %d instead of %d\n", result,
-             correct_result);
-    } else {
-      printf("Result is correct!\n");
-    }
+    mempool_barrier(num_cores);
   }
-#endif
-  mempool_barrier(num_cores);
 
   /*  OPENMP IMPLEMENTATION  */
   int32_t omp_result;
+  int32_t correct_result;
 
-  if (core_id == 0) {
-    mempool_wait(4 * num_cores);
+  mempool_wait(4 * num_cores);
 
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    omp_result = dot_product_omp_static(a, b, M);
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  omp_result = dot_product_omp_static(a, b, M);
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
 
-    printf("OMP Static Result: %d\n", omp_result);
-    printf("OMP Static Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
-                           &correct_result)) {
-      printf("OMP Static Result is %d instead of %d\n", omp_result,
-             correct_result);
-    } else {
-      printf("Result is correct!\n");
-    }
-
-    mempool_wait(4 * num_cores);
-
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    omp_result = dot_product_omp_dynamic(a, b, M, 4);
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-
-    printf("OMP Dynamic(4) Result: %d\n", omp_result);
-    printf("OMP Dynamic(4) Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
-                           &correct_result)) {
-      printf("OMP Dynamic(4) Result is %d instead of %d\n", omp_result,
-             correct_result);
-    } else {
-      printf("Result is correct!\n");
-    }
-
-    mempool_wait(4 * num_cores);
-
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    omp_result = dot_product_omp_dynamic(a, b, M, 10);
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-
-    printf("OMP Dynamic(10) Result: %d\n", omp_result);
-    printf("OMP Dynamic(10) Duration: %d\n", cycles);
-    if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b,
-                           &correct_result)) {
-      printf("OMP Dynamic(10) Result is %d instead of %d\n", omp_result,
-             correct_result);
-    } else {
-      printf("Result is correct!\n");
-    }
-
-    mempool_wait(4 * num_cores);
-
+  printf("OMP Static Result: %d\n", omp_result);
+  printf("OMP Static Duration: %d\n", cycles);
+  if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)) {
+    printf("OMP Static Result is %d instead of %d\n", omp_result,
+           correct_result);
   } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
-    }
+    printf("Result is correct!\n");
   }
+
+  mempool_wait(4 * num_cores);
+
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  omp_result = dot_product_omp_dynamic(a, b, M, 4);
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+
+  printf("OMP Dynamic(4) Result: %d\n", omp_result);
+  printf("OMP Dynamic(4) Duration: %d\n", cycles);
+  if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)) {
+    printf("OMP Dynamic(4) Result is %d instead of %d\n", omp_result,
+           correct_result);
+  } else {
+    printf("Result is correct!\n");
+  }
+
+  mempool_wait(4 * num_cores);
+
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  omp_result = dot_product_omp_dynamic(a, b, M, 10);
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+
+  printf("OMP Dynamic(10) Result: %d\n", omp_result);
+  printf("OMP Dynamic(10) Duration: %d\n", cycles);
+  if (!verify_dotproduct(omp_result, M, A_a, A_b, B_a, B_b, &correct_result)) {
+    printf("OMP Dynamic(10) Result is %d instead of %d\n", omp_result,
+           correct_result);
+  } else {
+    printf("Result is correct!\n");
+  }
+
+  mempool_wait(4 * num_cores);
+
   return 0;
 }

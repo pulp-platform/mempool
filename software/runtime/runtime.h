@@ -140,6 +140,7 @@ static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
   case 0:
     wake_up_tile_g0_reg = tile_mask;
     break;
+
   case 1:
     wake_up_tile_g1_reg = tile_mask;
     break;

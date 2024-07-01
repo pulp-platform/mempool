@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -68,35 +68,33 @@ void omp_parallel_critical() {
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
 
-  // Initialize synchronization variables
-  mempool_barrier_init(core_id);
+#pragma omp parallel
+  {
+    uint32_t core_id = mempool_get_core_id();
 
-  if (core_id == 0) {
-    printf("Initialize\n");
-    *lock = 0;
+    // Initialize synchronization variables
+    mempool_barrier_init(core_id);
+
+    if (core_id == 0) {
+      printf("Initialize\n");
+      *lock = 0;
+      result = 0;
+    }
+
+    mempool_barrier(num_cores);
+    parallel_critical_manual();
+    mempool_barrier(num_cores);
+
     result = 0;
   }
 
-  mempool_barrier(num_cores);
-  parallel_critical_manual();
-  mempool_barrier(num_cores);
-
-  result = 0;
-
   /*  OPENMP IMPLEMENTATION  */
 
-  if (core_id == 0) {
-    mempool_wait(4 * num_cores);
-    omp_parallel_critical();
-    mempool_wait(100 * num_cores);
-  } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
-    }
-  }
+  mempool_wait(4 * num_cores);
+  omp_parallel_critical();
+  mempool_wait(100 * num_cores);
+
   return 0;
 }

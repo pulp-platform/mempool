@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -14,12 +14,14 @@
 #define N 16
 #define M 4
 
-void work2(unsigned long num) {
+uint32_t work2(unsigned long num) {
   uint32_t i;
   uint32_t cnt = 0;
 
   for (i = 0; i < num; i++)
     cnt += i;
+
+  return cnt;
 }
 
 void sequential() {
@@ -78,52 +80,60 @@ void section_parallel() {
   }
 }
 
-int main() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t cycles;
+#define REPETITIONS 10
 
-  mempool_barrier_init(core_id);
+void startup_time() {
 
-  if (core_id == 0) {
+  uint32_t duration = 0;
 
-    printf("Sequential Start\n");
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    sequential();
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-    printf("Sequential Duration: %d\n", cycles);
-
-    printf("Static Start\n");
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    static_parallel();
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-    printf("Static Duration: %d\n", cycles);
-
-    printf("Dynamic Start\n");
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    dynamic_parallel();
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-    printf("Dynamic Duration: %d\n", cycles);
-
-    printf("Section Start\n");
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    section_parallel();
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-    printf("Section Duration: %d\n", cycles);
-
-  } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
+  for (int i = 0; i < REPETITIONS; i++) {
+    uint32_t time = mempool_get_timer();
+#pragma omp parallel
+    {
+#pragma omp single
+      duration += mempool_get_timer() - time;
     }
   }
+
+  printf("Startup time duration: %d\n", duration / REPETITIONS);
+}
+
+int main() {
+  uint32_t cycles;
+
+  printf("Sequential Start\n");
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  sequential();
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+  printf("Sequential Duration: %d\n", cycles);
+
+  printf("Static Start\n");
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  static_parallel();
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+  printf("Static Duration: %d\n", cycles);
+
+  printf("Dynamic Start\n");
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  dynamic_parallel();
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+  printf("Dynamic Duration: %d\n", cycles);
+
+  printf("Section Start\n");
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  section_parallel();
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+  printf("Section Duration: %d\n", cycles);
+
+  startup_time();
 
   return 0;
 }

@@ -6,37 +6,50 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "testing.h"
 
-extern volatile uint32_t tcdm_start_address_reg;
-extern volatile uint32_t tcdm_end_address_reg;
+#ifndef REPETITIONS
+#define REPETITIONS 100 /* Number of times to run each test */
+#endif
+
+TEST(test_omp_parallel_8) {
+  for (int i = 0; i < REPETITIONS; i++) {
+    printf("Master Thread: Parallel start\n");
+    uint32_t nthreads = 0;
+
+#pragma omp parallel num_threads(8)
+    {
+      nthreads = omp_get_num_threads();
+      printf("%d\n", omp_get_num_threads());
+    }
+    printf("Master Thread: Parallel end\n\n\n");
+    ASSERT_EQ(8, nthreads);
+  }
+}
+
+TEST(test_omp_parallel) {
+  for (int i = 0; i < REPETITIONS; i++) {
+    printf("Master Thread: Parallel start\n");
+    uint32_t nthreads = 0;
+
+    printf("Master Thread: Parallel start\n");
+#pragma omp parallel
+    {
+      nthreads = omp_get_num_threads();
+      printf("%d\n", omp_get_num_threads());
+    }
+    printf("Master Thread: Parallel end\n\n\n");
+    ASSERT_EQ(NUM_CORES, nthreads);
+  }
+}
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
-
-  mempool_barrier_init(core_id);
-
-  if (core_id == 0) {
-    printf("Master Thread: Parallel start\n");
-    mempool_wait(1000);
-#pragma omp parallel num_threads(8)
-    { printf("%d\n", omp_get_num_threads()); }
-    printf("Master Thread: Parallel end\n\n\n");
-
-    printf("Master Thread: Parallel start\n");
-    mempool_wait(1000);
-#pragma omp parallel
-    { printf("%d\n", omp_get_num_threads()); }
-    printf("Master Thread: Parallel end\n\n\n");
-  } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
-    }
-  }
+  RUN_ALL_TESTS();
+  PRINT_TEST_RESULTS();
 
   return 0;
 }

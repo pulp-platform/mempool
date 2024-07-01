@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -22,9 +22,8 @@ void work1() {
 }
 
 void parallel_single_manual() {
-  uint32_t core_id;
+  uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  core_id = mempool_get_core_id();
 
   work1();
 
@@ -71,37 +70,28 @@ void omp_parallel_single() {
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
 
-  // Initialize synchronization variables
-  mempool_barrier_init(core_id);
+#pragma omp parallel
+  {
+    // #ifdef VERBOSE
+    if (core_id == 0) {
+      printf("Initialize\n");
+      *checkfirst = 0;
+      result = 0;
+    }
 
-  // #ifdef VERBOSE
-  if (core_id == 0) {
-    printf("Initialize\n");
-    *checkfirst = 0;
+#pragma omp barrier
+
+    parallel_single_manual();
+
+#pragma omp barrier
+
     result = 0;
   }
 
-  mempool_barrier(num_cores);
-
-  parallel_single_manual();
-
-  mempool_barrier(num_cores);
-
-  result = 0;
-
   /*  OPENMP IMPLEMENTATION  */
-  if (core_id == 0) {
 
-    omp_parallel_single();
+  omp_parallel_single();
 
-    mempool_wait(4 * num_cores);
-  } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
-    }
-  }
   return 0;
 }

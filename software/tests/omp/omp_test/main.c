@@ -6,120 +6,109 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "testing.h"
 
-#define REPETITIONS 1 /* Number of times to run each test */
+#ifndef REPETITIONS
+#define REPETITIONS 100 /* Number of times to run each test */
+#endif
 
-void work1() {
-  int sum = 0;
-  for (int i = 0; i < 100; i++) {
-    sum++;
-  }
-}
-
-int test_omp_parallel_for() {
-  int sum = 0;
+TEST(test_omp_parallel_for) {
+  for (int i = 0; i < REPETITIONS; i++) {
+    int sum = 0;
 
 #pragma omp parallel shared(sum)
-  {
+    {
 #pragma omp for reduction(+ : sum)
-    for (int i = 0; i <= 100; i++) {
-      sum += i;
+      for (int i = 0; i <= 100; i++) {
+        sum += i;
+      }
     }
+
+    ASSERT_EQ(sum, 5050);
   }
-  return sum;
 }
 
-int test_omp_parallel_for_dynamic() {
-  int sum = 0;
+TEST(test_omp_parallel_for_dynamic) {
+  for (int i = 0; i < REPETITIONS; i++) {
+    int sum = 0;
 
 #pragma omp parallel shared(sum)
-  {
+    {
 #pragma omp for schedule(dynamic, 16) reduction(+ : sum)
-    for (int i = 0; i <= 100; i++) {
-      sum += i;
+      for (int i = 0; i <= 100; i++) {
+        sum += i;
+      }
     }
+
+    ASSERT_EQ(sum, 5050);
   }
-  return sum;
 }
 
-int test_omp_parallel_for_dynamic_static() {
-  int sum = 0;
+TEST(test_omp_parallel_for_dynamic_static) {
+  for (int i = 0; i < REPETITIONS; i++) {
+    int sum = 0;
 
 #pragma omp parallel shared(sum)
-  {
+    {
 #pragma omp for schedule(dynamic, 16) reduction(+ : sum)
-    for (int i = 0; i <= 100; i++) {
-      sum += i;
-    }
+      for (int i = 0; i <= 100; i++) {
+        sum += i;
+      }
 
-    sum = 0;
+#pragma omp single
+      sum = 0;
+
 #pragma omp for schedule(static) reduction(+ : sum)
-    for (int i = -100; i <= 0; i++) {
-      sum += i;
+      for (int i = -100; i <= 0; i++) {
+        sum += i;
+      }
     }
+
+    printf("sum: %d\n", sum);
+    ASSERT_EQ(sum, -5050);
   }
-  return sum;
 }
 
-int test_omp_many() {
-  int sum = 0;
+TEST(test_omp_many) {
+  for (int i = 0; i < REPETITIONS; i++) {
+    int sum = 0;
+    int master_sum, single_sum = 0;
 
 #pragma omp parallel shared(sum)
-  {
+    {
 #pragma omp for schedule(dynamic, 16) reduction(+ : sum)
-    for (int i = 0; i <= 100; i++) {
-      sum += i;
-    }
+      for (int i = 0; i <= 100; i++) {
+        sum += i;
+      }
 
 #pragma omp barrier
 
 #pragma omp master
-    {
-      printf("first sum: %d\n", sum);
-      sum = 0;
-    }
+      { master_sum = sum; }
 
 #pragma omp barrier
 
 #pragma omp for schedule(static) reduction(+ : sum)
-    for (int i = -10; i <= 0; i++) {
-      sum += i;
-    }
+      for (int i = -10; i <= 0; i++) {
+        sum += i;
+      }
 
 #pragma omp barrier
 
 #pragma omp single
-    { printf("second sum: %d\n", sum); }
+      { single_sum = sum; }
+    }
+
+    ASSERT_EQ(master_sum, 5050);
+    ASSERT_EQ(single_sum, 4995);
   }
-  return sum;
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t i;
-
-  if (core_id == 0) {
-    printf("Master Thread start\n");
-    for (i = 0; i < REPETITIONS; i++) {
-      printf("Test: %d\n", i);
-      printf("For loop-sum is: %d\n", test_omp_parallel_for());
-      printf("For loop dynamic-sum is: %d\n", test_omp_parallel_for_dynamic());
-      printf("For loop dynamic-static-sum is: %d\n",
-             test_omp_parallel_for_dynamic_static());
-      printf("Test many omp-sum is: %d\n", test_omp_many());
-      printf("Test finished: %d\n", i);
-    }
-    printf("Master Thread end\n\n\n");
-  } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
-    }
-  }
-
-  return 0;
+  RUN_ALL_TESTS();
+  PRINT_TEST_RESULTS();
 }

@@ -45,10 +45,12 @@ except ImportError as e:
 # 1 -> cycle
 # 2 -> privilege level (RTL) / hartid (banshee)
 # 3 -> pc (hex with 0x prefix)
-# 4 -> instruction
-# 5 -> args (RTL) / empty (banshee)
-# 6 -> comment (RTL) / instruction arguments (banshee)
-RTL_REGEX = r' *(\d+) +(\d+) +([3M1S0U]?) *(0x[0-9a-f]+) ([.\w]+) +(.+)#; (.*)'
+# 4 -> sp (hex with 0x prefix)
+# 5 -> instruction
+# 6 -> args (RTL) / empty (banshee)
+# 7 -> comment (RTL) / instruction arguments (banshee)
+RTL_REGEX = (r' *(\d+) +(\d+) +([3M1S0U]?) *(0x[0-9a-f]+) *'
+             r'(0x[0-9a-f]+) ([.\w]+) +(.+)#; (.*)')
 BANSHEE_REGEX = r' *(\d+) (\d+) (\d+) ([0-9a-f]+) *.+ +.+# ([\w\.]*)( +)(.*)'
 
 # regex matches a line of instruction retired by the accelerator
@@ -63,12 +65,14 @@ buf = []
 
 @lru_cache(maxsize=1024)
 def addr2line_cache(addr):
-    cmd = f'{addr2line} -e {elf} -f -a -i {addr:x}'
+    cmd = f'{addr2line} -C -e {elf} -f -a -i {addr:x}'
     return os.popen(cmd).read().split('\n')
 
 
 functions = []
-prev_func = ""
+function_stack = []
+prev_sp = 0
+prev_func = None
 prev_ts = 0
 start_benchmark = 0
 
@@ -108,14 +112,17 @@ def trace_instruction(
              f'"ts": {time}, '
              f'"dur": {duration}, '
              f'"pid": {pid}, '
-             f'"tid": {functions.index(name)}, '
+             f'"tid": {pid}, '
              f'"args": {frame_args}'
              f'}},\n')
 
     output_file.write(frame)
 
 
-def trace_function(name, pid, time, cyc, file):
+def trace_function(name, pid, time, cyc, file, instr, sp):
+    global prev_sp
+    global prev_func
+
     # Assemble values for json
     # Doc:
     # https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
@@ -129,7 +136,55 @@ def trace_function(name, pid, time, cyc, file):
     arg_cycles = cyc
     arg_coords = file
 
-    if prev_func != "":
+    sp = int(sp, base=16)
+
+    if prev_func is None or name != prev_func:
+        if prev_func is not None and prev_func not in function_stack:
+            end_time = time if time > prev_ts else prev_ts + 1
+            output_file.write(
+                f'{{'
+                f'"name": "{prev_func}", '
+                f'"cat": "{cat}", '
+                f'"ph": "E", '
+                f'"ts": {end_time}, '
+                f'"pid": {pid}, '
+                f'"tid": {pid}'
+                f'}},\n'
+            )
+
+            # print(f'Stackless function {prev_func} ended')
+
+        if name not in function_stack:
+            output_file.write(f'{{'
+                              f'"name": "{name}", '
+                              f'"cat": "{cat}", '
+                              f'"ph": "B", '
+                              f'"ts": {time}, '
+                              f'"pid": {pid}, '
+                              f'"tid": {pid}, '
+                              f'"args": {{"time": "{arg_cycles}", '
+                              f' "Origin": "{arg_coords}"}}'
+                              f'}},\n')
+
+            # print(f'Begin {name}')
+        else:
+            pass
+            # print(f'Function {name} already in stack')
+
+    elif sp < prev_sp:
+        function_stack.append(name)
+        # print(f'Pushed {name} to stack')
+        # print(f'Function stack: {function_stack}')
+        # print()
+
+    elif sp > prev_sp and len(function_stack) > 0:
+        # pop prev function
+        prev_func = function_stack.pop()
+
+        # print(f'Popped {prev_func} from stack')
+        # print(f'Function stack: {function_stack}')
+        # print()
+
         end_time = time if time > prev_ts else prev_ts + 1
         output_file.write(
             f'{{'
@@ -138,25 +193,15 @@ def trace_function(name, pid, time, cyc, file):
             f'"ph": "E", '
             f'"ts": {end_time}, '
             f'"pid": {pid}, '
-            f'"tid": {functions.index(prev_func)}'
+            f'"tid": {pid}'
             f'}},\n'
         )
 
-    frame = (f'{{'
-             f'"name": "{name}", '
-             f'"cat": "{cat}", '
-             f'"ph": "B", '
-             f'"ts": {time}, '
-             f'"pid": {pid}, '
-             f'"tid": {functions.index(name)}, '
-             f'"args": {{"time": "{arg_cycles}", "Origin": "{arg_coords}"}}'
-             f'}},\n')
-
-    output_file.write(frame)
+    prev_sp = sp
+    prev_func = name
 
 
 def flush(buf, hartid):
-    global prev_func
     global prev_ts
     global start_benchmark
     global output_file
@@ -169,18 +214,18 @@ def flush(buf, hartid):
             a2ls += addr2line_cache(int(addr, base=16))[:-1]
     else:
         a2ls = os.popen(
-            f'{addr2line} -e {elf} -f -a -i {" ".join(pcs)}'
+            f'{addr2line} -C -e {elf} -f -a -i {" ".join(pcs)}'
         ).read().split('\n')[:-1]
 
     for i in range(len(buf)-1):
-        (time, cyc, priv, pc, instr, args, cmt) = buf.pop(0)
+        (time, cyc, priv, pc, sp, instr, args, cmt) = buf.pop(0)
 
         if use_time:
             next_time = int(buf[0][0])
             time = int(time)
         else:
             next_time = int(buf[0][1])
-            time = int(cyc)
+            time = float(cyc) / 1000
 
         # Have lookahead time to this instruction?
         next_time = lah[time] if time in lah else next_time
@@ -220,11 +265,8 @@ def flush(buf, hartid):
             functions.append(func)
 
         if compress_function:
-            if func != prev_func:
-                trace_function(name=func, pid=int(hartid),
-                               time=time, cyc=cyc, file=file)
-                prev_func = func
-                prev_ts = time
+            trace_function(name=func, pid=int(hartid),
+                           time=time, cyc=cyc, file=file, instr=instr, sp=sp)
         else:
             trace_instruction(name=func,
                               pid=int(hartid),
@@ -243,9 +285,9 @@ def parse_line(line, hartid):
     # print(line)
     match = re_line.match(line)
     if match:
-        (time, cyc, priv, pc, instr, args, cmt) = tuple(
+        (time, cyc, priv, pc, sp, instr, args, cmt) = tuple(
             [match.group(i+1).strip() for i in range(re_line.groups)])
-        buf.append((time, cyc, priv, pc, instr, args, cmt))
+        buf.append((time, cyc, priv, pc, sp, instr, args, cmt))
         last_time, last_cyc = time, cyc
 
     if len(buf) > 10:
@@ -263,7 +305,7 @@ def offload_lookahead(lines):
     for line in lines:
         match = re_line.match(line)
         if match:
-            (time, cyc, priv, pc, instr, args, cmt) = tuple(
+            (time, cyc, priv, pc, sp, instr, args, cmt) = tuple(
                 [match.group(i+1).strip() for i in range(re_line.groups)])
             time = int(time) if use_time else int(cyc)
 
@@ -387,7 +429,6 @@ if __name__ == '__main__':
         output_file.write('{"traceEvents": [\n')
 
         for filename in traces:
-            prev_func = ""
             prev_ts = 0
             start_benchmark = 0
             hartid = 0
@@ -424,31 +465,6 @@ if __name__ == '__main__':
                 flush(buf, hartid)
                 print(f'=> Parsed {lines-fails} of {lines} lines',
                       file=sys.stderr)
-
-                # Terminate last function all at end of file
-                if compress_function:
-                    output_file.write(
-                        f'{{'
-                        f'"name": "{prev_func}", '
-                        f'"cat": "function", '
-                        f'"ph": "E", '
-                        f'"ts": {prev_ts+1}, '
-                        f'"pid": {hartid}, '
-                        f'"tid": {functions.index(prev_func)}'
-                        f'}},\n'
-                    )
-
-                # Write Metadata
-                for func in functions:
-                    output_file.write(
-                        f'{{'
-                        f'"name": "thread_name", '
-                        f'"ph": "M", '
-                        f'"pid": {hartid}, '
-                        f'"tid": {functions.index(func)}, '
-                        f'"args": {{"name" : "{func}"}}'
-                        f'}},\n'
-                    )
 
         for i in range(hartid + 1):
             output_file.write(

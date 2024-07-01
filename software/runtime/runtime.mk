@@ -20,9 +20,11 @@ LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 # HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
 # HALIDE_INCLUDE     ?= $(HALIDE_INSTALL_DIR)/include
 # HALIDE_LIB         ?= $(HALIDE_INSTALL_DIR)/lib
-OMP_DIR            ?= $(ROOT_DIR)/omp
+GOMP_DIR           ?= $(ROOT_DIR)/gomp
+KMP_DIR            ?= $(ROOT_DIR)/kmp
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
+EXT_DIR						 ?= $(abspath $(ROOT_DIR)/../ext)
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
@@ -42,7 +44,7 @@ ifeq ($(COMPILER),gcc)
 		# Define __XPULPIMG if the extension is active
 		DEFINES       += -D__XPULPIMG
 	else
-		RISCV_ARCH_AS ?= rv$(RISCV_ARCH)ima
+		RISCV_ARCH    ?= rv$(RISCV_XLEN)ima
 		RISCV_ARCH_AS ?= $(RISCV_ARCH)Xpulpv2
 	endif
 	# GCC Toolchain
@@ -50,7 +52,8 @@ ifeq ($(COMPILER),gcc)
 	RISCV_CC      ?= $(RISCV_PREFIX)gcc
 	RISCV_CXX     ?= $(RISCV_PREFIX)g++
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
-
+	# OMP runtime
+	OMP_DIR			  ?= $(GOMP_DIR)
 else
 
 	# Use LLVM by default
@@ -77,7 +80,8 @@ else
 	RISCV_CC      ?= $(LLVM_INSTALL_DIR)/bin/clang
 	RISCV_CXX     ?= $(LLVM_INSTALL_DIR)/bin/clang++
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
-
+	# OMP runtime
+	OMP_DIR			  ?= $(KMP_DIR)
 endif
 RISCV_OBJCOPY ?= $(RISCV_PREFIX)objcopy
 RISCV_AS      ?= $(RISCV_PREFIX)as
@@ -109,12 +113,16 @@ ifdef terapool
 	DEFINES += -DNUM_TILES_PER_SUB_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_cores_per_tile)/$(num_sub_groups_per_group)}')
 endif
 
+ifdef NDEBUG
+	DEFINES += -DNDEBUG
+endif
+
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
 RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
 RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -static
-RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -std=gnu99 -O3  -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
+RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -gdwarf-4 -O3 -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -fno-tree-loop-distribute-patterns # -falign-loops=32 -falign-jumps=32
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown -menable-experimental-extensions
 # Enable soft-divsqrt when the hardware is not supported.
@@ -124,16 +132,16 @@ ifeq ($(xDivSqrt), 0)
 endif
 
 ifeq ($(COMPILER),gcc)
-	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
-	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
+	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON) -std=gnu99
+	RISCV_CXXFLAGS      += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON) -std=c++17
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
 	RISCV_OBJDUMP_FLAGS += --disassembler-option="march=$(RISCV_ARCH_AS)"
 	# For unit tests
 	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 else
-	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
-	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
-	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
+	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON) -std=gnu99
+	RISCV_CXXFLAGS      += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON) -std=c++17 -fno-exceptions -fno-threadsafe-statics
+	RISCV_LDFLAGS       += -static -nostartfiles -nostdlib -lgcc -lm -fuse-ld=lld -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
 	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32
 	ifeq ($(xDivSqrt), 0)
 		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+nofdiv,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
@@ -154,7 +162,7 @@ RUNTIME += $(ROOT_DIR)/serial.c.o
 RUNTIME += $(ROOT_DIR)/string.c.o
 RUNTIME += $(ROOT_DIR)/synchronization.c.o
 
-OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
+OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c" -o -name "*.cpp"))
 
 .INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT)
 # Disable builtin rules

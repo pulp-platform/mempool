@@ -6,66 +6,45 @@
 #include <string.h>
 
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "testing.h"
 
-#define REPETITIONS 10 /* Number of times to run each test */
+#ifndef REPETITIONS
+#define REPETITIONS 100 /* Number of times to run each test */
+#endif
 
-int test_omp_critical() {
-  int sum;
-  int known_sum, mysum;
+TEST(test_omp_critical) {
   int num_cores = (int)mempool_get_core_count();
 
-  sum = 0;
-#pragma omp parallel
-  {
-    mysum = 0;
-    int i;
+  for (int r = 0; r < REPETITIONS; r++) {
+    int sum1 = 0;
+    int sum2 = 0;
 
-#pragma omp single
+#pragma omp parallel
     {
-      for (i = 0; i < 100; i++)
-        mysum = mysum + i;
-      printf("Single\n");
-    }
+#pragma omp critical
+      {
+        sum1 += 1;
+        sum2 += 2;
+      }
 
 #pragma omp critical
-    {
-      sum = mysum + sum;
-      // printf("Sum: %d, thread_id: %d\n",sum,omp_get_thread_num());
+      {
+        sum1 += 1;
+        sum2 += 2;
+      }
     }
+
+    ASSERT_EQ(sum1, 2 * num_cores);
+    ASSERT_EQ(sum2, 2 * sum1);
+    ASSERT_EQ(sum2, 4 * num_cores);
   }
-  known_sum = 99 * 100 / 2 * num_cores;
-  return (known_sum == sum);
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-  uint32_t i;
-  uint32_t num_failed = 0;
-
-  mempool_wait(2 * num_cores);
-
-  if (core_id == 0) {
-    printf("Master Thread start\n");
-    for (i = 0; i < REPETITIONS; i++) {
-      printf("test: %d\n", i);
-      if (!test_omp_critical()) {
-        num_failed++;
-      }
-      printf("num_failed: %d\n", num_failed);
-    }
-    printf("Master Thread end\n\n\n");
-    printf("num_failed: %d\n", num_failed);
-  } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
-    }
-  }
-
+  RUN_ALL_TESTS();
   return 0;
 }

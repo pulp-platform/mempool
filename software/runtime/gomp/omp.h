@@ -7,6 +7,8 @@
 #ifndef __OMP_H__
 #define __OMP_H__
 
+#include "stdint.h"
+
 /* parallel.c */
 extern uint32_t omp_get_num_threads(void);
 extern uint32_t omp_get_thread_num(void);

@@ -406,8 +406,8 @@ module mempool_cc
           extras_fpu = $sformatf("%s}", extras_fpu);
 
           $timeformat(-9, 0, "", 10);
-          $sformat(trace_entry, "%t %8d 0x%h DASM(%h) #; %s\n",
-              $time, cycle, i_snitch.pc_q, i_snitch.inst_data_i, extras_str);
+          $sformat(trace_entry, "%t %8d 0x%h 0x%h DASM(%h) #; %s\n",
+              $time, cycle, i_snitch.pc_q, i_snitch.i_snitch_regfile.mem[2], i_snitch.inst_data_i, extras_str);
           $fwrite(f, trace_entry);
         end
 

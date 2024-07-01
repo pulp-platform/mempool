@@ -16,7 +16,7 @@
     'software/runtime/printf*'
     'software/runtime/encoding.h'
     'software/runtime/mempool_dma_frontend.h'
-    'software/runtime/omp/libgomp.h'
+    'software/runtime/gomp/libgomp.h'
     'software/riscv-tests/*'
     'hardware/deps/*'
     'hardware/tb/dpi/elfloader.cpp'

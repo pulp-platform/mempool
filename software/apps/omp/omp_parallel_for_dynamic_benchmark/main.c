@@ -7,7 +7,7 @@
 
 #include "data.h"
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -65,44 +65,29 @@ void spmv_dynamic(int *y, int *data, int *colidx, int *rowb, int *rowe, int *x,
 }
 
 int main() {
-  uint32_t core_id = mempool_get_core_id();
+  mempool_timer_t cycles;
+  int n = 512;
 
-  mempool_barrier_init(core_id);
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  spmv(y, nnz, col, rowb, rowe, x, n);
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+  printf("Sequqntial Duration: %d\n", cycles);
 
-  if (core_id == 0) {
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  spmv_static(y, nnz, col, rowb, rowe, x, n);
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+  printf("Static Duration: %d\n", cycles);
 
-    mempool_wait(1000);
-
-    mempool_timer_t cycles;
-    int n = 512;
-
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    spmv(y, nnz, col, rowb, rowe, x, n);
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-    printf("Sequqntial Duration: %d\n", cycles);
-
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    spmv_static(y, nnz, col, rowb, rowe, x, n);
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-    printf("Static Duration: %d\n", cycles);
-
-    cycles = mempool_get_timer();
-    mempool_start_benchmark();
-    spmv_dynamic(y, nnz, col, rowb, rowe, x, n);
-    mempool_stop_benchmark();
-    cycles = mempool_get_timer() - cycles;
-    printf("Dynamic Duration: %d\n", cycles);
-
-  } else {
-    while (1) {
-      mempool_wfi();
-      run_task(core_id);
-    }
-  }
+  cycles = mempool_get_timer();
+  mempool_start_benchmark();
+  spmv_dynamic(y, nnz, col, rowb, rowe, x, n);
+  mempool_stop_benchmark();
+  cycles = mempool_get_timer() - cycles;
+  printf("Dynamic Duration: %d\n", cycles);
 
   return 0;
 }

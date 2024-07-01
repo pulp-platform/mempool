@@ -7,7 +7,7 @@
 
 #include "baremetal/mempool_conv2d_i32p.h"
 #include "encoding.h"
-#include "libgomp.h"
+#include "omp.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
@@ -149,37 +149,40 @@ void conv_gomp_barrier(uint32_t core_id, uint32_t num_cores) {
 }
 
 int main() {
-  mempool_timer_t cycles, start_time;
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
+#pragma omp parallel
+  {
+    mempool_timer_t cycles, start_time;
+    uint32_t core_id = mempool_get_core_id();
+    uint32_t num_cores = mempool_get_core_count();
 
-  if (core_id == 0) {
-    printf("Start Barrier Benchmark\n");
-  }
-
-#pragma omp barrier
-  start_time = mempool_get_timer();
-  mempool_start_benchmark();
-  conv_mempool_barrier(core_id, num_cores);
-  mempool_stop_benchmark();
-  cycles = mempool_get_timer();
-
-  if (core_id == 0) {
-    printf("Mempool barrier cycles: %d\n", cycles - start_time);
-  }
-
-  mempool_barrier(num_cores);
-
-  start_time = mempool_get_timer();
-  mempool_start_benchmark();
-  conv_gomp_barrier(core_id, num_cores);
-  mempool_stop_benchmark();
-  cycles = mempool_get_timer();
-
-  if (core_id == 0) {
-    printf("GOMP barrier cycles: %d\n", cycles - start_time);
-  }
+    if (core_id == 0) {
+      printf("Start Barrier Benchmark\n");
+    }
 
 #pragma omp barrier
+    start_time = mempool_get_timer();
+    mempool_start_benchmark();
+    conv_mempool_barrier(core_id, num_cores);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer();
+
+    if (core_id == 0) {
+      printf("Mempool barrier cycles: %d\n", cycles - start_time);
+    }
+
+    mempool_barrier(num_cores);
+
+    start_time = mempool_get_timer();
+    mempool_start_benchmark();
+    conv_gomp_barrier(core_id, num_cores);
+    mempool_stop_benchmark();
+    cycles = mempool_get_timer();
+
+    if (core_id == 0) {
+      printf("GOMP barrier cycles: %d\n", cycles - start_time);
+    }
+
+#pragma omp barrier
+  }
   return 0;
 }
