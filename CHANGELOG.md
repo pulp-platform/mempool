@@ -14,9 +14,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add KMP runtime
 - Add new runtime testing infrastructure
 - Add automated benchmark running and plotting
-- Add Embedded Template Library
 - Add clangd and clang-tidy configs
 - Add Banshee config
+- Add OpenMP sections and teams tests
 
 ### Changes
 - Add physical feasible TeraPool configuration with SubGroup hierarchy.
