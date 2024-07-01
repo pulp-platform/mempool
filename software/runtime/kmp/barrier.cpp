@@ -5,7 +5,8 @@
 #include "barrier.hpp"
 
 namespace kmp {
-Barrier::Barrier(kmp_int32 numThreads) : barrier(0), generation(0), numThreads(numThreads) {}
+Barrier::Barrier(kmp_int32 numThreads)
+    : barrier(0), generation(0), numThreads(numThreads) {}
 
 Barrier::~Barrier() { DEBUG_PRINT("Destroying barrier at %p\n", this); }
 

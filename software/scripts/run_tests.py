@@ -2,14 +2,9 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
 import os
-import subprocess
-import threading
-import fnmatch
 import re
-import queue
-import time
+import fnmatch
 import runner
 
 DIR = os.path.dirname(os.path.realpath(__file__))
@@ -98,7 +93,9 @@ def main():
 
         stats = {"num_tests": 0, "num_success": 0}
 
-        res, reason, out = runner.run(test, args, env, lambda l: parse_line(l, stats))
+        res, reason, out = runner.run(
+            test, args, env,
+            lambda line: parse_line(line, stats))
 
         if not res:
             print(f"{RED}[FAIL]{RESET}: {reason}")

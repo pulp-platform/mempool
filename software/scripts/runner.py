@@ -6,8 +6,6 @@ import argparse
 import os
 import subprocess
 import threading
-import fnmatch
-import re
 import queue
 import time
 import signal

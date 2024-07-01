@@ -6,9 +6,6 @@ import subprocess
 import os
 import re
 import pandas as pd
-import threading
-import queue
-import time
 import runner
 from pprint import pp
 
@@ -35,13 +32,6 @@ def runAll(dir, args, env):
             if (os.path.isfile(os.path.join(dir, app)) or app.startswith(".")):
                 continue
 
-            # if app not in ["barrier_benchmark", "critical_benchmark",
-            #                "master_benchmark", "single_benchmark", "omp_overhead"]:
-            #     continue
-
-            if app not in ["workload_benchmark"]:
-                continue
-
             app_dir = f"{os.path.basename(dir)}/{app}"
 
             (res, reason, output) = runner.run(
@@ -52,10 +42,11 @@ def runAll(dir, args, env):
 
             matches = UART_REGEX.findall(output)
             for match in matches:
-                results = pd.concat([results, pd.DataFrame([{"app": app, "name":
-                                                             match[0], "compiler":
-                                                             compiler, "cycles":
-                                                             int(match[1])}])])
+                results = pd.concat([results, pd.DataFrame(
+                    [{"app": app, "name":
+                      match[0], "compiler":
+                      compiler, "cycles":
+                      int(match[1])}])])
 
             pp(results)
             print()
@@ -77,7 +68,8 @@ def main():
 
     os.makedirs(f'results/{GIT_COMMIT_HASH}', exist_ok=True)
 
-    for compiler in ["gcc", "llvm"] if args.compiler is None else [args.compiler]:
+    for compiler in (["gcc", "llvm"] if args.compiler is None else
+                     [args.compiler]):
         env["COMPILER"] = compiler
         if compileAll(OMP_APPS_DIR, env):
             runAll(OMP_APPS_DIR, args, env)

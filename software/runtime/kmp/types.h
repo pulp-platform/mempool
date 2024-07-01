@@ -123,9 +123,8 @@ enum kmp_sched_type : kmp_int32 {
 #define SCHEDULE_WITHOUT_MODIFIERS(s)                                          \
   (kmp_sched_type)(                                                            \
       (s) & ~(kmp_sch_modifier_nonmonotonic | kmp_sch_modifier_monotonic))
-#define SCHEDULE_HAS_MONOTONIC(s) (((s) & kmp_sch_modifier_monotonic) != 0)
-#define SCHEDULE_HAS_NONMONOTONIC(s)                                           \
-  (((s) & kmp_sch_modifier_nonmonotonic) != 0)
+#define SCHEDULE_HAS_MONOTONIC(s) (((s)&kmp_sch_modifier_monotonic) != 0)
+#define SCHEDULE_HAS_NONMONOTONIC(s) (((s)&kmp_sch_modifier_nonmonotonic) != 0)
 #define SCHEDULE_HAS_NO_MODIFIERS(s)                                           \
   (((s) & (kmp_sch_modifier_nonmonotonic | kmp_sch_modifier_monotonic)) == 0)
 #define SCHEDULE_GET_MODIFIERS(s)                                              \
@@ -135,7 +134,7 @@ enum kmp_sched_type : kmp_int32 {
   ((s) = (kmp_sched_type)((kmp_int32)(s) | (kmp_int32)(m)))
 #define SCHEDULE_NONMONOTONIC 0
 #define SCHEDULE_MONOTONIC 1
-// NOLINTEND(cppcoreguidelines-macro-usage)
-//
+  // NOLINTEND(cppcoreguidelines-macro-usage)
+  //
   kmp_sch_default = kmp_sch_static /**< default scheduling algorithm */
 };
