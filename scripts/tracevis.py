@@ -49,8 +49,8 @@ except ImportError as e:
 # 5 -> instruction
 # 6 -> args (RTL) / empty (banshee)
 # 7 -> comment (RTL) / instruction arguments (banshee)
-RTL_REGEX = (r' *(\d+) +(\d+) +([3M1S0U]?) *(0x[0-9a-f]+)'
-             r'*(0x[0-9a-f]+) ([.\w]+) +(.+)#; (.*)')
+RTL_REGEX = (r' *(\d+) +(\d+) +([3M1S0U]?) *(0x[0-9a-f]+) *'
+             r'(0x[0-9a-f]+) ([.\w]+) +(.+)#; (.*)')
 BANSHEE_REGEX = r' *(\d+) (\d+) (\d+) ([0-9a-f]+) *.+ +.+# ([\w\.]*)( +)(.*)'
 
 # regex matches a line of instruction retired by the accelerator
