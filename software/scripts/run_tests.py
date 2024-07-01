@@ -98,10 +98,10 @@ def main():
 
         stats = {"num_tests": 0, "num_success": 0}
 
-        res, out = runner.run(test, args, env, lambda l: parse_line(l, stats))
+        res, reason, out = runner.run(test, args, env, lambda l: parse_line(l, stats))
 
         if not res:
-            print(f"{RED}[FAIL]{RESET}: {out}")
+            print(f"{RED}[FAIL]{RESET}: {reason}")
             stats["num_tests"] = "?"
 
         print_results(stats)

@@ -137,11 +137,11 @@ def run(prog, args, env_extra, line_callback):
                                       "the police, most likely a deadlock "
                                       "(all threads called wfi)")
                             kill_proc(proc)
-                            return (False, reason)
+                            return (False, reason, output)
 
                         if "Stackoverflow" in line:
                             kill_proc(proc)
-                            return (False, "Stackoverflow")
+                            return (False, "Stackoverflow", output)
 
                         if (args.simulator == "banshee" and
                                 "Program done" in line):
@@ -156,14 +156,14 @@ def run(prog, args, env_extra, line_callback):
                 break
 
         if proc.returncode is not None and proc.returncode > 0:
-            return (False, "Non-zero return code")
+            return (False, "Non-zero return code", output)
         elif timer is not None and not timer.is_alive():
-            return (False, "Timeout")
+            return (False, "Timeout", output)
         else:
-            return (True, output)
+            return (True, "Success", output)
 
     except Exception as e:
-        return (False, str(e))
+        return (False, str(e), output)
 
     finally:
         if proc.poll() is None:

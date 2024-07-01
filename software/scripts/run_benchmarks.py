@@ -23,7 +23,7 @@ results = pd.DataFrame(columns=["app", "name", "compiler", "cycles"])
 
 
 def compileAll(dir, env):
-    subprocess.run(["make", "-C", dir, "all"], env=env)
+    return subprocess.run(["make", "-C", dir, "all"], env=env).returncode == 0
 
 
 def runAll(dir, args, env):
@@ -31,26 +31,38 @@ def runAll(dir, args, env):
     compiler = env["COMPILER"]
 
     for app in os.listdir(dir):
-        if (os.path.isfile(os.path.join(dir, app)) or app.startswith(".")):
+        try:
+            if (os.path.isfile(os.path.join(dir, app)) or app.startswith(".")):
+                continue
+
+            # if app not in ["barrier_benchmark", "critical_benchmark",
+            #                "master_benchmark", "single_benchmark", "omp_overhead"]:
+            #     continue
+
+            if app not in ["workload_benchmark"]:
+                continue
+
+            app_dir = f"{os.path.basename(dir)}/{app}"
+
+            (res, reason, output) = runner.run(
+                app_dir, args, env, lambda x: None)
+            if not res:
+                print(f"{app} did not run successfully")
+                print(reason)
+
+            matches = UART_REGEX.findall(output)
+            for match in matches:
+                results = pd.concat([results, pd.DataFrame([{"app": app, "name":
+                                                             match[0], "compiler":
+                                                             compiler, "cycles":
+                                                             int(match[1])}])])
+
+            pp(results)
+            print()
+            results.to_csv(OUTPUT, index=False)
+
+        except KeyboardInterrupt:
             continue
-
-        app_dir = f"{os.path.basename(dir)}/{app}"
-
-        (res, output) = runner.run(app_dir, args, env, lambda x: None)
-        if not res:
-            print(f"{app} did not run successfully")
-            print(output)
-
-        matches = UART_REGEX.findall(output)
-        for match in matches:
-            results = pd.concat([results, pd.DataFrame([{"app": app, "name":
-                                                         match[0], "compiler":
-                                                         compiler, "cycles":
-                                                         int(match[1])}])])
-
-        pp(results)
-        print()
-        results.to_csv(OUTPUT, index=False)
 
 
 def main():
@@ -67,8 +79,10 @@ def main():
 
     for compiler in ["gcc", "llvm"] if args.compiler is None else [args.compiler]:
         env["COMPILER"] = compiler
-        compileAll(OMP_APPS_DIR, env)
-        runAll(OMP_APPS_DIR, args, env)
+        if compileAll(OMP_APPS_DIR, env):
+            runAll(OMP_APPS_DIR, args, env)
+        else:
+            print(f"Failed to compile with {compiler}")
 
 
 if __name__ == '__main__':
