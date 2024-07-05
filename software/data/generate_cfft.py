@@ -58,8 +58,10 @@ def generate_cfft_q16(N):
 
 
 def generate_cfft_f16(N):
-    src = np.random.rand(N).astype(np.float16)
-    src = src + 1.j * np.random.rand(N).astype(np.float16)
+    # src = np.random.rand(N).astype(np.float16)
+    # src = src + 1.j * np.random.rand(N).astype(np.float16)
+    src = np.cos(np.linspace(0, N / 4, num=N)).astype(np.float16)
+    src = src + 1.j * np.sin(np.linspace(0, N / 4, num=N)).astype(np.float16)
     dst = np.fft.fft(src)
     src = np.column_stack((src.imag, src.real)).astype(np.float16).flatten()
     dst = np.column_stack((dst.imag, dst.real)).astype(np.float16).flatten()
