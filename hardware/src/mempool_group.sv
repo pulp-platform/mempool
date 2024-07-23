@@ -419,6 +419,9 @@ module mempool_group
   `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
 
+  logic        [NumDmasPerGroup-1:0][idx_width(NumTilesPerDma)-1:0] tile_id_remap_before;
+  logic        [NumDmasPerGroup-1:0][idx_width(NumTilesPerDma)-1:0] tile_id_remap;
+
   for (genvar d = 0; unsigned'(d) < NumDmasPerGroup; d++) begin: gen_dmas
     localparam int unsigned a = NumTilesPerGroup + d;
 
@@ -528,6 +531,10 @@ module mempool_group
       .reqrsp_rsp_i(dma_reqrsp_rsp)
     );
 
+    assign tile_id_remap_before[d] = dma_reqrsp_req.q.addr[(ByteOffset + idx_width(NumBanksPerTile)) +: idx_width(NumTilesPerDma)];
+    assign tile_id_remap[d] = dma_reqrsp_req.q.addr[(ByteOffset + idx_width(NumBanksPerTile)) +: idx_width(NumTilesPerDma)] + 
+                              dma_reqrsp_req.q.addr[(ByteOffset + idx_width(NumBanksPerTile) + idx_width(NumTilesPerGroup) + idx_width(NumGroups)) +: idx_width(NumTilesPerDma)];
+
     if (NumTilesPerDma > 1) begin: gen_dma_reqrsp_demux
       reqrsp_demux #(
         .NrPorts  (NumTilesPerDma),
@@ -537,7 +544,7 @@ module mempool_group
       ) i_reqrsp_demux (
           .clk_i       (clk_i                                                                                  ),
           .rst_ni      (rst_ni                                                                                 ),
-          .slv_select_i(dma_reqrsp_req.q.addr[idx_width(NumBanksPerTile)+ByteOffset+:idx_width(NumTilesPerDma)]),
+          .slv_select_i(tile_id_remap[d]                                                                       ),
           .slv_req_i   (dma_reqrsp_req                                                                         ),
           .slv_rsp_o   (dma_reqrsp_rsp                                                                         ),
           .mst_req_o   (dma_tile_req                                                                           ),

@@ -190,8 +190,12 @@ $(buildpath)/$(library):
 	cd $(buildpath) && $(questa_cmd) vlib $(library) && chmod +w modelsim.ini; $(questa_cmd) vmap $(library) $(library)
 
 # Compilation
+.PHONY: gen_selector
+gen_selector: scripts/gen_xbar.py
+	$< -in ${num_cores_per_tile} -on $$(($(num_remote_ports_per_tile) - 1)) -o src/selector.sv
+
 .PHONY: compile
-compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
+compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes gen_selector
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl

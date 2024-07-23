@@ -508,10 +508,10 @@ module mempool_tb;
         (cycle_q[63:0] == 'h400) || 
         (cycle_q[63:0] == 'h800) ||
         (cycle_q[63:0] == 'h1000) ||
-        (cycle_q[13:0] == 'h2000)) begin
+        (cycle_q[15:0] == 'h8000)) begin
       // if(cycle_q[8:0] == 'h100) begin
         $sformat(fn_0, "%s/trace_banks_cyc_%8x.dasm", log_path, cycle_q);
-        f_0 = $fopen(fn_0, "w");
+        // f_0 = $fopen(fn_0, "w");
         $sformat(fn_1, "%s/trace_banks_cyc_%8x_inited.dasm", log_path, cycle_q);
         f_1 = $fopen(fn_1, "w");
         $display("[Tracer] Logging Banks to %s, %s", fn_0, fn_1);
@@ -558,12 +558,12 @@ module mempool_tb;
                 end
                 $sformat(trace_entry, "%8d #; %s\n",
                     cycle_q, extras_str);
-                $fwrite(f_0, trace_entry);
+                // $fwrite(f_0, trace_entry);
               end
             end
           end
         end
-        $fclose(f_0);
+        // $fclose(f_0);
         $fclose(f_1);
       end
     end

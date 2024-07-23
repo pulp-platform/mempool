@@ -17,6 +17,13 @@ module tcdm_shim
   parameter int unsigned NrTCDM              = 2             ,
   parameter int unsigned NrSoC               = 1             ,
   parameter int unsigned NumRules            = 1             , // Routing rules
+
+  parameter int unsigned ByteOffset          = 2             ,
+  parameter int unsigned NumTiles            = 256           ,
+  parameter int unsigned NumTilesPerDma      = 16            ,
+  parameter int unsigned NumBanksPerTile     = 16            ,
+  parameter int unsigned SeqMemSizePerTile   = 4*1024        ,
+
   localparam int unsigned StrbWidth          = DataWidth/8   ,
   localparam int unsigned NumOutput          = NrTCDM + NrSoC,
   localparam int unsigned MetaIdWidth        = idx_width(MaxOutStandingTrans)
@@ -74,9 +81,23 @@ module tcdm_shim
   // Includes
   `include "common_cells/registers.svh"
 
+  localparam int unsigned BankOffsetBits    = $clog2(NumBanksPerTile);
+  localparam int unsigned TileIdBits        = $clog2(NumTiles);
+  localparam int unsigned TileIdBitsPerDma  = $clog2(NumTilesPerDma);
+  localparam int unsigned ConstantBitsLSB   = ByteOffset + BankOffsetBits;
+
+  function automatic logic [TileIdBitsPerDma-1:0] spm_tile_id_remap (
+      logic [TileIdBitsPerDma-1:0] data_in,
+      logic [TileIdBitsPerDma-1:0] idx_i
+  );
+      spm_tile_id_remap = data_in + idx_i;
+      // spm_bank_id_rotate_left = data_in;
+  endfunction
+
   dreq_t              data_qpayload ;
   dreq_t [NrSoC-1:0]  soc_qpayload ;
   dreq_t [NrTCDM-1:0] tcdm_qpayload;
+  logic  [NrTCDM-1:0][AddrWidth-1:0] tcdm_qpayload_addr_remapped;
 
   dresp_t              data_ppayload ;
   dresp_t [NrSoC-1:0]  soc_ppayload ;
@@ -159,8 +180,21 @@ module tcdm_shim
   );
 
   // Connect TCDM output ports
+  always_comb begin
+    for (int i = 0; i < NrTCDM; i++) begin
+      tcdm_qpayload_addr_remapped[i] = tcdm_qpayload[i].addr;
+      if (tcdm_qpayload[i].addr >= (NumTiles * SeqMemSizePerTile)) begin
+        tcdm_qpayload_addr_remapped[i][ConstantBitsLSB +: TileIdBitsPerDma] = 
+          spm_tile_id_remap(
+            tcdm_qpayload[i].addr[ConstantBitsLSB +: TileIdBitsPerDma],
+            tcdm_qpayload[i].addr[(ConstantBitsLSB + TileIdBits) +: TileIdBitsPerDma]
+          );
+      end
+    end
+  end
+
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_con
-    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload[i].addr ;
+    assign tcdm_req_tgt_addr_o[i] = tcdm_qpayload_addr_remapped[i] ;
     assign tcdm_req_wdata_o[i]    = tcdm_qpayload[i].data ;
     assign tcdm_req_amo_o[i]      = tcdm_qpayload[i].amo  ;
     assign tcdm_req_id_o[i]       = tcdm_qpayload[i].id   ;
