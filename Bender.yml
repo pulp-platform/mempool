@@ -15,7 +15,7 @@ dependencies:
   snitch:               { path: "hardware/deps/snitch"                                                       }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.13  }
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: pulp-v0.1.3 }
-  cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",       rev: 9520b991d78f95c0384d7d9531c5ae01dd791530 }
+  cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",       version: 0.1.1   }
 
 workspace:
   checkout_dir: "./hardware/deps"
