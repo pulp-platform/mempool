@@ -173,6 +173,7 @@ clean-dram:
 	fi
 
 build-dram: clean-dram
+	git submodule update --init --recursive -- $(DRAM_PATH)
 	if [ ! -d "$(DRAMSYS_PATH)" ]; then \
 		git clone https://github.com/tukl-msd/DRAMSys.git $(DRAMSYS_PATH); \
 	fi
@@ -190,7 +191,7 @@ setup-dram: config-dram
 	cd $(DRAMSYS_PATH) && \
 	if [ ! -d "build" ]; then \
 		mkdir build && cd build; \
-		cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
+		$(CMAKE) -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
 		make -j; \
 	fi
 
