@@ -35,7 +35,6 @@ sources:
   - hardware/src/address_scrambler.sv
   - hardware/src/axi2mem.sv
   - hardware/src/bootrom.sv
-  - hardware/src/latch_scm.sv
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 2
