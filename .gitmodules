@@ -43,3 +43,6 @@
 [submodule "hardware/deps/dram_rtl_sim"]
 	path = hardware/deps/dram_rtl_sim
 	url = https://github.com/pulp-platform/dram_rtl_sim.git
+[submodule "hardware/deps/cluster_icache"]
+	path = hardware/deps/cluster_icache
+	url = https://github.com/pulp-platform/cluster_icache.git

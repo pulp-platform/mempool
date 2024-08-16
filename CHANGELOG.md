@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update `common_verification` to 0.2.3
 - Update `register_interface` to 0.4.3
 - Updated Halide to version 15
+- Move instruction cache into its own dependency
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
