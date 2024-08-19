@@ -1,0 +1,8 @@
+package:
+  name: scm
+
+sources:
+  - defines:
+      TARGET_SCM_USE_LATCH_SCM: 1
+    files:
+      - latch_scm/register_file_1r_1w.sv
