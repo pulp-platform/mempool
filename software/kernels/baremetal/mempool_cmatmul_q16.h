@@ -4,8 +4,8 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-/* This library implements the complex matrix multiplication in multiple
- * different ways. The functions all follow the following format:
+/* This library implements the complex matrix multiplication in
+ * different ways. The functions all follow this format:
  *
  * A is an M x N matrix, B is a N x P matrix, and C is a M x P matrix
  * C = AB
@@ -13,7 +13,8 @@
 
 #pragma once
 #include "builtins_v2.h"
-#define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
+// Shift cores startpoint over rows of matrix A
+#define __SHIFT_A
 
 #define CMATMUL_1x1_LOOP                                                       \
   v2s sum = {0, 0};                                                            \
@@ -239,15 +240,12 @@ void cmatmul_2x4_q16s(int16_t const *__restrict__ A,
   uint32_t k = 0; // loop counter for P
   for (k = 0; k < P; k += 4) {
     for (i = 0; i < M; i += 2) {
-      // CMATMUL_1x1_LOOP;
-      // CMATMUL_2x2_LOOP;
       CMATMUL_2x4_LOOP;
     }
   }
   return;
 }
 
-#define __SHIFT_A
 void cmatmul_2x4_q16p(int16_t const *__restrict__ A,
                       int16_t const *__restrict__ B, int16_t *__restrict__ C,
                       uint32_t M, uint32_t N, uint32_t P, uint32_t core_id,
