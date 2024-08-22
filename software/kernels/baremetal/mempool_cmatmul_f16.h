@@ -4,14 +4,31 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-/* This library implements the complex matrix multiplication in multiple
- * different ways. The functions all follow the following format:
+/* This library implements the complex matrix multiplication in
+ * different ways. The functions all follow this format:
  *
  * A is an M x N matrix, B is a N x P matrix, and C is a M x P matrix
  * C = AB
  */
 
+#pragma once
 #include "builtins_v2.h"
+// Use complex dotp in a single offload
+#define __CDOTP
+// Shift cores startpoint over rows of matrix A
+#define __SHIFT_A
+
+/******************************************************************************
+ __        ___     _            _                   ____        _
+ \ \      / (_) __| | ___ _ __ (_)_ __   __ _      |  _ \  ___ | |_ _ __
+  \ \ /\ / /| |/ _` |/ _ \ '_ \| | '_ \ / _` |_____| | | |/ _ \| __| '_ \
+   \ V  V / | | (_| |  __/ | | | | | | | (_| |_____| |_| | (_) | |_| |_) |
+    \_/\_/  |_|\__,_|\___|_| |_|_|_| |_|\__, |     |____/ \___/ \__| .__/
+                                        |___/                      |_|
+
+******************************************************************************/
+
+#ifndef __CDOTP
 
 #define CMATMUL_2x2_LOOP                                                       \
   {                                                                            \
@@ -102,22 +119,22 @@
 
 #define CMATMUL_2x4_LOOP                                                       \
   {                                                                            \
-    float register volatile sum00_real = 0.0f;                                 \
-    float register volatile sum01_real = 0.0f;                                 \
-    float register volatile sum02_real = 0.0f;                                 \
-    float register volatile sum03_real = 0.0f;                                 \
-    float register volatile sum10_real = 0.0f;                                 \
-    float register volatile sum11_real = 0.0f;                                 \
-    float register volatile sum12_real = 0.0f;                                 \
-    float register volatile sum13_real = 0.0f;                                 \
-    float register volatile sum00_imag = 0.0f;                                 \
-    float register volatile sum01_imag = 0.0f;                                 \
-    float register volatile sum02_imag = 0.0f;                                 \
-    float register volatile sum03_imag = 0.0f;                                 \
-    float register volatile sum10_imag = 0.0f;                                 \
-    float register volatile sum11_imag = 0.0f;                                 \
-    float register volatile sum12_imag = 0.0f;                                 \
-    float register volatile sum13_imag = 0.0f;                                 \
+    float sum00_real = 0.0f;                                                   \
+    float sum01_real = 0.0f;                                                   \
+    float sum02_real = 0.0f;                                                   \
+    float sum03_real = 0.0f;                                                   \
+    float sum10_real = 0.0f;                                                   \
+    float sum11_real = 0.0f;                                                   \
+    float sum12_real = 0.0f;                                                   \
+    float sum13_real = 0.0f;                                                   \
+    float sum00_imag = 0.0f;                                                   \
+    float sum01_imag = 0.0f;                                                   \
+    float sum02_imag = 0.0f;                                                   \
+    float sum03_imag = 0.0f;                                                   \
+    float sum10_imag = 0.0f;                                                   \
+    float sum11_imag = 0.0f;                                                   \
+    float sum12_imag = 0.0f;                                                   \
+    float sum13_imag = 0.0f;                                                   \
     v2h a00s, a01s, a10s, a11s;                                                \
     for (j = 0; j < N; j += 2) {                                               \
       v2h a00 = A[(i + 0) * N + (j + 0)];                                      \
@@ -225,25 +242,21 @@
     C[(i + 1) * P + k + 3] = (v2h)sum13_real;                                  \
   }
 
-/**************************************************************************/
-/**************************************************************************/
-// COMPLEX DOTP INSTRUCTIONS
+#endif
 
-#define CMATMUL_CDOTP_1x1_LOOP                                                 \
-  {                                                                            \
-    v2h sum = (v2h)0.0f;                                                       \
-    for (j = 0; j < N; j++) {                                                  \
-      v2h a = *(v2h *)&A[2 * (i * M + j)];                                     \
-      v2h b = *(v2h *)&B[2 * (j * P + k)];                                     \
-      asm volatile("fcdotpex.s.h  %[sum], %[a], %[b];"                         \
-                   : [sum] "+&r"(sum)                                          \
-                   : [a] "r"(a), [b] "r"(b)                                    \
-                   :);                                                         \
-    }                                                                          \
-    (*(v2h *)&C[2 * ((i + 0) * P + k + 0)]) = sum;                             \
-  }
+/******************************************************************************
+   ____                      _                ____        _
+  / ___|___  _ __ ___  _ __ | | _____  __    |  _ \  ___ | |_ _ __
+ | |   / _ \| '_ ` _ \| '_ \| |/ _ \ \/ /____| | | |/ _ \| __| '_ \
+ | |__| (_) | | | | | | |_) | |  __/>  <_____| |_| | (_) | |_| |_) |
+  \____\___/|_| |_| |_| .__/|_|\___/_/\_\    |____/ \___/ \__| .__/
+                      |_|                                    |_|
 
-#define CMATMUL_CDOTP_2x2_LOOP                                                 \
+******************************************************************************/
+
+#ifdef __CDOTP
+
+#define CMATMUL_2x2_LOOP                                                       \
   {                                                                            \
     v2h sum00 = (v2h)0.0f;                                                     \
     v2h sum01 = (v2h)0.0f;                                                     \
@@ -279,7 +292,7 @@
     (*(v2h *)&C[2 * ((i + 1) * P + k + 1)]) = sum11;                           \
   }
 
-#define CMATMUL_CDOTP_2x4_LOOP                                                 \
+#define CMATMUL_2x4_LOOP                                                       \
   {                                                                            \
     v2h sum00 = (v2h)0.0f;                                                     \
     v2h sum01 = (v2h)0.0f;                                                     \
@@ -337,12 +350,12 @@
     (*(v2h *)&C[2 * ((i + 1) * P + k + 3)]) = sum13;                           \
   }
 
-#define CMATMUL_CDOTP_4x4_LOOP                                                 \
+#define CMATMUL_4x4_LOOP                                                       \
   {                                                                            \
-    int32_t const *addr_a = &A[i * N];                                         \
-    int32_t const *addr_b = &B[j];                                             \
-    int32_t const *end_b = &B[N * P + j];                                      \
-    int32_t const *addr_c = &C[i * P + j];                                     \
+    __fp16 const *addr_a = &A[2 * i * N];                                      \
+    __fp16 const *addr_b = &B[2 * j];                                          \
+    __fp16 const *end_b = &B[2 * (N * P + j)];                                 \
+    __fp16 const *addr_c = &C[2 * (i * P + j)];                                \
     int32_t const P3 = ((int32_t)P - 3) * 4;                                   \
     int32_t const N31 = (-3 * (int32_t)N + 1) * 4;                             \
     register int32_t k asm("x1") = (int32_t)end_b;                             \
@@ -462,7 +475,9 @@
           "x27", "x28", "x29", "x30", "x31", "memory");                        \
   }
 
-#define __CDOTP
+#endif
+
+// 2x2 MATMUL
 void cmatmul_2x2_f16s(__fp16 const *__restrict__ A,
                       __fp16 const *__restrict__ B, __fp16 *__restrict__ C,
                       uint32_t M, uint32_t N, uint32_t P) {
@@ -472,16 +487,13 @@ void cmatmul_2x2_f16s(__fp16 const *__restrict__ A,
   uint32_t k = 0; // loop counter for P
   for (k = 0; k < P; k += 2) {
     for (i = 0; i < M; i += 2) {
-#ifdef __CDOTP
-      CMATMUL_CDOTP_2x2_LOOP;
-#else
       CMATMUL_2x2_LOOP;
-#endif
     }
   }
   return;
 }
 
+// 2x2 MATMUL
 void cmatmul_2x2_f16p(__fp16 const *__restrict__ A,
                       __fp16 const *__restrict__ B, __fp16 *__restrict__ C,
                       uint32_t M, uint32_t N, uint32_t P, uint32_t core_id,
@@ -492,88 +504,82 @@ void cmatmul_2x2_f16p(__fp16 const *__restrict__ A,
   uint32_t k = 0; // loop counter for P
   for (k = core_id * 2; k < P; k += 2 * numThreads) {
     for (i = 0; i < M; i += 2) {
-#ifdef __CDOTP
-      CMATMUL_CDOTP_2x2_LOOP;
-#else
       CMATMUL_2x2_LOOP;
-#endif
     }
   }
   return;
 }
 
-#define __SHIFT_A
-void cmatmul_2x4_f16p(__fp16 *__restrict__ A, __fp16 const *__restrict__ B,
-                      __fp16 *__restrict__ C, uint32_t M, uint32_t N,
-                      uint32_t P, uint32_t core_id, uint32_t numThreads) {
+// 2x4 MATMUL
+void cmatmul_2x4_f16p(__fp16 const *__restrict__ A,
+                      __fp16 const *__restrict__ B, __fp16 *__restrict__ C,
+                      uint32_t M, uint32_t N, uint32_t P, uint32_t core_id,
+                      uint32_t numThreads) {
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
   uint32_t k = 0; // loop counter for P
 #ifndef __SHIFT_A
   for (k = core_id * 4; k < P; k += 4 * numThreads) {
     for (i = 0; i < M; i += 2) {
-#ifdef __CDOTP
-      CMATMUL_CDOTP_2x4_LOOP;
-#else
       CMATMUL_2x4_LOOP;
-#endif
     }
   }
 #else
   uint32_t shift_id = (2 * (core_id % NUM_CORES_PER_TILE)) % M;
   for (k = core_id * 4; k < P; k += 4 * numThreads) {
     for (i = shift_id; i < M; i += 2) {
-#ifdef __CDOTP
-      CMATMUL_CDOTP_2x4_LOOP;
-#else
       CMATMUL_2x4_LOOP;
-#endif
     }
     for (i = 0; i < shift_id; i += 2) {
-#ifdef __CDOTP
-      CMATMUL_CDOTP_2x4_LOOP;
-#else
       CMATMUL_2x4_LOOP;
-#endif
     }
   }
 #endif
   return;
 }
+
+#ifdef __CDOTP
 
 // 4x4 MATMUL
-void cmatmul_4x4_f16p(int32_t const *__restrict__ A,
-                      int32_t const *__restrict__ B, int32_t *__restrict__ C,
-                      uint32_t M, uint32_t N, uint32_t P, uint32_t id,
+void cmatmul_4x4_f16p(__fp16 const *__restrict__ A,
+                      __fp16 const *__restrict__ B, __fp16 *__restrict__ C,
+                      uint32_t M, uint32_t N, uint32_t P, uint32_t core_id,
                       uint32_t numThreads) {
-  uint32_t shift_id = (4 * (id % NUM_CORES_PER_TILE)) % M;
-  for (uint32_t j = 4 * id; j < P; j += 4 * numThreads) {
-    for (uint32_t i = shift_id; i < M; i += 4) {
-      CMATMUL_CDOTP_4x4_LOOP
+  uint32_t i = 0; // loop counter for M
+  uint32_t j = 0; // loop counter for N
+  uint32_t shift_id = (4 * (core_id % NUM_CORES_PER_TILE)) % M;
+  for (j = 4 * core_id; j < P; j += 4 * numThreads) {
+    for (i = shift_id; i < M; i += 4) {
+      CMATMUL_4x4_LOOP
     }
-    for (uint32_t i = 0; i < shift_id; i += 4) {
-      CMATMUL_CDOTP_4x4_LOOP
+    for (i = 0; i < shift_id; i += 4) {
+      CMATMUL_4x4_LOOP
     }
   }
-  mempool_log_partial_barrier(2, id, numThreads);
   return;
 }
 
-void cmatmul_4x4_folded_f16p(int32_t *A_l2, int32_t *A_folded, int32_t *const B,
-                             int32_t *C, uint32_t M, uint32_t N, uint32_t P,
-                             uint32_t core_id, uint32_t numThreads) {
+// 4x4 MATMUL with copies of A matrix (for M*N < N_BANKS)
+void cmatmul_4x4_f16p_copy_A(__fp16 const *__restrict__ A_l2,
+                             __fp16 *__restrict__ A_l1,
+                             __fp16 const *__restrict__ B,
+                             __fp16 *__restrict__ C, uint32_t M, uint32_t N,
+                             uint32_t P, uint32_t core_id,
+                             uint32_t numThreads) {
 
   // Copy multiple A matrices in memory
   if (core_id == 0) {
     for (uint32_t idx_copy = 0; idx_copy < (BANKING_FACTOR * NUM_CORES);
-         idx_copy += (M * N)) {
-      dma_memcpy_blocking(&A_folded[idx_copy], A_l2, M * N * sizeof(int32_t));
+         idx_copy += 2 * (M * N)) {
+      dma_memcpy_blocking(&A_l1[idx_copy], A_l2, M * N * sizeof(int32_t));
     }
   }
   // Cores only fetch from local A
-  int32_t *A_shifted = A_folded;
+  __fp16 *A_shifted = A_l1;
   A_shifted += (N * M) * ((core_id * BANKING_FACTOR) / (N * M));
   mempool_log_partial_barrier(2, core_id, numThreads);
   cmatmul_4x4_f16p(A_shifted, B, C, M, N, P, core_id, numThreads);
   return;
 }
+
+#endif

@@ -19,16 +19,19 @@
 #define PARALLEL_2x4
 #define TEST
 
+#if defined(PARALLEL_4x4_COPIES_A)
+__fp16 matrix_a[2 * (BANKING_FACTOR * NUM_CORES)]
+    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
+                   section(".l1_prio")));
+#else
 __fp16 matrix_a[2 * dim_M * dim_N]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
                    section(".l1_prio")));
+#endif
 __fp16 matrix_b[2 * dim_N * dim_P]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
                    section(".l1_prio")));
 __fp16 matrix_c[2 * dim_M * dim_P]
-    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
-                   section(".l1_prio")));
-__fp16 matrix_a_folded[2 * (BANKING_FACTOR * NUM_CORES)]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
                    section(".l1_prio")));
 
@@ -46,7 +49,7 @@ int main() {
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
 
-#if defined(SINGLE)
+#if defined(SINGLE_CORE)
   // Execute function to test.
   if (core_id == 0) {
     mempool_start_benchmark();
@@ -78,6 +81,27 @@ int main() {
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
+#endif
+
+#if defined(PARALLEL_4x4)
+  // Execute function to test.
+  uint32_t nPE = core_id < (dim_P / 4) ? num_cores : (dim_P / 4);
+  if (core_id < nPE) {
+    mempool_start_benchmark();
+    cmatmul_4x4_f16p(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P, core_id,
+                     nPE);
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
+#endif
+
+#if defined(PARALLEL_4x4_COPIES_A)
+  // Execute function to test.
+  mempool_start_benchmark();
+  cmatmul_4x4_f16p_copy_A(A, matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P,
+                          core_id, num_cores);
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 #endif
 
 #if defined(TEST)

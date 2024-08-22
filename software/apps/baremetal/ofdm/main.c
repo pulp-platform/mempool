@@ -99,9 +99,8 @@ int main() {
 
   /* BEAMFORMING */
   mempool_start_benchmark();
-  cmatmul_4x4_f16p((int32_t *)l1_pBF_Coef_folded, (int32_t *)l1_pFFT_Src,
-                   (int32_t *)l1_pFFT_Dst, dim_M, dim_N, dim_P, core_id,
-                   num_cores);
+  cmatmul_4x4_f16p(l1_pBF_Coef_folded, l1_pFFT_Src, l1_pFFT_Dst, dim_M, dim_N,
+                   dim_P, core_id, num_cores);
   mempool_stop_benchmark();
   dump_checkpoint(2);
 
