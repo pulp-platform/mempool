@@ -14,21 +14,15 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "data_dotp_i32.h"
+#include "data_axpy_f16.h"
 #define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
-#define LOG_BARRIERS
-// #define ATOMIC_REDUCTION
-// #define SINGLE_CORE_REDUCTION
-#define BINARY_REDUCTION
 
 // Vectors for kernel computation
-int32_t l1_X[array_N] __attribute__((aligned(array_N), section(".l1_prio")));
-int32_t l1_Y[array_N] __attribute__((aligned(array_N), section(".l1_prio")));
-uint32_t red_barrier[NUM_BANKS]
-    __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-int32_t sum[NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+__fp16 l1_X[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+__fp16 l1_Y[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
-#include "baremetal/mempool_dotp_i32.h"
+#include "baremetal/mempool_axpy_f16.h"
+#include "baremetal/mempool_checks.h"
 
 int main() {
 
@@ -40,38 +34,37 @@ int main() {
   time_init = 0;
   time_end = 0;
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_X, l2_X, array_N * sizeof(int32_t));
-    dma_memcpy_blocking(l1_Y, l2_Y, array_N * sizeof(int32_t));
+    dma_memcpy_blocking(l1_X, l2_X, LEN * sizeof(int16_t));
+    dma_memcpy_blocking(l1_Y, l2_Y, LEN * sizeof(int16_t));
   }
-  for (uint32_t k = core_id; k < NUM_BANKS; k += num_cores) {
-    sum[k] = 0;
-    red_barrier[k] = 0;
-  }
+  uint32_t register volatile a = *(uint32_t *)&(A)&0x0000FFFF;
   mempool_barrier(num_cores);
 
-  //  // SINGLE-CORE
+  //  // SINGLE
   //  time_init = mempool_get_timer();
-  //  dotp_i32s_unrolled4(l1_A, l1_B, sum, array_N);
+  //  axpy_f16s(A, l1_X, l1_Y, LEN);
   //  time_end = mempool_get_timer();
 
   //  // PARALLEL
   //  time_init = mempool_get_timer();
-  //  dotp_i32p(l1_A, l1_B, sum, array_N, num_cores);
+  //  axpy_f16vecp_unrolled4(A, l1_X, l1_Y, LEN, num_cores);
   //  time_end = mempool_get_timer();
 
   // PARALLEL, LOCAL ACCESSES
   time_init = mempool_get_timer();
-  dotp_i32p_local_unrolled4(l1_X, l1_Y, sum, array_N);
+  // axpy_f16vecp_local_unrolled4(a, l1_X, l1_Y, LEN);
+  mempool_start_benchmark();
+  axpy_f16vecp_local_unrolled4(a, l1_X, l1_Y, LEN);
+  mempool_stop_benchmark();
   time_end = mempool_get_timer();
 
-  // Check results
   mempool_barrier(num_cores);
+  // Check results
   if (core_id == 0) {
     uint32_t clock_cycles = (time_end - time_init);
     printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
-    printf("Result ==> %d\n", sum[0]);
-    printf("Check  ==> %d\n\n", l2_Z);
   }
+  mempool_check_f16(l1_Y, l2_out, 100, 0.1f, 0);
   mempool_barrier(num_cores);
 
   return 0;
