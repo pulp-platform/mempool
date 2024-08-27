@@ -16,7 +16,7 @@ ifndef config
     config := $(MEMPOOL_CONFIGURATION)
   else
     # Default configuration, if neither `config` nor `MEMPOOL_CONFIGURATION` was found
-    config := mempool
+    config := terapool
   endif
 endif
 include $(MEMPOOL_DIR)/config/$(config).mk
@@ -78,5 +78,5 @@ num_sub_groups_per_group ?= 1
 remote_group_latency_cycles ?= 7
 
 # DRAMsys co-simulation: dram/sram
-l2_sim_type ?= sram
+l2_sim_type ?= dram
 dram_axi_width_interleaved ?= 16
