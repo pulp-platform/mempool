@@ -28,6 +28,9 @@ axi_hier_radix ?= 20
 # Number of AXI masters per group
 axi_masters_per_group ?= 1
 
+# Numer of AXI masters for all clusters
+axi_masters_all_clusters ?= 4
+
 # Size of sequential memory per core (in bytes)
 # (must be a power of two)
 seq_mem_size ?= 1024

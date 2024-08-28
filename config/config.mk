@@ -21,6 +21,9 @@ ifndef config
 endif
 include $(MEMPOOL_DIR)/config/$(config).mk
 
+# Number of clusters
+num_clusters ?= 1
+
 #############################
 ##  Address configuration  ##
 #############################

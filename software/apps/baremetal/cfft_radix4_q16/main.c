@@ -73,6 +73,7 @@ uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t cluster_id = mempool_get_cluster_id();
   int16_t *pRes; // Result pointer
   mempool_barrier_init(core_id);
 
@@ -80,10 +81,11 @@ int main() {
 
 #if (defined(SINGLE) || defined(PARALLEL))
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_pSrc, l2_pSrc, N_CSAMPLES * sizeof(int32_t));
-    dma_memcpy_blocking(l1_twiddleCoef_q16_src, l2_twiddleCoef_q16,
+    dma_memcpy_blocking(cluster_id, l1_pSrc, l2_pSrc,
+                        N_CSAMPLES * sizeof(int32_t));
+    dma_memcpy_blocking(cluster_id, l1_twiddleCoef_q16_src, l2_twiddleCoef_q16,
                         3 * (N_CSAMPLES / 4) * sizeof(int32_t));
-    dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
+    dma_memcpy_blocking(cluster_id, l1_BitRevIndexTable, l2_BitRevIndexTable,
                         BITREVINDEXTABLE_LENGTH * sizeof(int16_t));
     printf("01: END INITIALIZATION\n");
   }
@@ -95,11 +97,12 @@ int main() {
   if (core_id == 0) {
     for (uint32_t j = 0; j < N_FFTs_ROW; j++) {
       for (uint32_t i = 0; i < N_FFTs_COL; i++) {
-        dma_memcpy_blocking(l1_pSrc + i * 2 * N_CSAMPLES + j * (8 * N_BANKS),
+        dma_memcpy_blocking(cluster_id,
+                            l1_pSrc + i * 2 * N_CSAMPLES + j * (8 * N_BANKS),
                             l2_pSrc, N_CSAMPLES * sizeof(int32_t));
       }
     }
-    dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
+    dma_memcpy_blocking(cluster_id, l1_BitRevIndexTable, l2_BitRevIndexTable,
                         BITREVINDEXTABLE_LENGTH * sizeof(int32_t));
   }
   mempool_barrier(num_cores);
@@ -118,7 +121,7 @@ int main() {
   }
 #else
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_twiddleCoef_q16_src, l2_twiddleCoef_q16,
+    dma_memcpy_blocking(cluster_id, l1_twiddleCoef_q16_src, l2_twiddleCoef_q16,
                         3 * (N_CSAMPLES / 4) * sizeof(int32_t));
   }
 #endif

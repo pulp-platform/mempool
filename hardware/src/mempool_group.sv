@@ -29,34 +29,34 @@ module mempool_group
   input  logic [idx_width(NumGroups)-1:0]                         group_id_i,
   `ifdef TERAPOOL
     // TCDM Master interfaces
-    output `STRUCT_VECT(tcdm_slave_req_t,   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_master_req_o,
-    output logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_req_valid_o,
-    input  logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_req_ready_i,
-    input  `STRUCT_VECT(tcdm_master_resp_t, [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_master_resp_i,
-    input  logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_resp_valid_i,
-    output logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_resp_ready_o,
+    output `STRUCT_VECT(tcdm_slave_req_t,   [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_master_req_o,
+    output logic                            [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_req_valid_o,
+    input  logic                            [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_req_ready_i,
+    input  `STRUCT_VECT(tcdm_master_resp_t, [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_master_resp_i,
+    input  logic                            [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_resp_valid_i,
+    output logic                            [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_resp_ready_o,
     // TCDM Slave interfaces
-    input  `STRUCT_VECT(tcdm_slave_req_t,   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_slave_req_i,
-    input  logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_req_valid_i,
-    output logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_req_ready_o,
-    output `STRUCT_VECT(tcdm_master_resp_t, [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_slave_resp_o,
-    output logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_valid_o,
-    input  logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_ready_i,
+    input  `STRUCT_VECT(tcdm_slave_req_t,   [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_slave_req_i,
+    input  logic                            [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_req_valid_i,
+    output logic                            [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_req_ready_o,
+    output `STRUCT_VECT(tcdm_master_resp_t, [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_slave_resp_o,
+    output logic                            [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_valid_o,
+    input  logic                            [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_ready_i,
   `else
     // TCDM Master interfaces
-    output `STRUCT_VECT(tcdm_slave_req_t,   [NumGroups-1:1][NumTilesPerGroup-1:0]) tcdm_master_req_o,
-    output logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_master_req_valid_o,
-    input  logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_master_req_ready_i,
-    input  `STRUCT_VECT(tcdm_master_resp_t, [NumGroups-1:1][NumTilesPerGroup-1:0]) tcdm_master_resp_i,
-    input  logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_master_resp_valid_i,
-    output logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_master_resp_ready_o,
+    output `STRUCT_VECT(tcdm_slave_req_t,   [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]) tcdm_master_req_o,
+    output logic                            [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]  tcdm_master_req_valid_o,
+    input  logic                            [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]  tcdm_master_req_ready_i,
+    input  `STRUCT_VECT(tcdm_master_resp_t, [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]) tcdm_master_resp_i,
+    input  logic                            [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]  tcdm_master_resp_valid_i,
+    output logic                            [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]  tcdm_master_resp_ready_o,
     // TCDM Slave interfaces
-    input  `STRUCT_VECT(tcdm_slave_req_t,   [NumGroups-1:1][NumTilesPerGroup-1:0]) tcdm_slave_req_i,
-    input  logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_req_valid_i,
-    output logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_req_ready_o,
-    output `STRUCT_VECT(tcdm_master_resp_t, [NumGroups-1:1][NumTilesPerGroup-1:0]) tcdm_slave_resp_o,
-    output logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_valid_o,
-    input  logic                            [NumGroups-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_ready_i,
+    input  `STRUCT_VECT(tcdm_slave_req_t,   [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]) tcdm_slave_req_i,
+    input  logic                            [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]  tcdm_slave_req_valid_i,
+    output logic                            [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]  tcdm_slave_req_ready_o,
+    output `STRUCT_VECT(tcdm_master_resp_t, [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]) tcdm_slave_resp_o,
+    output logic                            [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_valid_o,
+    input  logic                            [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0]  tcdm_slave_resp_ready_i,
   `endif
   // Wake up interface
   input  logic                            [NumCoresPerGroup-1:0]                 wake_up_i,
@@ -98,14 +98,14 @@ module mempool_group
   // The ports might be structs flattened to vectors. To access the structs'
   // internal signals, assign the flattened vectors back to structs.
   `ifdef TERAPOOL
-    tcdm_slave_req_t   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_s;
-    tcdm_master_resp_t [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_s;
+    tcdm_slave_req_t   [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_s;
+    tcdm_master_resp_t [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_s;
   `else
-    tcdm_slave_req_t   [NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_master_req_s;
-    tcdm_master_resp_t [NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp_s;
+    tcdm_slave_req_t   [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0] tcdm_master_req_s;
+    tcdm_master_resp_t [NumGroupsPerCluster-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp_s;
   `endif
 
-  for (genvar r = 1; r < NumGroups; r++) begin: gen_tcdm_struct
+  for (genvar r = 1; r < NumGroupsPerCluster; r++) begin: gen_tcdm_struct
     assign tcdm_master_req_o[r] = tcdm_master_req_s[r];
     assign tcdm_slave_resp_o[r] = tcdm_slave_resp_s[r];
   end: gen_tcdm_struct
@@ -129,36 +129,36 @@ module mempool_group
      ****************/
 
     // TCDM interfaces for groups
-    tcdm_master_req_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_from_sg;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_from_sg;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_to_sg;
-    tcdm_slave_req_t   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_to_sg;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_valid_to_sg;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_ready_from_sg;
-    tcdm_master_resp_t [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_to_sg;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_valid_to_sg;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_ready_from_sg;
-    tcdm_slave_resp_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_from_sg;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_from_sg;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_to_sg;
+    tcdm_master_req_t  [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_from_sg;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_from_sg;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_to_sg;
+    tcdm_slave_req_t   [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_to_sg;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_valid_to_sg;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_ready_from_sg;
+    tcdm_master_resp_t [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_to_sg;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_valid_to_sg;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_ready_from_sg;
+    tcdm_slave_resp_t  [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_from_sg;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_from_sg;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_to_sg;
 
-    tcdm_master_req_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready;
-    tcdm_slave_req_t   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_valid;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_ready;
-    tcdm_master_resp_t [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_valid;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_ready;
-    tcdm_slave_resp_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid;
-    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready;
+    tcdm_master_req_t  [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready;
+    tcdm_slave_req_t   [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_valid;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_ready;
+    tcdm_master_resp_t [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_valid;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_ready;
+    tcdm_slave_resp_t  [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid;
+    logic              [NumGroupsPerCluster-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready;
 
     // TCDM Spill Registers
     // Control by different target remote access cycles
     if (RemoteGroupLatencyCycle == 11) begin
-      for (genvar h = 1; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_registers_to_intrco_g
+      for (genvar h = 1; unsigned'(h) < NumGroupsPerCluster; h++) begin: gen_tcdm_registers_to_intrco_g
         for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_tcdm_registers_to_intrco_sg
           for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_registers_to_intrco_t
             spill_register #(
@@ -198,7 +198,7 @@ module mempool_group
     end
 
     if (RemoteGroupLatencyCycle == 9 || RemoteGroupLatencyCycle == 11) begin
-      for (genvar h = 1; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_registers_to_sg_g
+      for (genvar h = 1; unsigned'(h) < NumGroupsPerCluster; h++) begin: gen_tcdm_registers_to_sg_g
         for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_tcdm_registers_to_sg_sg
           for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_registers_to_sg_t
             spill_register #(
@@ -258,12 +258,12 @@ module mempool_group
     dma_meta_t [NumDmasPerGroup-1:0] dma_meta;
 
     // Connect the IOs to the SubGroups' signals
-    assign tcdm_master_resp[NumGroups-1:1]         = tcdm_master_resp_i[NumGroups-1:1];
-    assign tcdm_master_resp_valid[NumGroups-1:1]   = tcdm_master_resp_valid_i[NumGroups-1:1];
-    assign tcdm_master_resp_ready_o[NumGroups-1:1] = tcdm_master_resp_ready[NumGroups-1:1];
-    assign tcdm_slave_req[NumGroups-1:1]           = tcdm_slave_req_i[NumGroups-1:1];
-    assign tcdm_slave_req_valid[NumGroups-1:1]     = tcdm_slave_req_valid_i[NumGroups-1:1];
-    assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready[NumGroups-1:1];
+    assign tcdm_master_resp[NumGroupsPerCluster-1:1]         = tcdm_master_resp_i[NumGroupsPerCluster-1:1];
+    assign tcdm_master_resp_valid[NumGroupsPerCluster-1:1]   = tcdm_master_resp_valid_i[NumGroupsPerCluster-1:1];
+    assign tcdm_master_resp_ready_o[NumGroupsPerCluster-1:1] = tcdm_master_resp_ready[NumGroupsPerCluster-1:1];
+    assign tcdm_slave_req[NumGroupsPerCluster-1:1]           = tcdm_slave_req_i[NumGroupsPerCluster-1:1];
+    assign tcdm_slave_req_valid[NumGroupsPerCluster-1:1]     = tcdm_slave_req_valid_i[NumGroupsPerCluster-1:1];
+    assign tcdm_slave_req_ready_o[NumGroupsPerCluster-1:1]   = tcdm_slave_req_ready[NumGroupsPerCluster-1:1];
 
     // AXI interfaces
     axi_tile_req_t   [NumAXIMastersPerGroup-1:0] axi_mst_req;
@@ -273,18 +273,18 @@ module mempool_group
       sub_group_id_t id;
       assign id = (group_id_i << $clog2(NumSubGroupsPerGroup)) | sg[idx_width(NumSubGroupsPerGroup)-1:0];
 
-      tcdm_master_req_t  [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req;
-      logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req_valid;
-      logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req_ready;
-      tcdm_slave_req_t   [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_req;
-      logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_req_valid;
-      logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_req_ready;
-      tcdm_master_resp_t [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_resp;
-      logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_resp_valid;
-      logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_resp_ready;
-      tcdm_slave_resp_t  [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp;
-      logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp_valid;
-      logic              [NumGroups-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp_ready;
+      tcdm_master_req_t  [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req;
+      logic              [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req_valid;
+      logic              [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_req_ready;
+      tcdm_slave_req_t   [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_req;
+      logic              [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_req_valid;
+      logic              [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_req_ready;
+      tcdm_master_resp_t [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_resp;
+      logic              [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_resp_valid;
+      logic              [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_master_resp_ready;
+      tcdm_slave_resp_t  [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp;
+      logic              [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp_valid;
+      logic              [NumGroupsPerCluster-1:1] [NumTilesPerSubGroup-1:0] tran_tcdm_slave_resp_ready;
 
       if (PostLayoutSg & (GroupId == 0) & (sg == 0)) begin: gen_postly_sg
         mempool_sub_group_postlayout i_sub_group (
@@ -389,7 +389,7 @@ module mempool_group
         );
       end
       // Transpose the group requests
-      for (genvar g = 1; g < NumGroups; g++) begin: gen_tran_group_req
+      for (genvar g = 1; g < NumGroupsPerCluster; g++) begin: gen_tran_group_req
         assign tcdm_master_req_from_sg[g][sg]        = tran_tcdm_master_req[g];
         assign tcdm_master_req_valid_from_sg[g][sg]  = tran_tcdm_master_req_valid[g];
         assign tran_tcdm_master_req_ready[g]         = tcdm_master_req_ready_to_sg[g][sg];
@@ -427,7 +427,7 @@ module mempool_group
      *  Remote Group Interconnects  *
      ********************************/
 
-    for (genvar r = 1; r < NumGroups; r++) begin: gen_remote_interco
+    for (genvar r = 1; r < NumGroupsPerCluster; r++) begin: gen_remote_interco
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_ready;
       tcdm_addr_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_tgt_addr;
@@ -564,7 +564,7 @@ module mempool_group
       .NoMstPorts     (NumDmasPerGroup                         ),
       .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup      ),
       .DmaRegionStart (TCDMBaseAddr                            ),
-      .DmaRegionEnd   (TCDMBaseAddr+TCDMSize                   ),
+      .DmaRegionEnd   (TCDMBaseAddr+L1SizePerCluster           ),
       .TransFifoDepth (16                                      ),
       .burst_req_t    (dma_req_t                               ),
       .meta_t         (dma_meta_t                              )
@@ -598,18 +598,18 @@ module mempool_group
      ***********/
 
     // TCDM interfaces
-    tcdm_master_req_t  [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_req;
-    logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_req_valid;
-    logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_req_ready;
-    tcdm_slave_req_t   [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_req;
-    logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_req_valid;
-    logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_req_ready;
-    tcdm_master_resp_t [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_resp;
-    logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_resp_valid;
-    logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_master_resp_ready;
-    tcdm_slave_resp_t  [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp;
-    logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_valid;
-    logic              [NumGroups-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_ready;
+    tcdm_master_req_t  [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_master_req;
+    logic              [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_master_req_valid;
+    logic              [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_master_req_ready;
+    tcdm_slave_req_t   [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_slave_req;
+    logic              [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_slave_req_valid;
+    logic              [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_slave_req_ready;
+    tcdm_master_resp_t [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_master_resp;
+    logic              [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_master_resp_valid;
+    logic              [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_master_resp_ready;
+    tcdm_slave_resp_t  [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp;
+    logic              [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_valid;
+    logic              [NumGroupsPerCluster-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_ready;
     // DMA interfaces
     tcdm_dma_req_t  [NumTilesPerGroup-1:0] tcdm_dma_req;
     logic           [NumTilesPerGroup-1:0] tcdm_dma_req_valid;
@@ -619,12 +619,12 @@ module mempool_group
     logic           [NumTilesPerGroup-1:0] tcdm_dma_resp_ready;
 
     // Connect the IOs to the tiles' signals
-    assign tcdm_master_resp[NumGroups-1:1]         = tcdm_master_resp_i[NumGroups-1:1];
-    assign tcdm_master_resp_valid[NumGroups-1:1]   = tcdm_master_resp_valid_i[NumGroups-1:1];
-    assign tcdm_master_resp_ready_o[NumGroups-1:1] = tcdm_master_resp_ready[NumGroups-1:1];
-    assign tcdm_slave_req[NumGroups-1:1]           = tcdm_slave_req_i[NumGroups-1:1];
-    assign tcdm_slave_req_valid[NumGroups-1:1]     = tcdm_slave_req_valid_i[NumGroups-1:1];
-    assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready[NumGroups-1:1];
+    assign tcdm_master_resp[NumGroupsPerCluster-1:1]         = tcdm_master_resp_i[NumGroupsPerCluster-1:1];
+    assign tcdm_master_resp_valid[NumGroupsPerCluster-1:1]   = tcdm_master_resp_valid_i[NumGroupsPerCluster-1:1];
+    assign tcdm_master_resp_ready_o[NumGroupsPerCluster-1:1] = tcdm_master_resp_ready[NumGroupsPerCluster-1:1];
+    assign tcdm_slave_req[NumGroupsPerCluster-1:1]           = tcdm_slave_req_i[NumGroupsPerCluster-1:1];
+    assign tcdm_slave_req_valid[NumGroupsPerCluster-1:1]     = tcdm_slave_req_valid_i[NumGroupsPerCluster-1:1];
+    assign tcdm_slave_req_ready_o[NumGroupsPerCluster-1:1]   = tcdm_slave_req_ready[NumGroupsPerCluster-1:1];
 
     // AXI interfaces
     axi_tile_req_t  [NumTilesPerGroup-1:0] axi_tile_req;
@@ -636,18 +636,18 @@ module mempool_group
       tile_id_t id;
       assign id = (group_id_i << $clog2(NumTilesPerGroup)) | t[idx_width(NumTilesPerGroup)-1:0];
 
-      tcdm_master_req_t  [NumGroups-1:0] tran_tcdm_master_req;
-      logic              [NumGroups-1:0] tran_tcdm_master_req_valid;
-      logic              [NumGroups-1:0] tran_tcdm_master_req_ready;
-      tcdm_slave_req_t   [NumGroups-1:0] tran_tcdm_slave_req;
-      logic              [NumGroups-1:0] tran_tcdm_slave_req_valid;
-      logic              [NumGroups-1:0] tran_tcdm_slave_req_ready;
-      tcdm_master_resp_t [NumGroups-1:0] tran_tcdm_master_resp;
-      logic              [NumGroups-1:0] tran_tcdm_master_resp_valid;
-      logic              [NumGroups-1:0] tran_tcdm_master_resp_ready;
-      tcdm_slave_resp_t  [NumGroups-1:0] tran_tcdm_slave_resp;
-      logic              [NumGroups-1:0] tran_tcdm_slave_resp_valid;
-      logic              [NumGroups-1:0] tran_tcdm_slave_resp_ready;
+      tcdm_master_req_t  [NumGroupsPerCluster-1:0] tran_tcdm_master_req;
+      logic              [NumGroupsPerCluster-1:0] tran_tcdm_master_req_valid;
+      logic              [NumGroupsPerCluster-1:0] tran_tcdm_master_req_ready;
+      tcdm_slave_req_t   [NumGroupsPerCluster-1:0] tran_tcdm_slave_req;
+      logic              [NumGroupsPerCluster-1:0] tran_tcdm_slave_req_valid;
+      logic              [NumGroupsPerCluster-1:0] tran_tcdm_slave_req_ready;
+      tcdm_master_resp_t [NumGroupsPerCluster-1:0] tran_tcdm_master_resp;
+      logic              [NumGroupsPerCluster-1:0] tran_tcdm_master_resp_valid;
+      logic              [NumGroupsPerCluster-1:0] tran_tcdm_master_resp_ready;
+      tcdm_slave_resp_t  [NumGroupsPerCluster-1:0] tran_tcdm_slave_resp;
+      logic              [NumGroupsPerCluster-1:0] tran_tcdm_slave_resp_valid;
+      logic              [NumGroupsPerCluster-1:0] tran_tcdm_slave_resp_ready;
 
       mempool_tile #(
         .TCDMBaseAddr(TCDMBaseAddr),
@@ -688,7 +688,7 @@ module mempool_group
       );
 
       // Transpose the group requests
-      for (genvar g = 0; g < NumGroups; g++) begin: gen_tran_group_req
+      for (genvar g = 0; g < NumGroupsPerCluster; g++) begin: gen_tran_group_req
         assign tcdm_master_req[g][t]          = tran_tcdm_master_req[g];
         assign tcdm_master_req_valid[g][t]    = tran_tcdm_master_req_valid[g];
         assign tran_tcdm_master_req_ready[g]  = tcdm_master_req_ready[g][t];
@@ -708,7 +708,7 @@ module mempool_group
      *  Local Interconnect  *
      *************************/
 
-    // The local port is always at the index 0 out of the NumGroups TCDM ports of the tile.
+    // The local port is always at the index 0 out of the NumGroupsPerCluster TCDM ports of the tile.
 
     logic           [NumTilesPerGroup-1:0] master_local_req_valid;
     logic           [NumTilesPerGroup-1:0] master_local_req_ready;
@@ -796,7 +796,7 @@ module mempool_group
      *  Remote Interconnects  *
      **************************/
 
-    for (genvar r = 1; r < NumGroups; r++) begin: gen_remote_interco
+    for (genvar r = 1; r < NumGroupsPerCluster; r++) begin: gen_remote_interco
       logic           [NumTilesPerGroup-1:0] master_remote_req_valid;
       logic           [NumTilesPerGroup-1:0] master_remote_req_ready;
       tcdm_addr_t     [NumTilesPerGroup-1:0] master_remote_req_tgt_addr;
@@ -974,7 +974,7 @@ module mempool_group
       .NoMstPorts     (NumDmasPerGroup                   ),
       .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup),
       .DmaRegionStart (TCDMBaseAddr                      ),
-      .DmaRegionEnd   (TCDMBaseAddr+TCDMSize             ),
+      .DmaRegionEnd   (TCDMBaseAddr+L1SizePerCluster     ),
       .TransFifoDepth (16                                ),
       .burst_req_t    (dma_req_t                         ),
       .meta_t         (dma_meta_t                        )
@@ -1002,7 +1002,7 @@ module mempool_group
     assign addr_map = '{
       '{ // TCDM
         start_addr: TCDMBaseAddr,
-        end_addr:   TCDMBaseAddr + TCDMSize,
+        end_addr:   TCDMBaseAddr + L1SizePerCluster,
         idx:        1
       }
     };
@@ -1146,7 +1146,7 @@ module mempool_group
                  wdata: dma_tile_req[t].q.data,
                  wen: dma_tile_req[t].q.write,
                  be: dma_tile_req[t].q.strb,
-                 tgt_addr: {dma_tile_req[t].q.addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroups)+:TCDMAddrMemWidth],
+                 tgt_addr: {dma_tile_req[t].q.addr[ByteOffset + idx_width(NumBanksPerTile) + $clog2(NumTilesPerGroup) + $clog2(NumGroupsPerCluster)+:TCDMAddrMemWidth],
                             dma_tile_req[t].q.addr[ByteOffset+:idx_width(NumBanksPerTile)]}
                };
         assign tcdm_dma_req_valid[d*NumTilesPerDma+t]  = dma_tile_req[t].q_valid;

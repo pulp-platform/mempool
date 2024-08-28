@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add `apb` dependency of version 0.2.4
 - Add support for the `FENCE` instruction
 - Add support for DRAMsys5.0 co-simulation
+- Add support for atomics in L2
+- Add support for a multi-cluster MemPool
 
 ### Changes
 - Add physical feasible TeraPool configuration with SubGroup hierarchy.
@@ -34,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update `register_interface` to 0.4.3
 - Updated Halide to version 15
 - Move instruction cache into its own dependency
+- Use automatically generated control registers
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`

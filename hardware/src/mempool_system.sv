@@ -29,6 +29,9 @@ module mempool_system
 
   import axi_pkg::xbar_cfg_t;
   import axi_pkg::xbar_rule_32_t;
+  import cf_math_pkg::idx_width;
+
+  `include "reqrsp_interface/typedef.svh"
 
   /*********
    *  AXI  *
@@ -77,6 +80,8 @@ module mempool_system
     L2Memory = 1
   } axi_mst_demux_slave_target;
 
+  axi_tile_req_t    [NumClusters*NumAXIMastersPerCluster-1:0] axi_cluster_req;
+  axi_tile_resp_t   [NumClusters*NumAXIMastersPerCluster-1:0] axi_cluster_resp;
   axi_tile_req_t    [NumAXIMasters-1:0] axi_mst_req;
   axi_tile_resp_t   [NumAXIMasters-1:0] axi_mst_resp;
   axi_tile_req_t    [NumAXIMasters-1:0] axi_l2_req;
@@ -89,11 +94,11 @@ module mempool_system
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
 
-  dma_req_t  dma_req;
-  logic      dma_req_valid;
-  logic      dma_req_ready;
-  dma_meta_t dma_meta;
-  logic      [1-1:0] dma_id;
+  dma_req_t[NumClusters-1:0]    dma_req;
+  logic[NumClusters-1:0]        dma_req_valid;
+  logic[NumClusters-1:0]        dma_req_ready;
+  dma_meta_t[NumClusters-1:0]   dma_meta;
+  logic[NumClusters-1:0][1-1:0] dma_id;
 
   localparam xbar_cfg_t MstDemuxCfg = '{
     NoSlvPorts         : 1, // Each master has a private demux
@@ -130,25 +135,56 @@ module mempool_system
   /*********************
    *  MemPool Cluster  *
    ********************/
+  for (genvar i = 0; i < NumClusters; i++) begin : gen_clusters
+    logic [idx_width(NumClusters)-1:0] cluster_id = i;
+    mempool_cluster #(
+      .TCDMBaseAddr(i*L1SizePerCluster), // TODO: i*L1SizePerCluster
+      .BootAddr    (BootAddr          )
+    ) i_mempool_cluster (
+      .clk_i          (clk_i                                                               ),
+      .rst_ni         (rst_ni                                                              ),
+      .cluster_id_i   (cluster_id                                                          ),
+      .wake_up_i      (wake_up[i*NumCoresPerCluster+:NumCoresPerCluster]                   ),
+      .testmode_i     (1'b0                                                                ),
+      .scan_enable_i  (1'b0                                                                ),
+      .scan_data_i    (1'b0                                                                ),
+      .scan_data_o    (/* Unused */                                                        ),
+      .ro_cache_ctrl_i(ro_cache_ctrl                                                       ),
+      .dma_req_i      (dma_req[i]                                                          ),
+      .dma_req_valid_i(dma_req_valid[i]                                                    ),
+      .dma_req_ready_o(dma_req_ready[i]                                                    ),
+      .dma_meta_o     (dma_meta[i]                                                         ),
+      .axi_mst_req_o  (axi_cluster_req[i*NumAXIMastersPerCluster+:NumAXIMastersPerCluster] ),
+      .axi_mst_resp_i (axi_cluster_resp[i*NumAXIMastersPerCluster+:NumAXIMastersPerCluster])
+    );
+  end
 
-  mempool_cluster #(
-    .TCDMBaseAddr(TCDMBaseAddr),
-    .BootAddr    (BootAddr    )
-  ) i_mempool_cluster (
-    .clk_i          (clk_i                          ),
-    .rst_ni         (rst_ni                         ),
-    .wake_up_i      (wake_up                        ),
-    .testmode_i     (1'b0                           ),
-    .scan_enable_i  (1'b0                           ),
-    .scan_data_i    (1'b0                           ),
-    .scan_data_o    (/* Unused */                   ),
-    .ro_cache_ctrl_i(ro_cache_ctrl                  ),
-    .dma_req_i      (dma_req                        ),
-    .dma_req_valid_i(dma_req_valid                  ),
-    .dma_req_ready_o(dma_req_ready                  ),
-    .dma_meta_o     (dma_meta                       ),
-    .axi_mst_req_o  (axi_mst_req[NumAXIMasters-2:0] ),
-    .axi_mst_resp_i (axi_mst_resp[NumAXIMasters-2:0])
+  axi_hier_interco #(
+    .NumSlvPorts    (NumAXIMastersPerCluster*NumClusters                           ),
+    .NumMstPorts    (NumAXIMastersAllClusters                                      ),
+    .Radix          ((NumAXIMastersPerCluster*NumClusters)/NumAXIMastersAllClusters),
+    .EnableCache    (32'h00000000                                                  ),
+    .CacheLineWidth (ROCacheLineWidth                ),
+    .CacheSizeByte  (ROCacheSizeByte                 ),
+    .CacheSets      (ROCacheSets                     ),
+    .AddrWidth      (AddrWidth                       ),
+    .DataWidth      (AxiDataWidth                    ),
+    .SlvIdWidth     (AxiTileIdWidth                  ),
+    .MstIdWidth     (AxiTileIdWidth                  ),
+    .UserWidth      (1                               ),
+    .slv_req_t      (axi_tile_req_t                  ),
+    .slv_resp_t     (axi_tile_resp_t                 ),
+    .mst_req_t      (axi_tile_req_t                  ),
+    .mst_resp_t     (axi_tile_resp_t                 )
+  ) i_axi_interco (
+    .clk_i           (clk_i                                     ),
+    .rst_ni          (rst_ni                                    ),
+    .test_i          (1'b0                                      ),
+    .ro_cache_ctrl_i (ro_cache_ctrl                             ),
+    .slv_req_i       (axi_cluster_req                           ),
+    .slv_resp_o      (axi_cluster_resp                          ),
+    .mst_req_o       (axi_mst_req[NumAXIMastersAllClusters-1:0] ),
+    .mst_resp_i      (axi_mst_resp[NumAXIMastersAllClusters-1:0])
   );
 
   /**********************
@@ -156,7 +192,7 @@ module mempool_system
    **********************/
 
   localparam addr_t PeripheralsBaseAddr   = 32'h4000_0000;
-  localparam addr_t PeripheralsEndAddr    = 32'h4002_0000;
+  localparam addr_t PeripheralsEndAddr    = 32'h6000_0000;
   localparam addr_t L2MemoryBaseAddr      = `ifdef L2_BASE `L2_BASE `else 32'h8000_0000 `endif;
   localparam addr_t L2MemoryEndAddr       = L2MemoryBaseAddr + L2Size;
   localparam addr_t BootromBaseAddr       = 32'hA000_0000;
@@ -238,104 +274,173 @@ module mempool_system
    *  L2 SRAM  *
    *************/
 
-  localparam int unsigned NumAXIMastersLog2 = NumAXIMasters == 1 ? 1 : $clog2(NumAXIMasters);
-  typedef logic [L2AddrWidth-1:0] l2_mem_addr_t;
+  `REQRSP_TYPEDEF_ALL(axi_to_l2, addr_t, axi_data_t, axi_strb_t)
   typedef logic [L2BankAddrWidth-1:0] l2_bank_addr_t;
-  typedef logic [NumAXIMastersLog2-1:0] bank_ini_t;
-  // Axi2Mems to l2_xbar
-  logic         [NumAXIMasters-1:0] mem_req;
-  logic         [NumAXIMasters-1:0] mem_gnt;
-  logic         [NumAXIMasters-1:0] mem_rvalid;
-  addr_t        [NumAXIMasters-1:0] mem_addr_full;
-  l2_mem_addr_t [NumAXIMasters-1:0] mem_addr;
-  axi_data_t    [NumAXIMasters-1:0] mem_wdata;
-  axi_strb_t    [NumAXIMasters-1:0] mem_strb;
-  logic         [NumAXIMasters-1:0] mem_we;
-  axi_data_t    [NumAXIMasters-1:0] mem_rdata;
-  // l2_xbar to banks
+  // Axi2ReqRsp
+  axi_to_l2_req_t [NumAXIMasters-1:0] axi_to_l2_req;
+  axi_to_l2_rsp_t [NumAXIMasters-1:0] axi_to_l2_rsp;
+  // Axi2ReqRsp unpacked
+  localparam int unsigned NumAXIMastersWidth = (NumAXIMasters > 32'd1) ? unsigned'($clog2(NumAXIMasters)) : 32'd1;
+  localparam int unsigned NumL2BanksWidth = (NumL2Banks > 32'd1) ? unsigned'($clog2(NumL2Banks)) : 32'd1;
+  typedef logic [NumAXIMastersWidth-1:0] l2_axi_idx_t;
+  typedef logic [NumL2BanksWidth-1:0] l2_bank_idx_t;
+  axi_to_l2_req_chan_t [NumAXIMasters-1:0] axi_to_l2_req_chan;
+  axi_to_l2_rsp_chan_t [NumAXIMasters-1:0] axi_to_l2_rsp_chan;
+  logic                [NumAXIMasters-1:0] axi_to_l2_q_throttle_valid;
+  logic                [NumAXIMasters-1:0] axi_to_l2_q_throttle_ready;
+  logic                [NumAXIMasters-1:0] axi_to_l2_q_valid;
+  logic                [NumAXIMasters-1:0] axi_to_l2_q_ready;
+  l2_bank_idx_t        [NumAXIMasters-1:0] axi_to_l2_q_sel;
+  l2_axi_idx_t         [NumL2Banks-1:0] axi_to_l2_q_idx;
+  logic                [NumAXIMasters-1:0] axi_to_l2_p_valid;
+  logic                [NumAXIMasters-1:0] axi_to_l2_p_ready;
+  l2_axi_idx_t         [NumL2Banks-1:0] axi_to_l2_p_sel;
+  // Axi2ReqRsp to bank_adapter
+  axi_to_l2_req_chan_t [NumL2Banks-1:0] mem_req_chan;
+  axi_to_l2_rsp_chan_t [NumL2Banks-1:0] mem_rsp_chan;
+  logic [NumL2Banks-1:0] mem_req_valid;
+  logic [NumL2Banks-1:0] mem_req_ready;
+  logic [NumL2Banks-1:0] mem_rsp_valid;
+  logic [NumL2Banks-1:0] mem_rsp_ready;
+  // bank_adapter to banks
   logic          [NumL2Banks-1:0] bank_req;
-  logic          [NumL2Banks-1:0] bank_gnt;
-  logic          [NumL2Banks-1:0] bank_rvalid;
+  logic          [NumL2Banks-1:0] bank_we;
   l2_bank_addr_t [NumL2Banks-1:0] bank_addr;
-  bank_ini_t     [NumL2Banks-1:0] bank_ini_d, bank_ini_q;
   axi_data_t     [NumL2Banks-1:0] bank_wdata;
   axi_strb_t     [NumL2Banks-1:0] bank_strb;
-  logic          [NumL2Banks-1:0] bank_we;
   axi_data_t     [NumL2Banks-1:0] bank_rdata;
 
   for (genvar i = 0; i < NumAXIMasters; i++) begin : gen_l2_adapters
-    axi2mem #(
-      .axi_req_t (axi_tile_req_t ),
-      .axi_resp_t(axi_tile_resp_t),
-      .AddrWidth (L2AddrWidth    ),
-      .DataWidth (AxiDataWidth   ),
-      .IdWidth   (AxiTileIdWidth ),
-      .NumBanks  (1              ),
-      .BufDepth  (3              )
-    ) i_axi2mem (
-      .clk_i       (clk_i         ),
-      .rst_ni      (rst_ni        ),
-      .busy_o      (/*unsused*/   ),
-      .axi_req_i   (axi_l2_req[i] ),
-      .axi_resp_o  (axi_l2_resp[i]),
-      .mem_req_o   (mem_req[i]    ),
-      .mem_gnt_i   (mem_gnt[i]    ),
-      .mem_addr_o  (mem_addr[i]   ),
-      .mem_wdata_o (mem_wdata[i]  ),
-      .mem_strb_o  (mem_strb[i]   ),
-      .mem_atop_o  (/*unused*/    ),
-      .mem_we_o    (mem_we[i]     ),
-      .mem_rvalid_i(mem_rvalid[i] ),
-      .mem_rdata_i (mem_rdata[i]  )
+    axi_to_reqrsp #(
+      .axi_req_t    (axi_tile_req_t ),
+      .axi_rsp_t    (axi_tile_resp_t),
+      .AddrWidth    (L2AddrWidth    ),
+      .DataWidth    (AxiDataWidth   ),
+      .IdWidth      (AxiTileIdWidth ),
+      .BufDepth     (2              ),
+      .reqrsp_req_t (axi_to_l2_req_t),
+      .reqrsp_rsp_t (axi_to_l2_rsp_t)
+    ) i_axi_to_reqrsp (
+      .clk_i        (clk_i           ),
+      .rst_ni       (rst_ni          ),
+      .busy_o       (/*unused*/      ),
+      .axi_req_i    (axi_l2_req[i]   ),
+      .axi_rsp_o    (axi_l2_resp[i]  ),
+      .reqrsp_req_o (axi_to_l2_req[i]),
+      .reqrsp_rsp_i (axi_to_l2_rsp[i])
+    );
+    // Repack the structs for the xbar
+    assign axi_to_l2_req_chan[i]    = axi_to_l2_req[i].q;
+    assign axi_to_l2_q_valid[i]     = axi_to_l2_req[i].q_valid;
+    assign axi_to_l2_rsp[i].q_ready = axi_to_l2_q_ready[i];
+    assign axi_to_l2_rsp[i].p       = axi_to_l2_rsp_chan[i];
+    assign axi_to_l2_rsp[i].p_valid = axi_to_l2_p_valid[i];
+    assign axi_to_l2_p_ready[i]     = axi_to_l2_req[i].p_ready;
+    // Generate the selection signal
+    assign axi_to_l2_q_sel[i] = axi_to_l2_req_chan[i].addr[$clog2(L2BankBeWidth)+:NumL2BanksWidth];
+    // Throttle the to one oustanding transaction to avoid reordering without a ROB
+    stream_throttle #(
+      .MaxNumPending (1)
+    ) i_stream_throttle (
+      .clk_i       (clk_i                        ),
+      .rst_ni      (rst_ni                       ),
+      .req_valid_i (axi_to_l2_q_valid[i]         ),
+      .req_valid_o (axi_to_l2_q_throttle_valid[i]),
+      .req_ready_i (axi_to_l2_q_throttle_ready[i]),
+      .req_ready_o (axi_to_l2_q_ready[i]         ),
+      .rsp_valid_i (axi_to_l2_p_valid[i]         ),
+      .rsp_ready_i (axi_to_l2_p_ready[i]         ),
+      .credit_i    (1'b1                         )
     );
   end
 
-  variable_latency_interconnect #(
-    .NumIn            (NumAXIMasters  ),
-    .NumOut           (NumL2Banks     ),
-    .AddrWidth        (L2AddrWidth    ),
-    .DataWidth        (L2BankWidth    ),
-    .BeWidth          (L2BankBeWidth  ),
-    .AddrMemWidth     (L2BankAddrWidth),
-    .AxiVldRdy        (1'b1           ),
-    .SpillRegisterReq (64'b1          ),
-    .SpillRegisterResp(64'b1          )
-  ) i_l2_xbar (
-    .clk_i          (clk_i      ),
-    .rst_ni         (rst_ni     ),
-    // master side
-    .req_valid_i    (mem_req    ),
-    .req_ready_o    (mem_gnt    ),
-    .req_tgt_addr_i (mem_addr   ),
-    .req_wen_i      (mem_we     ),
-    .req_wdata_i    (mem_wdata  ),
-    .req_be_i       (mem_strb   ),
-    .resp_valid_o   (mem_rvalid ),
-    .resp_ready_i   ('1         ),
-    .resp_rdata_o   (mem_rdata  ),
-    // slave side
-    .req_valid_o    (bank_req   ),
-    .req_ready_i    ('1         ),
-    .req_ini_addr_o (bank_ini_d ),
-    .req_tgt_addr_o (bank_addr  ),
-    .req_wen_o      (bank_we    ),
-    .req_wdata_o    (bank_wdata ),
-    .req_be_o       (bank_strb  ),
-    .resp_valid_i   (bank_rvalid),
-    .resp_ready_o   (/*unused*/ ), // This only works because resp_ready_i = 1
-    .resp_ini_addr_i(bank_ini_q ),
-    .resp_rdata_i   (bank_rdata )
+  stream_xbar #(
+    .NumInp      (NumAXIMasters       ),
+    .NumOut      (NumL2Banks          ),
+    .payload_t   (axi_to_l2_req_chan_t),
+    .OutSpillReg (1'b0                ),
+    .ExtPrio     (1'b0                ),
+    .AxiVldRdy   (1'b1                ),
+    .LockIn      (1'b1                )
+  ) i_l2_req_xbar (
+    .clk_i   (clk_i                     ),
+    .rst_ni  (rst_ni                    ),
+    .flush_i (1'b0                      ),
+    .rr_i    ('0                        ),
+    .data_i  (axi_to_l2_req_chan        ),
+    .sel_i   (axi_to_l2_q_sel           ),
+    .valid_i (axi_to_l2_q_throttle_valid),
+    .ready_o (axi_to_l2_q_throttle_ready),
+    .data_o  (mem_req_chan              ),
+    .idx_o   (axi_to_l2_q_idx           ),
+    .valid_o (mem_req_valid             ),
+    .ready_i (mem_req_ready             )
   );
 
-  `FF(bank_rvalid, bank_req, 1'b0, clk_i, rst_ni)
-  `FF(bank_ini_q, bank_ini_d, 1'b0, clk_i, rst_ni)
+  stream_xbar #(
+    .NumInp      (NumL2Banks          ),
+    .NumOut      (NumAXIMasters       ),
+    .payload_t   (axi_to_l2_rsp_chan_t),
+    .OutSpillReg (1'b0                ),
+    .ExtPrio     (1'b0                ),
+    .AxiVldRdy   (1'b1                ),
+    .LockIn      (1'b1                )
+  ) i_l2_rsp_xbar (
+    .clk_i   (clk_i             ),
+    .rst_ni  (rst_ni            ),
+    .flush_i (1'b0              ),
+    .rr_i    ('0                ),
+    .data_i  (mem_rsp_chan      ),
+    .sel_i   (axi_to_l2_p_sel   ),
+    .valid_i (mem_rsp_valid     ),
+    .ready_o (mem_rsp_ready     ),
+    .data_o  (axi_to_l2_rsp_chan),
+    .idx_o   (/*unused*/        ),
+    .valid_o (axi_to_l2_p_valid ),
+    .ready_i (axi_to_l2_p_ready )
+  );
 
   // The initialization at reset is not supported by Verilator. Therefore, we disable the SimInit at
   // reset for Verilator. Since our preloading through the SystemVerilog testbench requires the
   // SimInit value to be assigned at reset, we use the "custom" string to invoke the initialization
   // without setting the memory to known values like "ones" or "zeros".
   localparam L2SimInit = `ifdef VERILATOR "none" `else "custom" `endif;
+  localparam L2BankAddrIndex = $clog2(L2BankBeWidth)+$clog2(NumL2Banks);
   for (genvar i = 0; i < NumL2Banks; i++) begin : gen_l2_banks
+    // Address scrambling: Cut out the bits used to index the individual banks
+    logic [AddrWidth-1:0] addr_scrambled;
+    assign addr_scrambled = {'0, mem_req_chan[i].addr[AddrWidth-1:L2BankAddrIndex], mem_req_chan[i].addr[0+:$clog2(L2BankBeWidth)]};
+    tcdm_adapter #(
+      .AddrWidth     (AddrWidth       ),
+      .BankAddrWidth (L2BankAddrWidth ),
+      .DataWidth     (L2BankWidth     ),
+      .metadata_t    (l2_axi_idx_t    ),
+      .LrScEnable    (1'b0            ),
+      .RegisterAmo   (1'b0            )
+    ) i_bank_adapter (
+      .clk_i       (clk_i                                                 ),
+      .rst_ni      (rst_ni                                                ),
+      .in_valid_i  (mem_req_valid[i]                                      ),
+      .in_ready_o  (mem_req_ready[i]                                      ),
+      .in_address_i(addr_scrambled                                        ),
+      .in_amo_i    (mem_req_chan[i].amo                                   ),
+      .in_write_i  (mem_req_chan[i].write                                 ),
+      .in_wdata_i  (mem_req_chan[i].data                                  ),
+      .in_meta_i   (axi_to_l2_q_idx[i]                                    ),
+      .in_be_i     (mem_req_chan[i].strb                                  ),
+      .in_valid_o  (mem_rsp_valid[i]                                      ),
+      .in_ready_i  (mem_rsp_ready[i]                                      ),
+      .in_rdata_o  (mem_rsp_chan[i].data                                  ),
+      .in_meta_o   (axi_to_l2_p_sel[i]                                    ),
+      .out_req_o   (bank_req[i]                                           ),
+      .out_add_o   (bank_addr[i]                                          ),
+      .out_write_o (bank_we[i]                                            ),
+      .out_wdata_o (bank_wdata[i]                                         ),
+      .out_be_o    (bank_strb[i]                                          ),
+      .out_rdata_i (bank_rdata[i]                                         )
+    );
+    assign mem_rsp_chan[i].error = 1'b0;
+
     tc_sram #(
       .DataWidth(L2BankWidth   ),
       .NumWords (L2BankNumWords),
@@ -603,12 +708,14 @@ module mempool_system
    *  Control Registers  *
    ***********************/
 
-  localparam NumPeriphs = 2; // Control registers + DMA
+  localparam NumPeriphs = 1 + NumClusters; // Control registers + (NumClusters * DMA)
 
-  typedef enum logic [$clog2(NumPeriphs) - 1:0] {
-    CtrlRegisters,
-    DMA
-  } axi_lite_xbar_slave_target;
+  localparam CtrlRegisters = 0;
+  localparam DMA = 1;
+  // typedef enum logic [$clog2(NumPeriphs) - 1:0] {
+  //   CtrlRegisters,
+  //   DMA
+  // } axi_lite_xbar_slave_target;
 
   axi_periph_req_t                     axi_periph_narrow_req;
   axi_periph_resp_t                    axi_periph_narrow_resp;
@@ -637,12 +744,13 @@ module mempool_system
   localparam addr_t CtrlRegistersEndAddr  = 32'h4001_0000;
   localparam addr_t DMABaseAddr           = 32'h4001_0000;
   localparam addr_t DMAEndAddr            = 32'h4002_0000;
+  localparam addr_t DMARangeAddr          = DMAEndAddr - DMABaseAddr;
 
   xbar_rule_32_t [NumPeriphs-1:0] axi_lite_xbar_rules;
-  assign axi_lite_xbar_rules = '{
-    '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr},
-    '{idx: DMA, start_addr: DMABaseAddr, end_addr: DMAEndAddr}
-  };
+  assign axi_lite_xbar_rules[CtrlRegisters] = '{idx: CtrlRegisters, start_addr: CtrlRegistersBaseAddr, end_addr: CtrlRegistersEndAddr};
+  for (genvar i = 0; i < NumClusters; i++) begin : gen_dma_addr_map
+    assign axi_lite_xbar_rules[DMA + i] = '{idx: DMA + i, start_addr: DMABaseAddr+(i*DMARangeAddr), end_addr: DMAEndAddr+(i*DMARangeAddr)};
+  end
 
   axi_dw_converter #(
     .AxiMaxReads         (1                ), // Number of outstanding reads
@@ -713,14 +821,13 @@ module mempool_system
     .mst_ports_req_o      (axi_lite_slv_req   ),
     .mst_ports_resp_i     (axi_lite_slv_resp  ),
     .addr_map_i           (axi_lite_xbar_rules),
-    .en_default_mst_port_i('1                 ),
+    .en_default_mst_port_i(1'b1               ),
     .default_mst_port_i   (CtrlRegisters      )
   );
 
   ctrl_registers #(
-    .NumRegs          (16 + 8             ),
     .TCDMBaseAddr     (TCDMBaseAddr       ),
-    .TCDMSize         (TCDMSize           ),
+    .TCDMSize         (L1Size             ),
     .NumCores         (NumCores           ),
     .axi_lite_req_t (axi_lite_slv_req_t ),
     .axi_lite_resp_t(axi_lite_slv_resp_t)
@@ -729,33 +836,33 @@ module mempool_system
     .rst_ni               (rst_ni                          ),
     .axi_lite_slave_req_i (axi_lite_slv_req[CtrlRegisters] ),
     .axi_lite_slave_resp_o(axi_lite_slv_resp[CtrlRegisters]),
-    .ro_cache_ctrl_o      (ro_cache_ctrl                   ),
-    .tcdm_start_address_o (/* Unused */                    ),
-    .tcdm_end_address_o   (/* Unused */                    ),
-    .num_cores_o          (/* Unused */                    ),
-    .wake_up_o            (wake_up                         ),
     .eoc_o                (/* Unused */                    ),
-    .eoc_valid_o          (eoc_valid_o                     )
+    .eoc_valid_o          (eoc_valid_o                     ),
+    .wake_up_o            (wake_up                         ),
+    .ro_cache_ctrl_o      (ro_cache_ctrl                   )
   );
 
-  mempool_dma #(
-    .axi_lite_req_t(axi_lite_slv_req_t       ),
-    .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
-    .burst_req_t   (dma_req_t                ),
-    .NumBackends   (NumGroups                ),
-    .DmaIdWidth    (1                        )
-  ) i_mempool_dma (
-    .clk_i           (clk_i                  ),
-    .rst_ni          (rst_ni                 ),
-    .config_req_i    (axi_lite_slv_req[DMA]  ),
-    .config_res_o    (axi_lite_slv_resp[DMA] ),
-    .burst_req_o     (dma_req                ),
-    .valid_o         (dma_req_valid          ),
-    .ready_i         (dma_req_ready          ),
-    .backend_idle_i  (dma_meta.backend_idle  ),
-    .trans_complete_i(dma_meta.trans_complete),
-    .dma_id_o        (dma_id                 )
-  );
+  for (genvar i = 0; i < NumClusters; i++) begin : gen_mempool_dma
+    mempool_dma #(
+      .DmaReportID   (i                        ),
+      .axi_lite_req_t(axi_lite_slv_req_t       ),
+      .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
+      .burst_req_t   (dma_req_t                ),
+      .NumBackends   (NumGroupsPerCluster      ),
+      .DmaIdWidth    (1                        )
+    ) i_mempool_dma (
+      .clk_i           (clk_i                     ),
+      .rst_ni          (rst_ni                    ),
+      .config_req_i    (axi_lite_slv_req[DMA+i]   ),
+      .config_res_o    (axi_lite_slv_resp[DMA+i]  ),
+      .burst_req_o     (dma_req[i]                ),
+      .valid_o         (dma_req_valid[i]          ),
+      .ready_i         (dma_req_ready[i]          ),
+      .backend_idle_i  (dma_meta[i].backend_idle  ),
+      .trans_complete_i(dma_meta[i].trans_complete),
+      .dma_id_o        (dma_id[i]                 )
+    );
+  end
 
   assign busy_o = 1'b0;
 

@@ -10,13 +10,18 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-uint32_t volatile barrier __attribute__((section(".l1")));
+uint32_t volatile barrier __attribute__((section(".l2")));
 uint32_t volatile log_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+    __attribute__((aligned(NUM_CORES * 4), section(".l2")));
 uint32_t volatile partial_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+    __attribute__((aligned(NUM_CORES * 4), section(".l2")));
 
 void mempool_barrier_init(uint32_t core_id) {
+  // Initialize log-barriers synch variables in parallel
+  for (uint32_t i = core_id; i < NUM_CORES * 4; i += NUM_CORES) {
+    log_barrier[i] = 0;
+    partial_barrier[i] = 0;
+  }
   if (core_id == 0) {
     // Initialize the barrier
     barrier = 0;
@@ -25,12 +30,6 @@ void mempool_barrier_init(uint32_t core_id) {
   } else {
     mempool_wfi();
   }
-  // Initialize log-barriers synch variables in parallel
-  for (uint32_t i = core_id; i < NUM_CORES * 4; i += NUM_CORES) {
-    log_barrier[i] = 0;
-    partial_barrier[i] = 0;
-  }
-  mempool_barrier(NUM_CORES);
 }
 
 void mempool_barrier(uint32_t num_cores) {

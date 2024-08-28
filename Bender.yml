@@ -35,6 +35,8 @@ sources:
   - hardware/src/address_scrambler.sv
   - hardware/src/axi2mem.sv
   - hardware/src/bootrom.sv
+  - hardware/src/control_registers/control_registers_reg_pkg.sv
+  - hardware/src/control_registers/control_registers_reg_top.sv
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 2
