@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /* This file will get processed by the precompiler to expand all macros. */
+#include "addrmap.h"
 
 MEMORY {
   l1 (R) : ORIGIN = 0x00000000, LENGTH = (NUM_CORES * BANKING_FACTOR * L1_BANK_SIZE)
@@ -31,5 +32,7 @@ SECTIONS {
   __heap_start = __l1_start;
   __heap_end = __l1_end;
 
+  // Hardware register location
+  eoc_reg                = CONTROL_REGISTER_OFFSET + CONTROL_REGISTERS_EOC_REG_OFFSET;
   fake_uart              = 0xC0000000;
 }

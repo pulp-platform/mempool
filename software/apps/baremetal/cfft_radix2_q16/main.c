@@ -39,13 +39,15 @@ int main() {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t cluster_id = mempool_get_cluster_id();
   mempool_barrier_init(core_id);
 
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_pSrc, l2_pSrc, N_CSAMPLES * sizeof(int32_t));
-    dma_memcpy_blocking(l1_twiddleCoef_q16, l2_twiddleCoef_q16,
+    dma_memcpy_blocking(cluster_id, l1_pSrc, l2_pSrc,
+                        N_CSAMPLES * sizeof(int32_t));
+    dma_memcpy_blocking(cluster_id, l1_twiddleCoef_q16, l2_twiddleCoef_q16,
                         (3 * N_CSAMPLES / 4) * sizeof(int32_t));
-    dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
+    dma_memcpy_blocking(cluster_id, l1_BitRevIndexTable, l2_BitRevIndexTable,
                         BITREVINDEXTABLE_LENGTH * sizeof(uint16_t));
   }
   mempool_barrier(num_cores);

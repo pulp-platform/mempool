@@ -28,12 +28,15 @@ int main() {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t cluster_id = mempool_get_cluster_id();
   mempool_barrier_init(core_id);
 
   // Initialize Matrices
   if (core_id == 0) {
-    dma_memcpy_blocking(matrix_a, A, matrix_M * matrix_N * sizeof(int32_t));
-    dma_memcpy_blocking(matrix_b, B, matrix_N * matrix_P * sizeof(int32_t));
+    dma_memcpy_blocking(cluster_id, matrix_a, A,
+                        matrix_M * matrix_N * sizeof(int32_t));
+    dma_memcpy_blocking(cluster_id, matrix_b, B,
+                        matrix_N * matrix_P * sizeof(int32_t));
   }
   mempool_barrier(num_cores);
 

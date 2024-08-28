@@ -58,6 +58,7 @@ dump(fence, 11);
 int main() {
   // uint32_t num_cores_per_group = NUM_CORES / NUM_GROUPS;
   uint32_t core_id = mempool_get_core_id();
+  uint32_t cluster_id = mempool_get_cluster_id();
   // Initialize barrier and synchronize
   mempool_barrier_init(core_id);
 
@@ -76,7 +77,8 @@ int main() {
     // Program DMA to create pressure on the read channel of the L2 and wait a
     // few cycles
     if (core_id == 0) {
-      dma_memcpy_nonblocking(l1_data, l2_data, SIZE * sizeof(uint32_t));
+      dma_memcpy_nonblocking(cluster_id, l1_data, l2_data,
+                             SIZE * sizeof(uint32_t));
       wake_up_tile(0, 1);
     }
     // Trigger an inconsistency by trying to have a write overtake a read
@@ -98,12 +100,13 @@ int main() {
     // Run the check
     __atomic_fetch_and(&error_no_fence, read_no_fence != golden,
                        __ATOMIC_RELAXED);
-    dma_wait();
+    dma_wait(cluster_id);
 
     // Again but with a fence
     // Program DMA to create pressure on the read channel of the L2
     if (core_id == 0) {
-      dma_memcpy_nonblocking(l1_data, l2_data, SIZE * sizeof(uint32_t));
+      dma_memcpy_nonblocking(cluster_id, l1_data, l2_data,
+                             SIZE * sizeof(uint32_t));
       wake_up_tile(0, 1);
     }
     // Trigger an inconsistency by trying to have a write overtake a read
@@ -124,7 +127,7 @@ int main() {
     dump_fence(read_fence);
     // Check and wait
     __atomic_fetch_and(&error_fence, read_fence != golden, __ATOMIC_RELAXED);
-    dma_wait();
+    dma_wait(cluster_id);
 
     // Barrier between core 0 and 1
     if (core_id == 0) {

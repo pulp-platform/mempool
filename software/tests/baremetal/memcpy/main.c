@@ -69,6 +69,7 @@ void verify_dma_parallel(int32_t *addr, uint32_t num_words, uint32_t id,
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t cluster_id = mempool_get_cluster_id();
   int32_t error = 0;
 
   // Initialize barrier and synchronize
@@ -82,7 +83,7 @@ int main() {
 
     // Copy in
     uint32_t time = mempool_get_timer();
-    dma_memcpy_blocking(l1_data, l2_data, SIZE * sizeof(int32_t));
+    dma_memcpy_blocking(cluster_id, l1_data, l2_data, SIZE * sizeof(int32_t));
     time = mempool_get_timer() - time;
     dump_end(time);
   }
@@ -92,7 +93,8 @@ int main() {
   if (core_id == 0) {
     // Copy out
     uint32_t time = mempool_get_timer();
-    dma_memcpy_blocking(l2_data_move_out, l1_data, SIZE * sizeof(int32_t));
+    dma_memcpy_blocking(cluster_id, l2_data_move_out, l1_data,
+                        SIZE * sizeof(int32_t));
     time = mempool_get_timer() - time;
     dump_end(time);
   }
