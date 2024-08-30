@@ -14,21 +14,19 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "data_dotp_i32.h"
+#include "data_dotp_f32.h"
 #define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
-#define LOG_BARRIERS
-// #define ATOMIC_REDUCTION
 // #define SINGLE_CORE_REDUCTION
 #define BINARY_REDUCTION
 
 // Vectors for kernel computation
-int32_t l1_A[LEN] __attribute__((aligned(LEN), section(".l1_prio")));
-int32_t l1_B[LEN] __attribute__((aligned(LEN), section(".l1_prio")));
+float l1_A[LEN] __attribute__((aligned(LEN), section(".l1_prio")));
+float l1_B[LEN] __attribute__((aligned(LEN), section(".l1_prio")));
 uint32_t red_barrier[NUM_BANKS]
     __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-int32_t sum[NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+float sum[NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
-#include "baremetal/mempool_dotp_i32.h"
+#include "baremetal/mempool_dotp_f32.h"
 
 int main() {
 
@@ -49,19 +47,19 @@ int main() {
   }
   mempool_barrier(num_cores);
 
-  //  // SINGLE-CORE
-  //  time_init = mempool_get_timer();
-  //  dotp_i32s_unrolled4(l1_A, l1_B, sum, LEN);
-  //  time_end = mempool_get_timer();
+  //    // SINGLE-CORE
+  //    time_init = mempool_get_timer();
+  //    dotp_f32s_unrolled4(l1_A, l1_B, sum, LEN);
+  //    time_end = mempool_get_timer();
 
-  //  // PARALLEL
-  //  time_init = mempool_get_timer();
-  //  dotp_i32p(l1_A, l1_B, sum, LEN, num_cores);
-  //  time_end = mempool_get_timer();
+  //   // PARALLEL
+  //   time_init = mempool_get_timer();
+  //   dotp_f32p(l1_A, l1_B, sum, LEN, num_cores);
+  //   time_end = mempool_get_timer();
 
   // PARALLEL, LOCAL ACCESSES
   time_init = mempool_get_timer();
-  dotp_i32p_local_unrolled4(l1_A, l1_B, sum, LEN);
+  dotp_f32p_local_unrolled4(l1_A, l1_B, sum, LEN);
   time_end = mempool_get_timer();
 
   // Check results

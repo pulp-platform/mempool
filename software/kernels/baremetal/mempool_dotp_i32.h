@@ -4,81 +4,25 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-/* Parallel dot-product */
-void dotp_i32p(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
-               uint32_t nPE) {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t step = Len / nPE;
-  register int32_t local_sum = 0;
-  register int32_t a, b;
-  for (uint32_t i = core_id * step; i < core_id * step + step; i++) {
-    a = in_a[i];
-    b = in_b[i];
-    local_sum += a * b;
+#define DOTPI32_UNROLLED4_LOOP                                                 \
+  {                                                                            \
+    a0 = in_a[i];                                                              \
+    b0 = in_b[i];                                                              \
+    a1 = in_a[i + 1];                                                          \
+    b1 = in_b[i + 1];                                                          \
+    a2 = in_a[i + 2];                                                          \
+    b2 = in_b[i + 2];                                                          \
+    a3 = in_a[i + 3];                                                          \
+    b3 = in_b[i + 3];                                                          \
+    local_sum0 += a0 * b0;                                                     \
+    local_sum1 += a1 * b1;                                                     \
+    local_sum2 += a2 * b2;                                                     \
+    local_sum3 += a3 * b3;                                                     \
   }
-  __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
-#ifdef LOG_BARRIERS
-  mempool_log_barrier(2, core_id);
-#else
-  uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier(num_cores);
-#endif
-  return;
-}
-
-/* Parallel dot-product with loop unrolling*/
-void dotp_i32p_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
-                         uint32_t nPE) {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t step = Len / nPE;
-  uint32_t reminder = step % 4;
-  uint32_t i;
-
-  register int32_t a0 = 0, a1 = 0, a2 = 0, a3 = 0;
-  register int32_t b2 = 0, b1 = 0, b0 = 0, b3 = 0;
-  register int32_t local_sum0 = 0;
-  register int32_t local_sum1 = 0;
-  register int32_t local_sum2 = 0;
-  register int32_t local_sum3 = 0;
-  for (i = core_id * step; i < (core_id * step + step) - reminder; i += 4) {
-    a0 = in_a[i];
-    b0 = in_b[i];
-    a1 = in_a[i + 1];
-    b1 = in_b[i + 1];
-    a2 = in_a[i + 2];
-    b2 = in_b[i + 2];
-    a3 = in_a[i + 3];
-    b3 = in_b[i + 3];
-    local_sum0 += a0 * b0;
-    local_sum1 += a1 * b1;
-    local_sum2 += a2 * b2;
-    local_sum3 += a3 * b3;
-  }
-  i = core_id * step + step - reminder;
-  while (i < step) {
-    a0 = in_a[i];
-    b0 = in_b[i];
-    local_sum0 += a0 * b0;
-    i++;
-  }
-  local_sum0 += local_sum1;
-  local_sum2 += local_sum3;
-  local_sum0 += local_sum2;
-  __atomic_fetch_add(&s[0], local_sum0, __ATOMIC_RELAXED);
-#ifdef LOG_BARRIERS
-  mempool_log_barrier(2, core_id);
-#else
-  uint32_t num_cores = mempool_get_core_count();
-  mempool_barrier(num_cores);
-#endif
-  return;
-}
 
 /* Bynary tree reduction */
-void mempool_binary_reduction(int32_t *sum, uint32_t core_id,
-                              uint32_t num_cores) {
+void mempool_binary_reduction_i32(int32_t *sum, uint32_t core_id,
+                                  uint32_t num_cores) {
 
   uint32_t idx, step = 2, previous_step = 1;
   while (num_cores > 1) {
@@ -113,6 +57,128 @@ void mempool_binary_reduction(int32_t *sum, uint32_t core_id,
   return;
 }
 
+/* Single-core dot-product */
+void dotp_i32s(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len) {
+
+  uint32_t core_id = mempool_get_core_id();
+  if (core_id == 0) {
+    mempool_start_benchmark();
+    // Kernel execution
+    register int32_t local_sum = 0;
+    int32_t *end = in_a + Len;
+    do {
+      local_sum += ((*in_a++) * (*in_b++));
+    } while (in_a < end);
+    *s = local_sum;
+    mempool_stop_benchmark();
+  }
+
+  return;
+}
+
+/* Single-core dot-product unrolled4 */
+void dotp_i32s_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
+                         uint32_t Len) {
+
+  uint32_t core_id = mempool_get_core_id();
+  if (core_id == 0) {
+    mempool_start_benchmark();
+    uint32_t reminder = Len % 4;
+    uint32_t i = 0;
+
+    register int32_t a0 = 0, a1 = 0, a2 = 0, a3 = 0;
+    register int32_t b2 = 0, b1 = 0, b0 = 0, b3 = 0;
+    register int32_t local_sum0 = 0;
+    register int32_t local_sum1 = 0;
+    register int32_t local_sum2 = 0;
+    register int32_t local_sum3 = 0;
+
+    for (i = 0; i < (Len - reminder); i += 4) {
+      DOTPI32_UNROLLED4_LOOP;
+    }
+    while (i < Len) {
+      a0 = in_a[i];
+      b0 = in_b[i];
+      local_sum0 += a0 * b0;
+      i++;
+    }
+    // Reduction
+    local_sum0 += local_sum1;
+    local_sum2 += local_sum3;
+    local_sum0 += local_sum2;
+    *s = local_sum0;
+    mempool_stop_benchmark();
+  }
+
+  return;
+}
+
+/* Parallel dot-product */
+void dotp_i32p(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
+               uint32_t nPE) {
+
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t step = Len / nPE;
+  register int32_t local_sum = 0;
+  register int32_t a, b;
+  for (uint32_t i = core_id * step; i < core_id * step + step; i++) {
+    a = in_a[i];
+    b = in_b[i];
+    local_sum += a * b;
+  }
+  __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
+
+#ifdef LOG_BARRIERS
+  mempool_log_barrier(2, core_id);
+#else
+  uint32_t num_cores = mempool_get_core_count();
+  mempool_barrier(num_cores);
+#endif
+
+  return;
+}
+
+/* Parallel dot-product with loop unrolling*/
+void dotp_i32p_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
+                         uint32_t nPE) {
+
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t step = Len / nPE;
+  uint32_t reminder = step % 4;
+  uint32_t i;
+
+  register int32_t a0 = 0, a1 = 0, a2 = 0, a3 = 0;
+  register int32_t b2 = 0, b1 = 0, b0 = 0, b3 = 0;
+  register int32_t local_sum0 = 0;
+  register int32_t local_sum1 = 0;
+  register int32_t local_sum2 = 0;
+  register int32_t local_sum3 = 0;
+
+  for (i = core_id * step; i < (core_id * step + step) - reminder; i += 4) {
+    DOTPI32_UNROLLED4_LOOP;
+  }
+  i = core_id * step + step - reminder;
+  while (i < step) {
+    a0 = in_a[i];
+    b0 = in_b[i];
+    local_sum0 += a0 * b0;
+    i++;
+  }
+  local_sum0 += local_sum1;
+  local_sum2 += local_sum3;
+  local_sum0 += local_sum2;
+  __atomic_fetch_add(&s[0], local_sum0, __ATOMIC_RELAXED);
+
+#ifdef LOG_BARRIERS
+  mempool_log_barrier(2, core_id);
+#else
+  uint32_t num_cores = mempool_get_core_count();
+  mempool_barrier(num_cores);
+#endif
+
+  return;
+}
+
 /* Parallel dot-product with loop unrolling */
 /* Load and stores only in local memory */
 #define NUM_CORES_RED (16)
@@ -120,7 +186,7 @@ void dotp_i32p_local_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
                                uint32_t Len) {
 
   uint32_t core_id = mempool_get_core_id();
-  uint32_t const remainder = Len % 4;
+  uint32_t const remainder = Len % BANKING_FACTOR;
   uint32_t const idx_stop = Len - remainder;
 
   register int32_t a0 = 0, a1 = 0, a2 = 0, a3 = 0;
@@ -130,7 +196,7 @@ void dotp_i32p_local_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
   register int32_t local_sum2 = 0;
   register int32_t local_sum3 = 0;
 
-  for (uint32_t i = core_id * 4; i < idx_stop; i += NUM_BANKS) {
+  for (uint32_t i = core_id * BANKING_FACTOR; i < idx_stop; i += NUM_BANKS) {
     a0 = in_a[i];
     b0 = in_b[i];
     a1 = in_a[i + 1];
@@ -187,8 +253,8 @@ void dotp_i32p_local_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
 // B) Partial sums are reduced logarithmically
 #elif defined(BINARY_REDUCTION)
   uint32_t num_cores = mempool_get_core_count();
-  s[core_id * 4] = local_sum0;
-  mempool_binary_reduction(s, core_id, num_cores);
+  s[core_id * BANKING_FACTOR] = local_sum0;
+  mempool_binary_reduction_i32(s, core_id, num_cores);
 
 #endif
 

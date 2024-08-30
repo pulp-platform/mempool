@@ -22,6 +22,24 @@ def generate_dotp_i32(Len):
     C = np.dot(A, B)
     return A, B, C
 
+
+def generate_dotp_f32(Len):
+
+    # Create matrix
+    A = np.random.rand(Len).astype(np.float32)
+    B = np.random.rand(Len).astype(np.float32)
+    C = (np.dot(A, B)).astype(np.float32)
+    return A, B, C
+
+
+def generate_dotp_f16(Len):
+
+    # Create matrix
+    A = np.random.rand(Len).astype(np.float16)
+    B = np.random.rand(Len).astype(np.float16)
+    C = (np.dot(A, B)).astype(np.float16)
+    return A, B, C
+
 ##################
 # compute_result #
 ##################
@@ -66,6 +84,26 @@ def main():
     tpl = pathlib.Path(__file__).parent.absolute() / "data_dotp_i32.h.tpl"
     kwargs = {
         'name': 'data_dotp_i32',
+        'A': A,
+        'B': B,
+        'C': C,
+        'Len': Len}
+    gen_data_header_file(args.outdir, tpl, **kwargs)
+
+    A, B, C = generate_dotp_f32(Len)
+    tpl = pathlib.Path(__file__).parent.absolute() / "data_dotp_f32.h.tpl"
+    kwargs = {
+        'name': 'data_dotp_f32',
+        'A': A,
+        'B': B,
+        'C': C,
+        'Len': Len}
+    gen_data_header_file(args.outdir, tpl, **kwargs)
+
+    A, B, C = generate_dotp_f16(Len)
+    tpl = pathlib.Path(__file__).parent.absolute() / "data_dotp_f16.h.tpl"
+    kwargs = {
+        'name': 'data_dotp_f16',
         'A': A,
         'B': B,
         'C': C,
