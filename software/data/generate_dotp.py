@@ -40,6 +40,26 @@ def generate_dotp_f16(Len):
     C = (np.dot(A, B)).astype(np.float16)
     return A, B, C
 
+
+def generate_axpy_f32(Len):
+
+    # Create matrix
+    A = np.random.rand(Len).astype(np.float32)
+    B = np.random.rand(Len).astype(np.float32)
+    C = np.random.rand(Len).astype(np.float32)
+    out = C + A * B
+    return A, B, C, out
+
+
+def generate_axpy_f16(Len):
+
+    # Create matrix
+    A = np.random.rand(Len).astype(np.float16)
+    B = np.random.rand(Len).astype(np.float16)
+    C = np.random.rand(Len).astype(np.float16)
+    out = C + A * B
+    return A, B, C, out
+
 ##################
 # compute_result #
 ##################
@@ -73,7 +93,7 @@ def main():
         "--length",
         type=int,
         required=False,
-        default=4096,
+        default=1024,
         help='First dimension.'
     )
 
@@ -107,6 +127,28 @@ def main():
         'A': A,
         'B': B,
         'C': C,
+        'Len': Len}
+    gen_data_header_file(args.outdir, tpl, **kwargs)
+
+    A, B, C, out = generate_axpy_f32(Len)
+    tpl = pathlib.Path(__file__).parent.absolute() / "data_axpy_f32.h.tpl"
+    kwargs = {
+        'name': 'data_axpy_f32',
+        'A': A,
+        'B': B,
+        'C': C,
+        'out': out,
+        'Len': Len}
+    gen_data_header_file(args.outdir, tpl, **kwargs)
+
+    A, B, C, out = generate_axpy_f16(Len)
+    tpl = pathlib.Path(__file__).parent.absolute() / "data_axpy_f16.h.tpl"
+    kwargs = {
+        'name': 'data_axpy_f16',
+        'A': A,
+        'B': B,
+        'C': C,
+        'out': out,
         'Len': Len}
     gen_data_header_file(args.outdir, tpl, **kwargs)
 
