@@ -155,6 +155,10 @@ module mempool_cluster_floonoc_wrapper
   floo_tcdm_resp_t  [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_out;
   logic             [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_out_ready, floo_tcdm_resp_out_valid;
 
+  floo_narrow_wide_pkg::floo_req_t  [NumX-1:0][NumY-1:0][West:North] floo_axi_req_out, floo_axi_req_in;
+  floo_narrow_wide_pkg::floo_rsp_t  [NumX-1:0][NumY-1:0][West:North] floo_axi_rsp_out, floo_axi_rsp_in;
+  floo_narrow_wide_pkg::floo_wide_t [NumX-1:0][NumY-1:0][West:North] floo_axi_wide_out, floo_axi_wide_in;
+
   for (genvar x = 0; x < NumX; x++) begin : gen_groups_x
     for (genvar y = 0; y < NumY; y++) begin : gen_groups_y
       group_xy_id_t group_id;
@@ -176,6 +180,44 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in[x][y][East]          = floo_tcdm_resp_out[x+1][y][West];
         assign floo_tcdm_resp_in_valid[x][y][East]    = floo_tcdm_resp_out_valid[x+1][y][West];
         assign floo_tcdm_resp_in_ready[x][y][East]    = floo_tcdm_resp_out_ready[x+1][y][West];
+        assign floo_axi_req_in[x][y][East]            = floo_axi_req_out[x+1][y][West];
+        assign floo_axi_rsp_in[x][y][East]            = floo_axi_rsp_out[x+1][y][West];
+        assign floo_axi_wide_in[x][y][East]           = floo_axi_wide_out[x+1][y][West];
+
+        floo_narrow_wide_chimney #(
+          .EnNarrowSbrPort  ( 1'b0                                      ),
+          .EnNarrowMgrPort  ( 1'b0                                      ),
+          .EnWideSbrPort    ( 1'b1                                      ),
+          .EnWideMgrPort    ( 1'b0                                      ),
+          .AtopSupport      ( 1'b0                                      ),
+          .WideMaxTxns      ( 'd32                                      ),
+          .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
+          .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
+          .Sam              ( terapool_floo_noc_pkg::Sam                ),
+          .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
+          .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+        ) i_floo_narrow_wide_chimney (
+          .clk_i,
+          .rst_ni,
+          .test_enable_i        ( testmode_i                                      ),
+          .sram_cfg_i           ( '0                                              ),
+          .axi_narrow_in_req_i  ( '0                                              ),
+          .axi_narrow_in_rsp_o  (                                                 ),
+          .axi_narrow_out_req_o (                                                 ),
+          .axi_narrow_out_rsp_i ( '0                                              ),
+          .axi_wide_in_req_i    ( '0                                              ),
+          .axi_wide_in_rsp_o    (                                                 ),
+          .axi_wide_out_req_o   ( axi_mst_req_o[y]                                ), // TODO: This is definitely not correct
+          .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]                               ), // TODO: This is definitely not correct
+          .id_i                 ( HbmNi + y                                       ), // TODO: This is definitely not correct
+          .route_table_i        ( terapool_floo_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
+          .floo_req_o           ( floo_axi_req_out[x][y][West]                    ),
+          .floo_rsp_o           ( floo_axi_rsp_out[x][y][West]                    ),
+          .floo_wide_o          ( floo_axi_wide_out[x][y][West]                   ),
+          .floo_req_i           ( floo_axi_req_in[x][y][West]                     ),
+          .floo_rsp_i           ( floo_axi_rsp_in[x][y][West]                     ),
+          .floo_wide_i          ( floo_axi_wide_in[x][y][West]                    )
+        );
       end
       else if (x == NumX-1) begin
         // East
@@ -192,6 +234,44 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in[x][y][West]          = floo_tcdm_resp_out[x-1][y][East];
         assign floo_tcdm_resp_in_valid[x][y][West]    = floo_tcdm_resp_out_valid[x-1][y][East];
         assign floo_tcdm_resp_in_ready[x][y][West]    = floo_tcdm_resp_out_ready[x-1][y][East];
+        assign floo_axi_req_in[x][y][West]            = floo_axi_req_out[x-1][y][East];
+        assign floo_axi_rsp_in[x][y][West]            = floo_axi_rsp_out[x-1][y][East];
+        assign floo_axi_wide_in[x][y][West]           = floo_axi_wide_out[x-1][y][East];
+
+        floo_narrow_wide_chimney #(
+          .EnNarrowSbrPort  ( 1'b0                                      ),
+          .EnNarrowMgrPort  ( 1'b0                                      ),
+          .EnWideSbrPort    ( 1'b1                                      ),
+          .EnWideMgrPort    ( 1'b0                                      ),
+          .AtopSupport      ( 1'b0                                      ),
+          .WideMaxTxns      ( 'd32                                      ),
+          .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
+          .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
+          .Sam              ( terapool_floo_noc_pkg::Sam                ),
+          .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
+          .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+        ) i_floo_narrow_wide_chimney (
+          .clk_i,
+          .rst_ni,
+          .test_enable_i        ( testmode_i                                      ),
+          .sram_cfg_i           ( '0                                              ),
+          .axi_narrow_in_req_i  ( '0                                              ),
+          .axi_narrow_in_rsp_o  (                                                 ),
+          .axi_narrow_out_req_o (                                                 ),
+          .axi_narrow_out_rsp_i ( '0                                              ),
+          .axi_wide_in_req_i    ( '0                                              ),
+          .axi_wide_in_rsp_o    (                                                 ),
+          .axi_wide_out_req_o   ( axi_mst_req_o[y]                                ), // TODO: This is definitely not correct
+          .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]                               ), // TODO: This is definitely not correct
+          .id_i                 ( HbmNi + y                                       ), // TODO: This is definitely not correct
+          .route_table_i        ( terapool_floo_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
+          .floo_req_o           ( floo_axi_req_out[x][y][East]                    ),
+          .floo_rsp_o           ( floo_axi_rsp_out[x][y][East]                    ),
+          .floo_wide_o          ( floo_axi_wide_out[x][y][East]                   ),
+          .floo_req_i           ( floo_axi_req_in[x][y][East]                     ),
+          .floo_rsp_i           ( floo_axi_rsp_in[x][y][East]                     ),
+          .floo_wide_i          ( floo_axi_wide_in[x][y][East]                    )
+        );
       end
       else begin
         // East
@@ -201,6 +281,9 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in[x][y][East]          = floo_tcdm_resp_out[x+1][y][West];
         assign floo_tcdm_resp_in_valid[x][y][East]    = floo_tcdm_resp_out_valid[x+1][y][West];
         assign floo_tcdm_resp_in_ready[x][y][East]    = floo_tcdm_resp_out_ready[x+1][y][West];
+        assign floo_axi_req_in[x][y][East]            = floo_axi_req_out[x+1][y][West];
+        assign floo_axi_rsp_in[x][y][East]            = floo_axi_rsp_out[x+1][y][West];
+        assign floo_axi_wide_in[x][y][East]           = floo_axi_wide_out[x+1][y][West];
         // West
         assign floo_tcdm_req_in[x][y][West]           = floo_tcdm_req_out[x-1][y][East];
         assign floo_tcdm_req_in_valid[x][y][West]     = floo_tcdm_req_out_valid[x-1][y][East];
@@ -208,6 +291,9 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in[x][y][West]          = floo_tcdm_resp_out[x-1][y][East];
         assign floo_tcdm_resp_in_valid[x][y][West]    = floo_tcdm_resp_out_valid[x-1][y][East];
         assign floo_tcdm_resp_in_ready[x][y][West]    = floo_tcdm_resp_out_ready[x-1][y][East];
+        assign floo_axi_req_in[x][y][West]            = floo_axi_req_out[x-1][y][East];
+        assign floo_axi_rsp_in[x][y][West]            = floo_axi_rsp_out[x-1][y][East];
+        assign floo_axi_wide_in[x][y][West]           = floo_axi_wide_out[x-1][y][East];
       end
 
       if (y == 0) begin
@@ -225,6 +311,44 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in[x][y][North]         = floo_tcdm_resp_out[x][y+1][South];
         assign floo_tcdm_resp_in_valid[x][y][North]   = floo_tcdm_resp_out_valid[x][y+1][South];
         assign floo_tcdm_resp_in_ready[x][y][North]   = floo_tcdm_resp_out_ready[x][y+1][South];
+        assign floo_axi_req_in[x][y][North]           = floo_axi_req_out[x][y+1][South];
+        assign floo_axi_rsp_in[x][y][North]           = floo_axi_rsp_out[x][y+1][South];
+        assign floo_axi_wide_in[x][y][North]          = floo_axi_wide_out[x][y+1][South];
+
+        floo_narrow_wide_chimney #(
+          .EnNarrowSbrPort  ( 1'b0                                      ),
+          .EnNarrowMgrPort  ( 1'b0                                      ),
+          .EnWideSbrPort    ( 1'b1                                      ),
+          .EnWideMgrPort    ( 1'b0                                      ),
+          .AtopSupport      ( 1'b0                                      ),
+          .WideMaxTxns      ( 'd32                                      ),
+          .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
+          .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
+          .Sam              ( terapool_floo_noc_pkg::Sam                ),
+          .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
+          .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+        ) i_floo_narrow_wide_chimney (
+          .clk_i,
+          .rst_ni,
+          .test_enable_i        ( testmode_i                                      ),
+          .sram_cfg_i           ( '0                                              ),
+          .axi_narrow_in_req_i  ( '0                                              ),
+          .axi_narrow_in_rsp_o  (                                                 ),
+          .axi_narrow_out_req_o (                                                 ),
+          .axi_narrow_out_rsp_i ( '0                                              ),
+          .axi_wide_in_req_i    ( '0                                              ),
+          .axi_wide_in_rsp_o    (                                                 ),
+          .axi_wide_out_req_o   ( axi_mst_req_o[y]                                ), // TODO: This is definitely not correct
+          .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]                               ), // TODO: This is definitely not correct
+          .id_i                 ( HbmNi + y                                       ), // TODO: This is definitely not correct
+          .route_table_i        ( terapool_floo_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
+          .floo_req_o           ( floo_axi_req_out[x][y][South]                   ),
+          .floo_rsp_o           ( floo_axi_rsp_out[x][y][South]                   ),
+          .floo_wide_o          ( floo_axi_wide_out[x][y][South]                  ),
+          .floo_req_i           ( floo_axi_req_in[x][y][South]                    ),
+          .floo_rsp_i           ( floo_axi_rsp_in[x][y][South]                    ),
+          .floo_wide_i          ( floo_axi_wide_in[x][y][South]                   )
+        );
       end
       else if (y == NumY-1) begin
         // North
@@ -241,6 +365,44 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in[x][y][South]         = floo_tcdm_resp_out[x][y-1][North];
         assign floo_tcdm_resp_in_valid[x][y][South]   = floo_tcdm_resp_out_valid[x][y-1][North];
         assign floo_tcdm_resp_in_ready[x][y][South]   = floo_tcdm_resp_out_ready[x][y-1][North];
+        assign floo_axi_req_in[x][y][South]           = floo_axi_req_out[x][y-1][North];
+        assign floo_axi_rsp_in[x][y][South]           = floo_axi_rsp_out[x][y-1][North];
+        assign floo_axi_wide_in[x][y][South]          = floo_axi_wide_out[x][y-1][North];
+
+        floo_narrow_wide_chimney #(
+          .EnNarrowSbrPort  ( 1'b0                                      ),
+          .EnNarrowMgrPort  ( 1'b0                                      ),
+          .EnWideSbrPort    ( 1'b1                                      ),
+          .EnWideMgrPort    ( 1'b0                                      ),
+          .AtopSupport      ( 1'b0                                      ),
+          .WideMaxTxns      ( 'd32                                      ),
+          .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
+          .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
+          .Sam              ( terapool_floo_noc_pkg::Sam                ),
+          .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
+          .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+        ) i_floo_narrow_wide_chimney (
+          .clk_i,
+          .rst_ni,
+          .test_enable_i        ( testmode_i                                      ),
+          .sram_cfg_i           ( '0                                              ),
+          .axi_narrow_in_req_i  ( '0                                              ),
+          .axi_narrow_in_rsp_o  (                                                 ),
+          .axi_narrow_out_req_o (                                                 ),
+          .axi_narrow_out_rsp_i ( '0                                              ),
+          .axi_wide_in_req_i    ( '0                                              ),
+          .axi_wide_in_rsp_o    (                                                 ),
+          .axi_wide_out_req_o   ( axi_mst_req_o[y]                                ), // TODO: This is definitely not correct
+          .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]                               ), // TODO: This is definitely not correct
+          .id_i                 ( HbmNi + y                                       ), // TODO: This is definitely not correct
+          .route_table_i        ( terapool_floo_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
+          .floo_req_o           ( floo_axi_req_out[x][y][North]                   ),
+          .floo_rsp_o           ( floo_axi_rsp_out[x][y][North]                   ),
+          .floo_wide_o          ( floo_axi_wide_out[x][y][North]                  ),
+          .floo_req_i           ( floo_axi_req_in[x][y][North]                    ),
+          .floo_rsp_i           ( floo_axi_rsp_in[x][y][North]                    ),
+          .floo_wide_i          ( floo_axi_wide_in[x][y][North]                   )
+        );
       end
       else begin
         // North
@@ -250,6 +412,9 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in[x][y][North]         = floo_tcdm_resp_out[x][y+1][South];
         assign floo_tcdm_resp_in_valid[x][y][North]   = floo_tcdm_resp_out_valid[x][y+1][South];
         assign floo_tcdm_resp_in_ready[x][y][North]   = floo_tcdm_resp_out_ready[x][y+1][South];
+        assign floo_axi_req_in[x][y][North]           = floo_axi_req_out[x][y+1][South];
+        assign floo_axi_rsp_in[x][y][North]           = floo_axi_rsp_out[x][y+1][South];
+        assign floo_axi_wide_in[x][y][North]          = floo_axi_wide_out[x][y+1][South];
         // South
         assign floo_tcdm_req_in[x][y][South]          = floo_tcdm_req_out[x][y-1][North];
         assign floo_tcdm_req_in_valid[x][y][South]    = floo_tcdm_req_out_valid[x][y-1][North];
@@ -257,6 +422,9 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in[x][y][South]         = floo_tcdm_resp_out[x][y-1][North];
         assign floo_tcdm_resp_in_valid[x][y][South]   = floo_tcdm_resp_out_valid[x][y-1][North];
         assign floo_tcdm_resp_in_ready[x][y][South]   = floo_tcdm_resp_out_ready[x][y-1][North];
+        assign floo_axi_req_in[x][y][South]           = floo_axi_req_out[x][y-1][North];
+        assign floo_axi_rsp_in[x][y][South]           = floo_axi_rsp_out[x][y-1][North];
+        assign floo_axi_wide_in[x][y][South]          = floo_axi_wide_out[x][y-1][North];
       end
 
       mempool_group_floonoc_wrapper #(
@@ -292,9 +460,13 @@ module mempool_cluster_floonoc_wrapper
         .dma_req_ready_o         (dma_req_group_q_ready[(NumY*x+y)]                               ),
         // DMA status
         .dma_meta_o              (dma_meta[(NumY*x+y)]                                            ),
-        // AXI interface
-        .axi_mst_req_o           (axi_mst_req_o[(NumY*x+y)*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
-        .axi_mst_resp_i          (axi_mst_resp_i[(NumY*x+y)*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
+        // AXI Router interface
+        .floo_axi_req_o          (floo_axi_req_out[x][y]                                          ),
+        .floo_axi_rsp_o          (floo_axi_rsp_out[x][y]                                          ),
+        .floo_axi_wide_o         (floo_axi_wide_out[x][y]                                         ),
+        .floo_axi_req_i          (floo_axi_req_in[x][y]                                           ),
+        .floo_axi_rsp_i          (floo_axi_rsp_in[x][y]                                           ),
+        .floo_axi_wide_i         (floo_axi_wide_in[x][y]                                          )
       );
     end : gen_groups_y
   end : gen_groups_x
