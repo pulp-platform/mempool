@@ -43,7 +43,6 @@
 [submodule "hardware/deps/dram_rtl_sim"]
 	path = hardware/deps/dram_rtl_sim
   url = https://github.com/pulp-platform/dram_rtl_sim.git
-[submodule "hardware/deps/FlooNoC"]
-	path = hardware/deps/FlooNoC
+[submodule "hardware/deps/floo_noc"]
+	path = hardware/deps/floo_noc
 	url = https://github.com/pulp-platform/FlooNoC.git
-	branch = mempool-tcdm
