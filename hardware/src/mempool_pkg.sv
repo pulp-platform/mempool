@@ -325,7 +325,7 @@ package mempool_pkg;
     logic               wen;
     strb_t              be;
     data_t              data;
-  } floo_req_payload_t;
+  } floo_tcdm_req_payload_t;
 
   typedef struct packed {
     meta_id_t           meta_id;
@@ -335,22 +335,22 @@ package mempool_pkg;
     group_xy_id_t       dst_id;
     tcdm_addr_t         tgt_addr;
     logic               last;
-  } floo_req_meta_t;
+  } floo_tcdm_req_meta_t;
 
   typedef struct packed {
-    floo_req_meta_t     hdr;
-  } floo_rd_req_t;
+    floo_tcdm_req_meta_t  hdr;
+  } floo_tcdm_rd_req_t;
 
   typedef struct packed {
-    floo_req_payload_t  payload;
-    floo_req_meta_t     hdr;
-  } floo_rdwr_req_t;
+    floo_tcdm_req_payload_t payload;
+    floo_tcdm_req_meta_t    hdr;
+  } floo_tcdm_rdwr_req_t;
 
   // FlooNoC resp types
   typedef struct packed {
     amo_t               amo;
     data_t              data;
-  } floo_resp_payload_t;
+  } floo_tcdm_resp_payload_t;
 
   typedef struct packed {
     meta_id_t           meta_id;
@@ -361,12 +361,12 @@ package mempool_pkg;
     `endif
     group_xy_id_t       dst_id;
     logic               last;
-  } floo_resp_meta_t;
+  } floo_tcdm_resp_meta_t;
 
   typedef struct packed {
-    floo_resp_payload_t payload;
-    floo_resp_meta_t    hdr;
-  } floo_resp_t;
+    floo_tcdm_resp_payload_t payload;
+    floo_tcdm_resp_meta_t    hdr;
+  } floo_tcdm_resp_t;
 
   /**********************
    *  QUEUE PARAMETERS  *

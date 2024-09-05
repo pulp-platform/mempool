@@ -147,22 +147,21 @@ module mempool_cluster_floonoc_wrapper
 
   // narrow req noc
   `ifdef USE_NARROW_REQ_CHANNEL
-  floo_rd_req_t   [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0] floo_narrow_req_in;
-  logic           [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0] floo_narrow_req_in_ready, floo_narrow_req_in_valid;
-  floo_rd_req_t   [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0] floo_narrow_req_out;
-  logic           [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0] floo_narrow_req_out_ready, floo_narrow_req_out_valid;
+  floo_tcdm_rd_req_t    [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0] floo_tcdm_narrow_req_in;
+  logic                 [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0] floo_tcdm_narrow_req_in_ready, floo_tcdm_narrow_req_in_valid;
+  floo_tcdm_rd_req_t    [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0] floo_tcdm_narrow_req_out;
+  logic                 [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0] floo_tcdm_narrow_req_out_ready, floo_tcdm_narrow_req_out_valid;
   `endif
   // wide req noc
-  floo_rdwr_req_t [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0]   floo_wide_req_in;
-  logic           [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_wide_req_in_ready, floo_wide_req_in_valid;
-  floo_rdwr_req_t [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0]   floo_wide_req_out;
-  logic           [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_wide_req_out_ready, floo_wide_req_out_valid;
+  floo_tcdm_rdwr_req_t  [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0]   floo_tcdm_wide_req_in;
+  logic                 [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_tcdm_wide_req_in_ready, floo_tcdm_wide_req_in_valid;
+  floo_tcdm_rdwr_req_t  [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0]   floo_tcdm_wide_req_out;
+  logic                 [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_tcdm_wide_req_out_ready, floo_tcdm_wide_req_out_valid;
   // wide resp noc
-  floo_resp_t     [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]      floo_resp_in;
-  logic           [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_resp_in_ready, floo_resp_in_valid;
-  floo_resp_t     [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]      floo_resp_out;
-  logic           [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_resp_out_ready, floo_resp_out_valid;
-
+  floo_tcdm_resp_t      [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]      floo_tcdm_resp_in;
+  logic                 [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_in_ready, floo_tcdm_resp_in_valid;
+  floo_tcdm_resp_t      [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]      floo_tcdm_resp_out;
+  logic                 [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_out_ready, floo_tcdm_resp_out_valid;
 
   for (genvar x = 0; x < NumX; x++) begin : gen_groups_x
     for (genvar y = 0; y < NumY; y++) begin : gen_groups_y
@@ -174,261 +173,261 @@ module mempool_cluster_floonoc_wrapper
         // West
       `ifdef TORUS
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in[x][y][West]           = floo_narrow_req_out[NumX-1][y][East];
-        assign floo_narrow_req_in_valid[x][y][West]     = floo_narrow_req_out_valid[NumX-1][y][East];
-        assign floo_narrow_req_in_ready[x][y][West]     = floo_narrow_req_out_ready[NumX-1][y][East];
+        assign floo_tcdm_narrow_req_in[x][y][West]           = floo_tcdm_narrow_req_out[NumX-1][y][East];
+        assign floo_tcdm_narrow_req_in_valid[x][y][West]     = floo_tcdm_narrow_req_out_valid[NumX-1][y][East];
+        assign floo_tcdm_narrow_req_in_ready[x][y][West]     = floo_tcdm_narrow_req_out_ready[NumX-1][y][East];
         `endif
-        assign floo_wide_req_in[x][y][West]             = floo_wide_req_out[NumX-1][y][East];
-        assign floo_wide_req_in_valid[x][y][West]       = floo_wide_req_out_valid[NumX-1][y][East];
-        assign floo_wide_req_in_ready[x][y][West]       = floo_wide_req_out_ready[NumX-1][y][East];
-        assign floo_resp_in[x][y][West]                 = floo_resp_out[NumX-1][y][East];
-        assign floo_resp_in_valid[x][y][West]           = floo_resp_out_valid[NumX-1][y][East];
-        assign floo_resp_in_ready[x][y][West]           = floo_resp_out_ready[NumX-1][y][East];
+        assign floo_tcdm_wide_req_in[x][y][West]             = floo_tcdm_wide_req_out[NumX-1][y][East];
+        assign floo_tcdm_wide_req_in_valid[x][y][West]       = floo_tcdm_wide_req_out_valid[NumX-1][y][East];
+        assign floo_tcdm_wide_req_in_ready[x][y][West]       = floo_tcdm_wide_req_out_ready[NumX-1][y][East];
+        assign floo_tcdm_resp_in[x][y][West]                 = floo_tcdm_resp_out[NumX-1][y][East];
+        assign floo_tcdm_resp_in_valid[x][y][West]           = floo_tcdm_resp_out_valid[NumX-1][y][East];
+        assign floo_tcdm_resp_in_ready[x][y][West]           = floo_tcdm_resp_out_ready[NumX-1][y][East];
       `else
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][West]  = '0;
-        assign floo_narrow_req_in_valid [x][y][West]  = '0;
-        assign floo_narrow_req_in_ready [x][y][West]  = '0;
+        assign floo_tcdm_narrow_req_in       [x][y][West]  = '0;
+        assign floo_tcdm_narrow_req_in_valid [x][y][West]  = '0;
+        assign floo_tcdm_narrow_req_in_ready [x][y][West]  = '0;
         `endif
-        assign floo_wide_req_in         [x][y][West]  = '0;
-        assign floo_wide_req_in_valid   [x][y][West]  = '0;
-        assign floo_wide_req_in_ready   [x][y][West]  = '0;
-        assign floo_resp_in             [x][y][West]  = '0;
-        assign floo_resp_in_valid       [x][y][West]  = '0;
-        assign floo_resp_in_ready       [x][y][West]  = '0;
+        assign floo_tcdm_wide_req_in         [x][y][West]  = '0;
+        assign floo_tcdm_wide_req_in_valid   [x][y][West]  = '0;
+        assign floo_tcdm_wide_req_in_ready   [x][y][West]  = '0;
+        assign floo_tcdm_resp_in             [x][y][West]  = '0;
+        assign floo_tcdm_resp_in_valid       [x][y][West]  = '0;
+        assign floo_tcdm_resp_in_ready       [x][y][West]  = '0;
       `endif
         // East
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][East]  = floo_narrow_req_out       [x+1][y][West];
-        assign floo_narrow_req_in_valid [x][y][East]  = floo_narrow_req_out_valid [x+1][y][West];
-        assign floo_narrow_req_in_ready [x][y][East]  = floo_narrow_req_out_ready [x+1][y][West];
+        assign floo_tcdm_narrow_req_in       [x][y][East]  = floo_tcdm_narrow_req_out       [x+1][y][West];
+        assign floo_tcdm_narrow_req_in_valid [x][y][East]  = floo_tcdm_narrow_req_out_valid [x+1][y][West];
+        assign floo_tcdm_narrow_req_in_ready [x][y][East]  = floo_tcdm_narrow_req_out_ready [x+1][y][West];
         `endif
-        assign floo_wide_req_in         [x][y][East]  = floo_wide_req_out         [x+1][y][West];
-        assign floo_wide_req_in_valid   [x][y][East]  = floo_wide_req_out_valid   [x+1][y][West];
-        assign floo_wide_req_in_ready   [x][y][East]  = floo_wide_req_out_ready   [x+1][y][West];
-        assign floo_resp_in             [x][y][East]  = floo_resp_out             [x+1][y][West];
-        assign floo_resp_in_valid       [x][y][East]  = floo_resp_out_valid       [x+1][y][West];
-        assign floo_resp_in_ready       [x][y][East]  = floo_resp_out_ready       [x+1][y][West];
+        assign floo_tcdm_wide_req_in         [x][y][East]  = floo_tcdm_wide_req_out         [x+1][y][West];
+        assign floo_tcdm_wide_req_in_valid   [x][y][East]  = floo_tcdm_wide_req_out_valid   [x+1][y][West];
+        assign floo_tcdm_wide_req_in_ready   [x][y][East]  = floo_tcdm_wide_req_out_ready   [x+1][y][West];
+        assign floo_tcdm_resp_in             [x][y][East]  = floo_tcdm_resp_out             [x+1][y][West];
+        assign floo_tcdm_resp_in_valid       [x][y][East]  = floo_tcdm_resp_out_valid       [x+1][y][West];
+        assign floo_tcdm_resp_in_ready       [x][y][East]  = floo_tcdm_resp_out_ready       [x+1][y][West];
       end
       else if (x == NumX-1) begin
         // East
       `ifdef TORUS
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in[x][y][East]           = floo_narrow_req_out[0][y][West];
-        assign floo_narrow_req_in_valid[x][y][East]     = floo_narrow_req_out_valid[0][y][West];
-        assign floo_narrow_req_in_ready[x][y][East]     = floo_narrow_req_out_ready[0][y][West];
+        assign floo_tcdm_narrow_req_in[x][y][East]           = floo_tcdm_narrow_req_out[0][y][West];
+        assign floo_tcdm_narrow_req_in_valid[x][y][East]     = floo_tcdm_narrow_req_out_valid[0][y][West];
+        assign floo_tcdm_narrow_req_in_ready[x][y][East]     = floo_tcdm_narrow_req_out_ready[0][y][West];
         `endif
-        assign floo_wide_req_in[x][y][East]             = floo_wide_req_out[0][y][West];
-        assign floo_wide_req_in_valid[x][y][East]       = floo_wide_req_out_valid[0][y][West];
-        assign floo_wide_req_in_ready[x][y][East]       = floo_wide_req_out_ready[0][y][West];
-        assign floo_resp_in[x][y][East]                 = floo_resp_out[0][y][West];
-        assign floo_resp_in_valid[x][y][East]           = floo_resp_out_valid[0][y][West];
-        assign floo_resp_in_ready[x][y][East]           = floo_resp_out_ready[0][y][West];
+        assign floo_tcdm_wide_req_in[x][y][East]             = floo_tcdm_wide_req_out[0][y][West];
+        assign floo_tcdm_wide_req_in_valid[x][y][East]       = floo_tcdm_wide_req_out_valid[0][y][West];
+        assign floo_tcdm_wide_req_in_ready[x][y][East]       = floo_tcdm_wide_req_out_ready[0][y][West];
+        assign floo_tcdm_resp_in[x][y][East]                 = floo_tcdm_resp_out[0][y][West];
+        assign floo_tcdm_resp_in_valid[x][y][East]           = floo_tcdm_resp_out_valid[0][y][West];
+        assign floo_tcdm_resp_in_ready[x][y][East]           = floo_tcdm_resp_out_ready[0][y][West];
       `else
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][East]  = '0;
-        assign floo_narrow_req_in_valid [x][y][East]  = '0;
-        assign floo_narrow_req_in_ready [x][y][East]  = '0;
+        assign floo_tcdm_narrow_req_in       [x][y][East]  = '0;
+        assign floo_tcdm_narrow_req_in_valid [x][y][East]  = '0;
+        assign floo_tcdm_narrow_req_in_ready [x][y][East]  = '0;
         `endif
-        assign floo_wide_req_in         [x][y][East]  = '0;
-        assign floo_wide_req_in_valid   [x][y][East]  = '0;
-        assign floo_wide_req_in_ready   [x][y][East]  = '0;
-        assign floo_resp_in             [x][y][East]  = '0;
-        assign floo_resp_in_valid       [x][y][East]  = '0;
-        assign floo_resp_in_ready       [x][y][East]  = '0;
+        assign floo_tcdm_wide_req_in         [x][y][East]  = '0;
+        assign floo_tcdm_wide_req_in_valid   [x][y][East]  = '0;
+        assign floo_tcdm_wide_req_in_ready   [x][y][East]  = '0;
+        assign floo_tcdm_resp_in             [x][y][East]  = '0;
+        assign floo_tcdm_resp_in_valid       [x][y][East]  = '0;
+        assign floo_tcdm_resp_in_ready       [x][y][East]  = '0;
       `endif
         // West
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][West]  = floo_narrow_req_out       [x-1][y][East];
-        assign floo_narrow_req_in_valid [x][y][West]  = floo_narrow_req_out_valid [x-1][y][East];
-        assign floo_narrow_req_in_ready [x][y][West]  = floo_narrow_req_out_ready [x-1][y][East];
+        assign floo_tcdm_narrow_req_in       [x][y][West]  = floo_tcdm_narrow_req_out       [x-1][y][East];
+        assign floo_tcdm_narrow_req_in_valid [x][y][West]  = floo_tcdm_narrow_req_out_valid [x-1][y][East];
+        assign floo_tcdm_narrow_req_in_ready [x][y][West]  = floo_tcdm_narrow_req_out_ready [x-1][y][East];
         `endif
-        assign floo_wide_req_in         [x][y][West]  = floo_wide_req_out         [x-1][y][East];
-        assign floo_wide_req_in_valid   [x][y][West]  = floo_wide_req_out_valid   [x-1][y][East];
-        assign floo_wide_req_in_ready   [x][y][West]  = floo_wide_req_out_ready   [x-1][y][East];
-        assign floo_resp_in             [x][y][West]  = floo_resp_out             [x-1][y][East];
-        assign floo_resp_in_valid       [x][y][West]  = floo_resp_out_valid       [x-1][y][East];
-        assign floo_resp_in_ready       [x][y][West]  = floo_resp_out_ready       [x-1][y][East];
+        assign floo_tcdm_wide_req_in         [x][y][West]  = floo_tcdm_wide_req_out         [x-1][y][East];
+        assign floo_tcdm_wide_req_in_valid   [x][y][West]  = floo_tcdm_wide_req_out_valid   [x-1][y][East];
+        assign floo_tcdm_wide_req_in_ready   [x][y][West]  = floo_tcdm_wide_req_out_ready   [x-1][y][East];
+        assign floo_tcdm_resp_in             [x][y][West]  = floo_tcdm_resp_out             [x-1][y][East];
+        assign floo_tcdm_resp_in_valid       [x][y][West]  = floo_tcdm_resp_out_valid       [x-1][y][East];
+        assign floo_tcdm_resp_in_ready       [x][y][West]  = floo_tcdm_resp_out_ready       [x-1][y][East];
       end
       else begin
         // East
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][East]  = floo_narrow_req_out       [x+1][y][West];
-        assign floo_narrow_req_in_valid [x][y][East]  = floo_narrow_req_out_valid [x+1][y][West];
-        assign floo_narrow_req_in_ready [x][y][East]  = floo_narrow_req_out_ready [x+1][y][West];
+        assign floo_tcdm_narrow_req_in       [x][y][East]  = floo_tcdm_narrow_req_out       [x+1][y][West];
+        assign floo_tcdm_narrow_req_in_valid [x][y][East]  = floo_tcdm_narrow_req_out_valid [x+1][y][West];
+        assign floo_tcdm_narrow_req_in_ready [x][y][East]  = floo_tcdm_narrow_req_out_ready [x+1][y][West];
         `endif
-        assign floo_wide_req_in         [x][y][East]  = floo_wide_req_out         [x+1][y][West];
-        assign floo_wide_req_in_valid   [x][y][East]  = floo_wide_req_out_valid   [x+1][y][West];
-        assign floo_wide_req_in_ready   [x][y][East]  = floo_wide_req_out_ready   [x+1][y][West];
-        assign floo_resp_in             [x][y][East]  = floo_resp_out             [x+1][y][West];
-        assign floo_resp_in_valid       [x][y][East]  = floo_resp_out_valid       [x+1][y][West];
-        assign floo_resp_in_ready       [x][y][East]  = floo_resp_out_ready       [x+1][y][West];
+        assign floo_tcdm_wide_req_in         [x][y][East]  = floo_tcdm_wide_req_out         [x+1][y][West];
+        assign floo_tcdm_wide_req_in_valid   [x][y][East]  = floo_tcdm_wide_req_out_valid   [x+1][y][West];
+        assign floo_tcdm_wide_req_in_ready   [x][y][East]  = floo_tcdm_wide_req_out_ready   [x+1][y][West];
+        assign floo_tcdm_resp_in             [x][y][East]  = floo_tcdm_resp_out             [x+1][y][West];
+        assign floo_tcdm_resp_in_valid       [x][y][East]  = floo_tcdm_resp_out_valid       [x+1][y][West];
+        assign floo_tcdm_resp_in_ready       [x][y][East]  = floo_tcdm_resp_out_ready       [x+1][y][West];
         // West
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][West]  = floo_narrow_req_out       [x-1][y][East];
-        assign floo_narrow_req_in_valid [x][y][West]  = floo_narrow_req_out_valid [x-1][y][East];
-        assign floo_narrow_req_in_ready [x][y][West]  = floo_narrow_req_out_ready [x-1][y][East];
+        assign floo_tcdm_narrow_req_in       [x][y][West]  = floo_tcdm_narrow_req_out       [x-1][y][East];
+        assign floo_tcdm_narrow_req_in_valid [x][y][West]  = floo_tcdm_narrow_req_out_valid [x-1][y][East];
+        assign floo_tcdm_narrow_req_in_ready [x][y][West]  = floo_tcdm_narrow_req_out_ready [x-1][y][East];
         `endif
-        assign floo_wide_req_in         [x][y][West]  = floo_wide_req_out         [x-1][y][East];
-        assign floo_wide_req_in_valid   [x][y][West]  = floo_wide_req_out_valid   [x-1][y][East];
-        assign floo_wide_req_in_ready   [x][y][West]  = floo_wide_req_out_ready   [x-1][y][East];
-        assign floo_resp_in             [x][y][West]  = floo_resp_out             [x-1][y][East];
-        assign floo_resp_in_valid       [x][y][West]  = floo_resp_out_valid       [x-1][y][East];
-        assign floo_resp_in_ready       [x][y][West]  = floo_resp_out_ready       [x-1][y][East];
+        assign floo_tcdm_wide_req_in         [x][y][West]  = floo_tcdm_wide_req_out         [x-1][y][East];
+        assign floo_tcdm_wide_req_in_valid   [x][y][West]  = floo_tcdm_wide_req_out_valid   [x-1][y][East];
+        assign floo_tcdm_wide_req_in_ready   [x][y][West]  = floo_tcdm_wide_req_out_ready   [x-1][y][East];
+        assign floo_tcdm_resp_in             [x][y][West]  = floo_tcdm_resp_out             [x-1][y][East];
+        assign floo_tcdm_resp_in_valid       [x][y][West]  = floo_tcdm_resp_out_valid       [x-1][y][East];
+        assign floo_tcdm_resp_in_ready       [x][y][West]  = floo_tcdm_resp_out_ready       [x-1][y][East];
       end
 
       if (y == 0) begin
         // South
       `ifdef TORUS
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in[x][y][South]          = floo_narrow_req_out[x][NumY-1][North];
-        assign floo_narrow_req_in_valid[x][y][South]    = floo_narrow_req_out_valid[x][NumY-1][North];
-        assign floo_narrow_req_in_ready[x][y][South]    = floo_narrow_req_out_ready[x][NumY-1][North];
+        assign floo_tcdm_narrow_req_in[x][y][South]          = floo_tcdm_narrow_req_out[x][NumY-1][North];
+        assign floo_tcdm_narrow_req_in_valid[x][y][South]    = floo_tcdm_narrow_req_out_valid[x][NumY-1][North];
+        assign floo_tcdm_narrow_req_in_ready[x][y][South]    = floo_tcdm_narrow_req_out_ready[x][NumY-1][North];
         `endif
-        assign floo_wide_req_in[x][y][South]            = floo_wide_req_out[x][NumY-1][North];
-        assign floo_wide_req_in_valid[x][y][South]      = floo_wide_req_out_valid[x][NumY-1][North];
-        assign floo_wide_req_in_ready[x][y][South]      = floo_wide_req_out_ready[x][NumY-1][North];
-        assign floo_resp_in[x][y][South]                = floo_resp_out[x][NumY-1][North];
-        assign floo_resp_in_valid[x][y][South]          = floo_resp_out_valid[x][NumY-1][North];
-        assign floo_resp_in_ready[x][y][South]          = floo_resp_out_ready[x][NumY-1][North];
+        assign floo_tcdm_wide_req_in[x][y][South]            = floo_tcdm_wide_req_out[x][NumY-1][North];
+        assign floo_tcdm_wide_req_in_valid[x][y][South]      = floo_tcdm_wide_req_out_valid[x][NumY-1][North];
+        assign floo_tcdm_wide_req_in_ready[x][y][South]      = floo_tcdm_wide_req_out_ready[x][NumY-1][North];
+        assign floo_tcdm_resp_in[x][y][South]                = floo_tcdm_resp_out[x][NumY-1][North];
+        assign floo_tcdm_resp_in_valid[x][y][South]          = floo_tcdm_resp_out_valid[x][NumY-1][North];
+        assign floo_tcdm_resp_in_ready[x][y][South]          = floo_tcdm_resp_out_ready[x][NumY-1][North];
       `else
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][South] = '0;
-        assign floo_narrow_req_in_valid [x][y][South] = '0;
-        assign floo_narrow_req_in_ready [x][y][South] = '0;
+        assign floo_tcdm_narrow_req_in       [x][y][South] = '0;
+        assign floo_tcdm_narrow_req_in_valid [x][y][South] = '0;
+        assign floo_tcdm_narrow_req_in_ready [x][y][South] = '0;
         `endif
-        assign floo_wide_req_in         [x][y][South] = '0;
-        assign floo_wide_req_in_valid   [x][y][South] = '0;
-        assign floo_wide_req_in_ready   [x][y][South] = '0;
-        assign floo_resp_in             [x][y][South] = '0;
-        assign floo_resp_in_valid       [x][y][South] = '0;
-        assign floo_resp_in_ready       [x][y][South] = '0;
+        assign floo_tcdm_wide_req_in         [x][y][South] = '0;
+        assign floo_tcdm_wide_req_in_valid   [x][y][South] = '0;
+        assign floo_tcdm_wide_req_in_ready   [x][y][South] = '0;
+        assign floo_tcdm_resp_in             [x][y][South] = '0;
+        assign floo_tcdm_resp_in_valid       [x][y][South] = '0;
+        assign floo_tcdm_resp_in_ready       [x][y][South] = '0;
       `endif
         // North
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][North] = floo_narrow_req_out       [x][y+1][South];
-        assign floo_narrow_req_in_valid [x][y][North] = floo_narrow_req_out_valid [x][y+1][South];
-        assign floo_narrow_req_in_ready [x][y][North] = floo_narrow_req_out_ready [x][y+1][South];
+        assign floo_tcdm_narrow_req_in       [x][y][North] = floo_tcdm_narrow_req_out       [x][y+1][South];
+        assign floo_tcdm_narrow_req_in_valid [x][y][North] = floo_tcdm_narrow_req_out_valid [x][y+1][South];
+        assign floo_tcdm_narrow_req_in_ready [x][y][North] = floo_tcdm_narrow_req_out_ready [x][y+1][South];
         `endif
-        assign floo_wide_req_in         [x][y][North] = floo_wide_req_out         [x][y+1][South];
-        assign floo_wide_req_in_valid   [x][y][North] = floo_wide_req_out_valid   [x][y+1][South];
-        assign floo_wide_req_in_ready   [x][y][North] = floo_wide_req_out_ready   [x][y+1][South];
-        assign floo_resp_in             [x][y][North] = floo_resp_out             [x][y+1][South];
-        assign floo_resp_in_valid       [x][y][North] = floo_resp_out_valid       [x][y+1][South];
-        assign floo_resp_in_ready       [x][y][North] = floo_resp_out_ready       [x][y+1][South];
+        assign floo_tcdm_wide_req_in         [x][y][North] = floo_tcdm_wide_req_out         [x][y+1][South];
+        assign floo_tcdm_wide_req_in_valid   [x][y][North] = floo_tcdm_wide_req_out_valid   [x][y+1][South];
+        assign floo_tcdm_wide_req_in_ready   [x][y][North] = floo_tcdm_wide_req_out_ready   [x][y+1][South];
+        assign floo_tcdm_resp_in             [x][y][North] = floo_tcdm_resp_out             [x][y+1][South];
+        assign floo_tcdm_resp_in_valid       [x][y][North] = floo_tcdm_resp_out_valid       [x][y+1][South];
+        assign floo_tcdm_resp_in_ready       [x][y][North] = floo_tcdm_resp_out_ready       [x][y+1][South];
       end
       else if (y == NumY-1) begin
         // North
       `ifdef TORUS
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in[x][y][North]          = floo_narrow_req_out[x][0][South];
-        assign floo_narrow_req_in_valid[x][y][North]    = floo_narrow_req_out_valid[x][0][South];
-        assign floo_narrow_req_in_ready[x][y][North]    = floo_narrow_req_out_ready[x][0][South];
+        assign floo_tcdm_narrow_req_in[x][y][North]          = floo_tcdm_narrow_req_out[x][0][South];
+        assign floo_tcdm_narrow_req_in_valid[x][y][North]    = floo_tcdm_narrow_req_out_valid[x][0][South];
+        assign floo_tcdm_narrow_req_in_ready[x][y][North]    = floo_tcdm_narrow_req_out_ready[x][0][South];
         `endif
-        assign floo_wide_req_in[x][y][North]            = floo_wide_req_out[x][0][South];
-        assign floo_wide_req_in_valid[x][y][North]      = floo_wide_req_out_valid[x][0][South];
-        assign floo_wide_req_in_ready[x][y][North]      = floo_wide_req_out_ready[x][0][South];
-        assign floo_resp_in[x][y][North]                = floo_resp_out[x][0][South];
-        assign floo_resp_in_valid[x][y][North]          = floo_resp_out_valid[x][0][South];
-        assign floo_resp_in_ready[x][y][North]          = floo_resp_out_ready[x][0][South];
+        assign floo_tcdm_wide_req_in[x][y][North]            = floo_tcdm_wide_req_out[x][0][South];
+        assign floo_tcdm_wide_req_in_valid[x][y][North]      = floo_tcdm_wide_req_out_valid[x][0][South];
+        assign floo_tcdm_wide_req_in_ready[x][y][North]      = floo_tcdm_wide_req_out_ready[x][0][South];
+        assign floo_tcdm_resp_in[x][y][North]                = floo_tcdm_resp_out[x][0][South];
+        assign floo_tcdm_resp_in_valid[x][y][North]          = floo_tcdm_resp_out_valid[x][0][South];
+        assign floo_tcdm_resp_in_ready[x][y][North]          = floo_tcdm_resp_out_ready[x][0][South];
       `else
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][North] = '0;
-        assign floo_narrow_req_in_valid [x][y][North] = '0;
-        assign floo_narrow_req_in_ready [x][y][North] = '0;
+        assign floo_tcdm_narrow_req_in       [x][y][North] = '0;
+        assign floo_tcdm_narrow_req_in_valid [x][y][North] = '0;
+        assign floo_tcdm_narrow_req_in_ready [x][y][North] = '0;
         `endif
-        assign floo_wide_req_in         [x][y][North] = '0;
-        assign floo_wide_req_in_valid   [x][y][North] = '0;
-        assign floo_wide_req_in_ready   [x][y][North] = '0;
-        assign floo_resp_in             [x][y][North] = '0;
-        assign floo_resp_in_valid       [x][y][North] = '0;
-        assign floo_resp_in_ready       [x][y][North] = '0;
+        assign floo_tcdm_wide_req_in         [x][y][North] = '0;
+        assign floo_tcdm_wide_req_in_valid   [x][y][North] = '0;
+        assign floo_tcdm_wide_req_in_ready   [x][y][North] = '0;
+        assign floo_tcdm_resp_in             [x][y][North] = '0;
+        assign floo_tcdm_resp_in_valid       [x][y][North] = '0;
+        assign floo_tcdm_resp_in_ready       [x][y][North] = '0;
       `endif
         // South
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][South] = floo_narrow_req_out       [x][y-1][North];
-        assign floo_narrow_req_in_valid [x][y][South] = floo_narrow_req_out_valid [x][y-1][North];
-        assign floo_narrow_req_in_ready [x][y][South] = floo_narrow_req_out_ready [x][y-1][North];
+        assign floo_tcdm_narrow_req_in       [x][y][South] = floo_tcdm_narrow_req_out       [x][y-1][North];
+        assign floo_tcdm_narrow_req_in_valid [x][y][South] = floo_tcdm_narrow_req_out_valid [x][y-1][North];
+        assign floo_tcdm_narrow_req_in_ready [x][y][South] = floo_tcdm_narrow_req_out_ready [x][y-1][North];
         `endif
-        assign floo_wide_req_in         [x][y][South] = floo_wide_req_out         [x][y-1][North];
-        assign floo_wide_req_in_valid   [x][y][South] = floo_wide_req_out_valid   [x][y-1][North];
-        assign floo_wide_req_in_ready   [x][y][South] = floo_wide_req_out_ready   [x][y-1][North];
-        assign floo_resp_in             [x][y][South] = floo_resp_out             [x][y-1][North];
-        assign floo_resp_in_valid       [x][y][South] = floo_resp_out_valid       [x][y-1][North];
-        assign floo_resp_in_ready       [x][y][South] = floo_resp_out_ready       [x][y-1][North];
+        assign floo_tcdm_wide_req_in         [x][y][South] = floo_tcdm_wide_req_out         [x][y-1][North];
+        assign floo_tcdm_wide_req_in_valid   [x][y][South] = floo_tcdm_wide_req_out_valid   [x][y-1][North];
+        assign floo_tcdm_wide_req_in_ready   [x][y][South] = floo_tcdm_wide_req_out_ready   [x][y-1][North];
+        assign floo_tcdm_resp_in             [x][y][South] = floo_tcdm_resp_out             [x][y-1][North];
+        assign floo_tcdm_resp_in_valid       [x][y][South] = floo_tcdm_resp_out_valid       [x][y-1][North];
+        assign floo_tcdm_resp_in_ready       [x][y][South] = floo_tcdm_resp_out_ready       [x][y-1][North];
       end
       else begin
         // North
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][North] = floo_narrow_req_out       [x][y+1][South];
-        assign floo_narrow_req_in_valid [x][y][North] = floo_narrow_req_out_valid [x][y+1][South];
-        assign floo_narrow_req_in_ready [x][y][North] = floo_narrow_req_out_ready [x][y+1][South];
+        assign floo_tcdm_narrow_req_in       [x][y][North] = floo_tcdm_narrow_req_out       [x][y+1][South];
+        assign floo_tcdm_narrow_req_in_valid [x][y][North] = floo_tcdm_narrow_req_out_valid [x][y+1][South];
+        assign floo_tcdm_narrow_req_in_ready [x][y][North] = floo_tcdm_narrow_req_out_ready [x][y+1][South];
         `endif
-        assign floo_wide_req_in         [x][y][North] = floo_wide_req_out         [x][y+1][South];
-        assign floo_wide_req_in_valid   [x][y][North] = floo_wide_req_out_valid   [x][y+1][South];
-        assign floo_wide_req_in_ready   [x][y][North] = floo_wide_req_out_ready   [x][y+1][South];
-        assign floo_resp_in             [x][y][North] = floo_resp_out             [x][y+1][South];
-        assign floo_resp_in_valid       [x][y][North] = floo_resp_out_valid       [x][y+1][South];
-        assign floo_resp_in_ready       [x][y][North] = floo_resp_out_ready       [x][y+1][South];
+        assign floo_tcdm_wide_req_in         [x][y][North] = floo_tcdm_wide_req_out         [x][y+1][South];
+        assign floo_tcdm_wide_req_in_valid   [x][y][North] = floo_tcdm_wide_req_out_valid   [x][y+1][South];
+        assign floo_tcdm_wide_req_in_ready   [x][y][North] = floo_tcdm_wide_req_out_ready   [x][y+1][South];
+        assign floo_tcdm_resp_in             [x][y][North] = floo_tcdm_resp_out             [x][y+1][South];
+        assign floo_tcdm_resp_in_valid       [x][y][North] = floo_tcdm_resp_out_valid       [x][y+1][South];
+        assign floo_tcdm_resp_in_ready       [x][y][North] = floo_tcdm_resp_out_ready       [x][y+1][South];
         // South
         `ifdef USE_NARROW_REQ_CHANNEL
-        assign floo_narrow_req_in       [x][y][South] = floo_narrow_req_out       [x][y-1][North];
-        assign floo_narrow_req_in_valid [x][y][South] = floo_narrow_req_out_valid [x][y-1][North];
-        assign floo_narrow_req_in_ready [x][y][South] = floo_narrow_req_out_ready [x][y-1][North];
+        assign floo_tcdm_narrow_req_in       [x][y][South] = floo_tcdm_narrow_req_out       [x][y-1][North];
+        assign floo_tcdm_narrow_req_in_valid [x][y][South] = floo_tcdm_narrow_req_out_valid [x][y-1][North];
+        assign floo_tcdm_narrow_req_in_ready [x][y][South] = floo_tcdm_narrow_req_out_ready [x][y-1][North];
         `endif
-        assign floo_wide_req_in         [x][y][South] = floo_wide_req_out         [x][y-1][North];
-        assign floo_wide_req_in_valid   [x][y][South] = floo_wide_req_out_valid   [x][y-1][North];
-        assign floo_wide_req_in_ready   [x][y][South] = floo_wide_req_out_ready   [x][y-1][North];
-        assign floo_resp_in             [x][y][South] = floo_resp_out             [x][y-1][North];
-        assign floo_resp_in_valid       [x][y][South] = floo_resp_out_valid       [x][y-1][North];
-        assign floo_resp_in_ready       [x][y][South] = floo_resp_out_ready       [x][y-1][North];
+        assign floo_tcdm_wide_req_in         [x][y][South] = floo_tcdm_wide_req_out         [x][y-1][North];
+        assign floo_tcdm_wide_req_in_valid   [x][y][South] = floo_tcdm_wide_req_out_valid   [x][y-1][North];
+        assign floo_tcdm_wide_req_in_ready   [x][y][South] = floo_tcdm_wide_req_out_ready   [x][y-1][North];
+        assign floo_tcdm_resp_in             [x][y][South] = floo_tcdm_resp_out             [x][y-1][North];
+        assign floo_tcdm_resp_in_valid       [x][y][South] = floo_tcdm_resp_out_valid       [x][y-1][North];
+        assign floo_tcdm_resp_in_ready       [x][y][South] = floo_tcdm_resp_out_ready       [x][y-1][North];
       end
 
       mempool_group_floonoc_wrapper #(
         .TCDMBaseAddr (TCDMBaseAddr         ),
         .BootAddr     (BootAddr             )
       ) i_group (
-        .clk_i                   (clk_i                                                           ),
-        .rst_ni                  (rst_ni                                                          ),
-        .testmode_i              (testmode_i                                                      ),
-        .scan_enable_i           (scan_enable_i                                                   ),
-        .scan_data_i             (/* Unconnected */                                               ),
-        .scan_data_o             (/* Unconnected */                                               ),
-        .group_id_i              (group_id_t'(group_id)                                           ),
+        .clk_i                          (clk_i                                                           ),
+        .rst_ni                         (rst_ni                                                          ),
+        .testmode_i                     (testmode_i                                                      ),
+        .scan_enable_i                  (scan_enable_i                                                   ),
+        .scan_data_i                    (/* Unconnected */                                               ),
+        .scan_data_o                    (/* Unconnected */                                               ),
+        .group_id_i                     (group_id_t'(group_id)                                           ),
         // TCDM narrow req noc
         `ifdef USE_NARROW_REQ_CHANNEL
-        .floo_narrow_req_o       (floo_narrow_req_out       [x][y]                                ),
-        .floo_narrow_req_valid_o (floo_narrow_req_out_valid [x][y]                                ),
-        .floo_narrow_req_ready_i (floo_narrow_req_in_ready  [x][y]                                ),
-        .floo_narrow_req_i       (floo_narrow_req_in        [x][y]                                ),
-        .floo_narrow_req_valid_i (floo_narrow_req_in_valid  [x][y]                                ),
-        .floo_narrow_req_ready_o (floo_narrow_req_out_ready [x][y]                                ),
+        .floo_tcdm_narrow_req_o         (floo_tcdm_narrow_req_out       [x][y]                           ),
+        .floo_tcdm_narrow_req_valid_o   (floo_tcdm_narrow_req_out_valid [x][y]                           ),
+        .floo_tcdm_narrow_req_ready_i   (floo_tcdm_narrow_req_in_ready  [x][y]                           ),
+        .floo_tcdm_narrow_req_i         (floo_tcdm_narrow_req_in        [x][y]                           ),
+        .floo_tcdm_narrow_req_valid_i   (floo_tcdm_narrow_req_in_valid  [x][y]                           ),
+        .floo_tcdm_narrow_req_ready_o   (floo_tcdm_narrow_req_out_ready [x][y]                           ),
         `endif
         // TCDM wide req noc
-        .floo_wide_req_o         (floo_wide_req_out         [x][y]                                ),
-        .floo_wide_req_valid_o   (floo_wide_req_out_valid   [x][y]                                ),
-        .floo_wide_req_ready_i   (floo_wide_req_in_ready    [x][y]                                ),
-        .floo_wide_req_i         (floo_wide_req_in          [x][y]                                ),
-        .floo_wide_req_valid_i   (floo_wide_req_in_valid    [x][y]                                ),
-        .floo_wide_req_ready_o   (floo_wide_req_out_ready   [x][y]                                ),
+        .floo_tcdm_wide_req_o           (floo_tcdm_wide_req_out         [x][y]                           ),
+        .floo_tcdm_wide_req_valid_o     (floo_tcdm_wide_req_out_valid   [x][y]                           ),
+        .floo_tcdm_wide_req_ready_i     (floo_tcdm_wide_req_in_ready    [x][y]                           ),
+        .floo_tcdm_wide_req_i           (floo_tcdm_wide_req_in          [x][y]                           ),
+        .floo_tcdm_wide_req_valid_i     (floo_tcdm_wide_req_in_valid    [x][y]                           ),
+        .floo_tcdm_wide_req_ready_o     (floo_tcdm_wide_req_out_ready   [x][y]                           ),
         // TCDM resp noc
-        .floo_resp_o             (floo_resp_out             [x][y]                                ),
-        .floo_resp_valid_o       (floo_resp_out_valid       [x][y]                                ),
-        .floo_resp_ready_i       (floo_resp_in_ready        [x][y]                                ),
-        .floo_resp_i             (floo_resp_in              [x][y]                                ),
-        .floo_resp_valid_i       (floo_resp_in_valid        [x][y]                                ),
-        .floo_resp_ready_o       (floo_resp_out_ready       [x][y]                                ),
-        .wake_up_i               (wake_up_q[(NumY*x+y)*NumCoresPerGroup +: NumCoresPerGroup]      ),
-        .ro_cache_ctrl_i         (ro_cache_ctrl_q[(NumY*x+y)]                                     ),
+        .floo_tcdm_resp_o               (floo_tcdm_resp_out             [x][y]                           ),
+        .floo_tcdm_resp_valid_o         (floo_tcdm_resp_out_valid       [x][y]                           ),
+        .floo_tcdm_resp_ready_i         (floo_tcdm_resp_in_ready        [x][y]                           ),
+        .floo_tcdm_resp_i               (floo_tcdm_resp_in              [x][y]                           ),
+        .floo_tcdm_resp_valid_i         (floo_tcdm_resp_in_valid        [x][y]                           ),
+        .floo_tcdm_resp_ready_o         (floo_tcdm_resp_out_ready       [x][y]                           ),
+        .wake_up_i                      (wake_up_q[(NumY*x+y)*NumCoresPerGroup +: NumCoresPerGroup]      ),
+        .ro_cache_ctrl_i                (ro_cache_ctrl_q[(NumY*x+y)]                                     ),
         // DMA request
-        .dma_req_i               (dma_req_group_q[(NumY*x+y)]                                     ),
-        .dma_req_valid_i         (dma_req_group_q_valid[(NumY*x+y)]                               ),
-        .dma_req_ready_o         (dma_req_group_q_ready[(NumY*x+y)]                               ),
+        .dma_req_i                      (dma_req_group_q[(NumY*x+y)]                                     ),
+        .dma_req_valid_i                (dma_req_group_q_valid[(NumY*x+y)]                               ),
+        .dma_req_ready_o                (dma_req_group_q_ready[(NumY*x+y)]                               ),
         // DMA status
-        .dma_meta_o              (dma_meta[(NumY*x+y)]                                            ),
+        .dma_meta_o                     (dma_meta[(NumY*x+y)]                                            ),
         // AXI interface
-        .axi_mst_req_o           (axi_mst_req_o[(NumY*x+y)*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
-        .axi_mst_resp_i          (axi_mst_resp_i[(NumY*x+y)*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
+        .axi_mst_req_o                  (axi_mst_req_o[(NumY*x+y)*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
+        .axi_mst_resp_i                 (axi_mst_resp_i[(NumY*x+y)*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
       );
     end : gen_groups_y
   end : gen_groups_x

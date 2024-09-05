@@ -49,7 +49,7 @@ packages:
     revision: null
     version: null
     source:
-      Path: hardware/deps/FlooNoC
+      Path: hardware/deps/floo_noc
     dependencies:
     - axi
     - axi_riscv_atomics
