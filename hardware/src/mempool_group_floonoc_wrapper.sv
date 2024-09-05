@@ -25,7 +25,7 @@ module mempool_group_floonoc_wrapper
   output logic                                                                         scan_data_o,
   // Group ID
   input  logic           [idx_width(NumGroups)-1:0]                                    group_id_i,
-
+  input  floo_narrow_wide_pkg::route_t [terapool_floo_noc_pkg::NumEndpoints-1:0]       route_table_i,
   // Router interface
     // narrow req noc
   `ifdef USE_NARROW_REQ_CHANNEL
@@ -53,6 +53,13 @@ module mempool_group_floonoc_wrapper
   input  logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_valid_i,
   output logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_ready_o,
 
+    // AXI Router interface
+  output floo_narrow_wide_pkg::floo_req_t   [West:North]                                floo_axi_req_o,
+  output floo_narrow_wide_pkg::floo_rsp_t   [West:North]                                floo_axi_rsp_o,
+  output floo_narrow_wide_pkg::floo_wide_t  [West:North]                                floo_axi_wide_o,
+  input  floo_narrow_wide_pkg::floo_req_t   [West:North]                                floo_axi_req_i,
+  input  floo_narrow_wide_pkg::floo_rsp_t   [West:North]                                floo_axi_rsp_i,
+  input  floo_narrow_wide_pkg::floo_wide_t  [West:North]                                floo_axi_wide_i,
 
   // Wake up interface
   input  logic           [NumCoresPerGroup-1:0]                                        wake_up_i,
@@ -63,10 +70,7 @@ module mempool_group_floonoc_wrapper
   input  logic                                                                         dma_req_valid_i,
   output logic                                                                         dma_req_ready_o,
   // DMA status
-  output `STRUCT_PORT(dma_meta_t)                                                      dma_meta_o,
-   // AXI Interface
-  output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMastersPerGroup-1:0])                 axi_mst_req_o,
-  input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMastersPerGroup-1:0])                 axi_mst_resp_i
+  output `STRUCT_PORT(dma_meta_t)                                                      dma_meta_o
 );
 
 // Parse the address width to calculate the offset
@@ -89,6 +93,9 @@ logic              [NumTilesPerGroup-1:0][NumRemoteReqPortsPerTile-1:1] tcdm_sla
 tcdm_slave_resp_t  [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1] tcdm_slave_resp;
 logic              [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1] tcdm_slave_resp_valid;
 logic              [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1] tcdm_slave_resp_ready;
+
+axi_tile_req_t axi_mst_req;
+axi_tile_resp_t axi_mst_resp;
 
 // Instantiate the mempool_group
 mempool_group #(
@@ -120,8 +127,8 @@ mempool_group #(
   .dma_req_valid_i          (dma_req_valid_i       ),
   .dma_req_ready_o          (dma_req_ready_o       ),
   .dma_meta_o               (dma_meta_o            ),
-  .axi_mst_req_o            (axi_mst_req_o         ),
-  .axi_mst_resp_i           (axi_mst_resp_i        )
+  .axi_mst_req_o            (axi_mst_req           ),
+  .axi_mst_resp_i           (axi_mst_resp          )
 );
 
 // Instantiate the floo_tcdm_router for each tile
@@ -827,7 +834,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .id_t             (group_xy_id_t),
       .NumAddrRules     (1            )
     `endif // TORUS
-    ) i_floo_wide_resp_router (
+    ) i_floo_tcdm_wide_resp_router (
       .clk_i,
       .rst_ni,
       .test_enable_i  (1'b0                                                              ),
@@ -862,5 +869,81 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
     end
   end : gen_router_wide_resp_router_j
 end : gen_router_router_i
+
+// ----------------------------- //
+// AXI FlooNoC Network Interface //
+// ----------------------------- //
+
+floo_narrow_wide_pkg::floo_req_t [Eject:North] floo_axi_req_out, floo_axi_req_in;
+floo_narrow_wide_pkg::floo_rsp_t [Eject:North] floo_axi_rsp_out, floo_axi_rsp_in;
+floo_narrow_wide_pkg::floo_wide_t [Eject:North] floo_axi_wide_out, floo_axi_wide_in;
+
+floo_narrow_wide_chimney #(
+  .EnNarrowSbrPort  ( 1'b0                                      ),
+  .EnNarrowMgrPort  ( 1'b0                                      ),
+  .EnWideSbrPort    ( 1'b0                                      ),
+  .EnWideMgrPort    ( 1'b1                                      ), // Only enable the manager port
+  .AtopSupport      ( 1'b0                                      ), // Wide does not support ATOP
+  .WideMaxTxns      ( 'd32                                      ),
+  .WideRoBType      ( floo_pkg::NoRoB                           ),
+  .CutAx            ( 1'b0                                      ), // TODO: Check if necessary
+  .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
+  .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
+  .Sam              ( terapool_floo_noc_pkg::Sam                ),
+  .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
+  .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+) i_floo_narrow_wide_chimney (
+  .clk_i,
+  .rst_ni,
+  .test_enable_i        ( testmode_i                ),
+  .sram_cfg_i           ( '0                        ),
+  .axi_narrow_in_req_i  ( '0                        ),
+  .axi_narrow_in_rsp_o  (                           ),
+  .axi_narrow_out_req_o (                           ),
+  .axi_narrow_out_rsp_i ( '0                        ),
+  .axi_wide_in_req_i    ( axi_mst_req               ),
+  .axi_wide_in_rsp_o    ( axi_mst_resp              ),
+  .axi_wide_out_req_o   (                           ),
+  .axi_wide_out_rsp_i   ( '0                        ),
+  .id_i                 ( group_id_i                ), // TODO: Check that order is the same as in generated package
+  .route_table_i,
+  .floo_req_o           ( floo_axi_req_in[Eject]    ),
+  .floo_rsp_o           ( floo_axi_rsp_in[Eject]    ),
+  .floo_wide_o          ( floo_axi_wide_in[Eject]   ),
+  .floo_req_i           ( floo_axi_req_out[Eject]   ),
+  .floo_rsp_i           ( floo_axi_rsp_out[Eject]   ),
+  .floo_wide_i          ( floo_axi_wide_out[Eject]  )
+);
+
+// ----------------- //
+// AXI FlooNoC Rouer //
+// ----------------- //
+
+floo_narrow_wide_router #(
+  .NumRoutes        ( mempool_pkg::NumDirections  ),
+  .ChannelFifoDepth ( 2                           ),
+  .OutputFifoDepth  ( 2                           ), // TODO: Check if necessary, or set to 0
+  .RouteAlgo        ( floo_pkg::SourceRouting     ),
+  .id_t             ( floo_narrow_wide_pkg::id_t  )
+) i_floo_narrow_wide_router (
+  .clk_i,
+  .rst_ni,
+  .test_enable_i  ( testmode_i        ),
+  .id_i           ( group_id_i        ),  // TODO: Check that order is the same as in generated package
+  .id_route_map_i ( '0                ),
+  .floo_req_i     ( floo_axi_req_in   ),
+  .floo_rsp_i     ( floo_axi_rsp_in   ),
+  .floo_req_o     ( floo_axi_req_out  ),
+  .floo_rsp_o     ( floo_axi_rsp_out  ),
+  .floo_wide_i    ( floo_axi_wide_in  ),
+  .floo_wide_o    ( floo_axi_wide_out )
+);
+
+assign floo_axi_req_o = floo_axi_req_out[West:North];
+assign floo_axi_rsp_o = floo_axi_rsp_out[West:North];
+assign floo_axi_wide_o = floo_axi_wide_out[West:North];
+assign floo_axi_req_in[West:North] = floo_axi_req_i;
+assign floo_axi_rsp_in[West:North] = floo_axi_rsp_i;
+assign floo_axi_wide_in[West:North] = floo_axi_wide_i;
 
 endmodule
