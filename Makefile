@@ -194,6 +194,27 @@ setup-dram: config-dram
 		make -j; \
 	fi
 
+#########################
+# FlooGen configuration #
+#########################
+
+FLOO_DIR  ?= $(shell bender path floo_noc)
+FLOO_GEN_OUTDIR	?= $(ROOT_DIR)/generated
+FLOO_CFG  ?= $(ROOT_DIR)/config/floo_noc.yml
+FLOO_SYS  = $(subst .yml,,$(notdir $(FLOO_CFG)))
+FLOO_NOC  ?= $(addprefix $(FLOO_GEN_OUTDIR)/,$(subst .yml,_floo_noc.sv,$(notdir $(FLOO_CFG))))
+
+$(info FLOO_DIR: $(FLOO_DIR))
+
+# Generates the sources for FlooNoC
+.PHONY: update-floonoc install-floogen clean-floonoc
+install-floogen:
+	$(MAKE) -C $(FLOO_DIR) install-floogen
+
+update-floonoc: $(FLOO_NOC)
+$(FLOO_NOC): install-floogen $(FLOO_CFG)
+	$(MAKE) -C $(FLOO_DIR) BENDER="$(BENDER_INSTALL_DIR) -d $(ROOT_DIR)" FLOOGEN_CFG=$(FLOO_CFG) FLOOGEN_OUT_DIR=$(FLOO_GEN_OUTDIR) sources
+
 # Helper targets
 .PHONY: clean format apps
 
