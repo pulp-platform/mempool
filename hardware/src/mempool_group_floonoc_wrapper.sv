@@ -27,18 +27,18 @@ module mempool_group_floonoc_wrapper
   input  logic           [idx_width(NumGroups)-1:0]                                    group_id_i,
 
   // Router interface
-  output floo_req_t      [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_o,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_valid_o,
-  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_ready_i,
-  output floo_resp_t     [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_o,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_valid_o,
-  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_ready_i,
-  input  floo_req_t      [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_i,
-  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_valid_i,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_ready_o,
-  input  floo_resp_t     [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_i,
-  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_valid_i,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_ready_o,
+  output floo_tcdm_req_t  [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_req_o,
+  output logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_req_valid_o,
+  input  logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_req_ready_i,
+  output floo_tcdm_resp_t [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_o,
+  output logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_valid_o,
+  input  logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_ready_i,
+  input  floo_tcdm_req_t  [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_req_i,
+  input  logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_req_valid_i,
+  output logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_req_ready_o,
+  input  floo_tcdm_resp_t [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_i,
+  input  logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_valid_i,
+  output logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_ready_o,
 
   // Wake up interface
   input  logic           [NumCoresPerGroup-1:0]                                        wake_up_i,
@@ -111,22 +111,22 @@ mempool_group #(
 );
 
 // Instantiate the floo_tcdm_router for each tile
-floo_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router,  floo_req_from_router;
-floo_resp_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_to_router, floo_resp_from_router;
+floo_tcdm_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router,  floo_req_from_router;
+floo_tcdm_resp_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_to_router, floo_resp_from_router;
 
 // ------------------------------------------------------------------ //
 // Remapping: From MemPool "Master Request" to FlooNoC "TCDM request" //
 // ------------------------------------------------------------------ //
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_router_req_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_master_req_to_router_req_j
-    assign floo_req_to_router[i][j] = floo_req_t'{
-      payload: floo_req_payload_t'{
+    assign floo_req_to_router[i][j] = floo_tcdm_req_t'{
+      payload: floo_tcdm_req_payload_t'{
         amo : tcdm_master_req[i][j].wdata.amo,
         wen : tcdm_master_req[i][j].wen,
         be  : tcdm_master_req[i][j].be,
         data: tcdm_master_req[i][j].wdata.data
       },
-      hdr: floo_req_meta_t'{
+      hdr: floo_tcdm_req_meta_t'{
         meta_id : tcdm_master_req[i][j].wdata.meta_id,              // For Register File
         core_id : tcdm_master_req[i][j].wdata.core_id,              // For Core
         src_tile_id : i,                                            // For Crossbar when response back
@@ -145,7 +145,7 @@ end : gen_master_req_to_router_req_i
 //       Should be improved for confict resolution.                   //
 // ------------------------------------------------------------------ //
 tile_group_id_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] req_tile_sel;
-floo_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_after_xbar;
+floo_tcdm_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_after_xbar;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_after_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_after_xbar_ready;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_before_xbar_valid;
@@ -162,11 +162,11 @@ end else begin
 end
 
 tile_group_id_t [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] req_tile_sel_per_port;
-floo_req_t      [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_per_port;
+floo_tcdm_req_t      [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_per_port;
 logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_before_xbar_valid_per_port;
 logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_before_xbar_ready_per_port;
 
-floo_req_t      [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_after_xbar_per_port;
+floo_tcdm_req_t      [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_after_xbar_per_port;
 logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_after_xbar_valid_per_port;
 logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_req_from_router_after_xbar_ready_per_port;
 
@@ -187,7 +187,7 @@ for (genvar i = 1; i < NumRemotePortsPerTile; i++) begin : floo_req_xbar
   stream_xbar #(
     .NumInp   (NumTilesPerGroup                                              ),
     .NumOut   (NumTilesPerGroup                                              ),
-    .payload_t(floo_req_t                                                    )
+    .payload_t(floo_tcdm_req_t                                                    )
   ) i_local_req_interco (
     .clk_i  (clk_i                                                           ),
     .rst_ni (rst_ni                                                          ),
@@ -236,12 +236,12 @@ end : gen_router_req_to_slave_req_i
 // -------------------------------------------------------------------- //
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_router_resp_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_slave_resp_to_router_resp_j
-    assign floo_resp_to_router[i][j] = floo_resp_t'{
-      payload: floo_resp_payload_t'{
+    assign floo_resp_to_router[i][j] = floo_tcdm_resp_t'{
+      payload: floo_tcdm_resp_payload_t'{
         amo : tcdm_slave_resp[i][j].rdata.amo,
         data: tcdm_slave_resp[i][j].rdata.data
       },
-      hdr: floo_resp_meta_t'{
+      hdr: floo_tcdm_resp_meta_t'{
         meta_id : tcdm_slave_resp[i][j].rdata.meta_id,             // For Register File
         core_id : tcdm_slave_resp[i][j].rdata.core_id,             // For Core
         tile_id : tcdm_slave_resp[i][j].ini_addr,                  // For Crossbar when response back (Sender's Tile ID, propagated from request)
@@ -257,12 +257,12 @@ end : gen_slave_resp_to_router_resp_i
 // TODO: This is a consitent assignment to Tile's port,               //
 //       Should be improved for confict resolution.                   //
 // ------------------------------------------------------------------ //
-tile_group_id_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] resp_tile_sel;
-floo_resp_t     [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_after_xbar;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_after_xbar_valid;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_after_xbar_ready;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_valid;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_ready;
+tile_group_id_t   [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] resp_tile_sel;
+floo_tcdm_resp_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_after_xbar;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_after_xbar_valid;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_after_xbar_ready;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_valid;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_ready;
 
 if (NumTilesPerGroup == 1) begin
   assign resp_tile_sel = '0;
@@ -274,14 +274,14 @@ end else begin
   end : gen_resp_sel_tgt_tile_i
 end
 
-tile_group_id_t [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] resp_tile_sel_per_port;
-floo_resp_t     [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_per_port;
-logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_before_xbar_valid_per_port;
-logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_before_xbar_ready_per_port;
+tile_group_id_t   [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] resp_tile_sel_per_port;
+floo_tcdm_resp_t  [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_per_port;
+logic             [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_before_xbar_valid_per_port;
+logic             [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_before_xbar_ready_per_port;
 
-floo_resp_t     [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_per_port;
-logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_valid_per_port;
-logic           [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_ready_per_port;
+floo_tcdm_resp_t  [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_per_port;
+logic             [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_valid_per_port;
+logic             [NumRemotePortsPerTile-1:1][NumTilesPerGroup-1:0] floo_resp_from_router_after_xbar_ready_per_port;
 
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_floo_resp_from_router_per_port_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_floo_resp_from_router_per_port_j
@@ -301,7 +301,7 @@ for (genvar i = 1; i < NumRemotePortsPerTile; i++) begin : floo_resp_xbar
   stream_xbar #(
     .NumInp   (NumTilesPerGroup                                               ),
     .NumOut   (NumTilesPerGroup                                               ),
-    .payload_t(floo_resp_t                                                    )
+    .payload_t(floo_tcdm_resp_t                                                    )
   ) i_local_resp_interco (
     .clk_i  (clk_i                                                            ),
     .rst_ni (rst_ni                                                           ),
@@ -342,35 +342,35 @@ end : gen_router_resp_to_master_resp_i
 // ------------------------------------------------------------------ //
 // ----------------------       Router      --------------------------//
 // ------------------------------------------------------------------ //
-floo_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_o_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_valid_o_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_ready_i_trans;
-floo_resp_t     [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_o_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_valid_o_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_ready_i_trans;
-floo_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_i_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_valid_i_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_ready_o_trans;
-floo_resp_t     [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_i_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_valid_i_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_ready_o_trans;
+floo_tcdm_req_t   [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_o_trans;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_valid_o_trans;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_ready_i_trans;
+floo_tcdm_resp_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_o_trans;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_valid_o_trans;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_ready_i_trans;
+floo_tcdm_req_t   [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_i_trans;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_valid_i_trans;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_ready_o_trans;
+floo_tcdm_resp_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_i_trans;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_valid_i_trans;
+logic             [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_ready_o_trans;
 
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_connection_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_router_router_connection_j
     for (genvar k = North; k <= West; k++) begin: gen_router_router_connection_k
-      assign floo_req_o         [k][i][j] = floo_req_o_trans        [i][j][k];
-      assign floo_req_valid_o   [k][i][j] = floo_req_valid_o_trans  [i][j][k];
-      assign floo_resp_o        [k][i][j] = floo_resp_o_trans       [i][j][k];
-      assign floo_resp_valid_o  [k][i][j] = floo_resp_valid_o_trans [i][j][k];
-      assign floo_req_ready_o   [k][i][j] = floo_req_ready_o_trans  [i][j][k];
-      assign floo_resp_ready_o  [k][i][j] = floo_resp_ready_o_trans [i][j][k];
+      assign floo_tcdm_req_o         [k][i][j] = floo_req_o_trans        [i][j][k];
+      assign floo_tcdm_req_valid_o   [k][i][j] = floo_req_valid_o_trans  [i][j][k];
+      assign floo_tcdm_resp_o        [k][i][j] = floo_resp_o_trans       [i][j][k];
+      assign floo_tcdm_resp_valid_o  [k][i][j] = floo_resp_valid_o_trans [i][j][k];
+      assign floo_tcdm_req_ready_o   [k][i][j] = floo_req_ready_o_trans  [i][j][k];
+      assign floo_tcdm_resp_ready_o  [k][i][j] = floo_resp_ready_o_trans [i][j][k];
 
-      assign floo_req_ready_i_trans   [i][j][k] = floo_req_ready_i  [k][i][j];
-      assign floo_resp_ready_i_trans  [i][j][k] = floo_resp_ready_i [k][i][j];
-      assign floo_req_i_trans         [i][j][k] = floo_req_i        [k][i][j];
-      assign floo_req_valid_i_trans   [i][j][k] = floo_req_valid_i  [k][i][j];
-      assign floo_resp_i_trans        [i][j][k] = floo_resp_i       [k][i][j];
-      assign floo_resp_valid_i_trans  [i][j][k] = floo_resp_valid_i [k][i][j];
+      assign floo_req_ready_i_trans   [i][j][k] = floo_tcdm_req_ready_i  [k][i][j];
+      assign floo_resp_ready_i_trans  [i][j][k] = floo_tcdm_resp_ready_i [k][i][j];
+      assign floo_req_i_trans         [i][j][k] = floo_tcdm_req_i        [k][i][j];
+      assign floo_req_valid_i_trans   [i][j][k] = floo_tcdm_req_valid_i  [k][i][j];
+      assign floo_resp_i_trans        [i][j][k] = floo_tcdm_resp_i       [k][i][j];
+      assign floo_resp_valid_i_trans  [i][j][k] = floo_tcdm_resp_valid_i [k][i][j];
     end : gen_router_router_connection_k
   end : gen_router_router_connection_j
 end : gen_router_router_connection_i
@@ -382,7 +382,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
     floo_router #(
       .NumRoutes        (mempool_pkg::NumDirections),
       .NumVirtChannels  (1            ),
-      .flit_t           (floo_req_t   ),
+      .flit_t           (floo_tcdm_req_t   ),
       .ChannelFifoDepth (2            ), // Input buffer depth
       .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo        (XYRouting    ),
@@ -405,7 +405,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
     floo_router #(
       .NumRoutes       (mempool_pkg::NumDirections),
       .NumVirtChannels (1            ),
-      .flit_t          (floo_resp_t  ),
+      .flit_t          (floo_tcdm_resp_t  ),
       .ChannelFifoDepth(2            ), // Input buffer depth
       .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo       (XYRouting    ),
