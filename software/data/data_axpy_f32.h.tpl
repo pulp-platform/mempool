@@ -15,12 +15,13 @@
     return out
 %> \
 
+
 #define LEN (${Len})
 
-float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_A[${Len}] = ${array_to_cstr(A)};
+float __attribute__((section(".l2"))) A = ${'(float){:.8f}'.format(A)};
 
-float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_B[${Len}] = ${array_to_cstr(B)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_X[${Len}] = ${array_to_cstr(X)};
 
-float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_C[${Len}] = ${array_to_cstr(C)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_Y[${Len}] = ${array_to_cstr(Y)};
 
 float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_out[${Len}] = ${array_to_cstr(out)};

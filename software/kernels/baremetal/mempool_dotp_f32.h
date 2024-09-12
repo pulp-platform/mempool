@@ -7,12 +7,12 @@
 #define DOTPF32_UNROLLED4_LOOP                                                 \
   {                                                                            \
     a0 = in_a[i];                                                              \
-    b0 = in_b[i];                                                              \
     a1 = in_a[i + 1];                                                          \
-    b1 = in_b[i + 1];                                                          \
     a2 = in_a[i + 2];                                                          \
-    b2 = in_b[i + 2];                                                          \
     a3 = in_a[i + 3];                                                          \
+    b0 = in_b[i];                                                              \
+    b1 = in_b[i + 1];                                                          \
+    b2 = in_b[i + 2];                                                          \
     b3 = in_b[i + 3];                                                          \
     asm volatile(                                                              \
         "fmadd.s %[local_sum0], %[a0], %[b0], %[local_sum0];"                  \
@@ -95,7 +95,7 @@ void dotp_f32s(float *in_a, float *in_b, float *s, uint32_t Len) {
   if (core_id == 0) {
     mempool_start_benchmark();
     // Kernel execution
-    register float local_sum = 0;
+    float local_sum = 0;
     float *end = in_a + Len;
     do {
       asm volatile("fmadd.s %0, %1, %2, %0;"
@@ -120,13 +120,12 @@ void dotp_f32s_unrolled4(float *in_a, float *in_b, float *s, uint32_t Len) {
     uint32_t reminder = Len % 4;
     uint32_t i = 0;
 
-    register float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
-    register float b2 = 0.0f, b1 = 0.0f, b0 = 0.0f, b3 = 0.0f;
-    register float local_sum0 = 0.0f;
-    register float local_sum1 = 0.0f;
-    register float local_sum2 = 0.0f;
-    register float local_sum3 = 0.0f;
-
+    float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
+    float b2 = 0.0f, b1 = 0.0f, b0 = 0.0f, b3 = 0.0f;
+    float local_sum0 = 0.0f;
+    float local_sum1 = 0.0f;
+    float local_sum2 = 0.0f;
+    float local_sum3 = 0.0f;
     for (i = 0; i < (Len - reminder); i += 4) {
       DOTPF32_UNROLLED4_LOOP;
     }
@@ -158,8 +157,8 @@ void dotp_f32p(float *in_a, float *in_b, float *s, uint32_t Len, uint32_t nPE) {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t step = Len / nPE;
-  register float local_sum = 0;
-  register float a, b;
+  float local_sum = 0;
+  float a, b;
   for (uint32_t i = core_id * step; i < core_id * step + step; i++) {
     a = in_a[i];
     b = in_b[i];
@@ -182,12 +181,12 @@ void dotp_f32p_unrolled4(float *in_a, float *in_b, float *s, uint32_t Len,
   uint32_t reminder = step % 4;
   uint32_t i;
 
-  register float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
-  register float b2 = 0.0f, b1 = 0.0f, b0 = 0.0f, b3 = 0.0f;
-  register float local_sum0 = 0.0f;
-  register float local_sum1 = 0.0f;
-  register float local_sum2 = 0.0f;
-  register float local_sum3 = 0.0f;
+  float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
+  float b2 = 0.0f, b1 = 0.0f, b0 = 0.0f, b3 = 0.0f;
+  float local_sum0 = 0.0f;
+  float local_sum1 = 0.0f;
+  float local_sum2 = 0.0f;
+  float local_sum3 = 0.0f;
 
   for (i = core_id * step; i < (core_id * step + step) - reminder; i += 4) {
     DOTPF32_UNROLLED4_LOOP;
@@ -223,18 +222,18 @@ void dotp_f32p_local_unrolled4(float *in_a, float *in_b, float *s,
   uint32_t const remainder = Len % BANKING_FACTOR;
   uint32_t const idx_stop = Len - remainder;
 
-  register float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
-  register float b2 = 0.0f, b1 = 0.0f, b0 = 0.0f, b3 = 0.0f;
-  register float local_sum0 = 0.0f;
-  register float local_sum1 = 0.0f;
-  register float local_sum2 = 0.0f;
-  register float local_sum3 = 0.0f;
+  float a0, a1, a2, a3;
+  float b2, b1, b0, b3;
+  float local_sum0 = 0.0f;
+  float local_sum1 = 0.0f;
+  float local_sum2 = 0.0f;
+  float local_sum3 = 0.0f;
 
   for (uint32_t i = core_id * BANKING_FACTOR; i < idx_stop; i += NUM_BANKS) {
     DOTPF32_UNROLLED4_LOOP;
   }
   if (core_id == ((Len % NUM_BANKS) / 4)) {
-    for (uint32_t i = Len - remainder; i < Len; i++) {
+    for (uint32_t i = idx_stop; i < Len; i++) {
       a0 = in_a[i];
       b0 = in_b[i];
       asm volatile("fmadd.s %0, %1, %2, %0;"

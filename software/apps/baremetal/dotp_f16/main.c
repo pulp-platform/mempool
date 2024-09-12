@@ -19,8 +19,8 @@
 #define BINARY_REDUCTION
 
 // Vectors for kernel computation
-__fp16 l1_A[LEN] __attribute__((aligned(LEN), section(".l1_prio")));
-__fp16 l1_B[LEN] __attribute__((aligned(LEN), section(".l1_prio")));
+__fp16 l1_A[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+__fp16 l1_B[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 uint32_t red_barrier[NUM_BANKS]
     __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 __fp16 sum[2 * NUM_BANKS]

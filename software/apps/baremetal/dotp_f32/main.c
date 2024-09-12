@@ -20,8 +20,8 @@
 #define BINARY_REDUCTION
 
 // Vectors for kernel computation
-float l1_A[LEN] __attribute__((aligned(LEN), section(".l1_prio")));
-float l1_B[LEN] __attribute__((aligned(LEN), section(".l1_prio")));
+float l1_A[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+float l1_B[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 uint32_t red_barrier[NUM_BANKS]
     __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 float sum[NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));

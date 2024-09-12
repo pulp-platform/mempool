@@ -11,13 +11,21 @@
   {                                                                            \
     a01 = (*(v2h *)&in_a[i]);                                                  \
     a23 = (*(v2h *)&in_a[i + 2]);                                              \
+    a45 = (*(v2h *)&in_a[i + 4]);                                              \
+    a67 = (*(v2h *)&in_a[i + 6]);                                              \
     b01 = (*(v2h *)&in_b[i]);                                                  \
     b23 = (*(v2h *)&in_b[i + 2]);                                              \
+    b45 = (*(v2h *)&in_b[i + 4]);                                              \
+    b67 = (*(v2h *)&in_b[i + 6]);                                              \
     asm volatile(                                                              \
         "vfdotpex.s.h %[local_sum0], %[a01], %[b01];"                          \
         "vfdotpex.s.h %[local_sum1], %[a23], %[b23];"                          \
-        : [local_sum0] "+&r"(local_sum0), [local_sum1] "+&r"(local_sum1)       \
-        : [a01] "r"(a01), [a23] "r"(a23), [b01] "r"(b01), [b23] "r"(b23));     \
+        "vfdotpex.s.h %[local_sum2], %[a45], %[b45];"                          \
+        "vfdotpex.s.h %[local_sum3], %[a67], %[b67];"                          \
+        : [local_sum0] "+&r"(local_sum0), [local_sum1] "+&r"(local_sum1),      \
+          [local_sum2] "+&r"(local_sum2), [local_sum3] "+&r"(local_sum3)       \
+        : [a01] "r"(a01), [a23] "r"(a23), [a45] "r"(a45), [a67] "r"(a67),      \
+          [b01] "r"(b01), [b23] "r"(b23), [b45] "r"(b45), [b67] "r"(b67));     \
   }
 
 /* Single core reduction */
@@ -116,20 +124,23 @@ void dotp_f16s_unrolled4(__fp16 *in_a, __fp16 *in_b, __fp16 *s, uint32_t Len) {
   if (core_id == 0) {
     mempool_start_benchmark();
     uint32_t i = 0;
-
-    v2h a01, a23;
-    v2h b01, b23;
+    v2h a01, a23, a45, a67;
+    v2h b01, b23, b45, b67;
     float local_sum0 = 0.0f;
     float local_sum1 = 0.0f;
-
-    for (i = 0; i < Len; i += 4) {
+    float local_sum2 = 0.0f;
+    float local_sum3 = 0.0f;
+    for (i = 0; i < Len; i += 8) {
       DOTPF16VEC_UNROLLED4_LOOP;
     }
     // Reduction
     asm volatile(
         "fadd.s   %[local_sum0], %[local_sum0], %[local_sum1];"
+        "fadd.s   %[local_sum2], %[local_sum2], %[local_sum3];"
+        "fadd.s   %[local_sum0], %[local_sum0], %[local_sum2];"
         "fcvt.h.s %[local_sum0], %[local_sum0];"
-        : [local_sum0] "+&r"(local_sum0), [local_sum1] "+&r"(local_sum1)
+        : [local_sum0] "+&r"(local_sum0), [local_sum1] "+&r"(local_sum1),
+          [local_sum2] "+&r"(local_sum2), [local_sum3] "+&r"(local_sum3)
         :);
     s[0] = *(__fp16 *)&local_sum0;
     mempool_stop_benchmark();
@@ -168,17 +179,21 @@ void dotp_f16vecp_unrolled4(__fp16 *in_a, __fp16 *in_b, __fp16 *s, uint32_t Len,
   uint32_t step = Len / nPE;
   uint32_t i;
 
-  v2h a01, a23;
-  v2h b01, b23;
+  v2h a01, a23, a45, a67;
+  v2h b01, b23, b45, b67;
   float local_sum0 = 0.0f;
   float local_sum1 = 0.0f;
-
-  for (i = core_id * step; i < core_id * step + step; i += 4) {
+  float local_sum2 = 0.0f;
+  float local_sum3 = 0.0f;
+  for (i = core_id * step; i < (core_id * step + step); i += 8) {
     DOTPF16VEC_UNROLLED4_LOOP;
   }
   asm volatile("fadd.s   %[local_sum0], %[local_sum0], %[local_sum1];"
+               "fadd.s   %[local_sum2], %[local_sum2], %[local_sum3];"
+               "fadd.s   %[local_sum0], %[local_sum0], %[local_sum2];"
                "fcvt.h.s %[local_sum0], %[local_sum0];"
-               : [local_sum0] "+&r"(local_sum0), [local_sum1] "+&r"(local_sum1)
+               : [local_sum0] "+&r"(local_sum0), [local_sum1] "+&r"(local_sum1),
+                 [local_sum2] "+&r"(local_sum2), [local_sum3] "+&r"(local_sum3)
                :);
   s[2 * core_id * BANKING_FACTOR] = *(__fp16 *)&local_sum0;
   uint32_t num_cores = mempool_get_core_count();
@@ -194,16 +209,21 @@ void dotp_f16vecp_local_unrolled4(__fp16 *in_a, __fp16 *in_b, __fp16 *s,
 
   uint32_t core_id = mempool_get_core_id();
 
-  v2h a01, a23;
-  v2h b01, b23;
+  v2h a01, a23, a45, a67;
+  v2h b01, b23, b45, b67;
   float local_sum0 = 0.0f;
   float local_sum1 = 0.0f;
-  for (uint32_t i = core_id * BANKING_FACTOR; i < Len; i += NUM_BANKS) {
+  float local_sum2 = 0.0f;
+  float local_sum3 = 0.0f;
+  for (uint32_t i = 2 * core_id * BANKING_FACTOR; i < Len; i += 2 * NUM_BANKS) {
     DOTPF16VEC_UNROLLED4_LOOP;
   }
   asm volatile("fadd.s   %[local_sum0], %[local_sum0], %[local_sum1];"
+               "fadd.s   %[local_sum2], %[local_sum2], %[local_sum3];"
+               "fadd.s   %[local_sum0], %[local_sum0], %[local_sum2];"
                "fcvt.h.s %[local_sum0], %[local_sum0];"
-               : [local_sum0] "+&r"(local_sum0), [local_sum1] "+&r"(local_sum1)
+               : [local_sum0] "+&r"(local_sum0), [local_sum1] "+&r"(local_sum1),
+                 [local_sum2] "+&r"(local_sum2), [local_sum3] "+&r"(local_sum3)
                :);
   s[2 * core_id * BANKING_FACTOR] = *(__fp16 *)&local_sum0;
 

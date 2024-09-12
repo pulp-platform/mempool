@@ -26,8 +26,8 @@ def generate_dotp_i32(Len):
 def generate_dotp_f32(Len):
 
     # Create matrix
-    A = np.random.rand(Len).astype(np.float32)
-    B = np.random.rand(Len).astype(np.float32)
+    A = np.random.randn(Len).astype(np.float32)
+    B = np.random.randn(Len).astype(np.float32)
     C = (np.dot(A, B)).astype(np.float32)
     return A, B, C
 
@@ -35,8 +35,8 @@ def generate_dotp_f32(Len):
 def generate_dotp_f16(Len):
 
     # Create matrix
-    A = np.random.rand(Len).astype(np.float16)
-    B = np.random.rand(Len).astype(np.float16)
+    A = np.random.randn(Len).astype(np.float16)
+    B = np.random.randn(Len).astype(np.float16)
     C = (np.dot(A, B)).astype(np.float16)
     return A, B, C
 
@@ -44,21 +44,21 @@ def generate_dotp_f16(Len):
 def generate_axpy_f32(Len):
 
     # Create matrix
-    A = np.random.rand(Len).astype(np.float32)
-    B = np.random.rand(Len).astype(np.float32)
-    C = np.random.rand(Len).astype(np.float32)
-    out = C + A * B
-    return A, B, C, out
+    X = np.random.rand(Len).astype(np.float32)
+    Y = np.random.rand(Len).astype(np.float32)
+    A = np.float32(3.14)
+    out = Y + A * X
+    return A, X, Y, out
 
 
 def generate_axpy_f16(Len):
 
     # Create matrix
-    A = np.random.rand(Len).astype(np.float16)
-    B = np.random.rand(Len).astype(np.float16)
-    C = np.random.rand(Len).astype(np.float16)
-    out = C + A * B
-    return A, B, C, out
+    X = np.random.rand(Len).astype(np.float16)
+    Y = np.random.rand(Len).astype(np.float16)
+    A = np.float16(3.14)
+    out = Y + A * X
+    return A, X, Y, out
 
 ##################
 # compute_result #
@@ -130,24 +130,24 @@ def main():
         'Len': Len}
     gen_data_header_file(args.outdir, tpl, **kwargs)
 
-    A, B, C, out = generate_axpy_f32(Len)
+    A, X, Y, out = generate_axpy_f32(Len)
     tpl = pathlib.Path(__file__).parent.absolute() / "data_axpy_f32.h.tpl"
     kwargs = {
         'name': 'data_axpy_f32',
         'A': A,
-        'B': B,
-        'C': C,
+        'X': X,
+        'Y': Y,
         'out': out,
         'Len': Len}
     gen_data_header_file(args.outdir, tpl, **kwargs)
 
-    A, B, C, out = generate_axpy_f16(Len)
+    A, X, Y, out = generate_axpy_f16(Len)
     tpl = pathlib.Path(__file__).parent.absolute() / "data_axpy_f16.h.tpl"
     kwargs = {
         'name': 'data_axpy_f16',
         'A': A,
-        'B': B,
-        'C': C,
+        'X': X,
+        'Y': Y,
         'out': out,
         'Len': Len}
     gen_data_header_file(args.outdir, tpl, **kwargs)
