@@ -32,7 +32,7 @@ def main():
         "-o",
         "--outdir",
         type=pathlib.Path,
-        default=pathlib.Path.cwd(),
+        default=pathlib.Path(__file__).parent.absolute(),
         required=False,
         help='Select out directory of generated data files'
     )
@@ -41,7 +41,8 @@ def main():
         "--tpl",
         type=pathlib.Path,
         required=False,
-        default=pathlib.Path.cwd() / "data_barriers_test.h.tpl",
+        default=pathlib.Path(__file__).parent.absolute()
+        / "data_barriers_test.h.tpl",
         help='Path to mako template'
     )
     parser.add_argument(
@@ -50,53 +51,53 @@ def main():
         action='store_true',
         help='Set verbose'
     )
+
+    parser.add_argument(
+        "delay_distribution",
+        nargs='?',
+        type=str,
+        default='uniform')
     parser.add_argument(
         "-n",
         "--num_cores",
         type=int,
         required=False,
         default=1024,
-        help='Number of cores.'
-    )
-
+        help='Number of cores.')
     parser.add_argument(
         "-a",
-        "--a_par",
         type=float,
         required=False,
         default=0.5,
-        help='Number of cores.'
-    )
+        help='Weybull a.')
     parser.add_argument(
         "-d",
-        "--d_par",
         type=int,
         required=False,
         default=1,
-        help='Number of cores.'
-    )
+        help='Weybull d.')
     parser.add_argument(
         "-m",
         "--max",
         type=int,
         required=False,
         default=1024,
-        help='Max delay.'
-    )
+        help='Max delay.')
 
     args = parser.parse_args()
     num_cores = args.num_cores
 
-    # Weybull distribution
-    # a = args.a_par
-    # D = args.d_par
-    # delays = D * np.random.weibull(a, size=num_cores)
-    # delays = np.asarray(delays, dtype = 'int')
-
-    # Uniform
-    max_delay = args.max
-    delays = np.random.uniform(low=0.0, high=max_delay, size=num_cores)
-    delays = np.asarray(delays, dtype='int')
+    if args.delay_distribution == 'weybull':
+        # Weybull distribution
+        a = args.a_par
+        D = args.d_par
+        delays = D * np.random.weibull(a, size=num_cores)
+        delays = np.asarray(delays, dtype='int')
+    else:
+        # Uniform
+        max_delay = args.max
+        delays = np.random.uniform(low=0.0, high=max_delay, size=num_cores)
+        delays = np.asarray(delays, dtype='int')
 
     kwargs = {
         'name': 'barriers_test',
