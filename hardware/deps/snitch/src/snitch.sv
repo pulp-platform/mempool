@@ -347,12 +347,13 @@ module snitch
 
     next_pc = Consec;
 
-    // set up rd destination
+    // Set up rd destination
     rd_select = RdAlu;
+    // instruction writes rd in the decoding cycle
     write_rd = 1'b1;
-    // if we are writing the field this cycle we need an int destination register
-    uses_rd = write_rd;
-    // set up rs1 destination
+    // instruction writes rd
+    uses_rd = 1'b1;
+    // Set up rs1 destination
     write_rs1 = 1'b0;
     uses_rs1 = write_rs1;
 
@@ -501,6 +502,7 @@ module snitch
       riscv_instr::BEQ: begin
         is_branch = 1'b1;
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         alu_op = Eq;
         opa_select = Reg;
         opb_select = Reg;
@@ -508,6 +510,7 @@ module snitch
       riscv_instr::BNE: begin
         is_branch = 1'b1;
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         alu_op = Neq;
         opa_select = Reg;
         opb_select = Reg;
@@ -515,6 +518,7 @@ module snitch
       riscv_instr::BLT: begin
         is_branch = 1'b1;
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         alu_op = Slt;
         opa_select = Reg;
         opb_select = Reg;
@@ -522,6 +526,7 @@ module snitch
       riscv_instr::BLTU: begin
         is_branch = 1'b1;
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         alu_op = Sltu;
         opa_select = Reg;
         opb_select = Reg;
@@ -529,6 +534,7 @@ module snitch
       riscv_instr::BGE: begin
         is_branch = 1'b1;
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         alu_op = Ge;
         opa_select = Reg;
         opb_select = Reg;
@@ -536,6 +542,7 @@ module snitch
       riscv_instr::BGEU: begin
         is_branch = 1'b1;
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         alu_op = Geu;
         opa_select = Reg;
         opb_select = Reg;
@@ -543,12 +550,14 @@ module snitch
       // Load/Stores
       riscv_instr::SB: begin
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         is_store = 1'b1;
         opa_select = Reg;
         opb_select = SImmediate;
       end
       riscv_instr::SH: begin
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         is_store = 1'b1;
         ls_size = HalfWord;
         opa_select = Reg;
@@ -556,6 +565,7 @@ module snitch
       end
       riscv_instr::SW: begin
         write_rd = 1'b0;
+        uses_rd = 1'b0;
         is_store = 1'b1;
         ls_size = Word;
         opa_select = Reg;
@@ -563,7 +573,6 @@ module snitch
       end
       riscv_instr::LB: begin
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         opa_select = Reg;
@@ -571,7 +580,6 @@ module snitch
       end
       riscv_instr::LH: begin
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = HalfWord;
@@ -580,7 +588,6 @@ module snitch
       end
       riscv_instr::LW: begin
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -589,14 +596,12 @@ module snitch
       end
       riscv_instr::LBU: begin
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         opa_select = Reg;
         opb_select = IImmediate;
       end
       riscv_instr::LHU: begin
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         ls_size = HalfWord;
         opa_select = Reg;
@@ -664,6 +669,7 @@ module snitch
       riscv_instr::EBREAK: begin
         // TODO(zarubaf): Trap to precise address
         write_rd = 1'b0;
+        uses_rd = 1'b0;
       end
       // NOP Instructions
       riscv_instr::FENCE: begin
@@ -692,7 +698,6 @@ module snitch
       riscv_instr::AMOADD_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -703,7 +708,6 @@ module snitch
       riscv_instr::AMOXOR_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -714,7 +718,6 @@ module snitch
       riscv_instr::AMOOR_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -725,7 +728,6 @@ module snitch
       riscv_instr::AMOAND_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -736,7 +738,6 @@ module snitch
       riscv_instr::AMOMIN_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -747,7 +748,6 @@ module snitch
       riscv_instr::AMOMAX_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -758,7 +758,6 @@ module snitch
       riscv_instr::AMOMINU_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -769,7 +768,6 @@ module snitch
       riscv_instr::AMOMAXU_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -780,7 +778,6 @@ module snitch
       riscv_instr::AMOSWAP_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -791,7 +788,6 @@ module snitch
       riscv_instr::LR_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -802,7 +798,6 @@ module snitch
       riscv_instr::SC_W: begin
         alu_op = BypassA;
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         is_load = 1'b1;
         is_signed = 1'b1;
         ls_size = Word;
@@ -825,7 +820,6 @@ module snitch
       riscv_instr::REMW,
       riscv_instr::REMUW: begin
         write_rd = 1'b0;
-        uses_rd = 1'b1;
         acc_qvalid_o = valid_instr;
         opa_select = Reg;
         opb_select = Reg;
@@ -849,7 +843,6 @@ module snitch
       riscv_instr::FMAX_S: begin
         if (snitch_pkg::ZFINX) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -863,7 +856,6 @@ module snitch
       riscv_instr::FSQRT_S: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -885,7 +877,6 @@ module snitch
       riscv_instr::FMV_W_X: begin
         if (snitch_pkg::ZFINX) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -901,7 +892,6 @@ module snitch
       riscv_instr::FNMADD_S: begin
         if (snitch_pkg::ZFINX) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -924,7 +914,6 @@ module snitch
       riscv_instr::FMAX_H: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -938,7 +927,6 @@ module snitch
       riscv_instr::FSQRT_H: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -962,7 +950,6 @@ module snitch
       riscv_instr::FMV_H_X: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -978,7 +965,6 @@ module snitch
       riscv_instr::FNMADD_H: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1010,7 +996,6 @@ module snitch
       riscv_instr::VFSGNJX_R_H: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1025,7 +1010,6 @@ module snitch
       riscv_instr::VFSQRT_H: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1059,7 +1043,6 @@ module snitch
       riscv_instr::VFCVT_H_XU: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1075,7 +1058,6 @@ module snitch
       riscv_instr::VFMRE_R_H: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1089,7 +1071,6 @@ module snitch
       riscv_instr::VFCPKA_H_S: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1109,7 +1090,6 @@ module snitch
       riscv_instr::VFNSUMEX_S_H: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1127,7 +1107,6 @@ module snitch
       riscv_instr::FCCNDOTPEX_S_H: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF16) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1151,7 +1130,6 @@ module snitch
       riscv_instr::FMAX_B: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1165,7 +1143,6 @@ module snitch
       riscv_instr::FSQRT_B: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1190,7 +1167,6 @@ module snitch
       riscv_instr::FCVT_B_WU: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1206,7 +1182,6 @@ module snitch
       riscv_instr::FNMADD_B: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1238,7 +1213,6 @@ module snitch
       riscv_instr::VFSGNJX_R_B: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1253,7 +1227,6 @@ module snitch
       riscv_instr::VFSQRT_B: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XDIVSQRT && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1289,7 +1262,6 @@ module snitch
       riscv_instr::VFCVT_B_XU: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1305,7 +1277,6 @@ module snitch
       riscv_instr::VFMRE_R_B: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1320,7 +1291,6 @@ module snitch
       riscv_instr::VFCPKB_B_S: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1340,7 +1310,6 @@ module snitch
       riscv_instr::VFNSUMEX_H_B: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1357,7 +1326,6 @@ module snitch
       riscv_instr::VFDOTPEXB_S_R_B: begin
         if (snitch_pkg::ZFINX && snitch_pkg::XFVEC && snitch_pkg::XF8) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1377,7 +1345,6 @@ module snitch
       riscv_instr::P_LB_IRPOST: begin // Xpulpimg: p.lb rd,iimm(rs1!)
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1392,7 +1359,6 @@ module snitch
       riscv_instr::P_LBU_IRPOST: begin // Xpulpimg: p.lbu
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1406,7 +1372,6 @@ module snitch
       riscv_instr::P_LH_IRPOST: begin  // Xpulpimg: p.lh
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1422,7 +1387,6 @@ module snitch
       riscv_instr::P_LHU_IRPOST: begin // Xpulpimg: p.lhu
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1437,7 +1401,6 @@ module snitch
       riscv_instr::P_LW_IRPOST: begin  // Xpulpimg: p.lw
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1453,7 +1416,6 @@ module snitch
       riscv_instr::P_LB_RRPOST: begin  // Xpulpimg: p.lb rd,rs2(rs1!)
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1468,7 +1430,6 @@ module snitch
       riscv_instr::P_LBU_RRPOST: begin // Xpulpimg: p.lbu
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1482,7 +1443,6 @@ module snitch
       riscv_instr::P_LH_RRPOST: begin  // Xpulpimg: p.lh
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1498,7 +1458,6 @@ module snitch
       riscv_instr::P_LHU_RRPOST: begin // Xpulpimg: p.lhu
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1513,7 +1472,6 @@ module snitch
       riscv_instr::P_LW_RRPOST: begin  // Xpulpimg: p.lw
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           write_rs1 = 1'b1;
           is_load = 1'b1;
           is_postincr = 1'b1;
@@ -1529,7 +1487,6 @@ module snitch
       riscv_instr::P_LB_RR: begin      // Xpulpimg: p.lb rd,rs2(rs1)
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           is_load = 1'b1;
           is_signed = 1'b1;
           opa_select = Reg;
@@ -1542,7 +1499,6 @@ module snitch
       riscv_instr::P_LBU_RR: begin     // Xpulpimg: p.lbu
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           is_load = 1'b1;
           opa_select = Reg;
           opb_select = Reg;
@@ -1554,7 +1510,6 @@ module snitch
       riscv_instr::P_LH_RR: begin      // Xpulpimg: p.lh
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           is_load = 1'b1;
           is_signed = 1'b1;
           ls_size = HalfWord;
@@ -1568,7 +1523,6 @@ module snitch
       riscv_instr::P_LHU_RR: begin     // Xpulpimg: p.lhu
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           is_load = 1'b1;
           ls_size = HalfWord;
           opa_select = Reg;
@@ -1581,7 +1535,6 @@ module snitch
       riscv_instr::P_LW_RR: begin      // Xpulpimg: p.lw
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           is_load = 1'b1;
           is_signed = 1'b1;
           ls_size = Word;
@@ -1595,6 +1548,7 @@ module snitch
       riscv_instr::P_SB_IRPOST: begin  // Xpulpimg: p.sb rs2,simm(rs1!)
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
+          uses_rd = 1'b0;
           write_rs1 = 1'b1;
           is_store = 1'b1;
           is_postincr = 1'b1;
@@ -1608,6 +1562,7 @@ module snitch
       riscv_instr::P_SH_IRPOST: begin  // Xpulpimg: p.sh
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
+          uses_rd = 1'b0;
           write_rs1 = 1'b1;
           is_store = 1'b1;
           is_postincr = 1'b1;
@@ -1622,6 +1577,7 @@ module snitch
       riscv_instr::P_SW_IRPOST: begin  // Xpulpimg: p.sw
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
+          uses_rd = 1'b0;
           write_rs1 = 1'b1;
           is_store = 1'b1;
           is_postincr = 1'b1;
@@ -1724,6 +1680,7 @@ module snitch
         if (snitch_pkg::XPULPIMG) begin
           is_branch = 1'b1;
           write_rd = 1'b0;
+          uses_rd = 1'b0;
           alu_op = Eq;
           opa_select = Reg;
           opb_select = PBImmediate;
@@ -1736,6 +1693,7 @@ module snitch
         if (snitch_pkg::XPULPIMG) begin
           is_branch = 1'b1;
           write_rd = 1'b0;
+          uses_rd = 1'b0;
           alu_op = Neq;
           opa_select = Reg;
           opb_select = PBImmediate;
@@ -1795,7 +1753,6 @@ module snitch
       riscv_instr::PV_DOTSP_SCI_B: begin // Xpulpimg: pv.dotsp.sci.b
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           acc_register_rd = 1'b1;
@@ -1883,7 +1840,6 @@ module snitch
       riscv_instr::PV_DOTSP_SC_B: begin // Xpulpimg: pv.dotsp.sc.b
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
@@ -1904,7 +1860,6 @@ module snitch
       riscv_instr::PV_SDOTSP_SCI_B: begin // Xpulpimg: pv.sdotsp.sci.b
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opc_select = Reg;
@@ -1935,7 +1890,6 @@ module snitch
       riscv_instr::PV_PACK_H: begin      // Xpulpimg: pv.pack.h
         if (snitch_pkg::XPULPIMG) begin
           write_rd = 1'b0;
-          uses_rd = 1'b1;
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
