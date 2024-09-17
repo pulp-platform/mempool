@@ -32,7 +32,7 @@ banking_factor ?= 4
 
 # Access latency between remote groups
 # Options: "7", "9" or "11":
-remote_group_latency_cycles ?= 7
+remote_group_latency_cycles ?= 11
 
 # Radix for hierarchical AXI interconnect
 axi_hier_radix ?= 9

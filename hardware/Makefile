@@ -46,7 +46,7 @@ verilator_top   ?= mempool_tb_verilator
 # Python
 python          ?= python3
 # Enable tracing
-snitch_trace    ?= 1
+snitch_trace    ?= 0
 
 # Path to DRAMsys
 dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/configs
