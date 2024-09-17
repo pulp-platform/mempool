@@ -23,7 +23,7 @@ void dotp_parallel(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len,
   mempool_start_benchmark();
   __atomic_fetch_add(&s[0], local_sum, __ATOMIC_RELAXED);
 #ifdef LOG_BARRIERS
-  mempool_log_barrier(2, core_id);
+  mempool_log2_barrier(2, core_id);
   (void)num_cores;
 #else
   mempool_barrier(num_cores);
@@ -76,7 +76,7 @@ void dotp_parallel_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
   mempool_start_benchmark();
   __atomic_fetch_add(&s[0], local_sum0, __ATOMIC_RELAXED);
 #ifdef LOG_BARRIERS
-  mempool_log_barrier(2, core_id);
+  mempool_log2_barrier(2, core_id);
 #else
   mempool_barrier(num_cores);
 #endif

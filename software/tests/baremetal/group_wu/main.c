@@ -73,7 +73,7 @@ int main() {
     }
     mempool_wfi(); // clear wake-up trigger
   }
-  // mempool_barrier(num_cores);
+  mempool_barrier(num_cores);
 
   return 0;
 }

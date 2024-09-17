@@ -10,20 +10,11 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#if NUM_CORES == (16)
-#define LOG2_NUM_CORES (4)
-#elif NUM_CORES == (256)
-#define LOG2_NUM_CORES (8)
-#elif NUM_CORES == (1024)
-#define LOG2_NUM_CORES (10)
-
-#endif
-
 uint32_t volatile barrier __attribute__((section(".l1")));
-uint32_t volatile log_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
-uint32_t volatile partial_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+uint32_t volatile log_barrier[NUM_CORES * BANKING_FACTOR]
+    __attribute__((aligned(NUM_CORES * BANKING_FACTOR), section(".l1")));
+uint32_t volatile partial_barrier[NUM_CORES * BANKING_FACTOR]
+    __attribute__((aligned(NUM_CORES * BANKING_FACTOR), section(".l1")));
 
 void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {
@@ -48,7 +39,7 @@ void mempool_barrier_init(uint32_t core_id) {
 
 /**
   @brief         Central counter barrier
-  @param[in]     num_cores Number of cores arriving at the barrier
+  @param[in]     num_cores
   @return        none
 */
 void mempool_barrier(uint32_t num_cores) {
@@ -65,22 +56,20 @@ void mempool_barrier(uint32_t num_cores) {
 
 /**
   @brief         Central counter barrier with stride and offset
-  @param[in]     barrier Pointer to the barrier variable (can be assigned
-  locally depending on the offset)
-  @param[in]     num_cores Number of cores arriving at the barrier
+  @param[in]     num_cores
   @param[in]     stride Stride between cores to wake up
   @param[in]     offset ID of the first core involved in the barrier
   @return        none
 */
-void mempool_strided_barrier(uint32_t *barrier, uint32_t num_cores,
-                             uint32_t stride, uint32_t offset) {
-
+void mempool_strided_barrier(uint32_t num_cores, uint32_t stride,
+                             uint32_t offset) {
   // Increment the barrier counter
-  if ((num_cores - 1) == __atomic_fetch_add(barrier, 1, __ATOMIC_RELAXED)) {
-    __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
-    __sync_synchronize(); // Full memory barrier
+  if (num_cores - offset - stride ==
+      __atomic_fetch_add(&log_barrier[stride], stride, __ATOMIC_RELAXED)) {
+    __atomic_store_n(&log_barrier[stride], 0, __ATOMIC_RELAXED);
     set_wake_up_stride(stride);
     set_wake_up_offset(offset);
+    __sync_synchronize(); // Full memory barrier
     wake_up_all();
     set_wake_up_stride(1U);
     set_wake_up_offset(0U);
@@ -91,142 +80,123 @@ void mempool_strided_barrier(uint32_t *barrier, uint32_t num_cores,
 /* LOG BARRIER */
 
 /**
-  @brief         Log2 tree barrier
-  @param[in]     step Step of the logarithmic tree (must be set to 2)
+  @brief         Central counter on cc_cores + log2 tree barrier
+  @param[in]     num_cc_cores Number of cores in central counter barrier
   @param[in]     core_id ID of the core arriving at the barrier
   @return        none
 */
-void mempool_log_barrier(uint32_t step, uint32_t core_id) {
-  uint32_t idx = (step * (core_id / step)) * 4;
-  uint32_t next_step, previous_step;
-  uint32_t num_cores = mempool_get_core_count();
-  previous_step = step >> 1;
-  if ((step - previous_step) ==
-      __atomic_fetch_add(&log_barrier[idx + previous_step - 1], previous_step,
-                         __ATOMIC_RELAXED)) {
-    next_step = step << 1;
-    __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
-                     __ATOMIC_RELAXED);
-    if (num_cores == step) {
-      __sync_synchronize(); // Full memory barrier
-      wake_up_all();
-      mempool_wfi();
-    } else {
-      mempool_log_barrier(next_step, core_id);
-    }
-  } else
-    mempool_wfi();
-}
+void mempool_log2_barrier(uint32_t num_cc_cores, uint32_t core_id) {
 
-/**
-  @brief         Tree barrier with any radix. In each step a central counter
-  barrier is used.
-  @param[in]     radix log2(barrier radix), e.g. radix 2 -> 1
-  @param[in]     core_id ID of the core arriving at the barrier
-  @return        none
-*/
-void mempool_anyradixlog_barrier(uint32_t radix, uint32_t core_id) {
-  uint32_t num_cores = mempool_get_core_count();
-  uint32_t first_step = (LOG2_NUM_CORES % radix) == 0
-                            ? (1U << radix)
-                            : 1U << (LOG2_NUM_CORES % radix);
-  uint32_t step = 0, previous_step = 0;
-  // At first step you take care of the remainder
-  uint32_t idx = (first_step * (core_id / first_step)) * 4;
-  if ((first_step - 1) ==
-      __atomic_fetch_add(&log_barrier[idx], 1, __ATOMIC_RELAXED)) {
-    __atomic_store_n(&log_barrier[idx], 0, __ATOMIC_RELAXED);
-    num_cores /= first_step;
-    previous_step = first_step;
-    step = (first_step << radix);
-    // Following steps proceed with the radix chosen
-    while (num_cores > 1U) {
-      idx = (step * (core_id / step)) * 4;
-      if ((step - previous_step) ==
-          __atomic_fetch_add(&log_barrier[idx + previous_step - 1],
-                             previous_step, __ATOMIC_RELAXED)) {
-        __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
-                         __ATOMIC_RELAXED);
-        num_cores >>= radix;
-        previous_step = step;
-        step <<= radix;
-      } else {
-        break;
+  uint32_t num_synch = num_cc_cores;
+  uint32_t step = num_cc_cores;
+  uint32_t previous_step = 1U;
+  uint32_t idx;
+
+  while (step <= NUM_CORES) {
+    idx = (step * (core_id / step) * BANKING_FACTOR);
+    idx += previous_step - 1; // Avoids overlapping writes
+    if (num_synch - 1 ==
+        __atomic_fetch_add(&log_barrier[idx], 1, __ATOMIC_RELAXED)) {
+      __atomic_store_n(&log_barrier[idx], 0, __ATOMIC_RELAXED);
+      if (step == NUM_CORES) {
+        // Last core wakes-up everyone
+        __sync_synchronize();
+        wake_up_all();
       }
-    }
-    // Last core wakes-up everyone
-    if (num_cores == 1U) {
-      __sync_synchronize(); // Full memory barrier
-      wake_up_all();
+      // Update values for next iteration
+      previous_step = step;
+      step <<= 1;
+      num_synch = 2;
+    } else {
+      break;
     }
   }
   mempool_wfi();
 }
 
 /**
-  @brief         Central counter barrier on a subset of cores + log2 tree
-  barrier
-  @param[in]     step Number of cores in central counter barrier
-  @param[in]     core_id ID of the core arriving at the barrier
-  @return        none
-*/
-void mempool_linlog_barrier(uint32_t step, uint32_t core_id) {
-
-  uint32_t idx = (step * (core_id / step)) * 4;
-  uint32_t next_step, previous_step;
-  uint32_t num_cores = mempool_get_core_count();
-
-  previous_step = step >> 1;
-  if ((step - 1) == __atomic_fetch_add(&log_barrier[idx + previous_step - 1], 1,
-                                       __ATOMIC_RELAXED)) {
-    next_step = step << 1;
-    __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
-                     __ATOMIC_RELAXED);
-    if (num_cores == step) {
-      __sync_synchronize(); // Full memory barrier
-      wake_up_all();
-      mempool_wfi();
-    } else {
-      mempool_log_barrier(next_step, core_id);
-    }
-  } else
-    mempool_wfi();
-}
-
-/**
   @brief         Log2 tree barrier with stride and offset
-  @param[in]     step Step of the logarithmic tree (must be set to 2)
+  @param[in]     num_cc_cores Number of cores in central counter barrier
+  @param[in]     core_id ID of the core arriving at the barrier
   @param[in]     stride Stride between cores to wake up
   @param[in]     offset ID of the first core involved in the barrier
   @return        none
 */
-void mempool_strided_log_barrier(uint32_t step, uint32_t core_id,
-                                 uint32_t stride, uint32_t offset) {
+void mempool_strided_log2_barrier(uint32_t num_cc_cores, uint32_t core_id,
+                                  uint32_t stride, uint32_t offset) {
 
-  uint32_t idx = (step * (core_id / step)) * 4 + offset;
-  uint32_t next_step, previous_step;
-  uint32_t num_cores = mempool_get_core_count();
+  // N.B This can incur locks if other cores are running strided barrier
+  // N.B Offset can only be 1/2, 3/4, 7/8 cluster otherwise binary tree is not
+  // complete
 
-  previous_step = step >> 1;
-  if ((step - previous_step) ==
-      __atomic_fetch_add(&log_barrier[idx + previous_step - 1], previous_step,
-                         __ATOMIC_RELAXED)) {
-    next_step = step << 1;
-    __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
-                     __ATOMIC_RELAXED);
-    if (num_cores == step) {
-      __sync_synchronize(); // Full memory barrier
-      set_wake_up_stride(stride);
-      set_wake_up_offset(offset);
-      wake_up_all();
-      set_wake_up_stride(1U);
-      set_wake_up_offset(0U);
-      mempool_wfi();
+  uint32_t num_synch = num_cc_cores;
+  uint32_t step = num_cc_cores * stride;
+  uint32_t previous_step = num_cc_cores;
+  uint32_t idx;
+
+  uint32_t num_cores = NUM_CORES - offset;
+
+  while (step <= num_cores) {
+    idx = (step * (core_id / step) * BANKING_FACTOR);
+    idx += previous_step - 1; // Avoids overlapping writes
+    if (num_synch - 1 ==
+        __atomic_fetch_add(&log_barrier[idx], 1, __ATOMIC_RELAXED)) {
+      __atomic_store_n(&log_barrier[idx], 0, __ATOMIC_RELAXED);
+      if (step == num_cores) {
+        // Last core wakes-up everyone
+        set_wake_up_stride(stride);
+        set_wake_up_offset(offset);
+        __sync_synchronize();
+        wake_up_all();
+        set_wake_up_stride(1U);
+        set_wake_up_offset(0U);
+      }
+      // Update values for next iteration
+      previous_step = step;
+      step <<= 1;
+      num_synch = 2;
     } else {
-      mempool_log_barrier(next_step, core_id);
+      break;
     }
-  } else
-    mempool_wfi();
+  }
+  mempool_wfi();
+}
+
+/**
+  @brief         LogR tree barrier. In each step, central counter.
+  @param[in]     num_cc_cores Number of cores in central counter barrier
+  @param[in]     core_id ID of the core arriving at the barrier
+  @param[in]     radix barrier radix
+  @return        none
+*/
+void mempool_logR_barrier(uint32_t num_cc_cores, uint32_t core_id,
+                          uint32_t radix) {
+
+  uint32_t num_synch = num_cc_cores;
+  uint32_t step = num_cc_cores;
+  uint32_t previous_step = 1U;
+  uint32_t idx;
+
+  while (step <= NUM_CORES) {
+    idx = (step * (core_id / step) * BANKING_FACTOR);
+    idx += previous_step - 1; // Avoids overlapping writes
+    if (num_synch - 1 ==
+        __atomic_fetch_add(&log_barrier[idx], 1, __ATOMIC_RELAXED)) {
+      __atomic_store_n(&log_barrier[idx], 0, __ATOMIC_RELAXED);
+      if (step == NUM_CORES) {
+        // Last core wakes-up everyone
+        __sync_synchronize();
+        wake_up_all();
+      }
+      // Update values for next iteration
+      previous_step = step;
+      step *= radix;
+      num_synch = radix;
+    } else {
+      break;
+    }
+  }
+  mempool_wfi();
 }
 
 /* PARTIAL BARRIER */
@@ -243,7 +213,6 @@ void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
 
   uint32_t core_init = num_cores_barrier * (core_id / num_cores_barrier);
   uint32_t core_end = core_init + num_cores_barrier;
-  uint32_t num_cores = mempool_get_core_count();
   uint32_t num_cores_per_tile = mempool_get_core_count_per_tile();
   uint32_t num_cores_per_group = mempool_get_core_count_per_group();
 
@@ -261,7 +230,7 @@ void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
       if (num_cores_barrier == step) {
 
         __sync_synchronize(); // Full memory barrier
-        if (num_cores_barrier >= num_cores) {
+        if (num_cores_barrier >= NUM_CORES) {
           wake_up_all();
         } else if (num_cores_barrier >= num_cores_per_group) {
           uint32_t volatile group_init = core_init / num_cores_per_group;

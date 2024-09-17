@@ -100,7 +100,7 @@ void mempool_radix4_cfft_q16p_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
     radix4_butterfly_first(pSrc16, pSrc16, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                            C3);
   }
-  mempool_log_barrier(2, absolute_core_id);
+  mempool_log2_barrier(2, absolute_core_id);
   /* END OF FIRST STAGE PROCESSING */
 
   /* START OF MIDDLE STAGE PROCESSING */
@@ -129,7 +129,7 @@ void mempool_radix4_cfft_q16p_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
       }
     }
     twidCoefModifier <<= 2U;
-    mempool_log_barrier(2, absolute_core_id);
+    mempool_log2_barrier(2, absolute_core_id);
   }
   /* END OF MIDDLE STAGE PROCESSING */
 
@@ -143,7 +143,7 @@ void mempool_radix4_cfft_q16p_xpulpimg(int16_t *pSrc16, uint32_t fftLen,
        i0 += n1) {
     radix4_butterfly_last(pSrc16, pSrc16, i0);
   }
-  mempool_log_barrier(2, absolute_core_id);
+  mempool_log2_barrier(2, absolute_core_id);
   /* END OF LAST STAGE PROCESSING */
   return;
 }
@@ -172,7 +172,7 @@ void mempool_radix4by2_cfft_q16p(int16_t *pSrc, uint32_t fftLen,
     *((v2s *)&pSrc[i * 2]) = __SRA2(__ADD2(a, b), ((v2s){1, 1}));
     *((v2s *)&pSrc[(i + n2) * 2]) = __PACK2(testb, testa);
   }
-  mempool_log_barrier(2, core_id);
+  mempool_log2_barrier(2, core_id);
 
   // first col
   mempool_radix4_cfft_q16p_xpulpimg(pSrc, n2, (int16_t *)pCoef, 2U, nPE);
@@ -194,10 +194,17 @@ void mempool_radix4by2_cfft_q16p(int16_t *pSrc, uint32_t fftLen,
     pSrc[4 * i + 2] = pc;
     pSrc[4 * i + 3] = pd;
   }
-  mempool_log_barrier(2, core_id);
+  mempool_log2_barrier(2, core_id);
   return;
 }
+/*****************************************************************************
+  _                    _                                    _____     _     _
+ | |    ___   ___ __ _| |      _ __ ___   ___ _ __ ___     |  ___|__ | | __| |
+ | |   / _ \ / __/ _` | |_____| '_ ` _ \ / _ \ '_ ` _ \    | |_ / _ \| |/ _` |
+ | |__| (_) | (_| (_| | |_____| | | | | |  __/ | | | | |_  |  _| (_) | | (_| |
+ |_____\___/ \___\__,_|_|     |_| |_| |_|\___|_| |_| |_(_) |_|  \___/|_|\__,_|
 
+*****************************************************************************/
 /**
   @brief         Folding in local memory function
   @param[in]     pSrc16  points to input buffer of 16b data, Re and Im parts are

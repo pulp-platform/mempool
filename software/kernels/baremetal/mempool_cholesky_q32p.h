@@ -207,7 +207,7 @@ void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n) {
       }
       pL[j * n + j] = mempool_sqrt_q32s(pivot - sum);
     }
-    mempool_log_barrier(2, absolute_core_id);
+    mempool_log2_barrier(2, absolute_core_id);
 
     if (row_id >= (j + 1)) {
       for (i = row_id; i < n; i += num_cores) {
@@ -306,7 +306,7 @@ void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n) {
         pL[i * n + j] = FIX_DIV((pivot - sum), diag);
       }
     }
-    mempool_log_barrier(2, absolute_core_id);
+    mempool_log2_barrier(2, absolute_core_id);
   }
   return;
 }

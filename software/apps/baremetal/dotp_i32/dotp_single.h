@@ -70,5 +70,5 @@ void dotp_single_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
-  // mempool_log_barrier(2, core_id);
+  // mempool_log2_barrier(2, core_id);
 }

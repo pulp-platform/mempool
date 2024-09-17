@@ -25,88 +25,69 @@ int main() {
   mempool_barrier(num_cores);
 
   /* WAKE-UP ALL TEST */
-
   if (core_id % 4 == 0) {
-    if (core_id == 0) {
-      set_wake_up_stride(4U);
-      set_wake_up_offset(0U);
-    }
     if ((num_cores / 4 - 1) ==
         __atomic_fetch_add(&sleep1, 1, __ATOMIC_RELAXED)) {
       __atomic_store_n(&sleep1, 0, __ATOMIC_RELAXED);
       __sync_synchronize(); // Full memory barrier
+      set_wake_up_stride(4U);
+      set_wake_up_offset(0U);
+      printf("Cores woken up with stride 4 over the whole cluster \n");
       wake_up_all();
     }
     mempool_wfi();
-    if (core_id == 0) {
-      set_wake_up_stride(1U);
-      set_wake_up_offset(0U);
-      printf("Cores woken up with stride 4 over the whole cluster \n");
-    }
   }
   // Stops the remaining cores
   if ((num_cores - 1) == __atomic_fetch_add(&sleep2, 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(&sleep2, 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
+    set_wake_up_stride(1U);
+    set_wake_up_offset(0U);
     wake_up_all();
   }
   mempool_wfi();
 
   /* WAKE-UP GROUP TEST */
-
-  if (core_id < NUM_CORES_PER_GROUP) {
-    if (core_id % 2 == 0) {
-      if (core_id == 0) {
-        set_wake_up_stride(2U);
-        set_wake_up_offset(0U);
-      }
-      if ((NUM_CORES_PER_GROUP / 2 - 1) ==
-          __atomic_fetch_add(&sleep1, 1, __ATOMIC_RELAXED)) {
-        __atomic_store_n(&sleep1, 0, __ATOMIC_RELAXED);
-        __sync_synchronize(); // Full memory barrier
-        wake_up_group(0b0001);
-      }
-      mempool_wfi();
-      if (core_id == 0) {
-        set_wake_up_stride(1U);
-        set_wake_up_offset(0U);
-        printf("Cores woken up with stride 2 over a group \n");
-      }
+  if ((core_id % 2 == 0) && (core_id < NUM_CORES_PER_GROUP)) {
+    if ((NUM_CORES_PER_GROUP / 2 - 1) ==
+        __atomic_fetch_add(&sleep1, 1, __ATOMIC_RELAXED)) {
+      __atomic_store_n(&sleep1, 0, __ATOMIC_RELAXED);
+      __sync_synchronize(); // Full memory barrier
+      set_wake_up_stride(2U);
+      set_wake_up_offset(0U);
+      printf("Cores woken up with stride 2 over a group \n");
+      wake_up_group(0b0001);
     }
+    mempool_wfi();
   }
   // Stops the remaining cores
   if ((num_cores - 1) == __atomic_fetch_add(&sleep2, 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(&sleep2, 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
+    set_wake_up_stride(1U);
+    set_wake_up_offset(0U);
     wake_up_all();
   }
   mempool_wfi();
 
   /* WAKE-UP TILE TEST */
-
-  if (core_id < NUM_CORES_PER_TILE) {
-    if (core_id % 2 == 0) {
-      if (core_id == 0) {
-        set_wake_up_stride(2U);
-        set_wake_up_offset(0U);
-      }
-      if ((NUM_CORES_PER_TILE / 2 - 1) ==
-          __atomic_fetch_add(&sleep1, 1, __ATOMIC_RELAXED)) {
-        __atomic_store_n(&sleep1, 0, __ATOMIC_RELAXED);
-        wake_up_tile(0, 1U);
-      }
-      mempool_wfi();
-    }
-    if (core_id == 0) {
-      set_wake_up_stride(1U);
+  if ((core_id % 2 == 0) && (core_id < NUM_CORES_PER_TILE)) {
+    if ((NUM_CORES_PER_TILE / 2 - 1) ==
+        __atomic_fetch_add(&sleep1, 1, __ATOMIC_RELAXED)) {
+      __atomic_store_n(&sleep1, 0, __ATOMIC_RELAXED);
+      set_wake_up_stride(2U);
       set_wake_up_offset(0U);
       printf("Cores woken up with stride 2 over a tile \n");
+      wake_up_tile(0, 1U);
     }
+    mempool_wfi();
   }
   // Stops the remaining cores
   if ((num_cores - 1) == __atomic_fetch_add(&sleep2, 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(&sleep2, 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
+    set_wake_up_stride(1U);
+    set_wake_up_offset(0U);
     wake_up_all();
   }
   mempool_wfi();
