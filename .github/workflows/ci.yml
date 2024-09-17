@@ -239,6 +239,20 @@ jobs:
         make -C hardware src/bootrom.sv
         git diff --exit-code
 
+  check-control-registers:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Python requirements
+      run: pip install -r python-requirements.txt
+    - name: Build Control Registers
+      run: |
+        git submodule update --init --recursive -- hardware/deps/register_interface
+        git apply hardware/deps/patches/register_interface.patch
+        make -C hardware/src/control_registers clean
+        make -C hardware/src/control_registers all
+        git diff --ignore-submodules=dirty --exit-code
+
   check-opcodes:
     runs-on: ubuntu-20.04
     steps:
