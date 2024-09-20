@@ -7,7 +7,7 @@
     i = 0
     out += '\n'
     for a in array:
-        out += '(int16_t) 0X{:04X}, '.format(a&0xffff)
+        out += '(int16_t) {}, '.format(a)
         i += 1
         if i % 8 == 0:
             out += '\n'
@@ -27,7 +27,7 @@ int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_G[${2 * N_t
 
 int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_y[${2 * N_rx * N_itr}] = ${array_to_cstr(y)};
 
-int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_Sigma[${2 * N_tx * N_itr}] = ${array_to_cstr(sigma)};
+int16_t __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_Sigma[${2 * N_tx * N_itr}] = ${array_to_cstr(N)};
 
 // Outputs
 

@@ -18,6 +18,7 @@
 #include "baremetal/mempool_mimo_mmse_f16s.h"
 
 #include "data_mimo_mmse_f16.h"
+#define ZF (0) // When asserted use zero-forcing
 #define NUM_BANKS (BANKING_FACTOR * NUM_CORES)
 //#define DOUBLE_BUFFERING
 
@@ -35,14 +36,12 @@
 #ifndef DOUBLE_BUFFERING
 
 __fp16 l1_H[2 * N_TX * N_RX * N_ITR]
-    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_G[2 * N_TX * N_TX * N_ITR]
-    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_L[2 * N_TX * N_TX * N_ITR]
-    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 
-uint32_t l1_beamgroups[N_ITR]
-    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
 __fp16 l1_S[2 * N_TX * N_ITR]
     __attribute__((aligned(sizeof(int32_t)), section(".l1")));
 __fp16 l1_y[2 * N_RX * N_ITR]
@@ -58,8 +57,10 @@ __fp16 l1_x[2 * N_TX * N_ITR]
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
+#ifndef BANSHEE
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id); // Initialize barrier and synchronize
+#endif
 
 #ifdef BANSHEE
   /* Initialize matrices */
@@ -71,41 +72,38 @@ int main() {
       (*(uint32_t *)&l1_y[2 * i]) = *(uint32_t *)&l2_y[2 * i];
     }
     for (uint32_t i = 0; i < N_TX * N_ITR; i++) {
-      (*(uint32_t *)&l1_S[2 * i]) = *(uint32_t *)&l2_Sigma[2 * i];
+      (*(uint32_t *)&l1_S[2 * i]) = *(uint32_t *)&l2_S[2 * i];
     }
   }
-  mempool_barrier(num_cores);
 #else
   /* Initialize matrices */
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_beamgroups, l2_beamgroups, N_ITR * sizeof(int32_t));
-    dma_memcpy_blocking(l1_H, l2_H, N_TX * N_RX * N_ITR * sizeof(int32_t));
-    dma_memcpy_blocking(l1_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
-    dma_memcpy_blocking(l1_S, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1_H, l2_H, 2 * N_TX * N_RX * N_ITR * sizeof(int16_t));
+    dma_memcpy_blocking(l1_y, l2_y, 2 * N_RX * N_ITR * sizeof(int16_t));
+    dma_memcpy_blocking(l1_S, l2_S, 2 * N_TX * N_ITR * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
 #endif
 
-#ifdef BANSHEE
+#ifdef SINGLE
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
     for (uint32_t itr = 0; itr < N_ITR; itr++) {
       __fp16 *PtrH = l1_H + itr * (2 * N_TX * N_RX);
       __fp16 *Ptry = l1_y + itr * (2 * N_RX);
-      __fp16 *PtrSigma = l1_S + itr * N_TX;
+      __fp16 *PtrS = l1_S + itr * (2 * N_TX);
       __fp16 *PtrG = l1_G + itr * (2 * N_TX * N_TX);
       __fp16 *PtrL = l1_L + itr * (2 * N_TX * N_TX);
       __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
       __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
       __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
-
 #ifdef VEC
-      mempool_hermitian_f16vecs(PtrH, PtrG, PtrSigma, N_RX, N_TX);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF);
       mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
       mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
 #else
-      mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
+      mempool_hermitian_f16s(PtrH, PtrG, PtrS, N_RX, N_TX, 0, ZF);
       mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
       mempool_cholesky_f16s(PtrG, PtrL, N_TX);
 #endif
@@ -114,20 +112,6 @@ int main() {
     }
     mempool_stop_benchmark();
   }
-  mempool_barrier(num_cores);
-#endif
-
-#ifdef SINGLE
-  if (core_id == 0) {
-    mempool_start_benchmark();
-    mempool_hermitian_f16s(l1_H, l1_G, l1_S, N_RX, N_TX, 0, 0);
-    mempool_MVP_conjtransp_f16s(l1_H, l1_y, y2, N_RX, N_TX, 0);
-    mempool_cholesky_f16vecs(l1_G, l1_L, N_TX);
-    mempool_Ltrisol_f16s(l1_L, y2, y3, N_TX);
-    mempool_Lttrisol_f16s(l1_L, y3, l1_x, N_TX);
-    mempool_stop_benchmark();
-  }
-  mempool_barrier(num_cores);
 #endif
 
 #ifdef PARALLEL
@@ -136,27 +120,24 @@ int main() {
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
     __fp16 *PtrH = l1_H + itr * (2 * N_TX * N_RX);
     __fp16 *Ptry = l1_y + itr * (2 * N_RX);
-    __fp16 *PtrSigma = l1_S + itr * (2 * N_TX);
+    __fp16 *PtrS = l1_S + itr * (2 * N_TX);
     // Auxiliary vectors
     __fp16 *PtrG = l1_G + itr * (2 * N_TX * N_TX);
     __fp16 *PtrL = l1_L + itr * (2 * N_TX * N_TX);
     __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
     __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
     __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
-    // Serial beamgroup Beamgroups loop
-    uint32_t N_bg = l1_beamgroups[itr];
-    uint32_t N_TX_bg = N_TX / N_bg;
-    for (uint32_t itr_bg = 0; itr_bg < N_bg; itr_bg++) {
-      mempool_hermitian_f16vecs(PtrH, PtrG, PtrSigma, N_RX, N_TX_bg);
-      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX_bg);
-      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX_bg);
-      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX_bg);
-      mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX_bg);
-      // Shift over the subsequent beamgroup
-      PtrH += 2 * itr_bg * N_TX_bg * N_RX;
-      PtrSigma += 2 * itr_bg * N_TX_bg;
-      Ptrx += 2 * itr_bg * N_TX_bg;
-    }
+#ifdef VEC
+    mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF);
+    mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
+    mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
+#else
+    mempool_hermitian_f16s(PtrH, PtrG, PtrS, N_RX, N_TX, 0, ZF);
+    mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
+    mempool_cholesky_f16s(PtrG, PtrL, N_TX);
+#endif
+    mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
+    mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
@@ -170,11 +151,10 @@ int main() {
       printf("RES=%04x\n", x);
     }
   }
-  mempool_barrier(num_cores);
 #else
-  mempool_check_f16(l1_x, l2_x, 2 * N_TX, 0.01f, 0);
   mempool_barrier(num_cores);
 #endif
+
   return 0;
 }
 
@@ -233,7 +213,7 @@ int main() {
   if (core_id == 0) {
     dma_memcpy_blocking(l1A_H, l2_H, N_TX * N_RX * N_ITR * sizeof(int32_t));
     dma_memcpy_blocking(l1A_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
-    dma_memcpy_blocking(l1A_S, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1A_S, l2_S, N_TX * N_ITR * sizeof(int32_t));
   }
   mempool_barrier(num_cores);
 
@@ -269,7 +249,7 @@ int main() {
       dma_memcpy_nonblocking(trsf_H, l2_H,
                              N_TX * N_RX * N_ITR * sizeof(int32_t));
       dma_memcpy_nonblocking(trsf_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
-      dma_memcpy_nonblocking(trsf_S, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
+      dma_memcpy_nonblocking(trsf_S, l2_S, N_TX * N_ITR * sizeof(int32_t));
       if (round >= 1) // Transfer to L2 is done only if not the first round
         dma_memcpy_nonblocking(l2_x, trsf_x, (N_TX * N_ITR) * sizeof(int32_t));
     }
@@ -284,7 +264,7 @@ int main() {
       __fp16 *PtrL = L + itr * (2 * N_TX * N_TX);
       __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
       __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
-      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF);
       mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
       mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
       mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
@@ -311,7 +291,7 @@ int main() {
       __fp16 *PtrS = cmpt_S + itr * (2 * N_TX);
       __fp16 *PtrG = G + itr * (2 * N_TX * N_TX);
       __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
-      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF);
       mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
     }
     mempool_log_barrier(2, core_id);
@@ -321,7 +301,7 @@ int main() {
       dma_memcpy_nonblocking(trsf_H, l2_H,
                              N_TX * N_RX * N_ITR * sizeof(int32_t));
       dma_memcpy_nonblocking(trsf_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
-      dma_memcpy_nonblocking(trsf_S, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
+      dma_memcpy_nonblocking(trsf_S, l2_S, N_TX * N_ITR * sizeof(int32_t));
       if (round >= 1) // Transfer to L2 is done only if not the
         dma_memcpy_nonblocking(l2_x, trsf_x, (N_TX * N_ITR) * sizeof(int32_t));
     }
