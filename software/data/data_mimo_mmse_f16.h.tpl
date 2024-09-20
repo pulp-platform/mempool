@@ -34,15 +34,13 @@
 
 // Inputs
 
-uint32_t l2_beamgroups[${N_itr}] = ${array_to_str(beamgroups)};
-
 __fp16 l2_H[${2 * N_tx * N_rx * N_itr}] = ${array_to_cstr(H)};
 
 __fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_G[${2 * N_tx * N_tx * N_itr}] = ${array_to_cstr(G)};
 
 __fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_y[${2 * N_rx * N_itr}] = ${array_to_cstr(y)};
 
-__fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_Sigma[${2 * N_tx * N_itr}] = ${array_to_cstr(sigma)};
+__fp16 __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_S[${2 * N_tx * N_itr}] = ${array_to_cstr(N)};
 
 // Outputs
 
