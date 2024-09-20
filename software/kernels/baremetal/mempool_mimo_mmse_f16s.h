@@ -99,28 +99,16 @@ void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *pS,
       if (zf == 0) {
         // Compute diagonal elements
         if (i == j) {
-          asm volatile("fadd.h  %[as0], %[as0], %[pS];"
-                       : [as0] "+&r"(as0)
-                       : [pS] "r"(pS[2 * i])
-                       :);
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(as0) : "r"(pS[2 * i]) :);
           bs0 = (__fp16)0.0f;
         } else if (i == (j + 1U)) {
-          asm volatile("fadd.h  %[as1], %[as1], %[pS];"
-                       : [as1] "+&r"(as1)
-                       : [pS] "r"(pS[2 * i])
-                       :);
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(as1) : "r"(pS[2 * i]) :);
           bs1 = (__fp16)0.0f;
         } else if (i == (j + 2U)) {
-          asm volatile("fadd.h  %[as2], %[as2], %[pS];"
-                       : [as2] "+&r"(as2)
-                       : [pS] "r"(pS[2 * i])
-                       :);
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(as2) : "r"(pS[2 * i]) :);
           bs2 = (__fp16)0.0f;
         } else if (i == (j + 3U)) {
-          asm volatile("fadd.h  %[as3], %[as3], %[pS];"
-                       : [as3] "+&r"(as3)
-                       : [pS] "r"(pS[2 * i])
-                       :);
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(as3) : "r"(pS[2 * i]) :);
           bs3 = (__fp16)0.0f;
         }
       }
@@ -186,17 +174,17 @@ void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *px, __fp16 *py,
     bs2 = (__fp16)0.0f;
     bs3 = (__fp16)0.0f;
     for (j = 0; j < n_rx; j++) {
-      // inputs from matrix H_h
+      // inputs from matrix
       a0 = pH[2U * (j * n_tx + i)];
       a1 = pH[2U * (j * n_tx + i + 1U)];
       a2 = pH[2U * (j * n_tx + i + 2U)];
       a3 = pH[2U * (j * n_tx + i + 3U)];
-      // inputs from matrix H_h
+      // inputs from matrix
       b0 = pH[2U * (j * n_tx + i) + 1U];
       b1 = pH[2U * (j * n_tx + i + 1U) + 1U];
       b2 = pH[2U * (j * n_tx + i + 2U) + 1U];
       b3 = pH[2U * (j * n_tx + i + 3U) + 1U];
-      // inputs from b
+      // inputs from vector
       c = px[2U * j];
       d = px[2U * j + 1U];
       asm volatile(
@@ -278,7 +266,8 @@ void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *px, __fp16 *py,
   @return        none
 */
 void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
-                               const uint32_t n_rx, const uint32_t n_tx) {
+                               const uint32_t n_rx, const uint32_t n_tx,
+                               const uint32_t zf) {
   uint32_t i, j, k;
   v2h ab;
   v2h cd0, cd1, cd2, cd3;
@@ -313,58 +302,17 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
               [shuffle_mask] "r"(shuffle_mask)
             :);
       }
-      asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as0) : "r"(pS[2 * i]) :);
-      bs0 = 0.0f;
       // Store
       v2h res0;
-      asm volatile("vfcpka.h.s %[res0], %[as0], %[bs0];"
-                   : [res0] "=&r"(res0)
-                   : [as0] "r"(as0), [bs0] "r"(bs0)
+      asm volatile("vfcpka.h.s %0, %1, %2;"
+                   : "=&r"(res0)
+                   : "r"(as0), "r"(bs0)
                    :);
-      (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
-
-    } else if (n_tx == 2) {
-      // UNROLL_2
-      for (j = 0; j < n_tx; j += 2) {
-        as0 = 0.0f;
-        as1 = 0.0f;
-        bs0 = 0.0f;
-        bs1 = 0.0f;
-        for (k = 0; k < n_rx; k++) {
-          ab = (*(v2h *)&pH[2U * (k * n_tx + i)]);
-          cd0 = (*(v2h *)&pH[2U * (k * n_tx + j)]);
-          cd1 = (*(v2h *)&pH[2U * (k * n_tx + j + 1U)]);
-          asm volatile("vfdotpex.s.h  %[as0], %[ab], %[cd0];"
-                       "vfdotpex.s.h  %[as1], %[ab], %[cd1];"
-                       "pv.shuffle2.h  %[cd0], %[cd0], %[shuffle_mask];"
-                       "pv.shuffle2.h  %[cd1], %[cd1], %[shuffle_mask];"
-                       "xor %[cd0], %[neg_mask], %[cd0];"
-                       "xor %[cd1], %[neg_mask], %[cd1];"
-                       "vfdotpex.s.h  %[bs0], %[ab], %[cd0];"
-                       "vfdotpex.s.h  %[bs1], %[ab], %[cd1];"
-                       : [cd0] "+&r"(cd0), [cd1] "+&r"(cd1), [as0] "+&r"(as0),
-                         [as1] "+&r"(as1), [bs0] "+&r"(bs0), [bs1] "+&r"(bs1)
-                       : [ab] "r"(ab), [neg_mask] "r"(neg_mask),
-                         [shuffle_mask] "r"(shuffle_mask)
-                       :);
-        }
-        if (i == j) {
-          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as0) : "r"(pS[2 * i]) :);
-          bs0 = 0.0f;
-        } else if (i == (j + 1U)) {
-          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as1) : "r"(pS[2 * i]) :);
-          bs1 = 0.0f;
-        }
-        v2h res0, res1;
-        asm volatile(
-            "vfcpka.h.s %[res0], %[as0], %[bs0];"
-            "vfcpka.h.s %[res1], %[as1], %[bs1];"
-            : [res0] "=&r"(res0), [res1] "=&r"(res1)
-            : [as0] "r"(as0), [as1] "r"(as1), [bs0] "r"(bs0), [bs1] "r"(bs1)
-            :);
-        (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
-        (*(v2h *)&pG[2 * (i * n_tx + j + 1U)]) = res1;
+      if (zf == 0) {
+        asm volatile("and     %0, %0, %1;" : "+&r"(res0) : "r"(0x0000FFFF));
+        asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(pS[2 * i]));
       }
+      (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
 
     } else if (n_tx >= 4) {
       // UNROLL_4
@@ -407,19 +355,6 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
                          [shuffle_mask] "r"(shuffle_mask)
                        :);
         }
-        if (i == j) {
-          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as0) : "r"(pS[2 * i]) :);
-          bs0 = 0.0f;
-        } else if (i == (j + 1U)) {
-          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as1) : "r"(pS[2 * i]) :);
-          bs1 = 0.0f;
-        } else if (i == (j + 2U)) {
-          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as2) : "r"(pS[2 * i]) :);
-          bs2 = 0.0f;
-        } else if (i == (j + 3U)) {
-          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as3) : "r"(pS[2 * i]) :);
-          bs3 = 0.0f;
-        }
         v2h res0, res1, res2, res3;
         asm volatile(
             "vfcpka.h.s %[res0], %[as0], %[bs0];"
@@ -431,6 +366,22 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
             : [as0] "r"(as0), [as1] "r"(as1), [as2] "r"(as2), [as3] "r"(as3),
               [bs0] "r"(bs0), [bs1] "r"(bs1), [bs2] "r"(bs2), [bs3] "r"(bs3)
             :);
+        if (zf == 0) {
+          if (i == j) {
+            asm volatile("and     %0, %0, %1;" : "+&r"(res0) : "r"(0x0000FFFF));
+            asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(pS[2 * i]));
+          } else if (i == (j + 1U)) {
+            asm volatile("and     %0, %0, %1;" : "+&r"(res1) : "r"(0x0000FFFF));
+            asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res1) : "r"(pS[2 * i]));
+          } else if (i == (j + 2U)) {
+            asm volatile("and     %0, %0, %1;" : "+&r"(res2) : "r"(0x0000FFFF));
+            asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res2) : "r"(pS[2 * i]));
+          } else if (i == (j + 3U)) {
+            asm volatile("and     %0, %0, %1;" : "+&r"(res3) : "r"(0x0000FFFF));
+            asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res3) : "r"(pS[2 * i]));
+          }
+        }
+        // Store
         (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
         (*(v2h *)&pG[2 * (i * n_tx + j + 1U)]) = res1;
         (*(v2h *)&pG[2 * (i * n_tx + j + 2U)]) = res2;
@@ -473,19 +424,20 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
                        [res2] "+&r"(res2), [res3] "+&r"(res3)
                      : [shuffle_mask] "r"(shuffle_mask)
                      :);
-        __fp16 sigma = pS[2 * i];
-        if (i == j) {
-          asm volatile("and     %0, %0, %1;" : "+&r"(res0) : "r"(0x0000FFFF));
-          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(sigma));
-        } else if (i == (j + 1U)) {
-          asm volatile("and     %0, %0, %1;" : "+&r"(res1) : "r"(0x0000FFFF));
-          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res1) : "r"(sigma));
-        } else if (i == (j + 2U)) {
-          asm volatile("and     %0, %0, %1;" : "+&r"(res2) : "r"(0x0000FFFF));
-          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res2) : "r"(sigma));
-        } else if (i == (j + 3U)) {
-          asm volatile("and     %0, %0, %1;" : "+&r"(res3) : "r"(0x0000FFFF));
-          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res3) : "r"(sigma));
+        if (zf == 0) {
+          if (i == j) {
+            asm volatile("and     %0, %0, %1;" : "+&r"(res0) : "r"(0x0000FFFF));
+            asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(pS[2 * i]));
+          } else if (i == (j + 1U)) {
+            asm volatile("and     %0, %0, %1;" : "+&r"(res1) : "r"(0x0000FFFF));
+            asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res1) : "r"(pS[2 * i]));
+          } else if (i == (j + 2U)) {
+            asm volatile("and     %0, %0, %1;" : "+&r"(res2) : "r"(0x0000FFFF));
+            asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res2) : "r"(pS[2 * i]));
+          } else if (i == (j + 3U)) {
+            asm volatile("and     %0, %0, %1;" : "+&r"(res3) : "r"(0x0000FFFF));
+            asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res3) : "r"(pS[2 * i]));
+          }
         }
         (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
         (*(v2h *)&pG[2 * (i * n_tx + j + 1U)]) = res1;
