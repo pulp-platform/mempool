@@ -19,7 +19,7 @@
 
 #include "data_mimo_mmse_f16.h"
 #define NUM_BANKS (BANKING_FACTOR * NUM_CORES)
-#define DOUBLE_BUFFERING
+//#define DOUBLE_BUFFERING
 
 /**********************************************************
  **********************************************************
@@ -33,7 +33,6 @@
 ***********************************************************/
 
 #ifndef DOUBLE_BUFFERING
-#define PARALLEL
 
 __fp16 l1_H[2 * N_TX * N_RX * N_ITR]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
@@ -61,6 +60,22 @@ int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id); // Initialize barrier and synchronize
+
+#ifdef BANSHEE
+  /* Initialize matrices */
+  if (core_id == 0) {
+    for (uint32_t i = 0; i < N_RX * N_TX * N_ITR; i++) {
+      (*(uint32_t *)&l1_H[2 * i]) = *(uint32_t *)&l2_H[2 * i];
+    }
+    for (uint32_t i = 0; i < N_RX * N_ITR; i++) {
+      (*(uint32_t *)&l1_y[2 * i]) = *(uint32_t *)&l2_y[2 * i];
+    }
+    for (uint32_t i = 0; i < N_TX * N_ITR; i++) {
+      (*(uint32_t *)&l1_S[2 * i]) = *(uint32_t *)&l2_Sigma[2 * i];
+    }
+  }
+  mempool_barrier(num_cores);
+#else
   /* Initialize matrices */
   if (core_id == 0) {
     dma_memcpy_blocking(l1_beamgroups, l2_beamgroups, N_ITR * sizeof(int32_t));
@@ -69,6 +84,38 @@ int main() {
     dma_memcpy_blocking(l1_S, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
   }
   mempool_barrier(num_cores);
+#endif
+
+#ifdef BANSHEE
+  /* Benchmark */
+  if (core_id == 0) {
+    mempool_start_benchmark();
+    for (uint32_t itr = 0; itr < N_ITR; itr++) {
+      __fp16 *PtrH = l1_H + itr * (2 * N_TX * N_RX);
+      __fp16 *Ptry = l1_y + itr * (2 * N_RX);
+      __fp16 *PtrSigma = l1_S + itr * N_TX;
+      __fp16 *PtrG = l1_G + itr * (2 * N_TX * N_TX);
+      __fp16 *PtrL = l1_L + itr * (2 * N_TX * N_TX);
+      __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
+      __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
+      __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
+
+#ifdef VEC
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrSigma, N_RX, N_TX);
+      mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
+      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
+#else
+      mempool_hermitian_f16s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
+      mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
+      mempool_cholesky_f16s(PtrG, PtrL, N_TX);
+#endif
+      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
+      mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+    }
+    mempool_stop_benchmark();
+  }
+  mempool_barrier(num_cores);
+#endif
 
 #ifdef SINGLE
   if (core_id == 0) {
@@ -116,8 +163,18 @@ int main() {
 #endif
 
   // Check the result
+#ifdef BANSHEE
+  if (core_id == 0) {
+    for (uint32_t i = 0; i < 2 * N_TX * N_ITR; i++) {
+      uint32_t x = (*(uint32_t *)&l1_x[i]) & 0x0000FFFF;
+      printf("RES=%04x\n", x);
+    }
+  }
+  mempool_barrier(num_cores);
+#else
   mempool_check_f16(l1_x, l2_x, 2 * N_TX, 0.01f, 0);
   mempool_barrier(num_cores);
+#endif
   return 0;
 }
 
