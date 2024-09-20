@@ -282,10 +282,15 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
   uint32_t i, j, k;
   v2h ab;
   v2h cd0, cd1, cd2, cd3;
+  const uint32_t shuffle_mask = 0x00020003;
+#ifndef __CDOTP
   float as0, as1, as2, as3;
   float bs0, bs1, bs2, bs3;
   const uint32_t neg_mask = 0x80000000;
-  const uint32_t shuffle_mask = 0x00020003;
+#endif
+
+#ifndef __CDOTP
+
   for (i = 0; i < n_tx; i++) {
 
     if (n_tx == 1) {
@@ -433,6 +438,64 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
       }
     }
   }
+
+#else
+
+  for (i = 0; i < n_tx; i++) {
+    if (n_tx >= 4) {
+      // UNROLL_4
+      for (j = 0; j < n_tx; j += 4) {
+        v2h res0 = (v2h)0.0f;
+        v2h res1 = (v2h)0.0f;
+        v2h res2 = (v2h)0.0f;
+        v2h res3 = (v2h)0.0f;
+        for (k = 0; k < n_rx; k++) {
+          ab = (*(v2h *)&pH[2U * (k * n_tx + i)]);
+          cd0 = (*(v2h *)&pH[2U * (k * n_tx + j)]);
+          cd1 = (*(v2h *)&pH[2U * (k * n_tx + j + 1U)]);
+          cd2 = (*(v2h *)&pH[2U * (k * n_tx + j + 2U)]);
+          cd3 = (*(v2h *)&pH[2U * (k * n_tx + j + 3U)]);
+          asm volatile("fccdotpex.s.h  %[res0], %[ab], %[cd0];"
+                       "fccdotpex.s.h  %[res1], %[ab], %[cd1];"
+                       "fccdotpex.s.h  %[res2], %[ab], %[cd2];"
+                       "fccdotpex.s.h  %[res3], %[ab], %[cd3];"
+                       : [res0] "+&r"(res0), [res1] "+&r"(res1),
+                         [res2] "+&r"(res2), [res3] "+&r"(res3)
+                       : [cd0] "r"(cd0), [cd1] "r"(cd1), [cd2] "r"(cd2),
+                         [cd3] "r"(cd3), [ab] "r"(ab)
+                       :);
+        }
+        asm volatile("pv.shuffle2.h  %[res0], %[res0], %[shuffle_mask];"
+                     "pv.shuffle2.h  %[res1], %[res1], %[shuffle_mask];"
+                     "pv.shuffle2.h  %[res2], %[res2], %[shuffle_mask];"
+                     "pv.shuffle2.h  %[res3], %[res3], %[shuffle_mask];"
+                     : [res0] "+&r"(res0), [res1] "+&r"(res1),
+                       [res2] "+&r"(res2), [res3] "+&r"(res3)
+                     : [shuffle_mask] "r"(shuffle_mask)
+                     :);
+        __fp16 sigma = pS[2 * i];
+        if (i == j) {
+          asm volatile("and     %0, %0, %1;" : "+&r"(res0) : "r"(0x0000FFFF));
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(sigma));
+        } else if (i == (j + 1U)) {
+          asm volatile("and     %0, %0, %1;" : "+&r"(res1) : "r"(0x0000FFFF));
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res1) : "r"(sigma));
+        } else if (i == (j + 2U)) {
+          asm volatile("and     %0, %0, %1;" : "+&r"(res2) : "r"(0x0000FFFF));
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res2) : "r"(sigma));
+        } else if (i == (j + 3U)) {
+          asm volatile("and     %0, %0, %1;" : "+&r"(res3) : "r"(0x0000FFFF));
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res3) : "r"(sigma));
+        }
+        (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
+        (*(v2h *)&pG[2 * (i * n_tx + j + 1U)]) = res1;
+        (*(v2h *)&pG[2 * (i * n_tx + j + 2U)]) = res2;
+        (*(v2h *)&pG[2 * (i * n_tx + j + 3U)]) = res3;
+      }
+    }
+  }
+
+#endif
   return;
 }
 
@@ -450,14 +513,19 @@ void mempool_MVP_conjtransp_f16vecs(__fp16 *pH, __fp16 *px, __fp16 *py,
                                     const uint32_t n_rx, const uint32_t n_tx) {
 
   uint32_t i, j;
-  float as0, as1, as2, as3;
-  float bs0, bs1, bs2, bs3;
+  v2h res0, res1, res2, res3;
   v2h ab0, ab1, ab2, ab3;
   v2h cd;
-  uint32_t ndc;
-  const uint32_t neg_mask = 0x80000000;
   const uint32_t shuffle_mask = 0x00020003;
 
+#ifndef __CDOTP
+  float as0, as1, as2, as3;
+  float bs0, bs1, bs2, bs3;
+  const uint32_t neg_mask = 0x80000000;
+  uint32_t ndc;
+#endif
+
+#ifndef __CDOTP
   if (n_tx < 4) {
     for (i = 0; i < n_tx; i++) {
       as0 = 0.0f; // Initialize the real part of sums
@@ -478,7 +546,6 @@ void mempool_MVP_conjtransp_f16vecs(__fp16 *pH, __fp16 *px, __fp16 *py,
               [shuffle_mask] "r"(shuffle_mask), [ab0] "r"(ab0)
             :);
       }
-      v2h res0;
       asm volatile("vfcpka.h.s %0, %1, %2;"
                    : "=&r"(res0)
                    : "r"(as0), "r"(bs0)
@@ -521,7 +588,6 @@ void mempool_MVP_conjtransp_f16vecs(__fp16 *pH, __fp16 *px, __fp16 *py,
                        [ab1] "r"(ab1), [ab2] "r"(ab2), [ab3] "r"(ab3)
                      :);
       }
-      v2h res0, res1, res2, res3;
       asm volatile(
           "vfcpka.h.s %[res0], %[as0], %[bs0];"
           "vfcpka.h.s %[res1], %[as1], %[bs1];"
@@ -538,5 +604,44 @@ void mempool_MVP_conjtransp_f16vecs(__fp16 *pH, __fp16 *px, __fp16 *py,
       *(v2h *)&py[2U * (i + 3U)] = res3;
     }
   }
+#else
+  if (n_tx >= 4) {
+    // UNROLL_4
+    for (i = 0; i < n_tx; i += 4) {
+      res0 = (v2h)0.0f;
+      res1 = (v2h)0.0f;
+      res2 = (v2h)0.0f;
+      res3 = (v2h)0.0f;
+      for (j = 0; j < n_rx; j++) {
+        ab0 = *(v2h *)&pH[2U * (j * n_tx + i)];
+        ab1 = *(v2h *)&pH[2U * (j * n_tx + i + 1U)];
+        ab2 = *(v2h *)&pH[2U * (j * n_tx + i + 2U)];
+        ab3 = *(v2h *)&pH[2U * (j * n_tx + i + 3U)];
+        cd = *(v2h *)&px[2U * j];
+        asm volatile("fccdotpex.s.h  %[res0], %[ab0], %[cd];"
+                     "fccdotpex.s.h  %[res1], %[ab1], %[cd];"
+                     "fccdotpex.s.h  %[res2], %[ab2], %[cd];"
+                     "fccdotpex.s.h  %[res3], %[ab3], %[cd];"
+                     : [res0] "+&r"(res0), [res1] "+&r"(res1),
+                       [res2] "+&r"(res2), [res3] "+&r"(res3)
+                     : [ab0] "r"(ab0), [ab1] "r"(ab1), [ab2] "r"(ab2),
+                       [ab3] "r"(ab3), [cd] "r"(cd)
+                     :);
+      }
+      asm volatile("pv.shuffle2.h  %[res0], %[res0], %[shuffle_mask];"
+                   "pv.shuffle2.h  %[res1], %[res1], %[shuffle_mask];"
+                   "pv.shuffle2.h  %[res2], %[res2], %[shuffle_mask];"
+                   "pv.shuffle2.h  %[res3], %[res3], %[shuffle_mask];"
+                   : [res0] "+&r"(res0), [res1] "+&r"(res1), [res2] "+&r"(res2),
+                     [res3] "+&r"(res3)
+                   : [shuffle_mask] "r"(shuffle_mask)
+                   :);
+      *(v2h *)&py[2U * i] = res0;
+      *(v2h *)&py[2U * (i + 1U)] = res1;
+      *(v2h *)&py[2U * (i + 2U)] = res2;
+      *(v2h *)&py[2U * (i + 3U)] = res3;
+    }
+  }
+#endif
   return;
 }
