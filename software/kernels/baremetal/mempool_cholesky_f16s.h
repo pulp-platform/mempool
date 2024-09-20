@@ -20,7 +20,7 @@
 */
 void mempool_cholesky_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
 
-  register __fp16 sum;
+  __fp16 sum;
   __fp16 a, b;
   __fp16 c, d;
   __fp16 diag;   // Diagonal element
@@ -173,21 +173,22 @@ void mempool_cholesky_folded_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
 */
 void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
 
-  float sum;   // register float sum
-  __fp16 diag; // Diagonal element
-  __fp16 ap;
+  float sum; // register float sum
+  v2h abp, ab, cd;
+  __fp16 diag, ap;
 
+#ifndef __CDOTP
   float as, bs;
-  v2h abp, ab, cd, ndc;
-  v2h vec_sum;
-  v2h vec_diag;
+  v2h ndc, vec_sum;
+#endif
 
+  v2h vec_diag;
   uint32_t i, j, k;
 
   for (j = 0; j < n; j++) {
     // Elements on diagonal (input matrix is positive-definite)
     ap = pSrc[2U * (j * n + j)];
-    sum = (float)0.0f;
+    sum = 0.0f;
     for (k = 0; k < j; k++) {
       ab = (*(v2h *)&pL[2U * (j * n + k)]);
       asm volatile("vfdotpex.s.h %[sum], %[ab],  %[ab];"
@@ -209,6 +210,22 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
       abp = (*(v2h *)&pSrc[2U * (i * n + j)]);
       // Diag
       diag = pL[2U * (j * n + j)];
+
+#ifdef __CDOTP
+      for (k = 0; k < j; k++) {
+        ab = (*(v2h *)&pL[2U * (i * n + k)]);
+        cd = (*(v2h *)&pL[2U * (j * n + k)]);
+        asm volatile("fcndotpex.s.h  %[abp],%[ab],%[cd];"
+                     : [abp] "=&r"(abp)
+                     : [ab] "r"(ab), [cd] "r"(cd)
+                     :);
+      }
+      asm volatile("pv.pack %[vec_diag], %[diag], %[diag];"
+                   "vfdiv.h %[abp], %[abp], %[vec_diag];"
+                   : [abp] "+&r"(abp), [vec_diag] "=&r"(vec_diag)
+                   : [diag] "r"(diag)
+                   :);
+#else
       // Sum -> s = s + (ac + bd) + j*(bc - ad)
       as = (float)0.0f;
       bs = (float)0.0f;
@@ -221,7 +238,7 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
             // s = s + (ac + bd) + j(bc - ad)
             "vfdotpex.s.h  %[as],  %[ab], %[cd];"
             "pv.shuffle2.h %[ndc], %[cd], %[shuffle_mask];"
-            "xor %[ndc], %[neg_mask], %[ndc];"
+            "xor           %[ndc], %[neg_mask], %[ndc];"
             "vfdotpex.s.h  %[bs],  %[ab], %[ndc];"
             : [as] "+&r"(as), [bs] "+&r"(bs), [ndc] "+r"(ndc)
             : [ab] "r"(ab), [cd] "r"(cd), [neg_mask] "r"(neg_mask),
@@ -229,13 +246,14 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
             :);
       }
       asm volatile("vfcpka.h.s %[vec_sum], %[as], %[bs];"
-                   "pv.pack.h %[vec_diag], %[diag], %[diag];"
+                   "pv.pack %[vec_diag], %[diag], %[diag];"
                    "vfsub.h %[abp], %[abp], %[vec_sum];"
                    "vfdiv.h %[abp], %[abp], %[vec_diag];"
                    : [abp] "+&r"(abp), [vec_sum] "+&r"(vec_sum),
                      [vec_diag] "+&r"(vec_diag)
                    : [as] "r"(as), [bs] "r"(bs), [diag] "r"(diag)
                    :);
+#endif
       (*(v2h *)&pL[2U * (i * n + j)]) = abp;
     }
   }
