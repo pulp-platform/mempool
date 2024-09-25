@@ -22,7 +22,7 @@
   "cfft_radix4_q16": {
     "type": "int16",
     "defines": [
-      ("N_CSAMPLES", 1024)
+      ("N_CSAMPLES", 64)
     ]
     "arrays": [
       ("int16_t", "l2_pSrc")
@@ -35,7 +35,7 @@
   "cfft_radix2_q16": {
     "type": "int16",
     "defines": [
-      ("N_CSAMPLES", 1024)
+      ("N_CSAMPLES", 256)
     ]
     "arrays": [
       ("int16_t", "l2_pSrc")
@@ -141,5 +141,25 @@
       ("int32_t", "l2_C")
     ]
   }
+
+  "fence": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 12288)
+    ]
+    "arrays": [
+      ("int32_t", "l2_data")
+    ]
+  },
+
+  "memcpy": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 2048)
+    ]
+    "arrays": [
+      ("int32_t", "l2_data")
+    ]
+  },
 
 }
