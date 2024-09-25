@@ -215,5 +215,12 @@ if __name__ == '__main__':
         arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
         print_file(header, defnes, arrays, filename)
 
+    elif (app_name == "fence") | (app_name == "memcpy"):
+
+        result = blas.generate_iarray(
+            **{name: value for name, value in defnes}, my_type=my_type)
+        arrays = [(result, *arrays[0])]
+        print_file(header, defnes, arrays, filename)
+
     else:
         print("No need for data generation.")
