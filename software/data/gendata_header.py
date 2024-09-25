@@ -101,9 +101,13 @@ if __name__ == '__main__':
     with open(args.params, 'r') as hjson_file:
         config_data = hjson.load(hjson_file)
     data_args = config_data.get(app_name)
-    my_type = data_args.get("type")
-    defnes = [ast.literal_eval(defne) for defne in data_args.get("defines")]
-    arrays = [ast.literal_eval(array) for array in data_args.get("arrays")]
+
+    if data_args is not None:
+        my_type = data_args.get("type")
+        defnes = [ast.literal_eval(defne)
+                  for defne in data_args.get("defines")]
+        arrays = [ast.literal_eval(array)
+                  for array in data_args.get("arrays")]
 
     # Determine output file name
     filename = os.path.dirname(os.path.abspath(__file__))
