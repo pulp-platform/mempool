@@ -4,61 +4,64 @@
 
 name: terapool
 description: "Terapool AXI NoC"
+network_type: "narrow-wide"
 
 routing:
   route_algo: "SRC"
   use_id_table: true
 
 protocols:
-  - name: "narrow"
-    type: "AXI4"
-    direction: "manager"
+  - name: "narrow_in"
+    type: "narrow"
+    protocol: "AXI4"
     data_width: 64
-    addr_width: 32  # TODO: Increase to 48-bit
-    id_width: 1
+    addr_width: 48
+    id_width: 4
     user_width: 1
-  - name: "narrow"
-    type: "AXI4"
-    direction: "subordinate"
+    direction: "input"
+  - name: "narrow_out"
+    type: "narrow"
+    protocol: "AXI4"
     data_width: 64
-    addr_width: 32  # TODO: Increase to 48-bit
-    id_width: 1
-    user_width: 1
-  - name: "wide"
-    type: "AXI4"
-    direction: "manager"
-    data_width: 512
-    addr_width: 32  # TODO: Increase to 48-bit
+    addr_width: 48
     id_width: 2
     user_width: 1
-  - name: "wide"
-    type: "AXI4"
-    direction: "subordinate"
+    direction: "output"
+  - name: "wide_in"
+    type: "wide"
+    protocol: "AXI4"
     data_width: 512
-    addr_width: 32  # TODO: Increase to 48-bit
-    id_width: 2
+    addr_width: 48
+    id_width: 3
+    user_width: 1
+  - name: "wide_out"
+    type: "wide"
+    protocol: "AXI4"
+    data_width: 512
+    addr_width: 48
+    id_width: 1
     user_width: 1
 
 endpoints:
   - name: "group"
     array: [4, 4]
     mgr_port_protocol:
-      - "wide"
+      - "wide_in"
   - name: "hbm"
     array: [16]
     addr_range:
       base: 0x0000_8000_0000
-      size: 0x0000_0400_0000  # TODO: Increase for 48-bit addressing
+      size: 0x0000_4000_0000
     sbr_port_protocol:
-      - "wide"
+      - "wide_out"
   - name: "peripherals"
     addr_range:
       start: 0x0000_0000_0000
       end: 0x0000_0fff_ffff
     mgr_port_protocol:
-      - "wide"
+      - "wide_in"
     sbr_port_protocol:
-      - "wide"
+      - "wide_out"
 
 routers:
   - name: "group_router"
