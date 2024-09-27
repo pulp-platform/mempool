@@ -46,10 +46,10 @@ packages:
       Path: hardware/deps/common_verification
     dependencies: []
   floo_noc:
-    revision: null
+    revision: 3f6902713c2f65241987d5eebafc2c35cc73ff5f
     version: null
     source:
-      Path: hardware/deps/FlooNoC
+      Git: https://github.com/pulp-platform/FlooNoC.git
     dependencies:
     - axi
     - axi_riscv_atomics

@@ -15,7 +15,7 @@ dependencies:
   snitch:               { path: "hardware/deps/snitch"                                                       }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.13  }
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: pulp-v0.1.3 }
-  floo_noc:             { path: "hardware/deps/FlooNoC"                                                      }
+  floo_noc:             { git: "https://github.com/pulp-platform/FlooNoC.git",              rev: main        }
 
 workspace:
   checkout_dir: "./hardware/deps"
