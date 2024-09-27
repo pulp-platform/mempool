@@ -155,9 +155,9 @@ module mempool_cluster_floonoc_wrapper
   floo_tcdm_resp_t  [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_out;
   logic             [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_out_ready, floo_tcdm_resp_out_valid;
 
-  floo_narrow_wide_pkg::floo_req_t  [NumX-1:0][NumY-1:0][West:North] floo_axi_req_out, floo_axi_req_in;
-  floo_narrow_wide_pkg::floo_rsp_t  [NumX-1:0][NumY-1:0][West:North] floo_axi_rsp_out, floo_axi_rsp_in;
-  floo_narrow_wide_pkg::floo_wide_t [NumX-1:0][NumY-1:0][West:North] floo_axi_wide_out, floo_axi_wide_in;
+  floo_terapool_noc_pkg::floo_req_t  [NumX-1:0][NumY-1:0][West:North] floo_axi_req_out, floo_axi_req_in;
+  floo_terapool_noc_pkg::floo_rsp_t  [NumX-1:0][NumY-1:0][West:North] floo_axi_rsp_out, floo_axi_rsp_in;
+  floo_terapool_noc_pkg::floo_wide_t [NumX-1:0][NumY-1:0][West:North] floo_axi_wide_out, floo_axi_wide_in;
 
   for (genvar x = 0; x < NumX; x++) begin : gen_groups_x
     for (genvar y = 0; y < NumY; y++) begin : gen_groups_y
@@ -192,10 +192,10 @@ module mempool_cluster_floonoc_wrapper
           .AtopSupport      ( 1'b0                                      ),
           .WideMaxTxns      ( 'd32                                      ),
           .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
-          .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
-          .Sam              ( terapool_floo_noc_pkg::Sam                ),
-          .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
-          .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+          .SamNumRules      ( floo_terapool_noc_pkg::SamNumRules        ),
+          .Sam              ( floo_terapool_noc_pkg::Sam                ),
+          .NumRoutes        ( int'(floo_terapool_noc_pkg::NumEndpoints) ),
+          .sam_rule_t       ( floo_terapool_noc_pkg::sam_rule_t         )
         ) i_floo_narrow_wide_chimney (
           .clk_i,
           .rst_ni,
@@ -210,7 +210,7 @@ module mempool_cluster_floonoc_wrapper
           .axi_wide_out_req_o   ( axi_mst_req_o[y]                                ), // TODO: This is definitely not correct
           .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]                               ), // TODO: This is definitely not correct
           .id_i                 ( HbmNi + y                                       ), // TODO: This is definitely not correct
-          .route_table_i        ( terapool_floo_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
+          .route_table_i        ( floo_terapool_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
           .floo_req_o           ( floo_axi_req_out[x][y][West]                    ),
           .floo_rsp_o           ( floo_axi_rsp_out[x][y][West]                    ),
           .floo_wide_o          ( floo_axi_wide_out[x][y][West]                   ),
@@ -246,10 +246,10 @@ module mempool_cluster_floonoc_wrapper
           .AtopSupport      ( 1'b0                                      ),
           .WideMaxTxns      ( 'd32                                      ),
           .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
-          .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
-          .Sam              ( terapool_floo_noc_pkg::Sam                ),
-          .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
-          .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+          .SamNumRules      ( floo_terapool_noc_pkg::SamNumRules        ),
+          .Sam              ( floo_terapool_noc_pkg::Sam                ),
+          .NumRoutes        ( int'(floo_terapool_noc_pkg::NumEndpoints) ),
+          .sam_rule_t       ( floo_terapool_noc_pkg::sam_rule_t         )
         ) i_floo_narrow_wide_chimney (
           .clk_i,
           .rst_ni,
@@ -264,7 +264,7 @@ module mempool_cluster_floonoc_wrapper
           .axi_wide_out_req_o   ( axi_mst_req_o[y]                                ), // TODO: This is definitely not correct
           .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]                               ), // TODO: This is definitely not correct
           .id_i                 ( HbmNi + y                                       ), // TODO: This is definitely not correct
-          .route_table_i        ( terapool_floo_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
+          .route_table_i        ( floo_terapool_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
           .floo_req_o           ( floo_axi_req_out[x][y][East]                    ),
           .floo_rsp_o           ( floo_axi_rsp_out[x][y][East]                    ),
           .floo_wide_o          ( floo_axi_wide_out[x][y][East]                   ),
@@ -323,10 +323,10 @@ module mempool_cluster_floonoc_wrapper
           .AtopSupport      ( 1'b0                                      ),
           .WideMaxTxns      ( 'd32                                      ),
           .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
-          .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
-          .Sam              ( terapool_floo_noc_pkg::Sam                ),
-          .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
-          .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+          .SamNumRules      ( floo_terapool_noc_pkg::SamNumRules        ),
+          .Sam              ( floo_terapool_noc_pkg::Sam                ),
+          .NumRoutes        ( int'(floo_terapool_noc_pkg::NumEndpoints) ),
+          .sam_rule_t       ( floo_terapool_noc_pkg::sam_rule_t         )
         ) i_floo_narrow_wide_chimney (
           .clk_i,
           .rst_ni,
@@ -341,7 +341,7 @@ module mempool_cluster_floonoc_wrapper
           .axi_wide_out_req_o   ( axi_mst_req_o[y]                                ), // TODO: This is definitely not correct
           .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]                               ), // TODO: This is definitely not correct
           .id_i                 ( HbmNi + y                                       ), // TODO: This is definitely not correct
-          .route_table_i        ( terapool_floo_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
+          .route_table_i        ( floo_terapool_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
           .floo_req_o           ( floo_axi_req_out[x][y][South]                   ),
           .floo_rsp_o           ( floo_axi_rsp_out[x][y][South]                   ),
           .floo_wide_o          ( floo_axi_wide_out[x][y][South]                  ),
@@ -377,10 +377,10 @@ module mempool_cluster_floonoc_wrapper
           .AtopSupport      ( 1'b0                                      ),
           .WideMaxTxns      ( 'd32                                      ),
           .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
-          .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
-          .Sam              ( terapool_floo_noc_pkg::Sam                ),
-          .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
-          .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+          .SamNumRules      ( floo_terapool_noc_pkg::SamNumRules        ),
+          .Sam              ( floo_terapool_noc_pkg::Sam                ),
+          .NumRoutes        ( int'(floo_terapool_noc_pkg::NumEndpoints) ),
+          .sam_rule_t       ( floo_terapool_noc_pkg::sam_rule_t         )
         ) i_floo_narrow_wide_chimney (
           .clk_i,
           .rst_ni,
@@ -395,7 +395,7 @@ module mempool_cluster_floonoc_wrapper
           .axi_wide_out_req_o   ( axi_mst_req_o[y]                                ), // TODO: This is definitely not correct
           .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]                               ), // TODO: This is definitely not correct
           .id_i                 ( HbmNi + y                                       ), // TODO: This is definitely not correct
-          .route_table_i        ( terapool_floo_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
+          .route_table_i        ( floo_terapool_noc_pkg::RoutingTables[HbmNi + y] ), // TODO: This is definitely not correct
           .floo_req_o           ( floo_axi_req_out[x][y][North]                   ),
           .floo_rsp_o           ( floo_axi_rsp_out[x][y][North]                   ),
           .floo_wide_o          ( floo_axi_wide_out[x][y][North]                  ),

@@ -10,6 +10,7 @@ module mempool_group_floonoc_wrapper
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
   import floo_pkg::*;
+  import floo_terapool_noc_pkg::*;
 #(
   // Parameters for mempool_group
   parameter addr_t       TCDMBaseAddr = 32'b0,
@@ -24,8 +25,8 @@ module mempool_group_floonoc_wrapper
   input  logic                                                                         scan_data_i,
   output logic                                                                         scan_data_o,
   // Group ID
-  input  logic           [idx_width(NumGroups)-1:0]                                    group_id_i,
-  input  floo_narrow_wide_pkg::route_t [terapool_floo_noc_pkg::NumEndpoints-1:0]       route_table_i,
+  input  logic [idx_width(NumGroups)-1:0]                                              group_id_i,
+  input  route_t [NumEndpoints-1:0]                                                    route_table_i,
   // Router interface
   output floo_tcdm_req_t  [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_req_o,
   output logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_req_valid_o,
@@ -40,12 +41,12 @@ module mempool_group_floonoc_wrapper
   input  logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_valid_i,
   output logic            [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_tcdm_resp_ready_o,
   // AXI Router interface
-  output floo_narrow_wide_pkg::floo_req_t   [West:North]                                floo_axi_req_o,
-  output floo_narrow_wide_pkg::floo_rsp_t   [West:North]                                floo_axi_rsp_o,
-  output floo_narrow_wide_pkg::floo_wide_t  [West:North]                                floo_axi_wide_o,
-  input  floo_narrow_wide_pkg::floo_req_t   [West:North]                                floo_axi_req_i,
-  input  floo_narrow_wide_pkg::floo_rsp_t   [West:North]                                floo_axi_rsp_i,
-  input  floo_narrow_wide_pkg::floo_wide_t  [West:North]                                floo_axi_wide_i,
+  output floo_req_t   [West:North]                                                      floo_axi_req_o,
+  output floo_rsp_t   [West:North]                                                      floo_axi_rsp_o,
+  output floo_wide_t  [West:North]                                                      floo_axi_wide_o,
+  input  floo_req_t   [West:North]                                                      floo_axi_req_i,
+  input  floo_rsp_t   [West:North]                                                      floo_axi_rsp_i,
+  input  floo_wide_t  [West:North]                                                      floo_axi_wide_i,
 
   // Wake up interface
   input  logic           [NumCoresPerGroup-1:0]                                        wake_up_i,
@@ -389,9 +390,9 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
     floo_router #(
       .NumRoutes        (mempool_pkg::NumDirections),
       .NumVirtChannels  (1            ),
-      .flit_t           (floo_tcdm_req_t   ),
-      .ChannelFifoDepth (2            ), // Input buffer depth
-      .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .flit_t           (floo_tcdm_req_t  ),
+      .InFifoDepth      (2            ), // Input buffer depth
+      .OutFifoDepth     (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo        (XYRouting    ),
       .id_t             (group_xy_id_t),
       .NumAddrRules     (1            )
@@ -413,8 +414,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .NumRoutes       (mempool_pkg::NumDirections),
       .NumVirtChannels (1            ),
       .flit_t          (floo_tcdm_resp_t  ),
-      .ChannelFifoDepth(2            ), // Input buffer depth
-      .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .InFifoDepth     (2            ), // Input buffer depth
+      .OutFifoDepth    (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo       (XYRouting    ),
       .id_t            (group_xy_id_t),
       .NumAddrRules    (1            )
@@ -439,24 +440,34 @@ end : gen_router_router_i
 // AXI FlooNoC Network Interface //
 // ----------------------------- //
 
-floo_narrow_wide_pkg::floo_req_t [Eject:North] floo_axi_req_out, floo_axi_req_in;
-floo_narrow_wide_pkg::floo_rsp_t [Eject:North] floo_axi_rsp_out, floo_axi_rsp_in;
-floo_narrow_wide_pkg::floo_wide_t [Eject:North] floo_axi_wide_out, floo_axi_wide_in;
+floo_req_t [Eject:North] floo_axi_req_out, floo_axi_req_in;
+floo_rsp_t [Eject:North] floo_axi_rsp_out, floo_axi_rsp_in;
+floo_wide_t [Eject:North] floo_axi_wide_out, floo_axi_wide_in;
 
-floo_narrow_wide_chimney #(
-  .EnNarrowSbrPort  ( 1'b0                                      ),
-  .EnNarrowMgrPort  ( 1'b0                                      ),
-  .EnWideSbrPort    ( 1'b0                                      ),
-  .EnWideMgrPort    ( 1'b1                                      ), // Only enable the manager port
-  .AtopSupport      ( 1'b0                                      ), // Wide does not support ATOP
-  .WideMaxTxns      ( 'd32                                      ),
-  .WideRoBType      ( floo_pkg::NoRoB                           ),
-  .CutAx            ( 1'b0                                      ), // TODO: Check if necessary
-  .CutRsp           ( 1'b0                                      ), // TODO: Check if necessary
-  .SamNumRules      ( terapool_floo_noc_pkg::SamNumRules        ),
-  .Sam              ( terapool_floo_noc_pkg::Sam                ),
-  .NumRoutes        ( int'(terapool_floo_noc_pkg::NumEndpoints) ),
-  .sam_rule_t       ( terapool_floo_noc_pkg::sam_rule_t         )
+floo_nw_chimney #(
+  .AxiCfgN(AxiCfgN),
+  .AxiCfgW(AxiCfgW),
+  .ChimneyCfgN(set_ports(ChimneyDefaultCfg, 1'b0, 1'b0)),
+  .ChimneyCfgW(set_ports(ChimneyDefaultCfg, 1'b0, 1'b1)),
+  .RouteCfg(RouteCfg),
+  .id_t(id_t),
+  .rob_idx_t(rob_idx_t),
+  .route_t (route_t),
+  .dst_t  (route_t),
+  .hdr_t  (hdr_t),
+  .sam_rule_t(sam_rule_t),
+  .Sam(Sam),
+  .axi_narrow_in_req_t(axi_narrow_in_req_t),
+  .axi_narrow_in_rsp_t(axi_narrow_in_rsp_t),
+  .axi_narrow_out_req_t(axi_narrow_out_req_t),
+  .axi_narrow_out_rsp_t(axi_narrow_out_rsp_t),
+  .axi_wide_in_req_t(axi_wide_in_req_t),
+  .axi_wide_in_rsp_t(axi_wide_in_rsp_t),
+  .axi_wide_out_req_t(axi_wide_out_req_t),
+  .axi_wide_out_rsp_t(axi_wide_out_rsp_t),
+  .floo_req_t(floo_req_t),
+  .floo_rsp_t(floo_rsp_t),
+  .floo_wide_t(floo_wide_t)
 ) i_floo_narrow_wide_chimney (
   .clk_i,
   .rst_ni,
@@ -484,12 +495,18 @@ floo_narrow_wide_chimney #(
 // AXI FlooNoC Rouer //
 // ----------------- //
 
-floo_narrow_wide_router #(
-  .NumRoutes        ( mempool_pkg::NumDirections  ),
-  .ChannelFifoDepth ( 2                           ),
-  .OutputFifoDepth  ( 2                           ), // TODO: Check if necessary, or set to 0
-  .RouteAlgo        ( floo_pkg::SourceRouting     ),
-  .id_t             ( floo_narrow_wide_pkg::id_t  )
+floo_nw_router #(
+  .AxiCfgN      ( AxiCfgN                     ),
+  .AxiCfgW      ( AxiCfgW                     ),
+  .RouteAlgo    ( RouteCfg.RouteAlgo          ),
+  .NumRoutes    ( mempool_pkg::NumDirections  ),
+  .InFifoDepth  ( 2                           ),
+  .OutFifoDepth ( 2                           ),
+  .id_t         ( id_t                        ),
+  .hdr_t        ( hdr_t                       ),
+  .floo_req_t   ( floo_req_t                  ),
+  .floo_rsp_t   ( floo_rsp_t                  ),
+  .floo_wide_t  ( floo_wide_t                 )
 ) i_floo_narrow_wide_router (
   .clk_i,
   .rst_ni,
