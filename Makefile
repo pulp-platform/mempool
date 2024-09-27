@@ -199,7 +199,7 @@ setup-dram: config-dram
 #########################
 
 FLOO_DIR  ?= $(shell bender path floo_noc)
-FLOO_GEN_OUTDIR	?= $(ROOT_DIR)/generated
+FLOO_GEN_OUTDIR	?= $(ROOT_DIR)/hardware/generated
 FLOO_CFG  ?= $(ROOT_DIR)/config/floo_noc.yml
 FLOO_SYS  = $(subst .yml,,$(notdir $(FLOO_CFG)))
 FLOO_NOC  ?= $(addprefix $(FLOO_GEN_OUTDIR)/,$(subst .yml,_floo_noc.sv,$(notdir $(FLOO_CFG))))

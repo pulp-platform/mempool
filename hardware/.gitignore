@@ -15,3 +15,4 @@ results*
 log/
 plots*
 obj_dir
+generated
