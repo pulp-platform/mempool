@@ -12,6 +12,7 @@ module address_scrambler #(
   parameter int unsigned AddrWidth         = 32,
   parameter int unsigned ByteOffset        = 2,
   parameter int unsigned NumTiles          = 2,
+  parameter int unsigned NumTilesPerDma    = 16,
   parameter int unsigned NumBanksPerTile   = 2,
   parameter bit          Bypass            = 0,
   parameter int unsigned SeqMemSizePerTile = 4*1024
@@ -21,10 +22,22 @@ module address_scrambler #(
 );
   localparam int unsigned BankOffsetBits    = $clog2(NumBanksPerTile);
   localparam int unsigned TileIdBits        = $clog2(NumTiles);
+  localparam int unsigned TileIdBitsPerDma  = $clog2(NumTilesPerDma);
   localparam int unsigned SeqPerTileBits    = $clog2(SeqMemSizePerTile);
   localparam int unsigned SeqTotalBits      = SeqPerTileBits+TileIdBits;
   localparam int unsigned ConstantBitsLSB   = ByteOffset + BankOffsetBits;
   localparam int unsigned ScrambleBits      = SeqPerTileBits-ConstantBitsLSB;
+
+  function automatic logic [TileIdBitsPerDma-1:0] spm_tile_id_remap (
+      logic [TileIdBitsPerDma-1:0] data_in,
+      logic [TileIdBitsPerDma-1:0] idx_i
+  );
+    `ifdef TILE_ID_REMAP
+      spm_tile_id_remap = data_in + idx_i;
+    `else
+      spm_tile_id_remap = data_in;
+    `endif
+  endfunction
 
   if (Bypass || NumTiles < 2) begin
     assign address_o = address_i;
@@ -52,6 +65,12 @@ module address_scrambler #(
       // If not in bypass mode and address is in sequential region and more than one tile
       if (address_i < (NumTiles * SeqMemSizePerTile)) begin
         address_o[SeqTotalBits-1:ConstantBitsLSB] = {scramble, tile_id};
+      end else begin
+        address_o[ConstantBitsLSB +: TileIdBitsPerDma] =
+          spm_tile_id_remap(
+            address_i[ConstantBitsLSB +: TileIdBitsPerDma],
+            address_i[(ConstantBitsLSB + TileIdBits) +: TileIdBitsPerDma]
+          );
       end
     end
   end

@@ -90,8 +90,11 @@ module tcdm_shim
       logic [TileIdBitsPerDma-1:0] data_in,
       logic [TileIdBitsPerDma-1:0] idx_i
   );
-      spm_tile_id_remap = data_in + idx_i;
-      // spm_bank_id_rotate_left = data_in;
+    // `ifdef TILE_ID_REMAP
+    // spm_tile_id_remap = data_in + idx_i;
+    // `else
+    spm_tile_id_remap = data_in;
+    // `endif
   endfunction
 
   dreq_t              data_qpayload ;

@@ -64,7 +64,6 @@ module mempool_tile
   /*****************
    *  Definitions  *
    *****************/
-  `define min(a,b) (((a) < (b))? (a) : (b))
 
   import snitch_pkg::dreq_t;
   import snitch_pkg::dresp_t;
@@ -73,17 +72,6 @@ module mempool_tile
 
   // Local interconnect address width
   typedef logic [idx_width(NumCoresPerTile + NumRemotePortsPerTile)-1:0] local_req_interco_addr_t;
-
-  localparam SHIFT_AMOUNT = `min(TCDMAddrMemWidth, idx_width(NumBanksPerTile)); // or 4
-
-  function automatic logic [idx_width(NumBanksPerTile)-1:0] spm_bank_id_remap (
-      logic [idx_width(NumBanksPerTile)-1:0] data_in,
-      logic [SHIFT_AMOUNT-1:0] idx_i
-  );
-      spm_bank_id_remap = data_in + idx_i;
-      // spm_bank_id_remap = data_in;
-  endfunction
-
 
   /*********************
    *  Control Signals  *
@@ -99,41 +87,12 @@ module mempool_tile
     assign group_id = '0;
   end: gen_group_id
 
-  /***********************
-   *  Bank Address Hash  *
-   ***********************/
+  /************************
+   *  Bank Address Remap  *
+   ************************/
   tcdm_dma_req_t                               tcdm_dma_req_remapped;
   tcdm_slave_req_t [NumRemotePortsPerTile-1:0] tcdm_slave_req_remapped;
-  tcdm_slave_req_t [NumCoresPerTile-1:0]       local_req_interco_payload;
   tcdm_slave_req_t [NumCoresPerTile-1:0]       local_req_interco_payload_remapped;
-
-
-  always_comb begin
-    tcdm_dma_req_remapped = tcdm_dma_req_i;
-    tcdm_dma_req_remapped.tgt_addr[idx_width(NumBanksPerTile)-1:0] = 
-        spm_bank_id_remap(
-          tcdm_dma_req_i.tgt_addr[idx_width(NumBanksPerTile)-1:0],
-          tcdm_dma_req_i.tgt_addr[idx_width(NumBanksPerTile) +: SHIFT_AMOUNT]
-        );
-    
-    for(int rp = 0; rp < NumRemotePortsPerTile; rp++) begin
-      tcdm_slave_req_remapped[rp] = tcdm_slave_req_i[rp];
-      tcdm_slave_req_remapped[rp].tgt_addr[idx_width(NumBanksPerTile)-1:0] = 
-          spm_bank_id_remap(
-            tcdm_slave_req_i[rp].tgt_addr[idx_width(NumBanksPerTile)-1:0],
-            tcdm_slave_req_i[rp].tgt_addr[idx_width(NumBanksPerTile) +: SHIFT_AMOUNT]
-          );
-    end
-
-    for(int c = 0; c < NumCoresPerTile; c++) begin
-      local_req_interco_payload_remapped[c] = local_req_interco_payload[c];
-      local_req_interco_payload_remapped[c].tgt_addr[idx_width(NumBanksPerTile)-1:0] = 
-          spm_bank_id_remap(
-            local_req_interco_payload[c].tgt_addr[idx_width(NumBanksPerTile)-1:0],
-            local_req_interco_payload[c].tgt_addr[idx_width(NumBanksPerTile) +: SHIFT_AMOUNT]
-          );
-    end
-  end
 
   /***********
    *  Cores  *
@@ -749,67 +708,17 @@ module mempool_tile
   remote_ports_index_t [NumCoresPerTile-1:0] remote_req_interco_tgt_sel;
   remote_ports_index_t [NumCoresPerTile-1:0] remote_req_interco_tgt_sel_q;
   logic                [NumCoresPerTile-1:0] remote_req_interco_tgt_sel_q_update;
+  remote_ports_index_t [NumCoresPerTile-1:0] remote_req_interco_tgt_sel_remapped;
 
   tcdm_master_resp_t   [NumCoresPerTile-1:0] remote_resp_interco;
   logic                [NumCoresPerTile-1:0] remote_resp_interco_valid;
   logic                [NumCoresPerTile-1:0] remote_resp_interco_ready;
 
 
-  logic                [NumCoresPerTile-1:0] remote_req_interco_valid_mask_local;
-  logic                [NumCoresPerTile-1:0][$clog2(NumRemotePortsPerTile-1)-1:0] remote_req_interco_tgt_sel_mask_local;
-  logic                [NumCoresPerTile-1:0] remote_req_interco_tgt_sel_mask_local_vld;
-  remote_ports_index_t [NumCoresPerTile-1:0] remote_req_interco_tgt_sel_shift_local;
 
   logic                [NumCoresPerTile-1:0] remote_req_interco_to_xbar_valid;
   logic                [NumCoresPerTile-1:0] remote_req_interco_to_xbar_valid_q;
   logic                [NumCoresPerTile-1:0] remote_req_interco_to_xbar_ready;
-  
-
-  for(genvar c = 0; c < NumCoresPerTile; c++) begin: gen_remote_req_interco_handle_local
-    assign group_id_is_local[c] = tgt_group_id[c] == group_id;
-
-    assign remote_req_interco_valid_mask_local[c] = group_id_is_local[c] ? 0 : remote_req_interco_valid[c];
-
-
-    assign remote_req_interco_tgt_sel_shift_local[c] = 
-    {{($bits(remote_ports_index_t) - $clog2(NumRemotePortsPerTile-1)){1'b0}}, remote_req_interco_tgt_sel_mask_local[c]} + 1;
-
-    // assign remote_req_interco_to_xbar_valid[c] = group_id_is_local[c] ? remote_req_interco_valid[c] :
-    //                                              remote_req_interco_tgt_sel_mask_local_vld[c];
-    assign remote_req_interco_to_xbar_valid[c] = remote_req_interco_valid[c];
-    // assign remote_req_interco_to_xbar_ready[c] = group_id_is_local[c] ? remote_req_interco_ready[c] :
-    //                                              remote_req_interco_tgt_sel_mask_local_vld[c] & remote_req_interco_ready[c];
-    assign remote_req_interco_to_xbar_ready[c] = remote_req_interco_ready[c];
-
-    assign remote_req_interco_hsk[c] = remote_req_interco_to_xbar_valid[c] & remote_req_interco_to_xbar_ready[c];
-    assign remote_req_interco_tgt_sel_q_update[c] = (remote_req_interco_hsk_q[c] & remote_req_interco_to_xbar_valid[c]) |
-                                                    (~remote_req_interco_to_xbar_valid_q[c] & remote_req_interco_to_xbar_valid[c]);
-
-    `FF(remote_req_interco_hsk_q[c], remote_req_interco_hsk[c], '0, clk_i, rst_ni);
-    `FF(remote_req_interco_to_xbar_valid_q[c], remote_req_interco_to_xbar_valid[c], '0, clk_i, rst_ni);
-    `FFLARN(remote_req_interco_tgt_sel_q[c], remote_req_interco_tgt_sel[c], remote_req_interco_tgt_sel_q_update[c], '0, clk_i, rst_ni);
-  end: gen_remote_req_interco_handle_local
-
-
-  logic [$clog2(NumCoresPerTile)-1:0] priority_d, priority_q;
-  assign priority_d = (priority_q == (NumCoresPerTile-1)) ? '0 : priority_q + 1;
-  `FF(priority_q, priority_d, '0, clk_i, rst_ni);
-
-`ifdef DYNAMIC_PORT_ALLOC
-  selector #(
-    .InNum    (NumCoresPerTile),
-    .OutNum   (NumRemotePortsPerTile-1)
-  ) i_selector (
-    .req_vector_i             (remote_req_interco_valid_mask_local),
-    .priority_i               (priority_q               ),
-    .sel_inport_idx_o         (                         ),
-    .asn_outport_idx_o        (remote_req_interco_tgt_sel_mask_local),
-    .asn_outport_vld_o        (remote_req_interco_tgt_sel_mask_local_vld)
-  );
-`else
-  assign remote_req_interco_tgt_sel_mask_local = '0;
-  assign remote_req_interco_tgt_sel_mask_local_vld = '0;
-`endif
 
   stream_xbar #(
     .NumInp   (NumCoresPerTile           ),
@@ -864,7 +773,7 @@ module mempool_tile
 
   logic             [NumCoresPerTile-1:0] local_req_interco_valid;
   logic             [NumCoresPerTile-1:0] local_req_interco_ready;
-  // tcdm_slave_req_t  [NumCoresPerTile-1:0] local_req_interco_payload;
+  tcdm_slave_req_t  [NumCoresPerTile-1:0] local_req_interco_payload;
   logic             [NumCoresPerTile-1:0] local_resp_interco_valid;
   logic             [NumCoresPerTile-1:0] local_resp_interco_ready;
   tcdm_slave_resp_t [NumCoresPerTile-1:0] local_resp_interco_payload;
@@ -920,6 +829,36 @@ module mempool_tile
     .valid_o({prereg_tcdm_slave_resp_valid, local_resp_interco_valid}),
     .ready_i({prereg_tcdm_slave_resp_ready, local_resp_interco_ready}),
     .idx_o  (/* Unused */                                            )
+  );
+
+  /********************
+   *   ID Remapping   *
+   ********************/
+  mempool_tile_id_remapper #()
+  i_mempool_tile_id_remapper
+  (
+    .clk_i              (clk_i      ),
+    .rst_ni             (rst_ni     ),
+
+    .group_id_i         (group_id   ),
+
+    .tcdm_dma_req_i           (tcdm_dma_req_i     ),
+    .tcdm_slave_req_i         (tcdm_slave_req_i   ),
+    .local_req_interco_payload_i  (local_req_interco_payload),
+
+    .remote_req_interco_valid_i (remote_req_interco_valid   ),
+    .remote_req_interco_ready_i (remote_req_interco_ready   ),
+    .remote_req_interco_tgt_sel_i (remote_req_interco_tgt_sel),
+
+    .prescramble_tcdm_req_tgt_addr_i  (prescramble_tcdm_req_tgt_addr),
+
+    .tcdm_dma_req_remapped_o    (tcdm_dma_req_remapped),
+    .tcdm_slave_req_remapped_o  (tcdm_slave_req_remapped),
+    .local_req_interco_payload_remapped_o  (local_req_interco_payload_remapped),
+
+    .remote_req_interco_to_xbar_valid_o (remote_req_interco_to_xbar_valid),
+    .remote_req_interco_to_xbar_ready_o (remote_req_interco_to_xbar_ready),
+    .remote_req_interco_tgt_sel_o (remote_req_interco_tgt_sel_remapped)
   );
 
   /*******************
@@ -984,13 +923,8 @@ module mempool_tile
         // Output port depends on both the target and initiator group
         // If the target group is the same as the initiator group, the target is the local Group, through port 0
         // Otherwise, the target is a remote group, through port 1 to NumRemotePortsPerTile, used in a round-robin fashion by modulus
-        // group_id_t tgt_group_id;
         assign tgt_group_id[c] = prescramble_tcdm_req_tgt_addr[c][ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)];
-        assign remote_req_interco_tgt_sel[c] = group_id_is_local[c] ? 0 : (1 + (c % (NumRemotePortsPerTile - 1)));
-        // assign remote_req_interco_tgt_sel[c] = group_id_is_local[c] ? 0 :
-        //                                       //  ~remote_req_interco_tgt_sel_q_update[c] ? remote_req_interco_tgt_sel_q[c] :
-        //                                        (remote_req_interco_to_xbar_valid[c] ? remote_req_interco_tgt_sel_shift_local[c] :
-        //                                        (1 + (c % (NumRemotePortsPerTile - 1))));
+        assign remote_req_interco_tgt_sel[c] = remote_req_interco_tgt_sel_remapped[c];
         assign remote_req_interco[c].tgt_group_id = tgt_group_id[c];
       end
 

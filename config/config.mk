@@ -77,5 +77,11 @@ xDivSqrt ?= 0
 l2_sim_type ?= sram
 dram_axi_width_interleaved ?= 16
 
+# Enable SPM bank id remapping inside of each tile
+spm_bank_id_remap ?= 0
+
+# Enable tile id remapping inside of each group
+tile_id_remap ?= 1
+
 # Enable the spm access pattern profiling
 spm_profiling ?= 0
