@@ -46,3 +46,6 @@
 [submodule "hardware/deps/cluster_icache"]
 	path = hardware/deps/cluster_icache
 	url = https://github.com/pulp-platform/cluster_icache.git
+[submodule "toolchain/banshee"]
+	path = toolchain/banshee
+	url = https://github.com/pulp-platform/banshee
