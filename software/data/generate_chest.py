@@ -31,10 +31,6 @@ def gen_data_header_file(
     with file.open('w') as f:
         f.write(template.render(**kwargs))
 
-######################
-# Fixpoint Functions #
-######################
-
 
 def q_sat(x):
     if x > 2**15 - 1:
@@ -43,6 +39,49 @@ def q_sat(x):
         return x + 2**16
     else:
         return x
+
+
+def generate_chest_f16(nb_tx, nb_rx, nb_samples):
+    H = np.random.randn(nb_rx, nb_tx) + 1j * np.random.randn(nb_rx, nb_tx)
+    vector_pilot_tx = []
+    vector_pilot_rx = []
+    vector_Hest = []
+    for k in range(nb_samples):
+
+        # Compute data division
+        #        pilot_tx = 1 * np.exp(1j * np.random.randn(nb_tx))
+        #        pilot_rx = np.dot(H, pilot_tx)
+        #        Hest = pilot_rx[:, np.newaxis] / pilot_tx[np.newaxis, :]
+
+        # Compute data multiplication
+        pilot_tx = 1 * np.exp(1j * np.random.randn(nb_tx))
+        pilot_rx = np.dot(H, pilot_tx)
+        pilot_tx = np.reciprocal(pilot_tx)
+        Hest = pilot_rx[:, np.newaxis] * pilot_tx[np.newaxis, :]
+
+        # Interleaved real and imaginary parts
+        pilot_tx = np.column_stack(
+            (pilot_tx.imag, pilot_tx.real)).astype(
+            np.float16).flatten()
+        pilot_rx = np.column_stack(
+            (pilot_rx.imag, pilot_rx.real)).astype(
+            np.float16).flatten()
+        Hest = Hest.flatten()
+        Hest = np.column_stack(
+            (Hest.imag, Hest.real)).astype(
+            np.float16).flatten()
+
+        # Output vectors
+        vector_pilot_tx.append(pilot_tx)
+        vector_pilot_rx.append(pilot_rx)
+        vector_Hest.append(Hest)
+
+    vector_pilot_rx = np.concatenate(vector_pilot_rx, axis=0)
+    vector_pilot_tx = np.concatenate(vector_pilot_tx, axis=0)
+    vector_Hest = np.concatenate(vector_Hest, axis=0)
+    return vector_pilot_tx, vector_pilot_rx, vector_Hest
+
+# Compute the channel estimate
 
 
 def compute_chest_q16(in_rx, in_tx, p):
@@ -149,6 +188,17 @@ def main():
     kwargs = {'name': 'data_chest_q16',
               'pilot_tx': pilot_tx,
               'pilot_rx': pilot_rx,
+              'Hest': Hest,
+              'nb_tx': nb_tx,
+              'nb_rx': nb_rx,
+              'nb_samples': nb_samples}
+    gen_data_header_file(args.outdir, tpl, **kwargs)
+
+    pilot_tx, pilot_rx, Hest = generate_chest_f16(nb_tx, nb_rx, nb_samples)
+    tpl = pathlib.Path(__file__).parent.absolute() / "data_chest_f16.h.tpl"
+    kwargs = {'name': 'data_chest_f16',
+              'pilot_rx': pilot_rx,
+              'pilot_tx': pilot_tx,
               'Hest': Hest,
               'nb_tx': nb_tx,
               'nb_rx': nb_rx,

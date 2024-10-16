@@ -205,7 +205,7 @@ void mempool_cholesky_q32p(int32_t *pSrc, int32_t *pL, const uint32_t n) {
       case 0:
         break;
       }
-      pL[j * n + j] = mempool_sqrt_q32s(pivot - sum);
+      pL[j * n + j] = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
     }
     mempool_log_barrier(2, absolute_core_id);
 
@@ -403,7 +403,7 @@ void mempool_cholesky_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, const uint32_t n,
     case 0:
       break;
     }
-    pL[matrix_row + j * N_BANKS] = mempool_sqrt_q32s(pivot - sum);
+    pL[matrix_row + j * N_BANKS] = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
   }
   return;
 }

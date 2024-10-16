@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "baremetal/mempool_axpy_i32p.h"
+#include "baremetal/mempool_axpy_i32.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
