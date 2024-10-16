@@ -27,3 +27,7 @@ runtime/arch.ld
 # Generated data files
 data.h
 data/data*.h
+
+# Data of PHY emulation
+PHY_emulator/*.txt
+PHY_emulator/*.png
