@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Updated Halide to version 15
 - Move instruction cache into its own dependency
 - Use automatically generated control registers
+- Update the CI Ubuntu version to 22.04
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
