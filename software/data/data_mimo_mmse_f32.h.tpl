@@ -27,7 +27,7 @@ float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_G[${2 * N_tx 
 
 float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_y[${2 * N_rx * N_itr}] = ${array_to_cstr(y)};
 
-float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_Sigma[${N_tx * N_itr}] = ${array_to_cstr(N)};
+float __attribute__((aligned(sizeof(int32_t)), section(".l2"))) l2_S[${2 * N_tx * N_itr}] = ${array_to_cstr(N)};
 
 // Outputs
 

@@ -52,13 +52,15 @@ def generate_fmmse(N_tx, N_rx, N_itr, my_type):
         G = np.matmul(H_h, H) + N * np.eye(H.shape[1])
         N = N * np.ones(N_tx)
 
-         # Cholesky decomposition
+        # Cholesky decomposition
         L = np.linalg.cholesky(G)
         # Linear system solution
         y1 = np.transpose(np.dot(H_h, y))
         y2 = solve_triangular(L, y1, lower=True)
         x = solve_triangular(np.asmatrix(L).H, y2)
 
+        H = np.reshape(np.asarray(H), (N_tx * N_rx), order='C')
+        G = np.reshape(np.asarray(G), (N_tx * N_tx), order='C')
         N = np.column_stack((N.real, N.imag)).astype(my_type).flatten()
         H = np.column_stack((H.real, H.imag)).astype(my_type).flatten()
         G = np.column_stack((G.real, G.imag)).astype(my_type).flatten()
