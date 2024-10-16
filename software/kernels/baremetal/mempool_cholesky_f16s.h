@@ -16,9 +16,11 @@
   @param[in]     pSrc  points to input matrix
   @param[in]     pL points to output lower triangular matrix
   @param[in]     n dimension of the input data
+  @param[in]     folded matrices are folded row-wise in memory
   @return        none
 */
-void mempool_cholesky_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
+void mempool_cholesky_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n,
+                           const uint32_t folded) {
 
   __fp16 sum;
   __fp16 a, b;
@@ -27,14 +29,15 @@ void mempool_cholesky_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
   __fp16 ap, bp; // Pivot element
   __fp16 as, bs; // Sum element
   uint32_t i, j, k;
+  const uint32_t offset = folded ? N_BANKS : n;
 
   for (j = 0; j < n; j++) {
     // Elements on diagonal (input matrix is positive-definite)
-    ap = pSrc[2U * (j * n + j)];
+    ap = pSrc[2U * (j * offset + j)];
     sum = (__fp16)0.0f;
     for (k = 0; k < j; k++) {
-      a = pL[2U * (j * n + k)];
-      b = pL[2U * (j * n + k) + 1];
+      a = pL[2U * (j * offset + k)];
+      b = pL[2U * (j * offset + k) + 1];
       asm volatile("fmadd.h %[sum], %[a], %[a], %[sum];"
                    "fmadd.h %[sum], %[b], %[b], %[sum];"
                    : [sum] "+&r"(sum)
@@ -46,23 +49,23 @@ void mempool_cholesky_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
                  : [ap] "+&r"(ap)
                  : [sum] "r"(sum)
                  :);
-    pL[2U * (j * n + j)] = ap;
+    pL[2U * (j * offset + j)] = ap;
 
     // Elements on rows
     for (i = j + 1; i < n; i++) {
       // Pivot
-      ap = pSrc[2U * (i * n + j)];
-      bp = pSrc[2U * (i * n + j) + 1];
+      ap = pSrc[2U * (i * offset + j)];
+      bp = pSrc[2U * (i * offset + j) + 1];
       // Diag
-      diag = pL[2U * (j * n + j)];
+      diag = pL[2U * (j * offset + j)];
       // Sum -> s = s + (ac + bd) + j*(bc - ad)
       as = (__fp16)0.0f;
       bs = (__fp16)0.0f;
       for (k = 0; k < j; k++) {
-        a = pL[2U * (i * n + k)];
-        b = pL[2U * (i * n + k) + 1];
-        c = pL[2U * (j * n + k)];
-        d = pL[2U * (j * n + k) + 1];
+        a = pL[2U * (i * offset + k)];
+        b = pL[2U * (i * offset + k) + 1];
+        c = pL[2U * (j * offset + k)];
+        d = pL[2U * (j * offset + k) + 1];
         asm volatile("fmadd.h %[as], %[a], %[c], %[as];"
                      "fmadd.h %[as], %[b], %[d], %[as];"
                      "fmadd.h %[bs], %[b], %[c], %[bs];"
@@ -78,85 +81,8 @@ void mempool_cholesky_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
                    : [ap] "+&r"(ap), [bp] "+&r"(bp)
                    : [diag] "r"(diag), [as] "r"(as), [bs] "r"(bs)
                    :);
-      pL[2U * (i * n + j)] = ap;
-      pL[2U * (i * n + j) + 1] = bp;
-    }
-  }
-  return;
-}
-
-/**
-  @brief         Cholesky decomposition with Crout algorithm.
-  Output data is folded to the core's local memory.
-  @param[in]     pSrc  points to input matrix
-  @param[in]     pL points to output lower triangular matrix
-  @param[in]     n dimension of the input data
-  @return        none
-*/
-void mempool_cholesky_folded_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
-
-  register __fp16 sum;
-  __fp16 a, b;
-  __fp16 c, d;
-  __fp16 diag;   // Diagonal element
-  __fp16 ap, bp; // Pivot element
-  __fp16 as, bs; // Sum element
-
-  uint32_t i, j, k;
-
-  for (j = 0; j < n; j++) {
-
-    // Elements on diagonal (input matrix is positive-definite)
-    ap = pSrc[2U * (j * N_BANKS + j)];
-    sum = (__fp16)0.0f;
-    for (k = 0; k < j; k++) {
-      a = pL[2U * (j * N_BANKS + k)];
-      b = pL[2U * (j * N_BANKS + k) + 1];
-      asm volatile("fmadd.h %[sum], %[a], %[a], %[sum];"
-                   "fmadd.h %[sum], %[b], %[b], %[sum];"
-                   : [sum] "+&r"(sum)
-                   : [a] "r"(a), [b] "r"(b)
-                   :);
-    }
-    asm volatile("fsub.h %[ap], %[ap], %[sum];"
-                 "fsqrt.h  %[ap], %[ap];"
-                 : [ap] "+&r"(ap)
-                 : [sum] "r"(sum)
-                 :);
-    pL[2U * (j * N_BANKS + j)] = ap;
-
-    // Elements on rows
-    for (i = j + 1; i < n; i++) {
-      // Pivot
-      ap = pSrc[2U * (i * N_BANKS + j)];
-      bp = pSrc[2U * (i * N_BANKS + j) + 1];
-      // Diag
-      diag = pL[2U * (j * N_BANKS + j)];
-      // Sum -> s = s + (ac + bd) + j*(bc - ad)
-      as = (__fp16)0.0f;
-      bs = (__fp16)0.0f;
-      for (k = 0; k < j; k++) {
-        a = pL[2U * (i * N_BANKS + k)];
-        b = pL[2U * (i * N_BANKS + k) + 1];
-        c = pL[2U * (j * N_BANKS + k)];
-        d = pL[2U * (j * N_BANKS + k) + 1];
-        asm volatile("fmadd.h %[as], %[a], %[c], %[as];"
-                     "fmadd.h %[as], %[b], %[d], %[as];"
-                     "fmadd.h %[bs], %[b], %[c], %[bs];"
-                     "fnmsub.h %[bs], %[a], %[d], %[bs];"
-                     : [as] "+&r"(as), [bs] "+&r"(bs)
-                     : [a] "r"(a), [b] "r"(b), [c] "r"(c), [d] "r"(d)
-                     :);
-      }
-      asm volatile("fsub.h %[ap], %[ap], %[as];"
-                   "fsub.h %[bp], %[bp], %[bs];"
-                   "fdiv.h %[ap], %[ap], %[diag];"
-                   "fdiv.h %[bp], %[bp], %[diag];"
-                   : [ap] "+&r"(ap), [bp] "+&r"(bp)
-                   : [diag] "r"(diag), [as] "r"(as), [bs] "r"(bs)
-                   :);
-      pL[2U * (i * N_BANKS + j)] = ap;
-      pL[2U * (i * N_BANKS + j) + 1] = bp;
+      pL[2U * (i * offset + j)] = ap;
+      pL[2U * (i * offset + j) + 1] = bp;
     }
   }
   return;
@@ -170,55 +96,64 @@ void mempool_cholesky_folded_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
   @param[in]     n dimension of the input data
   @return        none
 */
-void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
+void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n,
+                              const uint32_t folded) {
 
   __fp16 diag;
   v2h apbp, dgdg;
   v2h ab, cd;
-
   uint32_t i, j, k;
+  const uint32_t offset = folded ? N_BANKS : n;
+
   for (j = 0; j < n; j++) {
 
     // Elements on diagonal (input matrix is positive-definite)
-    __fp16 ap = pSrc[2U * (j * n + j)];
+    __fp16 ap = pSrc[2U * (j * offset + j)];
     float sum = 0.0f;
     for (k = 0; k < j; k++) {
-      ab = (*(v2h *)&pL[2U * (j * n + k)]);
+      ab = (*(v2h *)&pL[2U * (j * offset + k)]);
       asm volatile("vfdotpex.s.h %0, %1, %1;" : "+&r"(sum) : "r"(ab) :);
     }
     asm volatile("fcvt.h.s %0, %0;" : "+&r"(sum) :);
     asm volatile("fsub.h   %0, %0, %1;" : "+&r"(ap) : "r"(sum));
     asm volatile("fsqrt.h  %0, %0;" : "+&r"(ap) :);
-    pL[2U * (j * n + j)] = ap;
+    pL[2U * (j * offset + j)] = ap;
 
     // Elements on rows
-    uint32_t volatile __srt_iloop__ = (j + 1);
-    uint32_t volatile __end_kloop__ = j;
+    uint32_t __srt_iloop__ = (j + 1);
+    uint32_t __end_kloop__ = j;
 #ifdef __CDOTP
     for (i = __srt_iloop__; i < n; i++) {
-      apbp = (*(v2h *)&pSrc[2U * (i * n + j)]); // Pivot
-      diag = pL[2U * (j * n + j)];              // Diag
+      apbp = (*(v2h *)&pSrc[2U * (i * offset + j)]); // Pivot
+      diag = pL[2U * (j * offset + j)];              // Diag
+      v2h asbs = (v2h)0.0f;
+      float as = 0.0f;
+      float bs = 0.0f;
       for (k = 0; k < __end_kloop__; k++) {
-        ab = (*(v2h *)&pL[2U * (i * n + k)]);
-        cd = (*(v2h *)&pL[2U * (j * n + k)]);
-        asm volatile("fcndotpex.s.h  %0, %1, %2;"
-                     : "+&r"(apbp)
-                     : "r"(ab), "r"(cd));
+        ab = (*(v2h *)&pL[2U * (i * offset + k)]);
+        cd = (*(v2h *)&pL[2U * (j * offset + k)]);
+        asm volatile("fccdotpex.s.h  %0, %1, %2;"
+                     : "+&r"(asbs)
+                     : "r"(cd), "r"(ab));
       }
+      asm volatile("pv.shuffle2.h %0, %0, %[mask];"
+                   : "+&r"(asbs)
+                   : [mask] "r"(0x00020003));
       asm volatile("pv.pack %0, %1, %1;" : "+&r"(dgdg) : "r"(diag));
+      asm volatile("vfsub.h %0, %0, %1;" : "+&r"(apbp) : "r"(asbs));
       asm volatile("vfdiv.h %0, %0, %1;" : "+&r"(apbp) : "r"(dgdg));
-      (*(v2h *)&pL[2U * (i * n + j)]) = apbp;
+      (*(v2h *)&pL[2U * (i * offset + j)]) = apbp;
     }
 #else
     for (i = __srt_iloop__; i < n; i++) {
-      apbp = (*(v2h *)&pSrc[2U * (i * n + j)]); // Pivot
-      diag = pL[2U * (j * n + j)];              // Diag
+      apbp = (*(v2h *)&pSrc[2U * (i * offset + j)]); // Pivot
+      diag = pL[2U * (j * offset + j)];              // Diag
       float as = 0.0f;
       float bs = 0.0f;
       v2h asbs;
       for (k = 0; k < __end_kloop__; k++) {
-        ab = (*(v2h *)&pL[2U * (i * n + k)]);
-        cd = (*(v2h *)&pL[2U * (j * n + k)]);
+        ab = (*(v2h *)&pL[2U * (i * offset + k)]);
+        cd = (*(v2h *)&pL[2U * (j * offset + k)]);
         v2h ndc;
         const uint32_t neg_mask = 0x00008000;
         const uint32_t shuffle_mask = 0x00020003;
@@ -237,7 +172,7 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
       asm volatile("pv.pack    %0, %1, %1;" : "+&r"(dgdg) : "r"(diag));
       asm volatile("vfsub.h    %0, %0, %1;" : "+&r"(apbp) : "r"(asbs));
       asm volatile("vfdiv.h    %0, %0, %1;" : "+&r"(apbp) : "r"(dgdg));
-      (*(v2h *)&pL[2U * (i * n + j)]) = apbp;
+      (*(v2h *)&pL[2U * (i * offset + j)]) = apbp;
     }
 #endif
   }
@@ -430,7 +365,8 @@ void mempool_cholesky_f16vecs_unroll4(__fp16 *pSrc, __fp16 *pL,
   @param[in]     n dimension of the input data
   @return        none
 */
-void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
+void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n,
+                              const uint32_t folded) {
 
   float sum;            // register float sum
   float as, bs;         // real and imaginary sums
@@ -444,14 +380,15 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
   v2h ab, cd, ndc;
 
   uint32_t i, j, k;
+  const uint32_t offset = folded ? N_BANKS : n;
 
   for (j = 0; j < n; j++) {
 
     // Elements on diagonal (input matrix is positive-definite)
-    ap = pSrc[2U * (j * n + j)];
+    ap = pSrc[2U * (j * offset + j)];
     asm volatile("fcvt.s.h %0, %1;" : "=r"(sum) : "r"(ap) :);
     for (k = 0; k < j; k++) {
-      ab = (*(v2h *)&pL[2U * (j * n + k)]);
+      ab = (*(v2h *)&pL[2U * (j * offset + k)]);
       asm volatile("vfndotpex.s.h %[sum], %[ab], %[ab];"
                    : [sum] "+&r"(sum)
                    : [ab] "r"(ab)
@@ -459,15 +396,15 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
     }
     sum = (float)sqrt(sum);
     asm volatile("fcvt.h.s %0, %1;" : "=r"(ap) : "r"(sum) :);
-    pL[2U * (j * n + j)] = ap;
+    pL[2U * (j * offset + j)] = ap;
 
     // Elements on rows
     for (i = j + 1; i < n; i++) {
       // Pivot
-      ap = pSrc[2U * (i * n + j)];
-      bp = pSrc[2U * (i * n + j + 1)];
+      ap = pSrc[2U * (i * offset + j)];
+      bp = pSrc[2U * (i * offset + j + 1)];
       // Diag
-      diag = pL[2U * (j * n + j)];
+      diag = pL[2U * (j * offset + j)];
 
       // Sum -> s = s + (ac + bd) + j*(bc - ad)
       as = (float)0.0f;
@@ -476,8 +413,8 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
       asm volatile("fcvt.s.h %0, %1;" : "=r"(bp_f32) : "r"(bp) :);
       asm volatile("fcvt.s.h %0, %1;" : "=r"(diag_f32) : "r"(diag) :);
       for (k = 0; k < j; k++) {
-        ab = (*(v2h *)&pL[2U * (i * n + k)]);
-        cd = (*(v2h *)&pL[2U * (j * n + k)]);
+        ab = (*(v2h *)&pL[2U * (i * offset + k)]);
+        cd = (*(v2h *)&pL[2U * (j * offset + k)]);
         const uint32_t neg_mask = 0x00008000;
         const uint32_t shuffle_mask = 0x00020003;
         asm volatile(
@@ -494,7 +431,7 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n) {
       as = (ap_f32 - as) / diag_f32;
       bs = (bp_f32 - bs) / diag_f32;
       asm volatile("vfcpka.h.s %0, %1, %2;" : "=r"(asbs) : "r"(as), "r"(bs) :);
-      (*(v2h *)&pL[2U * (i * n + j)]) = asbs;
+      (*(v2h *)&pL[2U * (i * offset + j)]) = asbs;
     }
   }
   return;
