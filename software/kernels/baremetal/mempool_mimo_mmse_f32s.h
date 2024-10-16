@@ -14,13 +14,13 @@
   @param[in]     pS     points to the noise vector
   @param[in]     nrx    number of received samples
   @param[in]     ntx    number of transmitted samples
-  @param[in]     folded controls if output is folded
   @param[in]     zf     controls if the zero forcing is used
+  @param[in]     folded controls if output is folded
   @return        none
 */
 void mempool_hermitian_f32s(float *pH, float *pG, float *pS,
                             const uint32_t n_rx, const uint32_t n_tx,
-                            const uint32_t folded, const uint32_t zf) {
+                            const uint32_t zf, const uint32_t folded) {
 
   uint32_t i, j, k;
   float a;
@@ -86,55 +86,31 @@ void mempool_hermitian_f32s(float *pH, float *pG, float *pS,
             :);
       }
       if (zf == 0) {
-        // Compute diagonal elements
+        // Compute diagonal element
         if (i == j) {
-          asm volatile("fadd.s  %[as0], %[as0], %[pS];"
-                       : [as0] "+&r"(as0)
-                       : [pS] "r"(pS[i])
-                       :);
+          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as0) : "r"(pS[2U * i]));
           bs0 = 0.0f;
         } else if (i == (j + 1U)) {
-          asm volatile("fadd.s  %[as1], %[as1], %[pS];"
-                       : [as1] "+&r"(as1)
-                       : [pS] "r"(pS[i])
-                       :);
+          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as1) : "r"(pS[2U * i]));
           bs1 = 0.0f;
         } else if (i == (j + 2U)) {
-          asm volatile("fadd.s  %[as2], %[as2], %[pS];"
-                       : [as2] "+&r"(as2)
-                       : [pS] "r"(pS[i])
-                       :);
+          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as2) : "r"(pS[2U * i]));
           bs2 = 0.0f;
         } else if (i == (j + 3U)) {
-          asm volatile("fadd.s  %[as3], %[as3], %[pS];"
-                       : [as3] "+&r"(as3)
-                       : [pS] "r"(pS[i])
-                       :);
+          asm volatile("fadd.s  %0, %0, %1;" : "+&r"(as3) : "r"(pS[2U * i]));
           bs3 = 0.0f;
         }
       }
-      if (!folded) {
-        // Store
-        pG[2 * (i * n_tx + j)] = as0;
-        pG[2 * (i * n_tx + j + 1U)] = as1;
-        pG[2 * (i * n_tx + j + 2U)] = as2;
-        pG[2 * (i * n_tx + j + 3U)] = as3;
-        pG[2 * (i * n_tx + j) + 1U] = bs0;
-        pG[2 * (i * n_tx + j + 1U) + 1U] = bs1;
-        pG[2 * (i * n_tx + j + 2U) + 1U] = bs2;
-        pG[2 * (i * n_tx + j + 3U) + 1U] = bs3;
-      } else {
-        // Store
-        uint32_t addr = i * ((n_tx / 2) * N_BANKS) + (j / 4) * (2 * N_BANKS);
-        pG[addr] = as0;
-        pG[addr + 1U] = bs0;
-        pG[addr + 2U] = as1;
-        pG[addr + 3U] = bs1;
-        pG[addr + N_BANKS] = as2;
-        pG[addr + N_BANKS + 1U] = bs2;
-        pG[addr + N_BANKS + 2U] = as3;
-        pG[addr + N_BANKS + 3U] = bs3;
-      }
+      uint32_t const offset = folded ? N_BANKS : n_tx;
+      // Store
+      pG[2U * (i * offset + j)] = as0;
+      pG[2U * (i * offset + j + 1U)] = as1;
+      pG[2U * (i * offset + j + 2U)] = as2;
+      pG[2U * (i * offset + j + 3U)] = as3;
+      pG[2U * (i * offset + j) + 1U] = bs0;
+      pG[2U * (i * offset + j + 1U) + 1U] = bs1;
+      pG[2U * (i * offset + j + 2U) + 1U] = bs2;
+      pG[2U * (i * offset + j + 3U) + 1U] = bs3;
     }
   }
   return;
@@ -215,30 +191,16 @@ void mempool_MVP_conjtransp_f32s(float *pH, float *px, float *py,
             [a3] "r"(a3), [b0] "r"(b0), [b1] "r"(b1), [b2] "r"(b2), [b3] "r"(b3)
           :);
     }
-    if (!folded) {
-      // Store
-      py[2U * i] = as0;
-      py[2U * (i + 1U)] = as1;
-      py[2U * (i + 2U)] = as2;
-      py[2U * (i + 3U)] = as3;
-      py[2U * i + 1U] = bs0;
-      py[2U * (i + 1U) + 1U] = bs1;
-      py[2U * (i + 2U) + 1U] = bs2;
-      py[2U * (i + 3U) + 1U] = bs3;
-      i += 4;
-    } else {
-      // Store
-      uint32_t addr = (i / 4) * 2 * N_BANKS;
-      py[addr] = as0;
-      py[addr + 1U] = bs0;
-      py[addr + 2U] = as1;
-      py[addr + 3U] = bs1;
-      py[addr + N_BANKS] = as2;
-      py[addr + N_BANKS + 1U] = bs2;
-      py[addr + N_BANKS + 2U] = as3;
-      py[addr + N_BANKS + 3U] = bs3;
-      i += 4;
-    }
+    // Store
+    py[2U * i] = as0;
+    py[2U * (i + 1U)] = as1;
+    py[2U * (i + 2U)] = as2;
+    py[2U * (i + 3U)] = as3;
+    py[2U * i + 1U] = bs0;
+    py[2U * (i + 1U) + 1U] = bs1;
+    py[2U * (i + 2U) + 1U] = bs2;
+    py[2U * (i + 3U) + 1U] = bs3;
+    i += 4;
   } while (i < n_tx);
   return;
 }

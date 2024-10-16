@@ -18,9 +18,9 @@
 #include "baremetal/mempool_mimo_mmse_f16s.h"
 
 #include "data_mimo_mmse_f16.h"
-#define ZF (0) // When asserted use zero-forcing
+#define ZF (0)   // When asserted use zero-forcing
+#define FOLD (1) // When asserted fold matrices in memory
 #define NUM_BANKS (BANKING_FACTOR * NUM_CORES)
-//#define DOUBLE_BUFFERING
 
 /**********************************************************
  **********************************************************
@@ -35,13 +35,21 @@
 
 #ifndef DOUBLE_BUFFERING
 
-__fp16 l1_H[2 * N_TX * N_RX * N_ITR]
+#if FOLD
+#define NUM_ROW (1 + ((N_ITR * N_TX - 1) / NUM_BANKS))
+__fp16 l1_G[2 * N_TX * NUM_BANKS * NUM_ROW]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_L[2 * N_TX * NUM_BANKS * NUM_ROW]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+#else
 __fp16 l1_G[2 * N_TX * N_TX * N_ITR]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_L[2 * N_TX * N_TX * N_ITR]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+#endif
 
+__fp16 l1_H[2 * N_TX * N_RX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_S[2 * N_TX * N_ITR]
     __attribute__((aligned(sizeof(int32_t)), section(".l1")));
 __fp16 l1_y[2 * N_RX * N_ITR]
@@ -99,16 +107,16 @@ int main() {
       __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
       __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
 #ifdef VEC
-      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, 0, ZF);
       mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
-      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
+      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX, 0);
 #else
       mempool_hermitian_f16s(PtrH, PtrG, PtrS, N_RX, N_TX, 0, ZF);
-      mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
-      mempool_cholesky_f16s(PtrG, PtrL, N_TX);
+      mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX);
+      mempool_cholesky_f16s(PtrG, PtrL, N_TX, 0);
 #endif
-      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
-      mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX, 0, 0);
+      mempool_Ltrisol_f16s(PtrL, Ptry3, Ptrx, N_TX, 1, 0);
     }
     mempool_stop_benchmark();
   }
@@ -118,26 +126,40 @@ int main() {
   mempool_start_benchmark();
   // Parallel subcarrier loop
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
+
     __fp16 *PtrH = l1_H + itr * (2 * N_TX * N_RX);
     __fp16 *Ptry = l1_y + itr * (2 * N_RX);
     __fp16 *PtrS = l1_S + itr * (2 * N_TX);
     // Auxiliary vectors
+#if FOLD
+    __fp16 *PtrG = l1_G + (itr % NUM_ROW) * (2 * N_TX * NUM_BANKS) +
+                   (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *PtrL = l1_L + (itr % NUM_ROW) * (2 * N_TX * NUM_BANKS) +
+                   (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *Ptry2 =
+        y2 + (itr % NUM_ROW) * NUM_BANKS + (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *Ptry3 =
+        y3 + (itr % NUM_ROW) * NUM_BANKS + (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
+#else
     __fp16 *PtrG = l1_G + itr * (2 * N_TX * N_TX);
     __fp16 *PtrL = l1_L + itr * (2 * N_TX * N_TX);
     __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
     __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
     __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
-#ifdef VEC
-    mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF);
-    mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
-    mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
-#else
-    mempool_hermitian_f16s(PtrH, PtrG, PtrS, N_RX, N_TX, 0, ZF);
-    mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
-    mempool_cholesky_f16s(PtrG, PtrL, N_TX);
 #endif
-    mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
-    mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+
+#ifdef VEC
+    mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF, FOLD);
+    mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
+    mempool_cholesky_f16vecs(PtrG, PtrL, N_TX, FOLD);
+#else
+    mempool_hermitian_f16s(PtrH, PtrG, PtrS, N_RX, N_TX, ZF, FOLD);
+    mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX);
+    mempool_cholesky_f16s(PtrG, PtrL, N_TX, FOLD);
+#endif
+    mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX, 0, FOLD);
+    mempool_Ltrisol_f16s(PtrL, Ptry3, Ptrx, N_TX, 1, FOLD);
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
@@ -152,6 +174,7 @@ int main() {
     }
   }
 #else
+  // mempool_check_f16(l1_x, l2_x, 4 * N_TX, 0.1f, 0);
   mempool_barrier(num_cores);
 #endif
 
@@ -264,11 +287,11 @@ int main() {
       __fp16 *PtrL = L + itr * (2 * N_TX * N_TX);
       __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
       __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
-      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, 0, ZF);
       mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
-      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
-      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
-      mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX, 0);
+      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX, 0, 0);
+      mempool_Ltrisol_f16s(PtrL, Ptry3, Ptrx, N_TX, 1, 0);
     }
 #endif
 
@@ -291,7 +314,7 @@ int main() {
       __fp16 *PtrS = cmpt_S + itr * (2 * N_TX);
       __fp16 *PtrG = G + itr * (2 * N_TX * N_TX);
       __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
-      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, 0, ZF);
       mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
     }
     mempool_log_barrier(2, core_id);
@@ -313,9 +336,9 @@ int main() {
       __fp16 *PtrL = L + itr * (2 * N_TX * N_TX);
       __fp16 *Ptry2 = y2 + itr * (2 * N_TX);
       __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
-      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX);
-      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX);
-      mempool_Lttrisol_f16s(PtrL, Ptry3, Ptrx, N_TX);
+      mempool_cholesky_f16vecs(PtrG, PtrL, N_TX, 0);
+      mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX, 0, 0);
+      mempool_Ltrisol_f16s(PtrL, Ptry3, Ptrx, N_TX, 1, 0);
     }
 #endif
 

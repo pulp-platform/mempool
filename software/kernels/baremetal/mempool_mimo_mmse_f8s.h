@@ -20,7 +20,7 @@
 */
 void mempool_hermitian_f8s(__fp8 *pH, __fp8 *pS, __fp16 *pG,
                            const uint32_t n_rx, const uint32_t n_tx,
-                           const uint32_t zf) {
+                           const uint32_t zf, const uint32_t folded) {
 
   uint32_t i, j, k;
   __fp8 a;
@@ -116,16 +116,16 @@ void mempool_hermitian_f8s(__fp8 *pH, __fp8 *pS, __fp16 *pG,
           FP16_bs3 = (__fp16)0U;
         }
       }
-
+      uint32_t const offset = folded ? N_BANKS : n_tx;
       // Store
-      pG[2 * (i * n_tx + j)] = FP16_as0;
-      pG[2 * (i * n_tx + j + 1U)] = FP16_as1;
-      pG[2 * (i * n_tx + j + 2U)] = FP16_as2;
-      pG[2 * (i * n_tx + j + 3U)] = FP16_as3;
-      pG[2 * (i * n_tx + j) + 1U] = FP16_bs0;
-      pG[2 * (i * n_tx + j + 1U) + 1U] = FP16_bs1;
-      pG[2 * (i * n_tx + j + 2U) + 1U] = FP16_bs2;
-      pG[2 * (i * n_tx + j + 3U) + 1U] = FP16_bs3;
+      pG[2 * (i * offset + j)] = FP16_as0;
+      pG[2 * (i * offset + j + 1U)] = FP16_as1;
+      pG[2 * (i * offset + j + 2U)] = FP16_as2;
+      pG[2 * (i * offset + j + 3U)] = FP16_as3;
+      pG[2 * (i * offset + j) + 1U] = FP16_bs0;
+      pG[2 * (i * offset + j + 1U) + 1U] = FP16_bs1;
+      pG[2 * (i * offset + j + 2U) + 1U] = FP16_bs2;
+      pG[2 * (i * offset + j + 3U) + 1U] = FP16_bs3;
     }
   }
   return;
@@ -229,7 +229,7 @@ void mempool_MVP_conjtransp_f8s(__fp8 *pH, __fp8 *px, __fp16 *py,
 
 void mempool_hermitian_f8vecs(__fp8 *pH, __fp8 *pS, __fp16 *pG,
                               const uint32_t n_rx, const uint32_t n_tx,
-                              const uint32_t zf) {
+                              const uint32_t zf, const uint32_t folded) {
 
   uint32_t i, j, k;
   uint32_t fe0, fe1, fe2, fe3;
@@ -303,11 +303,12 @@ void mempool_hermitian_f8vecs(__fp8 *pH, __fp8 *pS, __fp16 *pG,
           asm volatile("and     %0, %0, %1;" : "+&r"(fe3) : "r"(0x0000FFFF));
         }
       }
+      uint32_t const offset = folded ? N_BANKS : n_tx;
       // Store
-      (*(uint32_t *)&pG[2 * (i * n_tx + j)]) = fe0;
-      (*(uint32_t *)&pG[2 * (i * n_tx + j + 1U)]) = fe1;
-      (*(uint32_t *)&pG[2 * (i * n_tx + j + 2U)]) = fe2;
-      (*(uint32_t *)&pG[2 * (i * n_tx + j + 3U)]) = fe3;
+      (*(uint32_t *)&pG[2 * (i * offset + j)]) = fe0;
+      (*(uint32_t *)&pG[2 * (i * offset + j + 1U)]) = fe1;
+      (*(uint32_t *)&pG[2 * (i * offset + j + 2U)]) = fe2;
+      (*(uint32_t *)&pG[2 * (i * offset + j + 3U)]) = fe3;
     }
   }
   return;

@@ -21,25 +21,25 @@
 
 #include "data_mimo_mmse_f32.h"
 
-//#define SINGLE
-//#define JACOBI
-#define PARALLEL
+#define SINGLE
 
 float l1_H[2 * N_TX * N_RX * N_ITR]
-    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
-                   section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 float l1_G[2 * N_TX * N_TX * N_ITR]
-    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
-                   section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 float l1_L[2 * N_TX * N_TX * N_ITR]
-    __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
-                   section(".l1_prio")));
-float l1_Sigma[N_TX * N_ITR] __attribute__((section(".l1_prio")));
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+float l1_S[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+float l1_y[2 * N_RX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
 
-float l1_y[2 * N_RX * N_ITR] __attribute__((section(".l1_prio")));
-float y2[2 * N_TX * N_ITR] __attribute__((section(".l1_prio")));
-float y3[2 * N_TX * N_ITR] __attribute__((section(".l1_prio")));
-float l1_x[2 * N_TX * N_ITR] __attribute__((section(".l1_prio")));
+float y2[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+float y3[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
+float l1_x[2 * N_TX * N_ITR]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1")));
 
 // Driver program
 int main() {
@@ -52,7 +52,7 @@ int main() {
   if (core_id == 0) {
     dma_memcpy_blocking(l1_H, l2_H, 2 * N_ITR * N_RX * N_TX * sizeof(int32_t));
     dma_memcpy_blocking(l1_y, l2_y, 2 * N_ITR * N_RX * sizeof(int32_t));
-    dma_memcpy_blocking(l1_Sigma, l2_Sigma, N_ITR * N_TX * sizeof(int32_t));
+    dma_memcpy_blocking(l1_S, l2_S, 2 * N_ITR * N_TX * sizeof(int32_t));
   }
   mempool_barrier(num_cores);
 
@@ -60,25 +60,15 @@ int main() {
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_hermitian_f32s(l1_H, l1_G, l1_Sigma, N_RX, N_TX, 0, 0);
+    mempool_hermitian_f32s(l1_H, l1_G, l1_S, N_RX, N_TX, 0, 0);
     mempool_MVP_conjtransp_f32s(l1_H, l1_y, y2, N_RX, N_TX, 0);
-    mempool_cholesky_f32s(l1_G, l1_L, N_TX);
-    mempool_Ltrisol_f32s(l1_L, y2, y3, N_TX);
-    mempool_Lttrisol_f32s(l1_L, y3, l1_x, N_TX);
-    mempool_stop_benchmark();
-  }
-  mempool_barrier(num_cores);
-#endif
-
 #ifdef JACOBI
-  /* Benchmark */
-  if (core_id == 0) {
-    mempool_start_benchmark();
-    mempool_hermitian_f32s(l1_H, l1_G, l1_Sigma, N_RX, N_TX, 0, 0);
-    mempool_MVP_conjtransp_f32s(l1_H, l1_y, y2, N_RX, N_TX, 0);
-    mempool_stop_benchmark();
-    mempool_start_benchmark();
     mempool_jacobi_f32s(l1_G, y2, l1_x, N_TX, 0.005f, 20U);
+#else
+    mempool_cholesky_f32s(l1_G, l1_L, N_TX, 0);
+    mempool_Ltrisol_f32s(l1_L, y2, y3, N_TX, 0, 0);
+    mempool_Ltrisol_f32s(l1_L, y3, l1_x, N_TX, 1, 0);
+#endif
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -88,21 +78,35 @@ int main() {
   // Each iteration is assigned to a processor
   mempool_start_benchmark();
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
+
     // Inputs
     float *PtrH = l1_H + itr * (2 * N_TX * N_RX);
-    float *PtrSigma = l1_Sigma + itr * N_TX;
+    float *PtrS = l1_S + itr * (2 * N_TX);
     float *Ptry = l1_y + itr * (2 * N_RX);
     // Intermediate results and outputs
+#if FOLD
+    __fp16 *PtrG = l1_G + (itr % NUM_ROW) * (2 * N_TX * NUM_BANKS) +
+                   (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *PtrL = l1_L + (itr % NUM_ROW) * (2 * N_TX * NUM_BANKS) +
+                   (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *Ptry2 =
+        y2 + (itr % NUM_ROW) * NUM_BANKS + (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *Ptry3 =
+        y3 + (itr % NUM_ROW) * NUM_BANKS + (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
+#else
     float *PtrG = l1_G + itr * (2 * N_TX * N_TX);
     float *PtrL = l1_L + itr * (2 * N_TX * N_TX);
     float *Ptry2 = y2 + itr * (2 * N_TX);
     float *Ptry3 = y3 + itr * (2 * N_TX);
     float *Ptrx = l1_x + itr * (2 * N_TX);
-    mempool_hermitian_f32s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0);
-    mempool_MVP_conjtransp_f32s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
-    mempool_cholesky_f32s(PtrG, PtrL, N_TX);
-    mempool_Ltrisol_f32s(PtrL, Ptry2, Ptry3, N_TX);
-    mempool_Lttrisol_f32s(PtrL, Ptry3, Ptrx, N_TX);
+#endif
+
+    mempool_hermitian_f32s(PtrH, PtrG, PtrS, N_RX, N_TX, 0, FOLD);
+    mempool_MVP_conjtransp_f32s(PtrH, Ptry, Ptry2, N_RX, N_TX);
+    mempool_cholesky_f32s(PtrG, PtrL, N_TX, FOLD);
+    mempool_Ltrisol_f32s(PtrL, Ptry2, Ptry3, N_TX, 0, FOLD);
+    mempool_Ltrisol_f32s(PtrL, Ptry3, Ptrx, N_TX, 1, FOLD);
   }
   mempool_log_barrier(2, core_id);
   mempool_stop_benchmark();
@@ -118,9 +122,9 @@ int main() {
   for (uint32_t itr = pool_id; itr < N_ITR; itr += num_pools) {
     float *PtrH = l1_H + itr * (2 * N_TX * N_RX);
     float *PtrG = l1_G + itr * (2 * N_TX * N_TX);
-    float *PtrSigma = l1_Sigma + itr * N_TX;
-    mempool_hermitian_f32p(PtrH, PtrG, PtrSigma, N_RX, N_TX, 0, 0,
-                           core_id % N_TX, N_TX);
+    float *PtrS = l1_S + itr * N_TX;
+    mempool_hermitian_f32p(PtrH, PtrG, PtrS, N_RX, N_TX, 0, 0, core_id % N_TX,
+                           N_TX);
   }
   mempool_stop_benchmark();
   mempool_start_benchmark();
@@ -135,37 +139,9 @@ int main() {
     float *Ptry3 = y3 + itr * (2 * N_TX);
     float *Ptrx = l1_x + itr * (2 * N_TX);
     mempool_MVP_conjtransp_f32s(PtrH, Ptry, Ptry2, N_RX, N_TX, 0);
-    mempool_cholesky_f32s(PtrG, PtrL, N_TX);
-    mempool_Ltrisol_f32s(PtrL, Ptry2, Ptry3, N_TX);
-    mempool_Lttrisol_f32s(PtrL, Ptry3, Ptrx, N_TX);
-  }
-  mempool_log_barrier(2, core_id);
-  mempool_stop_benchmark();
-#endif
-
-#if defined(FOLDED) && defined(__XDIVSQRT)
-  mempool_start_benchmark();
-  for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
-    // Inputs
-    float *PtrH = l1_H + itr * (2 * N_TX * N_RX);
-    float *PtrSigma = l1_Sigma + itr * N_TX;
-    float *Ptry = l1_y + itr * (2 * N_RX);
-    // Intermediate results and outputs
-    float *PtrG = l1_G + (itr % num_cores) * N_TX +
-                  (itr / num_cores) * (2 * N_TX * N_BANKS);
-    float *PtrL = l1_L + (itr % num_cores) * N_TX +
-                  (itr / num_cores) * (2 * N_TX * N_BANKS);
-    float *Ptry2 =
-        y2 + (itr % num_cores) * N_TX + (itr / num_cores) * (2 * N_BANKS);
-    float *Ptry3 =
-        y3 + (itr % num_cores) * N_TX + (itr / num_cores) * (2 * N_BANKS);
-    float *Ptrx =
-        l1_x + (itr % num_cores) * N_TX + (itr / num_cores) * (2 * N_BANKS);
-    mempool_hermitian_f32s(PtrH, PtrG, PtrSigma, N_RX, N_TX, 1, 0);
-    mempool_MVP_conjtransp_f32s(PtrH, Ptry, Ptry2, N_RX, N_TX, 1);
-    mempool_cholesky_folded_f32s(PtrG, PtrL, N_TX);
-    mempool_Ltrisol_folded_f32s(PtrL, Ptry2, Ptry3, N_TX);
-    mempool_Lttrisol_folded_f32s(PtrL, Ptry3, Ptrx, N_TX);
+    mempool_cholesky_f32s(PtrG, PtrL, N_TX, 0);
+    mempool_Ltrisol_f32s(PtrL, Ptry2, Ptry3, N_TX, 0, 0);
+    mempool_Ltrisol_f32s(PtrL, Ptry3, Ptrx, N_TX, 1, 0);
   }
   mempool_log_barrier(2, core_id);
   mempool_stop_benchmark();
