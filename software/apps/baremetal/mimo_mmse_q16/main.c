@@ -64,8 +64,8 @@ int main() {
     mempool_MVP_conjtransp_q16vecs((v2s *)l1_H, (v2s *)l1_y, (v2s *)y2, N_RX,
                                    N_TX, 0);
     mempool_cholesky_q16vecs(l1_G, l1_L, N_TX);
-    mempool_Ltrisol_q16vecs(l1_L, y2, y3, N_TX);
-    mempool_Lttrisol_q16vecs(l1_L, y3, l1_x, N_TX);
+    mempool_Ltrisol_q16vecs(l1_L, y2, y3, N_TX, 0);
+    mempool_Ltrisol_q16vecs(l1_L, y3, l1_x, N_TX, 1);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -92,8 +92,8 @@ int main() {
     mempool_MVP_conjtransp_q16vecs((v2s *)PtrH, (v2s *)Ptry, (v2s *)Ptry2, N_RX,
                                    N_TX, 0);
     mempool_cholesky_q16vecs(PtrG, PtrL, N_TX);
-    mempool_Ltrisol_q16vecs(PtrL, Ptry2, Ptry3, N_TX);
-    mempool_Lttrisol_q16vecs(PtrL, Ptry3, Ptrx, N_TX);
+    mempool_Ltrisol_q16vecs(PtrL, Ptry2, Ptry3, N_TX, 0);
+    mempool_Ltrisol_q16vecs(PtrL, Ptry3, Ptrx, N_TX, 1);
   }
   mempool_log_barrier(2, core_id);
   mempool_stop_benchmark();

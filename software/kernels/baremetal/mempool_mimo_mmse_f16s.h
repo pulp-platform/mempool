@@ -31,7 +31,7 @@
 */
 void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *pS,
                             const uint32_t n_rx, const uint32_t n_tx,
-                            const uint32_t folded, const uint32_t zf) {
+                            const uint32_t zf, const uint32_t folded) {
 
   uint32_t i, j, k;
   __fp16 a;
@@ -112,29 +112,16 @@ void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *pS,
           bs3 = (__fp16)0.0f;
         }
       }
-      if (!folded) {
-        // Store
-        pG[2 * (i * n_tx + j)] = as0;
-        pG[2 * (i * n_tx + j + 1U)] = as1;
-        pG[2 * (i * n_tx + j + 2U)] = as2;
-        pG[2 * (i * n_tx + j + 3U)] = as3;
-        pG[2 * (i * n_tx + j) + 1U] = bs0;
-        pG[2 * (i * n_tx + j + 1U) + 1U] = bs1;
-        pG[2 * (i * n_tx + j + 2U) + 1U] = bs2;
-        pG[2 * (i * n_tx + j + 3U) + 1U] = bs3;
-      } else {
-        // uint32_t addr = i * (n_tx / 4) * N_BANKS + (j / 4) * N_BANKS;
-        uint32_t addr = i * N_BANKS;
-        // Store
-        pG[addr] = as0;
-        pG[addr + 1U] = bs0;
-        pG[addr + 2U] = as1;
-        pG[addr + 3U] = bs1;
-        pG[addr + 4U] = as2;
-        pG[addr + 5U] = bs2;
-        pG[addr + 6U] = as3;
-        pG[addr + 7U] = bs3;
-      }
+      uint32_t const offset = folded ? N_BANKS : n_tx;
+      // Store
+      pG[2 * (i * offset + j)] = as0;
+      pG[2 * (i * offset + j + 1U)] = as1;
+      pG[2 * (i * offset + j + 2U)] = as2;
+      pG[2 * (i * offset + j + 3U)] = as3;
+      pG[2 * (i * offset + j) + 1U] = bs0;
+      pG[2 * (i * offset + j + 1U) + 1U] = bs1;
+      pG[2 * (i * offset + j + 2U) + 1U] = bs2;
+      pG[2 * (i * offset + j + 3U) + 1U] = bs3;
     }
   }
   return;
@@ -151,8 +138,7 @@ void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *pS,
   @return        none
 */
 void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *px, __fp16 *py,
-                                 const uint32_t n_rx, const uint32_t n_tx,
-                                 const uint32_t folded) {
+                                 const uint32_t n_rx, const uint32_t n_tx) {
 
   uint32_t i, j;
   __fp16 a0, a1, a2, a3;
@@ -215,31 +201,16 @@ void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *px, __fp16 *py,
             [a3] "r"(a3), [b0] "r"(b0), [b1] "r"(b1), [b2] "r"(b2), [b3] "r"(b3)
           :);
     }
-    if (!folded) {
-      // Store
-      py[2U * i] = as0;
-      py[2U * (i + 1U)] = as1;
-      py[2U * (i + 2U)] = as2;
-      py[2U * (i + 3U)] = as3;
-      py[2U * i + 1U] = bs0;
-      py[2U * (i + 1U) + 1U] = bs1;
-      py[2U * (i + 2U) + 1U] = bs2;
-      py[2U * (i + 3U) + 1U] = bs3;
-      i += 4;
-    } else {
-      // Store
-      uint32_t addr = (i / 4) * N_BANKS;
-      py[addr] = as0;
-      py[addr + 1U] = bs0;
-      py[addr + 2U] = as1;
-      py[addr + 3U] = bs1;
-      py[addr + 4U] = as2;
-      py[addr + 5U] = bs2;
-      py[addr + 6U] = as3;
-      py[addr + 7U] = bs3;
-      i += 4;
-    }
-
+    // Store
+    py[2U * i] = as0;
+    py[2U * (i + 1U)] = as1;
+    py[2U * (i + 2U)] = as2;
+    py[2U * (i + 3U)] = as3;
+    py[2U * i + 1U] = bs0;
+    py[2U * (i + 1U) + 1U] = bs1;
+    py[2U * (i + 2U) + 1U] = bs2;
+    py[2U * (i + 3U) + 1U] = bs3;
+    i += 4;
   } while (i < n_tx);
   return;
 }
@@ -267,7 +238,7 @@ void mempool_MVP_conjtransp_f16s(__fp16 *pH, __fp16 *px, __fp16 *py,
 */
 void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
                                const uint32_t n_rx, const uint32_t n_tx,
-                               const uint32_t zf) {
+                               const uint32_t zf, const uint32_t folded) {
   uint32_t i, j, k;
   v2h ab;
   v2h cd0, cd1, cd2, cd3;
@@ -282,7 +253,7 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
 
   for (i = 0; i < n_tx; i++) {
 
-    if (n_tx == 1) {
+    if (n_tx % 4 != 0) {
       as0 = 0.0f; // Initialize the real part of sums
       bs0 = 0.0f; // Initialize the imag part of sums
       // Inner Loop
@@ -312,9 +283,11 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
         asm volatile("and     %0, %0, %1;" : "+&r"(res0) : "r"(0x0000FFFF));
         asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(pS[2 * i]));
       }
-      (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
+      // Store
+      uint32_t addr = folded ? 2 * (i * N_BANKS + j) : 2 * (i * n_tx + j);
+      (*(v2h *)&pG[addr]) = res0;
 
-    } else if (n_tx >= 4) {
+    } else {
       // UNROLL_4
       for (j = 0; j < n_tx; j += 4) {
         as0 = 0.0f;
@@ -381,11 +354,12 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
             asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res3) : "r"(pS[2 * i]));
           }
         }
+        uint32_t const offset = folded ? N_BANKS : n_tx;
         // Store
-        (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
-        (*(v2h *)&pG[2 * (i * n_tx + j + 1U)]) = res1;
-        (*(v2h *)&pG[2 * (i * n_tx + j + 2U)]) = res2;
-        (*(v2h *)&pG[2 * (i * n_tx + j + 3U)]) = res3;
+        (*(v2h *)&pG[2 * (i * offset + j)]) = res0;
+        (*(v2h *)&pG[2 * (i * offset + j + 1U)]) = res1;
+        (*(v2h *)&pG[2 * (i * offset + j + 2U)]) = res2;
+        (*(v2h *)&pG[2 * (i * offset + j + 3U)]) = res3;
       }
     }
   }
@@ -393,7 +367,7 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
 #else
 
   for (i = 0; i < n_tx; i++) {
-    if (n_tx >= 4) {
+    if (n_tx % 4 == 0) {
       // UNROLL_4
       for (j = 0; j < n_tx; j += 4) {
         v2h res0 = (v2h)0.0f;
@@ -439,10 +413,12 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
             asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res3) : "r"(pS[2 * i]));
           }
         }
-        (*(v2h *)&pG[2 * (i * n_tx + j)]) = res0;
-        (*(v2h *)&pG[2 * (i * n_tx + j + 1U)]) = res1;
-        (*(v2h *)&pG[2 * (i * n_tx + j + 2U)]) = res2;
-        (*(v2h *)&pG[2 * (i * n_tx + j + 3U)]) = res3;
+        uint32_t const offset = folded ? N_BANKS : n_tx;
+        // Store
+        (*(v2h *)&pG[2 * (i * offset + j)]) = res0;
+        (*(v2h *)&pG[2 * (i * offset + j + 1U)]) = res1;
+        (*(v2h *)&pG[2 * (i * offset + j + 2U)]) = res2;
+        (*(v2h *)&pG[2 * (i * offset + j + 3U)]) = res3;
       }
     }
   }
@@ -478,7 +454,7 @@ void mempool_MVP_conjtransp_f16vecs(__fp16 *pH, __fp16 *px, __fp16 *py,
 #endif
 
 #ifndef __CDOTP
-  if (n_tx < 4) {
+  if (n_tx % 4 != 0) {
     for (i = 0; i < n_tx; i++) {
       as0 = 0.0f; // Initialize the real part of sums
       bs0 = 0.0f; // Initialize the imag part of sums
@@ -505,7 +481,7 @@ void mempool_MVP_conjtransp_f16vecs(__fp16 *pH, __fp16 *px, __fp16 *py,
       *(v2h *)&py[2U * i] = res0;
     }
 
-  } else if (n_tx >= 4) {
+  } else {
     // UNROLL_4
     for (i = 0; i < n_tx; i += 4) {
       as0 = 0.0f;
@@ -557,7 +533,7 @@ void mempool_MVP_conjtransp_f16vecs(__fp16 *pH, __fp16 *px, __fp16 *py,
     }
   }
 #else
-  if (n_tx >= 4) {
+  if (n_tx % 4 == 0) {
     // UNROLL_4
     for (i = 0; i < n_tx; i += 4) {
       res0 = (v2h)0.0f;
