@@ -8,6 +8,7 @@
 # Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
 
 import numpy as np
+import pandas as pd
 import time
 import re
 import argparse
@@ -17,7 +18,6 @@ import os
 import sys
 import pyflexfloat as ff
 import matplotlib.pyplot as plt
-
 
 # __  __ ___ __  __  ___     _______  __
 # |  \/  |_ _|  \/  |/ _ \ __|_   _\ \/ /
@@ -251,8 +251,6 @@ def banshee_call(banshee_dir: pathlib.Path.cwd(),
         sys.exit(compiled.returncode)
 
     # Run Banshee
-    print(compile_app)
-    print(run_banshee)
     result = subprocess.run(
         run_banshee,
         shell=True,
@@ -275,13 +273,6 @@ def banshee_cast_output(string):
         half_float = np.frombuffer(hex_int.tobytes(), dtype=np.float16)[0]
         half_float_array.append(half_float)
     return np.array(half_float_array)
-
-
-def write_vector_to_file(filename, vector):
-
-    with open(filename, 'a') as file:
-        vector_str = ' '.join(map(str, vector))
-        file.write(vector_str + '\n')
 
 
 def plot_result(vBER, vEVM, vSNRdB, precisions):
@@ -351,7 +342,7 @@ def main():
                         help='Number of transmitting user equipments (UEs). Defaults to 4.')
     parser.add_argument("-m", "--receivers", type=int, default=4, required=False,
                         help='Number of receiving antennas. Defaults to 4.')
-    parser.add_argument("-b", "--batchsize", type=int, default=100, required=False,
+    parser.add_argument("-b", "--batchsize", type=int, default=500, required=False,
                         help='Batch size for transmission processing that fits within L1 cache. Defaults to 500.')
 
     args = parser.parse_args()
@@ -503,24 +494,28 @@ def main():
                                   time.gmtime(time.time() - startime))
         checkpoint_print = elapstime + \
             " SNR={}dB BER@{}itr= ".format(SNRdB, N_itr)
-        for j in range(len(vTBE)):
-            total_bits = (N_tx * const.num_bits * N_itr)
-            checkpoint_print += "{:.4f}, ".format(vTBE[j][iSNR] / total_bits)
+        total_bits = (N_tx * const.num_bits * N_itr)
+        for iPrec in range(len(vTBE)):
+            checkpoint_print += "{:.4f}, ".format(vTBE[iPrec][iSNR] / total_bits)
+            vBER[iPrec][iSNR] = vTBE[iPrec][iSNR] / total_bits
+            vEVM[iPrec][iSNR] = np.sqrt(vMSE[iPrec][iSNR] / vVM[iSNR])
         print(checkpoint_print)
 
     # -----------------------------------------------------------
     # END SNR LOOP
     # -----------------------------------------------------------
 
-    # Compute output metrics
-    vBER = [tbe / bits for (tbe, bits) in
-            zip(vTBE, (N_tx * const.num_bits * N_batch * vITR))]
-    vEVM = [np.sqrt(mse / vVM) for mse in vMSE]
-
     # Store output in file
-    for j in range(len(vTBE)):
-        write_vector_to_file('MMSE_BER.txt', vBER[j])
-        write_vector_to_file('MMSE_EVM.txt', vEVM[j])
+    current_local_time = time.localtime()
+    timestr = time.strftime("%Y%m%d_%H%M%S", current_local_time)
+    col_names = [precision[0] for precision in precisions]
+    row_names = [f"{value} dB" for value in vSNRdB]
+    df_ber = pd.DataFrame(vBER.reshape(-1, 1), columns=col_names, index=row_names)
+    df_evm = pd.DataFrame(vEVM.reshape(-1, 1), columns=col_names, index=row_names)
+    df_ber.to_excel(f"BER_{timestr}.odf", index=True, header=True, engine='odf')
+    df_evm.to_excel(f"EVM_{timestr}.odf", index=True, header=True, engine='odf')
+
+
     # Plot output
     plot_result(vBER, vEVM, vSNRdB, precisions)
     const.plot_constellation()

@@ -16,3 +16,4 @@ tabulate
 sympy
 scipy
 pyflexfloat
+odfpy
