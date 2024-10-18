@@ -26,6 +26,7 @@ module mempool_group_floonoc_wrapper
   output logic                                                                         scan_data_o,
   // Group ID
   input  logic [idx_width(NumGroups)-1:0]                                              group_id_i,
+  input  id_t                                                                          floo_id_i,
   input  route_t [NumEndpoints-1:0]                                                    route_table_i,
   // Router interface
     // narrow req noc
@@ -103,42 +104,84 @@ tcdm_slave_resp_t  [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1] tcdm_sl
 logic              [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1] tcdm_slave_resp_valid;
 logic              [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1] tcdm_slave_resp_ready;
 
-axi_tile_req_t axi_mst_req;
+axi_tile_req_t  axi_mst_req;
 axi_tile_resp_t axi_mst_resp;
+axi_tile_req_t  axi_mst_req_before_interleaver;
+axi_tile_resp_t axi_mst_resp_before_interleaver;
+axi_tile_req_t  axi_mst_req_before_spilitter;
+axi_tile_resp_t axi_mst_resp_before_spiltter;
 
 // Instantiate the mempool_group
 mempool_group #(
-  .TCDMBaseAddr             (TCDMBaseAddr          ),
-  .BootAddr                 (BootAddr              )
+  .TCDMBaseAddr             (TCDMBaseAddr                   ),
+  .BootAddr                 (BootAddr                       )
 ) i_mempool_group (
-  .clk_i                    (clk_i                 ),
-  .rst_ni                   (rst_ni                ),
-  .testmode_i               (testmode_i            ),
-  .scan_enable_i            (scan_enable_i         ),
-  .scan_data_i              (scan_data_i           ),
-  .scan_data_o              (scan_data_o           ),
-  .group_id_i               (group_id_i            ),
-  .tcdm_master_req_o        (tcdm_master_req       ),
-  .tcdm_master_req_valid_o  (tcdm_master_req_valid ),
-  .tcdm_master_req_ready_i  (tcdm_master_req_ready ),
-  .tcdm_master_resp_i       (tcdm_master_resp      ),
-  .tcdm_master_resp_valid_i (tcdm_master_resp_valid),
-  .tcdm_master_resp_ready_o (tcdm_master_resp_ready),
-  .tcdm_slave_req_i         (tcdm_slave_req        ),
-  .tcdm_slave_req_valid_i   (tcdm_slave_req_valid  ),
-  .tcdm_slave_req_ready_o   (tcdm_slave_req_ready  ),
-  .tcdm_slave_resp_o        (tcdm_slave_resp       ),
-  .tcdm_slave_resp_valid_o  (tcdm_slave_resp_valid ),
-  .tcdm_slave_resp_ready_i  (tcdm_slave_resp_ready ),
-  .wake_up_i                (wake_up_i             ),
-  .ro_cache_ctrl_i          (ro_cache_ctrl_i       ),
-  .dma_req_i                (dma_req_i             ),
-  .dma_req_valid_i          (dma_req_valid_i       ),
-  .dma_req_ready_o          (dma_req_ready_o       ),
-  .dma_meta_o               (dma_meta_o            ),
-  .axi_mst_req_o            (axi_mst_req           ),
-  .axi_mst_resp_i           (axi_mst_resp          )
+  .clk_i                    (clk_i                          ),
+  .rst_ni                   (rst_ni                         ),
+  .testmode_i               (testmode_i                     ),
+  .scan_enable_i            (scan_enable_i                  ),
+  .scan_data_i              (scan_data_i                    ),
+  .scan_data_o              (scan_data_o                    ),
+  .group_id_i               (group_id_i                     ),
+  .tcdm_master_req_o        (tcdm_master_req                ),
+  .tcdm_master_req_valid_o  (tcdm_master_req_valid          ),
+  .tcdm_master_req_ready_i  (tcdm_master_req_ready          ),
+  .tcdm_master_resp_i       (tcdm_master_resp               ),
+  .tcdm_master_resp_valid_i (tcdm_master_resp_valid         ),
+  .tcdm_master_resp_ready_o (tcdm_master_resp_ready         ),
+  .tcdm_slave_req_i         (tcdm_slave_req                 ),
+  .tcdm_slave_req_valid_i   (tcdm_slave_req_valid           ),
+  .tcdm_slave_req_ready_o   (tcdm_slave_req_ready           ),
+  .tcdm_slave_resp_o        (tcdm_slave_resp                ),
+  .tcdm_slave_resp_valid_o  (tcdm_slave_resp_valid          ),
+  .tcdm_slave_resp_ready_i  (tcdm_slave_resp_ready          ),
+  .wake_up_i                (wake_up_i                      ),
+  .ro_cache_ctrl_i          (ro_cache_ctrl_i                ),
+  .dma_req_i                (dma_req_i                      ),
+  .dma_req_valid_i          (dma_req_valid_i                ),
+  .dma_req_ready_o          (dma_req_ready_o                ),
+  .dma_meta_o               (dma_meta_o                     ),
+  .axi_mst_req_o            (axi_mst_req_before_interleaver ),
+  .axi_mst_resp_i           (axi_mst_resp_before_interleaver)
 );
+
+axi_L2_interleaver #(
+  .NumAXIMasters  (1                                        ),
+  .NumL2          (NumL2Banks                               )
+) i_axi_L2_splitter_interleaver (
+  .clk_i                    (clk_i                          ),
+  .rst_ni                   (rst_ni                         ),
+  .axi_l2_req_i             (axi_mst_req_before_interleaver ),
+  .axi_l2_resp_o            (axi_mst_resp_before_interleaver),
+  .axi_l2_req_interleaved_o (axi_mst_req_before_spilitter   ),
+  .axi_l2_resp_interleaved_i(axi_mst_resp_before_spiltter   )
+);
+
+// Splitting logic based on DmaBurstLen and Interleave
+generate
+  if (DmaBurstLen > Interleave) begin : gen_axi_splitter
+    axi_burst_splitter #(
+      .MaxReadTxns  (16                           ),
+      .MaxWriteTxns (16                           ),
+      .AddrWidth    (AddrWidth                    ),
+      .DataWidth    (AxiDataWidth                 ),
+      .IdWidth      (AxiTileIdWidth               ),
+      .UserWidth    (1                            ),
+      .axi_req_t    (axi_tile_req_t               ),
+      .axi_resp_t   (axi_tile_resp_t              )
+    ) i_axi_burst_splitter (
+      .clk_i        (clk_i                        ),
+      .rst_ni       (rst_ni                       ),
+      .slv_req_i    (axi_mst_req_before_spilitter ),
+      .slv_resp_o   (axi_mst_resp_before_spiltter ),
+      .mst_req_o    (axi_mst_req                  ),
+      .mst_resp_i   (axi_mst_resp                 )
+    );
+  end else begin : gen_axi_splitter_bypass
+    assign axi_mst_req = axi_mst_req_before_spilitter;
+    assign axi_mst_resp = axi_mst_resp_before_spiltter;
+  end
+endgenerate
 
 // Instantiate the floo_tcdm_router for each tile
 `ifdef USE_NARROW_REQ_CHANNEL
@@ -214,8 +257,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_remapper
         meta_id : tcdm_master_req[i][j].wdata.meta_id,              // For Register File
         core_id : tcdm_master_req[i][j].wdata.core_id,              // For Core
         src_tile_id : i,                                            // For Crossbar when response back
-        src_id: group_xy_id_t'(group_id_i),                         // For NoC Router when response back
-        dst_id: group_xy_id_t'(tcdm_master_req[i][j].tgt_group_id), // For NoC Router when request send
+        src_id: group_xy_id_t'({group_id_i, 1'b0}),                         // For NoC Router when response back
+        dst_id: group_xy_id_t'({tcdm_master_req[i][j].tgt_group_id, 1'b0}), // For NoC Router when request send
         tgt_addr: tcdm_master_req[i][j].tgt_addr,                   // For Crossbar when request send (bank rows per Group)
         last : 1'b1                                                 // Non Burst Request
       }
@@ -505,7 +548,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_router_r
         `ifdef ODD_EVEN_ROUTING
         src_id: group_xy_id_t'(group_id_i),                         // For NoC Router when response back
         `endif
-        dst_id: group_xy_id_t'(tcdm_slave_resp[i][j].src_group_id),// For NoC Router when response back (Sender's Group ID, propagated from request)
+        dst_id: group_xy_id_t'({tcdm_slave_resp[i][j].src_group_id, 1'b0}),// For NoC Router when response back (Sender's Group ID, propagated from request)
         last : 1'b1                                                // Non Burst Request
       }
     };
@@ -795,12 +838,12 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       `else
       .id_route_map_i ('0                                                                     ),
       `endif
-      .valid_i        ({floo_tcdm_wide_req_valid_i_trans[i][j], floo_tcdm_rdwr_req_to_router_vc_valid[i][j]}  ),
-      .ready_o        ({floo_tcdm_wide_req_ready_o_trans[i][j], floo_tcdm_rdwr_req_to_router_vc_ready[i][j]}  ),
-      .data_i         ({floo_tcdm_wide_req_i_trans      [i][j], floo_tcdm_rdwr_req_to_router[i][j]}    ),
-      .valid_o        ({floo_tcdm_wide_req_valid_o_trans[i][j], floo_tcdm_rdwr_req_from_router_vc_valid[i][j]}),
-      .ready_i        ({floo_tcdm_wide_req_ready_i_trans[i][j], floo_tcdm_rdwr_req_from_router_vc_ready[i][j]}),
-      .data_o         ({floo_tcdm_wide_req_o_trans      [i][j], floo_tcdm_rdwr_req_from_router_vc[i][j]}  )
+      .valid_i        ({floo_tcdm_rdwr_req_to_router_vc_valid[i][j],   floo_tcdm_wide_req_valid_i_trans[i][j]}),
+      .ready_o        ({floo_tcdm_rdwr_req_to_router_vc_ready[i][j],   floo_tcdm_wide_req_ready_o_trans[i][j]}),
+      .data_i         ({floo_tcdm_rdwr_req_to_router[i][j],            floo_tcdm_wide_req_i_trans      [i][j]}),
+      .valid_o        ({floo_tcdm_rdwr_req_from_router_vc_valid[i][j], floo_tcdm_wide_req_valid_o_trans[i][j]}),
+      .ready_i        ({floo_tcdm_rdwr_req_from_router_vc_ready[i][j], floo_tcdm_wide_req_ready_i_trans[i][j]}),
+      .data_o         ({floo_tcdm_rdwr_req_from_router_vc[i][j],       floo_tcdm_wide_req_o_trans      [i][j]})
     );
     if(NumVirtualChannel == 1) begin
       assign floo_tcdm_rdwr_req_from_router[i][j] = floo_tcdm_rdwr_req_from_router_vc[i][j];
@@ -853,12 +896,12 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       `else
       .id_route_map_i ('0                                                                     ),
       `endif
-      .valid_i        ({floo_tcdm_resp_valid_i_trans[i][j], floo_tcdm_resp_to_router_vc_valid[i][j]}                  ),
-      .ready_o        ({floo_tcdm_resp_ready_o_trans[i][j], floo_tcdm_resp_to_router_vc_ready[i][j]}                  ),
-      .data_i         ({floo_tcdm_resp_i_trans[i][j],       floo_tcdm_resp_to_router[i][j]}                    ),
-      .valid_o        ({floo_tcdm_resp_valid_o_trans[i][j], floo_tcdm_resp_from_router_vc_valid[i][j]}),
-      .ready_i        ({floo_tcdm_resp_ready_i_trans[i][j], floo_tcdm_resp_from_router_vc_ready[i][j]}),
-      .data_o         ({floo_tcdm_resp_o_trans[i][j],       floo_tcdm_resp_from_router_vc[i][j]}                  )
+      .valid_i        ({floo_tcdm_resp_to_router_vc_valid[i][j],   floo_tcdm_resp_valid_i_trans[i][j]}  ),
+      .ready_o        ({floo_tcdm_resp_to_router_vc_ready[i][j],   floo_tcdm_resp_ready_o_trans[i][j]}  ),
+      .data_i         ({floo_tcdm_resp_to_router[i][j],            floo_tcdm_resp_i_trans[i][j]}        ),
+      .valid_o        ({floo_tcdm_resp_from_router_vc_valid[i][j], floo_tcdm_resp_valid_o_trans[i][j]}  ),
+      .ready_i        ({floo_tcdm_resp_from_router_vc_ready[i][j], floo_tcdm_resp_ready_i_trans[i][j]}  ),
+      .data_o         ({floo_tcdm_resp_from_router_vc[i][j],       floo_tcdm_resp_o_trans[i][j]}        )
     );
     if(NumVirtualChannel == 1) begin
       assign floo_tcdm_resp_from_router[i][j] = floo_tcdm_resp_from_router_vc[i][j];
@@ -924,7 +967,7 @@ floo_nw_chimney #(
   .axi_wide_in_rsp_o    ( axi_mst_resp              ),
   .axi_wide_out_req_o   (                           ),
   .axi_wide_out_rsp_i   ( '0                        ),
-  .id_i                 ( group_id_i                ), // TODO: Check that order is the same as in generated package
+  .id_i                 ( floo_id_i                 ),
   .route_table_i,
   .floo_req_o           ( floo_axi_req_in[Eject]    ),
   .floo_rsp_o           ( floo_axi_rsp_in[Eject]    ),
@@ -954,7 +997,7 @@ floo_nw_router #(
   .clk_i,
   .rst_ni,
   .test_enable_i  ( testmode_i        ),
-  .id_i           ( group_id_i        ),  // TODO: Check that order is the same as in generated package
+  .id_i           ( '0                ),
   .id_route_map_i ( '0                ),
   .floo_req_i     ( floo_axi_req_in   ),
   .floo_rsp_i     ( floo_axi_rsp_in   ),

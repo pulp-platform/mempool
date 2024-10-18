@@ -33,6 +33,7 @@ sources:
   - hardware/src/tcdm_shim.sv
   - hardware/src/tcdm_wide_narrow_mux.sv
   - hardware/src/address_scrambler.sv
+  - hardware/src/axi_L2_interleaver.sv
   - hardware/src/axi2mem.sv
   - hardware/src/bootrom.sv
   - hardware/src/latch_scm.sv
