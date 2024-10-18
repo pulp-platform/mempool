@@ -15,31 +15,31 @@ protocols:
     type: "narrow"
     protocol: "AXI4"
     data_width: 64
-    addr_width: 48
-    id_width: 4
+    addr_width: 32
+    id_width: 1
     user_width: 1
     direction: "input"
   - name: "narrow_out"
     type: "narrow"
     protocol: "AXI4"
     data_width: 64
-    addr_width: 48
-    id_width: 2
+    addr_width: 32
+    id_width: 1
     user_width: 1
     direction: "output"
   - name: "wide_in"
     type: "wide"
     protocol: "AXI4"
     data_width: 512
-    addr_width: 48
-    id_width: 3
+    addr_width: 32
+    id_width: 2
     user_width: 1
   - name: "wide_out"
     type: "wide"
     protocol: "AXI4"
     data_width: 512
-    addr_width: 48
-    id_width: 1
+    addr_width: 32
+    id_width: 2
     user_width: 1
 
 endpoints:
@@ -50,18 +50,21 @@ endpoints:
   - name: "hbm"
     array: [16]
     addr_range:
-      base: 0x0000_8000_0000
-      size: 0x0000_4000_0000
+      base: 0x8000_0000
+      size: 0x0100_0000
     sbr_port_protocol:
       - "wide_out"
   - name: "peripherals"
     addr_range:
-      start: 0x0000_0000_0000
-      end: 0x0000_0fff_ffff
-    mgr_port_protocol:
-      - "wide_in"
+      - start: 0x0000_0000
+        end: 0x7FFF_FFFF
+      - start: 0xA000_0000
+        end: 0xC000_FFFF
     sbr_port_protocol:
       - "wide_out"
+  - name: "host"
+    mgr_port_protocol:
+      - "wide_in"
 
 routers:
   - name: "group_router"
@@ -126,3 +129,5 @@ connections:
     dst_idx: [15]
   - src: "periph_router"
     dst: "peripherals"
+  - src: "periph_router"
+    dst: "host"

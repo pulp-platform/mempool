@@ -84,7 +84,7 @@ package mempool_pkg;
       logic [AddrWidth-1:0] dram_ctrl_addr;
     } dram_ctrl_interleave_t;
 
-    localparam int unsigned Interleave  = `ifdef DRAM_AXI_WIDTH_INTERLEAVED `DRAM_AXI_WIDTH_INTERLEAVED `else 16 `endif;
+    localparam int unsigned Interleave = `ifdef DRAM_AXI_WIDTH_INTERLEAVED `DRAM_AXI_WIDTH_INTERLEAVED `else 16 `endif;
 
     function automatic dram_ctrl_interleave_t getDramCTRLInfo(addr_t addr);
       automatic dram_ctrl_interleave_t res;
@@ -97,11 +97,13 @@ package mempool_pkg;
       res.dram_ctrl_addr = {reminder_addr, addr[ConstantBits-1:0]};
       return res;
     endfunction
+  `else
+    localparam int unsigned Interleave = L2BankWidth / AxiDataWidth;
   `endif
 
   localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
 
-  localparam NumSystemXbarMasters = (NumGroups * NumAXIMastersPerGroup) + 1; // +1 because the external host is also a master
+  localparam NumSystemXbarMasters = 1;
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
   typedef logic [AxiSystemIdWidth-1:0] axi_system_id_t;
 
@@ -198,7 +200,7 @@ package mempool_pkg;
   localparam int unsigned DmaDataWidth = AxiDataWidth;
   localparam int unsigned DmaNumWords = DmaDataWidth/DataWidth;
   localparam int unsigned NumSuperbanks = NumBanksPerTile/DmaNumWords;
-  localparam int unsigned DmaBrustLen = (NumBanksPerGroup / NumDmasPerGroup) / DmaNumWords;
+  localparam int unsigned DmaBurstLen = (NumBanksPerGroup / NumDmasPerGroup) / DmaNumWords;
 
   typedef logic [DmaNumWords*DataWidth-1:0] dma_data_t;
   typedef logic [DmaNumWords*DataWidth/8-1:0] dma_strb_t;
@@ -305,6 +307,7 @@ package mempool_pkg;
   typedef struct packed {
     logic [idx_width(NumGroups)/2-1:0] x;
     logic [idx_width(NumGroups)/2-1:0] y;
+    logic port_id;
   } group_xy_id_t;
 
   // FlooNoC req types
