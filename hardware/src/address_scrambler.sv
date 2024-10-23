@@ -8,14 +8,18 @@
 
 // Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
-module address_scrambler #(
+module address_scrambler 
+  import mempool_pkg::*;
+#(
   parameter int unsigned AddrWidth         = 32,
   parameter int unsigned ByteOffset        = 2,
   parameter int unsigned NumTiles          = 2,
   parameter int unsigned NumTilesPerDma    = 16,
   parameter int unsigned NumBanksPerTile   = 2,
   parameter bit          Bypass            = 0,
-  parameter int unsigned SeqMemSizePerTile = 4*1024
+  parameter int unsigned SeqMemSizePerTile = 4*1024,
+  parameter addr_t       TCDMBaseAddr      = 32'b0,
+  parameter logic [31:0] TCDMMask          = '1 << 28
 ) (
   input  logic [AddrWidth-1:0] address_i,
   output logic [AddrWidth-1:0] address_o
@@ -27,6 +31,9 @@ module address_scrambler #(
   localparam int unsigned SeqTotalBits      = SeqPerTileBits+TileIdBits;
   localparam int unsigned ConstantBitsLSB   = ByteOffset + BankOffsetBits;
   localparam int unsigned ScrambleBits      = SeqPerTileBits-ConstantBitsLSB;
+
+  logic not_io_address;
+  assign not_io_address = (address_i & TCDMMask) == TCDMBaseAddr;
 
   function automatic logic [TileIdBitsPerDma-1:0] spm_tile_id_remap (
       logic [TileIdBitsPerDma-1:0] data_in,
@@ -65,7 +72,7 @@ module address_scrambler #(
       // If not in bypass mode and address is in sequential region and more than one tile
       if (address_i < (NumTiles * SeqMemSizePerTile)) begin
         address_o[SeqTotalBits-1:ConstantBitsLSB] = {scramble, tile_id};
-      end else begin
+      end else if(not_io_address) begin
         address_o[ConstantBitsLSB +: TileIdBitsPerDma] =
           spm_tile_id_remap(
             address_i[ConstantBitsLSB +: TileIdBitsPerDma],

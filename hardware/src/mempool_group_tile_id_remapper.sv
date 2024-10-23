@@ -15,7 +15,13 @@ module mempool_group_tile_id_remapper
                                 dma_reqrsp_req_i.q.addr[(ByteOffset + idx_width(NumBanksPerTile) + idx_width(NumTilesPerGroup) + idx_width(NumGroups)) +: idx_width(NumTilesPerDma)];
 
   `ifdef TILE_ID_REMAP
-  assign tile_id_remap_o = tile_id_remap;
+  always_comb begin
+    if (dma_reqrsp_req_i.q.addr < (NumTiles * SeqMemSizePerTile)) begin
+      tile_id_remap_o = tile_id_remap_before;
+    end else begin
+      tile_id_remap_o = tile_id_remap;
+    end
+  end
   `else
   assign tile_id_remap_o = tile_id_remap_before;
   `endif

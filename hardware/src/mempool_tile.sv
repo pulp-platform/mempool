@@ -116,6 +116,7 @@ module mempool_tile
 
   // Data interfaces
   addr_t    [NumCoresPerTile-1:0] snitch_data_qaddr;
+  addr_t    [NumCoresPerTile-1:0] snitch_data_qaddr_scrambled;
   logic     [NumCoresPerTile-1:0] snitch_data_qwrite;
   amo_t     [NumCoresPerTile-1:0] snitch_data_qamo;
   data_t    [NumCoresPerTile-1:0] snitch_data_qdata;
@@ -938,17 +939,18 @@ module mempool_tile
     assign remote_req_interco[c].wdata.core_id = c[idx_width(NumCoresPerTile)-1:0];
 
     // Scramble address before entering TCDM shim for sequential+interleaved memory map
-    addr_t snitch_data_qaddr_scrambled;
     address_scrambler #(
       .AddrWidth         (AddrWidth        ),
       .ByteOffset        (ByteOffset       ),
       .NumTiles          (NumTiles         ),
       .NumBanksPerTile   (NumBanksPerTile  ),
       .Bypass            (0                ),
-      .SeqMemSizePerTile (SeqMemSizePerTile)
+      .SeqMemSizePerTile (SeqMemSizePerTile),
+      .TCDMBaseAddr      (TCDMBaseAddr     ),
+      .TCDMMask          (TCDMMask         )
     ) i_address_scrambler (
-      .address_i (snitch_data_qaddr[c]       ),
-      .address_o (snitch_data_qaddr_scrambled)
+      .address_i (snitch_data_qaddr[c]          ),
+      .address_o (snitch_data_qaddr_scrambled[c])
     );
 
     if (!TrafficGeneration) begin: gen_tcdm_shim
@@ -994,7 +996,7 @@ module mempool_tile
         .soc_pvalid_i       (soc_data_pvalid[c]                                                                 ),
         .soc_pready_o       (soc_data_pready[c]                                                                 ),
         // from core
-        .data_qaddr_i       (snitch_data_qaddr_scrambled                                                        ),
+        .data_qaddr_i       (snitch_data_qaddr_scrambled[c]                                                     ),
         .data_qwrite_i      (snitch_data_qwrite[c]                                                              ),
         .data_qamo_i        (snitch_data_qamo[c]                                                                ),
         .data_qdata_i       (snitch_data_qdata[c]                                                               ),
