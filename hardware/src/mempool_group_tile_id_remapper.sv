@@ -1,3 +1,7 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
 module mempool_group_tile_id_remapper
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
