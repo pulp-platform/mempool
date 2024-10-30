@@ -44,10 +44,12 @@ module mempool_tile_id_remapper
    *  Definitions  *
    *****************/
   `define min(a,b) (((a) < (b))? (a) : (b))
+  `define max(a,b) (((a) > (b))? (a) : (b))
 
   typedef logic [idx_width(NumRemotePortsPerTile)-1:0] remote_ports_index_t;
   
   localparam SHIFT_AMOUNT = `min(TCDMAddrMemWidth, idx_width(NumBanksPerTile)); // or 4
+  localparam RemoteReqBits = `max(1, $clog2(NumRemotePortsPerTile-1));
 
   function automatic logic [idx_width(NumBanksPerTile)-1:0] spm_bank_id_remap (
       logic [idx_width(NumBanksPerTile)-1:0] data_in,
@@ -112,7 +114,7 @@ module mempool_tile_id_remapper
   logic                [NumCoresPerTile-1:0] remote_req_interco_tgt_sel_q_update;
 
   logic                [NumCoresPerTile-1:0] remote_req_interco_valid_mask_local;
-  logic                [NumCoresPerTile-1:0][$clog2(NumRemotePortsPerTile-1)-1:0] remote_req_interco_tgt_sel_mask_local;
+  logic                [NumCoresPerTile-1:0][RemoteReqBits-1:0] remote_req_interco_tgt_sel_mask_local;
   logic                [NumCoresPerTile-1:0] remote_req_interco_tgt_sel_mask_local_vld;
   remote_ports_index_t [NumCoresPerTile-1:0] remote_req_interco_tgt_sel_shift_local;
 
@@ -128,7 +130,7 @@ module mempool_tile_id_remapper
 
 
     assign remote_req_interco_tgt_sel_shift_local[c] = 
-    {{($bits(remote_ports_index_t) - $clog2(NumRemotePortsPerTile-1)){1'b0}}, remote_req_interco_tgt_sel_mask_local[c]} + 1;
+    {{($bits(remote_ports_index_t) - RemoteReqBits){1'b0}}, remote_req_interco_tgt_sel_mask_local[c]} + 1;
 
     // assign remote_req_interco_to_xbar_valid[c] = group_id_is_local[c] ? remote_req_interco_valid_i[c] :
     //                                              remote_req_interco_tgt_sel_mask_local_vld[c];
