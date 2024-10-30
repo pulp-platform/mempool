@@ -80,10 +80,11 @@ module tcdm_shim
 
   // Includes
   `include "common_cells/registers.svh"
+  `define max(a,b) (((a) > (b))? (a) : (b))
 
   localparam int unsigned BankOffsetBits    = $clog2(NumBanksPerTile);
   localparam int unsigned TileIdBits        = $clog2(NumTiles);
-  localparam int unsigned TileIdBitsPerDma  = $clog2(NumTilesPerDma);
+  localparam int unsigned TileIdBitsPerDma  = `max(1, $clog2(NumTilesPerDma));
   localparam int unsigned ConstantBitsLSB   = ByteOffset + BankOffsetBits;
 
   function automatic logic [TileIdBitsPerDma-1:0] spm_tile_id_remap (

@@ -9,17 +9,16 @@
 // Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
 module address_scrambler 
-  import mempool_pkg::*;
 #(
-  parameter int unsigned AddrWidth         = 32,
-  parameter int unsigned ByteOffset        = 2,
-  parameter int unsigned NumTiles          = 2,
-  parameter int unsigned NumTilesPerDma    = 16,
-  parameter int unsigned NumBanksPerTile   = 2,
-  parameter bit          Bypass            = 0,
-  parameter int unsigned SeqMemSizePerTile = 4*1024,
-  parameter addr_t       TCDMBaseAddr      = 32'b0,
-  parameter logic [31:0] TCDMMask          = '1 << 28
+  parameter int unsigned          AddrWidth         = 32,
+  parameter int unsigned          ByteOffset        = 2,
+  parameter int unsigned          NumTiles          = 2,
+  parameter int unsigned          NumTilesPerDma    = 16,
+  parameter int unsigned          NumBanksPerTile   = 2,
+  parameter bit                   Bypass            = 0,
+  parameter int unsigned          SeqMemSizePerTile = 4*1024,
+  parameter logic [AddrWidth-1:0] TCDMBaseAddr      = 32'b0,
+  parameter logic [31:0]          TCDMMask          = '1 << 28
 ) (
   input  logic [AddrWidth-1:0] address_i,
   output logic [AddrWidth-1:0] address_o
