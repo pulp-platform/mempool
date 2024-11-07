@@ -338,12 +338,12 @@ def main():
                       # ['16b-MP', "\"-DSINGLE -DBANSHEE\""],
                       ['16b-MP wDotp', "\"-DSINGLE -DBANSHEE -DVEC\""], #works
                       ['16b-MP wDotp dgLoaded', "\"-DSINGLE -DBANSHEE -DVEC\""], #works
-                      # ['16b-MP cDotp', "\"-DSINGLE -DBANSHEE -DVEC -D__CDOTP\""],
+                      # ['16b-MP cDotp', "\"-DSINGLE -DBANSHEE -DVEC -D__CDOTP\""], #works
                       # ['8b-MP', "\"-DSINGLE -DBANSHEE\""],
                       # ['8b-MP wDotp', "\"-DSINGLE -DBANSHEE -DVEC\""],
                       ]
         vSNRdB = range(0, 40, 2)
-        vITR = np.concatenate([np.full(5, 10), np.full(5, 20), np.full(5, 70), np.full(8, 70), np.full(8, 100)])
+        vITR = np.concatenate([np.full(5, 10), np.full(5, 20), np.full(5, 70), np.full(8, 90), np.full(8, 100)])
         max_it = 150
         be_target = 10
     elif run_banshee & (channel_type == "flatfading"):
@@ -351,13 +351,13 @@ def main():
                       # ['16b-MP', "\"-DSINGLE -DBANSHEE\""],
                       ['16b-MP wDotp', "\"-DSINGLE -DBANSHEE -DVEC\""], #works
                       ['16b-MP wDotp dgLoaded', "\"-DSINGLE -DBANSHEE -DVEC\""], #works
-                      # ['16b-MP cDotp', "\"-DSINGLE -DBANSHEE -DVEC -D__CDOTP\""],
+                      # ['16b-MP cDotp', "\"-DSINGLE -DBANSHEE -DVEC -D__CDOTP\""], #works
                       # ['8b-MP', "\"-DSINGLE -DBANSHEE\""],
                       # ['8b-MP dgLoaded', "\"-DSINGLE -DBANSHEE\""],
                       # ['8b-MP wDotp', "\"-DSINGLE -DBANSHEE -DVEC\""],
                       ]
         vSNRdB = range(0, 40, 4)
-        vITR = np.concatenate([np.full(5, 1), np.full(6, 30), np.full(4, 50), np.full(8, 40), np.full(8, 30)])
+        vITR = np.concatenate([np.full(6, 1), np.full(6, 70), np.full(4, 50), np.full(8, 40), np.full(8, 30)])
         max_it = 50
         be_target = 10
     else:
