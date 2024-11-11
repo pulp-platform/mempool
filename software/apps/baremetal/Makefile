@@ -10,8 +10,8 @@ ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 SOFTWARE_DIR := $(abspath $(ROOT_DIR)/../..)
 APPS_DIR := $(ROOT_DIR)
-BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
-DATA_DIR := $(abspath $(SOFTWARE_DIR)/data)
+BIN_DIR ?= $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
+DATA_DIR ?= $(abspath $(SOFTWARE_DIR)/data)
 RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
