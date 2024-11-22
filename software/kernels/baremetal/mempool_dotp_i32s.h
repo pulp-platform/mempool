@@ -5,12 +5,11 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 /* Single-core dot-product */
-void dotp_single(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len) {
+void dotp_i32s(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len) {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   if (core_id == 0) {
-
     mempool_start_benchmark();
     // Kernel execution
     register int32_t local_sum = 0;
@@ -18,7 +17,6 @@ void dotp_single(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len) {
     do {
       local_sum += ((*in_a++) * (*in_b++));
     } while (in_a < end);
-
     *s = local_sum;
     mempool_stop_benchmark();
   }
@@ -26,17 +24,15 @@ void dotp_single(int32_t *in_a, int32_t *in_b, int32_t *s, uint32_t Len) {
 }
 
 /* Single-core dot-product unrolled4 */
-void dotp_single_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
-                           uint32_t Len) {
+void dotp_i32s_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
+                         uint32_t Len) {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
   if (core_id == 0) {
-
     mempool_start_benchmark();
     uint32_t reminder = Len % 4;
     uint32_t i = 0;
-
     int32_t a0 = 0, b0 = 0, a1 = 0, b1 = 0, a2 = 0, b2 = 0, a3 = 0, b3 = 0;
     register int32_t local_sum_1 = 0;
     register int32_t local_sum_2 = 0;
@@ -70,5 +66,4 @@ void dotp_single_unrolled4(int32_t *in_a, int32_t *in_b, int32_t *s,
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
-  // mempool_log_barrier(2, core_id);
 }

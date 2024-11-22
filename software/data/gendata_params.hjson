@@ -19,6 +19,18 @@
     ]
   },
 
+  "dotp_i32": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 1024)
+    ]
+    "arrays": [
+      ("int32_t", "l2_X")
+      ("int32_t", "l2_Y")
+      ("int32_t", "l2_Z")
+    ]
+  },
+
   "cfft_radix4_q16": {
     "type": "int16",
     "defines": [
