@@ -62,7 +62,7 @@ int main() {
 #endif
 
   /* Check */
-  mempool_check_q16(l1_HEST, l2_HEST, 2 * N_TX * N_RX, 0, 0);
+  mempool_check_i16(l1_HEST, l2_HEST, 2 * N_TX * N_RX, 0, 0);
   mempool_barrier(num_cores);
   return 0;
 }

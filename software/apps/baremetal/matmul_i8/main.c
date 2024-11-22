@@ -46,7 +46,7 @@ int main() {
   mempool_barrier(num_cores);
 
   // Verify results
-  mempool_check_q32(l1_C, l2_C, matrix_M * matrix_P, 0, 0);
+  mempool_check_i32(l1_C, l2_C, matrix_M * matrix_P, 0, 0);
   mempool_barrier(num_cores);
   return 0;
 }

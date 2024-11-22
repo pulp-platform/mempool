@@ -47,7 +47,7 @@ int main() {
   mempool_stop_benchmark();
 
   // Verify results
-  mempool_check_q32(l1_Y, l2_Z, array_N, 0, 0);
+  mempool_check_i32(l1_Y, l2_Z, array_N, 0, 0);
   mempool_barrier(num_cores);
 
   return 0;

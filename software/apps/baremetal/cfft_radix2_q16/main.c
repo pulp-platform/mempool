@@ -70,7 +70,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_q16(l1_pSrc, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
+  mempool_check_i16(l1_pSrc, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
   mempool_barrier(num_cores);
   return 0;
 }

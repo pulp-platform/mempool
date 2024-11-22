@@ -12,7 +12,7 @@
   @param[in]     TOL  floating point tolerance
   @return        none
 */
-void mempool_check_q32(int32_t *__restrict__ pRes, int32_t *__restrict__ pExp,
+void mempool_check_i32(int32_t *__restrict__ pRes, int32_t *__restrict__ pExp,
                        uint32_t NEL, int32_t TOL, bool verbose) {
   uint32_t core_id = mempool_get_core_id();
   int32_t error;
@@ -41,7 +41,7 @@ void mempool_check_q32(int32_t *__restrict__ pRes, int32_t *__restrict__ pExp,
   @param[in]     TOL  floating point tolerance
   @return        none
 */
-void mempool_check_q16(int16_t *__restrict__ pRes, int16_t *__restrict__ pExp,
+void mempool_check_i16(int16_t *__restrict__ pRes, int16_t *__restrict__ pExp,
                        uint32_t NEL, int16_t TOL, bool verbose) {
   uint32_t core_id = mempool_get_core_id();
   int16_t error;
@@ -53,7 +53,36 @@ void mempool_check_q16(int16_t *__restrict__ pRes, int16_t *__restrict__ pExp,
       error = (int16_t)(exp - res);
       bool print = ((error > TOL) || (error < (-TOL))) | verbose;
       if (print) {
-        printf("CHECK(%d): EXP = %08X - RESP = %08X\n", i, exp, res);
+        printf("CHECK(%d): EXP = %04X - RESP = %04X\n", i, exp, res);
+        ERRORS++;
+      }
+    }
+    printf("%d ERRORS out of %d CHECKS\n", ERRORS, NEL);
+  }
+  return;
+}
+
+/**
+  @brief         Check for i8 kernels.
+  @param[in]     pRes points to the result
+  @param[in]     pExp points to the expected result
+  @param[in]     NEL  number of elements to check
+  @param[in]     TOL  floating point tolerance
+  @return        none
+*/
+void mempool_check_i8(int8_t *__restrict__ pRes, int8_t *__restrict__ pExp,
+                      uint32_t NEL, int16_t TOL, bool verbose) {
+  uint32_t core_id = mempool_get_core_id();
+  int16_t error;
+  if (core_id == 0) {
+    uint32_t ERRORS = 0;
+    for (uint32_t i = 0; i < NEL; i++) {
+      int16_t exp = (int8_t)pExp[i];
+      int16_t res = (int8_t)pRes[i];
+      error = (int8_t)(exp - res);
+      bool print = ((error > TOL) || (error < (-TOL))) | verbose;
+      if (print) {
+        printf("CHECK(%d): EXP = %02X - RESP = %02X\n", i, exp, res);
         ERRORS++;
       }
     }
