@@ -9,14 +9,11 @@
 
 import argparse
 import os
-import math
 import hjson
 import ast
 import numpy
 
-import gendatalib_cfft as cfft
-import gendatalib_chest as chest
-import gendatalib_blas as blas
+import gendatalib as datalib
 
 
 header = """\
@@ -29,34 +26,58 @@ header = """\
 """
 
 
-def print_array(arr, typ, name):
-
+def format_type(typ, value):
+    """
+    formats the type for printing in .h file.
+    :param typ: Input type
+    :param value: Input_value
+    """
     typ_i32b = ["int32_t", "uint32_t"]
     typ_i16b = ["int16_t", "uint16_t"]
     typ_i8b = ["int8_t", "uint8_t"]
 
+    if typ in typ_i32b:
+        stringyfied_val = '({}) 0X{:08X}'.format(typ, value & 0xffffffff)
+    elif typ in typ_i16b:
+        stringyfied_val = '({}) 0X{:04X}'.format(typ, value & 0x0000ffff)
+    elif typ in typ_i8b:
+        stringyfied_val = '({}) 0X{:02X}'.format(typ, value & 0x000000ff)
+    elif typ == 'float':
+        stringyfied_val = '({}) {:+.8f}'.format(typ, value)
+    elif typ == '__fp16':
+        stringyfied_val = '({}) {:+.4f}'.format(typ, value)
+    else:
+        raise Exception("ERROR: Unsupported data type!!!")
+
+    return stringyfied_val
+
+
+def print_array(arr, typ, name):
+    """
+    Converts arrays to a string.
+
+    :param arr: Input array
+    :param typ: Type of the array.
+    :param name: Name of the array.
+    """
+
     output_string = typ
     attr = " __attribute__((aligned(sizeof(int32_t)), section(\".l2\"))) "
-    output_string += attr
-    output_string += name + '[{}] = {{\n'.format(arr.size)
-    for (value, count) in zip(arr, range(arr.size)):
-        if typ in typ_i32b:
-            output_string += '({}) 0X{:08X}, '.format(typ, value & 0xffffffff)
-        elif typ in typ_i16b:
-            output_string += '({}) 0X{:04X}, '.format(typ, value & 0x0000ffff)
-        elif typ in typ_i8b:
-            output_string += '({}) 0X{:02X}, '.format(typ, value & 0x000000ff)
-        elif typ == 'float':
-            output_string += '({}) {:+.8f}, '.format(typ, value)
-        elif typ == '__fp16':
-            output_string += '({}) {:+.4f}, '.format(typ, value)
-        else:
-            raise Exception("ERROR: Unsupported data type!!!")
-        count += 1
-        if count % 4 == 0:
-            output_string += '\n'
-    output_string = output_string[:-3]
-    output_string += "};\n\n"
+    if (arr.size > 1):
+        output_string += attr
+        output_string += name + '[{}] = {{\n'.format(arr.size)
+        for (value, count) in zip(arr, range(arr.size)):
+            output_string += (format_type(typ, value) + ', ')
+            count += 1
+            if count % 4 == 0:
+                output_string += '\n'
+        output_string = output_string[:-3]
+        output_string += "};\n\n"
+    else:
+        output_string += attr
+        output_string += (name + ' = ' + format_type(typ, arr))
+        output_string += ";\n\n"
+
     return output_string
 
 
@@ -74,8 +95,8 @@ def print_file(header, defines, arrays, filename):
     output_string = header
 
     # Write the defines
-    for define_name, define_value in defines:
-        output_string += "#define {} ({})\n".format(define_name, define_value)
+    for def_key, def_value in defines.items():
+        output_string += "#define {} ({})\n".format(def_key, def_value)
     output_string += "\n"  # Add space between defines and arrays
 
     # Write the arrays using print_array
@@ -90,6 +111,10 @@ def print_file(header, defines, arrays, filename):
 
 
 def get_type(type_string):
+    """
+    Gets the numpy type from the type specifyied in the json
+    :param type_string: type from json file.
+    """
     if type_string == "int8":
         return numpy.int8
     elif type_string == "int16":
@@ -120,107 +145,45 @@ if __name__ == '__main__':
 
     if data_args is not None:
         my_type = get_type(data_args.get("type"))
-        defnes = [ast.literal_eval(defne)
-                  for defne in data_args.get("defines")]
-        arrays = [ast.literal_eval(array)
-                  for array in data_args.get("arrays")]
+        defnes = dict([ast.literal_eval(defne)
+                      for defne in data_args.get("defines")])
+        arrays = [ast.literal_eval(array) for array in data_args.get("arrays")]
 
     # Determine output file name
     filename = os.path.dirname(os.path.abspath(__file__))
     filename = os.path.join(filename, "data_{}.h".format(app_name))
 
-    # Generate data header file
-    if app_name == "axpy_i32":
+    # Define function mappings for each app_name
+    function_map = {
+        "axpy_i32": {"func": datalib.generate_iaxpy},
+        "cfft_radix4_q16": {"func": datalib.generate_cfft_q16},
+        "cfft_radix2_q16": {"func": datalib.generate_cfft_q16},
+        "chest_q16": {"func": datalib.generate_qchest},
+        "cholesky_q32": {"func": datalib.generate_qcholesky},
+        "dotp_i32": {"func": datalib.generate_idotp},
+        "matmul_f16": {"func": datalib.generate_fmatmul},
+        "matmul_f32": {"func": datalib.generate_fmatmul},
+        "matmul_i32": {"func": datalib.generate_imatmul},
+        "matmul_i16": {"func": datalib.generate_imatmul},
+        "matmul_i8": {"func": datalib.generate_imatmul},
+        "fence": {"func": datalib.generate_iarray},
+        "memcpy": {"func": datalib.generate_iarray},
+    }
 
-        result = blas.generate_iaxpy(**{name: value for name, value in defnes})
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "cfft_radix4_q16":
-
-        result = cfft.generate_cfft_q16(
-            **{name: value for name, value in defnes})
-        N = defnes[0][1]
-        defnes += [
-            ("LOG2", int(math.log2(N))),
-            ("N_TWIDDLES", 3 * N // 4),
-            ("BITREVINDEXTABLE_LENGTH", len(result[3])),
-            ("TOLERANCE", result[4]),
-        ]
-        result = result[0:4]
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "cfft_radix2_q16":
-
-        result = cfft.generate_cfft_q16(
-            **{name: value for name, value in defnes})
-        N = defnes[0][1]
-        defnes += [
-            ("LOG2", int(math.log2(N))),
-            ("N_TWIDDLES", 3 * N // 4),
-            ("BITREVINDEXTABLE_LENGTH", len(result[3])),
-            ("TOLERANCE", result[4]),
-        ]
-        result = result[0:4]
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "chest_q16":
-
-        result = chest.generate_chest_q16(
-            **{name: value for name, value in defnes})
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "cholesky_q32":
-
-        result = blas.generate_qcholesky(
-            **{name: value for name, value in defnes})
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "matmul_f16":
-
-        result = blas.generate_fmatmul(
-            **{name: value for name, value in defnes}, my_type=my_type)
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "matmul_f32":
-
-        result = blas.generate_fmatmul(
-            **{name: value for name, value in defnes}, my_type=my_type)
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "matmul_i32":
-
-        result = blas.generate_imatmul(
-            **{name: value for name, value in defnes}, my_type=my_type)
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "matmul_i16":
-
-        result = blas.generate_imatmul(
-            **{name: value for name, value in defnes}, my_type=my_type)
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif app_name == "matmul_i8":
-
-        result = blas.generate_imatmul(
-            **{name: value for name, value in defnes}, my_type=my_type)
-        arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
-        print_file(header, defnes, arrays, filename)
-
-    elif (app_name == "fence") | (app_name == "memcpy"):
-
-        result = blas.generate_iarray(
-            **{name: value for name, value in defnes}, my_type=my_type)
-        arrays = [(result, *arrays[0])]
+    # Check if app_name exists in the function map
+    if app_name in function_map:
+        func_info = function_map[app_name]
+        func = func_info["func"]
+        # Call the function
+        # The defnes dictionary is a function argument in case the generate
+        # function adds new definitions.
+        result, defnes = func(defines=defnes, my_type=my_type)
+        # Print result to data header
+        if len(arrays) == 1:
+            arrays = [(result, *arrays[0])]
+        else:
+            arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
         print_file(header, defnes, arrays, filename)
 
     else:
-        print("No need for data generation.")
+        print("Data generation is not defined.")
