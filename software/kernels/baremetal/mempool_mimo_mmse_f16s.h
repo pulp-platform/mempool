@@ -254,38 +254,40 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
   for (i = 0; i < n_tx; i++) {
 
     if (n_tx % 4 != 0) {
-      as0 = 0.0f; // Initialize the real part of sums
-      bs0 = 0.0f; // Initialize the imag part of sums
-      // Inner Loop
-      for (k = 0; k < n_rx; k++) {
-        ab = (*(v2h *)&pH[2U * (k * n_tx + i)]);
-        cd0 = (*(v2h *)&pH[2U * (k * n_tx + j)]);
-        // dotproducts (ac + bd) + j (ad - bc)
-        asm volatile(
-            // a * c + b * d
-            "vfdotpex.s.h  %[as0], %[ab], %[cd0];"
-            "pv.shuffle2.h  %[cd0], %[cd0], %[shuffle_mask];"
-            "xor %[cd0], %[neg_mask], %[cd0];"
-            // a * d - b * c
-            "vfdotpex.s.h  %[bs0], %[ab], %[cd0];"
-            : [cd0] "+&r"(cd0), [as0] "+&r"(as0), [bs0] "+&r"(bs0)
-            : [ab] "r"(ab), [neg_mask] "r"(neg_mask),
-              [shuffle_mask] "r"(shuffle_mask)
-            :);
+      for (j = 0; j < n_tx; j++) {
+        as0 = 0.0f; // Initialize the real part of sums
+        bs0 = 0.0f; // Initialize the imag part of sums
+        // Inner Loop
+        for (k = 0; k < n_rx; k++) {
+          ab = (*(v2h *)&pH[2U * (k * n_tx + i)]);
+          cd0 = (*(v2h *)&pH[2U * (k * n_tx + j)]);
+          // dotproducts (ac + bd) + j (ad - bc)
+          asm volatile(
+              // a * c + b * d
+              "vfdotpex.s.h  %[as0], %[ab], %[cd0];"
+              "pv.shuffle2.h  %[cd0], %[cd0], %[shuffle_mask];"
+              "xor %[cd0], %[neg_mask], %[cd0];"
+              // a * d - b * c
+              "vfdotpex.s.h  %[bs0], %[ab], %[cd0];"
+              : [cd0] "+&r"(cd0), [as0] "+&r"(as0), [bs0] "+&r"(bs0)
+              : [ab] "r"(ab), [neg_mask] "r"(neg_mask),
+                [shuffle_mask] "r"(shuffle_mask)
+              :);
+        }
+        // Store
+        v2h res0;
+        asm volatile("vfcpka.h.s %0, %1, %2;"
+                     : "=&r"(res0)
+                     : "r"(as0), "r"(bs0)
+                     :);
+        if (zf == 0) {
+          asm volatile("and     %0, %0, %1;" : "+&r"(res0) : "r"(0x0000FFFF));
+          asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(pS[2 * i]));
+        }
+        // Store
+        uint32_t addr = folded ? 2 * (i * N_BANKS + j) : 2 * (i * n_tx + j);
+        (*(v2h *)&pG[addr]) = res0;
       }
-      // Store
-      v2h res0;
-      asm volatile("vfcpka.h.s %0, %1, %2;"
-                   : "=&r"(res0)
-                   : "r"(as0), "r"(bs0)
-                   :);
-      if (zf == 0) {
-        asm volatile("and     %0, %0, %1;" : "+&r"(res0) : "r"(0x0000FFFF));
-        asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(pS[2 * i]));
-      }
-      // Store
-      uint32_t addr = folded ? 2 * (i * N_BANKS + j) : 2 * (i * n_tx + j);
-      (*(v2h *)&pG[addr]) = res0;
 
     } else {
       // UNROLL_4

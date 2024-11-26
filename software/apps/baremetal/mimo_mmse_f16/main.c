@@ -19,8 +19,10 @@
 
 #include "data_mimo_mmse_f16.h"
 #define ZF (0)   // When asserted use zero-forcing
-#define FOLD (0) // When asserted fold matrices in memory
+#define FOLD (1) // When asserted fold matrices in memory
 #define NUM_BANKS (BANKING_FACTOR * NUM_CORES)
+#define PARALLEL
+#define VEC
 
 /**********************************************************
  **********************************************************
@@ -37,6 +39,8 @@
 
 #if FOLD
 #define NUM_ROW (1 + ((N_ITR * N_TX - 1) / NUM_BANKS))
+#define NUM_COL (NUM_BANKS / N_TX)
+
 __fp16 l1_G[2 * N_TX * NUM_BANKS * NUM_ROW]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_L[2 * N_TX * NUM_BANKS * NUM_ROW]
@@ -68,6 +72,7 @@ int main() {
 #ifndef BANSHEE
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id); // Initialize barrier and synchronize
+  uint32_t time_init, time_end;
 #endif
 
   /* Initialize matrices */
@@ -97,6 +102,7 @@ int main() {
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
+    time_init = mempool_get_timer();
     for (uint32_t itr = 0; itr < N_ITR; itr++) {
       __fp16 *PtrH = l1_H + itr * (2 * N_TX * N_RX);
       __fp16 *Ptry = l1_y + itr * (2 * N_RX);
@@ -107,24 +113,25 @@ int main() {
       __fp16 *Ptry3 = y3 + itr * (2 * N_TX);
       __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
 #ifdef VEC
-      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, FOLD, ZF);
+      mempool_hermitian_f16vecs(PtrH, PtrG, PtrS, N_RX, N_TX, ZF, FOLD);
       mempool_MVP_conjtransp_f16vecs(PtrH, Ptry, Ptry2, N_RX, N_TX);
       mempool_cholesky_f16vecs(PtrG, PtrL, N_TX, 0);
 #else
-      mempool_hermitian_f16s(PtrH, PtrG, PtrS, N_RX, N_TX, FOLD, ZF);
+      mempool_hermitian_f16s(PtrH, PtrG, PtrS, N_RX, N_TX, ZF, FOLD);
       mempool_MVP_conjtransp_f16s(PtrH, Ptry, Ptry2, N_RX, N_TX);
       mempool_cholesky_f16s(PtrG, PtrL, N_TX, 0);
 #endif
       mempool_Ltrisol_f16s(PtrL, Ptry2, Ptry3, N_TX, 0, FOLD);
       mempool_Ltrisol_f16s(PtrL, Ptry3, Ptrx, N_TX, 1, FOLD);
     }
+    time_end = mempool_get_timer();
     mempool_stop_benchmark();
   }
 #endif
 
 #ifdef PARALLEL
   mempool_start_benchmark();
-  uint32_t time_init = mempool_get_timer();
+  time_init = mempool_get_timer();
   // Parallel subcarrier loop
   for (uint32_t itr = core_id; itr < N_ITR; itr += num_cores) {
 
@@ -133,14 +140,14 @@ int main() {
     __fp16 *PtrS = l1_S + itr * (2 * N_TX);
     // Auxiliary vectors
 #if FOLD
-    __fp16 *PtrG = l1_G + (itr % NUM_ROW) * (2 * N_TX * NUM_BANKS) +
-                   (itr / NUM_ROW) * (2 * N_TX);
-    __fp16 *PtrL = l1_L + (itr % NUM_ROW) * (2 * N_TX * NUM_BANKS) +
-                   (itr / NUM_ROW) * (2 * N_TX);
+    __fp16 *PtrG = l1_G + (itr / NUM_COL) * (2 * N_TX * NUM_BANKS) +
+                   (itr % NUM_COL) * (2 * N_TX);
+    __fp16 *PtrL = l1_L + (itr / NUM_COL) * (2 * N_TX * NUM_BANKS) +
+                   (itr % NUM_COL) * (2 * N_TX);
     __fp16 *Ptry2 =
-        y2 + (itr % NUM_ROW) * NUM_BANKS + (itr / NUM_ROW) * (2 * N_TX);
+        y2 + (itr / NUM_COL) * (2 * NUM_BANKS) + (itr % NUM_COL) * (2 * N_TX);
     __fp16 *Ptry3 =
-        y3 + (itr % NUM_ROW) * NUM_BANKS + (itr / NUM_ROW) * (2 * N_TX);
+        y3 + (itr / NUM_COL) * (2 * NUM_BANKS) + (itr % NUM_COL) * (2 * N_TX);
     __fp16 *Ptrx = l1_x + itr * (2 * N_TX);
 #else
     __fp16 *PtrG = l1_G + itr * (2 * N_TX * N_TX);
@@ -163,7 +170,7 @@ int main() {
     mempool_Ltrisol_f16s(PtrL, Ptry3, Ptrx, N_TX, 1, FOLD);
   }
   mempool_barrier(num_cores);
-  uint32_t time_end = mempool_get_timer();
+  time_end = mempool_get_timer();
   mempool_stop_benchmark();
 #endif
 
@@ -179,6 +186,7 @@ int main() {
   if (core_id == 0) {
     printf("Runtime: %d\n", time_end - time_init);
   }
+  mempool_check_f16(l1_x, l2_x, 2 * N_RX * N_TX, 0.01f, 0);
   mempool_barrier(num_cores);
 #endif
 

@@ -20,8 +20,8 @@
 #define BINARY_REDUCTION
 
 // Vectors for kernel computation
-float l1_A[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-float l1_B[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+float l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+float l1_Y[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 uint32_t red_barrier[NUM_BANKS]
     __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 float sum[NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
@@ -38,8 +38,8 @@ int main() {
   time_init = 0;
   time_end = 0;
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_A, l2_A, LEN * sizeof(int32_t));
-    dma_memcpy_blocking(l1_B, l2_B, LEN * sizeof(int32_t));
+    dma_memcpy_blocking(l1_X, l2_X, array_N * sizeof(int32_t));
+    dma_memcpy_blocking(l1_Y, l2_Y, array_N * sizeof(int32_t));
   }
   for (uint32_t k = core_id; k < NUM_BANKS; k += num_cores) {
     sum[k] = 0;
@@ -49,17 +49,17 @@ int main() {
 
   //    // SINGLE-CORE
   //    time_init = mempool_get_timer();
-  //    dotp_f32s_unrolled4(l1_A, l1_B, sum, LEN);
+  //    dotp_f32s_unrolled4(l1_A, l1_B, sum, array_N);
   //    time_end = mempool_get_timer();
 
   //   // PARALLEL
   //   time_init = mempool_get_timer();
-  //   dotp_f32p(l1_A, l1_B, sum, LEN, num_cores);
+  //   dotp_f32p(l1_A, l1_B, sum, array_N, num_cores);
   //   time_end = mempool_get_timer();
 
   // PARALLEL, LOCAL ACCESSES
   time_init = mempool_get_timer();
-  dotp_f32p_local_unrolled4(l1_A, l1_B, sum, LEN);
+  dotp_f32p_local_unrolled4(l1_X, l1_Y, sum, array_N);
   time_end = mempool_get_timer();
 
   // Check results
@@ -68,7 +68,7 @@ int main() {
     uint32_t clock_cycles = (time_end - time_init);
     printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
     printf("Result ==> %d\n", sum[0]);
-    printf("Check  ==> %d\n\n", l2_C);
+    printf("Check  ==> %d\n\n", l2_Z);
   }
   mempool_barrier(num_cores);
 

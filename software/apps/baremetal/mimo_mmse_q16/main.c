@@ -28,7 +28,7 @@ int16_t l1_L[2 * N_TX * N_TX * N_ITR]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),
                    section(".l1_prio")));
 
-int16_t l1_Sigma[2 * N_TX * N_ITR]
+int16_t l1_S[2 * N_TX * N_ITR]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 int16_t l1_y[2 * N_RX * N_ITR]
     __attribute__((aligned(sizeof(int32_t)), section(".l1")));
@@ -50,7 +50,7 @@ int main() {
   if (core_id == 0) {
     dma_memcpy_blocking(l1_H, l2_H, N_TX * N_RX * N_ITR * sizeof(int32_t));
     dma_memcpy_blocking(l1_y, l2_y, N_RX * N_ITR * sizeof(int32_t));
-    dma_memcpy_blocking(l1_Sigma, l2_Sigma, N_TX * N_ITR * sizeof(int32_t));
+    dma_memcpy_blocking(l1_S, l2_S, N_TX * N_ITR * sizeof(int32_t));
   }
   mempool_barrier(num_cores);
 
@@ -79,7 +79,7 @@ int main() {
 
     int16_t *PtrH = l1_H + itr * (2 * N_TX * N_RX);
     int16_t *Ptry = l1_y + itr * (2 * N_RX);
-    int16_t *PtrSigma = l1_Sigma + itr * (2 * N_TX);
+    int16_t *PtrSigma = l1_S + itr * (2 * N_TX);
 
     int16_t *PtrG = l1_G + itr * (2 * N_TX * N_TX);
     int16_t *PtrL = l1_L + itr * (2 * N_TX * N_TX);

@@ -19,14 +19,19 @@
 
 /* CFFT data libraries */
 #include "data_cfft_radix4_f16.h"
+#define N_BANKS (NUM_CORES * BANKING_FACTOR)
+#define MAX_COL (N_BANKS / (N_CSAMPLES / 4))
 
 /* CHOOSE ONE */
-//#define PARALLEL // Parallel FFT not "memory-aware".
-//#define FOLDED // Parallel FFT with "memory-aware" load/store.
-#define SCHEDULED // Folded FFTs arranged in rows and cols.'''
+#define PARALLEL // Parallel FFT not "memory-aware".
+// #define FOLDED // Parallel FFT with "memory-aware" load/store.
+//#define SCHEDULED // Folded FFTs arranged in rows and cols.'''
 
 // Bitreversal index from table.
 #define BITREVERSETABLE
+// Also the twiddles have "memory-aware" load/stores.
+// #define FOLDED_TWIDDLES
+
 // Independent FFTs scheduled on one row (default 1).
 #define N_FFTs_ROW 1
 // Independent FFTs scheduled on columns (default 1).
@@ -34,8 +39,6 @@
 #if (N_FFTs_COL > MAX_COL)
 #error Parallelization not supporting N_FFTs_COL > [N_BANKS / (N_CSAMPLES / 4)]
 #endif
-// Also the twiddles have "memory-aware" load/stores.
-#define FOLDED_TWIDDLES
 
 #include "baremetal/mempool_cfft_q16_bitreversal.h"
 #include "baremetal/mempool_checks.h"
@@ -47,9 +50,9 @@ __fp16 l1_pSrc[2 * N_CSAMPLES]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_pDst[2 * N_CSAMPLES]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_twiddleCoef_f16_src[2 * 3 * N_CSAMPLES / 4]
+__fp16 l1_twiddleCoef_f16_src[2 * N_TWIDDLES]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_twiddleCoef_f16_dst[2 * 3 * N_CSAMPLES / 4]
+__fp16 l1_twiddleCoef_f16_dst[2 * N_TWIDDLES]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -80,7 +83,7 @@ int main() {
   if (core_id == 0) {
     dma_memcpy_blocking(l1_pSrc, l2_pSrc, N_CSAMPLES * sizeof(int32_t));
     dma_memcpy_blocking(l1_twiddleCoef_f16_src, l2_twiddleCoef_f16,
-                        3 * (N_CSAMPLES / 4) * sizeof(int32_t));
+                        N_TWIDDLES * sizeof(int32_t));
     dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
                         BITREVINDEXTABLE_LENGTH * sizeof(int16_t));
     printf("01: END INITIALIZATION\n");
@@ -97,6 +100,8 @@ int main() {
                             l2_pSrc, N_CSAMPLES * sizeof(int32_t));
       }
     }
+    dma_memcpy_blocking(l1_twiddleCoef_f16_src, l2_twiddleCoef_f16,
+                        N_TWIDDLES * sizeof(int32_t));
     dma_memcpy_blocking(l1_BitRevIndexTable, l2_BitRevIndexTable,
                         BITREVINDEXTABLE_LENGTH * sizeof(int32_t));
   }
@@ -114,13 +119,8 @@ int main() {
           *(v2h *)&l2_twiddleCoef_f16[2 * (i * 3U)];
     }
   }
-#else
-  if (core_id == 0) {
-    dma_memcpy_blocking(l1_twiddleCoef_f16_src, l2_twiddleCoef_f16,
-                        3 * (N_CSAMPLES / 4) * sizeof(int32_t));
-  }
-#endif
   mempool_barrier(num_cores);
+#endif
 
   if (core_id == 0) {
     printf("01: END INITIALIZATION\n");
@@ -132,7 +132,7 @@ int main() {
 
 #ifdef PARALLEL
   mempool_start_benchmark();
-  mempool_radix4_cfft_f16p(l1_pSrc, N_CSAMPLES, l1_twiddleCoef_f16_src, 1,
+  mempool_radix4_cfft_f16p(l1_pSrc, N_CSAMPLES, l1_twiddleCoef_f16_src,
                            num_cores);
   mempool_bitrevtable_q16p_xpulpimg((int16_t *)l1_pSrc, BITREVINDEXTABLE_LENGTH,
                                     l1_BitRevIndexTable, num_cores);
@@ -176,7 +176,7 @@ int main() {
     printf("02: END COMPUTATION\n");
   }
 
-  mempool_check_f16(pRes, l2_pRes, 2 * N_CSAMPLES, 0.05f, 0);
+  mempool_check_f16(pRes, l2_pRes, 2 * N_CSAMPLES, (float)TOLERANCE, 0);
   mempool_barrier(num_cores);
   return 0;
 }

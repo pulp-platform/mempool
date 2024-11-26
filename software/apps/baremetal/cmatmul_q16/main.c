@@ -17,6 +17,9 @@
 #include "data_cmatmul_q16.h"
 
 #define PARALLEL
+#define dim_M (matrix_M)
+#define dim_N (matrix_N)
+#define dim_P (matrix_P)
 
 int16_t matrix_a[2 * dim_M * dim_N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -33,8 +36,8 @@ int main() {
 
   // Initialize Matrices
   if (core_id == 0) {
-    dma_memcpy_blocking(matrix_a, A, 2 * dim_M * dim_N * sizeof(int16_t));
-    dma_memcpy_blocking(matrix_b, B, 2 * dim_N * dim_P * sizeof(int16_t));
+    dma_memcpy_blocking(matrix_a, l2_A, 2 * dim_M * dim_N * sizeof(int16_t));
+    dma_memcpy_blocking(matrix_b, l2_B, 2 * dim_N * dim_P * sizeof(int16_t));
   }
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
@@ -42,7 +45,7 @@ int main() {
 #ifdef SINGLE
   if (core_id == 0) {
     mempool_start_benchmark();
-    cmatmul_2x4_q16s(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P);
+    cmatmul_2x2_q16s(matrix_a, matrix_b, matrix_c, dim_M, dim_N, dim_P);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -56,7 +59,7 @@ int main() {
   mempool_barrier(num_cores);
 #endif
 
-  mempool_check_q16(matrix_c, C, 2 * dim_M * dim_P, 16, 0);
+  mempool_check_i16(matrix_c, l2_C, 2 * dim_M * dim_P, 16, 0);
   mempool_barrier(num_cores);
 
   return 0;

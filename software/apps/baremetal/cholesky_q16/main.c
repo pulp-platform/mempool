@@ -16,9 +16,9 @@
 
 #define SINGLE
 
-int16_t l1_GIn[2 * dim_N * dim_N * N_SAMPLES]
+int16_t l1_GIn[2 * matrix_N * matrix_N * N_SAMPLES]
     __attribute__((section(".l1_prio")));
-int16_t l1_LOut[2 * dim_N * dim_N * N_SAMPLES]
+int16_t l1_LOut[2 * matrix_N * matrix_N * N_SAMPLES]
     __attribute__((section(".l1_prio")));
 
 int main() {
@@ -29,9 +29,9 @@ int main() {
   /* Initialize matrices */
   if (core_id == 0) {
     dma_memcpy_blocking(l1_GIn, l2_GIn,
-                        dim_N * dim_N * N_SAMPLES * sizeof(int32_t));
+                        matrix_N * matrix_N * N_SAMPLES * sizeof(int32_t));
     dma_memcpy_blocking(l1_LOut, l2_LOut,
-                        dim_N * dim_N * N_SAMPLES * sizeof(int32_t));
+                        matrix_N * matrix_N * N_SAMPLES * sizeof(int32_t));
   }
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
@@ -40,7 +40,7 @@ int main() {
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_cholesky_q16vecs(l1_GIn, l1_LOut, dim_N);
+    mempool_cholesky_q16vecs(l1_GIn, l1_LOut, matrix_N);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -49,15 +49,15 @@ int main() {
 #ifdef PARALLEL
   for (uint32_t i = core_id; i < N_SAMPLES; i += num_cores) {
     mempool_start_benchmark();
-    __fp16 *ptr_in_matrix = l1_GIn + i * 2 * dim_N * dim_N;
-    __fp16 *ptr_out_matrix = l1_LOut + i * 2 * dim_N * dim_N;
-    mempool_cholesky_q16s(ptr_in_matrix, ptr_out_matrix, dim_N);
+    __fp16 *ptr_in_matrix = l1_GIn + i * 2 * matrix_N * matrix_N;
+    __fp16 *ptr_out_matrix = l1_LOut + i * 2 * matrix_N * matrix_N;
+    mempool_cholesky_q16s(ptr_in_matrix, ptr_out_matrix, matrix_N);
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_q16(l1_LOut, l2_LOut, 2 * dim_N * dim_N, 16, 0);
+  mempool_check_i16(l1_LOut, l2_LOut, 2 * matrix_N * matrix_N, 16, 0);
   mempool_barrier(num_cores);
   return 0;
 }

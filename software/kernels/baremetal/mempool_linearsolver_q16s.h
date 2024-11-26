@@ -28,7 +28,7 @@ void mempool_Ltrisol_q16vecs(int16_t *pL, int16_t *y, int16_t *x,
   // Solve for each variable x[i] in loop
   for (i = 0; i < n; i++) {
     uint32_t ridx = transposed ? (n - i - 1) : i;
-    diag = pL[2U * (ridx * offset + ridx)];
+    diag = pL[2U * (ridx + ridx)];
     // Initialize the sums
     as = 0;
     bs = 0;

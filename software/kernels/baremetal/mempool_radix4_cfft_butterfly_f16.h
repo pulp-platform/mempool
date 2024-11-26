@@ -99,25 +99,22 @@ static inline void radix4_butterfly_first(__fp16 *pIn, __fp16 *pOut,
 
       // s4 = Co1 * (xa - xc + yb - yd) + Si1 * (ya - yc + xd - xb)
       // s5 = -Si1 * (xa - xc + yb - yd) + Co1 * (ya - yc + xd - xb)
-      "vfdotpex.s.h  %[s0],%[CoSi1],%[D];"
-      "vfdotpex.s.h  %[s1],%[C1],%[D];"
-
+      "vfdotpex.s.r.h  %[s0],%[CoSi1],%[D];"
+      "vfdotpex.s.r.h  %[s1],%[C1],%[D];"
       // s0 = Co2 * (xa + xc - xb - xd) + Si2 * (ya + yc - yb - yd)
       // s1 = -Si2 * (xa + xc - xb - xd) + Co2 * (ya + yc - yb - yd)
-      "vfdotpex.s.h  %[s2],%[CoSi2],%[B];"
-      "vfdotpex.s.h  %[s3],%[C2],%[B];"
-
+      "vfdotpex.s.r.h  %[s2],%[CoSi2],%[B];"
+      "vfdotpex.s.r.h  %[s3],%[C2],%[B];"
       // s3 = Co3 * (xa - xc + yd - yb) + Si3 * (ya - yc + xb - xd)
       // s4 = -Si3 * (xa - xc + yd - yb) + Co3 * (ya - yc + xb - xd)
-      "vfdotpex.s.h  %[s4],%[CoSi3],%[C];"
-      "vfdotpex.s.h  %[s5],%[C3],%[C];"
-
+      "vfdotpex.s.r.h  %[s4],%[CoSi3],%[C];"
+      "vfdotpex.s.r.h  %[s5],%[C3],%[C];"
       // xb', yb'
-      "vfcpka.h.s %[B], %[s1], %[s0];"
+      "vfcpka.h.s %[D], %[s1], %[s0];"
       // xc', yc'
-      "vfcpka.h.s %[C], %[s3], %[s2];"
+      "vfcpka.h.s %[B], %[s3], %[s2];"
       // xd', yd'
-      "vfcpka.h.s %[D], %[s5], %[s4];"
+      "vfcpka.h.s %[C], %[s5], %[s4];"
       : [A] "+&r"(A), [B] "+&r"(B), [C] "+&r"(C), [D] "+&r"(D), [E] "=&r"(E),
         [F] "=&r"(F), [G] "=&r"(G), [H] "=&r"(H), [s0] "=&r"(s0),
         [s1] "=&r"(s1), [s2] "=&r"(s2), [s3] "=&r"(s3), [s4] "=&r"(s4),
@@ -127,9 +124,9 @@ static inline void radix4_butterfly_first(__fp16 *pIn, __fp16 *pOut,
         [neg_mask] "r"(0x3C00BC00)
       :);
   *((v2h *)&pOut[i0_store * 2U]) = A;
-  *((v2h *)&pOut[i1_store * 2U]) = C;
-  *((v2h *)&pOut[i2_store * 2U]) = B;
-  *((v2h *)&pOut[i3_store * 2U]) = D;
+  *((v2h *)&pOut[i1_store * 2U]) = B;
+  *((v2h *)&pOut[i2_store * 2U]) = D;
+  *((v2h *)&pOut[i3_store * 2U]) = C;
 }
 
 /**
@@ -227,18 +224,18 @@ static inline void radix4_butterfly_middle(__fp16 *pIn, __fp16 *pOut,
 
       // s4 = Co1 * (xa - xc + yb - yd) + Si1 * (ya - yc + xd - xb)
       // s5 = -Si1 * (xa - xc + yb - yd) + Co1 * (ya - yc + xd - xb)
-      "vfdotpex.s.h  %[s0],%[CoSi1],%[D];"
-      "vfdotpex.s.h  %[s1],%[C1],%[D];"
+      "vfdotpex.s.r.h  %[s0],%[CoSi1],%[D];"
+      "vfdotpex.s.r.h  %[s1],%[C1],%[D];"
 
       // s0 = Co2 * (xa + xc - xb - xd) + Si2 * (ya + yc - yb - yd)
       // s1 = -Si2 * (xa + xc - xb - xd) + Co2 * (ya + yc - yb - yd)
-      "vfdotpex.s.h  %[s2],%[CoSi2],%[B];"
-      "vfdotpex.s.h  %[s3],%[C2],%[B];"
+      "vfdotpex.s.r.h  %[s2],%[CoSi2],%[B];"
+      "vfdotpex.s.r.h  %[s3],%[C2],%[B];"
 
       // s3 = Co3 * (xa - xc + yd - yb) + Si3 * (ya - yc + xb - xd)
       // s4 = -Si3 * (xa - xc + yd - yb) + Co3 * (ya - yc + xb - xd)
-      "vfdotpex.s.h  %[s4],%[CoSi3],%[C];"
-      "vfdotpex.s.h  %[s5],%[C3],%[C];"
+      "vfdotpex.s.r.h  %[s4],%[CoSi3],%[C];"
+      "vfdotpex.s.r.h  %[s5],%[C3],%[C];"
 
       // xb', yb'
       "vfcpka.h.s %[B], %[s1], %[s0];"

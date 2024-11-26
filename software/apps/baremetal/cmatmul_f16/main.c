@@ -13,11 +13,13 @@
 #include "synchronization.h"
 
 #include "data_cmatmul_f16.h"
+#define dim_M (matrix_M)
+#define dim_N (matrix_N)
+#define dim_P (matrix_P)
 
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_cmatmul_f16.h"
-#define PARALLEL_2x4
-#define TEST
+#define PARALLEL_4x4
 
 #if defined(PARALLEL_4x4_COPIES_A)
 __fp16 matrix_a[2 * (BANKING_FACTOR * NUM_CORES)]
@@ -43,8 +45,8 @@ int main() {
 
   // Initialize Matrices
   if (core_id == 0) {
-    dma_memcpy_blocking(matrix_a, A, 2 * dim_M * dim_N * sizeof(int16_t));
-    dma_memcpy_blocking(matrix_b, B, 2 * dim_N * dim_P * sizeof(int16_t));
+    dma_memcpy_blocking(matrix_a, l2_A, 2 * dim_M * dim_N * sizeof(int16_t));
+    dma_memcpy_blocking(matrix_b, l2_B, 2 * dim_N * dim_P * sizeof(int16_t));
   }
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
@@ -104,10 +106,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-#if defined(TEST)
-  mempool_check_f16(matrix_c, C, 2 * dim_M * dim_P, 0.1f, 0);
+  mempool_check_f16(matrix_c, l2_C, 10, 0.1f, 0);
   mempool_barrier(num_cores);
-#endif
-
   return 0;
 }
