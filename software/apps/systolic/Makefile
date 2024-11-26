@@ -14,8 +14,6 @@ RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 include $(RUNTIME_DIR)/runtime.mk
 
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
-DATA := $(patsubst %.args,%.h,$(shell find $(APPS_DIR) -name "data.args"))
-ALLPYS := $(patsubst %.py,%.h,$(wildcard $(DATA_DIR)/*.py))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 
 # Define the rule to build all applications
@@ -26,7 +24,7 @@ $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S
 # Check if the config is set to systolic
 ifeq ($(config),systolic)
 .PHONY: $(BINARIES)
-$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) $(DATA) $(ALLPYS) update_opcodes
+$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) data_%.h update_opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump

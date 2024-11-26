@@ -172,11 +172,8 @@ OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
 %.ld: %.ld.c
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
-%.h: %.args
-	cat $< | xargs $(python) $(MEMPOOL_DIR)/scripts/gen_data.py --clangformat=$(LLVM_INSTALL_DIR)/bin/clang-format -o $@
-
-%.h: %.py
-	$(python) $<
+data_%.h: $(DATA_DIR)/gendata_params.hjson
+	$(python) $(DATA_DIR)/gendata_header.py --app_name $* --params $(DATA_DIR)/gendata_params.hjson
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)

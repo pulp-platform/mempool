@@ -19,6 +19,7 @@
 #include "synchronization.h"
 
 #include "data_cfft_radix2_q16.h"
+#define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 /* CFFT mempool libraries */
 #include "baremetal/mempool_cfft_q16_bitreversal.h"
@@ -69,7 +70,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_q16(l1_pSrc, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
+  mempool_check_i16(l1_pSrc, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
   mempool_barrier(num_cores);
   return 0;
 }
