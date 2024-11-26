@@ -135,6 +135,9 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n,
         asm volatile("fccdotpex.s.h  %0, %1, %2;"
                      : "+&r"(asbs)
                      : "r"(cd), "r"(ab));
+        //        asm volatile("fcndotpex.s.h  %0, %1, %2;"
+        //                     : "+&r"(asbs)
+        //                     : "r"(cd), "r"(ab));
       }
       asm volatile("pv.shuffle2.h %0, %0, %[mask];"
                    : "+&r"(asbs)

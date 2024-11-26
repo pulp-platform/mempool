@@ -127,8 +127,7 @@ void mempool_hermitian_f32s(float *pH, float *pG, float *pS,
   @return        none
 */
 void mempool_MVP_conjtransp_f32s(float *pH, float *px, float *py,
-                                 const uint32_t n_rx, const uint32_t n_tx,
-                                 const uint32_t folded) {
+                                 const uint32_t n_rx, const uint32_t n_tx) {
 
   uint32_t i, j;
   float a0, a1, a2, a3;

@@ -60,14 +60,14 @@
 #endif
 
 void mempool_radix4_cfft_f16p(__fp16 *pSrc16, uint32_t fftLen,
-                              const __fp16 *pCoef16, uint32_t twidCoefModifier,
-                              uint32_t nPE) {
+                              const __fp16 *pCoef16, uint32_t nPE) {
   uint32_t absolute_core_id = mempool_get_core_id();
   uint32_t core_id = absolute_core_id % nPE;
   __fp16 t0, t1, t2, t3, t4, t5;
   v2h CoSi1, CoSi2, CoSi3;
   v2h C1, C2, C3;
   uint32_t n1, n2, ic, i0, j, k;
+  uint32_t twidCoefModifier = 1;
   uint32_t step, steps;
 
   /* START OF FIRST STAGE PROCESSING */
@@ -165,17 +165,17 @@ void mempool_radix4_cfft_f16p_folded(__fp16 *pSrc16, __fp16 *pDst16,
   uint32_t n1, n2;
   uint32_t i0, k, ic;
   __fp16 *pTmp;
-  uint32_t twidCoefModifier = 1U;
+  uint32_t twidCoefModifier = 1;
 #endif
 
   /* START OF FIRST STAGE PROCESSING */
   n1 = fftLen;
-  n2 = n1 >> 2U;
+  n2 = n1 >> 2;
   for (i0 = core_id * 4; i0 < MIN(core_id * 4 + 4, n2); i0++) {
 #ifdef FOLDED_TWIDDLES
     ic = i0;
-    ic_store = ic >> 2U;
-    n2_store = n2 >> 2U;
+    ic_store = ic >> 2;
+    n2_store = n2 >> 2;
 #else
     ic = i0;
 #endif
@@ -192,22 +192,22 @@ void mempool_radix4_cfft_f16p_folded(__fp16 *pSrc16, __fp16 *pDst16,
   pCoef_src = pCoef_dst;
   pCoef_dst = pTmp;
 #else
-  twidCoefModifier <<= 2U;
+  twidCoefModifier <<= 2;
 #endif
   mempool_log_partial_barrier(2, absolute_core_id, nPE);
   /* END OF FIRST STAGE PROCESSING */
 
   /* START OF MIDDLE STAGE PROCESSING */
-  for (k = fftLen / 4U; k > 4U; k >>= 2U) {
+  for (k = fftLen / 4U; k > 4; k >>= 2) {
     n1 = n2;
-    n2 >>= 2U;
+    n2 >>= 2;
     for (i0 = core_id * 4; i0 < core_id * 4 + 4; i0++) {
 #ifdef FOLDED_TWIDDLES
       ic = i0;
       // (ic % n2) / 4 take only every 4th index in the wing
       // (ic / n2) * n2 shift of the wing size
       ic_store = ((ic % n2) >> 2) + (ic / n2) * n2;
-      n2_store = n2 >> 2U;
+      n2_store = n2 >> 2;
 #else
       ic = (i0 % n2) * twidCoefModifier;
 #endif
@@ -224,7 +224,7 @@ void mempool_radix4_cfft_f16p_folded(__fp16 *pSrc16, __fp16 *pDst16,
     pCoef_src = pCoef_dst;
     pCoef_dst = pTmp;
 #else
-    twidCoefModifier <<= 2U;
+    twidCoefModifier <<= 2;
 #endif
     mempool_log_partial_barrier(2, absolute_core_id, nPE);
   }

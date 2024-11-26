@@ -17,7 +17,8 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "data_ofdm.h"
+#include "data_ofdm_f16.h"
+#define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 // CFFT Parameters
 #define SCHEDULED

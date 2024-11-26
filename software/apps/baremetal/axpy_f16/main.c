@@ -18,8 +18,8 @@
 #define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
 
 // Vectors for kernel computation
-__fp16 l1_X[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-__fp16 l1_Y[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+__fp16 l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+__fp16 l1_Y[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
 #include "baremetal/mempool_axpy_f16.h"
 #include "baremetal/mempool_checks.h"
@@ -34,16 +34,16 @@ int main() {
   time_init = 0;
   time_end = 0;
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_X, l2_X, LEN * sizeof(int16_t));
-    dma_memcpy_blocking(l1_Y, l2_Y, LEN * sizeof(int16_t));
+    dma_memcpy_blocking(l1_X, l2_X, array_N * sizeof(int16_t));
+    dma_memcpy_blocking(l1_Y, l2_Y, array_N * sizeof(int16_t));
   }
-  uint32_t register volatile a = *(uint32_t *)&(A)&0x0000FFFF;
+  uint32_t register volatile a = *(uint32_t *)&(l2_A)&0x0000FFFF;
   mempool_barrier(num_cores);
 
   // PARALLEL, LOCAL ACCESSES
   time_init = mempool_get_timer();
   mempool_start_benchmark();
-  axpy_f16vecp_local_unrolled4(a, l1_X, l1_Y, LEN);
+  axpy_f16vecp_local_unrolled4(a, l1_X, l1_Y, array_N);
   mempool_stop_benchmark();
   time_end = mempool_get_timer();
 
@@ -53,7 +53,7 @@ int main() {
     uint32_t clock_cycles = (time_end - time_init);
     printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
   }
-  mempool_check_f16(l1_Y, l2_out, 100, 0.1f, 0);
+  mempool_check_f16(l1_Y, l2_Z, 100, 0.1f, 0);
   mempool_barrier(num_cores);
 
   return 0;

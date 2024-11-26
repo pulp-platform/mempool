@@ -21,6 +21,8 @@
 #define ZF (0)   // When asserted use zero-forcing
 #define FOLD (0) // When asserted fold matrixes in memory
 #define NUM_BANKS (BANKING_FACTOR * NUM_CORES)
+#define PARALLEL
+#define VEC
 
 #if FOLD
 

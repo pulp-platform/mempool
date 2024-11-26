@@ -18,8 +18,8 @@
 #define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
 
 // Vectors for kernel computation
-float l1_X[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-float l1_Y[LEN] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+float l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+float l1_Y[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
 #include "baremetal/mempool_axpy_f32.h"
 #include "baremetal/mempool_checks.h"
@@ -34,10 +34,10 @@ int main() {
   time_init = 0;
   time_end = 0;
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_X, l2_X, LEN * sizeof(int32_t));
-    dma_memcpy_blocking(l1_Y, l2_Y, LEN * sizeof(int32_t));
+    dma_memcpy_blocking(l1_X, l2_X, array_N * sizeof(int32_t));
+    dma_memcpy_blocking(l1_Y, l2_Y, array_N * sizeof(int32_t));
   }
-  float register volatile a = A;
+  float register volatile a = l2_A;
   mempool_barrier(num_cores);
 
   // PARALLEL
@@ -52,7 +52,7 @@ int main() {
     uint32_t clock_cycles = (time_end - time_init);
     printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
   }
-  mempool_check_f32(l1_Y, l2_out, 100, 0.1f, 0);
+  mempool_check_f32(l1_Y, l2_Z, 100, 0.1f, 0);
   mempool_barrier(num_cores);
 
   return 0;

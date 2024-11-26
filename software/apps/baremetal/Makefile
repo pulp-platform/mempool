@@ -24,7 +24,7 @@ FP_APPS := axpy_f16 axpy_f32
 FP_APPS += cfft_radix4_f16 chest_f16 cholesky_f16
 FP_APPS += cmatmul_f16 matmul_f16 matmul_f32
 FP_APPS += dotp_f16 dotp_f32
-FP_APPS += mimo_mmse_f32 mimo_mmse_f16 ofdm
+FP_APPS += mimo_mmse_f32 mimo_mmse_f16 mimo_mmse_f8 ofdm_f16
 
 I_APPS := synth_i32
 I_APPS += cfft_radix2_q16 cfft_radix4_q16 chest_q16 cholesky_q16 cholesky_q32

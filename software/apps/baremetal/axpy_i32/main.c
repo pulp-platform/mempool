@@ -16,7 +16,7 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "baremetal/mempool_axpy_i32p.h"
+#include "baremetal/mempool_axpy_i32.h"
 #include "baremetal/mempool_checks.h"
 #include "data_axpy_i32.h"
 
@@ -38,11 +38,12 @@ int main() {
     dma_memcpy_blocking(l1_Y, l2_Y, array_N * sizeof(int32_t));
     error = 0;
   }
+  register volatile int32_t a = l2_A;
   mempool_barrier(num_cores);
 
   // Benchmark
   mempool_start_benchmark();
-  calc_axpy_unloop_x4_localbank(l1_X, l1_Y, ALPHA, array_N, core_id, num_cores);
+  calc_axpy_unloop_x4_localbank(l1_X, l1_Y, a, array_N, core_id, num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
