@@ -379,6 +379,60 @@ end : gen_router_router_connection_i
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_router_router_j
 
+  `ifdef TORUS
+    import routing_table_pkg::*;
+
+    group_xy_id_t group_id;
+    assign group_id = group_xy_id_t'(group_id_i);
+
+    floo_router #(
+      .NumRoutes        (mempool_pkg::NumDirections),
+      .NumVirtChannels  (1            ),
+      .flit_t           (floo_req_t   ),
+      .ChannelFifoDepth (2            ), // Input buffer depth
+      .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .RouteAlgo        (IdTable      ),
+      .id_t             (group_id_t   ),
+      .NumAddrRules     (NumGroups    ),
+      .addr_rule_t      (routing_rule_t)
+    ) i_floo_req_router (
+      .clk_i,
+      .rst_ni,
+      .test_enable_i  (1'b0                                                            ),
+      .xy_id_i        (group_id_i                                                      ),
+      .id_route_map_i (RoutingTables[group_id.x][group_id.y]   ),
+      .valid_i        ({floo_req_valid_i_trans[i][j], tcdm_master_req_valid[i][j]}                 ),
+      .ready_o        ({floo_req_ready_o_trans[i][j], tcdm_master_req_ready[i][j]}                 ),
+      .data_i         ({floo_req_i_trans[i][j],       floo_req_to_router[i][j]}                    ),
+      .valid_o        ({floo_req_valid_o_trans[i][j], floo_req_from_router_before_xbar_valid[i][j]}),
+      .ready_i        ({floo_req_ready_i_trans[i][j], floo_req_from_router_before_xbar_ready[i][j]}),
+      .data_o         ({floo_req_o_trans[i][j],       floo_req_from_router[i][j]}                  )
+    );
+
+    floo_router #(
+      .NumRoutes       (mempool_pkg::NumDirections),
+      .NumVirtChannels (1            ),
+      .flit_t          (floo_resp_t  ),
+      .ChannelFifoDepth(2            ), // Input buffer depth
+      .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .RouteAlgo       (IdTable      ),
+      .id_t            (group_id_t   ),
+      .NumAddrRules    (NumGroups    ),
+      .addr_rule_t      (routing_rule_t)
+    ) i_floo_resp_router (
+      .clk_i,
+      .rst_ni,
+      .test_enable_i  (1'b0                                                              ),
+      .xy_id_i        (group_id_i                                                        ),
+      .id_route_map_i (RoutingTables[group_id.x][group_id.y]   ),
+      .valid_i        ({floo_resp_valid_i_trans[i][j], tcdm_slave_resp_valid[i][j]}                  ),
+      .ready_o        ({floo_resp_ready_o_trans[i][j], tcdm_slave_resp_ready[i][j]}                  ),
+      .data_i         ({floo_resp_i_trans[i][j],       floo_resp_to_router[i][j]}                    ),
+      .valid_o        ({floo_resp_valid_o_trans[i][j], floo_resp_from_router_before_xbar_valid[i][j]}),
+      .ready_i        ({floo_resp_ready_i_trans[i][j], floo_resp_from_router_before_xbar_ready[i][j]}),
+      .data_o         ({floo_resp_o_trans[i][j],       floo_resp_from_router[i][j]}                  )
+    );
+  `else
     floo_router #(
       .NumRoutes        (mempool_pkg::NumDirections),
       .NumVirtChannels  (1            ),
@@ -424,6 +478,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .ready_i        ({floo_resp_ready_i_trans[i][j], floo_resp_from_router_before_xbar_ready[i][j]}),
       .data_o         ({floo_resp_o_trans[i][j],       floo_resp_from_router[i][j]}                  )
     );
+  `endif
 
   end : gen_router_router_j
 end : gen_router_router_i

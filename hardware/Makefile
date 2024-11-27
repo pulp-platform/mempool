@@ -124,6 +124,9 @@ vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr)
 vlog_defs += -DNUM_REMOTE_PORTS_PER_TILE=$(num_remote_ports_per_tile)
 vlog_defs += -DNUM_DIRECTIONS=$(num_directions)
 vlog_defs += -DNUM_X=$(num_x)
+ifeq ($(topology),torus)
+	vlog_defs += -DTORUS
+endif
 # Snitch ISA
 vlog_defs += -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DZFINX=$(zfinx)

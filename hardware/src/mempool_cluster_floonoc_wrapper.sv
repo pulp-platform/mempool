@@ -163,12 +163,21 @@ module mempool_cluster_floonoc_wrapper
       // TODO: Add support for Torus Topology
       if (x == 0) begin
         // West
+      `ifdef TORUS
+        assign floo_req_in[x][y][West]           = floo_req_out[NumX-1][y][East];
+        assign floo_req_in_valid[x][y][West]     = floo_req_out_valid[NumX-1][y][East];
+        assign floo_req_in_ready[x][y][West]     = floo_req_out_ready[NumX-1][y][East];
+        assign floo_resp_in[x][y][West]          = floo_resp_out[NumX-1][y][East];
+        assign floo_resp_in_valid[x][y][West]    = floo_resp_out_valid[NumX-1][y][East];
+        assign floo_resp_in_ready[x][y][West]    = floo_resp_out_ready[NumX-1][y][East];
+      `else
         assign floo_req_in[x][y][West]           = '0;
         assign floo_req_in_valid[x][y][West]     = '0;
         assign floo_req_in_ready[x][y][West]     = '0;
         assign floo_resp_in[x][y][West]          = '0;
         assign floo_resp_in_valid[x][y][West]    = '0;
         assign floo_resp_in_ready[x][y][West]    = '0;
+      `endif
         // East
         assign floo_req_in[x][y][East]           = floo_req_out[x+1][y][West];
         assign floo_req_in_valid[x][y][East]     = floo_req_out_valid[x+1][y][West];
@@ -179,12 +188,21 @@ module mempool_cluster_floonoc_wrapper
       end
       else if (x == NumX-1) begin
         // East
+      `ifdef TORUS
+        assign floo_req_in[x][y][East]           = floo_req_out[0][y][West];
+        assign floo_req_in_valid[x][y][East]     = floo_req_out_valid[0][y][West];
+        assign floo_req_in_ready[x][y][East]     = floo_req_out_ready[0][y][West];
+        assign floo_resp_in[x][y][East]          = floo_resp_out[0][y][West];
+        assign floo_resp_in_valid[x][y][East]    = floo_resp_out_valid[0][y][West];
+        assign floo_resp_in_ready[x][y][East]    = floo_resp_out_ready[0][y][West];
+      `else
         assign floo_req_in[x][y][East]           = '0;
         assign floo_req_in_valid[x][y][East]     = '0;
         assign floo_req_in_ready[x][y][East]     = '0;
         assign floo_resp_in[x][y][East]          = '0;
         assign floo_resp_in_valid[x][y][East]    = '0;
         assign floo_resp_in_ready[x][y][East]    = '0;
+      `endif
         // West
         assign floo_req_in[x][y][West]           = floo_req_out[x-1][y][East];
         assign floo_req_in_valid[x][y][West]     = floo_req_out_valid[x-1][y][East];
@@ -212,12 +230,21 @@ module mempool_cluster_floonoc_wrapper
 
       if (y == 0) begin
         // South
+      `ifdef TORUS
+        assign floo_req_in[x][y][South]          = floo_req_out[x][NumY-1][North];
+        assign floo_req_in_valid[x][y][South]    = floo_req_out_valid[x][NumY-1][North];
+        assign floo_req_in_ready[x][y][South]    = floo_req_out_ready[x][NumY-1][North];
+        assign floo_resp_in[x][y][South]         = floo_resp_out[x][NumY-1][North];
+        assign floo_resp_in_valid[x][y][South]   = floo_resp_out_valid[x][NumY-1][North];
+        assign floo_resp_in_ready[x][y][South]   = floo_resp_out_ready[x][NumY-1][North];
+      `else
         assign floo_req_in[x][y][South]          = '0;
         assign floo_req_in_valid[x][y][South]    = '0;
         assign floo_req_in_ready[x][y][South]    = '0;
         assign floo_resp_in[x][y][South]         = '0;
         assign floo_resp_in_valid[x][y][South]   = '0;
         assign floo_resp_in_ready[x][y][South]   = '0;
+      `endif
         // North
         assign floo_req_in[x][y][North]          = floo_req_out[x][y+1][South];
         assign floo_req_in_valid[x][y][North]    = floo_req_out_valid[x][y+1][South];
@@ -228,12 +255,21 @@ module mempool_cluster_floonoc_wrapper
       end
       else if (y == NumY-1) begin
         // North
+      `ifdef TORUS
+        assign floo_req_in[x][y][North]          = floo_req_out[x][0][South];
+        assign floo_req_in_valid[x][y][North]    = floo_req_out_valid[x][0][South];
+        assign floo_req_in_ready[x][y][North]    = floo_req_out_ready[x][0][South];
+        assign floo_resp_in[x][y][North]         = floo_resp_out[x][0][South];
+        assign floo_resp_in_valid[x][y][North]   = floo_resp_out_valid[x][0][South];
+        assign floo_resp_in_ready[x][y][North]   = floo_resp_out_ready[x][0][South];
+      `else
         assign floo_req_in[x][y][North]          = '0;
         assign floo_req_in_valid[x][y][North]    = '0;
         assign floo_req_in_ready[x][y][North]    = '0;
         assign floo_resp_in[x][y][North]         = '0;
         assign floo_resp_in_valid[x][y][North]   = '0;
         assign floo_resp_in_ready[x][y][North]   = '0;
+      `endif
         // South
         assign floo_req_in[x][y][South]          = floo_req_out[x][y-1][North];
         assign floo_req_in_valid[x][y][South]    = floo_req_out_valid[x][y-1][North];
