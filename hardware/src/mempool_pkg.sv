@@ -344,6 +344,7 @@ package mempool_pkg;
     tile_core_id_t      core_id;
     tile_group_id_t     tile_id;
     group_xy_id_t       dst_id;
+    group_xy_id_t       src_id;
     logic               last;
   } floo_tcdm_resp_meta_t;
 

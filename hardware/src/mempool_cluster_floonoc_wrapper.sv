@@ -172,7 +172,7 @@ module mempool_cluster_floonoc_wrapper
   for (genvar x = 0; x < NumX; x++) begin : gen_groups_x
     for (genvar y = 0; y < NumY; y++) begin : gen_groups_y
       group_xy_id_t group_id;
-      assign group_id = '{x:x, y:y};
+      assign group_id = '{x:x, y:y, port_id:1'b0};
 
       // TODO: Add support for Torus Topology
       if (x == 0) begin : gen_hbm_chimney_west
@@ -683,7 +683,7 @@ module mempool_cluster_floonoc_wrapper
         .scan_enable_i           (scan_enable_i                                               ),
         .scan_data_i             (/* Unconnected */                                           ),
         .scan_data_o             (/* Unconnected */                                           ),
-        .group_id_i              (group_id_t'(group_id)                                       ),
+        .group_id_i              (group_id_t'({group_id.x, group_id.y})                       ),
         .floo_id_i               (id_t'(GroupNi00 + x*NumY +y)                                ),
         .route_table_i           (floo_terapool_noc_pkg::RoutingTables[GroupNi00 + x*NumY +y] ),
         // TCDM Master interfaces
