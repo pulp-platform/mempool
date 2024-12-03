@@ -17,7 +17,7 @@
 
 // Size in words
 #ifndef SIZE
-#define SIZE (2048)
+#define SIZE (16384)
 #endif
 
 #define DMA_ADDRESS (0x40010000)
@@ -103,8 +103,9 @@ int main() {
 // Verify
 #ifdef VERIFY
   if (core_id == 0) {
-    verify_dma_parallel(l2_data_move_out, SIZE, core_id, num_cores, l2_data,
-                        error);
+    // verify_dma_parallel(l2_data_move_out, SIZE, core_id, num_cores, l2_data,
+    //                     error);
+    verify_dma_single_core(l2_data_move_out, SIZE, l2_data, error);
   }
   // wait until all cores have finished
   mempool_barrier(num_cores);
