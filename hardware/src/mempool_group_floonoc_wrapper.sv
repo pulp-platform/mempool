@@ -113,10 +113,55 @@ mempool_group #(
 // Instantiate the floo_tcdm_router for each tile
 floo_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router,  floo_req_from_router;
 floo_resp_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_to_router, floo_resp_from_router;
+logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router_valid;
+logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router_ready;
 
 // ------------------------------------------------------------------ //
 // Remapping: From MemPool "Master Request" to FlooNoC "TCDM request" //
 // ------------------------------------------------------------------ //
+`ifdef REQ_REMAPPING
+
+floo_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_remapper;
+
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_remapper_req_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_master_req_to_remapper_req_j
+    assign floo_req_to_remapper[i][j] = floo_req_t'{
+      payload: floo_req_payload_t'{
+        amo : tcdm_master_req[i][j].wdata.amo,
+        wen : tcdm_master_req[i][j].wen,
+        be  : tcdm_master_req[i][j].be,
+        data: tcdm_master_req[i][j].wdata.data
+      },
+      hdr: floo_req_meta_t'{
+        meta_id : tcdm_master_req[i][j].wdata.meta_id,              // For Register File
+        core_id : tcdm_master_req[i][j].wdata.core_id,              // For Core
+        src_tile_id : i,                                            // For Crossbar when response back
+        src_id: group_xy_id_t'(group_id_i),                         // For NoC Router when response back
+        dst_id: group_xy_id_t'(tcdm_master_req[i][j].tgt_group_id), // For NoC Router when request send
+        tgt_addr: tcdm_master_req[i][j].tgt_addr,                   // For Crossbar when request send (bank rows per Group)
+        last : 1'b1                                                 // Non Burst Request
+      }
+    };
+  end : gen_master_req_to_remapper_req_j
+end : gen_master_req_to_remapper_req_i
+
+floo_req_remapper #(
+  .NumInp   (NumTilesPerGroup * (NumRemotePortsPerTile-1)),
+  .NumOut   (NumTilesPerGroup * (NumRemotePortsPerTile-1)),
+  .payload_t(floo_req_t)
+) i_floo_req_remapper (
+  .clk_i      (clk_i),
+  .rst_ni     (rst_ni),
+  .inp_data_i (floo_req_to_remapper),
+  .inp_valid_i(tcdm_master_req_valid),
+  .inp_ready_o(tcdm_master_req_ready),
+  .oup_data_o (floo_req_to_router),
+  .oup_valid_o(floo_req_to_router_valid),
+  .oup_ready_i(floo_req_to_router_ready)
+);
+
+`else
+
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_router_req_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_master_req_to_router_req_j
     assign floo_req_to_router[i][j] = floo_req_t'{
@@ -138,6 +183,11 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_router_r
     };
   end : gen_master_req_to_router_req_j
 end : gen_master_req_to_router_req_i
+
+assign floo_req_to_router_valid = tcdm_master_req_valid;
+assign tcdm_master_req_ready = floo_req_to_router_ready;
+
+`endif
 
 // ------------------------------------------------------------------ //
 // Crossbar: FlooNoC "TCDM request" input select target tile          //
@@ -401,8 +451,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .test_enable_i  (1'b0                                                            ),
       .xy_id_i        (group_id_i                                                      ),
       .id_route_map_i (RoutingTables[group_id.x][group_id.y]   ),
-      .valid_i        ({floo_req_valid_i_trans[i][j], tcdm_master_req_valid[i][j]}                 ),
-      .ready_o        ({floo_req_ready_o_trans[i][j], tcdm_master_req_ready[i][j]}                 ),
+      .valid_i        ({floo_req_valid_i_trans[i][j], floo_req_to_router_valid[i][j]}                 ),
+      .ready_o        ({floo_req_ready_o_trans[i][j], floo_req_to_router_ready[i][j]}                 ),
       .data_i         ({floo_req_i_trans[i][j],       floo_req_to_router[i][j]}                    ),
       .valid_o        ({floo_req_valid_o_trans[i][j], floo_req_from_router_before_xbar_valid[i][j]}),
       .ready_i        ({floo_req_ready_i_trans[i][j], floo_req_from_router_before_xbar_ready[i][j]}),
@@ -448,8 +498,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .test_enable_i  (1'b0                                                            ),
       .xy_id_i        (group_xy_id_t'(group_id_i)                                      ),
       .id_route_map_i ('0                                                              ),
-      .valid_i        ({floo_req_valid_i_trans[i][j], tcdm_master_req_valid[i][j]}                 ),
-      .ready_o        ({floo_req_ready_o_trans[i][j], tcdm_master_req_ready[i][j]}                 ),
+      .valid_i        ({floo_req_valid_i_trans[i][j], floo_req_to_router_valid[i][j]}                 ),
+      .ready_o        ({floo_req_ready_o_trans[i][j], floo_req_to_router_ready[i][j]}                 ),
       .data_i         ({floo_req_i_trans[i][j],       floo_req_to_router[i][j]}                    ),
       .valid_o        ({floo_req_valid_o_trans[i][j], floo_req_from_router_before_xbar_valid[i][j]}),
       .ready_i        ({floo_req_ready_i_trans[i][j], floo_req_from_router_before_xbar_ready[i][j]}),

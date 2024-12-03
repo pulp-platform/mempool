@@ -127,6 +127,9 @@ vlog_defs += -DNUM_X=$(num_x)
 ifeq ($(topology),torus)
 	vlog_defs += -DTORUS
 endif
+ifeq (1, $(req_remapping))
+	vlog_defs += -DREQ_REMAPPING=$(req_remapping)
+endif
 # Snitch ISA
 vlog_defs += -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DZFINX=$(zfinx)

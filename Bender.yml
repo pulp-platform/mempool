@@ -42,6 +42,7 @@ sources:
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 3
+  - hardware/src/floo_req_remapper.sv
   - hardware/src/routing_table_pkg.sv
   - hardware/src/mempool_group.sv
   - hardware/src/mempool_group_floonoc_wrapper.sv
