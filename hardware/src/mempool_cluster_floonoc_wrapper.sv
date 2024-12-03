@@ -13,7 +13,7 @@ module mempool_cluster_floonoc_wrapper
   // TCDM
   parameter addr_t                 TCDMBaseAddr  = 32'b0,
   // Boot address
-  parameter logic           [31:0] BootAddr      = 32'h0000_0000,
+  parameter logic  [31:0]          BootAddr      = 32'h0000_0000,
   // Dependant parameters. DO NOT CHANGE!
   parameter int    unsigned        NumDMAReq     = NumGroups * NumDmasPerGroup,
   parameter int    unsigned        NumAXIMasters = NumGroups * NumAXIMastersPerGroup

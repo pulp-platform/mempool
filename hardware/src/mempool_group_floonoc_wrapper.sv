@@ -148,7 +148,7 @@ mempool_group #(
 axi_L2_interleaver #(
   .NumAXIMasters  (1                                        ),
   .NumL2          (NumL2Banks                               )
-) i_axi_L2_splitter_interleaver (
+) i_axi_L2_interleaver (
   .clk_i                    (clk_i                          ),
   .rst_ni                   (rst_ni                         ),
   .axi_l2_req_i             (axi_mst_req_before_interleaver ),
