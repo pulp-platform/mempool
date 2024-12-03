@@ -3,5 +3,5 @@
 # SPDX-License-Identifier: SHL-0.51
 
 do ../scripts/questa/wave.tcl
-log -r /*
+log -r *
 run -a
