@@ -15,8 +15,8 @@
 #include <stdlib.h>
 
 #if NUM_CORES > 32
-#define size_M 64
-#define size_N 64
+#define size_M 256
+#define size_N 256
 #else
 #define size_M (NUM_CORES)
 #define size_N (NUM_CORES)
@@ -109,8 +109,13 @@ int main() {
   mempool_start_benchmark();
   calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements, core_id,
                                 num_cores);
-  mempool_barrier(num_cores);
   mempool_stop_benchmark();
+  mempool_barrier(num_cores);
+  mempool_start_benchmark();
+  calc_axpy_unloop_x4_localbank(data_x, data_y, ALPHA, total_elements, core_id,
+                                num_cores);
+  mempool_stop_benchmark();
+  mempool_barrier(num_cores);
   // end kernel testing
 
   // Verify results

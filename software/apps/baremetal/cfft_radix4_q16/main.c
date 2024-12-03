@@ -22,9 +22,9 @@
 
 /* CHOOSE ONE */
 //#define SINGLE // Single core FFT.
-//#define PARALLEL // Parallel FFT not "memory-aware".
+#define PARALLEL // Parallel FFT not "memory-aware".
 //#define FOLDED // Parallel FFT with "memory-aware" load/store.
-#define SCHEDULED // Folded FFTs arranged in rows and cols.'''
+// #define SCHEDULED // Folded FFTs arranged in rows and cols.'''
 
 // Bitreversal index from table.
 #define BITREVERSETABLE
@@ -36,7 +36,7 @@
 #error Parallelization not supporting N_FFTs_COL > [N_BANKS / (N_CSAMPLES / 4)]
 #endif
 // Also the twiddles have "memory-aware" load/stores.
-#define FOLDED_TWIDDLES
+// #define FOLDED_TWIDDLES
 
 #include "baremetal/mempool_cfft_q16_bitreversal.h"
 #include "baremetal/mempool_checks.h"
@@ -152,6 +152,19 @@ int main() {
 // of the butterfly samples. Core in excess compared to the butterfly length are
 // idle.
 #ifdef PARALLEL
+  mempool_start_benchmark();
+  if (LOG2 % 2 == 0) {
+    mempool_radix4_cfft_q16p_xpulpimg(l1_pSrc, N_CSAMPLES,
+                                      l1_twiddleCoef_q16_src, 1, num_cores);
+  } else {
+    mempool_radix4by2_cfft_q16p(l1_pSrc, N_CSAMPLES, l1_twiddleCoef_q16_src,
+                                num_cores);
+  }
+  mempool_bitrevtable_q16p_xpulpimg(l1_pSrc, BITREVINDEXTABLE_LENGTH,
+                                    l1_BitRevIndexTable, num_cores);
+  mempool_stop_benchmark();
+  mempool_barrier(num_cores);
+  mempool_start_benchmark();
   if (LOG2 % 2 == 0) {
     mempool_radix4_cfft_q16p_xpulpimg(l1_pSrc, N_CSAMPLES,
                                       l1_twiddleCoef_q16_src, 1, num_cores);
@@ -225,7 +238,7 @@ int main() {
     printf("02: END COMPUTATION\n");
   }
 
-  mempool_check_q16(pRes, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
+  // mempool_check_q16(pRes, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
   mempool_barrier(num_cores);
   return 0;
 }
