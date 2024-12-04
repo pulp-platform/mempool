@@ -57,15 +57,7 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
     for {set tile 0} {$tile < [examine -radix dec /mempool_pkg::NumTilesPerGroup]} {incr tile} {
         do ../scripts/questa/wave_tile.tcl $group $tile $NumY
     }
-    # Interconnects
-    for {set tgtgroup 0} {$tgtgroup < [examine -radix dec /mempool_pkg::NumGroups]} {incr tgtgroup} {
-        if {$tgtgroup != $group} {
-            set interco_idx [expr $group ^ $tgtgroup]
-            # add wave -group group_[$group] -group interconnect_to_group[$tgtgroup] /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_mempool_group/gen_remote_interco[$interco_idx]/i_remote_interco/*
-        }
-    add wave -group group_[$group] -group axi_interleaver /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_axi_L2_interleaver/*
-    add wave -group group_[$group] -group axi_spliter /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/gen_axi_splitter/i_axi_burst_splitter/*
-    }
+    # Local TCDM
     add wave -group group_[$group] -group interconnect_local /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_mempool_group/tcdm_master_req*
     add wave -group group_[$group] -group interconnect_local /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_mempool_group/tcdm_master_resp*
     add wave -group group_[$group] -group interconnect_local /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_mempool_group/tcdm_slave_req*
@@ -77,6 +69,9 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
             add wave -group group_[$group] -group floo_tcdm_router_resp /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/gen_router_router_i[$tile]/gen_router_router_j[$port]/i_floo_tcdm_resp_router/*
         }
     }
+    # Splitter & Interleaver
+    add wave -group group_[$group] -group axi_splitter /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/gen_axi_splitter/i_axi_burst_splitter/*
+    add wave -group group_[$group] -group axi_interleaver /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_axi_L2_interleaver/*
     # AXI Router
     add wave -group group_[$group] -group floo_axi_chimney /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_floo_narrow_wide_chimney/*
     add wave -group group_[$group] -group floo_axi_router /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_floo_narrow_wide_router/*
