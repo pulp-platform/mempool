@@ -84,10 +84,10 @@ logic              [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_slave_
 
 axi_tile_req_t  axi_mst_req;
 axi_tile_resp_t axi_mst_resp;
-axi_tile_req_t  axi_mst_req_before_interleaver;
-axi_tile_resp_t axi_mst_resp_before_interleaver;
-axi_tile_req_t  axi_mst_req_before_spilitter;
-axi_tile_resp_t axi_mst_resp_before_spiltter;
+axi_tile_req_t  axi_mst_req_from_group;
+axi_tile_resp_t axi_mst_resp_to_group;
+axi_tile_req_t  axi_mst_req_splitter;
+axi_tile_resp_t axi_mst_resp_splitter;
 
 // Instantiate the mempool_group
 mempool_group #(
@@ -119,9 +119,35 @@ mempool_group #(
   .dma_req_valid_i          (dma_req_valid_i                ),
   .dma_req_ready_o          (dma_req_ready_o                ),
   .dma_meta_o               (dma_meta_o                     ),
-  .axi_mst_req_o            (axi_mst_req_before_interleaver ),
-  .axi_mst_resp_i           (axi_mst_resp_before_interleaver)
+  .axi_mst_req_o            (axi_mst_req_from_group         ), 
+  .axi_mst_resp_i           (axi_mst_resp_to_group          )
 );
+
+// Splitting logic based on DmaBurstLen and Interleave
+generate
+  if (DmaBurstLen > Interleave) begin : gen_axi_splitter
+    axi_burst_splitter #(
+      .MaxReadTxns  (16                             ),
+      .MaxWriteTxns (16                             ),
+      .AddrWidth    (AddrWidth                      ),
+      .DataWidth    (AxiDataWidth                   ),
+      .IdWidth      (AxiTileIdWidth                 ),
+      .UserWidth    (1                              ),
+      .axi_req_t    (axi_tile_req_t                 ),
+      .axi_resp_t   (axi_tile_resp_t                )
+    ) i_axi_burst_splitter (
+      .clk_i        (clk_i                          ),
+      .rst_ni       (rst_ni                         ),
+      .slv_req_i    (axi_mst_req_from_group         ),
+      .slv_resp_o   (axi_mst_resp_to_group          ),
+      .mst_req_o    (axi_mst_req_splitter           ),
+      .mst_resp_i   (axi_mst_resp_splitter          )
+    );
+  end else begin : gen_axi_splitter_bypass
+    assign axi_mst_req_splitter = axi_mst_req_from_group;
+    assign axi_mst_resp_to_group = axi_mst_resp_splitter;
+  end
+endgenerate
 
 axi_L2_interleaver #(
   .NumAXIMasters  (1                                        ),
@@ -129,37 +155,11 @@ axi_L2_interleaver #(
 ) i_axi_L2_interleaver (
   .clk_i                    (clk_i                          ),
   .rst_ni                   (rst_ni                         ),
-  .axi_l2_req_i             (axi_mst_req_before_interleaver ),
-  .axi_l2_resp_o            (axi_mst_resp_before_interleaver),
-  .axi_l2_req_interleaved_o (axi_mst_req_before_spilitter   ),
-  .axi_l2_resp_interleaved_i(axi_mst_resp_before_spiltter   )
+  .axi_l2_req_i             (axi_mst_req_splitter           ), 
+  .axi_l2_resp_o            (axi_mst_resp_splitter          ),
+  .axi_l2_req_interleaved_o (axi_mst_req                    ),
+  .axi_l2_resp_interleaved_i(axi_mst_resp                   )
 );
-
-// Splitting logic based on DmaBurstLen and Interleave
-generate
-  if (DmaBurstLen > Interleave) begin : gen_axi_splitter
-    axi_burst_splitter #(
-      .MaxReadTxns  (16                           ),
-      .MaxWriteTxns (16                           ),
-      .AddrWidth    (AddrWidth                    ),
-      .DataWidth    (AxiDataWidth                 ),
-      .IdWidth      (AxiTileIdWidth               ),
-      .UserWidth    (1                            ),
-      .axi_req_t    (axi_tile_req_t               ),
-      .axi_resp_t   (axi_tile_resp_t              )
-    ) i_axi_burst_splitter (
-      .clk_i        (clk_i                        ),
-      .rst_ni       (rst_ni                       ),
-      .slv_req_i    (axi_mst_req_before_spilitter ),
-      .slv_resp_o   (axi_mst_resp_before_spiltter ),
-      .mst_req_o    (axi_mst_req                  ),
-      .mst_resp_i   (axi_mst_resp                 )
-    );
-  end else begin : gen_axi_splitter_bypass
-    assign axi_mst_req = axi_mst_req_before_spilitter;
-    assign axi_mst_resp = axi_mst_resp_before_spiltter;
-  end
-endgenerate
 
 // Instantiate the floo_tcdm_router for each tile
 floo_tcdm_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router,  floo_req_from_router;
