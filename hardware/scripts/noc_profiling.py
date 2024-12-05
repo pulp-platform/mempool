@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import ast
+import sys
+import os
 
 
 scale_factor = 10
@@ -363,6 +365,9 @@ def visualize_mesh_noc_congestion_optimized(
 
 
 req_rsp = 0
+result_path = sys.argv[1]
+plot_path = os.path.join(result_path, "noc_profiling", "plot")
+os.makedirs(plot_path, exist_ok=True)
 for bw in range(2):
     if bw == 0:
         target = "congestion"
@@ -371,23 +376,23 @@ for bw in range(2):
 
     for req_rsp in range(2):
         # Define file paths
-        file_path = "spm_profiling/run_logs_f_1024/tests/router_level_profile_q_00038000.log"
-        output_png = f"out/mesh_noc_{target}_{req_rsp}.png"
-        output_pdf = f"out/mesh_noc_{target}_{req_rsp}.pdf"
-        output_int = f"out/mesh_noc_{target}_{req_rsp}_intreval.png"
+        file_path = f"{result_path}/noc_profiling/router_level_profile_q.log"
+        output_png = f"{plot_path}/mesh_noc_{target}_{req_rsp}.png"
+        output_pdf = f"{plot_path}/mesh_noc_{target}_{req_rsp}.pdf"
+        output_int = f"{plot_path}/mesh_noc_{target}_{req_rsp}_intreval.png"
 
         # Call the visualization function
         visualize_mesh_noc_congestion_optimized(
             file_path, output_png, output_pdf, output_int, req_rsp, bw
         )
 
-        # Define file paths
-        file_path = "spm_profiling/run_logs_remap_f_1024/tests/router_level_profile_q_00038000.log"
-        output_png = f"out/mesh_noc_remap_{target}_{req_rsp}.png"
-        output_pdf = f"out/mesh_noc_remap_{target}_{req_rsp}.pdf"
-        output_int = f"out/mesh_noc_remap_{target}_{req_rsp}_intreval.png"
+        # # Define file paths
+        # file_path = "spm_profiling/run_logs_remap_f_1024/matmul_i32/router_level_profile_q_00002800.log"
+        # output_png = f"out/mesh_noc_remap_{target}_{req_rsp}.png"
+        # output_pdf = f"out/mesh_noc_remap_{target}_{req_rsp}.pdf"
+        # output_int = f"out/mesh_noc_remap_{target}_{req_rsp}_intreval.png"
 
-        # Call the visualization function
-        visualize_mesh_noc_congestion_optimized(
-            file_path, output_png, output_pdf, output_int, req_rsp, bw
-        )
+        # # Call the visualization function
+        # visualize_mesh_noc_congestion_optimized(
+        #     file_path, output_png, output_pdf, output_int, req_rsp, bw
+        # )

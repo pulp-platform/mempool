@@ -478,14 +478,15 @@ module mempool_tb;
   string fn_4, fn_final_4;
   string dump_time;
 
-  string app;
+  // string app;
   string log_path;
   initial begin
-    void'($value$plusargs("APP=%s", app));
+    // void'($value$plusargs("APP=%s", app));
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_remap_%1d/%s", NumCores, app);
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_%1d/%s", NumCores, app);
-    $sformat(log_path, "../scripts/spm_profiling/run_logs_remap_f_%1d/%s", NumCores, app);
+    // $sformat(log_path, "../scripts/spm_profiling/run_logs_remap_f_%1d/%s", NumCores, app);
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_f_%1d/%s", NumCores, app);
+    $sformat(log_path, "noc_profiling");
   end
 
   tile_level_profile_t   tile_level_profile_d,   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0]; 
