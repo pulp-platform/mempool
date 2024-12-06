@@ -28,8 +28,7 @@ uint32_t red_barrier[NUM_BANKS]
     __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 int32_t sum[NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
-#include "baremetal/mempool_dotp_i32p.h"
-#include "baremetal/mempool_dotp_i32s.h"
+#include "baremetal/mempool_dotp_i32.h"
 
 int main() {
 

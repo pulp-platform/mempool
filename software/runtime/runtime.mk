@@ -26,7 +26,8 @@ DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
-ZFINX      		?= $(zfinx)
+ZFINX         ?= $(zfinx)
+XDIVSQRT	  ?= $(xDivSqrt)
 
 RISCV_XLEN    ?= 32
 
@@ -123,6 +124,14 @@ ifeq ($(xDivSqrt), 0)
 	RISCV_FLAGS_LLVM += -mno-fdiv
 endif
 
+# Disable division and square root
+ifeq ($(XDIVSQRT), 0)
+	RISCV_FLAGS_LLVM += -mno-fdiv
+else
+	# Define if the extension is active
+	DEFINES       += -D__XDIVSQRT
+endif
+
 ifeq ($(COMPILER),gcc)
 	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
@@ -134,13 +143,11 @@ else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
-	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32
-	ifeq ($(xDivSqrt), 0)
-		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+nofdiv,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+	ifeq ($(XDIVSQRT), 0)
+		RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx,+nofdiv
 	else
-		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+		RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
 	endif
-
 	# For unit tests
 	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_LLVM_TESTS) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 endif

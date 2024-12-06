@@ -11,6 +11,7 @@
  * C = AB
  */
 
+#pragma once
 #include "builtins_v2.h"
 
 void matmul_2x2_single_f16(__fp16 const *__restrict__ A,

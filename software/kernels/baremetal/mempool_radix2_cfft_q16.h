@@ -4,8 +4,9 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#pragma once
 #include "builtins_v2.h"
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 void mempool_radix2_cfft_q16s(int16_t *pSrc16, uint32_t fftLen,
                               int16_t *pCoef16) {
