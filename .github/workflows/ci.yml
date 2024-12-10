@@ -46,7 +46,7 @@ jobs:
         path: riscv-gnu-toolchain.tzst
 
   tc-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Recover the submodule commit hash
@@ -240,7 +240,7 @@ jobs:
         git diff --exit-code
 
   check-control-registers:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Install Python requirements
@@ -266,7 +266,7 @@ jobs:
   #  Build Software  #
   ####################
   build-apps-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: tc-gcc
     strategy:
       matrix:
@@ -297,7 +297,7 @@ jobs:
         path: apps-gcc.tzst
 
   build-apps-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [tc-gcc, tc-llvm]
     strategy:
       matrix:
@@ -377,7 +377,7 @@ jobs:
   #  Run Software  #
   ##################
   run-apps-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
     strategy:
@@ -415,7 +415,7 @@ jobs:
         make trace
 
   run-apps-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
     strategy:
@@ -453,7 +453,7 @@ jobs:
         make trace
 
   run-apps-halide:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     needs: [build-apps-halide, riscv-isa-sim, verilator-model]
     strategy:

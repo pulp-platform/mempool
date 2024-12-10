@@ -6,7 +6,7 @@ The application parameters are passed to the script with the `gendata_params.hjs
 
 An example entry follows: `matmul_f32` is the name of MemPool application under test, the `type` refers to numpy precision, the `defines` are application parameters, turned into C constant declarations in the form `#define matrix_M (16)`, the `arrays` encode the C-type and name of input vectors for the application under test.
 
-`
+```
   "matmul_f32": {
     "type": "float32",
     "defines": [
@@ -20,7 +20,7 @@ An example entry follows: `matmul_f32` is the name of MemPool application under 
       ("float", "l2_C")
     ]
   }
-`
+```
 
 ## To test a new application:
 If a new application requires to be tested with data generated from a reference golden model:

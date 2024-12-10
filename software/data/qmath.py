@@ -58,13 +58,13 @@ def qmatmul(A, B, fixed_point=15, mytype=np.int16):
     SCALE_FACTOR = 2**fixed_point
     rows_A, cols_A = A.shape
     cols_B = B.shape[1]
-    C = np.zeros((rows_A, cols_B), dtype=mytype)
+    C = np.zeros((rows_A, cols_B), dtype=np.int32)
 
     for i in range(rows_A):
         for j in range(cols_B):
             for k in range(cols_A):
                 C[i, j] += A[i, k] * B[k, j] // SCALE_FACTOR
-    return C
+    return C.astype(mytype)
 
 
 def qcmatmul(A_real, A_imag, B_real, B_imag, fixed_point=15, mytype=np.int16):
@@ -83,8 +83,8 @@ def qcmatmul(A_real, A_imag, B_real, B_imag, fixed_point=15, mytype=np.int16):
     rows_A, cols_A = A_real.shape
     cols_B = B_real.shape[1]
 
-    C_real = np.zeros((rows_A, cols_B), dtype=mytype)
-    C_imag = np.zeros((rows_A, cols_B), dtype=mytype)
+    C_real = np.zeros((rows_A, cols_B), dtype=np.int32)
+    C_imag = np.zeros((rows_A, cols_B), dtype=np.int32)
 
     for i in range(rows_A):
         for j in range(cols_B):
@@ -97,7 +97,7 @@ def qcmatmul(A_real, A_imag, B_real, B_imag, fixed_point=15, mytype=np.int16):
                 C_real[i, j] += real_product // SCALE_FACTOR
                 C_imag[i, j] += imag_product // SCALE_FACTOR
 
-    return C_real, C_imag
+    return C_real.astype(mytype), C_imag.astype(mytype)
 
 
 def qcmvmul(A_real, A_imag, B_real, B_imag, fixed_point=15, mytype=np.int16):
@@ -115,8 +115,8 @@ def qcmvmul(A_real, A_imag, B_real, B_imag, fixed_point=15, mytype=np.int16):
     SCALE_FACTOR = 2**fixed_point
     rows_A, cols_A = A_real.shape
 
-    C_real = np.zeros(rows_A, dtype=mytype)
-    C_imag = np.zeros(rows_A, dtype=mytype)
+    C_real = np.zeros(rows_A, dtype=np.int32)
+    C_imag = np.zeros(rows_A, dtype=np.int32)
 
     for i in range(rows_A):
         for k in range(cols_A):
@@ -126,7 +126,7 @@ def qcmvmul(A_real, A_imag, B_real, B_imag, fixed_point=15, mytype=np.int16):
             C_real[i] += real_product // SCALE_FACTOR
             C_imag[i] += imag_product // SCALE_FACTOR
 
-    return C_real, C_imag
+    return C_real.astype(mytype), C_imag.astype(mytype)
 
 
 def qsqrt(n, fixed_point=15, mytype=np.int16):

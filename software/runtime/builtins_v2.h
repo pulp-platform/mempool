@@ -10,11 +10,17 @@ typedef signed short v2s __attribute__((vector_size(4)));
 typedef unsigned short v2u __attribute__((vector_size(4)));
 
 #ifdef __clang__
+typedef int8_t __fp8;
 typedef __fp16 v2f16 __attribute__((vector_size(4)));
+typedef __fp8 v4f8 __attribute__((vector_size(4)));
 typedef union {
   float f32;
   v2f16 vec;
 } v2h;
+typedef union {
+  float f32;
+  v4f8 vec;
+} v4b;
 #endif
 
 typedef signed char v4s __attribute__((vector_size(4)));

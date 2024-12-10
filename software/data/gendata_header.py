@@ -14,6 +14,7 @@ import ast
 import numpy
 
 import gendatalib as datalib
+import pyflexfloat as ff
 
 
 header = """\
@@ -37,15 +38,22 @@ def format_type(typ, value):
     typ_i8b = ["int8_t", "uint8_t"]
 
     if typ in typ_i32b:
-        stringyfied_val = '({}) 0X{:08X}'.format(typ, value & 0xffffffff)
+        stringyfied_val = '({}) 0X{:08X}'.format(
+            typ, value.astype(numpy.uint32) & 0xffffffff)
     elif typ in typ_i16b:
-        stringyfied_val = '({}) 0X{:04X}'.format(typ, value & 0x0000ffff)
+        stringyfied_val = '({}) 0X{:04X}'.format(
+            typ, value.astype(numpy.uint32) & 0x0000ffff)
     elif typ in typ_i8b:
-        stringyfied_val = '({}) 0X{:02X}'.format(typ, value & 0x000000ff)
+        stringyfied_val = '({}) 0X{:02X}'.format(
+            typ, value.astype(numpy.uint32) & 0x000000ff)
     elif typ == 'float':
         stringyfied_val = '({}) {:+.8f}'.format(typ, value)
     elif typ == '__fp16':
         stringyfied_val = '({}) {:+.4f}'.format(typ, value)
+    elif typ == '__fp8':
+        value = ff.FlexFloat("e5m2", value.astype(numpy.double))
+        value = value.bits()
+        stringyfied_val = '({}) 0X{}'.format(typ, value)
     else:
         raise Exception("ERROR: Unsupported data type!!!")
 
@@ -75,7 +83,7 @@ def print_array(arr, typ, name):
         output_string += "};\n\n"
     else:
         output_string += attr
-        output_string += (name + ' = ' + format_type(typ, arr))
+        output_string += (name + ' = ' + format_type(typ, arr[0]))
         output_string += ";\n\n"
 
     return output_string
@@ -125,6 +133,8 @@ def get_type(type_string):
         return numpy.float32
     elif type_string == "float16":
         return numpy.float16
+    elif type_string == "float8":
+        return numpy.float16
     else:
         raise Exception("Input type is not valid")
 
@@ -156,16 +166,32 @@ if __name__ == '__main__':
     # Define function mappings for each app_name
     function_map = {
         "axpy_i32": {"func": datalib.generate_iaxpy},
-        "cfft_radix4_q16": {"func": datalib.generate_cfft_q16},
+        "axpy_f16": {"func": datalib.generate_faxpy},
+        "axpy_f32": {"func": datalib.generate_faxpy},
         "cfft_radix2_q16": {"func": datalib.generate_cfft_q16},
+        "cfft_radix4_f16": {"func": datalib.generate_fcfft},
+        "cfft_radix4_q16": {"func": datalib.generate_cfft_q16},
+        "chest_f16": {"func": datalib.generate_fchest},
         "chest_q16": {"func": datalib.generate_qchest},
+        "cholesky_f16": {"func": datalib.generate_fccholesky},
+        "cholesky_q16": {"func": datalib.generate_qccholesky},
         "cholesky_q32": {"func": datalib.generate_qcholesky},
+        "cmatmul_f16": {"func": datalib.generate_fcmatmul},
+        "cmatmul_q16": {"func": datalib.generate_qcmatmul},
+        "dotp_f16": {"func": datalib.generate_fdotp},
+        "dotp_f32": {"func": datalib.generate_fdotp},
         "dotp_i32": {"func": datalib.generate_idotp},
         "matmul_f16": {"func": datalib.generate_fmatmul},
+        "matmul_f8": {"func": datalib.generate_fmatmul},
         "matmul_f32": {"func": datalib.generate_fmatmul},
         "matmul_i32": {"func": datalib.generate_imatmul},
         "matmul_i16": {"func": datalib.generate_imatmul},
         "matmul_i8": {"func": datalib.generate_imatmul},
+        "mimo_mmse_q16": {"func": datalib.generate_qmmse},
+        "mimo_mmse_f16": {"func": datalib.generate_fmmse},
+        "mimo_mmse_f32": {"func": datalib.generate_fmmse},
+        "mimo_mmse_f8": {"func": datalib.generate_fmmse},
+        "ofdm_f16": {"func": datalib.generate_fofdm},
         "fence": {"func": datalib.generate_iarray},
         "memcpy": {"func": datalib.generate_iarray},
     }
