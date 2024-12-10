@@ -220,6 +220,31 @@ def generate_fcmatmul(my_type=np.float32, defines={}):
     return [A, B, C], defines
 
 
+def generate_flayernorm(my_type=np.float32, defines={}):
+
+    # Create matrix
+    array_N = defines['array_N']
+    X = (np.random.rand(array_N)).astype(my_type)
+
+    eps = np.array([0.01], dtype=np.float32)
+    gamma = np.array([np.random.rand() - 0.5], dtype=np.float32)
+    beta = np.array([np.random.rand() - 0.5], dtype=np.float32)
+
+    # Compute mean and variance along the last axis
+    mean = np.mean(X, axis=-1, keepdims=True).astype(my_type)
+    var = np.var(X, axis=-1, keepdims=True).astype(my_type)
+
+    # Normalize
+    X_normalized = (X - mean) / np.sqrt(var + eps)
+    # Scale and shift
+    Y = gamma * X_normalized + beta
+
+    if defines['RELU'] == 1:
+        Y = np.maximum(Y, 0)
+
+    return [X, Y, eps, gamma, beta], defines
+
+
 def generate_fmatmul(my_type=np.float32, defines={}):
 
     # Create matrix
