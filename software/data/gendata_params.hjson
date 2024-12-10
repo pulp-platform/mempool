@@ -215,6 +215,21 @@
     ]
   },
 
+  "layernorm_f16": {
+    "type": "float16",
+    "defines": [
+      ("array_N", 32)
+      ("RELU", 1)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Y")
+      ("float", "eps")
+      ("float", "gamma")
+      ("float", "beta")
+    ]
+  },
+
   "matmul_f16": {
     "type": "float16",
     "defines": [
