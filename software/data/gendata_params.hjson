@@ -198,26 +198,14 @@
       ("matrix_N", 4)
       ("matrix_D", 8)
       ("kernel_K", 3)
-    ]
-    "arrays": [
-      ("__fp16", "l2_A")
-      ("__fp16", "l2_W")
-      ("__fp16", "l2_B")
-    ]
-  },
-
-  "conv2d_pointwise_f16": {
-    "type": "float16",
-    "defines": [
-      ("matrix_M", 4)
-      ("matrix_N", 4)
-      ("matrix_D", 8)
       ("kernel_D", 2)
     ]
     "arrays": [
       ("__fp16", "l2_A")
-      ("__fp16", "l2_W")
-      ("__fp16", "l2_B")
+      ("__fp16", "l2_Wd")
+      ("__fp16", "l2_Wp")
+      ("__fp16", "l2_Bd")
+      ("__fp16", "l2_Bp")
     ]
   },
 

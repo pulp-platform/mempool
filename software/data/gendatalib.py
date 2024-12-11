@@ -220,7 +220,7 @@ def generate_fcmatmul(my_type=np.float32, defines={}):
     return [A, B, C], defines
 
 
-def generate_fconv2d_depthwise(my_type=np.float32, defines={}):
+def fconv2d_depthwise(A, W, B):
     """Two-dimensional depthwise convolution.
 
     Uses SAME padding with 0s, a stride of 1 and no dilation. A single output
@@ -232,15 +232,8 @@ def generate_fconv2d_depthwise(my_type=np.float32, defines={}):
     Returns a result with shape (height, width, in_depth).
     """
 
-    matrix_M = defines['matrix_M']  # width of input
-    matrix_N = defines['matrix_N']  # height of input
-    matrix_D = defines['matrix_D']  # depth of input
-
-    kernel_K = defines['kernel_K']  # Channels of kernel
-
-    A = np.random.rand(matrix_M, matrix_N, matrix_D).astype(my_type)
-    W = np.random.rand(kernel_K, kernel_K, matrix_D).astype(my_type)
-    B = np.zeros((matrix_M, matrix_N, matrix_D), dtype=my_type)
+    [matrix_M, matrix_N, matrix_D] = np.shape(A)
+    kernel_K = np.shape(W)[0]
 
     padw = kernel_K // 2
     padded_input = np.pad(A,
@@ -259,15 +252,10 @@ def generate_fconv2d_depthwise(my_type=np.float32, defines={}):
                         w_element = W[fi, fj, c]
                         B[i, j, c] += (
                             padded_input[i + fi, j + fj, c] * w_element)
-
-    A = np.reshape(A, (matrix_M * matrix_N * matrix_D)).astype(my_type)
-    B = np.reshape(B, (matrix_M * matrix_N * matrix_D)).astype(my_type)
-    W = np.reshape(W, (kernel_K * kernel_K * matrix_D)).astype(my_type)
-
-    return [A, W, B], defines
+    return B
 
 
-def generate_fconv2d_pointwise(my_type=np.float32, defines={}):
+def fconv2d_pointwise(A, W, B):
     """Depthwise separable convolution.
 
     Performs a pointwise 1x1 convolution with w_pointwise.
@@ -283,21 +271,8 @@ def generate_fconv2d_pointwise(my_type=np.float32, defines={}):
     # First run the depthwise convolution. Its result has the same shape as
     # input.
 
-    matrix_M = defines['matrix_M']  # width of input
-    matrix_N = defines['matrix_N']  # height of input
-    matrix_D = defines['matrix_D']  # depth of input
-
-    kernel_D = defines['kernel_D']  # Channels of kernel
-
-    A = (
-        5 *
-        np.random.rand(
-            matrix_M,
-            matrix_N,
-            matrix_D) -
-        2.5).astype(my_type)
-    W = (5 * np.random.rand(matrix_D, kernel_D) - 2.5).astype(my_type)
-    B = np.zeros((matrix_M, matrix_N, kernel_D), dtype=my_type)
+    [matrix_M, matrix_N, matrix_D] = np.shape(A)
+    kernel_D = np.shape(W)[1]
 
     for out_c in range(kernel_D):
 
@@ -306,6 +281,72 @@ def generate_fconv2d_pointwise(my_type=np.float32, defines={}):
                 for c in range(matrix_D):
                     w_element = W[c, out_c]
                     B[i, j, out_c] += A[i, j, c] * w_element
+    return B
+
+
+def generate_fconv2d_depthwise_pointwise(my_type=np.float32, defines={}):
+
+    matrix_M = defines['matrix_M']  # width of input
+    matrix_N = defines['matrix_N']  # height of input
+    matrix_D = defines['matrix_D']  # depth of input
+
+    kernel_K = defines['kernel_K']  # Width of kernel
+    kernel_D = defines['kernel_D']  # Channels of kernel
+
+    A = np.random.rand(matrix_M, matrix_N, matrix_D).astype(my_type)
+    Wd = np.random.rand(kernel_K, kernel_K, matrix_D).astype(my_type)
+    Wp = (5 * np.random.rand(matrix_D, kernel_D) - 2.5)
+
+    B = np.zeros((matrix_M, matrix_N, matrix_D), dtype=my_type)
+    B = fconv2d_depthwise(A, Wd, B)
+    Bd = np.reshape(B, (matrix_M * matrix_N * matrix_D)).astype(my_type)
+
+    Bp = np.zeros((matrix_M, matrix_N, kernel_D), dtype=my_type)
+    Bp = fconv2d_pointwise(B, Wp, Bp)
+    A = np.reshape(A, (matrix_M * matrix_N * matrix_D)).astype(my_type)
+    Bp = np.reshape(Bp, (matrix_M * matrix_N * kernel_D)).astype(my_type)
+    Wd = np.reshape(Wd, (kernel_K * kernel_K * matrix_D)).astype(my_type)
+    Wp = np.reshape(Wp, (matrix_D * kernel_D), order='F').astype(my_type)
+
+    return [A, Wd, Wp, Bd, Bp], defines
+
+
+def generate_fconv2d_depthwise(my_type=np.float32, defines={}):
+
+    matrix_M = defines['matrix_M']  # width of input
+    matrix_N = defines['matrix_N']  # height of input
+    matrix_D = defines['matrix_D']  # depth of input
+
+    kernel_K = defines['kernel_K']  # Channels of kernel
+
+    A = np.random.rand(matrix_M, matrix_N, matrix_D).astype(my_type)
+    W = np.random.rand(kernel_K, kernel_K, matrix_D).astype(my_type)
+    B = np.zeros((matrix_M, matrix_N, matrix_D), dtype=my_type)
+
+    B = fconv2d_depthwise(A, W, B)
+
+    A = np.reshape(A, (matrix_M * matrix_N * matrix_D)).astype(my_type)
+    B = np.reshape(B, (matrix_M * matrix_N * matrix_D)).astype(my_type)
+    W = np.reshape(W, (kernel_K * kernel_K * matrix_D)).astype(my_type)
+
+    return [A, W, B], defines
+
+
+def generate_fconv2d_pointwise(my_type=np.float32, defines={}):
+
+    matrix_M = defines['matrix_M']  # width of input
+    matrix_N = defines['matrix_N']  # height of input
+    matrix_D = defines['matrix_D']  # depth of input
+
+    kernel_D = defines['kernel_D']  # Channels of kernel
+
+    A = (5 * np.random.rand(matrix_M, matrix_N, matrix_D) - 2.5)
+    W = (5 * np.random.rand(matrix_D, kernel_D) - 2.5)
+    A = A.astype(my_type)
+    W = W.astype(my_type)
+    B = np.zeros((matrix_M, matrix_N, kernel_D), dtype=my_type)
+
+    B = fconv2d_pointwise(A, W, B)
 
     A = np.reshape(A, (matrix_M * matrix_N * matrix_D)).astype(my_type)
     B = np.reshape(B, (matrix_M * matrix_N * kernel_D)).astype(my_type)
