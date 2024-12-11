@@ -16,10 +16,10 @@ void conv2d_pointwise_f16s(__fp16 *A, __fp16 *B, __fp16 *W, uint32_t matrix_M,
   __fp16 sum_f16;
   v2h w, a;
 
-  for (k = 0; k < kernel_D; k++) {
-    for (i = 0; i < matrix_M; i++) {
-      for (j = 0; j < matrix_N; j++) {
+  for (i = 0; i < matrix_M; i++) {
+    for (j = 0; j < matrix_N; j++) {
 
+      for (k = 0; k < kernel_D; k++) {
         sum = 0.0f;
         sum_f16 = (__fp16)0.0f;
         for (d = 0; d < matrix_D; d += 2) {
@@ -51,14 +51,13 @@ void conv2d_pointwise_f16s_unrolled4(__fp16 *A, __fp16 *B, __fp16 *W,
   v2h w0, w1, w2, w3;
   v2h a0, a1, a2, a3;
 
-  for (k = 0; k < kernel_D; k++) {
-    for (i = 0; i < matrix_M; i++) {
-      for (j = 0; j < matrix_N; j++) {
+  for (i = 0; i < matrix_M; i++) {
+    for (j = 0; j < matrix_N; j++) {
 
+      for (k = 0; k < kernel_D; k++) {
         sum = 0.0f;
         sum_f16 = (__fp16)0.0f;
         for (d = 0; d < matrix_D; d += 8) {
-
           // A and B are in C-like ordering, with the innermost dimension
           // changing faster W is in Fortran-like ordering, with the outermost
           // dimension changing faster
@@ -240,10 +239,12 @@ void conv2d_depthwise_pointwise_f16s_unrolled4(__fp16 *A, __fp16 *B, __fp16 *Wd,
                                                uint32_t kernel_K,
                                                uint32_t kernel_D) {
 
-  uint32_t i, j, d;
+  uint32_t i, j, d, k;
   uint32_t ik, jk, ia, ja;
   uint32_t pad = kernel_K / 2;
 
+  float sp;
+  __fp16 sum_f16;
   v2h w0, w1, w2, w3;
   v2h a0, a1, a2, a3;
   v2h s0, s1, s2, s3;
@@ -251,7 +252,7 @@ void conv2d_depthwise_pointwise_f16s_unrolled4(__fp16 *A, __fp16 *B, __fp16 *Wd,
   for (i = 0; i < matrix_M; i++) {
     for (j = 0; j < matrix_N; j++) {
 
-      for (k = 0; k < kernel_D; k += 8) {
+      for (k = 0; k < kernel_D; k++) {
         sp = 0.0f;
         // Depthwise convolution
         for (d = 0; d < matrix_D; d += 8) {
@@ -266,8 +267,8 @@ void conv2d_depthwise_pointwise_f16s_unrolled4(__fp16 *A, __fp16 *B, __fp16 *Wd,
               // skip (weights outside boundary)
               if ((ia >= 0) && (ja >= 0) && (ia < matrix_M) &&
                   (ja < matrix_N)) {
-                __fp16 *ptrW = Wd + ik * kernel_K * matrix_D + jk * matrix_D;
-                __fp16 *ptrA = A + ia * matrix_N * matrix_D + ja * matrix_D;
+                __fp16 *ptrW = &Wd[ik * kernel_K * matrix_D + jk * matrix_D];
+                __fp16 *ptrA = &A[ia * matrix_N * matrix_D + ja * matrix_D];
                 w0 = *(v2h *)&(ptrW[d]);
                 w1 = *(v2h *)&(ptrW[d + 2]);
                 w2 = *(v2h *)&(ptrW[d + 4]);
