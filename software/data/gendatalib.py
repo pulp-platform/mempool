@@ -220,6 +220,103 @@ def generate_fcmatmul(my_type=np.float32, defines={}):
     return [A, B, C], defines
 
 
+def generate_fconv2d_depthwise(input, w):
+    """Two-dimensional depthwise convolution.
+
+    Uses SAME padding with 0s, a stride of 1 and no dilation. A single output
+    channel is used per input channel (channel_multiplier=1).
+
+    input: input array with shape (height, width, in_depth)
+    w: filter array with shape (fd, fd, in_depth)
+
+    Returns a result with shape (height, width, in_depth).
+    """
+
+    matrix_M = defines['matrix_M']  # width of input
+    matrix_N = defines['matrix_N']  # height of input
+    matrix_D = defines['matrix_D']  # depth of input
+
+    kernel_K = defines['kernel_K']  # Channels of kernel
+
+    A = np.random.rand(matrix_M, matrix_N, matrix_D).astype(my_type)
+    W = np.random.rand(kernel_K, kernel_K, matrix_D).astype(my_type)
+    B = np.zeros((matrix_M, matrix_N, matrix_D), dtype=my_type)
+
+    padw = kernel_K // 2
+    padded_input = np.pad(A,
+                          pad_width=((padw, padw), (padw, padw), (0, 0)),
+                          mode='constant',
+                          constant_values=0)
+
+    for c in range(matrix_D):
+        # For each input channel separately, apply its corresponsing filter
+        # to the input.
+        for i in range(matrix_M):
+            for j in range(matrix_N):
+
+                for fi in range(kernel_K):
+                    for fj in range(kernel_K):
+                        w_element = W[fi, fj, c]
+                        B[i, j, c] += (
+                            padded_input[i + fi, j + fj, c] * w_element)
+
+    A = np.reshape(A, (matrix_M * matrix_N * matrix_D)).astype(my_type)
+    B = np.reshape(B, (matrix_M * matrix_N * matrix_D)).astype(my_type)
+    W = np.reshape(
+        W,
+        (kernel_K * kernel_K * matrix_D),
+        order='F').astype(my_type)
+
+    return [A, W, B], defines
+
+
+def generate_fconv2d_pointwise(my_type=np.float32, defines={}):
+    """Depthwise separable convolution.
+
+    Performs a pointwise 1x1 convolution with w_pointwise.
+
+    Uses SAME padding with 0s, a stride of 1 and no dilation. A single output
+    channel is used per input channel (channel_multiplier=1) in w_depth.
+
+    input: input array with shape (height, width, in_depth)
+    w_pointwise: pointwise filter array with shape (in_depth, out_depth)
+
+    Returns a result with shape (height, width, out_depth).
+    """
+    # First run the depthwise convolution. Its result has the same shape as
+    # input.
+
+    matrix_M = defines['matrix_M']  # width of input
+    matrix_N = defines['matrix_N']  # height of input
+    matrix_D = defines['matrix_D']  # depth of input
+
+    kernel_D = defines['kernel_D']  # Channels of kernel
+
+    A = (
+        5 *
+        np.random.rand(
+            matrix_M,
+            matrix_N,
+            matrix_D) -
+        2.5).astype(my_type)
+    W = (5 * np.random.rand(matrix_D, kernel_D) - 2.5).astype(my_type)
+    B = np.zeros((matrix_M, matrix_N, kernel_D), dtype=my_type)
+
+    for out_c in range(kernel_D):
+
+        for i in range(matrix_M):
+            for j in range(matrix_N):
+                for c in range(matrix_D):
+                    w_element = W[c, out_c]
+                    B[i, j, out_c] += A[i, j, c] * w_element
+
+    A = np.reshape(A, (matrix_M * matrix_N * matrix_D)).astype(my_type)
+    B = np.reshape(B, (matrix_M * matrix_N * kernel_D)).astype(my_type)
+    W = np.reshape(W, (matrix_D * kernel_D), order='F').astype(my_type)
+
+    return [A, W, B], defines
+
+
 def generate_flayernorm(my_type=np.float32, defines={}):
 
     # Create matrix
