@@ -220,7 +220,7 @@ def generate_fcmatmul(my_type=np.float32, defines={}):
     return [A, B, C], defines
 
 
-def generate_fconv2d_depthwise(input, w):
+def generate_fconv2d_depthwise(my_type=np.float32, defines={}):
     """Two-dimensional depthwise convolution.
 
     Uses SAME padding with 0s, a stride of 1 and no dilation. A single output
@@ -262,10 +262,7 @@ def generate_fconv2d_depthwise(input, w):
 
     A = np.reshape(A, (matrix_M * matrix_N * matrix_D)).astype(my_type)
     B = np.reshape(B, (matrix_M * matrix_N * matrix_D)).astype(my_type)
-    W = np.reshape(
-        W,
-        (kernel_K * kernel_K * matrix_D),
-        order='F').astype(my_type)
+    W = np.reshape(W, (kernel_K * kernel_K * matrix_D)).astype(my_type)
 
     return [A, W, B], defines
 

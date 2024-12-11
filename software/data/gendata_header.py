@@ -178,6 +178,7 @@ if __name__ == '__main__':
         "cholesky_q32": {"func": datalib.generate_qcholesky},
         "cmatmul_f16": {"func": datalib.generate_fcmatmul},
         "cmatmul_q16": {"func": datalib.generate_qcmatmul},
+        "conv2d_depthwise_f16": {"func": datalib.generate_fconv2d_depthwise},
         "conv2d_pointwise_f16": {"func": datalib.generate_fconv2d_pointwise},
         "dotp_f16": {"func": datalib.generate_fdotp},
         "dotp_f32": {"func": datalib.generate_fdotp},
