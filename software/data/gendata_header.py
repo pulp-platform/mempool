@@ -14,6 +14,7 @@ import ast
 import numpy
 
 import gendatalib as datalib
+import gendatalib_nn as datalib_nn
 import pyflexfloat as ff
 
 
@@ -228,6 +229,7 @@ if __name__ == '__main__':
         "matmul_i32": {"func": datalib.generate_imatmul},
         "matmul_i16": {"func": datalib.generate_imatmul},
         "matmul_i8": {"func": datalib.generate_imatmul},
+        "messagep_f16": {"func": datalib_nn.generate_ffullyconn},
         "mimo_mmse_q16": {"func": datalib.generate_qmmse},
         "mimo_mmse_f16": {"func": datalib.generate_fmmse},
         "mimo_mmse_f32": {"func": datalib.generate_fmmse},
