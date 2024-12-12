@@ -14,6 +14,7 @@ import ast
 import numpy
 
 import gendatalib as datalib
+import gendatalib_nn as datalib_nn
 import pyflexfloat as ff
 
 
@@ -178,11 +179,9 @@ if __name__ == '__main__':
         "cholesky_q32": {"func": datalib.generate_qcholesky},
         "cmatmul_f16": {"func": datalib.generate_fcmatmul},
         "cmatmul_q16": {"func": datalib.generate_qcmatmul},
-        "conv2d_depthwise_f16": {"func": datalib.generate_fconv2d_depthwise_pointwise},
         "dotp_f16": {"func": datalib.generate_fdotp},
         "dotp_f32": {"func": datalib.generate_fdotp},
         "dotp_i32": {"func": datalib.generate_idotp},
-        "layernorm_f16": {"func": datalib.generate_flayernorm},
         "matmul_f16": {"func": datalib.generate_fmatmul},
         "matmul_f8": {"func": datalib.generate_fmatmul},
         "matmul_f32": {"func": datalib.generate_fmatmul},
@@ -196,6 +195,9 @@ if __name__ == '__main__':
         "ofdm_f16": {"func": datalib.generate_fofdm},
         "fence": {"func": datalib.generate_iarray},
         "memcpy": {"func": datalib.generate_iarray},
+        "conv2d_depthwise_f16": {"func": datalib_nn.generate_fconv2d_depthwise_pointwise},
+        "layernorm_f16": {"func": datalib_nn.generate_flayernorm},
+        "messagep_f16": {"func": datalib_nn.generate_ffullyconn},
     }
 
     # Check if app_name exists in the function map
