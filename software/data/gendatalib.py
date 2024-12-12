@@ -355,6 +355,26 @@ def generate_fconv2d_pointwise(my_type=np.float32, defines={}):
     return [A, W, B], defines
 
 
+def generate_ffullyconn(my_type=np.float32, defines={}):
+
+    matrix_M = defines['matrix_M']  # width of input
+    matrix_N = defines['matrix_N']  # height of input
+
+    W = (5 * np.random.rand(matrix_M, matrix_N) - 2.5).astype(my_type)
+    A = (5 * np.random.rand(matrix_N) - 2.5).astype(my_type)
+    if defines['BIAS'] == 1:
+        B = (5 * np.random.rand(matrix_M) - 2.5).astype(my_type)
+    else:
+        B = np.zeros((matrix_M), dtype=my_type)
+
+    B += np.matmul(W, A).astype(my_type)
+    if defines['RELU'] == 1:
+        B = np.maximum(B, 0)
+    Y = B
+
+    return [A, Y, B, W], defines
+
+
 def generate_flayernorm(my_type=np.float32, defines={}):
 
     # Create matrix
