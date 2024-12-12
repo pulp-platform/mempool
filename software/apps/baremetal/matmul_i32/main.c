@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "baremetal/mempool_matmul_i32p.h"
+#include "baremetal/mat_mul_conflict_opt.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
