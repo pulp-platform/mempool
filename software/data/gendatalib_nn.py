@@ -193,3 +193,60 @@ def generate_flayernorm(my_type=np.float32, defines={}):
         Y = np.maximum(Y, 0)
 
     return [X, Y, eps, gamma, beta], defines
+
+
+def generate_fmessagep(my_type=np.float32, defines={}):
+
+    matrix_P = defines['matrix_P']  # number of graph nodes
+    matrix_M = defines['matrix_M']  # width of input
+    matrix_N = defines['matrix_N']  # height of input
+    matrix_D = defines['matrix_D']  # depth of input
+    width_HL = defines['width_HL']  # depth of input
+
+    A = np.random.rand(matrix_P, matrix_M, matrix_N, matrix_D).astype(my_type)
+    B = np.zeros((matrix_P, matrix_M, matrix_N, matrix_D), dtype=my_type)
+
+    # Outputs and parameters of the hidden-layer
+    W_fc1 = np.random.rand(matrix_P, width_HL, matrix_D).astype(my_type)
+    W_fc2 = np.random.rand(matrix_P, matrix_D, width_HL).astype(my_type)
+    if defines['BIAS'] == 1:
+        HL = np.random.rand(matrix_P, matrix_M, matrix_N, width_HL)
+        HL = HL.astype(my_type)
+    else:
+        HL = np.zeros((matrix_P, matrix_M, matrix_N, width_HL))
+        HL = HL.astype(my_type)
+
+    # Loops over the 2D image
+    for i in range(matrix_M):
+        for j in range(matrix_N):
+            # Loops over the message passing instances
+            for p in range(matrix_P):
+
+                if defines['FC_LAYER'] == 1:
+                    # Apply hidden-layer
+                    HL[p, i, j, :] += np.matmul(W_fc1[p, :], A[p, i, j, :])
+                    if defines['RELU'] == 1:
+                        HL = np.maximum(HL, 0)
+                    A[p, i, j, :] = np.matmul(W_fc2[p, :], HL[p, i, j, :])
+
+                # Loop over depth and sum the message passing instances
+                for d in range(matrix_D):
+                    sum_val = np.float16(0.0)
+                    for np_idx in range(matrix_P):
+                        if np_idx != p:
+                            sum_val += A[np_idx, i, j, d]
+
+                    # Divide sum
+                    sum_val = sum_val / np.float16(matrix_P)
+                    B[p, i, j, d] = sum_val
+
+    A = np.reshape(A, (matrix_P * matrix_M * matrix_N * matrix_D))
+    B = np.reshape(B, (matrix_P * matrix_M * matrix_N * matrix_D))
+    HL = np.reshape(HL, (matrix_P * matrix_M * matrix_N * width_HL))
+    W_fc1 = np.reshape(W_fc1, (matrix_P * width_HL * matrix_D))
+    W_fc2 = np.reshape(W_fc2, (matrix_P * matrix_D * width_HL))
+
+    A = A.astype(my_type)
+    B = B.astype(my_type)
+
+    return [A, B, HL, W_fc1, W_fc2], defines
