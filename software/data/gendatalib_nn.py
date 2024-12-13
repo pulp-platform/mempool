@@ -193,3 +193,52 @@ def generate_flayernorm(my_type=np.float32, defines={}):
         Y = np.maximum(Y, 0)
 
     return [X, Y, eps, gamma, beta], defines
+
+
+def generate_fmessagep(my_type=np.float32, defines={}):
+
+    P = defines['matrix_P']  # number of graph nodes
+    M = defines['matrix_M']  # width of input
+    N = defines['matrix_N']  # height of input
+    D = defines['matrix_D']  # depth of input
+    width_HL = defines['width_HL']  # depth of input
+
+    A = np.random.uniform(-0.5, 0.5, (P, M * N, D)).astype(my_type)
+    B = np.zeros((P, M * N, D), dtype=my_type)
+
+    # Outputs and parameters of the hidden-layer
+    W_fc1 = np.random.rand(P, D, width_HL).astype(my_type)
+    W_fc2 = np.random.rand(P, width_HL, D).astype(my_type)
+    HL1 = np.zeros((P, M * N, width_HL), dtype=my_type)
+    HL2 = np.zeros((P, M * N, D), dtype=my_type)
+    if defines['BIAS'] == 1:
+        HL1 = np.random.rand(P, M * N, width_HL).astype(my_type)
+
+    if defines['FC_LAYER'] == 1:
+        # Loops over the message passing instances
+        for p in range(P):
+            HL1[p] += np.matmul(A[p], W_fc1[p, :, :])
+            if defines['RELU'] == 1:
+                HL1[p] = np.maximum(HL1[p], 0)
+            HL2[p] = np.matmul(HL1[p], W_fc2[p, :, :])
+
+    # Loops over the 2D image
+    for i in range(M * N):
+        # Loop over depth and sum the message passing instances
+        for d in range(D):
+            sum_val = np.float16(0.0)
+            for p in range(P):
+                sum_val += HL2[p, i, d]
+            for p in range(P):
+                B[p, i, d] = (sum_val - HL2[p, i, d]) / np.float16(P)
+
+    A = np.reshape(A, (P * M * N * D))
+    B = np.reshape(B, (P * M * N * D))
+    HL = np.reshape(HL1, (P * M * N * width_HL))
+    W_fc1 = np.reshape(W_fc1, (P * width_HL * D))
+    W_fc2 = np.reshape(W_fc2, (P * D * width_HL))
+
+    A = A.astype(my_type)
+    B = B.astype(my_type)
+
+    return [A, B, HL, W_fc1, W_fc2], defines
