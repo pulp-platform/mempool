@@ -146,11 +146,11 @@ if __name__ == "__main__":
     # package += "\n};\n"
     # package += "\n"
     
-    package = f"routing_rule_t [0:{num_x - 1}][0:{num_y - 1}][0:{num_nodes - 1}] RoutingTables ="
+    package = f"routing_rule_t [{num_x - 1}:0][{num_y - 1}:0][{num_nodes - 1}:0] RoutingTables ="
     package += " {"
-    for src_x in range(num_x):
+    for src_x in reversed(range(num_x)):
         package += "\n  {"
-        for src_y in range(num_y):
+        for src_y in reversed(range(num_y)):
             src = (src_x, src_y)
             package += "\n    {"
             for dst_x in range(num_x):
