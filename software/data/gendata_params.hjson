@@ -318,19 +318,40 @@
     ]
   }
 
+//  "messagep_f16": {
+//    "type": "float16",
+//    "defines": [
+//      ("matrix_M", 32)
+//      ("matrix_N", 32)
+//      ("BIAS", 1)
+//      ("RELU", 1)
+//    ]
+//    "arrays": [
+//      ("__fp16", "l2_A")
+//      ("__fp16", "l2_Y")
+//      ("__fp16", "l2_W")
+//      ("__fp16", "l2_B")
+//    ]
+//  },
+
   "messagep_f16": {
     "type": "float16",
     "defines": [
-      ("matrix_M", 32)
-      ("matrix_N", 32)
-      ("BIAS", 1)
-      ("RELU", 1)
+      ("matrix_M", 256)
+      ("matrix_N", 14)
+      ("matrix_P", 4)
+      ("matrix_D", 4)
+      ("width_HL", 8)
+      ("FC_LAYER", 1)
+      ("BIAS",     1)
+      ("RELU",     1)
     ]
     "arrays": [
       ("__fp16", "l2_A")
-      ("__fp16", "l2_Y")
-      ("__fp16", "l2_W")
       ("__fp16", "l2_B")
+      ("__fp16", "l2_HL")
+      ("__fp16", "l2_W_fc1")
+      ("__fp16", "l2_W_fc2")
     ]
   },
 

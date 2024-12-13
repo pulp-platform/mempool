@@ -197,7 +197,7 @@ if __name__ == '__main__':
         "memcpy": {"func": datalib.generate_iarray},
         "conv2d_depthwise_f16": {"func": datalib_nn.generate_fconv2d_depthwise_pointwise},
         "layernorm_f16": {"func": datalib_nn.generate_flayernorm},
-        "messagep_f16": {"func": datalib_nn.generate_ffullyconn},
+        "messagep_f16": {"func": datalib_nn.generate_fmessagep},
     }
 
     # Check if app_name exists in the function map
