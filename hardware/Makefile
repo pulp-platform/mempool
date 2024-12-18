@@ -31,7 +31,7 @@ questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
 questa_args     ?=
 # VCS Version
-vcs_version     ?= 2020.12-bt
+vcs_version     ?= 2022.06-bt
 # VCS command
 vcs_cmd         ?= vcs-$(vcs_version)
 # Path to the binaries
@@ -272,11 +272,11 @@ $(buildpath)/mempool_simvopt: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_libr
 # Simulation
 simvcs: compile_vcs_simv
 	cd $(buildpath) && \
-	./mempool_simv $(vcs_args) -ucli -do ../scripts/vcs/run.tcl -gui
+	./mempool_simv $(vcs_args) -ucli -l transcript -do ../scripts/vcs/run.tcl -gui
 
 simcvcs: compile_vcs_simvopt
 	cd $(buildpath) && \
-	./mempool_simvopt $(vcs_args)
+	./mempool_simvopt $(vcs_args) -l transcript 
 
 # DPIs
 .PHONY: dpivcs
