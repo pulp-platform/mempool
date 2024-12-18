@@ -477,9 +477,11 @@ module mempool_tb;
   int f_4, f_final_4;
   string fn_4, fn_final_4;
   string dump_time;
+  int floo_input_log_fd;
 
   // string app;
   string log_path;
+  integer retval;
   initial begin
     // void'($value$plusargs("APP=%s", app));
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_remap_%1d/%s", NumCores, app);
@@ -487,6 +489,8 @@ module mempool_tb;
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_remap_f_%1d/%s", NumCores, app);
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_f_%1d/%s", NumCores, app);
     $sformat(log_path, "noc_profiling");
+    retval = $system({"mkdir -p ", log_path});
+    floo_input_log_fd = $fopen($sformatf("%s/floo_input_log.log", log_path), "w");
   end
 
   tile_level_profile_t   tile_level_profile_d,   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0]; 
@@ -849,6 +853,162 @@ module mempool_tb;
 
   end
 
+  floo_req_t floo_req_queue[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][$];
+  router_input_profile_t router_input_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0];
+
+  generate
+    for(genvar g = 0; g < NumGroups; g++)  begin: gen_router_input_queue_per_group
+      for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_router_input_queue_per_tile
+        for(genvar r = 0; r < (NumRemotePortsPerTile-1); r++) begin: gen_router_input_queue_per_remote_port
+          for(genvar router_p = 0; router_p < 5; router_p++) begin: gen_router_input_queue_per_dir
+            always_ff @(posedge clk) begin
+              if (rst_n) begin
+                if (dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.valid_i[router_p] &
+                    dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.ready_o[router_p]) begin
+                  floo_req_queue[g][t][r][router_p].push_back(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.data_i[router_p]);
+                end
+                if (dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_input[router_p].gen_virt_input[0].i_stream_fifo.valid_o &
+                    dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_input[router_p].gen_virt_input[0].i_stream_fifo.ready_i) begin
+                  floo_req_queue[g][t][r][router_p].delete(0);
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  endgenerate
+
+  function int xy_routing (group_xy_id_t group_id, floo_req_t floo_req);
+    automatic group_xy_id_t dest_id = group_xy_id_t'(floo_req.hdr.dst_id);
+    if (dest_id == group_id) begin
+      xy_routing = 0;
+    end else if (dest_id.x == group_id.x) begin
+      if (dest_id.y < group_id.y) begin
+        xy_routing = 3;
+      end else begin
+        xy_routing = 1;
+      end
+    end else begin
+      if (dest_id.x < group_id.x) begin
+        xy_routing = 4;
+      end else begin
+        xy_routing = 2;
+      end
+    end
+  endfunction
+
+  generate
+    for(genvar g = 0; g < NumGroups; g++) begin: gen_router_input_profile_per_group
+      for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_router_input_profile_per_tile
+        for(genvar r = 0; r < (NumRemotePortsPerTile-1); r++) begin: gen_router_input_profile_per_remote_port
+          for(genvar router_p = 0; router_p < 5; router_p++) begin: gen_router_input_profile_per_dir
+            always_ff @(posedge clk or negedge rst_n) begin
+              if(!rst_n) begin
+                router_input_profile_q[g][t][r].in_vld_cyc_num[router_p] = '0;
+                router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p] = '0;
+                router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] = '0;
+                router_input_profile_q[g][t][r].out_congst_cyc_num[router_p] = {'0, '0, '0, '0, '0};
+                router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] = '0;
+                router_input_profile_q[g][t][r].max_stall_cyc_num[router_p] = '0;
+              end else begin
+                if((cycle_q % 200) == 0) begin
+                  router_input_profile_q[g][t][r].in_vld_cyc_num[router_p] = '0;
+                  router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p] = '0;
+                  router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] = '0;
+                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p] = {'0, '0, '0, '0, '0};
+                  router_input_profile_q[g][t][r].max_stall_cyc_num[router_p] = '0;
+                end
+                if(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.valid_i[router_p]) begin
+                  router_input_profile_q[g][t][r].in_vld_cyc_num[router_p] += 1;
+                  if(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.ready_o[router_p]) begin
+                    router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p] += 1;
+                    if(router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] > 0) begin
+                      if(router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] > router_input_profile_q[g][t][r].max_stall_cyc_num[router_p]) begin
+                        router_input_profile_q[g][t][r].max_stall_cyc_num[router_p] = router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p];
+                        router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] = 0;
+                      end
+                    end
+                  end else begin
+                    assert(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_input[router_p].gen_virt_input[0].i_stream_fifo.valid_o);
+                    router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] += 1;
+                    if(~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_input[router_p].gen_virt_input[0].i_stream_fifo.ready_i) begin
+                      automatic int next_hop = xy_routing(g, floo_req_queue[g][t][r][router_p][0]);
+                      router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][next_hop] += 1;
+                      for(int i = 1; i < floo_req_queue[g][t][r][router_p].size(); i++) begin
+                        automatic int next_hop = xy_routing(g, floo_req_queue[g][t][r][router_p][i]);
+                        if (next_hop == 0) begin
+                          if (~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[0].gen_virt_output[0].gen_out_fifo.i_stream_fifo.valid_i &
+                              dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[0].gen_virt_output[0].gen_out_fifo.i_stream_fifo.ready_o) begin
+                            router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] += 1;
+                            break;
+                          end
+                        end else if (next_hop == 1) begin
+                          if (~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[1].gen_virt_output[0].gen_out_fifo.i_stream_fifo.valid_i &
+                              dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[1].gen_virt_output[0].gen_out_fifo.i_stream_fifo.ready_o) begin
+                            router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] += 1;
+                            break;
+                          end
+                        end else if (next_hop == 2) begin
+                          if (~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[2].gen_virt_output[0].gen_out_fifo.i_stream_fifo.valid_i &
+                              dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[2].gen_virt_output[0].gen_out_fifo.i_stream_fifo.ready_o) begin
+                            router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] += 1;
+                            break;
+                          end
+                        end else if (next_hop == 3) begin
+                          if (~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[3].gen_virt_output[0].gen_out_fifo.i_stream_fifo.valid_i &
+                              dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[3].gen_virt_output[0].gen_out_fifo.i_stream_fifo.ready_o) begin
+                            router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] += 1;
+                            break;
+                          end
+                        end else if (next_hop == 4) begin
+                          if (~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[4].gen_virt_output[0].gen_out_fifo.i_stream_fifo.valid_i &
+                              dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.gen_output[4].gen_virt_output[0].gen_out_fifo.i_stream_fifo.ready_o) begin
+                            router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] += 1;
+                            break;
+                          end
+                        end else begin
+                          $fatal("Invalid next_hop");
+                        end
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  endgenerate
+
+  always_ff @(negedge clk) begin: log_router_input_profile
+    if(rst_n) begin
+      for(int g = 0; g < NumGroups; g++) begin
+        for(int t = 0; t < NumTilesPerGroup; t++) begin
+          for(int r = 0; r < (NumRemotePortsPerTile-1); r++) begin
+            for(int router_p = 0; router_p < 5; router_p++) begin
+              if((cycle_q % 200) == 199) begin
+                automatic string log_str;
+                log_str = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'DIR': %03d, 'start_cycle': %03d, 'end_cycle': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'hol_stall_cyc_num': %03d, 'max_stall_cyc_num': %03d, 'out_dir0_cong_cyc_num': %03d, 'out_dir1_cong_cyc_num': %03d, 'out_dir2_cong_cyc_num': %03d, 'out_dir3_cong_cyc_num': %03d, 'out_dir4_cong_cyc_num': %03d}\n",
+                  g, t, r, router_p, cycle_q-199, cycle_q,
+                  router_input_profile_q[g][t][r].in_vld_cyc_num[router_p],
+                  router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p],
+                  router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p],
+                  router_input_profile_q[g][t][r].max_stall_cyc_num[router_p],
+                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][0],
+                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][1],
+                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][2],
+                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][3],
+                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][4]);
+                $fwrite(floo_input_log_fd, log_str);
+              end
+            end
+          end
+        end
+      end
+    end
+  end
 
 `endif
 

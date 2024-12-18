@@ -427,6 +427,16 @@ package mempool_pkg;
     int unsigned out_vld_cyc_num[4]; // 4: 4 directions
     int unsigned out_hsk_cyc_num[4]; // 4: 4 directions
   } router_level_profile_t;
+
+  typedef struct {
+    // noc router ports profile
+    int unsigned in_vld_cyc_num [5];
+    int unsigned in_hsk_cyc_num [5];
+    int unsigned hol_stall_cyc_num [5];
+    int unsigned out_congst_cyc_num [5][5];
+    int unsigned cur_stall_cyc_num [5];
+    int unsigned max_stall_cyc_num [5];
+  } router_input_profile_t;
   `endif
 
 

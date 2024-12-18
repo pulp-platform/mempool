@@ -13,7 +13,6 @@ conda activate mempool
 
 make clean buildpath=build_${config}_${topology}/${app}
 make compile config=$config topology=$topology buildpath=build_${config}_${topology}/${app}
-mkdir -p build_${config}_${topology}/${app}/noc_profiling
 make simc app=$app config=$config topology=$topology buildpath=build_${config}_${topology}/${app}
 make trace result_dir=results/${config}_${topology}/${app} buildpath=build_${config}_${topology}/${app}
 cp -r build_${config}_${topology}/${app}/noc_profiling results/${config}_${topology}/${app}/
