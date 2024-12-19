@@ -19,23 +19,30 @@
 
 /* CFFT data libraries */
 #include "data_cfft_radix4_q16.h"
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
-#define MAX_COL (N_BANKS / (N_CSAMPLES / 4))
+#define MAX_COL (NUM_BANKS / (N_CSAMPLES / 4))
 
-/* CHOOSE ONE */
-//#define SINGLE // Single core FFT.
-//#define PARALLEL // Parallel FFT not "memory-aware".
-//#define FOLDED // Parallel FFT with "memory-aware" load/store.
-#define SCHEDULED // Folded FFTs arranged in rows and cols.'''
+/*
+======================
+Parameters and defines
 
-// Bitreversal index from table.
+PARALLEL: When defined runs parallel FFT.
+FOLDED: When defined runs parallel FFT with folded inputs in memory.
+SCHEDULED: When defined runs multiple parallel folded-inputs FFTs.
+N_FFTs_ROW: When the FFT is scheduled defines the number of FFTs run sequntially
+by each core N_FFTs_COL:
+
+BITREVERSETABLE: When defined bitreversal indeces are fetched from a table, else
+they are computed by cores. FOLDED_TWIDDLES: When FOLDED is defined it can be
+defined to also fold the twiddle factors in memory.
+*/
+
+#define PARALLEL
 #define BITREVERSETABLE
-// Independent FFTs scheduled on one row (default 1).
-#define N_FFTs_ROW 2
-// Independent FFTs scheduled on columns (default 1).
-#define N_FFTs_COL 2
+
+#define N_FFTs_ROW (1)
+#define N_FFTs_COL (1)
 #if (N_FFTs_COL > MAX_COL)
-#error Parallelization not supporting N_FFTs_COL > [N_BANKS / (N_CSAMPLES / 4)]
+#error Parallelization not supporting N_FFTs_COL > [NUM_BANKS / (N_CSAMPLES / 4)]
 #endif
 // Also the twiddles have "memory-aware" load/stores.
 #define FOLDED_TWIDDLES
@@ -60,16 +67,16 @@ uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
 #endif
 
 #if (defined(SCHEDULED) || defined(FOLDED))
-int16_t l1_pSrc[N_FFTs_ROW * 8 * N_BANKS]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
-int16_t l1_pDst[N_FFTs_ROW * 8 * N_BANKS]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
-int16_t l1_twiddleCoef_q16_src[8 * N_BANKS]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
-int16_t l1_twiddleCoef_q16_dst[8 * N_BANKS]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+int16_t l1_pSrc[N_FFTs_ROW * 8 * NUM_BANKS]
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
+int16_t l1_pDst[N_FFTs_ROW * 8 * NUM_BANKS]
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
+int16_t l1_twiddleCoef_q16_src[8 * NUM_BANKS]
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
+int16_t l1_twiddleCoef_q16_dst[8 * NUM_BANKS]
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
 uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
 #endif
 
 int main() {
@@ -97,7 +104,7 @@ int main() {
   if (core_id == 0) {
     for (uint32_t j = 0; j < N_FFTs_ROW; j++) {
       for (uint32_t i = 0; i < N_FFTs_COL; i++) {
-        dma_memcpy_blocking(l1_pSrc + i * 2 * N_CSAMPLES + j * (8 * N_BANKS),
+        dma_memcpy_blocking(l1_pSrc + i * 2 * N_CSAMPLES + j * (8 * NUM_BANKS),
                             l2_pSrc, N_CSAMPLES * sizeof(int32_t));
       }
     }
@@ -112,9 +119,11 @@ int main() {
     for (uint32_t i = core_id; i < N_WORDS_COL; i += num_cores) {
       *(v2s *)&l1_twiddleCoef_q16_src[2 * (i + j * N_WORDS_COL)] =
           *(v2s *)&l2_twiddleCoef_q16[2 * i];
-      *(v2s *)&l1_twiddleCoef_q16_src[2 * (i + j * N_WORDS_COL + 1 * N_BANKS)] =
+      *(v2s *)&l1_twiddleCoef_q16_src[2 *
+                                      (i + j * N_WORDS_COL + 1 * NUM_BANKS)] =
           *(v2s *)&l2_twiddleCoef_q16[2 * (i * 2U)];
-      *(v2s *)&l1_twiddleCoef_q16_src[2 * (i + j * N_WORDS_COL + 2 * N_BANKS)] =
+      *(v2s *)&l1_twiddleCoef_q16_src[2 *
+                                      (i + j * N_WORDS_COL + 2 * NUM_BANKS)] =
           *(v2s *)&l2_twiddleCoef_q16[2 * (i * 3U)];
     }
   }

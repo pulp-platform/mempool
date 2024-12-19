@@ -4,6 +4,7 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#pragma once
 #include "mempool_sqrt_q32s.h"
 
 /**
@@ -23,7 +24,7 @@ void mempool_lowtrisolver_q32s(int32_t *pL, int32_t *pIn, const uint32_t n,
   int32_t in0, in1, in2, in3;
   int32_t l0, l1, l2, l3;
 
-  uint32_t OFFSET = (folded == 1) ? N_BANKS : n;
+  uint32_t OFFSET = (folded == 1) ? NUM_BANKS : n;
 
   for (i = 0; i < n; i++) {
     sum = pIn[i];
@@ -139,7 +140,7 @@ void mempool_uprtrisolver_q32s(int32_t *pL, int32_t volatile *pIn,
   int32_t in0, in1, in2, in3;
   int32_t l0, l1, l2, l3;
 
-  uint32_t OFFSET = (folded == 1) ? N_BANKS : n;
+  uint32_t OFFSET = (folded == 1) ? NUM_BANKS : n;
 
   for (i = n - 1; i < n; i--) {
     sum = pIn[i];
@@ -265,7 +266,7 @@ void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
   int32_t a0, a1, a2, a3;
   int32_t b0, b1, b2, b3;
 
-  uint32_t OFFSET = (folded == 1) ? N_BANKS : n;
+  uint32_t OFFSET = (folded == 1) ? NUM_BANKS : n;
 
   for (j = 0; j < n; j++) {
     in = pIn[j];
@@ -347,7 +348,7 @@ void mempool_linearsolver_q32s(int32_t *pSrc, int32_t *pL,
     case 0:
       break;
     }
-    diag = mempool_sqrt_q32s(pivot - sum);
+    diag = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
     in = FIX_DIV(in, diag);
 
     sum_r = 0;
@@ -482,9 +483,9 @@ void mempool_linearsolver_schedule_q32s(int32_t *pSrc, int32_t *pL,
   uint32_t idx_row, idx_col = core_id;
   for (idx_row = 0; idx_row < n_row; idx_row++) {
     mempool_linearsolver_q32s(pSrc + idx_col * n,
-                              pL + idx_col * n + idx_row * N_BANKS,
+                              pL + idx_col * n + idx_row * NUM_BANKS,
                               pIn + idx_col * n, n, 1);
-    mempool_uprtrisolver_q32s(pL + idx_col * n + idx_row * N_BANKS,
+    mempool_uprtrisolver_q32s(pL + idx_col * n + idx_row * NUM_BANKS,
                               pIn + idx_col * n, n, 1);
   }
   mempool_log_partial_barrier(2, core_id, n_col * (n >> 2U));

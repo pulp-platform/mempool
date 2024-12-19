@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "baremetal/mempool_matmul_i32p.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
@@ -24,6 +23,8 @@
 #define matrix_N (NUM_CORES)
 #define matrix_P (NUM_CORES)
 #endif
+
+#include "baremetal/mempool_matmul_i32p.h"
 
 int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));

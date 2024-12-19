@@ -19,6 +19,14 @@
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_chest_q16.h"
 
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core Channel Estimation.
+PARALLEL: When defined runs parallel Channel Estimation.
+*/
+
 #define PARALLEL
 
 int16_t l1_PilotTX[2 * N_TX * N_SAMPLES]
@@ -55,8 +63,8 @@ int main() {
 #endif
 #ifdef PARALLEL
   mempool_start_benchmark();
-  mempool_chest_q16p_unrolled4_local(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX,
-                                     N_TX, N_SAMPLES, core_id, num_cores);
+  mempool_chest_q16p_unrolled4(l1_HEST, l1_PilotRX, l1_PilotTX, N_RX, N_TX,
+                               N_SAMPLES, core_id, num_cores);
   mempool_stop_benchmark();
   mempool_barrier(num_cores);
 #endif

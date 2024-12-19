@@ -17,8 +17,13 @@
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_matmul_f32.h"
 
-#define PARALLEL
-#define ASM
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core matmul.
+PARALLEL: When defined runs parallel matmul.
+*/
 
 float matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 float matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));

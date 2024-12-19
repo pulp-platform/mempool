@@ -24,6 +24,7 @@ increase the utilization of the cores operating on multiple problems.
         RIGHT
 */
 
+#pragma once
 #include "mempool_sqrt_q32s.h"
 
 /**
@@ -134,13 +135,13 @@ void mempool_linearsolver_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
   /* Elements on the diagonal are computed with a single core */
   if (core_id == core_idx) {
     in = pIn[j];
-    pivot = pSrc[matrix_row * N_BANKS + j];
+    pivot = pSrc[matrix_row * NUM_BANKS + j];
     sum = 0;
     for (k = 0; k < 4 * (j >> 2U); k++) {
-      a0 = pL[matrix_row + k * N_BANKS];
-      a1 = pL[matrix_row + (k + 1) * N_BANKS];
-      a2 = pL[matrix_row + (k + 2) * N_BANKS];
-      a3 = pL[matrix_row + (k + 3) * N_BANKS];
+      a0 = pL[matrix_row + k * NUM_BANKS];
+      a1 = pL[matrix_row + (k + 1) * NUM_BANKS];
+      a2 = pL[matrix_row + (k + 2) * NUM_BANKS];
+      a3 = pL[matrix_row + (k + 3) * NUM_BANKS];
       asm volatile("mul  %[a0],%[a0],%[a0];"
                    "mul  %[a1],%[a1],%[a1];"
                    "mul  %[a2],%[a2],%[a2];"
@@ -164,9 +165,9 @@ void mempool_linearsolver_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
     }
     switch (j % 4) {
     case 3:
-      a0 = pL[matrix_row + k * N_BANKS];
-      a1 = pL[matrix_row + (k + 1) * N_BANKS];
-      a2 = pL[matrix_row + (k + 2) * N_BANKS];
+      a0 = pL[matrix_row + k * NUM_BANKS];
+      a1 = pL[matrix_row + (k + 1) * NUM_BANKS];
+      a2 = pL[matrix_row + (k + 2) * NUM_BANKS];
       asm volatile(
           "mul  %[a0],%[a0],%[a0];"
           "mul  %[a1],%[a1],%[a1];"
@@ -185,8 +186,8 @@ void mempool_linearsolver_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
           :);
       break;
     case 2:
-      a0 = pL[matrix_row + k * N_BANKS];
-      a1 = pL[matrix_row + (k + 1) * N_BANKS];
+      a0 = pL[matrix_row + k * NUM_BANKS];
+      a1 = pL[matrix_row + (k + 1) * NUM_BANKS];
       asm volatile("mul  %[a0],%[a0],%[a0];"
                    "mul  %[a1],%[a1],%[a1];"
                    "addi %[a0],%[a0],%[h];"
@@ -200,7 +201,7 @@ void mempool_linearsolver_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
                    :);
       break;
     case 1:
-      a0 = pL[matrix_row + k * N_BANKS];
+      a0 = pL[matrix_row + k * NUM_BANKS];
       asm volatile("mul  %[a0],%[a0],%[a0];"
                    "addi %[a0],%[a0],%[h];"
                    "srai  %[a0],%[a0],%[s];"
@@ -212,9 +213,9 @@ void mempool_linearsolver_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
     case 0:
       break;
     }
-    result = mempool_sqrt_q32s(pivot - sum);
+    result = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
     pIn[j] = FIX_DIV(in, result);
-    pL[matrix_row + j * N_BANKS] = result;
+    pL[matrix_row + j * NUM_BANKS] = result;
   }
 }
 
@@ -237,19 +238,19 @@ void mempool_linearsolver_q32p_divisum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
 
     if (core_id == core_idx) {
       sum = 0;
-      pivot = pSrc[i * N_BANKS + j];
-      diag = pL[jmatrix_row + j * N_BANKS];
+      pivot = pSrc[i * NUM_BANKS + j];
+      diag = pL[jmatrix_row + j * NUM_BANKS];
       in = pIn[j];
       sum_r = pIn[i];
       for (k = 0; k < 4 * (j >> 2U); k += 4) {
-        a0 = pL[imatrix_row + k * N_BANKS];
-        a1 = pL[imatrix_row + (k + 1) * N_BANKS];
-        a2 = pL[imatrix_row + (k + 2) * N_BANKS];
-        a3 = pL[imatrix_row + (k + 3) * N_BANKS];
-        b0 = pL[jmatrix_row + k * N_BANKS];
-        b1 = pL[jmatrix_row + (k + 1) * N_BANKS];
-        b2 = pL[jmatrix_row + (k + 2) * N_BANKS];
-        b3 = pL[jmatrix_row + (k + 3) * N_BANKS];
+        a0 = pL[imatrix_row + k * NUM_BANKS];
+        a1 = pL[imatrix_row + (k + 1) * NUM_BANKS];
+        a2 = pL[imatrix_row + (k + 2) * NUM_BANKS];
+        a3 = pL[imatrix_row + (k + 3) * NUM_BANKS];
+        b0 = pL[jmatrix_row + k * NUM_BANKS];
+        b1 = pL[jmatrix_row + (k + 1) * NUM_BANKS];
+        b2 = pL[jmatrix_row + (k + 2) * NUM_BANKS];
+        b3 = pL[jmatrix_row + (k + 3) * NUM_BANKS];
         asm volatile("mul  %[a0],%[a0],%[b0];"
                      "mul  %[a1],%[a1],%[b1];"
                      "mul  %[a2],%[a2],%[b2];"
@@ -274,12 +275,12 @@ void mempool_linearsolver_q32p_divisum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
       }
       switch (j % 4) {
       case 3:
-        a0 = pL[imatrix_row + k * N_BANKS];
-        a1 = pL[imatrix_row + (k + 1) * N_BANKS];
-        a2 = pL[imatrix_row + (k + 2) * N_BANKS];
-        b0 = pL[jmatrix_row + k * N_BANKS];
-        b1 = pL[jmatrix_row + (k + 1) * N_BANKS];
-        b2 = pL[jmatrix_row + (k + 2) * N_BANKS];
+        a0 = pL[imatrix_row + k * NUM_BANKS];
+        a1 = pL[imatrix_row + (k + 1) * NUM_BANKS];
+        a2 = pL[imatrix_row + (k + 2) * NUM_BANKS];
+        b0 = pL[jmatrix_row + k * NUM_BANKS];
+        b1 = pL[jmatrix_row + (k + 1) * NUM_BANKS];
+        b2 = pL[jmatrix_row + (k + 2) * NUM_BANKS];
         asm volatile(
             "mul  %[a0],%[a0],%[b0];"
             "mul  %[a1],%[a1],%[b1];"
@@ -299,10 +300,10 @@ void mempool_linearsolver_q32p_divisum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
             :);
         break;
       case 2:
-        a0 = pL[imatrix_row + k * N_BANKS];
-        a1 = pL[imatrix_row + (k + 1) * N_BANKS];
-        b0 = pL[jmatrix_row + k * N_BANKS];
-        b1 = pL[jmatrix_row + (k + 1) * N_BANKS];
+        a0 = pL[imatrix_row + k * NUM_BANKS];
+        a1 = pL[imatrix_row + (k + 1) * NUM_BANKS];
+        b0 = pL[jmatrix_row + k * NUM_BANKS];
+        b1 = pL[jmatrix_row + (k + 1) * NUM_BANKS];
         asm volatile(
             "mul  %[a0],%[a0],%[b0];"
             "mul  %[a1],%[a1],%[b1];"
@@ -317,8 +318,8 @@ void mempool_linearsolver_q32p_divisum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
             :);
         break;
       case 1:
-        a0 = pL[imatrix_row + k * N_BANKS];
-        b0 = pL[jmatrix_row + k * N_BANKS];
+        a0 = pL[imatrix_row + k * NUM_BANKS];
+        b0 = pL[jmatrix_row + k * NUM_BANKS];
         asm volatile("mul  %[a0],%[a0],%[b0];"
                      "addi %[a0],%[a0],%[h];"
                      "srai  %[a0],%[a0],%[s];"
@@ -332,7 +333,7 @@ void mempool_linearsolver_q32p_divisum(int32_t *pSrc, int32_t *pL, int32_t *pIn,
       }
       result = FIX_DIV((pivot - sum), diag);
       pIn[i] = sum_r - result * in;
-      pL[imatrix_row + j * N_BANKS] = result;
+      pL[imatrix_row + j * NUM_BANKS] = result;
     }
   }
 }
@@ -352,10 +353,10 @@ void mempool_linearsolver_q32p_trisolverL(int32_t *pL, int32_t *pIn,
         a1 = pIn[k - 1];
         a2 = pIn[k - 2];
         a3 = pIn[k - 3];
-        b0 = pL[k + i * N_BANKS];
-        b1 = pL[(k - 1) + i * N_BANKS];
-        b2 = pL[(k - 2) + i * N_BANKS];
-        b3 = pL[(k - 3) + i * N_BANKS];
+        b0 = pL[k + i * NUM_BANKS];
+        b1 = pL[(k - 1) + i * NUM_BANKS];
+        b2 = pL[(k - 2) + i * NUM_BANKS];
+        b3 = pL[(k - 3) + i * NUM_BANKS];
         asm volatile("mul  %[a0],%[a0],%[b0];"
                      "mul  %[a1],%[a1],%[b1];"
                      "mul  %[a2],%[a2],%[b2];"
@@ -383,9 +384,9 @@ void mempool_linearsolver_q32p_trisolverL(int32_t *pL, int32_t *pIn,
         a0 = pIn[k];
         a1 = pIn[k - 1];
         a2 = pIn[k - 2];
-        b0 = pL[k + i * N_BANKS];
-        b1 = pL[(k - 1) + i * N_BANKS];
-        b2 = pL[(k - 2) + i * N_BANKS];
+        b0 = pL[k + i * NUM_BANKS];
+        b1 = pL[(k - 1) + i * NUM_BANKS];
+        b2 = pL[(k - 2) + i * NUM_BANKS];
         asm volatile(
             "mul  %[a0],%[a0],%[b0];"
             "mul  %[a1],%[a1],%[b1];"
@@ -407,8 +408,8 @@ void mempool_linearsolver_q32p_trisolverL(int32_t *pL, int32_t *pIn,
       case 2:
         a0 = pIn[k];
         a1 = pIn[k - 1];
-        b0 = pL[k + i * N_BANKS];
-        b1 = pL[(k - 1) + i * N_BANKS];
+        b0 = pL[k + i * NUM_BANKS];
+        b1 = pL[(k - 1) + i * NUM_BANKS];
         asm volatile(
             "mul  %[a0],%[a0],%[b0];"
             "mul  %[a1],%[a1],%[b1];"
@@ -424,7 +425,7 @@ void mempool_linearsolver_q32p_trisolverL(int32_t *pL, int32_t *pIn,
         break;
       case 3:
         a0 = pIn[k];
-        b0 = pL[k + i * N_BANKS];
+        b0 = pL[k + i * NUM_BANKS];
         asm volatile("mul  %[a0],%[a0],%[b0];"
                      "addi %[a0],%[a0],%[h];"
                      "srai %[a0],%[a0],%[s];"
@@ -436,7 +437,7 @@ void mempool_linearsolver_q32p_trisolverL(int32_t *pL, int32_t *pIn,
       case 0:
         break;
       }
-      pIn[i] = FIX_DIV(sum, pL[i * N_BANKS + i]);
+      pIn[i] = FIX_DIV(sum, pL[i * NUM_BANKS + i]);
     }
   }
 }
@@ -456,10 +457,10 @@ void mempool_linearsolver_q32p_trisolverR(int32_t *pL, int32_t *pIn,
         a1 = pIn[n - 1 - k - 1];
         a2 = pIn[n - 1 - k - 2];
         a3 = pIn[n - 1 - k - 3];
-        b0 = pL[k + i * N_BANKS];
-        b1 = pL[(k + 1) + i * N_BANKS];
-        b2 = pL[(k + 2) + i * N_BANKS];
-        b3 = pL[(k + 3) + i * N_BANKS];
+        b0 = pL[k + i * NUM_BANKS];
+        b1 = pL[(k + 1) + i * NUM_BANKS];
+        b2 = pL[(k + 2) + i * NUM_BANKS];
+        b3 = pL[(k + 3) + i * NUM_BANKS];
         asm volatile("mul  %[a0],%[a0],%[b0];"
                      "mul  %[a1],%[a1],%[b1];"
                      "mul  %[a2],%[a2],%[b2];"
@@ -487,9 +488,9 @@ void mempool_linearsolver_q32p_trisolverR(int32_t *pL, int32_t *pIn,
         a0 = pIn[n - 1 - k];
         a1 = pIn[n - 1 - k - 1];
         a2 = pIn[n - 1 - k - 2];
-        b0 = pL[k + i * N_BANKS];
-        b1 = pL[(k + 1) + i * N_BANKS];
-        b2 = pL[(k + 2) + i * N_BANKS];
+        b0 = pL[k + i * NUM_BANKS];
+        b1 = pL[(k + 1) + i * NUM_BANKS];
+        b2 = pL[(k + 2) + i * NUM_BANKS];
         asm volatile(
             "mul  %[a0],%[a0],%[b0];"
             "mul  %[a1],%[a1],%[b1];"
@@ -511,8 +512,8 @@ void mempool_linearsolver_q32p_trisolverR(int32_t *pL, int32_t *pIn,
       case 2:
         a0 = pIn[n - 1 - k];
         a1 = pIn[n - 1 - k - 1];
-        b0 = pL[k + i * N_BANKS];
-        b1 = pL[(k + 1) + i * N_BANKS];
+        b0 = pL[k + i * NUM_BANKS];
+        b1 = pL[(k + 1) + i * NUM_BANKS];
         asm volatile(
             "mul  %[a0],%[a0],%[b0];"
             "mul  %[a1],%[a1],%[b1];"
@@ -528,7 +529,7 @@ void mempool_linearsolver_q32p_trisolverR(int32_t *pL, int32_t *pIn,
         break;
       case 1:
         a0 = pIn[n - 1 - k];
-        b0 = pL[k + i * N_BANKS];
+        b0 = pL[k + i * NUM_BANKS];
         asm volatile("mul  %[a0],%[a0],%[b0];"
                      "addi %[a0],%[a0],%[h];"
                      "srai %[a0],%[a0],%[s];"
@@ -540,7 +541,7 @@ void mempool_linearsolver_q32p_trisolverR(int32_t *pL, int32_t *pIn,
       case 0:
         break;
       }
-      pIn[i] = FIX_DIV(sum, pL[i * N_BANKS + i]);
+      pIn[i] = FIX_DIV(sum, pL[i * NUM_BANKS + i]);
     }
   }
 }
@@ -584,10 +585,10 @@ void mempool_linearsolver_fold_schedule_q32p(int32_t *pSrcA, int32_t *pSrcB,
     for (idx_col = column_id; idx_col < n_col; idx_col += n_col) {
       for (idx_row = 0; idx_row < n_row; idx_row++) {
         mempool_linearsolver_q32p_sqrtsum(
-            pSrcA + idx_col * n, pLL + idx_col * n + idx_row * (n * N_BANKS),
+            pSrcA + idx_col * n, pLL + idx_col * n + idx_row * (n * NUM_BANKS),
             pIn + idx_col * n, core_id, n, j, 1);
         mempool_linearsolver_q32p_sqrtsum(
-            pSrcB + idx_col * n, pLR + idx_col * n + idx_row * (n * N_BANKS),
+            pSrcB + idx_col * n, pLR + idx_col * n + idx_row * (n * NUM_BANKS),
             pIn + idx_col * n, core_id, n, j, 0);
       }
     }
@@ -595,10 +596,10 @@ void mempool_linearsolver_fold_schedule_q32p(int32_t *pSrcA, int32_t *pSrcB,
     for (idx_col = column_id; idx_col < n_col; idx_col += n_col) {
       for (idx_row = 0; idx_row < n_row; idx_row++) {
         mempool_linearsolver_q32p_divisum(
-            pSrcA + idx_col * n, pLL + idx_col * n + idx_row * (n * N_BANKS),
-            pIn + idx_col * n + idx_row * N_BANKS, core_id, n, j, 1);
+            pSrcA + idx_col * n, pLL + idx_col * n + idx_row * (n * NUM_BANKS),
+            pIn + idx_col * n + idx_row * NUM_BANKS, core_id, n, j, 1);
         mempool_linearsolver_q32p_divisum(
-            pSrcB + idx_col * n, pLR + idx_col * n + idx_row * (n * N_BANKS),
+            pSrcB + idx_col * n, pLR + idx_col * n + idx_row * (n * NUM_BANKS),
             pIn + idx_col * n, core_id, n, j, 0);
       }
     }
@@ -608,10 +609,10 @@ void mempool_linearsolver_fold_schedule_q32p(int32_t *pSrcA, int32_t *pSrcB,
   for (idx_col = column_id; idx_col < n_col; idx_col += n_col) {
     for (idx_row = 0; idx_row < n_row; idx_row++) {
       mempool_linearsolver_q32p_trisolverL(pLL + idx_col * n +
-                                               idx_row * (n * N_BANKS),
+                                               idx_row * (n * NUM_BANKS),
                                            pIn + idx_col * n, core_id, n);
       mempool_linearsolver_q32p_trisolverR(
-          pLR + idx_col * n + idx_row * (n * N_BANKS), pIn + idx_col * n,
+          pLR + idx_col * n + idx_row * (n * NUM_BANKS), pIn + idx_col * n,
           core_id, n, n_col * (n >> 2U));
     }
   }
