@@ -15,7 +15,6 @@
 #include "synchronization.h"
 
 #include "data_axpy_f16.h"
-#define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
 
 // Vectors for kernel computation
 __fp16 l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));

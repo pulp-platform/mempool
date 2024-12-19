@@ -18,7 +18,6 @@
 #include "synchronization.h"
 
 #include "data_ofdm_f16.h"
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 // CFFT Parameters
 #define SCHEDULED
@@ -28,7 +27,7 @@
 #define N_FFTs_COL 4
 #define N_FFTs_ROW (N_RX / N_FFTs_COL)
 // CMATMUL Parameters
-#define NUM_COPIES (N_BANKS / (N_BEAMS * N_RX))
+#define NUM_COPIES (NUM_BANKS / (N_BEAMS * N_RX))
 #define dim_M (N_BEAMS)
 #define dim_N (N_RX)
 #define dim_P (N_SC)
@@ -43,18 +42,18 @@ dump(checkpoint, 1);
 
 uint32_t arrival_index __attribute__((section(".l1_prio")));
 __fp16 l1_pBF_Coef_folded[2 * BANKING_FACTOR * NUM_CORES]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
 
-__fp16 l1_pFFT_Src[N_FFTs_ROW * 8 * N_BANKS]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
-__fp16 l1_pFFT_Dst[N_FFTs_ROW * 8 * N_BANKS]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
-__fp16 l1_twiddleCoef_f16_src[6 * N_BANKS]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
-__fp16 l1_twiddleCoef_f16_dst[6 * N_BANKS]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+__fp16 l1_pFFT_Src[N_FFTs_ROW * 8 * NUM_BANKS]
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
+__fp16 l1_pFFT_Dst[N_FFTs_ROW * 8 * NUM_BANKS]
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
+__fp16 l1_twiddleCoef_f16_src[6 * NUM_BANKS]
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
+__fp16 l1_twiddleCoef_f16_dst[6 * NUM_BANKS]
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
 uint16_t l1_BitRevIndexTable[BITREVINDEXTABLE_LENGTH]
-    __attribute__((aligned(4 * N_BANKS), section(".l1_prio")));
+    __attribute__((aligned(4 * NUM_BANKS), section(".l1_prio")));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* MAIN */
@@ -67,7 +66,7 @@ int main() {
   mempool_start_benchmark();
   if (core_id == 0) {
     // Each FFT is folded over 4 memory rows
-    // Each memory row is 2 * N_BANKS samples
+    // Each memory row is 2 * NUM_BANKS samples
     __atomic_store_n(&arrival_index, 0, __ATOMIC_RELAXED);
     dma_memcpy_blocking(l1_pFFT_Src, l2_pFFT_Src,
                         (N_RX * N_SC) * sizeof(int32_t));
@@ -78,7 +77,7 @@ int main() {
                           dim_M * dim_N * sizeof(int32_t));
     }
     for (uint32_t i = 0; i < N_FFTs_COL; i++) {
-      dma_memcpy_blocking(l1_twiddleCoef_f16_src + (2 * i * N_BANKS),
+      dma_memcpy_blocking(l1_twiddleCoef_f16_src + (2 * i * NUM_BANKS),
                           l2_twiddleCoef_f16, 3 * (N_SC / 4) * sizeof(int32_t));
     }
   }
@@ -114,7 +113,7 @@ int main() {
     dma_memcpy_blocking(l2_pBF_Dst, l1_pFFT_Dst,
                         (N_RX * N_SC) * sizeof(int32_t));
     for (uint32_t i = 0; i < N_FFTs_COL; i++) {
-      dma_memcpy_blocking(l1_twiddleCoef_f16_src + (2 * i * N_BANKS),
+      dma_memcpy_blocking(l1_twiddleCoef_f16_src + (2 * i * NUM_BANKS),
                           l2_twiddleCoef_f16, 3 * (N_SC / 4) * sizeof(int32_t));
     }
     __atomic_store_n(&arrival_index, 0, __ATOMIC_RELAXED);

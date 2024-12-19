@@ -19,7 +19,18 @@
 
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_cmatmul_f16.h"
-#define PARALLEL_4x4
+
+/*
+======================
+Parameters and defines
+
+SINGLE_2x2: Single-core matmul on 2x2 tiles.
+PARALLEL_2x2: Parallel matmul on 2x2 C-tiles.
+PARALLEL_2x4: Parallel matmul on 4x4 C-tiles.
+PARALLEL_4x4: Parallel matmul on 4x4 C-tiles.
+PARALLEL_4x4_COPIES_A: Parallel matmul on 4x4 C-tiles, compies of A in memory to
+avoid banking conflicts.
+*/
 
 #if defined(PARALLEL_4x4_COPIES_A)
 __fp16 matrix_a[2 * (BANKING_FACTOR * NUM_CORES)]
@@ -51,7 +62,7 @@ int main() {
   // Wait at barrier until everyone is ready
   mempool_barrier(num_cores);
 
-#if defined(SINGLE_CORE)
+#if defined(SINGLE_2x2)
   // Execute function to test.
   if (core_id == 0) {
     mempool_start_benchmark();

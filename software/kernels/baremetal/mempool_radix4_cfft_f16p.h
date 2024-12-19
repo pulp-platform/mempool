@@ -5,7 +5,6 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #pragma once
-#define BITREVERSETABLE
 #include "builtins_v2.h"
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
@@ -33,19 +32,19 @@
 #ifdef FOLDED_TWIDDLES
 #define LOAD_STORE_TWIDDLEFACT                                                 \
   CoSi1 = *(v2h *)&pCoef_src[2U * ic];                                         \
-  CoSi2 = *(v2h *)&pCoef_src[2U * (ic + 1 * N_BANKS)];                         \
-  CoSi3 = *(v2h *)&pCoef_src[2U * (ic + 2 * N_BANKS)];                         \
+  CoSi2 = *(v2h *)&pCoef_src[2U * (ic + 1 * NUM_BANKS)];                       \
+  CoSi3 = *(v2h *)&pCoef_src[2U * (ic + 2 * NUM_BANKS)];                       \
   if (ic % 4 == 0) {                                                           \
     *((v2h *)&pCoef_dst[2U * (ic_store)]) = CoSi1;                             \
     *((v2h *)&pCoef_dst[2U * (n2_store * 1 + ic_store)]) = CoSi1;              \
     *((v2h *)&pCoef_dst[2U * (n2_store * 2 + ic_store)]) = CoSi1;              \
     *((v2h *)&pCoef_dst[2U * (n2_store * 3 + ic_store)]) = CoSi1;              \
-    ic_store += N_BANKS;                                                       \
+    ic_store += NUM_BANKS;                                                     \
     *((v2h *)&pCoef_dst[2U * (ic_store)]) = CoSi2;                             \
     *((v2h *)&pCoef_dst[2U * (n2_store * 1 + ic_store)]) = CoSi2;              \
     *((v2h *)&pCoef_dst[2U * (n2_store * 2 + ic_store)]) = CoSi2;              \
     *((v2h *)&pCoef_dst[2U * (n2_store * 3 + ic_store)]) = CoSi2;              \
-    ic_store += N_BANKS;                                                       \
+    ic_store += NUM_BANKS;                                                     \
     *((v2h *)&pCoef_dst[2U * (ic_store)]) = CoSi3;                             \
     *((v2h *)&pCoef_dst[2U * (n2_store * 1 + ic_store)]) = CoSi3;              \
     *((v2h *)&pCoef_dst[2U * (n2_store * 2 + ic_store)]) = CoSi3;              \
@@ -315,8 +314,8 @@ void mempool_radix4_cfft_f16p_scheduler(
     LOAD_STORE_TWIDDLEFACT;
     SHUFFLE_TWIDDLEFACT;
     for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-      pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * fftLen;
-      pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+      pIn = pSrc16 + idx_row * (NUM_BANKS * 8) + 2 * col_id * fftLen;
+      pOut = pDst16 + idx_row * (NUM_BANKS * 8) + 2 * col_id * (fftLen / 4);
       radix4_butterfly_first(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                              C3);
     }
@@ -345,8 +344,8 @@ void mempool_radix4_cfft_f16p_scheduler(
       SHUFFLE_TWIDDLEFACT;
 
       for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-        pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
-        pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
+        pIn = pSrc16 + idx_row * (NUM_BANKS * 8) + 2 * col_id * (fftLen / 4);
+        pOut = pDst16 + idx_row * (NUM_BANKS * 8) + 2 * col_id * (fftLen / 4);
         radix4_butterfly_middle(pIn, pOut, i0, n2, CoSi1, CoSi2, CoSi3, C1, C2,
                                 C3);
       }
@@ -370,8 +369,8 @@ void mempool_radix4_cfft_f16p_scheduler(
       uint32_t col_shift = fftLen / 4;
 #endif
 
-      pIn = pSrc16 + idx_row * (N_BANKS * 8) + 2 * col_id * (fftLen / 4);
-      pOut = pDst16 + idx_row * (N_BANKS * 8) + 2 * col_id * col_shift;
+      pIn = pSrc16 + idx_row * (NUM_BANKS * 8) + 2 * col_id * (fftLen / 4);
+      pOut = pDst16 + idx_row * (NUM_BANKS * 8) + 2 * col_id * col_shift;
       radix4_butterfly_last(pIn, pOut, i0);
     }
   }
@@ -416,7 +415,7 @@ void mempool_radix4_cfft_f16p_scheduler(
                    : [s2] "r"(s2)
                    :);
       for (uint32_t idx_row = 0; idx_row < N_FFTs_ROW; idx_row++) {
-        uint16_t *ptr = (uint16_t *)(pIn + idx_row * (N_BANKS * 8));
+        uint16_t *ptr = (uint16_t *)(pIn + idx_row * (NUM_BANKS * 8));
         // Load at address a
         tmpa1 = *(uint32_t *)&ptr[a1];
         tmpa2 = *(uint32_t *)&ptr[a2];
@@ -465,12 +464,12 @@ void mempool_radix4_cfft_f16p_scheduler(
         idx3 = idx3 >> 1U;
       }
       idx0 = ic / 4;
-      idx1 = ic / 4 + N_BANKS;
-      idx2 = ic / 4 + 2 * N_BANKS;
-      idx3 = ic / 4 + 3 * N_BANKS;
+      idx1 = ic / 4 + NUM_BANKS;
+      idx2 = ic / 4 + 2 * NUM_BANKS;
+      idx3 = ic / 4 + 3 * NUM_BANKS;
       for (uint32_t idx_row = 0; idx_row < n_FFTs_ROW; idx_row++) {
-        ptr1 = pSrc16 + 2 * col_id * (fftLen / 4) + idx_row * (N_BANKS * 8);
-        ptr2 = pDst16 + 2 * col_id * fftLen + idx_row * (N_BANKS * 8);
+        ptr1 = pSrc16 + 2 * col_id * (fftLen / 4) + idx_row * (NUM_BANKS * 8);
+        ptr2 = pDst16 + 2 * col_id * fftLen + idx_row * (NUM_BANKS * 8);
         *((uint32_t *)&ptr2[2 * idx_result0]) = *((uint32_t *)&ptr1[2 * idx0]);
         *((uint32_t *)&ptr2[2 * idx_result1]) = *((uint32_t *)&ptr1[2 * idx1]);
         *((uint32_t *)&ptr2[2 * idx_result2]) = *((uint32_t *)&ptr1[2 * idx2]);

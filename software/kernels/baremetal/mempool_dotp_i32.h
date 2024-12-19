@@ -4,6 +4,18 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+/*
+======================
+Parameters and defines
+
+SINGLE_CORE_REDUCTION: Reduction with a single-core.
+BINARY_REDUCTION: Reduction with binary tree.
+ATOMIC_REDUCTION: Reduction with atomics.
+LOG_BARRIERS: Use binary reduction
+*/
+
+#define SINGLE_CORE_REDUCTION
+
 #define DOTPI32_UNROLLED4_LOOP                                                 \
   {                                                                            \
     a0 = in_a[i];                                                              \

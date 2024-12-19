@@ -17,6 +17,15 @@
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_cholesky_f16s.h"
 
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core Cholesky Decomposition.
+PARALLEL: When defined runs parallel Cholesky Decomposition.
+FOLDED: When defined 1 intermediate results are folded in memory.
+*/
+
 #define SINGLE
 #define FOLDED (0)
 

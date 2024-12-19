@@ -13,8 +13,7 @@
 
 #pragma once
 #include "builtins_v2.h"
-// Shift cores startpoint over rows of matrix A
-#define __SHIFT_A
+#define __SHIFT_A // Shift cores startpoint over rows of matrix A
 
 #define CMATMUL_1x1_LOOP                                                       \
   v2s sum = {0, 0};                                                            \

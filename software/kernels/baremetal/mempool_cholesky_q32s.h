@@ -320,7 +320,7 @@ void mempool_cholesky_schedule_q32s(int32_t *pSrc, int32_t *pL,
   uint32_t idx_row, idx_col = core_id;
   for (idx_row = 0; idx_row < n_row; idx_row++) {
     mempool_cholesky_crout_q32s(pSrc + idx_col * n,
-                                pL + idx_col * n + idx_row * N_BANKS, n);
+                                pL + idx_col * n + idx_row * NUM_BANKS, n);
   }
   mempool_log_partial_barrier(2, core_id, n_col * (n >> 2U));
 }

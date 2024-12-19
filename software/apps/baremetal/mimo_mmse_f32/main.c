@@ -21,6 +21,17 @@
 
 #include "data_mimo_mmse_f32.h"
 
+/*
+======================
+Parameters and defines
+
+PARALLEL: When defined benchmark parallel MIMO-MMSE.
+SINGLE: When defined benchmark single-core MIMO-MMSE.
+PARALLEL_HERMITIAN: When defined the Hermitian is finely-grained parallelized
+over a group of cores. ZF: When defined 1 use zero forcing detector. FOLD: When
+defined 1 fold matrices in memory.
+*/
+
 #define SINGLE
 #define ZF (0)
 #define FOLD (0)

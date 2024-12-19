@@ -16,6 +16,14 @@
 #include "baremetal/mempool_cmatmul_q16.h"
 #include "data_cmatmul_q16.h"
 
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core matmul.
+PARALLEL: When defined runs parallel matmul.
+*/
+
 #define PARALLEL
 #define dim_M (matrix_M)
 #define dim_N (matrix_N)

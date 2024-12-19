@@ -14,9 +14,6 @@
 #include "synchronization.h"
 
 #include "data_dotp_f16.h"
-#define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
-// #define SINGLE_CORE_REDUCTION
-#define BINARY_REDUCTION
 
 // Vectors for kernel computation
 __fp16 l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
@@ -46,18 +43,6 @@ int main() {
     red_barrier[k] = 0;
   }
   mempool_barrier(num_cores);
-
-  //  // SINGLE-CORE
-  //  time_init = mempool_get_timer();
-  //  dotp_f16s(l1_X, l1_Y, sum, array_N);
-  //  // dotp_f16s_unrolled4(l1_X, l1_Y, sum, array_N);
-  //  time_end = mempool_get_timer();
-
-  //  // PARALLEL
-  //  time_init = mempool_get_timer();
-  //  dotp_f16vecp_unrolled4(l1_X, l1_Y, sum, array_N, num_cores);
-  //  // dotp_f16p(l1_X, l1_Y, sum, array_N, num_cores);
-  //  time_end = mempool_get_timer();
 
   // PARALLEL, LOCAL ACCESSES
   time_init = mempool_get_timer();

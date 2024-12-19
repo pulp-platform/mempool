@@ -325,13 +325,13 @@ void mempool_cholesky_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, const uint32_t n,
   uint32_t matrix_row = (FoldLeft == 1) ? j : (n - 1 - j);
   /* Elements on the diagonal are computed with a single core */
   if (core_id == core_idx) {
-    pivot = pSrc[j * N_BANKS + j];
+    pivot = pSrc[j * NUM_BANKS + j];
     sum = 0;
     for (k = 0; k < 4 * (j >> 2U); k++) {
-      a0 = pL[matrix_row + k * N_BANKS];
-      a1 = pL[matrix_row + (k + 1) * N_BANKS];
-      a2 = pL[matrix_row + (k + 2) * N_BANKS];
-      a3 = pL[matrix_row + (k + 3) * N_BANKS];
+      a0 = pL[matrix_row + k * NUM_BANKS];
+      a1 = pL[matrix_row + (k + 1) * NUM_BANKS];
+      a2 = pL[matrix_row + (k + 2) * NUM_BANKS];
+      a3 = pL[matrix_row + (k + 3) * NUM_BANKS];
       asm volatile("mul  %[a0],%[a0],%[a0];"
                    "mul  %[a1],%[a1],%[a1];"
                    "mul  %[a2],%[a2],%[a2];"
@@ -355,9 +355,9 @@ void mempool_cholesky_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, const uint32_t n,
     }
     switch (j % 4) {
     case 3:
-      a0 = pL[matrix_row + k * N_BANKS];
-      a1 = pL[matrix_row + (k + 1) * N_BANKS];
-      a2 = pL[matrix_row + (k + 2) * N_BANKS];
+      a0 = pL[matrix_row + k * NUM_BANKS];
+      a1 = pL[matrix_row + (k + 1) * NUM_BANKS];
+      a2 = pL[matrix_row + (k + 2) * NUM_BANKS];
       asm volatile(
           "mul  %[a0],%[a0],%[a0];"
           "mul  %[a1],%[a1],%[a1];"
@@ -376,8 +376,8 @@ void mempool_cholesky_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, const uint32_t n,
           :);
       break;
     case 2:
-      a0 = pL[matrix_row + k * N_BANKS];
-      a1 = pL[matrix_row + (k + 1) * N_BANKS];
+      a0 = pL[matrix_row + k * NUM_BANKS];
+      a1 = pL[matrix_row + (k + 1) * NUM_BANKS];
       asm volatile("mul  %[a0],%[a0],%[a0];"
                    "mul  %[a1],%[a1],%[a1];"
                    "addi %[a0],%[a0],%[h];"
@@ -391,7 +391,7 @@ void mempool_cholesky_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, const uint32_t n,
                    :);
       break;
     case 1:
-      a0 = pL[matrix_row + k * N_BANKS];
+      a0 = pL[matrix_row + k * NUM_BANKS];
       asm volatile("mul  %[a0],%[a0],%[a0];"
                    "addi %[a0],%[a0],%[h];"
                    "srai  %[a0],%[a0],%[s];"
@@ -403,7 +403,8 @@ void mempool_cholesky_q32p_sqrtsum(int32_t *pSrc, int32_t *pL, const uint32_t n,
     case 0:
       break;
     }
-    pL[matrix_row + j * N_BANKS] = mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
+    pL[matrix_row + j * NUM_BANKS] =
+        mempool_sqrt_q32s(pivot - sum, FIXED_POINT);
   }
   return;
 }
@@ -427,17 +428,17 @@ void mempool_cholesky_q32p_divisum(int32_t *pSrc, int32_t *pL, uint32_t core_id,
 
     if (core_id == core_idx) {
       sum = 0;
-      pivot = pSrc[i * N_BANKS + j];
-      diag = pL[jmatrix_row + j * N_BANKS];
+      pivot = pSrc[i * NUM_BANKS + j];
+      diag = pL[jmatrix_row + j * NUM_BANKS];
       for (k = 0; k < 4 * (j >> 2U); k += 4) {
-        a0 = pL[imatrix_row + k * N_BANKS];
-        a1 = pL[imatrix_row + (k + 1) * N_BANKS];
-        a2 = pL[imatrix_row + (k + 2) * N_BANKS];
-        a3 = pL[imatrix_row + (k + 3) * N_BANKS];
-        b0 = pL[jmatrix_row + k * N_BANKS];
-        b1 = pL[jmatrix_row + (k + 1) * N_BANKS];
-        b2 = pL[jmatrix_row + (k + 2) * N_BANKS];
-        b3 = pL[jmatrix_row + (k + 3) * N_BANKS];
+        a0 = pL[imatrix_row + k * NUM_BANKS];
+        a1 = pL[imatrix_row + (k + 1) * NUM_BANKS];
+        a2 = pL[imatrix_row + (k + 2) * NUM_BANKS];
+        a3 = pL[imatrix_row + (k + 3) * NUM_BANKS];
+        b0 = pL[jmatrix_row + k * NUM_BANKS];
+        b1 = pL[jmatrix_row + (k + 1) * NUM_BANKS];
+        b2 = pL[jmatrix_row + (k + 2) * NUM_BANKS];
+        b3 = pL[jmatrix_row + (k + 3) * NUM_BANKS];
         asm volatile("mul  %[a0],%[a0],%[b0];"
                      "mul  %[a1],%[a1],%[b1];"
                      "mul  %[a2],%[a2],%[b2];"
@@ -462,12 +463,12 @@ void mempool_cholesky_q32p_divisum(int32_t *pSrc, int32_t *pL, uint32_t core_id,
       }
       switch (j % 4) {
       case 3:
-        a0 = pL[imatrix_row + k * N_BANKS];
-        a1 = pL[imatrix_row + (k + 1) * N_BANKS];
-        a2 = pL[imatrix_row + (k + 2) * N_BANKS];
-        b0 = pL[jmatrix_row + k * N_BANKS];
-        b1 = pL[jmatrix_row + (k + 1) * N_BANKS];
-        b2 = pL[jmatrix_row + (k + 2) * N_BANKS];
+        a0 = pL[imatrix_row + k * NUM_BANKS];
+        a1 = pL[imatrix_row + (k + 1) * NUM_BANKS];
+        a2 = pL[imatrix_row + (k + 2) * NUM_BANKS];
+        b0 = pL[jmatrix_row + k * NUM_BANKS];
+        b1 = pL[jmatrix_row + (k + 1) * NUM_BANKS];
+        b2 = pL[jmatrix_row + (k + 2) * NUM_BANKS];
         asm volatile(
             "mul  %[a0],%[a0],%[b0];"
             "mul  %[a1],%[a1],%[b1];"
@@ -487,10 +488,10 @@ void mempool_cholesky_q32p_divisum(int32_t *pSrc, int32_t *pL, uint32_t core_id,
             :);
         break;
       case 2:
-        a0 = pL[imatrix_row + k * N_BANKS];
-        a1 = pL[imatrix_row + (k + 1) * N_BANKS];
-        b0 = pL[jmatrix_row + k * N_BANKS];
-        b1 = pL[jmatrix_row + (k + 1) * N_BANKS];
+        a0 = pL[imatrix_row + k * NUM_BANKS];
+        a1 = pL[imatrix_row + (k + 1) * NUM_BANKS];
+        b0 = pL[jmatrix_row + k * NUM_BANKS];
+        b1 = pL[jmatrix_row + (k + 1) * NUM_BANKS];
         asm volatile(
             "mul  %[a0],%[a0],%[b0];"
             "mul  %[a1],%[a1],%[b1];"
@@ -505,8 +506,8 @@ void mempool_cholesky_q32p_divisum(int32_t *pSrc, int32_t *pL, uint32_t core_id,
             :);
         break;
       case 1:
-        a0 = pL[imatrix_row + k * N_BANKS];
-        b0 = pL[jmatrix_row + k * N_BANKS];
+        a0 = pL[imatrix_row + k * NUM_BANKS];
+        b0 = pL[jmatrix_row + k * NUM_BANKS];
         asm volatile("mul  %[a0],%[a0],%[b0];"
                      "addi %[a0],%[a0],%[h];"
                      "srai  %[a0],%[a0],%[s];"
@@ -518,7 +519,7 @@ void mempool_cholesky_q32p_divisum(int32_t *pSrc, int32_t *pL, uint32_t core_id,
       case 0:
         break;
       }
-      pL[imatrix_row + j * N_BANKS] = FIX_DIV((pivot - sum), diag);
+      pL[imatrix_row + j * NUM_BANKS] = FIX_DIV((pivot - sum), diag);
     }
   }
   return;
@@ -557,23 +558,25 @@ void mempool_cholesky_fold_schedule_q32p(int32_t *pSrcA, int32_t *pSrcB,
   for (j = 0; j < n; j++) {
     for (idx_col = column_id; idx_col < n_col; idx_col += n_col) {
       for (idx_row = 0; idx_row < n_row; idx_row++) {
-        mempool_cholesky_q32p_sqrtsum(
-            pSrcA + column_id * n, pLL + idx_col * n + idx_row * (n * N_BANKS),
-            core_id, n, j, 1); // FoldLeft
-        mempool_cholesky_q32p_sqrtsum(
-            pSrcB + column_id * n, pLR + idx_col * n + idx_row * (n * N_BANKS),
-            core_id, n, j, 0); // FoldRight
+        mempool_cholesky_q32p_sqrtsum(pSrcA + column_id * n,
+                                      pLL + idx_col * n +
+                                          idx_row * (n * NUM_BANKS),
+                                      core_id, n, j, 1); // FoldLeft
+        mempool_cholesky_q32p_sqrtsum(pSrcB + column_id * n,
+                                      pLR + idx_col * n +
+                                          idx_row * (n * NUM_BANKS),
+                                      core_id, n, j, 0); // FoldRight
       }
     }
     mempool_log_partial_barrier(2, absolute_core_id, n_col * (n >> 2U));
     for (idx_col = column_id; idx_col < n_col; idx_col += n_col) {
       for (idx_row = 0; idx_row < n_row; idx_row++) {
         mempool_cholesky_q32p_divisum(
-            pSrcA + column_id * n, pLL + idx_col * n + idx_row * (n * N_BANKS),
-            core_id, n, j, 1);
+            pSrcA + column_id * n,
+            pLL + idx_col * n + idx_row * (n * NUM_BANKS), core_id, n, j, 1);
         mempool_cholesky_q32p_divisum(
-            pSrcB + column_id * n, pLR + idx_col * n + idx_row * (n * N_BANKS),
-            core_id, n, j, 0);
+            pSrcB + column_id * n,
+            pLR + idx_col * n + idx_row * (n * NUM_BANKS), core_id, n, j, 0);
       }
     }
     mempool_log_partial_barrier(2, absolute_core_id, n_col * (n >> 2U));

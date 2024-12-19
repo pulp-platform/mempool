@@ -18,9 +18,20 @@
 #include "baremetal/mempool_mimo_mmse_f8s.h"
 
 #include "data_mimo_mmse_f8.h"
+
+/*
+======================
+Parameters and defines
+
+PARALLEL: When defined benchmark parallel MIMO-MMSE.
+SINGLE: When defined benchmark single-core MIMO-MMSE.
+VEC: When defined benchmark SIMD-vectorized kernels.
+ZF: When defined 1 use zero forcing detector.
+FOLD: When defined 1 fold matrices in memory.
+*/
+
 #define ZF (0)   // When asserted use zero-forcing
 #define FOLD (0) // When asserted fold matrixes in memory
-#define NUM_BANKS (BANKING_FACTOR * NUM_CORES)
 #define PARALLEL
 #define VEC
 

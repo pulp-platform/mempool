@@ -7,7 +7,6 @@
 
 #pragma once
 #include "builtins_v2.h"
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 #ifdef __XDIVSQRT
 
@@ -29,7 +28,7 @@ void mempool_cholesky_f16s(__fp16 *pSrc, __fp16 *pL, const uint32_t n,
   __fp16 ap, bp; // Pivot element
   __fp16 as, bs; // Sum element
   uint32_t i, j, k;
-  const uint32_t offset = folded ? N_BANKS : n;
+  const uint32_t offset = folded ? NUM_BANKS : n;
 
   for (j = 0; j < n; j++) {
     // Elements on diagonal (input matrix is positive-definite)
@@ -103,7 +102,7 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n,
   v2h apbp, dgdg;
   v2h ab, cd;
   uint32_t i, j, k;
-  const uint32_t offset = folded ? N_BANKS : n;
+  const uint32_t offset = folded ? NUM_BANKS : n;
 
   for (j = 0; j < n; j++) {
 
@@ -383,7 +382,7 @@ void mempool_cholesky_f16vecs(__fp16 *pSrc, __fp16 *pL, const uint32_t n,
   v2h ab, cd, ndc;
 
   uint32_t i, j, k;
-  const uint32_t offset = folded ? N_BANKS : n;
+  const uint32_t offset = folded ? NUM_BANKS : n;
 
   for (j = 0; j < n; j++) {
 

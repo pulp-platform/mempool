@@ -19,6 +19,14 @@
 #include "baremetal/mempool_chest_f16.h"
 #include "data_chest_f16.h"
 
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core Channel Estimation.
+PARALLEL: When defined runs parallel Channel Estimation.
+*/
+
 //#define SINGLE
 #define PARALLEL
 

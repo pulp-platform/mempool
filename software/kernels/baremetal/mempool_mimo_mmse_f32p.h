@@ -5,7 +5,6 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #pragma once
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 /**
   @brief         Computes the Hermitian matrix G = (H'*H + pS^2I).
@@ -102,7 +101,7 @@ void mempool_hermitian_f32p(float *pH, float *pG, float *pS,
           bs3 = 0.0f;
         }
       }
-      uint32_t const offset = folded ? N_BANKS : n_tx;
+      uint32_t const offset = folded ? NUM_BANKS : n_tx;
       // Store
       pG[2 * (i * offset + j)] = as0;
       pG[2 * (i * offset + j + 1U)] = as1;

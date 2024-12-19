@@ -6,7 +6,7 @@
 
 #pragma once
 #include "builtins_v2.h"
-#define __MUL
+#define __MUL // Multiplication by pilot instead of division.
 
 /* a[i] = ar[i] + i * ai[j]
    out[i][j] = a[i] / c[j]
