@@ -89,34 +89,18 @@ __fp16 l1_x[2 * N_TX * N_ITR]
 int main() {
 
   uint32_t core_id = mempool_get_core_id();
-#ifndef BANSHEE
   uint32_t num_cores = mempool_get_core_count();
   mempool_barrier_init(core_id); // Initialize barrier and synchronize
   uint32_t time_init, time_end;
-#endif
 
   /* Initialize matrices */
   if (core_id == 0) {
-#ifdef BANSHEE
-    for (uint32_t i = 0; i < N_RX * N_TX * N_ITR; i++) {
-      (*(uint32_t *)&l1_H[2 * i]) = *(uint32_t *)&l2_H[2 * i];
-    }
-    for (uint32_t i = 0; i < N_RX * N_ITR; i++) {
-      (*(uint32_t *)&l1_y[2 * i]) = *(uint32_t *)&l2_y[2 * i];
-    }
-    for (uint32_t i = 0; i < N_TX * N_ITR; i++) {
-      (*(uint32_t *)&l1_S[2 * i]) = *(uint32_t *)&l2_S[2 * i];
-    }
-#else
     dma_memcpy_blocking(l1_H, l2_H, 2 * N_TX * N_RX * N_ITR * sizeof(int16_t));
     dma_memcpy_blocking(l1_y, l2_y, 2 * N_RX * N_ITR * sizeof(int16_t));
     dma_memcpy_blocking(l1_S, l2_S, 2 * N_TX * N_ITR * sizeof(int16_t));
-#endif
     printf("Data transferred\n");
   }
-#ifndef BANSHEE
   mempool_barrier(num_cores);
-#endif
 
 #ifdef SINGLE
   /* Benchmark */
@@ -194,21 +178,11 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-#ifdef BANSHEE
-  // Check the result
-  if (core_id == 0) {
-    for (uint32_t i = 0; i < 2 * N_TX * N_ITR; i++) {
-      uint32_t x = (*(uint32_t *)&l1_x[i]) & 0x0000FFFF;
-      printf("RES=%04x\n", x);
-    }
-  }
-#else
   if (core_id == 0) {
     printf("Runtime: %d\n", time_end - time_init);
   }
   mempool_check_f16(l1_x, l2_x, 2 * N_RX * N_TX, 0.01f, 0);
   mempool_barrier(num_cores);
-#endif
 
   return 0;
 }
