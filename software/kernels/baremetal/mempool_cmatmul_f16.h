@@ -13,10 +13,8 @@
 
 #pragma once
 #include "builtins_v2.h"
-// Use complex dotp in a single offload
-#define __CDOTP
-// Shift cores startpoint over rows of matrix A
-#define __SHIFT_A
+#define __CDOTP   // Use complex dotp in a single offload
+#define __SHIFT_A // Shift cores startpoint over rows of matrix A
 
 /******************************************************************************
  __        ___     _            _                   ____        _
@@ -559,7 +557,7 @@ void cmatmul_4x4_f16p(__fp16 const *__restrict__ A,
   return;
 }
 
-// 4x4 MATMUL with copies of A matrix (for M*N < N_BANKS)
+// 4x4 MATMUL with copies of A matrix (for M*N < NUM_BANKS)
 void cmatmul_4x4_f16p_copy_A(__fp16 const *__restrict__ A_l2,
                              __fp16 *__restrict__ A_l1,
                              __fp16 const *__restrict__ B,

@@ -5,8 +5,6 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #pragma once
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
-
 #ifdef __XDIVSQRT
 
 /**
@@ -29,7 +27,7 @@ void mempool_Ltrisol_f32s(float *pL, float *in, float *x, const uint32_t n,
   float as, bs;
   float ax, bx;
   float diag;
-  const uint32_t offset = folded ? N_BANKS : n;
+  const uint32_t offset = folded ? NUM_BANKS : n;
 
   // Solve for each variable x_i in turn
   for (i = 0; i < n; i++) {

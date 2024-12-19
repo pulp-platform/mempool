@@ -15,17 +15,11 @@
 #include "synchronization.h"
 
 #include "data_dotp_i32.h"
-#define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
-#define LOG_BARRIERS
-// #define ATOMIC_REDUCTION
-// #define SINGLE_CORE_REDUCTION
-#define BINARY_REDUCTION
-
-// Vectors for kernel computation
-int32_t l1_X[array_N] __attribute__((aligned(array_N), section(".l1_prio")));
-int32_t l1_Y[array_N] __attribute__((aligned(array_N), section(".l1_prio")));
 uint32_t red_barrier[NUM_BANKS]
     __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+
+int32_t l1_X[array_N] __attribute__((aligned(array_N), section(".l1_prio")));
+int32_t l1_Y[array_N] __attribute__((aligned(array_N), section(".l1_prio")));
 int32_t sum[NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
 #include "baremetal/mempool_dotp_i32.h"
@@ -48,16 +42,6 @@ int main() {
     red_barrier[k] = 0;
   }
   mempool_barrier(num_cores);
-
-  //  // SINGLE-CORE
-  //  time_init = mempool_get_timer();
-  //  dotp_i32s_unrolled4(l1_A, l1_B, sum, array_N);
-  //  time_end = mempool_get_timer();
-
-  //  // PARALLEL
-  //  time_init = mempool_get_timer();
-  //  dotp_i32p(l1_A, l1_B, sum, array_N, num_cores);
-  //  time_end = mempool_get_timer();
 
   // PARALLEL, LOCAL ACCESSES
   time_init = mempool_get_timer();

@@ -27,7 +27,7 @@ DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
 ZFINX         ?= $(zfinx)
-XDIVSQRT	  ?= $(xDivSqrt)
+XDIVSQRT	    ?= $(xDivSqrt)
 
 RISCV_XLEN    ?= 32
 
@@ -92,6 +92,7 @@ DEFINES += -DNUM_CORES=$(num_cores)
 DEFINES += -DNUM_GROUPS=$(num_groups)
 DEFINES += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 DEFINES += -DBANKING_FACTOR=$(banking_factor)
+DEFINES += -DNUM_BANKS=$(shell awk 'BEGIN{print $(banking_factor)*$(num_cores)}')
 DEFINES += -DNUM_CORES_PER_GROUP=$(shell awk 'BEGIN{print $(num_cores)/$(num_groups)}')
 DEFINES += -DNUM_TILES_PER_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_cores_per_tile)}')
 DEFINES += -DLOG2_NUM_CORES_PER_TILE=$(shell awk 'BEGIN{print log($(num_cores_per_tile))/log(2)}')

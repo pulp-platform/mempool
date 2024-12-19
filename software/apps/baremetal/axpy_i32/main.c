@@ -8,22 +8,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Mempool runtime libraries */
-#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "baremetal/mempool_axpy_i32.h"
-#include "baremetal/mempool_checks.h"
 #include "data_axpy_i32.h"
 
-int32_t l1_X[array_N]
-    __attribute__((aligned(NUM_CORES * sizeof(uint32_t)), section(".l1")));
-int32_t l1_Y[array_N]
-    __attribute__((aligned(NUM_CORES * sizeof(uint32_t)), section(".l1")));
+#include "baremetal/mempool_axpy_i32.h"
+#include "baremetal/mempool_checks.h"
+
+int32_t l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1")));
+int32_t l1_Y[array_N] __attribute__((aligned(NUM_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
 
 int main() {

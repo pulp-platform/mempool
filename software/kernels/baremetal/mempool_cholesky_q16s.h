@@ -7,7 +7,6 @@
 #pragma once
 #include "baremetal/mempool_sqrt_q32s.h"
 #include "builtins_v2.h"
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 /** VECTORIZED CODE
   @brief         Cholesky decomposition with Crout algorithm.

@@ -10,11 +10,22 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "baremetal/mempool_checks.h"
-#include "baremetal/mempool_cholesky_q16s.h"
 #include "data_cholesky_q16.h"
 
+#include "baremetal/mempool_checks.h"
+#include "baremetal/mempool_cholesky_q16s.h"
+
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core Cholesky Decomposition.
+PARALLEL: When defined runs parallel Cholesky Decomposition.
+FOLDED: When defined 1 intermediate results are folded in memory.
+*/
+
 #define SINGLE
+#define FOLDED (0)
 
 int16_t l1_GIn[2 * matrix_N * matrix_N * N_SAMPLES]
     __attribute__((section(".l1_prio")));
@@ -40,7 +51,7 @@ int main() {
   /* Benchmark */
   if (core_id == 0) {
     mempool_start_benchmark();
-    mempool_cholesky_q16vecs(l1_GIn, l1_LOut, matrix_N);
+    mempool_cholesky_q16vecs(l1_GIn, l1_LOut, matrix_N, FOLDED);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -51,7 +62,7 @@ int main() {
     mempool_start_benchmark();
     __fp16 *ptr_in_matrix = l1_GIn + i * 2 * matrix_N * matrix_N;
     __fp16 *ptr_out_matrix = l1_LOut + i * 2 * matrix_N * matrix_N;
-    mempool_cholesky_q16s(ptr_in_matrix, ptr_out_matrix, matrix_N);
+    mempool_cholesky_q16s(ptr_in_matrix, ptr_out_matrix, matrix_N, FOLDED);
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();

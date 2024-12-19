@@ -4,9 +4,6 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
-#pragma once
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
-
 #ifdef __XDIVSQRT
 
 /**
@@ -26,7 +23,7 @@ void mempool_cholesky_f32s(float *pSrc, float *pL, const uint32_t n,
   float ap, bp; // Pivot element
   float as, bs; // Sum element
   uint32_t i, j, k;
-  const uint32_t offset = folded ? N_BANKS : n;
+  const uint32_t offset = folded ? NUM_BANKS : n;
 
   for (j = 0; j < n; j++) {
 

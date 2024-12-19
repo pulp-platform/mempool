@@ -20,18 +20,13 @@ APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL := $(APPS)
 
-FP_APPS := axpy_f16 axpy_f32
-FP_APPS += cfft_radix4_f16 chest_f16 cholesky_f16
-FP_APPS += cmatmul_f16 matmul_f16 matmul_f32
-FP_APPS += dotp_f16 dotp_f32
-FP_APPS += mimo_mmse_f32 mimo_mmse_f16 mimo_mmse_f8 ofdm_f16
-
-I_APPS := synth_i32
-I_APPS += cfft_radix2_q16 cfft_radix4_q16 chest_q16 cholesky_q16 cholesky_q32
-I_APPS += cmatmul_q16 mimo_mmse_q16
-
-ALL_GCC := $(filter-out $(FP_APPS), $(ALL))
-ALL_LLVM := $(filter-out $(I_APPS), $(ALL))
+FP_SUFFIXES := f16 f32 f8
+I_SUFFIXES := q16 q32 i16 i32 i8
+I_APPS := $(foreach suf, $(FP_SUFFIXES), $(filter %_$(suf), $(ALL)))
+FP_APPS := $(foreach suf, $(I_SUFFIXES), $(filter %_$(suf), $(ALL)))
+# Filter out applications
+ALL_GCC := $(filter-out $(I_APPS), $(ALL))
+ALL_LLVM := $(filter-out $(FP_APPS), $(ALL))
 
 # Make all applications
 all: $(ALL_GCC)

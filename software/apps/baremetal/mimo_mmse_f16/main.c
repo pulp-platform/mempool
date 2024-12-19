@@ -12,30 +12,50 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+#include "data_mimo_mmse_f16.h"
+
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_cholesky_f16s.h"
 #include "baremetal/mempool_linearsolver_f16s.h"
 #include "baremetal/mempool_mimo_mmse_f16s.h"
 
-#include "data_mimo_mmse_f16.h"
-#define ZF (0)   // When asserted use zero-forcing
-#define FOLD (1) // When asserted fold matrices in memory
-#define NUM_BANKS (BANKING_FACTOR * NUM_CORES)
+/*
+======================
+Parameters and defines
+
+DOUBLE_BUFFERING: When defined benchmark double buffered MIMO-MMSE, including
+L2-L1 transfers.
+
+For MIMO-MMSE without L2-L1 transfers:
+PARALLEL: When defined benchmark parallel MIMO-MMSE.
+SINGLE: When defined benchmark single-core MIMO-MMSE.
+VEC: When defined benchmark SIMD-vectorized kernels.
+ZF: When defined 1 use zero forcing detector.
+FOLD: When defined 1 fold matrices in memory.
+
+For MIMO-MMSE with L2-L1 transfers:
+DMA_TRANSFER1: When defined transfer inputs for next round at the beginning of
+computation. DMA_TRANSFER2: When defined transfer inputs for next round after
+Hermitian computation. N_ROUNDS: Define number of rounds of Double-Buffering.
+*/
+
+#define ZF (0)
+#define FOLD (1)
 #define PARALLEL
 #define VEC
 
+#ifndef DOUBLE_BUFFERING
+
 /**********************************************************
  **********************************************************
-  _   _  ___        _     _ _____                     __
- | \ | |/ _ \      | |   / |_   _| __ __ _ _ __  ___ / _|
- |  \| | | | |_____| |   | | | || '__/ _` | '_ \/ __| |_
- | |\  | |_| |_____| |___| | | || | | (_| | | | \__ \  _|
- |_| \_|\___/      |_____|_| |_||_|  \__,_|_| |_|___/_|(_)
+  _   _  ___        _____                     __
+ | \ | |/ _ \      |_   _| __ __ _ _ __  ___ / _|
+ |  \| | | | |_____  | || '__/ _` | '_ \/ __| |_
+ | |\  | |_| |_____  | || | | (_| | | | \__ \  _|
+ |_| \_|\___/        |_||_|  \__,_|_| |_|___/_|(_)
 
 ***********************************************************
 ***********************************************************/
-
-#ifndef DOUBLE_BUFFERING
 
 #if FOLD
 #define NUM_ROW (1 + ((N_ITR * N_TX - 1) / NUM_BANKS))
@@ -193,6 +213,8 @@ int main() {
   return 0;
 }
 
+#else
+
 /**********************************************************
  **********************************************************
   ____  __  __    _       _____                     __
@@ -203,10 +225,6 @@ int main() {
 
 ***********************************************************
 ***********************************************************/
-
-#else
-#define N_ROUNDS (1)
-#define DMA_TRANSFER1
 
 // Inputs-Outputs even double-buffering rounds
 __fp16 l1A_H[2 * N_TX * N_RX * N_ITR]

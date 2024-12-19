@@ -8,18 +8,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "baremetal/mempool_checks.h"
-#include "baremetal/mempool_chest_f16.h"
 #include "data_chest_f16.h"
 
-//#define SINGLE
+#include "baremetal/mempool_checks.h"
+#include "baremetal/mempool_chest_f16.h"
+
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core Channel Estimation.
+PARALLEL: When defined runs parallel Channel Estimation.
+*/
+
 #define PARALLEL
 
 __fp16 l1_PilotTX[2 * N_TX * N_SAMPLES]

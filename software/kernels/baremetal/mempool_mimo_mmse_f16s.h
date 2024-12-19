@@ -7,7 +7,6 @@
 
 #pragma once
 #include "builtins_v2.h"
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
 
 /******************************************************************************
   _____ __ _
@@ -112,7 +111,7 @@ void mempool_hermitian_f16s(__fp16 *pH, __fp16 *pG, __fp16 *pS,
           bs3 = (__fp16)0.0f;
         }
       }
-      uint32_t const offset = folded ? N_BANKS : n_tx;
+      uint32_t const offset = folded ? NUM_BANKS : n_tx;
       // Store
       pG[2 * (i * offset + j)] = as0;
       pG[2 * (i * offset + j + 1U)] = as1;
@@ -285,7 +284,7 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
           asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res0) : "r"(pS[2 * i]));
         }
         // Store
-        uint32_t addr = folded ? 2 * (i * N_BANKS + j) : 2 * (i * n_tx + j);
+        uint32_t addr = folded ? 2 * (i * NUM_BANKS + j) : 2 * (i * n_tx + j);
         (*(v2h *)&pG[addr]) = res0;
       }
 
@@ -356,7 +355,7 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
             asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res3) : "r"(pS[2 * i]));
           }
         }
-        uint32_t const offset = folded ? N_BANKS : n_tx;
+        uint32_t const offset = folded ? NUM_BANKS : n_tx;
         // Store
         (*(v2h *)&pG[2 * (i * offset + j)]) = res0;
         (*(v2h *)&pG[2 * (i * offset + j + 1U)]) = res1;
@@ -415,7 +414,7 @@ void mempool_hermitian_f16vecs(__fp16 *pH, __fp16 *pG, __fp16 *pS,
             asm volatile("fadd.h  %0, %0, %1;" : "+&r"(res3) : "r"(pS[2 * i]));
           }
         }
-        uint32_t const offset = folded ? N_BANKS : n_tx;
+        uint32_t const offset = folded ? NUM_BANKS : n_tx;
         // Store
         (*(v2h *)&pG[2 * (i * offset + j)]) = res0;
         (*(v2h *)&pG[2 * (i * offset + j + 1U)]) = res1;

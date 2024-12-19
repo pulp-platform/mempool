@@ -13,9 +13,10 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+#include "data_matmul_i16.h"
+
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_matmul_i16p.h"
-#include "data_matmul_i16.h"
 
 int16_t l1_A[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 int16_t l1_B[matrix_N * matrix_P] __attribute__((section(".l1_prio")));

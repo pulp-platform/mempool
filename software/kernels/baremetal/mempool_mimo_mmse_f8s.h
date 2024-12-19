@@ -116,7 +116,7 @@ void mempool_hermitian_f8s(__fp8 *pH, __fp8 *pS, __fp16 *pG,
           FP16_bs3 = (__fp16)0U;
         }
       }
-      uint32_t const offset = folded ? N_BANKS : n_tx;
+      uint32_t const offset = folded ? NUM_BANKS : n_tx;
       // Store
       pG[2 * (i * offset + j)] = FP16_as0;
       pG[2 * (i * offset + j + 1U)] = FP16_as1;
@@ -303,7 +303,7 @@ void mempool_hermitian_f8vecs(__fp8 *pH, __fp8 *pS, __fp16 *pG,
           asm volatile("and     %0, %0, %1;" : "+&r"(fe3) : "r"(0x0000FFFF));
         }
       }
-      uint32_t const offset = folded ? N_BANKS : n_tx;
+      uint32_t const offset = folded ? NUM_BANKS : n_tx;
       // Store
       (*(uint32_t *)&pG[2 * (i * offset + j)]) = fe0;
       (*(uint32_t *)&pG[2 * (i * offset + j + 1U)]) = fe1;

@@ -11,7 +11,6 @@
 #include "synchronization.h"
 
 #define HALF (1023)
-#define N_BANKS (NUM_CORES * BANKING_FACTOR)
 #define FIX_DIV(a, b) ((int32_t)((a << FIXED_POINT) / b))
 #define FIX_MUL(a, b) ((int32_t)((a * b + HALF) >> FIXED_POINT))
 #define ABS(a) (a > 0 ? a : -a)
@@ -31,18 +30,19 @@
 #define N_COL 1
 #define N_ROW 1
 int32_t l1_A[matrix_N * matrix_N]
-    __attribute__((aligned(N_BANKS), section(".l1")));
+    __attribute__((aligned(NUM_BANKS), section(".l1")));
 int32_t l1_L[matrix_N * matrix_N]
-    __attribute__((aligned(N_BANKS), section(".l1")));
-int32_t l1_y[matrix_N] __attribute__((aligned(N_BANKS), section(".l1")));
+    __attribute__((aligned(NUM_BANKS), section(".l1")));
+int32_t l1_y[matrix_N] __attribute__((aligned(NUM_BANKS), section(".l1")));
 #else
-int32_t l1_AA[matrix_N * N_BANKS]
-    __attribute__((aligned(N_BANKS), section(".l1_prio")));
-int32_t l1_LL[N_ROW * matrix_N * N_BANKS]
-    __attribute__((aligned(N_BANKS), section(".l1_prio")));
-int32_t l1_LR[N_ROW * matrix_N * N_BANKS]
-    __attribute__((aligned(N_BANKS), section(".l1_prio")));
-int32_t l1_yy[N_BANKS] __attribute__((aligned(N_BANKS), section(".l1_prio")));
+int32_t l1_AA[matrix_N * NUM_BANKS]
+    __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+int32_t l1_LL[N_ROW * matrix_N * NUM_BANKS]
+    __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+int32_t l1_LR[N_ROW * matrix_N * NUM_BANKS]
+    __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+int32_t l1_yy[NUM_BANKS]
+    __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 #endif
 
 int main() {
@@ -58,11 +58,12 @@ int main() {
       for (uint32_t idx_col = 0; idx_col < N_COL; idx_col++) {
         l1_yy[idx_col * matrix_N + i] = l2_y[i];
         for (uint32_t j = 0; j < matrix_N; j++) {
-          l1_AA[idx_col * matrix_N + i * N_BANKS + j] = l2_A[i * matrix_N + j];
+          l1_AA[idx_col * matrix_N + i * NUM_BANKS + j] =
+              l2_A[i * matrix_N + j];
         }
       }
     }
-    for (uint32_t i = 0; i < N_ROW * matrix_N * N_BANKS; i++) {
+    for (uint32_t i = 0; i < N_ROW * matrix_N * NUM_BANKS; i++) {
       l1_LL[i] = 0;
       l1_LR[i] = 0;
     }

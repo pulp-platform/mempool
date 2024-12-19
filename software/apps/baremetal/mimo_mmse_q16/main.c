@@ -16,7 +16,13 @@
 #include "baremetal/mempool_linearsolver_q16s.h"
 #include "baremetal/mempool_mimo_mmse_q16s.h"
 
-#define PARALLEL
+/*
+======================
+Parameters and defines
+
+PARALLEL: When defined benchmark parallel MIMO-MMSE.
+SINGLE: When defined benchmark single-core MIMO-MMSE.
+*/
 
 int16_t l1_H[2 * N_TX * N_RX * N_ITR]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),

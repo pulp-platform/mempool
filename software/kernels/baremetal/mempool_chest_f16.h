@@ -5,8 +5,8 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #pragma once
-#define __CDOTP
-#define __MUL
+#define __CDOTP // Use complex dotp in a single offload
+#define __MUL   // Multiplication by pilot instead of division.
 
 /* a[i] = ar[i] + i * ai[j]
 

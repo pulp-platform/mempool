@@ -10,6 +10,8 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+#include "data_mimo_mmse_f32.h"
+
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_mimo_mmse_f32p.h"
 #include "baremetal/mempool_mimo_mmse_f32s.h"
@@ -19,11 +21,22 @@
 #include "baremetal/mempool_linearsolver_f32s.h"
 #endif
 
-#include "data_mimo_mmse_f32.h"
+/*
+======================
+Parameters and defines
 
-#define SINGLE
+PARALLEL: When defined benchmark parallel MIMO-MMSE.
+SINGLE: When defined benchmark single-core MIMO-MMSE.
+ZF: When defined 1 use zero forcing detector.
+FOLD: When defined 1 fold matrices in memory.
+PARALLEL_HERMITIAN: When defined the Hermitian is finely-grained parallelized
+over a group of cores. ZF: When defined 1 use zero forcing detector. FOLD: When
+defined 1 fold matrices in memory.
+*/
+
 #define ZF (0)
 #define FOLD (0)
+#define SINGLE
 
 float l1_H[2 * N_TX * N_RX * N_ITR]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -64,13 +77,9 @@ int main() {
     mempool_start_benchmark();
     mempool_hermitian_f32s(l1_H, l1_G, l1_S, N_RX, N_TX, ZF, FOLD);
     mempool_MVP_conjtransp_f32s(l1_H, l1_y, y2, N_RX, N_TX);
-#ifdef JACOBI
-    mempool_jacobi_f32s(l1_G, y2, l1_x, N_TX, 0.005f, 20U);
-#else
     mempool_cholesky_f32s(l1_G, l1_L, N_TX, FOLD);
     mempool_Ltrisol_f32s(l1_L, y2, y3, N_TX, 0, FOLD);
     mempool_Ltrisol_f32s(l1_L, y3, l1_x, N_TX, 1, FOLD);
-#endif
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);

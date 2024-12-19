@@ -15,14 +15,12 @@
 #include "synchronization.h"
 
 #include "data_axpy_f32.h"
-#define NUM_BANKS (NUM_CORES * BANKING_FACTOR)
-
-// Vectors for kernel computation
-float l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-float l1_Y[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
 #include "baremetal/mempool_axpy_f32.h"
 #include "baremetal/mempool_checks.h"
+
+float l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+float l1_Y[array_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
 int main() {
 
