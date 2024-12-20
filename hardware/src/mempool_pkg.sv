@@ -390,6 +390,7 @@ package mempool_pkg;
   localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
 
   `ifndef TARGET_VERILATOR
+  // tcdm memory pattern profile
   typedef struct {
     int unsigned initiated;
     int unsigned initial_cycle;
@@ -402,6 +403,30 @@ package mempool_pkg;
     int unsigned read_cycles[$];       // dynamic array to store cycles of read accesses
     int unsigned write_cycles[$];      // dynamic array to store cycles of write accesses
   } profile_t;
+
+  // tile level profiling
+  typedef struct {
+    // tile remote ports profile
+    int unsigned req_vld_cyc_num[NumRemotePortsPerTile-1];
+    int unsigned req_hsk_cyc_num[NumRemotePortsPerTile-1];
+  } tile_level_profile_t;
+
+  // group level profiling
+  typedef struct {
+    // group xbar ports profile
+    int unsigned req_vld_cyc_num                            [NumRemotePortsPerTile-1];
+    int unsigned req_hsk_cyc_num                            [NumRemotePortsPerTile-1];
+    int unsigned req_vld_cyc_more_than_one_hit_same_bank_num;
+  } group_level_profile_t;
+  
+  // router level profile
+  typedef struct {
+    // noc router ports profile
+    int unsigned in_vld_cyc_num [4]; // 4: 4 directions
+    int unsigned in_hsk_cyc_num [4]; // 4: 4 directions
+    int unsigned out_vld_cyc_num[4]; // 4: 4 directions
+    int unsigned out_hsk_cyc_num[4]; // 4: 4 directions
+  } router_level_profile_t;
   `endif
 
 
