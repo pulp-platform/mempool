@@ -146,6 +146,9 @@ vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${dram_axi_width_interleaved}
 ifeq (1, $(spm_profiling))
 	vlog_defs += -DSPM_PROFILING=$(spm_profiling)
 endif
+ifeq (1, $(noc_profiling))
+	vlog_defs += -DNOC_PROFILING=$(noc_profiling)
+endif
 ifeq (1, $(spm_bank_id_remap))
 	vlog_defs += -DSPM_BANK_ID_REMAP=$(spm_bank_id_remap)
 endif

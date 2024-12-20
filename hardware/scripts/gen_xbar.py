@@ -47,11 +47,11 @@ def generate_crossbar(InNum, OutNum):
     assertion = (
         "initial begin\n"
         f"    assert (InNum == {InNum}) else "
-        "$fatal(1, \"Parameter InNum does not\n"
-        f"    match expected value {InNum}\");\n"
+        "$fatal(1, \n\"Parameter InNum does not "
+        f"match expected value {InNum}\");\n"
         f"    assert (OutNum == {OutNum}) else "
-        "$fatal(1, \"Parameter OutNum does not\n"
-        f"    match expected value {OutNum}\");\n"
+        "$fatal(1, \n\"Parameter OutNum does not "
+        f"match expected value {OutNum}\");\n"
         "end\n"
     )
 

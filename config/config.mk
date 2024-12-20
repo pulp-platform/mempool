@@ -81,7 +81,10 @@ dram_axi_width_interleaved ?= 16
 spm_bank_id_remap ?= 0
 
 # Enable tile id remapping inside of each group
-tile_id_remap ?= 1
+tile_id_remap ?= 0
 
 # Enable the spm access pattern profiling
 spm_profiling ?= 0
+
+# Enable the interconnect access pattern profiling
+noc_profiling ?= 0
