@@ -56,13 +56,17 @@ def plot_input_utilization(df, plt_path):
     vld_cyc_num = np.array(df["in_vld_cyc_num"].values)
     hsk_cyc_num = np.array(df["in_hsk_cyc_num"].values)
     hol_stall_cyc_num = np.array(df["hol_stall_cyc_num"].values)
-    man_stall_cyc_num = vld_cyc_num - hsk_cyc_num - hol_stall_cyc_num
+    stall_cyc_num = vld_cyc_num - hsk_cyc_num
+    man_stall_cyc_num = stall_cyc_num - hol_stall_cyc_num
     idle_cyc_num = max_cyc_num - vld_cyc_num
     
     man_stall_perc = np.round(man_stall_cyc_num / max_cyc_num * 100, 2)
     hol_stall_perc = np.round(hol_stall_cyc_num / max_cyc_num * 100, 2)
     hsk_perc = np.round(hsk_cyc_num / max_cyc_num * 100, 2)
     idle_perc = np.round(idle_cyc_num / max_cyc_num * 100, 2)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        hol_ratio = np.round(hol_stall_cyc_num / stall_cyc_num * 100, 2)
+        hol_ratio[stall_cyc_num == 0] = 0
     
     man_stall_sum = np.sum(man_stall_cyc_num)
     hol_stall_sum = np.sum(hol_stall_cyc_num)
@@ -82,6 +86,7 @@ def plot_input_utilization(df, plt_path):
     plt.bar(index, hsk_perc, bar_width, bottom=hol_stall_perc+man_stall_perc, label=f"In Use({hsk_tot_perc}%)", color='green')
     plt.bar(index, hol_stall_perc, bar_width, bottom=man_stall_perc, label=f"HoL Stall({hol_stall_tot_perc}%)", color='orange')
     plt.bar(index, man_stall_perc, bar_width, label=f"Mandatory Stall({man_stall_tot_perc}%)", color='red')
+    plt.plot(index, hol_ratio, linestyle='-', label='HoL Ratio', color='aqua')
     plt.xticks([])
 
     plt.ylabel('Utilization')

@@ -479,6 +479,7 @@ module mempool_tb;
   string fn_4, fn_final_4;
   string dump_time;
   int req_floo_input_log_fd;
+  int resp_floo_input_log_fd;
 
   // string app;
   string log_path;
@@ -492,6 +493,7 @@ module mempool_tb;
     $sformat(log_path, "noc_profiling");
     retval = $system({"mkdir -p ", log_path});
     req_floo_input_log_fd = $fopen($sformatf("%s/req_floo_input.log", log_path), "w");
+    resp_floo_input_log_fd = $fopen($sformatf("%s/resp_floo_input.log", log_path), "w");
   end
 
   tile_level_profile_t   tile_level_profile_d,   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0]; 
@@ -992,16 +994,16 @@ module mempool_tb;
                           end
                         end
                         if (~cont) begin
-                            break;
-                          end
+                          break;
+                        end
                         out_dir = xy_routing(cur_hop, floo_req_input_queue[cur_hop][t][r][in_dir][0]);
                         assert(floo_req_output_fifo_valid_i[cur_hop][t][r][out_dir]);
                         if (floo_req_output_fifo_ready_o[cur_hop][t][r][out_dir] | floo_req_output_fifo_ready_i[cur_hop][t][r][out_dir]) begin
-                            break;
-                          end
+                          break;
+                        end
                         if (out_dir == Eject) begin
-                            break;
-                          end
+                          break;
+                        end
                         cur_hop = get_next_hop(cur_hop, out_dir);
                         if (out_dir == North) begin
                           in_dir = South;
@@ -1013,8 +1015,8 @@ module mempool_tb;
                           in_dir = East;
                         end
                         if (floo_req_input_fifo_ready_i[cur_hop][t][r][in_dir]) begin
-                            break;
-                          end
+                          break;
+                        end
                       end
                     end
                   end
@@ -1054,8 +1056,154 @@ module mempool_tb;
       end
     end
   end
-                        end else begin
-                          $fatal("Invalid next_hop");
+
+
+  floo_resp_t floo_resp_input_queue[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][$];
+  logic floo_resp_input_fifo_ready_o[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  logic floo_resp_input_fifo_valid_i[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  logic floo_resp_input_fifo_ready_i[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  logic floo_resp_input_fifo_valid_o[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  logic floo_resp_output_fifo_ready_o[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  logic floo_resp_output_fifo_valid_i[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  logic floo_resp_output_fifo_ready_i[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  logic floo_resp_output_fifo_valid_o[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  router_input_profile_t resp_router_input_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0];
+
+  // logic floo_resp_input_fifo_ready_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  // logic floo_resp_input_fifo_valid_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  // logic floo_resp_input_fifo_ready_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  // logic floo_resp_input_fifo_valid_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+
+
+  generate
+    for(genvar g = 0; g < NumGroups; g++)  begin: gen_resp_router_input_queue_per_group
+      for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_resp_router_input_queue_per_tile
+        for(genvar r = 0; r < (NumRemotePortsPerTile-1); r++) begin: gen_resp_router_input_queue_per_remote_port
+          for(genvar router_p = 0; router_p < 5; router_p++) begin: gen_resp_router_input_queue_per_dir
+            assign floo_resp_input_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.gen_input[router_p].gen_virt_input[0].i_stream_fifo.ready_o;
+            assign floo_resp_input_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.gen_input[router_p].gen_virt_input[0].i_stream_fifo.valid_i;
+            assign floo_resp_input_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.gen_input[router_p].gen_virt_input[0].i_stream_fifo.ready_i;
+            assign floo_resp_input_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.gen_input[router_p].gen_virt_input[0].i_stream_fifo.valid_o;
+            assign floo_resp_output_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.gen_output[router_p].gen_virt_output[0].gen_out_fifo.i_stream_fifo.ready_o;
+            assign floo_resp_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.gen_output[router_p].gen_virt_output[0].gen_out_fifo.i_stream_fifo.valid_i;
+            assign floo_resp_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.gen_output[router_p].gen_virt_output[0].gen_out_fifo.i_stream_fifo.ready_i;
+            assign floo_resp_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.gen_output[router_p].gen_virt_output[0].gen_out_fifo.i_stream_fifo.valid_o;
+            
+            // always_ff @(posedge clk) begin
+            //   floo_resp_input_fifo_ready_o_dly[g][t][r][router_p] = floo_resp_input_fifo_ready_o[g][t][r][router_p];
+            //   floo_resp_input_fifo_valid_i_dly[g][t][r][router_p] = floo_resp_input_fifo_valid_i[g][t][r][router_p];
+            //   floo_resp_input_fifo_ready_i_dly[g][t][r][router_p] = floo_resp_input_fifo_ready_i[g][t][r][router_p];
+            //   floo_resp_input_fifo_valid_o_dly[g][t][r][router_p] = floo_resp_input_fifo_valid_o[g][t][r][router_p];
+            // end
+            
+            always_ff @(posedge clk) begin
+              if (rst_n) begin
+                if (floo_resp_input_fifo_valid_i[g][t][r][router_p] & floo_resp_input_fifo_ready_o[g][t][r][router_p]) begin
+                  floo_resp_input_queue[g][t][r][router_p].push_back(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.data_i[router_p]);
+                end
+                if (floo_resp_input_fifo_valid_o[g][t][r][router_p] & floo_resp_input_fifo_ready_i[g][t][r][router_p]) begin
+                  floo_resp_input_queue[g][t][r][router_p].delete(0);
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  endgenerate
+
+  function route_direction_e resp_xy_routing (group_xy_id_t group_id, floo_resp_t floo_resp);
+    automatic group_xy_id_t dest_id = group_xy_id_t'(floo_resp.hdr.dst_id);
+    if (dest_id == group_id) begin
+      resp_xy_routing = Eject;
+    end else if (dest_id.x == group_id.x) begin
+      if (dest_id.y < group_id.y) begin
+        resp_xy_routing = South;
+      end else begin
+        resp_xy_routing = North;
+      end
+    end else begin
+      if (dest_id.x < group_id.x) begin
+        resp_xy_routing = West;
+      end else begin
+        resp_xy_routing = East;
+      end
+    end
+  endfunction
+
+  generate
+    for(genvar g = 0; g < NumGroups; g++) begin: gen_resp_router_input_profile_per_group
+      for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_resp_router_input_profile_per_tile
+        for(genvar r = 0; r < (NumRemotePortsPerTile-1); r++) begin: gen_resp_router_input_profile_per_remote_port
+          for(genvar router_p = 0; router_p < 5; router_p++) begin: gen_resp_router_input_profile_per_dir
+            always_ff @(posedge clk or negedge rst_n) begin
+              if(!rst_n) begin
+                resp_router_input_profile_q[g][t][r].in_vld_cyc_num[router_p] = '0;
+                resp_router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p] = '0;
+                resp_router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] = '0;
+                resp_router_input_profile_q[g][t][r].out_congst_cyc_num[router_p] = {'0, '0, '0, '0, '0};
+                resp_router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] = '0;
+                resp_router_input_profile_q[g][t][r].max_stall_cyc_num[router_p] = '0;
+              end else begin
+                if((cycle_q % 200) == 0) begin
+                  resp_router_input_profile_q[g][t][r].in_vld_cyc_num[router_p] = '0;
+                  resp_router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p] = '0;
+                  resp_router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] = '0;
+                  resp_router_input_profile_q[g][t][r].out_congst_cyc_num[router_p] = {'0, '0, '0, '0, '0};
+                  resp_router_input_profile_q[g][t][r].max_stall_cyc_num[router_p] = '0;
+                end
+                if(floo_resp_input_fifo_valid_i[g][t][r][router_p]) begin
+                  resp_router_input_profile_q[g][t][r].in_vld_cyc_num[router_p] += 1;
+                  if(floo_resp_input_fifo_ready_o[g][t][r][router_p]) begin
+                    resp_router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p] += 1;
+                    if(resp_router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] > 0) begin
+                      if(resp_router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] > resp_router_input_profile_q[g][t][r].max_stall_cyc_num[router_p]) begin
+                        resp_router_input_profile_q[g][t][r].max_stall_cyc_num[router_p] = resp_router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p];
+                        resp_router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] = 0;
+                      end
+                    end
+                  end else begin
+                    assert(floo_resp_input_fifo_valid_o[g][t][r][router_p]);
+                    resp_router_input_profile_q[g][t][r].cur_stall_cyc_num[router_p] += 1;
+                    if(~floo_resp_input_fifo_ready_i[g][t][r][router_p]) begin
+                      automatic route_direction_e in_dir = route_direction_e'(router_p);
+                      automatic route_direction_e out_dir = resp_xy_routing(g, floo_resp_input_queue[g][t][r][router_p][0]);
+                      automatic group_xy_id_t cur_hop = g;
+                      automatic logic cont = '1;
+                      resp_router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][out_dir] += 1;
+                      assert(floo_resp_output_fifo_valid_i[g][t][r][out_dir]);
+                      while ('1) begin
+                        for (int i = 1; i < floo_resp_input_queue[cur_hop][t][r][in_dir].size(); i++) begin
+                          out_dir = resp_xy_routing(cur_hop, floo_resp_input_queue[cur_hop][t][r][in_dir][i]);
+                          if (~floo_resp_output_fifo_valid_i[cur_hop][t][r][out_dir] & floo_resp_output_fifo_ready_o[cur_hop][t][r][out_dir]) begin
+                            resp_router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p] += 1;
+                            cont = '0;
+                            break;
+                          end
+                        end
+                        if (~cont) begin
+                          break;
+                        end
+                        out_dir = resp_xy_routing(cur_hop, floo_resp_input_queue[cur_hop][t][r][in_dir][0]);
+                        assert(floo_resp_output_fifo_valid_i[cur_hop][t][r][out_dir]);
+                        if (floo_resp_output_fifo_ready_o[cur_hop][t][r][out_dir] | floo_resp_output_fifo_ready_i[cur_hop][t][r][out_dir]) begin
+                          break;
+                        end
+                        if (out_dir == Eject) begin
+                          break;
+                        end
+                        cur_hop = get_next_hop(cur_hop, out_dir);
+                        if (out_dir == North) begin
+                          in_dir = South;
+                        end else if (out_dir == South) begin
+                          in_dir = North;
+                        end else if (out_dir == East) begin
+                          in_dir = West;
+                        end else if (out_dir == West) begin
+                          in_dir = East;
+                        end
+                        if (floo_resp_input_fifo_ready_i[cur_hop][t][r][in_dir]) begin
+                          break;
                         end
                       end
                     end
@@ -1069,7 +1217,7 @@ module mempool_tb;
     end
   endgenerate
 
-  always_ff @(negedge clk) begin: log_router_input_profile
+  always_ff @(negedge clk) begin: log_resp_router_input_profile
     if(rst_n) begin
       for(int g = 0; g < NumGroups; g++) begin
         for(int t = 0; t < NumTilesPerGroup; t++) begin
@@ -1079,16 +1227,16 @@ module mempool_tb;
                 automatic string log_str;
                 log_str = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'DIR': %03d, 'start_cycle': %03d, 'end_cycle': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'hol_stall_cyc_num': %03d, 'max_stall_cyc_num': %03d, 'out_dir0_cong_cyc_num': %03d, 'out_dir1_cong_cyc_num': %03d, 'out_dir2_cong_cyc_num': %03d, 'out_dir3_cong_cyc_num': %03d, 'out_dir4_cong_cyc_num': %03d}\n",
                   g, t, r, router_p, cycle_q-199, cycle_q,
-                  router_input_profile_q[g][t][r].in_vld_cyc_num[router_p],
-                  router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p],
-                  router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p],
-                  router_input_profile_q[g][t][r].max_stall_cyc_num[router_p],
-                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][0],
-                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][1],
-                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][2],
-                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][3],
-                  router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][4]);
-                $fwrite(floo_input_log_fd, log_str);
+                  resp_router_input_profile_q[g][t][r].in_vld_cyc_num[router_p],
+                  resp_router_input_profile_q[g][t][r].in_hsk_cyc_num[router_p],
+                  resp_router_input_profile_q[g][t][r].hol_stall_cyc_num[router_p],
+                  resp_router_input_profile_q[g][t][r].max_stall_cyc_num[router_p],
+                  resp_router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][0],
+                  resp_router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][1],
+                  resp_router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][2],
+                  resp_router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][3],
+                  resp_router_input_profile_q[g][t][r].out_congst_cyc_num[router_p][4]);
+                $fwrite(resp_floo_input_log_fd, log_str);
               end
             end
           end
