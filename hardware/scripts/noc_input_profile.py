@@ -11,12 +11,13 @@ import ast
 import sys
 import os
 
-level = 'router'  # system, subnet, group, router
+network = 'req'
+level = 'system'  # system, subnet, group, router
 group_sel = 5
 
 result_path = sys.argv[1]
-file_path = f"{result_path}/noc_profiling/floo_input_log.log"
-plot_path = os.path.join(result_path, "noc_profiling", "plot", "input_profile", level + "_level")
+file_path = f"{result_path}/noc_profiling/{network}_floo_input.log"
+plot_path = os.path.join(result_path, "noc_profiling", "plot", "input_profile", network + "_network", level + "_level")
 os.makedirs(plot_path, exist_ok=True)
 
 # Load and preprocess the data
