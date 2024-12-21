@@ -709,7 +709,7 @@ module mempool_tb;
                 g, t_i, p,
                 tile_level_profile_q[g][t_i].req_vld_cyc_num[p],
                 tile_level_profile_q[g][t_i].req_hsk_cyc_num[p],
-                (tile_level_profile_q[g][t_i].req_hsk_cyc_num[p]*1.0)/(tile_level_profile_q[g][t_i].req_vld_cyc_num[p]*1.0)
+                ((tile_level_profile_q[g][t_i].req_vld_cyc_num[p] == 0) ? 0.0 : ((tile_level_profile_q[g][t_i].req_hsk_cyc_num[p]*1.0)/(tile_level_profile_q[g][t_i].req_vld_cyc_num[p]*1.0)))
               );
               $fwrite(f_2, extras_str_2);
             end
@@ -800,7 +800,7 @@ module mempool_tb;
             g, t_i, p,
             tile_level_profile_q[g][t_i].req_vld_cyc_num[p],
             tile_level_profile_q[g][t_i].req_hsk_cyc_num[p],
-            (tile_level_profile_q[g][t_i].req_hsk_cyc_num[p]*1.0)/(tile_level_profile_q[g][t_i].req_vld_cyc_num[p]*1.0)
+            ((tile_level_profile_q[g][t_i].req_vld_cyc_num[p] == 0) ? 0.0 : ((tile_level_profile_q[g][t_i].req_hsk_cyc_num[p]*1.0)/(tile_level_profile_q[g][t_i].req_vld_cyc_num[p]*1.0)))
           );
           $fwrite(f_final_2, extras_str_final_2);
         end
@@ -843,8 +843,8 @@ module mempool_tb;
                 router_level_profile_q[g][t][p][req_rsp].in_hsk_cyc_num[dir],
                 router_level_profile_q[g][t][p][req_rsp].out_vld_cyc_num[dir],
                 router_level_profile_q[g][t][p][req_rsp].out_hsk_cyc_num[dir],
-                (router_level_profile_q[g][t][p][req_rsp].in_hsk_cyc_num[dir]*1.0)/(router_level_profile_q[g][t][p][req_rsp].in_vld_cyc_num[dir]*1.0),
-                (router_level_profile_q[g][t][p][req_rsp].out_hsk_cyc_num[dir]*1.0)/(router_level_profile_q[g][t][p][req_rsp].out_vld_cyc_num[dir]*1.0)
+                ((router_level_profile_q[g][t][p][req_rsp].in_vld_cyc_num[dir] == 0) ? 0.0 : ((router_level_profile_q[g][t][p][req_rsp].in_hsk_cyc_num[dir]*1.0)/(router_level_profile_q[g][t][p][req_rsp].in_vld_cyc_num[dir]*1.0))),
+                ((router_level_profile_q[g][t][p][req_rsp].out_vld_cyc_num[dir] == 0) ? 0.0 : ((router_level_profile_q[g][t][p][req_rsp].out_hsk_cyc_num[dir]*1.0)/(router_level_profile_q[g][t][p][req_rsp].out_vld_cyc_num[dir]*1.0)))
               );
               $fwrite(f_final_4, extras_str_final_4);
             end
