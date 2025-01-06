@@ -11,7 +11,10 @@
  * C = AB
  */
 
+#pragma once
 #include "builtins_v2.h"
+// The 4x4 matmul is executed with asm_volatile statement
+#define ASM
 
 void matmul_2x2_single_f32(float const *__restrict__ A,
                            float const *__restrict__ B, float *__restrict__ C,

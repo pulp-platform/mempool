@@ -26,7 +26,8 @@ DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
-ZFINX      		?= $(zfinx)
+ZFINX         ?= $(zfinx)
+XDIVSQRT	    ?= $(xDivSqrt)
 
 RISCV_XLEN    ?= 32
 
@@ -91,6 +92,7 @@ DEFINES += -DNUM_CORES=$(num_cores)
 DEFINES += -DNUM_GROUPS=$(num_groups)
 DEFINES += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 DEFINES += -DBANKING_FACTOR=$(banking_factor)
+DEFINES += -DNUM_BANKS=$(shell awk 'BEGIN{print $(banking_factor)*$(num_cores)}')
 DEFINES += -DNUM_CORES_PER_GROUP=$(shell awk 'BEGIN{print $(num_cores)/$(num_groups)}')
 DEFINES += -DNUM_TILES_PER_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_cores_per_tile)}')
 DEFINES += -DLOG2_NUM_CORES_PER_TILE=$(shell awk 'BEGIN{print log($(num_cores_per_tile))/log(2)}')
@@ -123,6 +125,14 @@ ifeq ($(xDivSqrt), 0)
 	RISCV_FLAGS_LLVM += -mno-fdiv
 endif
 
+# Disable division and square root
+ifeq ($(XDIVSQRT), 0)
+	RISCV_FLAGS_LLVM += -mno-fdiv
+else
+	# Define if the extension is active
+	DEFINES       += -D__XDIVSQRT
+endif
+
 ifeq ($(COMPILER),gcc)
 	RISCV_CCFLAGS       += $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
@@ -134,13 +144,11 @@ else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
-	RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32
-	ifeq ($(xDivSqrt), 0)
-		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+nofdiv,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+	ifeq ($(XDIVSQRT), 0)
+		RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx,+nofdiv
 	else
-		RISCV_OBJDUMP_FLAGS += --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+		RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
 	endif
-
 	# For unit tests
 	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_LLVM_TESTS) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 endif

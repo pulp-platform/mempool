@@ -8,22 +8,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Mempool runtime libraries */
-#include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "baremetal/mempool_axpy_i32p.h"
-#include "baremetal/mempool_checks.h"
 #include "data_axpy_i32.h"
 
-int32_t l1_X[array_N]
-    __attribute__((aligned(NUM_CORES * sizeof(uint32_t)), section(".l1")));
-int32_t l1_Y[array_N]
-    __attribute__((aligned(NUM_CORES * sizeof(uint32_t)), section(".l1")));
+#include "baremetal/mempool_axpy_i32.h"
+#include "baremetal/mempool_checks.h"
+
+int32_t l1_X[array_N] __attribute__((aligned(NUM_BANKS), section(".l1")));
+int32_t l1_Y[array_N] __attribute__((aligned(NUM_BANKS), section(".l1")));
 int volatile error __attribute__((section(".l1")));
 
 int main() {
@@ -38,11 +35,12 @@ int main() {
     dma_memcpy_blocking(l1_Y, l2_Y, array_N * sizeof(int32_t));
     error = 0;
   }
+  register volatile int32_t a = l2_A;
   mempool_barrier(num_cores);
 
   // Benchmark
   mempool_start_benchmark();
-  calc_axpy_unloop_x4_localbank(l1_X, l1_Y, ALPHA, array_N, core_id, num_cores);
+  calc_axpy_unloop_x4_localbank(l1_X, l1_Y, a, array_N, core_id, num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
