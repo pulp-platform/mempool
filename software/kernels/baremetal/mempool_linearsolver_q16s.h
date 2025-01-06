@@ -17,26 +17,29 @@
 */
 
 void mempool_Ltrisol_q16vecs(int16_t *pL, int16_t *y, int16_t *x,
-                             const uint32_t n, const uint32_t transposed) {
+                             const uint32_t n, const uint32_t transposed,
+                             const uint32_t folded) {
 
   uint32_t i, j;
   int32_t as, bs, diag;
   v2s ab, cd;
   v2s res = (v2s){0, 0};
   v2s ndc = (v2s){0, 0};
+  const uint32_t offset = folded ? NUM_BANKS : n;
 
   // Solve for each variable x[i] in loop
   for (i = 0; i < n; i++) {
     uint32_t ridx = transposed ? (n - i - 1) : i;
-    diag = pL[2U * (ridx + ridx)];
+    diag = pL[2U * (ridx * offset + ridx)];
     // Initialize the sums
     as = 0;
     bs = 0;
     // Use the previously solved variables to compute the sum
     for (j = 0; j < i; j++) {
+
       uint32_t cidx = transposed ? (n - j - 1) : j;
       if (!transposed) {
-        ab = *(v2s *)&pL[2U * (ridx * n + cidx)];
+        ab = *(v2s *)&pL[2U * (ridx * offset + cidx)];
       } else {
         ab = *(v2s *)&pL[2U * (cidx * n + ridx)];
       }

@@ -16,13 +16,15 @@
   @param[in]     n dimension of the input data
   @return        none
 */
-void mempool_cholesky_q16vecs(int16_t *pSrc, int16_t *pL, const uint32_t n) {
+void mempool_cholesky_q16vecs(int16_t *pSrc, int16_t *pL, const uint32_t n,
+                              const uint32_t folded) {
 
-  uint32_t i, j, k;
   int32_t sum;    // Sum for elements on diagonal (real)
   int32_t diag;   // Diagonal element (real)
   int32_t as, bs; // Sum for elements on rows (complex)
   int32_t ap, bp; // Pivot elements (complex)
+  uint32_t i, j, k;
+  const uint32_t offset = folded ? NUM_BANKS : n;
 
   v2s ab = (v2s){0, 0};
   v2s cd = (v2s){0, 0};
@@ -33,9 +35,9 @@ void mempool_cholesky_q16vecs(int16_t *pSrc, int16_t *pL, const uint32_t n) {
 
     // Elements on diagonal (input matrix is positive-definite)
     sum = 0;
-    diag = (int32_t)pSrc[2 * (j * n + j)];
+    diag = (int32_t)pSrc[2 * (j * offset + j)];
     for (k = 0; k < j; k++) {
-      ab = *(v2s *)&pL[2 * (j * n + k)];
+      ab = *(v2s *)&pL[2 * (j * offset + k)];
       asm volatile("pv.dotsp.h %[sum], %[ab],  %[ab];"
                    "srai       %[sum], %[sum],  0x8;"
                    "p.clip     %[sum], %[sum],  0x16;"
@@ -43,20 +45,20 @@ void mempool_cholesky_q16vecs(int16_t *pSrc, int16_t *pL, const uint32_t n) {
                    : [ab] "r"(ab)
                    :);
     }
-    pL[2U * (j * n + j)] = (int16_t)mempool_sqrt_q32s(diag - sum, 16);
+    pL[2U * (j * offset + j)] = (int16_t)mempool_sqrt_q32s(diag - sum, 16);
 
     // Elements on rows
     for (i = j + 1; i < n; i++) {
-      ap = (int32_t)pSrc[2 * (i * n + j)];     // Pivot
-      bp = (int32_t)pSrc[2 * (i * n + j) + 1]; // Pivot
-      diag = (int32_t)pL[2 * (j * n + j)];     // Diag
+      ap = (int32_t)pSrc[2 * (i * offset + j)];     // Pivot
+      bp = (int32_t)pSrc[2 * (i * offset + j) + 1]; // Pivot
+      diag = (int32_t)pL[2 * (j * offset + j)];     // Diag
 
       as = 0;
       bs = 0;
       // Sum -> s = s + (ac + bd) + j*(bc - ad)
       for (k = 0; k < j; k++) {
-        ab = *(v2s *)&pL[2U * (i * n + k)];
-        cd = *(v2s *)&pL[2U * (j * n + k)];
+        ab = *(v2s *)&pL[2U * (i * offset + k)];
+        cd = *(v2s *)&pL[2U * (j * offset + k)];
         const uint32_t shuffle_mask = 0x00020003;
         asm volatile(
             // s = s + (ac + bd) + j(bc - ad)
@@ -81,7 +83,7 @@ void mempool_cholesky_q16vecs(int16_t *pSrc, int16_t *pL, const uint32_t n) {
                    : [ap] "+&r"(ap), [bp] "+&r"(bp), [res] "+&r"(res)
                    : [as] "r"(as), [bs] "r"(bs), [diag] "r"(diag)
                    :);
-      (*(v2s *)&pL[2 * (i * n + j)]) = res;
+      (*(v2s *)&pL[2 * (i * offset + j)]) = res;
     }
   }
   return;
