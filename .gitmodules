@@ -45,4 +45,4 @@
 	url = https://github.com/pulp-platform/dram_rtl_sim.git
 [submodule "hardware/deps/spatz"]
 	path = hardware/deps/spatz
-	url = git@iis-git.ee.ethz.ch:spatz/spatz.git
+	url = https://github.com/pulp-platform/spatz.git
