@@ -8,6 +8,7 @@
 # Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
 
 import numpy as np
+import scipy as sc
 import pandas as pd
 import time
 import re
@@ -19,9 +20,10 @@ import sys
 import shutil
 import pyflexfloat as ff
 import matplotlib.pyplot as plt
-from scipy.linalg import solve_triangular
 from concurrent.futures import ThreadPoolExecutor, wait
 
+import qmath
+import fmath
 
 # __  __ ___ __  __  ___     _______  __
 # |  \/  |_ _|  \/  |/ _ \ __|_   _\ \/ /
@@ -135,10 +137,10 @@ def mimo_transmission(
 
     # Noise variance
     Eb = Es / const.num_bits
-    N = 0.5 * Eb * Eh * 10**(-SNRdB / 10)
+    N = 0.5 * Es * 10**(-SNRdB / 10)
     n = (np.random.normal(0, np.sqrt(N), N_rx) + 1j *
          np.random.normal(0, np.sqrt(N), N_rx))
-    N = N / Eb
+    N = N / (Es * Eh)
 
     # Channel propagation
     y = np.dot(H, x) + n.flatten()
@@ -157,7 +159,11 @@ def fmmse(x, H, y, N, my_type):
     # MMSE estimator
     H_h = H.conj().T
     G = np.matmul(H_h, H) + N * np.eye(H.shape[1])
-    xhat = np.matmul(np.linalg.inv(G), np.dot(H_h, y))
+    y1 = np.dot(H_h, y)
+    xhat = np.matmul(np.linalg.inv(G), y1)
+#    L = fmath.fcholesky(G)
+#    y2 = fmath.finvertLt(L, y1)
+#    xhat = fmath.finvertUt(np.asmatrix(L).H, y2)
     # Type cast
     xhat = xhat.real.astype(my_type) + 1j * xhat.imag.astype(my_type)
 
@@ -169,6 +175,51 @@ def fmmse(x, H, y, N, my_type):
     xhat = np.column_stack((xhat.real, xhat.imag)).flatten()
 
     return {"H": H, "x": x, "y": y, "N": N, "xhat" : xhat}
+
+
+def qmmse(x, H, y, N, my_type):
+
+    # Type cast
+    if my_type == np.int32:
+        fp = 16
+    elif my_type ==  np.int16:
+        fp = 8
+    SCALE_FACTOR = 2**fp
+
+    # Normalize inputs according to float computation
+    G = np.matmul(H.conj().T, H) + N * np.eye(H.shape[1])
+    y1 = np.dot(H.conj().T, y)
+    H_max = max(np.abs(H.real).max(), np.abs(H.imag).max())
+    G_max = max(np.abs(G.real).max(), np.abs(G.imag).max())
+    N_max = max(np.abs(N.real).max(), np.abs(N.imag).max())
+    y_max = max(np.abs(y.real).max(), np.abs(y.imag).max())
+    y1_max = max(np.abs(y1.real).max(), np.abs(y1.imag).max())
+    MAX = max(H_max, G_max, N_max, y_max)
+
+    rH = np.round((H.real / MAX) * SCALE_FACTOR).astype(int)
+    iH = np.round((H.imag / MAX) * SCALE_FACTOR).astype(int)
+    ry = np.round((y.real / MAX) * SCALE_FACTOR).astype(int)
+    iy = np.round((y.imag / MAX) * SCALE_FACTOR).astype(int)
+    rN = np.round((N.real / MAX) * SCALE_FACTOR).astype(int)
+    iN = np.round((N.imag / MAX) * SCALE_FACTOR).astype(int)
+
+    # Hermitian
+    rG, iG = qmath.qcmatmul(np.transpose(rH), -np.transpose(iH), rH, iH, fp, my_type)
+    np.fill_diagonal(rG, rG.diagonal() + rN)
+    ry1, iy1 = qmath.qcmvmul(np.transpose(rH), -np.transpose(iH), ry, iy, fp, my_type)
+    # Solve linear system
+    rL, iL = qmath.qcholesky(rG, iG, fp, my_type)
+    ry2, iy2 = qmath.qinvertLt(rL, iL, ry1, iy1, fp, my_type)
+    rx, ix = qmath.qinvertUt(np.transpose(rL), -np.transpose(iL), ry2, iy2, fp, my_type)
+    N = np.ones(2 * H.shape[1]) * rN
+
+    # For result checking
+    xhat = qmath.from_fixed_point(rx, ix, fp, np.int16)
+    xhat = np.column_stack((xhat.real, xhat.imag)).flatten()
+    # For execution on Banshee
+    H = np.column_stack((rH, iH)).flatten()
+    y = np.column_stack((ry, iy)).flatten()
+    return {"H": H, "y": y, "N": N, "xhat" : xhat}
 
 # ___               _
 # | _ ) __ _ _ _  __| |_  ___ ___
@@ -423,12 +474,12 @@ def main():
         precisions = [['f64', ""],
                       ['f16_zfinx', "\"-DSINGLE -DBANSHEE\""],
                       ['f16_wDotp', "\"-DSINGLE -DBANSHEE -DVEC\""],
-                      ['f16_cDotp', "\"-DSINGLE -DBANSHEE -DVEC -D__CDOTP\""],
-                      ['f08_zfinx', "\"-DSINGLE -DBANSHEE\""],
-                      ['f08_wDotp', "\"-DSINGLE -DBANSHEE -DVEC\""]]
+                      ['f16_cDotp', "\"-DSINGLE -DBANSHEE -DVEC -D__CDOTP\""]]
         vSNRdB = range(0, 20, 2)
     else:
-        precisions = [['64b', '']]
+        precisions = [['f64', ''],
+                      ['f16', ''],
+                      ['q16', '']]
         vSNRdB = range(0, 20, 2)
 
     # Constellation
@@ -451,41 +502,44 @@ def main():
     for iSNR in range(0, len(vSNRdB)):
 
         SNRdB = vSNRdB[iSNR]
-
-        # Vector for results
-        vxhat = np.empty(
-            (len(precisions), 2 * N_tx, N_itr), dtype=np.float64)
-        # Generate data
-        np.random.seed(int(time.time()))
-        vN16 = np.empty((2 * N_tx, N_itr), dtype=np.float16)
-        vy16 = np.empty((2 * N_rx, N_itr), dtype=np.float16)
-        vH16 = np.empty((2 * N_tx * N_rx, N_itr), dtype=np.float16)
-        # Golden model
-        vx64 = np.empty((2 * N_tx, N_itr), dtype=np.float64)
-        vxhat64 = np.empty((2 * N_tx, N_itr), dtype=np.float64)
-        vxhatf16 = np.empty((2 * N_tx, N_itr), dtype=np.float16)
+        vxhat = np.empty((len(precisions), 2 * N_tx, N_itr), dtype=np.float64)
 
         # -----------------------------------------------------------
         # MC-iterations
         # -----------------------------------------------------------
 
-        # Random BER iterations
+        # Golden model
+        vxf64 = np.empty((2 * N_tx, N_itr), dtype=np.float64)
+        # f16 inputs to Banshee simulation
+        vNf16 = np.empty((2 * N_tx, N_itr), dtype=np.float16)
+        vyf16 = np.empty((2 * N_rx, N_itr), dtype=np.float16)
+        vHf16 = np.empty((2 * N_tx * N_rx, N_itr), dtype=np.float16)
+        # q16 inputs to Banshee simulation
+        vNq16 = np.empty((2 * N_tx, N_itr), dtype=np.int16)
+        vyq16 = np.empty((2 * N_rx, N_itr), dtype=np.int16)
+        vHq16 = np.empty((2 * N_tx * N_rx, N_itr), dtype=np.int16)
+
+        np.random.seed(int(time.time()))
         for iMC in range(0, N_itr):
+
             tx = mimo_transmission(N_tx, N_rx, N_itr, const, channel_type, SNRdB)
-            # MMSE estimator
-            rxf64 = fmmse(tx["x"], tx["H"], tx["y"], tx["N"], np.float64)
-            rxf16 = fmmse(tx["x"], tx["H"], tx["y"], tx["N"], np.float16)
+            rf64 = fmmse(tx["x"], tx["H"], tx["y"], tx["N"], np.float64)
+            rf16 = fmmse(tx["x"], tx["H"], tx["y"], tx["N"], np.float16)
+            vxhat[0, :, iMC] = rf64["xhat"]
+            vxhat[1, :, iMC] = rf16["xhat"]
             # Golden model
-            vx64[:, iMC] = rxf64["x"]
-            vxhat64[:, iMC] = rxf64["xhat"]
-            vxhatf16[:, iMC] = rxf16["xhat"]
-            vxhatq16[:, iMC] = rxq16["xhat"]
+            vxf64[:, iMC] = rf64["x"]
             # f16 inputs to Banshee simulation
-            vH16[:, iMC] = rxf16["H"]
-            vy16[:, iMC] = rxf16["y"]
-            vN16[:, iMC] = rxf16["N"]
-        # Collect decoded symbols
-        vxhat[0, :, :] = vxhat64
+            vHf16[:, iMC] = rf16["H"]
+            vyf16[:, iMC] = rf16["y"]
+            vNf16[:, iMC] = rf16["N"]
+
+#            rq16 = qmmse(tx["x"], tx["H"], tx["y"], tx["N"], np.int16)
+#            vxhat[2, :, iMC] = rq16["xhat"]
+#            # q16 inputs to Banshee simulation
+#            vHq16[:, iMC] = rq16["H"]
+#            vyq16[:, iMC] = rq16["y"]
+#            vNq16[:, iMC] = rq16["N"]
 
         # ----------------------------------------------------------------
         # BANSHEE CALL
@@ -496,7 +550,7 @@ def main():
                     mempool_dir=args.rootdir, banshee_dir=args.bansheedir,
                     compiler_flag=flag, precision=precision,
                     num_executors=args.threads,
-                    H=vH16, N=vN16, y=vy16,
+                    H=vHf16, N=vNf16, y=vyf16,
                     N_tx=N_tx, N_rx=N_rx, N_itr=N_itr
                 )
                 result = banshee.banshee_call()
@@ -509,7 +563,7 @@ def main():
         # ----------------------------------------------------------------
         for iMC in range(0, N_itr):
             # Compute bit-encodings for x
-            x = (vx64[:, iMC]).reshape(-1, 2)
+            x = (vxf64[:, iMC]).reshape(-1, 2)
             bit_x = const.encode_symbol(x)
             vVM[iSNR] += np.linalg.norm(x)**2
             # Compute bit-encodings for xhat
@@ -551,8 +605,8 @@ def main():
     row_names = [f"{value} dB" for value in vSNRdB]
     df_ber = pd.DataFrame(np.transpose(vBER), columns=col_names, index=row_names)
     df_evm = pd.DataFrame(np.transpose(vEVM), columns=col_names, index=row_names)
-    df_ber.to_excel(f"BER_{timestr}.ods", index=True, header=True, engine='odf')
-    df_evm.to_excel(f"EVM_{timestr}.ods", index=True, header=True, engine='odf')
+    #df_ber.to_excel(f"BER_{timestr}.ods", index=True, header=True, engine='odf')
+    #df_evm.to_excel(f"EVM_{timestr}.ods", index=True, header=True, engine='odf')
 
 
     # Plot output
