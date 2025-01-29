@@ -1,4 +1,6 @@
-
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
 
 # Simulates end to end MIMO transmission.
 # Author: Mahdi Abdollahpour, University of Bologna
@@ -570,9 +572,3 @@ class OFDMMIMO(tf.keras.Model):
         no_db = 10*tf.math.log(no)/tf.math.log(tf.constant(10.0,self.m_dtype_real))
 
         return b, b_hat, x_data, x_hat, y_dt, h_dt_desired, s, no_eff, num_symbols, no_db
-
-
-
-
-
-

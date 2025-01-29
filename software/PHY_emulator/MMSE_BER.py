@@ -1,4 +1,6 @@
-
+# Copyright 2022 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
 
 # Runs and end to end MIMO transmission with HW in the loop.
 # Author: Mahdi Abdollahpour, University of Bologna
@@ -535,5 +537,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
