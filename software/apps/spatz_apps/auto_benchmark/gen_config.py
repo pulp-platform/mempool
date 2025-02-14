@@ -25,6 +25,30 @@ def dotp_config(M=32768, prec=32, core=64):
     with open(filename, "w") as file:
         file.write(formatted_config_str)
 
+def axpy_config(M=32768, prec=32, core=64):
+    # Create a dictionary with the configuration
+    filename = "axpy.json"
+    kernel   = "AXPY"
+    expand   = 0
+
+    config = {
+        "kernel": kernel,
+        "M": M,
+        "prec": prec,
+        "cores": core,
+        "expand": expand
+    }
+
+    # Convert the dictionary to a JSON string with desired formatting
+    config_str = json.dumps(config, indent=4)
+
+    # Replace double quotes with nothing as per the example format provided
+    formatted_config_str = config_str.replace('"', '')
+
+    # Write the configuration to the file
+    with open(filename, "w") as file:
+        file.write(formatted_config_str)
+
 def fft_config(M=1024, prec=32, core=16, dual=0):
     # Create a dictionary with the configuration
     filename = "fft.json"
@@ -129,6 +153,8 @@ def bw_config(M=2048, prec=32, core=64, step=16, rnd=128, dual=0):
 def main(kernel="dotp", prec=32, size=256, core=64, step=16, rnd=128, dual=0, tot_core=0):
     if (kernel == "dotp"):
         dotp_config(size, prec, core)
+    elif (kernel == "axpy"):
+        axpy_config(size, prec, core)
     elif (kernel == "fft"):
         fft_config(size, prec, core, dual)
     elif (kernel == "fft-multi"):
