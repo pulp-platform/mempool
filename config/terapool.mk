@@ -25,9 +25,22 @@ num_cores_per_tile ?= 4
 num_divsqrt_per_tile ?= 2
 
 # FlooNoC configuration
-num_remote_ports_per_tile ?= 3
+# num_remote_ports_per_tile ?= 3
 num_directions ?= 5
 num_x ?= 4
+# Per tile, separate the NoC read and read/write req channels, rd = hdr, wr = har+payload, rd/wr = hdr+payload
+# noc_req_rd_channel_num ?= 0
+# noc_req_rdwr_channel_num ?= 2
+
+noc_req_rd_channel_num ?= 2
+noc_req_rdwr_channel_num ?= 1
+
+noc_req_wr_channel_num ?= 0
+noc_resp_channel_num ?= 2
+
+# router buffer configuration
+noc_router_input_fifo_dep ?= 4
+noc_router_output_fifo_dep ?= 0
 
 # L1 scratchpad banking factor
 banking_factor ?= 4

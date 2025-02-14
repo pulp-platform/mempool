@@ -470,6 +470,8 @@ module mempool_tb;
   string fn_3, fn_final_3;
   int f_4, f_final_4;
   string fn_4, fn_final_4;
+  int f_5, f_final_5;
+  string fn_5, fn_final_5;
   string dump_time;
 
   string app;
@@ -482,9 +484,11 @@ module mempool_tb;
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_f_%1d/%s", NumCores, app);
   end
 
-  tile_level_profile_t   tile_level_profile_d,   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0]; 
-  group_level_profile_t  group_level_profile_d,  group_level_profile_q [NumGroups-1:0];
-  router_level_profile_t router_level_profile_d, router_level_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][2-1:0]; // 2: req+rsp noc
+  tile_level_profile_t   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0]; 
+  group_level_profile_t  group_level_profile_q [NumGroups-1:0];
+  router_level_profile_t router_level_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][2-1:0]; // 2: req+rsp noc
+  router_local_req_port_profile_t  router_local_req_port_profile_q [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0];
+  router_local_resp_port_profile_t router_local_resp_port_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0];
 
   // tile level profiling
   generate
@@ -492,12 +496,12 @@ module mempool_tb;
       for (genvar t = 0; t < NumTilesPerGroup; t++) begin
         always_ff @(posedge clk or negedge rst_n) begin
           if(!rst_n) begin
-            for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+            for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               tile_level_profile_q[g][t].req_vld_cyc_num[p] = '0;
               tile_level_profile_q[g][t].req_hsk_cyc_num[p] = '0;
             end
           end else begin
-            for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+            for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               tile_level_profile_q[g][t].req_vld_cyc_num[p] = tile_level_profile_q[g][t].req_vld_cyc_num[p] +
                                                               $countones(
                                                                 dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.tcdm_master_req_valid_o[p+1]
@@ -516,17 +520,17 @@ module mempool_tb;
   endgenerate
 
   // group level profiling
-  logic [NumGroups-1:0][NumTilesPerGroup*NumBanksPerTile-1:0][$clog2(NumTilesPerGroup*(NumRemotePortsPerTile-1)):0] group_xbar_req_to_same_bank_count;
-  logic [NumGroups-1:0][NumTilesPerGroup*NumBanksPerTile-1:0][$clog2(NumTilesPerGroup*(NumRemotePortsPerTile-1)):0] group_xbar_req_to_same_bank_conflict_count;
-  logic [NumGroups-1:0][$clog2(NumTilesPerGroup*(NumRemotePortsPerTile-1)):0] group_xbar_req_to_same_bank_conflict_count_sum;
+  logic [NumGroups-1:0][NumTilesPerGroup*NumBanksPerTile-1:0][$clog2(NumTilesPerGroup*(NumRemoteReqPortsPerTile-1)):0] group_xbar_req_to_same_bank_count;
+  logic [NumGroups-1:0][NumTilesPerGroup*NumBanksPerTile-1:0][$clog2(NumTilesPerGroup*(NumRemoteReqPortsPerTile-1)):0] group_xbar_req_to_same_bank_conflict_count;
+  logic [NumGroups-1:0][$clog2(NumTilesPerGroup*(NumRemoteReqPortsPerTile-1)):0] group_xbar_req_to_same_bank_conflict_count_sum;
 
-  logic [NumX-1:0][NumY-1:0][NumRemotePortsPerTile-1-1:0][NumTilesPerGroup-1:0]                                                             tcdm_slave_req_valid;
-  logic [NumX-1:0][NumY-1:0][NumRemotePortsPerTile-1-1:0][NumTilesPerGroup-1:0][idx_width(NumTilesPerGroup)+idx_width(NumBanksPerTile)-1:0] tcdm_slave_req_tgt_addr;
+  logic [NumX-1:0][NumY-1:0][NumRemoteReqPortsPerTile-1-1:0][NumTilesPerGroup-1:0]                                                             tcdm_slave_req_valid;
+  logic [NumX-1:0][NumY-1:0][NumRemoteReqPortsPerTile-1-1:0][NumTilesPerGroup-1:0][idx_width(NumTilesPerGroup)+idx_width(NumBanksPerTile)-1:0] tcdm_slave_req_tgt_addr;
 
   generate
     for(genvar x_dim = 0; x_dim < NumX; x_dim++) begin
       for(genvar y_dim = 0; y_dim < NumY; y_dim++) begin
-        for (genvar p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+        for (genvar p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
           for(genvar t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
             assign tcdm_slave_req_valid   [x_dim][y_dim][p][t_i] = dut.i_mempool_cluster.gen_groups_x[x_dim].gen_groups_y[y_dim].i_group.floo_req_from_router_before_xbar_valid_per_port[p+1][t_i];
             assign tcdm_slave_req_tgt_addr[x_dim][y_dim][p][t_i] = dut.i_mempool_cluster.gen_groups_x[x_dim].gen_groups_y[y_dim].i_group.floo_req_from_router[t_i][p+1].hdr.tgt_addr[idx_width(NumTilesPerGroup)+idx_width(NumBanksPerTile)-1:0];
@@ -539,7 +543,7 @@ module mempool_tb;
   always_comb begin
     group_xbar_req_to_same_bank_count = '0;
     for(int g = 0; g < NumGroups; g++) begin
-      for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+      for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
         for(int t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
           if(
             tcdm_slave_req_valid   [g/NumY][g%NumY][p][t_i] // if source port from router is valid
@@ -570,13 +574,13 @@ module mempool_tb;
     for (genvar g = 0; g < NumGroups; g++) begin
       always_ff @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-          for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+          for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
             group_level_profile_q[g].req_vld_cyc_num[p] = '0;
             group_level_profile_q[g].req_hsk_cyc_num[p] = '0;
           end
           group_level_profile_q[g].req_vld_cyc_more_than_one_hit_same_bank_num = '0;
         end else begin
-          for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+          for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
             group_level_profile_q[g].req_vld_cyc_num[p]                             = group_level_profile_q[g].req_vld_cyc_num[p] +
                                                                                       $countones(
                                                                                         dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.floo_req_from_router_before_xbar_valid_per_port[p+1][NumTilesPerGroup-1:0]
@@ -598,9 +602,12 @@ module mempool_tb;
   generate
     for (genvar g = 0; g < NumGroups; g++) begin: gen_router_profile_per_group
       for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_router_profile_per_tile
-        for(genvar p = 0; p < (NumRemotePortsPerTile-1); p++) begin: gen_router_profile_per_remote_port
+        for(genvar p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin: gen_router_profile_per_remote_port
           always_ff @(posedge clk or negedge rst_n) begin
             if(!rst_n) begin
+              router_local_req_port_profile_q [g][t][p].read_req_num  = '0;
+              router_local_req_port_profile_q [g][t][p].write_req_num = '0;
+              router_local_resp_port_profile_q[g][t][p].req_num       = '0;
               for(int router_p = 0; router_p < 4; router_p++) begin
                 router_level_profile_q[g][t][p][0].in_vld_cyc_num[router_p] = '0;
                 router_level_profile_q[g][t][p][0].in_hsk_cyc_num[router_p] = '0;
@@ -612,6 +619,23 @@ module mempool_tb;
                 router_level_profile_q[g][t][p][1].out_hsk_cyc_num[router_p] = '0;
               end
             end else begin
+              router_local_req_port_profile_q [g][t][p].read_req_num  = router_local_req_port_profile_q [g][t][p].read_req_num + 
+                              $countones(
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.valid_i[0][0] &
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.ready_i[0][0] &
+                                ~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.data_i [0][0].payload.wen
+                              );
+              router_local_req_port_profile_q [g][t][p].write_req_num  = router_local_req_port_profile_q [g][t][p].write_req_num + 
+                              $countones(
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.valid_i[0][0] &
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.ready_i[0][0] &
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.data_i [0][0].payload.wen
+                              );
+              router_local_resp_port_profile_q [g][t][p].req_num  = router_local_resp_port_profile_q [g][t][p].req_num + 
+                              $countones(
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_resp_router.valid_i[0][0] &
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_resp_router.ready_i[0][0]
+                              );
               for(int router_p = 0; router_p < 4; router_p++) begin
                 // req router
                 router_level_profile_q[g][t][p][0].in_vld_cyc_num[router_p]  = router_level_profile_q[g][t][p][0].in_vld_cyc_num[router_p] +
@@ -670,26 +694,31 @@ module mempool_tb;
 
         $sformat(fn_2, "%s/tile_level_profile_q_%8x.log", log_path, cycle_q);
         f_2 = $fopen(fn_2, "w");
-        $display("[Tracer] Final Logging Banks to %s", fn_2);
+        $display("[Tracer] Logging tile_level_profile_q to %s", fn_2);
 
         $sformat(fn_3, "%s/group_level_profile_q_%8x.log", log_path, cycle_q);
         f_3 = $fopen(fn_3, "w");
-        $display("[Tracer] Final Logging Banks to %s", fn_3);
+        $display("[Tracer] Logging group_level_profile_q to %s", fn_3);
 
         $sformat(fn_4, "%s/router_level_profile_q_%8x.log", log_path, cycle_q);
         f_4 = $fopen(fn_4, "w");
-        $display("[Tracer] Final Logging Banks to %s", fn_4);
+        $display("[Tracer] Logging router_level_profile_q to %s", fn_4);
+
+        $sformat(fn_5, "%s/router_local_input_profile_q_%8x.log", log_path, cycle_q);
+        f_5 = $fopen(fn_5, "w");
+        $display("[Tracer] Logging router_local_input_profile_q to %s", fn_5);
 
         $timeformat(-9, 0, "", 10);
         $sformat(dump_time, "dump time %t, cycle %8d #;\n", $time, cycle_q);
         $fwrite(f_2, dump_time);
         $fwrite(f_3, dump_time);
         $fwrite(f_4, dump_time);
+        $fwrite(f_5, dump_time);
 
         // tile level
         for(int g = 0; g < NumGroups; g++) begin
           for(int t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
-            for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+            for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               automatic string extras_str_2;
               extras_str_2 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'util': %.2f\n", 
                 g, t_i, p,
@@ -710,7 +739,7 @@ module mempool_tb;
           automatic string extras_str_3;
           req_vld_cyc_num_sum = 0;
           req_hsk_cyc_num_sum = 0;
-          for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+          for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
             req_vld_cyc_num_sum += group_level_profile_q[g].req_vld_cyc_num[p];
             req_hsk_cyc_num_sum += group_level_profile_q[g].req_hsk_cyc_num[p];
           end
@@ -728,7 +757,7 @@ module mempool_tb;
         // router level
         for(int g = 0; g < NumGroups; g++) begin
           for(int t = 0; t < NumTilesPerGroup; t++) begin
-            for(int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+            for(int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               for(int req_rsp = 0; req_rsp < 2; req_rsp++) begin
                 for(int dir = 0; dir < 4; dir++) begin
                   automatic string extras_str_4;
@@ -748,6 +777,23 @@ module mempool_tb;
           end
         end
         $fclose(f_4);
+
+        // router local port
+        for(int g = 0; g < NumGroups; g++) begin
+          for(int t = 0; t < NumTilesPerGroup; t++) begin
+            for(int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
+              automatic string extras_str_5;
+              extras_str_5 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_read_in_num': %03d, 'req_write_in_num': %03d, 'resp_in_num': %03d\n", 
+                g, t, p,
+                router_local_req_port_profile_q [g][t][p].read_req_num,
+                router_local_req_port_profile_q [g][t][p].write_req_num,
+                router_local_resp_port_profile_q[g][t][p].req_num
+              );
+              $fwrite(f_5, extras_str_5);
+            end
+          end
+        end
+        $fclose(f_5);
       end
     end
   end
@@ -780,7 +826,7 @@ module mempool_tb;
     // tile level
     for(int g = 0; g < NumGroups; g++) begin
       for(int t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
-        for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+        for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
           automatic string extras_str_final_2;
           extras_str_final_2 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'util': %.2f\n", 
             g, t_i, p,
@@ -801,7 +847,7 @@ module mempool_tb;
       automatic string extras_str_final_3;
       req_vld_cyc_num_sum = 0;
       req_hsk_cyc_num_sum = 0;
-      for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+      for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
         req_vld_cyc_num_sum += group_level_profile_q[g].req_vld_cyc_num[p];
         req_hsk_cyc_num_sum += group_level_profile_q[g].req_hsk_cyc_num[p];
       end
@@ -819,7 +865,7 @@ module mempool_tb;
     // router level
     for(int g = 0; g < NumGroups; g++) begin
       for(int t = 0; t < NumTilesPerGroup; t++) begin
-        for(int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+        for(int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
           for(int req_rsp = 0; req_rsp < 2; req_rsp++) begin
             for(int dir = 0; dir < 4; dir++) begin
               automatic string extras_str_final_4;
