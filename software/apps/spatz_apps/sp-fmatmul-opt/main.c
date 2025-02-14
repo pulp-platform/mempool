@@ -138,7 +138,7 @@ int main() {
   if (cid == 0) {
     dma_memcpy_blocking(a, gemm_A_dram, (gemm_l.M * gemm_l.N) * sizeof(float));
     dma_memcpy_blocking(b, gemm_B_dram, (gemm_l.N * gemm_l.P) * sizeof(float));
-    dma_memcpy_blocking(c, gemm_C_dram, (gemm_l.N * gemm_l.P) * sizeof(float));
+    dma_memcpy_blocking(c, gemm_C_dram, (gemm_l.M * gemm_l.P) * sizeof(float));
     // dma_memcpy_blocking(r, gemm_checksum, gemm_l.M * sizeof(float));
 
     init_matrix(r, gemm_checksum, 0, 1, gemm_l.M);

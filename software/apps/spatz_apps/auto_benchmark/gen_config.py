@@ -122,6 +122,36 @@ def fmatmul_config(M=256, N=256, P=256, prec=32):
     with open(filename, "w") as file:
         file.write(formatted_config_str)
 
+def imatmul_config(M=256, N=256, P=256, prec=32):
+    # Create a dictionary with the configuration
+    filename = "matmul.json"
+    kernel   = "GEMM"
+    expand   = 0
+    a = 0
+    transpose = "false"
+
+    config = {
+        "kernel": kernel,
+        "M": M,
+        "N": N,
+        "K": P,
+        "alpha": a,
+        "transpose_A": transpose,
+        "transpose_B": transpose,
+        "prec": 32,
+        "expand": expand
+    }
+
+    # Convert the dictionary to a JSON string with desired formatting
+    config_str = json.dumps(config, indent=4)
+
+    # Replace double quotes with nothing as per the example format provided
+    formatted_config_str = config_str.replace('"', '')
+
+    # Write the configuration to the file
+    with open(filename, "w") as file:
+        file.write(formatted_config_str)
+
 def bw_config(M=2048, prec=32, core=64, step=16, rnd=128, dual=0):
     # Create a dictionary with the configuration
     filename = "bw.json"
@@ -161,6 +191,8 @@ def main(kernel="dotp", prec=32, size=256, core=64, step=16, rnd=128, dual=0, to
         fft_multi_config(size, prec, core, dual, tot_core)
     elif (kernel == "fmatmul"):
         fmatmul_config(size, size, size, prec)
+    elif (kernel == "imatmul"):
+        imatmul_config(size, size, size, prec)
     elif (kernel == "bandwidth"):
         bw_config(size, prec, core, step, rnd, dual)
     else:
