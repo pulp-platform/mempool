@@ -197,7 +197,7 @@ setup-dram: config-dram
 	cd $(DRAMSYS_PATH) && \
 	if [ ! -d "build" ]; then \
 		mkdir build && cd build; \
-		cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
+		$(CMAKE) -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
 		make -j; \
 	fi
 
