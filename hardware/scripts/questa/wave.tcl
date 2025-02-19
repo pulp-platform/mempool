@@ -1,4 +1,4 @@
-# Copyright 2021 ETH Zurich and University of Bologna.
+# Copyright 2024 ETH Zurich and University of Bologna.
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
@@ -48,6 +48,9 @@ do ../scripts/questa/wave_core.tcl 1 1 1 $NumY
 do ../scripts/questa/wave_core.tcl [expr [examine -radix dec mempool_pkg::NumGroups]-1] [expr [examine -radix dec mempool_pkg::NumTilesPerGroup]-1] [expr [examine -radix dec mempool_pkg::NumCoresPerTile]-1] $NumY
 
 # Add groups
+set DmaBurstLen [examine -radix dec mempool_pkg::DmaBurstLen]
+set Interleave [examine -radix dec mempool_pkg::Interleave]
+
 for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr group} {
     # Add Interface
     add wave -group group_[$group] -group X[[expr ${group}/${NumX}]]Y[[expr ${group}%${NumY}]]_Intf /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_mempool_group/*
@@ -70,7 +73,9 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
         }
     }
     # Splitter & Interleaver
-    add wave -group group_[$group] -group axi_splitter /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/gen_axi_splitter/i_axi_burst_splitter/*
+    if {$DmaBurstLen > $Interleave} {
+      add wave -group group_[$group] -group axi_splitter /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/gen_axi_splitter/i_axi_burst_splitter/*
+    }
     add wave -group group_[$group] -group axi_interleaver /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_axi_L2_interleaver/*
     # AXI Router
     add wave -group group_[$group] -group floo_axi_chimney /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_floo_narrow_wide_chimney/*
@@ -117,4 +122,3 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
 }
 
 do ../scripts/questa/wave_cache.tcl 0 0 0 $NumY
-
