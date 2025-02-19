@@ -160,7 +160,7 @@ vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size)
 vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)
 # DRAMsys co-simulation
 vlog_defs += -D${l2_sim_type}
-vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${dram_axi_width_interleaved}
+vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${axi_width_interleaved}
 # Enable the spm access pattern profiling
 ifeq (1, $(spm_profiling))
 	vlog_defs += -DSPM_PROFILING=$(spm_profiling)

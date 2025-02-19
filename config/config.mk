@@ -75,7 +75,7 @@ xDivSqrt ?= 0
 
 # DRAMsys co-simulation: dram/sram
 l2_sim_type ?= sram
-dram_axi_width_interleaved ?= 16
+axi_width_interleaved ?= 16
 
 # Enable SPM bank id remapping inside of each tile
 spm_bank_id_remap ?= 0
