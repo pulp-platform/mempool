@@ -306,14 +306,13 @@ module mempool_tb;
    ***********************/
 
 `ifndef DRAM
-  for (genvar bank = 0; bank < NumL2Banks; bank++) begin : gen_l2_banks_init
+  for (genvar bank = 0; bank < NumL2Banks; bank++) begin : gen_srams_init
     initial begin : l2_init
       automatic logic [L2BankWidth-1:0] mem_row;
       byte buffer [];
       addr_t address;
       addr_t length;
       string binary;
-
       // Initialize memories
       void'($value$plusargs("PRELOAD=%s", binary));
       if (binary != "") begin
@@ -326,27 +325,29 @@ module mempool_tb;
           $display("Loading section %x of length %x", address, length);
           buffer = new[nwords * L2BeWidth];
           void'(read_section(address, buffer));
-          // Initializing memories
-          for (int w = 0; w < nwords; w++) begin
-            mem_row = '0;
-            for (int b = 0; b < L2BankBeWidth; b++) begin
-              mem_row[8 * b +: 8] = buffer[(bank + w * NumL2Banks) * L2BankBeWidth + b];
+          if (address >= dut.L2MemoryBaseAddr && address < dut.L2MemoryEndAddr) begin
+            for (int i = 0; i < nwords * L2BeWidth; i += L2BankBeWidth) begin //per L2 words
+              automatic sram_ctrl_interleave_t sram_ctrl_info;
+              sram_ctrl_info = getSramCTRLInfo(address + i - dut.L2MemoryBaseAddr);
+              if (sram_ctrl_info.sram_ctrl_id == bank) begin
+                mem_row = '0;
+                for (int b = 0; b < L2BankBeWidth; b++) begin
+                  mem_row[8 * b +: 8] = buffer[i + b];
+                end
+                dut.gen_l2_banks[bank].l2_mem.init_val[sram_ctrl_info.sram_ctrl_addr] = mem_row;
+              end
             end
-            if (address >= dut.L2MemoryBaseAddr && address < dut.L2MemoryEndAddr) begin
-              dut.gen_l2_banks[bank].l2_mem.init_val[(address - dut.L2MemoryBaseAddr + (w << L2ByteOffset)) >> L2ByteOffset] = mem_row;
-            end else begin
-              $display("Cannot initialize address %x, which doesn't fall into the L2 region.", address);
-            end
+          end else begin
+            $display("Cannot initialize address %x, which doesn't fall into the L2 SRAM region.", address);
           end
         end
       end
     end : l2_init
-  end : gen_l2_banks_init
+  end : gen_srams_init
 
 `else
   for (genvar bank = 0; bank < NumDrams; bank++) begin : gen_drams_init
     initial begin : l2_init
-      automatic logic [L2BankWidth-1:0] mem_row;
       byte buffer [];
       addr_t address;
       addr_t length;

@@ -77,14 +77,15 @@ package mempool_pkg;
   typedef logic [DataWidth-1:0         ] data_t;
   typedef logic [BeWidth-1:0           ] strb_t;
 
+  localparam integer Interleave = `ifdef AXI_WIDTH_INTERLEAVED `AXI_WIDTH_INTERLEAVED `else 16 `endif;
+  localparam integer L2BankByteOffset = $clog2(L2BankBeWidth);
+
   `ifdef DRAM
     // DRAM Interleaving Functions
     typedef struct packed {
       int                   dram_ctrl_id;
       logic [AddrWidth-1:0] dram_ctrl_addr;
     } dram_ctrl_interleave_t;
-
-    localparam int unsigned Interleave = `ifdef DRAM_AXI_WIDTH_INTERLEAVED `DRAM_AXI_WIDTH_INTERLEAVED `else 16 `endif;
 
     function automatic dram_ctrl_interleave_t getDramCTRLInfo(addr_t addr);
       automatic dram_ctrl_interleave_t res;
@@ -93,12 +94,32 @@ package mempool_pkg;
       localparam int unsigned ReminderBits = AddrWidth - ScrambleBits - ConstantBits;
       automatic addr_t reminder_addr = addr[AddrWidth-1: AddrWidth-ReminderBits];
 
-      res.dram_ctrl_id = addr[ScrambleBits + ConstantBits - 1: ConstantBits ];
+      res.dram_ctrl_id = addr[ScrambleBits + ConstantBits - 1: ConstantBits];
       res.dram_ctrl_addr = {reminder_addr, addr[ConstantBits-1:0]};
       return res;
     endfunction
   `else
-    localparam int unsigned Interleave = L2BankWidth / AxiDataWidth;
+    // SRAM Interleaving Functions
+    typedef struct packed {
+      int                   sram_ctrl_id;
+      logic [AddrWidth-1:0] sram_ctrl_addr;
+    } sram_ctrl_interleave_t;
+
+    function automatic sram_ctrl_interleave_t getSramCTRLInfo(addr_t addr);
+      automatic sram_ctrl_interleave_t res;
+      localparam int unsigned ConstantBits = $clog2(L2BankBeWidth * Interleave);
+      localparam int unsigned ScrambleBits = (NumL2Banks == 1) ? 1 : $clog2(NumL2Banks);
+      localparam int unsigned ReminderBits = AddrWidth - ScrambleBits - ConstantBits;
+      automatic addr_t reminder_addr = addr[AddrWidth-1: AddrWidth-ReminderBits];
+
+      res.sram_ctrl_id = addr[ScrambleBits + ConstantBits - 1: ConstantBits];
+      if (Interleave == 1) begin
+        res.sram_ctrl_addr = addr[AddrWidth-1: L2BankByteOffset + ScrambleBits];
+      end else begin
+        res.sram_ctrl_addr = { addr[AddrWidth-1: AddrWidth-ReminderBits], addr[ConstantBits-1: L2BankByteOffset] };
+      end
+      return res;
+    endfunction
   `endif
 
   localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
