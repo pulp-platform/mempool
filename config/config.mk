@@ -75,4 +75,4 @@ xDivSqrt ?= 0
 
 # DRAMsys co-simulation: dram/sram
 l2_sim_type ?= sram
-dram_axi_width_interleaved ?= 16
+axi_width_interleaved ?= 16
