@@ -88,10 +88,17 @@ do ../scripts/questa/wave_cluster.tcl
 # Add System
 add wave -group system -group soc_xbar /mempool_tb/dut/i_soc_xbar/*
 add wave -group system -group axi2mem_bootrom /mempool_tb/dut/i_axi2mem_bootrom/*
-for {set bank 0} {$bank < [examine -radix dec /mempool_pkg::NumL2Banks]} {incr bank} {
-    add wave -group system -group L2_banks -group axi2mem_[$bank] /mempool_tb/dut/gen_l2_adapters[$bank]/i_axi2mem/*
-    add wave -group system -group L2_banks -group bank_[$bank] /mempool_tb/dut/gen_l2_banks[$bank]/l2_mem/*
+if {[examine -radix dec mempool_pkg::NumDrams] ne ""} {
+  for {set dram 0} {$dram < [examine -radix dec mempool_pkg::NumDrams]} {incr dram} {
+      add wave -group system -group dram_[$dram] /mempool_tb/dut/gen_drams[$dram]/i_axi_dram_sim/*
+  }
+} else {
+  for {set bank 0} {$bank < [examine -radix dec /mempool_pkg::NumL2Banks]} {incr bank} {
+      add wave -group system -group L2_banks -group axi2mem_[$bank] /mempool_tb/dut/gen_l2_adapters[$bank]/i_axi2mem/*
+      add wave -group system -group L2_banks -group bank_[$bank] /mempool_tb/dut/gen_l2_banks[$bank]/l2_mem/*
+  }
 }
+
 add wave -group system -group CSR /mempool_tb/dut/i_ctrl_registers/*
 
 # Add DMA
