@@ -250,7 +250,7 @@ module mempool_system
       .mem_rvalid_i(mem_rvalid[i] ),
       .mem_rdata_i (mem_rdata[i]  )
     );
-  
+
     assign bank_req[i]    = mem_req[i];
     assign mem_gnt[i]     = '1;
     assign bank_addr[i]   = mem_addr[i][$clog2(L2BankBeWidth-1) +: L2BankAddrWidth];
@@ -292,55 +292,60 @@ module mempool_system
    *  L2 DRAM  *
    *************/
 
-  axi_tile_req_t  [NumDrams-1:0]     dram_req;
-  axi_tile_resp_t [NumDrams-1:0]     dram_resp;
-  assign axi_l2_resp = dram_resp;
+  axi_tile_req_t  [NumDrams-1:0] dram_req;
+  axi_tile_resp_t [NumDrams-1:0] dram_resp;
 
-  // Scrambled Addr reset, and detect base address before go to DRAM
-  for (genvar i = 0; unsigned'(i) < NumDrams; i++) begin: gen_dram_scrambler_reset
-    // req.aw scrambling
-    logic [ConstantBits-1:0] aw_const;
-    logic [ScrambleBits-1:0] aw_scramble;
-    logic [ReminderBits-1:0] aw_reminder;
-    logic [AddrWidth-1   :0] aw_scramble_addr_reset;
-    assign aw_scramble = axi_l2_req[i].aw.addr[AddrWidth-1 : AddrWidth-ScrambleBits];
-    assign aw_reminder = axi_l2_req[i].aw.addr[AddrWidth-ScrambleBits-1 : ConstantBits] - L2MemoryBaseAddr[AddrWidth-1: AddrWidth-ReminderBits];
-    assign aw_const    = axi_l2_req[i].aw.addr[ConstantBits-1 : 0];
+  // Local parameters for address manipulation
+  localparam int unsigned LSBConstantBits = $clog2(L2BankBeWidth * Interleave);
+  localparam int unsigned MSBConstantBits = 4;
+  localparam int unsigned ScrambleBits    = (NumDrams == 1) ? 1 : $clog2(NumDrams);
+  localparam int unsigned ReminderBits    = AddrWidth - ScrambleBits - LSBConstantBits - MSBConstantBits;
 
-    if (NumDrams == 1) begin
-      assign aw_scramble_addr_reset = {aw_reminder, aw_scramble, aw_const};
-    end else begin
-      assign aw_scramble_addr_reset = {{ScrambleBits{1'b0}}, aw_reminder, aw_const};
-    end
+  // Logic variables for address scrambling reset
+  logic [NumAXIMasters-1:0][LSBConstantBits-1:0] aw_lsb_const;
+  logic [NumAXIMasters-1:0][MSBConstantBits-1:0] aw_msb_const;
+  logic [NumAXIMasters-1:0][ScrambleBits-1:0   ] aw_scramble;
+  logic [NumAXIMasters-1:0][ReminderBits-1:0   ] aw_reminder;
+  logic [NumAXIMasters-1:0][AddrWidth-1:0      ] aw_scramble_reset_addr;
 
-    // req.ar scrambling
-    logic [ConstantBits-1:0] ar_const;
-    logic [ScrambleBits-1:0] ar_scramble;
-    logic [ReminderBits-1:0] ar_reminder;
-    logic [AddrWidth-1   :0] ar_scramble_addr_reset;
-    assign ar_scramble = axi_l2_req[i].ar.addr[AddrWidth-1 : AddrWidth-ScrambleBits];
-    assign ar_reminder = axi_l2_req[i].ar.addr[AddrWidth-ScrambleBits-1 : ConstantBits] - L2MemoryBaseAddr[AddrWidth-1: AddrWidth-ReminderBits];
-    assign ar_const    = axi_l2_req[i].ar.addr[ConstantBits-1 : 0];
+  logic [NumAXIMasters-1:0][LSBConstantBits-1:0] ar_lsb_const;
+  logic [NumAXIMasters-1:0][MSBConstantBits-1:0] ar_msb_const;
+  logic [NumAXIMasters-1:0][ScrambleBits-1:0   ] ar_scramble;
+  logic [NumAXIMasters-1:0][ReminderBits-1:0   ] ar_reminder;
+  logic [NumAXIMasters-1:0][AddrWidth-1:0      ] ar_scramble_reset_addr;
 
-    if (NumDrams == 1) begin
-      assign ar_scramble_addr_reset = {ar_reminder, ar_scramble, ar_const};
-    end else begin
-      assign ar_scramble_addr_reset = {{ScrambleBits{1'b0}}, ar_reminder, ar_const};
-    end
-
-    // Scrambled AXI req assignment
+  // Address scrambling reset logic
+  for (genvar i = 0; i < NumAXIMasters; i++) begin : addr_scrambler_reset
     always_comb begin
-      dram_req[i]         = axi_l2_req[i];
-      dram_req[i].aw.addr = aw_scramble_addr_reset;
-      dram_req[i].ar.addr = ar_scramble_addr_reset;
+      dram_req[i]    = axi_l2_req[i];
+      axi_l2_resp[i] = dram_resp[i];
+      // AW Channel
+      // Decompose address for scrambling
+      aw_lsb_const[i]           = dram_req[i].aw.addr[LSBConstantBits-1 : 0];
+      aw_msb_const[i]           = dram_req[i].aw.addr[AddrWidth-1 -: MSBConstantBits] - L2MemoryBaseAddr[AddrWidth-1-: MSBConstantBits];
+      aw_scramble[i]            = dram_req[i].aw.addr[AddrWidth-MSBConstantBits-1 -: ScrambleBits];
+      aw_reminder[i]            = dram_req[i].aw.addr[AddrWidth-MSBConstantBits-ScrambleBits-1 : LSBConstantBits];
+      aw_scramble_reset_addr[i] = {{ScrambleBits{1'b0}}, aw_msb_const[i], aw_reminder[i], aw_lsb_const[i]};
+      // Assign scrambled address back to request
+      dram_req[i].aw.addr       = aw_scramble_reset_addr[i];
+
+      // AR Channel
+      // Decompose address for scrambling
+      ar_lsb_const[i]           = dram_req[i].ar.addr[LSBConstantBits-1 : 0];
+      ar_msb_const[i]           = dram_req[i].ar.addr[AddrWidth-1 -: MSBConstantBits] - L2MemoryBaseAddr[AddrWidth-1-: MSBConstantBits];
+      ar_scramble[i]            = dram_req[i].ar.addr[AddrWidth-MSBConstantBits-1 -: ScrambleBits];
+      ar_reminder[i]            = dram_req[i].ar.addr[AddrWidth-MSBConstantBits-ScrambleBits-1 : LSBConstantBits];
+      ar_scramble_reset_addr[i] = {{ScrambleBits{1'b0}}, ar_msb_const[i], ar_reminder[i], ar_lsb_const[i]};
+      // Assign scrambled address back to request
+      dram_req[i].ar.addr       = ar_scramble_reset_addr[i];
     end
-  end: gen_dram_scrambler_reset
+  end
 
   for (genvar i = 0; unsigned'(i) < NumDrams; i++) begin: gen_drams
     axi_dram_sim #(
         .AxiAddrWidth(AddrWidth        ),
         .AxiDataWidth(AxiDataWidth     ),
-        .AxiIdWidth  (AxiSystemIdWidth ),
+        .AxiIdWidth  (AxiTileIdWidth   ),
         .AxiUserWidth(1                ),
         .DRAMType    ("HBM2"           ),
         .BASE        ('b0              ),

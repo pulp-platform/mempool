@@ -60,12 +60,8 @@ package mempool_pkg;
   localparam integer unsigned L2BeWidth        = L2Width/8;
   localparam integer unsigned L2ByteOffset     = $clog2(L2BeWidth);
   localparam integer unsigned L2AddrWidth      = $clog2(L2Size);
-
-  // L2 DRAM
-  localparam integer unsigned NumDrams         = `ifdef L2_BANKS `L2_BANKS `else 1 `endif;
-  localparam integer unsigned L2DramWidth      = AxiDataWidth;
-  localparam integer unsigned L2DramBeWidth    = L2DramWidth/8;
-  localparam integer unsigned L2DramByteOffset = $clog2(L2DramBeWidth);
+  localparam integer unsigned Interleave       = `ifdef AXI_WIDTH_INTERLEAVED `AXI_WIDTH_INTERLEAVED `else 16 `endif;
+  localparam integer unsigned L2BankByteOffset = $clog2(L2BankBeWidth);
 
   typedef logic [AxiCoreIdWidth-1:0    ] axi_core_id_t;
   typedef logic [AxiTileIdWidth-1:0    ] axi_tile_id_t;
@@ -77,10 +73,12 @@ package mempool_pkg;
   typedef logic [DataWidth-1:0         ] data_t;
   typedef logic [BeWidth-1:0           ] strb_t;
 
-  localparam integer Interleave = `ifdef AXI_WIDTH_INTERLEAVED `AXI_WIDTH_INTERLEAVED `else 16 `endif;
-  localparam integer L2BankByteOffset = $clog2(L2BankBeWidth);
-
   `ifdef DRAM
+    localparam integer unsigned NumDrams         = `ifdef L2_BANKS `L2_BANKS `else 1 `endif;
+    localparam integer unsigned L2DramWidth      = AxiDataWidth;
+    localparam integer unsigned L2DramBeWidth    = L2DramWidth/8;
+    localparam integer unsigned L2DramByteOffset = $clog2(L2DramBeWidth);
+
     // DRAM Interleaving Functions
     typedef struct packed {
       int                   dram_ctrl_id;
@@ -89,7 +87,7 @@ package mempool_pkg;
 
     function automatic dram_ctrl_interleave_t getDramCTRLInfo(addr_t addr);
       automatic dram_ctrl_interleave_t res;
-      localparam int unsigned ConstantBits = $clog2(L2BankBeWidth * Interleave);
+      localparam int unsigned ConstantBits = $clog2(L2DramBeWidth * Interleave);
       localparam int unsigned ScrambleBits = (NumDrams == 1) ? 1 : $clog2(NumDrams);
       localparam int unsigned ReminderBits = AddrWidth - ScrambleBits - ConstantBits;
       automatic addr_t reminder_addr = addr[AddrWidth-1: AddrWidth-ReminderBits];
