@@ -581,7 +581,13 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .flit_t           (floo_req_t   ),
       .ChannelFifoDepth (mempool_pkg::ChannelFifoDepth            ), // Input buffer depth
       .OutputFifoDepth  (mempool_pkg::OutputFifoDepth            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+    `ifdef O1_ROUTING
+      .RouteAlgo        (O1Routing    ),
+    `elsif ODD_EVEN_ROUTING
+      .RouteAlgo        (OddEvenRouting    ),
+    `else
       .RouteAlgo        (XYRouting    ),
+    `endif
       .id_t             (group_xy_id_t),
       .NumAddrRules     (1            )
     ) i_floo_req_router (
@@ -604,7 +610,11 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .flit_t          (floo_resp_t  ),
       .ChannelFifoDepth(mempool_pkg::ChannelFifoDepth            ), // Input buffer depth
       .OutputFifoDepth (mempool_pkg::OutputFifoDepth            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+    `ifdef O1_ROUTING
+      .RouteAlgo       (O1Routing    ),
+    `else
       .RouteAlgo       (XYRouting    ),
+    `endif
       .id_t            (group_xy_id_t),
       .NumAddrRules    (1            )
     ) i_floo_resp_router (
@@ -656,6 +666,25 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
     );
   end
 
+  // assign floo_req_from_router_before_xbar_valid[i][j] = |(floo_req_from_router_vc_valid[i][j]);
+  // assign floo_req_from_router_vc_ready[i][j] = '{NumVirtualChannel{floo_req_from_router_before_xbar_ready[i][j]}};
+
+  
+  // rr_arb_tree #(.NumIn(NumVirtualChannel), .DataType(logic), .AxiVldRdy(1'b1), .LockIn(1'b1)) i_rr_arb_tree (
+  //   .clk_i  (clk_i),
+  //   .rst_ni (rst_ni),
+  //   .flush_i('0),
+  //   .rr_i   ('0),
+  //   .req_i  (floo_req_from_router_vc_valid[i][j]),
+  //   .gnt_o  (floo_req_from_router_vc_ready[i][j]),
+  //   .data_i ('0),
+  //   .req_o  (floo_req_from_router_before_xbar_valid[i][j]),
+  //   .gnt_i  (floo_req_from_router_before_xbar_ready[i][j]),
+  //   .data_o (),
+  //   .idx_o  ()
+  // );
+
+  
 
   end : gen_router_router_j
 end : gen_router_router_i

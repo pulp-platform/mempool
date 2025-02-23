@@ -133,6 +133,13 @@ endif
 ifeq (1, $(resp_remapping))
 	vlog_defs += -DRESP_REMAPPING=$(resp_remapping)
 endif
+ifeq ($(routing_algorithm), o1)
+	vlog_defs += -DO1_ROUTING
+else ifeq ($(routing_algorithm), odd_even)
+	vlog_defs += -DODD_EVEN_ROUTING
+else ifeq ($(routing_algorithm), xy)
+	vlog_defs += -DXY_ROUTING
+endif
 ifdef channel_fifo_depth
 	vlog_defs += -DCHANNEL_FIFO_DEPTH=$(channel_fifo_depth)
 endif
