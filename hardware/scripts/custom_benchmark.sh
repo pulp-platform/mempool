@@ -4,13 +4,12 @@
 app_list=(matmul_i32)
 # app_list=(axpy_i32)
 # app_list=(cfft_radix2_q16 cfft_radix4_q16)
-topology_list=(torus 2dmesh)
-
-if [ -z "$1" ]; then
-    config=terapool
-else
-    config=$1
-fi
+config_list=(terapool)
+# if [ -z "$1" ]; then
+#     config=terapool
+# else
+#     config=$1
+# fi
 
 # Single thread version
 # if config=terapool; then
@@ -26,9 +25,9 @@ fi
 # done
 
 # Multi threads version
-for topology in $topology_list; do
+for config in $config_list; do
   for app in $app_list; do
-    screen -dmS ${config}_${topology}_${app} ./scripts/exec_benchmark.sh $app $config $topology
+    screen -dmS ${config}_${app} ./scripts/exec_benchmark.sh $app $config
   done
 done
 

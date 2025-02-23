@@ -2,7 +2,6 @@
 
 app=$1
 config=$2
-topology=$3
 
 if [[ $config == *terapool* ]]; then
   ulimit -n 4096
@@ -11,10 +10,12 @@ fi
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate mempool
 
-make clean buildpath=build_${config}_${topology}/${app}
-make compile config=$config topology=$topology buildpath=build_${config}_${topology}/${app}
-make simc app=$app config=$config topology=$topology buildpath=build_${config}_${topology}/${app}
-make trace result_dir=results/${config}_${topology}/${app} buildpath=build_${config}_${topology}/${app}
-cp -r build_${config}_${topology}/${app}/noc_profiling results/${config}_${topology}/${app}/
-make clean buildpath=build_${config}_${topology}/${app}
-python3 scripts/parse_result.py results/${config}_${topology}/${app}/avg.txt results/${config}_${topology}/${app}/avg.xlsx
+make clean buildpath=build_${config}/${app}
+make compile config=$config buildpath=build_${config}/${app}
+make simc app=$app config=$config buildpath=build_${config}/${app}
+make trace config=$config result_dir=results/${config}/${app} buildpath=build_${config}/${app}
+if [ -e build_${config}/${app}/noc_profiling ]; then
+  cp -r build_${config}/${app}/noc_profiling results/${config}/${app}/
+fi
+make clean buildpath=build_${config}/${app}
+python3 scripts/parse_result.py results/${config}/${app}/avg.txt results/${config}/${app}/avg.xlsx
