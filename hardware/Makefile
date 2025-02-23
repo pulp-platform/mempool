@@ -133,6 +133,12 @@ endif
 ifeq (1, $(resp_remapping))
 	vlog_defs += -DRESP_REMAPPING=$(resp_remapping)
 endif
+ifdef channel_fifo_depth
+	vlog_defs += -DCHANNEL_FIFO_DEPTH=$(channel_fifo_depth)
+endif
+ifdef output_fifo_depth
+	vlog_defs += -DOUTPUT_FIFO_DEPTH=$(output_fifo_depth)
+endif
 ifdef num_virtual_channel
 	vlog_defs += -DNUM_VIRTUAL_CHANNEL=$(num_virtual_channel)
 endif

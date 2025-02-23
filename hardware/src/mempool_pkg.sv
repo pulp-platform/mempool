@@ -300,6 +300,8 @@ package mempool_pkg;
   localparam integer unsigned NumDirections = `ifdef NUM_DIRECTIONS `NUM_DIRECTIONS `else 5 `endif;
   localparam integer unsigned NumX = `ifdef NUM_X `NUM_X `else 2 `endif;
   localparam integer unsigned NumY = NumGroups/NumX;
+  localparam integer unsigned ChannelFifoDepth = `ifdef CHANNEL_FIFO_DEPTH `CHANNEL_FIFO_DEPTH `else 4 `endif;
+  localparam integer unsigned OutputFifoDepth = `ifdef OUTPUT_FIFO_DEPTH `OUTPUT_FIFO_DEPTH `else 0 `endif;
   localparam integer unsigned NumVirtualChannel = `ifdef NUM_VIRTUAL_CHANNEL `NUM_VIRTUAL_CHANNEL `else 1 `endif;
 
   // FlooNoC group id types for XY routing

@@ -531,8 +531,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .NumRoutes        (mempool_pkg::NumDirections),
       .NumVirtChannels  (mempool_pkg::NumVirtualChannel            ),
       .flit_t           (floo_req_t   ),
-      .ChannelFifoDepth (2            ), // Input buffer depth
-      .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .ChannelFifoDepth (mempool_pkg::ChannelFifoDepth            ), // Input buffer depth
+      .OutputFifoDepth  (mempool_pkg::OutputFifoDepth            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo        (IdTable      ),
       .id_t             (group_id_t   ),
       .NumAddrRules     (NumGroups    ),
@@ -555,8 +555,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .NumRoutes       (mempool_pkg::NumDirections),
       .NumVirtChannels (mempool_pkg::NumVirtualChannel            ),
       .flit_t          (floo_resp_t  ),
-      .ChannelFifoDepth(2            ), // Input buffer depth
-      .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .ChannelFifoDepth(mempool_pkg::ChannelFifoDepth            ), // Input buffer depth
+      .OutputFifoDepth (mempool_pkg::OutputFifoDepth            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo       (IdTable      ),
       .id_t            (group_id_t   ),
       .NumAddrRules    (NumGroups    ),
@@ -579,8 +579,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .NumRoutes        (mempool_pkg::NumDirections),
       .NumVirtChannels  (mempool_pkg::NumVirtualChannel            ),
       .flit_t           (floo_req_t   ),
-      .ChannelFifoDepth (2            ), // Input buffer depth
-      .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .ChannelFifoDepth (mempool_pkg::ChannelFifoDepth            ), // Input buffer depth
+      .OutputFifoDepth  (mempool_pkg::OutputFifoDepth            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo        (XYRouting    ),
       .id_t             (group_xy_id_t),
       .NumAddrRules     (1            )
@@ -602,8 +602,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .NumRoutes       (mempool_pkg::NumDirections),
       .NumVirtChannels (mempool_pkg::NumVirtualChannel            ),
       .flit_t          (floo_resp_t  ),
-      .ChannelFifoDepth(2            ), // Input buffer depth
-      .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .ChannelFifoDepth(mempool_pkg::ChannelFifoDepth            ), // Input buffer depth
+      .OutputFifoDepth (mempool_pkg::OutputFifoDepth            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
       .RouteAlgo       (XYRouting    ),
       .id_t            (group_xy_id_t),
       .NumAddrRules    (1            )
