@@ -28,17 +28,17 @@ module mempool_group_floonoc_wrapper
 
   // Router interface
   output floo_req_t      [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_o,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_valid_o,
-  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_ready_i,
+  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_valid_o,
+  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_ready_i,
   output floo_resp_t     [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_o,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_valid_o,
-  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_ready_i,
+  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_valid_o,
+  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_ready_i,
   input  floo_req_t      [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_i,
-  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_valid_i,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_ready_o,
+  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_valid_i,
+  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_ready_o,
   input  floo_resp_t     [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_i,
-  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_valid_i,
-  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_ready_o,
+  input  logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_valid_i,
+  output logic           [West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_ready_o,
 
   // Wake up interface
   input  logic           [NumCoresPerGroup-1:0]                                        wake_up_i,
@@ -115,6 +115,12 @@ floo_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router
 floo_resp_t [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_to_router, floo_resp_from_router;
 logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router_valid;
 logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_to_router_ready;
+logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_to_router_valid;
+logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_to_router_ready;
+logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_to_router_vc_valid;
+logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_to_router_vc_ready;
+logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_to_router_vc_valid;
+logic       [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_to_router_vc_ready;
 
 // ------------------------------------------------------------------ //
 // Remapping: From MemPool "Master Request" to FlooNoC "TCDM request" //
@@ -189,6 +195,42 @@ assign tcdm_master_req_ready = floo_req_to_router_ready;
 
 `endif
 
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_router_vc_req_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_master_req_to_router_vc_req_j
+    if(NumVirtualChannel == 1) begin
+      assign floo_req_to_router_vc_valid[i][j][0] = floo_req_to_router_valid[i][j];
+      assign floo_req_to_router_ready[i][j] = floo_req_to_router_vc_ready[i][j][0];
+    end else begin
+      floo_vc_mapper #(.NumVirtChannels(NumVirtualChannel)) i_floo_req_vc_mapper (
+        .clk_i  (clk_i),
+        .rst_ni (rst_ni),
+        .valid_i(floo_req_to_router_valid[i][j]),
+        .ready_o(floo_req_to_router_ready[i][j]),
+        .valid_o(floo_req_to_router_vc_valid[i][j]),
+        .ready_i(floo_req_to_router_vc_ready[i][j])
+      );
+    end
+  end : gen_master_req_to_router_vc_req_j
+end : gen_master_req_to_router_vc_req_i
+
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_router_vc_resp_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_slave_resp_to_router_vc_resp_j
+    if(NumVirtualChannel == 1) begin
+      assign floo_resp_to_router_vc_valid[i][j][0] = floo_resp_to_router_valid[i][j];
+      assign floo_resp_to_router_ready[i][j] = floo_resp_to_router_vc_ready[i][j][0];
+    end else begin
+      floo_vc_mapper #(.NumVirtChannels(NumVirtualChannel)) i_floo_resp_vc_mapper (
+        .clk_i  (clk_i),
+        .rst_ni (rst_ni),
+        .valid_i(floo_resp_to_router_valid[i][j]),
+        .ready_o(floo_resp_to_router_ready[i][j]),
+        .valid_o(floo_resp_to_router_vc_valid[i][j]),
+        .ready_i(floo_resp_to_router_vc_ready[i][j])
+      );
+    end
+  end : gen_slave_resp_to_router_vc_resp_j
+end : gen_slave_resp_to_router_vc_resp_i
+
 // ------------------------------------------------------------------ //
 // Crossbar: FlooNoC "TCDM request" input select target tile          //
 // TODO: This is a consitent assignment to Tile's port,               //
@@ -200,6 +242,9 @@ logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_after_xbar_ready;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_before_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_before_xbar_ready;
+floo_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_from_router_vc;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_from_router_vc_valid;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_from_router_vc_ready;
 
 if (NumTilesPerGroup == 1) begin
   assign req_tile_sel = '0;
@@ -302,6 +347,9 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_router_r
   end : gen_slave_resp_to_router_resp_j
 end : gen_slave_resp_to_router_resp_i
 
+assign floo_resp_to_router_valid = tcdm_slave_resp_valid;
+assign tcdm_slave_resp_ready = floo_resp_to_router_ready;
+
 // ------------------------------------------------------------------ //
 // Crossbar: FlooNoC "TCDM reponse" input select target tile          //
 // TODO: This is a consitent assignment to Tile's port,               //
@@ -313,6 +361,9 @@ logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_after_xbar_ready;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_valid;
 logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_before_xbar_ready;
+floo_resp_t     [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_from_router_vc;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_from_router_vc_valid;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_from_router_vc_ready;
 
 if (NumTilesPerGroup == 1) begin
   assign resp_tile_sel = '0;
@@ -393,17 +444,17 @@ end : gen_router_resp_to_master_resp_i
 // ----------------------       Router      --------------------------//
 // ------------------------------------------------------------------ //
 floo_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_o_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_valid_o_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_ready_i_trans;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North][NumVirtualChannel-1:0] floo_req_valid_o_trans;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North][NumVirtualChannel-1:0] floo_req_ready_i_trans;
 floo_resp_t     [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_o_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_valid_o_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_ready_i_trans;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North][NumVirtualChannel-1:0] floo_resp_valid_o_trans;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North][NumVirtualChannel-1:0] floo_resp_ready_i_trans;
 floo_req_t      [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_i_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_valid_i_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_req_ready_o_trans;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North][NumVirtualChannel-1:0] floo_req_valid_i_trans;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North][NumVirtualChannel-1:0] floo_req_ready_o_trans;
 floo_resp_t     [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_i_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_valid_i_trans;
-logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North] floo_resp_ready_o_trans;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North][NumVirtualChannel-1:0] floo_resp_valid_i_trans;
+logic           [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][West:North][NumVirtualChannel-1:0] floo_resp_ready_o_trans;
 
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_connection_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_router_router_connection_j
@@ -437,7 +488,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
 
     floo_router #(
       .NumRoutes        (mempool_pkg::NumDirections),
-      .NumVirtChannels  (1            ),
+      .NumVirtChannels  (mempool_pkg::NumVirtualChannel            ),
       .flit_t           (floo_req_t   ),
       .ChannelFifoDepth (2            ), // Input buffer depth
       .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
@@ -451,17 +502,17 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .test_enable_i  (1'b0                                                            ),
       .xy_id_i        (group_id_i                                                      ),
       .id_route_map_i (RoutingTables[group_id.x][group_id.y]   ),
-      .valid_i        ({floo_req_valid_i_trans[i][j], floo_req_to_router_valid[i][j]}                 ),
-      .ready_o        ({floo_req_ready_o_trans[i][j], floo_req_to_router_ready[i][j]}                 ),
+      .valid_i        ({floo_req_valid_i_trans[i][j], floo_req_to_router_vc_valid[i][j]}                 ),
+      .ready_o        ({floo_req_ready_o_trans[i][j], floo_req_to_router_vc_ready[i][j]}                 ),
       .data_i         ({floo_req_i_trans[i][j],       floo_req_to_router[i][j]}                    ),
-      .valid_o        ({floo_req_valid_o_trans[i][j], floo_req_from_router_before_xbar_valid[i][j]}),
-      .ready_i        ({floo_req_ready_i_trans[i][j], floo_req_from_router_before_xbar_ready[i][j]}),
-      .data_o         ({floo_req_o_trans[i][j],       floo_req_from_router[i][j]}                  )
+      .valid_o        ({floo_req_valid_o_trans[i][j], floo_req_from_router_vc_valid[i][j]}),
+      .ready_i        ({floo_req_ready_i_trans[i][j], floo_req_from_router_vc_ready[i][j]}),
+      .data_o         ({floo_req_o_trans[i][j],       floo_req_from_router_vc[i][j]}                  )
     );
 
     floo_router #(
       .NumRoutes       (mempool_pkg::NumDirections),
-      .NumVirtChannels (1            ),
+      .NumVirtChannels (mempool_pkg::NumVirtualChannel            ),
       .flit_t          (floo_resp_t  ),
       .ChannelFifoDepth(2            ), // Input buffer depth
       .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
@@ -475,17 +526,17 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .test_enable_i  (1'b0                                                              ),
       .xy_id_i        (group_id_i                                                        ),
       .id_route_map_i (RoutingTables[group_id.x][group_id.y]   ),
-      .valid_i        ({floo_resp_valid_i_trans[i][j], tcdm_slave_resp_valid[i][j]}                  ),
-      .ready_o        ({floo_resp_ready_o_trans[i][j], tcdm_slave_resp_ready[i][j]}                  ),
+      .valid_i        ({floo_resp_valid_i_trans[i][j], floo_resp_to_router_vc_valid[i][j]}                  ),
+      .ready_o        ({floo_resp_ready_o_trans[i][j], floo_resp_to_router_vc_ready[i][j]}                  ),
       .data_i         ({floo_resp_i_trans[i][j],       floo_resp_to_router[i][j]}                    ),
-      .valid_o        ({floo_resp_valid_o_trans[i][j], floo_resp_from_router_before_xbar_valid[i][j]}),
-      .ready_i        ({floo_resp_ready_i_trans[i][j], floo_resp_from_router_before_xbar_ready[i][j]}),
-      .data_o         ({floo_resp_o_trans[i][j],       floo_resp_from_router[i][j]}                  )
+      .valid_o        ({floo_resp_valid_o_trans[i][j], floo_resp_from_router_vc_valid[i][j]}),
+      .ready_i        ({floo_resp_ready_i_trans[i][j], floo_resp_from_router_vc_ready[i][j]}),
+      .data_o         ({floo_resp_o_trans[i][j],       floo_resp_from_router_vc[i][j]}                  )
     );
   `else
     floo_router #(
       .NumRoutes        (mempool_pkg::NumDirections),
-      .NumVirtChannels  (1            ),
+      .NumVirtChannels  (mempool_pkg::NumVirtualChannel            ),
       .flit_t           (floo_req_t   ),
       .ChannelFifoDepth (2            ), // Input buffer depth
       .OutputFifoDepth  (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
@@ -498,17 +549,17 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .test_enable_i  (1'b0                                                            ),
       .xy_id_i        (group_xy_id_t'(group_id_i)                                      ),
       .id_route_map_i ('0                                                              ),
-      .valid_i        ({floo_req_valid_i_trans[i][j], floo_req_to_router_valid[i][j]}                 ),
-      .ready_o        ({floo_req_ready_o_trans[i][j], floo_req_to_router_ready[i][j]}                 ),
+      .valid_i        ({floo_req_valid_i_trans[i][j], floo_req_to_router_vc_valid[i][j]}                 ),
+      .ready_o        ({floo_req_ready_o_trans[i][j], floo_req_to_router_vc_ready[i][j]}                 ),
       .data_i         ({floo_req_i_trans[i][j],       floo_req_to_router[i][j]}                    ),
-      .valid_o        ({floo_req_valid_o_trans[i][j], floo_req_from_router_before_xbar_valid[i][j]}),
-      .ready_i        ({floo_req_ready_i_trans[i][j], floo_req_from_router_before_xbar_ready[i][j]}),
-      .data_o         ({floo_req_o_trans[i][j],       floo_req_from_router[i][j]}                  )
+      .valid_o        ({floo_req_valid_o_trans[i][j], floo_req_from_router_vc_valid[i][j]}),
+      .ready_i        ({floo_req_ready_i_trans[i][j], floo_req_from_router_vc_ready[i][j]}),
+      .data_o         ({floo_req_o_trans[i][j],       floo_req_from_router_vc[i][j]}                  )
     );
 
     floo_router #(
       .NumRoutes       (mempool_pkg::NumDirections),
-      .NumVirtChannels (1            ),
+      .NumVirtChannels (mempool_pkg::NumVirtualChannel            ),
       .flit_t          (floo_resp_t  ),
       .ChannelFifoDepth(2            ), // Input buffer depth
       .OutputFifoDepth (2            ), // Output buffer depth, can try to set it to 0 for -1 cycle latency
@@ -521,14 +572,49 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .test_enable_i  (1'b0                                                              ),
       .xy_id_i        (group_xy_id_t'(group_id_i)                                        ),
       .id_route_map_i ('0                                                                ),
-      .valid_i        ({floo_resp_valid_i_trans[i][j], tcdm_slave_resp_valid[i][j]}                  ),
-      .ready_o        ({floo_resp_ready_o_trans[i][j], tcdm_slave_resp_ready[i][j]}                  ),
+      .valid_i        ({floo_resp_valid_i_trans[i][j], floo_resp_to_router_vc_valid[i][j]}                  ),
+      .ready_o        ({floo_resp_ready_o_trans[i][j], floo_resp_to_router_vc_ready[i][j]}                  ),
       .data_i         ({floo_resp_i_trans[i][j],       floo_resp_to_router[i][j]}                    ),
-      .valid_o        ({floo_resp_valid_o_trans[i][j], floo_resp_from_router_before_xbar_valid[i][j]}),
-      .ready_i        ({floo_resp_ready_i_trans[i][j], floo_resp_from_router_before_xbar_ready[i][j]}),
-      .data_o         ({floo_resp_o_trans[i][j],       floo_resp_from_router[i][j]}                  )
+      .valid_o        ({floo_resp_valid_o_trans[i][j], floo_resp_from_router_vc_valid[i][j]}),
+      .ready_i        ({floo_resp_ready_i_trans[i][j], floo_resp_from_router_vc_ready[i][j]}),
+      .data_o         ({floo_resp_o_trans[i][j],       floo_resp_from_router_vc[i][j]}                  )
     );
   `endif
+
+  if(NumVirtualChannel == 1) begin
+    assign floo_req_from_router[i][j] = floo_req_from_router_vc[i][j];
+    assign floo_req_from_router_before_xbar_valid[i][j] = floo_req_from_router_vc_valid[i][j];
+    assign floo_req_from_router_vc_ready[i][j] = floo_req_from_router_before_xbar_ready[i][j];
+  end else begin
+    floo_vc_mux #(.NumVirtChannels(NumVirtualChannel), .payload_t(floo_req_t)) i_floo_req_vc_mux (
+      .clk_i  (clk_i),
+      .rst_ni (rst_ni),
+      .data_i (floo_req_from_router_vc[i][j]),
+      .valid_i(floo_req_from_router_vc_valid[i][j]),
+      .ready_o(floo_req_from_router_vc_ready[i][j]),
+      .data_o (floo_req_from_router[i][j]),
+      .valid_o(floo_req_from_router_before_xbar_valid[i][j]),
+      .ready_i(floo_req_from_router_before_xbar_ready[i][j])
+    );
+  end
+
+  if(NumVirtualChannel == 1) begin
+    assign floo_resp_from_router[i][j] = floo_resp_from_router_vc[i][j];
+    assign floo_resp_from_router_before_xbar_valid[i][j] = floo_resp_from_router_vc_valid[i][j];
+    assign floo_resp_from_router_vc_ready[i][j] = floo_resp_from_router_before_xbar_ready[i][j];
+  end else begin
+    floo_vc_mux #(.NumVirtChannels(NumVirtualChannel), .payload_t(floo_resp_t)) i_floo_resp_vc_mux (
+      .clk_i  (clk_i),
+      .rst_ni (rst_ni),
+      .data_i (floo_resp_from_router_vc[i][j]),
+      .valid_i(floo_resp_from_router_vc_valid[i][j]),
+      .ready_o(floo_resp_from_router_vc_ready[i][j]),
+      .data_o (floo_resp_from_router[i][j]),
+      .valid_o(floo_resp_from_router_before_xbar_valid[i][j]),
+      .ready_i(floo_resp_from_router_before_xbar_ready[i][j])
+    );
+  end
+
 
   end : gen_router_router_j
 end : gen_router_router_i

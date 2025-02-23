@@ -146,14 +146,14 @@ module mempool_cluster_floonoc_wrapper
     ************/
 
   floo_req_t  [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_in;
-  logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_in_ready, floo_req_in_valid;
+  logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_in_ready, floo_req_in_valid;
   floo_req_t  [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_out;
-  logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_req_out_ready, floo_req_out_valid;
+  logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_req_out_ready, floo_req_out_valid;
 
   floo_resp_t [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_in;
-  logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_in_ready, floo_resp_in_valid;
+  logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_in_ready, floo_resp_in_valid;
   floo_resp_t [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_out;
-  logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_out_ready, floo_resp_out_valid;
+  logic       [NumX-1:0][NumY-1:0][West:North][NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1][NumVirtualChannel-1:0] floo_resp_out_ready, floo_resp_out_valid;
 
   for (genvar x = 0; x < NumX; x++) begin : gen_groups_x
     for (genvar y = 0; y < NumY; y++) begin : gen_groups_y
