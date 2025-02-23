@@ -130,6 +130,9 @@ endif
 ifeq (1, $(req_remapping))
 	vlog_defs += -DREQ_REMAPPING=$(req_remapping)
 endif
+ifeq (1, $(resp_remapping))
+	vlog_defs += -DRESP_REMAPPING=$(resp_remapping)
+endif
 ifdef num_virtual_channel
 	vlog_defs += -DNUM_VIRTUAL_CHANNEL=$(num_virtual_channel)
 endif

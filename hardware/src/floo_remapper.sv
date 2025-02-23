@@ -1,4 +1,4 @@
-module floo_req_remapper #(
+module floo_remapper #(
   /// Number of inputs into the crossbar (`> 0`).
   parameter int unsigned NumInp      = 32'd0,
   /// Number of outputs from the crossbar (`> 0`).

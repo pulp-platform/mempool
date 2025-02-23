@@ -151,7 +151,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_remapper
   end : gen_master_req_to_remapper_req_j
 end : gen_master_req_to_remapper_req_i
 
-floo_req_remapper #(
+floo_remapper #(
   .NumInp   (NumTilesPerGroup * (NumRemotePortsPerTile-1)),
   .NumOut   (NumTilesPerGroup * (NumRemotePortsPerTile-1)),
   .payload_t(floo_req_t)
@@ -329,6 +329,45 @@ end : gen_router_req_to_slave_req_i
 // -------------------------------------------------------------------- //
 // Remapping: From MemPool "Slave Response" to FlooNoC "TCDM Response" //
 // -------------------------------------------------------------------- //
+`ifdef RESP_REMAPPING
+
+floo_resp_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] floo_resp_to_remapper;
+
+for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_remapper_resp_i
+  for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_slave_resp_to_remapper_resp_j
+    assign floo_resp_to_remapper[i][j] = floo_resp_t'{
+      payload: floo_resp_payload_t'{
+        amo : tcdm_slave_resp[i][j].rdata.amo,
+        data: tcdm_slave_resp[i][j].rdata.data
+      },
+      hdr: floo_resp_meta_t'{
+        meta_id : tcdm_slave_resp[i][j].rdata.meta_id,             // For Register File
+        core_id : tcdm_slave_resp[i][j].rdata.core_id,             // For Core
+        tile_id : tcdm_slave_resp[i][j].ini_addr,                  // For Crossbar when response back (Sender's Tile ID, propagated from request)
+        dst_id: group_xy_id_t'(tcdm_slave_resp[i][j].src_group_id),// For NoC Router when response back (Sender's Group ID, propagated from request)
+        last : 1'b1                                                // Non Burst Request
+      }
+    };
+  end : gen_slave_resp_to_remapper_resp_j
+end : gen_slave_resp_to_remapper_resp_i
+
+floo_remapper #(
+  .NumInp   (NumTilesPerGroup * (NumRemotePortsPerTile-1)),
+  .NumOut   (NumTilesPerGroup * (NumRemotePortsPerTile-1)),
+  .payload_t(floo_resp_t)
+) i_floo_resp_remapper (
+  .clk_i      (clk_i),
+  .rst_ni     (rst_ni),
+  .inp_data_i (floo_resp_to_remapper),
+  .inp_valid_i(tcdm_slave_resp_valid),
+  .inp_ready_o(tcdm_slave_resp_ready),
+  .oup_data_o (floo_resp_to_router),
+  .oup_valid_o(floo_resp_to_router_valid),
+  .oup_ready_i(floo_resp_to_router_ready)
+);
+
+`else
+
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_router_resp_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_slave_resp_to_router_resp_j
     assign floo_resp_to_router[i][j] = floo_resp_t'{
@@ -349,6 +388,8 @@ end : gen_slave_resp_to_router_resp_i
 
 assign floo_resp_to_router_valid = tcdm_slave_resp_valid;
 assign tcdm_slave_resp_ready = floo_resp_to_router_ready;
+
+`endif
 
 // ------------------------------------------------------------------ //
 // Crossbar: FlooNoC "TCDM reponse" input select target tile          //
