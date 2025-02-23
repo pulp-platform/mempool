@@ -827,6 +827,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
   }
 }
 
+#ifndef __clang__
 void mat_mul_unrolled_4x4_noc_opt_parallel_asm(int32_t const *__restrict__ A,
                                        int32_t const *__restrict__ B,
                                        int32_t *__restrict__ C, uint32_t M,
@@ -977,3 +978,4 @@ void mat_mul_unrolled_4x4_noc_opt_parallel_asm(int32_t const *__restrict__ A,
     }
   }
 }
+#endif
