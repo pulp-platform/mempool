@@ -465,7 +465,7 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
       int32_t const *end_b = &B[N * P + j];
       int32_t const *addr_c = &C[i * P + j];
       int32_t const N3_1_r = (-3 * (int32_t)N + 1) * 4;
-      int32_t const P_3_r = ((int32_t)P - 3) * 4;
+      // int32_t const P_3_r = ((int32_t)P - 3) * 4;
 
       register int32_t k asm("x1") = (int32_t)end_b;
       //      x12 x13 x14 x15
@@ -575,8 +575,8 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
           "p.sw x31, %[P_3](%[addr_c]!) \n\t"
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
             [addr_c] "+&r"(addr_c) // Outputs
-          : [N3_1] "r"(N3_1_r), [P_3] "r"(P_3_r), [x1] "r"(k),
-            [N] "I"(matrix_N * 4) // Inputs
+          : [N3_1] "r"(N3_1_r), [P_3] "I"(P3), [x1] "r"(k),
+            [N] "r"(matrix_N * 4) // Inputs
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
             "x27", "x28", "x29", "x30", "x31", "memory"); // Clobber
