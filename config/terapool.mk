@@ -28,6 +28,13 @@ num_divsqrt_per_tile ?= 2
 num_remote_ports_per_tile ?= 3
 num_directions ?= 5
 num_x ?= 4
+topology ?= 2dmesh
+routing_algorithm ?= xy
+req_remapping ?= 0
+resp_remapping ?= 0
+channel_fifo_depth ?= 2
+output_fifo_depth ?= 2
+num_virtual_channel ?= 1
 
 # L1 scratchpad banking factor
 banking_factor ?= 4
