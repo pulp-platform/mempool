@@ -82,14 +82,13 @@ ifdef app
     endif
   endif
 endif
-
 # QuestaSim args
 library     ?= work
 dpi_library ?= work-dpi
 questa_args += $(if $(preload),+PRELOAD=$(preload),)
 questa_args += -sv_lib $(dpi_library)/mempool_dpi
 questa_args += -work $(library)
-questa_args += -suppress vsim-12070
+questa_args += -suppress vsim-3009 -suppress vsim-12070
 
 # VCS args
 vcs_args    += $(if $(preload),+PRELOAD=$(preload),)
@@ -192,7 +191,7 @@ $(buildpath)/$(library):
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update-opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
+	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t redmule_hwpe -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
