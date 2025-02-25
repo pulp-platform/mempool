@@ -140,12 +140,6 @@ else ifeq ($(routing_algorithm), odd_even)
 else ifeq ($(routing_algorithm), xy)
 	vlog_defs += -DXY_ROUTING
 endif
-ifdef channel_fifo_depth
-	vlog_defs += -DCHANNEL_FIFO_DEPTH=$(channel_fifo_depth)
-endif
-ifdef output_fifo_depth
-	vlog_defs += -DOUTPUT_FIFO_DEPTH=$(output_fifo_depth)
-endif
 ifdef num_virtual_channel
 	vlog_defs += -DNUM_VIRTUAL_CHANNEL=$(num_virtual_channel)
 endif
@@ -174,12 +168,22 @@ endif
 ifeq (1, $(noc_profiling))
 	vlog_defs += -DNOC_PROFILING=$(noc_profiling)
 endif
+# Enable SPM bank id remapping inside of each tile
 ifeq (1, $(spm_bank_id_remap))
 	vlog_defs += -DSPM_BANK_ID_REMAP=$(spm_bank_id_remap)
 endif
+# Enable tile id remapping inside of each group
 ifeq (1, $(tile_id_remap))
 	vlog_defs += -DTILE_ID_REMAP=$(tile_id_remap)
 endif
+# Separate the NoC read and read/write req channels, rd = hdr, rd/wr = hdr+payload
+vlog_defs += -DNOC_REQ_RD_CHANNEL_NUM=$(noc_req_rd_channel_num)
+vlog_defs += -DNOC_REQ_RDWR_CHANNEL_NUM=$(noc_req_rdwr_channel_num)
+vlog_defs += -DNOC_REQ_WR_CHANNEL_NUM=$(noc_req_wr_channel_num)
+vlog_defs += -DNOC_RESP_CHANNEL_NUM=$(noc_resp_channel_num)
+# Router buffer configuration
+vlog_defs += -DNOC_ROUTER_INPUT_FIFO_DEP=$(noc_router_input_fifo_dep)
+vlog_defs += -DNOC_ROUTER_OUTPUT_FIFO_DEP=$(noc_router_output_fifo_dep)
 
 # Traffic generation enabled
 ifdef tg
@@ -266,7 +270,7 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 
 # Elaboration
 .PHONY: elabvcs
-elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
+elabvcs: gen_selector dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
 $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compilevcs.sh
 	echo "exit" >> $(buildpath)/compilevcs.sh
@@ -320,6 +324,7 @@ VERILATOR_MK    := $(VERILATOR_EXE).mk
 VERILATOR_WAIVE := $(shell find $(VERILATOR_SRC) -name "*.vlt" -print | sort)
 VERILATOR_CONF  := $(VERILATOR_SRC)/verilator.flags
 
+VERILATOR_FLAGS += -Wno-fatal
 VERILATOR_FLAGS += -CFLAGS "-DTOPLEVEL_NAME=$(verilator_top)"
 VERILATOR_FLAGS += --Mdir $(verilator_build)
 VERILATOR_FLAGS += -f $(verilator_files)

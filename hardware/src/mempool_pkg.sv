@@ -296,13 +296,22 @@ package mempool_pkg;
    *************************************/
 
   // FlooNoC parameters
-  localparam integer unsigned NumRemotePortsPerTile   = `ifdef NUM_REMOTE_PORTS_PER_TILE `NUM_REMOTE_PORTS_PER_TILE `else 2 `endif;
+  localparam integer unsigned NumRdRemoteReqPortsPerTile   = `ifdef NOC_REQ_RD_CHANNEL_NUM   `NOC_REQ_RD_CHANNEL_NUM   `else 0 `endif;
+  localparam integer unsigned NumRdWrRemoteReqPortsPerTile = `ifdef NOC_REQ_RDWR_CHANNEL_NUM `NOC_REQ_RDWR_CHANNEL_NUM `else 2 `endif;
+  localparam integer unsigned NumWrRemoteReqPortsPerTile   = `ifdef NOC_REQ_WR_CHANNEL_NUM   `NOC_REQ_WR_CHANNEL_NUM   `else 0 `endif;
+  
+  localparam integer unsigned NumNarrowRemoteReqPortsPerTile = NumRdRemoteReqPortsPerTile;
+  localparam integer unsigned NumWideRemoteReqPortsPerTile   = NumRdWrRemoteReqPortsPerTile + NumWrRemoteReqPortsPerTile;
+  
+  localparam integer unsigned NumRemoteReqPortsPerTile     = 1 + NumNarrowRemoteReqPortsPerTile + NumWideRemoteReqPortsPerTile;
+  localparam integer unsigned NumRemoteRespPortsPerTile    = 1 + (`ifdef NOC_RESP_CHANNEL_NUM `NOC_RESP_CHANNEL_NUM `else 2 `endif);
   localparam integer unsigned NumDirections = `ifdef NUM_DIRECTIONS `NUM_DIRECTIONS `else 5 `endif;
   localparam integer unsigned NumX = `ifdef NUM_X `NUM_X `else 2 `endif;
   localparam integer unsigned NumY = NumGroups/NumX;
-  localparam integer unsigned ChannelFifoDepth = `ifdef CHANNEL_FIFO_DEPTH `CHANNEL_FIFO_DEPTH `else 4 `endif;
-  localparam integer unsigned OutputFifoDepth = `ifdef OUTPUT_FIFO_DEPTH `OUTPUT_FIFO_DEPTH `else 0 `endif;
   localparam integer unsigned NumVirtualChannel = `ifdef NUM_VIRTUAL_CHANNEL `NUM_VIRTUAL_CHANNEL `else 1 `endif;
+  // router buffer configuration
+  localparam integer unsigned NumRouterInFifoDepth  = `ifdef NOC_ROUTER_INPUT_FIFO_DEP   `NOC_ROUTER_INPUT_FIFO_DEP   `else 2 `endif;
+  localparam integer unsigned NumRouterOutFifoDepth = `ifdef NOC_ROUTER_OUTPUT_FIFO_DEP  `NOC_ROUTER_OUTPUT_FIFO_DEP  `else 2 `endif;
 
   // FlooNoC group id types for XY routing
   typedef struct packed {
@@ -329,9 +338,13 @@ package mempool_pkg;
   } floo_req_meta_t;
 
   typedef struct packed {
+    floo_req_meta_t     hdr;
+  } floo_rd_req_t;
+
+  typedef struct packed {
     floo_req_payload_t  payload;
     floo_req_meta_t     hdr;
-  } floo_req_t;
+  } floo_rdwr_req_t;
 
   // FlooNoC resp types
   typedef struct packed {
@@ -410,15 +423,15 @@ package mempool_pkg;
   // tile level profiling
   typedef struct {
     // tile remote ports profile
-    int unsigned req_vld_cyc_num[NumRemotePortsPerTile-1];
-    int unsigned req_hsk_cyc_num[NumRemotePortsPerTile-1];
+    int unsigned req_vld_cyc_num[NumRemoteReqPortsPerTile-1];
+    int unsigned req_hsk_cyc_num[NumRemoteReqPortsPerTile-1];
   } tile_level_profile_t;
 
   // group level profiling
   typedef struct {
     // group xbar ports profile
-    int unsigned req_vld_cyc_num                            [NumRemotePortsPerTile-1];
-    int unsigned req_hsk_cyc_num                            [NumRemotePortsPerTile-1];
+    int unsigned req_vld_cyc_num                            [NumRemoteReqPortsPerTile-1];
+    int unsigned req_hsk_cyc_num                            [NumRemoteReqPortsPerTile-1];
     int unsigned req_vld_cyc_more_than_one_hit_same_bank_num;
   } group_level_profile_t;
   
@@ -430,6 +443,17 @@ package mempool_pkg;
     int unsigned out_vld_cyc_num[4]; // 4: 4 directions
     int unsigned out_hsk_cyc_num[4]; // 4: 4 directions
   } router_level_profile_t;
+
+  // router local ports profile
+    // noc router local req ports profile
+  typedef struct {
+    int unsigned read_req_num;
+    int unsigned write_req_num;
+  } router_local_req_port_profile_t;
+    // noc router local resp ports profile
+  typedef struct {
+    int unsigned req_num;
+  } router_local_resp_port_profile_t;
 
   typedef struct {
     // noc router ports profile

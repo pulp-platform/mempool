@@ -477,15 +477,17 @@ module mempool_tb;
   string fn_3, fn_final_3;
   int f_4, f_final_4;
   string fn_4, fn_final_4;
+  int f_5, f_final_5;
+  string fn_5, fn_final_5;
   string dump_time;
   int req_floo_input_log_fd;
   int resp_floo_input_log_fd;
 
-  // string app;
+  string app;
   string log_path;
   integer retval;
   initial begin
-    // void'($value$plusargs("APP=%s", app));
+    void'($value$plusargs("APP=%s", app));
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_remap_%1d/%s", NumCores, app);
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_%1d/%s", NumCores, app);
     // $sformat(log_path, "../scripts/spm_profiling/run_logs_remap_f_%1d/%s", NumCores, app);
@@ -496,9 +498,11 @@ module mempool_tb;
     resp_floo_input_log_fd = $fopen($sformatf("%s/resp_floo_input.log", log_path), "w");
   end
 
-  tile_level_profile_t   tile_level_profile_d,   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0]; 
-  group_level_profile_t  group_level_profile_d,  group_level_profile_q [NumGroups-1:0];
-  router_level_profile_t router_level_profile_d, router_level_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][2-1:0]; // 2: req+rsp noc
+  tile_level_profile_t   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0]; 
+  group_level_profile_t  group_level_profile_q [NumGroups-1:0];
+  router_level_profile_t router_level_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][2-1:0]; // 2: req+rsp noc
+  router_local_req_port_profile_t  router_local_req_port_profile_q [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0];
+  router_local_resp_port_profile_t router_local_resp_port_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0];
 
   // tile level profiling
   generate
@@ -506,12 +510,12 @@ module mempool_tb;
       for (genvar t = 0; t < NumTilesPerGroup; t++) begin
         always_ff @(posedge clk or negedge rst_n) begin
           if(!rst_n) begin
-            for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+            for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               tile_level_profile_q[g][t].req_vld_cyc_num[p] = '0;
               tile_level_profile_q[g][t].req_hsk_cyc_num[p] = '0;
             end
           end else begin
-            for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+            for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               tile_level_profile_q[g][t].req_vld_cyc_num[p] = tile_level_profile_q[g][t].req_vld_cyc_num[p] +
                                                               $countones(
                                                                 dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.tcdm_master_req_valid_o[p+1]
@@ -530,17 +534,17 @@ module mempool_tb;
   endgenerate
 
   // group level profiling
-  logic [NumGroups-1:0][NumTilesPerGroup*NumBanksPerTile-1:0][$clog2(NumTilesPerGroup*(NumRemotePortsPerTile-1)):0] group_xbar_req_to_same_bank_count;
-  logic [NumGroups-1:0][NumTilesPerGroup*NumBanksPerTile-1:0][$clog2(NumTilesPerGroup*(NumRemotePortsPerTile-1)):0] group_xbar_req_to_same_bank_conflict_count;
-  logic [NumGroups-1:0][$clog2(NumTilesPerGroup*(NumRemotePortsPerTile-1)):0] group_xbar_req_to_same_bank_conflict_count_sum;
+  logic [NumGroups-1:0][NumTilesPerGroup*NumBanksPerTile-1:0][$clog2(NumTilesPerGroup*(NumRemoteReqPortsPerTile-1)):0] group_xbar_req_to_same_bank_count;
+  logic [NumGroups-1:0][NumTilesPerGroup*NumBanksPerTile-1:0][$clog2(NumTilesPerGroup*(NumRemoteReqPortsPerTile-1)):0] group_xbar_req_to_same_bank_conflict_count;
+  logic [NumGroups-1:0][$clog2(NumTilesPerGroup*(NumRemoteReqPortsPerTile-1)):0] group_xbar_req_to_same_bank_conflict_count_sum;
 
-  logic [NumX-1:0][NumY-1:0][NumRemotePortsPerTile-1-1:0][NumTilesPerGroup-1:0]                                                             tcdm_slave_req_valid;
-  logic [NumX-1:0][NumY-1:0][NumRemotePortsPerTile-1-1:0][NumTilesPerGroup-1:0][idx_width(NumTilesPerGroup)+idx_width(NumBanksPerTile)-1:0] tcdm_slave_req_tgt_addr;
+  logic [NumX-1:0][NumY-1:0][NumRemoteReqPortsPerTile-1-1:0][NumTilesPerGroup-1:0]                                                             tcdm_slave_req_valid;
+  logic [NumX-1:0][NumY-1:0][NumRemoteReqPortsPerTile-1-1:0][NumTilesPerGroup-1:0][idx_width(NumTilesPerGroup)+idx_width(NumBanksPerTile)-1:0] tcdm_slave_req_tgt_addr;
 
   generate
     for(genvar x_dim = 0; x_dim < NumX; x_dim++) begin
       for(genvar y_dim = 0; y_dim < NumY; y_dim++) begin
-        for (genvar p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+        for (genvar p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
           for(genvar t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
             assign tcdm_slave_req_valid   [x_dim][y_dim][p][t_i] = dut.i_mempool_cluster.gen_groups_x[x_dim].gen_groups_y[y_dim].i_group.floo_req_from_router_before_xbar_valid_per_port[p+1][t_i];
             assign tcdm_slave_req_tgt_addr[x_dim][y_dim][p][t_i] = dut.i_mempool_cluster.gen_groups_x[x_dim].gen_groups_y[y_dim].i_group.floo_req_from_router[t_i][p+1].hdr.tgt_addr[idx_width(NumTilesPerGroup)+idx_width(NumBanksPerTile)-1:0];
@@ -553,7 +557,7 @@ module mempool_tb;
   always_comb begin
     group_xbar_req_to_same_bank_count = '0;
     for(int g = 0; g < NumGroups; g++) begin
-      for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+      for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
         for(int t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
           if(
             tcdm_slave_req_valid   [g/NumY][g%NumY][p][t_i] // if source port from router is valid
@@ -584,13 +588,13 @@ module mempool_tb;
     for (genvar g = 0; g < NumGroups; g++) begin
       always_ff @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-          for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+          for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
             group_level_profile_q[g].req_vld_cyc_num[p] = '0;
             group_level_profile_q[g].req_hsk_cyc_num[p] = '0;
           end
           group_level_profile_q[g].req_vld_cyc_more_than_one_hit_same_bank_num = '0;
         end else begin
-          for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+          for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
             group_level_profile_q[g].req_vld_cyc_num[p]                             = group_level_profile_q[g].req_vld_cyc_num[p] +
                                                                                       $countones(
                                                                                         dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.floo_req_from_router_before_xbar_valid_per_port[p+1][NumTilesPerGroup-1:0]
@@ -612,9 +616,12 @@ module mempool_tb;
   generate
     for (genvar g = 0; g < NumGroups; g++) begin: gen_router_profile_per_group
       for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_router_profile_per_tile
-        for(genvar p = 0; p < (NumRemotePortsPerTile-1); p++) begin: gen_router_profile_per_remote_port
+        for(genvar p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin: gen_router_profile_per_remote_port
           always_ff @(posedge clk or negedge rst_n) begin
             if(!rst_n) begin
+              router_local_req_port_profile_q [g][t][p].read_req_num  = '0;
+              router_local_req_port_profile_q [g][t][p].write_req_num = '0;
+              router_local_resp_port_profile_q[g][t][p].req_num       = '0;
               for(int router_p = 0; router_p < 4; router_p++) begin
                 router_level_profile_q[g][t][p][0].in_vld_cyc_num[router_p] = '0;
                 router_level_profile_q[g][t][p][0].in_hsk_cyc_num[router_p] = '0;
@@ -626,6 +633,23 @@ module mempool_tb;
                 router_level_profile_q[g][t][p][1].out_hsk_cyc_num[router_p] = '0;
               end
             end else begin
+              router_local_req_port_profile_q [g][t][p].read_req_num  = router_local_req_port_profile_q [g][t][p].read_req_num + 
+                              $countones(
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.valid_i[0][0] &
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.ready_i[0][0] &
+                                ~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.data_i [0][0].payload.wen
+                              );
+              router_local_req_port_profile_q [g][t][p].write_req_num  = router_local_req_port_profile_q [g][t][p].write_req_num + 
+                              $countones(
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.valid_i[0][0] &
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.ready_i[0][0] &
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_req_router.data_i [0][0].payload.wen
+                              );
+              router_local_resp_port_profile_q [g][t][p].req_num  = router_local_resp_port_profile_q [g][t][p].req_num + 
+                              $countones(
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_resp_router.valid_i[0][0] &
+                                dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[p+1].i_floo_resp_router.ready_i[0][0]
+                              );
               for(int router_p = 0; router_p < 4; router_p++) begin
                 // req router
                 router_level_profile_q[g][t][p][0].in_vld_cyc_num[router_p]  = router_level_profile_q[g][t][p][0].in_vld_cyc_num[router_p] +
@@ -684,26 +708,31 @@ module mempool_tb;
 
         $sformat(fn_2, "%s/tile_level_profile_q_%8x.log", log_path, cycle_q);
         f_2 = $fopen(fn_2, "w");
-        $display("[Tracer] Final Logging Banks to %s", fn_2);
+        $display("[Tracer] Logging tile_level_profile_q to %s", fn_2);
 
         $sformat(fn_3, "%s/group_level_profile_q_%8x.log", log_path, cycle_q);
         f_3 = $fopen(fn_3, "w");
-        $display("[Tracer] Final Logging Banks to %s", fn_3);
+        $display("[Tracer] Logging group_level_profile_q to %s", fn_3);
 
         $sformat(fn_4, "%s/router_level_profile_q_%8x.log", log_path, cycle_q);
         f_4 = $fopen(fn_4, "w");
-        $display("[Tracer] Final Logging Banks to %s", fn_4);
+        $display("[Tracer] Logging router_level_profile_q to %s", fn_4);
+
+        $sformat(fn_5, "%s/router_local_input_profile_q_%8x.log", log_path, cycle_q);
+        f_5 = $fopen(fn_5, "w");
+        $display("[Tracer] Logging router_local_input_profile_q to %s", fn_5);
 
         $timeformat(-9, 0, "", 10);
         $sformat(dump_time, "dump time %t, cycle %8d #;\n", $time, cycle_q);
         $fwrite(f_2, dump_time);
         $fwrite(f_3, dump_time);
         $fwrite(f_4, dump_time);
+        $fwrite(f_5, dump_time);
 
         // tile level
         for(int g = 0; g < NumGroups; g++) begin
           for(int t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
-            for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+            for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               automatic string extras_str_2;
               extras_str_2 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'util': %.2f\n", 
                 g, t_i, p,
@@ -724,7 +753,7 @@ module mempool_tb;
           automatic string extras_str_3;
           req_vld_cyc_num_sum = 0;
           req_hsk_cyc_num_sum = 0;
-          for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+          for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
             req_vld_cyc_num_sum += group_level_profile_q[g].req_vld_cyc_num[p];
             req_hsk_cyc_num_sum += group_level_profile_q[g].req_hsk_cyc_num[p];
           end
@@ -742,7 +771,7 @@ module mempool_tb;
         // router level
         for(int g = 0; g < NumGroups; g++) begin
           for(int t = 0; t < NumTilesPerGroup; t++) begin
-            for(int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+            for(int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               for(int req_rsp = 0; req_rsp < 2; req_rsp++) begin
                 for(int dir = 0; dir < 4; dir++) begin
                   automatic string extras_str_4;
@@ -762,15 +791,26 @@ module mempool_tb;
           end
         end
         $fclose(f_4);
+
+        // router local port
+        for(int g = 0; g < NumGroups; g++) begin
+          for(int t = 0; t < NumTilesPerGroup; t++) begin
+            for(int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
+              automatic string extras_str_5;
+              extras_str_5 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_read_in_num': %03d, 'req_write_in_num': %03d, 'resp_in_num': %03d\n", 
+                g, t, p,
+                router_local_req_port_profile_q [g][t][p].read_req_num,
+                router_local_req_port_profile_q [g][t][p].write_req_num,
+                router_local_resp_port_profile_q[g][t][p].req_num
+              );
+              $fwrite(f_5, extras_str_5);
+            end
+          end
+        end
+        $fclose(f_5);
       end
     end
   end
-
-
-
-
-
-
 
   final begin
     $sformat(fn_final_2, "%s/tile_level_profile_q.log", log_path);
@@ -794,7 +834,7 @@ module mempool_tb;
     // tile level
     for(int g = 0; g < NumGroups; g++) begin
       for(int t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
-        for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+        for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
           automatic string extras_str_final_2;
           extras_str_final_2 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'util': %.2f\n", 
             g, t_i, p,
@@ -815,7 +855,7 @@ module mempool_tb;
       automatic string extras_str_final_3;
       req_vld_cyc_num_sum = 0;
       req_hsk_cyc_num_sum = 0;
-      for (int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+      for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
         req_vld_cyc_num_sum += group_level_profile_q[g].req_vld_cyc_num[p];
         req_hsk_cyc_num_sum += group_level_profile_q[g].req_hsk_cyc_num[p];
       end
@@ -833,7 +873,7 @@ module mempool_tb;
     // router level
     for(int g = 0; g < NumGroups; g++) begin
       for(int t = 0; t < NumTilesPerGroup; t++) begin
-        for(int p = 0; p < (NumRemotePortsPerTile-1); p++) begin
+        for(int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
           for(int req_rsp = 0; req_rsp < 2; req_rsp++) begin
             for(int dir = 0; dir < 4; dir++) begin
               automatic string extras_str_final_4;
@@ -856,52 +896,84 @@ module mempool_tb;
 
   end
 
-  router_input_profile_t req_router_input_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0];
-  floo_req_t floo_req_input_queue[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0][$];
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_input_fifo_ready_o;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_input_fifo_valid_i;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_input_fifo_ready_i;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_input_fifo_valid_o;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_ready_o;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_valid_i;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_ready_i;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_valid_o;
+  router_input_profile_t req_router_input_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0];
+  floo_rdwr_req_t floo_req_input_queue[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0][$];
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_input_fifo_ready_o;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_input_fifo_valid_i;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_input_fifo_ready_i;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_input_fifo_valid_o;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_ready_o;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_valid_i;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_ready_i;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_valid_o;
 
-  // logic floo_req_input_fifo_ready_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
-  // logic floo_req_input_fifo_valid_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
-  // logic floo_req_input_fifo_ready_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
-  // logic floo_req_input_fifo_valid_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  // logic floo_req_input_fifo_ready_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0];
+  // logic floo_req_input_fifo_valid_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0];
+  // logic floo_req_input_fifo_ready_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0];
+  // logic floo_req_input_fifo_valid_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0];
 
 
   generate
     for(genvar g = 0; g < NumGroups; g++)  begin: gen_req_router_input_queue_per_group
       for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_req_router_input_queue_per_tile
-        for(genvar r = 0; r < (NumRemotePortsPerTile-1); r++) begin: gen_req_router_input_queue_per_remote_port
+        for(genvar r = 0; r < (NumRemoteReqPortsPerTile-1); r++) begin: gen_req_router_input_queue_per_remote_port
           for(genvar router_p = 0; router_p < 5; router_p++) begin: gen_req_router_input_queue_per_dir
-            assign floo_req_input_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.ready_o[router_p];
-            assign floo_req_input_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.valid_i[router_p];
-            assign floo_req_input_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.in_ready[router_p];
-            assign floo_req_input_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.in_valid[router_p];
-            assign floo_req_output_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.out_ready[router_p];
-            assign floo_req_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.out_valid[router_p];
-            assign floo_req_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.out_buffered_ready[router_p];
-            assign floo_req_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.out_buffered_valid[router_p];
-            
-            // always_ff @(posedge clk) begin
-            //   floo_req_input_fifo_ready_o_dly[g][t][r][router_p] = floo_req_input_fifo_ready_o[g][t][r][router_p];
-            //   floo_req_input_fifo_valid_i_dly[g][t][r][router_p] = floo_req_input_fifo_valid_i[g][t][r][router_p];
-            //   floo_req_input_fifo_ready_i_dly[g][t][r][router_p] = floo_req_input_fifo_ready_i[g][t][r][router_p];
-            //   floo_req_input_fifo_valid_o_dly[g][t][r][router_p] = floo_req_input_fifo_valid_o[g][t][r][router_p];
-            // end
+            if(r < NumNarrowRemoteReqPortsPerTile) begin
+              assign floo_req_input_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.ready_o[router_p];
+              assign floo_req_input_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.valid_i[router_p];
+              assign floo_req_input_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.in_ready[router_p];
+              assign floo_req_input_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.in_valid[router_p];
+              assign floo_req_output_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.out_ready[router_p];
+              assign floo_req_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.out_valid[router_p];
+              assign floo_req_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.out_buffered_ready[router_p];
+              assign floo_req_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.out_buffered_valid[router_p];
+              
+              // always_ff @(posedge clk) begin
+              //   floo_req_input_fifo_ready_o_dly[g][t][r][router_p] = floo_req_input_fifo_ready_o[g][t][r][router_p];
+              //   floo_req_input_fifo_valid_i_dly[g][t][r][router_p] = floo_req_input_fifo_valid_i[g][t][r][router_p];
+              //   floo_req_input_fifo_ready_i_dly[g][t][r][router_p] = floo_req_input_fifo_ready_i[g][t][r][router_p];
+              //   floo_req_input_fifo_valid_o_dly[g][t][r][router_p] = floo_req_input_fifo_valid_o[g][t][r][router_p];
+              // end
 
-            for(genvar v = 0; v < NumVirtualChannel; v++) begin: gen_req_router_input_queue_per_vc
-              always_ff @(posedge clk) begin
-                if (rst_n) begin
-                  if (floo_req_input_fifo_valid_i[g][t][r][router_p][v] & floo_req_input_fifo_ready_o[g][t][r][router_p][v]) begin
-                    floo_req_input_queue[g][t][r][router_p][v].push_back(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_req_router.data_i[router_p]);
+              for(genvar v = 0; v < NumVirtualChannel; v++) begin: gen_req_router_input_queue_per_vc
+                always_ff @(posedge clk) begin
+                  if (rst_n) begin
+                    if (floo_req_input_fifo_valid_i[g][t][r][router_p][v] & floo_req_input_fifo_ready_o[g][t][r][router_p][v]) begin
+                      floo_req_input_queue[g][t][r][router_p][v].push_back(floo_rdwr_req_t'{hdr: dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_req_router.data_i[router_p].hdr,
+                                                                                            payload: '0});
+                    end
+                    if (floo_req_input_fifo_valid_o[g][t][r][router_p][v] & floo_req_input_fifo_ready_i[g][t][r][router_p][v]) begin
+                      floo_req_input_queue[g][t][r][router_p][v].delete(0);
+                    end
                   end
-                  if (floo_req_input_fifo_valid_o[g][t][r][router_p][v] & floo_req_input_fifo_ready_i[g][t][r][router_p][v]) begin
-                    floo_req_input_queue[g][t][r][router_p][v].delete(0);
+                end
+              end
+            end else begin
+              assign floo_req_input_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.ready_o[router_p];
+              assign floo_req_input_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.valid_i[router_p];
+              assign floo_req_input_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.in_ready[router_p];
+              assign floo_req_input_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.in_valid[router_p];
+              assign floo_req_output_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.out_ready[router_p];
+              assign floo_req_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.out_valid[router_p];
+              assign floo_req_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.out_buffered_ready[router_p];
+              assign floo_req_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.out_buffered_valid[router_p];
+              
+              // always_ff @(posedge clk) begin
+              //   floo_req_input_fifo_ready_o_dly[g][t][r][router_p] = floo_req_input_fifo_ready_o[g][t][r][router_p];
+              //   floo_req_input_fifo_valid_i_dly[g][t][r][router_p] = floo_req_input_fifo_valid_i[g][t][r][router_p];
+              //   floo_req_input_fifo_ready_i_dly[g][t][r][router_p] = floo_req_input_fifo_ready_i[g][t][r][router_p];
+              //   floo_req_input_fifo_valid_o_dly[g][t][r][router_p] = floo_req_input_fifo_valid_o[g][t][r][router_p];
+              // end
+
+              for(genvar v = 0; v < NumVirtualChannel; v++) begin: gen_req_router_input_queue_per_vc
+                always_ff @(posedge clk) begin
+                  if (rst_n) begin
+                    if (floo_req_input_fifo_valid_i[g][t][r][router_p][v] & floo_req_input_fifo_ready_o[g][t][r][router_p][v]) begin
+                      floo_req_input_queue[g][t][r][router_p][v].push_back(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_req_router.data_i[router_p]);
+                    end
+                    if (floo_req_input_fifo_valid_o[g][t][r][router_p][v] & floo_req_input_fifo_ready_i[g][t][r][router_p][v]) begin
+                      floo_req_input_queue[g][t][r][router_p][v].delete(0);
+                    end
                   end
                 end
               end
@@ -912,7 +984,7 @@ module mempool_tb;
     end
   endgenerate
 
-  function route_direction_e xy_routing (group_xy_id_t group_id, floo_req_t floo_req);
+  function route_direction_e xy_routing (group_xy_id_t group_id, floo_rdwr_req_t floo_req);
     automatic group_xy_id_t dest_id = group_xy_id_t'(floo_req.hdr.dst_id);
     if (dest_id == group_id) begin
       xy_routing = Eject;
@@ -957,7 +1029,7 @@ module mempool_tb;
   generate
     for(genvar g = 0; g < NumGroups; g++) begin: gen_req_router_input_profile_per_group
       for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_req_router_input_profile_per_tile
-        for(genvar r = 0; r < (NumRemotePortsPerTile-1); r++) begin: gen_req_router_input_profile_per_remote_port
+        for(genvar r = 0; r < (NumRemoteReqPortsPerTile-1); r++) begin: gen_req_router_input_profile_per_remote_port
           for(genvar router_p = 0; router_p < 5; router_p++) begin: gen_req_router_input_profile_per_dir
             always_ff @(posedge clk or negedge rst_n) begin
               if(!rst_n) begin
@@ -1047,7 +1119,7 @@ module mempool_tb;
     if(rst_n) begin
       for(int g = 0; g < NumGroups; g++) begin
         for(int t = 0; t < NumTilesPerGroup; t++) begin
-          for(int r = 0; r < (NumRemotePortsPerTile-1); r++) begin
+          for(int r = 0; r < (NumRemoteReqPortsPerTile-1); r++) begin
             for(int router_p = 0; router_p < 5; router_p++) begin
               if((cycle_q % 200) == 199) begin
                 automatic string log_str;
@@ -1071,37 +1143,37 @@ module mempool_tb;
     end
   end
 
-  router_input_profile_t resp_router_input_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0];
-  floo_resp_t floo_resp_input_queue[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0][$];
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_input_fifo_ready_o;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_input_fifo_valid_i;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_input_fifo_ready_i;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_input_fifo_valid_o;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_output_fifo_ready_o;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_output_fifo_valid_i;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_output_fifo_ready_i;
-  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_output_fifo_valid_o;
+  router_input_profile_t resp_router_input_profile_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0];
+  floo_resp_t floo_resp_input_queue[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0][$];
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_input_fifo_ready_o;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_input_fifo_valid_i;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_input_fifo_ready_i;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_input_fifo_valid_o;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_output_fifo_ready_o;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_output_fifo_valid_i;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_output_fifo_ready_i;
+  logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_resp_output_fifo_valid_o;
 
 
-  // logic floo_resp_input_fifo_ready_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
-  // logic floo_resp_input_fifo_valid_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
-  // logic floo_resp_input_fifo_ready_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
-  // logic floo_resp_input_fifo_valid_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemotePortsPerTile-1)-1:0][4:0];
+  // logic floo_resp_input_fifo_ready_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0];
+  // logic floo_resp_input_fifo_valid_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0];
+  // logic floo_resp_input_fifo_ready_i_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0];
+  // logic floo_resp_input_fifo_valid_o_dly[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0][4:0];
 
 
   generate
     for(genvar g = 0; g < NumGroups; g++)  begin: gen_resp_router_input_queue_per_group
       for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_resp_router_input_queue_per_tile
-        for(genvar r = 0; r < (NumRemotePortsPerTile-1); r++) begin: gen_resp_router_input_queue_per_remote_port
+        for(genvar r = 0; r < (NumRemoteRespPortsPerTile-1); r++) begin: gen_resp_router_input_queue_per_remote_port
           for(genvar router_p = 0; router_p < 5; router_p++) begin: gen_resp_router_input_queue_per_dir
-            assign floo_resp_input_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.ready_o[router_p];
-            assign floo_resp_input_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.valid_i[router_p];
-            assign floo_resp_input_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.in_ready[router_p];
-            assign floo_resp_input_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.in_valid[router_p];
-            assign floo_resp_output_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.out_ready[router_p];
-            assign floo_resp_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.out_valid[router_p];
-            assign floo_resp_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.out_buffered_ready[router_p];
-            assign floo_resp_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.out_buffered_valid[router_p];
+            assign floo_resp_input_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.ready_o[router_p];
+            assign floo_resp_input_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.valid_i[router_p];
+            assign floo_resp_input_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.in_ready[router_p];
+            assign floo_resp_input_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.in_valid[router_p];
+            assign floo_resp_output_fifo_ready_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.out_ready[router_p];
+            assign floo_resp_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.out_valid[router_p];
+            assign floo_resp_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.out_buffered_ready[router_p];
+            assign floo_resp_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.out_buffered_valid[router_p];
             
             // always_ff @(posedge clk) begin
             //   floo_resp_input_fifo_ready_o_dly[g][t][r][router_p] = floo_resp_input_fifo_ready_o[g][t][r][router_p];
@@ -1114,7 +1186,7 @@ module mempool_tb;
               always_ff @(posedge clk) begin
                 if (rst_n) begin
                   if (floo_resp_input_fifo_valid_i[g][t][r][router_p][v] & floo_resp_input_fifo_ready_o[g][t][r][router_p][v]) begin
-                    floo_resp_input_queue[g][t][r][router_p][v].push_back(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_router_j[r+1].i_floo_resp_router.data_i[router_p]);
+                    floo_resp_input_queue[g][t][r][router_p][v].push_back(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_resp_router.data_i[router_p]);
                   end
                   if (floo_resp_input_fifo_valid_o[g][t][r][router_p][v] & floo_resp_input_fifo_ready_i[g][t][r][router_p][v]) begin
                     floo_resp_input_queue[g][t][r][router_p][v].delete(0);
@@ -1150,7 +1222,7 @@ module mempool_tb;
   generate
     for(genvar g = 0; g < NumGroups; g++) begin: gen_resp_router_input_profile_per_group
       for(genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_resp_router_input_profile_per_tile
-        for(genvar r = 0; r < (NumRemotePortsPerTile-1); r++) begin: gen_resp_router_input_profile_per_remote_port
+        for(genvar r = 0; r < (NumRemoteRespPortsPerTile-1); r++) begin: gen_resp_router_input_profile_per_remote_port
           for(genvar router_p = 0; router_p < 5; router_p++) begin: gen_resp_router_input_profile_per_dir
             always_ff @(posedge clk or negedge rst_n) begin
               if(!rst_n) begin
@@ -1240,7 +1312,7 @@ module mempool_tb;
     if(rst_n) begin
       for(int g = 0; g < NumGroups; g++) begin
         for(int t = 0; t < NumTilesPerGroup; t++) begin
-          for(int r = 0; r < (NumRemotePortsPerTile-1); r++) begin
+          for(int r = 0; r < (NumRemoteRespPortsPerTile-1); r++) begin
             for(int router_p = 0; router_p < 5; router_p++) begin
               if((cycle_q % 200) == 199) begin
                 automatic string log_str;

@@ -29,19 +29,19 @@ module mempool_group
   input  logic [idx_width(NumGroups)-1:0]                         group_id_i,
 
   // TCDM Master interfaces
-  output `STRUCT_VECT(tcdm_master_req_t,  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]) tcdm_master_req_o,
-  output logic                            [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]  tcdm_master_req_valid_o,
-  input  logic                            [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]  tcdm_master_req_ready_i,
-  input  `STRUCT_VECT(tcdm_master_resp_t, [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]) tcdm_master_resp_i,
-  input  logic                            [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]  tcdm_master_resp_valid_i,
-  output logic                            [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]  tcdm_master_resp_ready_o,
+  output `STRUCT_VECT(tcdm_master_req_t,  [NumTilesPerGroup-1:0][NumRemoteReqPortsPerTile-1:1])  tcdm_master_req_o,
+  output logic                            [NumTilesPerGroup-1:0][NumRemoteReqPortsPerTile-1:1]   tcdm_master_req_valid_o,
+  input  logic                            [NumTilesPerGroup-1:0][NumRemoteReqPortsPerTile-1:1]   tcdm_master_req_ready_i,
+  input  `STRUCT_VECT(tcdm_master_resp_t, [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]) tcdm_master_resp_i,
+  input  logic                            [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]  tcdm_master_resp_valid_i,
+  output logic                            [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]  tcdm_master_resp_ready_o,
   // TCDM Slave interface
-  input  `STRUCT_VECT(tcdm_slave_req_t,   [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]) tcdm_slave_req_i,
-  input  logic                            [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]  tcdm_slave_req_valid_i,
-  output logic                            [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]  tcdm_slave_req_ready_o,
-  output `STRUCT_VECT(tcdm_slave_resp_t,  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]) tcdm_slave_resp_o,
-  output logic                            [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]  tcdm_slave_resp_valid_o,
-  input  logic                            [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1]  tcdm_slave_resp_ready_i,
+  input  `STRUCT_VECT(tcdm_slave_req_t,   [NumTilesPerGroup-1:0][NumRemoteReqPortsPerTile-1:1])  tcdm_slave_req_i,
+  input  logic                            [NumTilesPerGroup-1:0][NumRemoteReqPortsPerTile-1:1]   tcdm_slave_req_valid_i,
+  output logic                            [NumTilesPerGroup-1:0][NumRemoteReqPortsPerTile-1:1]   tcdm_slave_req_ready_o,
+  output `STRUCT_VECT(tcdm_slave_resp_t,  [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]) tcdm_slave_resp_o,
+  output logic                            [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]  tcdm_slave_resp_valid_o,
+  input  logic                            [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]  tcdm_slave_resp_ready_i,
 
   // Wake up interface
   input  logic                            [NumCoresPerGroup-1:0]                 wake_up_i,
@@ -76,18 +76,18 @@ module mempool_group
     *  Tiles  *
     ***********/
   // TCDM interfaces
-  tcdm_master_req_t  [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_req;
-  logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_req_valid;
-  logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_req_ready;
-  tcdm_slave_req_t   [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_req;
-  logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_req_valid;
-  logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_req_ready;
-  tcdm_master_resp_t [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_resp;
-  logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_resp_valid;
-  logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_resp_ready;
-  tcdm_slave_resp_t  [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp;
-  logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_valid;
-  logic              [NumRemotePortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_ready;
+  tcdm_master_req_t  [NumRemoteReqPortsPerTile-1:0] [NumTilesPerGroup-1:0] tcdm_master_req;
+  logic              [NumRemoteReqPortsPerTile-1:0] [NumTilesPerGroup-1:0] tcdm_master_req_valid;
+  logic              [NumRemoteReqPortsPerTile-1:0] [NumTilesPerGroup-1:0] tcdm_master_req_ready;
+  tcdm_slave_req_t   [NumRemoteReqPortsPerTile-1:0] [NumTilesPerGroup-1:0] tcdm_slave_req;
+  logic              [NumRemoteReqPortsPerTile-1:0] [NumTilesPerGroup-1:0] tcdm_slave_req_valid;
+  logic              [NumRemoteReqPortsPerTile-1:0] [NumTilesPerGroup-1:0] tcdm_slave_req_ready;
+  tcdm_master_resp_t [NumRemoteRespPortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_resp;
+  logic              [NumRemoteRespPortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_resp_valid;
+  logic              [NumRemoteRespPortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_master_resp_ready;
+  tcdm_slave_resp_t  [NumRemoteRespPortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp;
+  logic              [NumRemoteRespPortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_valid;
+  logic              [NumRemoteRespPortsPerTile-1:0][NumTilesPerGroup-1:0] tcdm_slave_resp_ready;
 
   // DMA interfaces
   tcdm_dma_req_t  [NumTilesPerGroup-1:0] tcdm_dma_req;
@@ -107,18 +107,18 @@ module mempool_group
     tile_id_t id;
     assign id = (group_id_i << $clog2(NumTilesPerGroup)) | t[idx_width(NumTilesPerGroup)-1:0];
 
-    tcdm_master_req_t  [NumRemotePortsPerTile-1:0] tran_tcdm_master_req;
-    logic              [NumRemotePortsPerTile-1:0] tran_tcdm_master_req_valid;
-    logic              [NumRemotePortsPerTile-1:0] tran_tcdm_master_req_ready;
-    tcdm_slave_req_t   [NumRemotePortsPerTile-1:0] tran_tcdm_slave_req;
-    logic              [NumRemotePortsPerTile-1:0] tran_tcdm_slave_req_valid;
-    logic              [NumRemotePortsPerTile-1:0] tran_tcdm_slave_req_ready;
-    tcdm_master_resp_t [NumRemotePortsPerTile-1:0] tran_tcdm_master_resp;
-    logic              [NumRemotePortsPerTile-1:0] tran_tcdm_master_resp_valid;
-    logic              [NumRemotePortsPerTile-1:0] tran_tcdm_master_resp_ready;
-    tcdm_slave_resp_t  [NumRemotePortsPerTile-1:0] tran_tcdm_slave_resp;
-    logic              [NumRemotePortsPerTile-1:0] tran_tcdm_slave_resp_valid;
-    logic              [NumRemotePortsPerTile-1:0] tran_tcdm_slave_resp_ready;
+    tcdm_master_req_t  [NumRemoteReqPortsPerTile-1:0]  tran_tcdm_master_req;
+    logic              [NumRemoteReqPortsPerTile-1:0]  tran_tcdm_master_req_valid;
+    logic              [NumRemoteReqPortsPerTile-1:0]  tran_tcdm_master_req_ready;
+    tcdm_slave_req_t   [NumRemoteReqPortsPerTile-1:0]  tran_tcdm_slave_req;
+    logic              [NumRemoteReqPortsPerTile-1:0]  tran_tcdm_slave_req_valid;
+    logic              [NumRemoteReqPortsPerTile-1:0]  tran_tcdm_slave_req_ready;
+    tcdm_master_resp_t [NumRemoteRespPortsPerTile-1:0] tran_tcdm_master_resp;
+    logic              [NumRemoteRespPortsPerTile-1:0] tran_tcdm_master_resp_valid;
+    logic              [NumRemoteRespPortsPerTile-1:0] tran_tcdm_master_resp_ready;
+    tcdm_slave_resp_t  [NumRemoteRespPortsPerTile-1:0] tran_tcdm_slave_resp;
+    logic              [NumRemoteRespPortsPerTile-1:0] tran_tcdm_slave_resp_valid;
+    logic              [NumRemoteRespPortsPerTile-1:0] tran_tcdm_slave_resp_ready;
 
     mempool_tile #(
       .TCDMBaseAddr(TCDMBaseAddr),
@@ -159,20 +159,23 @@ module mempool_group
     );
 
     // Transpose the group requests
-    for (genvar g = 0; g < NumRemotePortsPerTile; g++) begin: gen_tran_group_req
+    for (genvar g = 0; g < NumRemoteReqPortsPerTile; g++) begin: gen_tran_group_req
       assign tcdm_master_req[g][t]          = tran_tcdm_master_req[g];
       assign tcdm_master_req_valid[g][t]    = tran_tcdm_master_req_valid[g];
       assign tran_tcdm_master_req_ready[g]  = tcdm_master_req_ready[g][t];
-      assign tran_tcdm_master_resp[g]       = tcdm_master_resp[g][t];
-      assign tran_tcdm_master_resp_valid[g] = tcdm_master_resp_valid[g][t];
-      assign tcdm_master_resp_ready[g][t]   = tran_tcdm_master_resp_ready[g];
       assign tran_tcdm_slave_req[g]         = tcdm_slave_req[g][t];
       assign tran_tcdm_slave_req_valid[g]   = tcdm_slave_req_valid[g][t];
       assign tcdm_slave_req_ready[g][t]     = tran_tcdm_slave_req_ready[g];
+    end: gen_tran_group_req
+
+    for (genvar g = 0; g < NumRemoteRespPortsPerTile; g++) begin: gen_tran_group_resp
+      assign tran_tcdm_master_resp[g]       = tcdm_master_resp[g][t];
+      assign tran_tcdm_master_resp_valid[g] = tcdm_master_resp_valid[g][t];
+      assign tcdm_master_resp_ready[g][t]   = tran_tcdm_master_resp_ready[g];
       assign tcdm_slave_resp[g][t]          = tran_tcdm_slave_resp[g];
       assign tcdm_slave_resp_valid[g][t]    = tran_tcdm_slave_resp_valid[g];
       assign tran_tcdm_slave_resp_ready[g]  = tcdm_slave_resp_ready[g][t];
-    end: gen_tran_group_req
+    end: gen_tran_group_resp
   end : gen_tiles
 
   /*************************
@@ -269,26 +272,31 @@ module mempool_group
     **************************/
 
   // Sort the remote ports by tile
-  for (genvar r = 1; r < NumRemotePortsPerTile; r++) begin: gen_remote_interface_connection
-    for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_remote_connections
+  for (genvar r = 1; r < NumRemoteReqPortsPerTile; r++) begin: gen_remote_interface_connection_req
+    for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_remote_connections_req
       // master req
       assign tcdm_master_req_valid_o[t][r]  = tcdm_master_req_valid[r][t];
       assign tcdm_master_req_o[t][r]        = tcdm_master_req[r][t];
       assign tcdm_master_req_ready[r][t]    = tcdm_master_req_ready_i[t][r];
-      // master resp
-      assign tcdm_master_resp[r][t]         = tcdm_master_resp_i[t][r];
-      assign tcdm_master_resp_valid[r][t]   = tcdm_master_resp_valid_i[t][r];
-      assign tcdm_master_resp_ready_o[t][r] = tcdm_master_resp_ready[r][t];
       // slave req
       assign tcdm_slave_req[r][t]           = tcdm_slave_req_i[t][r];
       assign tcdm_slave_req_valid[r][t]     = tcdm_slave_req_valid_i[t][r];
       assign tcdm_slave_req_ready_o[t][r]   = tcdm_slave_req_ready[r][t];
+    end: gen_remote_connections_req
+  end: gen_remote_interface_connection_req
+
+  for (genvar r = 1; r < NumRemoteRespPortsPerTile; r++) begin: gen_remote_interface_connection_resp
+    for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_remote_connections_resp
+      // master resp
+      assign tcdm_master_resp[r][t]         = tcdm_master_resp_i[t][r];
+      assign tcdm_master_resp_valid[r][t]   = tcdm_master_resp_valid_i[t][r];
+      assign tcdm_master_resp_ready_o[t][r] = tcdm_master_resp_ready[r][t];
       // slave resp
       assign tcdm_slave_resp_o[t][r]        = tcdm_slave_resp[r][t];
       assign tcdm_slave_resp_valid_o[t][r]  = tcdm_slave_resp_valid[r][t];
       assign tcdm_slave_resp_ready[r][t]    = tcdm_slave_resp_ready_i[t][r];
-    end: gen_remote_connections
-  end: gen_remote_interface_connection
+    end: gen_remote_connections_resp
+  end: gen_remote_interface_connection_resp
 
   /**********************
     *  AXI Interconnect  *
