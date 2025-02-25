@@ -196,6 +196,19 @@ package mempool_pkg;
     end_addr: {32'h1C,32'h14,32'h0C,32'h04}
   };
 
+  /***********************
+   * REDMULE PARAMETERS  *
+   * *********************/
+  localparam integer unsigned  ARRAY_HEIGHT = 4; // Number of PEs within a row
+  localparam integer unsigned  ARRAY_WIDTH = 12; // Number of parallel rows
+  localparam integer unsigned  PIPE_REGS = 3; // Number of pipeline registers within each PE
+
+  localparam integer unsigned RMIdWidth = 8;
+  localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1) + DataWidth;
+  localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
+  localparam integer unsigned RMRegSize = 256;
+  localparam integer unsigned NumRMTilesPerGroup = 1;
+
   /*********
    *  DMA  *
    *********/
@@ -237,7 +250,7 @@ package mempool_pkg;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
   typedef logic [MetaIdWidth-1:0] meta_id_t;
-  typedef logic [idx_width(NumCoresPerTile)-1:0] tile_core_id_t;
+  typedef logic [(RMMasterPorts+1)-1:0] tile_core_id_t; // TBD leaving floating for connection to Snitch tiles
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
   typedef logic [3:0] amo_t;
@@ -305,6 +318,9 @@ package mempool_pkg;
   // TCDM Memory Region
   localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
   localparam addr_t TCDMMask = ~(TCDMSize - 1);
+  // RedMule addresses
+  localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1); //((1 << (idx_width(RMRegSize + TCDMSize) + 1)) - 1);
+
 
   // Size in bytes of memory that is sequentially addressable per tile
   localparam int unsigned SeqMemSizePerCore = `ifdef SEQ_MEM_SIZE `SEQ_MEM_SIZE `else 0 `endif;

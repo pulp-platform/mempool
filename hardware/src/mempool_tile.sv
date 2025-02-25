@@ -554,7 +554,7 @@ module mempool_tile
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_valid;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_ready;
   tcdm_master_resp_t [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp;
-  tile_core_id_t     [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_ini_sel;
+  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0][idx_width(NumCoresPerTile)-1:0] postreg_tcdm_master_resp_ini_sel;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_valid;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_ready;
 
@@ -589,7 +589,7 @@ module mempool_tile
     );
 
     // Helper signal to drive the remote response interconnect
-    assign postreg_tcdm_master_resp_ini_sel[h] = postreg_tcdm_master_resp[h].rdata.core_id;
+    assign postreg_tcdm_master_resp_ini_sel[h] = postreg_tcdm_master_resp[h].rdata.core_id[idx_width(NumCoresPerTile)-1:0];
 
     fall_through_register #(
       .T(tcdm_slave_req_t)
@@ -802,7 +802,7 @@ module mempool_tile
     assign soc_data_q[c].id                           = '0;
 
     // Constant value
-    assign remote_req_interco[c].wdata.core_id = c[idx_width(NumCoresPerTile)-1:0];
+    assign remote_req_interco[c].wdata.core_id = c[idx_width(RMMasterPorts+1)-1:0];
 
     // Scramble address before entering TCDM shim for sequential+interleaved memory map
     addr_t snitch_data_qaddr_scrambled;
