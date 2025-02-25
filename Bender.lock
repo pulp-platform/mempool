@@ -16,10 +16,10 @@ packages:
     - common_verification
     - tech_cells_generic
   cluster_icache:
-    revision: 0e1fb6751d9684d968ba7fb40836e6118b448ecd
-    version: 0.1.1
+    revision: null
+    version: null
     source:
-      Git: https://github.com/pulp-platform/cluster_icache.git
+      Path: hardware/deps/cluster_icache
     dependencies:
     - axi
     - common_cells
@@ -46,6 +46,21 @@ packages:
     source:
       Path: hardware/deps/common_verification
     dependencies: []
+  cv32e40p:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/cv32e40p
+    dependencies:
+    - common_cells
+    - fpnew
+    - tech_cells_generic
+  cv32e40x:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/cv32e40x
+    dependencies: []
   fpnew:
     revision: null
     version: null
@@ -61,6 +76,36 @@ packages:
       Path: hardware/deps/fpu_div_sqrt_mvp
     dependencies:
     - common_cells
+  hci:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/hci
+    dependencies:
+    - cluster_interconnect
+    - hwpe-stream
+    - l2_tcdm_hybrid_interco
+  hwpe-ctrl:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/hwpe-ctrl
+    dependencies:
+    - tech_cells_generic
+  hwpe-stream:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/hwpe-stream
+    dependencies:
+    - tech_cells_generic
+  ibex:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/ibex
+    dependencies:
+    - tech_cells_generic
   idma:
     revision: null
     version: null
@@ -71,6 +116,27 @@ packages:
     - common_cells
     - common_verification
     - register_interface
+  l2_tcdm_hybrid_interco:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/l2_tcdm_hybrid_interco
+    dependencies: []
+  redmule:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/redmule
+    dependencies:
+    - common_cells
+    - cv32e40p
+    - cv32e40x
+    - fpnew
+    - hci
+    - hwpe-ctrl
+    - hwpe-stream
+    - ibex
+    - tech_cells_generic
   register_interface:
     revision: null
     version: null

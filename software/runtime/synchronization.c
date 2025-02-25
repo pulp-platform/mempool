@@ -35,7 +35,7 @@ void mempool_barrier_init(uint32_t core_id) {
 
 void mempool_barrier(uint32_t num_cores) {
   // Increment the barrier counter
-  if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
+  if ((num_cores - 16 - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(&barrier, 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
     wake_up_all();
