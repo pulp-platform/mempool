@@ -17,11 +17,11 @@
 
 // Size in words
 #ifndef SIZE
-#define SIZE (16384)
+#define SIZE (8192)
 #endif
 
 #define DMA_ADDRESS (0x40010000)
-#define VERIFY
+// #define VERIFY
 
 // Assume banking factor of 4
 int32_t l1_data[SIZE] __attribute__((section(".l1_prio")))
@@ -44,8 +44,8 @@ void verify_dma_single_core(int32_t *addr, uint32_t num_words, int32_t *golden,
   volatile int32_t *a = (volatile int32_t *)addr;
   for (uint32_t i = 0; i < num_words; ++i) {
     if (a[i] != *golden) {
-      printf("The %dth value is %d, the golden is %d \n", i, a[i], *golden);
       error = error + 1;
+      printf("The %dth value is %d, the golden is %d \n", i, a[i], *golden);
     }
     golden += 1;
   }
@@ -103,9 +103,8 @@ int main() {
 // Verify
 #ifdef VERIFY
   if (core_id == 0) {
-    // verify_dma_parallel(l2_data_move_out, SIZE, core_id, num_cores, l2_data,
-    //                     error);
-    verify_dma_single_core(l2_data_move_out, SIZE, l2_data, error);
+    verify_dma_parallel(l2_data_move_out, SIZE, core_id, num_cores, l2_data,
+                      error);
   }
   // wait until all cores have finished
   mempool_barrier(num_cores);
