@@ -119,28 +119,34 @@ module mempool_system
    *  MemPool Cluster  *
    ********************/
 
-  mempool_cluster_floonoc_wrapper #(
+  `ifdef TERAPOOL
+    `define CLUSTER_WRAPPER terapool_cluster_floonoc_wrapper
+  `else
+    `define CLUSTER_WRAPPER mempool_cluster_floonoc_wrapper
+  `endif
+
+  `CLUSTER_WRAPPER #(
     .TCDMBaseAddr(TCDMBaseAddr),
-    .BootAddr    (BootAddr    )
+    .BootAddr    (BootAddr)
   ) i_mempool_cluster (
-    .clk_i             (clk_i                          ),
-    .rst_ni            (rst_ni                         ),
-    .wake_up_i         (wake_up                        ),
-    .testmode_i        (1'b0                           ),
-    .scan_enable_i     (1'b0                           ),
-    .scan_data_i       (1'b0                           ),
-    .scan_data_o       (/* Unused */                   ),
-    .ro_cache_ctrl_i   (ro_cache_ctrl                  ),
-    .dma_req_i         (dma_req                        ),
-    .dma_req_valid_i   (dma_req_valid                  ),
-    .dma_req_ready_o   (dma_req_ready                  ),
-    .dma_meta_o        (dma_meta                       ),
-    .axi_mst_req_o     (axi_mst_req                    ),
-    .axi_mst_resp_i    (axi_mst_resp                   ),
-    .periph_mst_req_o  (axi_mst_periph_req             ),
-    .periph_mst_resp_i (axi_mst_periph_resp            ),
-    .host_slv_req_i    (slv_req_i                      ),
-    .host_slv_resp_o   (slv_resp_o                     )
+    .clk_i             (clk_i),
+    .rst_ni            (rst_ni),
+    .wake_up_i         (wake_up),
+    .testmode_i        (1'b0),
+    .scan_enable_i     (1'b0),
+    .scan_data_i       (1'b0),
+    .scan_data_o       (/* Unused */),
+    .ro_cache_ctrl_i   (ro_cache_ctrl),
+    .dma_req_i         (dma_req),
+    .dma_req_valid_i   (dma_req_valid),
+    .dma_req_ready_o   (dma_req_ready),
+    .dma_meta_o        (dma_meta),
+    .axi_mst_req_o     (axi_mst_req),
+    .axi_mst_resp_i    (axi_mst_resp),
+    .periph_mst_req_o  (axi_mst_periph_req),
+    .periph_mst_resp_i (axi_mst_periph_resp),
+    .host_slv_req_i    (slv_req_i),
+    .host_slv_resp_o   (slv_resp_o)
   );
 
   /**********************
@@ -386,12 +392,9 @@ module mempool_system
   ) i_axi2mem_bootrom (
     .clk_i        (clk_i                   ),
     .rst_ni       (rst_ni                  ),
-
     .busy_o       (/*unsused*/             ),
-
     .axi_req_i    (axi_periph_req[Bootrom] ),
     .axi_resp_o   (axi_periph_resp[Bootrom]),
-
     .mem_req_o    (bootrom_req             ),
     .mem_gnt_i    (bootrom_req             ),
     .mem_addr_o   (bootrom_addr            ),

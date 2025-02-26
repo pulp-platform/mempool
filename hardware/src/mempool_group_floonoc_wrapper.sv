@@ -63,9 +63,9 @@ module mempool_group_floonoc_wrapper
 
 // Parse the address width to calculate the offset
 localparam integer unsigned NumTilesPerGroupWidth = idx_width(NumTilesPerGroup);
-localparam integer unsigned NumBanksPerTileWidth = idx_width(NumBanksPerTile);
-localparam integer unsigned TileBankRowOffset = TCDMAddrMemWidth + NumBanksPerTileWidth;
-localparam integer unsigned TileOffset        = NumBanksPerTileWidth + ByteOffset;
+localparam integer unsigned NumBanksPerTileWidth  = idx_width(NumBanksPerTile);
+localparam integer unsigned TileBankRowOffset     = TCDMAddrMemWidth + NumBanksPerTileWidth;
+localparam integer unsigned TileOffset            = NumBanksPerTileWidth + ByteOffset;
 
 // TCDM Master interfaces
 tcdm_master_req_t  [NumTilesPerGroup-1:0][NumRemotePortsPerTile-1:1] tcdm_master_req;
@@ -119,7 +119,7 @@ mempool_group #(
   .dma_req_valid_i          (dma_req_valid_i                ),
   .dma_req_ready_o          (dma_req_ready_o                ),
   .dma_meta_o               (dma_meta_o                     ),
-  .axi_mst_req_o            (axi_mst_req_from_group         ), 
+  .axi_mst_req_o            (axi_mst_req_from_group         ),
   .axi_mst_resp_i           (axi_mst_resp_to_group          )
 );
 
@@ -150,12 +150,13 @@ generate
 endgenerate
 
 axi_L2_interleaver #(
-  .NumAXIMasters  (1                                        ),
-  .NumL2          (NumL2Banks                               )
+  .NumAXIMasters            (1                              ),
+  .NumL2                    (NumL2Banks                     ),
+  .L2Size                   (L2Size                         )
 ) i_axi_L2_interleaver (
   .clk_i                    (clk_i                          ),
   .rst_ni                   (rst_ni                         ),
-  .axi_l2_req_i             (axi_mst_req_splitter           ), 
+  .axi_l2_req_i             (axi_mst_req_splitter           ),
   .axi_l2_resp_o            (axi_mst_resp_splitter          ),
   .axi_l2_req_interleaved_o (axi_mst_req                    ),
   .axi_l2_resp_interleaved_i(axi_mst_resp                   )
@@ -427,7 +428,6 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_connecti
   end : gen_router_router_connection_j
 end : gen_router_router_connection_i
 
-
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
   for (genvar j = 1; j < NumRemotePortsPerTile; j++) begin : gen_router_router_j
 
@@ -493,6 +493,7 @@ floo_nw_chimney #(
   .AxiCfgW             (AxiCfgW                                 ),
   .ChimneyCfgN         (set_ports(ChimneyDefaultCfg, 1'b0, 1'b0)),
   .ChimneyCfgW         (set_ports(ChimneyDefaultCfg, 1'b0, 1'b1)),
+  .AtopSupport          ( '0                                    ),
   .RouteCfg            (RouteCfg                                ),
   .id_t                (id_t                                    ),
   .rob_idx_t           (rob_idx_t                               ),
@@ -550,7 +551,8 @@ floo_nw_router #(
   .hdr_t        ( hdr_t                       ),
   .floo_req_t   ( floo_req_t                  ),
   .floo_rsp_t   ( floo_rsp_t                  ),
-  .floo_wide_t  ( floo_wide_t                 )
+  .floo_wide_t  ( floo_wide_t                 ),
+  .NumAddrRules (1                            )
 ) i_floo_narrow_wide_router (
   .clk_i,
   .rst_ni,

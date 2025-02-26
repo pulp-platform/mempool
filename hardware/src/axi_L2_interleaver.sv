@@ -10,7 +10,8 @@ module axi_L2_interleaver
   import mempool_pkg::*;
 #(
   parameter int NumAXIMasters   = 1,
-  parameter int NumL2           = 16
+  parameter int NumL2           = 16,
+  parameter int L2Size          = 16777216
 ) (
   input logic clk_i,
   input logic rst_ni,
@@ -24,7 +25,7 @@ module axi_L2_interleaver
 
   // Local parameters for address manipulation
   localparam int unsigned LSBConstantBits = $clog2(L2BankBeWidth * Interleave);
-  localparam int unsigned MSBConstantBits = 4;
+  localparam int unsigned MSBConstantBits = 32 - $clog2(L2Size);
   localparam int unsigned ScrambleBits    = (NumL2 == 1) ? 1 : $clog2(NumL2);
   localparam int unsigned ReminderBits    = AddrWidth - ScrambleBits - LSBConstantBits - MSBConstantBits;
 

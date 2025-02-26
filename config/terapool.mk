@@ -42,5 +42,6 @@ axi_masters_per_group ?= 1
 dmas_per_group ?= 1 # Brust Length = 16
 
 # L2 Banks/Channels
-l2_banks = 16
+l2_banks ?= 16
 l2_size  ?= 16777216 # 1000000
+axi_width_interleaved ?= 16

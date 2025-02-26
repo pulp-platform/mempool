@@ -1,4 +1,4 @@
-# Copyright 2023 ETH Zurich and University of Bologna.
+# Copyright 2025 ETH Zurich and University of Bologna.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -30,28 +30,28 @@ protocols:
   - name: "wide_in"
     type: "wide"
     protocol: "AXI4"
-    data_width: 512
+    data_width: 256
     addr_width: 32
     id_width: 2
     user_width: 1
   - name: "wide_out"
     type: "wide"
     protocol: "AXI4"
-    data_width: 512
+    data_width: 256
     addr_width: 32
     id_width: 2
     user_width: 1
 
 endpoints:
   - name: "group"
-    array: [4, 4]
+    array: [2, 2]
     mgr_port_protocol:
       - "wide_in"
   - name: "hbm"
-    array: [16]
+    array: [4]
     addr_range:
       base: 0x8000_0000
-      size: 0x0100_0000
+      size: 0x0010_0000
     sbr_port_protocol:
       - "wide_out"
   - name: "peripherals"
@@ -68,7 +68,7 @@ endpoints:
 
 routers:
   - name: "group_router"
-    array: [4, 4]
+    array: [2, 2]
     degree: 5
   - name: "periph_router"
 
@@ -76,72 +76,36 @@ connections:
   - src: "group"
     dst: "group_router"
     src_range:
-    - [0, 3]
-    - [0, 3]
+    - [0, 1]
+    - [0, 1]
     dst_range:
-    - [0, 3]
-    - [0, 3]
+    - [0, 1]
+    - [0, 1]
     dst_dir: "Eject"
   # HBM West
   - src: "hbm"
     dst: "group_router"
     src_range:
-    - [0, 3]
+    - [0, 1]
     dst_range:
     - [0, 0]
-    - [0, 3]
-    dst_dir: "West"
-  # HBM North
-  - src: "hbm"
-    dst: "group_router"
-    src_range:
-    - [6, 7]
-    dst_range:
     - [0, 1]
-    - [3, 3]
-    dst_dir: "North"
-  # HBM North
-  - src: "hbm"
-    dst: "group_router"
-    src_range:
-    - [10, 11]
-    dst_range:
-    - [3, 2]
-    - [3, 3]
-    dst_dir: "North"
+    dst_dir: "West"
   # HBM East
   - src: "hbm"
     dst: "group_router"
     src_range:
-    - [15, 12]
-    dst_range:
-    - [3, 3]
-    - [3, 0]
-    dst_dir: "East"
-  # HBM South
-  - src: "hbm"
-    dst: "group_router"
-    src_range:
-    - [9, 8]
-    dst_range:
     - [3, 2]
-    - [0, 0]
-    dst_dir: "South"
-  # HBM South
-  - src: "hbm"
-    dst: "group_router"
-    src_idx: [4]
-    dst_idx: [1, 0]
-    dst_dir: "South"
+    dst_range:
+    - [1, 1]
+    - [1, 0]
+    dst_dir: "East"
   # Attach special peripheral/HBM router to the mesh
   - src: "periph_router"
     dst: "group_router"
     dst_idx: [0, 0]
     dst_dir: "South"
   # Attach last HBM channel and peripherals to the special router
-  - src: "periph_router"
-    dst: "hbm"
-    dst_idx: [5]
   - src: "periph_router"
     dst: "peripherals"
   - src: "periph_router"
