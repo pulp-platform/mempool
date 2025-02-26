@@ -104,7 +104,7 @@ int main() {
 #ifdef VERIFY
   if (core_id == 0) {
     verify_dma_parallel(l2_data_move_out, SIZE, core_id, num_cores, l2_data,
-                      error);
+                        error);
   }
   // wait until all cores have finished
   mempool_barrier(num_cores);
