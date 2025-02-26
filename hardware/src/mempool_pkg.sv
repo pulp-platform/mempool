@@ -48,14 +48,12 @@ package mempool_pkg;
 
   // L2
   localparam integer unsigned L2Size           = `ifdef L2_SIZE `L2_SIZE `else 0 `endif; // [B]
-
   localparam integer unsigned NumL2Banks       = `ifdef L2_BANKS `L2_BANKS `else 1 `endif;
   localparam integer unsigned L2BankSize       = L2Size / NumL2Banks;
   localparam integer unsigned L2BankWidth      = AxiDataWidth;
   localparam integer unsigned L2BankBeWidth    = L2BankWidth/8;
   localparam integer unsigned L2BankNumWords   = L2BankSize / L2BankBeWidth;
   localparam integer unsigned L2BankAddrWidth  = $clog2(L2BankNumWords);
-
   localparam integer unsigned L2Width          = L2BankWidth * NumL2Banks;
   localparam integer unsigned L2BeWidth        = L2Width/8;
   localparam integer unsigned L2ByteOffset     = $clog2(L2BeWidth);
@@ -120,8 +118,6 @@ package mempool_pkg;
     endfunction
   `endif
 
-  localparam integer unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;;
-
   localparam NumSystemXbarMasters = 1;
   localparam AxiSystemIdWidth = $clog2(NumSystemXbarMasters) + AxiTileIdWidth;
   typedef logic [AxiSystemIdWidth-1:0] axi_system_id_t;
@@ -129,7 +125,6 @@ package mempool_pkg;
   localparam NumTestbenchXbarMasters = 1;
   localparam AxiTestbenchIdWidth = $clog2(NumTestbenchXbarMasters) + AxiSystemIdWidth;
   typedef logic [AxiTestbenchIdWidth-1:0] axi_tb_id_t;
-
 
   `AXI_TYPEDEF_AW_CHAN_T(axi_core_aw_t, addr_t, axi_core_id_t, logic);
   `AXI_TYPEDEF_W_CHAN_T(axi_core_w_t, axi_data_t, axi_strb_t, logic);
@@ -214,12 +209,13 @@ package mempool_pkg;
    *  DMA  *
    *********/
 
-  localparam int unsigned NumDmasPerGroup = `ifdef DMAS_PER_GROUP `DMAS_PER_GROUP `else 4 `endif;
-  localparam int unsigned NumTilesPerDma = NumTilesPerGroup/NumDmasPerGroup;
-  localparam int unsigned DmaDataWidth = AxiDataWidth;
-  localparam int unsigned DmaNumWords = DmaDataWidth/DataWidth;
-  localparam int unsigned NumSuperbanks = NumBanksPerTile/DmaNumWords;
-  localparam int unsigned DmaBurstLen = (NumBanksPerGroup / NumDmasPerGroup) / DmaNumWords;
+  localparam int unsigned NumDmasPerGroup       = `ifdef DMAS_PER_GROUP `DMAS_PER_GROUP `else 4 `endif;
+  localparam int unsigned NumTilesPerDma        = NumTilesPerGroup/NumDmasPerGroup;
+  localparam int unsigned DmaDataWidth          = AxiDataWidth;
+  localparam int unsigned DmaNumWords           = DmaDataWidth/DataWidth;
+  localparam int unsigned NumSuperbanks         = NumBanksPerTile/DmaNumWords;
+  localparam int unsigned DmaBurstLen           = (NumBanksPerGroup / NumDmasPerGroup) / DmaNumWords;
+  localparam int unsigned NumAXIMastersPerGroup = `ifdef AXI_MASTERS_PER_GROUP `AXI_MASTERS_PER_GROUP `else 1 `endif;
 
   typedef logic [DmaNumWords*DataWidth-1:0] dma_data_t;
   typedef logic [DmaNumWords*DataWidth/8-1:0] dma_strb_t;

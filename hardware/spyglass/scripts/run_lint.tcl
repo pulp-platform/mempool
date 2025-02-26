@@ -2,7 +2,12 @@
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-set PROJECT   mempool
+if {[info exists ::env(config)] && $::env(config) eq "terapool"} {
+    set PROJECT terapool
+} else {
+    set PROJECT mempool
+}
+
 set TIMESTAMP [exec date +%Y%m%d_%H%M%S]
 
 new_project sg_projects/${PROJECT}_${TIMESTAMP}
@@ -16,11 +21,11 @@ set_option language_mode mixed
 set_option allow_module_override yes
 set_option designread_disable_flatten no
 set_option mthresh 32768
-set_option top mempool_cluster_floonoc_wrapper
+set_option top ${PROJECT}_cluster_floonoc_wrapper
 set_parameter handle_large_bus yes
 
 # Read constraints
-current_design mempool_cluster_floonoc_wrapper
+current_design ${PROJECT}_cluster_floonoc_wrapper
 set_option sdc2sgdc yes
 sdc_data -file sdc/func.sdc
 

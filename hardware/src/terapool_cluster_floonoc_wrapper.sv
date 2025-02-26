@@ -4,7 +4,7 @@
 
 `include "common_cells/registers.svh"
 
-module mempool_cluster_floonoc_wrapper
+module terapool_cluster_floonoc_wrapper
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
   import floo_pkg::*;
@@ -274,8 +274,7 @@ module mempool_cluster_floonoc_wrapper
           .floo_rsp_i           ( floo_axi_rsp_out[x][y][West]  ),
           .floo_wide_i          ( floo_axi_wide_out[x][y][West] )
         );
-      end : gen_hbm_chimney_west
-      else if (x == NumX-1) begin : gen_hbm_chimney_east
+      end else if (x == NumX-1) begin : gen_hbm_chimney_east
         // East
       `ifdef TORUS
         `ifdef USE_NARROW_REQ_CHANNEL
@@ -355,10 +354,10 @@ module mempool_cluster_floonoc_wrapper
           .axi_narrow_out_rsp_i ( '0                            ),
           .axi_wide_in_req_i    ( '0                            ),
           .axi_wide_in_rsp_o    (                               ),
-          .axi_wide_out_req_o   ( axi_mst_req_o[y+2]           ),
-          .axi_wide_out_rsp_i   ( axi_mst_resp_i[y+2]          ),
-          .id_i                 ( id_t'(HbmNi2+y)              ),
-          .route_table_i        ( RoutingTables[HbmNi2+y]      ),
+          .axi_wide_out_req_o   ( axi_mst_req_o[y+12]           ),
+          .axi_wide_out_rsp_i   ( axi_mst_resp_i[y+12]          ),
+          .id_i                 ( id_t'(HbmNi12+y)              ),
+          .route_table_i        ( RoutingTables[HbmNi12+y]      ),
           .floo_req_o           ( floo_axi_req_in[x][y][East]   ),
           .floo_rsp_o           ( floo_axi_rsp_in[x][y][East]   ),
           .floo_wide_o          ( floo_axi_wide_in[x][y][East]  ),
@@ -366,12 +365,43 @@ module mempool_cluster_floonoc_wrapper
           .floo_rsp_i           ( floo_axi_rsp_out[x][y][East]  ),
           .floo_wide_i          ( floo_axi_wide_out[x][y][East] )
         );
-      end : gen_hbm_chimney_east
-      else begin
-        $fatal(1, "[topology] The current mesh structure is not 2x2, please modify cluster mesh connection");
+      end else begin : gen_hor_connections
+        // East
+        `ifdef USE_NARROW_REQ_CHANNEL
+        assign floo_tcdm_narrow_req_in       [x][y][East]  = floo_tcdm_narrow_req_out       [x+1][y][West];
+        assign floo_tcdm_narrow_req_in_valid [x][y][East]  = floo_tcdm_narrow_req_out_valid [x+1][y][West];
+        assign floo_tcdm_narrow_req_in_ready [x][y][East]  = floo_tcdm_narrow_req_out_ready [x+1][y][West];
+        `endif
+        assign floo_tcdm_wide_req_in         [x][y][East]  = floo_tcdm_wide_req_out         [x+1][y][West];
+        assign floo_tcdm_wide_req_in_valid   [x][y][East]  = floo_tcdm_wide_req_out_valid   [x+1][y][West];
+        assign floo_tcdm_wide_req_in_ready   [x][y][East]  = floo_tcdm_wide_req_out_ready   [x+1][y][West];
+        assign floo_tcdm_resp_in             [x][y][East]  = floo_tcdm_resp_out             [x+1][y][West];
+        assign floo_tcdm_resp_in_valid       [x][y][East]  = floo_tcdm_resp_out_valid       [x+1][y][West];
+        assign floo_tcdm_resp_in_ready       [x][y][East]  = floo_tcdm_resp_out_ready       [x+1][y][West];
+
+        assign floo_axi_req_in               [x][y][East]  = floo_axi_req_out               [x+1][y][West];
+        assign floo_axi_rsp_in               [x][y][East]  = floo_axi_rsp_out               [x+1][y][West];
+        assign floo_axi_wide_in              [x][y][East]  = floo_axi_wide_out              [x+1][y][West];
+
+        // West
+        `ifdef USE_NARROW_REQ_CHANNEL
+        assign floo_tcdm_narrow_req_in       [x][y][West]  = floo_tcdm_narrow_req_out       [x-1][y][East];
+        assign floo_tcdm_narrow_req_in_valid [x][y][West]  = floo_tcdm_narrow_req_out_valid [x-1][y][East];
+        assign floo_tcdm_narrow_req_in_ready [x][y][West]  = floo_tcdm_narrow_req_out_ready [x-1][y][East];
+        `endif
+        assign floo_tcdm_wide_req_in         [x][y][West]  = floo_tcdm_wide_req_out         [x-1][y][East];
+        assign floo_tcdm_wide_req_in_valid   [x][y][West]  = floo_tcdm_wide_req_out_valid   [x-1][y][East];
+        assign floo_tcdm_wide_req_in_ready   [x][y][West]  = floo_tcdm_wide_req_out_ready   [x-1][y][East];
+        assign floo_tcdm_resp_in             [x][y][West]  = floo_tcdm_resp_out             [x-1][y][East];
+        assign floo_tcdm_resp_in_valid       [x][y][West]  = floo_tcdm_resp_out_valid       [x-1][y][East];
+        assign floo_tcdm_resp_in_ready       [x][y][West]  = floo_tcdm_resp_out_ready       [x-1][y][East];
+
+        assign floo_axi_req_in               [x][y][West]  = floo_axi_req_out               [x-1][y][East];
+        assign floo_axi_rsp_in               [x][y][West]  = floo_axi_rsp_out               [x-1][y][East];
+        assign floo_axi_wide_in              [x][y][West]  = floo_axi_wide_out              [x-1][y][East];
       end
 
-      if (y == 0) begin
+      if (y == 0) begin : gen_hbm_chimney_south
         // South
       `ifdef TORUS
         `ifdef USE_NARROW_REQ_CHANNEL
@@ -415,13 +445,117 @@ module mempool_cluster_floonoc_wrapper
         assign floo_axi_rsp_in               [x][y][North] = floo_axi_rsp_out               [x][y+1][South];
         assign floo_axi_wide_in              [x][y][North] = floo_axi_wide_out              [x][y+1][South];
 
-        if (x == 0) begin : gen_periph_chimney_south
-          floo_req_t  [2:0] periph_router_req_in;
-          floo_rsp_t  [2:0] periph_router_rsp_out;
-          floo_req_t  [2:0] periph_router_req_out;
-          floo_rsp_t  [2:0] periph_router_rsp_in;
-          floo_wide_t [2:0] periph_router_wide_in;
-          floo_wide_t [2:0] periph_router_wide_out;
+        assign floo_axi_req_in[x][y][North]           = floo_axi_req_out[x][y+1][South];
+        assign floo_axi_rsp_in[x][y][North]           = floo_axi_rsp_out[x][y+1][South];
+        assign floo_axi_wide_in[x][y][North]          = floo_axi_wide_out[x][y+1][South];
+
+        if (x == 1) begin : gen_normal_chimneys
+
+          floo_nw_chimney #(
+            .AxiCfgN              ( AxiCfgN               ),
+            .AxiCfgW              ( AxiCfgW               ),
+            .ChimneyCfgN          ( ChimneyCfgN           ),
+            .ChimneyCfgW          ( ChimneyCfgW           ),
+            .AtopSupport          ( '0                    ),
+            .RouteCfg             ( RouteCfg              ),
+            .id_t                 ( id_t                  ),
+            .rob_idx_t            ( rob_idx_t             ),
+            .route_t              ( route_t               ),
+            .dst_t                ( route_t               ),
+            .hdr_t                ( hdr_t                 ),
+            .sam_rule_t           ( sam_rule_t            ),
+            .Sam                  ( Sam                   ),
+            .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
+            .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
+            .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
+            .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
+            .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
+            .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
+            .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
+            .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
+            .floo_req_t           ( floo_req_t            ),
+            .floo_rsp_t           ( floo_rsp_t            ),
+            .floo_wide_t          ( floo_wide_t           )
+          ) i_floo_nw_chimney (
+            .clk_i,
+            .rst_ni,
+            .test_enable_i        ( testmode_i                    ),
+            .sram_cfg_i           ( '0                            ),
+            .axi_narrow_in_req_i  ( '0                            ),
+            .axi_narrow_in_rsp_o  (                               ),
+            .axi_narrow_out_req_o (                               ),
+            .axi_narrow_out_rsp_i ( '0                            ),
+            .axi_wide_in_req_i    ( '0                            ),
+            .axi_wide_in_rsp_o    (                               ),
+            .axi_wide_out_req_o   ( axi_mst_req_o[5-x]           ),
+            .axi_wide_out_rsp_i   ( axi_mst_resp_i[5-x]          ),
+            .id_i                 ( id_t'(HbmNi5-x)              ),
+            .route_table_i        ( RoutingTables[HbmNi5-x]      ),
+            .floo_req_o           ( floo_axi_req_in[x][y][South]  ),
+            .floo_rsp_o           ( floo_axi_rsp_in[x][y][South]  ),
+            .floo_wide_o          ( floo_axi_wide_in[x][y][South] ),
+            .floo_req_i           ( floo_axi_req_out[x][y][South] ),
+            .floo_rsp_i           ( floo_axi_rsp_out[x][y][South] ),
+            .floo_wide_i          ( floo_axi_wide_out[x][y][South])
+          );
+          end
+          else if ((x < NumX) && (x != 0)) begin : gen_normal_chimneys_2
+
+          floo_nw_chimney #(
+            .AxiCfgN              ( AxiCfgN               ),
+            .AxiCfgW              ( AxiCfgW               ),
+            .ChimneyCfgN          ( ChimneyCfgN           ),
+            .ChimneyCfgW          ( ChimneyCfgW           ),
+            .AtopSupport          ( '0                    ),
+            .RouteCfg             ( RouteCfg              ),
+            .id_t                 ( id_t                  ),
+            .rob_idx_t            ( rob_idx_t             ),
+            .route_t              ( route_t               ),
+            .dst_t                ( route_t               ),
+            .hdr_t                ( hdr_t                 ),
+            .sam_rule_t           ( sam_rule_t            ),
+            .Sam                  ( Sam                   ),
+            .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
+            .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
+            .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
+            .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
+            .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
+            .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
+            .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
+            .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
+            .floo_req_t           ( floo_req_t            ),
+            .floo_rsp_t           ( floo_rsp_t            ),
+            .floo_wide_t          ( floo_wide_t           )
+          ) i_floo_nw_chimney (
+            .clk_i,
+            .rst_ni,
+            .test_enable_i        ( testmode_i                    ),
+            .sram_cfg_i           ( '0                            ),
+            .axi_narrow_in_req_i  ( '0                            ),
+            .axi_narrow_in_rsp_o  (                               ),
+            .axi_narrow_out_req_o (                               ),
+            .axi_narrow_out_rsp_i ( '0                            ),
+            .axi_wide_in_req_i    ( '0                            ),
+            .axi_wide_in_rsp_o    (                               ),
+            .axi_wide_out_req_o   ( axi_mst_req_o[x+6]           ),
+            .axi_wide_out_rsp_i   ( axi_mst_resp_i[x+6]          ),
+            .id_i                 ( id_t'(HbmNi6+x)              ),
+            .route_table_i        ( RoutingTables[HbmNi6+x]      ),
+            .floo_req_o           ( floo_axi_req_in[x][y][South]  ),
+            .floo_rsp_o           ( floo_axi_rsp_in[x][y][South]  ),
+            .floo_wide_o          ( floo_axi_wide_in[x][y][South] ),
+            .floo_req_i           ( floo_axi_req_out[x][y][South] ),
+            .floo_rsp_i           ( floo_axi_rsp_out[x][y][South] ),
+            .floo_wide_i          ( floo_axi_wide_out[x][y][South])
+          );
+        end else begin
+
+          floo_req_t  [3:0] periph_router_req_in;
+          floo_rsp_t  [3:0] periph_router_rsp_out;
+          floo_req_t  [3:0] periph_router_req_out;
+          floo_rsp_t  [3:0] periph_router_rsp_in;
+          floo_wide_t [3:0] periph_router_wide_in;
+          floo_wide_t [3:0] periph_router_wide_out;
 
           assign periph_router_req_in[0] = floo_axi_req_out[x][y][South];
           assign periph_router_rsp_in[0] = floo_axi_rsp_out[x][y][South];
@@ -434,7 +568,7 @@ module mempool_cluster_floonoc_wrapper
             .AxiCfgN      ( AxiCfgN             ),
             .AxiCfgW      ( AxiCfgW             ),
             .RouteAlgo    ( RouteCfg.RouteAlgo  ),
-            .NumRoutes    ( 3                   ),
+            .NumRoutes    ( 4                   ),
             .InFifoDepth  ( 2                   ),
             .OutFifoDepth ( 2                   ),
             .id_t         ( id_t                ),
@@ -455,6 +589,54 @@ module mempool_cluster_floonoc_wrapper
             .floo_rsp_i     ( periph_router_rsp_in    ),
             .floo_wide_i    ( periph_router_wide_in   ),
             .floo_wide_o    ( periph_router_wide_out  )
+          );
+
+          floo_nw_chimney #(
+            .AxiCfgN              ( AxiCfgN               ),
+            .AxiCfgW              ( AxiCfgW               ),
+            .ChimneyCfgN          ( ChimneyCfgN           ),
+            .ChimneyCfgW          ( ChimneyCfgW           ),
+            .AtopSupport          ( '0                    ),
+            .RouteCfg             ( RouteCfg              ),
+            .id_t                 ( id_t                  ),
+            .rob_idx_t            ( rob_idx_t             ),
+            .route_t              ( route_t               ),
+            .dst_t                ( route_t               ),
+            .hdr_t                ( hdr_t                 ),
+            .sam_rule_t           ( sam_rule_t            ),
+            .Sam                  ( Sam                   ),
+            .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
+            .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
+            .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
+            .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
+            .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
+            .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
+            .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
+            .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
+            .floo_req_t           ( floo_req_t            ),
+            .floo_rsp_t           ( floo_rsp_t            ),
+            .floo_wide_t          ( floo_wide_t           )
+          ) hbm_ni_15 (
+            .clk_i,
+            .rst_ni,
+            .test_enable_i        ( testmode_i                ),
+            .sram_cfg_i           ( '0                        ),
+            .axi_narrow_in_req_i  ( '0                        ),
+            .axi_narrow_in_rsp_o  (                           ),
+            .axi_narrow_out_req_o (                           ),
+            .axi_narrow_out_rsp_i ( '0                        ),
+            .axi_wide_in_req_i    ( '0                        ),
+            .axi_wide_in_rsp_o    (                           ),
+            .axi_wide_out_req_o   ( axi_mst_req_o[5]         ),
+            .axi_wide_out_rsp_i   ( axi_mst_resp_i[5]        ),
+            .id_i                 ( id_t'(HbmNi5)            ),
+            .route_table_i        ( RoutingTables[HbmNi5]    ),
+            .floo_req_o           ( periph_router_req_in[1]   ),
+            .floo_rsp_i           ( periph_router_rsp_out[1]  ),
+            .floo_wide_o          ( periph_router_wide_in[1]  ),
+            .floo_req_i           ( periph_router_req_out[1]  ),
+            .floo_rsp_o           ( periph_router_rsp_in[1]   ),
+            .floo_wide_i          ( periph_router_wide_out[1] )
           );
 
           localparam floo_pkg::chimney_cfg_t PeriphChimneyCfgW = floo_pkg::set_ports(floo_pkg::ChimneyDefaultCfg, 1'b1, 1'b0);
@@ -499,21 +681,22 @@ module mempool_cluster_floonoc_wrapper
             .axi_wide_out_rsp_i   ( periph_mst_resp_i             ),
             .id_i                 ( id_t'(PeripheralsNi)          ),
             .route_table_i        ( RoutingTables[PeripheralsNi]  ),
-            .floo_req_o           ( periph_router_req_in[1]       ),
-            .floo_rsp_i           ( periph_router_rsp_out[1]      ),
-            .floo_wide_o          ( periph_router_wide_in[1]      ),
-            .floo_req_i           ( periph_router_req_out[1]      ),
-            .floo_rsp_o           ( periph_router_rsp_in[1]       ),
-            .floo_wide_i          ( periph_router_wide_out[1]     )
-          );
+            .floo_req_o           ( periph_router_req_in[2]       ),
+            .floo_rsp_i           ( periph_router_rsp_out[2]      ),
+            .floo_wide_o          ( periph_router_wide_in[2]      ),
+            .floo_req_i           ( periph_router_req_out[2]      ),
+            .floo_rsp_o           ( periph_router_rsp_in[2]       ),
+            .floo_wide_i          ( periph_router_wide_out[2]     )
+        );
 
-          localparam floo_pkg::chimney_cfg_t HostChimneyCfgW = floo_pkg::set_ports(floo_pkg::ChimneyDefaultCfg, 1'b0, 1'b1);
+        localparam floo_pkg::chimney_cfg_t HostChimneyCfgW = floo_pkg::set_ports(floo_pkg::ChimneyDefaultCfg, 1'b0, 1'b1);
 
-          floo_nw_chimney #(
+        floo_nw_chimney #(
             .AxiCfgN              ( AxiCfgN               ),
             .AxiCfgW              ( AxiCfgW               ),
             .ChimneyCfgN          ( ChimneyCfgN           ),
             .ChimneyCfgW          ( HostChimneyCfgW       ),
+            .AtopSupport          ( '0                    ),
             .RouteCfg             ( RouteCfg              ),
             .id_t                 ( id_t                  ),
             .rob_idx_t            ( rob_idx_t             ),
@@ -548,22 +731,31 @@ module mempool_cluster_floonoc_wrapper
             .axi_wide_out_rsp_i   ( '0                            ),
             .id_i                 ( id_t'(HostNi)                 ),
             .route_table_i        ( RoutingTables[HostNi]         ),
-            .floo_req_o           ( periph_router_req_in[2]       ),
-            .floo_rsp_i           ( periph_router_rsp_out[2]      ),
-            .floo_wide_o          ( periph_router_wide_in[2]      ),
-            .floo_req_i           ( periph_router_req_out[2]      ),
-            .floo_rsp_o           ( periph_router_rsp_in[2]       ),
-            .floo_wide_i          ( periph_router_wide_out[2]     )
-          );
-        end : gen_periph_chimney_south
-        else begin
-          assign floo_axi_req_in[x][y][South]  = '0;
-          assign floo_axi_rsp_in[x][y][South]  = '0;
-          assign floo_axi_wide_in[x][y][South] = '0;
+            .floo_req_o           ( periph_router_req_in[3]       ),
+            .floo_rsp_i           ( periph_router_rsp_out[3]      ),
+            .floo_wide_o          ( periph_router_wide_in[3]      ),
+            .floo_req_i           ( periph_router_req_out[3]      ),
+            .floo_rsp_o           ( periph_router_rsp_in[3]       ),
+            .floo_wide_i          ( periph_router_wide_out[3]     )
+        );
+
         end
       end
       else if (y == NumY-1) begin
         // North
+      `ifdef TORUS
+        `ifdef USE_NARROW_REQ_CHANNEL
+        assign floo_tcdm_narrow_req_in[x][y][North]          = floo_tcdm_narrow_req_out[x][0][South];
+        assign floo_tcdm_narrow_req_in_valid[x][y][North]    = floo_tcdm_narrow_req_out_valid[x][0][South];
+        assign floo_tcdm_narrow_req_in_ready[x][y][North]    = floo_tcdm_narrow_req_out_ready[x][0][South];
+        `endif
+        assign floo_tcdm_wide_req_in[x][y][North]            = floo_tcdm_wide_req_out[x][0][South];
+        assign floo_tcdm_wide_req_in_valid[x][y][North]      = floo_tcdm_wide_req_out_valid[x][0][South];
+        assign floo_tcdm_wide_req_in_ready[x][y][North]      = floo_tcdm_wide_req_out_ready[x][0][South];
+        assign floo_tcdm_resp_in[x][y][North]                = floo_tcdm_resp_out[x][0][South];
+        assign floo_tcdm_resp_in_valid[x][y][North]          = floo_tcdm_resp_out_valid[x][0][South];
+        assign floo_tcdm_resp_in_ready[x][y][North]          = floo_tcdm_resp_out_ready[x][0][South];
+      `else
         `ifdef USE_NARROW_REQ_CHANNEL
         assign floo_tcdm_narrow_req_in       [x][y][North] = '0;
         assign floo_tcdm_narrow_req_in_valid [x][y][North] = '0;
@@ -575,10 +767,139 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in             [x][y][North] = '0;
         assign floo_tcdm_resp_in_valid       [x][y][North] = '0;
         assign floo_tcdm_resp_in_ready       [x][y][North] = '0;
+      `endif
+        // South
+        `ifdef USE_NARROW_REQ_CHANNEL
+        assign floo_tcdm_narrow_req_in       [x][y][South] = floo_tcdm_narrow_req_out       [x][y-1][North];
+        assign floo_tcdm_narrow_req_in_valid [x][y][South] = floo_tcdm_narrow_req_out_valid [x][y-1][North];
+        assign floo_tcdm_narrow_req_in_ready [x][y][South] = floo_tcdm_narrow_req_out_ready [x][y-1][North];
+        `endif
+        assign floo_tcdm_wide_req_in         [x][y][South] = floo_tcdm_wide_req_out         [x][y-1][North];
+        assign floo_tcdm_wide_req_in_valid   [x][y][South] = floo_tcdm_wide_req_out_valid   [x][y-1][North];
+        assign floo_tcdm_wide_req_in_ready   [x][y][South] = floo_tcdm_wide_req_out_ready   [x][y-1][North];
+        assign floo_tcdm_resp_in             [x][y][South] = floo_tcdm_resp_out             [x][y-1][North];
+        assign floo_tcdm_resp_in_valid       [x][y][South] = floo_tcdm_resp_out_valid       [x][y-1][North];
+        assign floo_tcdm_resp_in_ready       [x][y][South] = floo_tcdm_resp_out_ready       [x][y-1][North];
 
-        assign floo_axi_req_in               [x][y][North] = '0;
-        assign floo_axi_rsp_in               [x][y][North] = '0;
-        assign floo_axi_wide_in              [x][y][North] = '0;
+        assign floo_axi_req_in               [x][y][South] = floo_axi_req_out               [x][y-1][North];
+        assign floo_axi_rsp_in               [x][y][South] = floo_axi_rsp_out               [x][y-1][North];
+        assign floo_axi_wide_in              [x][y][South] = floo_axi_wide_out              [x][y-1][North];
+
+        if (x < NumX/2) begin
+          floo_nw_chimney #(
+              .AxiCfgN              ( AxiCfgN               ),
+              .AxiCfgW              ( AxiCfgW               ),
+              .ChimneyCfgN          ( ChimneyCfgN           ),
+              .ChimneyCfgW          ( ChimneyCfgW           ),
+              .AtopSupport          ( '0                    ),
+              .RouteCfg             ( RouteCfg              ),
+              .id_t                 ( id_t                  ),
+              .rob_idx_t            ( rob_idx_t             ),
+              .route_t              ( route_t               ),
+              .dst_t                ( route_t               ),
+              .hdr_t                ( hdr_t                 ),
+              .sam_rule_t           ( sam_rule_t            ),
+              .Sam                  ( Sam                   ),
+              .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
+              .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
+              .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
+              .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
+              .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
+              .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
+              .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
+              .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
+              .floo_req_t           ( floo_req_t            ),
+              .floo_rsp_t           ( floo_rsp_t            ),
+              .floo_wide_t          ( floo_wide_t           )
+            ) i_floo_nw_chimney (
+              .clk_i,
+              .rst_ni,
+              .test_enable_i        ( testmode_i                    ),
+              .sram_cfg_i           ( '0                            ),
+              .axi_narrow_in_req_i  ( '0                            ),
+              .axi_narrow_in_rsp_o  (                               ),
+              .axi_narrow_out_req_o (                               ),
+              .axi_narrow_out_rsp_i ( '0                            ),
+              .axi_wide_in_req_i    ( '0                            ),
+              .axi_wide_in_rsp_o    (                               ),
+              .axi_wide_out_req_o   ( axi_mst_req_o[x+6]          ),
+              .axi_wide_out_rsp_i   ( axi_mst_resp_i[x+6]         ),
+              .id_i                 ( id_t'(HbmNi6+x)               ),
+              .route_table_i        ( RoutingTables[HbmNi6+x]       ),
+              .floo_req_o           ( floo_axi_req_in[x][y][North]  ),
+              .floo_rsp_o           ( floo_axi_rsp_in[x][y][North]  ),
+              .floo_wide_o          ( floo_axi_wide_in[x][y][North] ),
+              .floo_req_i           ( floo_axi_req_out[x][y][North] ),
+              .floo_rsp_i           ( floo_axi_rsp_out[x][y][North] ),
+              .floo_wide_i          ( floo_axi_wide_out[x][y][North])
+            );
+        end else begin
+          floo_nw_chimney #(
+              .AxiCfgN              ( AxiCfgN               ),
+              .AxiCfgW              ( AxiCfgW               ),
+              .ChimneyCfgN          ( ChimneyCfgN           ),
+              .ChimneyCfgW          ( ChimneyCfgW           ),
+              .AtopSupport          ( '0                    ),
+              .RouteCfg             ( RouteCfg              ),
+              .id_t                 ( id_t                  ),
+              .rob_idx_t            ( rob_idx_t             ),
+              .route_t              ( route_t               ),
+              .dst_t                ( route_t               ),
+              .hdr_t                ( hdr_t                 ),
+              .sam_rule_t           ( sam_rule_t            ),
+              .Sam                  ( Sam                   ),
+              .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
+              .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
+              .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
+              .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
+              .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
+              .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
+              .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
+              .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
+              .floo_req_t           ( floo_req_t            ),
+              .floo_rsp_t           ( floo_rsp_t            ),
+              .floo_wide_t          ( floo_wide_t           )
+            ) i_floo_nw_chimney (
+              .clk_i,
+              .rst_ni,
+              .test_enable_i        ( testmode_i                    ),
+              .sram_cfg_i           ( '0                            ),
+              .axi_narrow_in_req_i  ( '0                            ),
+              .axi_narrow_in_rsp_o  (                               ),
+              .axi_narrow_out_req_o (                               ),
+              .axi_narrow_out_rsp_i ( '0                            ),
+              .axi_wide_in_req_i    ( '0                            ),
+              .axi_wide_in_rsp_o    (                               ),
+              .axi_wide_out_req_o   ( axi_mst_req_o[13-x]          ),
+              .axi_wide_out_rsp_i   ( axi_mst_resp_i[13-x]         ),
+              .id_i                 ( id_t'(HbmNi13-x)               ),
+              .route_table_i        ( RoutingTables[HbmNi13-x]       ),
+              .floo_req_o           ( floo_axi_req_in[x][y][North]  ),
+              .floo_rsp_o           ( floo_axi_rsp_in[x][y][North]  ),
+              .floo_wide_o          ( floo_axi_wide_in[x][y][North] ),
+              .floo_req_i           ( floo_axi_req_out[x][y][North] ),
+              .floo_rsp_i           ( floo_axi_rsp_out[x][y][North] ),
+              .floo_wide_i          ( floo_axi_wide_out[x][y][North])
+            );
+        end
+      end
+      else begin
+        // North
+        `ifdef USE_NARROW_REQ_CHANNEL
+        assign floo_tcdm_narrow_req_in       [x][y][North] = floo_tcdm_narrow_req_out       [x][y+1][South];
+        assign floo_tcdm_narrow_req_in_valid [x][y][North] = floo_tcdm_narrow_req_out_valid [x][y+1][South];
+        assign floo_tcdm_narrow_req_in_ready [x][y][North] = floo_tcdm_narrow_req_out_ready [x][y+1][South];
+        `endif
+        assign floo_tcdm_wide_req_in         [x][y][North] = floo_tcdm_wide_req_out         [x][y+1][South];
+        assign floo_tcdm_wide_req_in_valid   [x][y][North] = floo_tcdm_wide_req_out_valid   [x][y+1][South];
+        assign floo_tcdm_wide_req_in_ready   [x][y][North] = floo_tcdm_wide_req_out_ready   [x][y+1][South];
+        assign floo_tcdm_resp_in             [x][y][North] = floo_tcdm_resp_out             [x][y+1][South];
+        assign floo_tcdm_resp_in_valid       [x][y][North] = floo_tcdm_resp_out_valid       [x][y+1][South];
+        assign floo_tcdm_resp_in_ready       [x][y][North] = floo_tcdm_resp_out_ready       [x][y+1][South];
+
+        assign floo_axi_req_in               [x][y][North] = floo_axi_req_out               [x][y+1][South];
+        assign floo_axi_rsp_in               [x][y][North] = floo_axi_rsp_out               [x][y+1][South];
+        assign floo_axi_wide_in              [x][y][North] = floo_axi_wide_out              [x][y+1][South];
         // South
         `ifdef USE_NARROW_REQ_CHANNEL
         assign floo_tcdm_narrow_req_in       [x][y][South] = floo_tcdm_narrow_req_out       [x][y-1][North];
@@ -596,23 +917,20 @@ module mempool_cluster_floonoc_wrapper
         assign floo_axi_rsp_in               [x][y][South] = floo_axi_rsp_out               [x][y-1][North];
         assign floo_axi_wide_in              [x][y][South] = floo_axi_wide_out              [x][y-1][North];
       end
-      else begin
-        $fatal(1, "[Topology] The current mesh structure is not 2x2, please modify cluster mesh connection");
-      end
 
       mempool_group_floonoc_wrapper #(
         .TCDMBaseAddr (TCDMBaseAddr         ),
         .BootAddr     (BootAddr             )
       ) i_group (
-        .clk_i                          (clk_i                                                           ),
-        .rst_ni                         (rst_ni                                                          ),
-        .testmode_i                     (testmode_i                                                      ),
-        .scan_enable_i                  (scan_enable_i                                                   ),
-        .scan_data_i                    (/* Unconnected */                                               ),
-        .scan_data_o                    (/* Unconnected */                                               ),
-        .group_id_i                     (group_id_t'({group_id.x, group_id.y})                           ),
-        .floo_id_i                      (id_t'(GroupNi00 + x*NumY +y)                                    ),
-        .route_table_i                  (floo_terapool_noc_pkg::RoutingTables[GroupNi00 + x*NumY +y]     ),
+        .clk_i                   (clk_i                                                       ),
+        .rst_ni                  (rst_ni                                                      ),
+        .testmode_i              (testmode_i                                                  ),
+        .scan_enable_i           (scan_enable_i                                               ),
+        .scan_data_i             (/* Unconnected */                                           ),
+        .scan_data_o             (/* Unconnected */                                           ),
+        .group_id_i              (group_id_t'({group_id.x, group_id.y})                       ),
+        .floo_id_i               (id_t'(GroupNi00 + x*NumY +y)                                ),
+        .route_table_i           (floo_terapool_noc_pkg::RoutingTables[GroupNi00 + x*NumY +y] ),
         // TCDM narrow req noc
         `ifdef USE_NARROW_REQ_CHANNEL
         .floo_tcdm_narrow_req_o         (floo_tcdm_narrow_req_out       [x][y]                           ),
@@ -674,4 +992,4 @@ module mempool_cluster_floonoc_wrapper
   if (BankingFactor != 2**$clog2(BankingFactor))
     $fatal(1, "[mempool] The banking factor must be a power of two.");
 
-endmodule : mempool_cluster_floonoc_wrapper
+endmodule : terapool_cluster_floonoc_wrapper

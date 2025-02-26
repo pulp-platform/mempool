@@ -230,13 +230,18 @@ lib: $(buildpath) $(buildpath)/$(library)
 $(buildpath)/$(library):
 	cd $(buildpath) && $(questa_cmd) vlib $(library) && chmod +w modelsim.ini; $(questa_cmd) vmap $(library) $(library)
 
+# FlooGen Update
+.PHONY: update-floogen
+update-floogen:
+	$(MAKE) -C .. FLOO_CFG=./config/floo_noc_$(config).yml update-floonoc config=$(config)
+
 # Compilation
 .PHONY: gen_selector
 gen_selector: scripts/gen_xbar.py
 	$< -in ${num_cores_per_tile} -on $$(($(num_remote_ports_per_tile) - 1)) -o src/selector.sv
 
 .PHONY: compile
-compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes gen_selector
+compile: update-floogen dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
@@ -379,8 +384,8 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 SNPS_SG ?= spyglass-2022.06
 SG_SCRIPT_PATH ?= scripts
 SG_SCRIPT_SUF ?=
-lint: spyglass/tmp/files spyglass/sdc/func.sdc spyglass/scripts/run_lint.tcl
-	cd spyglass; $(SNPS_SG) sg_shell -tcl $(SG_SCRIPT_PATH)/run_lint$(SG_SCRIPT_SUF).tcl
+lint: update-floogen spyglass/tmp/files spyglass/sdc/func.sdc spyglass/scripts/run_lint.tcl
+	cd spyglass; config=$(config) $(SNPS_SG) sg_shell -tcl $(SG_SCRIPT_PATH)/run_lint$(SG_SCRIPT_SUF).tcl
 
 spyglass/tmp/files: $(bender)
 	mkdir -p spyglass/tmp
