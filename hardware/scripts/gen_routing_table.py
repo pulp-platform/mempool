@@ -146,7 +146,7 @@ if __name__ == "__main__":
     # package += "\n};\n"
     # package += "\n"
     
-    package = f"routing_rule_t [{num_x - 1}:0][{num_y - 1}:0][{num_nodes - 1}:0] RoutingTables ="
+    package = f"localparam routing_rule_t [{num_x - 1}:0][{num_y - 1}:0][{num_nodes - 1}:0] RoutingTables ="
     package += " {"
     for src_x in reversed(range(num_x)):
         package += "\n  {"

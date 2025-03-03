@@ -17,7 +17,7 @@ typedef struct packed {
   logic [3:0]  end_addr;
 } routing_rule_t;
 
-routing_rule_t [3:0][3:0][15:0] RoutingTables = {
+localparam routing_rule_t [3:0][3:0][15:0] RoutingTables = {
   {
     {
       { East, 4'd0, 4'd1 },

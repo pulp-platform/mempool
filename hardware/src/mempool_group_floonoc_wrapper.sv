@@ -715,7 +715,11 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .rst_ni,
       .test_enable_i  (1'b0                                                                   ),
       .xy_id_i        (group_xy_id_t'(group_id_i)                                             ),
+      `ifdef TORUS
+      .id_route_map_i (RoutingTables[group_id.x][group_id.y]                                  ),
+      `else
       .id_route_map_i ('0                                                                     ),
+      `endif
       .valid_i        ({floo_narrow_req_valid_i_trans[i][j], floo_rd_req_to_router_vc_valid[i][j]} ),
       .ready_o        ({floo_narrow_req_ready_o_trans[i][j], floo_rd_req_to_router_vc_ready[i][j]} ),
       .data_i         ({floo_narrow_req_i_trans      [i][j], floo_rd_req_to_router[i][j]}     ),
@@ -770,7 +774,11 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .rst_ni,
       .test_enable_i  (1'b0                                                            ),
       .xy_id_i        (group_xy_id_t'(group_id_i)                                      ),
-      .id_route_map_i ('0                                                              ),
+      `ifdef TORUS
+      .id_route_map_i (RoutingTables[group_id.x][group_id.y]                                  ),
+      `else
+      .id_route_map_i ('0                                                                     ),
+      `endif
       .valid_i        ({floo_wide_req_valid_i_trans[i][j], floo_rdwr_req_to_router_vc_valid[i][j]}  ),
       .ready_o        ({floo_wide_req_ready_o_trans[i][j], floo_rdwr_req_to_router_vc_ready[i][j]}  ),
       .data_i         ({floo_wide_req_i_trans      [i][j], floo_rdwr_req_to_router[i][j]}    ),
@@ -824,7 +832,11 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .rst_ni,
       .test_enable_i  (1'b0                                                              ),
       .xy_id_i        (group_xy_id_t'(group_id_i)                                        ),
-      .id_route_map_i ('0                                                                ),
+      `ifdef TORUS
+      .id_route_map_i (RoutingTables[group_id.x][group_id.y]                                  ),
+      `else
+      .id_route_map_i ('0                                                                     ),
+      `endif
       .valid_i        ({floo_resp_valid_i_trans[i][j], floo_resp_to_router_vc_valid[i][j]}                  ),
       .ready_o        ({floo_resp_ready_o_trans[i][j], floo_resp_to_router_vc_ready[i][j]}                  ),
       .data_i         ({floo_resp_i_trans[i][j],       floo_resp_to_router[i][j]}                    ),
