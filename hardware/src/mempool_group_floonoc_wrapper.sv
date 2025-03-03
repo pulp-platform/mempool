@@ -448,6 +448,9 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_remapper
         meta_id : tcdm_slave_resp[i][j].rdata.meta_id,             // For Register File
         core_id : tcdm_slave_resp[i][j].rdata.core_id,             // For Core
         tile_id : tcdm_slave_resp[i][j].ini_addr,                  // For Crossbar when response back (Sender's Tile ID, propagated from request)
+        `ifdef ODD_EVEN_ROUTING
+        src_id: group_xy_id_t'(group_id_i),                         // For NoC Router when response back
+        `endif
         dst_id: group_xy_id_t'(tcdm_slave_resp[i][j].src_group_id),// For NoC Router when response back (Sender's Group ID, propagated from request)
         last : 1'b1                                                // Non Burst Request
       }
@@ -483,6 +486,9 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_router_r
         meta_id : tcdm_slave_resp[i][j].rdata.meta_id,             // For Register File
         core_id : tcdm_slave_resp[i][j].rdata.core_id,             // For Core
         tile_id : tcdm_slave_resp[i][j].ini_addr,                  // For Crossbar when response back (Sender's Tile ID, propagated from request)
+        `ifdef ODD_EVEN_ROUTING
+        src_id: group_xy_id_t'(group_id_i),                         // For NoC Router when response back
+        `endif
         dst_id: group_xy_id_t'(tcdm_slave_resp[i][j].src_group_id),// For NoC Router when response back (Sender's Group ID, propagated from request)
         last : 1'b1                                                // Non Burst Request
       }

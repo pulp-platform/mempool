@@ -356,6 +356,9 @@ package mempool_pkg;
     meta_id_t           meta_id;
     tile_core_id_t      core_id;
     tile_group_id_t     tile_id;
+    `ifdef ODD_EVEN_ROUTING
+    group_xy_id_t       src_id;
+    `endif
     group_xy_id_t       dst_id;
     logic               last;
   } floo_resp_meta_t;
