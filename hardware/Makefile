@@ -178,6 +178,9 @@ ifeq (1, $(tile_id_remap))
 endif
 # Separate the NoC read and read/write req channels, rd = hdr, rd/wr = hdr+payload
 vlog_defs += -DNOC_REQ_RD_CHANNEL_NUM=$(noc_req_rd_channel_num)
+ifneq (0, $(noc_req_rd_channel_num))
+	vlog_defs += -DUSE_NARROW_REQ_CHANNEL
+endif
 vlog_defs += -DNOC_REQ_RDWR_CHANNEL_NUM=$(noc_req_rdwr_channel_num)
 vlog_defs += -DNOC_REQ_WR_CHANNEL_NUM=$(noc_req_wr_channel_num)
 vlog_defs += -DNOC_RESP_CHANNEL_NUM=$(noc_resp_channel_num)
