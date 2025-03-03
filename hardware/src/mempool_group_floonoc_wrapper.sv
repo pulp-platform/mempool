@@ -473,7 +473,7 @@ floo_remapper #(
 `else
 
 for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_slave_resp_to_router_resp_i
-  for (genvar j = 1; j < NumRemoteReqPortsPerTile; j++) begin : gen_slave_resp_to_router_resp_j
+  for (genvar j = 1; j < NumRemoteRespPortsPerTile; j++) begin : gen_slave_resp_to_router_resp_j
     assign floo_resp_to_router[i][j] = floo_resp_t'{
       payload: floo_resp_payload_t'{
         amo : tcdm_slave_resp[i][j].rdata.amo,
@@ -532,7 +532,7 @@ if (NumTilesPerGroup == 1) begin
   assign resp_tile_sel = '0;
 end else begin
   for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_resp_sel_tgt_tile_i
-    for (genvar j = 1; j < NumRemoteReqPortsPerTile; j++) begin : gen_resp_sel_tgt_tile_j
+    for (genvar j = 1; j < NumRemoteRespPortsPerTile; j++) begin : gen_resp_sel_tgt_tile_j
       assign resp_tile_sel[i][j] = floo_resp_from_router[i][j].hdr.tile_id;
     end : gen_resp_sel_tgt_tile_j
   end : gen_resp_sel_tgt_tile_i
