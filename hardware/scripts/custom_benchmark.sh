@@ -1,5 +1,9 @@
 #!/usr/bin/env zsh
 
+# Copyright 2024 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 # app_list=(axpy_i32 matmul_i32)
 app_list=(matmul_i32)
 # app_list=(axpy_i32)

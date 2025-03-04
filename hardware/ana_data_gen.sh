@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Copyright 2024 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 # Output CSV file
 output_file="cycles_analysis_data.csv"
 > "$output_file"

@@ -1,3 +1,9 @@
+// Copyright 2024 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
+// Author: Yinrong Li <yinrli@student.ethz.ch>
+
 module floo_remapper #(
   /// Number of inputs into the crossbar (`> 0`).
   parameter int unsigned NumInp      = 32'd0,

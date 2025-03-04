@@ -1,3 +1,9 @@
+// Copyright 2025 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
+// Author: Yinrong Li <yinrli@student.ethz.ch>
+
 module floo_vc_mux #(
   parameter int unsigned NumVirtChannels   = 32'd0,
   /// Data width of the stream. Can be overwritten by defining the type parameter `payload_t`.

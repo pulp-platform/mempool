@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Copyright 2024 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 # Output file
 output_file="avg_all.txt"
 > "$output_file" # Clear the file if it already exists

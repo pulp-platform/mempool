@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Copyright 2024 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
 # Base variables
 # app_path="/usr/scratch2/pisoc8/sem24h30/terapool_noc/mempool/software/bin/apps/baremetal"
 # app="matmul_i32"
