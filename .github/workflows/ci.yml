@@ -16,7 +16,7 @@ jobs:
   #  Toolchains  #
   ################
   tc-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
@@ -56,7 +56,7 @@ jobs:
         path: riscv-gnu-toolchain.tzst
 
   tc-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
@@ -95,7 +95,7 @@ jobs:
         path: llvm-project.tzst
 
   tc-halide:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs: tc-llvm
     steps:
     - name: Free Disk Space (Ubuntu)
@@ -146,7 +146,7 @@ jobs:
   #  Tools  #
   ###########
   riscv-isa-sim:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
@@ -182,7 +182,7 @@ jobs:
         path: riscv-isa-sim.tzst
 
   verilator:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
@@ -226,7 +226,7 @@ jobs:
   #  Build Hardware  #
   ####################
   verilator-model:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: verilator
     strategy:
@@ -282,7 +282,7 @@ jobs:
   #  Regenerate files  #
   ######################
   check-bootrom:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs: tc-gcc
     steps:
     - name: Free Disk Space (Ubuntu)
@@ -311,7 +311,7 @@ jobs:
         git diff --exit-code
 
   check-opcodes:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
@@ -333,7 +333,7 @@ jobs:
   #  Build Software  #
   ####################
   build-apps-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs: tc-gcc
     strategy:
       matrix:
@@ -375,7 +375,7 @@ jobs:
         path: apps-gcc.tzst
 
   build-apps-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs: [tc-gcc, tc-llvm]
     strategy:
       matrix:
@@ -423,7 +423,7 @@ jobs:
         path: apps-llvm.tzst
 
   build-apps-halide:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs: [tc-gcc, tc-llvm, tc-halide]
     strategy:
       matrix:
@@ -477,7 +477,7 @@ jobs:
   #  Run Software  #
   ##################
   run-apps-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
     strategy:
@@ -526,7 +526,7 @@ jobs:
         make trace
 
   run-apps-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
     strategy:
@@ -575,7 +575,7 @@ jobs:
         make trace
 
   run-apps-halide:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [build-apps-halide, riscv-isa-sim, verilator-model]
     strategy:
@@ -624,7 +624,7 @@ jobs:
         make trace
 
   unit-test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [tc-gcc, riscv-isa-sim, verilator-model]
     steps:
@@ -674,7 +674,7 @@ jobs:
   #  Clean-up  #
   ##############
   clean-up:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     if: always()
     needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
@@ -691,7 +691,7 @@ jobs:
           verilator
 
   clean-up-compile-runs:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     if: always()
     needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
