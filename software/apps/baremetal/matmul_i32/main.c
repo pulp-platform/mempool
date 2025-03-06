@@ -4,12 +4,6 @@
 
 // Author: Samuel Riedel, ETH Zurich
 
-// Define Matrix dimensions:
-// C = AB with A=[MxN], B=[NxP], C=[MxP]
-#define matrix_M 128
-#define matrix_N 128
-#define matrix_P 128
-
 #include <stdint.h>
 #include <string.h>
 
@@ -18,6 +12,12 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+
+// Define Matrix dimensions:
+// C = AB with A=[MxN], B=[NxP], C=[MxP]
+#define matrix_M 64
+#define matrix_N 32
+#define matrix_P 64
 
 int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));
@@ -99,18 +99,13 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   // Execute function to test.
   mempool_start_benchmark();
 
-// #ifdef __XPULPIMG
-//   matmul_unrolled_2x2_parallel_i32_xpulpv2(A, B, C, M, N, P, core_id,
-//                                            num_cores);
-// #else
-//   matmul_unrolled_2x2_parallel_i32_rv32im(A, B, C, M, N, P, core_id, num_cores);
-  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
-// #endif
+#ifdef __XPULPIMG
+  matmul_unrolled_2x2_parallel_i32_xpulpv2(A, B, C, M, N, P, core_id,
+                                           num_cores);
+#else
+  matmul_unrolled_2x2_parallel_i32_rv32im(A, B, C, M, N, P, core_id, num_cores);
+#endif
 
-  mempool_stop_benchmark();
-  mempool_barrier(num_cores);
-  mempool_start_benchmark();
-  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
   mempool_stop_benchmark();
   // Wait at barrier befor checking
   mempool_barrier(num_cores);

@@ -829,10 +829,11 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
 
 #ifndef __clang__
 void mat_mul_unrolled_4x4_noc_opt_parallel_asm(int32_t const *__restrict__ A,
-                                       int32_t const *__restrict__ B,
-                                       int32_t *__restrict__ C, uint32_t M,
-                                       uint32_t N, uint32_t P, uint32_t id,
-                                       uint32_t numThreads) {
+                                               int32_t const *__restrict__ B,
+                                               int32_t *__restrict__ C,
+                                               uint32_t M, uint32_t N,
+                                               uint32_t P, uint32_t id,
+                                               uint32_t numThreads) {
   // Parallelize by assigning each tile one row
   uint32_t c = numThreads / (M / 4);
   if (numThreads * 4 < M) {
@@ -843,7 +844,8 @@ void mat_mul_unrolled_4x4_noc_opt_parallel_asm(int32_t const *__restrict__ A,
   uint32_t const c_offset = ((id / c) % (P / c / 4)) * 4;
   uint32_t const c_len = P / c;
   // for (uint32_t i = 4 * (id / c); i < M; i += 4 * (numThreads / c)) {
-  for (uint32_t i = (((id % 256) / c) * 16 + (id / 256) * 4); i < M; i += 4 * (numThreads / c)) {
+  for (uint32_t i = (((id % 256) / c) * 16 + (id / 256) * 4); i < M;
+       i += 4 * (numThreads / c)) {
     for (uint32_t _j = 0; _j < c_len; _j += 4) {
       uint32_t const j = c_start + ((c_offset + _j) % c_len);
       // Address registers
@@ -859,7 +861,7 @@ void mat_mul_unrolled_4x4_noc_opt_parallel_asm(int32_t const *__restrict__ A,
 
       int32_t const *addr_c = &C[i * P + j];
       int32_t const N3_1_r = (-3 * (int32_t)N + 1) * 4;
-      
+
       // int32_t const P_3_r = ((int32_t)P - 3) * 4;
 
       register int32_t end_b_reg asm("x1") = (int32_t)end_b;
@@ -971,7 +973,8 @@ void mat_mul_unrolled_4x4_noc_opt_parallel_asm(int32_t const *__restrict__ A,
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
             [addr_c] "+&r"(addr_c), [x1] "+&r"(end_b_reg) // Outputs
           : [N3_1] "r"(N3_1_r), [P_3] "I"(P3), [N] "r"(matrix_N * 4),
-            [addr_a1] "m"(addr_a1), [addr_b1] "m"(addr_b1), [end_b1] "m"(end_b1), [wrap_around] "m"(wrap_around)// Inputs
+            [addr_a1] "m"(addr_a1), [addr_b1] "m"(addr_b1),
+            [end_b1] "m"(end_b1), [wrap_around] "m"(wrap_around) // Inputs
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
             "x27", "x28", "x29", "x30", "x31", "memory"); // Clobber

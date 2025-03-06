@@ -22,9 +22,9 @@
 
 /* CHOOSE ONE */
 //#define SINGLE // Single core FFT.
-#define PARALLEL // Parallel FFT not "memory-aware".
+//#define PARALLEL // Parallel FFT not "memory-aware".
 //#define FOLDED // Parallel FFT with "memory-aware" load/store.
-// #define SCHEDULED // Folded FFTs arranged in rows and cols.'''
+#define SCHEDULED // Folded FFTs arranged in rows and cols.'''
 
 // Bitreversal index from table.
 #define BITREVERSETABLE
@@ -36,7 +36,7 @@
 #error Parallelization not supporting N_FFTs_COL > [N_BANKS / (N_CSAMPLES / 4)]
 #endif
 // Also the twiddles have "memory-aware" load/stores.
-// #define FOLDED_TWIDDLES
+#define FOLDED_TWIDDLES
 
 #include "baremetal/mempool_cfft_q16_bitreversal.h"
 #include "baremetal/mempool_checks.h"
