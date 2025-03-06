@@ -18,6 +18,16 @@ jobs:
   tc-gcc:
     runs-on: ubuntu-20.04
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Recover the submodule commit hash
       run: |
@@ -48,6 +58,16 @@ jobs:
   tc-llvm:
     runs-on: ubuntu-20.04
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Recover the submodule commit hash
       run: |
@@ -78,6 +98,16 @@ jobs:
     runs-on: ubuntu-20.04
     needs: tc-llvm
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Recover the submodule commit hash
       run: |
@@ -118,6 +148,16 @@ jobs:
   riscv-isa-sim:
     runs-on: ubuntu-20.04
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Cache riscv-isa-sim
       uses: actions/cache@v4
@@ -144,6 +184,16 @@ jobs:
   verilator:
     runs-on: ubuntu-20.04
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Recover the submodule commit hash
       run: |
@@ -184,6 +234,16 @@ jobs:
         # mempool_config: [minpool, mempool]
         mempool_config: [minpool_64core]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Cache Verilator Model
       uses: actions/cache@v4
@@ -225,6 +285,16 @@ jobs:
     runs-on: ubuntu-20.04
     needs: tc-gcc
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
       uses: actions/download-artifact@v4
@@ -243,6 +313,16 @@ jobs:
   check-opcodes:
     runs-on: ubuntu-20.04
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Regenerate opcodes
       run: |
@@ -260,6 +340,16 @@ jobs:
         # mempool_config: [minpool, mempool]
         mempool_config: [minpool_64core]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
       uses: actions/download-artifact@v4
@@ -292,6 +382,16 @@ jobs:
         # mempool_config: [minpool, mempool]
         mempool_config: [minpool_64core]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
       uses: actions/download-artifact@v4
@@ -330,6 +430,16 @@ jobs:
         # mempool_config: [minpool, mempool]
         mempool_config: [minpool_64core]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
       uses: actions/download-artifact@v4
@@ -375,6 +485,16 @@ jobs:
         # mempool_config: [minpool, mempool]
         mempool_config: [minpool_64core]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Get apps-gcc artifacts
       uses: actions/download-artifact@v4
@@ -401,7 +521,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
       run: |
         cd hardware
-        # Don't regenerate previously build artifacts
+        # Don't regenerate previously built artifacts
         app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
@@ -414,6 +534,16 @@ jobs:
         # mempool_config: [minpool, mempool]
         mempool_config: [minpool_64core]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Get apps-llvm artifacts
       uses: actions/download-artifact@v4
@@ -440,7 +570,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
       run: |
         cd hardware
-        # Don't regenerate previously build artifacts
+        # Don't regenerate previously built artifacts
         app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
@@ -453,6 +583,16 @@ jobs:
         # mempool_config: [minpool, mempool]
         mempool_config: [minpool_64core]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Get apps-halide artifacts
       uses: actions/download-artifact@v4
@@ -479,7 +619,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
       run: |
         cd hardware
-        # Don't regenerate previously build artifacts
+        # Don't regenerate previously built artifacts
         app=apps/halide/2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
@@ -488,6 +628,16 @@ jobs:
     timeout-minutes: 10
     needs: [tc-gcc, riscv-isa-sim, verilator-model]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
       uses: actions/download-artifact@v4
@@ -510,7 +660,7 @@ jobs:
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Execute tests
       run: |
-        # Don't regenerate previously build artifacts
+        # Don't regenerate previously built artifacts
         sudo apt install device-tree-compiler
         make update_opcodes
         touch $GITHUB_WORKSPACE/software/runtime/encoding.h
