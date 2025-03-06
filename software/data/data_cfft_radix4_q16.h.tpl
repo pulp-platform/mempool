@@ -11,7 +11,7 @@
     i = 0
     out += '\n'
     for a in array:
-        out += '{:+#04X}, '.format(a)
+        out += '(int16_t) 0X{:04X}, '.format(int(a)&0xffff)
         i += 1
         if i % 16 == 0:
             out += '\n'
