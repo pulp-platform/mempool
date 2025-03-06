@@ -17,6 +17,7 @@ set_option allow_module_override yes
 set_option designread_disable_flatten no
 set_option mthresh 32768
 set_option top mempool_cluster_floonoc_wrapper
+set_parameter handle_large_bus yes
 
 # Read constraints
 current_design mempool_cluster_floonoc_wrapper
