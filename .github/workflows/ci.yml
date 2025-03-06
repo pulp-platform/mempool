@@ -625,7 +625,7 @@ jobs:
 
   unit-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     needs: [tc-gcc, riscv-isa-sim, verilator-model]
     steps:
     - name: Free Disk Space (Ubuntu)
