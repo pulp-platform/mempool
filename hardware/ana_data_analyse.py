@@ -7,23 +7,29 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
 import statsmodels.api as sm
 
 # ---------------------------
 # Step 1: Load the Data
 # ---------------------------
-df = pd.read_csv('cycles_analysis_data.csv')
+df = pd.read_csv("cycles_analysis_data.csv")
 
 # Add total_cycles by summing cycles_section1 and cycles_section2
-df['total_cycles'] = df['cycles_section1'] + df['cycles_section2']
+df["total_cycles"] = df["cycles_section1"] + df["cycles_section2"]
 
 # Configuration parameters (features) and performance metric (target)
-X = df[['noc_req_rd_channel_num', 'noc_req_rdwr_channel_num', 'tile_id_remap', 
-        'spm_bank_id_remap', 'noc_router_input_fifo_dep', 'noc_router_output_fifo_dep']]
-y = df['total_cycles']
+X = df[
+    [
+        "noc_req_rd_channel_num",
+        "noc_req_rdwr_channel_num",
+        "tile_id_remap",
+        "spm_bank_id_remap",
+        "noc_router_input_fifo_dep",
+        "noc_router_output_fifo_dep",
+    ]
+]
+y = df["total_cycles"]
 
 # ---------------------------
 # Step 2: Regression Analysis
@@ -43,8 +49,8 @@ importances = rf.feature_importances_
 # Plot Feature Importances
 plt.figure(figsize=(10, 6))
 sns.barplot(x=importances, y=X.columns)
-plt.title('Feature Importance (total_cycles)')
-plt.xlabel('Importance')
+plt.title("Feature Importance (total_cycles)")
+plt.xlabel("Importance")
 plt.show()
 
 # ---------------------------
@@ -52,17 +58,15 @@ plt.show()
 # ---------------------------
 plt.figure(figsize=(10, 8))
 correlation_matrix = df.corr()
-sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-plt.title('Correlation Matrix')
+sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("Correlation Matrix")
 plt.show()
 
 # ---------------------------
 # Step 5: Save Combined Data
 # ---------------------------
-df.to_csv('cycles_with_total.csv', index=False)
+df.to_csv("cycles_with_total.csv", index=False)
 print("\n### Combined data saved to 'cycles_with_total.csv' ###")
-
-
 
 
 # import pandas as pd
@@ -79,8 +83,9 @@ print("\n### Combined data saved to 'cycles_with_total.csv' ###")
 # df = pd.read_csv('cycles_analysis_data.csv')
 
 # # Configuration parameters (features) and performance metrics (targets)
-# X = df[['noc_req_rd_channel_num', 'noc_req_rdwr_channel_num', 'tile_id_remap', 
-#         'spm_bank_id_remap', 'noc_router_input_fifo_dep', 'noc_router_output_fifo_dep']]
+# X = df[['noc_req_rd_channel_num', 'noc_req_rdwr_channel_num',
+#         'tile_id_remap', 'spm_bank_id_remap',
+#         'noc_router_input_fifo_dep', 'noc_router_output_fifo_dep']]
 # y_section1 = df['cycles_section1']
 # y_section2 = df['cycles_section2']
 

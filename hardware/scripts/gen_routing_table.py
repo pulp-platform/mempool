@@ -4,8 +4,9 @@
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-import sys, enum
-import random
+import sys
+import enum
+
 
 class RouteDirection(enum.Enum):
     Eject = 0
@@ -14,38 +15,6 @@ class RouteDirection(enum.Enum):
     South = 3
     West = 4
 
-# def next_hop(src, dst):
-#     src_x, src_y = src
-#     dst_x, dst_y = dst
-#     options = []
-#     if src_x != dst_x:
-#         if (dst_x - src_x) % num_x < (src_x - dst_x) % num_x:
-#             options.append(RouteDirection.East)
-#         elif (src_x - dst_x) % num_x < (dst_x - src_x) % num_x:
-#             options.append(RouteDirection.West)
-#         else:
-#             options.append(RouteDirection.East)
-#             options.append(RouteDirection.West)
-#     if src_y != dst_y:
-#         if (dst_y - src_y) % num_y < (src_y - dst_y) % num_y:
-#             options.append(RouteDirection.North)
-#         elif (src_y - dst_y) % num_y < (dst_y - src_y) % num_y:
-#             options.append(RouteDirection.South)
-#         else:
-#             options.append(RouteDirection.North)
-#             options.append(RouteDirection.South)
-#     if not options:
-#         options.append(RouteDirection.Eject)
-        
-#     # Choose the direction that has been used the least so far
-#     direction_counts = {direction: 0 for direction in RouteDirection}
-#     for direction in options:
-#         direction_counts[direction] += 1
-    
-#     min_count = min(direction_counts[direction] for direction in options)
-#     best_options = [direction for direction in options if direction_counts[direction] == min_count]
-    
-#     return random.choice(best_options)
 
 # only for 4x4
 def next_hop(src, dst):
@@ -73,6 +42,7 @@ def next_hop(src, dst):
             return RouteDirection.South
     return RouteDirection.Eject
 
+
 def generate_torus_routing_table(num_x, num_y):
     routing_table = {}
     for src_x in range(num_x):
@@ -83,15 +53,17 @@ def generate_torus_routing_table(num_x, num_y):
                 for dst_y in range(num_y):
                     dst = (dst_x, dst_y)
                     routing_table[src][dst] = next_hop(src, dst)
-                        
+
     return routing_table
+
 
 def print_routing_table(routing_table):
     for src, destinations in routing_table.items():
         print(f"Node {src}:")
         for dst, next_hop in destinations.items():
             print(f"  to {dst} -> next hop {next_hop}")
-            
+
+
 license = """\
 // Copyright 2024 ETH Zurich and University of Bologna.
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
@@ -114,7 +86,7 @@ if __name__ == "__main__":
     num_x = int(sys.argv[2])
     num_y = int(sys.argv[3])
     idx_width_y = len(bin(num_y - 1)) - 2
-    max_addr = ((num_x - 1) << idx_width_y | (num_y - 1))
+    max_addr = (num_x - 1) << idx_width_y | (num_y - 1)
     addr_width = len(bin(max_addr)) - 2
     num_nodes = num_x * num_y
 
@@ -123,37 +95,26 @@ if __name__ == "__main__":
     else:
         print(f"Unknown topology: {topology}")
         sys.exit(1)
-                
+
     print_routing_table(routing_table)
-    
+
     header = license
     header += "package routing_table_pkg;\n"
     header += "\n"
     header += "import mempool_pkg::*;\n"
     header += "import floo_pkg::*;\n"
     header += "\n"
-    
+
     rule_struct = "typedef struct packed {\n"
     rule_struct += "  logic [2:0]  idx;\n"
     rule_struct += f"  logic [{addr_width - 1}:0]  start_addr;\n"
     rule_struct += f"  logic [{addr_width - 1}:0]  end_addr;\n"
     rule_struct += "} routing_rule_t;\n"
     rule_struct += "\n"
-    
-    # package = f"localparam integer unsigned RoutingTableSizes [{num_x - 1}:0][{num_y - 1}:0] ="
-    # package += " {"
-    # for _x in range(num_x):
-    #     package += "\n  {"
-    #     for _y in range(num_y):
-    #         package += f" {num_nodes},"
-    #     package = package.rstrip(",")
-    #     package += " },"
-    # package = package.rstrip(",")
-    # package += "\n};\n"
-    # package += "\n"
-    
-    package = f"localparam routing_rule_t [{num_x - 1}:0][{num_y - 1}:0][{num_nodes - 1}:0] RoutingTables ="
-    package += " {"
+
+    package = "localparam routing_rule_t "
+    package += f"[{num_x - 1}:0][{num_y - 1}:0][{num_nodes - 1}:0]"
+    package += " RoutingTables = {"
     for src_x in reversed(range(num_x)):
         package += "\n  {"
         for src_y in reversed(range(num_y)):
@@ -166,7 +127,8 @@ if __name__ == "__main__":
                     addr_end = addr_start + 1
                     package += "\n      {"
                     package += f" {routing_table[src][dst].name},"
-                    package += f" {addr_width}'d{addr_start % (max_addr + 1)}, {addr_width}'d{addr_end % (max_addr + 1)}"
+                    package += f" {addr_width}'d{addr_start % (max_addr + 1)},"
+                    package += f" {addr_width}'d{addr_end % (max_addr + 1)}"
                     package += " },"
             package = package.rstrip(",")
             package += "\n    },"
@@ -175,14 +137,14 @@ if __name__ == "__main__":
     package = package.rstrip(",")
     package += "\n};\n"
     package += "\n"
-    
+
     package += "endpackage\n"
-    
+
     file = "../src/routing_table_pkg.sv"
-    
+
     with open(file, "w") as f:
         f.write(header)
         f.write(rule_struct)
         f.write(package)
-    
+
     # print(package)

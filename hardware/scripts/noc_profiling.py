@@ -196,7 +196,10 @@ def visualize_mesh_noc_congestion_optimized(
         if row["DIR"] == 0:  # North
             if src_coords[1] == 3 * scale_factor:
                 if topology == "Torus":
-                    dest_coords = (src_coords[0], src_coords[1] + 0.75 * scale_factor)
+                    dest_coords = (
+                        src_coords[0],
+                        src_coords[1] + 0.75 * scale_factor,
+                    )
                 else:
                     continue
             else:
@@ -204,7 +207,10 @@ def visualize_mesh_noc_congestion_optimized(
         elif row["DIR"] == 1:  # East
             if src_coords[0] == 3 * scale_factor:
                 if topology == "Torus":
-                    dest_coords = (src_coords[0] + 0.75 * scale_factor, src_coords[1])
+                    dest_coords = (
+                        src_coords[0] + 0.75 * scale_factor,
+                        src_coords[1],
+                    )
                 else:
                     continue
             else:
@@ -212,7 +218,10 @@ def visualize_mesh_noc_congestion_optimized(
         elif row["DIR"] == 2:  # South
             if src_coords[1] == 0 * scale_factor:
                 if topology == "Torus":
-                    dest_coords = (src_coords[0], src_coords[1] - 0.75 * scale_factor)
+                    dest_coords = (
+                        src_coords[0],
+                        src_coords[1] - 0.75 * scale_factor,
+                    )
                 else:
                     continue
             else:
@@ -220,7 +229,10 @@ def visualize_mesh_noc_congestion_optimized(
         elif row["DIR"] == 3:  # West
             if src_coords[0] == 0 * scale_factor:
                 if topology == "Torus":
-                    dest_coords = (src_coords[0] - 0.75 * scale_factor, src_coords[1])
+                    dest_coords = (
+                        src_coords[0] - 0.75 * scale_factor,
+                        src_coords[1],
+                    )
                 else:
                     continue
             else:
@@ -341,11 +353,13 @@ def visualize_mesh_noc_congestion_optimized(
     # Configure plot
     if req_rsp:
         plt.title(
-            f"4x4 {topology} NoC {target} Visualization (resp network)", fontsize=16
+            f"4x4 {topology} NoC {target} Visualization (resp network)",
+            fontsize=16,
         )
     else:
         plt.title(
-            f"4x4 {topology} NoC {target} Visualization (req network)", fontsize=16
+            f"4x4 {topology} NoC {target} Visualization (req network)",
+            fontsize=16,
         )
     plt.axis("off")
     plt.colorbar(
@@ -387,7 +401,8 @@ for bw in range(2):
         )
 
         # # Define file paths
-        # file_path = "spm_profiling/run_logs_remap_f_1024/matmul_i32/router_level_profile_q_00002800.log"
+        # file_path = ("spm_profiling/run_logs_remap_f_1024/matmul_i32/"
+        #              "router_level_profile_q_00002800.log")
         # output_png = f"out/mesh_noc_remap_{target}_{req_rsp}.png"
         # output_pdf = f"out/mesh_noc_remap_{target}_{req_rsp}.pdf"
         # output_int = f"out/mesh_noc_remap_{target}_{req_rsp}_intreval.png"

@@ -260,7 +260,8 @@ def visualize_mesh_noc_congestion_optimized(
 req_rsp = 0
 for req_rsp in range(2):
     # Define file paths
-    file_path = "spm_profiling/run_logs_f_1024/tests/router_level_profile_q_00038000.log"
+    file_path = ("spm_profiling/run_logs_f_1024/tests/"
+                 "router_level_profile_q_00038000.log")
     output_png = f"out/mesh_noc_bw_{req_rsp}.png"
     output_pdf = f"out/mesh_noc_bw_{req_rsp}.pdf"
 
@@ -270,7 +271,8 @@ for req_rsp in range(2):
     )
 
     # Define file paths
-    file_path = "spm_profiling/run_logs_remap_f_1024/tests/router_level_profile_q_00038000.log"
+    file_path = ("spm_profiling/run_logs_remap_f_1024/tests/"
+                 "router_level_profile_q_00038000.log")
     output_png = f"out/mesh_noc_remap_bw_{req_rsp}.png"
     output_pdf = f"out/mesh_noc_remap_bw_{req_rsp}.pdf"
 
