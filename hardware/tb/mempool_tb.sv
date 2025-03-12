@@ -498,9 +498,9 @@ module mempool_tb;
     resp_floo_input_log_fd = $fopen($sformatf("%s/resp_floo_input.log", log_path), "w");
   end
 
-  tile_level_profile_t   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0]; 
+  tile_level_profile_t   tile_level_profile_q  [NumGroups-1:0][NumTilesPerGroup-1:0];
   group_level_profile_t  group_level_profile_q [NumGroups-1:0];
-  
+
   router_level_profile_t router_level_profile_req_q[NumGroups-1:0][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0];
   router_local_req_port_profile_t  router_local_req_port_profile_q [NumGroups-1:0][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0];
   router_level_profile_t router_level_profile_resp_q[NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteRespPortsPerTile-1)-1:0];
@@ -527,7 +527,7 @@ module mempool_tb;
                                                                 dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.tcdm_master_req_valid_o[p+1] &
                                                                 dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.i_mempool_group.gen_tiles[t].i_tile.tcdm_master_req_ready_i[p+1]
                                                               );
-              
+
             end
           end
         end
@@ -631,7 +631,7 @@ module mempool_tb;
                   router_level_profile_req_q[g][t][p].out_hsk_cyc_num[router_p] = '0;
                 end
               end else begin
-                router_local_req_port_profile_q [g][t][p].read_req_num  = router_local_req_port_profile_q [g][t][p].read_req_num + 
+                router_local_req_port_profile_q [g][t][p].read_req_num  = router_local_req_port_profile_q [g][t][p].read_req_num +
                                 $countones(
                                   (|(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[p].i_floo_narrow_req_router.valid_i[0] &
                                   dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[p].i_floo_narrow_req_router.ready_i[0])) &
@@ -673,13 +673,13 @@ module mempool_tb;
                   router_level_profile_req_q[g][t][p].out_hsk_cyc_num[router_p] = '0;
                 end
               end else begin
-                router_local_req_port_profile_q [g][t][p].read_req_num  = router_local_req_port_profile_q [g][t][p].read_req_num + 
+                router_local_req_port_profile_q [g][t][p].read_req_num  = router_local_req_port_profile_q [g][t][p].read_req_num +
                                 $countones(
                                   (|(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[p-NumNarrowRemoteReqPortsPerTile].i_floo_wide_req_router.valid_i[0] &
                                   dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[p-NumNarrowRemoteReqPortsPerTile].i_floo_wide_req_router.ready_i[0])) &
                                   ~dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[p-NumNarrowRemoteReqPortsPerTile].i_floo_wide_req_router.data_i [0][0].payload.wen
                                 );
-                router_local_req_port_profile_q [g][t][p].write_req_num  = router_local_req_port_profile_q [g][t][p].write_req_num + 
+                router_local_req_port_profile_q [g][t][p].write_req_num  = router_local_req_port_profile_q [g][t][p].write_req_num +
                                 $countones(
                                   (|(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[p-NumNarrowRemoteReqPortsPerTile].i_floo_wide_req_router.valid_i[0] &
                                   dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[p-NumNarrowRemoteReqPortsPerTile].i_floo_wide_req_router.ready_i[0])) &
@@ -722,7 +722,7 @@ module mempool_tb;
                 router_level_profile_resp_q[g][t][p].out_hsk_cyc_num[router_p] = '0;
               end
             end else begin
-              router_local_resp_port_profile_q [g][t][p].req_num  = router_local_resp_port_profile_q [g][t][p].req_num + 
+              router_local_resp_port_profile_q [g][t][p].req_num  = router_local_resp_port_profile_q [g][t][p].req_num +
                               $countones(
                                 |(dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[p+1].i_floo_wide_resp_router.valid_i[0] &
                                 dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[p+1].i_floo_wide_resp_router.ready_i[0])
@@ -792,7 +792,7 @@ module mempool_tb;
           for(int t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
             for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
               automatic string extras_str_2;
-              extras_str_2 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'util': %.2f\n", 
+              extras_str_2 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'util': %.2f\n",
                 g, t_i, p,
                 tile_level_profile_q[g][t_i].req_vld_cyc_num[p],
                 tile_level_profile_q[g][t_i].req_hsk_cyc_num[p],
@@ -815,7 +815,7 @@ module mempool_tb;
             req_vld_cyc_num_sum += group_level_profile_q[g].req_vld_cyc_num[p];
             req_hsk_cyc_num_sum += group_level_profile_q[g].req_hsk_cyc_num[p];
           end
-          extras_str_3 = $sformatf("{'GROUP': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'req_vld_cyc_more_than_one_hit_same_bank_num': %03d, 'util': %.2f\n", 
+          extras_str_3 = $sformatf("{'GROUP': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'req_vld_cyc_more_than_one_hit_same_bank_num': %03d, 'util': %.2f\n",
             g,
             req_vld_cyc_num_sum,
             req_hsk_cyc_num_sum,
@@ -834,7 +834,7 @@ module mempool_tb;
                 // narrow req
                 for(int dir = 0; dir < 4; dir++) begin
                   automatic string extras_str_4;
-                  extras_str_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 0, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n", 
+                  extras_str_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 0, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n",
                     g, t, p, dir,
                     router_level_profile_req_q[g][t][p].in_vld_cyc_num[dir],
                     router_level_profile_req_q[g][t][p].in_hsk_cyc_num[dir],
@@ -850,7 +850,7 @@ module mempool_tb;
                 // wide req
                 for(int dir = 0; dir < 4; dir++) begin
                   automatic string extras_str_4;
-                  extras_str_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 1, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n", 
+                  extras_str_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 1, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n",
                     g, t, p, dir,
                     router_level_profile_req_q[g][t][p].in_vld_cyc_num[dir],
                     router_level_profile_req_q[g][t][p].in_hsk_cyc_num[dir],
@@ -867,7 +867,7 @@ module mempool_tb;
             for(int p = 0; p < (NumRemoteRespPortsPerTile-1); p++) begin
               for(int dir = 0; dir < 4; dir++) begin
                 automatic string extras_str_4;
-                extras_str_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 1, 'TYPE': 1, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n", 
+                extras_str_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 1, 'TYPE': 1, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n",
                   g, t, p, dir,
                   router_level_profile_resp_q[g][t][p].in_vld_cyc_num[dir],
                   router_level_profile_resp_q[g][t][p].in_hsk_cyc_num[dir],
@@ -890,7 +890,7 @@ module mempool_tb;
               if(p < NumNarrowRemoteReqPortsPerTile) begin
                 // narrow req
                 automatic string extras_str_5;
-                extras_str_5 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 0, 'req_read_in_num': %03d, 'req_write_in_num': %03d\n", 
+                extras_str_5 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 0, 'req_read_in_num': %03d, 'req_write_in_num': %03d\n",
                   g, t, p,
                   router_local_req_port_profile_q [g][t][p].read_req_num,
                   router_local_req_port_profile_q [g][t][p].write_req_num
@@ -900,7 +900,7 @@ module mempool_tb;
               else begin
                 // wide req
                 automatic string extras_str_5;
-                extras_str_5 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 1, 'req_read_in_num': %03d, 'req_write_in_num': %03d\n", 
+                extras_str_5 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 1, 'req_read_in_num': %03d, 'req_write_in_num': %03d\n",
                   g, t, p,
                   router_local_req_port_profile_q [g][t][p].read_req_num,
                   router_local_req_port_profile_q [g][t][p].write_req_num
@@ -911,7 +911,7 @@ module mempool_tb;
             // resp
             for(int p = 0; p < (NumRemoteRespPortsPerTile-1); p++) begin
               automatic string extras_str_5;
-              extras_str_5 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 1, 'TYPE': 1, 'resp_in_num': %03d\n", 
+              extras_str_5 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 1, 'TYPE': 1, 'resp_in_num': %03d\n",
                 g, t, p,
                 router_local_resp_port_profile_q[g][t][p].req_num
               );
@@ -948,7 +948,7 @@ module mempool_tb;
       for(int t_i = 0; t_i < NumTilesPerGroup; t_i++) begin
         for (int p = 0; p < (NumRemoteReqPortsPerTile-1); p++) begin
           automatic string extras_str_final_2;
-          extras_str_final_2 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'util': %.2f\n", 
+          extras_str_final_2 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'util': %.2f\n",
             g, t_i, p,
             tile_level_profile_q[g][t_i].req_vld_cyc_num[p],
             tile_level_profile_q[g][t_i].req_hsk_cyc_num[p],
@@ -971,7 +971,7 @@ module mempool_tb;
         req_vld_cyc_num_sum += group_level_profile_q[g].req_vld_cyc_num[p];
         req_hsk_cyc_num_sum += group_level_profile_q[g].req_hsk_cyc_num[p];
       end
-      extras_str_final_3 = $sformatf("{'GROUP': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'req_vld_cyc_more_than_one_hit_same_bank_num': %03d, 'util': %.2f\n", 
+      extras_str_final_3 = $sformatf("{'GROUP': %03d, 'req_vld_cyc_num': %03d, 'req_hsk_cyc_num': %03d, 'req_vld_cyc_more_than_one_hit_same_bank_num': %03d, 'util': %.2f\n",
         g,
         req_vld_cyc_num_sum,
         req_hsk_cyc_num_sum,
@@ -990,7 +990,7 @@ module mempool_tb;
             // narrow req
             for(int dir = 0; dir < 4; dir++) begin
               automatic string extras_str_final_4;
-              extras_str_final_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 0, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n", 
+              extras_str_final_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 0, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n",
                 g, t, p, dir,
                 router_level_profile_req_q[g][t][p].in_vld_cyc_num[dir],
                 router_level_profile_req_q[g][t][p].in_hsk_cyc_num[dir],
@@ -1006,7 +1006,7 @@ module mempool_tb;
             // wide req
             for(int dir = 0; dir < 4; dir++) begin
               automatic string extras_str_final_4;
-              extras_str_final_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 1, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n", 
+              extras_str_final_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 0, 'TYPE': 1, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n",
                 g, t, p, dir,
                 router_level_profile_req_q[g][t][p].in_vld_cyc_num[dir],
                 router_level_profile_req_q[g][t][p].in_hsk_cyc_num[dir],
@@ -1023,7 +1023,7 @@ module mempool_tb;
         for(int p = 0; p < NumRemoteRespPortsPerTile; p++) begin
           for(int dir = 0; dir < 4; dir++) begin
             automatic string extras_str_final_4;
-            extras_str_final_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 1, 'TYPE': 1, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n", 
+            extras_str_final_4 = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'PORT': %03d, 'REQ_RSP': 1, 'TYPE': 1, 'DIR': %03d, 'in_vld_cyc_num': %03d, 'in_hsk_cyc_num': %03d, 'out_vld_cyc_num': %03d, 'out_hsk_cyc_num': %03d, 'in_util': %.2f, 'out_util': %.2f\n",
               g, t, p, dir,
               router_level_profile_resp_q[g][t][p].in_vld_cyc_num[dir],
               router_level_profile_resp_q[g][t][p].in_hsk_cyc_num[dir],
@@ -1072,7 +1072,7 @@ module mempool_tb;
               assign floo_req_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_narrow_req_router.out_valid[router_p];
               assign floo_req_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_narrow_req_router.out_buffered_ready[router_p];
               assign floo_req_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_narrow_req_router_j[r].i_floo_narrow_req_router.out_buffered_valid[router_p];
-              
+
               // always_ff @(posedge clk) begin
               //   floo_req_input_fifo_ready_o_dly[g][t][r][router_p] = floo_req_input_fifo_ready_o[g][t][r][router_p];
               //   floo_req_input_fifo_valid_i_dly[g][t][r][router_p] = floo_req_input_fifo_valid_i[g][t][r][router_p];
@@ -1102,7 +1102,7 @@ module mempool_tb;
               assign floo_req_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_wide_req_router.out_valid[router_p];
               assign floo_req_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_wide_req_router.out_buffered_ready[router_p];
               assign floo_req_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_req_router_j[r-NumNarrowRemoteReqPortsPerTile].i_floo_wide_req_router.out_buffered_valid[router_p];
-              
+
               // always_ff @(posedge clk) begin
               //   floo_req_input_fifo_ready_o_dly[g][t][r][router_p] = floo_req_input_fifo_ready_o[g][t][r][router_p];
               //   floo_req_input_fifo_valid_i_dly[g][t][r][router_p] = floo_req_input_fifo_valid_i[g][t][r][router_p];
@@ -1319,7 +1319,7 @@ module mempool_tb;
             assign floo_resp_output_fifo_valid_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_wide_resp_router.out_valid[router_p];
             assign floo_resp_output_fifo_ready_i[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_wide_resp_router.out_buffered_ready[router_p];
             assign floo_resp_output_fifo_valid_o[g][t][r][router_p] = dut.i_mempool_cluster.gen_groups_x[g/NumY].gen_groups_y[g%NumY].i_group.gen_router_router_i[t].gen_router_wide_resp_router_j[r+1].i_floo_wide_resp_router.out_buffered_valid[router_p];
-            
+
             // always_ff @(posedge clk) begin
             //   floo_resp_input_fifo_ready_o_dly[g][t][r][router_p] = floo_resp_input_fifo_ready_o[g][t][r][router_p];
             //   floo_resp_input_fifo_valid_i_dly[g][t][r][router_p] = floo_resp_input_fifo_valid_i[g][t][r][router_p];
@@ -1528,9 +1528,9 @@ module mempool_tb;
   always_ff @(posedge clk or posedge rst_n) begin
     if (rst_n) begin
       // if(cycle_q[19:0] == 'h80000) begin
-      if((cycle_q[63:0] == 'h100) || 
-        (cycle_q[63:0] == 'h200) || 
-        (cycle_q[63:0] == 'h400) || 
+      if((cycle_q[63:0] == 'h100) ||
+        (cycle_q[63:0] == 'h200) ||
+        (cycle_q[63:0] == 'h400) ||
         (cycle_q[63:0] == 'h800) ||
         (cycle_q[63:0] == 'h1000) ||
         (cycle_q[15:0] == 'h8000)) begin
@@ -1544,13 +1544,13 @@ module mempool_tb;
         for (int g = 0; g < NumGroups; g++) begin
           // extras_str = $sformatf("%s\n\n\n[GROUP %03d]", extras_str, g);
           for (int t = 0; t < NumTilesPerGroup; t++) begin
-            // extras_str = $sformatf("%s\n> [GROUP %03d, TILE %03d]", extras_str, g, t);          
+            // extras_str = $sformatf("%s\n> [GROUP %03d, TILE %03d]", extras_str, g, t);
             for (int b = 0; b < NumBanksPerTile; b++) begin
-              // extras_str = $sformatf("%s\n>> [GROUP %03d, TILE %03d, BANK %03d]", extras_str, g, t, b);          
+              // extras_str = $sformatf("%s\n>> [GROUP %03d, TILE %03d, BANK %03d]", extras_str, g, t, b);
               for(int i = 0; i < 2**TCDMAddrMemWidth; i++) begin
                 automatic string trace_entry;
                 automatic string extras_str;
-                extras_str = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'BANK': %03d, 'IDX': 0x%x, 'inited': %03d, 'ini_cyc': %03d, 'last_rd_cyc': %03d, 'last_wr_cyc': %03d, 'last_acc_cyc': %03d, 'acc_rd_num': %03d, 'acc_wr_num': %03d, 'acc_num': %03d, ", 
+                extras_str = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'BANK': %03d, 'IDX': 0x%x, 'inited': %03d, 'ini_cyc': %03d, 'last_rd_cyc': %03d, 'last_wr_cyc': %03d, 'last_acc_cyc': %03d, 'acc_rd_num': %03d, 'acc_wr_num': %03d, 'acc_num': %03d, ",
                   g, t, b, i,
                   dbg_profile_q[g][t][b][i].initiated,
                   dbg_profile_q[g][t][b][i].initial_cycle,
@@ -1608,7 +1608,7 @@ module mempool_tb;
           for(int i = 0; i < 2**TCDMAddrMemWidth; i++) begin
             automatic string trace_entry_final;
             automatic string extras_str_final;
-            extras_str_final = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'BANK': %03d, 'IDX': 0x%x, 'inited': %03d, 'ini_cyc': %03d, 'last_rd_cyc': %03d, 'last_wr_cyc': %03d, 'last_acc_cyc': %03d, 'acc_rd_num': %03d, 'acc_wr_num': %03d, 'acc_num': %03d, ", 
+            extras_str_final = $sformatf("{'GROUP': %03d, 'TILE': %03d, 'BANK': %03d, 'IDX': 0x%x, 'inited': %03d, 'ini_cyc': %03d, 'last_rd_cyc': %03d, 'last_wr_cyc': %03d, 'last_acc_cyc': %03d, 'acc_rd_num': %03d, 'acc_wr_num': %03d, 'acc_num': %03d, ",
               g, t, b, i,
               dbg_profile_q[g][t][b][i].initiated,
               dbg_profile_q[g][t][b][i].initial_cycle,

@@ -299,10 +299,10 @@ package mempool_pkg;
   localparam integer unsigned NumRdRemoteReqPortsPerTile   = `ifdef NOC_REQ_RD_CHANNEL_NUM   `NOC_REQ_RD_CHANNEL_NUM   `else 0 `endif;
   localparam integer unsigned NumRdWrRemoteReqPortsPerTile = `ifdef NOC_REQ_RDWR_CHANNEL_NUM `NOC_REQ_RDWR_CHANNEL_NUM `else 2 `endif;
   localparam integer unsigned NumWrRemoteReqPortsPerTile   = `ifdef NOC_REQ_WR_CHANNEL_NUM   `NOC_REQ_WR_CHANNEL_NUM   `else 0 `endif;
-  
+
   localparam integer unsigned NumNarrowRemoteReqPortsPerTile = NumRdRemoteReqPortsPerTile;
   localparam integer unsigned NumWideRemoteReqPortsPerTile   = NumRdWrRemoteReqPortsPerTile + NumWrRemoteReqPortsPerTile;
-  
+
   localparam integer unsigned NumRemoteReqPortsPerTile     = 1 + NumNarrowRemoteReqPortsPerTile + NumWideRemoteReqPortsPerTile;
   localparam integer unsigned NumRemoteRespPortsPerTile    = 1 + (`ifdef NOC_RESP_CHANNEL_NUM `NOC_RESP_CHANNEL_NUM `else 2 `endif);
   localparam integer unsigned NumDirections = `ifdef NUM_DIRECTIONS `NUM_DIRECTIONS `else 5 `endif;
@@ -437,7 +437,7 @@ package mempool_pkg;
     int unsigned req_hsk_cyc_num                            [NumRemoteReqPortsPerTile-1];
     int unsigned req_vld_cyc_more_than_one_hit_same_bank_num;
   } group_level_profile_t;
-  
+
   // router level profile
   typedef struct {
     // noc router ports profile

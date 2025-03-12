@@ -123,7 +123,7 @@ do
                         1> run_logs/${case_name}/run_1.log \
                         2> run_logs/${case_name}/run_2.log
                         echo -e "[Done running app:${case_name}]"
-                    ) 
+                    )
                     sleep 3
                 else
                     echo -e "[Can't find app:${APP_PATH}/bin_${config}_c${num_cores_per_tile}/${app}]"

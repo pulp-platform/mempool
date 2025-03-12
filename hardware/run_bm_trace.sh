@@ -25,14 +25,14 @@ for rdwr in "${noc_rdwr_combinations[@]}"; do
         for spm_bank_id_remap in "${spm_remap_values[@]}"; do
             for fifo in "${router_fifo_combinations[@]}"; do
                 eval $fifo
-                
+
                 # Construct buildpath and result_dir
                 buildpath="/usr/scratch/larain12/zexifu/terapool_noc/mempool/hardware/build_256matmult32i/build_${noc_req_rd_channel_num}r${noc_req_rdwr_channel_num}rw_tremap${tile_id_remap}_bremap${spm_bank_id_remap}_router${noc_router_input_fifo_dep}in${noc_router_output_fifo_dep}out"
                 result_dir="results/${noc_req_rd_channel_num}r${noc_req_rdwr_channel_num}rw_tremap${tile_id_remap}_bremap${spm_bank_id_remap}_router${noc_router_input_fifo_dep}in${noc_router_output_fifo_dep}out"
-                
+
                 # Create result directory if not exists
                 mkdir -p "$result_dir"
-                
+
                 # Run the trace command in a new xterm window
                 echo "Launching trace in xterm for: $buildpath"
                 xterm -hold -e bash -c "
@@ -41,7 +41,7 @@ for rdwr in "${noc_rdwr_combinations[@]}"; do
                     export result_dir='$result_dir'
                     make trace
                 " &
-                
+
                 sleep 1 # Small delay to prevent overwhelming the system
             done
         done

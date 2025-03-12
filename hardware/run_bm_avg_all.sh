@@ -15,7 +15,7 @@ echo -e "Result_Dir\tcycles\ttotal_ipc\tsnitch_issues\tstall_tot\tstall_ins\tsta
 find ./results -name "avg.txt" | while read -r file; do
     # Extract result directory
     result_dir=$(basename "$(dirname "$file")")
-    
+
     # Extract Section 2 values
     cycles=$(awk '/Section 2:/ {flag=1; next} /Section 3:/ {flag=0} flag && /cycles/ {print $2}' "$file")
     total_ipc=$(awk '/Section 2:/ {flag=1; next} /Section 3:/ {flag=0} flag && /total_ipc/ {print $2}' "$file")
@@ -31,7 +31,7 @@ find ./results -name "avg.txt" | while read -r file; do
     seq_latency_global=$(awk '/Section 2:/ {flag=1; next} /Section 3:/ {flag=0} flag && /seq_latency_global/ {print $2}' "$file")
     itl_latency_local=$(awk '/Section 2:/ {flag=1; next} /Section 3:/ {flag=0} flag && /itl_latency_local/ {print $2}' "$file")
     itl_latency_global=$(awk '/Section 2:/ {flag=1; next} /Section 3:/ {flag=0} flag && /itl_latency_global/ {print $2}' "$file")
-    
+
     # Write data to avg_all.txt
     echo -e "${result_dir}\t${cycles}\t${total_ipc}\t${snitch_issues}\t${stall_tot}\t${stall_ins}\t${stall_raw_lsu}\t${stall_raw_acc}\t${stall_lsu}\t${stall_acc}\t${stall_wfi}\t${seq_latency_local}\t${seq_latency_global}\t${itl_latency_local}\t${itl_latency_global}" >> "$output_file"
 done

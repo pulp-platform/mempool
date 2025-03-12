@@ -863,23 +863,4 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
   end : gen_router_wide_resp_router_j
 end : gen_router_router_i
 
-
-  // assign floo_req_from_router_before_xbar_valid[i][j] = |(floo_req_from_router_vc_valid[i][j]);
-  // assign floo_req_from_router_vc_ready[i][j] = '{NumVirtualChannel{floo_req_from_router_before_xbar_ready[i][j]}};
-
-  
-  // rr_arb_tree #(.NumIn(NumVirtualChannel), .DataType(logic), .AxiVldRdy(1'b1), .LockIn(1'b1)) i_rr_arb_tree (
-  //   .clk_i  (clk_i),
-  //   .rst_ni (rst_ni),
-  //   .flush_i('0),
-  //   .rr_i   ('0),
-  //   .req_i  (floo_req_from_router_vc_valid[i][j]),
-  //   .gnt_o  (floo_req_from_router_vc_ready[i][j]),
-  //   .data_i ('0),
-  //   .req_o  (floo_req_from_router_before_xbar_valid[i][j]),
-  //   .gnt_i  (floo_req_from_router_before_xbar_ready[i][j]),
-  //   .data_o (),
-  //   .idx_o  ()
-  // );
-
 endmodule

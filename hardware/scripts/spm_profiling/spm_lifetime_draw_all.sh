@@ -18,16 +18,16 @@ find "$directory" -type f -name '*inited_final.dasm' | while read file_path; do
     (
         # Extract directory path
         dir_path=$(dirname "$file_path")
-        
+
         # Get the last name of the folder containing the file
         last_parent_folder=$(basename "$dir_path")
-        
+
         # Check if this folder name has been printed already
         if [[ -z "${printed_directories[$last_parent_folder]}" ]]; then
             echo "Find app: $last_parent_folder"
             printed_directories[$last_parent_folder]=1
         fi
-        
+
         echo "Processing file: $file_path"
         python spm_lifetime.py "$file_path" "$last_parent_folder" 128
     ) &

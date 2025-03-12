@@ -30,13 +30,13 @@ for rdwr in "${noc_rdwr_combinations[@]}"; do
         for spm_bank_id_remap in "${spm_remap_values[@]}"; do
             for fifo in "${router_fifo_combinations[@]}"; do
                 eval $fifo
-                
+
                 # Construct buildpath
                 buildpath="/usr/scratch/larain12/zexifu/terapool_noc/mempool/hardware/build_256matmult32i/build_${noc_req_rd_channel_num}r${noc_req_rdwr_channel_num}rw_tremap${tile_id_remap}_bremap${spm_bank_id_remap}_router${noc_router_input_fifo_dep}in${noc_router_output_fifo_dep}out"
-                
+
                 # Display current configuration
                 echo "Launching configuration in xterm: $buildpath"
-                
+
                 # Run the command in a new xterm window
                 xterm -hold -e bash -c "
                     export app_path='$app_path'
@@ -51,7 +51,7 @@ for rdwr in "${noc_rdwr_combinations[@]}"; do
                     export noc_router_output_fifo_dep='$noc_router_output_fifo_dep'
                     make simc
                 " &
-                
+
                 sleep 1 # Small delay to prevent overwhelming the system
             done
         done
