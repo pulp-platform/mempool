@@ -49,7 +49,7 @@ module mempool_tile_id_remapper
   `define max(a,b) (((a) > (b))? (a) : (b))
 
   typedef logic [idx_width(NumRemoteReqPortsPerTile)-1:0] remote_ports_index_t;
-  
+
   localparam SHIFT_AMOUNT = `min(TCDMAddrMemWidth, idx_width(NumBanksPerTile)); // or 4
   localparam RemoteReqBits = `max(1, $clog2(NumRemoteReqPortsPerTile-1));
 
@@ -76,7 +76,7 @@ module mempool_tile_id_remapper
 
   always_comb begin
     tcdm_dma_req_remapped = tcdm_dma_req_i;
-    tcdm_dma_req_remapped.tgt_addr[idx_width(NumBanksPerTile)-1:0] = 
+    tcdm_dma_req_remapped.tgt_addr[idx_width(NumBanksPerTile)-1:0] =
       spm_bank_id_remap(
         tcdm_dma_req_i.tgt_addr[idx_width(NumBanksPerTile)-1:0],
         tcdm_dma_req_i.tgt_addr[idx_width(NumBanksPerTile) +: SHIFT_AMOUNT]
@@ -84,7 +84,7 @@ module mempool_tile_id_remapper
 
     for(int rp = 0; rp < NumRemoteReqPortsPerTile; rp++) begin
       tcdm_slave_req_remapped[rp] = tcdm_slave_req_i[rp];
-      tcdm_slave_req_remapped[rp].tgt_addr[idx_width(NumBanksPerTile)-1:0] = 
+      tcdm_slave_req_remapped[rp].tgt_addr[idx_width(NumBanksPerTile)-1:0] =
         spm_bank_id_remap(
         tcdm_slave_req_i[rp].tgt_addr[idx_width(NumBanksPerTile)-1:0],
         tcdm_slave_req_i[rp].tgt_addr[idx_width(NumBanksPerTile) +: SHIFT_AMOUNT]
@@ -93,7 +93,7 @@ module mempool_tile_id_remapper
 
     for(int c = 0; c < NumCoresPerTile; c++) begin
       local_req_interco_payload_remapped[c] = local_req_interco_payload_i[c];
-      local_req_interco_payload_remapped[c].tgt_addr[idx_width(NumBanksPerTile)-1:0] = 
+      local_req_interco_payload_remapped[c].tgt_addr[idx_width(NumBanksPerTile)-1:0] =
         spm_bank_id_remap(
         local_req_interco_payload_i[c].tgt_addr[idx_width(NumBanksPerTile)-1:0],
         local_req_interco_payload_i[c].tgt_addr[idx_width(NumBanksPerTile) +: SHIFT_AMOUNT]
@@ -131,7 +131,7 @@ module mempool_tile_id_remapper
     assign remote_req_interco_valid_mask_local[c] = group_id_is_local[c] ? 0 : remote_req_interco_valid_i[c];
 
 
-    assign remote_req_interco_tgt_sel_shift_local[c] = 
+    assign remote_req_interco_tgt_sel_shift_local[c] =
     {{($bits(remote_ports_index_t) - RemoteReqBits){1'b0}}, remote_req_interco_tgt_sel_mask_local[c]} + 1;
 
     // assign remote_req_interco_to_xbar_valid[c] = group_id_is_local[c] ? remote_req_interco_valid_i[c] :
@@ -180,7 +180,7 @@ module mempool_tile_id_remapper
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_core_mux
     assign tgt_group_id[c] = prescramble_tcdm_req_tgt_addr_i[c][ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTilesPerGroup) +: $clog2(NumGroups)];
 
-    // Map the requests from cores to the 
+    // Map the requests from cores to the
     // channels with different usage:
     //                                 port id
     // ------     ------   -> local    [ 0 (lsb for local port)
@@ -190,8 +190,8 @@ module mempool_tile_id_remapper
     // |    | ->  |    |   -> w     \/   4
     // ------     ------   -> w    High   5 ]
     if((NumRdRemoteReqPortsPerTile > 0) || (NumWrRemoteReqPortsPerTile > 0)) begin
-      assign remote_req_interco_tgt_sel_o[c] = group_id_is_local[c] ? 0 : 
-                                              ~(remote_req_interco_wen_i[c] | remote_req_interco_amoen_i[c]) ? 
+      assign remote_req_interco_tgt_sel_o[c] = group_id_is_local[c] ? 0 :
+                                              ~(remote_req_interco_wen_i[c] | remote_req_interco_amoen_i[c]) ?
                                                (1 + (c % (NumRdRemoteReqPortsPerTile + NumRdWrRemoteReqPortsPerTile))) :
                                                (1 + NumRdRemoteReqPortsPerTile + (c % (NumWideRemoteReqPortsPerTile)));
     end else begin

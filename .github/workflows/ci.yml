@@ -16,7 +16,7 @@ jobs:
   #  Toolchains  #
   ################
   tc-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Recover the submodule commit hash
@@ -46,7 +46,7 @@ jobs:
         path: riscv-gnu-toolchain.tzst
 
   tc-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Recover the submodule commit hash
@@ -75,7 +75,7 @@ jobs:
         path: llvm-project.tzst
 
   tc-halide:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: tc-llvm
     steps:
     - uses: actions/checkout@v4
@@ -116,7 +116,7 @@ jobs:
   #  Tools  #
   ###########
   riscv-isa-sim:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Cache riscv-isa-sim
@@ -142,7 +142,7 @@ jobs:
         path: riscv-isa-sim.tzst
 
   verilator:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Recover the submodule commit hash
@@ -176,7 +176,7 @@ jobs:
   #  Build Hardware  #
   ####################
   verilator-model:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     needs: verilator
     strategy:
@@ -184,6 +184,16 @@ jobs:
         # mempool_config: [minpool, mempool]
         mempool_config: [minpool_64core]
     steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: true
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - uses: actions/checkout@v4
     - name: Cache Verilator Model
       uses: actions/cache@v4
@@ -222,7 +232,7 @@ jobs:
   #  Regenerate files  #
   ######################
   check-bootrom:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: tc-gcc
     steps:
     - uses: actions/checkout@v4
@@ -241,7 +251,7 @@ jobs:
         git diff --exit-code
 
   check-opcodes:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Regenerate opcodes
@@ -253,7 +263,7 @@ jobs:
   #  Build Software  #
   ####################
   build-apps-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: tc-gcc
     strategy:
       matrix:
@@ -285,7 +295,7 @@ jobs:
         path: apps-gcc.tzst
 
   build-apps-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [tc-gcc, tc-llvm]
     strategy:
       matrix:
@@ -323,7 +333,7 @@ jobs:
         path: apps-llvm.tzst
 
   build-apps-halide:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [tc-gcc, tc-llvm, tc-halide]
     strategy:
       matrix:
@@ -367,7 +377,7 @@ jobs:
   #  Run Software  #
   ##################
   run-apps-gcc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
     strategy:
@@ -401,12 +411,12 @@ jobs:
         config: ${{ matrix.mempool_config }}
       run: |
         cd hardware
-        # Don't regenerate previously build artifacts
+        # Don't regenerate previously built artifacts
         app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-llvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
     strategy:
@@ -440,12 +450,12 @@ jobs:
         config: ${{ matrix.mempool_config }}
       run: |
         cd hardware
-        # Don't regenerate previously build artifacts
+        # Don't regenerate previously built artifacts
         app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-halide:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     needs: [build-apps-halide, riscv-isa-sim, verilator-model]
     strategy:
@@ -479,13 +489,13 @@ jobs:
         config: ${{ matrix.mempool_config }}
       run: |
         cd hardware
-        # Don't regenerate previously build artifacts
+        # Don't regenerate previously built artifacts
         app=apps/halide/2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   unit-test:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
     needs: [tc-gcc, riscv-isa-sim, verilator-model]
     steps:
     - uses: actions/checkout@v4
@@ -510,7 +520,7 @@ jobs:
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Execute tests
       run: |
-        # Don't regenerate previously build artifacts
+        # Don't regenerate previously built artifacts
         sudo apt install device-tree-compiler
         make update_opcodes
         touch $GITHUB_WORKSPACE/software/runtime/encoding.h
@@ -524,7 +534,7 @@ jobs:
   #  Clean-up  #
   ##############
   clean-up:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: always()
     needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
@@ -541,7 +551,7 @@ jobs:
           verilator
 
   clean-up-compile-runs:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: always()
     needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,

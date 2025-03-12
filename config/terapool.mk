@@ -28,6 +28,12 @@ num_divsqrt_per_tile ?= 2
 # num_remote_ports_per_tile ?= 3
 num_directions ?= 5
 num_x ?= 4
+topology ?= 2dmesh
+routing_algorithm ?= xy
+req_remapping ?= 0
+resp_remapping ?= 0
+num_virtual_channel ?= 1
+
 # Per tile, separate the NoC read and read/write req channels, rd = hdr, wr = har+payload, rd/wr = hdr+payload
 # noc_req_rd_channel_num ?= 0
 # noc_req_rdwr_channel_num ?= 2

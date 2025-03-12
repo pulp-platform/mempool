@@ -153,3 +153,27 @@ void calc_axpy_unloop_x4_localbank(int32_t *matrix_X, int32_t *matrix_Y,
     AXPY_unloop_x4(alpha, &matrix_X[c], &matrix_Y[c]);
   }
 }
+
+// void calc_axpy_unloop_x4_localbank(int32_t *matrix_X, int32_t *matrix_Y,
+//                                    int32_t alpha, uint32_t elements,
+//                                    uint32_t core_id, uint32_t num_cores) {
+//   uint32_t const bank_num = num_cores * 16;
+//   // Do the calculation that redundant elements cannot be unloop;
+//   // Use core0 is less overhead than found the local
+//   uint32_t partial = elements % 16;
+//   if (core_id == 0) {
+//     if (partial != 0) {
+//       uint32_t c_start = elements - partial + 1;
+//       AXPY(partial, alpha, &matrix_X[c_start], &matrix_Y[c_start]);
+//     }
+//   }
+//   // Do unloop 4 times
+//   uint32_t const total_unloop = elements - partial;
+//   uint32_t const c_start = core_id * 16;
+//   for (uint32_t c = c_start; c <= total_unloop - 16; c += bank_num) {
+//     AXPY_unloop_x4(alpha, &matrix_X[c], &matrix_Y[c]);
+//     AXPY_unloop_x4(alpha, &matrix_X[c+4], &matrix_Y[c+4]);
+//     AXPY_unloop_x4(alpha, &matrix_X[c+8], &matrix_Y[c+8]);
+//     AXPY_unloop_x4(alpha, &matrix_X[c+12], &matrix_Y[c+12]);
+//   }
+// }

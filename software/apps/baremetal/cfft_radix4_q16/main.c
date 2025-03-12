@@ -152,6 +152,7 @@ int main() {
 // of the butterfly samples. Core in excess compared to the butterfly length are
 // idle.
 #ifdef PARALLEL
+  mempool_start_benchmark();
   if (LOG2 % 2 == 0) {
     mempool_radix4_cfft_q16p_xpulpimg(l1_pSrc, N_CSAMPLES,
                                       l1_twiddleCoef_q16_src, 1, num_cores);

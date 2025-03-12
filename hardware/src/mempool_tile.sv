@@ -493,7 +493,7 @@ module mempool_tile
       .mst_rsp_ready_o       (bank_resp_ready[d*DmaNumWords+:DmaNumWords]       )
     );
   end
-  
+
   `ifndef TARGET_SYNTHESIS
   `ifndef TARGET_VERILATOR
   `ifdef SPM_PROFILING

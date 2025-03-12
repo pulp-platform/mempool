@@ -8,9 +8,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import ast
+import sys
+import os
 
 
 scale_factor = 10
+topology = "Torus"
 
 
 # Function to plot congestion intervals inline
@@ -189,33 +192,51 @@ def visualize_mesh_noc_congestion_optimized(
     for _, row in filtered_req_noc_data.iterrows():
         src_coords = get_router_coords(row["GROUP"])
 
-        # Skip invalid links based on edge and corner conditions
-        if (
-            row["DIR"] == 0 and src_coords[1] == 3 * scale_factor
-        ):  # North link for top row routers
-            continue
-        if (
-            row["DIR"] == 1 and src_coords[0] == 3 * scale_factor
-        ):  # East link for rightmost column routers
-            continue
-        if (
-            row["DIR"] == 2 and src_coords[1] == 0 * scale_factor
-        ):  # South link for bottom row routers
-            continue
-        if (
-            row["DIR"] == 3 and src_coords[0] == 0 * scale_factor
-        ):  # West link for leftmost column routers
-            continue
-
         # Determine destination coordinates
         if row["DIR"] == 0:  # North
-            dest_coords = (src_coords[0], src_coords[1] + 1 * scale_factor)
+            if src_coords[1] == 3 * scale_factor:
+                if topology == "Torus":
+                    dest_coords = (
+                        src_coords[0],
+                        src_coords[1] + 0.75 * scale_factor,
+                    )
+                else:
+                    continue
+            else:
+                dest_coords = (src_coords[0], src_coords[1] + 1 * scale_factor)
         elif row["DIR"] == 1:  # East
-            dest_coords = (src_coords[0] + 1 * scale_factor, src_coords[1])
+            if src_coords[0] == 3 * scale_factor:
+                if topology == "Torus":
+                    dest_coords = (
+                        src_coords[0] + 0.75 * scale_factor,
+                        src_coords[1],
+                    )
+                else:
+                    continue
+            else:
+                dest_coords = (src_coords[0] + 1 * scale_factor, src_coords[1])
         elif row["DIR"] == 2:  # South
-            dest_coords = (src_coords[0], src_coords[1] - 1 * scale_factor)
+            if src_coords[1] == 0 * scale_factor:
+                if topology == "Torus":
+                    dest_coords = (
+                        src_coords[0],
+                        src_coords[1] - 0.75 * scale_factor,
+                    )
+                else:
+                    continue
+            else:
+                dest_coords = (src_coords[0], src_coords[1] - 1 * scale_factor)
         elif row["DIR"] == 3:  # West
-            dest_coords = (src_coords[0] - 1 * scale_factor, src_coords[1])
+            if src_coords[0] == 0 * scale_factor:
+                if topology == "Torus":
+                    dest_coords = (
+                        src_coords[0] - 0.75 * scale_factor,
+                        src_coords[1],
+                    )
+                else:
+                    continue
+            else:
+                dest_coords = (src_coords[0] - 1 * scale_factor, src_coords[1])
         else:
             continue
 
@@ -288,35 +309,27 @@ def visualize_mesh_noc_congestion_optimized(
             y_2 = y
             offset_arrow = 0.5
 
-            # Skip invalid links based on edge and corner conditions
-            if (
-                y == (NumY - 1) * scale_factor and direction == 0
-            ):  # North link for top row routers
-                continue
-            if (
-                x == (NumX - 1) * scale_factor and direction == 1
-            ):  # East link for rightmost column routers
-                continue
-            if y == 0 and direction == 2:  # South link for bottom row routers
-                continue
-            if (
-                x == 0 and direction == 3
-            ):  # West link for leftmost column routers
-                continue
-
             if direction == 0:  # North link for top row routers
+                if y == (NumY - 1) * scale_factor and topology != "Torus":
+                    continue
                 offset_x = 0
                 offset_y = scale_factor / 2
                 x_2 = x + offset_arrow + offset_dir
             elif direction == 1:  # East link for rightmost column routers
+                if x == (NumX - 1) * scale_factor and topology != "Torus":
+                    continue
                 offset_x = scale_factor / 2
                 offset_y = 0
                 y_2 = y + offset_arrow + offset_dir
             elif direction == 2:  # South link for bottom row routers
+                if y == 0 and topology != "Torus":
+                    continue
                 offset_x = 0
                 offset_y = -scale_factor / 2
                 x_2 = x - offset_arrow + offset_dir
             elif direction == 3:  # West link for leftmost column routers
+                if x == 0 and topology != "Torus":
+                    continue
                 offset_x = -scale_factor / 2
                 offset_y = 0
                 y_2 = y - offset_arrow + offset_dir
@@ -340,11 +353,13 @@ def visualize_mesh_noc_congestion_optimized(
     # Configure plot
     if req_rsp:
         plt.title(
-            f"4x4 Mesh NoC {target} Visualization (resp network)", fontsize=16
+            f"4x4 {topology} NoC {target} Visualization (resp network)",
+            fontsize=16,
         )
     else:
         plt.title(
-            f"4x4 Mesh NoC {target} Visualization (req network)", fontsize=16
+            f"4x4 {topology} NoC {target} Visualization (req network)",
+            fontsize=16,
         )
     plt.axis("off")
     plt.colorbar(
@@ -352,6 +367,7 @@ def visualize_mesh_noc_congestion_optimized(
             cmap=congestion_cmap, norm=mcolors.Normalize(vmin=0, vmax=1)
         ),
         label=f"{target} Level",
+        cax=plt.axes([0.92, 0.1, 0.02, 0.8]),
     )
 
     # Save the output as PNG and PDF
@@ -363,6 +379,9 @@ def visualize_mesh_noc_congestion_optimized(
 
 
 req_rsp = 0
+result_path = sys.argv[1]
+plot_path = os.path.join(result_path, "noc_profiling", "plot")
+os.makedirs(plot_path, exist_ok=True)
 for bw in range(2):
     if bw == 0:
         target = "congestion"
@@ -371,23 +390,24 @@ for bw in range(2):
 
     for req_rsp in range(2):
         # Define file paths
-        file_path = "spm_profiling/run_logs_f_1024/tests/router_level_profile_q_00038000.log"
-        output_png = f"out/mesh_noc_{target}_{req_rsp}.png"
-        output_pdf = f"out/mesh_noc_{target}_{req_rsp}.pdf"
-        output_int = f"out/mesh_noc_{target}_{req_rsp}_intreval.png"
+        file_path = f"{result_path}/noc_profiling/router_level_profile_q.log"
+        output_png = f"{plot_path}/mesh_noc_{target}_{req_rsp}.png"
+        output_pdf = f"{plot_path}/mesh_noc_{target}_{req_rsp}.pdf"
+        output_int = f"{plot_path}/mesh_noc_{target}_{req_rsp}_intreval.png"
 
         # Call the visualization function
         visualize_mesh_noc_congestion_optimized(
             file_path, output_png, output_pdf, output_int, req_rsp, bw
         )
 
-        # Define file paths
-        file_path = "spm_profiling/run_logs_remap_f_1024/tests/router_level_profile_q_00038000.log"
-        output_png = f"out/mesh_noc_remap_{target}_{req_rsp}.png"
-        output_pdf = f"out/mesh_noc_remap_{target}_{req_rsp}.pdf"
-        output_int = f"out/mesh_noc_remap_{target}_{req_rsp}_intreval.png"
+        # # Define file paths
+        # file_path = ("spm_profiling/run_logs_remap_f_1024/matmul_i32/"
+        #              "router_level_profile_q_00002800.log")
+        # output_png = f"out/mesh_noc_remap_{target}_{req_rsp}.png"
+        # output_pdf = f"out/mesh_noc_remap_{target}_{req_rsp}.pdf"
+        # output_int = f"out/mesh_noc_remap_{target}_{req_rsp}_intreval.png"
 
-        # Call the visualization function
-        visualize_mesh_noc_congestion_optimized(
-            file_path, output_png, output_pdf, output_int, req_rsp, bw
-        )
+        # # Call the visualization function
+        # visualize_mesh_noc_congestion_optimized(
+        #     file_path, output_png, output_pdf, output_int, req_rsp, bw
+        # )

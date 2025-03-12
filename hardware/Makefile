@@ -31,7 +31,7 @@ questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
 questa_args     ?=
 # VCS Version
-vcs_version     ?= 2020.12-bt
+vcs_version     ?= 2022.06-bt
 # VCS command
 vcs_cmd         ?= vcs-$(vcs_version)
 # Path to the binaries
@@ -115,15 +115,34 @@ vlog_defs += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 vlog_defs += -DNUM_DIVSQRT_PER_TILE=$(num_divsqrt_per_tile)
 vlog_defs += -DNUM_GROUPS=$(num_groups)
 vlog_defs += -DBANKING_FACTOR=$(banking_factor)
-vlog_defs += -DL2_BASE=32\'d$(l2_base)
-vlog_defs += -DL2_SIZE=32\'d$(l2_size)
+vlog_defs += -DL2_BASE=$(l2_base)
+vlog_defs += -DL2_SIZE=$(l2_size)
 vlog_defs += -DL2_BANKS=$(l2_banks)
 vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
-vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr)
+vlog_defs += -DBOOT_ADDR=$(boot_addr)
 # FlooNoC configurations
 vlog_defs += -DNUM_REMOTE_PORTS_PER_TILE=$(num_remote_ports_per_tile)
 vlog_defs += -DNUM_DIRECTIONS=$(num_directions)
 vlog_defs += -DNUM_X=$(num_x)
+ifeq ($(topology),torus)
+	vlog_defs += -DTORUS
+endif
+ifeq (1, $(req_remapping))
+	vlog_defs += -DREQ_REMAPPING=$(req_remapping)
+endif
+ifeq (1, $(resp_remapping))
+	vlog_defs += -DRESP_REMAPPING=$(resp_remapping)
+endif
+ifeq ($(routing_algorithm), o1)
+	vlog_defs += -DO1_ROUTING
+else ifeq ($(routing_algorithm), odd_even)
+	vlog_defs += -DODD_EVEN_ROUTING
+else ifeq ($(routing_algorithm), xy)
+	vlog_defs += -DXY_ROUTING
+endif
+ifdef num_virtual_channel
+	vlog_defs += -DNUM_VIRTUAL_CHANNEL=$(num_virtual_channel)
+endif
 # Snitch ISA
 vlog_defs += -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DZFINX=$(zfinx)
@@ -159,6 +178,9 @@ ifeq (1, $(tile_id_remap))
 endif
 # Separate the NoC read and read/write req channels, rd = hdr, rd/wr = hdr+payload
 vlog_defs += -DNOC_REQ_RD_CHANNEL_NUM=$(noc_req_rd_channel_num)
+ifneq (0, $(noc_req_rd_channel_num))
+	vlog_defs += -DUSE_NARROW_REQ_CHANNEL
+endif
 vlog_defs += -DNOC_REQ_RDWR_CHANNEL_NUM=$(noc_req_rdwr_channel_num)
 vlog_defs += -DNOC_REQ_WR_CHANNEL_NUM=$(noc_req_wr_channel_num)
 vlog_defs += -DNOC_RESP_CHANNEL_NUM=$(noc_resp_channel_num)
@@ -276,11 +298,11 @@ $(buildpath)/mempool_simvopt: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_libr
 # Simulation
 simvcs: compile_vcs_simv
 	cd $(buildpath) && \
-	./mempool_simv $(vcs_args) -ucli -do ../scripts/vcs/run.tcl -gui
+	./mempool_simv $(vcs_args) -ucli -l transcript -do ../scripts/vcs/run.tcl -gui
 
 simcvcs: compile_vcs_simvopt
 	cd $(buildpath) && \
-	./mempool_simvopt $(vcs_args)
+	./mempool_simvopt $(vcs_args) -l transcript
 
 # DPIs
 .PHONY: dpivcs
@@ -355,8 +377,10 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 .PHONY: lint spyglass/tmp/files
 
 SNPS_SG ?= spyglass-2022.06
+SG_SCRIPT_PATH ?= scripts
+SG_SCRIPT_SUF ?=
 lint: spyglass/tmp/files spyglass/sdc/func.sdc spyglass/scripts/run_lint.tcl
-	cd spyglass; $(SNPS_SG) sg_shell -tcl scripts/run_lint.tcl
+	cd spyglass; $(SNPS_SG) sg_shell -tcl $(SG_SCRIPT_PATH)/run_lint$(SG_SCRIPT_SUF).tcl
 
 spyglass/tmp/files: $(bender)
 	mkdir -p spyglass/tmp

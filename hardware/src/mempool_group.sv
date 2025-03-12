@@ -537,7 +537,7 @@ module mempool_group
       .reqrsp_rsp_i(dma_reqrsp_rsp)
     );
 
-    mempool_group_tile_id_remapper #() 
+    mempool_group_tile_id_remapper #()
     i_mempool_group_tile_id_remapper (
       .dma_reqrsp_req_i (dma_reqrsp_req),
       .tile_id_remap_o  (tile_id_remap[d])

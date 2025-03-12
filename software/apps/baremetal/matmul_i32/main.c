@@ -13,11 +13,17 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+// #define UNROLL_4X4
+
 // Define Matrix dimensions:
 // C = AB with A=[MxN], B=[NxP], C=[MxP]
 #define matrix_M 64
 #define matrix_N 32
 #define matrix_P 64
+
+#ifdef UNROLL_4X4
+#include "baremetal/mat_mul_conflict_opt.h"
+#endif
 
 int32_t matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 int32_t matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));
@@ -99,7 +105,9 @@ int test_matrix_multiplication(int32_t *__restrict__ A, int32_t *__restrict__ B,
   // Execute function to test.
   mempool_start_benchmark();
 
-#ifdef __XPULPIMG
+#ifdef UNROLL_4X4
+  mat_mul_unrolled_4x4_parallel_asm(A, B, C, M, N, P, core_id, num_cores);
+#elif __XPULPIMG
   matmul_unrolled_2x2_parallel_i32_xpulpv2(A, B, C, M, N, P, core_id,
                                            num_cores);
 #else

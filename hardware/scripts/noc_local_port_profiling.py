@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+# Copyright 2024 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
 import argparse
 import re
 
@@ -32,7 +37,8 @@ def main():
     parser.add_argument(
         "-f",
         "--file",
-        default="spm_profiling/run_logs_remap_f_1024/tests/router_local_input_profile_q_00018000.log",
+        default=("spm_profiling/run_logs_remap_f_1024/tests/"
+                 "router_local_input_profile_q_00018000.log"),
         help="Path to the input log file.",
     )
     args = parser.parse_args()
@@ -52,10 +58,12 @@ def main():
 
     # Print the results
     print(
-        f"Sum of req_read_in_num: {req_read_sum}. Ratio of req_read_in_num: {req_read_ratio:.2f}%"
+        f"Sum of req_read_in_num: {req_read_sum}. "
+        f"Ratio of req_read_in_num: {req_read_ratio:.2f}%"
     )
     print(
-        f"Sum of req_write_in_num: {req_write_sum}. Ratio of req_write_in_num: {req_write_ratio:.2f}%"
+        f"Sum of req_write_in_num: {req_write_sum}. "
+        f"Ratio of req_write_in_num: {req_write_ratio:.2f}%"
     )
     print(f"Sum of resp_in_num: {resp_in_sum}")
 

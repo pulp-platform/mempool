@@ -299,17 +299,17 @@ package mempool_pkg;
   localparam integer unsigned NumRdRemoteReqPortsPerTile   = `ifdef NOC_REQ_RD_CHANNEL_NUM   `NOC_REQ_RD_CHANNEL_NUM   `else 0 `endif;
   localparam integer unsigned NumRdWrRemoteReqPortsPerTile = `ifdef NOC_REQ_RDWR_CHANNEL_NUM `NOC_REQ_RDWR_CHANNEL_NUM `else 2 `endif;
   localparam integer unsigned NumWrRemoteReqPortsPerTile   = `ifdef NOC_REQ_WR_CHANNEL_NUM   `NOC_REQ_WR_CHANNEL_NUM   `else 0 `endif;
-  
+
   localparam integer unsigned NumNarrowRemoteReqPortsPerTile = NumRdRemoteReqPortsPerTile;
   localparam integer unsigned NumWideRemoteReqPortsPerTile   = NumRdWrRemoteReqPortsPerTile + NumWrRemoteReqPortsPerTile;
-  
+
   localparam integer unsigned NumRemoteReqPortsPerTile     = 1 + NumNarrowRemoteReqPortsPerTile + NumWideRemoteReqPortsPerTile;
   localparam integer unsigned NumRemoteRespPortsPerTile    = 1 + (`ifdef NOC_RESP_CHANNEL_NUM `NOC_RESP_CHANNEL_NUM `else 2 `endif);
   localparam integer unsigned NumDirections = `ifdef NUM_DIRECTIONS `NUM_DIRECTIONS `else 5 `endif;
   localparam integer unsigned NumX = `ifdef NUM_X `NUM_X `else 2 `endif;
   localparam integer unsigned NumY = NumGroups/NumX;
-
-    // router buffer configuration
+  localparam integer unsigned NumVirtualChannel = `ifdef NUM_VIRTUAL_CHANNEL `NUM_VIRTUAL_CHANNEL `else 1 `endif;
+  // router buffer configuration
   localparam integer unsigned NumRouterInFifoDepth  = `ifdef NOC_ROUTER_INPUT_FIFO_DEP   `NOC_ROUTER_INPUT_FIFO_DEP   `else 2 `endif;
   localparam integer unsigned NumRouterOutFifoDepth = `ifdef NOC_ROUTER_OUTPUT_FIFO_DEP  `NOC_ROUTER_OUTPUT_FIFO_DEP  `else 2 `endif;
 
@@ -356,6 +356,9 @@ package mempool_pkg;
     meta_id_t           meta_id;
     tile_core_id_t      core_id;
     tile_group_id_t     tile_id;
+    `ifdef ODD_EVEN_ROUTING
+    group_xy_id_t       src_id;
+    `endif
     group_xy_id_t       dst_id;
     logic               last;
   } floo_resp_meta_t;
@@ -434,7 +437,7 @@ package mempool_pkg;
     int unsigned req_hsk_cyc_num                            [NumRemoteReqPortsPerTile-1];
     int unsigned req_vld_cyc_more_than_one_hit_same_bank_num;
   } group_level_profile_t;
-  
+
   // router level profile
   typedef struct {
     // noc router ports profile
@@ -454,6 +457,16 @@ package mempool_pkg;
   typedef struct {
     int unsigned req_num;
   } router_local_resp_port_profile_t;
+
+  typedef struct {
+    // noc router ports profile
+    int unsigned in_vld_cyc_num [5];
+    int unsigned in_hsk_cyc_num [5];
+    int unsigned hol_stall_cyc_num [5];
+    int unsigned out_congst_cyc_num [5][5];
+    int unsigned cur_stall_cyc_num [5];
+    int unsigned max_stall_cyc_num [5];
+  } router_input_profile_t;
   `endif
 
 
