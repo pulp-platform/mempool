@@ -199,15 +199,15 @@ package mempool_pkg;
   /***********************
    * REDMULE PARAMETERS  *
    * *********************/
-  localparam integer unsigned  ARRAY_HEIGHT = 4; // Number of PEs within a row
-  localparam integer unsigned  ARRAY_WIDTH = 12; // Number of parallel rows
-  localparam integer unsigned  PIPE_REGS = 3; // Number of pipeline registers within each PE
+  localparam integer unsigned NumRMTilesPerGroup = `ifdef NUM_REDMULE_TILES `NUM_REDMULE_TILES `else 1 `endif;;
+  localparam integer unsigned ARRAY_HEIGHT = `ifdef ARRAY_HEIGHT `ARRAY_HEIGHT `else 4 `endif;
+  localparam integer unsigned ARRAY_WIDTH  = `ifdef ARRAY_WIDTH `ARRAY_WIDTH `else (ARRAY_HEIGHT*PIPE_REGS) `endif; // Superior limit, smaller values are allowed.
+  localparam integer unsigned PIPE_REGS    = `ifdef PIPE_REGS `PIPE_REGS `else 3 `endif;
 
   localparam integer unsigned RMIdWidth = 8;
   localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1) + DataWidth;
   localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
   localparam integer unsigned RMRegSize = 256;
-  localparam integer unsigned NumRMTilesPerGroup = 1;
 
   /*********
    *  DMA  *
@@ -319,7 +319,8 @@ package mempool_pkg;
   localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
   localparam addr_t TCDMMask = ~(TCDMSize - 1);
   // RedMule addresses
-  localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1); //((1 << (idx_width(RMRegSize + TCDMSize) + 1)) - 1);
+  localparam integer unsigned RMBaseAddr = 32'h4002_0000;
+  localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1);
 
 
   // Size in bytes of memory that is sequentially addressable per tile
