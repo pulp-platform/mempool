@@ -14,14 +14,17 @@
 
 #include "archi_redmule.h"
 #include "hal_redmule.h"
-#include "data_matmul_f16.h"
+#include "data_gemm_f16.h"
 #include "dma.h"
+#include "baremetal/mempool_checks.h"
 
-__fp16 l1_A[matrix_M * matrix_N]
+dump(res, 8);
+
+__fp16 l1_X[matrix_M * matrix_N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_B[matrix_N * matrix_P]
+__fp16 l1_W[matrix_N * matrix_P]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_C[matrix_M * matrix_P]
+__fp16 l1_Y[matrix_M * matrix_P]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 
 int main() {
@@ -34,27 +37,22 @@ int main() {
     mempool_wfi();
   }
 
-  dma_memcpy_blocking(l1_A, l2_A, (matrix_M * matrix_N) * sizeof(int16_t));
-  dma_memcpy_blocking(l1_B, l2_B, (matrix_N * matrix_P) * sizeof(int16_t));
-  dma_memcpy_blocking(l1_C, l2_C, 2*(matrix_M * matrix_P) * sizeof(int16_t));
-  printf("Done DMA transfer.\n");
+  dma_memcpy_blocking(l1_X, l2_X, (matrix_M * matrix_N) * sizeof(int16_t));
+  dma_memcpy_blocking(l1_W, l2_W, (matrix_N * matrix_P) * sizeof(int16_t));
+  dma_memcpy_blocking(l1_Y, l2_Y, (matrix_M * matrix_P) * sizeof(int16_t));
 
-  // Activate RedMulE
-  hwpe_soft_clear();
   // Configure RedMulE
-  redmule_cfg((unsigned int)l1_A, (unsigned int)l1_B, (unsigned int)l1_C,
-    matrix_M, matrix_N, matrix_P, (uint8_t)GEMM, (uint8_t)Float16);
-
-  // Start RedMulE operation and poll the finish until the end of computation
-  printf("Triggering accelerator and polling...\n");
+  hwpe_soft_clear();
+  redmule_cfg((unsigned int) l1_X, (unsigned int) l1_W, (unsigned int) l1_Y, matrix_M, matrix_N, matrix_P, GEMM, Float16);
+  // Start RedMulE operation
   hwpe_trigger_job();
+  // Go to sleep
+  mempool_wfi();
 
-  // Sleep
-  mempool_wait(100);
-  while (HWPE_READ(REDMULE_FINISHED) != 1) {
-    mempool_wait(100);
+  for (uint32_t i = 0; i < matrix_M * matrix_N; i++) {
+    dump_res(*(uint32_t*)&l1_Y[i]);
+    dump_res(*(uint32_t*)&l2_Z[i]);
   }
-  printf("Redmule is finished.\n");
   wake_up_all();
 
   // wait until all cores have finished

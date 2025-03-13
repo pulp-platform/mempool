@@ -185,6 +185,7 @@ if __name__ == '__main__':
         "dotp_f32": {"func": datalib.generate_fdotp},
         "dotp_i32": {"func": datalib.generate_idotp},
         "gaussjordan_q32": {"func": datalib.generate_qgaussjordan},
+        "gemm_f16": {"func": datalib.generate_fgemm},
         "matmul_f8": {"func": datalib.generate_fmatmul},
         "matmul_f16": {"func": datalib.generate_fmatmul},
         "matmul_f32": {"func": datalib.generate_fmatmul},
