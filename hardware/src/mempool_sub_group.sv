@@ -164,43 +164,85 @@ module mempool_sub_group
     logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] tran_tcdm_slave_resp_valid;
     logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] tran_tcdm_slave_resp_ready;
 
-    mempool_tile #(
-      .TCDMBaseAddr(TCDMBaseAddr),
-      .BootAddr    (BootAddr    )
-    ) i_tile (
-      .clk_i                   (clk_i                                          ),
-      .rst_ni                  (rst_ni                                         ),
-      .scan_enable_i           (scan_enable_i                                  ),
-      .scan_data_i             (/* Unconnected */                              ),
-      .scan_data_o             (/* Unconnected */                              ),
-      .tile_id_i               (id                                             ),
-      // TCDM Master interfaces
-      .tcdm_master_req_o       (tran_tcdm_master_req                           ),
-      .tcdm_master_req_valid_o (tran_tcdm_master_req_valid                     ),
-      .tcdm_master_req_ready_i (tran_tcdm_master_req_ready                     ),
-      .tcdm_master_resp_i      (tran_tcdm_master_resp                          ),
-      .tcdm_master_resp_valid_i(tran_tcdm_master_resp_valid                    ),
-      .tcdm_master_resp_ready_o(tran_tcdm_master_resp_ready                    ),
-      // TCDM banks interface
-      .tcdm_slave_req_i        (tran_tcdm_slave_req                            ),
-      .tcdm_slave_req_valid_i  (tran_tcdm_slave_req_valid                      ),
-      .tcdm_slave_req_ready_o  (tran_tcdm_slave_req_ready                      ),
-      .tcdm_slave_resp_o       (tran_tcdm_slave_resp                           ),
-      .tcdm_slave_resp_valid_o (tran_tcdm_slave_resp_valid                     ),
-      .tcdm_slave_resp_ready_i (tran_tcdm_slave_resp_ready                     ),
-      // TCDM DMA interfaces
-      .tcdm_dma_req_i          (tcdm_dma_req[t]                                ),
-      .tcdm_dma_req_valid_i    (tcdm_dma_req_valid[t]                          ),
-      .tcdm_dma_req_ready_o    (tcdm_dma_req_ready[t]                          ),
-      .tcdm_dma_resp_o         (tcdm_dma_resp[t]                               ),
-      .tcdm_dma_resp_valid_o   (tcdm_dma_resp_valid[t]                         ),
-      .tcdm_dma_resp_ready_i   (tcdm_dma_resp_ready[t]                         ),
-      // AXI interface
-      .axi_mst_req_o           (axi_tile_req[t]                                ),
-      .axi_mst_resp_i          (axi_tile_resp[t]                               ),
-      // Wake up interface
-      .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile])
-    );
+    if (t < NumRMTilesPerGroup) begin: gen_redmule_tiles
+      mempool_redmule_tile #(
+        .TCDMBaseAddr(TCDMBaseAddr),
+        .BootAddr    (BootAddr    )
+      ) i_redmule_tile (
+        .clk_i                   (clk_i                                          ),
+        .rst_ni                  (rst_ni                                         ),
+        .scan_enable_i           (scan_enable_i                                  ),
+        .scan_data_i             (/* Unconnected */                              ),
+        .scan_data_o             (/* Unconnected */                              ),
+        .tile_id_i               (id                                             ),
+        // TCDM Master interfaces
+        .tcdm_master_req_o       (tran_tcdm_master_req                           ),
+        .tcdm_master_req_valid_o (tran_tcdm_master_req_valid                     ),
+        .tcdm_master_req_ready_i (tran_tcdm_master_req_ready                     ),
+        .tcdm_master_resp_i      (tran_tcdm_master_resp                          ),
+        .tcdm_master_resp_valid_i(tran_tcdm_master_resp_valid                    ),
+        .tcdm_master_resp_ready_o(tran_tcdm_master_resp_ready                    ),
+        // TCDM banks interface
+        .tcdm_slave_req_i        (tran_tcdm_slave_req                            ),
+        .tcdm_slave_req_valid_i  (tran_tcdm_slave_req_valid                      ),
+        .tcdm_slave_req_ready_o  (tran_tcdm_slave_req_ready                      ),
+        .tcdm_slave_resp_o       (tran_tcdm_slave_resp                           ),
+        .tcdm_slave_resp_valid_o (tran_tcdm_slave_resp_valid                     ),
+        .tcdm_slave_resp_ready_i (tran_tcdm_slave_resp_ready                     ),
+        // TCDM DMA interfaces
+        .tcdm_dma_req_i          (tcdm_dma_req[t]                                ),
+        .tcdm_dma_req_valid_i    (tcdm_dma_req_valid[t]                          ),
+        .tcdm_dma_req_ready_o    (tcdm_dma_req_ready[t]                          ),
+        .tcdm_dma_resp_o         (tcdm_dma_resp[t]                               ),
+        .tcdm_dma_resp_valid_o   (tcdm_dma_resp_valid[t]                         ),
+        .tcdm_dma_resp_ready_i   (tcdm_dma_resp_ready[t]                         ),
+        // AXI interface
+        .axi_mst_req_o           (axi_tile_req[t]                                ),
+        .axi_mst_resp_i          (axi_tile_resp[t]                               ),
+        // Wake up interface
+        .wake_up_i               (wake_up_q[t*NumCoresPerTile])
+      );
+    end
+    else begin: gen_snitch_tiles
+      mempool_tile #(
+        .TCDMBaseAddr(TCDMBaseAddr),
+        .BootAddr    (BootAddr    )
+      ) i_tile (
+        .clk_i                   (clk_i                                          ),
+        .rst_ni                  (rst_ni                                         ),
+        .scan_enable_i           (scan_enable_i                                  ),
+        .scan_data_i             (/* Unconnected */                              ),
+        .scan_data_o             (/* Unconnected */                              ),
+        .tile_id_i               (id                                             ),
+        // TCDM Master interfaces
+        .tcdm_master_req_o       (tran_tcdm_master_req                           ),
+        .tcdm_master_req_valid_o (tran_tcdm_master_req_valid                     ),
+        .tcdm_master_req_ready_i (tran_tcdm_master_req_ready                     ),
+        .tcdm_master_resp_i      (tran_tcdm_master_resp                          ),
+        .tcdm_master_resp_valid_i(tran_tcdm_master_resp_valid                    ),
+        .tcdm_master_resp_ready_o(tran_tcdm_master_resp_ready                    ),
+        // TCDM banks interface
+        .tcdm_slave_req_i        (tran_tcdm_slave_req                            ),
+        .tcdm_slave_req_valid_i  (tran_tcdm_slave_req_valid                      ),
+        .tcdm_slave_req_ready_o  (tran_tcdm_slave_req_ready                      ),
+        .tcdm_slave_resp_o       (tran_tcdm_slave_resp                           ),
+        .tcdm_slave_resp_valid_o (tran_tcdm_slave_resp_valid                     ),
+        .tcdm_slave_resp_ready_i (tran_tcdm_slave_resp_ready                     ),
+        // TCDM DMA interfaces
+        .tcdm_dma_req_i          (tcdm_dma_req[t]                                ),
+        .tcdm_dma_req_valid_i    (tcdm_dma_req_valid[t]                          ),
+        .tcdm_dma_req_ready_o    (tcdm_dma_req_ready[t]                          ),
+        .tcdm_dma_resp_o         (tcdm_dma_resp[t]                               ),
+        .tcdm_dma_resp_valid_o   (tcdm_dma_resp_valid[t]                         ),
+        .tcdm_dma_resp_ready_i   (tcdm_dma_resp_ready[t]                         ),
+        // AXI interface
+        .axi_mst_req_o           (axi_tile_req[t]                                ),
+        .axi_mst_resp_i          (axi_tile_resp[t]                               ),
+        // Wake up interface
+        .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile])
+      );
+    end
+
 
     // Transpose the sub_group requests
     for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_tran_sub_group_req
