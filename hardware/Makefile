@@ -125,6 +125,11 @@ vlog_defs += -DZFINX=$(zfinx)
 vlog_defs += -DZQUARTERINX=$(zquarterinx)
 vlog_defs += -DXDIVSQRT=$(xDivSqrt)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
+# RedMulE
+vlog_defs += -DNUM_REDMULE_TILES=$(num_redmule_tiles)
+vlog_defs += -DARRAY_HEIGHT=$(redmule_height)
+vlog_defs += -DARRAY_WIDTH=$(redmule_width)
+vlog_defs += -DPIPE_REGS=$(redmule_regs)
 # AXI & DMA
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
