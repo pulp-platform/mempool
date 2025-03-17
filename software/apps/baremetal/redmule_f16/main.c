@@ -30,17 +30,14 @@ __fp16 l1_Y[matrix_M * matrix_P]
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  // Initialize synchronization variables
   mempool_barrier_init(core_id);
 
   if (core_id != 0) {
     mempool_wfi();
   }
-
   dma_memcpy_blocking(l1_X, l2_X, (matrix_M * matrix_N) * sizeof(int16_t));
   dma_memcpy_blocking(l1_W, l2_W, (matrix_N * matrix_P) * sizeof(int16_t));
   dma_memcpy_blocking(l1_Y, l2_Y, (matrix_M * matrix_P) * sizeof(int16_t));
-
   // Configure RedMulE
   hwpe_soft_clear();
   redmule_cfg((unsigned int) l1_X, (unsigned int) l1_W, (unsigned int) l1_Y, matrix_M, matrix_N, matrix_P, GEMM, Float16);
@@ -48,14 +45,11 @@ int main() {
   hwpe_trigger_job();
   // Go to sleep
   mempool_wfi();
-
-  for (uint32_t i = 0; i < matrix_M * matrix_N; i++) {
+  for (uint32_t i = 0; i < matrix_M * matrix_P; i++) {
     dump_res(*(uint32_t*)&l1_Y[i]);
     dump_res(*(uint32_t*)&l2_Z[i]);
   }
   wake_up_all();
 
-  // wait until all cores have finished
-  mempool_barrier(num_cores);
   return 0;
 }
