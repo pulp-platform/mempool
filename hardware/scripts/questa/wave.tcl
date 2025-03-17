@@ -28,20 +28,32 @@ add wave -noupdate -group Utilization -color {Cornflower Blue} -format Analog-St
 # Add a vector of the core's wfi signal to quickly see which cores are active
 add wave /mempool_tb/wfi
 
+set num_rmtiles [examine -radix dec mempool_pkg::NumRMTiles]
+if {$num_rmtiles > 0} {
+  set scoped_tile 1
+  if {$config == {terapool}} {
+    do ../scripts/questa/wave_redmule.tcl 0 0 0
+  } else {
+    do ../scripts/questa/wave_redmule.tcl 0 0
+  }
+} else {
+  set scoped_tile 0
+}
+
 # Add all cores from group 0 tile 0
 for {set core 0}  {$core < [examine -radix dec mempool_pkg::NumCoresPerTile]} {incr core} {
     if {$config == {terapool}} {
-        do ../scripts/questa/wave_core.tcl 0 0 0 $core
+        do ../scripts/questa/wave_core.tcl 0 0 $scoped_tile $core
     } else {
-        do ../scripts/questa/wave_core.tcl 0 0 $core
+        do ../scripts/questa/wave_core.tcl 0 $scoped_tile $core
     }
 }
 
 # Add specific cores from different tiles
 if {$config == {terapool}} {
-    do ../scripts/questa/wave_core.tcl 1 0 0 0
+    do ../scripts/questa/wave_core.tcl 1 0 $scoped_tile 0
 } else {
-    do ../scripts/questa/wave_core.tcl 1 0 0
+    do ../scripts/questa/wave_core.tcl 1 $scoped_tile 0
 }
 
 # Add groups
@@ -49,12 +61,12 @@ for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr 
     # Add tiles
     if {$config == {terapool}} {
         for {set subgroup 0} {$subgroup < [expr min(4,[examine -radix dec /mempool_pkg::NumSubGroupsPerGroup])]} {incr subgroup} {
-            for {set tile 0} {$tile < [expr min(4,[examine -radix dec /mempool_pkg::NumTilesPerSubGroup])]} {incr tile} {
+            for {set tile $scoped_tile} {$tile < [expr min(4,[examine -radix dec /mempool_pkg::NumTilesPerSubGroup])]} {incr tile} {
                 do ../scripts/questa/wave_tile.tcl $group $subgroup $tile
             }
         }
     } else {
-        for {set tile 0} {$tile < [expr min(4,[examine -radix dec /mempool_pkg::NumTilesPerGroup])]} {incr tile} {
+        for {set tile $scoped_tile} {$tile < [expr min(4,[examine -radix dec /mempool_pkg::NumTilesPerGroup])]} {incr tile} {
             do ../scripts/questa/wave_tile.tcl $group $tile
         }
     }
@@ -122,7 +134,7 @@ add wave -Group DMA_midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_dist
 add wave -Group DMA_split /mempool_tb/dut/i_mempool_cluster/i_idma_split_midend/*
 
 if {$config == {terapool}} {
-  do ../scripts/questa/wave_cache.tcl 0 0 0 0
+  do ../scripts/questa/wave_cache.tcl 0 0 $scoped_tile 0
 } else {
-  do ../scripts/questa/wave_cache.tcl 0 0 0
+  do ../scripts/questa/wave_cache.tcl 0 $scoped_tile 0
 }
