@@ -500,7 +500,7 @@ module mempool_cluster
   if (NumTiles < NumGroups)
     $fatal(1, "[mempool] MemPool requires more tiles than groups.");
 
-  if (NumCores != NumTiles * NumCoresPerTile)
+  if (NumCores != NumTiles * NumCoresPerTile && (NumRMTiles == 0))
     $fatal(1, "[mempool] The number of cores is not divisible by the number of cores per tile.");
 
   if (BankingFactor < 1)

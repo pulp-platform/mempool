@@ -18,8 +18,10 @@ package mempool_pkg;
   localparam integer unsigned NumCoresPerTile   = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
   localparam integer unsigned NumDivsqrtPerTile = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
   localparam integer unsigned NumGroups         = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
+  localparam integer unsigned NumRMTiles        = `ifdef NUM_REDMULE_TILES `NUM_REDMULE_TILES `else 0 `endif;
+  localparam integer unsigned NumRMTilesPerGroup = NumRMTiles / NumGroups;
   localparam integer unsigned MAX_NumGroups     = 8;
-  localparam integer unsigned NumTiles          = NumCores / NumCoresPerTile;
+  localparam integer unsigned NumTiles          = NumRMTiles + ((NumCores - NumRMTiles) / NumCoresPerTile);
   localparam integer unsigned NumTilesPerGroup  = NumTiles / NumGroups;
   localparam integer unsigned NumCoresPerGroup  = NumCores / NumGroups;
   localparam integer unsigned NumCoresPerCache  = NumCoresPerTile;
@@ -39,7 +41,7 @@ package mempool_pkg;
   localparam integer unsigned BankingFactor    = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
   localparam bit              LrScEnable       = 1'b1;
   localparam integer unsigned TCDMSizePerBank  = `ifdef L1_BANK_SIZE `L1_BANK_SIZE `else 0 `endif;
-  localparam integer unsigned NumBanks         = NumCores * BankingFactor;
+  localparam integer unsigned NumBanks         = (NumCoresPerTile * NumTiles) * BankingFactor;
   localparam integer unsigned NumBanksPerTile  = NumBanks / NumTiles;
   localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
@@ -196,19 +198,6 @@ package mempool_pkg;
     end_addr: {32'h1C,32'h14,32'h0C,32'h04}
   };
 
-  /***********************
-   * REDMULE PARAMETERS  *
-   * *********************/
-  localparam integer unsigned NumRMTilesPerGroup = `ifdef NUM_REDMULE_TILES `NUM_REDMULE_TILES `else 1 `endif;;
-  localparam integer unsigned ARRAY_HEIGHT = `ifdef ARRAY_HEIGHT `ARRAY_HEIGHT `else 4 `endif;
-  localparam integer unsigned ARRAY_WIDTH  = `ifdef ARRAY_WIDTH `ARRAY_WIDTH `else (ARRAY_HEIGHT*PIPE_REGS) `endif; // Superior limit, smaller values are allowed.
-  localparam integer unsigned PIPE_REGS    = `ifdef PIPE_REGS `PIPE_REGS `else 3 `endif;
-
-  localparam integer unsigned RMIdWidth = 8;
-  localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1) + DataWidth;
-  localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
-  localparam integer unsigned RMRegSize = 256;
-
   /*********
    *  DMA  *
    *********/
@@ -241,6 +230,62 @@ package mempool_pkg;
     logic backend_idle;
     logic trans_complete;
   } dma_meta_t;
+
+  /*************************
+   *  TeraPool PARAMETERS  *
+   *************************/
+
+  // TeraPool Tile Config
+  localparam integer unsigned NumSubGroupsPerGroup  = `ifdef NUM_SUB_GROUPS_PER_GROUP `NUM_SUB_GROUPS_PER_GROUP `else 1 `endif;
+  localparam integer unsigned NumSubGroups          = NumGroups * NumSubGroupsPerGroup;
+  localparam integer unsigned NumTilesPerSubGroup   = NumTilesPerGroup / NumSubGroupsPerGroup;
+  localparam integer unsigned NumRMTilesPerSubGroup = NumRMTiles / NumSubGroups;
+  localparam integer unsigned NumCoresPerSubGroup   = (NumTilesPerSubGroup - NumRMTilesPerSubGroup) * NumCoresPerTile + NumRMTilesPerSubGroup;
+
+  // TeraPool Mem Config
+  localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
+
+  // TeraPool Remote Groups Latency Control (in Cycles)
+  localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 7 `endif;
+
+  //TeraPool AXI/DMA Config
+  localparam integer unsigned NumAXIMastersPerSubGroup = NumAXIMastersPerGroup/NumSubGroupsPerGroup;
+  localparam int unsigned NumDmasPerSubGroup = NumDmasPerGroup/NumSubGroupsPerGroup;
+
+  //TeraPool Parameters
+  `include "reqrsp_interface/typedef.svh"
+  `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
+  typedef logic [idx_width(NumTilesPerSubGroup)-1:0] tile_sub_group_id_t;
+  typedef logic [idx_width(NumSubGroupsPerGroup)-1:0] sgroup_group_id_t;
+  typedef logic [idx_width(NumGroups+NumSubGroupsPerGroup-1)-1:0] tile_remote_sel_t;
+
+  // TeraPool PostLayout Control
+  localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
+  localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
+
+  /**********************
+   *  QUEUE PARAMETERS  *
+   **********************/
+
+  // Size of xqueues in words (must be a power of two)
+  localparam int unsigned XQueueSize = `ifdef XQUEUE_SIZE `XQUEUE_SIZE `else 0 `endif;
+
+  /***********************
+   * REDMULE PARAMETERS  *
+   * *********************/
+
+  localparam integer unsigned ARRAY_HEIGHT = `ifdef ARRAY_HEIGHT `ARRAY_HEIGHT `else 4 `endif;
+  localparam integer unsigned ARRAY_WIDTH  = `ifdef ARRAY_WIDTH `ARRAY_WIDTH `else (ARRAY_HEIGHT*PIPE_REGS) `endif; // Superior limit, smaller values are allowed.
+  localparam integer unsigned PIPE_REGS    = `ifdef PIPE_REGS `PIPE_REGS `else 3 `endif;
+
+  localparam integer unsigned RMIdWidth = 8;
+  localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1) + DataWidth;
+  localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
+  localparam integer unsigned RMRegSize = 256;
+
+  // RedMule addresses
+  localparam integer unsigned RMBaseAddr = 32'h4002_0000;
+  localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1);
 
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
@@ -304,13 +349,6 @@ package mempool_pkg;
     dma_payload_t rdata;
   } tcdm_dma_resp_t;
 
-  /**********************
-   *  QUEUE PARAMETERS  *
-   **********************/
-
-  // Size of xqueues in words (must be a power of two)
-  localparam int unsigned XQueueSize = `ifdef XQUEUE_SIZE `XQUEUE_SIZE `else 0 `endif;
-
   /*****************
    *  ADDRESS MAP  *
    *****************/
@@ -318,10 +356,6 @@ package mempool_pkg;
   // TCDM Memory Region
   localparam addr_t TCDMSize = NumBanks * TCDMSizePerBank;
   localparam addr_t TCDMMask = ~(TCDMSize - 1);
-  // RedMule addresses
-  localparam integer unsigned RMBaseAddr = 32'h4002_0000;
-  localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1);
-
 
   // Size in bytes of memory that is sequentially addressable per tile
   localparam int unsigned SeqMemSizePerCore = `ifdef SEQ_MEM_SIZE `SEQ_MEM_SIZE `else 0 `endif;
@@ -339,37 +373,5 @@ package mempool_pkg;
 
   // Replaces core with a traffic generator
   parameter bit TrafficGeneration  = `ifdef TRAFFIC_GEN `TRAFFIC_GEN `else 0 `endif;
-
-  /*************************
-   *  TeraPool PARAMETERS  *
-   *************************/
-
-  localparam integer unsigned NumSubGroupsPerGroup = `ifdef NUM_SUB_GROUPS_PER_GROUP `NUM_SUB_GROUPS_PER_GROUP `else 1 `endif;
-
-  // TeraPool Tile Config
-  localparam integer unsigned NumSubGroups         = NumGroups * NumSubGroupsPerGroup;
-  localparam integer unsigned NumTilesPerSubGroup  = NumTilesPerGroup / NumSubGroupsPerGroup;
-  localparam integer unsigned NumCoresPerSubGroup  = NumTilesPerSubGroup * NumCoresPerTile;
-
-  // TeraPool Mem Config
-  localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
-
-  // TeraPool Remote Groups Latency Control (in Cycles)
-  localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 7 `endif;
-
-  //TeraPool AXI/DMA Config
-  localparam integer unsigned NumAXIMastersPerSubGroup = NumAXIMastersPerGroup/NumSubGroupsPerGroup;
-  localparam int unsigned NumDmasPerSubGroup = NumDmasPerGroup/NumSubGroupsPerGroup;
-
-  //TeraPool Parameters
-  `include "reqrsp_interface/typedef.svh"
-  `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
-  typedef logic [idx_width(NumTilesPerSubGroup)-1:0] tile_sub_group_id_t;
-  typedef logic [idx_width(NumSubGroupsPerGroup)-1:0] sgroup_group_id_t;
-  typedef logic [idx_width(NumGroups+NumSubGroupsPerGroup-1)-1:0] tile_remote_sel_t;
-
-  // TeraPool PostLayout Control
-  localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
-  localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
 
 endpackage : mempool_pkg
