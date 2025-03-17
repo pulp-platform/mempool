@@ -32,7 +32,7 @@
 alloc_t alloc_l1;
 
 // Allocators for L1 local sequential heap memory
-alloc_t alloc_tile[NUM_CORES / NUM_CORES_PER_TILE];
+alloc_t alloc_tile[NUM_REDMULE_TILES + (NUM_CORES - NUM_REDMULE_TILES) / NUM_CORES_PER_TILE];
 
 // ----------------------------------------------------------------------------
 // Canary System based on LSBs of block pointer

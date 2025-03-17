@@ -61,8 +61,9 @@ xqueue_size ?= 0
 ##  RedMulE Configuration  ##
 #############################
 
-# RedMulE Tiles per Group (MemPool) or SubGroup (TeraPool)
-num_redmule_tiles ?= 1
+# RedMulE Tiles must be multiple of Group number (MemPool) or SubGroup number (TeraPool)
+num_redmule_tiles ?= 4
+num_cores := $(shell echo $$(( $(num_cores) + $(num_redmule_tiles) - $(num_redmule_tiles) * $(num_cores_per_tile) )))
 
 # RedMulE engine size
 redmule_height ?= 4
