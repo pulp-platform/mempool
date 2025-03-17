@@ -104,14 +104,14 @@ add wave -group system -group CSR /mempool_tb/dut/i_ctrl_registers/*
 # Add DMA
 add wave -group DMA -group dma_top /mempool_tb/dut/i_mempool_dma/*
 add wave -group DMA -group frontend_reg /mempool_tb/dut/i_mempool_dma/i_mempool_dma_frontend_reg_top/*
-add wave -group DMA -group midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/NoMstPorts
-add wave -group DMA -group midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/DmaRegionWidth
-add wave -group DMA -group midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/DmaRegionStart
-add wave -group DMA -group midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/DmaRegionEnd
-add wave -group DMA -group midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/DmaRegionAddressBits
-add wave -group DMA -group midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/FullRegionAddressBits
-add wave -group DMA -group midend_cluster /mempool_tb/dut/i_mempool_cluster/i_idma_distributed_midend/*
-add wave -group DMA -group midend_cluster_split /mempool_tb/dut/i_mempool_cluster/i_idma_split_midend/*
+add wave -group DMA -group midend_cluster /mempool_tb/dut/i_idma_distributed_midend/NoMstPorts
+add wave -group DMA -group midend_cluster /mempool_tb/dut/i_idma_distributed_midend/DmaRegionWidth
+add wave -group DMA -group midend_cluster /mempool_tb/dut/i_idma_distributed_midend/DmaRegionStart
+add wave -group DMA -group midend_cluster /mempool_tb/dut/i_idma_distributed_midend/DmaRegionEnd
+add wave -group DMA -group midend_cluster /mempool_tb/dut/i_idma_distributed_midend/DmaRegionAddressBits
+add wave -group DMA -group midend_cluster /mempool_tb/dut/i_idma_distributed_midend/FullRegionAddressBits
+add wave -group DMA -group midend_cluster /mempool_tb/dut/i_idma_distributed_midend/*
+add wave -group DMA -group midend_cluster_split /mempool_tb/dut/i_idma_split_midend/*
 
 for {set group 0} {$group < [examine -radix dec /mempool_pkg::NumGroups]} {incr group} {
     add wave -group DMA -group midend_group_${group} /mempool_tb/dut/i_mempool_cluster/gen_groups_x\[[expr ${group}/${NumX}]\]/gen_groups_y\[[expr ${group}%${NumY}]\]/i_group/i_mempool_group/i_idma_distributed_midend/NoMstPorts
