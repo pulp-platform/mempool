@@ -31,11 +31,11 @@ module mempool_cluster_floonoc_wrapper
   // RO-Cache configuration
   input  ro_cache_ctrl_t                     ro_cache_ctrl_i,
   // DMA request
-  input  dma_req_t                           dma_req_i,
-  input  logic                               dma_req_valid_i,
-  output logic                               dma_req_ready_o,
+  input  dma_req_t       [NumGroups-1:0]     dma_req_i,
+  input  logic           [NumGroups-1:0]     dma_req_valid_i,
+  output logic           [NumGroups-1:0]     dma_req_ready_o,
   // DMA status
-  output dma_meta_t                          dma_meta_o,
+  output dma_meta_t      [NumGroups-1:0]     dma_meta_o,
   // AXI Interface
   output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i,
@@ -61,77 +61,17 @@ module mempool_cluster_floonoc_wrapper
   /*********
    *  DMA  *
    *********/
-  dma_req_t  dma_req_cut;
-  logic      dma_req_cut_valid;
-  logic      dma_req_cut_ready;
-  dma_meta_t dma_meta_cut;
-
-  spill_register #(
-    .T(dma_req_t)
-  ) i_dma_req_register (
-    .clk_i  (clk_i            ),
-    .rst_ni (rst_ni           ),
-    .data_i (dma_req_i        ),
-    .valid_i(dma_req_valid_i  ),
-    .ready_o(dma_req_ready_o  ),
-    .data_o (dma_req_cut      ),
-    .valid_o(dma_req_cut_valid),
-    .ready_i(dma_req_cut_ready)
-  );
-
-  `FF(dma_meta_o, dma_meta_cut, '0, clk_i, rst_ni);
-
-  dma_req_t  dma_req_split;
-  logic      dma_req_split_valid;
-  logic      dma_req_split_ready;
-  dma_meta_t dma_meta_split;
   dma_req_t  [NumGroups-1:0] dma_req_group, dma_req_group_q;
   logic      [NumGroups-1:0] dma_req_group_valid, dma_req_group_q_valid;
   logic      [NumGroups-1:0] dma_req_group_ready, dma_req_group_q_ready;
   dma_meta_t [NumGroups-1:0] dma_meta, dma_meta_q;
 
+  assign dma_req_group = dma_req_i;
+  assign dma_req_group_valid = dma_req_valid_i;
+  assign dma_req_ready_o = dma_req_group_ready;
+  assign dma_meta_o = dma_meta_q;
+
   `FF(dma_meta_q, dma_meta, '0, clk_i, rst_ni);
-
-  idma_split_midend #(
-    .DmaRegionWidth (NumBanksPerGroup*NumGroups*4),
-    .DmaRegionStart (TCDMBaseAddr                ),
-    .DmaRegionEnd   (TCDMBaseAddr+TCDMSize       ),
-    .AddrWidth      (AddrWidth                   ),
-    .burst_req_t    (dma_req_t                   ),
-    .meta_t         (dma_meta_t                  )
-  ) i_idma_split_midend (
-    .clk_i      (clk_i              ),
-    .rst_ni     (rst_ni             ),
-    .burst_req_i(dma_req_cut        ),
-    .valid_i    (dma_req_cut_valid  ),
-    .ready_o    (dma_req_cut_ready  ),
-    .meta_o     (dma_meta_cut       ),
-    .burst_req_o(dma_req_split      ),
-    .valid_o    (dma_req_split_valid),
-    .ready_i    (dma_req_split_ready),
-    .meta_i     (dma_meta_split     )
-  );
-
-  idma_distributed_midend #(
-    .NoMstPorts     (NumGroups            ),
-    .DmaRegionWidth (NumBanksPerGroup*4   ),
-    .DmaRegionStart (TCDMBaseAddr         ),
-    .DmaRegionEnd   (TCDMBaseAddr+TCDMSize),
-    .TransFifoDepth (16                   ),
-    .burst_req_t    (dma_req_t            ),
-    .meta_t         (dma_meta_t           )
-  ) i_idma_distributed_midend (
-    .clk_i       (clk_i              ),
-    .rst_ni      (rst_ni             ),
-    .burst_req_i (dma_req_split      ),
-    .valid_i     (dma_req_split_valid),
-    .ready_o     (dma_req_split_ready),
-    .meta_o      (dma_meta_split     ),
-    .burst_req_o (dma_req_group      ),
-    .valid_o     (dma_req_group_valid),
-    .ready_i     (dma_req_group_ready),
-    .meta_i      (dma_meta_q         )
-  );
 
   for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_dma_req_group_register
     spill_register #(

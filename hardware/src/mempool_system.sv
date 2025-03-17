@@ -93,11 +93,10 @@ module mempool_system
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
 
-  dma_req_t  dma_req;
-  logic      dma_req_valid;
-  logic      dma_req_ready;
-  dma_meta_t dma_meta;
-  logic      [1-1:0] dma_id;
+  dma_req_t         [NumGroups-1:0]     dma_group_req;
+  logic             [NumGroups-1:0]     dma_group_req_valid;
+  logic             [NumGroups-1:0]     dma_group_req_ready;
+  dma_meta_t        [NumGroups-1:0]     dma_group_meta;
 
   localparam xbar_cfg_t SoCXBarCfg = '{
     NoSlvPorts         : 1,
@@ -137,10 +136,10 @@ module mempool_system
     .scan_data_i       (1'b0),
     .scan_data_o       (/* Unused */),
     .ro_cache_ctrl_i   (ro_cache_ctrl),
-    .dma_req_i         (dma_req),
-    .dma_req_valid_i   (dma_req_valid),
-    .dma_req_ready_o   (dma_req_ready),
-    .dma_meta_o        (dma_meta),
+    .dma_req_i         (dma_group_req),
+    .dma_req_valid_i   (dma_group_req_valid),
+    .dma_req_ready_o   (dma_group_req_ready),
+    .dma_meta_o        (dma_group_meta),
     .axi_mst_req_o     (axi_mst_req),
     .axi_mst_resp_i    (axi_mst_resp),
     .periph_mst_req_o  (axi_mst_periph_req),
@@ -303,7 +302,7 @@ module mempool_system
 
   // Local parameters for address manipulation
   localparam int unsigned LSBConstantBits = $clog2(L2BankBeWidth * Interleave);
-  localparam int unsigned MSBConstantBits = 4;
+  localparam int unsigned MSBConstantBits = 32 - $clog2(L2Size);
   localparam int unsigned ScrambleBits    = (NumDrams == 1) ? 1 : $clog2(NumDrams);
   localparam int unsigned ReminderBits    = AddrWidth - ScrambleBits - LSBConstantBits - MSBConstantBits;
 
@@ -554,6 +553,16 @@ module mempool_system
     .eoc_valid_o          (eoc_valid_o                     )
   );
 
+  /***************************
+   *  DMA Midend + Frontend  *
+   ***************************/
+
+  dma_req_t          dma_req;
+  logic              dma_req_valid;
+  logic              dma_req_ready;
+  dma_meta_t         dma_meta;
+  logic      [1-1:0] dma_id;
+
   mempool_dma #(
     .axi_lite_req_t(axi_lite_slv_req_t       ),
     .axi_lite_rsp_t(axi_lite_slv_resp_t      ),
@@ -571,6 +580,72 @@ module mempool_system
     .backend_idle_i  (dma_meta.backend_idle  ),
     .trans_complete_i(dma_meta.trans_complete),
     .dma_id_o        (dma_id                 )
+  );
+
+  dma_req_t  dma_req_cut;
+  logic      dma_req_cut_valid;
+  logic      dma_req_cut_ready;
+  dma_meta_t dma_meta_cut;
+
+  `FF(dma_meta, dma_meta_cut, '0, clk_i, rst_ni);
+  
+  spill_register #(
+    .T(dma_req_t)
+  ) i_dma_req_register (
+    .clk_i  (clk_i            ),
+    .rst_ni (rst_ni           ),
+    .data_i (dma_req          ),
+    .valid_i(dma_req_valid    ),
+    .ready_o(dma_req_ready    ),
+    .data_o (dma_req_cut      ),
+    .valid_o(dma_req_cut_valid),
+    .ready_i(dma_req_cut_ready)
+  );
+
+  dma_req_t  dma_req_split;
+  logic      dma_req_split_valid;
+  logic      dma_req_split_ready;
+  dma_meta_t dma_meta_split;
+
+  idma_split_midend #(
+    .DmaRegionWidth (NumBanksPerGroup*NumGroups*4),
+    .DmaRegionStart (TCDMBaseAddr                ),
+    .DmaRegionEnd   (TCDMBaseAddr+TCDMSize       ),
+    .AddrWidth      (AddrWidth                   ),
+    .burst_req_t    (dma_req_t                   ),
+    .meta_t         (dma_meta_t                  )
+  ) i_idma_split_midend (
+    .clk_i      (clk_i              ),
+    .rst_ni     (rst_ni             ),
+    .burst_req_i(dma_req_cut        ),
+    .valid_i    (dma_req_cut_valid  ),
+    .ready_o    (dma_req_cut_ready  ),
+    .meta_o     (dma_meta_cut       ),
+    .burst_req_o(dma_req_split      ),
+    .valid_o    (dma_req_split_valid),
+    .ready_i    (dma_req_split_ready),
+    .meta_i     (dma_meta_split     )
+  );
+
+  idma_distributed_midend #(
+    .NoMstPorts     (NumGroups            ),
+    .DmaRegionWidth (NumBanksPerGroup*4   ),
+    .DmaRegionStart (TCDMBaseAddr         ),
+    .DmaRegionEnd   (TCDMBaseAddr+TCDMSize),
+    .TransFifoDepth (16                   ),
+    .burst_req_t    (dma_req_t            ),
+    .meta_t         (dma_meta_t           )
+  ) i_idma_distributed_midend (
+    .clk_i       (clk_i              ),
+    .rst_ni      (rst_ni             ),
+    .burst_req_i (dma_req_split      ),
+    .valid_i     (dma_req_split_valid),
+    .ready_o     (dma_req_split_ready),
+    .meta_o      (dma_meta_split     ),
+    .burst_req_o (dma_group_req      ),
+    .valid_o     (dma_group_req_valid),
+    .ready_i     (dma_group_req_ready),
+    .meta_i      (dma_group_meta     )
   );
 
   assign busy_o = 1'b0;
