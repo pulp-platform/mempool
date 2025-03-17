@@ -649,11 +649,11 @@ module mempool_group
       logic              [NumGroups-1:0] tran_tcdm_slave_resp_valid;
       logic              [NumGroups-1:0] tran_tcdm_slave_resp_ready;
 
-      if (t < NumRMTilesPerGroup) begin: gen_redmule_tiles
+      if (t < NumRMTilesPerGroup) begin: gen_redmule_tile
         mempool_redmule_tile #(
           .TCDMBaseAddr(TCDMBaseAddr),
           .BootAddr    (BootAddr    )
-        ) i_redmule_tile (
+        ) i_tile (
           .clk_i                   (clk_i                                          ),
           .rst_ni                  (rst_ni                                         ),
           .scan_enable_i           (scan_enable_i                                  ),
@@ -685,10 +685,9 @@ module mempool_group
           .axi_mst_req_o           (axi_tile_req[t]                                ),
           .axi_mst_resp_i          (axi_tile_resp[t]                               ),
           // Wake up interface
-          .wake_up_i               (wake_up_q[t*NumCoresPerTile])
+          .wake_up_i               (wake_up_q[t])
         );
-      end
-      else begin: gen_snitch_tiles
+      end else begin: gen_snitch_tile
         mempool_tile #(
           .TCDMBaseAddr(TCDMBaseAddr),
           .BootAddr    (BootAddr    )
@@ -724,7 +723,7 @@ module mempool_group
           .axi_mst_req_o           (axi_tile_req[t]                                ),
           .axi_mst_resp_i          (axi_tile_resp[t]                               ),
           // Wake up interface
-          .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile])
+          .wake_up_i               (wake_up_q[((t-NumRMTilesPerGroup)*NumCoresPerTile+NumRMTilesPerGroup) +: NumCoresPerTile])
         );
       end
 
