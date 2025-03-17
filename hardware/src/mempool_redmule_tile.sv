@@ -170,7 +170,7 @@ module mempool_redmule_tile
   logic     snitch_data_pready;
 
   logic [31:0] hart_id;
-  assign hart_id = {unsigned'(tile_id_i), {idx_width(NumCoresPerTile){1'b0}}};
+  assign hart_id = (tile_id_i / NumTilesPerGroup)*NumCoresPerGroup + tile_id_i % NumTilesPerGroup;
   mempool_cc #(
     .BootAddr (BootAddr)
   ) riscv_core (
@@ -1161,7 +1161,7 @@ module mempool_redmule_tile
   if (NumCoresPerTile != 2**$clog2(NumCoresPerTile))
     $fatal(1, "[mempool_tile] The number of cores per tile must be a power of two.");
 
-  if (NumCores != unsigned'(2**$clog2(NumCores)))
+  if (NumCores != unsigned'(2**$clog2(NumCores)) && (NumRMTiles == 0))
     $fatal(1, "[mempool_tile] The number of cores must be a power of two.");
 
   if (NumBanksPerTile < 1)

@@ -62,7 +62,7 @@ static inline mempool_id_t mempool_get_core_id() {
 
 /// Obtain the number of tiles in the current cluster.
 static inline uint32_t mempool_get_tile_count() {
-  return NUM_CORES / NUM_CORES_PER_TILE;
+  return NUM_REDMULE_TILES + (NUM_CORES - NUM_REDMULE_TILES) / NUM_CORES_PER_TILE;
 }
 
 /// Obtain the ID of the tile the current core is in.

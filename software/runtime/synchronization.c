@@ -11,10 +11,10 @@
 #include "synchronization.h"
 
 uint32_t volatile barrier __attribute__((section(".l1")));
-uint32_t volatile log_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
-uint32_t volatile partial_barrier[NUM_CORES * 4]
-    __attribute__((aligned(NUM_CORES * 4), section(".l1")));
+uint32_t volatile log_barrier[NUM_BANKS]
+    __attribute__((aligned(NUM_BANKS), section(".l1")));
+uint32_t volatile partial_barrier[NUM_BANKS]
+    __attribute__((aligned(NUM_BANKS), section(".l1")));
 
 void mempool_barrier_init(uint32_t core_id) {
   if (core_id == 0) {
@@ -26,7 +26,7 @@ void mempool_barrier_init(uint32_t core_id) {
     mempool_wfi();
   }
   // Initialize log-barriers synch variables in parallel
-  for (uint32_t i = core_id; i < NUM_CORES * 4; i += NUM_CORES) {
+  for (uint32_t i = core_id; i < NUM_BANKS; i += NUM_CORES) {
     log_barrier[i] = 0;
     partial_barrier[i] = 0;
   }
@@ -35,7 +35,7 @@ void mempool_barrier_init(uint32_t core_id) {
 
 void mempool_barrier(uint32_t num_cores) {
   // Increment the barrier counter
-  if ((num_cores - 16 - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
+  if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
     __atomic_store_n(&barrier, 0, __ATOMIC_RELAXED);
     __sync_synchronize(); // Full memory barrier
     wake_up_all();
