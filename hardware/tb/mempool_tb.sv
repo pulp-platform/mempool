@@ -196,25 +196,28 @@ module mempool_tb;
   `ifdef TERAPOOL
     for (genvar g = 0; g < NumGroups; g++) begin: gen_wfi_groups
       for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_wfi_sub_groups
-        for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_wfi_tiles
-          for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_wfi_cores
-            assign wfi[g*NumSubGroupsPerGroup*NumTilesPerSubGroup*NumCoresPerTile + sg*NumTilesPerSubGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
-          end: gen_wfi_cores
-        end: gen_wfi_tiles
+        for (genvar c = 0; c < NumCoresPerSubGroup; c++) begin: gen_wfi_cores
+          if (c < NumRMTilesPerSubGroup) begin
+            assign wfi[g*NumSubGroupsPerGroup*NumCoresPerSubGroup + sg*NumCoresPerSubGroup + c] = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[c].gen_redmule_tile.i_tile.riscv_core.i_snitch.wfi_q;
+          end else begin
+            localparam ct = (c - NumRMTilesPerSubGroup) % NumCoresPerTile;
+            localparam t = NumRMTilesPerSubGroup + (c - NumRMTilesPerSubGroup) / NumCoresPerTile;
+            assign wfi[g*NumSubGroupsPerGroup*NumCoresPerSubGroup + sg*NumCoresPerSubGroup + c] = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].gen_snitch_tile.i_tile.gen_cores[ct].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+          end
+        end: gen_wfi_cores
       end: gen_wfi_sub_groups
     end: gen_wfi_groups
   `else
     for (genvar g = 0; g < NumGroups; g++) begin: gen_wfi_groups
-      for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_wfi_tiles
-        if (t < NumRMTilesPerGroup) begin
-          assign wfi[g*NumTilesPerGroup*NumCoresPerTile + t*NumCoresPerTile] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].gen_redmule_tiles.i_redmule_tile.riscv_core.i_snitch.wfi_q;
+      for (genvar c = 0; c < NumCoresPerGroup; c++) begin: gen_wfi_cores
+        if (c < NumRMTilesPerGroup) begin
+          assign wfi[g*NumCoresPerGroup + c] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[c].gen_redmule_tile.i_tile.riscv_core.i_snitch.wfi_q;
+        end else begin
+          localparam ct = (c - NumRMTilesPerGroup) % NumCoresPerTile;
+          localparam t = NumRMTilesPerGroup + (c - NumRMTilesPerGroup) / NumCoresPerTile;
+          assign wfi[g*NumCoresPerGroup + c] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].gen_snitch_tile.i_tile.gen_cores[ct].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
         end
-        else begin
-          for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_wfi_cores
-            assign wfi[g*NumTilesPerGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].gen_snitch_tiles.i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
-          end: gen_wfi_cores
-        end
-      end: gen_wfi_tiles
+      end: gen_wfi_cores
     end: gen_wfi_groups
   `endif
 
