@@ -436,10 +436,10 @@ module mempool_tb;
   assign axi_w_utilization = $countones(w_valid & w_ready);
   assign axi_r_utilization = $countones(r_ready & r_valid);
   for (genvar a = 0; a < NumGroups*NumAXIMastersPerGroup; a++) begin
-    assign w_valid[a] = dut.i_mempool_cluster.axi_mst_req_o[a].w_valid;
-    assign w_ready[a] = dut.i_mempool_cluster.axi_mst_resp_i[a].w_ready;
-    assign r_ready[a] = dut.i_mempool_cluster.axi_mst_req_o[a].r_ready;
-    assign r_valid[a] = dut.i_mempool_cluster.axi_mst_resp_i[a].r_valid;
+    assign w_valid[a] = dut.axi_mst_req[a].w_valid;
+    assign w_ready[a] = dut.axi_mst_resp[a].w_ready;
+    assign r_ready[a] = dut.axi_mst_req[a].r_ready;
+    assign r_valid[a] = dut.axi_mst_resp[a].r_valid;
   end
 
 `endif
