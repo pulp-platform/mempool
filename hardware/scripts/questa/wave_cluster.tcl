@@ -12,7 +12,5 @@ add wave -noupdate -group cluster mempool_tb/dut/i_mempool_cluster/NumAXIMasters
 add wave -noupdate -group cluster -divider Signals
 add wave -noupdate -group cluster mempool_tb/dut/i_mempool_cluster/clk_i
 add wave -noupdate -group cluster mempool_tb/dut/i_mempool_cluster/rst_ni
-add wave -noupdate -group cluster mempool_tb/dut/i_mempool_cluster/axi_mst_req_o
-add wave -noupdate -group cluster mempool_tb/dut/i_mempool_cluster/axi_mst_resp_i
 add wave -noupdate -group cluster mempool_tb/dut/i_mempool_cluster/ro_cache_ctrl_i
 add wave -noupdate -group cluster mempool_tb/dut/i_mempool_cluster/dma_*

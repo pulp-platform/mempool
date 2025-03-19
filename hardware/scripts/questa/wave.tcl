@@ -99,6 +99,11 @@ if {[examine -radix dec mempool_pkg::NumDrams] ne ""} {
   }
 }
 
+# Add AXI
+add wave -noupdate -group cluster mempool_tb/dut/axi_mst_req
+add wave -noupdate -group cluster mempool_tb/dut/axi_mst_resp
+
+# Add CSR
 add wave -group system -group CSR /mempool_tb/dut/i_ctrl_registers/*
 
 # Add DMA
