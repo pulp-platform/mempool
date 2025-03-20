@@ -16,10 +16,10 @@ packages:
     - common_verification
     - tech_cells_generic
   axi_riscv_atomics:
-    revision: 0ac3a78fe342c5a5b9b10bff49d58897f773059e
-    version: 0.8.2
+    revision: null
+    version: null
     source:
-      Git: https://github.com/pulp-platform/axi_riscv_atomics.git
+      Path: hardware/deps/axi_riscv_atomics
     dependencies:
     - axi
     - common_cells
@@ -46,10 +46,10 @@ packages:
       Path: hardware/deps/common_verification
     dependencies: []
   floo_noc:
-    revision: b139479646143d6415bfab24a0614246df707edd
+    revision: null
     version: null
     source:
-      Git: https://github.com/pulp-platform/FlooNoC.git
+      Path: hardware/deps/floo_noc
     dependencies:
     - axi
     - axi_riscv_atomics

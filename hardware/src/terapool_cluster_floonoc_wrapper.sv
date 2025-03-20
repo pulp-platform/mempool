@@ -267,9 +267,9 @@ module terapool_cluster_floonoc_wrapper
         assign floo_axi_req_in               [x][y][East]  = floo_axi_req_i                 [y+2];
         assign floo_axi_rsp_in               [x][y][East]  = floo_axi_rsp_i                 [y+2];
         assign floo_axi_wide_in              [x][y][East]  = floo_axi_wide_i                [y+2];
-        assign floo_axi_wide_o               [y+2]         = floo_axi_wide_out              [x][y][East];
-        assign floo_axi_req_o                [y+2]         = floo_axi_req_out               [x][y][East];
-        assign floo_axi_rsp_o                [y+2]         = floo_axi_rsp_out               [x][y][East];
+        assign floo_axi_wide_o               [y+12]         = floo_axi_wide_out              [x][y][East];
+        assign floo_axi_req_o                [y+12]         = floo_axi_req_out               [x][y][East];
+        assign floo_axi_rsp_o                [y+12]         = floo_axi_rsp_out               [x][y][East];
 
         // floo_nw_chimney #(
         //   .AxiCfgN              ( AxiCfgN               ),
@@ -398,9 +398,6 @@ module terapool_cluster_floonoc_wrapper
         assign floo_axi_req_in               [x][y][North] = floo_axi_req_out               [x][y+1][South];
         assign floo_axi_rsp_in               [x][y][North] = floo_axi_rsp_out               [x][y+1][South];
         assign floo_axi_wide_in              [x][y][North] = floo_axi_wide_out              [x][y+1][South];
-        assign floo_axi_req_in[x][y][North]           = floo_axi_req_out[x][y+1][South];
-        assign floo_axi_rsp_in[x][y][North]           = floo_axi_rsp_out[x][y+1][South];
-        assign floo_axi_wide_in[x][y][North]          = floo_axi_wide_out[x][y+1][South];
 
         if (x == 1) begin : gen_normal_chimneys
           // AXI South

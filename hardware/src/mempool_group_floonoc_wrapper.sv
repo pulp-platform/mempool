@@ -55,32 +55,24 @@ module mempool_group_floonoc_wrapper
   input  logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_valid_i,
   output logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_ready_o,
 
-    // AXI Router interface
-  output floo_narrow_wide_pkg::floo_req_t   [West:North]                                floo_axi_req_o,
-  output floo_narrow_wide_pkg::floo_rsp_t   [West:North]                                floo_axi_rsp_o,
-  output floo_narrow_wide_pkg::floo_wide_t  [West:North]                                floo_axi_wide_o,
-  input  floo_narrow_wide_pkg::floo_req_t   [West:North]                                floo_axi_req_i,
-  input  floo_narrow_wide_pkg::floo_rsp_t   [West:North]                                floo_axi_rsp_i,
-  input  floo_narrow_wide_pkg::floo_wide_t  [West:North]                                floo_axi_wide_i,
-
   // AXI Router interface
-  output floo_req_t       [West:North]                                                  floo_axi_req_o,
-  output floo_rsp_t       [West:North]                                                  floo_axi_rsp_o,
-  output floo_wide_t      [West:North]                                                  floo_axi_wide_o,
-  input  floo_req_t       [West:North]                                                  floo_axi_req_i,
-  input  floo_rsp_t       [West:North]                                                  floo_axi_rsp_i,
-  input  floo_wide_t      [West:North]                                                  floo_axi_wide_i,
+  output floo_req_t           [West:North]                                                                                  floo_axi_req_o,
+  output floo_rsp_t           [West:North]                                                                                  floo_axi_rsp_o,
+  output floo_wide_t          [West:North]                                                                                  floo_axi_wide_o,
+  input  floo_req_t           [West:North]                                                                                  floo_axi_req_i,
+  input  floo_rsp_t           [West:North]                                                                                  floo_axi_rsp_i,
+  input  floo_wide_t          [West:North]                                                                                  floo_axi_wide_i,
 
   // Wake up interface
-  input  logic            [NumCoresPerGroup-1:0]                                        wake_up_i,
+  input  logic                [NumCoresPerGroup-1:0]                                                                        wake_up_i,
   // RO-Cache configuration
-  input  `STRUCT_PORT(ro_cache_ctrl_t)                                                  ro_cache_ctrl_i,
+  input  `STRUCT_PORT(ro_cache_ctrl_t)                                                                                      ro_cache_ctrl_i,
   // DMA request
-  input  `STRUCT_PORT(dma_req_t)                                                        dma_req_i,
-  input  logic                                                                          dma_req_valid_i,
-  output logic                                                                          dma_req_ready_o,
+  input  `STRUCT_PORT(dma_req_t)                                                                                            dma_req_i,
+  input  logic                                                                                                              dma_req_valid_i,
+  output logic                                                                                                              dma_req_ready_o,
   // DMA status
-  output `STRUCT_PORT(dma_meta_t)                                                       dma_meta_o
+  output `STRUCT_PORT(dma_meta_t)                                                                                           dma_meta_o
 );
 
 // Parse the address width to calculate the offset
@@ -807,8 +799,8 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
       .NumRoutes        (mempool_pkg::NumDirections),
       .NumVirtChannels  (NumVirtualChannel            ),
       .flit_t           (floo_tcdm_rdwr_req_t),
-      .ChannelFifoDepth (mempool_pkg::NumRouterInFifoDepth), // Input buffer depth
-      .OutputFifoDepth  (mempool_pkg::NumRouterOutFifoDepth), // Output buffer depth, can try to set it to 0 for -1 cycle latency
+      .InFifoDepth      (mempool_pkg::NumRouterInFifoDepth), // Input buffer depth
+      .OutFifoDepth     (mempool_pkg::NumRouterOutFifoDepth), // Output buffer depth, can try to set it to 0 for -1 cycle latency
     `ifdef TORUS
       .RouteAlgo        (IdTable      ),
       .id_t             (group_id_t   ),
