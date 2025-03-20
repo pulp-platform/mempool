@@ -371,7 +371,7 @@ module mempool_system
           );
       end
     end
-     
+
   `else
     `define CLUSTER_WRAPPER mempool_cluster_floonoc_wrapper
     // AXI Chimney
@@ -1036,7 +1036,7 @@ module mempool_system
   dma_meta_t dma_meta_cut;
 
   `FF(dma_meta, dma_meta_cut, '0, clk_i, rst_ni);
-  
+
   spill_register #(
     .T(dma_req_t)
   ) i_dma_req_register (
