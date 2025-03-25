@@ -264,9 +264,9 @@ module terapool_cluster_floonoc_wrapper
         assign floo_axi_rsp_in               [x][y][West]  = floo_axi_rsp_out               [x-1][y][East];
         assign floo_axi_wide_in              [x][y][West]  = floo_axi_wide_out              [x-1][y][East];
         // AXI East
-        assign floo_axi_req_in               [x][y][East]  = floo_axi_req_i                 [y+2];
-        assign floo_axi_rsp_in               [x][y][East]  = floo_axi_rsp_i                 [y+2];
-        assign floo_axi_wide_in              [x][y][East]  = floo_axi_wide_i                [y+2];
+        assign floo_axi_req_in               [x][y][East]  = floo_axi_req_i                 [y+12];
+        assign floo_axi_rsp_in               [x][y][East]  = floo_axi_rsp_i                 [y+12];
+        assign floo_axi_wide_in              [x][y][East]  = floo_axi_wide_i                [y+12];
         assign floo_axi_wide_o               [y+12]         = floo_axi_wide_out              [x][y][East];
         assign floo_axi_req_o                [y+12]         = floo_axi_req_out               [x][y][East];
         assign floo_axi_rsp_o                [y+12]         = floo_axi_rsp_out               [x][y][East];
