@@ -1,0 +1,148 @@
+# Copyright 2025 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+name: terapool
+description: "Terapool AXI NoC"
+network_type: "narrow-wide"
+
+routing:
+  route_algo: "SRC"
+  use_id_table: true
+
+protocols:
+  - name: "narrow_in"
+    type: "narrow"
+    protocol: "AXI4"
+    data_width: 64
+    addr_width: 32
+    id_width: 1
+    user_width: 1
+    direction: "input"
+  - name: "narrow_out"
+    type: "narrow"
+    protocol: "AXI4"
+    data_width: 64
+    addr_width: 32
+    id_width: 1
+    user_width: 1
+    direction: "output"
+  - name: "wide_in"
+    type: "wide"
+    protocol: "AXI4"
+    data_width: 512
+    addr_width: 32
+    id_width: 2
+    user_width: 1
+  - name: "wide_out"
+    type: "wide"
+    protocol: "AXI4"
+    data_width: 512
+    addr_width: 32
+    id_width: 2
+    user_width: 1
+
+endpoints:
+  - name: "group"
+    array: [4, 4]
+    mgr_port_protocol:
+      - "wide_in"
+  - name: "hbm"
+    array: [16]
+    addr_range:
+      base: 0x8000_0000
+      size: 0x0010_0000
+    sbr_port_protocol:
+      - "wide_out"
+  - name: "periphs"
+    addr_range:
+      - start: 0x0000_0000
+        end: 0x7FFF_FFFF
+      - start: 0xA000_0000
+        end: 0xC000_FFFF
+    sbr_port_protocol:
+      - "wide_out"
+  - name: "host"
+    mgr_port_protocol:
+      - "wide_in"
+
+routers:
+  - name: "group_router"
+    array: [4, 4]
+    degree: 5
+  - name: "periph_router"
+
+connections:
+  - src: "group"
+    dst: "group_router"
+    src_range:
+    - [0, 3]
+    - [0, 3]
+    dst_range:
+    - [0, 3]
+    - [0, 3]
+    dst_dir: "Eject"
+  # HBM West
+  - src: "hbm"
+    dst: "group_router"
+    src_range:
+    - [0, 3]
+    dst_range:
+    - [0, 0]
+    - [0, 3]
+    dst_dir: "West"
+  # HBM North
+  - src: "hbm"
+    dst: "group_router"
+    src_range:
+    - [6, 7]
+    dst_range:
+    - [0, 1]
+    - [3, 3]
+    dst_dir: "North"
+  # HBM North
+  - src: "hbm"
+    dst: "group_router"
+    src_range:
+    - [10, 11]
+    dst_range:
+    - [3, 2]
+    - [3, 3]
+    dst_dir: "North"
+  # HBM East
+  - src: "hbm"
+    dst: "group_router"
+    src_range:
+    - [15, 12]
+    dst_range:
+    - [3, 3]
+    - [3, 0]
+    dst_dir: "East"
+  # HBM South
+  - src: "hbm"
+    dst: "group_router"
+    src_range:
+    - [9, 8]
+    dst_range:
+    - [3, 2]
+    - [0, 0]
+    dst_dir: "South"
+  # HBM South
+  - src: "hbm"
+    dst: "group_router"
+    src_idx: [4]
+    dst_idx: [1, 0]
+    dst_dir: "South"
+  # Attach special peripheral/HBM router to the mesh
+  - src: "periph_router"
+    dst: "group_router"
+    dst_idx: [0, 0]
+    dst_dir: "South"
+  # Attach last HBM channel and peripherals to the special router
+  - src: "periph_router"
+    dst: "hbm"
+    dst_idx: [5]
+  - src: "periph_router"
+    dst: "periphs"
+  - src: "periph_router"
+    dst: "host"

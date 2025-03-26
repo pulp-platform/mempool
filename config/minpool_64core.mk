@@ -9,6 +9,9 @@
 ###############
 # 4x4 mesh, 16 groups, 2 tiles per group, 2 cores per tile
 
+# Global Control
+terapool ?= 1
+
 # Number of cores
 num_cores ?= 64
 
@@ -25,17 +28,21 @@ num_divsqrt_per_tile ?= 1
 # FlooNoC configuration
 num_directions ?= 5
 num_x ?= 4
+topology ?= 2dmesh
+routing_algorithm ?= xy
+req_remapping ?= 0
+resp_remapping ?= 0
+num_virtual_channel ?= 1
 
-# num_remote_ports_per_tile ?= 2
 # Per tile, separate the NoC read and read/write req channels, rd = hdr, wr = har+payload, rd/wr = hdr+payload
-noc_req_rd_channel_num ?= 1
-noc_req_rdwr_channel_num ?= 1
+noc_req_rd_channel_num ?= 0
+noc_req_rdwr_channel_num ?= 2
 noc_req_wr_channel_num ?= 0
 noc_resp_channel_num ?= 2
 
 # router buffer configuration
-noc_router_input_fifo_dep ?= 4
-noc_router_output_fifo_dep ?= 0
+noc_router_input_fifo_dep ?= 2
+noc_router_output_fifo_dep ?= 2
 
 # L1 scratchpad banking factor
 banking_factor ?= 16
