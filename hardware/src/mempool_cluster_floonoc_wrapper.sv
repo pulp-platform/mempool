@@ -172,55 +172,8 @@ module mempool_cluster_floonoc_wrapper
         assign floo_axi_wide_o               [y]           = floo_axi_wide_out              [x][y][West];
         assign floo_axi_req_o                [y]           = floo_axi_req_out               [x][y][West];
         assign floo_axi_rsp_o                [y]           = floo_axi_rsp_out               [x][y][West];
-
-        // floo_nw_chimney #(
-        //   .AxiCfgN              ( AxiCfgN               ),
-        //   .AxiCfgW              ( AxiCfgW               ),
-        //   .ChimneyCfgN          ( ChimneyCfgN           ),
-        //   .ChimneyCfgW          ( ChimneyCfgW           ),
-        //   .AtopSupport          ( '0                    ),
-        //   .RouteCfg             ( RouteCfg              ),
-        //   .id_t                 ( id_t                  ),
-        //   .rob_idx_t            ( rob_idx_t             ),
-        //   .route_t              ( route_t               ),
-        //   .dst_t                ( route_t               ),
-        //   .hdr_t                ( hdr_t                 ),
-        //   .sam_rule_t           ( sam_rule_t            ),
-        //   .Sam                  ( Sam                   ),
-        //   .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
-        //   .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
-        //   .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
-        //   .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
-        //   .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
-        //   .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
-        //   .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
-        //   .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
-        //   .floo_req_t           ( floo_req_t            ),
-        //   .floo_rsp_t           ( floo_rsp_t            ),
-        //   .floo_wide_t          ( floo_wide_t           )
-        // ) i_floo_nw_chimney (
-        //   .clk_i,
-        //   .rst_ni,
-        //   .test_enable_i        ( testmode_i                    ),
-        //   .sram_cfg_i           ( '0                            ),
-        //   .axi_narrow_in_req_i  ( '0                            ),
-        //   .axi_narrow_in_rsp_o  (                               ),
-        //   .axi_narrow_out_req_o (                               ),
-        //   .axi_narrow_out_rsp_i ( '0                            ),
-        //   .axi_wide_in_req_i    ( '0                            ),
-        //   .axi_wide_in_rsp_o    (                               ),
-        //   .axi_wide_out_req_o   ( axi_mst_req_o[y]              ),
-        //   .axi_wide_out_rsp_i   ( axi_mst_resp_i[y]             ),
-        //   .id_i                 ( id_t'(HbmNi0+y)               ),
-        //   .route_table_i        ( RoutingTables[HbmNi0+y]       ),
-        //   .floo_req_o           ( floo_axi_req_in[x][y][West]   ),
-        //   .floo_rsp_o           ( floo_axi_rsp_in[x][y][West]   ),
-        //   .floo_wide_o          ( floo_axi_wide_in[x][y][West]  ),
-        //   .floo_req_i           ( floo_axi_req_out[x][y][West]  ),
-        //   .floo_rsp_i           ( floo_axi_rsp_out[x][y][West]  ),
-        //   .floo_wide_i          ( floo_axi_wide_out[x][y][West] )
-        // );
       end : gen_hbm_chimney_west
+
       else if (x == NumX-1) begin : gen_hbm_chimney_east
         // East
       `ifdef TORUS
@@ -272,54 +225,6 @@ module mempool_cluster_floonoc_wrapper
         assign floo_axi_wide_o               [y+2]         = floo_axi_wide_out              [x][y][East];
         assign floo_axi_req_o                [y+2]         = floo_axi_req_out               [x][y][East];
         assign floo_axi_rsp_o                [y+2]         = floo_axi_rsp_out               [x][y][East];
-
-        // floo_nw_chimney #(
-        //   .AxiCfgN              ( AxiCfgN               ),
-        //   .AxiCfgW              ( AxiCfgW               ),
-        //   .ChimneyCfgN          ( ChimneyCfgN           ),
-        //   .ChimneyCfgW          ( ChimneyCfgW           ),
-        //   .AtopSupport          ( '0                    ),
-        //   .RouteCfg             ( RouteCfg              ),
-        //   .id_t                 ( id_t                  ),
-        //   .rob_idx_t            ( rob_idx_t             ),
-        //   .route_t              ( route_t               ),
-        //   .dst_t                ( route_t               ),
-        //   .hdr_t                ( hdr_t                 ),
-        //   .sam_rule_t           ( sam_rule_t            ),
-        //   .Sam                  ( Sam                   ),
-        //   .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
-        //   .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
-        //   .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
-        //   .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
-        //   .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
-        //   .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
-        //   .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
-        //   .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
-        //   .floo_req_t           ( floo_req_t            ),
-        //   .floo_rsp_t           ( floo_rsp_t            ),
-        //   .floo_wide_t          ( floo_wide_t           )
-        // ) i_floo_nw_chimney (
-        //   .clk_i,
-        //   .rst_ni,
-        //   .test_enable_i        ( testmode_i                    ),
-        //   .sram_cfg_i           ( '0                            ),
-        //   .axi_narrow_in_req_i  ( '0                            ),
-        //   .axi_narrow_in_rsp_o  (                               ),
-        //   .axi_narrow_out_req_o (                               ),
-        //   .axi_narrow_out_rsp_i ( '0                            ),
-        //   .axi_wide_in_req_i    ( '0                            ),
-        //   .axi_wide_in_rsp_o    (                               ),
-        //   .axi_wide_out_req_o   ( axi_mst_req_o[y+2]           ),
-        //   .axi_wide_out_rsp_i   ( axi_mst_resp_i[y+2]          ),
-        //   .id_i                 ( id_t'(HbmNi2+y)              ),
-        //   .route_table_i        ( RoutingTables[HbmNi2+y]      ),
-        //   .floo_req_o           ( floo_axi_req_in[x][y][East]   ),
-        //   .floo_rsp_o           ( floo_axi_rsp_in[x][y][East]   ),
-        //   .floo_wide_o          ( floo_axi_wide_in[x][y][East]  ),
-        //   .floo_req_i           ( floo_axi_req_out[x][y][East]  ),
-        //   .floo_rsp_i           ( floo_axi_rsp_out[x][y][East]  ),
-        //   .floo_wide_i          ( floo_axi_wide_out[x][y][East] )
-        // );
       end : gen_hbm_chimney_east
       else begin
         $fatal(1, "[topology] The current mesh structure is not 2x2, please modify cluster mesh connection");
@@ -378,145 +283,6 @@ module mempool_cluster_floonoc_wrapper
           assign floo_axi_wide_o[4]            = floo_axi_wide_out[x][y][South];
           assign floo_axi_req_o[4]             = floo_axi_req_out[x][y][South];
           assign floo_axi_rsp_o[4]             = floo_axi_rsp_out[x][y][South];
-          // floo_req_t  [2:0] periph_router_req_in;
-          // floo_rsp_t  [2:0] periph_router_rsp_out;
-          // floo_req_t  [2:0] periph_router_req_out;
-          // floo_rsp_t  [2:0] periph_router_rsp_in;
-          // floo_wide_t [2:0] periph_router_wide_in;
-          // floo_wide_t [2:0] periph_router_wide_out;
-
-          // assign periph_router_req_in[0] = floo_axi_req_out[x][y][South];
-          // assign periph_router_rsp_in[0] = floo_axi_rsp_out[x][y][South];
-          // assign periph_router_wide_in[0] = floo_axi_wide_out[x][y][South];
-          // assign floo_axi_req_in[x][y][South] = periph_router_req_out[0];
-          // assign floo_axi_rsp_in[x][y][South] = periph_router_rsp_out[0];
-          // assign floo_axi_wide_in[x][y][South] = periph_router_wide_out[0];
-
-          // floo_nw_router #(
-          //   .AxiCfgN      ( AxiCfgN             ),
-          //   .AxiCfgW      ( AxiCfgW             ),
-          //   .RouteAlgo    ( RouteCfg.RouteAlgo  ),
-          //   .NumRoutes    ( 3                   ),
-          //   .InFifoDepth  ( 2                   ),
-          //   .OutFifoDepth ( 2                   ),
-          //   .id_t         ( id_t                ),
-          //   .hdr_t        ( hdr_t               ),
-          //   .floo_req_t   ( floo_req_t          ),
-          //   .floo_rsp_t   ( floo_rsp_t          ),
-          //   .floo_wide_t  ( floo_wide_t         ),
-          //   .NumAddrRules (1                         )
-          // ) periph_router (
-          //   .clk_i,
-          //   .rst_ni,
-          //   .test_enable_i  ( testmode_i              ),
-          //   .id_i           ( '0                      ),
-          //   .id_route_map_i ( '0                      ),
-          //   .floo_req_i     ( periph_router_req_in    ),
-          //   .floo_rsp_o     ( periph_router_rsp_out   ),
-          //   .floo_req_o     ( periph_router_req_out   ),
-          //   .floo_rsp_i     ( periph_router_rsp_in    ),
-          //   .floo_wide_i    ( periph_router_wide_in   ),
-          //   .floo_wide_o    ( periph_router_wide_out  )
-          // );
-
-          // localparam floo_pkg::chimney_cfg_t PeriphChimneyCfgW = floo_pkg::set_ports(floo_pkg::ChimneyDefaultCfg, 1'b1, 1'b0);
-
-          // floo_nw_chimney #(
-          //   .AxiCfgN              ( AxiCfgN               ),
-          //   .AxiCfgW              ( AxiCfgW               ),
-          //   .ChimneyCfgN          ( ChimneyCfgN           ),
-          //   .ChimneyCfgW          ( PeriphChimneyCfgW     ),
-          //   .AtopSupport          ( '0                    ),
-          //   .RouteCfg             ( RouteCfg              ),
-          //   .id_t                 ( id_t                  ),
-          //   .rob_idx_t            ( rob_idx_t             ),
-          //   .route_t              ( route_t               ),
-          //   .dst_t                ( route_t               ),
-          //   .hdr_t                ( hdr_t                 ),
-          //   .sam_rule_t           ( sam_rule_t            ),
-          //   .Sam                  ( Sam                   ),
-          //   .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
-          //   .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
-          //   .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
-          //   .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
-          //   .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
-          //   .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
-          //   .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
-          //   .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
-          //   .floo_req_t           ( floo_req_t            ),
-          //   .floo_rsp_t           ( floo_rsp_t            ),
-          //   .floo_wide_t          ( floo_wide_t           )
-          // ) peripherals_ni (
-          //   .clk_i,
-          //   .rst_ni,
-          //   .test_enable_i        ( testmode_i                    ),
-          //   .sram_cfg_i           ( '0                            ),
-          //   .axi_narrow_in_req_i  ( '0                            ),
-          //   .axi_narrow_in_rsp_o  (                               ),
-          //   .axi_narrow_out_req_o (                               ),
-          //   .axi_narrow_out_rsp_i ( '0                            ),
-          //   .axi_wide_in_req_i    ( '0                            ),
-          //   .axi_wide_in_rsp_o    (                               ),
-          //   .axi_wide_out_req_o   ( periph_mst_req_o              ),
-          //   .axi_wide_out_rsp_i   ( periph_mst_resp_i             ),
-          //   .id_i                 ( id_t'(PeripheralsNi)          ),
-          //   .route_table_i        ( RoutingTables[PeripheralsNi]  ),
-          //   .floo_req_o           ( periph_router_req_in[1]       ),
-          //   .floo_rsp_i           ( periph_router_rsp_out[1]      ),
-          //   .floo_wide_o          ( periph_router_wide_in[1]      ),
-          //   .floo_req_i           ( periph_router_req_out[1]      ),
-          //   .floo_rsp_o           ( periph_router_rsp_in[1]       ),
-          //   .floo_wide_i          ( periph_router_wide_out[1]     )
-          // );
-
-          // localparam floo_pkg::chimney_cfg_t HostChimneyCfgW = floo_pkg::set_ports(floo_pkg::ChimneyDefaultCfg, 1'b0, 1'b1);
-
-          // floo_nw_chimney #(
-          //   .AxiCfgN              ( AxiCfgN               ),
-          //   .AxiCfgW              ( AxiCfgW               ),
-          //   .ChimneyCfgN          ( ChimneyCfgN           ),
-          //   .ChimneyCfgW          ( HostChimneyCfgW       ),
-          //   .RouteCfg             ( RouteCfg              ),
-          //   .id_t                 ( id_t                  ),
-          //   .rob_idx_t            ( rob_idx_t             ),
-          //   .route_t              ( route_t               ),
-          //   .dst_t                ( route_t               ),
-          //   .hdr_t                ( hdr_t                 ),
-          //   .sam_rule_t           ( sam_rule_t            ),
-          //   .Sam                  ( Sam                   ),
-          //   .axi_narrow_in_req_t  ( axi_narrow_in_req_t   ),
-          //   .axi_narrow_in_rsp_t  ( axi_narrow_in_rsp_t   ),
-          //   .axi_narrow_out_req_t ( axi_narrow_out_req_t  ),
-          //   .axi_narrow_out_rsp_t ( axi_narrow_out_rsp_t  ),
-          //   .axi_wide_in_req_t    ( axi_wide_in_req_t     ),
-          //   .axi_wide_in_rsp_t    ( axi_wide_in_rsp_t     ),
-          //   .axi_wide_out_req_t   ( axi_wide_out_req_t    ),
-          //   .axi_wide_out_rsp_t   ( axi_wide_out_rsp_t    ),
-          //   .floo_req_t           ( floo_req_t            ),
-          //   .floo_rsp_t           ( floo_rsp_t            ),
-          //   .floo_wide_t          ( floo_wide_t           )
-          // ) host_ni (
-          //   .clk_i,
-          //   .rst_ni,
-          //   .test_enable_i        ( testmode_i                    ),
-          //   .sram_cfg_i           ( '0                            ),
-          //   .axi_narrow_in_req_i  ( '0                            ),
-          //   .axi_narrow_in_rsp_o  (                               ),
-          //   .axi_narrow_out_req_o (                               ),
-          //   .axi_narrow_out_rsp_i ( '0                            ),
-          //   .axi_wide_in_req_i    ( host_slv_req_i                ),
-          //   .axi_wide_in_rsp_o    ( host_slv_resp_o               ),
-          //   .axi_wide_out_req_o   (                               ),
-          //   .axi_wide_out_rsp_i   ( '0                            ),
-          //   .id_i                 ( id_t'(HostNi)                 ),
-          //   .route_table_i        ( RoutingTables[HostNi]         ),
-          //   .floo_req_o           ( periph_router_req_in[2]       ),
-          //   .floo_rsp_i           ( periph_router_rsp_out[2]      ),
-          //   .floo_wide_o          ( periph_router_wide_in[2]      ),
-          //   .floo_req_i           ( periph_router_req_out[2]      ),
-          //   .floo_rsp_o           ( periph_router_rsp_in[2]       ),
-          //   .floo_wide_i          ( periph_router_wide_out[2]     )
-          // );
         end : gen_periph_chimney_south
         else begin
           assign floo_axi_req_in[x][y][South]  = '0;
@@ -574,8 +340,8 @@ module mempool_cluster_floonoc_wrapper
         .scan_data_i                    (/* Unconnected */                                               ),
         .scan_data_o                    (/* Unconnected */                                               ),
         .group_id_i                     (group_id_t'({group_id.x, group_id.y})                           ),
-        .floo_id_i                      (id_t'(GroupNi00 + x*NumY +y)                                    ),
-        .route_table_i                  (floo_terapool_noc_pkg::RoutingTables[GroupNi00 + x*NumY +y]     ),
+        .floo_id_i                      (id_t'(GroupX0Y0 + x*NumY + y)                                   ),
+        .route_table_i                  (floo_terapool_noc_pkg::RoutingTables[GroupX0Y0 + x*NumY + y]    ),
         // TCDM narrow req noc
         `ifdef USE_NARROW_REQ_CHANNEL
         .floo_tcdm_narrow_req_o         (floo_tcdm_narrow_req_out       [x][y]                           ),
