@@ -15,7 +15,7 @@ dependencies:
   snitch:               { path: "hardware/deps/snitch"                                                       }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.13  }
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: pulp-v0.1.3 }
-  floo_noc:             { git: "https://github.com/pulp-platform/FlooNoC.git",              rev: main        }
+  floo_noc:             { git: "https://github.com/pulp-platform/FlooNoC.git",              rev: ax-cut      }
 
 workspace:
   checkout_dir: "./hardware/deps"
@@ -41,7 +41,7 @@ sources:
   - hardware/src/mempool_tile.sv
   # Level 3
   - hardware/src/mempool_group.sv
-  - hardware/generated/floo_terapool_noc.sv
+  - hardware/generated/floo_terapool_noc_pkg.sv
   - hardware/src/mempool_group_floonoc_wrapper.sv
   # Level 4
   - hardware/src/mempool_cluster_floonoc_wrapper.sv

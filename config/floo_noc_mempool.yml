@@ -54,7 +54,7 @@ endpoints:
       size: 0x0010_0000
     sbr_port_protocol:
       - "wide_out"
-  - name: "peripherals"
+  - name: "periphs"
     addr_range:
       - start: 0x0000_0000
         end: 0x7FFF_FFFF
@@ -107,6 +107,6 @@ connections:
     dst_dir: "South"
   # Attach last HBM channel and peripherals to the special router
   - src: "periph_router"
-    dst: "peripherals"
+    dst: "periphs"
   - src: "periph_router"
     dst: "host"
