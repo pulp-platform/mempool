@@ -198,7 +198,7 @@ setup-dram: config-dram
 # FlooGen configuration #
 #########################
 
-FLOO_DIR  ?= $(shell bender path floo_noc)
+FLOO_DIR  ?= $(shell $(BENDER_INSTALL_DIR)/bender path floo_noc)
 FLOO_GEN_OUTDIR	?= $(ROOT_DIR)/hardware/generated
 FLOO_CFG  ?= $(ROOT_DIR)/config/floo_noc_terapool.yml
 FLOO_SYS  = $(subst .yml,,$(notdir $(FLOO_CFG)))
