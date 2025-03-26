@@ -215,6 +215,10 @@ jobs:
         config: ${{ matrix.mempool_config }}
       run: |
         sudo apt install libelf-dev
+        source /usr/share/miniconda/etc/profile.d/conda.sh
+        conda activate base
+        pip install --upgrade pip
+        conda install -c conda-forge verible
         ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/include $GITHUB_WORKSPACE/install/verilator/include
         ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/bin/verilator_includer $GITHUB_WORKSPACE/install/verilator/bin/verilator_includer
         make bender
