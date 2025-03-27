@@ -145,19 +145,49 @@ if __name__ == '__main__':
         description='Generate data.h header files.')
     parser.add_argument('--app_name', type=str, help='Name of the app')
     parser.add_argument('--params', type=str, help='Name of the app')
+    parser.add_argument(
+        '--type',
+        type=str,
+        help='Data type (e.g., float32, int16)')
+    parser.add_argument(
+        '--defines',
+        type=str,
+        help='Comma-separated defines (e.g., array_N=1024)')
+    parser.add_argument(
+        '--arrays',
+        type=str,
+        help='Comma-separated type:name pairs (e.g., float:l2_A,float:l2_X)')
 
     # Parse the command-line arguments
     args = parser.parse_args()
     app_name = args.app_name
-    with open(args.params, 'r') as hjson_file:
-        config_data = hjson.load(hjson_file)
-    data_args = config_data.get(app_name)
+
+    # Load HJSON configuration
+    data_args = None
+    if args.params:
+        with open(args.params, 'r') as hjson_file:
+            config_data = hjson.load(hjson_file)
+        data_args = config_data.get(app_name)
 
     if data_args is not None:
         my_type = get_type(data_args.get("type"))
         defnes = dict([ast.literal_eval(defne)
                       for defne in data_args.get("defines")])
         arrays = [ast.literal_eval(array) for array in data_args.get("arrays")]
+    else:
+        if args.type is None or args.defines is None or args.arrays is None:
+            raise Exception(
+                "ERROR: Missing required parameters when HJSON data is not available.")
+
+        # Extract type
+        my_type = get_type(args.type)
+        # Extract defines
+        defnes = dict([tuple(defn.split("="))
+                      for defn in args.defines.split(",")])
+        # Convert values to integers
+        defnes = {k: int(v) for k, v in defnes.items()}
+        # Extract arrays
+        arrays = [tuple(arr.split(":")) for arr in args.arrays.split(",")]
 
     # Determine output file name
     filename = os.path.dirname(os.path.abspath(__file__))
