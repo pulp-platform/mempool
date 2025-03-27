@@ -47,6 +47,11 @@ module axi_L2_interleaver
     always_comb begin
       axi_l2_req_interleaved_o[i] = axi_l2_req_i[i];
       axi_l2_resp_o[i]            = axi_l2_resp_interleaved_i[i];
+
+      // Default assignments for scrambled addresses
+      aw_scramble_addr[i] = axi_l2_req_interleaved_o[i].aw.addr;
+      ar_scramble_addr[i] = axi_l2_req_interleaved_o[i].ar.addr;
+
       // AW Channel
       if ((axi_l2_req_interleaved_o[i].aw.addr >= 32'h80000000) && (axi_l2_req_interleaved_o[i].aw.addr < 32'h90000000)) begin
         // Decompose address for scrambling
@@ -58,7 +63,7 @@ module axi_L2_interleaver
         // Assign scrambled address back to request
         axi_l2_req_interleaved_o[i].aw.addr = aw_scramble_addr[i];
       end
-      
+
       // AR Channel
       if ((axi_l2_req_interleaved_o[i].ar.addr >= 32'h80000000) && (axi_l2_req_interleaved_o[i].ar.addr < 32'h90000000)) begin
         // Decompose address for scrambling
