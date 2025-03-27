@@ -4,13 +4,15 @@
 
 if {[info exists ::env(config)] && $::env(config) eq "terapool"} {
     set PROJECT terapool
+    set PROJECT_FOLDER_NAME terapool
 } else {
     set PROJECT mempool
+    set PROJECT_FOLDER_NAME mempool
 }
 
 set TIMESTAMP [exec date +%Y%m%d_%H%M%S]
 
-new_project sg_projects/${PROJECT}_${TIMESTAMP}
+new_project sg_projects/${PROJECT_FOLDER_NAME}_${TIMESTAMP}
 current_methodology $env(SPYGLASS_HOME)/GuideWare/latest/block/rtl_handoff
 
 # Read the RTL
@@ -38,7 +40,7 @@ run_goal
 
 # Create a link to the results
 exec rm -rf sg_projects/${PROJECT}
-exec ln -sf ${PROJECT}_${TIMESTAMP} sg_projects/${PROJECT}
+exec ln -sf ${PROJECT_FOLDER_NAME}_${TIMESTAMP} sg_projects/${PROJECT}
 
 # Ciao!
 exit -save
