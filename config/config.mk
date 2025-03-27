@@ -57,19 +57,6 @@ ro_line_width ?= 512
 # XQueue extension's queue size in each memory bank (in words)
 xqueue_size ?= 0
 
-#############################
-##  RedMulE Configuration  ##
-#############################
-
-# RedMulE Tiles must be multiple of Group number (MemPool) or SubGroup number (TeraPool)
-num_redmule_tiles ?= 4
-num_cores := $(shell echo $$(( $(num_cores) + $(num_redmule_tiles) - $(num_redmule_tiles) * $(num_cores_per_tile) )))
-
-# RedMulE engine size
-redmule_height ?= 4
-redmule_width ?= 12
-redmule_regs ?= 3
-
 ################################
 ##  Optional functionalities  ##
 ################################
