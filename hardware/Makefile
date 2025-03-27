@@ -115,11 +115,11 @@ vlog_defs += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 vlog_defs += -DNUM_DIVSQRT_PER_TILE=$(num_divsqrt_per_tile)
 vlog_defs += -DNUM_GROUPS=$(num_groups)
 vlog_defs += -DBANKING_FACTOR=$(banking_factor)
-vlog_defs += -DL2_BASE=$(l2_base)
-vlog_defs += -DL2_SIZE=$(l2_size)
+vlog_defs += -DL2_BASE=32\'d$(l2_base)
+vlog_defs += -DL2_SIZE=32\'d$(l2_size)
 vlog_defs += -DL2_BANKS=$(l2_banks)
 vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
-vlog_defs += -DBOOT_ADDR=$(boot_addr)
+vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr)
 # FlooNoC configurations
 vlog_defs += -DNUM_REMOTE_PORTS_PER_TILE=$(num_remote_ports_per_tile)
 vlog_defs += -DNUM_DIRECTIONS=$(num_directions)
@@ -160,7 +160,7 @@ vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size)
 vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)
 # DRAMsys co-simulation
 vlog_defs += -D${l2_sim_type}
-vlog_defs += -DDRAM_AXI_WIDTH_INTERLEAVED=${axi_width_interleaved}
+vlog_defs += -DAXI_WIDTH_INTERLEAVED=${axi_width_interleaved}
 # Enable the spm access pattern profiling
 ifeq (1, $(spm_profiling))
 	vlog_defs += -DSPM_PROFILING=$(spm_profiling)
@@ -387,9 +387,10 @@ SG_SCRIPT_SUF ?=
 lint: update-floogen spyglass/tmp/files spyglass/sdc/func.sdc spyglass/scripts/run_lint.tcl
 	cd spyglass; config=$(config) $(SNPS_SG) sg_shell -tcl $(SG_SCRIPT_PATH)/run_lint$(SG_SCRIPT_SUF).tcl
 
+# Build file list, use subst to remove the "32'd" which spyglass can't handle
 spyglass/tmp/files: $(bender)
 	mkdir -p spyglass/tmp
-	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > spyglass/tmp/files
+	$(bender) script verilator $(subst 32'd,,$(vlog_defs)) -t rtl -t mempool_verilator > spyglass/tmp/files
 
 ################
 # Tracing      #
