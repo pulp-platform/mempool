@@ -36,3 +36,16 @@ dmas_per_group ?= 1 # Brust Length = 16
 # L2 Banks/Channels
 l2_size  ?= 4194304  # 400000
 l2_banks ?= 4
+
+#############################
+##  RedMulE Configuration  ##
+#############################
+
+# RedMulE Tiles must be multiple of Group number (MemPool) or SubGroup number (TeraPool)
+num_redmule_tiles ?= 4
+num_cores := $(shell echo $$(( $(num_cores) + $(num_redmule_tiles) - $(num_redmule_tiles) * $(num_cores_per_tile) )))
+
+# RedMulE engine size
+redmule_height ?= 4
+redmule_width ?= 4
+redmule_regs ?= 3
