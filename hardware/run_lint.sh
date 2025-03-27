@@ -82,6 +82,8 @@ limit_resources() {
 
 # Function to run a given command and then post-process the generated report.
 run_job() {
+  eval "source /usr/local/anaconda3-2022.05/etc/profile.d/conda.sh"
+  eval "conda activate floogen"
   local cmd="$1"
   local suf="$2"
   # Run the lint command.
@@ -93,7 +95,8 @@ run_job() {
   project_folder=$(find spyglass/sg_projects/ -maxdepth 1 -type d -name "${suf#_}*" | head -n 1)
 
   if [ -n "$project_folder" ]; then
-    local report_src="${project_folder}/consolidated_reports/mempool_cluster_floonoc_wrapper_lint_lint_rtl/moresimple.rpt"
+    rpt_folder=$(find ${project_folder}/consolidated_reports/ -maxdepth 1 -type d -name "*lint_lint_rtl" | head -n 1)
+    local report_src="${rpt_folder}/moresimple.rpt"
     if [ -f "$report_src" ]; then
       mkdir -p spyglass/reports
       cp "$report_src" "spyglass/reports/${suf#_}_moresimple.rpt"
@@ -203,9 +206,10 @@ for config in "${configs[@]}"; do
                         tcl_dest="spyglass/tmp/tcl/run_lint${SG_SCRIPT_SUF}.tcl"
                         cp -p "$tcl_src" "$tcl_dest"
 
-                        # In the newly copied file, replace "set PROJECT   mempool"
-                        # with "set PROJECT   <SG_SCRIPT_SUF without the leading underscore>"
-                        sed -i 's/set PROJECT\s\+mempool/set PROJECT   '"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
+                        # In the newly copied file, replace "set PROJECT_FOLDER_NAME   mempool"
+                        # with "set PROJECT_FOLDER_NAME   <SG_SCRIPT_SUF without the leading underscore>"
+                        sed -i 's/set PROJECT_FOLDER_NAME\s\+mempool/set PROJECT_FOLDER_NAME   '"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
+                        sed -i 's/set PROJECT_FOLDER_NAME\s\+terapool/set PROJECT_FOLDER_NAME   '"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
                         # Also modify the read_file command.
                         sed -i 's/read_file -type sourcelist tmp\/files/read_file -type sourcelist tmp\/flist\/files_'"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
 
@@ -237,6 +241,8 @@ tmux kill-session -t "$session_name"
 EOF
                         chmod +x "$tmp_script"
 
+                        sleep 1
+
                         # Launch the job in a new tmux session.
                         tmux new-session -d -s "$session_name" "$tmp_script"
 
@@ -253,6 +259,7 @@ EOF
       done
     done
   done
+  sleep 60
 done
 
 # Wait until all tmux sessions whose names start with "lint_" have finished.

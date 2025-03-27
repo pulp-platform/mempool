@@ -48,7 +48,7 @@ sources:
   - hardware/src/floo_vc_mux.sv
   - hardware/src/routing_table_pkg.sv
   - hardware/src/mempool_group.sv
-  - hardware/generated/floo_terapool_noc.sv
+  - hardware/generated/floo_terapool_noc_pkg.sv
   - hardware/src/mempool_group_floonoc_wrapper.sv
   # Level 4
   - hardware/src/mempool_cluster_floonoc_wrapper.sv

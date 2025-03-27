@@ -35,18 +35,24 @@ resp_remapping ?= 0
 num_virtual_channel ?= 1
 
 # Per tile, separate the NoC read and read/write req channels, rd = hdr, wr = har+payload, rd/wr = hdr+payload
-# noc_req_rd_channel_num ?= 0
-# noc_req_rdwr_channel_num ?= 2
+# baseline
+noc_req_rd_channel_num ?= 0
+noc_req_rdwr_channel_num ?= 2
 
-noc_req_rd_channel_num ?= 2
-noc_req_rdwr_channel_num ?= 1
+# reduced link count
+# noc_req_rd_channel_num ?= 1
+# noc_req_rdwr_channel_num ?= 1
+
+# enhanced read link
+# noc_req_rd_channel_num ?= 2
+# noc_req_rdwr_channel_num ?= 1
 
 noc_req_wr_channel_num ?= 0
 noc_resp_channel_num ?= 2
 
 # router buffer configuration
-noc_router_input_fifo_dep ?= 4
-noc_router_output_fifo_dep ?= 0
+noc_router_input_fifo_dep ?= 2
+noc_router_output_fifo_dep ?= 2
 
 # L1 scratchpad banking factor
 banking_factor ?= 4

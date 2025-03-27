@@ -393,8 +393,10 @@ generate
   for(genvar i = 0; i < NumTilesPerGroup; i++) begin: gen_floo_tcdm_req_from_router_i
     for (genvar j = 1; j < NumRemoteReqPortsPerTile; j++) begin : gen_floo_tcdm_req_from_router_j
       if(j < 1 + NumNarrowRemoteReqPortsPerTile) begin
+        `ifdef USE_NARROW_REQ_CHANNEL
         assign floo_tcdm_req_from_router[i][j].hdr      = floo_tcdm_rd_req_from_router[i][j-1].hdr;
         assign floo_tcdm_req_from_router[i][j].payload  = '0;
+        `endif
       end else begin
         assign floo_tcdm_req_from_router[i][j] = floo_tcdm_rdwr_req_from_router[i][j-(1+NumNarrowRemoteReqPortsPerTile)];
       end

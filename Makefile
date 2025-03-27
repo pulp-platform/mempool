@@ -198,7 +198,7 @@ setup-dram: config-dram
 # FlooGen configuration #
 #########################
 
-FLOO_DIR  ?= $(shell bender path floo_noc)
+FLOO_DIR  ?= $(shell $(BENDER_INSTALL_DIR)/bender path floo_noc)
 FLOO_GEN_OUTDIR	?= $(ROOT_DIR)/hardware/generated
 FLOO_CFG  ?= $(ROOT_DIR)/config/floo_noc_terapool.yml
 FLOO_SYS  = $(subst .yml,,$(notdir $(FLOO_CFG)))
@@ -213,7 +213,7 @@ install-floogen:
 
 update-floonoc: $(FLOO_NOC)
 $(FLOO_NOC): install-floogen $(FLOO_CFG)
-	$(MAKE) -C $(FLOO_DIR) BENDER="$(BENDER_INSTALL_DIR) -d $(ROOT_DIR)" FLOOGEN_CFG=$(abspath $(FLOO_CFG)) FLOOGEN_OUT_DIR=$(FLOO_GEN_OUTDIR) sources
+	floogen -c $(FLOO_CFG) -o $(FLOO_GEN_OUTDIR) --only-pkg
 
 # Helper targets
 .PHONY: clean format apps
