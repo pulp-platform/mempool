@@ -180,7 +180,11 @@ module mempool_tile
 
   for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_cores
     logic [31:0] hart_id;
-    assign hart_id = (tile_id_i / NumTilesPerGroup)*NumCoresPerGroup + (tile_id_i % NumTilesPerGroup)*NumCoresPerTile + (1 - NumCoresPerTile)*NumRMTilesPerGroup + c;
+`ifdef TERAPOOL
+    assign hart_id = (tile_id_i / NumTilesPerSubGroup)*(NumCoresPerSubGroup - NumRMTilesPerSubGroup) + (tile_id_i % NumTilesPerSubGroup - NumRMTilesPerSubGroup)*NumCoresPerTile + c;
+`else
+    assign hart_id = (tile_id_i / NumTilesPerGroup)*(NumCoresPerGroup - NumRMTilesPerGroup) + (tile_id_i % NumTilesPerGroup - NumRMTilesPerGroup)*NumCoresPerTile + c;
+`endif
 
     if (!TrafficGeneration) begin: gen_mempool_cc
       mempool_cc #(

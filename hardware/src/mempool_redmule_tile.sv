@@ -170,7 +170,12 @@ module mempool_redmule_tile
   logic     snitch_data_pready;
 
   logic [31:0] hart_id;
-  assign hart_id = (tile_id_i / NumTilesPerGroup)*NumCoresPerGroup + tile_id_i % NumTilesPerGroup;
+`ifdef TERAPOOL
+  assign hart_id = (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerGroup)*NumRMTilesPerGroup + (tile_id_i%NumTilesPerGroup);
+`else
+  assign hart_id = (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerSubGroup)*NumRMTilesPerSubGroup + (tile_id_i%NumTilesPerSubGroup);
+`endif
+
   mempool_cc #(
     .BootAddr (BootAddr)
   ) riscv_core (
