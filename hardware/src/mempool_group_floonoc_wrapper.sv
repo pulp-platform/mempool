@@ -228,7 +228,7 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_master_req_to_remapper
         core_id : tcdm_master_req[i][j+(1)].wdata.core_id,              // For Core
         src_tile_id : i,                                            // For Crossbar when response back
         src_id: group_xy_id_t'({group_id_i, 1'b0}),                         // For NoC Router when response back
-        dst_id: group_xy_id_t'({tcdm_master_req[i][j].tgt_group_id, 1'b0}), // For NoC Router when request send
+        dst_id: group_xy_id_t'({tcdm_master_req[i][j+(1)].tgt_group_id, 1'b0}), // For NoC Router when request send
         tgt_addr: tcdm_master_req[i][j+(1)].tgt_addr,                   // For Crossbar when request send (bank rows per Group)
         last : 1'b1                                                 // Non Burst Request
       }
