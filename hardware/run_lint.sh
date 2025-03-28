@@ -27,7 +27,11 @@
 # Author: Zexin Fu <zexifu@iis.ee.ethz.ch>
 
 # Maximum number of concurrent tmux sessions (adjust as needed)
-MAX_JOBS=10
+# Declare associative array mapping config names to maximum concurrent jobs.
+declare -A config_max_jobs
+config_max_jobs[minpool_64core]=60
+config_max_jobs[mempool]=30
+config_max_jobs[terapool]=10
 
 # Resource usage thresholds (adjust as needed):
 MEM_THRESHOLD=40.0      # Memory usage threshold in percent
@@ -59,6 +63,7 @@ active_tmux_sessions() {
 
 # Function to delay launching new jobs until resource usage is below thresholds.
 limit_resources() {
+  local max_jobs="$1"
   while true; do
     active_sessions=$(active_tmux_sessions)
     mem_usage=$(check_memory)
@@ -70,7 +75,7 @@ limit_resources() {
     printf "\rActive tmux sessions: %s, Memory usage: %s%%, Disk usage: %s%%, CPU usage: %s%%" \
            "$active_sessions" "$mem_usage" "$disk_usage" "$cpu_usage"
 
-    if [ "$active_sessions" -lt "$MAX_JOBS" ] && \
+    if [ "$active_sessions" -lt "$max_jobs" ] && \
        (( $(echo "$mem_usage < $MEM_THRESHOLD" | bc -l) )) && \
        [ "$disk_usage" -lt "$DISK_THRESHOLD" ] && \
        (( $(echo "$cpu_usage < $CPU_THRESHOLD" | bc -l) )); then
@@ -158,6 +163,9 @@ mkdir -p spyglass/reports
 
 # Iterate over all configuration combinations.
 for config in "${configs[@]}"; do
+  # Get the maximum jobs for the current config from the associative array.
+  current_max_jobs="${config_max_jobs[$config]}"
+
   for tile_id_remap in "${tile_id_remaps[@]}"; do
     for spm_bank_id_remap in "${spm_bank_id_remaps[@]}"; do
       for wr in "${wr_nums[@]}"; do
@@ -225,7 +233,7 @@ for config in "${configs[@]}"; do
                         echo "Waiting for resources before launching command:"
                         echo "$cmd"
                         # Wait until system resources are below the thresholds.
-                        limit_resources
+                        limit_resources "$current_max_jobs"
 
                         # Create a unique tmux session name based on the suffix (without the leading underscore).
                         session_name="lint_${SG_SCRIPT_SUF#_}"
@@ -259,7 +267,7 @@ EOF
       done
     done
   done
-  sleep 60
+  sleep 120
 done
 
 # Wait until all tmux sessions whose names start with "lint_" have finished.
