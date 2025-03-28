@@ -390,7 +390,7 @@ lint: update-floogen spyglass/tmp/files spyglass/sdc/func.sdc spyglass/scripts/r
 # Build file list, use subst to remove the "32'd" which spyglass can't handle
 spyglass/tmp/files: $(bender)
 	mkdir -p spyglass/tmp
-	$(bender) script verilator $(subst 32'd,,$(vlog_defs)) -t rtl -t mempool_verilator > spyglass/tmp/files
+	$(bender) script verilator $(subst 32\'d,,$(vlog_defs)) -t rtl -t mempool_verilator > spyglass/tmp/files
 
 ################
 # Tracing      #
