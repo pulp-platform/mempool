@@ -109,6 +109,9 @@ vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
 vlog_defs += -D$(config)
+ifeq ($(terapool), 1)
+	vlog_defs += -DTERAPOOL
+endif
 # Cluster configurations
 vlog_defs += -DNUM_CORES=$(num_cores)
 vlog_defs += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
@@ -379,18 +382,20 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 #############
 # Lint      #
 #############
-.PHONY: lint spyglass/tmp/files
+SPYGLASS_WORK_DIR ?= spyglass
+
+.PHONY: lint $(SPYGLASS_WORK_DIR)/tmp/files
 
 SNPS_SG ?= spyglass-2022.06
 SG_SCRIPT_PATH ?= scripts
 SG_SCRIPT_SUF ?=
-lint: update-floogen spyglass/tmp/files spyglass/sdc/func.sdc spyglass/scripts/run_lint.tcl
-	cd spyglass; config=$(config) $(SNPS_SG) sg_shell -tcl $(SG_SCRIPT_PATH)/run_lint$(SG_SCRIPT_SUF).tcl
+lint: update-floogen $(SPYGLASS_WORK_DIR)/tmp/files $(SPYGLASS_WORK_DIR)/sdc/func.sdc $(SPYGLASS_WORK_DIR)/scripts/run_lint.tcl
+	cd $(SPYGLASS_WORK_DIR); config=$(config) $(SNPS_SG) sg_shell -tcl $(SG_SCRIPT_PATH)/run_lint$(SG_SCRIPT_SUF).tcl
 
 # Build file list, use subst to remove the "32'd" which spyglass can't handle
-spyglass/tmp/files: $(bender)
-	mkdir -p spyglass/tmp
-	$(bender) script verilator $(subst 32\'d,,$(vlog_defs)) -t rtl -t mempool_verilator > spyglass/tmp/files
+$(SPYGLASS_WORK_DIR)/tmp/files: $(bender)
+	mkdir -p $(SPYGLASS_WORK_DIR)/tmp
+	$(bender) script verilator $(subst 32\'d,,$(vlog_defs)) -t rtl -t mempool_verilator > $(SPYGLASS_WORK_DIR)/tmp/files
 
 ################
 # Tracing      #

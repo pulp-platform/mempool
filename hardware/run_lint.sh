@@ -26,15 +26,17 @@
 # Usage: ./run_lint.sh
 # Author: Zexin Fu <zexifu@iis.ee.ethz.ch>
 
+SPYGLASS_WORK_DIR=spyglass
+
 # Maximum number of concurrent tmux sessions (adjust as needed)
 # Declare associative array mapping config names to maximum concurrent jobs.
 declare -A config_max_jobs
 config_max_jobs[minpool_64core]=60
-config_max_jobs[mempool]=30
+config_max_jobs[mempool]=40
 config_max_jobs[terapool]=10
 
 # Resource usage thresholds (adjust as needed):
-MEM_THRESHOLD=40.0      # Memory usage threshold in percent
+MEM_THRESHOLD=70.0      # Memory usage threshold in percent
 DISK_THRESHOLD=90       # Disk usage threshold in percent for the root filesystem
 CPU_THRESHOLD=70.0      # CPU usage threshold in percent
 
@@ -91,29 +93,30 @@ run_job() {
   eval "conda activate floogen"
   local cmd="$1"
   local suf="$2"
+  local spy="$3"
   # Run the lint command.
   eval "$cmd"
 
   # After the command completes, determine the project folder.
-  # The folder in spyglass/sg_projects/ should start with ${suf#_}
+  # The folder in ${spy}/sg_projects/ should start with ${suf#_}
   local project_folder
-  project_folder=$(find spyglass/sg_projects/ -maxdepth 1 -type d -name "${suf#_}*" | head -n 1)
+  project_folder=$(find ${spy}/sg_projects/ -maxdepth 1 -type d -name "${suf#_}*" | head -n 1)
 
   if [ -n "$project_folder" ]; then
     rpt_folder=$(find ${project_folder}/consolidated_reports/ -maxdepth 1 -type d -name "*lint_lint_rtl" | head -n 1)
     local report_src="${rpt_folder}/moresimple.rpt"
     if [ -f "$report_src" ]; then
-      mkdir -p spyglass/reports
-      cp "$report_src" "spyglass/reports/${suf#_}_moresimple.rpt"
-      echo "Copied report to spyglass/reports/${suf#_}_moresimple.rpt"
+      mkdir -p ${spy}/reports
+      cp "$report_src" "${spy}/reports/${suf#_}_moresimple.rpt"
+      echo "Copied report to ${spy}/reports/${suf#_}_moresimple.rpt"
       # Remove the project folder since the report was found.
-      rm -rf spyglass/sg_projects/${suf#_}*
-      echo "Removed project spyglass/sg_projects/${suf#_}*"
+      rm -rf ${spy}/sg_projects/${suf#_}*
+      echo "Removed project ${spy}/sg_projects/${suf#_}*"
     else
       echo "Report file not found in ${project_folder}. Project folder NOT removed."
     fi
   else
-    echo "No project folder matching ${suf#_}* found in spyglass/sg_projects/"
+    echo "No project folder matching ${suf#_}* found in ${spy}/sg_projects/"
   fi
 }
 
@@ -156,10 +159,10 @@ virtual_channels=("1")
 router_fifo_pairs=("4,0" "2,2")
 
 # Create necessary directories.
-mkdir -p spyglass/tmp/jobs
-mkdir -p spyglass/tmp/flist
-mkdir -p spyglass/tmp/tcl
-mkdir -p spyglass/reports
+mkdir -p ${SPYGLASS_WORK_DIR}/tmp/jobs
+mkdir -p ${SPYGLASS_WORK_DIR}/tmp/flist
+mkdir -p ${SPYGLASS_WORK_DIR}/tmp/tcl
+mkdir -p ${SPYGLASS_WORK_DIR}/reports
 
 # Iterate over all configuration combinations.
 for config in "${configs[@]}"; do
@@ -210,8 +213,8 @@ for config in "${configs[@]}"; do
                         SG_SCRIPT_SUF="_c${config}_t${tile_id_remap}_s${spm_bank_id_remap}_wr${wr}_rd${rd_channel}_rr${rdwr_channel}_rch${resp_channel}_top${topology}_ra${routing_algo}_rm${req_remap}_rsm${resp_remap}_vc${virt_chan}_in${input_fifo}_out${output_fifo}"
 
                         # Copy the run_lint.tcl file into the tmp directory with a new name.
-                        tcl_src="spyglass/scripts/run_lint.tcl"
-                        tcl_dest="spyglass/tmp/tcl/run_lint${SG_SCRIPT_SUF}.tcl"
+                        tcl_src="${SPYGLASS_WORK_DIR}/scripts/run_lint.tcl"
+                        tcl_dest="${SPYGLASS_WORK_DIR}/tmp/tcl/run_lint${SG_SCRIPT_SUF}.tcl"
                         cp -p "$tcl_src" "$tcl_dest"
 
                         # In the newly copied file, replace "set PROJECT_FOLDER_NAME   mempool"
@@ -222,13 +225,13 @@ for config in "${configs[@]}"; do
                         sed -i 's/read_file -type sourcelist tmp\/files/read_file -type sourcelist tmp\/flist\/files_'"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
 
                         # Generate the file list.
-                        rm spyglass/tmp/files
-                        cmd_flist="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} make spyglass/tmp/files"
+                        rm ${SPYGLASS_WORK_DIR}/tmp/files
+                        cmd_flist="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} make ${SPYGLASS_WORK_DIR}/tmp/files SPYGLASS_WORK_DIR=${SPYGLASS_WORK_DIR}"
                         eval "$cmd_flist"
-                        mv spyglass/tmp/files spyglass/tmp/flist/files_${SG_SCRIPT_SUF#_}
+                        mv ${SPYGLASS_WORK_DIR}/tmp/files ${SPYGLASS_WORK_DIR}/tmp/flist/files_${SG_SCRIPT_SUF#_}
 
                         # Build the command.
-                        cmd="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} make lint"
+                        cmd="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} make lint SPYGLASS_WORK_DIR=${SPYGLASS_WORK_DIR}"
 
                         echo "Waiting for resources before launching command:"
                         echo "$cmd"
@@ -241,10 +244,10 @@ for config in "${configs[@]}"; do
                         echo "$cmd"
 
                         # Create a temporary script file that the tmux session will execute.
-                        tmp_script=$(mktemp spyglass/tmp/jobs/lint_job_${session_name}.XXXXXX.sh)
+                        tmp_script=$(mktemp ${SPYGLASS_WORK_DIR}/tmp/jobs/lint_job_${session_name}.XXXXXX.sh)
                         cat <<EOF > "$tmp_script"
 $(declare -f run_job)
-run_job "$cmd" "$SG_SCRIPT_SUF"
+run_job "$cmd" "$SG_SCRIPT_SUF" "${SPYGLASS_WORK_DIR}"
 tmux kill-session -t "$session_name"
 EOF
                         chmod +x "$tmp_script"
