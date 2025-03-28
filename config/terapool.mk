@@ -54,6 +54,9 @@ noc_resp_channel_num ?= 2
 noc_router_input_fifo_dep ?= 2
 noc_router_output_fifo_dep ?= 2
 
+# router remapping configuration
+noc_router_remap_group_size ?= 8
+
 # L1 scratchpad banking factor
 banking_factor ?= 4
 

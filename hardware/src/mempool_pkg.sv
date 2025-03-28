@@ -330,6 +330,8 @@ package mempool_pkg;
   localparam integer unsigned NumRouterInFifoDepth  = `ifdef NOC_ROUTER_INPUT_FIFO_DEP   `NOC_ROUTER_INPUT_FIFO_DEP   `else 2 `endif;
   localparam integer unsigned NumRouterOutFifoDepth = `ifdef NOC_ROUTER_OUTPUT_FIFO_DEP  `NOC_ROUTER_OUTPUT_FIFO_DEP  `else 2 `endif;
 
+  localparam integer unsigned RouterRemapGroupSize = `ifdef ROUTER_REMAP_GROUP_SIZE `ROUTER_REMAP_GROUP_SIZE `else 2 `endif;
+
   // FlooNoC group id types for XY routing
   typedef struct packed {
     logic [idx_width(NumGroups)/2-1:0] x;

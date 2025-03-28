@@ -265,7 +265,8 @@ end : gen_master_req_to_remapper_req_i
 floo_remapper #(
   .NumInp   (NumTilesPerGroup * NumNarrowRemoteReqPortsPerTile),
   .NumOut   (NumTilesPerGroup * NumNarrowRemoteReqPortsPerTile),
-  .payload_t(floo_tcdm_rd_req_t)
+  .payload_t(floo_tcdm_rd_req_t),
+  .GroupSize(RouterRemapGroupSize)
 ) i_floo_tcdm_rd_req_remapper (
   .clk_i      (clk_i),
   .rst_ni     (rst_ni),
@@ -281,7 +282,8 @@ floo_remapper #(
 floo_remapper #(
   .NumInp   (NumTilesPerGroup * NumWideRemoteReqPortsPerTile),
   .NumOut   (NumTilesPerGroup * NumWideRemoteReqPortsPerTile),
-  .payload_t(floo_tcdm_rdwr_req_t)
+  .payload_t(floo_tcdm_rdwr_req_t),
+  .GroupSize(RouterRemapGroupSize)
 ) i_floo_tcdm_rdwr_req_remapper (
   .clk_i      (clk_i),
   .rst_ni     (rst_ni),
@@ -513,7 +515,8 @@ end : gen_slave_resp_to_remapper_resp_i
 floo_remapper #(
   .NumInp   (NumTilesPerGroup * (NumRemoteRespPortsPerTile-1)),
   .NumOut   (NumTilesPerGroup * (NumRemoteRespPortsPerTile-1)),
-  .payload_t(floo_tcdm_resp_t)
+  .payload_t(floo_tcdm_resp_t),
+  .GroupSize(RouterRemapGroupSize)
 ) i_floo_tcdm_resp_remapper (
   .clk_i      (clk_i),
   .rst_ni     (rst_ni),
