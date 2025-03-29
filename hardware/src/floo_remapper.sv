@@ -28,17 +28,18 @@ module floo_remapper #(
   input  logic     [NumOut-1:0] oup_ready_i
 );
 
-if(NumInp != NumOut) begin
-  $fatal("Number of inputs and outputs must be equal.");
-end
-
-if((NumInp & (NumInp - 1)) != 0) begin
-  $fatal("Number of inputs must be a power of 2.");
-end
-
-if((NumOut & (GroupSize - 1)) != 0) begin
-  $fatal("Group size must be a power of 2.");
-end
+// pragma translate_off
+`ifndef VERILATOR
+  initial begin : p_assert
+    assert(NumInp == NumOut)
+      else $fatal(1, "Number of inputs and outputs must be equal.");
+    assert((NumInp & (NumInp - 1)) == 0)
+      else $fatal(1, "Number of inputs must be a power of 2.");
+    assert ((GroupSize & (GroupSize - 1)) == 0)
+      else $fatal(1, "Group size must be a power of 2.");
+  end
+`endif
+// pragma translate_on
 
 localparam int NumGroup = NumInp / GroupSize;
 localparam int SelWidth   = $clog2(GroupSize);
@@ -69,6 +70,7 @@ generate
       .NumInp(GroupSize),
       .NumOut(GroupSize),
       .payload_t(payload_t),
+      .AxiVldRdy(1'b0),
       .LockIn(1'b0)
     ) i_stream_xbar (
       .clk_i  (clk_i),

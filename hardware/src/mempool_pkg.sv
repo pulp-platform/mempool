@@ -426,6 +426,7 @@ package mempool_pkg;
   localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
   localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
 
+`ifndef TARGET_SYNTHESIS
   `ifndef TARGET_VERILATOR
   // tcdm memory pattern profile
   typedef struct {
@@ -486,6 +487,7 @@ package mempool_pkg;
     int unsigned max_stall_cyc_num [5];
   } router_input_profile_t;
   `endif
+`endif
 
 
 endpackage : mempool_pkg
