@@ -30,6 +30,8 @@ questa_version  ?= 2022.3-bt
 questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
 questa_args     ?=
+# QuestaSim config
+questa_config   ?=
 # VCS Version
 vcs_version     ?= 2022.06-bt
 # VCS command
@@ -129,6 +131,9 @@ vlog_defs += -DNUM_DIRECTIONS=$(num_directions)
 vlog_defs += -DNUM_X=$(num_x)
 ifeq ($(topology),torus)
 	vlog_defs += -DTORUS
+endif
+ifneq ($(filter 1, $(req_remapping) $(resp_remapping)),)
+	questa_config += AssertionEnable = 0
 endif
 ifeq (1, $(req_remapping))
 	vlog_defs += -DREQ_REMAPPING=$(req_remapping)
@@ -251,6 +256,7 @@ $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
+	echo $(questa_config) >> $(buildpath)/modelsim.ini
 
 # Simulation
 .PHONY: sim
