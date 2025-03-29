@@ -2,7 +2,7 @@
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-if {[info exists ::env(config)] && $::env(config) eq "terapool"} {
+if {[info exists ::env(config)] && [string match "terapool*" $::env(config)]} {
     set PROJECT terapool
     set PROJECT_FOLDER_NAME terapool
 } else {

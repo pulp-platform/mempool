@@ -31,7 +31,7 @@ SPYGLASS_WORK_DIR=spyglass
 # Maximum number of concurrent tmux sessions (adjust as needed)
 # Declare associative array mapping config names to maximum concurrent jobs.
 declare -A config_max_jobs
-config_max_jobs[minpool_64core]=60
+config_max_jobs[terapool_64core]=60
 config_max_jobs[mempool]=40
 config_max_jobs[terapool]=10
 
@@ -123,7 +123,7 @@ run_job() {
 # Export run_job so it can be used inside tmux sessions.
 export -f run_job
 
-# configs=("minpool_64core")
+# configs=("terapool_64core")
 # tile_id_remaps=("1")
 # spm_bank_id_remaps=("1")
 # wr_nums=("0")
@@ -141,7 +141,7 @@ export -f run_job
 # router_fifo_pairs=("4,0")
 
 # Define configuration arrays.
-configs=("minpool_64core" "mempool" "terapool")
+configs=("terapool_64core" "mempool" "terapool")
 tile_id_remaps=("0" "1")
 spm_bank_id_remaps=("0" "1")
 wr_nums=("0")
