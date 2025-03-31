@@ -292,6 +292,19 @@ module mempool_cluster_floonoc_wrapper
       end
       else if (y == NumY-1) begin
         // TCDM North
+      `ifdef TORUS
+        `ifdef USE_NARROW_REQ_CHANNEL
+        assign floo_tcdm_narrow_req_in        [x][y][North] = floo_tcdm_narrow_req_out        [x][0][South];
+        assign floo_tcdm_narrow_req_in_valid  [x][y][North] = floo_tcdm_narrow_req_out_valid  [x][0][South];
+        assign floo_tcdm_narrow_req_in_ready  [x][y][North] = floo_tcdm_narrow_req_out_ready  [x][0][South];
+        `endif
+        assign floo_tcdm_wide_req_in          [x][y][North] = floo_tcdm_wide_req_out          [x][0][South];
+        assign floo_tcdm_wide_req_in_valid    [x][y][North] = floo_tcdm_wide_req_out_valid    [x][0][South];
+        assign floo_tcdm_wide_req_in_ready    [x][y][North] = floo_tcdm_wide_req_out_ready    [x][0][South];
+        assign floo_tcdm_resp_in              [x][y][North] = floo_tcdm_resp_out              [x][0][South];
+        assign floo_tcdm_resp_in_valid        [x][y][North] = floo_tcdm_resp_out_valid        [x][0][South];
+        assign floo_tcdm_resp_in_ready        [x][y][North] = floo_tcdm_resp_out_ready        [x][0][South];
+      `else
         `ifdef USE_NARROW_REQ_CHANNEL
         assign floo_tcdm_narrow_req_in       [x][y][North] = '0;
         assign floo_tcdm_narrow_req_in_valid [x][y][North] = '0;
@@ -303,7 +316,9 @@ module mempool_cluster_floonoc_wrapper
         assign floo_tcdm_resp_in             [x][y][North] = '0;
         assign floo_tcdm_resp_in_valid       [x][y][North] = '0;
         assign floo_tcdm_resp_in_ready       [x][y][North] = '0;
+      `endif
 
+        // AXI North
         assign floo_axi_req_in               [x][y][North] = '0;
         assign floo_axi_rsp_in               [x][y][North] = '0;
         assign floo_axi_wide_in              [x][y][North] = '0;
