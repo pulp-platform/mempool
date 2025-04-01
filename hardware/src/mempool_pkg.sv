@@ -325,12 +325,15 @@ package mempool_pkg;
   localparam integer unsigned NumDirections = `ifdef NUM_DIRECTIONS `NUM_DIRECTIONS `else 5 `endif;
   localparam integer unsigned NumX = `ifdef NUM_X `NUM_X `else 2 `endif;
   localparam integer unsigned NumY = NumGroups/NumX;
-  localparam integer unsigned NumVirtualChannel = `ifdef NUM_VIRTUAL_CHANNEL `NUM_VIRTUAL_CHANNEL `else 1 `endif;
+  localparam integer unsigned NocTopology = `ifdef NOC_TOPOLOGY `NOC_TOPOLOGY `else 0 `endif;
+  localparam integer unsigned NocRoutingAlgorithm = `ifdef NOC_ROUTING_ALGORITHM `NOC_ROUTING_ALGORITHM `else 0 `endif;
+  localparam integer unsigned NocRouterRemapping = `ifdef NOC_ROUTER_REMAPPING `NOC_ROUTER_REMAPPING `else 0 `endif;
+  localparam integer unsigned NumVirtualChannel = `ifdef NOC_VIRTUAL_CHANNEL_NUM `NOC_VIRTUAL_CHANNEL_NUM `else 1 `endif;
   // router buffer configuration
   localparam integer unsigned NumRouterInFifoDepth  = `ifdef NOC_ROUTER_INPUT_FIFO_DEP   `NOC_ROUTER_INPUT_FIFO_DEP   `else 2 `endif;
   localparam integer unsigned NumRouterOutFifoDepth = `ifdef NOC_ROUTER_OUTPUT_FIFO_DEP  `NOC_ROUTER_OUTPUT_FIFO_DEP  `else 2 `endif;
 
-  localparam integer unsigned RouterRemapGroupSize = `ifdef ROUTER_REMAP_GROUP_SIZE `ROUTER_REMAP_GROUP_SIZE `else 2 `endif;
+  localparam integer unsigned RouterRemapGroupSize = `ifdef NOC_ROUTER_REMAP_GROUP_SIZE `NOC_ROUTER_REMAP_GROUP_SIZE `else 2 `endif;
 
   // FlooNoC group id types for XY routing
   typedef struct packed {

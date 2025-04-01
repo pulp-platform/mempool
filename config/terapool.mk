@@ -25,14 +25,12 @@ num_cores_per_tile ?= 4
 num_divsqrt_per_tile ?= 2
 
 # FlooNoC configuration
-# num_remote_ports_per_tile ?= 3
 num_directions ?= 5
 num_x ?= 4
-topology ?= 2dmesh
-routing_algorithm ?= xy
-req_remapping ?= 0
-resp_remapping ?= 0
-num_virtual_channel ?= 1
+noc_topology ?= 0				# 0: 2D mesh, 1: torus
+noc_routing_algorithm ?= 0		# 0: xy, 1: odd-even, 2: o1
+noc_router_remapping ?= 0		# 0: no remapping, 1: req remapping, 2: resp remapping 3: req+resp remapping
+noc_virtual_channel_num ?= 1
 
 # Per tile, separate the NoC read and read/write req channels, rd = hdr, wr = har+payload, rd/wr = hdr+payload
 # baseline
@@ -70,6 +68,6 @@ axi_masters_per_group ?= 1
 dmas_per_group ?= 1 # Brust Length = 16
 
 # L2 Banks/Channels
+l2_size  ?= 16777216  # 1000000
 l2_banks ?= 16
-l2_size  ?= 16777216 # 1000000
 axi_width_interleaved ?= 16

@@ -129,27 +129,12 @@ vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr)
 vlog_defs += -DNUM_REMOTE_PORTS_PER_TILE=$(num_remote_ports_per_tile)
 vlog_defs += -DNUM_DIRECTIONS=$(num_directions)
 vlog_defs += -DNUM_X=$(num_x)
-ifeq ($(topology),torus)
-	vlog_defs += -DTORUS
-endif
-ifneq ($(filter 1, $(req_remapping) $(resp_remapping)),)
+vlog_defs += -DNOC_TOPOLOGY=$(noc_topology)
+vlog_defs += -DNOC_ROUTING_ALGORITHM=$(noc_routing_algorithm)
+vlog_defs += -DNOC_ROUTER_REMAPPING=$(noc_router_remapping)
+vlog_defs += -DNOC_VIRTUAL_CHANNEL_NUM=$(noc_virtual_channel_num)
+ifneq ($(noc_router_remapping), 0)
 	questa_config += AssertionEnable = 0
-endif
-ifeq (1, $(req_remapping))
-	vlog_defs += -DREQ_REMAPPING=$(req_remapping)
-endif
-ifeq (1, $(resp_remapping))
-	vlog_defs += -DRESP_REMAPPING=$(resp_remapping)
-endif
-ifeq ($(routing_algorithm), o1)
-	vlog_defs += -DO1_ROUTING
-else ifeq ($(routing_algorithm), odd_even)
-	vlog_defs += -DODD_EVEN_ROUTING
-else ifeq ($(routing_algorithm), xy)
-	vlog_defs += -DXY_ROUTING
-endif
-ifdef num_virtual_channel
-	vlog_defs += -DNUM_VIRTUAL_CHANNEL=$(num_virtual_channel)
 endif
 # Snitch ISA
 vlog_defs += -DXPULPIMG=$(xpulpimg)
