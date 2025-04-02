@@ -162,13 +162,9 @@ ifeq (1, $(noc_profiling))
 	vlog_defs += -DNOC_PROFILING=$(noc_profiling)
 endif
 # Enable SPM bank id remapping inside of each tile
-ifeq (1, $(spm_bank_id_remap))
-	vlog_defs += -DSPM_BANK_ID_REMAP=$(spm_bank_id_remap)
-endif
+vlog_defs += -DSPM_BANK_ID_REMAP=$(spm_bank_id_remap)
 # Enable tile id remapping inside of each group
-ifeq (1, $(tile_id_remap))
-	vlog_defs += -DTILE_ID_REMAP=$(tile_id_remap)
-endif
+vlog_defs += -DTILE_ID_REMAP=$(tile_id_remap)
 # Separate the NoC read and read/write req channels, rd = hdr, rd/wr = hdr+payload
 vlog_defs += -DNOC_REQ_RD_CHANNEL_NUM=$(noc_req_rd_channel_num)
 ifneq (0, $(noc_req_rd_channel_num))

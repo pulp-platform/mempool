@@ -38,11 +38,11 @@ module address_scrambler
       logic [TileIdBitsPerDma-1:0] data_in,
       logic [TileIdBitsPerDma-1:0] idx_i
   );
-    `ifdef TILE_ID_REMAP
+    if (mempool_pkg::TileIdRemap == 1) begin
       spm_tile_id_remap = data_in + idx_i;
-    `else
+    end else begin
       spm_tile_id_remap = data_in;
-    `endif
+    end
   endfunction
 
   if (Bypass || NumTiles < 2) begin

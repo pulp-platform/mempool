@@ -57,11 +57,11 @@ module mempool_tile_id_remapper
       logic [idx_width(NumBanksPerTile)-1:0] data_in,
       logic [SHIFT_AMOUNT-1:0] idx_i
   );
-  `ifdef SPM_BANK_ID_REMAP
+  if (SpmBankIdRemap == 1) begin
       spm_bank_id_remap = data_in + idx_i;
-  `else
+  end else begin
       spm_bank_id_remap = data_in;
-  `endif
+  end
   endfunction
 
 
