@@ -139,6 +139,7 @@ export -f run_job
 # virtual_channels=("1")
 # # For noc_router FIFO depths (input,output):
 # router_fifo_pairs=("4,0")
+# noc_router_remap_group_size=("4")
 
 # Define configuration arrays.
 configs=("terapool_64core" "mempool" "terapool")
@@ -156,7 +157,8 @@ req_remappings=("1")
 resp_remappings=("1")
 virtual_channels=("1")
 # For noc_router FIFO depths (input,output):
-router_fifo_pairs=("4,0" "2,2")
+router_fifo_pairs=("4,0")
+noc_router_remap_group_size=("2" "4" "8" "16")
 
 # Create necessary directories.
 mkdir -p ${SPYGLASS_WORK_DIR}/tmp/jobs
@@ -193,72 +195,73 @@ for config in "${configs[@]}"; do
                     for virt_chan in "${virtual_channels[@]}"; do
                       for router_fifo in "${router_fifo_pairs[@]}"; do
                         IFS=',' read -r input_fifo output_fifo <<< "$router_fifo"
+                        for remap_size in "${noc_router_remap_group_size[@]}"; do
+                          # Build a compressed SG_SCRIPT_SUF with abbreviated keys.
+                          # Abbreviations:
+                          #   config                => c
+                          #   tile_id_remap         => t
+                          #   spm_bank_id_remap     => s
+                          #   noc_req_wr_channel_num=> wr
+                          #   noc_req_rd_channel_num=> rd
+                          #   noc_req_rdwr_channel_num=> rr
+                          #   noc_resp_channel_num  => rch
+                          #   topology              => top
+                          #   routing_algorithm     => ra
+                          #   req_remapping         => rm
+                          #   resp_remapping        => rsm
+                          #   num_virtual_channel   => vc
+                          #   noc_router_input_fifo_dep => in
+                          #   noc_router_output_fifo_dep=> out
+                          #   noc_router_remap_group_size=> rs
+                          SG_SCRIPT_SUF="_c${config}_t${tile_id_remap}_s${spm_bank_id_remap}_wr${wr}_rd${rd_channel}_rr${rdwr_channel}_rch${resp_channel}_top${topology}_ra${routing_algo}_rm${req_remap}_rsm${resp_remap}_vc${virt_chan}_in${input_fifo}_out${output_fifo}_rs${remap_size}"
 
-                        # Build a compressed SG_SCRIPT_SUF with abbreviated keys.
-                        # Abbreviations:
-                        #   config                => c
-                        #   tile_id_remap         => t
-                        #   spm_bank_id_remap     => s
-                        #   noc_req_wr_channel_num=> wr
-                        #   noc_req_rd_channel_num=> rd
-                        #   noc_req_rdwr_channel_num=> rr
-                        #   noc_resp_channel_num  => rch
-                        #   topology              => top
-                        #   routing_algorithm     => ra
-                        #   req_remapping         => rm
-                        #   resp_remapping        => rsm
-                        #   num_virtual_channel   => vc
-                        #   noc_router_input_fifo_dep => in
-                        #   noc_router_output_fifo_dep=> out
-                        SG_SCRIPT_SUF="_c${config}_t${tile_id_remap}_s${spm_bank_id_remap}_wr${wr}_rd${rd_channel}_rr${rdwr_channel}_rch${resp_channel}_top${topology}_ra${routing_algo}_rm${req_remap}_rsm${resp_remap}_vc${virt_chan}_in${input_fifo}_out${output_fifo}"
+                          # Copy the run_lint.tcl file into the tmp directory with a new name.
+                          tcl_src="${SPYGLASS_WORK_DIR}/scripts/run_lint.tcl"
+                          tcl_dest="${SPYGLASS_WORK_DIR}/tmp/tcl/run_lint${SG_SCRIPT_SUF}.tcl"
+                          cp -p "$tcl_src" "$tcl_dest"
 
-                        # Copy the run_lint.tcl file into the tmp directory with a new name.
-                        tcl_src="${SPYGLASS_WORK_DIR}/scripts/run_lint.tcl"
-                        tcl_dest="${SPYGLASS_WORK_DIR}/tmp/tcl/run_lint${SG_SCRIPT_SUF}.tcl"
-                        cp -p "$tcl_src" "$tcl_dest"
+                          # In the newly copied file, replace "set PROJECT_FOLDER_NAME   mempool"
+                          # with "set PROJECT_FOLDER_NAME   <SG_SCRIPT_SUF without the leading underscore>"
+                          sed -i 's/set PROJECT_FOLDER_NAME\s\+mempool/set PROJECT_FOLDER_NAME   '"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
+                          sed -i 's/set PROJECT_FOLDER_NAME\s\+terapool/set PROJECT_FOLDER_NAME   '"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
+                          # Also modify the read_file command.
+                          sed -i 's/read_file -type sourcelist tmp\/files/read_file -type sourcelist tmp\/flist\/files_'"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
 
-                        # In the newly copied file, replace "set PROJECT_FOLDER_NAME   mempool"
-                        # with "set PROJECT_FOLDER_NAME   <SG_SCRIPT_SUF without the leading underscore>"
-                        sed -i 's/set PROJECT_FOLDER_NAME\s\+mempool/set PROJECT_FOLDER_NAME   '"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
-                        sed -i 's/set PROJECT_FOLDER_NAME\s\+terapool/set PROJECT_FOLDER_NAME   '"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
-                        # Also modify the read_file command.
-                        sed -i 's/read_file -type sourcelist tmp\/files/read_file -type sourcelist tmp\/flist\/files_'"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
+                          # Generate the file list.
+                          rm ${SPYGLASS_WORK_DIR}/tmp/files_${SG_SCRIPT_SUF#_}
+                          cmd_flist="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} noc_router_remap_group_size=${remap_size} make ${SPYGLASS_WORK_DIR}/tmp/files_${SG_SCRIPT_SUF#_} SPYGLASS_WORK_DIR=${SPYGLASS_WORK_DIR}"
+                          eval "$cmd_flist"
+                          mv ${SPYGLASS_WORK_DIR}/tmp/files_${SG_SCRIPT_SUF#_} ${SPYGLASS_WORK_DIR}/tmp/flist/files_${SG_SCRIPT_SUF#_}
 
-                        # Generate the file list.
-                        rm ${SPYGLASS_WORK_DIR}/tmp/files
-                        cmd_flist="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} make ${SPYGLASS_WORK_DIR}/tmp/files SPYGLASS_WORK_DIR=${SPYGLASS_WORK_DIR}"
-                        eval "$cmd_flist"
-                        mv ${SPYGLASS_WORK_DIR}/tmp/files ${SPYGLASS_WORK_DIR}/tmp/flist/files_${SG_SCRIPT_SUF#_}
+                          # Build the command.
+                          cmd="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} noc_router_remap_group_size=${remap_size} make lint SPYGLASS_WORK_DIR=${SPYGLASS_WORK_DIR}"
 
-                        # Build the command.
-                        cmd="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} make lint SPYGLASS_WORK_DIR=${SPYGLASS_WORK_DIR}"
+                          echo "Waiting for resources before launching command:"
+                          echo "$cmd"
+                          # Wait until system resources are below the thresholds.
+                          limit_resources "$current_max_jobs"
 
-                        echo "Waiting for resources before launching command:"
-                        echo "$cmd"
-                        # Wait until system resources are below the thresholds.
-                        limit_resources "$current_max_jobs"
+                          # Create a unique tmux session name based on the suffix (without the leading underscore).
+                          session_name="lint_${SG_SCRIPT_SUF#_}"
+                          echo "Starting tmux session '$session_name' for command:"
+                          echo "$cmd"
 
-                        # Create a unique tmux session name based on the suffix (without the leading underscore).
-                        session_name="lint_${SG_SCRIPT_SUF#_}"
-                        echo "Starting tmux session '$session_name' for command:"
-                        echo "$cmd"
-
-                        # Create a temporary script file that the tmux session will execute.
-                        tmp_script=$(mktemp ${SPYGLASS_WORK_DIR}/tmp/jobs/lint_job_${session_name}.XXXXXX.sh)
-                        cat <<EOF > "$tmp_script"
+                          # Create a temporary script file that the tmux session will execute.
+                          tmp_script=$(mktemp ${SPYGLASS_WORK_DIR}/tmp/jobs/lint_job_${session_name}.XXXXXX.sh)
+                          cat <<EOF > "$tmp_script"
 $(declare -f run_job)
 run_job "$cmd" "$SG_SCRIPT_SUF" "${SPYGLASS_WORK_DIR}"
 tmux kill-session -t "$session_name"
 EOF
-                        chmod +x "$tmp_script"
+                          chmod +x "$tmp_script"
 
-                        sleep 1
+                          sleep 1
 
-                        # Launch the job in a new tmux session.
-                        tmux new-session -d -s "$session_name" "$tmp_script"
+                          # Launch the job in a new tmux session.
+                          tmux new-session -d -s "$session_name" "$tmp_script"
 
-                        sleep 1
-
+                          sleep 1
+                        done
                       done
                     done
                   done

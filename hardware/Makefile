@@ -382,9 +382,9 @@ lint: update-floogen $(SPYGLASS_WORK_DIR)/tmp/files $(SPYGLASS_WORK_DIR)/sdc/fun
 	cd $(SPYGLASS_WORK_DIR); config=$(config) $(SNPS_SG) sg_shell -tcl $(SG_SCRIPT_PATH)/run_lint$(SG_SCRIPT_SUF).tcl
 
 # Build file list, use subst to remove the "32'd" which spyglass can't handle
-$(SPYGLASS_WORK_DIR)/tmp/files: $(bender)
+$(SPYGLASS_WORK_DIR)/tmp/files%: $(bender)
 	mkdir -p $(SPYGLASS_WORK_DIR)/tmp
-	$(bender) script verilator $(subst 32\'d,,$(vlog_defs)) -t rtl -t mempool_verilator > $(SPYGLASS_WORK_DIR)/tmp/files
+	$(bender) script verilator $(subst 32\'d,,$(vlog_defs)) -t rtl -t mempool_verilator > $@
 
 ################
 # Tracing      #
