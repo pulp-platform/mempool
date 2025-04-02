@@ -369,6 +369,23 @@ package mempool_pkg;
     floo_tcdm_req_meta_t    hdr;
   } floo_tcdm_rdwr_req_t;
 
+  `ifndef USE_NARROW_REQ_CHANNEL
+    typedef struct packed {
+      floo_tcdm_rdwr_req_t [NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0]                          floo_tcdm_wide_req;
+      logic                [NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_tcdm_wide_req_valid;
+      logic                [NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_tcdm_wide_req_ready;
+    } floo_tcdm_req_if_t;
+  `else
+    typedef struct packed {
+      floo_tcdm_rd_req_t   [NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0]                        floo_tcdm_narrow_req;
+      logic                [NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0] floo_tcdm_narrow_req_valid;
+      logic                [NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0] floo_tcdm_narrow_req_ready;
+      floo_tcdm_rdwr_req_t [NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0]                          floo_tcdm_wide_req;
+      logic                [NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_tcdm_wide_req_valid;
+      logic                [NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_tcdm_wide_req_ready;
+    } floo_tcdm_req_if_t;
+  `endif
+
   // FlooNoC resp types
   typedef struct packed {
     amo_t               amo;
@@ -388,6 +405,12 @@ package mempool_pkg;
     floo_tcdm_resp_payload_t payload;
     floo_tcdm_resp_meta_t    hdr;
   } floo_tcdm_resp_t;
+
+  typedef struct packed {
+    floo_tcdm_resp_t     [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]                             floo_tcdm_resp;
+    logic                [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_valid;
+    logic                [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_ready;
+  } floo_tcdm_rsp_if_t;
 
   /**********************
    *  QUEUE PARAMETERS  *
