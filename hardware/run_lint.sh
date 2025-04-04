@@ -227,6 +227,11 @@ for config in "${configs[@]}"; do
                           # Also modify the read_file command.
                           sed -i 's/read_file -type sourcelist tmp\/files/read_file -type sourcelist tmp\/flist\/files_'"${SG_SCRIPT_SUF#_}"'/g' "$tcl_dest"
 
+                          # Remove the specific three lines explicitly
+                          sed -i '/^# Create a link to the results$/d' "$tcl_dest"
+                          sed -i '/^exec rm -rf sg_projects\/\${PROJECT}$/d' "$tcl_dest"
+                          sed -i '/^exec ln -sf \${PROJECT_FOLDER_NAME}_\${TIMESTAMP} sg_projects\/\${PROJECT}$/d' "$tcl_dest"
+
                           # Generate the file list.
                           rm ${SPYGLASS_WORK_DIR}/tmp/files_${SG_SCRIPT_SUF#_}
                           cmd_flist="SG_SCRIPT_PATH=tmp/tcl SG_SCRIPT_SUF=${SG_SCRIPT_SUF} config=${config} tile_id_remap=${tile_id_remap} spm_bank_id_remap=${spm_bank_id_remap} noc_req_wr_channel_num=${wr} noc_req_rd_channel_num=${rd_channel} noc_req_rdwr_channel_num=${rdwr_channel} noc_resp_channel_num=${resp_channel} topology=${topology} routing_algorithm=${routing_algo} req_remapping=${req_remap} resp_remapping=${resp_remap} num_virtual_channel=${virt_chan} noc_router_input_fifo_dep=${input_fifo} noc_router_output_fifo_dep=${output_fifo} noc_router_remap_group_size=${remap_size} make ${SPYGLASS_WORK_DIR}/tmp/files_${SG_SCRIPT_SUF#_} SPYGLASS_WORK_DIR=${SPYGLASS_WORK_DIR}"
