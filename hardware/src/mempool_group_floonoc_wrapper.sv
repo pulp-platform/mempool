@@ -106,7 +106,7 @@ logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTil
 logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_ready_out;
 for (genvar i = North; i <= West; i++) begin : gen_tcdm_resp_if_i
   for(genvar j = 0; j < NumTilesPerGroup; j++) begin : gen_tcdm_resp_if_j
-    for(genvar k = 0; k < NumRemoteRespPortsPerTile; k++) begin : gen_tcdm_resp_if_k
+    for(genvar k = 1; k < NumRemoteRespPortsPerTile; k++) begin : gen_tcdm_resp_if_k
       assign floo_tcdm_rsp_o[i].floo_tcdm_resp[j][k].resp   = floo_tcdm_resp_out       [i][j][k];
       assign floo_tcdm_rsp_o[i].floo_tcdm_resp[j][k].valid  = floo_tcdm_resp_valid_out [i][j][k];
       assign floo_tcdm_rsp_o[i].floo_tcdm_resp[j][k].ready  = floo_tcdm_resp_ready_out [i][j][k];
