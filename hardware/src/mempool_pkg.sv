@@ -378,7 +378,11 @@ package mempool_pkg;
     } floo_tcdm_req_if_wide_entry_t;
 
     typedef struct packed {
-      floo_tcdm_req_if_wide_entry_t [NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0] floo_tcdm_req;
+      floo_tcdm_req_if_wide_entry_t     [NumWideRemoteReqPortsPerTile-1:0]    wide_req;
+    } floo_tcdm_req_if_per_tile_entry_t;
+
+    typedef struct packed {
+      floo_tcdm_req_if_per_tile_entry_t [NumTilesPerGroup-1:0] floo_tcdm_req;
     } floo_tcdm_req_if_t;
   `else
     typedef struct packed {
