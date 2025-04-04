@@ -63,13 +63,17 @@ logic                [West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsP
 floo_tcdm_rd_req_t   [West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0]                        floo_tcdm_narrow_req_in;
 logic                [West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0] floo_tcdm_narrow_req_valid_in;
 logic                [West:North][NumTilesPerGroup-1:0][NumNarrowRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0] floo_tcdm_narrow_req_ready_out;
-for (genvar k = North; k <= West; k++) begin : gen_tcdm_narrow_req_if
-  assign floo_tcdm_req_o[k].floo_tcdm_narrow_req = floo_tcdm_narrow_req_out[k];
-  assign floo_tcdm_req_o[k].floo_tcdm_narrow_req_valid = floo_tcdm_narrow_req_valid_out[k];
-  assign floo_tcdm_narrow_req_ready_in[k] = floo_tcdm_req_i[k].floo_tcdm_narrow_req_ready;
-  assign floo_tcdm_narrow_req_in[k] = floo_tcdm_req_i[k].floo_tcdm_narrow_req;
-  assign floo_tcdm_narrow_req_valid_in[k] = floo_tcdm_req_i[k].floo_tcdm_narrow_req_valid;
-  assign floo_tcdm_req_o[k].floo_tcdm_narrow_req_ready = floo_tcdm_narrow_req_ready_out[k];
+for (genvar i = North; i <= West; i++) begin : gen_tcdm_narrow_req_if_i
+  for(genvar j = 0; j < NumTilesPerGroup; j++) begin : gen_tcdm_narrow_req_if_j
+    for(genvar k = 0; k < NumNarrowRemoteReqPortsPerTile; k++) begin : gen_tcdm_narrow_req_if_k
+      assign floo_tcdm_req_o[i].floo_tcdm_req[j].narrow_req[k].req    = floo_tcdm_narrow_req_out      [i][j][k];
+      assign floo_tcdm_req_o[i].floo_tcdm_req[j].narrow_req[k].valid  = floo_tcdm_narrow_req_valid_out[i][j][k];
+      assign floo_tcdm_req_o[i].floo_tcdm_req[j].narrow_req[k].ready  = floo_tcdm_narrow_req_ready_out[i][j][k];
+      assign floo_tcdm_narrow_req_in        [i][j][k] = floo_tcdm_req_i[i].floo_tcdm_req[j].narrow_req[k].req;
+      assign floo_tcdm_narrow_req_valid_in  [i][j][k] = floo_tcdm_req_i[i].floo_tcdm_req[j].narrow_req[k].valid;
+      assign floo_tcdm_narrow_req_ready_in  [i][j][k] = floo_tcdm_req_i[i].floo_tcdm_req[j].narrow_req[k].ready;
+    end
+  end
 end
 `endif
 
@@ -80,13 +84,17 @@ logic                [West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPer
 floo_tcdm_rdwr_req_t [West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0]                          floo_tcdm_wide_req_in;
 logic                [West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_tcdm_wide_req_valid_in;
 logic                [West:North][NumTilesPerGroup-1:0][NumWideRemoteReqPortsPerTile-1:0][NumVirtualChannel-1:0]   floo_tcdm_wide_req_ready_out;
-for (genvar k = North; k <= West; k++) begin : gen_tcdm_wide_req_if
-  assign floo_tcdm_req_o[k].floo_tcdm_wide_req = floo_tcdm_wide_req_out[k];
-  assign floo_tcdm_req_o[k].floo_tcdm_wide_req_valid = floo_tcdm_wide_req_valid_out[k];
-  assign floo_tcdm_wide_req_ready_in[k] = floo_tcdm_req_i[k].floo_tcdm_wide_req_ready;
-  assign floo_tcdm_wide_req_in[k] = floo_tcdm_req_i[k].floo_tcdm_wide_req;
-  assign floo_tcdm_wide_req_valid_in[k] = floo_tcdm_req_i[k].floo_tcdm_wide_req_valid;
-  assign floo_tcdm_req_o[k].floo_tcdm_wide_req_ready = floo_tcdm_wide_req_ready_out[k];
+for (genvar i = North; i <= West; i++) begin : gen_tcdm_wide_req_if_i
+  for(genvar j = 0; j < NumTilesPerGroup; j++) begin : gen_tcdm_wide_req_if_j
+    for(genvar k = 0; k < NumWideRemoteReqPortsPerTile; k++) begin : gen_tcdm_wide_req_if_k
+      assign floo_tcdm_req_o[i].floo_tcdm_req[j].wide_req[k].req    = floo_tcdm_wide_req_out      [i][j][k];
+      assign floo_tcdm_req_o[i].floo_tcdm_req[j].wide_req[k].valid  = floo_tcdm_wide_req_valid_out[i][j][k];
+      assign floo_tcdm_req_o[i].floo_tcdm_req[j].wide_req[k].ready  = floo_tcdm_wide_req_ready_out[i][j][k];
+      assign floo_tcdm_wide_req_in        [i][j][k] = floo_tcdm_req_i[i].floo_tcdm_req[j].wide_req[k].req;
+      assign floo_tcdm_wide_req_valid_in  [i][j][k] = floo_tcdm_req_i[i].floo_tcdm_req[j].wide_req[k].valid;
+      assign floo_tcdm_wide_req_ready_in  [i][j][k] = floo_tcdm_req_i[i].floo_tcdm_req[j].wide_req[k].ready;
+    end
+  end
 end
 
 // wide resp noc
@@ -96,13 +104,17 @@ logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTil
 floo_tcdm_resp_t     [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]                             floo_tcdm_resp_in;
 logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_valid_in;
 logic                [West:North][NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1][NumVirtualChannel-1:0]      floo_tcdm_resp_ready_out;
-for (genvar k = North; k <= West; k++) begin : gen_tcdm_resp_if
-  assign floo_tcdm_rsp_o[k].floo_tcdm_resp = floo_tcdm_resp_out[k];
-  assign floo_tcdm_rsp_o[k].floo_tcdm_resp_valid = floo_tcdm_resp_valid_out[k];
-  assign floo_tcdm_resp_ready_in[k] = floo_tcdm_rsp_i[k].floo_tcdm_resp_ready;
-  assign floo_tcdm_resp_in[k] = floo_tcdm_rsp_i[k].floo_tcdm_resp;
-  assign floo_tcdm_resp_valid_in[k] = floo_tcdm_rsp_i[k].floo_tcdm_resp_valid;
-  assign floo_tcdm_rsp_o[k].floo_tcdm_resp_ready = floo_tcdm_resp_ready_out[k];
+for (genvar i = North; i <= West; i++) begin : gen_tcdm_resp_if_i
+  for(genvar j = 0; j < NumTilesPerGroup; j++) begin : gen_tcdm_resp_if_j
+    for(genvar k = 0; k < NumRemoteRespPortsPerTile; k++) begin : gen_tcdm_resp_if_k
+      assign floo_tcdm_rsp_o[i].floo_tcdm_resp[j][k].resp   = floo_tcdm_resp_out       [i][j][k];
+      assign floo_tcdm_rsp_o[i].floo_tcdm_resp[j][k].valid  = floo_tcdm_resp_valid_out [i][j][k];
+      assign floo_tcdm_rsp_o[i].floo_tcdm_resp[j][k].ready  = floo_tcdm_resp_ready_out [i][j][k];
+      assign floo_tcdm_resp_in        [i][j][k] = floo_tcdm_rsp_i[i].floo_tcdm_resp[j][k].resp;
+      assign floo_tcdm_resp_valid_in  [i][j][k] = floo_tcdm_rsp_i[i].floo_tcdm_resp[j][k].valid;
+      assign floo_tcdm_resp_ready_in  [i][j][k] = floo_tcdm_rsp_i[i].floo_tcdm_resp[j][k].ready;
+    end
+  end
 end
 
 // Parse the address width to calculate the offset
