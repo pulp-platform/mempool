@@ -450,10 +450,30 @@ module mempool_tile
           superbank_resp_ini_addr[b] = bank_resp_ini_addr[b] - (NumRemoteReqPortsPerTile - NumRemoteRespPortsPerTile);
         end
       end
-    end else begin
+    end else if (NumRemoteReqPortsPerTile == NumRemoteRespPortsPerTile) begin
       always_comb begin
         superbank_resp_ini_addr[b] = '0;
         superbank_resp_ini_addr[b] = bank_resp_ini_addr[b];
+      end
+    end
+    else begin
+      localparam int unsigned bank_resp_payload_width = $bits(tcdm_slave_resp_t);
+      localparam int unsigned hash_width = $clog2(NumRemoteRespPortsPerTile - 1) + 2;
+      localparam int unsigned hash_binning_step = (1 << hash_width) / (NumRemoteRespPortsPerTile - 1);
+      logic [bank_resp_payload_width-1:0] bank_resp_payload_raw;
+      logic [hash_width-1:0] hash;
+      assign bank_resp_payload_raw = bank_resp_payload[b];
+      assign hash = bank_resp_payload_raw[bank_resp_payload_width-1 -: hash_width];
+      always_comb begin
+        superbank_resp_ini_addr[b] = '0;
+        superbank_resp_ini_addr[b] = bank_resp_ini_addr[b];
+        if(bank_resp_ini_addr[b] > NumCoresPerTile) begin
+          for (int i = NumRemoteRespPortsPerTile-2; i >= 0; i--) begin
+            if (hash >= i * hash_binning_step) begin
+              superbank_resp_ini_addr[b] = NumCoresPerTile + 1 + i;
+            end
+          end
+        end
       end
     end
   end
