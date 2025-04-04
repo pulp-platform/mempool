@@ -33,9 +33,11 @@ questa_args     ?=
 # QuestaSim config
 questa_config   ?=
 # VCS Version
-vcs_version     ?= 2022.06-bt
+vcs_version     ?= 2024.09-zr
 # VCS command
 vcs_cmd         ?= vcs-$(vcs_version)
+# VCS config
+vcs_config      ?=
 # Path to the binaries
 app_path        ?= $(abspath $(ROOT_DIR)/../software/bin)
 # Bender
@@ -135,6 +137,7 @@ vlog_defs += -DNOC_ROUTER_REMAPPING=$(noc_router_remapping)
 vlog_defs += -DNOC_VIRTUAL_CHANNEL_NUM=$(noc_virtual_channel_num)
 ifneq ($(noc_router_remapping), 0)
 	questa_config += AssertionEnable = 0
+	vcs_config += -assert disable
 endif
 # Snitch ISA
 vlog_defs += -DXPULPIMG=$(xpulpimg)
@@ -270,7 +273,7 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 
 # Elaboration
 .PHONY: elabvcs
-elabvcs: gen_selector dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
+elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
 $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compilevcs.sh
 	echo "exit" >> $(buildpath)/compilevcs.sh
@@ -282,15 +285,15 @@ $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bende
 # Compilation
 .PHONY: compile_vcs_simv compile_vcs_simvopt
 
-compile_vcs_simv: elabvcs $(buildpath)/mempool_simv
+compile_vcs_simv: update-floogen elabvcs $(buildpath)/mempool_simv
 $(buildpath)/mempool_simv: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
 	cd $(buildpath) && \
-	$(vcs_cmd) vcs -full64 $(top_level) -cc $(CC) -cpp $(CXX) -ld $(CXX) $(dpi_library)/mempool_vcs_dpi.so -debug_access=r -kdb -assert disable_cover -o mempool_simv
+	$(vcs_cmd) vcs -full64 $(top_level) -cc $(CC) -cpp $(CXX) -ld $(CXX) $(dpi_library)/mempool_vcs_dpi.so $(vcs_config) -debug_access=r -kdb -assert disable_cover -o mempool_simv
 
-compile_vcs_simvopt: elabvcs $(buildpath)/mempool_simvopt
+compile_vcs_simvopt: update-floogen elabvcs $(buildpath)/mempool_simvopt
 $(buildpath)/mempool_simvopt: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
 	cd $(buildpath) && \
-	$(vcs_cmd) vcs -full64 $(top_level) -cc $(CC) -cpp $(CXX) -ld $(CXX) $(dpi_library)/mempool_vcs_dpi.so -assert disable_cover -o mempool_simvopt
+	$(vcs_cmd) vcs -full64 $(top_level) -cc $(CC) -cpp $(CXX) -ld $(CXX) $(dpi_library)/mempool_vcs_dpi.so $(vcs_config) -assert disable_cover -o mempool_simvopt
 
 # Simulation
 simvcs: compile_vcs_simv
