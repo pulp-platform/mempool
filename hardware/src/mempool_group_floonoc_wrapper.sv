@@ -784,13 +784,13 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
         .rst_ni,
         .test_enable_i  (1'b0                                                                                     ),
         .xy_id_i        (group_id_i                                                                               ),
-        .id_route_map_i (routing_table_pkg::RoutingTables[group_id.x][group_id.y]                                 ),
-        .valid_i        ({floo_tcdm_rd_req_to_router_vc_valid[i][j],   floo_tcdm_narrow_req_valid_in_trans[i][j]}  ),
-        .ready_o        ({floo_tcdm_rd_req_to_router_vc_ready[i][j],   floo_tcdm_narrow_req_ready_out_trans[i][j]}  ),
-        .data_i         ({floo_tcdm_rd_req_to_router[i][j],            floo_tcdm_narrow_req_in_trans      [i][j]}  ),
-        .valid_o        ({floo_tcdm_rd_req_from_router_vc_valid[i][j], floo_tcdm_narrow_req_valid_out_trans[i][j]}  ),
-        .ready_i        ({floo_tcdm_rd_req_from_router_vc_ready[i][j], floo_tcdm_narrow_req_ready_in_trans[i][j]}  ),
-        .data_o         ({floo_tcdm_rd_req_from_router_vc[i][j],       floo_tcdm_narrow_req_out_trans      [i][j]}  )
+        .id_route_map_i (routing_table_pkg::RoutingTables[group_xy_id.x][group_xy_id.y]                           ),
+        .valid_i        ({floo_tcdm_rd_req_to_router_vc_valid[i][j],   floo_tcdm_narrow_req_valid_in_trans[i][j]} ),
+        .ready_o        ({floo_tcdm_rd_req_to_router_vc_ready[i][j],   floo_tcdm_narrow_req_ready_out_trans[i][j]}),
+        .data_i         ({floo_tcdm_rd_req_to_router[i][j],            floo_tcdm_narrow_req_in_trans      [i][j]} ),
+        .valid_o        ({floo_tcdm_rd_req_from_router_vc_valid[i][j], floo_tcdm_narrow_req_valid_out_trans[i][j]}),
+        .ready_i        ({floo_tcdm_rd_req_from_router_vc_ready[i][j], floo_tcdm_narrow_req_ready_in_trans[i][j]} ),
+        .data_o         ({floo_tcdm_rd_req_from_router_vc[i][j],       floo_tcdm_narrow_req_out_trans      [i][j]})
       );
     end else begin: gen_2dmesh
       localparam route_algo_e floo_route_algo = (NocRoutingAlgorithm == 1) ? OddEvenRouting :
@@ -811,12 +811,12 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
         .test_enable_i  (1'b0                                                                                     ),
         .xy_id_i        (group_xy_id                                                                              ),
         .id_route_map_i ('0                                                                                       ),
-        .valid_i        ({floo_tcdm_rd_req_to_router_vc_valid[i][j],   floo_tcdm_narrow_req_valid_in_trans[i][j]}  ),
-        .ready_o        ({floo_tcdm_rd_req_to_router_vc_ready[i][j],   floo_tcdm_narrow_req_ready_out_trans[i][j]}  ),
-        .data_i         ({floo_tcdm_rd_req_to_router[i][j],            floo_tcdm_narrow_req_in_trans      [i][j]}  ),
-        .valid_o        ({floo_tcdm_rd_req_from_router_vc_valid[i][j], floo_tcdm_narrow_req_valid_out_trans[i][j]}  ),
-        .ready_i        ({floo_tcdm_rd_req_from_router_vc_ready[i][j], floo_tcdm_narrow_req_ready_in_trans[i][j]}  ),
-        .data_o         ({floo_tcdm_rd_req_from_router_vc[i][j],       floo_tcdm_narrow_req_out_trans      [i][j]}  )
+        .valid_i        ({floo_tcdm_rd_req_to_router_vc_valid[i][j],   floo_tcdm_narrow_req_valid_in_trans[i][j]} ),
+        .ready_o        ({floo_tcdm_rd_req_to_router_vc_ready[i][j],   floo_tcdm_narrow_req_ready_out_trans[i][j]}),
+        .data_i         ({floo_tcdm_rd_req_to_router[i][j],            floo_tcdm_narrow_req_in_trans      [i][j]} ),
+        .valid_o        ({floo_tcdm_rd_req_from_router_vc_valid[i][j], floo_tcdm_narrow_req_valid_out_trans[i][j]}),
+        .ready_i        ({floo_tcdm_rd_req_from_router_vc_ready[i][j], floo_tcdm_narrow_req_ready_in_trans[i][j]} ),
+        .data_o         ({floo_tcdm_rd_req_from_router_vc[i][j],       floo_tcdm_narrow_req_out_trans      [i][j]})
       );
     end
     if(NumVirtualChannel == 1) begin
@@ -855,13 +855,13 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
         .rst_ni,
         .test_enable_i  (1'b0                                                                                     ),
         .xy_id_i        (group_id_i                                                                               ),
-        .id_route_map_i (routing_table_pkg::RoutingTables[group_id.x][group_id.y]                                 ),
-        .valid_i        ({floo_tcdm_rdwr_req_to_router_vc_valid[i][j],   floo_tcdm_wide_req_valid_in_trans[i][j]}  ),
-        .ready_o        ({floo_tcdm_rdwr_req_to_router_vc_ready[i][j],   floo_tcdm_wide_req_ready_out_trans[i][j]}  ),
-        .data_i         ({floo_tcdm_rdwr_req_to_router[i][j],            floo_tcdm_wide_req_in_trans      [i][j]}  ),
-        .valid_o        ({floo_tcdm_rdwr_req_from_router_vc_valid[i][j], floo_tcdm_wide_req_valid_out_trans[i][j]}  ),
-        .ready_i        ({floo_tcdm_rdwr_req_from_router_vc_ready[i][j], floo_tcdm_wide_req_ready_in_trans[i][j]}  ),
-        .data_o         ({floo_tcdm_rdwr_req_from_router_vc[i][j],       floo_tcdm_wide_req_out_trans      [i][j]}  )
+        .id_route_map_i (routing_table_pkg::RoutingTables[group_xy_id.x][group_xy_id.y]                           ),
+        .valid_i        ({floo_tcdm_rdwr_req_to_router_vc_valid[i][j],   floo_tcdm_wide_req_valid_in_trans[i][j]} ),
+        .ready_o        ({floo_tcdm_rdwr_req_to_router_vc_ready[i][j],   floo_tcdm_wide_req_ready_out_trans[i][j]}),
+        .data_i         ({floo_tcdm_rdwr_req_to_router[i][j],            floo_tcdm_wide_req_in_trans      [i][j]} ),
+        .valid_o        ({floo_tcdm_rdwr_req_from_router_vc_valid[i][j], floo_tcdm_wide_req_valid_out_trans[i][j]}),
+        .ready_i        ({floo_tcdm_rdwr_req_from_router_vc_ready[i][j], floo_tcdm_wide_req_ready_in_trans[i][j]} ),
+        .data_o         ({floo_tcdm_rdwr_req_from_router_vc[i][j],       floo_tcdm_wide_req_out_trans      [i][j]})
       );
     end else begin: gen_2dmesh
       localparam route_algo_e floo_route_algo = (NocRoutingAlgorithm == 1) ? OddEvenRouting :
@@ -882,12 +882,12 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
         .test_enable_i  (1'b0                                                                                     ),
         .xy_id_i        (group_xy_id                                                                              ),
         .id_route_map_i ('0                                                                                       ),
-        .valid_i        ({floo_tcdm_rdwr_req_to_router_vc_valid[i][j],   floo_tcdm_wide_req_valid_in_trans[i][j]}  ),
-        .ready_o        ({floo_tcdm_rdwr_req_to_router_vc_ready[i][j],   floo_tcdm_wide_req_ready_out_trans[i][j]}  ),
-        .data_i         ({floo_tcdm_rdwr_req_to_router[i][j],            floo_tcdm_wide_req_in_trans      [i][j]}  ),
-        .valid_o        ({floo_tcdm_rdwr_req_from_router_vc_valid[i][j], floo_tcdm_wide_req_valid_out_trans[i][j]}  ),
-        .ready_i        ({floo_tcdm_rdwr_req_from_router_vc_ready[i][j], floo_tcdm_wide_req_ready_in_trans[i][j]}  ),
-        .data_o         ({floo_tcdm_rdwr_req_from_router_vc[i][j],       floo_tcdm_wide_req_out_trans      [i][j]}  )
+        .valid_i        ({floo_tcdm_rdwr_req_to_router_vc_valid[i][j],   floo_tcdm_wide_req_valid_in_trans[i][j]} ),
+        .ready_o        ({floo_tcdm_rdwr_req_to_router_vc_ready[i][j],   floo_tcdm_wide_req_ready_out_trans[i][j]}),
+        .data_i         ({floo_tcdm_rdwr_req_to_router[i][j],            floo_tcdm_wide_req_in_trans      [i][j]} ),
+        .valid_o        ({floo_tcdm_rdwr_req_from_router_vc_valid[i][j], floo_tcdm_wide_req_valid_out_trans[i][j]}),
+        .ready_i        ({floo_tcdm_rdwr_req_from_router_vc_ready[i][j], floo_tcdm_wide_req_ready_in_trans[i][j]} ),
+        .data_o         ({floo_tcdm_rdwr_req_from_router_vc[i][j],       floo_tcdm_wide_req_out_trans      [i][j]})
       );
     end
     if(NumVirtualChannel == 1) begin
@@ -925,13 +925,13 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
         .rst_ni,
         .test_enable_i  (1'b0                                                                             ),
         .xy_id_i        (group_id_i                                                                       ),
-        .id_route_map_i (routing_table_pkg::RoutingTables[group_id.x][group_id.y]                         ),
-        .valid_i        ({floo_tcdm_resp_to_router_vc_valid[i][j],   floo_tcdm_resp_valid_in_trans[i][j]}  ),
-        .ready_o        ({floo_tcdm_resp_to_router_vc_ready[i][j],   floo_tcdm_resp_ready_out_trans[i][j]}  ),
-        .data_i         ({floo_tcdm_resp_to_router[i][j],            floo_tcdm_resp_in_trans[i][j]}        ),
-        .valid_o        ({floo_tcdm_resp_from_router_vc_valid[i][j], floo_tcdm_resp_valid_out_trans[i][j]}  ),
-        .ready_i        ({floo_tcdm_resp_from_router_vc_ready[i][j], floo_tcdm_resp_ready_in_trans[i][j]}  ),
-        .data_o         ({floo_tcdm_resp_from_router_vc[i][j],       floo_tcdm_resp_out_trans[i][j]}        )
+        .id_route_map_i (routing_table_pkg::RoutingTables[group_xy_id.x][group_xy_id.y]                   ),
+        .valid_i        ({floo_tcdm_resp_to_router_vc_valid[i][j],   floo_tcdm_resp_valid_in_trans[i][j]} ),
+        .ready_o        ({floo_tcdm_resp_to_router_vc_ready[i][j],   floo_tcdm_resp_ready_out_trans[i][j]}),
+        .data_i         ({floo_tcdm_resp_to_router[i][j],            floo_tcdm_resp_in_trans[i][j]}       ),
+        .valid_o        ({floo_tcdm_resp_from_router_vc_valid[i][j], floo_tcdm_resp_valid_out_trans[i][j]}),
+        .ready_i        ({floo_tcdm_resp_from_router_vc_ready[i][j], floo_tcdm_resp_ready_in_trans[i][j]} ),
+        .data_o         ({floo_tcdm_resp_from_router_vc[i][j],       floo_tcdm_resp_out_trans[i][j]}      )
       );
     end else begin: gen_2dmesh
       localparam route_algo_e floo_route_algo = (NocRoutingAlgorithm == 1) ? OddEvenRouting :
@@ -952,12 +952,12 @@ for (genvar i = 0; i < NumTilesPerGroup; i++) begin : gen_router_router_i
         .test_enable_i  (1'b0                                                                             ),
         .xy_id_i        (group_xy_id                                                                      ),
         .id_route_map_i ('0                                                                               ),
-        .valid_i        ({floo_tcdm_resp_to_router_vc_valid[i][j],   floo_tcdm_resp_valid_in_trans[i][j]}  ),
-        .ready_o        ({floo_tcdm_resp_to_router_vc_ready[i][j],   floo_tcdm_resp_ready_out_trans[i][j]}  ),
-        .data_i         ({floo_tcdm_resp_to_router[i][j],            floo_tcdm_resp_in_trans[i][j]}        ),
-        .valid_o        ({floo_tcdm_resp_from_router_vc_valid[i][j], floo_tcdm_resp_valid_out_trans[i][j]}  ),
-        .ready_i        ({floo_tcdm_resp_from_router_vc_ready[i][j], floo_tcdm_resp_ready_in_trans[i][j]}  ),
-        .data_o         ({floo_tcdm_resp_from_router_vc[i][j],       floo_tcdm_resp_out_trans[i][j]}        )
+        .valid_i        ({floo_tcdm_resp_to_router_vc_valid[i][j],   floo_tcdm_resp_valid_in_trans[i][j]} ),
+        .ready_o        ({floo_tcdm_resp_to_router_vc_ready[i][j],   floo_tcdm_resp_ready_out_trans[i][j]}),
+        .data_i         ({floo_tcdm_resp_to_router[i][j],            floo_tcdm_resp_in_trans[i][j]}       ),
+        .valid_o        ({floo_tcdm_resp_from_router_vc_valid[i][j], floo_tcdm_resp_valid_out_trans[i][j]}),
+        .ready_i        ({floo_tcdm_resp_from_router_vc_ready[i][j], floo_tcdm_resp_ready_in_trans[i][j]} ),
+        .data_o         ({floo_tcdm_resp_from_router_vc[i][j],       floo_tcdm_resp_out_trans[i][j]}      )
       );
     end
     if(NumVirtualChannel == 1) begin
