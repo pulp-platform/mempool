@@ -24,9 +24,12 @@ num_divsqrt_per_tile ?= 1
 # FlooNoC configuration
 num_directions ?= 5
 num_x ?= 2
-noc_topology ?= 0				# 0: 2D mesh
-noc_routing_algorithm ?= 0		# 0: xy, 1: odd-even, 2: o1
-noc_router_remapping ?= 0		# 0: no remapping, 1: req remapping, 2: resp remapping 3: req+resp remapping
+# 0: 2D mesh, 1: torus
+noc_topology ?= 0
+# 0: xy, 1: odd-even, 2: o1
+noc_routing_algorithm ?= 0
+# 0: no remapping, 1: req remapping, 2: resp remapping 3: req+resp remapping
+noc_router_remapping ?= 0
 noc_virtual_channel_num ?= 1
 
 # Per tile, separate the NoC read and read/write req channels, rd = hdr, wr = har+payload, rd/wr = hdr+payload
