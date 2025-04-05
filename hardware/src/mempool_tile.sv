@@ -476,8 +476,8 @@ module mempool_tile
                             bank_resp_payload[b].ini_addr[1]
                             };
       end else begin: gen_general_hash
-        $warning("Customed hashing is not implemented for hash_width = %0d, 
-                  using general congif, the performance may degrade.", hash_width);
+        $warning("Customed hashing is not implemented for hash_width = %0d, ",
+                  "using general congif, the performance may degrade.", hash_width);
         assign hash_src0 = bank_resp_payload_raw[0 +: hash_width];
         assign hash_src1 = bank_resp_payload_raw[hash_width +: hash_width];
       end
