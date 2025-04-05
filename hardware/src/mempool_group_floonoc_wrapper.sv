@@ -308,7 +308,8 @@ if (NocRouterRemapping == 1 || NocRouterRemapping == 3) begin: gen_req_remapping
     .NumInp   (NumTilesPerGroup * NumNarrowRemoteReqPortsPerTile),
     .NumOut   (NumTilesPerGroup * NumNarrowRemoteReqPortsPerTile),
     .payload_t(floo_tcdm_rd_req_t),
-    .GroupSize(RouterRemapGroupSize)
+    .GroupSize(RouterRemapGroupSize),
+    .Interleaved(1'b1)
   ) i_floo_tcdm_rd_req_remapper (
     .clk_i      (clk_i),
     .rst_ni     (rst_ni),
@@ -325,7 +326,8 @@ if (NocRouterRemapping == 1 || NocRouterRemapping == 3) begin: gen_req_remapping
     .NumInp   (NumTilesPerGroup * NumWideRemoteReqPortsPerTile),
     .NumOut   (NumTilesPerGroup * NumWideRemoteReqPortsPerTile),
     .payload_t(floo_tcdm_rdwr_req_t),
-    .GroupSize(RouterRemapGroupSize)
+    .GroupSize(RouterRemapGroupSize),
+    .Interleaved(1'b1)
   ) i_floo_tcdm_rdwr_req_remapper (
     .clk_i      (clk_i),
     .rst_ni     (rst_ni),
@@ -558,7 +560,8 @@ if (NocRouterRemapping == 2 || NocRouterRemapping == 3) begin: gen_resp_remappin
     .NumInp   (NumTilesPerGroup * (NumRemoteRespPortsPerTile-1)),
     .NumOut   (NumTilesPerGroup * (NumRemoteRespPortsPerTile-1)),
     .payload_t(floo_tcdm_resp_t),
-    .GroupSize(RouterRemapGroupSize)
+    .GroupSize(RouterRemapGroupSize),
+    .Interleaved(1'b1)
   ) i_floo_tcdm_resp_remapper (
     .clk_i      (clk_i),
     .rst_ni     (rst_ni),
