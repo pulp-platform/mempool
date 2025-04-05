@@ -72,8 +72,10 @@ for config in "${config_list[@]}"; do
     workdir="${workdir//noc_req_rd_channel_num=/rd}"
     workdir="${workdir//noc_req_rdwr_channel_num=/rw}"
     workdir="${workdir//noc_resp_channel_num=/rsp}"
-    workdir="${workdir//noc_router_remapping=/remap}"
+    workdir="${workdir//noc_router_remapping=/rrmp}"
     workdir="${workdir//noc_router_remap_group_size=/rgrp}"
+    workdir="${workdir//spm_bank_id_remap=/brmp}"
+    workdir="${workdir//tile_id_remap=/trmp}"
     workdir=${workdir}/${app}
     # limit_resources
     # ./scripts/exec_benchmark.sh $app \"$config\" $workdir
