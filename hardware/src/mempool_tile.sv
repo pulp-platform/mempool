@@ -442,7 +442,7 @@ module mempool_tile
 
   assign bank_req_ini_addr = superbank_req_ini_addr;
   for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_superbank_resp_ini_addr
-    if(NumRemoteReqPortsPerTile > NumRemoteRespPortsPerTile ) begin
+    if(NumRemoteReqPortsPerTile > NumRemoteRespPortsPerTile ) begin: gen_superbank_resp_ini_addr_req_gt_resp
       always_comb begin
         superbank_resp_ini_addr[b] = '0;
         superbank_resp_ini_addr[b] = bank_resp_ini_addr[b];
@@ -450,25 +450,44 @@ module mempool_tile
           superbank_resp_ini_addr[b] = bank_resp_ini_addr[b] - (NumRemoteReqPortsPerTile - NumRemoteRespPortsPerTile);
         end
       end
-    end else if (NumRemoteReqPortsPerTile == NumRemoteRespPortsPerTile) begin
+    end else if (NumRemoteReqPortsPerTile == NumRemoteRespPortsPerTile) begin: gen_superbank_resp_ini_addr_req_eq_resp
       always_comb begin
         superbank_resp_ini_addr[b] = '0;
         superbank_resp_ini_addr[b] = bank_resp_ini_addr[b];
       end
     end
-    else begin
+    else begin: gen_superbank_resp_ini_addr_req_lt_resp
       localparam int unsigned bank_resp_payload_width = $bits(tcdm_slave_resp_t);
       localparam int unsigned hash_width = $clog2(NumRemoteRespPortsPerTile - 1) + 2;
       localparam int unsigned hash_binning_step = (1 << hash_width) / (NumRemoteRespPortsPerTile - 1);
       logic [bank_resp_payload_width-1:0] bank_resp_payload_raw;
-      logic [hash_width-1:0] hash;
+      logic [hash_width-1:0] hash_src0, hash_src1, hash;
       assign bank_resp_payload_raw = bank_resp_payload[b];
-      assign hash = bank_resp_payload_raw[bank_resp_payload_width-1 -: hash_width];
+      if(hash_width == 4) begin: gen_customed_hash_4
+        assign hash_src0 = {bank_resp_payload[b].rdata.core_id[0],
+                            bank_resp_payload[b].rdata.core_id[1],
+                            bank_resp_payload[b].src_group_id[0],
+                            bank_resp_payload[b].src_group_id[2]
+                            };
+        assign hash_src1 = {
+                            bank_resp_payload[b].ini_addr[2],
+                            bank_resp_payload[b].src_group_id[3],
+                            bank_resp_payload[b].ini_addr[0],
+                            bank_resp_payload[b].ini_addr[1]
+                            };
+      end else begin: gen_general_hash
+        $warning("Customed hashing is not implemented for hash_width = %0d, 
+                  using general congif, the performance may degrade.", hash_width);
+        assign hash_src0 = bank_resp_payload_raw[0 +: hash_width];
+        assign hash_src1 = bank_resp_payload_raw[hash_width +: hash_width];
+      end
+      assign hash = hash_src0 ^ hash_src1;
       always_comb begin
         superbank_resp_ini_addr[b] = '0;
         superbank_resp_ini_addr[b] = bank_resp_ini_addr[b];
         if(bank_resp_ini_addr[b] > NumCoresPerTile) begin
-          for (int i = NumRemoteRespPortsPerTile-2; i >= 0; i--) begin
+          superbank_resp_ini_addr[b] = NumCoresPerTile + 1 + 0;
+          for (int i = 1; i < (NumRemoteRespPortsPerTile-1); i++) begin
             if (hash >= i * hash_binning_step) begin
               superbank_resp_ini_addr[b] = NumCoresPerTile + 1 + i;
             end

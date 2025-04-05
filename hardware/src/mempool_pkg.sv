@@ -253,10 +253,10 @@ package mempool_pkg;
   typedef logic [3:0] amo_t;
 
   typedef struct packed {
+    data_t data;
+    amo_t amo;
     meta_id_t meta_id;
     tile_core_id_t core_id;
-    amo_t amo;
-    data_t data;
   } tcdm_payload_t;
 
   typedef struct packed {
