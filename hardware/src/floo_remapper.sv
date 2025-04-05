@@ -14,7 +14,9 @@ module floo_remapper #(
   /// Payload type of the data ports, only usage of parameter `DataWidth`.
   parameter type         payload_t   = logic [DataWidth-1:0],
   /// Max number of routers in a remapping group.
-  parameter int unsigned GroupSize   = 32'd2
+  parameter int unsigned GroupSize   = 32'd2,
+  /// Interleaved group.
+  parameter bit          Interleaved = 1'b0
 ) (
   input  logic              clk_i,
   input  logic              rst_ni,
@@ -33,8 +35,8 @@ module floo_remapper #(
   initial begin : p_assert
     assert(NumInp == NumOut)
       else $fatal(1, "Number of inputs and outputs must be equal.");
-    assert((NumInp & (NumInp - 1)) == 0)
-      else $fatal(1, "Number of inputs must be a power of 2.");
+    assert ((NumInp % GroupSize) == 0)
+      else $fatal(1, "Number of inputs must be divisible by GroupSize.");
     assert ((GroupSize & (GroupSize - 1)) == 0)
       else $fatal(1, "Group size must be a power of 2.");
   end
@@ -66,26 +68,58 @@ generate
 
     assign sel_d = {sel_q[0], sel_q[GroupSize-1:1]};
 
-    stream_xbar #(
-      .NumInp(GroupSize),
-      .NumOut(GroupSize),
-      .payload_t(payload_t),
-      .AxiVldRdy(1'b0),
-      .LockIn(1'b0)
-    ) i_stream_xbar (
-      .clk_i  (clk_i),
-      .rst_ni (rst_ni),
-      .flush_i(1'b0),
-      .rr_i   ('0),
-      .data_i (inp_data_i[start_idx +: GroupSize]),
-      .sel_i  (sel_q),
-      .valid_i(inp_valid_i[start_idx +: GroupSize]),
-      .ready_o(inp_ready_o[start_idx +: GroupSize]),
-      .data_o (oup_data_o[start_idx +: GroupSize]),
-      .idx_o  (),
-      .valid_o(oup_valid_o[start_idx +: GroupSize]),
-      .ready_i(oup_ready_i[start_idx +: GroupSize])
-    );
+    if (Interleaved == 1'b1) begin : gen_interleaved_remap
+      payload_t [GroupSize-1:0] inp_data_intlv;
+      logic     [GroupSize-1:0] inp_valid_intlv;
+      logic     [GroupSize-1:0] inp_ready_intlv;
+      for (genvar i = 0; i < GroupSize; i++) begin : gen_intlv
+        assign inp_data_intlv[i]   = inp_data_i[g + i * NumGroup];
+        assign inp_valid_intlv[i]  = inp_valid_i[g + i * NumGroup];
+        assign inp_ready_o[g + i * NumGroup] = inp_ready_intlv[i];
+      end
+      stream_xbar #(
+        .NumInp(GroupSize),
+        .NumOut(GroupSize),
+        .payload_t(payload_t),
+        .AxiVldRdy(1'b0),
+        .LockIn(1'b0)
+      ) i_stream_xbar (
+        .clk_i  (clk_i),
+        .rst_ni (rst_ni),
+        .flush_i(1'b0),
+        .rr_i   ('0),
+        .data_i (inp_data_intlv),
+        .sel_i  (sel_q),
+        .valid_i(inp_valid_intlv),
+        .ready_o(inp_ready_intlv),
+        .data_o (oup_data_o[start_idx +: GroupSize]),
+        .idx_o  (),
+        .valid_o(oup_valid_o[start_idx +: GroupSize]),
+        .ready_i(oup_ready_i[start_idx +: GroupSize])
+      );
+    end else begin: gen_non_interleaved_remap
+      stream_xbar #(
+        .NumInp(GroupSize),
+        .NumOut(GroupSize),
+        .payload_t(payload_t),
+        .AxiVldRdy(1'b0),
+        .LockIn(1'b0)
+      ) i_stream_xbar (
+        .clk_i  (clk_i),
+        .rst_ni (rst_ni),
+        .flush_i(1'b0),
+        .rr_i   ('0),
+        .data_i (inp_data_i[start_idx +: GroupSize]),
+        .sel_i  (sel_q),
+        .valid_i(inp_valid_i[start_idx +: GroupSize]),
+        .ready_o(inp_ready_o[start_idx +: GroupSize]),
+        .data_o (oup_data_o[start_idx +: GroupSize]),
+        .idx_o  (),
+        .valid_o(oup_valid_o[start_idx +: GroupSize]),
+        .ready_i(oup_ready_i[start_idx +: GroupSize])
+      );
+    end
+
   end
 endgenerate
 
