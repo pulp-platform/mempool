@@ -27,36 +27,43 @@ num_divsqrt_per_tile ?= 2
 # FlooNoC configuration
 num_directions ?= 5
 num_x ?= 4
+# Topology
 # 0: 2D mesh, 1: torus
 noc_topology ?= 0
+# Routing algorithm
 # 0: xy, 1: odd-even, 2: o1
 noc_routing_algorithm ?= 0
+# NoC remapping configuration
 # 0: no remapping, 1: req remapping, 2: resp remapping 3: req+resp remapping
 noc_router_remapping ?= 0
+# Virtual channel number
 noc_virtual_channel_num ?= 1
 
 # Per tile, separate the NoC read and read/write req channels, rd = hdr, wr = har+payload, rd/wr = hdr+payload
-# baseline
+# Baseline, be careful undefine the USE_NARROW_REQ_CHANNEL marco
 noc_req_rd_channel_num ?= 0
 noc_req_rdwr_channel_num ?= 2
-
-# reduced link count
-# noc_req_rd_channel_num ?= 1
-# noc_req_rdwr_channel_num ?= 1
-
-# enhanced read link
-# noc_req_rd_channel_num ?= 2
-# noc_req_rdwr_channel_num ?= 1
-
 noc_req_wr_channel_num ?= 0
 noc_resp_channel_num ?= 2
 
-# router buffer configuration
+# Reduced req link count, define the USE_NARROW_REQ_CHANNEL marco
+# noc_req_rd_channel_num ?= 1
+# noc_req_rdwr_channel_num ?= 1
+# noc_req_wr_channel_num ?= 0
+# noc_resp_channel_num ?= 2
+
+# Enhanced resp link, define the USE_NARROW_REQ_CHANNEL marco
+# noc_req_rd_channel_num ?= 1
+# noc_req_rdwr_channel_num ?= 1
+# noc_req_wr_channel_num ?= 0
+# noc_resp_channel_num ?= 3
+
+# Router buffer configuration
 noc_router_input_fifo_dep ?= 2
 noc_router_output_fifo_dep ?= 2
 
-# router remapping configuration
-noc_router_remap_group_size ?= 8
+# Router remapping xbar size configuration
+noc_router_remap_group_size ?= 4
 
 # L1 scratchpad banking factor
 banking_factor ?= 4
