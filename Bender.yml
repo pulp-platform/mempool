@@ -18,6 +18,7 @@ dependencies:
   cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",                                      version: 0.1.1   }
   redmule:              { git: "https://github.com/pulp-platform/redmule.git",                                             rev: "19d5cc3"   }
   hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 rev: "8408a6d"   }
+  tcdm_burst:           { path: "hardware/src/tcdm_burst/" }
 
 export_include_dirs:
   - hardware/include
