@@ -35,7 +35,7 @@ noc_topology ?= 0
 noc_routing_algorithm ?= 0
 # NoC remapping configuration
 # 0: no remapping, 1: req remapping, 2: resp remapping 3: req+resp remapping
-noc_router_remapping ?= 0
+noc_router_remapping ?= 3
 # Virtual channel number
 noc_virtual_channel_num ?= 1
 

@@ -878,9 +878,20 @@ module mempool_tile
   /********************
    *   ID Remapping   *
    ********************/
-  mempool_tile_id_remapper #()
-  i_mempool_tile_id_remapper
-  (
+  mempool_tile_id_remapper #(
+    .NumCoresPerTile              (NumCoresPerTile              ),
+    .NumRemoteReqPortsPerTile     (NumRemoteReqPortsPerTile     ),
+    .NumRdRemoteReqPortsPerTile   (NumRdRemoteReqPortsPerTile   ),
+    .NumWrRemoteReqPortsPerTile   (NumWrRemoteReqPortsPerTile   ),
+    .NumWideRemoteReqPortsPerTile (NumWideRemoteReqPortsPerTile ),
+    .NumRdWrRemoteReqPortsPerTile (NumRdWrRemoteReqPortsPerTile ),
+    .NumBanksPerTile              (NumBanksPerTile              ),
+    .NumTilesPerGroup             (NumTilesPerGroup             ),
+    .NumGroups                    (NumGroups                    ),
+    .TCDMAddrMemWidth             (TCDMAddrMemWidth             ),
+    .ByteOffset                   (ByteOffset                   ),
+    .SpmBankIdRemap               (SpmBankIdRemap               )
+  ) i_mempool_tile_id_remapper (
     .clk_i              (clk_i      ),
     .rst_ni             (rst_ni     ),
 
