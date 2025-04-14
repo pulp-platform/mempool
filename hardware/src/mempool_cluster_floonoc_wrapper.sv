@@ -220,39 +220,73 @@ module mempool_cluster_floonoc_wrapper
         $fatal(1, "[Topology] The current mesh structure is not 2x2, please modify cluster mesh connection");
       end
 
-      mempool_group_floonoc_wrapper #(
-        .TCDMBaseAddr (TCDMBaseAddr         ),
-        .BootAddr     (BootAddr             )
-      ) i_group (
-        .clk_i                          (clk_i                                                           ),
-        .rst_ni                         (rst_ni                                                          ),
-        .testmode_i                     (testmode_i                                                      ),
-        .scan_enable_i                  (scan_enable_i                                                   ),
-        .scan_data_i                    (/* Unconnected */                                               ),
-        .scan_data_o                    (/* Unconnected */                                               ),
-        .group_id_i                     (group_id_t'({group_id.x, group_id.y})                           ),
-        .floo_id_i                      (id_t'(GroupX0Y0 + x*NumY + y)                                   ),
-        .route_table_i                  (floo_terapool_noc_pkg::RoutingTables[GroupX0Y0 + x*NumY + y]    ),
-        .floo_tcdm_req_o                (floo_tcdm_req_out[x][y]                                         ),
-        .floo_tcdm_rsp_o                (floo_tcdm_rsp_out[x][y]                                         ),
-        .floo_tcdm_req_i                (floo_tcdm_req_in[x][y]                                          ),
-        .floo_tcdm_rsp_i                (floo_tcdm_rsp_in[x][y]                                          ),
-        .wake_up_i                      (wake_up_q[(NumY*x+y)*NumCoresPerGroup +: NumCoresPerGroup]      ),
-        .ro_cache_ctrl_i                (ro_cache_ctrl_q[(NumY*x+y)]                                     ),
-        // DMA request
-        .dma_req_i                      (dma_req_group_q[(NumY*x+y)]                                     ),
-        .dma_req_valid_i                (dma_req_group_q_valid[(NumY*x+y)]                               ),
-        .dma_req_ready_o                (dma_req_group_q_ready[(NumY*x+y)]                               ),
-        // DMA status
-        .dma_meta_o                     (dma_meta[(NumY*x+y)]                                            ),
-        // AXI Router interface
-        .floo_axi_req_o                 (floo_axi_req_out[x][y]                                          ),
-        .floo_axi_rsp_o                 (floo_axi_rsp_out[x][y]                                          ),
-        .floo_axi_wide_o                (floo_axi_wide_out[x][y]                                         ),
-        .floo_axi_req_i                 (floo_axi_req_in[x][y]                                           ),
-        .floo_axi_rsp_i                 (floo_axi_rsp_in[x][y]                                           ),
-        .floo_axi_wide_i                (floo_axi_wide_in[x][y]                                          )
-      );
+      if (PostLayoutGr & (x == 0) & (y == 0)) begin: gen_postly_group
+        mempool_group_floonoc_wrapper_postlayout i_group (
+          .clk_i                          (clk_i                                                           ),
+          .rst_ni                         (rst_ni                                                          ),
+          .testmode_i                     (testmode_i                                                      ),
+          .scan_enable_i                  (scan_enable_i                                                   ),
+          .scan_data_i                    (/* Unconnected */                                               ),
+          .scan_data_o                    (/* Unconnected */                                               ),
+          .group_id_i                     (group_id_t'({group_id.x, group_id.y})                           ),
+          .floo_id_i                      (id_t'(GroupX0Y0 + x*NumY + y)                                   ),
+          .route_table_i                  (floo_terapool_noc_pkg::RoutingTables[GroupX0Y0 + x*NumY + y]    ),
+          .floo_tcdm_req_o                (floo_tcdm_req_out[x][y]                                         ),
+          .floo_tcdm_rsp_o                (floo_tcdm_rsp_out[x][y]                                         ),
+          .floo_tcdm_req_i                (floo_tcdm_req_in[x][y]                                          ),
+          .floo_tcdm_rsp_i                (floo_tcdm_rsp_in[x][y]                                          ),
+          .wake_up_i                      (wake_up_q[(NumY*x+y)*NumCoresPerGroup +: NumCoresPerGroup]      ),
+          .ro_cache_ctrl_i                (ro_cache_ctrl_q[(NumY*x+y)]                                     ),
+          // DMA request
+          .dma_req_i                      (dma_req_group_q[(NumY*x+y)]                                     ),
+          .dma_req_valid_i                (dma_req_group_q_valid[(NumY*x+y)]                               ),
+          .dma_req_ready_o                (dma_req_group_q_ready[(NumY*x+y)]                               ),
+          // DMA status
+          .dma_meta_o_backend_idle_       (dma_meta[(NumY*x+y)][1]                                         ),
+          .dma_meta_o_trans_complete_     (dma_meta[(NumY*x+y)][0]                                         ),
+          // AXI Router interface
+          .floo_axi_req_o                 (floo_axi_req_out[x][y]                                          ),
+          .floo_axi_rsp_o                 (floo_axi_rsp_out[x][y]                                          ),
+          .floo_axi_wide_o                (floo_axi_wide_out[x][y]                                         ),
+          .floo_axi_req_i                 (floo_axi_req_in[x][y]                                           ),
+          .floo_axi_rsp_i                 (floo_axi_rsp_in[x][y]                                           ),
+          .floo_axi_wide_i                (floo_axi_wide_in[x][y]                                          )
+        );
+      end else begin : gen_rtl_group
+        mempool_group_floonoc_wrapper #(
+          .TCDMBaseAddr (TCDMBaseAddr         ),
+          .BootAddr     (BootAddr             )
+        ) i_group (
+          .clk_i                          (clk_i                                                           ),
+          .rst_ni                         (rst_ni                                                          ),
+          .testmode_i                     (testmode_i                                                      ),
+          .scan_enable_i                  (scan_enable_i                                                   ),
+          .scan_data_i                    (/* Unconnected */                                               ),
+          .scan_data_o                    (/* Unconnected */                                               ),
+          .group_id_i                     (group_id_t'({group_id.x, group_id.y})                           ),
+          .floo_id_i                      (id_t'(GroupX0Y0 + x*NumY + y)                                   ),
+          .route_table_i                  (floo_terapool_noc_pkg::RoutingTables[GroupX0Y0 + x*NumY + y]    ),
+          .floo_tcdm_req_o                (floo_tcdm_req_out[x][y]                                         ),
+          .floo_tcdm_rsp_o                (floo_tcdm_rsp_out[x][y]                                         ),
+          .floo_tcdm_req_i                (floo_tcdm_req_in[x][y]                                          ),
+          .floo_tcdm_rsp_i                (floo_tcdm_rsp_in[x][y]                                          ),
+          .wake_up_i                      (wake_up_q[(NumY*x+y)*NumCoresPerGroup +: NumCoresPerGroup]      ),
+          .ro_cache_ctrl_i                (ro_cache_ctrl_q[(NumY*x+y)]                                     ),
+          // DMA request
+          .dma_req_i                      (dma_req_group_q[(NumY*x+y)]                                     ),
+          .dma_req_valid_i                (dma_req_group_q_valid[(NumY*x+y)]                               ),
+          .dma_req_ready_o                (dma_req_group_q_ready[(NumY*x+y)]                               ),
+          // DMA status
+          .dma_meta_o                     (dma_meta[(NumY*x+y)]                                            ),
+          // AXI Router interface
+          .floo_axi_req_o                 (floo_axi_req_out[x][y]                                          ),
+          .floo_axi_rsp_o                 (floo_axi_rsp_out[x][y]                                          ),
+          .floo_axi_wide_o                (floo_axi_wide_out[x][y]                                         ),
+          .floo_axi_req_i                 (floo_axi_req_in[x][y]                                           ),
+          .floo_axi_rsp_i                 (floo_axi_rsp_in[x][y]                                           ),
+          .floo_axi_wide_i                (floo_axi_wide_in[x][y]                                          )
+        );
+      end
     end : gen_groups_y
   end : gen_groups_x
 

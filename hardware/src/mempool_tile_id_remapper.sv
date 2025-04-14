@@ -8,6 +8,18 @@ module mempool_tile_id_remapper
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
+  parameter int unsigned NumCoresPerTile = 4,
+  parameter int unsigned NumRemoteReqPortsPerTile = 4,
+  parameter int unsigned NumRdRemoteReqPortsPerTile = 2,
+  parameter int unsigned NumWrRemoteReqPortsPerTile = 2,
+  parameter int unsigned NumWideRemoteReqPortsPerTile = 0,
+  parameter int unsigned NumRdWrRemoteReqPortsPerTile = 0,
+  parameter int unsigned NumBanksPerTile = 16,
+  parameter int unsigned NumTilesPerGroup = 4,
+  parameter int unsigned NumGroups = 4,
+  parameter int unsigned TCDMAddrMemWidth = 8,
+  parameter int unsigned ByteOffset = 2,
+  parameter bit SpmBankIdRemap = 0
 ) (
   input  logic                                            clk_i,
   input  logic                                            rst_ni,

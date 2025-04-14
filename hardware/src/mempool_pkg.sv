@@ -474,7 +474,6 @@ package mempool_pkg;
   `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
 
   // TeraPool PostLayout Control
-  localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
   localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
 
 `ifndef TARGET_SYNTHESIS
