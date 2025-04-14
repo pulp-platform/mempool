@@ -86,6 +86,7 @@ module tcdm_wide_narrow_mux #(
         mst_req_o[i] = '{
           wdata: slv_wide_req_i.wdata[i*NarrowDataWidth+:NarrowDataWidth],
           wen: slv_wide_req_i.wen,
+          burst: '0,
           be: slv_wide_req_i.be[i*NarrowBeWidth+:NarrowBeWidth],
           tgt_addr: slv_wide_req_i.tgt_addr,
           ini_addr: '0
