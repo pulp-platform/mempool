@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Move instruction cache into its own dependency
 - Use automatically generated control registers
 - Update the CI Ubuntu version to 22.04
+- Update Bender version to 0.28.2
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
