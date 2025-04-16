@@ -146,7 +146,7 @@ $(BENDER_INSTALL_DIR)/bender:
 verilator: $(VERILATOR_INSTALL_DIR)/bin/verilator
 $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	cd $<; unset VERILATOR_ROOT; \
-	autoconf && CC=$(CC) CXX=$(CXX) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
+	autoconf && CC=$(CC) CXX=$(CXX) ./configure --prefix=$(VERILATOR_INSTALL_DIR) --bindir=$(VERILATOR_INSTALL_DIR)/share/verilator $(VERILATOR_CI) && \
 	make -j4 && make install
 
 # Update and patch hardware dependencies for MemPool

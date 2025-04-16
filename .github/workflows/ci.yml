@@ -162,7 +162,7 @@ jobs:
     - name: Compile Verilator
       if: steps.verilator-cache.outputs.cache-hit != 'true'
       run: |
-        sudo apt install libfl-dev
+        sudo apt install libfl-dev help2man
         make verilator
     - name: Tar verilator
       run: tar --posix --use-compress-program zstd -cf verilator.tzst install/verilator
@@ -208,6 +208,7 @@ jobs:
         ln -s $GITHUB_WORKSPACE/install/verilator/share/verilator/bin/verilator_includer $GITHUB_WORKSPACE/install/verilator/bin/verilator_includer
         make bender
         make update-deps
+        export VERILATOR_ROOT=$GITHUB_WORKSPACE/install/verilator
         make -C hardware $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator
     - name: Tar Verilator Model
       run: tar --posix --use-compress-program zstd -cf verilator-model.tzst hardware/verilator_build/Vmempool_tb_verilator

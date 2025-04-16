@@ -39,7 +39,7 @@ app_path        ?= $(abspath $(ROOT_DIR)/../software/bin)
 # Bender
 bender          ?= $(INSTALL_DIR)/bender/bender
 # Verilator
-verilator       ?= $(INSTALL_DIR)/verilator/bin/verilator
+verilator       ?= $(INSTALL_DIR)/verilator/share/verilator/verilator
 verilator_build ?= $(ROOT_DIR)/verilator_build
 verilator_files ?= $(verilator_build)/files
 verilator_top   ?= mempool_tb_verilator
