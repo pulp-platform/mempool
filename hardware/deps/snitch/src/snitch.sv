@@ -1918,6 +1918,7 @@ module snitch
   assign exception = illegal_inst | ld_addr_misaligned | st_addr_misaligned;
 
   // pragma translate_off
+  /* verilator lint_off SYNCASYNCNET */
   always_ff @(posedge clk_i) begin
     if (rst_ni && illegal_inst && inst_valid_o && inst_ready_i) begin
       $display("[Illegal Instruction Core %0d] PC: %h Data: %h", hart_id_i, inst_addr_o, inst_data_i);
@@ -1926,6 +1927,7 @@ module snitch
       $display("[Missed wake-up Core %0d] Cycle: %d, Time: %t", hart_id_i, cycle_q, $time);
     end
   end
+  /* verilator lint_on SYNCASYNCNET */
   // pragma translate_on
 
   // CSR logic
@@ -2017,6 +2019,7 @@ module snitch
   `FFL(csr_stack_limit_q, alu_result, csr_stack_limit_en, 32'hFFFF_FFFF, clk_i, rst_ni);
 
   // pragma translate_off
+  /* verilator lint_off SYNCASYNCNET */
   always_ff @(posedge clk_i) begin
     // Display CSR write if the CSR does not exist
     if (rst_ni && csr_dump && inst_valid_o && inst_ready_i && !stall) begin
@@ -2024,6 +2027,7 @@ module snitch
       $display("[DUMP] %t Core %3d: 0x%3h = 0x%08h, %d", $time, hart_id_i, inst_data_i[31:20], alu_result, alu_result);
     end
   end
+  /* verilator lint_off SYNCASYNCNET */
   // pragma translate_on
 
   snitch_regfile #(
