@@ -13,6 +13,7 @@ module snitch_regfile #(
 ) (
   // clock and reset
   input  logic                                      clk_i,
+  input  logic                                      rst_i, // not used here
   // read port
   input  logic [NR_READ_PORTS-1:0][ADDR_WIDTH-1:0]  raddr_i,
   output logic [NR_READ_PORTS-1:0][DATA_WIDTH-1:0]  rdata_o,
