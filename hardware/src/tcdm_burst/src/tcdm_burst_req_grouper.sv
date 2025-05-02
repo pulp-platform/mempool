@@ -3,159 +3,144 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Author: Marco Bertuletti ETH Zurich
-//
-//
-// Description:
-// This module packs a parallel memory request in a burst request
 
-module tcdm_burst_req_grouper #(
-  parameter int unsigned TCDMAddrWidth      = 32,
-  parameter int unsigned DataWidth          = 32,
-  parameter int unsigned NumTCDMPorts       = 4,
-  parameter int unsigned NumTiles           = 4,
-  parameter int unsigned NumBanksPerTile    = 16,
-  parameter int unsigned ByteOffset         = 2,
-  parameter type tcdm_req_t                 = logic,
-  parameter type tcdm_rsp_t                 = logic,
-  parameter type tcdm_breq_t                = logic,
-  parameter type meta_id_t                  = logic
+/// Burst Req Grouper:
+/// Packs a parallel memory request from NumIn initiators in a burst request.
+/// The burst cutter creates multiple burst requests when the burst request crosses
+/// the boundary in the target multi-banked memory.
+
+module tcdm_burst_req_grouper
+  import tcdm_burst_pkg::burst_t;
+#(
+  parameter int unsigned NumIn = 32,
+  parameter int unsigned NumOut = 32,
+  parameter int unsigned AddrWidth  = 32,
+  parameter int unsigned DataWidth  = 32,
+  parameter int unsigned BeWidth    = DataWidth/8,
+  // Number of Address bits per Target
+  parameter int unsigned AddrMemWidth      = 12,
+  // Determines the width of the byte offset in a memory word. Normally this can be left at the default value,
+  // but sometimes it needs to be overridden (e.g., when metadata is supplied to the memory via the wdata signal).
+  parameter int unsigned ByteOffWidth      = $clog2(DataWidth-1)-3,
+  // Dependant parameters. DO NOT CHANGE!
+  parameter int unsigned NumInLog2 = NumIn == 1 ? 1 : $clog2(NumIn)
 )(
-  input  logic                   clk_i,
-  input  logic                   rst_ni,
-
-  // Parallel input request/response port
-  input  tcdm_req_t  [NumTCDMPorts-1:0] req_i,
-  input  logic       [NumTCDMPorts-1:0] req_valid_i,
-  output logic       [NumTCDMPorts-1:0] req_ready_o,
-  output tcdm_rsp_t  [NumTCDMPorts-1:0] rsp_o,
-  output logic       [NumTCDMPorts-1:0] rsp_valid_o,
-  input  logic       [NumTCDMPorts-1:0] rsp_ready_i,
-
-  // Burst output request/response port
-  output tcdm_req_t  [NumTCDMPorts-1:0] req_o,
-  output logic       [NumTCDMPorts-1:0] req_valid_o,
-  input  logic       [NumTCDMPorts-1:0] req_ready_i,
-  input  tcdm_rsp_t  [NumTCDMPorts-1:0] rsp_i,
-  input  logic       [NumTCDMPorts-1:0] rsp_valid_i,
-  output logic       [NumTCDMPorts-1:0] rsp_ready_o
+  input  logic clk_i,
+  input  logic rst_ni,
+  // Parallel input request port
+  input  logic   [NumIn-1:0][NumInLog2-1:0] req_ini_addr_i, // Initiator address
+  input  logic   [NumIn-1:0][AddrWidth-1:0] req_tgt_addr_i, // Target address
+  input  logic   [NumIn-1:0][DataWidth-1:0] req_wdata_i,
+  input  logic   [NumIn-1:0]                req_wen_i,
+  input  logic   [NumIn-1:0][BeWidth]       req_be_i,
+  input  logic   [NumIn-1:0]                req_valid_i,
+  output logic   [NumIn-1:0]                req_ready_o,
+  // Burst output request port
+  output logic   [NumIn-1:0][NumInLog2-1:0] req_ini_addr_o, // Initiator address
+  output logic   [NumIn-1:0][AddrWidth-1:0] req_tgt_addr_o, // Target address
+  output logic   [NumIn-1:0][DataWidth-1:0] req_wdata_o,
+  output logic   [NumIn-1:0]                req_wen_o,
+  output logic   [NumIn-1:0][BeWidth]       req_be_o,
+  output burst_t [NumIn-1:0]                req_burst_o,
+  output logic   [NumIn-1:0]                req_valid_o,
+  input  logic   [NumIn-1:0]                req_ready_i
 );
 
   `include "common_cells/registers.svh"
 
-  /* Request path */
+  logic [NumIn-1:0][DataWidth-1:0] req_cutter_wdata;
+  logic [NumInLog2-1:0]            req_cutter_ini_addr;
+  logic [AddrWidth-1:0]            req_cutter_tgt_addr;
+  logic                            req_cutter_wen;
+  logic [BeWidth-1:0]              req_cutter_be;
+  burst_t                          req_cutter_burst;
+  logic                            cutter_ready;
+  logic                            is_consecutive;
 
-  tcdm_req_t req_cutter;
-  tcdm_req_t req_burst;
-
-  logic cutter_ready;
-  logic req_valid_burst;
+  logic [NumInLog2-1:0] req_bursted_ini_addr;
+  logic [AddrWidth-1:0] req_bursted_tgt_addr;
+  logic [DataWidth-1:0] req_bursted_wdata;
+  logic                 req_bursted_wen;
+  logic [BeWidth-1:0]   req_bursted_be;
+  burst_t               req_bursted_burst;
+  logic                 req_bursted_valid;
 
   always_comb begin
 
-    // By default assign inputs to outputs
-    req_o[0].tgt_addr         = req_burst.tgt_addr;
-    req_o[0].wen              = req_burst.wen;
-    req_o[0].wdata.amo        = req_burst.wdata.amo;
-    req_o[0].wdata.data       = req_burst.wdata.data;
-    req_o[0].be               = req_burst.be;
-    req_o[0].wdata.meta_id    = req_burst.wdata.meta_id;
-    req_o[0].wdata.core_id    = 1; // Always assign bursts to port 1
-    req_o[0].burst            = req_burst.burst;
-    req_valid_o[0]            = req_valid_burst;
-    for (int i = 1; i < NumTCDMPorts; i++) begin
-      req_o[i].tgt_addr       = req_i[i].tgt_addr;
-      req_o[i].wen            = req_i[i].wen;
-      req_o[i].wdata.amo      = req_i[i].wdata.amo;
-      req_o[i].wdata.data     = req_i[i].wdata.data;
-      req_o[i].be             = req_i[i].be;
-      req_o[i].wdata.meta_id  = req_i[i].wdata.meta_id;
-      req_o[i].wdata.core_id  = req_i[i].wdata.core_id;
-      req_o[i].burst.isburst  = 1'b0;
-      req_o[i].burst.blen     = NumTCDMPorts;
-      req_valid_o[i]          = req_valid_i[i];
-    end
+    // Bypass input
+    req_ini_addr_o = req_ini_addr_i;
+    req_tgt_addr_o = req_tgt_addr_i;
+    req_wdata_o = req_wdata_i;
+    req_wen_o = req_wen_i;
+    req_be_o = req_be_i;
+    req_burst_o = '0;
+    req_valid_o = req_valid_i;
+    req_ready_o = req_ready_i;
 
     // Assign input requests to cutter inputs
-    req_cutter.tgt_addr = req_i[0].tgt_addr;
-    req_cutter.wen = req_i[0].wen;
-    req_cutter.wdata.amo = req_i[0].wdata.amo;
-    req_cutter.wdata.data = req_i[0].wdata.data;
-    req_cutter.be = req_i[0].be;
-    req_cutter.wdata.meta_id = req_i[0].wdata.meta_id;
-    req_cutter.burst.isburst = 1'b0;
-    req_cutter.burst.blen = NumTCDMPorts;
+    req_cutter_tgt_addr = req_tgt_addr_i[0];
+    req_cutter_wdata = req_wdata_i;
+    req_cutter_wen = req_wen_i[0];
+    req_cutter_be = req_be_i[0];
+    req_cutter_burst.isburst = 1'b0;
+    req_cutter_burst.blen = NumIn;
 
-    // The cutter might need more cycles. Block all requests.
-    for (int i = 0; i < NumTCDMPorts; i++) begin
-      req_ready_o[i] = cutter_ready;
+    is_consecutive = 1'b1;
+    for (int i = 1; i < NumIn; i++) begin
+      if (req_tgt_addr_i[i] != req_tgt_addr_i[i-1] + (1 << ByteOffWidth)) begin
+        is_consecutive = 1'b0;
+      end
     end
 
     // Burst the request
-    if (&req_valid_i) begin
+    if (&req_valid_i && !req_wen_i[0] && is_consecutive) begin
       // Send a burst request on the first port
-      req_cutter.burst.isburst = 1'b1;
+      req_cutter_burst.isburst = 1'b1;
+      req_tgt_addr_o[0] = req_bursted_tgt_addr;
+      req_wdata_o[0] = req_bursted_wdata;
+      req_wen_o[0] = req_bursted_wen;
+      req_be_o[0] = req_bursted_be;
+      req_burst_o[0] = req_bursted_burst;
+      req_valid_o[0] = req_bursted_valid;
+      req_ready_o[0] = cutter_ready;
       // Silence other ports
-      for (int i = 1; i < NumTCDMPorts; i++) begin
+      for (int i = 1; i < NumIn; i++) begin
         req_valid_o[i] = 1'b0;
+        req_ready_o[i] = cutter_ready;
       end
     end
 
   end
 
   tcdm_burst_cutter #(
-    .NrCut        (1                 ),
-    .AddrWidth    (TCDMAddrWidth     ),
-    .ByteOffset   (ByteOffset        ),
-    .NumTiles     (NumTiles          ),
-    .CutLen       (NumBanksPerTile   ),
-    .BLenWidth    (NumTCDMPorts      ),
-    .tcdm_breq_t  (tcdm_breq_t       ),
-    .meta_id_t    (meta_id_t         )
+    .NumIn        (NumIn        ),
+    .NumOut       (NumOut       ),
+    .AddrWidth    (AddrWidth    ),
+    .DataWidth    (DataWidth    ),
+    .BeWidth      (BeWidth      ),
+    .AddrMemWidth (AddrMemWidth ),
+    .ByteOffWidth (ByteOffWidth )
   ) i_tcdm_burst_cutter (
     .clk_i           (clk_i  ),
     .rst_ni          (rst_ni ),
     // Memory Request In
-    .req_addr_i      (req_cutter.tgt_addr      ),
-    .req_write_i     (req_cutter.wen           ),
-    .req_amo_i       (req_cutter.wdata.amo     ),
-    .req_data_i      (req_cutter.wdata.data    ),
-    .req_strb_i      (req_cutter.be            ),
-    .req_id_i        (req_cutter.wdata.meta_id ),
-    .req_burst_i     (req_cutter.burst         ),
-    .req_valid_i     (req_valid_i[0]           ),
-    .req_ready_o     (cutter_ready             ),
+    .req_ini_addr_i (req_cutter_ini_addr ),
+    .req_tgt_addr_i (req_cutter_tgt_addr ),
+    .req_wen_i      (req_cutter_wen      ),
+    .req_wdata_i    (req_cutter_wdata    ),
+    .req_be_i       (req_cutter_be       ),
+    .req_burst_i    (req_cutter_burst    ),
+    .req_valid_i    (&req_valid_i        ),
+    .req_ready_o    (cutter_ready        ),
     // Memory Request Out
-    .req_addr_o      (req_burst.tgt_addr       ),
-    .req_write_o     (req_burst.wen            ),
-    .req_amo_o       (req_burst.wdata.amo      ),
-    .req_data_o      (req_burst.wdata.data     ),
-    .req_strb_o      (req_burst.be             ),
-    .req_id_o        (req_burst.wdata.meta_id  ),
-    .req_burst_o     (req_burst.burst          ),
-    .req_valid_o     (req_valid_burst          ),
-    .req_ready_i     (req_ready_i[0]           )
+    .req_ini_addr_o (req_bursted_ini_addr ),
+    .req_tgt_addr_o (req_bursted_tgt_addr ),
+    .req_wen_o      (req_bursted_wen      ),
+    .req_wdata_o    (req_bursted_wdata    ),
+    .req_be_o       (req_bursted_be       ),
+    .req_burst_o    (req_bursted_burst    ),
+    .req_valid_o    (req_bursted_valid    ),
+    .req_ready_i    (req_ready_i[0]       )
   );
-
-  /* Response path */
-  logic [$clog2(NumTCDMPorts)-1:0] counter_q, counter_d;
-  assign counter_d = rsp_valid_i[0] ? (counter_q == (NumTCDMPorts-1) ? '0 : counter_q + 1)
-                     :  counter_q;
-  `FF(counter_q, counter_d, '0, clk_i, rst_ni);
-
-  always_comb begin: assign_responses
-
-    // The cutter might need more cycles. Block all requests.
-    for (int i = 0; i < NumTCDMPorts; i++) begin
-      if (i == counter_q) begin
-        rsp_valid_o[i] = rsp_valid_i[0];
-      end else begin
-        rsp_valid_o[i] = '0;
-      end
-    end
-    // Assign burst requet
-    rsp_o[counter_q] = rsp_i[0];
-    rsp_ready_o[0] = rsp_ready_i[counter_q];
-
-  end
 
 endmodule : tcdm_burst_req_grouper

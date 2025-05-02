@@ -11,8 +11,8 @@ dependencies:
   common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 1.33.0  }
 
 sources:
+  - src/tcdm_burst_pkg.sv
   - src/tcdm_burst_cutter.sv
   - src/tcdm_burst_manager.sv
-  - src/tcdm_burst_pkg.sv
   - src/tcdm_burst_req_grouper.sv
   - src/tcdm_burst_rsp_grouper.sv
