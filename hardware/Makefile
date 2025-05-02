@@ -130,6 +130,9 @@ vlog_defs += -DNUM_REDMULE_TILES=$(num_redmule_tiles)
 vlog_defs += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs += -DARRAY_WIDTH=$(redmule_width)
 vlog_defs += -DPIPE_REGS=$(redmule_regs)
+vlog_defs += -DTCDM_BURST=1
+vlog_defs += -DTCDM_BURSTLEN=9
+vlog_defs += -DGROUP_RSP=0
 # AXI & DMA
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
