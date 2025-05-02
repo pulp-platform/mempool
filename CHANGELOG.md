@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Updated Halide to version 15
 - Move instruction cache into its own dependency
 - Use automatically generated control registers
+- Update the CI Ubuntu version to 22.04
+- Update Bender version to 0.28.2
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
@@ -43,6 +45,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Fix a bug in the  DMA's distributed midend
 - Fix bugs in radix2, radix4by2 parallelization and loading of data for radix4 CFFT
 - Fix performance bug in Snitch decoder
+- Remove non-resettable and active-high-reset FFs
 
 ## 0.6.0 - 2023-01-09
 

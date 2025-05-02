@@ -159,7 +159,6 @@ def flush(buf, hartid):
     global prev_func
     global prev_ts
     global start_benchmark
-    global output_file
     # get function names
     pcs = [x[3] for x in buf]
     a2ls = []

@@ -25,7 +25,7 @@ jobs:
   # Check C/C++ files for correct formatting.
   clangfmt:
     name: C/C++ Sources
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - uses: DoozyX/clang-format-lint-action@v0.14
@@ -37,7 +37,7 @@ jobs:
   ########################
   python:
     name: Python Sources
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Install Python requirements
@@ -51,7 +51,7 @@ jobs:
   # Check Trailing Spaces #
   #########################
   check-trailing-whitespaces:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
       with:

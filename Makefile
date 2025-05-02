@@ -35,7 +35,7 @@ endif
 ifeq ($(origin CXX),default)
   CXX ?= g++
 endif
-BENDER_VERSION = 0.28.1
+BENDER_VERSION = 0.28.2
 
 # We need a recent LLVM installation (>11) to compile Verilator.
 # We also need to link the binaries with LLVM's libc++.
@@ -146,7 +146,7 @@ $(BENDER_INSTALL_DIR)/bender:
 verilator: $(VERILATOR_INSTALL_DIR)/bin/verilator
 $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	cd $<; unset VERILATOR_ROOT; \
-	autoconf && CC=$(CLANG_CC) CXX=$(CLANG_CXX) CXXFLAGS=$(CLANG_CXXFLAGS) LDFLAGS=$(CLANG_LDFLAGS) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
+	autoconf && CC=$(CC) CXX=$(CXX) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
 	make -j4 && make install
 
 # Update and patch hardware dependencies for MemPool

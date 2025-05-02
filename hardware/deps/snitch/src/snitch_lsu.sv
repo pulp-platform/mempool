@@ -17,7 +17,7 @@ module snitch_lsu
   localparam int unsigned IdWidth = idx_width(NumOutstandingLoads)
 ) (
   input  logic               clk_i,
-  input  logic               rst_i,
+  input  logic               rst_ni,
   // request channel
   input  tag_t               lsu_qtag_i,
   input  logic               lsu_qwrite,
@@ -206,8 +206,8 @@ module snitch_lsu
   // ----------------
   // SEQUENTIAL
   // ----------------
-  always_ff @(posedge clk_i or posedge rst_i) begin
-    if (rst_i) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
       id_available_q      <= '1;
       metadata_q          <= 'b0;
       req_id_q            <= 'b0;
@@ -230,13 +230,13 @@ module snitch_lsu
   // pragma translate_off
   `ifndef VERILATOR
     invalid_req_id : assert property(
-      @(posedge clk_i) disable iff (rst_i) (!(id_table_push & ~id_available_q[req_id])))
+      @(posedge clk_i) disable iff (!rst_ni) (!(id_table_push & ~id_available_q[req_id])))
       else $fatal (1, "Request ID is not available.");
   `endif
 
   `ifndef VERILATOR
     invalid_resp_id : assert property(
-      @(posedge clk_i) disable iff (rst_i) (!(id_table_pop & id_available_q[resp_id])))
+      @(posedge clk_i) disable iff (!rst_ni) (!(id_table_pop & id_available_q[resp_id])))
       else $fatal (1, "Response ID does not match with valid metadata.");
   `endif
   // pragma translate_on

@@ -24,7 +24,7 @@ module snitch
   parameter int    RegNrWritePorts = 2    // Implement one or two write ports into the register file
 ) (
   input  logic          clk_i,
-  input  logic          rst_i,
+  input  logic          rst_ni,
   input  logic [31:0]   hart_id_i,
   // Instruction Refill Port
   output logic [31:0]   inst_addr_o,
@@ -220,12 +220,12 @@ module snitch
   fcsr_t fcsr_d, fcsr_q;
 
   // Registers
-  `FFAR(pc_q, pc_d, BootAddr, clk_i, rst_i)
-  `FFAR(wfi_q, wfi_d, '0, clk_i, rst_i)
-  `FFAR(wake_up_q, wake_up_d, '0, clk_i, rst_i)
-  `FFAR(sb_q, sb_d, '0, clk_i, rst_i)
+  `FF(pc_q, pc_d, BootAddr, clk_i, rst_ni)
+  `FF(wfi_q, wfi_d, '0, clk_i, rst_ni)
+  `FF(wake_up_q, wake_up_d, '0, clk_i, rst_ni)
+  `FF(sb_q, sb_d, '0, clk_i, rst_ni)
   if (snitch_pkg::ZFINX) begin
-    `FFAR(fcsr_q, fcsr_d, '0, clk_i, rst_i)
+    `FF(fcsr_q, fcsr_d, '0, clk_i, rst_ni)
     assign fpu_rnd_mode_o = fcsr_q.frm;
   end
 
@@ -313,17 +313,14 @@ module snitch
   `ifdef SNITCH_ENABLE_PERF
   logic [63:0] cycle_q;
   logic [63:0] instret_q;
-  `FFAR(cycle_q, cycle_q + 1, '0, clk_i, rst_i);
-  `FFLAR(instret_q, instret_q + 1, !stall, '0, clk_i, rst_i);
-  `endif
-
-  `ifdef SNITCH_ENABLE_STALL_COUNTER
   logic [31:0] stall_ins_q;
   logic [31:0] stall_raw_q;
   logic [31:0] stall_lsu_q;
-  `FFLAR(stall_ins_q, stall_ins_q + 1, stall && (!inst_ready_i) && inst_valid_o, '0, clk_i, rst_i)
-  `FFLAR(stall_raw_q, stall_raw_q + 1, (!operands_ready) || (!dst_ready), '0, clk_i, rst_i)
-  `FFLAR(stall_lsu_q, stall_lsu_q + 1, lsu_stall, '0, clk_i, rst_i)
+  `FF(cycle_q, cycle_q + 1, '0, clk_i, rst_ni);
+  `FFL(instret_q, instret_q + 1, !stall, '0, clk_i, rst_ni);
+  `FFL(stall_ins_q, stall_ins_q + 1, stall && (!inst_ready_i) && inst_valid_o, '0, clk_i, rst_ni)
+  `FFL(stall_raw_q, stall_raw_q + 1, (!operands_ready) || (!dst_ready), '0, clk_i, rst_ni)
+  `FFL(stall_lsu_q, stall_lsu_q + 1, lsu_stall, '0, clk_i, rst_ni)
   `endif
 
 
@@ -377,7 +374,7 @@ module snitch
     csr_en = 1'b0;
     fence_stall = 1'b0;
     // Wake up if a wake-up is incoming or pending
-    wfi_d = (wake_up_q || wake_up_sync_i) ? 1'b0 : wfi_q;
+    wfi_d = ((wake_up_q > 0) || wake_up_sync_i) ? 1'b0 : wfi_q;
     // Only store a pending wake-up if we are not asleep
     wake_up_d = (wake_up_sync_i && !wfi_q) ? wake_up_q + 1 : wake_up_q;
 
@@ -680,10 +677,10 @@ module snitch
       riscv_instr::WFI: begin
         if (valid_instr) begin
           wfi_d = 1'b1;
-          if (wake_up_q || wake_up_sync_i) begin
+          if ((wake_up_q > 0) || wake_up_sync_i) begin
             // Do not sleep if a wake-up is pending
             wfi_d = 1'b0;
-            if (wake_up_q) begin
+            if (wake_up_q > 0) begin
               // Decrement outstanding wake_up pulses
               wake_up_d = wake_up_q - 1;
             end
@@ -1921,14 +1918,16 @@ module snitch
   assign exception = illegal_inst | ld_addr_misaligned | st_addr_misaligned;
 
   // pragma translate_off
-  always_ff @(posedge clk_i or posedge rst_i) begin
-    if (!rst_i && illegal_inst && inst_valid_o && inst_ready_i) begin
+  /* verilator lint_off SYNCASYNCNET */
+  always_ff @(posedge clk_i) begin
+    if (rst_ni && illegal_inst && inst_valid_o && inst_ready_i) begin
       $display("[Illegal Instruction Core %0d] PC: %h Data: %h", hart_id_i, inst_addr_o, inst_data_i);
     end
-    if (!rst_i && wake_up_sync_i && &wake_up_q) begin
+    if (rst_ni && wake_up_sync_i && &wake_up_q) begin
       $display("[Missed wake-up Core %0d] Cycle: %d, Time: %t", hart_id_i, cycle_q, $time);
     end
   end
+  /* verilator lint_on SYNCASYNCNET */
   // pragma translate_on
 
   // CSR logic
@@ -2016,22 +2015,19 @@ module snitch
   end
 
   // CSR registers
-  `ifdef TARGET_ASIC
-    assign csr_trace_q = '0;
-    assign csr_stack_limit_q = '0;
-  `else
-    `FFLAR(csr_trace_q, alu_result, csr_trace_en, '0, clk_i, rst_i);
-    `FFLAR(csr_stack_limit_q, alu_result, csr_stack_limit_en, 32'hFFFF_FFFF, clk_i, rst_i);
-  `endif
+  `FFL(csr_trace_q, alu_result, csr_trace_en, '0, clk_i, rst_ni);
+  `FFL(csr_stack_limit_q, alu_result, csr_stack_limit_en, 32'hFFFF_FFFF, clk_i, rst_ni);
 
   // pragma translate_off
-  always_ff @(posedge clk_i or posedge rst_i) begin
+  /* verilator lint_off SYNCASYNCNET */
+  always_ff @(posedge clk_i) begin
     // Display CSR write if the CSR does not exist
-    if (!rst_i && csr_dump && inst_valid_o && inst_ready_i && !stall) begin
+    if (rst_ni && csr_dump && inst_valid_o && inst_ready_i && !stall) begin
       $timeformat(-9, 0, " ns", 0);
       $display("[DUMP] %t Core %3d: 0x%3h = 0x%08h, %d", $time, hart_id_i, inst_data_i[31:20], alu_result, alu_result);
     end
   end
+  /* verilator lint_off SYNCASYNCNET */
   // pragma translate_on
 
   snitch_regfile #(
@@ -2042,6 +2038,7 @@ module snitch
     .ADDR_WIDTH     ( RegWidth        )
   ) i_snitch_regfile (
     .clk_i,
+    .rst_ni,
     .raddr_i   ( gpr_raddr ),
     .rdata_o   ( gpr_rdata ),
     .waddr_i   ( gpr_waddr ),
@@ -2191,7 +2188,7 @@ module snitch
     .NumOutstandingLoads ( snitch_pkg::NumIntOutstandingLoads )
   ) i_snitch_lsu (
     .clk_i                                ,
-    .rst_i                                ,
+    .rst_ni                               ,
     .lsu_qtag_i   ( lsu_qtag              ),
     .lsu_qwrite   ( is_store              ),
     .lsu_qsigned  ( is_signed             ),
@@ -2254,8 +2251,8 @@ module snitch
   assign ld_addr_misaligned = ls_misaligned & (is_load | is_fp_load);
 
   // pragma translate_off
-  always_ff @(posedge clk_i or posedge rst_i) begin
-    if (!rst_i && (ld_addr_misaligned || st_addr_misaligned) && valid_instr && inst_ready_i) begin
+  always_ff @(posedge clk_i) begin
+    if (rst_ni && (ld_addr_misaligned || st_addr_misaligned) && valid_instr && inst_ready_i) begin
       $display("%t: [Misaligned Load/Store Core %0d] PC: %h Address: %h Data: %h", $time, hart_id_i, inst_addr_o, alu_result, inst_data_i);
     end
   end
@@ -2367,8 +2364,8 @@ module snitch
   for (genvar i = 0; i < RegNrWritePorts; i++) begin : gen_stack_overflow_check
     logic [31:0] sp_new_value;
     assign sp_new_value = gpr_wdata[i];
-    always_ff @(posedge clk_i or posedge rst_i) begin
-      if (!rst_i && gpr_we[i] && gpr_waddr[i] == SP && csr_stack_limit_q != 32'hFFFF_FFFF && ($signed(sp_new_value) < $signed(csr_stack_limit_q))) begin
+    always_ff @(posedge clk_i) begin
+      if (rst_ni && gpr_we[i] && gpr_waddr[i] == SP && csr_stack_limit_q != 32'hFFFF_FFFF && ($signed(sp_new_value) < $signed(csr_stack_limit_q))) begin
         $warning("[Stackoverflow: Core %0d] Set SP to 0x%08h, limit is 0x%08h", hart_id_i, sp_new_value, csr_stack_limit_q);
       end
     end
@@ -2395,7 +2392,7 @@ module snitch
 
 
     // retire an instruction and increase ordering bit
-    `FFLAR(rvfi_order[0], rvfi_order[0] + 1, rvfi_valid[0], '0, clk_i, rst_i)
+    `FFL(rvfi_order[0], rvfi_order[0] + 1, rvfi_valid[0], '0, clk_i, rst_ni)
 
     logic [31:0] ld_instr_q;
     logic [31:0] ld_addr_q;
@@ -2403,12 +2400,12 @@ module snitch
     logic [31:0] rs1_data_q;
     logic [31:0] pc_qq;
     // we need to latch the load
-    `FFLAR(ld_instr_q, inst_data_i, latch_load, '0, clk_i, rst_i)
-    `FFLAR(ld_addr_q, data_qaddr_o, latch_load, '0, clk_i, rst_i)
-    `FFLAR(rs1_q, rs1, latch_load, '0, clk_i, rst_i)
-    `FFLAR(rs1_data_q, gpr_rdata[0], latch_load, '0, clk_i, rst_i)
-    `FFLAR(pc_qq, pc_d, latch_load, '0, clk_i, rst_i)
-    `FFLAR(ld_addr_misaligned_q, ld_addr_misaligned, latch_load, '0, clk_i, rst_i)
+    `FFL(ld_instr_q, inst_data_i, latch_load, '0, clk_i, rst_ni)
+    `FFL(ld_addr_q, data_qaddr_o, latch_load, '0, clk_i, rst_ni)
+    `FFL(rs1_q, rs1, latch_load, '0, clk_i, rst_ni)
+    `FFL(rs1_data_q, gpr_rdata[0], latch_load, '0, clk_i, rst_ni)
+    `FFL(pc_qq, pc_d, latch_load, '0, clk_i, rst_ni)
+    `FFL(ld_addr_misaligned_q, ld_addr_misaligned, latch_load, '0, clk_i, rst_ni)
 
     // in case we don't retire another instruction on port 1 we can use it for loads
     logic retire_load_port1;
@@ -2445,6 +2442,6 @@ module snitch
   // the LSU or accelerator interface by withdrawing the valid signal.
   `ASSERT(InstructionInterfaceStable,
       (inst_valid_o && inst_ready_i) ##1 (inst_valid_o && $stable(inst_addr_o))
-      |-> inst_ready_i && $stable(inst_data_i), clk_i, rst_i)
+      |-> inst_ready_i && $stable(inst_data_i), clk_i, rst_ni)
 
 endmodule

@@ -205,7 +205,7 @@ module mempool_tile
         .BootAddr (BootAddr)
       ) riscv_core (
         .clk_i         (clk_i                                                    ),
-        .rst_i         (!rst_ni                                                  ),
+        .rst_ni        (rst_ni                                                   ),
         .hart_id_i     (hart_id                                                  ),
         // IMEM Port
         .inst_addr_o   (snitch_inst_addr[c/NumCoresPerCache][c%NumCoresPerCache] ),

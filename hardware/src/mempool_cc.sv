@@ -19,7 +19,7 @@ module mempool_cc
   parameter bit RegisterSequencer   = 0  // Insert Pipeline registers after sequencer
 ) (
   input  logic               clk_i,
-  input  logic               rst_i,
+  input  logic               rst_ni,
   input  logic [31:0]        hart_id_i,
   // Instruction Port
   output logic [31:0]        inst_addr_o,
@@ -90,7 +90,7 @@ module mempool_cc
     .RVM      ( RVM      )
   ) i_snitch (
     .clk_i                                   ,
-    .rst_i                                   ,
+    .rst_ni                                  ,
     .hart_id_i                               ,
     .inst_addr_o                             ,
     .inst_data_i                             ,
@@ -133,8 +133,8 @@ module mempool_cc
     .T      ( snitch_pkg::acc_req_t ),
     .Bypass ( !RegisterOffloadReq   )
   ) i_spill_register_acc_req (
-    .clk_i   ,
-    .rst_ni  ( ~rst_i          ),
+    .clk_i                      ,
+    .rst_ni                     ,
     .valid_i ( acc_req_dvalid ),
     .ready_o ( acc_req_dready ),
     .data_i  ( acc_req_d       ),
@@ -161,7 +161,7 @@ module mempool_cc
     .ARBITER     ( "rr"                        )
   ) i_stream_arbiter_offload (
     .clk_i       ( clk_i                              ),
-    .rst_ni      ( ~rst_i                             ),
+    .rst_ni      ( rst_ni                             ),
     .inp_data_i  ( {divsqrt_resp_d, fpu_resp_d, ipu_resp_d}                ),
     .inp_valid_i ( {divsqrt_resp_dvalid, fpu_resp_dvalid, ipu_resp_dvalid} ),
     .inp_ready_o ( {divsqrt_resp_dready, fpu_resp_dready, ipu_resp_dready} ),
@@ -176,7 +176,7 @@ module mempool_cc
     .Bypass ( !RegisterOffloadResp   )
   ) i_spill_register_acc_resp (
     .clk_i                       ,
-    .rst_ni  ( ~rst_i           ),
+    .rst_ni                      ,
     .valid_i ( acc_resp_dvalid ),
     .ready_o ( acc_resp_dready ),
     .data_i  ( acc_resp_d       ),
@@ -190,7 +190,7 @@ module mempool_cc
     .IdWidth ( 5 )
   ) i_snitch_ipu (
     .clk_i                                   ,
-    .rst_i                                   ,
+    .rst_ni                                  ,
     .acc_qaddr_i      ( acc_req_q.addr      ),
     .acc_qid_i        ( acc_req_q.id        ),
     .acc_qdata_op_i   ( acc_req_q.data_op   ),
@@ -212,7 +212,7 @@ module mempool_cc
     .FPUImplementation (snitch_pkg::FPU_IMPLEMENTATION)
   ) i_snitch_fp_ss (
     .clk_i,
-    .rst_i,
+    .rst_i ( ~rst_ni ),
     // pragma translate_off
     .trace_port_o            ( fpu_trace             ),
     // pragma translate_on
@@ -261,9 +261,9 @@ module mempool_cc
     .Bypass ( !RegisterTCDMReq   )
   ) i_spill_register_tcdm_req (
     .clk_i                       ,
-    .rst_ni  ( ~rst_i           ),
-    .valid_i ( data_req_dvalid  ),
-    .ready_o ( data_req_dready  ),
+    .rst_ni                      ,
+    .valid_i ( data_req_dvalid ),
+    .ready_o ( data_req_dready ),
     .data_i  ( data_req_d       ),
     .valid_o ( data_req_qvalid  ),
     .ready_i ( data_req_qready  ),
@@ -275,8 +275,8 @@ module mempool_cc
     .T      ( snitch_pkg::dresp_t ),
     .Bypass ( !RegisterTCDMResp   )
   ) i_spill_register_tcdm_resp (
-    .clk_i                       ,
-    .rst_ni  ( ~rst_i           ),
+    .clk_i                        ,
+    .rst_ni                       ,
     .valid_i ( data_resp_dvalid ),
     .ready_o ( data_resp_dready ),
     .data_i  ( data_resp_d       ),
@@ -296,7 +296,7 @@ module mempool_cc
   assign data_req_qready   = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
   assign data_resp_d.id    = data_pid_i;
-  assign data_resp_d.write = 'x; // Don't care here
+  assign data_resp_d.write = '0; // Don't care here
   assign data_resp_d.error = data_perror_i;
   assign data_resp_dvalid  = data_pvalid_i;
   assign data_pready_o     = data_resp_dready;
@@ -311,8 +311,8 @@ module mempool_cc
   logic [63:0] cycle;
   int unsigned stall, stall_ins, stall_raw, stall_lsu, stall_acc;
 
-  always_ff @(posedge rst_i) begin
-    if(rst_i) begin
+  always_ff @(negedge rst_ni) begin
+    if(!rst_ni) begin
       // Format in hex because vcs and vsim treat decimal differently
       // Format with 8 digits because Verilator does not support anything else
       $sformat(fn, "trace_hart_0x%08x.dasm", hart_id_i);
@@ -324,12 +324,12 @@ module mempool_cc
   typedef enum logic [1:0] {SrcSnitch =  0, SrcFpu = 1, SrcFpuSeq = 2} trace_src_e;
   localparam int SnitchTrace = `ifdef SNITCH_TRACE `SNITCH_TRACE `else 0 `endif;
 
-  always_ff @(posedge clk_i or posedge rst_i) begin
+  always_ff @(posedge clk_i or negedge rst_ni) begin
       automatic string trace_entry;
       automatic string extras_str;
       automatic string extras_fpu;
 
-      if (!rst_i) begin
+      if (rst_ni) begin
         cycle <= cycle + 1;
         // Trace snitch iff:
         // Tracing enabled by CSR register
