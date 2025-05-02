@@ -6,6 +6,7 @@ package mempool_pkg;
 
   import snitch_pkg::MetaIdWidth;
   import cf_math_pkg::idx_width;
+  import tcdm_burst_pkg::*;
 
   /*********************
    *  TILE PARAMETERS  *
@@ -295,7 +296,7 @@ package mempool_pkg;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
   typedef logic [MetaIdWidth-1:0] meta_id_t;
-  typedef logic [(RMMasterPorts+1)-1:0] tile_core_id_t; // TBD leaving floating for connection to Snitch tiles
+  typedef logic [idx_width(RMMasterPorts+1)-1:0] tile_core_id_t; // TBD leaving floating for connection to Snitch tiles
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
   typedef logic [3:0] amo_t;
@@ -312,10 +313,12 @@ package mempool_pkg;
     logic wen;
     strb_t be;
     tcdm_addr_t tgt_addr;
+    burst_t burst;
   } tcdm_master_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
+    burst_t burst;
   } tcdm_master_resp_t;
 
   typedef struct packed {
@@ -323,12 +326,14 @@ package mempool_pkg;
     logic wen;
     strb_t be;
     tile_addr_t tgt_addr;
-    tile_group_id_t ini_addr;
+    tile_group_id_t tile_id;
+    burst_t burst;
   } tcdm_slave_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
-    tile_group_id_t ini_addr;
+    tile_group_id_t tile_id;
+    burst_t burst;
   } tcdm_slave_resp_t;
 
   typedef struct packed {

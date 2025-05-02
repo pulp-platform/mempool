@@ -3,51 +3,58 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Author: Diyou Shen ETH Zurich
+// Author: Marco Bertuletti ETH Zurich
 
+/// Burst Req Manager:
+/// Receives a burst request from NumIn initiators and produces a parallel request
+/// to NumIn target banks in a target multi-banked memory with NumOut banks.
+/// Collects a parallel response from NumOut banks in a target multi-banked memory
+/// and groups them according to the RspGF.
 
-module tcdm_burst_manager #(
-  parameter int unsigned      NrInOut           = 1,
-  parameter int unsigned      ByteOffset        = 2,
-
-  parameter int unsigned      MetaIdWidth       = 1,
-  parameter int unsigned      TCDMAddrWidth     = 1,
-
+module tcdm_burst_manager
+  import tcdm_burst_pkg::burst_t;
+#(
+  parameter int unsigned NumIn  = 32, // number of initiator ports
+  parameter int unsigned NumOut = 64, // number of destination ports
+  parameter int unsigned AddrWidth  = 32,
+  parameter int unsigned DataWidth  = 32,
+  parameter int unsigned BeWidth    = DataWidth/8,
+  // determines the width of the byte offset in a memory word. normally this can be left at the default vaule,
+  // but sometimes it needs to be overridden (e.g. when meta-data is supplied to the memory via the wdata signal).
+  parameter int unsigned  ByteOffWidth = $clog2(DataWidth-1)-3,
   // Group Response Extension Grouping Factor for TCDM
-  parameter int unsigned      RspGF             = 1,
-
-  parameter type              req_payload_t     = logic,
-  parameter type              rsp_payload_t     = logic,
-  parameter type              addr_t            = logic,
-  parameter type              tile_addr_t       = logic
+  parameter int unsigned  RspGF = 1,
+  // Dependant parameters. DO NOT CHANGE!
+  parameter int unsigned NumInLog2 = (NumIn == 1) ? 1 : $clog2(NumIn)
 ) (
-  input  logic                clk_i,
-  input  logic                rst_ni,
-
+  input  logic clk_i,
+  input  logic rst_ni,
   /// Xbar side
-  input  req_payload_t  [NrInOut-1:0] req_payload_i,
-  input  addr_t         [NrInOut-1:0] req_addr_i,
-  input  logic          [NrInOut-1:0] req_wide_i,
-  input  logic          [NrInOut-1:0] req_valid_i,
-  output logic          [NrInOut-1:0] req_ready_o,
-
-  output rsp_payload_t  [NrInOut-1:0] rsp_payload_o,
-  output addr_t         [NrInOut-1:0] rsp_addr_o,
-  output logic          [NrInOut-1:0] rsp_wide_o,
-  output logic          [NrInOut-1:0] rsp_valid_o,
-  input  logic          [NrInOut-1:0] rsp_ready_i,
-
+  input  logic   [NumOut-1:0][NumInLog2-1:0] req_ini_addr_i,
+  input  logic   [NumOut-1:0][AddrWidth-1:0] req_tgt_addr_i,
+  input  logic   [NumOut-1:0][DataWidth-1:0] req_wdata_i,
+  input  logic   [NumOut-1:0]                req_wen_i,
+  input  logic   [NumOut-1:0][BeWidth-1:0]   req_ben_i,
+  input  burst_t [NumOut-1:0]                req_burst_i,
+  input  logic   [NumOut-1:0]                req_valid_i,
+  output logic   [NumOut-1:0]                req_ready_o,
+  output logic   [NumOut-1:0][NumInLog2-1:0] resp_ini_addr_o,
+  output logic   [NumOut-1:0][DataWidth-1:0] resp_rdata_o,
+  output burst_t [NumOut-1:0]                resp_burst_o,
+  output logic   [NumOut-1:0]                resp_valid_o,
+  input  logic   [NumOut-1:0]                resp_ready_i,
   /// Bank side
-  output req_payload_t  [NrInOut-1:0] req_payload_o,
-  output addr_t         [NrInOut-1:0] req_addr_o,
-  output logic          [NrInOut-1:0] req_wide_o,
-  output logic          [NrInOut-1:0] req_valid_o,
-  input  logic          [NrInOut-1:0] req_ready_i,
-
-  input  rsp_payload_t  [NrInOut-1:0] rsp_payload_i,
-  input  addr_t         [NrInOut-1:0] rsp_addr_i,
-  input  logic          [NrInOut-1:0] rsp_wide_i,
-  input  logic          [NrInOut-1:0] rsp_valid_i,
-  output logic          [NrInOut-1:0] rsp_ready_o
+  output logic [NumOut-1:0][NumInLog2-1:0]   req_ini_addr_o,
+  output logic [NumOut-1:0][AddrWidth-1:0]   req_tgt_addr_o,
+  output logic [NumOut-1:0][DataWidth-1:0]   req_wdata_o,
+  output logic [NumOut-1:0]                  req_wen_o,
+  output logic [NumOut-1:0][BeWidth-1:0]     req_ben_o,
+  output logic [NumOut-1:0]                  req_valid_o,
+  input  logic [NumOut-1:0]                  req_ready_i,
+  input  logic [NumOut-1:0][NumInLog2-1:0]   resp_ini_addr_i,
+  input  logic [NumOut-1:0][DataWidth-1:0]   resp_rdata_i,
+  input  logic [NumOut-1:0]                  resp_valid_i,
+  output logic [NumOut-1:0]                  resp_ready_o
 );
   /*************************************************************
    * req_i --+--> arbiter --> fifo --> req generator --> req_o *
@@ -58,36 +65,33 @@ module tcdm_burst_manager #(
   // Include FF module
   `include "common_cells/registers.svh"
 
-  localparam int unsigned BankOffsetBits  = $clog2(NrInOut);
-  localparam int unsigned IdWidth = (NrInOut > 32'd1) ? unsigned'($clog2(NrInOut)) : 32'd1;
-  // Number of groups we will check for grouping rsp
-  localparam int unsigned NumGroup = (RspGF <= 1) ? 0 : NrInOut/RspGF;
-  // rr_arb_tree related parameters, do not override
-  localparam bit          ExtPrio   = 1'b0;
-  localparam bit          AxiVldRdy = 1'b1;
-  localparam bit          LockIn    = 1'b1;
+  localparam int unsigned NumOutLog2 = (NumOut > 32'd1) ? unsigned'($clog2(NumOut)) : 32'd1;
 
-  typedef logic [MetaIdWidth-1:0] meta_id_t;
+  // Number of groups we will check for grouping rsp
+  localparam int unsigned NumGroup = (RspGF <= 1) ? 0 : NumOut/RspGF;
 
   /******************
    * Burst Identify *
    ******************/
+
   typedef struct packed {
-    req_payload_t   payload;
-    addr_t          ini_addr;
-    logic           wide;
+    logic   [NumInLog2-1:0] ini_addr;
+    logic   [AddrWidth-1:0] tgt_addr;
+    logic   [DataWidth-1:0] wdata;
+    logic                   wen;
+    logic   [BeWidth]       ben;
+    burst_t                 burst;
   } arb_data_t;
 
-  arb_data_t [NrInOut-1:0]  prearb_data;
-  logic      [NrInOut-1:0]  prearb_valid, prearb_ready;
+  arb_data_t [NumOut-1:0]      prearb_data;
+  logic      [NumOut-1:0]      prearb_valid, prearb_ready;
+  arb_data_t                   postarb_data;
+  logic                        postarb_valid, postarb_ready;
+  logic      [NumOutLog2-1:0]  postarb_idx;
 
-  arb_data_t postarb_data;
-  logic      postarb_valid, postarb_ready;
-  logic      [IdWidth-1:0]  postarb_idx;
-
-  logic      [NrInOut-1:0]  valid_mask;
-  logic      [NrInOut-1:0]  ready_mask;
-  logic      [NrInOut-1:0]  not_ready_mask;
+  logic      [NumOut-1:0]  valid_mask;
+  logic      [NumOut-1:0]  ready_mask;
+  logic      [NumOut-1:0]  not_ready_mask;
 
   always_comb begin
     prearb_data    = '0;
@@ -98,16 +102,18 @@ module tcdm_burst_manager #(
     ready_mask     = '0;
     not_ready_mask = '1;
 
-    for (int unsigned i = 0; i < NrInOut; i++) begin
-      if (req_valid_i[i] && req_payload_i[i].burst.isburst) begin
-        prearb_data[i] = '{
-          payload:  req_payload_i[i],
-          ini_addr: req_addr_i[i],
-          wide:     req_wide_i[i]
-        };
-        prearb_valid[i]   = 1'b1;
+    for (int unsigned i = 0; i < NumOut; i++) begin
+      if (req_valid_i[i] && req_burst_i[i].isburst) begin
+
+        prearb_data[i].ini_addr = req_ini_addr_i[i];
+        prearb_data[i].tgt_addr = req_tgt_addr_i[i];
+        prearb_data[i].wdata = req_wdata_i[i];
+        prearb_data[i].wen = req_wen_i[i];
+        prearb_data[i].ben = req_ben_i[i];
+        prearb_data[i].burst = req_burst_i[i];
+        prearb_valid[i] = 1'b1;
         // If burst, invalid this request to bank
-        valid_mask[i]     = 1'b0;
+        valid_mask[i] = 1'b0;
 
         if (prearb_ready[i]) begin
           // request is picked by arbiter and fifo, mark as accepted
@@ -121,11 +127,11 @@ module tcdm_burst_manager #(
   end
 
   rr_arb_tree #(
-    .NumIn     ( NrInOut       ),
+    .NumIn     ( NumOut       ),
     .DataType  ( arb_data_t    ),
-    .ExtPrio   ( ExtPrio       ),
-    .AxiVldRdy ( AxiVldRdy     ),
-    .LockIn    ( LockIn        )
+    .ExtPrio   ( 1'b0),
+    .AxiVldRdy ( 1'b1),
+    .LockIn    ( 1'b1)
   ) i_rr_arb_tree (
     .clk_i   ( clk_i           ),
     .rst_ni  ( rst_ni          ),
@@ -141,29 +147,34 @@ module tcdm_burst_manager #(
   );
 
   typedef struct packed {
-    req_payload_t       payload;
-    addr_t              ini_addr;
-    logic               wide;
-    logic [IdWidth-1:0] idx;
+    logic   [NumInLog2-1:0]  ini_addr;
+    logic   [AddrWidth-1:0]  tgt_addr;
+    logic   [DataWidth-1:0]  wdata;
+    logic                    wen;
+    logic   [BeWidth]        ben;
+    burst_t                  burst;
+    logic   [NumOutLog2-1:0] idx;
   } fifo_data_t;
 
   fifo_data_t   fifo_data, pre_fifo_data;
   logic         fifo_pop, fifo_empty, fifo_full, fifo_push;
 
   assign postarb_ready = fifo_full ? 1'b0 : 1'b1;
-  assign pre_fifo_data = '{
-    payload:  postarb_data.payload,
-    ini_addr: postarb_data.ini_addr,
-    wide:     postarb_data.wide,
-    idx:      postarb_idx
-  };
+  assign pre_fifo_data.ini_addr = postarb_data.ini_addr;
+  assign pre_fifo_data.tgt_addr = postarb_data.tgt_addr;
+  assign pre_fifo_data.wdata = postarb_data.wdata;
+  assign pre_fifo_data.wen = postarb_data.wen;
+  assign pre_fifo_data.ben = postarb_data.ben;
+  assign pre_fifo_data.burst = postarb_data.burst;
+  assign pre_fifo_data.idx = postarb_idx;
+
   // Push when FIFO is not full and data is valid
   assign fifo_push = postarb_valid & (~fifo_full);
 
   // Fall though FIFO to store bursts
   fifo_v3 #(
     .FALL_THROUGH ( 1'b1            ),
-    .DEPTH        ( NrInOut         ),
+    .DEPTH        ( NumOut         ),
     .dtype        ( fifo_data_t     )
   ) i_fall_though_fifo (
     .clk_i        ( clk_i           ),
@@ -184,29 +195,22 @@ module tcdm_burst_manager #(
    *********************/
 
   typedef enum logic {
-    // idle until burst request comes
-    Idle,
-    // generate parallel requests when ready
-    DoBurst
+    Idle, // idle until burst request comes
+    DoBurst // generate parallel requests when ready
   } req_gen_fsm_e;
-
-  // generated ID and Addr
-  meta_id_t   [NrInOut-1:0] gen_id;
-  tile_addr_t [NrInOut-1:0] gen_addr;
 
   // FSM state
   req_gen_fsm_e  state_d, state_q;
   // FSM stored signals
   fifo_data_t     breq_d, breq_q;
-  logic [NrInOut-1:0] burst_mask_d, burst_mask_q;
-  logic [NrInOut-1:0] burst_valid_mask, burst_ready_mask;
+
+  logic [NumOut-1:0] burst_mask_d, burst_mask_q;
+  logic [NumOut-1:0] burst_valid_mask, burst_ready_mask;
 
   // group mask used for response grouping
-  logic [NrInOut-1:0] group_mask;
-
+  logic [NumOut-1:0] group_mask;
   // indicate if there is pending response to be picked
   logic pending_rsp;
-
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if(~rst_ni) begin
@@ -227,21 +231,22 @@ module tcdm_burst_manager #(
     burst_mask_d  = burst_mask_q;
 
     // comb logic defaults
-    gen_id        = '0;
-    gen_addr      = '0;
     pending_rsp   = '0;
     group_mask    = '0;
 
     // Do not take in next burst for now
     fifo_pop      = 1'b0;
 
-    // By defauly, bypass input ready and valid signals
+    // By default, bypass input ready and valid signals
     burst_valid_mask = req_valid_i;
     burst_ready_mask = req_ready_i;
     // Bypass all requests by default
-    req_payload_o = req_payload_i;
-    req_wide_o    = req_wide_i;
-    req_addr_o    = req_addr_i;
+    req_wdata_o = req_wdata_i;
+    req_tgt_addr_o = req_tgt_addr_i;
+    req_ini_addr_o = req_ini_addr_i;
+    req_wen_o = req_wen_i;
+    req_ben_o = req_ben_i;
+
     // Bypass not-masked ready, stall all other ready
     req_valid_o   = valid_mask & burst_valid_mask;
     // By default, pass the ready signals
@@ -262,11 +267,9 @@ module tcdm_burst_manager #(
           // store request
           breq_d = fifo_data;
           // a mask with burst length ones
-          burst_mask_d = (1'b1 << breq_d.payload.burst.blen) - 1'b1;
-          // then left shift by id of port
+          burst_mask_d = (1'b1 << breq_d.burst.blen) - 1'b1;
+          // shift the mask to the first bank index addressed by the burst
           burst_mask_d = burst_mask_d << breq_d.idx;
-          // the mask should now have ones from the starting port, with length blen
-
           state_d   = DoBurst;
         end
 
@@ -280,34 +283,22 @@ module tcdm_burst_manager #(
 
         // Check if there is pending responses among the affected banks
         // If the valid is high, but ready is low, we need to wait
-        pending_rsp = |((rsp_valid_o & ~rsp_ready_i) & burst_mask_q);
+        pending_rsp = |((resp_valid_o & ~resp_ready_i) & burst_mask_q);
         // only send out requests when
         // 1. required banks are all ready
         // 2. no pending responses among them
         if (&(req_ready_i | (~burst_mask_q)) & !pending_rsp) begin
-          // calculate the id and tgt_addr for parallel requests
-          for (int unsigned i = 0; i < NrInOut; i ++) begin
-            // an array of values equal id, plus the input id
-            gen_id[i]   = i + breq_q.payload.wdata.meta_id;
-            gen_addr[i] = i + breq_q.payload.tgt_addr;
-          end
-          // offset the array to correct location
-          gen_id   = gen_id   << (breq_q.idx * MetaIdWidth);
-          gen_addr = gen_addr << (breq_q.idx * TCDMAddrWidth);
 
-          req_valid_o   = valid_mask;
+          req_valid_o = valid_mask;
 
-          for (int unsigned i = 0; i < NrInOut; i ++) begin
+          for (int unsigned i = 0; i < NumOut; i++) begin
             if (burst_mask_q[i]) begin
-              // Most info are the same, except id and tgt_addr
-              req_payload_o[i]               = breq_q.payload;
-              // overwrite meta_id and tgt_addr
-              req_payload_o[i].wdata.meta_id = gen_id[i];
-              req_payload_o[i].tgt_addr      = gen_addr[i];
-
-              req_wide_o[i]          = breq_q.wide;
-              req_addr_o[i]          = breq_q.ini_addr;
-
+              req_wdata_o[i] = breq_q.wdata;
+              req_wen_o[i] = breq_q.wen;
+              req_ben_o[i] = breq_q.ben;
+              // overwrite tgt_addr
+              req_tgt_addr_o[i] = i + breq_q.tgt_addr - breq_q.idx;
+              req_ini_addr_o[i] = i + breq_q.ini_addr - breq_q.idx;
               // request valid, tie sent requests to 1
               req_valid_o[i] = 1'b1;
             end
@@ -335,46 +326,44 @@ module tcdm_burst_manager #(
 
   if (RspGF == 1) begin : gen_grouper_bypass
     // Bypass all responses if no grouping
-    assign rsp_valid_o   = rsp_valid_i;
-    assign rsp_ready_o   = rsp_ready_i;
-    assign rsp_addr_o    = rsp_addr_i;
-    assign rsp_wide_o    = rsp_wide_i;
-    assign rsp_payload_o = rsp_payload_i;
+    assign resp_valid_o = resp_valid_i;
+    assign resp_ready_o = resp_ready_i;
+    assign resp_rdata_o = resp_rdata_i;
+    assign resp_ini_addr_o = resp_ini_addr_i;
+    assign resp_burst_o = '0;
 
   end else begin : gen_grouper
-    for (genvar i = 0; i < NumGroup; i ++) begin : gen_data_grouper
-      data_grouper #(
-        .RspGF          ( RspGF         ),
-        .addr_t         ( addr_t        ),
-        .rsp_payload_t  ( rsp_payload_t )
-      ) i_data_grouper (
-        .clk_i          ( clk_i                          ),
-        .rst_ni         ( rst_ni                         ),
-        // Only group the response if all response can be grouped
-        .group_i        ( &group_mask   [i*RspGF+:RspGF] ),
-
-        .rsp_payload_o  ( rsp_payload_o [i*RspGF+:RspGF] ),
-        .rsp_addr_o     ( rsp_addr_o    [i*RspGF+:RspGF] ),
-        .rsp_wide_o     ( rsp_wide_o    [i*RspGF+:RspGF] ),
-        .rsp_valid_o    ( rsp_valid_o   [i*RspGF+:RspGF] ),
-        .rsp_ready_i    ( rsp_ready_i   [i*RspGF+:RspGF] ),
-
-        .rsp_payload_i  ( rsp_payload_i [i*RspGF+:RspGF] ),
-        .rsp_addr_i     ( rsp_addr_i    [i*RspGF+:RspGF] ),
-        .rsp_wide_i     ( rsp_wide_i    [i*RspGF+:RspGF] ),
-        .rsp_valid_i    ( rsp_valid_i   [i*RspGF+:RspGF] ),
-        .rsp_ready_o    ( rsp_ready_o   [i*RspGF+:RspGF] )
-      );
-    end
+//    for (genvar i = 0; i < NumGroup; i ++) begin : gen_data_grouper
+//      data_grouper #(
+//        .RspGF          ( RspGF         ),
+//        .addr_t         ( addr_t        ),
+//        .rsp_payload_t  ( rsp_payload_t )
+//      ) i_data_grouper (
+//        .clk_i          ( clk_i                          ),
+//        .rst_ni         ( rst_ni                         ),
+//        // Only group the response if all response can be grouped
+//        .group_i        ( &group_mask   [i*RspGF+:RspGF] ),
+//        .rsp_payload_o  ( rsp_payload_o [i*RspGF+:RspGF] ),
+//        .rsp_addr_o     ( rsp_addr_o    [i*RspGF+:RspGF] ),
+//        .rsp_wide_o     ( rsp_wide_o    [i*RspGF+:RspGF] ),
+//        .rsp_valid_o    ( rsp_valid_o   [i*RspGF+:RspGF] ),
+//        .rsp_ready_i    ( rsp_ready_i   [i*RspGF+:RspGF] ),
+//        .rsp_payload_i  ( rsp_payload_i [i*RspGF+:RspGF] ),
+//        .rsp_addr_i     ( rsp_addr_i    [i*RspGF+:RspGF] ),
+//        .rsp_wide_i     ( rsp_wide_i    [i*RspGF+:RspGF] ),
+//        .rsp_valid_i    ( rsp_valid_i   [i*RspGF+:RspGF] ),
+//        .rsp_ready_o    ( rsp_ready_o   [i*RspGF+:RspGF] )
+//      );
+//    end
   end
 
   /******************
    *   Assertions   *
    ******************/
-  if (NrInOut == 0)
-    $error("[burst_manager] NrInOut needs to be greater or equal to 1");
+  if (NumOut == 0)
+    $error("[burst_manager] NumBanks needs to be greater or equal to 1");
 
-  if (NrInOut < RspGF)
-    $error("[burst_manager] NrInOut needs to be larger or equal to RspGF");
+  if (NumOut < RspGF)
+    $error("[burst_manager] NumBanks needs to be larger or equal to RspGF");
 
 endmodule : tcdm_burst_manager
