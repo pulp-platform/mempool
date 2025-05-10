@@ -1,6 +1,10 @@
 [![ci](https://github.com/pulp-platform/mempool/actions/workflows/ci.yml/badge.svg)](https://github.com/pulp-platform/mempool/actions/workflows/ci.yml)
 [![lint](https://github.com/pulp-platform/mempool/actions/workflows/lint.yml/badge.svg)](https://github.com/pulp-platform/mempool/actions/workflows/lint.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+# MemPool Dynamic Allocation Scheme
+Dynamic Allocation Scheme (DAS), a flexible, adaptable, runtime-configurable address mapping technique. DAS remaps contiguous address spaces to physically adjacent memory banks based on the workload’s memory access patterns, placing the data physically close to PEs.
+
+This repository branch contains DAS extensions based on MemPool.
 
 # MemPool
 
