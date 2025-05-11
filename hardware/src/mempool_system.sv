@@ -91,6 +91,13 @@ module mempool_system
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
 
+  // For dynamic partitioning 
+  logic             [3:0][PartitionDataWidth-1:0] partition_sel;
+  logic             [3:0][PartitionDataWidth-1:0] allocated_size;
+  logic             [3:0][DataWidth-1:0]          start_addr_scheme;
+  // For DMA Mode Selection
+  logic             [DataWidth-1:0]               dma_mode;
+
   dma_req_t  dma_req;
   logic      dma_req_valid;
   logic      dma_req_ready;
@@ -140,6 +147,10 @@ module mempool_system
     .clk_i          (clk_i                          ),
     .rst_ni         (rst_ni                         ),
     .wake_up_i      (wake_up                        ),
+    .partition_sel_i(partition_sel                  ),
+    .allocated_size_i   (allocated_size),
+    .start_addr_scheme_i(start_addr_scheme          ),
+    .dma_mode_i         (dma_mode[1:0]),
     .testmode_i     (1'b0                           ),
     .scan_enable_i  (1'b0                           ),
     .scan_data_i    (1'b0                           ),

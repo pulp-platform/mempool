@@ -28,6 +28,8 @@ package mempool_pkg;
   localparam integer unsigned AxiDataWidth      = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
   localparam integer unsigned AxiLiteDataWidth  = 32;
 
+  localparam integer unsigned PartitionDataWidth = 8;  // only support group_factor={128, 64, 32, 16, 8, 4, 2, 1}
+
   /***********************
    *  MEMORY PARAMETERS  *
    ***********************/
@@ -309,6 +311,9 @@ package mempool_pkg;
   // Size in bytes of memory that is sequentially addressable per tile
   localparam int unsigned SeqMemSizePerCore = `ifdef SEQ_MEM_SIZE `SEQ_MEM_SIZE `else 0 `endif;
   localparam int unsigned SeqMemSizePerTile = NumCoresPerTile*SeqMemSizePerCore;
+
+  localparam int unsigned HeapSeqMemSizePerCore = `ifdef HEAP_SEQ_MEM_SIZE `SEQ_MEM_SIZE `else 2048 `endif;
+  localparam int unsigned HeapSeqMemSizePerTile = NumCoresPerTile*HeapSeqMemSizePerCore;
 
   typedef struct packed {
     int unsigned slave_idx;

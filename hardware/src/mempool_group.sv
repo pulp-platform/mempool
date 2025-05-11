@@ -60,12 +60,18 @@ module mempool_group
   `endif
   // Wake up interface
   input  logic                            [NumCoresPerGroup-1:0]                 wake_up_i,
+  // Partition selection
+  input  logic                            [3:0][PartitionDataWidth-1:0]          partition_sel_i,
+  input  logic                            [3:0][PartitionDataWidth-1:0]          allocated_size_i,
+  input  logic                            [3:0][DataWidth-1:0]                   start_addr_scheme_i,
+  input  logic                            [1:0]                                  dma_mode_i,
   // RO-Cache configuration
   input  `STRUCT_PORT(ro_cache_ctrl_t)                                           ro_cache_ctrl_i,
   // DMA request
   input  `STRUCT_PORT(dma_req_t)                                                 dma_req_i,
   input  logic                                                                   dma_req_valid_i,
   output logic                                                                   dma_req_ready_o,
+  input  logic                            [7:0]                                  dma_allocated_size_sel_i,
   // DMA status
   output `STRUCT_PORT(dma_meta_t)                                                dma_meta_o,
    // AXI Interface
@@ -333,7 +339,11 @@ module mempool_group
           // RO-Cache configuration
           .ro_cache_ctrl_i         (ro_cache_ctrl_q                                                       ),
           // Wake up interface
-          .wake_up_i      (wake_up_q[sg*NumCoresPerSubGroup +: NumCoresPerSubGroup]                       )
+          .wake_up_i      (wake_up_q[sg*NumCoresPerSubGroup +: NumCoresPerSubGroup]                       ),
+          // Partition selection
+          .start_addr_scheme_i     (start_addr_scheme_i                                                   ),
+          .allocated_size_i        (allocated_size_i                                                      ),
+          .partition_sel_i         (partition_sel_i)
         );
       end else begin: gen_rtl_sg
         mempool_sub_group #(
@@ -385,7 +395,10 @@ module mempool_group
           // RO-Cache configuration
           .ro_cache_ctrl_i         (ro_cache_ctrl_q                                                       ),
           // Wake up interface
-          .wake_up_i      (wake_up_q[sg*NumCoresPerSubGroup +: NumCoresPerSubGroup]                       )
+          .wake_up_i      (wake_up_q[sg*NumCoresPerSubGroup +: NumCoresPerSubGroup]                       ),
+          .start_addr_scheme_i        (start_addr_scheme_i                                                ),
+          .allocated_size_i           (allocated_size_i                                                   ),
+          .partition_sel_i            (partition_sel_i)
         );
       end
       // Transpose the group requests
@@ -560,21 +573,26 @@ module mempool_group
 
     `FF(dma_meta_o, dma_meta_cut, '0, clk_i, rst_ni);
 
-    idma_distributed_midend #(
+    idma_distributed_midend_v2 #(
       .NoMstPorts     (NumDmasPerGroup                         ),
       .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup      ),
       .DmaRegionStart (TCDMBaseAddr                            ),
       .DmaRegionEnd   (TCDMBaseAddr+TCDMSize                   ),
-      .TransFifoDepth (16                                      ),
+      .TransFifoDepth (8                                       ),
       .burst_req_t    (dma_req_t                               ),
       .meta_t         (dma_meta_t                              )
-    ) i_idma_distributed_midend (
+    ) i_idma_distributed_midend_v2 (
       .clk_i       (clk_i            ),
       .rst_ni      (rst_ni           ),
+      // slave
       .burst_req_i (dma_req_cut      ),
       .valid_i     (dma_req_cut_valid),
       .ready_o     (dma_req_cut_ready),
       .meta_o      (dma_meta_cut     ),
+      // partition
+      .allocated_size_i(dma_allocated_size_sel_i),
+      .dma_mode_i      (dma_mode_i),
+      // master
       .burst_req_o (dma_req          ),
       .valid_o     (dma_req_valid    ),
       .ready_i     (dma_req_ready    ),
@@ -684,7 +702,10 @@ module mempool_group
         .axi_mst_req_o           (axi_tile_req[t]                                ),
         .axi_mst_resp_i          (axi_tile_resp[t]                               ),
         // Wake up interface
-        .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile])
+        .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile]),
+        .start_addr_scheme_i     (start_addr_scheme_i                            ),
+        .allocated_size_i        (allocated_size_i                               ),
+        .partition_sel_i         (partition_sel_i)
       );
 
       // Transpose the group requests
@@ -970,21 +991,26 @@ module mempool_group
     logic      [NumDmasPerGroup-1:0] dma_req_ready;
     dma_meta_t [NumDmasPerGroup-1:0] dma_meta;
 
-    idma_distributed_midend #(
-      .NoMstPorts     (NumDmasPerGroup                   ),
-      .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup),
-      .DmaRegionStart (TCDMBaseAddr                      ),
-      .DmaRegionEnd   (TCDMBaseAddr+TCDMSize             ),
-      .TransFifoDepth (16                                ),
-      .burst_req_t    (dma_req_t                         ),
-      .meta_t         (dma_meta_t                        )
-    ) i_idma_distributed_midend (
+    idma_distributed_midend_v2 #(
+      .NoMstPorts     (NumDmasPerGroup                         ),
+      .DmaRegionWidth (NumBanksPerGroup*4/NumDmasPerGroup      ),
+      .DmaRegionStart (TCDMBaseAddr                            ),
+      .DmaRegionEnd   (TCDMBaseAddr+TCDMSize                   ),
+      .TransFifoDepth (8                                       ),
+      .burst_req_t    (dma_req_t                               ),
+      .meta_t         (dma_meta_t                              )
+    ) i_idma_distributed_midend_v2 (
       .clk_i       (clk_i            ),
       .rst_ni      (rst_ni           ),
+      // slave
       .burst_req_i (dma_req_cut      ),
       .valid_i     (dma_req_cut_valid),
       .ready_o     (dma_req_cut_ready),
       .meta_o      (dma_meta_cut     ),
+      // partition
+      .allocated_size_i(dma_allocated_size_sel_i),
+      .dma_mode_i      (dma_mode_i),
+      // master
       .burst_req_o (dma_req          ),
       .valid_o     (dma_req_valid    ),
       .ready_i     (dma_req_ready    ),

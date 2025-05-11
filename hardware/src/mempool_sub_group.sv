@@ -63,7 +63,11 @@ module mempool_sub_group
   // RO-Cache configuration
   input  `STRUCT_PORT(ro_cache_ctrl_t)                                                         ro_cache_ctrl_i,
   // Wake up interface
-  input  logic                            [NumCoresPerSubGroup-1:0]                            wake_up_i
+  input  logic                            [NumCoresPerSubGroup-1:0]                            wake_up_i,
+  // Partition Selection
+  input  logic                            [3:0][PartitionDataWidth-1:0]                        partition_sel_i,
+  input  logic                            [3:0][PartitionDataWidth-1:0]                        allocated_size_i,
+  input  logic                            [3:0][DataWidth-1:0]                                 start_addr_scheme_i
 );
 
   /*****************
@@ -199,7 +203,11 @@ module mempool_sub_group
       .axi_mst_req_o           (axi_tile_req[t]                                ),
       .axi_mst_resp_i          (axi_tile_resp[t]                               ),
       // Wake up interface
-      .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile])
+      .wake_up_i               (wake_up_q[t*NumCoresPerTile +: NumCoresPerTile]),
+      // Partition selection
+      .start_addr_scheme_i     (start_addr_scheme_i                            ),
+      .allocated_size_i        (allocated_size_i                               ),
+      .partition_sel_i         (partition_sel_i)
     );
 
     // Transpose the sub_group requests
