@@ -110,6 +110,10 @@ ifdef terapool
 	DEFINES += -DNUM_CORES_PER_SUB_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_sub_groups_per_group)}')
 	DEFINES += -DNUM_TILES_PER_SUB_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_cores_per_tile)/$(num_sub_groups_per_group)}')
 endif
+ifdef flex_terapool
+	DEFINES += -DHEAP_SEQ_MEM_SIZE=$(heap_seq_mem_size)
+	DEFINES += -DLOG2_HEAP_SEQ_MEM_SIZE=$(shell awk 'BEGIN{print log($(heap_seq_mem_size))/log(2)}')
+endif
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
@@ -156,6 +160,7 @@ endif
 LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld
 
 RUNTIME += $(ROOT_DIR)/alloc.c.o
+RUNTIME += $(ROOT_DIR)/alloc_partition.c.o
 RUNTIME += $(ROOT_DIR)/crt0.S.o
 RUNTIME += $(ROOT_DIR)/printf.c.o
 RUNTIME += $(ROOT_DIR)/serial.c.o

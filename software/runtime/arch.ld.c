@@ -31,5 +31,8 @@ SECTIONS {
   __heap_start = __l1_start;
   __heap_end = __l1_end;
 
+  // DAS related, default impacted region size
+  __heap_seq_start = __l1_start + (NUM_CORES * 2 * L1_BANK_SIZE);
+
   fake_uart              = 0xC0000000;
 }

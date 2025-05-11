@@ -73,4 +73,10 @@ void dma_memcpy_blocking(void *dest, const void *src, size_t len) {
   dma_memcpy_nonblocking(dest, src, len);
   dma_wait();
 }
+
+void dma_memcpy_ModeSel(void *dest, const void *src, size_t len, uint32_t mode_sel){
+  dma_mode_reg = mode_sel;
+  dma_memcpy_nonblocking(dest, src, len);
+}
+
 #endif // _DMA_H_
