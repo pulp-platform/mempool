@@ -10,6 +10,7 @@
 
 # Global Control
 terapool ?= 1
+flex_terapool ?= 1
 
 # Number of cores
 num_cores ?= 1024
@@ -46,3 +47,7 @@ dmas_per_group ?= 4 # Brust Length = 16
 # L2 Banks/Channels
 l2_banks = 16
 l2_size  ?= 16777216 # 1000000
+
+# TeraPool w/ DAS
+# Impacted memory size in byte per core by default
+heap_seq_mem_size ?= 2048
