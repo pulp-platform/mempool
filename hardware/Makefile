@@ -151,6 +151,14 @@ ifdef tg
 	cpp_defs  += -DTG_SEQ_PROB=$(tg_seqprob)
 	cpp_defs  += -DTG_NCYCLES=$(tg_ncycles)
 	cpp_defs  += -DNUM_CORES=$(num_cores)
+	# DAS benchmark related
+	cpp_defs  += -DPARTITION=$(partition)
+	cpp_defs  += -DTG_PA=$(tg_pa)
+	cpp_defs  += -DTG_PB=$(tg_pb)
+	cpp_defs  += -DTG_PC=$(tg_pc)
+	cpp_defs  += -DTG_PA_PROB=$(tg_pa_prob)
+	cpp_defs  += -DTG_PB_PROB=$(tg_pb_prob)
+	cpp_defs  += -DTG_PC_PROB=$(tg_pc_prob)
 
 	# How many cycles should we execute?
 	veril_flags := --term-after-cycles=$(tg_ncycles)
