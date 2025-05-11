@@ -44,6 +44,7 @@ sources:
   # Level 3
   - hardware/src/mempool_group.sv
   # Level 4
+  - hardware/src/idma_partition_midend.sv
   - hardware/src/mempool_cluster.sv
   # Level 5
   - hardware/src/ctrl_registers.sv

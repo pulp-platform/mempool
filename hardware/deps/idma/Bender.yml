@@ -15,6 +15,7 @@ sources:
   # levels 1 and 0, etc. Files within a level are ordered alphabetically.
   # Level 0
   - src/axi_dma_data_path.sv
+  - src/midends/idma_address_scrambler.sv
   # Level 1
   - src/axi_dma_data_mover.sv
   - src/axi_dma_burst_reshaper.sv
@@ -23,6 +24,9 @@ sources:
   # Level 3: MemPool
   - src/midends/idma_split_midend.sv
   - src/midends/idma_distributed_midend.sv
+  # If enabled DAS
+  - src/midends/idma_split_midend_v2.sv
+  - src/midends/idma_distributed_midend_v2.sv
   - src/frontends/mempool/mempool_dma_frontend_reg_pkg.sv
   - src/frontends/mempool/mempool_dma_frontend_reg_top.sv
   - src/frontends/mempool/mempool_dma.sv
