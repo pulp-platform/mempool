@@ -57,6 +57,20 @@
       hwqe: "true"
       fields: [{ bits: "31:0" }]
     },
+    { name: "wake_up_strd"
+      desc: "Wake Up Stride Register"
+      swaccess: "wo"
+      hwaccess: "hro"
+      hwqe: "true"
+      fields: [{ bits: "31:0" }]
+    },
+    { name: "wake_up_offst"
+      desc: "Wake Up Offst Register"
+      swaccess: "wo"
+      hwaccess: "hro"
+      hwqe: "true"
+      fields: [{ bits: "31:0" }]
+    },
     { name: "tcdm_start_address"
       desc: "TCDM Start Address Register"
       swaccess: "ro"
