@@ -386,4 +386,15 @@
     ]
   },
 
+  "barriers_test": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 256)
+      ("MAX_delay", 32)
+    ]
+    "arrays": [
+      ("int32_t", "l2_delays")
+    ]
+  },
+
 }

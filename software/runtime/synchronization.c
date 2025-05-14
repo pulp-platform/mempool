@@ -10,7 +10,9 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#if NUM_CORES == (256)
+#if NUM_CORES == (16)
+#define LOG2_NUM_CORES (4)
+#elif NUM_CORES == (256)
 #define LOG2_NUM_CORES (8)
 #elif NUM_CORES == (1024)
 #define LOG2_NUM_CORES (10)

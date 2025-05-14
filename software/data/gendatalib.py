@@ -63,6 +63,15 @@ def generate_iarray(my_type=np.float32, defines={}):
 ##############################################################################
 
 
+def generate_barriers_test(my_type=np.int16, defines={}):
+
+    array_N = defines['array_N']
+    max_delay = defines['MAX_delay']
+    delays = np.random.uniform(low=0.0, high=max_delay, size=array_N)
+    delays = np.asarray(delays, dtype='int')
+    return delays, defines
+
+
 def generate_faxpy(my_type=np.float32, defines={}):
 
     # Create matrix
