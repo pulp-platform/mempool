@@ -94,8 +94,8 @@ module ctrl_registers
     '{start_addr: 32'h8000_0000, end_addr: 32'h8000_1000}
   };
   for (genvar i = 0; i < ROCacheNumAddrRules; i++) begin : gen_ro_cache_reg
-    `FFL(ctrl_hw2reg.ro_cache_start[i].d, ctrl_reg2hw.ro_cache_start[i].q, ctrl_reg2hw.ro_cache_start[i].qe, ro_cache_regions[i].start_addr)
-    `FFL(ctrl_hw2reg.ro_cache_end[i].d, ctrl_reg2hw.ro_cache_end[i].q, ctrl_reg2hw.ro_cache_end[i].qe, ro_cache_regions[i].end_addr)
+    `FFL(ctrl_hw2reg.ro_cache_start[i].d, ctrl_reg2hw.ro_cache_start[i].q, ctrl_reg2hw.ro_cache_start[i].qe, ro_cache_regions[i].start_addr, clk_i, rst_ni)
+    `FFL(ctrl_hw2reg.ro_cache_end[i].d, ctrl_reg2hw.ro_cache_end[i].q, ctrl_reg2hw.ro_cache_end[i].qe, ro_cache_regions[i].end_addr, clk_i, rst_ni)
   end
 
   /************************
@@ -115,15 +115,15 @@ module ctrl_registers
   logic wake_up_group_pulse;
   logic wake_up_strd_offst_pulse;
 
-  `FF(wake_up_pulse, ctrl_reg2hw.wake_up.qe, '0)
+  `FF(wake_up_pulse, ctrl_reg2hw.wake_up.qe, '0, clk_i, rst_ni)
   for (genvar i = 0; i < MAX_NumGroups; i++) begin : gen_wake_up_tile_reg
-    `FF(wake_up_tile_pulse[i], ctrl_reg2hw.wake_up_tile[i].qe, '0)
+    `FF(wake_up_tile_pulse[i], ctrl_reg2hw.wake_up_tile[i].qe, '0, clk_i, rst_ni)
   end
-  `FF(wake_up_group_pulse, ctrl_reg2hw.wake_up_group.qe, '0)
-  `FF(wake_up_strd_offst_pulse, (ctrl_reg2hw.wake_up_offst.qe || ctrl_reg2hw.wake_up_strd.qe), '0)
+  `FF(wake_up_group_pulse, ctrl_reg2hw.wake_up_group.qe, '0, clk_i, rst_ni)
+  `FF(wake_up_strd_offst_pulse, (ctrl_reg2hw.wake_up_offst.qe || ctrl_reg2hw.wake_up_strd.qe), '0, clk_i, rst_ni)
 
   // Mask is initialized to 1
-  `FFL(wake_up_mask_q, wake_up_mask_d, wake_up_strd_offst_pulse, '1)
+  `FFL(wake_up_mask_q, wake_up_mask_d, wake_up_strd_offst_pulse, '1, clk_i, rst_ni)
   always_comb begin
     wake_up_mask_d = '0;
     if (wake_up_strd_offst_pulse) begin
