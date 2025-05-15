@@ -47,6 +47,13 @@ static uint32_t volatile *wake_up_tile_g7_reg =
     (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
                           CONTROL_REGISTERS_WAKE_UP_TILE_7_REG_OFFSET);
 
+static uint32_t volatile *wake_up_stride_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_WAKE_UP_STRD_REG_OFFSET);
+static uint32_t volatile *wake_up_offset_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_WAKE_UP_OFFST_REG_OFFSET);
+
 typedef uint32_t mempool_id_t;
 typedef uint32_t mempool_timer_t;
 
@@ -187,6 +194,12 @@ static inline void wake_up_tile(uint32_t group_id, uint32_t tile_mask) {
   }
 }
 
+static inline void set_wake_up_stride(uint32_t stride) {
+  *wake_up_stride_reg = stride;
+}
+static inline void set_wake_up_offset(uint32_t offset) {
+  *wake_up_offset_reg = offset;
+}
 // Dump a value via CSR
 // This is only supported in simulation and an experimental feature. All writes
 // to unimplemented CSR registers will be dumped by Snitch. This can be

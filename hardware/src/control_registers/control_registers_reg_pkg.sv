@@ -38,6 +38,16 @@ package control_registers_reg_pkg;
 
   typedef struct packed {
     logic [31:0] q;
+    logic        qe;
+  } control_registers_reg2hw_wake_up_strd_reg_t;
+
+  typedef struct packed {
+    logic [31:0] q;
+    logic        qe;
+  } control_registers_reg2hw_wake_up_offst_reg_t;
+
+  typedef struct packed {
+    logic [31:0] q;
   } control_registers_reg2hw_ro_cache_enable_reg_t;
 
   typedef struct packed {
@@ -76,10 +86,12 @@ package control_registers_reg_pkg;
 
   // Register -> HW type
   typedef struct packed {
-    control_registers_reg2hw_eoc_reg_t eoc; // [689:658]
-    control_registers_reg2hw_wake_up_reg_t wake_up; // [657:625]
-    control_registers_reg2hw_wake_up_tile_mreg_t [7:0] wake_up_tile; // [624:361]
-    control_registers_reg2hw_wake_up_group_reg_t wake_up_group; // [360:328]
+    control_registers_reg2hw_eoc_reg_t eoc; // [755:724]
+    control_registers_reg2hw_wake_up_reg_t wake_up; // [723:691]
+    control_registers_reg2hw_wake_up_tile_mreg_t [7:0] wake_up_tile; // [690:427]
+    control_registers_reg2hw_wake_up_group_reg_t wake_up_group; // [426:394]
+    control_registers_reg2hw_wake_up_strd_reg_t wake_up_strd; // [393:361]
+    control_registers_reg2hw_wake_up_offst_reg_t wake_up_offst; // [360:328]
     control_registers_reg2hw_ro_cache_enable_reg_t ro_cache_enable; // [327:296]
     control_registers_reg2hw_ro_cache_flush_reg_t ro_cache_flush; // [295:264]
     control_registers_reg2hw_ro_cache_start_mreg_t [3:0] ro_cache_start; // [263:132]
@@ -107,19 +119,21 @@ package control_registers_reg_pkg;
   parameter logic [BlockAw-1:0] CONTROL_REGISTERS_WAKE_UP_TILE_6_OFFSET = 7'h 20;
   parameter logic [BlockAw-1:0] CONTROL_REGISTERS_WAKE_UP_TILE_7_OFFSET = 7'h 24;
   parameter logic [BlockAw-1:0] CONTROL_REGISTERS_WAKE_UP_GROUP_OFFSET = 7'h 28;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_TCDM_START_ADDRESS_OFFSET = 7'h 2c;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_TCDM_END_ADDRESS_OFFSET = 7'h 30;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_NR_CORES_REG_OFFSET = 7'h 34;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_ENABLE_OFFSET = 7'h 38;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_FLUSH_OFFSET = 7'h 3c;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_START_0_OFFSET = 7'h 40;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_START_1_OFFSET = 7'h 44;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_START_2_OFFSET = 7'h 48;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_START_3_OFFSET = 7'h 4c;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_END_0_OFFSET = 7'h 50;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_END_1_OFFSET = 7'h 54;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_END_2_OFFSET = 7'h 58;
-  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_END_3_OFFSET = 7'h 5c;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_WAKE_UP_STRD_OFFSET = 7'h 2c;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_WAKE_UP_OFFST_OFFSET = 7'h 30;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_TCDM_START_ADDRESS_OFFSET = 7'h 34;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_TCDM_END_ADDRESS_OFFSET = 7'h 38;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_NR_CORES_REG_OFFSET = 7'h 3c;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_ENABLE_OFFSET = 7'h 40;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_FLUSH_OFFSET = 7'h 44;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_START_0_OFFSET = 7'h 48;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_START_1_OFFSET = 7'h 4c;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_START_2_OFFSET = 7'h 50;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_START_3_OFFSET = 7'h 54;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_END_0_OFFSET = 7'h 58;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_END_1_OFFSET = 7'h 5c;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_END_2_OFFSET = 7'h 60;
+  parameter logic [BlockAw-1:0] CONTROL_REGISTERS_RO_CACHE_END_3_OFFSET = 7'h 64;
 
   // Reset values for hwext registers and their fields
   parameter logic [31:0] CONTROL_REGISTERS_TCDM_START_ADDRESS_RESVAL = 32'h 0;
@@ -147,6 +161,8 @@ package control_registers_reg_pkg;
     CONTROL_REGISTERS_WAKE_UP_TILE_6,
     CONTROL_REGISTERS_WAKE_UP_TILE_7,
     CONTROL_REGISTERS_WAKE_UP_GROUP,
+    CONTROL_REGISTERS_WAKE_UP_STRD,
+    CONTROL_REGISTERS_WAKE_UP_OFFST,
     CONTROL_REGISTERS_TCDM_START_ADDRESS,
     CONTROL_REGISTERS_TCDM_END_ADDRESS,
     CONTROL_REGISTERS_NR_CORES_REG,
@@ -163,7 +179,7 @@ package control_registers_reg_pkg;
   } control_registers_id_e;
 
   // Register width information to check illegal writes
-  parameter logic [3:0] CONTROL_REGISTERS_PERMIT [24] = '{
+  parameter logic [3:0] CONTROL_REGISTERS_PERMIT [26] = '{
     4'b 1111, // index[ 0] CONTROL_REGISTERS_EOC
     4'b 1111, // index[ 1] CONTROL_REGISTERS_WAKE_UP
     4'b 1111, // index[ 2] CONTROL_REGISTERS_WAKE_UP_TILE_0
@@ -175,19 +191,21 @@ package control_registers_reg_pkg;
     4'b 1111, // index[ 8] CONTROL_REGISTERS_WAKE_UP_TILE_6
     4'b 1111, // index[ 9] CONTROL_REGISTERS_WAKE_UP_TILE_7
     4'b 1111, // index[10] CONTROL_REGISTERS_WAKE_UP_GROUP
-    4'b 1111, // index[11] CONTROL_REGISTERS_TCDM_START_ADDRESS
-    4'b 1111, // index[12] CONTROL_REGISTERS_TCDM_END_ADDRESS
-    4'b 1111, // index[13] CONTROL_REGISTERS_NR_CORES_REG
-    4'b 1111, // index[14] CONTROL_REGISTERS_RO_CACHE_ENABLE
-    4'b 1111, // index[15] CONTROL_REGISTERS_RO_CACHE_FLUSH
-    4'b 1111, // index[16] CONTROL_REGISTERS_RO_CACHE_START_0
-    4'b 1111, // index[17] CONTROL_REGISTERS_RO_CACHE_START_1
-    4'b 1111, // index[18] CONTROL_REGISTERS_RO_CACHE_START_2
-    4'b 1111, // index[19] CONTROL_REGISTERS_RO_CACHE_START_3
-    4'b 1111, // index[20] CONTROL_REGISTERS_RO_CACHE_END_0
-    4'b 1111, // index[21] CONTROL_REGISTERS_RO_CACHE_END_1
-    4'b 1111, // index[22] CONTROL_REGISTERS_RO_CACHE_END_2
-    4'b 1111  // index[23] CONTROL_REGISTERS_RO_CACHE_END_3
+    4'b 1111, // index[11] CONTROL_REGISTERS_WAKE_UP_STRD
+    4'b 1111, // index[12] CONTROL_REGISTERS_WAKE_UP_OFFST
+    4'b 1111, // index[13] CONTROL_REGISTERS_TCDM_START_ADDRESS
+    4'b 1111, // index[14] CONTROL_REGISTERS_TCDM_END_ADDRESS
+    4'b 1111, // index[15] CONTROL_REGISTERS_NR_CORES_REG
+    4'b 1111, // index[16] CONTROL_REGISTERS_RO_CACHE_ENABLE
+    4'b 1111, // index[17] CONTROL_REGISTERS_RO_CACHE_FLUSH
+    4'b 1111, // index[18] CONTROL_REGISTERS_RO_CACHE_START_0
+    4'b 1111, // index[19] CONTROL_REGISTERS_RO_CACHE_START_1
+    4'b 1111, // index[20] CONTROL_REGISTERS_RO_CACHE_START_2
+    4'b 1111, // index[21] CONTROL_REGISTERS_RO_CACHE_START_3
+    4'b 1111, // index[22] CONTROL_REGISTERS_RO_CACHE_END_0
+    4'b 1111, // index[23] CONTROL_REGISTERS_RO_CACHE_END_1
+    4'b 1111, // index[24] CONTROL_REGISTERS_RO_CACHE_END_2
+    4'b 1111  // index[25] CONTROL_REGISTERS_RO_CACHE_END_3
   };
 
 endpackage

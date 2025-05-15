@@ -10,6 +10,14 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+#if NUM_CORES == (16)
+#define LOG2_NUM_CORES (4)
+#elif NUM_CORES == (256)
+#define LOG2_NUM_CORES (8)
+#elif NUM_CORES == (1024)
+#define LOG2_NUM_CORES (10)
+#endif
+
 uint32_t volatile barrier __attribute__((section(".l1")));
 uint32_t volatile log_barrier[NUM_CORES * 4]
     __attribute__((aligned(NUM_CORES * 4), section(".l1")));
@@ -33,6 +41,8 @@ void mempool_barrier_init(uint32_t core_id) {
   mempool_barrier(NUM_CORES);
 }
 
+/* PLAIN BARRIER */
+
 void mempool_barrier(uint32_t num_cores) {
   // Increment the barrier counter
   if ((num_cores - 1) == __atomic_fetch_add(&barrier, 1, __ATOMIC_RELAXED)) {
@@ -45,12 +55,28 @@ void mempool_barrier(uint32_t num_cores) {
   mempool_wfi();
 }
 
-void mempool_log_barrier(uint32_t step, uint32_t core_id) {
+void mempool_strided_barrier(uint32_t *barrier, uint32_t num_cores,
+                             uint32_t stride, uint32_t offset) {
 
+  // Increment the barrier counter
+  if ((num_cores - 1) == __atomic_fetch_add(barrier, 1, __ATOMIC_RELAXED)) {
+    __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
+    __sync_synchronize(); // Full memory barrier
+    set_wake_up_stride(stride);
+    set_wake_up_offset(offset);
+    wake_up_all();
+    set_wake_up_stride(1U);
+    set_wake_up_offset(0U);
+  }
+  mempool_wfi();
+}
+
+/* LOG BARRIER */
+
+void mempool_log_barrier(uint32_t step, uint32_t core_id) {
   uint32_t idx = (step * (core_id / step)) * 4;
   uint32_t next_step, previous_step;
   uint32_t num_cores = mempool_get_core_count();
-
   previous_step = step >> 1;
   if ((step - previous_step) ==
       __atomic_fetch_add(&log_barrier[idx + previous_step - 1], previous_step,
@@ -68,6 +94,98 @@ void mempool_log_barrier(uint32_t step, uint32_t core_id) {
   } else
     mempool_wfi();
 }
+
+void mempool_anyradixlog_barrier(uint32_t radix, uint32_t core_id) {
+  uint32_t num_cores = mempool_get_core_count();
+  uint32_t first_step = (LOG2_NUM_CORES % radix) == 0
+                            ? (1U << radix)
+                            : 1U << (LOG2_NUM_CORES % radix);
+  uint32_t step = 0, previous_step = 0;
+  // At first step you take care of the remainder
+  uint32_t idx = (first_step * (core_id / first_step)) * 4;
+  if ((first_step - 1) ==
+      __atomic_fetch_add(&log_barrier[idx], 1, __ATOMIC_RELAXED)) {
+    __atomic_store_n(&log_barrier[idx], 0, __ATOMIC_RELAXED);
+    num_cores /= first_step;
+    previous_step = first_step;
+    step = (first_step << radix);
+    // Following steps proceed with the radix chosen
+    while (num_cores > 1U) {
+      idx = (step * (core_id / step)) * 4;
+      if ((step - previous_step) ==
+          __atomic_fetch_add(&log_barrier[idx + previous_step - 1],
+                             previous_step, __ATOMIC_RELAXED)) {
+        __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
+                         __ATOMIC_RELAXED);
+        num_cores >>= radix;
+        previous_step = step;
+        step <<= radix;
+      } else {
+        break;
+      }
+    }
+    // Last core wakes-up everyone
+    if (num_cores == 1U) {
+      __sync_synchronize(); // Full memory barrier
+      wake_up_all();
+    }
+  }
+  mempool_wfi();
+}
+
+void mempool_linlog_barrier(uint32_t step, uint32_t core_id) {
+
+  uint32_t idx = (step * (core_id / step)) * 4;
+  uint32_t next_step, previous_step;
+  uint32_t num_cores = mempool_get_core_count();
+
+  previous_step = step >> 1;
+  if ((step - 1) == __atomic_fetch_add(&log_barrier[idx + previous_step - 1], 1,
+                                       __ATOMIC_RELAXED)) {
+    next_step = step << 1;
+    __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
+                     __ATOMIC_RELAXED);
+    if (num_cores == step) {
+      __sync_synchronize(); // Full memory barrier
+      wake_up_all();
+      mempool_wfi();
+    } else {
+      mempool_log_barrier(next_step, core_id);
+    }
+  } else
+    mempool_wfi();
+}
+
+void mempool_strided_log_barrier(uint32_t step, uint32_t core_id,
+                                 uint32_t stride, uint32_t offset) {
+
+  uint32_t idx = (step * (core_id / step)) * 4 + offset;
+  uint32_t next_step, previous_step;
+  uint32_t num_cores = mempool_get_core_count();
+
+  previous_step = step >> 1;
+  if ((step - previous_step) ==
+      __atomic_fetch_add(&log_barrier[idx + previous_step - 1], previous_step,
+                         __ATOMIC_RELAXED)) {
+    next_step = step << 1;
+    __atomic_store_n(&log_barrier[idx + previous_step - 1], 0,
+                     __ATOMIC_RELAXED);
+    if (num_cores == step) {
+      __sync_synchronize(); // Full memory barrier
+      set_wake_up_stride(stride);
+      set_wake_up_offset(offset);
+      wake_up_all();
+      set_wake_up_stride(1U);
+      set_wake_up_offset(0U);
+      mempool_wfi();
+    } else {
+      mempool_log_barrier(next_step, core_id);
+    }
+  } else
+    mempool_wfi();
+}
+
+/* PARTIAL BARRIER */
 
 void mempool_log_partial_barrier(uint32_t step, uint32_t core_id,
                                  uint32_t num_cores_barrier) {

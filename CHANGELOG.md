@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add cmatmul_f16 kernels
 - Add cfft_radix4_f16 kernels
 - Add chest_f16 kernels
+- Add Logk tree barrier and barrier with a fraction of linear and Log2 arrival
+- Add registers to wakeup cores with stride and offset
+- Add barrier with stride and offset
 
 ### Fixed
 - Measure the `wfi` stalls and stalls caused by `opc` properly
