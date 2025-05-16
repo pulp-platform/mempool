@@ -89,7 +89,7 @@ module tcdm_wide_narrow_mux #(
           burst: '0,
           be: slv_wide_req_i.be[i*NarrowBeWidth+:NarrowBeWidth],
           tgt_addr: slv_wide_req_i.tgt_addr,
-          ini_addr: '0
+          tile_id: '0
         };
         // Block access from narrow ports.
         slv_narrow_req_ready_o[i] = 1'b0;
