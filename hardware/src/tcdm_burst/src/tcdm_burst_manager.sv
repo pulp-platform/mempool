@@ -12,7 +12,7 @@
 /// and groups them according to the RspGF.
 
 module tcdm_burst_manager
-  import tcdm_burst_pkg::burst_t;
+  import tcdm_burst_pkg::*;
 #(
   parameter int unsigned NumIn  = 32, // number of initiator ports
   parameter int unsigned NumOut = 64, // number of destination ports
@@ -38,23 +38,25 @@ module tcdm_burst_manager
   input  burst_t [NumOut-1:0]                req_burst_i,
   input  logic   [NumOut-1:0]                req_valid_i,
   output logic   [NumOut-1:0]                req_ready_o,
-  output logic   [NumOut-1:0][NumInLog2-1:0] resp_ini_addr_o,
-  output logic   [NumOut-1:0][DataWidth-1:0] resp_rdata_o,
-  output burst_t [NumOut-1:0]                resp_burst_o,
-  output logic   [NumOut-1:0]                resp_valid_o,
-  input  logic   [NumOut-1:0]                resp_ready_i,
+  //
+  output logic         [NumOut-1:0][NumInLog2-1:0] resp_ini_addr_o,
+  output logic         [NumOut-1:0][DataWidth-1:0] resp_rdata_o,
+  output burst_t       [NumOut-1:0]                resp_burst_o,
+  output logic         [NumOut-1:0]                resp_valid_o,
+  input  logic         [NumOut-1:0]                resp_ready_i,
   /// Bank side
-  output logic [NumOut-1:0][NumInLog2-1:0]   req_ini_addr_o,
-  output logic [NumOut-1:0][AddrWidth-1:0]   req_tgt_addr_o,
-  output logic [NumOut-1:0][DataWidth-1:0]   req_wdata_o,
-  output logic [NumOut-1:0]                  req_wen_o,
-  output logic [NumOut-1:0][BeWidth-1:0]     req_ben_o,
-  output logic [NumOut-1:0]                  req_valid_o,
-  input  logic [NumOut-1:0]                  req_ready_i,
-  input  logic [NumOut-1:0][NumInLog2-1:0]   resp_ini_addr_i,
-  input  logic [NumOut-1:0][DataWidth-1:0]   resp_rdata_i,
-  input  logic [NumOut-1:0]                  resp_valid_i,
-  output logic [NumOut-1:0]                  resp_ready_o
+  output logic [NumOut-1:0][NumInLog2-1:0] req_ini_addr_o,
+  output logic [NumOut-1:0][AddrWidth-1:0] req_tgt_addr_o,
+  output logic [NumOut-1:0][DataWidth-1:0] req_wdata_o,
+  output logic [NumOut-1:0]                req_wen_o,
+  output logic [NumOut-1:0][BeWidth-1:0]   req_ben_o,
+  output logic [NumOut-1:0]                req_valid_o,
+  input  logic [NumOut-1:0]                req_ready_i,
+  //
+  input  logic [NumOut-1:0][NumInLog2-1:0] resp_ini_addr_i,
+  input  logic [NumOut-1:0][DataWidth-1:0] resp_rdata_i,
+  input  logic [NumOut-1:0]                resp_valid_i,
+  output logic [NumOut-1:0]                resp_ready_o
 );
   /*************************************************************
    * req_i --+--> arbiter --> fifo --> req generator --> req_o *
@@ -88,23 +90,17 @@ module tcdm_burst_manager
   arb_data_t                   postarb_data;
   logic                        postarb_valid, postarb_ready;
   logic      [NumOutLog2-1:0]  postarb_idx;
-
-  logic      [NumOut-1:0]  valid_mask;
   logic      [NumOut-1:0]  ready_mask;
-  logic      [NumOut-1:0]  not_ready_mask;
+  logic      [NumOut-1:0]  valid_mask;
 
   always_comb begin
     prearb_data    = '0;
     prearb_valid   = '0;
-    // If bypass, forward the valid and ready
-    valid_mask     = req_valid_i;
-    // To indicate which bank need to be ready for ack the burst request
     ready_mask     = '0;
-    not_ready_mask = '1;
+    valid_mask     = req_valid_i;
 
     for (int unsigned i = 0; i < NumOut; i++) begin
       if (req_valid_i[i] && req_burst_i[i].isburst) begin
-
         prearb_data[i].ini_addr = req_ini_addr_i[i];
         prearb_data[i].tgt_addr = req_tgt_addr_i[i];
         prearb_data[i].wdata = req_wdata_i[i];
@@ -112,15 +108,10 @@ module tcdm_burst_manager
         prearb_data[i].ben = req_ben_i[i];
         prearb_data[i].burst = req_burst_i[i];
         prearb_valid[i] = 1'b1;
-        // If burst, invalid this request to bank
-        valid_mask[i] = 1'b0;
-
+        valid_mask = 1'b0;
+        // Mark retired burst requests
         if (prearb_ready[i]) begin
-          // request is picked by arbiter and fifo, mark as accepted
           ready_mask[i]   = 1'b1;
-        end else begin
-          // This means this burst request is not picked yet, do not ack it
-          not_ready_mask[i]   = 1'b0;
         end
       end
     end
@@ -200,46 +191,36 @@ module tcdm_burst_manager
   } req_gen_fsm_e;
 
   // FSM state
-  req_gen_fsm_e  state_d, state_q;
+  req_gen_fsm_e state_d, state_q;
   // FSM stored signals
-  fifo_data_t     breq_d, breq_q;
+  fifo_data_t breq_d, breq_q;
 
   logic [NumOut-1:0] burst_mask_d, burst_mask_q;
-  logic [NumOut-1:0] burst_valid_mask, burst_ready_mask;
-
   // group mask used for response grouping
   logic [NumOut-1:0] group_mask;
   // indicate if there is pending response to be picked
   logic pending_rsp;
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    if(~rst_ni) begin
-      state_q      <= Idle;
-      breq_q       <= '0;
-      burst_mask_q <= '0;
-    end else begin
-      state_q      <= state_d;
-      breq_q       <= breq_d;
-      burst_mask_q <= burst_mask_d;
-    end
-  end
+  `FF(state_q, state_d, Idle, clk_i, rst_ni);
+  `FF(breq_q, breq_d, '0, clk_i, rst_ni);
+  `FF(burst_mask_q, burst_mask_d, '0, clk_i, rst_ni);
+  `FF(group_mask, burst_mask_q, '0, clk_i, rst_ni);
+
+  // Each element of a burst request must be retired to start request
+  assign req_ready_o = ready_mask | (req_ready_i & ~burst_mask_q);
 
   always_comb begin : request_generator
+
     // FSM defaults
-    state_d       = state_q;
-    breq_d        = breq_q;
+    state_d = state_q;
+    breq_d = breq_q;
     burst_mask_d  = burst_mask_q;
 
     // comb logic defaults
-    pending_rsp   = '0;
-    group_mask    = '0;
-
+    pending_rsp = '0;
     // Do not take in next burst for now
-    fifo_pop      = 1'b0;
+    fifo_pop = 1'b0;
 
-    // By default, bypass input ready and valid signals
-    burst_valid_mask = req_valid_i;
-    burst_ready_mask = req_ready_i;
     // Bypass all requests by default
     req_wdata_o = req_wdata_i;
     req_tgt_addr_o = req_tgt_addr_i;
@@ -247,18 +228,16 @@ module tcdm_burst_manager
     req_wen_o = req_wen_i;
     req_ben_o = req_ben_i;
 
-    // Bypass not-masked ready, stall all other ready
-    req_valid_o   = valid_mask & burst_valid_mask;
-    // By default, pass the ready signals
-    req_ready_o   = (ready_mask | burst_ready_mask) & not_ready_mask;
+    // Let valid requests not in burst pass
+    req_valid_o = valid_mask;
 
     case (state_q)
+
+      // Idle state, ready to take in burst request
       Idle: begin
-        // Idle state, ready to take in burst request
 
         // Clear mask (unlock banks)
         burst_mask_d  = '0;
-
         if (~fifo_empty) begin
           // there is pending burst request
           // start to handling the burst, mark as not ready
@@ -273,24 +252,14 @@ module tcdm_burst_manager
           state_d   = DoBurst;
         end
 
-        req_ready_o   = (ready_mask | burst_ready_mask) & not_ready_mask;
       end
 
       DoBurst: begin
-        // all masked ready bits need to be 1 -> all banks ready
-        // for influenced banks, marked as not ready
-        burst_ready_mask = req_ready_i & ~burst_mask_q;
 
-        // Check if there is pending responses among the affected banks
-        // If the valid is high, but ready is low, we need to wait
+        // If there is pending responses among the affected banks we wait
         pending_rsp = |((resp_valid_o & ~resp_ready_i) & burst_mask_q);
-        // only send out requests when
-        // 1. required banks are all ready
-        // 2. no pending responses among them
+        // Send out requests when 1. required banks are all ready 2. no pending responses
         if (&(req_ready_i | (~burst_mask_q)) & !pending_rsp) begin
-
-          req_valid_o = valid_mask;
-
           for (int unsigned i = 0; i < NumOut; i++) begin
             if (burst_mask_q[i]) begin
               req_wdata_o[i] = breq_q.wdata;
@@ -299,21 +268,14 @@ module tcdm_burst_manager
               // overwrite tgt_addr
               req_tgt_addr_o[i] = i + breq_q.tgt_addr - breq_q.idx;
               req_ini_addr_o[i] = i + breq_q.ini_addr - breq_q.idx;
-              // request valid, tie sent requests to 1
+              // Set the valid for burst requests
               req_valid_o[i] = 1'b1;
             end
           end
-          // Request sent
-          // Put the mask into FF, rsp should be avaiblable in next cycle
-          group_mask = (RspGF > 1) ? burst_mask_q : '0;
-          // Switch stae
+          // Switch state
           state_d = Idle;
-        end else begin
-          // We are waiting for banks to become ready, block the incoming requests
-          burst_valid_mask = ~burst_mask_q;
-          req_valid_o   = valid_mask & burst_valid_mask;
         end
-        req_ready_o   = (ready_mask | burst_ready_mask) & not_ready_mask;
+
       end
 
       default: state_d = Idle;
