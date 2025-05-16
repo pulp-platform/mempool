@@ -342,10 +342,13 @@ module mempool_tile
 
   // Bank metadata
   typedef struct packed {
-    local_req_interco_addr_t ini_addr;
     meta_id_t meta_id;
-    tile_group_id_t tile_id;
+    // Address initiator in the issuing Tile
     tile_core_id_t core_id;
+    // Addres initiator in the issuing Group
+    tile_group_id_t tile_id;
+    // Address initiator port in the destination Tile
+    local_req_interco_addr_t ini_addr;
     logic wide;
     burst_t burst;
   } bank_metadata_t;
@@ -401,6 +404,7 @@ module mempool_tile
     assign tcdm_dma_resp_valid_o = tcdm_dma_resp_valid;
     assign tcdm_dma_resp_ready = tcdm_dma_resp_ready_i;
   end else begin : gen_dma_interco
+    // From DMA request to Superbank request
     stream_xbar #(
       .NumInp   (1             ),
       .NumOut   (NumSuperbanks ),
@@ -422,7 +426,7 @@ module mempool_tile
       .ready_i(tcdm_dma_req_ready                                     ),
       .idx_o  (/* Unused */                                           )
     );
-
+    // From Superbank response to DMA response
     stream_xbar #(
       .NumInp   (NumSuperbanks  ),
       .NumOut   (1              ),
@@ -622,13 +626,13 @@ module mempool_tile
       ini_addr  : bank_req_ini_addr[b],
       meta_id   : bank_req_payload[b].wdata.meta_id,
       core_id   : bank_req_payload[b].wdata.core_id,
-      tile_id   : bank_req_payload[b].ini_addr,
+      tile_id   : bank_req_payload[b].tile_id,
       wide      : bank_req_wide[b],
       burst     : bank_req_payload[b].burst
     };
     assign bank_resp_ini_addr[b]              = meta_out.ini_addr;
     assign bank_resp_payload[b].rdata.meta_id = meta_out.meta_id;
-    assign bank_resp_payload[b].ini_addr      = meta_out.tile_id;
+    assign bank_resp_payload[b].tile_id      = meta_out.tile_id;
     assign bank_resp_payload[b].rdata.core_id = meta_out.core_id;
     assign bank_resp_payload[b].rdata.amo     = '0; // Don't care
     assign bank_resp_wide[b]                  = meta_out.wide;
@@ -935,7 +939,7 @@ module mempool_tile
 
     // We don't care about these
     assign local_req_interco_payload[c].wdata.core_id = '0;
-    assign local_req_interco_payload[c].ini_addr      = '0;
+    assign local_req_interco_payload[c].tile_id       = '0;
     assign soc_data_q[c].id                           = '0;
     // Remove tile index from local_req_tgt_address_i, since it will not be used for routing.
     assign local_req_presliced_row_addr = local_req_presliced_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth];
