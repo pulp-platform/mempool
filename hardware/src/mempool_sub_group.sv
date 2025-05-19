@@ -8,6 +8,7 @@
 
 module mempool_sub_group
   import mempool_pkg::*;
+  import tcdm_burst_pkg::*;
   import cf_math_pkg::idx_width;
 #(
   // TCDM
@@ -288,9 +289,11 @@ module mempool_sub_group
   logic               [NumTilesPerSubGroup-1:0] master_local_req_wen;
   tcdm_payload_t      [NumTilesPerSubGroup-1:0] master_local_req_wdata;
   strb_t              [NumTilesPerSubGroup-1:0] master_local_req_be;
+  burst_t             [NumTilesPerSubGroup-1:0] master_local_req_burst;
   logic               [NumTilesPerSubGroup-1:0] master_local_resp_valid;
   logic               [NumTilesPerSubGroup-1:0] master_local_resp_ready;
   tcdm_payload_t      [NumTilesPerSubGroup-1:0] master_local_resp_rdata;
+  burst_gresp_t       [NumTilesPerSubGroup-1:0] master_local_resp_burst;
   logic               [NumTilesPerSubGroup-1:0] slave_local_req_valid;
   logic               [NumTilesPerSubGroup-1:0] slave_local_req_ready;
   tile_addr_t         [NumTilesPerSubGroup-1:0] slave_local_req_tgt_addr;
@@ -298,10 +301,12 @@ module mempool_sub_group
   logic               [NumTilesPerSubGroup-1:0] slave_local_req_wen;
   tcdm_payload_t      [NumTilesPerSubGroup-1:0] slave_local_req_wdata;
   strb_t              [NumTilesPerSubGroup-1:0] slave_local_req_be;
+  burst_t             [NumTilesPerSubGroup-1:0] slave_local_req_burst;
   logic               [NumTilesPerSubGroup-1:0] slave_local_resp_valid;
   logic               [NumTilesPerSubGroup-1:0] slave_local_resp_ready;
   tile_sub_group_id_t [NumTilesPerSubGroup-1:0] slave_local_resp_tile_id;
   tcdm_payload_t      [NumTilesPerSubGroup-1:0] slave_local_resp_rdata;
+  burst_gresp_t       [NumTilesPerSubGroup-1:0] slave_local_resp_burst;
 
   for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_local_connections_t
     assign master_local_req_valid[t]        = tcdm_sg_master_req_valid[0][t];
@@ -309,13 +314,16 @@ module mempool_sub_group
     assign master_local_req_wen[t]          = tcdm_sg_master_req[0][t].wen;
     assign master_local_req_wdata[t]        = tcdm_sg_master_req[0][t].wdata;
     assign master_local_req_be[t]           = tcdm_sg_master_req[0][t].be;
+    assign master_local_req_burst[t]        = tcdm_sg_master_req[0][t].burst;
     assign tcdm_sg_master_req_ready[0][t]   = master_local_req_ready[t];
     assign slave_local_resp_valid[t]        = tcdm_sg_slave_resp_valid[0][t];
     assign slave_local_resp_tile_id[t]      = tcdm_sg_slave_resp[0][t].tile_id;
     assign slave_local_resp_rdata[t]        = tcdm_sg_slave_resp[0][t].rdata;
+    assign slave_local_resp_burst[t]        = tcdm_sg_slave_resp[0][t].burst;
     assign tcdm_sg_slave_resp_ready[0][t]   = slave_local_resp_ready[t];
     assign tcdm_sg_master_resp_valid[0][t]  = master_local_resp_valid[t];
     assign tcdm_sg_master_resp[0][t].rdata  = master_local_resp_rdata[t];
+    assign tcdm_sg_master_resp[0][t].burst  = master_local_resp_burst[t];
     assign master_local_resp_ready[t]       = tcdm_sg_master_resp_ready[0][t];
     assign tcdm_sg_slave_req_valid[0][t]    = slave_local_req_valid[t];
     assign tcdm_sg_slave_req[0][t].tgt_addr = slave_local_req_tgt_addr[t];
@@ -323,6 +331,7 @@ module mempool_sub_group
     assign tcdm_sg_slave_req[0][t].wen      = slave_local_req_wen[t];
     assign tcdm_sg_slave_req[0][t].wdata    = slave_local_req_wdata[t];
     assign tcdm_sg_slave_req[0][t].be       = slave_local_req_be[t];
+    assign tcdm_sg_slave_req[0][t].burst    = slave_local_req_burst[t];
     assign slave_local_req_ready[t]         = tcdm_sg_slave_req_ready[0][t];
   end: gen_local_connections_t
 
@@ -333,6 +342,7 @@ module mempool_sub_group
     .DataWidth        ($bits(tcdm_payload_t)                        ),
     .BeWidth          (DataWidth/8                                  ),
     .ByteOffWidth     (0                                            ),
+    .BurstWidth       ($bits(burst_t     )                          ),
     .AddrMemWidth     (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
     .Topology         (tcdm_interconnect_pkg::LIC                   ),
     // The local interconnect needs no extra spill registers
@@ -348,19 +358,23 @@ module mempool_sub_group
     .req_wen_i      (master_local_req_wen     ),
     .req_wdata_i    (master_local_req_wdata   ),
     .req_be_i       (master_local_req_be      ),
+    .req_burst_i    (master_local_req_burst   ),
     .resp_valid_o   (master_local_resp_valid  ),
     .resp_ready_i   (master_local_resp_ready  ),
     .resp_rdata_o   (master_local_resp_rdata  ),
-    .resp_ini_addr_i(slave_local_resp_tile_id),
+    .resp_burst_o   (master_local_resp_burst  ),
+    .resp_ini_addr_i(slave_local_resp_tile_id ),
     .resp_rdata_i   (slave_local_resp_rdata   ),
+    .resp_burst_i   (slave_local_resp_burst   ),
     .resp_valid_i   (slave_local_resp_valid   ),
     .resp_ready_o   (slave_local_resp_ready   ),
     .req_valid_o    (slave_local_req_valid    ),
     .req_ready_i    (slave_local_req_ready    ),
     .req_be_o       (slave_local_req_be       ),
+    .req_burst_o    (slave_local_req_burst    ),
     .req_wdata_o    (slave_local_req_wdata    ),
     .req_wen_o      (slave_local_req_wen      ),
-    .req_ini_addr_o (slave_local_req_tile_id ),
+    .req_ini_addr_o (slave_local_req_tile_id  ),
     .req_tgt_addr_o (slave_local_req_tgt_addr )
   );
 
@@ -375,9 +389,11 @@ module mempool_sub_group
     logic               [NumTilesPerSubGroup-1:0] master_remote_req_wen;
     tcdm_payload_t      [NumTilesPerSubGroup-1:0] master_remote_req_wdata;
     strb_t              [NumTilesPerSubGroup-1:0] master_remote_req_be;
+    burst_t             [NumTilesPerSubGroup-1:0] master_remote_req_burst;
     logic               [NumTilesPerSubGroup-1:0] master_remote_resp_valid;
     logic               [NumTilesPerSubGroup-1:0] master_remote_resp_ready;
     tcdm_payload_t      [NumTilesPerSubGroup-1:0] master_remote_resp_rdata;
+    burst_gresp_t       [NumTilesPerSubGroup-1:0] master_remote_resp_burst;
     logic               [NumTilesPerSubGroup-1:0] slave_remote_req_valid;
     logic               [NumTilesPerSubGroup-1:0] slave_remote_req_ready;
     tile_addr_t         [NumTilesPerSubGroup-1:0] slave_remote_req_tgt_addr;
@@ -385,10 +401,12 @@ module mempool_sub_group
     logic               [NumTilesPerSubGroup-1:0] slave_remote_req_wen;
     tcdm_payload_t      [NumTilesPerSubGroup-1:0] slave_remote_req_wdata;
     strb_t              [NumTilesPerSubGroup-1:0] slave_remote_req_be;
+    burst_t             [NumTilesPerSubGroup-1:0] slave_remote_req_burst;
     logic               [NumTilesPerSubGroup-1:0] slave_remote_resp_valid;
     logic               [NumTilesPerSubGroup-1:0] slave_remote_resp_ready;
     tile_sub_group_id_t [NumTilesPerSubGroup-1:0] slave_remote_resp_tile_id;
     tcdm_payload_t      [NumTilesPerSubGroup-1:0] slave_remote_resp_rdata;
+    burst_gresp_t       [NumTilesPerSubGroup-1:0] slave_remote_resp_burst;
 
     for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_remote_connections_t
       assign master_remote_req_valid[t]          = tcdm_sg_master_req_valid[r][t];
@@ -396,6 +414,7 @@ module mempool_sub_group
       assign master_remote_req_wen[t]            = tcdm_sg_master_req[r][t].wen;
       assign master_remote_req_wdata[t]          = tcdm_sg_master_req[r][t].wdata;
       assign master_remote_req_be[t]             = tcdm_sg_master_req[r][t].be;
+      assign master_remote_req_burst[t]          = tcdm_sg_master_req[r][t].burst;
       assign tcdm_sg_master_req_ready[r][t]      = master_remote_req_ready[t];
       assign tcdm_sg_master_req_valid_o[r][t]    = slave_remote_req_valid[t];
       assign tcdm_sg_master_req_s[r][t].tgt_addr = slave_remote_req_tgt_addr[t];
@@ -403,13 +422,16 @@ module mempool_sub_group
       assign tcdm_sg_master_req_s[r][t].wen      = slave_remote_req_wen[t];
       assign tcdm_sg_master_req_s[r][t].wdata    = slave_remote_req_wdata[t];
       assign tcdm_sg_master_req_s[r][t].be       = slave_remote_req_be[t];
+      assign tcdm_sg_master_req_s[r][t].burst    = slave_remote_req_burst[t];
       assign slave_remote_req_ready[t]           = tcdm_sg_master_req_ready_i[r][t];
       assign slave_remote_resp_valid[t]          = tcdm_sg_slave_resp_valid[r][t];
       assign slave_remote_resp_tile_id[t]        = tcdm_sg_slave_resp[r][t].tile_id;
       assign slave_remote_resp_rdata[t]          = tcdm_sg_slave_resp[r][t].rdata;
+      assign slave_remote_resp_burst[t]          = tcdm_sg_slave_resp[r][t].burst;
       assign tcdm_sg_slave_resp_ready[r][t]      = slave_remote_resp_ready[t];
       assign tcdm_sg_slave_resp_valid_o[r][t]    = master_remote_resp_valid[t];
       assign tcdm_sg_slave_resp_s[r][t].rdata    = master_remote_resp_rdata[t];
+      assign tcdm_sg_slave_resp_s[r][t].burst    = master_remote_resp_burst[t];
       assign master_remote_resp_ready[t]         = tcdm_sg_slave_resp_ready_i[r][t];
     end: gen_remote_connections_t
 
@@ -419,6 +441,7 @@ module mempool_sub_group
       .AddrWidth          (TCDMAddrWidth                                ),
       .DataWidth          ($bits(tcdm_payload_t)                        ),
       .BeWidth            (DataWidth/8                                  ),
+      .BurstWidth         ($bits(burst_t     )                          ),
       .ByteOffWidth       (0                                            ),
       .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
       .Topology           (tcdm_interconnect_pkg::LIC                   ),
@@ -435,19 +458,23 @@ module mempool_sub_group
       .req_wen_i      (master_remote_req_wen     ),
       .req_wdata_i    (master_remote_req_wdata   ),
       .req_be_i       (master_remote_req_be      ),
+      .req_burst_i    (master_remote_req_burst   ),
       .resp_valid_o   (master_remote_resp_valid  ),
       .resp_ready_i   (master_remote_resp_ready  ),
       .resp_rdata_o   (master_remote_resp_rdata  ),
-      .resp_ini_addr_i(slave_remote_resp_tile_id),
+      .resp_burst_o   (master_remote_resp_burst  ),
+      .resp_ini_addr_i(slave_remote_resp_tile_id ),
       .resp_rdata_i   (slave_remote_resp_rdata   ),
+      .resp_burst_i   (slave_remote_resp_burst   ),
       .resp_valid_i   (slave_remote_resp_valid   ),
       .resp_ready_o   (slave_remote_resp_ready   ),
       .req_valid_o    (slave_remote_req_valid    ),
       .req_ready_i    (slave_remote_req_ready    ),
       .req_be_o       (slave_remote_req_be       ),
       .req_wdata_o    (slave_remote_req_wdata    ),
+      .req_burst_o    (slave_remote_req_burst    ),
       .req_wen_o      (slave_remote_req_wen      ),
-      .req_ini_addr_o (slave_remote_req_tile_id ),
+      .req_ini_addr_o (slave_remote_req_tile_id  ),
       .req_tgt_addr_o (slave_remote_req_tgt_addr )
     );
 

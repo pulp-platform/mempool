@@ -25,7 +25,10 @@ module tcdm_burst_manager
   // Group Response Extension Grouping Factor for TCDM
   parameter int unsigned  RspGF = 1,
   // Dependant parameters. DO NOT CHANGE!
-  parameter int unsigned NumInLog2 = (NumIn == 1) ? 1 : $clog2(NumIn)
+  parameter int unsigned NumInLog2 = (NumIn == 1) ? 1 : $clog2(NumIn),
+  // Burst response type can be overwritten for DataWidth > 32b
+  // This can happen when the DataWidth includes transaction metadata
+  parameter type burst_resp_t = tcdm_burst_pkg::burst_gresp_t
 ) (
   input  logic clk_i,
   input  logic rst_ni,
@@ -41,7 +44,7 @@ module tcdm_burst_manager
   //
   output logic         [NumOut-1:0][NumInLog2-1:0] resp_ini_addr_o,
   output logic         [NumOut-1:0][DataWidth-1:0] resp_rdata_o,
-  output burst_t       [NumOut-1:0]                resp_burst_o,
+  output burst_resp_t  [NumOut-1:0]                resp_burst_o,
   output logic         [NumOut-1:0]                resp_valid_o,
   input  logic         [NumOut-1:0]                resp_ready_i,
   /// Bank side
@@ -68,9 +71,6 @@ module tcdm_burst_manager
   `include "common_cells/registers.svh"
 
   localparam int unsigned NumOutLog2 = (NumOut > 32'd1) ? unsigned'($clog2(NumOut)) : 32'd1;
-
-  // Number of groups we will check for grouping rsp
-  localparam int unsigned NumGroup = (RspGF <= 1) ? 0 : NumOut/RspGF;
 
   /******************
    * Burst Identify *
@@ -197,14 +197,15 @@ module tcdm_burst_manager
 
   logic [NumOut-1:0] burst_mask_d, burst_mask_q;
   // group mask used for response grouping
-  logic [NumOut-1:0] group_mask;
+  logic [NumOut-1:0] group_mask_d, group_mask_q;
+
   // indicate if there is pending response to be picked
   logic pending_rsp;
 
   `FF(state_q, state_d, Idle, clk_i, rst_ni);
   `FF(breq_q, breq_d, '0, clk_i, rst_ni);
   `FF(burst_mask_q, burst_mask_d, '0, clk_i, rst_ni);
-  `FF(group_mask, burst_mask_q, '0, clk_i, rst_ni);
+  `FF(group_mask_q, group_mask_d, '0, clk_i, rst_ni);
 
   // Each element of a burst request must be retired to start request
   assign req_ready_o = ready_mask | (req_ready_i & ~burst_mask_q);
@@ -295,28 +296,59 @@ module tcdm_burst_manager
     assign resp_burst_o = '0;
 
   end else begin : gen_grouper
-//    for (genvar i = 0; i < NumGroup; i ++) begin : gen_data_grouper
-//      data_grouper #(
-//        .RspGF          ( RspGF         ),
-//        .addr_t         ( addr_t        ),
-//        .rsp_payload_t  ( rsp_payload_t )
-//      ) i_data_grouper (
-//        .clk_i          ( clk_i                          ),
-//        .rst_ni         ( rst_ni                         ),
-//        // Only group the response if all response can be grouped
-//        .group_i        ( &group_mask   [i*RspGF+:RspGF] ),
-//        .rsp_payload_o  ( rsp_payload_o [i*RspGF+:RspGF] ),
-//        .rsp_addr_o     ( rsp_addr_o    [i*RspGF+:RspGF] ),
-//        .rsp_wide_o     ( rsp_wide_o    [i*RspGF+:RspGF] ),
-//        .rsp_valid_o    ( rsp_valid_o   [i*RspGF+:RspGF] ),
-//        .rsp_ready_i    ( rsp_ready_i   [i*RspGF+:RspGF] ),
-//        .rsp_payload_i  ( rsp_payload_i [i*RspGF+:RspGF] ),
-//        .rsp_addr_i     ( rsp_addr_i    [i*RspGF+:RspGF] ),
-//        .rsp_wide_i     ( rsp_wide_i    [i*RspGF+:RspGF] ),
-//        .rsp_valid_i    ( rsp_valid_i   [i*RspGF+:RspGF] ),
-//        .rsp_ready_o    ( rsp_ready_o   [i*RspGF+:RspGF] )
-//      );
-//    end
+
+    // Number of groups we will check for grouping rsp
+    localparam int unsigned NumGroup = RspGF > 0 ? NumOut >> $clog2(RspGF) : NumOut;
+
+    logic         [NumOut-1:0][NumInLog2-1:0] grouped_resp_ini_addr;
+    logic         [NumOut-1:0][DataWidth-1:0] grouped_resp_rdata;
+    burst_resp_t  [NumOut-1:0]                grouped_resp_burst;
+    logic         [NumOut-1:0]                grouped_resp_valid;
+    logic         [NumOut-1:0]                grouped_resp_ready;
+
+    for (genvar i = 0; i < NumGroup; i ++) begin : gen_data_grouper
+      tcdm_burst_rsp_grouper #(
+        .NumIn        ( NumIn        ),
+        .NumOut       ( NumOut       ),
+        .DataWidth    ( DataWidth    ),
+        .RspGF        ( RspGF        ),
+        .burst_resp_t ( burst_resp_t )
+      ) i_tcdm_burst_rsp_grouper (
+        .clk_i  (clk_i  ),
+        .rst_ni (rst_ni ),
+        /// Bank side
+        .resp_ini_addr_i (resp_ini_addr_i[i*RspGF+:RspGF]       ),
+        .resp_rdata_i    (resp_rdata_i[i*RspGF+:RspGF]          ),
+        .resp_valid_i    (resp_valid_i[i*RspGF+:RspGF]          ),
+        .resp_ready_o    (grouped_resp_ready[i*RspGF+:RspGF]    ),
+        /// Xbar side
+        .resp_ini_addr_o (grouped_resp_ini_addr[i*RspGF+:RspGF] ),
+        .resp_rdata_o    (grouped_resp_rdata[i*RspGF+:RspGF]    ),
+        .resp_burst_o    (grouped_resp_burst[i*RspGF+:RspGF]    ),
+        .resp_valid_o    (grouped_resp_valid[i*RspGF+:RspGF]    ),
+        .resp_ready_i    (resp_ready_i[i*RspGF+:RspGF]          )
+      );
+    end
+
+    always_comb begin
+      for (int i = 0; i < NumGroup; i ++) begin
+        if (state_q == DoBurst) begin
+          group_mask_d[i*RspGF+:RspGF] = {RspGF{&burst_mask_q[i*RspGF+:RspGF]}};
+        end else if (resp_ready_i[i*RspGF]) begin
+          group_mask_d[i*RspGF+:RspGF] = '0;
+        end else begin
+          group_mask_d[i*RspGF+:RspGF] = group_mask_q[i*RspGF+:RspGF];
+        end
+      end
+    end
+
+    for (genvar i = 0; i < NumOut; i++) begin
+      assign resp_ini_addr_o[i] = group_mask_q[i] ? (i % RspGF == 0 ? grouped_resp_ini_addr[i] : '0) : resp_ini_addr_i[i];
+      assign resp_rdata_o[i] = group_mask_q[i] ? (i % RspGF == 0 ? grouped_resp_rdata[i] : '0) : resp_rdata_i[i];
+      assign resp_burst_o[i] = group_mask_q[i] ? (i % RspGF == 0 ? grouped_resp_burst[i] : '0) : '0;
+      assign resp_valid_o[i] = group_mask_q[i] ? (i % RspGF == 0 ? grouped_resp_valid[i] : '0) : resp_valid_i[i];
+      assign resp_ready_o[i] = group_mask_q[i] ? grouped_resp_ready[RspGF*(i/RspGF)] : resp_ready_i[i];
+    end
   end
 
   /******************
