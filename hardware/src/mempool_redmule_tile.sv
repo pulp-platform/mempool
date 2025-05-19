@@ -471,6 +471,8 @@ module mempool_redmule_tile
       logic wide;
     } manager_payload_t;
 
+    typedef manager_payload_t[RspGF-2:0] burst_manager_t;
+
     manager_payload_t [NumBanksPerTile-1:0]                  premanager_req, postmanager_req;
     tile_core_id_t    [NumBanksPerTile-1:0]                  premanager_req_ini, postmanager_req_ini;
     tile_addr_t       [NumBanksPerTile-1:0]                  premanager_req_tgt, postmanager_req_tgt;
@@ -478,7 +480,8 @@ module mempool_redmule_tile
     tile_core_id_t    [NumBanksPerTile-1:0]                  premanager_resp_ini, postmanager_resp_ini;
     logic             [NumBanksPerTile-1:0]                  premanager_we, postmanager_we;
     logic             [NumBanksPerTile-1:0][DataWidth/8-1:0] premanager_be, postmanager_be;
-    burst_t           [NumBanksPerTile-1:0]                  premanager_req_burst, premanager_resp_burst;
+    burst_t           [NumBanksPerTile-1:0]                  premanager_req_burst;
+    burst_manager_t   [NumBanksPerTile-1:0]                  premanager_resp_burst;
 
     // Connecting to burst manager
     tcdm_burst_manager #(
@@ -488,7 +491,8 @@ module mempool_redmule_tile
       .DataWidth      ( $bits(manager_payload_t)                      ),
       .BeWidth        ( DataWidth/8                                   ),
       .ByteOffWidth   ( 0                                             ),
-      .RspGF          ( 1'b1                                          )
+      .RspGF          ( RspGF                                         ),
+      .burst_resp_t   ( burst_manager_t                               )
     ) i_burst_manager (
       .clk_i          ( clk_i  ),
       .rst_ni         ( rst_ni ),
@@ -555,9 +559,11 @@ module mempool_redmule_tile
       assign prebank_resp_payload[b].rdata.amo = premanager_resp[b].amo;
       assign prebank_resp_payload[b].rdata.data = premanager_resp[b].data;
       assign prebank_resp_payload[b].tile_id = premanager_resp[b].tile_id;
-      assign prebank_resp_payload[b].burst = premanager_resp_burst[b];
       assign prebank_resp_ini_addr[b] = premanager_resp[b].ini_addr;
       assign prebank_resp_wide[b] = premanager_resp[b].wide;
+      for (genvar j = 0; j < RspGF-1; j++) begin
+        assign prebank_resp_payload[b].burst = (RspGF > 1) ? premanager_resp_burst[b][j].data : '0;
+      end
 
       // Postmanager responses
       assign postmanager_resp[b].meta_id = bank_resp_payload[b].rdata.meta_id;
@@ -898,8 +904,8 @@ module mempool_redmule_tile
   logic  [RMMasterPorts-1:0] redmule_tcdm_req_valid;
   logic  [RMMasterPorts-1:0] redmule_tcdm_req_ready;
   // Signals to synchronize redmule requests
-  logic [RMMasterPorts-1:0] redmule_req_pactivate, redmule_req_qactivate;
-  logic                     redmule_resp_phandshake, redmule_resp_qhandshake;
+  logic  [RMMasterPorts-1:0] redmule_req_pactivate, redmule_req_qactivate;
+  logic                      redmule_resp_phandshake, redmule_resp_qhandshake;
 
   dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
   logic   [RMMasterPorts-1:0] redmule_tcdm_resp_valid;
@@ -910,12 +916,16 @@ module mempool_redmule_tile
 
   // Burst requests/responses
   tcdm_payload_t [RMMasterPorts-1:0] remote_req_preburst_payload, remote_req_postburst_payload;
-  logic [RMMasterPorts-1:0] remote_req_preburst_wen, remote_req_postburst_we;
-  strb_t [RMMasterPorts-1:0] remote_req_preburst_be, remote_req_postburst_be;
-  addr_t [RMMasterPorts-1:0] remote_req_preburst_addr, remote_req_postburst_addr;
-  logic [RMMasterPorts-1:0] remote_req_preburst_valid, remote_req_postburst_valid;
-  logic [RMMasterPorts-1:0] remote_req_preburst_ready, remote_req_postburst_ready;
-  burst_t [RMMasterPorts-1:0] remote_req_postburst_burst;
+  logic          [RMMasterPorts-1:0] remote_req_preburst_wen, remote_req_postburst_we;
+  strb_t         [RMMasterPorts-1:0] remote_req_preburst_be, remote_req_postburst_be;
+  addr_t         [RMMasterPorts-1:0] remote_req_preburst_addr, remote_req_postburst_addr;
+  logic          [RMMasterPorts-1:0] remote_req_preburst_valid, remote_req_postburst_valid;
+  logic          [RMMasterPorts-1:0] remote_req_preburst_ready, remote_req_postburst_ready;
+  burst_t        [RMMasterPorts-1:0] remote_req_postburst_burst;
+  //
+  tcdm_payload_t [RMMasterPorts-1:0] remote_resp_preburst_payload, remote_resp_postburst_payload;
+  logic          [RMMasterPorts-1:0] remote_resp_preburst_valid, remote_resp_preburst_ready;
+  burst_gresp_t  [RMMasterPorts-1:0] remote_resp_postburst_burst;
 
   // RedMulE handshake occurs when all the memory ports receive a valid response.
   // We then send RedMulE a grant for the request transactions posted on the interconnect.
@@ -1009,8 +1019,8 @@ module mempool_redmule_tile
       .req_valid_o   ({local_req_interco_valid[c+1], remote_req_preburst_valid[c]}),
       .req_ready_i   ({local_req_interco_ready[c+1], remote_req_preburst_ready[c]}),
       .resp_payload_i({local_tcdm_resp, remote_tcdm_resp}),
-      .resp_valid_i  ({local_resp_interco_valid[c+1], remote_resp_interco_valid[c+1]}),
-      .resp_ready_o  ({local_resp_interco_ready[c+1], remote_resp_interco_ready[c+1]}),
+      .resp_valid_i  ({local_resp_interco_valid[c+1], remote_resp_preburst_valid[c]}),
+      .resp_ready_o  ({local_resp_interco_ready[c+1], remote_resp_preburst_ready[c]}),
       .address_map_i (mask_map[1:0])
     );
 
@@ -1056,16 +1066,9 @@ module mempool_redmule_tile
     assign remote_req_preburst_payload[c].data = remote_tcdm_req.data;
     localparam unsigned port_id = c+1;
     assign remote_req_preburst_payload[c].core_id = port_id[idx_width(RMMasterPorts+1)-1:0];
-
     assign remote_req_preburst_wen[c] = remote_tcdm_req.write;
     assign remote_req_preburst_be[c] = remote_tcdm_req.strb;
     assign remote_req_preburst_addr[c] = remote_tcdm_req.addr;
-
-    // Remote response
-    assign remote_tcdm_resp.id = remote_resp_interco[c+1].rdata.meta_id;
-    assign remote_tcdm_resp.data = remote_resp_interco[c+1].rdata.data;
-    assign remote_tcdm_resp.write = 1'b0; // Don't care
-    assign remote_tcdm_resp.error = 1'b0; // Don't care
     // Remote request post burst
     assign remote_req_interco[c+1].wdata = remote_req_postburst_payload[c];
     assign remote_req_interco[c+1].wen = remote_req_postburst_we[c];
@@ -1073,6 +1076,15 @@ module mempool_redmule_tile
     assign remote_req_interco[c+1].burst = remote_req_postburst_burst[c];
     assign remote_req_interco_valid[c+1] = remote_req_postburst_valid[c];
     assign remote_req_postburst_ready[c] = remote_req_interco_ready[c+1];
+
+    // Remote response
+    assign remote_tcdm_resp.id = remote_resp_preburst_payload[c].meta_id;
+    assign remote_tcdm_resp.data = remote_resp_preburst_payload[c].data;
+    assign remote_tcdm_resp.write = 1'b0; // Don't care
+    assign remote_tcdm_resp.error = 1'b0; // Don't care
+    // Remote response post burst
+    assign remote_resp_postburst_payload[c] = remote_resp_interco[c+1].rdata;
+    assign remote_resp_postburst_burst[c] = remote_resp_interco[c+1].burst;
 
   end
 
@@ -1087,6 +1099,7 @@ module mempool_redmule_tile
      .DataWidth    ( $bits(tcdm_payload_t)                   ),
      .BeWidth      ( DataWidth/8                             ),
      .AddrMemWidth ( idx_width(NumBanksPerTile) + ByteOffset ),
+     .RspGF        ( RspGF                                   ),
      .ByteOffWidth ( ByteOffset                              )
    ) i_tcdm_burst_req_grouper (
      .clk_i,
@@ -1105,7 +1118,18 @@ module mempool_redmule_tile
      .req_be_o       ( remote_req_postburst_be      ),
      .req_burst_o    ( remote_req_postburst_burst   ),
      .req_valid_o    ( remote_req_postburst_valid   ),
-     .req_ready_i    ( remote_req_postburst_ready   )
+     .req_ready_i    ( remote_req_postburst_ready   ),
+     // Response out
+     .resp_ini_addr_o ( /* Unused */                ),
+     .resp_rdata_o    (remote_resp_preburst_payload ),
+     .resp_valid_o    (remote_resp_preburst_valid   ),
+     .resp_ready_i    (remote_resp_preburst_ready   ),
+     // Response in
+     .resp_ini_addr_i ( /* Unused */                               ),
+     .resp_rdata_i    (remote_resp_postburst_payload               ),
+     .resp_burst_i    (remote_resp_postburst_burst                 ),
+     .resp_valid_i    (remote_resp_interco_valid[RMMasterPorts:1]),
+     .resp_ready_o    (remote_resp_interco_ready[RMMasterPorts:1])
    );
 
   /************************

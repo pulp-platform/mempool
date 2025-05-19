@@ -498,6 +498,8 @@ module mempool_tile
       logic wide;
     } manager_payload_t;
 
+    typedef manager_payload_t[RspGF-1:0] burst_manager_t;
+
     manager_payload_t [NumBanksPerTile-1:0]                  premanager_req, postmanager_req;
     tile_core_id_t    [NumBanksPerTile-1:0]                  premanager_req_ini, postmanager_req_ini;
     tile_addr_t       [NumBanksPerTile-1:0]                  premanager_req_tgt, postmanager_req_tgt;
@@ -505,7 +507,8 @@ module mempool_tile
     tile_core_id_t    [NumBanksPerTile-1:0]                  premanager_resp_ini, postmanager_resp_ini;
     logic             [NumBanksPerTile-1:0]                  premanager_we, postmanager_we;
     logic             [NumBanksPerTile-1:0][DataWidth/8-1:0] premanager_be, postmanager_be;
-    burst_t           [NumBanksPerTile-1:0]                  premanager_req_burst, premanager_resp_burst;
+    burst_t           [NumBanksPerTile-1:0]                  premanager_req_burst;
+    burst_manager_t   [NumBanksPerTile-1:0]                  premanager_resp_burst;
 
     // Connecting to burst manager
     tcdm_burst_manager #(
@@ -515,7 +518,8 @@ module mempool_tile
       .DataWidth      ( $bits(manager_payload_t)                      ),
       .BeWidth        ( DataWidth/8                                   ),
       .ByteOffWidth   ( 0                                             ),
-      .RspGF          ( 1'b1                                          )
+      .RspGF          ( RspGF                                         ),
+      .burst_resp_t   ( burst_manager_t                               )
     ) i_burst_manager (
       .clk_i          ( clk_i  ),
       .rst_ni         ( rst_ni ),
@@ -582,9 +586,11 @@ module mempool_tile
       assign prebank_resp_payload[b].rdata.amo = premanager_resp[b].amo;
       assign prebank_resp_payload[b].rdata.data = premanager_resp[b].data;
       assign prebank_resp_payload[b].tile_id = premanager_resp[b].tile_id;
-      assign prebank_resp_payload[b].burst = premanager_resp_burst[b];
       assign prebank_resp_ini_addr[b] = premanager_resp[b].ini_addr;
       assign prebank_resp_wide[b] = premanager_resp[b].wide;
+      for (genvar j = 0; j < RspGF-1; j++) begin
+        assign prebank_resp_payload[b].burst = (RspGF > 1) ? premanager_resp_burst[b][j].data : '0;
+      end
 
       // Postmanager responses
       assign postmanager_resp[b].meta_id = bank_resp_payload[b].rdata.meta_id;
