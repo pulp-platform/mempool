@@ -117,7 +117,7 @@ module tcdm_burst_cutter
         next_state = state_q;
 
         // Check if it is valid and being a burst request
-        if (req_burst_i.isburst & req_valid_i) begin
+        if (req_burst_i.isburst) begin
           bank_offset = req_tgt_addr_i[AddrMemWidth-1 : ByteOffWidth];
           max_blen = NumBanks - bank_offset;
 
