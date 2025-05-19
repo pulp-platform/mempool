@@ -439,7 +439,7 @@ module mempool_group
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_ready;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_rdata;
-      burst_t         [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_burst;
+      burst_gresp_t   [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_burst;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_valid;
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_ready;
       tile_addr_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_tgt_addr;
@@ -452,7 +452,7 @@ module mempool_group
       logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_ready;
       tile_group_id_t [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_tile_id;
       tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_rdata;
-      burst_t         [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_burst;
+      burst_gresp_t   [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_burst;
 
       for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_remote_connections_sg
         for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_remote_connections_t
@@ -774,7 +774,7 @@ module mempool_group
     logic           [NumTilesPerGroup-1:0] master_local_resp_valid;
     logic           [NumTilesPerGroup-1:0] master_local_resp_ready;
     tcdm_payload_t  [NumTilesPerGroup-1:0] master_local_resp_rdata;
-    burst_t         [NumTilesPerGroup-1:0] master_local_resp_burst;
+    burst_gresp_t   [NumTilesPerGroup-1:0] master_local_resp_burst;
     logic           [NumTilesPerGroup-1:0] slave_local_req_valid;
     logic           [NumTilesPerGroup-1:0] slave_local_req_ready;
     tile_addr_t     [NumTilesPerGroup-1:0] slave_local_req_tgt_addr;
@@ -787,7 +787,7 @@ module mempool_group
     logic           [NumTilesPerGroup-1:0] slave_local_resp_ready;
     tile_group_id_t [NumTilesPerGroup-1:0] slave_local_resp_tile_id;
     tcdm_payload_t  [NumTilesPerGroup-1:0] slave_local_resp_rdata;
-    burst_t         [NumTilesPerGroup-1:0] slave_local_resp_burst;
+    burst_gresp_t   [NumTilesPerGroup-1:0] slave_local_resp_burst;
 
     for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_local_connections
       assign master_local_req_valid[t]          = tcdm_master_req_valid[0][t];
@@ -874,7 +874,7 @@ module mempool_group
       logic           [NumTilesPerGroup-1:0] master_remote_resp_valid;
       logic           [NumTilesPerGroup-1:0] master_remote_resp_ready;
       tcdm_payload_t  [NumTilesPerGroup-1:0] master_remote_resp_rdata;
-      burst_t         [NumTilesPerGroup-1:0] master_remote_resp_burst;
+      burst_gresp_t   [NumTilesPerGroup-1:0] master_remote_resp_burst;
       logic           [NumTilesPerGroup-1:0] slave_remote_req_valid;
       logic           [NumTilesPerGroup-1:0] slave_remote_req_ready;
       tile_addr_t     [NumTilesPerGroup-1:0] slave_remote_req_tgt_addr;
@@ -887,7 +887,7 @@ module mempool_group
       logic           [NumTilesPerGroup-1:0] slave_remote_resp_ready;
       tile_group_id_t [NumTilesPerGroup-1:0] slave_remote_resp_tile_id;
       tcdm_payload_t  [NumTilesPerGroup-1:0] slave_remote_resp_rdata;
-      burst_t         [NumTilesPerGroup-1:0] slave_remote_resp_burst;
+      burst_gresp_t   [NumTilesPerGroup-1:0] slave_remote_resp_burst;
 
       for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_remote_connections
         assign master_remote_req_valid[t]         = tcdm_master_req_valid[r][t];
