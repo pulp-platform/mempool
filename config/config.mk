@@ -57,6 +57,16 @@ ro_line_width ?= 512
 # XQueue extension's queue size in each memory bank (in words)
 xqueue_size ?= 0
 
+###########################
+##  Burst configuration  ##
+###########################
+
+# Reads in the TCDM interconnect are sent as bursts
+tcdm_burst ?= 1
+
+# Responses to burst request use larger interconnect bandwidth
+burst_grsp ?= 2
+
 ################################
 ##  Optional functionalities  ##
 ################################

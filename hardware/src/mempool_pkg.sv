@@ -318,7 +318,7 @@ package mempool_pkg;
 
   typedef struct packed {
     tcdm_payload_t rdata;
-    burst_t burst;
+    burst_gresp_t burst;
   } tcdm_master_resp_t;
 
   typedef struct packed {
@@ -333,7 +333,7 @@ package mempool_pkg;
   typedef struct packed {
     tcdm_payload_t rdata;
     tile_group_id_t tile_id;
-    burst_t burst;
+    burst_gresp_t burst;
   } tcdm_slave_resp_t;
 
   typedef struct packed {
