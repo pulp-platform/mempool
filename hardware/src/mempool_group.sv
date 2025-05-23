@@ -8,7 +8,7 @@
 
 module mempool_group
   import mempool_pkg::*;
-  import tcdm_burst_pkg::*;
+  import burst_pkg::*;
   import cf_math_pkg::idx_width;
 #(
   // TCDM
@@ -483,13 +483,15 @@ module mempool_group
         end: gen_remote_connections_t
       end: gen_remote_connections_sg
 
-      variable_latency_interconnect #(
+      burst_variable_latency_interconnect #(
         .NumIn              (NumSubGroupsPerGroup * NumTilesPerSubGroup   ),
         .NumOut             (NumSubGroupsPerGroup * NumTilesPerSubGroup   ),
         .AddrWidth          (TCDMAddrWidth                                ),
         .DataWidth          ($bits(tcdm_payload_t)                        ),
         .BeWidth            (DataWidth/8                                  ),
+        .RspGF              (RspGF                                        ),
         .BurstWidth         ($bits(burst_t     )                          ),
+        .BurstRspWidth      ($bits(burst_gresp_t)                         ),
         .ByteOffWidth       (0                                            ),
         .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
         .Topology           (tcdm_interconnect_pkg::LIC                   ),
@@ -816,13 +818,15 @@ module mempool_group
       assign slave_local_req_ready[t]           = tcdm_slave_req_ready[0][t];
     end
 
-    variable_latency_interconnect #(
+    burst_variable_latency_interconnect #(
       .NumIn            (NumTilesPerGroup                             ),
       .NumOut           (NumTilesPerGroup                             ),
       .AddrWidth        (TCDMAddrWidth                                ),
       .DataWidth        ($bits(tcdm_payload_t)                        ),
       .BeWidth          (DataWidth/8                                  ),
+      .RspGF            (RspGF                                        ),
       .BurstWidth       ($bits(burst_t     )                          ),
+      .BurstRspWidth    ($bits(burst_gresp_t)                         ),
       .ByteOffWidth     (0                                            ),
       .AddrMemWidth     (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
       .Topology         (tcdm_interconnect_pkg::LIC                   ),
@@ -916,13 +920,15 @@ module mempool_group
         assign master_remote_resp_ready[t]        = tcdm_slave_resp_ready_i[r][t];
       end: gen_remote_connections
 
-      variable_latency_interconnect #(
+      burst_variable_latency_interconnect #(
         .NumIn              (NumTilesPerGroup                             ),
         .NumOut             (NumTilesPerGroup                             ),
         .AddrWidth          (TCDMAddrWidth                                ),
         .DataWidth          ($bits(tcdm_payload_t)                        ),
         .BeWidth            (DataWidth/8                                  ),
+        .RspGF              (RspGF                                        ),
         .BurstWidth         ($bits(burst_t     )                          ),
+        .BurstRspWidth      ($bits(burst_gresp_t)                         ),
         .ByteOffWidth       (0                                            ),
         .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
         .Topology           (tcdm_interconnect_pkg::LIC                   ),
