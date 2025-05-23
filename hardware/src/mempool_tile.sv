@@ -7,7 +7,7 @@
 /* verilator lint_off DECLFILENAME */
 module mempool_tile
   import mempool_pkg::*;
-  import tcdm_burst_pkg::*;
+  import burst_pkg::*;
   import cf_math_pkg::idx_width;
 #(
   // TCDM
@@ -498,7 +498,10 @@ module mempool_tile
       logic wide;
     } manager_payload_t;
 
-    typedef manager_payload_t[RspGF-1:0] burst_manager_t;
+    typedef struct packed {
+      logic isburst;
+      manager_payload_t[RspGF-2:0] gdata;
+    } burst_manager_t;
 
     manager_payload_t [NumBanksPerTile-1:0]                  premanager_req, postmanager_req;
     tile_core_id_t    [NumBanksPerTile-1:0]                  premanager_req_ini, postmanager_req_ini;
@@ -511,7 +514,7 @@ module mempool_tile
     burst_manager_t   [NumBanksPerTile-1:0]                  premanager_resp_burst;
 
     // Connecting to burst manager
-    tcdm_burst_manager #(
+    burst_manager #(
       .NumIn          ( RMMasterPorts+1                               ),
       .NumOut         ( NumBanksPerTile                               ),
       .AddrWidth      ( TCDMAddrMemWidth + idx_width(NumBanksPerTile) ),
@@ -588,8 +591,10 @@ module mempool_tile
       assign prebank_resp_payload[b].tile_id = premanager_resp[b].tile_id;
       assign prebank_resp_ini_addr[b] = premanager_resp[b].ini_addr;
       assign prebank_resp_wide[b] = premanager_resp[b].wide;
+      // Assign burst
+      assign prebank_resp_payload[b].burst.isburst = (RspGF > 1) ? premanager_resp_burst[b].isburst : 1'b0;
       for (genvar j = 0; j < RspGF-1; j++) begin
-        assign prebank_resp_payload[b].burst = (RspGF > 1) ? premanager_resp_burst[b][j].data : '0;
+        assign prebank_resp_payload[b].burst.gdata[j] = (RspGF > 1) ? premanager_resp_burst[b].gdata[j].data : '0;
       end
 
       // Postmanager responses

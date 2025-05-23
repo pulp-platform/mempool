@@ -10,7 +10,7 @@ module mempool_redmule_tile
   import mempool_pkg::*;
   import hci_package::*;
   import cv32e40x_pkg::*;
-  import tcdm_burst_pkg::*;
+  import burst_pkg::*;
   import cf_math_pkg::idx_width;
 #(
   // TCDM
@@ -471,7 +471,10 @@ module mempool_redmule_tile
       logic wide;
     } manager_payload_t;
 
-    typedef manager_payload_t[RspGF-2:0] burst_manager_t;
+    typedef struct packed {
+      logic isburst;
+      manager_payload_t[RspGF-2:0] gdata;
+    } burst_manager_t;
 
     manager_payload_t [NumBanksPerTile-1:0]                  premanager_req, postmanager_req;
     tile_core_id_t    [NumBanksPerTile-1:0]                  premanager_req_ini, postmanager_req_ini;
@@ -484,7 +487,7 @@ module mempool_redmule_tile
     burst_manager_t   [NumBanksPerTile-1:0]                  premanager_resp_burst;
 
     // Connecting to burst manager
-    tcdm_burst_manager #(
+    burst_manager #(
       .NumIn          ( RMMasterPorts+1                               ),
       .NumOut         ( NumBanksPerTile                               ),
       .AddrWidth      ( TCDMAddrMemWidth + idx_width(NumBanksPerTile) ),
@@ -561,8 +564,10 @@ module mempool_redmule_tile
       assign prebank_resp_payload[b].tile_id = premanager_resp[b].tile_id;
       assign prebank_resp_ini_addr[b] = premanager_resp[b].ini_addr;
       assign prebank_resp_wide[b] = premanager_resp[b].wide;
+      // Assign burst
+      assign prebank_resp_payload[b].burst.isburst = (RspGF > 1) ? premanager_resp_burst[b].isburst : 1'b0;
       for (genvar j = 0; j < RspGF-1; j++) begin
-        assign prebank_resp_payload[b].burst = (RspGF > 1) ? premanager_resp_burst[b][j].data : '0;
+        assign prebank_resp_payload[b].burst.gdata[j] = (RspGF > 1) ? premanager_resp_burst[b].gdata[j].data : '0;
       end
 
       // Postmanager responses
@@ -1092,45 +1097,45 @@ module mempool_redmule_tile
    *   Burst remote req   *
    ************************/
 
-   tcdm_burst_req_grouper #(
-     .NumIn        ( RMMasterPorts                           ),
-     .NumOut       ( NumBanksPerTile                         ),
-     .AddrWidth    ( AddrWidth                               ),
-     .DataWidth    ( $bits(tcdm_payload_t)                   ),
-     .BeWidth      ( DataWidth/8                             ),
-     .AddrMemWidth ( idx_width(NumBanksPerTile) + ByteOffset ),
-     .RspGF        ( RspGF                                   ),
-     .ByteOffWidth ( ByteOffset                              )
-   ) i_tcdm_burst_req_grouper (
-     .clk_i,
-     .rst_ni,
-     .req_ini_addr_i ( /* Unused */                 ),
-     .req_tgt_addr_i ( remote_req_preburst_addr     ),
-     .req_wdata_i    ( remote_req_preburst_payload  ),
-     .req_wen_i      ( remote_req_preburst_wen      ),
-     .req_be_i       ( remote_req_preburst_be       ),
-     .req_valid_i    ( remote_req_preburst_valid    ),
-     .req_ready_o    ( remote_req_preburst_ready    ),
-     .req_ini_addr_o ( /* Unused */                 ),
-     .req_tgt_addr_o ( remote_req_postburst_addr    ),
-     .req_wdata_o    ( remote_req_postburst_payload ),
-     .req_wen_o      ( remote_req_postburst_we      ),
-     .req_be_o       ( remote_req_postburst_be      ),
-     .req_burst_o    ( remote_req_postburst_burst   ),
-     .req_valid_o    ( remote_req_postburst_valid   ),
-     .req_ready_i    ( remote_req_postburst_ready   ),
-     // Response out
-     .resp_ini_addr_o ( /* Unused */                ),
-     .resp_rdata_o    (remote_resp_preburst_payload ),
-     .resp_valid_o    (remote_resp_preburst_valid   ),
-     .resp_ready_i    (remote_resp_preburst_ready   ),
-     // Response in
-     .resp_ini_addr_i ( /* Unused */                               ),
-     .resp_rdata_i    (remote_resp_postburst_payload               ),
-     .resp_burst_i    (remote_resp_postburst_burst                 ),
-     .resp_valid_i    (remote_resp_interco_valid[RMMasterPorts:1]),
-     .resp_ready_o    (remote_resp_interco_ready[RMMasterPorts:1])
-   );
+  burst_req_grouper #(
+    .NumIn        ( RMMasterPorts                           ),
+    .NumOut       ( NumBanksPerTile                         ),
+    .AddrWidth    ( AddrWidth                               ),
+    .DataWidth    ( $bits(tcdm_payload_t)                   ),
+    .BeWidth      ( DataWidth/8                             ),
+    .AddrMemWidth ( idx_width(NumBanksPerTile) + ByteOffset ),
+    .RspGF        ( RspGF                                   ),
+    .ByteOffWidth ( ByteOffset                              )
+  ) i_burst_req_grouper (
+    .clk_i,
+    .rst_ni,
+    .req_ini_addr_i ( /* Unused */                 ),
+    .req_tgt_addr_i ( remote_req_preburst_addr     ),
+    .req_wdata_i    ( remote_req_preburst_payload  ),
+    .req_wen_i      ( remote_req_preburst_wen      ),
+    .req_be_i       ( remote_req_preburst_be       ),
+    .req_valid_i    ( remote_req_preburst_valid    ),
+    .req_ready_o    ( remote_req_preburst_ready    ),
+    .req_ini_addr_o ( /* Unused */                 ),
+    .req_tgt_addr_o ( remote_req_postburst_addr    ),
+    .req_wdata_o    ( remote_req_postburst_payload ),
+    .req_wen_o      ( remote_req_postburst_we      ),
+    .req_be_o       ( remote_req_postburst_be      ),
+    .req_burst_o    ( remote_req_postburst_burst   ),
+    .req_valid_o    ( remote_req_postburst_valid   ),
+    .req_ready_i    ( remote_req_postburst_ready   ),
+    // Response out
+    .resp_ini_addr_o ( /* Unused */                ),
+    .resp_rdata_o    (remote_resp_preburst_payload ),
+    .resp_valid_o    (remote_resp_preburst_valid   ),
+    .resp_ready_i    (remote_resp_preburst_ready   ),
+    // Response in
+    .resp_ini_addr_i ( /* Unused */                              ),
+    .resp_rdata_i    (remote_resp_postburst_payload              ),
+    .resp_burst_i    (remote_resp_postburst_burst                ),
+    .resp_valid_i    (remote_resp_interco_valid[RMMasterPorts:1] ),
+    .resp_ready_o    (remote_resp_interco_ready[RMMasterPorts:1] )
+  );
 
   /************************
    *   Snitch TCDM Plug   *
