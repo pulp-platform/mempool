@@ -192,13 +192,6 @@ packages:
     dependencies:
     - axi
     - common_cells
-  tcdm_burst:
-    revision: null
-    version: null
-    source:
-      Path: hardware/src/tcdm_burst
-    dependencies:
-    - common_cells
   tech_cells_generic:
     revision: null
     version: null

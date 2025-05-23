@@ -6,7 +6,7 @@ package mempool_pkg;
 
   import snitch_pkg::MetaIdWidth;
   import cf_math_pkg::idx_width;
-  import tcdm_burst_pkg::*;
+  import burst_pkg::*;
 
   /*********************
    *  TILE PARAMETERS  *

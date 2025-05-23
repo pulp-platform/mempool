@@ -7,7 +7,7 @@ package:
 
 dependencies:
   axi:                  { git: "https://github.com/pulp-platform/axi.git",                                                 version: 0.39.2  }
-  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", rev: "c2e88e3910c56c65e182e1cbbe5ac9088b3205f2" }
+  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", rev: "f90d4c94f623a90c59ad29fa444f68f01461ced7" }
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",                                        version: 1.33.0  }
   idma:                 { path: "hardware/deps/idma"                                                                                        }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",                                  version: 0.4.3   }
@@ -18,7 +18,6 @@ dependencies:
   cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",                                      version: 0.1.1   }
   redmule:              { git: "https://github.com/pulp-platform/redmule.git",                                             rev: "19d5cc3"   }
   hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 rev: "8408a6d"   }
-  tcdm_burst:           { path: "hardware/src/tcdm_burst/" }
   
 workspace:
   checkout_dir: "./hardware/deps"
