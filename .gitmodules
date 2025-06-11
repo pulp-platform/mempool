@@ -49,3 +49,24 @@
 [submodule "hardware/deps/redmule"]
 	path = hardware/deps/redmule
 	url = https://github.com/pulp-platform/redmule.git
+[submodule "hardware/deps/hci"]
+	path = hardware/deps/hci
+	url = https://github.com/pulp-platform/hci.git
+[submodule "hardware/deps/ibex"]
+	path = hardware/deps/ibex
+	url = https://github.com/pulp-platform/ibex.git
+[submodule "hardware/deps/cv32e40p"]
+	path = hardware/deps/cv32e40p
+	url = https://github.com/pulp-platform/cv32e40p.git
+[submodule "hardware/deps/cv32e40x"]
+	path = hardware/deps/cv32e40x
+	url = https://github.com/pulp-platform/cv32e40x.git
+[submodule "hardware/deps/hwpe-stream"]
+	path = hardware/deps/hwpe-stream
+	url = https://github.com/pulp-platform/hwpe-stream.git
+[submodule "hardware/deps/hwpe-ctrl"]
+	path = hardware/deps/hwpe-ctrl
+	url = https://github.com/pulp-platform/hwpe-ctrl.git
+[submodule "hardware/deps/l2_tcdm_hybrid_interco"]
+	path = hardware/deps/l2_tcdm_hybrid_interco
+	url = https://github.com/pulp-platform/L2_tcdm_hybrid_interco.git
