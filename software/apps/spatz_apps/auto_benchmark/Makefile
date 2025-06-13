@@ -17,11 +17,13 @@ app_path 				?= $(abspath $(MEMPOOL_DIR)/software/apps)
 python          = python3
 config 					?= mempool_spatz4_fpu
 size 						?= 4096
+size_B 					?= 32
 cores						?= 64
 iter 						?= 128
 sim 						?= simcvcs
 log 						?= true
 outfile					?= false
+multiB 					?= 1
 
 # --------------
 # build
@@ -205,6 +207,23 @@ imatmul: log_clean
 		config=$(config) make -C $(hw_path) $(sim) app=spatz_apps/imatmul; \
 	fi
 
+# gemv kernel
+.PHONY: gemv
+gemv: log_clean
+	$(python) $(ROOT_DIR)/gen_config.py "gemv" 32 $(size) $(cores) $(size_B) $(multiB)
+	$(python) $(app_path)/spatz_apps/gemv/script/gen_data.py --cfg $(ROOT_DIR)/gemv.json
+	config=$(config) make -C $(app_path) spatz_apps/gemv >> $(ROOT_DIR)/buildsw.log
+	if [ "$(log)" = "true" ]; then \
+		config=$(config) make -C $(hw_path) $(sim) app=spatz_apps/gemv >> $(ROOT_DIR)/result.log; \
+		if [ "$(outfile)" = "false" ]; then \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(config)_gemv.txt $(config); \
+		else \
+			$(python) $(ROOT_DIR)/write_result.py $(ROOT_DIR)/result.log $(ROOT_DIR)/results/$(outfile).txt $(config); \
+		fi \
+	else \
+		config=$(config) make -C $(hw_path) $(sim) app=spatz_apps/gemv; \
+	fi
+
 # --------------
 # help
 # --------------
@@ -226,6 +245,7 @@ help:
 	@echo "bandwidth:    run the *bandwidth test*, size and step will be calculated based on config,"
 	@echo "              only need the input of cores and number of iteration"
 	@echo "fmatmul:      run the *sp-fmatmul-opt* kernel. only support nxnxn kernel now"
+	@echo "gemv:         run the *gemv* kernel. size will be (*size*x*size_B*)x(*size_B*x1)"
 	@echo ""
 	@echo "clean-all:    cleans all generated files, including results"
 	@echo "clean:        cleans configuration. call this target after changing the configurations"
@@ -241,6 +261,9 @@ help:
 	@echo "sim    | simcvcs            | simulation tool: sim, simc, simcvcs"
 	@echo "log    | true               | log data into result log?"
 	@echo "outfile| false              | output file name, set false will not write into the file"
+	@echo "multiB | 1                  | number of copies of vector B in GEMV kernel, need to be a power of 2"
+	@echo "                            | e.g., when set to 4, it will copy four B vectors in each group"
+	@echo "size_B | 32                 | second dimension needed for some kernels (gemv)"
 	@echo ""
 	@echo "--------------------------------------------------------------------------------------------------------"
 	@echo "Example of use:"
@@ -248,4 +271,5 @@ help:
 	@echo "make fft config=mempool_spatz4_fpu size=512 cores=8 log=true outfile=mempool_spatz4_fft"
 	@echo "make clean generate fft-multi config=terapool_spatz8_fpu size=2048 cores=32 log=false"
 	@echo "make bandwidth config=minpool_spatz4_fpu cores=4 iter=256 log=false"
+	@echo "make gemv config=mempool_spatz4_fpu cores=64 size=4096 size_B=32 log=false sim=sim multiB=4"
 	@echo ""
