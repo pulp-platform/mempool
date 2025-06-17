@@ -187,6 +187,8 @@ if __name__ == '__main__':
         "matmul_i32": {"func": datalib.generate_imatmul},
         "matmul_i16": {"func": datalib.generate_imatmul},
         "matmul_i8": {"func": datalib.generate_imatmul},
+        "gemv_f32": {"func": datalib.generate_fgemv},
+        "gemv_f16": {"func": datalib.generate_fgemv},
         "mimo_mmse_q16": {"func": datalib.generate_qmmse},
         "mimo_mmse_f16": {"func": datalib.generate_fmmse},
         "mimo_mmse_f32": {"func": datalib.generate_fmmse},

@@ -236,6 +236,20 @@ def generate_fmatmul(my_type=np.float32, defines={}):
 
     return [A, B, C], defines
 
+def generate_fgemv(my_type=np.float32, defines={}):
+    # Create matrix
+    matrix_N = defines['matrix_N']
+    matrix_P = defines['matrix_P']
+    A = (np.random.rand(matrix_P, matrix_N) - 0.5).astype(my_type)
+    X = (np.random.rand(matrix_N) - 0.5).astype(my_type)
+    Y = np.matmul(A, X)
+    
+    A = np.reshape(A, (matrix_P * matrix_N), order='C').astype(my_type)
+    X = np.reshape(X, (matrix_N), order='C').astype(my_type)
+    Y = np.reshape(Y, (matrix_P), order='C').astype(my_type)
+    
+    return [A, X, Y], defines
+
 
 def generate_fmmse(my_type=np.float16, defines={}):
 

@@ -285,6 +285,32 @@
     ]
   }
 
+  "gemv_f32": {
+    "type": "float32",
+    "defines": [
+      ("matrix_N", 4096)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("float", "l2_A")
+      ("float", "l2_X")
+      ("float", "l2_Y")
+    ]
+  }
+
+  "gemv_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_N", 8192)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Y")
+    ]
+  }
+
   "mimo_mmse_f16": {
     "type": "float16",
     "defines": [
