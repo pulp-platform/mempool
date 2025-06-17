@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "data.h"
+#include "data_memcpy.h"
 #include "dma.h"
 #include "encoding.h"
 #include "mempool_dma_frontend.h"
@@ -17,11 +17,11 @@
 
 // Size in words
 #ifndef SIZE
-#define SIZE (8192)
+#define SIZE (2048)
 #endif
 
 #define DMA_ADDRESS (0x40010000)
-// #define VERIFY
+#define VERIFY
 
 // Assume banking factor of 4
 int32_t l1_data[SIZE] __attribute__((section(".l1_prio")))
@@ -44,8 +44,8 @@ void verify_dma_single_core(int32_t *addr, uint32_t num_words, int32_t *golden,
   volatile int32_t *a = (volatile int32_t *)addr;
   for (uint32_t i = 0; i < num_words; ++i) {
     if (a[i] != *golden) {
-      error = error + 1;
       printf("The %dth value is %d, the golden is %d \n", i, a[i], *golden);
+      error = error + 1;
     }
     golden += 1;
   }
