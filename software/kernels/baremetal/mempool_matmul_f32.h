@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Author: Marco Bertuletti, ETH Zurich
+//         Yinrong Li, ETH Zurich
 
 /* This library implements the matrix multiplication in multiple different ways.
  * The functions all follow the following format:
@@ -361,18 +362,21 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
   /////////////////////////////
   // Parallelize by assigning each core one row
   // How many cores per window
-  uint32_t c = numThreads / (M / 4);
-  if (numThreads * 4 < M) {
+  (void)M;
+  (void)N;
+  (void)P;
+  uint32_t c = numThreads / (matrix_M / 4);
+  if (numThreads * 4 < matrix_M) {
     c = 1;
   }
-  uint32_t const c_start = (P / c) * (id % c);
-  uint32_t const c_end = (P / c) * ((id % c) + 1);
+  uint32_t const c_start = (matrix_P / c) * (id % c);
+  uint32_t const c_end = (matrix_P / c) * ((id % c) + 1);
   // For avoiding group conflict by same tile
   // Each cores in the same tile should access to different groups
-  uint32_t group_bank_nums = 512;              // MemPool = 256
+  uint32_t group_bank_nums = 1024;             // MemPool = 256
   uint32_t tile_core_nums = 8;                 // MemPool = 4
-  uint32_t jump_lines_A = group_bank_nums / N; // Used for i control
-  uint32_t jump_lines_B = group_bank_nums / P; // Used for k control
+  uint32_t jump_lines_A = group_bank_nums / matrix_N; // Used for i control
+  uint32_t jump_lines_B = group_bank_nums / matrix_P; // Used for k control
   // Window size limit, min jump lines is 4 for MatrixA
   if (jump_lines_A < 4) {
     jump_lines_A = 4;
@@ -388,36 +392,37 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
   // k_offset = (Core offset) + (Window offset) + (Group offset from MatrixB)
   uint32_t k_offset = (id % c) + (2 * (id / c)) + k_offset_incr;
   // Middle Loop Control, window jump for avoiding bank conflict
-  uint32_t conflict_row = (group_bank_nums * tile_core_nums) / P;
+  uint32_t conflict_row = (group_bank_nums * tile_core_nums) / matrix_P;
   uint32_t j_offset = (2 * (id / c)) / conflict_row;
   /////////////////////////////
   //      LOOP  CONTROL      //
   /////////////////////////////
   // Inner Round-Robin
-  if (k_offset >= N) {
-    k_offset = k_offset - N * (k_offset / N);
+  if (k_offset >= matrix_N) {
+    k_offset = k_offset - matrix_N * (k_offset / matrix_N);
   }
   // Middle Round-Robin
-  uint32_t window_in_P = (P / c) / 4;
+  uint32_t window_in_P = (matrix_P / c) / 4;
   if (j_offset >= window_in_P) {
     j_offset = j_offset - window_in_P * (j_offset / window_in_P);
   }
   // Outer Loop Control
   uint32_t outer_loop_counter = 0;
-  uint32_t outer_loop_time = M / (4 * numThreads);
+  uint32_t outer_loop_time = matrix_M / (4 * numThreads);
   if (outer_loop_time < 1) {
     outer_loop_time = 1;
   }
-  uint32_t M_partition = M / outer_loop_time;
+  uint32_t M_partition = matrix_M / outer_loop_time;
 
   /////////////////////////////
   //      *LOOP  START*      //
   /////////////////////////////
-  for (uint32_t i_ori = 4 * (id / c); i_ori < M;
+  #pragma clang loop unroll(disable)
+  for (uint32_t i_ori = 4 * (id / c); i_ori < matrix_M;
        i_ori += 4 * (numThreads / c)) {
     outer_loop_counter += 1;
     uint32_t i = i_ori + i_offset;
-    // Round-Robin control, if offset lines > M, back to the first window
+    // Round-Robin control, if offset lines > matrix_M, back to the first window
     if (i >= M_partition * outer_loop_counter) {
       i = i - M_partition * (i / (M_partition * outer_loop_counter));
     }
@@ -426,14 +431,15 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
     uint32_t P_counter = c_end;
 
   Mid_loop:
+    #pragma clang loop unroll(disable)
     for (uint32_t j = j_offset_counter; j < P_counter; j += 4) {
       // Address registers
-      float const *addr_a_ori = &A[i * N];
+      float const *addr_a_ori = &A[i * matrix_N];
       float const *addr_b_ori = &B[j];
-      float const *addr_a = &A[i * N + k_offset];
-      float const *addr_b = &B[k_offset * P + j];
-      float const *end_b = &B[N * P + j];
-      float const *addr_c = &C[i * P + j];
+      float const *addr_a = &A[i * matrix_N + k_offset];
+      float const *addr_b = &B[k_offset * matrix_P + j];
+      float const *end_b = &B[matrix_N * matrix_P + j];
+      float const *addr_c = &C[i * matrix_P + j];
       register int32_t k asm("x1") = (int32_t)end_b;
       //      x12 x13 x14 x15
       //
@@ -444,10 +450,17 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
       //
       //
       __asm__ volatile(
+        "sw %[addr_c], -4(sp) \n\t"
+        :
+        : [addr_c] "r"(addr_c)
+        :
+      );
+
+      __asm__ volatile(
           ".balign 16 \n\t"
           // Outer loop: Initialize and preload. Execute this loop P times
           // TODO arrange
-          "add sp, sp, -8 \n\t"
+          "add sp, sp, -16 \n\t"
           "sw %[addr_b], 0(sp) \n\t"
           "sw %[addr_a_ori], 4(sp) \n\t"
           "p.lw  x3, %[N](%[addr_a]!) \n\t"
@@ -460,14 +473,14 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
           "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
 
           // If reach endpoint, swap address
-          "bne %[addr_b], x1, init_comp \n\t"
+          "bne %[addr_b], x1, 2f \n\t"
           "lw x1, 0(sp) \n\t"
           "addi %[addr_a], %[addr_a_ori], 0 \n\t"
           "addi %[addr_b], %[addr_b_ori], 0 \n\t"
           "sw %[addr_b], 0(sp) \n\t"
 
           // Initial computation + prefetching
-          "init_comp: \n\t"
+          "2: \n\t"
           "fmul.s x16,  x3, x12 \n\t"
           "fmul.s x17,  x3, x13 \n\t"
           "fmul.s x18,  x3, x14 \n\t"
@@ -494,7 +507,7 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
           "p.lw x11, %[N3_1](%[addr_a]!) \n\t"  // Increment by -3N+1
 
           // If reach endpoint, swap address
-          "bne %[addr_b], x1, inner_loop \n\t"
+          "bne %[addr_b], x1, 1f \n\t"
           "sw %[addr_a_ori], 8(sp) \n\t" // backup x31
           "lw %[addr_a_ori], 4(sp) \n\t" // load back addr_a_ori
           "lw x1, 0(sp) \n\t"
@@ -504,7 +517,6 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
           "lw %[addr_a_ori], 8(sp) \n\t" // load back x31
 
           // Inner loop: Do this loop N times
-          "inner_loop: \n\t"
           "1: \n\t"
           "fmadd.s x16,  x3, x12, x16 \n\t"
           "fmadd.s x17,  x3, x13, x17 \n\t"
@@ -536,7 +548,7 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
           // Case2: Loop done when 2nd time to here
           // Case3: If reach endpoint, swap address
           "lw %[addr_b], 0(sp) \n\t"
-          "beq %[addr_b_ori], %[addr_b], store \n\t"
+          "beq %[addr_b_ori], %[addr_b], 3f \n\t"
           "sw %[addr_a_ori], 8(sp) \n\t" // backup x31
           "lw %[addr_a_ori], 4(sp) \n\t" // load back addr_a_ori
           "addi x1, %[addr_b], 0 \n\t"
@@ -547,45 +559,45 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
           "j 1b \n\t"
 
           // Loop done store
-          "store: \n\t"
+          "3: \n\t"
+          "lw %[addr_b_ori], 12(sp) \n\t"
           "fmadd.s x16,  x3, x12, x16 \n\t"
           "fmadd.s x17,  x3, x13, x17 \n\t"
           "fmadd.s x18,  x3, x14, x18 \n\t"
-          "p.sw x16, 4(%[addr_c]!) \n\t"
+          "p.sw x16, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x19,  x3, x15, x19 \n\t"
-          "p.sw x17, 4(%[addr_c]!) \n\t"
+          "p.sw x17, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x20,  x4, x12, x20 \n\t"
-          "p.sw x18, 4(%[addr_c]!) \n\t"
+          "p.sw x18, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x21,  x4, x13, x21 \n\t"
-          "p.sw x19, %[P_3](%[addr_c]!) \n\t"
+          "p.sw x19, %[P_3](%[addr_b_ori]!) \n\t"
           "fmadd.s x22,  x4, x14, x22 \n\t"
-          "p.sw x20, 4(%[addr_c]!) \n\t"
+          "p.sw x20, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x23,  x4, x15, x23 \n\t"
-          "p.sw x21, 4(%[addr_c]!) \n\t"
+          "p.sw x21, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x24, x10, x12, x24 \n\t"
-          "p.sw x22, 4(%[addr_c]!) \n\t"
+          "p.sw x22, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x25, x10, x13, x25 \n\t"
-          "p.sw x23, %[P_3](%[addr_c]!) \n\t"
+          "p.sw x23, %[P_3](%[addr_b_ori]!) \n\t"
           "fmadd.s x26, x10, x14, x26 \n\t"
-          "p.sw x24, 4(%[addr_c]!) \n\t"
+          "p.sw x24, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x27, x10, x15, x27 \n\t"
-          "p.sw x25, 4(%[addr_c]!) \n\t"
+          "p.sw x25, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x28, x11, x12, x28 \n\t"
-          "p.sw x26, 4(%[addr_c]!) \n\t"
+          "p.sw x26, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s x29, x11, x13, x29 \n\t"
-          "p.sw x27, %[P_3](%[addr_c]!) \n\t"
+          "p.sw x27, %[P_3](%[addr_b_ori]!) \n\t"
           "fmadd.s x30, x11, x14, x30 \n\t"
-          "p.sw x28, 4(%[addr_c]!) \n\t"
+          "p.sw x28, 4(%[addr_b_ori]!) \n\t"
           "fmadd.s %[addr_a_ori], x11, x15, %[addr_a_ori] \n\t"
-          "p.sw x29, 4(%[addr_c]!) \n\t"
-          "p.sw x30, 4(%[addr_c]!) \n\t"
-          "p.sw %[addr_a_ori], %[P_3](%[addr_c]!) \n\t"
-          "add sp, sp, 8 \n\t"
+          "p.sw x29, 4(%[addr_b_ori]!) \n\t"
+          "p.sw x30, 4(%[addr_b_ori]!) \n\t"
+          "p.sw %[addr_a_ori], %[P_3](%[addr_b_ori]!) \n\t"
+          "add sp, sp, 16 \n\t"
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
-            [addr_c] "+&r"(addr_c), [addr_a_ori] "+&r"(addr_a_ori),
-            [addr_b_ori] "+&r"(addr_b_ori) // Outputs
-          : [N3_1] "r"(N31), [P_3] "I"(P3), [x1] "r"(k),
-            [N] "I"(matrix_N * 4) // Inputs
+            [addr_a_ori] "+&r"(addr_a_ori), [addr_b_ori] "+&r"(addr_b_ori),
+            [x1] "+&r"(k) // Outputs
+          : [N3_1] "r"(N31), [P_3] "I"(P3), [N] "r"(matrix_N * 4) // Inputs
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
             "x27", "x28", "x29", "x30", "memory"); // Cbber
