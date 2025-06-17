@@ -384,7 +384,7 @@ def generate_imatmul(my_type=np.int32, defines={}):
     matrix_P = defines['matrix_P']
     MAX = select_maxval(my_type)
     A = irandom(MAX=MAX, size=(matrix_M, matrix_N), my_type=my_type)
-    B = irandom(MAX=MAX, size=(matrix_M, matrix_N), my_type=my_type)
+    B = irandom(MAX=MAX, size=(matrix_N, matrix_P), my_type=my_type)
     C = np.matmul(A, B)
 
     A = np.reshape(A, (matrix_M * matrix_N), order='C').astype(my_type)
