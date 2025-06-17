@@ -422,7 +422,7 @@ post_trace:
 	mkdir -p "$(result_dir)"
 	cp $(buildpath)/transcript "$(result_dir)/" | true
 	cp $(traceresult) "$(result_dir)"
-	cp $(trace) "$(result_dir)"
+	printf "%s\n" $(trace) | xargs -n 100 cp -t "$(result_dir)"
 	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(result_dir)/avg.txt
 
 $(buildpath)/%.trace: $(buildpath)/%.dasm
