@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Author: Samuel Riedel, ETH Zurich
+//         Yinrong Li, ETH Zurich
 
 /* This library implements the matrix multiplication in multiple different ways.
  * The functions all follow the following format:
@@ -1020,6 +1021,233 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
             [addr_b_ori] "+&r"(addr_b_ori) // Outputs
           : [N3_1] "r"(N31), [P_3] "I"(P3), [x1] "r"(k),
             [N] "I"(matrix_N * 4) // Inputs
+          : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
+            "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
+            "x27", "x28", "x29", "x30", "memory"); // Clobber
+    }
+    if (j_offset_counter != c_start) {
+      P_counter = j_offset_counter;
+      j_offset_counter = c_start;
+      goto Mid_loop;
+    }
+  }
+}
+
+void mat_mul_unrolled_4x4_conflict_nocopt_parallel_asm(
+  int32_t const *__restrict__ A, int32_t const *__restrict__ B,
+  int32_t *__restrict__ C, uint32_t M, uint32_t N, uint32_t P, uint32_t id,
+  uint32_t numThreads) {
+
+  /////////////////////////////
+  //      Configuration      //
+  /////////////////////////////
+  // Parallelize by assigning each core one row
+  // How many cores per window
+  const uint32_t group_nums = 16;                   // MemPool =
+  const uint32_t group_tile_nums = 16;              // MemPool =
+  const uint32_t tile_core_nums = 4;                // MemPool =
+  const uint32_t tile_bank_nums = BANKING_FACTOR * tile_core_nums;
+
+  uint32_t c = numThreads / (M / 4);
+  if (numThreads * 4 < M) {
+    c = 1;
+  }
+  uint32_t const c_start = (P / c) * (id % c);
+  uint32_t const c_end = (P / c) * ((id % c) + 1);
+
+  /////////////////////////////
+  //      LOOP   OFFSET      //
+  /////////////////////////////
+  // Outer Loop Control, for group access interleave
+  // uint32_t i_offset = 4 * id / c;
+  uint32_t i_group_core_nums = N * 4 / BANKING_FACTOR;
+  uint32_t i_group_nums = numThreads / i_group_core_nums;
+  uint32_t i_offset = (id % i_group_core_nums) / c * 4 * i_group_nums + (id / i_group_core_nums) * 4;
+
+  uint32_t conflict_tile = group_nums * group_tile_nums * tile_bank_nums / 4 / P;
+  if (conflict_tile < 1) {
+    conflict_tile = 1;
+  }
+  uint32_t conflict_bank = group_nums * group_tile_nums / 4;
+  // Inner Loop Control
+  // k_offset = (Core offset) + (Window offset) + (Group offset from MatrixB)
+  uint32_t k_offset = (id % c + id / conflict_tile) * (tile_bank_nums + 1); //根据需求补1
+  // uint32_t k_offset = (id % c) + (2 * (id / c)) + k_offset_incr;
+  // Middle Loop Control, window jump for avoiding tile and bank conflict
+  uint32_t j_offset = id / c / conflict_tile * tile_bank_nums / 4 + id / conflict_bank;
+  /////////////////////////////
+  //      LOOP  CONTROL      //
+  /////////////////////////////
+  // Inner Round-Robin
+  if (k_offset >= N) {
+    k_offset = k_offset - N * (k_offset / N);
+  }
+  // Middle Round-Robin
+  uint32_t window_in_P = (P / c) / 4;
+  if (j_offset >= window_in_P) {
+    j_offset = j_offset - window_in_P * (j_offset / window_in_P);
+  }
+
+  /////////////////////////////
+  //      *LOOP  START*      //
+  /////////////////////////////
+  for (uint32_t i = i_offset; i < M; i += 4 * (numThreads / c)) {
+    // Backup counter for mid-loop
+    uint32_t j_offset_counter = c_start + j_offset * 4;
+    uint32_t P_counter = c_end;
+
+  Mid_loop:
+    for (uint32_t j = j_offset_counter; j < P_counter; j += 4) {
+      // Address registers
+      int32_t const *addr_a_ori = &A[i * N];
+      int32_t const *addr_b_ori = &B[j];
+      int32_t const *addr_a = &A[i * N + k_offset];
+      int32_t const *addr_b = &B[k_offset * P + j];
+      int32_t const *end_b = &B[N * P + j];
+      int32_t const *addr_c = &C[i * P + j];
+      register int32_t k asm("x1") = (int32_t)end_b;
+
+      __asm__ volatile(
+          ".balign 16 \n\t"
+          // Outer loop: Initialize and preload. Execute this loop P times
+          // TODO arrange
+          "add sp, sp, -8 \n\t"
+          "sw %[addr_b], 0(sp) \n\t"
+          "sw %[addr_a_ori], 4(sp) \n\t"
+          "p.lw  x3, %[N](%[addr_a]!) \n\t"
+          "p.lw x12, 4(%[addr_b]!) \n\t"
+          "p.lw x13, 4(%[addr_b]!) \n\t"
+          "p.lw x14, 4(%[addr_b]!) \n\t"
+          "p.lw x15, %[P_3](%[addr_b]!) \n\t" // Increment by P-3
+          "p.lw  x4, %[N](%[addr_a]!) \n\t"
+          "p.lw x10, %[N](%[addr_a]!) \n\t"
+          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+
+          // If reach endpoint, swap address
+          "bne %[addr_b], x1, 2f \n\t"
+          "lw x1, 0(sp) \n\t"
+          "addi %[addr_a], %[addr_a_ori], 0 \n\t"
+          "addi %[addr_b], %[addr_b_ori], 0 \n\t"
+          "sw %[addr_b], 0(sp) \n\t"
+
+          // Initial computation + prefetching
+          "2: \n\t"
+          "mul x16,  x3, x12 \n\t"
+          "mul x17,  x3, x13 \n\t"
+          "mul x18,  x3, x14 \n\t"
+          "mul x19,  x3, x15 \n\t"
+          "p.lw  x3, %[N](%[addr_a]!) \n\t"
+          "mul x20,  x4, x12 \n\t"
+          "mul x21,  x4, x13 \n\t"
+          "mul x22,  x4, x14 \n\t"
+          "mul x23,  x4, x15 \n\t"
+          "p.lw  x4, %[N](%[addr_a]!) \n\t"
+          "mul x24, x10, x12 \n\t"
+          "mul x25, x10, x13 \n\t"
+          "mul x26, x10, x14 \n\t"
+          "mul x27, x10, x15 \n\t"
+          "p.lw x10, %[N](%[addr_a]!) \n\t"
+          "mul x28, x11, x12 \n\t"
+          "p.lw x12, 4(%[addr_b]!) \n\t"
+          "mul x29, x11, x13 \n\t"
+          "p.lw x13, 4(%[addr_b]!) \n\t"
+          "mul x30, x11, x14 \n\t"
+          "p.lw x14, 4(%[addr_b]!) \n\t"
+          "mul %[addr_a_ori], x11, x15 \n\t"   // Use addr_a_ori instead of x31
+          "p.lw x15, %[P_3](%[addr_b]!) \n\t"  // Increment by P-3
+          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+
+          // If reach endpoint, swap address
+          "bne %[addr_b], x1, 1f \n\t"
+          "sw %[addr_a_ori], 8(sp) \n\t" // backup x31
+          "lw %[addr_a_ori], 4(sp) \n\t" // load back addr_a_ori
+          "lw x1, 0(sp) \n\t"
+          "addi %[addr_a], %[addr_a_ori], 0 \n\t"
+          "addi %[addr_b], %[addr_b_ori], 0 \n\t"
+          "sw %[addr_b], 0(sp) \n\t"
+          "lw %[addr_a_ori], 8(sp) \n\t" // load back x31
+
+          // Inner loop: Do this loop N times
+          "1: \n\t"
+          "p.mac x16,  x3, x12 \n\t"
+          "p.mac x17,  x3, x13 \n\t"
+          "p.mac x20,  x4, x12 \n\t"
+          "p.mac x21,  x4, x13 \n\t"
+          "p.mac x18,  x3, x14 \n\t"
+          "p.mac x22,  x4, x14 \n\t"
+          "p.mac x19,  x3, x15 \n\t"
+          "p.lw  x3, %[N](%[addr_a]!) \n\t"
+          "p.mac x23,  x4, x15 \n\t"
+          "p.lw  x4, %[N](%[addr_a]!) \n\t"
+          "p.mac x24, x10, x12 \n\t"
+          "p.mac x28, x11, x12 \n\t"
+          "p.lw x12, 4(%[addr_b]!) \n\t"
+          "p.mac x25, x10, x13 \n\t"
+          "p.mac x29, x11, x13 \n\t"
+          "p.lw x13, 4(%[addr_b]!) \n\t"
+          "p.mac x26, x10, x14 \n\t"
+          "p.mac x30, x11, x14 \n\t"
+          "p.lw x14, 4(%[addr_b]!) \n\t"
+          "p.mac x27, x10, x15 \n\t"
+          "p.mac %[addr_a_ori], x11, x15 \n\t"
+          "p.lw x15, %[P_3](%[addr_b]!) \n\t" // Increment by P-3
+          "p.lw x10, %[N](%[addr_a]!) \n\t"
+          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+          "bne %[addr_b], x1, 1b \n\t"
+
+          // Case1: Loop done if k_offset = 0
+          // Case2: Loop done when 2nd time to here
+          // Case3: If reach endpoint, swap address
+          "lw %[addr_b], 0(sp) \n\t"
+          "beq %[addr_b_ori], %[addr_b], 3f \n\t"
+          "sw %[addr_a_ori], 8(sp) \n\t" // backup x31
+          "lw %[addr_a_ori], 4(sp) \n\t" // load back addr_a_ori
+          "addi x1, %[addr_b], 0 \n\t"
+          "addi %[addr_a], %[addr_a_ori], 0 \n\t"
+          "addi %[addr_b], %[addr_b_ori], 0 \n\t"
+          "sw %[addr_b], 0(sp) \n\t"
+          "lw %[addr_a_ori], 8(sp) \n\t" // load back x31
+          "j 1b \n\t"
+
+          // Loop done store
+          "3: \n\t"
+          "p.mac x16,  x3, x12 \n\t"
+          "p.mac x17,  x3, x13 \n\t"
+          "p.mac x18,  x3, x14 \n\t"
+          "p.sw x16, 4(%[addr_c]!) \n\t"
+          "p.mac x19,  x3, x15 \n\t"
+          "p.sw x17, 4(%[addr_c]!) \n\t"
+          "p.mac x20,  x4, x12 \n\t"
+          "p.sw x18, 4(%[addr_c]!) \n\t"
+          "p.mac x21,  x4, x13 \n\t"
+          "p.sw x19, %[P_3](%[addr_c]!) \n\t"
+          "p.mac x22,  x4, x14 \n\t"
+          "p.sw x20, 4(%[addr_c]!) \n\t"
+          "p.mac x23,  x4, x15 \n\t"
+          "p.sw x21, 4(%[addr_c]!) \n\t"
+          "p.mac x24, x10, x12 \n\t"
+          "p.sw x22, 4(%[addr_c]!) \n\t"
+          "p.mac x25, x10, x13 \n\t"
+          "p.sw x23, %[P_3](%[addr_c]!) \n\t"
+          "p.mac x26, x10, x14 \n\t"
+          "p.sw x24, 4(%[addr_c]!) \n\t"
+          "p.mac x27, x10, x15 \n\t"
+          "p.sw x25, 4(%[addr_c]!) \n\t"
+          "p.mac x28, x11, x12 \n\t"
+          "p.sw x26, 4(%[addr_c]!) \n\t"
+          "p.mac x29, x11, x13 \n\t"
+          "p.sw x27, %[P_3](%[addr_c]!) \n\t"
+          "p.mac x30, x11, x14 \n\t"
+          "p.sw x28, 4(%[addr_c]!) \n\t"
+          "p.mac %[addr_a_ori], x11, x15 \n\t"
+          "p.sw x29, 4(%[addr_c]!) \n\t"
+          "p.sw x30, 4(%[addr_c]!) \n\t"
+          "p.sw %[addr_a_ori], %[P_3](%[addr_c]!) \n\t"
+          "add sp, sp, 8 \n\t"
+          : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
+            [addr_c] "+&r"(addr_c), [addr_a_ori] "+&r"(addr_a_ori),
+            [addr_b_ori] "+&r"(addr_b_ori), [x1] "+&r"(k) // Outputs
+          : [N3_1] "r"(N31), [P_3] "I"(P3), [N] "I"(matrix_N * 4) // Inputs
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
             "x27", "x28", "x29", "x30", "memory"); // Clobber
