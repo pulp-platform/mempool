@@ -215,6 +215,34 @@
     ]
   },
 
+  "conv2d_f32": {
+    "type": "float32",
+    "defines": [
+      ("matrix_M", 20)
+      ("matrix_N", 4096)
+      ("kernel_K", 3)
+    ]
+    "arrays": [
+      ("float", "l2_A")
+      ("float", "l2_K")
+      ("float", "l2_C")
+    ]
+  },
+
+  "conv2d_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 20)
+      ("matrix_N", 8192)
+      ("kernel_K", 4)
+    ]
+    "arrays": [
+      ("float", "l2_A")
+      ("float", "l2_K")
+      ("float", "l2_C")
+    ]
+  },
+
   "matmul_f16": {
     "type": "float16",
     "defines": [

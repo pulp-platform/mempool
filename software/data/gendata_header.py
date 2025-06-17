@@ -181,6 +181,8 @@ if __name__ == '__main__':
         "dotp_f16": {"func": datalib.generate_fdotp},
         "dotp_f32": {"func": datalib.generate_fdotp},
         "dotp_i32": {"func": datalib.generate_idotp},
+        "conv2d_f16": {"func": datalib.generate_fconv2d},
+        "conv2d_f32": {"func": datalib.generate_fconv2d},
         "matmul_f16": {"func": datalib.generate_fmatmul},
         "matmul_f8": {"func": datalib.generate_fmatmul},
         "matmul_f32": {"func": datalib.generate_fmatmul},

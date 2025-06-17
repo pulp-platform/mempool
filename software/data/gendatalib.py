@@ -12,6 +12,7 @@
 # numpy library or the qmath bit-true library.
 
 import numpy as np
+import signal
 import math
 import qmath
 
@@ -196,6 +197,24 @@ def generate_fccholesky(my_type=np.float32, defines={}):
     vector_L = np.concatenate(vector_L, axis=0)
     return [vector_G, vector_L], defines
 
+def generate_fconv2d(my_type=np.float32, defines={}):
+    # Create matrix
+    matrix_M = defines['matrix_M']
+    matrix_N = defines['matrix_N']
+    # Create kernel
+    kernel_K = defines['kernel_K']
+    A = (np.random.rand(matrix_N, matrix_M) - 0.5).astype(my_type)
+    K = (np.random.rand(kernel_K, kernel_K) - 0.5).astype(my_type)
+    if my_type == np.float32:
+        C = signal.convolve2d(A, K, mode="same", boundary='fill')
+    else:
+        C = np.zeros((matrix_N, matrix_M), dtype=my_type)
+    # Reshape
+    A = np.reshape(A, (matrix_M * matrix_N), order='C').astype(my_type)
+    K = np.reshape(K, (kernel_K * kernel_K), order='C').astype(my_type)
+    C = np.reshape(C, (matrix_M * matrix_N), order='C').astype(my_type)
+    # Output vectors
+    return [A, K, C], defines
 
 def generate_fcmatmul(my_type=np.float32, defines={}):
 
