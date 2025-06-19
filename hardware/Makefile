@@ -25,7 +25,7 @@ dpi_library     ?= work-dpi
 # Top level module to compile
 top_level       ?= mempool_tb
 # QuestaSim Version
-questa_version  ?= 2022.3-bt
+questa_version  ?= 2023.4-zr
 # QuestaSim command
 questa_cmd      ?= questa-$(questa_version)
 # QuestaSim arguments
@@ -288,7 +288,7 @@ $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bende
 compile_vcs_simv: update-floogen elabvcs $(buildpath)/mempool_simv
 $(buildpath)/mempool_simv: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
 	cd $(buildpath) && \
-	$(vcs_cmd) vcs -full64 $(top_level) -cc $(CC) -cpp $(CXX) -ld $(CXX) $(dpi_library)/mempool_vcs_dpi.so $(vcs_config) -debug_access=r -kdb -assert disable_cover -o mempool_simv
+	$(vcs_cmd) vcs -full64 $(top_level) -cc $(CC) -cpp $(CXX) -ld $(CXX) $(dpi_library)/mempool_vcs_dpi.so $(vcs_config) -debug_access+all -kdb -assert disable_cover -o mempool_simv
 
 compile_vcs_simvopt: update-floogen elabvcs $(buildpath)/mempool_simvopt
 $(buildpath)/mempool_simvopt: $(buildpath)/compilevcs.sh $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so
