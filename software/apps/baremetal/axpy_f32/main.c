@@ -50,7 +50,7 @@ int main() {
     uint32_t clock_cycles = (time_end - time_init);
     printf("\nKernel execution takes %d clock cycles\n", clock_cycles);
   }
-  mempool_check_f32(l1_Y, l2_Z, 100, 0.1f, 0);
+  mempool_check_f32(l1_Y, l2_Z, array_N, 0.1f, 0);
   mempool_barrier(num_cores);
 
   return 0;
