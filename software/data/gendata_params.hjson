@@ -215,6 +215,18 @@
     ]
   },
 
+  "gaussjordan_q32": {
+    "type": "int32",
+    "defines": [
+      ("matrix_N", 16)
+      ("FIXED_POINT", 10)
+    ]
+    "arrays": [
+      ("int32_t", "l2_Src")
+      ("int32_t", "l2_Dst")
+    ]
+  },
+
   "matmul_f16": {
     "type": "float16",
     "defines": [
