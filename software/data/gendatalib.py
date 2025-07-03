@@ -509,6 +509,26 @@ def generate_qcholesky(defines={}, fixed_point=15, my_type=np.int32):
     return [vA, vL, vy], defines
 
 
+def generate_qgaussjordan(my_type=np.int32, defines={}):
+
+    matrix_N = defines['matrix_N']
+    fixed_point = defines['FIXED_POINT']
+
+    issingular = True
+    while (issingular):
+        src = np.random.uniform(-10, 10, size=(matrix_N, matrix_N))
+        if np.linalg.det(src) != 0:  # Ensure it's invertible
+            issingular = False
+
+    dst = np.linalg.inv(src)
+    src = np.round(src * (1 << fixed_point)).astype(my_type)
+    dst = np.round(dst * (1 << fixed_point)).astype(my_type)
+    src = np.reshape(src, (matrix_N * matrix_N)).astype(my_type)
+    dst = np.reshape(dst, (matrix_N * matrix_N)).astype(my_type)
+
+    return [src, dst], defines
+
+
 def generate_qmmse(defines={}, fixed_point=15, my_type=np.int32):
 
     FIXED_POINT = defines['FIXED_POINT']
