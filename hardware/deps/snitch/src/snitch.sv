@@ -202,7 +202,6 @@ module snitch
   logic write_rd; // write rd desitnation this cycle
   logic uses_rd;
   logic write_rs1; // write rs1 destination this cycle
-  logic uses_rs1;
   enum logic [1:0] {Consec, Alu, Exception} next_pc;
 
   enum logic [1:0] {RdAlu, RdConsecPC, RdBypass} rd_select;
@@ -255,7 +254,7 @@ module snitch
   logic operands_ready;
   logic dst_ready;
   logic opa_ready, opb_ready, opc_ready;
-  logic dstrd_ready, dstrs1_ready;
+  logic dstrd_ready;
 
   always_comb begin
     sb_d = sb_q;
@@ -278,8 +277,7 @@ module snitch
   // either we are not using the destination register or we need to make
   // sure that its destination operand is not marked busy in the scoreboard.
   assign dstrd_ready = ~uses_rd | (uses_rd & ~sb_q[rd]);
-  assign dstrs1_ready = ~uses_rs1 | (uses_rs1 & ~sb_q[rs1]);
-  assign dst_ready = dstrd_ready & dstrs1_ready;
+  assign dst_ready = dstrd_ready;
 
   assign valid_instr = (inst_ready_i & inst_valid_o) & operands_ready & dst_ready;
   // the accelerator interface stalled us
@@ -350,9 +348,8 @@ module snitch
     write_rd = 1'b1;
     // instruction writes rd
     uses_rd = 1'b1;
-    // Set up rs1 destination
+    // instruction writes rs1 in the decoding cycle
     write_rs1 = 1'b0;
-    uses_rs1 = write_rs1;
 
     rd_bypass = '0;
     zero_lsb = 1'b0;
@@ -1058,7 +1055,7 @@ module snitch
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
-          opc_select = Reg;
+          opc_select = RegRd;
           acc_register_rd = 1'b1;
           acc_qaddr_o = snitch_pkg::FP_SS;
         end else begin
@@ -1071,7 +1068,6 @@ module snitch
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
-          opc_select = Reg;
           acc_register_rd = 1'b1;
           acc_qaddr_o = snitch_pkg::FP_SS;
         end else begin
@@ -1277,7 +1273,7 @@ module snitch
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
-          opc_select = Reg;
+          opc_select = RegRd;
           acc_register_rd = 1'b1;
           acc_qaddr_o = snitch_pkg::FP_SS;
         end else begin
@@ -1291,7 +1287,6 @@ module snitch
           acc_qvalid_o = valid_instr;
           opa_select = Reg;
           opb_select = Reg;
-          opc_select = Reg;
           acc_register_rd = 1'b1;
           acc_qaddr_o = snitch_pkg::FP_SS;
         end else begin
@@ -1909,7 +1904,6 @@ module snitch
      write_rd = 1'b0;
      uses_rd = 1'b0;
      write_rs1 = 1'b0;
-     uses_rs1 = 1'b0;
      acc_qvalid_o = 1'b0;
      next_pc = Exception;
     end
