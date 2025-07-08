@@ -35,7 +35,7 @@ endif
 ifeq ($(origin CXX),default)
   CXX ?= g++
 endif
-BENDER_VERSION = 0.27.3
+BENDER_VERSION = 0.28.2
 
 # We need a recent LLVM installation (>11) to compile Verilator.
 # We also need to link the binaries with LLVM's libc++.
@@ -152,7 +152,7 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 # Update and patch hardware dependencies for MemPool
 # Previous changes will be stashed. Clear all the stashes with `git stash clear`
 .PHONY: update-deps
-update-deps:
+update-deps: setup-dram
 	for dep in $(shell git config --file .gitmodules --get-regexp path \
 	| awk '/hardware/{ print $$2 }'); do \
 	  git -C $${dep} diff --quiet || { echo $${dep}; git -C $${dep} stash -u; }; \
@@ -173,6 +173,7 @@ clean-dram:
 	fi
 
 build-dram: clean-dram
+	git submodule update --init --recursive -- $(DRAM_PATH)
 	if [ ! -d "$(DRAMSYS_PATH)" ]; then \
 		git clone https://github.com/tukl-msd/DRAMSys.git $(DRAMSYS_PATH); \
 	fi
@@ -190,7 +191,7 @@ setup-dram: config-dram
 	cd $(DRAMSYS_PATH) && \
 	if [ ! -d "build" ]; then \
 		mkdir build && cd build; \
-		cmake -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
+		$(CMAKE) -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_C_FLAGS=-fPIC -D DRAMSYS_WITH_DRAMPOWER=ON .. ; \
 		make -j; \
 	fi
 
@@ -238,6 +239,7 @@ toolchain/riscv-opcodes/*:
 
 format:
 	$(ROOT_DIR)/scripts/run_clang_format.py --clang-format-executable=$(LLVM_INSTALL_DIR)/bin/clang-format -i -r $(ROOT_DIR)
+	find ./software/data -name '*.py' -exec autopep8 --in-place --aggressive {} +
 
 clean: clean-riscv-tests
 	rm -rf $(INSTALL_DIR)

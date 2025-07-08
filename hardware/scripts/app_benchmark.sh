@@ -5,12 +5,11 @@
 # SPDX-License-Identifier: SHL-0.51
 
 app_list=("terapool/axpy_i32" "terapool/dotp_i32" "terapool/dct_i32" "terapool/conv2d_i32" "terapool/conv2d_local_i32" "terapool/matmul_i32")
-config_list=("config=terapool noc_req_rd_channel_num=0 noc_req_rdwr_channel_num=2 noc_resp_channel_num=2" \
-             "config=terapool noc_req_rd_channel_num=1 noc_req_rdwr_channel_num=1 noc_resp_channel_num=2" \
-             "config=terapool noc_req_rd_channel_num=1 noc_req_rdwr_channel_num=1 noc_resp_channel_num=3" \
-             "config=terapool noc_req_rd_channel_num=0 noc_req_rdwr_channel_num=2 noc_resp_channel_num=2 noc_router_remapping=3 noc_router_remap_group_size=4" \
-             "config=terapool noc_req_rd_channel_num=1 noc_req_rdwr_channel_num=1 noc_resp_channel_num=2 noc_router_remapping=3 noc_router_remap_group_size=4" \
-             "config=terapool noc_req_rd_channel_num=1 noc_req_rdwr_channel_num=1 noc_resp_channel_num=3 noc_router_remapping=3 noc_router_remap_group_size=4")
+config_list=("config=terapool noc_req_rd_channel_num=0 noc_req_rdwr_channel_num=2 noc_resp_channel_num=2 noc_router_input_fifo_dep=2 noc_router_output_fifo_dep=2 noc_router_remapping=3 noc_router_remap_group_size=4 spm_bank_id_remap=0 tile_id_remap=0" \
+             "config=terapool noc_req_rd_channel_num=0 noc_req_rdwr_channel_num=2 noc_resp_channel_num=2 noc_router_input_fifo_dep=4 noc_router_output_fifo_dep=0 noc_router_remapping=3 noc_router_remap_group_size=4 spm_bank_id_remap=0 tile_id_remap=0" \
+             "config=terapool noc_req_rd_channel_num=1 noc_req_rdwr_channel_num=1 noc_resp_channel_num=2 noc_router_input_fifo_dep=2 noc_router_output_fifo_dep=2 noc_router_remapping=3 noc_router_remap_group_size=4 spm_bank_id_remap=0 tile_id_remap=0" \
+             "config=terapool noc_req_rd_channel_num=1 noc_req_rdwr_channel_num=1 noc_resp_channel_num=2 noc_router_input_fifo_dep=4 noc_router_output_fifo_dep=0 noc_router_remapping=3 noc_router_remap_group_size=4 spm_bank_id_remap=0 tile_id_remap=0")
+extra_info=""
 
 # Function to check current memory usage (as a percentage).
 check_memory() {
@@ -72,13 +71,14 @@ for config in "${config_list[@]}"; do
     workdir="${workdir//noc_req_rd_channel_num=/rd}"
     workdir="${workdir//noc_req_rdwr_channel_num=/rw}"
     workdir="${workdir//noc_resp_channel_num=/rsp}"
+    workdir="${workdir//noc_router_input_fifo_dep=/idep}"
+    workdir="${workdir//noc_router_output_fifo_dep=/odep}"
     workdir="${workdir//noc_router_remapping=/rrmp}"
     workdir="${workdir//noc_router_remap_group_size=/rgrp}"
     workdir="${workdir//spm_bank_id_remap=/brmp}"
     workdir="${workdir//tile_id_remap=/trmp}"
-    workdir=${workdir}/${app}
-    # limit_resources
-    # ./scripts/exec_benchmark.sh $app \"$config\" $workdir
+    workdir=${workdir}${extra_info}/${app}
+    # eval ./scripts/exec_benchmark.sh $app \"$config\" $workdir
     tmux new-session -d -s $workdir "./scripts/exec_benchmark.sh $app \"$config\" $workdir"
   done
 done

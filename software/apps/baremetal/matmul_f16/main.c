@@ -17,7 +17,13 @@
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_matmul_f16.h"
 
-#define PARALLEL
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core matmul.
+PARALLEL: When defined runs parallel matmul.
+*/
 
 __fp16 matrix_a[matrix_M * matrix_N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -34,8 +40,10 @@ int main() {
 
   // Initialize Matrices 1
   if (core_id == 0) {
-    dma_memcpy_blocking(matrix_a, A, (matrix_M * matrix_N) * sizeof(int16_t));
-    dma_memcpy_blocking(matrix_b, B, (matrix_N * matrix_P) * sizeof(int16_t));
+    dma_memcpy_blocking(matrix_a, l2_A,
+                        (matrix_M * matrix_N) * sizeof(int16_t));
+    dma_memcpy_blocking(matrix_b, l2_B,
+                        (matrix_N * matrix_P) * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
 
@@ -59,7 +67,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_f16(matrix_c, C, matrix_M * matrix_P, 0.5f, 0);
+  mempool_check_f16(matrix_c, l2_C, matrix_M * matrix_P, 0.5f, 0);
   mempool_barrier(num_cores);
   return 0;
 }

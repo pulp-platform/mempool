@@ -22,4 +22,3 @@ if [ -e ${buildpath}/noc_profiling ]; then
   eval cp -r ${buildpath}/noc_profiling ${result_dir}
 fi
 eval make clean buildpath=${buildpath}
-eval python3 scripts/parse_result.py ${result_dir}/avg.txt ${result_dir}/avg.xlsx

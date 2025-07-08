@@ -5,6 +5,7 @@
 // Author: Samuel Riedel, ETH Zurich
 //         Sergio Mazzola, ETH Zurich
 
+#pragma once
 #include "builtins_v2.h"
 
 /* This library implements the matrix multiplication for several data widths

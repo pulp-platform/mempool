@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Mempool runtime libraries */
 #include "builtins_v2.h"
 #include "dma.h"
 #include "encoding.h"
@@ -20,12 +19,19 @@
 
 #include "data_cfft_radix2_q16.h"
 
-/* CFFT mempool libraries */
+/*
+======================
+Parameters and defines
+
+SINGLE: When defined runs single-core CFFT.
+PARALLEL: When defined runs parallel CFFT.
+*/
+
+#define PARALLEL
+
 #include "baremetal/mempool_cfft_q16_bitreversal.h"
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_radix2_cfft_q16.h"
-
-#define PARALLEL
 
 /* CFFT mempool data */
 int16_t l1_pSrc[2 * N_CSAMPLES]
@@ -69,7 +75,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_q16(l1_pSrc, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
+  mempool_check_i16(l1_pSrc, l2_pRes, 2 * N_CSAMPLES, TOLERANCE, 0);
   mempool_barrier(num_cores);
   return 0;
 }

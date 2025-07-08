@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "data.h"
+#include "data_fence.h"
 #include "dma.h"
 #include "encoding.h"
 #include "mempool_dma_frontend.h"
