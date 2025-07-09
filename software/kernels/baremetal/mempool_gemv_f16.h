@@ -79,7 +79,7 @@ void gemv_f16vecp_local_unrolled4(__fp16 *in_a, __fp16 *in_x, __fp16 *y,
             "fadd.s %[local_sum0], %[local_sum0], %[remain_sum_f32];"
             : [remain_sum_f32] "=r"(remain_sum_f32), [local_sum0] "+&r"(
                                                          local_sum0)
-            : [remain_sum] "r"(remain_sum))
+            : [remain_sum] "r"(remain_sum));
       }
       // Reduction of 4 partial sums
       asm volatile(
