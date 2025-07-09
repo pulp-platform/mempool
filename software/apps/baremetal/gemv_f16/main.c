@@ -17,15 +17,16 @@
 #include "data_gemv_f16.h"
 uint32_t red_barrier[NUM_BANKS]
     __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-__fp16 sum[2 * NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+__fp16 sum[2 * NUM_BANKS]
+    __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_gemv_f16.h"
 
-__fp16 l1_A[matrix_N * matrix_P] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+__fp16 l1_A[matrix_N * matrix_P]
+    __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 __fp16 l1_X[matrix_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 __fp16 l1_Y[matrix_P] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-
 
 int main() {
 

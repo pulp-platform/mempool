@@ -110,7 +110,7 @@ extern "C" {
 #define CONTROL_REGISTERS_RO_CACHE_END_3_REG_OFFSET 0x5c
 
 #ifdef __cplusplus
-}  // extern "C"
+} // extern "C"
 #endif
-#endif  // _CONTROL_REGISTERS_REG_DEFS_
-// End generated register defines for control_registers
+#endif // _CONTROL_REGISTERS_REG_DEFS_
+       // End generated register defines for control_registers

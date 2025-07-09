@@ -39,6 +39,7 @@ echo "Checking for trailing whitespaces and tabs in unstaged files"
 git --no-pager diff --check -- \
     ':(exclude)**.def' \
     ':(exclude)**.patch' \
+    ':(exclude)hardware/src/control_registers/*.sv' \
     ':(exclude)toolchain/**' \
     ':(exclude)software/riscv-tests/**' \
     || EXIT_STATUS=$?
@@ -47,6 +48,7 @@ echo "Checking for trailing whitespaces and tabs between HEAD and $base"
 git --no-pager diff --check $base HEAD -- \
     ':(exclude)**.def' \
     ':(exclude)**.patch' \
+    ':(exclude)hardware/src/control_registers/*.sv' \
     ':(exclude)toolchain/**' \
     ':(exclude)software/riscv-tests/**' \
     || EXIT_STATUS=$?

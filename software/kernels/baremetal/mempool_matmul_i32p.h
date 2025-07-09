@@ -1034,18 +1034,18 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
 }
 
 void mat_mul_unrolled_4x4_conflict_nocopt_parallel_asm(
-  int32_t const *__restrict__ A, int32_t const *__restrict__ B,
-  int32_t *__restrict__ C, uint32_t M, uint32_t N, uint32_t P, uint32_t id,
-  uint32_t numThreads) {
+    int32_t const *__restrict__ A, int32_t const *__restrict__ B,
+    int32_t *__restrict__ C, uint32_t M, uint32_t N, uint32_t P, uint32_t id,
+    uint32_t numThreads) {
 
   /////////////////////////////
   //      Configuration      //
   /////////////////////////////
   // Parallelize by assigning each core one row
   // How many cores per window
-  const uint32_t group_nums = 16;                   // MemPool =
-  const uint32_t group_tile_nums = 16;              // MemPool =
-  const uint32_t tile_core_nums = 4;                // MemPool =
+  const uint32_t group_nums = 16;      // MemPool =
+  const uint32_t group_tile_nums = 16; // MemPool =
+  const uint32_t tile_core_nums = 4;   // MemPool =
   const uint32_t tile_bank_nums = BANKING_FACTOR * tile_core_nums;
 
   uint32_t c = numThreads / (M / 4);
@@ -1062,19 +1062,23 @@ void mat_mul_unrolled_4x4_conflict_nocopt_parallel_asm(
   // uint32_t i_offset = 4 * id / c;
   uint32_t i_group_core_nums = N * 4 / BANKING_FACTOR;
   uint32_t i_group_nums = numThreads / i_group_core_nums;
-  uint32_t i_offset = (id % i_group_core_nums) / c * 4 * i_group_nums + (id / i_group_core_nums) * 4;
+  uint32_t i_offset = (id % i_group_core_nums) / c * 4 * i_group_nums +
+                      (id / i_group_core_nums) * 4;
 
-  uint32_t conflict_tile = group_nums * group_tile_nums * tile_bank_nums / 4 / P;
+  uint32_t conflict_tile =
+      group_nums * group_tile_nums * tile_bank_nums / 4 / P;
   if (conflict_tile < 1) {
     conflict_tile = 1;
   }
   uint32_t conflict_bank = group_nums * group_tile_nums / 4;
   // Inner Loop Control
   // k_offset = (Core offset) + (Window offset) + (Group offset from MatrixB)
-  uint32_t k_offset = (id % c + id / conflict_tile) * (tile_bank_nums + 1); //根据需求补1
+  uint32_t k_offset =
+      (id % c + id / conflict_tile) * (tile_bank_nums + 1); //根据需求补1
   // uint32_t k_offset = (id % c) + (2 * (id / c)) + k_offset_incr;
   // Middle Loop Control, window jump for avoiding tile and bank conflict
-  uint32_t j_offset = id / c / conflict_tile * tile_bank_nums / 4 + id / conflict_bank;
+  uint32_t j_offset =
+      id / c / conflict_tile * tile_bank_nums / 4 + id / conflict_bank;
   /////////////////////////////
   //      LOOP  CONTROL      //
   /////////////////////////////
@@ -1246,7 +1250,7 @@ void mat_mul_unrolled_4x4_conflict_nocopt_parallel_asm(
           "add sp, sp, 8 \n\t"
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
             [addr_c] "+&r"(addr_c), [addr_a_ori] "+&r"(addr_a_ori),
-            [addr_b_ori] "+&r"(addr_b_ori), [x1] "+&r"(k) // Outputs
+            [addr_b_ori] "+&r"(addr_b_ori), [x1] "+&r"(k)         // Outputs
           : [N3_1] "r"(N31), [P_3] "I"(P3), [N] "I"(matrix_N * 4) // Inputs
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",

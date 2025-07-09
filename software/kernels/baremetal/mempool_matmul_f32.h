@@ -373,8 +373,8 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
   uint32_t const c_end = (matrix_P / c) * ((id % c) + 1);
   // For avoiding group conflict by same tile
   // Each cores in the same tile should access to different groups
-  uint32_t group_bank_nums = 1024;             // MemPool = 256
-  uint32_t tile_core_nums = 8;                 // MemPool = 4
+  uint32_t group_bank_nums = 1024;                    // MemPool = 256
+  uint32_t tile_core_nums = 8;                        // MemPool = 4
   uint32_t jump_lines_A = group_bank_nums / matrix_N; // Used for i control
   uint32_t jump_lines_B = group_bank_nums / matrix_P; // Used for k control
   // Window size limit, min jump lines is 4 for MatrixA
@@ -414,10 +414,10 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
   }
   uint32_t M_partition = matrix_M / outer_loop_time;
 
-  /////////////////////////////
-  //      *LOOP  START*      //
-  /////////////////////////////
-  #pragma clang loop unroll(disable)
+/////////////////////////////
+//      *LOOP  START*      //
+/////////////////////////////
+#pragma clang loop unroll(disable)
   for (uint32_t i_ori = 4 * (id / c); i_ori < matrix_M;
        i_ori += 4 * (numThreads / c)) {
     outer_loop_counter += 1;
@@ -431,7 +431,7 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
     uint32_t P_counter = c_end;
 
   Mid_loop:
-    #pragma clang loop unroll(disable)
+#pragma clang loop unroll(disable)
     for (uint32_t j = j_offset_counter; j < P_counter; j += 4) {
       // Address registers
       float const *addr_a_ori = &A[i * matrix_N];
@@ -449,12 +449,7 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
       // x11  x28 x29 x30 x31
       //
       //
-      __asm__ volatile(
-        "sw %[addr_c], -4(sp) \n\t"
-        :
-        : [addr_c] "r"(addr_c)
-        :
-      );
+      __asm__ volatile("sw %[addr_c], -4(sp) \n\t" : : [addr_c] "r"(addr_c) :);
 
       __asm__ volatile(
           ".balign 16 \n\t"
@@ -596,7 +591,7 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
           "add sp, sp, 16 \n\t"
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
             [addr_a_ori] "+&r"(addr_a_ori), [addr_b_ori] "+&r"(addr_b_ori),
-            [x1] "+&r"(k) // Outputs
+            [x1] "+&r"(k)                                         // Outputs
           : [N3_1] "r"(N31), [P_3] "I"(P3), [N] "r"(matrix_N * 4) // Inputs
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
@@ -613,8 +608,9 @@ void matmul_4x4_parallel_f32(float const *__restrict__ A,
 }
 
 void matmul_4x4_parallel_f32_nocopt_asm(float const *__restrict__ A,
-                                        float const *__restrict__ B, float *__restrict__ C,
-                                        uint32_t M, uint32_t N, uint32_t P, uint32_t id,
+                                        float const *__restrict__ B,
+                                        float *__restrict__ C, uint32_t M,
+                                        uint32_t N, uint32_t P, uint32_t id,
                                         uint32_t numThreads) {
   (void)M;
   (void)N;
@@ -627,9 +623,9 @@ void matmul_4x4_parallel_f32_nocopt_asm(float const *__restrict__ A,
   /////////////////////////////
   // Parallelize by assigning each core one row
   // How many cores per window
-  uint32_t const group_nums = 16;                   // MemPool =
-  uint32_t const group_tile_nums = 16;              // MemPool =
-  uint32_t const tile_core_nums = 4;                // MemPool =
+  uint32_t const group_nums = 16;      // MemPool =
+  uint32_t const group_tile_nums = 16; // MemPool =
+  uint32_t const tile_core_nums = 4;   // MemPool =
   uint32_t const tile_nums = group_nums * group_tile_nums;
   uint32_t const core_nums = tile_core_nums * tile_nums;
   uint32_t const bank_nums = core_nums * BANKING_FACTOR;
@@ -649,13 +645,14 @@ void matmul_4x4_parallel_f32_nocopt_asm(float const *__restrict__ A,
   // uint32_t i_offset = 4 * id / c;
   // uint32_t const a_row_core_nums = matrix_N / BANKING_FACTOR;
   // uint32_t const a_row_group_nums = numThreads / a_row_core_nums;
-  // uint32_t i_offset = id / a_row_core_nums + (id % a_row_core_nums) / c * a_row_group_nums * 4;
-  // int32_t N_step = matrix_N * (int32_t)a_row_group_nums * 4;
-  // int32_t N_back = -3 * N_step + 4;
+  // uint32_t i_offset = id / a_row_core_nums + (id % a_row_core_nums) / c *
+  // a_row_group_nums * 4; int32_t N_step = matrix_N * (int32_t)a_row_group_nums
+  // * 4; int32_t N_back = -3 * N_step + 4;
 
   uint32_t const i_group_core_nums = matrix_N * 4 / BANKING_FACTOR;
   uint32_t const i_group_nums = core_nums / i_group_core_nums;
-  uint32_t i_offset = (id % i_group_core_nums) / c * 4 * i_group_nums + (id / i_group_core_nums) * 4;
+  uint32_t i_offset = (id % i_group_core_nums) / c * 4 * i_group_nums +
+                      (id / i_group_core_nums) * 4;
 
   uint32_t j_conflict_tile = bank_nums / matrix_P / 4;
   if (j_conflict_tile < 1) {
@@ -666,11 +663,15 @@ void matmul_4x4_parallel_f32_nocopt_asm(float const *__restrict__ A,
   // uint32_t k_conflict_bank = group_nums * group_tile_nums * tile_core_nums;
   // Inner Loop Control
   // k_offset = (Core offset) + (Window offset) + (Group offset from MatrixB)
-  uint32_t k_offset = (id % c) * (tile_core_nums * BANKING_FACTOR + 1) + id / c * 4 + \
-                      id / c / k_conflict_tile * c * tile_core_nums * BANKING_FACTOR + id / (tile_nums / 4) * 4;
+  uint32_t k_offset =
+      (id % c) * (tile_core_nums * BANKING_FACTOR + 1) + id / c * 4 +
+      id / c / k_conflict_tile * c * tile_core_nums * BANKING_FACTOR +
+      id / (tile_nums / 4) * 4;
   // uint32_t k_offset = (id % c) + (2 * (id / c)) + k_offset_incr;
   // Middle Loop Control, window jump for avoiding tile and bank conflict
-  uint32_t j_offset = id / c / j_conflict_tile * tile_core_nums * BANKING_FACTOR + id / (tile_nums / 4) * 4;
+  uint32_t j_offset =
+      id / c / j_conflict_tile * tile_core_nums * BANKING_FACTOR +
+      id / (tile_nums / 4) * 4;
   /////////////////////////////
   //      LOOP  CONTROL      //
   /////////////////////////////
@@ -684,17 +685,17 @@ void matmul_4x4_parallel_f32_nocopt_asm(float const *__restrict__ A,
     j_offset = j_offset - window_in_P * (j_offset / window_in_P);
   }
 
-  /////////////////////////////
-  //      *LOOP  START*      //
-  /////////////////////////////
-  #pragma clang loop unroll(disable)
+/////////////////////////////
+//      *LOOP  START*      //
+/////////////////////////////
+#pragma clang loop unroll(disable)
   for (uint32_t i = i_offset; i < matrix_M; i += 4 * (core_nums / c)) {
     // Backup counter for mid-loop
     uint32_t j_offset_counter = c_start + j_offset;
     uint32_t P_counter = c_end;
 
   Mid_loop:
-    #pragma clang loop unroll(disable)
+#pragma clang loop unroll(disable)
     for (uint32_t j = j_offset_counter; j < P_counter; j += 4) {
       // Address registers
       float const *addr_a_ori = &A[i * matrix_N];
@@ -712,12 +713,7 @@ void matmul_4x4_parallel_f32_nocopt_asm(float const *__restrict__ A,
       // x11  x28 x29 x30 x31
       //
       //
-      __asm__ volatile(
-          "sw %[addr_c], -4(sp) \n\t"
-          :
-          : [addr_c] "r"(addr_c)
-          :
-      );
+      __asm__ volatile("sw %[addr_c], -4(sp) \n\t" : : [addr_c] "r"(addr_c) :);
 
       __asm__ volatile(
           // Outer loop: Initialize and preload. Execute this loop P times
@@ -859,7 +855,7 @@ void matmul_4x4_parallel_f32_nocopt_asm(float const *__restrict__ A,
           "add sp, sp, 16 \n\t"
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
             [addr_a_ori] "+&r"(addr_a_ori), [addr_b_ori] "+&r"(addr_b_ori),
-            [x1] "+&r"(k) // Outputs
+            [x1] "+&r"(k)                                         // Outputs
           : [N3_1] "r"(N31), [P_3] "I"(P3), [N] "r"(matrix_N * 4) // Inputs
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",

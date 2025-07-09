@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Author: Samuel Riedel, ETH Zurich
+//         Yinrong Li, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_matmul_f16.h"
+#include "baremetal/mempool_matmul_f16p.h"
 
 /*
 ======================
@@ -64,6 +66,23 @@ int main() {
   matmul_4x2_parallel_f16vec(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
                              matrix_P, core_id, num_cores);
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+#endif
+
+#if defined(XBAR_OPT)
+  mempool_start_benchmark();
+  matmul_4x4_parallel_f16p_opt_asm((float *)matrix_a, (float *)matrix_b,
+                                   (float *)matrix_c, matrix_M, matrix_N,
+                                   matrix_P, core_id, num_cores);
+  mempool_log_barrier(8, core_id);
+  mempool_stop_benchmark();
+#endif
+
+#if defined(NOC_OPT)
+  mempool_start_benchmark();
+  matmul_4x4_parallel_f16p_nocopt_asm(matrix_a, matrix_b, matrix_c, matrix_M,
+                                      matrix_N, matrix_P, core_id, num_cores);
+  mempool_log_barrier(8, core_id);
   mempool_stop_benchmark();
 #endif
 

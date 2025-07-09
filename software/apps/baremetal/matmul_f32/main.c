@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Author: Marco Bertuletti, ETH Zurich
+//         Yinrong Li, ETH Zurich
 
 #include <stdint.h>
 #include <string.h>
@@ -60,6 +61,22 @@ int main() {
   matmul_2x2_parallel_f32(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
                           matrix_P, core_id, num_cores);
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+#endif
+
+#if defined(XBAR_OPT)
+  mempool_start_benchmark();
+  matmul_4x4_parallel_f32(matrix_a, matrix_b, matrix_c, matrix_M, matrix_N,
+                          matrix_P, core_id, num_cores);
+  mempool_log_barrier(8, core_id);
+  mempool_stop_benchmark();
+#endif
+
+#if defined(NOC_OPT)
+  mempool_start_benchmark();
+  matmul_4x4_parallel_f32_nocopt_asm(matrix_a, matrix_b, matrix_c, matrix_M,
+                                     matrix_N, matrix_P, core_id, num_cores);
+  mempool_log_barrier(8, core_id);
   mempool_stop_benchmark();
 #endif
 
