@@ -12,7 +12,6 @@
 # numpy library or the qmath bit-true library.
 
 import numpy as np
-import signal
 import math
 import qmath
 
