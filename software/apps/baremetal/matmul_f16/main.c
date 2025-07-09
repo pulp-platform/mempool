@@ -71,16 +71,17 @@ int main() {
 
 #if defined(XBAR_OPT)
   mempool_start_benchmark();
-  matmul_4x4_parallel_f16p_opt_asm((float *)matrix_a, (float *)matrix_b, (float *)matrix_c,
-                                   matrix_M, matrix_N, matrix_P, core_id, num_cores);
+  matmul_4x4_parallel_f16p_opt_asm((float *)matrix_a, (float *)matrix_b,
+                                   (float *)matrix_c, matrix_M, matrix_N,
+                                   matrix_P, core_id, num_cores);
   mempool_log_barrier(8, core_id);
   mempool_stop_benchmark();
 #endif
 
 #if defined(NOC_OPT)
   mempool_start_benchmark();
-  matmul_4x4_parallel_f16p_nocopt_asm(matrix_a, matrix_b, matrix_c,
-                                      matrix_M, matrix_N, matrix_P, core_id, num_cores);
+  matmul_4x4_parallel_f16p_nocopt_asm(matrix_a, matrix_b, matrix_c, matrix_M,
+                                      matrix_N, matrix_P, core_id, num_cores);
   mempool_log_barrier(8, core_id);
   mempool_stop_benchmark();
 #endif

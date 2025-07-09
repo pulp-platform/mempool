@@ -22,10 +22,10 @@ float sum[NUM_BANKS] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_gemv_f32.h"
 
-float l1_A[matrix_N * matrix_P] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
+float l1_A[matrix_N * matrix_P]
+    __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 float l1_X[matrix_N] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
 float l1_Y[matrix_P] __attribute__((aligned(NUM_BANKS), section(".l1_prio")));
-
 
 int main() {
 

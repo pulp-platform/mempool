@@ -197,6 +197,7 @@ def generate_fccholesky(my_type=np.float32, defines={}):
     vector_L = np.concatenate(vector_L, axis=0)
     return [vector_G, vector_L], defines
 
+
 def generate_fconv2d(my_type=np.float32, defines={}):
     # Create matrix
     matrix_M = defines['matrix_M']
@@ -215,6 +216,7 @@ def generate_fconv2d(my_type=np.float32, defines={}):
     C = np.reshape(C, (matrix_M * matrix_N), order='C').astype(my_type)
     # Output vectors
     return [A, K, C], defines
+
 
 def generate_fcmatmul(my_type=np.float32, defines={}):
 
@@ -255,6 +257,7 @@ def generate_fmatmul(my_type=np.float32, defines={}):
 
     return [A, B, C], defines
 
+
 def generate_fgemv(my_type=np.float32, defines={}):
     # Create matrix
     matrix_N = defines['matrix_N']
@@ -262,11 +265,11 @@ def generate_fgemv(my_type=np.float32, defines={}):
     A = (np.random.rand(matrix_P, matrix_N) - 0.5).astype(my_type)
     X = (np.random.rand(matrix_N) - 0.5).astype(my_type)
     Y = np.matmul(A, X)
-    
+
     A = np.reshape(A, (matrix_P * matrix_N), order='C').astype(my_type)
     X = np.reshape(X, (matrix_N), order='C').astype(my_type)
     Y = np.reshape(Y, (matrix_P), order='C').astype(my_type)
-    
+
     return [A, X, Y], defines
 
 

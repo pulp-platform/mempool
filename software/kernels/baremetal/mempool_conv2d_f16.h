@@ -13,21 +13,17 @@
 #pragma once
 #include "builtins_v2.h"
 
-__attribute__((aligned(32)))
-void conv2d_4x4_shifted_unrolled_parallel(__fp16 const *__restrict__ in,
-                                          uint32_t in_x, uint32_t in_y,
-                                          __fp16 const *__restrict__ k,
-                                          __fp16 volatile *__restrict__ out,
-                                          uint32_t id, uint32_t numThreads)
-{
+__attribute__((aligned(32))) void conv2d_4x4_shifted_unrolled_parallel(
+    __fp16 const *__restrict__ in, uint32_t in_x, uint32_t in_y,
+    __fp16 const *__restrict__ k, __fp16 volatile *__restrict__ out,
+    uint32_t id, uint32_t numThreads) {
   (void)k;
   // compute sum of weights
   float weight = 114514.114514f;
-  __fp16 local_k[16] = {
-      1.14514f, 114.514f, 1.14514f, 114.514f,
-      114.514f, 114514.0f, 114.514f, 1.14514f,
-      114.514f, 1.14514f, 114.514f, 1.14514f,
-      1.14514f, 114.514f, 1.14514f, 114.514f};
+  __fp16 local_k[16] = {1.14514f, 114.514f,  1.14514f, 114.514f,
+                        114.514f, 114514.0f, 114.514f, 1.14514f,
+                        114.514f, 1.14514f,  114.514f, 1.14514f,
+                        1.14514f, 114.514f,  1.14514f, 114.514f};
   v2h kVec01 = *(v2h *)&local_k[0];
   v2h kVec23 = *(v2h *)&local_k[2];
   v2h kVec45 = *(v2h *)&local_k[4];
@@ -41,7 +37,6 @@ void conv2d_4x4_shifted_unrolled_parallel(__fp16 const *__restrict__ in,
   //   : [weight] "+&r"(weight)
   //   : [ki] "r"(k[i])
   //   :);
-
 
   for (unsigned int _i = 0; _i < 8; _i += 4) {
     unsigned int i = 8 * id + _i;
@@ -87,7 +82,7 @@ void conv2d_4x4_shifted_unrolled_parallel(__fp16 const *__restrict__ in,
         "vfdotpex.s.h x25, x15, %[kVec67] \n\t"
         "fadd.s x27, x23, x0 \n\t"
         "vfdotpex.s.h x23, x14, %[kVec45] \n\t"
-        
+
         "fadd.s x30, x26, x30 \n\t"
         "vfdotpex.s.h x26, x19, %[kVecAB] \n\t"
         "fadd.s x28, x24, x28 \n\t"
@@ -96,7 +91,7 @@ void conv2d_4x4_shifted_unrolled_parallel(__fp16 const *__restrict__ in,
         "vfdotpex.s.h x25, x18, %[kVecAB] \n\t"
         "fadd.s x27, x23, x27 \n\t"
         "vfdotpex.s.h x23, x17, %[kVec89] \n\t"
-        
+
         "fadd.s x30, x26, x30 \n\t"
         "vfdotpex.s.h x26, x22, %[kVecEF] \n\t"
         "fadd.s x28, x24, x28 \n\t"
@@ -130,22 +125,18 @@ void conv2d_4x4_shifted_unrolled_parallel(__fp16 const *__restrict__ in,
         "mv x17, x20 \n\t"
         "lw x22, 8(%[inp]) \n\t"
         "lw x21, 4(%[inp]) \n\t"
-        
+
         "p.sw x27, %[row_step](%[outp]!) \n\t"
 
         "bne %[outp], x1, 1b \n\t"
 
-        : [inp] "+&r"(inp),
-          [outp] "+&r"(outp)
-        : [kVec01] "r"(kVec01), [kVec23] "r"(kVec23),
-          [kVec45] "r"(kVec45), [kVec67] "r"(kVec67),
-          [kVec89] "r"(kVec89), [kVecAB] "r"(kVecAB),
-          [kVecCD] "r"(kVecCD), [kVecEF] "r"(kVecEF),
-          [x1] "r"(k), [row_step] "r"(row_step), [weight] "r"(weight)
-        : "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18",
-          "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
-          "x27", "x28", "x29", "x30", "memory"
-        );
-
+        : [inp] "+&r"(inp), [outp] "+&r"(outp)
+        : [kVec01] "r"(kVec01), [kVec23] "r"(kVec23), [kVec45] "r"(kVec45),
+          [kVec67] "r"(kVec67), [kVec89] "r"(kVec89), [kVecAB] "r"(kVecAB),
+          [kVecCD] "r"(kVecCD), [kVecEF] "r"(kVecEF), [x1] "r"(k),
+          [row_step] "r"(row_step), [weight] "r"(weight)
+        : "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20",
+          "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29", "x30",
+          "memory");
   }
 }

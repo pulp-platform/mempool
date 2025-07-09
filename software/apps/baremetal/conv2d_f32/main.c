@@ -14,8 +14,8 @@
 
 #include "data_conv2d_f32.h"
 
-#include "baremetal/mempool_conv2d_f32.h"
 #include "baremetal/mempool_checks.h"
+#include "baremetal/mempool_conv2d_f32.h"
 
 float in[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 float out[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
@@ -36,8 +36,8 @@ int main() {
   // Matrices are initialized --> Start calculating
   mempool_start_benchmark();
   conv2d_3x3_shifted_unrolled_parallel((const float *)in, matrix_N, matrix_M,
-                                      (const float *)kernel,
-                                      (float *)out, core_id, num_cores);
+                                       (const float *)kernel, (float *)out,
+                                       core_id, num_cores);
   mempool_start_benchmark();
   // Wait at barrier befor checking
   mempool_log_barrier(8, core_id);
