@@ -172,7 +172,7 @@
       end
     end
   endgenerate
-  
+
   always_comb begin
     group_xbar_req_to_same_bank_count = '0;
 
@@ -208,7 +208,7 @@
       end
     end
   end
-  
+
   generate
     for (genvar g = 0; g < NumGroups; g++) begin : gen_group_level_profile
       always_ff @(posedge clk or negedge rst_n) begin
@@ -1001,7 +1001,7 @@
   logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_valid_i;
   logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_ready_i;
   logic [NumGroups-1:0][NumTilesPerGroup-1:0][(NumRemoteReqPortsPerTile-1)-1:0][4:0][NumVirtualChannel-1:0] floo_req_output_fifo_valid_o;
-  
+
   generate
     for (genvar g = 0; g < NumGroups; g++) begin : gen_req_router_input_queue_per_group
       for (genvar t = 0; t < NumTilesPerGroup; t++) begin : gen_req_router_input_queue_per_tile
