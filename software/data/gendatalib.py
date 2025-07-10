@@ -721,3 +721,67 @@ def generate_fbatchnorm(my_type=np.float32, defines={}):
     return [A, B], defines
 
 
+def generate_flayernorm(my_type=np.float32, defines={}):
+
+    # f8: Cast correct type
+    if f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
+
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+
+        # Create input matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.25).astype(np.float16)
+        B = np.zeros((matrix_M, matrix_N)).astype(np.float16)
+        # Cast the correct type
+        A = ff.array(A, 'e5m2')
+        B = ff.array(B, 'e5m2')
+
+        # Normalize matrix A (using LayerNorm)
+        for i in range(matrix_M):  # Loop over each sample (row)
+            row = A[i]
+            # Compute: mean = sum / N
+            mean = np.sum(row) / matrix_N
+            # Compute E[x^2]
+            row_sq = np.square(row)
+            expected = np.sum(row_sq) / matrix_N
+            # Compute mean^2
+            mean_sq = np.square(mean)
+            # Compute: var = E[x^2] - mean^2
+            var = expected - mean_sq
+            # Compute: std = sqrt(var)
+            std = np.sqrt(var)
+
+            diff = row - mean
+            B[i] = (diff) / std
+
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B, (matrix_M * matrix_N), order='C')
+
+    # f16,f32: Use normal operation (FP type automatically retained)
+    else:
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+
+        # Create input matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
+        B = np.zeros((matrix_M, matrix_N)).astype(my_type)
+
+        # Normalize matrix A (using LayerNorm)
+        for i in range(matrix_M):  # Loop over each sample (row)
+            row = A[i]
+            mean = np.sum(row) / matrix_N
+            diff = row - mean
+            var = np.sum(diff * diff) / matrix_N
+            std = np.sqrt(var)
+            B[i] = (diff) / std
+
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B, (matrix_M * matrix_N), order='C')
+
+    return [A, B], defines
+
+
