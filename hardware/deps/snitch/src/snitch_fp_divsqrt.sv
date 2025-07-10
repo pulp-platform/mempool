@@ -182,6 +182,24 @@ module snitch_fp_divsqrt
         src_fmt      = fpnew_pkg::FP8;
         dst_fmt      = fpnew_pkg::FP8;
       end
+      riscv_instr::VFSQRT_B: begin
+        fpu_op = fpnew_pkg::SQRT;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
+      riscv_instr::VFDIV_B: begin
+        fpu_op = fpnew_pkg::DIV;
+        op_select[0] = AccBus_A;
+        op_select[1] = AccBus_B;
+        src_fmt      = fpnew_pkg::FP8;
+        dst_fmt      = fpnew_pkg::FP8;
+        vectorial_op = 1'b1;
+        set_dyn_rm   = 1'b1;
+      end
       default: ;
     endcase
     // fix round mode for vectors and fp16alt

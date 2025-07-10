@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update the CI Ubuntu version to 22.04
 - Update Bender version to 0.28.2
 - Add Gauss-Jordan matrix inversion kernel
+- Add vfdiv.b and vfsqrt.b instructions
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
