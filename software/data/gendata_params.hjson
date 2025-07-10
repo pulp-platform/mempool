@@ -45,6 +45,19 @@
     ]
   },
 
+  "axpy_f8": {
+    "type": "float8_e5m2",
+    "defines": [
+      ("array_N", 4096)
+    ]
+    "arrays": [
+      ("__fp8", "l2_A")
+      ("__fp8", "l2_X")
+      ("__fp8", "l2_Y")
+      ("__fp8", "l2_Z")
+    ]
+  },
+
   "dotp_f16": {
     "type": "float16",
     "defines": [

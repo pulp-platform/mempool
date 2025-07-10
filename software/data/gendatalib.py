@@ -11,6 +11,7 @@
 # propagated though a python golden model. Golden models are from the
 # numpy library or the qmath bit-true library.
 
+import pyflexfloat as ff
 import numpy as np
 import math
 import qmath
@@ -74,12 +75,30 @@ def generate_barriers_test(my_type=np.int16, defines={}):
 
 def generate_faxpy(my_type=np.float32, defines={}):
 
-    # Create matrix
-    array_N = defines['array_N']
-    A = np.random.rand(1) - 0.5
-    X = (np.random.rand(array_N) - 0.5).astype(my_type)
-    Y = (np.random.rand(array_N) - 0.5).astype(my_type)
-    Z = (Y + X * A).astype(my_type)
+    # f8: Cast correct type
+    if f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
+
+        # Create matrix (with type numpy)
+        array_N = defines['array_N']
+        A = (np.random.rand(1) - 0.5).astype(np.float16)
+        X = (np.random.rand(array_N) - 0.5).astype(np.float16)
+        Y = (np.random.rand(array_N) - 0.5).astype(np.float16)
+
+        # Cast the correct type
+        A = ff.array(A, 'e5m2')
+        X = ff.array(X, 'e5m2')
+        Y = ff.array(Y, 'e5m2')
+
+        Z = Y + X * A
+
+    # f16,f32: Use normal operation (FP type automatically retained)
+    else:
+        # Create matrix
+        array_N = defines['array_N']
+        A = (np.random.rand(1) - 0.5).astype(my_type)
+        X = (np.random.rand(array_N) - 0.5).astype(my_type)
+        Y = (np.random.rand(array_N) - 0.5).astype(my_type)
+        Z = (Y + X * A).astype(my_type)
 
     return [A, X, Y, Z], defines
 

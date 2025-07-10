@@ -166,6 +166,7 @@ if __name__ == '__main__':
     # Define function mappings for each app_name
     function_map = {
         "axpy_i32": {"func": datalib.generate_iaxpy},
+        "axpy_f8": {"func": datalib.generate_faxpy},
         "axpy_f16": {"func": datalib.generate_faxpy},
         "axpy_f32": {"func": datalib.generate_faxpy},
         "cfft_radix2_q16": {"func": datalib.generate_cfft_q16},
