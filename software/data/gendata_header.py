@@ -51,9 +51,10 @@ def format_type(typ, value):
     elif typ == '__fp16':
         stringyfied_val = '({}) {:+.4f}'.format(typ, value)
     elif typ == '__fp8':
-        value = ff.FlexFloat("e5m2", value.astype(numpy.double))
+        value = numpy.array([value]).astype(numpy.double)
+        value = ff.FlexFloat("e5m2", value[0])
         value = value.bits()
-        stringyfied_val = '({}) 0X{}'.format(typ, value)
+        stringyfied_val = '({}) 0X{:02X}'.format(typ, value)
     else:
         raise Exception("ERROR: Unsupported data type!!!")
 
@@ -135,6 +136,8 @@ def get_type(type_string):
         return numpy.float16
     elif type_string == "float8":
         return numpy.float16
+    elif type_string == "float8_e5m2":
+        return ff.FlexFloat('e5m2')
     else:
         raise Exception("Input type is not valid")
 
