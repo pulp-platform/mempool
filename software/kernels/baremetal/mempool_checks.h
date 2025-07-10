@@ -169,4 +169,39 @@ void mempool_check_f16(__fp16 *__restrict__ pRes, __fp16 *__restrict__ pExp,
   }
   return;
 }
+
+/**
+  @brief         Check for f8 kernels.
+  @param[in]     pRes points to the result
+  @param[in]     pExp points to the expected result
+  @param[in]     NEL  number of elements to check
+  @param[in]     TOL  floating point tolerance
+  @return        none
+*/
+void mempool_check_f8(__fp8 *__restrict__ pRes, __fp8 *__restrict__ pExp,
+                      uint32_t NEL, __fp8 TOL, bool verbose) {
+  uint32_t core_id = mempool_get_core_id();
+
+  if (core_id == 0) {
+    uint32_t ERRORS = 0;
+    for (uint32_t i = 0; i < NEL; i++) {
+      __fp8 exp = pExp[i];
+      __fp8 res = pRes[i];
+      __fp8 diff;
+      asm volatile("fsub.b %[diff], %[res], %[exp];"
+                   : [diff] "+&r"(diff)
+                   : [res] "r"(res), [exp] "r"(exp));
+
+      uint32_t error = ((diff > TOL) || (diff < (-TOL))) ? 1 : 0;
+      uint32_t print = error || verbose;
+      ERRORS += error;
+      if (print) {
+        printf("CHECK(%d): EXP = %02X - RESP = %02X - DIFF = %04X\n", i,
+               *(int32_t *)&exp, *(int32_t *)&res, *(int32_t *)&diff);
+      }
+    }
+    printf("%d ERRORS out of %d CHECKS\n", ERRORS, NEL);
+  }
+  return;
+}
 #endif
