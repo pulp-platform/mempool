@@ -8,7 +8,7 @@
 
 // Author: Samuel Riedel <sriedel@iis.ee.ethz.ch>
 
-module address_scrambler 
+module address_scrambler
 #(
   parameter int unsigned          AddrWidth         = 32,
   parameter int unsigned          ByteOffset        = 2,

@@ -188,7 +188,7 @@ module tcdm_shim
     for (int i = 0; i < NrTCDM; i++) begin
       tcdm_qpayload_addr_remapped[i] = tcdm_qpayload[i].addr;
       if (tcdm_qpayload[i].addr >= (NumTiles * SeqMemSizePerTile)) begin
-        tcdm_qpayload_addr_remapped[i][ConstantBitsLSB +: TileIdBitsPerDma] = 
+        tcdm_qpayload_addr_remapped[i][ConstantBitsLSB +: TileIdBitsPerDma] =
           spm_tile_id_remap(
             tcdm_qpayload[i].addr[ConstantBitsLSB +: TileIdBitsPerDma],
             tcdm_qpayload[i].addr[(ConstantBitsLSB + TileIdBits) +: TileIdBitsPerDma]

@@ -18,15 +18,15 @@ module mempool_group
   parameter int unsigned GroupId      = 32'd0
 ) (
   // Clock and reset
-  input  logic                                                    clk_i,
-  input  logic                                                    rst_ni,
-  input  logic                                                    testmode_i,
+  input  logic                                                                                   clk_i,
+  input  logic                                                                                   rst_ni,
+  input  logic                                                                                   testmode_i,
   // Scan chain
-  input  logic                                                    scan_enable_i,
-  input  logic                                                    scan_data_i,
-  output logic                                                    scan_data_o,
+  input  logic                                                                                   scan_enable_i,
+  input  logic                                                                                   scan_data_i,
+  output logic                                                                                   scan_data_o,
   // Group ID
-  input  logic [idx_width(NumGroups)-1:0]                         group_id_i,
+  input  logic                            [idx_width(NumGroups)-1:0]                             group_id_i,
 
   // TCDM Master interfaces
   output `STRUCT_VECT(tcdm_master_req_t,  [NumTilesPerGroup-1:0][NumRemoteReqPortsPerTile-1:1])  tcdm_master_req_o,
@@ -44,18 +44,18 @@ module mempool_group
   input  logic                            [NumTilesPerGroup-1:0][NumRemoteRespPortsPerTile-1:1]  tcdm_slave_resp_ready_i,
 
   // Wake up interface
-  input  logic                            [NumCoresPerGroup-1:0]                 wake_up_i,
+  input  logic                            [NumCoresPerGroup-1:0]                                 wake_up_i,
   // RO-Cache configuration
-  input  `STRUCT_PORT(ro_cache_ctrl_t)                                           ro_cache_ctrl_i,
+  input  `STRUCT_PORT(ro_cache_ctrl_t)                                                           ro_cache_ctrl_i,
   // DMA request
-  input  `STRUCT_PORT(dma_req_t)                                                 dma_req_i,
-  input  logic                                                                   dma_req_valid_i,
-  output logic                                                                   dma_req_ready_o,
+  input  `STRUCT_PORT(dma_req_t)                                                                 dma_req_i,
+  input  logic                                                                                   dma_req_valid_i,
+  output logic                                                                                   dma_req_ready_o,
   // DMA status
-  output `STRUCT_PORT(dma_meta_t)                                                dma_meta_o,
+  output `STRUCT_PORT(dma_meta_t)                                                                dma_meta_o,
    // AXI Interface
-  output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMastersPerGroup-1:0])           axi_mst_req_o,
-  input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMastersPerGroup-1:0])           axi_mst_resp_i
+  output `STRUCT_VECT(axi_tile_req_t,     [NumAXIMastersPerGroup-1:0])                           axi_mst_req_o,
+  input  `STRUCT_VECT(axi_tile_resp_t,    [NumAXIMastersPerGroup-1:0])                           axi_mst_resp_i
 );
 
   /*****************
@@ -73,8 +73,8 @@ module mempool_group
   `FF(ro_cache_ctrl_q, ro_cache_ctrl_i, ro_cache_ctrl_default, clk_i, rst_ni);
 
   /***********
-    *  Tiles  *
-    ***********/
+   *  Tiles  *
+   ***********/
   // TCDM interfaces
   tcdm_master_req_t  [NumRemoteReqPortsPerTile-1:0] [NumTilesPerGroup-1:0] tcdm_master_req;
   logic              [NumRemoteReqPortsPerTile-1:0] [NumTilesPerGroup-1:0] tcdm_master_req_valid;
@@ -179,8 +179,8 @@ module mempool_group
   end : gen_tiles
 
   /*************************
-    *  Local Interconnect  *
-    *************************/
+   *  Local Interconnect  *
+   *************************/
 
   // The local port is always at the index 0 out of the NumGroups TCDM ports of the tile.
 
@@ -268,8 +268,8 @@ module mempool_group
   );
 
   /**************************
-    *  Remote Interconnects  *
-    **************************/
+   *  Remote Interconnects  *
+   **************************/
 
   // Sort the remote ports by tile
   for (genvar r = 1; r < NumRemoteReqPortsPerTile; r++) begin: gen_remote_interface_connection_req
@@ -299,8 +299,8 @@ module mempool_group
   end: gen_remote_interface_connection_resp
 
   /**********************
-    *  AXI Interconnect  *
-    **********************/
+   *  AXI Interconnect  *
+   **********************/
 
   axi_tile_req_t   [NumAXIMastersPerGroup-1:0] axi_mst_req;
   axi_tile_resp_t  [NumAXIMastersPerGroup-1:0] axi_mst_resp;
@@ -360,8 +360,8 @@ module mempool_group
   end: gen_axi_group_cuts
 
   /*********
-    *  DMA  *
-    *********/
+   *  DMA  *
+   *********/
   dma_req_t  dma_req_cut;
   logic      dma_req_cut_valid;
   logic      dma_req_cut_ready;
@@ -425,7 +425,6 @@ module mempool_group
   };
 
   `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
-
   logic        [NumDmasPerGroup-1:0][idx_width(NumTilesPerDma)-1:0] tile_id_remap;
 
   for (genvar d = 0; unsigned'(d) < NumDmasPerGroup; d++) begin: gen_dmas
@@ -537,27 +536,25 @@ module mempool_group
       .reqrsp_rsp_i(dma_reqrsp_rsp)
     );
 
-    mempool_group_tile_id_remapper #()
-    i_mempool_group_tile_id_remapper (
+    mempool_dma_tile_id_remapper i_mempool_group_tile_id_remapper (
       .dma_reqrsp_req_i (dma_reqrsp_req),
       .tile_id_remap_o  (tile_id_remap[d])
     );
 
-
     if (NumTilesPerDma > 1) begin: gen_dma_reqrsp_demux
       reqrsp_demux #(
-        .NrPorts  (NumTilesPerDma),
-        .req_t    (reqrsp_req_t  ),
-        .rsp_t    (reqrsp_rsp_t  ),
-        .RespDepth(2             )
+        .NrPorts  (NumTilesPerDma        ),
+        .req_t    (reqrsp_req_t          ),
+        .rsp_t    (reqrsp_rsp_t          ),
+        .RespDepth(2                     )
       ) i_reqrsp_demux (
-          .clk_i       (clk_i                                                                                  ),
-          .rst_ni      (rst_ni                                                                                 ),
-          .slv_select_i(tile_id_remap[d]                                                                       ),
-          .slv_req_i   (dma_reqrsp_req                                                                         ),
-          .slv_rsp_o   (dma_reqrsp_rsp                                                                         ),
-          .mst_req_o   (dma_tile_req                                                                           ),
-          .mst_rsp_i   (dma_tile_rsp                                                                           )
+          .clk_i       (clk_i            ),
+          .rst_ni      (rst_ni           ),
+          .slv_select_i(tile_id_remap[d] ),
+          .slv_req_i   (dma_reqrsp_req   ),
+          .slv_rsp_o   (dma_reqrsp_rsp   ),
+          .mst_req_o   (dma_tile_req     ),
+          .mst_rsp_i   (dma_tile_rsp     )
       );
     end else begin: gen_dma_reqrsp_bypass
       assign dma_tile_req = dma_reqrsp_req;

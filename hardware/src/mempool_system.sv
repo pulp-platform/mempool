@@ -1,6 +1,8 @@
-// Copyright 2024 ETH Zurich and University of Bologna.
+// Copyright 2025 ETH Zurich and University of Bologna.
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
+
+// Author: Yichao Zhang <yiczhang@iis.ee.ethz.ch>
 
 `include "axi/assign.svh"
 `include "common_cells/registers.svh"
@@ -12,12 +14,12 @@ module mempool_system
   import floo_terapool_noc_pkg::*;
 #(
   // TCDM
-  parameter addr_t       TCDMBaseAddr  = 32'h0000_0000,
+  parameter addr_t TCDMBaseAddr = 32'h0000_0000,
   // Boot address
-  parameter addr_t       BootAddr      = 32'h0000_0000
+  parameter addr_t BootAddr     = 32'h0000_0000
 ) (
-  input logic                clk_i,
-  input logic                rst_ni,
+  input  logic               clk_i,
+  input  logic               rst_ni,
 
   input  logic               fetch_en_i,
   output logic               eoc_valid_o,
@@ -36,34 +38,6 @@ module mempool_system
   /*********
    *  AXI  *
    *********/
-
-  // Overview of AXI buses with SRAM L2
-  //
-  //      mst_demux
-  //        / |
-  //       /  | soc  +----------+ periph  +---------+
-  //      |  0|=====>| soc_xbar |========>| periph  |
-  //  mst |   |      +----------+         +---------+
-  // ====>|   |
-  //      |   | l2   +----------+  mem    +---------+ bank  +--------+
-  //      |  1|=====>| axi2mem  |-------->| l2_xbar |------>| l2_mem |
-  //       \  |      +----------+         +---------+       +--------+
-  //        \_|
-  //                  == axi ==>          -- tcdm -->
-  //
-  // Overview of AXI buses with DRAM L2
-  //
-  //      mst_demux
-  //        / |
-  //       /  | soc  +----------+ periph  +---------+
-  //      |  0|=====>| soc_xbar |========>| periph  |
-  //  mst |   |      +----------+         +---------+
-  // ====>|   |
-  //      |   | l2   +----------+  mem_one_port  +--------------+
-  //      |  1|=====>| AXI_Mux  |===============>| AXI Port Out |
-  //       \  |      +----------+                +--------------+
-  //        \_|
-  //                  == axi ==>
 
   localparam NumAXIMasters = NumGroups;
   localparam NumAXISlaves  = 3; // control regs, bootrom and the external mst ports
@@ -95,7 +69,7 @@ module mempool_system
   logic             [NumCores-1:0]      wake_up;
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
-
+  // DMA hand shaking
   dma_req_t         [NumGroups-1:0]     dma_group_req;
   logic             [NumGroups-1:0]     dma_group_req_valid;
   logic             [NumGroups-1:0]     dma_group_req_ready;
@@ -133,6 +107,7 @@ module mempool_system
      floo_req_t  [NumAXIMasters-1:0] floo_axi_req_out;
      floo_rsp_t  [NumAXIMasters-1:0] floo_axi_rsp_out;
      floo_wide_t [NumAXIMasters-1:0] floo_axi_wide_out;
+
      for (genvar x = 0; x < NumAXIMasters; x++) begin : gen_cluster_axi_chimney
         if (x == 5) begin
           floo_req_t  [3:0] periph_router_req_in;
@@ -321,6 +296,7 @@ module mempool_system
               .floo_rsp_o           ( periph_router_rsp_in[3]     ),
               .floo_wide_i          ( periph_router_wide_out[3]   )
           );
+
         end else begin
           floo_nw_chimney #(
             .AxiCfgN              ( AxiCfgN                       ),
@@ -381,6 +357,7 @@ module mempool_system
     floo_req_t  [NumAXIMasters:0] floo_axi_req_out;
     floo_rsp_t  [NumAXIMasters:0] floo_axi_rsp_out;
     floo_wide_t [NumAXIMasters:0] floo_axi_wide_out;
+
     for (genvar x = 0; x <= NumAXIMasters; x++) begin : gen_cluster_axi_chimney
         if (x == NumAXIMasters) begin
           floo_req_t  [2:0] periph_router_req_in;
@@ -520,6 +497,7 @@ module mempool_system
             .floo_rsp_o           ( periph_router_rsp_in[2]       ),
             .floo_wide_i          ( periph_router_wide_out[2]     )
           );
+
         end else begin
           floo_nw_chimney #(
             .AxiCfgN              ( AxiCfgN                       ),
@@ -573,27 +551,27 @@ module mempool_system
   `endif
 
   `CLUSTER_WRAPPER #(
-    .TCDMBaseAddr(TCDMBaseAddr),
-    .BootAddr    (BootAddr)
+    .TCDMBaseAddr      ( TCDMBaseAddr        ),
+    .BootAddr          ( BootAddr            )
   ) i_mempool_cluster (
-    .clk_i             (clk_i),
-    .rst_ni            (rst_ni),
-    .wake_up_i         (wake_up),
-    .testmode_i        (1'b0),
-    .scan_enable_i     (1'b0),
-    .scan_data_i       (1'b0),
-    .scan_data_o       (/* Unused */),
-    .ro_cache_ctrl_i   (ro_cache_ctrl),
-    .dma_req_i         (dma_group_req),
-    .dma_req_valid_i   (dma_group_req_valid),
-    .dma_req_ready_o   (dma_group_req_ready),
-    .dma_meta_o        (dma_group_meta),
-    .floo_axi_req_i    (floo_axi_req_in),
-    .floo_axi_rsp_i    (floo_axi_rsp_in),
-    .floo_axi_wide_i   (floo_axi_wide_in),
-    .floo_axi_req_o    (floo_axi_req_out),
-    .floo_axi_rsp_o    (floo_axi_rsp_out),
-    .floo_axi_wide_o   (floo_axi_wide_out)
+    .clk_i             ( clk_i               ),
+    .rst_ni            ( rst_ni              ),
+    .wake_up_i         ( wake_up             ),
+    .testmode_i        ( 1'b0                ),
+    .scan_enable_i     ( 1'b0                ),
+    .scan_data_i       ( 1'b0                ),
+    .scan_data_o       ( /* Unused */        ),
+    .ro_cache_ctrl_i   ( ro_cache_ctrl       ),
+    .dma_req_i         ( dma_group_req       ),
+    .dma_req_valid_i   ( dma_group_req_valid ),
+    .dma_req_ready_o   ( dma_group_req_ready ),
+    .dma_meta_o        ( dma_group_meta      ),
+    .floo_axi_req_i    ( floo_axi_req_in     ),
+    .floo_axi_rsp_i    ( floo_axi_rsp_in     ),
+    .floo_axi_wide_i   ( floo_axi_wide_in    ),
+    .floo_axi_req_o    ( floo_axi_req_out    ),
+    .floo_axi_rsp_o    ( floo_axi_rsp_out    ),
+    .floo_axi_wide_o   ( floo_axi_wide_out   )
   );
 
   /**********************
@@ -620,32 +598,32 @@ module mempool_system
   };
 
   axi_xbar #(
-    .Cfg          (SoCXBarCfg       ),
-    .slv_aw_chan_t(axi_tile_aw_t    ),
-    .mst_aw_chan_t(axi_system_aw_t  ),
-    .w_chan_t     (axi_tile_w_t     ),
-    .slv_b_chan_t (axi_tile_b_t     ),
-    .mst_b_chan_t (axi_system_b_t   ),
-    .slv_ar_chan_t(axi_tile_ar_t    ),
-    .mst_ar_chan_t(axi_system_ar_t  ),
-    .slv_r_chan_t (axi_tile_r_t     ),
-    .mst_r_chan_t (axi_system_r_t   ),
-    .slv_req_t    (axi_tile_req_t   ),
-    .slv_resp_t   (axi_tile_resp_t  ),
-    .mst_req_t    (axi_system_req_t ),
-    .mst_resp_t   (axi_system_resp_t),
-    .rule_t       (xbar_rule_32_t   )
+    .Cfg                  ( SoCXBarCfg        ),
+    .slv_aw_chan_t        ( axi_tile_aw_t     ),
+    .mst_aw_chan_t        ( axi_system_aw_t   ),
+    .w_chan_t             ( axi_tile_w_t      ),
+    .slv_b_chan_t         ( axi_tile_b_t      ),
+    .mst_b_chan_t         ( axi_system_b_t    ),
+    .slv_ar_chan_t        ( axi_tile_ar_t     ),
+    .mst_ar_chan_t        ( axi_system_ar_t   ),
+    .slv_r_chan_t         ( axi_tile_r_t      ),
+    .mst_r_chan_t         ( axi_system_r_t    ),
+    .slv_req_t            ( axi_tile_req_t    ),
+    .slv_resp_t           ( axi_tile_resp_t   ),
+    .mst_req_t            ( axi_system_req_t  ),
+    .mst_resp_t           ( axi_system_resp_t ),
+    .rule_t               ( xbar_rule_32_t    )
   ) i_soc_xbar (
-    .clk_i                (clk_i                    ),
-    .rst_ni               (rst_ni                   ),
-    .test_i               (1'b0                     ),
-    .slv_ports_req_i      (axi_soc_req              ),
-    .slv_ports_resp_o     (axi_soc_resp             ),
-    .mst_ports_req_o      (axi_periph_req           ),
-    .mst_ports_resp_i     (axi_periph_resp          ),
-    .addr_map_i           (soc_xbar_rules           ),
-    .en_default_mst_port_i('1                       ), // default all slave ports to master port External
-    .default_mst_port_i   (External                 )
+    .clk_i                ( clk_i             ),
+    .rst_ni               ( rst_ni            ),
+    .test_i               ( 1'b0              ),
+    .slv_ports_req_i      ( axi_soc_req       ),
+    .slv_ports_resp_o     ( axi_soc_resp      ),
+    .mst_ports_req_o      ( axi_periph_req    ),
+    .mst_ports_resp_i     ( axi_periph_resp   ),
+    .addr_map_i           ( soc_xbar_rules    ),
+    .en_default_mst_port_i( '1                ), // default all slave ports to master port External
+    .default_mst_port_i   ( External          )
   );
 
 `ifndef DRAM
@@ -669,39 +647,39 @@ module mempool_system
   logic         [NumAXIMasters-1:0] mem_we;
   axi_data_t    [NumAXIMasters-1:0] mem_rdata;
   // l2_xbar to banks
-  logic          [NumL2Banks-1:0] bank_req;
-  logic          [NumL2Banks-1:0] bank_gnt;
-  logic          [NumL2Banks-1:0] bank_rvalid;
-  l2_bank_addr_t [NumL2Banks-1:0] bank_addr;
-  axi_data_t     [NumL2Banks-1:0] bank_wdata;
-  axi_strb_t     [NumL2Banks-1:0] bank_strb;
-  logic          [NumL2Banks-1:0] bank_we;
-  axi_data_t     [NumL2Banks-1:0] bank_rdata;
+  logic          [NumL2Banks-1:0]   bank_req;
+  logic          [NumL2Banks-1:0]   bank_gnt;
+  logic          [NumL2Banks-1:0]   bank_rvalid;
+  l2_bank_addr_t [NumL2Banks-1:0]   bank_addr;
+  axi_data_t     [NumL2Banks-1:0]   bank_wdata;
+  axi_strb_t     [NumL2Banks-1:0]   bank_strb;
+  logic          [NumL2Banks-1:0]   bank_we;
+  axi_data_t     [NumL2Banks-1:0]   bank_rdata;
 
   for (genvar i = 0; i < NumAXIMasters; i++) begin : gen_l2_adapters
     axi2mem #(
-      .axi_req_t (axi_tile_req_t ),
-      .axi_resp_t(axi_tile_resp_t),
-      .AddrWidth (L2AddrWidth    ),
-      .DataWidth (AxiDataWidth   ),
-      .IdWidth   (AxiTileIdWidth ),
-      .NumBanks  (1              ),
-      .BufDepth  (3              )
+      .axi_req_t    (axi_tile_req_t ),
+      .axi_resp_t   (axi_tile_resp_t),
+      .AddrWidth    (L2AddrWidth    ),
+      .DataWidth    (AxiDataWidth   ),
+      .IdWidth      (AxiTileIdWidth ),
+      .NumBanks     (1              ),
+      .BufDepth     (3              )
     ) i_axi2mem (
-      .clk_i       (clk_i         ),
-      .rst_ni      (rst_ni        ),
-      .busy_o      (/*unsused*/   ),
-      .axi_req_i   (axi_l2_req[i] ),
-      .axi_resp_o  (axi_l2_resp[i]),
-      .mem_req_o   (mem_req[i]    ),
-      .mem_gnt_i   (mem_gnt[i]    ),
-      .mem_addr_o  (mem_addr[i]   ),
-      .mem_wdata_o (mem_wdata[i]  ),
-      .mem_strb_o  (mem_strb[i]   ),
-      .mem_atop_o  (/*unused*/    ),
-      .mem_we_o    (mem_we[i]     ),
-      .mem_rvalid_i(mem_rvalid[i] ),
-      .mem_rdata_i (mem_rdata[i]  )
+      .clk_i        (clk_i          ),
+      .rst_ni       (rst_ni         ),
+      .busy_o       (/*unsused*/    ),
+      .axi_req_i    (axi_l2_req[i]  ),
+      .axi_resp_o   (axi_l2_resp[i] ),
+      .mem_req_o    (mem_req[i]     ),
+      .mem_gnt_i    (mem_gnt[i]     ),
+      .mem_addr_o   (mem_addr[i]    ),
+      .mem_wdata_o  (mem_wdata[i]   ),
+      .mem_strb_o   (mem_strb[i]    ),
+      .mem_atop_o   (/*unused*/     ),
+      .mem_we_o     (mem_we[i]      ),
+      .mem_rvalid_i (mem_rvalid[i]  ),
+      .mem_rdata_i  (mem_rdata[i]   )
     );
 
     assign bank_req[i]    = mem_req[i];
@@ -740,7 +718,6 @@ module mempool_system
   end
 
 `else
-
   /*************
    *  L2 DRAM  *
    *************/
@@ -796,24 +773,24 @@ module mempool_system
 
   for (genvar i = 0; unsigned'(i) < NumDrams; i++) begin: gen_drams
     axi_dram_sim #(
-        .AxiAddrWidth(AddrWidth        ),
-        .AxiDataWidth(AxiDataWidth     ),
-        .AxiIdWidth  (AxiTileIdWidth   ),
-        .AxiUserWidth(1                ),
-        .DRAMType    ("HBM2"           ),
-        .BASE        ('b0              ),
-        .axi_req_t   (axi_tile_req_t   ),
-        .axi_resp_t  (axi_tile_resp_t  ),
-        .axi_ar_t    (axi_tile_ar_t    ),
-        .axi_r_t     (axi_tile_r_t     ),
-        .axi_aw_t    (axi_tile_aw_t    ),
-        .axi_w_t     (axi_tile_w_t     ),
-        .axi_b_t     (axi_tile_b_t     )
+        .AxiAddrWidth (AddrWidth        ),
+        .AxiDataWidth (AxiDataWidth     ),
+        .AxiIdWidth   (AxiTileIdWidth   ),
+        .AxiUserWidth (1                ),
+        .DRAMType     ("HBM2"           ),
+        .BASE         ('b0              ),
+        .axi_req_t    (axi_tile_req_t   ),
+        .axi_resp_t   (axi_tile_resp_t  ),
+        .axi_ar_t     (axi_tile_ar_t    ),
+        .axi_r_t      (axi_tile_r_t     ),
+        .axi_aw_t     (axi_tile_aw_t    ),
+        .axi_w_t      (axi_tile_w_t     ),
+        .axi_b_t      (axi_tile_b_t     )
     ) i_axi_dram_sim (
         .clk_i,
         .rst_ni,
-        .axi_req_i (dram_req[i] ),
-        .axi_resp_o(dram_resp[i])
+        .axi_req_i    (dram_req[i]      ),
+        .axi_resp_o   (dram_resp[i]     )
     );
   end: gen_drams
 `endif
