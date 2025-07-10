@@ -201,6 +201,8 @@ if __name__ == '__main__':
         "fence": {"func": datalib.generate_iarray},
         "memcpy": {"func": datalib.generate_iarray},
         "barriers_test": {"func": datalib.generate_barriers_test},
+        "softmax_f8": {"func": datalib.generate_fsoftmax},
+        "softmax_f16": {"func": datalib.generate_fsoftmax},
     }
 
     # Check if app_name exists in the function map
