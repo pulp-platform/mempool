@@ -240,6 +240,20 @@
     ]
   },
 
+  "matmul_f8": {
+    "type": "float8_e5m2",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 256)
+      ("matrix_P", 1024)
+    ]
+    "arrays": [
+      ("__fp8", "l2_A")
+      ("__fp8", "l2_B")
+      ("__fp8", "l2_C")
+    ]
+  },
+
   "matmul_f16": {
     "type": "float16",
     "defines": [
