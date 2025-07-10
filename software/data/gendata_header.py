@@ -193,6 +193,8 @@ if __name__ == '__main__':
         "mimo_mmse_f16": {"func": datalib.generate_fmmse},
         "mimo_mmse_f32": {"func": datalib.generate_fmmse},
         "mimo_mmse_f8": {"func": datalib.generate_fmmse},
+        "batchnorm_f8": {"func": datalib.generate_fbatchnorm},
+        "batchnorm_f16": {"func": datalib.generate_fbatchnorm},
         "ofdm_f16": {"func": datalib.generate_fofdm},
         "fence": {"func": datalib.generate_iarray},
         "memcpy": {"func": datalib.generate_iarray},
