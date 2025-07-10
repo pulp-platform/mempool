@@ -250,17 +250,42 @@ def generate_fcmatmul(my_type=np.float32, defines={}):
 
 def generate_fmatmul(my_type=np.float32, defines={}):
 
-    # Create matrix
-    matrix_M = defines['matrix_M']
-    matrix_N = defines['matrix_N']
-    matrix_P = defines['matrix_P']
-    A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
-    B = (np.random.rand(matrix_N, matrix_P) - 0.5).astype(my_type)
-    C = np.matmul(A, B)
+    # f8: Cast correct type
+    if f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
 
-    A = np.reshape(A, (matrix_M * matrix_N), order='C').astype(my_type)
-    B = np.reshape(B, (matrix_N * matrix_P), order='C').astype(my_type)
-    C = np.reshape(C, (matrix_M * matrix_P), order='C').astype(my_type)
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+        matrix_P = defines['matrix_P']
+
+        # Create matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(np.float16)
+        B = (np.random.rand(matrix_N, matrix_P) - 0.5).astype(np.float16)
+
+        # Cast the correct type
+        A = ff.array(A, 'e5m2')
+        B = ff.array(B, 'e5m2')
+
+        C = np.matmul(A, B)
+
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B, (matrix_N * matrix_P), order='C')
+        C = np.reshape(C, (matrix_M * matrix_P), order='C')
+
+    # f16,f32: Use normal operation (FP type automatically retained)
+    else:
+        # Create matrix
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+        matrix_P = defines['matrix_P']
+        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
+        B = (np.random.rand(matrix_N, matrix_P) - 0.5).astype(my_type)
+        C = np.matmul(A, B)
+
+        A = np.reshape(A, (matrix_M * matrix_N), order='C').astype(my_type)
+        B = np.reshape(B, (matrix_N * matrix_P), order='C').astype(my_type)
+        C = np.reshape(C, (matrix_M * matrix_P), order='C').astype(my_type)
 
     return [A, B, C], defines
 

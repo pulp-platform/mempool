@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Update Bender version to 0.28.2
 - Add Gauss-Jordan matrix inversion kernel
 - Add vfdiv.b and vfsqrt.b instructions
+- Add fp8 microkernels: axpy, matmul, batchnorm, layernorm, softmax
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
