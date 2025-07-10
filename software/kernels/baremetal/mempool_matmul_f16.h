@@ -208,26 +208,24 @@ void matmul_4x2_parallel_f16vec(const __fp16 *__restrict__ pSrcA,
         v2h bVecTemp0 = *(v2h *)&(pSrcB[j * P + k]);
         v2h bVecTemp1 = *(v2h *)&(pSrcB[(j + 1) * P + k]);
         v2h bVec0, bVec1;
-        unsigned TempH, TempL;
+
         asm volatile(
-            "pv.extract.h %[TempH], %[bVecTemp0], 1;"
-            "pv.extract.h %[TempL], %[bVecTemp1], 1;"
-            "pv.pack %[bVec0], %[TempL], %[TempH];"
-            "pv.extract.h %[TempH], %[bVecTemp0], 0;"
-            "pv.extract.h %[TempL], %[bVecTemp1], 0;"
-            "pv.pack %[bVec1], %[TempL], %[TempH];"
+            // Note: pv.pack.h packs the upper 2 bytes of the source register
+            // Note: pv.pack packs the lower 2 bytes of the source register
+            "pv.pack.h %[bVec0], %[bVecTemp1], %[bVecTemp0];"
+            "pv.pack %[bVec1], %[bVecTemp1], %[bVecTemp0];"
             "vfdotpex.s.h %[sum00], %[aVec0], %[bVec0];"
-            "vfdotpex.s.h %[sum01], %[aVec0], %[bVec1];"
             "vfdotpex.s.h %[sum10], %[aVec1], %[bVec0];"
-            "vfdotpex.s.h %[sum11], %[aVec1], %[bVec1];"
             "vfdotpex.s.h %[sum20], %[aVec2], %[bVec0];"
-            "vfdotpex.s.h %[sum21], %[aVec2], %[bVec1];"
             "vfdotpex.s.h %[sum30], %[aVec3], %[bVec0];"
+            "vfdotpex.s.h %[sum01], %[aVec0], %[bVec1];"
+            "vfdotpex.s.h %[sum11], %[aVec1], %[bVec1];"
+            "vfdotpex.s.h %[sum21], %[aVec2], %[bVec1];"
             "vfdotpex.s.h %[sum31], %[aVec3], %[bVec1];"
-            : [sum00] "+&r"(sum00), [sum01] "+&r"(sum01), [sum10] "+&r"(sum10),
-              [sum11] "+&r"(sum11), [sum20] "+&r"(sum20), [sum21] "+&r"(sum21),
-              [sum30] "+&r"(sum30), [sum31] "+&r"(sum31), [bVec0] "=&r"(bVec0),
-              [bVec1] "+&r"(bVec1), [TempH] "+&r"(TempH), [TempL] "+&r"(TempL)
+            : [sum00] "=&r"(sum00), [sum01] "=&r"(sum01), [sum10] "=&r"(sum10),
+              [sum11] "=&r"(sum11), [sum20] "=&r"(sum20), [sum21] "=&r"(sum21),
+              [sum30] "=&r"(sum30), [sum31] "=&r"(sum31), [bVec0] "+&r"(bVec0),
+              [bVec1] "+&r"(bVec1)
             : [aVec0] "r"(aVec0), [aVec1] "r"(aVec1), [aVec2] "r"(aVec2),
               [aVec3] "r"(aVec3), [bVecTemp0] "r"(bVecTemp0),
               [bVecTemp1] "r"(bVecTemp1)
@@ -248,6 +246,83 @@ void matmul_4x2_parallel_f16vec(const __fp16 *__restrict__ pSrcA,
       (*(v2h *)&pDstC[(i + 1) * P + k]) = res1;
       (*(v2h *)&pDstC[(i + 2) * P + k]) = res2;
       (*(v2h *)&pDstC[(i + 3) * P + k]) = res3;
+    }
+  }
+}
+
+// Matmul based on outer product between rows of A and cols of B
+// Use four rows of A (store 2 elements each) and two cols of B (store 2
+// elements each)
+void matmul_4x2_parallel_outer_f16vec(const __fp16 *__restrict__ A,
+                                      const __fp16 *__restrict__ B,
+                                      __fp16 *__restrict__ C, uint32_t M,
+                                      uint32_t N, uint32_t P, uint32_t core_id,
+                                      uint32_t numThreads) {
+
+  uint32_t i = 0; // loop counter for M
+  uint32_t j = 0; // loop counter for N
+  uint32_t k = 0; // loop counter for P
+
+  const unsigned ShuffleMask1 = 0x00020002; // [a b] => [a a a a]
+  const unsigned ShuffleMask0 = 0x00030003; // [a b] => [b b b b]
+
+  for (k = core_id * 2; k < P; k += numThreads * 2) {
+    for (i = 0; i < M; i += 4) {
+      v2h sum0 = (v2h)0.0f;
+      v2h sum1 = (v2h)0.0f;
+      v2h sum2 = (v2h)0.0f;
+      v2h sum3 = (v2h)0.0f;
+
+      for (j = 0; j < N; j += 2) {
+
+        v2h aVec0 = *(v2h *)&(A[i * N + j]);       // aVec0 = [a00 a01]
+        v2h aVec1 = *(v2h *)&(A[(i + 1) * N + j]); // aVec1 = [a10 a11]
+        v2h aVec2 = *(v2h *)&(A[(i + 2) * N + j]); // aVec2 = [a20 a21]
+        v2h aVec3 = *(v2h *)&(A[(i + 3) * N + j]); // aVec3 = [a30 a31]
+        v2h bVec0 = *(v2h *)&(B[j * P + k]);       // bVec0 = [b00 b01]
+        v2h bVec1 = *(v2h *)&(B[(j + 1) * P + k]); // bVec1 = [b10 b11]
+        v2h aTemp0, aTemp1, aTemp2, aTemp3;
+
+        asm volatile(
+            "pv.shuffle2.h %[aTemp0], %[aVec0], %[ShuffleMask1];" // aVec00 =
+                                                                  // [a00 a00]
+            "pv.shuffle2.h %[aTemp1], %[aVec1], %[ShuffleMask1];" // aVec10 =
+                                                                  // [a10 a10]
+            "pv.shuffle2.h %[aTemp2], %[aVec2], %[ShuffleMask1];" // aVec20 =
+                                                                  // [a20 a20]
+            "pv.shuffle2.h %[aTemp3], %[aVec3], %[ShuffleMask1];" // aVec30 =
+                                                                  // [a30 a30]
+            "vfmac.h %[sum0], %[aTemp0], %[bVec0];" // res0 += a00*b00 a00*b01
+            "vfmac.h %[sum1], %[aTemp1], %[bVec0];" // res1 += a10*b00 a10*b01
+            "vfmac.h %[sum2], %[aTemp2], %[bVec0];" // res2 += a20*b00 a20*b01
+            "vfmac.h %[sum3], %[aTemp3], %[bVec0];" // res3 += a30*b00 a30*b01
+
+            "pv.shuffle2.h %[aTemp0], %[aVec0], %[ShuffleMask0];" // aVec01 =
+                                                                  // [a01 a01]
+            "pv.shuffle2.h %[aTemp1], %[aVec1], %[ShuffleMask0];" // aVec11 =
+                                                                  // [a11 a11]
+            "pv.shuffle2.h %[aTemp2], %[aVec2], %[ShuffleMask0];" // aVec21 =
+                                                                  // [a21 a21]
+            "pv.shuffle2.h %[aTemp3], %[aVec3], %[ShuffleMask0];" // aVec31 =
+                                                                  // [a31 a31]
+            "vfmac.h %[sum0], %[aTemp0], %[bVec1];" // res0 += a01*b10 a01*b11
+            "vfmac.h %[sum1], %[aTemp1], %[bVec1];" // res1 += a11*b10 a11*b11
+            "vfmac.h %[sum2], %[aTemp2], %[bVec1];" // res2 += a21*b10 a21*b11
+            "vfmac.h %[sum3], %[aTemp3], %[bVec1];" // res3 += a31*b10 a31*b11
+            : [aTemp0] "+&r"(aTemp0), [aTemp1] "+&r"(aTemp1),
+              [aTemp2] "+&r"(aTemp2), [aTemp3] "+&r"(aTemp3),
+              [sum0] "+&r"(sum0), [sum1] "+&r"(sum1), [sum2] "+&r"(sum2),
+              [sum3] "+&r"(sum3)
+            : [aVec0] "r"(aVec0), [aVec1] "r"(aVec1), [aVec2] "r"(aVec2),
+              [aVec3] "r"(aVec3), [bVec0] "r"(bVec0), [bVec1] "r"(bVec1),
+              [ShuffleMask0] "r"(ShuffleMask0),
+              [ShuffleMask1] "r"(ShuffleMask1));
+      }
+
+      (*(v2h *)&C[i * P + k]) = sum0;
+      (*(v2h *)&C[(i + 1) * P + k]) = sum1;
+      (*(v2h *)&C[(i + 2) * P + k]) = sum2;
+      (*(v2h *)&C[(i + 3) * P + k]) = sum3;
     }
   }
 }
