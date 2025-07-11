@@ -328,7 +328,6 @@ package mempool_pkg;
   localparam integer unsigned NocTopology = `ifdef NOC_TOPOLOGY `NOC_TOPOLOGY `else 0 `endif;
   localparam integer unsigned NocRoutingAlgorithm = `ifdef NOC_ROUTING_ALGORITHM `NOC_ROUTING_ALGORITHM `else 0 `endif;
   localparam integer unsigned NocRouterRemapping = `ifdef NOC_ROUTER_REMAPPING `NOC_ROUTER_REMAPPING `else 0 `endif;
-  localparam integer unsigned NumVirtualChannel = `ifdef NOC_VIRTUAL_CHANNEL_NUM `NOC_VIRTUAL_CHANNEL_NUM `else 1 `endif;
   // router buffer configuration
   localparam integer unsigned NumRouterInFifoDepth  = `ifdef NOC_ROUTER_INPUT_FIFO_DEP   `NOC_ROUTER_INPUT_FIFO_DEP   `else 2 `endif;
   localparam integer unsigned NumRouterOutFifoDepth = `ifdef NOC_ROUTER_OUTPUT_FIFO_DEP  `NOC_ROUTER_OUTPUT_FIFO_DEP  `else 2 `endif;
@@ -372,9 +371,9 @@ package mempool_pkg;
 
   `ifndef USE_NARROW_REQ_CHANNEL
     typedef struct packed {
-      floo_tcdm_rdwr_req_t                           req;
-      logic                [NumVirtualChannel-1:0]   valid;
-      logic                [NumVirtualChannel-1:0]   ready;
+      floo_tcdm_rdwr_req_t req;
+      logic                valid;
+      logic                ready;
     } floo_tcdm_req_if_wide_entry_t;
 
     typedef struct packed {
@@ -386,15 +385,15 @@ package mempool_pkg;
     } floo_tcdm_req_if_t;
   `else
     typedef struct packed {
-      floo_tcdm_rd_req_t                             req;
-      logic                [NumVirtualChannel-1:0]   valid;
-      logic                [NumVirtualChannel-1:0]   ready;
+      floo_tcdm_rd_req_t req;
+      logic              valid;
+      logic              ready;
     } floo_tcdm_req_if_narrow_entry_t;
 
     typedef struct packed {
-      floo_tcdm_rdwr_req_t                           req;
-      logic                [NumVirtualChannel-1:0]   valid;
-      logic                [NumVirtualChannel-1:0]   ready;
+      floo_tcdm_rdwr_req_t req;
+      logic                valid;
+      logic                ready;
     } floo_tcdm_req_if_wide_entry_t;
 
     typedef struct packed {
@@ -428,9 +427,9 @@ package mempool_pkg;
   } floo_tcdm_resp_t;
 
   typedef struct packed {
-    floo_tcdm_resp_t                                  resp;
-    logic                [NumVirtualChannel-1:0]      valid;
-    logic                [NumVirtualChannel-1:0]      ready;
+    floo_tcdm_resp_t resp;
+    logic            valid;
+    logic            ready;
   } floo_tcdm_rsp_if_entry_t;
 
   typedef struct packed {
