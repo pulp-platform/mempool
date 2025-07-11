@@ -182,7 +182,7 @@ jobs:
     strategy:
       matrix:
         # mempool_config: [minpool, mempool]
-        mempool_config: [terapool_64core]
+        mempool_config: [test_4x4noc_64core]
     steps:
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
@@ -272,7 +272,7 @@ jobs:
     strategy:
       matrix:
         # mempool_config: [minpool, mempool]
-        mempool_config: [terapool_64core]
+        mempool_config: [test_4x4noc_64core]
     steps:
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
@@ -304,7 +304,7 @@ jobs:
     strategy:
       matrix:
         # mempool_config: [minpool, mempool]
-        mempool_config: [terapool_64core]
+        mempool_config: [test_4x4noc_64core]
     steps:
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
@@ -342,7 +342,7 @@ jobs:
     strategy:
       matrix:
         # mempool_config: [minpool, mempool]
-        mempool_config: [terapool_64core]
+        mempool_config: [test_4x4noc_64core]
     steps:
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
@@ -387,7 +387,7 @@ jobs:
     strategy:
       matrix:
         # mempool_config: [minpool, mempool]
-        mempool_config: [terapool_64core]
+        mempool_config: [test_4x4noc_64core]
     steps:
     - uses: actions/checkout@v4
     - name: Get apps-gcc artifacts
@@ -426,7 +426,7 @@ jobs:
     strategy:
       matrix:
         # mempool_config: [minpool, mempool]
-        mempool_config: [terapool_64core]
+        mempool_config: [test_4x4noc_64core]
     steps:
     - uses: actions/checkout@v4
     - name: Get apps-llvm artifacts
@@ -465,7 +465,7 @@ jobs:
     strategy:
       matrix:
         # mempool_config: [minpool, mempool]
-        mempool_config: [terapool_64core]
+        mempool_config: [test_4x4noc_64core]
     steps:
     - uses: actions/checkout@v4
     - name: Get apps-halide artifacts
@@ -519,7 +519,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         # name: verilator-model-minpool
-        name: verilator-model-terapool_64core
+        name: verilator-model-test_4x4noc_64core
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Execute tests
@@ -563,7 +563,7 @@ jobs:
     strategy:
       matrix:
         # mempool_config: [minpool, mempool]
-        mempool_config: [terapool_64core]
+        mempool_config: [test_4x4noc_64core]
     steps:
     - name: Delete artifacts
       uses: geekyeggo/delete-artifact@v4

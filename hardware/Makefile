@@ -146,10 +146,6 @@ vlog_defs += -DNOC_TOPOLOGY=$(noc_topology)
 vlog_defs += -DNOC_ROUTING_ALGORITHM=$(noc_routing_algorithm)
 vlog_defs += -DNOC_ROUTER_REMAPPING=$(noc_router_remapping)
 vlog_defs += -DNOC_VIRTUAL_CHANNEL_NUM=$(noc_virtual_channel_num)
-ifneq ($(noc_router_remapping), 0)
-	questa_config += AssertionEnable = 0
-	vcs_config    += -assert disable
-endif
 # --------------------------
 # Snitch ISA Extensions
 # --------------------------
