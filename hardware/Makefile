@@ -1,84 +1,81 @@
-# Copyright 2021 ETH Zurich and University of Bologna.
+# Copyright 2025 ETH Zurich and University of Bologna.
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-# Author: Matheus Cavalcante, ETH Zurich
-#         Samuel Riedel, ETH Zurich
+# Author: Yichao Zhang, ETH Zurich
 
 SHELL = /usr/bin/env bash
-ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
-INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
-TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
+ROOT_DIR 		:= $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+MEMPOOL_DIR 	:= $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
+INSTALL_DIR 	:= $(abspath $(ROOT_DIR)/../install)
+TOOLCHAIN_DIR 	:= $(abspath $(ROOT_DIR)/../toolchain)
 
 # Include configuration
 config_mk = $(abspath $(ROOT_DIR)/../config/config.mk)
 include $(config_mk)
 
-# build path
-buildpath       ?= build
-resultpath      ?= results
-# questa library
-library         ?= work
-# dpi library
-dpi_library     ?= work-dpi
+# ============================================================================
+# Build and Simulation Tool Configuration
+# ============================================================================
+# Build paths
+buildpath        ?= build
+resultpath       ?= results
+# Questa library
+library          ?= work
+# DPI library
+dpi_library      ?= work-dpi
 # Top level module to compile
-top_level       ?= mempool_tb
-# QuestaSim Version
-questa_version  ?= 2023.4-zr
-# QuestaSim command
-questa_cmd      ?= questa-$(questa_version)
-# QuestaSim arguments
-questa_args     ?=
-# QuestaSim config
-questa_config   ?=
-# VCS Version
-vcs_version     ?= 2024.09-zr
-# VCS command
-vcs_cmd         ?= vcs-$(vcs_version)
-# VCS config
-vcs_config      ?=
-# Path to the binaries
-app_path        ?= $(abspath $(ROOT_DIR)/../software/bin)
+top_level        ?= mempool_tb
+# QuestaSim Configuration
+questa_version   ?= 2023.4-zr
+questa_cmd       ?= questa-$(questa_version)
+questa_args      ?=
+questa_config    ?=
+# VCS Configuration
+vcs_version      ?= 2024.09-zr
+vcs_cmd          ?= vcs-$(vcs_version)
+vcs_config       ?=
+# Path to the application binaries
+app_path         ?= $(abspath $(ROOT_DIR)/../software/bin)
 # Bender
-bender          ?= $(INSTALL_DIR)/bender/bender
+bender           ?= $(INSTALL_DIR)/bender/bender
 # Verilator
-verilator       ?= $(INSTALL_DIR)/verilator/bin/verilator
-verilator_build ?= $(ROOT_DIR)/verilator_build
-verilator_files ?= $(verilator_build)/files
-verilator_top   ?= mempool_tb_verilator
+verilator        ?= $(INSTALL_DIR)/verilator/bin/verilator
+verilator_build  ?= $(ROOT_DIR)/verilator_build
+verilator_files  ?= $(verilator_build)/files
+verilator_top    ?= mempool_tb_verilator
 # Python
-python          ?= python3
-# Enable tracing
-snitch_trace    ?= 1
-
-# Path to DRAMsys
+python           ?= python3
+# Enable Snitch tracing
+snitch_trace     ?= 1
+# DRAMSys Integration
 dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/configs
-dramsys_lib_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/build/lib
+dramsys_lib_path      ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/build/lib
 questa_args += +DRAMSYS_RES=$(dramsys_resouces_path)
 questa_args += -sv_lib $(dramsys_lib_path)/libsystemc -sv_lib $(dramsys_lib_path)/libDRAMSys_Simulator
-
 # Check if the specified QuestaSim version exists
 ifeq (, $(shell which $(questa_cmd)))
-  # Spaces are needed for indentation here!
   $(warning "Specified QuestaSim version ($(questa_cmd)) not found in PATH $(PATH)")
   questa_cmd =
 endif
+# Simulation tool environment paths
+QUESTASIM_HOME  ?= /usr/pack/questa-$(questa_version)/questasim
+VCS_HOME        ?= /usr/pack/vcs-$(vcs_version)/vcs
 
-QUESTASIM_HOME ?= /usr/pack/questa-$(questa_version)/questasim
-VCS_HOME       ?= /usr/pack/vcs-$(vcs_version)/vcs
-
+# ============================================================================
+# Application and Preload Handling
+# ============================================================================
 ifdef app
   questa_args += +APP=$(app)$(app_suf)
   preload := "$(app_path)/$(app)"
   ifeq ("$(shell test -f $(preload))","")
     # The file doesn't exist, let's search for the app in the bin folder
     # since we might just be missing the hierarchy
-    search_app := $(shell find $(app_path) -type f -path "*$(app)")
-    num_matches := $(words $(search_app))
-    ifeq ($(num_matches),0)
+    search_app   := $(shell find $(app_path) -type f -path "*$(app)")
+    num_matches  := $(words $(search_app))
+    ifeq ($(num_matches), 0)
       $(error "App ($(app)) not found in bin dir $(app_path)")
-    else ifeq ($(num_matches),1)
+    else ifeq ($(num_matches), 1)
       preload := "$(search_app)"
       $(warning "Running application $(preload)")
     else
@@ -87,36 +84,48 @@ ifdef app
   endif
 endif
 ifdef preload
-	questa_args += +PRELOAD=$(preload)
+  questa_args += +PRELOAD=$(preload)
 endif
 questa_args += -sv_lib $(dpi_library)/mempool_dpi -work $(library)
 questa_args += -suppress vsim-12070
 
-# VCS options
+# ============================================================================
+# VCS Options
+# ============================================================================
 vlogan_args += -assert svaext +v2k -override_timescale=1ns/1ps -kdb
 ifdef preload
-	vcs_args += +PRELOAD=$(preload)
+  vcs_args += +PRELOAD=$(preload)
 endif
 
+# ============================================================================
+# DPI and Trace Configuration
+# ============================================================================
 # DPI source files
-dpi     := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%.o,$(wildcard tb/dpi/*.cpp))
-dpi_vcs := $(patsubst tb/dpi/%.cpp,$(buildpath)/$(dpi_library)/%_vcs.o,$(wildcard tb/dpi/*.cpp))
+dpi     := $(patsubst tb/dpi/%.cpp,      $(buildpath)/$(dpi_library)/%.o,      $(wildcard tb/dpi/*.cpp))
+dpi_vcs := $(patsubst tb/dpi/%.cpp,      $(buildpath)/$(dpi_library)/%_vcs.o,  $(wildcard tb/dpi/*.cpp))
 # Traces
-trace = $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpath)/*.dasm))
-tracepath ?= $(buildpath)/traces
-traceresult ?= $(tracepath)/results.csv
+trace         := $(patsubst $(buildpath)/%.dasm, $(buildpath)/%.trace, $(wildcard $(buildpath)/*.dasm))
+tracepath     ?= $(buildpath)/traces
+traceresult   ?= $(tracepath)/results.csv
+# Output result directory with timestamp and git hash
 ifndef result_dir
-	result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)")
+  result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)")
 endif
 
+# ============================================================================
+# Architecture Variable Passing ##
+# ============================================================================
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
-# Defines
+
+# General Configuration
 vlog_defs += -D$(config)
 ifeq ($(terapool), 1)
 	vlog_defs += -DTERAPOOL
 endif
-# Cluster configurations
+# --------------------------
+# Cluster Configuration
+# --------------------------
 vlog_defs += -DNUM_CORES=$(num_cores)
 vlog_defs += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 vlog_defs += -DNUM_DIVSQRT_PER_TILE=$(num_divsqrt_per_tile)
@@ -127,7 +136,9 @@ vlog_defs += -DL2_SIZE=32\'d$(l2_size)
 vlog_defs += -DL2_BANKS=$(l2_banks)
 vlog_defs += -DL1_BANK_SIZE=$(l1_bank_size)
 vlog_defs += -DBOOT_ADDR=32\'d$(boot_addr)
-# FlooNoC configurations
+# --------------------------
+# FlooNoC Configuration
+# --------------------------
 vlog_defs += -DNUM_REMOTE_PORTS_PER_TILE=$(num_remote_ports_per_tile)
 vlog_defs += -DNUM_DIRECTIONS=$(num_directions)
 vlog_defs += -DNUM_X=$(num_x)
@@ -137,38 +148,51 @@ vlog_defs += -DNOC_ROUTER_REMAPPING=$(noc_router_remapping)
 vlog_defs += -DNOC_VIRTUAL_CHANNEL_NUM=$(noc_virtual_channel_num)
 ifneq ($(noc_router_remapping), 0)
 	questa_config += AssertionEnable = 0
-	vcs_config += -assert disable
+	vcs_config    += -assert disable
 endif
-# Snitch ISA
+# --------------------------
+# Snitch ISA Extensions
+# --------------------------
 vlog_defs += -DXPULPIMG=$(xpulpimg)
 vlog_defs += -DZFINX=$(zfinx)
 vlog_defs += -DZQUARTERINX=$(zquarterinx)
 vlog_defs += -DXDIVSQRT=$(xDivSqrt)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
-# AXI & DMA
+# --------------------------
+# AXI & DMA Configuration
+# --------------------------
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
 vlog_defs += -DDMAS_PER_GROUP=$(dmas_per_group)
 vlog_defs += -DAXI_HIER_RADIX=$(axi_hier_radix)
 vlog_defs += -DAXI_MASTERS_PER_GROUP=$(axi_masters_per_group)
-# Systolic configurations
+# --------------------------
+# Systolic Configurations
+# --------------------------
 vlog_defs += -DSEQ_MEM_SIZE=$(seq_mem_size)
 vlog_defs += -DXQUEUE_SIZE=$(xqueue_size)
-# DRAMsys co-simulation
+# --------------------------
+# DRAMsys Co-Simulation
+# --------------------------
 vlog_defs += -D${l2_sim_type}
 vlog_defs += -DAXI_WIDTH_INTERLEAVED=${axi_width_interleaved}
-# Enable the spm access pattern profiling
+# --------------------------
+# Profiling Options
+# --------------------------
 ifeq (1, $(spm_profiling))
 	vlog_defs += -DSPM_PROFILING=$(spm_profiling)
 endif
 ifeq (1, $(noc_profiling))
 	vlog_defs += -DNOC_PROFILING=$(noc_profiling)
 endif
-# Enable SPM bank id remapping inside of each tile
+# --------------------------
+# Remapping Controls
+# --------------------------
 vlog_defs += -DSPM_BANK_ID_REMAP=$(spm_bank_id_remap)
-# Enable tile id remapping inside of each group
 vlog_defs += -DTILE_ID_REMAP=$(tile_id_remap)
-# Separate the NoC read and read/write req channels, rd = hdr, rd/wr = hdr+payload
+# --------------------------
+# NoC Channel Configuration
+# --------------------------
 vlog_defs += -DNOC_REQ_RD_CHANNEL_NUM=$(noc_req_rd_channel_num)
 ifneq (0, $(noc_req_rd_channel_num))
 	vlog_defs += -DUSE_NARROW_REQ_CHANNEL
@@ -176,42 +200,55 @@ endif
 vlog_defs += -DNOC_REQ_RDWR_CHANNEL_NUM=$(noc_req_rdwr_channel_num)
 vlog_defs += -DNOC_REQ_WR_CHANNEL_NUM=$(noc_req_wr_channel_num)
 vlog_defs += -DNOC_RESP_CHANNEL_NUM=$(noc_resp_channel_num)
-# Router buffer configuration
+# --------------------------
+# Router Buffer Configuration
+# --------------------------
 vlog_defs += -DNOC_ROUTER_INPUT_FIFO_DEP=$(noc_router_input_fifo_dep)
 vlog_defs += -DNOC_ROUTER_OUTPUT_FIFO_DEP=$(noc_router_output_fifo_dep)
-# Router remapping group size
 vlog_defs += -DNOC_ROUTER_REMAP_GROUP_SIZE=$(noc_router_remap_group_size)
 
-# Traffic generation enabled
+# ============================================================================
+# Verilator: C++ Preprocessor Defines ##
+# ============================================================================
+# --------------------------
+# Traffic Generation
+# --------------------------
 ifdef tg
 	tg_ncycles ?= 10000
-
 	vlog_defs += -DTRAFFIC_GEN=1
 	cpp_defs  += -DTRAFFIC_GEN=1
 	cpp_defs  += -DTG_REQ_PROB=$(tg_reqprob)
 	cpp_defs  += -DTG_SEQ_PROB=$(tg_seqprob)
 	cpp_defs  += -DTG_NCYCLES=$(tg_ncycles)
 	cpp_defs  += -DNUM_CORES=$(num_cores)
-
-	# How many cycles should we execute?
+	# Simulation termination
 	veril_flags := --term-after-cycles=$(tg_ncycles)
 else
 	tg          := 0
 	veril_flags := --meminit=ram,$(preload)
 endif
-
+# --------------------------
+# Memory Configuration
+# --------------------------
 cpp_defs += -DL2_BASE=$(l2_base)
 cpp_defs += -DL2_SIZE=$(l2_size)
 cpp_defs += -DL2_BANKS=$(l2_banks)
 cpp_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 
+##########################
+## Default Build Target ##
+##########################
 .DEFAULT_GOAL := compile
 
-# Build path
+##################
+## Build Path ##
+##################
 $(buildpath):
 	mkdir -p $(buildpath)
 
-# Bender
+##################
+## Bender Setup ##
+##################
 $(bender):
 	make -C $(MEMPOOL_DIR) bender
 
@@ -270,7 +307,6 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 ################
 # VCS          #
 ################
-
 # Elaboration
 .PHONY: elabvcs
 elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes

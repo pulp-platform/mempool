@@ -10,17 +10,20 @@
 ## 1. Architecture Config
 ###########################
 
+# Global Control
+terapool ?= 1
+
 # Number of cores
-num_cores ?= 256
+num_cores ?= 64
 
 # Number of groups
-num_groups ?= 4
+num_groups ?= 16
 
 # Number of cores per MemPool tile
-num_cores_per_tile ?= 4
+num_cores_per_tile ?= 2
 
 # L1 scratchpad banking factor
-banking_factor ?= 4
+banking_factor ?= 16
 
 # Number of shared divsqrt units per MemPool tile
 # Defaults to 1 if xDivSqrt is activated
@@ -32,7 +35,7 @@ num_divsqrt_per_tile ?= 1
 
 # FlooNoC configuration
 num_directions ?= 5
-num_x          ?= 2
+num_x          ?= 4
 
 # Topology
 # 0: 2D mesh, 1: torus
@@ -51,22 +54,22 @@ noc_virtual_channel_num ?= 1
 
 # Channel configuration mode (internal control only)
 # Options: baseline, narrow, enhanced
-channel_config_mode := baseline  # Current MemPool setting
+channel_config_mode := baseline  # Current MinPool setting
 
 # Channel configuration based on selected mode
-ifeq ($(strip $(channel_config_mode)), baseline)
+ifeq ($(channel_config_mode), baseline)
 noc_req_rd_channel_num   ?= 0
 noc_req_rdwr_channel_num ?= 2
 noc_req_wr_channel_num   ?= 0
 noc_resp_channel_num     ?= 2
 
-else ifeq ($(strip $(channel_config_mode)), narrow)
+else ifeq ($(channel_config_mode), narrow)
 noc_req_rd_channel_num   ?= 1
 noc_req_rdwr_channel_num ?= 1
 noc_req_wr_channel_num   ?= 0
 noc_resp_channel_num     ?= 2
 
-else ifeq ($(strip $(channel_config_mode)), enhanced)
+else ifeq ($(channel_config_mode), enhanced)
 noc_req_rd_channel_num   ?= 1
 noc_req_rdwr_channel_num ?= 1
 noc_req_wr_channel_num   ?= 0
@@ -87,14 +90,15 @@ noc_router_input_fifo_dep  ?= 2
 noc_router_output_fifo_dep ?= 2
 
 # Router remapping configuration
-noc_router_remap_group_size ?= 8
+noc_router_remap_group_size ?= 2
 
 ###########################
 ## 3. AXI and DMA Config
 ###########################
 
 # Radix for hierarchical AXI interconnect
-axi_hier_radix ?= 17
+# Typically: num_cores_per_tile * num_tiles_per_group + num_dma_per_groups
+axi_hier_radix ?= 5
 
 # Number of AXI masters per group
 axi_masters_per_group ?= 1
@@ -103,6 +107,5 @@ axi_masters_per_group ?= 1
 dmas_per_group ?= 1  # Burst Length = 16
 
 # L2 Banks/Channels
-l2_size               ?= 4194304   # 400000
-l2_banks              ?= 4
-axi_width_interleaved ?= 16
+l2_size  ?= 16777216  # 1000000
+l2_banks ?= 16
