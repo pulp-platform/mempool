@@ -38,8 +38,9 @@ sources:
   - hardware/src/bootrom.sv
   - hardware/src/latch_scm.sv
   - hardware/src/selector.sv
-  - hardware/src/mempool_core_tile_id_remapper.sv
+  - hardware/src/mempool_bank_id_remapper.sv
   - hardware/src/mempool_dma_tile_id_remapper.sv
+  - hardware/src/mempool_tile_rw_demux.sv
   # Level 1
   - hardware/src/mempool_tile.sv
   # Level 3

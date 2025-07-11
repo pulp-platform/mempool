@@ -894,7 +894,26 @@ module mempool_tile
   /********************
    *   ID Remapping   *
    ********************/
-  mempool_core_tile_id_remapper #(
+  mempool_bank_id_remapper #(
+    .NumCoresPerTile                      (NumCoresPerTile                     ),
+    .NumRemoteReqPortsPerTile             (NumRemoteReqPortsPerTile            ),
+    .NumBanksPerTile                      (NumBanksPerTile                     ),
+    .TCDMAddrMemWidth                     (TCDMAddrMemWidth                    ),
+    .SpmBankIdRemap                       (SpmBankIdRemap                      )
+  ) i_mempool_tile_id_remapper (
+    .tcdm_dma_req_i                       (tcdm_dma_req_i                      ),
+    .tcdm_slave_req_i                     (tcdm_slave_req_i                    ),
+    .local_req_interco_payload_i          (local_req_interco_payload           ),
+    .tcdm_dma_req_remapped_o              (tcdm_dma_req_remapped               ),
+    .tcdm_slave_req_remapped_o            (tcdm_slave_req_remapped             ),
+    .local_req_interco_payload_remapped_o (local_req_interco_payload_remapped  )
+  );
+
+  /*******************
+   *   Core De/mux   *
+   *******************/
+
+   mempool_tile_rw_demux #(
     .NumCoresPerTile                      (NumCoresPerTile                     ),
     .NumRemoteReqPortsPerTile             (NumRemoteReqPortsPerTile            ),
     .NumRdRemoteReqPortsPerTile           (NumRdRemoteReqPortsPerTile          ),
@@ -904,33 +923,18 @@ module mempool_tile
     .NumBanksPerTile                      (NumBanksPerTile                     ),
     .NumTilesPerGroup                     (NumTilesPerGroup                    ),
     .NumGroups                            (NumGroups                           ),
-    .TCDMAddrMemWidth                     (TCDMAddrMemWidth                    ),
-    .ByteOffset                           (ByteOffset                          ),
-    .SpmBankIdRemap                       (SpmBankIdRemap                      )
-  ) i_mempool_tile_id_remapper (
-    .clk_i                                (clk_i                               ),
-    .rst_ni                               (rst_ni                              ),
+    .ByteOffset                           (ByteOffset                          )
+  ) i_mempool_tile_rw_demux (
     .group_id_i                           (group_id                            ),
-    .tcdm_dma_req_i                       (tcdm_dma_req_i                      ),
-    .tcdm_slave_req_i                     (tcdm_slave_req_i                    ),
-    .local_req_interco_payload_i          (local_req_interco_payload           ),
     .remote_req_interco_valid_i           (remote_req_interco_valid            ),
     .remote_req_interco_ready_i           (remote_req_interco_ready            ),
     .remote_req_interco_wen_i             (remote_req_interco_wen              ),
     .remote_req_interco_amoen_i           (remote_req_interco_amoen            ),
-    // .remote_req_interco_tgt_sel_i      (remote_req_interco_tgt_sel          ),
     .prescramble_tcdm_req_tgt_addr_i      (prescramble_tcdm_req_tgt_addr       ),
-    .tcdm_dma_req_remapped_o              (tcdm_dma_req_remapped               ),
-    .tcdm_slave_req_remapped_o            (tcdm_slave_req_remapped             ),
-    .local_req_interco_payload_remapped_o (local_req_interco_payload_remapped  ),
     .remote_req_interco_to_xbar_valid_o   (remote_req_interco_to_xbar_valid    ),
     .remote_req_interco_to_xbar_ready_o   (remote_req_interco_to_xbar_ready    ),
     .remote_req_interco_tgt_sel_o         (remote_req_interco_tgt_sel_remapped )
   );
-
-  /*******************
-   *   Core De/mux   *
-   *******************/
 
   // SoC requests
   dreq_t  [NumCoresPerTile-1:0] soc_data_q;
