@@ -55,19 +55,19 @@ noc_virtual_channel_num ?= 1
 channel_config_mode := baseline  # Current MinPool setting
 
 # Channel configuration based on selected mode
-ifeq ($(channel_config_mode), baseline)
+ifeq ($(strip $(channel_config_mode)), baseline)
 noc_req_rd_channel_num   ?= 0
 noc_req_rdwr_channel_num ?= 2
 noc_req_wr_channel_num   ?= 0
 noc_resp_channel_num     ?= 2
 
-else ifeq ($(channel_config_mode), narrow)
+else ifeq ($(strip $(channel_config_mode)), narrow)
 noc_req_rd_channel_num   ?= 1
 noc_req_rdwr_channel_num ?= 1
 noc_req_wr_channel_num   ?= 0
 noc_resp_channel_num     ?= 2
 
-else ifeq ($(channel_config_mode), enhanced)
+else ifeq ($(strip $(channel_config_mode)), enhanced)
 noc_req_rd_channel_num   ?= 1
 noc_req_rdwr_channel_num ?= 1
 noc_req_wr_channel_num   ?= 0
