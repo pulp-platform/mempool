@@ -4,6 +4,9 @@
 
 // Author: Marco Bertuletti, ETH Zurich
 
+#pragma once
+#include "builtins_v2.h"
+
 /**
   @brief         Check for q32 kernels.
   @param[in]     pRes points to the result
