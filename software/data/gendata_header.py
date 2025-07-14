@@ -51,9 +51,11 @@ def format_type(typ, value):
     elif typ == '__fp16':
         stringyfied_val = '({}) {:+.4f}'.format(typ, value)
     elif typ == '__fp8':
-        value = ff.FlexFloat("e5m2", value.astype(numpy.double))
+        if not isinstance(value, ff.FlexFloat):
+            value = numpy.array([value]).astype(numpy.double)
+            value = ff.FlexFloat("e5m2", value[0])
         value = value.bits()
-        stringyfied_val = '({}) 0X{}'.format(typ, value)
+        stringyfied_val = '({}) 0X{:02X}'.format(typ, value)
     else:
         raise Exception("ERROR: Unsupported data type!!!")
 
@@ -134,7 +136,7 @@ def get_type(type_string):
     elif type_string == "float16":
         return numpy.float16
     elif type_string == "float8":
-        return numpy.float16
+        return ff.FlexFloat('e5m2')
     else:
         raise Exception("Input type is not valid")
 
@@ -166,6 +168,7 @@ if __name__ == '__main__':
     # Define function mappings for each app_name
     function_map = {
         "axpy_i32": {"func": datalib.generate_iaxpy},
+        "axpy_f8": {"func": datalib.generate_faxpy},
         "axpy_f16": {"func": datalib.generate_faxpy},
         "axpy_f32": {"func": datalib.generate_faxpy},
         "cfft_radix2_q16": {"func": datalib.generate_cfft_q16},
@@ -182,8 +185,8 @@ if __name__ == '__main__':
         "dotp_f32": {"func": datalib.generate_fdotp},
         "dotp_i32": {"func": datalib.generate_idotp},
         "gaussjordan_q32": {"func": datalib.generate_qgaussjordan},
-        "matmul_f16": {"func": datalib.generate_fmatmul},
         "matmul_f8": {"func": datalib.generate_fmatmul},
+        "matmul_f16": {"func": datalib.generate_fmatmul},
         "matmul_f32": {"func": datalib.generate_fmatmul},
         "matmul_i32": {"func": datalib.generate_imatmul},
         "matmul_i16": {"func": datalib.generate_imatmul},
@@ -192,10 +195,16 @@ if __name__ == '__main__':
         "mimo_mmse_f16": {"func": datalib.generate_fmmse},
         "mimo_mmse_f32": {"func": datalib.generate_fmmse},
         "mimo_mmse_f8": {"func": datalib.generate_fmmse},
+        "batchnorm_f8": {"func": datalib.generate_fbatchnorm},
+        "batchnorm_f16": {"func": datalib.generate_fbatchnorm},
+        "layernorm_f8": {"func": datalib.generate_flayernorm},
+        "layernorm_f16": {"func": datalib.generate_flayernorm},
         "ofdm_f16": {"func": datalib.generate_fofdm},
         "fence": {"func": datalib.generate_iarray},
         "memcpy": {"func": datalib.generate_iarray},
         "barriers_test": {"func": datalib.generate_barriers_test},
+        "softmax_f8": {"func": datalib.generate_fsoftmax},
+        "softmax_f16": {"func": datalib.generate_fsoftmax},
     }
 
     # Check if app_name exists in the function map
