@@ -46,7 +46,7 @@
   },
 
   "axpy_f8": {
-    "type": "float8_e5m2",
+    "type": "float8",
     "defines": [
       ("array_N", 4096)
     ]
@@ -241,11 +241,11 @@
   },
 
   "matmul_f8": {
-    "type": "float8_e5m2",
+    "type": "float8",
     "defines": [
       ("matrix_M", 64)
-      ("matrix_N", 256)
-      ("matrix_P", 1024)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
     ]
     "arrays": [
       ("__fp8", "l2_A")
@@ -357,7 +357,7 @@
   }
 
   "mimo_mmse_f8": {
-    "type": "float8",
+    "type": "float16",
     "defines": [
       ("N_TX", 4)
       ("N_RX", 4)
@@ -390,7 +390,7 @@
   }
 
   "batchnorm_f8": {
-    "type": "float8_e5m2",
+    "type": "float8",
     "defines": [
       ("matrix_M", 4)
       ("matrix_N", 4)
@@ -414,7 +414,7 @@
   },
 
   "layernorm_f8": {
-    "type": "float8_e5m2",
+    "type": "float8",
     "defines": [
       ("matrix_M", 4)
       ("matrix_N", 4)
@@ -485,7 +485,7 @@
   },
 
   "softmax_f8": {
-    "type": "float8_e5m2",
+    "type": "float8",
     "defines": [
       ("matrix_M", 2)
       ("matrix_N", 8)

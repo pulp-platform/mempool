@@ -261,12 +261,16 @@ def generate_fmatmul(my_type=np.float32, defines={}):
         # Create matrix
         A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(np.float16)
         B = (np.random.rand(matrix_N, matrix_P) - 0.5).astype(np.float16)
+        C = np.zeros((matrix_M, matrix_P), np.float16)
 
         # Cast the correct type
         A = ff.array(A, 'e5m2')
         B = ff.array(B, 'e5m2')
-
-        C = np.matmul(A, B)
+        C = ff.array(C, 'e5m2')
+        for m in range(matrix_M):
+            for n in range(matrix_N):
+                for p in range(matrix_P):
+                    C[m][p] += A[m][n] * B[n][p]
 
         # Flatten the matrices into 1D arrays
         A = np.reshape(A, (matrix_M * matrix_N), order='C')
@@ -766,12 +770,18 @@ def generate_flayernorm(my_type=np.float32, defines={}):
         for i in range(matrix_M):  # Loop over each sample (row)
             row = A[i]
             # Compute: mean = sum / N
-            mean = np.sum(row) / matrix_N
+            row_sum = ff.FlexFloat("e5m2", 0)
+            for el in row:
+                row_sum += el
+            mean = row_sum / matrix_N
             # Compute E[x^2]
-            row_sq = np.square(row)
-            expected = np.sum(row_sq) / matrix_N
+            row_sq = row * row
+            row_sum = ff.FlexFloat("e5m2", 0)
+            for el in row_sq:
+                row_sum += el
+            expected = row_sum / matrix_N
             # Compute mean^2
-            mean_sq = np.square(mean)
+            mean_sq = mean * mean
             # Compute: var = E[x^2] - mean^2
             var = expected - mean_sq
             # Compute: std = sqrt(var)
@@ -831,9 +841,13 @@ def generate_fsoftmax(my_type=np.float32, defines={}):
             a_max = np.max(A[i])
             # Approximate exp with Taylor series
             diff = A[i] - a_max
-            numerator = 1 + diff + 0.5 * np.square(diff) + 0.167 * np.square(
-                diff) * diff
-            denominator = np.sum(numerator)
+            diff_2 = diff * diff
+            diff_3 = diff * diff * diff
+            numerator = 1 + diff + 0.5 * diff_2 + 0.167 * diff_3
+            numerator_sum = ff.FlexFloat("e5m2", 0)
+            for el in numerator:
+                numerator_sum += el
+            denominator = numerator_sum
             B[i] = numerator / denominator
 
         # Flatten the matrices into 1D arrays
