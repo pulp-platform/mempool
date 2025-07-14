@@ -66,7 +66,7 @@ int main() {
 
   // For small matrices, replace 150 with matrix_M * matrix_P (dimension of
   // matrix C)
-  mempool_check_f8(matrix_c, l2_C, 50, 0x34, 1); // tol = 0.25 = 0x34 (__fp8)
+  mempool_check_f8(matrix_c, l2_C, 50, 0x34, 0); // tol = 0.25 = 0x34 (__fp8)
   mempool_barrier(num_cores);
   return 0;
 }
