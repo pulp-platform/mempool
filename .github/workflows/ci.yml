@@ -191,7 +191,7 @@ jobs:
         android: true
         dotnet: true
         haskell: true
-        large-packages: true
+        large-packages: false # to keep clang++ for verilator
         docker-images: true
         swap-storage: true
     - uses: actions/checkout@v4
@@ -213,6 +213,7 @@ jobs:
       if: steps.verilator-model.outputs.cache-hit != 'true'
       env:
         config: ${{ matrix.mempool_config }}
+        CI: true
       run: |
         sudo apt install libelf-dev
         source /usr/share/miniconda/etc/profile.d/conda.sh
