@@ -36,6 +36,7 @@ ifeq ($(origin CXX),default)
   CXX ?= g++
 endif
 BENDER_VERSION = 0.28.2
+CONFIG ?= test_4x4noc_64core
 
 # We need a recent LLVM installation (>11) to compile Verilator.
 # We also need to link the binaries with LLVM's libc++.
@@ -112,8 +113,8 @@ riscv-isa-sim: update_opcodes
 riscv-tests: build-riscv-tests
 	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
 	make -C $(RISCV_TESTS_DIR)/isa run && \
-	config=minpool make -C $(SOFTWARE_DIR) riscv-tests && \
-	config=minpool make -C hardware verilate_test
+	config=$(CONFIG) make -C $(SOFTWARE_DIR) riscv-tests && \
+	config=$(CONFIG) make -C hardware verilate_test
 
 build-riscv-tests: update_opcodes
 	cd $(RISCV_TESTS_DIR); \
