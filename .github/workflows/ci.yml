@@ -154,7 +154,7 @@ jobs:
       id: verilator-cache
       with:
         path: install/verilator
-        key: ${{ runner.os }}-verilator-llvm-${{ env.tc-verilator-hash }}
+        key: ${{ runner.os }}-verilator-gcc-${{ env.tc-verilator-hash }}
     - name: Download Verilator
       if: steps.verilator-cache.outputs.cache-hit != 'true'
       run: |
@@ -191,7 +191,7 @@ jobs:
         android: true
         dotnet: true
         haskell: true
-        large-packages: false # to keep clang++ for verilator
+        large-packages: true
         docker-images: true
         swap-storage: true
     - uses: actions/checkout@v4
