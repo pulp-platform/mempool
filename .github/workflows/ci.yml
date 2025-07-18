@@ -112,6 +112,31 @@ jobs:
         name: halide
         path: halide.tzst
 
+  bender:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Recover the submodule commit hash
+      run: |
+        echo "bender-version=0.28.2" >> $GITHUB_ENV
+    - name: Cache bender
+      uses: actions/cache@v4
+      id: bender
+      with:
+        path: install/bender
+        key: ${{ runner.os }}-bender-${{ env.bender-version }}
+    - name: Download bender
+      if: steps.bender.outputs.cache-hit != 'true'
+      run: |
+        make bender
+    - name: Tar bender
+      run: tar --posix --use-compress-program zstd -cf bender.tzst install/bender
+    - name: Upload bender
+      uses: actions/upload-artifact@v4
+      with:
+        name: bender
+        path: bender.tzst
+
   ###########
   #  Tools  #
   ###########
@@ -501,7 +526,7 @@ jobs:
   unit-test:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    needs: [tc-gcc, riscv-isa-sim, verilator-model]
+    needs: [tc-gcc, riscv-isa-sim, verilator-model, bender]
     steps:
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
@@ -523,6 +548,12 @@ jobs:
         # name: verilator-model-test_4x4noc_64core
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get bender artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: bender
+    - name: Untar bender
+      run: tar --use-compress-program zstd -xf bender.tzst
     - name: Execute tests
       env:
         CI_REUSE_MODEL: true
