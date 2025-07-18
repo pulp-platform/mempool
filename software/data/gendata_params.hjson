@@ -316,7 +316,7 @@
   "gemv_f32": {
     "type": "float32",
     "defines": [
-      ("matrix_N", 4096)
+      ("matrix_N", 128)
       ("matrix_P", 32)
     ]
     "arrays": [
@@ -329,7 +329,7 @@
   "gemv_f16": {
     "type": "float16",
     "defines": [
-      ("matrix_N", 8192)
+      ("matrix_N", 256)
       ("matrix_P", 32)
     ]
     "arrays": [
