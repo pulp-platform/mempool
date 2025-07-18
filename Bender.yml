@@ -22,6 +22,7 @@ workspace:
 
 export_include_dirs:
   - hardware/include
+  - hardware/tb
 
 sources:
   # Level 0
