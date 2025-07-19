@@ -203,13 +203,21 @@ jobs:
   verilator-model:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
-    needs: verilator
+    needs: [verilator, bender]
     strategy:
       matrix:
         mempool_config: [minpool]
         # mempool_config: [test_4x4noc_64core]
     steps:
+    - uses: actions/checkout@v4
+    - name: Cache Verilator Model
+      uses: actions/cache@v4
+      id: verilator-model
+      with:
+        path: hardware/verilator_build/Vmempool_tb_verilator
+        key: ${{ runner.os }}-verilator-model-${{ matrix.mempool_config }}-${{ hashFiles('hardware/**','config/**') }}
     - name: Free Disk Space (Ubuntu)
+      if: steps.verilator-model.outputs.cache-hit != 'true'
       uses: jlumbroso/free-disk-space@main
       with:
         tool-cache: true
@@ -219,13 +227,6 @@ jobs:
         large-packages: true
         docker-images: true
         swap-storage: true
-    - uses: actions/checkout@v4
-    - name: Cache Verilator Model
-      uses: actions/cache@v4
-      id: verilator-model
-      with:
-        path: hardware/verilator_build/Vmempool_tb_verilator
-        key: ${{ runner.os }}-verilator-model-${{ matrix.mempool_config }}-${{ hashFiles('hardware/**','config/**') }}
     - name: Get Verilator artifacts
       if: steps.verilator-model.outputs.cache-hit != 'true'
       uses: actions/download-artifact@v4
@@ -234,6 +235,12 @@ jobs:
     - name: Untar Verilator
       if: steps.verilator-model.outputs.cache-hit != 'true'
       run: tar --use-compress-program zstd -xf verilator.tzst
+    - name: Get bender artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: bender
+    - name: Untar bender
+      run: tar --use-compress-program zstd -xf bender.tzst
     - name: Build Model
       if: steps.verilator-model.outputs.cache-hit != 'true'
       env:
