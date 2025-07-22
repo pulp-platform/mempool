@@ -2,11 +2,11 @@
 [![lint](https://github.com/pulp-platform/mempool/actions/workflows/lint.yml/badge.svg)](https://github.com/pulp-platform/mempool/actions/workflows/lint.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-# MemPool
+# TeraNoC – A Hybrid Mesh–Crossbar NoC for Scalable Shared-L1-Memory Clusters
 
-MemPool is a many-core system targeting image processing applications. It implements 256 RISC-V cores that can access a large, shared L1 memory in at most five cycles.
+**TeraNoC** is an open-source, hierarchical, hybrid mesh–crossbar Network-on-Chip (NoC) designed to support high-throughput, fine-grained, and low-latency access to shared L1 scratchpad memory in manycore clusters. The architecture enables area-efficient scale-up to 1000+ cores and over 4000 L1 banks under a unified memory space.
 
-This repository contains the software and hardware of MemPool, as well as infrastructure for compilation and simulation.
+This repository contains the software and hardware of TeraNoC, as well as infrastructure for compilation and simulation.
 
 ## Structure
 
