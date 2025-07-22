@@ -22,15 +22,18 @@
 #ifndef AXI_DATA_WIDTH
 #define AXI_DATA_WIDTH (-1)
 #endif
+#ifndef AXI_WIDTH_INTERLEAVED
+#define AXI_WIDTH_INTERLEAVED (-1)
+#endif
 
 // Histogram printing function
 extern "C" void print_histogram();
 
 int main(int argc, char **argv) {
-  mempool_tb_verilator top;
+  mempool_tb_verilator *top = new mempool_tb_verilator;
   VerilatorMemUtil memutil;
   VerilatorSimCtrl &simctrl = VerilatorSimCtrl::GetInstance();
-  simctrl.SetTop(&top, &top.clk_i, &top.rst_ni,
+  simctrl.SetTop(top, &top->clk_i, &top->rst_ni,
                  VerilatorSimCtrlFlags::ResetPolarityNegative);
 
 #ifndef TRAFFIC_GEN
@@ -39,7 +42,10 @@ int main(int argc, char **argv) {
     l2_scope.push_back("TOP.mempool_tb_verilator.dut.gen_l2_banks[" +
                        std::to_string(i) + "].l2_mem");
   }
-  MemArea l2_mem(l2_scope, L2_SIZE / (AXI_DATA_WIDTH / 8), AXI_DATA_WIDTH / 8);
+  MemArea l2_mem(l2_scope,
+                 L2_SIZE / (AXI_DATA_WIDTH / 8),
+                 AXI_DATA_WIDTH / 8,
+                 AXI_WIDTH_INTERLEAVED * (AXI_DATA_WIDTH / 8) * L2_BANKS);
   memutil.RegisterMemoryArea("ram", L2_BASE, &l2_mem);
   simctrl.RegisterExtension(&memutil);
 #endif

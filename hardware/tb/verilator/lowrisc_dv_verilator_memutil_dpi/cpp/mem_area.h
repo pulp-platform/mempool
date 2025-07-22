@@ -33,10 +33,17 @@ public:
    * @param num_words The number of words of the memory (must be positive)
    *
    * @param size      The width of each entry in bytes (must be positive)
+   *
+   * @param interleaved_bytes
+   *                  The byte interleaving factor for the memory
+   *                  (must be  multiples of \p width_byte_ * \p num_banks_).
+   *                  By default it is fully interleave: width_byte * num_banks_.
    */
   MemArea(const std::string &scope, uint32_t num_words, uint32_t width_byte);
   MemArea(const std::vector<std::string> &scopes, uint32_t num_words,
           uint32_t width_byte);
+  MemArea(const std::vector<std::string> &scopes, uint32_t num_words,
+          uint32_t width_byte, uint32_t interleaved_bytes);
 
   virtual ~MemArea() {}
 
@@ -87,6 +94,7 @@ protected:
   uint32_t num_words_;  ///< Size of the memory area in words
   uint32_t width_byte_; ///< Size of each word in bytes
   uint32_t num_banks_;  ///< Number of interleaved banks for the memory
+  uint32_t interleaved_bytes_; ///< Interleaving factor for the memory
 
   /** Write to buf with the data that should be copied to the physical memory
    * for a single memory word.
