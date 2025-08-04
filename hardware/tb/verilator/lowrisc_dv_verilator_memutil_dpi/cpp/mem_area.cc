@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstring>
 #include <sstream>
-#include <cmath>
 
 #include "sv_scoped.h"
 
@@ -74,11 +74,13 @@ void MemArea::Write(uint32_t word_offset,
     // only construct `SVScoped` once they've both been called so they don't
     // interact causing incorrect relative path behaviour. If this fails to set
     // scope, it will throw an error which should be caught at this function's
-    SVScoped scoped(scopes_[(phys_addr >>
-      static_cast<uint32_t>(std::ceil(std::log2(interleaved_bytes_ / num_banks_ / width_byte_))))
-      % num_banks_]);
+    SVScoped scoped(
+        scopes_[(phys_addr >>
+                 static_cast<uint32_t>(std::ceil(std::log2(
+                     interleaved_bytes_ / num_banks_ / width_byte_)))) %
+                num_banks_]);
     if (!simutil_set_mem(phys_addr / (interleaved_bytes_ / width_byte_),
-    (svBitVecVal *)minibuf)) {
+                         (svBitVecVal *)minibuf)) {
       std::ostringstream oss;
       oss << "Could not set memory at byte offset 0x" << std::hex
           << dst_word * width_byte_ << ".";
@@ -139,11 +141,13 @@ void MemArea::ReadBuffer(std::vector<uint8_t> &data,
 }
 
 void MemArea::ReadToMinibuf(uint8_t *minibuf, uint32_t phys_addr) const {
-  SVScoped scoped(scopes_[(phys_addr >>
-  static_cast<uint32_t>(std::ceil(std::log2(interleaved_bytes_ / num_banks_ / width_byte_))))
-    % num_banks_]);
+  SVScoped scoped(
+      scopes_[(phys_addr >>
+               static_cast<uint32_t>(std::ceil(
+                   std::log2(interleaved_bytes_ / num_banks_ / width_byte_)))) %
+              num_banks_]);
   if (!simutil_set_mem(phys_addr / (interleaved_bytes_ / width_byte_),
-  (svBitVecVal *)minibuf)) {
+                       (svBitVecVal *)minibuf)) {
     std::ostringstream oss;
     oss << "Could not read memory word at physical index 0x" << std::hex
         << phys_addr << ".";
