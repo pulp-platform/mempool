@@ -366,9 +366,8 @@ VERILATOR_FLAGS += --Mdir $(verilator_build)
 VERILATOR_FLAGS += -f $(verilator_files)
 VERILATOR_FLAGS += -f $(VERILATOR_CONF)
 VERILATOR_FLAGS += $(VERILATOR_WAIVE)
-VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
-VERILATOR_FLAGS += --debug
-VERILATOR_FLAGS += --CFLAGS "-DVM_TRACE_FMT_FST"
+# VERILATOR_FLAGS += --trace --trace-fst --trace-structs --trace-params --trace-max-array 1024
+# VERILATOR_FLAGS += --debug
 
 # We need to link the verilated model against LLVM's libc++.
 # Define CLANG_PATH to be the path of your Clang installation.
