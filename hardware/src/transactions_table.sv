@@ -68,7 +68,7 @@ module transactions_table
 
   // ready_o: we can accept input whenever that entry has not yet been set
   for (genvar p=0; p<NumPorts; p++) begin
-    assign resp_ready_o[p] = ~table_valid_q[resp_payload_i[p].id][p]; // resp_ready_i[p];
+    assign resp_ready_o[p] = 1'b1; //~table_valid_q[resp_payload_i[p].id][p]; // resp_ready_i[p];
   end
 
 
