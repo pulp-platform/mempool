@@ -913,7 +913,8 @@ module mempool_redmule_tile
   dreq_t [RMMasterPorts-1:0] redmule_tcdm_req;
   logic  [RMMasterPorts-1:0] redmule_tcdm_req_valid;
   logic  [RMMasterPorts-1:0] redmule_tcdm_req_ready;
-  logic  [RMMasterPorts-1:0] redmule_tcdm_handshake;
+  logic  [RMMasterPorts-1:0] redmule_tcdm_handshake_p;
+  logic  [RMMasterPorts-1:0] redmule_tcdm_handshake_q;
 
   logic                       redmule_resp_allvalid;
   dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
@@ -933,6 +934,11 @@ module mempool_redmule_tile
   logic          [RMMasterPorts-1:0] remote_resp_preburst_valid, remote_resp_preburst_ready;
   burst_gresp_t  [RMMasterPorts-1:0] remote_resp_postburst_burst;
 
+  // Handshake separately on each request port
+  assign redmule_hwpe_req_ready = redmule_tcdm_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
+  assign redmule_tcdm_handshake_p = &redmule_hwpe_req_ready ? '0 : redmule_tcdm_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
+  `FF(redmule_tcdm_handshake_q, redmule_tcdm_handshake_p, '0, clk_i, rst_ni);
+
   // Signal ready only when all ports are valid
   assign redmule_resp_allvalid = &redmule_tcdm_resp_valid;
 
@@ -951,19 +957,6 @@ module mempool_redmule_tile
     .resp_valid_o  (redmule_hwpe_resp_valid),
     .resp_ready_i  (redmule_hwpe_resp_ready)
   );
-
-  // Handshake separately on each port
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-      redmule_tcdm_handshake <= '0;
-    end else begin
-      if (&redmule_tcdm_handshake) begin
-        redmule_tcdm_handshake <= '0;
-      end else begin
-        redmule_tcdm_handshake <= redmule_tcdm_handshake | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);;
-      end
-    end
-  end
 
   for (genvar c = 0; c < RMMasterPorts; c++) begin: gen_redmule_mux
 
@@ -990,8 +983,7 @@ module mempool_redmule_tile
     assign redmule_tcdm_req[c].strb  = redmule_hwpe_req[c].strb;
     assign redmule_tcdm_req[c].id    = redmule_hwpe_req[c].id;
     assign redmule_tcdm_req[c].amo   = '0;
-    assign redmule_tcdm_req_valid[c] = redmule_tcdm_handshake[c] ? 1'b0 : redmule_hwpe_req_valid[c];
-    assign redmule_hwpe_req_ready[c] = redmule_tcdm_handshake[c];
+    assign redmule_tcdm_req_valid[c] = redmule_tcdm_handshake_q[c] ? 1'b0 : redmule_hwpe_req_valid[c];
 
     // Signals for type conversions
     dreq_t local_tcdm_req, remote_tcdm_req;
