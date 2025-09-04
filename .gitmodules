@@ -70,3 +70,9 @@
 [submodule "hardware/deps/l2_tcdm_hybrid_interco"]
 	path = hardware/deps/l2_tcdm_hybrid_interco
 	url = https://github.com/pulp-platform/L2_tcdm_hybrid_interco.git
+[submodule "hardware/deps/obi"]
+	path = hardware/deps/obi
+	url = https://github.com/pulp-platform/obi.git
+[submodule "hardware/deps/redundancy_cells"]
+	path = hardware/deps/redundancy_cells
+	url = https://github.com/pulp-platform/redundancy_cells.git

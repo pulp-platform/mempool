@@ -83,8 +83,11 @@ packages:
       Path: hardware/deps/hci
     dependencies:
     - cluster_interconnect
+    - common_cells
     - hwpe-stream
     - l2_tcdm_hybrid_interco
+    - redundancy_cells
+    - register_interface
   hwpe-ctrl:
     revision: null
     version: null
@@ -122,6 +125,14 @@ packages:
     source:
       Path: hardware/deps/l2_tcdm_hybrid_interco
     dependencies: []
+  obi:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/obi
+    dependencies:
+    - common_cells
+    - common_verification
   redmule:
     revision: null
     version: null
@@ -136,6 +147,18 @@ packages:
     - hwpe-ctrl
     - hwpe-stream
     - ibex
+    - obi
+    - register_interface
+    - tech_cells_generic
+  redundancy_cells:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/redundancy_cells
+    dependencies:
+    - common_cells
+    - common_verification
+    - register_interface
     - tech_cells_generic
   register_interface:
     revision: null
