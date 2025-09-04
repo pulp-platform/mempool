@@ -11,6 +11,8 @@ module mempool_redmule_tile
   import hci_package::*;
   import cv32e40x_pkg::*;
   import burst_pkg::*;
+  import hci_package::*;
+  import cv32e40x_pkg::*;
   import cf_math_pkg::idx_width;
 #(
   // TCDM
@@ -90,16 +92,15 @@ module mempool_redmule_tile
    *  Redmule  *
    *************/
 
-   // RedMule interfaces
+  // RedMule interfaces
   logic [1:0]                                 redmule_evt;
-  logic [RMMasterPorts-1:0]                   redmule_hwpe_req;
-  logic [RMMasterPorts-1:0]                   redmule_hwpe_gnt;
-  logic [RMMasterPorts-1:0][31:0]             redmule_hwpe_add;
-  logic [RMMasterPorts-1:0]                   redmule_hwpe_wen;
-  logic [RMMasterPorts-1:0][DataWidth/8-1:0]  redmule_hwpe_be;
-  logic [RMMasterPorts-1:0][DataWidth-1:0]    redmule_hwpe_data;
-  logic [RMMasterPorts-1:0][DataWidth-1:0]    redmule_hwpe_r_data;
-  logic [RMMasterPorts-1:0]                   redmule_hwpe_r_valid;
+  dreq_t [RMMasterPorts-1:0]                  redmule_hwpe_req;
+  logic [RMMasterPorts-1:0]                   redmule_hwpe_req_valid;
+  logic [RMMasterPorts-1:0]                   redmule_hwpe_req_ready;
+
+  dresp_t [RMMasterPorts-1:0]                 redmule_hwpe_resp;
+  logic [RMMasterPorts-1:0]                   redmule_hwpe_resp_valid;
+  logic [RMMasterPorts-1:0]                   redmule_hwpe_resp_ready;
 
   localparam hci_size_parameter_t `HCI_SIZE_PARAM(tcdm) = '{
     DW:  RMDataWidth,
@@ -112,12 +113,10 @@ module mempool_redmule_tile
   };
 
   hwpe_ctrl_intf_periph redmule_periph ( .clk( clk_i ) );
-  hci_core_intf #(
+  hci_outstanding_intf #(
     .DW (RMDataWidth),
-    .UW (0),
-    .IW (RMIdWidth),
-    .EW (0),
-    .EHW (0)
+    .UW(idx_width(RMOutstandingTransactions)),
+    .IW(RMIdWidth)
   ) tcdm (
     .clk ( clk_i )
   );
@@ -144,7 +143,7 @@ module mempool_redmule_tile
   redmule_top #(
     .N_CORES               ( 1                                    ),
     .DW                    ( RMDataWidth                          ),
-    .UW                    ( 0                                    ),
+    .UW                    ( idx_width(RMOutstandingTransactions) ),
     .X_EXT                 ( 0                                    ),
     .`HCI_SIZE_PARAM(tcdm) ( `HCI_SIZE_PARAM(tcdm)                )
   ) i_redmule_top       (
@@ -162,15 +161,21 @@ module mempool_redmule_tile
   );
 
   for(genvar ii=0; ii<RMMasterPorts; ii++) begin : tcdm_binding
-    assign redmule_hwpe_req[ii]   = tcdm.req;
-    assign redmule_hwpe_add[ii]   = tcdm.add + ii*4;
-    assign redmule_hwpe_wen[ii]   = ~tcdm.wen;
-    assign redmule_hwpe_be[ii]    = tcdm.be[(ii+1)*4-1:ii*4];
-    assign redmule_hwpe_data[ii]  = tcdm.data[(ii+1)*DataWidth-1:ii*DataWidth];
-    assign tcdm.r_data[(ii+1)*DataWidth-1:ii*DataWidth] = redmule_hwpe_r_data[ii];
+    assign redmule_hwpe_req[ii].addr    = tcdm.req_add + ii*4;
+    assign redmule_hwpe_req[ii].write   = ~tcdm.req_wen;
+    assign redmule_hwpe_req[ii].strb    = tcdm.req_be[(ii+1)*4-1:ii*4];
+    assign redmule_hwpe_req[ii].data    = tcdm.req_data[(ii+1)*DataWidth-1:ii*DataWidth];
+    assign redmule_hwpe_req[ii].id[snitch_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] = tcdm.req_id;
+    assign redmule_hwpe_req[ii].id[idx_width(RMOutstandingTransactions)-1:0] = tcdm.req_user;
+    assign redmule_hwpe_req[ii].amo     = '0;
+    assign redmule_hwpe_req_valid[ii]   = tcdm.req_valid;
+    assign tcdm.resp_data[(ii+1)*DataWidth-1:ii*DataWidth] = redmule_hwpe_resp[ii].data;
+    assign redmule_hwpe_resp_ready[ii]                     = tcdm.resp_ready;
   end
-  assign tcdm.r_valid = &redmule_hwpe_r_valid;
-  assign tcdm.gnt = &redmule_hwpe_gnt;
+  assign tcdm.req_ready  = &(redmule_hwpe_req_ready);
+  assign tcdm.resp_id    = redmule_hwpe_resp[0].id[snitch_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
+  assign tcdm.resp_user  = redmule_hwpe_resp[0].id[idx_width(RMOutstandingTransactions)-1:0];
+  assign tcdm.resp_valid = &(redmule_hwpe_resp_valid);
 
   /***********
    *  Core   *
@@ -908,16 +913,12 @@ module mempool_redmule_tile
   dreq_t [RMMasterPorts-1:0] redmule_tcdm_req;
   logic  [RMMasterPorts-1:0] redmule_tcdm_req_valid;
   logic  [RMMasterPorts-1:0] redmule_tcdm_req_ready;
-  // Signals to synchronize redmule requests
-  logic  [RMMasterPorts-1:0] redmule_req_pactivate, redmule_req_qactivate;
-  logic                      redmule_resp_phandshake, redmule_resp_qhandshake;
+  logic  [RMMasterPorts-1:0] redmule_tcdm_handshake;
 
+  logic                       redmule_resp_allvalid;
   dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
   logic   [RMMasterPorts-1:0] redmule_tcdm_resp_valid;
   logic   [RMMasterPorts-1:0] redmule_tcdm_resp_ready;
-  // Signals to synchronize redmule responses
-  dresp_t [RMMasterPorts-1:0] redmule_tcdm_presp, redmule_tcdm_qresp;
-  logic   [RMMasterPorts-1:0] redmule_tcdm_resp_pvalid, redmule_tcdm_resp_qvalid;
 
   // Burst requests/responses
   tcdm_payload_t [RMMasterPorts-1:0] remote_req_preburst_payload, remote_req_postburst_payload;
@@ -932,11 +933,37 @@ module mempool_redmule_tile
   logic          [RMMasterPorts-1:0] remote_resp_preburst_valid, remote_resp_preburst_ready;
   burst_gresp_t  [RMMasterPorts-1:0] remote_resp_postburst_burst;
 
-  // RedMulE handshake occurs when all the memory ports receive a valid response.
-  // We then send RedMulE a grant for the request transactions posted on the interconnect.
-  // RedMulE is not ready during this cycle.
-  assign redmule_resp_phandshake = &redmule_tcdm_resp_pvalid;
-  `FF(redmule_resp_qhandshake, redmule_resp_phandshake, '0, clk_i, rst_ni);
+  // Signal ready only when all ports are valid
+  assign redmule_resp_allvalid = &redmule_tcdm_resp_valid;
+
+  // RedMulE response
+  transactions_table #(
+    .NumPorts        (RMMasterPorts),
+    .NumTransactions (32),
+    .resp_t          (dresp_t)
+  ) i_transactions_table (
+    .clk_i         (clk_i     ),
+    .rst_ni        (rst_ni    ),
+    .resp_payload_i(redmule_tcdm_resp),
+    .resp_valid_i  (redmule_tcdm_resp_valid),
+    .resp_ready_o  (redmule_tcdm_resp_ready),
+    .resp_payload_o(redmule_hwpe_resp),
+    .resp_valid_o  (redmule_hwpe_resp_valid),
+    .resp_ready_i  (redmule_hwpe_resp_ready)
+  );
+
+  // Handshake separately on each port
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      redmule_tcdm_handshake <= '0;
+    end else begin
+      if (&redmule_tcdm_handshake) begin
+        redmule_tcdm_handshake <= '0;
+      end else begin
+        redmule_tcdm_handshake <= redmule_tcdm_handshake | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);;
+      end
+    end
+  end
 
   for (genvar c = 0; c < RMMasterPorts; c++) begin: gen_redmule_mux
 
@@ -949,56 +976,22 @@ module mempool_redmule_tile
       .Bypass            (0                ),
       .SeqMemSizePerTile (SeqMemSizePerTile)
     ) i_address_scrambler (
-      .address_i (redmule_hwpe_add[c]           ),
+      .address_i (redmule_hwpe_req[c].addr      ),
       .address_o (redmule_hwpe_addr_scrambled[c])
     );
 
-  /*************************
-   *   RedMule Handshakes  *
-   *************************/
+   /*************************
+    *   RedMule Handshakes  *
+    *************************/
 
-    // Keep track of tcdm handshakes on the request side:
-    // Latch new handshake when req-resp transaction is complete or no req-handshake yet
-    // When the req is acquired the inputs must be silenced, or the req-resp will continue issuing transactions.
-    logic redmule_req_completed, redmule_req_handshake;
-
-    assign redmule_req_handshake = (redmule_tcdm_req_valid[c] & redmule_tcdm_req_ready[c]);
-    assign redmule_req_completed = (redmule_resp_qhandshake || ~redmule_req_qactivate[c]);
-    assign redmule_req_pactivate[c] = redmule_req_completed ? redmule_req_handshake : redmule_req_qactivate[c];
-    `FF(redmule_req_qactivate[c], redmule_req_pactivate[c], '0, clk_i, rst_ni);
-
-    assign redmule_tcdm_req[c].addr  = redmule_req_completed ? redmule_hwpe_addr_scrambled[c] : 1'b0;
-    assign redmule_tcdm_req[c].write = redmule_req_completed ? redmule_hwpe_wen[c] : 1'b0;
-    assign redmule_tcdm_req[c].data  = redmule_req_completed ? redmule_hwpe_data[c] : 1'b0;
-    assign redmule_tcdm_req[c].strb  = redmule_req_completed ? redmule_hwpe_be[c] : 1'b0;
-    assign redmule_tcdm_req_valid[c] = redmule_req_completed ? redmule_hwpe_req[c] : 1'b0;
-    assign redmule_tcdm_req[c].id    = '0;
+    assign redmule_tcdm_req[c].addr  = redmule_hwpe_addr_scrambled[c];
+    assign redmule_tcdm_req[c].write = redmule_hwpe_req[c].write;
+    assign redmule_tcdm_req[c].data  = redmule_hwpe_req[c].data;
+    assign redmule_tcdm_req[c].strb  = redmule_hwpe_req[c].strb;
+    assign redmule_tcdm_req[c].id    = redmule_hwpe_req[c].id;
     assign redmule_tcdm_req[c].amo   = '0;
-    assign redmule_hwpe_gnt[c]       = redmule_resp_phandshake;
-
-    // RedMulE response
-    assign redmule_hwpe_r_data[c] = redmule_tcdm_qresp[c].data;
-    assign redmule_hwpe_r_valid[c] = redmule_resp_qhandshake;
-
-    // Responses to RedMulE must be latched and acquired together
-    // Latch a new valid, only if no valid was received or if all values are received.
-    logic redmule_record_resp;
-    assign redmule_record_resp = (redmule_resp_qhandshake || ~redmule_tcdm_resp_qvalid[c]);
-    assign redmule_tcdm_presp[c] = redmule_record_resp ? redmule_tcdm_resp[c] : redmule_tcdm_qresp[c];
-    assign redmule_tcdm_resp_pvalid[c] = redmule_record_resp ? redmule_tcdm_resp_valid[c] : redmule_tcdm_resp_qvalid[c];
-
-    always_ff @(posedge clk_i or negedge rst_ni) begin
-      if (!rst_ni) begin
-        redmule_tcdm_qresp[c] <= '0;
-        redmule_tcdm_resp_qvalid[c] <= 1'b0;
-      end else begin
-        redmule_tcdm_qresp[c]       <= redmule_tcdm_presp[c];
-        redmule_tcdm_resp_qvalid[c] <= redmule_tcdm_resp_pvalid[c];
-      end
-    end
-
-    // Block the responses if we already received a valid data or if we are handshaking.
-    assign redmule_tcdm_resp_ready[c] = redmule_record_resp;
+    assign redmule_tcdm_req_valid[c] = redmule_tcdm_handshake[c] ? 1'b0 : redmule_hwpe_req_valid[c];
+    assign redmule_hwpe_req_ready[c] = redmule_tcdm_handshake[c];
 
     // Signals for type conversions
     dreq_t local_tcdm_req, remote_tcdm_req;

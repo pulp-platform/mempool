@@ -12,7 +12,7 @@ package snitch_pkg;
   localparam int NumFPOutstandingLoads  = 4;
   // Use a high number of outstanding loads, if running a latency-throughput analysis
   localparam int NumIntOutstandingLoads = `ifdef TRAFFIC_GEN 2048 `else 8 `endif;
-  localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads);
+  localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads)+2;
   // Xpulpimg extension enabled?
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
   // ZFINX extension enabled?
