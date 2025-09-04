@@ -19,7 +19,7 @@ module tcdm_shim
   parameter int unsigned NumRules            = 1             , // Routing rules
   localparam int unsigned StrbWidth          = DataWidth/8   ,
   localparam int unsigned NumOutput          = NrTCDM + NrSoC,
-  localparam int unsigned MetaIdWidth        = idx_width(MaxOutStandingTrans)
+  localparam int unsigned MetaIdWidth        = snitch_pkg::MetaIdWidth
 ) (
   input  logic                                          clk_i,
   input  logic                                          rst_ni,

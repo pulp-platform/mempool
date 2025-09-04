@@ -7,7 +7,7 @@ package:
 
 dependencies:
   axi:                  { git: "https://github.com/pulp-platform/axi.git",                                                 version: 0.39.2  }
-  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", rev: "f90d4c94f623a90c59ad29fa444f68f01461ced7" }
+  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", rev: "486a10b515d25b291a1538db605c9d16fe35d00e" }
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",                                        version: 1.33.0  }
   idma:                 { path: "hardware/deps/idma"                                                                                        }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",                                  version: 0.4.3   }
@@ -16,9 +16,9 @@ dependencies:
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",                                  version: 0.2.13  }
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                                               rev: pulp-v0.1.3 }
   cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",                                      version: 0.1.1   }
-  redmule:              { git: "https://github.com/pulp-platform/redmule.git",                                             rev: "19d5cc3"   }
-  hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 rev: "8408a6d"   }
-  
+  redmule:              { git: "https://github.com/pulp-platform/redmule.git",                                             rev: "de04741"   }
+  hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 rev: "99f6168"   }
+
 workspace:
   checkout_dir: "./hardware/deps"
 
@@ -38,6 +38,7 @@ sources:
   - hardware/src/address_scrambler.sv
   - hardware/src/axi2mem.sv
   - hardware/src/bootrom.sv
+  - hardware/src/transactions_table.sv
   - hardware/src/control_registers/control_registers_reg_pkg.sv
   - hardware/src/control_registers/control_registers_reg_top.sv
   # Level 1

@@ -14,7 +14,7 @@ module snitch_lsu
   parameter int unsigned NumOutstandingLoads = 1,
   parameter bit NaNBox                       = 0,
   // Dependent parameters. DO NOT CHANGE.
-  localparam int unsigned IdWidth = idx_width(NumOutstandingLoads)
+  localparam int unsigned IdWidth = snitch_pkg::MetaIdWidth
 ) (
   input  logic               clk_i,
   input  logic               rst_i,
@@ -116,12 +116,15 @@ module snitch_lsu
 
   assign resp_metadata = metadata_q[resp_id];
 
+  logic [idx_width(NumOutstandingLoads)-1:0] lz_cnt;
+  assign req_id = {'0, lz_cnt};
+
   // Search available ID for request
   lzc #(
     .WIDTH ( NumOutstandingLoads )
   ) i_req_id (
     .in_i   ( id_available_q ),
-    .cnt_o  ( req_id         ),
+    .cnt_o  ( lz_cnt         ),
     .empty_o( id_table_full  )
   );
 
