@@ -3,10 +3,13 @@
 // SPDX-License-Identifier: SHL-0.51
 
 `include "mempool/mempool.svh"
+`include "hci_helpers.svh"
 
 /* verilator lint_off DECLFILENAME */
 module mempool_redmule_tile
   import mempool_pkg::*;
+  import hci_package::*;
+  import cv32e40x_pkg::*;
   import cf_math_pkg::idx_width;
 #(
   // TCDM
@@ -97,52 +100,76 @@ module mempool_redmule_tile
   logic [RMMasterPorts-1:0][DataWidth-1:0]    redmule_hwpe_r_data;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_r_valid;
 
-  logic                    redmule_periph_req;
-  logic                    redmule_periph_gnt;
-  logic [31:0]             redmule_periph_add;
-  logic                    redmule_periph_wen;
-  logic [DataWidth/8-1:0]  redmule_periph_be;
-  logic [DataWidth-1:0]    redmule_periph_data;
-  logic [RMIdWidth-1:0]    redmule_periph_id;
-  logic [DataWidth-1:0]    redmule_periph_r_data;
-  logic                    redmule_periph_r_valid;
-  logic                    redmule_periph_r_ready;
-  logic [RMIdWidth-1:0]    redmule_periph_r_id;
+  localparam hci_size_parameter_t `HCI_SIZE_PARAM(tcdm) = '{
+    DW:  RMDataWidth,
+    AW:  AddrWidth,
+    BW:  BeWidth,
+    UW:  3,
+    IW:  2,
+    EW:  0,
+    EHW: 0
+  };
 
-  redmule_wrap #(
-    .ID_WIDTH           (RMIdWidth              ),
-    .N_CORES            (1'd1                   ),
-    .DW                 (RMDataWidth            ),
-    .MP                 (RMMasterPorts          )
-  ) i_redmule_wrap (
-    .clk_i             ( clk_i                  ),
-    .rst_ni            ( rst_ni                 ),
-    .test_mode_i       ( '0                     ),
-    .evt_o             ( redmule_evt            ),
-    .busy_o            ( /*Unused*/             ),
-    .tcdm_req_o        ( redmule_hwpe_req       ),
-    .tcdm_add_o        ( redmule_hwpe_add       ),
-    .tcdm_wen_o        ( redmule_hwpe_wen       ),
-    .tcdm_be_o         ( redmule_hwpe_be        ),
-    .tcdm_data_o       ( redmule_hwpe_data      ),
-    .tcdm_ecc_o        ( /*Unused*/             ),
-    .tcdm_gnt_i        ( redmule_hwpe_gnt       ),
-    .tcdm_r_data_i     ( redmule_hwpe_r_data    ),
-    .tcdm_r_valid_i    ( redmule_hwpe_r_valid   ),
-    .tcdm_r_opc_i      ( '0                     ),
-    .tcdm_r_user_i     ( '0                     ),
-    .tcdm_r_ecc_i      ( '0                     ),
-    .periph_req_i      ( redmule_periph_req     ),
-    .periph_gnt_o      ( redmule_periph_gnt     ),
-    .periph_add_i      ( redmule_periph_add     ),
-    .periph_wen_i      ( ~redmule_periph_wen    ),
-    .periph_be_i       ( redmule_periph_be      ),
-    .periph_data_i     ( redmule_periph_data    ),
-    .periph_id_i       ( redmule_periph_id      ),
-    .periph_r_data_o   ( redmule_periph_r_data  ),
-    .periph_r_valid_o  ( redmule_periph_r_valid ),
-    .periph_r_id_o     ( redmule_periph_r_id    )
+  hwpe_ctrl_intf_periph redmule_periph ( .clk( clk_i ) );
+  hci_core_intf #(
+    .DW (RMDataWidth),
+    .UW (0),
+    .IW (RMIdWidth),
+    .EW (0),
+    .EHW (0)
+  ) tcdm (
+    .clk ( clk_i )
   );
+
+  // TODO: This interface port is unused in this context, but it is still required as module input.
+  // The interface connection should be removed upstream and inserted in a wrapper module.
+  localparam int unsigned NumRs = 3;
+  localparam int unsigned XifIdWidth = 3;
+  localparam int unsigned XifMemWidth = 32;
+  localparam int unsigned XifRFReadWidth = 32;
+  localparam int unsigned XifRFWriteWidth = 32;
+  localparam logic [31:0] XifMisa = '0;
+  localparam logic [ 1:0] XifEcsXs = '0;
+  cv32e40x_if_xif#(
+  .X_NUM_RS    ( NumRs           ),
+  .X_ID_WIDTH  ( XifIdWidth      ),
+  .X_MEM_WIDTH ( XifMemWidth     ),
+  .X_RFR_WIDTH ( XifRFReadWidth  ),
+  .X_RFW_WIDTH ( XifRFWriteWidth ),
+  .X_MISA      ( XifMisa         ),
+  .X_ECS_XS    ( XifEcsXs        )
+  ) core_xif ();
+
+  redmule_top #(
+    .N_CORES               ( 1                                    ),
+    .DW                    ( RMDataWidth                          ),
+    .UW                    ( 0                                    ),
+    .X_EXT                 ( 0                                    ),
+    .`HCI_SIZE_PARAM(tcdm) ( `HCI_SIZE_PARAM(tcdm)                )
+  ) i_redmule_top       (
+    .clk_i              ( clk_i          ),
+    .rst_ni             ( rst_ni         ),
+    .test_mode_i        ( '0             ),
+    .evt_o              ( redmule_evt    ),
+    .busy_o             ( /*Unused*/     ),
+    .tcdm               ( tcdm           ),
+    .xif_issue_if_i     ( core_xif.coproc_issue      ),
+    .xif_result_if_o    ( core_xif.coproc_result     ),
+    .xif_compressed_if_i( core_xif.coproc_compressed ),
+    .xif_mem_if_o       ( core_xif.coproc_mem        ),
+    .periph             ( redmule_periph             )
+  );
+
+  for(genvar ii=0; ii<RMMasterPorts; ii++) begin : tcdm_binding
+    assign redmule_hwpe_req[ii]   = tcdm.req;
+    assign redmule_hwpe_add[ii]   = tcdm.add + ii*4;
+    assign redmule_hwpe_wen[ii]   = ~tcdm.wen;
+    assign redmule_hwpe_be[ii]    = tcdm.be[(ii+1)*4-1:ii*4];
+    assign redmule_hwpe_data[ii]  = tcdm.data[(ii+1)*DataWidth-1:ii*DataWidth];
+    assign tcdm.r_data[(ii+1)*DataWidth-1:ii*DataWidth] = redmule_hwpe_r_data[ii];
+  end
+  assign tcdm.r_valid = &redmule_hwpe_r_valid;
+  assign tcdm.gnt = &redmule_hwpe_gnt;
 
   /***********
    *  Core   *
@@ -776,7 +803,7 @@ module mempool_redmule_tile
     assign redmule_tcdm_req[c].addr  = (redmule_resp_qhandshake || ~redmule_req_qhandshake[c]) ? redmule_hwpe_addr_scrambled[c] : 1'b0;
     assign redmule_tcdm_req[c].id    = '0;
     assign redmule_tcdm_req[c].amo   = '0;
-    assign redmule_tcdm_req[c].write = (redmule_resp_qhandshake || ~redmule_req_qhandshake[c]) ? ~redmule_hwpe_wen[c] : 1'b0;
+    assign redmule_tcdm_req[c].write = (redmule_resp_qhandshake || ~redmule_req_qhandshake[c]) ? redmule_hwpe_wen[c] : 1'b0;
     assign redmule_tcdm_req[c].data  = (redmule_resp_qhandshake || ~redmule_req_qhandshake[c]) ? redmule_hwpe_data[c] : 1'b0;
     assign redmule_tcdm_req[c].strb  = (redmule_resp_qhandshake || ~redmule_req_qhandshake[c]) ? redmule_hwpe_be[c] : 1'b0;
     assign redmule_tcdm_req_valid[c] = (redmule_resp_qhandshake || ~redmule_req_qhandshake[c]) ? redmule_hwpe_req[c] : 1'b0;
@@ -1001,16 +1028,15 @@ module mempool_redmule_tile
   };
 
   // Redmule configuration register writes
-  assign redmule_periph_req = redmule_data_qvalid;
-  assign redmule_data_qready = redmule_periph_gnt;
-  assign redmule_periph_add = redmule_data_q.addr;
-  assign redmule_periph_wen = redmule_data_q.write;
-  assign redmule_periph_be = redmule_data_q.strb;
-  assign redmule_periph_data = redmule_data_q.data;
-  assign redmule_periph_id = redmule_data_q.id;
-  assign redmule_data_p.data = redmule_periph_r_data;
-  assign redmule_data_pvalid = redmule_periph_r_valid;
-  assign redmule_periph_r_ready = redmule_data_pready;
+  assign redmule_periph.req = redmule_data_qvalid;
+  assign redmule_periph.add = redmule_data_q.addr;
+  assign redmule_periph.wen = ~redmule_data_q.write;
+  assign redmule_periph.be = redmule_data_q.strb;
+  assign redmule_periph.data = redmule_data_q.data;
+  assign redmule_periph.id = redmule_data_q.id;
+  assign redmule_data_qready = redmule_periph.gnt;
+  assign redmule_data_p.data = redmule_periph.r_data;
+  assign redmule_data_pvalid = redmule_periph.r_valid;
 
   // Demux according to address peripheral requests to RedMule/SoC
   snitch_addr_demux #(
