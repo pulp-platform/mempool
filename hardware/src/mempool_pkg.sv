@@ -279,7 +279,7 @@ package mempool_pkg;
   localparam integer unsigned PIPE_REGS    = `ifdef PIPE_REGS `PIPE_REGS `else 3 `endif;
 
   localparam integer unsigned RMIdWidth = 8;
-  localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1) + DataWidth;
+  localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1);
   localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
   localparam integer unsigned RMRegSize = 256;
 
