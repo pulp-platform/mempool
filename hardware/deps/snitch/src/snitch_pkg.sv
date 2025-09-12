@@ -12,7 +12,7 @@ package snitch_pkg;
   localparam int NumFPOutstandingLoads  = 4;
   // Use a high number of outstanding loads, if running a latency-throughput analysis
   localparam int NumIntOutstandingLoads = `ifdef TRAFFIC_GEN 2048 `else 8 `endif;
-  localparam MetaIdWidth                = idx_width(NumIntOutstandingLoads)+2;
+  localparam SnitchIdWidth              = idx_width(NumIntOutstandingLoads);
   // Xpulpimg extension enabled?
   localparam bit XPULPIMG = `ifdef XPULPIMG `XPULPIMG `else 1'bX `endif;
   // ZFINX extension enabled?
@@ -25,7 +25,7 @@ package snitch_pkg;
   typedef logic [31:0]               addr_t;
   typedef logic [DataWidth-1:0]      data_t;
   typedef logic [StrbWidth-1:0]      strb_t;
-  typedef logic [MetaIdWidth-1:0]    meta_id_t;
+  typedef logic [SnitchIdWidth-1:0]    meta_id_t;
 
   typedef struct packed {
     addr_t       BootAddress;
