@@ -14,7 +14,7 @@ module snitch_lsu
   parameter int unsigned NumOutstandingLoads = 1,
   parameter bit NaNBox                       = 0,
   // Dependent parameters. DO NOT CHANGE.
-  localparam int unsigned IdWidth = snitch_pkg::MetaIdWidth
+  localparam int unsigned IdWidth = snitch_pkg::SnitchIdWidth
 ) (
   input  logic               clk_i,
   input  logic               rst_i,

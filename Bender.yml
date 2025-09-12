@@ -16,8 +16,8 @@ dependencies:
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",                                  version: 0.2.13  }
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                                               rev: pulp-v0.1.3 }
   cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",                                      version: 0.1.1   }
-  redmule:              { git: "https://github.com/pulp-platform/redmule.git",                                             rev: "de04741"   }
-  hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 rev: "99f6168"   }
+  redmule:              { git: "https://github.com/pulp-platform/redmule.git",                                             rev: "1bc48ed"   }
+  hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 rev: "6b0720d"   }
 
 workspace:
   checkout_dir: "./hardware/deps"

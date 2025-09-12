@@ -94,11 +94,11 @@ module mempool_redmule_tile
 
   // RedMule interfaces
   logic [1:0]                                 redmule_evt;
-  dreq_t [RMMasterPorts-1:0]                  redmule_hwpe_req;
+  rm_dreq_t [RMMasterPorts-1:0]                  redmule_hwpe_req;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_req_valid;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_req_ready;
 
-  dresp_t [RMMasterPorts-1:0]                 redmule_hwpe_resp;
+  rm_dresp_t [RMMasterPorts-1:0]                 redmule_hwpe_resp;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_resp_valid;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_resp_ready;
 
@@ -106,8 +106,8 @@ module mempool_redmule_tile
     DW:  RMDataWidth,
     AW:  AddrWidth,
     BW:  BeWidth,
-    UW:  3,
-    IW:  2,
+    UW:  idx_width(RMOutstandingTransactions),
+    IW:  idx_width(RMNumStreams),
     EW:  0,
     EHW: 0
   };
@@ -115,8 +115,8 @@ module mempool_redmule_tile
   hwpe_ctrl_intf_periph redmule_periph ( .clk( clk_i ) );
   hci_outstanding_intf #(
     .DW (RMDataWidth),
-    .UW(idx_width(RMOutstandingTransactions)),
-    .IW(RMIdWidth)
+    .UW (idx_width(RMOutstandingTransactions)),
+    .IW (idx_width(RMNumStreams))
   ) tcdm (
     .clk ( clk_i )
   );
@@ -165,7 +165,7 @@ module mempool_redmule_tile
     assign redmule_hwpe_req[ii].write   = ~tcdm.req_wen;
     assign redmule_hwpe_req[ii].strb    = tcdm.req_be[(ii+1)*4-1:ii*4];
     assign redmule_hwpe_req[ii].data    = tcdm.req_data[(ii+1)*DataWidth-1:ii*DataWidth];
-    assign redmule_hwpe_req[ii].id[snitch_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] = tcdm.req_id;
+    assign redmule_hwpe_req[ii].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] = tcdm.req_id;
     assign redmule_hwpe_req[ii].id[idx_width(RMOutstandingTransactions)-1:0] = tcdm.req_user;
     assign redmule_hwpe_req[ii].amo     = '0;
     assign redmule_hwpe_req_valid[ii]   = tcdm.req_valid;
@@ -173,7 +173,7 @@ module mempool_redmule_tile
     assign redmule_hwpe_resp_ready[ii]                     = tcdm.resp_ready;
   end
   assign tcdm.req_ready  = &(redmule_hwpe_req_ready);
-  assign tcdm.resp_id    = redmule_hwpe_resp[0].id[snitch_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
+  assign tcdm.resp_id    = redmule_hwpe_resp[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
   assign tcdm.resp_user  = redmule_hwpe_resp[0].id[idx_width(RMOutstandingTransactions)-1:0];
   assign tcdm.resp_valid = &(redmule_hwpe_resp_valid);
 
@@ -233,12 +233,12 @@ module mempool_redmule_tile
     .data_qamo_o   (snitch_data_qamo                                      ),
     .data_qdata_o  (snitch_data_qdata                                     ),
     .data_qstrb_o  (snitch_data_qstrb                                     ),
-    .data_qid_o    (snitch_data_qid                                       ),
+    .data_qid_o    (snitch_data_qid[snitch_pkg::SnitchIdWidth-1:0]        ),
     .data_qvalid_o (snitch_data_qvalid                                    ),
     .data_qready_i (snitch_data_qready                                    ),
     .data_pdata_i  (snitch_data_pdata                                     ),
     .data_perror_i (snitch_data_perror                                    ),
-    .data_pid_i    (snitch_data_pid                                       ),
+    .data_pid_i    (snitch_data_pid[snitch_pkg::SnitchIdWidth-1:0]        ),
     .data_pvalid_i (snitch_data_pvalid                                    ),
     .data_pready_o (snitch_data_pready                                    ),
     .wake_up_sync_i(wake_up_q | redmule_evt[0]                            ),
@@ -910,14 +910,14 @@ module mempool_redmule_tile
 
   addr_t [RMMasterPorts-1:0] redmule_hwpe_addr_scrambled;
 
-  dreq_t [RMMasterPorts-1:0] redmule_tcdm_req;
+  rm_dreq_t [RMMasterPorts-1:0] redmule_tcdm_req;
   logic  [RMMasterPorts-1:0] redmule_tcdm_req_valid;
   logic  [RMMasterPorts-1:0] redmule_tcdm_req_ready;
   logic  [RMMasterPorts-1:0] redmule_tcdm_handshake_p;
   logic  [RMMasterPorts-1:0] redmule_tcdm_handshake_q;
 
   logic                       redmule_resp_allvalid;
-  dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
+  rm_dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
   logic   [RMMasterPorts-1:0] redmule_tcdm_resp_valid;
   logic   [RMMasterPorts-1:0] redmule_tcdm_resp_ready;
 
@@ -945,8 +945,8 @@ module mempool_redmule_tile
   // RedMulE response
   transactions_table #(
     .NumPorts        (RMMasterPorts),
-    .NumTransactions (32),
-    .resp_t          (dresp_t)
+    .NumTransactions (RMNumStreams*RMOutstandingTransactions),
+    .resp_t          (rm_dresp_t)
   ) i_transactions_table (
     .clk_i         (clk_i     ),
     .rst_ni        (rst_ni    ),
@@ -986,15 +986,15 @@ module mempool_redmule_tile
     assign redmule_tcdm_req_valid[c] = redmule_tcdm_handshake_q[c] ? 1'b0 : redmule_hwpe_req_valid[c];
 
     // Signals for type conversions
-    dreq_t local_tcdm_req, remote_tcdm_req;
-    dresp_t local_tcdm_resp, remote_tcdm_resp;
+    rm_dreq_t local_tcdm_req, remote_tcdm_req;
+    rm_dresp_t local_tcdm_resp, remote_tcdm_resp;
 
     snitch_addr_demux #(
       .NrOutput     (2),
       .AddressWidth (AddrWidth),
       .NumRules     (2 ), // TODO
-      .req_t        (dreq_t   ),
-      .resp_t       (dresp_t  )
+      .req_t        (rm_dreq_t   ),
+      .resp_t       (rm_dresp_t  )
     ) i_snitch_addr_demux (
       .clk_i         (clk_i                            ),
       .rst_ni        (rst_ni                           ),

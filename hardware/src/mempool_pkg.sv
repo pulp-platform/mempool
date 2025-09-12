@@ -4,7 +4,6 @@
 
 package mempool_pkg;
 
-  import snitch_pkg::MetaIdWidth;
   import cf_math_pkg::idx_width;
   import burst_pkg::*;
 
@@ -279,8 +278,8 @@ package mempool_pkg;
   localparam integer unsigned ARRAY_WIDTH  = `ifdef ARRAY_WIDTH `ARRAY_WIDTH `else (ARRAY_HEIGHT*PIPE_REGS) `endif; // Superior limit, smaller values are allowed.
   localparam integer unsigned PIPE_REGS    = `ifdef PIPE_REGS `PIPE_REGS `else 3 `endif;
 
-  localparam integer unsigned RMIdWidth = 2;
-  localparam integer unsigned RMOutstandingTransactions = 8;
+  localparam integer unsigned RMNumStreams = 4;
+  localparam integer unsigned RMOutstandingTransactions = 16;
   localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1);
   localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
   localparam integer unsigned RMRegSize = 256;
@@ -289,6 +288,27 @@ package mempool_pkg;
   localparam integer unsigned RMBaseAddr = 32'h4002_0000;
   localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1);
 
+  // Overwrites Snitch parameter
+  localparam integer unsigned MetaIdWidth = idx_width(RMNumStreams * RMOutstandingTransactions);
+  typedef logic [MetaIdWidth-1:0] meta_id_t;
+
+  typedef struct packed {
+    addr_t addr;
+    meta_id_t id;
+    logic [3:0] amo;
+    logic write;
+    data_t data;
+    strb_t strb;
+  } rm_dreq_t;
+
+  typedef struct packed {
+    data_t data;
+    meta_id_t id;
+    logic write;
+    logic error;
+  } rm_dresp_t;
+
+
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
@@ -296,7 +316,6 @@ package mempool_pkg;
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
-  typedef logic [MetaIdWidth-1:0] meta_id_t;
   typedef logic [idx_width(RMMasterPorts+1)-1:0] tile_core_id_t; // TBD leaving floating for connection to Snitch tiles
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
