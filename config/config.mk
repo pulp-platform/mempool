@@ -65,7 +65,7 @@ xqueue_size ?= 0
 tcdm_burst ?= 1
 
 # Responses to burst request use larger interconnect bandwidth
-burst_grsp ?= 1
+burst_grsp ?= 2
 
 ################################
 ##  Optional functionalities  ##
