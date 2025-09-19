@@ -337,21 +337,8 @@ module mempool_tile
   end
 
   /******************
-   *  Memory Banks  *
+   *  Core-DMA Mux  *
    ******************/
-
-  // Bank metadata
-  typedef struct packed {
-    meta_id_t meta_id;
-    // Address initiator in the issuing Tile
-    tile_core_id_t core_id;
-    // Addres initiator in the issuing Group
-    tile_group_id_t tile_id;
-    // Address initiator port in the destination Tile
-    local_req_interco_addr_t ini_addr;
-    logic wide;
-    burst_t burst;
-  } bank_metadata_t;
 
   // Memory interfaces
   tcdm_dma_req_t           [NumSuperbanks-1:0] tcdm_dma_req;
@@ -380,17 +367,6 @@ module mempool_tile
   tcdm_slave_resp_t        [NumBanksPerTile-1:0] prebank_resp_payload;
   logic                    [NumBanksPerTile-1:0] prebank_resp_wide;
   local_req_interco_addr_t [NumBanksPerTile-1:0] prebank_resp_ini_addr;
-
-  logic                    [NumBanksPerTile-1:0] bank_req_valid;
-  logic                    [NumBanksPerTile-1:0] bank_req_ready;
-  local_req_interco_addr_t [NumBanksPerTile-1:0] bank_req_ini_addr;
-  logic                    [NumBanksPerTile-1:0] bank_req_wide;
-  tcdm_slave_req_t         [NumBanksPerTile-1:0] bank_req_payload;
-  logic                    [NumBanksPerTile-1:0] bank_resp_valid;
-  logic                    [NumBanksPerTile-1:0] bank_resp_ready;
-  tcdm_slave_resp_t        [NumBanksPerTile-1:0] bank_resp_payload;
-  logic                    [NumBanksPerTile-1:0] bank_resp_wide;
-  local_req_interco_addr_t [NumBanksPerTile-1:0] bank_resp_ini_addr;
 
   tcdm_dma_req_t tcdm_dma_req_i_struct;
   assign tcdm_dma_req_i_struct = tcdm_dma_req_i;
@@ -487,15 +463,42 @@ module mempool_tile
     );
   end
 
+  /******************
+   *  Memory Banks  *
+   ******************/
+
+  // Bank metadata
+  typedef struct packed {
+    meta_id_t meta_id;                 // Outstanding transaction ID
+    tile_core_id_t core_id;            // Address of initiator in the issuing Tile
+    tile_group_id_t tile_id;           // Addres of initiator in the issuing Group
+    local_req_interco_addr_t ini_addr; // Address of initiator port in the destination Tile
+    logic wide;                        // Address of superbank initiator (cores/DMA)
+  } bank_metadata_t;
+
+  logic           [NumBanksPerTile-1:0] bank_req_valid;
+  logic           [NumBanksPerTile-1:0] bank_req_ready;
+  strb_t          [NumBanksPerTile-1:0] bank_req_be;
+  logic           [NumBanksPerTile-1:0] bank_req_wen;
+  amo_t           [NumBanksPerTile-1:0] bank_req_amo;
+  data_t          [NumBanksPerTile-1:0] bank_req_data;
+  tile_addr_t     [NumBanksPerTile-1:0] bank_req_tgt_addr;
+  bank_metadata_t [NumBanksPerTile-1:0] bank_req_payload;
+
+  logic           [NumBanksPerTile-1:0] bank_resp_valid;
+  logic           [NumBanksPerTile-1:0] bank_resp_ready;
+  data_t          [NumBanksPerTile-1:0] bank_resp_data;
+  bank_metadata_t [NumBanksPerTile-1:0] bank_resp_payload;
+
   if (UseBurst) begin : gen_burst_manager
 
     typedef struct packed {
       meta_id_t meta_id;
+      tile_group_id_t tile_id;
+      local_req_interco_addr_t local_id;
+      logic wide;
       amo_t amo;
       data_t data;
-      tile_group_id_t tile_id;
-      local_req_interco_addr_t ini_addr;
-      logic wide;
     } manager_payload_t;
 
     typedef struct packed {
@@ -503,15 +506,16 @@ module mempool_tile
       manager_payload_t[RspGF-2:0] gdata;
     } burst_manager_t;
 
-    manager_payload_t [NumBanksPerTile-1:0]                  premanager_req, postmanager_req;
-    tile_core_id_t    [NumBanksPerTile-1:0]                  premanager_req_ini, postmanager_req_ini;
-    tile_addr_t       [NumBanksPerTile-1:0]                  premanager_req_tgt, postmanager_req_tgt;
-    manager_payload_t [NumBanksPerTile-1:0]                  premanager_resp, postmanager_resp;
-    tile_core_id_t    [NumBanksPerTile-1:0]                  premanager_resp_ini, postmanager_resp_ini;
-    logic             [NumBanksPerTile-1:0]                  premanager_we, postmanager_we;
-    logic             [NumBanksPerTile-1:0][DataWidth/8-1:0] premanager_be, postmanager_be;
-    burst_t           [NumBanksPerTile-1:0]                  premanager_req_burst;
-    burst_manager_t   [NumBanksPerTile-1:0]                  premanager_resp_burst;
+    manager_payload_t [NumBanksPerTile-1:0] manager_req, postmanager_req;
+    tile_core_id_t    [NumBanksPerTile-1:0] manager_req_ini, postmanager_req_ini;
+    tile_addr_t       [NumBanksPerTile-1:0] manager_req_tgt;
+    logic             [NumBanksPerTile-1:0] manager_req_wen;
+    strb_t            [NumBanksPerTile-1:0] manager_req_be;
+    burst_t           [NumBanksPerTile-1:0] manager_req_burst;
+
+    manager_payload_t [NumBanksPerTile-1:0] manager_resp, postmanager_resp;
+    tile_core_id_t    [NumBanksPerTile-1:0] manager_resp_ini, postmanager_resp_ini;
+    burst_manager_t   [NumBanksPerTile-1:0] manager_resp_burst;
 
     // Connecting to burst manager
     burst_manager #(
@@ -524,106 +528,107 @@ module mempool_tile
       .RspGF          ( RspGF                                         ),
       .burst_resp_t   ( burst_manager_t                               )
     ) i_burst_manager (
-      .clk_i          ( clk_i  ),
-      .rst_ni         ( rst_ni ),
-      // Inputs from pre-bank side
-      .req_ini_addr_i ( premanager_req_ini             ),
-      .req_tgt_addr_i ( premanager_req_tgt             ),
-      .req_wdata_i    ( premanager_req                 ),
-      .req_wen_i      ( premanager_we                  ),
-      .req_ben_i      ( premanager_be                  ),
-      .req_burst_i    ( premanager_req_burst           ),
-      .req_valid_i    ( prebank_req_valid              ),
-      .req_ready_o    ( prebank_req_ready              ),
-      // Response to pre-bank side
-      .resp_ini_addr_o( premanager_resp_ini            ),
-      .resp_rdata_o   ( premanager_resp                ),
-      .resp_burst_o   ( premanager_resp_burst          ),
-      .resp_valid_o   ( prebank_resp_valid             ),
-      .resp_ready_i   ( prebank_resp_ready             ),
-      // Outputs to post-bank side
-      .req_ini_addr_o ( postmanager_req_ini            ),
-      .req_tgt_addr_o ( postmanager_req_tgt            ),
-      .req_wdata_o    ( postmanager_req                ),
-      .req_wen_o      ( postmanager_we                 ),
-      .req_ben_o      ( postmanager_be                 ),
-      .req_valid_o    ( bank_req_valid                 ),
-      .req_ready_i    ( bank_req_ready                 ),
-      // Response from post-bank side
-      .resp_ini_addr_i( postmanager_resp_ini           ),
-      .resp_rdata_i   ( postmanager_resp               ),
-      .resp_valid_i   ( bank_resp_valid                ),
-      .resp_ready_o   ( bank_resp_ready                )
+      .clk_i          ( clk_i                 ),
+      .rst_ni         ( rst_ni                ),
+      .req_ini_addr_i ( manager_req_ini       ),
+      .req_tgt_addr_i ( manager_req_tgt       ),
+      .req_wdata_i    ( manager_req           ),
+      .req_wen_i      ( manager_req_wen       ),
+      .req_be_i       ( manager_req_be        ),
+      .req_burst_i    ( manager_req_burst     ),
+      .req_valid_i    ( prebank_req_valid     ),
+      .req_ready_o    ( prebank_req_ready     ),
+      .req_ini_addr_o ( postmanager_req_ini   ),
+      .req_tgt_addr_o ( bank_req_tgt_addr     ),
+      .req_wdata_o    ( postmanager_req       ),
+      .req_wen_o      ( bank_req_wen          ),
+      .req_be_o       ( bank_req_be           ),
+      .req_valid_o    ( bank_req_valid        ),
+      .req_ready_i    ( bank_req_ready        ),
+      .resp_ini_addr_o( manager_resp_ini      ),
+      .resp_rdata_o   ( manager_resp          ),
+      .resp_burst_o   ( manager_resp_burst    ),
+      .resp_valid_o   ( prebank_resp_valid    ),
+      .resp_ready_i   ( prebank_resp_ready    ),
+      .resp_ini_addr_i( postmanager_resp_ini  ),
+      .resp_rdata_i   ( postmanager_resp      ),
+      .resp_valid_i   ( bank_resp_valid       ),
+      .resp_ready_o   ( bank_resp_ready       )
     );
-    for (genvar b = 0; b < NumBanksPerTile; b++) begin
 
+    for (genvar b = 0; b < NumBanksPerTile; b++) begin : gen_burst_manager_connections
       // Premanager requests
-      assign premanager_req_tgt[b] = prebank_req_payload[b].tgt_addr;
-      assign premanager_req_ini[b] = prebank_req_payload[b].wdata.core_id;
-      assign premanager_req[b].meta_id = prebank_req_payload[b].wdata.meta_id;
-      assign premanager_req[b].amo = prebank_req_payload[b].wdata.amo;
-      assign premanager_req[b].data = prebank_req_payload[b].wdata.data;
-      assign premanager_req[b].tile_id = prebank_req_payload[b].tile_id;
-      assign premanager_req[b].ini_addr = prebank_req_ini_addr[b];
-      assign premanager_req[b].wide = prebank_req_wide[b];
-      assign premanager_we[b] = prebank_req_payload[b].wen;
-      assign premanager_be[b] = prebank_req_payload[b].be;
-      assign premanager_req_burst[b] = prebank_req_payload[b].burst;
-
+      assign manager_req_ini[b]           = prebank_req_payload[b].wdata.core_id;
+      assign manager_req_tgt[b]           = prebank_req_payload[b].tgt_addr;
+      assign manager_req_wen[b]           = prebank_req_payload[b].wen;
+      assign manager_req_be[b]            = prebank_req_payload[b].be;
+      assign manager_req_burst[b]         = prebank_req_payload[b].burst;
+      assign manager_req[b].meta_id       = prebank_req_payload[b].wdata.meta_id;
+      assign manager_req[b].tile_id       = prebank_req_payload[b].tile_id;
+      assign manager_req[b].local_id      = prebank_req_ini_addr[b];
+      assign manager_req[b].wide          = prebank_req_wide[b];
+      assign manager_req[b].amo           = prebank_req_payload[b].wdata.amo;
+      assign manager_req[b].data          = prebank_req_payload[b].wdata.data;
       // Postmanager requests
-      assign bank_req_payload[b].wdata.meta_id = postmanager_req[b].meta_id;
-      assign bank_req_payload[b].wdata.core_id = postmanager_req_ini[b];
-      assign bank_req_payload[b].wdata.amo = postmanager_req[b].amo;
-      assign bank_req_payload[b].wdata.data = postmanager_req[b].data;
-      assign bank_req_payload[b].wen = postmanager_we[b];
-      assign bank_req_payload[b].be = postmanager_be[b];
-      assign bank_req_payload[b].tgt_addr = postmanager_req_tgt[b];
-      assign bank_req_payload[b].tile_id = postmanager_req[b].tile_id;
-      assign bank_req_payload[b].burst = '0;
-      assign bank_req_ini_addr[b] = postmanager_req[b].ini_addr;
-      assign bank_req_wide[b] = postmanager_req[b].wide;
-
-      // Premanager responses
-      assign prebank_resp_payload[b].rdata.meta_id = premanager_resp[b].meta_id;
-      assign prebank_resp_payload[b].rdata.core_id = premanager_resp_ini[b];
-      assign prebank_resp_payload[b].rdata.amo = premanager_resp[b].amo;
-      assign prebank_resp_payload[b].rdata.data = premanager_resp[b].data;
-      assign prebank_resp_payload[b].tile_id = premanager_resp[b].tile_id;
-      assign prebank_resp_ini_addr[b] = premanager_resp[b].ini_addr;
-      assign prebank_resp_wide[b] = premanager_resp[b].wide;
-      // Assign burst
-      assign prebank_resp_payload[b].burst.isburst = (RspGF > 1) ? premanager_resp_burst[b].isburst : 1'b0;
-      for (genvar j = 0; j < RspGF-1; j++) begin
-        assign prebank_resp_payload[b].burst.gdata[j] = (RspGF > 1) ? premanager_resp_burst[b].gdata[j].data : '0;
-      end
-
+      assign bank_req_payload[b].meta_id  = postmanager_req[b].meta_id;
+      assign bank_req_payload[b].core_id  = postmanager_req_ini[b];
+      assign bank_req_payload[b].tile_id  = postmanager_req[b].tile_id;
+      assign bank_req_payload[b].ini_addr = postmanager_req[b].local_id;
+      assign bank_req_payload[b].wide     = postmanager_req[b].wide;
+      assign bank_req_amo[b]              = postmanager_req[b].amo;
+      assign bank_req_data[b]             = postmanager_req[b].data;
       // Postmanager responses
-      assign postmanager_resp[b].meta_id = bank_resp_payload[b].rdata.meta_id;
-      assign postmanager_resp[b].amo = bank_resp_payload[b].rdata.amo;
-      assign postmanager_resp[b].data = bank_resp_payload[b].rdata.data;
-      assign postmanager_resp[b].tile_id = bank_resp_payload[b].tile_id;
-      assign postmanager_resp[b].ini_addr = bank_resp_ini_addr[b];
-      assign postmanager_resp[b].wide = bank_resp_wide[b];
-      assign postmanager_resp_ini[b] = bank_resp_payload[b].rdata.core_id;
-
+      assign postmanager_resp_ini[b]      = bank_resp_payload[b].core_id;
+      assign postmanager_resp[b].meta_id  = bank_resp_payload[b].meta_id;
+      assign postmanager_resp[b].tile_id  = bank_resp_payload[b].tile_id;
+      assign postmanager_resp[b].local_id = bank_resp_payload[b].ini_addr;
+      assign postmanager_resp[b].wide     = bank_resp_payload[b].wide;
+      assign postmanager_resp[b].amo      = '0;
+      assign postmanager_resp[b].data     = bank_resp_data[b];
+      // Premanager responses
+      assign prebank_resp_payload[b].rdata.meta_id  = manager_resp[b].meta_id;
+      assign prebank_resp_payload[b].rdata.core_id  = manager_resp_ini[b];
+      assign prebank_resp_payload[b].tile_id        = manager_resp[b].tile_id;
+      assign prebank_resp_ini_addr[b]               = manager_resp[b].local_id;
+      assign prebank_resp_wide[b]                   = manager_resp[b].wide;
+      assign prebank_resp_payload[b].rdata.amo      = manager_resp[b].amo;
+      assign prebank_resp_payload[b].rdata.data     = manager_resp[b].data;
+      // Assign burst
+      assign prebank_resp_payload[b].burst.isburst = (RspGF > 1) ? manager_resp_burst[b].isburst : 1'b0;
+      for (genvar j = 0; j < RspGF-1; j++) begin
+        assign prebank_resp_payload[b].burst.gdata[j] = (RspGF > 1) ? manager_resp_burst[b].gdata[j].data : '0;
+      end
     end
+
   end else begin : gen_bypass_manager
-    // request
-    assign bank_req_payload  = prebank_req_payload;
-    assign bank_req_ini_addr = prebank_req_ini_addr;
-    assign bank_req_wide     = prebank_req_wide;
-    assign bank_req_valid    = prebank_req_valid;
-    assign prebank_req_ready = bank_req_ready;
-    // response
-    assign prebank_resp_payload  = bank_resp_payload;
-    assign prebank_resp_ini_addr = bank_resp_ini_addr;
-    assign prebank_resp_wide     = bank_resp_wide;
-    assign prebank_resp_valid    = bank_resp_valid;
-    assign bank_resp_ready       = prebank_resp_ready;
+
+    for (genvar b = 0; b < NumBanksPerTile; b++) begin : gen_bank_connections
+      // request
+      assign bank_req_be[b]               = prebank_req_payload[b].be;
+      assign bank_req_wen[b]              = prebank_req_payload[b].wen;
+      assign bank_req_amo[b]              = prebank_req_payload[b].wdata.amo;
+      assign bank_req_data[b]             = prebank_req_payload[b].wdata.data;
+      assign bank_req_tgt_addr[b]         = prebank_req_payload[b].tgt_addr;
+      assign bank_req_payload[b].meta_id  = prebank_req_payload[b].wdata.meta_id;
+      assign bank_req_payload[b].core_id  = prebank_req_payload[b].wdata.core_id;
+      assign bank_req_payload[b].tile_id  = prebank_req_payload[b].tile_id;
+      assign bank_req_payload[b].ini_addr = prebank_req_ini_addr[b];
+      assign bank_req_payload[b].wide     = prebank_req_wide[b];
+      assign bank_req_valid[b]            = prebank_req_valid[b];
+      assign prebank_req_ready[b]         = bank_req_ready[b];
+      // response
+      assign prebank_req_payload[b].rdata.amo         = '0;
+      assign prebank_req_payload[b].rdata.data        = bank_resp_data[b];
+      assign prebank_req_payload[b].rdata.meta_id     = bank_resp_payload[b].meta_id;
+      assign prebank_req_payload[b].rdata.core_id     = bank_resp_payload[b].core_id;
+      assign prebank_req_payload[b].tile_id           = bank_resp_payload[b].tile_id;
+      assign prebank_req_ini_addr[b]                  = bank_resp_payload[b].ini_addr;
+      assign prebank_req_wide[b]                      = bank_resp_payload[b].wide;
+    end
+
   end
 
   for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_banks
-    bank_metadata_t meta_in;
     bank_metadata_t meta_out;
     logic req_valid;
     logic req_write;
@@ -631,24 +636,6 @@ module mempool_tile
     data_t req_wdata;
     data_t resp_rdata;
     strb_t req_be;
-
-    // Un/Pack metadata
-    assign meta_in = '{
-      ini_addr  : bank_req_ini_addr[b],
-      meta_id   : bank_req_payload[b].wdata.meta_id,
-      core_id   : bank_req_payload[b].wdata.core_id,
-      tile_id   : bank_req_payload[b].tile_id,
-      wide      : bank_req_wide[b],
-      burst     : bank_req_payload[b].burst
-    };
-    assign bank_resp_ini_addr[b]              = meta_out.ini_addr;
-    assign bank_resp_payload[b].rdata.meta_id = meta_out.meta_id;
-    assign bank_resp_payload[b].tile_id      = meta_out.tile_id;
-    assign bank_resp_payload[b].rdata.core_id = meta_out.core_id;
-    assign bank_resp_payload[b].rdata.amo     = '0; // Don't care
-    assign bank_resp_wide[b]                  = meta_out.wide;
-    assign bank_resp_payload[b].burst         = meta_out.burst;
-
     tcdm_adapter #(
       .AddrWidth     (TCDMAddrMemWidth+ByteOffset),
       .BankAddrWidth (TCDMAddrMemWidth           ),
@@ -657,28 +644,27 @@ module mempool_tile
       .LrScEnable    (LrScEnable                 ),
       .RegisterAmo   (1'b0                       )
     ) i_tcdm_adapter (
-      .clk_i       (clk_i                                                                       ),
-      .rst_ni      (rst_ni                                                                      ),
-      .in_valid_i  (bank_req_valid[b]                                                           ),
-      .in_ready_o  (bank_req_ready[b]                                                           ),
-      .in_address_i({bank_req_payload[b].tgt_addr[idx_width(NumBanksPerTile) +: TCDMAddrMemWidth],{ByteOffset{1'b0}}}),
-      .in_amo_i    (bank_req_payload[b].wdata.amo                                               ),
-      .in_write_i  (bank_req_payload[b].wen                                                     ),
-      .in_wdata_i  (bank_req_payload[b].wdata.data                                              ),
-      .in_meta_i   (meta_in                                                                     ),
-      .in_be_i     (bank_req_payload[b].be                                                      ),
-      .in_valid_o  (bank_resp_valid[b]                                                          ),
-      .in_ready_i  (bank_resp_ready[b]                                                          ),
-      .in_rdata_o  (bank_resp_payload[b].rdata.data                                             ),
-      .in_meta_o   (meta_out                                                                    ),
-      .out_req_o   (req_valid                                                                   ),
-      .out_add_o   (req_addr                                                                    ),
-      .out_write_o (req_write                                                                   ),
-      .out_wdata_o (req_wdata                                                                   ),
-      .out_be_o    (req_be                                                                      ),
-      .out_rdata_i (resp_rdata                                                                  )
+      .clk_i       (clk_i                        ),
+      .rst_ni      (rst_ni                       ),
+      .in_valid_i  (bank_req_valid[b]            ),
+      .in_ready_o  (bank_req_ready[b]            ),
+      .in_address_i({bank_req_tgt_addr[b][idx_width(NumBanksPerTile) +: TCDMAddrMemWidth],{ByteOffset{1'b0}}}),
+      .in_amo_i    (bank_req_amo[b]              ),
+      .in_write_i  (bank_req_wen[b]              ),
+      .in_wdata_i  (bank_req_data[b]             ),
+      .in_meta_i   (bank_req_payload[b]          ),
+      .in_be_i     (bank_req_be[b]               ),
+      .in_valid_o  (bank_resp_valid[b]           ),
+      .in_ready_i  (bank_resp_ready[b]           ),
+      .in_rdata_o  (bank_resp_data[b]            ),
+      .in_meta_o   (bank_resp_payload[b]         ),
+      .out_req_o   (req_valid                    ),
+      .out_add_o   (req_addr                     ),
+      .out_write_o (req_write                    ),
+      .out_wdata_o (req_wdata                    ),
+      .out_be_o    (req_be                       ),
+      .out_rdata_i (resp_rdata                   )
     );
-
     // Bank
     tc_sram #(
       .DataWidth(DataWidth          ),
