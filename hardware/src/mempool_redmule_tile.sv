@@ -94,11 +94,11 @@ module mempool_redmule_tile
 
   // RedMule interfaces
   logic [1:0]                                 redmule_evt;
-  rm_dreq_t [RMMasterPorts-1:0]                  redmule_hwpe_req;
+  rm_dreq_t [RMMasterPorts-1:0]               redmule_hwpe_req;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_req_valid;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_req_ready;
 
-  rm_dresp_t [RMMasterPorts-1:0]                 redmule_hwpe_resp;
+  rm_dresp_t [RMMasterPorts-1:0]              redmule_hwpe_resp;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_resp_valid;
   logic [RMMasterPorts-1:0]                   redmule_hwpe_resp_ready;
 
@@ -897,15 +897,15 @@ module mempool_redmule_tile
   addr_t [RMMasterPorts-1:0] redmule_hwpe_addr_scrambled;
 
   rm_dreq_t [RMMasterPorts-1:0] redmule_tcdm_req;
-  logic  [RMMasterPorts-1:0] redmule_tcdm_req_valid;
-  logic  [RMMasterPorts-1:0] redmule_tcdm_req_ready;
-  logic  [RMMasterPorts-1:0] redmule_tcdm_handshake_p;
-  logic  [RMMasterPorts-1:0] redmule_tcdm_handshake_q;
+  logic     [RMMasterPorts-1:0] redmule_tcdm_req_valid;
+  logic     [RMMasterPorts-1:0] redmule_tcdm_req_ready;
+  logic     [RMMasterPorts-1:0] redmule_tcdm_handshake_p;
+  logic     [RMMasterPorts-1:0] redmule_tcdm_handshake_q;
 
-  logic                       redmule_resp_allvalid;
+  logic                          redmule_resp_allvalid;
   rm_dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
-  logic   [RMMasterPorts-1:0] redmule_tcdm_resp_valid;
-  logic   [RMMasterPorts-1:0] redmule_tcdm_resp_ready;
+  logic      [RMMasterPorts-1:0] redmule_tcdm_resp_valid;
+  logic      [RMMasterPorts-1:0] redmule_tcdm_resp_ready;
 
   // Burst requests/responses
   tcdm_payload_t [RMMasterPorts-1:0] remote_req_preburst_payload, remote_req_postburst_payload;
