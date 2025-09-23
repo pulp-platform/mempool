@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add vfdiv.b and vfsqrt.b instructions
 - Add fp8 microkernels: axpy, matmul, batchnorm, layernorm, softmax
 - Optimize fp16 matmul kernel
+- Add fall through register after LSU input
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
