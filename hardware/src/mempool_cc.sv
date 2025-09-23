@@ -292,7 +292,7 @@ module mempool_cc
   assign data_qdata_o      = data_req_q.data;
   assign data_qstrb_o      = data_req_q.strb;
   assign data_qid_o        = data_req_q.id;
-  assign data_qvalid_o     = data_req_dvalid;
+  assign data_qvalid_o     = data_req_qvalid;
   assign data_req_qready   = data_qready_i;
   assign data_resp_d.data  = data_pdata_i;
   assign data_resp_d.id    = data_pid_i;
