@@ -78,6 +78,18 @@ static inline uint32_t mempool_get_group_id() {
   return mempool_get_core_id() / (NUM_CORES / NUM_GROUPS);
 }
 
+/// Obtain the number of RedMulEs in the current cluster.
+static inline uint32_t mempool_get_redmule_count() { return NUM_REDMULE_TILES; }
+
+/// Obtain the ID of the group the current core is in.
+static inline uint32_t mempool_get_redmule_id() {
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t redmule_id = (core_id >= (NUM_CORES - NUM_REDMULE_TILES)) ?
+                        (core_id % (NUM_CORES - NUM_REDMULE_TILES)) :
+                        (uint32_t)(-1);
+  return redmule_id;
+}
+
 /// Obtain the number of cores per tile in the current cluster
 static inline uint32_t mempool_get_core_count_per_tile() {
   return NUM_CORES_PER_TILE;

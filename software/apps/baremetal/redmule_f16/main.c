@@ -19,13 +19,7 @@
 #include "baremetal/mempool_checks.h"
 #include "data_gemm_f16.h"
 
-#if (NUM_CORES > 256)
-#define ID_REDMULE_CORE (896)
-#else
-#define ID_REDMULE_CORE (240)
-#endif
-
-#define SINGLE
+#define PARALLEL
 
 __fp16 l1_W[matrix_N * matrix_P]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -37,9 +31,11 @@ __fp16 l1_X[matrix_M * matrix_N]
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t redmule_id = mempool_get_redmule_id();
+  uint32_t num_redmules = mempool_get_redmule_count();
   mempool_barrier_init(core_id);
 
-  if (core_id == 0) {
+  if (redmule_id == 0) {
     dma_memcpy_blocking(l1_X, l2_X, (matrix_M * matrix_N) * sizeof(int16_t));
     dma_memcpy_blocking(l1_W, l2_W, (matrix_N * matrix_P) * sizeof(int16_t));
     dma_memcpy_blocking(l1_Y, l2_Y, (matrix_M * matrix_P) * sizeof(int16_t));
@@ -47,7 +43,7 @@ int main() {
   mempool_barrier(num_cores);
 
 #ifdef SINGLE
-  if (core_id == ID_REDMULE_CORE) {
+  if (redmule_id == 0) {
     mempool_start_benchmark();
     unsigned int X_ptr = (unsigned int) (l1_X);
     unsigned int Y_ptr = (unsigned int) (l1_Y);
@@ -66,8 +62,6 @@ int main() {
 #endif
 
 #ifdef PARALLEL
-  uint32_t redmule_id = (core_id >= ID_REDMULE_CORE) ? core_id - ID_REDMULE_CORE : (uint32_t)(-1);
-  uint32_t num_redmules = 4;
   if (redmule_id < 4) {
     unsigned int X_ptr = (unsigned int) (l1_X + redmule_id * matrix_N * (matrix_M / num_redmules));
     unsigned int Y_ptr = (unsigned int) (l1_Y + redmule_id * matrix_P * (matrix_M / num_redmules));
