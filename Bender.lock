@@ -133,6 +133,21 @@ packages:
     dependencies:
     - common_cells
     - common_verification
+  opope:
+    revision: 66a0808e1e6f301198cefd2a46873aa0d56ad831
+    version: null
+    source:
+      Git: git@iis-git.ee.ethz.ch:vbonacina/opope.git
+    dependencies:
+    - common_cells
+    - cv32e40p
+    - cv32e40x
+    - fpnew
+    - hci
+    - hwpe-ctrl
+    - hwpe-stream
+    - ibex
+    - tech_cells_generic
   redmule:
     revision: null
     version: null

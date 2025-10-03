@@ -1,0 +1,63 @@
+# Copyright 2025 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Danilo Cammarata <dcammarata@iis.ee.ethz.ch>
+#
+# Bender manifest
+
+package:
+  name: opope
+  authors:
+    - "Danilo Cammarata (dcammarata@iis.ee.ethz.ch)"
+
+dependencies:
+  cv32e40p          : { git: "https://github.com/pulp-platform/cv32e40p.git"          , rev: "pulpissimo-v4.1.0"                      }
+  cv32e40x          : { git: "https://github.com/pulp-platform/cv32e40x.git"          , rev: "redmule-v1.0"                           }
+  ibex              : { git: "https://github.com/pulp-platform/ibex.git"              , rev: pulpissimo-v6.1.2                        }
+  hwpe-stream       : { git: "https://github.com/pulp-platform/hwpe-stream.git"       , version: 1.7                                  }
+  hwpe-ctrl         : { git: "https://github.com/pulp-platform/hwpe-ctrl.git"         , rev: 0e95510c0f4d43452d21b7723d766ae92e45c101 } # branch: yt/task-interfaces
+  hci               : { git: "https://github.com/pulp-platform/hci.git"               , rev: v2.1.2                                   }
+  fpnew             : { git: "https://github.com/pulp-platform/cvfpu.git"             , rev: "pulp-v0.1.3"                            }
+  common_cells      : { git: "https://github.com/pulp-platform/common_cells.git"      , version: 1.21.0                               }
+  tech_cells_generic: { git: "https://github.com/pulp-platform/tech_cells_generic.git", version: 0.2.11                               }
+
+sources:
+  files:
+  # OPE
+    - rtl/opope_pkg.sv
+    - rtl/opope_accumulator.sv
+    - rtl/opope_sdotp.sv
+    - rtl/opope_sdotp_wrapper.sv
+    - rtl/opope_fma.sv
+    - rtl/opope_ce.sv
+    - rtl/opope_engine.sv
+    - rtl/opope_tiler.sv
+    - rtl/opope_ctrl.sv
+    - rtl/opope_streamer.sv
+    - rtl/opope_buffers.sv
+    - rtl/opope_top.sv
+
+    - target: opope_hwpe
+      files:
+        - rtl/opope_wrap.sv
+
+    - target: opope_complex
+      files:
+        - rtl/opope_inst_decoder.sv
+
+    - target: any(opope_test_complex, opope_test_hwpe)
+      files:
+        - target/sim/src/tb_dummy_memory.sv
+
+    - target: opope_test_complex
+      files:
+        - target/sim/src/opope_complex_tb.sv
+
+    - target: opope_test_hwpe
+      files:
+        - target/sim/src/opope_tb.sv
+
+    - target: vsim
+      files:
+        - target/sim/src/opope_tb_wrap.sv
