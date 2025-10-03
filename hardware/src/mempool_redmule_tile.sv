@@ -160,6 +160,7 @@ module mempool_redmule_tile
     .periph             ( redmule_periph             )
   );
 
+  // RedMulE TCDM ports
   for(genvar ii=0; ii<RMMasterPorts; ii++) begin : tcdm_binding
     assign redmule_hwpe_req[ii].addr    = tcdm.req_add + ii*4;
     assign redmule_hwpe_req[ii].write   = ~tcdm.req_wen;
@@ -204,9 +205,9 @@ module mempool_redmule_tile
 
   logic [31:0] hart_id;
 `ifdef TERAPOOL
-  assign hart_id = (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerGroup)*NumRMTilesPerGroup + (tile_id_i%NumTilesPerGroup);
-`else
   assign hart_id = (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerSubGroup)*NumRMTilesPerSubGroup + (tile_id_i%NumTilesPerSubGroup);
+`else
+  assign hart_id = (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerGroup)*NumRMTilesPerGroup + (tile_id_i%NumTilesPerGroup);
 `endif
 
   mempool_cc #(
@@ -1261,17 +1262,6 @@ module mempool_redmule_tile
     }
   };
 
-  // Redmule configuration register writes
-  assign redmule_periph.req = redmule_data_qvalid;
-  assign redmule_periph.add = redmule_data_q.addr;
-  assign redmule_periph.wen = ~redmule_data_q.write;
-  assign redmule_periph.be = redmule_data_q.strb;
-  assign redmule_periph.data = redmule_data_q.data;
-  assign redmule_periph.id = redmule_data_q.id;
-  assign redmule_data_qready = redmule_periph.gnt;
-  assign redmule_data_p.data = redmule_periph.r_data;
-  assign redmule_data_pvalid = redmule_periph.r_valid;
-
   // Demux according to address peripheral requests to RedMule/SoC
   snitch_addr_demux #(
     .NrOutput     (2        ),
@@ -1297,6 +1287,31 @@ module mempool_redmule_tile
     .resp_ready_o  ({soc_data_pready, redmule_data_pready}   ),
     .address_map_i (per_mask_map                             )
   );
+
+  // RedMulE configuration register writes
+  always_ff @(posedge clk_i or negedge rst_ni) begin : redmule_cfg_reg
+    if (!rst_ni) begin
+      redmule_periph.req  <= 1'b0;
+      redmule_periph.add  <= '0;
+      redmule_periph.wen  <= 1'b1;
+      redmule_periph.be   <= '0;
+      redmule_periph.data <= '0;
+      redmule_periph.id   <= '0;
+      redmule_data_qready <= 1'b0;
+      redmule_data_p.data <= '0;
+      redmule_data_pvalid <= 1'b0;
+    end else begin
+      redmule_periph.req  <= redmule_data_qvalid;
+      redmule_periph.add  <= redmule_data_q.addr;
+      redmule_periph.wen  <= ~redmule_data_q.write;
+      redmule_periph.be   <= redmule_data_q.strb;
+      redmule_periph.data <= redmule_data_q.data;
+      redmule_periph.id   <= redmule_data_q.id;
+      redmule_data_qready <= redmule_periph.gnt;
+      redmule_data_p.data <= redmule_periph.r_data;
+      redmule_data_pvalid <= redmule_periph.r_valid;
+    end
+  end
 
   /****************
    *   AXI Plug   *
