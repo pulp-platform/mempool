@@ -17,7 +17,8 @@ dependencies:
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                                               rev: pulp-v0.1.3 }
   cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",                                      version: 0.1.1   }
   redmule:              { git: "https://github.com/pulp-platform/redmule.git",                                             rev: "15edc6a"   }
-  hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 rev: "86c7319"   }
+  hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 rev: "6b0720d"   }
+  opope:                { git: "git@iis-git.ee.ethz.ch:vbonacina/opope.git",                                               rev: "66a0808e"  } 
 
 workspace:
   checkout_dir: "./hardware/deps"
