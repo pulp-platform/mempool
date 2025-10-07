@@ -11,8 +11,6 @@ module mempool_redmule_tile
   import hci_package::*;
   import cv32e40x_pkg::*;
   import burst_pkg::*;
-  import hci_package::*;
-  import cv32e40x_pkg::*;
   import cf_math_pkg::idx_width;
 #(
   // TCDM
@@ -93,14 +91,24 @@ module mempool_redmule_tile
    *************/
 
   // RedMule interfaces
-  logic [1:0]                                 redmule_evt;
-  rm_dreq_t [RMMasterPorts-1:0]               redmule_hwpe_req;
-  logic [RMMasterPorts-1:0]                   redmule_hwpe_req_valid;
-  logic [RMMasterPorts-1:0]                   redmule_hwpe_req_ready;
+  logic [1:0] redmule_evt;
 
-  rm_dresp_t [RMMasterPorts-1:0]              redmule_hwpe_resp;
-  logic [RMMasterPorts-1:0]                   redmule_hwpe_resp_valid;
-  logic [RMMasterPorts-1:0]                   redmule_hwpe_resp_ready;
+  rm_dreq_t  [RMMasterPorts-1:0] redmule_req, redmule_req_q;
+  logic      [RMMasterPorts-1:0] redmule_req_valid, redmule_req_qvalid;
+  logic      [RMMasterPorts-1:0] redmule_req_ready, redmule_req_qready;
+  rm_dresp_t [RMMasterPorts-1:0] redmule_resp, redmule_resp_q;
+  logic      [RMMasterPorts-1:0] redmule_resp_valid, redmule_resp_qvalid;
+  logic      [RMMasterPorts-1:0] redmule_resp_ready, redmule_resp_qready;
+
+  rm_dreq_t  [RMMasterPorts-1:0] redmule_tcdm_req;
+  logic      [RMMasterPorts-1:0] redmule_tcdm_req_valid;
+  logic      [RMMasterPorts-1:0] redmule_tcdm_req_ready;
+  rm_dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
+  logic      [RMMasterPorts-1:0] redmule_tcdm_resp_valid;
+  logic      [RMMasterPorts-1:0] redmule_tcdm_resp_ready;
+
+  logic [RMMasterPorts-1:0] redmule_handshake_p;
+  logic [RMMasterPorts-1:0] redmule_handshake_q;
 
   localparam hci_size_parameter_t `HCI_SIZE_PARAM(tcdm) = '{
     DW:  RMDataWidth,
@@ -123,22 +131,7 @@ module mempool_redmule_tile
 
   // TODO: This interface port is unused in this context, but it is still required as module input.
   // The interface connection should be removed upstream and inserted in a wrapper module.
-  localparam int unsigned NumRs = 3;
-  localparam int unsigned XifIdWidth = 3;
-  localparam int unsigned XifMemWidth = 32;
-  localparam int unsigned XifRFReadWidth = 32;
-  localparam int unsigned XifRFWriteWidth = 32;
-  localparam logic [31:0] XifMisa = '0;
-  localparam logic [ 1:0] XifEcsXs = '0;
-  cv32e40x_if_xif#(
-  .X_NUM_RS    ( NumRs           ),
-  .X_ID_WIDTH  ( XifIdWidth      ),
-  .X_MEM_WIDTH ( XifMemWidth     ),
-  .X_RFR_WIDTH ( XifRFReadWidth  ),
-  .X_RFW_WIDTH ( XifRFWriteWidth ),
-  .X_MISA      ( XifMisa         ),
-  .X_ECS_XS    ( XifEcsXs        )
-  ) core_xif ();
+  cv32e40x_if_xif core_xif ();
 
   redmule_top #(
     .N_CORES               ( 1                                    ),
@@ -162,21 +155,76 @@ module mempool_redmule_tile
 
   // RedMulE TCDM ports
   for(genvar ii=0; ii<RMMasterPorts; ii++) begin : tcdm_binding
-    assign redmule_hwpe_req[ii].addr    = tcdm.req_add + ii*4;
-    assign redmule_hwpe_req[ii].write   = ~tcdm.req_wen;
-    assign redmule_hwpe_req[ii].strb    = tcdm.req_be[(ii+1)*4-1:ii*4];
-    assign redmule_hwpe_req[ii].data    = tcdm.req_data[(ii+1)*DataWidth-1:ii*DataWidth];
-    assign redmule_hwpe_req[ii].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] = tcdm.req_id;
-    assign redmule_hwpe_req[ii].id[idx_width(RMOutstandingTransactions)-1:0] = tcdm.req_user;
-    assign redmule_hwpe_req[ii].amo     = '0;
-    assign redmule_hwpe_req_valid[ii]   = tcdm.req_valid;
-    assign tcdm.resp_data[(ii+1)*DataWidth-1:ii*DataWidth] = redmule_hwpe_resp[ii].data;
-    assign redmule_hwpe_resp_ready[ii]                     = tcdm.resp_ready;
+    assign redmule_req[ii].addr    = tcdm.req_add + ii*4;
+    assign redmule_req[ii].write   = ~tcdm.req_wen;
+    assign redmule_req[ii].strb    = tcdm.req_be[(ii+1)*4-1:ii*4];
+    assign redmule_req[ii].data    = tcdm.req_data[(ii+1)*DataWidth-1:ii*DataWidth];
+    assign redmule_req[ii].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] = tcdm.req_id;
+    assign redmule_req[ii].id[idx_width(RMOutstandingTransactions)-1:0] = tcdm.req_user;
+    assign redmule_req[ii].amo     = '0;
+    assign redmule_req_valid[ii]   = tcdm.req_valid;
+    assign tcdm.resp_data[(ii+1)*DataWidth-1:ii*DataWidth] = redmule_resp_q[ii].data;
+    assign redmule_resp_qready[ii]                         = tcdm.resp_ready;
   end
-  assign tcdm.req_ready  = &(redmule_hwpe_req_ready);
-  assign tcdm.resp_id    = redmule_hwpe_resp[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
-  assign tcdm.resp_user  = redmule_hwpe_resp[0].id[idx_width(RMOutstandingTransactions)-1:0];
-  assign tcdm.resp_valid = &(redmule_hwpe_resp_valid);
+  assign tcdm.req_ready  = &(redmule_req_ready);
+  assign tcdm.resp_id    = redmule_resp_q[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
+  assign tcdm.resp_user  = redmule_resp_q[0].id[idx_width(RMOutstandingTransactions)-1:0];
+  assign tcdm.resp_valid = &(redmule_resp_qvalid);
+
+  for (genvar c = 0; c < RMMasterPorts; c++) begin: gen_redmule_regs
+    stream_register #(
+      .T(rm_dreq_t)
+    ) i_redmule_req_register (
+      .clk_i      (clk_i                ),
+      .rst_ni     (rst_ni               ),
+      .clr_i      (1'b0                 ),
+      .testmode_i (1'b0                 ),
+      .valid_i    (redmule_req_valid[c] ),
+      .ready_o    (redmule_req_ready[c] ),
+      .data_i     (redmule_req[c]       ),
+      .valid_o    (redmule_req_qvalid[c]),
+      .ready_i    (redmule_req_qready[c]),
+      .data_o     (redmule_req_q[c]     )
+    );
+    stream_register #(
+      .T(rm_dresp_t)
+    ) i_redmule_resp_register (
+      .clk_i      (clk_i                ),
+      .rst_ni     (rst_ni               ),
+      .clr_i      (1'b0                 ),
+      .testmode_i (1'b0                 ),
+      .valid_i    (redmule_resp_valid[c] ),
+      .ready_o    (redmule_resp_ready[c] ),
+      .data_i     (redmule_resp[c]       ),
+      .valid_o    (redmule_resp_qvalid[c]),
+      .ready_i    (redmule_resp_qready[c]),
+      .data_o     (redmule_resp_q[c]     )
+    );
+  end
+
+  // RedMulE TCDM request
+  // Handshake separately on each request port
+  assign redmule_handshake_p = &redmule_req_qready ? '0 : redmule_req_qready;
+  `FF(redmule_handshake_q, redmule_handshake_p, '0, clk_i, rst_ni);
+  assign redmule_tcdm_req = redmule_req_q;
+  assign redmule_tcdm_req_valid = ~redmule_handshake_q & redmule_req_qvalid;
+  assign redmule_req_qready = redmule_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
+
+  // RedMulE TCDM response
+  transactions_table #(
+    .NumPorts        (RMMasterPorts),
+    .NumTransactions (RMNumStreams*RMOutstandingTransactions),
+    .resp_t          (rm_dresp_t)
+  ) i_transactions_table (
+    .clk_i         (clk_i     ),
+    .rst_ni        (rst_ni    ),
+    .resp_payload_i(redmule_tcdm_resp),
+    .resp_valid_i  (redmule_tcdm_resp_valid),
+    .resp_ready_o  (redmule_tcdm_resp_ready),
+    .resp_payload_o(redmule_resp),
+    .resp_valid_o  (redmule_resp_valid),
+    .resp_ready_i  (redmule_resp_ready)
+  );
 
   /***********
    *  Core   *
@@ -895,18 +943,7 @@ module mempool_redmule_tile
    *   RedMule TCDM Plug   *
    *************************/
 
-  addr_t [RMMasterPorts-1:0] redmule_hwpe_addr_scrambled;
-
-  rm_dreq_t [RMMasterPorts-1:0] redmule_tcdm_req;
-  logic     [RMMasterPorts-1:0] redmule_tcdm_req_valid;
-  logic     [RMMasterPorts-1:0] redmule_tcdm_req_ready;
-  logic     [RMMasterPorts-1:0] redmule_tcdm_handshake_p;
-  logic     [RMMasterPorts-1:0] redmule_tcdm_handshake_q;
-
-  logic                          redmule_resp_allvalid;
-  rm_dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
-  logic      [RMMasterPorts-1:0] redmule_tcdm_resp_valid;
-  logic      [RMMasterPorts-1:0] redmule_tcdm_resp_ready;
+  addr_t [RMMasterPorts-1:0] redmule_addr_scrambled;
 
   // Burst requests/responses
   tcdm_payload_t [RMMasterPorts-1:0] remote_req_preburst_payload, remote_req_postburst_payload;
@@ -921,31 +958,47 @@ module mempool_redmule_tile
   logic          [RMMasterPorts-1:0] remote_resp_preburst_valid, remote_resp_preburst_ready;
   burst_gresp_t  [RMMasterPorts-1:0] remote_resp_postburst_burst;
 
-  // Handshake separately on each request port
-  assign redmule_hwpe_req_ready = redmule_tcdm_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
-  assign redmule_tcdm_handshake_p = &redmule_hwpe_req_ready ? '0 : redmule_tcdm_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
-  `FF(redmule_tcdm_handshake_q, redmule_tcdm_handshake_p, '0, clk_i, rst_ni);
-
-  // Signal ready only when all ports are valid
-  assign redmule_resp_allvalid = &redmule_tcdm_resp_valid;
-
-  // RedMulE response
-  transactions_table #(
-    .NumPorts        (RMMasterPorts),
-    .NumTransactions (RMNumStreams*RMOutstandingTransactions),
-    .resp_t          (rm_dresp_t)
-  ) i_transactions_table (
-    .clk_i         (clk_i     ),
-    .rst_ni        (rst_ni    ),
-    .resp_payload_i(redmule_tcdm_resp),
-    .resp_valid_i  (redmule_tcdm_resp_valid),
-    .resp_ready_o  (redmule_tcdm_resp_ready),
-    .resp_payload_o(redmule_hwpe_resp),
-    .resp_valid_o  (redmule_hwpe_resp_valid),
-    .resp_ready_i  (redmule_hwpe_resp_ready)
-  );
-
   for (genvar c = 0; c < RMMasterPorts; c++) begin: gen_redmule_mux
+
+    addr_t local_req_presliced_tgt_addr;
+    logic [TCDMAddrMemWidth-1:0] local_req_presliced_row_addr;
+    logic [$clog2(NumBanksPerTile)-1:0] local_req_presliced_bank_addr;
+
+    /* LOCAL REQUESTS */
+
+    // We don't care about these
+    assign local_req_interco_payload[c+1].wdata.core_id = '0;
+    assign local_req_interco_payload[c+1].tile_id       = '0;
+    // Remove tile index from local_req_tgt_address_i, since it will not be used for routing.
+    assign local_req_presliced_row_addr = local_req_presliced_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth];
+    assign local_req_presliced_bank_addr = local_req_presliced_tgt_addr[ByteOffset +: $clog2(NumBanksPerTile)];
+    assign local_req_interco_payload[c+1].tgt_addr = tcdm_addr_t'({local_req_presliced_row_addr, local_req_presliced_bank_addr});
+    // Local requests are not bursted
+    assign local_req_interco_payload[c+1].burst.isburst = 1'b0;
+    assign local_req_interco_payload[c+1].burst.blen = '0;
+
+    /* REMOTE REQUESTS */
+
+    // Address slicer
+    tcdm_addr_slicer i_tcdm_addr_slicer (
+      .remote_req_tgt_addr_i  (remote_req_postburst_addr[c]       ),
+      .remote_req_tgt_addr_o  (remote_req_interco[c+1].tgt_addr       ),
+      .tile_id_i              (tile_id_i                              ),
+      .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[c+1]        )
+    );
+
+    localparam unsigned port_id = c+1;
+    assign remote_req_preburst_payload[c].core_id = port_id[idx_width(RMMasterPorts+1)-1:0];
+    // Remote request post burst
+    assign remote_req_interco[c+1].wdata = remote_req_postburst_payload[c];
+    assign remote_req_interco[c+1].wen   = remote_req_postburst_we[c];
+    assign remote_req_interco[c+1].be    = remote_req_postburst_be[c];
+    assign remote_req_interco[c+1].burst = remote_req_postburst_burst[c];
+    assign remote_req_interco_valid[c+1] = remote_req_postburst_valid[c];
+    assign remote_req_postburst_ready[c] = remote_req_interco_ready[c+1];
+    // Remote response post burst
+    assign remote_resp_postburst_payload[c] = remote_resp_interco[c+1].rdata;
+    assign remote_resp_postburst_burst[c] = remote_resp_interco[c+1].burst;
 
     // Scramble address before entering TCDM shim for sequential+interleaved memory map
     address_scrambler #(
@@ -956,112 +1009,63 @@ module mempool_redmule_tile
       .Bypass            (0                ),
       .SeqMemSizePerTile (SeqMemSizePerTile)
     ) i_address_scrambler (
-      .address_i (redmule_hwpe_req[c].addr      ),
-      .address_o (redmule_hwpe_addr_scrambled[c])
+      .address_i (redmule_tcdm_req[c].addr      ),
+      .address_o (redmule_addr_scrambled[c])
     );
 
-   /*************************
-    *   RedMule Handshakes  *
-    *************************/
-
-    assign redmule_tcdm_req[c].addr  = redmule_hwpe_addr_scrambled[c];
-    assign redmule_tcdm_req[c].write = redmule_hwpe_req[c].write;
-    assign redmule_tcdm_req[c].data  = redmule_hwpe_req[c].data;
-    assign redmule_tcdm_req[c].strb  = redmule_hwpe_req[c].strb;
-    assign redmule_tcdm_req[c].id    = redmule_hwpe_req[c].id;
-    assign redmule_tcdm_req[c].amo   = '0;
-    assign redmule_tcdm_req_valid[c] = redmule_tcdm_handshake_q[c] ? 1'b0 : redmule_hwpe_req_valid[c];
-
-    // Signals for type conversions
-    rm_dreq_t local_tcdm_req, remote_tcdm_req;
-    rm_dresp_t local_tcdm_resp, remote_tcdm_resp;
-
-    snitch_addr_demux #(
-      .NrOutput     (2),
-      .AddressWidth (AddrWidth),
-      .NumRules     (2 ), // TODO
-      .req_t        (rm_dreq_t   ),
-      .resp_t       (rm_dresp_t  )
-    ) i_snitch_addr_demux (
-      .clk_i         (clk_i                            ),
-      .rst_ni        (rst_ni                           ),
-      .req_addr_i    (redmule_tcdm_req[c].addr         ),
-      .req_payload_i (redmule_tcdm_req[c]              ),
-      .req_valid_i   (redmule_tcdm_req_valid[c]        ),
-      .req_ready_o   (redmule_tcdm_req_ready[c]        ),
-      .resp_payload_o(redmule_tcdm_resp[c]             ),
-      .resp_valid_o  (redmule_tcdm_resp_valid[c]       ),
-      .resp_ready_i  (redmule_tcdm_resp_ready[c]       ),
-      .req_payload_o ({local_tcdm_req, remote_tcdm_req}),
-      .req_valid_o   ({local_req_interco_valid[c+1], remote_req_preburst_valid[c]}),
-      .req_ready_i   ({local_req_interco_ready[c+1], remote_req_preburst_ready[c]}),
-      .resp_payload_i({local_tcdm_resp, remote_tcdm_resp}),
-      .resp_valid_i  ({local_resp_interco_valid[c+1], remote_resp_preburst_valid[c]}),
-      .resp_ready_o  ({local_resp_interco_ready[c+1], remote_resp_preburst_ready[c]}),
-      .address_map_i (mask_map[1:0])
+    tcdm_shim #(
+      .AddrWidth           (AddrWidth                         ),
+      .DataWidth           (DataWidth                         ),
+      .MaxOutStandingTrans (snitch_pkg::NumIntOutstandingLoads),
+      .NrTCDM              (2                                 ),
+      .NrSoC               (1                                 ),
+      .NumRules            (3                                 ),
+      .req_t               (rm_dreq_t                         ),
+      .resp_t              (rm_dresp_t                        )
+    ) i_tcdm_shim (
+      .clk_i              (clk_i                                                                                    ),
+      .rst_ni             (rst_ni                                                                                   ),
+      // to TCDM --> FF Connection to outside of tile
+      .tcdm_req_valid_o   ({local_req_interco_valid[c+1],                  remote_req_preburst_valid[c]}            ),
+      .tcdm_req_tgt_addr_o({local_req_presliced_tgt_addr,                  remote_req_preburst_addr[c]}             ),
+      .tcdm_req_wen_o     ({local_req_interco_payload[c+1].wen,            remote_req_preburst_wen[c]}              ),
+      .tcdm_req_wdata_o   ({local_req_interco_payload[c+1].wdata.data,     remote_req_preburst_payload[c].data}     ),
+      .tcdm_req_amo_o     ({local_req_interco_payload[c+1].wdata.amo,      remote_req_preburst_payload[c].amo}      ),
+      .tcdm_req_id_o      ({local_req_interco_payload[c+1].wdata.meta_id,  remote_req_preburst_payload[c].meta_id}  ),
+      .tcdm_req_be_o      ({local_req_interco_payload[c+1].be,             remote_req_preburst_be[c]}               ),
+      .tcdm_req_ready_i   ({local_req_interco_ready[c+1],                  remote_req_preburst_ready[c]}            ),
+      .tcdm_resp_valid_i  ({local_resp_interco_valid[c+1],                 remote_resp_preburst_valid[c]}           ),
+      .tcdm_resp_ready_o  ({local_resp_interco_ready[c+1],                 remote_resp_preburst_ready[c]}           ),
+      .tcdm_resp_rdata_i  ({local_resp_interco_payload[c+1].rdata.data,    remote_resp_preburst_payload[c].data}    ),
+      .tcdm_resp_id_i     ({local_resp_interco_payload[c+1].rdata.meta_id, remote_resp_preburst_payload[c].meta_id} ),
+      // to SoC
+      .soc_qaddr_o        ( /* Unused */                  ),
+      .soc_qwrite_o       ( /* Unused */                  ),
+      .soc_qamo_o         ( /* Unused */                  ),
+      .soc_qdata_o        ( /* Unused */                  ),
+      .soc_qstrb_o        ( /* Unused */                  ),
+      .soc_qvalid_o       ( /* Unused */                  ),
+      .soc_qready_i       ( '0                            ),
+      .soc_pdata_i        ( '0                            ),
+      .soc_perror_i       ( '0                            ),
+      .soc_pvalid_i       ( '0                            ),
+      .soc_pready_o       ( /* Unused */                  ),
+      // from core
+      .data_qaddr_i       (redmule_addr_scrambled[c]      ),
+      .data_qwrite_i      (redmule_tcdm_req[c].write      ),
+      .data_qamo_i        (redmule_tcdm_req[c].amo        ),
+      .data_qdata_i       (redmule_tcdm_req[c].data       ),
+      .data_qstrb_i       (redmule_tcdm_req[c].strb       ),
+      .data_qid_i         (redmule_tcdm_req[c].id         ),
+      .data_qvalid_i      (redmule_tcdm_req_valid[c]      ),
+      .data_qready_o      (redmule_tcdm_req_ready[c]      ),
+      .data_pdata_o       (redmule_tcdm_resp[c].data      ),
+      .data_perror_o      (/* Unused */                   ),
+      .data_pid_o         (redmule_tcdm_resp[c].id        ),
+      .data_pvalid_o      (redmule_tcdm_resp_valid[c]     ),
+      .data_pready_i      (redmule_tcdm_resp_ready[c]     ),
+      .address_map_i      (mask_map                       )
     );
-
-    /* LOCAL REQ./RESP. */
-
-    // Local request
-    assign local_req_interco_payload[c+1].wdata.meta_id = local_tcdm_req.id;
-    assign local_req_interco_payload[c+1].wdata.amo = local_tcdm_req.amo;
-    assign local_req_interco_payload[c+1].wdata.data = local_tcdm_req.data;
-    assign local_req_interco_payload[c+1].wen = local_tcdm_req.write;
-    assign local_req_interco_payload[c+1].be = local_tcdm_req.strb;
-    assign local_req_interco_payload[c+1].burst.isburst = 1'b0;
-    assign local_req_interco_payload[c+1].burst.blen = '0;
-    // Remove tile index from local_req_tgt_address_i, since it will not be used for routing.
-    logic [TCDMAddrMemWidth-1:0] local_req_row_addr;
-    logic [$clog2(NumBanksPerTile)-1:0] local_req_bank_addr;
-    assign local_req_row_addr = local_tcdm_req.addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth];
-    assign local_req_bank_addr = local_tcdm_req.addr[ByteOffset +: $clog2(NumBanksPerTile)];
-    assign local_req_interco_payload[c+1].tgt_addr = tcdm_addr_t'({local_req_row_addr, local_req_bank_addr});
-    // We don't care about these
-    assign local_req_interco_payload[c+1].wdata.core_id = '0;
-    assign local_req_interco_payload[c+1].tile_id       = '0;
-
-    // Local response
-    assign local_tcdm_resp.id = local_resp_interco_payload[c+1].rdata.meta_id;
-    assign local_tcdm_resp.data = local_resp_interco_payload[c+1].rdata.data;
-    assign local_tcdm_resp.write = 1'b0; // Don't care
-    assign local_tcdm_resp.error = 1'b0; // Don't care
-
-    /* REMOTE REQ./RESP. */
-
-    // Address slicer
-    tcdm_addr_slicer i_tcdm_addr_slicer (
-      .remote_req_tgt_addr_i  (remote_req_postburst_addr[c]       ),
-      .remote_req_tgt_addr_o  (remote_req_interco[c+1].tgt_addr       ),
-      .tile_id_i              (tile_id_i                              ),
-      .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[c+1]        )
-    );
-
-    // Remote request
-    assign remote_req_preburst_payload[c].meta_id = remote_tcdm_req.id;
-    assign remote_req_preburst_payload[c].amo = remote_tcdm_req.amo;
-    assign remote_req_preburst_payload[c].data = remote_tcdm_req.data;
-    localparam unsigned port_id = c+1;
-    assign remote_req_preburst_payload[c].core_id = port_id[idx_width(RMMasterPorts+1)-1:0];
-    assign remote_req_preburst_wen[c] = remote_tcdm_req.write;
-    assign remote_req_preburst_be[c] = remote_tcdm_req.strb;
-    assign remote_req_preburst_addr[c] = remote_tcdm_req.addr;
-    // Remote request post burst
-    assign remote_req_interco[c+1].wdata = remote_req_postburst_payload[c];
-    assign remote_req_interco[c+1].wen = remote_req_postburst_we[c];
-    assign remote_req_interco[c+1].be = remote_req_postburst_be[c];
-    assign remote_req_interco[c+1].burst = remote_req_postburst_burst[c];
-    assign remote_req_interco_valid[c+1] = remote_req_postburst_valid[c];
-    assign remote_req_postburst_ready[c] = remote_req_interco_ready[c+1];
-
-    // Remote response
-    assign remote_tcdm_resp.id = remote_resp_preburst_payload[c].meta_id;
-    assign remote_tcdm_resp.data = remote_resp_preburst_payload[c].data;
-    assign remote_tcdm_resp.write = 1'b0; // Don't care
-    assign remote_tcdm_resp.error = 1'b0; // Don't care
-    // Remote response post burst
-    assign remote_resp_postburst_payload[c] = remote_resp_interco[c+1].rdata;
-    assign remote_resp_postburst_burst[c] = remote_resp_interco[c+1].burst;
 
   end
 
@@ -1137,107 +1141,111 @@ module mempool_redmule_tile
   logic   redmule_data_pvalid;
   logic   redmule_data_pready;
 
-  // Unsliced addresses
-  addr_t local_req_presliced_tgt_addr;
-  addr_t remote_req_presliced_tgt_addr;
-  logic [TCDMAddrMemWidth-1:0] local_req_presliced_row_addr;
-  logic [$clog2(NumBanksPerTile)-1:0] local_req_presliced_bank_addr;
+  for (genvar c = 0; c < 1; c++) begin: gen_core_mux
 
-  // Scramble address before entering TCDM shim for sequential+interleaved memory map
-  addr_t snitch_data_qaddr_scrambled;
-  address_scrambler #(
-    .AddrWidth         (AddrWidth        ),
-    .ByteOffset        (ByteOffset       ),
-    .NumTiles          (NumTiles         ),
-    .NumBanksPerTile   (NumBanksPerTile  ),
-    .Bypass            (0                ),
-    .SeqMemSizePerTile (SeqMemSizePerTile)
-  ) i_sn_address_scrambler (
-    .address_i (snitch_data_qaddr          ),
-    .address_o (snitch_data_qaddr_scrambled)
-  );
+    // Unsliced addresses
+    addr_t local_req_presliced_tgt_addr;
+    addr_t remote_req_presliced_tgt_addr;
+    logic [TCDMAddrMemWidth-1:0] local_req_presliced_row_addr;
+    logic [$clog2(NumBanksPerTile)-1:0] local_req_presliced_bank_addr;
 
-  tcdm_shim #(
-    .AddrWidth           (AddrWidth                         ),
-    .DataWidth           (DataWidth                         ),
-    .MaxOutStandingTrans (snitch_pkg::NumIntOutstandingLoads),
-    .NrTCDM              (2                                 ),
-    .NrSoC               (1                                 ),
-    .NumRules            (3                                 )
-  ) i_sn_tcdm_shim (
-    .clk_i              (clk_i                                                                              ),
-    .rst_ni             (rst_ni                                                                             ),
-    // to TCDM --> FF Connection to outside of tile
-    .tcdm_req_valid_o   ({local_req_interco_valid[0], remote_req_interco_valid[0]}                          ),
-    .tcdm_req_tgt_addr_o({local_req_presliced_tgt_addr, remote_req_presliced_tgt_addr}                      ),
-    .tcdm_req_wen_o     ({local_req_interco_payload[0].wen, remote_req_interco[0].wen}                      ),
-    .tcdm_req_wdata_o   ({local_req_interco_payload[0].wdata.data, remote_req_interco[0].wdata.data}        ),
-    .tcdm_req_amo_o     ({local_req_interco_payload[0].wdata.amo, remote_req_interco[0].wdata.amo}          ),
-    .tcdm_req_id_o      ({local_req_interco_payload[0].wdata.meta_id, remote_req_interco[0].wdata.meta_id}  ),
-    .tcdm_req_be_o      ({local_req_interco_payload[0].be, remote_req_interco[0].be}                        ),
-    .tcdm_req_ready_i   ({local_req_interco_ready[0], remote_req_interco_ready[0]}                          ),
-    .tcdm_resp_valid_i  ({local_resp_interco_valid[0], remote_resp_interco_valid[0]}                        ),
-    .tcdm_resp_ready_o  ({local_resp_interco_ready[0], remote_resp_interco_ready[0]}                        ),
-    .tcdm_resp_rdata_i  ({local_resp_interco_payload[0].rdata.data, remote_resp_interco[0].rdata.data}      ),
-    .tcdm_resp_id_i     ({local_resp_interco_payload[0].rdata.meta_id, remote_resp_interco[0].rdata.meta_id}),
-    // to SoC or RedMule
-    .soc_qaddr_o        (per_data_q.addr            ),
-    .soc_qwrite_o       (per_data_q.write           ),
-    .soc_qamo_o         (per_data_q.amo             ),
-    .soc_qdata_o        (per_data_q.data            ),
-    .soc_qstrb_o        (per_data_q.strb            ),
-    .soc_qvalid_o       (per_data_qvalid            ),
-    .soc_qready_i       (per_data_qready            ),
-    .soc_pdata_i        (per_data_p.data            ),
-    .soc_perror_i       (per_data_p.error           ),
-    .soc_pvalid_i       (per_data_pvalid            ),
-    .soc_pready_o       (per_data_pready            ),
-    // from core
-    .data_qaddr_i       (snitch_data_qaddr_scrambled),
-    .data_qwrite_i      (snitch_data_qwrite         ),
-    .data_qamo_i        (snitch_data_qamo           ),
-    .data_qdata_i       (snitch_data_qdata          ),
-    .data_qstrb_i       (snitch_data_qstrb          ),
-    .data_qid_i         (snitch_data_qid            ),
-    .data_qvalid_i      (snitch_data_qvalid         ),
-    .data_qready_o      (snitch_data_qready         ),
-    .data_pdata_o       (snitch_data_pdata          ),
-    .data_perror_o      (snitch_data_perror         ),
-    .data_pid_o         (snitch_data_pid            ),
-    .data_pvalid_o      (snitch_data_pvalid         ),
-    .data_pready_i      (snitch_data_pready         ),
-    .address_map_i      (mask_map                   )
-  );
+    /* LOCAL REQUESTS */
 
-  /* LOCAL REQUESTS */
+    // We don't care about these
+    assign local_req_interco_payload[0].wdata.core_id = '0;
+    assign local_req_interco_payload[0].tile_id       = '0;
+    assign per_data_q.id                              = '0;
+    // Remove tile index from local_req_tgt_address_i, since it will not be used for routing.
+    assign local_req_presliced_row_addr = local_req_presliced_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth];
+    assign local_req_presliced_bank_addr = local_req_presliced_tgt_addr[ByteOffset +: $clog2(NumBanksPerTile)];
+    assign local_req_interco_payload[0].tgt_addr = tcdm_addr_t'({local_req_presliced_row_addr, local_req_presliced_bank_addr});
+    // requests from Snitch are not bursted
+    assign local_req_interco_payload[0].burst.isburst = 1'b0;
+    assign local_req_interco_payload[0].burst.blen = '0;
 
-  // We don't care about these
-  assign local_req_interco_payload[0].wdata.core_id = '0;
-  assign local_req_interco_payload[0].tile_id       = '0;
-  assign per_data_q.id                              = '0;
-  // Remove tile index from local_req_tgt_address_i, since it will not be used for routing.
-  assign local_req_presliced_row_addr = local_req_presliced_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth];
-  assign local_req_presliced_bank_addr = local_req_presliced_tgt_addr[ByteOffset +: $clog2(NumBanksPerTile)];
-  assign local_req_interco_payload[0].tgt_addr = tcdm_addr_t'({local_req_presliced_row_addr, local_req_presliced_bank_addr});
-  // requests from Snitch are not bursted
-  assign local_req_interco_payload[0].burst.isburst = 1'b0;
-  assign local_req_interco_payload[0].burst.blen = '0;
+    /* REMOTE REQUESTS */
 
-  /* REMOTE REQUESTS */
+    // Address slicer
+    tcdm_addr_slicer i_tcdm_addr_slicer (
+      .remote_req_tgt_addr_i  (remote_req_presliced_tgt_addr          ),
+      .remote_req_tgt_addr_o  (remote_req_interco[0].tgt_addr         ),
+      .tile_id_i              (tile_id_i                              ),
+      .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[0]          )
+    );
+    // Constant value
+    assign remote_req_interco[0].wdata.core_id = '0;
+    // Requests from Snitch are not bursted
+    assign remote_req_interco[0].burst.isburst = 1'b0;
+    assign remote_req_interco[0].burst.blen = '0;
 
-  // Address slicer
-  tcdm_addr_slicer i_tcdm_addr_slicer (
-    .remote_req_tgt_addr_i  (remote_req_presliced_tgt_addr          ),
-    .remote_req_tgt_addr_o  (remote_req_interco[0].tgt_addr         ),
-    .tile_id_i              (tile_id_i                              ),
-    .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[0]          )
-  );
+    // Scramble address before entering TCDM shim for sequential+interleaved memory map
+    addr_t snitch_data_qaddr_scrambled;
+    address_scrambler #(
+      .AddrWidth         (AddrWidth        ),
+      .ByteOffset        (ByteOffset       ),
+      .NumTiles          (NumTiles         ),
+      .NumBanksPerTile   (NumBanksPerTile  ),
+      .Bypass            (0                ),
+      .SeqMemSizePerTile (SeqMemSizePerTile)
+    ) i_sn_address_scrambler (
+      .address_i (snitch_data_qaddr          ),
+      .address_o (snitch_data_qaddr_scrambled)
+    );
 
-  // Constant value
-  assign remote_req_interco[0].wdata.core_id = '0;
-  // Requests from Snitch are not bursted
-  assign remote_req_interco[0].burst.isburst = 1'b0;
-  assign remote_req_interco[0].burst.blen = '0;
+    tcdm_shim #(
+      .AddrWidth           (AddrWidth                         ),
+      .DataWidth           (DataWidth                         ),
+      .MaxOutStandingTrans (snitch_pkg::NumIntOutstandingLoads),
+      .NrTCDM              (2                                 ),
+      .NrSoC               (1                                 ),
+      .NumRules            (3                                 ),
+      .req_t               (snitch_pkg::dreq_t                ),
+      .resp_t              (snitch_pkg::dresp_t               )
+    ) i_sn_tcdm_shim (
+      .clk_i              (clk_i                                                                              ),
+      .rst_ni             (rst_ni                                                                             ),
+      // to TCDM --> FF Connection to outside of tile
+      .tcdm_req_valid_o   ({local_req_interco_valid[0], remote_req_interco_valid[0]}                          ),
+      .tcdm_req_tgt_addr_o({local_req_presliced_tgt_addr, remote_req_presliced_tgt_addr}                      ),
+      .tcdm_req_wen_o     ({local_req_interco_payload[0].wen, remote_req_interco[0].wen}                      ),
+      .tcdm_req_wdata_o   ({local_req_interco_payload[0].wdata.data, remote_req_interco[0].wdata.data}        ),
+      .tcdm_req_amo_o     ({local_req_interco_payload[0].wdata.amo, remote_req_interco[0].wdata.amo}          ),
+      .tcdm_req_id_o      ({local_req_interco_payload[0].wdata.meta_id, remote_req_interco[0].wdata.meta_id}  ),
+      .tcdm_req_be_o      ({local_req_interco_payload[0].be, remote_req_interco[0].be}                        ),
+      .tcdm_req_ready_i   ({local_req_interco_ready[0], remote_req_interco_ready[0]}                          ),
+      .tcdm_resp_valid_i  ({local_resp_interco_valid[0], remote_resp_interco_valid[0]}                        ),
+      .tcdm_resp_ready_o  ({local_resp_interco_ready[0], remote_resp_interco_ready[0]}                        ),
+      .tcdm_resp_rdata_i  ({local_resp_interco_payload[0].rdata.data, remote_resp_interco[0].rdata.data}      ),
+      .tcdm_resp_id_i     ({local_resp_interco_payload[0].rdata.meta_id, remote_resp_interco[0].rdata.meta_id}),
+      // to SoC or RedMule
+      .soc_qaddr_o        (per_data_q.addr            ),
+      .soc_qwrite_o       (per_data_q.write           ),
+      .soc_qamo_o         (per_data_q.amo             ),
+      .soc_qdata_o        (per_data_q.data            ),
+      .soc_qstrb_o        (per_data_q.strb            ),
+      .soc_qvalid_o       (per_data_qvalid            ),
+      .soc_qready_i       (per_data_qready            ),
+      .soc_pdata_i        (per_data_p.data            ),
+      .soc_perror_i       (per_data_p.error           ),
+      .soc_pvalid_i       (per_data_pvalid            ),
+      .soc_pready_o       (per_data_pready            ),
+      // from core
+      .data_qaddr_i       (snitch_data_qaddr_scrambled),
+      .data_qwrite_i      (snitch_data_qwrite         ),
+      .data_qamo_i        (snitch_data_qamo           ),
+      .data_qdata_i       (snitch_data_qdata          ),
+      .data_qstrb_i       (snitch_data_qstrb          ),
+      .data_qid_i         (snitch_data_qid            ),
+      .data_qvalid_i      (snitch_data_qvalid         ),
+      .data_qready_o      (snitch_data_qready         ),
+      .data_pdata_o       (snitch_data_pdata          ),
+      .data_perror_o      (snitch_data_perror         ),
+      .data_pid_o         (snitch_data_pid            ),
+      .data_pvalid_o      (snitch_data_pvalid         ),
+      .data_pready_i      (snitch_data_pready         ),
+      .address_map_i      (mask_map                   )
+    );
+  end
 
   /************************
    *   Peripheral demux   *
