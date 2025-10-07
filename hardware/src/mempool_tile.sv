@@ -982,7 +982,9 @@ module mempool_tile
         .MaxOutStandingTrans (snitch_pkg::NumIntOutstandingLoads),
         .NrTCDM              (2                                 ),
         .NrSoC               (1                                 ),
-        .NumRules            (3                                 )
+        .NumRules            (3                                 ),
+        .req_t               (snitch_pkg::dreq_t                ),
+        .resp_t              (snitch_pkg::dresp_t               )
       ) i_tcdm_shim (
         .clk_i              (clk_i                                                                              ),
         .rst_ni             (rst_ni                                                                             ),
