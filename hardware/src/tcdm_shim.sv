@@ -19,7 +19,9 @@ module tcdm_shim
   parameter int unsigned NumRules            = 1             , // Routing rules
   localparam int unsigned StrbWidth          = DataWidth/8   ,
   localparam int unsigned NumOutput          = NrTCDM + NrSoC,
-  localparam int unsigned MetaIdWidth        = mempool_pkg::MetaIdWidth
+  localparam int unsigned MetaIdWidth        = mempool_pkg::MetaIdWidth,
+  parameter type req_t                       = logic,
+  parameter type resp_t                      = logic
 ) (
   input  logic                                          clk_i,
   input  logic                                          rst_ni,
@@ -66,20 +68,16 @@ module tcdm_shim
   input  address_map_t [NumRules-1:0]                   address_map_i
 );
 
-  // Imports
-  import snitch_pkg::dreq_t;
-  import snitch_pkg::dresp_t;
-
   // Includes
   `include "common_cells/registers.svh"
 
-  dreq_t              data_qpayload;
-  dreq_t [NrSoC-1:0]  soc_qpayload;
-  dreq_t [NrTCDM-1:0] tcdm_qpayload;
+  req_t              data_qpayload;
+  req_t [NrSoC-1:0]  soc_qpayload;
+  req_t [NrTCDM-1:0] tcdm_qpayload;
 
-  dresp_t              data_ppayload;
-  dresp_t [NrSoC-1:0]  soc_ppayload;
-  dresp_t [NrTCDM-1:0] tcdm_ppayload;
+  resp_t              data_ppayload;
+  resp_t [NrSoC-1:0]  soc_ppayload;
+  resp_t [NrTCDM-1:0] tcdm_ppayload;
 
   for (genvar i = 0; i < NrTCDM; i++) begin : gen_tcdm_ppayload
     assign tcdm_ppayload[i].id    = tcdm_resp_id_i[i];
@@ -115,8 +113,8 @@ module tcdm_shim
     .NrOutput     (NumOutput),
     .AddressWidth (AddrWidth),
     .NumRules     (NumRules ), // TODO
-    .req_t        (dreq_t   ),
-    .resp_t       (dresp_t  )
+    .req_t        (req_t    ),
+    .resp_t       (resp_t   )
   ) i_snitch_addr_demux (
     .clk_i         (clk_i                            ),
     .rst_ni        (rst_ni                           ),
