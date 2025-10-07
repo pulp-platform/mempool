@@ -106,7 +106,10 @@ vlogan_args += +v2k
 vlogan_args += -override_timescale=1ns/1ps -kdb
 
 # Configuration name
-vlog_defs   += -D$(config)
+vlog_defs += -D$(config)
+ifeq ($(config),tensorpool400)
+	vlog_defs += -DTERAPOOL
+endif
 # Cluster configurations
 vlog_defs   += -DNUM_CORES=$(num_cores)
 vlog_defs   += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
