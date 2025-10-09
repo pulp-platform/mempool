@@ -189,7 +189,6 @@ clean-deps:
 		cluster_interconnect \
 		common_cells \
 		common_verification \
-		dram_rtl_sim \
 		fpnew \
 		fpu_div_sqrt_mvp \
 		register_interface \

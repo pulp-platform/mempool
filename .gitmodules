@@ -13,3 +13,6 @@
 [submodule "toolchain/riscv-opcodes"]
 	path = toolchain/riscv-opcodes
 	url = https://github.com/pulp-platform/riscv-opcodes.git
+[submodule "hardware/deps/dram_rtl_sim"]
+	path = hardware/deps/dram_rtl_sim
+	url = https://github.com/pulp-platform/dram_rtl_sim.git
