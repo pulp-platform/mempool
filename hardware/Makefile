@@ -166,6 +166,36 @@ cpp_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 
 .DEFAULT_GOAL := compile
 
+# Update Bender dependencies
+BENDER_ROOT ?= $(ROOT_DIR)/deps
+
+# Ensure both Bender dependencies and (essential) submodules are checked out
+$(BENDER_ROOT)/.mempool_deps: $(bender)
+	cd $(ROOT_DIR)/.. $(bender) checkout
+	@touch $@
+
+# Make sure dependencies are more up-to-date than any targets run
+ifeq ($(shell test -f $(BENDER_ROOT)/.mempool_deps && echo 1),)
+-include $(BENDER_ROOT)/.mempool_deps
+endif
+
+# Running this target will reset dependencies (without updating the checked-in Bender.lock)
+.PHONY: clean-deps
+clean-deps:
+	cd $(BENDER_ROOT) && rm -rf \
+		apb \
+		axi \
+		cluster_icache \
+		cluster_interconnect \
+		common_cells \
+		common_verification \
+		dram_rtl_sim \
+		fpnew \
+		fpu_div_sqrt_mvp \
+		register_interface \
+		tech_cells_generic
+	rm -f $(BENDER_ROOT)/.mempool_deps
+
 # Build path
 $(buildpath):
 	mkdir -p $(buildpath)
