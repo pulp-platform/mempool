@@ -247,7 +247,7 @@ jobs:
       run: pip install -r python-requirements.txt
     - name: Build Control Registers
       run: |
-        git submodule update --init --recursive -- hardware/deps/register_interface
+        make bender
         git apply hardware/deps/patches/register_interface.patch
         make -C hardware/src/control_registers clean
         make -C hardware/src/control_registers all

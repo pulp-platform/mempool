@@ -100,7 +100,6 @@ verilator-model:
         ln -s $VERILATOR_ROOT/share/verilator/include $VERILATOR_ROOT/include
         ln -s $VERILATOR_ROOT/share/verilator/bin/verilator_includer $VERILATOR_ROOT/bin/verilator_includer
         # Build the verilator model
-        git submodule update --init --recursive -- hardware/deps/*
         make update-deps
         make -C hardware $ROOT_DIR/hardware/verilator_build/Vmempool_tb_verilator
         $CI_PROJECT_DIR/scripts/memora_retry.sh insert verilator-model
@@ -112,7 +111,6 @@ verilator-model:
 hardware:
   stage: test
   script:
-    - git submodule update --init --recursive -- hardware/deps/*
     - make update-deps
     - make -C hardware compile
   needs: []
@@ -157,7 +155,6 @@ check-opcodes:
     - cd software/apps/baremetal
     - make COMPILER=${COMPILER} all
     - cd ../..
-    - git submodule update --init --recursive -- hardware/deps/*
     - make update-deps
     - cd hardware
     - |
@@ -192,7 +189,6 @@ apps-halide:
     - cd software/apps/halide
     - make COMPILER=${COMPILER} all
     - cd ../..
-    - git submodule update --init --recursive -- hardware/deps/*
     - make update-deps
     - cd hardware
     - app=apps/halide/2d_convolution make simc
