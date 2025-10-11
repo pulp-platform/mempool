@@ -76,3 +76,6 @@
 [submodule "hardware/deps/redundancy_cells"]
 	path = hardware/deps/redundancy_cells
 	url = https://github.com/pulp-platform/redundancy_cells.git
+[submodule "hardware/deps/opope"]
+	path = hardware/deps/opope
+	url = git@iis-git.ee.ethz.ch:vbonacina/opope.git
