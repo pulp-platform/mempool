@@ -2,7 +2,7 @@
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-if {$config == {terapool}} {
+if {$config == {terapool} || $config == {tensorpool400}} {
 
   add wave -noupdate -group redmule[$1][$2][$3] -divider RedMulE_core
   add wave -noupdate -group redmule[$1][$2][$3] /mempool_tb/dut/i_mempool_cluster/gen_groups[$1]/gen_rtl_group/i_group/gen_sub_groups[$2]/gen_rtl_sg/i_sub_group/gen_tiles[$3]/gen_redmule_tile/i_tile/riscv_core/inst_addr_o
