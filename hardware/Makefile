@@ -108,6 +108,9 @@ vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
 vlog_args += -work $(library)
 # Defines
 vlog_defs += -D$(config)
+ifeq ($(config),tensorpool400)
+	vlog_defs += -DTERAPOOL
+endif
 # Cluster configurations
 vlog_defs += -DNUM_CORES=$(num_cores)
 vlog_defs += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
