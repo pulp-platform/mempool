@@ -599,9 +599,7 @@ module mempool_tile
         assign prebank_resp_payload[b].burst.gdata[j] = (RspGF > 1) ? manager_resp_burst[b].gdata[j].data : '0;
       end
     end
-
   end else begin : gen_bypass_manager
-
     for (genvar b = 0; b < NumBanksPerTile; b++) begin : gen_bank_connections
       // request
       assign bank_req_be[b]               = prebank_req_payload[b].be;
@@ -625,7 +623,6 @@ module mempool_tile
       assign prebank_req_ini_addr[b]                  = bank_resp_payload[b].ini_addr;
       assign prebank_req_wide[b]                      = bank_resp_payload[b].wide;
     end
-
   end
 
   for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_banks

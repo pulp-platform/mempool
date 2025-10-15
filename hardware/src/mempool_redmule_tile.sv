@@ -213,7 +213,7 @@ module mempool_redmule_tile
   // RedMulE TCDM response
   transactions_table #(
     .NumPorts        (RMMasterPorts),
-    .NumTransactions (RMNumStreams*RMOutstandingTransactions),
+    .NumTransactions ((RMNumStreams-1)*RMOutstandingTransactions),
     .resp_t          (rm_dresp_t)
   ) i_transactions_table (
     .clk_i         (clk_i     ),
@@ -604,6 +604,7 @@ module mempool_redmule_tile
       assign bank_req_payload[b].wide     = postmanager_req[b].wide;
       assign bank_req_amo[b]              = postmanager_req[b].amo;
       assign bank_req_data[b]             = postmanager_req[b].data;
+
       // Postmanager responses
       assign postmanager_resp_ini[b]      = bank_resp_payload[b].core_id;
       assign postmanager_resp[b].meta_id  = bank_resp_payload[b].meta_id;
@@ -626,9 +627,7 @@ module mempool_redmule_tile
         assign prebank_resp_payload[b].burst.gdata[j] = (RspGF > 1) ? manager_resp_burst[b].gdata[j].data : '0;
       end
     end
-
   end else begin : gen_bypass_manager
-
     for (genvar b = 0; b < NumBanksPerTile; b++) begin : gen_bank_connections
       // request
       assign bank_req_be[b]               = prebank_req_payload[b].be;
@@ -652,7 +651,6 @@ module mempool_redmule_tile
       assign prebank_req_ini_addr[b]                  = bank_resp_payload[b].ini_addr;
       assign prebank_req_wide[b]                      = bank_resp_payload[b].wide;
     end
-
   end
 
   for (genvar b = 0; unsigned'(b) < NumBanksPerTile; b++) begin: gen_banks
@@ -981,10 +979,10 @@ module mempool_redmule_tile
 
     // Address slicer
     tcdm_addr_slicer i_tcdm_addr_slicer (
-      .remote_req_tgt_addr_i  (remote_req_postburst_addr[c]       ),
-      .remote_req_tgt_addr_o  (remote_req_interco[c+1].tgt_addr       ),
-      .tile_id_i              (tile_id_i                              ),
-      .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[c+1]        )
+      .remote_req_tgt_addr_i  (remote_req_postburst_addr[c]     ),
+      .remote_req_tgt_addr_o  (remote_req_interco[c+1].tgt_addr ),
+      .tile_id_i              (tile_id_i                        ),
+      .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[c+1]  )
     );
 
     localparam unsigned port_id = c+1;
@@ -1009,7 +1007,7 @@ module mempool_redmule_tile
       .Bypass            (0                ),
       .SeqMemSizePerTile (SeqMemSizePerTile)
     ) i_address_scrambler (
-      .address_i (redmule_tcdm_req[c].addr      ),
+      .address_i (redmule_tcdm_req[c].addr ),
       .address_o (redmule_addr_scrambled[c])
     );
 
@@ -1060,7 +1058,7 @@ module mempool_redmule_tile
       .data_qvalid_i      (redmule_tcdm_req_valid[c]      ),
       .data_qready_o      (redmule_tcdm_req_ready[c]      ),
       .data_pdata_o       (redmule_tcdm_resp[c].data      ),
-      .data_perror_o      (/* Unused */                   ),
+      .data_perror_o      ( /* Unused */                  ),
       .data_pid_o         (redmule_tcdm_resp[c].id        ),
       .data_pvalid_o      (redmule_tcdm_resp_valid[c]     ),
       .data_pready_i      (redmule_tcdm_resp_ready[c]     ),
@@ -1167,10 +1165,10 @@ module mempool_redmule_tile
 
     // Address slicer
     tcdm_addr_slicer i_tcdm_addr_slicer (
-      .remote_req_tgt_addr_i  (remote_req_presliced_tgt_addr          ),
-      .remote_req_tgt_addr_o  (remote_req_interco[0].tgt_addr         ),
-      .tile_id_i              (tile_id_i                              ),
-      .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[0]          )
+      .remote_req_tgt_addr_i  (remote_req_presliced_tgt_addr  ),
+      .remote_req_tgt_addr_o  (remote_req_interco[0].tgt_addr ),
+      .tile_id_i              (tile_id_i                      ),
+      .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[0]  )
     );
     // Constant value
     assign remote_req_interco[0].wdata.core_id = '0;
