@@ -525,6 +525,7 @@ module mempool_tile
       .DataWidth      ( $bits(manager_payload_t)                      ),
       .BeWidth        ( DataWidth/8                                   ),
       .ByteOffWidth   ( 0                                             ),
+      .ReqGF          ( ReqGF                                         ),
       .RspGF          ( RspGF                                         ),
       .burst_resp_t   ( burst_manager_t                               )
     ) i_burst_manager (
