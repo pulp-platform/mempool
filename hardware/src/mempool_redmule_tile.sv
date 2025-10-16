@@ -552,6 +552,7 @@ module mempool_redmule_tile
       .DataWidth      ( $bits(manager_payload_t)                      ),
       .BeWidth        ( DataWidth/8                                   ),
       .ByteOffWidth   ( 0                                             ),
+      .ReqGF          ( ReqGF                                         ),
       .RspGF          ( RspGF                                         ),
       .burst_resp_t   ( burst_manager_t                               )
     ) i_burst_manager (
@@ -1078,6 +1079,7 @@ module mempool_redmule_tile
     .DataWidth    ( $bits(tcdm_payload_t)                   ),
     .BeWidth      ( DataWidth/8                             ),
     .AddrMemWidth ( idx_width(NumBanksPerTile) + ByteOffset ),
+    .ReqGF        ( ReqGF                                   ),
     .RspGF        ( RspGF                                   ),
     .ByteOffWidth ( ByteOffset                              )
   ) i_burst_req_grouper (

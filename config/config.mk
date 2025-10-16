@@ -64,8 +64,9 @@ xqueue_size ?= 0
 # Reads in the TCDM interconnect are sent as bursts
 tcdm_burst ?= 1
 
-# Responses to burst request use larger interconnect bandwidth
-burst_grsp ?= 2
+# Grouped request/responses are use the same valid/ready handshake
+burst_grsp ?= 4
+burst_greq ?= 4
 
 ################################
 ##  Optional functionalities  ##
