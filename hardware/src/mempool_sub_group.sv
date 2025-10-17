@@ -166,9 +166,12 @@ module mempool_sub_group
     logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] tran_tcdm_slave_resp_ready;
 
     if (t < NumRMTilesPerSubGroup) begin: gen_redmule_tile
-      mempool_redmule_tile #(
-        .TCDMBaseAddr(TCDMBaseAddr),
-        .BootAddr    (BootAddr    )
+      mempool_tile #(
+        .TCDMBaseAddr    (TCDMBaseAddr),
+        .BootAddr        (BootAddr    ),
+        .NumCoresPerTile (1           ),
+        .NumCoresPerCache(1           ),
+        .RedMulE         (1'b1        )
       ) i_tile (
         .clk_i                   (clk_i                                          ),
         .rst_ni                  (rst_ni                                         ),
@@ -206,7 +209,8 @@ module mempool_sub_group
     end else begin: gen_snitch_tile
       mempool_tile #(
         .TCDMBaseAddr(TCDMBaseAddr),
-        .BootAddr    (BootAddr    )
+        .BootAddr    (BootAddr    ),
+        .RedMulE     (1'b0        )
       ) i_tile (
         .clk_i                   (clk_i                                          ),
         .rst_ni                  (rst_ni                                         ),
