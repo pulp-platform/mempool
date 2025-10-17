@@ -51,7 +51,6 @@ sources:
   # Level 6
   - hardware/src/tc_sram_simwrapper.sv
   - hardware/src/mempool_system.sv
-  - hardware/src/mempool_redmule_tile.sv
 
   - target: mempool_vsim
     files:

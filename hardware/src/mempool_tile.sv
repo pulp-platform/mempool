@@ -3,10 +3,13 @@
 // SPDX-License-Identifier: SHL-0.51
 
 `include "mempool/mempool.svh"
+`include "hci_helpers.svh"
 
 /* verilator lint_off DECLFILENAME */
 module mempool_tile
   import mempool_pkg::*;
+  import hci_package::*;
+  import cv32e40x_pkg::*;
   import burst_pkg::*;
   import cf_math_pkg::idx_width;
 #(
@@ -14,10 +17,16 @@ module mempool_tile
   parameter addr_t       TCDMBaseAddr = 32'b0,
   // Boot address
   parameter logic [31:0] BootAddr     = 32'h0000_1000,
+  // Core in Tiles
+  parameter int unsigned NumCoresPerTile = mempool_pkg::NumCoresPerTile,
+  parameter int unsigned NumCoresPerCache = mempool_pkg::NumCoresPerCache,
+  // RedMulE
+  parameter logic        RedMulE      = 1'b0,
   // Dependent parameters. DO NOT CHANGE.
-  parameter int unsigned NumCaches    = NumCoresPerTile / NumCoresPerCache,
+  parameter int unsigned NumLocalPorts = RMMasterPorts + NumCoresPerTile,
+  parameter int unsigned NumCaches = NumCoresPerTile > NumCoresPerCache ? (NumCoresPerTile/NumCoresPerCache) : 1,
   // If NumDivsqrtPerTile is set, otherwise the parameter defaults to 1.
-  parameter int unsigned NumCoresPerDivsqrt = |NumDivsqrtPerTile ? (NumCoresPerTile/NumDivsqrtPerTile) : NumCoresPerTile
+  parameter int unsigned NumCoresPerDivsqrt = |NumDivsqrtPerTile ? (NumCoresPerTile/NumDivsqrtPerTile) : 1
 ) (
   // Clock and reset
   input  logic                                                                    clk_i,
@@ -73,12 +82,13 @@ module mempool_tile
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
 
   // Local interconnect address width
-  typedef logic [idx_width(NumCoresPerTile + NumGroups + NumSubGroupsPerGroup - 1)-1:0] local_req_interco_addr_t;
+  typedef logic [idx_width(NumLocalPorts + NumGroups + NumSubGroupsPerGroup - 1)-1:0] local_req_interco_addr_t;
 
   /*********************
    *  Control Signals  *
    *********************/
-  logic [NumCoresPerTile-1:0] wake_up_q;
+
+  logic [NumCoresPerTile-1:0] wake_up_q, wake_up;
   `FF(wake_up_q, wake_up_i, '0, clk_i, rst_ni);
 
   /***********
@@ -162,9 +172,9 @@ module mempool_tile
         .FPUImplementation       (snitch_pkg::DIVSQRT_IMPLEMENTATION)
       ) i_snitch_divsqrt (
         .clk_i,
-        .rst_i                   (!rst_ni                ),
+        .rst_i                   (!rst_ni             ),
         // pragma translate_off
-        .trace_port_o            (                       ),
+        .trace_port_o            (                    ),
         // pragma translate_on
         .acc_req_i               ( divsqrt_req        ),
         .acc_req_valid_i         ( divsqrt_req_valid  ),
@@ -180,11 +190,14 @@ module mempool_tile
   end
 
   for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_cores
+
     logic [31:0] hart_id;
 `ifdef TERAPOOL
-    assign hart_id = (tile_id_i / NumTilesPerSubGroup)*(NumCoresPerSubGroup - NumRMTilesPerSubGroup) + (tile_id_i % NumTilesPerSubGroup - NumRMTilesPerSubGroup)*NumCoresPerTile + c;
+    assign hart_id = RedMulE ? (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerSubGroup)*NumRMTilesPerSubGroup + (tile_id_i%NumTilesPerSubGroup) :
+                               (tile_id_i / NumTilesPerSubGroup)*(NumCoresPerSubGroup - NumRMTilesPerSubGroup) + (tile_id_i % NumTilesPerSubGroup - NumRMTilesPerSubGroup)*NumCoresPerTile + c;
 `else
-    assign hart_id = (tile_id_i / NumTilesPerGroup)*(NumCoresPerGroup - NumRMTilesPerGroup) + (tile_id_i % NumTilesPerGroup - NumRMTilesPerGroup)*NumCoresPerTile + c;
+    assign hart_id = RedMulE ? (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerGroup)*NumRMTilesPerGroup + (tile_id_i%NumTilesPerGroup) :
+                               (tile_id_i / NumTilesPerGroup)*(NumCoresPerGroup - NumRMTilesPerGroup) + (tile_id_i % NumTilesPerGroup - NumRMTilesPerGroup)*NumCoresPerTile + c;
 `endif
 
     if (!TrafficGeneration) begin: gen_mempool_cc
@@ -220,7 +233,7 @@ module mempool_tile
         .data_pid_i    (snitch_data_pid[c][snitch_pkg::SnitchIdWidth-1:0]        ),
         .data_pvalid_i (snitch_data_pvalid[c]                                    ),
         .data_pready_o (snitch_data_pready[c]                                    ),
-        .wake_up_sync_i(wake_up_q[c]                                             ),
+        .wake_up_sync_i(wake_up[c]                                               ),
         // Core Events
         .core_events_o (/* Unused */                                             )
       );
@@ -270,6 +283,7 @@ module mempool_tile
   /***********************
    *  Instruction Cache  *
    ***********************/
+
   // Instruction interface
   axi_cache_req_t  [NumCaches-1:0] axi_cache_req_d, axi_cache_req_q;
   axi_cache_resp_t [NumCaches-1:0] axi_cache_resp_d, axi_cache_resp_q;
@@ -519,7 +533,7 @@ module mempool_tile
 
     // Connecting to burst manager
     burst_manager #(
-      .NumIn          ( RMMasterPorts+1                               ),
+      .NumIn          ( NumLocalPorts                                 ),
       .NumOut         ( NumBanksPerTile                               ),
       .AddrWidth      ( TCDMAddrMemWidth + idx_width(NumBanksPerTile) ),
       .DataWidth      ( $bits(manager_payload_t)                      ),
@@ -696,7 +710,7 @@ module mempool_tile
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_valid;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_ready;
   tcdm_master_resp_t [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp;
-  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0][idx_width(NumCoresPerTile)-1:0] postreg_tcdm_master_resp_ini_sel;
+  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0][idx_width(NumLocalPorts)-1:0] postreg_tcdm_master_resp_ini_sel;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_valid;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp_ready;
 
@@ -731,7 +745,7 @@ module mempool_tile
     );
 
     // Helper signal to drive the remote response interconnect
-    assign postreg_tcdm_master_resp_ini_sel[h] = postreg_tcdm_master_resp[h].rdata.core_id[idx_width(NumCoresPerTile)-1:0];
+    assign postreg_tcdm_master_resp_ini_sel[h] = postreg_tcdm_master_resp[h].rdata.core_id[idx_width(NumLocalPorts)-1:0];
 
     fall_through_register #(
       .T(tcdm_slave_req_t)
@@ -762,25 +776,25 @@ module mempool_tile
     );
   end: gen_tcdm_registers
 
-  /****************************
-   *   Remote Interconnects   *
-   ****************************/
+  /***********************
+   *   Remote Intercos   *
+   ***********************/
 
-  tcdm_master_req_t  [NumCoresPerTile-1:0] remote_req_interco;
-  logic              [NumCoresPerTile-1:0] remote_req_interco_valid;
-  logic              [NumCoresPerTile-1:0] remote_req_interco_ready;
-  tcdm_master_resp_t [NumCoresPerTile-1:0] remote_resp_interco;
-  logic              [NumCoresPerTile-1:0] remote_resp_interco_valid;
-  logic              [NumCoresPerTile-1:0] remote_resp_interco_ready;
+  tcdm_master_req_t  [NumLocalPorts-1:0] remote_req_interco;
+  logic              [NumLocalPorts-1:0] remote_req_interco_valid;
+  logic              [NumLocalPorts-1:0] remote_req_interco_ready;
+  tcdm_master_resp_t [NumLocalPorts-1:0] remote_resp_interco;
+  logic              [NumLocalPorts-1:0] remote_resp_interco_valid;
+  logic              [NumLocalPorts-1:0] remote_resp_interco_ready;
 
   `ifdef TERAPOOL
-    tile_remote_sel_t  [NumCoresPerTile-1:0] remote_req_interco_tgt_sel;
+    tile_remote_sel_t  [NumLocalPorts-1:0] remote_req_interco_tgt_sel;
   `else
-    group_id_t         [NumCoresPerTile-1:0] remote_req_interco_tgt_sel;
+    group_id_t         [NumLocalPorts-1:0] remote_req_interco_tgt_sel;
   `endif
 
   stream_xbar #(
-    .NumInp   (NumCoresPerTile                 ),
+    .NumInp   (NumLocalPorts                   ),
     .NumOut   (NumGroups+NumSubGroupsPerGroup-1),
     .payload_t(tcdm_master_req_t               )
   ) i_remote_req_interco (
@@ -803,7 +817,7 @@ module mempool_tile
 
   stream_xbar #(
     .NumInp   (NumGroups+NumSubGroupsPerGroup-1),
-    .NumOut   (NumCoresPerTile                 ),
+    .NumOut   (NumLocalPorts                   ),
     .payload_t(tcdm_master_resp_t              )
   ) i_remote_resp_interco (
     .clk_i  (clk_i                           ),
@@ -827,25 +841,25 @@ module mempool_tile
    *   Local Intercos   *
    **********************/
 
-  logic             [NumCoresPerTile-1:0] local_req_interco_valid;
-  logic             [NumCoresPerTile-1:0] local_req_interco_ready;
-  tcdm_slave_req_t  [NumCoresPerTile-1:0] local_req_interco_payload;
-  logic             [NumCoresPerTile-1:0] local_resp_interco_valid;
-  logic             [NumCoresPerTile-1:0] local_resp_interco_ready;
-  tcdm_slave_resp_t [NumCoresPerTile-1:0] local_resp_interco_payload;
+  logic             [NumLocalPorts-1:0] local_req_interco_valid;
+  logic             [NumLocalPorts-1:0] local_req_interco_ready;
+  tcdm_slave_req_t  [NumLocalPorts-1:0] local_req_interco_payload;
+  logic             [NumLocalPorts-1:0] local_resp_interco_valid;
+  logic             [NumLocalPorts-1:0] local_resp_interco_ready;
+  tcdm_slave_resp_t [NumLocalPorts-1:0] local_resp_interco_payload;
 
-  logic [NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1-1:0][idx_width(NumBanksPerTile)-1:0] local_req_interco_tgt_sel;
-  for (genvar j = 0; unsigned'(j) < NumCoresPerTile; j++) begin: gen_local_req_interco_tgt_sel_local
+  logic [NumLocalPorts+NumGroups+NumSubGroupsPerGroup-1-1:0][idx_width(NumBanksPerTile)-1:0] local_req_interco_tgt_sel;
+  for (genvar j = 0; unsigned'(j) < NumLocalPorts; j++) begin: gen_local_req_interco_tgt_sel_local
     assign local_req_interco_tgt_sel[j]  = local_req_interco_payload[j].tgt_addr[idx_width(NumBanksPerTile)-1:0];
   end: gen_local_req_interco_tgt_sel_local
   for (genvar j = 0; unsigned'(j) < NumGroups+NumSubGroupsPerGroup-1; j++) begin: gen_local_req_interco_tgt_sel_remote
-    assign local_req_interco_tgt_sel[j + NumCoresPerTile]  = postreg_tcdm_slave_req[j].tgt_addr[idx_width(NumBanksPerTile)-1:0];
+    assign local_req_interco_tgt_sel[j + NumLocalPorts]  = postreg_tcdm_slave_req[j].tgt_addr[idx_width(NumBanksPerTile)-1:0];
   end: gen_local_req_interco_tgt_sel_remote
 
   stream_xbar #(
-    .NumInp   (NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1),
-    .NumOut   (NumBanksPerTile                                 ),
-    .payload_t(tcdm_slave_req_t                                )
+    .NumInp   (NumLocalPorts+NumGroups+NumSubGroupsPerGroup-1       ),
+    .NumOut   (NumBanksPerTile                                      ),
+    .payload_t(tcdm_slave_req_t                                     )
   ) i_local_req_interco (
     .clk_i  (clk_i                                                  ),
     .rst_ni (rst_ni                                                 ),
@@ -865,9 +879,9 @@ module mempool_tile
   );
 
   stream_xbar #(
-    .NumInp   (NumBanksPerTile                                 ),
-    .NumOut   (NumCoresPerTile+NumGroups+NumSubGroupsPerGroup-1),
-    .payload_t(tcdm_slave_resp_t                               )
+    .NumInp   (NumBanksPerTile                                       ),
+    .NumOut   (NumLocalPorts+NumGroups+NumSubGroupsPerGroup-1        ),
+    .payload_t(tcdm_slave_resp_t                                     )
   ) i_local_resp_interco (
     .clk_i  (clk_i                                                   ),
     .rst_ni (rst_ni                                                  ),
@@ -886,17 +900,9 @@ module mempool_tile
     .idx_o  (/* Unused */                                            )
   );
 
-  /*******************
-   *   Core De/mux   *
-   *******************/
-
-  // SoC requests
-  dreq_t  [NumCoresPerTile-1:0] soc_data_q;
-  logic   [NumCoresPerTile-1:0] soc_data_qvalid;
-  logic   [NumCoresPerTile-1:0] soc_data_qready;
-  dresp_t [NumCoresPerTile-1:0] soc_data_p;
-  logic   [NumCoresPerTile-1:0] soc_data_pvalid;
-  logic   [NumCoresPerTile-1:0] soc_data_pready;
+  /***********************
+   *   Snitch TCDM Mux   *
+   ***********************/
 
   // Address map
   typedef enum int unsigned {
@@ -922,15 +928,31 @@ module mempool_tile
     }
   };
 
+  // SoC requests
+  dreq_t  [NumCoresPerTile-1:0] soc_data_q;
+  logic   [NumCoresPerTile-1:0] soc_data_qvalid;
+  logic   [NumCoresPerTile-1:0] soc_data_qready;
+  dresp_t [NumCoresPerTile-1:0] soc_data_p;
+  logic   [NumCoresPerTile-1:0] soc_data_pvalid;
+  logic   [NumCoresPerTile-1:0] soc_data_pready;
+
+  // SoC mux requests
+  dreq_t  [NumCoresPerTile-1:0] soc_mux_q;
+  logic   [NumCoresPerTile-1:0] soc_mux_qvalid;
+  logic   [NumCoresPerTile-1:0] soc_mux_qready;
+  dresp_t [NumCoresPerTile-1:0] soc_mux_p;
+  logic   [NumCoresPerTile-1:0] soc_mux_pvalid;
+  logic   [NumCoresPerTile-1:0] soc_mux_pready;
+
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_core_mux
+
+    /* LOCAL REQUESTS */
 
     // Unsliced addresses
     addr_t local_req_presliced_tgt_addr;
     addr_t remote_req_presliced_tgt_addr;
     logic [TCDMAddrMemWidth-1:0] local_req_presliced_row_addr;
     logic [$clog2(NumBanksPerTile)-1:0] local_req_presliced_bank_addr;
-
-    /* LOCAL REQUESTS */
 
     // We don't care about these
     assign local_req_interco_payload[c].wdata.core_id = '0;
@@ -1074,6 +1096,440 @@ module mempool_tile
     end
   end
 
+  /***************
+   *   RedMule   *
+   ***************/
+
+  if (RedMulE) begin: gen_redmule
+
+    // RedMule interfaces
+    logic [1:0] redmule_evt;
+
+    rm_dreq_t  [RMMasterPorts-1:0] redmule_req, redmule_req_q;
+    logic      [RMMasterPorts-1:0] redmule_req_valid, redmule_req_qvalid;
+    logic      [RMMasterPorts-1:0] redmule_req_ready, redmule_req_qready;
+    rm_dresp_t [RMMasterPorts-1:0] redmule_resp, redmule_resp_q;
+    logic      [RMMasterPorts-1:0] redmule_resp_valid, redmule_resp_qvalid;
+    logic      [RMMasterPorts-1:0] redmule_resp_ready, redmule_resp_qready;
+
+    rm_dreq_t  [RMMasterPorts-1:0] redmule_tcdm_req;
+    logic      [RMMasterPorts-1:0] redmule_tcdm_req_valid;
+    logic      [RMMasterPorts-1:0] redmule_tcdm_req_ready;
+    rm_dresp_t [RMMasterPorts-1:0] redmule_tcdm_resp;
+    logic      [RMMasterPorts-1:0] redmule_tcdm_resp_valid;
+    logic      [RMMasterPorts-1:0] redmule_tcdm_resp_ready;
+
+    logic [RMMasterPorts-1:0] redmule_handshake_p;
+    logic [RMMasterPorts-1:0] redmule_handshake_q;
+
+    localparam hci_size_parameter_t `HCI_SIZE_PARAM(tcdm) = '{
+      DW:  RMDataWidth,
+      AW:  AddrWidth,
+      BW:  BeWidth,
+      UW:  idx_width(RMOutstandingTransactions),
+      IW:  idx_width(RMNumStreams),
+      EW:  0,
+      EHW: 0
+    };
+
+    hwpe_ctrl_intf_periph redmule_rmcfg ( .clk( clk_i ) );
+
+    hci_outstanding_intf #(
+      .DW (RMDataWidth),
+      .UW (idx_width(RMOutstandingTransactions)),
+      .IW (idx_width(RMNumStreams))
+    ) tcdm (
+      .clk ( clk_i )
+    );
+
+    // TODO: This interface port is unused in this context, but it is still required as module input.
+    // The interface connection should be removed upstream and inserted in a wrapper module.
+    cv32e40x_if_xif core_xif ();
+
+    redmule_top #(
+      .N_CORES               ( 1                                    ),
+      .DW                    ( RMDataWidth                          ),
+      .UW                    ( idx_width(RMOutstandingTransactions) ),
+      .X_EXT                 ( 0                                    ),
+      .`HCI_SIZE_PARAM(tcdm) ( `HCI_SIZE_PARAM(tcdm)                )
+    ) i_redmule_top       (
+      .clk_i              ( clk_i                      ),
+      .rst_ni             ( rst_ni                     ),
+      .test_mode_i        ( '0                         ),
+      .evt_o              ( redmule_evt                ),
+      .busy_o             ( /*Unused*/                 ),
+      .tcdm               ( tcdm                       ),
+      .xif_issue_if_i     ( core_xif.coproc_issue      ),
+      .xif_result_if_o    ( core_xif.coproc_result     ),
+      .xif_compressed_if_i( core_xif.coproc_compressed ),
+      .xif_mem_if_o       ( core_xif.coproc_mem        ),
+      .periph             ( redmule_rmcfg              )
+    );
+
+    // Wake up core on RedMulE's EOC
+    assign wake_up = wake_up_q | {{(NumCoresPerTile-1){1'b1}},redmule_evt[0]};
+
+    // RedMulE TCDM ports
+    for(genvar p = 0; p < RMMasterPorts; p++) begin : gen_redmule_tcdm
+      assign redmule_req[p].addr    = tcdm.req_add + p*4;
+      assign redmule_req[p].write   = ~tcdm.req_wen;
+      assign redmule_req[p].strb    = tcdm.req_be[(p+1)*4-1:p*4];
+      assign redmule_req[p].data    = tcdm.req_data[(p+1)*DataWidth-1:p*DataWidth];
+      assign redmule_req[p].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] = tcdm.req_id;
+      assign redmule_req[p].id[idx_width(RMOutstandingTransactions)-1:0] = tcdm.req_user;
+      assign redmule_req[p].amo     = '0;
+      assign redmule_req_valid[p]   = tcdm.req_valid;
+      assign tcdm.resp_data[(p+1)*DataWidth-1:p*DataWidth] = redmule_resp_q[p].data;
+      assign redmule_resp_qready[p]                         = tcdm.resp_ready;
+    end : gen_redmule_tcdm
+    assign tcdm.req_ready  = &(redmule_req_ready);
+    assign tcdm.resp_id    = redmule_resp_q[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
+    assign tcdm.resp_user  = redmule_resp_q[0].id[idx_width(RMOutstandingTransactions)-1:0];
+    assign tcdm.resp_valid = &(redmule_resp_qvalid);
+
+    for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_redmule_regs
+      stream_register #(
+        .T(rm_dreq_t)
+      ) i_redmule_req_register (
+        .clk_i      ( clk_i                 ),
+        .rst_ni     ( rst_ni                ),
+        .clr_i      ( 1'b0                  ),
+        .testmode_i ( 1'b0                  ),
+        .valid_i    ( redmule_req_valid[p]  ),
+        .ready_o    ( redmule_req_ready[p]  ),
+        .data_i     ( redmule_req[p]        ),
+        .valid_o    ( redmule_req_qvalid[p] ),
+        .ready_i    ( redmule_req_qready[p] ),
+        .data_o     ( redmule_req_q[p]      )
+      );
+      stream_register #(
+        .T(rm_dresp_t)
+      ) i_redmule_resp_register (
+        .clk_i      ( clk_i                  ),
+        .rst_ni     ( rst_ni                 ),
+        .clr_i      ( 1'b0                   ),
+        .testmode_i ( 1'b0                   ),
+        .valid_i    ( redmule_resp_valid[p]  ),
+        .ready_o    ( redmule_resp_ready[p]  ),
+        .data_i     ( redmule_resp[p]        ),
+        .valid_o    ( redmule_resp_qvalid[p] ),
+        .ready_i    ( redmule_resp_qready[p] ),
+        .data_o     ( redmule_resp_q[p]      )
+      );
+    end: gen_redmule_regs
+
+    // RedMulE TCDM request handshake
+    // Handshake separately on each request port
+    assign redmule_handshake_p = &redmule_req_qready ? '0 : redmule_req_qready;
+    `FF(redmule_handshake_q, redmule_handshake_p, '0, clk_i, rst_ni);
+    assign redmule_tcdm_req = redmule_req_q;
+    assign redmule_tcdm_req_valid = ~redmule_handshake_q & redmule_req_qvalid;
+    assign redmule_req_qready = redmule_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
+
+    // RedMulE TCDM response handshake
+    transactions_table #(
+      .NumPorts        ( RMMasterPorts                              ),
+      .NumTransactions ( (RMNumStreams-1)*RMOutstandingTransactions ),
+      .resp_t          ( rm_dresp_t                                 )
+    ) i_transactions_table (
+      .clk_i          ( clk_i                   ),
+      .rst_ni         ( rst_ni                  ),
+      .resp_payload_i ( redmule_tcdm_resp       ),
+      .resp_valid_i   ( redmule_tcdm_resp_valid ),
+      .resp_ready_o   ( redmule_tcdm_resp_ready ),
+      .resp_payload_o ( redmule_resp            ),
+      .resp_valid_o   ( redmule_resp_valid      ),
+      .resp_ready_i   ( redmule_resp_ready      )
+    );
+
+    /************************
+     *   RedMule TCDM Mux   *
+     ************************/
+
+    addr_t [RMMasterPorts-1:0] redmule_addr_scrambled;
+    // Burst requests/responses
+    tcdm_payload_t [RMMasterPorts-1:0] remote_req_preburst_payload, remote_req_postburst_payload;
+    logic          [RMMasterPorts-1:0] remote_req_preburst_wen, remote_req_postburst_we;
+    strb_t         [RMMasterPorts-1:0] remote_req_preburst_be, remote_req_postburst_be;
+    addr_t         [RMMasterPorts-1:0] remote_req_preburst_addr, remote_req_postburst_addr;
+    logic          [RMMasterPorts-1:0] remote_req_preburst_valid, remote_req_postburst_valid;
+    logic          [RMMasterPorts-1:0] remote_req_preburst_ready, remote_req_postburst_ready;
+    burst_t        [RMMasterPorts-1:0] remote_req_postburst_burst;
+    //
+    tcdm_payload_t [RMMasterPorts-1:0] remote_resp_preburst_payload, remote_resp_postburst_payload;
+    logic          [RMMasterPorts-1:0] remote_resp_preburst_valid, remote_resp_preburst_ready;
+    burst_gresp_t  [RMMasterPorts-1:0] remote_resp_postburst_burst;
+
+    for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_redmule_mux
+
+      localparam int unsigned c = p + NumCoresPerTile;
+
+      /* LOCAL REQUESTS */
+
+      addr_t local_req_presliced_tgt_addr;
+      logic [TCDMAddrMemWidth-1:0] local_req_presliced_row_addr;
+      logic [$clog2(NumBanksPerTile)-1:0] local_req_presliced_bank_addr;
+
+      // We don't care about these
+      assign local_req_interco_payload[c].wdata.core_id = c;
+      assign local_req_interco_payload[c].tile_id = '0;
+      // Remove tile index from local_req_tgt_address_i, since it will not be used for routing.
+      assign local_req_presliced_row_addr = local_req_presliced_tgt_addr[ByteOffset + $clog2(NumBanksPerTile) + $clog2(NumTiles) +: TCDMAddrMemWidth];
+      assign local_req_presliced_bank_addr = local_req_presliced_tgt_addr[ByteOffset +: $clog2(NumBanksPerTile)];
+      assign local_req_interco_payload[c].tgt_addr = tcdm_addr_t'({local_req_presliced_row_addr, local_req_presliced_bank_addr});
+      // Local requests are not bursted
+      assign local_req_interco_payload[c].burst.isburst = 1'b0;
+      assign local_req_interco_payload[c].burst.blen = '0;
+
+      /* REMOTE REQUESTS */
+
+      // Address slicer
+      tcdm_addr_slicer i_tcdm_addr_slicer (
+        .remote_req_tgt_addr_i  (remote_req_postburst_addr[p]   ),
+        .remote_req_tgt_addr_o  (remote_req_interco[c].tgt_addr ),
+        .tile_id_i              (tile_id_i                      ),
+        .remote_req_tgt_sel_o   (remote_req_interco_tgt_sel[c]  )
+      );
+      assign remote_req_preburst_payload[p].core_id = c[idx_width(NumLocalPorts)-1:0];
+
+      // Remote request post burst
+      assign remote_req_interco[c].wdata            = remote_req_postburst_payload[p];
+      assign remote_req_interco[c].wen              = remote_req_postburst_we[p];
+      assign remote_req_interco[c].be               = remote_req_postburst_be[p];
+      assign remote_req_interco[c].burst            = remote_req_postburst_burst[p];
+      assign remote_req_interco_valid[c]            = remote_req_postburst_valid[p];
+      assign remote_req_postburst_ready[p]          = remote_req_interco_ready[c];
+      // Remote response post burst
+      assign remote_resp_postburst_payload[p]       = remote_resp_interco[c].rdata;
+      assign remote_resp_postburst_burst[p]         = remote_resp_interco[c].burst;
+
+      // Scramble address before entering TCDM shim for sequential+interleaved memory map
+      address_scrambler #(
+        .AddrWidth         (AddrWidth        ),
+        .ByteOffset        (ByteOffset       ),
+        .NumTiles          (NumTiles         ),
+        .NumBanksPerTile   (NumBanksPerTile  ),
+        .Bypass            (0                ),
+        .SeqMemSizePerTile (SeqMemSizePerTile)
+      ) i_address_scrambler (
+        .address_i (redmule_tcdm_req[p].addr ),
+        .address_o (redmule_addr_scrambled[p])
+      );
+
+      tcdm_shim #(
+        .AddrWidth           (AddrWidth                         ),
+        .DataWidth           (DataWidth                         ),
+        .MaxOutStandingTrans (snitch_pkg::NumIntOutstandingLoads),
+        .NrTCDM              (2                                 ),
+        .NrSoC               (1                                 ),
+        .NumRules            (3                                 ),
+        .req_t               (rm_dreq_t                         ),
+        .resp_t              (rm_dresp_t                        )
+      ) i_tcdm_shim (
+        .clk_i              (clk_i                                                                                  ),
+        .rst_ni             (rst_ni                                                                                 ),
+        // to TCDM --> FF Connection to outside of tile
+        .tcdm_req_valid_o   ({local_req_interco_valid[c],                  remote_req_preburst_valid[p]}            ),
+        .tcdm_req_tgt_addr_o({local_req_presliced_tgt_addr,                remote_req_preburst_addr[p]}             ),
+        .tcdm_req_wen_o     ({local_req_interco_payload[c].wen,            remote_req_preburst_wen[p]}              ),
+        .tcdm_req_wdata_o   ({local_req_interco_payload[c].wdata.data,     remote_req_preburst_payload[p].data}     ),
+        .tcdm_req_amo_o     ({local_req_interco_payload[c].wdata.amo,      remote_req_preburst_payload[p].amo}      ),
+        .tcdm_req_id_o      ({local_req_interco_payload[c].wdata.meta_id,  remote_req_preburst_payload[p].meta_id}  ),
+        .tcdm_req_be_o      ({local_req_interco_payload[c].be,             remote_req_preburst_be[p]}               ),
+        .tcdm_req_ready_i   ({local_req_interco_ready[c],                  remote_req_preburst_ready[p]}            ),
+        .tcdm_resp_valid_i  ({local_resp_interco_valid[c],                 remote_resp_preburst_valid[p]}           ),
+        .tcdm_resp_ready_o  ({local_resp_interco_ready[c],                 remote_resp_preburst_ready[p]}           ),
+        .tcdm_resp_rdata_i  ({local_resp_interco_payload[c].rdata.data,    remote_resp_preburst_payload[p].data}    ),
+        .tcdm_resp_id_i     ({local_resp_interco_payload[c].rdata.meta_id, remote_resp_preburst_payload[p].meta_id} ),
+        // to SoC
+        .soc_qaddr_o        ( /* Unused */                  ),
+        .soc_qwrite_o       ( /* Unused */                  ),
+        .soc_qamo_o         ( /* Unused */                  ),
+        .soc_qdata_o        ( /* Unused */                  ),
+        .soc_qstrb_o        ( /* Unused */                  ),
+        .soc_qvalid_o       ( /* Unused */                  ),
+        .soc_qready_i       ( '0                            ),
+        .soc_pdata_i        ( '0                            ),
+        .soc_perror_i       ( '0                            ),
+        .soc_pvalid_i       ( '0                            ),
+        .soc_pready_o       ( /* Unused */                  ),
+        // from core
+        .data_qaddr_i       (redmule_addr_scrambled[p]      ),
+        .data_qwrite_i      (redmule_tcdm_req[p].write      ),
+        .data_qamo_i        (redmule_tcdm_req[p].amo        ),
+        .data_qdata_i       (redmule_tcdm_req[p].data       ),
+        .data_qstrb_i       (redmule_tcdm_req[p].strb       ),
+        .data_qid_i         (redmule_tcdm_req[p].id         ),
+        .data_qvalid_i      (redmule_tcdm_req_valid[p]      ),
+        .data_qready_o      (redmule_tcdm_req_ready[p]      ),
+        .data_pdata_o       (redmule_tcdm_resp[p].data      ),
+        .data_perror_o      ( /* Unused */                  ),
+        .data_pid_o         (redmule_tcdm_resp[p].id        ),
+        .data_pvalid_o      (redmule_tcdm_resp_valid[p]     ),
+        .data_pready_i      (redmule_tcdm_resp_ready[p]     ),
+        .address_map_i      (mask_map                       )
+      );
+    end
+
+    /************************
+     *   Burst remote req   *
+     ************************/
+    if (UseBurst) begin: gen_burst_grouper
+      burst_req_grouper #(
+        .NumIn        (RMMasterPorts                          ),
+        .NumOut       (NumBanksPerTile                        ),
+        .AddrWidth    (AddrWidth                              ),
+        .DataWidth    ($bits(tcdm_payload_t)                  ),
+        .BeWidth      (DataWidth/8                            ),
+        .AddrMemWidth (idx_width(NumBanksPerTile) + ByteOffset),
+        .ReqGF        (ReqGF                                  ),
+        .RspGF        (RspGF                                  ),
+        .ByteOffWidth (ByteOffset                             )
+      ) i_burst_req_grouper (
+        .clk_i,
+        .rst_ni,
+        .req_ini_addr_i (/* Unused */                                             ),
+        .req_tgt_addr_i (remote_req_preburst_addr                                 ),
+        .req_wdata_i    (remote_req_preburst_payload                              ),
+        .req_wen_i      (remote_req_preburst_wen                                  ),
+        .req_be_i       (remote_req_preburst_be                                   ),
+        .req_valid_i    (remote_req_preburst_valid                                ),
+        .req_ready_o    (remote_req_preburst_ready                                ),
+        .req_ini_addr_o (/* Unused */                                             ),
+        .req_tgt_addr_o (remote_req_postburst_addr                                ),
+        .req_wdata_o    (remote_req_postburst_payload                             ),
+        .req_wen_o      (remote_req_postburst_we                                  ),
+        .req_be_o       (remote_req_postburst_be                                  ),
+        .req_burst_o    (remote_req_postburst_burst                               ),
+        .req_valid_o    (remote_req_postburst_valid                               ),
+        .req_ready_i    (remote_req_postburst_ready                               ),
+        // Response out
+        .resp_ini_addr_o( /* Unused */                                            ),
+        .resp_rdata_o   (remote_resp_preburst_payload                             ),
+        .resp_valid_o   (remote_resp_preburst_valid                               ),
+        .resp_ready_i   (remote_resp_preburst_ready                               ),
+        // Response in
+        .resp_ini_addr_i( /* Unused */                                            ),
+        .resp_rdata_i   (remote_resp_postburst_payload                            ),
+        .resp_burst_i   (remote_resp_postburst_burst                              ),
+        .resp_valid_i   (remote_resp_interco_valid[NumCoresPerTile+:RMMasterPorts]),
+        .resp_ready_o   (remote_resp_interco_ready[NumCoresPerTile+:RMMasterPorts])
+      );
+    end else begin: gen_ubursted_req
+      assign remote_req_postburst_addr    = remote_req_preburst_addr;
+      assign remote_req_postburst_payload = remote_req_preburst_payload;
+      assign remote_req_postburst_we      = remote_req_preburst_wen;
+      assign remote_req_postburst_be      = remote_req_preburst_be;
+      assign remote_req_postburst_burst   = '0;
+      assign remote_req_postburst_valid   = remote_req_preburst_valid;
+      assign remote_req_preburst_ready    = remote_req_postburst_ready;
+      assign remote_resp_preburst_payload = remote_resp_postburst_payload;
+      assign remote_resp_preburst_valid   = remote_resp_interco_valid[NumCoresPerTile+:RMMasterPorts];
+      assign remote_resp_interco_ready[NumCoresPerTile+:RMMasterPorts] = remote_resp_preburst_ready;
+    end
+
+    /****************************
+     *   RedMulE config demux   *
+     ****************************/
+
+    // Snitch to RedMulE configuration requests
+    dreq_t  snitch_rmcfg_q;
+    logic   snitch_rmcfg_qvalid;
+    logic   snitch_rmcfg_qready;
+    dresp_t snitch_rmcfg_p;
+    logic   snitch_rmcfg_pvalid;
+    logic   snitch_rmcfg_pready;
+
+    // Address map
+    typedef enum int unsigned {
+      REDMULE = 0, SOC
+    } addr_map_cfg_t;
+
+    address_map_t [1:0] redmule_cfg_mask_map;
+
+    assign redmule_cfg_mask_map = '{
+      // Lowest priority: send request through the SoC port
+      '{slave_idx: SOC,
+        mask     : '0,
+        value    : '0
+      },
+      // Send request to RedMule configuration registers
+      '{slave_idx: REDMULE,
+        mask     : RMMask,
+        value    : RMBaseAddr
+      }
+    };
+
+    // Demux according to address peripheral requests to RedMule/SoC
+    snitch_addr_demux #(
+      .NrOutput     (2        ),
+      .AddressWidth (DataWidth),
+      .NumRules     (2        ),
+      .req_t        (dreq_t   ),
+      .resp_t       (dresp_t  )
+    ) i_snitch_addr_demux (
+      .clk_i         (clk_i                                       ),
+      .rst_ni        (rst_ni                                      ),
+      .req_addr_i    (soc_data_q[0].addr                          ),
+      .req_payload_i (soc_data_q[0]                               ),
+      .req_valid_i   (soc_data_qvalid[0]                          ),
+      .req_ready_o   (soc_data_qready[0]                          ),
+      .resp_payload_o(soc_data_p[0]                               ),
+      .resp_valid_o  (soc_data_pvalid[0]                          ),
+      .resp_ready_i  (soc_data_pready[0]                          ),
+      .req_payload_o ({soc_mux_q[0],      snitch_rmcfg_q}         ),
+      .req_valid_o   ({soc_mux_qvalid[0], snitch_rmcfg_qvalid}    ),
+      .req_ready_i   ({soc_mux_qready[0], snitch_rmcfg_qready}    ),
+      .resp_payload_i({soc_mux_p[0],      snitch_rmcfg_p}         ),
+      .resp_valid_i  ({soc_mux_pvalid[0], snitch_rmcfg_pvalid}    ),
+      .resp_ready_o  ({soc_mux_pready[0], snitch_rmcfg_pready}    ),
+      .address_map_i (redmule_cfg_mask_map                     )
+    );
+    // RedMulE configuration register writes
+    always_ff @(posedge clk_i or negedge rst_ni) begin : redmule_cfg_reg
+      if (!rst_ni) begin
+        redmule_rmcfg.req  <= 1'b0;
+        redmule_rmcfg.add  <= '0;
+        redmule_rmcfg.wen  <= 1'b1;
+        redmule_rmcfg.be   <= '0;
+        redmule_rmcfg.data <= '0;
+        redmule_rmcfg.id   <= '0;
+        snitch_rmcfg_qready <= 1'b0;
+        snitch_rmcfg_p.data <= '0;
+        snitch_rmcfg_pvalid <= 1'b0;
+      end else begin
+        redmule_rmcfg.req  <= snitch_rmcfg_qvalid;
+        redmule_rmcfg.add  <= snitch_rmcfg_q.addr;
+        redmule_rmcfg.wen  <= ~snitch_rmcfg_q.write;
+        redmule_rmcfg.be   <= snitch_rmcfg_q.strb;
+        redmule_rmcfg.data <= snitch_rmcfg_q.data;
+        redmule_rmcfg.id   <= snitch_rmcfg_q.id;
+        snitch_rmcfg_qready <= redmule_rmcfg.gnt;
+        snitch_rmcfg_p.data <= redmule_rmcfg.r_data;
+        snitch_rmcfg_pvalid <= redmule_rmcfg.r_valid;
+      end
+    end
+
+    // Bypass the mux for all the other cores
+    for (genvar c = 1; c < NumCoresPerTile; c++) begin: gen_bypass_redmule_cfg
+      assign soc_mux_q[c]       = soc_data_q[c];
+      assign soc_mux_qvalid[c]  = soc_data_qvalid[c];
+      assign soc_data_qready[c] = soc_mux_qready[c];
+      assign soc_data_p[c]      = soc_mux_p[c];
+      assign soc_data_pvalid[c] = soc_mux_pvalid[c];
+      assign soc_mux_pready[c]  = soc_data_pready[c];
+    end: gen_bypass_redmule_cfg
+
+  end else begin: gen_bypass_redmule
+    assign wake_up         = wake_up_q;
+    assign soc_mux_q       = soc_data_q;
+    assign soc_mux_qvalid  = soc_data_qvalid;
+    assign soc_data_qready = soc_mux_qready;
+    assign soc_data_p      = soc_mux_p;
+    assign soc_data_pvalid = soc_mux_pvalid;
+    assign soc_mux_pready  = soc_data_pready;
+  end
+
   /****************
    *   AXI Plug   *
    ****************/
@@ -1092,46 +1548,51 @@ module mempool_tile
   axi_cache_resp_t axi_cores_wide_resp;
 
   for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_core_soc_reqrsp
-    assign snitch_to_soc_req[c].q.addr  = soc_data_q[c].addr;
-    assign snitch_to_soc_req[c].q.write = soc_data_q[c].write;
-    assign snitch_to_soc_req[c].q.amo   = reqrsp_pkg::amo_op_e'(soc_data_q[c].amo);
-    assign snitch_to_soc_req[c].q.data  = soc_data_q[c].data;
-    assign snitch_to_soc_req[c].q.strb  = soc_data_q[c].strb;
+    assign snitch_to_soc_req[c].q.addr  = soc_mux_q[c].addr;
+    assign snitch_to_soc_req[c].q.write = soc_mux_q[c].write;
+    assign snitch_to_soc_req[c].q.amo   = reqrsp_pkg::amo_op_e'(soc_mux_q[c].amo);
+    assign snitch_to_soc_req[c].q.data  = soc_mux_q[c].data;
+    assign snitch_to_soc_req[c].q.strb  = soc_mux_q[c].strb;
     assign snitch_to_soc_req[c].q.size  = 3'b010; // AXI-style size: 2^x bytes
-    assign snitch_to_soc_req[c].q_valid = soc_data_qvalid[c];
-    assign soc_data_qready[c]           = snitch_to_soc_rsp[c].q_ready;
-    assign soc_data_p[c].data           = snitch_to_soc_rsp[c].p.data;
-    assign soc_data_p[c].error          = snitch_to_soc_rsp[c].p.error;
-    assign soc_data_p[c].id             = '0; // Don't care
-    assign soc_data_p[c].write          = '0; // Don't care
-    assign soc_data_pvalid[c]           = snitch_to_soc_rsp[c].p_valid;
-    assign snitch_to_soc_req[c].p_ready = soc_data_pready[c];
+    assign snitch_to_soc_req[c].q_valid = soc_mux_qvalid[c];
+    assign soc_mux_qready[c]            = snitch_to_soc_rsp[c].q_ready;
+    assign soc_mux_p[c].data            = snitch_to_soc_rsp[c].p.data;
+    assign soc_mux_p[c].error           = snitch_to_soc_rsp[c].p.error;
+    assign soc_mux_p[c].id              = '0; // Don't care
+    assign soc_mux_p[c].write           = '0; // Don't care
+    assign soc_mux_pvalid[c]            = snitch_to_soc_rsp[c].p_valid;
+    assign snitch_to_soc_req[c].p_ready = soc_mux_pready[c];
   end
 
-  reqrsp_mux #(
-    .NrPorts     (NumCoresPerTile),
-    .AddrWidth   (AddrWidth      ),
-    .DataWidth   (DataWidth      ),
-    .req_t       (soc_req_t      ),
-    .rsp_t       (soc_rsp_t      ),
-    .RespDepth   (NumCoresPerTile),
-    .RegisterReq ('0             )
-  ) i_reqrsp_mux_snitch_soc (
-    .clk_i     (clk_i            ),
-    .rst_ni    (rst_ni           ),
-    .slv_req_i (snitch_to_soc_req),
-    .slv_rsp_o (snitch_to_soc_rsp),
-    .mst_req_o (mux_to_soc_req   ),
-    .mst_rsp_i (mux_to_soc_rsp   )
-  );
+  if (NumCoresPerTile > 1) begin: gen_axi_mux
+    reqrsp_mux #(
+      .NrPorts     (NumCoresPerTile),
+      .AddrWidth   (AddrWidth      ),
+      .DataWidth   (DataWidth      ),
+      .req_t       (soc_req_t      ),
+      .rsp_t       (soc_rsp_t      ),
+      .RespDepth   (NumCoresPerTile),
+      .RegisterReq ('0             )
+    ) i_reqrsp_mux_snitch_soc (
+      .clk_i     (clk_i            ),
+      .rst_ni    (rst_ni           ),
+      .slv_req_i (snitch_to_soc_req),
+      .slv_rsp_o (snitch_to_soc_rsp),
+      .mst_req_o (mux_to_soc_req   ),
+      .mst_rsp_i (mux_to_soc_rsp   )
+    );
+  end else begin: gen_bypass_axi_mux
+    assign mux_to_soc_req = snitch_to_soc_req[0];
+    assign snitch_to_soc_rsp[0] = mux_to_soc_rsp;
+  end
 
   reqrsp_to_axi #(
-    .MaxTrans     (NumCoresPerTile),
-    .DataWidth    (DataWidth      ),
-    .reqrsp_req_t (soc_req_t      ),
-    .reqrsp_rsp_t (soc_rsp_t      ),
-    .axi_req_t    (axi_core_req_t ),
-    .axi_rsp_t    (axi_core_resp_t)
+    .MaxTrans     (mempool_pkg::NumCoresPerTile),
+    .DataWidth    (DataWidth                   ),
+    .reqrsp_req_t (soc_req_t                   ),
+    .reqrsp_rsp_t (soc_rsp_t                   ),
+    .axi_req_t    (axi_core_req_t              ),
+    .axi_rsp_t    (axi_core_resp_t             )
   ) i_reqrsp_snitch_to_axi (
     .clk_i        (clk_i           ),
     .rst_ni       (rst_ni          ),
