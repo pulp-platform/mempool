@@ -16,7 +16,7 @@ ifndef config
     config := $(MEMPOOL_CONFIGURATION)
   else
     # Default configuration, if neither `config` nor `MEMPOOL_CONFIGURATION` was found
-    config := mempool
+    config := tensorpool400
   endif
 endif
 include $(MEMPOOL_DIR)/config/$(config).mk
@@ -65,8 +65,8 @@ xqueue_size ?= 0
 tcdm_burst ?= 1
 
 # Grouped request/responses are use the same valid/ready handshake
-burst_grsp ?= 4
 burst_greq ?= 4
+burst_grsp ?= 4
 
 ################################
 ##  Optional functionalities  ##
