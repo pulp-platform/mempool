@@ -203,7 +203,7 @@ $(buildpath)/$(library):
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t redmule_hwpe -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
+	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t opope_hwpe -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 

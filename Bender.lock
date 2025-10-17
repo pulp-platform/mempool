@@ -133,6 +133,21 @@ packages:
     dependencies:
     - common_cells
     - common_verification
+  opope:
+    revision: null
+    version: null
+    source:
+      Path: hardware/deps/opope
+    dependencies:
+    - common_cells
+    - cv32e40p
+    - cv32e40x
+    - fpnew
+    - hci
+    - hwpe-ctrl
+    - hwpe-stream
+    - ibex
+    - tech_cells_generic
   redmule:
     revision: null
     version: null
