@@ -53,7 +53,6 @@ sources:
   - hardware/src/ctrl_registers.sv
   # Level 6
   - hardware/src/mempool_system.sv
-  - hardware/src/mempool_redmule_tile.sv
 
   - target: mempool_vsim
     files:
