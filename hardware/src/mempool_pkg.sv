@@ -281,8 +281,8 @@ package mempool_pkg;
   localparam integer unsigned ROB_DEPTH    = `ifdef ROB_DEPTH `ROB_DEPTH `else 16 `endif;
 
   localparam integer unsigned RMNumStreams = 4;
-  localparam integer unsigned RMOutstandingTransactions = ROB_DEPTH;
-  localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1);
+  localparam integer unsigned RMOutstandingTransactions = 16;
+  localparam integer unsigned RMDataWidth = 2*16*ARRAY_HEIGHT;
   localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
   localparam integer unsigned RMRegSize = 256;
 

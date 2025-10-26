@@ -55,7 +55,7 @@ int main() {
     unsigned int W_ptr = (unsigned int) (l1_W);
     hwpe_soft_clear();
     mempool_wait(10);
-    opope_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, GEMM, Float16);
+    opope_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, GEMM, Float16, Float16);
     mempool_wait(10);
     // Start OPOPE operation
     hwpe_trigger_job();
