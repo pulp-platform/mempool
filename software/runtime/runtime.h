@@ -90,9 +90,13 @@ static inline uint32_t mempool_get_redmule_count() { return NUM_REDMULE_TILES; }
 
 /// Obtain the ID of the group the current core is in.
 static inline uint32_t mempool_get_redmule_id() {
-  uint32_t x = NUM_CORES / NUM_REDMULE_TILES;
-  uint32_t redmule_id = (mempool_get_core_id() % x) != 0 ? (uint32_t)(-1) : (mempool_get_core_id() / x);
-  return  redmule_id;
+  if (NUM_REDMULE_TILES == 0) {
+    return (uint32_t)(-1);
+  } else {
+    uint32_t x = NUM_REDMULE_TILES > 0 ? NUM_CORES / NUM_REDMULE_TILES : 1;
+    uint32_t redmule_id = (mempool_get_core_id() % x) != 0 ? (uint32_t)(-1) : (mempool_get_core_id() / x);
+    return  redmule_id;
+  }
 }
 
 /// Obtain the number of cores per tile in the current cluster

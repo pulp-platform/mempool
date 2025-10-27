@@ -4,6 +4,7 @@
 
 package mempool_pkg;
 
+  import snitch_pkg::SnitchIdWidth;
   import cf_math_pkg::idx_width;
   import burst_pkg::*;
 
@@ -240,7 +241,7 @@ package mempool_pkg;
   localparam integer unsigned NumSubGroups          = NumGroups * NumSubGroupsPerGroup;
   localparam integer unsigned NumTilesPerSubGroup   = NumTilesPerGroup / NumSubGroupsPerGroup;
   localparam integer unsigned NumRMTilesPerSubGroup = NumRMTiles / NumSubGroups;
-  localparam integer unsigned NumCoresPerSubGroup   = (NumTilesPerSubGroup - NumRMTilesPerSubGroup) * NumCoresPerTile + NumRMTilesPerSubGroup;
+  localparam integer unsigned NumCoresPerSubGroup   = NumTilesPerSubGroup * NumCoresPerTile;
 
   // TeraPool Mem Config
   localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
@@ -275,8 +276,8 @@ package mempool_pkg;
    * *********************/
 
   localparam integer unsigned ARRAY_HEIGHT = `ifdef ARRAY_HEIGHT `ARRAY_HEIGHT `else 4 `endif;
-  localparam integer unsigned ARRAY_WIDTH  = `ifdef ARRAY_WIDTH `ARRAY_WIDTH `else (ARRAY_HEIGHT*PIPE_REGS) `endif; // Superior limit, smaller values are allowed.
   localparam integer unsigned PIPE_REGS    = `ifdef PIPE_REGS `PIPE_REGS `else 3 `endif;
+  localparam integer unsigned ARRAY_WIDTH  = `ifdef ARRAY_WIDTH `ARRAY_WIDTH `else (ARRAY_HEIGHT*PIPE_REGS) `endif; // Superior limit, smaller values are allowed.
 
   localparam integer unsigned RMNumStreams = 4;
   localparam integer unsigned RMOutstandingTransactions = 16;
@@ -288,8 +289,9 @@ package mempool_pkg;
   localparam integer unsigned RMBaseAddr = 32'h4002_0000;
   localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1);
 
-  // Overwrites Snitch parameter
-  localparam integer unsigned MetaIdWidth = idx_width(RMNumStreams * RMOutstandingTransactions);
+  localparam integer unsigned NumLocalPorts = NumRMTiles > 0 ? RMMasterPorts+NumCoresPerTile : NumCoresPerTile;
+  localparam integer unsigned MetaIdWidth = idx_width(RMNumStreams * RMOutstandingTransactions) > SnitchIdWidth ?
+                                            idx_width(RMNumStreams * RMOutstandingTransactions) : SnitchIdWidth;
   typedef logic [MetaIdWidth-1:0] meta_id_t;
 
   typedef struct packed {
@@ -316,7 +318,7 @@ package mempool_pkg;
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
-  typedef logic [idx_width(RMMasterPorts+1)-1:0] tile_core_id_t; // TBD leaving floating for connection to Snitch tiles
+  typedef logic [idx_width(NumLocalPorts)-1:0] tile_core_id_t; // TBD leaving floating for connection to Snitch tiles
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
   typedef logic [3:0] amo_t;
