@@ -40,9 +40,19 @@ axi_masters_per_group ?= 4
 # Number of DMA backends in each group
 dmas_per_group ?= 4 # Burst Length = 16
 
+# L1 size per bank (in dec)
+l1_bank_size ?= 2048
+
+# Size of sequential memory per core (in bytes)
+# (must be a power of two)
+seq_mem_size := 512
+
+# Size of stack in sequential memory per core (in bytes)
+stack_size := 512
+
 # L2 Banks/Channels
-l2_banks ?= 4
 l2_size  ?= 4194304  # 400000
+l2_banks ?= 4
 
 #############################
 ##  RedMulE Configuration  ##
@@ -54,3 +64,14 @@ num_redmule_tiles ?= 16
 redmule_height ?= 16
 redmule_width ?= 16
 redmule_regs ?= 3
+
+###########################
+##  Burst configuration  ##
+###########################
+
+# Reads in the TCDM interconnect are sent as bursts
+tcdm_burst ?= 1
+
+# Grouped request/responses are use the same valid/ready handshake
+burst_greq ?= 4
+burst_grsp ?= 4
