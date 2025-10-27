@@ -9,13 +9,13 @@
 ##################
 
 # Number of cores
-num_cores ?= 400
+num_cores ?= 256
 
 # Number of groups
 num_groups ?= 4
 
 # Number of cores per TensorPool tile
-num_cores_per_tile ?= 8
+num_cores_per_tile ?= 4
 
 # Number of sub groups per Tensorpool group
 num_sub_groups_per_group ?= 4
@@ -25,7 +25,7 @@ num_sub_groups_per_group ?= 4
 num_divsqrt_per_tile ?= 1
 
 # L1 scratchpad banking factor
-banking_factor ?= 4
+banking_factor ?= 8
 
 # Access latency between remote groups
 # Options: "7", "9" or "11":
@@ -48,7 +48,6 @@ l2_size  ?= 4194304  # 400000
 ##  RedMulE Configuration  ##
 #############################
 
-# RedMulE Tiles must be multiple of Group number (MemPool) or SubGroup number (TeraPool)
 num_redmule_tiles ?= 16
 
 # RedMulE engine size

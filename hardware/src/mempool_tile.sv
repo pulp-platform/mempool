@@ -192,13 +192,7 @@ module mempool_tile
   for (genvar c = 0; unsigned'(c) < NumCoresPerTile; c++) begin: gen_cores
 
     logic [31:0] hart_id;
-`ifdef TERAPOOL
-    assign hart_id = RedMulE ? (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerSubGroup)*NumRMTilesPerSubGroup + (tile_id_i%NumTilesPerSubGroup) :
-                               (tile_id_i / NumTilesPerSubGroup)*(NumCoresPerSubGroup - NumRMTilesPerSubGroup) + (tile_id_i % NumTilesPerSubGroup - NumRMTilesPerSubGroup)*NumCoresPerTile + c;
-`else
-    assign hart_id = RedMulE ? (NumCores-NumRMTiles) + (tile_id_i/NumTilesPerGroup)*NumRMTilesPerGroup + (tile_id_i%NumTilesPerGroup) :
-                               (tile_id_i / NumTilesPerGroup)*(NumCoresPerGroup - NumRMTilesPerGroup) + (tile_id_i % NumTilesPerGroup - NumRMTilesPerGroup)*NumCoresPerTile + c;
-`endif
+    assign hart_id = {unsigned'(tile_id_i), c[idx_width(NumCoresPerTile)-1:0]};
 
     if (!TrafficGeneration) begin: gen_mempool_cc
       mempool_cc #(
@@ -1167,7 +1161,7 @@ module mempool_tile
     );
 
     // Wake up core on RedMulE's EOC
-    assign wake_up = wake_up_q | {{(NumCoresPerTile-1){1'b1}},redmule_evt[0]};
+    assign wake_up = wake_up_q | {{(NumCoresPerTile-1){1'b0}},redmule_evt[0]};
 
     // RedMulE TCDM ports
     for(genvar p = 0; p < RMMasterPorts; p++) begin : gen_redmule_tcdm
@@ -1684,7 +1678,7 @@ module mempool_tile
   if (NumCoresPerTile != 2**$clog2(NumCoresPerTile))
     $fatal(1, "[mempool_tile] The number of cores per tile must be a power of two.");
 
-  if (NumCores != unsigned'(2**$clog2(NumCores)) && (NumRMTiles == 0))
+  if (NumCores != unsigned'(2**$clog2(NumCores)))
     $fatal(1, "[mempool_tile] The number of cores must be a power of two.");
 
   if (NumBanksPerTile < 1)
