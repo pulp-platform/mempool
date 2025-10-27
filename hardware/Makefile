@@ -46,7 +46,7 @@ verilator_top   ?= mempool_tb_verilator
 # Python
 python          ?= python3
 # Enable tracing
-snitch_trace    ?= 1
+snitch_trace    ?= 0
 
 # Path to DRAMsys
 dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/configs
@@ -130,13 +130,17 @@ vlog_defs += -DXDIVSQRT=$(xDivSqrt)
 vlog_defs += -DSNITCH_TRACE=$(snitch_trace)
 # RedMulE
 vlog_defs += -DNUM_REDMULE_TILES=$(num_redmule_tiles)
+vlog_defs += -DUSE_BURST=$(tcdm_burst)
+ifneq ($(num_redmule_tiles), 0)
 vlog_defs += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs += -DARRAY_WIDTH=$(redmule_width)
 vlog_defs += -DPIPE_REGS=$(redmule_regs)
-vlog_defs += -DUSE_BURST=$(tcdm_burst)
-vlog_defs += -DBURSTLEN=$(shell echo $$(( $(redmule_height) * ($(redmule_regs) + 1) + 2 )) | awk '{print int($$1 / 2)}')
+endif
+ifneq ($(tcdm_burst), 0)
+vlog_defs += -DBURSTLEN=$(shell echo $$(( $(redmule_height)*($(redmule_regs)+1) )) | awk '{print int($$1 / 2)}')
 vlog_defs += -DGROUP_REQ=$(burst_greq)
 vlog_defs += -DGROUP_RSP=$(burst_grsp)
+endif
 # AXI & DMA
 vlog_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs += -DRO_LINE_WIDTH=$(ro_line_width)
