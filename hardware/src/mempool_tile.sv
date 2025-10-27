@@ -14,17 +14,17 @@ module mempool_tile
   import cf_math_pkg::idx_width;
 #(
   // TCDM
-  parameter addr_t       TCDMBaseAddr = 32'b0,
+  parameter addr_t       TCDMBaseAddr       = 32'b0,
   // Boot address
-  parameter logic [31:0] BootAddr     = 32'h0000_1000,
+  parameter logic [31:0] BootAddr           = 32'h0000_1000,
   // Core in Tiles
-  parameter int unsigned NumCoresPerTile = mempool_pkg::NumCoresPerTile,
-  parameter int unsigned NumCoresPerCache = mempool_pkg::NumCoresPerCache,
+  parameter int unsigned NumCoresPerTile    = mempool_pkg::NumCoresPerTile,
+  parameter int unsigned NumCoresPerCache   = mempool_pkg::NumCoresPerCache,
   // RedMulE
-  parameter logic        RedMulE      = 1'b0,
+  parameter logic        RedMulE            = 1'b0,
   // Dependent parameters. DO NOT CHANGE.
-  parameter int unsigned NumLocalPorts = RMMasterPorts + NumCoresPerTile,
-  parameter int unsigned NumCaches = NumCoresPerTile > NumCoresPerCache ? (NumCoresPerTile/NumCoresPerCache) : 1,
+  parameter int unsigned NumLocalPorts      = NumRMTiles > 0 ? RMMasterPorts + NumCoresPerTile : NumCoresPerTile,
+  parameter int unsigned NumCaches          = NumCoresPerTile > NumCoresPerCache ? (NumCoresPerTile/NumCoresPerCache) : 1,
   // If NumDivsqrtPerTile is set, otherwise the parameter defaults to 1.
   parameter int unsigned NumCoresPerDivsqrt = |NumDivsqrtPerTile ? (NumCoresPerTile/NumDivsqrtPerTile) : 1
 ) (
@@ -624,13 +624,15 @@ module mempool_tile
       assign bank_req_valid[b]            = prebank_req_valid[b];
       assign prebank_req_ready[b]         = bank_req_ready[b];
       // response
-      assign prebank_req_payload[b].rdata.amo         = '0;
-      assign prebank_req_payload[b].rdata.data        = bank_resp_data[b];
-      assign prebank_req_payload[b].rdata.meta_id     = bank_resp_payload[b].meta_id;
-      assign prebank_req_payload[b].rdata.core_id     = bank_resp_payload[b].core_id;
-      assign prebank_req_payload[b].tile_id           = bank_resp_payload[b].tile_id;
-      assign prebank_req_ini_addr[b]                  = bank_resp_payload[b].ini_addr;
-      assign prebank_req_wide[b]                      = bank_resp_payload[b].wide;
+      assign prebank_resp_payload[b].rdata.amo         = '0;
+      assign prebank_resp_payload[b].rdata.data        = bank_resp_data[b];
+      assign prebank_resp_payload[b].rdata.meta_id     = bank_resp_payload[b].meta_id;
+      assign prebank_resp_payload[b].rdata.core_id     = bank_resp_payload[b].core_id;
+      assign prebank_resp_payload[b].tile_id           = bank_resp_payload[b].tile_id;
+      assign prebank_resp_ini_addr[b]                  = bank_resp_payload[b].ini_addr;
+      assign prebank_resp_wide[b]                      = bank_resp_payload[b].wide;
+      assign prebank_resp_valid[b]                     = bank_resp_valid[b];
+      assign bank_resp_ready[b]                        = prebank_resp_ready[b];
     end
   end
 
@@ -1287,15 +1289,16 @@ module mempool_tile
       assign remote_req_preburst_payload[p].core_id = c[idx_width(NumLocalPorts)-1:0];
 
       // Remote request post burst
-      assign remote_req_interco[c].wdata            = remote_req_postburst_payload[p];
-      assign remote_req_interco[c].wen              = remote_req_postburst_we[p];
-      assign remote_req_interco[c].be               = remote_req_postburst_be[p];
-      assign remote_req_interco[c].burst            = remote_req_postburst_burst[p];
-      assign remote_req_interco_valid[c]            = remote_req_postburst_valid[p];
-      assign remote_req_postburst_ready[p]          = remote_req_interco_ready[c];
+      assign remote_req_interco[c].wdata      = remote_req_postburst_payload[p];
+      assign remote_req_interco[c].wen        = remote_req_postburst_we[p];
+      assign remote_req_interco[c].be         = remote_req_postburst_be[p];
+      assign remote_req_interco[c].burst      = remote_req_postburst_burst[p];
+      assign remote_req_interco_valid[c]      = remote_req_postburst_valid[p];
+      assign remote_req_postburst_ready[p]    = remote_req_interco_ready[c];
       // Remote response post burst
-      assign remote_resp_postburst_payload[p]       = remote_resp_interco[c].rdata;
-      assign remote_resp_postburst_burst[p]         = remote_resp_interco[c].burst;
+      assign remote_resp_postburst_payload[p] = remote_resp_interco[c].rdata;
+      assign remote_resp_postburst_burst[p]   = remote_resp_interco[c].burst;
+      assign redmule_tcdm_resp[p].write       = 1'b0;
 
       // Scramble address before entering TCDM shim for sequential+interleaved memory map
       address_scrambler #(
@@ -1357,7 +1360,7 @@ module mempool_tile
         .data_qvalid_i      (redmule_tcdm_req_valid[p]      ),
         .data_qready_o      (redmule_tcdm_req_ready[p]      ),
         .data_pdata_o       (redmule_tcdm_resp[p].data      ),
-        .data_perror_o      ( /* Unused */                  ),
+        .data_perror_o      (redmule_tcdm_resp[p].error     ),
         .data_pid_o         (redmule_tcdm_resp[p].id        ),
         .data_pvalid_o      (redmule_tcdm_resp_valid[p]     ),
         .data_pready_i      (redmule_tcdm_resp_ready[p]     ),

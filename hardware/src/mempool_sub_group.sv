@@ -166,9 +166,9 @@ module mempool_sub_group
     logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] tran_tcdm_slave_resp_ready;
 
     mempool_tile #(
-      .TCDMBaseAddr    (TCDMBaseAddr          ),
-      .BootAddr        (BootAddr              ),
-      .RedMulE         (t < NumRMTilesPerGroup)
+      .TCDMBaseAddr    (TCDMBaseAddr             ),
+      .BootAddr        (BootAddr                 ),
+      .RedMulE         (t < NumRMTilesPerSubGroup)
     ) i_tile (
       .clk_i                   (clk_i                                          ),
       .rst_ni                  (rst_ni                                         ),
