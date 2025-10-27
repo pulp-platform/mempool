@@ -9,20 +9,20 @@
 ##################
 
 # Number of cores
-num_cores ?= 100
+num_cores ?= 64
 
 # Number of groups
 num_groups ?= 4
 
 # Number of cores per TensorPool tile
-num_cores_per_tile ?= 8
+num_cores_per_tile ?= 4
 
 # Number of shared divsqrt units per MemPool tile
 # Defaults to 1 if xDivSqrt is activated
 num_divsqrt_per_tile ?= 1
 
 # L1 scratchpad banking factor
-banking_factor ?= 4
+banking_factor ?= 8
 
 # Radix for hierarchical AXI interconnect
 axi_hier_radix ?= 17
@@ -33,6 +33,13 @@ axi_masters_per_group ?= 1
 # Number of DMA backends in each group
 dmas_per_group ?= 1 # Brust Length = 16
 
+# Size of sequential memory per core (in bytes)
+# (must be a power of two)
+seq_mem_size := 512
+
+# Size of stack in sequential memory per core (in bytes)
+stack_size := 512
+
 # L2 Banks/Channels
 l2_size  ?= 4194304  # 400000
 l2_banks ?= 4
@@ -41,7 +48,6 @@ l2_banks ?= 4
 ##  RedMulE Configuration  ##
 #############################
 
-# RedMulE Tiles must be multiple of Group number (MemPool) or SubGroup number (TeraPool)
 num_redmule_tiles ?= 4
 
 # RedMulE engine size
