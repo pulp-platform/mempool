@@ -16,7 +16,7 @@ ifndef config
     config := $(MEMPOOL_CONFIGURATION)
   else
     # Default configuration, if neither `config` nor `MEMPOOL_CONFIGURATION` was found
-    config := tensorpool400
+    config := mempool
   endif
 endif
 include $(MEMPOOL_DIR)/config/$(config).mk
@@ -57,17 +57,6 @@ ro_line_width ?= 512
 # XQueue extension's queue size in each memory bank (in words)
 xqueue_size ?= 0
 
-###########################
-##  Burst configuration  ##
-###########################
-
-# Reads in the TCDM interconnect are sent as bursts
-tcdm_burst ?= 1
-
-# Grouped request/responses are use the same valid/ready handshake
-burst_greq ?= 4
-burst_grsp ?= 4
-
 ################################
 ##  Optional functionalities  ##
 ################################
@@ -92,5 +81,8 @@ remote_group_latency_cycles ?= 7
 l2_sim_type ?= sram
 dram_axi_width_interleaved ?= 16
 
-# Enable RedMulE
+# Number of RedMulEs
 num_redmule_tiles ?= 0
+
+# Reads in the TCDM interconnect are sent as bursts
+tcdm_burst ?= 0
