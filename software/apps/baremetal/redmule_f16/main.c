@@ -50,7 +50,7 @@ int main() {
     unsigned int W_ptr = (unsigned int) (l1_W);
     hwpe_soft_clear();
     mempool_wait(10);
-    redmule_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, GEMM, Float16);
+    redmule_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, 0, GEMM, Float16);
     mempool_wait(10);
     // Start RedMulE operation
     hwpe_trigger_job();
@@ -62,14 +62,14 @@ int main() {
 #endif
 
 #ifdef PARALLEL
-  if (redmule_id < 4) {
+  if (redmule_id < num_redmules) {
     unsigned int X_ptr = (unsigned int) (l1_X + redmule_id * matrix_N * (matrix_M / num_redmules));
     unsigned int Y_ptr = (unsigned int) (l1_Y + redmule_id * matrix_P * (matrix_M / num_redmules));
     unsigned int W_ptr = (unsigned int) (l1_W);
     mempool_start_benchmark();
     hwpe_soft_clear();
     mempool_wait(10);
-    redmule_cfg(X_ptr, W_ptr, Y_ptr, (matrix_M / num_redmules), matrix_N, matrix_P, GEMM, Float16);
+    redmule_cfg(X_ptr, W_ptr, Y_ptr, (matrix_M / num_redmules), matrix_N, matrix_P, redmule_id * (matrix_P / num_redmules), GEMM, Float16);
     mempool_wait(10);
     // Start RedMulE operation
     hwpe_trigger_job();
