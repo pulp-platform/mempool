@@ -91,3 +91,6 @@ remote_group_latency_cycles ?= 7
 # DRAMsys co-simulation: dram/sram
 l2_sim_type ?= sram
 dram_axi_width_interleaved ?= 16
+
+# Enable RedMulE
+num_redmule_tiles ?= 0
