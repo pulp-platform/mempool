@@ -33,6 +33,9 @@ axi_masters_per_group ?= 1
 # Number of DMA backends in each group
 dmas_per_group ?= 1 # Brust Length = 16
 
+# L1 size per bank (in dec)
+l1_bank_size ?= 2048
+
 # Size of sequential memory per core (in bytes)
 # (must be a power of two)
 seq_mem_size := 512
@@ -54,3 +57,14 @@ num_redmule_tiles ?= 4
 redmule_height ?= 16
 redmule_width ?= 16
 redmule_regs ?= 3
+
+###########################
+##  Burst configuration  ##
+###########################
+
+# Reads in the TCDM interconnect are sent as bursts
+tcdm_burst ?= 1
+
+# Grouped request/responses are use the same valid/ready handshake
+burst_greq ?= 4
+burst_grsp ?= 4

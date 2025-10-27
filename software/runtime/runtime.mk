@@ -107,6 +107,8 @@ DEFINES += -DSTACK_SIZE=$(stack_size)
 DEFINES += -DLOG2_STACK_SIZE=$(shell awk 'BEGIN{print log($(stack_size))/log(2)}')
 DEFINES += -DXQUEUE_SIZE=$(xqueue_size)
 DEFINES += -DNUM_REDMULE_TILES=$(num_redmule_tiles)
+DEFINES += -DREDMULE_H=$(redmule_height)
+DEFINES += -DREDMULE_P=$(redmule_regs)
 ifdef terapool
 	DEFINES += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group)
 	DEFINES += -DNUM_CORES_PER_SUB_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_sub_groups_per_group)}')
