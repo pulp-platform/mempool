@@ -231,7 +231,7 @@ def generate_fgemm(my_type=np.float32, defines={}):
     Y = (np.random.rand(matrix_M, matrix_P) - 0.5).astype(my_type)
     Z = np.matmul(X, W) + Y
 
-    X = np.reshape(X, (matrix_M * matrix_N), order='C').astype(my_type)
+    X = np.reshape(np.transpose(X), (matrix_M * matrix_N), order='C').astype(my_type)
     W = np.reshape(W, (matrix_N * matrix_P), order='C').astype(my_type)
     Y = np.reshape(Y, (matrix_M * matrix_P), order='C').astype(my_type)
     Z = np.reshape(Z, (matrix_M * matrix_P), order='C').astype(my_type)

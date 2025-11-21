@@ -26,7 +26,7 @@
 #define ID_OPOPE_CORE (240)
 #endif
 
-#define PARALLEL
+#define SINGLE
 
 __fp16 l1_W[matrix_N * matrix_P]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -87,7 +87,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_f16(l1_Y, l2_Z, 10, 0.05f, 0);
+  mempool_check_f16(l1_Y, l2_Z, 20, 0.05f, 0);
   mempool_barrier(num_cores);
   return 0;
 }
