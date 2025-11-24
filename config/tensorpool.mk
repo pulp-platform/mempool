@@ -31,7 +31,7 @@ axi_hier_radix ?= 17
 axi_masters_per_group ?= 1
 
 # Number of DMA backends in each group
-dmas_per_group ?= 1 # Brust Length = 16
+dmas_per_group ?= 1 # Brust Length = 8
 
 # L1 size per bank (in dec)
 l1_bank_size ?= 2048
@@ -54,9 +54,9 @@ l2_banks ?= 4
 num_redmule_tiles ?= 4
 
 # RedMulE engine size
-redmule_height ?= 16
-redmule_width ?= 16
-redmule_regs ?= 3
+redmule_height ?= 8
+redmule_width ?= 8
+redmule_regs ?= 4
 
 ###########################
 ##  Burst configuration  ##

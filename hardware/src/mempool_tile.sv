@@ -1121,6 +1121,26 @@ module mempool_tile
       .clk ( clk_i )
     );
 
+    // redmule_top #(
+    //   .N_CORES(1                                   ),
+    //   .DW     (RMDataWidth                         ),
+    //   .UW     (idx_width(RMOutstandingTransactions)),
+    //   .X_EXT  (0                                   ),
+    //   .`HCI_SIZE_PARAM(tcdm) (`HCI_SIZE_PARAM(tcdm))
+    // ) i_redmule_top (
+    //   .clk_i              (clk_i                     ),
+    //   .rst_ni             (rst_ni                    ),
+    //   .test_mode_i        ('0                        ),
+    //   .evt_o              (redmule_evt               ),
+    //   .busy_o             (/*Unused*/                ),
+    //   .tcdm               (tcdm                      ),
+    //   .xif_issue_if_i     (core_xif.coproc_issue     ),
+    //   .xif_result_if_o    (core_xif.coproc_result    ),
+    //   .xif_compressed_if_i(core_xif.coproc_compressed),
+    //   .xif_mem_if_o       (core_xif.coproc_mem       ),
+    //   .periph             (redmule_rmcfg             )
+    // );
+
     opope_top #(
       .N_CORES               ( 1                                    ),
       .DW                    ( RMDataWidth                          ),
@@ -1134,11 +1154,7 @@ module mempool_tile
       .evt_o              ( redmule_evt    ),
       .busy_o             ( /*Unused*/     ),
       .tcdm               ( tcdm           ),
-      // .xif_issue_if_i     ( core_xif.coproc_issue      ),
-      // .xif_result_if_o    ( core_xif.coproc_result     ),
-      // .xif_compressed_if_i( core_xif.coproc_compressed ),
-      // .xif_mem_if_o       ( core_xif.coproc_mem        ),
-      .periph             ( redmule_periph             )
+      .periph             ( redmule_rmcfg  )
     );
 
     // Wake up core on RedMulE's EOC
@@ -1163,45 +1179,45 @@ module mempool_tile
     assign tcdm.resp_id       = redmule_resp[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
     assign tcdm.resp_user     = redmule_resp[0].id[idx_width(RMOutstandingTransactions)-1:0];
 
-    for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_redmule_regs
-      stream_register #(
-        .T(rm_dreq_t)
-      ) i_redmule_req_register (
-        .clk_i     ( clk_i                ),
-        .rst_ni    ( rst_ni               ),
-        .clr_i     ( 1'b0                 ),
-        .testmode_i( 1'b0                 ),
-        .valid_i   ( redmule_req_valid[p] ),
-        .ready_o   ( redmule_req_ready[p] ),
-        .data_i    ( redmule_req[p]       ),
-        .valid_o   ( redmule_req_qvalid[p]),
-        .ready_i   ( redmule_req_qready[p]),
-        .data_o    ( redmule_req_q[p]     )
-      );
-      stream_register #(
-        .T(rm_dresp_t)
-      ) i_redmule_resp_register (
-        .clk_i     (clk_i                 ),
-        .rst_ni    (rst_ni                ),
-        .clr_i     (1'b0                  ),
-        .testmode_i(1'b0                  ),
-        .valid_o   (redmule_resp_valid[p] ),
-        .ready_i   (redmule_resp_ready[p] ),
-        .data_o    (redmule_resp[p]       ),
-        .valid_i   (redmule_resp_qvalid[p]),
-        .ready_o   (redmule_resp_qready[p]),
-        .data_i    (redmule_resp_q[p]     )
-      );
-    end: gen_redmule_regs
+    // for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_redmule_regs
+    //   stream_register #(
+    //     .T(rm_dreq_t)
+    //   ) i_redmule_req_register (
+    //     .clk_i     ( clk_i                ),
+    //     .rst_ni    ( rst_ni               ),
+    //     .clr_i     ( 1'b0                 ),
+    //     .testmode_i( 1'b0                 ),
+    //     .valid_i   ( redmule_req_valid[p] ),
+    //     .ready_o   ( redmule_req_ready[p] ),
+    //     .data_i    ( redmule_req[p]       ),
+    //     .valid_o   ( redmule_req_qvalid[p]),
+    //     .ready_i   ( redmule_req_qready[p]),
+    //     .data_o    ( redmule_req_q[p]     )
+    //   );
+    //   stream_register #(
+    //     .T(rm_dresp_t)
+    //   ) i_redmule_resp_register (
+    //     .clk_i     (clk_i                 ),
+    //     .rst_ni    (rst_ni                ),
+    //     .clr_i     (1'b0                  ),
+    //     .testmode_i(1'b0                  ),
+    //     .valid_o   (redmule_resp_valid[p] ),
+    //     .ready_i   (redmule_resp_ready[p] ),
+    //     .data_o    (redmule_resp[p]       ),
+    //     .valid_i   (redmule_resp_qvalid[p]),
+    //     .ready_o   (redmule_resp_qready[p]),
+    //     .data_i    (redmule_resp_q[p]     )
+    //   );
+    // end: gen_redmule_regs
 
     // Handshake separately on each request port
-    assign redmule_handshake_p = &redmule_req_qready ? '0 : redmule_req_qready;
+    assign redmule_handshake_p = &redmule_req_ready ? '0 : redmule_req_ready;
     `FF(redmule_handshake_q, redmule_handshake_p, '0, clk_i, rst_ni);
 
     // RedMulE TCDM request
-    assign redmule_tcdm_req       = redmule_req_q;
-    assign redmule_tcdm_req_valid = ~redmule_handshake_q & redmule_req_qvalid;
-    assign redmule_req_qready     = redmule_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
+    assign redmule_tcdm_req       = redmule_req;
+    assign redmule_tcdm_req_valid = ~redmule_handshake_q & redmule_req_valid;
+    assign redmule_req_ready     = redmule_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
 
     // RedMulE TCDM response handshake
     transactions_table #(
@@ -1214,9 +1230,9 @@ module mempool_tile
       .resp_payload_i(redmule_tcdm_resp      ),
       .resp_valid_i  (redmule_tcdm_resp_valid),
       .resp_ready_o  (redmule_tcdm_resp_ready),
-      .resp_payload_o(redmule_resp_q         ),
-      .resp_valid_o  (redmule_resp_qvalid    ),
-      .resp_ready_i  (redmule_resp_qready    )
+      .resp_payload_o(redmule_resp          ),
+      .resp_valid_o  (redmule_resp_valid    ),
+      .resp_ready_i  (redmule_resp_ready    )
     );
 
     /************************
