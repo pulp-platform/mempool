@@ -20,36 +20,34 @@
 #include "baremetal/mempool_checks.h"
 #include "data_gemm_f16.h"
 
-#if (NUM_CORES > 256)
-#define ID_OPOPE_CORE (896)
-#else
-#define ID_OPOPE_CORE (240)
-#endif
+#define ELEMENTS_PER_ROW (NUM_BANKS * sizeof(int32_t) / sizeof(int16_t) )
+#define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 
 #define SINGLE
 
+__fp16 l1_X[(matrix_M * matrix_N) + PORT_WIDTH*NUM_REDMULE_TILES*(NUM_REDMULE_TILES+1)]
+    __attribute__((aligned(NUM_BANKS*sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_W[matrix_N * matrix_P]
-    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(NUM_BANKS*sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_Y[matrix_M * matrix_P]
-    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_X[matrix_M * matrix_N]
-    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(NUM_BANKS*sizeof(int32_t)), section(".l1_prio")));
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  uint32_t redmule_id = mempool_get_redmule_id();
+  uint32_t num_redmules = mempool_get_redmule_count();
   mempool_barrier_init(core_id);
 
-  if (core_id == 0) {
+#ifdef SINGLE
+  if (redmule_id == 0) {
     dma_memcpy_blocking(l1_X, l2_X, (matrix_M * matrix_N) * sizeof(int16_t));
     dma_memcpy_blocking(l1_W, l2_W, (matrix_N * matrix_P) * sizeof(int16_t));
     dma_memcpy_blocking(l1_Y, l2_Y, (matrix_M * matrix_P) * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
 
-#ifdef SINGLE
-  if (core_id == ID_OPOPE_CORE) {
-    mempool_start_benchmark();
+  if (redmule_id == 0) {    
     unsigned int X_ptr = (unsigned int) (l1_X);
     unsigned int Y_ptr = (unsigned int) (l1_Y);
     unsigned int W_ptr = (unsigned int) (l1_W);
@@ -58,6 +56,7 @@ int main() {
     opope_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, GEMM, Float16, Float16);
     mempool_wait(10);
     // Start OPOPE operation
+    mempool_start_benchmark();
     hwpe_trigger_job();
     // Go to sleep
     mempool_wfi();
@@ -73,10 +72,10 @@ int main() {
     unsigned int X_ptr = (unsigned int) (l1_X + opope_id * matrix_N * (matrix_M / num_opopes));
     unsigned int Y_ptr = (unsigned int) (l1_Y + opope_id * matrix_P * (matrix_M / num_opopes));
     unsigned int W_ptr = (unsigned int) (l1_W);
-    mempool_start_benchmark();
     hwpe_soft_clear();
     mempool_wait(10);
     opope_cfg(X_ptr, W_ptr, Y_ptr, (matrix_M / num_opopes), matrix_N, matrix_P, GEMM, Float16, Float16);
+    mempool_start_benchmark();
     mempool_wait(10);
     // Start OPOPE operation
     hwpe_trigger_job();
