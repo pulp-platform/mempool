@@ -1,23 +1,85 @@
-# clean software and golden model
-cd software/
-make clean
-cd apps/baremetal
-make clean
-cd ../../../
+#!/usr/bin/env bash
+set -euo pipefail
 
-#activate virtual environment
-# source venv/bin/activate
+# --- parameter grids ---
+M_SIZES=(32 64 128 256)              # matrix_M = matrix_N = matrix_P
+RM_SIZES=(8 16)                      # redmule_height = redmule_width
+NUM_OUTSTANDING=(8 16 32)
+FIFO_DEPTHS=(0 2 4)
 
-# generate golden model
-python3 ./software/data/gendata_header.py --app_name gemm_f16 --type float16 --defines matrix_M=32,matrix_N=32,matrix_P=32 --arrays __fp16:l2_X,__fp16:l2_W,__fp16:l2_Y,__fp16:l2_Z
+# # --- parameter grids ---
+# M_SIZES=32             # matrix_M = matrix_N = matrix_P
+# RM_SIZES=8                       # redmule_height = redmule_width
+# NUM_OUTSTANDING=16
+# FIFO_DEPTHS=0
 
-# compile software
-cd software/apps/baremetal/
-make COMPILER=llvm opope_f16 
+# Go to repo root (optional but recommended)
+cd "$(dirname "$0")"
 
-# compile hardware and run simulation
-cd ../../../hardware
-make clean
-config=tensorpool app=opope_f16 make sim
-# make trace
-cd ..
+# Activate virtual environment once
+source venv/bin/activate
+
+for M in "${M_SIZES[@]}"; do
+  echo "=== Software setup for matrix size $M x $M ==="
+
+  # clean software and golden model
+  (
+    cd software
+    make clean
+    cd apps/baremetal
+    make clean
+  )
+
+  # generate golden model for this matrix size
+  python3 ./software/data/gendata_header.py \
+    --app_name gemm_f16 \
+    --type float16 \
+    --defines "matrix_M=${M},matrix_N=${M},matrix_P=${M}" \
+    --arrays __fp16:l2_X,__fp16:l2_W,__fp16:l2_Y,__fp16:l2_Z
+
+  # compile software
+  (
+    cd software/apps/baremetal
+    make COMPILER=llvm redmule_f16
+  )
+
+  # now sweep HW parameters
+  for RM in "${RM_SIZES[@]}"; do
+    for NOUT in "${NUM_OUTSTANDING[@]}"; do
+      for FIFO in "${FIFO_DEPTHS[@]}"; do
+        echo ">>> Running sim with M=${M}, redmule=${RM}x${RM}, NOUT=${NOUT}, FIFO=${FIFO}"
+
+        (
+          cd hardware
+          make clean
+          config=tensorpool \
+          matrix_size="${M}" \
+          redmule_height="${RM}" \
+          redmule_width="${RM}" \
+          num_outstanding_transactions="${NOUT}" \
+          fifo_depth="${FIFO}" \
+          app=redmule_f16 \
+          make sim
+          
+
+          config=tensorpool \
+          matrix_size="${M}" \
+          redmule_height="${RM}" \
+          redmule_width="${RM}" \
+          num_outstanding_transactions="${NOUT}" \
+          fifo_depth="${FIFO}" \
+          app=redmule_f16 \
+          make trace
+
+          # Optional: save traces/logs with unique names, e.g.:
+          # outdir="../results/M${M}_RM${RM}_NOUT${NOUT}_FIFO${FIFO}"
+          # mkdir -p "${outdir}"
+          # mv trace.vcd "${outdir}/trace.vcd"
+          # mv simc.log "${outdir}/simc.log"
+        )
+      done
+    done
+  done
+done
+
+echo "All simulations completed."

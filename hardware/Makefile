@@ -101,7 +101,7 @@ trace = $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpa
 tracepath ?= $(buildpath)/traces
 traceresult ?= $(tracepath)/results.csv
 ifndef result_dir
-	result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)")
+	result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_M$(matrix_size)_OPOPE$(redmule_height)x$(redmule_width)_NOUT$(num_outstanding_transactions)_FIFO$(fifo_depth)_$$(git rev-parse --short HEAD)")
 endif
 
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
@@ -135,6 +135,8 @@ ifneq ($(num_redmule_tiles), 0)
 vlog_defs += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs += -DARRAY_WIDTH=$(redmule_width)
 vlog_defs += -DPIPE_REGS=$(redmule_regs)
+vlog_defs += -DFIFO_BUFFER_DEPTH=$(fifo_depth)
+vlog_defs += -DNUM_TRANSACTIONS=$(num_outstanding_transactions)
 endif
 ifneq ($(tcdm_burst), 0)
 vlog_defs += -DBURSTLEN=$(shell echo $$(( $(redmule_height)*($(redmule_regs)+1) )) | awk '{print int($$1 / 2)}')

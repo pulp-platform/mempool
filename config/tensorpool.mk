@@ -56,7 +56,10 @@ num_redmule_tiles ?= 4
 # RedMulE engine size
 redmule_height ?= 8
 redmule_width ?= 8
-redmule_regs ?= 4
+num_outstanding_transactions ?= 16
+matrix_size ?= 32
+fifo_depth ?= 0
+redmule_regs ?= 3
 
 ###########################
 ##  Burst configuration  ##
