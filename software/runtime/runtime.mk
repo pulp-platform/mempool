@@ -23,7 +23,7 @@ LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 OMP_DIR            ?= $(ROOT_DIR)/omp
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
-REDMULE_DIR        ?= $(abspath $(MEMPOOL_DIR)/hardware/deps/opope/sw)
+REDMULE_DIR        ?= $(abspath $(MEMPOOL_DIR)/hardware/deps/redmule/sw)
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
