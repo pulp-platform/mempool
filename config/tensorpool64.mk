@@ -59,7 +59,7 @@ redmule_width ?= 8
 num_outstanding_transactions ?= 16
 matrix_size ?= 32
 fifo_depth ?= 0
-redmule_regs ?= 3
+redmule_regs ?= 4
 
 ###########################
 ##  Burst configuration  ##
@@ -69,5 +69,5 @@ redmule_regs ?= 3
 tcdm_burst ?= 1
 
 # Grouped request/responses are use the same valid/ready handshake
-burst_greq ?= 2
-burst_grsp ?= 4
+burst_greq ?= 8
+burst_grsp ?= 8

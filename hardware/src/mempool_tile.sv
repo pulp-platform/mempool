@@ -1121,41 +1121,41 @@ module mempool_tile
       .clk ( clk_i )
     );
 
-    redmule_top #(
-      .N_CORES(1                                   ),
-      .DW     (RMDataWidth                         ),
-      .UW     (idx_width(RMOutstandingTransactions)),
-      .X_EXT  (0                                   ),
-      .`HCI_SIZE_PARAM(tcdm) (`HCI_SIZE_PARAM(tcdm))
-    ) i_redmule_top (
-      .clk_i              (clk_i                     ),
-      .rst_ni             (rst_ni                    ),
-      .test_mode_i        ('0                        ),
-      .evt_o              (redmule_evt               ),
-      .busy_o             (/*Unused*/                ),
-      .tcdm               (tcdm                      ),
-      .xif_issue_if_i     (core_xif.coproc_issue     ),
-      .xif_result_if_o    (core_xif.coproc_result    ),
-      .xif_compressed_if_i(core_xif.coproc_compressed),
-      .xif_mem_if_o       (core_xif.coproc_mem       ),
-      .periph             (redmule_rmcfg             )
-    );
-
-    // opope_top #(
-    //   .N_CORES               ( 1                                    ),
-    //   .DW                    ( RMDataWidth                          ),
-    //   .UW                    ( idx_width(RMOutstandingTransactions) ),
-    //   .X_EXT                 ( 0                                    ),
-    //   .`HCI_SIZE_PARAM(tcdm) ( `HCI_SIZE_PARAM(tcdm)                )
-    // ) i_opope_top       (
-    //   .clk_i              ( clk_i          ),
-    //   .rst_ni             ( rst_ni         ),
-    //   .test_mode_i        ( '0             ),
-    //   .evt_o              ( redmule_evt    ),
-    //   .busy_o             ( /*Unused*/     ),
-    //   .tcdm               ( tcdm           ),
-    //   .periph             ( redmule_rmcfg  )
+    // redmule_top #(
+    //   .N_CORES(1                                   ),
+    //   .DW     (RMDataWidth                         ),
+    //   .UW     (idx_width(RMOutstandingTransactions)),
+    //   .X_EXT  (0                                   ),
+    //   .`HCI_SIZE_PARAM(tcdm) (`HCI_SIZE_PARAM(tcdm))
+    // ) i_redmule_top (
+    //   .clk_i              (clk_i                     ),
+    //   .rst_ni             (rst_ni                    ),
+    //   .test_mode_i        ('0                        ),
+    //   .evt_o              (redmule_evt               ),
+    //   .busy_o             (/*Unused*/                ),
+    //   .tcdm               (tcdm                      ),
+    //   .xif_issue_if_i     (core_xif.coproc_issue     ),
+    //   .xif_result_if_o    (core_xif.coproc_result    ),
+    //   .xif_compressed_if_i(core_xif.coproc_compressed),
+    //   .xif_mem_if_o       (core_xif.coproc_mem       ),
+    //   .periph             (redmule_rmcfg             )
     // );
+
+    opope_top #(
+      .N_CORES               ( 1                                    ),
+      .DW                    ( RMDataWidth                          ),
+      .UW                    ( idx_width(RMOutstandingTransactions) ),
+      .X_EXT                 ( 0                                    ),
+      .`HCI_SIZE_PARAM(tcdm) ( `HCI_SIZE_PARAM(tcdm)                )
+    ) i_opope_top       (
+      .clk_i              ( clk_i          ),
+      .rst_ni             ( rst_ni         ),
+      .test_mode_i        ( '0             ),
+      .evt_o              ( redmule_evt    ),
+      .busy_o             ( /*Unused*/     ),
+      .tcdm               ( tcdm           ),
+      .periph             ( redmule_rmcfg  )
+    );
 
     // Wake up core on RedMulE's EOC
     assign wake_up = wake_up_q | {{(NumCoresPerTile-1){1'b0}},redmule_evt[0]};
