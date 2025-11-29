@@ -40,7 +40,7 @@ for M in "${M_SIZES[@]}"; do
   # compile software
   (
     cd software/apps/baremetal
-    make COMPILER=llvm redmule_f16
+    make COMPILER=llvm opope_f16
   )
 
   # now sweep HW parameters
@@ -58,8 +58,8 @@ for M in "${M_SIZES[@]}"; do
           redmule_width="${RM}" \
           num_outstanding_transactions="${NOUT}" \
           fifo_depth="${FIFO}" \
-          app=redmule_f16 \
-          make sim
+          app=opope_f16 \
+          make simc
           
 
           config=tensorpool \
@@ -68,7 +68,7 @@ for M in "${M_SIZES[@]}"; do
           redmule_width="${RM}" \
           num_outstanding_transactions="${NOUT}" \
           fifo_depth="${FIFO}" \
-          app=redmule_f16 \
+          app=opope_f16 \
           make trace
 
           # Optional: save traces/logs with unique names, e.g.:
