@@ -69,5 +69,5 @@ redmule_regs ?= 4
 tcdm_burst ?= 1
 
 # Grouped request/responses are use the same valid/ready handshake
-burst_greq ?= 8
-burst_grsp ?= 8
+burst_greq ?= 4
+burst_grsp ?= 4
