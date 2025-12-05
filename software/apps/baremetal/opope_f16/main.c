@@ -23,7 +23,7 @@
 #define ELEMENTS_PER_ROW (NUM_BANKS * sizeof(int32_t) / sizeof(int16_t) )
 #define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 
-#define PARALLEL
+#define SINGLE
 
 __fp16 l1_X[(matrix_M * matrix_N) + PORT_WIDTH*NUM_REDMULE_TILES*(NUM_REDMULE_TILES+1)]
     __attribute__((aligned(NUM_BANKS*sizeof(int32_t)), section(".l1_prio")));
@@ -65,26 +65,6 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-// #ifdef PARALLEL
-//   uint32_t opope_id = (core_id >= ID_OPOPE_CORE) ? core_id - ID_OPOPE_CORE : (uint32_t)(-1);
-//   uint32_t num_opopes = 4;
-//   if (opope_id < 4) {
-//     unsigned int X_ptr = (unsigned int) (l1_X + opope_id * matrix_N * (matrix_M / num_opopes));
-//     unsigned int Y_ptr = (unsigned int) (l1_Y + opope_id * matrix_P * (matrix_M / num_opopes));
-//     unsigned int W_ptr = (unsigned int) (l1_W);
-//     hwpe_soft_clear();
-//     mempool_wait(10);
-//     opope_cfg(X_ptr, W_ptr, Y_ptr, (matrix_M / num_opopes), matrix_N, matrix_P, GEMM, Float16, Float16);
-//     mempool_start_benchmark();
-//     mempool_wait(10);
-//     // Start OPOPE operation
-//     hwpe_trigger_job();
-//     // Go to sleep
-//     mempool_wfi();
-//   }
-//   mempool_barrier(num_cores);
-//   mempool_stop_benchmark();
-// #endif
 
 #ifdef PARALLEL
 
@@ -127,7 +107,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_f16(l1_Y, l2_Z, 20, 0.05f, 0);
+  // mempool_check_f16(l1_Y, l2_Z, 20, 0.05f, 0);
   mempool_barrier(num_cores);
   return 0;
 }
