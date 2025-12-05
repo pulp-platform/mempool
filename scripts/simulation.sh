@@ -2,16 +2,18 @@
 set -euo pipefail
 
 # --- parameter grids ---
-# M_SIZES=(32 64 128 256)              # matrix_M = matrix_N = matrix_P
+# M_SIZES=( 64 128 256)              # matrix_M = matrix_N = matrix_P
 # RM_SIZES=(8 16)                      # redmule_height = redmule_width
-# NUM_OUTSTANDING=(8 16 32)
+# NUM_OUTSTANDING=(4 8 16 32)
 # FIFO_DEPTHS=(0 2 4)
+# GROUPING_FACTOR=(2 4 8)
 
 # --- parameter grids ---
-M_SIZES=32             # matrix_M = matrix_N = matrix_P
-RM_SIZES=8                       # redmule_height = redmule_width
-NUM_OUTSTANDING=16
-FIFO_DEPTHS=0
+M_SIZES=(64 128 256)              # matrix_M = matrix_N = matrix_P
+RM_SIZES=(8 16)                      # redmule_height = redmule_width
+NUM_OUTSTANDING=(4 8 16 32)
+FIFO_DEPTHS=(0 2 4)
+
 
 # Go to repo root (optional but recommended)
 cd "$(dirname "$0")"
@@ -59,17 +61,17 @@ for M in "${M_SIZES[@]}"; do
           num_outstanding_transactions="${NOUT}" \
           fifo_depth="${FIFO}" \
           app=opope_f16 \
-          make sim
+          make simc
           
 
-          # config=tensorpool \
-          # matrix_size="${M}" \
-          # redmule_height="${RM}" \
-          # redmule_width="${RM}" \
-          # num_outstanding_transactions="${NOUT}" \
-          # fifo_depth="${FIFO}" \
-          # app=opope_f16 \
-          # make trace
+          config=tensorpool \
+          matrix_size="${M}" \
+          redmule_height="${RM}" \
+          redmule_width="${RM}" \
+          num_outstanding_transactions="${NOUT}" \
+          fifo_depth="${FIFO}" \
+          app=opope_f16 \
+          make trace
 
           # Optional: save traces/logs with unique names, e.g.:
           # outdir="../results/M${M}_RM${RM}_NOUT${NOUT}_FIFO${FIFO}"
