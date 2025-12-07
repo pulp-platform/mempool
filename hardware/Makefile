@@ -101,7 +101,7 @@ trace = $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpa
 tracepath ?= $(buildpath)/traces
 traceresult ?= $(tracepath)/results.csv
 ifndef result_dir
-	result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_M$(matrix_size)_OPOPE$(redmule_height)x$(redmule_width)_NOUT$(num_outstanding_transactions)_FIFO$(fifo_depth)_$$(git rev-parse --short HEAD)")
+	result_dir := $(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_M$(matrix_size)_OPOPE$(redmule_height)x$(redmule_width)_NOUT$(num_outstanding_transactions)_GF$(burst_greq)_FIFO$(fifo_depth)_$$(git rev-parse --short HEAD)")
 endif
 
 vlog_args += -suppress vlog-2583 -suppress vlog-13314 -suppress vlog-13233
