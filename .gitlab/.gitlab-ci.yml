@@ -138,7 +138,7 @@ check-control-registers:
 check-opcodes:
   stage: test
   script:
-    - make update_opcodes
+    - make update-opcodes
     - git diff --exit-code
 
 # Software tests
@@ -218,7 +218,7 @@ unit-tests:
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get tc-riscv-gcc
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get riscv-isa-sim
     - $CI_PROJECT_DIR/scripts/memora_retry.sh get verilator-model
-    - make update_opcodes
+    - make update-opcodes
     - touch $ROOT_DIR/software/runtime/encoding.h
     - touch $ROOT_DIR/hardware/src/bootrom.sv
     - touch $ROOT_DIR/hardware/deps/snitch/src/riscv_instr.sv

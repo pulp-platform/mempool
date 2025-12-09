@@ -214,7 +214,7 @@ $(buildpath)/$(library):
 
 # Compilation
 .PHONY: compile
-compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update_opcodes
+compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update-opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
@@ -251,7 +251,7 @@ $(buildpath)/$(dpi_library)/mempool_dpi.so: $(dpi)
 
 # Elaboration
 .PHONY: elabvcs
-elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update_opcodes
+elabvcs: dpivcs $(buildpath) $(buildpath)/compilevcs.sh update-opcodes
 $(buildpath)/compilevcs.sh: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
 	$(bender) script vcs --vlogan-bin="$(vcs_cmd) vlogan" --vlog-arg="$(vlogan_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compilevcs.sh
 	echo "exit" >> $(buildpath)/compilevcs.sh
@@ -448,10 +448,10 @@ $(CONTROL_REG_DIR)/control_registers_reg_top.sv: $(CONTROL_REG_DIR)/control_regi
 	make -C $(CONTROL_REG_DIR) all
 
 # Clean targets
-.PHONY: clean clean-dasm clean-trace update_opcodes
+.PHONY: clean clean-dasm clean-trace update-opcodes
 
-update_opcodes:
-	make -C $(MEMPOOL_DIR) update_opcodes
+update-opcodes:
+	make -C $(MEMPOOL_DIR) update-opcodes
 
 clean:
 	@rm -rf $(buildpath)
