@@ -71,6 +71,13 @@ We use [Bender](https://github.com/pulp-platform/bender) to generate our simulat
 make bender
 ```
 
+To checkout the hardware dependencies using Bender run:
+
+```bash
+# Update hardware dependencies
+make update-deps
+```
+
 The RTL simulation, or more specifically, the tracing in the simulation, relies on the SPIKE simulator. To build it, run the following command in the project's directory:
 
 ```bash

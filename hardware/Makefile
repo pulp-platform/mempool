@@ -166,35 +166,6 @@ cpp_defs += -DAXI_DATA_WIDTH=$(axi_data_width)
 
 .DEFAULT_GOAL := compile
 
-# Update Bender dependencies
-BENDER_ROOT ?= $(ROOT_DIR)/deps
-
-# Ensure both Bender dependencies and (essential) submodules are checked out
-$(BENDER_ROOT)/.mempool_deps: $(bender)
-	cd $(ROOT_DIR)/.. $(bender) checkout
-	@touch $@
-
-# Make sure dependencies are more up-to-date than any targets run
-ifeq ($(shell test -f $(BENDER_ROOT)/.mempool_deps && echo 1),)
--include $(BENDER_ROOT)/.mempool_deps
-endif
-
-# Running this target will reset dependencies (without updating the checked-in Bender.lock)
-.PHONY: clean-deps
-clean-deps:
-	cd $(BENDER_ROOT) && rm -rf \
-		apb \
-		axi \
-		cluster_icache \
-		cluster_interconnect \
-		common_cells \
-		common_verification \
-		fpnew \
-		fpu_div_sqrt_mvp \
-		register_interface \
-		tech_cells_generic
-	rm -f $(BENDER_ROOT)/.mempool_deps
-
 # Build path
 $(buildpath):
 	mkdir -p $(buildpath)
@@ -206,6 +177,7 @@ $(bender):
 ################
 # Modelsim     #
 ################
+
 # Library
 .PHONY: lib
 lib: $(buildpath) $(buildpath)/$(library)
@@ -297,6 +269,7 @@ $(buildpath)/$(dpi_library)/mempool_vcs_dpi.so: $(dpi_vcs)
 ################
 # Verilator    #
 ################
+
 VERILATOR_SRC   := $(ROOT_DIR)/tb/verilator
 VERILATOR_LIBS  := $(shell find $(VERILATOR_SRC) -name "*.cc" -print | sort)
 VERILATOR_INCS  := $(shell find $(VERILATOR_SRC) -name "cpp" -print | sort)
@@ -351,6 +324,7 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 #############
 # Lint      #
 #############
+
 .PHONY: lint spyglass/tmp/files
 
 SNPS_SG ?= spyglass-2022.06
@@ -408,6 +382,7 @@ tracevis:
 ############################
 # Unit tests simulation    #
 ############################
+
 TESTS_DIR := $(abspath $(ROOT_DIR)/../software/riscv-tests/isa)
 include $(TESTS_DIR)/snitch_isa.mk
 
