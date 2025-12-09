@@ -248,7 +248,7 @@ jobs:
     - name: Build Control Registers
       run: |
         make bender
-        git apply hardware/deps/patches/register_interface.patch
+        make update-deps
         make -C hardware/src/control_registers clean
         make -C hardware/src/control_registers all
         git diff --ignore-submodules=dirty --exit-code
