@@ -171,26 +171,10 @@ $(BENDER_INSTALL_DIR)/bender:
 	mkdir -p $(BENDER_INSTALL_DIR) && cd $(BENDER_INSTALL_DIR) && \
 	curl --proto '=https' --tlsv1.2 https://pulp-platform.github.io/bender/init -sSf | sh -s -- $(BENDER_VERSION)
 
-# Update and patch hardware dependencies for MemPool
+# Update hardware dependencies for MemPool
 .PHONY: update-deps
 update-deps: check-bender
 	$(BENDER) checkout
-	git apply hardware/deps/patches/*
-
-# Running this target will reset dependencies (without updating the checked-in Bender.lock)
-.PHONY: clean-deps
-clean-deps:
-	cd $(BENDER_ROOT) && rm -rf \
-		apb \
-		axi \
-		cluster_icache \
-		cluster_interconnect \
-		common_cells \
-		common_verification \
-		fpnew \
-		fpu_div_sqrt_mvp \
-		register_interface \
-		tech_cells_generic
 
 ##############
 # Simulation #

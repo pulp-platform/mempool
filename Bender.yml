@@ -17,9 +17,6 @@ dependencies:
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: "9481d57"   }
   cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",       version: 0.1.1   }
 
-workspace:
-  checkout_dir: "./hardware/deps"
-
 export_include_dirs:
   - hardware/include
 
