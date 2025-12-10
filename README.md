@@ -38,12 +38,6 @@ If the repository path of any submodule changes, run the following command to ch
 git submodule sync --recursive
 ```
 
-MemPool requires to patch a few hardware dependencies. To update the dependencies and apply the patches, run the following command after checking out in the project's root directory:
-
-```bash
-make update-deps
-```
-
 ## Build dependencies
 ### Compiler
 
@@ -64,7 +58,7 @@ make halide
 
 ### RTL Simulation
 
-We use [Bender](https://github.com/pulp-platform/bender) to generate our simulation scripts. Make sure you have Bender installed, or install it in the MemPool repository with:
+We use [Bender](https://github.com/pulp-platform/bender) to checkout hardware dependencies and to generate our simulation scripts. Make sure you have Bender installed, or install it in the MemPool repository with:
 
 ```bash
 # Install Bender
