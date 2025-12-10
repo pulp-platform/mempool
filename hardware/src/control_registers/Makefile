@@ -7,8 +7,9 @@
 SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 RUNTIME_DIR := $(abspath $(ROOT_DIR)/../../../software/runtime)
+BENDER := $(ROOT_DIR)/../../../install/bender/bender
 
-regtool ?= $(abspath $(ROOT_DIR)/../../deps/register_interface/vendor/lowrisc_opentitan/util/regtool.py)
+regtool ?= $(shell $(BENDER) path register_interface)/vendor/lowrisc_opentitan/util/regtool.py
 
 RTL := $(patsubst $(ROOT_DIR)/%.hjson,%,$(shell find $(ROOT_DIR) -name "*.hjson"))
 
