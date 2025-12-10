@@ -48,6 +48,7 @@ sources:
   # Level 5
   - hardware/src/ctrl_registers.sv
   # Level 6
+  - hardware/src/tc_sram_simwrapper.sv
   - hardware/src/mempool_system.sv
 
   - target: mempool_vsim
