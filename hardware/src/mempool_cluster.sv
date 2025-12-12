@@ -144,9 +144,11 @@ module mempool_cluster
   /*********************
    *  TeraPool Section *
    *********************/
+
     /************
      *  Groups  *
      ************/
+
     // TCDM interfaces
     tcdm_slave_req_t   [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req;
     logic              [NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid;
@@ -164,6 +166,7 @@ module mempool_cluster
     /**********************
      *    AXI Register    *
      **********************/
+
     // Additional AXI registers for breaking TeraPool's long paths
     // AXI interfaces
     axi_tile_req_t   [NumAXIMasters-1:0] axi_mst_req;
@@ -188,7 +191,7 @@ module mempool_cluster
       );
     end: gen_axi_group_cuts
 
-    for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
+    for (genvar g = 0; unsigned'(g) < NumGroups/2; g++) begin: gen_groups
       if (PostLayoutGr & (g == 0)) begin: gen_postly_group
         mempool_group_postlayout i_group (
           .clk_i                   (clk_i                                                           ),
@@ -306,24 +309,118 @@ module mempool_cluster
       end
     end : gen_groups
 
+    /************************
+     * Upper die connection *
+     ************************/
+
+    tcdm_slave_req_t   [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_b;
+    logic              [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_b;
+    logic              [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_b;
+    tcdm_master_resp_t [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_b;
+    logic              [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_b;
+    logic              [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_b;
+
+    tcdm_slave_req_t   [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_u2b;
+    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_u2b;
+    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_u2b;
+    tcdm_master_resp_t [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_u2b;
+    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_u2b;
+    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_u2b;
+
+    tcdm_slave_req_t   [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_b2u;
+    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_b2u;
+    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_b2u;
+    tcdm_master_resp_t [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_b2u;
+    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_b2u;
+    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_b2u;
+
+    terapool_upper_die #(
+      .TCDMBaseAddr (TCDMBaseAddr         ),
+      .BootAddr     (BootAddr             )
+    ) i_upper_die (
+      .clk_i                   (clk_i                                   ),
+      .rst_ni                  (rst_ni                                  ),
+      .testmode_i              (testmode_i                              ),
+      .scan_enable_i           (scan_enable_i                           ),
+      .scan_data_i             (/*Unused*/                              ),
+      .scan_data_o             (/*Unused*/                              ),
+
+      .tcdm_master_req_o       (tcdm_master_req_u2b                     ),
+      .tcdm_master_req_valid_o (tcdm_master_req_valid_u2b               ),
+      .tcdm_master_req_ready_i (tcdm_master_req_ready_u2b               ),
+      .tcdm_master_req_i       (tcdm_master_req_b2u                     ),
+      .tcdm_master_req_valid_i (tcdm_master_req_valid_b2u               ),
+      .tcdm_master_req_ready_o (tcdm_master_req_ready_b2u               ),
+      .tcdm_slave_resp_i       (tcdm_slave_resp_b2u                     ),
+      .tcdm_slave_resp_valid_i (tcdm_slave_resp_valid_b2u               ),
+      .tcdm_slave_resp_ready_o (tcdm_slave_resp_ready_b2u               ),
+      .tcdm_slave_resp_o       (tcdm_slave_resp_u2b                     ),
+      .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid_u2b               ),
+      .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready_u2b               ),
+
+      .wake_up_i               (wake_up_q[NumCores-1:NumCoresPerGroup*NumGroups/2]             ),
+      .ro_cache_ctrl_i         (ro_cache_ctrl_q[NumGroups-1:NumGroups/2]                       ),
+      .dma_req_i               (dma_req_group_q[NumGroups-1:NumGroups/2]                       ),
+      .dma_req_valid_i         (dma_req_group_q_valid[NumGroups-1:NumGroups/2]                 ),
+      .dma_req_ready_o         (dma_req_group_q_ready[NumGroups-1:NumGroups/2]                 ),
+      .dma_meta_o              (dma_meta[NumGroups-1:NumGroups/2]                              ),
+      .axi_mst_req_o           (axi_mst_req[NumAXIMasters-1:NumAXIMastersPerGroup*NumGroups/2] ),
+      .axi_mst_resp_i          (axi_mst_resp[NumAXIMasters-1:NumAXIMastersPerGroup*NumGroups/2])
+    );
+
     /*******************
      *  Interconnects  *
      *******************/
+    
+    for (genvar g = 0; g < NumGroups/2; g++) begin
+      for (genvar tgt = 0; tgt < NumGroups; tgt++) begin
+        localparam ini = g;
+        if (ini != tgt) begin
+          assign tcdm_master_req_b[g][tgt]           = tcdm_master_req[g][ini ^ tgt];
+          assign tcdm_master_req_valid_b[g][tgt]     = tcdm_master_req_valid[g][ini ^ tgt];
+          assign tcdm_master_req_ready[g][ini ^ tgt] = tcdm_master_req_ready_b[g][tgt];
+          assign tcdm_slave_resp_b[g][tgt]           = tcdm_slave_resp[g][ini ^ tgt];
+          assign tcdm_slave_resp_valid_b[g][tgt]     = tcdm_slave_resp_valid[g][ini ^ tgt];
+          assign tcdm_slave_resp_ready[g][ini ^ tgt] = tcdm_slave_resp_ready_b[g][tgt];
+        end
+      end
+    end
 
-    for (genvar ini = 0; ini < NumGroups; ini++) begin: gen_interconnections_ini
-      for (genvar tgt = 0; tgt < NumGroups; tgt++) begin: gen_interconnections_tgt
-        // The local connections are inside the groups
-        if (ini != tgt) begin: gen_remote_interconnections
-          assign tcdm_slave_req[tgt][ini ^ tgt]        = tcdm_master_req[ini][ini ^ tgt];
-          assign tcdm_slave_req_valid[tgt][ini ^ tgt]  = tcdm_master_req_valid[ini][ini ^ tgt];
-          assign tcdm_master_req_ready[ini][ini ^ tgt] = tcdm_slave_req_ready[tgt][ini ^ tgt];
+    for (genvar g = 0; g < NumGroups/2; g++) begin
+      for (genvar h = 0; h < NumGroups/2; h++) begin
+        localparam ini = g + NumGroups / 2;
+        localparam tgt = h + NumGroups / 2;
 
-          assign tcdm_master_resp[tgt][ini ^ tgt]       = tcdm_slave_resp[ini][ini ^ tgt];
-          assign tcdm_master_resp_valid[tgt][ini ^ tgt] = tcdm_slave_resp_valid[ini][ini ^ tgt];
-          assign tcdm_slave_resp_ready[ini][ini ^ tgt]  = tcdm_master_resp_ready[tgt][ini ^ tgt];
-        end: gen_remote_interconnections
-      end: gen_interconnections_tgt
-    end: gen_interconnections_ini
+        // slave_req (group 0/1)   <-- master_request (group 0/1)
+        // master_resp (group 0/1) <-- slave_resp (group 0/1)
+        if (ini != tgt) begin
+          assign tcdm_slave_req[h][g ^ h]         = tcdm_master_req_b[g][h];
+          assign tcdm_slave_req_valid[h][g ^ h]   = tcdm_master_req_valid_b[g][h];
+          assign tcdm_master_req_ready_b[g][h]    = tcdm_slave_req_ready[h][g ^ h];
+          assign tcdm_master_resp[h][g ^ h]       = tcdm_slave_resp_b[g][h];
+          assign tcdm_master_resp_valid[h][g ^ h] = tcdm_slave_resp_valid_b[g][h];
+          assign tcdm_slave_resp_ready_b[g][h]    = tcdm_master_resp_ready[h][g ^ h];
+        end
+
+        // slave_req (group 0/1)   <-- master_request (group 2/3)
+        // master_resp (group 0/1) <-- slave_resp (group 2/3)
+        assign tcdm_slave_req[h][ini ^ h]         = tcdm_master_req_u2b[g][h];
+        assign tcdm_slave_req_valid[h][ini ^ h]   = tcdm_master_req_valid_u2b[g][h];
+        assign tcdm_master_req_ready_u2b[g][h]    = tcdm_slave_req_ready[h][ini ^ h];
+        assign tcdm_master_resp[h][ini ^ h]       = tcdm_slave_resp_u2b[g][h];
+        assign tcdm_master_resp_valid[h][ini ^ h] = tcdm_slave_resp_valid_u2b[g][h];
+        assign tcdm_slave_resp_ready_u2b[g][h]    = tcdm_master_resp_ready[h][ini ^ h];
+
+        // slave_req (group 2/3)   <-- master_request (group 0/1)
+        // master_resp (group 2/3) <-- slave_resp (group 0/1)
+        assign tcdm_master_req_b2u[g][tgt]       = tcdm_master_req_b[g][tgt];
+        assign tcdm_master_req_valid_b2u[g][tgt] = tcdm_master_req_valid_b[g][tgt];
+        assign tcdm_master_req_ready_b[g][tgt]   = tcdm_master_req_ready_b2u[g][tgt];
+        assign tcdm_slave_resp_b2u[g][tgt]       = tcdm_slave_resp_b[g][tgt];
+        assign tcdm_slave_resp_valid_b2u[g][tgt] = tcdm_slave_resp_valid_b[g][tgt];
+        assign tcdm_slave_resp_ready_b[g][tgt]   = tcdm_slave_resp_ready_b2u[g][tgt];
+      end
+    end
 
   `else
   /******************************

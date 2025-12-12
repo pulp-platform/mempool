@@ -30,7 +30,7 @@ module mempool_tb;
   localparam BootAddr = 0;
   `endif
 
-  localparam ClockPeriod = 2ns;
+  localparam ClockPeriod = `ifdef TCK `TCK `else 2ns `endif;
   localparam TA          = 0.2ns;
   localparam TT          = 0.8ns;
 
@@ -194,12 +194,13 @@ module mempool_tb;
   logic [NumCores-1:0]          wfi;
 
   `ifdef TERAPOOL
-    for (genvar g = 0; g < NumGroups; g++) begin: gen_wfi_groups
+    for (genvar g = 0; g < NumGroups/2; g++) begin: gen_wfi_groups
       for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_wfi_sub_groups
         for (genvar c = 0; c < NumCoresPerSubGroup; c++) begin: gen_wfi_cores
           localparam t = c / NumCoresPerTile;
           localparam ct = c % NumCoresPerTile;
           assign wfi[g*NumCoresPerGroup + sg*NumCoresPerSubGroup + c] = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[ct].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+          assign wfi[(g+NumGroups/2)*NumCoresPerGroup + sg*NumCoresPerSubGroup + c] = dut.i_mempool_cluster.i_upper_die.gen_groups[g].i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[ct].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
         end: gen_wfi_cores
       end: gen_wfi_sub_groups
     end: gen_wfi_groups
