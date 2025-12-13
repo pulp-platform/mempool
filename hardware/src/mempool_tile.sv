@@ -947,6 +947,7 @@ module mempool_tile
     // Unsliced addresses
     addr_t local_req_presliced_tgt_addr;
     addr_t remote_req_presliced_tgt_addr;
+    addr_t local_req_interco_addr_int, prescramble_tcdm_req_tgt_addr;
 
     // Address slicer
     tcdm_addr_slicer i_tcdm_addr_slicer (

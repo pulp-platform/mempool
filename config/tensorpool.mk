@@ -56,7 +56,7 @@ num_redmule_tiles ?= 4
 # RedMulE engine size
 redmule_height ?= 8
 redmule_width ?= 8
-num_outstanding_transactions ?= 16
+num_outstanding_transactions ?= 8
 matrix_size ?= 32
 fifo_depth ?= 0
 redmule_regs ?= 4
@@ -69,5 +69,5 @@ redmule_regs ?= 4
 tcdm_burst ?= 1
 
 # Grouped request/responses are use the same valid/ready handshake
-burst_greq ?= 4
-burst_grsp ?= 4
+burst_greq ?= 2
+burst_grsp ?= 2
