@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# # --- parameter grids ---
-# M_SIZES=(64 128 256)              # matrix_M = matrix_N = matrix_P
-# RM_SIZES=(8)                      # redmule_height = redmule_width
-# NUM_OUTSTANDING=(4 8 16 32)
-# FIFO_DEPTHS=(0 2 4)
-# GROUPING=(2 4 8)
-
 # --- parameter grids ---
-M_SIZES=(64)              # matrix_M = matrix_N = matrix_P
+M_SIZES=(64 128 256)              # matrix_M = matrix_N = matrix_P
 RM_SIZES=(8)                      # redmule_height = redmule_width
-NUM_OUTSTANDING=(16)
-FIFO_DEPTHS=(0)
-GROUPING=(4)
+NUM_OUTSTANDING=(4 8 16 32)
+FIFO_DEPTHS=(0 2 4)
+GROUPING=(2 4 8)
+
+# # --- parameter grids ---
+# M_SIZES=(64)              # matrix_M = matrix_N = matrix_P
+# RM_SIZES=(8)                      # redmule_height = redmule_width
+# NUM_OUTSTANDING=(8)
+# FIFO_DEPTHS=(0)
+# GROUPING=(2)
 
 
 
@@ -78,7 +78,7 @@ for RM in "${RM_SIZES[@]}"; do
             burst_greq="${GF}" \
             burst_grsp="${GF}" \
             app=opope_f16 \
-            make sim
+            make simc
             
 
             # config=tensorpool \

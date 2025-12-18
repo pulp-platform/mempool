@@ -21,7 +21,7 @@ module mempool_tile
   parameter int unsigned NumCoresPerTile    = mempool_pkg::NumCoresPerTile,
   parameter int unsigned NumCoresPerCache   = mempool_pkg::NumCoresPerCache,
   // RedMulE
-  parameter logic        RedMulE            = 1'b0,
+  parameter logic        RedMulE            = 1'b1,
   // Dependent parameters. DO NOT CHANGE.
   parameter int unsigned NumLocalPorts      = NumRMTiles > 0 ? RMMasterPorts + NumCoresPerTile : NumCoresPerTile,
   parameter int unsigned NumCaches          = NumCoresPerTile > NumCoresPerCache ? (NumCoresPerTile/NumCoresPerCache) : 1,
@@ -1102,7 +1102,7 @@ module mempool_tile
     logic      [RMMasterPorts-1:0] redmule_handshake_q;
     // TODO: This interface port is unused in this context, but it is still required as module input.
     // The interface connection should be removed upstream and inserted in a wrapper module.
-    cv32e40x_if_xif core_xif ();
+    // cv32e40x_if_xif core_xif ();
 
     localparam hci_size_parameter_t `HCI_SIZE_PARAM(tcdm) = '{
       DW:  RMDataWidth,
@@ -1180,45 +1180,45 @@ module mempool_tile
     assign tcdm.resp_id       = redmule_resp[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
     assign tcdm.resp_user     = redmule_resp[0].id[idx_width(RMOutstandingTransactions)-1:0];
 
-    // for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_redmule_regs
-    //   stream_register #(
-    //     .T(rm_dreq_t)
-    //   ) i_redmule_req_register (
-    //     .clk_i     ( clk_i                ),
-    //     .rst_ni    ( rst_ni               ),
-    //     .clr_i     ( 1'b0                 ),
-    //     .testmode_i( 1'b0                 ),
-    //     .valid_i   ( redmule_req_valid[p] ),
-    //     .ready_o   ( redmule_req_ready[p] ),
-    //     .data_i    ( redmule_req[p]       ),
-    //     .valid_o   ( redmule_req_qvalid[p]),
-    //     .ready_i   ( redmule_req_qready[p]),
-    //     .data_o    ( redmule_req_q[p]     )
-    //   );
-    //   stream_register #(
-    //     .T(rm_dresp_t)
-    //   ) i_redmule_resp_register (
-    //     .clk_i     (clk_i                 ),
-    //     .rst_ni    (rst_ni                ),
-    //     .clr_i     (1'b0                  ),
-    //     .testmode_i(1'b0                  ),
-    //     .valid_o   (redmule_resp_valid[p] ),
-    //     .ready_i   (redmule_resp_ready[p] ),
-    //     .data_o    (redmule_resp[p]       ),
-    //     .valid_i   (redmule_resp_qvalid[p]),
-    //     .ready_o   (redmule_resp_qready[p]),
-    //     .data_i    (redmule_resp_q[p]     )
-    //   );
-    // end: gen_redmule_regs
+    for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_redmule_regs
+      stream_register #(
+        .T(rm_dreq_t)
+      ) i_redmule_req_register (
+        .clk_i     ( clk_i                ),
+        .rst_ni    ( rst_ni               ),
+        .clr_i     ( 1'b0                 ),
+        .testmode_i( 1'b0                 ),
+        .valid_i   ( redmule_req_valid[p] ),
+        .ready_o   ( redmule_req_ready[p] ),
+        .data_i    ( redmule_req[p]       ),
+        .valid_o   ( redmule_req_qvalid[p]),
+        .ready_i   ( redmule_req_qready[p]),
+        .data_o    ( redmule_req_q[p]     )
+      );
+      stream_register #(
+        .T(rm_dresp_t)
+      ) i_redmule_resp_register (
+        .clk_i     (clk_i                 ),
+        .rst_ni    (rst_ni                ),
+        .clr_i     (1'b0                  ),
+        .testmode_i(1'b0                  ),
+        .valid_o   (redmule_resp_valid[p] ),
+        .ready_i   (redmule_resp_ready[p] ),
+        .data_o    (redmule_resp[p]       ),
+        .valid_i   (redmule_resp_qvalid[p]),
+        .ready_o   (redmule_resp_qready[p]),
+        .data_i    (redmule_resp_q[p]     )
+      );
+    end: gen_redmule_regs
 
     // Handshake separately on each request port
-    assign redmule_handshake_p = &redmule_req_ready ? '0 : redmule_req_ready;
+    assign redmule_handshake_p = &redmule_req_qready ? '0 : redmule_req_qready;
     `FF(redmule_handshake_q, redmule_handshake_p, '0, clk_i, rst_ni);
 
     // RedMulE TCDM request
-    assign redmule_tcdm_req       = redmule_req;
-    assign redmule_tcdm_req_valid = ~redmule_handshake_q & redmule_req_valid;
-    assign redmule_req_ready     = redmule_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
+    assign redmule_tcdm_req       = redmule_req_q;
+    assign redmule_tcdm_req_valid = ~redmule_handshake_q & redmule_req_qvalid;
+    assign redmule_req_qready     = redmule_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
 
     // RedMulE TCDM response handshake
     transactions_table #(
@@ -1231,9 +1231,9 @@ module mempool_tile
       .resp_payload_i(redmule_tcdm_resp      ),
       .resp_valid_i  (redmule_tcdm_resp_valid),
       .resp_ready_o  (redmule_tcdm_resp_ready),
-      .resp_payload_o(redmule_resp          ),
-      .resp_valid_o  (redmule_resp_valid    ),
-      .resp_ready_i  (redmule_resp_ready    )
+      .resp_payload_o(redmule_resp_q         ),
+      .resp_valid_o  (redmule_resp_qvalid    ),
+      .resp_ready_i  (redmule_resp_qready    )
     );
 
     /************************
