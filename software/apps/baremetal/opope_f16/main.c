@@ -23,7 +23,7 @@
 #define ELEMENTS_PER_ROW (NUM_BANKS * sizeof(int32_t) / sizeof(int16_t) )
 #define PORT_WIDTH (REDMULE_H * 2)
 #define XSHIFT 0
-#define WSHIFT 0
+#define WSHIFT 1
 
 #define PARALLEL
 
@@ -109,7 +109,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  // mempool_check_f16(l1_Y, l2_Z, 10, 0.05f, 0);
+  mempool_check_f16(l1_Y, l2_Z, 10, 0.05f, 0);
   mempool_barrier(num_cores);
   return 0;
 }
