@@ -94,8 +94,10 @@ static inline uint32_t mempool_get_redmule_id() {
     return (uint32_t)(-1);
   } else {
     uint32_t x = NUM_REDMULE_TILES > 0 ? NUM_CORES / NUM_REDMULE_TILES : 1;
-    uint32_t redmule_id = (mempool_get_core_id() % x) != 0 ? (uint32_t)(-1) : (mempool_get_core_id() / x);
-    return  redmule_id;
+    uint32_t redmule_id = (mempool_get_core_id() % x) != 0
+                              ? (uint32_t)(-1)
+                              : (mempool_get_core_id() / x);
+    return redmule_id;
   }
 }
 
