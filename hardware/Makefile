@@ -104,7 +104,7 @@ vlogan_args += -override_timescale=1ns/1ps -kdb
 
 # Configuration name
 vlog_defs   += -D$(config)
-ifeq ($(config),tensorpool400)
+ifeq ($(config),tensorpool256)
 	vlog_defs += -DTERAPOOL
 endif
 # Cluster configurations
@@ -131,6 +131,7 @@ ifneq ($(num_redmule_tiles), 0)
 vlog_defs   += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs   += -DARRAY_WIDTH=$(redmule_width)
 vlog_defs   += -DPIPE_REGS=$(redmule_regs)
+vlog_defs   += -DROB_DEPTH=$(rob_depth)
 endif
 ifneq ($(tcdm_burst), 0)
 vlog_defs   += -DBURSTLEN=$(shell echo $$(( $(redmule_height)*($(redmule_regs)+1) )) | awk '{print int($$1 / 2)}')
