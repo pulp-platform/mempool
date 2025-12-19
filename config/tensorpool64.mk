@@ -57,6 +57,7 @@ num_redmule_tiles ?= 4
 redmule_height ?= 16
 redmule_width ?= 16
 redmule_regs ?= 3
+rob_depth ?= 16
 
 ###########################
 ##  Burst configuration  ##
@@ -66,5 +67,5 @@ redmule_regs ?= 3
 tcdm_burst ?= 1
 
 # Grouped request/responses are use the same valid/ready handshake
-burst_greq ?= 4
+burst_greq ?= 2
 burst_grsp ?= 4
