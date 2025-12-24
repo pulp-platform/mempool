@@ -23,7 +23,7 @@
 #define ELEMENTS_PER_ROW (NUM_BANKS * sizeof(int32_t) / sizeof(int16_t) )
 #define PORT_WIDTH (REDMULE_H * 2)
 #define XSHIFT 0
-#define WSHIFT 1
+#define WSHIFT 0
 
 #define PARALLEL
 
