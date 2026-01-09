@@ -248,6 +248,59 @@ def generate_fcmatmul(my_type=np.float32, defines={}):
     return [A, B, C], defines
 
 
+def generate_fconv1d(my_type=np.float32, defines={}):
+
+    # Create matrix
+    matrix_L = defines['matrix_L']
+    matrix_Wi = defines['matrix_Wi']
+    matrix_Ci = defines['matrix_Ci']
+    matrix_Co = defines['matrix_Co']
+    matrix_Wf = defines['matrix_Wf']
+
+    X = (np.random.rand(matrix_L, matrix_Ci, matrix_Wi) - 0.5).astype(my_type)
+    F = (np.random.rand(matrix_Co, matrix_Ci, matrix_Wf) - 0.5).astype(my_type)
+    b = (np.random.rand(matrix_Co) - 0.5).astype(my_type)
+
+    Y = np.zeros((matrix_L, matrix_Co, matrix_Wi), dtype=my_type)
+    F_im2col = F.reshape(matrix_Co, matrix_Ci * matrix_Wf)
+    X_im2col = np.zeros(
+        (matrix_L,
+         matrix_Ci *
+         matrix_Wf,
+         matrix_Wi),
+        dtype=my_type)
+
+    pad = matrix_Wf // 2
+    for l in range(matrix_L):
+
+        # im2col transformation
+        X_col = np.zeros((matrix_Ci * matrix_Wf, matrix_Wi), dtype=X.dtype)
+        for row in range(matrix_Ci * matrix_Wf):
+            k = row // matrix_Wf
+            f = row % matrix_Wf
+            j0 = max(0, pad - f)
+            j1 = min(matrix_Wi, matrix_Wi + pad - f)
+            X_col[row, j0:j1] = X[l, k, j0 - pad + f: j1 - pad + f]
+        X_im2col[l, :, :] = X_col
+
+        Y[l] = np.matmul(F_im2col, X_col) + b[:, None]
+
+    X = np.reshape(
+        X,
+        (matrix_L * matrix_Ci * matrix_Wi),
+        order='C').astype(my_type)
+    F = np.reshape(
+        F,
+        (matrix_Co * matrix_Ci * matrix_Wf),
+        order='C').astype(my_type)
+    Y = np.reshape(
+        Y,
+        (matrix_L * matrix_Co * matrix_Wi),
+        order='C').astype(my_type)
+
+    return [Y, X, F, b], defines
+
+
 def generate_fgemm(my_type=np.float32, defines={}):
 
     # Create matrix
