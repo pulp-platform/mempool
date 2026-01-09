@@ -146,7 +146,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Generate data.h header files.')
     parser.add_argument('--app_name', type=str, help='Name of the app')
-    parser.add_argument('--params', type=str, help='Name of the app')
+    parser.add_argument(
+        '--params',
+        type=str,
+        help='.hjson file with parameters')
     parser.add_argument(
         '--type',
         type=str,
@@ -211,6 +214,7 @@ if __name__ == '__main__':
         "cholesky_q32": {"func": datalib.generate_qcholesky},
         "cmatmul_f16": {"func": datalib.generate_fcmatmul},
         "cmatmul_q16": {"func": datalib.generate_qcmatmul},
+        "conv1d_f16": {"func": datalib.generate_fconv1d},
         "dotp_f16": {"func": datalib.generate_fdotp},
         "dotp_f32": {"func": datalib.generate_fdotp},
         "dotp_i32": {"func": datalib.generate_idotp},
