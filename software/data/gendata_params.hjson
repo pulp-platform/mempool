@@ -204,6 +204,23 @@
     ]
   },
 
+  "conv1d_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_L", 1)
+      ("matrix_Wi", 8)
+      ("matrix_Ci", 8)
+      ("matrix_Co", 8)
+      ("matrix_Wf", 3)
+    ]
+    "arrays": [
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_F")
+      ("__fp16", "l2_b")
+    ]
+  },
+
   "dotp_f32": {
     "type": "float32",
     "defines": [
