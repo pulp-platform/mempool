@@ -310,7 +310,7 @@ module mempool_cluster
     end : gen_groups
 
     /************************
-     * Upper die connection *
+     * Top die connection   *
      ************************/
 
     tcdm_slave_req_t   [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_b;
@@ -320,24 +320,24 @@ module mempool_cluster
     logic              [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_b;
     logic              [NumGroups/2-1:0][NumGroups-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_b;
 
-    tcdm_slave_req_t   [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_u2b;
-    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_u2b;
-    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_u2b;
-    tcdm_master_resp_t [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_u2b;
-    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_u2b;
-    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_u2b;
+    tcdm_slave_req_t   [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_t2b;
+    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_t2b;
+    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_t2b;
+    tcdm_master_resp_t [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_t2b;
+    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_t2b;
+    logic              [NumGroups/2-1:0][NumGroups/2-1:0][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_t2b;
 
-    tcdm_slave_req_t   [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_b2u;
-    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_b2u;
-    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_b2u;
-    tcdm_master_resp_t [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_b2u;
-    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_b2u;
-    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_b2u;
+    tcdm_slave_req_t   [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_b2t;
+    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_valid_b2t;
+    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_ready_b2t;
+    tcdm_master_resp_t [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_b2t;
+    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_valid_b2t;
+    logic              [NumGroups/2-1:0][NumGroups-1:NumGroups/2][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_ready_b2t;
 
-    terapool_upper_die #(
+    terapool_top_die #(
       .TCDMBaseAddr (TCDMBaseAddr         ),
       .BootAddr     (BootAddr             )
-    ) i_upper_die (
+    ) i_top_die (
       .clk_i                   (clk_i                                   ),
       .rst_ni                  (rst_ni                                  ),
       .testmode_i              (testmode_i                              ),
@@ -345,18 +345,18 @@ module mempool_cluster
       .scan_data_i             (/*Unused*/                              ),
       .scan_data_o             (/*Unused*/                              ),
 
-      .tcdm_master_req_o       (tcdm_master_req_u2b                     ),
-      .tcdm_master_req_valid_o (tcdm_master_req_valid_u2b               ),
-      .tcdm_master_req_ready_i (tcdm_master_req_ready_u2b               ),
-      .tcdm_master_req_i       (tcdm_master_req_b2u                     ),
-      .tcdm_master_req_valid_i (tcdm_master_req_valid_b2u               ),
-      .tcdm_master_req_ready_o (tcdm_master_req_ready_b2u               ),
-      .tcdm_slave_resp_i       (tcdm_slave_resp_b2u                     ),
-      .tcdm_slave_resp_valid_i (tcdm_slave_resp_valid_b2u               ),
-      .tcdm_slave_resp_ready_o (tcdm_slave_resp_ready_b2u               ),
-      .tcdm_slave_resp_o       (tcdm_slave_resp_u2b                     ),
-      .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid_u2b               ),
-      .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready_u2b               ),
+      .tcdm_master_req_o       (tcdm_master_req_t2b                     ),
+      .tcdm_master_req_valid_o (tcdm_master_req_valid_t2b               ),
+      .tcdm_master_req_ready_i (tcdm_master_req_ready_t2b               ),
+      .tcdm_master_req_i       (tcdm_master_req_b2t                     ),
+      .tcdm_master_req_valid_i (tcdm_master_req_valid_b2t               ),
+      .tcdm_master_req_ready_o (tcdm_master_req_ready_b2t               ),
+      .tcdm_slave_resp_i       (tcdm_slave_resp_b2t                     ),
+      .tcdm_slave_resp_valid_i (tcdm_slave_resp_valid_b2t               ),
+      .tcdm_slave_resp_ready_o (tcdm_slave_resp_ready_b2t               ),
+      .tcdm_slave_resp_o       (tcdm_slave_resp_t2b                     ),
+      .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid_t2b               ),
+      .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready_t2b               ),
 
       .wake_up_i               (wake_up_q[NumCores-1:NumCoresPerGroup*NumGroups/2]             ),
       .ro_cache_ctrl_i         (ro_cache_ctrl_q[NumGroups-1:NumGroups/2]                       ),
@@ -404,21 +404,21 @@ module mempool_cluster
 
         // slave_req (group 0/1)   <-- master_request (group 2/3)
         // master_resp (group 0/1) <-- slave_resp (group 2/3)
-        assign tcdm_slave_req[h][ini ^ h]         = tcdm_master_req_u2b[g][h];
-        assign tcdm_slave_req_valid[h][ini ^ h]   = tcdm_master_req_valid_u2b[g][h];
-        assign tcdm_master_req_ready_u2b[g][h]    = tcdm_slave_req_ready[h][ini ^ h];
-        assign tcdm_master_resp[h][ini ^ h]       = tcdm_slave_resp_u2b[g][h];
-        assign tcdm_master_resp_valid[h][ini ^ h] = tcdm_slave_resp_valid_u2b[g][h];
-        assign tcdm_slave_resp_ready_u2b[g][h]    = tcdm_master_resp_ready[h][ini ^ h];
+        assign tcdm_slave_req[h][ini ^ h]         = tcdm_master_req_t2b[g][h];
+        assign tcdm_slave_req_valid[h][ini ^ h]   = tcdm_master_req_valid_t2b[g][h];
+        assign tcdm_master_req_ready_t2b[g][h]    = tcdm_slave_req_ready[h][ini ^ h];
+        assign tcdm_master_resp[h][ini ^ h]       = tcdm_slave_resp_t2b[g][h];
+        assign tcdm_master_resp_valid[h][ini ^ h] = tcdm_slave_resp_valid_t2b[g][h];
+        assign tcdm_slave_resp_ready_t2b[g][h]    = tcdm_master_resp_ready[h][ini ^ h];
 
         // slave_req (group 2/3)   <-- master_request (group 0/1)
         // master_resp (group 2/3) <-- slave_resp (group 0/1)
-        assign tcdm_master_req_b2u[g][tgt]       = tcdm_master_req_b[g][tgt];
-        assign tcdm_master_req_valid_b2u[g][tgt] = tcdm_master_req_valid_b[g][tgt];
-        assign tcdm_master_req_ready_b[g][tgt]   = tcdm_master_req_ready_b2u[g][tgt];
-        assign tcdm_slave_resp_b2u[g][tgt]       = tcdm_slave_resp_b[g][tgt];
-        assign tcdm_slave_resp_valid_b2u[g][tgt] = tcdm_slave_resp_valid_b[g][tgt];
-        assign tcdm_slave_resp_ready_b[g][tgt]   = tcdm_slave_resp_ready_b2u[g][tgt];
+        assign tcdm_master_req_b2t[g][tgt]       = tcdm_master_req_b[g][tgt];
+        assign tcdm_master_req_valid_b2t[g][tgt] = tcdm_master_req_valid_b[g][tgt];
+        assign tcdm_master_req_ready_b[g][tgt]   = tcdm_master_req_ready_b2t[g][tgt];
+        assign tcdm_slave_resp_b2t[g][tgt]       = tcdm_slave_resp_b[g][tgt];
+        assign tcdm_slave_resp_valid_b2t[g][tgt] = tcdm_slave_resp_valid_b[g][tgt];
+        assign tcdm_slave_resp_ready_b[g][tgt]   = tcdm_slave_resp_ready_b2t[g][tgt];
       end
     end
 

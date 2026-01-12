@@ -4,7 +4,7 @@
 
 `include "common_cells/registers.svh"
 
-module terapool_upper_die
+module terapool_top_die
   import mempool_pkg::*;
   import cf_math_pkg::idx_width;
 #(
@@ -195,4 +195,4 @@ module terapool_upper_die
   if (BankingFactor != 2**$clog2(BankingFactor))
     $fatal(1, "[mempool] The banking factor must be a power of two.");
 
-endmodule : terapool_upper_die
+endmodule : terapool_top_die
