@@ -97,6 +97,7 @@ void conv1d_im2col_matmul_f16(
     __fp16 *__restrict__ X_im2col, // [Ci*Wf][Wi] scratch
     __fp16 *__restrict__ Y,        // [Co][Wi]
     uint32_t Ci, uint32_t Co, uint32_t Wi, uint32_t Wf) {
+
   // Transformation
   im2col1d_f16(X, X_im2col, Ci, Wi, Wf);
   // GEMM
@@ -108,5 +109,6 @@ void conv1d_im2col_matmul_f16(
                    : [b] "r"(b[i]));
     }
   }
+
   return;
 }
