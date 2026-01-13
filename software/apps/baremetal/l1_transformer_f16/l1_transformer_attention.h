@@ -168,26 +168,32 @@ void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
 
-  for (uint32_t b = core_id; b < Beam; b += num_cores) {
-    for (uint32_t e = 0; e < Embed; e++) {
+  for (uint32_t i = core_id; i < Beam; i += num_cores) {
+    uint32_t b = i / Embed;
+    uint32_t e = i % Embed;
+    switch (mode) {
+    case TBE:
       for (uint32_t t = 0; t < tdSamples; t++) {
-
-        uint32_t o_idx, o_tidx;
-        uint32_t i_idx = (b * (3 * Embed) + e) * tdSamples + t;
-        switch (mode) {
-        case TBE:
-          o_idx = (t * Beam + b) * Embed + e;
-          o_tidx = (b * tdSamples + t) * Embed + e;
-          break;
-        default: // EBT
-          o_idx = (e * Beam + b) * tdSamples + t;
-          o_tidx = (b * Embed + e) * tdSamples + t;
-          break;
-        }
+        uint32_t o_idx, o_tidx, i_idx;
+        i_idx = (b * (3 * Embed) + e) * tdSamples + t;
+        o_idx = (t * Beam + b) * Embed + e;
+        o_tidx = (b * tdSamples + t) * Embed + e;
         Q[o_idx] = IN[i_idx];
         Kt[o_tidx] = IN[i_idx + Embed * tdSamples];
         V[o_idx] = IN[i_idx + 2 * Embed * tdSamples];
       }
+      break;
+    default: // EBT
+      for (uint32_t t = 0; t < tdSamples; t++) {
+        uint32_t o_idx, o_tidx, i_idx;
+        i_idx = (b * (3 * Embed) + e) * tdSamples + t;
+        o_idx = (e * Beam + b) * tdSamples + t;
+        o_tidx = (b * Embed + e) * tdSamples + t;
+        Q[o_idx] = IN[i_idx];
+        Kt[o_tidx] = IN[i_idx + Embed * tdSamples];
+        V[o_idx] = IN[i_idx + 2 * Embed * tdSamples];
+      }
+      break;
     }
   }
 
@@ -217,22 +223,26 @@ void permute_result(__fp16 const *__restrict__ IN, __fp16 *__restrict__ OUT,
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
 
-  for (uint32_t b = core_id; b < Beam; b += num_cores) {
-    for (uint32_t e = 0; e < Embed; e++) {
+  for (uint32_t i = core_id; i < Beam * Embed; i += num_cores) {
+    uint32_t b = i / Embed;
+    uint32_t e = i % Embed;
+    switch (mode) {
+    case TBE:
       for (uint32_t t = 0; t < tdSamples; t++) {
         uint32_t i_idx, o_idx;
-        switch (mode) {
-        case TBE:
-          i_idx = (t * Beam + b) * Embed + e;
-          o_idx = (b * Embed + e) * tdSamples + t;
-          break;
-        default: // EBT
-          i_idx = (e * Beam + b) * tdSamples + t;
-          o_idx = (b * Embed + e) * tdSamples + t;
-          break;
-        }
+        i_idx = (t * Beam + b) * Embed + e;
+        o_idx = (b * Embed + e) * tdSamples + t;
         OUT[o_idx] = IN[i_idx];
       }
+      break;
+    default: // EBT
+      for (uint32_t t = 0; t < tdSamples; t++) {
+        uint32_t i_idx, o_idx;
+        i_idx = (e * Beam + b) * tdSamples + t;
+        o_idx = (b * Embed + e) * tdSamples + t;
+        OUT[o_idx] = IN[i_idx];
+      }
+      break;
     }
   }
 
@@ -331,8 +341,10 @@ void *attention(__fp16 const *__restrict__ l2_I,
   switch (mode) {
   case TBE:
     attention_block(Q, Kt, V, T2, tdSamples, Beam, Embed);
+    break;
   default: // EBT
     attention_block(Q, Kt, V, T2, Embed, Beam, tdSamples);
+    break;
   }
   mempool_stop_benchmark();
 #endif
@@ -411,11 +423,7 @@ void *attention(__fp16 const *__restrict__ l2_I,
 
 #if defined(COMPUTE)
   mempool_start_benchmark();
-  conv1d(T1, F, b, T2, Embed, Embed, Wf, Beam, tdSamples);
-  mempool_barrier(num_cores);
-  for (uint32_t i = core_id; i < Embed * Beam * tdSamples; i += num_cores) {
-    asm volatile("fadd.h %[o], %[o], %[i];" : [o] "+&r"(T1[i]) : [i] "r"(I[i]));
-  }
+  conv1d(T1, F, b, I, Embed, Embed, Wf, Beam, tdSamples);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 #endif

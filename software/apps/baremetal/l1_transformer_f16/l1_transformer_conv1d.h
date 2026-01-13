@@ -42,13 +42,28 @@ void conv1d(__fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
   static __fp16 *T = l1_T3; // Should be allocated dinamically
 
   // Compute
-#if defined(COMPUTE)
 #if NUM_REDMULE_TILES > 0
 
-  // Transformation
-  for (uint32_t i = core_id; i < Batch; i += num_cores) {
-    im2col1d_f16(&X[i * ChInp * tdSamples], &T[i * ChInp * tdSamples * Wf],
-                 ChInp, tdSamples, Wf);
+  // IM2COL Transformation
+  const uint32_t pad = Wf / 2;
+  const uint32_t rows_per_batch = ChInp * Wf;
+  for (uint32_t i = core_id; i < Batch * ChInp * Wf; i += num_cores) {
+    uint32_t b = i / rows_per_batch;
+    uint32_t r = i % rows_per_batch;
+    uint32_t j = r / Wf;
+    uint32_t f = r % Wf;
+
+    uint32_t t_base = i * tdSamples;
+    uint32_t x_base = b * (ChInp * tdSamples) + j * tdSamples;
+
+    for (uint32_t k = 0; k < tdSamples; k++) {
+      int32_t idx = (int32_t)k - (int32_t)pad + (int32_t)f;
+      if (idx >= 0 && idx < (int32_t)tdSamples) {
+        T[t_base + j] = X[x_base + (uint32_t)idx];
+      } else {
+        T[t_base + j] = 0;
+      }
+    }
   }
   mempool_barrier(num_cores);
 
@@ -81,7 +96,6 @@ void conv1d(__fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
   }
   // Synchronize
   mempool_barrier(num_cores);
-#endif
 #endif
 
   return;
