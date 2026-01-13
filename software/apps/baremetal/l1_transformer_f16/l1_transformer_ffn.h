@@ -16,10 +16,9 @@
 
 */
 
-void *ffn(__fp16 const *__restrict__ l2_I,
-          __fp16 const *__restrict__ l2_F,
-          __fp16 const *__restrict__ l2_b,
-          uint32_t Beam, uint32_t Embed, uint32_t tdSamples, uint32_t Wf) {
+void *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
+          __fp16 const *__restrict__ l2_b, uint32_t Beam, uint32_t Embed,
+          uint32_t tdSamples, uint32_t Wf) {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
@@ -79,7 +78,21 @@ void *ffn(__fp16 const *__restrict__ l2_I,
 
 #if defined(COMPUTE)
   mempool_start_benchmark();
-  // TODO
+  if (Beam < num_cores) {
+    uint32_t num_cores_per_softmax = num_cores / Beam;
+    uint32_t softmax_id = core_id % num_cores_per_softmax;
+    uint32_t idx = core_id / num_cores_per_softmax;
+    __fp16 *GeluIN = &T2[idx * (Embed * 2 * tdSamples)];
+    __fp16 *GeluOUT = &T1[idx * (Embed * 2 * tdSamples)];
+    softmax_parallel_2x4_f16vec(GeluIN, GeluOUT, Embed * 2, tdSamples,
+                                softmax_id, num_cores_per_softmax);
+  } else {
+    for (uint32_t i = core_id; i < Beam; i += num_cores) {
+      __fp16 *GeluIN = &T2[i * (Embed * 2 * tdSamples)];
+      __fp16 *GeluOUT = &T1[i * (Embed * 2 * tdSamples)];
+      softmax_parallel_2x4_f16vec(GeluIN, GeluOUT, Embed * 2, tdSamples, 0, 1);
+    }
+  }
   mempool_stop_benchmark();
 #endif
 
@@ -118,11 +131,7 @@ void *ffn(__fp16 const *__restrict__ l2_I,
 
 #if defined(COMPUTE)
   mempool_start_benchmark();
-  conv1d(T1, F, b, T2, Embed * 2, Embed, Wf, Beam, tdSamples);
-  mempool_barrier(num_cores);
-  for (uint32_t i = core_id; i < Embed * Beam * tdSamples; i += num_cores) {
-    asm volatile("fadd.h %[o], %[o], %[i];" : [o] "+&r"(T1[i]) : [i] "r"(I[i]));
-  }
+  conv1d(T1, F, b, I, Embed * 2, Embed, Wf, Beam, tdSamples);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 #endif
