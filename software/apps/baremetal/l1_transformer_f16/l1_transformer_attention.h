@@ -37,6 +37,8 @@ void attention_block(__fp16 const *__restrict__ Q,
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
+  static __fp16 *S = l1_T4;  // Should be allocated dinamically
+  static __fp16 *Aw = l1_T5; // Should be allocated dinamically
 
 #if NUM_REDMULE_TILES > 0
   // RedMulE implementation
@@ -44,9 +46,7 @@ void attention_block(__fp16 const *__restrict__ Q,
   uint32_t redmule_id = mempool_get_redmule_id();
   uint32_t num_redmules = mempool_get_redmule_count();
 
-  static __fp16 *S = l1_T4;  // Should be allocated dinamically
-  static __fp16 *Aw = l1_T5; // Should be allocated dinamically
-
+  mempool_start_benchmark();
   if (redmule_id < num_redmules) {
     for (uint32_t i = redmule_id; i < Batch; i += num_redmules) {
       unsigned int I_ptr = (unsigned int)(Q + i * (SeqLen * tdEmbed));
@@ -64,8 +64,10 @@ void attention_block(__fp16 const *__restrict__ Q,
     }
   }
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 
   // Softmax
+  mempool_start_benchmark();
   if (Batch < num_cores) {
     uint32_t num_cores_per_softmax = num_cores / Batch;
     uint32_t softmax_id = core_id % num_cores_per_softmax;
@@ -81,7 +83,9 @@ void attention_block(__fp16 const *__restrict__ Q,
     }
   }
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 
+  mempool_start_benchmark();
   if (redmule_id < num_redmules) {
     for (uint32_t i = redmule_id; i < Batch; i += num_cores) {
       unsigned int I_ptr = (unsigned int)(Aw + i * (SeqLen * SeqLen));
@@ -99,12 +103,9 @@ void attention_block(__fp16 const *__restrict__ Q,
     }
   }
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 
 #else
-
-  static __fp16 *S = l1_T4;  // Should be allocated dinamically
-  static __fp16 *Aw = l1_T5; // Should be allocated dinamically
-
   // Q*Kt
   for (uint32_t i = 0; i < Batch; i++) {
     matmul_4x2_parallel_f16vec(
@@ -112,7 +113,6 @@ void attention_block(__fp16 const *__restrict__ Q,
         &S[i * (SeqLen * SeqLen)], SeqLen, tdEmbed, SeqLen, core_id, num_cores);
   }
   mempool_barrier(num_cores);
-
   // Softmax
   for (uint32_t i = 0; i < Batch; i++) {
     softmax_parallel_2x4_f16vec(&S[i * (SeqLen * SeqLen)],
@@ -120,7 +120,6 @@ void attention_block(__fp16 const *__restrict__ Q,
                                 core_id, num_cores);
   }
   mempool_barrier(num_cores);
-
   // A = Softmax(Q*Kt)*V
   for (uint32_t i = 0; i < Batch; i++) {
     matmul_4x2_parallel_f16vec(&Aw[i * (SeqLen * SeqLen)],
@@ -129,7 +128,6 @@ void attention_block(__fp16 const *__restrict__ Q,
                                tdEmbed, core_id, num_cores);
   }
   mempool_barrier(num_cores);
-
 #endif
 
   return;
