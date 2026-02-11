@@ -30,7 +30,7 @@
   @return        none
 */
 
-void conv1d(__fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
+void conv1d(__fp16 *__restrict__ X, __fp16 const *__restrict__ F,
             __fp16 const *__restrict__ b, __fp16 *__restrict__ Y,
             uint32_t ChInp, uint32_t ChOut, uint32_t Wf, uint32_t Batch,
             uint32_t tdSamples) {
@@ -45,29 +45,71 @@ void conv1d(__fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
 #if NUM_REDMULE_TILES > 0
 
   // IM2COL Transformation
+#if (CONV1D_WF == 3)
+  mempool_start_benchmark();
+  for (uint32_t i = core_id; i < Batch * ChInp; i += num_cores) {
+    __fp16 *X_base = &X[i * tdSamples];
+    __fp16 *T_base = &T[i * Wf * tdSamples];
+    /* Central region: k = 1 .. tdSamples-2 */
+    for (uint32_t k = 1; k < tdSamples - 1; k++) {
+      __fp16 x = X_base[k];
+      T_base[0 * tdSamples + (k - 1)] = x; // f = 0
+      T_base[1 * tdSamples + k] = x;       // f = 1
+      T_base[2 * tdSamples + (k + 1)] = x; // f = 2
+    }
+    /* Left padding (k = 0) */
+    T_base[0 * tdSamples + 0] = (__fp16)0;
+    T_base[1 * tdSamples + 0] = X_base[0];
+    T_base[2 * tdSamples + 0] = X_base[1];
+    /* Right padding (k = tdSamples-1) */
+    T_base[0 * tdSamples + (tdSamples - 1)] = X_base[tdSamples - 2];
+    T_base[1 * tdSamples + (tdSamples - 1)] = X_base[tdSamples - 1];
+    T_base[2 * tdSamples + (tdSamples - 1)] = (__fp16)0;
+  }
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+#else
+  mempool_start_benchmark();
   const uint32_t pad = Wf / 2;
-  const uint32_t rows_per_batch = ChInp * Wf;
-  for (uint32_t i = core_id; i < Batch * ChInp * Wf; i += num_cores) {
-    uint32_t b = i / rows_per_batch;
-    uint32_t r = i % rows_per_batch;
-    uint32_t j = r / Wf;
-    uint32_t f = r % Wf;
-
-    uint32_t t_base = i * tdSamples;
-    uint32_t x_base = b * (ChInp * tdSamples) + j * tdSamples;
-
-    for (uint32_t k = 0; k < tdSamples; k++) {
-      int32_t idx = (int32_t)k - (int32_t)pad + (int32_t)f;
-      if (idx >= 0 && idx < (int32_t)tdSamples) {
-        T[t_base + j] = X[x_base + (uint32_t)idx];
-      } else {
-        T[t_base + j] = 0;
+  for (uint32_t i = core_id; i < Batch * ChInp; i += num_cores) {
+    __fp16 *X_base = &X[i * tdSamples];
+    __fp16 *T_base = &T[i * Wf * tdSamples];
+    /* Central region (no bounds checks) */
+    for (uint32_t k = pad; k < tdSamples - pad; k++) {
+      __fp16 x = X_base[k];
+      uint32_t k0 = k - pad;
+      for (uint32_t f = 0; f < Wf; f++) {
+        T_base[f * tdSamples + (k0 + f)] = x;
+      }
+    }
+    /* Padding regions */
+    for (uint32_t f = 0; f < Wf; f++) {
+      /* Bottom-left (k < pad) */
+      for (uint32_t k = 0; k < pad; k++) {
+        int32_t x_idx = (int32_t)k - (int32_t)pad + (int32_t)f;
+        if (x_idx >= 0) {
+          T_base[f * tdSamples + k] = X_base[x_idx];
+        } else {
+          T_base[f * tdSamples + k] = (__fp16)0;
+        }
+      }
+      /* Upper-right (k >= tdSamples - pad) */
+      for (uint32_t k = tdSamples - pad; k < tdSamples; k++) {
+        int32_t x_idx = (int32_t)k - (int32_t)pad + (int32_t)f;
+        if (x_idx < (int32_t)tdSamples) {
+          T_base[f * tdSamples + k] = X_base[x_idx];
+        } else {
+          T_base[f * tdSamples + k] = (__fp16)0;
+        }
       }
     }
   }
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+#endif
 
   // GEMM
+  mempool_start_benchmark();
   if (redmule_id < num_redmules) {
     for (uint32_t i = redmule_id; i < Batch; i += num_redmules) {
       unsigned int I_ptr = (unsigned int)(F);
@@ -85,8 +127,10 @@ void conv1d(__fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
     }
   }
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 
 #else
+  mempool_start_benchmark();
   for (uint32_t i = core_id; i < Batch; i += num_cores) {
     __fp16 *X_ptr = &X[i * ChInp * tdSamples];
     __fp16 *Y_ptr = &Y[i * ChOut * tdSamples];
@@ -96,6 +140,7 @@ void conv1d(__fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
   }
   // Synchronize
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 #endif
 
   return;
@@ -144,12 +189,15 @@ void *layernorm_conv1d(__fp16 const *__restrict__ l2_F,
   /* Transfer weights                                                       */
   /**************************************************************************/
 
-  static __fp16 *F = l1_F; // Should be allocated dinamically
-  static __fp16 *b = l1_b; // Should be allocated dinamically
+  mempool_start_benchmark();
+  static __fp16 *F = l1_F;   // Should be allocated dinamically
+  static __fp16 *b = l1_b;   // Should be allocated dinamically
+  static __fp16 *T1 = l1_T1; // Should be allocated dinamically
   if (core_id == 0) {
     dma_memcpy_nonblocking(F, l2_F, ChOut * ChInp * Wf * sizeof(int16_t));
     dma_memcpy_nonblocking(b, l2_b, ChOut * sizeof(int16_t));
   }
+  mempool_stop_benchmark();
 
 #if defined(VERBOSE)
   if (core_id == 0) {
@@ -175,7 +223,6 @@ void *layernorm_conv1d(__fp16 const *__restrict__ l2_F,
 
 #if defined(COMPUTE)
   mempool_start_benchmark();
-  static __fp16 *T1 = l1_T1; // Should be allocated dinamically
   uint32_t num_cores_per_batch = num_cores / Batch;
   uint32_t batch_id = core_id % num_cores_per_batch;
   uint32_t idx = core_id / num_cores_per_batch;
@@ -220,9 +267,7 @@ void *layernorm_conv1d(__fp16 const *__restrict__ l2_F,
   /**************************************************************************/
 
 #if defined(COMPUTE)
-  mempool_start_benchmark();
   conv1d(T1, F, b, O, ChInp, ChOut, Wf, Batch, tdSamples);
-  mempool_stop_benchmark();
 #endif
 
 #ifdef VERBOSE
