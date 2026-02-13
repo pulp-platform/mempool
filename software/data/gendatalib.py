@@ -382,6 +382,7 @@ def generate_fconv2d_pointwise(my_type=np.float32, defines={}):
 
     return [A, W, B], defines
 
+
 def generate_ffullyconn(my_type=np.float32, defines={}):
 
     matrix_M = defines['matrix_M']  # width of input
@@ -400,6 +401,7 @@ def generate_ffullyconn(my_type=np.float32, defines={}):
     Y = B
 
     return [A, Y, B, W], defines
+
 
 def generate_fconv1d(my_type=np.float32, defines={}):
 

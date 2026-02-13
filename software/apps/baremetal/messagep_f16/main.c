@@ -22,6 +22,10 @@ __fp16 l1_B[matrix_P * matrix_M * matrix_N * matrix_D]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_HL[matrix_P * matrix_M * matrix_N * width_HL]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_W1[matrix_P * matrix_D * width_HL]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_W2[matrix_P * matrix_D * width_HL]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -37,20 +41,22 @@ int main() {
     dma_memcpy_blocking(l1_HL, l2_HL,
                         (matrix_P * matrix_M * matrix_N * width_HL) *
                             sizeof(int16_t));
+    dma_memcpy_blocking(l1_W1, l2_W_fc1,
+                        (matrix_P * matrix_D * width_HL) * sizeof(int16_t));
+    dma_memcpy_blocking(l1_W2, l2_W_fc2,
+                        (matrix_P * matrix_D * width_HL) * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
 
-  if (core_id == 0) {
-    // Execute function to test.
-    mempool_start_benchmark();
-    messagep_f16s_unrolled4(l1_A, l1_B, matrix_P, matrix_M, matrix_N, matrix_D,
-                            FC_LAYER, l1_HL, l2_W_fc1, l2_W_fc2, width_HL, BIAS,
-                            RELU);
-    mempool_stop_benchmark();
-  }
+  // Execute function to test.
+  mempool_start_benchmark();
+  messagep_f16(l1_A, l1_B, l1_HL, l1_W1, l1_W2, matrix_P, matrix_M, matrix_N,
+               matrix_D, width_HL, FC_LAYER, BIAS, RELU, core_id, num_cores);
+  mempool_stop_benchmark();
+
   mempool_barrier(num_cores);
   mempool_check_f16(l1_B, l2_B, matrix_P * matrix_M * matrix_N * matrix_D,
-                    0.01f, 0);
+                    0.01f, 1);
   mempool_barrier(num_cores);
 
   return 0;
