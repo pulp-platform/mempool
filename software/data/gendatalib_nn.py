@@ -211,13 +211,14 @@ def generate_fmessagep(my_type=np.float32, defines={}):
     W_fc2 = np.random.rand(P, width_HL, D).astype(my_type)
     HL1 = np.zeros((P, M * N, width_HL), dtype=my_type)
     HL2 = np.zeros((P, M * N, D), dtype=my_type)
+    HL1_bias = np.zeros((P, M * N, width_HL), dtype=my_type)
     if defines['BIAS'] == 1:
-        HL1 = np.random.rand(P, M * N, width_HL).astype(my_type)
+        HL1_bias = np.random.rand(P, M * N, width_HL).astype(my_type)
 
     if defines['FC_LAYER'] == 1:
         # Loops over the message passing instances
         for p in range(P):
-            HL1[p] += np.matmul(A[p], W_fc1[p, :, :])
+            HL1[p] = np.matmul(A[p, :, :], W_fc1[p, :, :]) + HL1_bias[p]
             if defines['RELU'] == 1:
                 HL1[p] = np.maximum(HL1[p], 0)
             HL2[p] = np.matmul(HL1[p], W_fc2[p, :, :])
@@ -235,10 +236,11 @@ def generate_fmessagep(my_type=np.float32, defines={}):
     A = np.reshape(A, (P * M * N * D))
     B = np.reshape(B, (P * M * N * D))
     HL = np.reshape(HL1, (P * M * N * width_HL))
+    HL_bias = np.reshape(HL1_bias, (P * M * N * width_HL))
     W_fc1 = np.reshape(W_fc1, (P * width_HL * D))
     W_fc2 = np.reshape(W_fc2, (P * D * width_HL))
 
     A = A.astype(my_type)
     B = B.astype(my_type)
 
-    return [A, B, HL, W_fc1, W_fc2], defines
+    return [A, B, HL, HL_bias, W_fc1, W_fc2], defines
