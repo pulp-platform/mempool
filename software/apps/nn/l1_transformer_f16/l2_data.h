@@ -4,8 +4,8 @@
 //
 // Author: Marco Bertuletti
 
-#define BEAM (32)
-#define EMBED (32)
+#define BEAM (128)
+#define EMBED (16)
 #define TDSAMPLES (32)
 #define CONV1D_WF (3)
 
