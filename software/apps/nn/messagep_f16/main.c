@@ -38,7 +38,7 @@ int main() {
     dma_memcpy_blocking(l1_A, l2_A,
                         (matrix_P * matrix_M * matrix_N * matrix_D) *
                             sizeof(int16_t));
-    dma_memcpy_blocking(l1_HL, l2_HL,
+    dma_memcpy_blocking(l1_HL, l2_HL_bias,
                         (matrix_P * matrix_M * matrix_N * width_HL) *
                             sizeof(int16_t));
     dma_memcpy_blocking(l1_W1, l2_W_fc1,
@@ -55,7 +55,7 @@ int main() {
   mempool_stop_benchmark();
 
   mempool_barrier(num_cores);
-  mempool_check_f16(l1_B, l2_B, matrix_P * matrix_M * matrix_N * matrix_D,
+  mempool_check_f16(l1_HL, l2_HL, matrix_P * matrix_M * matrix_N * matrix_D,
                     0.01f, 1);
   mempool_barrier(num_cores);
 

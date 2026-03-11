@@ -18,6 +18,8 @@
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_matmul_f16.h"
 
+#define SINGLE
+
 /*
 ======================
 Parameters and defines
@@ -68,7 +70,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_f16(matrix_c, l2_C, matrix_M * matrix_P, 0.5f, 0);
+  mempool_check_f16(matrix_c, l2_C, matrix_M * matrix_P, 0.5f, 1);
   mempool_barrier(num_cores);
   return 0;
 }

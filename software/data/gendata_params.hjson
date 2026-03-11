@@ -221,11 +221,11 @@
     ]
   },
 
-  "conv2d_depthwise_f16": {
+  "conv2d_f16": {
     "type": "float16",
     "defines": [
-      ("matrix_M", 32)
-      ("matrix_N", 16)
+      ("matrix_M", 16)
+      ("matrix_N", 128)
       ("matrix_D", 128)
       ("kernel_K", 3)
       ("kernel_D", 128)
@@ -377,19 +377,20 @@
   "messagep_f16": {
     "type": "float16",
     "defines": [
-      ("matrix_M", 4)
+      ("matrix_M", 32)
       ("matrix_N", 4)
       ("matrix_P", 4)
-      ("matrix_D", 4)
-      ("width_HL", 4)
+      ("matrix_D", 128)
+      ("width_HL", 128)
       ("FC_LAYER", 1)
-      ("BIAS",     0)
-      ("RELU",     1)
+      ("BIAS",     1)
+      ("RELU",     0)
     ]
     "arrays": [
       ("__fp16", "l2_A")
       ("__fp16", "l2_B")
       ("__fp16", "l2_HL")
+      ("__fp16", "l2_HL_bias")
       ("__fp16", "l2_W_fc1")
       ("__fp16", "l2_W_fc2")
     ]
