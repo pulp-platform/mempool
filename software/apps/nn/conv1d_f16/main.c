@@ -52,7 +52,8 @@ int main() {
 
   if (core_id == 0) {
     mempool_start_benchmark();
-    conv1d_f16(l1_X, l1_F, l1_b, l1_Y, matrix_Ci, matrix_Co, matrix_Wi, matrix_Wf, IM2COL);
+    conv1d_f16(l1_X, l1_F, l1_b, l1_Y, matrix_Ci, matrix_Co, matrix_Wi,
+               matrix_Wf, IM2COL);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
