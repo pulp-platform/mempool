@@ -302,13 +302,15 @@ void *attention(__fp16 const *__restrict__ l2_I,
   /* Conv1D block                                                           */
   /**************************************************************************/
 
+#if defined(COMPUTE)
   layernorm_conv1d(l2_F, l2_b, I, T2, Beam, Embed, Embed * 3, tdSamples, Wf);
+#endif
 
   /**************************************************************************/
   /* Permute to QKV                                                         */
   /**************************************************************************/
 
-#if defined(COMPUTE)
+  //#if defined(COMPUTE)
   mempool_start_benchmark();
   static __fp16 *Q;
   static __fp16 *Kt;
@@ -319,7 +321,7 @@ void *attention(__fp16 const *__restrict__ l2_I,
   permute_qkv(T2, Q, Kt, V, Beam, Embed, tdSamples, mode);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-#endif
+  //#endif
 
 #ifdef VERBOSE
   if (core_id == 0) {
@@ -334,8 +336,7 @@ void *attention(__fp16 const *__restrict__ l2_I,
   /* Attention                                                              */
   /**************************************************************************/
 
-#if defined(COMPUTE)
-  mempool_start_benchmark();
+  //#if defined(COMPUTE)
   switch (mode) {
   case TBE:
     attention_block(Q, Kt, V, T2, tdSamples, Beam, Embed);
@@ -344,8 +345,7 @@ void *attention(__fp16 const *__restrict__ l2_I,
     attention_block(Q, Kt, V, T2, Embed, Beam, tdSamples);
     break;
   }
-  mempool_stop_benchmark();
-#endif
+  //#endif
 
 #ifdef VERBOSE
   if (core_id == 0) {

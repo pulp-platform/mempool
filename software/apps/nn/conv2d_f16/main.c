@@ -12,9 +12,12 @@
 #include "runtime.h"
 #include "synchronization.h"
 
+#define PARALLEL
+dump(prova,8);
+
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_conv2d_f16.h"
-#include "data_conv2d_depthwise_f16.h"
+#include "data_conv2d_f16.h"
 
 __fp16 l1_A[matrix_M * matrix_N * matrix_D]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -44,13 +47,13 @@ int main() {
   }
   mempool_barrier(num_cores);
 
+#ifdef SINGLE
+
   if (core_id == 0) {
     // Execute function to test.
     mempool_start_benchmark();
-    conv2d_depthwise_f16s_unrolled4(l1_A, l1_Bd, l1_Wd, matrix_M, matrix_N,
-                                    matrix_D, kernel_K);
-    conv2d_pointwise_f16s_unrolled4(l1_Bd, l1_Bp, l1_Wp, matrix_M, matrix_N,
-                                    matrix_D, kernel_D);
+    conv2d_depthwise_f16(l1_A, l1_Bd, l1_Wd, matrix_M, matrix_N, matrix_D, kernel_K, core_id, 1);
+    conv2d_pointwise_f16(l1_Bd, l1_Bp, l1_Wp, matrix_M, matrix_N, matrix_D, kernel_D, core_id, 1);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
@@ -61,14 +64,30 @@ int main() {
   if (core_id == 0) {
     // Execute function to test.
     mempool_start_benchmark();
-    conv2d_depthwise_pointwise_f16s_unrolled4(l1_A, l1_Bp, l1_Wd, l1_Wp,
-                                              matrix_M, matrix_N, matrix_D,
-                                              kernel_K, kernel_D);
+    conv2d_depthwise_pointwise_f16(l1_A, l1_Bp, l1_Wd, l1_Wp, matrix_M, matrix_N, matrix_D, kernel_K, kernel_D, core_id, 1);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
   mempool_check_f16(l1_Bp, l2_Bp, matrix_M * matrix_N * kernel_D, 0.01f, 0);
   mempool_barrier(num_cores);
+
+#endif
+
+#ifdef PARALLEL
+
+  // Execute function to test.
+  mempool_start_benchmark();
+  conv2d_depthwise_f16(l1_A, l1_Bd, l1_Wd, matrix_M, matrix_N, matrix_D, kernel_K, core_id, num_cores);
+  conv2d_pointwise_f16(l1_Bd, l1_Bp, l1_Wp, matrix_M, matrix_N, matrix_D, kernel_D, core_id, num_cores);
+  mempool_stop_benchmark();
+  mempool_barrier(num_cores);
+
+  // Checks.
+  mempool_check_f16(l1_Bd, l2_Bd, 100, 0.01f, 0);
+  mempool_check_f16(l1_Bp, l2_Bp, 100, 0.01f, 0);
+  mempool_barrier(num_cores);
+
+#endif
 
   return 0;
 }
