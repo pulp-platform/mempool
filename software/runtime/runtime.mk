@@ -19,6 +19,7 @@ GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 
 OMP_DIR            ?= $(ROOT_DIR)/omp
+HALIDE_DIR         ?= $(ROOT_DIR)/halide
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 # Since redmule is Bender-managed (no stable hardware/deps/redmule path
@@ -148,8 +149,9 @@ RUNTIME += $(ROOT_DIR)/string.c.o
 RUNTIME += $(ROOT_DIR)/synchronization.c.o
 
 OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
+HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 
-.INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT)
+.INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(HALIDE_RUNTIME) $(LINKER_SCRIPT)
 # Disable builtin rules
 .SUFFIXES:
 
@@ -164,9 +166,6 @@ OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
 
 %.ld: %.ld.c
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
-
-data_%.h:
-	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_DIR)/gendata_params.hjson
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)
