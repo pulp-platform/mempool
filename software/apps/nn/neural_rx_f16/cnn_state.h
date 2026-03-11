@@ -36,10 +36,8 @@ void cnn_state_block(__fp16 *__restrict__ Sinp, __fp16 *__restrict__ Stmp,
   uint32_t num_cores = mempool_get_core_count();
 
   // Separable Convolution
-  conv2d_depthwise_f16p_unrolled4(Sinp, Stmp, Wdw, matrix_M, matrix_N, matrix_D,
-                                  kernel_K);
-  conv2d_pointwise_f16p_unrolled4(Stmp, Sout, Wpw, matrix_M, matrix_N, matrix_D,
-                                  kernel_D);
+  conv2d_depthwise_f16(Sinp, Stmp, Wdw, matrix_M, matrix_N, matrix_D, kernel_K);
+  conv2d_pointwise_f16(Stmp, Sout, Wpw, matrix_M, matrix_N, matrix_D, kernel_D);
   mempool_barrier(num_cores);
 
 #if defined(VERBOSE)

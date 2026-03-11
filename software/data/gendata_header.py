@@ -217,7 +217,7 @@ if __name__ == '__main__':
         "cmatmul_f16": {"func": datalib.generate_fcmatmul},
         "cmatmul_q16": {"func": datalib.generate_qcmatmul},
         "conv1d_f16": {"func": datalib.generate_fconv1d},
-        "conv2d_depthwise_f16": {"func": datalib.generate_fconv2d_depthwise_pointwise},
+        "conv2d_f16": {"func": datalib.generate_fconv2d_depthwise_pointwise},
         "dotp_f16": {"func": datalib.generate_fdotp},
         "dotp_f32": {"func": datalib.generate_fdotp},
         "dotp_i32": {"func": datalib.generate_idotp},
