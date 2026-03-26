@@ -5,9 +5,9 @@
 // Author: Marco Bertuletti, ETH Zurich
 
 #pragma once
-#include "archi_redmule.h"
 #include "builtins_v2.h"
-#include "hal_redmule.h"
+#include "mempool_redmule_f16.h"
+#define SHIFT (true)
 
 void conv2d_pointwise_f16(__fp16 *A, __fp16 *B, __fp16 *W,
                           uint32_t matrix_M, uint32_t matrix_N,
@@ -16,25 +16,10 @@ void conv2d_pointwise_f16(__fp16 *A, __fp16 *B, __fp16 *W,
                           uint32_t __attribute__((unused)) numThreads) {
 
 #if NUM_REDMULE_TILES > 0
-  uint32_t redmule_id = mempool_get_redmule_id();
-  uint32_t num_redmules = mempool_get_redmule_count();
-  if (redmule_id < num_redmules) {
-    uint16_t M = (uint16_t)(matrix_M * matrix_N) / num_redmules;
-    uint16_t N = (uint16_t)matrix_D;
-    uint16_t P = (uint16_t)kernel_D;
-    unsigned int I_ptr =
-        (unsigned int)(A + redmule_id * (M * N / num_redmules));
-    unsigned int O_ptr =
-        (unsigned int)(B + redmule_id * (M * P / num_redmules));
-    unsigned int W_ptr = (unsigned int)(W);
-    hwpe_soft_clear();
-    mempool_wait(10);
-    redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, GEMM, Float16);
-    mempool_wait(10);
-    hwpe_trigger_job();
-    mempool_wfi();
-  }
-  mempool_barrier(numThreads);
+  uint32_t M = matrix_M * matrix_N;
+  redmule_asynch_parallel(A, B, W, M,
+    matrix_D, kernel_D, GEMM, SHIFT, PORT_WIDTH);
+  wait_redmule();
 #else
   uint32_t k, i, d;
   float sum;
