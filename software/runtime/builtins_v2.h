@@ -28,20 +28,15 @@ typedef unsigned char v4u __attribute__((vector_size(4)));
 
 /* Packing of scalars into vectors */
 inline v2s __PACK2(const int32_t x, const int32_t y) {
-  v2s output;
-  asm volatile("pv.pack %[z], %[x], %[y];"
-               : [z] "=r"(output)
-               : [x] "r"(x), [y] "r"(y));
-  return output;
+  v2s z;
+  asm volatile("pv.pack %0, %1, %2;" : "=r"(z) : "r"(x), "r"(y));
+  return z;
 }
 inline v2s __PACKH(const int32_t x, const int32_t y) {
-  v2s output;
-  asm volatile("pv.pack.h %[z], %[x], %[y];"
-               : [z] "=r"(output)
-               : [x] "r"(x), [y] "r"(y));
-  return output;
+  v2s z;
+  asm volatile("pv.pack.h %0, %1, %2;" : "=r"(z) : "r"(x), "r"(y));
+  return z;
 }
-
 #define __PACKU2(x, y)                                                         \
   __builtin_pulp_pack2((unsigned short)(x), (unsigned short)(y))
 
@@ -51,6 +46,12 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
 #define __PACKU4(x, y, z, t)                                                   \
   __builtin_pulp_pack4((unsigned char)(x), (unsigned char)(y),                 \
                        (unsigned char)(z), (unsigned char)(t))
+
+#ifdef __clang__
+inline void __VFCPKAHS(v2h *z, const float x, const float y) {
+  asm volatile("vfcpka.h.s %0, %1, %2;" : "=r"(z) : "r"(x), "r"(y));
+}
+#endif
 
 /* Max */
 #define __MAX(a, b) __builtin_pulp_maxsi((a), (b))
