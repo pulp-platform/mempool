@@ -42,35 +42,39 @@ int main() {
                         (matrix_M * matrix_N * matrix_D) * sizeof(int16_t));
     dma_memcpy_blocking(l1_Wd, l2_Wd,
                         (kernel_K * kernel_K * matrix_D) * sizeof(int16_t));
-    dma_memcpy_blocking(l1_Wp, l2_Wp, (kernel_D * matrix_D) * sizeof(int16_t));
+    dma_memcpy_blocking(l1_Wp, l2_Wp,
+                        (kernel_D * matrix_D) * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
 
 #ifdef SINGLE
 
+  // Execute function to test.
   if (core_id == 0) {
-    // Execute function to test.
     mempool_start_benchmark();
-    conv2d_depthwise_f16(l1_A, l1_Bd, l1_Wd, matrix_M, matrix_N, matrix_D,
-                         kernel_K, core_id, 1);
-    conv2d_pointwise_f16(l1_Bd, l1_Bp, l1_Wp, matrix_M, matrix_N, matrix_D,
-                         kernel_D, core_id, 1);
+    conv2d_depthwise_f16(l1_A, l1_Bd, l1_Wd,
+                         matrix_M, matrix_N, matrix_D, kernel_K, core_id);
+    conv2d_pointwise_f16(l1_Bd, l1_Bp, l1_Wp,
+                         matrix_M, matrix_N, matrix_D, kernel_D, core_id);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
+
   mempool_check_f16(l1_Bd, l2_Bd, matrix_M * matrix_N * matrix_D, 0.01f, 0);
   mempool_check_f16(l1_Bp, l2_Bp, matrix_M * matrix_N * kernel_D, 0.01f, 0);
   mempool_barrier(num_cores);
 
+  // Execute function to test.
   if (core_id == 0) {
-    // Execute function to test.
     mempool_start_benchmark();
-    conv2d_depthwise_pointwise_f16(l1_A, l1_Bp, l1_Wd, l1_Wp, matrix_M,
-                                   matrix_N, matrix_D, kernel_K, kernel_D,
-                                   core_id, 1);
+    conv2d_depthwise_pointwise_f16(l1_A, l1_Bp, l1_Wd, l1_Wp,
+                                   matrix_M, matrix_N, matrix_D,
+                                   kernel_K, kernel_D, core_id, 1);
     mempool_stop_benchmark();
   }
   mempool_barrier(num_cores);
+
+  // Checks
   mempool_check_f16(l1_Bp, l2_Bp, matrix_M * matrix_N * kernel_D, 0.01f, 0);
   mempool_barrier(num_cores);
 
@@ -82,10 +86,11 @@ int main() {
   mempool_start_benchmark();
   conv2d_depthwise_f16(l1_A, l1_Bd, l1_Wd, matrix_M, matrix_N, matrix_D,
                        kernel_K, core_id, num_cores);
+  mempool_barrier(num_cores);
   conv2d_pointwise_f16(l1_Bd, l1_Bp, l1_Wp, matrix_M, matrix_N, matrix_D,
                        kernel_D, core_id, num_cores);
-  mempool_stop_benchmark();
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 
   // Checks.
   mempool_check_f16(l1_Bd, l2_Bd, 100, 0.01f, 0);
