@@ -278,6 +278,57 @@
     ]
   },
 
+  "slp_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 2048)
+      ("matrix_N", 128)
+      ("matrix_P", 128)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_W")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+      ("__fp16", "l2_S")
+    ]
+  },
+
+  "multihead_f16": {
+    "type": "float16",
+    "defines": [
+      ("H", 4)
+      ("M", 128)
+      ("N", 512)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Wq")
+      ("__fp16", "l2_Wk")
+      ("__fp16", "l2_Wv")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
+  "cnn_f16": {
+    "type": "float16",
+    "defines": [
+      ("FM", 32)
+      ("FN", 16)
+      ("DW_D", 512)
+      ("PW_D", 512)
+      ("DW_K", 3)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Wpw")
+      ("__fp16", "l2_Wdw")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
   "gaussjordan_q32": {
     "type": "int32",
     "defines": [
