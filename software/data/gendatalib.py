@@ -11,7 +11,10 @@
 # propagated though a python golden model. Golden models are from the
 # numpy library or the qmath bit-true library.
 
-import pyflexfloat as ff
+try:
+    import pyflexfloat as ff
+except ModuleNotFoundError:
+    ff = None
 import numpy as np
 import math
 import qmath
@@ -76,7 +79,7 @@ def generate_barriers_test(my_type=np.int16, defines={}):
 def generate_faxpy(my_type=np.float32, defines={}):
 
     # f8: Cast correct type
-    if f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
+    if ff is not None and f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
 
         # Create matrix (with type numpy)
         array_N = defines['array_N']
@@ -478,7 +481,7 @@ def generate_fgemm(my_type=np.float32, defines={}):
 def generate_fmatmul(my_type=np.float32, defines={}):
 
     # f8: Cast correct type
-    if f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
+    if ff is not None and f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
 
         # Define dimension
         matrix_M = defines['matrix_M']
@@ -911,198 +914,3 @@ def generate_cfft_q16(defines={}, fixed_point=15, my_type=np.int16):
     defines['TOLERANCE'] = tolerance[N_CSAMPLES]
 
     return [src, dst, twiddles, bitrever], defines
-
-
-def generate_fbatchnorm(my_type=np.float32, defines={}):
-
-    # f8: Cast correct type
-    if f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
-
-        # Define dimension
-        matrix_M = defines['matrix_M']
-        matrix_N = defines['matrix_N']
-
-        # Create input matrix
-        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(np.float16)
-        Sum = np.zeros(matrix_N, ).astype(np.float16)
-        Squared_diff = np.zeros(matrix_N, ).astype(np.float16)
-        # Cast the correct type
-        A = ff.array(A, 'e5m2')
-        Sum = ff.array(Sum, 'e5m2')
-        Squared_diff = ff.array(Squared_diff, 'e5m2')
-
-        # Normalize matrix A (using BatchNorm)
-        for i in range(matrix_M):
-            Sum += A[i]
-        mean = Sum / matrix_M
-
-        for i in range(matrix_M):
-            diff = A[i] - mean
-            Squared_diff += diff * diff
-        var = Squared_diff / matrix_M
-
-        B = (A - mean) / np.sqrt(var)
-
-        # Flatten the matrices into 1D arrays
-        A = np.reshape(A, (matrix_M * matrix_N), order='C')
-        B = np.reshape(B, (matrix_M * matrix_N), order='C')
-
-    # f16,f32: Use normal operation (FP type automatically retained)
-    else:
-        # Define dimension
-        matrix_M = defines['matrix_M']
-        matrix_N = defines['matrix_N']
-
-        # Create input matrix
-        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
-        Sum = np.zeros(matrix_N, ).astype(my_type)
-        Squared_diff = np.zeros(matrix_N, ).astype(my_type)
-
-        # Normalize matrix A (using BatchNorm)
-        for i in range(matrix_M):
-            Sum += A[i]
-        mean = Sum / matrix_M
-
-        for i in range(matrix_M):
-            diff = A[i] - mean
-            Squared_diff += diff * diff
-        var = Squared_diff / matrix_M
-
-        B = (A - mean) / np.sqrt(var)
-
-        # Flatten the matrices into 1D arrays
-        A = np.reshape(A, (matrix_M * matrix_N), order='C')
-        B = np.reshape(B, (matrix_M * matrix_N), order='C')
-
-    return [A, B], defines
-
-
-def generate_flayernorm(my_type=np.float32, defines={}):
-
-    # f8: Cast correct type
-    if f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
-
-        # Define dimension
-        matrix_M = defines['matrix_M']
-        matrix_N = defines['matrix_N']
-
-        # Create input matrix
-        A = (np.random.rand(matrix_M, matrix_N) - 0.25).astype(np.float16)
-        B = np.zeros((matrix_M, matrix_N)).astype(np.float16)
-        # Cast the correct type
-        A = ff.array(A, 'e5m2')
-        B = ff.array(B, 'e5m2')
-
-        # Normalize matrix A (using LayerNorm)
-        for i in range(matrix_M):  # Loop over each sample (row)
-            row = A[i]
-            # Compute: mean = sum / N
-            row_sum = ff.FlexFloat("e5m2", 0)
-            for el in row:
-                row_sum += el
-            mean = row_sum / matrix_N
-            # Compute E[x^2]
-            row_sq = row * row
-            row_sum = ff.FlexFloat("e5m2", 0)
-            for el in row_sq:
-                row_sum += el
-            expected = row_sum / matrix_N
-            # Compute mean^2
-            mean_sq = mean * mean
-            # Compute: var = E[x^2] - mean^2
-            var = expected - mean_sq
-            # Compute: std = sqrt(var)
-            std = np.sqrt(var)
-
-            diff = row - mean
-            B[i] = (diff) / std
-
-        # Flatten the matrices into 1D arrays
-        A = np.reshape(A, (matrix_M * matrix_N), order='C')
-        B = np.reshape(B, (matrix_M * matrix_N), order='C')
-
-    # f16,f32: Use normal operation (FP type automatically retained)
-    else:
-        # Define dimension
-        matrix_M = defines['matrix_M']
-        matrix_N = defines['matrix_N']
-
-        # Create input matrix
-        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
-        B = np.zeros((matrix_M, matrix_N)).astype(my_type)
-
-        # Normalize matrix A (using LayerNorm)
-        for i in range(matrix_M):  # Loop over each sample (row)
-            row = A[i]
-            mean = np.sum(row) / matrix_N
-            diff = row - mean
-            var = np.sum(diff * diff) / matrix_N
-            std = np.sqrt(var)
-            B[i] = (diff) / std
-
-        # Flatten the matrices into 1D arrays
-        A = np.reshape(A, (matrix_M * matrix_N), order='C')
-        B = np.reshape(B, (matrix_M * matrix_N), order='C')
-
-    return [A, B], defines
-
-
-def generate_fsoftmax(my_type=np.float32, defines={}):
-
-    # f8: Cast correct type
-    if f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
-
-        # Define dimension
-        matrix_M = defines['matrix_M']
-        matrix_N = defines['matrix_N']
-
-        # Create input matrix
-        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(np.float16)
-        B = np.zeros((matrix_M, matrix_N)).astype(np.float16)
-        # Cast the correct type
-        A = ff.array(A, 'e5m2')
-        B = ff.array(B, 'e5m2')
-
-        # Calculate the row-wise softmax
-        for i in range(matrix_M):
-            a_max = np.max(A[i])
-            # Approximate exp with Taylor series
-            diff = A[i] - a_max
-            diff_2 = diff * diff
-            diff_3 = diff * diff * diff
-            numerator = 1 + diff + 0.5 * diff_2 + 0.167 * diff_3
-            numerator_sum = ff.FlexFloat("e5m2", 0)
-            for el in numerator:
-                numerator_sum += el
-            denominator = numerator_sum
-            B[i] = numerator / denominator
-
-        # Flatten the matrices into 1D arrays
-        A = np.reshape(A, (matrix_M * matrix_N), order='C')
-        B = np.reshape(B, (matrix_M * matrix_N), order='C')
-
-    # f16,f32: Use normal operation (FP type automatically retained)
-    else:
-        # Define dimension
-        matrix_M = defines['matrix_M']
-        matrix_N = defines['matrix_N']
-
-        # Create input matrix
-        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
-        B = np.zeros((matrix_M, matrix_N)).astype(my_type)
-
-        # Calculate the row-wise softmax
-        for i in range(matrix_M):
-            a_max = np.max(A[i])
-            # Approximate exp with Taylor series
-            diff = A[i] - a_max
-            numerator = 1 + diff + 0.5 * np.square(diff) + 0.167 * np.power(
-                diff, 3)
-            denominator = np.sum(numerator)
-            B[i] = numerator / denominator
-
-        # Flatten the matrices into 1D arrays
-        A = np.reshape(A, (matrix_M * matrix_N), order='C')
-        B = np.reshape(B, (matrix_M * matrix_N), order='C')
-
-    return [A, B], defines

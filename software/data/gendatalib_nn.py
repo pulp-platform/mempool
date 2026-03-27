@@ -12,6 +12,11 @@
 import numpy as np
 import math
 
+try:
+    import pyflexfloat as ff
+except ModuleNotFoundError:
+    ff = None
+
 
 def fconv2d_depthwise(A, W, B):
     """Two-dimensional depthwise convolution.
@@ -170,29 +175,228 @@ def generate_ffullyconn(my_type=np.float32, defines={}):
     return [A, Y, W, B], defines
 
 
+def flayernorm(A, my_type=None, eps=0.0, gamma=None, beta=None):
+    """
+    LayerNorm over the last axis: (x - mean) / sqrt(var + eps).
+
+    This helper is shared by generate_flayernorm() and generate_fcnn().
+    """
+    if my_type is None:
+        my_type = A.dtype
+
+    A32 = A.astype(np.float32, copy=False)
+    mean = np.mean(A32, axis=-1, keepdims=True)
+    var = np.var(A32, axis=-1, keepdims=True)
+    out = (A32 - mean) / np.sqrt(var + eps)
+    if gamma is not None:
+        out = out * gamma
+    if beta is not None:
+        out = out + beta
+    return out.astype(my_type)
+
+
+def generate_fbatchnorm(my_type=np.float32, defines={}):
+
+    # f8: Cast correct type
+    if ff is not None and f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
+
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+
+        # Create input matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(np.float16)
+        Sum = np.zeros(matrix_N, ).astype(np.float16)
+        Squared_diff = np.zeros(matrix_N, ).astype(np.float16)
+        # Cast the correct type
+        A = ff.array(A, 'e5m2')
+        Sum = ff.array(Sum, 'e5m2')
+        Squared_diff = ff.array(Squared_diff, 'e5m2')
+
+        # Normalize matrix A (using BatchNorm)
+        for i in range(matrix_M):
+            Sum += A[i]
+        mean = Sum / matrix_M
+
+        for i in range(matrix_M):
+            diff = A[i] - mean
+            Squared_diff += diff * diff
+        var = Squared_diff / matrix_M
+
+        B = (A - mean) / np.sqrt(var)
+
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B, (matrix_M * matrix_N), order='C')
+
+    # f16,f32: Use normal operation (FP type automatically retained)
+    else:
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+
+        # Create input matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
+        Sum = np.zeros(matrix_N, ).astype(my_type)
+        Squared_diff = np.zeros(matrix_N, ).astype(my_type)
+
+        # Normalize matrix A (using BatchNorm)
+        for i in range(matrix_M):
+            Sum += A[i]
+        mean = Sum / matrix_M
+
+        for i in range(matrix_M):
+            diff = A[i] - mean
+            Squared_diff += diff * diff
+        var = Squared_diff / matrix_M
+
+        B = (A - mean) / np.sqrt(var)
+
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B, (matrix_M * matrix_N), order='C')
+
+    return [A, B], defines
+
+
 def generate_flayernorm(my_type=np.float32, defines={}):
 
-    # Create matrix
-    array_N = defines['array_N']
-    X = (np.random.rand(array_N)).astype(my_type)
+    # f8: Cast correct type
+    if ff is not None and f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
 
-    eps = np.array([0.01], dtype=np.float32)
-    gamma = np.array([np.random.rand() - 0.5], dtype=np.float32)
-    beta = np.array([np.random.rand() - 0.5], dtype=np.float32)
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
 
-    # Compute mean and variance along the last axis
-    mean = np.mean(X, axis=-1, keepdims=True).astype(my_type)
-    var = np.var(X, axis=-1, keepdims=True).astype(my_type)
+        # Create input matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.25).astype(np.float16)
+        B = np.zeros((matrix_M, matrix_N)).astype(np.float16)
+        # Cast the correct type
+        A = ff.array(A, 'e5m2')
+        B = ff.array(B, 'e5m2')
 
-    # Normalize
-    X_normalized = (X - mean) / np.sqrt(var + eps)
-    # Scale and shift
-    Y = gamma * X_normalized + beta
+        # Normalize matrix A (using LayerNorm)
+        for i in range(matrix_M):  # Loop over each sample (row)
+            row = A[i]
+            # Compute: mean = sum / N
+            row_sum = ff.FlexFloat("e5m2", 0)
+            for el in row:
+                row_sum += el
+            mean = row_sum / matrix_N
+            # Compute E[x^2]
+            row_sq = row * row
+            row_sum = ff.FlexFloat("e5m2", 0)
+            for el in row_sq:
+                row_sum += el
+            expected = row_sum / matrix_N
+            # Compute mean^2
+            mean_sq = mean * mean
+            # Compute: var = E[x^2] - mean^2
+            var = expected - mean_sq
+            # Compute: std = sqrt(var)
+            std = np.sqrt(var)
 
-    if defines['RELU'] == 1:
-        Y = np.maximum(Y, 0)
+            diff = row - mean
+            B[i] = (diff) / std
 
-    return [X, Y, eps, gamma, beta], defines
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B, (matrix_M * matrix_N), order='C')
+
+    # f16,f32: Use normal operation (FP type automatically retained)
+    else:
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+
+        # Create input matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
+        B = flayernorm(A, my_type=my_type, eps=0.0)
+
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B, (matrix_M * matrix_N), order='C')
+
+    return [A, B], defines
+
+
+def fsoftmax_taylor(A, normalized=True, my_type=None):
+    """
+    Row-wise softmax-like function using the same Taylor exp approximation used
+    by the MemPool softmax generators.
+    """
+    # e5m2 path (float8)
+    if my_type is not None and ff is not None and f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
+        if A.ndim != 2:
+            raise ValueError("fsoftmax_taylor expects a 2D array.")
+
+        A_q = A.astype(np.float16, copy=False)
+        A_q = ff.array(A_q, "e5m2")
+        M, N = A_q.shape
+        B_q = ff.array(np.zeros((M, N), dtype=np.float16), "e5m2")
+        for i in range(M):
+            a_max = np.max(A_q[i])
+            diff = A_q[i] - a_max
+            diff_2 = diff * diff
+            diff_3 = diff_2 * diff
+            numerator = 1 + diff + 0.5 * diff_2 + 0.167 * diff_3
+            if normalized:
+                numerator_sum = ff.FlexFloat("e5m2", 0)
+                for el in numerator:
+                    numerator_sum += el
+                B_q[i] = numerator / numerator_sum
+            else:
+                B_q[i] = numerator
+        return B_q
+
+    if my_type is None:
+        my_type = A.dtype
+    A_t = A.astype(my_type, copy=False)
+    if A_t.ndim != 2:
+        raise ValueError("fsoftmax_taylor expects a 2D array.")
+
+    a_max = np.max(A_t, axis=1, keepdims=True)
+    diff = A_t - a_max
+    numerator = 1 + diff + 0.5 * np.square(diff) + 0.167 * np.power(diff, 3)
+    if normalized:
+        denominator = np.sum(numerator, axis=1, keepdims=True)
+        return (numerator / denominator).astype(my_type)
+    return numerator.astype(my_type)
+
+
+def generate_fsoftmax(my_type=np.float32, defines={}):
+
+    # f8: Cast correct type
+    if ff is not None and f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
+
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+
+        # Create input matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(np.float16)
+        A_q = ff.array(A, 'e5m2')
+        B_q = fsoftmax_taylor(A, normalized=True, my_type=my_type)
+
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A_q, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B_q, (matrix_M * matrix_N), order='C')
+
+    # f16,f32: Use normal operation (FP type automatically retained)
+    else:
+        # Define dimension
+        matrix_M = defines['matrix_M']
+        matrix_N = defines['matrix_N']
+
+        # Create input matrix
+        A = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
+        B = fsoftmax_taylor(A, normalized=True, my_type=my_type)
+
+        # Flatten the matrices into 1D arrays
+        A = np.reshape(A, (matrix_M * matrix_N), order='C')
+        B = np.reshape(B, (matrix_M * matrix_N), order='C')
+
+    return [A, B], defines
 
 
 def generate_fmessagep(my_type=np.float32, defines={}):
@@ -244,3 +448,94 @@ def generate_fmessagep(my_type=np.float32, defines={}):
     B = B.astype(my_type)
 
     return [A, B, HL, HL_bias, W_fc1, W_fc2], defines
+
+
+def generate_fslp(my_type=np.float32, defines={}):
+    matrix_M = defines["matrix_M"]
+    matrix_N = defines["matrix_N"]
+    matrix_P = defines["matrix_P"]
+
+    X = (np.random.rand(matrix_M, matrix_N) - 0.5).astype(my_type)
+    W = (np.random.rand(matrix_N, matrix_P) - 0.5).astype(my_type)
+    Y = (np.random.rand(matrix_M, matrix_P) - 0.5).astype(my_type)
+    Z = (np.matmul(X, W) + Y).astype(my_type)
+
+    S = fsoftmax_taylor(Z, normalized=True, my_type=my_type)
+
+    X = np.reshape(X, (matrix_M * matrix_N), order="C").astype(my_type)
+    W = np.reshape(W, (matrix_N * matrix_P), order="C").astype(my_type)
+    Y = np.reshape(Y, (matrix_M * matrix_P), order="C").astype(my_type)
+    Z = np.reshape(Z, (matrix_M * matrix_P), order="C").astype(my_type)
+    S = np.reshape(S, (matrix_M * matrix_P), order="C").astype(my_type)
+
+    return [X, W, Y, Z, S], defines
+
+
+def generate_fcnn(my_type=np.float32, defines={}):
+    FM = defines["FM"]
+    FN = defines["FN"]
+    DW_D = defines["DW_D"]
+    PW_D = defines["PW_D"]
+    DW_K = defines["DW_K"]
+
+    # Input tensor: (FM, FN, DW_D)
+    X_img = (np.random.rand(FM, FN, DW_D) - 0.5).astype(my_type)
+    # Bias / initial output buffer for pointwise GEMM: (FM, FN, PW_D)
+    Y_img = (np.random.rand(FM, FN, PW_D) - 0.5).astype(my_type)
+    # Weights
+    Wdw = (np.random.rand(DW_K, DW_K, DW_D) - 0.5).astype(my_type)
+    Wpw = (np.random.rand(DW_D, PW_D) - 0.5).astype(my_type)
+
+    # Depthwise
+    Xdw = np.zeros((FM, FN, DW_D), dtype=np.float32)
+    Xdw = fconv2d_depthwise(X_img, Wdw, Xdw)
+
+    # Pointwise
+    Z_pw = fconv2d_pointwise(Xdw, Wpw, Y_img)
+    Z_pw = Z_pw.reshape(FM * FN, PW_D)
+
+    # Layernorm and ReLU
+    Z_lnrm = flayernorm(Z_pw, my_type=my_type, eps=0.0)
+    Z_relu = np.maximum(Z_lnrm, np.array(0.0, dtype=my_type))
+    Z_relu = Z_relu.astype(my_type).reshape(FM, FN, PW_D)
+
+    X = np.reshape(X_img, (FM * FN * DW_D), order="C").astype(my_type)
+    Y = np.reshape(Y_img, (FM * FN * PW_D), order="C").astype(my_type)
+    Z = np.reshape(Z_relu, (FM * FN * PW_D), order="C").astype(my_type)
+    Wpw = np.reshape(Wpw, (DW_D * PW_D), order="C").astype(my_type)
+    Wdw = np.reshape(Wdw, (DW_K * DW_K * DW_D), order="C").astype(my_type)
+
+    return [X, Wpw, Wdw, Y, Z], defines
+
+
+def generate_fmultihead(my_type=np.float32, defines={}):
+    H = defines["H"]
+    M = defines["M"]
+    N = defines["N"]
+
+    X = (np.random.rand(H * M, N) - 0.5).astype(my_type)
+    Y = np.zeros((H * M, N), dtype=my_type)
+
+    W_q = (np.random.rand(N, N) - 0.5).astype(my_type)
+    W_k = (np.random.rand(N, N) - 0.5).astype(my_type)
+    W_v = (np.random.rand(N, N) - 0.5).astype(my_type)
+
+    Q = (np.matmul(X, W_q) + Y).astype(my_type)
+    K = (np.matmul(X, W_k) + Y).astype(my_type)
+    V = (np.matmul(X, W_v) + Y).astype(my_type)
+
+    Kt = np.transpose(K)
+    A = (np.matmul(Q, Kt) + Y).astype(my_type)
+    A = fsoftmax_taylor(A, normalized=True, my_type=my_type)
+
+    Z = (np.matmul(A, V) + X).astype(my_type)
+
+    # Flatten for header emission
+    X = np.reshape(X, (H * M * N), order="C").astype(my_type)
+    Y = np.reshape(Y, (H * M * N), order="C").astype(my_type)
+    W_q = np.reshape(W_q, (N * N), order="C").astype(my_type)
+    W_k = np.reshape(W_k, (N * N), order="C").astype(my_type)
+    W_v = np.reshape(W_v, (N * N), order="C").astype(my_type)
+    Z = np.reshape(Z, (H * M * N), order="C").astype(my_type)
+
+    return [X, Y, W_q, W_k, W_v, Z], defines
