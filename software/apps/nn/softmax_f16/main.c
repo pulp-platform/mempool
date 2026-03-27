@@ -43,7 +43,7 @@ int main() {
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
-  // mempool_check_f16(matrix_b, l2_B, matrix_M * matrix_N, 0.1f, 1);
+  mempool_check_f16(matrix_b, l2_B, matrix_M * matrix_N, 0.1f, 1);
   mempool_barrier(num_cores);
   return 0;
 }
