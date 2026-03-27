@@ -12,10 +12,14 @@ import os
 import hjson
 import ast
 import numpy
+import sys
 
 import gendatalib as datalib
 import gendatalib_nn as datalib_nn
-import pyflexfloat as ff
+try:
+    import pyflexfloat as ff
+except ModuleNotFoundError:
+    ff = None
 
 
 header = """\
@@ -52,6 +56,11 @@ def format_type(typ, value):
     elif typ == '__fp16':
         stringyfied_val = '({}) {:+.4f}'.format(typ, value)
     elif typ == '__fp8':
+        if ff is None:
+            raise Exception(
+                "ERROR: pyflexfloat is required to format __fp8 values. "
+                "Install pyflexfloat or avoid float8 data generation."
+            )
         if not isinstance(value, ff.FlexFloat):
             value = numpy.array([value]).astype(numpy.double)
             value = ff.FlexFloat("e5m2", value[0])
@@ -137,9 +146,14 @@ def get_type(type_string):
     elif type_string == "float16":
         return numpy.float16
     elif type_string == "float8":
+        if ff is None:
+            raise Exception(
+                "ERROR: pyflexfloat is required for float8 data generation. "
+                "Install pyflexfloat or choose a different type."
+            )
         return ff.FlexFloat('e5m2')
     else:
-        raise Exception("Input type is not valid")
+        raise Exception("ERROR: Input type is not valid")
 
 
 if __name__ == '__main__':
@@ -182,9 +196,9 @@ if __name__ == '__main__':
         arrays = [ast.literal_eval(array) for array in data_args.get("arrays")]
     else:
         if args.type is None or args.defines is None or args.arrays is None:
-            raise Exception(
-                "ERROR: Missing required parameters when HJSON "
-                "data is not available.")
+            print("WARNING: Missing parameters when no HJSON is available.\
+                  \nWARNING: Data will not be generated.")
+            sys.exit(0)
 
         # Extract type
         my_type = get_type(args.type)
@@ -230,20 +244,23 @@ if __name__ == '__main__':
         "matmul_i16": {"func": datalib.generate_imatmul},
         "matmul_i8": {"func": datalib.generate_imatmul},
         "messagep_f16": {"func": datalib_nn.generate_fmessagep},
+        "cnn_f16": {"func": datalib_nn.generate_fcnn},
+        "slp_f16": {"func": datalib_nn.generate_fslp},
+        "multihead_f16": {"func": datalib_nn.generate_fmultihead},
         "mimo_mmse_q16": {"func": datalib.generate_qmmse},
         "mimo_mmse_f16": {"func": datalib.generate_fmmse},
         "mimo_mmse_f32": {"func": datalib.generate_fmmse},
         "mimo_mmse_f8": {"func": datalib.generate_fmmse},
-        "batchnorm_f8": {"func": datalib.generate_fbatchnorm},
-        "batchnorm_f16": {"func": datalib.generate_fbatchnorm},
-        "layernorm_f8": {"func": datalib.generate_flayernorm},
-        "layernorm_f16": {"func": datalib.generate_flayernorm},
+        "batchnorm_f8": {"func": datalib_nn.generate_fbatchnorm},
+        "batchnorm_f16": {"func": datalib_nn.generate_fbatchnorm},
+        "layernorm_f8": {"func": datalib_nn.generate_flayernorm},
+        "layernorm_f16": {"func": datalib_nn.generate_flayernorm},
         "ofdm_f16": {"func": datalib.generate_fofdm},
+        "softmax_f8": {"func": datalib_nn.generate_fsoftmax},
+        "softmax_f16": {"func": datalib_nn.generate_fsoftmax},
         "fence": {"func": datalib.generate_iarray},
         "memcpy": {"func": datalib.generate_iarray},
         "barriers_test": {"func": datalib.generate_barriers_test},
-        "softmax_f8": {"func": datalib.generate_fsoftmax},
-        "softmax_f16": {"func": datalib.generate_fsoftmax},
     }
 
     # Check if app_name exists in the function map
