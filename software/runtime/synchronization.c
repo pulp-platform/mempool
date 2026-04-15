@@ -10,14 +10,6 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#if NUM_CORES == (16)
-#define LOG2_NUM_CORES (4)
-#elif NUM_CORES == (256)
-#define LOG2_NUM_CORES (8)
-#elif NUM_CORES == (1024)
-#define LOG2_NUM_CORES (10)
-#endif
-
 uint32_t volatile barrier __attribute__((section(".l1")));
 uint32_t volatile log_barrier[NUM_CORES * 4]
     __attribute__((aligned(NUM_CORES * 4), section(".l1")));

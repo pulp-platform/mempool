@@ -37,6 +37,13 @@ module mempool_cluster
   // AXI Interface
   output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i
+`ifdef DAS
+  ,
+  // DAS partition configuration
+  input  logic           [NumDASPartitions-1:0][TileInterleavingWidth-1:0] tiles_das_i,
+  input  logic           [NumDASPartitions-1:0][AddrWidth-1:0]             start_das_i,
+  input  logic           [NumDASPartitions-1:0][RowsInterleavingWidth-1:0] rows_das_i
+`endif
 );
 
   /*********************
@@ -73,6 +80,7 @@ module mempool_cluster
 
   `FF(dma_meta_o, dma_meta_cut, '0, clk_i, rst_ni);
 
+
   dma_req_t  dma_req_split;
   logic      dma_req_split_valid;
   logic      dma_req_split_ready;
@@ -81,27 +89,40 @@ module mempool_cluster
   logic      [NumGroups-1:0] dma_req_group_valid, dma_req_group_q_valid;
   logic      [NumGroups-1:0] dma_req_group_ready, dma_req_group_q_ready;
   dma_meta_t [NumGroups-1:0] dma_meta, dma_meta_q;
+  logic      [RowsInterleavingWidth-1:0] dma_rows_das;
 
   `FF(dma_meta_q, dma_meta, '0, clk_i, rst_ni);
 
   idma_split_midend #(
-    .DmaRegionWidth (NumBanksPerGroup*NumGroups*4),
-    .DmaRegionStart (TCDMBaseAddr                ),
-    .DmaRegionEnd   (TCDMBaseAddr+TCDMSize       ),
-    .AddrWidth      (AddrWidth                   ),
-    .burst_req_t    (dma_req_t                   ),
-    .meta_t         (dma_meta_t                  )
+    .DmaRegionWidth    (NumBanksPerGroup*NumGroups*4), // #DmaBytes = #banks*4 = 4096*4            // size per row
+    .DmaRegionStart    (TCDMBaseAddr                ), // 0x0000_0000, defined in tb
+    .DmaRegionEnd      (TCDMBaseAddr+TCDMSize       ), // TCDMSize = #banks*l1banksize = 4096*1024 // size of DMA region
+    .AddrWidth         (AddrWidth                   ),
+    .burst_req_t       (dma_req_t                   ),
+    .meta_t            (dma_meta_t                  ),
+    .NumTiles          (NumTiles                    ),
+    .NumBanksPerTile   (NumBanksPerTile             ),
+    .TCDMSizePerBank   (TCDMSizePerBank             ),
+    .NumDASPartitions  (NumDASPartitions            ),
+    .NumTilesPerDma    (NumTilesPerDma              ),
+    .DASStartAddr      (DASStartAddr                )
   ) i_idma_split_midend (
-    .clk_i      (clk_i              ),
-    .rst_ni     (rst_ni             ),
-    .burst_req_i(dma_req_cut        ),
-    .valid_i    (dma_req_cut_valid  ),
-    .ready_o    (dma_req_cut_ready  ),
-    .meta_o     (dma_meta_cut       ),
-    .burst_req_o(dma_req_split      ),
-    .valid_o    (dma_req_split_valid),
-    .ready_i    (dma_req_split_ready),
-    .meta_i     (dma_meta_split     )
+    .clk_i           (clk_i              ),
+    .rst_ni          (rst_ni             ),
+`ifdef DAS
+    .tiles_das_i (tiles_das_i    ),
+    .start_das_i     (start_das_i        ),
+    .rows_das_i      (rows_das_i         ),
+    .rows_das_o      (dma_rows_das       ),
+`endif
+    .burst_req_i     (dma_req_cut        ),
+    .valid_i         (dma_req_cut_valid  ),
+    .ready_o         (dma_req_cut_ready  ),
+    .meta_o          (dma_meta_cut       ),
+    .burst_req_o     (dma_req_split      ),
+    .valid_o         (dma_req_split_valid),
+    .ready_i         (dma_req_split_ready),
+    .meta_i          (dma_meta_split     )
   );
 
   idma_distributed_midend #(
@@ -110,11 +131,16 @@ module mempool_cluster
     .DmaRegionStart (TCDMBaseAddr         ),
     .DmaRegionEnd   (TCDMBaseAddr+TCDMSize),
     .TransFifoDepth (16                   ),
+    .NumTiles       (NumTiles             ),
+    .NumDASPartitions  (NumDASPartitions  ),
     .burst_req_t    (dma_req_t            ),
     .meta_t         (dma_meta_t           )
   ) i_idma_distributed_midend (
     .clk_i       (clk_i              ),
     .rst_ni      (rst_ni             ),
+`ifdef DAS
+    .rows_das_i  (dma_rows_das       ),
+`endif
     .burst_req_i (dma_req_split      ),
     .valid_i     (dma_req_split_valid),
     .ready_o     (dma_req_split_ready),
@@ -294,6 +320,12 @@ module mempool_cluster
           .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
           .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
           .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+`ifdef DAS
+          .tiles_das_i             (tiles_das_i                                                     ),
+          .start_das_i             (start_das_i                                                     ),
+          .rows_das_i              (rows_das_i                                                      ),
+          .dma_rows_das_i          (dma_rows_das                                                    ),
+`endif
           .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
           .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
           // DMA request
@@ -335,6 +367,12 @@ module mempool_cluster
           .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
           .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
           .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+`ifdef DAS
+          .tiles_das_i             (tiles_das_i                                                     ),
+          .start_das_i             (start_das_i                                                     ),
+          .rows_das_i              (rows_das_i                                                      ),
+          .dma_rows_das_i          (dma_rows_das                                                    ),
+`endif
           .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
           .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
           // DMA request
@@ -373,6 +411,12 @@ module mempool_cluster
           .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
           .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
           .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
+`ifdef DAS
+          .tiles_das_i             (tiles_das_i                                                     ),
+          .start_das_i             (start_das_i                                                     ),
+          .rows_das_i              (rows_das_i                                                      ),
+          .dma_rows_das_i          (dma_rows_das                                                    ),
+`endif
           .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
           .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
           // DMA request
@@ -435,38 +479,44 @@ module mempool_cluster
         .TCDMBaseAddr (TCDMBaseAddr         ),
         .BootAddr     (BootAddr             )
       ) i_group (
-        .clk_i                   (clk_i                                                           ),
-        .rst_ni                  (rst_ni                                                          ),
-        .testmode_i              (testmode_i                                                      ),
-        .scan_enable_i           (scan_enable_i                                                   ),
-        .scan_data_i             (/* Unconnected */                                               ),
-        .scan_data_o             (/* Unconnected */                                               ),
-        .group_id_i              (g[idx_width(NumGroups)-1:0]                                     ),
+        .clk_i                     (clk_i                                                           ),
+        .rst_ni                    (rst_ni                                                          ),
+        .testmode_i                (testmode_i                                                      ),
+        .scan_enable_i             (scan_enable_i                                                   ),
+        .scan_data_i               (/* Unconnected */                                               ),
+        .scan_data_o               (/* Unconnected */                                               ),
+        .group_id_i                (g[idx_width(NumGroups)-1:0]                                     ),
         // TCDM Master interfaces
-        .tcdm_master_req_o       (tcdm_master_req[g]                                              ),
-        .tcdm_master_req_valid_o (tcdm_master_req_valid[g]                                        ),
-        .tcdm_master_req_ready_i (tcdm_master_req_ready[g]                                        ),
-        .tcdm_master_resp_i      (tcdm_master_resp[g]                                             ),
-        .tcdm_master_resp_valid_i(tcdm_master_resp_valid[g]                                       ),
-        .tcdm_master_resp_ready_o(tcdm_master_resp_ready[g]                                       ),
+        .tcdm_master_req_o         (tcdm_master_req[g]                                              ),
+        .tcdm_master_req_valid_o   (tcdm_master_req_valid[g]                                        ),
+        .tcdm_master_req_ready_i   (tcdm_master_req_ready[g]                                        ),
+        .tcdm_master_resp_i        (tcdm_master_resp[g]                                             ),
+        .tcdm_master_resp_valid_i  (tcdm_master_resp_valid[g]                                       ),
+        .tcdm_master_resp_ready_o  (tcdm_master_resp_ready[g]                                       ),
         // TCDM banks interface
-        .tcdm_slave_req_i        (tcdm_slave_req[g]                                               ),
-        .tcdm_slave_req_valid_i  (tcdm_slave_req_valid[g]                                         ),
-        .tcdm_slave_req_ready_o  (tcdm_slave_req_ready[g]                                         ),
-        .tcdm_slave_resp_o       (tcdm_slave_resp[g]                                              ),
-        .tcdm_slave_resp_valid_o (tcdm_slave_resp_valid[g]                                        ),
-        .tcdm_slave_resp_ready_i (tcdm_slave_resp_ready[g]                                        ),
-        .wake_up_i               (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
-        .ro_cache_ctrl_i         (ro_cache_ctrl_q[g]                                              ),
+        .tcdm_slave_req_i          (tcdm_slave_req[g]                                               ),
+        .tcdm_slave_req_valid_i    (tcdm_slave_req_valid[g]                                         ),
+        .tcdm_slave_req_ready_o    (tcdm_slave_req_ready[g]                                         ),
+        .tcdm_slave_resp_o         (tcdm_slave_resp[g]                                              ),
+        .tcdm_slave_resp_valid_o   (tcdm_slave_resp_valid[g]                                        ),
+        .tcdm_slave_resp_ready_i   (tcdm_slave_resp_ready[g]                                        ),
+`ifdef DAS
+        .tiles_das_i           (tiles_das_i                                                 ),
+        .start_das_i               (start_das_i                                                     ),
+        .rows_das_i                (rows_das_i                                                      ),
+        .dma_rows_das_i            (dma_rows_das                                                    ),
+`endif
+        .wake_up_i                 (wake_up_q[g*NumCoresPerGroup +: NumCoresPerGroup]               ),
+        .ro_cache_ctrl_i           (ro_cache_ctrl_q[g]                                              ),
         // DMA request
-        .dma_req_i               (dma_req_group_q[g]                                              ),
-        .dma_req_valid_i         (dma_req_group_q_valid[g]                                        ),
-        .dma_req_ready_o         (dma_req_group_q_ready[g]                                        ),
+        .dma_req_i                 (dma_req_group_q[g]                                              ),
+        .dma_req_valid_i           (dma_req_group_q_valid[g]                                        ),
+        .dma_req_ready_o           (dma_req_group_q_ready[g]                                        ),
         // DMA status
-        .dma_meta_o              (dma_meta[g]                                                     ),
+        .dma_meta_o                (dma_meta[g]                                                     ),
         // AXI interface
-        .axi_mst_req_o           (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
-        .axi_mst_resp_i          (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
+        .axi_mst_req_o             (axi_mst_req_o[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup] ),
+        .axi_mst_resp_i            (axi_mst_resp_i[g*NumAXIMastersPerGroup +: NumAXIMastersPerGroup])
       );
     end : gen_groups
 

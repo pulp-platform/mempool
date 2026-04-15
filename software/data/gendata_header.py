@@ -188,6 +188,7 @@ if __name__ == '__main__':
         "matmul_f8": {"func": datalib.generate_fmatmul},
         "matmul_f16": {"func": datalib.generate_fmatmul},
         "matmul_f32": {"func": datalib.generate_fmatmul},
+        "das_gemm_f32": {"func": datalib.generate_fmatmul},
         "matmul_i32": {"func": datalib.generate_imatmul},
         "matmul_i16": {"func": datalib.generate_imatmul},
         "matmul_i8": {"func": datalib.generate_imatmul},

@@ -35,6 +35,11 @@ alloc_t alloc_l1;
 alloc_t alloc_tile[NUM_CORES / NUM_CORES_PER_TILE];
 
 // ----------------------------------------------------------------------------
+// Dynamic Heap Allocator
+// ----------------------------------------------------------------------------
+alloc_t dynamic_heap_alloc;
+
+// ----------------------------------------------------------------------------
 // Canary System based on LSBs of block pointer
 // ----------------------------------------------------------------------------
 typedef struct {
@@ -54,6 +59,15 @@ static inline uint32_t canary_encode(const void *const ptr,
 static inline canary_and_size_t canary_decode(const uint32_t value) {
   return (canary_and_size_t){.canary = value & 0xFF, .size = value >> 8};
 }
+
+typedef struct canary_chain_s {
+  uint32_t canary_and_size;
+  uint32_t *data_address;
+  struct canary_chain_s *next_canary;
+} canary_chain_t;
+
+// init as a NULL, assign this pointer when the first canary is allocated
+canary_chain_t *first_canary = (canary_chain_t *)0x1000;
 
 // ----------------------------------------------------------------------------
 // Initialization
@@ -116,6 +130,98 @@ static void *allocate_memory(alloc_t *alloc, const uint32_t size) {
   }
 }
 
+// ------ Function to calculate the aligned size ------ //
+static uint32_t calc_aligned_row_size(uint32_t *addr) {
+
+  const uint32_t row_bytes = NUM_BANKS * sizeof(uint32_t);
+  const uint32_t mask = (uint32_t)(row_bytes - 1);
+  uint32_t offset = ((uint32_t)addr) & mask;
+
+  return (row_bytes - offset) & mask;
+}
+
+// ------ Parameters ------ //
+// size:           Size of the data block need to be allocated
+// allocated_size: How many rows the current partition scheme occupied
+static void *allocate_memory_aligned(alloc_t *alloc, const uint32_t size) {
+  // Get first block of linked list of free blocks
+  alloc_block_t *curr = alloc->first_block;
+  alloc_block_t *prev = 0;
+
+  // Search first block large enough in linked list
+  // 1. calculate the size aligned to the partition boundary
+  uint32_t shift_size = 0;
+  shift_size = calc_aligned_row_size((uint32_t *)curr);
+  uint32_t aligned_size = size + shift_size;
+
+  while (curr && (curr->size < aligned_size)) {
+    prev = curr;
+    curr = curr->next;
+    shift_size = calc_aligned_row_size((uint32_t *)curr);
+    aligned_size = size + shift_size;
+  }
+
+  if (curr) {
+    // Update allocator
+    if (size == aligned_size) {
+      // address is already aligned to the partition boundary
+      if (curr->size == size) {
+        // Special case: Whole block taken
+        if (prev) {
+          prev->next = curr->next;
+        } else {
+          alloc->first_block = curr->next;
+        }
+      } else {
+        // Regular case: Split off block
+        alloc_block_t *new_block = (alloc_block_t *)((char *)curr + size);
+        new_block->size = curr->size - size;
+        new_block->next = curr->next;
+        if (prev) {
+          prev->next = new_block;
+        } else {
+          alloc->first_block = new_block;
+        }
+      }
+    } else {
+      if (curr->size == aligned_size) {
+        // Special case: Whole block taken, first part of the block is still
+        // empty store the curr info in tmp uint32_t tmp_size = curr->size;
+        struct alloc_block_s *tmp_next = curr->next;
+        alloc_block_t *shift_block = (alloc_block_t *)((char *)curr);
+        shift_block->size = shift_size;
+        shift_block->next = tmp_next;
+        if (prev) {
+          prev->next = shift_block;
+        } else {
+          alloc->first_block = shift_block;
+        }
+      } else {
+        // Regular case: Split off block
+        alloc_block_t *new_block =
+            (alloc_block_t *)((char *)curr + aligned_size);
+        new_block->size = curr->size - aligned_size;
+        new_block->next = curr->next;
+
+        alloc_block_t *shift_block = (alloc_block_t *)((char *)curr);
+        shift_block->size = shift_size;
+        shift_block->next = new_block;
+        if (prev) {
+          prev->next = shift_block;
+        } else {
+          alloc->first_block = shift_block;
+        }
+      }
+    }
+
+    // Return block pointer
+    return (void *)((char *)curr + shift_size);
+  } else {
+    // There is no free block large enough
+    return NULL;
+  }
+}
+
 void *domain_malloc(alloc_t *alloc, const uint32_t size) {
   // Calculate actually required block size
   uint32_t data_size = size + sizeof(uint32_t); // add size/metadata
@@ -145,6 +251,81 @@ void *domain_malloc(alloc_t *alloc, const uint32_t size) {
 
 void *simple_malloc(const uint32_t size) {
   return domain_malloc(&alloc_l1, size);
+}
+
+void *partition_malloc(alloc_t *alloc, const uint32_t size) {
+
+  uint32_t data_size = size > 2 * NUM_BANKS * sizeof(uint32_t)
+                           ? size
+                           : 2 * NUM_BANKS * sizeof(uint32_t);
+  uint32_t block_size = ALIGN_UP(data_size, MIN_BLOCK_SIZE); // add alignment
+
+  // Check if exceed maximum allowed size
+  if (block_size >= (1 << (sizeof(uint32_t) * 8 - sizeof(uint8_t) * 8))) {
+    printf("Memory allocator: Requested memory exceeds max block size\n");
+    return NULL;
+  }
+
+  // allocate
+  void *block_ptr = NULL;
+  block_ptr = allocate_memory_aligned(alloc, block_size);
+
+  if (!block_ptr) {
+    printf("Memory allocator: No large enough block found (%d)\n", block_size);
+    return NULL;
+  }
+
+  // Allocate a region in L1 heap for canary
+  canary_chain_t *canary =
+      (canary_chain_t *)simple_malloc(sizeof(canary_chain_t));
+  // Init the canary
+  canary->data_address = (uint32_t *)block_ptr;
+  canary->canary_and_size = canary_encode(block_ptr, block_size);
+  canary->next_canary = NULL;
+
+  // link the canary into the list
+  canary_chain_t *curr = first_canary;
+  canary_chain_t *prev = 0;
+
+  // Fit the canary into the chain, depending on data_address
+  // | prev |  ------> | canary | ------> | curr |
+  uint32_t *data_addr = 0;
+  if (curr != (canary_chain_t *)0x1000) {
+    // only access struct when init
+    data_addr = curr->data_address;
+  }
+
+  while ((curr != (canary_chain_t *)0x1000) && (curr != NULL) &&
+         ((uint32_t *)data_addr < (uint32_t *)block_ptr)) {
+    prev = curr;
+    curr = curr->next_canary;
+    if (curr != NULL) {
+      data_addr = curr->data_address;
+    }
+  }
+
+  if ((curr == (canary_chain_t *)0x1000) && !prev) {
+    // special case: first canary block
+    first_canary = canary;
+  } else {
+    if (!curr) {
+      // reach to the last of the chain
+      // | prev | ------> | canary | ------> NULL
+      prev->next_canary = canary;
+      canary->next_canary = NULL;
+    } else if (!prev) {
+      // canary need to insert at the beginning of the chain
+      // first_canary ------> | canary | ------> | curr |
+      first_canary = canary;
+      canary->next_canary = curr;
+    } else {
+      // normal case
+      // | prev |  ------> | canary | ------> | curr |
+      canary->next_canary = prev->next_canary;
+      prev->next_canary = canary;
+    }
+  }
+  return block_ptr;
 }
 
 // ----------------------------------------------------------------------------
@@ -208,6 +389,72 @@ void domain_free(alloc_t *alloc, void *const ptr) {
 
 void simple_free(void *const ptr) { domain_free(&alloc_l1, ptr); }
 
+void partition_free(alloc_t *alloc, void *const ptr) {
+  // block pointer is the input pointer
+  void *block_ptr = ptr;
+
+  canary_and_size_t canary_and_size =
+      (canary_and_size_t){.canary = 0, .size = 0};
+  // find the canary block in the chain
+  canary_chain_t *curr = first_canary;
+  canary_chain_t *prev = 0;
+
+  // While loop suppose to stop when curr->data_address == block_ptr
+  // | prev |  ------>  | curr |
+  uint32_t *data_addr = 0;
+  if (curr) {
+    data_addr = curr->data_address;
+  }
+  while ((curr != (canary_chain_t *)0x1000) && (curr != NULL) &&
+         (data_addr < (uint32_t *)block_ptr)) {
+    prev = curr;
+    curr = curr->next_canary;
+    if (curr != NULL) {
+      data_addr = curr->data_address;
+    }
+  }
+
+  if ((curr == (canary_chain_t *)0x1000) && !prev) {
+    // nothing in the chain
+    printf("CANARY: Empty canary chain!\n");
+  } else if (!curr) {
+    // reach to the end of the chain
+    printf("CANARY: Chain depleted. No info found for %p\n", block_ptr);
+  } else if (curr->data_address != block_ptr) {
+    // no information for the current free
+    printf("CANARY: Unmatch! %p - %p\n", curr->data_address, block_ptr);
+  } else if (!prev) {
+    // normal case 1: curr is the first canary
+    // first_canary ------> | curr | ------> next
+    canary_and_size = canary_decode(curr->canary_and_size);
+    if (curr->next_canary == NULL) {
+      first_canary = (canary_chain_t *)0x1000;
+    } else {
+      first_canary = curr->next_canary;
+    }
+
+    simple_free((void *)curr);
+  } else {
+    // normal case 2: relink the chain, free the curr canary
+    // | prev | ------> | curr | ------> something
+    canary_and_size = canary_decode(curr->canary_and_size);
+    prev->next_canary = curr->next_canary;
+    simple_free((void *)curr);
+  }
+
+  // Check for memory overflow
+  if (canary_and_size.canary != canary(block_ptr)) {
+    if (!canary_and_size.canary) {
+      printf("Empty canary.\n");
+    }
+    printf("Memory Overflow at %p\n", block_ptr);
+    return;
+  }
+
+  // Free memory
+  free_memory(alloc, block_ptr, canary_and_size.size);
+}
+
 // ----------------------------------------------------------------------------
 // Debugging Functions
 // ----------------------------------------------------------------------------
@@ -233,9 +480,31 @@ void alloc_dump(alloc_t *alloc) {
   }
 }
 
+void canary_dump(void) {
+  printf(" ------ Canary Chain Dump ------ \n");
+  canary_chain_t *curr = first_canary;
+  if (curr == (canary_chain_t *)0x1000) {
+    // empty list
+    printf("Empty Canary list.\n");
+  } else {
+    uint32_t cnt = 0;
+    while (curr != NULL) {
+      printf("[%d] - [%p] - [%p] - [%p]\n", cnt, curr, curr->data_address,
+             curr->next_canary);
+      cnt += 1;
+      curr = curr->next_canary;
+    }
+  }
+  printf(" ------ Canary Dump END ------ \n");
+}
+
 // ----------------------------------------------------------------------------
 // Get Allocators
 // ----------------------------------------------------------------------------
+// Get the address of global variable `alloc_l1`
 alloc_t *get_alloc_l1() { return &alloc_l1; }
 
 alloc_t *get_alloc_tile(const uint32_t tile_id) { return &alloc_tile[tile_id]; }
+
+// Dynamic Heap Allocator
+alloc_t *get_dynamic_heap_alloc() { return &dynamic_heap_alloc; }

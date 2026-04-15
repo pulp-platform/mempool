@@ -282,6 +282,20 @@
     ]
   }
 
+  "das_gemm_f32": {
+    "type": "float32",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
+    ]
+    "arrays": [
+      ("float", "l2_A")
+      ("float", "l2_B")
+      ("float", "l2_C")
+    ]
+  }
+
   "matmul_i16": {
     "type": "int16",
     "defines": [

@@ -19,6 +19,9 @@ extern "C" {
 // Maximum number of groups that we support in any configuration
 #define CONTROL_REGISTERS_PARAM_MAX_NUMGROUPS 8
 
+// Supported number of DAS partitions
+#define CONTROL_REGISTERS_PARAM_NUM_DAS_PARTITIONS 4
+
 // Register width
 #define CONTROL_REGISTERS_PARAM_REG_WIDTH 32
 
@@ -114,6 +117,58 @@ extern "C" {
 
 // Read-only cache Region End
 #define CONTROL_REGISTERS_RO_CACHE_END_3_REG_OFFSET 0x64
+
+// DAS per region folding granularity. Number of Tiles per DAS partition.
+// (common parameters)
+#define CONTROL_REGISTERS_TILES_DAS_TILES_DAS_FIELD_WIDTH 32
+#define CONTROL_REGISTERS_TILES_DAS_TILES_DAS_FIELDS_PER_REG 1
+#define CONTROL_REGISTERS_TILES_DAS_MULTIREG_COUNT 4
+
+// DAS per region folding granularity. Number of Tiles per DAS partition.
+#define CONTROL_REGISTERS_TILES_DAS_0_REG_OFFSET 0x68
+
+// DAS per region folding granularity. Number of Tiles per DAS partition.
+#define CONTROL_REGISTERS_TILES_DAS_1_REG_OFFSET 0x6c
+
+// DAS per region folding granularity. Number of Tiles per DAS partition.
+#define CONTROL_REGISTERS_TILES_DAS_2_REG_OFFSET 0x70
+
+// DAS per region folding granularity. Number of Tiles per DAS partition.
+#define CONTROL_REGISTERS_TILES_DAS_3_REG_OFFSET 0x74
+
+// DAS per region allocated start address. (common parameters)
+#define CONTROL_REGISTERS_START_DAS_START_DAS_FIELD_WIDTH 32
+#define CONTROL_REGISTERS_START_DAS_START_DAS_FIELDS_PER_REG 1
+#define CONTROL_REGISTERS_START_DAS_MULTIREG_COUNT 4
+
+// DAS per region allocated start address.
+#define CONTROL_REGISTERS_START_DAS_0_REG_OFFSET 0x78
+
+// DAS per region allocated start address.
+#define CONTROL_REGISTERS_START_DAS_1_REG_OFFSET 0x7c
+
+// DAS per region allocated start address.
+#define CONTROL_REGISTERS_START_DAS_2_REG_OFFSET 0x80
+
+// DAS per region allocated start address.
+#define CONTROL_REGISTERS_START_DAS_3_REG_OFFSET 0x84
+
+// DAS per region allocated size. (common parameters)
+#define CONTROL_REGISTERS_ROWS_DAS_ROWS_DAS_FIELD_WIDTH 32
+#define CONTROL_REGISTERS_ROWS_DAS_ROWS_DAS_FIELDS_PER_REG 1
+#define CONTROL_REGISTERS_ROWS_DAS_MULTIREG_COUNT 4
+
+// DAS per region allocated size.
+#define CONTROL_REGISTERS_ROWS_DAS_0_REG_OFFSET 0x88
+
+// DAS per region allocated size.
+#define CONTROL_REGISTERS_ROWS_DAS_1_REG_OFFSET 0x8c
+
+// DAS per region allocated size.
+#define CONTROL_REGISTERS_ROWS_DAS_2_REG_OFFSET 0x90
+
+// DAS per region allocated size.
+#define CONTROL_REGISTERS_ROWS_DAS_3_REG_OFFSET 0x94
 
 #ifdef __cplusplus
 }  // extern "C"

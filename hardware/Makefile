@@ -118,6 +118,8 @@ vlog_defs   += -DL2_SIZE=32\'d$(l2_size)
 vlog_defs   += -DL2_BANKS=$(l2_banks)
 vlog_defs   += -DL1_BANK_SIZE=$(l1_bank_size)
 vlog_defs   += -DBOOT_ADDR=32\'d$(boot_addr)
+vlog_defs   += -DDAS=$(das)
+vlog_defs   += -DNUM_DAS_PARTITIONS=$(num_das_partitions)
 # Snitch ISA
 vlog_defs   += -DXPULPIMG=$(xpulpimg)
 vlog_defs   += -DZFINX=$(zfinx)
