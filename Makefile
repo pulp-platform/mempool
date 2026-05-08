@@ -17,7 +17,6 @@ INSTALL_PREFIX        ?= install
 SOFTWARE_DIR          ?= software
 INSTALL_DIR           ?= ${ROOT_DIR}/${INSTALL_PREFIX}
 GCC_INSTALL_DIR       ?= ${INSTALL_DIR}/riscv-gcc
-ISA_SIM_INSTALL_DIR   ?= ${INSTALL_DIR}/riscv-isa-sim
 LLVM_INSTALL_DIR      ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR    ?= ${INSTALL_DIR}/halide
 BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
@@ -115,11 +114,6 @@ $(ENCODING_H) $(INSTR_SV): toolchain/riscv-opcodes/* $(ROOT_DIR)/scripts/opcodes
 
 toolchain/riscv-opcodes/*:
 	git submodule update --init --recursive -- toolchain/riscv-opcodes
-
-# Tracing
-riscv-isa-sim: update-opcodes
-	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
-	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 #########
 # Tests #

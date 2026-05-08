@@ -51,9 +51,6 @@ resultpath      ?= results
 result_dir      := $(if $(strip $(result_dir)),$(result_dir),$(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)"))
 # Traces
 snitch_trace    ?= 1
-trace           := $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpath)/*.dasm))
-tracepath       ?= $(buildpath)/traces
-traceresult     ?= $(tracepath)/results.csv
 
 
 
@@ -337,6 +334,12 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 	# Avoid capturing the return status when running the load-throughput analysis
 	if [ $(tg) -ne 1 ]; then ./scripts/return_status.sh $(buildpath)/transcript; fi
 
+################
+# Tracing      #
+################
+
+include $(ROOT_DIR)/traces.mk
+
 #############
 # Lint      #
 #############
@@ -350,34 +353,6 @@ lint: spyglass/tmp/files spyglass/sdc/func.sdc spyglass/scripts/run_lint.tcl
 spyglass/tmp/files: $(bender)
 	mkdir -p spyglass/tmp
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > spyglass/tmp/files
-
-################
-# Tracing      #
-################
-
-# Give configuration in env
-trace_env += NUM_CORES=$(num_cores)
-trace_env += SEQ_MEM_SIZE=$(seq_mem_size)
-
-trace: pre_trace $(trace) post_trace
-
-pre_trace:
-	rm -rf $(tracepath)
-
-post_trace:
-	mkdir -p "$(result_dir)"
-	cp $(buildpath)/transcript "$(result_dir)/" | true
-	cp $(traceresult) "$(result_dir)"
-	cp $(trace) "$(result_dir)"
-	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(result_dir)/avg.txt
-
-$(buildpath)/%.trace: $(buildpath)/%.dasm
-	mkdir -p $(tracepath)
-	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
-	$(trace_env) $(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
-
-tracevis:
-	$(MEMPOOL_DIR)/scripts/tracevis.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json
 
 ############################
 # Unit tests simulation    #
