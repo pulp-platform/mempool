@@ -106,17 +106,12 @@ halide:
 	make install
 
 # Opcodes
-update-opcodes: software/runtime/encoding.h hardware/deps/snitch/src/riscv_instr.sv
+ENCODING_H := $(ROOT_DIR)/software/runtime/encoding.h
+INSTR_SV   := $(ROOT_DIR)/hardware/deps/snitch/src/riscv_instr.sv
 
-software/runtime/encoding.h: toolchain/riscv-opcodes/*
-	make -C toolchain/riscv-opcodes encoding_out.h
-	mv toolchain/riscv-opcodes/encoding_out.h $@
-	ln -fsr $@ toolchain/riscv-isa-sim/riscv/encoding.h
-	ln -fsr $@ software/riscv-tests/env/encoding.h #this will change when riscv-tests is a submodule
-
-hardware/deps/snitch/src/riscv_instr.sv: toolchain/riscv-opcodes/*
-	make -C toolchain/riscv-opcodes inst.sverilog
-	mv toolchain/riscv-opcodes/inst.sverilog $@
+update-opcodes: $(ENCODING_H) $(INSTR_SV)
+$(ENCODING_H) $(INSTR_SV): toolchain/riscv-opcodes/* $(ROOT_DIR)/scripts/opcodes.txt
+	$(ROOT_DIR)/scripts/update_opcodes.sh
 
 toolchain/riscv-opcodes/*:
 	git submodule update --init --recursive -- toolchain/riscv-opcodes
