@@ -32,6 +32,16 @@ PARALLEL_4x4_COPIES_A: Parallel matmul on 4x4 C-tiles, compies of A in memory to
 avoid banking conflicts.
 */
 
+#ifndef SINGLE_2x2
+#ifndef PARALLEL_2x4
+#ifndef PARALLEL_4x4
+#ifndef PARALLEL_4x4_COPIES_A
+#define PARALLEL_2x2
+#endif
+#endif
+#endif
+#endif
+
 #if defined(PARALLEL_4x4_COPIES_A)
 __fp16 matrix_a[2 * (BANKING_FACTOR * NUM_CORES)]
     __attribute__((aligned(BANKING_FACTOR * NUM_CORES * sizeof(int32_t)),

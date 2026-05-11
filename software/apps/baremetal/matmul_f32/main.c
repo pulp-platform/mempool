@@ -24,6 +24,11 @@ Parameters and defines
 SINGLE: When defined runs single-core matmul.
 PARALLEL: When defined runs parallel matmul.
 */
+#ifndef SINGLE
+#ifndef PARALLEL
+#define PARALLEL
+#endif
+#endif
 
 float matrix_a[matrix_M * matrix_N] __attribute__((section(".l1_prio")));
 float matrix_b[matrix_N * matrix_P] __attribute__((section(".l1_prio")));

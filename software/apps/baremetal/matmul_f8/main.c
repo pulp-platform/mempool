@@ -23,7 +23,12 @@ Parameters and defines
 INNER: When defined runs inner product based matmul.
 OUTER: When defined runs outer product based matmul.
 */
+
+#ifndef OUTER
+#ifndef INNER
 #define INNER
+#endif
+#endif
 
 __fp8 matrix_a[matrix_M * matrix_N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
