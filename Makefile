@@ -71,22 +71,11 @@ tc-riscv-gcc:
 
 tc-llvm:
 	mkdir -p $(LLVM_INSTALL_DIR)
-	cd $(CURDIR)/toolchain/llvm-project && mkdir -p build && cd build; \
-	$(CMAKE) \
-		-DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALL_DIR) \
-		-DCMAKE_CXX_COMPILER=$(CXX) \
-		-DCMAKE_C_COMPILER=$(CC) \
-		-DLLVM_ENABLE_PROJECTS="clang" \
-		-DLLVM_TARGETS_TO_BUILD="RISCV;host" \
-		-DLLVM_BUILD_DOCS="0" \
-		-DLLVM_ENABLE_BINDINGS="0" \
-		-DLLVM_ENABLE_TERMINFO="0"  \
-		-DLLVM_ENABLE_ASSERTIONS=ON \
-		-DLLVM_ENABLE_LIBPFM=OFF \
-		-DCMAKE_BUILD_TYPE=Release \
-		../llvm && \
-	make -j6 all && \
-	make install
+	cd $(CURDIR)/toolchain/llvm-project/.github/pulp && \
+	INSTALLPREFIX=$(LLVM_INSTALL_DIR)/ \
+	LLVMSRC=$(CURDIR)/toolchain/llvm-project \
+	NEWLIBSRC=$(CURDIR)/toolchain/newlib \
+	./scripts/build-riscv32-llvm.sh
 
 # Halide
 halide:

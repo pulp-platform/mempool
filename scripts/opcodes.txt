@@ -19,11 +19,9 @@ rv64_d
 rv_q
 rv64_q
 rv_system
-unratified/rv_system_mempool
-unratified/rv_xsflt_mempool
-unratified/rv32_zfh_mempool
-unratified/rv64_zfh_mempool
-unratified/rv_xfcdotphalf
+unratified/rv_xfcdotphalfinx
+unratified/rv_xsmallfloatinx
+unratified/rv_xsfltinx
 unratified/rv32_xb
 unratified/rv32_xpulppostmod
 unratified/rv32_xpulpabs
