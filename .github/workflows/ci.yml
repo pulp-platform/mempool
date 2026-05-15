@@ -115,31 +115,6 @@ jobs:
   ###########
   #  Tools  #
   ###########
-  riscv-isa-sim:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Cache riscv-isa-sim
-      uses: actions/cache@v4
-      id: riscv-isa-sim
-      with:
-        path: install/riscv-isa-sim
-        key: ${{ runner.os }}-riscv-isa-sim-${{ hashFiles('toolchain/riscv-isa-sim/**') }}
-    - name: Download riscv-isa-sim
-      if: steps.riscv-isa-sim.outputs.cache-hit != 'true'
-      run: git submodule update --init --recursive -- toolchain/riscv-isa-sim
-    - name: Compile riscv-isa-sim
-      if: steps.riscv-isa-sim.outputs.cache-hit != 'true'
-      run: |
-        sudo apt install device-tree-compiler
-        make riscv-isa-sim
-    - name: Tar riscv-isa-sim
-      run: tar --posix --use-compress-program zstd -cf riscv-isa-sim.tzst install/riscv-isa-sim
-    - name: Upload riscv-isa-sim
-      uses: actions/upload-artifact@v4
-      with:
-        name: riscv-isa-sim
-        path: riscv-isa-sim.tzst
 
   verilator:
     runs-on: ubuntu-22.04
@@ -286,8 +261,8 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=gcc make -C software/apps baremetal omp
-        COMPILER=gcc make -C software/tests baremetal omp
+        COMPILER=gcc make -C software apps-baremetal apps-omp
+        COMPILER=gcc make -C software tests-baremetal tests-omp
     - name: Tar apps-gcc Model
       run: tar --posix --use-compress-program zstd -cf apps-gcc.tzst software/bin
     - name: Upload apps-gcc
@@ -323,8 +298,8 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps/baremetal all_llvm
-        COMPILER=llvm make -C software/tests baremetal
+        COMPILER=llvm make -C software apps-baremetal-llvm
+        COMPILER=llvm make -C software tests-baremetal-llvm
     - name: Tar apps-llvm Model
       run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst software/bin
     - name: Upload apps-llvm
@@ -364,7 +339,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps/halide all
+        COMPILER=llvm make -C software apps-halide
     - name: Tar apps-halide Model
       run: tar --posix --use-compress-program zstd -cf apps-halide.tzst software/bin
     - name: Upload apps-halide
@@ -379,7 +354,7 @@ jobs:
   run-apps-gcc:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
+    needs: [build-apps-gcc, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -391,12 +366,6 @@ jobs:
         name: apps-gcc-${{ matrix.mempool_config }}
     - name: Untar apps-gcc
       run: tar --use-compress-program zstd -xf apps-gcc.tzst
-    - name: Get riscv-isa-sim artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
@@ -417,7 +386,7 @@ jobs:
   run-apps-llvm:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
+    needs: [build-apps-llvm, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -429,12 +398,6 @@ jobs:
         name: apps-llvm-${{ matrix.mempool_config }}
     - name: Untar apps-llvm
       run: tar --use-compress-program zstd -xf apps-llvm.tzst
-    - name: Get riscv-isa-sim artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
@@ -455,7 +418,7 @@ jobs:
   run-apps-halide:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-halide, riscv-isa-sim, verilator-model]
+    needs: [build-apps-halide, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -467,12 +430,6 @@ jobs:
         name: apps-halide-${{ matrix.mempool_config }}
     - name: Untar apps-halide
       run: tar --use-compress-program zstd -xf apps-halide.tzst
-    - name: Get riscv-isa-sim artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
@@ -493,7 +450,7 @@ jobs:
   unit-test:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
-    needs: [tc-gcc, riscv-isa-sim, verilator-model]
+    needs: [tc-gcc, verilator-model]
     steps:
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
@@ -502,12 +459,6 @@ jobs:
         name: riscv-gnu-toolchain
     - name: Untar riscv-gnu-toolchain
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
-    - name: Get riscv-isa-sim artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
@@ -532,7 +483,7 @@ jobs:
   clean-up:
     runs-on: ubuntu-22.04
     if: always()
-    needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
+    needs: [tc-gcc, tc-llvm, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
       run-apps-llvm, run-apps-halide]
     steps:
@@ -543,13 +494,12 @@ jobs:
           riscv-gnu-toolchain
           llvm-project
           halide
-          riscv-isa-sim
           verilator
 
   clean-up-compile-runs:
     runs-on: ubuntu-22.04
     if: always()
-    needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
+    needs: [tc-gcc, tc-llvm, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
       run-apps-llvm, run-apps-halide]
     strategy:
