@@ -112,21 +112,14 @@ toolchain/riscv-opcodes/*:
 .PHONY: riscv-tests build-riscv-tests clean-riscv-tests
 
 riscv-tests: build-riscv-tests
-	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
-	make -C $(RISCV_TESTS_DIR)/isa run && \
-	config=minpool make -C $(SOFTWARE_DIR) riscv-tests && \
-	config=minpool make -C hardware verilate_test
+	config=minpool make -C hardware verilate-test
 
 build-riscv-tests: update-opcodes
-	cd $(RISCV_TESTS_DIR); \
-	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
-	make isa -j4 && make install && \
-	cd isa && make -j4 all
+	config=minpool make -C $(SOFTWARE_DIR) riscv-tests
 
 clean-riscv-tests:
 	$(MAKE) -C hardware clean
 	$(MAKE) -C $(SOFTWARE_DIR) clean
-	$(MAKE) -C $(RISCV_TESTS_DIR) clean
 
 ###################
 # HW Dependencies #

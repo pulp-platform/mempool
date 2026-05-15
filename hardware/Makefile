@@ -7,9 +7,11 @@
 #         Marco Bertuletti, ETH Zurich
 
 SHELL = /usr/bin/env bash
-ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
-INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
+
+ROOT_DIR      := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+MEMPOOL_DIR   := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
+INSTALL_DIR   := $(abspath $(ROOT_DIR)/../install)
+SW_DIR        := $(abspath $(ROOT_DIR)/../software/)
 TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
 
 # Include configuration
@@ -51,8 +53,6 @@ resultpath      ?= results
 result_dir      := $(if $(strip $(result_dir)),$(result_dir),$(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)"))
 # Traces
 snitch_trace    ?= 1
-
-
 
 # Path to DRAMsys
 dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/configs
@@ -358,8 +358,7 @@ spyglass/tmp/files: $(bender)
 # Unit tests simulation    #
 ############################
 
-TESTS_DIR := $(abspath $(ROOT_DIR)/../software/riscv-tests/isa)
-include $(TESTS_DIR)/snitch_isa.mk
+include $(SW_DIR)/snitch_isa.mk
 
 test_result_dir_vsim := $(resultpath)/test_result_vsim
 test_result_dir_verilate := $(resultpath)/test_result_verilate
@@ -367,8 +366,8 @@ test_result_dir_verilate := $(resultpath)/test_result_verilate
 tests_vsim := $(addsuffix .out,$(addprefix $(test_result_dir_vsim)/,$(rtl_mempool_tests)))
 tests_verilate := $(addsuffix .out,$(addprefix $(test_result_dir_verilate)/,$(rtl_mempool_tests)))
 
-simc_test: clean-dasm compile $(buildpath) $(tests_vsim)
-verilate_test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
+simc-test: clean-dasm compile $(buildpath) $(tests_vsim)
+verilate-test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
 
 $(tests_vsim): $(test_result_dir_vsim)/%.out : $(app_path)/%
 	mkdir -p $(test_result_dir_vsim)

@@ -1,9 +1,13 @@
 #=======================================================================
-# Makefrag for rv32uzvecquarterinx tests
+# Makefrag for rv32uxsmallfloatbinx tests
 #-----------------------------------------------------------------------
 
 ifeq ($(COMPILER), llvm)
-rv32uzvecquarterinx_sc_tests = \
+rv32uxsmallfloatbinx_sc_tests = \
+                      fadd_b \
+                      fmadd_b \
+                      fmin_b \
+                      fsgnj_b \
                       vfadd_b \
                       vfcpka_b \
                       vfdotpex_b \
@@ -12,6 +16,6 @@ rv32uzvecquarterinx_sc_tests = \
                       vfsgnj_b
 endif
 
-rv32uzvecquarterinx_p_tests = $(addprefix rv32uzvecquarterinx-p-, $(rv32uzvecquarterinx_sc_tests))
+rv32uxsmallfloatbinx_p_tests = $(addprefix rv32uxsmallfloatbinx-p-, $(rv32uxsmallfloatbinx_sc_tests))
 
-# Zvecquarterinx extensions are not tested on Spike
+# Xsmallfloatbinx extensions are not tested on Spike
