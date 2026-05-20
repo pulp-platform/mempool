@@ -22,7 +22,7 @@ GROUPING=(2)
 
 
 # Go to repo root (optional but recommended)
-cd "$(dirname "$0")"
+# cd "$(dirname "$0")"
 
 # Activate virtual environment once
 source venv/bin/activate
@@ -57,7 +57,7 @@ for RM in "${RM_SIZES[@]}"; do
           # compile software
           (
             cd software/apps/baremetal
-            config=tensorpool \
+            config=tensorpool64 \
             matrix_size="${M}" \
             redmule_height="${RM}" \
             redmule_width="${RM}" \
@@ -73,7 +73,7 @@ for RM in "${RM_SIZES[@]}"; do
           (
             cd hardware
             make clean
-            config=tensorpool \
+            config=tensorpool64 \
             matrix_size="${M}" \
             redmule_height="${RM}" \
             redmule_width="${RM}" \
@@ -85,7 +85,7 @@ for RM in "${RM_SIZES[@]}"; do
             make sim
             
 
-            # config=tensorpool \
+            # config=tensorpool64 \
             # matrix_size="${M}" \
             # redmule_height="${RM}" \
             # redmule_width="${RM}" \
