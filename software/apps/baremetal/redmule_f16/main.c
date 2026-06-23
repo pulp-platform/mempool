@@ -21,6 +21,12 @@
 
 #define ELEMENTS_PER_ROW (NUM_BANKS * sizeof(int32_t) / sizeof(int16_t))
 #define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
+#ifndef XSHIFT
+#define XSHIFT 0
+#endif
+#ifndef WSHIFT
+#define WSHIFT 0
+#endif
 
 __fp16 l1_X[(matrix_M * matrix_N) +
             PORT_WIDTH * NUM_REDMULE_TILES * (NUM_REDMULE_TILES + 1)]
@@ -51,10 +57,8 @@ int main() {
     unsigned int Y_ptr = (unsigned int)(l1_Y);
     unsigned int W_ptr = (unsigned int)(l1_W);
     hwpe_soft_clear();
-    mempool_wait(10);
     redmule_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, 0, GEMM,
                 Float16);
-    mempool_wait(10);
     mempool_start_benchmark();
     // Start RedMulE operation
     hwpe_trigger_job();
@@ -69,6 +73,7 @@ int main() {
 
   uint32_t X_shift;
   uint32_t W_shift;
+  uint32_t par_M;
 
   // Transfer
   if (redmule_id == 0) {
@@ -88,30 +93,31 @@ int main() {
   if (redmule_id < num_redmules) {
     X_shift = (XSHIFT == 1) ? (redmule_id * PORT_WIDTH) % matrix_N : 0;
     W_shift = (WSHIFT == 1) ? (redmule_id * PORT_WIDTH) % matrix_P : 0;
+    par_M = matrix_M / num_redmules;
+
     unsigned int X_ptr =
-        (unsigned int)(l1_X +
-                       redmule_id * (matrix_M * matrix_N / num_redmules) +
-                       X_shift);
+        (unsigned int)(l1_X + redmule_id * (par_M * matrix_N) + X_shift);
     unsigned int Y_ptr =
-        (unsigned int)(l1_Y +
-                       redmule_id * (matrix_M * matrix_P / num_redmules));
-    unsigned int W_ptr = (unsigned int)(l1_W);
+        (unsigned int)(l1_Y + redmule_id * (par_M * matrix_P));
+    unsigned int W_ptr =
+        (unsigned int)(l1_W);
+
     hwpe_soft_clear();
     mempool_wait(10);
-    redmule_cfg(X_ptr, W_ptr, Y_ptr, (matrix_M / num_redmules), matrix_N,
-                matrix_P, W_shift, GEMM, Float16);
+    redmule_cfg(X_ptr, W_ptr, Y_ptr, par_M, matrix_N, matrix_P, W_shift, GEMM, Float16);
     mempool_wait(10);
     mempool_start_benchmark();
     // Start RedMulE operation
     hwpe_trigger_job();
     // Go to sleep
     mempool_wfi();
+
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_f16(l1_Y, l2_Z, 10, 0.05f, 0);
+  mempool_check_f16(l1_Y, l2_Z, matrix_M*matrix_P, 0.01f, 0);
   mempool_barrier(num_cores);
   return 0;
 }

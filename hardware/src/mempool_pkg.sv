@@ -291,8 +291,11 @@ package mempool_pkg;
   localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1);
 
   localparam integer unsigned NumLocalPorts = NumRMTiles > 0 ? RMMasterPorts+NumCoresPerTile : NumCoresPerTile;
-  localparam integer unsigned MetaIdWidth = idx_width(RMNumStreams * RMOutstandingTransactions) > SnitchIdWidth ?
-                                            idx_width(RMNumStreams * RMOutstandingTransactions) : SnitchIdWidth;
+  // The streamer's outstanding-transaction mux tags requests with a channel ID sized for
+  // RMNumStreams+2 channels (see the tcdm interface width in mempool_tile.sv), so the
+  // reserved meta-ID space must match that, not the raw stream count.
+  localparam integer unsigned MetaIdWidth = idx_width((RMNumStreams) * RMOutstandingTransactions) > SnitchIdWidth ?
+                                            idx_width((RMNumStreams) * RMOutstandingTransactions) : SnitchIdWidth;
   typedef logic [MetaIdWidth-1:0] meta_id_t;
 
   typedef struct packed {

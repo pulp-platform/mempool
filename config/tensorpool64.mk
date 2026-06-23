@@ -56,7 +56,7 @@ num_redmule_tiles ?= 4
 # RedMulE engine size
 redmule_height ?= 16
 redmule_width ?= 16
-redmule_regs ?= 3
+redmule_regs ?= 1
 rob_depth ?= 16
 
 ###########################
