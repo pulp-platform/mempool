@@ -409,27 +409,26 @@ def generate_ffullyconn(my_type=np.float32, defines={}):
 def generate_fconv1d(my_type=np.float32, defines={}):
 
     # Create matrix
-    matrix_L = defines['matrix_L']
+    matrix_B = defines['matrix_B']
     matrix_Wi = defines['matrix_Wi']
     matrix_Ci = defines['matrix_Ci']
     matrix_Co = defines['matrix_Co']
     matrix_Wf = defines['matrix_Wf']
 
-    X = (np.random.rand(matrix_L, matrix_Ci, matrix_Wi) - 0.5).astype(my_type)
+    X = (np.random.rand(matrix_B, matrix_Ci, matrix_Wi) - 0.5).astype(my_type)
     F = (np.random.rand(matrix_Co, matrix_Ci, matrix_Wf) - 0.5).astype(my_type)
-    b = (np.random.rand(matrix_Co) - 0.5).astype(my_type)
 
-    Y = np.zeros((matrix_L, matrix_Co, matrix_Wi), dtype=my_type)
+    Y = np.zeros((matrix_B, matrix_Co, matrix_Wi), dtype=my_type)
     F_im2col = F.reshape(matrix_Co, matrix_Ci * matrix_Wf)
     X_im2col = np.zeros(
-        (matrix_L,
+        (matrix_B,
          matrix_Ci *
          matrix_Wf,
          matrix_Wi),
         dtype=my_type)
 
     pad = matrix_Wf // 2
-    for l in range(matrix_L):
+    for l in range(matrix_B):
 
         # im2col transformation
         X_col = np.zeros((matrix_Ci * matrix_Wf, matrix_Wi), dtype=X.dtype)
@@ -441,11 +440,11 @@ def generate_fconv1d(my_type=np.float32, defines={}):
             X_col[row, j0:j1] = X[l, k, j0 - pad + f: j1 - pad + f]
         X_im2col[l, :, :] = X_col
 
-        Y[l] = np.matmul(F_im2col, X_col) + b[:, None]
+        Y[l] = np.matmul(F_im2col, X_col)
 
     X = np.reshape(
         X,
-        (matrix_L * matrix_Ci * matrix_Wi),
+        (matrix_B * matrix_Ci * matrix_Wi),
         order='C').astype(my_type)
     F = np.reshape(
         F,
@@ -453,10 +452,10 @@ def generate_fconv1d(my_type=np.float32, defines={}):
         order='C').astype(my_type)
     Y = np.reshape(
         Y,
-        (matrix_L * matrix_Co * matrix_Wi),
+        (matrix_B * matrix_Co * matrix_Wi),
         order='C').astype(my_type)
 
-    return [Y, X, F, b], defines
+    return [Y, X, F], defines
 
 
 def generate_fgemm(my_type=np.float32, defines={}):

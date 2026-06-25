@@ -207,7 +207,7 @@
   "conv1d_f16": {
     "type": "float16",
     "defines": [
-      ("matrix_L", 1)
+      ("matrix_B", 2)
       ("matrix_Wi", 8)
       ("matrix_Ci", 8)
       ("matrix_Co", 8)
@@ -217,7 +217,6 @@
       ("__fp16", "l2_Y")
       ("__fp16", "l2_X")
       ("__fp16", "l2_F")
-      ("__fp16", "l2_b")
     ]
   },
 
