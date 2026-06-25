@@ -13,24 +13,26 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "data_conv1d_f16.h"
-
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_conv1d_f16.h"
+#include "data_conv1d_f16.h"
 
-#define IM2COL (0)
+#define IM2COL (1)
 
-__fp16 l1_X[matrix_Ci * matrix_Wi]
+__fp16 l1_X[matrix_B * matrix_Ci * matrix_Wi]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+
+__fp16 l1_Xim2col[matrix_B * matrix_Ci * matrix_Wi * matrix_Wf]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 
 __fp16 l1_F[matrix_Co * matrix_Ci * matrix_Wf]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 
-__fp16 l1_b[matrix_Co]
+__fp16 l1_Y[matrix_B * matrix_Co * matrix_Wi]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 
-__fp16 l1_Y[matrix_Co * matrix_Wi]
-    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l2_Z[matrix_B * matrix_Co * matrix_Wi]
+    __attribute__((aligned(sizeof(int32_t)), section(".l2"))) = {0};
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -41,25 +43,24 @@ int main() {
 
   /* DMA input tensors to L1 */
   if (core_id == 0) {
-    dma_memcpy_blocking(l1_X, l2_X, matrix_Ci * matrix_Wi * sizeof(__fp16));
+    dma_memcpy_blocking(l1_Y, l2_Z,
+                        matrix_B * matrix_Co * matrix_Wi * sizeof(__fp16));
+    dma_memcpy_blocking(l1_X, l2_X,
+                        matrix_B * matrix_Ci * matrix_Wi * sizeof(__fp16));
     dma_memcpy_blocking(l1_F, l2_F,
                         matrix_Co * matrix_Ci * matrix_Wf * sizeof(__fp16));
-    dma_memcpy_blocking(l1_b, l2_b, matrix_Co * sizeof(__fp16));
   }
   mempool_barrier(num_cores);
 
   /* Run convolution (single core reference) */
-
-  if (core_id == 0) {
-    mempool_start_benchmark();
-    conv1d_f16(l1_X, l1_F, l1_b, l1_Y, matrix_Ci, matrix_Co, matrix_Wi,
-               matrix_Wf, IM2COL);
-    mempool_stop_benchmark();
-  }
+  mempool_start_benchmark();
+  conv1d_f16(l1_X, l1_F, l1_Y, l1_Xim2col, matrix_B, matrix_Ci, matrix_Co,
+             matrix_Wi, matrix_Wf, IM2COL, core_id, num_cores);
+  mempool_stop_benchmark();
   mempool_barrier(num_cores);
 
   /* Check results */
-  mempool_check_f16(l1_Y, l2_Y, matrix_Co * matrix_Wi, 0.5f, 1);
+  mempool_check_f16(l1_Y, l2_Y, matrix_B * matrix_Co * matrix_Wi, 0.5f, 0);
   mempool_barrier(num_cores);
   return 0;
 }
