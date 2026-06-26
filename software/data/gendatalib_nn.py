@@ -524,11 +524,20 @@ def generate_fmultihead(my_type=np.float32, defines={}):
     K = (np.matmul(X, W_k) + Y).astype(my_type)
     V = (np.matmul(X, W_v) + Y).astype(my_type)
 
-    Kt = np.transpose(K)
-    A = (np.matmul(Q, Kt) + Y).astype(my_type)
-    A = fsoftmax_taylor(A, normalized=True, my_type=my_type)
+    # Split into heads
+    Q = Q.reshape(H, M, N)
+    K = K.reshape(H, M, N)
+    V = V.reshape(H, M, N)
+    Y = Y.reshape(H, M, N)
 
-    Z = (np.matmul(A, V) + X).astype(my_type)
+    # Attention scores
+    Kt = np.transpose(K, (0, 2, 1))           # (H, N, M)
+    A = np.matmul(Q, Kt).astype(my_type)      # (H, M, M)
+
+    A = fsoftmax_taylor(A.reshape(H * M, M), normalized=True, my_type=my_type)
+
+    # Attention output
+    Z = (np.matmul(A.reshape(H, M, M), V) + Y).astype(my_type)  # (H, M, N)
 
     # Flatten for header emission
     X = np.reshape(X, (H * M * N), order="C").astype(my_type)

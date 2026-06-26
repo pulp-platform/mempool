@@ -10,11 +10,10 @@
 
 static inline void redmule_synch_single(__fp16 *X, __fp16 *Y, __fp16 *W,
                                         uint32_t M, uint32_t N, uint32_t P,
-                                        uint8_t gemm_op) {
-  uint32_t redmule_id = mempool_get_redmule_id();
-  uint32_t num_cores = mempool_get_core_count();
+                                        uint8_t gemm_op, uint32_t redmule_id) {
 
-  if (redmule_id == 0) {
+  uint32_t num_cores = mempool_get_core_count();
+  if (redmule_id == mempool_get_redmule_id()) {
 
     uint16_t int16M = (uint16_t)M;
     uint16_t int16N = (uint16_t)N;
@@ -31,6 +30,30 @@ static inline void redmule_synch_single(__fp16 *X, __fp16 *Y, __fp16 *W,
     mempool_wfi();
   }
   mempool_barrier(num_cores);
+
+  return;
+}
+
+static inline void redmule_asynch_single(__fp16 *X, __fp16 *Y, __fp16 *W,
+                                         uint32_t M, uint32_t N, uint32_t P,
+                                         uint8_t gemm_op, uint32_t redmule_id) {
+
+  if (redmule_id == mempool_get_redmule_id()) {
+
+    uint16_t int16M = (uint16_t)M;
+    uint16_t int16N = (uint16_t)N;
+    uint16_t int16P = (uint16_t)P;
+    unsigned int uintX = (unsigned int)(X);
+    unsigned int uintY = (unsigned int)(Y);
+    unsigned int uintW = (unsigned int)(W);
+    hwpe_soft_clear();
+    mempool_wait(10);
+    redmule_cfg(uintX, uintW, uintY, int16M, int16N, int16P, 0, gemm_op,
+                Float16);
+    mempool_wait(10);
+    hwpe_trigger_job();
+    mempool_wfi();
+  }
 
   return;
 }
