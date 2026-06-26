@@ -14,13 +14,13 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "baremetal/mempool_softmax_f16.h"
 #include "baremetal/mempool_redmule_f16.h"
+#include "baremetal/mempool_softmax_f16.h"
 
 #include "data_multihead_f16.h"
 
 #define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
-#define SHIFT (true)
+#define SHIFT (false)
 #define VERBOSE (true)
 
 __fp16 l1_X[H * M * N]
@@ -32,6 +32,10 @@ __fp16 l1_Wk[N * N]
 __fp16 l1_Wv[N * N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_QKV[3 * H * M * N]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_A[H * M * M]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_S[H * M * M]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 
 void inline transpose_K(__fp16 *K, uint32_t size_H, uint32_t size_M,
@@ -89,19 +93,28 @@ void inline transpose_K(__fp16 *K, uint32_t size_H, uint32_t size_M,
   return;
 }
 
+void checkpoint_printf(const char *fmt, bool verbose) {
+  if (verbose) {
+    if (mempool_get_core_id() == 0) {
+      printf("/*********************************************************/\n");
+      printf("/* DONE: %s\n", fmt);
+      printf("/*********************************************************/\n\n");
+    }
+    mempool_barrier(NUM_CORES);
+  }
+}
+
 int main() {
 
   /* Initialization */
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
-  uint32_t redmule_id = mempool_get_redmule_id();
-  uint32_t num_redmules = mempool_get_redmule_count();
   mempool_init(core_id);
   mempool_barrier_init(core_id);
 
   /* Allocate */
   static __fp16 *Q = l1_QKV;
-  static __fp16 *K = &l1_QKV[2 * H * M * N];
+  static __fp16 *K = &l1_QKV[H * M * N];
   static __fp16 *V = &l1_QKV[2 * H * M * N];
 
   /* L1 transfer */
@@ -122,24 +135,14 @@ int main() {
 
   /* Generate K */
   mempool_start_benchmark();
-  redmule_synch_parallel(l1_X, K, l1_Wk,
-    H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_synch_parallel(l1_X, K, l1_Wk, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  #if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Generate K                                      */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-  #endif
+  checkpoint_printf("Generate K", VERBOSE);
 
   /* Compute Q */
   mempool_start_benchmark();
-  redmule_asynch_parallel(l1_X, Q, l1_Wq,
-    H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, Q, l1_Wq, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   mempool_stop_benchmark();
 
   /* Transpose */
@@ -155,125 +158,74 @@ int main() {
 
   /* Compute V */
   mempool_start_benchmark();
-  redmule_synch_parallel(l1_X, V, l1_Wv,
-    H * M, H * M, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_synch_parallel(l1_X, V, l1_Wv, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  #if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Linear (I -> QKV) & Transposition               */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-  #endif
+  checkpoint_printf("Linear (I -> QKV) & Transposition", VERBOSE);
 
 #else
 
   /* QKV generation */
   mempool_start_benchmark();
 
-  redmule_asynch_parallel(l1_X, Q, l1_Wq,
-    H * M, H * M, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, Q, l1_Wq, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   wait_redmule();
 
-  redmule_asynch_parallel(l1_X, K, l1_Wk,
-    H * M, H * M, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, K, l1_Wk, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   wait_redmule();
 
-  redmule_asynch_parallel(l1_X, V, l1_Wv,
-    H * M, H * M, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, V, l1_Wv, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   wait_redmule();
 
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  #if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Linear (I -> QKV)                               */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-  #endif
-
-  /* Transpose K */
-  mempool_start_benchmark();
-  transpose_K(K, H, M, N, core_id, num_cores);
-  mempool_stop_benchmark();
-
-  mempool_start_benchmark();
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  #if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Transpose                                       */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-  #endif
+  checkpoint_printf("Linear (I -> QKV)", VERBOSE);
 
 #endif
 
   /* Allocate A */
-  static __fp16 *A = l1_Wq;
-  static __fp16 *S = l1_QKV;
-  uint32_t ih;
+  static __fp16 *A = l1_A;
+  static __fp16 *S = l1_S;
 
-  /* A = Q * Kt */
+  /* Transpose K */
+#ifndef DOUBLE_BUFFERING
+
   mempool_start_benchmark();
-  ih = redmule_id / H;
-  redmule_synch_parallel(Q, A, K + ih * (N * M),
-    H * M, N, M, GEMM, SHIFT, PORT_WIDTH);
+  transpose_K(K, H, M, N, core_id, num_cores);
+  mempool_stop_benchmark();
+  mempool_start_benchmark();
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
-  #if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Q * Kt                                          */\n");
-    printf("/*********************************************************/\n\n");
+  checkpoint_printf("Transpose", VERBOSE);
+#endif
+
+  /* A = Q * Kt */
+  uint32_t redmule_id = mempool_get_redmule_id();
+  uint32_t num_redmules = mempool_get_redmule_count();
+  mempool_start_benchmark();
+  for (uint32_t ih = redmule_id; ih < H; ih += num_redmules) {
+    redmule_asynch_single(&Q[ih * (M * N)], &A[ih * (M * M)], &K[ih * (N * M)],
+                          M, N, M, GEMM, redmule_id);
   }
+  mempool_stop_benchmark();
   mempool_barrier(num_cores);
-  #endif
 
   /* Softmax */
   mempool_start_benchmark();
   softmax_parallel_2x4_f16vec(A, S, H * M, M, core_id, num_cores);
   mempool_stop_benchmark();
-
-  mempool_start_benchmark();
   mempool_barrier(num_cores);
-  mempool_stop_benchmark();
 
-  #if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Softmax                                         */\n");
-    printf("/*********************************************************/\n\n");
+  /* Softmax(A) * V */
+  mempool_start_benchmark();
+  for (uint32_t ih = redmule_id; ih < H; ih += num_redmules) {
+    redmule_asynch_single(&S[ih * (M * M)], &l1_X[ih * (M * N)],
+                          &V[ih * (M * N)], M, M, N, GEMM, redmule_id);
   }
   mempool_barrier(num_cores);
-  #endif
-
-  /* A * V */
-  mempool_start_benchmark();
-  ih = redmule_id / H;
-  redmule_synch_parallel(S, l1_X, V + ih * (M * N),
-    H * M, N, M, GEMM, SHIFT, PORT_WIDTH);
-  mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  #if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Softmax(A) * V                                  */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-  #endif
+  checkpoint_printf("Head-wise Attention", VERBOSE);
 
   /* L1 transfer */
   mempool_start_benchmark();
@@ -282,15 +234,7 @@ int main() {
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  #if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Transfer-out                                    */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-  #endif
+  checkpoint_printf("Transfer-out", VERBOSE);
 
   return 0;
 }
