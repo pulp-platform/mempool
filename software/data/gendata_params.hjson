@@ -559,6 +559,17 @@
     ]
   },
 
+  "gelu_f16": {
+    "type": "float16",
+    "defines": [
+      ("array_N", 2048)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+    ]
+  },
+
   "ofdm_f16": {
     "type": "float16",
     "defines": [

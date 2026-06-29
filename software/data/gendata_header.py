@@ -255,6 +255,7 @@ if __name__ == '__main__':
         "batchnorm_f16": {"func": datalib_nn.generate_fbatchnorm},
         "layernorm_f8": {"func": datalib_nn.generate_flayernorm},
         "layernorm_f16": {"func": datalib_nn.generate_flayernorm},
+        "gelu_f16": {"func": datalib_nn.generate_fgelu},
         "ofdm_f16": {"func": datalib.generate_fofdm},
         "softmax_f8": {"func": datalib_nn.generate_fsoftmax},
         "softmax_f16": {"func": datalib_nn.generate_fsoftmax},
@@ -273,9 +274,9 @@ if __name__ == '__main__':
         result, defnes = func(defines=defnes, my_type=my_type)
         # Print result to data header
         if len(arrays) == 1:
-            arrays = [(result, *arrays[0])]
+            arrays = [(result,) + arrays[0]]
         else:
-            arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
+            arrays = [(result[i],) + arrays[i] for i in range(len(arrays))]
         print_file(header, defnes, arrays, filename)
 
     else:
