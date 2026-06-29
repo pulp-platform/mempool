@@ -399,6 +399,29 @@ def generate_fsoftmax(my_type=np.float32, defines={}):
     return [A, B], defines
 
 
+def fgelu_tanh(A, my_type=None):
+    """
+    GELU using the same tanh-based approximation implemented by the kernel.
+    """
+    if my_type is None:
+        my_type = A.dtype
+
+    A_t = A.astype(np.float32, copy=False)
+    t = 0.7978845608 * (A_t + 0.044715 * np.power(A_t, 3))
+    tanh_t = t * (27.0 + np.square(t)) / (27.0 + 9.0 * np.square(t))
+    Y = 0.5 * A_t * (1.0 + tanh_t)
+    return Y.astype(my_type)
+
+
+def generate_fgelu(my_type=np.float32, defines={}):
+
+    array_N = defines['array_N']
+    A = (5.0 * np.random.rand(array_N) - 2.5).astype(my_type)
+    B = fgelu_tanh(A, my_type=my_type)
+
+    return [A, B], defines
+
+
 def generate_fmessagep(my_type=np.float32, defines={}):
 
     P = defines['matrix_P']  # number of graph nodes
