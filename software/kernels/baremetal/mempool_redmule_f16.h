@@ -8,7 +8,7 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-static inline void redmule_synch_single(__fp16 *X, __fp16 *Y, __fp16 *W,
+static inline void redmule_synch_single(__fp16 *X, __fp16 *W, __fp16 *Y,
                                         uint32_t M, uint32_t N, uint32_t P,
                                         uint8_t gemm_op, uint32_t redmule_id) {
 
@@ -34,7 +34,7 @@ static inline void redmule_synch_single(__fp16 *X, __fp16 *Y, __fp16 *W,
   return;
 }
 
-static inline void redmule_asynch_single(__fp16 *X, __fp16 *Y, __fp16 *W,
+static inline void redmule_asynch_single(__fp16 *X, __fp16 *W, __fp16 *Y,
                                          uint32_t M, uint32_t N, uint32_t P,
                                          uint8_t gemm_op, uint32_t redmule_id) {
 
@@ -58,7 +58,7 @@ static inline void redmule_asynch_single(__fp16 *X, __fp16 *Y, __fp16 *W,
   return;
 }
 
-static inline void redmule_synch_parallel(__fp16 *X, __fp16 *Y, __fp16 *W,
+static inline void redmule_synch_parallel(__fp16 *X, __fp16 *W, __fp16 *Y,
                                           uint32_t M, uint32_t N, uint32_t P,
                                           uint8_t gemm_op, bool shift,
                                           uint32_t shift_val) {
@@ -94,7 +94,7 @@ static inline void redmule_synch_parallel(__fp16 *X, __fp16 *Y, __fp16 *W,
   return;
 }
 
-static inline void redmule_asynch_parallel(__fp16 *X, __fp16 *Y, __fp16 *W,
+static inline void redmule_asynch_parallel(__fp16 *X, __fp16 *W, __fp16 *Y,
                                            uint32_t M, uint32_t N, uint32_t P,
                                            uint8_t gemm_op, bool shift,
                                            uint32_t shift_val) {
