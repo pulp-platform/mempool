@@ -12,6 +12,7 @@
 #include "baremetal/mempool_matmul_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
 #include "l1_transformer_conv1d.h"
+#include "l1_transformer_print.h"
 
 /**
   @brief         Computes scaled dot-product attention.
@@ -41,11 +42,11 @@ void attention_block(__fp16 const *__restrict__ Q,
   static __fp16 *Aw = l1_T5; // Should be allocated dinamically
 
 #if NUM_REDMULE_TILES > 0
-  // RedMulE implementation
 
   uint32_t redmule_id = mempool_get_redmule_id();
   uint32_t num_redmules = mempool_get_redmule_count();
 
+  // Q*Kt
   mempool_start_benchmark();
   if (redmule_id < num_redmules) {
     for (uint32_t i = redmule_id; i < Batch; i += num_redmules) {
@@ -85,6 +86,7 @@ void attention_block(__fp16 const *__restrict__ Q,
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
+  // A = Softmax(Q*Kt)*V
   mempool_start_benchmark();
   if (redmule_id < num_redmules) {
     for (uint32_t i = redmule_id; i < Batch; i += num_cores) {
@@ -106,6 +108,7 @@ void attention_block(__fp16 const *__restrict__ Q,
   mempool_stop_benchmark();
 
 #else
+
   // Q*Kt
   for (uint32_t i = 0; i < Batch; i++) {
     matmul_4x2_parallel_f16vec(
@@ -113,6 +116,7 @@ void attention_block(__fp16 const *__restrict__ Q,
         &S[i * (SeqLen * SeqLen)], SeqLen, tdEmbed, SeqLen, core_id, num_cores);
   }
   mempool_barrier(num_cores);
+
   // Softmax
   for (uint32_t i = 0; i < Batch; i++) {
     softmax_parallel_2x4_f16vec(&S[i * (SeqLen * SeqLen)],
@@ -120,6 +124,7 @@ void attention_block(__fp16 const *__restrict__ Q,
                                 core_id, num_cores);
   }
   mempool_barrier(num_cores);
+
   // A = Softmax(Q*Kt)*V
   for (uint32_t i = 0; i < Batch; i++) {
     matmul_4x2_parallel_f16vec(&Aw[i * (SeqLen * SeqLen)],
@@ -128,6 +133,7 @@ void attention_block(__fp16 const *__restrict__ Q,
                                tdEmbed, core_id, num_cores);
   }
   mempool_barrier(num_cores);
+
 #endif
 
   return;
@@ -275,28 +281,24 @@ void *attention(__fp16 const *__restrict__ l2_I,
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
 
+  static __fp16 *I = l1_I; // Should be allocated dinamically
+  static __fp16 *T1 = l1_T1; // Should be allocated dinamically
+  static __fp16 *T2 = l1_T2; // Should be allocated dinamically
+  static __fp16 *F = l1_F; // Should be allocated dinamically
+  static __fp16 *b = l1_b; // Should be allocated dinamically
+
   /**************************************************************************/
   /* Transfer inputs                                                        */
   /**************************************************************************/
 
   mempool_start_benchmark();
-  static __fp16 *I = l1_I;   // Should be allocated dinamically
-  static __fp16 *T1 = l1_T1; // Should be allocated dinamically
-  static __fp16 *T2 = l1_T2; // Should be allocated dinamically
   if (core_id == 0) {
     dma_memcpy_blocking(I, l2_I, Embed * Beam * tdSamples * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
-#if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Transfer inputs                                 */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-#endif
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Transfer inputs");
 
   /**************************************************************************/
   /* Conv1D block                                                           */
@@ -306,11 +308,13 @@ void *attention(__fp16 const *__restrict__ l2_I,
   layernorm_conv1d(l2_F, l2_b, I, T2, Beam, Embed, Embed * 3, tdSamples, Wf);
 #endif
 
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution and layernorm");
+
   /**************************************************************************/
   /* Permute to QKV                                                         */
   /**************************************************************************/
 
-  //#if defined(COMPUTE)
+#if defined(COMPUTE)
   mempool_start_benchmark();
   static __fp16 *Q;
   static __fp16 *Kt;
@@ -321,22 +325,15 @@ void *attention(__fp16 const *__restrict__ l2_I,
   permute_qkv(T2, Q, Kt, V, Beam, Embed, tdSamples, mode);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-  //#endif
-
-#ifdef VERBOSE
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Permute to QKV                                  */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
 #endif
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Permute to QKV");
 
   /**************************************************************************/
   /* Attention                                                              */
   /**************************************************************************/
 
-  //#if defined(COMPUTE)
+#if defined(COMPUTE)
   switch (mode) {
   case TBE:
     attention_block(Q, Kt, V, T2, tdSamples, Beam, Embed);
@@ -345,36 +342,20 @@ void *attention(__fp16 const *__restrict__ l2_I,
     attention_block(Q, Kt, V, T2, Embed, Beam, tdSamples);
     break;
   }
-  //#endif
-
-#ifdef VERBOSE
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Attention                                       */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
 #endif
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Attention");
 
   /**************************************************************************/
   /* Transfer weights                                                       */
   /**************************************************************************/
 
-  static __fp16 *F = l1_F; // Should be allocated dinamically
-  static __fp16 *b = l1_b; // Should be allocated dinamically
   if (core_id == 0) {
     dma_memcpy_nonblocking(F, l2_F, Embed * Embed * Wf * sizeof(int16_t));
     dma_memcpy_nonblocking(b, l2_b, Embed * sizeof(int16_t));
   }
 
-#if defined(VERBOSE)
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Transfer weights                                */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-#endif
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Transfer weights");
 
   /**************************************************************************/
   /* Permute result                                                         */
@@ -386,14 +367,7 @@ void *attention(__fp16 const *__restrict__ l2_I,
   mempool_stop_benchmark();
 #endif
 
-#ifdef VERBOSE
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Permute result                                  */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-#endif
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Permute result");
 
   /**************************************************************************/
   /* Synchronize and wait for weights transfer end                          */
@@ -406,14 +380,7 @@ void *attention(__fp16 const *__restrict__ l2_I,
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
-#ifdef VERBOSE
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Synchronize and wait for weights transfer end   */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-#endif
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Synchronize and wait for weights");
 
   /**************************************************************************/
   /* Compute convolution on output and sum                                  */
@@ -421,19 +388,13 @@ void *attention(__fp16 const *__restrict__ l2_I,
 
 #if defined(COMPUTE)
   mempool_start_benchmark();
-  conv1d(T1, F, b, I, Embed, Embed, Wf, Beam, tdSamples);
+  conv1d_f16(T1, F, I, l1_X_im2col, Beam, Embed, Embed, tdSamples, Wf, IM2COL,
+             core_id, num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 #endif
 
-#ifdef VERBOSE
-  if (core_id == 0) {
-    printf("/*********************************************************/\n");
-    printf("/* DONE: Compute convolution on output                   */\n");
-    printf("/*********************************************************/\n\n");
-  }
-  mempool_barrier(num_cores);
-#endif
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Compute convolution on output");
 
   mempool_barrier(num_cores);
   return T2;

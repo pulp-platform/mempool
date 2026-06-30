@@ -13,8 +13,6 @@ __fp16 l2_I[BEAM * EMBED * TDSAMPLES]
     __attribute__((aligned(sizeof(int32_t)), section(".l2")));
 __fp16 l2_F[EMBED * 3 * EMBED * CONV1D_WF]
     __attribute__((aligned(sizeof(int32_t)), section(".l2")));
-__fp16 l2_b[EMBED * 3]
-    __attribute__((aligned(sizeof(int32_t)), section(".l2")));
 
 // These should be allocated dinamically but we still do not have a malloc
 // function that aligns data to the TCDM bounday without a shift from the
@@ -35,6 +33,4 @@ __fp16 l1_T5[EMBED * BEAM * BEAM]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 
 __fp16 l1_F[EMBED * 3 * EMBED * CONV1D_WF]
-    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_b[EMBED * 3]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
