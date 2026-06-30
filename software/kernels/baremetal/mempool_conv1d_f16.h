@@ -11,7 +11,6 @@
 #include "baremetal/mempool_matmul_f16.h"
 #include "builtins_v2.h"
 
-
 /**
   @brief         Computes 1D im2col transformation.
   @param[in]     Ci         dimension input channel

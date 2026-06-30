@@ -63,9 +63,9 @@ int main() {
   mempool_start_benchmark();
   if (core_id == 0) {
     dma_memcpy_nonblocking(l1_X_B, l2_X,
-      (matrix_M * matrix_N) * sizeof(int16_t));
+                           (matrix_M * matrix_N) * sizeof(int16_t));
     dma_memcpy_nonblocking(l1_Y_B, l2_Y,
-      (matrix_M * matrix_P) * sizeof(int16_t));
+                           (matrix_M * matrix_P) * sizeof(int16_t));
   }
   mempool_stop_benchmark();
 
@@ -73,16 +73,16 @@ int main() {
 
   /* GEMM */
   mempool_start_benchmark();
-  redmule_asynch_parallel(l1_X_A, l1_Y_A, l1_W,
-    matrix_M, matrix_N, matrix_P, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X_A, l1_W, l1_Y_A, matrix_M, matrix_N, matrix_P,
+                          GEMM, SHIFT, PORT_WIDTH);
   mempool_stop_benchmark();
 
   dump_checkpoint(1);
 
   /* Softmax */
   mempool_start_benchmark();
-  softmax_parallel_2x4_f16vec(l1_Z, l1_S,
-    matrix_M, matrix_P, core_id, num_cores);
+  softmax_parallel_2x4_f16vec(l1_Z, l1_S, matrix_M, matrix_P, core_id,
+                              num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
@@ -91,8 +91,7 @@ int main() {
   /* Transfer output (itr. - 1) */
   mempool_start_benchmark();
   if (core_id == 0) {
-    dma_memcpy_nonblocking(
-      l2_S, l1_S, (matrix_M * matrix_P) * sizeof(int16_t));
+    dma_memcpy_nonblocking(l2_S, l1_S, (matrix_M * matrix_P) * sizeof(int16_t));
   }
   mempool_stop_benchmark();
 
@@ -132,8 +131,8 @@ int main() {
 
   /* GEMM */
   mempool_start_benchmark();
-  redmule_synch_parallel(l1_X_A, l1_Y_A, l1_W,
-    matrix_M, matrix_N, matrix_P, GEMM, SHIFT, PORT_WIDTH);
+  redmule_synch_parallel(l1_X_A, l1_W, l1_Y_A, matrix_M, matrix_N, matrix_P,
+                         GEMM, SHIFT, PORT_WIDTH);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
@@ -141,8 +140,8 @@ int main() {
 
   /* Softmax */
   mempool_start_benchmark();
-  softmax_parallel_2x4_f16vec(l1_Y_A, l1_S,
-    matrix_M, matrix_P, core_id, num_cores);
+  softmax_parallel_2x4_f16vec(l1_Y_A, l1_S, matrix_M, matrix_P, core_id,
+                              num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
