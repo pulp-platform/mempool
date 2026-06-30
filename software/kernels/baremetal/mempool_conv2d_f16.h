@@ -6,6 +6,7 @@
 
 #pragma once
 #include "builtins_v2.h"
+#define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 #define SHIFT (true)
 
 void conv2d_pointwise_f16(__fp16 *A, __fp16 *B, __fp16 *W, uint32_t matrix_M,
@@ -68,7 +69,7 @@ void conv2d_pointwise_f16(__fp16 *A, __fp16 *B, __fp16 *W, uint32_t matrix_M,
   return;
 }
 
-#define CONV2D_DEPTHWISE_LOOP()                                                \
+#define CONV_DEPTHWISE_LOOP4()                                                 \
   v2h w0, w1, w2, w3;                                                          \
   v2h a0, a1, a2, a3;                                                          \
   asm volatile(                                                                \
@@ -96,60 +97,65 @@ void conv2d_depthwise_f16(__fp16 *A, __fp16 *B, __fp16 *W, uint32_t matrix_M,
                           uint32_t kernel_K, uint32_t core_id,
                           uint32_t numThreads) {
 
-  uint32_t i, j, k, d;
-  uint32_t ik, jk;
+  uint32_t ij, i, j, k, d;
   uint32_t pad = kernel_K / 2;
+  uint32_t ik, jk;
+  uint32_t idx_a;
+  uint32_t offset;
 
-  int32_t i_pad, j_pad, ia, ja;
+  __fp16 *ptrA, *ptrW, *ptrB;
+  v2h s0, s1, s2, s3;
 
   const uint32_t ND = matrix_N * matrix_D;
   const uint32_t KD = kernel_K * matrix_D;
   const uint32_t MND = matrix_M * ND;
+  bool notboundary;
 
-  for (k = 8 * core_id; k < MND; k += 8 * numThreads) {
-    uint32_t ij = k / matrix_D;
-    i = ij / matrix_N;
-    j = ij % matrix_N;
-    d = k % matrix_D;
+  k = 16 * core_id;
+  while (k < MND) {
+    for (offset = 0; offset <= 8; offset += 8) {
+      // Loop indeces
+      ij = (k + offset) / matrix_D;
+      i = ij / matrix_N;
+      j = ij % matrix_N;
+      d = (k + offset) % matrix_D;
 
-    // Compute padding
-    i_pad = (int32_t)(i - pad);
-    j_pad = (int32_t)(j - pad);
-    bool notboundary;
-    notboundary = (i_pad > 0) && (i_pad < (int32_t)(matrix_M - pad));
-    notboundary &= (j_pad > 0) && (j_pad < (int32_t)(matrix_N - pad));
+      // Accumulators
+      s0 = (v2h)0.0f;
+      s1 = (v2h)0.0f;
+      s2 = (v2h)0.0f;
+      s3 = (v2h)0.0f;
 
-    v2h s0 = (v2h)0.0f, s1 = (v2h)0.0f, s2 = (v2h)0.0f, s3 = (v2h)0.0f;
-    if (notboundary) {
-      for (ik = 0; ik < kernel_K; ik++) {
-        for (jk = 0; jk < kernel_K; jk++) {
-          ia = i_pad + (int32_t)ik;
-          ja = j_pad + (int32_t)jk;
-          __fp16 *ptrW = &W[ik * KD + jk * matrix_D + d];
-          __fp16 *ptrA = &A[(uint32_t)ia * ND + (uint32_t)ja * matrix_D + d];
-          CONV2D_DEPTHWISE_LOOP();
-        }
-      }
-    } else {
-      for (ik = 0; ik < kernel_K; ik++) {
-        for (jk = 0; jk < kernel_K; jk++) {
-          ia = i_pad + (int32_t)ik;
-          ja = j_pad + (int32_t)jk;
-          if ((ia >= 0) && (ia < (int32_t)matrix_M) && (ja >= 0) &&
-              (ja < (int32_t)matrix_N)) {
-            __fp16 *ptrW = &W[ik * KD + jk * matrix_D + d];
-            __fp16 *ptrA = &A[(uint32_t)ia * ND + (uint32_t)ja * matrix_D + d];
-            CONV2D_DEPTHWISE_LOOP();
+      // Padding
+      notboundary = (i >= pad);
+      notboundary &= (j >= pad);
+      notboundary &= (i < matrix_M - pad);
+      notboundary &= (j < matrix_N - pad);
+
+      if (notboundary) {
+        idx_a = d + i * ND + j * matrix_D;
+        idx_a -= pad * (ND + matrix_D);
+        ptrA = &A[idx_a];
+        ptrW = &W[d];
+
+        for (ik = 0; ik < kernel_K; ik++) {
+          for (jk = 0; jk < kernel_K; jk++) {
+            CONV_DEPTHWISE_LOOP4();
+            ptrW += matrix_D;
+            ptrA += matrix_D;
           }
+          ptrA += ND - KD;
         }
       }
+      ptrB = &B[i * ND + j * matrix_D + d];
+      *((v2h *)&ptrB[0]) = s0;
+      *((v2h *)&ptrB[2]) = s1;
+      *((v2h *)&ptrB[4]) = s2;
+      *((v2h *)&ptrB[6]) = s3;
     }
 
-    __fp16 *ptrB = &B[i * ND + j * matrix_D + d];
-    *((v2h *)&ptrB[0]) = s0;
-    *((v2h *)&ptrB[2]) = s1;
-    *((v2h *)&ptrB[4]) = s2;
-    *((v2h *)&ptrB[6]) = s3;
+    // Pointer increment
+    k += 16 * numThreads;
   }
   return;
 }
@@ -212,7 +218,7 @@ void conv2d_depthwise_pointwise_f16(__fp16 *A, __fp16 *B, __fp16 *Wd,
               }
             }
             if (ptrW && ptrA) {
-              CONV2D_DEPTHWISE_LOOP();
+              CONV_DEPTHWISE_LOOP4();
             }
           }
         }
