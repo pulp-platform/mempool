@@ -6,19 +6,18 @@
 
 #pragma once
 #include "builtins_v2.h"
-#include "mempool_redmule_f16.h"
 #define SHIFT (true)
 
-void conv2d_pointwise_f16(__fp16 *A, __fp16 *B, __fp16 *W,
-                          uint32_t matrix_M, uint32_t matrix_N,
-                          uint32_t matrix_D, uint32_t kernel_D,
+void conv2d_pointwise_f16(__fp16 *A, __fp16 *B, __fp16 *W, uint32_t matrix_M,
+                          uint32_t matrix_N, uint32_t matrix_D,
+                          uint32_t kernel_D,
                           uint32_t __attribute__((unused)) core_id,
                           uint32_t __attribute__((unused)) numThreads) {
 
 #if NUM_REDMULE_TILES > 0
   uint32_t M = matrix_M * matrix_N;
-  redmule_asynch_parallel(A, B, W, M,
-    matrix_D, kernel_D, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(A, W, B, M, matrix_D, kernel_D, GEMM, SHIFT,
+                          PORT_WIDTH);
   wait_redmule();
 #else
   uint32_t k, i, d;
