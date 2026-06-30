@@ -30,7 +30,6 @@ DW_K Depthwise filter kernel
 
 #define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 #define SHIFT (true)
-dump(checkpoint, 8);
 
 // These should be allocated dinamically but we still do not have a malloc
 // function that aligns data to the TCDM bounday without a shift from the
@@ -68,72 +67,7 @@ int main() {
   }
   mempool_barrier(num_cores);
 
-#ifdef DOUBLE_BUFFERING
-
-  // Transfer input and output previous iteration
-  mempool_start_benchmark();
-  if (core_id == 0) {
-    dma_memcpy_blocking(l1_Idw, l2_X, FM * FN * DW_D * sizeof(int16_t));
-  }
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  dump_checkpoint(0);
-
-  // Depthwise convolution
-  mempool_start_benchmark();
-  conv2d_depthwise_f16(l1_Idw, l1_Ipw, l1_Wdw,
-    FM, FN, DW_D, DW_K, core_id, num_cores);
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  dump_checkpoint(1);
-
-  // Pointwise convolution (+ bias in l1_Opw)
-  mempool_start_benchmark();
-  redmule_asynch_parallel(l1_Ipw, l1_Opw, l1_Wpw,
-    FM * FN, DW_D, PW_D, GEMM, SHIFT, PORT_WIDTH);
-  mempool_stop_benchmark();
-
-  dump_checkpoint(2);
-
-  // Wait for TEs
-  mempool_start_benchmark();
-  wait_redmule();
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  dump_checkpoint(3);
-
-  // Layernorm
-  mempool_start_benchmark();
-  layernorm_parallel_2x4_f16vec(l1_Opw, l1_Idw,
-    FM * FN, PW_D, core_id, num_cores);
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  dump_checkpoint(4);
-
-  // ReLU
-  mempool_start_benchmark();
-  relu_f16(l1_Idw, FM * FN * PW_D, core_id, num_cores);
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  dump_checkpoint(5);
-
-  // Transfer output
-  mempool_start_benchmark();
-  if (core_id == 0) {
-    dma_memcpy_blocking(l2_Z, l1_Idw, FM * FN * PW_D * sizeof(int16_t));
-  }
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  dump_checkpoint(6);
-
-#else
-
+#ifdef ONE_LAYER
   uint32_t redmule_id = mempool_get_redmule_id();
   uint32_t num_redmules = mempool_get_redmule_count();
 
@@ -145,41 +79,31 @@ int main() {
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
-  dump_checkpoint(0);
-
   // Depthwise convolution
   mempool_start_benchmark();
-  conv2d_depthwise_f16(l1_Idw, l1_Ipw, l1_Wdw,
-    FM, FN, DW_D, DW_K, core_id, num_cores);
+  conv2d_depthwise_f16(l1_Idw, l1_Ipw, l1_Wdw, FM, FN, DW_D, DW_K, core_id,
+                       num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  dump_checkpoint(1);
 
   // Pointwise convolution (+ bias in l1_Opw)
   mempool_start_benchmark();
-  redmule_synch_parallel(l1_Ipw, l1_Opw, l1_Wpw,
-    FM * FN, DW_D, PW_D, GEMM, SHIFT, PORT_WIDTH);
+  redmule_synch_parallel(l1_Ipw, l1_Wpw, l1_Opw, FM * FN, DW_D, PW_D, GEMM,
+                         SHIFT, PORT_WIDTH);
   mempool_stop_benchmark();
-
-  dump_checkpoint(2);
 
   // Layernorm
   mempool_start_benchmark();
-  layernorm_parallel_2x4_f16vec(l1_Opw, l1_Idw,
-    FM * FN, PW_D, core_id, num_cores);
+  layernorm_parallel_2x4_f16vec(l1_Opw, l1_Idw, FM * FN, PW_D, core_id,
+                                num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  dump_checkpoint(3);
 
   // ReLU
   mempool_start_benchmark();
   relu_f16(l1_Idw, FM * FN * PW_D, core_id, num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-
-  dump_checkpoint(4);
 
   // Transfer output
   mempool_start_benchmark();
@@ -189,7 +113,91 @@ int main() {
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
-  dump_checkpoint(5);
+#endif
+
+#ifdef DOUBLE_BUFFERING
+
+  // Transfer input and output previous iteration
+  mempool_start_benchmark();
+  if (core_id == 0) {
+    dma_memcpy_blocking(l1_Idw, l2_X, FM * FN * DW_D * sizeof(int16_t));
+  }
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // Depthwise convolution
+  mempool_start_benchmark();
+  conv2d_depthwise_f16(l1_Idw, l1_Ipw, l1_Wdw, FM, FN, DW_D, DW_K, core_id,
+                       num_cores);
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // Pointwise convolution (+ bias in l1_Opw)
+  mempool_start_benchmark();
+  redmule_asynch_parallel(l1_Ipw, l1_Wpw, l1_Opw, FM * FN, DW_D, PW_D, GEMM,
+                          SHIFT, PORT_WIDTH);
+  mempool_stop_benchmark();
+
+  // Wait for TEs
+  mempool_start_benchmark();
+  wait_redmule();
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // Layernorm
+  mempool_start_benchmark();
+  layernorm_parallel_2x4_f16vec(l1_Opw, l1_Idw, FM * FN, PW_D, core_id,
+                                num_cores);
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // ReLU
+  mempool_start_benchmark();
+  relu_f16(l1_Idw, FM * FN * PW_D, core_id, num_cores);
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // Transfer output
+  mempool_start_benchmark();
+  if (core_id == 0) {
+    dma_memcpy_blocking(l2_Z, l1_Idw, FM * FN * PW_D * sizeof(int16_t));
+  }
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+#endif
+
+#ifdef MDX
+  uint32_t redmule_id = mempool_get_redmule_id();
+  uint32_t num_redmules = mempool_get_redmule_count();
+
+  // Transfer input
+  mempool_start_benchmark();
+  if (core_id == 0) {
+    dma_memcpy_blocking(l1_Ipw, l2_X, FM * FN * DW_D * sizeof(int16_t));
+    dma_memcpy_blocking(l2_Z, l1_Idw, FM * FN * PW_D * sizeof(int16_t));
+  }
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // ReLU
+  mempool_start_benchmark();
+  relu_f16(l1_Idw, FM * FN * PW_D, core_id, num_cores);
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // Depthwise convolution
+  mempool_start_benchmark();
+  conv2d_depthwise_f16(l1_Idw, l1_Ipw, l1_Wdw, FM, FN, DW_D, DW_K, core_id,
+                       num_cores);
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  // Pointwise convolution (+ bias in l1_Opw)
+  mempool_start_benchmark();
+  redmule_synch_parallel(l1_Ipw, l1_Wpw, l1_Opw, FM * FN, DW_D, PW_D, GEMM,
+                         SHIFT, PORT_WIDTH);
+  mempool_stop_benchmark();
 
 #endif
 
