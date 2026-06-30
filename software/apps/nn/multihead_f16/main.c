@@ -21,7 +21,7 @@
 
 #define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 #define SHIFT (false)
-#define VERBOSE (true)
+#define VERBOSE (false)
 
 __fp16 l1_X[H * M * N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -37,6 +37,8 @@ __fp16 l1_A[H * M * M]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_S[H * M * M]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 zeros[H * M * M]
+    __attribute__((aligned(sizeof(int32_t)), section(".l2"))) = {0};
 
 void inline transpose_K(__fp16 *K, uint32_t size_H, uint32_t size_M,
                         uint32_t size_N, uint32_t core_id, uint32_t num_cores) {
@@ -118,7 +120,6 @@ int main() {
   static __fp16 *V = &l1_QKV[2 * H * M * N];
 
   /* L1 transfer */
-  mempool_start_benchmark();
   if (core_id == 0) {
     dma_memcpy_blocking(l1_X, l2_X, (H * M * N) * sizeof(int16_t));
     dma_memcpy_blocking(l1_Wq, l2_Wq, N * N * sizeof(int16_t));
@@ -127,9 +128,10 @@ int main() {
     dma_memcpy_blocking(Q, l2_Y, (H * M * N) * sizeof(int16_t));
     dma_memcpy_blocking(K, l2_Y, (H * M * N) * sizeof(int16_t));
     dma_memcpy_blocking(V, l2_Y, (H * M * N) * sizeof(int16_t));
+    dma_memcpy_blocking(l1_A, zeros, (H * M * M) * sizeof(int16_t));
+    dma_memcpy_blocking(l1_S, zeros, (H * M * M) * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
-  mempool_stop_benchmark();
 
 #ifdef DOUBLE_BUFFERING
 
@@ -168,18 +170,24 @@ int main() {
   /* QKV generation */
   mempool_start_benchmark();
 
-  redmule_asynch_parallel(l1_X, Q, l1_Wq, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, l1_Wq, Q, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   wait_redmule();
 
-  redmule_asynch_parallel(l1_X, K, l1_Wk, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, l1_Wk, K, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   wait_redmule();
 
-  redmule_asynch_parallel(l1_X, V, l1_Wv, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, l1_Wv, V, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
   wait_redmule();
 
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
   checkpoint_printf("Linear (I -> QKV)", VERBOSE);
+
+  mempool_start_benchmark();
+  transpose_K(K, H, M, N, core_id, num_cores);
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+  checkpoint_printf("Transpose", VERBOSE);
 
 #endif
 
@@ -187,29 +195,18 @@ int main() {
   static __fp16 *A = l1_A;
   static __fp16 *S = l1_S;
 
-  /* Transpose K */
-#ifndef DOUBLE_BUFFERING
-
-  mempool_start_benchmark();
-  transpose_K(K, H, M, N, core_id, num_cores);
-  mempool_stop_benchmark();
-  mempool_start_benchmark();
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  checkpoint_printf("Transpose", VERBOSE);
-#endif
-
-  /* A = Q * Kt */
+  // /* A = Q * Kt */
   uint32_t redmule_id = mempool_get_redmule_id();
   uint32_t num_redmules = mempool_get_redmule_count();
-  mempool_start_benchmark();
-  for (uint32_t ih = redmule_id; ih < H; ih += num_redmules) {
-    redmule_asynch_single(&Q[ih * (M * N)], &A[ih * (M * M)], &K[ih * (N * M)],
-                          M, N, M, GEMM, redmule_id);
+  if (redmule_id < num_redmules) {
+    mempool_start_benchmark();
+    for (uint32_t ih = redmule_id; ih < H; ih += num_redmules) {
+      redmule_asynch_single(&Q[ih * (M * N)], &K[ih * (N * M)],
+                            &A[ih * (M * M)], M, N, M, GEMM, redmule_id);
+    }
   }
-  mempool_stop_benchmark();
   mempool_barrier(num_cores);
+  mempool_stop_benchmark();
 
   /* Softmax */
   mempool_start_benchmark();
@@ -218,10 +215,12 @@ int main() {
   mempool_barrier(num_cores);
 
   /* Softmax(A) * V */
-  mempool_start_benchmark();
-  for (uint32_t ih = redmule_id; ih < H; ih += num_redmules) {
-    redmule_asynch_single(&S[ih * (M * M)], &l1_X[ih * (M * N)],
-                          &V[ih * (M * N)], M, M, N, GEMM, redmule_id);
+  if (redmule_id < num_redmules) {
+    mempool_start_benchmark();
+    for (uint32_t ih = redmule_id; ih < H; ih += num_redmules) {
+      redmule_asynch_single(&S[ih * (M * M)], &V[ih * (M * N)],
+                            &l1_X[ih * (M * N)], M, M, N, GEMM, redmule_id);
+    }
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
