@@ -39,6 +39,15 @@ $(BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 
 
+###############
+# Multi-Cluster #
+###############
+
+MULTI_CLUSTER_DIR := $(APPS_DIR)/multi_cluster
+
+multi-cluster:
+	$(MAKE) -C $(MULTI_CLUSTER_DIR) all
+
 ############
 # Systolic #
 ############
@@ -131,9 +140,9 @@ $(HALIDE_BINS):  $(BIN_DIR)/%: %/$(HALIDE_PIPELINE) %/main.c.o $(RUNTIME) $(HALI
 
 # Make all applications
 ifeq ($(COMPILER),gcc)
-all: all-gcc all-omp all-halide
+all: all-gcc multi-cluster all-omp all-halide
 else
-all: all-llvm all-omp all-halide
+all: all-llvm multi-cluster all-omp all-halide
 endif
 
 all-llvm: $(ALL_LLVM)
@@ -154,6 +163,9 @@ clean-apps: clean-runtime
 	rm -vf $(addsuffix /main.c.o,$(APPS))
 	rm -vf $(wildcard $(DATA_DIR)/data_*.h)
 
+clean-multi-cluster:
+	$(MAKE) -C $(MULTI_CLUSTER_DIR) clean
+
 clean-systolic: clean-runtime
 	rm -vf $(SYSTOLIC_BINS) $(addsuffix .dump,$(SYSTOLIC_BINS))
 	rm -vf $(addsuffix /main.c.o,$(SYSTOLIC_APPS))
@@ -170,4 +182,4 @@ clean-halide: clean-runtime
 	rm -vf $(HALIDE_RUNTIME)
 
 .PHONY: clean
-clean: clean-apps clean-omp clean-halide
+clean: clean-apps clean-multi-cluster clean-omp clean-halide
