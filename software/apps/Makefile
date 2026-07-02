@@ -42,6 +42,15 @@ $(BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 data_%: $(DATA_DIR)/gendata_params.hjson
 	$(python) $(DATA_DIR)/gendata_header.py --app_name $* --params $<
 
+###############
+# Multi-Cluster #
+###############
+
+MULTI_CLUSTER_DIR := $(APPS_DIR)/multi_cluster
+
+multi-cluster:
+	$(MAKE) -C $(MULTI_CLUSTER_DIR) all
+
 ############
 # Systolic #
 ############
@@ -134,9 +143,9 @@ $(HALIDE_BINS):  $(BIN_DIR)/%: %/$(HALIDE_PIPELINE) %/main.c.o $(RUNTIME) $(HALI
 
 # Make all applications
 ifeq ($(COMPILER),gcc)
-all: $(ALL_GCC) $(OMP_APPS) $(HALIDE_APPS)
+all: $(ALL_GCC) multi-cluster $(OMP_APPS) $(HALIDE_APPS)
 else
-all: $(ALL_LLVM) $(OMP_APPS) $(HALIDE_APPS)
+all: $(ALL_LLVM) multi-cluster $(OMP_APPS) $(HALIDE_APPS)
 endif
 all-llvm: $(ALL_LLVM)
 all-gcc: $(ALL_GCC)
@@ -154,6 +163,9 @@ clean-apps: clean-runtime
 	rm -vf $(addsuffix /main.c.o,$(APPS))
 	rm -vf $(wildcard $(DATA_DIR)/data_*.h)
 
+clean-multi-cluster:
+	$(MAKE) -C $(MULTI_CLUSTER_DIR) clean
+
 clean-systolic: clean-runtime
 	rm -vf $(SYSTOLIC_BINS) $(addsuffix .dump,$(SYSTOLIC_BINS))
 	rm -vf $(addsuffix /main.c.o,$(SYSTOLIC_APPS))
@@ -170,4 +182,4 @@ clean-halide: clean-runtime
 	rm -vf $(HALIDE_RUNTIME)
 
 .PHONY: clean
-clean: clean-apps clean-omp clean-halide
+clean: clean-apps clean-multi-cluster clean-omp clean-halide
