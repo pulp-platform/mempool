@@ -145,11 +145,28 @@ RISCV_FLAGS_LLVM         ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-to
 RISCV_OBJDUMP_FLAGS_GCC  := --disassembler-option="march=$(RISCV_ARCH_AS)"
 RISCV_OBJDUMP_FLAGS_LLVM := --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
 
+# FlexCluster multi-cluster runtime integration
+ifeq ($(MULTI_CLUSTER),true)
+	MULTI_CLUSTER_DIR  := $(ROOT_DIR)/multi_cluster
+	DEFINES            += -DMULTI_CLUSTER -DMEMPOOL_CLUSTER_UNIT
+	RISCV_FLAGS_COMMON += -I$(MULTI_CLUSTER_DIR)/include -Wa,-I$(MULTI_CLUSTER_DIR)/include
+	# The FlexCluster architecture headers are generated from the selected
+	# `config` so they always track the chosen hardware configuration.
+	FLEX_ARCH_CONFIG   := $(MULTI_CLUSTER_DIR)/configs/arch_$(config).py
+	FLEX_ARCH_HDR      := $(MULTI_CLUSTER_DIR)/include/flex_cluster_arch.h
+	FLEX_ARCH_INC      := $(MULTI_CLUSTER_DIR)/include/flex_cluster_arch.inc
+	ifeq ($(wildcard $(FLEX_ARCH_CONFIG)),)
+		$(error No FlexCluster arch config for config='$(config)'. Multi-cluster supports: mempool minpool tensorpool terapool)
+	endif
+	# Compilation must wait for the headers to be (re)generated.
+	MC_HDR_DEP := $(FLEX_ARCH_HDR) $(FLEX_ARCH_INC)
+endif
+
 # Enable soft-divsqrt when the hardware is not supported.
 ifeq ($(XDIVSQRT), 0)
 RISCV_FLAGS_LLVM_TESTS   := $(RISCV_FLAGS_LLVM)
 RISCV_FLAGS_LLVM         += -mno-fdiv
-RISCV_OBJDUMP_FLAGS_LLVM += ,+nofdiv
+RISCV_OBJDUMP_FLAGS_LLVM := $(RISCV_OBJDUMP_FLAGS_LLVM),+nofdiv
 endif
 
 # GCC Flags
@@ -168,14 +185,22 @@ RISCV_OBJDUMP_FLAGS      += $(RISCV_OBJDUMP_FLAGS_LLVM)
 RISCV_CCFLAGS_TESTS      ?= $(RISCV_FLAGS_LLVM_TESTS) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 endif
 
-LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld
-
+ifeq ($(MULTI_CLUSTER),true)
+LINKER_SCRIPT     ?= $(MULTI_CLUSTER_DIR)/flex_memory.ld
+LINKER_SCRIPT_DEP ?= $(ROOT_DIR)/arch.ld
+RUNTIME += $(MULTI_CLUSTER_DIR)/flex_start.S.o
+RUNTIME += $(ROOT_DIR)/string.c.o
+RUNTIME += $(ROOT_DIR)/synchronization.c.o
+else
+LINKER_SCRIPT     ?= $(ROOT_DIR)/arch.ld
+LINKER_SCRIPT_DEP ?=
 RUNTIME += $(ROOT_DIR)/alloc.c.o
 RUNTIME += $(ROOT_DIR)/crt0.S.o
 RUNTIME += $(ROOT_DIR)/printf.c.o
 RUNTIME += $(ROOT_DIR)/serial.c.o
 RUNTIME += $(ROOT_DIR)/string.c.o
 RUNTIME += $(ROOT_DIR)/synchronization.c.o
+endif
 
 OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
 HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
@@ -184,17 +209,29 @@ HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 # Disable builtin rules
 .SUFFIXES:
 
-%.S.o: %.S
+# Generate the FlexCluster architecture headers from the selected config.
+ifeq ($(MULTI_CLUSTER),true)
+$(FLEX_ARCH_HDR) $(FLEX_ARCH_INC) &: $(FLEX_ARCH_CONFIG) $(MULTI_CLUSTER_DIR)/gen_flex_arch.py FORCE
+	$(python) $(MULTI_CLUSTER_DIR)/gen_flex_arch.py $(FLEX_ARCH_CONFIG) --outdir $(MULTI_CLUSTER_DIR)/include
+endif
+
+%.S.o: %.S $(MC_HDR_DEP)
 	$(RISCV_CC) $(RISCV_CCFLAGS) -c $< -o $@
 
-%.c.o: %.c
+%.c.o: %.c $(MC_HDR_DEP)
 	$(RISCV_CC) $(RISCV_CCFLAGS) -c $< -o $@
 
-%.cpp.o: %.cpp
+%.cpp.o: %.cpp $(MC_HDR_DEP)
 	$(RISCV_CXX) $(RISCV_CXXFLAGS) -c $< -o $@
 
-%.ld: %.ld.c
+%.ld: %.ld.c FORCE
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
+
+data_%.h: $(DATA_DIR)/gendata_params.hjson
+	$(python) $(DATA_DIR)/gendata_header.py --app_name $* --params $(DATA_DIR)/gendata_params.hjson
+
+.PHONY: FORCE
+FORCE:
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)
