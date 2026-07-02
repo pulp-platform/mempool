@@ -24,5 +24,3 @@ venv
 .favorites.json
 # Ignore fish scripts :(
 *.fish
-# In general, ignore pdfs
-*.pdf
