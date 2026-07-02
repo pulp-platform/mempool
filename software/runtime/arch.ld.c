@@ -8,6 +8,9 @@ MEMORY {
   l1 (R) : ORIGIN = 0x00000000, LENGTH = (NUM_BANKS * L1_BANK_SIZE)
   l2     : ORIGIN = L2_BASE   , LENGTH = L2_SIZE
   rom (R): ORIGIN = BOOT_ADDR , LENGTH = 0x00001000
+#ifdef MULTI_CLUSTER
+  hbm    : ORIGIN = 0xC0000000, LENGTH = 0x20000000
+#endif
 }
 
 SECTIONS {
@@ -25,7 +28,7 @@ SECTIONS {
 
   // Sequential region size
   __seq_start = __l1_start;
-  __seq_end = __l1_start + (NUM_BANKS * SEQ_MEM_SIZE / BANKING_FACTOR);
+  __seq_end = __l1_start + (NUM_BANKS * STACK_SIZE / BANKING_FACTOR);
 
   // Heap size (start address is re-assigned in link.ld)
   __heap_start = __l1_start;
