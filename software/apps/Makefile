@@ -30,7 +30,7 @@ $(foreach a,$(APPS),$(eval $(a): data_$(notdir $(a))))
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
 # Link all objects to the binaries
-$(BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update_opcodes
+$(BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude -o $@ $< $(RUNTIME) $(RISCV_LDFLAGS) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
@@ -38,6 +38,15 @@ $(BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update_opcodes
 # --- data rule ---
 data_%: $(DATA_DIR)/gendata_params.hjson
 	$(python) $(DATA_DIR)/gendata_header.py --app_name $* --params $<
+
+###############
+# Multi-Cluster #
+###############
+
+MULTI_CLUSTER_DIR := $(APPS_DIR)/multi_cluster
+
+multi-cluster:
+	$(MAKE) -C $(MULTI_CLUSTER_DIR) all
 
 ############
 # Systolic #
@@ -51,7 +60,7 @@ $(SYSTOLIC_APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_D
 
 # Check if the config is set to systolic and link
 ifeq ($(config),systolic)
-$(SYSTOLIC_BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update_opcodes
+$(SYSTOLIC_BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
@@ -80,7 +89,7 @@ $(OMP_APPS:%=%/%.o): RISCV_CCFLAGS += $(OMP_RISCV_CCFLAGS)
 $(OMP_RUNTIME): RISCV_CCFLAGS += $(OMP_RISCV_CCFLAGS)
 
 # Link all objects to the binaries
-$(OMP_BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT) update_opcodes
+$(OMP_BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) $(OMP_RUNTIME) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
@@ -127,13 +136,13 @@ $(HALIDE_BINS):  $(BIN_DIR)/%: %/$(HALIDE_PIPELINE) %/main.c.o $(RUNTIME) $(HALI
 ##################
 
 # Make all applications
-all: $(ALL_GCC) $(OMP_APPS) $(HALIDE_APPS)
+all: $(ALL_GCC) multi-cluster $(OMP_APPS) $(HALIDE_APPS)
 all-llvm: $(ALL_LLVM)
 all-gcc: $(ALL_GCC)
 
 # Update the opcodes
-update_opcodes:
-	make -C $(MEMPOOL_DIR) update_opcodes
+update-opcodes:
+	make -C $(MEMPOOL_DIR) update-opcodes
 
 # Clean targets
 clean-runtime:
@@ -143,6 +152,9 @@ clean-apps: clean-runtime
 	rm -vf $(BINS) $(addsuffix .dump,$(BINS))
 	rm -vf $(addsuffix /main.c.o,$(APPS))
 	rm -vf $(wildcard $(DATA_DIR)/data_*.h)
+
+clean-multi-cluster:
+	$(MAKE) -C $(MULTI_CLUSTER_DIR) clean
 
 clean-systolic: clean-runtime
 	rm -vf $(SYSTOLIC_BINS) $(addsuffix .dump,$(SYSTOLIC_BINS))
@@ -160,4 +172,4 @@ clean-halide: clean-runtime
 	rm -vf $(HALIDE_RUNTIME)
 
 .PHONY: clean
-clean: clean-apps clean-omp clean-halide
+clean: clean-apps clean-multi-cluster clean-omp clean-halide
