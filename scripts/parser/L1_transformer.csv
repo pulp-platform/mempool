@@ -1,0 +1,48 @@
+,N_repetitions,,Kernel,,i_1,i_2,i_3,i_4,num tensors,j_1,j_2,j_3,j_4,o_1,o_2,o_3,o_4,num tensors,Wf,,FLOPs,Weights,Data_in,Data_out,,Weights (Bytes),Data_in (Bytes),Data_out (Bytes)
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Input network,1,Energy Norm,norm,over i_3 divide each element by sqrt of the sum over i_3 of in[i_3]ˆ2 + coefficient,128,28,48,,,,,,,128,28,48,,,,,688128,128,172032,172032,,0.3K,344.1K,344.1K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,28,48,,,,,,,128,32,48,,,3,,16515072,2688,172032,196608,,5.4K,344.1K,393.2K
+,,Position Embedding,mul,element by element multiply by a vector of length i_3,128,32,48,,,,,,,128,32,48,,,,,196608,0,196608,196608,,0.0K,393.2K,393.2K
+,,,,,,,,,,,,,,,,,,,,,17399808,2816,196608,196608,,5.6K,393.2K,393.2K
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Attention_td,10,LayerNorm,layernorm,over i_3,128,32,48,,,,,,,128,32,48,,,,,1769728,384,196608,196608,,0.8K,393.2K,393.2K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,32,48,,,,,,,128,96,48,,,3,,56623104,9216,196608,589824,,18.4K,393.2K,1.2M
+,,Split QKV,split,Just a reshuffling of the output of conv1d,128,96,48,,,,,,,128,3,32,48,,,,0,0,0,0,,0.0K,0.0K,0.0K
+,,Permute,transpose,just a permutation,128,3,32,48,,,,,,3,32,128,48,,,,0,0,0,0,,0.0K,0.0K,0.0K
+,,Q*K^T,matmul,matmul times i_1,32,128,48,,,,,,,32,128,128,,,,,25165824,0,202752,530432,,0.0K,405.5K,1.1M
+,,Softmax,softmax,over i_3,32,128,128,,,,,,,32,128,128,,,,,786432,0,540672,540672,,0.0K,1.1M,1.1M
+,,A*V,matmul,matmul times i_1,32,128,128,,,,,,,32,128,48,,,,,25165824,0,540672,540672,,0.0K,1.1M,1.1M
+,,Permute,transpose,just a permutation,32,128,48,,,,,,,128,32,48,,,,,0,0,0,0,,0.0K,0.0K,0.0K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,32,48,,,,,,,128,32,48,,,3,,18874368,3072,196608,196608,,6.1K,393.2K,393.2K
+,,Sum skip-connection,add,skip connection from layernorm,128,32,48,,,,,,,128,32,48,,,,,196608,0,196608,196608,,0.0K,393.2K,393.2K
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+FFN,10,LayerNorm,layernorm,over i_3,128,32,48,,,,,,,128,32,48,,,,,1769728,384,196608,196608,,0.8K,393.2K,393.2K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,32,48,,,,,,,128,64,48,,,3,,37748736,6144,196608,393216,,12.3K,393.2K,786.4K
+,,Gelu,gelu,over i_3,128,64,48,,,,,,,128,64,48,,,,,1966080,0,393216,393216,,0.0K,786.4K,786.4K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,64,48,,,,,,,128,32,48,,,3,,37748736,6144,393216,196608,,12.3K,786.4K,393.2K
+,,Sum skip-connection,add,skip connection from layernorm,128,32,48,,,,,,,128,32,48,,,,,196608,0,196608,196608,,0.0K,393.2K,393.2K
+,,,,,,,,,,,,,,,,,,,,,,,,,,62.0K,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Attention_emb,10,LayerNorm,layernorm,over i_3,128,32,48,,,,,,,128,32,48,,,,,1769728,384,196608,196608,,0.8K,393.2K,393.2K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,32,48,,,,,,,128,96,48,,,3,,56623104,9216,196608,589824,,18.4K,393.2K,1.2M
+,,Split QKV,split,Just a reshuffling of the output of conv1d,128,96,48,,,,,,,128,3,32,48,,,,0,0,0,0,,0.0K,0.0K,0.0K
+,,Permute,transpose,just a permutation,128,3,32,48,,,,,,3,48,128,32,,,,0,0,0,0,,0.0K,0.0K,0.0K
+,,Q*K^T,matmul,matmul times i_1,48,128,32,,,,,,,48,128,128,,,,,25165824,0,200704,790528,,0.0K,401.4K,1.6M
+,,Softmax,softmax,over i_3,48,128,128,,,,,,,48,128,128,,,,,786432,0,802816,802816,,0.0K,1.6M,1.6M
+,,A*V,matmul,matmul times i_1,48,128,32,,,,,,,48,128,32,,,,,25165824,0,790528,790528,,0.0K,1.6M,1.6M
+,,Permute,transpose,just a permutation,48,128,32,,,,,,,128,32,48,,,,,0,0,0,0,,0.0K,0.0K,0.0K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,32,48,,,,,,,128,32,48,,,3,,18874368,3072,196608,196608,,6.1K,393.2K,393.2K
+,,Sum skip-connection,add,skip connection from layernorm,128,32,48,,,,,,,128,32,48,,,,,196608,0,196608,196608,,0.0K,393.2K,393.2K
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+FFN,10,LayerNorm,layernorm,over i_3,128,32,48,,,,,,,128,32,48,,,,,1769728,384,196608,196608,,0.8K,393.2K,393.2K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,32,48,,,,,,,128,64,48,,,3,,37748736,6144,196608,393216,,12.3K,393.2K,786.4K
+,,Gelu,gelu,over i_3,128,64,48,,,,,,,128,64,48,,,,,1966080,0,393216,393216,,0.0K,786.4K,786.4K
+,,Conv1D,conv1d,"sum_i2( sum_w(in[i2,i3+w] * F[i2,w])) there are o2 filters to multiply the inner dimension by o_2",128,64,48,,,,,,,128,32,48,,,3,,37748736,6144,393216,196608,,12.3K,786.4K,393.2K
+,,Sum skip-connection,add,skip connection from layernorm,128,32,48,,,,,,,128,32,48,,,,,196608,0,196608,196608,,0.0K,393.2K,393.2K
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Beam,128,,,,,,,,,,,,,,,,,,,,,,,,,,,
+IQ*Sym,28,,,,,,,,,,,,,,,,,,,,,,,,,,,
+tdSamples,48,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Embed,32,,,,,,,,,,,,,,,,,,,,,,,,,,,

@@ -1,0 +1,15 @@
+{
+    "_comment": "Hardware config. PE_peak and GEMM_peak are in TFLOPS. PE_utilization is a fraction (0..1) applied only to PE_peak (non-GEMM ops), not to GEMM_peak. throughput is the per-cluster wall-clock budget in ms, now interpreted as compute time + transfer time (omit to skip cluster splitting). bandwidth_gbs is the inter-cluster/HBM bandwidth in GB/s used to estimate transfer time = bytes/(bandwidth_gbs*1e6) ms (omit or 0 to count compute only). frequency is the clock frequency in Hz.",
+    "PE_peak": {
+        "Terapool":   3.7,
+        "TensorPool": 1.0
+    },
+    "GEMM_peak": {
+        "Terapool":   1.1,
+        "TensorPool": 6.62
+    },
+    "PE_utilization": 0.5,
+    "throughput": 1.0,
+    "bandwidth_gbs": 4,
+    "frequency": 1000000000
+}
