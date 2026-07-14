@@ -59,11 +59,11 @@ file.
 - **Operation name** → column C
 - **Kernel**, **N_repetitions**, **FLOPs**, **Weights**, **Data_in**, **Data_out** → located by their header names
 
-A layer is costed at **`GEMM_peak`** when its **`Kernel`** is one of `GEMM_KERNELS`
-(`dense`, `matmul`, `conv1d` — the last is lowered to a GEMM via im2col); every other
-kernel (`layernorm`, `softmax`, `gelu`, `add`, `reshape`, `split`, `transpose`, …)
-runs on the PE path at `PE_peak × PE_utilization`. To change which kernels map to the
-GEMM engine, edit `GEMM_KERNELS` in `pipeline.py`.
+A layer is costed at **`GEMM_peak × TE_utilization`** when its **`Kernel`** is one of
+`GEMM_KERNELS` (`dense`, `matmul`, `conv1d` — the last is lowered to a GEMM via im2col);
+every other kernel (`layernorm`, `softmax`, `gelu`, `add`, `reshape`, `split`,
+`transpose`, …) runs on the PE path at `PE_peak × PE_utilization`. To change which
+kernels map to the GEMM engine, edit `GEMM_KERNELS` in `pipeline.py`.
 
 `CEViT_64PRBs.csv` and `L1_transformer.csv` are both working examples.
 
@@ -73,9 +73,11 @@ GEMM engine, edit `GEMM_KERNELS` in `pipeline.py`.
 {
     "PE_peak":   { "Terapool": 3.7, "TensorPool": 1.0 },   // non-GEMM peak, TFLOPS
     "GEMM_peak": { "Terapool": 1.1, "TensorPool": 6.62 },  // GEMM peak, TFLOPS
-    "PE_utilization": 0.5,        // fraction in [0,1], applied to PE_peak only (non-GEMM ops); GEMM_peak is unscaled
+    "PE_utilization": 0.5,        // fraction in [0,1], derates PE_peak (non-GEMM ops)
+    "TE_utilization": 0.5,        // fraction in [0,1], derates GEMM_peak (tensor-engine ops)
     "throughput": 1.0,            // per-cluster wall-clock budget [ms]; seq/ctt: compute+transfer, cwt: max(compute,transfer); omit to skip cluster splitting
-    "bandwidth_gbs": 4,           // inter-cluster/HBM bandwidth [GB/s] for transfer-time estimate; omit or 0 to count compute only
+    "bandwidth_c2c_gbs": 64,      // ON-chip cluster-to-cluster hand-off bandwidth [GB/s]; omit or 0 to make that link free
+    "bandwidth_lpddr_gbs": 6.4,   // OFF-chip cluster<->LPDDR bandwidth [GB/s]; omit or 0 to make that link free
     "frequency": 1000000000       // clock in Hz
 }
 ```
@@ -83,11 +85,23 @@ GEMM engine, edit `GEMM_KERNELS` in `pipeline.py`.
 | Key                | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PE_peak`        | Per-pool non-GEMM peak throughput, TFLOPS                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `GEMM_peak`      | Per-pool GEMM peak throughput, TFLOPS (not scaled by`PE_utilization`)                                                                                                                                                                                                                                                                                                                                                                                  |
-| `PE_utilization` | Fraction in`[0, 1]` applied to `PE_peak` only                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `GEMM_peak`      | Per-pool GEMM peak throughput, TFLOPS (derated by`TE_utilization`, not by `PE_utilization`)                                                                                                                                                                                                                                                                                                                                                             |
+| `PE_utilization` | Fraction in`[0, 1]` derating `PE_peak` only (the non-GEMM path)                                                                                                                                                                                                                                                                                                                                                                                       |
+| `TE_utilization` | Fraction in`[0, 1]` derating `GEMM_peak` only (the tensor-engine path). `1.0` models the TE at full peak                                                                                                                                                                                                                                                                                                                                              |
 | `throughput`     | Per-cluster wall-clock budget [ms]. The split is computed per mode:`seq`/`ctt` use `compute + transfer` (serialized), `cwt` uses `max(compute, transfer)` (overlapped), so `cwt` generally yields fewer, larger clusters. It **fixes the cluster count `N`**; the work is then rebalanced within those `N` clusters to minimise the real bottleneck (see [Throughput rebalancing](#throughput-rebalancing)). Omit to skip splitting |
-| `bandwidth_gbs`  | Inter-cluster / HBM bandwidth [GB/s]. Transfer time =`bytes / (bandwidth_gbs * 1e6)` ms. Omit or `0` to count compute only                                                                                                                                                                                                                                                                                                                           |
+| `bandwidth_c2c_gbs`   | **On-chip** cluster→cluster bandwidth [GB/s]: a cluster's`Data_out` hand-off to its successor. Omit or `0` to make that link free                                                                                                                                                                                                                                                                                                                   |
+| `bandwidth_lpddr_gbs` | **Off-chip** cluster↔LPDDR bandwidth [GB/s]: the two legs that leave the chip — cluster 0's`Data_in` read and the **last** cluster's `Data_out` write. Omit or `0` to make that link free                                                                                                                                                                                                                                                            |
 | `frequency`      | Clock in Hz; used to convert latencies into cycles for the generated apps                                                                                                                                                                                                                                                                                                                                                                                |
+
+In both cases transfer time is `bytes / (bandwidth_gbs * 1e6)` ms — only *which*
+bandwidth applies differs, according to the link the bytes actually cross.
+
+The shipped values put the off-chip link **10× slower** than the on-chip one
+(`6.4` vs `64` GB/s), which is what the two keys exist to express. In the `Terapool`
+`ctt` split that shows up directly: the first and last clusters — the only two that
+touch LPDDR — each pay ≈ `0.06` ms of transfer, while every intermediate
+cluster-to-cluster hand-off costs ≈ `0.006` ms. Under the old single-bandwidth model
+those two legs were indistinguishable from the on-chip hops.
 
 ### Note
 
@@ -95,8 +109,10 @@ GEMM engine, edit `GEMM_KERNELS` in `pipeline.py`.
 > split). Without it the tables still print but you get "no cluster splits found".
 >
 > Each cluster's transfer cost is its last layer's `Data_out` hand-off, plus the
-> HBM `Data_in` load on cluster 0. With `bandwidth_gbs` unset, only compute time
-> counts toward `throughput` (and both splits coincide).
+> LPDDR `Data_in` load on cluster 0. That hand-off is charged at
+> `bandwidth_c2c_gbs` — except for the **last** cluster, whose `Data_out` leaves the
+> chip and is charged at `bandwidth_lpddr_gbs` instead. With both bandwidths unset,
+> only compute time counts toward `throughput` (and both splits coincide).
 >
 > The printed "Pipeline cluster split" section shows **both** splits — serialized
 > (`seq`/`ctt`) and overlapped (`cwt`). Each is the **rebalanced** split and is headed

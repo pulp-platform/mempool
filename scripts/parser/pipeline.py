@@ -47,27 +47,35 @@ Column mapping in the data region:
     * Weights         -> located by header
     * Data_in         -> located by header
     * Data_out        -> located by header
-A layer is costed at GEMM_peak when its Kernel is in GEMM_KERNELS (dense, matmul,
-conv1d); every other kernel runs on the PE path (PE_peak x PE_utilization).
-Weights / Data_in / Data_out are read in elements; bytes are computed as
-2 x elements (the spreadsheet uses FP16).
+A layer is costed at GEMM_peak x TE_utilization when its Kernel is in GEMM_KERNELS
+(dense, matmul, conv1d); every other kernel runs on the PE path
+(PE_peak x PE_utilization).  Weights / Data_in / Data_out are read in elements;
+bytes are computed as 2 x elements (the spreadsheet uses FP16).
 
 Hardware peak performance and utilisation are read from a JSON config:
     {
-        "PE_peak":        {"Terapool": 3.7, "TensorPool": 1.0},
-        "GEMM_peak":      {"Terapool": 1.1, "TensorPool": 6.62},
-        "PE_utilization": 0.5,
-        "throughput":     10.0,
-        "bandwidth_gbs":  64
+        "PE_peak":             {"Terapool": 3.7, "TensorPool": 1.0},
+        "GEMM_peak":           {"Terapool": 1.1, "TensorPool": 6.62},
+        "PE_utilization":      0.5,
+        "TE_utilization":      0.5,
+        "throughput":          1.0,
+        "bandwidth_c2c_gbs":   64,
+        "bandwidth_lpddr_gbs": 6.4
     }
 PE_peak and GEMM_peak are in TFLOPS. PE_utilization is a fraction in [0, 1]
-applied only to PE_peak (non-GEMM ops). throughput is the per-cluster
-wall-clock budget in milliseconds, interpreted as compute + transfer time
-(optional; omit to skip cluster splitting). bandwidth_gbs is the
-inter-cluster/HBM bandwidth in GB/s used to estimate transfer time as
-bytes/(bandwidth_gbs*1e6) ms (optional; omit or 0 to count compute only).
-Each cluster's transfer is its last layer's data_out hand-off, plus the HBM
-data_in load on cluster 0.
+derating PE_peak (non-GEMM ops); TE_utilization is a fraction in [0, 1] derating
+GEMM_peak (tensor-engine ops). throughput is the per-cluster wall-clock budget in
+milliseconds, interpreted as compute + transfer time (optional; omit to skip
+cluster splitting).
+
+Transfer time is bytes/(bandwidth_gbs*1e6) ms, and each leg is costed at the
+bandwidth of the link it crosses (either is optional; omit or 0 to make that link
+free):
+    * bandwidth_c2c_gbs   -- on-chip cluster-to-cluster data_out hand-off.
+    * bandwidth_lpddr_gbs -- cluster <-> LPDDR: cluster 0's data_in read and the
+                             LAST cluster's data_out write, which leave the chip.
+So each cluster's transfer is its last layer's data_out (to its successor, or to
+LPDDR if it is the last cluster), plus the LPDDR data_in load on cluster 0.
 
 The script reproduces the three reference tables:
     * K1:M3   -> FLOPs/ms per pool, split non-GEMM / GEMM
@@ -127,6 +135,18 @@ GEMM_KERNELS = {'dense', 'matmul', 'conv1d'}
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class Bandwidths:
+    """Per-link bandwidths [GB/s].  An unset (None) or 0 link costs no time.
+
+    The pipeline crosses two physically different links, so they are costed apart:
+    an on-chip cluster-to-cluster hand-off is not the same as going off-chip to LPDDR.
+    """
+    c2c:   Optional[float] = None   # cluster -> cluster data_out hand-off (on-chip)
+    lpddr: Optional[float] = None   # cluster <-> LPDDR: cluster 0's data_in read and
+                                    # the last cluster's data_out write
+
 
 @dataclass
 class LayerRow:
@@ -414,7 +434,7 @@ def split_into_clusters(
     blocks: List[Block],
     row_latencies: Dict[int, float],
     throughput_ms: float,
-    bandwidth_gbs: Optional[float] = None,
+    bw: Bandwidths = Bandwidths(),
     overlap: bool = False,
 ) -> List[List[ClusterSegment]]:
     """Greedy left-to-right partition at single-repetition granularity.
@@ -432,12 +452,14 @@ def split_into_clusters(
       DMA overlap, so the steady-state wall = max(compute, transfer) -- a
       less conservative budget that generally yields fewer, larger clusters.
 
-    Transfer is the hand-off cost: the prospective last block's data_out / BW,
-    plus (for cluster 0 only) the HBM data_in load of the very first layer.
-    With bandwidth_gbs unset the transfer term is 0, so both budgets reduce to
+    Transfer is the hand-off cost: the prospective last block's data_out, plus (for
+    cluster 0 only) the LPDDR data_in load of the very first layer.  Each leg is
+    costed at the bandwidth of the link it actually crosses -- see ``bw`` below.
+    With both bandwidths unset the transfer term is 0, so both budgets reduce to
     the same compute-only behaviour.
     """
-    din0_ms = _transfer_ms(blocks[0].rows[0].din_bytes, bandwidth_gbs) if blocks else 0.0
+    # Cluster 0 reads the model's data_in from LPDDR.
+    din0_ms = _transfer_ms(blocks[0].rows[0].din_bytes, bw.lpddr) if blocks else 0.0
     clusters: List[List[ClusterSegment]] = []
     current:  List[ClusterSegment] = []
     running = 0.0
@@ -448,9 +470,17 @@ def split_into_clusters(
         # skip-connection / final output). Intermediate per-row douts (Q.K^T, softmax,
         # ...) are tensors that live in the cluster's L1 and never cross the NoC, so
         # they must NOT be counted. This matches the generator's CLUSTER_DOUT_BYTES.
-        xfer_ms    = _transfer_ms(b.rows[-1].dout_bytes, bandwidth_gbs)
+        dout       = b.rows[-1].dout_bytes
+        xfer_c2c   = _transfer_ms(dout, bw.c2c)
+        xfer_lpddr = _transfer_ms(dout, bw.lpddr)
+        is_last_block = b is blocks[-1]
         rep_start: Optional[int] = None
         for rep in range(b.n_rep):
+            # A cluster that ends on the model's very last pass IS the last cluster:
+            # its data_out is written to LPDDR, not handed to a successor.  Every
+            # other hand-off crosses the on-chip cluster-to-cluster link.
+            is_final_pass = is_last_block and rep == b.n_rep - 1
+            xfer_ms       = xfer_lpddr if is_final_pass else xfer_c2c
             # prospective wall-clock if this pass joins the current cluster and
             # the cluster ends here: compute so far + this pass, against its
             # hand-off transfer (overlap=max, otherwise serialized=sum).
@@ -480,7 +510,7 @@ def split_into_clusters(
 def _build_cluster_splits(
     cluster_groups: List[List[ClusterSegment]],
     row_lat: Dict[int, float],
-    bandwidth_gbs: Optional[float],
+    bw: Bandwidths,
 ) -> List[ClusterSplit]:
     """Turn a greedy cluster grouping into ClusterSplit metadata records.
 
@@ -488,7 +518,11 @@ def _build_cluster_splits(
     compute latency, hand-off transfer time, first/last layer byte sizes and
     the L1 footprints.  The grouping itself decides where the cuts fall; this
     only annotates it.
+
+    Unlike the greedy, this sees the whole grouping, so it knows which cluster is
+    last and charges every transfer to the link it really crosses.
     """
+    n_clusters = len(cluster_groups)
     splits: List[ClusterSplit] = []
     for idx, segs in enumerate(cluster_groups):
         all_rows    = [r for seg in segs for r in seg.block.rows]
@@ -503,11 +537,14 @@ def _build_cluster_splits(
         first_r  = segs[0].block.rows[0]
         last_r   = segs[-1].block.rows[-1]
         # hand-off bytes: the cluster's pipeline output is its last layer's
-        # data_out (== cs.last_dout, == the generator's CLUSTER_DOUT_BYTES).
-        # Plus, on cluster 0 only, the HBM data_in load of the first layer.
-        xfer_ms  = _transfer_ms(last_r.dout_bytes, bandwidth_gbs)
+        # data_out (== cs.last_dout, == the generator's CLUSTER_DOUT_BYTES).  The
+        # LAST cluster writes it out to LPDDR; every other cluster hands it to its
+        # successor over the on-chip link.  Plus, on cluster 0 only, the LPDDR
+        # data_in read of the first layer.
+        out_bw   = bw.lpddr if idx == n_clusters - 1 else bw.c2c
+        xfer_ms  = _transfer_ms(last_r.dout_bytes, out_bw)
         if idx == 0:
-            xfer_ms += _transfer_ms(first_r.din_bytes, bandwidth_gbs)
+            xfer_ms += _transfer_ms(first_r.din_bytes, bw.lpddr)
         splits.append(ClusterSplit(
             idx                       = idx,
             segments                  = segs,
@@ -543,7 +580,7 @@ def optimize_throughput(
     blocks: List[Block],
     row_lat: Dict[int, float],
     n_target: int,
-    bandwidth_gbs: Optional[float],
+    bw: Bandwidths,
     overlap: bool,
     budget_ms: float,
     iters: int = 60,
@@ -565,7 +602,7 @@ def optimize_throughput(
     """
     def feasible(thr: float) -> bool:
         return len(split_into_clusters(blocks, row_lat, thr,
-                                       bandwidth_gbs, overlap)) <= n_target
+                                       bw, overlap)) <= n_target
 
     # hi is feasible by construction (K(budget_ms) == n_target); lo is the
     # infeasible side.  ~60 halvings drive the gap well below FP noise; each
@@ -579,30 +616,32 @@ def optimize_throughput(
             lo = mid
 
     balanced = _build_cluster_splits(
-        split_into_clusters(blocks, row_lat, hi, bandwidth_gbs, overlap),
-        row_lat, bandwidth_gbs)
+        split_into_clusters(blocks, row_lat, hi, bw, overlap),
+        row_lat, bw)
 
     # Safety net: never hand back a different cluster count than requested. If a
     # numerical edge (or any non-monotonic boundary) slipped through, fall back
     # to the original budget split so N is guaranteed constant.
     if len(balanced) != n_target:
         balanced = _build_cluster_splits(
-            split_into_clusters(blocks, row_lat, budget_ms, bandwidth_gbs, overlap),
-            row_lat, bandwidth_gbs)
+            split_into_clusters(blocks, row_lat, budget_ms, bw, overlap),
+            row_lat, bw)
 
     return _makespan(balanced, overlap), balanced
 
 
 def compute(layers: List[LayerRow], cfg: dict) -> Results:
-    util  = cfg['PE_utilization']
-    pools = list(cfg['PE_peak'].keys())
-    res   = Results()
+    pe_util = cfg['PE_utilization']
+    te_util = cfg['TE_utilization']
+    pools   = list(cfg['PE_peak'].keys())
+    res     = Results()
 
-    # K1:M3 -- FLOPs/ms
+    # K1:M3 -- FLOPs/ms.  Each peak is derated by its own engine's utilization:
+    # PE_utilization on the PE path (non-GEMM), TE_utilization on the tensor engine.
     for p in pools:
         res.flops_per_ms[p] = {
-            'non_GEMM': cfg['PE_peak'][p]   * util * 1e9,
-            'GEMM':     cfg['GEMM_peak'][p]        * 1e9,
+            'non_GEMM': cfg['PE_peak'][p]   * pe_util * 1e9,
+            'GEMM':     cfg['GEMM_peak'][p] * te_util * 1e9,
         }
 
     # Y5:Z53 -- per-row, per-block and total latency [ms]
@@ -637,7 +676,8 @@ def compute(layers: List[LayerRow], cfg: dict) -> Results:
     # which generally packs more work per cluster.
     if 'throughput' in cfg:
         throughput_ms = float(cfg['throughput'])
-        bandwidth_gbs = cfg.get('bandwidth_gbs')
+        bw = Bandwidths(c2c   = cfg.get('bandwidth_c2c_gbs'),
+                        lpddr = cfg.get('bandwidth_lpddr_gbs'))
         res.throughput_budget = throughput_ms
         for p in pools:
             row_lat = res.row_latencies[p]
@@ -651,9 +691,9 @@ def compute(layers: List[LayerRow], cfg: dict) -> Results:
                 (True,  res.clusters_overlap, res.best_throughput_overlap),
             ):
                 n_target = len(split_into_clusters(
-                    blocks, row_lat, throughput_ms, bandwidth_gbs, overlap))
+                    blocks, row_lat, throughput_ms, bw, overlap))
                 best_tp, balanced = optimize_throughput(
-                    blocks, row_lat, n_target, bandwidth_gbs, overlap, throughput_ms)
+                    blocks, row_lat, n_target, bw, overlap, throughput_ms)
                 clusters_attr[p] = balanced
                 best_attr[p]     = best_tp
 
@@ -795,47 +835,19 @@ def print_results(layers: List[LayerRow], res: Results,
 # ---------------------------------------------------------------------------
 
 def _render_dma_helper() -> str:
-    """Shared C: AXI-pool notes, DMA size macros, and the blocking chunked-DMA helper.
+    """Shared C: the blocking 1D-DMA helper.
 
     Reused verbatim by the sequential generator and the pipeline generators.
-    The 7-page / DMA_MAX_BYTES cap must not change: it is dictated by the GVSoC
-    iDMA AXI burst-queue pool.
     """
     return '\n'.join([
-        '/*',
-        ' * The GVSoC iDMA AXI backend has a fixed pool of burst_queue_size(8) buffers of',
-        ' * AXI_PAGE_SIZE(4096) B each, shared by reads AND writes. A single transfer is',
-        ' * page-split on its AXI-side address, so it can span at most 8 pages before the',
-        ' * pool is exhausted and flex_dma_async_wait_all() hangs. The usable byte count is',
-        " * reduced by the AXI-side address's offset within its first 4 KB page.",
-        ' *',
-        ' * dma_1d_chunked() caps every chunk at 7 pages (28672 B). From ANY page offset,',
-        ' * 28672 B spans <= 8 pages, so it never exhausts the pool -- safe regardless of',
-        ' * alignment or src/dst direction.',
-        ' */',
-        '#define DMA_BUS_BYTES   64u      /* keep issued sizes a multiple of the bus width */',
-        '#define DMA_MAX_BYTES   28672u   /* 7 * AXI_PAGE_SIZE(4096): <= 8 pages from any offset */',
-        '#define DMA_ALIGN_UP(n) (((n) + (DMA_BUS_BYTES - 1u)) & ~(DMA_BUS_BYTES - 1u))',
-        '',
-        '/* Blocking 1D DMA: every issued chunk is <= DMA_MAX_BYTES and a multiple of',
-        ' * DMA_BUS_BYTES. Non-final chunks are DMA_MAX_BYTES (already 64-aligned); the final',
-        ' * remainder is rounded up to DMA_BUS_BYTES. Chunks TILE the buffer: dst/src advance by',
-        ' * DMA_MAX_BYTES each pass, so the full destination is written. DMA_MAX_BYTES is itself a',
-        ' * multiple of DMA_BUS_BYTES, so the advanced addresses stay 64 B aligned and every chunk',
-        ' * still spans <= 8 AXI pages. The transfer loop is bracketed with mempool_get_timer()',
-        ' * (mcycle CSR) so DMA time can be separated from compute. */',
-        'static inline void dma_1d_chunked(uint64_t dst, uint64_t src, uint32_t bytes)',
+        '/* Blocking 1D DMA: issues the whole transfer as a single flex_dma_async_1d and waits',
+        ' * for it to land. The transfer is bracketed with mempool_get_timer() (mcycle CSR) so',
+        ' * DMA time can be separated from compute. */',
+        'static inline void dma_1d(uint64_t dst, uint64_t src, uint32_t bytes)',
         '{',
         '    mempool_timer_t t0 = mempool_get_timer();',
-        '    while (bytes) {',
-        '        uint32_t n = (bytes >= DMA_MAX_BYTES) ? DMA_MAX_BYTES : DMA_ALIGN_UP(bytes);',
-        '        flex_dma_async_1d(dst, src, n);',
-        '        flex_dma_async_wait_all();',
-        '        if (bytes <= DMA_MAX_BYTES) break;   /* last (aligned) chunk issued */',
-        '        dst   += DMA_MAX_BYTES;',
-        '        src   += DMA_MAX_BYTES;',
-        '        bytes -= DMA_MAX_BYTES;',
-        '    }',
+        '    flex_dma_async_1d(dst, src, bytes);',
+        '    flex_dma_async_wait_all();',
         '    uint32_t dt = mempool_get_timer() - t0;',
         '    printf("[dma] %u cycles \\n", dt);',
         '}',
@@ -969,23 +981,23 @@ def _render_seq_c(pool: str, clusters: List[ClusterSplit], cycles_per_ms: int) -
         if is_first:
             A(f'        /* Load first-cluster data_in from HBM */')
             A(f'        printf("[Cluster {i}] Load %u B from HBM\\n", CLUSTER_0_DIN_BYTES);')
-            A(f'        dma_1d_chunked((uint64_t)(uintptr_t)l1_buf,')
-            A(f'                       hbm_addr(HBM_INPUT_OFFSET),')
-            A(f'                       CLUSTER_0_DIN_BYTES);')
+            A(f'        dma_1d((uint64_t)(uintptr_t)l1_buf,')
+            A(f'               hbm_addr(HBM_INPUT_OFFSET),')
+            A(f'               CLUSTER_0_DIN_BYTES);')
         A(f'        /* Fake compute: spin for ~ {cs.latency:.4g} ms */')
         A(f'        mempool_wait(CLUSTER_LATENCY_CYCLES[{i}]);')
         if is_last:
             A(f'        /* Store last-cluster data_out to HBM */')
             A(f'        printf("[Cluster {i}] Store %u B to HBM\\n", CLUSTER_DOUT_BYTES[{i}]);')
-            A(f'        dma_1d_chunked(hbm_addr(HBM_OUTPUT_OFFSET),')
-            A(f'                       (uint64_t)(uintptr_t)l1_buf,')
-            A(f'                       CLUSTER_DOUT_BYTES[{i}]);')
+            A(f'        dma_1d(hbm_addr(HBM_OUTPUT_OFFSET),')
+            A(f'               (uint64_t)(uintptr_t)l1_buf,')
+            A(f'               CLUSTER_DOUT_BYTES[{i}]);')
         else:
             A(f'        /* Push data_out to Cluster {i + 1} L1 */')
             A(f'        printf("[Cluster {i}] Push %u B to cluster {i + 1}\\n", CLUSTER_DOUT_BYTES[{i}]);')
-            A(f'        dma_1d_chunked((uint64_t)remote_cid({i + 1}, buf_off),')
-            A(f'                       (uint64_t)(uintptr_t)l1_buf,')
-            A(f'                       CLUSTER_DOUT_BYTES[{i}]);')
+            A(f'        dma_1d((uint64_t)remote_cid({i + 1}, buf_off),')
+            A(f'               (uint64_t)(uintptr_t)l1_buf,')
+            A(f'               CLUSTER_DOUT_BYTES[{i}]);')
         A('    }')
         A('    flex_global_barrier_xy();')
         A('')
@@ -1096,9 +1108,9 @@ def _render_ctt_c(pool: str, clusters: List[ClusterSplit],
     A('                 * not compute until the dm_core load has completed. */')
     A('                if (flex_is_dm_core()) {')
     A('                    printf("[step %u][C0] load item %u from HBM\\n", step, step);')
-    A('                    dma_1d_chunked((uint64_t)(uintptr_t)l1_buf,')
-    A('                                   hbm_addr(HBM_INPUT_OFFSET),')
-    A('                                   CLUSTER_0_DIN_BYTES);')
+    A('                    dma_1d((uint64_t)(uintptr_t)l1_buf,')
+    A('                           hbm_addr(HBM_INPUT_OFFSET),')
+    A('                           CLUSTER_0_DIN_BYTES);')
     A('                }')
     A('                flex_intra_cluster_sync();   /* worker cores wait for the HBM load */')
     A('            }')
@@ -1116,14 +1128,14 @@ def _render_ctt_c(pool: str, clusters: List[ClusterSplit],
     A('        if (flex_is_dm_core() && active) {')
     A('            if (cid == N_PIPELINE_CLUSTERS - 1) {')
     A('                printf("[step %u][C%u] store item %u to HBM\\n", step, cid, step - cid);')
-    A('                dma_1d_chunked(hbm_addr(HBM_OUTPUT_OFFSET),')
-    A('                               (uint64_t)(uintptr_t)l1_buf,')
-    A('                               CLUSTER_DOUT_BYTES[cid]);')
+    A('                dma_1d(hbm_addr(HBM_OUTPUT_OFFSET),')
+    A('                       (uint64_t)(uintptr_t)l1_buf,')
+    A('                       CLUSTER_DOUT_BYTES[cid]);')
     A('            } else {')
     A('                printf("[step %u][C%u] push item %u to C%u\\n", step, cid, step - cid, cid + 1);')
-    A('                dma_1d_chunked((uint64_t)remote_cid(cid + 1, buf_off),')
-    A('                               (uint64_t)(uintptr_t)l1_buf,')
-    A('                               CLUSTER_DOUT_BYTES[cid]);')
+    A('                dma_1d((uint64_t)remote_cid(cid + 1, buf_off),')
+    A('                       (uint64_t)(uintptr_t)l1_buf,')
+    A('                       CLUSTER_DOUT_BYTES[cid]);')
     A('            }')
     A('        }')
     A('        flex_global_barrier_xy();   /* all transfers done before next compute */')
@@ -1248,9 +1260,9 @@ def _render_cwt_c(pool: str, clusters: List[ClusterSplit],
     A('                 * transfer below still overlaps the compute.) */')
     A('                if (flex_is_dm_core()) {')
     A('                    printf("[step %u][C0] load item %u from HBM\\n", step, step - base);')
-    A('                    dma_1d_chunked((uint64_t)(uintptr_t)l1_buf[cbuf],')
-    A('                                   hbm_addr(HBM_INPUT_OFFSET),')
-    A('                                   CLUSTER_0_DIN_BYTES);')
+    A('                    dma_1d((uint64_t)(uintptr_t)l1_buf[cbuf],')
+    A('                           hbm_addr(HBM_INPUT_OFFSET),')
+    A('                           CLUSTER_0_DIN_BYTES);')
     A('                }')
     A('                flex_intra_cluster_sync();   /* worker cores wait for the HBM load */')
     A('            }')
@@ -1260,14 +1272,14 @@ def _render_cwt_c(pool: str, clusters: List[ClusterSplit],
     A('                    uint32_t item_out = step - base - 1u;')
     A('                    if (cid == N_PIPELINE_CLUSTERS - 1) {')
     A('                        printf("[step %u][C%u] store item %u to HBM\\n", step, cid, item_out);')
-    A('                        dma_1d_chunked(hbm_addr(HBM_OUTPUT_OFFSET),')
-    A('                                       (uint64_t)(uintptr_t)l1_buf[obuf],')
-    A('                                       CLUSTER_DOUT_BYTES[cid]);')
+    A('                        dma_1d(hbm_addr(HBM_OUTPUT_OFFSET),')
+    A('                               (uint64_t)(uintptr_t)l1_buf[obuf],')
+    A('                               CLUSTER_DOUT_BYTES[cid]);')
     A('                    } else {')
     A('                        printf("[step %u][C%u] push item %u to C%u\\n", step, cid, item_out, cid + 1);')
-    A('                        dma_1d_chunked((uint64_t)remote_cid(cid + 1, (uint32_t)(uintptr_t)l1_buf[obuf]),')
-    A('                                       (uint64_t)(uintptr_t)l1_buf[obuf],')
-    A('                                       CLUSTER_DOUT_BYTES[cid]);')
+    A('                        dma_1d((uint64_t)remote_cid(cid + 1, (uint32_t)(uintptr_t)l1_buf[obuf]),')
+    A('                               (uint64_t)(uintptr_t)l1_buf[obuf],')
+    A('                               CLUSTER_DOUT_BYTES[cid]);')
     A('                    }')
     A('                }')
     A('            } else if (compute_active) {')
