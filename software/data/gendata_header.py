@@ -47,9 +47,15 @@ def format_type(typ, value):
         stringyfied_val = '({}) 0X{:02X}'.format(
             typ, value.astype(numpy.uint32) & 0x000000ff)
     elif typ == 'float':
-        stringyfied_val = '({}) {:+.8f}'.format(typ, value)
+        value_bits = numpy.asarray(value, dtype=numpy.float32).view(
+            numpy.uint32).item()
+        stringyfied_val = '/* 0X{:08X} */ ({}) {:+.8f}'.format(
+            value_bits, typ, value)
     elif typ == '__fp16':
-        stringyfied_val = '({}) {:+.4f}'.format(typ, value)
+        value_bits = numpy.asarray(value, dtype=numpy.float16).view(
+            numpy.uint16).item()
+        stringyfied_val = '/* 0X{:04X} */ ({}) {:+.4f}'.format(
+            value_bits, typ, value)
     elif typ == '__fp8':
         if not isinstance(value, ff.FlexFloat):
             value = numpy.array([value]).astype(numpy.double)
