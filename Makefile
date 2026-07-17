@@ -21,6 +21,8 @@ ISA_SIM_INSTALL_DIR   ?= ${INSTALL_DIR}/riscv-isa-sim
 LLVM_INSTALL_DIR      ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR    ?= ${INSTALL_DIR}/halide
 BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
+BENDER                ?= ${BENDER_INSTALL_DIR}/bender
+BENDER_ROOT 					?= $(ROOT_DIR)/hardware/deps
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
 RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
@@ -54,26 +56,11 @@ else
   CLANG_LDFLAGS  := ""
 endif
 
-# Default target
-all: toolchain riscv-isa-sim halide
+#############
+# Toolchain #
+#############
 
-# Halide
-halide:
-	mkdir -p $(HALIDE_INSTALL_DIR)
-	cd toolchain/halide && mkdir -p build && cd build; \
-	$(CMAKE) \
-		-DLLVM_DIR=$(LLVM_INSTALL_DIR)/lib/cmake/llvm \
-		-DCMAKE_INSTALL_PREFIX=$(HALIDE_INSTALL_DIR) \
-		-DCMAKE_INSTALL_LIBDIR=lib \
-		-DCMAKE_CXX_COMPILER=$(CXX) \
-		-DCMAKE_C_COMPILER=$(CC) \
-		-DWITH_PYTHON_BINDINGS=OFF \
-		-DCMAKE_BUILD_TYPE=Release \
-		.. && \
-	make -j4 all && \
-	make install
-
-# Toolchain
+# Compilers
 toolchain: tc-riscv-gcc tc-llvm
 
 tc-riscv-gcc:
@@ -102,9 +89,46 @@ tc-llvm:
 	make -j6 all && \
 	make install
 
-riscv-isa-sim: update_opcodes
+# Halide
+halide:
+	mkdir -p $(HALIDE_INSTALL_DIR)
+	cd toolchain/halide && mkdir -p build && cd build; \
+	$(CMAKE) \
+		-DLLVM_DIR=$(LLVM_INSTALL_DIR)/lib/cmake/llvm \
+		-DCMAKE_INSTALL_PREFIX=$(HALIDE_INSTALL_DIR) \
+		-DCMAKE_INSTALL_LIBDIR=lib \
+		-DCMAKE_CXX_COMPILER=$(CXX) \
+		-DCMAKE_C_COMPILER=$(CC) \
+		-DWITH_PYTHON_BINDINGS=OFF \
+		-DCMAKE_BUILD_TYPE=Release \
+		.. && \
+	make -j4 all && \
+	make install
+
+# Opcodes
+update-opcodes: software/runtime/encoding.h hardware/deps/snitch/src/riscv_instr.sv
+
+software/runtime/encoding.h: toolchain/riscv-opcodes/*
+	make -C toolchain/riscv-opcodes encoding_out.h
+	mv toolchain/riscv-opcodes/encoding_out.h $@
+	ln -fsr $@ toolchain/riscv-isa-sim/riscv/encoding.h
+	ln -fsr $@ software/riscv-tests/env/encoding.h #this will change when riscv-tests is a submodule
+
+hardware/deps/snitch/src/riscv_instr.sv: toolchain/riscv-opcodes/*
+	make -C toolchain/riscv-opcodes inst.sverilog
+	mv toolchain/riscv-opcodes/inst.sverilog $@
+
+toolchain/riscv-opcodes/*:
+	git submodule update --init --recursive -- toolchain/riscv-opcodes
+
+# Tracing
+riscv-isa-sim: update-opcodes
 	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
 	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
+
+#########
+# Tests #
+#########
 
 # Unit tests for verification
 .PHONY: riscv-tests build-riscv-tests clean-riscv-tests
@@ -115,7 +139,7 @@ riscv-tests: build-riscv-tests
 	config=minpool make -C $(SOFTWARE_DIR) riscv-tests && \
 	config=minpool make -C hardware verilate_test
 
-build-riscv-tests: update_opcodes
+build-riscv-tests: update-opcodes
 	cd $(RISCV_TESTS_DIR); \
 	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
 	make isa -j4 && make install && \
@@ -126,8 +150,13 @@ clean-riscv-tests:
 	$(MAKE) -C $(SOFTWARE_DIR) clean
 	$(MAKE) -C $(RISCV_TESTS_DIR) clean
 
+###################
+# HW Dependencies #
+###################
+
 # Bender
 bender: check-bender
+
 check-bender:
 	@if [ -x $(BENDER_INSTALL_DIR)/bender ]; then \
 		req="bender $(BENDER_VERSION)"; \
@@ -142,6 +171,15 @@ $(BENDER_INSTALL_DIR)/bender:
 	mkdir -p $(BENDER_INSTALL_DIR) && cd $(BENDER_INSTALL_DIR) && \
 	curl --proto '=https' --tlsv1.2 https://pulp-platform.github.io/bender/init -sSf | sh -s -- $(BENDER_VERSION)
 
+# Update hardware dependencies for MemPool
+.PHONY: update-deps
+update-deps: check-bender
+	$(BENDER) checkout
+
+##############
+# Simulation #
+##############
+
 # Verilator
 verilator: $(VERILATOR_INSTALL_DIR)/bin/verilator
 $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
@@ -149,16 +187,9 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: toolchain/verilator Makefile
 	autoconf && CC=$(CC) CXX=$(CXX) ./configure --prefix=$(VERILATOR_INSTALL_DIR) $(VERILATOR_CI) && \
 	make -j4 && make install
 
-# Update and patch hardware dependencies for MemPool
-# Previous changes will be stashed. Clear all the stashes with `git stash clear`
-.PHONY: update-deps
-update-deps: setup-dram
-	for dep in $(shell git config --file .gitmodules --get-regexp path \
-	| awk '/hardware/{ print $$2 }'); do \
-	  git -C $${dep} diff --quiet || { echo $${dep}; git -C $${dep} stash -u; }; \
-	  git submodule update --init --recursive -- $${dep}; \
-	done
-	git apply hardware/deps/patches/*
+###########
+# DRAMsys #
+###########
 
 # Build, update and patch the DRAMsys submodule
 $(eval DRAM_PATH=$(realpath $(shell git config --file .gitmodules --get-regexp dram_rtl_sim.path | awk '/hardware/{ print $$2 }')))
@@ -195,30 +226,18 @@ setup-dram: config-dram
 		make -j; \
 	fi
 
-# Helper targets
+##########
+# Helper #
+##########
+
 .PHONY: clean format apps
 
 apps:
 	make -C $(SOFTWARE_DIR) apps
 
-update_opcodes: software/runtime/encoding.h hardware/deps/snitch/src/riscv_instr.sv
-
-software/runtime/encoding.h: toolchain/riscv-opcodes/*
-	make -C toolchain/riscv-opcodes encoding_out.h
-	mv toolchain/riscv-opcodes/encoding_out.h $@
-	ln -fsr $@ toolchain/riscv-isa-sim/riscv/encoding.h
-	ln -fsr $@ software/riscv-tests/env/encoding.h #this will change when riscv-tests is a submodule
-
-hardware/deps/snitch/src/riscv_instr.sv: toolchain/riscv-opcodes/*
-	make -C toolchain/riscv-opcodes inst.sverilog
-	mv toolchain/riscv-opcodes/inst.sverilog $@
-
-toolchain/riscv-opcodes/*:
-	git submodule update --init --recursive -- toolchain/riscv-opcodes
-
 format:
 	$(ROOT_DIR)/scripts/run_clang_format.py --clang-format-executable=$(LLVM_INSTALL_DIR)/bin/clang-format -i -r $(ROOT_DIR)
 	find ./software/data -name '*.py' -exec autopep8 --in-place --aggressive {} +
 
-clean: clean-riscv-tests
+clean: clean-riscv-tests clean-deps
 	rm -rf $(INSTALL_DIR)

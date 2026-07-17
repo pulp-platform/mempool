@@ -21,6 +21,8 @@
     'software/riscv-tests/*'
     'hardware/deps/*'
     'hardware/tb/dpi/elfloader.cpp'
+    'hardware/src/control_registers/control_registers_reg_pkg.sv'
+    'hardware/src/control_registers/control_registers_reg_top.sv'
     'scripts/run_clang_format.py'
     'toolchain/*'
   ]

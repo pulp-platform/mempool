@@ -10,69 +10,12 @@
 [submodule "toolchain/verilator"]
 	path = toolchain/verilator
 	url = https://github.com/verilator/verilator.git
-[submodule "hardware/deps/axi"]
-	path = hardware/deps/axi
-	url = https://github.com/pulp-platform/axi.git
-[submodule "hardware/deps/cluster_interconnect"]
-	path = hardware/deps/cluster_interconnect
-	url = https://github.com/pulp-platform/cluster_interconnect.git
-[submodule "hardware/deps/common_cells"]
-	path = hardware/deps/common_cells
-	url = https://github.com/pulp-platform/common_cells.git
-[submodule "hardware/deps/common_verification"]
-	path = hardware/deps/common_verification
-	url = https://github.com/pulp-platform/common_verification.git
-[submodule "hardware/deps/register_interface"]
-	path = hardware/deps/register_interface
-	url = https://github.com/pulp-platform/register_interface.git
-[submodule "hardware/deps/tech_cells_generic"]
-	path = hardware/deps/tech_cells_generic
-	url = https://github.com/pulp-platform/tech_cells_generic.git
 [submodule "toolchain/riscv-opcodes"]
 	path = toolchain/riscv-opcodes
 	url = https://github.com/pulp-platform/riscv-opcodes.git
-[submodule "hardware/deps/apb"]
-	path = hardware/deps/apb
-	url = https://github.com/pulp-platform/apb.git
-[submodule "hardware/deps/fpnew"]
-	path = hardware/deps/fpnew
-	url = https://github.com/pulp-platform/cvfpu.git
-[submodule "hardware/deps/fpu_div_sqrt_mvp"]
-	path = hardware/deps/fpu_div_sqrt_mvp
-	url = https://github.com/pulp-platform/fpu_div_sqrt_mvp.git
 [submodule "hardware/deps/dram_rtl_sim"]
 	path = hardware/deps/dram_rtl_sim
 	url = https://github.com/pulp-platform/dram_rtl_sim.git
-[submodule "hardware/deps/cluster_icache"]
-	path = hardware/deps/cluster_icache
-	url = https://github.com/pulp-platform/cluster_icache.git
-[submodule "hardware/deps/redmule"]
-	path = hardware/deps/redmule
-	url = https://github.com/pulp-platform/redmule.git
-[submodule "hardware/deps/hci"]
-	path = hardware/deps/hci
-	url = https://github.com/pulp-platform/hci.git
-[submodule "hardware/deps/ibex"]
-	path = hardware/deps/ibex
-	url = https://github.com/pulp-platform/ibex.git
-[submodule "hardware/deps/cv32e40p"]
-	path = hardware/deps/cv32e40p
-	url = https://github.com/pulp-platform/cv32e40p.git
-[submodule "hardware/deps/cv32e40x"]
-	path = hardware/deps/cv32e40x
-	url = https://github.com/pulp-platform/cv32e40x.git
-[submodule "hardware/deps/hwpe-stream"]
-	path = hardware/deps/hwpe-stream
-	url = https://github.com/pulp-platform/hwpe-stream.git
-[submodule "hardware/deps/hwpe-ctrl"]
-	path = hardware/deps/hwpe-ctrl
-	url = https://github.com/pulp-platform/hwpe-ctrl.git
 [submodule "hardware/deps/l2_tcdm_hybrid_interco"]
 	path = hardware/deps/l2_tcdm_hybrid_interco
 	url = https://github.com/pulp-platform/L2_tcdm_hybrid_interco.git
-[submodule "hardware/deps/obi"]
-	path = hardware/deps/obi
-	url = https://github.com/pulp-platform/obi.git
-[submodule "hardware/deps/redundancy_cells"]
-	path = hardware/deps/redundancy_cells
-	url = https://github.com/pulp-platform/redundancy_cells.git

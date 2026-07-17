@@ -247,8 +247,8 @@ jobs:
       run: pip install -r python-requirements.txt
     - name: Build Control Registers
       run: |
-        git submodule update --init --recursive -- hardware/deps/register_interface
-        git apply hardware/deps/patches/register_interface.patch
+        make bender
+        make update-deps
         make -C hardware/src/control_registers clean
         make -C hardware/src/control_registers all
         git diff --ignore-submodules=dirty --exit-code
@@ -259,7 +259,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: Regenerate opcodes
       run: |
-        make update_opcodes
+        make update-opcodes
         git diff --exit-code
 
   ####################
@@ -518,7 +518,7 @@ jobs:
       run: |
         # Don't regenerate previously build artifacts
         sudo apt install device-tree-compiler
-        make update_opcodes
+        make update-opcodes
         touch $GITHUB_WORKSPACE/software/runtime/encoding.h
         touch $GITHUB_WORKSPACE/hardware/src/bootrom.sv
         touch $GITHUB_WORKSPACE/hardware/deps/snitch/src/riscv_instr.sv

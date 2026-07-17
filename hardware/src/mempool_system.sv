@@ -407,7 +407,7 @@ module mempool_system
     );
     assign mem_rsp_chan[i].error = 1'b0;
 
-    tc_sram #(
+    tc_sram_simwrapper #(
       .DataWidth(L2BankWidth   ),
       .NumWords (L2BankNumWords),
       .NumPorts (1             ),

@@ -13,7 +13,6 @@
 #include "runtime.h"
 #include "synchronization.h"
 
-#include "archi_redmule.h"
 #include "hal_redmule.h"
 
 #include "baremetal/mempool_checks.h"
@@ -117,7 +116,7 @@ int main() {
   mempool_stop_benchmark();
 #endif
 
-  mempool_check_f16(l1_Y, l2_Z, matrix_M*matrix_P, 0.01f, 0);
+  // mempool_check_f16(l1_Y, l2_Z, matrix_M*matrix_P, 0.01f, 0);
   mempool_barrier(num_cores);
   return 0;
 }

@@ -63,7 +63,7 @@ $(eval $(call rtl_mempool_tests_template,rv32ua))
 $(eval $(call rtl_mempool_tests_template,rv32uxpulpimg))
 endif
 
-riscv-tests: update_opcodes $(RISCV_TESTS)
+riscv-tests: update-opcodes $(RISCV_TESTS)
 
 clean-riscv-test:
 	rm -vf $(RUNTIME)
@@ -72,8 +72,8 @@ clean-riscv-test:
 	rm -vf $(addsuffix .dump,$(RISCV_TESTS))
 
 # Helper targets
-update_opcodes:
-	make -C $(MEMPOOL_DIR) update_opcodes
+update-opcodes:
+	make -C $(MEMPOOL_DIR) update-opcodes
 
 .PHONY: clean
 clean: clean-tests clean-apps clean-riscv-test

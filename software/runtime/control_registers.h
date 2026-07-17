@@ -4,7 +4,7 @@
 // Copyright 2024 ETH Zurich and University of Bologna.
 
 // Licensing information found in source file:
-// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// 
 // SPDX-License-Identifier: SHL-0.51
 
 #ifndef _CONTROL_REGISTERS_REG_DEFS_

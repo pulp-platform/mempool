@@ -1,0 +1,11 @@
+apb/
+axi/
+cluster_icache/
+cluster_interconnect/
+common_cells/
+common_verification/
+fpnew/
+fpu_div_sqrt_mvp/
+register_interface/
+tech_cells_generic/
+.mempool_deps

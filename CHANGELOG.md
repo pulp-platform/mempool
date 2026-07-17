@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add fp8 microkernels: axpy, matmul, batchnorm, layernorm, softmax
 - Optimize fp16 matmul kernel
 - Add fall through register after LSU input
+- Benderize MemPool dependencies
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`

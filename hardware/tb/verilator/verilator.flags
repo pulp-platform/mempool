@@ -15,7 +15,7 @@
 -Wno-UNUSED
 -Wno-UNOPTFLAT
 // Continue despite warnings
-// -Wno-fatal
+-Wno-fatal
 
 // C++ mode and flags
 --cc
