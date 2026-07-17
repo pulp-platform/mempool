@@ -8,4 +8,11 @@ fpnew/
 fpu_div_sqrt_mvp/
 register_interface/
 tech_cells_generic/
+hci/
+hwpe-ctrl/
+hwpe-stream/
+cv32e40p/
+cv32e40x/
+ibex/
+redmule/
 .mempool_deps

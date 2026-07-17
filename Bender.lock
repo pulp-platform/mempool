@@ -7,8 +7,8 @@ packages:
     dependencies:
     - common_cells
   axi:
-    revision: ac5deb3ff086aa34b168f392c051e92603d6c0e2
-    version: 0.39.2
+    revision: a8c53cee2520d328d390c507c88818e8ac144c8c
+    version: 0.39.10
     source:
       Git: https://github.com/pulp-platform/axi.git
     dependencies:
@@ -26,40 +26,40 @@ packages:
     - scm
     - tech_cells_generic
   cluster_interconnect:
-    revision: 7d0a4f8acae71a583a6713cab5554e60b9bb8d27
-    version: 1.2.1
+    revision: 0500a3a02409eb7934c34dd6a666b0ce3c508baf
+    version: null
     source:
       Git: https://github.com/pulp-platform/cluster_interconnect.git
     dependencies:
     - common_cells
   common_cells:
-    revision: 13f28aa0021fc22c0d01a12d618fda58d2c93239
-    version: 1.33.0
+    revision: 1281545696eb3fcba50ec5b4275993476a3c710e
+    version: 1.40.0
     source:
       Git: https://github.com/pulp-platform/common_cells.git
     dependencies:
     - common_verification
     - tech_cells_generic
   common_verification:
-    revision: 9c07fa860593b2caabd9b5681740c25fac04b878
-    version: 0.2.3
+    revision: fb1885f48ea46164a10568aeff51884389f67ae3
+    version: 0.2.5
     source:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   cv32e40p:
-    revision: null
+    revision: 1a93f340e9dadb9f7c8c471f27a40932c8b1c62e
     version: null
     source:
-      Path: hardware/deps/cv32e40p
+      Git: https://github.com/pulp-platform/cv32e40p.git
     dependencies:
     - common_cells
     - fpnew
     - tech_cells_generic
   cv32e40x:
-    revision: null
+    revision: baba1eeb3b845306c45be714f677ff786753f136
     version: null
     source:
-      Path: hardware/deps/cv32e40x
+      Git: https://github.com/pulp-platform/cv32e40x.git
     dependencies: []
   fpnew:
     revision: 9481d57c161bb160fd294eae07279082bff06698
@@ -70,17 +70,17 @@ packages:
     - common_cells
     - fpu_div_sqrt_mvp
   fpu_div_sqrt_mvp:
-    revision: 917dd79cb2dc1a8f43df1a84e0e4231508a980e9
-    version: null
+    revision: 86e1f558b3c95e91577c41b2fc452c86b04e85ac
+    version: 1.0.4
     source:
       Git: https://github.com/pulp-platform/fpu_div_sqrt_mvp.git
     dependencies:
     - common_cells
   hci:
-    revision: null
-    version: null
+    revision: a8d8132b7f7839fd55f92df65cdc3e361ea80a6b
+    version: 2.6.1
     source:
-      Path: hardware/deps/hci
+      Git: https://github.com/pulp-platform/hci.git
     dependencies:
     - cluster_interconnect
     - common_cells
@@ -89,24 +89,25 @@ packages:
     - redundancy_cells
     - register_interface
   hwpe-ctrl:
-    revision: null
-    version: null
+    revision: a52dc9cd2a5a8bb68fbf7e445bf51ac5e2e3cade
+    version: 3.1.0
     source:
-      Path: hardware/deps/hwpe-ctrl
+      Git: https://github.com/pulp-platform/hwpe-ctrl.git
     dependencies:
+    - common_cells
     - tech_cells_generic
   hwpe-stream:
-    revision: null
-    version: null
+    revision: 05cb8303693065812e9d6bfe10976220fb455666
+    version: 1.10.0
     source:
-      Path: hardware/deps/hwpe-stream
+      Git: https://github.com/pulp-platform/hwpe-stream.git
     dependencies:
     - tech_cells_generic
   ibex:
-    revision: null
+    revision: b18f7ef178ed07f5085051f96042c670a919fd5c
     version: null
     source:
-      Path: hardware/deps/ibex
+      Git: https://github.com/pulp-platform/ibex.git
     dependencies:
     - tech_cells_generic
   idma:
@@ -120,24 +121,16 @@ packages:
     - common_verification
     - register_interface
   l2_tcdm_hybrid_interco:
-    revision: null
-    version: null
+    revision: fa55e72859dcfb117a2788a77352193bef94ff2b
+    version: 1.0.0
     source:
-      Path: hardware/deps/l2_tcdm_hybrid_interco
+      Git: https://github.com/pulp-platform/L2_tcdm_hybrid_interco.git
     dependencies: []
-  obi:
-    revision: null
-    version: null
-    source:
-      Path: hardware/deps/obi
-    dependencies:
-    - common_cells
-    - common_verification
   redmule:
-    revision: null
+    revision: 448cc73290d78683eac0078a9ab8f9ec12c2b668
     version: null
     source:
-      Path: hardware/deps/redmule
+      Git: https://github.com/pulp-platform/redmule.git
     dependencies:
     - common_cells
     - cv32e40p
@@ -147,14 +140,12 @@ packages:
     - hwpe-ctrl
     - hwpe-stream
     - ibex
-    - obi
-    - register_interface
     - tech_cells_generic
   redundancy_cells:
-    revision: null
+    revision: c37bdb47339bf70e8323de8df14ea8bbeafb6583
     version: null
     source:
-      Path: hardware/deps/redundancy_cells
+      Git: https://github.com/pulp-platform/redundancy_cells.git
     dependencies:
     - common_cells
     - common_verification
