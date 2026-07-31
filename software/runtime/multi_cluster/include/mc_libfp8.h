@@ -18,8 +18,8 @@
 
 // SoftHier Generic FP8 runtime support
 
-#ifndef _FLEX_LIBFP8_H_
-#define _FLEX_LIBFP8_H_
+#ifndef _MC_LIBFP8_H_
+#define _MC_LIBFP8_H_
 
 
 union FloatBits {

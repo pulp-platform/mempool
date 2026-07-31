@@ -152,14 +152,14 @@ ifeq ($(MULTI_CLUSTER),true)
 	RISCV_FLAGS_COMMON += -I$(MULTI_CLUSTER_DIR)/include -Wa,-I$(MULTI_CLUSTER_DIR)/include
 	# The FlexCluster architecture headers are generated from the selected
 	# `config` so they always track the chosen hardware configuration.
-	FLEX_ARCH_CONFIG   := $(MULTI_CLUSTER_DIR)/configs/arch_$(config).py
-	FLEX_ARCH_HDR      := $(MULTI_CLUSTER_DIR)/include/flex_cluster_arch.h
-	FLEX_ARCH_INC      := $(MULTI_CLUSTER_DIR)/include/flex_cluster_arch.inc
-	ifeq ($(wildcard $(FLEX_ARCH_CONFIG)),)
-		$(error No FlexCluster arch config for config='$(config)'. Multi-cluster supports: mempool minpool tensorpool terapool)
+	MC_ARCH_CONFIG   := $(MULTI_CLUSTER_DIR)/configs/arch_$(config).py
+	MC_ARCH_HDR      := $(MULTI_CLUSTER_DIR)/include/mc_cluster_arch.h
+	MC_ARCH_INC      := $(MULTI_CLUSTER_DIR)/include/mc_cluster_arch.inc
+	ifeq ($(wildcard $(MC_ARCH_CONFIG)),)
+		$(error No MCluster arch config for config='$(config)'. Multi-cluster supports: mempool minpool tensorpool terapool)
 	endif
 	# Compilation must wait for the headers to be (re)generated.
-	MC_HDR_DEP := $(FLEX_ARCH_HDR) $(FLEX_ARCH_INC)
+	MC_HDR_DEP := $(MC_ARCH_HDR) $(MC_ARCH_INC)
 endif
 
 # Enable soft-divsqrt when the hardware is not supported.
@@ -186,9 +186,9 @@ RISCV_CCFLAGS_TESTS      ?= $(RISCV_FLAGS_LLVM_TESTS) $(RISCV_FLAGS_COMMON_TESTS
 endif
 
 ifeq ($(MULTI_CLUSTER),true)
-LINKER_SCRIPT     ?= $(MULTI_CLUSTER_DIR)/flex_memory.ld
+LINKER_SCRIPT     ?= $(MULTI_CLUSTER_DIR)/mc_memory.ld
 LINKER_SCRIPT_DEP ?= $(ROOT_DIR)/arch.ld
-RUNTIME += $(MULTI_CLUSTER_DIR)/flex_start.S.o
+RUNTIME += $(MULTI_CLUSTER_DIR)/mc_start.S.o
 RUNTIME += $(ROOT_DIR)/string.c.o
 RUNTIME += $(ROOT_DIR)/synchronization.c.o
 else
@@ -211,8 +211,8 @@ HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 
 # Generate the FlexCluster architecture headers from the selected config.
 ifeq ($(MULTI_CLUSTER),true)
-$(FLEX_ARCH_HDR) $(FLEX_ARCH_INC) &: $(FLEX_ARCH_CONFIG) $(MULTI_CLUSTER_DIR)/gen_flex_arch.py FORCE
-	$(python) $(MULTI_CLUSTER_DIR)/gen_flex_arch.py $(FLEX_ARCH_CONFIG) --outdir $(MULTI_CLUSTER_DIR)/include
+$(MC_ARCH_HDR) $(MC_ARCH_INC) &: $(MC_ARCH_CONFIG) $(MULTI_CLUSTER_DIR)/gen_mc_arch.py FORCE
+	$(python) $(MULTI_CLUSTER_DIR)/gen_mc_arch.py $(MC_ARCH_CONFIG) --outdir $(MULTI_CLUSTER_DIR)/include
 endif
 
 %.S.o: %.S $(MC_HDR_DEP)
