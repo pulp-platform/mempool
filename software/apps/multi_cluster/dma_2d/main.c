@@ -45,11 +45,10 @@ int main()
         printf("[2D DMA] Before transfer — l1_buf[0][0..3]:\n");
         for (int r = 0; r < ROWS; ++r)
         {
-            uint16_t r0 = *(l1_buf + r * COLS_LOAD + 0);
-            uint16_t r1 = *(l1_buf + r * COLS_LOAD + 1);
-            uint16_t r2 = *(l1_buf + r * COLS_LOAD + COLS_LOAD - 1);
-            printf("  row %d: 0x%04x 0x%04x ... 0x%04x\n",
-              r, r0, r1, r2);
+            uint32_t* r0 = (uint32_t*)&l1_buf[r][0];
+            uint32_t* r1 = (uint32_t*)&l1_buf[r][1];
+            uint32_t* r2 = (uint32_t*)&l1_buf[r][COLS_LOAD - 1];
+            printf("  row %d: 0x%04x 0x%04x ... 0x%04x\n", r, *r0, *r1, *r2);
         }
 
         const size_t row_bytes  = sizeof(l1_buf[0]);     /* COLS_LOAD * ELEM_BYTES  */
@@ -70,11 +69,10 @@ int main()
         printf("[2D DMA] After  transfer — first/last element of each loaded row:\n");
         for (int r = 0; r < ROWS; ++r)
         {
-            uint16_t r0 = *(l1_buf + r * COLS_LOAD + 0);
-            uint16_t r1 = *(l1_buf + r * COLS_LOAD + 1);
-            uint16_t r2 = *(l1_buf + r * COLS_LOAD + COLS_LOAD - 1);
-            printf("  row %d: 0x%04x 0x%04x ... 0x%04x\n",
-              r, r0, r1, r2);
+            uint32_t* r0 = (uint32_t*)&l1_buf[r][0];
+            uint32_t* r1 = (uint32_t*)&l1_buf[r][1];
+            uint32_t* r2 = (uint32_t*)&l1_buf[r][COLS_LOAD - 1];
+            printf("  row %d: 0x%04x 0x%04x ... 0x%04x\n", r, *r0, *r1, *r2);
         }
     }
 

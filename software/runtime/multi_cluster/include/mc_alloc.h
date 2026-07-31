@@ -225,13 +225,13 @@ void *domain_malloc(alloc_t *alloc, const uint32_t size) {
 
 void *mc_l1_malloc(const uint32_t size) {
   void *addr;
-  addr = domain_malloc(&alloc_l1, size);
+  addr = domain_malloc((alloc_t*)&alloc_l1, size);
   return addr;
 }
 
 void *mc_hbm_malloc(const uint32_t size) {
   void *addr;
-  addr = domain_malloc(&alloc_hbm, size);
+  addr = domain_malloc((alloc_t*)&alloc_hbm, size);
   return addr;
 }
 
@@ -298,16 +298,16 @@ void domain_free(alloc_t *alloc, void *const ptr) {
   free_memory(alloc, block_ptr, canary_and_size.size);
 }
 
-void mc_l1_free(void *const ptr)  { domain_free(&alloc_l1, ptr); }
-void mc_hbm_free(void *const ptr) { domain_free(&alloc_hbm, ptr); }
+void mc_l1_free(void *const ptr)  { domain_free((alloc_t*)&alloc_l1, ptr); }
+void mc_hbm_free(void *const ptr) { domain_free((alloc_t*)&alloc_hbm, ptr); }
 
 
 /**********************
 *  Helper functions   *
 **********************/
 
-alloc_t *mc_get_allocator_l1() { return &alloc_l1; }
-alloc_t *mc_get_allocator_hbm() { return &alloc_hbm; }
+alloc_t *mc_get_allocator_l1() { return (alloc_t*)&alloc_l1; }
+alloc_t *mc_get_allocator_hbm() { return (alloc_t*)&alloc_hbm; }
 
 
 void mc_dump_heap(){

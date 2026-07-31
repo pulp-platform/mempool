@@ -35,8 +35,8 @@ void mc_dump_set_upper_base(uint32_t val){
 }
 
 void mc_dump_set_base(uint64_t val){
-    uint32_t lower = val >> 0;
-    uint32_t upper = val >> 32;
+    uint32_t lower = (uint32_t) (val >> 0);
+    uint32_t upper = (uint32_t) (val >> 32);
     mc_dump_set_lower_base(lower);
     mc_dump_set_upper_base(upper);
     mc_dump_stamp();

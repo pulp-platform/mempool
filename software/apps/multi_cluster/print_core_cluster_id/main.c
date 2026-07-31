@@ -44,7 +44,7 @@ int main() {
         mc_print("\n");
 
         // FlexCluster position
-        FlexPosition pos = get_pos(cluster_id);
+        McPosition pos = get_pos(cluster_id);
         mc_print("pos.x=");
         mc_print_int(pos.x);
         mc_print(" pos.y=");
