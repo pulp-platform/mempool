@@ -9,12 +9,12 @@
 Dynamic memory allocation based on linked list of free memory blocks
 */
 
-#ifndef _FLEX_ALLOC_H_
-#define _FLEX_ALLOC_H_
+#ifndef _MC_ALLOC_H_
+#define _MC_ALLOC_H_
 
 #include <stdint.h>
-#include "flex_printf.h"
-#include "flex_cluster_arch.h"
+#include "mc_printf.h"
+#include "mc_cluster_arch.h"
 
 /*
 Desc: Free-memory-block indicator
@@ -40,7 +40,7 @@ typedef struct {
 ********************/
 
 // Initialize the first free-memory-block indicator, and set up the pointer in the allocator
-void flex_cluster_alloc_init(alloc_t *alloc, void *base, const uint32_t size);
+void mc_cluster_alloc_init(alloc_t *alloc, void *base, const uint32_t size);
 
 /***************
 *  Allocation  *
@@ -50,8 +50,8 @@ void flex_cluster_alloc_init(alloc_t *alloc, void *base, const uint32_t size);
 void *domain_malloc(alloc_t *alloc, const uint32_t size);
 
 // Memory allocation with default l1 heap allocator
-void *flex_l1_malloc(const uint32_t size);
-void *flex_hbm_malloc(const uint32_t size);
+void *mc_l1_malloc(const uint32_t size);
+void *mc_hbm_malloc(const uint32_t size);
 
 
 /******************
@@ -62,19 +62,19 @@ void *flex_hbm_malloc(const uint32_t size);
 void domain_free(alloc_t *alloc, void *const ptr);
 
 // De-allocation with default l1 heap allocator
-void flex_l1_free(void *const ptr);
-void flex_hbm_free(void *const ptr);
+void mc_l1_free(void *const ptr);
+void mc_hbm_free(void *const ptr);
 
 /*********************
 *  Helper functions  *
 *********************/
 
 // Return the address of the default l1 heap allocator
-alloc_t *flex_get_allocator_l1();
-alloc_t *flex_get_allocator_hbm();
+alloc_t *mc_get_allocator_l1();
+alloc_t *mc_get_allocator_hbm();
 
 // [debug] print all free-memory-blocks in l1 heap
-void flex_dump_heap();
+void mc_dump_heap();
 
 
 
@@ -132,7 +132,7 @@ static inline canary_and_size_t canary_decode(const uint32_t value) {
 *  Initialization   *
 ********************/
 
-void flex_cluster_alloc_init(alloc_t *alloc, void *base, const uint32_t size) {
+void mc_cluster_alloc_init(alloc_t *alloc, void *base, const uint32_t size) {
   // Create first block at base address aligned up
   uint32_t aligned_base = ALIGN_UP((uint32_t)base, MIN_BLOCK_SIZE);
   alloc_block_t *block_ptr = (alloc_block_t *)aligned_base;
@@ -223,13 +223,13 @@ void *domain_malloc(alloc_t *alloc, const uint32_t size) {
 }
 
 
-void *flex_l1_malloc(const uint32_t size) {
+void *mc_l1_malloc(const uint32_t size) {
   void *addr;
   addr = domain_malloc(&alloc_l1, size);
   return addr;
 }
 
-void *flex_hbm_malloc(const uint32_t size) {
+void *mc_hbm_malloc(const uint32_t size) {
   void *addr;
   addr = domain_malloc(&alloc_hbm, size);
   return addr;
@@ -298,19 +298,19 @@ void domain_free(alloc_t *alloc, void *const ptr) {
   free_memory(alloc, block_ptr, canary_and_size.size);
 }
 
-void flex_l1_free(void *const ptr)  { domain_free(&alloc_l1, ptr); }
-void flex_hbm_free(void *const ptr) { domain_free(&alloc_hbm, ptr); }
+void mc_l1_free(void *const ptr)  { domain_free(&alloc_l1, ptr); }
+void mc_hbm_free(void *const ptr) { domain_free(&alloc_hbm, ptr); }
 
 
 /**********************
 *  Helper functions   *
 **********************/
 
-alloc_t *flex_get_allocator_l1() { return &alloc_l1; }
-alloc_t *flex_get_allocator_hbm() { return &alloc_hbm; }
+alloc_t *mc_get_allocator_l1() { return &alloc_l1; }
+alloc_t *mc_get_allocator_hbm() { return &alloc_hbm; }
 
 
-void flex_dump_heap(){
+void mc_dump_heap(){
   // access the first free-memory-block indicator
   alloc_block_t *curr = (&alloc_l1)->first_block;
   uint32_t block_id = 0; // for printing
