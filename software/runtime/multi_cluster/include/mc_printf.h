@@ -36,7 +36,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "flex_cluster_arch.h"
+#include "mc_cluster_arch.h"
 
 // #define PRINTF_DISABLE_SUPPORT_FLOAT
 // #define PRINTF_DISABLE_SUPPORT_LONG_LONG

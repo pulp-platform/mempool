@@ -1,6 +1,6 @@
-#include "flex_runtime.h"
+#include "mc_runtime.h"
 
 int main() {
-    flex_eoc(0);
+    mc_eoc(0);
     return 0;
 }
