@@ -128,7 +128,7 @@ RISCV_FLAGS_LLVM   += -gdwarf-4
 ifeq ($(MULTI_CLUSTER),true)
 	MULTI_CLUSTER_DIR  := $(ROOT_DIR)/multi_cluster
 	DEFINES            += -DMULTI_CLUSTER -DMEMPOOL_CLUSTER_UNIT
-	RISCV_FLAGS_COMMON += -I$(MULTI_CLUSTER_DIR)/include -Wa,-I$(MULTI_CLUSTER_DIR)/include
+	RISCV_FLAGS_COMMON += -I$(MULTI_CLUSTER_DIR)/include
 	# The FlexCluster architecture headers are generated from the selected
 	# `config` so they always track the chosen hardware configuration.
 	MC_ARCH_CONFIG   := $(MULTI_CLUSTER_DIR)/configs/arch_$(config).py
