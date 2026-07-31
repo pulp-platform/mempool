@@ -192,7 +192,6 @@ void mc_dma_async_pattern_round_shift_up(uint32_t local_offset, uint32_t remote_
 
 //Pattern All-to-One
 void mc_dma_async_pattern_all_to_one(uint32_t local_offset, uint32_t remote_offset, size_t transfer_size){
-    McPosition pos = get_pos(mc_get_cluster_id());
     bare_dma_start_1d(local(local_offset),remote_xy(0,0,remote_offset), transfer_size);
 }
 
@@ -241,7 +240,6 @@ void mc_dma_pattern_round_shift_up(uint32_t local_offset, uint32_t remote_offset
 
 //Pattern All-to-One
 void mc_dma_pattern_all_to_one(uint32_t local_offset, uint32_t remote_offset, size_t transfer_size){
-    McPosition pos = get_pos(mc_get_cluster_id());
     bare_dma_start_1d(local(local_offset),remote_xy(0,0,remote_offset), transfer_size);
     bare_dma_wait_all();
 }
