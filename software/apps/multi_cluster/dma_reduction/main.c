@@ -25,16 +25,6 @@
 #include <stdint.h>
 #include <string.h>
 
-/* memcpy-based read to dodge a codegen bug in this GCC where reading adjacent
- * uint16_t globals emits the RV64-only `lwu` opcode on this rv32 target
- * (triggered by GCC's load-combining/bswap-idiom recognition). */
-static inline uint16_t read_u16(const uint16_t *p)
-{
-    uint16_t v;
-    memcpy(&v, (const void *)p, sizeof(v));
-    return v;
-}
-
 #define TRANSFER_ELEMS  32
 #define TRANSFER_BYTES  (TRANSFER_ELEMS * sizeof(uint16_t))
 
@@ -85,8 +75,12 @@ int main()
                TRANSFER_ELEMS, (uint32_t)TRANSFER_BYTES);
         printf("[Reduction] Mask row=0x%04x col=0x%04x  (0x0000 = full fan-out)\n",
                REDUCE_MASK_ALL, REDUCE_MASK_ALL);
-        printf("[Reduction] l1_src[0..3]:    0x%04x 0x%04x 0x%04x 0x%04x\n",
-               l1_src[0], l1_src[1], l1_src[2], l1_src[3]);
+        uint32_t* r0 = (uint32_t*)(&l1_src[0]);
+        uint32_t* r1 = (uint32_t*)(&l1_src[1]);
+        uint32_t* r2 = (uint32_t*)(&l1_src[2]);
+        uint32_t* r3 = (uint32_t*)(&l1_src[3]);
+        printf("[Reduction] Source l1_src[0..3]:\n"
+               "0x%04x 0x%04x 0x%04x 0x%04x\n", *r0, *r1, *r2, *r3);
 
         mc_dma_async_reduction(
             L1_OFFSET(l1_result),
@@ -96,8 +90,12 @@ int main()
             REDUCE_MASK_ALL, REDUCE_MASK_ALL);
         mc_dma_async_wait_all();
 
-        printf("[Reduction] l1_result[0..3]: 0x%04x 0x%04x 0x%04x 0x%04x\n",
-               l1_result[0], l1_result[1], l1_result[2], l1_result[3]);
+        r0 = (uint32_t*)(&l1_src[0]);
+        r1 = (uint32_t*)(&l1_src[1]);
+        r2 = (uint32_t*)(&l1_src[2]);
+        r3 = (uint32_t*)(&l1_src[3]);
+        printf("[Reduction] l1_result[0..3] Source l1_src[0..3]:\n"
+               "0x%04x 0x%04x 0x%04x 0x%04x\n", *r0, *r1, *r2, *r3);
 
         /* Phase 4: verify l1_result[i] == (uint16_t)(N * l1_src[i]) */
         const uint32_t n_contributors = ARCH_NUM_CLUSTER;

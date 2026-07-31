@@ -5,26 +5,32 @@
 #include "mc_alloc.h"
 
 #ifdef MEMPOOL_CLUSTER_UNIT
+
 // Prevent mempool's alloc.h from being included (same types, conflicting defs)
 #define _ALLOC_H_
 #include "encoding.h"
+
 // Mempool compatibility wrappers
 // (must be declared before runtime.h, which calls them inside mempool_init())
 static inline void alloc_init(alloc_t *alloc, void *base, const uint32_t size) {
   mc_cluster_alloc_init(alloc, base, size);
 }
+
 static inline alloc_t *get_alloc_l1() { return mc_get_allocator_l1(); }
 alloc_t *get_alloc_tile(const uint32_t tile_id);
+
 static inline void *simple_malloc(const uint32_t size) { return mc_l1_malloc(size); }
 static inline void simple_free(void *const ptr) { mc_l1_free(ptr); }
-static inline void alloc_dump(alloc_t *alloc) { mc_dump_heap(); }
+static inline void alloc_dump() { mc_dump_heap(); }
+
 #include "runtime.h"
 #include "synchronization.h"
+
 #endif
 
 #define ARCH_NUM_CLUSTER            (ARCH_NUM_CLUSTER_X*ARCH_NUM_CLUSTER_Y)
 #define ARCH_SYNC_SIZE              (ARCH_SYNC_INTERLEAVE + ARCH_SYNC_SPECIAL_MEM)
-#define cluster_index(x,y)          ((y)*ARCH_NUM_CLUSTER_X+(x))
+#define cluster_index(x,y)          (((uint32_t)(y))*((uint32_t)ARCH_NUM_CLUSTER_X)+(x))
 #define local(offset)               (ARCH_CLUSTER_TCDM_BASE+(offset))
 #define zomem(offset)               (ARCH_CLUSTER_ZOMEM_BASE+(offset))
 #define remote_cid(cid,offset)      (ARCH_CLUSTER_TCDM_REMOTE+(cid)*ARCH_CLUSTER_TCDM_SIZE+(offset))
@@ -208,7 +214,7 @@ void mc_reset_barrier(uint32_t* barrier){
 }
 
 uint32_t mc_amo_fetch_add(uint32_t* barrier){
-    return __atomic_fetch_add(barrier, mc_get_enable_value(), __ATOMIC_RELAXED);
+    return __atomic_fetch_add((uint32_t*)barrier, mc_get_enable_value(), __ATOMIC_RELAXED);
 }
 
 void mc_intra_cluster_sync(){
@@ -250,7 +256,7 @@ void mc_barrier_init(){
         if (mc_get_cluster_id() == 0)
         {
             // __atomic_store_n(barrier, 0, __ATOMIC_RELAXED);
-            mc_reset_barrier(barrier);
+            mc_reset_barrier((uint32_t*)barrier);
             mc_wakeup_all_clusters();
         }
         *cluster_reg = mc_get_enable_value();
@@ -267,8 +273,8 @@ void mc_global_barrier(){
 
     if (mc_is_dm_core()){
         mc_annotate_barrier(0);
-        if ((mc_get_barrier_num_cluster() - mc_get_enable_value()) == mc_amo_fetch_add(barrier)) {
-            mc_reset_barrier(barrier);
+        if ((mc_get_barrier_num_cluster() - mc_get_enable_value()) == mc_amo_fetch_add((uint32_t*)barrier)) {
+            mc_reset_barrier((uint32_t*)barrier);
             mc_wakeup_all_clusters();
         }
         *cluster_reg = mc_get_enable_value();
@@ -289,9 +295,9 @@ void mc_global_barrier_polling(){
         // Remember previous iteration
         uint32_t prev_barrier_iteration = *barrier_iter;
 
-        if ((mc_get_barrier_num_cluster() - mc_get_enable_value()) == mc_amo_fetch_add(barrier)) {
-            mc_reset_barrier(barrier);
-            mc_amo_fetch_add(barrier_iter);
+        if ((mc_get_barrier_num_cluster() - mc_get_enable_value()) == mc_amo_fetch_add((uint32_t*)barrier)) {
+            mc_reset_barrier((uint32_t*)barrier);
+            mc_amo_fetch_add((uint32_t*)barrier_iter);
         } else {
             while((*barrier_iter) == prev_barrier_iteration);
         }
@@ -307,7 +313,6 @@ void mc_barrier_xy_init(){
     uint32_t core_id = mempool_get_core_id();
     mempool_barrier_init(core_id);
 #endif
-    McPosition        pos          = get_pos(mc_get_cluster_id());
     uint32_t            pos_x_middel = (ARCH_NUM_CLUSTER_X)/2;
     uint32_t            pos_y_middel = (ARCH_NUM_CLUSTER_Y)/2;
     volatile uint32_t * barrier_y    = (volatile uint32_t *) (ARCH_SYNC_BASE+(cluster_index(pos_x_middel,pos_y_middel)*ARCH_SYNC_SIZE)+16);
@@ -316,11 +321,11 @@ void mc_barrier_xy_init(){
     if (mc_is_dm_core()){
         if (mc_get_cluster_id() == 0)
         {
-            mc_reset_barrier(barrier_y);
+            mc_reset_barrier((uint32_t*)barrier_y);
             for (int i = 0; i < ARCH_NUM_CLUSTER_Y; ++i)
             {
                 volatile uint32_t * barrier_x = (volatile uint32_t *) (ARCH_SYNC_BASE+(cluster_index(pos_x_middel,i)*ARCH_SYNC_SIZE)+8);
-                mc_reset_barrier(barrier_x);
+                mc_reset_barrier((uint32_t*)barrier_x);
             }
             mc_wakeup_all_clusters();
         }
@@ -345,13 +350,13 @@ void mc_global_barrier_xy(){
         volatile uint32_t * cluster_reg  = (volatile uint32_t *) ARCH_CLUSTER_REG_BASE;
 
         //First Barrier X
-        if ((mc_get_barrier_num_cluster_x() - mc_get_enable_value()) == mc_amo_fetch_add(barrier_x)) {
-            mc_reset_barrier(barrier_x);
+        if ((mc_get_barrier_num_cluster_x() - mc_get_enable_value()) == mc_amo_fetch_add((uint32_t*)barrier_x)) {
+            mc_reset_barrier((uint32_t*)barrier_x);
 
             //For cluster synced X, then sync Y
-            if ((mc_get_barrier_num_cluster_y() - mc_get_enable_value()) == mc_amo_fetch_add(barrier_y))
+            if ((mc_get_barrier_num_cluster_y() - mc_get_enable_value()) == mc_amo_fetch_add((uint32_t*)barrier_y))
             {
-                mc_reset_barrier(barrier_y);
+                mc_reset_barrier((uint32_t*)barrier_y);
                 mc_wakeup_all_clusters();
             }
         }
@@ -383,19 +388,19 @@ void mc_global_barrier_xy_polling(){
         uint32_t prev_barrier_iter_y     = *barrier_iy;
 
         //First Barrier X
-        if ((mc_get_barrier_num_cluster_x() - mc_get_enable_value()) == mc_amo_fetch_add(barrier_x)) {
-            mc_reset_barrier(barrier_x);
+        if ((mc_get_barrier_num_cluster_x() - mc_get_enable_value()) == mc_amo_fetch_add((uint32_t*)barrier_x)) {
+            mc_reset_barrier((uint32_t*)barrier_x);
 
             //For cluster synced X, then sync Y
-            if ((mc_get_barrier_num_cluster_y() - mc_get_enable_value()) == mc_amo_fetch_add(barrier_y))
+            if ((mc_get_barrier_num_cluster_y() - mc_get_enable_value()) == mc_amo_fetch_add((uint32_t*)barrier_y))
             {
-                mc_reset_barrier(barrier_y);
-                mc_amo_fetch_add(barrier_iy);
+                mc_reset_barrier((uint32_t*)barrier_y);
+                mc_amo_fetch_add((uint32_t*)barrier_iy);
             } else {
                 while((*barrier_iy) == prev_barrier_iter_y);
             }
 
-            mc_amo_fetch_add(barrier_ix);
+            mc_amo_fetch_add((uint32_t*)barrier_ix);
         } else {
             while((*barrier_ix) == prev_barrier_iter_x);
         }

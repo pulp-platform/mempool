@@ -71,12 +71,12 @@ int main()
         printf("[Broadcast] Mesh: %dx%d clusters, %u elems, %u bytes/transfer\n",
                ARCH_NUM_CLUSTER_X, ARCH_NUM_CLUSTER_Y,
                TRANSFER_ELEMS, (uint32_t)TRANSFER_BYTES);
-        uint16_t r0 = *(l1_src + 0);
-        uint16_t r1 = *(l1_src + 1);
-        uint16_t r2 = *(l1_src + 2);
-        uint16_t r3 = *(l1_src + 3);
-        printf("[Broadcast] Source l1_src[0..3]: 0x%04x 0x%04x 0x%04x 0x%04x\n",
-               r0, r1, r2, r3);
+        uint32_t* r0 = (uint32_t*)(&l1_src[0]);
+        uint32_t* r1 = (uint32_t*)(&l1_src[1]);
+        uint32_t* r2 = (uint32_t*)(&l1_src[2]);
+        uint32_t* r3 = (uint32_t*)(&l1_src[3]);
+        printf("[Broadcast] Source l1_src[0..3]:\n"
+               "0x%04x 0x%04x 0x%04x 0x%04x\n", *r0, *r1, *r2, *r3);
 
         /* Fan-out to the full ARCH_NUM_CLUSTER_X x ARCH_NUM_CLUSTER_Y mesh */
         uint16_t row_mask = BCAST_MASK_ALL;   /* X axis: hit every column */
@@ -89,7 +89,7 @@ int main()
             (uint32_t)((uintptr_t)l1_dst - (uintptr_t)local(0));
         const uint32_t src_offset =
             (uint32_t)((uintptr_t)l1_src - (uintptr_t)local(0));
-        FlexPosition self_pos = get_pos(cid);
+        McPosition self_pos = get_pos(cid);
 
         bare_dma_start_1d_broadcast(
             (uint64_t)remote_pos(self_pos, dst_offset),
@@ -125,11 +125,12 @@ int main()
         uint32_t remote_err = 0;
         uint32_t total_errors = l1_errors[0];
         uint32_t failing_clusters = (l1_errors[0] != 0) ? 1u : 0u;
-
-        printf("[Broadcast] After bcast, cluster 0 l1_dst[0..3]: "
-               "0x%04x 0x%04x 0x%04x 0x%04x\n",
-               read_u16(&l1_dst[0]), read_u16(&l1_dst[1]),
-               read_u16(&l1_dst[2]), read_u16(&l1_dst[3]));
+        uint32_t* r0 = (uint32_t*)(&l1_src[0]);
+        uint32_t* r1 = (uint32_t*)(&l1_src[1]);
+        uint32_t* r2 = (uint32_t*)(&l1_src[2]);
+        uint32_t* r3 = (uint32_t*)(&l1_src[3]);
+        printf("[Broadcast] Source l1_src[0..3]:\n"
+               "0x%04x 0x%04x 0x%04x 0x%04x\n", *r0, *r1, *r2, *r3);
 
         for (uint32_t rid = 1; rid < ARCH_NUM_CLUSTER; ++rid)
         {
