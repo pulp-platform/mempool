@@ -1,8 +1,8 @@
-#ifndef _FLEX_GROUP_BARRIER_H_
-#define _FLEX_GROUP_BARRIER_H_
+#ifndef _MC_GROUP_BARRIER_H_
+#define _MC_GROUP_BARRIER_H_
 
-#include "flex_runtime.h"
-#include "flex_cluster_arch.h"
+#include "mc_runtime.h"
+#include "mc_cluster_arch.h"
 
 /*****************************************
 *  Grid Group Synchronization functions  *
@@ -63,7 +63,7 @@ GridSyncGroupInfo grid_sync_group_init(uint32_t grid_x_dim, uint32_t grid_y_dim)
 	info.grid_x_num = (ARCH_NUM_CLUSTER_X + grid_x_dim - 1)/grid_x_dim;
 	info.grid_y_num = (ARCH_NUM_CLUSTER_Y + grid_y_dim - 1)/grid_y_dim;
 
-	FlexPosition pos = get_pos(flex_get_cluster_id());
+	McPosition pos = get_pos(mc_get_cluster_id());
 	info.this_grid_id_x = pos.x/grid_x_dim;
 	info.this_grid_id_y = pos.y/grid_y_dim;
 	info.this_grid_id   = info.grid_x_num * info.this_grid_id_y + info.this_grid_id_x;
@@ -86,11 +86,11 @@ GridSyncGroupInfo grid_sync_group_init(uint32_t grid_x_dim, uint32_t grid_y_dim)
     info.sync_y_point   = (volatile uint32_t *) (ARCH_SYNC_BASE+(cluster_index(info.sync_x_cluster,info.sync_y_cluster)*ARCH_SYNC_SIZE)+32);
     info.sync_y_piter   = (volatile uint32_t *) (ARCH_SYNC_BASE+(cluster_index(info.sync_x_cluster,info.sync_y_cluster)*ARCH_SYNC_SIZE)+36);
 
-	if (flex_get_core_id() == 0)
+	if (mc_get_core_id() == 0)
 	{
 		//Reset synchronization point
-		volatile uint32_t * local_sync_point_for_group_level1 = (volatile uint32_t *) (ARCH_SYNC_BASE+(flex_get_cluster_id()*ARCH_SYNC_SIZE)+24);
-		volatile uint32_t * local_sync_point_for_group_level2 = (volatile uint32_t *) (ARCH_SYNC_BASE+(flex_get_cluster_id()*ARCH_SYNC_SIZE)+32);
+		volatile uint32_t * local_sync_point_for_group_level1 = (volatile uint32_t *) (ARCH_SYNC_BASE+(mc_get_cluster_id()*ARCH_SYNC_SIZE)+24);
+		volatile uint32_t * local_sync_point_for_group_level2 = (volatile uint32_t *) (ARCH_SYNC_BASE+(mc_get_cluster_id()*ARCH_SYNC_SIZE)+32);
 		*local_sync_point_for_group_level1 = 0;
 		*local_sync_point_for_group_level2 = 0;
 	}
@@ -101,64 +101,64 @@ GridSyncGroupInfo grid_sync_group_init(uint32_t grid_x_dim, uint32_t grid_y_dim)
 
 void grid_sync_group_barrier_xy(GridSyncGroupInfo * info){
 
-    flex_intra_cluster_sync();
+    mc_intra_cluster_sync();
 
-    if (flex_is_dm_core()){
-        flex_annotate_barrier(0);
+    if (mc_is_dm_core()){
+        mc_annotate_barrier(0);
 
     	volatile uint32_t * cluster_wfi_reg  = (volatile uint32_t *) ARCH_CLUSTER_REG_BASE;
 
         //First Barrier X
-        if ((info->this_grid_cluster_num_x - flex_get_enable_value()) == flex_amo_fetch_add(info->sync_x_point)) {
-            flex_reset_barrier(info->sync_x_point);
+        if ((info->this_grid_cluster_num_x - mc_get_enable_value()) == mc_amo_fetch_add(info->sync_x_point)) {
+            mc_reset_barrier(info->sync_x_point);
 
             //For cluster synced X, then sync Y
-            if ((info->this_grid_cluster_num_y - flex_get_enable_value()) == flex_amo_fetch_add(info->sync_y_point))
+            if ((info->this_grid_cluster_num_y - mc_get_enable_value()) == mc_amo_fetch_add(info->sync_y_point))
             {
-                flex_reset_barrier(info->sync_y_point);
-                flex_wakeup_clusters(info->wakeup_row_mask,info->wakeup_col_mask);
+                mc_reset_barrier(info->sync_y_point);
+                mc_wakeup_clusters(info->wakeup_row_mask,info->wakeup_col_mask);
             }
         }
-        *cluster_wfi_reg = flex_get_enable_value();
+        *cluster_wfi_reg = mc_get_enable_value();
 
-        flex_annotate_barrier(0);
+        mc_annotate_barrier(0);
     }
 
-    flex_intra_cluster_sync();
+    mc_intra_cluster_sync();
 }
 
 void grid_sync_group_barrier_xy_polling(GridSyncGroupInfo * info){
 
-    flex_intra_cluster_sync();
+    mc_intra_cluster_sync();
 
-    if (flex_is_dm_core()){
-        flex_annotate_barrier(0);
+    if (mc_is_dm_core()){
+        mc_annotate_barrier(0);
 
         // Remember previous iteration
         uint32_t prev_barrier_iter_x     = *(info->sync_x_piter);
         uint32_t prev_barrier_iter_y     = *(info->sync_y_piter);
 
         //First Barrier X
-        if ((info->this_grid_cluster_num_x - flex_get_enable_value()) == flex_amo_fetch_add(info->sync_x_point)) {
-            flex_reset_barrier(info->sync_x_point);
+        if ((info->this_grid_cluster_num_x - mc_get_enable_value()) == mc_amo_fetch_add(info->sync_x_point)) {
+            mc_reset_barrier(info->sync_x_point);
 
             //For cluster synced X, then sync Y
-            if ((info->this_grid_cluster_num_y - flex_get_enable_value()) == flex_amo_fetch_add(info->sync_y_point))
+            if ((info->this_grid_cluster_num_y - mc_get_enable_value()) == mc_amo_fetch_add(info->sync_y_point))
             {
-                flex_reset_barrier(info->sync_y_point);
-                flex_amo_fetch_add(info->sync_y_piter);
+                mc_reset_barrier(info->sync_y_point);
+                mc_amo_fetch_add(info->sync_y_piter);
             } else {
                 while((*(info->sync_y_piter)) == prev_barrier_iter_y);
             }
 
-            flex_amo_fetch_add(info->sync_x_piter);
+            mc_amo_fetch_add(info->sync_x_piter);
         } else {
             while((*(info->sync_x_piter)) == prev_barrier_iter_x);
         }
-        flex_annotate_barrier(0);
+        mc_annotate_barrier(0);
     }
 
-    flex_intra_cluster_sync();
+    mc_intra_cluster_sync();
 }
 
 #endif
