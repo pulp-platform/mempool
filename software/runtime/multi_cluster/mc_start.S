@@ -2,12 +2,12 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-# Merged startup for flex_cluster with mempool integration.
+# Merged startup for mc_cluster with mempool integration.
 # Per-core stack setup, RO cache config, and EOC from mempool crt0.S.
 # Mempool config defines (NUM_CORES_PER_TILE, STACK_SIZE, etc.) come
 # from -D compiler flags set by CMakeLists.txt.
 
-.include "flex_cluster_arch.inc"
+.include "mc_cluster_arch.inc"
 
 .globl _start
 .globl _eoc

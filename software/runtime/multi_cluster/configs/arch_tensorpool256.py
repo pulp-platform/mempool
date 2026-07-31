@@ -16,7 +16,7 @@
 
 # Author: Chi Zhang <chizhang@ethz.ch>
 
-class FlexClusterArch:
+class MClusterArch:
 
     def __init__(self):
 

@@ -1,5 +1,5 @@
-#ifndef _FLEX_LIBFP16_H_
-#define _FLEX_LIBFP16_H_
+#ifndef _MC_LIBFP16_H_
+#define _MC_LIBFP16_H_
 
 typedef union {
     float f;
