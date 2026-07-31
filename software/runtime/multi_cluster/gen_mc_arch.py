@@ -17,9 +17,9 @@
 
 # Author: Chi Zhang <chizhang@ethz.ch>
 #
-# Generate the C (flex_cluster_arch.h) and assembly (flex_cluster_arch.inc)
-# FlexCluster architecture headers from a SoftHier `FlexClusterArch` config.
-# Ported from soft_hier/flex_cluster_utilities/config.py with configurable
+# Generate the C (mc_cluster_arch.h) and assembly (mc_cluster_arch.inc)
+# FlexCluster architecture headers from a SoftHier `MClusterArch` config.
+# Ported from soft_hier/mc_cluster_utilities/config.py with configurable
 # input/output paths so it can be driven by the MemPool multi_cluster build.
 
 import re
@@ -50,8 +50,8 @@ parser.add_argument("--outdir", default=os.path.join(os.path.dirname(os.path.abs
 args = parser.parse_args()
 input_file = args.input_file
 
-C_header_file = os.path.join(args.outdir, 'flex_cluster_arch.h')
-S_header_file = os.path.join(args.outdir, 'flex_cluster_arch.inc')
+C_header_file = os.path.join(args.outdir, 'mc_cluster_arch.h')
+S_header_file = os.path.join(args.outdir, 'mc_cluster_arch.inc')
 
 # Initialize a dictionary to store the class attributes and their values
 attributes = {}
@@ -67,8 +67,8 @@ with open(input_file, 'r') as file:
             attributes[attr_name] = attr_value
 
 # Build the output C header file
-c_header = '#ifndef FLEXCLUSTERARCH_H\n'
-c_header += '#define FLEXCLUSTERARCH_H\n\n'
+c_header = '#ifndef MCLUSTERARCHARCH_H\n'
+c_header += '#define MCLUSTERARCHARCH_H\n\n'
 num_core_per_cluster = 0
 
 for attr_name, attr_value in attributes.items():
@@ -101,12 +101,12 @@ for attr_name, attr_value in attributes.items():
         pass
     c_header += f'#define {define_name} {attr_value}\n'
 
-c_header += '\n#endif // FLEXCLUSTERARCH_H\n'
+c_header += '\n#endif // MCLUSTERARCHARCH_H\n'
 write_if_changed(C_header_file, c_header)
 
 # Build the output S header file
-s_header = '#ifndef FLEXCLUSTERARCH_H\n'
-s_header += '#define FLEXCLUSTERARCH_H\n\n'
+s_header = '#ifndef MCLUSTERARCHARCH_H\n'
+s_header += '#define MCLUSTERARCHARCH_H\n\n'
 num_core_per_cluster = 0
 
 for attr_name, attr_value in attributes.items():
@@ -124,5 +124,5 @@ for attr_name, attr_value in attributes.items():
         pass
     s_header += f'.set {define_name}, {attr_value}\n'
 
-s_header += '\n#endif // FLEXCLUSTERARCH_H\n'
+s_header += '\n#endif // MCLUSTERARCHARCH_H\n'
 write_if_changed(S_header_file, s_header)

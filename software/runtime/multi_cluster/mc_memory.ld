@@ -2,7 +2,7 @@
 /* Solderpad Hardware License, Version 0.51, see LICENSE for details. */
 /* SPDX-License-Identifier: SHL-0.51 */
 
-/* Merged linker script for flex_cluster with mempool integration. */
+/* Merged linker script for mc_cluster with mempool integration. */
 /* Includes preprocessed arch.ld for parametric L1/L2/HBM regions. */
 
 INCLUDE arch.ld
@@ -31,7 +31,7 @@ SECTIONS
     __l1_heap_start = .;
   } > l1
 
-  /* Program code in L2 (flex_cluster instruction memory at 0x80000000) */
+  /* Program code in L2 (mc_cluster instruction memory at 0x80000000) */
   .text : {
     . = ALIGN(4);
     *(.init)
