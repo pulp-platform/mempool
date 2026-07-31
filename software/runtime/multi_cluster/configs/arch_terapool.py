@@ -1,4 +1,4 @@
-#
+z#
 # Copyright (C) 2020 ETH Zurich and University of Bologna
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 
 # Author: Chi Zhang <chizhang@ethz.ch>
 
-class FlexClusterArch:
+class MClusterArch:
 
     def __init__(self):
 

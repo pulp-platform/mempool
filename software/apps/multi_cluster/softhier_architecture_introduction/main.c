@@ -1,17 +1,17 @@
-#include "flex_runtime.h"
-#include "flex_printf.h"
+#include "mc_runtime.h"
+#include "mc_printf.h"
 
 int main()
 {
     uint32_t eoc_val = 0;
-    flex_barrier_xy_init();
-    flex_global_barrier_xy();
+    mc_barrier_xy_init();
+    mc_global_barrier_xy();
     /**************************************/
     /*  Program Execution Region -- Start */
     /**************************************/
 
-    uint32_t cluster_id = flex_get_cluster_id();
-    uint32_t core_id = flex_get_core_id();
+    uint32_t cluster_id = mc_get_cluster_id();
+    uint32_t core_id = mc_get_core_id();
 
     if (cluster_id == 0 && core_id == 0)
     {
@@ -33,7 +33,7 @@ int main()
     /**************************************/
     /*  Program Execution Region -- Stop  */
     /**************************************/
-    flex_global_barrier_xy();
-    flex_eoc(eoc_val);
+    mc_global_barrier_xy();
+    mc_eoc(eoc_val);
     return 0;
 }

@@ -14,9 +14,10 @@
  *   l1_buf[r][c] == HBM[r][c]  for 0 <= r < ROWS, 0 <= c < COLS_LOAD
  */
 
-#include "flex_runtime.h"
-#include "flex_dma_pattern.h"
-#include "flex_printf.h"
+#include "mc_runtime.h"
+#include "mc_dma_pattern.h"
+#include "mc_printf.h"
+#include <string.h>
 
 #define ROWS       4                /* number of rows to load              */
 #define COLS_HBM   64               /* full row width in HBM (fp16 elems)  */
@@ -29,24 +30,33 @@ static uint16_t l1_buf[ROWS][COLS_LOAD] __attribute__((section(".l1"), aligned(6
 int main()
 {
     uint32_t eoc_val = 0;
-    flex_barrier_xy_init();
-    flex_global_barrier_xy();
-    if (flex_get_core_id() == 0 && flex_get_cluster_id() == 0) flex_timer_start();
-    flex_global_barrier_xy();
+    mc_barrier_xy_init();
+    mc_global_barrier_xy();
+    if (mc_get_core_id() == 0 && mc_get_cluster_id() == 0) mc_timer_start();
+    mc_global_barrier_xy();
+
     /**************************************/
     /*  Program Execution Region -- Start */
     /**************************************/
 
-    if (flex_is_dm_core() && flex_get_cluster_id() == 0)
+    if (mc_is_dm_core() && mc_get_cluster_id() == 0)
     {
-        printf("[2D DMA] Before transfer — l1_buf[0][0..3]: 0x%04x 0x%04x 0x%04x 0x%04x\n",
-               l1_buf[0][0], l1_buf[0][1], l1_buf[0][2], l1_buf[0][3]);
+
+        printf("[2D DMA] Before transfer — l1_buf[0][0..3]:\n");
+        for (int r = 0; r < ROWS; ++r)
+        {
+            uint16_t r0 = *(l1_buf + r * COLS_LOAD + 0);
+            uint16_t r1 = *(l1_buf + r * COLS_LOAD + 1);
+            uint16_t r2 = *(l1_buf + r * COLS_LOAD + COLS_LOAD - 1);
+            printf("  row %d: 0x%04x 0x%04x ... 0x%04x\n",
+              r, r0, r1, r2);
+        }
 
         const size_t row_bytes  = sizeof(l1_buf[0]);     /* COLS_LOAD * ELEM_BYTES  */
         const size_t src_stride = COLS_HBM * ELEM_BYTES; /* HBM row pitch           */
         const size_t dst_stride = sizeof(l1_buf[0]);     /* L1 row pitch (packed)   */
 
-        flex_dma_async_2d(
+        mc_dma_async_2d(
             (uint64_t)(uintptr_t)l1_buf,  /* dst: L1 matrix base              */
             hbm_addr(0),                  /* src: start of HBM matrix A       */
             row_bytes,                    /* size per rep                     */
@@ -55,25 +65,26 @@ int main()
             ROWS                          /* number of repetitions            */
         );
 
-        flex_dma_async_wait_all();
+        mc_dma_async_wait_all();
 
         printf("[2D DMA] After  transfer — first/last element of each loaded row:\n");
         for (int r = 0; r < ROWS; ++r)
         {
+            uint16_t r0 = *(l1_buf + r * COLS_LOAD + 0);
+            uint16_t r1 = *(l1_buf + r * COLS_LOAD + 1);
+            uint16_t r2 = *(l1_buf + r * COLS_LOAD + COLS_LOAD - 1);
             printf("  row %d: 0x%04x 0x%04x ... 0x%04x\n",
-                   r,
-                   l1_buf[r][0],
-                   l1_buf[r][1],
-                   l1_buf[r][COLS_LOAD - 1]);
+              r, r0, r1, r2);
         }
     }
 
     /**************************************/
     /*  Program Execution Region -- Stop  */
     /**************************************/
-    flex_global_barrier_xy();
-    if (flex_get_core_id() == 0 && flex_get_cluster_id() == 0) flex_timer_end();
-    flex_global_barrier_xy();
-    flex_eoc(eoc_val);
+
+    mc_global_barrier_xy();
+    if (mc_get_core_id() == 0 && mc_get_cluster_id() == 0) mc_timer_end();
+    mc_global_barrier_xy();
+    mc_eoc(eoc_val);
     return 0;
 }
