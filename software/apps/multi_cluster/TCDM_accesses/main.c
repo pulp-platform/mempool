@@ -25,7 +25,7 @@ int main()
     {
         volatile uint32_t * local_ptr = (volatile uint32_t *)l1_src_pattern;
         for (int i = 0; i < NUM_ELEMS; ++i)
-            local_ptr[i] = (cid << 16) | i;
+            local_ptr[i] = (cid << 16) | (uint32_t) i;
         
         if (cid == 0){
             printf("[Cluster %d] Wrote local pattern: 0x%08x .. 0x%08x\n", cid, local_ptr[0], local_ptr[NUM_ELEMS - 1]);
@@ -67,7 +67,7 @@ int main()
                xy_buf[0], xy_buf[NUM_ELEMS - 1]);
 
         /* Also demonstrate remote_pos: read cluster at position (0,1) */
-        FlexPosition target_pos;
+        McPosition target_pos;
         target_pos.x = 0;
         target_pos.y = 1;
         volatile uint32_t *pos_buf = (volatile uint32_t *)l1_remote_results[ARCH_NUM_CLUSTER + 1];
