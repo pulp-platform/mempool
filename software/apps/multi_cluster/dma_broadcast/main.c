@@ -13,14 +13,15 @@
  *      aggregates into the global eoc value.
  *
  * The test exercises:
- *   - FLEX_DMA_MODE_BCAST programming path in FlexMemPoolDmaCtrl
+ *   - MC_DMA_MODE_BCAST programming path in FlexMemPoolDmaCtrl
  *   - DMMASK + DMCPYC (collective_type = 1) forwarding to SnitchDma
  *   - Broadcast fan-out across the full ARCH_NUM_CLUSTER_X x ARCH_NUM_CLUSTER_Y mesh
  */
 
-#include "flex_runtime.h"
-#include "flex_dma_pattern.h"
-#include "flex_printf.h"
+#include "mc_runtime.h"
+#include "mc_dma_pattern.h"
+#include "mc_printf.h"
+#include <string.h>
 
 #define TRANSFER_ELEMS  32          /* fp16 elements per transfer */
 #define ELEM_BYTES      sizeof(uint16_t)
@@ -43,35 +44,39 @@ static uint32_t l1_errors[1]             __attribute__((section(".l1"), aligned(
 int main()
 {
     uint32_t eoc_val = 0;
-    flex_barrier_xy_init();
-    flex_global_barrier_xy();
-    if (flex_get_core_id() == 0 && flex_get_cluster_id() == 0) flex_timer_start();
-    flex_global_barrier_xy();
+    mc_barrier_xy_init();
+    mc_global_barrier_xy();
+    if (mc_get_core_id() == 0 && mc_get_cluster_id() == 0) mc_timer_start();
+    mc_global_barrier_xy();
     /**************************************/
     /*  Program Execution Region -- Start */
     /**************************************/
 
-    const uint32_t cid = flex_get_cluster_id();
+    const uint32_t cid = mc_get_cluster_id();
 
     /* Step 1: every cluster pulls the reference pattern from HBM into its l1_src */
-    if (flex_is_dm_core())
+    if (mc_is_dm_core())
     {
-        flex_dma_async_1d((uint64_t)(uintptr_t)l1_src, hbm_addr(0), TRANSFER_BYTES);
-        flex_dma_async_wait_all();
+        mc_dma_async_1d((uint64_t)(uintptr_t)l1_src, hbm_addr(0), TRANSFER_BYTES);
+        mc_dma_async_wait_all();
         l1_errors[0] = 0;
     }
 
     /* Make sure every cluster has its reference loaded before the broadcast fires */
-    flex_global_barrier_xy();
+    mc_global_barrier_xy();
 
     /* Step 2: cluster 0 broadcasts to the full mesh */
-    if (flex_is_dm_core() && cid == 0)
+    if (mc_is_dm_core() && cid == 0)
     {
         printf("[Broadcast] Mesh: %dx%d clusters, %u elems, %u bytes/transfer\n",
                ARCH_NUM_CLUSTER_X, ARCH_NUM_CLUSTER_Y,
                TRANSFER_ELEMS, (uint32_t)TRANSFER_BYTES);
+        uint16_t r0 = *(l1_src + 0);
+        uint16_t r1 = *(l1_src + 1);
+        uint16_t r2 = *(l1_src + 2);
+        uint16_t r3 = *(l1_src + 3);
         printf("[Broadcast] Source l1_src[0..3]: 0x%04x 0x%04x 0x%04x 0x%04x\n",
-               l1_src[0], l1_src[1], l1_src[2], l1_src[3]);
+               r0, r1, r2, r3);
 
         /* Fan-out to the full ARCH_NUM_CLUSTER_X x ARCH_NUM_CLUSTER_Y mesh */
         uint16_t row_mask = BCAST_MASK_ALL;   /* X axis: hit every column */
@@ -92,14 +97,14 @@ int main()
             TRANSFER_BYTES,
             row_mask, col_mask
         );
-        flex_dma_async_wait_all();
+        mc_dma_async_wait_all();
     }
 
     /* Wait until the broadcast has landed in every cluster's L1 */
-    flex_global_barrier_xy();
+    mc_global_barrier_xy();
 
     /* Step 3: each cluster verifies its own l1_dst against the reference l1_src */
-    if (flex_is_dm_core())
+    if (mc_is_dm_core())
     {
         uint32_t errors = 0;
         for (int i = 0; i < TRANSFER_ELEMS; ++i)
@@ -110,10 +115,10 @@ int main()
     }
 
     /* Publish per-cluster results before cluster 0 collects them */
-    flex_global_barrier_xy();
+    mc_global_barrier_xy();
 
     /* Step 4: cluster 0 aggregates per-cluster error counts via remote DMA */
-    if (flex_is_dm_core() && cid == 0)
+    if (mc_is_dm_core() && cid == 0)
     {
         const uint32_t err_offset =
             (uint32_t)((uintptr_t)l1_errors - (uintptr_t)local(0));
@@ -123,15 +128,16 @@ int main()
 
         printf("[Broadcast] After bcast, cluster 0 l1_dst[0..3]: "
                "0x%04x 0x%04x 0x%04x 0x%04x\n",
-               l1_dst[0], l1_dst[1], l1_dst[2], l1_dst[3]);
+               read_u16(&l1_dst[0]), read_u16(&l1_dst[1]),
+               read_u16(&l1_dst[2]), read_u16(&l1_dst[3]));
 
         for (uint32_t rid = 1; rid < ARCH_NUM_CLUSTER; ++rid)
         {
-            flex_dma_async_1d(
+            mc_dma_async_1d(
                 (uint64_t)(uintptr_t)&remote_err,
                 (uint64_t)remote_cid(rid, err_offset),
                 sizeof(remote_err));
-            flex_dma_async_wait_all();
+            mc_dma_async_wait_all();
 
             if (remote_err) failing_clusters++;
             total_errors += remote_err;
@@ -147,9 +153,9 @@ int main()
     /**************************************/
     /*  Program Execution Region -- Stop  */
     /**************************************/
-    flex_global_barrier_xy();
-    if (flex_get_core_id() == 0 && flex_get_cluster_id() == 0) flex_timer_end();
-    flex_global_barrier_xy();
-    flex_eoc(eoc_val);
+    mc_global_barrier_xy();
+    if (mc_get_core_id() == 0 && mc_get_cluster_id() == 0) mc_timer_end();
+    mc_global_barrier_xy();
+    mc_eoc(eoc_val);
     return 0;
 }
