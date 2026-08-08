@@ -17,6 +17,7 @@ module idma_split_midend #(
   parameter int unsigned NumTiles          = 64,
   parameter int unsigned NumBanksPerTile   = 32,
   parameter int unsigned TCDMSizePerBank   = 1024,
+  parameter int unsigned RowsInterleavingWidth = $clog2(TCDMSizePerBank) - 2,
   parameter int unsigned NumDASPartitions  = 4,
   parameter int unsigned DASStartAddr      = 1024,
   parameter int unsigned NumTilesPerDma    = 16,
@@ -30,8 +31,8 @@ module idma_split_midend #(
   // DAS signals
   input  logic [NumDASPartitions-1:0][$clog2(NumTiles):0] tiles_das_i,
   input  logic [NumDASPartitions-1:0][AddrWidth-1:0]      start_das_i,
-  input  logic [NumDASPartitions-1:0][$clog2(NumTiles):0] rows_das_i,
-  output logic [$clog2(NumTiles):0]                       rows_das_o,
+  input  logic [NumDASPartitions-1:0][RowsInterleavingWidth-1:0] rows_das_i,
+  output logic [RowsInterleavingWidth:0]                         rows_das_o,
 `endif
   // Slave
   input  burst_req_t burst_req_i,
@@ -80,7 +81,7 @@ module idma_split_midend #(
   logic [AddrWidth-1:0] post_scramble_src;
   logic [AddrWidth-1:0] post_scramble_dst;
   logic [$clog2(NumTiles):0] tiles_das_src,   tiles_das_dst,   tiles_das_sel;
-  logic [$clog2(NumTiles):0] rows_das_src, rows_das_dst, rows_das_sel;
+  logic [RowsInterleavingWidth:0] rows_das_src, rows_das_dst, rows_das_sel;
 
   assign tiles_das_sel   = tiles_das_src   | tiles_das_dst;
   assign rows_das_sel = rows_das_src | rows_das_dst;
@@ -90,8 +91,10 @@ module idma_split_midend #(
     .AddrWidth        (AddrWidth       ),
     .NumTiles         (NumTiles        ),
     .NumBanksPerTile  (NumBanksPerTile ),
+    .RowsInterleavingWidth (RowsInterleavingWidth),
     .Bypass           (0               ),
     .NumDASPartitions (NumDASPartitions),
+    .DASStartAddr     (DASStartAddr    ),
     .TCDMSizePerBank  (TCDMSizePerBank )
   ) i_idma_address_scrambler_src (
     .address_i          (burst_req_i.src),
@@ -108,8 +111,10 @@ module idma_split_midend #(
     .AddrWidth        (AddrWidth       ),
     .NumTiles         (NumTiles        ),
     .NumBanksPerTile  (NumBanksPerTile ),
+    .RowsInterleavingWidth (RowsInterleavingWidth),
     .Bypass           (0               ),
     .NumDASPartitions (NumDASPartitions),
+    .DASStartAddr     (DASStartAddr    ),
     .TCDMSizePerBank  (TCDMSizePerBank )
   ) i_idma_address_scrambler_dst (
     .address_i          (burst_req_i.dst),
@@ -173,7 +178,7 @@ module idma_split_midend #(
   `FFARN(beat_cnt_q, beat_cnt_d, '0, clk_i, rst_ni)
 
   // log2(rows_das_sel): number of row-index bits in the active partition
-  logic [$clog2(NumTiles):0] log2_rows;
+  logic [$clog2(RowsInterleavingWidth+1)-1:0] log2_rows;
   // Bitmask to extract row index from the beat counter (lower log2_rows bits)
   logic [$clog2(NumTiles):0] row_idx_mask;
   // Current row index within the partition (0 .. rows_das-1)
@@ -182,7 +187,7 @@ module idma_split_midend #(
   logic [$clog2(NumTiles):0] col_idx;
 
   lzc #(
-    .WIDTH ($clog2(NumTiles)+1),
+    .WIDTH (RowsInterleavingWidth+1),
     .MODE  (1'b0              )
   ) i_log2_rows (
     .in_i    (rows_das_sel),

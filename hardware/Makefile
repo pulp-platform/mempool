@@ -48,6 +48,8 @@ python          ?= python3
 buildpath       ?= build
 # Result path
 resultpath      ?= results
+# Two-stage benchmark/plotting workflow; see scripts/trace_analysis/README.md.
+include $(ROOT_DIR)/scripts/trace_analysis/benchmark.mk
 result_dir      := $(if $(strip $(result_dir)),$(result_dir),$(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)"))
 # Traces
 snitch_trace    ?= 1
@@ -67,6 +69,7 @@ questa_args += -sv_lib $(dramsys_lib_path)/libsystemc -sv_lib $(dramsys_lib_path
 app_path ?= $(abspath $(ROOT_DIR)/../software/bin)
 ifdef app
   preload := "$(app_path)/$(app)"
+  ifeq ($(skip_app_validation),)
   ifeq ("$(shell test -f $(preload))","")
     # The file doesn't exist, let's search for the app in the bin folder
     # since we might just be missing the hierarchy
@@ -80,6 +83,7 @@ ifdef app
     else
       $(error "Multiple apps ($(app)) found in bin dir $(app_path): $(search_app)")
     endif
+  endif
   endif
 endif
 
@@ -120,12 +124,26 @@ vlog_defs   += -DL1_BANK_SIZE=$(l1_bank_size)
 vlog_defs   += -DBOOT_ADDR=32\'d$(boot_addr)
 vlog_defs   += -DDAS=$(das)
 vlog_defs   += -DNUM_DAS_PARTITIONS=$(num_das_partitions)
+ifeq ($(das),1)
+vlog_defs   += -DDAS_MEM_SIZE=$(das_mem_size)
+endif
+ifeq ($(back2local),1)
+vlog_defs   += -DBACK2LOCAL
+ifeq ($(config),terapool)
+ifeq ($(back2local_tera_group),1)
+vlog_defs   += -DBACK2LOCAL_TERA_GROUP
+endif
+endif
+endif
 # Snitch ISA
 vlog_defs   += -DXPULPIMG=$(xpulpimg)
 vlog_defs   += -DZFINX=$(zfinx)
 vlog_defs   += -DZQUARTERINX=$(zquarterinx)
 vlog_defs   += -DXDIVSQRT=$(xDivSqrt)
 vlog_defs   += -DSNITCH_TRACE=$(snitch_trace)
+ifeq ($(tcdm_addr_trace),1)
+vlog_defs   += -DTCDM_ADDR_TRACE
+endif
 # AXI & DMA
 vlog_defs   += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs   += -DRO_LINE_WIDTH=$(ro_line_width)
@@ -255,7 +273,7 @@ simvcs: compile_vcs_simv
 	cd $(buildpath) && \
 	./mempool_simv $(vcs_args) -ucli -do ../scripts/vcs/run.tcl -gui
 
-simcvcs: compile_vcs_simvopt
+simcvcs: clean-dasm compile_vcs_simvopt
 	cd $(buildpath) && \
 	./mempool_simvopt $(vcs_args)
 
@@ -359,24 +377,51 @@ spyglass/tmp/files: $(bender)
 
 # Give configuration in env
 trace_env += NUM_CORES=$(num_cores)
+trace_env += NUM_CORES_PER_TILE=$(num_cores_per_tile)
 trace_env += SEQ_MEM_SIZE=$(seq_mem_size)
+trace_env += BANKING_FACTOR=$(banking_factor)
+trace_env += L1_BANK_SIZE=$(l1_bank_size)
+
+# Per-hart CSV parts, merged by post_trace; `make benchmark` skips the
+# .trace copies into result_dir (copy_traces=0).
+tracepartspath ?= $(tracepath)/results_parts
+copy_traces    ?= 1
 
 trace: pre_trace $(trace) post_trace
 
+# Order pre_trace -> per-hart traces -> post_trace under `make -j`.
+$(trace): | pre_trace
+post_trace: $(trace)
+
 pre_trace:
 	rm -rf $(tracepath)
+	rm -f $(buildpath)/trace_hart_*.trace
 
 post_trace:
 	mkdir -p "$(result_dir)"
 	cp $(buildpath)/transcript "$(result_dir)/" | true
+	$(python) $(ROOT_DIR)/scripts/merge_trace_csvs.py \
+		--folder "$(tracepartspath)" \
+		--expected-count "$(words $(trace))" \
+		--csv "$(traceresult)"
 	cp $(traceresult) "$(result_dir)"
+ifeq ($(copy_traces),1)
 	cp $(trace) "$(result_dir)"
+endif
 	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(result_dir)/avg.txt
 
 $(buildpath)/%.trace: $(buildpath)/%.dasm
-	mkdir -p $(tracepath)
+	mkdir -p $(tracepath) $(tracepartspath)
+ifeq ($(tcdm_addr_trace),1)
+	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*.raw
+	$(python) $(ROOT_DIR)/scripts/merge_tcdm_trace.py \
+		$(tracepath)/$*.raw $(buildpath)/tcdm_addr_hart_$(patsubst trace_hart_%,%,$*).csv \
+		> $(tracepath)/$*
+	rm -f $(tracepath)/$*.raw
+else
 	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
-	$(trace_env) $(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
+endif
+	$(trace_env) $(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(tracepartspath)/$*.csv $(tracepath)/$* > $@
 
 tracevis:
 	$(MEMPOOL_DIR)/scripts/tracevis.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json
@@ -435,7 +480,7 @@ clean:
 	@rm -rf $(verilator_build)
 
 clean-dasm:
-	rm -rf $(buildpath)/*.dasm
+	rm -rf $(buildpath)/*.dasm $(buildpath)/tcdm_addr_hart_*.csv
 
 clean-trace:
 	rm -rf $(buildpath)/*.trace

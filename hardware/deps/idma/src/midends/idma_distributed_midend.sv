@@ -20,8 +20,8 @@ module idma_distributed_midend #(
   /// Number of generic 1D requests that can be buffered
   parameter int unsigned TransFifoDepth = 1,
 `ifdef DAS
-  parameter int unsigned NumTiles          = 64,
   parameter int unsigned NumDASPartitions  = 4,
+  parameter int unsigned RowsWidth,
 `endif
   /// Arbitrary 1D burst request definition
   parameter type         burst_req_t    = logic,
@@ -32,7 +32,7 @@ module idma_distributed_midend #(
   input  logic                            rst_ni,
 `ifdef DAS
   // DAS signals
-  input  logic       [$clog2(NumTiles):0] rows_das_i,
+  input  logic       [RowsWidth-1:0] rows_das_i,
 `endif
   // Slave
   input  burst_req_t                      burst_req_i,

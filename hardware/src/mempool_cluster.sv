@@ -89,7 +89,7 @@ module mempool_cluster
   logic      [NumGroups-1:0] dma_req_group_valid, dma_req_group_q_valid;
   logic      [NumGroups-1:0] dma_req_group_ready, dma_req_group_q_ready;
   dma_meta_t [NumGroups-1:0] dma_meta, dma_meta_q;
-  logic      [RowsInterleavingWidth-1:0] dma_rows_das;
+  logic      [RowsInterleavingWidth:0] dma_rows_das;
 
   `FF(dma_meta_q, dma_meta, '0, clk_i, rst_ni);
 
@@ -103,6 +103,7 @@ module mempool_cluster
     .NumTiles          (NumTiles                    ),
     .NumBanksPerTile   (NumBanksPerTile             ),
     .TCDMSizePerBank   (TCDMSizePerBank             ),
+    .RowsInterleavingWidth (RowsInterleavingWidth    ),
     .NumDASPartitions  (NumDASPartitions            ),
     .NumTilesPerDma    (NumTilesPerDma              ),
     .DASStartAddr      (DASStartAddr                )
@@ -131,8 +132,8 @@ module mempool_cluster
     .DmaRegionStart (TCDMBaseAddr         ),
     .DmaRegionEnd   (TCDMBaseAddr+TCDMSize),
     .TransFifoDepth (16                   ),
-    .NumTiles       (NumTiles             ),
     .NumDASPartitions  (NumDASPartitions  ),
+    .RowsWidth      (RowsInterleavingWidth + 1),
     .burst_req_t    (dma_req_t            ),
     .meta_t         (dma_meta_t           )
   ) i_idma_distributed_midend (

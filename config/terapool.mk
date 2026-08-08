@@ -30,6 +30,11 @@ num_divsqrt_per_tile ?= 2
 # L1 scratchpad banking factor
 banking_factor ?= 4
 
+# Also use group-level ports for same-subgroup Back2Local requests.
+# Requires back2local=1 and more than one subgroup per group. This may
+# contend with inter-group traffic.
+back2local_tera_group ?= 0
+
 # Access latency between remote groups
 # Options: "7", "9" or "11":
 remote_group_latency_cycles ?= 7

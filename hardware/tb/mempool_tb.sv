@@ -6,6 +6,42 @@ import "DPI-C" function void read_elf (input string filename);
 import "DPI-C" function byte get_section (output longint address, output longint len);
 import "DPI-C" context function byte read_section(input longint address, inout byte buffer[]);
 
+// Per-hart TCDM address trace. It records the physical address of each accepted
+// LSU request. The assertion checks that it stays aligned with the real scrambler.
+`ifdef TCDM_ADDR_TRACE
+module mempool_tcdm_addr_tracer
+  import mempool_pkg::*;
+#(
+  parameter int unsigned HartId = 0
+) (
+  input logic                       clk_i,
+  input logic                       rst_ni,
+  input logic                       valid_i,
+  input logic [63:0]                cycle_i,
+  input logic [AddrWidth-1:0]       lsu_addr_i,
+  input logic [AddrWidth-1:0]       scrambler_addr_i,
+  input logic [AddrWidth-1:0]       tcdm_addr_i
+);
+  int f;
+  string fn;
+
+  initial begin
+    $sformat(fn, "tcdm_addr_hart_0x%08x.csv", HartId);
+    f = $fopen(fn, "w");
+  end
+
+  always_ff @(posedge clk_i) begin
+    if (rst_ni && valid_i) begin
+      assert (scrambler_addr_i == {lsu_addr_i[AddrWidth-1:2], 2'b0})
+        else $fatal(1, "TCDM trace misalignment for hart %0d at cycle %0d", HartId, cycle_i);
+      $fwrite(f, "%0d,0x%08x\n", cycle_i, tcdm_addr_i);
+    end
+  end
+
+  final $fclose(f);
+endmodule
+`endif
+
 `define wait_for(signal) \
   do \
     @(posedge clk); \
@@ -198,7 +234,21 @@ module mempool_tb;
       for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_wfi_sub_groups
         for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_wfi_tiles
           for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_wfi_cores
-            assign wfi[g*NumSubGroupsPerGroup*NumTilesPerSubGroup*NumCoresPerTile + sg*NumTilesPerSubGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+            localparam int unsigned HartId = g*NumSubGroupsPerGroup*NumTilesPerSubGroup*NumCoresPerTile + sg*NumTilesPerSubGroup*NumCoresPerTile + t*NumCoresPerTile + c;
+            assign wfi[HartId] = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+            `ifdef TCDM_ADDR_TRACE
+            mempool_tcdm_addr_tracer #(
+              .HartId(HartId)
+            ) i_tcdm_addr_tracer (
+              .clk_i    (clk),
+              .rst_ni   (rst_n),
+              .valid_i  (dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.lsu_qvalid && dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.lsu_qready),
+              .cycle_i  (dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.cycle),
+              .lsu_addr_i(dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.lsu_qaddr),
+              .scrambler_addr_i(dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_core_mux[c].i_address_scrambler.address_i),
+              .tcdm_addr_i(dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_core_mux[c].snitch_data_qaddr_scrambled)
+            );
+            `endif
           end: gen_wfi_cores
         end: gen_wfi_tiles
       end: gen_wfi_sub_groups
@@ -207,7 +257,21 @@ module mempool_tb;
     for (genvar g = 0; g < NumGroups; g++) begin: gen_wfi_groups
       for (genvar t = 0; t < NumTilesPerGroup; t++) begin: gen_wfi_tiles
         for (genvar c = 0; c < NumCoresPerTile; c++) begin: gen_wfi_cores
-          assign wfi[g*NumTilesPerGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+          localparam int unsigned HartId = g*NumTilesPerGroup*NumCoresPerTile + t*NumCoresPerTile + c;
+          assign wfi[HartId] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+          `ifdef TCDM_ADDR_TRACE
+          mempool_tcdm_addr_tracer #(
+            .HartId(HartId)
+          ) i_tcdm_addr_tracer (
+            .clk_i    (clk),
+            .rst_ni   (rst_n),
+            .valid_i  (dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.lsu_qvalid && dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.lsu_qready),
+            .cycle_i  (dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.cycle),
+            .lsu_addr_i(dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.lsu_qaddr),
+            .scrambler_addr_i(dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_core_mux[c].i_address_scrambler.address_i),
+            .tcdm_addr_i(dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_core_mux[c].snitch_data_qaddr_scrambled)
+          );
+          `endif
         end: gen_wfi_cores
       end: gen_wfi_tiles
     end: gen_wfi_groups

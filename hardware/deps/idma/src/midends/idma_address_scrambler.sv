@@ -17,6 +17,7 @@ module idma_address_scrambler #(
   parameter int unsigned NumTiles          = 128,
   parameter int unsigned NumBanksPerTile   = 32,
   parameter int unsigned TCDMSizePerBank   = 1024,
+  parameter int unsigned RowsInterleavingWidth = $clog2(TCDMSizePerBank) - ByteOffset,
   parameter int unsigned NumDASPartitions  = 4,
   parameter int unsigned DASStartAddr      = 1024,
   parameter int unsigned MemSizePerTile    = NumBanksPerTile*TCDMSizePerBank,
@@ -25,10 +26,10 @@ module idma_address_scrambler #(
   input  logic [AddrWidth-1:0]                            address_i,
   input  logic [31:0]                                     num_bytes_i,
   input  logic [NumDASPartitions-1:0][$clog2(NumTiles):0] tiles_das_i,
-  input  logic [NumDASPartitions-1:0][$clog2(NumTiles):0] rows_das_i,
+  input  logic [NumDASPartitions-1:0][RowsInterleavingWidth-1:0] rows_das_i,
   input  logic [NumDASPartitions-1:0][DataWidth-1:0]      start_das_i,
   output logic [$clog2(NumTiles):0]                       tiles_das_o,
-  output logic [$clog2(NumTiles):0]                       rows_das_o,
+  output logic [RowsInterleavingWidth:0]                  rows_das_o,
   output logic [AddrWidth-1:0]                            address_o
 );
   // Basic Settings
@@ -45,7 +46,7 @@ module idma_address_scrambler #(
     // `tile_index` : how many bits to shift for TileID bits in each partition
     // `row_index`: how many bits need to swap within Row Index
     logic [NumDASPartitions-1:0][$clog2($clog2(NumTiles)+1)-1:0] tile_index;
-    logic [NumDASPartitions-1:0][$clog2($clog2(NumTiles)+1)-1:0] row_index;
+    logic [NumDASPartitions-1:0][$clog2(RowsInterleavingWidth)-1:0] row_index;
 
     for (genvar i = 0; i < NumDASPartitions; i++) begin : gen_shift_index
       lzc #(
@@ -57,12 +58,12 @@ module idma_address_scrambler #(
         .empty_o (/* Unused */     )
       );
       lzc #(
-        .WIDTH ($clog2(NumTiles)+1),
+        .WIDTH (RowsInterleavingWidth),
         .MODE  (1'b0            )
       ) i_log_row_index (
-        .in_i    (rows_das_i[i][$clog2(NumTiles):0]),
-        .cnt_o   (row_index[i]                           ),
-        .empty_o (/* Unused */                           )
+        .in_i    (rows_das_i[i]),
+        .cnt_o   (row_index[i] ),
+        .empty_o (/* Unused */  )
       );
     end
 

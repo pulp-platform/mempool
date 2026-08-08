@@ -35,6 +35,25 @@ you can use the following command to make git pick up tracking the file again:
 git update-index --no-assume-unchanged config/config.mk
 ```
 
+## Back2Local
+
+Back2Local reuses upper-level tile ports for TCDM requests that remain in the
+source group or subgroup. It changes the route to memory, not the address
+mapping, and can be used with or without DAS.
+
+| Variable                | Default | Description                                |
+|-------------------------|---------|--------------------------------------------|
+| `back2local`            | `0`     | Enable Back2Local for the selected setup   |
+| `back2local_tera_group` | `0`     | Also use TeraPool's group-level tile ports |
+
+For TeraPool, `back2local=1` uses the subgroup-level ports by default. Setting
+`back2local_tera_group=1` also makes the group-level ports available and may
+contend with inter-group traffic.
+
+The current port selection uses the core index modulo the available ports. It
+is a simple baseline policy that can be adapted in
+`hardware/src/mempool_tile.sv`.
+
 ## Dynamic Address Scrambling (DAS)
 
 Dynamic Address Scrambling (DAS) is a runtime-configurable address mapping

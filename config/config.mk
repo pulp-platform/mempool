@@ -79,6 +79,11 @@ num_das_partitions ?= 4
 # Size of DAS-heap per core
 das_mem_size ?= 2048
 
+# Enable Back2Local rerouting for the selected topology.
+# The core-index modulo port selection in mempool_tile.sv is a placeholder,
+# not an optimized routing policy. Adapt it to the target traffic pattern.
+back2local ?= 0
+
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
 remote_group_latency_cycles ?= 7

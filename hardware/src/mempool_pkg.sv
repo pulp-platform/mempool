@@ -251,6 +251,9 @@ package mempool_pkg;
     meta_id_t meta_id;
     tile_core_id_t core_id;
     amo_t amo;
+  `ifdef BACK2LOCAL
+    logic back2local;
+  `endif
     data_t data;
   } tcdm_payload_t;
 

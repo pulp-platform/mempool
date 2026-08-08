@@ -163,8 +163,10 @@ app=hello_world make simc
 make trace
 # Generate a visualization of the traces
 app=hello_world make tracevis
-# Automatically run the benchmark (headless), extract the traces, and log the results
-app=hello_world make benchmark
+# Benchmark and plot an app bracketed by mempool_start_benchmark() and
+# mempool_stop_benchmark(); see hardware/scripts/trace_analysis/README.md.
+app=matmul_i32 make benchmark
+app=matmul_i32 make plots
 ```
 
 You can set up the configuration of the system in the file `config/config.mk`, controlling the total number of cores, the number of cores per tile and whether the Xpulpimg extension is enabled or not in the Snitch core; the `xpulpimg` parameter also control the default core architecture considered when compiling applications for MemPool.

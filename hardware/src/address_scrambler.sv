@@ -110,7 +110,6 @@ module address_scrambler #(
           if ( (address_i >= start_das_i[p]) && (address_i < start_das_i[p]+MemSizePerRow*rows_das_i[p]) && (tiles_das_i[p] != NumTiles) ) begin
 
             lsb_addr[p]       = address_i & ((1 << (tile_bits[p]+ConstantBitsLSB)) - 1);
-            msb_addr[p]       = address_i & ~((1 << (row_bits[p]+TileIdBits+ConstantBitsLSB)) - 1);
 
             // Narrow subtract: extract the row-index field from the partition
             // start address (masked to row_bits width via rows_das-1), then
@@ -122,6 +121,8 @@ module address_scrambler #(
             aligned_addr[p][RowFieldLSB +: MaxPartitionRowWidth] =
                 address_i[RowFieldLSB +: MaxPartitionRowWidth] - start_row_field[p];
 
+            // Derive every permuted field from the partition-relative address.
+            msb_addr[p]     = aligned_addr[p] & ~((1 << (row_bits[p]+TileIdBits+ConstantBitsLSB)) - 1);
             prt_addr[p]     = (aligned_addr[p] >> row_bits[p]                )  & (((1 << (TileIdBits - tile_bits[p])) - 1) << (ConstantBitsLSB + tile_bits[p]));
             row_addr[p]     = (aligned_addr[p] << (TileIdBits - tile_bits[p]))  & (((1 << (row_bits[p])              ) - 1) << (TileIdBits + ConstantBitsLSB  ));
             address_o       = msb_addr[p] | row_addr[p] | prt_addr[p] | lsb_addr[p];

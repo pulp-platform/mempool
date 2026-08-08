@@ -74,23 +74,39 @@ MEM_REGIONS = {'Other': 0, 'Sequential': 1, 'Interleaved': 2}
 RAW_TYPES = ['lsu', 'acc']
 
 # ----------------- Architecture Info  -----------------
-NUM_CORES = int(os.environ.get('num_cores', 256))
-NUM_TILES = NUM_CORES / 4
-SEQ_MEM_SIZE = 4 * int(os.environ.get('seq_mem_size', 1024))
-TCDM_SIZE = 16 * 1024 * NUM_TILES
 
 
-def addr_to_meta(address):
+def env_int(name, default):
+    # Keep direct legacy invocations using lowercase variable names working.
+    return int(os.environ.get(name, os.environ.get(name.lower(), default)))
+
+
+NUM_CORES = env_int('NUM_CORES', 256)
+NUM_CORES_PER_TILE = env_int('NUM_CORES_PER_TILE', 4)
+BANKING_FACTOR = env_int('BANKING_FACTOR', 4)
+L1_BANK_SIZE = env_int('L1_BANK_SIZE', 1024)
+NUM_TILES = NUM_CORES // NUM_CORES_PER_TILE
+NUM_BANKS_PER_TILE = NUM_CORES_PER_TILE * BANKING_FACTOR
+INTERLEAVE_STRIDE = 4 * NUM_BANKS_PER_TILE
+SEQ_MEM_SIZE = NUM_CORES_PER_TILE * env_int('SEQ_MEM_SIZE', 1024)
+TCDM_SIZE = NUM_BANKS_PER_TILE * L1_BANK_SIZE * NUM_TILES
+
+
+def addr_to_meta(address, tcdm_address=None):
+    # The logical address selects the region; the observed TCDM address
+    # selects the actual destination tile when DAS remaps the request.
     region = MEM_REGIONS['Other']
     tile = -1
     if (address < SEQ_MEM_SIZE * NUM_TILES):
         # Local memory
         region = MEM_REGIONS['Sequential']
-        tile = address // SEQ_MEM_SIZE
+        tile = (address // SEQ_MEM_SIZE if tcdm_address is None else
+                (tcdm_address // INTERLEAVE_STRIDE) % NUM_TILES)
     elif (address < TCDM_SIZE):
         # Interleaved memory
         region = MEM_REGIONS['Interleaved']
-        tile = address // 64
+        tile = ((address if tcdm_address is None else tcdm_address) //
+                INTERLEAVE_STRIDE)
         tile = tile % NUM_TILES
     return region, tile
 
@@ -188,7 +204,8 @@ def annotate_snitch(
         # Load / Store
         if extras['is_load']:
             perf_metrics[-1]['snitch_loads'] += 1
-            gpr_wb_info[extras['rd']].appendleft((cycle, extras['alu_result']))
+            gpr_wb_info[extras['rd']].appendleft((
+                cycle, extras['alu_result'], extras.get('tcdm_addr')))
             ret.append('{:<3} <~~ {}[{}]'.format(
                 REG_ABI_NAMES_I[extras['rd']], LS_SIZES[extras['ls_size']],
                 int_lit(extras['alu_result'], force_hex=force_hex_addr)))
@@ -197,7 +214,8 @@ def annotate_snitch(
             ret.append('{} ~~> {}[{}]'.format(
                 int_lit(extras['gpr_rdata_1']), LS_SIZES[extras['ls_size']],
                 int_lit(extras['alu_result'], force_hex=force_hex_addr)))
-            region, tile = addr_to_meta(extras['alu_result'])
+            region, tile = addr_to_meta(
+                extras['alu_result'], extras.get('tcdm_addr'))
             perf_metrics[-1].setdefault('snitch_store_region',
                                         []).append(region)
             perf_metrics[-1].setdefault('snitch_store_tile',
@@ -215,8 +233,9 @@ def annotate_snitch(
     # stall and during other ops
     if extras['retire_load']:
         try:
-            start_time, address = gpr_wb_info[extras['lsu_rd']].pop()
-            region, tile = addr_to_meta(address)
+            start_time, address, tcdm_address = \
+                gpr_wb_info[extras['lsu_rd']].pop()
+            region, tile = addr_to_meta(address, tcdm_address)
             perf_metrics[-1].setdefault('snitch_load_latency',
                                         []).append(cycle - start_time)
             perf_metrics[-1].setdefault('snitch_load_region',
@@ -284,7 +303,7 @@ def annotate_snitch(
 
 def annotate_insn(
     line: str,
-    # One deque (FIFO) per GPR storing start cycles for each GPR WB
+    # One deque (FIFO) per GPR storing metadata for each pending load
     gpr_wb_info: dict,
     # A list performance metric dicts
     perf_metrics: list,
@@ -348,7 +367,7 @@ def safe_div(dividend, divisor):
 
 
 def eval_perf_metrics(perf_metrics: list, id: int):
-    tile_id = int(id // 4)
+    tile_id = int(id // NUM_CORES_PER_TILE)
     for seg in perf_metrics:
         end = seg['end']
         cycles = end - seg['start'] + 1
