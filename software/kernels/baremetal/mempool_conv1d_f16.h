@@ -42,29 +42,35 @@ void im2col1d_f16(__fp16 const *__restrict__ X, __fp16 *__restrict__ X_im2col,
       Out[2 * Wi + (Wi - 2)] = X[i * Wi + Wi - 1];
       Out[2 * Wi + (Wi - 1)] = (__fp16)0;
     }
-    mempool_barrier(num_cores);
 
   } else {
 
     uint32_t pad = Wf / 2;
     uint32_t i, k; // row, filter
-    uint32_t j;    // column
 
     for (uint32_t i_out = core_id; i_out < Ci * Wf; i_out += num_cores) {
       i = i_out / Wf;
       k = i_out % Wf;
-      for (uint32_t j_out = 0; j_out < Wi; j_out++) {
-        j = j_out + k;
-        if (j >= pad && j < (Wi + pad)) {
-          j -= pad;
-          volatile __fp16 x = X[i * Wi + j];
-          X_im2col[i_out * Wi + j_out] = x;
-        } else {
-          X_im2col[i_out * Wi + j_out] = (__fp16)0;
-        }
+      __fp16 *__restrict__ Out = &X_im2col[i_out * Wi];
+      __fp16 const *__restrict__ In = &X[i * Wi];
+      // Splitting the padding out of the loop, instead of branching on every
+      // j_out, leaves a plain shifted copy for the interior -- no per-element
+      // branch.
+      uint32_t j_out = 0;
+      uint32_t lead_zeros = (k < pad) ? (pad - k) : 0;
+      lead_zeros = lead_zeros < Wi ? lead_zeros : Wi;
+      for (; j_out < lead_zeros; j_out++) {
+        Out[j_out] = (__fp16)0;
+      }
+      uint32_t trail_zeros = (k > pad) ? (k - pad) : 0;
+      uint32_t copy_end = trail_zeros < Wi ? (Wi - trail_zeros) : j_out;
+      for (; j_out < copy_end; j_out++) {
+        Out[j_out] = In[j_out + k - pad];
+      }
+      for (; j_out < Wi; j_out++) {
+        Out[j_out] = (__fp16)0;
       }
     }
-    mempool_barrier(num_cores);
   }
 
   return;
@@ -94,6 +100,7 @@ void conv1d_f16(__fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
 
     // Transformation
     im2col1d_f16(X, X_im2col, B * Ci, Wi, Wf, core_id, num_cores);
+    mempool_barrier(num_cores);
     mempool_stop_benchmark();
 
     mempool_start_benchmark();
