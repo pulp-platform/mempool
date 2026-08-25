@@ -7,26 +7,26 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "mc_runtime.h"
 #include "mc_printf.h"
+#include "mc_runtime.h"
 
 volatile uint32_t turn __attribute__((section(".l1")));
 
-#define CLUSTER_HELLOWORLD(ID)({           \
-  if (mc_id == ID) {                       \
-    while (core_id != turn) {              \
-      mempool_wfi();                       \
-    }                                      \
-    printf("Core[%3d][%3d] says Hello!\n", \
-           core_id, mc_id);                \
-    turn++;                                \
-    wake_up_all();                         \
-    while (num_cores != turn) {            \
-      mempool_wfi();                       \
-    }                                      \
-    mc_intra_cluster_sync();               \
-  }                                        \
-  mc_global_barrier_xy();                  \
+#define CLUSTER_HELLOWORLD(ID)                                                 \
+  ({                                                                           \
+    if (mc_id == ID) {                                                         \
+      while (core_id != turn) {                                                \
+        mempool_wfi();                                                         \
+      }                                                                        \
+      printf("Core[%3d][%3d] says Hello!\n", core_id, mc_id);                  \
+      turn++;                                                                  \
+      wake_up_all();                                                           \
+      while (num_cores != turn) {                                              \
+        mempool_wfi();                                                         \
+      }                                                                        \
+      mc_intra_cluster_sync();                                                 \
+    }                                                                          \
+    mc_global_barrier_xy();                                                    \
   })
 
 int main() {
