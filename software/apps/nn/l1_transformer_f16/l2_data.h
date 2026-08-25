@@ -24,13 +24,18 @@ __fp16 l1_T1[BEAM * EMBED * 3 * TDSAMPLES]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_T2[BEAM * EMBED * 3 * TDSAMPLES]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_T3[BEAM * EMBED * CONV1D_WF * TDSAMPLES]
+
+// Attention-score and attention-weights matrices.
+__fp16 l1_As[EMBED * BEAM * BEAM]
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_Aw[EMBED * BEAM * BEAM]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 
-__fp16 l1_T4[EMBED * BEAM * BEAM]
+// Used for Im2col transformations.
+__fp16 l1_T3[BEAM * (2 * EMBED) * TDSAMPLES * CONV1D_WF]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_T5[EMBED * BEAM * BEAM]
-    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+
+
 
 __fp16 l1_F[EMBED * 3 * EMBED * CONV1D_WF]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
