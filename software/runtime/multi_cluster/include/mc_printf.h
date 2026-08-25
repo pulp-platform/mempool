@@ -32,11 +32,11 @@
 #ifndef _PRINTF_H_
 #define _PRINTF_H_
 
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include "mc_cluster_arch.h"
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 // #define PRINTF_DISABLE_SUPPORT_FLOAT
 // #define PRINTF_DISABLE_SUPPORT_LONG_LONG
@@ -50,9 +50,10 @@ extern "C" {
  * function This function is declared here only. You have to write your custom
  * implementation somewhere \param character Character to output
  */
-void _putchar(char character){
-    volatile uint32_t * uart_reg = (volatile uint32_t *)(ARCH_SOC_REGISTER_EOC + 16);
-    * uart_reg = character;
+void _putchar(char character) {
+  volatile uint32_t *uart_reg =
+      (volatile uint32_t *)(ARCH_SOC_REGISTER_EOC + 16);
+  *uart_reg = character;
 };
 
 /**
@@ -857,6 +858,5 @@ int fctprintf(void (*out)(char character, void *arg), void *arg,
   va_end(va);
   return ret;
 }
-
 
 #endif // _PRINTF_H_
