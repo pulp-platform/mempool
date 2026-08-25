@@ -12,13 +12,14 @@ Dynamic memory allocation based on linked list of free memory blocks
 #ifndef _MC_ALLOC_H_
 #define _MC_ALLOC_H_
 
-#include <stdint.h>
-#include "mc_printf.h"
 #include "mc_cluster_arch.h"
+#include "mc_printf.h"
+#include <stdint.h>
 
 /*
 Desc: Free-memory-block indicator
-@var: (unit32_t)               size -- capacity of the free memory block (in bytes)
+@var: (unit32_t)               size -- capacity of the free memory block (in
+bytes)
 @var: (struct alloc_block_s *) next -- pointer to the next free memory block
 */
 typedef struct alloc_block_s {
@@ -28,23 +29,23 @@ typedef struct alloc_block_s {
 
 /*
 Desc: Allocator data structure
-@var: (alloc_block_t *) first block -- pointer to the first free memory block 
+@var: (alloc_block_t *) first block -- pointer to the first free memory block
 */
 typedef struct {
   alloc_block_t *first_block;
 } alloc_t;
 
-
 /********************
-*  Initialization   *
-********************/
+ *  Initialization   *
+ ********************/
 
-// Initialize the first free-memory-block indicator, and set up the pointer in the allocator
+// Initialize the first free-memory-block indicator, and set up the pointer in
+// the allocator
 void mc_cluster_alloc_init(alloc_t *alloc, void *base, const uint32_t size);
 
 /***************
-*  Allocation  *
-***************/
+ *  Allocation  *
+ ***************/
 
 // Memory alllocation with programmer-specified allocator
 void *domain_malloc(alloc_t *alloc, const uint32_t size);
@@ -53,10 +54,9 @@ void *domain_malloc(alloc_t *alloc, const uint32_t size);
 void *mc_l1_malloc(const uint32_t size);
 void *mc_hbm_malloc(const uint32_t size);
 
-
 /******************
-*  De-allocation  *
-******************/
+ *  De-allocation  *
+ ******************/
 
 // De-allocation with programmer-specified allocator
 void domain_free(alloc_t *alloc, void *const ptr);
@@ -66,8 +66,8 @@ void mc_l1_free(void *const ptr);
 void mc_hbm_free(void *const ptr);
 
 /*********************
-*  Helper functions  *
-*********************/
+ *  Helper functions  *
+ *********************/
 
 // Return the address of the default l1 heap allocator
 alloc_t *mc_get_allocator_l1();
@@ -76,11 +76,9 @@ alloc_t *mc_get_allocator_hbm();
 // [debug] print all free-memory-blocks in l1 heap
 void mc_dump_heap();
 
-
-
 /********************
-*  Implementations  *
-********************/
+ *  Implementations  *
+ ********************/
 
 // Block Alignment
 #define MIN_BLOCK_SIZE (uint32_t)sizeof(alloc_block_t)
@@ -101,11 +99,10 @@ volatile alloc_t alloc_l1 __attribute__((section(".l1_prio")));
 // bowwng: allocator for HBM
 volatile alloc_t alloc_hbm __attribute__((section(".hbm_prio")));
 
-
 /*
- Canary System based on LSBs of block pointer   
- |     size     |  canary  |                    
- |    24-bit    |   8-bit  |                    
+ Canary System based on LSBs of block pointer
+ |     size     |  canary  |
+ |    24-bit    |   8-bit  |
 */
 
 typedef struct {
@@ -126,11 +123,9 @@ static inline canary_and_size_t canary_decode(const uint32_t value) {
   return (canary_and_size_t){.canary = value & 0xFF, .size = value >> 8};
 }
 
-
-
 /********************
-*  Initialization   *
-********************/
+ *  Initialization   *
+ ********************/
 
 void mc_cluster_alloc_init(alloc_t *alloc, void *base, const uint32_t size) {
   // Create first block at base address aligned up
@@ -148,11 +143,9 @@ void mc_cluster_alloc_init(alloc_t *alloc, void *base, const uint32_t size) {
   return;
 }
 
-
-
 /***********************
-*  Memory Allocation   *
-***********************/
+ *  Memory Allocation   *
+ ***********************/
 
 static void *allocate_memory(alloc_t *alloc, const uint32_t size) {
   // Get first block of linked list of free blocks
@@ -194,7 +187,6 @@ static void *allocate_memory(alloc_t *alloc, const uint32_t size) {
   }
 }
 
-
 void *domain_malloc(alloc_t *alloc, const uint32_t size) {
   // Calculate actually required block size
   uint32_t data_size = size + sizeof(uint32_t); // add size/metadata
@@ -222,25 +214,21 @@ void *domain_malloc(alloc_t *alloc, const uint32_t size) {
   return data_ptr;
 }
 
-
 void *mc_l1_malloc(const uint32_t size) {
   void *addr;
-  addr = domain_malloc((alloc_t*)&alloc_l1, size);
+  addr = domain_malloc((alloc_t *)&alloc_l1, size);
   return addr;
 }
 
 void *mc_hbm_malloc(const uint32_t size) {
   void *addr;
-  addr = domain_malloc((alloc_t*)&alloc_hbm, size);
+  addr = domain_malloc((alloc_t *)&alloc_hbm, size);
   return addr;
 }
 
-
-
-
 /*******************
-*  De-allocation   *
-*******************/
+ *  De-allocation   *
+ *******************/
 
 static void free_memory(alloc_t *alloc, void *const ptr, const uint32_t size) {
   alloc_block_t *block_ptr = (alloc_block_t *)ptr;
@@ -298,26 +286,25 @@ void domain_free(alloc_t *alloc, void *const ptr) {
   free_memory(alloc, block_ptr, canary_and_size.size);
 }
 
-void mc_l1_free(void *const ptr)  { domain_free((alloc_t*)&alloc_l1, ptr); }
-void mc_hbm_free(void *const ptr) { domain_free((alloc_t*)&alloc_hbm, ptr); }
-
+void mc_l1_free(void *const ptr) { domain_free((alloc_t *)&alloc_l1, ptr); }
+void mc_hbm_free(void *const ptr) { domain_free((alloc_t *)&alloc_hbm, ptr); }
 
 /**********************
-*  Helper functions   *
-**********************/
+ *  Helper functions   *
+ **********************/
 
-alloc_t *mc_get_allocator_l1() { return (alloc_t*)&alloc_l1; }
-alloc_t *mc_get_allocator_hbm() { return (alloc_t*)&alloc_hbm; }
+alloc_t *mc_get_allocator_l1() { return (alloc_t *)&alloc_l1; }
+alloc_t *mc_get_allocator_hbm() { return (alloc_t *)&alloc_hbm; }
 
-
-void mc_dump_heap(){
+void mc_dump_heap() {
   // access the first free-memory-block indicator
   alloc_block_t *curr = (&alloc_l1)->first_block;
   uint32_t block_id = 0; // for printing
 
   printf("Memory allocator: Free-memory-block dump\n");
   while (curr) {
-  	printf("[block_id %d] addr: 0x%08x, size (byte): %x\n", block_id, (uint32_t)curr, curr->size);
+    printf("[block_id %d] addr: 0x%08x, size (byte): %x\n", block_id,
+           (uint32_t)curr, curr->size);
     curr = curr->next;
     block_id += 1;
   }
