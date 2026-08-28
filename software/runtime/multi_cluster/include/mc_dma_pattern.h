@@ -161,6 +161,13 @@ void mc_dma_async_wait_all() { bare_dma_wait_all(); }
  *  Basic Synchronize DMA Interface   *
  *************************************/
 
+// Basic DMA 1d transfter
+void mc_dma_sync_1d(uint64_t dst_addr, uint64_t src_addr,
+                     size_t transfer_size) {
+  bare_dma_start_1d(dst_addr, src_addr, transfer_size);
+  bare_dma_wait_all();
+}
+
 // Basic DMA 2d transfter
 void mc_dma_sync_2d(uint64_t dst_addr, uint64_t src_addr, size_t transfer_size,
                     size_t dst_stride, size_t src_stride, size_t repeat) {
