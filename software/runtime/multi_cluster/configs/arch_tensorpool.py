@@ -21,8 +21,8 @@ class MClusterArch:
     def __init__(self):
 
         #Cluster
-        self.num_cluster_x           = 2
-        self.num_cluster_y           = 2
+        self.num_cluster_x           = 4
+        self.num_cluster_y           = 8
 
         self.cluster_tcdm_base       = 0x00000000
         self.cluster_tcdm_size       = 0x00400000
@@ -47,6 +47,8 @@ class MClusterArch:
         self.bank_factor                 = 8
         self.bank_size                   = 2048
         self.axi_data_width              = 64
+        self.dma_tcdm_outstanding        = 32
+        self.dma_burst_queue_size        = 32
         self.nb_axi_masters_per_group    = 4
         self.instruction_mem_size        = 0x400000
         self.nb_l2_banks                 = 4
@@ -58,12 +60,16 @@ class MClusterArch:
         self.redmule_height              = 8
         self.redmule_width               = 32
         self.redmule_regs                = 3
+        self.redmule_queue_depth         = 128
+        self.redmule_stream_loads        = True
+        self.redmule_row_refill_cyc      = 740
+        self.redmule_tcdm_bank_number    = None   # auto-derive: (height*(regs+1))//2
 
         #HBM
         self.hbm_start_base          = 0xc0000000
-        self.hbm_node_addr_space     = 0x00200000
+        self.hbm_node_addr_space     = 0x00800000
         self.num_node_per_ctrl       = 1
-        self.hbm_chan_placement      = [2,0,0,0]
+        self.hbm_chan_placement      = [0,4,0,4]
         self.hbm_node_aliase         = 1
 
         #NoC
