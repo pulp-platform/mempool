@@ -1,3 +1,9 @@
+// Copyright 2020 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
+// Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
+
 module transactions_table
   import cf_math_pkg::idx_width;
 #(
