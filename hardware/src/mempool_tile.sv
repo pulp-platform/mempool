@@ -512,11 +512,6 @@ module mempool_tile
       data_t data;
     } manager_payload_t;
 
-    typedef struct packed {
-      logic isburst;
-      manager_payload_t[RspGF-2:0] gdata;
-    } burst_manager_t;
-
     manager_payload_t [NumBanksPerTile-1:0] manager_req, postmanager_req;
     tile_core_id_t    [NumBanksPerTile-1:0] manager_req_ini, postmanager_req_ini;
     tile_addr_t       [NumBanksPerTile-1:0] manager_req_tgt;
@@ -526,7 +521,7 @@ module mempool_tile
 
     manager_payload_t [NumBanksPerTile-1:0] manager_resp, postmanager_resp;
     tile_core_id_t    [NumBanksPerTile-1:0] manager_resp_ini, postmanager_resp_ini;
-    burst_manager_t   [NumBanksPerTile-1:0] manager_resp_burst;
+    burst_gresp_t     [NumBanksPerTile-1:0] manager_resp_burst;
 
     // Connecting to burst manager
     burst_manager #(
@@ -537,8 +532,7 @@ module mempool_tile
       .BeWidth     (DataWidth/8                                  ),
       .ByteOffWidth(0                                            ),
       .ReqGF       (ReqGF                                        ),
-      .RspGF       (RspGF                                        ),
-      .burst_resp_t(burst_manager_t                              )
+      .RspGF       (RspGF                                        )
     ) i_burst_manager (
       .clk_i          (clk_i               ),
       .rst_ni         (rst_ni              ),
@@ -607,7 +601,7 @@ module mempool_tile
       assign prebank_resp_payload[b].rdata.data    = manager_resp[b].data;
       assign prebank_resp_payload[b].burst.isburst = (RspGF > 1) ? manager_resp_burst[b].isburst : 1'b0;
       for (genvar j = 0; j < RspGF-1; j++) begin
-        assign prebank_resp_payload[b].burst.gdata[j] = (RspGF > 1) ? manager_resp_burst[b].gdata[j].data : '0;
+        assign prebank_resp_payload[b].burst.gdata[j] = (RspGF > 1) ? manager_resp_burst[b].gdata[j] : '0;
       end
     end
   end else begin : gen_bypass_manager
