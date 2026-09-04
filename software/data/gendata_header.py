@@ -179,7 +179,8 @@ if __name__ == '__main__':
     else:
         if args.type is None or args.defines is None or args.arrays is None:
             raise Exception(
-                "ERROR: Missing required parameters when HJSON data is not available.")
+                "ERROR: Missing required parameters when HJSON "
+                "data is not available.")
 
         # Extract type
         my_type = get_type(args.type)
