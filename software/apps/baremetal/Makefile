@@ -20,6 +20,14 @@ APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL := $(APPS)
 
+# Apps whose main.c actually #includes a generated data_<app>.h: make that
+# header an explicit prerequisite of the compiled object, so `make <app>`
+# builds it automatically via data_%.h in runtime.mk -- instead of failing
+# outright if it was never generated, or silently depending on it having
+# been left over from some earlier, possibly differently-sized, run.
+DATA_APPS := $(foreach a,$(APPS),$(if $(shell grep -l 'include "data_$(a)\.h"' $(APPS_DIR)/$(a)/main.c 2>/dev/null),$(a)))
+$(foreach a,$(DATA_APPS),$(eval $(a)/main.c.o: $(DATA_DIR)/data_$(a).h))
+
 FP_SUFFIXES := f16 f32 f8
 I_SUFFIXES := q16 q32 i16 i32 i8
 I_APPS := $(foreach suf, $(FP_SUFFIXES), $(filter %_$(suf), $(ALL)))
@@ -37,7 +45,7 @@ all_llvm: $(ALL_LLVM)
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
 .PHONY: $(BINARIES)
-$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) data_%.h update-opcodes
+$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude -o $@ $< $(RUNTIME) $(RISCV_LDFLAGS) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump

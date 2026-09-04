@@ -185,8 +185,8 @@ OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
 %.ld: %.ld.c
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
-data_%.h: $(DATA_DIR)/gendata_params.hjson
-	$(python) $(DATA_DIR)/gendata_header.py --app_name $* --params $(DATA_DIR)/gendata_params.hjson
+data_%.h:
+	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_DIR)/gendata_params.hjson
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)
