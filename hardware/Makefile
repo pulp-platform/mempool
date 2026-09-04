@@ -104,7 +104,7 @@ vlogan_args += -override_timescale=1ns/1ps -kdb
 
 # Configuration name
 vlog_defs   += -D$(config)
-ifeq ($(config),tensorpool256)
+ifneq ($(num_sub_groups_per_group),1)
 	vlog_defs += -DTERAPOOL
 endif
 # Cluster configurations
