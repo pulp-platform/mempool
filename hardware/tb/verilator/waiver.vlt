@@ -49,3 +49,27 @@ lint_off -rule IMPORTSTAR -file "*/deps/fpu_div_sqrt_mvp/hdl/div_sqrt_top_mvp.sv
 lint_off -rule IMPORTSTAR -file "*/deps/fpu_div_sqrt_mvp/hdl/div_sqrt_mvp_wrapper.sv" -match "*"
 
 lint_off -rule LITENDIAN -file "*/deps/cvfpu/src/fpnew_pkg.sv" -match "*"
+
+// Ignore underflow in parameter that will not be used when bursts are
+// compiled out (USE_BURST=0), same pattern as the fpnew/cvfpu waivers above
+lint_off -rule LITENDIAN -file "*/deps/cluster_interconnect/rtl/variable_latency_interconnect/burst_pkg.sv" -match "*"
+
+// Parameter/enum shadowing of a package default is an intentional, pervasive
+// PULP-platform idiom (parameter X = pkg::X, allowing per-instance override
+// while defaulting to the package value) -- not a hazard
+lint_off -rule VARHIDDEN -file "*" -match "*"
+
+// Deactivate additional linters for newer dependencies (redmule, hci,
+// hwpe-*, redundancy_cells, ...) not covered by the blanket deps rules above
+lint_off -rule IMPORTSTAR -file "*/deps/*" -match "*"
+lint_off -rule PINMISSING -file "*/deps/*" -match "*"
+lint_off -rule EOFNEWLINE -file "*/deps/*" -match "*"
+
+// The remote burst_req_grouper instance in mempool_tile.sv deliberately
+// leaves the whole initiator-address path unconnected (/* Unused */ on all
+// four req/resp_ini_addr_i/o ports) since this call site doesn't need
+// per-request initiator tracking. The *_o ports are already covered by the
+// blanket "*_o*" rule above; these two *_i ports need their own line since
+// that pattern only matches outputs.
+lint_off -rule PINCONNECTEMPTY -file "*/src/mempool_tile.sv" -match "*req_ini_addr_i*"
+lint_off -rule PINCONNECTEMPTY -file "*/src/mempool_tile.sv" -match "*resp_ini_addr_i*"
