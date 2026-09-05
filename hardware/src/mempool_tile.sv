@@ -1045,7 +1045,7 @@ module mempool_tile
         .address_map_i      (mask_map                                                                           ),
         // To TCDM
         .tcdm_req_valid_o   ({local_req_interco_valid[c], remote_req_interco_valid[c]}                          ),
-        .tcdm_req_tgt_addr_o({local_req_interco_addr_int, prescramble_tcdm_req_tgt_addr}                        ),
+        .tcdm_req_tgt_addr_o({local_req_presliced_tgt_addr, remote_req_presliced_tgt_addr}                      ),
         .tcdm_req_wen_o     ({local_req_interco_payload[c].wen, remote_req_interco[c].wen}                      ),
         .tcdm_req_wdata_o   ({local_req_interco_payload[c].wdata.data, remote_req_interco[c].wdata.data}        ),
         .tcdm_req_amo_o     ({local_req_interco_payload[c].wdata.amo, remote_req_interco[c].wdata.amo}          ),
