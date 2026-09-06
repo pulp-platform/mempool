@@ -280,6 +280,8 @@ jobs:
       run: |
         git submodule update --init -- toolchain/riscv-opcodes
         pip install -r python-requirements.txt
+    - name: Get bender
+      run: make bender
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -321,6 +323,8 @@ jobs:
       run: |
         git submodule update --init -- toolchain/riscv-opcodes
         pip install -r python-requirements.txt
+    - name: Get bender
+      run: make bender
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -364,6 +368,8 @@ jobs:
         name: halide
     - name: Untar halide
       run: tar --use-compress-program zstd -xf halide.tzst
+    - name: Get bender
+      run: make bender
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
