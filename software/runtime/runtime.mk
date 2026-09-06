@@ -23,7 +23,15 @@ LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 OMP_DIR            ?= $(ROOT_DIR)/omp
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
-REDMULE_DIR        := $(firstword $(wildcard $(MEMPOOL_DIR)/.bender/git/checkouts/redmule-*/sw))
+# Since redmule is Bender-managed (no stable hardware/deps/redmule path
+# anymore), ask bender for its actual checkout location. Using --checkout
+# makes bender perform the checkout itself if it hasn't happened yet, rather
+# than silently resolving to an empty path (as a $(wildcard) glob over
+# bender's internal, unstable cache directory naming would do if evaluated
+# before any checkout has occurred -- e.g. in a software-only CI job that
+# never otherwise triggers bender).
+bender             ?= $(INSTALL_DIR)/bender/bender
+REDMULE_DIR        := $(shell $(bender) path --checkout redmule)/sw
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
