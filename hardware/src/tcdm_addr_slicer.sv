@@ -29,6 +29,11 @@ module tcdm_addr_slicer
     output remote_sel_t              remote_req_tgt_sel_o
 );
 
+  localparam integer unsigned GroupTileAddrOffset = $clog2(mempool_pkg::NumTilesPerGroup);
+`ifdef TERAPOOL
+  localparam integer unsigned SubGroupTileAddrOffset = $clog2(mempool_pkg::NumTilesPerSubGroup);
+`endif
+
   // Addresses in MemPool hierarchies
   logic [TCDMAddrMemWidth-1:0]   row_addr, local_row_addr;
   logic [BankAddrWidth-1:0]      bank_addr, local_bank_addr;
@@ -87,8 +92,8 @@ module tcdm_addr_slicer
    *   Remote selection signal  *
    ******************************/
 
-  assign g_addr  = remote_req_tgt_addr_i[ByteOffset+BankAddrWidth+GroupTileAddrWidth    +: GroupAddrWidth   ];
-  assign sg_addr = remote_req_tgt_addr_i[ByteOffset+BankAddrWidth+SubGroupTileAddrWidth +: SubGroupAddrWidth];
+  assign g_addr  = remote_req_tgt_addr_i[ByteOffset+BankAddrWidth+GroupTileAddrOffset    +: GroupAddrWidth   ];
+  assign sg_addr = remote_req_tgt_addr_i[ByteOffset+BankAddrWidth+SubGroupTileAddrOffset +: SubGroupAddrWidth];
   assign remote_req_tgt_g_sel  = (g_addr) ^ group_id;
   assign remote_req_tgt_sg_sel = (sg_addr) ^ sub_group_id;
 
@@ -139,7 +144,7 @@ module tcdm_addr_slicer
     assign remote_req_tgt_sel_o = 1'b0;
   end else begin : gen_remote_req_interco_tgt_sel
     // Output port depends on both the target and initiator Group
-    assign g_addr = remote_req_tgt_addr_i[ByteOffset+BankAddrWidth+GroupTileAddrWidth+:GroupAddrWidth];
+    assign g_addr = remote_req_tgt_addr_i[ByteOffset+BankAddrWidth+GroupTileAddrOffset+:GroupAddrWidth];
     assign remote_req_tgt_sel_o = (g_addr) ^ group_id;
   end
 
