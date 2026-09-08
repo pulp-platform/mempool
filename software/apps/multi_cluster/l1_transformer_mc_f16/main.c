@@ -48,12 +48,12 @@
 #include "baremetal/mempool_layernorm_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
 
-#define BEAM (16)
-#define EMBED (8)
-#define TDSAMPLES (8)
+#define BEAM (128)
+#define EMBED (32)
+#define TDSAMPLES (32)
 #define WF (3)
 
-#define N_BEAM (4)                 /* beam-parallel clusters (0..N_BEAM-1)  */
+#define N_BEAM (8)                 /* beam-parallel clusters (0..N_BEAM-1)  */
 #define BC (BEAM / N_BEAM)         /* beams handled by one beam cluster     */
 #define N_ATTN (2)                 /* embed/tdSamples-parallel clusters     */
 #define EC (EMBED / N_ATTN)        /* embed channels per attn cluster (blk1)*/
@@ -88,124 +88,178 @@ static const uint16_t INPUT_LUT[64] = {
 #define ONE_FP16_BITS (0x3c00) /* 1.0 in IEEE-754 half */
 
 /**********************************************************************
- *  Beam-cluster buffers
- **********************************************************************/
-static __fp16 l1_I[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-
-/* Shared filters: identity-like pass-throughs, reused for both blocks. */
-static __fp16 l1_F1[3 * EMBED * EMBED * WF] /* QKV proj, Embed->3*Embed */
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_F2[EMBED * EMBED * WF] /* output proj, Embed->Embed */
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_F3[2 * EMBED * EMBED * WF] /* FFN hidden, Embed->2*Embed */
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_F4[2 * EMBED * EMBED * WF] /* FFN out, 2*Embed->Embed */
-    __attribute__((section(".l1"), aligned(64)));
-
-/* ---- Block 1 ---- */
-static __fp16 l1_norm1[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_im2col_qkv1[BC * EMBED * WF * TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_qkv1[BC][3 * EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_attn_stage1[EMBED][BC][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_attn_out1[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_im2col_out1[BC * EMBED * WF * TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_proj_out1[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_res1[BC][EMBED][TDSAMPLES] /* proj_out1 + I */
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_norm_ffn1[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_im2col_ffn1a[BC * EMBED * WF * TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_ffn_hidden1[BC][2 * EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_im2col_ffn1b[BC * (2 * EMBED) * WF * TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_ffn_out1[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_block1_out[BC][EMBED][TDSAMPLES] /* ffn_out1 + res1 */
-    __attribute__((section(".l1"), aligned(64)));
-
-/* ---- Block 2 ---- */
-static __fp16 l1_norm2[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_im2col_qkv2[BC * EMBED * WF * TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_qkv2[BC][3 * EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_attn_stage2[TDSAMPLES][BC][EMBED]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_attn_out2[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_im2col_out2[BC * EMBED * WF * TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_proj_out2[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_res2[BC][EMBED][TDSAMPLES] /* proj_out2 + block1_out */
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_norm_ffn2[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_im2col_ffn2a[BC * EMBED * WF * TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_ffn_hidden2[BC][2 * EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_im2col_ffn2b[BC * (2 * EMBED) * WF * TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_ffn_out2[BC][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_block2_out[BC][EMBED][TDSAMPLES] /* ffn_out2 + res2 (FINAL) */
-    __attribute__((section(".l1"), aligned(64)));
-
-/**********************************************************************
- *  Attention-cluster buffers
+ *  L1 arena: a physical cluster is EITHER a beam cluster OR an attention
+ *  cluster (is_beam/is_attn are mutually exclusive), and within one
+ *  cluster block 1's scratch is always fully dead (last read, with its
+ *  closing mc_intra_cluster_sync()) before block 2 first touches the
+ *  corresponding buffer -- res1's last read at Stage 14 precedes res2's
+ *  first write at Stage 23, and every other block1/2 pair has an
+ *  equally wide gap. But every binary is linked identically for every
+ *  cluster, so without reuse the linker sums BEAM-side + ATTN-side +
+ *  block1 + block2 buffers, all of which physically coexist in one
+ *  cluster's L1 only in the worst case, never in practice.
+ *
+ *  This union reclaims that: `beam` and `attn` overlap (one cluster only
+ *  ever uses one), and within each side, `b1`/`a1` overlap with `b2`/`a2`.
+ *  Every block1/block2 array pair has the SAME total byte count for any
+ *  EMBED/TDSAMPLES/BEAM (it's the same BC*EMBED*TDSAMPLES tensor volume
+ *  with axes reordered for attn_stage, or BEAM*EC*TDSAMPLES ==
+ *  BEAM*EMBED*TDSAMPLES/N_ATTN == TC*BEAM*EMBED for the post-redistribute
+ *  Q/Kt/V), so `union { b1_t b1; b2_t b2; }` never truncates either side.
+ *  The *_stage DMA-landing buffers and the S/Aw/A score matrices are the
+ *  one place block1 and block2 sizes can legitimately differ (block2
+ *  always stages the full EMBED width; S/Aw/A match only when EC==TC,
+ *  i.e. EMBED==TDSAMPLES) -- a plain C union already sizes itself to the
+ *  larger member for that, no per-member padding needed.
+ *
+ *  Only l1_I, the filters, and the two block outputs must NOT be
+ *  aliased: I is read as late as Stage 9, block1_out survives all the
+ *  way from Stage 14 to Stage 23 while block 2's own scratch is reused
+ *  underneath it, and block2_out is the final result.
  **********************************************************************/
 
-/* ---- Block 1: partitioned by EC = EMBED/N_ATTN ---- */
-static __fp16 l1_Q1_stage[BEAM][EC][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_K1_stage[BEAM][EC][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_V1_stage[BEAM][EC][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_Q1[EC][BEAM][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_Kt1[EC][BEAM][TDSAMPLES] /* transposed K, the only form used */
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_V1[EC][BEAM][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_S1[EC][BEAM][BEAM]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_Aw1[EC][BEAM][BEAM]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_A1[EC][BEAM][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
+/* ---- Block-local beam scratch: dead in full before the other block's
+ * corresponding buffer is first touched, so block 1 and block 2 share one
+ * copy. Field names drop the trailing 1/2 -- code below keeps using
+ * l1_norm1/l1_norm2 etc. via the macros after this union. */
+typedef struct {
+  __fp16 norm[BC][EMBED][TDSAMPLES];
+  __fp16 im2col_qkv[BC * EMBED * WF * TDSAMPLES];
+  __fp16 qkv[BC][3 * EMBED][TDSAMPLES];
+  __fp16 attn_stage[EMBED][BC][TDSAMPLES]; /* block1 order: [Embed][BC][Td] */
+  __fp16 attn_out[BC][EMBED][TDSAMPLES];
+  __fp16 im2col_out[BC * EMBED * WF * TDSAMPLES];
+  __fp16 proj_out[BC][EMBED][TDSAMPLES];
+  __fp16 res[BC][EMBED][TDSAMPLES];
+  __fp16 norm_ffn[BC][EMBED][TDSAMPLES];
+  __fp16 im2col_ffn_a[BC * EMBED * WF * TDSAMPLES];
+  __fp16 ffn_hidden[BC][2 * EMBED][TDSAMPLES];
+  __fp16 im2col_ffn_b[BC * (2 * EMBED) * WF * TDSAMPLES];
+  __fp16 ffn_out[BC][EMBED][TDSAMPLES];
+} l1_beam_scratch1_t;
 
-/* ---- Block 2: partitioned by TC = TDSAMPLES/N_ATTN, tdEmbed = EMBED ---- */
-static __fp16 l1_Q2_stage[BEAM][EMBED][TDSAMPLES] /* full Embed width recv'd */
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_K2_stage[BEAM][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_V2_stage[BEAM][EMBED][TDSAMPLES]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_Q2[TC][BEAM][EMBED]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_Kt2[TC][BEAM][EMBED]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_V2[TC][BEAM][EMBED]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_S2[TC][BEAM][BEAM]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_Aw2[TC][BEAM][BEAM]
-    __attribute__((section(".l1"), aligned(64)));
-static __fp16 l1_A2[TC][BEAM][EMBED]
-    __attribute__((section(".l1"), aligned(64)));
+typedef struct {
+  __fp16 norm[BC][EMBED][TDSAMPLES];
+  __fp16 im2col_qkv[BC * EMBED * WF * TDSAMPLES];
+  __fp16 qkv[BC][3 * EMBED][TDSAMPLES];
+  __fp16 attn_stage[TDSAMPLES][BC][EMBED]; /* block2 order: [Td][BC][Embed] */
+  __fp16 attn_out[BC][EMBED][TDSAMPLES];
+  __fp16 im2col_out[BC * EMBED * WF * TDSAMPLES];
+  __fp16 proj_out[BC][EMBED][TDSAMPLES];
+  __fp16 res[BC][EMBED][TDSAMPLES];
+  __fp16 norm_ffn[BC][EMBED][TDSAMPLES];
+  __fp16 im2col_ffn_a[BC * EMBED * WF * TDSAMPLES];
+  __fp16 ffn_hidden[BC][2 * EMBED][TDSAMPLES];
+  __fp16 im2col_ffn_b[BC * (2 * EMBED) * WF * TDSAMPLES];
+  __fp16 ffn_out[BC][EMBED][TDSAMPLES];
+} l1_beam_scratch2_t;
+
+typedef struct {
+  __fp16 I[BC][EMBED][TDSAMPLES];
+  __fp16 F1[3 * EMBED * EMBED * WF]; /* QKV proj, Embed->3*Embed */
+  __fp16 F2[EMBED * EMBED * WF];     /* output proj, Embed->Embed */
+  __fp16 F3[2 * EMBED * EMBED * WF]; /* FFN hidden, Embed->2*Embed */
+  __fp16 F4[2 * EMBED * EMBED * WF]; /* FFN out, 2*Embed->Embed */
+  __fp16 block1_out[BC][EMBED][TDSAMPLES]; /* ffn_out1 + res1 */
+  __fp16 block2_out[BC][EMBED][TDSAMPLES]; /* ffn_out2 + res2 (FINAL) */
+  union {
+    l1_beam_scratch1_t b1;
+    l1_beam_scratch2_t b2;
+  } scratch;
+} l1_beam_t;
+
+/* ---- Block-local attn scratch, partitioned by EC = EMBED/N_ATTN (block1)
+ * or TC = TDSAMPLES/N_ATTN (block2, tdEmbed = EMBED). */
+typedef struct {
+  __fp16 Q_stage[BEAM][EC][TDSAMPLES];
+  __fp16 K_stage[BEAM][EC][TDSAMPLES];
+  __fp16 V_stage[BEAM][EC][TDSAMPLES];
+  __fp16 Q[EC][BEAM][TDSAMPLES];
+  __fp16 Kt[EC][BEAM][TDSAMPLES]; /* transposed K, the only form used */
+  __fp16 V[EC][BEAM][TDSAMPLES];
+  __fp16 S[EC][BEAM][BEAM];
+  __fp16 Aw[EC][BEAM][BEAM];
+  __fp16 A[EC][BEAM][TDSAMPLES];
+} l1_attn_scratch1_t;
+
+typedef struct {
+  __fp16 Q_stage[BEAM][EMBED][TDSAMPLES]; /* full Embed width recv'd */
+  __fp16 K_stage[BEAM][EMBED][TDSAMPLES];
+  __fp16 V_stage[BEAM][EMBED][TDSAMPLES];
+  __fp16 Q[TC][BEAM][EMBED];
+  __fp16 Kt[TC][BEAM][EMBED];
+  __fp16 V[TC][BEAM][EMBED];
+  __fp16 S[TC][BEAM][BEAM];
+  __fp16 Aw[TC][BEAM][BEAM];
+  __fp16 A[TC][BEAM][EMBED];
+} l1_attn_scratch2_t;
+
+typedef union {
+  l1_attn_scratch1_t a1;
+  l1_attn_scratch2_t a2;
+} l1_attn_t;
+
+static union {
+  l1_beam_t beam;
+  l1_attn_t attn;
+} l1_arena __attribute__((section(".l1"), aligned(64)));
+
+/* Every stage below still reads/writes the original l1_* names. */
+#define l1_I (l1_arena.beam.I)
+#define l1_F1 (l1_arena.beam.F1)
+#define l1_F2 (l1_arena.beam.F2)
+#define l1_F3 (l1_arena.beam.F3)
+#define l1_F4 (l1_arena.beam.F4)
+#define l1_block1_out (l1_arena.beam.block1_out)
+#define l1_block2_out (l1_arena.beam.block2_out)
+
+#define l1_norm1 (l1_arena.beam.scratch.b1.norm)
+#define l1_im2col_qkv1 (l1_arena.beam.scratch.b1.im2col_qkv)
+#define l1_qkv1 (l1_arena.beam.scratch.b1.qkv)
+#define l1_attn_stage1 (l1_arena.beam.scratch.b1.attn_stage)
+#define l1_attn_out1 (l1_arena.beam.scratch.b1.attn_out)
+#define l1_im2col_out1 (l1_arena.beam.scratch.b1.im2col_out)
+#define l1_proj_out1 (l1_arena.beam.scratch.b1.proj_out)
+#define l1_res1 (l1_arena.beam.scratch.b1.res)
+#define l1_norm_ffn1 (l1_arena.beam.scratch.b1.norm_ffn)
+#define l1_im2col_ffn1a (l1_arena.beam.scratch.b1.im2col_ffn_a)
+#define l1_ffn_hidden1 (l1_arena.beam.scratch.b1.ffn_hidden)
+#define l1_im2col_ffn1b (l1_arena.beam.scratch.b1.im2col_ffn_b)
+#define l1_ffn_out1 (l1_arena.beam.scratch.b1.ffn_out)
+
+#define l1_norm2 (l1_arena.beam.scratch.b2.norm)
+#define l1_im2col_qkv2 (l1_arena.beam.scratch.b2.im2col_qkv)
+#define l1_qkv2 (l1_arena.beam.scratch.b2.qkv)
+#define l1_attn_stage2 (l1_arena.beam.scratch.b2.attn_stage)
+#define l1_attn_out2 (l1_arena.beam.scratch.b2.attn_out)
+#define l1_im2col_out2 (l1_arena.beam.scratch.b2.im2col_out)
+#define l1_proj_out2 (l1_arena.beam.scratch.b2.proj_out)
+#define l1_res2 (l1_arena.beam.scratch.b2.res)
+#define l1_norm_ffn2 (l1_arena.beam.scratch.b2.norm_ffn)
+#define l1_im2col_ffn2a (l1_arena.beam.scratch.b2.im2col_ffn_a)
+#define l1_ffn_hidden2 (l1_arena.beam.scratch.b2.ffn_hidden)
+#define l1_im2col_ffn2b (l1_arena.beam.scratch.b2.im2col_ffn_b)
+#define l1_ffn_out2 (l1_arena.beam.scratch.b2.ffn_out)
+
+#define l1_Q1_stage (l1_arena.attn.a1.Q_stage)
+#define l1_K1_stage (l1_arena.attn.a1.K_stage)
+#define l1_V1_stage (l1_arena.attn.a1.V_stage)
+#define l1_Q1 (l1_arena.attn.a1.Q)
+#define l1_Kt1 (l1_arena.attn.a1.Kt)
+#define l1_V1 (l1_arena.attn.a1.V)
+#define l1_S1 (l1_arena.attn.a1.S)
+#define l1_Aw1 (l1_arena.attn.a1.Aw)
+#define l1_A1 (l1_arena.attn.a1.A)
+
+#define l1_Q2_stage (l1_arena.attn.a2.Q_stage)
+#define l1_K2_stage (l1_arena.attn.a2.K_stage)
+#define l1_V2_stage (l1_arena.attn.a2.V_stage)
+#define l1_Q2 (l1_arena.attn.a2.Q)
+#define l1_Kt2 (l1_arena.attn.a2.Kt)
+#define l1_V2 (l1_arena.attn.a2.V)
+#define l1_S2 (l1_arena.attn.a2.S)
+#define l1_Aw2 (l1_arena.attn.a2.Aw)
+#define l1_A2 (l1_arena.attn.a2.A)
 
 #define DONE(label)                                                          \
   do {                                                                       \
@@ -310,19 +364,25 @@ int main() {
     uint32_t num_cores_per_beam = num_cores / BC;
     uint32_t sub_id = core_id % num_cores_per_beam;
     uint32_t b_ln = core_id / num_cores_per_beam;
+
+    mempool_start_benchmark();
     layernorm_parallel_2x4_f16vec(&l1_I[b_ln][0][0], &l1_norm1[b_ln][0][0],
                                   EMBED, TDSAMPLES, sub_id, num_cores_per_beam);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 2: Conv1D QKV projection, Embed -> 3*Embed */
+    mempool_start_benchmark();
     conv1d_f16(&l1_norm1[0][0][0], l1_F1, &l1_qkv1[0][0][0], l1_im2col_qkv1,
               BC, EMBED, 3 * EMBED, TDSAMPLES, WF, 1, core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 3: redistribute Q, K, V to attention clusters (partitioned by
      * EC = EMBED/N_ATTN). Plain contiguous 1D DMA: for a fixed beam, the
      * EC channels belonging to one attention cluster's slice of Q/K/V are
      * already contiguous within l1_qkv1[b][*][*]. */
+    mempool_start_benchmark();
     if (mc_is_dm_core()) {
       const size_t chunk_bytes = EC * TDSAMPLES * sizeof(uint16_t);
       for (uint32_t a = 0; a < N_ATTN; ++a) {
@@ -351,6 +411,7 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
   }
   mc_global_barrier_xy();
   DONE("Block 1: redistribute Q,K,V to attention clusters");
@@ -369,6 +430,7 @@ int main() {
      * later reads that exact buffer as its W operand; see
      * mempool_conv1d_f16.h's im2col1d_f16 for the identical bug/fix in
      * the QKV-projection path). */
+    mempool_start_benchmark();
     for (uint32_t idx = core_id; idx < EC * BEAM; idx += num_cores) {
       const uint32_t ec = idx / BEAM;
       const uint32_t b = idx % BEAM;
@@ -379,11 +441,14 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
-    /* Stage 5: scaled dot-product attention, batched over EC channels. */
+    /* Stage 5a: scaled dot-product attention, batched over EC channels --
+     * Q x Kt matmul. */
     uint32_t redmule_id = mempool_get_redmule_id();
     uint32_t num_redmules = mempool_get_redmule_count();
 
+    mempool_start_benchmark();
     if (redmule_id < num_redmules) {
       for (uint32_t i = redmule_id; i < EC; i += num_redmules) {
         unsigned int I_ptr = (unsigned int)(&l1_Q1[i][0][0]);
@@ -399,13 +464,19 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
+    /* Stage 5b: softmax. */
+    mempool_start_benchmark();
     for (uint32_t i = core_id; i < EC; i += num_cores) {
       softmax_parallel_2x4_f16vec(&l1_S1[i][0][0], &l1_Aw1[i][0][0], BEAM,
                                   BEAM, 0, 1);
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
+    /* Stage 5c: Aw x V matmul. */
+    mempool_start_benchmark();
     if (redmule_id < num_redmules) {
       for (uint32_t i = redmule_id; i < EC; i += num_redmules) {
         unsigned int I_ptr = (unsigned int)(&l1_Aw1[i][0][0]);
@@ -421,10 +492,12 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 6: redistribute attention output back to beam clusters. For a
      * fixed embed channel, the BC beams of one beam cluster are already
      * contiguous within l1_A1[ec][*][*]. */
+    mempool_start_benchmark();
     if (mc_is_dm_core()) {
       const size_t chunk_bytes = BC * TDSAMPLES * sizeof(uint16_t);
       for (uint32_t c = 0; c < N_BEAM; ++c) {
@@ -439,6 +512,7 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
   }
   mc_global_barrier_xy();
   DONE("Block 1: attention output redistributed to beam clusters");
@@ -456,6 +530,7 @@ int main() {
 
     /* Stage 7: locally transpose the embed-major staging buffer into the
      * beam-major layout the output Conv1D needs. */
+    mempool_start_benchmark();
     for (uint32_t idx = core_id; idx < EMBED * BC; idx += num_cores) {
       const uint32_t e = idx / BC;
       const uint32_t b = idx % BC;
@@ -464,73 +539,75 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 8: output Conv1D, Embed -> Embed */
+    mempool_start_benchmark();
     conv1d_f16(&l1_attn_out1[0][0][0], l1_F2, &l1_proj_out1[0][0][0],
               l1_im2col_out1, BC, EMBED, EMBED, TDSAMPLES, WF, 1, core_id,
               num_cores);
     mc_intra_cluster_sync();
-
-    if (mc_is_dm_core() && cluster_id == 0) {
-      uint32_t errors = 0;
-      for (uint32_t b = 0; b < BC; ++b) {
-        for (uint32_t e = 0; e < EMBED; ++e) {
-          for (uint32_t t = 0; t < TDSAMPLES; ++t) {
-            if (fp16_bits(&l1_proj_out1[b][e][t]) !=
-                fp16_bits(&l1_attn_out1[b][e][t])) {
-              ++errors;
-            }
-          }
-        }
-      }
-      printf("[Cluster %u] Block 1 output projection check: %s (%u "
-             "mismatches)\n",
-             cluster_id, errors == 0 ? "PASS" : "FAIL", errors);
-    }
+    mempool_stop_benchmark();
 
     /* Stage 9: residual, res1 = proj_out1 + I */
+    mempool_start_benchmark();
     residual_add(&l1_res1[0][0][0], &l1_proj_out1[0][0][0], &l1_I[0][0][0],
                 core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 10: LayerNorm (FFN) */
+    mempool_start_benchmark();
     layernorm_parallel_2x4_f16vec(&l1_res1[b_ln][0][0],
                                   &l1_norm_ffn1[b_ln][0][0], EMBED, TDSAMPLES,
                                   sub_id, num_cores_per_beam);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 11: Conv1D, Embed -> 2*Embed */
+    mempool_start_benchmark();
     conv1d_f16(&l1_norm_ffn1[0][0][0], l1_F3, &l1_ffn_hidden1[0][0][0],
               l1_im2col_ffn1a, BC, EMBED, 2 * EMBED, TDSAMPLES, WF, 1,
               core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 12: GELU, in-place, over the whole flat hidden buffer. */
+    mempool_start_benchmark();
     gelu_f16(&l1_ffn_hidden1[0][0][0], BC * 2 * EMBED * TDSAMPLES, core_id,
             num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 13: Conv1D, 2*Embed -> Embed */
+    mempool_start_benchmark();
     conv1d_f16(&l1_ffn_hidden1[0][0][0], l1_F4, &l1_ffn_out1[0][0][0],
               l1_im2col_ffn1b, BC, 2 * EMBED, EMBED, TDSAMPLES, WF, 1,
               core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 14: residual, block1_out = ffn_out1 + res1 */
+    mempool_start_benchmark();
     residual_add(&l1_block1_out[0][0][0], &l1_ffn_out1[0][0][0],
                 &l1_res1[0][0][0], core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 15: LayerNorm (block 2 attention input) */
+    mempool_start_benchmark();
     layernorm_parallel_2x4_f16vec(&l1_block1_out[b_ln][0][0],
                                   &l1_norm2[b_ln][0][0], EMBED, TDSAMPLES,
                                   sub_id, num_cores_per_beam);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 16: Conv1D QKV projection, Embed -> 3*Embed */
+    mempool_start_benchmark();
     conv1d_f16(&l1_norm2[0][0][0], l1_F1, &l1_qkv2[0][0][0], l1_im2col_qkv2,
               BC, EMBED, 3 * EMBED, TDSAMPLES, WF, 1, core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 17: redistribute Q, K, V to attention clusters, this time
      * partitioned by TC = TDSAMPLES/N_ATTN. Since a TDSAMPLES-slice is not
@@ -540,6 +617,7 @@ int main() {
      * transfer per (beam, channel-type) since channel and t are the
      * innermost two dims); each attention cluster locally extracts just
      * its TC-wide slice of t in Stage 18. */
+    mempool_start_benchmark();
     if (mc_is_dm_core()) {
       const size_t chunk_bytes2 = EMBED * TDSAMPLES * sizeof(uint16_t);
       for (uint32_t a = 0; a < N_ATTN; ++a) {
@@ -567,6 +645,7 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
   }
   mc_global_barrier_xy();
   DONE("Block 2: redistribute Q,K,V to attention clusters");
@@ -580,6 +659,7 @@ int main() {
 
     /* Stage 18: locally extract this cluster's TC-wide slice of t from the
      * full-Embed-width staging buffers into Q2/V2. */
+    mempool_start_benchmark();
     for (uint32_t idx = core_id; idx < TC * BEAM * EMBED; idx += num_cores) {
       const uint32_t tc = idx / (BEAM * EMBED);
       const uint32_t rem = idx % (BEAM * EMBED);
@@ -591,30 +671,14 @@ int main() {
       l1_V2[tc][b][e] = l1_V2_stage[b][e][global_t];
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
-    if (mc_is_dm_core()) {
-      uint32_t errors = 0;
-      for (uint32_t tc = 0; tc < TC; ++tc) {
-        for (uint32_t b = 0; b < BEAM; ++b) {
-          for (uint32_t e = 0; e < EMBED; ++e) {
-            if (fp16_bits(&l1_Q2[tc][b][e]) != fp16_bits(&l1_Kt2[tc][e][b]) ||
-                fp16_bits(&l1_Q2[tc][b][e]) != fp16_bits(&l1_V2[tc][b][e])) {
-              ++errors;
-            }
-          }
-        }
-      }
-      if (cluster_id == ATTN0) {
-        printf("[Cluster %u] Block 2 Q==Kt==V check: %s (%u mismatches)\n",
-               cluster_id, errors == 0 ? "PASS" : "FAIL", errors);
-      }
-    }
-    mc_intra_cluster_sync();
-
-    /* Stage 19: scaled dot-product attention, batched over TC samples. */
+    /* Stage 19a: scaled dot-product attention, batched over TC samples --
+     * Q x Kt matmul. */
     uint32_t redmule_id = mempool_get_redmule_id();
     uint32_t num_redmules = mempool_get_redmule_count();
 
+    mempool_start_benchmark();
     if (redmule_id < num_redmules) {
       for (uint32_t i = redmule_id; i < TC; i += num_redmules) {
         unsigned int I_ptr = (unsigned int)(&l1_Q2[i][0][0]);
@@ -630,13 +694,19 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
+    /* Stage 19b: softmax. */
+    mempool_start_benchmark();
     for (uint32_t i = core_id; i < TC; i += num_cores) {
       softmax_parallel_2x4_f16vec(&l1_S2[i][0][0], &l1_Aw2[i][0][0], BEAM,
                                   BEAM, 0, 1);
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
+    /* Stage 19c: Aw x V matmul. */
+    mempool_start_benchmark();
     if (redmule_id < num_redmules) {
       for (uint32_t i = redmule_id; i < TC; i += num_redmules) {
         unsigned int I_ptr = (unsigned int)(&l1_Aw2[i][0][0]);
@@ -652,10 +722,12 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 20: redistribute attention output back to beam clusters. For a
      * fixed tc, the BC beams of one beam cluster are already contiguous
      * within l1_A2[tc][*][*] (beam and embed are the innermost dims). */
+    mempool_start_benchmark();
     if (mc_is_dm_core()) {
       const size_t chunk_bytes3 = BC * EMBED * sizeof(uint16_t);
       for (uint32_t c = 0; c < N_BEAM; ++c) {
@@ -670,6 +742,7 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
   }
   mc_global_barrier_xy();
   DONE("Block 2: attention output redistributed to beam clusters");
@@ -687,6 +760,7 @@ int main() {
 
     /* Stage 21: locally transpose the tdSamples-major staging buffer into
      * the beam-major layout the output Conv1D needs. */
+    mempool_start_benchmark();
     for (uint32_t idx = core_id; idx < EMBED * BC; idx += num_cores) {
       const uint32_t e = idx / BC;
       const uint32_t b = idx % BC;
@@ -695,44 +769,59 @@ int main() {
       }
     }
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 22: output Conv1D, Embed -> Embed */
+    mempool_start_benchmark();
     conv1d_f16(&l1_attn_out2[0][0][0], l1_F2, &l1_proj_out2[0][0][0],
               l1_im2col_out2, BC, EMBED, EMBED, TDSAMPLES, WF, 1, core_id,
               num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 23: residual, res2 = proj_out2 + block1_out */
+    mempool_start_benchmark();
     residual_add(&l1_res2[0][0][0], &l1_proj_out2[0][0][0],
                 &l1_block1_out[0][0][0], core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 24: LayerNorm (FFN) */
+    mempool_start_benchmark();
     layernorm_parallel_2x4_f16vec(&l1_res2[b_ln][0][0], &l1_norm_ffn2[b_ln][0][0],
                                   EMBED, TDSAMPLES, sub_id, num_cores_per_beam);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 25: Conv1D, Embed -> 2*Embed */
+    mempool_start_benchmark();
     conv1d_f16(&l1_norm_ffn2[0][0][0], l1_F3, &l1_ffn_hidden2[0][0][0],
               l1_im2col_ffn2a, BC, EMBED, 2 * EMBED, TDSAMPLES, WF, 1,
               core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 26: GELU, in-place. */
+    mempool_start_benchmark();
     gelu_f16(&l1_ffn_hidden2[0][0][0], BC * 2 * EMBED * TDSAMPLES, core_id,
             num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 27: Conv1D, 2*Embed -> Embed */
+    mempool_start_benchmark();
     conv1d_f16(&l1_ffn_hidden2[0][0][0], l1_F4, &l1_ffn_out2[0][0][0],
               l1_im2col_ffn2b, BC, 2 * EMBED, EMBED, TDSAMPLES, WF, 1,
               core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
 
     /* Stage 28: residual, block2_out = ffn_out2 + res2 (final output) */
+    mempool_start_benchmark();
     residual_add(&l1_block2_out[0][0][0], &l1_ffn_out2[0][0][0],
                 &l1_res2[0][0][0], core_id, num_cores);
     mc_intra_cluster_sync();
+    mempool_stop_benchmark();
   }
   mc_global_barrier_xy();
   DONE("Block 2 complete");
