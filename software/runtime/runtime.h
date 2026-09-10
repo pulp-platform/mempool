@@ -85,20 +85,31 @@ static inline uint32_t mempool_get_group_id() {
   return mempool_get_core_id() / (NUM_CORES / NUM_GROUPS);
 }
 
+/// Obtain the number of subgroups in the current cluster.
+static inline uint32_t mempool_get_sg_count() {
+  return NUM_GROUPS * NUM_SUB_GROUPS_PER_GROUP;
+}
+
+/// Obtain the ID of the subgroup the current core is in.
+static inline uint32_t mempool_get_sg_id() {
+  return mempool_get_core_id() / NUM_CORES_PER_SUB_GROUP;
+}
+
 /// Obtain the number of RedMulEs in the current cluster.
 static inline uint32_t mempool_get_redmule_count() { return NUM_REDMULE_TILES; }
 
-/// Obtain the ID of the group the current core is in.
+/// Obtain the ID of the RedMulE the current core can program (-1 if none).
 static inline uint32_t mempool_get_redmule_id() {
   if (NUM_REDMULE_TILES == 0) {
     return (uint32_t)(-1);
-  } else {
-    uint32_t x = NUM_REDMULE_TILES > 0 ? NUM_CORES / NUM_REDMULE_TILES : 1;
-    uint32_t redmule_id = (mempool_get_core_id() % x) != 0
-                              ? (uint32_t)(-1)
-                              : (mempool_get_core_id() / x);
-    return redmule_id;
   }
+  uint32_t core_in_tile = mempool_get_core_id() % NUM_CORES_PER_TILE;
+  uint32_t tile_in_sg = mempool_get_tile_id() % NUM_TILES_PER_SUB_GROUP;
+  uint32_t rm_tiles_per_sg = NUM_REDMULE_TILES / mempool_get_sg_count();
+  if (core_in_tile != 0 || tile_in_sg >= rm_tiles_per_sg) {
+    return (uint32_t)(-1);
+  }
+  return mempool_get_sg_id() * rm_tiles_per_sg + tile_in_sg;
 }
 
 /// Obtain the number of cores per tile in the current cluster
