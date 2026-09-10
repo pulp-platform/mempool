@@ -15,26 +15,11 @@
 
 /* Macros to print checkpints of computation */
 #define VERBOSE (1)
-#define PRINT_START(verbose, core_id, num_cores, label)                        \
-  do {                                                                         \
-    if (verbose) {                                                             \
-      if ((core_id) == 0) {                                                    \
-        printf("\n\n\n");                                                      \
-        printf("/**************************************************/\n");      \
-        printf("/* START: %s*/\n", (label));                                   \
-        printf("/**************************************************/\n");      \
-        printf("\n\n\n");                                                      \
-      }                                                                        \
-      mempool_barrier(num_cores);                                              \
-    }                                                                          \
-  } while (0)
 #define PRINT_DONE(verbose, core_id, num_cores, label)                         \
   do {                                                                         \
     if (verbose) {                                                             \
       if ((core_id) == 0) {                                                    \
-        printf("/**************************************************/\n");      \
-        printf("/* DONE: %s*/\n", (label));                                    \
-        printf("/**************************************************/\n");      \
+        printf("\n\n/* DONE: %s*/\n\n", (label));                              \
       }                                                                        \
       mempool_barrier(num_cores);                                              \
     }                                                                          \
@@ -54,16 +39,12 @@ int main() {
   mempool_init(core_id);
   mempool_barrier_init(core_id);
 
-  PRINT_START(VERBOSE, core_id, num_cores, "Attention Time Domain");
   attention(l2_I, l2_F, BEAM, EMBED, TDSAMPLES, CONV1D_WF, EBT);
 
-  PRINT_START(VERBOSE, core_id, num_cores, "Feed-Forward Neural Network");
   ffn(l2_I, l2_F, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
 
-  PRINT_START(VERBOSE, core_id, num_cores, "Attention Embed");
   attention(l2_I, l2_F, BEAM, EMBED, TDSAMPLES, CONV1D_WF, TBE);
 
-  PRINT_START(VERBOSE, core_id, num_cores, "Feed-Forward Neural Network");
   ffn(l2_I, l2_F, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
 
   return 0;
