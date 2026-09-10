@@ -24,17 +24,27 @@
 
 #ifndef SINGLE
 #ifndef PARALLEL
+#ifndef PARALLEL_BATCHED
 #define SINGLE
 #endif
 #endif
+#endif
 
-__fp16 l1_X[(matrix_M * matrix_N) +
-            PORT_WIDTH * NUM_REDMULE_TILES * (NUM_REDMULE_TILES + 1)]
+#ifdef PARALLEL_BATCHED
+__fp16 l1_X[Batch * matrix_M * matrix_N]
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_W[Batch * matrix_N * matrix_P]
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_Y[Batch * matrix_M * matrix_P]
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+#else
+__fp16 l1_X[(matrix_M * matrix_N) + 2 * PORT_WIDTH * NUM_REDMULE_TILES]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_W[matrix_N * matrix_P]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_Y[matrix_M * matrix_P]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+#endif
 
 int main() {
   uint32_t core_id = mempool_get_core_id();
@@ -50,8 +60,10 @@ int main() {
     dma_memcpy_blocking(l1_Y, l2_Y, (matrix_M * matrix_P) * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
+  static uint32_t time_start, time_end;
   // Compute
   if (redmule_id == 0) {
+    time_start = mempool_get_timer();
     unsigned int X_ptr = (unsigned int)(l1_X);
     unsigned int Y_ptr = (unsigned int)(l1_Y);
     unsigned int W_ptr = (unsigned int)(l1_W);
@@ -60,14 +72,16 @@ int main() {
     redmule_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, 0, GEMM,
                 Float16);
     mempool_wait(10);
-    mempool_start_benchmark();
     // Start RedMulE operation
     hwpe_trigger_job();
     // Go to sleep
     mempool_wfi();
   }
   mempool_barrier(num_cores);
-  mempool_stop_benchmark();
+  if (redmule_id == 0) {
+    time_end = mempool_get_timer();
+    printf("TIME: %d\n", time_end - time_start);
+  }
 #endif
 
 #ifdef PARALLEL
@@ -92,8 +106,8 @@ int main() {
 
   // Compute
   if (redmule_id < num_redmules) {
-    X_shift = (XSHIFT == 1) ? (redmule_id * PORT_WIDTH) % matrix_N : 0;
-    W_shift = (WSHIFT == 1) ? (redmule_id * PORT_WIDTH) % matrix_P : 0;
+    X_shift = (XSHIFT == 1) ? (redmule_id * 2 * PORT_WIDTH) % matrix_N : 0;
+    W_shift = (WSHIFT == 1) ? (redmule_id * 2 * PORT_WIDTH) % matrix_P : 0;
     unsigned int X_ptr =
         (unsigned int)(l1_X +
                        redmule_id * (matrix_M * matrix_N / num_redmules) +
@@ -115,6 +129,57 @@ int main() {
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
+#endif
+
+#ifdef PARALLEL_BATCHED
+
+  uint32_t num_redmules = mempool_get_redmule_count();
+
+  // Transfer
+  // l2_X/l2_W/l2_Y only hold one (M,N,P) GEMM's worth of data
+  // (gendata_header.py isn't Batch-aware) -- copy that same source into
+  // each of the Batch slots of l1_X/l1_W/l1_Y instead of generating/
+  // duplicating Batch-sized L2 data.
+  if (redmule_id == 0) {
+    for (uint32_t ii = 0; ii < Batch; ii++) {
+      dma_memcpy_blocking(l1_X + ii * matrix_M * matrix_N, l2_X,
+                           (matrix_M * matrix_N) * sizeof(int16_t));
+      dma_memcpy_blocking(l1_W + ii * matrix_N * matrix_P, l2_W,
+                           (matrix_N * matrix_P) * sizeof(int16_t));
+      dma_memcpy_blocking(l1_Y + ii * matrix_M * matrix_P, l2_Y,
+                           (matrix_M * matrix_P) * sizeof(int16_t));
+    }
+  }
+  mempool_barrier(num_cores);
+  static uint32_t time_start, time_end;
+
+  if (redmule_id == 0) {
+    time_start = mempool_get_timer();
+  }
+
+  // Compute
+  for (uint32_t ii = redmule_id; ii < Batch; ii += num_redmules) {
+    if (redmule_id < num_redmules) {
+      unsigned int X_ptr = l1_X + ii * matrix_M * matrix_N;
+      unsigned int Y_ptr = l1_Y + ii * matrix_M * matrix_P;
+      unsigned int W_ptr = l1_W + ii * matrix_N * matrix_P;
+      hwpe_soft_clear();
+      mempool_wait(10);
+      redmule_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, 0, GEMM, Float16);
+      mempool_wait(10);
+      // Start RedMulE operation
+      hwpe_trigger_job();
+      // Go to sleep
+      mempool_wfi();
+    }
+  }
+  mempool_barrier(num_cores);
+
+  if (redmule_id == 0) {
+    time_end = mempool_get_timer();
+    printf("TIME: %d\n", time_end - time_start);
+  }
+
 #endif
 
   mempool_check_f16(l1_Y, l2_Z, 10, 0.05f, 0);
