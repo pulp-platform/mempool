@@ -422,22 +422,30 @@ int main() {
   if (is_attn) {
 
     /* Stage 4: locally transpose the beam-major staging buffers into the
-     * embed-major Q/V layout (each core writes one contiguous TDSAMPLES-
-     * wide run -- safe), and separately Kt (each core writes one
-     * contiguous BEAM-wide run, fixing (ec,t) and looping b -- if this
-     * instead looped b outer/t inner, each core would write BEAM-strided,
-     * non-adjacent addresses, which was found to hang RedMulE when it
-     * later reads that exact buffer as its W operand; see
-     * mempool_conv1d_f16.h's im2col1d_f16 for the identical bug/fix in
-     * the QKV-projection path). */
+     * embed-major Q/Kt/V layout. Both sides are contiguous in t here for a
+     * fixed (ec, b) -- the same situation permute_qkv's Q/V (EBT) path
+     * exploits in the single-cluster app -- so move two elements per v2h
+     * instead of one __fp16 at a time. (Each core still writes one
+     * contiguous TDSAMPLES-wide run per array, so this keeps the adjacent-
+     * write property that avoided the RedMulE/im2col1d_f16 hang noted
+     * below.) */
     mempool_start_benchmark();
     for (uint32_t idx = core_id; idx < EC * BEAM; idx += num_cores) {
       const uint32_t ec = idx / BEAM;
       const uint32_t b = idx % BEAM;
-      for (uint32_t t = 0; t < TDSAMPLES; ++t) {
-        l1_Q1[ec][b][t] = l1_Q1_stage[b][ec][t];
-        l1_Kt1[ec][b][t] = l1_K1_stage[b][ec][t];
-        l1_V1[ec][b][t] = l1_V1_stage[b][ec][t];
+      uint32_t t = 0;
+      if ((TDSAMPLES & 1u) == 0) {
+        for (; t < TDSAMPLES; t += 2) {
+          *(v2h *)&l1_Q1[ec][b][t] = *(v2h *)&l1_Q1_stage[b][ec][t];
+          *(v2h *)&l1_Kt1[ec][b][t] = *(v2h *)&l1_K1_stage[b][ec][t];
+          *(v2h *)&l1_V1[ec][b][t] = *(v2h *)&l1_V1_stage[b][ec][t];
+        }
+      } else {
+        for (; t < TDSAMPLES; ++t) {
+          l1_Q1[ec][b][t] = l1_Q1_stage[b][ec][t];
+          l1_Kt1[ec][b][t] = l1_K1_stage[b][ec][t];
+          l1_V1[ec][b][t] = l1_V1_stage[b][ec][t];
+        }
       }
     }
     mc_intra_cluster_sync();
@@ -529,13 +537,22 @@ int main() {
     uint32_t b_ln = core_id / num_cores_per_beam;
 
     /* Stage 7: locally transpose the embed-major staging buffer into the
-     * beam-major layout the output Conv1D needs. */
+     * beam-major layout the output Conv1D needs. Both l1_attn_out1 and
+     * l1_attn_stage1 are contiguous in t for a fixed (b, e) -- same as
+     * Stage 4 and the single-cluster permute_result's EBT path -- so use
+     * v2h here too. */
     mempool_start_benchmark();
     for (uint32_t idx = core_id; idx < EMBED * BC; idx += num_cores) {
       const uint32_t e = idx / BC;
       const uint32_t b = idx % BC;
-      for (uint32_t t = 0; t < TDSAMPLES; ++t) {
-        l1_attn_out1[b][e][t] = l1_attn_stage1[e][b][t];
+      if ((TDSAMPLES & 1u) == 0) {
+        for (uint32_t t = 0; t < TDSAMPLES; t += 2) {
+          *(v2h *)&l1_attn_out1[b][e][t] = *(v2h *)&l1_attn_stage1[e][b][t];
+        }
+      } else {
+        for (uint32_t t = 0; t < TDSAMPLES; ++t) {
+          l1_attn_out1[b][e][t] = l1_attn_stage1[e][b][t];
+        }
       }
     }
     mc_intra_cluster_sync();
@@ -658,7 +675,12 @@ int main() {
   if (is_attn) {
 
     /* Stage 18: locally extract this cluster's TC-wide slice of t from the
-     * full-Embed-width staging buffers into Q2/V2. */
+     * full-Embed-width staging buffers into Q2/Kt2/V2. Left scalar
+     * deliberately: the source (*_stage, t innermost) is only contiguous
+     * along t/tc, while the destination (Q2/Kt2/V2, tc outermost) is only
+     * contiguous along e -- no loop order makes both sides contiguous at
+     * once, same as the single-cluster permute_qkv's TBE/Kt path, which is
+     * left unvectorized for the identical reason. */
     mempool_start_benchmark();
     for (uint32_t idx = core_id; idx < TC * BEAM * EMBED; idx += num_cores) {
       const uint32_t tc = idx / (BEAM * EMBED);
@@ -759,7 +781,10 @@ int main() {
     uint32_t b_ln = core_id / num_cores_per_beam;
 
     /* Stage 21: locally transpose the tdSamples-major staging buffer into
-     * the beam-major layout the output Conv1D needs. */
+     * the beam-major layout the output Conv1D needs. Left scalar
+     * deliberately: l1_attn_stage2 has t as its OUTERMOST axis, so varying
+     * t here strides by BC*EMBED on the source side -- the same TBE
+     * situation the single-cluster permute_result leaves unvectorized. */
     mempool_start_benchmark();
     for (uint32_t idx = core_id; idx < EMBED * BC; idx += num_cores) {
       const uint32_t e = idx / BC;
