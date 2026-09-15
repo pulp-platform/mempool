@@ -80,3 +80,14 @@ remote_group_latency_cycles ?= 7
 # DRAMsys co-simulation: dram/sram
 l2_sim_type ?= sram
 dram_axi_width_interleaved ?= 16
+
+# Number of RedMulEs
+num_redmule_tiles ?= 0
+
+# RedMulE engine size (unused when num_redmule_tiles is 0, but must stay
+# defined so REDMULE_H/REDMULE_P are never emitted empty to the compiler)
+redmule_height ?= 8
+redmule_regs ?= 3
+
+# Reads in the TCDM interconnect are sent as bursts
+tcdm_burst ?= 0
