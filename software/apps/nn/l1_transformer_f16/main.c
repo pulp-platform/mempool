@@ -35,7 +35,6 @@ int main() {
 
   // Initialization
   uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
   mempool_init(core_id);
   mempool_barrier_init(core_id);
 
