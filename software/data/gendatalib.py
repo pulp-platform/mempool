@@ -428,7 +428,7 @@ def generate_fconv1d(my_type=np.float32, defines={}):
         dtype=my_type)
 
     pad = matrix_Wf // 2
-    for l in range(matrix_B):
+    for b in range(matrix_B):
 
         # im2col transformation
         X_col = np.zeros((matrix_Ci * matrix_Wf, matrix_Wi), dtype=X.dtype)
@@ -437,10 +437,10 @@ def generate_fconv1d(my_type=np.float32, defines={}):
             f = row % matrix_Wf
             j0 = max(0, pad - f)
             j1 = min(matrix_Wi, matrix_Wi + pad - f)
-            X_col[row, j0:j1] = X[l, k, j0 - pad + f: j1 - pad + f]
-        X_im2col[l, :, :] = X_col
+            X_col[row, j0:j1] = X[b, k, j0 - pad + f: j1 - pad + f]
+        X_im2col[b, :, :] = X_col
 
-        Y[l] = np.matmul(F_im2col, X_col)
+        Y[b] = np.matmul(F_im2col, X_col)
 
     X = np.reshape(
         X,
