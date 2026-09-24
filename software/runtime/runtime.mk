@@ -167,6 +167,9 @@ HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 %.ld: %.ld.c
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
+data_%.h: $(DATA_DIR)/gendata_params.hjson
+	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_DIR)/gendata_params.hjson
+
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)
 	$(RISCV_CC) $(RISCV_CCFLAGS) -L$(ROOT_DIR) -T$(ROOT_DIR)/bootrom.ld $< -nostdlib -static -Wl,--no-gc-sections -o $@

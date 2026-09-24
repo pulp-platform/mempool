@@ -27,8 +27,8 @@ ALL_FP    := $(foreach suf, f16 f32 f8, $(filter %_$(suf), $(APPS)))
 ALL_GCC   := $(filter-out $(ALL_FP),$(APPS))
 ALL_LLVM  := $(APPS)
 
-# convenience targets
-$(foreach a,$(APPS),$(eval $(a): data_$(notdir $(a))))
+# data_%.h is defined once, in runtime.mk
+$(foreach a,$(APPS),$(eval $(a): data_$(notdir $(a)).h))
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
 # Link all objects to the binaries
@@ -38,9 +38,6 @@ $(BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	$(RISCV_OBJCOPY) --remove-section=.riscv.attributes $@
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 
-# --- data rule ---
-data_%: $(DATA_DIR)/gendata_params.hjson
-	$(python) $(DATA_DIR)/gendata_header.py --app_name $* --params $<
 
 ############
 # Systolic #
@@ -134,12 +131,15 @@ $(HALIDE_BINS):  $(BIN_DIR)/%: %/$(HALIDE_PIPELINE) %/main.c.o $(RUNTIME) $(HALI
 
 # Make all applications
 ifeq ($(COMPILER),gcc)
-all: $(ALL_GCC) $(OMP_APPS) $(HALIDE_APPS)
+all: all-gcc all-omp all-halide
 else
-all: $(ALL_LLVM) $(OMP_APPS) $(HALIDE_APPS)
+all: all-llvm all-omp all-halide
 endif
+
 all-llvm: $(ALL_LLVM)
 all-gcc: $(ALL_GCC)
+all-omp: $(OMP_APPS)
+all-halide: $(HALIDE_APPS)
 
 # Update the opcodes
 update-opcodes:
