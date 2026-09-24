@@ -4,8 +4,9 @@
 
 package mempool_pkg;
 
-  import snitch_pkg::MetaIdWidth;
+  import snitch_pkg::SnitchIdWidth;
   import cf_math_pkg::idx_width;
+  import burst_pkg::*;
 
   /*********************
    *  TILE PARAMETERS  *
@@ -14,19 +15,21 @@ package mempool_pkg;
   `include "axi/assign.svh"
   `include "axi/typedef.svh"
 
-  localparam integer unsigned NumCores          = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
-  localparam integer unsigned NumCoresPerTile   = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
-  localparam integer unsigned NumDivsqrtPerTile = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
-  localparam integer unsigned NumGroups         = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
-  localparam integer unsigned MAX_NumGroups     = 8;
-  localparam integer unsigned NumTiles          = NumCores / NumCoresPerTile;
-  localparam integer unsigned NumTilesPerGroup  = NumTiles / NumGroups;
-  localparam integer unsigned NumCoresPerGroup  = NumCores / NumGroups;
-  localparam integer unsigned NumCoresPerCache  = NumCoresPerTile;
-  localparam integer unsigned AxiCoreIdWidth    = 1;
-  localparam integer unsigned AxiTileIdWidth    = AxiCoreIdWidth+1; // + 1 for cache
-  localparam integer unsigned AxiDataWidth      = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
-  localparam integer unsigned AxiLiteDataWidth  = 32;
+  localparam integer unsigned NumCores           = `ifdef NUM_CORES `NUM_CORES `else 0 `endif;
+  localparam integer unsigned NumCoresPerTile    = `ifdef NUM_CORES_PER_TILE `NUM_CORES_PER_TILE `else 0 `endif;
+  localparam integer unsigned NumDivsqrtPerTile  = `ifdef NUM_DIVSQRT_PER_TILE `NUM_DIVSQRT_PER_TILE `else (snitch_pkg::XDIVSQRT) `endif;
+  localparam integer unsigned NumGroups          = `ifdef NUM_GROUPS `NUM_GROUPS `else 0 `endif;
+  localparam integer unsigned NumRMTiles         = `ifdef NUM_REDMULE_TILES `NUM_REDMULE_TILES `else 0 `endif;
+  localparam integer unsigned NumRMTilesPerGroup = NumRMTiles / NumGroups;
+  localparam integer unsigned MAX_NumGroups      = 8;
+  localparam integer unsigned NumTiles           = NumCores / NumCoresPerTile;
+  localparam integer unsigned NumTilesPerGroup   = NumTiles / NumGroups;
+  localparam integer unsigned NumCoresPerGroup   = NumCores / NumGroups;
+  localparam integer unsigned NumCoresPerCache   = NumCoresPerTile;
+  localparam integer unsigned AxiCoreIdWidth     = 1;
+  localparam integer unsigned AxiTileIdWidth     = AxiCoreIdWidth+1; // + 1 for cache
+  localparam integer unsigned AxiDataWidth       = `ifdef AXI_DATA_WIDTH `AXI_DATA_WIDTH `else 0 `endif;
+  localparam integer unsigned AxiLiteDataWidth   = 32;
 
   /***********************
    *  MEMORY PARAMETERS  *
@@ -39,7 +42,7 @@ package mempool_pkg;
   localparam integer unsigned BankingFactor    = `ifdef BANKING_FACTOR `BANKING_FACTOR `else 0 `endif;
   localparam bit              LrScEnable       = 1'b1;
   localparam integer unsigned TCDMSizePerBank  = `ifdef L1_BANK_SIZE `L1_BANK_SIZE `else 0 `endif;
-  localparam integer unsigned NumBanks         = NumCores * BankingFactor;
+  localparam integer unsigned NumBanks         = (NumCoresPerTile * NumTiles) * BankingFactor;
   localparam integer unsigned NumBanksPerTile  = NumBanks / NumTiles;
   localparam integer unsigned NumBanksPerGroup = NumBanks / NumGroups;
   localparam integer unsigned TCDMAddrMemWidth = $clog2(TCDMSizePerBank / mempool_pkg::BeWidth);
@@ -229,6 +232,86 @@ package mempool_pkg;
     logic trans_complete;
   } dma_meta_t;
 
+  /*************************
+   *  TeraPool PARAMETERS  *
+   *************************/
+
+  // TeraPool Tile Config
+  localparam integer unsigned NumSubGroupsPerGroup  = `ifdef NUM_SUB_GROUPS_PER_GROUP `NUM_SUB_GROUPS_PER_GROUP `else 1 `endif;
+  localparam integer unsigned NumSubGroups          = NumGroups * NumSubGroupsPerGroup;
+  localparam integer unsigned NumTilesPerSubGroup   = NumTilesPerGroup / NumSubGroupsPerGroup;
+  localparam integer unsigned NumRMTilesPerSubGroup = NumRMTiles / NumSubGroups;
+  localparam integer unsigned NumCoresPerSubGroup   = NumTilesPerSubGroup * NumCoresPerTile;
+
+  // TeraPool Mem Config
+  localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
+
+  // TeraPool Remote Groups Latency Control (in Cycles)
+  localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 7 `endif;
+
+  //TeraPool AXI/DMA Config
+  localparam integer unsigned NumAXIMastersPerSubGroup = NumAXIMastersPerGroup/NumSubGroupsPerGroup;
+  localparam int unsigned NumDmasPerSubGroup = NumDmasPerGroup/NumSubGroupsPerGroup;
+
+  //TeraPool Parameters
+  `include "reqrsp_interface/typedef.svh"
+  `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
+  typedef logic [idx_width(NumTilesPerSubGroup)-1:0] tile_sub_group_id_t;
+  typedef logic [idx_width(NumSubGroupsPerGroup)-1:0] sgroup_group_id_t;
+  typedef logic [idx_width(NumGroups+NumSubGroupsPerGroup-1)-1:0] tile_remote_sel_t;
+
+  // TeraPool PostLayout Control
+  localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
+  localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
+
+  /**********************
+   *  QUEUE PARAMETERS  *
+   **********************/
+
+  // Size of xqueues in words (must be a power of two)
+  localparam int unsigned XQueueSize = `ifdef XQUEUE_SIZE `XQUEUE_SIZE `else 0 `endif;
+
+  /***********************
+   * REDMULE PARAMETERS  *
+   * *********************/
+
+  localparam integer unsigned ARRAY_HEIGHT = `ifdef ARRAY_HEIGHT `ARRAY_HEIGHT `else 4 `endif;
+  localparam integer unsigned PIPE_REGS    = `ifdef PIPE_REGS `PIPE_REGS `else 3 `endif;
+  localparam integer unsigned ARRAY_WIDTH  = `ifdef ARRAY_WIDTH `ARRAY_WIDTH `else (ARRAY_HEIGHT*PIPE_REGS) `endif;
+  localparam integer unsigned ROB_DEPTH    = `ifdef ROB_DEPTH `ROB_DEPTH `else 16 `endif;
+
+  localparam integer unsigned RMNumStreams = 4;
+  localparam integer unsigned RMOutstandingTransactions = ROB_DEPTH;
+  localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1);
+  localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
+  localparam integer unsigned RMRegSize = 256;
+
+  // RedMule addresses
+  localparam integer unsigned RMBaseAddr = 32'h4002_0000;
+  localparam integer unsigned RMMask = ~((1 << idx_width(RMRegSize)) - 1);
+
+  localparam integer unsigned NumLocalPorts = NumRMTiles > 0 ? RMMasterPorts+NumCoresPerTile : NumCoresPerTile;
+  localparam integer unsigned MetaIdWidth = idx_width(RMNumStreams * RMOutstandingTransactions) > SnitchIdWidth ?
+                                            idx_width(RMNumStreams * RMOutstandingTransactions) : SnitchIdWidth;
+  typedef logic [MetaIdWidth-1:0] meta_id_t;
+
+  typedef struct packed {
+    addr_t addr;
+    meta_id_t id;
+    logic [3:0] amo;
+    logic write;
+    data_t data;
+    strb_t strb;
+  } rm_dreq_t;
+
+  typedef struct packed {
+    data_t data;
+    meta_id_t id;
+    logic write;
+    logic error;
+  } rm_dresp_t;
+
+
   /**********************************
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
@@ -236,8 +319,7 @@ package mempool_pkg;
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;
-  typedef logic [MetaIdWidth-1:0] meta_id_t;
-  typedef logic [idx_width(NumCoresPerTile)-1:0] tile_core_id_t;
+  typedef logic [idx_width(NumLocalPorts)-1:0] tile_core_id_t; // TBD leaving floating for connection to Snitch tiles
   typedef logic [idx_width(NumTilesPerGroup)-1:0] tile_group_id_t;
   typedef logic [idx_width(NumGroups)-1:0] group_id_t;
   typedef logic [3:0] amo_t;
@@ -254,10 +336,12 @@ package mempool_pkg;
     logic wen;
     strb_t be;
     tcdm_addr_t tgt_addr;
+    burst_t burst;
   } tcdm_master_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
+    burst_gresp_t burst;
   } tcdm_master_resp_t;
 
   typedef struct packed {
@@ -265,12 +349,14 @@ package mempool_pkg;
     logic wen;
     strb_t be;
     tile_addr_t tgt_addr;
-    tile_group_id_t ini_addr;
+    tile_group_id_t tile_id;
+    burst_t burst;
   } tcdm_slave_req_t;
 
   typedef struct packed {
     tcdm_payload_t rdata;
-    tile_group_id_t ini_addr;
+    tile_group_id_t tile_id;
+    burst_gresp_t burst;
   } tcdm_slave_resp_t;
 
   typedef struct packed {
@@ -290,13 +376,6 @@ package mempool_pkg;
   typedef struct packed {
     dma_payload_t rdata;
   } tcdm_dma_resp_t;
-
-  /**********************
-   *  QUEUE PARAMETERS  *
-   **********************/
-
-  // Size of xqueues in words (must be a power of two)
-  localparam int unsigned XQueueSize = `ifdef XQUEUE_SIZE `XQUEUE_SIZE `else 0 `endif;
 
   /*****************
    *  ADDRESS MAP  *
@@ -322,37 +401,5 @@ package mempool_pkg;
 
   // Replaces core with a traffic generator
   parameter bit TrafficGeneration  = `ifdef TRAFFIC_GEN `TRAFFIC_GEN `else 0 `endif;
-
-  /*************************
-   *  TeraPool PARAMETERS  *
-   *************************/
-
-  localparam integer unsigned NumSubGroupsPerGroup = `ifdef NUM_SUB_GROUPS_PER_GROUP `NUM_SUB_GROUPS_PER_GROUP `else 1 `endif;
-
-  // TeraPool Tile Config
-  localparam integer unsigned NumSubGroups         = NumGroups * NumSubGroupsPerGroup;
-  localparam integer unsigned NumTilesPerSubGroup  = NumTilesPerGroup / NumSubGroupsPerGroup;
-  localparam integer unsigned NumCoresPerSubGroup  = NumTilesPerSubGroup * NumCoresPerTile;
-
-  // TeraPool Mem Config
-  localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
-
-  // TeraPool Remote Groups Latency Control (in Cycles)
-  localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 7 `endif;
-
-  //TeraPool AXI/DMA Config
-  localparam integer unsigned NumAXIMastersPerSubGroup = NumAXIMastersPerGroup/NumSubGroupsPerGroup;
-  localparam int unsigned NumDmasPerSubGroup = NumDmasPerGroup/NumSubGroupsPerGroup;
-
-  //TeraPool Parameters
-  `include "reqrsp_interface/typedef.svh"
-  `REQRSP_TYPEDEF_ALL(reqrsp, addr_t, axi_data_t, axi_strb_t)
-  typedef logic [idx_width(NumTilesPerSubGroup)-1:0] tile_sub_group_id_t;
-  typedef logic [idx_width(NumSubGroupsPerGroup)-1:0] sgroup_group_id_t;
-  typedef logic [idx_width(NumGroups+NumSubGroupsPerGroup-1)-1:0] tile_remote_sel_t;
-
-  // TeraPool PostLayout Control
-  localparam bit PostLayoutSg = `ifdef POSTLAYOUTSG `POSTLAYOUTSG `else 0 `endif;
-  localparam bit PostLayoutGr = `ifdef POSTLAYOUTGR `POSTLAYOUTGR `else 0 `endif;
 
 endpackage : mempool_pkg

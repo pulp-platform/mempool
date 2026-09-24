@@ -281,6 +281,8 @@ jobs:
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
+    - name: Get bender
+      run: make bender
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -318,6 +320,8 @@ jobs:
       run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
       run: pip install -r python-requirements.txt
+    - name: Get bender
+      run: make bender
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -359,6 +363,8 @@ jobs:
         name: halide
     - name: Untar halide
       run: tar --use-compress-program zstd -xf halide.tzst
+    - name: Get bender
+      run: make bender
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}

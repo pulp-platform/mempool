@@ -55,8 +55,6 @@ trace           := $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcar
 tracepath       ?= $(buildpath)/traces
 traceresult     ?= $(tracepath)/results.csv
 
-
-
 # Path to DRAMsys
 dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/configs
 dramsys_lib_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/build/lib
@@ -82,14 +80,13 @@ ifdef app
     endif
   endif
 endif
-
 # QuestaSim args
 library     ?= work
 dpi_library ?= work-dpi
 questa_args += $(if $(preload),+PRELOAD=$(preload),)
 questa_args += -sv_lib $(dpi_library)/mempool_dpi
 questa_args += -work $(library)
-questa_args += -suppress vsim-12070
+questa_args += -suppress vsim-3009 -suppress vsim-12070
 
 # VCS args
 vcs_args    += $(if $(preload),+PRELOAD=$(preload),)
@@ -107,6 +104,9 @@ vlogan_args += -override_timescale=1ns/1ps -kdb
 
 # Configuration name
 vlog_defs   += -D$(config)
+ifneq ($(num_sub_groups_per_group),1)
+	vlog_defs += -DTERAPOOL
+endif
 # Cluster configurations
 vlog_defs   += -DNUM_CORES=$(num_cores)
 vlog_defs   += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
@@ -124,6 +124,20 @@ vlog_defs   += -DZFINX=$(zfinx)
 vlog_defs   += -DZQUARTERINX=$(zquarterinx)
 vlog_defs   += -DXDIVSQRT=$(xDivSqrt)
 vlog_defs   += -DSNITCH_TRACE=$(snitch_trace)
+# RedMulE
+vlog_defs   += -DNUM_REDMULE_TILES=$(num_redmule_tiles)
+vlog_defs   += -DUSE_BURST=$(tcdm_burst)
+ifneq ($(num_redmule_tiles), 0)
+vlog_defs   += -DARRAY_HEIGHT=$(redmule_height)
+vlog_defs   += -DARRAY_WIDTH=$(redmule_width)
+vlog_defs   += -DPIPE_REGS=$(redmule_regs)
+vlog_defs   += -DROB_DEPTH=$(rob_depth)
+endif
+ifneq ($(tcdm_burst), 0)
+vlog_defs   += -DBURSTLEN=$(shell echo $$(( $(redmule_height)*($(redmule_regs)+1) )) | awk '{print int($$1 / 2)}')
+vlog_defs   += -DGROUP_REQ=$(burst_greq)
+vlog_defs   += -DGROUP_RSP=$(burst_grsp)
+endif
 # AXI & DMA
 vlog_defs   += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs   += -DRO_LINE_WIDTH=$(ro_line_width)
@@ -192,7 +206,7 @@ $(buildpath)/$(library):
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update-opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
+	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t redmule_hwpe -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
