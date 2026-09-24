@@ -104,7 +104,7 @@ int main() {
     const uint32_t dst_base_offset =
         (uint32_t)((uintptr_t)&l1_dst[0][0][0] - (uintptr_t)local(0));
     mc_dma_sync_1d((uint64_t)remote_cid(1, dst_base_offset),
-                  (uint64_t)(uintptr_t)&l1_dst[0][0][0], sizeof(l1_dst));
+                   (uint64_t)(uintptr_t)&l1_dst[0][0][0], sizeof(l1_dst));
   }
 
   mc_global_barrier_xy();
@@ -205,8 +205,7 @@ int main() {
     const uint32_t dst_base_offset =
         (uint32_t)((uintptr_t)&l1_dst[0][0][0] - (uintptr_t)local(0));
     mc_dma_async_1d((uint64_t)(uintptr_t)l1_dst,
-                    (uint64_t)remote_cid(1, dst_base_offset),
-                    sizeof(l1_dst));
+                    (uint64_t)remote_cid(1, dst_base_offset), sizeof(l1_dst));
     mc_dma_async_wait_all();
   }
 
