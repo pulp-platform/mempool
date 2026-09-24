@@ -42,23 +42,23 @@
 #include <string.h>
 
 #include "archi_redmule.h"
-#include "hal_redmule.h"
 #include "baremetal/mempool_conv1d_f16.h"
 #include "baremetal/mempool_gelu_f16.h"
 #include "baremetal/mempool_layernorm_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
+#include "hal_redmule.h"
 
 #define BEAM (128)
 #define EMBED (32)
 #define TDSAMPLES (32)
 #define WF (3)
 
-#define N_BEAM (8)                 /* beam-parallel clusters (0..N_BEAM-1)  */
-#define BC (BEAM / N_BEAM)         /* beams handled by one beam cluster     */
-#define N_ATTN (2)                 /* embed/tdSamples-parallel clusters     */
-#define EC (EMBED / N_ATTN)        /* embed channels per attn cluster (blk1)*/
-#define TC (TDSAMPLES / N_ATTN)    /* tdSamples per attn cluster (blk2)     */
-#define ATTN0 (N_BEAM)             /* cluster id of first attention cluster */
+#define N_BEAM (8)              /* beam-parallel clusters (0..N_BEAM-1)  */
+#define BC (BEAM / N_BEAM)      /* beams handled by one beam cluster     */
+#define N_ATTN (2)              /* embed/tdSamples-parallel clusters     */
+#define EC (EMBED / N_ATTN)     /* embed channels per attn cluster (blk1)*/
+#define TC (TDSAMPLES / N_ATTN) /* tdSamples per attn cluster (blk2)     */
+#define ATTN0 (N_BEAM)          /* cluster id of first attention cluster */
 #define ATTN1 (N_BEAM + 1)
 
 /* This target's libgcc predates soft-float f16<->f32 conversion helpers
@@ -73,18 +73,20 @@ static inline uint16_t fp16_bits(const __fp16 *x) {
   memcpy(&u, x, sizeof(u));
   return u;
 }
-static inline void bits_fp16(uint16_t u, __fp16 *x) { memcpy(x, &u, sizeof(u)); }
+static inline void bits_fp16(uint16_t u, __fp16 *x) {
+  memcpy(x, &u, sizeof(u));
+}
 
 /* IEEE-754 half-precision bits for 0.01 * (0..63), precomputed on the host. */
 static const uint16_t INPUT_LUT[64] = {
-    0x0000, 0x211f, 0x251f, 0x27ae, 0x291f, 0x2a66, 0x2bae, 0x2c7b, 0x2d1f,
-    0x2dc3, 0x2e66, 0x2f0a, 0x2fae, 0x3029, 0x307b, 0x30cd, 0x311f, 0x3171,
-    0x31c3, 0x3214, 0x3266, 0x32b8, 0x330a, 0x335c, 0x33ae, 0x3400, 0x3429,
-    0x3452, 0x347b, 0x34a4, 0x34cd, 0x34f6, 0x351f, 0x3548, 0x3571, 0x359a,
-    0x35c3, 0x35ec, 0x3614, 0x363d, 0x3666, 0x368f, 0x36b8, 0x36e1, 0x370a,
-    0x3733, 0x375c, 0x3785, 0x37ae, 0x37d7, 0x3800, 0x3814, 0x3829, 0x383d,
-    0x3852, 0x3866, 0x387b, 0x388f, 0x38a4, 0x38b8, 0x38cd, 0x38e1, 0x38f6,
-    0x390a};
+    0x0000, 0x211f, 0x251f, 0x27ae, 0x291f, 0x2a66, 0x2bae, 0x2c7b,
+    0x2d1f, 0x2dc3, 0x2e66, 0x2f0a, 0x2fae, 0x3029, 0x307b, 0x30cd,
+    0x311f, 0x3171, 0x31c3, 0x3214, 0x3266, 0x32b8, 0x330a, 0x335c,
+    0x33ae, 0x3400, 0x3429, 0x3452, 0x347b, 0x34a4, 0x34cd, 0x34f6,
+    0x351f, 0x3548, 0x3571, 0x359a, 0x35c3, 0x35ec, 0x3614, 0x363d,
+    0x3666, 0x368f, 0x36b8, 0x36e1, 0x370a, 0x3733, 0x375c, 0x3785,
+    0x37ae, 0x37d7, 0x3800, 0x3814, 0x3829, 0x383d, 0x3852, 0x3866,
+    0x387b, 0x388f, 0x38a4, 0x38b8, 0x38cd, 0x38e1, 0x38f6, 0x390a};
 #define ONE_FP16_BITS (0x3c00) /* 1.0 in IEEE-754 half */
 
 /**********************************************************************
@@ -156,10 +158,10 @@ typedef struct {
 
 typedef struct {
   __fp16 I[BC][EMBED][TDSAMPLES];
-  __fp16 F1[3 * EMBED * EMBED * WF]; /* QKV proj, Embed->3*Embed */
-  __fp16 F2[EMBED * EMBED * WF];     /* output proj, Embed->Embed */
-  __fp16 F3[2 * EMBED * EMBED * WF]; /* FFN hidden, Embed->2*Embed */
-  __fp16 F4[2 * EMBED * EMBED * WF]; /* FFN out, 2*Embed->Embed */
+  __fp16 F1[3 * EMBED * EMBED * WF];       /* QKV proj, Embed->3*Embed */
+  __fp16 F2[EMBED * EMBED * WF];           /* output proj, Embed->Embed */
+  __fp16 F3[2 * EMBED * EMBED * WF];       /* FFN hidden, Embed->2*Embed */
+  __fp16 F4[2 * EMBED * EMBED * WF];       /* FFN out, 2*Embed->Embed */
   __fp16 block1_out[BC][EMBED][TDSAMPLES]; /* ffn_out1 + res1 */
   __fp16 block2_out[BC][EMBED][TDSAMPLES]; /* ffn_out2 + res2 (FINAL) */
   union {
@@ -261,12 +263,12 @@ static union {
 #define l1_Aw2 (l1_arena.attn.a2.Aw)
 #define l1_A2 (l1_arena.attn.a2.A)
 
-#define DONE(label)                                                          \
-  do {                                                                       \
-    if (core_id == 0 && cluster_id == 0) {                                   \
-      printf("/* DONE: %s */\n", (label));                                   \
-    }                                                                        \
-    mc_global_barrier_xy();                                                  \
+#define DONE(label)                                                            \
+  do {                                                                         \
+    if (core_id == 0 && cluster_id == 0) {                                     \
+      printf("/* DONE: %s */\n", (label));                                     \
+    }                                                                          \
+    mc_global_barrier_xy();                                                    \
   } while (0)
 
 /* Elementwise residual add: dst = a + b, over BC*EMBED*TDSAMPLES elements,
@@ -276,7 +278,7 @@ static union {
  * so use the native vectorized fp16 add instruction directly, two
  * elements (one v2h) at a time -- BC*EMBED*TDSAMPLES is always even. */
 static inline void residual_add(__fp16 *dst, const __fp16 *a, const __fp16 *b,
-                                 uint32_t core_id, uint32_t num_cores) {
+                                uint32_t core_id, uint32_t num_cores) {
   for (uint32_t idx = 2 * core_id; idx < BC * EMBED * TDSAMPLES;
        idx += 2 * num_cores) {
     v2h va = *(v2h *)&a[idx];
@@ -298,10 +300,10 @@ int main() {
 
   const uint32_t is_beam = (cluster_id < N_BEAM);
   const uint32_t is_attn = (cluster_id == ATTN0) || (cluster_id == ATTN1);
-  const uint32_t beam_offset = cluster_id * BC;             /* beam clusters */
-  const uint32_t attn_idx = (cluster_id == ATTN1) ? 1 : 0;   /* attn clusters */
-  const uint32_t embed_offset = attn_idx * EC;               /* block 1 */
-  const uint32_t t_offset = attn_idx * TC;                   /* block 2 */
+  const uint32_t beam_offset = cluster_id * BC;            /* beam clusters */
+  const uint32_t attn_idx = (cluster_id == ATTN1) ? 1 : 0; /* attn clusters */
+  const uint32_t embed_offset = attn_idx * EC;             /* block 1 */
+  const uint32_t t_offset = attn_idx * TC;                 /* block 2 */
 
   DONE("Start");
 
@@ -373,8 +375,8 @@ int main() {
 
     /* Stage 2: Conv1D QKV projection, Embed -> 3*Embed */
     mempool_start_benchmark();
-    conv1d_f16(&l1_norm1[0][0][0], l1_F1, &l1_qkv1[0][0][0], l1_im2col_qkv1,
-              BC, EMBED, 3 * EMBED, TDSAMPLES, WF, 1, core_id, num_cores);
+    conv1d_f16(&l1_norm1[0][0][0], l1_F1, &l1_qkv1[0][0][0], l1_im2col_qkv1, BC,
+               EMBED, 3 * EMBED, TDSAMPLES, WF, 1, core_id, num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
@@ -390,23 +392,27 @@ int main() {
         for (uint32_t b = 0; b < BC; ++b) {
           const uint32_t global_beam = beam_offset + b;
 
-          uint32_t q_off = (uint32_t)((uintptr_t)&l1_Q1_stage[global_beam][0][0] -
-                                      (uintptr_t)local(0));
+          uint32_t q_off =
+              (uint32_t)((uintptr_t)&l1_Q1_stage[global_beam][0][0] -
+                         (uintptr_t)local(0));
           mc_dma_sync_1d((uint64_t)remote_cid(dst_cluster, q_off),
                          (uint64_t)(uintptr_t)&l1_qkv1[b][a * EC][0],
                          chunk_bytes);
 
-          uint32_t k_off = (uint32_t)((uintptr_t)&l1_K1_stage[global_beam][0][0] -
-                                      (uintptr_t)local(0));
+          uint32_t k_off =
+              (uint32_t)((uintptr_t)&l1_K1_stage[global_beam][0][0] -
+                         (uintptr_t)local(0));
           mc_dma_sync_1d((uint64_t)remote_cid(dst_cluster, k_off),
                          (uint64_t)(uintptr_t)&l1_qkv1[b][EMBED + a * EC][0],
                          chunk_bytes);
 
-          uint32_t v_off = (uint32_t)((uintptr_t)&l1_V1_stage[global_beam][0][0] -
-                                      (uintptr_t)local(0));
-          mc_dma_sync_1d((uint64_t)remote_cid(dst_cluster, v_off),
-                         (uint64_t)(uintptr_t)&l1_qkv1[b][2 * EMBED + a * EC][0],
-                         chunk_bytes);
+          uint32_t v_off =
+              (uint32_t)((uintptr_t)&l1_V1_stage[global_beam][0][0] -
+                         (uintptr_t)local(0));
+          mc_dma_sync_1d(
+              (uint64_t)remote_cid(dst_cluster, v_off),
+              (uint64_t)(uintptr_t)&l1_qkv1[b][2 * EMBED + a * EC][0],
+              chunk_bytes);
         }
       }
     }
@@ -465,7 +471,7 @@ int main() {
         hwpe_soft_clear();
         mempool_wait(10);
         redmule_cfg(I_ptr, W_ptr, O_ptr, (uint16_t)BEAM, (uint16_t)TDSAMPLES,
-                   (uint16_t)BEAM, 0, GEMM, Float16);
+                    (uint16_t)BEAM, 0, GEMM, Float16);
         mempool_wait(10);
         hwpe_trigger_job();
         mempool_wfi();
@@ -477,8 +483,8 @@ int main() {
     /* Stage 5b: softmax. */
     mempool_start_benchmark();
     for (uint32_t i = core_id; i < EC; i += num_cores) {
-      softmax_parallel_2x4_f16vec(&l1_S1[i][0][0], &l1_Aw1[i][0][0], BEAM,
-                                  BEAM, 0, 1);
+      softmax_parallel_2x4_f16vec(&l1_S1[i][0][0], &l1_Aw1[i][0][0], BEAM, BEAM,
+                                  0, 1);
     }
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
@@ -493,7 +499,7 @@ int main() {
         hwpe_soft_clear();
         mempool_wait(10);
         redmule_cfg(I_ptr, W_ptr, O_ptr, (uint16_t)BEAM, (uint16_t)BEAM,
-                   (uint16_t)TDSAMPLES, 0, GEMM, Float16);
+                    (uint16_t)TDSAMPLES, 0, GEMM, Float16);
         mempool_wait(10);
         hwpe_trigger_job();
         mempool_wfi();
@@ -511,8 +517,9 @@ int main() {
       for (uint32_t c = 0; c < N_BEAM; ++c) {
         for (uint32_t ec_local = 0; ec_local < EC; ++ec_local) {
           const uint32_t ec_global = embed_offset + ec_local;
-          uint32_t dst_off = (uint32_t)((uintptr_t)&l1_attn_stage1[ec_global][0][0] -
-                                        (uintptr_t)local(0));
+          uint32_t dst_off =
+              (uint32_t)((uintptr_t)&l1_attn_stage1[ec_global][0][0] -
+                         (uintptr_t)local(0));
           mc_dma_sync_1d((uint64_t)remote_cid(c, dst_off),
                          (uint64_t)(uintptr_t)&l1_A1[ec_local][c * BC][0],
                          chunk_bytes);
@@ -561,15 +568,15 @@ int main() {
     /* Stage 8: output Conv1D, Embed -> Embed */
     mempool_start_benchmark();
     conv1d_f16(&l1_attn_out1[0][0][0], l1_F2, &l1_proj_out1[0][0][0],
-              l1_im2col_out1, BC, EMBED, EMBED, TDSAMPLES, WF, 1, core_id,
-              num_cores);
+               l1_im2col_out1, BC, EMBED, EMBED, TDSAMPLES, WF, 1, core_id,
+               num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 9: residual, res1 = proj_out1 + I */
     mempool_start_benchmark();
     residual_add(&l1_res1[0][0][0], &l1_proj_out1[0][0][0], &l1_I[0][0][0],
-                core_id, num_cores);
+                 core_id, num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
@@ -584,30 +591,30 @@ int main() {
     /* Stage 11: Conv1D, Embed -> 2*Embed */
     mempool_start_benchmark();
     conv1d_f16(&l1_norm_ffn1[0][0][0], l1_F3, &l1_ffn_hidden1[0][0][0],
-              l1_im2col_ffn1a, BC, EMBED, 2 * EMBED, TDSAMPLES, WF, 1,
-              core_id, num_cores);
+               l1_im2col_ffn1a, BC, EMBED, 2 * EMBED, TDSAMPLES, WF, 1, core_id,
+               num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 12: GELU, in-place, over the whole flat hidden buffer. */
     mempool_start_benchmark();
     gelu_f16(&l1_ffn_hidden1[0][0][0], BC * 2 * EMBED * TDSAMPLES, core_id,
-            num_cores);
+             num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 13: Conv1D, 2*Embed -> Embed */
     mempool_start_benchmark();
     conv1d_f16(&l1_ffn_hidden1[0][0][0], l1_F4, &l1_ffn_out1[0][0][0],
-              l1_im2col_ffn1b, BC, 2 * EMBED, EMBED, TDSAMPLES, WF, 1,
-              core_id, num_cores);
+               l1_im2col_ffn1b, BC, 2 * EMBED, EMBED, TDSAMPLES, WF, 1, core_id,
+               num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 14: residual, block1_out = ffn_out1 + res1 */
     mempool_start_benchmark();
     residual_add(&l1_block1_out[0][0][0], &l1_ffn_out1[0][0][0],
-                &l1_res1[0][0][0], core_id, num_cores);
+                 &l1_res1[0][0][0], core_id, num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
@@ -621,8 +628,8 @@ int main() {
 
     /* Stage 16: Conv1D QKV projection, Embed -> 3*Embed */
     mempool_start_benchmark();
-    conv1d_f16(&l1_norm2[0][0][0], l1_F1, &l1_qkv2[0][0][0], l1_im2col_qkv2,
-              BC, EMBED, 3 * EMBED, TDSAMPLES, WF, 1, core_id, num_cores);
+    conv1d_f16(&l1_norm2[0][0][0], l1_F1, &l1_qkv2[0][0][0], l1_im2col_qkv2, BC,
+               EMBED, 3 * EMBED, TDSAMPLES, WF, 1, core_id, num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
@@ -642,19 +649,22 @@ int main() {
         for (uint32_t b = 0; b < BC; ++b) {
           const uint32_t global_beam = beam_offset + b;
 
-          uint32_t q_off = (uint32_t)((uintptr_t)&l1_Q2_stage[global_beam][0][0] -
-                                      (uintptr_t)local(0));
+          uint32_t q_off =
+              (uint32_t)((uintptr_t)&l1_Q2_stage[global_beam][0][0] -
+                         (uintptr_t)local(0));
           mc_dma_sync_1d((uint64_t)remote_cid(dst_cluster, q_off),
                          (uint64_t)(uintptr_t)&l1_qkv2[b][0][0], chunk_bytes2);
 
-          uint32_t k_off = (uint32_t)((uintptr_t)&l1_K2_stage[global_beam][0][0] -
-                                      (uintptr_t)local(0));
+          uint32_t k_off =
+              (uint32_t)((uintptr_t)&l1_K2_stage[global_beam][0][0] -
+                         (uintptr_t)local(0));
           mc_dma_sync_1d((uint64_t)remote_cid(dst_cluster, k_off),
                          (uint64_t)(uintptr_t)&l1_qkv2[b][EMBED][0],
                          chunk_bytes2);
 
-          uint32_t v_off = (uint32_t)((uintptr_t)&l1_V2_stage[global_beam][0][0] -
-                                      (uintptr_t)local(0));
+          uint32_t v_off =
+              (uint32_t)((uintptr_t)&l1_V2_stage[global_beam][0][0] -
+                         (uintptr_t)local(0));
           mc_dma_sync_1d((uint64_t)remote_cid(dst_cluster, v_off),
                          (uint64_t)(uintptr_t)&l1_qkv2[b][2 * EMBED][0],
                          chunk_bytes2);
@@ -709,7 +719,7 @@ int main() {
         hwpe_soft_clear();
         mempool_wait(10);
         redmule_cfg(I_ptr, W_ptr, O_ptr, (uint16_t)BEAM, (uint16_t)EMBED,
-                   (uint16_t)BEAM, 0, GEMM, Float16);
+                    (uint16_t)BEAM, 0, GEMM, Float16);
         mempool_wait(10);
         hwpe_trigger_job();
         mempool_wfi();
@@ -721,8 +731,8 @@ int main() {
     /* Stage 19b: softmax. */
     mempool_start_benchmark();
     for (uint32_t i = core_id; i < TC; i += num_cores) {
-      softmax_parallel_2x4_f16vec(&l1_S2[i][0][0], &l1_Aw2[i][0][0], BEAM,
-                                  BEAM, 0, 1);
+      softmax_parallel_2x4_f16vec(&l1_S2[i][0][0], &l1_Aw2[i][0][0], BEAM, BEAM,
+                                  0, 1);
     }
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
@@ -737,7 +747,7 @@ int main() {
         hwpe_soft_clear();
         mempool_wait(10);
         redmule_cfg(I_ptr, W_ptr, O_ptr, (uint16_t)BEAM, (uint16_t)BEAM,
-                   (uint16_t)EMBED, 0, GEMM, Float16);
+                    (uint16_t)EMBED, 0, GEMM, Float16);
         mempool_wait(10);
         hwpe_trigger_job();
         mempool_wfi();
@@ -755,8 +765,9 @@ int main() {
       for (uint32_t c = 0; c < N_BEAM; ++c) {
         for (uint32_t tc = 0; tc < TC; ++tc) {
           const uint32_t global_t = t_offset + tc;
-          uint32_t dst_off = (uint32_t)((uintptr_t)&l1_attn_stage2[global_t][0][0] -
-                                        (uintptr_t)local(0));
+          uint32_t dst_off =
+              (uint32_t)((uintptr_t)&l1_attn_stage2[global_t][0][0] -
+                         (uintptr_t)local(0));
           mc_dma_sync_1d((uint64_t)remote_cid(c, dst_off),
                          (uint64_t)(uintptr_t)&l1_A2[tc][c * BC][0],
                          chunk_bytes3);
@@ -799,52 +810,53 @@ int main() {
     /* Stage 22: output Conv1D, Embed -> Embed */
     mempool_start_benchmark();
     conv1d_f16(&l1_attn_out2[0][0][0], l1_F2, &l1_proj_out2[0][0][0],
-              l1_im2col_out2, BC, EMBED, EMBED, TDSAMPLES, WF, 1, core_id,
-              num_cores);
+               l1_im2col_out2, BC, EMBED, EMBED, TDSAMPLES, WF, 1, core_id,
+               num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 23: residual, res2 = proj_out2 + block1_out */
     mempool_start_benchmark();
     residual_add(&l1_res2[0][0][0], &l1_proj_out2[0][0][0],
-                &l1_block1_out[0][0][0], core_id, num_cores);
+                 &l1_block1_out[0][0][0], core_id, num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 24: LayerNorm (FFN) */
     mempool_start_benchmark();
-    layernorm_parallel_2x4_f16vec(&l1_res2[b_ln][0][0], &l1_norm_ffn2[b_ln][0][0],
-                                  EMBED, TDSAMPLES, sub_id, num_cores_per_beam);
+    layernorm_parallel_2x4_f16vec(&l1_res2[b_ln][0][0],
+                                  &l1_norm_ffn2[b_ln][0][0], EMBED, TDSAMPLES,
+                                  sub_id, num_cores_per_beam);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 25: Conv1D, Embed -> 2*Embed */
     mempool_start_benchmark();
     conv1d_f16(&l1_norm_ffn2[0][0][0], l1_F3, &l1_ffn_hidden2[0][0][0],
-              l1_im2col_ffn2a, BC, EMBED, 2 * EMBED, TDSAMPLES, WF, 1,
-              core_id, num_cores);
+               l1_im2col_ffn2a, BC, EMBED, 2 * EMBED, TDSAMPLES, WF, 1, core_id,
+               num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 26: GELU, in-place. */
     mempool_start_benchmark();
     gelu_f16(&l1_ffn_hidden2[0][0][0], BC * 2 * EMBED * TDSAMPLES, core_id,
-            num_cores);
+             num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 27: Conv1D, 2*Embed -> Embed */
     mempool_start_benchmark();
     conv1d_f16(&l1_ffn_hidden2[0][0][0], l1_F4, &l1_ffn_out2[0][0][0],
-              l1_im2col_ffn2b, BC, 2 * EMBED, EMBED, TDSAMPLES, WF, 1,
-              core_id, num_cores);
+               l1_im2col_ffn2b, BC, 2 * EMBED, EMBED, TDSAMPLES, WF, 1, core_id,
+               num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
 
     /* Stage 28: residual, block2_out = ffn_out2 + res2 (final output) */
     mempool_start_benchmark();
     residual_add(&l1_block2_out[0][0][0], &l1_ffn_out2[0][0][0],
-                &l1_res2[0][0][0], core_id, num_cores);
+                 &l1_res2[0][0][0], core_id, num_cores);
     mc_intra_cluster_sync();
     mempool_stop_benchmark();
   }
