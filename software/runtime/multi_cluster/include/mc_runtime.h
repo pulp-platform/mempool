@@ -37,7 +37,7 @@ static inline void alloc_dump() { mc_dump_heap(); }
 #define local(offset) (ARCH_CLUSTER_TCDM_BASE + (offset))
 #define zomem(offset) (ARCH_CLUSTER_ZOMEM_BASE + (offset))
 #define remote_cid(cid, offset)                                                \
-  (ARCH_CLUSTER_TCDM_REMOTE + (cid)*ARCH_CLUSTER_TCDM_SIZE + (offset))
+  (ARCH_CLUSTER_TCDM_REMOTE + (cid) * ARCH_CLUSTER_TCDM_SIZE + (offset))
 #define remote_xy(x, y, offset)                                                \
   (ARCH_CLUSTER_TCDM_REMOTE + cluster_index(x, y) * ARCH_CLUSTER_TCDM_SIZE +   \
    (offset))
@@ -67,7 +67,7 @@ static inline void alloc_dump() { mc_dump_heap(); }
    (uint64_t)ARCH_HBM_NODE_ADDR_SPACE * ARCH_NUM_CLUSTER_X +                   \
    (uint64_t)(offset))
 #define is_hbm_region(addr) ((addr) >= ARCH_HBM_START_BASE)
-#define is_power_of_two(value) (((value) & ((value)-1)) == 0)
+#define is_power_of_two(value) (((value) & ((value) - 1)) == 0)
 
 /*******************
  * Cluster Position *
