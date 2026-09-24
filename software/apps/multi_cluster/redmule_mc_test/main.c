@@ -1,3 +1,7 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 /*
  * Minimal RedMulE-on-multi-cluster isolation test, per the user's request:
  * every cluster independently runs a plain matmul on its own local RedMulE
