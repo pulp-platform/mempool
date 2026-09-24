@@ -13,7 +13,7 @@
 #include "synchronization.h"
 
 #define PARALLEL
-#define PORT_WIDTH 4
+#define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 
 #include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_conv2d_f16.h"
@@ -84,8 +84,8 @@ int main() {
 
   // Execute function to test.
   mempool_start_benchmark();
-  conv2d_depthwise_new_f16(l1_A, l1_Bd, l1_Wd, matrix_M, matrix_N, matrix_D,
-                           kernel_K, core_id, num_cores);
+  conv2d_depthwise_f16(l1_A, l1_Bd, l1_Wd, matrix_M, matrix_N, matrix_D,
+                       kernel_K, core_id, num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 

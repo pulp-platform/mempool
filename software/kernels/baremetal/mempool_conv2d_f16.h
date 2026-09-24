@@ -6,7 +6,6 @@
 
 #pragma once
 #include "builtins_v2.h"
-#define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 #define SHIFT (true)
 
 void conv2d_pointwise_f16(__fp16 *A, __fp16 *B, __fp16 *W, uint32_t matrix_M,
