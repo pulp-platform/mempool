@@ -143,12 +143,15 @@ $(HALIDE_BINS):  $(BIN_DIR)/%: %/$(HALIDE_PIPELINE) %/main.c.o $(RUNTIME) $(HALI
 
 # Make all applications
 ifeq ($(COMPILER),gcc)
-all: $(ALL_GCC) multi-cluster $(OMP_APPS) $(HALIDE_APPS)
+all: all-gcc multi-cluster all-omp all-halide
 else
-all: $(ALL_LLVM) multi-cluster $(OMP_APPS) $(HALIDE_APPS)
+all: all-llvm multi-cluster all-omp all-halide
 endif
+
 all-llvm: $(ALL_LLVM)
 all-gcc: $(ALL_GCC)
+all-omp: $(OMP_APPS)
+all-halide: $(HALIDE_APPS)
 
 # Update the opcodes
 update-opcodes:
