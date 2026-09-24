@@ -4,6 +4,12 @@
 //
 // Author: Marco Bertuletti
 
+#if (NUM_CORES == 16)
+#define BEAM (4)
+#define EMBED (16)
+#define TDSAMPLES (16)
+#endif
+
 #ifndef BEAM
 #define BEAM (32)
 #endif
