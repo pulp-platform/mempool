@@ -10,7 +10,6 @@
 # The script generates random inputs for the C functions.
 
 import numpy as np
-import math
 
 try:
     import pyflexfloat as ff
@@ -326,7 +325,8 @@ def fsoftmax_taylor(A, normalized=True, my_type=None):
     by the MemPool softmax generators.
     """
     # e5m2 path (float8)
-    if my_type is not None and ff is not None and f"{my_type}" == f"{ff.FlexFloat('e5m2')}":
+    if (my_type is not None and ff is not None
+            and f"{my_type}" == f"{ff.FlexFloat('e5m2')}"):
         if A.ndim != 2:
             raise ValueError("fsoftmax_taylor expects a 2D array.")
 
