@@ -555,7 +555,7 @@ def generate_fmultihead(my_type=np.float32, defines={}):
 
     # Attention scores
     Kt = np.transpose(K, (0, 2, 1))           # (H, N, M)
-    A = np.matmul(Q, Kt).astype(my_type)      # (H, M, M)
+    A = (np.matmul(Q, Kt)).astype(my_type)      # (H, M, M)
 
     A = fsoftmax_taylor(A.reshape(H * M, M), normalized=True, my_type=my_type)
 

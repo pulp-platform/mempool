@@ -288,7 +288,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=gcc make -C software/apps baremetal omp
+        COMPILER=gcc make -C software/apps all-gcc all-omp
         COMPILER=gcc make -C software/tests baremetal omp
     - name: Tar apps-gcc Model
       run: tar --posix --use-compress-program zstd -cf apps-gcc.tzst software/bin
@@ -370,7 +370,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps/halide all
+        COMPILER=llvm make -C software/apps all-halide
     - name: Tar apps-halide Model
       run: tar --posix --use-compress-program zstd -cf apps-halide.tzst software/bin
     - name: Upload apps-halide
@@ -417,7 +417,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=blas/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-llvm:
@@ -455,7 +455,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=tests/baremetal/tile_wu make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-halide:
@@ -493,7 +493,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=apps/halide/2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=halide/2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   unit-test:
