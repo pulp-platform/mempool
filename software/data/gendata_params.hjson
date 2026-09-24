@@ -280,9 +280,9 @@
   "slp_f16": {
     "type": "float16",
     "defines": [
-      ("matrix_M", 2048)
-      ("matrix_N", 128)
-      ("matrix_P", 128)
+      ("matrix_M", 32)
+      ("matrix_N", 32)
+      ("matrix_P", 32)
     ]
     "arrays": [
       ("__fp16", "l2_X")
@@ -313,10 +313,10 @@
   "cnn_f16": {
     "type": "float16",
     "defines": [
-      ("FM", 32)
+      ("FM", 16)
       ("FN", 16)
-      ("DW_D", 512)
-      ("PW_D", 512)
+      ("DW_D", 16)
+      ("PW_D", 16)
       ("DW_K", 3)
     ]
     "arrays": [
@@ -427,11 +427,11 @@
   "messagep_f16": {
     "type": "float16",
     "defines": [
-      ("matrix_M", 32)
+      ("matrix_M", 8)
       ("matrix_N", 4)
       ("matrix_P", 4)
-      ("matrix_D", 128)
-      ("width_HL", 128)
+      ("matrix_D", 16)
+      ("width_HL", 16)
       ("FC_LAYER", 1)
       ("BIAS",     1)
       ("RELU",     0)
