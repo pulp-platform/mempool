@@ -231,7 +231,7 @@ endif
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
 data_%.h: $(DATA_DIR)/gendata_params.hjson
-	$(python) $(DATA_DIR)/gendata_header.py --app_name $* --params $(DATA_DIR)/gendata_params.hjson
+	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_DIR)/gendata_params.hjson
 
 .PHONY: FORCE
 FORCE:

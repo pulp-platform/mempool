@@ -25,8 +25,8 @@ BINS      := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL_LLVM  := $(foreach suf, f16 f32 f8, $(filter %_$(suf), $(APPS)))
 ALL_GCC   := $(filter-out $(ALL_LLVM),$(APPS))
 
-# convenience targets
-$(foreach a,$(APPS),$(eval $(a): data_$(notdir $(a))))
+# data_%.h is defined once, in runtime.mk
+$(foreach a,$(APPS),$(eval $(a): data_$(notdir $(a)).h))
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
 # Link all objects to the binaries
@@ -35,13 +35,9 @@ $(BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	$(RISCV_CC) -Iinclude -o $@ $< $(RUNTIME) $(RISCV_LDFLAGS) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 
-# --- data rule ---
-data_%: $(DATA_DIR)/gendata_params.hjson
-	$(python) $(DATA_DIR)/gendata_header.py --app_name $* --params $<
-
-###############
+#################
 # Multi-Cluster #
-###############
+#################
 
 MULTI_CLUSTER_DIR := $(APPS_DIR)/multi_cluster
 
