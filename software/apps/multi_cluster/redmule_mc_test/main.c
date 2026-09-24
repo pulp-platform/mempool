@@ -1,3 +1,7 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 /*
  * Minimal RedMulE-on-multi-cluster isolation test, per the user's request:
  * every cluster independently runs a plain matmul on its own local RedMulE
@@ -15,8 +19,8 @@
 #include <string.h>
 
 #include "archi_redmule.h"
-#include "hal_redmule.h"
 #include "baremetal/mempool_redmule_f16.h"
+#include "hal_redmule.h"
 
 #define M (16)
 #define N (16)
@@ -26,15 +30,17 @@ static __fp16 l1_X[M][N] __attribute__((section(".l1"), aligned(64)));
 static __fp16 l1_W[N][P] __attribute__((section(".l1"), aligned(64)));
 static __fp16 l1_Y[M][P] __attribute__((section(".l1"), aligned(64)));
 
-static inline void bits_fp16(uint16_t u, __fp16 *x) { memcpy(x, &u, sizeof(u)); }
+static inline void bits_fp16(uint16_t u, __fp16 *x) {
+  memcpy(x, &u, sizeof(u));
+}
 #define ONE_FP16_BITS (0x3c00) /* 1.0 in IEEE-754 half */
 
-#define DONE(label)                                                          \
-  do {                                                                       \
-    if (core_id == 0 && cluster_id == 0) {                                   \
-      printf("/* DONE: %s */\n", (label));                                   \
-    }                                                                        \
-    mc_global_barrier_xy();                                                  \
+#define DONE(label)                                                            \
+  do {                                                                         \
+    if (core_id == 0 && cluster_id == 0) {                                     \
+      printf("/* DONE: %s */\n", (label));                                     \
+    }                                                                          \
+    mc_global_barrier_xy();                                                    \
   } while (0)
 
 int main() {

@@ -1,9 +1,13 @@
+// Copyright 2021 ETH Zurich and University of Bologna.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef _MC_DMA_PATTERN_H_
 #define _MC_DMA_PATTERN_H_
 
 #include "mc_cluster_arch.h"
 #include "mc_runtime.h"
-//#include <stddef.h>
+// #include <stddef.h>
 #include <stdint.h>
 
 #ifndef ARCH_CLUSTER_DMA_CTRL_BASE
@@ -163,7 +167,7 @@ void mc_dma_async_wait_all() { bare_dma_wait_all(); }
 
 // Basic DMA 1d transfter
 void mc_dma_sync_1d(uint64_t dst_addr, uint64_t src_addr,
-                     size_t transfer_size) {
+                    size_t transfer_size) {
   bare_dma_start_1d(dst_addr, src_addr, transfer_size);
   bare_dma_wait_all();
 }
