@@ -9,69 +9,70 @@ class FlexClusterArch:
 
     def __init__(self):
 
-        #Cluster
-        self.num_cluster_x           = 2
-        self.num_cluster_y           = 5
+        # Cluster
+        self.num_cluster_x = 2
+        self.num_cluster_y = 5
 
-        self.cluster_tcdm_base       = 0x00000000
-        self.cluster_tcdm_size       = 0x00400000
-        self.cluster_tcdm_remote     = 0x30000000
+        self.cluster_tcdm_base = 0x00000000
+        self.cluster_tcdm_size = 0x00400000
+        self.cluster_tcdm_remote = 0x30000000
 
-        self.cluster_stack_base      = 0x10000000
-        self.cluster_stack_size      = 0x00020000
+        self.cluster_stack_base = 0x10000000
+        self.cluster_stack_size = 0x00020000
 
-        self.cluster_reg_base        = 0x20000000
-        self.cluster_reg_size        = 0x00000200
+        self.cluster_reg_base = 0x20000000
+        self.cluster_reg_size = 0x00000200
 
-        self.instruction_mem_base    = 0x80000000
+        self.instruction_mem_base = 0x80000000
 
         # Mempool cluster configuration (Tensorpool)
         # Heterogeneous: 256 PE (as Mempool) + 16 RedMulE tensor engines,
         # sub-group division (as Terapool) and a 4 MB L1 (as Terapool).
-        self.terapool                    = False
-        self.num_core_per_cluster        = 256
-        self.nb_cores_per_tile           = 4
-        self.nb_sub_groups_per_group     = 4
-        self.nb_groups                   = 4
-        self.bank_factor                 = 8
-        self.bank_size                   = 2048
-        self.axi_data_width              = 64
-        self.dma_tcdm_outstanding        = 32
-        self.dma_burst_queue_size        = 32
-        self.nb_axi_masters_per_group    = 4
-        self.instruction_mem_size        = 0x400000
-        self.nb_l2_banks                 = 4
+        self.terapool = False
+        self.num_core_per_cluster = 256
+        self.nb_cores_per_tile = 4
+        self.nb_sub_groups_per_group = 4
+        self.nb_groups = 4
+        self.bank_factor = 8
+        self.bank_size = 2048
+        self.axi_data_width = 64
+        self.dma_tcdm_outstanding = 32
+        self.dma_burst_queue_size = 32
+        self.nb_axi_masters_per_group = 4
+        self.instruction_mem_size = 0x400000
+        self.nb_l2_banks = 4
 
         # Tensor engines (RedMulE)
-        self.tensorpool                  = True
+        self.tensorpool = True
         # 16 tensor engines per cluster
-        self.nb_redmule_tiles            = 16
-        self.redmule_height              = 4
-        self.redmule_width               = 32
-        self.redmule_regs                = 3
-        self.redmule_queue_depth         = 128
-        self.redmule_stream_loads        = True
-        self.redmule_row_refill_cyc      = 740
-        self.redmule_tcdm_bank_number    = None   # auto-derive: (height*(regs+1))//2
+        self.nb_redmule_tiles = 16
+        self.redmule_height = 4
+        self.redmule_width = 32
+        self.redmule_regs = 3
+        self.redmule_queue_depth = 128
+        self.redmule_stream_loads = True
+        self.redmule_row_refill_cyc = 740
+        # auto-derive: (height*(regs+1))//2
+        self.redmule_tcdm_bank_number = None
 
-        #HBM
-        self.hbm_start_base          = 0xc0000000
-        self.hbm_node_addr_space     = 0x00800000
-        self.num_node_per_ctrl       = 4
-        self.hbm_chan_placement      = [0,1,0,1]
-        self.hbm_node_aliase         = 1
+        # HBM
+        self.hbm_start_base = 0xc0000000
+        self.hbm_node_addr_space = 0x00800000
+        self.num_node_per_ctrl = 4
+        self.hbm_chan_placement = [0, 1, 0, 1]
+        self.hbm_node_aliase = 1
 
-        #NoC
-        self.noc_outstanding         = 64
-        self.noc_link_width          = 512
+        # NoC
+        self.noc_outstanding = 64
+        self.noc_link_width = 512
 
-        #System
-        self.soc_register_base       = 0x90000000
-        self.soc_register_size       = 0x00010000
-        self.soc_register_eoc        = 0x90000000
-        self.soc_register_wakeup     = 0x90000004
+        # System
+        self.soc_register_base = 0x90000000
+        self.soc_register_size = 0x00010000
+        self.soc_register_eoc = 0x90000000
+        self.soc_register_wakeup = 0x90000004
 
-        #Synchronization
-        self.sync_base               = 0x50000000
-        self.sync_interleave         = 0x00000080
-        self.sync_special_mem        = 0x00000040
+        # Synchronization
+        self.sync_base = 0x50000000
+        self.sync_interleave = 0x00000080
+        self.sync_special_mem = 0x00000040
