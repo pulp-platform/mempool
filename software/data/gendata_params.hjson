@@ -224,10 +224,10 @@
     "type": "float16",
     "defines": [
       ("matrix_M", 16)
-      ("matrix_N", 128)
-      ("matrix_D", 128)
+      ("matrix_N", 16)
+      ("matrix_D", 16)
       ("kernel_K", 3)
-      ("kernel_D", 128)
+      ("kernel_D", 16)
     ]
     "arrays": [
       ("__fp16", "l2_A")
@@ -297,8 +297,8 @@
     "type": "float16",
     "defines": [
       ("H", 4)
-      ("M", 128)
-      ("N", 512)
+      ("M", 32)
+      ("N", 32)
     ]
     "arrays": [
       ("__fp16", "l2_X")
