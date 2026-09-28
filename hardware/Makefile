@@ -132,6 +132,10 @@ vlog_defs   += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs   += -DARRAY_WIDTH=$(redmule_width)
 vlog_defs   += -DPIPE_REGS=$(redmule_regs)
 vlog_defs   += -DROB_DEPTH=$(rob_depth)
+vlog_defs   += -DFIFO_BUFFER_DEPTH=$(opope_fifo_depth)
+ifdef tensor_engine
+	vlog_defs += -DTENSOR_ENGINE_TYPE=$(shell echo $(tensor_engine) | tr a-z A-Z)
+endif
 endif
 ifneq ($(tcdm_burst), 0)
 vlog_defs   += -DBURSTLEN=$(shell echo $$(( $(redmule_height)*($(redmule_regs)+1) )) | awk '{print int($$1 / 2)}')
@@ -206,7 +210,7 @@ $(buildpath)/$(library):
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update-opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t redmule_hwpe -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
+	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
