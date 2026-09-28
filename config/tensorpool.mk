@@ -54,9 +54,12 @@ stack_size := 512
 l2_size  ?= 4194304  # 400000
 l2_banks ?= 4
 
-#############################
-##  RedMulE Configuration  ##
-#############################
+####################################
+##  RedMulE/O-POPE Configuration  ##
+####################################
+
+# O-POPE mostly uses same parameters as RedMulE
+tensor_engine ?= opope   # opope | redmule
 
 num_redmule_tiles ?= 16
 
@@ -65,6 +68,7 @@ redmule_height ?= 8
 redmule_width ?= 32
 redmule_regs ?= 3
 rob_depth ?= 16
+opope_fifo_depth ?= 0
 
 ###########################
 ##  Burst configuration  ##

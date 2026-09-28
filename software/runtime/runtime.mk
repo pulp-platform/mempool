@@ -32,6 +32,7 @@ DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 # never otherwise triggers bender).
 bender             ?= $(INSTALL_DIR)/bender/bender
 REDMULE_DIR        := $(shell $(bender) path --checkout redmule)/sw
+OPOPE_DIR          := $(shell $(bender) path --checkout opope)/sw
 
 COMPILER      ?= gcc
 XPULPIMG      ?= $(xpulpimg)
@@ -126,7 +127,7 @@ DEFINES += -DNUM_TILES_PER_SUB_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(nu
 RISCV_LLVM_TARGET  ?= --target=$(RISCV_TARGET) --sysroot=$(GCC_INSTALL_DIR)/$(RISCV_TARGET) --gcc-toolchain=$(GCC_INSTALL_DIR)
 
 RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
-RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(REDMULE_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -static
+RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(REDMULE_DIR) -I$(REDMULE_DIR)/inc -I$(OPOPE_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -std=gnu99 -O3  -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -fno-tree-loop-distribute-patterns # -falign-loops=32 -falign-jumps=32
 RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown -menable-experimental-extensions
