@@ -667,7 +667,7 @@ module mempool_group
       mempool_tile #(
         .TCDMBaseAddr    (TCDMBaseAddr          ),
         .BootAddr        (BootAddr              ),
-        .RedMulE         (t < NumRMTilesPerGroup)
+        .TensorEngineTile (t < NumRMTilesPerGroup)
       ) i_tile (
         .clk_i                   (clk_i                                          ),
         .rst_ni                  (rst_ni                                         ),

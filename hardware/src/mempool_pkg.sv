@@ -275,6 +275,9 @@ package mempool_pkg;
    * REDMULE PARAMETERS  *
    * *********************/
 
+  typedef enum logic [0:0] { REDMULE, OPOPE } tensor_engine_e;
+  localparam tensor_engine_e TensorEngineType = `ifdef TENSOR_ENGINE_TYPE `TENSOR_ENGINE_TYPE `else OPOPE `endif;
+
   localparam integer unsigned ARRAY_HEIGHT = `ifdef ARRAY_HEIGHT `ARRAY_HEIGHT `else 4 `endif;
   localparam integer unsigned PIPE_REGS    = `ifdef PIPE_REGS `PIPE_REGS `else 3 `endif;
   localparam integer unsigned ARRAY_WIDTH  = `ifdef ARRAY_WIDTH `ARRAY_WIDTH `else (ARRAY_HEIGHT*PIPE_REGS) `endif;
@@ -282,7 +285,7 @@ package mempool_pkg;
 
   localparam integer unsigned RMNumStreams = 4;
   localparam integer unsigned RMOutstandingTransactions = ROB_DEPTH;
-  localparam integer unsigned RMDataWidth = 16 * ARRAY_HEIGHT * (PIPE_REGS + 1);
+  localparam integer unsigned RMDataWidth = TensorEngineType == REDMULE ? 16 * ARRAY_HEIGHT * (PIPE_REGS + 1) : 2 * 16 * ARRAY_HEIGHT;
   localparam integer unsigned RMMasterPorts = RMDataWidth / DataWidth;
   localparam integer unsigned RMRegSize = 256;
 

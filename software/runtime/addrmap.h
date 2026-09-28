@@ -8,8 +8,9 @@
 #define _ADDRMAP_H_
 
 #define CONTROL_REGISTER_OFFSET (0x40000000)
+#define OPOPE_BASE_ADD (0x40020000)
 #define REDMULE_BASE_ADD (0x40020000)
 
 #include "control_registers.h"
 
-#endif // _DMA_H_
+#endif // _ADDRMAP_H_
