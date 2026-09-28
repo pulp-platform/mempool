@@ -88,6 +88,17 @@ num_redmule_tiles ?= 0
 # defined so REDMULE_H/REDMULE_P are never emitted empty to the compiler)
 redmule_height ?= 8
 redmule_regs ?= 3
+# Same reasoning, for the back-end flows: tsmc7/Makefile forwards these to the
+# Synopsys shells unconditionally, without the `ifneq (num_redmule_tiles, 0)`
+# guard that hardware/Makefile uses, so they must never be empty.
+redmule_width ?= 32
+rob_depth ?= 16
 
 # Reads in the TCDM interconnect are sent as bursts
 tcdm_burst ?= 0
+
+# Grouping factors of the bursted requests and responses. The defaults match the
+# fall-backs in burst_pkg, i.e. no grouping. Defined unconditionally for the
+# same reason as the RedMulE parameters above.
+burst_greq ?= 1
+burst_grsp ?= 1
