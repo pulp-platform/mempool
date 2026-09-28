@@ -26,3 +26,5 @@ venv
 *.fish
 # In general, ignore pdfs
 *.pdf
+# ...except reports we want to share from the repository
+!doc/**/*.pdf
