@@ -133,6 +133,21 @@ packages:
     dependencies:
     - common_cells
     - common_verification
+  opope:
+    revision: fa76c784c8b72c3615dbe1d2ff65e10615f9ec88
+    version: null
+    source:
+      Git: https://github.com/pulp-platform/opope.git
+    dependencies:
+    - common_cells
+    - cv32e40p
+    - cv32e40x
+    - fpnew
+    - hci
+    - hwpe-ctrl
+    - hwpe-stream
+    - ibex
+    - tech_cells_generic
   redmule:
     revision: 65251763decadfacf8f9e94314cb9cc45cce02b0
     version: null

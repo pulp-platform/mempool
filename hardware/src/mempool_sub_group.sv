@@ -168,7 +168,7 @@ module mempool_sub_group
     mempool_tile #(
       .TCDMBaseAddr    (TCDMBaseAddr             ),
       .BootAddr        (BootAddr                 ),
-      .RedMulE         (t < NumRMTilesPerSubGroup)
+      .TensorEngineTile (t < NumRMTilesPerSubGroup)
     ) i_tile (
       .clk_i                   (clk_i                                          ),
       .rst_ni                  (rst_ni                                         ),

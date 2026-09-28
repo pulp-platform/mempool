@@ -20,8 +20,8 @@ module mempool_tile
   // Core in Tiles
   parameter int unsigned NumCoresPerTile    = mempool_pkg::NumCoresPerTile,
   parameter int unsigned NumCoresPerCache   = mempool_pkg::NumCoresPerCache,
-  // RedMulE
-  parameter logic        RedMulE            = 1'b0,
+  // Tensor Engine (either RedMulE or O-POPE)
+  parameter logic        TensorEngineTile   = 1'b0,
   // Dependent parameters. DO NOT CHANGE.
   parameter int unsigned NumLocalPorts      = NumRMTiles > 0 ? RMMasterPorts + NumCoresPerTile : NumCoresPerTile,
   parameter int unsigned NumCaches          = NumCoresPerTile > NumCoresPerCache ? (NumCoresPerTile/NumCoresPerCache) : 1,
@@ -1074,11 +1074,11 @@ module mempool_tile
     end
   end
 
-  /***************
-   *   RedMule   *
-   ***************/
+  /*********************
+   *   Tensor Engine   *
+   *********************/
 
-  if (RedMulE) begin: gen_redmule
+  if (TensorEngineTile) begin: gen_tensor_engine
 
     // Interrupt
     logic [1:0] redmule_evt;
@@ -1093,9 +1093,6 @@ module mempool_tile
     logic      [RMMasterPorts-1:0] redmule_resp_ready, redmule_resp_qready, redmule_tcdm_resp_ready;
     logic      [RMMasterPorts-1:0] redmule_handshake_p;
     logic      [RMMasterPorts-1:0] redmule_handshake_q;
-    // TODO: This interface port is unused in this context, but it is still required as module input.
-    // The interface connection should be removed upstream and inserted in a wrapper module.
-    cv32e40x_if_xif core_xif ();
 
     localparam hci_size_parameter_t `HCI_SIZE_PARAM(tcdm) = '{
       DW:  RMDataWidth,
@@ -1115,25 +1112,47 @@ module mempool_tile
       .clk ( clk_i )
     );
 
-    redmule_top #(
-      .N_CORES(1                                   ),
-      .DW     (RMDataWidth                         ),
-      .UW     (idx_width(RMOutstandingTransactions)),
-      .X_EXT  (0                                   ),
-      .`HCI_SIZE_PARAM(tcdm) (`HCI_SIZE_PARAM(tcdm))
-    ) i_redmule_top (
-      .clk_i              (clk_i                     ),
-      .rst_ni             (rst_ni                    ),
-      .test_mode_i        ('0                        ),
-      .evt_o              (redmule_evt               ),
-      .busy_o             (/*Unused*/                ),
-      .tcdm               (tcdm                      ),
-      .xif_issue_if_i     (core_xif.coproc_issue     ),
-      .xif_result_if_o    (core_xif.coproc_result    ),
-      .xif_compressed_if_i(core_xif.coproc_compressed),
-      .xif_mem_if_o       (core_xif.coproc_mem       ),
-      .periph             (redmule_rmcfg             )
-    );
+    if (TensorEngineType == REDMULE) begin : gen_redmule
+      // TODO: This interface port is unused in this context, but it is still required as module input.
+      // The interface connection should be removed upstream and inserted in a wrapper module.
+      cv32e40x_if_xif core_xif ();
+
+      redmule_top #(
+        .N_CORES(1                                   ),
+        .DW     (RMDataWidth                         ),
+        .UW     (idx_width(RMOutstandingTransactions)),
+        .X_EXT  (0                                   ),
+        .`HCI_SIZE_PARAM(tcdm) (`HCI_SIZE_PARAM(tcdm))
+      ) i_redmule_top (
+        .clk_i              (clk_i                     ),
+        .rst_ni             (rst_ni                    ),
+        .test_mode_i        ('0                        ),
+        .evt_o              (redmule_evt               ),
+        .busy_o             (/*Unused*/                ),
+        .tcdm               (tcdm                      ),
+        .xif_issue_if_i     (core_xif.coproc_issue     ),
+        .xif_result_if_o    (core_xif.coproc_result    ),
+        .xif_compressed_if_i(core_xif.coproc_compressed),
+        .xif_mem_if_o       (core_xif.coproc_mem       ),
+        .periph             (redmule_rmcfg             )
+      );
+    end else if (TensorEngineType == OPOPE) begin : gen_opope
+      opope_top #(
+        .N_CORES               ( 1                                    ),
+        .DW                    ( RMDataWidth                          ),
+        .UW                    ( idx_width(RMOutstandingTransactions) ),
+        .X_EXT                 ( 0                                    ),
+        .`HCI_SIZE_PARAM(tcdm) ( `HCI_SIZE_PARAM(tcdm)                )
+      ) i_opope_top (
+        .clk_i              ( clk_i          ),
+        .rst_ni             ( rst_ni         ),
+        .test_mode_i        ( '0             ),
+        .evt_o              ( redmule_evt    ),
+        .busy_o             ( /*Unused*/     ),
+        .tcdm               ( tcdm           ),
+        .periph             ( redmule_rmcfg  )
+      );
+    end
 
     // Wake up core on RedMulE's EOC
     assign wake_up = wake_up_q | {{(NumCoresPerTile-1){1'b0}},redmule_evt[0]};
@@ -1157,7 +1176,7 @@ module mempool_tile
     assign tcdm.resp_id       = redmule_resp[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
     assign tcdm.resp_user     = redmule_resp[0].id[idx_width(RMOutstandingTransactions)-1:0];
 
-    for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_redmule_regs
+    for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_tensor_engine_regs
       stream_register #(
         .T(rm_dreq_t)
       ) i_redmule_req_register (
@@ -1186,7 +1205,7 @@ module mempool_tile
         .ready_o   (redmule_resp_qready[p]),
         .data_i    (redmule_resp_q[p]     )
       );
-    end: gen_redmule_regs
+    end: gen_tensor_engine_regs
 
     // Handshake separately on each request port
     assign redmule_handshake_p = &redmule_req_qready ? '0 : redmule_req_qready;
