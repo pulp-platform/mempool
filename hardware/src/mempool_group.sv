@@ -30,7 +30,7 @@ module mempool_group
   input  logic [idx_width(NumGroups)-1:0]                         group_id_i,
   `ifdef TERAPOOL
     // TCDM Master interfaces
-    output `STRUCT_VECT(tcdm_slave_req_t,   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_master_req_o,
+    output `STRUCT_VECT(tcdm_master_req_t,  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_master_req_o,
     output logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_req_valid_o,
     input  logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_master_req_ready_i,
     input  `STRUCT_VECT(tcdm_master_resp_t, [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_master_resp_i,
@@ -40,7 +40,7 @@ module mempool_group
     input  `STRUCT_VECT(tcdm_slave_req_t,   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_slave_req_i,
     input  logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_req_valid_i,
     output logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_req_ready_o,
-    output `STRUCT_VECT(tcdm_master_resp_t, [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_slave_resp_o,
+    output `STRUCT_VECT(tcdm_slave_resp_t,  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]) tcdm_slave_resp_o,
     output logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_valid_o,
     input  logic                            [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]  tcdm_slave_resp_ready_i,
   `else
@@ -99,8 +99,8 @@ module mempool_group
   // The ports might be structs flattened to vectors. To access the structs'
   // internal signals, assign the flattened vectors back to structs.
   `ifdef TERAPOOL
-    tcdm_slave_req_t   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_s;
-    tcdm_master_resp_t [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_s;
+    tcdm_master_req_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_req_s;
+    tcdm_slave_resp_t  [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_resp_s;
   `else
     tcdm_slave_req_t   [NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_master_req_s;
     tcdm_master_resp_t [NumGroups-1:1][NumTilesPerGroup-1:0] tcdm_slave_resp_s;
@@ -258,13 +258,97 @@ module mempool_group
     logic      [NumDmasPerGroup-1:0] dma_req_ready;
     dma_meta_t [NumDmasPerGroup-1:0] dma_meta;
 
-    // Connect the IOs to the SubGroups' signals
-    assign tcdm_master_resp[NumGroups-1:1]         = tcdm_master_resp_i[NumGroups-1:1];
-    assign tcdm_master_resp_valid[NumGroups-1:1]   = tcdm_master_resp_valid_i[NumGroups-1:1];
-    assign tcdm_master_resp_ready_o[NumGroups-1:1] = tcdm_master_resp_ready[NumGroups-1:1];
-    assign tcdm_slave_req[NumGroups-1:1]           = tcdm_slave_req_i[NumGroups-1:1];
-    assign tcdm_slave_req_valid[NumGroups-1:1]     = tcdm_slave_req_valid_i[NumGroups-1:1];
-    assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready[NumGroups-1:1];
+    /*************************
+     *  Port-side registers  *
+     *************************/
+    // These registers used to sit in mempool_cluster, one rank per Group port.
+    // They break the dependency between request and response, establishing a
+    // correct valid/ready handshake, and they are what makes the Group boundary
+    // a fully registered interface. Keeping them inside the Group means the
+    // boundary can be cut for a 3D stack without adding a pipeline stage.
+    //
+    // Interconnect side                                       Port side
+    //   tcdm_master_req  (SubGroups)  --spill----------------->  tcdm_master_req_o
+    //   tcdm_master_resp (SubGroups)  <------fall_through-----   tcdm_master_resp_i
+    //   tcdm_slave_req   (SubGroups)  <------fall_through-----   tcdm_slave_req_i
+    //   tcdm_slave_resp  (SubGroups)  --spill----------------->  tcdm_slave_resp_o
+
+    tcdm_master_resp_t [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_port;
+    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_valid_port;
+    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_master_resp_ready_port;
+    tcdm_slave_req_t   [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_port;
+    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_valid_port;
+    logic              [NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0] tcdm_slave_req_ready_port;
+
+    // Connect the IOs to the port-side register signals
+    assign tcdm_master_resp_port                   = tcdm_master_resp_i[NumGroups-1:1];
+    assign tcdm_master_resp_valid_port             = tcdm_master_resp_valid_i[NumGroups-1:1];
+    assign tcdm_master_resp_ready_o[NumGroups-1:1] = tcdm_master_resp_ready_port;
+    assign tcdm_slave_req_port                     = tcdm_slave_req_i[NumGroups-1:1];
+    assign tcdm_slave_req_valid_port               = tcdm_slave_req_valid_i[NumGroups-1:1];
+    assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready_port;
+
+    for (genvar h = 1; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_port_registers_h
+      for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_tcdm_port_registers_sg
+        for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_port_registers_t
+          spill_register #(
+            .T(tcdm_master_req_t)
+          ) i_tcdm_master_req_register (
+            .clk_i  (clk_i                                     ),
+            .rst_ni (rst_ni                                    ),
+            .data_i (tcdm_master_req[h][sg][t]                 ),
+            .valid_i(tcdm_master_req_valid[h][sg][t]           ),
+            .ready_o(tcdm_master_req_ready[h][sg][t]           ),
+            .data_o (tcdm_master_req_s[h][sg][t]               ),
+            .valid_o(tcdm_master_req_valid_o[h][sg][t]         ),
+            .ready_i(tcdm_master_req_ready_i[h][sg][t]         )
+          );
+
+          fall_through_register #(
+            .T(tcdm_master_resp_t)
+          ) i_tcdm_master_resp_register (
+            .clk_i     (clk_i                                  ),
+            .rst_ni    (rst_ni                                 ),
+            .clr_i     (1'b0                                   ),
+            .testmode_i(1'b0                                   ),
+            .data_i    (tcdm_master_resp_port[h][sg][t]        ),
+            .valid_i   (tcdm_master_resp_valid_port[h][sg][t]  ),
+            .ready_o   (tcdm_master_resp_ready_port[h][sg][t]  ),
+            .data_o    (tcdm_master_resp[h][sg][t]             ),
+            .valid_o   (tcdm_master_resp_valid[h][sg][t]       ),
+            .ready_i   (tcdm_master_resp_ready[h][sg][t]       )
+          );
+
+          fall_through_register #(
+            .T(tcdm_slave_req_t)
+          ) i_tcdm_slave_req_register (
+            .clk_i     (clk_i                                  ),
+            .rst_ni    (rst_ni                                 ),
+            .clr_i     (1'b0                                   ),
+            .testmode_i(1'b0                                   ),
+            .data_i    (tcdm_slave_req_port[h][sg][t]          ),
+            .valid_i   (tcdm_slave_req_valid_port[h][sg][t]    ),
+            .ready_o   (tcdm_slave_req_ready_port[h][sg][t]    ),
+            .data_o    (tcdm_slave_req[h][sg][t]               ),
+            .valid_o   (tcdm_slave_req_valid[h][sg][t]         ),
+            .ready_i   (tcdm_slave_req_ready[h][sg][t]         )
+          );
+
+          spill_register #(
+            .T(tcdm_slave_resp_t)
+          ) i_tcdm_slave_resp_register (
+            .clk_i  (clk_i                                     ),
+            .rst_ni (rst_ni                                    ),
+            .data_i (tcdm_slave_resp[h][sg][t]                 ),
+            .valid_i(tcdm_slave_resp_valid[h][sg][t]           ),
+            .ready_o(tcdm_slave_resp_ready[h][sg][t]           ),
+            .data_o (tcdm_slave_resp_s[h][sg][t]               ),
+            .valid_o(tcdm_slave_resp_valid_o[h][sg][t]         ),
+            .ready_i(tcdm_slave_resp_ready_i[h][sg][t]         )
+          );
+        end: gen_tcdm_port_registers_t
+      end: gen_tcdm_port_registers_sg
+    end: gen_tcdm_port_registers_h
 
     // AXI interfaces
     axi_tile_req_t   [NumAXIMastersPerGroup-1:0] axi_mst_req;
@@ -424,110 +508,11 @@ module mempool_group
       end: gen_sg_interconnections_tgt
     end: gen_sg_interconnections_ini
 
-    /********************************
-     *  Remote Group Interconnects  *
-     ********************************/
-
-    for (genvar r = 1; r < NumGroups; r++) begin: gen_remote_interco
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_valid;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_ready;
-      tcdm_addr_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_tgt_addr;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_wen;
-      tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_wdata;
-      strb_t          [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_be;
-      burst_t         [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_req_burst;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_valid;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_ready;
-      tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_rdata;
-      burst_gresp_t   [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] master_remote_resp_burst;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_valid;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_ready;
-      tile_addr_t     [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_tgt_addr;
-      tile_group_id_t [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_tile_id;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_wen;
-      tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_wdata;
-      strb_t          [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_be;
-      burst_t         [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_req_burst;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_valid;
-      logic           [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_ready;
-      tile_group_id_t [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_tile_id;
-      tcdm_payload_t  [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_rdata;
-      burst_gresp_t   [(NumSubGroupsPerGroup * NumTilesPerSubGroup)-1:0] slave_remote_resp_burst;
-
-      for (genvar sg = 0; sg < NumSubGroupsPerGroup; sg++) begin: gen_remote_connections_sg
-        for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin: gen_remote_connections_t
-          assign master_remote_req_valid[(sg * NumTilesPerSubGroup) + t]         = tcdm_master_req_valid[r][sg][t];
-          assign master_remote_req_tgt_addr[(sg * NumTilesPerSubGroup) + t]      = tcdm_master_req[r][sg][t].tgt_addr;
-          assign master_remote_req_wen[(sg * NumTilesPerSubGroup) + t]           = tcdm_master_req[r][sg][t].wen;
-          assign master_remote_req_wdata[(sg * NumTilesPerSubGroup) + t]         = tcdm_master_req[r][sg][t].wdata;
-          assign master_remote_req_be[(sg * NumTilesPerSubGroup) + t]            = tcdm_master_req[r][sg][t].be;
-          assign master_remote_req_burst[(sg * NumTilesPerSubGroup) + t]         = tcdm_master_req[r][sg][t].burst;
-          assign tcdm_master_req_ready[r][sg][t]                                 = master_remote_req_ready[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_valid_o[r][sg][t]                               = slave_remote_req_valid[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].tgt_addr                            = slave_remote_req_tgt_addr[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].tile_id                             = slave_remote_req_tile_id[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].wen                                 = slave_remote_req_wen[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].wdata                               = slave_remote_req_wdata[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].be                                  = slave_remote_req_be[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_master_req_s[r][sg][t].burst                               = slave_remote_req_burst[(sg * NumTilesPerSubGroup) + t];
-          assign slave_remote_req_ready[(sg * NumTilesPerSubGroup) + t]          = tcdm_master_req_ready_i[r][sg][t];
-          assign slave_remote_resp_valid[(sg * NumTilesPerSubGroup) + t]         = tcdm_slave_resp_valid[r][sg][t];
-          assign slave_remote_resp_tile_id[(sg * NumTilesPerSubGroup) + t]       = tcdm_slave_resp[r][sg][t].tile_id;
-          assign slave_remote_resp_rdata[(sg * NumTilesPerSubGroup) + t]         = tcdm_slave_resp[r][sg][t].rdata;
-          assign slave_remote_resp_burst[(sg * NumTilesPerSubGroup) + t]         = tcdm_slave_resp[r][sg][t].burst;
-          assign tcdm_slave_resp_ready[r][sg][t]                                 = slave_remote_resp_ready[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_slave_resp_valid_o[r][sg][t]                               = master_remote_resp_valid[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_slave_resp_s[r][sg][t].rdata                               = master_remote_resp_rdata[(sg * NumTilesPerSubGroup) + t];
-          assign tcdm_slave_resp_s[r][sg][t].burst                               = master_remote_resp_burst[(sg * NumTilesPerSubGroup) + t];
-          assign master_remote_resp_ready[(sg * NumTilesPerSubGroup) + t]        = tcdm_slave_resp_ready_i[r][sg][t];
-        end: gen_remote_connections_t
-      end: gen_remote_connections_sg
-
-      burst_variable_latency_interconnect #(
-        .NumIn              (NumSubGroupsPerGroup * NumTilesPerSubGroup   ),
-        .NumOut             (NumSubGroupsPerGroup * NumTilesPerSubGroup   ),
-        .AddrWidth          (TCDMAddrWidth                                ),
-        .DataWidth          ($bits(tcdm_payload_t)                        ),
-        .BeWidth            (DataWidth/8                                  ),
-        .BurstWidth         ($bits(burst_t)                               ),
-        .BurstRspWidth      ($bits(burst_gresp_t)                         ),
-        .ByteOffWidth       (0                                            ),
-        .AddrMemWidth       (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
-        .Topology           (tcdm_interconnect_pkg::LIC                   ),
-        .AxiVldRdy          (1'b1                                         ),
-        .SpillRegisterReq   (64'b1                                        ),
-        .SpillRegisterResp  (64'b1                                        ),
-        .FallThroughRegister(1'b1                                         )
-      ) i_remote_interco (
-        .clk_i          (clk_i                     ),
-        .rst_ni         (rst_ni                    ),
-        .req_valid_i    (master_remote_req_valid   ),
-        .req_ready_o    (master_remote_req_ready   ),
-        .req_tgt_addr_i (master_remote_req_tgt_addr),
-        .req_wen_i      (master_remote_req_wen     ),
-        .req_wdata_i    (master_remote_req_wdata   ),
-        .req_be_i       (master_remote_req_be      ),
-        .req_burst_i    (master_remote_req_burst   ),
-        .resp_valid_o   (master_remote_resp_valid  ),
-        .resp_ready_i   (master_remote_resp_ready  ),
-        .resp_rdata_o   (master_remote_resp_rdata  ),
-        .resp_burst_o   (master_remote_resp_burst  ),
-        .resp_ini_addr_i(slave_remote_resp_tile_id ),
-        .resp_rdata_i   (slave_remote_resp_rdata   ),
-        .resp_burst_i   (slave_remote_resp_burst   ),
-        .resp_valid_i   (slave_remote_resp_valid   ),
-        .resp_ready_o   (slave_remote_resp_ready   ),
-        .req_valid_o    (slave_remote_req_valid    ),
-        .req_ready_i    (slave_remote_req_ready    ),
-        .req_be_o       (slave_remote_req_be       ),
-        .req_wdata_o    (slave_remote_req_wdata    ),
-        .req_burst_o    (slave_remote_req_burst    ),
-        .req_wen_o      (slave_remote_req_wen      ),
-        .req_ini_addr_o (slave_remote_req_tile_id  ),
-        .req_tgt_addr_o (slave_remote_req_tgt_addr )
-      );
-
-    end: gen_remote_interco
+    /*******************************
+     *  Remote Group Interconnect  *
+     *******************************/
+    // The inter-Group crossbars are instantiated in mempool_cluster, not here.
+    // See tensorpool_inter_group_interco.
 
     /**********************
      *    AXI Register    *

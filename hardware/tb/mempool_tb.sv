@@ -199,7 +199,7 @@ module mempool_tb;
         for (genvar c = 0; c < NumCoresPerSubGroup; c++) begin: gen_wfi_cores
           localparam t = c / NumCoresPerTile;
           localparam ct = c % NumCoresPerTile;
-          assign wfi[g*NumCoresPerGroup + sg*NumCoresPerSubGroup + c] = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[ct].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+          assign wfi[g*NumCoresPerGroup + sg*NumCoresPerSubGroup + c] = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[ct].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
         end: gen_wfi_cores
       end: gen_wfi_sub_groups
     end: gen_wfi_groups
@@ -208,7 +208,7 @@ module mempool_tb;
       for (genvar c = 0; c < NumCoresPerGroup; c++) begin: gen_wfi_cores
         localparam t = c / NumCoresPerTile;
         localparam ct = c % NumCoresPerTile;
-        assign wfi[g*NumCoresPerGroup + c] = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[ct].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
+        assign wfi[g*NumCoresPerGroup + c] = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[ct].gen_mempool_cc.riscv_core.i_snitch.wfi_q;
       end: gen_wfi_cores
     end: gen_wfi_groups
   `endif
@@ -410,12 +410,12 @@ module mempool_tb;
 //            logic valid_instr, stall;
 //            logic lsu_valid, lsu_ready;
 //            // Snitch
-//            assign valid_instr = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.valid_instr;
-//            assign stall = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.stall;
+//            assign valid_instr = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.valid_instr;
+//            assign stall = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.stall;
 //            assign instruction_handshake[g*NumSubGroupsPerGroup*NumTilesPerSubGroup*NumCoresPerTile + sg*NumTilesPerSubGroup*NumCoresPerTile + t*NumCoresPerTile + c] = valid_instr & !stall;
 //            // Interconnect
-//            assign lsu_valid = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.data_qvalid_o;
-//            assign lsu_ready = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.data_qready_i;
+//            assign lsu_valid = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.data_qvalid_o;
+//            assign lsu_ready = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.data_qready_i;
 //            assign lsu_request[g*NumSubGroupsPerGroup*NumTilesPerSubGroup*NumCoresPerTile + sg*NumTilesPerSubGroup*NumCoresPerTile + t*NumCoresPerTile + c] = lsu_valid & !lsu_ready;
 //            assign lsu_handshake[g*NumSubGroupsPerGroup*NumTilesPerSubGroup*NumCoresPerTile + sg*NumTilesPerSubGroup*NumCoresPerTile + t*NumCoresPerTile + c] = lsu_valid & lsu_ready;
 //          end
@@ -429,12 +429,12 @@ module mempool_tb;
 //          logic valid_instr, stall;
 //          logic lsu_valid, lsu_ready;
 //          // Snitch
-//          assign valid_instr = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.valid_instr;
-//          assign stall = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.stall;
+//          assign valid_instr = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.valid_instr;
+//          assign stall = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.stall;
 //          assign instruction_handshake[g*NumTilesPerGroup*NumCoresPerTile+t*NumCoresPerTile+c] = valid_instr & !stall;
 //          // Interconnect
-//          assign lsu_valid = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.data_qvalid_o;
-//          assign lsu_ready = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.data_qready_i;
+//          assign lsu_valid = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.data_qvalid_o;
+//          assign lsu_ready = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch.data_qready_i;
 //          assign lsu_request[g*NumTilesPerGroup*NumCoresPerTile+t*NumCoresPerTile+c] = lsu_valid & !lsu_ready;
 //          assign lsu_handshake[g*NumTilesPerGroup*NumCoresPerTile+t*NumCoresPerTile+c] = lsu_valid & lsu_ready;
 //        end
@@ -454,9 +454,9 @@ module mempool_tb;
 //          for (genvar t = 0; t < NumTilesPerSubGroup; t++) begin
 //            for (genvar c = 0; c < NumCoresPerTile; c++) begin
 //              logic dsp_valid, dsp_ready, mac;
-//              assign dsp_valid = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.in_valid_i;
-//              assign dsp_ready = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.in_ready_o;
-//              assign mac = dut.i_mempool_cluster.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.operator_i ==? riscv_instr::P_MAC;
+//              assign dsp_valid = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.in_valid_i;
+//              assign dsp_ready = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.in_ready_o;
+//              assign mac = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].gen_rtl_group.i_group.gen_sub_groups[sg].gen_rtl_sg.i_sub_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.operator_i ==? riscv_instr::P_MAC;
 //              assign dspu_handshake[g*NumSubGroupsPerGroup*NumTilesPerSubGroup*NumCoresPerTile + sg*NumTilesPerSubGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dsp_valid & dsp_ready;
 //              assign dspu_mac[g*NumSubGroupsPerGroup*NumTilesPerSubGroup*NumCoresPerTile + sg*NumTilesPerSubGroup*NumCoresPerTile + t*NumCoresPerTile + c] = dsp_valid & dsp_ready & mac;
 //            end
@@ -468,9 +468,9 @@ module mempool_tb;
 //      for (genvar t = 0; t < NumTilesPerGroup; t++) begin
 //        for (genvar c = 0; c < NumCoresPerTile; c++) begin
 //          logic dsp_valid, dsp_ready, mac;
-//          assign dsp_valid = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.in_valid_i;
-//          assign dsp_ready = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.in_ready_o;
-//          assign mac = dut.i_mempool_cluster.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.operator_i ==? riscv_instr::P_MAC;
+//          assign dsp_valid = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.in_valid_i;
+//          assign dsp_ready = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.in_ready_o;
+//          assign mac = dut.i_mempool_cluster.i_compute_tier.gen_groups[g].i_group.gen_tiles[t].i_tile.gen_cores[c].gen_mempool_cc.riscv_core.i_snitch_ipu.gen_xpulpimg.i_dspu.operator_i ==? riscv_instr::P_MAC;
 //          assign dspu_handshake[g*NumTilesPerGroup*NumCoresPerTile+t*NumCoresPerTile+c] = dsp_valid & dsp_ready;
 //          assign dspu_mac[g*NumTilesPerGroup*NumCoresPerTile+t*NumCoresPerTile+c] = dsp_valid & dsp_ready & mac;
 //        end

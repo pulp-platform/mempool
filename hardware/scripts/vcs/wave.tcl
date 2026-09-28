@@ -51,28 +51,28 @@ for {set group 0} {$group < [get -radix dec mempool_pkg::NumGroups]} {incr group
             wvAddSubGroup interconnect_to_group\[$tgtgroup\]
             wvSetPosition [subst {(group\[$group\]/interconnect_to_group\[$tgtgroup\] last)}]
 
-            wvAddSignal mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/clk_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/rst_ni \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_valid_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_ready_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_tgt_addr_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_wen_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_wdata_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_be_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_valid_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_ready_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_rdata_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_valid_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_ready_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_ini_addr_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_tgt_addr_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_wen_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_wdata_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_be_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_valid_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_ready_o \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_ini_addr_i \
-                        mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_rdata_i
+            wvAddSignal mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/clk_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/rst_ni \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_valid_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_ready_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_tgt_addr_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_wen_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_wdata_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_be_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_valid_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_ready_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_rdata_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_valid_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_ready_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_ini_addr_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_tgt_addr_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_wen_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_wdata_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/req_be_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_valid_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_ready_o \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_ini_addr_i \
+                        mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/gen_remote_interco\[$interco_idx\]/i_remote_interco/resp_rdata_i
         }
     }
 
@@ -80,28 +80,28 @@ for {set group 0} {$group < [get -radix dec mempool_pkg::NumGroups]} {incr group
     wvAddSubGroup local_interconnect
     wvSetPosition [subst {(group\[$group\]/local_interconnect last)}]
 
-    wvAddSignal mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/clk_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/rst_ni \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_valid_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_ready_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_tgt_addr_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_wen_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_wdata_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_be_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/resp_valid_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/resp_ready_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/resp_rdata_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_valid_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_ready_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_ini_addr_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_tgt_addr_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_wen_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_wdata_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/req_be_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/resp_valid_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/resp_ready_o \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/resp_ini_addr_i \
-                mempool_tb/dut/i_mempool_cluster/gen_groups\[$group\]/i_group/i_local_interco/resp_rdata_i
+    wvAddSignal mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/clk_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/rst_ni \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_valid_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_ready_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_tgt_addr_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_wen_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_wdata_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_be_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/resp_valid_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/resp_ready_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/resp_rdata_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_valid_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_ready_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_ini_addr_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_tgt_addr_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_wen_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_wdata_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/req_be_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/resp_valid_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/resp_ready_o \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/resp_ini_addr_i \
+                mempool_tb/dut/i_mempool_cluster/i_compute_tier/gen_groups\[$group\]/i_group/i_local_interco/resp_rdata_i
 }
 
 wvAddGroup Control_Registers

@@ -42,9 +42,13 @@ sources:
   - hardware/src/mempool_tile.sv
   # Level 2
   - hardware/src/mempool_sub_group.sv
+  - hardware/src/tensorpool_inter_group_interco.sv
   # Level 3
   - hardware/src/mempool_group.sv
   # Level 4
+  - hardware/src/tensorpool_compute_tier.sv
+  - hardware/src/tensorpool_interco_tier.sv
+  # Level 5
   - hardware/src/mempool_cluster.sv
   # Level 5
   - hardware/src/ctrl_registers.sv
