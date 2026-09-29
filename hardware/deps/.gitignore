@@ -6,6 +6,9 @@ common_cells/
 common_verification/
 fpnew/
 fpu_div_sqrt_mvp/
+hwpe-ctrl/
+l2_tcdm_hybrid_interco/
+redmule/
 register_interface/
 tech_cells_generic/
 .mempool_deps
