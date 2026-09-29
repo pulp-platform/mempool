@@ -19,7 +19,7 @@
 #include "baremetal/mempool_checks.h"
 #include "data_gemm_f16.h"
 
-#define ELEMENTS_PER_ROW (NUM_BANKS * sizeof(int32_t) / sizeof(int16_t))
+
 #define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 
 #ifndef SINGLE
@@ -31,12 +31,36 @@
 #endif
 
 #ifdef PARALLEL_BATCHED
-__fp16 l1_X[Batch * matrix_M * matrix_N]
+
+// The arrays are aligned to NUM_BANKS. The batches processed concurrently by
+// the RedMulEs are spread evenly over the banks: each batch slot is rounded
+// up to an odd multiple of NUM_BANKS / NUM_REDMULE_TILES banks. As
+// NUM_REDMULE_TILES is a power of two, batches ii..ii+NUM_REDMULE_TILES-1
+// start on NUM_REDMULE_TILES different banks, NUM_BANKS / NUM_REDMULE_TILES
+// apart. On top of the batch shift, W and Y are shifted by
+// NUM_BANKS_PER_SUB_GROUP and 2 * NUM_BANKS_PER_SUB_GROUP banks, so that X, W
+// and Y of the same batch start in different sub-groups.
+
+#define NUM_BANKS_PER_SUB_GROUP (NUM_CORES_PER_SUB_GROUP * BANKING_FACTOR)
+#define SUB_GROUP_ELEMENTS                                                     \
+  (NUM_BANKS_PER_SUB_GROUP * sizeof(int32_t) / sizeof(int16_t))
+#define SHIFT_ELEMENTS                                                         \
+  (NUM_BANKS / NUM_REDMULE_TILES * sizeof(int32_t) / sizeof(int16_t))
+#define ODD_SHIFTS(n) ((((n) + SHIFT_ELEMENTS - 1) / SHIFT_ELEMENTS) | 1)
+#define X_SLOT (ODD_SHIFTS(matrix_M * matrix_N) * SHIFT_ELEMENTS)
+#define W_SLOT (ODD_SHIFTS(matrix_N * matrix_P) * SHIFT_ELEMENTS)
+#define Y_SLOT (ODD_SHIFTS(matrix_M * matrix_P) * SHIFT_ELEMENTS)
+#define X_OFFSET(ii) ((ii) * X_SLOT)
+#define W_OFFSET(ii) ((ii) * W_SLOT + SUB_GROUP_ELEMENTS)
+#define Y_OFFSET(ii) ((ii) * Y_SLOT + 2 * SUB_GROUP_ELEMENTS)
+
+__fp16 l1_X[Batch * X_SLOT]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_W[Batch * matrix_N * matrix_P]
+__fp16 l1_W[Batch * W_SLOT + SUB_GROUP_ELEMENTS]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
-__fp16 l1_Y[Batch * matrix_M * matrix_P]
+__fp16 l1_Y[Batch * Y_SLOT + 2 * SUB_GROUP_ELEMENTS]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+
 #else
 __fp16 l1_X[(matrix_M * matrix_N) + 2 * PORT_WIDTH * NUM_REDMULE_TILES]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
@@ -135,18 +159,13 @@ int main() {
 
   uint32_t num_redmules = mempool_get_redmule_count();
 
-  // Transfer
-  // l2_X/l2_W/l2_Y only hold one (M,N,P) GEMM's worth of data
-  // (gendata_header.py isn't Batch-aware) -- copy that same source into
-  // each of the Batch slots of l1_X/l1_W/l1_Y instead of generating/
-  // duplicating Batch-sized L2 data.
   if (redmule_id == 0) {
     for (uint32_t ii = 0; ii < Batch; ii++) {
-      dma_memcpy_blocking(l1_X + ii * matrix_M * matrix_N, l2_X,
+      dma_memcpy_blocking(l1_X + X_OFFSET(ii), l2_X,
                           (matrix_M * matrix_N) * sizeof(int16_t));
-      dma_memcpy_blocking(l1_W + ii * matrix_N * matrix_P, l2_W,
+      dma_memcpy_blocking(l1_W + W_OFFSET(ii), l2_W,
                           (matrix_N * matrix_P) * sizeof(int16_t));
-      dma_memcpy_blocking(l1_Y + ii * matrix_M * matrix_P, l2_Y,
+      dma_memcpy_blocking(l1_Y + Y_OFFSET(ii), l2_Y,
                           (matrix_M * matrix_P) * sizeof(int16_t));
     }
   }
@@ -160,9 +179,9 @@ int main() {
   // Compute
   for (uint32_t ii = redmule_id; ii < Batch; ii += num_redmules) {
     if (redmule_id < num_redmules) {
-      unsigned int X_ptr = l1_X + ii * matrix_M * matrix_N;
-      unsigned int Y_ptr = l1_Y + ii * matrix_M * matrix_P;
-      unsigned int W_ptr = l1_W + ii * matrix_N * matrix_P;
+      unsigned int X_ptr = (unsigned int)(l1_X + X_OFFSET(ii));
+      unsigned int Y_ptr = (unsigned int)(l1_Y + Y_OFFSET(ii));
+      unsigned int W_ptr = (unsigned int)(l1_W + W_OFFSET(ii));
       hwpe_soft_clear();
       mempool_wait(10);
       redmule_cfg(X_ptr, W_ptr, Y_ptr, matrix_M, matrix_N, matrix_P, 0, GEMM,
@@ -183,7 +202,11 @@ int main() {
 
 #endif
 
+#ifdef PARALLEL_BATCHED
+  mempool_check_f16(l1_Y + Y_OFFSET(0), l2_Z, 10, 0.05f, 0);
+#else
   mempool_check_f16(l1_Y, l2_Z, 10, 0.05f, 0);
+#endif
   mempool_barrier(num_cores);
   return 0;
 }
