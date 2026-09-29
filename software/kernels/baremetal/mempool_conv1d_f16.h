@@ -25,51 +25,30 @@ void im2col1d_f16(__fp16 const *__restrict__ X, __fp16 *__restrict__ X_im2col,
                   uint32_t Ci, uint32_t Wi, uint32_t Wf, uint32_t core_id,
                   uint32_t num_cores) {
 
-  if (Wf == 3) {
+  uint32_t pad = Wf / 2;
+  uint32_t i, k; // row, filter
 
-    for (uint32_t i = core_id; i < Ci; i += num_cores) {
-      __fp16 *Out = &X_im2col[i * Wi * 3];
-      Out[0 * Wi + 0] = (__fp16)0;
-      Out[0 * Wi + 1] = X[i * Wi + 0];
-      Out[1 * Wi + 0] = X[i * Wi + 0];
-      for (uint32_t j = 1; j < (Wi - 1); j++) {
-        __fp16 x = X[i * Wi + j];
-        Out[0 * Wi + (j + 1)] = x;
-        Out[1 * Wi + (j + 0)] = x;
-        Out[2 * Wi + (j - 1)] = x;
-      }
-      Out[1 * Wi + (Wi - 1)] = X[i * Wi + Wi - 1];
-      Out[2 * Wi + (Wi - 2)] = X[i * Wi + Wi - 1];
-      Out[2 * Wi + (Wi - 1)] = (__fp16)0;
+  for (uint32_t i_out = core_id; i_out < Ci * Wf; i_out += num_cores) {
+    i = i_out / Wf;
+    k = i_out % Wf;
+    __fp16 *__restrict__ Out = &X_im2col[i_out * Wi];
+    __fp16 const *__restrict__ In = &X[i * Wi];
+    // Splitting the padding out of the loop, instead of branching on every
+    // j_out, leaves a plain shifted copy for the interior -- no per-element
+    // branch.
+    uint32_t j_out = 0;
+    uint32_t lead_zeros = (k < pad) ? (pad - k) : 0;
+    lead_zeros = lead_zeros < Wi ? lead_zeros : Wi;
+    for (; j_out < lead_zeros; j_out++) {
+      Out[j_out] = (__fp16)0;
     }
-
-  } else {
-
-    uint32_t pad = Wf / 2;
-    uint32_t i, k; // row, filter
-
-    for (uint32_t i_out = core_id; i_out < Ci * Wf; i_out += num_cores) {
-      i = i_out / Wf;
-      k = i_out % Wf;
-      __fp16 *__restrict__ Out = &X_im2col[i_out * Wi];
-      __fp16 const *__restrict__ In = &X[i * Wi];
-      // Splitting the padding out of the loop, instead of branching on every
-      // j_out, leaves a plain shifted copy for the interior -- no per-element
-      // branch.
-      uint32_t j_out = 0;
-      uint32_t lead_zeros = (k < pad) ? (pad - k) : 0;
-      lead_zeros = lead_zeros < Wi ? lead_zeros : Wi;
-      for (; j_out < lead_zeros; j_out++) {
-        Out[j_out] = (__fp16)0;
-      }
-      uint32_t trail_zeros = (k > pad) ? (k - pad) : 0;
-      uint32_t copy_end = trail_zeros < Wi ? (Wi - trail_zeros) : j_out;
-      for (; j_out < copy_end; j_out++) {
-        Out[j_out] = In[j_out + k - pad];
-      }
-      for (; j_out < Wi; j_out++) {
-        Out[j_out] = (__fp16)0;
-      }
+    uint32_t trail_zeros = (k > pad) ? (k - pad) : 0;
+    uint32_t copy_end = trail_zeros < Wi ? (Wi - trail_zeros) : j_out;
+    for (; j_out < copy_end; j_out++) {
+      Out[j_out] = In[j_out + k - pad];
+    }
+    for (; j_out < Wi; j_out++) {
+      Out[j_out] = (__fp16)0;
     }
   }
 
