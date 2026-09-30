@@ -11,4 +11,13 @@ l2_tcdm_hybrid_interco/
 redmule/
 register_interface/
 tech_cells_generic/
+cv32e40p/
+cv32e40x/
+hci/
+hwpe-stream/
+ibex/
+obi/
+redundancy_cells/
+# bender writes one lock file per checkout
+*.lock
 .mempool_deps
