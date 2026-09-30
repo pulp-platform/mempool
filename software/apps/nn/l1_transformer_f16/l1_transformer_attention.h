@@ -111,8 +111,13 @@ void attention(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   X_im2col = T3;
 
   mempool_start_benchmark();
+#ifdef PIPELINED
+  conv1d_pipelined_f16(X, F, Y, X_im2col, Beam, Embed, Embed * 3, tdSamples,
+                       Wf, NULL, core_id, num_cores);
+#else
   conv1d_f16(X, F, Y, X_im2col, Beam, Embed, Embed * 3, tdSamples, Wf, 1,
              core_id, num_cores);
+#endif
   mempool_stop_benchmark();
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution");
@@ -177,8 +182,13 @@ void attention(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   X_im2col = T3;
 
   mempool_start_benchmark();
+#ifdef PIPELINED
+  conv1d_pipelined_f16(X, F, Y, X_im2col, Beam, Embed, Embed, tdSamples, Wf,
+                       NULL, core_id, num_cores);
+#else
   conv1d_f16(X, F, Y, X_im2col, Beam, Embed, Embed, tdSamples, Wf, 1, core_id,
              num_cores);
+#endif
   mempool_stop_benchmark();
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution");
@@ -217,6 +227,56 @@ void attention_block(__fp16 const *__restrict__ Q,
   uint32_t redmule_id = mempool_get_redmule_id();
   uint32_t num_redmules = mempool_get_redmule_count();
 
+#ifdef PIPELINED
+  // Pipelined Q*Kt and Softmax
+  // Round r: RedMulEs compute Q*Kt for batches [r*R, (r+1)*R), while all
+  // cores compute the softmax of the batches produced in round r-1.
+  // One extra round drains the softmax of the last batches.
+  mempool_start_benchmark();
+  for (uint32_t bb = 0; bb < Batch + num_redmules; bb += num_redmules) {
+
+    // Launch Q*Kt of the current batches
+    uint32_t ii = bb + redmule_id;
+    uint32_t launched = (redmule_id < num_redmules) && (ii < Batch);
+    if (launched) {
+      unsigned int I_ptr = (unsigned int)(Q + ii * (SeqLen * tdEmbed));
+      unsigned int W_ptr = (unsigned int)(Kt + ii * (tdEmbed * SeqLen));
+      unsigned int O_ptr = (unsigned int)(As + ii * (SeqLen * SeqLen));
+      uint16_t M = (uint16_t)SeqLen;
+      uint16_t N = (uint16_t)tdEmbed;
+      uint16_t P = (uint16_t)SeqLen;
+      hwpe_soft_clear();
+      mempool_wait(10);
+      redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, GEMM, Float16);
+      mempool_wait(10);
+      hwpe_trigger_job();
+    }
+
+    // Softmax of the batches computed in the previous round
+    if (bb > 0) {
+      uint32_t prev = bb - num_redmules;
+      uint32_t nb = (Batch - prev < num_redmules) ?
+                    (Batch - prev) : num_redmules;
+      uint32_t num_cores_per_softmax = num_cores / nb;
+      uint32_t softmax_id = core_id % num_cores_per_softmax;
+      uint32_t idx = core_id / num_cores_per_softmax;
+      if (idx < nb) {
+        uint32_t jj = prev + idx;
+        softmax_parallel_2x4_f16vec(&As[jj * (SeqLen * SeqLen)],
+                                    &Aw[jj * (SeqLen * SeqLen)], SeqLen, SeqLen,
+                                    softmax_id, num_cores_per_softmax);
+      }
+    }
+
+    // Wait for RedMulE (the wake-up is latched if the job already finished)
+    if (launched) {
+      mempool_wfi();
+    }
+    mempool_barrier(num_cores);
+
+  }
+  mempool_stop_benchmark();
+#else
   // Q*Kt
   mempool_start_benchmark();
   if (redmule_id < num_redmules) {
@@ -256,6 +316,7 @@ void attention_block(__fp16 const *__restrict__ Q,
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
+#endif
 
   // A = Softmax(Q*Kt)*V
   mempool_start_benchmark();
@@ -316,41 +377,41 @@ void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
     uint32_t b = i / Embed;
     uint32_t e = i % Embed;
     switch (mode) {
-    case TBE:
-      for (uint32_t t = 0; t < tdSamples; t++) {
-        uint32_t o_idx, o_tidx, i_idx;
-        i_idx = (b * Embed + e) * 3 * tdSamples + t;
-        o_idx = (t * Beam + b) * Embed + e;
-        o_tidx = (t * Embed + e) * Beam + b;
-        Q[o_idx] = IN[i_idx];
-        Kt[o_tidx] = IN[i_idx + Embed * tdSamples];
-        V[o_idx] = IN[i_idx + 2 * Embed * tdSamples];
-      }
-      break;
-    default: { // EBT
-      uint32_t i_base = (b * Embed + e) * 3 * tdSamples;
-      uint32_t o_base = (e * Beam + b) * tdSamples;
-      // Q and V are contiguous in t on both the IN side and their own side
-      // (stride 1), so two t's at a time move through one v2h load/store
-      uint32_t t = 0;
-      if ((tdSamples & 1u) == 0) {
-        for (; t < tdSamples; t += 2) {
-          *(v2h *)&Q[o_base + t] = *(v2h *)&IN[i_base + t];
-          *(v2h *)&V[o_base + t] =
-              *(v2h *)&IN[i_base + t + 2 * Embed * tdSamples];
+      case TBE:
+        for (uint32_t t = 0; t < tdSamples; t++) {
+          uint32_t o_idx, o_tidx, i_idx;
+          i_idx = (b * Embed + e) * 3 * tdSamples + t;
+          o_idx = (t * Beam + b) * Embed + e;
+          o_tidx = (t * Embed + e) * Beam + b;
+          Q[o_idx] = IN[i_idx];
+          Kt[o_tidx] = IN[i_idx + Embed * tdSamples];
+          V[o_idx] = IN[i_idx + 2 * Embed * tdSamples];
         }
-      } else {
-        for (; t < tdSamples; t++) {
-          Q[o_base + t] = IN[i_base + t];
-          V[o_base + t] = IN[i_base + t + 2 * Embed * tdSamples];
+        break;
+      default: { // EBT
+        uint32_t i_base = (b * Embed + e) * 3 * tdSamples;
+        uint32_t o_base = (e * Beam + b) * tdSamples;
+        // Q and V are contiguous in t on both the IN side and their own side
+        // (stride 1), so two t's at a time move through one v2h load/store
+        uint32_t t = 0;
+        if ((tdSamples & 1u) == 0) {
+          for (; t < tdSamples; t += 2) {
+            *(v2h *)&Q[o_base + t] = *(v2h *)&IN[i_base + t];
+            *(v2h *)&V[o_base + t] =
+                *(v2h *)&IN[i_base + t + 2 * Embed * tdSamples];
+          }
+        } else {
+          for (; t < tdSamples; t++) {
+            Q[o_base + t] = IN[i_base + t];
+            V[o_base + t] = IN[i_base + t + 2 * Embed * tdSamples];
+          }
         }
+        for (t = 0; t < tdSamples; t++) {
+          uint32_t o_tidx = (e * tdSamples + t) * Beam + b;
+          Kt[o_tidx] = IN[i_base + t + Embed * tdSamples];
+        }
+        break;
       }
-      for (t = 0; t < tdSamples; t++) {
-        uint32_t o_tidx = (e * tdSamples + t) * Beam + b;
-        Kt[o_tidx] = IN[i_base + t + Embed * tdSamples];
-      }
-      break;
-    }
     }
   }
 
