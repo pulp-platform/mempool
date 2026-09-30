@@ -23,7 +23,7 @@ void gelu_f16(__fp16 *__restrict__ data, uint32_t size, uint32_t core_id,
   uint32_t i, j;
   for (i = 2 * BANKING_FACTOR * core_id; i < size;
        i += 2 * BANKING_FACTOR * numThreads) {
-    for (j = 0; j < BANKING_FACTOR / 8; j++) {
+    for (j = 0; j < BANKING_FACTOR / 4; j++) {
 
       v2h a = *(v2h *)&data[i + j * 8];
       v2h b = *(v2h *)&data[i + j * 8 + 2];

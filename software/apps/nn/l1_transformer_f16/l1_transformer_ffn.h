@@ -10,6 +10,9 @@
 #include "hal_redmule.h"
 
 #include "baremetal/mempool_conv1d_f16.h"
+#ifdef PIPELINED
+#include "baremetal/mempool_gelu_f16.h"
+#endif
 #include "baremetal/mempool_layernorm_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
 
@@ -66,6 +69,23 @@ void *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Layernorm");
 
+#ifdef PIPELINED
+  /**************************************************************************/
+  /* Conv1D + Gelu                                                          */
+  /**************************************************************************/
+
+  // Convolution (Embed -> 2*Embed), Gelu applied in place on T2
+  X = T1;
+  Y = T2;
+  X_im2col = T3;
+
+  mempool_start_benchmark();
+  conv1d_pipelined_f16(X, F, Y, X_im2col, Beam, Embed, Embed * 2, tdSamples,
+                       Wf, gelu_f16, core_id, num_cores);
+  mempool_stop_benchmark();
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution + Gelu");
+#else
   /**************************************************************************/
   /* Conv1D                                                                 */
   /**************************************************************************/
@@ -106,6 +126,7 @@ void *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   mempool_stop_benchmark();
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Gelu");
+#endif
 
   /**************************************************************************/
   /* Transfer weights                                                       */
@@ -120,6 +141,22 @@ void *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Transfer weights");
 
+#ifdef PIPELINED
+  /**************************************************************************/
+  /* Compute convolution on output and sum                                  */
+  /**************************************************************************/
+
+  // Convolution (2*Embed -> Embed) on the Gelu output
+  X = T2;
+  Y = T1;
+  X_im2col = T3;
+
+  mempool_start_benchmark();
+  conv1d_pipelined_f16(X, F, Y, X_im2col, Beam, Embed * 2, Embed, tdSamples,
+                       Wf, NULL, core_id, num_cores);
+  mempool_stop_benchmark();
+
+#else
   /**************************************************************************/
   /* Compute convolution on output and sum                                  */
   /**************************************************************************/
@@ -133,6 +170,7 @@ void *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
              core_id, num_cores);
   mempool_stop_benchmark();
 
+#endif
   PRINT_DONE(VERBOSE, core_id, num_cores, "Compute convolution on output");
 
   return 0;
