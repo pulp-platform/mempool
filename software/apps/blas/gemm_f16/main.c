@@ -45,7 +45,7 @@
 #define SUB_GROUP_ELEMENTS                                                     \
   (NUM_BANKS_PER_SUB_GROUP * sizeof(int32_t) / sizeof(int16_t))
 #define SHIFT_ELEMENTS                                                         \
-  (NUM_BANKS / NUM_REDMULE_TILES * sizeof(int32_t) / sizeof(int16_t))
+  (NUM_BANKS_PER_TILE * sizeof(int32_t) / sizeof(int16_t))
 #define ODD_SHIFTS(n) ((((n) + SHIFT_ELEMENTS - 1) / SHIFT_ELEMENTS) | 1)
 #define X_SLOT (ODD_SHIFTS(matrix_M * matrix_N) * SHIFT_ELEMENTS)
 #define W_SLOT (ODD_SHIFTS(matrix_N * matrix_P) * SHIFT_ELEMENTS)
