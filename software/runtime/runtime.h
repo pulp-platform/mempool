@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #define NUM_BANKS_PER_TILE NUM_CORES_PER_TILE *BANKING_FACTOR
+#define NUM_BANKS_PER_SUB_GROUP NUM_CORES_PER_SUB_GROUP * BANKING_FACTOR
 
 extern char l1_alloc_base;
 static uint32_t volatile *wake_up_reg =
