@@ -38,13 +38,17 @@ int main() {
   mempool_init(core_id);
   mempool_barrier_init(core_id);
 
-  attention(l2_I, l2_F, BEAM, EMBED, TDSAMPLES, CONV1D_WF, EBT);
+  // Each layer reads the output of the previous one, only the first loads its
+  // input from L2
+  __fp16 *x;
+  x = attention(l2_I, l2_F, NULL, BEAM, EMBED, TDSAMPLES, CONV1D_WF, EBT);
 
-  ffn(l2_I, l2_F, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
+  x = ffn(l2_I, l2_F, x, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
 
-  attention(l2_I, l2_F, BEAM, EMBED, TDSAMPLES, CONV1D_WF, TBE);
+  x = attention(l2_I, l2_F, x, BEAM, EMBED, TDSAMPLES, CONV1D_WF, TBE);
 
-  ffn(l2_I, l2_F, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
+  x = ffn(l2_I, l2_F, x, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
+  (void)x;
 
   return 0;
 }
