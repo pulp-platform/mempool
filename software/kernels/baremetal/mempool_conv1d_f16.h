@@ -171,8 +171,13 @@ typedef void (*conv1d_post_t)(__fp16 *__restrict__ data, uint32_t size,
                  im2col of chunk r and, when post is not NULL, apply post in
                  place on the output of the chunk whose GEMMs completed in
                  round r-1. Without RedMulEs, falls back to conv1d_f16().
+                 With F_stride > 0, RedMulE i reads its own copy of the filter
+                 at F + i * F_stride, so that the RedMulEs do not all read the
+                 same banks. The copies must already be in place.
   @param[in]     X          input matrix  size: B * Ci * Wi
-  @param[in]     F          filter matrix size: Co * Ci * Wf
+  @param[in]     F          filter matrix size: Co * Ci * Wf, followed by its
+                            copies when F_stride > 0
+  @param[in]     F_stride   elements between the filter copies, 0 if shared
   @param[out]    Y          output matrix size: B * Co * Wi
   @param[in]     X_im2col   im2col buffer size: B * Ci * Wi * Wf
   @param[in]     B          batch size
@@ -185,7 +190,7 @@ typedef void (*conv1d_post_t)(__fp16 *__restrict__ data, uint32_t size,
 */
 
 void conv1d_pipelined_f16(__fp16 const *__restrict__ X,
-                          __fp16 const *__restrict__ F,
+                          __fp16 const *__restrict__ F, uint32_t F_stride,
                           __fp16 *__restrict__ Y,
                           __fp16 *__restrict__ X_im2col, uint32_t B,
                           uint32_t Ci, uint32_t Co, uint32_t Wi, uint32_t Wf,
@@ -216,12 +221,18 @@ void conv1d_pipelined_f16(__fp16 const *__restrict__ X,
       uint32_t ii = bb - chunk + redmule_id;
       launched = (redmule_id < num_redmules) && (ii < B);
       if (launched) {
-        unsigned int I_ptr = (unsigned int)(F);
+        unsigned int I_ptr = (unsigned int)(F + redmule_id * F_stride);
         unsigned int W_ptr = (unsigned int)(&X_im2col[ii * Ci * Wi * Wf]);
         unsigned int O_ptr = (unsigned int)(&Y[ii * Co * Wi]);
         uint16_t M = (uint16_t)(Co);
         uint16_t N = (uint16_t)(Ci * Wf);
         uint16_t P = (uint16_t)(Wi);
+#ifdef REDMULE_ZERO_OUTPUT
+        // Verification only: RedMulE accumulates into its output
+        for (uint32_t z = 0; z < (uint32_t)M * P; z++) {
+          ((uint16_t *)O_ptr)[z] = 0;
+        }
+#endif
         hwpe_soft_clear();
         mempool_wait(10);
         redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, GEMM, Float16);
