@@ -247,6 +247,16 @@ package mempool_pkg;
   localparam integer unsigned NumBanksPerSubGroup = NumBanksPerGroup / NumSubGroupsPerGroup;
 
   // TeraPool Remote Groups Latency Control (in Cycles)
+  // Remote group access latency, in cycles. The value selects how many register
+  // ranks sit between a SubGroup and the Group port:
+  //
+  //    5   none. The SubGroup drives the Group port directly.
+  //    7   the port rank
+  //    9   the port rank and the port-to-SubGroup rank
+  //   11   all three
+  //
+  // 5 exists for the 3D stack, where the Group boundary is a bond rather than a
+  // traverse of the die and does not need a pipeline stage to be fast.
   localparam integer unsigned RemoteGroupLatencyCycle = `ifdef REMOTE_GROUP_LATENCY_CYCLES `REMOTE_GROUP_LATENCY_CYCLES `else 7 `endif;
 
   //TeraPool AXI/DMA Config

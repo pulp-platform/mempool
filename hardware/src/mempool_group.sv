@@ -288,67 +288,91 @@ module mempool_group
     assign tcdm_slave_req_valid_port               = tcdm_slave_req_valid_i[NumGroups-1:1];
     assign tcdm_slave_req_ready_o[NumGroups-1:1]   = tcdm_slave_req_ready_port;
 
-    for (genvar h = 1; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_port_registers_h
-      for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_tcdm_port_registers_sg
-        for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_port_registers_t
-          spill_register #(
-            .T(tcdm_master_req_t)
-          ) i_tcdm_master_req_register (
-            .clk_i  (clk_i                                     ),
-            .rst_ni (rst_ni                                    ),
-            .data_i (tcdm_master_req[h][sg][t]                 ),
-            .valid_i(tcdm_master_req_valid[h][sg][t]           ),
-            .ready_o(tcdm_master_req_ready[h][sg][t]           ),
-            .data_o (tcdm_master_req_s[h][sg][t]               ),
-            .valid_o(tcdm_master_req_valid_o[h][sg][t]         ),
-            .ready_i(tcdm_master_req_ready_i[h][sg][t]         )
-          );
+    // Present from 7 cycles upward. At 5 the Group boundary is unregistered:
+    // the SubGroup drives the Group port directly, which is what makes a
+    // die-to-die crossing short enough to be worth doing without a pipeline
+    // stage. See the ladder in mempool_pkg.sv.
+    if (RemoteGroupLatencyCycle >= 7) begin: gen_tcdm_port_registers
+      for (genvar h = 1; unsigned'(h) < NumGroups; h++) begin: gen_tcdm_port_registers_h
+        for (genvar sg = 0; unsigned'(sg) < NumSubGroupsPerGroup; sg++) begin: gen_tcdm_port_registers_sg
+          for (genvar t = 0; unsigned'(t) < NumTilesPerSubGroup; t++) begin: gen_tcdm_port_registers_t
+            spill_register #(
+              .T(tcdm_master_req_t)
+            ) i_tcdm_master_req_register (
+              .clk_i  (clk_i                                     ),
+              .rst_ni (rst_ni                                    ),
+              .data_i (tcdm_master_req[h][sg][t]                 ),
+              .valid_i(tcdm_master_req_valid[h][sg][t]           ),
+              .ready_o(tcdm_master_req_ready[h][sg][t]           ),
+              .data_o (tcdm_master_req_s[h][sg][t]               ),
+              .valid_o(tcdm_master_req_valid_o[h][sg][t]         ),
+              .ready_i(tcdm_master_req_ready_i[h][sg][t]         )
+            );
 
-          fall_through_register #(
-            .T(tcdm_master_resp_t)
-          ) i_tcdm_master_resp_register (
-            .clk_i     (clk_i                                  ),
-            .rst_ni    (rst_ni                                 ),
-            .clr_i     (1'b0                                   ),
-            .testmode_i(1'b0                                   ),
-            .data_i    (tcdm_master_resp_port[h][sg][t]        ),
-            .valid_i   (tcdm_master_resp_valid_port[h][sg][t]  ),
-            .ready_o   (tcdm_master_resp_ready_port[h][sg][t]  ),
-            .data_o    (tcdm_master_resp[h][sg][t]             ),
-            .valid_o   (tcdm_master_resp_valid[h][sg][t]       ),
-            .ready_i   (tcdm_master_resp_ready[h][sg][t]       )
-          );
+            fall_through_register #(
+              .T(tcdm_master_resp_t)
+            ) i_tcdm_master_resp_register (
+              .clk_i     (clk_i                                  ),
+              .rst_ni    (rst_ni                                 ),
+              .clr_i     (1'b0                                   ),
+              .testmode_i(1'b0                                   ),
+              .data_i    (tcdm_master_resp_port[h][sg][t]        ),
+              .valid_i   (tcdm_master_resp_valid_port[h][sg][t]  ),
+              .ready_o   (tcdm_master_resp_ready_port[h][sg][t]  ),
+              .data_o    (tcdm_master_resp[h][sg][t]             ),
+              .valid_o   (tcdm_master_resp_valid[h][sg][t]       ),
+              .ready_i   (tcdm_master_resp_ready[h][sg][t]       )
+            );
 
-          fall_through_register #(
-            .T(tcdm_slave_req_t)
-          ) i_tcdm_slave_req_register (
-            .clk_i     (clk_i                                  ),
-            .rst_ni    (rst_ni                                 ),
-            .clr_i     (1'b0                                   ),
-            .testmode_i(1'b0                                   ),
-            .data_i    (tcdm_slave_req_port[h][sg][t]          ),
-            .valid_i   (tcdm_slave_req_valid_port[h][sg][t]    ),
-            .ready_o   (tcdm_slave_req_ready_port[h][sg][t]    ),
-            .data_o    (tcdm_slave_req[h][sg][t]               ),
-            .valid_o   (tcdm_slave_req_valid[h][sg][t]         ),
-            .ready_i   (tcdm_slave_req_ready[h][sg][t]         )
-          );
+            fall_through_register #(
+              .T(tcdm_slave_req_t)
+            ) i_tcdm_slave_req_register (
+              .clk_i     (clk_i                                  ),
+              .rst_ni    (rst_ni                                 ),
+              .clr_i     (1'b0                                   ),
+              .testmode_i(1'b0                                   ),
+              .data_i    (tcdm_slave_req_port[h][sg][t]          ),
+              .valid_i   (tcdm_slave_req_valid_port[h][sg][t]    ),
+              .ready_o   (tcdm_slave_req_ready_port[h][sg][t]    ),
+              .data_o    (tcdm_slave_req[h][sg][t]               ),
+              .valid_o   (tcdm_slave_req_valid[h][sg][t]         ),
+              .ready_i   (tcdm_slave_req_ready[h][sg][t]         )
+            );
 
-          spill_register #(
-            .T(tcdm_slave_resp_t)
-          ) i_tcdm_slave_resp_register (
-            .clk_i  (clk_i                                     ),
-            .rst_ni (rst_ni                                    ),
-            .data_i (tcdm_slave_resp[h][sg][t]                 ),
-            .valid_i(tcdm_slave_resp_valid[h][sg][t]           ),
-            .ready_o(tcdm_slave_resp_ready[h][sg][t]           ),
-            .data_o (tcdm_slave_resp_s[h][sg][t]               ),
-            .valid_o(tcdm_slave_resp_valid_o[h][sg][t]         ),
-            .ready_i(tcdm_slave_resp_ready_i[h][sg][t]         )
-          );
-        end: gen_tcdm_port_registers_t
-      end: gen_tcdm_port_registers_sg
-    end: gen_tcdm_port_registers_h
+            spill_register #(
+              .T(tcdm_slave_resp_t)
+            ) i_tcdm_slave_resp_register (
+              .clk_i  (clk_i                                     ),
+              .rst_ni (rst_ni                                    ),
+              .data_i (tcdm_slave_resp[h][sg][t]                 ),
+              .valid_i(tcdm_slave_resp_valid[h][sg][t]           ),
+              .ready_o(tcdm_slave_resp_ready[h][sg][t]           ),
+              .data_o (tcdm_slave_resp_s[h][sg][t]               ),
+              .valid_o(tcdm_slave_resp_valid_o[h][sg][t]         ),
+              .ready_i(tcdm_slave_resp_ready_i[h][sg][t]         )
+            );
+          end: gen_tcdm_port_registers_t
+        end: gen_tcdm_port_registers_sg
+      end: gen_tcdm_port_registers_h
+    end: gen_tcdm_port_registers else begin: gen_tcdm_port_feedthrough
+      // Same four buses, wired straight through. Names mirror the register
+      // connections above, port side on one end, interconnect side on the other.
+      assign tcdm_master_req_s                       = tcdm_master_req;
+      assign tcdm_master_req_valid_o                 = tcdm_master_req_valid;
+      assign tcdm_master_req_ready                   = tcdm_master_req_ready_i;
+
+      assign tcdm_master_resp                        = tcdm_master_resp_port;
+      assign tcdm_master_resp_valid                  = tcdm_master_resp_valid_port;
+      assign tcdm_master_resp_ready_port             = tcdm_master_resp_ready;
+
+      assign tcdm_slave_req                          = tcdm_slave_req_port;
+      assign tcdm_slave_req_valid                    = tcdm_slave_req_valid_port;
+      assign tcdm_slave_req_ready_port               = tcdm_slave_req_ready;
+
+      assign tcdm_slave_resp_s                       = tcdm_slave_resp;
+      assign tcdm_slave_resp_valid_o                 = tcdm_slave_resp_valid;
+      assign tcdm_slave_resp_ready                   = tcdm_slave_resp_ready_i;
+    end: gen_tcdm_port_feedthrough
 
     // AXI interfaces
     axi_tile_req_t   [NumAXIMastersPerGroup-1:0] axi_mst_req;

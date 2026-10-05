@@ -29,7 +29,9 @@ banking_factor ?= 8
 
 # Access latency between remote groups
 # Options: "7", "9" or "11":
-remote_group_latency_cycles ?= 9
+# 5: no register rank between a SubGroup and the Group port. The 3D stack
+# crosses that boundary through a bond, which does not need a pipeline stage.
+remote_group_latency_cycles ?= 5
 
 # Radix for hierarchical AXI interconnect
 axi_hier_radix ?= 17
