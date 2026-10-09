@@ -46,7 +46,7 @@ class FlexClusterArch:
         self.tensorpool = True
         # 16 tensor engines per cluster
         self.nb_redmule_tiles = 16
-        self.redmule_height = 4
+        self.redmule_height = 8
         self.redmule_width = 32
         self.redmule_regs = 3
         self.redmule_queue_depth = 128
@@ -58,8 +58,8 @@ class FlexClusterArch:
         # HBM
         self.hbm_start_base = 0xc0000000
         self.hbm_node_addr_space = 0x00800000
-        self.num_node_per_ctrl = 4
-        self.hbm_chan_placement = [0, 1, 0, 1]
+        self.num_node_per_ctrl = 1
+        self.hbm_chan_placement = [0, 2, 0, 2]
         self.hbm_node_aliase = 1
 
         # NoC
