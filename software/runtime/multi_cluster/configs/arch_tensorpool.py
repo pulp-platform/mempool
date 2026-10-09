@@ -5,6 +5,9 @@
 # Author: Chi Zhang <chizhang@ethz.ch>
 # Author: Marco Bertuletti <mbertuletti@ethz.ch>
 
+import os
+
+
 class FlexClusterArch:
 
     def __init__(self):
@@ -26,15 +29,18 @@ class FlexClusterArch:
         self.instruction_mem_base = 0x80000000
 
         # Mempool cluster configuration (Tensorpool)
-        # Heterogeneous: 256 PE (as Mempool) + 16 RedMulE tensor engines,
-        # sub-group division (as Terapool) and a 4 MB L1 (as Terapool).
+        # Heterogeneous: num_cores PE (default 256, from the environment, as
+        # the MemPool make variable) + 16 RedMulE tensor engines, sub-group
+        # division (as Terapool) and a 4 MB L1 (as Terapool).
         self.terapool = False
-        self.num_core_per_cluster = 256
+        self.num_core_per_cluster = int(os.environ.get('num_cores', 256))
         self.nb_cores_per_tile = 4
         self.nb_sub_groups_per_group = 4
         self.nb_groups = 4
         self.bank_factor = 8
-        self.bank_size = 2048
+        # Bank size keeping the L1 at cluster_tcdm_size
+        self.bank_size = self.cluster_tcdm_size // (
+            self.num_core_per_cluster * self.bank_factor)
         self.axi_data_width = 64
         self.dma_tcdm_outstanding = 32
         self.dma_burst_queue_size = 32
