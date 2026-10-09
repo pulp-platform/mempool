@@ -12,11 +12,11 @@
 # Ported from soft_hier/mc_cluster_utilities/config.py with configurable
 # input/output paths so it can be driven by the MemPool multi_cluster build.
 
-import re
-import ast
 import os
 import math
+import inspect
 import argparse
+import importlib.util
 
 
 def write_if_changed(path, content):
@@ -48,18 +48,26 @@ input_file = args.input_file
 C_header_file = os.path.join(args.outdir, 'mc_cluster_arch.h')
 S_header_file = os.path.join(args.outdir, 'mc_cluster_arch.inc')
 
-# Initialize a dictionary to store the class attributes and their values
-attributes = {}
+# Instantiate the architecture class of the config file, so that values the
+# config computes (e.g. from the num_cores environment variable) are used.
+spec = importlib.util.spec_from_file_location('mc_arch_config', input_file)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+arch_class = next(c for _, c in inspect.getmembers(module, inspect.isclass)
+                  if c.__module__ == module.__name__)
+arch = arch_class()
 
-# Read the input file and extract the class attributes
-with open(input_file, 'r') as file:
-    lines = file.readlines()
-    for line in lines:
-        match = re.match(r'\s*self\.(\w+)\s*=\s*(.+)', line)
-        if match:
-            attr_name = match.group(1)
-            attr_value = match.group(2)
-            attributes[attr_name] = attr_value
+
+def c_value(value):
+    """Value as written in the headers (hex for addresses and sizes)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return str(value)
+    return hex(value) if value >= 0x10000 else str(value)
+
+
+# Class attributes (in definition order) and their values
+attributes = {name: c_value(value) for name, value in vars(arch).items()}
+raw = vars(arch)
 
 # Build the output C header file
 c_header = '#ifndef MCLUSTERARCHARCH_H\n'
@@ -73,7 +81,7 @@ for attr_name, attr_value in attributes.items():
         num_core_per_cluster = int(attr_value)
         pass
     if define_name == 'ARCH_SPATZ_ATTACED_CORE_LIST':
-        core_list = ast.literal_eval(attr_value)
+        core_list = raw[attr_name]
         c_header += f'#define ARCH_SPATZ_ATTACED_CORES {len(core_list)}\n'
         attach_list = []
         sid_list = []
@@ -118,7 +126,7 @@ for attr_name, attr_value in attributes.items():
         pass
     if define_name == 'ARCH_CLUSTER_STACK_SIZE':
         stack_size_per_core = (
-            int(attr_value, 16)
+            raw[attr_name]
             / (1 << (num_core_per_cluster - 1).bit_length()))
         clog2_stack_offest_per_core = int(
             math.ceil(math.log2(stack_size_per_core)))
