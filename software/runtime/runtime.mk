@@ -163,6 +163,10 @@ ifeq ($(MULTI_CLUSTER),true)
 	endif
 	# Compilation must wait for the headers to be (re)generated.
 	MC_HDR_DEP := $(MC_ARCH_HDR) $(MC_ARCH_INC)
+	# The arch config reads num_cores from the environment and derives the
+	# L1 bank size from it: take the bank size from there too.
+	MC_ARCH_ENV  := num_cores=$(num_cores)
+	l1_bank_size := $(shell $(MC_ARCH_ENV) $(python) -c "import importlib.util as u; s = u.spec_from_file_location('a', '$(MC_ARCH_CONFIG)'); m = u.module_from_spec(s); s.loader.exec_module(m); print(m.FlexClusterArch().bank_size)")
 endif
 
 # Enable soft-divsqrt when the hardware is not supported.
@@ -215,7 +219,7 @@ HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 # Generate the FlexCluster architecture headers from the selected config.
 ifeq ($(MULTI_CLUSTER),true)
 $(MC_ARCH_HDR) $(MC_ARCH_INC) &: $(MC_ARCH_CONFIG) $(MULTI_CLUSTER_DIR)/gen_mc_arch.py FORCE
-	$(python) $(MULTI_CLUSTER_DIR)/gen_mc_arch.py $(MC_ARCH_CONFIG) --outdir $(MULTI_CLUSTER_DIR)/include
+	$(MC_ARCH_ENV) $(python) $(MULTI_CLUSTER_DIR)/gen_mc_arch.py $(MC_ARCH_CONFIG) --outdir $(MULTI_CLUSTER_DIR)/include
 endif
 
 %.S.o: %.S $(MC_HDR_DEP)

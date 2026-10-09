@@ -311,33 +311,11 @@ static NOINLINE void chk_av(const char *label, uint32_t idx, const __fp16 *P,
   mc_intra_cluster_sync();
 }
 
-/* exp(x) for x <= 0 with fp32 multiplies only (newlib's expf is far too
- * slow on this core): 2^(x log2 e), polynomial for the fraction, about
- * 1e-6 relative error. */
-static inline float exp_neg(float x) {
-  if (x < -87.0f) {
-    return 0.0f;
-  }
-  float t = x * 1.44269504f;
-  int32_t i = (int32_t)t;
-  if ((float)i > t) {
-    i--;
-  }
-  float f = t - (float)i;
-  float p =
-      1.0f + f * (0.6931472f +
-                  f * (0.2402265f +
-                       f * (0.0555041f + f * (0.0096181f + f * 0.0013334f))));
-  union {
-    uint32_t u;
-    float f;
-  } c = {(uint32_t)(i + 127) << 23};
-  return p * c.f;
-}
-
 /* Recomputes rows of P = softmax(Q * Kt) of one batch on core 0 (rows in
  * different slices) and records the number of outputs off by more than
- * 2e-3 + 2% of the reference, and the largest error (x1e4). */
+ * 2e-3 + 2% of the reference, and the largest error (x1e4). The reference
+ * follows softmax_parallel_2x4_f16vec: row maximum starting from 0.5 and
+ * exp(x) approximated by 1 + x + 0.5 x^2 + 0.167 x^3. */
 static NOINLINE void chk_qk(const char *label, uint32_t idx, const __fp16 *Q,
                             const __fp16 *Kt, const __fp16 *P, uint32_t S,
                             uint32_t W, uint32_t core_id) {
@@ -348,7 +326,7 @@ static NOINLINE void chk_qk(const char *label, uint32_t idx, const __fp16 *Q,
     float emax = 0.0f;
     for (uint32_t ri = 0; ri < 4; ri++) {
       uint32_t r = rows[ri] % S;
-      float m = -65504.0f, sum = 0.0f;
+      float m = 0.5f, sum = 0.0f;
       for (uint32_t k = 0; k < S; k++) {
         float acc = 0.0f;
         for (uint32_t j = 0; j < W; j++) {
@@ -358,15 +336,17 @@ static NOINLINE void chk_qk(const char *label, uint32_t idx, const __fp16 *Q,
         m = acc > m ? acc : m;
       }
       for (uint32_t k = 0; k < S; k++) {
-        sc[k] = exp_neg(sc[k] - m);
+        float x = sc[k] - m;
+        sc[k] = 1.0f + x + 0.5f * x * x + 0.167f * x * x * x;
         sum += sc[k];
       }
       for (uint32_t k = 0; k < S; k++) {
         float ref = sc[k] / sum;
         float d = h2f(&P[r * S + k]) - ref;
+        float ref_abs = ref < 0 ? -ref : ref;
         if (d < 0)
           d = -d;
-        if (d > 2e-3f + 0.02f * ref)
+        if (d > 2e-3f + 0.02f * ref_abs)
           bad++;
         if (d > emax)
           emax = d;
