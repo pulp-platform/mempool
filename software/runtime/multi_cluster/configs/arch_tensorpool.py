@@ -5,6 +5,9 @@
 # Author: Chi Zhang <chizhang@ethz.ch>
 # Author: Marco Bertuletti <mbertuletti@ethz.ch>
 
+import os
+
+
 class FlexClusterArch:
 
     def __init__(self):
@@ -26,15 +29,18 @@ class FlexClusterArch:
         self.instruction_mem_base = 0x80000000
 
         # Mempool cluster configuration (Tensorpool)
-        # Heterogeneous: 256 PE (as Mempool) + 16 RedMulE tensor engines,
-        # sub-group division (as Terapool) and a 4 MB L1 (as Terapool).
+        # Heterogeneous: num_cores PE (default 256, from the environment, as
+        # the MemPool make variable) + 16 RedMulE tensor engines, sub-group
+        # division (as Terapool) and a 4 MB L1 (as Terapool).
         self.terapool = False
-        self.num_core_per_cluster = 256
+        self.num_core_per_cluster = int(os.environ.get('NUM_CORES', 256))
         self.nb_cores_per_tile = 4
         self.nb_sub_groups_per_group = 4
         self.nb_groups = 4
         self.bank_factor = 8
-        self.bank_size = 2048
+        # Bank size keeping the L1 at cluster_tcdm_size
+        self.bank_size = self.cluster_tcdm_size // (
+            self.num_core_per_cluster * self.bank_factor)
         self.axi_data_width = 64
         self.dma_tcdm_outstanding = 32
         self.dma_burst_queue_size = 32
@@ -44,14 +50,15 @@ class FlexClusterArch:
 
         # Tensor engines (RedMulE)
         self.tensorpool = True
-        # 16 tensor engines per cluster
-        self.nb_redmule_tiles = 16
-        self.redmule_height = 8
-        self.redmule_width = 32
+        self.nb_redmule_tiles = int(os.environ.get('NUM_REDMULE_TILES', 16))
+        self.redmule_height = int(os.environ.get('REDMULE_HEIGHT', 8))
+        self.redmule_width = int(os.environ.get('REDMULE_WIDTH', 32))
         self.redmule_regs = 3
         self.redmule_queue_depth = 128
         self.redmule_stream_loads = True
-        self.redmule_row_refill_cyc = 740
+        # Per-M-block refill: 740 cycles calibrated at height 8, scaled with
+        # the rows of one block
+        self.redmule_row_refill_cyc = 740 * self.redmule_height // 8
         # auto-derive: (height*(regs+1))//2
         self.redmule_tcdm_bank_number = None
 
