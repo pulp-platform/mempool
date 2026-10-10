@@ -9,6 +9,7 @@
 #include "dma.h"
 #include "hal_redmule.h"
 
+#include "baremetal/mempool_attention_f16.h"
 #include "baremetal/mempool_conv1d_f16.h"
 #include "baremetal/mempool_layernorm_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
@@ -24,14 +25,6 @@ void permute_qkv(__fp16 const *__restrict__ IN,
                  __fp16 *__restrict__ V,
                  uint32_t Beam, uint32_t Embed,
                  uint32_t tdSamples, permute_mode_t mode);
-
-void attention_block(__fp16 const *__restrict__ Q,
-                     __fp16 const *__restrict__ Kt,
-                     __fp16 const *__restrict__ V,
-                     __fp16 *__restrict__ Aw,
-                     __fp16 *__restrict__ A,
-                     uint32_t Batch, uint32_t SeqLen,
-                     uint32_t tdEmbed);
 
 /**
   @brief         Computes the full attention block.
@@ -170,7 +163,8 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   /* Attention                                                              */
   /**************************************************************************/
 
-  attention_block(q, kt, v, Aw, att, nb, Beam, td);
+  attention_block_f16(q, kt, v, Aw, att, nb, Beam, td, slot,
+                      TS_SLOT(Beam * Beam), core_id, num_cores);
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Attention");
 
@@ -214,180 +208,6 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution");
 
   return y;
-}
-
-/**
-  @brief         Computes scaled dot-product attention.
-  @details       Performs the operation:
-                   A = Softmax(Q * Kt) * V
-                 independently for each batch.
-                 When available, RedMule accelerators are used for GEMM;
-                 otherwise a core-only implementation is executed.
-  @param[in]     Q         Query tensor, [Batch][SeqLen][tdEmbed]
-  @param[in]     Kt        Key tensor (transposed), [Batch][tdEmbed][SeqLen]
-  @param[in]     V         Value tensor, [Batch][SeqLen][tdEmbed]
-  @param[out]    Aw        Softmax output, [Batch][SeqLen][SeqLen]
-  @param[out]    A         Attention scores Q * Kt, [Batch][SeqLen][SeqLen],
-                           then attention output, [Batch][SeqLen][tdEmbed]
-  @param[in]     Batch     Number of batches
-  @param[in]     SeqLen    Sequence Length
-  @param[in]     tdEmbed   Temporal embedding dimension
-  @return        none
-*/
-
-void attention_block(__fp16 const *__restrict__ Q,
-                     __fp16 const *__restrict__ Kt,
-                     __fp16 const *__restrict__ V,
-                     __fp16 *__restrict__ Aw,
-                     __fp16 *__restrict__ A, uint32_t Batch, uint32_t SeqLen,
-                     uint32_t tdEmbed) {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-
-  // The scores and the attention output share A
-  __fp16 *scores = A;
-
-  // Batch slots of Q, Kt, V
-  uint32_t slot_q = TS_SLOT(SeqLen * tdEmbed);
-  uint32_t slot_s = TS_SLOT(SeqLen * SeqLen);
-
-  uint32_t redmule_id = mempool_get_redmule_id();
-  uint32_t num_redmules = mempool_get_redmule_count();
-
-#ifdef PIPELINED
-  // Pipelined Q*Kt and Softmax
-  // Round r: RedMulEs compute Q*Kt for batches [r*R, (r+1)*R), while all
-  // cores compute the softmax of the batches produced in round r-1.
-  // One extra round drains the softmax of the last batches.
-  mempool_start_benchmark();
-  for (uint32_t bb = 0; bb < Batch + num_redmules; bb += num_redmules) {
-
-    // Launch Q*Kt of the current batches
-    uint32_t ii = bb + redmule_id;
-    uint32_t launched = (redmule_id < num_redmules) && (ii < Batch);
-    if (launched) {
-      unsigned int I_ptr = (unsigned int)(Q + ii * slot_q);
-      unsigned int W_ptr = (unsigned int)(Kt + ii * slot_q);
-      unsigned int O_ptr = (unsigned int)(scores + ii * slot_s);
-      uint16_t M = (uint16_t)SeqLen;
-      uint16_t N = (uint16_t)tdEmbed;
-      uint16_t P = (uint16_t)SeqLen;
-#ifdef REDMULE_ZERO_OUTPUT
-      // Verification only: RedMulE accumulates into its output
-      for (uint32_t z = 0; z < (uint32_t)M * P; z++) {
-        ((uint16_t *)O_ptr)[z] = 0;
-      }
-#endif
-      hwpe_soft_clear();
-      mempool_wait(10);
-      redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, GEMM, Float16);
-      mempool_wait(10);
-      hwpe_trigger_job();
-    }
-
-    // Softmax of the batches computed in the previous round
-    if (bb > 0) {
-      uint32_t prev = bb - num_redmules;
-      uint32_t nb = (Batch - prev < num_redmules) ?
-                    (Batch - prev) : num_redmules;
-      uint32_t num_cores_per_softmax = num_cores / nb;
-      uint32_t softmax_id = core_id % num_cores_per_softmax;
-      uint32_t idx = core_id / num_cores_per_softmax;
-      if (idx < nb) {
-        uint32_t jj = prev + idx;
-        softmax_parallel_2x4_f16vec(&scores[jj * slot_s],
-                                    &Aw[jj * slot_s], SeqLen, SeqLen,
-                                    softmax_id, num_cores_per_softmax);
-      }
-    }
-
-    // Wait for RedMulE (the wake-up is latched if the job already finished)
-    if (launched) {
-      mempool_wfi();
-    }
-    mempool_barrier(num_cores);
-
-  }
-  mempool_stop_benchmark();
-#else
-  // Q*Kt
-  mempool_start_benchmark();
-  if (redmule_id < num_redmules) {
-    for (uint32_t i = redmule_id; i < Batch; i += num_redmules) {
-      unsigned int I_ptr = (unsigned int)(Q + i * slot_q);
-      unsigned int W_ptr = (unsigned int)(Kt + i * slot_q);
-      unsigned int O_ptr = (unsigned int)(scores + i * slot_s);
-      uint16_t M = (uint16_t)SeqLen;
-      uint16_t N = (uint16_t)tdEmbed;
-      uint16_t P = (uint16_t)SeqLen;
-
-#ifdef REDMULE_ZERO_OUTPUT
-      // Verification only: RedMulE accumulates into its output
-      for (uint32_t z = 0; z < (uint32_t)M * P; z++) {
-        ((uint16_t *)O_ptr)[z] = 0;
-      }
-#endif
-
-      hwpe_soft_clear();
-      mempool_wait(10);
-      redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, GEMM, Float16);
-      mempool_wait(10);
-      hwpe_trigger_job();
-      mempool_wfi();
-    }
-  }
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  // Softmax
-  mempool_start_benchmark();
-  if (Batch < num_cores) {
-    uint32_t num_cores_per_softmax = num_cores / Batch;
-    uint32_t softmax_id = core_id % num_cores_per_softmax;
-    uint32_t idx = core_id / num_cores_per_softmax;
-    softmax_parallel_2x4_f16vec(&scores[idx * slot_s],
-                                &Aw[idx * slot_s], SeqLen, SeqLen,
-                                softmax_id, num_cores_per_softmax);
-  } else {
-    for (uint32_t i = core_id; i < Batch; i += num_cores) {
-      softmax_parallel_2x4_f16vec(&scores[i * slot_s],
-                                  &Aw[i * slot_s], SeqLen, SeqLen, 0,
-                                  1);
-    }
-  }
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-#endif
-
-  // A = Softmax(Q*Kt)*V
-  mempool_start_benchmark();
-  if (redmule_id < num_redmules) {
-    for (uint32_t i = redmule_id; i < Batch; i += num_redmules) {
-      unsigned int I_ptr = (unsigned int)(Aw + i * slot_s);
-      unsigned int W_ptr = (unsigned int)(V + i * slot_q);
-      unsigned int O_ptr = (unsigned int)(A + i * slot_q);
-      uint16_t M = (uint16_t)SeqLen;
-      uint16_t N = (uint16_t)SeqLen;
-      uint16_t P = (uint16_t)tdEmbed;
-#ifdef REDMULE_ZERO_OUTPUT
-      // Verification only: RedMulE accumulates into its output
-      for (uint32_t z = 0; z < (uint32_t)M * P; z++) {
-        ((uint16_t *)O_ptr)[z] = 0;
-      }
-#endif
-      hwpe_soft_clear();
-      mempool_wait(10);
-      redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, GEMM, Float16);
-      mempool_wait(10);
-      hwpe_trigger_job();
-      mempool_wfi();
-    }
-  }
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  return;
 }
 
 /**
