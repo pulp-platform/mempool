@@ -77,7 +77,8 @@
 #define SCRATCH_SIZE (BEAM * (2 * EMBED) * TDSAMPLES * CONV1D_WF)
 #define AW_SIZE (TS_MAX(EMBED, TDSAMPLES) * BEAM * BEAM)
 
-#ifdef TILESHIFT
+// Without TILESHIFT the slots are dense and the offsets are 0, so these reduce
+// to the dense sizes, but the scores still need BEAM * BEAM per batch.
 #define L1_ACT_SIZE                                                            \
   TS_MAX(ACT_SIZE,                                                             \
          TS_MAX(TS_V_OFFSET(EMBED, TS_EBT_SLOT) + EMBED * TS_EBT_SLOT,         \
@@ -90,11 +91,6 @@
                                   TS_MAX(TS_EBT_SLOT, TS_TBE_SLOT)))
 #define L1_AW_SIZE                                                             \
   TS_MAX(AW_SIZE, TS_MAX(EMBED, TDSAMPLES) * TS_SCORE_SLOT)
-#else
-#define L1_ACT_SIZE (ACT_SIZE)
-#define L1_SCRATCH_SIZE (SCRATCH_SIZE)
-#define L1_AW_SIZE (AW_SIZE)
-#endif
 
 // Size of the input and output of each layer, [BEAM][EMBED][TDSAMPLES]
 #define X_SIZE (BEAM * EMBED * TDSAMPLES)
