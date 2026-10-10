@@ -30,8 +30,7 @@
  * benchmarked regions) with the same generator and layout as the
  * verification build of the single-cluster app, so the two can be compared.
  * VERIFY prints per-cluster checksums; REDMULE_ZERO_OUTPUT (needed for that
- * comparison) zeroes every RedMulE output before the job, since RedMulE
- * accumulates into its output.
+ * comparison) zeroes every RedMulE output before the job.
  */
 
 #include "mc_dma_pattern.h"
@@ -40,6 +39,7 @@
 #include <string.h>
 
 #include "archi_redmule.h"
+#include "baremetal/mempool_attention_f16.h"
 #include "baremetal/mempool_conv1d_f16.h"
 #include "baremetal/mempool_gelu_f16.h"
 #include "baremetal/mempool_layernorm_f16.h"
@@ -66,14 +66,16 @@
 #if N_CLUSTERS > ARCH_NUM_CLUSTER_X * ARCH_NUM_CLUSTER_Y
 #error "N_CLUSTERS exceeds the number of clusters of the mesh"
 #endif
-/* Smallest row slice of an attention batch given to one RedMulE */
-#define MIN_SLICE_ROWS (32)
-#define BC (BEAM / N_CLUSTERS) /* beams per cluster                  */
+
 #define MAX2(a, b) (((a) > (b)) ? (a) : (b))
+#define BC (BEAM / N_CLUSTERS)       /* beams per cluster                  */
 #define W_MAX MAX2(EMBED, TDSAMPLES) /* attention embedding width, max     */
 #define NB_MAX (W_MAX / N_CLUSTERS)  /* attention batches per cluster, max */
 
 typedef enum { EBT, TBE } attn_mode_t;
+#define NOINLINE __attribute__((noinline))
+
+#include "verify.h"
 
 /**********************************************************************
  *  Attention layout (see l2_data.h of the single-cluster app). With
@@ -83,10 +85,14 @@ typedef enum { EBT, TBE } attn_mode_t;
 
 #define L1_ALIGN (NUM_BANKS * sizeof(int32_t))
 #ifdef TILESHIFT
-#define TS_TILE (NUM_BANKS_PER_TILE * sizeof(int32_t) / sizeof(int16_t))
-#define TS_SUB_GROUP                                                           \
-  (NUM_BANKS_PER_SUB_GROUP * sizeof(int32_t) / sizeof(int16_t))
-#define TS_SLOT(n) (((((n) + TS_TILE - 1) / TS_TILE) | 1) * TS_TILE)
+
+#define TS_TILE \
+        (NUM_BANKS_PER_TILE * sizeof(int32_t) / sizeof(int16_t))
+#define TS_SUB_GROUP \
+        (NUM_BANKS_PER_SUB_GROUP * sizeof(int32_t) / sizeof(int16_t))
+#define TS_SLOT(n) \
+        (((((n) + TS_TILE - 1) / TS_TILE) | 1) * TS_TILE)
+
 #else
 #define TS_SUB_GROUP (0)
 #define TS_SLOT(n) (n)
@@ -100,9 +106,9 @@ typedef enum { EBT, TBE } attn_mode_t;
  *  multiple of one tile; RedMulE i reads copy i.
  **********************************************************************/
 
-#define F_QKV_SIZE (3 * EMBED * EMBED * WF)
-#define F_OUT_SIZE (EMBED * EMBED * WF)
-#define F_UP_SIZE (2 * EMBED * EMBED * WF)
+#define F_QKV_SIZE  (3 * EMBED * EMBED * WF)
+#define F_OUT_SIZE  (EMBED * EMBED * WF)
+#define F_UP_SIZE   (2 * EMBED * EMBED * WF)
 #define F_DOWN_SIZE (2 * EMBED * EMBED * WF)
 #ifdef REPLICATE_F
 #ifndef PIPELINED
@@ -193,236 +199,6 @@ static __fp16 l1_f_down[F_COPIES * F_SLOT(F_DOWN_SIZE)] ALIGNED
 #define F_STRIDE(n) (0)
 #endif
 
-/**********************************************************************
- *  Helpers
- *
- *  Each core has a STACK_SIZE (512 B) stack: the stages are kept in
- *  separate, non-inlined functions so that the deepest call chain (main ->
- *  layer -> stage -> kernel) fits in it.
- **********************************************************************/
-
-#define NOINLINE __attribute__((noinline))
-
-#ifdef VERIFY
-/* Checksum of n halfwords, computed by core 0 of each active cluster and
- * recorded; chk_print prints them one cluster at a time, since the printf
- * output of concurrent clusters interleaves. */
-#define CHK_MAX (384)
-#define L1_LOCAL __attribute__((section(".l1"))) /* one copy per cluster */
-static const char *chk_label[CHK_MAX] L1_LOCAL;
-static uint32_t chk_idx[CHK_MAX] L1_LOCAL;
-static uint32_t chk_hash[CHK_MAX] L1_LOCAL;
-static uint32_t chk_count L1_LOCAL; /* .l1 is not zeroed: reset in main */
-#define CHK_SAMPLES (16)
-/* Batches per cluster whose Q*Kt, softmax and A*V are recomputed on core 0:
- * the reference uses soft-float, about 12M cycles per batch. */
-#ifndef CHK_NUMERIC_BATCHES
-#define CHK_NUMERIC_BATCHES (1)
-#endif
-static uint16_t chk_smp[CHK_MAX]
-                       [CHK_SAMPLES] L1_LOCAL; /* evenly spaced values */
-
-static NOINLINE void chk(const char *label, uint32_t idx, const __fp16 *buf,
-                         uint32_t n, uint32_t core_id, uint32_t cluster_id) {
-  (void)cluster_id;
-  if (core_id == 0 && chk_count < CHK_MAX) {
-    uint32_t h = 0;
-    const uint16_t *q = (const uint16_t *)buf;
-    for (uint32_t i = 0; i < n; i++) {
-      h = h * 31 + q[i];
-    }
-    chk_label[chk_count] = label;
-    chk_idx[chk_count] = idx;
-    chk_hash[chk_count] = h;
-    for (uint32_t i = 0; i < CHK_SAMPLES; i++) {
-      chk_smp[chk_count][i] = q[i * (n / CHK_SAMPLES)];
-    }
-    chk_count++;
-  }
-  mc_intra_cluster_sync();
-}
-
-/* fp16 -> fp32 by bit manipulation (no libgcc helper for this target) */
-static inline float h2f(const __fp16 *h) {
-  uint16_t b = *(const uint16_t *)h;
-  uint32_t sign = (uint32_t)(b >> 15) << 31, exp = (b >> 10) & 0x1f;
-  uint32_t man = b & 0x3ff, f;
-  if (exp == 0) {
-    if (man == 0) {
-      f = sign;
-    } else { /* subnormal: normalize */
-      exp = 127 - 15 + 1;
-      while ((man & 0x400) == 0) {
-        man <<= 1;
-        exp--;
-      }
-      f = sign | (exp << 23) | ((man & 0x3ff) << 13);
-    }
-  } else if (exp == 0x1f) {
-    f = sign | 0x7f800000 | (man << 13);
-  } else {
-    f = sign | ((exp - 15 + 127) << 23) | (man << 13);
-  }
-  union {
-    uint32_t u;
-    float f;
-  } c = {f};
-  return c.f;
-}
-
-/* Recomputes rows of A = P * V of one batch on core 0 and records the
- * number of outputs off by more than 1% of max(|ref|, 1e-2), and the
- * largest reference value (x1000). */
-static NOINLINE void chk_av(const char *label, uint32_t idx, const __fp16 *P,
-                            const __fp16 *V, const __fp16 *A, uint32_t S,
-                            uint32_t W, uint32_t core_id) {
-  if (core_id == 0 && chk_count < CHK_MAX) {
-    static const uint32_t rows[4] = {0, 37, 64, 127};
-    uint32_t bad = 0;
-    float amax = 0.0f;
-    for (uint32_t ri = 0; ri < 4; ri++) {
-      uint32_t r = rows[ri] % S;
-      for (uint32_t c = 0; c < W; c++) {
-        float acc = 0.0f;
-        for (uint32_t k = 0; k < S; k++) {
-          acc += h2f(&P[r * S + k]) * h2f(&V[k * W + c]);
-        }
-        float got = h2f(&A[r * W + c]);
-        float ref_abs = acc < 0 ? -acc : acc;
-        float tol = 0.01f * (ref_abs > 0.01f ? ref_abs : 0.01f);
-        float d = got - acc;
-        if (d < 0)
-          d = -d;
-        if (d > tol)
-          bad++;
-        if (ref_abs > amax)
-          amax = ref_abs;
-      }
-    }
-    chk_label[chk_count] = label;
-    chk_idx[chk_count] = idx;
-    chk_hash[chk_count] = bad;
-    for (uint32_t i = 0; i < CHK_SAMPLES; i++)
-      chk_smp[chk_count][i] = 0;
-    chk_smp[chk_count][0] =
-        (uint16_t)(amax * 1000.0f > 65535.0f ? 65535 : amax * 1000.0f);
-    chk_count++;
-  }
-  mc_intra_cluster_sync();
-}
-
-/* Recomputes rows of P = softmax(Q * Kt) of one batch on core 0 (rows in
- * different slices) and records the number of outputs off by more than
- * 2e-3 + 2% of the reference, and the largest error (x1e4). The reference
- * follows softmax_parallel_2x4_f16vec: row maximum starting from 0.5 and
- * exp(x) approximated by 1 + x + 0.5 x^2 + 0.167 x^3. */
-static NOINLINE void chk_qk(const char *label, uint32_t idx, const __fp16 *Q,
-                            const __fp16 *Kt, const __fp16 *P, uint32_t S,
-                            uint32_t W, uint32_t core_id) {
-  if (core_id == 0 && chk_count < CHK_MAX) {
-    static const uint32_t rows[4] = {0, 37, 64, 127};
-    static float sc[BEAM];
-    uint32_t bad = 0;
-    float emax = 0.0f;
-    for (uint32_t ri = 0; ri < 4; ri++) {
-      uint32_t r = rows[ri] % S;
-      float m = 0.5f, sum = 0.0f;
-      for (uint32_t k = 0; k < S; k++) {
-        float acc = 0.0f;
-        for (uint32_t j = 0; j < W; j++) {
-          acc += h2f(&Q[r * W + j]) * h2f(&Kt[j * S + k]);
-        }
-        sc[k] = acc;
-        m = acc > m ? acc : m;
-      }
-      for (uint32_t k = 0; k < S; k++) {
-        float x = sc[k] - m;
-        sc[k] = 1.0f + x + 0.5f * x * x + 0.167f * x * x * x;
-        sum += sc[k];
-      }
-      for (uint32_t k = 0; k < S; k++) {
-        float ref = sc[k] / sum;
-        float d = h2f(&P[r * S + k]) - ref;
-        float ref_abs = ref < 0 ? -ref : ref;
-        if (d < 0)
-          d = -d;
-        if (d > 2e-3f + 0.02f * ref_abs)
-          bad++;
-        if (d > emax)
-          emax = d;
-      }
-    }
-    chk_label[chk_count] = label;
-    chk_idx[chk_count] = idx;
-    chk_hash[chk_count] = bad;
-    for (uint32_t i = 0; i < CHK_SAMPLES; i++)
-      chk_smp[chk_count][i] = 0;
-    chk_smp[chk_count][0] =
-        (uint16_t)(emax * 1e4f > 65535.0f ? 65535 : emax * 1e4f);
-    chk_count++;
-  }
-  mc_intra_cluster_sync();
-}
-
-/* Hash of the received attention output of global batch n, traversed in
- * the order of rows [self * BC, (self + 1) * BC) of A_n, to compare with
- * the hash of those rows recorded by the cluster that computed A_n. */
-static NOINLINE void chk_attp(const char *label, uint32_t idx, uint32_t mode,
-                              const __fp16 *att_p, uint32_t n, uint32_t W,
-                              uint32_t core_id) {
-  if (core_id == 0 && chk_count < CHK_MAX) {
-    uint32_t h = 0;
-    for (uint32_t b = 0; b < BC; b++) {
-      for (uint32_t j = 0; j < W; j++) {
-        uint32_t e = (mode == EBT) ? n : j, t = (mode == EBT) ? j : n;
-        h = h * 31 + ((const uint16_t *)att_p)[(b * EMBED + e) * TDSAMPLES + t];
-      }
-    }
-    chk_label[chk_count] = label;
-    chk_idx[chk_count] = idx;
-    chk_hash[chk_count] = h;
-    for (uint32_t i = 0; i < CHK_SAMPLES; i++)
-      chk_smp[chk_count][i] = 0;
-    chk_count++;
-  }
-  mc_intra_cluster_sync();
-}
-
-static NOINLINE void chk_print(uint32_t core_id, uint32_t cluster_id) {
-  for (uint32_t c = 0; c < N_CLUSTERS; c++) {
-    if (cluster_id == c && core_id == 0) {
-      for (uint32_t i = 0; i < chk_count; i++) {
-        printf("CHK %s c%d %d %x\n", chk_label[i], c, chk_idx[i], chk_hash[i]);
-        printf("SMP %s c%d %d", chk_label[i], c, chk_idx[i]);
-        for (uint32_t j = 0; j < CHK_SAMPLES; j++) {
-          printf(" %x", chk_smp[i][j]);
-        }
-        printf("\n");
-      }
-    }
-    mc_global_barrier_xy();
-  }
-}
-#endif
-
-/* Address of a local L1 buffer as seen from cluster cid. */
-static inline uint64_t at_cluster(uint32_t cid, uint32_t self, const void *p) {
-  if (cid == self) {
-    return (uint64_t)(uintptr_t)p;
-  }
-  return (uint64_t)remote_cid(cid, (uint32_t)((uintptr_t)p - local(0)));
-}
-
-static inline void copy_v2h(__fp16 *dst, const __fp16 *src, uint32_t n) {
-  uint32_t i = 0;
-  for (; i + 1 < n; i += 2) {
-    *(v2h *)&dst[i] = *(v2h *)&src[i];
-  }
-  for (; i < n; i++) {
-    dst[i] = src[i];
-  }
-}
-
 #ifdef VERIFY
 /* Synthesizes the input slice of this cluster and the weights with the
  * same generator and order as the single-cluster verification build. */
@@ -459,8 +235,7 @@ static NOINLINE void synthesize(uint32_t cluster_id) {
     }
   }
 }
-#endif
-
+#else
 /* Fast synthesis on all cores, for the timing builds: a fixed pattern of
  * small values with alternating signs. */
 static NOINLINE void synthesize_fast(uint32_t core_id, uint32_t num_cores) {
@@ -479,176 +254,7 @@ static NOINLINE void synthesize_fast(uint32_t core_id, uint32_t num_cores) {
     }
   }
 }
-
-/* Layernorm of the BC beams of x over EMBED, into x_norm. */
-static NOINLINE void layernorm(const __fp16 *x, __fp16 *x_norm,
-                               uint32_t core_id, uint32_t num_cores) {
-  uint32_t num_cores_per_beam = num_cores / BC;
-  uint32_t sub_id = core_id % num_cores_per_beam;
-  uint32_t b = core_id / num_cores_per_beam;
-  mempool_start_benchmark();
-  layernorm_parallel_2x4_f16vec(&x[b * EMBED * TDSAMPLES],
-                                &x_norm[b * EMBED * TDSAMPLES], EMBED,
-                                TDSAMPLES, sub_id, num_cores_per_beam);
-  mc_intra_cluster_sync();
-  mempool_stop_benchmark();
-}
-
-/* Convolution of the BC beams, with an optional in-place post-operation. */
-static NOINLINE void conv(const __fp16 *in, __fp16 *f, uint32_t f_stride,
-                          __fp16 *out, __fp16 *cols, uint32_t ci, uint32_t co,
-                          conv1d_post_t post, uint32_t core_id,
-                          uint32_t num_cores) {
-  mempool_start_benchmark();
-#ifdef PIPELINED
-  conv1d_pipelined_f16(in, f, f_stride, out, cols, BC, ci, co, TDSAMPLES, WF,
-                       post, core_id, num_cores);
-#else
-  (void)f_stride;
-  conv1d_f16(in, f, out, cols, BC, ci, co, TDSAMPLES, WF, 1, core_id,
-             num_cores);
-  if (post) {
-    post(out, BC * co * TDSAMPLES, core_id, num_cores);
-  }
-  mc_intra_cluster_sync();
 #endif
-  mempool_stop_benchmark();
-}
-
-/**********************************************************************
- *  Attention block on the NB batches of this cluster (see the
- *  single-cluster attention_block): A = softmax(Q * Kt) * V, with the
- *  scores in A and the softmax output in probs.
- *
- *  The RedMulE jobs are slices of rows of a batch: with fewer batches than
- *  RedMulEs, each batch is split into up to SeqLen / MIN_SLICE_ROWS slices
- *  so that every RedMulE gets a job. Rows of Q * Kt, of the softmax and of
- *  A depend only on the same rows of Q, of the scores and of probs.
- **********************************************************************/
-
-/* Slices per batch */
-static inline uint32_t attn_slices(uint32_t Batch, uint32_t SeqLen,
-                                   uint32_t num_redmules) {
-  uint32_t slices = 1;
-  while (Batch * slices * 2 <= num_redmules &&
-         SeqLen / (slices * 2) >= MIN_SLICE_ROWS &&
-         SeqLen % (slices * 2) == 0) {
-    slices *= 2;
-  }
-  return slices;
-}
-
-/* Start one RedMulE GEMM job: O (rows x P) = I (rows x N) * W (N x P) */
-static inline void redmule_start(const __fp16 *I, const __fp16 *W, __fp16 *O,
-                                 uint32_t rows, uint32_t N, uint32_t P) {
-#ifdef REDMULE_ZERO_OUTPUT
-  for (uint32_t z = 0; z < rows * P; z++)
-    ((uint16_t *)O)[z] = 0;
-#endif
-  hwpe_soft_clear();
-  mempool_wait(10);
-  redmule_cfg((unsigned int)I, (unsigned int)W, (unsigned int)O, (uint16_t)rows,
-              (uint16_t)N, (uint16_t)P, 0, GEMM, Float16);
-  mempool_wait(10);
-  hwpe_trigger_job();
-}
-
-/* Softmax of jobs [first, first + n): num_cores / n cores per job */
-static inline void softmax_jobs(__fp16 const *scores, __fp16 *probs,
-                                uint32_t first, uint32_t n, uint32_t slices,
-                                uint32_t rows, uint32_t SeqLen, uint32_t slot_s,
-                                uint32_t core_id, uint32_t num_cores) {
-  if (n < num_cores) {
-    uint32_t cores_per_job = num_cores / n;
-    uint32_t idx = core_id / cores_per_job;
-    if (idx < n) {
-      uint32_t jj = first + idx;
-      uint32_t off = (jj / slices) * slot_s + (jj % slices) * rows * SeqLen;
-      softmax_parallel_2x4_f16vec(&scores[off], &probs[off], rows, SeqLen,
-                                  core_id % cores_per_job, cores_per_job);
-    }
-  } else {
-    for (uint32_t jj = first + core_id; jj < first + n; jj += num_cores) {
-      uint32_t off = (jj / slices) * slot_s + (jj % slices) * rows * SeqLen;
-      softmax_parallel_2x4_f16vec(&scores[off], &probs[off], rows, SeqLen, 0,
-                                  1);
-    }
-  }
-}
-
-static NOINLINE void attention_block(__fp16 const *Q, __fp16 const *Kt,
-                                     __fp16 const *V, __fp16 *probs, __fp16 *A,
-                                     uint32_t Batch, uint32_t SeqLen,
-                                     uint32_t tdEmbed, uint32_t core_id,
-                                     uint32_t num_cores) {
-  __fp16 *scores = A;
-  uint32_t slot_q = TS_SLOT(SeqLen * tdEmbed);
-  uint32_t slot_s = TS_SLOT(SeqLen * SeqLen);
-  uint32_t redmule_id = mempool_get_redmule_id();
-  uint32_t num_redmules = mempool_get_redmule_count();
-  uint32_t slices = attn_slices(Batch, SeqLen, num_redmules);
-  uint32_t rows = SeqLen / slices;
-  uint32_t jobs = Batch * slices;
-
-#ifdef PIPELINED
-  // Round r: RedMulEs compute Q*Kt of jobs [r*R, (r+1)*R), all cores the
-  // softmax of the jobs of round r-1.
-  mempool_start_benchmark();
-  for (uint32_t jb = 0; jb < jobs + num_redmules; jb += num_redmules) {
-    uint32_t j = jb + redmule_id;
-    uint32_t launched = (redmule_id < num_redmules) && (j < jobs);
-    if (launched) {
-      uint32_t b = j / slices, r0 = (j % slices) * rows;
-      redmule_start(Q + b * slot_q + r0 * tdEmbed, Kt + b * slot_q,
-                    scores + b * slot_s + r0 * SeqLen, rows, tdEmbed, SeqLen);
-    }
-    if (jb > 0) {
-      uint32_t prev = jb - num_redmules;
-      uint32_t n = (jobs - prev < num_redmules) ? (jobs - prev) : num_redmules;
-      softmax_jobs(scores, probs, prev, n, slices, rows, SeqLen, slot_s,
-                   core_id, num_cores);
-    }
-    if (launched) {
-      mempool_wfi();
-    }
-    mc_intra_cluster_sync();
-  }
-  mempool_stop_benchmark();
-#else
-  // Q*Kt
-  mempool_start_benchmark();
-  if (redmule_id < num_redmules) {
-    for (uint32_t j = redmule_id; j < jobs; j += num_redmules) {
-      uint32_t b = j / slices, r0 = (j % slices) * rows;
-      redmule_start(Q + b * slot_q + r0 * tdEmbed, Kt + b * slot_q,
-                    scores + b * slot_s + r0 * SeqLen, rows, tdEmbed, SeqLen);
-      mempool_wfi();
-    }
-  }
-  mc_intra_cluster_sync();
-  mempool_stop_benchmark();
-
-  // Softmax
-  mempool_start_benchmark();
-  softmax_jobs(scores, probs, 0, jobs, slices, rows, SeqLen, slot_s, core_id,
-               num_cores);
-  mc_intra_cluster_sync();
-  mempool_stop_benchmark();
-#endif
-
-  // A = Softmax(Q*Kt)*V
-  mempool_start_benchmark();
-  if (redmule_id < num_redmules) {
-    for (uint32_t j = redmule_id; j < jobs; j += num_redmules) {
-      uint32_t b = j / slices, r0 = (j % slices) * rows;
-      redmule_start(probs + b * slot_s + r0 * SeqLen, V + b * slot_q,
-                    A + b * slot_q + r0 * tdEmbed, rows, SeqLen, tdEmbed);
-      mempool_wfi();
-    }
-  }
-  mc_intra_cluster_sync();
-  mempool_stop_benchmark();
-}
 
 /**********************************************************************
  *  Attention layer, x -> x. In mode EBT the attention batches are the
@@ -689,6 +295,16 @@ static inline attn_shape_t attn_shape(attn_mode_t mode) {
   return a;
 }
 
+static inline void copy_v2h(__fp16 *dst, const __fp16 *src, uint32_t n) {
+  uint32_t i = 0;
+  for (; i + 1 < n; i += 2) {
+    *(v2h *)&dst[i] = *(v2h *)&src[i];
+  }
+  for (; i < n; i++) {
+    dst[i] = src[i];
+  }
+}
+
 #define ATT_Q (l1_phase.attn.q)
 #define ATT_KT (&l1_phase.attn.kt[TS_SUB_GROUP])
 #define ATT_V (&l1_phase.attn.v[TS_SUB_GROUP])
@@ -698,17 +314,53 @@ static inline attn_shape_t attn_shape(attn_mode_t mode) {
 static NOINLINE void attn_pre(attn_mode_t mode, uint32_t self, uint32_t core_id,
                               uint32_t num_cores) {
   attn_shape_t a = attn_shape(mode);
+  __fp16 *x = l1_x;
+  __fp16 *x_norm = l1_phase.pre.x_norm;
   __fp16 *qkv = l1_phase.pre.qkv;
+  __fp16 *cols = l1_phase.pre.cols;
   __fp16 *send = l1_send;
   (void)self;
 
-  layernorm(l1_x, l1_phase.pre.x_norm, core_id, num_cores);
-  conv(l1_phase.pre.x_norm, l1_f_qkv, F_STRIDE(F_QKV_SIZE), qkv,
-       l1_phase.pre.cols, EMBED, 3 * EMBED, NULL, core_id, num_cores);
+  /**************************************************************************/
+  /* Layernorm                                                              */
+  /**************************************************************************/
+
+  // Layer Normalization (over the raw EMBED-channel input)
+  uint32_t num_cores_per_batch = num_cores / BC;
+  uint32_t batch_id = core_id % num_cores_per_batch;
+  uint32_t idx = core_id / num_cores_per_batch;
+
+  mempool_start_benchmark();
+  layernorm_parallel_2x4_f16vec(&x[idx * EMBED * TDSAMPLES],
+                                &x_norm[idx * EMBED * TDSAMPLES], EMBED,
+                                TDSAMPLES, batch_id, num_cores_per_batch);
+  mc_intra_cluster_sync();
+  mempool_stop_benchmark();
+
+  /**************************************************************************/
+  /* Conv1D                                                                 */
+  /**************************************************************************/
+
+  // Convolution: QKV projection (EMBED -> 3*EMBED)
+  mempool_start_benchmark();
+#ifdef PIPELINED
+  conv1d_pipelined_f16(x_norm, l1_f_qkv, F_STRIDE(F_QKV_SIZE), qkv, cols, BC,
+                       EMBED, 3 * EMBED, TDSAMPLES, WF, NULL, core_id,
+                       num_cores);
+#else
+  conv1d_f16(x_norm, l1_f_qkv, qkv, cols, BC, EMBED, 3 * EMBED, TDSAMPLES, WF,
+             1, core_id, num_cores);
+#endif
+  mempool_stop_benchmark();
+
 #ifdef VERIFY
   chk(mode == TBE ? "qkvTBE" : "qkvEBT", 0, qkv, BC * 3 * EMBED * TDSAMPLES,
       core_id, self);
 #endif
+
+  /**************************************************************************/
+  /* Pack Q, K, V                                                           */
+  /**************************************************************************/
 
   // send[part][d][n][b][j]: a row of W elements per (part, d, n, b)
   mempool_start_benchmark();
@@ -749,10 +401,13 @@ static NOINLINE void exchange(__fp16 *dst, const __fp16 *src, uint32_t parts,
     uint32_t n = 0;
     for (uint32_t part = 0; part < parts; part++) {
       for (uint32_t d = 0; d < N_CLUSTERS; d++) {
-        mc_dma_async_1d(
-            at_cluster(d, self, &dst[part * part_size + self * block]),
-            (uint64_t)(uintptr_t)&src[part * part_size + d * block],
-            block * sizeof(int16_t));
+        // Same buffer offset in the L1 of cluster d (local for d == self)
+        uintptr_t to = (uintptr_t)&dst[part * part_size + self * block];
+        uint64_t to_d =
+            (d == self) ? (uint64_t)to : (uint64_t)remote_cid(d, to - local(0));
+        mc_dma_async_1d(to_d,
+                        (uint64_t)(uintptr_t)&src[part * part_size + d * block],
+                        block * sizeof(int16_t));
         if (++n == DMA_INFLIGHT) {
           mc_dma_async_wait_all();
           n = 0;
@@ -809,7 +464,12 @@ static NOINLINE void attn_core(attn_mode_t mode, uint32_t self,
   attn_shape_t a = attn_shape(mode);
   (void)self;
 
+  /**************************************************************************/
+  /* Unpack Q, K, V                                                         */
+  /**************************************************************************/
+
   attn_unpack(mode, core_id, num_cores);
+
 #ifdef VERIFY
   for (uint32_t n = 0; n < a.NB; n++) {
     chk(mode == TBE ? "qTBE" : "qEBT", self * a.NB + n, &ATT_Q[n * a.SQ],
@@ -820,8 +480,14 @@ static NOINLINE void attn_core(attn_mode_t mode, uint32_t self,
         BEAM * a.W, core_id, self);
   }
 #endif
-  attention_block(ATT_Q, ATT_KT, ATT_V, l1_phase.attn.probs, ATT_A, a.NB, BEAM,
-                  a.W, core_id, num_cores);
+
+  /**************************************************************************/
+  /* Attention                                                              */
+  /**************************************************************************/
+
+  attention_block_f16(ATT_Q, ATT_KT, ATT_V, l1_phase.attn.probs, ATT_A, a.NB,
+                      BEAM, a.W, a.SQ, SLOT_S, core_id, num_cores);
+                      
 #ifdef VERIFY
   for (uint32_t n = 0; n < a.NB; n++) {
     chk(mode == TBE ? "pTBE" : "pEBT", self * a.NB + n,
@@ -842,6 +508,11 @@ static NOINLINE void attn_core(attn_mode_t mode, uint32_t self,
     }
   }
 #endif
+
+  /**************************************************************************/
+  /* Pack result                                                            */
+  /**************************************************************************/
+
   attn_pack(mode, core_id, num_cores);
 }
 
@@ -851,7 +522,12 @@ static NOINLINE void attn_post(attn_mode_t mode, uint32_t self,
   attn_shape_t a = attn_shape(mode);
   __fp16 *arecv = l1_arecv;
   __fp16 *att_p = l1_phase.post.att_p;
+  __fp16 *cols = l1_phase.post.cols;
   (void)self;
+
+  /**************************************************************************/
+  /* Unpack result                                                          */
+  /**************************************************************************/
 
   // att_p[b_l][e][t] from arecv[s][n][b_l][j]
   mempool_start_benchmark();
@@ -869,6 +545,7 @@ static NOINLINE void attn_post(attn_mode_t mode, uint32_t self,
   }
   mc_intra_cluster_sync();
   mempool_stop_benchmark();
+
 #ifdef VERIFY
   for (uint32_t n = 0; n < N_CLUSTERS * a.NB; n++) {
     chk_attp(mode == TBE ? "axTBE" : "axEBT", n * N_CLUSTERS + self, mode,
@@ -876,12 +553,26 @@ static NOINLINE void attn_post(attn_mode_t mode, uint32_t self,
   }
 #endif
 
-  conv(att_p, l1_f_out, F_STRIDE(F_OUT_SIZE), l1_x, l1_phase.post.cols, EMBED,
-       EMBED, NULL, core_id, num_cores);
+  /**************************************************************************/
+  /* Conv1D                                                                 */
+  /**************************************************************************/
+
+  // Convolution: output projection (EMBED -> EMBED)
+  mempool_start_benchmark();
+#ifdef PIPELINED
+  conv1d_pipelined_f16(att_p, l1_f_out, F_STRIDE(F_OUT_SIZE), l1_x, cols, BC,
+                       EMBED, EMBED, TDSAMPLES, WF, NULL, core_id, num_cores);
+#else
+  conv1d_f16(att_p, l1_f_out, l1_x, cols, BC, EMBED, EMBED, TDSAMPLES, WF, 1,
+             core_id, num_cores);
+#endif
+  mempool_stop_benchmark();
+
 #ifdef VERIFY
   chk(mode == TBE ? "attnTBE" : "attnEBT", 0, l1_x, BC * EMBED * TDSAMPLES,
       core_id, self);
 #endif
+
 }
 
 static NOINLINE void attention(attn_mode_t mode, uint32_t active, uint32_t self,
@@ -892,19 +583,23 @@ static NOINLINE void attention(attn_mode_t mode, uint32_t active, uint32_t self,
     attn_pre(mode, self, core_id, num_cores);
   // Every cluster has packed (and is done with pre): recv may be written
   mc_global_barrier_xy();
+
   if (active)
     exchange(l1_phase.attn.recv, l1_send, 3, a.part_size, a.block, self,
              core_id);
   // Q, K, V of every cluster have arrived
   mc_global_barrier_xy();
+
   if (active)
     attn_core(mode, self, core_id, num_cores);
   // Every cluster has packed (arecv was last read in the previous layer)
   mc_global_barrier_xy();
+
   if (active)
     exchange(l1_arecv, l1_phase.attn.apack, 1, a.block, a.block, self, core_id);
   // The attention output of every cluster has arrived
   mc_global_barrier_xy();
+
   if (active)
     attn_post(mode, self, core_id, num_cores);
   mc_global_barrier_xy();
@@ -926,14 +621,60 @@ static NOINLINE void ffn(uint32_t active, uint32_t self, uint32_t core_id,
   (void)self;
 
   if (active) {
-    layernorm(x, x_norm, core_id, num_cores);
-    conv(x_norm, l1_f_up, F_STRIDE(F_UP_SIZE), up, cols, EMBED, 2 * EMBED,
-         gelu_f16, core_id, num_cores);
-    conv(up, l1_f_down, F_STRIDE(F_DOWN_SIZE), x, cols, 2 * EMBED, EMBED, NULL,
-         core_id, num_cores);
+    /************************************************************************/
+    /* Layernorm                                                            */
+    /************************************************************************/
+
+    // Layer Normalization (over the raw EMBED-channel input)
+    uint32_t num_cores_per_batch = num_cores / BC;
+    uint32_t batch_id = core_id % num_cores_per_batch;
+    uint32_t idx = core_id / num_cores_per_batch;
+
+    mempool_start_benchmark();
+    layernorm_parallel_2x4_f16vec(&x[idx * EMBED * TDSAMPLES],
+                                  &x_norm[idx * EMBED * TDSAMPLES], EMBED,
+                                  TDSAMPLES, batch_id, num_cores_per_batch);
+    mc_intra_cluster_sync();
+    mempool_stop_benchmark();
+
+    /************************************************************************/
+    /* Conv1D + Gelu                                                        */
+    /************************************************************************/
+
+    // Convolution: up-projection (EMBED -> 2*EMBED), Gelu applied in place
+    mempool_start_benchmark();
+#ifdef PIPELINED
+    conv1d_pipelined_f16(x_norm, l1_f_up, F_STRIDE(F_UP_SIZE), up, cols, BC,
+                         EMBED, 2 * EMBED, TDSAMPLES, WF, gelu_f16, core_id,
+                         num_cores);
+#else
+    conv1d_f16(x_norm, l1_f_up, up, cols, BC, EMBED, 2 * EMBED, TDSAMPLES, WF,
+               1, core_id, num_cores);
+    gelu_f16(up, BC * 2 * EMBED * TDSAMPLES, core_id, num_cores);
+    mc_intra_cluster_sync();
+#endif
+    mempool_stop_benchmark();
+
+    /************************************************************************/
+    /* Conv1D                                                               */
+    /************************************************************************/
+
+    // Convolution: down-projection (2*EMBED -> EMBED)
+    mempool_start_benchmark();
+#ifdef PIPELINED
+    conv1d_pipelined_f16(up, l1_f_down, F_STRIDE(F_DOWN_SIZE), x, cols, BC,
+                         2 * EMBED, EMBED, TDSAMPLES, WF, NULL, core_id,
+                         num_cores);
+#else
+    conv1d_f16(up, l1_f_down, x, cols, BC, 2 * EMBED, EMBED, TDSAMPLES, WF, 1,
+               core_id, num_cores);
+#endif
+    mempool_stop_benchmark();
+
 #ifdef VERIFY
     chk("ffn", 0, x, BC * EMBED * TDSAMPLES, core_id, self);
 #endif
+
   }
   mc_global_barrier_xy();
 }
