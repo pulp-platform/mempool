@@ -134,7 +134,7 @@ packages:
     - common_cells
     - common_verification
   opope:
-    revision: 54a215987f35dcecedd160953b3455f1b03d1ef3
+    revision: b2161e250866c8c30be25072ccd865a73a4ec2c0
     version: null
     source:
       Git: https://github.com/pulp-platform/opope.git
