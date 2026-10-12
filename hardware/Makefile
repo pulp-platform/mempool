@@ -135,6 +135,10 @@ vlog_defs   += -DARRAY_WIDTH=$(redmule_width)
 vlog_defs   += -DPIPE_REGS=$(redmule_regs)
 vlog_defs   += -DROB_DEPTH=$(rob_depth)
 vlog_defs   += -DFIFO_BUFFER_DEPTH=$(opope_fifo_depth)
+# O-POPE's store FIFO holds one output tile:
+# ARRAY_WIDTH * X_REGBUFFER_DEPTH * W_REGBUFFER_DEPTH / 2 memory words
+opope_store_fifo_depth ?= $(shell echo $$(( $(redmule_width) * $(or $(opope_regb_x_depth),2) * $(or $(opope_regb_w_depth),2) / 2 )))
+vlog_defs   += -DSTORE_FIFO_DEPTH=$(opope_store_fifo_depth)
 vlog_defs   += -DX_REGBUFFER_DEPTH=$(opope_regb_x_depth)
 vlog_defs   += -DW_REGBUFFER_DEPTH=$(opope_regb_w_depth)
 ifdef tensor_engine
