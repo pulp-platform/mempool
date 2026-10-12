@@ -127,18 +127,26 @@ vlog_defs   += -DSNITCH_TRACE=$(snitch_trace)
 # RedMulE
 vlog_defs   += -DNUM_REDMULE_TILES=$(num_redmule_tiles)
 vlog_defs   += -DUSE_BURST=$(tcdm_burst)
+burst_drop_wack ?= 0
+vlog_defs   += -DBURST_DROP_WACK=$(burst_drop_wack)
 ifneq ($(num_redmule_tiles), 0)
 vlog_defs   += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs   += -DARRAY_WIDTH=$(redmule_width)
 vlog_defs   += -DPIPE_REGS=$(redmule_regs)
 vlog_defs   += -DROB_DEPTH=$(rob_depth)
 vlog_defs   += -DFIFO_BUFFER_DEPTH=$(opope_fifo_depth)
+vlog_defs   += -DX_REGBUFFER_DEPTH=$(opope_regb_x_depth)
+vlog_defs   += -DW_REGBUFFER_DEPTH=$(opope_regb_w_depth)
 ifdef tensor_engine
 	vlog_defs += -DTENSOR_ENGINE_TYPE=$(shell echo $(tensor_engine) | tr a-z A-Z)
 endif
 endif
 ifneq ($(tcdm_burst), 0)
+ifeq ($(tensor_engine),opope)
+vlog_defs   += -DBURSTLEN=$(redmule_height)
+else
 vlog_defs   += -DBURSTLEN=$(shell echo $$(( $(redmule_height)*($(redmule_regs)+1) )) | awk '{print int($$1 / 2)}')
+endif
 vlog_defs   += -DGROUP_REQ=$(burst_greq)
 vlog_defs   += -DGROUP_RSP=$(burst_grsp)
 endif

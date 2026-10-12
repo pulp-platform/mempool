@@ -532,7 +532,8 @@ module mempool_tile
       .BeWidth     (DataWidth/8                                  ),
       .ByteOffWidth(0                                            ),
       .ReqGF       (ReqGF                                        ),
-      .RspGF       (RspGF                                        )
+      .RspGF       (RspGF                                        ),
+      .DropBurstWriteRsp(`BURST_DROP_WACK != 0                   ) // TODO can be defaulted to zero
     ) i_burst_manager (
       .clk_i          (clk_i               ),
       .rst_ni         (rst_ni              ),
@@ -1154,6 +1155,40 @@ module mempool_tile
       );
     end
 
+    localparam int unsigned ZStreamId       = RMNumStreams - 1;
+    localparam int unsigned StoreFifoDepth  = (TensorEngineType == OPOPE) ? opope_pkg::StoreFifoDepth
+                                                                           : redmule_pkg::StoreFifoDepth;
+    localparam bit          CountStoreResps = (`BURST_DROP_WACK == 0);
+
+    logic store_req, store_block, store_rsp;
+    logic [$clog2(StoreFifoDepth+1)-1:0] stores_pending_d, stores_pending_q;
+    `FF(stores_pending_q, stores_pending_d, '0, clk_i, rst_ni);
+
+    assign store_req   = tcdm.req_valid && redmule_req[0].write &&
+        (redmule_req[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] == ZStreamId);
+    assign store_block = CountStoreResps && store_req && (&stores_pending_q);
+    assign store_rsp   = redmule_tcdm_resp_valid[0] && redmule_tcdm_resp_ready[0] &&
+        (redmule_tcdm_resp[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] == ZStreamId);
+
+    always_comb begin
+      stores_pending_d = stores_pending_q;
+      if (CountStoreResps) begin
+        // A store can be accepted in the cycle a response arrives
+        if (store_req && tcdm.req_ready) stores_pending_d = stores_pending_d + 1'b1;
+        if (store_rsp)                   stores_pending_d = stores_pending_d - 1'b1;
+      end
+    end
+
+    logic store_in_regs, still_waiting_stores;
+    assign store_in_regs = (|redmule_req_qvalid) && redmule_req_q[0].write &&
+        (redmule_req_q[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] == ZStreamId);
+    if (CountStoreResps) begin
+      assign still_waiting_stores = store_req || store_in_regs || (CountStoreResps && (stores_pending_q != '0));
+    end else begin
+      assign still_waiting_stores = 1'b0;
+    end
+
+
     // Wake up core on RedMulE's EOC
     assign wake_up = wake_up_q | {{(NumCoresPerTile-1){1'b0}},redmule_evt[0]};
 
@@ -1169,8 +1204,8 @@ module mempool_tile
       assign tcdm.resp_data[(p+1)*DataWidth-1:p*DataWidth] = redmule_resp[p].data;
 
     end : gen_redmule_tcdm
-    assign redmule_req_valid  = {RMMasterPorts{tcdm.req_valid}};
-    assign tcdm.req_ready     = &(redmule_req_ready);
+    assign redmule_req_valid  = {RMMasterPorts{tcdm.req_valid && !store_block}};
+    assign tcdm.req_ready     = &(redmule_req_ready) && !store_block;
     assign tcdm.resp_valid    = &(redmule_resp_valid);
     assign redmule_resp_ready = {RMMasterPorts{tcdm.resp_ready}};
     assign tcdm.resp_id       = redmule_resp[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
@@ -1366,7 +1401,8 @@ module mempool_tile
         .AddrMemWidth (idx_width(NumBanksPerTile) + ByteOffset),
         .ReqGF        (ReqGF                                  ),
         .RspGF        (RspGF                                  ),
-        .ByteOffWidth (ByteOffset                             )
+        .ByteOffWidth (ByteOffset                             ),
+        .WriteFirstLast(`BURST_DROP_WACK == 0                 ) // TODO can be defaulted to zero
       ) i_burst_req_grouper (
         .clk_i,
         .rst_ni,
