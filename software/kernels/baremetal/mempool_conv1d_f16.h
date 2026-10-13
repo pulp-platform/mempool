@@ -129,7 +129,7 @@ void conv1d_f16(__fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
           uint16_t P = (uint16_t)(Wi);
           hwpe_soft_clear();
           mempool_wait(10);
-          redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, GEMM, Float16);
+          redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, MATMUL, Float16);
           mempool_wait(10);
           hwpe_trigger_job();
           mempool_wfi();
@@ -259,15 +259,9 @@ void conv1d_pipelined_f16(__fp16 const *__restrict__ X,
         uint16_t M = (uint16_t)(Co);
         uint16_t N = (uint16_t)(Ci * Wf);
         uint16_t P = (uint16_t)(Wi);
-#ifdef REDMULE_ZERO_OUTPUT
-        // Verification only: RedMulE accumulates into its output
-        for (uint32_t z = 0; z < (uint32_t)M * P; z++) {
-          ((uint16_t *)O_ptr)[z] = 0;
-        }
-#endif
         hwpe_soft_clear();
         mempool_wait(10);
-        redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, GEMM, Float16);
+        redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, MATMUL, Float16);
         mempool_wait(10);
         hwpe_trigger_job();
       }
