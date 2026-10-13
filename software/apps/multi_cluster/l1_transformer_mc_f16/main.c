@@ -29,8 +29,7 @@
  * The input and the weights are synthesized at start (outside the
  * benchmarked regions) with the same generator and layout as the
  * verification build of the single-cluster app, so the two can be compared.
- * VERIFY prints per-cluster checksums; REDMULE_ZERO_OUTPUT (needed for that
- * comparison) zeroes every RedMulE output before the job.
+ * VERIFY prints per-cluster checksums.
  */
 
 #include "mc_dma_pattern.h"
