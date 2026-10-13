@@ -20,16 +20,10 @@
 static inline void attention_gemm_start(__fp16 const *I, __fp16 const *W,
                                         __fp16 *O, uint32_t M, uint32_t N,
                                         uint32_t P) {
-#ifdef REDMULE_ZERO_OUTPUT
-  // Verification only: RedMulE accumulates into its output
-  for (uint32_t z = 0; z < M * P; z++) {
-    ((uint16_t *)O)[z] = 0;
-  }
-#endif
   hwpe_soft_clear();
   mempool_wait(10);
   redmule_cfg((unsigned int)I, (unsigned int)W, (unsigned int)O, (uint16_t)M,
-              (uint16_t)N, (uint16_t)P, 0, GEMM, Float16);
+              (uint16_t)N, (uint16_t)P, 0, MATMUL, Float16);
   mempool_wait(10);
   hwpe_trigger_job();
 }
