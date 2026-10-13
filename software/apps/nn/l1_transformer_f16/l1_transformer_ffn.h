@@ -10,11 +10,8 @@
 #include "hal_redmule.h"
 
 #include "baremetal/mempool_conv1d_f16.h"
-#ifdef PIPELINED
 #include "baremetal/mempool_gelu_f16.h"
-#endif
 #include "baremetal/mempool_layernorm_f16.h"
-#include "baremetal/mempool_softmax_f16.h"
 
 /**
   @brief         Computes the feed-forward block.
@@ -37,21 +34,14 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   //   x_norm  layernorm output                   l1_act
   //   cols    im2col of the convolutions         l1_scratch
   //   up      up-projection [Beam][2*Embed][..]  l1_arena.y      over x
-  //   hidden  Gelu of up                         PIPELINED: in place on up,
-  //                                              else l1_act over x_norm
-  //   y       output [Beam][Embed][tdSamples]    PIPELINED: l1_act over x_norm,
-  //                                              else l1_arena.y over up
+  //   hidden  Gelu of up                         in place on up
+  //   y       output [Beam][Embed][tdSamples]    l1_act over x_norm
   __fp16 *x = l1_arena.x;
   __fp16 *x_norm = l1_act;
   __fp16 *cols = l1_scratch;
   __fp16 *up = l1_arena.y;
-#ifdef PIPELINED
   __fp16 *hidden = up;
   __fp16 *y = l1_act;
-#else
-  __fp16 *hidden = l1_act;
-  __fp16 *y = l1_arena.y;
-#endif
   __fp16 *F = l1_F;
 
   /**************************************************************************/
@@ -122,22 +112,9 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   /* Gelu                                                                   */
   /**************************************************************************/
 
+  // Gelu in place on up
   mempool_start_benchmark();
-  if (Beam < num_cores) {
-    uint32_t num_cores_per_softmax = num_cores / Beam;
-    uint32_t softmax_id = core_id % num_cores_per_softmax;
-    uint32_t idx = core_id / num_cores_per_softmax;
-    softmax_parallel_2x4_f16vec(&up[idx * (Embed * 2 * tdSamples)],
-                                &hidden[idx * (Embed * 2 * tdSamples)],
-                                Embed * 2, tdSamples, softmax_id,
-                                num_cores_per_softmax);
-  } else {
-    for (uint32_t i = core_id; i < Beam; i += num_cores) {
-      softmax_parallel_2x4_f16vec(&up[i * (Embed * 2 * tdSamples)],
-                                  &hidden[i * (Embed * 2 * tdSamples)],
-                                  Embed * 2, tdSamples, 0, 1);
-    }
-  }
+  gelu_f16(hidden, Beam * Embed * 2 * tdSamples, core_id, num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
