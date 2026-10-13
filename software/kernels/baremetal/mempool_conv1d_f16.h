@@ -21,9 +21,41 @@
   @return        none
 */
 
+/* 32-bit word (two fp16) that may alias the fp16 buffers */
+typedef uint32_t __attribute__((may_alias)) im2col_w32_t;
+
+/* Wf = 3: the three im2col rows of input row x are x[t-1], x[t], x[t+1].
+ * With two fp16 per word (low half first), each output word combines the
+ * current input word with the high half of the previous one or the low half
+ * of the next one. Ww = Wi / 2 words. */
+static inline void im2col1d_w3_row(im2col_w32_t const *__restrict__ x,
+                                   im2col_w32_t *__restrict__ out,
+                                   uint32_t Ww) {
+  im2col_w32_t *o0 = out, *o1 = out + Ww, *o2 = out + 2 * Ww;
+  uint32_t prev = 0, cur = x[0];
+  for (uint32_t w = 0; w < Ww; w++) {
+    uint32_t next = (w + 1 < Ww) ? x[w + 1] : 0;
+    o0[w] = (prev >> 16) | (cur << 16); // x[t-1]
+    o1[w] = cur;                        // x[t]
+    o2[w] = (cur >> 16) | (next << 16); // x[t+1]
+    prev = cur;
+    cur = next;
+  }
+}
+
 void im2col1d_f16(__fp16 const *__restrict__ X, __fp16 *__restrict__ X_im2col,
                   uint32_t Ci, uint32_t Wi, uint32_t Wf, uint32_t core_id,
                   uint32_t num_cores) {
+
+  // Wf = 3 on word-aligned rows: one input row per core, three output rows
+  if (Wf == 3 && (Wi & 1) == 0 &&
+      (((uint32_t)X | (uint32_t)X_im2col) & 3) == 0) {
+    for (uint32_t i = core_id; i < Ci; i += num_cores) {
+      im2col1d_w3_row((im2col_w32_t const *)&X[i * Wi],
+                      (im2col_w32_t *)&X_im2col[i * 3 * Wi], Wi / 2);
+    }
+    return;
+  }
 
   uint32_t pad = Wf / 2;
   uint32_t i, k; // row, filter
