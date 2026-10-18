@@ -108,9 +108,10 @@
   *inside* `mempool_group` rather than at cluster level, contrary to the module names — to a second
   tier. It costs *120,752* vertical connections, of which 99,072 are TCDM and the remainder AXI,
   DMA and configuration traffic that must cross because the compute die has no package I/O of its
-  own. That figure is within 0.03% of the Group-on-Group fold, so the two partitions are
-  indistinguishable in interface size and the case rests on floorplan: with the inter-Group network
-  gone the Groups abut, and the compute die falls to *16.17 mm#super[2]* against
+  own. That is 57% more than a Group-on-Group fold would cross, because folding leaves a third of
+  the TCDM links inside a die while this partition makes every Group port a bond. The case for it
+  is therefore floorplan rather than interface size: with the inter-Group network off the compute
+  plane the Groups abut, and the compute die falls to *16.17 mm#super[2]* against
   *26.50 mm#super[2]* for the 2D cluster. Remote-Group latency drops from 9 cycles to *5* with an
   unregistered Group boundary, eliminating 147,840 flip-flops that existed only to break the long
   2D wires.
@@ -388,7 +389,18 @@ The measured interface of the implemented compute die is *120,752* signals:
 )
 
 Source: `00e_d2d_interface.rpt`, produced from the elaborated tier modules; the bond plan in
-`00_d2d_budget.rpt` agrees. Note the TCDM array shape,
+`00_d2d_budget.rpt` agrees.
+
+Two figures for "per Group" appear in this report and they count different things. *30,187* is the
+die-to-die signal count above. *30,197* is the port count of the `mempool_group` module as
+implemented, which adds the Group's own `scan_data_i`, `scan_data_o` and `group_id[1:0]` and its
+VDD and VSS ports — eight bits of local control and two supply ports that are not bonds. The
+four-Group total is not simply four times either figure, because `clk_i`, `rst_ni`, `testmode_i`
+and `scan_enable_i` are *shared across all four Groups rather than replicated*: the compute die
+presents one of each and fans them out internally, which is why the bond plan gives them a single
+region at the die centre.
+
+Note the TCDM array shape,
 `[NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]`: the second
 index starts at 1, so only the three *remote* ports cross and the local one stays inside the Group.
 
@@ -403,23 +415,32 @@ Set against the other candidate cuts:
   table.header([Cut location], [Option], [Total], [Timing character]),
   [Below the inter-Group crossbar \ (whole compute die, *measured*)], [*C*], [*120,752*], [unregistered at 5 cycles],
   [As C, plus below the inter-SubGroup crossbar], [*C+*], [~219,000], [one spill stage present],
-  [`mempool_group` ports (Group-on-Group fold)], [B], [~120,788], [same ports, same count],
+  [Between two halves of a Group-on-Group fold], [B], [~76,900], [registered both sides],
   [`tc_sram` pins], [A / D], [161,792], [*combinational, 1 cycle*],
   [Above `tcdm_adapter`], [A / D], [266,240], [valid/ready, no pipeline],
   [Complete tile memory subsystem], [A], [522,048], [valid/ready, no pipeline],
   [Cluster AXI ports (L2 to top tier)], [—], [19,920], [AXI, fully pipelined],
 )
 
-The Group-port figure is measured on the implemented `mempool_group`, which presents *30,197*
-ports (`01d_group_abstract.log`).
+The Option B figure deserves its derivation, because it is easy to overstate. Folding whole Groups
+puts Groups 0 and 1 on one die and 2 and 3 on the other, so only the TCDM between the two halves
+crosses. Of the six unordered Group pairs, four — 02, 03, 12, 13 — span the boundary, which is
+two of the three remote links each Group has, or 128 of the 192 channels: 66,048 signals. Adding
+the AXI of the two Groups on the far side from L2 (9,960) and their DMA, wake-up and cache
+configuration (878) gives *approximately 76,900*.
 
 #note("Key result")[
-  Options B and C cross *the same interface to within 0.03%* — 120,788 against 120,752. Once the
-  crossbars have moved out of the Group, the compute die is four Groups and nothing else, so
-  cutting below the crossbar and cutting at the Group boundary cut the same wires.
+  Option B crosses *fewer* bonds than Option C — roughly 76,900 against 120,752 — because a 2+2
+  fold leaves a third of the TCDM links and half the AXI inside a die, whereas Option C puts all
+  four Groups on one die with no package I/O, so every Group port becomes a bond.
 
-  Bond count therefore does not distinguish the two partitions. What distinguishes them is what
-  each does to the floorplan, and that difference is large: see Section 4.1.
+  The case for Option C is therefore not interface size; on that measure it is 57% more expensive.
+  It is that the two partitions do different things to the floorplan. Option B leaves the
+  inter-Group network on the compute dies, so each die still carries routing channels between its
+  two Groups and the crossing links still traverse half a die to reach the bond array. Option C
+  removes the network from the compute plane entirely: the Groups abut, the channels disappear, and
+  the compute die falls from 26.50 to 16.17 mm#super[2]. Section 4.1 quantifies that, and it is the
+  whole of the argument.
 ]
 
 == Option A — SubGroup-level folding
@@ -444,9 +465,16 @@ boundary already carries registers on both sides.
 
 This is the option implemented on the existing `mbertuletti/3d` branch, where
 `hardware/src/terapool_top_die.sv` places Groups 2 and 3 on the upper die and Groups 0 and 1 on the
-lower die. It is a sound bring-up vehicle for the 3D flow, but it does not address the stated
-objective: the interconnect stays on the compute tier, the inter-Group wires still have to cross
-each die, and the routing channels between Groups are unchanged.
+lower die.
+
+It is the cheapest partition in bond count — approximately 76,900 against 120,752 for Option C —
+because the links between Groups 0 and 1, and between 2 and 3, stay inside a die, as does the AXI
+of whichever half sits next to L2. It is also a sound bring-up vehicle for the 3D flow.
+
+What it does not do is address the stated objective. The interconnect stays on the compute tier, so
+each die still carries routing channels between its two Groups; the links that do cross still
+traverse half a die to reach the bond array; and neither die shrinks the way Option C's compute die
+does. The saving in bonds is real and buys nothing in floorplan.
 
 == Option C — Interconnect-centric partition
 
@@ -481,7 +509,7 @@ problem has cheaper solutions.
   columns: (1fr, auto, auto, auto, auto),
   table.header([Criterion], [A], [B], [C / C+], [D]),
   [Alignment with existing RTL hierarchy], [none], [exact], [crossbar had to be extracted], [none],
-  [Vertical connection count], [162k–522k], [121k], [*121k / ~219k*], [260k+],
+  [Vertical connection count], [162k–522k], [*~77k*], [121k / ~219k], [260k+],
   [Additional pipeline stages required], [yes], [no], [*two removed*], [yes],
   [Compute-die area], [—], [26.5 mm#super[2]], [*16.2 mm#super[2]*], [—],
   [Relief of bottom-tier routing congestion], [negligible], [none], [*substantial*], [substantial],
@@ -493,9 +521,10 @@ problem has cheaper solutions.
   [Impact on programming model], [severe], [none], [*none*], [severe],
 )
 
-Two rows carry the decision. Vertical connection count does not separate B from C — both are the
-Group port list — so the choice is made on compute-die area, where C gains 39%. Against that, C
-leaves the second die at 0.89% utilisation, which makes filling it a precondition rather than a
+Two rows carry the decision, and they point in opposite directions. Option B crosses 36% fewer
+bonds, because a 2+2 fold keeps a third of the TCDM and half the AXI inside a die. Option C costs
+more bonds and buys a compute die 39% smaller with all compute on one plane. Against both, C leaves
+the second die at 0.89% utilisation, which makes filling it a precondition rather than a
 refinement.
 
 // ============================== 4 ==============================
@@ -503,15 +532,55 @@ refinement.
 = Recommended Partition
 
 The recommendation is *Option C as the first step, with C+ as a follow-on*, and the design has been
-built this way. Three measurements support it.
+built this way. It is the more expensive partition in bonds; four measurements justify paying for
+it.
 
 *The compute die shrinks by 39%.* This is the substance of the partition. In 2D the four Groups
 need a channel between them and each Group needs a channel between its SubGroup columns, sized at
-0.18 and 0.55 of a Group and SubGroup pitch respectively; the cluster comes to
-*26.50 mm#super[2]*. With the inter-Group network gone the Groups abut — `COMPUTE_CHANNEL_FRAC` is
-0 — and the Group channel falls to a fixed 100 µm, giving a Group of 2008.5 µm against 2432.3 µm
-and a compute die of *16.17 mm#super[2]*. Sixteen SubGroups abutted with no channel at all would
-be 14.51 mm#super[2], so the floorplan is within 11% of the floor set by the hard macros.
+0.18 and 0.55 of a Group and SubGroup pitch respectively. With the inter-Group network gone the
+Groups abut — `COMPUTE_CHANNEL_FRAC` is 0 — and the Group channel falls to a fixed 100 µm, which
+is what the vertical ports and the SubGroup-to-SubGroup routing need rather than what a die
+traverse needs.
+
+#table(
+  columns: (1fr, auto, auto),
+  table.header([], [2D], [3D, implemented]),
+  [SubGroup], [952.3 µm square], [952.3 µm square],
+  [Group channel], [0.55 x SubGroup pitch], [*100.0 µm fixed*],
+  [Group], [2432.3 µm square, 5.92 mm#super[2]], [*2008.5 µm square, 4.03 mm#super[2]*],
+  [Cluster channel], [0.18 x Group pitch], [*none, Groups abut*],
+  [Cluster / compute die], [5306.2 µm square, 26.50 mm#super[2]], [*4020.8 µm square, 16.17 mm#super[2]*],
+)
+
+The Group loses *32%* of its area and the die *39%*. Sixteen SubGroups abutted with no channel at
+all would be 14.51 mm#super[2], so the implemented floorplan is within 11% of the floor the hard
+macros set, and the remaining 1.66 mm#super[2] is the four Groups' cross channels.
+
+*The Group's entire signal interface becomes vertical.* In the implemented floorplan every one of
+the Group's signal ports is a bond; none routes to a die edge, because there is no longer anywhere
+horizontal for it to go. `fp_group_vports.tcl` reports the split
+(`01b_group_fp.log`):
+
+#table(
+  columns: (1fr, auto),
+  table.header([Group port], [Count]),
+  [Directly above a SubGroup pin — TCDM, traced to a single SubGroup], [24,768],
+  [In the cross-channel band — shared nets], [5,427],
+  [— AXI, through `axi_cut`], [4,980],
+  [— DMA spill registers and sequential cells], [439],
+  [— broadcast to all four SubGroups], [8],
+  [*Vertical ports per Group*], [*30,195*],
+  [VDD, VSS], [2],
+  [*`mempool_group` module ports*], [*30,197*],
+)
+
+That is *7,485 vertical ports per mm#super[2]* of Group area, against 99,012 signal sites available
+over the same footprint at the 4.50 µm bond pitch — the 30.5% utilisation of Section 4.2, now
+derived at the level where the array is actually placed.
+
+The four Groups present 4 x 30,195 = 120,780 vertical ports; the compute die presents 120,752,
+because `clk_i`, `rst_ni`, `testmode_i` and `scan_enable_i` are shared across the Groups rather
+than replicated, and `scan_data` and `group_id` are resolved inside the die.
 
 *Four cycles of remote latency were removed.* Section 2.5: `RemoteGroupLatencyCycle = 5` with an
 unregistered Group boundary, eliminating 147,840 flip-flops that existed only to break the 2D
@@ -547,7 +616,8 @@ power and ground. Sites per Group and the resulting utilisation, from `00_d2d_bu
   [9.00 µm], [1.80], [221 x 221], [24,420], [123.6%], [*does not fit*],
 )
 
-Against the measured 30,187 signals per Group, the loosest pitch that still fits is *8.14 µm*.
+Against the 30,187 die-to-die signals per Group — 30,195 counting the Group's own clock, reset and
+test ports, which also cross — the loosest pitch that still fits is *8.14 µm*.
 Microbump assembly at 9 µm is therefore out: the array is 24% short of the sites the interface
 needs. Hybrid bonding is required, and the window is 3.60 to 8.14 µm.
 
