@@ -71,7 +71,7 @@
 #v(1.2cm)
 #align(left)[
   #text(font: ("Liberation Sans", "DejaVu Sans"), size: 8.5pt, fill: rgb("#666666"))[
-    TECHNICAL REPORT · TP3D-2026-01 · 28 September 2026
+    TECHNICAL REPORT · TP3D-2026-01 · 18 October 2026
   ]
   #v(0.5em)
   #text(font: ("Liberation Sans", "DejaVu Sans"), size: 21pt, weight: "bold")[
@@ -85,8 +85,10 @@
   #line(length: 100%, stroke: 1.2pt + rgb("#1a3a52"))
   #v(0.4em)
   #text(size: 9pt, fill: rgb("#444444"))[
-    Design target: TensorPool (`config=tensorpool`), MemPool repository, branch `tensorpool` \
-    Physical-design target: Synopsys 3DIC Compiler, two-tier face-to-face stack
+    Design target: TensorPool (`config=tensorpool`), MemPool repository, branch
+    `yiczhang/3d-interco-tier` \
+    Physical-design target: Synopsys 3DIC Compiler and Fusion Compiler, TSMC N7,
+    two-tier face-to-face stack
   ]
 ]
 
@@ -97,19 +99,29 @@
   #v(0.3em)
   #set text(size: 9.6pt)
   This report reconstructs the TensorPool RTL hierarchy from the source, quantifies every candidate
-  tier-crossing interface using widths extracted by elaboration, and evaluates four two-tier
-  partitioning strategies against those numbers. The principal finding is that the inter-Group
-  TCDM interconnect — twelve 16x16 crossbars that are, contrary to the module names, instantiated
-  *inside* `mempool_group` rather than at cluster level — can be relocated to a second tier at a
-  cost of *99,072* vertical connections, which is within 0.8% of the *98,304* wires that already
-  have to cross the die horizontally today. The crossbar is width-preserving, and approximately
-  242,000 flip-flops of pipeline already sit exactly at the proposed cut, so the partition adds
-  neither interface signals nor latency. Relocating the L1 TCDM instead would cost between 1.6x and
-  5x more vertical connections and would break the single-cycle local bank path that defines the
-  MemPool memory model. The recommendation is to move the inter-Group interconnect, the cluster
-  pipeline registers and the L2 subsystem to the top tier, and to keep L1 and compute on the bottom
-  tier. Synopsys 3DIC Compiler cannot perform this partition: it assembles dies that are already
-  implemented separately, so the split must be expressed explicitly in the RTL hierarchy.
+  tier-crossing interface, and evaluates four two-tier partitioning strategies. The recommended
+  partition has been implemented: the RTL split exists on branch `yiczhang/3d-interco-tier` and both
+  dies are floorplanned, power-planned and bonded in TSMC N7, so the figures below are measured
+  rather than estimated.
+
+  The partition relocates the inter-Group TCDM interconnect — twelve 16x16 crossbars instantiated
+  *inside* `mempool_group` rather than at cluster level, contrary to the module names — to a second
+  tier. It costs *120,752* vertical connections, of which 99,072 are TCDM and the remainder AXI,
+  DMA and configuration traffic that must cross because the compute die has no package I/O of its
+  own. That figure is within 0.03% of the Group-on-Group fold, so the two partitions are
+  indistinguishable in interface size and the case rests on floorplan: with the inter-Group network
+  gone the Groups abut, and the compute die falls to *16.17 mm#super[2]* against
+  *26.50 mm#super[2]* for the 2D cluster. Remote-Group latency drops from 9 cycles to *5* with an
+  unregistered Group boundary, eliminating 147,840 flip-flops that existed only to break the long
+  2D wires.
+
+  Two constraints bound the result. Bonding is not free: the N7 AP layer sets a *3.60 µm* pitch
+  floor, 9 µm microbump assembly does not fit, and the implemented array runs at 4.50 µm and 30.6%
+  utilisation. And the interconnect die must match the compute die footprint for bonding while
+  holding 0.143 mm#super[2] of logic — *0.89% utilisation*, and 22% more total silicon than the 2D
+  part. Relocating L2 to that die is therefore a condition of the partition paying for itself, and
+  it also relieves the package interface, which at 20,557 signals and 97% AXI is the binding
+  constraint on the stack.
 ]
 
 #v(0.6em)
@@ -136,19 +148,27 @@ explicit in the source.
 
 == Method
 
-All structural statements in this report are derived from the RTL in `hardware/src/` on the
-`tensorpool` branch. All parameter values and signal widths were obtained by generating the Bender
-compile script for `config=tensorpool` and elaborating `mempool_pkg` in QuestaSim; none of the
-widths quoted here are hand-derived. All statements about Synopsys tool capability were verified
-against the local documentation set and the command reference, and no command is cited on the basis
-of its name alone.
+All structural statements in this report are derived from the RTL in `hardware/src/`. All
+parameter values and signal widths were obtained by elaborating `mempool_pkg` for
+`config=tensorpool`; none of the widths quoted here are hand-derived. All statements about Synopsys
+tool capability were verified against the local documentation set and the command reference, and no
+command is cited on the basis of its name alone.
+
+Physical figures come from the implemented flow: port counts from the elaborated tier modules, die
+and Group dimensions from the floorplan, bond pitch and array utilisation from the technology file
+and the bond plan, and cell area from the placed interconnect die. Where a quantity has been
+measured, the measurement is quoted and its source named.
 
 #table(
   columns: (auto, 1fr),
   table.header([Source], [Version / location]),
-  [RTL], [`hardware/src/`, branch `tensorpool`, HEAD `d2df2897`],
+  [RTL], [`hardware/src/`, branch `yiczhang/3d-interco-tier`],
   [Configuration], [`config/tensorpool.mk`, `config/config.mk`],
   [Elaboration], [QuestaSim 10.7b\_1, Bender 0.32.1],
+  [Implemented design], [`terapool-n7/tsmc7/3dic/`, flow `tensorpool_3d_v2_coi`],
+  [Technology], [TSMC N7, 15-metal stack M0–M15 plus AP],
+  [Measured interface], [`00e_d2d_interface.rpt`, `00_d2d_budget.rpt`],
+  [Measured area], [`report_utilization` on the placed interconnect die],
   [3DIC Compiler User Guide], [X-2025.06 and Y-2026.03, 258 / 269 pp.],
   [3DIC Compiler Tool Commands], [Y-2026.03, 5361 pp.],
   [3DIC Compiler brochure], [November 2025 revision],
@@ -173,7 +193,7 @@ different widths and different interconnect counts; results in this report do no
   [Tiles], [64], [Superbanks per tile], [2],
   [Cores per tile], [4], [RedMulE instances], [16 (8x32)],
   [AXI masters per SubGroup], [1], [RedMulE TCDM ports], [16 x 32 bit],
-  [DMA backends per Group], [4], [Remote-Group latency], [9 cycles],
+  [DMA backends per Group], [4], [Remote-Group latency], [*5 cycles*],
   [L2 size / banks], [4 MiB / 4], [AXI data width], [512 bit],
 )
 
@@ -279,30 +299,49 @@ replaced by a 14-bit tile address plus a 4-bit tile identifier. On the response 
 and 144 bits leave. This property is what makes the crossbar boundary essentially free as a tier
 cut, and is used in Section 4.
 
-== Existing pipelining on the inter-Group path
+== Pipelining on the inter-Group path
 
-Two register banks already sit on the inter-Group path:
+In the 2D design two register banks sat on the inter-Group path, both present for no reason other
+than to break the long wires:
 
-- `mempool_cluster.sv:181–244`: for each of the 4 x 3 x 4 x 4 = 192 channels, one
-  `spill_register` on the master request, one `fall_through_register` on the master response, one
-  `fall_through_register` on the slave request and one `spill_register` on the slave response.
-  Approximately *145,000 flip-flops*.
+- `mempool_cluster.sv:181–244`: for each of the 4 x 3 x 4 x 4 = 192 channels, one `spill_register`
+  on the master request, one `fall_through_register` on the master response, one
+  `fall_through_register` on the slave request and one `spill_register` on the slave response —
+  (2·108+2) + (144+1) + (108+1) + (2·148+2) = 770 flip-flops per channel, *147,840* in total.
 
-- `mempool_group.sv:202–231`, enabled when `RemoteGroupLatencyCycle == 9`: 48 channels per Group,
-  two `spill_register` instances each. Approximately *97,000 flip-flops* across four Groups.
+- `mempool_group.sv:202–231`, at `RemoteGroupLatencyCycle == 9`: 48 channels per Group, two
+  `spill_register` instances each, *97,536* flip-flops across four Groups.
 
-`config/tensorpool.mk` sets `remote_group_latency_cycles = 9`, whereas `config/terapool.mk` sets
-`7`. TensorPool therefore deliberately added one pipeline stage per direction relative to TeraPool.
-Taken together, roughly *242,000 flip-flops* exist for the sole purpose of breaking the long
-inter-Group wires into multiple cycles. This is direct evidence that the inter-Group path is the
-2D timing bottleneck, and it means a die-to-die hop can be inserted between existing registers
-without adding a pipeline stage.
+`RemoteGroupLatencyCycle` selects how many of these ranks are instantiated
+(`mempool_pkg.sv:249–260`):
 
-#note("Caveat on register removal")[
-  The cluster-level registers are not purely a timing measure. The source comment states that they
+#table(
+  columns: (auto, 1fr, auto),
+  table.header([Value], [Register ranks between a SubGroup and the Group port], [Flip-flops]),
+  [*5*], [*none — the SubGroup drives the Group port directly*], [*0*],
+  [7], [the port rank], [147,840],
+  [9], [the port rank and the port-to-SubGroup rank], [245,376],
+  [11], [all three], [~343,000],
+)
+
+`config/tensorpool.mk` sets *5*, and the source comment states why: "5 exists for the 3D stack,
+where the Group boundary is a bond rather than a traverse of the die and does not need a pipeline
+stage to be fast." The 192 cluster-level register sets were relocated into `mempool_group.sv:295–356`
+and made conditional on `RemoteGroupLatencyCycle >= 7`, so in this configuration they are not
+instantiated at all; `mempool_cluster.sv` is 209 lines holding two die instances and nothing else.
+
+The partition therefore does not merely avoid adding a pipeline stage — it removes 147,840
+flip-flops and four cycles of remote-access latency that the 2D floorplan required. A 4.5 µm pitch
+array directly over the Group footprint replaces a traverse of a 5.3 mm die.
+
+#note("Why the registers could go")[
+  The cluster-level registers were not purely a timing measure: the source comment states that they
   "break dependencies between request and response, establishing a correct valid/ready handshake".
-  At least one register in each direction is required for functional correctness; they cannot be
-  removed wholesale. See Section 6.4.
+  That function did not have to be re-engineered, because it was never only in those registers.
+  `burst_variable_latency_interconnect` carries `SpillRegisterReq`, `SpillRegisterResp` and
+  `FallThroughRegister`, all enabled (`tensorpool_inter_group_interco.sv:145–149`). Relocating the
+  crossbar moved that buffering across the bond with it. `matmul_i32` and `dotp_i32` pass with
+  0 errors at 5, 7, 9 and 11 cycles.
 ]
 
 == AXI, DMA and L2 path
@@ -322,30 +361,65 @@ Section 5.3.
 
 == Tier-crossing signal counts
 
-Each figure below counts payload bits plus valid and ready for every channel that would cross the
-tier boundary, using the widths of Section 2.4. Clock, reset, test and configuration signals are
-included in the Group-port figure and excluded elsewhere, where they are negligible.
+Each figure below counts payload bits plus valid and ready for every channel that crosses the tier
+boundary, using the widths of Section 2.4.
+
+One property of this partition governs the whole count: *the compute die has no package I/O*. It is
+bonded face-to-face to the interconnect die and reaches the outside world only through it, so every
+signal that leaves a Group crosses the bond — AXI, DMA and configuration included, not only TCDM.
+The measured interface of the implemented compute die is *120,752* signals:
 
 #table(
-  columns: (1fr, auto, auto, auto, auto),
-  table.header([Cut location], [Option], [Per unit], [Total], [Timing character]),
-  [Below the inter-Group crossbar \ (SubGroup remote-Group ports)], [*C*], [24,768 / Group], [*99,072*], [registered both sides],
-  [As C, plus below the inter-SubGroup crossbar], [*C+*], [+6,144 / SubGroup], [*197,376*], [one spill stage present],
-  [`mempool_group` ports as they exist today \ (Group-on-Group fold)], [B], [30,003 / Group], [120,012], [registered both sides],
-  [`tc_sram` pins], [A / D], [79 / bank], [161,792], [*combinational, 1 cycle*],
-  [Above `tcdm_adapter`], [A / D], [130 / bank], [266,240], [valid/ready, no pipeline],
-  [Complete tile memory subsystem], [A], [8,157 / tile], [522,048], [valid/ready, no pipeline],
-  [Cluster AXI ports (L2 to top tier)], [—], [1,245 / port], [19,920], [AXI, fully pipelined],
+  columns: (1fr, auto, auto, auto),
+  table.header([Bus family], [Per Group], [Total], [Share]),
+  [`tcdm_master_req` 108 + 2], [5,280], [21,120], [17.5%],
+  [`tcdm_master_resp` 144 + 2], [7,008], [28,032], [23.2%],
+  [`tcdm_slave_req` 108 + 2], [5,280], [21,120], [17.5%],
+  [`tcdm_slave_resp` 148 + 2], [7,200], [28,800], [23.8%],
+  [*TCDM subtotal* — 48 channels x 516 bits], [*24,768*], [*99,072*], [*82.0%*],
+  [`axi_mst_req` 717 x 4 masters], [2,868], [11,472], [9.5%],
+  [`axi_mst_resp` 528 x 4 masters], [2,112], [8,448], [7.0%],
+  [DMA request, ready, metadata], [117], [468], [0.4%],
+  [`wake_up` 64 cores], [64], [256], [0.2%],
+  [`ro_cache_ctrl` 258], [258], [1,032], [0.9%],
+  [*Per Group*], [*30,187*], [*120,748*], [],
+  [Clock, reset, test mode, scan enable], [—], [4], [],
+  [*Total, measured*], [], [*120,752*], [*100%*],
 )
 
-Of the 120,012 signals at the existing Group boundary, 98,304 are TCDM; the remainder is AXI,
-DMA, wake-up and cache configuration.
+Source: `00e_d2d_interface.rpt`, produced from the elaborated tier modules; the bond plan in
+`00_d2d_budget.rpt` agrees. Note the TCDM array shape,
+`[NumGroups-1:0][NumGroups-1:1][NumSubGroupsPerGroup-1:0][NumTilesPerSubGroup-1:0]`: the second
+index starts at 1, so only the three *remote* ports cross and the local one stays inside the Group.
+
+The AXI share is the reason the L2 question of Section 5.3 is structural rather than a matter of
+filling area: a sixth of the bond array exists only to carry traffic to a memory that sits on the
+far side of the package boundary.
+
+Set against the other candidate cuts:
+
+#table(
+  columns: (1fr, auto, auto, auto),
+  table.header([Cut location], [Option], [Total], [Timing character]),
+  [Below the inter-Group crossbar \ (whole compute die, *measured*)], [*C*], [*120,752*], [unregistered at 5 cycles],
+  [As C, plus below the inter-SubGroup crossbar], [*C+*], [~219,000], [one spill stage present],
+  [`mempool_group` ports (Group-on-Group fold)], [B], [~120,788], [same ports, same count],
+  [`tc_sram` pins], [A / D], [161,792], [*combinational, 1 cycle*],
+  [Above `tcdm_adapter`], [A / D], [266,240], [valid/ready, no pipeline],
+  [Complete tile memory subsystem], [A], [522,048], [valid/ready, no pipeline],
+  [Cluster AXI ports (L2 to top tier)], [—], [19,920], [AXI, fully pipelined],
+)
+
+The Group-port figure is measured on the implemented `mempool_group`, which presents *30,197*
+ports (`01d_group_abstract.log`).
 
 #note("Key result")[
-  The 99,072 vertical connections of Option C are within 0.8% of the 98,304 wires that already have
-  to be routed horizontally across the die at the Group boundary today. Because the crossbar is
-  width-preserving, relocating it does not increase the number of boundary signals; it converts
-  millimetre-scale horizontal routing into micrometre-scale vertical bonds.
+  Options B and C cross *the same interface to within 0.03%* — 120,788 against 120,752. Once the
+  crossbars have moved out of the Group, the compute die is four Groups and nothing else, so
+  cutting below the crossbar and cutting at the Group boundary cut the same wires.
+
+  Bond count therefore does not distinguish the two partitions. What distinguishes them is what
+  each does to the floorplan, and that difference is large: see Section 4.1.
 ]
 
 == Option A — SubGroup-level folding
@@ -378,15 +452,18 @@ each die, and the routing channels between Groups are unchanged.
 
 Keep the compute-dominated SubGroups on the bottom tier and move the Group-level interconnect to
 the top tier. In RTL terms this relocates the twelve `burst_variable_latency_interconnect`
-instances of `mempool_group.sv:431–530` together with the cluster-level pipeline registers.
+instances of `mempool_group.sv:431–530`, each now wrapped as `tensorpool_inter_group_interco`.
 
-The cost is 99,072 vertical connections. No pipeline stage is added, because registers already
-exist on both sides of the cut. The bottom tier retains only intra-Group routing, so the routing
-channels that currently separate the four Groups can be largely eliminated, and the top tier
-provides a complete, otherwise unused metal stack for the inter-Group network.
+The cost is *120,752* vertical connections (Section 3.1). No pipeline stage is added; four cycles
+are removed. The bottom tier retains only intra-Group routing, so the channels that separate the
+four Groups are eliminated outright — `COMPUTE_CHANNEL_FRAC` is 0 in the implemented floorplan —
+and the top tier provides a complete, otherwise unused metal stack for the inter-Group network.
+
+This is the option that was built; Section 8 reports what it measures.
 
 The *C+* variant additionally relocates the 48 inter-SubGroup 4x4 crossbars of
-`mempool_sub_group.sv:346–443`, bringing the total to 197,376 vertical connections and reducing
+`mempool_sub_group.sv:346–443`, bringing the total to approximately 219,000 vertical connections
+— 120,752 plus the 48 inter-SubGroup channel sets — and reducing
 each SubGroup to a purely local compute island. This variant is attractive for a second reason:
 the `tcdm_sg_*` ports of `mempool_sub_group.sv:41–53` already exist, making it the only cut in this
 study that requires no new module ports.
@@ -403,55 +480,86 @@ problem has cheaper solutions.
 #table(
   columns: (1fr, auto, auto, auto, auto),
   table.header([Criterion], [A], [B], [C / C+], [D]),
-  [Alignment with existing RTL hierarchy], [none], [exact], [generate block must be extracted], [none],
-  [Vertical connection count], [162k–522k], [120k], [*99k / 197k*], [260k+],
-  [Additional pipeline stages required], [yes], [no], [*no*], [yes],
+  [Alignment with existing RTL hierarchy], [none], [exact], [crossbar had to be extracted], [none],
+  [Vertical connection count], [162k–522k], [121k], [*121k / ~219k*], [260k+],
+  [Additional pipeline stages required], [yes], [no], [*two removed*], [yes],
+  [Compute-die area], [—], [26.5 mm#super[2]], [*16.2 mm#super[2]*], [—],
   [Relief of bottom-tier routing congestion], [negligible], [none], [*substantial*], [substantial],
   [Group placement density improvement], [none], [none], [*yes*], [yes],
   [Headroom for bandwidth increase], [none], [none], [*yes*], [yes],
-  [Top-tier area utilisation], [high], [high], [low (needs filling)], [high],
+  [Top-tier area utilisation], [high], [high], [*0.89% as built*], [high],
+  [Total silicon versus 2D], [—], [~equal], [*+22% unless filled*], [—],
   [Physical-design complexity], [very high], [low], [moderate], [very high],
   [Impact on programming model], [severe], [none], [*none*], [severe],
 )
+
+Two rows carry the decision. Vertical connection count does not separate B from C — both are the
+Group port list — so the choice is made on compute-die area, where C gains 39%. Against that, C
+leaves the second die at 0.89% utilisation, which makes filling it a precondition rather than a
+refinement.
 
 // ============================== 4 ==============================
 
 = Recommended Partition
 
-The recommendation is *Option C as the first step, with C+ as a follow-on*. Four pieces of
-evidence from the RTL support this.
+The recommendation is *Option C as the first step, with C+ as a follow-on*, and the design has been
+built this way. Three measurements support it.
 
-*The two interconnect levels cost the same but differ by an order of magnitude in wire length.*
-Both the inter-Group and the inter-SubGroup networks total
-64 tiles x 3 remote ports x 512 bits = 98,304 signals, because `NumGroups` and
-`NumSubGroupsPerGroup` are both 4. Since the vertical cost is identical, the level whose wires are
-longer should be relocated first. Inter-Group wires span the full die; inter-SubGroup wires stay
-within a Group.
+*The compute die shrinks by 39%.* This is the substance of the partition. In 2D the four Groups
+need a channel between them and each Group needs a channel between its SubGroup columns, sized at
+0.18 and 0.55 of a Group and SubGroup pitch respectively; the cluster comes to
+*26.50 mm#super[2]*. With the inter-Group network gone the Groups abut — `COMPUTE_CHANNEL_FRAC` is
+0 — and the Group channel falls to a fixed 100 µm, giving a Group of 2008.5 µm against 2432.3 µm
+and a compute die of *16.17 mm#super[2]*. Sixteen SubGroups abutted with no channel at all would
+be 14.51 mm#super[2], so the floorplan is within 11% of the floor set by the hard macros.
 
-*The inter-Group path is already saturated with pipeline registers.* As shown in Section 2.5,
-approximately 242,000 flip-flops exist solely to break these wires, and TensorPool raised the
-remote-Group latency from TeraPool's 7 cycles to 9 in order to close timing. A die-to-die hop
-inserted between two of those registers is free.
+*Four cycles of remote latency were removed.* Section 2.5: `RemoteGroupLatencyCycle = 5` with an
+unregistered Group boundary, eliminating 147,840 flip-flops that existed only to break the 2D
+wires. The partition does not merely avoid adding a pipeline stage; it pays one back.
 
-*The crossbar is width-preserving, so cutting below it costs nothing extra.* 24,768 signals per
-Group below the crossbar versus 24,576 at the Group port — a difference of 0.8%.
+*The cluster level is empty, so relocating the crossbars breaks no module.*
+`mempool_cluster.sv` is 209 lines containing two die instances, five elaboration assertions and
+nothing else. The twelve crossbars sit in `tensorpool_interco_tier.sv:293–314` as
+`tensorpool_inter_group_interco`, each one `burst_variable_latency_interconnect` with
+`NumIn = NumOut = 16`.
 
-*The cluster level is empty, so relocating the crossbars breaks no module.* Moving the twelve
-crossbars up turns `mempool_cluster` from a shell wrapped around a wire bundle into an actual
-top-level network-on-chip, which is also the more defensible architectural description.
+C is preferred over C+ as the first step because C+ adds the 48 inter-SubGroup channel sets to a
+cut that already carries everything else, taking the interface to roughly 219,000 and the array
+from 30.6% to about 55% utilisation, for wires that stay inside a Group and are already short.
 
 == Bond density feasibility
 
+The pad sits on AP. `AP.W.1` and `AP.S.1` are both 1.80 µm, so the pitch floor this technology
+supports is *3.60 µm*. Anything below that needs a dedicated Cu–Cu bonding level, which this PDK
+does not describe; sub-micrometre hybrid-bonding pitches quoted in the literature are therefore not
+numbers this process can be asked for.
+
+The array is placed over each Group footprint, inset by one pitch, with half the sites reserved for
+power and ground. Sites per Group and the resulting utilisation, from `00_d2d_budget.rpt`:
+
 #table(
-  columns: (auto, auto, auto, auto),
-  table.header([Bonding technology], [Pitch], [Density], [Area for 99k / 197k signal bonds]),
-  [Hybrid bonding, aggressive], [1 µm], [10#super[6] /mm#super[2]], [0.10 / 0.20 mm#super[2]],
-  [Hybrid bonding, relaxed], [4 µm], [6.3 x 10#super[4] /mm#super[2]], [1.6 / 3.2 mm#super[2]],
-  [Microbump], [9 µm], [1.2 x 10#super[4] /mm#super[2]], [8.2 / 16.4 mm#super[2]],
+  columns: (auto, auto, auto, auto, auto, 1fr),
+  table.header([Pitch], [Pad], [Sites per Group], [Signal sites], [Utilisation], [Verdict]),
+  [1.00 µm], [0.50], [2006 x 2006], [2,012,018], [1.5%], [below the AP floor, needs a bonding level],
+  [2.00 µm], [1.00], [1002 x 1002], [502,002], [6.0%], [below the AP floor, needs a bonding level],
+  [3.60 µm], [1.80], [555 x 555], [154,012], [19.6%], [fits, at the PDK floor],
+  [*4.50 µm*], [*1.80*], [*444 x 444*], [*98,568*], [*30.6%*], [*fits — implemented*],
+  [9.00 µm], [1.80], [221 x 221], [24,420], [123.6%], [*does not fit*],
 )
 
-Allowing an additional 50% for power and ground bonds, hybrid bonding at any realistic pitch is not
-a constraint. Microbump assembly would need to be checked against the actual die area.
+Against the measured 30,187 signals per Group, the loosest pitch that still fits is *8.14 µm*.
+Microbump assembly at 9 µm is therefore out: the array is 24% short of the sites the interface
+needs. Hybrid bonding is required, and the window is 3.60 to 8.14 µm.
+
+At the implemented 4.50 µm the array runs at 30.6% utilisation — a factor of 3.3 of headroom, which
+is what leaves room for the C+ variant and for a future bandwidth increase.
+
+#note("A rule deviation that needs sign-off")[
+  The die-to-die via under the pad is sized from the pad rather than from the layer rule: `RV`
+  minWidth is 2.70 µm against a 1.80 µm pad, so the cut is set to half the pad and
+  `create_d2d_vias` warns. This is deliberate and recorded in the flow, but it is a departure from
+  the foundry rule deck and must be agreed with the foundry before tape-out.
+]
 
 == Prior art in the repository
 
@@ -515,8 +623,18 @@ as a separate study, not folded into the first 3D implementation.
 
 == Filling the top tier without moving L1
 
-The area imbalance of Option C is real. Twelve 16x16 crossbars and roughly 242,000 flip-flops
-represent an estimated 10–20% of the design's flip-flop count and considerably less of its area.
+The area imbalance of Option C is the partition's principal cost, and it is severe.
+
+The placed interconnect die holds *143,442 µm#super[2]* of standard cells and no macros, on a die
+of *16,166,431 µm#super[2]* — *0.89% utilisation*. The die is that size not because its contents
+need it but because it must match the compute die footprint for the bond array to land.
+
+The consequence is a total-silicon figure. The 2D cluster is 26.50 mm#super[2]; the 3D part is
+16.17 + 16.17 = *32.33 mm#super[2]*, which is *22% more silicon* in exchange for a compute die 39%
+smaller and an interconnect that no longer crosses it. Whether that trade is worth making depends
+entirely on what else goes onto the second die, so the first remedy below is a condition of the
+partition paying for itself rather than a refinement.
+
 Three remedies, in order of attractiveness:
 
 + *Relocate the L2 subsystem.* L2 is 4 MiB across four banks — the same capacity as the entire L1 —
@@ -533,10 +651,20 @@ Three remedies, in order of attractiveness:
   can use an older, cheaper process — 3DIC Compiler supports per-die technologies and scale factors
   (User Guide, Chapter 4). For a research vehicle a smaller interconnect die is a legitimate answer.
 
-The resulting recommended top-tier content is: inter-Group crossbars, cluster pipeline registers,
-L2 with its AXI infrastructure, and optionally the inter-SubGroup crossbars and the SubGroup AXI
-subsystem. Combined vertical cost: approximately 119,000 connections for the C-plus-L2 variant, or
-approximately 217,000 for the C+-plus-L2 variant.
+The resulting recommended top-tier content is: inter-Group crossbars, L2 with its AXI
+infrastructure, and optionally the inter-SubGroup crossbars and the SubGroup AXI subsystem. The
+cluster pipeline registers are no longer on the list — at `RemoteGroupLatencyCycle = 5` they do not
+exist.
+
+Relocating L2 is attractive for a second reason beyond area. The interconnect die is the only die
+bonded to the substrate, and its package-facing interface is *20,557* signals of which 97% is the
+sixteen AXI master ports — more than a C4 array on a 4.0 mm die can carry. Putting L2 on the
+interconnect die fills it and removes most of that AXI from the package boundary, turning two open
+problems into one solved one.
+
+Revised vertical cost: *approximately 120,800* connections for C-plus-L2, since the AXI ports move
+from the package boundary to internal nets on the same die rather than adding to the bond count;
+and approximately *219,000* for C+-plus-L2.
 
 == Thermal considerations
 
@@ -565,7 +693,7 @@ physical partition.
 #table(
   columns: (auto, 1fr, auto),
   table.header([Change], [Detail], [Class]),
-  [Two tier top-level modules], [`tensorpool_bottom_tier` and `tensorpool_top_tier`, each a complete synthesisable design. The 3D top-level netlist must instantiate dies that are already implemented separately (User Guide, Chapter 7).], [1],
+  [Two tier top-level modules], [Built as `tensorpool_compute_tier` and `tensorpool_interco_tier`, each a complete synthesisable design. The 3D top-level netlist must instantiate dies that are already implemented separately (User Guide, Chapter 7).], [1],
   [3D top-level netlist], [`tensorpool_3d_top`, containing only the two die instances and an optional empty interposer placeholder. This is the input to `create_3d_top_design` and `read_verilog`.], [1],
   [Every die-to-die signal must be a port], [Bumps and bond pads attach to ports; internal nets cannot be assigned.], [1],
   [Per-die clock and reset ports], [Today a single `clk_i` fans out to the whole cluster. Each die needs its own clock entry for independent CTS, and die-to-die skew must be constrained in multi-die STA.], [1],
@@ -573,7 +701,7 @@ physical partition.
   [Extract `gen_remote_interco` into a module], [`mempool_group.sv:431–530` is an inline generate block using Group-internal signals. Extracting it into `tensorpool_inter_group_interco` is mechanical; without it the twelve instances can only be lifted by netlist-level `group`/`ungroup` operations, which is fragile.], [2],
   [Explicit die-to-die interface bundle], [A named packed type plus a flat, sorted port naming scheme such as `d2d_g<g>_sg<sg>_t<t>_*`. `derive_3d_connections` connects die-internal nets to top-level ports *by name*, so a regular naming scheme makes bump planning fully scriptable and CSV-driven.], [2],
   [Per-die scan chains], [`scan_data_i` / `scan_data_o` are currently left unconnected (for example `mempool_cluster.sv:280–281`). A manufacturable design needs per-die test access under IEEE 1838.], [2],
-  [Change `RemoteGroupLatencyCycle`], [Changing 9 to 7 removes the Group-level spill registers and two cycles of remote latency. Visible to software and to the published performance model.], [3],
+  [Change `RemoteGroupLatencyCycle`], [Done, and further than proposed: the ladder now has a 5 that instantiates no rank at all, removing 147,840 flip-flops and four cycles relative to the original 9. Visible to software and to the published performance model.], [3],
   [Widen the inter-Group network], [Changing `NumIn`/`NumOut`, the burst grouping factors `GROUP_REQ`/`GROUP_RSP`, or the number of remote ports per tile.], [3],
 )
 
@@ -593,16 +721,15 @@ modify the `tcdm_adapter` handshake, which currently assumes the SRAM responds i
 
 == Reducing the pipeline depth
 
-A shorter physical interconnect permits a shorter pipeline, and the parameterisation already
-supports part of this. `RemoteGroupLatencyCycle` accepts 7, 9 or 11; at 7 the Group-level register
-banks of `mempool_group.sv:148–238` are not instantiated at all. Moving from 9 to 7 is therefore a
-single configuration change that removes roughly 97,000 flip-flops and two cycles of remote-access
-latency, and it is the natural first experiment once the 3D floorplan shows the shortened wires.
+A shorter physical interconnect permits a shorter pipeline, and the ladder of Section 2.5 exposes
+the range as a single configuration value. At 5 no rank is instantiated between a SubGroup and the
+Group port; `gen_tcdm_port_feedthrough` (`mempool_group.sv:357–375`) wires all four TCDM buses
+straight through and the Group boundary is combinational. This is the shipping configuration, and
+`matmul_i32` and `dotp_i32` pass with 0 errors at 5, 7, 9 and 11.
 
-Going below 7 is not a configuration change. The remaining registers are the cluster-level
-spill/fall-through pairs, which exist to break the request-to-response dependency and guarantee a
-correct valid/ready handshake. Removing them requires microarchitectural work on the handshake, not
-just deletion, and must be validated against deadlock.
+Whether 5 is the floor is open. The bond replaces a die traverse, so the limiting path is now
+inside the crossbar rather than between Groups — a question for post-route timing on the
+interconnect die, not for configuration.
 
 // ============================== 7 ==============================
 
@@ -666,15 +793,51 @@ should the RTL work begin.
 
 // ============================== 8 ==============================
 
+= Implemented Design
+
+`mempool_cluster` instantiates two dies, `tensorpool_compute_tier` and `tensorpool_interco_tier`.
+Both have been floorplanned, power-planned and bonded in TSMC N7 under `terapool-n7/tsmc7/3dic/`;
+the functional equivalence of the split is recorded in `doc/3d/VERIFICATION.md`, which reports
+identical cycle counts across `matmul_i32`, `dotp_i32`, `synth_i32` and the test suite.
+
+== Measured figures
+
+#table(
+  columns: (1fr, auto, auto),
+  table.header([Quantity], [Value], [Source]),
+  [Compute-die vertical interface], [120,752], [`00e_d2d_interface.rpt`],
+  [— TCDM], [99,072], [],
+  [— AXI], [19,920], [],
+  [— DMA, wake-up, cache configuration], [1,756], [],
+  [— clock, reset, test, scan enable], [4], [],
+  [Group ports], [30,197], [`01d_group_abstract.log`],
+  [Group footprint], [2008.5 µm square], [floorplan],
+  [Compute die], [4020.8 µm square, 16.17 mm#super[2]], [floorplan],
+  [Interconnect die], [4020.8 µm square, 16.17 mm#super[2]], [floorplan],
+  [Interconnect-die cell area], [0.143 mm#super[2], 0.89%], [`report_utilization`],
+  [2D cluster, same formulas], [26.50 mm#super[2]], [`00_d2d_budget.rpt`],
+  [Bond pitch floor, AP layer], [3.60 µm], [`AP.W.1`, `AP.S.1`],
+  [Bond pitch, implemented], [4.50 µm], [bond plan],
+  [Bond array utilisation], [30.6%], [`00_d2d_budget.rpt`],
+  [Package-facing interface], [20,557, 97% AXI], [`00_d2d_budget.rpt`],
+  [Remote-Group latency], [5 cycles], [`config/tensorpool.mk`],
+)
+
 = Risks and Open Items
 
 #table(
   columns: (auto, 1fr),
   table.header([Item], [Status]),
-  [Area split by synthesis], [Not measured. The area statements in this report are inferred from flip-flop counts. A hierarchical synthesis run of `mempool_group` with `set_dont_touch` on `gen_remote_interco`, the SubGroups, the Tiles and the L1 is needed before the top-tier die size and process can be chosen.],
-  [Power delivery], [Not analysed. The die furthest from the C4 bumps requires a TSV-based power network; bond budget must be re-checked with PG bonds included.],
-  [Bond pitch and yield], [Process-dependent; requires the target foundry stack.],
-  [2D reference QoR], [The published 2D floorplan results should be re-measured on the same RTL revision to give a clean baseline for the 3D comparison.],
+  [Area split by synthesis], [The interconnect die is placed and measures 0.143 mm#super[2] of cells. The compute die is macro-dominated and its Group content has not been synthesised in this flow, so its area is a floorplan figure rather than a synthesis one.],
+  [Package interface], [*The binding constraint.* 20,557 signals, 97% of them the sixteen AXI master ports, on the one die bonded to the substrate. This does not fit a C4 array on a 4.0 mm die. The cluster is a block inside an SoC rather than a standalone package, so the resolution is either to put L2 on the interconnect die or to narrow the off-stack AXI.],
+  [Top-tier content], [*A precondition, not a refinement.* At 0.89% utilisation the partition costs 22% more silicon than the 2D part. Relocating L2 is the first remedy and also relieves the package interface above.],
+  [Power delivery], [The die furthest from the C4 bumps requires a TSV-based power network. The bond budget reserves 50% of sites for power and ground and reports 398,416 PG terminals at 13.5 µA each, which is not the constraint; the interconnect die carrying both dies' current is.],
+  [Signoff timing], [`RemoteGroupLatencyCycle = 5` simulates correctly at 5, 7, 9 and 11, but neither die has been through signoff timing. The 5-cycle configuration is not yet shown to close.],
+  [AXI latency], [`mempool_group.sv:546–564` places four `axi_cut` per Group below the boundary and `tensorpool_interco_tier.sv:244–261` sixteen above it, so the crossing sits between two register ranks. Group-to-L2 latency grew by one cycle; the TCDM path is unaffected.],
+  [Per-die scan], [`tensorpool_interco_tier.sv:41–42` declares `scan_data_i` and `scan_data_o`; neither is used, `scan_data_o` is undriven, and the compute tier has no scan data port. Listed as a class-2 change in Section 6 and unimplemented.],
+  [Metal stack hand-off], [The SubGroup frame blocks to M9, the 2D SubGroup routes to M11, and the Group picks up vertical ports on M11. To be reconciled before assembly.],
+  [Bond rule deviation], [The die-to-die via cut is sized from the 1.80 µm pad against an `RV` minWidth of 2.70 µm. Needs foundry agreement.],
+  [2D reference QoR], [The published 2D floorplan results should be re-measured on the same RTL revision to give a clean baseline for the 3D comparison. The 26.50 mm#super[2] used here is computed by the 3D flow with the 2D channel fractions, not taken from a 2D run.],
   [Interaction with `mbertuletti/3d`], [That branch implements Option B and carries a large number of unrelated changes (RedMulE parametrisation, tile merge, address slicer, software). Only commit `043eab77` should be adopted directly.],
   [Non-TERAPOOL configurations], [MemPool and MinPool use the two-level branch, which contains its own `gen_remote_interco` at `mempool_group.sv:829`. Any refactor must either preserve that path unchanged or apply the same treatment consistently.],
 )
