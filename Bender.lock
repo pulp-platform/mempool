@@ -134,7 +134,7 @@ packages:
     - common_cells
     - common_verification
   redmule:
-    revision: f33f539cd26d6e4da21667cb48bc9c36288c8d04
+    revision: 65251763decadfacf8f9e94314cb9cc45cce02b0
     version: null
     source:
       Git: https://github.com/pulp-platform/redmule.git
