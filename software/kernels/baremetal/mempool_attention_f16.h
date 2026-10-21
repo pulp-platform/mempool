@@ -8,6 +8,7 @@
 #include "archi_redmule.h"
 #include "hal_redmule.h"
 
+#include "baremetal/mempool_redmule_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
 #include "builtins_v2.h"
 
@@ -16,17 +17,13 @@
 #define ATTENTION_MIN_SLICE_ROWS (32)
 #endif
 
-/* Start one RedMulE GEMM: O (M x P) = I (M x N) * W (N x P) */
-static inline void attention_gemm_start(__fp16 const *I, __fp16 const *W,
-                                        __fp16 *O, uint32_t M, uint32_t N,
-                                        uint32_t P) {
-  hwpe_soft_clear();
-  mempool_wait(10);
-  redmule_cfg((unsigned int)I, (unsigned int)W, (unsigned int)O, (uint16_t)M,
-              (uint16_t)N, (uint16_t)P, 0, MATMUL, Float16);
-  mempool_wait(10);
-  hwpe_trigger_job();
-}
+// Rounds of jobs per RedMulE. With more than one, each batch is split into
+// more slices and, with PIPELINED, the softmax of a round overlaps with the
+// Q * Kt of the next round and with the A * V of the previous one; Q * Kt,
+// softmax and A * V are then one benchmark region.
+#ifndef ATTENTION_ROUNDS
+#define ATTENTION_ROUNDS (1)
+#endif
 
 /* Softmax of the jobs [first, first + n), num_cores / n cores per job */
 static inline void attention_softmax(__fp16 const *scores, __fp16 *Aw,
@@ -64,7 +61,9 @@ static inline void attention_softmax(__fp16 const *scores, __fp16 *Aw,
                  depend only on the same rows of Q, of the scores and of Aw.
                  Assumes power-of-two RedMulEs, Batch and SeqLen.
                  With PIPELINED, the softmax of a round of jobs overlaps with
-                 the Q * Kt of the next round.
+                 the Q * Kt of the next round. ATTENTION_ROUNDS > 1 gives each
+                 RedMulE that many rounds (up to the minimum slice size) and
+                 also overlaps the Aw * V of a round with the next softmax.
   @param[in]     Q         Query tensor, [Batch][SeqLen][tdEmbed]
   @param[in]     Kt        Key tensor (transposed), [Batch][tdEmbed][SeqLen]
   @param[in]     V         Value tensor, [Batch][SeqLen][tdEmbed]
@@ -83,10 +82,10 @@ static inline void attention_softmax(__fp16 const *scores, __fp16 *Aw,
 
 void attention_block_f16(__fp16 const *__restrict__ Q,
                          __fp16 const *__restrict__ Kt,
-                         __fp16 const *__restrict__ V,
-                         __fp16 *__restrict__ Aw, __fp16 *__restrict__ A,
-                         uint32_t Batch, uint32_t SeqLen, uint32_t tdEmbed,
-                         uint32_t slot_q, uint32_t slot_s, uint32_t core_id,
+                         __fp16 const *__restrict__ V, __fp16 *__restrict__ Aw,
+                         __fp16 *__restrict__ A, uint32_t Batch,
+                         uint32_t SeqLen, uint32_t tdEmbed, uint32_t slot_q,
+                         uint32_t slot_s, uint32_t core_id,
                          uint32_t num_cores) {
 
   // The scores and the attention output share A
@@ -96,7 +95,7 @@ void attention_block_f16(__fp16 const *__restrict__ Q,
   uint32_t num_redmules = mempool_get_redmule_count();
 
   // Slices per batch: one job per RedMulE, of at least MIN_SLICE_ROWS rows
-  uint32_t slices = num_redmules / Batch;
+  uint32_t slices = (ATTENTION_ROUNDS * num_redmules) / Batch;
   uint32_t max_slices = SeqLen / ATTENTION_MIN_SLICE_ROWS;
   slices = (slices > max_slices) ? max_slices : slices;
   slices = (slices == 0) ? 1 : slices;
@@ -104,47 +103,109 @@ void attention_block_f16(__fp16 const *__restrict__ Q,
   uint32_t jobs = Batch * slices;
 
 #ifdef PIPELINED
-  // Pipelined Q*Kt and Softmax
+  // Pipelined Q*Kt, Softmax, and Aw*V
   // Round r: RedMulEs compute Q*Kt for jobs [r*R, (r+1)*R), while all
   // cores compute the softmax of the jobs produced in round r-1.
   // One extra round drains the softmax of the last jobs.
   mempool_start_benchmark();
-  for (uint32_t jb = 0; jb < jobs + num_redmules; jb += num_redmules) {
+
+#if ATTENTION_ROUNDS > 1
+  // Two extra rounds drain the softmax and the Aw*V of the last jobs
+  uint32_t rounds_end = jobs + 2 * num_redmules;
+#else
+  uint32_t rounds_end = jobs + num_redmules;
+#endif
+
+  for (uint32_t jb = 0; jb < rounds_end; jb += num_redmules) {
 
     // Launch Q*Kt of the current jobs
     uint32_t j = jb + redmule_id;
-    uint32_t launched = (redmule_id < num_redmules) && (j < jobs);
-    if (launched) {
+    uint32_t launched_qk = (redmule_id < num_redmules) && (j < jobs);
+    if (launched_qk) {
       uint32_t b = j / slices, r0 = (j % slices) * rows;
-      attention_gemm_start(Q + b * slot_q + r0 * tdEmbed, Kt + b * slot_q,
-                           scores + b * slot_s + r0 * SeqLen, rows, tdEmbed,
-                           SeqLen);
+      redmule_start(Q + b * slot_q + r0 * tdEmbed, Kt + b * slot_q,
+                    scores + b * slot_s + r0 * SeqLen, rows, tdEmbed, SeqLen, 0,
+                    MATMUL);
     }
 
+#if ATTENTION_ROUNDS > 1
+    // Aw*V of the jobs whose softmax completed in the previous round. If the
+    // RedMulE also has a Q*Kt in this round, the Aw*V is launched once the
+    // Q*Kt completed.
+    uint32_t jv = j - 2 * num_redmules;
+    uint32_t launched_av = (redmule_id < num_redmules) &&
+                           (jb >= 2 * num_redmules) && (jv < jobs);
+    if (launched_av && !launched_qk) {
+      uint32_t b = jv / slices, r0 = (jv % slices) * rows;
+      redmule_start(Aw + b * slot_s + r0 * SeqLen, V + b * slot_q,
+                    A + b * slot_q + r0 * tdEmbed, rows, SeqLen, tdEmbed, 0,
+                    MATMUL);
+    }
+#endif
+
     // Softmax of the jobs computed in the previous round
-    if (jb > 0) {
+    if (jb > 0 && jb - num_redmules < jobs) {
       uint32_t prev = jb - num_redmules;
       uint32_t n = (jobs - prev < num_redmules) ? (jobs - prev) : num_redmules;
       attention_softmax(scores, Aw, prev, n, slices, rows, SeqLen, slot_s,
                         core_id, num_cores);
     }
 
-    // Wait for RedMulE (the wake-up is latched if the job already finished)
-    if (launched) {
+    // Wait for RedMulE executing the current Q*Kt iteration (the wake-up is
+    // latched if the job already finished)
+    if (launched_qk) {
       mempool_wfi();
     }
+
+#if ATTENTION_ROUNDS > 1
+    // If a Q*Kt iteration is ongoing the Aw*V launch is postponed
+    if (launched_av && launched_qk) {
+      uint32_t b = jv / slices, r0 = (jv % slices) * rows;
+      redmule_start(Aw + b * slot_s + r0 * SeqLen, V + b * slot_q,
+                    A + b * slot_q + r0 * tdEmbed, rows, SeqLen, tdEmbed, 0,
+                    MATMUL);
+    }
+
+    // Wait for RedMulE executing the current Aw*V iteration (the wake-up is
+    // latched if the job already finished)
+    if (launched_av) {
+      mempool_wfi();
+    }
+#endif
+
     mempool_barrier(num_cores);
   }
+
+#if ATTENTION_ROUNDS > 1
   mempool_stop_benchmark();
 #else
+  mempool_stop_benchmark();
+  // Complete the attention computation with Aw*V
+  mempool_start_benchmark();
+  if (redmule_id < num_redmules) {
+    for (uint32_t j = redmule_id; j < jobs; j += num_redmules) {
+      uint32_t b = j / slices, r0 = (j % slices) * rows;
+      redmule_start(Aw + b * slot_s + r0 * SeqLen, V + b * slot_q,
+                    A + b * slot_q + r0 * tdEmbed, rows, SeqLen, tdEmbed, 0,
+                    MATMUL);
+      mempool_wfi();
+    }
+  }
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+#endif
+
+#else
+  // Fully serial implementation with no overlap of the PE and TE execution
+
   // Q*Kt
   mempool_start_benchmark();
   if (redmule_id < num_redmules) {
     for (uint32_t j = redmule_id; j < jobs; j += num_redmules) {
       uint32_t b = j / slices, r0 = (j % slices) * rows;
-      attention_gemm_start(Q + b * slot_q + r0 * tdEmbed, Kt + b * slot_q,
-                           scores + b * slot_s + r0 * SeqLen, rows, tdEmbed,
-                           SeqLen);
+      redmule_start(Q + b * slot_q + r0 * tdEmbed, Kt + b * slot_q,
+                    scores + b * slot_s + r0 * SeqLen, rows, tdEmbed, SeqLen, 0,
+                    MATMUL);
       mempool_wfi();
     }
   }
@@ -153,25 +214,26 @@ void attention_block_f16(__fp16 const *__restrict__ Q,
 
   // Softmax
   mempool_start_benchmark();
-  attention_softmax(scores, Aw, 0, jobs, slices, rows, SeqLen, slot_s,
-                    core_id, num_cores);
+  attention_softmax(scores, Aw, 0, jobs, slices, rows, SeqLen, slot_s, core_id,
+                    num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
-#endif
 
   // A = Softmax(Q*Kt)*V
   mempool_start_benchmark();
   if (redmule_id < num_redmules) {
     for (uint32_t j = redmule_id; j < jobs; j += num_redmules) {
       uint32_t b = j / slices, r0 = (j % slices) * rows;
-      attention_gemm_start(Aw + b * slot_s + r0 * SeqLen, V + b * slot_q,
-                           A + b * slot_q + r0 * tdEmbed, rows, SeqLen,
-                           tdEmbed);
+      redmule_start(Aw + b * slot_s + r0 * SeqLen, V + b * slot_q,
+                    A + b * slot_q + r0 * tdEmbed, rows, SeqLen, tdEmbed, 0,
+                    MATMUL);
       mempool_wfi();
     }
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
+
+#endif
 
   return;
 }
