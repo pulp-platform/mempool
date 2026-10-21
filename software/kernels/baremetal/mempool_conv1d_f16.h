@@ -223,10 +223,9 @@ typedef void (*conv1d_post_t)(__fp16 *__restrict__ data, uint32_t size,
 
 void conv1d_pipelined_f16(__fp16 const *__restrict__ X,
                           __fp16 const *__restrict__ F, uint32_t F_stride,
-                          __fp16 *__restrict__ Y,
-                          __fp16 *__restrict__ X_im2col, uint32_t B,
-                          uint32_t Ci, uint32_t Co, uint32_t Wi, uint32_t Wf,
-                          conv1d_post_t post, uint32_t core_id,
+                          __fp16 *__restrict__ Y, __fp16 *__restrict__ X_im2col,
+                          uint32_t B, uint32_t Ci, uint32_t Co, uint32_t Wi,
+                          uint32_t Wf, conv1d_post_t post, uint32_t core_id,
                           uint32_t num_cores) {
 
   uint32_t redmule_id = mempool_get_redmule_id();
