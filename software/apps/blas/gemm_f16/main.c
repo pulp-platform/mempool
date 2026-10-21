@@ -77,7 +77,14 @@ int main() {
 #ifdef SINGLE
   // Transfer
   if (redmule_id == 0) {
+#ifdef X_TRANSPOSED
+    // Outer product engine (gvsoc TENSOR_ENGINE=opope): X stored as N x M
+    for (uint32_t m = 0; m < matrix_M; m++)
+      for (uint32_t n = 0; n < matrix_N; n++)
+        l1_X[n * matrix_M + m] = l2_X[m * matrix_N + n];
+#else
     dma_memcpy_blocking(l1_X, l2_X, (matrix_M * matrix_N) * sizeof(int16_t));
+#endif
     dma_memcpy_blocking(l1_W, l2_W, (matrix_N * matrix_P) * sizeof(int16_t));
     dma_memcpy_blocking(l1_Y, l2_Y, (matrix_M * matrix_P) * sizeof(int16_t));
   }
