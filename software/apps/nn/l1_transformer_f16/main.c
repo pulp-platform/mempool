@@ -13,6 +13,14 @@
 #include "printf.h"
 #include "synchronization.h"
 
+// LOG_BARRIER=<r>: the barriers of this app, which all synchronize every core,
+// are 2^r-ary tree barriers instead of one counter that every core increments
+#ifdef LOG_BARRIER
+#include "runtime.h"
+#define mempool_barrier(num_cores)                                             \
+  mempool_anyradixlog_barrier(LOG_BARRIER, mempool_get_core_id())
+#endif
+
 /* Macros to print checkpints of computation */
 #define VERBOSE (1)
 #define PRINT_DONE(verbose, core_id, num_cores, label)                         \

@@ -14,17 +14,42 @@
 #include "baremetal/mempool_layernorm_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
 
-void permute_result(__fp16 const *__restrict__ IN,
-                    __fp16 *__restrict__ OUT,
-                    uint32_t Beam, uint32_t Embed,
-                    uint32_t tdSamples, permute_mode_t mode);
+void permute_result(__fp16 const *__restrict__ IN, __fp16 *__restrict__ OUT,
+                    uint32_t Beam, uint32_t Embed, uint32_t tdSamples,
+                    permute_mode_t mode);
 
-void permute_qkv(__fp16 const *__restrict__ IN,
-                 __fp16 *__restrict__ Q,
-                 __fp16 *__restrict__ Kt,
-                 __fp16 *__restrict__ V,
-                 uint32_t Beam, uint32_t Embed,
-                 uint32_t tdSamples, permute_mode_t mode);
+void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
+                 __fp16 *__restrict__ Kt, __fp16 *__restrict__ V, uint32_t Beam,
+                 uint32_t Embed, uint32_t tdSamples, permute_mode_t mode,
+                 uint32_t b0, uint32_t bN, uint32_t core_id,
+                 uint32_t num_cores);
+
+#ifdef PIPELINED
+// The QKV permutation runs as the post-operation of the pipelined QKV
+// convolution, on the beams whose GEMMs completed, while the
+// RedMulEs compute the next chunk. The post-operation only gets a chunk of
+// the convolution output.
+static struct {
+  __fp16 const *in;
+  __fp16 *q;
+  __fp16 *kt;
+  __fp16 *v;
+  uint32_t beam;
+  uint32_t embed;
+  uint32_t td_samples;
+  permute_mode_t mode;
+} permute_qkv_ctx __attribute__((section(".l1")));
+
+static void permute_qkv_post(__fp16 *__restrict__ data, uint32_t size,
+                             uint32_t core_id, uint32_t num_cores) {
+  uint32_t beam_size = 3 * permute_qkv_ctx.embed * permute_qkv_ctx.td_samples;
+  uint32_t b0 = (uint32_t)(data - permute_qkv_ctx.in) / beam_size;
+  permute_qkv(permute_qkv_ctx.in, permute_qkv_ctx.q, permute_qkv_ctx.kt,
+              permute_qkv_ctx.v, permute_qkv_ctx.beam, permute_qkv_ctx.embed,
+              permute_qkv_ctx.td_samples, permute_qkv_ctx.mode, b0,
+              size / beam_size, core_id, num_cores);
+}
+#endif
 
 /**
   @brief         Computes the full attention block.
@@ -49,8 +74,7 @@ void permute_qkv(__fp16 const *__restrict__ IN,
 */
 
 __fp16 *attention(__fp16 const *__restrict__ l2_I,
-                  __fp16 const *__restrict__ l2_F,
-                  __fp16 const *in,
+                  __fp16 const *__restrict__ l2_F, __fp16 const *in,
                   uint32_t Beam, uint32_t Embed, uint32_t tdSamples,
                   uint32_t Wf, permute_mode_t mode) {
 
@@ -61,7 +85,8 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   // buffer is reused once nothing reads its previous content any more.
 
   //   x       input [Beam][Embed][tdSamples]     l1_arena.x
-  //   x_norm  layernorm output                   l1_act
+  //   x_norm  layernorm output                   l1_act (l1_scratch
+  //                                              after cols if PIPELINED)
   //   qkv     QKV projection [Beam][3*Embed][..] l1_arena.y      over x
   //   cols    im2col of the convolutions         l1_scratch
   //   q,kt,v  attention operands                 l1_act          over x_norm
@@ -71,7 +96,14 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   //   y       output [Beam][Embed][tdSamples]    l1_arena.y      over Aw
 
   __fp16 *x = l1_arena.x;
+#ifdef PIPELINED
+  // q, kt and v are written during the QKV convolution, which still reads
+  // x_norm: x_norm goes to the part of l1_scratch that the im2col of this
+  // convolution (Beam * Embed * tdSamples * Wf) does not use
+  __fp16 *x_norm = &l1_scratch[Beam * Embed * tdSamples * Wf];
+#else
   __fp16 *x_norm = l1_act;
+#endif
   __fp16 *qkv = l1_arena.y;
   __fp16 *cols = l1_scratch;
   __fp16 *Aw = l1_arena.x;
@@ -138,8 +170,18 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   // Convolution: QKV projection (Embed -> 3*Embed)
   mempool_start_benchmark();
 #ifdef PIPELINED
+  if (core_id == 0) {
+    permute_qkv_ctx.in = qkv;
+    permute_qkv_ctx.q = q;
+    permute_qkv_ctx.kt = kt;
+    permute_qkv_ctx.v = v;
+    permute_qkv_ctx.beam = Beam;
+    permute_qkv_ctx.embed = Embed;
+    permute_qkv_ctx.td_samples = tdSamples;
+    permute_qkv_ctx.mode = mode;
+  }
   conv1d_pipelined_f16(x_norm, F, F_STRIDE, qkv, cols, Beam, Embed, Embed * 3,
-                       tdSamples, Wf, NULL, core_id, num_cores);
+                       tdSamples, Wf, permute_qkv_post, core_id, num_cores);
 #else
   conv1d_f16(x_norm, F, qkv, cols, Beam, Embed, Embed * 3, tdSamples, Wf, 1,
              core_id, num_cores);
@@ -152,8 +194,13 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   /* Permute to QKV                                                         */
   /**************************************************************************/
 
+  // With PIPELINED the permutation is done in the convolution: the region
+  // stays (empty) so that the region indices do not change
   mempool_start_benchmark();
-  permute_qkv(qkv, q, kt, v, Beam, Embed, tdSamples, mode);
+#ifndef PIPELINED
+  permute_qkv(qkv, q, kt, v, Beam, Embed, tdSamples, mode, 0, Beam, core_id,
+              num_cores);
+#endif
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
@@ -223,7 +270,8 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
                       Q  : [tdSamples][Beam][Embed]
                       V  : [tdSamples][Beam][Embed]
                       Kt : [tdSamples][Embed][Beam] (transposed for GEMM)
-                 The work is distributed across mempool cores.
+                 Only the bN beams starting at b0 are permuted; the work is
+                 distributed across the given cores.
   @param[in]     IN        Packed input tensor containing Q, K, V
   @param[out]    Q         Query tensor
   @param[out]    Kt        Key tensor (transposed)
@@ -231,58 +279,63 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   @param[in]     Beam      Beam size (sequence length)
   @param[in]     Embed     Embedding dimension
   @param[in]     tdSamples Number of temporal samples
+  @param[in]     mode      Output layout, EBT or TBE
+  @param[in]     b0        First beam to permute
+  @param[in]     bN        Number of beams to permute
+  @param[in]     core_id   Core ID
+  @param[in]     num_cores Number of cores
   @return        none
 */
 
 void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
                  __fp16 *__restrict__ Kt, __fp16 *__restrict__ V, uint32_t Beam,
-                 uint32_t Embed, uint32_t tdSamples, permute_mode_t mode) {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
+                 uint32_t Embed, uint32_t tdSamples, permute_mode_t mode,
+                 uint32_t b0, uint32_t bN, uint32_t core_id,
+                 uint32_t num_cores) {
 
   // Batch slot of Q, Kt and V (see TS_SLOT in l2_data.h)
   uint32_t slot = TS_SLOT(Beam * ((mode == TBE) ? Embed : tdSamples));
 
-  for (uint32_t i = core_id; i < Beam * Embed; i += num_cores) {
+  for (uint32_t i = b0 * Embed + core_id; i < (b0 + bN) * Embed;
+       i += num_cores) {
     uint32_t b = i / Embed;
     uint32_t e = i % Embed;
     switch (mode) {
-      case TBE:
-        for (uint32_t t = 0; t < tdSamples; t++) {
-          uint32_t o_idx, o_tidx, i_idx;
-          i_idx = (b * Embed + e) * 3 * tdSamples + t;
-          o_idx = t * slot + b * Embed + e;
-          o_tidx = t * slot + e * Beam + b;
-          Q[o_idx] = IN[i_idx];
-          Kt[o_tidx] = IN[i_idx + Embed * tdSamples];
-          V[o_idx] = IN[i_idx + 2 * Embed * tdSamples];
-        }
-        break;
-      default: { // EBT
-        uint32_t i_base = (b * Embed + e) * 3 * tdSamples;
-        uint32_t o_base = e * slot + b * tdSamples;
-        // Q and V are contiguous in t on both the IN side and their own side
-        // (stride 1), so two t's at a time move through one v2h load/store
-        uint32_t t = 0;
-        if ((tdSamples & 1u) == 0) {
-          for (; t < tdSamples; t += 2) {
-            *(v2h *)&Q[o_base + t] = *(v2h *)&IN[i_base + t];
-            *(v2h *)&V[o_base + t] =
-                *(v2h *)&IN[i_base + t + 2 * Embed * tdSamples];
-          }
-        } else {
-          for (; t < tdSamples; t++) {
-            Q[o_base + t] = IN[i_base + t];
-            V[o_base + t] = IN[i_base + t + 2 * Embed * tdSamples];
-          }
-        }
-        for (t = 0; t < tdSamples; t++) {
-          uint32_t o_tidx = e * slot + t * Beam + b;
-          Kt[o_tidx] = IN[i_base + t + Embed * tdSamples];
-        }
-        break;
+    case TBE:
+      for (uint32_t t = 0; t < tdSamples; t++) {
+        uint32_t o_idx, o_tidx, i_idx;
+        i_idx = (b * Embed + e) * 3 * tdSamples + t;
+        o_idx = t * slot + b * Embed + e;
+        o_tidx = t * slot + e * Beam + b;
+        Q[o_idx] = IN[i_idx];
+        Kt[o_tidx] = IN[i_idx + Embed * tdSamples];
+        V[o_idx] = IN[i_idx + 2 * Embed * tdSamples];
       }
+      break;
+    default: { // EBT
+      uint32_t i_base = (b * Embed + e) * 3 * tdSamples;
+      uint32_t o_base = e * slot + b * tdSamples;
+      // Q and V are contiguous in t on both the IN side and their own side
+      // (stride 1), so two t's at a time move through one v2h load/store
+      uint32_t t = 0;
+      if ((tdSamples & 1u) == 0) {
+        for (; t < tdSamples; t += 2) {
+          *(v2h *)&Q[o_base + t] = *(v2h *)&IN[i_base + t];
+          *(v2h *)&V[o_base + t] =
+              *(v2h *)&IN[i_base + t + 2 * Embed * tdSamples];
+        }
+      } else {
+        for (; t < tdSamples; t++) {
+          Q[o_base + t] = IN[i_base + t];
+          V[o_base + t] = IN[i_base + t + 2 * Embed * tdSamples];
+        }
+      }
+      for (t = 0; t < tdSamples; t++) {
+        uint32_t o_tidx = e * slot + t * Beam + b;
+        Kt[o_tidx] = IN[i_base + t + Embed * tdSamples];
+      }
+      break;
+    }
     }
   }
 
