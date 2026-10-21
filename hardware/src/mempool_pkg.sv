@@ -319,6 +319,11 @@ package mempool_pkg;
    *  TCDM INTERCONNECT PARAMETERS  *
    **********************************/
 
+  // Burst managers per tile, each on a contiguous slice of NumBanksPerBM banks
+  localparam integer unsigned BurstManagerSplit = `ifdef BURST_MANAGER_SPLIT `BURST_MANAGER_SPLIT `else 1 `endif;
+  localparam integer unsigned BurstFifoDepth    = `ifdef BURST_FIFO_DEPTH `BURST_FIFO_DEPTH `else 0 `endif;
+  localparam integer unsigned NumBanksPerBM     = NumBanksPerTile / BurstManagerSplit;
+
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
   typedef logic [TCDMAddrMemWidth+idx_width(NumBanksPerTile)-1:0] tile_addr_t;

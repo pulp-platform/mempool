@@ -70,6 +70,7 @@ module mempool_tile
    ****************/
 
   `include "common_cells/registers.svh"
+  `include "common_cells/assertions.svh"
   `include "reqrsp_interface/typedef.svh"
 
   /*****************
@@ -523,45 +524,60 @@ module mempool_tile
     tile_core_id_t    [NumBanksPerTile-1:0] manager_resp_ini, postmanager_resp_ini;
     burst_gresp_t     [NumBanksPerTile-1:0] manager_resp_burst;
 
-    // Connecting to burst manager
-    burst_manager #(
-      .NumIn       (NumLocalPorts                                ),
-      .NumOut      (NumBanksPerTile                              ),
-      .AddrWidth   (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
-      .DataWidth   ($bits(manager_payload_t)                     ),
-      .BeWidth     (DataWidth/8                                  ),
-      .ByteOffWidth(0                                            ),
-      .ReqGF       (ReqGF                                        ),
-      .RspGF       (RspGF                                        ),
-      .DropBurstWriteRsp(`BURST_DROP_WACK != 0                   ) // TODO can be defaulted to zero
-    ) i_burst_manager (
-      .clk_i          (clk_i               ),
-      .rst_ni         (rst_ni              ),
-      .req_ini_addr_i (manager_req_ini     ),
-      .req_tgt_addr_i (manager_req_tgt     ),
-      .req_wdata_i    (manager_req         ),
-      .req_wen_i      (manager_req_wen     ),
-      .req_be_i       (manager_req_be      ),
-      .req_burst_i    (manager_req_burst   ),
-      .req_valid_i    (prebank_req_valid   ),
-      .req_ready_o    (prebank_req_ready   ),
-      .req_ini_addr_o (postmanager_req_ini ),
-      .req_tgt_addr_o (bank_req_tgt_addr   ),
-      .req_wdata_o    (postmanager_req     ),
-      .req_wen_o      (bank_req_wen        ),
-      .req_be_o       (bank_req_be         ),
-      .req_valid_o    (bank_req_valid      ),
-      .req_ready_i    (bank_req_ready      ),
-      .resp_ini_addr_o(manager_resp_ini    ),
-      .resp_rdata_o   (manager_resp        ),
-      .resp_burst_o   (manager_resp_burst  ),
-      .resp_valid_o   (prebank_resp_valid  ),
-      .resp_ready_i   (prebank_resp_ready  ),
-      .resp_ini_addr_i(postmanager_resp_ini),
-      .resp_rdata_i   (postmanager_resp    ),
-      .resp_valid_i   (bank_resp_valid     ),
-      .resp_ready_o   (bank_resp_ready     )
-    );
+    if ((BurstManagerSplit == 0) || (NumBanksPerTile % BurstManagerSplit != 0))
+      $error("[mempool_tile] BURST_MANAGER_SPLIT must divide the %0d banks of a tile", NumBanksPerTile);
+    if ((NumBanksPerBM < BurstLen) || (NumBanksPerBM % BurstLen != 0))
+      $error("[mempool_tile] A burst manager slice (%0d banks) must be a multiple of BurstLen (%0d)",
+             NumBanksPerBM, BurstLen);
+
+    for (genvar m = 0; m < BurstManagerSplit; m++) begin : gen_bm
+      localparam int unsigned Lo = m * NumBanksPerBM;
+      burst_manager #(
+        .NumIn       (NumLocalPorts                                ),
+        .NumOut      (NumBanksPerBM                                ),
+        .AddrWidth   (TCDMAddrMemWidth + idx_width(NumBanksPerTile)),
+        .DataWidth   ($bits(manager_payload_t)                     ),
+        .BeWidth     (DataWidth/8                                  ),
+        .ByteOffWidth(0                                            ),
+        .ReqGF       (ReqGF                                        ),
+        .RspGF       (RspGF                                        ),
+        .DropBurstWriteRsp(`BURST_DROP_WACK != 0                   ), // TODO can be defaulted to zero
+        .FifoDepth        (BurstFifoDepth                          )
+      ) i_burst_manager (
+        .clk_i          (clk_i                                    ),
+        .rst_ni         (rst_ni                                   ),
+        .req_ini_addr_i (manager_req_ini[Lo +: NumBanksPerBM]     ),
+        .req_tgt_addr_i (manager_req_tgt[Lo +: NumBanksPerBM]     ),
+        .req_wdata_i    (manager_req[Lo +: NumBanksPerBM]         ),
+        .req_wen_i      (manager_req_wen[Lo +: NumBanksPerBM]     ),
+        .req_be_i       (manager_req_be[Lo +: NumBanksPerBM]      ),
+        .req_burst_i    (manager_req_burst[Lo +: NumBanksPerBM]   ),
+        .req_valid_i    (prebank_req_valid[Lo +: NumBanksPerBM]   ),
+        .req_ready_o    (prebank_req_ready[Lo +: NumBanksPerBM]   ),
+        .req_ini_addr_o (postmanager_req_ini[Lo +: NumBanksPerBM] ),
+        .req_tgt_addr_o (bank_req_tgt_addr[Lo +: NumBanksPerBM]   ),
+        .req_wdata_o    (postmanager_req[Lo +: NumBanksPerBM]     ),
+        .req_wen_o      (bank_req_wen[Lo +: NumBanksPerBM]        ),
+        .req_be_o       (bank_req_be[Lo +: NumBanksPerBM]         ),
+        .req_valid_o    (bank_req_valid[Lo +: NumBanksPerBM]      ),
+        .req_ready_i    (bank_req_ready[Lo +: NumBanksPerBM]      ),
+        .resp_ini_addr_o(manager_resp_ini[Lo +: NumBanksPerBM]    ),
+        .resp_rdata_o   (manager_resp[Lo +: NumBanksPerBM]        ),
+        .resp_burst_o   (manager_resp_burst[Lo +: NumBanksPerBM]  ),
+        .resp_valid_o   (prebank_resp_valid[Lo +: NumBanksPerBM]  ),
+        .resp_ready_i   (prebank_resp_ready[Lo +: NumBanksPerBM]  ),
+        .resp_ini_addr_i(postmanager_resp_ini[Lo +: NumBanksPerBM]),
+        .resp_rdata_i   (postmanager_resp[Lo +: NumBanksPerBM]    ),
+        .resp_valid_i   (bank_resp_valid[Lo +: NumBanksPerBM]     ),
+        .resp_ready_o   (bank_resp_ready[Lo +: NumBanksPerBM]     )
+      );
+    end : gen_bm
+
+    for (genvar b = 0; b < NumBanksPerTile; b++) begin : gen_bm_slice_check
+      `ASSERT(burst_in_slice, (prebank_req_valid[b] && manager_req_burst[b].isburst) |->
+              ((b % NumBanksPerBM) + manager_req_burst[b].blen <= NumBanksPerBM),
+              clk_i, !rst_ni, "Burst crosses a burst manager slice")
+    end
 
     for (genvar b = 0; b < NumBanksPerTile; b++) begin : gen_burst_manager_connections
       // Premanager requests

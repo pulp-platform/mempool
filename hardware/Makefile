@@ -129,6 +129,12 @@ vlog_defs   += -DNUM_REDMULE_TILES=$(num_redmule_tiles)
 vlog_defs   += -DUSE_BURST=$(tcdm_burst)
 burst_drop_wack ?= 0
 vlog_defs   += -DBURST_DROP_WACK=$(burst_drop_wack)
+# Burst managers per tile, each on a slice of the tile's banks
+burst_manager_split ?= 1
+vlog_defs   += -DBURST_MANAGER_SPLIT=$(burst_manager_split)
+# Entries of each burst manager's FIFO (0: one per bank)
+burst_fifo_depth ?= 0
+vlog_defs   += -DBURST_FIFO_DEPTH=$(burst_fifo_depth)
 ifneq ($(num_redmule_tiles), 0)
 vlog_defs   += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs   += -DARRAY_WIDTH=$(redmule_width)
