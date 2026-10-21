@@ -85,12 +85,10 @@ typedef enum { EBT, TBE } attn_mode_t;
 #define L1_ALIGN (NUM_BANKS * sizeof(int32_t))
 #ifdef TILESHIFT
 
-#define TS_TILE \
-        (NUM_BANKS_PER_TILE * sizeof(int32_t) / sizeof(int16_t))
-#define TS_SUB_GROUP \
-        (NUM_BANKS_PER_SUB_GROUP * sizeof(int32_t) / sizeof(int16_t))
-#define TS_SLOT(n) \
-        (((((n) + TS_TILE - 1) / TS_TILE) | 1) * TS_TILE)
+#define TS_TILE (NUM_BANKS_PER_TILE * sizeof(int32_t) / sizeof(int16_t))
+#define TS_SUB_GROUP                                                           \
+  (NUM_BANKS_PER_SUB_GROUP * sizeof(int32_t) / sizeof(int16_t))
+#define TS_SLOT(n) (((((n) + TS_TILE - 1) / TS_TILE) | 1) * TS_TILE)
 
 #else
 #define TS_SUB_GROUP (0)
@@ -105,9 +103,9 @@ typedef enum { EBT, TBE } attn_mode_t;
  *  multiple of one tile; RedMulE i reads copy i.
  **********************************************************************/
 
-#define F_QKV_SIZE  (3 * EMBED * EMBED * WF)
-#define F_OUT_SIZE  (EMBED * EMBED * WF)
-#define F_UP_SIZE   (2 * EMBED * EMBED * WF)
+#define F_QKV_SIZE (3 * EMBED * EMBED * WF)
+#define F_OUT_SIZE (EMBED * EMBED * WF)
+#define F_UP_SIZE (2 * EMBED * EMBED * WF)
 #define F_DOWN_SIZE (2 * EMBED * EMBED * WF)
 #ifdef REPLICATE_F
 #ifndef PIPELINED
@@ -486,7 +484,7 @@ static NOINLINE void attn_core(attn_mode_t mode, uint32_t self,
 
   attention_block_f16(ATT_Q, ATT_KT, ATT_V, l1_phase.attn.probs, ATT_A, a.NB,
                       BEAM, a.W, a.SQ, SLOT_S, core_id, num_cores);
-                      
+
 #ifdef VERIFY
   for (uint32_t n = 0; n < a.NB; n++) {
     chk(mode == TBE ? "pTBE" : "pEBT", self * a.NB + n,
@@ -571,7 +569,6 @@ static NOINLINE void attn_post(attn_mode_t mode, uint32_t self,
   chk(mode == TBE ? "attnTBE" : "attnEBT", 0, l1_x, BC * EMBED * TDSAMPLES,
       core_id, self);
 #endif
-
 }
 
 static NOINLINE void attention(attn_mode_t mode, uint32_t active, uint32_t self,
@@ -673,7 +670,6 @@ static NOINLINE void ffn(uint32_t active, uint32_t self, uint32_t core_id,
 #ifdef VERIFY
     chk("ffn", 0, x, BC * EMBED * TDSAMPLES, core_id, self);
 #endif
-
   }
   mc_global_barrier_xy();
 }
