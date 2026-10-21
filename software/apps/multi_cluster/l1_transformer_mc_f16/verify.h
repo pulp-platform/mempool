@@ -52,7 +52,7 @@ static uint32_t chk_count L1_LOCAL; /* .l1 is not zeroed: reset in main */
 static uint16_t chk_smp[CHK_MAX][CHK_SAMPLES] L1_LOCAL;
 
 /* Hash of the n halfwords of buf, computed bitwise on core 0, and
- * CHK_SAMPLES evenly spaced values of buf, recorded under (label, idx). */  
+ * CHK_SAMPLES evenly spaced values of buf, recorded under (label, idx). */
 static NOINLINE void chk(const char *label, uint32_t idx, const __fp16 *buf,
                          uint32_t n, uint32_t core_id, uint32_t cluster_id) {
   (void)cluster_id;

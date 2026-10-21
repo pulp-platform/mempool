@@ -69,9 +69,9 @@
 
 // EBT: Batch = EMBED, tdEmbed = TDSAMPLES.
 // TBE: Batch = TDSAMPLES, tdEmbed = EMBED. SeqLen = BEAM in both modes.
-#define TS_EBT_SLOT TS_SLOT(BEAM * TDSAMPLES)
-#define TS_TBE_SLOT TS_SLOT(BEAM * EMBED)
-#define TS_SCORE_SLOT TS_SLOT(BEAM * BEAM)
+#define TS_EBT_SLOT TS_SLOT(BEAM *TDSAMPLES)
+#define TS_TBE_SLOT TS_SLOT(BEAM *EMBED)
+#define TS_SCORE_SLOT TS_SLOT(BEAM *BEAM)
 
 #define ACT_SIZE (BEAM * EMBED * 3 * TDSAMPLES)
 #define SCRATCH_SIZE (BEAM * (2 * EMBED) * TDSAMPLES * CONV1D_WF)
@@ -80,17 +80,16 @@
 // Without TILESHIFT the slots are dense and the offsets are 0, so these reduce
 // to the dense sizes, but the scores still need BEAM * BEAM per batch.
 #define L1_ACT_SIZE                                                            \
-  TS_MAX(ACT_SIZE,                                                             \
-         TS_MAX(TS_V_OFFSET(EMBED, TS_EBT_SLOT) + EMBED * TS_EBT_SLOT,         \
-                TS_V_OFFSET(TDSAMPLES, TS_TBE_SLOT) +                          \
-                    TDSAMPLES * TS_TBE_SLOT))
+  TS_MAX(                                                                      \
+      ACT_SIZE,                                                                \
+      TS_MAX(TS_V_OFFSET(EMBED, TS_EBT_SLOT) + EMBED * TS_EBT_SLOT,            \
+             TS_V_OFFSET(TDSAMPLES, TS_TBE_SLOT) + TDSAMPLES * TS_TBE_SLOT))
 #define L1_SCRATCH_SIZE                                                        \
   TS_MAX(SCRATCH_SIZE,                                                         \
-         TS_A_OFFSET + TS_MAX(EMBED, TDSAMPLES) *                              \
-                           TS_MAX(TS_SCORE_SLOT,                               \
-                                  TS_MAX(TS_EBT_SLOT, TS_TBE_SLOT)))
-#define L1_AW_SIZE                                                             \
-  TS_MAX(AW_SIZE, TS_MAX(EMBED, TDSAMPLES) * TS_SCORE_SLOT)
+         TS_A_OFFSET +                                                         \
+             TS_MAX(EMBED, TDSAMPLES) *                                        \
+                 TS_MAX(TS_SCORE_SLOT, TS_MAX(TS_EBT_SLOT, TS_TBE_SLOT)))
+#define L1_AW_SIZE TS_MAX(AW_SIZE, TS_MAX(EMBED, TDSAMPLES) * TS_SCORE_SLOT)
 
 // Size of the input and output of each layer, [BEAM][EMBED][TDSAMPLES]
 #define X_SIZE (BEAM * EMBED * TDSAMPLES)
@@ -115,11 +114,11 @@ __fp16 l2_I[X_SIZE] __attribute__((aligned(sizeof(int32_t)), section(".l2")));
 __fp16 l2_F[F_SIZE] __attribute__((aligned(sizeof(int32_t)), section(".l2")));
 
 __fp16 l1_act[L1_ACT_SIZE]
-  __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_scratch[L1_SCRATCH_SIZE]
-  __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_F[F_SIZE]
-  __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 
 typedef union {
   __fp16 x[X_SIZE];
@@ -128,4 +127,4 @@ typedef union {
 } l1_arena_t;
 
 l1_arena_t l1_arena
-  __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));

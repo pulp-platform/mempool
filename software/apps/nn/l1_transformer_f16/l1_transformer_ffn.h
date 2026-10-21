@@ -22,8 +22,8 @@
 */
 
 __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
-            __fp16 const *in, uint32_t Beam, uint32_t Embed,
-            uint32_t tdSamples, uint32_t Wf) {
+            __fp16 const *in, uint32_t Beam, uint32_t Embed, uint32_t tdSamples,
+            uint32_t Wf) {
 
   uint32_t core_id = mempool_get_core_id();
   uint32_t num_cores = mempool_get_core_count();
