@@ -38,10 +38,9 @@ $(BINS): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	$(RISCV_OBJCOPY) --remove-section=.riscv.attributes $@
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 
-
-###############
+#################
 # Multi-Cluster #
-###############
+#################
 
 MULTI_CLUSTER_DIR := $(APPS_DIR)/multi_cluster
 
