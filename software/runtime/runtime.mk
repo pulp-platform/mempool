@@ -148,26 +148,33 @@ RISCV_FLAGS_LLVM         ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-to
 RISCV_OBJDUMP_FLAGS_GCC  := --disassembler-option="march=$(RISCV_ARCH_AS)"
 RISCV_OBJDUMP_FLAGS_LLVM := --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
 
-# FlexCluster multi-cluster runtime integration
+# Multi-cluster (mc_pool) runtime integration
 ifeq ($(MULTI_CLUSTER),true)
 	MULTI_CLUSTER_DIR  := $(ROOT_DIR)/multi_cluster
 	DEFINES            += -DMULTI_CLUSTER -DMEMPOOL_CLUSTER_UNIT
-	RISCV_FLAGS_COMMON += -I$(MULTI_CLUSTER_DIR)/include
-	# The FlexCluster architecture headers are generated from the selected
-	# `config` so they always track the chosen hardware configuration.
-	MC_ARCH_CONFIG   := $(MULTI_CLUSTER_DIR)/configs/arch_$(config).py
-	MC_ARCH_HDR      := $(MULTI_CLUSTER_DIR)/include/mc_cluster_arch.h
-	MC_ARCH_INC      := $(MULTI_CLUSTER_DIR)/include/mc_cluster_arch.inc
-	ifeq ($(wildcard $(MC_ARCH_CONFIG)),)
-		$(error No MCluster arch config for config='$(config)'. Multi-cluster supports: mempool minpool tensorpool terapool)
+	# Architecture headers (mc_cluster_arch.h/.inc): multi_cluster/arch has the
+	# ones of the default configuration (see the comment on top of them). For
+	# another configuration, generate them with
+	# pulp/chips/mc_pool/common/utils/config.py in GVSoC and pass their
+	# directory with MC_ARCH_DIR.
+	MC_ARCH_DIR        ?= $(MULTI_CLUSTER_DIR)/arch
+	MC_ARCH_HDR        := $(MC_ARCH_DIR)/mc_cluster_arch.h
+	RISCV_FLAGS_COMMON += -I$(MC_ARCH_DIR) -I$(MULTI_CLUSTER_DIR)/include
+	ifeq ($(wildcard $(MC_ARCH_HDR)),)
+    $(error No mc_cluster_arch.h in MC_ARCH_DIR=$(MC_ARCH_DIR))
 	endif
-	# Compilation must wait for the headers to be (re)generated.
-	MC_HDR_DEP := $(MC_ARCH_HDR) $(MC_ARCH_INC)
-	# The arch config reads num_cores and num_redmule_tiles from the
-	# environment and derives the L1 bank size from num_cores: take the bank
-	# size from there too.
-	MC_ARCH_ENV  := NUM_CORES=$(num_cores) NUM_REDMULE_TILES=$(num_redmule_tiles)
-	l1_bank_size := $(shell $(MC_ARCH_ENV) $(python) -c "import importlib.util as u; s = u.spec_from_file_location('a', '$(MC_ARCH_CONFIG)'); m = u.module_from_spec(s); s.loader.exec_module(m); print(m.FlexClusterArch().bank_size)")
+	# The headers must describe the cores and tensor engines the software is
+	# built for
+	mc_arch_value = $(shell sed -n 's/^\#define ARCH_$(1) //p' $(MC_ARCH_HDR))
+	ifneq ($(call mc_arch_value,NUM_CORE_PER_CLUSTER),$(num_cores))
+    $(error $(MC_ARCH_HDR) is for $(call mc_arch_value,NUM_CORE_PER_CLUSTER) cores, not num_cores=$(num_cores): generate the headers for this configuration and pass MC_ARCH_DIR)
+	endif
+	ifneq ($(call mc_arch_value,NB_REDMULE_TILES),$(num_redmule_tiles))
+    $(error $(MC_ARCH_HDR) is for $(call mc_arch_value,NB_REDMULE_TILES) tensor engines, not num_redmule_tiles=$(num_redmule_tiles): generate the headers for this configuration and pass MC_ARCH_DIR)
+	endif
+	# Recompile when the headers change
+	MC_HDR_DEP   := $(MC_ARCH_HDR) $(MC_ARCH_DIR)/mc_cluster_arch.inc
+	l1_bank_size := $(call mc_arch_value,BANK_SIZE)
 endif
 
 # Enable soft-divsqrt when the hardware is not supported.
@@ -216,12 +223,6 @@ HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 .INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(HALIDE_RUNTIME) $(LINKER_SCRIPT)
 # Disable builtin rules
 .SUFFIXES:
-
-# Generate the FlexCluster architecture headers from the selected config.
-ifeq ($(MULTI_CLUSTER),true)
-$(MC_ARCH_HDR) $(MC_ARCH_INC) &: $(MC_ARCH_CONFIG) $(MULTI_CLUSTER_DIR)/gen_mc_arch.py FORCE
-	$(MC_ARCH_ENV) $(python) $(MULTI_CLUSTER_DIR)/gen_mc_arch.py $(MC_ARCH_CONFIG) --outdir $(MULTI_CLUSTER_DIR)/include
-endif
 
 %.S.o: %.S $(MC_HDR_DEP)
 	$(RISCV_CC) $(RISCV_CCFLAGS) -c $< -o $@

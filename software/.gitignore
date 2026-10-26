@@ -14,7 +14,6 @@ bin/
 *.ll
 *.dump
 runtime/arch.ld
-runtime/multi_cluster/include/mc_cluster_arch.*
 
 # libraries
 *.lib
