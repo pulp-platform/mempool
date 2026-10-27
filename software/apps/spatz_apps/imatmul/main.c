@@ -27,7 +27,15 @@
 #include "alloc.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "encoding.h"
 #endif
+
+#define USE_DMA
+
+#ifdef USE_DMA
+#include "dma.h"
+#endif
+
 
 // Initialize the matrices
 void init_matrix(uint32_t *matrix, const uint32_t *src,
@@ -93,20 +101,35 @@ int main() {
   // Initialize multicore barrier
   mempool_barrier_init(cid);
 
-  // Initialize the matrices
-  if (is_core_active) {
-    init_matrix(a, gemm_A_dram, cid * (gemm_l.M / active_cores),
-                (cid + 1) * (gemm_l.M / active_cores), gemm_l.K);
-    init_matrix(b, gemm_B_dram, cid * (gemm_l.K / active_cores),
-                (cid + 1) * (gemm_l.K / active_cores), gemm_l.N);
-    init_matrix(c, gemm_C_dram, cid * (gemm_l.M / active_cores),
-                (cid + 1) * (gemm_l.M / active_cores), gemm_l.N);
-  }
 
+  #ifdef USE_DMA
+  if (cid == 0) {
+    dma_memcpy_blocking(a, gemm_A_dram, (gemm_l.M * gemm_l.K) * sizeof(float));
+    dma_memcpy_blocking(b, gemm_B_dram, (gemm_l.K * gemm_l.N) * sizeof(float));
+    dma_memcpy_blocking(c, gemm_C_dram, (gemm_l.M * gemm_l.N) * sizeof(float));
+    // dma_memcpy_blocking(r, gemm_checksum, gemm_l.M * sizeof(float));
+
+    init_matrix(r, gemm_checksum, 0, 1, gemm_l.M);
+  }
+  #else
+  // Initialize matrices
+  init_matrix(a, gemm_A_dram, cid * (gemm_l.M / active_cores),
+              (cid + 1) * (gemm_l.M / active_cores), gemm_l.K);
+  init_matrix(b, gemm_B_dram, cid * (gemm_l.K / active_cores),
+              (cid + 1) * (gemm_l.K / active_cores), gemm_l.N);
+  init_matrix(c, gemm_C_dram, cid * (gemm_l.M / active_cores),
+              (cid + 1) * (gemm_l.M / active_cores), gemm_l.N);
   // Initialize the checksum
   if (cid == 0) {
     init_matrix(r, gemm_checksum, 0, 1, gemm_l.M);
   }
+  #endif
+
+  if (cid == 0)
+    printf("finish copy\n");
+
+  // Wait for all cores to finish
+  mempool_barrier(num_cores);
 
   // Reset timer
   timer = (unsigned int)-1;
