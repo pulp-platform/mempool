@@ -37,7 +37,7 @@ endif
 ifeq ($(origin CXX),default)
   CXX ?= g++
 endif
-BENDER_VERSION = 0.28.2
+BENDER_VERSION = 0.32.1
 
 # We need a recent LLVM installation (>11) to compile Verilator.
 # We also need to link the binaries with LLVM's libc++.
@@ -169,7 +169,7 @@ check-bender:
 
 $(BENDER_INSTALL_DIR)/bender:
 	mkdir -p $(BENDER_INSTALL_DIR) && cd $(BENDER_INSTALL_DIR) && \
-	curl --proto '=https' --tlsv1.2 https://pulp-platform.github.io/bender/init -sSf | sh -s -- $(BENDER_VERSION)
+	curl --proto '=https' --tlsv1.2 https://pulp-platform.github.io/bender/init -sSf | sh -s -- --local $(BENDER_VERSION)
 
 # Update hardware dependencies for MemPool
 .PHONY: update-deps

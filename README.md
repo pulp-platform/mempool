@@ -4,9 +4,9 @@
 
 # MemPool
 
-MemPool is a many-core system targeting image processing and wireless applications. It implements 256 RISC-V cores that can access a large, shared L1 memory in at most five cycles. TeraPool and MinPool, respectively a 1024 RISC-V cores scaled-up and a 16 RISC-V cores scaled-down parametrizations of MemPool are also supported.
+MemPool is a many-core system targeting image processing and wireless applications. It implements 256 RISC-V cores that can access a large, shared L1 memory in at most five cycles. TeraPool and MinPool, respectively a 1024 RISC-V cores scaled-up and a 16 RISC-V cores scaled-down parametrizations of MemPool, and TensorPool, a domain specific enhancement for AI-Native RANs are also supported.
 
-This repository contains the software and hardware of MinPool, MemPool, and TeraPool, as well as infrastructure for compilation and simulation.
+This repository contains the software and hardware of MinPool, MemPool, TeraPool, and TensorPool as well as infrastructure for compilation and simulation.
 
 ## Structure
 
@@ -194,6 +194,7 @@ MemPool's core-count is parametrizable. In `./config`, the `config.mk` file incl
 - `terapool`: 1024 cores, organized into 128 tiles with eight cores each
 - `mempool`: 256 cores, organized into 64 tiles with four cores each (default)
 - `minpool`: 16 cores, organized into 4 tiles with four cores each
+- `tensorpool`: 256 cores, organized in 64 tiles and 16 tensor engines
 
 The software and the hardware for different MemPool configurations can be compiled specifying the desired configuration on the command line. For example, to compile and simulate the `hello_world` app for TeraPool:
 ```bash
