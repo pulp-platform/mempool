@@ -295,6 +295,8 @@ jobs:
       with:
         name: apps-gcc-${{ matrix.mempool_config }}
         path: apps-gcc.tzst
+        # Kept after runs on main for the GVSoC CI, which runs these binaries on its MemPool model
+        retention-days: 3
 
   build-apps-llvm:
     runs-on: ubuntu-22.04
@@ -332,6 +334,8 @@ jobs:
       with:
         name: apps-llvm-${{ matrix.mempool_config }}
         path: apps-llvm.tzst
+        # Kept after runs on main for the GVSoC CI, which runs these binaries on its MemPool model
+        retention-days: 3
 
   build-apps-halide:
     runs-on: ubuntu-22.04
@@ -561,6 +565,12 @@ jobs:
       with:
         name: |
           verilator-model-${{ matrix.mempool_config }}
+          apps-halide-${{ matrix.mempool_config }}
+    - name: Delete apps artifacts
+      # The apps of runs on main are kept for the GVSoC CI
+      if: github.ref != 'refs/heads/main'
+      uses: geekyeggo/delete-artifact@v5
+      with:
+        name: |
           apps-gcc-${{ matrix.mempool_config }}
           apps-llvm-${{ matrix.mempool_config }}
-          apps-halide-${{ matrix.mempool_config }}
