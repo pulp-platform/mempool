@@ -359,14 +359,14 @@
     register int32_t k asm("x1") = (int32_t)end_b;                             \
     __asm__ volatile(                                                          \
         ".balign 16 \n\t"                                                      \
-        "p.lw  x3, %[N](%[addr_a]!) \n\t"                                      \
-        "p.lw x12, 4(%[addr_b]!) \n\t"                                         \
-        "p.lw x13, 4(%[addr_b]!) \n\t"                                         \
-        "p.lw x14, 4(%[addr_b]!) \n\t"                                         \
-        "p.lw x15, %[P3](%[addr_b]!) \n\t"                                     \
-        "p.lw  x4, %[N](%[addr_a]!) \n\t"                                      \
-        "p.lw x10, %[N](%[addr_a]!) \n\t"                                      \
-        "p.lw x11, %[N31](%[addr_a]!) \n\t"                                    \
+        "p.lw.irpost x3, (%[addr_a]), %[N] \n\t"                               \
+        "p.lw.irpost x12, (%[addr_b]), 4 \n\t"                                 \
+        "p.lw.irpost x13, (%[addr_b]), 4 \n\t"                                 \
+        "p.lw.irpost x14, (%[addr_b]), 4 \n\t"                                 \
+        "p.lw.rrpost x15, (%[addr_b]), %[P3] \n\t"                             \
+        "p.lw.irpost x4, (%[addr_a]), %[N] \n\t"                               \
+        "p.lw.irpost x10, (%[addr_a]), %[N] \n\t"                              \
+        "p.lw.rrpost x11, (%[addr_a]), %[N31] \n\t"                            \
         "mv x16, zero \n\t"                                                    \
         "mv x17, zero \n\t"                                                    \
         "mv x18, zero \n\t"                                                    \
@@ -387,26 +387,26 @@
         "fcdotpex.s.h x17,  x3, x13 \n\t"                                      \
         "fcdotpex.s.h x18,  x3, x14 \n\t"                                      \
         "fcdotpex.s.h x19,  x3, x15 \n\t"                                      \
-        "p.lw  x3, %[N](%[addr_a]!) \n\t"                                      \
+        "p.lw.irpost x3, (%[addr_a]), %[N] \n\t"                               \
         "fcdotpex.s.h x20,  x4, x12 \n\t"                                      \
         "fcdotpex.s.h x21,  x4, x13 \n\t"                                      \
         "fcdotpex.s.h x22,  x4, x14 \n\t"                                      \
         "fcdotpex.s.h x23,  x4, x15 \n\t"                                      \
-        "p.lw  x4, %[N](%[addr_a]!) \n\t"                                      \
+        "p.lw.irpost x4, (%[addr_a]), %[N] \n\t"                               \
         "fcdotpex.s.h x24, x10, x12 \n\t"                                      \
         "fcdotpex.s.h x25, x10, x13 \n\t"                                      \
         "fcdotpex.s.h x26, x10, x14 \n\t"                                      \
         "fcdotpex.s.h x27, x10, x15 \n\t"                                      \
-        "p.lw x10, %[N](%[addr_a]!) \n\t"                                      \
+        "p.lw.irpost x10, (%[addr_a]), %[N] \n\t"                              \
         "fcdotpex.s.h x28, x11, x12 \n\t"                                      \
-        "p.lw x12, 4(%[addr_b]!) \n\t"                                         \
+        "p.lw.irpost x12, (%[addr_b]), 4 \n\t"                                 \
         "fcdotpex.s.h x29, x11, x13 \n\t"                                      \
-        "p.lw x13, 4(%[addr_b]!) \n\t"                                         \
+        "p.lw.irpost x13, (%[addr_b]), 4 \n\t"                                 \
         "fcdotpex.s.h x30, x11, x14 \n\t"                                      \
-        "p.lw x14, 4(%[addr_b]!) \n\t"                                         \
+        "p.lw.irpost x14, (%[addr_b]), 4 \n\t"                                 \
         "fcdotpex.s.h x31, x11, x15 \n\t"                                      \
-        "p.lw x15, %[P3](%[addr_b]!) \n\t"                                     \
-        "p.lw x11, %[N31](%[addr_a]!) \n\t"                                    \
+        "p.lw.rrpost x15, (%[addr_b]), %[P3] \n\t"                             \
+        "p.lw.rrpost x11, (%[addr_a]), %[N31] \n\t"                            \
         "1: \n\t"                                                              \
         "fcdotpex.s.h x16,  x3, x12 \n\t"                                      \
         "fcdotpex.s.h x17,  x3, x13 \n\t"                                      \
@@ -415,56 +415,56 @@
         "fcdotpex.s.h x18,  x3, x14 \n\t"                                      \
         "fcdotpex.s.h x22,  x4, x14 \n\t"                                      \
         "fcdotpex.s.h x19,  x3, x15 \n\t"                                      \
-        "p.lw  x3, %[N](%[addr_a]!) \n\t"                                      \
+        "p.lw.irpost x3, (%[addr_a]), %[N] \n\t"                               \
         "fcdotpex.s.h x23,  x4, x15 \n\t"                                      \
-        "p.lw  x4, %[N](%[addr_a]!) \n\t"                                      \
+        "p.lw.irpost x4, (%[addr_a]), %[N] \n\t"                               \
         "fcdotpex.s.h x24, x10, x12 \n\t"                                      \
         "fcdotpex.s.h x28, x11, x12 \n\t"                                      \
-        "p.lw x12, 4(%[addr_b]!) \n\t"                                         \
+        "p.lw.irpost x12, (%[addr_b]), 4 \n\t"                                 \
         "fcdotpex.s.h x25, x10, x13 \n\t"                                      \
         "fcdotpex.s.h x29, x11, x13 \n\t"                                      \
-        "p.lw x13, 4(%[addr_b]!) \n\t"                                         \
+        "p.lw.irpost x13, (%[addr_b]), 4 \n\t"                                 \
         "fcdotpex.s.h x26, x10, x14 \n\t"                                      \
         "fcdotpex.s.h x30, x11, x14 \n\t"                                      \
-        "p.lw x14, 4(%[addr_b]!) \n\t"                                         \
+        "p.lw.irpost x14, (%[addr_b]), 4 \n\t"                                 \
         "fcdotpex.s.h x27, x10, x15 \n\t"                                      \
         "fcdotpex.s.h x31, x11, x15 \n\t"                                      \
-        "p.lw x15, %[P3](%[addr_b]!) \n\t"                                     \
-        "p.lw x10, %[N](%[addr_a]!) \n\t"                                      \
-        "p.lw x11, %[N31](%[addr_a]!) \n\t"                                    \
+        "p.lw.rrpost x15, (%[addr_b]), %[P3] \n\t"                             \
+        "p.lw.irpost x10, (%[addr_a]), %[N] \n\t"                              \
+        "p.lw.rrpost x11, (%[addr_a]), %[N31] \n\t"                            \
         "bne %[addr_b], x1, 1b \n\t"                                           \
         "fcdotpex.s.h x16,  x3, x12 \n\t"                                      \
         "fcdotpex.s.h x17,  x3, x13 \n\t"                                      \
         "fcdotpex.s.h x18,  x3, x14 \n\t"                                      \
-        "p.sw x16, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x16, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x19,  x3, x15 \n\t"                                      \
-        "p.sw x17, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x17, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x20,  x4, x12 \n\t"                                      \
-        "p.sw x18, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x18, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x21,  x4, x13 \n\t"                                      \
-        "p.sw x19, %[P3](%[addr_c]!) \n\t"                                     \
+        "p.sw.rrpost x19, (%[addr_c]), %[P3] \n\t"                             \
         "fcdotpex.s.h x22,  x4, x14 \n\t"                                      \
-        "p.sw x20, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x20, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x23,  x4, x15 \n\t"                                      \
-        "p.sw x21, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x21, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x24, x10, x12 \n\t"                                      \
-        "p.sw x22, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x22, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x25, x10, x13 \n\t"                                      \
-        "p.sw x23, %[P3](%[addr_c]!) \n\t"                                     \
+        "p.sw.rrpost x23, (%[addr_c]), %[P3] \n\t"                             \
         "fcdotpex.s.h x26, x10, x14 \n\t"                                      \
-        "p.sw x24, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x24, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x27, x10, x15 \n\t"                                      \
-        "p.sw x25, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x25, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x28, x11, x12 \n\t"                                      \
-        "p.sw x26, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x26, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x29, x11, x13 \n\t"                                      \
-        "p.sw x27, %[P3](%[addr_c]!) \n\t"                                     \
+        "p.sw.rrpost x27, (%[addr_c]), %[P3] \n\t"                             \
         "fcdotpex.s.h x30, x11, x14 \n\t"                                      \
-        "p.sw x28, 4(%[addr_c]!) \n\t"                                         \
+        "p.sw.irpost x28, (%[addr_c]), 4 \n\t"                                 \
         "fcdotpex.s.h x31, x11, x15 \n\t"                                      \
-        "p.sw x29, 4(%[addr_c]!) \n\t"                                         \
-        "p.sw x30, 4(%[addr_c]!) \n\t"                                         \
-        "p.sw x31, %[P3](%[addr_c]!) \n\t"                                     \
+        "p.sw.irpost x29, (%[addr_c]), 4 \n\t"                                 \
+        "p.sw.irpost x30, (%[addr_c]), 4 \n\t"                                 \
+        "p.sw.rrpost x31, (%[addr_c]), %[P3] \n\t"                             \
         :                                                                      \
         [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b), [addr_c] "+&r"(addr_c) \
         : [N31] "r"(N31), [P3] "r"(P3), [x1] "r"(k), [N] "I"(dim_N * 4)        \
