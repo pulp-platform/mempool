@@ -48,8 +48,8 @@ module tensorpool_interco_tier
   output dma_meta_t                          dma_meta_o,
   output axi_tile_req_t  [NumAXIMasters-1:0] axi_mst_req_o,
   input  axi_tile_resp_t [NumAXIMasters-1:0] axi_mst_resp_i,
-  // Vertical: clock, reset and test propagated to each Group
-  output logic                               compute_clk_o,
+  // Vertical: one clock tap per Group, reset and test propagated to each Group
+  output logic           [NumGroups-1:0]     compute_clk_o,
   output logic                               compute_rst_no,
   output logic                               compute_testmode_o,
   output logic                               compute_scan_enable_o,
@@ -201,10 +201,20 @@ module tensorpool_interco_tier
   /********************************
    *  Propagation to compute tier *
    ********************************/
-  // Clock, reset and test are driven down as single nets. How many bond
-  // terminals carry them, and where they sit over the compute die, is a
-  // floorplan decision and does not belong in the RTL.
-  assign compute_clk_o           = clk_i;
+  // One clock tap per Group, each through its own clock buffer so that the
+  // tap is a net of its own from elaboration on. The clock tree of this die
+  // drives the taps, and each crosses the bond directly above its Group's
+  // clock pin.
+  for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_compute_clk
+    tc_clk_buffer i_compute_clk_buffer (
+      .clk_i (clk_i           ),
+      .clk_o (compute_clk_o[g])
+    );
+  end: gen_compute_clk
+
+  // Reset and test are driven down as single nets. How many bond terminals
+  // carry them, and where they sit over the compute die, is a floorplan
+  // decision and does not belong in the RTL.
   assign compute_rst_no          = rst_ni;
   assign compute_testmode_o      = testmode_i;
   assign compute_scan_enable_o   = scan_enable_i;

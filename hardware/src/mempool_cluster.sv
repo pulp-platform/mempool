@@ -62,7 +62,7 @@ module mempool_cluster
    *  Die-to-die interface  *
    **************************/
   // Control, clock and reset travel downwards; TCDM traffic travels both ways.
-  logic                               d2d_clk;
+  logic           [NumGroups-1:0]     d2d_clk;
   logic                               d2d_rst_n;
   logic                               d2d_testmode;
   logic                               d2d_scan_enable;

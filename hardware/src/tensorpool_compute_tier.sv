@@ -14,13 +14,11 @@
 // interfaces, indexed by Group, so that bump planning can be scripted from the
 // index rather than from a name table.
 //
-// Clock and reset arrive as single nets and are distributed inside the die.
-// They are deliberately NOT declared one per Group: a replicated bus does not
-// buy anything in silicon, where several bond terminals can sit on the same
-// clock net as a floorplan decision, and in simulation the bit selects of a
-// replicated clock and a replicated reset do not necessarily resolve in the
-// same delta, which shifts reset release by a cycle relative to the
-// interconnect tier.
+// Each Group is clocked by its own input: a tap that the interconnect tier
+// buffers out of its clock tree and that crosses the bond directly above the
+// Group's clock pin, so this die builds no clock tree. Reset and test arrive as
+// single nets and are not replicated: several bond terminals can sit on the
+// same net as a floorplan decision.
 //
 // Hierarchical implementation order: harden mempool_group first with all of its
 // ports declared as vertical, then assemble NumGroups of them here.
@@ -38,8 +36,8 @@ module tensorpool_compute_tier
   // Dependant parameter. DO NOT CHANGE!
   parameter int    unsigned        NumAXIMasters = NumGroups * NumAXIMastersPerGroup
 ) (
-  // Vertical: clock, reset and test
-  input  logic                                        clk_i,
+  // Vertical: one clock per Group, reset and test
+  input  logic                    [NumGroups-1:0]     clk_i,
   input  logic                                        rst_ni,
   input  logic                                        testmode_i,
   input  logic                                        scan_enable_i,
@@ -130,7 +128,7 @@ module tensorpool_compute_tier
       for (genvar g = 0; unsigned'(g) < NumGroups; g++) begin: gen_groups
         if (PostLayoutGr & (g == 0)) begin: gen_postly_group
           mempool_group_postlayout i_group (
-            .clk_i                   (clk_i           ),
+            .clk_i                   (clk_i[g]        ),
             .rst_ni                  (rst_ni          ),
             .testmode_i              (testmode_i      ),
             .scan_enable_i           (scan_enable_i   ),
@@ -171,7 +169,7 @@ module tensorpool_compute_tier
             // For post-synthesis
             .GroupId      (g[idx_width(NumGroups)-1:0])
           ) i_group (
-            .clk_i                   (clk_i           ),
+            .clk_i                   (clk_i[g]        ),
             .rst_ni                  (rst_ni          ),
             .testmode_i              (testmode_i      ),
             .scan_enable_i           (scan_enable_i   ),
@@ -209,7 +207,7 @@ module tensorpool_compute_tier
             .TCDMBaseAddr (TCDMBaseAddr         ),
             .BootAddr     (BootAddr             )
           ) i_group (
-            .clk_i                   (clk_i           ),
+            .clk_i                   (clk_i[g]        ),
             .rst_ni                  (rst_ni          ),
             .testmode_i              (testmode_i      ),
             .scan_enable_i           (scan_enable_i   ),
@@ -283,7 +281,7 @@ module tensorpool_compute_tier
           .TCDMBaseAddr (TCDMBaseAddr         ),
           .BootAddr     (BootAddr             )
         ) i_group (
-          .clk_i                   (clk_i           ),
+          .clk_i                   (clk_i[g]        ),
           .rst_ni                  (rst_ni          ),
           .testmode_i              (testmode_i      ),
           .scan_enable_i           (scan_enable_i   ),
