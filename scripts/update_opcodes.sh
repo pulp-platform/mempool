@@ -9,6 +9,13 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 OPCODES=($(cat "$(dirname "${BASH_SOURCE[0]}")/opcodes.txt"))
 
+# Run riscv_opcodes in a scratch directory, with git pointing at the
+# riscv-opcodes repository: the generated header is stamped with its commit
+export GIT_DIR=$(git -C $ROOT/toolchain/riscv-opcodes rev-parse --absolute-git-dir)
+WORK_DIR=$(mktemp -d)
+trap 'rm -rf $WORK_DIR' EXIT
+cd $WORK_DIR
+
 INSTR_SV=$ROOT/hardware/deps/snitch/src/riscv_instr.sv
 
 cat > $INSTR_SV <<- EOM

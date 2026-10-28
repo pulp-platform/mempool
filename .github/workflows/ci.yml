@@ -173,6 +173,15 @@ jobs:
     - name: Untar Verilator
       if: steps.verilator-model.outputs.cache-hit != 'true'
       run: tar --use-compress-program zstd -xf verilator.tzst
+    - name: Recover the Bender version
+      if: steps.verilator-model.outputs.cache-hit != 'true'
+      run: echo "bender-version=$(sed -n 's/^BENDER_VERSION *= *//p' Makefile)" >> $GITHUB_ENV
+    - name: Cache Bender
+      if: steps.verilator-model.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      with:
+        path: install/bender
+        key: ${{ runner.os }}-bender-${{ env.bender-version }}
     - name: Build Model
       if: steps.verilator-model.outputs.cache-hit != 'true'
       env:
@@ -222,6 +231,13 @@ jobs:
       run: |
         git submodule update --init -- toolchain/riscv-opcodes
         pip install -r python-requirements.txt
+    - name: Recover the Bender version
+      run: echo "bender-version=$(sed -n 's/^BENDER_VERSION *= *//p' Makefile)" >> $GITHUB_ENV
+    - name: Cache Bender
+      uses: actions/cache@v4
+      with:
+        path: install/bender
+        key: ${{ runner.os }}-bender-${{ env.bender-version }}
     - name: Build Control Registers
       run: |
         make bender
@@ -513,6 +529,13 @@ jobs:
       run: |
         git submodule update --init -- toolchain/riscv-opcodes
         pip install -r python-requirements.txt
+    - name: Recover the Bender version
+      run: echo "bender-version=$(sed -n 's/^BENDER_VERSION *= *//p' Makefile)" >> $GITHUB_ENV
+    - name: Cache Bender
+      uses: actions/cache@v4
+      with:
+        path: install/bender
+        key: ${{ runner.os }}-bender-${{ env.bender-version }}
     - name: Execute tests
       run: |
         # Don't regenerate previously build artifacts
