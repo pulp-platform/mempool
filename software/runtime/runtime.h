@@ -212,7 +212,7 @@ static inline void set_wake_up_offset(uint32_t offset) {
 // the 8th register.
 // Alternatively, the `write_csr(reg, val)` macro can be used directly.
 #define dump(name, reg)                                                        \
-  static                                                                       \
-      __attribute__((always_inline)) inline void dump_##name(uint32_t val) {   \
+  static __attribute__((always_inline)) inline void dump_##name(               \
+      uint32_t val) {                                                          \
     asm volatile("csrw " #reg ", %0" ::"rK"(val));                             \
   }

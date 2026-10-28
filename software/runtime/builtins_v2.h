@@ -300,16 +300,16 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
 #define __MACSN(Acc, x, y, n) __builtin_pulp_macsN((x), (y), (Acc), (n))
 #define __MACUN(Acc, x, y, n) __builtin_pulp_macuN((x), (y), (Acc), (n))
 #define __MACSRN(Acc, x, y, n)                                                 \
-  __builtin_pulp_macsRN((x), (y), (Acc), (n), (1 << ((n)-1)))
+  __builtin_pulp_macsRN((x), (y), (Acc), (n), (1 << ((n) - 1)))
 #define __MACURN(Acc, x, y, n)                                                 \
-  __builtin_pulp_macuRN((x), (y), (Acc), (n), (1 << ((n)-1)))
+  __builtin_pulp_macuRN((x), (y), (Acc), (n), (1 << ((n) - 1)))
 
 #define __MACHHSN(Acc, x, y, n) __builtin_pulp_machhsN((x), (y), (Acc), (n))
 #define __MACHHUN(Acc, x, y, n) __builtin_pulp_machhuN((x), (y), (Acc), (n))
 #define __MACHHSRN(Acc, x, y, n)                                               \
-  __builtin_pulp_machhsN((x), (y), (Acc), (n), (1 << ((n)-1)))
+  __builtin_pulp_machhsN((x), (y), (Acc), (n), (1 << ((n) - 1)))
 #define __MACHHURN(Acc, x, y, n)                                               \
-  __builtin_pulp_machhuN((x), (y), (Acc), (n), (1 << ((n)-1)))
+  __builtin_pulp_machhuN((x), (y), (Acc), (n), (1 << ((n) - 1)))
 
 /* Multiplications */
 #define __MULS(x, y) __builtin_pulp_muls((x), (y))
@@ -318,16 +318,16 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
 #define __MULHHU(x, y) __builtin_pulp_mulhhu((x), (y))
 
 #define __MULSN(x, y, n) __builtin_pulp_mulsN((x), (y), (n))
-#define __MULSRN(x, y, n) __builtin_pulp_mulsRN((x), (y), (n), (1 << ((n)-1)))
+#define __MULSRN(x, y, n) __builtin_pulp_mulsRN((x), (y), (n), (1 << ((n) - 1)))
 #define __MULUN(x, y, n) __builtin_pulp_muluN((x), (y), (n))
-#define __MULURN(x, y, n) __builtin_pulp_muluRN((x), (y), (n), (1 << ((n)-1)))
+#define __MULURN(x, y, n) __builtin_pulp_muluRN((x), (y), (n), (1 << ((n) - 1)))
 
 #define __MULHHSN(x, y, n) __builtin_pulp_mulhhsN((x), (y), (n))
 #define __MULHHSRN(x, y, n)                                                    \
-  __builtin_pulp_mulhhsRN((x), (y), (n), (1 << ((n)-1)))
+  __builtin_pulp_mulhhsRN((x), (y), (n), (1 << ((n) - 1)))
 #define __MULHHUN(x, y, n) __builtin_pulp_mulhhuN((x), (y), (n))
 #define __MULHHURN(x, y, n)                                                    \
-  __builtin_pulp_mulhhuRN((x), (y), (n), (1 << ((n)-1)))
+  __builtin_pulp_mulhhuRN((x), (y), (n), (1 << ((n) - 1)))
 
 /* Vectorial product and sum of products */
 #define __DOTP2(x, y) __builtin_pulp_dotsp2((x), (y))
@@ -403,8 +403,9 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
 /* Number of sign bits */
 #define __CLB(x) __builtin_pulp_clb((x))
 
-static inline unsigned int __attribute__((always_inline))
-__ExtInsMaskFast(unsigned int Size, unsigned int Offset) {
+static inline unsigned int
+    __attribute__((always_inline)) __ExtInsMaskFast(unsigned int Size,
+                                                    unsigned int Offset) {
   return ((((Size - 1)) << 5) | (Offset));
 }
 static inline unsigned int __attribute__((always_inline))
@@ -462,11 +463,11 @@ __ExtInsMaskSafe(unsigned int Size, unsigned int Offset) {
 
 /* Add with normalization and rounding */
 #define __ADDROUNDNORMU(x, y, scale)                                           \
-  __builtin_pulp_adduRN((x), (y), (scale), (1 << ((scale)-1)))
+  __builtin_pulp_adduRN((x), (y), (scale), (1 << ((scale) - 1)))
 #define __ADDROUNDNORMU_REG(x, y, scale)                                       \
   __builtin_pulp_adduRN_r((x), (y), (scale))
 #define __ADDROUNDNORM(x, y, scale)                                            \
-  __builtin_pulp_addRN((x), (y), (scale), (1 << ((scale)-1)))
+  __builtin_pulp_addRN((x), (y), (scale), (1 << ((scale) - 1)))
 #define __ADDROUNDNORM_REG(x, y, scale)                                        \
   __builtin_pulp_addRN_r((x), (y), (scale))
 
@@ -478,20 +479,20 @@ __ExtInsMaskSafe(unsigned int Size, unsigned int Offset) {
 
 /* Sub with normalization and rounding */
 #define __SUBROUNDNORMU(x, y, scale)                                           \
-  __builtin_pulp_subuRN((x), (y), (scale), (1 << ((scale)-1)))
+  __builtin_pulp_subuRN((x), (y), (scale), (1 << ((scale) - 1)))
 #define __SUBROUNDNORMU_REG(x, y, scale)                                       \
   __builtin_pulp_subuRN_r((x), (y), (scale))
 #define __SUBROUNDNORM(x, y, scale)                                            \
-  __builtin_pulp_subRN((x), (y), (scale), (1 << ((scale)-1)))
+  __builtin_pulp_subRN((x), (y), (scale), (1 << ((scale) - 1)))
 #define __SUBROUNDNORM_REG(x, y, scale)                                        \
   __builtin_pulp_subRN_r((x), (y), (scale))
 
 /* Normalization and rounding */
 #define __ROUNDNORMU(x, scale)                                                 \
-  __builtin_pulp_adduRN((x), 0, (scale), (1 << ((scale)-1)))
+  __builtin_pulp_adduRN((x), 0, (scale), (1 << ((scale) - 1)))
 #define __ROUNDNORMU_REG(x, scale) __builtin_pulp_adduRN_r((x), 0, (scale))
 #define __ROUNDNORM(x, scale)                                                  \
-  __builtin_pulp_addRN((x), 0, (scale), (1 << ((scale)-1)))
+  __builtin_pulp_addRN((x), 0, (scale), (1 << ((scale) - 1)))
 #define __ROUNDNORM_REG(x, scale) __builtin_pulp_addRN_r((x), 0, (scale))
 
 #define __COREID() __builtin_pulp_CoreId()
