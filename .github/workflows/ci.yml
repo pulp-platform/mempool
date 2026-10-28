@@ -507,7 +507,7 @@ jobs:
   unit-test:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
-    needs: [tc-gcc, riscv-isa-sim, verilator-model]
+    needs: [tc-gcc, tc-llvm, verilator-model]
     steps:
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
@@ -516,12 +516,12 @@ jobs:
         name: riscv-gnu-toolchain
     - name: Untar riscv-gnu-toolchain
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
-    - name: Get riscv-isa-sim artifacts
+    - name: Get llvm-project artifacts
       uses: actions/download-artifact@v4
       with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:

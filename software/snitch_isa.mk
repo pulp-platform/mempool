@@ -1,3 +1,9 @@
+# Copyright 2021 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+# Author: Marco Bertuletti, ETH Zurich
+
 #=======================================================================
 # Makefrag for instructions in Snitch ISA employed in MemPool
 #-----------------------------------------------------------------------
@@ -180,7 +186,6 @@ rtl_tests += $(addprefix rv32um-, $(rv32um_snitch_sc_tests))
 ifeq ($(xpulpimg),1)
 rtl_tests += $(addprefix rv32uxpulpimg-, $(rv32uxpulpimg_snitch_sc_tests))
 endif
-ifeq ($(COMPILER), llvm)
 ifeq ($(zfinx),1)
 rtl_tests += $(addprefix rv32uzfinx-, $(rv32uzfinx_snitch_sc_tests))
 rtl_tests += $(addprefix rv32uzhinx-, $(rv32uzhinx_snitch_sc_tests))
@@ -188,5 +193,4 @@ rtl_tests += $(addprefix rv32uxsmallfloathinx-, $(rv32uxsmallfloathinx_snitch_sc
 endif
 ifeq ($(zquarterinx), 1)
 rtl_tests += $(addprefix rv32uxsmallfloatbinx-, $(rv32uxsmallfloatbinx_snitch_sc_tests))
-endif
 endif

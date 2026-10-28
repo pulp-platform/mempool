@@ -2,7 +2,13 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-# Unit tests
+# Unit tests, compiled with LLVM only
+ifneq ($(filter riscv-tests bin/rv32%,$(MAKECMDGOALS)),)
+ifneq ($(COMPILER),llvm)
+$(error The riscv-tests are compiled with LLVM only, use COMPILER=llvm)
+endif
+endif
+
 RISCV_TESTS := $(addprefix bin/,$(rtl_tests))
 
 define rtl_mempool_tests_template

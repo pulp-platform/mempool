@@ -121,7 +121,7 @@ riscv-tests: build-riscv-tests
 	config=minpool make -C hardware verilate-test
 
 build-riscv-tests: update-opcodes
-	config=minpool make -C $(SOFTWARE_DIR) riscv-tests
+	config=minpool COMPILER=llvm make -C $(SOFTWARE_DIR) riscv-tests
 
 clean-riscv-tests:
 	$(MAKE) -C hardware clean
