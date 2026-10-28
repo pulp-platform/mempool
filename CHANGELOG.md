@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add fp8 microkernels: axpy, matmul, batchnorm, layernorm, softmax
 - Optimize fp16 matmul kernel
 - Add fall through register after LSU input
+- Upgrade to LLVM 22 with the custom extensions generated from `riscv-opcodes`
 - Benderize MemPool dependencies
 - Update Verilator to 4.228
 
