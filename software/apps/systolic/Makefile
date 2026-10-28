@@ -27,6 +27,7 @@ ifeq ($(config),systolic)
 $(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) data_%.h update-opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) -T$(RUNTIME_DIR)/link.ld
+	$(RISCV_OBJCOPY) --remove-section=.riscv.attributes $@
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 else
 .PHONY: $(BINARIES)

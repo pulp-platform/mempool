@@ -21,6 +21,7 @@ bin/$(1)-%: bin/$(1)-%.o $(LINKER_SCRIPT)
 	mkdir -p $$(shell dirname $$@)
 	$$(RISCV_CC) $$(RISCV_LDFLAGS) -o $$@ $$< -T$$(RUNTIME_DIR)/link.ld
 	$$(RISCV_STRIP) $$@ -g -S -d --strip-debug
+	$$(RISCV_OBJCOPY) --remove-section=.riscv.attributes $$@
 	$$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $$@ > $$@.dump
 endef
 
