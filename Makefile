@@ -81,6 +81,9 @@ tc-llvm:
 # Halide
 halide:
 	mkdir -p $(HALIDE_INSTALL_DIR)
+	# Apply the MemPool patch to upstream Halide, unless already applied
+	cd toolchain/halide && \
+	(git apply --reverse --check ../halide.patch 2>/dev/null || git apply ../halide.patch)
 	cd toolchain/halide && mkdir -p build && cd build; \
 	$(CMAKE) \
 		-DLLVM_DIR=$(LLVM_INSTALL_DIR)/lib/cmake/llvm \

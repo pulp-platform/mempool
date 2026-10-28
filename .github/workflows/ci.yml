@@ -88,7 +88,7 @@ jobs:
       id: halide
       with:
         path: install/halide
-        key: ${{ runner.os }}-halide-${{ env.halide-hash }}
+        key: ${{ runner.os }}-halide-${{ env.halide-hash }}-${{ hashFiles('toolchain/halide.patch') }}
     - name: Get llvm-project artifacts
       if: steps.halide.outputs.cache-hit != 'true'
       uses: actions/download-artifact@v4

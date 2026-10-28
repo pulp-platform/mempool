@@ -6,7 +6,7 @@
 	url = https://github.com/pulp-platform/llvm-project.git
 [submodule "toolchain/halide"]
 	path = toolchain/halide
-	url = https://github.com/SamuelRiedel/Halide.git
+	url = https://github.com/halide/Halide.git
 [submodule "toolchain/verilator"]
 	path = toolchain/verilator
 	url = https://github.com/verilator/verilator.git
