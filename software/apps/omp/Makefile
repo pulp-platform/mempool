@@ -15,6 +15,7 @@ OMP_DIR       ?= $(RUNTIME_DIR)/omp
 RISCV_CCFLAGS += -fopenmp -DNTHREADS=$(num_cores)
 RISCV_CCFLAGS += -I$(OMP_DIR)
 
+COMPILER ?= gcc
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
 

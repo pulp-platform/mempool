@@ -10,6 +10,8 @@ APPS_DIR := $(ROOT_DIR)
 BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
 DATA_DIR := $(abspath $(SOFTWARE_DIR)/data)
 RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
+
+COMPILER ?= gcc
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
 

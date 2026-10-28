@@ -26,7 +26,7 @@ BENDER_ROOT 					?= $(ROOT_DIR)/hardware/deps
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
 RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
-COMPILER ?= gcc
+COMPILER ?= llvm
 
 CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite

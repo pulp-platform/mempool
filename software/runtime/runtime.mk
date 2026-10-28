@@ -17,24 +17,20 @@ python             ?= python3
 INSTALL_DIR        ?= $(MEMPOOL_DIR)/install
 GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
-# HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
-# HALIDE_INCLUDE     ?= $(HALIDE_INSTALL_DIR)/include
-# HALIDE_LIB         ?= $(HALIDE_INSTALL_DIR)/lib
+
 OMP_DIR            ?= $(ROOT_DIR)/omp
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 
-COMPILER      ?= gcc
-XPULPIMG      ?= $(xpulpimg)
-ZFINX         ?= $(zfinx)
-XDIVSQRT	    ?= $(xDivSqrt)
-
+COMPILER      ?= llvm
 RISCV_XLEN    ?= 32
-
 RISCV_ABI     ?= ilp32
 RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
-ifeq ($(COMPILER),gcc)
+XPULPIMG      ?= $(xpulpimg)
+ZFINX         ?= $(zfinx)
+XDIVSQRT      ?= $(xDivSqrt)
 
+ifeq ($(COMPILER),gcc)
 	# Use GCC
 	# GCC compiler -march
 	ifeq ($(XPULPIMG),1)
@@ -71,6 +67,7 @@ else
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 
 endif
+
 RISCV_OBJCOPY ?= $(RISCV_PREFIX)objcopy
 RISCV_AS      ?= $(RISCV_PREFIX)as
 RISCV_AR      ?= $(RISCV_PREFIX)ar
