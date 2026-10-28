@@ -112,8 +112,8 @@ rv32uxpulpimg_snitch_sc_tests = \
 	p_clipur \
 	p_beqimm \
 	p_bneimm \
- 	p_mac \
- 	p_msu \
+	p_mac \
+	p_msu \
 	pv_add \
 	pv_sub \
 	pv_avg \

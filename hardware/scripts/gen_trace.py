@@ -21,12 +21,16 @@ import csv
 from ctypes import c_int32, c_uint32
 from collections import deque, defaultdict
 import warnings
+from functools import lru_cache
+import subprocess
 
 
 EXTRA_WB_WARN = 'WARNING: {} transactions still in flight for {}.'
 
 GENERAL_WARN = ('WARNING: Inconsistent final state; performance metrics may '
                 'be inaccurate. Is this trace complete?\n')
+
+DASM_IN_REGEX = r'DASM\(([0-9a-fA-F]+)\)'
 
 TRACE_IN_REGEX = r'(\d+)\s+(\d+)\s+(0x[0-9A-Fa-fz]+)\s+([^#;]*)(\s*#;\s*(.*))?'
 
@@ -288,6 +292,10 @@ def annotate_insn(
     gpr_wb_info: dict,
     # A list performance metric dicts
     perf_metrics: list,
+    # Path to the llvm-mc executable
+    mc_exec: str,
+    # Flags to pass to the llvm-mc executable
+    mc_flags: str,
     # Show sim time and cycle again if same as previous line?
     dupl_time_info: bool = True,
     # Previous timestamp (keeps this method stateless)
@@ -300,6 +308,14 @@ def annotate_insn(
     force_hex_addr: bool = True,
     permissive: bool = True
 ) -> (str, tuple, int, dict, bool):
+    # Disassemble instruction
+    match = re.search(DASM_IN_REGEX, line)
+    if match is not None:
+        line = re.sub(
+            DASM_IN_REGEX,
+            disasm_insn(match.groups()[0], mc_exec, mc_flags),
+            line,
+        )
     # Return time info, whether trace line contains no info, and fseq_len
     match = re.search(TRACE_IN_REGEX, line.strip('\n'))
     if match is None:
@@ -339,6 +355,25 @@ def annotate_insn(
     else:
         return TRACE_OUT_FMT.format(
             *time_info_strs, pc_str, insn), time_info, 0, retired_reg, False
+
+
+@lru_cache
+def disasm_insn(hex_inst, mc_exec='llvm-mc', mc_flags='-disassemble'):
+    """Disassemble a single RISC-V instruction using llvm-mc."""
+    # Reverse the endianness of the hex instruction
+    inst_fmt = ' '.join(f'0x{byte:02x}' for byte in bytes.fromhex(hex_inst)[::-1])
+
+    # Use llvm-mc to disassemble the binary instruction
+    result = subprocess.run(
+        [mc_exec] + mc_flags.split(),
+        input=inst_fmt,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    # Extract disassembled instruction from llvm-mc output
+    return result.stdout.splitlines()[-1].strip().replace('\t', ' ')
 
 
 # -------------------- Performance metrics --------------------
@@ -513,7 +548,7 @@ def perf_metrics_to_csv(perf_metrics: list, filename: str):
         if write_header:
             dict_writer.writeheader()
         dict_writer.writerows(perf_metrics)
-    print('\nWrote performance metrics to %s\n' % filename)
+    print('Wrote performance metrics to %s' % filename)
 
 # -------------------- Main --------------------
 
@@ -532,25 +567,47 @@ def main():
         help='A matching ASCII signal dump',
     )
     parser.add_argument(
+        '-o',
+        '--output',
+        required=True,
+        type=argparse.FileType('w'),
+        help='Path to the output file'
+    )
+    parser.add_argument(
         '-s',
         '--saddr',
         action='store_true',
-        help='Use signed decimal (not unsigned hex) for small addresses')
+        help='Use signed decimal (not unsigned hex) for small addresses'
+    )
     parser.add_argument(
         '-a',
         '--allkeys',
         action='store_true',
-        help='Include performance metrics measured to compute others')
+        help='Include performance metrics measured to compute others'
+    )
     parser.add_argument(
         '-p',
         '--permissive',
         action='store_true',
-        help='Ignore some state-related issues when they occur')
+        help='Ignore some state-related issues when they occur'
+    )
     parser.add_argument(
         '-c',
         '--csv',
         nargs=1,
-        help='Ignore some state-related issues when they occur')
+        help='Ignore some state-related issues when they occur'
+    )
+    parser.add_argument(
+        '--mc-exec',
+        default='llvm-mc',
+        help='Path to the llvm-mc executable'
+    )
+    parser.add_argument(
+        '--mc-flags',
+        default='-disassemble',
+        help='Flags to pass to the llvm-mc executable'
+    )
+
     args = parser.parse_args()
     line_iter = iter(args.infile.readline, b'')
     if args.csv is not None:
@@ -564,6 +621,7 @@ def main():
         core_id = int(core_id_dec.group(1))
     else:
         core_id = -1
+
     # Prepare stateful data structures
     time_info = (0, 0)
     prev_wfi_time = 0
@@ -572,13 +630,25 @@ def main():
     perf_metrics = [defaultdict(int)]
     perf_metrics[0]['start'] = None
     section = 0
+
+    traceout = args.output
+
     # Parse input line by line
     for line in line_iter:
         if line:
-            ann_insn, time_info, prev_wfi_time, retired_reg, empty = \
-                annotate_insn(line, gpr_wb_info, perf_metrics, False,
-                              time_info, prev_wfi_time, retired_reg,
-                              not args.saddr, args.permissive)
+            ann_insn, time_info, prev_wfi_time, retired_reg, empty = annotate_insn(
+                line,
+                gpr_wb_info,
+                perf_metrics,
+                args.mc_exec,
+                args.mc_flags,
+                False,
+                time_info,
+                prev_wfi_time,
+                retired_reg,
+                not args.saddr,
+                args.permissive
+            )
             if perf_metrics[0]['start'] is None:
                 perf_metrics[0]['start'] = time_info[1]
             # Start a new benchmark section after 'csrw trace' instruction
@@ -589,10 +659,11 @@ def main():
                 perf_metrics[-1]['start'] = None
                 section += 1
             if not empty:
-                print(ann_insn)
+                print(ann_insn, file=traceout)
         else:
             break  # Nothing more in pipe, EOF
     args.infile.close()
+
     perf_metrics[-1]['end'] = time_info[1]
     # Remove last emtpy entry
     if perf_metrics[-1]['start'] is None:
@@ -602,24 +673,28 @@ def main():
         sys.stderr.write('WARNING: Empty trace file ({}).\n'
                          .format(args.infile.name))
         return 0
+
     # Compute metrics
     eval_perf_metrics(perf_metrics, core_id)
     # Add metadata
     for sec in perf_metrics:
         sec['core'] = core_id
     # Emit metrics
-    print('\n## Performance metrics')
+    print('\n## Performance metrics', file=traceout)
     for idx in range(len(perf_metrics)):
-        print('\n' + fmt_perf_metrics(perf_metrics, idx, not args.allkeys))
+        print('\n' + fmt_perf_metrics(perf_metrics, idx, not args.allkeys), file=traceout)
         sanity_check = sanity_check_perf_metrics(perf_metrics, idx)
         if sanity_check is not None:
-            print('\n' + sanity_check)
+            print('\n' + sanity_check, file=traceout)
         perf_metrics[idx]['section'] = idx
+    args.output.close()
+
     # Write metrics to CSV
     if csv_file is not None:
         if os.path.split(csv_file)[0] == '':
             csv_file = os.path.join(path, csv_file)
         perf_metrics_to_csv(perf_metrics, csv_file)
+
     # Check for any loose ends and warn before exiting
     warn_trip = False
     for gpr, que in gpr_wb_info.items():
