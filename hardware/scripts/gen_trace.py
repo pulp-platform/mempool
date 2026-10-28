@@ -373,8 +373,12 @@ def disasm_insn(hex_inst, mc_exec='llvm-mc', mc_flags='-disassemble'):
         check=True,
     )
 
-    # Extract disassembled instruction from llvm-mc output
-    return result.stdout.splitlines()[-1].strip().replace('\t', ' ')
+    # Extract disassembled instruction from llvm-mc output, which is empty if
+    # the instruction cannot be decoded
+    lines = result.stdout.splitlines()
+    if not lines:
+        return 'unknown'
+    return lines[-1].strip().replace('\t', ' ')
 
 
 # -------------------- Performance metrics --------------------

@@ -9,7 +9,11 @@ SN_GENTRACE_PY        ?= $(ROOT_DIR)/scripts/gen_trace.py
 SN_CSV_TRACES         ?= $(buildpath)/results.csv
 
 SN_RISCV_MC           ?= $(INSTALL_DIR)/llvm/bin/llvm-mc
-SN_RISCV_MATTR_FLAG    = +m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
+# Same extensions as the LLVM -march of the software (software/runtime/runtime.mk)
+SN_RISCV_MATTR_FLAG    = +m,+a,+zfinx,+zhinx,+xsmallfloatinx,+xsfltinx,+xfcdotphalfinx
+SN_RISCV_MATTR_FLAG   := $(SN_RISCV_MATTR_FLAG),+xpulpabs,+xpulpbitop,+xpulpbr,+xpulpclip,+xpulpmacsi
+SN_RISCV_MATTR_FLAG   := $(SN_RISCV_MATTR_FLAG),+xpulpminmax,+xpulppostmod,+xpulpslet,+xpulpvect
+SN_RISCV_MATTR_FLAG   := $(SN_RISCV_MATTR_FLAG),+xpulpvectshufflepack
 SN_RISCV_MC_FLAGS     ?= -disassemble -triple=riscv32 --mattr=$(SN_RISCV_MATTR_FLAG)
 SN_GENTRACE_PY_FLAGS  += --mc-exec $(SN_RISCV_MC) --mc-flags "$(SN_RISCV_MC_FLAGS)" --csv $(SN_CSV_TRACES)
 

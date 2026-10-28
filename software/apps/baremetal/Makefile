@@ -21,6 +21,11 @@ include $(RUNTIME_DIR)/runtime.mk
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL := $(APPS)
+# GCC does not support the floating-point applications (Zfinx, __fp16)
+ifeq ($(COMPILER),gcc)
+FP_SUFFIXES := f16 f32 f8
+ALL := $(filter-out $(foreach suf,$(FP_SUFFIXES),%_$(suf)),$(APPS))
+endif
 
 # Make all applications
 all: $(ALL)

@@ -61,7 +61,7 @@ jobs:
         key: ${{ runner.os }}-llvm-project-${{ env.llvm-project-hash }}
     - name: Download llvm-project
       if: steps.llvm-project.outputs.cache-hit != 'true'
-      run: git submodule update --init --recursive -- toolchain/llvm-project
+      run: git submodule update --init -- toolchain/llvm-project
     - name: Compile llvm-project
       if: steps.llvm-project.outputs.cache-hit != 'true'
       run: |
@@ -210,7 +210,7 @@ jobs:
       run: |
         rm software/runtime/bootrom.img
         rm hardware/src/bootrom.sv
-        make -C software runtime/bootrom.img
+        COMPILER=gcc make -C software runtime/bootrom.img
         make -C hardware src/bootrom.sv
         git diff --exit-code
 
@@ -234,6 +234,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
+    - name: Install Python requirements
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Regenerate opcodes
       run: |
         make update-opcodes
@@ -306,7 +310,7 @@ jobs:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps/baremetal all_llvm
+        COMPILER=llvm make -C software/apps/baremetal all
         COMPILER=llvm make -C software/tests baremetal
     - name: Tar apps-llvm Model
       run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst software/bin
@@ -364,7 +368,7 @@ jobs:
   run-apps-gcc:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-gcc, verilator-model]
+    needs: [build-apps-gcc, tc-llvm, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -382,6 +386,12 @@ jobs:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get llvm-project artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
       run: |
         git submodule update --init -- toolchain/riscv-opcodes
@@ -398,7 +408,7 @@ jobs:
   run-apps-llvm:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-llvm, verilator-model]
+    needs: [build-apps-llvm, tc-llvm, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -416,6 +426,12 @@ jobs:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get llvm-project artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
       run: |
         git submodule update --init -- toolchain/riscv-opcodes
@@ -432,7 +448,7 @@ jobs:
   run-apps-halide:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-halide, verilator-model]
+    needs: [build-apps-halide, tc-llvm, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -450,6 +466,12 @@ jobs:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get llvm-project artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
       run: |
         git submodule update --init -- toolchain/riscv-opcodes
@@ -487,6 +509,10 @@ jobs:
         name: verilator-model-minpool
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Install Python requirements
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Execute tests
       run: |
         # Don't regenerate previously build artifacts
