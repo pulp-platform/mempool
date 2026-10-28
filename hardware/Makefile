@@ -10,6 +10,7 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
+SW_DIR := $(abspath $(ROOT_DIR)/../software/)
 TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
 
 # Include configuration
@@ -383,17 +384,16 @@ tracevis:
 # Unit tests simulation    #
 ############################
 
-TESTS_DIR := $(abspath $(ROOT_DIR)/../software/riscv-tests/isa)
-include $(TESTS_DIR)/snitch_isa.mk
+include $(SW_DIR)/snitch_isa.mk
 
 test_result_dir_vsim := $(resultpath)/test_result_vsim
 test_result_dir_verilate := $(resultpath)/test_result_verilate
 
-tests_vsim := $(addsuffix .out,$(addprefix $(test_result_dir_vsim)/,$(rtl_mempool_tests)))
-tests_verilate := $(addsuffix .out,$(addprefix $(test_result_dir_verilate)/,$(rtl_mempool_tests)))
+tests_vsim := $(addsuffix .out,$(addprefix $(test_result_dir_vsim)/,$(rtl_tests)))
+tests_verilate := $(addsuffix .out,$(addprefix $(test_result_dir_verilate)/,$(rtl_tests)))
 
-simc_test: clean-dasm compile $(buildpath) $(tests_vsim)
-verilate_test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
+simc-test: clean-dasm compile $(buildpath) $(tests_vsim)
+verilate-test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
 
 $(tests_vsim): $(test_result_dir_vsim)/%.out : $(app_path)/%
 	mkdir -p $(test_result_dir_vsim)
