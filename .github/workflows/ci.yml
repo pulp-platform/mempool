@@ -244,7 +244,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Build Control Registers
       run: |
         make bender
@@ -280,7 +282,9 @@ jobs:
     - name: Untar riscv-gnu-toolchain
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -319,7 +323,9 @@ jobs:
     - name: Untar llvm-project
       run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -408,7 +414,9 @@ jobs:
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Run GCC Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -446,7 +454,9 @@ jobs:
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Run LLVM Apps
       env:
         config: ${{ matrix.mempool_config }}

@@ -15,7 +15,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Check license
       run: python scripts/license-checker.py --config scripts/license-checker.hjson
 
