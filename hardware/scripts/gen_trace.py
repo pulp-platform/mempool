@@ -361,7 +361,8 @@ def annotate_insn(
 def disasm_insn(hex_inst, mc_exec='llvm-mc', mc_flags='-disassemble'):
     """Disassemble a single RISC-V instruction using llvm-mc."""
     # Reverse the endianness of the hex instruction
-    inst_fmt = ' '.join(f'0x{byte:02x}' for byte in bytes.fromhex(hex_inst)[::-1])
+    inst_bytes = bytes.fromhex(hex_inst)[::-1]
+    inst_fmt = ' '.join(f'0x{byte:02x}' for byte in inst_bytes)
 
     # Use llvm-mc to disassemble the binary instruction
     result = subprocess.run(
@@ -636,7 +637,8 @@ def main():
     # Parse input line by line
     for line in line_iter:
         if line:
-            ann_insn, time_info, prev_wfi_time, retired_reg, empty = annotate_insn(
+            (ann_insn, time_info, prev_wfi_time, retired_reg,
+             empty) = annotate_insn(
                 line,
                 gpr_wb_info,
                 perf_metrics,
@@ -682,7 +684,8 @@ def main():
     # Emit metrics
     print('\n## Performance metrics', file=traceout)
     for idx in range(len(perf_metrics)):
-        print('\n' + fmt_perf_metrics(perf_metrics, idx, not args.allkeys), file=traceout)
+        print('\n' + fmt_perf_metrics(perf_metrics, idx, not args.allkeys),
+              file=traceout)
         sanity_check = sanity_check_perf_metrics(perf_metrics, idx)
         if sanity_check is not None:
             print('\n' + sanity_check, file=traceout)
