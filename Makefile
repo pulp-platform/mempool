@@ -75,6 +75,7 @@ tc-llvm:
 	INSTALLPREFIX=$(LLVM_INSTALL_DIR)/ \
 	LLVMSRC=$(CURDIR)/toolchain/llvm-project \
 	NEWLIBSRC=$(CURDIR)/toolchain/newlib \
+	LLVM_TARGETS="RISCV;host" \
 	./scripts/build-riscv32-llvm.sh
 
 # Halide
@@ -88,6 +89,10 @@ halide:
 		-DCMAKE_CXX_COMPILER=$(CXX) \
 		-DCMAKE_C_COMPILER=$(CC) \
 		-DWITH_PYTHON_BINDINGS=OFF \
+		-DWITH_TESTS=OFF \
+		-DWITH_TUTORIALS=OFF \
+		-DWITH_SERIALIZATION=OFF \
+		-DHalide_WASM_BACKEND=OFF \
 		-DCMAKE_BUILD_TYPE=Release \
 		.. && \
 	make -j4 all && \

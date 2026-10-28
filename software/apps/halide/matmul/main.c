@@ -123,7 +123,7 @@ int halide_matmul(uint32_t core_id, uint32_t num_cores) {
     // Specify the type of data in the buffer
     buffer_type.code = halide_type_int;
     buffer_type.bits = 32;
-    buffer_type.lanes = 1;
+    buffer_type.info = 0;
 
     // Assign all parameters to the buffer structures
     halide_buffer_matrix_a.device = 0;
