@@ -149,9 +149,9 @@ void conv2d_3x3_unrolled_i8_xpulpv2(
 
     for (r = 1; r < R - 1; r++) {
       t = r * R + c;
-      S = __builtin_pulp_dotsp4(Img_0, coeff_0);
-      S = __builtin_pulp_sdotsp4(Img_1, coeff_1, S);
-      S = __builtin_pulp_sdotsp4(Img_2, coeff_2, S);
+      S = __DOTP4(Img_0, coeff_0);
+      S = __SUMDOTP4(Img_1, coeff_1, S);
+      S = __SUMDOTP4(Img_2, coeff_2, S);
 
       Out_Img[t] = S / (int)weight;
 
@@ -214,14 +214,14 @@ void conv2d_3x3_unrolled2_i8_xpulpv2(
                    In_Img[2 * c + 1 + R * 2], 0};
 
     for (r = 1; r < R - 1; r++) {
-      S_0 = __builtin_pulp_dotsp4(Img_00, coeff_0);
-      S_1 = __builtin_pulp_dotsp4(Img_01, coeff_0);
+      S_0 = __DOTP4(Img_00, coeff_0);
+      S_1 = __DOTP4(Img_01, coeff_0);
 
-      S_0 = __builtin_pulp_sdotsp4(Img_10, coeff_1, S_0);
-      S_1 = __builtin_pulp_sdotsp4(Img_11, coeff_1, S_1);
+      S_0 = __SUMDOTP4(Img_10, coeff_1, S_0);
+      S_1 = __SUMDOTP4(Img_11, coeff_1, S_1);
 
-      S_0 = __builtin_pulp_sdotsp4(Img_20, coeff_2, S_0);
-      S_1 = __builtin_pulp_sdotsp4(Img_21, coeff_2, S_1);
+      S_0 = __SUMDOTP4(Img_20, coeff_2, S_0);
+      S_1 = __SUMDOTP4(Img_21, coeff_2, S_1);
 
       int32_t res_0 = S_0 / (int)weight;
       int32_t res_1 = S_1 / (int)weight;
@@ -341,9 +341,9 @@ void conv2d_3x3_unrolled_i8_xpulpv2_verbose(
       printf("[ %u, %u, %u]\n", Img_2[0], Img_2[1], Img_2[2]);
 
       t = r * R + c;
-      S = __builtin_pulp_dotsp4(Img_0, coeff_0);
-      S = __builtin_pulp_sdotsp4(Img_1, coeff_1, S);
-      S = __builtin_pulp_sdotsp4(Img_2, coeff_2, S);
+      S = __DOTP4(Img_0, coeff_0);
+      S = __SUMDOTP4(Img_1, coeff_1, S);
+      S = __SUMDOTP4(Img_2, coeff_2, S);
 
       printf("S = %d\n", S);
       printf("S/weight = %d\n", S / (int)weight);
