@@ -74,11 +74,10 @@ int main(int argc, char **argv) {
     }
   }
 
-  Halide::ParamMap params;
-  params.set(A, matrix_a);
-  params.set(B, matrix_b);
+  A.set(matrix_a);
+  B.set(matrix_b);
   Halide::Buffer<int32_t> matrix_c =
-      matmul.realize({M, P}, Halide::get_jit_target_from_environment(), params);
+      matmul.realize({M, P}, Halide::get_jit_target_from_environment());
 
   for (int j = 0; j < matrix_c.height(); j++) {
     for (int i = 0; i < matrix_c.width(); i++) {

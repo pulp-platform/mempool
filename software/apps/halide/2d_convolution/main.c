@@ -28,7 +28,7 @@ volatile uint32_t kernel[KERNEL_N][KERNEL_N] __attribute__((section(".l1")));
 void convolution(uint32_t core_id, uint32_t num_cores) {
   asm volatile("nop" ::);
   uint32_t sum;
-  uint32_t(*kernel_stable)[KERNEL_N] = (uint32_t(*)[KERNEL_N])kernel;
+  uint32_t (*kernel_stable)[KERNEL_N] = (uint32_t (*)[KERNEL_N])kernel;
   for (uint32_t i = core_id; i < N - KERNEL_N + 1; i += num_cores) {
     for (uint32_t j = 0; j < M - KERNEL_N + 1; j++) {
       sum = 0;
@@ -46,7 +46,7 @@ void convolution(uint32_t core_id, uint32_t num_cores) {
 void convolution_unrolled(uint32_t core_id, uint32_t num_cores) {
   asm volatile("nop" ::);
   uint32_t sum;
-  uint32_t(*kernel_stable)[KERNEL_N] = (uint32_t(*)[KERNEL_N])kernel;
+  uint32_t (*kernel_stable)[KERNEL_N] = (uint32_t (*)[KERNEL_N])kernel;
   for (uint32_t i = core_id; i < N - KERNEL_N + 1; i += num_cores) {
     for (uint32_t j = 0; j < M - KERNEL_N + 1; j++) {
       sum = 0;
@@ -85,7 +85,7 @@ int halide_convolution(uint32_t core_id, uint32_t num_cores) {
     // Specify the type of data in the buffer
     buffer_type.code = halide_type_uint;
     buffer_type.bits = 32;
-    buffer_type.lanes = 1;
+    buffer_type.info = 0;
 
     // Assign all parameters to the input buffer structure
     halide_buffer_in.device = 0;

@@ -1,0 +1,154 @@
+# MemPool support for Halide v22.0.0, applied by `make halide`:
+# - RISCV_A/C/D/E/F/M/RELAX target features to select the RISC-V extensions
+# - No vector width required for scalar RISC-V targets
+# - Optional WebAssembly backend
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8b10bed20..c434cfc7b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -194,8 +194,8 @@ find_package(Threads REQUIRED)
+ ## LLVM
+ find_package(
+     Halide_LLVM 21...99 REQUIRED  # Use 99 to fake a minimum-only constraint
+-    COMPONENTS WebAssembly X86
+-    OPTIONAL_COMPONENTS AArch64 ARM Hexagon NVPTX PowerPC RISCV
++    COMPONENTS X86
++    OPTIONAL_COMPONENTS AArch64 ARM Hexagon NVPTX PowerPC RISCV WebAssembly
+ )
+ 
+ _Halide_pkgdep(Halide_LLVM PACKAGE_VARS Halide_LLVM_SHARED_LIBS)
+diff --git a/python_bindings/halide/src/halide_/PyEnums.cpp b/python_bindings/halide/src/halide_/PyEnums.cpp
+index e8035ddea..9ea301c8c 100644
+--- a/python_bindings/halide/src/halide_/PyEnums.cpp
++++ b/python_bindings/halide/src/halide_/PyEnums.cpp
+@@ -270,6 +270,13 @@ void define_enums(py::module_ &m) {
+         .value("HLSL_SM68", Target::Feature::HLSL_SM68)
+         .value("HLSL_SM69", Target::Feature::HLSL_SM69)
+         .value("NoMetadata", Target::Feature::NoMetadata)
++        .value("RISCV_A", Target::Feature::RISCV_A)
++        .value("RISCV_C", Target::Feature::RISCV_C)
++        .value("RISCV_D", Target::Feature::RISCV_D)
++        .value("RISCV_E", Target::Feature::RISCV_E)
++        .value("RISCV_F", Target::Feature::RISCV_F)
++        .value("RISCV_M", Target::Feature::RISCV_M)
++        .value("RISCV_RELAX", Target::Feature::RISCV_RELAX)
+         .value("FeatureEnd", Target::Feature::FeatureEnd);
+ 
+     py::enum_<halide_type_code_t>(m, "TypeCode")
+diff --git a/src/CodeGen_RISCV.cpp b/src/CodeGen_RISCV.cpp
+index 108ac28d4..d9d81fb4e 100644
+--- a/src/CodeGen_RISCV.cpp
++++ b/src/CodeGen_RISCV.cpp
+@@ -144,7 +144,7 @@ private:
+ CodeGen_RISCV::CodeGen_RISCV(const Target &t)
+     : CodeGen_CPU(t) {
+     use_llvm_vp_intrinsics = true;
+-    user_assert(native_vector_bits() > 0) << "No vector_bits was specified for RISCV codegen; "
++    user_assert(!t.has_feature(Target::RVV) || native_vector_bits() > 0) << "No vector_bits was specified for RISCV codegen; "
+                                           << "this is almost certainly a mistake. You should add -rvv-vector_bits_N "
+                                           << "to your Target string, where N is the SIMD width in bits (e.g. 128).";
+ }
+@@ -165,13 +165,28 @@ string CodeGen_RISCV::mattrs() const {
+     //   +f Single-Precision Floating-Point,
+     //   +d Double-Precision Floating-Point,
+     //   +c Compressed Instructions,
+-    std::vector<std::string> attrs = {
+-        "+m",
+-        "+a",
+-        "+f",
+-        "+d",
+-        "+c",
++    // If any of the RISCV_* extension features is set, only the requested
++    // extensions are enabled instead.
++    std::vector<std::string> attrs;
++    const std::vector<std::pair<Target::Feature, const char *>> extensions = {
++        {Target::RISCV_A, "+a"},
++        {Target::RISCV_C, "+c"},
++        {Target::RISCV_D, "+d"},
++        {Target::RISCV_E, "+e"},
++        {Target::RISCV_F, "+f"},
++        {Target::RISCV_M, "+m"},
+     };
++    for (const auto &[feature, attr] : extensions) {
++        if (target.has_feature(feature)) {
++            attrs.emplace_back(attr);
++        }
++    }
++    if (attrs.empty()) {
++        attrs = {"+m", "+a", "+f", "+d", "+c"};
++    }
++    if (target.has_feature(Target::RISCV_RELAX)) {
++        attrs.emplace_back("+relax");
++    }
+ 
+     if (target.has_feature(Target::RVV)) {
+         attrs.emplace_back("+v");
+diff --git a/src/Target.cpp b/src/Target.cpp
+index 886838987..4eb4ad071 100644
+--- a/src/Target.cpp
++++ b/src/Target.cpp
+@@ -659,6 +659,13 @@ const std::map<std::string, Target::Feature> feature_name_map = {
+     {"x86apx", Target::X86APX},
+     {"simulator", Target::Simulator},
+     {"no_metadata", Target::NoMetadata},
++    {"riscv_a", Target::RISCV_A},
++    {"riscv_c", Target::RISCV_C},
++    {"riscv_d", Target::RISCV_D},
++    {"riscv_e", Target::RISCV_E},
++    {"riscv_f", Target::RISCV_F},
++    {"riscv_m", Target::RISCV_M},
++    {"riscv_relax", Target::RISCV_RELAX},
+     // NOTE: When adding features to this map, be sure to update PyEnums.cpp as well.
+ };
+ 
+@@ -1813,6 +1820,13 @@ bool Target::get_runtime_compatible_target(const Target &other, Target &result)
+         F16C,
+         FMA,
+         FMA4,
++        RISCV_A,
++        RISCV_C,
++        RISCV_D,
++        RISCV_E,
++        RISCV_F,
++        RISCV_M,
++        RISCV_RELAX,
+         SSE41,
+         VSX,
+     }};
+diff --git a/src/Target.h b/src/Target.h
+index 3b0b2f8b0..04d1f7b2d 100644
+--- a/src/Target.h
++++ b/src/Target.h
+@@ -208,6 +208,13 @@ struct Target {
+         HLSL_SM68 = halide_target_feature_hlsl_sm68,
+         HLSL_SM69 = halide_target_feature_hlsl_sm69,
+         NoMetadata = halide_target_feature_no_metadata,
++        RISCV_A = halide_target_feature_riscv_a,
++        RISCV_C = halide_target_feature_riscv_c,
++        RISCV_D = halide_target_feature_riscv_d,
++        RISCV_E = halide_target_feature_riscv_e,
++        RISCV_F = halide_target_feature_riscv_f,
++        RISCV_M = halide_target_feature_riscv_m,
++        RISCV_RELAX = halide_target_feature_riscv_relax,
+         FeatureEnd = halide_target_feature_end
+     };
+     Target() = default;
+diff --git a/src/runtime/HalideRuntime.h b/src/runtime/HalideRuntime.h
+index cac296d40..f3902a6c7 100644
+--- a/src/runtime/HalideRuntime.h
++++ b/src/runtime/HalideRuntime.h
+@@ -1645,6 +1645,13 @@ typedef enum halide_target_feature_t {
+     halide_target_feature_hlsl_sm68,              ///< Enable D3D12 Shader Model 6.8
+     halide_target_feature_hlsl_sm69,              ///< Enable D3D12 Shader Model 6.9 (long vectors 5-1024 lanes, native 16-bit/wave/int64 required)
+     halide_target_feature_no_metadata,            ///< Don't emit the _argv() and _metadata() entry points for exported functions, keeping the argument names and target string out of the binary.
++    halide_target_feature_riscv_a,                ///< Enable RISC-V A Extension (Atomic Instructions).
++    halide_target_feature_riscv_c,                ///< Enable RISC-V C Extension (Compressed Instructions).
++    halide_target_feature_riscv_d,                ///< Enable RISC-V D Extension (Double-Precision Floating-Point).
++    halide_target_feature_riscv_e,                ///< Implements RV32E (provides 16 rather than 32 GPRs).
++    halide_target_feature_riscv_f,                ///< Enable RISC-V F Extension (Single-Precision Floating-Point).
++    halide_target_feature_riscv_m,                ///< Enable RISC-V M Extension (Integer Multiplication and Division).
++    halide_target_feature_riscv_relax,            ///< Enable RISC-V Linker relaxation.
+     halide_target_feature_end                     ///< A sentinel. Every target is considered to have this feature, and setting this feature does nothing.
+ } halide_target_feature_t;
+ 

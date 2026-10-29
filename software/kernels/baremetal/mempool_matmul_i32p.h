@@ -11,6 +11,8 @@
  * C = AB
  */
 
+#include "xpulp_postmod.h"
+
 void mat_mul_parallel(int32_t const *__restrict__ A,
                       int32_t const *__restrict__ B, int32_t *__restrict__ C,
                       uint32_t M, uint32_t N, uint32_t P, uint32_t id,
@@ -681,43 +683,44 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
       // x11  x28 x29 x30 x31
       //
       //
+      // clang-format off
       __asm__ volatile(
           ".balign 16 \n\t"
           // Outer loop: Initialize and preload. Execute this loop P times
           // TODO arrange
-          "p.lw  x3, %[N](%[addr_a]!) \n\t"
-          "p.lw x12, 4(%[addr_b]!) \n\t"
-          "p.lw x13, 4(%[addr_b]!) \n\t"
-          "p.lw x14, 4(%[addr_b]!) \n\t"
-          "p.lw x15, %[P_3](%[addr_b]!) \n\t" // Increment by P-3
-          "p.lw  x4, %[N](%[addr_a]!) \n\t"
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
-          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+          P_LW_IRPOST("x3", "%[addr_a]", "%[N]")
+          P_LW_IRPOST("x12", "%[addr_b]", "4")
+          P_LW_IRPOST("x13", "%[addr_b]", "4")
+          P_LW_IRPOST("x14", "%[addr_b]", "4")
+          P_LW_RRPOST("x15", "%[addr_b]", "%[P_3]") // Increment by P-3
+          P_LW_IRPOST("x4", "%[addr_a]", "%[N]")
+          P_LW_IRPOST("x10", "%[addr_a]", "%[N]")
+          P_LW_RRPOST("x11", "%[addr_a]", "%[N3_1]") // Increment by -3N+1
           // Initial computation + prefetching
           "mul x16,  x3, x12 \n\t"
           "mul x17,  x3, x13 \n\t"
           "mul x18,  x3, x14 \n\t"
           "mul x19,  x3, x15 \n\t"
-          "p.lw  x3, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x3", "%[addr_a]", "%[N]")
           "mul x20,  x4, x12 \n\t"
           "mul x21,  x4, x13 \n\t"
           "mul x22,  x4, x14 \n\t"
           "mul x23,  x4, x15 \n\t"
-          "p.lw  x4, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x4", "%[addr_a]", "%[N]")
           "mul x24, x10, x12 \n\t"
           "mul x25, x10, x13 \n\t"
           "mul x26, x10, x14 \n\t"
           "mul x27, x10, x15 \n\t"
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x10", "%[addr_a]", "%[N]")
           "mul x28, x11, x12 \n\t"
-          "p.lw x12, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x12", "%[addr_b]", "4")
           "mul x29, x11, x13 \n\t"
-          "p.lw x13, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x13", "%[addr_b]", "4")
           "mul x30, x11, x14 \n\t"
-          "p.lw x14, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x14", "%[addr_b]", "4")
           "mul x31, x11, x15 \n\t"
-          "p.lw x15, %[P_3](%[addr_b]!) \n\t"  // Increment by P-3
-          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+          P_LW_RRPOST("x15", "%[addr_b]", "%[P_3]")  // Increment by P-3
+          P_LW_RRPOST("x11", "%[addr_a]", "%[N3_1]") // Increment by -3N+1
           // Inner loop: Do this loop N times
           "1: \n\t"
           "p.mac x16,  x3, x12 \n\t"
@@ -727,57 +730,57 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
           "p.mac x18,  x3, x14 \n\t"
           "p.mac x22,  x4, x14 \n\t"
           "p.mac x19,  x3, x15 \n\t"
-          "p.lw  x3, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x3", "%[addr_a]", "%[N]")
           "p.mac x23,  x4, x15 \n\t"
-          "p.lw  x4, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x4", "%[addr_a]", "%[N]")
           "p.mac x24, x10, x12 \n\t"
           "p.mac x28, x11, x12 \n\t"
-          "p.lw x12, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x12", "%[addr_b]", "4")
           "p.mac x25, x10, x13 \n\t"
           "p.mac x29, x11, x13 \n\t"
-          "p.lw x13, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x13", "%[addr_b]", "4")
           "p.mac x26, x10, x14 \n\t"
           "p.mac x30, x11, x14 \n\t"
-          "p.lw x14, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x14", "%[addr_b]", "4")
           "p.mac x27, x10, x15 \n\t"
           "p.mac x31, x11, x15 \n\t"
-          "p.lw x15, %[P_3](%[addr_b]!) \n\t" // Increment by P-3
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
-          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+          P_LW_RRPOST("x15", "%[addr_b]", "%[P_3]") // Increment by P-3
+          P_LW_IRPOST("x10", "%[addr_a]", "%[N]")
+          P_LW_RRPOST("x11", "%[addr_a]", "%[N3_1]") // Increment by -3N+1
           "bne %[addr_b], x1, 1b \n\t"
           // Loop done store
           "p.mac x16,  x3, x12 \n\t"
           "p.mac x17,  x3, x13 \n\t"
           "p.mac x18,  x3, x14 \n\t"
-          "p.sw x16, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x16", "%[addr_c]", "4")
           "p.mac x19,  x3, x15 \n\t"
-          "p.sw x17, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x17", "%[addr_c]", "4")
           "p.mac x20,  x4, x12 \n\t"
-          "p.sw x18, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x18", "%[addr_c]", "4")
           "p.mac x21,  x4, x13 \n\t"
-          "p.sw x19, %[P_3](%[addr_c]!) \n\t"
+          P_SW_RRPOST("x19", "%[addr_c]", "%[P_3]")
           "p.mac x22,  x4, x14 \n\t"
-          "p.sw x20, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x20", "%[addr_c]", "4")
           "p.mac x23,  x4, x15 \n\t"
-          "p.sw x21, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x21", "%[addr_c]", "4")
           "p.mac x24, x10, x12 \n\t"
-          "p.sw x22, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x22", "%[addr_c]", "4")
           "p.mac x25, x10, x13 \n\t"
-          "p.sw x23, %[P_3](%[addr_c]!) \n\t"
+          P_SW_RRPOST("x23", "%[addr_c]", "%[P_3]")
           "p.mac x26, x10, x14 \n\t"
-          "p.sw x24, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x24", "%[addr_c]", "4")
           "p.mac x27, x10, x15 \n\t"
-          "p.sw x25, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x25", "%[addr_c]", "4")
           "p.mac x28, x11, x12 \n\t"
-          "p.sw x26, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x26", "%[addr_c]", "4")
           "p.mac x29, x11, x13 \n\t"
-          "p.sw x27, %[P_3](%[addr_c]!) \n\t"
+          P_SW_RRPOST("x27", "%[addr_c]", "%[P_3]")
           "p.mac x30, x11, x14 \n\t"
-          "p.sw x28, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x28", "%[addr_c]", "4")
           "p.mac x31, x11, x15 \n\t"
-          "p.sw x29, 4(%[addr_c]!) \n\t"
-          "p.sw x30, 4(%[addr_c]!) \n\t"
-          "p.sw x31, %[P_3](%[addr_c]!) \n\t"
+          P_SW_IRPOST("x29", "%[addr_c]", "4")
+          P_SW_IRPOST("x30", "%[addr_c]", "4")
+          P_SW_RRPOST("x31", "%[addr_c]", "%[P_3]")
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
             [addr_c] "+&r"(addr_c) // Outputs
           : [N3_1] "r"(N3_1_r), [P_3] "r"(P_3_r), [x1] "r"(k),
@@ -785,6 +788,7 @@ void mat_mul_unrolled_4x4_parallel_asm(int32_t const *__restrict__ A,
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
             "x27", "x28", "x29", "x30", "x31", "memory"); // Clobber
+      // clang-format on
     }
   }
 }
@@ -877,6 +881,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
       int32_t const *addr_c = &C[i * P + j];
       register int32_t k asm("x1") = (int32_t)end_b;
 
+      // clang-format off
       __asm__ volatile(
           ".balign 16 \n\t"
           // Outer loop: Initialize and preload. Execute this loop P times
@@ -884,14 +889,14 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "add sp, sp, -8 \n\t"
           "sw %[addr_b], 0(sp) \n\t"
           "sw %[addr_a_ori], 4(sp) \n\t"
-          "p.lw  x3, %[N](%[addr_a]!) \n\t"
-          "p.lw x12, 4(%[addr_b]!) \n\t"
-          "p.lw x13, 4(%[addr_b]!) \n\t"
-          "p.lw x14, 4(%[addr_b]!) \n\t"
-          "p.lw x15, %[P_3](%[addr_b]!) \n\t" // Increment by P-3
-          "p.lw  x4, %[N](%[addr_a]!) \n\t"
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
-          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+          P_LW_IRPOST("x3", "%[addr_a]", "%[N]")
+          P_LW_IRPOST("x12", "%[addr_b]", "4")
+          P_LW_IRPOST("x13", "%[addr_b]", "4")
+          P_LW_IRPOST("x14", "%[addr_b]", "4")
+          P_LW_IRPOST("x15", "%[addr_b]", "%[P_3]") // Increment by P-3
+          P_LW_IRPOST("x4", "%[addr_a]", "%[N]")
+          P_LW_IRPOST("x10", "%[addr_a]", "%[N]")
+          P_LW_RRPOST("x11", "%[addr_a]", "%[N3_1]") // Increment by -3N+1
 
           // If reach endpoint, swap address
           "bne %[addr_b], x1, init_comp \n\t"
@@ -906,26 +911,26 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "mul x17,  x3, x13 \n\t"
           "mul x18,  x3, x14 \n\t"
           "mul x19,  x3, x15 \n\t"
-          "p.lw  x3, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x3", "%[addr_a]", "%[N]")
           "mul x20,  x4, x12 \n\t"
           "mul x21,  x4, x13 \n\t"
           "mul x22,  x4, x14 \n\t"
           "mul x23,  x4, x15 \n\t"
-          "p.lw  x4, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x4", "%[addr_a]", "%[N]")
           "mul x24, x10, x12 \n\t"
           "mul x25, x10, x13 \n\t"
           "mul x26, x10, x14 \n\t"
           "mul x27, x10, x15 \n\t"
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x10", "%[addr_a]", "%[N]")
           "mul x28, x11, x12 \n\t"
-          "p.lw x12, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x12", "%[addr_b]", "4")
           "mul x29, x11, x13 \n\t"
-          "p.lw x13, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x13", "%[addr_b]", "4")
           "mul x30, x11, x14 \n\t"
-          "p.lw x14, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x14", "%[addr_b]", "4")
           "mul %[addr_a_ori], x11, x15 \n\t"   // Use addr_a_ori instead of x31
-          "p.lw x15, %[P_3](%[addr_b]!) \n\t"  // Increment by P-3
-          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+          P_LW_IRPOST("x15", "%[addr_b]", "%[P_3]")  // Increment by P-3
+          P_LW_RRPOST("x11", "%[addr_a]", "%[N3_1]") // Increment by -3N+1
 
           // If reach endpoint, swap address
           "bne %[addr_b], x1, inner_loop \n\t"
@@ -947,23 +952,23 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "p.mac x18,  x3, x14 \n\t"
           "p.mac x22,  x4, x14 \n\t"
           "p.mac x19,  x3, x15 \n\t"
-          "p.lw  x3, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x3", "%[addr_a]", "%[N]")
           "p.mac x23,  x4, x15 \n\t"
-          "p.lw  x4, %[N](%[addr_a]!) \n\t"
+          P_LW_IRPOST("x4", "%[addr_a]", "%[N]")
           "p.mac x24, x10, x12 \n\t"
           "p.mac x28, x11, x12 \n\t"
-          "p.lw x12, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x12", "%[addr_b]", "4")
           "p.mac x25, x10, x13 \n\t"
           "p.mac x29, x11, x13 \n\t"
-          "p.lw x13, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x13", "%[addr_b]", "4")
           "p.mac x26, x10, x14 \n\t"
           "p.mac x30, x11, x14 \n\t"
-          "p.lw x14, 4(%[addr_b]!) \n\t"
+          P_LW_IRPOST("x14", "%[addr_b]", "4")
           "p.mac x27, x10, x15 \n\t"
           "p.mac %[addr_a_ori], x11, x15 \n\t"
-          "p.lw x15, %[P_3](%[addr_b]!) \n\t" // Increment by P-3
-          "p.lw x10, %[N](%[addr_a]!) \n\t"
-          "p.lw x11, %[N3_1](%[addr_a]!) \n\t" // Increment by -3N+1
+          P_LW_IRPOST("x15", "%[addr_b]", "%[P_3]") // Increment by P-3
+          P_LW_IRPOST("x10", "%[addr_a]", "%[N]")
+          P_LW_RRPOST("x11", "%[addr_a]", "%[N3_1]") // Increment by -3N+1
           "bne %[addr_b], x1, 1b \n\t"
 
           // Case1: Loop done if k_offset = 0
@@ -985,35 +990,35 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           "p.mac x16,  x3, x12 \n\t"
           "p.mac x17,  x3, x13 \n\t"
           "p.mac x18,  x3, x14 \n\t"
-          "p.sw x16, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x16", "%[addr_c]", "4")
           "p.mac x19,  x3, x15 \n\t"
-          "p.sw x17, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x17", "%[addr_c]", "4")
           "p.mac x20,  x4, x12 \n\t"
-          "p.sw x18, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x18", "%[addr_c]", "4")
           "p.mac x21,  x4, x13 \n\t"
-          "p.sw x19, %[P_3](%[addr_c]!) \n\t"
+          P_SW_IRPOST("x19", "%[addr_c]", "%[P_3]")
           "p.mac x22,  x4, x14 \n\t"
-          "p.sw x20, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x20", "%[addr_c]", "4")
           "p.mac x23,  x4, x15 \n\t"
-          "p.sw x21, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x21", "%[addr_c]", "4")
           "p.mac x24, x10, x12 \n\t"
-          "p.sw x22, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x22", "%[addr_c]", "4")
           "p.mac x25, x10, x13 \n\t"
-          "p.sw x23, %[P_3](%[addr_c]!) \n\t"
+          P_SW_IRPOST("x23", "%[addr_c]", "%[P_3]")
           "p.mac x26, x10, x14 \n\t"
-          "p.sw x24, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x24", "%[addr_c]", "4")
           "p.mac x27, x10, x15 \n\t"
-          "p.sw x25, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x25", "%[addr_c]", "4")
           "p.mac x28, x11, x12 \n\t"
-          "p.sw x26, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x26", "%[addr_c]", "4")
           "p.mac x29, x11, x13 \n\t"
-          "p.sw x27, %[P_3](%[addr_c]!) \n\t"
+          P_SW_IRPOST("x27", "%[addr_c]", "%[P_3]")
           "p.mac x30, x11, x14 \n\t"
-          "p.sw x28, 4(%[addr_c]!) \n\t"
+          P_SW_IRPOST("x28", "%[addr_c]", "4")
           "p.mac %[addr_a_ori], x11, x15 \n\t"
-          "p.sw x29, 4(%[addr_c]!) \n\t"
-          "p.sw x30, 4(%[addr_c]!) \n\t"
-          "p.sw %[addr_a_ori], %[P_3](%[addr_c]!) \n\t"
+          P_SW_IRPOST("x29", "%[addr_c]", "4")
+          P_SW_IRPOST("x30", "%[addr_c]", "4")
+          P_SW_IRPOST("%[addr_a_ori]", "%[addr_c]", "%[P_3]")
           "add sp, sp, 8 \n\t"
           : [addr_a] "+&r"(addr_a), [addr_b] "+&r"(addr_b),
             [addr_c] "+&r"(addr_c), [addr_a_ori] "+&r"(addr_a_ori),
@@ -1023,6 +1028,7 @@ void mat_mul_unrolled_4x4_conflict_opt_parallel_asm(
           : "x3", "x4", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
             "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
             "x27", "x28", "x29", "x30", "memory"); // Clobber
+      // clang-format on
     }
     if (j_offset_counter != c_start) {
       P_counter = j_offset_counter;

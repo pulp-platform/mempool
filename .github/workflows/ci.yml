@@ -61,7 +61,7 @@ jobs:
         key: ${{ runner.os }}-llvm-project-${{ env.llvm-project-hash }}
     - name: Download llvm-project
       if: steps.llvm-project.outputs.cache-hit != 'true'
-      run: git submodule update --init --recursive -- toolchain/llvm-project
+      run: git submodule update --init -- toolchain/llvm-project
     - name: Compile llvm-project
       if: steps.llvm-project.outputs.cache-hit != 'true'
       run: |
@@ -88,7 +88,7 @@ jobs:
       id: halide
       with:
         path: install/halide
-        key: ${{ runner.os }}-halide-${{ env.halide-hash }}
+        key: ${{ runner.os }}-halide-${{ env.halide-hash }}-${{ hashFiles('toolchain/halide.patch') }}
     - name: Get llvm-project artifacts
       if: steps.halide.outputs.cache-hit != 'true'
       uses: actions/download-artifact@v4
@@ -115,31 +115,6 @@ jobs:
   ###########
   #  Tools  #
   ###########
-  riscv-isa-sim:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Cache riscv-isa-sim
-      uses: actions/cache@v4
-      id: riscv-isa-sim
-      with:
-        path: install/riscv-isa-sim
-        key: ${{ runner.os }}-riscv-isa-sim-${{ hashFiles('toolchain/riscv-isa-sim/**') }}
-    - name: Download riscv-isa-sim
-      if: steps.riscv-isa-sim.outputs.cache-hit != 'true'
-      run: git submodule update --init --recursive -- toolchain/riscv-isa-sim
-    - name: Compile riscv-isa-sim
-      if: steps.riscv-isa-sim.outputs.cache-hit != 'true'
-      run: |
-        sudo apt install device-tree-compiler
-        make riscv-isa-sim
-    - name: Tar riscv-isa-sim
-      run: tar --posix --use-compress-program zstd -cf riscv-isa-sim.tzst install/riscv-isa-sim
-    - name: Upload riscv-isa-sim
-      uses: actions/upload-artifact@v4
-      with:
-        name: riscv-isa-sim
-        path: riscv-isa-sim.tzst
 
   verilator:
     runs-on: ubuntu-22.04
@@ -198,6 +173,15 @@ jobs:
     - name: Untar Verilator
       if: steps.verilator-model.outputs.cache-hit != 'true'
       run: tar --use-compress-program zstd -xf verilator.tzst
+    - name: Recover the Bender version
+      if: steps.verilator-model.outputs.cache-hit != 'true'
+      run: echo "bender-version=$(sed -n 's/^BENDER_VERSION *= *//p' Makefile)" >> $GITHUB_ENV
+    - name: Cache Bender
+      if: steps.verilator-model.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      with:
+        path: install/bender
+        key: ${{ runner.os }}-bender-${{ env.bender-version }}
     - name: Build Model
       if: steps.verilator-model.outputs.cache-hit != 'true'
       env:
@@ -235,7 +219,7 @@ jobs:
       run: |
         rm software/runtime/bootrom.img
         rm hardware/src/bootrom.sv
-        make -C software runtime/bootrom.img
+        COMPILER=gcc make -C software runtime/bootrom.img
         make -C hardware src/bootrom.sv
         git diff --exit-code
 
@@ -244,7 +228,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
+    - name: Recover the Bender version
+      run: echo "bender-version=$(sed -n 's/^BENDER_VERSION *= *//p' Makefile)" >> $GITHUB_ENV
+    - name: Cache Bender
+      uses: actions/cache@v4
+      with:
+        path: install/bender
+        key: ${{ runner.os }}-bender-${{ env.bender-version }}
     - name: Build Control Registers
       run: |
         make bender
@@ -257,6 +250,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
+    - name: Install Python requirements
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Regenerate opcodes
       run: |
         make update-opcodes
@@ -280,7 +277,9 @@ jobs:
     - name: Untar riscv-gnu-toolchain
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -319,13 +318,15 @@ jobs:
     - name: Untar llvm-project
       run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps/baremetal all_llvm
+        COMPILER=llvm make -C software/apps/baremetal all
         COMPILER=llvm make -C software/tests baremetal
     - name: Tar apps-llvm Model
       run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst software/bin
@@ -383,7 +384,7 @@ jobs:
   run-apps-gcc:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-gcc, riscv-isa-sim, verilator-model]
+    needs: [build-apps-gcc, tc-llvm, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -395,20 +396,22 @@ jobs:
         name: apps-gcc-${{ matrix.mempool_config }}
     - name: Untar apps-gcc
       run: tar --use-compress-program zstd -xf apps-gcc.tzst
-    - name: Get riscv-isa-sim artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get llvm-project artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Run GCC Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -421,7 +424,7 @@ jobs:
   run-apps-llvm:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-llvm, riscv-isa-sim, verilator-model]
+    needs: [build-apps-llvm, tc-llvm, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -433,20 +436,22 @@ jobs:
         name: apps-llvm-${{ matrix.mempool_config }}
     - name: Untar apps-llvm
       run: tar --use-compress-program zstd -xf apps-llvm.tzst
-    - name: Get riscv-isa-sim artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get llvm-project artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Run LLVM Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -459,7 +464,7 @@ jobs:
   run-apps-halide:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    needs: [build-apps-halide, riscv-isa-sim, verilator-model]
+    needs: [build-apps-halide, tc-llvm, verilator-model]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
@@ -471,20 +476,22 @@ jobs:
         name: apps-halide-${{ matrix.mempool_config }}
     - name: Untar apps-halide
       run: tar --use-compress-program zstd -xf apps-halide.tzst
-    - name: Get riscv-isa-sim artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
         name: verilator-model-${{ matrix.mempool_config }}
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Get llvm-project artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Run Halide Apps
       env:
         config: ${{ matrix.mempool_config }}
@@ -497,7 +504,7 @@ jobs:
   unit-test:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
-    needs: [tc-gcc, riscv-isa-sim, verilator-model]
+    needs: [tc-gcc, tc-llvm, verilator-model]
     steps:
     - uses: actions/checkout@v4
     - name: Get riscv-gnu-toolchain artifacts
@@ -506,18 +513,29 @@ jobs:
         name: riscv-gnu-toolchain
     - name: Untar riscv-gnu-toolchain
       run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
-    - name: Get riscv-isa-sim artifacts
+    - name: Get llvm-project artifacts
       uses: actions/download-artifact@v4
       with:
-        name: riscv-isa-sim
-    - name: Untar riscv-isa-sim
-      run: tar --use-compress-program zstd -xf riscv-isa-sim.tzst
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
         name: verilator-model-minpool
     - name: Untar verilator-model
       run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Install Python requirements
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
+    - name: Recover the Bender version
+      run: echo "bender-version=$(sed -n 's/^BENDER_VERSION *= *//p' Makefile)" >> $GITHUB_ENV
+    - name: Cache Bender
+      uses: actions/cache@v4
+      with:
+        path: install/bender
+        key: ${{ runner.os }}-bender-${{ env.bender-version }}
     - name: Execute tests
       run: |
         # Don't regenerate previously build artifacts
@@ -536,7 +554,7 @@ jobs:
   clean-up:
     runs-on: ubuntu-22.04
     if: always()
-    needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
+    needs: [tc-gcc, tc-llvm, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
       run-apps-llvm, run-apps-halide]
     steps:
@@ -547,13 +565,12 @@ jobs:
           riscv-gnu-toolchain
           llvm-project
           halide
-          riscv-isa-sim
           verilator
 
   clean-up-compile-runs:
     runs-on: ubuntu-22.04
     if: always()
-    needs: [tc-gcc, tc-llvm, riscv-isa-sim, verilator, tc-halide, verilator-model,
+    needs: [tc-gcc, tc-llvm, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
       run-apps-llvm, run-apps-halide]
     strategy:

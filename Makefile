@@ -17,7 +17,6 @@ INSTALL_PREFIX        ?= install
 SOFTWARE_DIR          ?= software
 INSTALL_DIR           ?= ${ROOT_DIR}/${INSTALL_PREFIX}
 GCC_INSTALL_DIR       ?= ${INSTALL_DIR}/riscv-gcc
-ISA_SIM_INSTALL_DIR   ?= ${INSTALL_DIR}/riscv-isa-sim
 LLVM_INSTALL_DIR      ?= ${INSTALL_DIR}/llvm
 HALIDE_INSTALL_DIR    ?= ${INSTALL_DIR}/halide
 BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
@@ -26,7 +25,7 @@ BENDER_ROOT 					?= $(ROOT_DIR)/hardware/deps
 VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
 RISCV_TESTS_DIR       ?= ${ROOT_DIR}/${SOFTWARE_DIR}/riscv-tests
 
-COMPILER ?= gcc
+COMPILER ?= llvm
 
 CMAKE ?= cmake
 # CC and CXX are Makefile default variables that are always defined in a Makefile. Hence, overwrite
@@ -72,26 +71,19 @@ tc-riscv-gcc:
 
 tc-llvm:
 	mkdir -p $(LLVM_INSTALL_DIR)
-	cd $(CURDIR)/toolchain/llvm-project && mkdir -p build && cd build; \
-	$(CMAKE) \
-		-DCMAKE_INSTALL_PREFIX=$(LLVM_INSTALL_DIR) \
-		-DCMAKE_CXX_COMPILER=$(CXX) \
-		-DCMAKE_C_COMPILER=$(CC) \
-		-DLLVM_ENABLE_PROJECTS="clang" \
-		-DLLVM_TARGETS_TO_BUILD="RISCV;host" \
-		-DLLVM_BUILD_DOCS="0" \
-		-DLLVM_ENABLE_BINDINGS="0" \
-		-DLLVM_ENABLE_TERMINFO="0"  \
-		-DLLVM_ENABLE_ASSERTIONS=ON \
-		-DLLVM_ENABLE_LIBPFM=OFF \
-		-DCMAKE_BUILD_TYPE=Release \
-		../llvm && \
-	make -j6 all && \
-	make install
+	cd $(CURDIR)/toolchain/llvm-project/.github/pulp && \
+	INSTALLPREFIX=$(LLVM_INSTALL_DIR)/ \
+	LLVMSRC=$(CURDIR)/toolchain/llvm-project \
+	NEWLIBSRC=$(CURDIR)/toolchain/newlib \
+	LLVM_TARGETS="RISCV;host" \
+	./scripts/build-riscv32-llvm.sh
 
 # Halide
 halide:
 	mkdir -p $(HALIDE_INSTALL_DIR)
+	# Apply the MemPool patch to upstream Halide, unless already applied
+	cd toolchain/halide && \
+	(git apply --reverse --check ../halide.patch 2>/dev/null || git apply ../halide.patch)
 	cd toolchain/halide && mkdir -p build && cd build; \
 	$(CMAKE) \
 		-DLLVM_DIR=$(LLVM_INSTALL_DIR)/lib/cmake/llvm \
@@ -100,31 +92,25 @@ halide:
 		-DCMAKE_CXX_COMPILER=$(CXX) \
 		-DCMAKE_C_COMPILER=$(CC) \
 		-DWITH_PYTHON_BINDINGS=OFF \
+		-DWITH_TESTS=OFF \
+		-DWITH_TUTORIALS=OFF \
+		-DWITH_SERIALIZATION=OFF \
+		-DHalide_WASM_BACKEND=OFF \
 		-DCMAKE_BUILD_TYPE=Release \
 		.. && \
 	make -j4 all && \
 	make install
 
 # Opcodes
-update-opcodes: software/runtime/encoding.h hardware/deps/snitch/src/riscv_instr.sv
+ENCODING_H := $(ROOT_DIR)/software/runtime/encoding.h
+INSTR_SV   := $(ROOT_DIR)/hardware/deps/snitch/src/riscv_instr.sv
 
-software/runtime/encoding.h: toolchain/riscv-opcodes/*
-	make -C toolchain/riscv-opcodes encoding_out.h
-	mv toolchain/riscv-opcodes/encoding_out.h $@
-	ln -fsr $@ toolchain/riscv-isa-sim/riscv/encoding.h
-	ln -fsr $@ software/riscv-tests/env/encoding.h #this will change when riscv-tests is a submodule
-
-hardware/deps/snitch/src/riscv_instr.sv: toolchain/riscv-opcodes/*
-	make -C toolchain/riscv-opcodes inst.sverilog
-	mv toolchain/riscv-opcodes/inst.sverilog $@
+update-opcodes: $(ENCODING_H) $(INSTR_SV)
+$(ENCODING_H) $(INSTR_SV): toolchain/riscv-opcodes/* $(ROOT_DIR)/scripts/opcodes.txt
+	$(ROOT_DIR)/scripts/update_opcodes.sh
 
 toolchain/riscv-opcodes/*:
 	git submodule update --init --recursive -- toolchain/riscv-opcodes
-
-# Tracing
-riscv-isa-sim: update-opcodes
-	cd toolchain/riscv-isa-sim && mkdir -p build && cd build; \
-	../configure --prefix=$(ISA_SIM_INSTALL_DIR) && make && make install
 
 #########
 # Tests #
@@ -134,21 +120,14 @@ riscv-isa-sim: update-opcodes
 .PHONY: riscv-tests build-riscv-tests clean-riscv-tests
 
 riscv-tests: build-riscv-tests
-	export PATH=$(ISA_SIM_INSTALL_DIR)/bin:$$PATH; \
-	make -C $(RISCV_TESTS_DIR)/isa run && \
-	config=minpool make -C $(SOFTWARE_DIR) riscv-tests && \
-	config=minpool make -C hardware verilate_test
+	config=minpool make -C hardware verilate-test
 
 build-riscv-tests: update-opcodes
-	cd $(RISCV_TESTS_DIR); \
-	autoconf && ./configure --with-xlen=32 --prefix=$$(pwd)/target && \
-	make isa -j4 && make install && \
-	cd isa && make -j4 all
+	config=minpool COMPILER=llvm make -C $(SOFTWARE_DIR) riscv-tests
 
 clean-riscv-tests:
 	$(MAKE) -C hardware clean
 	$(MAKE) -C $(SOFTWARE_DIR) clean
-	$(MAKE) -C $(RISCV_TESTS_DIR) clean
 
 ###################
 # HW Dependencies #

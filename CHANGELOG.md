@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add support for atomics in L2
 
 ### Changes
+- Activate the division and square root unit in the default configuration
 - Add physical feasible TeraPool configuration with SubGroup hierarchy.
 - Extended `tracevis.py` to support the new Perfetto UI and compress large traces
 - Use custom compiler for VCS specified with `CC` and `CCX` environment variable
@@ -43,8 +44,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add fp8 microkernels: axpy, matmul, batchnorm, layernorm, softmax
 - Optimize fp16 matmul kernel
 - Add fall through register after LSU input
+- Upgrade to LLVM 22 with the custom extensions generated from `riscv-opcodes`
+- Update Halide to upstream version 22, with the MemPool support applied as a patch
 - Benderize MemPool dependencies
 - Update Verilator to 4.228
+- Update riscv-opcodes and LLVM to 22.1.7
+- Update Halide to 22.0.0
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`

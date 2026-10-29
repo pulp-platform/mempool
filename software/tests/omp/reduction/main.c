@@ -85,7 +85,8 @@ int test_omp_parallel_for_reduction() {
     logics[i] = 1;
   }
 
-#pragma omp parallel for private(i) schedule(static,1) reduction(&&:logic_and)
+#pragma omp parallel for private(i) schedule(static, 1)                        \
+    reduction(&& : logic_and)
   for (i = 0; i < LOOPCOUNT; ++i) {
     logic_and = (logic_and && logics[i]);
   }
@@ -97,7 +98,8 @@ int test_omp_parallel_for_reduction() {
   logic_and = 1;
   logics[LOOPCOUNT / 2] = 0;
 
-#pragma omp parallel for schedule(static,1) private(i) reduction(&&:logic_and)
+#pragma omp parallel for schedule(static, 1) private(i)                        \
+    reduction(&& : logic_and)
   for (i = 0; i < LOOPCOUNT; ++i) {
     logic_and = logic_and && logics[i];
   }
@@ -187,7 +189,8 @@ int test_omp_parallel_for_reduction() {
     logics[i] = 0;
   }
 
-#pragma omp parallel for schedule(static,1) private(i) reduction(^:exclusiv_bit_or)
+#pragma omp parallel for schedule(static, 1) private(i)                        \
+    reduction(^ : exclusiv_bit_or)
   for (i = 0; i < LOOPCOUNT; ++i) {
     exclusiv_bit_or = exclusiv_bit_or ^ logics[i];
   }
@@ -199,7 +202,8 @@ int test_omp_parallel_for_reduction() {
   exclusiv_bit_or = 0;
   logics[LOOPCOUNT / 2] = 1;
 
-#pragma omp parallel for schedule(static,1) private(i) reduction(^:exclusiv_bit_or)
+#pragma omp parallel for schedule(static, 1) private(i)                        \
+    reduction(^ : exclusiv_bit_or)
   for (i = 0; i < LOOPCOUNT; ++i) {
     exclusiv_bit_or = exclusiv_bit_or ^ logics[i];
   }

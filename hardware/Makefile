@@ -10,6 +10,7 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
+SW_DIR := $(abspath $(ROOT_DIR)/../software/)
 TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
 
 # Include configuration
@@ -51,9 +52,6 @@ resultpath      ?= results
 result_dir      := $(if $(strip $(result_dir)),$(result_dir),$(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)"))
 # Traces
 snitch_trace    ?= 1
-trace           := $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpath)/*.dasm))
-tracepath       ?= $(buildpath)/traces
-traceresult     ?= $(tracepath)/results.csv
 
 
 
@@ -337,6 +335,12 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 	# Avoid capturing the return status when running the load-throughput analysis
 	if [ $(tg) -ne 1 ]; then ./scripts/return_status.sh $(buildpath)/transcript; fi
 
+################
+# Tracing      #
+################
+
+include $(ROOT_DIR)/traces.mk
+
 #############
 # Lint      #
 #############
@@ -351,49 +355,20 @@ spyglass/tmp/files: $(bender)
 	mkdir -p spyglass/tmp
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > spyglass/tmp/files
 
-################
-# Tracing      #
-################
-
-# Give configuration in env
-trace_env += NUM_CORES=$(num_cores)
-trace_env += SEQ_MEM_SIZE=$(seq_mem_size)
-
-trace: pre_trace $(trace) post_trace
-
-pre_trace:
-	rm -rf $(tracepath)
-
-post_trace:
-	mkdir -p "$(result_dir)"
-	cp $(buildpath)/transcript "$(result_dir)/" | true
-	cp $(traceresult) "$(result_dir)"
-	cp $(trace) "$(result_dir)"
-	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(result_dir)/avg.txt
-
-$(buildpath)/%.trace: $(buildpath)/%.dasm
-	mkdir -p $(tracepath)
-	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
-	$(trace_env) $(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
-
-tracevis:
-	$(MEMPOOL_DIR)/scripts/tracevis.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json
-
 ############################
 # Unit tests simulation    #
 ############################
 
-TESTS_DIR := $(abspath $(ROOT_DIR)/../software/riscv-tests/isa)
-include $(TESTS_DIR)/snitch_isa.mk
+include $(SW_DIR)/snitch_isa.mk
 
 test_result_dir_vsim := $(resultpath)/test_result_vsim
 test_result_dir_verilate := $(resultpath)/test_result_verilate
 
-tests_vsim := $(addsuffix .out,$(addprefix $(test_result_dir_vsim)/,$(rtl_mempool_tests)))
-tests_verilate := $(addsuffix .out,$(addprefix $(test_result_dir_verilate)/,$(rtl_mempool_tests)))
+tests_vsim := $(addsuffix .out,$(addprefix $(test_result_dir_vsim)/,$(rtl_tests)))
+tests_verilate := $(addsuffix .out,$(addprefix $(test_result_dir_verilate)/,$(rtl_tests)))
 
-simc_test: clean-dasm compile $(buildpath) $(tests_vsim)
-verilate_test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
+simc-test: clean-dasm compile $(buildpath) $(tests_vsim)
+verilate-test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
 
 $(tests_vsim): $(test_result_dir_vsim)/%.out : $(app_path)/%
 	mkdir -p $(test_result_dir_vsim)

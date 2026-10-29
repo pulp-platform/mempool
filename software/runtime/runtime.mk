@@ -17,24 +17,20 @@ python             ?= python3
 INSTALL_DIR        ?= $(MEMPOOL_DIR)/install
 GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
-# HALIDE_INSTALL_DIR ?= $(INSTALL_DIR)/halide
-# HALIDE_INCLUDE     ?= $(HALIDE_INSTALL_DIR)/include
-# HALIDE_LIB         ?= $(HALIDE_INSTALL_DIR)/lib
+
 OMP_DIR            ?= $(ROOT_DIR)/omp
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
 
-COMPILER      ?= gcc
-XPULPIMG      ?= $(xpulpimg)
-ZFINX         ?= $(zfinx)
-XDIVSQRT	    ?= $(xDivSqrt)
-
+COMPILER      ?= llvm
 RISCV_XLEN    ?= 32
-
 RISCV_ABI     ?= ilp32
 RISCV_TARGET  ?= riscv$(RISCV_XLEN)-unknown-elf
-ifeq ($(COMPILER),gcc)
+XPULPIMG      ?= $(xpulpimg)
+ZFINX         ?= $(zfinx)
+XDIVSQRT      ?= $(xDivSqrt)
 
+ifeq ($(COMPILER),gcc)
 	# Use GCC
 	# GCC compiler -march
 	ifeq ($(XPULPIMG),1)
@@ -58,21 +54,12 @@ else
 	# LLVM compiler -march
 	RISCV_ARCH ?= rv$(RISCV_XLEN)ima
 	ifeq ($(ZFINX), 1)
-		RISCV_ARCH := $(RISCV_ARCH)_zfinx
-		RISCV_ARCH := $(RISCV_ARCH)_zhinx
-		RISCV_ARCH := $(RISCV_ARCH)_zquarterinx
-		RISCV_ARCH := $(RISCV_ARCH)_zvechalfinx
-		RISCV_ARCH := $(RISCV_ARCH)_zvecquarterinx
-		RISCV_ARCH := $(RISCV_ARCH)_zexpauxvechalfinx
-		RISCV_ARCH := $(RISCV_ARCH)_zexpauxvecquarterinx
+		RISCV_ARCH := $(RISCV_ARCH)_zfinx_zhinx_xsmallfloatinx_xsfltinx_xfcdotphalfinx
 	endif
 	ifeq ($(XPULPIMG), 1)
-		RISCV_ARCH := $(RISCV_ARCH)_xpulppostmod
-		RISCV_ARCH := $(RISCV_ARCH)_xpulpmacsi
-		RISCV_ARCH := $(RISCV_ARCH)_xpulpvect
-		RISCV_ARCH := $(RISCV_ARCH)_xpulpvectshufflepack
+		RISCV_ARCH := $(RISCV_ARCH)_xpulpabs_xpulpbitop_xpulpbr_xpulpclip_xpulpmacsi_xpulpminmax
+		RISCV_ARCH := $(RISCV_ARCH)_xpulppostmod_xpulpslet_xpulpvect_xpulpvectshufflepack
 	endif
-	RISCV_ARCH := $(RISCV_ARCH)_xmempool
 	# LLVM Toolchain
 	RISCV_PREFIX  ?= $(LLVM_INSTALL_DIR)/bin/llvm-
 	RISCV_CC      ?= $(LLVM_INSTALL_DIR)/bin/clang
@@ -80,6 +67,7 @@ else
 	RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 
 endif
+
 RISCV_OBJCOPY ?= $(RISCV_PREFIX)objcopy
 RISCV_AS      ?= $(RISCV_PREFIX)as
 RISCV_AR      ?= $(RISCV_PREFIX)ar
@@ -118,18 +106,12 @@ RISCV_WARNINGS += -Wunused-variable -Wconversion -Wall -Wextra # -Werror
 RISCV_FLAGS_COMMON_TESTS ?= -march=$(RISCV_ARCH) -mabi=$(RISCV_ABI) -I$(ROOT_DIR) -I$(KERNELS_DIR) -I$(DATA_DIR) -static
 RISCV_FLAGS_COMMON ?= $(RISCV_FLAGS_COMMON_TESTS) -g -std=gnu99 -O3  -fno-builtin-memcpy -fno-builtin-memset -ffast-math -fno-common -fno-builtin-printf $(DEFINES) $(RISCV_WARNINGS)
 RISCV_FLAGS_GCC    ?= -mcmodel=medany -Wa,-march=$(RISCV_ARCH_AS) -mtune=mempool -fno-tree-loop-distribute-patterns # -falign-loops=32 -falign-jumps=32
-RISCV_FLAGS_LLVM   ?= -mcmodel=small -mcpu=mempool-rv32 -mllvm -misched-topdown -menable-experimental-extensions
-# Enable soft-divsqrt when the hardware is not supported.
-ifeq ($(xDivSqrt), 0)
-	RISCV_FLAGS_LLVM_TESTS := $(RISCV_FLAGS_LLVM)
-	RISCV_FLAGS_LLVM += -mno-fdiv
-endif
+RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -misched-prera-direction=topdown -menable-experimental-extensions
+# DWARF 5 uses ULEB128 relocations, which are not supported by the GNU linker
+RISCV_FLAGS_LLVM   += -gdwarf-4
 
-# Disable division and square root
-ifeq ($(XDIVSQRT), 0)
-	RISCV_FLAGS_LLVM += -mno-fdiv
-else
-	# Define if the extension is active
+# Define if the division and square root extension is active
+ifneq ($(XDIVSQRT), 0)
 	DEFINES       += -D__XDIVSQRT
 endif
 
@@ -138,19 +120,11 @@ ifeq ($(COMPILER),gcc)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
 	RISCV_OBJDUMP_FLAGS += --disassembler-option="march=$(RISCV_ARCH_AS)"
-	# For unit tests
-	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_GCC) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
 else
 	RISCV_CCFLAGS       += $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_LLVM) $(RISCV_FLAGS_COMMON)
 	RISCV_CXXFLAGS      += $(RISCV_CCFLAGS)
 	RISCV_LDFLAGS       += -static -nostartfiles -lm -lgcc -mcmodel=small $(RISCV_LLVM_TARGET) $(RISCV_FLAGS_COMMON) -L$(ROOT_DIR)
-	ifeq ($(XDIVSQRT), 0)
-		RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx,+nofdiv
-	else
-		RISCV_OBJDUMP_FLAGS += --mcpu=mempool-rv32 --mattr=+m,+a,+xpulpmacsi,+xpulppostmod,+xpulpvect,+xpulpvectshufflepack,+zfinx
-	endif
-	# For unit tests
-	RISCV_CCFLAGS_TESTS ?= $(RISCV_FLAGS_LLVM_TESTS) $(RISCV_FLAGS_COMMON_TESTS) -fvisibility=hidden -nostdlib $(RISCV_LDFLAGS)
+	RISCV_OBJDUMP_FLAGS += $(addprefix --mattr=+,m a $(filter-out rv%,$(subst _, ,$(RISCV_ARCH))))
 endif
 
 LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld

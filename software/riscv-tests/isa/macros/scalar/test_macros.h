@@ -622,7 +622,7 @@ test_ ## testnum: \
     TEST_CASE( testnum, x14, load_result, \
       la  x1, base; \
       addi x15, x1, offset; \
-      inst x14, offset(x1!); \
+      inst.irpost x14, (x1), offset; \
     ) \
     bne x1, x15, fail;
 
@@ -631,7 +631,7 @@ test_ ## testnum: \
       la  x1, base; \
       la x15, base; \
       li  x2, store_result; \
-      store_inst x2, offset(x1!); \
+      store_inst.irpost x2, (x1), offset; \
       load_inst x14, 0(x15); \
     ) \
     addi x15, x15, offset; \
@@ -642,7 +642,7 @@ test_ ## testnum: \
     li  TESTNUM, testnum; \
     li  x4, 0; \
 1:  la  x1, base; \
-    inst x14, offset(x1!); \
+    inst.irpost x14, (x1), offset; \
     TEST_INSERT_NOPS_ ## nop_cycles \
     addi  x6, x14, 0; \
     li  x7, load_result; \
@@ -657,7 +657,7 @@ test_ ## testnum: \
     li  x4, 0; \
 1:  la  x1, base; \
     addi x7, x1, offset; \
-    inst x14, offset(x1!); \
+    inst.irpost x14, (x1), offset; \
     TEST_INSERT_NOPS_ ## nop_cycles \
     addi  x6, x1, 0; \
     bne x6, x7, fail; \
@@ -671,7 +671,7 @@ test_ ## testnum: \
     li  x4, 0; \
 1:  la  x1, base; \
     TEST_INSERT_NOPS_ ## nop_cycles \
-    inst x14, offset(x1!); \
+    inst.irpost x14, (x1), offset; \
     li  x7, load_result; \
     bne x14, x7, fail; \
     la  x15, base; \
@@ -689,7 +689,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     la  x2, base; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    store_inst x1, offset(x2!); \
+    store_inst.irpost x1, (x2), offset; \
     la x15, base; \
     load_inst x14, 0(x15); \
     li  x7, store_result; \
@@ -708,7 +708,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     li  x1, store_result; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    store_inst x1, offset(x2!); \
+    store_inst.irpost x1, (x2), offset; \
     la x15, base; \
     load_inst x14, 0(x15); \
     li  x7, store_result; \
@@ -724,7 +724,7 @@ test_ ## testnum: \
 #define TEST_LD_POST_DEST1_WAW( testnum, inst, value, base ) \
     TEST_CASE( testnum, x14, value, \
       la  x1, base; \
-      inst x14, 0(x1!); \
+      inst.irpost x14, (x1), 0; \
       li x14, value; \
     )
 
@@ -736,7 +736,7 @@ test_ ## testnum: \
     TEST_CASE( testnum, x14, load_result, \
       la  x1, base; \
       li x16, offset; \
-      inst x14, x16(x1); \
+      inst.rr x14, x16(x1); \
     ) \
     la x15, base; \
     bne x1, x15, fail;
@@ -747,7 +747,7 @@ test_ ## testnum: \
       la x15, base; \
       li x16, offset; \
       li  x2, store_result; \
-      store_inst x2, x16(x1); \
+      store_inst.rr x2, x16(x1); \
       load_inst x14, offset(x15); \
     ) \
     bne x1, x15, fail;
@@ -758,7 +758,7 @@ test_ ## testnum: \
     li  x4, 0; \
 1:  la  x1, base; \
     li x16, offset; \
-    inst x14, x16(x1); \
+    inst.rr x14, x16(x1); \
     TEST_INSERT_NOPS_ ## nop_cycles \
     addi  x6, x14, 0; \
     li  x7, load_result; \
@@ -775,7 +775,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     li x16, offset; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    inst x14, x16(x1); \
+    inst.rr x14, x16(x1); \
     li  x7, load_result; \
     bne x14, x7, fail; \
     addi  x4, x4, 1; \
@@ -790,7 +790,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     la  x1, base; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    inst x14, x16(x1); \
+    inst.rr x14, x16(x1); \
     li  x7, load_result; \
     bne x14, x7, fail; \
     addi  x4, x4, 1; \
@@ -808,7 +808,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     li x16, offset; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    store_inst x1, x16(x2); \
+    store_inst.rr x1, x16(x2); \
     la x15, base; \
     load_inst x14, offset(x15); \
     li  x7, store_result; \
@@ -826,7 +826,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     li  x1, store_result; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    store_inst x1, x16(x2); \
+    store_inst.rr x1, x16(x2); \
     la x15, base; \
     load_inst x14, offset(x15); \
     li  x7, store_result; \
@@ -839,7 +839,7 @@ test_ ## testnum: \
 #define TEST_LD_RR_DEST1_WAW( testnum, inst, value, base ) \
     TEST_CASE( testnum, x14, value, \
       la  x1, base; \
-      inst x14, x0(x1); \
+      inst.rr x14, x0(x1); \
       li x14, value; \
     ) \
 
@@ -851,7 +851,7 @@ test_ ## testnum: \
     TEST_CASE( testnum, x14, load_result, \
       la  x1, base; \
       li x16, offset; \
-      inst x14, x16(x1!); \
+      inst.rrpost x14, (x1), x16; \
     ) \
     la x15, base; \
     addi x15, x15, offset; \
@@ -863,7 +863,7 @@ test_ ## testnum: \
       la x15, base; \
       li x16, offset; \
       li  x2, store_result; \
-      store_inst x2, x16(x1!); \
+      store_inst.rrpost x2, (x1), x16; \
       load_inst x14, 0(x15); \
     ) \
     addi x15, x15, offset; \
@@ -875,7 +875,7 @@ test_ ## testnum: \
     li  x4, 0; \
 1:  la  x1, base; \
     li x16, offset; \
-    inst x14, x16(x1!); \
+    inst.rrpost x14, (x1), x16; \
     TEST_INSERT_NOPS_ ## nop_cycles \
     addi  x6, x14, 0; \
     li  x7, load_result; \
@@ -892,7 +892,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     li x16, offset; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    inst x14, x16(x1!); \
+    inst.rrpost x14, (x1), x16; \
     li  x7, load_result; \
     bne x14, x7, fail; \
     addi  x4, x4, 1; \
@@ -907,7 +907,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     la  x1, base; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    inst x14, x16(x1!); \
+    inst.rrpost x14, (x1), x16; \
     li  x7, load_result; \
     bne x14, x7, fail; \
     addi  x4, x4, 1; \
@@ -925,7 +925,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     li x16, offset; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    store_inst x1, x16(x2!); \
+    store_inst.rrpost x1, (x2), x16; \
     la x15, base; \
     load_inst x14, 0 (x15); \
     li  x7, store_result; \
@@ -943,7 +943,7 @@ test_ ## testnum: \
     TEST_INSERT_NOPS_ ## src1_nops \
     li  x1, store_result; \
     TEST_INSERT_NOPS_ ## src2_nops \
-    store_inst x1, x16(x2!); \
+    store_inst.rrpost x1, (x2), x16; \
     la x15, base; \
     load_inst x14, 0(x15); \
     li  x7, store_result; \
@@ -956,7 +956,7 @@ test_ ## testnum: \
 #define TEST_LD_RR_POST_DEST1_WAW( testnum, inst, value, base ) \
     TEST_CASE( testnum, x14, value, \
       la  x1, base; \
-      inst x14, x0(x1!); \
+      inst.rrpost x14, (x1), x0; \
       li x14, value; \
     ) \
 
