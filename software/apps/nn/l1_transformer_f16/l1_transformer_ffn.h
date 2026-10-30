@@ -32,12 +32,16 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   // buffer is reused once nothing reads its previous content any more.
   //   x       input [Beam][Embed][tdSamples]     l1_arena.x
   //   x_norm  layernorm output                   l1_act
+  //           (without PIPELINED; with PIPELINED the layernorm writes the
+  //           im2col of the up-projection, cols)
   //   cols    im2col of the convolutions         l1_scratch
   //   up      up-projection [Beam][2*Embed][..]  l1_arena.y      over x
   //   hidden  Gelu of up                         in place on up
   //   y       output [Beam][Embed][tdSamples]    l1_act over x_norm
   __fp16 *x = l1_arena.x;
+#ifndef PIPELINED
   __fp16 *x_norm = l1_act;
+#endif
   __fp16 *cols = l1_scratch;
   __fp16 *up = l1_arena.y;
   __fp16 *hidden = up;
@@ -68,15 +72,18 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   /* Layernorm                                                              */
   /**************************************************************************/
 
-  // Layer Normalization (over the raw Embed-channel input)
+  // Layer Normalization (over the raw Embed-channel input). With PIPELINED it
+  // runs in the convolution, as its im2col (layernorm_im2col): the region
+  // stays (empty) so that the region indices do not change
+  mempool_start_benchmark();
+#ifndef PIPELINED
   uint32_t num_cores_per_batch = num_cores / Beam;
   uint32_t batch_id = core_id % num_cores_per_batch;
   uint32_t idx = core_id / num_cores_per_batch;
-
-  mempool_start_benchmark();
   layernorm_parallel_2x4_f16vec(&x[idx * Embed * tdSamples],
                                 &x_norm[idx * Embed * tdSamples], Embed,
                                 tdSamples, batch_id, num_cores_per_batch);
+#endif
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
@@ -89,9 +96,9 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
 
   // Convolution: up-projection (Embed -> 2*Embed), Gelu applied in place
   mempool_start_benchmark();
-  conv1d_pipelined_f16(x_norm, F, F_STRIDE, up, cols, Beam, Embed, Embed * 2,
-                       tdSamples, Wf, im2col_dense, gelu_f16, core_id,
-                       num_cores);
+  conv1d_pipelined_f16(x, F, F_STRIDE, up, cols, Beam, Embed, Embed * 2,
+                       tdSamples, Wf, layernorm_im2col, gelu_f16,
+                       core_id, num_cores);
   mempool_stop_benchmark();
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution + Gelu");

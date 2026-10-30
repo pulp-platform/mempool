@@ -35,6 +35,28 @@
 
 #include "l2_data.h"
 
+#ifdef PIPELINED
+#include "baremetal/mempool_conv1d_f16.h"
+#include "baremetal/mempool_layernorm_f16.h"
+
+// The layernorm is the im2col of the convolution that reads it (QKV
+// projection, FFN up-projection): it writes its output as an im2col, chunk by
+// chunk, so the layernorm of a chunk overlaps with the GEMMs of the previous
+// one. conv1d_im2col_t of the layer input X, [Beam][Embed][tdSamples].
+static void layernorm_im2col(__fp16 const *__restrict__ X,
+                             __fp16 *__restrict__ X_im2col, uint32_t b0,
+                             uint32_t nb, uint32_t Ci, uint32_t Wi, uint32_t Wf,
+                             uint32_t core_id, uint32_t num_cores) {
+  uint32_t cores_per_beam = num_cores / nb;
+  uint32_t b = b0 + core_id / cores_per_beam;
+  if (b < b0 + nb) {
+    layernorm_im2col_w3_parallel_2x4_f16vec(
+        &X[b * Ci * Wi], &X_im2col[b * Ci * Wf * Wi], Ci, Wi,
+        core_id % cores_per_beam, cores_per_beam);
+  }
+}
+#endif
+
 typedef enum { EBT, TBE } permute_mode_t;
 #include "l1_transformer_attention.h"
 #include "l1_transformer_ffn.h"
