@@ -49,6 +49,42 @@ static void permute_qkv_post(__fp16 *__restrict__ data, uint32_t size,
               permute_qkv_ctx.td_samples, permute_qkv_ctx.mode, b0,
               size / beam_size, core_id, num_cores);
 }
+
+// The output projection reads the attention output where the attention left
+// it: its im2col gathers the rows [Beam][Embed][tdSamples] from the layout of
+// the attention output, so the result needs no permutation.
+
+// EBT: att is [Embed][Beam][tdSamples], each row is contiguous
+static void im2col_att_ebt(__fp16 const *__restrict__ X,
+                           __fp16 *__restrict__ X_im2col, uint32_t b0,
+                           uint32_t nb, uint32_t Ci, uint32_t Wi, uint32_t Wf,
+                           uint32_t core_id, uint32_t num_cores) {
+  uint32_t slot = TS_SLOT(BEAM * Wi);
+  for (uint32_t r = core_id; r < nb * Ci; r += num_cores) {
+    uint32_t b = b0 + r / Ci;
+    uint32_t e = r % Ci;
+    im2col1d_f16(&X[e * slot + b * Wi], &X_im2col[(b * Ci + e) * Wf * Wi], 1,
+                 Wi, Wf, 0, 1);
+  }
+}
+
+// TBE: att is [tdSamples][Beam][Embed], a row is gathered with stride slot
+static void im2col_att_tbe(__fp16 const *__restrict__ X,
+                           __fp16 *__restrict__ X_im2col, uint32_t b0,
+                           uint32_t nb, uint32_t Ci, uint32_t Wi, uint32_t Wf,
+                           uint32_t core_id, uint32_t num_cores) {
+  uint32_t slot = TS_SLOT(BEAM * Ci);
+  uint32_t row[(TDSAMPLES + 1) / 2]; // word-aligned for the im2col
+  __fp16 *x = (__fp16 *)row;
+  for (uint32_t r = core_id; r < nb * Ci; r += num_cores) {
+    uint32_t b = b0 + r / Ci;
+    uint32_t e = r % Ci;
+    for (uint32_t t = 0; t < Wi; t++) {
+      x[t] = X[t * slot + b * Ci + e];
+    }
+    im2col1d_f16(x, &X_im2col[(b * Ci + e) * Wf * Wi], 1, Wi, Wf, 0, 1);
+  }
+}
 #endif
 
 /**
@@ -93,6 +129,8 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   //   Aw      softmax output                     l1_arena.y      over qkv
   //   att     scores, then attention output      l1_scratch      over cols
   //   att_p   att as [Beam][Embed][tdSamples]    l1_act          over q,kt,v
+  //           (without PIPELINED; with PIPELINED, l1_act holds the im2col of
+  //           the output projection, which reads att directly)
   //   y       output [Beam][Embed][tdSamples]    l1_arena.y      over Aw
 
   __fp16 *x = l1_arena.x;
@@ -181,7 +219,8 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
     permute_qkv_ctx.mode = mode;
   }
   conv1d_pipelined_f16(x_norm, F, F_STRIDE, qkv, cols, Beam, Embed, Embed * 3,
-                       tdSamples, Wf, permute_qkv_post, core_id, num_cores);
+                       tdSamples, Wf, im2col_dense, permute_qkv_post, core_id,
+                       num_cores);
 #else
   conv1d_f16(x_norm, F, qkv, cols, Beam, Embed, Embed * 3, tdSamples, Wf, 1,
              core_id, num_cores);
@@ -219,8 +258,12 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   /* Permute result                                                         */
   /**************************************************************************/
 
+  // With PIPELINED the output projection reads att directly: the region
+  // stays (empty) so that the region indices do not change
   mempool_start_benchmark();
+#ifndef PIPELINED
   permute_result(att, att_p, Beam, Embed, tdSamples, mode);
+#endif
   mempool_stop_benchmark();
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Permute result");
@@ -244,8 +287,12 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   // Convolution: output projection (Embed -> Embed)
   mempool_start_benchmark();
 #ifdef PIPELINED
-  conv1d_pipelined_f16(att_p, F, F_STRIDE, y, cols, Beam, Embed, Embed,
-                       tdSamples, Wf, NULL, core_id, num_cores);
+  // att is in l1_scratch: the im2col goes to l1_act, free after the attention
+  (void)att_p;
+  conv1d_pipelined_f16(att, F, F_STRIDE, y, l1_act, Beam, Embed, Embed,
+                       tdSamples, Wf,
+                       (mode == TBE) ? im2col_att_tbe : im2col_att_ebt, NULL,
+                       core_id, num_cores);
 #else
   conv1d_f16(att_p, F, y, cols, Beam, Embed, Embed, tdSamples, Wf, 1, core_id,
              num_cores);
