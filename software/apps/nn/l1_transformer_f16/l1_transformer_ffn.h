@@ -90,7 +90,8 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   // Convolution: up-projection (Embed -> 2*Embed), Gelu applied in place
   mempool_start_benchmark();
   conv1d_pipelined_f16(x_norm, F, F_STRIDE, up, cols, Beam, Embed, Embed * 2,
-                       tdSamples, Wf, gelu_f16, core_id, num_cores);
+                       tdSamples, Wf, im2col_dense, gelu_f16, core_id,
+                       num_cores);
   mempool_stop_benchmark();
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution + Gelu");
@@ -142,7 +143,7 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   mempool_start_benchmark();
 #ifdef PIPELINED
   conv1d_pipelined_f16(hidden, F, F_STRIDE, y, cols, Beam, Embed * 2, Embed,
-                       tdSamples, Wf, NULL, core_id, num_cores);
+                       tdSamples, Wf, im2col_dense, NULL, core_id, num_cores);
 #else
   conv1d_f16(hidden, F, y, cols, Beam, Embed * 2, Embed, tdSamples, Wf, 1,
              core_id, num_cores);
