@@ -49,7 +49,7 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
 
 #ifdef __clang__
 inline void __VFCPKAHS(v2h *z, const float x, const float y) {
-  asm volatile("vfcpka.h.s %0, %1, %2;" : "=r"(z) : "r"(x), "r"(y));
+  asm volatile("vfcpka.h.s %0, %1, %2;" : "=r"(*z) : "r"(x), "r"(y));
 }
 #endif
 
