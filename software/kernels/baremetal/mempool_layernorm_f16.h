@@ -9,10 +9,45 @@
 #pragma once
 #include "builtins_v2.h"
 
-void layernorm_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
+/* 32-bit word (two fp16) that may alias the fp16 buffers */
+typedef uint32_t __attribute__((may_alias)) layernorm_w32_t;
+
+static inline uint32_t layernorm_v2h_bits(v2h a) {
+  union {
+    v2h v;
+    uint32_t u;
+  } x = {a};
+  return x.u;
+}
+
+/* Stores the normalized words n0, n1 (elements j..j+3) of a row as the three
+ * rows of its 1D im2col with Wf = 3 (x[t-1], x[t], x[t+1], zero padded), the
+ * layout of im2col1d_f16. prev is the word before n0 (0 at the row start).
+ * Word w of row x[t-1] equals word w-1 of row x[t+1]. */
+static inline void layernorm_im2col_w3_store(layernorm_w32_t *out, uint32_t Ww,
+                                             uint32_t w, uint32_t prev,
+                                             v2h n0v, v2h n1v) {
+  uint32_t n0 = layernorm_v2h_bits(n0v), n1 = layernorm_v2h_bits(n1v);
+  uint32_t s0 = (prev >> 16) | (n0 << 16), s1 = (n0 >> 16) | (n1 << 16);
+  out[w] = s0;
+  out[w + 1] = s1;
+  out[Ww + w] = n0;
+  out[Ww + w + 1] = n1;
+  if (w > 0) {
+    out[2 * Ww + w - 1] = s0;
+  }
+  out[2 * Ww + w] = s1;
+  if (w + 2 == Ww) {
+    out[2 * Ww + w + 1] = n1 >> 16;
+  }
+}
+
+/* Inlined in each variant, so that im2col_w3 is a constant there */
+static inline __attribute__((always_inline)) void
+layernorm_parallel_2x4_f16vec_body(const __fp16 *__restrict__ A,
                                    __fp16 *__restrict__ B, uint32_t M,
                                    uint32_t N, uint32_t core_id,
-                                   uint32_t numThreads) {
+                                   uint32_t numThreads, uint32_t im2col_w3) {
 
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
@@ -100,6 +135,7 @@ void layernorm_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
           [x1] "+&r"(x1), [y0] "+&r"(y0), [y1] "+&r"(y1)
         : [vInvN] "r"(vInvN));
 
+    uint32_t prev0 = 0, prev1 = 0;
     for (j = 0; j < N; j += 4) {
       // aVec<r><k>: row i + r, elements j + 2k and j + 2k + 1
       v2h aVec00 = *(v2h *)&(A[i * N + j]);
@@ -121,10 +157,36 @@ void layernorm_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
             [aVec11] "+r"(aVec11)
           : [vMean0] "r"(vSumMean0), [vMean1] "r"(vSumMean1),
             [vStd0] "r"(vSumSq0), [vStd1] "r"(vSumSq1));
-      (*(v2h *)&B[i * N + j]) = aVec00;
-      (*(v2h *)&B[i * N + j + 2]) = aVec01;
-      (*(v2h *)&B[(i + 1) * N + j]) = aVec10;
-      (*(v2h *)&B[(i + 1) * N + j + 2]) = aVec11;
+      if (im2col_w3) {
+        layernorm_w32_t *B0 = (layernorm_w32_t *)&B[i * 3 * N];
+        layernorm_w32_t *B1 = (layernorm_w32_t *)&B[(i + 1) * 3 * N];
+        layernorm_im2col_w3_store(B0, N / 2, j / 2, prev0, aVec00, aVec01);
+        layernorm_im2col_w3_store(B1, N / 2, j / 2, prev1, aVec10, aVec11);
+        prev0 = layernorm_v2h_bits(aVec01);
+        prev1 = layernorm_v2h_bits(aVec11);
+      } else {
+        (*(v2h *)&B[i * N + j]) = aVec00;
+        (*(v2h *)&B[i * N + j + 2]) = aVec01;
+        (*(v2h *)&B[(i + 1) * N + j]) = aVec10;
+        (*(v2h *)&B[(i + 1) * N + j + 2]) = aVec11;
+      }
     }
   }
+}
+
+void layernorm_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
+                                   __fp16 *__restrict__ B, uint32_t M,
+                                   uint32_t N, uint32_t core_id,
+                                   uint32_t numThreads) {
+  layernorm_parallel_2x4_f16vec_body(A, B, M, N, core_id, numThreads, 0);
+}
+
+/* Same normalization, with B written as the 1D im2col (Wf = 3) of the M x N
+ * output, 3 * M x N, as im2col1d_f16 writes it. N is a multiple of 4. */
+void layernorm_im2col_w3_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
+                                             __fp16 *__restrict__ B,
+                                             uint32_t M, uint32_t N,
+                                             uint32_t core_id,
+                                             uint32_t numThreads) {
+  layernorm_parallel_2x4_f16vec_body(A, B, M, N, core_id, numThreads, 1);
 }
