@@ -60,7 +60,7 @@ void layernorm_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
             [aVec11] "r"(aVec11));
     }
 
-    unsigned ShuffleMask = 0x00030002; // [a b] => [b a]
+    unsigned ShuffleMask = 0x00020003; // [a b] => [b a]
     // Variables used to store temporary sum values
     v2h x0, x1, y0, y1;
     // Reduce vector sum to one sum (replicated 2 times)
@@ -101,10 +101,10 @@ void layernorm_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
         : [vInvN] "r"(vInvN));
 
     for (j = 0; j < N; j += 4) {
-      // Variables used to store rows of matrix A: aVec00, ...
-      v2h aVec00 = *(v2h *)&(A[i * N + j]); // aVec00 = [a03 a02 a01 a00]
-      v2h aVec10 = *(v2h *)&(A[i * N + j + 2]);
-      v2h aVec01 = *(v2h *)&(A[(i + 1) * N + j]); // aVec10 = [a13 a12 a11 a10]
+      // aVec<r><k>: row i + r, elements j + 2k and j + 2k + 1
+      v2h aVec00 = *(v2h *)&(A[i * N + j]);
+      v2h aVec01 = *(v2h *)&(A[i * N + j + 2]);
+      v2h aVec10 = *(v2h *)&(A[(i + 1) * N + j]);
       v2h aVec11 = *(v2h *)&(A[(i + 1) * N + j + 2]);
       asm volatile(
           // Compute: aVec0 - vMean
@@ -122,8 +122,8 @@ void layernorm_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
           : [vMean0] "r"(vSumMean0), [vMean1] "r"(vSumMean1),
             [vStd0] "r"(vSumSq0), [vStd1] "r"(vSumSq1));
       (*(v2h *)&B[i * N + j]) = aVec00;
-      (*(v2h *)&B[i * N + j + 2]) = aVec10;
-      (*(v2h *)&B[(i + 1) * N + j]) = aVec01;
+      (*(v2h *)&B[i * N + j + 2]) = aVec01;
+      (*(v2h *)&B[(i + 1) * N + j]) = aVec10;
       (*(v2h *)&B[(i + 1) * N + j + 2]) = aVec11;
     }
   }
