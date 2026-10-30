@@ -296,6 +296,9 @@ void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
   // Batch slot of Q, Kt and V (see TS_SLOT in l2_data.h)
   uint32_t slot = TS_SLOT(Beam * ((mode == TBE) ? Embed : tdSamples));
 
+  // IN is the QKV projection, [Beam][3 * Embed][tdSamples]: the rows of Q, K
+  // and V of beam b and channel e are b * 3 * Embed + e, + Embed, + 2 * Embed
+
   for (uint32_t i = b0 * Embed + core_id; i < (b0 + bN) * Embed;
        i += num_cores) {
     uint32_t b = i / Embed;
@@ -304,7 +307,7 @@ void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
     case TBE:
       for (uint32_t t = 0; t < tdSamples; t++) {
         uint32_t o_idx, o_tidx, i_idx;
-        i_idx = (b * Embed + e) * 3 * tdSamples + t;
+        i_idx = (b * 3 * Embed + e) * tdSamples + t;
         o_idx = t * slot + b * Embed + e;
         o_tidx = t * slot + e * Beam + b;
         Q[o_idx] = IN[i_idx];
@@ -313,7 +316,7 @@ void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
       }
       break;
     default: { // EBT
-      uint32_t i_base = (b * Embed + e) * 3 * tdSamples;
+      uint32_t i_base = (b * 3 * Embed + e) * tdSamples;
       uint32_t o_base = e * slot + b * tdSamples;
       // Q and V are contiguous in t on both the IN side and their own side
       // (stride 1), so two t's at a time move through one v2h load/store
