@@ -16,7 +16,7 @@ void softmax_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
 
-  const unsigned ShuffleMask = 0x00030002; // [a b] => [b a]
+  const unsigned ShuffleMask = 0x00020003; // [a b] => [b a]
   v2h vDiv16, vDiv12, vOne;
   __VFCPKAHS(&vDiv16, 0.167f, 0.167f);
   __VFCPKAHS(&vDiv12, 0.5f, 0.5f);
