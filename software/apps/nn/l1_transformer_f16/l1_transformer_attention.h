@@ -121,8 +121,9 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   // buffer is reused once nothing reads its previous content any more.
 
   //   x       input [Beam][Embed][tdSamples]     l1_arena.x
-  //   x_norm  layernorm output                   l1_act (l1_scratch
-  //                                              after cols if PIPELINED)
+  //   x_norm  layernorm output                   l1_act
+  //           (without PIPELINED; with PIPELINED the layernorm writes the
+  //           im2col of the QKV projection, cols)
   //   qkv     QKV projection [Beam][3*Embed][..] l1_arena.y      over x
   //   cols    im2col of the convolutions         l1_scratch
   //   q,kt,v  attention operands                 l1_act          over x_norm
@@ -134,12 +135,7 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   //   y       output [Beam][Embed][tdSamples]    l1_arena.y      over Aw
 
   __fp16 *x = l1_arena.x;
-#ifdef PIPELINED
-  // q, kt and v are written during the QKV convolution, which still reads
-  // x_norm: x_norm goes to the part of l1_scratch that the im2col of this
-  // convolution (Beam * Embed * tdSamples * Wf) does not use
-  __fp16 *x_norm = &l1_scratch[Beam * Embed * tdSamples * Wf];
-#else
+#ifndef PIPELINED
   __fp16 *x_norm = l1_act;
 #endif
   __fp16 *qkv = l1_arena.y;
@@ -187,15 +183,18 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   /* Layernorm                                                              */
   /**************************************************************************/
 
-  // Layer Normalization (over the raw Embed-channel input)
+  // Layer Normalization (over the raw Embed-channel input). With PIPELINED it
+  // runs in the convolution, as its im2col (layernorm_im2col): the region
+  // stays (empty) so that the region indices do not change
+  mempool_start_benchmark();
+#ifndef PIPELINED
   uint32_t num_cores_per_batch = num_cores / Beam;
   uint32_t batch_id = core_id % num_cores_per_batch;
   uint32_t idx = core_id / num_cores_per_batch;
-
-  mempool_start_benchmark();
   layernorm_parallel_2x4_f16vec(&x[idx * Embed * tdSamples],
                                 &x_norm[idx * Embed * tdSamples], Embed,
                                 tdSamples, batch_id, num_cores_per_batch);
+#endif
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
 
@@ -218,9 +217,9 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
     permute_qkv_ctx.td_samples = tdSamples;
     permute_qkv_ctx.mode = mode;
   }
-  conv1d_pipelined_f16(x_norm, F, F_STRIDE, qkv, cols, Beam, Embed, Embed * 3,
-                       tdSamples, Wf, im2col_dense, permute_qkv_post, core_id,
-                       num_cores);
+  conv1d_pipelined_f16(x, F, F_STRIDE, qkv, cols, Beam, Embed, Embed * 3,
+                       tdSamples, Wf, layernorm_im2col, permute_qkv_post,
+                       core_id, num_cores);
 #else
   conv1d_f16(x_norm, F, qkv, cols, Beam, Embed, Embed * 3, tdSamples, Wf, 1,
              core_id, num_cores);
