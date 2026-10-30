@@ -4,6 +4,10 @@
 
 /* This library applies a softmax over an entire matrix.
  * A is the M x N input matrix, B stores the resulting matrix
+ *
+ * VFEXP: compute exp with the vfexp.h instruction (exp of each fp16 lane,
+ * encoded 1000111 00001 rs1 010 rd 0110011) instead of the cubic Taylor
+ * approximation. Needs the patched LLVM and gvsoc ISS.
  */
 
 #pragma once
@@ -78,8 +82,20 @@ void softmax_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
                      [aVec10] "+&r"(aVec10), [aVec11] "+&r"(aVec11)
                    : [max0] "r"(max0), [max1] "r"(max1));
 
-      v2h xCu00, xCu01, xCu10, xCu11;
       v2h exp00, exp01, exp10, exp11;
+
+#ifdef VFEXP
+      // exp with the vfexp.h instruction
+      asm volatile("vfexp.h %[exp00], %[aVec00];"
+                   "vfexp.h %[exp01], %[aVec01];"
+                   "vfexp.h %[exp10], %[aVec10];"
+                   "vfexp.h %[exp11], %[aVec11];"
+                   : [exp00] "=&r"(exp00), [exp01] "=&r"(exp01),
+                     [exp10] "=&r"(exp10), [exp11] "=&r"(exp11)
+                   : [aVec00] "r"(aVec00), [aVec01] "r"(aVec01),
+                     [aVec10] "r"(aVec10), [aVec11] "r"(aVec11));
+#else
+      v2h xCu00, xCu01, xCu10, xCu11;
 
       // Approximate exp with Taylor Series
       asm volatile(
@@ -118,6 +134,7 @@ void softmax_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
           : [aVec00] "r"(aVec00), [aVec01] "r"(aVec01), [aVec10] "r"(aVec10),
             [aVec11] "r"(aVec11), [vDiv16] "r"(vDiv16), [vDiv12] "r"(vDiv12),
             [vOne] "r"(vOne));
+#endif
 
       // Compute row-wise sum of all exponents
       asm volatile("vfadd.h %[tmp0], %[exp00], %[exp01];" // Use aVec00/10 as
@@ -215,12 +232,21 @@ static inline v2h sm_vswap(v2h a) {
   x.u = (x.u >> 16) | (x.u << 16);
   return x.v;
 }
+#ifdef VFEXP
+static inline v2h sm_vexp(v2h x, v2h one, v2h c2, v2h c3) {
+  (void)one, (void)c2, (void)c3;
+  v2h r;
+  asm("vfexp.h %0, %1" : "=r"(r) : "r"(x));
+  return r;
+}
+#else
 /* exp(x) ~ 1 + x + 0.5 x^2 + 0.167 x^3 */
 static inline v2h sm_vexp(v2h x, v2h one, v2h c2, v2h c3) {
   v2h x2 = sm_vmul(x, x);
   v2h r = sm_vadd(sm_vadd(one, x), sm_vmul(x2, c2));
   return sm_vadd(r, sm_vmul(sm_vmul(x2, x), c3));
 }
+#endif
 
 void softmax_online_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
                                         __fp16 *__restrict__ B, uint32_t M,
