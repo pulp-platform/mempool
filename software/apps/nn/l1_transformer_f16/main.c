@@ -39,23 +39,73 @@ typedef enum { EBT, TBE } permute_mode_t;
 #include "l1_transformer_attention.h"
 #include "l1_transformer_ffn.h"
 
+#ifdef CHECKSUM
+// CHECKSUM: deterministic input and weights, and a checksum of the output,
+// to compare the results of two builds
+// fp16 bits of k * 2^-shift, for |k| < 1024 (no float conversion helper)
+static uint16_t checksum_fp16(int32_t k, int32_t shift) {
+  if (k == 0) {
+    return 0;
+  }
+  uint32_t m = (uint32_t)(k < 0 ? -k : k);
+  int32_t e = 31 - __builtin_clz(m);
+  return (uint16_t)((k < 0 ? 0x8000u : 0) | ((uint32_t)(e - shift + 15) << 10) |
+                    ((m - (1u << e)) << (10 - e)));
+}
+
+static void checksum_init(void) {
+  for (uint32_t i = 0; i < X_SIZE; i++) {
+    *(uint16_t *)&l2_I[i] = checksum_fp16((int32_t)((i * 7919u) % 61u) - 30, 6);
+  }
+  for (uint32_t i = 0; i < F_SIZE; i++) {
+    *(uint16_t *)&l2_F[i] =
+        checksum_fp16((int32_t)((i * 104729u) % 37u) - 18, 7);
+  }
+}
+
+static void checksum_print(__fp16 const *y, int layer) {
+  mempool_barrier(mempool_get_core_count());
+  if (mempool_get_core_id() == 0) {
+    uint32_t h = 0;
+    for (uint32_t i = 0; i < X_SIZE; i++) {
+      h = h * 31u + *(uint16_t const *)&y[i];
+    }
+    printf("CHECKSUM layer %d: %x\n", layer, h);
+  }
+  mempool_barrier(mempool_get_core_count());
+}
+#define CHECKSUM_PRINT(y, layer) checksum_print((y), (layer))
+#else
+#define CHECKSUM_PRINT(y, layer)
+#endif
+
 int main() {
 
   // Initialization
   uint32_t core_id = mempool_get_core_id();
   mempool_init(core_id);
   mempool_barrier_init(core_id);
+#ifdef CHECKSUM
+  if (core_id == 0) {
+    checksum_init();
+  }
+  mempool_barrier(mempool_get_core_count());
+#endif
 
   // Each layer reads the output of the previous one, only the first loads its
   // input from L2
   __fp16 *x;
   x = attention(l2_I, l2_F, NULL, BEAM, EMBED, TDSAMPLES, CONV1D_WF, EBT);
+  CHECKSUM_PRINT(x, 1);
 
   x = ffn(l2_I, l2_F, x, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
+  CHECKSUM_PRINT(x, 2);
 
   x = attention(l2_I, l2_F, x, BEAM, EMBED, TDSAMPLES, CONV1D_WF, TBE);
+  CHECKSUM_PRINT(x, 3);
 
   x = ffn(l2_I, l2_F, x, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
+  CHECKSUM_PRINT(x, 4);
   (void)x;
 
   return 0;
