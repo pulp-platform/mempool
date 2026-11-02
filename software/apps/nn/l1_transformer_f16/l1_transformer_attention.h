@@ -279,7 +279,7 @@ attention:
   // Transfer weights: output projection (Embed -> Embed)
   mempool_start_benchmark();
   if (core_id == 0) {
-    dma_memcpy_blocking(F, l2_F, F_BYTES(Embed * Embed * Wf));
+    dma_memcpy_blocking(F, l2_F, Embed * Embed * Wf * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
