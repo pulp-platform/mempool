@@ -99,16 +99,22 @@
 // - l1_scratch: im2col buffer of the convolutions, attention scores and
 //               attention output.
 // - l1_F:       convolution weights.
-// - l1_arena:   three views of the same memory, x, y and aw, used at
+// - l1_arena:   views of the same memory, x, xy and aw, used at
 //               different times, so the arena is only as large as its
 //               largest view. In every layer:
-//                 x      holds the layer input until the layernorm read it,
-//                 y      holds the output of a convolution (QKV projection,
-//                        FFN up-projection, layer output), overwriting x,
+//                 x      holds the layer input,
+//                 xy     holds x, then (at xy[X_SIZE]) the output of the
+//                        convolutions that read x (QKV projection, FFN
+//                        up-projection): the pipelined convolution writes the
+//                        output of a chunk while it reads the input of the
+//                        next one, so the output must not overlap x,
+//                 x      then holds the layer output, written by the
+//                        output projection, which reads the attention output
+//                        from l1_scratch,
 //                 aw     holds the softmax output, overwriting the QKV
 //                        projection after the permutation read it.
-//               The output of a layer left in y is therefore already the
-//               input x of the next layer.
+//               The output of a layer left in x is therefore already the
+//               input of the next layer.
 
 __fp16 l2_I[X_SIZE] __attribute__((aligned(sizeof(int32_t)), section(".l2")));
 __fp16 l2_F[F_SIZE] __attribute__((aligned(sizeof(int32_t)), section(".l2")));
@@ -117,14 +123,30 @@ __fp16 l1_act[L1_ACT_SIZE]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_scratch[L1_SCRATCH_SIZE]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+
+#ifdef FUSE_CHAIN
+// Weights of the convolutions of a layer (QKV, output projection, FFN up,
+// FFN down)
+#define FC_QKV_SIZE (3 * EMBED * EMBED * CONV1D_WF)
+#define FC_OUT_SIZE (EMBED * EMBED * CONV1D_WF)
+#define FC_UP_SIZE (2 * EMBED * EMBED * CONV1D_WF)
+#define FC_DOWN_SIZE (EMBED * 2 * EMBED * CONV1D_WF)
+#define FC_OUT (FC_QKV_SIZE)
+#define FC_UP (FC_OUT + FC_OUT_SIZE)
+#define FC_DOWN (FC_UP + FC_UP_SIZE)
+__fp16 l1_F[FC_DOWN + FC_DOWN_SIZE]
+    __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+#else
 __fp16 l1_F[F_SIZE]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+#endif
 
 typedef union {
   __fp16 x[X_SIZE];
-  __fp16 y[BEAM * EMBED * 3 * TDSAMPLES];
+  __fp16 xy[X_SIZE + BEAM * EMBED * 3 * TDSAMPLES]; // x, then the output
   __fp16 aw[L1_AW_SIZE];
 } l1_arena_t;
 
 l1_arena_t l1_arena
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
+

@@ -58,8 +58,17 @@ static void layernorm_im2col(__fp16 const *__restrict__ X,
 #endif
 
 typedef enum { EBT, TBE } permute_mode_t;
+
+#ifdef FUSE_CHAIN
+// in of attention(): q, kt and v are already in place
+#define CHAIN_QKV_READY ((__fp16 const *)1)
+#endif
+
 #include "l1_transformer_attention.h"
 #include "l1_transformer_ffn.h"
+#ifdef FUSE_CHAIN
+#include "l1_transformer_chain.h"
+#endif
 
 #ifdef CHECKSUM
 // CHECKSUM: deterministic input and weights, and a checksum of the output,
@@ -117,6 +126,19 @@ int main() {
   // Each layer reads the output of the previous one, only the first loads its
   // input from L2
   __fp16 *x;
+#ifdef FUSE_CHAIN
+  // attention() returns the attention output, chain() computes the output
+  // projection, the FFN and the QKV projection of the next layer
+  x = attention(l2_I, l2_F, NULL, BEAM, EMBED, TDSAMPLES, CONV1D_WF, EBT);
+  chain(l2_F, x, EBT, 1, TBE, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
+  CHECKSUM_PRINT(l1_arena.aw, 2);
+  x = attention(l2_I, l2_F, CHAIN_QKV_READY, BEAM, EMBED, TDSAMPLES, CONV1D_WF,
+                TBE);
+  x = chain(l2_F, x, TBE, 0, TBE, BEAM, EMBED, TDSAMPLES, CONV1D_WF);
+  CHECKSUM_PRINT(x, 4);
+  (void)x;
+  return 0;
+#endif
   x = attention(l2_I, l2_F, NULL, BEAM, EMBED, TDSAMPLES, CONV1D_WF, EBT);
   CHECKSUM_PRINT(x, 1);
 
