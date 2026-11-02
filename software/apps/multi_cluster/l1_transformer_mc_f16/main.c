@@ -341,9 +341,9 @@ static NOINLINE void attn_pre(attn_mode_t mode, uint32_t self, uint32_t core_id,
   // Convolution: QKV projection (EMBED -> 3*EMBED)
   mempool_start_benchmark();
 #ifdef PIPELINED
-  conv1d_pipelined_f16(x_norm, l1_f_qkv, F_STRIDE(F_QKV_SIZE), qkv, cols, BC,
-                       EMBED, 3 * EMBED, TDSAMPLES, WF, im2col_dense, NULL,
-                       core_id, num_cores);
+  conv1d_pipelined_f16(&(conv1d_stage_t){im2col_dense, x_norm, cols, l1_f_qkv,
+                                         qkv, EMBED, 3 * EMBED},
+                       1, NULL, BC, TDSAMPLES, WF, core_id, num_cores);
 #else
   conv1d_f16(x_norm, l1_f_qkv, qkv, cols, BC, EMBED, 3 * EMBED, TDSAMPLES, WF,
              1, core_id, num_cores);
@@ -557,9 +557,9 @@ static NOINLINE void attn_post(attn_mode_t mode, uint32_t self,
   // Convolution: output projection (EMBED -> EMBED)
   mempool_start_benchmark();
 #ifdef PIPELINED
-  conv1d_pipelined_f16(att_p, l1_f_out, F_STRIDE(F_OUT_SIZE), l1_x, cols, BC,
-                       EMBED, EMBED, TDSAMPLES, WF, im2col_dense, NULL,
-                       core_id, num_cores);
+  conv1d_pipelined_f16(&(conv1d_stage_t){im2col_dense, att_p, cols, l1_f_out,
+                                         l1_x, EMBED, EMBED},
+                       1, NULL, BC, TDSAMPLES, WF, core_id, num_cores);
 #else
   conv1d_f16(att_p, l1_f_out, l1_x, cols, BC, EMBED, EMBED, TDSAMPLES, WF, 1,
              core_id, num_cores);
@@ -641,9 +641,9 @@ static NOINLINE void ffn(uint32_t active, uint32_t self, uint32_t core_id,
     // Convolution: up-projection (EMBED -> 2*EMBED), Gelu applied in place
     mempool_start_benchmark();
 #ifdef PIPELINED
-    conv1d_pipelined_f16(x_norm, l1_f_up, F_STRIDE(F_UP_SIZE), up, cols, BC,
-                         EMBED, 2 * EMBED, TDSAMPLES, WF, im2col_dense,
-                         gelu_f16, core_id, num_cores);
+    conv1d_pipelined_f16(&(conv1d_stage_t){im2col_dense, x_norm, cols, l1_f_up,
+                                           up, EMBED, 2 * EMBED},
+                         1, gelu_f16, BC, TDSAMPLES, WF, core_id, num_cores);
 #else
     conv1d_f16(x_norm, l1_f_up, up, cols, BC, EMBED, 2 * EMBED, TDSAMPLES, WF,
                1, core_id, num_cores);
@@ -659,9 +659,9 @@ static NOINLINE void ffn(uint32_t active, uint32_t self, uint32_t core_id,
     // Convolution: down-projection (2*EMBED -> EMBED)
     mempool_start_benchmark();
 #ifdef PIPELINED
-    conv1d_pipelined_f16(up, l1_f_down, F_STRIDE(F_DOWN_SIZE), x, cols, BC,
-                         2 * EMBED, EMBED, TDSAMPLES, WF, im2col_dense, NULL,
-                         core_id, num_cores);
+    conv1d_pipelined_f16(&(conv1d_stage_t){im2col_dense, up, cols, l1_f_down, x,
+                                           2 * EMBED, EMBED},
+                         1, NULL, BC, TDSAMPLES, WF, core_id, num_cores);
 #else
     conv1d_f16(up, l1_f_down, x, cols, BC, 2 * EMBED, EMBED, TDSAMPLES, WF, 1,
                core_id, num_cores);

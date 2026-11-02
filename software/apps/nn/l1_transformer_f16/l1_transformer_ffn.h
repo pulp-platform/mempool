@@ -35,7 +35,7 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   //           (without PIPELINED; with PIPELINED the layernorm writes the
   //           im2col of the up-projection, cols)
   //   cols    im2col of the convolutions         l1_scratch
-  //   up      up-projection [Beam][2*Embed][..]  l1_arena.y      over x
+  //   up      up-projection [Beam][2*Embed][..]  l1_arena.xy     after x
   //   hidden  Gelu of up                         in place on up
   //   y       output [Beam][Embed][tdSamples]    l1_act over x_norm
   __fp16 *x = l1_arena.x;
@@ -43,7 +43,7 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   __fp16 *x_norm = l1_act;
 #endif
   __fp16 *cols = l1_scratch;
-  __fp16 *up = l1_arena.y;
+  __fp16 *up = &l1_arena.xy[X_SIZE];
   __fp16 *hidden = up;
   __fp16 *y = l1_act;
   __fp16 *F = l1_F;
@@ -96,9 +96,10 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
 
   // Convolution: up-projection (Embed -> 2*Embed), Gelu applied in place
   mempool_start_benchmark();
-  conv1d_pipelined_f16(x, F, F_STRIDE, up, cols, Beam, Embed, Embed * 2,
-                       tdSamples, Wf, layernorm_im2col, gelu_f16,
-                       core_id, num_cores);
+  conv1d_pipelined_f16(&(conv1d_stage_t){layernorm_im2col, x, cols, F, up,
+                                         (uint16_t)Embed,
+                                         (uint16_t)(2 * Embed)},
+                       1, gelu_f16, Beam, tdSamples, Wf, core_id, num_cores);
   mempool_stop_benchmark();
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution + Gelu");
@@ -149,8 +150,10 @@ __fp16 *ffn(__fp16 const *__restrict__ l2_I, __fp16 const *__restrict__ l2_F,
   // Convolution: down-projection (2*Embed -> Embed)
   mempool_start_benchmark();
 #ifdef PIPELINED
-  conv1d_pipelined_f16(hidden, F, F_STRIDE, y, cols, Beam, Embed * 2, Embed,
-                       tdSamples, Wf, im2col_dense, NULL, core_id, num_cores);
+  conv1d_pipelined_f16(&(conv1d_stage_t){im2col_dense, hidden, cols, F, y,
+                                         (uint16_t)(2 * Embed),
+                                         (uint16_t)Embed},
+                       1, NULL, Beam, tdSamples, Wf, core_id, num_cores);
 #else
   conv1d_f16(hidden, F, y, cols, Beam, Embed * 2, Embed, tdSamples, Wf, 1,
              core_id, num_cores);
