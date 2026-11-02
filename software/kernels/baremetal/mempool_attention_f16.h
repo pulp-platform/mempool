@@ -38,13 +38,14 @@ static inline void attention_softmax(__fp16 const *scores, __fp16 *Aw,
     if (idx < n) {
       uint32_t j = first + idx;
       uint32_t off = (j / slices) * slot_s + (j % slices) * rows * SeqLen;
-      softmax_parallel_2x4_f16vec(&scores[off], &Aw[off], rows, SeqLen,
-                                  softmax_id, num_cores_per_softmax);
+      softmax_online_parallel_2x4_f16vec(&scores[off], &Aw[off], rows, SeqLen,
+                                         softmax_id, num_cores_per_softmax);
     }
   } else {
     for (uint32_t j = first + core_id; j < first + n; j += num_cores) {
       uint32_t off = (j / slices) * slot_s + (j % slices) * rows * SeqLen;
-      softmax_parallel_2x4_f16vec(&scores[off], &Aw[off], rows, SeqLen, 0, 1);
+      softmax_online_parallel_2x4_f16vec(&scores[off], &Aw[off], rows, SeqLen,
+                                         0, 1);
     }
   }
 }
