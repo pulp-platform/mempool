@@ -23,7 +23,6 @@
  *   PIPELINED    pipelined convolutions (im2col || GEMM, Gelu fused) and
  *                pipelined Q*Kt || softmax
  *   TILESHIFT    attention operands in tile-shifted batch slots
- *   REPLICATE_F  one copy of each filter per RedMulE
  *
  * Clusters beyond N_CLUSTERS idle, but take part in the global barriers.
  * The input and the weights are synthesized at start (outside the
@@ -98,26 +97,13 @@ typedef enum { EBT, TBE } attn_mode_t;
 #define SLOT_S TS_SLOT(BEAM *BEAM)      /* scores, softmax output     */
 
 /**********************************************************************
- *  Filters: QKV projection, output projection, FFN up and down. With
- *  REPLICATE_F each one is stored once per RedMulE, in slots of an odd
- *  multiple of one tile; RedMulE i reads copy i.
+ *  Filters: QKV projection, output projection, FFN up and down
  **********************************************************************/
 
 #define F_QKV_SIZE (3 * EMBED * EMBED * WF)
 #define F_OUT_SIZE (EMBED * EMBED * WF)
 #define F_UP_SIZE (2 * EMBED * EMBED * WF)
 #define F_DOWN_SIZE (2 * EMBED * EMBED * WF)
-#ifdef REPLICATE_F
-#ifndef PIPELINED
-#error "REPLICATE_F is only implemented for the PIPELINED convolutions"
-#endif
-#define F_TILE (NUM_BANKS_PER_TILE * sizeof(int32_t) / sizeof(int16_t))
-#define F_SLOT(n) (((((n) + F_TILE - 1) / F_TILE) | 1) * F_TILE)
-#define F_COPIES (NUM_REDMULE_TILES)
-#else
-#define F_SLOT(n) (n)
-#define F_COPIES (1)
-#endif
 
 /**********************************************************************
  *  L1 buffers of one cluster
@@ -181,20 +167,10 @@ static __fp16 l1_send[3 * N_CLUSTERS * NB_MAX * BC * W_MAX] ALIGNED
     __attribute__((section(".l1")));
 static __fp16 l1_arecv[N_CLUSTERS * NB_MAX * BC * W_MAX] ALIGNED
     __attribute__((section(".l1")));
-static __fp16 l1_f_qkv[F_COPIES * F_SLOT(F_QKV_SIZE)] ALIGNED
-    __attribute__((section(".l1")));
-static __fp16 l1_f_out[F_COPIES * F_SLOT(F_OUT_SIZE)] ALIGNED
-    __attribute__((section(".l1")));
-static __fp16 l1_f_up[F_COPIES * F_SLOT(F_UP_SIZE)] ALIGNED
-    __attribute__((section(".l1")));
-static __fp16 l1_f_down[F_COPIES * F_SLOT(F_DOWN_SIZE)] ALIGNED
-    __attribute__((section(".l1")));
-
-#ifdef REPLICATE_F
-#define F_STRIDE(n) F_SLOT(n)
-#else
-#define F_STRIDE(n) (0)
-#endif
+static __fp16 l1_f_qkv[F_QKV_SIZE] ALIGNED __attribute__((section(".l1")));
+static __fp16 l1_f_out[F_OUT_SIZE] ALIGNED __attribute__((section(".l1")));
+static __fp16 l1_f_up[F_UP_SIZE] ALIGNED __attribute__((section(".l1")));
+static __fp16 l1_f_down[F_DOWN_SIZE] ALIGNED __attribute__((section(".l1")));
 
 #ifdef VERIFY
 /* Synthesizes the input slice of this cluster and the weights with the
@@ -221,15 +197,13 @@ static NOINLINE void synthesize(uint32_t cluster_id) {
     uint16_t val =
         (uint16_t)(((x >> 31) << 15) | ((7 + ((x >> 12) & 3)) << 10) |
                    ((x >> 16) & 0x3ff));
-    for (uint32_t c = 0; c < F_COPIES; c++) {
-      fq[c * F_SLOT(F_QKV_SIZE) + i] = val;
-      if (i < F_OUT_SIZE)
-        fo[c * F_SLOT(F_OUT_SIZE) + i] = val;
-      if (i < F_UP_SIZE)
-        fu[c * F_SLOT(F_UP_SIZE) + i] = val;
-      if (i < F_DOWN_SIZE)
-        fd[c * F_SLOT(F_DOWN_SIZE) + i] = val;
-    }
+    fq[i] = val;
+    if (i < F_OUT_SIZE)
+      fo[i] = val;
+    if (i < F_UP_SIZE)
+      fu[i] = val;
+    if (i < F_DOWN_SIZE)
+      fd[i] = val;
   }
 }
 #else
@@ -242,12 +216,10 @@ static NOINLINE void synthesize_fast(uint32_t core_id, uint32_t num_cores) {
   }
   uint16_t *f[4] = {(uint16_t *)l1_f_qkv, (uint16_t *)l1_f_out,
                     (uint16_t *)l1_f_up, (uint16_t *)l1_f_down};
-  const uint32_t size[4] = {F_SLOT(F_QKV_SIZE), F_SLOT(F_OUT_SIZE),
-                            F_SLOT(F_UP_SIZE), F_SLOT(F_DOWN_SIZE)};
+  const uint32_t size[4] = {F_QKV_SIZE, F_OUT_SIZE, F_UP_SIZE, F_DOWN_SIZE};
   for (uint32_t k = 0; k < 4; k++) {
-    for (uint32_t i = core_id; i < F_COPIES * size[k]; i += num_cores) {
-      uint32_t w = i % size[k];
-      f[k][i] = (uint16_t)(((w & 1) << 15) | 0x2000 | ((w * 13) & 0x3ff));
+    for (uint32_t i = core_id; i < size[k]; i += num_cores) {
+      f[k][i] = (uint16_t)(((i & 1) << 15) | 0x2000 | ((i * 13) & 0x3ff));
     }
   }
 }
