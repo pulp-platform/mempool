@@ -26,29 +26,25 @@ void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
 
 #ifdef PIPELINED
 // The QKV permutation runs as the post-operation of the pipelined QKV
-// convolution, on the beams whose GEMMs completed, while the
-// RedMulEs compute the next chunk. The post-operation only gets a chunk of
-// the convolution output.
-static struct {
-  __fp16 const *in;
-  __fp16 *q;
-  __fp16 *kt;
-  __fp16 *v;
-  uint32_t beam;
-  uint32_t embed;
-  uint32_t td_samples;
-  permute_mode_t mode;
-} permute_qkv_ctx __attribute__((section(".l1")));
-
-static void permute_qkv_post(__fp16 *__restrict__ data, uint32_t size,
-                             uint32_t core_id, uint32_t num_cores) {
-  uint32_t beam_size = 3 * permute_qkv_ctx.embed * permute_qkv_ctx.td_samples;
-  uint32_t b0 = (uint32_t)(data - permute_qkv_ctx.in) / beam_size;
-  permute_qkv(permute_qkv_ctx.in, permute_qkv_ctx.q, permute_qkv_ctx.kt,
-              permute_qkv_ctx.v, permute_qkv_ctx.beam, permute_qkv_ctx.embed,
-              permute_qkv_ctx.td_samples, permute_qkv_ctx.mode, b0,
-              size / beam_size, core_id, num_cores);
-}
+// convolution, on the beams whose GEMMs completed, while the RedMulEs compute
+// the next chunk. It reads compile-time buffers: through a shared context in
+// L1, all the cores would load the same words at once, and wait for each
+// other at their banks.
+#define PERMUTE_POST(sfx, IN, MODE)                                            \
+  static inline void permute_post_##sfx(__fp16 *__restrict__ data,             \
+                                        uint32_t size, uint32_t core_id,       \
+                                        uint32_t num_cores) {                  \
+    uint32_t nb = ((MODE) == TBE) ? TDSAMPLES : EMBED;                         \
+    uint32_t slot = TS_SLOT(BEAM * (((MODE) == TBE) ? EMBED : TDSAMPLES));     \
+    uint32_t bs = 3 * EMBED * TDSAMPLES;                                       \
+    permute_qkv((IN), l1_act, &l1_act[TS_KT_OFFSET(nb, slot)],                 \
+                &l1_act[TS_V_OFFSET(nb, slot)], BEAM, EMBED, TDSAMPLES,        \
+                (MODE), (uint32_t)(data - (IN)) / bs, size / bs, core_id,      \
+                num_cores);                                                    \
+  }
+// The QKV projection is after x, in attention() and in chain()
+PERMUTE_POST(ebt, &l1_arena.xy[X_SIZE], EBT)
+PERMUTE_POST(tbe, &l1_arena.xy[X_SIZE], TBE)
 
 // The output projection reads the attention output where the attention left
 // it: its im2col gathers the rows [Beam][Embed][tdSamples] from the layout of
@@ -124,26 +120,26 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   //   x_norm  layernorm output                   l1_act
   //           (without PIPELINED; with PIPELINED the layernorm writes the
   //           im2col of the QKV projection, cols)
-  //   qkv     QKV projection [Beam][3*Embed][..] l1_arena.y      over x
+  //   qkv     QKV projection [Beam][3*Embed][..] l1_arena.xy     after x
   //   cols    im2col of the convolutions         l1_scratch
   //   q,kt,v  attention operands                 l1_act          over x_norm
-  //   Aw      softmax output                     l1_arena.y      over qkv
+  //   Aw      softmax output                     l1_arena.aw     over qkv
   //   att     scores, then attention output      l1_scratch      over cols
   //   att_p   att as [Beam][Embed][tdSamples]    l1_act          over q,kt,v
   //           (without PIPELINED; with PIPELINED, l1_act holds the im2col of
   //           the output projection, which reads att directly)
-  //   y       output [Beam][Embed][tdSamples]    l1_arena.y      over Aw
+  //   y       output [Beam][Embed][tdSamples]    l1_arena.x      over Aw
 
   __fp16 *x = l1_arena.x;
 #ifndef PIPELINED
   __fp16 *x_norm = l1_act;
 #endif
-  __fp16 *qkv = l1_arena.y;
+  __fp16 *qkv = &l1_arena.xy[X_SIZE];
   __fp16 *cols = l1_scratch;
-  __fp16 *Aw = l1_arena.x;
+  __fp16 *Aw = l1_arena.aw;
   __fp16 *att = &l1_scratch[TS_A_OFFSET];
   __fp16 *att_p = l1_act;
-  __fp16 *y = l1_arena.y;
+  __fp16 *y = l1_arena.x;
   __fp16 *F = l1_F;
 
   // Batches of the attention: Embed (EBT) or tdSamples (TBE), with sequences
@@ -165,6 +161,13 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   // The input is the output of the previous layer when there is one: it is
   // already in L1, and moved to x only if it is somewhere else.
 
+#ifdef FUSE_CHAIN
+  // The chain of the previous layer already computed q, kt and v
+  if (in == CHAIN_QKV_READY) {
+    goto attention;
+  }
+#endif
+
   mempool_start_benchmark();
   if (core_id == 0) {
     if (in == NULL) {
@@ -172,7 +175,7 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
     } else if (in != x) {
       dma_memcpy_blocking(x, in, Beam * Embed * tdSamples * sizeof(int16_t));
     }
-    dma_memcpy_blocking(F, l2_F, F_BYTES(Embed * Embed * 3 * Wf));
+    dma_memcpy_blocking(F, l2_F, Embed * Embed * 3 * Wf * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
@@ -207,19 +210,11 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
   // Convolution: QKV projection (Embed -> 3*Embed)
   mempool_start_benchmark();
 #ifdef PIPELINED
-  if (core_id == 0) {
-    permute_qkv_ctx.in = qkv;
-    permute_qkv_ctx.q = q;
-    permute_qkv_ctx.kt = kt;
-    permute_qkv_ctx.v = v;
-    permute_qkv_ctx.beam = Beam;
-    permute_qkv_ctx.embed = Embed;
-    permute_qkv_ctx.td_samples = tdSamples;
-    permute_qkv_ctx.mode = mode;
-  }
-  conv1d_pipelined_f16(x, F, F_STRIDE, qkv, cols, Beam, Embed, Embed * 3,
-                       tdSamples, Wf, layernorm_im2col, permute_qkv_post,
-                       core_id, num_cores);
+  conv1d_pipelined_f16(&(conv1d_stage_t){layernorm_im2col, x, cols, F, qkv,
+                                         (uint16_t)Embed,
+                                         (uint16_t)(3 * Embed)},
+                       1, (mode == TBE) ? permute_post_tbe : permute_post_ebt,
+                       Beam, tdSamples, Wf, core_id, num_cores);
 #else
   conv1d_f16(x_norm, F, qkv, cols, Beam, Embed, Embed * 3, tdSamples, Wf, 1,
              core_id, num_cores);
@@ -244,6 +239,10 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Permute to QKV");
 
+#ifdef FUSE_CHAIN
+attention:
+#endif
+
   /**************************************************************************/
   /* Attention                                                              */
   /**************************************************************************/
@@ -252,6 +251,12 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
                       TS_SLOT(Beam * Beam), core_id, num_cores);
 
   PRINT_DONE(VERBOSE, core_id, num_cores, "Attention");
+
+#ifdef FUSE_CHAIN
+  // The output projection is the first stage of the chain
+  (void)att_p, (void)y;
+  return att;
+#endif
 
   /**************************************************************************/
   /* Permute result                                                         */
@@ -288,10 +293,10 @@ __fp16 *attention(__fp16 const *__restrict__ l2_I,
 #ifdef PIPELINED
   // att is in l1_scratch: the im2col goes to l1_act, free after the attention
   (void)att_p;
-  conv1d_pipelined_f16(att, F, F_STRIDE, y, l1_act, Beam, Embed, Embed,
-                       tdSamples, Wf,
-                       (mode == TBE) ? im2col_att_tbe : im2col_att_ebt, NULL,
-                       core_id, num_cores);
+  conv1d_pipelined_f16(
+      &(conv1d_stage_t){(mode == TBE) ? im2col_att_tbe : im2col_att_ebt, att,
+                        l1_act, F, y, (uint16_t)Embed, (uint16_t)Embed},
+      1, NULL, Beam, tdSamples, Wf, core_id, num_cores);
 #else
   conv1d_f16(att_p, F, y, cols, Beam, Embed, Embed, tdSamples, Wf, 1, core_id,
              num_cores);

@@ -87,6 +87,16 @@ void im2col1d_f16(__fp16 const *__restrict__ X, __fp16 *__restrict__ X_im2col,
   return;
 }
 
+/* Callback to im2col of an input stored as B * Ci * Wi */
+static inline void im2col_dense(__fp16 const *__restrict__ X,
+                                       __fp16 *__restrict__ X_im2col,
+                                       uint32_t b0, uint32_t nb, uint32_t Ci,
+                                       uint32_t Wi, uint32_t Wf,
+                                       uint32_t core_id, uint32_t num_cores) {
+  im2col1d_f16(&X[b0 * Ci * Wi], &X_im2col[b0 * Ci * Wi * Wf], nb * Ci, Wi, Wf,
+               core_id, num_cores);
+}
+
 /**
   @brief         Computes 1D convolution.
   @param[in]     B      batch size
@@ -207,109 +217,118 @@ typedef void (*conv1d_im2col_t)(__fp16 const *__restrict__ X,
                                 uint32_t Wf, uint32_t core_id,
                                 uint32_t num_cores);
 
+/* A stage of conv1d_pipelined_f16: one convolution */
+typedef struct {
+  conv1d_im2col_t im2col; // im2col of a chunk of the stage input
+  __fp16 const *X;        // stage input, as read by im2col
+  __fp16 *cols;           // im2col buffer, [B][Ci * Wf][Wi]
+  __fp16 const *F;        // weights, Co * Ci * Wf
+  __fp16 *Y;              // stage output, [B][Co][Wi]
+  uint16_t Ci, Co;        // 16 bits: the stages are on the stack
+} conv1d_stage_t;
+
 /**
-  @brief         Computes 1D convolutions, pipelining im2col and GEMM.
+  @brief         Computes S 1D convolutions, each reading the output of the
+                 previous one batch by batch, pipelining im2col and GEMM.
   @details       The B batches are processed in chunks of one batch per
-                 RedMulE. Round r: the RedMulEs compute the GEMMs of the
-                 chunk transformed in round r-1, while all cores compute the
-                 im2col of chunk r and, when post is not NULL, apply post in
-                 place on the output of the chunk whose GEMMs completed in
-                 round r-1. Without RedMulEs, transforms the whole input
-                 and computes the GEMMs with conv1d_f16().
-                 With F_stride > 0, RedMulE i reads its own copy of the filter
-                 at F + i * F_stride, so that the RedMulEs do not all read the
-                 same banks. The copies must already be in place.
-  @param[in]     X          input matrix  size: B * Ci * Wi
-  @param[in]     F          filter matrix size: Co * Ci * Wf, followed by its
-                            copies when F_stride > 0
-  @param[in]     F_stride   elements between the filter copies, 0 if shared
-  @param[out]    Y          output matrix size: B * Co * Wi
-  @param[in]     X_im2col   im2col buffer size: B * Ci * Wi * Wf
+                 RedMulE, the GEMM tasks are numbered stage by stage, chunk by
+                 chunk. Round k: the RedMulEs compute GEMM task k - 1, while
+                 all cores compute the im2col of task k and, when post is not
+                 NULL, apply post in place on the output of task k - 2 if it
+                 belongs to the last stage. The im2col of task k reads the
+                 output of task k - chunks: the stages are one pipeline, which
+                 fills and drains once. Two consecutive stages only touch
+                 different chunks of a shared buffer within a round. With a
+                 single chunk, the stages run one after the other. Without
+                 RedMulEs, transforms the whole input of each stage and
+                 computes its GEMMs with conv1d_f16().
+                 Every core reads the stages: they must not be in a shared L1
+                 buffer, where all the cores would load the same words at once
+                 (they are on the stack of the caller, e.g. a compound literal
+                 for one stage).
+  @param[in]     st         the S stages
+  @param[in]     S          number of stages
+  @param[in]     post       in-place post-operation on the output of the last
+                            stage, or NULL
   @param[in]     B          batch size
-  @param[in]     Ci         dimension input channel
-  @param[in]     Co         dimension output channel
   @param[in]     Wi         dimension convolution width
   @param[in]     Wf         dimension filter width
-  @param[in]     im2col     im2col of a chunk from X (im2col_dense for X stored
-                            as B * Ci * Wi)
-  @param[in]     post       in-place post-operation on the output, or NULL
+  @param[in]     core_id    core ID
+  @param[in]     num_cores  number of cores
   @return        none
 */
-
-/* Callback to im2col of an input stored as B * Ci * Wi */
-static inline void im2col_dense(__fp16 const *__restrict__ X,
-                                       __fp16 *__restrict__ X_im2col,
-                                       uint32_t b0, uint32_t nb, uint32_t Ci,
-                                       uint32_t Wi, uint32_t Wf,
-                                       uint32_t core_id, uint32_t num_cores) {
-  im2col1d_f16(&X[b0 * Ci * Wi], &X_im2col[b0 * Ci * Wi * Wf], nb * Ci, Wi, Wf,
-               core_id, num_cores);
-}
-
-// Inlined, so that each caller calls its im2col directly
-static inline __attribute__((always_inline)) void conv1d_pipelined_f16(
-    __fp16 const *__restrict__ X, __fp16 const *__restrict__ F,
-    uint32_t F_stride, __fp16 *__restrict__ Y, __fp16 *__restrict__ X_im2col,
-    uint32_t B, uint32_t Ci, uint32_t Co, uint32_t Wi, uint32_t Wf,
-    conv1d_im2col_t im2col, conv1d_post_t post, uint32_t core_id,
-    uint32_t num_cores) {
+static inline void conv1d_pipelined_f16(conv1d_stage_t const *st, uint32_t S,
+                                        conv1d_post_t post, uint32_t B,
+                                        uint32_t Wi, uint32_t Wf,
+                                        uint32_t core_id, uint32_t num_cores) {
 
   uint32_t redmule_id = mempool_get_redmule_id();
-  uint32_t num_redmules = mempool_get_redmule_count();
+  uint32_t chunk = mempool_get_redmule_count();
 
-  if (num_redmules == 0) {
+  if (chunk == 0) {
     // The GEMMs read the im2col buffer (an im2col with Wf = 1 is the identity)
-    im2col(X, X_im2col, 0, B, Ci, Wi, Wf, core_id, num_cores);
-    mempool_barrier(num_cores);
-    conv1d_f16(X_im2col, F, Y, X_im2col, B, Ci * Wf, Co, Wi, 1, 1, core_id,
-               num_cores);
+    for (uint32_t i = 0; i < S; i++) {
+      conv1d_stage_t const *s = &st[i];
+      s->im2col(s->X, s->cols, 0, B, s->Ci, Wi, Wf, core_id, num_cores);
+      mempool_barrier(num_cores);
+      conv1d_f16(s->cols, s->F, s->Y, s->cols, B, s->Ci * Wf, s->Co, Wi, 1, 1,
+                 core_id, num_cores);
+      mempool_barrier(num_cores);
+    }
     if (post) {
-      post(Y, B * Co * Wi, core_id, num_cores);
+      post(st[S - 1].Y, B * st[S - 1].Co * Wi, core_id, num_cores);
       mempool_barrier(num_cores);
     }
     return;
   }
 
-  // Round k: im2col of chunk k, GEMMs of chunk k - 1, post of chunk k - 2
-  uint32_t chunk = num_redmules;
   uint32_t chunks = (B + chunk - 1) / chunk;
-  uint32_t lag = post ? 2 : 1;
-#define CONV1D_CHUNK_B0(k) ((k) * chunk)
+  if (chunks == 1 && S > 1) {
+    // The im2col of a stage would read the output of the GEMMs that run in
+    // the same round
+    for (uint32_t i = 0; i < S; i++) {
+      conv1d_pipelined_f16(&st[i], 1, (i == S - 1) ? post : NULL, B, Wi, Wf,
+                           core_id, num_cores);
+    }
+    return;
+  }
+  uint32_t tasks = S * chunks;
+  uint32_t rounds = tasks + (post ? 2 : 1);
 
-  for (uint32_t k = 0; k < chunks + lag; k++) {
+  for (uint32_t k = 0; k < rounds; k++) {
 
-    // GEMMs of the chunk transformed in the previous round
+    // GEMM of task k - 1
     uint32_t launched = 0;
-    if (k >= 1 && k - 1 < chunks) {
-      uint32_t ii = CONV1D_CHUNK_B0(k - 1) + redmule_id;
-      launched = (redmule_id < num_redmules) && (ii < B);
+    if (k >= 1 && k - 1 < tasks) {
+      conv1d_stage_t const *s = &st[(k - 1) / chunks];
+      uint32_t ii = ((k - 1) % chunks) * chunk + redmule_id;
+      launched = (redmule_id < chunk) && (ii < B);
       if (launched) {
-        unsigned int I_ptr = (unsigned int)(F + redmule_id * F_stride);
-        unsigned int W_ptr = (unsigned int)(&X_im2col[ii * Ci * Wi * Wf]);
-        unsigned int O_ptr = (unsigned int)(&Y[ii * Co * Wi]);
-        uint16_t M = (uint16_t)(Co);
-        uint16_t N = (uint16_t)(Ci * Wf);
-        uint16_t P = (uint16_t)(Wi);
         hwpe_soft_clear();
         mempool_wait(10);
-        redmule_cfg(I_ptr, W_ptr, O_ptr, M, N, P, 0, MATMUL, Float16);
+        redmule_cfg((unsigned int)s->F,
+                    (unsigned int)&s->cols[ii * s->Ci * Wf * Wi],
+                    (unsigned int)&s->Y[ii * s->Co * Wi], (uint16_t)s->Co,
+                    (uint16_t)(s->Ci * Wf), (uint16_t)Wi, 0, MATMUL, Float16);
         mempool_wait(10);
         hwpe_trigger_job();
       }
     }
 
-    // im2col of the current chunk
-    if (k < chunks) {
-      uint32_t b0 = CONV1D_CHUNK_B0(k);
+    // im2col of task k
+    if (k < tasks) {
+      conv1d_stage_t const *s = &st[k / chunks];
+      uint32_t b0 = (k % chunks) * chunk;
       uint32_t nb = (B - b0 < chunk) ? (B - b0) : chunk;
-      im2col(X, X_im2col, b0, nb, Ci, Wi, Wf, core_id, num_cores);
+      s->im2col(s->X, s->cols, b0, nb, s->Ci, Wi, Wf, core_id, num_cores);
     }
 
-    // Post-operation of the chunk whose GEMMs completed in the previous round
-    if (post && k >= 2 && k - 2 < chunks) {
-      uint32_t b0 = CONV1D_CHUNK_B0(k - 2);
+    // Post-operation of task k - 2 (GEMM completed in the previous round)
+    if (post && k >= 2 && k - 2 < tasks && (k - 2) / chunks == S - 1) {
+      conv1d_stage_t const *s = &st[S - 1];
+      uint32_t b0 = ((k - 2) % chunks) * chunk;
       uint32_t nb = (B - b0 < chunk) ? (B - b0) : chunk;
-      post(&Y[b0 * Co * Wi], nb * Co * Wi, core_id, num_cores);
+      post(&s->Y[b0 * s->Co * Wi], nb * s->Co * Wi, core_id, num_cores);
     }
 
     // Wait for RedMulE (the wake-up is latched if the job already finished)
@@ -318,7 +337,4 @@ static inline __attribute__((always_inline)) void conv1d_pipelined_f16(
     }
     mempool_barrier(num_cores);
   }
-#undef CONV1D_CHUNK_B0
-
-  return;
 }
