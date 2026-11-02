@@ -21,23 +21,8 @@
 #endif
 #define CONV1D_WF (3)
 
-// Convolution weights. With REPLICATE_F, l2_F and l1_F hold one copy of the
-// weights per RedMulE, in slots of an odd multiple of one tile, so that the
-// RedMulEs running in lockstep read their copies from different banks.
-
-#define F_WIDTH (EMBED * 3 * EMBED * CONV1D_WF)
-#define F_TILE (NUM_BANKS_PER_TILE * sizeof(int32_t) / sizeof(int16_t))
-#if defined(REPLICATE_F) && defined(PIPELINED)
-#define F_STRIDE ((((F_WIDTH + F_TILE - 1) / F_TILE) | 1) * F_TILE)
-#define F_COPIES (NUM_REDMULE_TILES > 0 ? NUM_REDMULE_TILES : 1)
-#else
-#define F_STRIDE (0)
-#define F_COPIES (1)
-#endif
-#define F_SIZE (F_COPIES * (F_STRIDE > 0 ? F_STRIDE : F_WIDTH))
-
-// Bytes to transfer for n weights, including all the copies
-#define F_BYTES(n) (((F_COPIES - 1) * F_STRIDE + (n)) * sizeof(int16_t))
+// Convolution weights, sized for the largest convolution (QKV projection)
+#define F_SIZE (EMBED * 3 * EMBED * CONV1D_WF)
 
 // Layout of the attention operands. With TILESHIFT, the per-batch slots of
 // Q, Kt, V, A, As and Aw are rounded up to an odd multiple of one tile, so
