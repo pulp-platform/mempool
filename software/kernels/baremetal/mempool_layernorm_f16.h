@@ -25,8 +25,8 @@ static inline uint32_t layernorm_v2h_bits(v2h a) {
  * layout of im2col1d_f16. prev is the word before n0 (0 at the row start).
  * Word w of row x[t-1] equals word w-1 of row x[t+1]. */
 static inline void layernorm_im2col_w3_store(layernorm_w32_t *out, uint32_t Ww,
-                                             uint32_t w, uint32_t prev,
-                                             v2h n0v, v2h n1v) {
+                                             uint32_t w, uint32_t prev, v2h n0v,
+                                             v2h n1v) {
   uint32_t n0 = layernorm_v2h_bits(n0v), n1 = layernorm_v2h_bits(n1v);
   uint32_t s0 = (prev >> 16) | (n0 << 16), s1 = (n0 >> 16) | (n1 << 16);
   out[w] = s0;
@@ -184,9 +184,8 @@ void layernorm_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
 /* Same normalization, with B written as the 1D im2col (Wf = 3) of the M x N
  * output, 3 * M x N, as im2col1d_f16 writes it. N is a multiple of 4. */
 void layernorm_im2col_w3_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
-                                             __fp16 *__restrict__ B,
-                                             uint32_t M, uint32_t N,
-                                             uint32_t core_id,
+                                             __fp16 *__restrict__ B, uint32_t M,
+                                             uint32_t N, uint32_t core_id,
                                              uint32_t numThreads) {
   layernorm_parallel_2x4_f16vec_body(A, B, M, N, core_id, numThreads, 1);
 }
