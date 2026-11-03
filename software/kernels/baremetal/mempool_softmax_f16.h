@@ -320,9 +320,13 @@ void softmax_online_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
       e10 = sm_vexp(e10, one, c2, c3);
       e11 = sm_vexp(e11, one, c2, c3);
       asm("vfmul.h %0, %1, %2" : "=r"(*(v2h *)&b0[j]) : "r"(e00), "r"(inv0));
-      asm("vfmul.h %0, %1, %2" : "=r"(*(v2h *)&b0[j + 2]) : "r"(e01), "r"(inv0));
+      asm("vfmul.h %0, %1, %2"
+          : "=r"(*(v2h *)&b0[j + 2])
+          : "r"(e01), "r"(inv0));
       asm("vfmul.h %0, %1, %2" : "=r"(*(v2h *)&b1[j]) : "r"(e10), "r"(inv1));
-      asm("vfmul.h %0, %1, %2" : "=r"(*(v2h *)&b1[j + 2]) : "r"(e11), "r"(inv1));
+      asm("vfmul.h %0, %1, %2"
+          : "=r"(*(v2h *)&b1[j + 2])
+          : "r"(e11), "r"(inv1));
     }
   }
 }
