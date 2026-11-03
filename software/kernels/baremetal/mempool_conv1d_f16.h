@@ -89,10 +89,10 @@ void im2col1d_f16(__fp16 const *__restrict__ X, __fp16 *__restrict__ X_im2col,
 
 /* Callback to im2col of an input stored as B * Ci * Wi */
 static inline void im2col_dense(__fp16 const *__restrict__ X,
-                                       __fp16 *__restrict__ X_im2col,
-                                       uint32_t b0, uint32_t nb, uint32_t Ci,
-                                       uint32_t Wi, uint32_t Wf,
-                                       uint32_t core_id, uint32_t num_cores) {
+                                __fp16 *__restrict__ X_im2col, uint32_t b0,
+                                uint32_t nb, uint32_t Ci, uint32_t Wi,
+                                uint32_t Wf, uint32_t core_id,
+                                uint32_t num_cores) {
   im2col1d_f16(&X[b0 * Ci * Wi], &X_im2col[b0 * Ci * Wi * Wf], nb * Ci, Wi, Wf,
                core_id, num_cores);
 }

@@ -14,300 +14,6 @@
 #include "baremetal/mempool_layernorm_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
 
-void permute_result(__fp16 const *__restrict__ IN, __fp16 *__restrict__ OUT,
-                    uint32_t Beam, uint32_t Embed, uint32_t tdSamples,
-                    permute_mode_t mode);
-
-void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
-                 __fp16 *__restrict__ Kt, __fp16 *__restrict__ V, uint32_t Beam,
-                 uint32_t Embed, uint32_t tdSamples, permute_mode_t mode,
-                 uint32_t b0, uint32_t bN, uint32_t core_id,
-                 uint32_t num_cores);
-
-#ifdef PIPELINED
-// The QKV permutation runs as the post-operation of the pipelined QKV
-// convolution, on the beams whose GEMMs completed, while the RedMulEs compute
-// the next chunk. It reads compile-time buffers: through a shared context in
-// L1, all the cores would load the same words at once, and wait for each
-// other at their banks.
-#define PERMUTE_POST(sfx, IN, MODE)                                            \
-  static inline void permute_post_##sfx(__fp16 *__restrict__ data,             \
-                                        uint32_t size, uint32_t core_id,       \
-                                        uint32_t num_cores) {                  \
-    uint32_t nb = ((MODE) == TBE) ? TDSAMPLES : EMBED;                         \
-    uint32_t slot = TS_SLOT(BEAM * (((MODE) == TBE) ? EMBED : TDSAMPLES));     \
-    uint32_t bs = 3 * EMBED * TDSAMPLES;                                       \
-    permute_qkv((IN), l1_act, &l1_act[TS_KT_OFFSET(nb, slot)],                 \
-                &l1_act[TS_V_OFFSET(nb, slot)], BEAM, EMBED, TDSAMPLES,        \
-                (MODE), (uint32_t)(data - (IN)) / bs, size / bs, core_id,      \
-                num_cores);                                                    \
-  }
-// The QKV projection is after x, in attention() and in chain()
-PERMUTE_POST(ebt, &l1_arena.xy[X_SIZE], EBT)
-PERMUTE_POST(tbe, &l1_arena.xy[X_SIZE], TBE)
-
-// The output projection reads the attention output where the attention left
-// it: its im2col gathers the rows [Beam][Embed][tdSamples] from the layout of
-// the attention output, so the result needs no permutation.
-
-// EBT: att is [Embed][Beam][tdSamples], each row is contiguous
-static void im2col_att_ebt(__fp16 const *__restrict__ X,
-                           __fp16 *__restrict__ X_im2col, uint32_t b0,
-                           uint32_t nb, uint32_t Ci, uint32_t Wi, uint32_t Wf,
-                           uint32_t core_id, uint32_t num_cores) {
-  uint32_t slot = TS_SLOT(BEAM * Wi);
-  for (uint32_t r = core_id; r < nb * Ci; r += num_cores) {
-    uint32_t b = b0 + r / Ci;
-    uint32_t e = r % Ci;
-    im2col1d_f16(&X[e * slot + b * Wi], &X_im2col[(b * Ci + e) * Wf * Wi], 1,
-                 Wi, Wf, 0, 1);
-  }
-}
-
-// TBE: att is [tdSamples][Beam][Embed], a row is gathered with stride slot
-static void im2col_att_tbe(__fp16 const *__restrict__ X,
-                           __fp16 *__restrict__ X_im2col, uint32_t b0,
-                           uint32_t nb, uint32_t Ci, uint32_t Wi, uint32_t Wf,
-                           uint32_t core_id, uint32_t num_cores) {
-  uint32_t slot = TS_SLOT(BEAM * Ci);
-  uint32_t row[(TDSAMPLES + 1) / 2]; // word-aligned for the im2col
-  __fp16 *x = (__fp16 *)row;
-  for (uint32_t r = core_id; r < nb * Ci; r += num_cores) {
-    uint32_t b = b0 + r / Ci;
-    uint32_t e = r % Ci;
-    for (uint32_t t = 0; t < Wi; t++) {
-      x[t] = X[t * slot + b * Ci + e];
-    }
-    im2col1d_f16(x, &X_im2col[(b * Ci + e) * Wf * Wi], 1, Wi, Wf, 0, 1);
-  }
-}
-#endif
-
-/**
-  @brief         Computes the full attention block.
-  @details       Executes the following pipeline:
-                   1. DMA transfer of inputs and weights
-                   2. Layer normalization
-                   3. 1D convolution for QKV projection
-                   4. Attention computation
-                 The function exploits mempool cores, DMA engines,
-                 and RedMule accelerators when available.
-
-  @param[in]     l2_I      Input tensor in L2 memory, used when in is NULL
-  @param[in]     in        Output of the previous layer in L1, or NULL
-  @param[in]     l2_F      Convolution filter weights in L2 memory
-  @param[in]     l2_b      Convolution bias vector in L2 memory
-  @param[in]     Beam      Beam size
-  @param[in]     Embed     Embedding dimension
-  @param[in]     tdSamples Number of temporal samples
-  @param[in]     Wf        Dimension convolution
-  @param[in]     mode      Attention is executed in the temporal/embed domain.
-  @return        Output of the layer in L1, [Beam][Embed][tdSamples]
-*/
-
-__fp16 *attention(__fp16 const *__restrict__ l2_I,
-                  __fp16 const *__restrict__ l2_F, __fp16 const *in,
-                  uint32_t Beam, uint32_t Embed, uint32_t tdSamples,
-                  uint32_t Wf, permute_mode_t mode) {
-
-  uint32_t core_id = mempool_get_core_id();
-  uint32_t num_cores = mempool_get_core_count();
-
-  // Data of this layer and the L1 buffer that holds it (see l2_data.h). A
-  // buffer is reused once nothing reads its previous content any more.
-
-  //   x       input [Beam][Embed][tdSamples]     l1_arena.x
-  //   x_norm  layernorm output                   l1_act
-  //           (without PIPELINED; with PIPELINED the layernorm writes the
-  //           im2col of the QKV projection, cols)
-  //   qkv     QKV projection [Beam][3*Embed][..] l1_arena.xy     after x
-  //   cols    im2col of the convolutions         l1_scratch
-  //   q,kt,v  attention operands                 l1_act          over x_norm
-  //   Aw      softmax output                     l1_arena.aw     over qkv
-  //   att     scores, then attention output      l1_scratch      over cols
-  //   att_p   att as [Beam][Embed][tdSamples]    l1_act          over q,kt,v
-  //           (without PIPELINED; with PIPELINED, l1_act holds the im2col of
-  //           the output projection, which reads att directly)
-  //   y       output [Beam][Embed][tdSamples]    l1_arena.x      over Aw
-
-  __fp16 *x = l1_arena.x;
-#ifndef PIPELINED
-  __fp16 *x_norm = l1_act;
-#endif
-  __fp16 *qkv = &l1_arena.xy[X_SIZE];
-  __fp16 *cols = l1_scratch;
-  __fp16 *Aw = l1_arena.aw;
-  __fp16 *att = &l1_scratch[TS_A_OFFSET];
-  __fp16 *att_p = l1_act;
-  __fp16 *y = l1_arena.x;
-  __fp16 *F = l1_F;
-
-  // Batches of the attention: Embed (EBT) or tdSamples (TBE), with sequences
-  // of Beam elements and embeddings of tdEmbed. Their slots in q, kt and v
-  // are padded by TS_SLOT (see l2_data.h).
-
-  uint32_t nb = (mode == TBE) ? tdSamples : Embed;
-  uint32_t td = (mode == TBE) ? Embed : tdSamples;
-  uint32_t slot = TS_SLOT(Beam * td);
-
-  __fp16 *q = l1_act;
-  __fp16 *kt = &l1_act[TS_KT_OFFSET(nb, slot)];
-  __fp16 *v = &l1_act[TS_V_OFFSET(nb, slot)];
-
-  /**************************************************************************/
-  /* Transfer inputs                                                        */
-  /**************************************************************************/
-
-  // The input is the output of the previous layer when there is one: it is
-  // already in L1, and moved to x only if it is somewhere else.
-
-#ifdef FUSE_CHAIN
-  // The chain of the previous layer already computed q, kt and v
-  if (in == CHAIN_QKV_READY) {
-    goto attention;
-  }
-#endif
-
-  mempool_start_benchmark();
-  if (core_id == 0) {
-    if (in == NULL) {
-      dma_memcpy_blocking(x, l2_I, Beam * Embed * tdSamples * sizeof(int16_t));
-    } else if (in != x) {
-      dma_memcpy_blocking(x, in, Beam * Embed * tdSamples * sizeof(int16_t));
-    }
-    dma_memcpy_blocking(F, l2_F, Embed * Embed * 3 * Wf * sizeof(int16_t));
-  }
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  PRINT_DONE(VERBOSE, core_id, num_cores, "Transfer inputs");
-
-  /**************************************************************************/
-  /* Layernorm                                                              */
-  /**************************************************************************/
-
-  // Layer Normalization (over the raw Embed-channel input). With PIPELINED it
-  // runs in the convolution, as its im2col (layernorm_im2col): the region
-  // stays (empty) so that the region indices do not change
-  mempool_start_benchmark();
-#ifndef PIPELINED
-  uint32_t num_cores_per_batch = num_cores / Beam;
-  uint32_t batch_id = core_id % num_cores_per_batch;
-  uint32_t idx = core_id / num_cores_per_batch;
-  layernorm_parallel_2x4_f16vec(&x[idx * Embed * tdSamples],
-                                &x_norm[idx * Embed * tdSamples], Embed,
-                                tdSamples, batch_id, num_cores_per_batch);
-#endif
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  PRINT_DONE(VERBOSE, core_id, num_cores, "Layernorm");
-
-  /**************************************************************************/
-  /* Conv1D                                                                 */
-  /**************************************************************************/
-
-  // Convolution: QKV projection (Embed -> 3*Embed)
-  mempool_start_benchmark();
-#ifdef PIPELINED
-  conv1d_pipelined_f16(&(conv1d_stage_t){layernorm_im2col, x, cols, F, qkv,
-                                         (uint16_t)Embed,
-                                         (uint16_t)(3 * Embed)},
-                       1, (mode == TBE) ? permute_post_tbe : permute_post_ebt,
-                       Beam, tdSamples, Wf, core_id, num_cores);
-#else
-  conv1d_f16(x_norm, F, qkv, cols, Beam, Embed, Embed * 3, tdSamples, Wf, 1,
-             core_id, num_cores);
-#endif
-  mempool_stop_benchmark();
-
-  PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution");
-
-  /**************************************************************************/
-  /* Permute to QKV                                                         */
-  /**************************************************************************/
-
-  // With PIPELINED the permutation is done in the convolution: the region
-  // stays (empty) so that the region indices do not change
-  mempool_start_benchmark();
-#ifndef PIPELINED
-  permute_qkv(qkv, q, kt, v, Beam, Embed, tdSamples, mode, 0, Beam, core_id,
-              num_cores);
-#endif
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  PRINT_DONE(VERBOSE, core_id, num_cores, "Permute to QKV");
-
-#ifdef FUSE_CHAIN
-attention:
-#endif
-
-  /**************************************************************************/
-  /* Attention                                                              */
-  /**************************************************************************/
-
-  attention_block_f16(q, kt, v, Aw, att, nb, Beam, td, slot,
-                      TS_SLOT(Beam * Beam), core_id, num_cores);
-
-  PRINT_DONE(VERBOSE, core_id, num_cores, "Attention");
-
-#ifdef FUSE_CHAIN
-  // The output projection is the first stage of the chain
-  (void)att_p, (void)y;
-  return att;
-#endif
-
-  /**************************************************************************/
-  /* Permute result                                                         */
-  /**************************************************************************/
-
-  // With PIPELINED the output projection reads att directly: the region
-  // stays (empty) so that the region indices do not change
-  mempool_start_benchmark();
-#ifndef PIPELINED
-  permute_result(att, att_p, Beam, Embed, tdSamples, mode);
-#endif
-  mempool_stop_benchmark();
-
-  PRINT_DONE(VERBOSE, core_id, num_cores, "Permute result");
-
-  /**************************************************************************/
-  /* Transfer weights                                                       */
-  /**************************************************************************/
-
-  // Transfer weights: output projection (Embed -> Embed)
-  mempool_start_benchmark();
-  if (core_id == 0) {
-    dma_memcpy_blocking(F, l2_F, Embed * Embed * Wf * sizeof(int16_t));
-  }
-  mempool_barrier(num_cores);
-  mempool_stop_benchmark();
-
-  /**************************************************************************/
-  /* Conv1D                                                                 */
-  /**************************************************************************/
-
-  // Convolution: output projection (Embed -> Embed)
-  mempool_start_benchmark();
-#ifdef PIPELINED
-  // att is in l1_scratch: the im2col goes to l1_act, free after the attention
-  (void)att_p;
-  conv1d_pipelined_f16(
-      &(conv1d_stage_t){(mode == TBE) ? im2col_att_tbe : im2col_att_ebt, att,
-                        l1_act, F, y, (uint16_t)Embed, (uint16_t)Embed},
-      1, NULL, Beam, tdSamples, Wf, core_id, num_cores);
-#else
-  conv1d_f16(att_p, F, y, cols, Beam, Embed, Embed, tdSamples, Wf, 1, core_id,
-             num_cores);
-#endif
-  mempool_stop_benchmark();
-
-  PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution");
-
-  return y;
-}
-
 /**
   @brief         Permutes and splits Q, K, V tensors from a packed input.
   @details       Converts input layout
@@ -338,11 +44,11 @@ attention:
   @return        none
 */
 
-void permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
-                 __fp16 *__restrict__ Kt, __fp16 *__restrict__ V, uint32_t Beam,
-                 uint32_t Embed, uint32_t tdSamples, permute_mode_t mode,
-                 uint32_t b0, uint32_t bN, uint32_t core_id,
-                 uint32_t num_cores) {
+void __attribute__((noinline))
+permute_qkv(__fp16 const *__restrict__ IN, __fp16 *__restrict__ Q,
+            __fp16 *__restrict__ Kt, __fp16 *__restrict__ V, uint32_t Beam,
+            uint32_t Embed, uint32_t tdSamples, permute_mode_t mode,
+            uint32_t b0, uint32_t bN, uint32_t core_id, uint32_t num_cores) {
 
   // Batch slot of Q, Kt and V (see TS_SLOT in l2_data.h)
   uint32_t slot = TS_SLOT(Beam * ((mode == TBE) ? Embed : tdSamples));
@@ -452,4 +158,284 @@ void permute_result(__fp16 const *__restrict__ IN, __fp16 *__restrict__ OUT,
   }
 
   return;
+}
+
+// The QKV permutation runs as the post-operation of the pipelined QKV
+// convolution, on the beams whose GEMMs completed, while the RedMulEs compute
+// the next chunk.
+
+// The output projection reads the attention output where the attention left
+// it: its im2col gathers the rows [Beam][Embed][tdSamples] from the layout of
+// the attention output, so the result needs no permutation.
+
+#ifdef PIPELINED
+
+// EBT: Q, Kt and V in batches of Embed, slots of Beam * tdSamples
+static inline void permute_post_ebt(__fp16 *__restrict__ data, uint32_t size,
+                                    uint32_t core_id, uint32_t num_cores) {
+  __fp16 const *proj = l1.proj;
+  uint32_t bs = 3 * EMBED * TDSAMPLES;
+  permute_qkv(proj, l1.qkv, &l1.qkv[TS_KT_OFFSET(EMBED, TS_EBT_SLOT)],
+              &l1.qkv[TS_V_OFFSET(EMBED, TS_EBT_SLOT)], BEAM, EMBED, TDSAMPLES,
+              EBT, (uint32_t)(data - proj) / bs, size / bs, core_id, num_cores);
+}
+
+// TBE: Q, Kt and V in batches of tdSamples, slots of Beam * Embed
+static inline void permute_post_tbe(__fp16 *__restrict__ data, uint32_t size,
+                                    uint32_t core_id, uint32_t num_cores) {
+  __fp16 const *proj = l1.proj;
+  uint32_t bs = 3 * EMBED * TDSAMPLES;
+  permute_qkv(proj, l1.qkv, &l1.qkv[TS_KT_OFFSET(TDSAMPLES, TS_TBE_SLOT)],
+              &l1.qkv[TS_V_OFFSET(TDSAMPLES, TS_TBE_SLOT)], BEAM, EMBED,
+              TDSAMPLES, TBE, (uint32_t)(data - proj) / bs, size / bs, core_id,
+              num_cores);
+}
+
+// EBT: att is [Embed][Beam][tdSamples], each row is contiguous
+static void im2col_att_ebt(__fp16 const *__restrict__ X,
+                           __fp16 *__restrict__ X_im2col, uint32_t b0,
+                           uint32_t nb, uint32_t Ci, uint32_t Wi, uint32_t Wf,
+                           uint32_t core_id, uint32_t num_cores) {
+  uint32_t slot = TS_SLOT(BEAM * Wi);
+  for (uint32_t r = core_id; r < nb * Ci; r += num_cores) {
+    uint32_t b = b0 + r / Ci;
+    uint32_t e = r % Ci;
+    im2col1d_f16(&X[e * slot + b * Wi], &X_im2col[(b * Ci + e) * Wf * Wi], 1,
+                 Wi, Wf, 0, 1);
+  }
+}
+
+// TBE: att is [tdSamples][Beam][Embed], a row is gathered with stride slot
+static void im2col_att_tbe(__fp16 const *__restrict__ X,
+                           __fp16 *__restrict__ X_im2col, uint32_t b0,
+                           uint32_t nb, uint32_t Ci, uint32_t Wi, uint32_t Wf,
+                           uint32_t core_id, uint32_t num_cores) {
+  uint32_t slot = TS_SLOT(BEAM * Ci);
+  uint32_t row[(TDSAMPLES + 1) / 2]; // word-aligned for the im2col
+  __fp16 *x = (__fp16 *)row;
+  for (uint32_t r = core_id; r < nb * Ci; r += num_cores) {
+    uint32_t b = b0 + r / Ci;
+    uint32_t e = r % Ci;
+    for (uint32_t t = 0; t < Wi; t++) {
+      x[t] = X[t * slot + b * Ci + e];
+    }
+    im2col1d_f16(x, &X_im2col[(b * Ci + e) * Wf * Wi], 1, Wi, Wf, 0, 1);
+  }
+}
+#endif
+
+/**
+  @brief         Computes the full attention block.
+  @details       Executes the following pipeline:
+                   1. DMA transfer of inputs and weights
+                   2. Layer normalization
+                   3. 1D convolution for QKV projection
+                   4. Attention computation
+                 The function exploits mempool cores, DMA engines,
+                 and RedMule accelerators when available.
+
+  @param[in]     l2_I      Input tensor in L2 memory, used when in is NULL
+  @param[in]     in        Output of the previous layer in L1, or NULL
+  @param[in]     l2_F      Convolution filter weights in L2 memory
+  @param[in]     l2_b      Convolution bias vector in L2 memory
+  @param[in]     Beam      Beam size
+  @param[in]     Embed     Embedding dimension
+  @param[in]     tdSamples Number of temporal samples
+  @param[in]     Wf        Dimension convolution
+  @param[in]     mode      Attention is executed in the temporal/embed domain.
+  @return        Output of the layer in L1, [Beam][Embed][tdSamples]
+*/
+
+__fp16 *attention(__fp16 const *__restrict__ l2_I,
+                  __fp16 const *__restrict__ l2_F, __fp16 const *in,
+                  uint32_t Beam, uint32_t Embed, uint32_t tdSamples,
+                  uint32_t Wf, permute_mode_t mode) {
+
+  uint32_t core_id = mempool_get_core_id();
+  uint32_t num_cores = mempool_get_core_count();
+
+  // Batches of the attention: Embed (EBT) or tdSamples (TBE), with sequences
+  // of Beam elements and embeddings of tdEmbed. Their slots in q, kt and v
+  // are padded by TS_SLOT (see l2_data.h).
+
+  uint32_t nb = (mode == TBE) ? tdSamples : Embed;
+  uint32_t td = (mode == TBE) ? Embed : tdSamples;
+  uint32_t slot = TS_SLOT(Beam * td);
+
+  // Data of this layer and the L1 buffer that holds it (see l2_data.h). A
+  // buffer is reused once nothing reads its previous content any more.
+
+  //   x          input [Beam][Embed][tdSamples]     l1.x
+  //   qkv        QKV projection [Beam][3*Embed][..] l1.proj
+  //   im2col1    im2col of the QKV projection       l1.im2col1
+  //   q,kt,v     attention operands                 l1.qkv
+  //   Aw         softmax output                     l1.aw
+  //   att        scores, then attention output      l1.im2col1 + TS_A_OFFSET
+  //   im2col2    im2col of the output projection    l1.im2col2
+  //   y          output [Beam][Embed][tdSamples]    l1.x
+
+  __fp16 *x = l1.x;
+  __fp16 *qkv = l1.proj;
+  __fp16 *im2col1 = l1.im2col1;
+  __fp16 *Aw = l1.aw;
+  __fp16 *att = &l1.im2col1[TS_A_OFFSET];
+  __fp16 *im2col2 = l1.im2col2;
+  __fp16 *y = l1.x;
+  __fp16 *F = l1.F;
+#ifndef PIPELINED
+  __fp16 *x_norm = l1.im2col2;
+  __fp16 *att_tmp = l1.im2col2;
+#endif
+
+  __fp16 *q = l1.qkv;
+  __fp16 *kt = &l1.qkv[TS_KT_OFFSET(nb, slot)];
+  __fp16 *v = &l1.qkv[TS_V_OFFSET(nb, slot)];
+
+#ifdef FUSE_CHAIN
+  // The chain of the previous layer already computed q, kt and v
+  if (in == QKV_READY) {
+    goto attention;
+  }
+#endif
+
+  /**************************************************************************/
+  /* Transfer inputs                                                        */
+  /**************************************************************************/
+
+  mempool_start_benchmark();
+  if (core_id == 0) {
+    // The input is the output of the previous layer when there is one.
+    if (in == NULL) {
+      dma_memcpy_blocking(x, l2_I, Beam * Embed * tdSamples * sizeof(int16_t));
+    }
+    dma_memcpy_blocking(F, l2_F, Embed * Embed * 3 * Wf * sizeof(int16_t));
+  }
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Transfer inputs");
+
+  /**************************************************************************/
+  /* Layernorm                                                              */
+  /**************************************************************************/
+
+  mempool_start_benchmark();
+#ifndef PIPELINED
+  uint32_t num_cores_per_batch = num_cores / Beam;
+  uint32_t batch_id = core_id % num_cores_per_batch;
+  uint32_t idx = core_id / num_cores_per_batch;
+  layernorm_parallel_2x4_f16vec(&x[idx * Embed * tdSamples],
+                                &x_norm[idx * Embed * tdSamples], Embed,
+                                tdSamples, batch_id, num_cores_per_batch);
+#endif
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Layernorm");
+
+  /**************************************************************************/
+  /* Conv1D                                                                 */
+  /**************************************************************************/
+
+  // Convolution: QKV projection (Embed -> 3*Embed)
+  mempool_start_benchmark();
+#ifdef PIPELINED
+  // The stage is on the stack of every core: in L1, all the cores would load
+  // the same words at once
+  conv1d_stage_t st = {
+      layernorm_im2col,     x, im2col1, F, qkv, (uint16_t)Embed,
+      (uint16_t)(3 * Embed)};
+  conv1d_pipelined_f16(&st, 1,
+                       (mode == TBE) ? permute_post_tbe : permute_post_ebt,
+                       Beam, tdSamples, Wf, core_id, num_cores);
+#else
+  conv1d_f16(x_norm, F, qkv, im2col1, Beam, Embed, Embed * 3, tdSamples, Wf, 1,
+             core_id, num_cores);
+#endif
+  mempool_stop_benchmark();
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution");
+
+  /**************************************************************************/
+  /* Permute to QKV                                                         */
+  /**************************************************************************/
+
+  // With PIPELINED the permutation is done in the convolution: the region
+  // stays (empty) so that the region indices do not change
+  mempool_start_benchmark();
+#ifndef PIPELINED
+  permute_qkv(qkv, q, kt, v, Beam, Embed, tdSamples, mode, 0, Beam, core_id,
+              num_cores);
+#endif
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Permute to QKV");
+
+#ifdef FUSE_CHAIN
+attention:
+#endif
+
+  /**************************************************************************/
+  /* Attention                                                              */
+  /**************************************************************************/
+
+  attention_block_f16(q, kt, v, Aw, att, nb, Beam, td, slot,
+                      TS_SLOT(Beam * Beam), core_id, num_cores);
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Attention");
+
+#ifdef FUSE_CHAIN
+  // The output projection is the first stage of the chain
+  (void)y;
+  return att;
+#endif
+
+  /**************************************************************************/
+  /* Permute result                                                         */
+  /**************************************************************************/
+
+  mempool_start_benchmark();
+#ifndef PIPELINED
+  permute_result(att, att_tmp, Beam, Embed, tdSamples, mode);
+#endif
+  mempool_stop_benchmark();
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Permute result");
+
+  /**************************************************************************/
+  /* Transfer weights                                                       */
+  /**************************************************************************/
+
+  // Transfer weights: output projection (Embed -> Embed)
+  mempool_start_benchmark();
+  if (core_id == 0) {
+    dma_memcpy_blocking(F, l2_F, Embed * Embed * Wf * sizeof(int16_t));
+  }
+  mempool_barrier(num_cores);
+  mempool_stop_benchmark();
+
+  /**************************************************************************/
+  /* Conv1D                                                                 */
+  /**************************************************************************/
+
+  mempool_start_benchmark();
+#ifdef PIPELINED
+  st = (conv1d_stage_t){(mode == TBE) ? im2col_att_tbe : im2col_att_ebt,
+                        att,
+                        im2col2,
+                        F,
+                        y,
+                        (uint16_t)Embed,
+                        (uint16_t)Embed};
+  conv1d_pipelined_f16(&st, 1, NULL, Beam, tdSamples, Wf, core_id, num_cores);
+#else
+  conv1d_f16(att_tmp, F, y, im2col1, Beam, Embed, Embed, tdSamples, Wf, 1,
+             core_id, num_cores);
+#endif
+  mempool_stop_benchmark();
+
+  PRINT_DONE(VERBOSE, core_id, num_cores, "Convolution");
+
+  return y;
 }
