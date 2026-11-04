@@ -326,6 +326,11 @@ package mempool_pkg;
   // Store queue of a tensor engine's tile (0: no queue); Pfe: refill a next register only when empty
   localparam integer unsigned StoreQueueDepth   = `ifdef STORE_QUEUE_DEPTH `STORE_QUEUE_DEPTH `else 0 `endif;
   localparam integer unsigned StoreQueuePfe     = `ifdef STORE_QUEUE_PFE `STORE_QUEUE_PFE `else 0 `endif;
+  // Response VOQ of a tile (0: off, 1: on): shared entries, transactions per direction (cap), Pfe
+  localparam integer unsigned BurstPortVoq        = `ifdef BURST_PORT_VOQ `BURST_PORT_VOQ `else 0 `endif;
+  localparam integer unsigned BurstPortVoqEntries = `ifdef BURST_PORT_VOQ_ENTRIES `BURST_PORT_VOQ_ENTRIES `else 8 `endif;
+  localparam integer unsigned BurstPortVoqCap     = `ifdef BURST_PORT_VOQ_CAP `BURST_PORT_VOQ_CAP `else 10 `endif;
+  localparam integer unsigned BurstPortVoqPfe     = `ifdef BURST_PORT_VOQ_PFE `BURST_PORT_VOQ_PFE `else 0 `endif;
 
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;
