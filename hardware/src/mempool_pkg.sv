@@ -323,6 +323,9 @@ package mempool_pkg;
   localparam integer unsigned BurstManagerSplit = `ifdef BURST_MANAGER_SPLIT `BURST_MANAGER_SPLIT `else 1 `endif;
   localparam integer unsigned BurstFifoDepth    = `ifdef BURST_FIFO_DEPTH `BURST_FIFO_DEPTH `else 0 `endif;
   localparam integer unsigned NumBanksPerBM     = NumBanksPerTile / BurstManagerSplit;
+  // Store queue of a tensor engine's tile (0: no queue); Pfe: refill a next register only when empty
+  localparam integer unsigned StoreQueueDepth   = `ifdef STORE_QUEUE_DEPTH `STORE_QUEUE_DEPTH `else 0 `endif;
+  localparam integer unsigned StoreQueuePfe     = `ifdef STORE_QUEUE_PFE `STORE_QUEUE_PFE `else 0 `endif;
 
   typedef logic [TCDMAddrWidth-1:0] tcdm_addr_t;
   typedef logic [TCDMAddrMemWidth-1:0] bank_addr_t;

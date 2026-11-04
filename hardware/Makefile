@@ -135,6 +135,11 @@ vlog_defs   += -DBURST_MANAGER_SPLIT=$(burst_manager_split)
 # Entries of each burst manager's FIFO (0: one per bank)
 burst_fifo_depth ?= 0
 vlog_defs   += -DBURST_FIFO_DEPTH=$(burst_fifo_depth)
+# Store queue of a tensor engine's tile (0: no queue)
+store_queue_depth ?= 0
+vlog_defs   += -DSTORE_QUEUE_DEPTH=$(store_queue_depth)
+store_queue_pfe ?= 0
+vlog_defs   += -DSTORE_QUEUE_PFE=$(store_queue_pfe)
 ifneq ($(num_redmule_tiles), 0)
 vlog_defs   += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs   += -DARRAY_WIDTH=$(redmule_width)
