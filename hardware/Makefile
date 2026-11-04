@@ -140,6 +140,15 @@ store_queue_depth ?= 0
 vlog_defs   += -DSTORE_QUEUE_DEPTH=$(store_queue_depth)
 store_queue_pfe ?= 0
 vlog_defs   += -DSTORE_QUEUE_PFE=$(store_queue_pfe)
+# Response VOQ of a tile (0: off, 1: on)
+burst_port_voq ?= 0
+vlog_defs   += -DBURST_PORT_VOQ=$(burst_port_voq)
+burst_port_voq_entries ?= 8
+vlog_defs   += -DBURST_PORT_VOQ_ENTRIES=$(burst_port_voq_entries)
+burst_port_voq_cap ?= 10
+vlog_defs   += -DBURST_PORT_VOQ_CAP=$(burst_port_voq_cap)
+burst_port_voq_pfe ?= 0
+vlog_defs   += -DBURST_PORT_VOQ_PFE=$(burst_port_voq_pfe)
 ifneq ($(num_redmule_tiles), 0)
 vlog_defs   += -DARRAY_HEIGHT=$(redmule_height)
 vlog_defs   += -DARRAY_WIDTH=$(redmule_width)

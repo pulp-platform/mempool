@@ -502,7 +502,14 @@ module mempool_tile
   data_t          [NumBanksPerTile-1:0] bank_resp_data;
   bank_metadata_t [NumBanksPerTile-1:0] bank_resp_payload;
 
+  // Response VOQ of the tile (BurstPortVoq): it shares each remote direction's port with the
+  // response crossbar, round robin after it (gen_dir_merge), since the crossbar needs all its
+  // bank inputs for the cores' narrow responses and has none free for the VOQ
+  // TODO: the VOQ's outputs could be crossbar inputs instead (constant targets, pruned by synthesis)
   localparam int unsigned NumRemoteDirs = NumGroups + NumSubGroupsPerGroup - 1;
+  localparam bit          PortVoq       = UseBurst && (BurstPortVoq != 0);
+  tcdm_slave_resp_t [NumRemoteDirs-1:0] voq_out;
+  logic             [NumRemoteDirs-1:0] voq_out_valid, voq_out_ready;
 
   if (UseBurst) begin : gen_burst_manager
 
@@ -526,6 +533,31 @@ module mempool_tile
     tile_core_id_t    [NumBanksPerTile-1:0] manager_resp_ini, postmanager_resp_ini;
     burst_gresp_t     [NumBanksPerTile-1:0] manager_resp_burst;
 
+    // What the beats of a response held in the VOQ share
+    typedef struct packed {
+      meta_id_t       meta_id;
+      tile_group_id_t tile_id;
+      tile_core_id_t  core_id;
+    } voq_meta_t;
+
+    if (BurstPortVoq > 1)
+      $error("[mempool_tile] BURST_PORT_VOQ must be 0 or 1");
+    if (PortVoq && ((RspGF < 2) || (burst_pkg::BurstLen % RspGF != 0)))
+      $error("[mempool_tile] BURST_PORT_VOQ needs RspGF > 1 dividing BurstLen");
+
+    // Wide responses of all managers (VOQ), and the managers' reservations
+    localparam int unsigned NumWideBM = NumBanksPerBM / burst_pkg::BurstLen;
+    localparam int unsigned NumWideT  = BurstManagerSplit * NumWideBM;
+    localparam int unsigned VoqBeats  = burst_pkg::BurstLen / RspGF;
+    localparam int unsigned DirW      = idx_width(NumRemoteDirs);
+    logic      [NumWideT-1:0]                             wg_valid, wg_ready;
+    logic      [NumWideT-1:0][DirW-1:0]                   wg_dir;
+    data_t     [NumWideT-1:0][VoqBeats-1:0][RspGF-1:0]    wg_data;
+    voq_meta_t [NumWideT-1:0]                             wg_meta;
+    logic      [BurstManagerSplit-1:0]                    bm_rsv;
+    logic      [BurstManagerSplit-1:0][DirW-1:0]          bm_rsv_dir;
+    logic      [BurstManagerSplit-1:0][NumRemoteDirs-1:0] voq_free;
+
     if ((BurstManagerSplit == 0) || (NumBanksPerTile % BurstManagerSplit != 0))
       $error("[mempool_tile] BURST_MANAGER_SPLIT must divide the %0d banks of a tile", NumBanksPerTile);
     if ((NumBanksPerBM < BurstLen) || (NumBanksPerBM % BurstLen != 0))
@@ -533,7 +565,39 @@ module mempool_tile
              NumBanksPerBM, BurstLen);
 
     for (genvar m = 0; m < BurstManagerSplit; m++) begin : gen_bm
-      localparam int unsigned Lo = m * NumBanksPerBM;
+      localparam int unsigned Lo      = m * NumBanksPerBM;
+      localparam int unsigned BL      = burst_pkg::BurstLen;
+      localparam int unsigned NumWide = NumBanksPerBM / BL;
+      logic                    [NumWide-1:0] wide_valid, wide_ready;
+      local_req_interco_addr_t [NumWide-1:0] wide_rport;
+
+      assign wide_ready = wg_ready[m*NumWide +: NumWide];
+
+      // A wide group's whole response for the VOQ
+      for (genvar w = 0; w < NumWide; w++) begin : gen_wide
+        localparam int unsigned G = m * NumWide + w;
+        logic ids_ok;
+        assign wg_valid[G] = PortVoq && wide_valid[w];
+        assign wg_dir[G]   = DirW'(int'(wide_rport[w]) - NumLocalPorts);
+        always_comb begin
+          wg_meta[G].meta_id = postmanager_resp[Lo + w*BL].meta_id;
+          wg_meta[G].tile_id = postmanager_resp[Lo + w*BL].tile_id;
+          wg_meta[G].core_id = postmanager_resp_ini[Lo + w*BL];
+          ids_ok             = 1'b1;
+          for (int i = 0; i < BL; i++) begin
+            wg_data[G][i / RspGF][i % RspGF] = postmanager_resp[Lo + w*BL + i].data;
+            ids_ok &= (postmanager_resp[Lo + w*BL + i].meta_id == wg_meta[G].meta_id) &&
+                      (postmanager_resp[Lo + w*BL + i].tile_id == wg_meta[G].tile_id) &&
+                      (postmanager_resp_ini[Lo + w*BL + i] ==
+                       wg_meta[G].core_id + tile_core_id_t'(i));
+          end
+        end
+        if (PortVoq) begin : gen_ids_check
+          `ASSERT(voq_ids, wg_valid[G] |-> ids_ok, clk_i, !rst_ni,
+                  "the banks of a wide response differ in meta id, tile id or core id")
+        end
+      end
+
       burst_manager #(
         .NumIn       (NumLocalPorts                                ),
         .NumOut      (NumBanksPerBM                                ),
@@ -544,7 +608,12 @@ module mempool_tile
         .ReqGF       (ReqGF                                        ),
         .RspGF       (RspGF                                        ),
         .DropBurstWriteRsp(`BURST_DROP_WACK != 0                   ), // TODO can be defaulted to zero
-        .FifoDepth        (BurstFifoDepth                          )
+        .FifoDepth        (BurstFifoDepth                          ),
+        .RportWidth       ($bits(local_req_interco_addr_t)         ),
+        .WideSink         (PortVoq                                 ),
+        .SinkPortBase     (NumLocalPorts                           ),
+        .NumSinkPorts     (NumRemoteDirs                           ),
+        .CheckAtDrive     (PortVoq                                 )
       ) i_burst_manager (
         .clk_i          (clk_i                                    ),
         .rst_ni         (rst_ni                                   ),
@@ -556,7 +625,7 @@ module mempool_tile
         .req_burst_i    (manager_req_burst[Lo +: NumBanksPerBM]   ),
         .req_valid_i    (prebank_req_valid[Lo +: NumBanksPerBM]   ),
         .req_ready_o    (prebank_req_ready[Lo +: NumBanksPerBM]   ),
-        .req_rport_i    ('0                                       ),
+        .req_rport_i    (prebank_req_ini_addr[Lo +: NumBanksPerBM]),
         .req_ini_addr_o (postmanager_req_ini[Lo +: NumBanksPerBM] ),
         .req_tgt_addr_o (bank_req_tgt_addr[Lo +: NumBanksPerBM]   ),
         .req_wdata_o    (postmanager_req[Lo +: NumBanksPerBM]     ),
@@ -569,18 +638,102 @@ module mempool_tile
         .resp_burst_o   (manager_resp_burst[Lo +: NumBanksPerBM]  ),
         .resp_valid_o   (prebank_resp_valid[Lo +: NumBanksPerBM]  ),
         .resp_ready_i   (prebank_resp_ready[Lo +: NumBanksPerBM]  ),
-        .sink_credit_i  ('0                                       ),
-        .sink_take_o    (/* Unused */                             ),
-        .sink_take_idx_o(/* Unused */                             ),
-        .wide_valid_o   (/* Unused */                             ),
-        .wide_rport_o   (/* Unused */                             ),
-        .wide_ready_i   ('0                                       ),
+        .sink_credit_i  (voq_free[m]                              ),
+        .sink_take_o    (bm_rsv[m]                                ),
+        .sink_take_idx_o(bm_rsv_dir[m]                            ),
+        .wide_valid_o   (wide_valid                               ),
+        .wide_rport_o   (wide_rport                               ),
+        .wide_ready_i   (wide_ready                               ),
         .resp_ini_addr_i(postmanager_resp_ini[Lo +: NumBanksPerBM]),
         .resp_rdata_i   (postmanager_resp[Lo +: NumBanksPerBM]    ),
         .resp_valid_i   (bank_resp_valid[Lo +: NumBanksPerBM]     ),
         .resp_ready_o   (bank_resp_ready[Lo +: NumBanksPerBM]     )
       );
     end : gen_bm
+
+    // The VOQ: the managers reserve a place when they start a read for a direction, a wide
+    // response commits it when the banks answer, one per cycle (round robin over the wide groups)
+    if (PortVoq) begin : gen_port_voq
+      logic                                                   in_valid, in_ready;
+      logic      [NumWideT-1:0]                               src_gnt;
+      logic      [idx_width(NumWideT)-1:0]                    rr_q, rr_d, sel;
+      logic      [NumRemoteDirs-1:0]                          space;
+      data_t     [NumRemoteDirs-1:0][RspGF-1:0]               beat;
+      voq_meta_t [NumRemoteDirs-1:0]                          meta;
+      logic      [NumRemoteDirs-1:0][idx_width(VoqBeats)-1:0] beat_idx;
+
+      always_comb begin
+        src_gnt = '0;
+        sel     = rr_q;
+        for (int k = NumWideT - 1; k >= 0; k--) begin
+          automatic int unsigned s = (int'(rr_q) + k) % NumWideT;
+          if (wg_valid[s] && space[wg_dir[s]]) begin
+            src_gnt    = '0;
+            src_gnt[s] = 1'b1;
+            sel        = idx_width(NumWideT)'(s);
+          end
+        end
+        rr_d = (|src_gnt) ? ((int'(sel) == NumWideT - 1) ? '0 : sel + 1'b1) : rr_q;
+      end
+      assign in_valid = |src_gnt;
+      assign wg_ready = src_gnt & {NumWideT{in_ready}};
+      `FF(rr_q, rr_d, '0, clk_i, rst_ni);
+
+      voq_serializer #(
+        .NumEntries   (BurstPortVoqEntries ),
+        .NumBeats     (VoqBeats            ),
+        .NumOut       (NumRemoteDirs       ),
+        .beat_t       (data_t [RspGF-1:0]  ),
+        .meta_t       (voq_meta_t          ),
+        .OutCap       (BurstPortVoqCap     ),
+        .NumRsv       (BurstManagerSplit   ),
+        .PrefetchEmpty(BurstPortVoqPfe != 0)
+      ) i_voq (
+        .clk_i,
+        .rst_ni,
+        .in_data_i  (wg_data[sel]  ),
+        .in_meta_i  (wg_meta[sel]  ),
+        .in_out_i   (wg_dir[sel]   ),
+        .in_valid_i (in_valid      ),
+        .in_ready_o (in_ready      ),
+        .out_space_o(space         ),
+        .out_data_o (beat          ),
+        .out_meta_o (meta          ),
+        .out_beat_o (beat_idx      ),
+        .out_last_o (/* unused */  ),
+        .out_valid_o(voq_out_valid ),
+        .out_ready_i(voq_out_ready ),
+        .rsv_valid_i(bm_rsv        ),
+        .rsv_out_i  (bm_rsv_dir    ),
+        .rsv_ready_o(voq_free      ),
+        .idle_o     (/* unused */  )
+      );
+
+      // beat k: the grouped response of banks k*RspGF.. of the burst
+      for (genvar d = 0; d < NumRemoteDirs; d++) begin : gen_rsp
+        always_comb begin
+          voq_out[d]               = '0;
+          voq_out[d].rdata.data    = beat[d][0];
+          voq_out[d].rdata.meta_id = meta[d].meta_id;
+          voq_out[d].rdata.core_id = meta[d].core_id + tile_core_id_t'(beat_idx[d] * RspGF);
+          voq_out[d].tile_id       = meta[d].tile_id;
+          voq_out[d].burst.isburst = 1'b1;
+          for (int j = 1; j < RspGF; j++)
+            voq_out[d].burst.gdata[j-1] = beat[d][j][burst_pkg::GroupedDW-1:0];
+        end
+      end
+
+      // A reserved response finds its place
+      for (genvar s = 0; s < NumWideT; s++) begin : gen_src_check
+        `ASSERT(voq_rsp_place, wg_valid[s] |-> space[wg_dir[s]], clk_i, !rst_ni,
+                "a reserved wide response found no place in the VOQ")
+      end
+    end else begin : gen_no_port_voq
+      assign wg_ready      = '0;
+      assign voq_free      = '0;
+      assign voq_out       = '0;
+      assign voq_out_valid = '0;
+    end
 
     for (genvar b = 0; b < NumBanksPerTile; b++) begin : gen_bm_slice_check
       `ASSERT(burst_in_slice, (prebank_req_valid[b] && manager_req_burst[b].isburst) |->
@@ -725,6 +878,9 @@ module mempool_tile
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_slave_req_valid;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_slave_req_ready;
   tcdm_slave_resp_t  [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp;
+  tcdm_slave_resp_t  [NumGroups+NumSubGroupsPerGroup-1-1:0] xbar_slave_resp;
+  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] xbar_slave_resp_valid;
+  logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] xbar_slave_resp_ready;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_valid;
   logic              [NumGroups+NumSubGroupsPerGroup-1-1:0] prereg_tcdm_slave_resp_ready;
   tcdm_master_resp_t [NumGroups+NumSubGroupsPerGroup-1-1:0] postreg_tcdm_master_resp;
@@ -919,11 +1075,36 @@ module mempool_tile
     .ready_o(superbank_resp_ready                                    ),
     .sel_i  (superbank_resp_ini_addr                                 ),
     // Slave
-    .data_o ({prereg_tcdm_slave_resp, local_resp_interco_payload}    ),
-    .valid_o({prereg_tcdm_slave_resp_valid, local_resp_interco_valid}),
-    .ready_i({prereg_tcdm_slave_resp_ready, local_resp_interco_ready}),
+    .data_o ({xbar_slave_resp, local_resp_interco_payload}           ),
+    .valid_o({xbar_slave_resp_valid, local_resp_interco_valid}       ),
+    .ready_i({xbar_slave_resp_ready, local_resp_interco_ready}       ),
     .idx_o  (/* Unused */                                            )
   );
+
+  // Per direction: the crossbar's output and the VOQs' outputs, round robin
+  for (genvar h = 0; h < NumRemoteDirs; h++) begin : gen_dir_merge
+    if (PortVoq) begin : gen_merge
+      stream_arbiter #(
+        .DATA_T (tcdm_slave_resp_t),
+        .N_INP  (2                ),
+        .ARBITER("rr"             )
+      ) i_dir_merge (
+        .clk_i      (clk_i                                        ),
+        .rst_ni     (rst_ni                                       ),
+        .inp_data_i ({voq_out[h], xbar_slave_resp[h]}             ),
+        .inp_valid_i({voq_out_valid[h], xbar_slave_resp_valid[h]} ),
+        .inp_ready_o({voq_out_ready[h], xbar_slave_resp_ready[h]} ),
+        .oup_data_o (prereg_tcdm_slave_resp[h]                    ),
+        .oup_valid_o(prereg_tcdm_slave_resp_valid[h]              ),
+        .oup_ready_i(prereg_tcdm_slave_resp_ready[h]              )
+      );
+    end else begin : gen_no_merge
+      assign prereg_tcdm_slave_resp[h]       = xbar_slave_resp[h];
+      assign prereg_tcdm_slave_resp_valid[h] = xbar_slave_resp_valid[h];
+      assign xbar_slave_resp_ready[h]        = prereg_tcdm_slave_resp_ready[h];
+      assign voq_out_ready[h]                = 1'b0;
+    end
+  end
 
   /***********************
    *   Snitch TCDM Mux   *
