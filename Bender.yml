@@ -37,6 +37,7 @@ sources:
   - hardware/src/axi2mem.sv
   - hardware/src/bootrom.sv
   - hardware/src/transactions_table.sv
+  - hardware/src/voq_serializer.sv
   - hardware/src/control_registers/control_registers_reg_pkg.sv
   - hardware/src/control_registers/control_registers_reg_top.sv
   # Level 1

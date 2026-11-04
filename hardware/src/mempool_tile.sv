@@ -502,6 +502,8 @@ module mempool_tile
   data_t          [NumBanksPerTile-1:0] bank_resp_data;
   bank_metadata_t [NumBanksPerTile-1:0] bank_resp_payload;
 
+  localparam int unsigned NumRemoteDirs = NumGroups + NumSubGroupsPerGroup - 1;
+
   if (UseBurst) begin : gen_burst_manager
 
     typedef struct packed {
@@ -796,21 +798,28 @@ module mempool_tile
    *   Remote Intercos   *
    ***********************/
 
-  tcdm_master_req_t  [NumLocalPorts-1:0] remote_req_interco;
-  logic              [NumLocalPorts-1:0] remote_req_interco_valid;
-  logic              [NumLocalPorts-1:0] remote_req_interco_ready;
+  // With the store queue the engine's remote requests are the loads of lane 0 and the
+  // queue's serialisers, one per direction; the other lanes carry nothing
+  localparam bit          UseStoreQueue = UseBurst && (NumRMTiles > 0) && (StoreQueueDepth > 0);
+  localparam int unsigned NumReqPorts   = UseStoreQueue ? NumCoresPerTile + 1 + NumRemoteDirs
+                                                        : NumLocalPorts;
+
+  tcdm_master_req_t  [NumReqPorts-1:0]   remote_req_interco;
+  logic              [NumReqPorts-1:0]   remote_req_interco_valid;
+  logic              [NumReqPorts-1:0]   remote_req_interco_ready;
   tcdm_master_resp_t [NumLocalPorts-1:0] remote_resp_interco;
   logic              [NumLocalPorts-1:0] remote_resp_interco_valid;
   logic              [NumLocalPorts-1:0] remote_resp_interco_ready;
 
   `ifdef TERAPOOL
-    tile_remote_sel_t  [NumLocalPorts-1:0] remote_req_interco_tgt_sel;
+    tile_remote_sel_t  [NumReqPorts-1:0] remote_req_interco_tgt_sel;
   `else
-    group_id_t         [NumLocalPorts-1:0] remote_req_interco_tgt_sel;
+    group_id_t         [NumReqPorts-1:0] remote_req_interco_tgt_sel;
   `endif
+  typedef logic [$bits(remote_req_interco_tgt_sel[0])-1:0] remote_sel_t;
 
   stream_xbar #(
-    .NumInp   (NumLocalPorts                   ),
+    .NumInp   (NumReqPorts                     ),
     .NumOut   (NumGroups+NumSubGroupsPerGroup-1),
     .payload_t(tcdm_master_req_t               )
   ) i_remote_req_interco (
@@ -1183,8 +1192,24 @@ module mempool_tile
                                                                            : redmule_pkg::StoreFifoDepth;
     localparam bit          CountStoreResps = (`BURST_DROP_WACK == 0);
 
+    // Store queue (voq_serializer): a wide store's bursts, on the lanes k * ReqGF, are
+    // taken off the engine's port in one cycle
+    localparam int unsigned NumStoreBursts = RMMasterPorts / ReqGF;
+    tcdm_master_req_t [RMMasterPorts-1:0]  eng_req;
+    remote_sel_t      [RMMasterPorts-1:0]  eng_sel;
+    logic             [RMMasterPorts-1:0]  eng_valid, eng_ready, sq_take_port;
+    logic             [NumStoreBursts-1:0] sq_burst_valid;
+    tcdm_master_req_t [NumRemoteDirs-1:0]  sq_out_req;
+    logic             [NumRemoteDirs-1:0]  sq_out_valid, sq_out_ready;
+    logic                                  sq_ready, sq_empty;
+
+    // Stores in flight before the engine's port is held back: with the queue, its entries, its
+    // two registers per direction and those whose response is on its way (the port then takes
+    // one store per cycle)
+    localparam int unsigned StorePendingMax = StoreFifoDepth +
+        (UseStoreQueue ? 2 * StoreQueueDepth + 64 + 2 * NumRemoteDirs : 0);
     logic store_req, store_block, store_rsp;
-    logic [$clog2(StoreFifoDepth+1)-1:0] stores_pending_d, stores_pending_q;
+    logic [$clog2(StorePendingMax+1)-1:0] stores_pending_d, stores_pending_q;
     `FF(stores_pending_q, stores_pending_d, '0, clk_i, rst_ni);
 
     assign store_req   = tcdm.req_valid && redmule_req[0].write &&
@@ -1206,9 +1231,10 @@ module mempool_tile
     assign store_in_regs = (|redmule_req_qvalid) && redmule_req_q[0].write &&
         (redmule_req_q[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)] == ZStreamId);
     if (CountStoreResps) begin
-      assign still_waiting_stores = store_req || store_in_regs || (CountStoreResps && (stores_pending_q != '0));
+      assign still_waiting_stores = store_req || store_in_regs || !sq_empty ||
+                                    (stores_pending_q != '0);
     end else begin
-      assign still_waiting_stores = 1'b0;
+      assign still_waiting_stores = !sq_empty;
     end
 
 
@@ -1320,8 +1346,8 @@ module mempool_tile
         .local_req_tgt_addr_i (local_req_presliced_tgt_addr         ),
         .local_req_tgt_addr_o (local_req_interco_payload[c].tgt_addr),
         .remote_req_tgt_addr_i(remote_req_postburst_addr[p]         ),
-        .remote_req_tgt_addr_o(remote_req_interco[c].tgt_addr       ),
-        .remote_req_tgt_sel_o (remote_req_interco_tgt_sel[c]        )
+        .remote_req_tgt_addr_o(eng_req[p].tgt_addr                  ),
+        .remote_req_tgt_sel_o (eng_sel[p]                           )
       );
 
       // We don't care about these
@@ -1331,13 +1357,13 @@ module mempool_tile
       // Local requests are not bursted
       assign local_req_interco_payload[c].burst.isburst = 1'b0;
       assign local_req_interco_payload[c].burst.blen    = '0;
-      // Remote request post burst
-      assign remote_req_interco[c].wdata      = remote_req_postburst_payload[p];
-      assign remote_req_interco[c].wen        = remote_req_postburst_we[p];
-      assign remote_req_interco[c].be         = remote_req_postburst_be[p];
-      assign remote_req_interco[c].burst      = remote_req_postburst_burst[p];
-      assign remote_req_interco_valid[c]      = remote_req_postburst_valid[p];
-      assign remote_req_postburst_ready[p]    = remote_req_interco_ready[c];
+      // Remote request post burst; a wide store's bursts go into the store queue instead
+      assign eng_req[p].wdata                 = remote_req_postburst_payload[p];
+      assign eng_req[p].wen                   = remote_req_postburst_we[p];
+      assign eng_req[p].be                    = remote_req_postburst_be[p];
+      assign eng_req[p].burst                 = remote_req_postburst_burst[p];
+      assign eng_valid[p]                     = remote_req_postburst_valid[p] && !sq_take_port[p];
+      assign remote_req_postburst_ready[p]    = sq_take_port[p] ? sq_ready : eng_ready[p];
       // Remote response post burst
       assign remote_resp_postburst_payload[p] = remote_resp_interco[c].rdata;
       assign remote_resp_postburst_burst[p]   = remote_resp_interco[c].burst;
@@ -1425,7 +1451,8 @@ module mempool_tile
         .ReqGF        (ReqGF                                  ),
         .RspGF        (RspGF                                  ),
         .ByteOffWidth (ByteOffset                             ),
-        .WriteFirstLast(`BURST_DROP_WACK == 0                 ) // TODO can be defaulted to zero
+        // With the store queue its serialisers send the burst of word 0 last
+        .WriteFirstLast((`BURST_DROP_WACK == 0) && !UseStoreQueue)
       ) i_burst_req_grouper (
         .clk_i,
         .rst_ni,
@@ -1467,6 +1494,99 @@ module mempool_tile
       assign remote_resp_preburst_payload = remote_resp_postburst_payload;
       assign remote_resp_preburst_valid   = remote_resp_interco_valid[NumCoresPerTile+:RMMasterPorts];
       assign remote_resp_interco_ready[NumCoresPerTile+:RMMasterPorts] = remote_resp_preburst_ready;
+    end
+
+    /*****************
+     *  Store queue  *
+     *****************/
+    for (genvar p = 0; p < RMMasterPorts; p++) begin : gen_sq_take
+      if (UseStoreQueue && ((p % ReqGF) == 0)) begin : gen_lead
+        assign sq_burst_valid[p / ReqGF] = remote_req_postburst_valid[p] &&
+                                           remote_req_postburst_we[p] &&
+                                           remote_req_postburst_burst[p].isburst;
+        assign sq_take_port[p]           = sq_burst_valid[p / ReqGF];
+      end else begin : gen_other
+        assign sq_take_port[p] = 1'b0;
+      end
+    end
+
+    if (UseStoreQueue) begin : gen_store_queue
+      tcdm_master_req_t [NumStoreBursts-1:0] sq_req;
+      for (genvar k = 0; k < NumStoreBursts; k++) begin : gen_sq_req
+        assign sq_req[k] = eng_req[k * ReqGF];
+      end
+      logic [idx_width(NumRemoteDirs)-1:0] sq_dir;
+      assign sq_dir = eng_sel[0][idx_width(NumRemoteDirs)-1:0];
+      // The store queue on the generic serializer: the burst of word 0 last
+      voq_serializer #(
+        .NumEntries   (StoreQueueDepth       ),
+        .NumBeats     (NumStoreBursts        ),
+        .NumOut       (NumRemoteDirs         ),
+        .LastBeat     (0                     ),
+        .beat_t       (tcdm_master_req_t     ),
+        .PrefetchEmpty(StoreQueuePfe != 0    )
+      ) i_store_queue (
+        .clk_i,
+        .rst_ni,
+        .in_data_i  (sq_req         ),
+        .in_meta_i  ('0             ),
+        .in_out_i   (sq_dir         ),
+        .in_valid_i (&sq_burst_valid),
+        .in_ready_o (sq_ready       ),
+        .out_space_o(/* unused */   ),
+        .out_data_o (sq_out_req     ),
+        .out_meta_o (/* unused */   ),
+        .out_beat_o (/* unused */   ),
+        .out_last_o (/* unused */   ),
+        .out_valid_o(sq_out_valid   ),
+        .out_ready_i(sq_out_ready   ),
+        .rsv_valid_i('0             ),
+        .rsv_out_i  ('0             ),
+        .rsv_ready_o(/* unused */   ),
+        .idle_o     (sq_empty       )
+      );
+      // A store's bursts are offered together, towards one direction
+      `ASSERT(store_bursts_together, (|sq_burst_valid) |-> (&sq_burst_valid), clk_i, !rst_ni,
+              "The bursts of a wide store are not offered to the store queue together")
+      for (genvar k = 1; k < NumStoreBursts; k++) begin : gen_sq_dir_check
+        `ASSERT(store_bursts_one_dir, (&sq_burst_valid) |-> (eng_sel[k * ReqGF] == eng_sel[0]),
+                clk_i, !rst_ni,
+                "The bursts of a wide store go to different directions")
+      end
+    end else begin : gen_no_store_queue
+      assign sq_ready     = 1'b0;
+      assign sq_empty     = 1'b1;
+      assign sq_out_req   = '0;
+      assign sq_out_valid = '0;
+    end
+
+    // The engine's inputs of the request crossbar: with the store queue, lane 0 (the loads)
+    // and the serialisers; the other lanes carry nothing (a wide store is taken by the queue)
+    if (UseStoreQueue) begin : gen_eng_lanes_queue
+      assign remote_req_interco[NumCoresPerTile]         = eng_req[0];
+      assign remote_req_interco_tgt_sel[NumCoresPerTile] = eng_sel[0];
+      assign remote_req_interco_valid[NumCoresPerTile]   = eng_valid[0];
+      assign eng_ready[0] = remote_req_interco_ready[NumCoresPerTile];
+      for (genvar d = 0; d < NumRemoteDirs; d++) begin : gen_serialiser_lane
+        localparam int unsigned c = NumCoresPerTile + 1 + d;
+        assign remote_req_interco[c]         = sq_out_req[d];
+        assign remote_req_interco_tgt_sel[c] = remote_sel_t'(d);
+        assign remote_req_interco_valid[c]   = sq_out_valid[d];
+        assign sq_out_ready[d]               = remote_req_interco_ready[c];
+      end
+      for (genvar p = 1; p < RMMasterPorts; p++) begin : gen_idle_lane
+        assign eng_ready[p] = 1'b0;
+        `ASSERT(lane_without_input, !eng_valid[p], clk_i, !rst_ni,
+                "Engine request on a lane that has no request crossbar input")
+      end
+    end else begin : gen_eng_lanes
+      for (genvar p = 0; p < RMMasterPorts; p++) begin : gen_lane
+        localparam int unsigned c = p + NumCoresPerTile;
+        assign remote_req_interco[c]         = eng_req[p];
+        assign remote_req_interco_tgt_sel[c] = eng_sel[p];
+        assign remote_req_interco_valid[c]   = eng_valid[p];
+        assign eng_ready[p]                  = remote_req_interco_ready[c];
+      end
     end
 
     /****************************
