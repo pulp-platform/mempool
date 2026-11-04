@@ -26,7 +26,7 @@ packages:
     - scm
     - tech_cells_generic
   cluster_interconnect:
-    revision: 1bde58463fa38fa9653fd9303ccd390eacded138
+    revision: c88a732986e9f66a0ae098ea75392899a6de2bfa
     version: null
     source:
       Git: "https://github.com/pulp-platform/cluster_interconnect.git"

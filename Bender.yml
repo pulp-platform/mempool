@@ -7,7 +7,7 @@ package:
 
 dependencies:
   axi:                  { git: "https://github.com/pulp-platform/axi.git",                                                 version: 0.39.2  }
-  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", rev: "1bde58463fa38fa9653fd9303ccd390eacded138" }
+  cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", rev: "c88a732986e9f66a0ae098ea75392899a6de2bfa" }
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",                                        version: 1.33.0  }
   idma:                 { path: "hardware/deps/idma"                                                                                        }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",                                  version: 0.4.3   }
