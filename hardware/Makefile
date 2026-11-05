@@ -166,7 +166,7 @@ ifdef tensor_engine
 endif
 endif
 ifneq ($(tcdm_burst), 0)
-ifeq ($(tensor_engine),opope)
+ifeq ($(strip $(tensor_engine)),opope)
 vlog_defs   += -DBURSTLEN=$(redmule_height)
 else
 vlog_defs   += -DBURSTLEN=$(shell echo $$(( $(redmule_height)*($(redmule_regs)+1) )) | awk '{print int($$1 / 2)}')
