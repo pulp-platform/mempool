@@ -283,58 +283,57 @@ static inline void conv1d_pipelined_f16(conv1d_stage_t const *st, uint32_t S,
   }
 
   uint32_t chunks = (B + chunk - 1) / chunk;
-  if (chunks == 1 && S > 1) {
-    // The im2col of a stage would read the output of the GEMMs that run in
-    // the same round
-    for (uint32_t i = 0; i < S; i++) {
-      conv1d_pipelined_f16(&st[i], 1, (i == S - 1) ? post : NULL, B, Wi, Wf,
-                           core_id, num_cores);
-    }
-    return;
-  }
-  uint32_t tasks = S * chunks;
-  uint32_t rounds = tasks + (post ? 2 : 1);
+  // With a single chunk, the im2col of a stage would read the output of the
+  // GEMMs that run in the same round: pipeline the stages one at a time. This
+  // is a loop and not a recursive call, whose extra frame overflows the stack
+  uint32_t per = (chunks == 1) ? 1 : S;
+  for (uint32_t g = 0; g < S; g += per) {
+    conv1d_stage_t const *sg = &st[g];
+    conv1d_post_t pg = (g + per == S) ? post : NULL;
+    uint32_t tasks = per * chunks;
+    uint32_t rounds = tasks + (pg ? 2 : 1);
 
-  for (uint32_t k = 0; k < rounds; k++) {
+    for (uint32_t k = 0; k < rounds; k++) {
 
-    // GEMM of task k - 1
-    uint32_t launched = 0;
-    if (k >= 1 && k - 1 < tasks) {
-      conv1d_stage_t const *s = &st[(k - 1) / chunks];
-      uint32_t ii = ((k - 1) % chunks) * chunk + redmule_id;
-      launched = (redmule_id < chunk) && (ii < B);
-      if (launched) {
-        hwpe_soft_clear();
-        mempool_wait(10);
-        redmule_cfg((unsigned int)s->F,
-                    (unsigned int)&s->cols[ii * s->Ci * Wf * Wi],
-                    (unsigned int)&s->Y[ii * s->Co * Wi], (uint16_t)s->Co,
-                    (uint16_t)(s->Ci * Wf), (uint16_t)Wi, 0, MATMUL, Float16);
-        mempool_wait(10);
-        hwpe_trigger_job();
+      // GEMM of task k - 1
+      uint32_t launched = 0;
+      if (k >= 1 && k - 1 < tasks) {
+        conv1d_stage_t const *s = &sg[(k - 1) / chunks];
+        uint32_t ii = ((k - 1) % chunks) * chunk + redmule_id;
+        launched = (redmule_id < chunk) && (ii < B);
+        if (launched) {
+          hwpe_soft_clear();
+          mempool_wait(10);
+          redmule_cfg((unsigned int)s->F,
+                      (unsigned int)&s->cols[ii * s->Ci * Wf * Wi],
+                      (unsigned int)&s->Y[ii * s->Co * Wi], (uint16_t)s->Co,
+                      (uint16_t)(s->Ci * Wf), (uint16_t)Wi, 0, MATMUL, Float16);
+          mempool_wait(10);
+          hwpe_trigger_job();
+        }
       }
-    }
 
-    // im2col of task k
-    if (k < tasks) {
-      conv1d_stage_t const *s = &st[k / chunks];
-      uint32_t b0 = (k % chunks) * chunk;
-      uint32_t nb = (B - b0 < chunk) ? (B - b0) : chunk;
-      s->im2col(s->X, s->cols, b0, nb, s->Ci, Wi, Wf, core_id, num_cores);
-    }
+      // im2col of task k
+      if (k < tasks) {
+        conv1d_stage_t const *s = &sg[k / chunks];
+        uint32_t b0 = (k % chunks) * chunk;
+        uint32_t nb = (B - b0 < chunk) ? (B - b0) : chunk;
+        s->im2col(s->X, s->cols, b0, nb, s->Ci, Wi, Wf, core_id, num_cores);
+      }
 
-    // Post-operation of task k - 2 (GEMM completed in the previous round)
-    if (post && k >= 2 && k - 2 < tasks && (k - 2) / chunks == S - 1) {
-      conv1d_stage_t const *s = &st[S - 1];
-      uint32_t b0 = ((k - 2) % chunks) * chunk;
-      uint32_t nb = (B - b0 < chunk) ? (B - b0) : chunk;
-      post(&s->Y[b0 * s->Co * Wi], nb * s->Co * Wi, core_id, num_cores);
-    }
+      // Post-operation of task k - 2 (GEMM completed in the previous round)
+      if (pg && k >= 2 && k - 2 < tasks && (k - 2) / chunks == per - 1) {
+        conv1d_stage_t const *s = &sg[per - 1];
+        uint32_t b0 = ((k - 2) % chunks) * chunk;
+        uint32_t nb = (B - b0 < chunk) ? (B - b0) : chunk;
+        pg(&s->Y[b0 * s->Co * Wi], nb * s->Co * Wi, core_id, num_cores);
+      }
 
-    // Wait for RedMulE (the wake-up is latched if the job already finished)
-    if (launched) {
-      mempool_wfi();
+      // Wait for RedMulE (the wake-up is latched if the job already finished)
+      if (launched) {
+        mempool_wfi();
+      }
+      mempool_barrier(num_cores);
     }
-    mempool_barrier(num_cores);
   }
 }
