@@ -1081,7 +1081,7 @@ module mempool_tile
   if (RedMulE) begin: gen_redmule
 
     // Interrupt
-    logic [1:0] redmule_evt;
+    logic redmule_evt;
     // Peripheral control
     hwpe_ctrl_intf_periph redmule_rmcfg ( .clk( clk_i ) );
     // Memory interface
@@ -1093,9 +1093,6 @@ module mempool_tile
     logic      [RMMasterPorts-1:0] redmule_resp_ready, redmule_resp_qready, redmule_tcdm_resp_ready;
     logic      [RMMasterPorts-1:0] redmule_handshake_p;
     logic      [RMMasterPorts-1:0] redmule_handshake_q;
-    // TODO: This interface port is unused in this context, but it is still required as module input.
-    // The interface connection should be removed upstream and inserted in a wrapper module.
-    cv32e40x_if_xif core_xif ();
 
     localparam hci_size_parameter_t `HCI_SIZE_PARAM(tcdm) = '{
       DW:  RMDataWidth,
@@ -1115,28 +1112,45 @@ module mempool_tile
       .clk ( clk_i )
     );
 
-    redmule_top #(
-      .N_CORES(1                                   ),
-      .DW     (RMDataWidth                         ),
-      .UW     (idx_width(RMOutstandingTransactions)),
-      .X_EXT  (0                                   ),
-      .`HCI_SIZE_PARAM(tcdm) (`HCI_SIZE_PARAM(tcdm))
+    // redmule_mm_wrap (and redmule_top underneath) natively speaks hci-core;
+    // convert to/from the hci-variablelatency interface used by the rest of
+    // this tile's TCDM plumbing (redmule_req/redmule_resp fan-out below).
+    hci_core_intf #(
+      .DW  ( `HCI_SIZE_GET_DW(tcdm)  ),
+      .AW  ( `HCI_SIZE_GET_AW(tcdm)  ),
+      .BW  ( `HCI_SIZE_GET_BW(tcdm)  ),
+      .UW  ( `HCI_SIZE_GET_UW(tcdm)  ),
+      .IW  ( `HCI_SIZE_GET_IW(tcdm)  ),
+      .EW  ( `HCI_SIZE_GET_EW(tcdm)  ),
+      .EHW ( `HCI_SIZE_GET_EHW(tcdm) )
+    ) redmule_tcdm_core ( .clk ( clk_i ) );
+
+    hci_variablelatency_tocore i_redmule_tcdm_tocore (
+      .in  ( redmule_tcdm_core ),
+      .out ( tcdm              )
+    );
+
+    redmule_mm_wrap #(
+      .DataW                   ( RMDataWidth            ),
+      .EnableReordering        (1'b1                    ),
+      .Height                  ( ARRAY_HEIGHT           ),
+      .Width                   ( ARRAY_WIDTH            ),
+      .NumPipeRegs             ( PIPE_REGS              ),
+      .`HCI_SIZE_PARAM(tcdm)   ( `HCI_SIZE_PARAM(tcdm)  )
     ) i_redmule_top (
-      .clk_i              (clk_i                     ),
-      .rst_ni             (rst_ni                    ),
-      .test_mode_i        ('0                        ),
-      .evt_o              (redmule_evt               ),
-      .busy_o             (/*Unused*/                ),
-      .tcdm               (tcdm                      ),
-      .xif_issue_if_i     (core_xif.coproc_issue     ),
-      .xif_result_if_o    (core_xif.coproc_result    ),
-      .xif_compressed_if_i(core_xif.coproc_compressed),
-      .xif_mem_if_o       (core_xif.coproc_mem       ),
-      .periph             (redmule_rmcfg             )
+      .clk_i              (clk_i             ),
+      .rst_ni             (rst_ni            ),
+      .test_mode_i        ('0                ),
+      .evt_o              (redmule_evt       ),
+      .busy_o             (/*Unused*/        ),
+      .sync_o             (/*Unused*/        ),
+      .sync_i             ('0                ),
+      .tcdm               (redmule_tcdm_core ),
+      .target             (redmule_rmcfg     )
     );
 
     // Wake up core on RedMulE's EOC
-    assign wake_up = wake_up_q | {{(NumCoresPerTile-1){1'b0}},redmule_evt[0]};
+    assign wake_up = wake_up_q | {{(NumCoresPerTile-1){1'b0}},redmule_evt};
 
     // RedMulE TCDM ports
     for(genvar p = 0; p < RMMasterPorts; p++) begin : gen_redmule_tcdm
@@ -1156,6 +1170,7 @@ module mempool_tile
     assign redmule_resp_ready = {RMMasterPorts{tcdm.resp_ready}};
     assign tcdm.resp_id       = redmule_resp[0].id[mempool_pkg::MetaIdWidth-1:idx_width(RMOutstandingTransactions)];
     assign tcdm.resp_user     = redmule_resp[0].id[idx_width(RMOutstandingTransactions)-1:0];
+    assign tcdm.resp_opc      = 1'b0;
 
     for (genvar p = 0; p < RMMasterPorts; p++) begin: gen_redmule_regs
       stream_register #(
@@ -1197,11 +1212,11 @@ module mempool_tile
     assign redmule_tcdm_req_valid = ~redmule_handshake_q & redmule_req_qvalid;
     assign redmule_req_qready     = redmule_handshake_q | (redmule_tcdm_req_valid & redmule_tcdm_req_ready);
 
-    // RedMulE TCDM response handshake
+    // RedMulE TCDM response handshake.
     transactions_table #(
-      .NumPorts       (RMMasterPorts                             ),
+      .NumPorts       (RMMasterPorts                         ),
       .NumTransactions((RMNumStreams-1)*RMOutstandingTransactions),
-      .resp_t         (rm_dresp_t                                )
+      .resp_t         (rm_dresp_t                            )
     ) i_transactions_table (
       .clk_i         (clk_i                  ),
       .rst_ni        (rst_ni                 ),
@@ -1448,30 +1463,22 @@ module mempool_tile
       .resp_ready_o  ({soc_mux_pready[0], snitch_rmcfg_pready}),
       .address_map_i (redmule_cfg_mask_map                    )
     );
+
+    `FF(snitch_rmcfg_pvalid, redmule_rmcfg.r_valid, '0, clk_i, rst_ni);
+    `FF(snitch_rmcfg_p.data, redmule_rmcfg.r_data, '0, clk_i, rst_ni);
+    `FF(snitch_rmcfg_p.id, redmule_rmcfg.r_id, '0, clk_i, rst_ni);
+    assign snitch_rmcfg_p.write = 1'b0;
+    assign snitch_rmcfg_p.error = 1'b0;
+
     // RedMulE configuration register writes
-    always_ff @(posedge clk_i or negedge rst_ni) begin : redmule_cfg_reg
-      if (!rst_ni) begin
-        redmule_rmcfg.req   <= 1'b0;
-        redmule_rmcfg.add   <= '0;
-        redmule_rmcfg.wen   <= 1'b1;
-        redmule_rmcfg.be    <= '0;
-        redmule_rmcfg.data  <= '0;
-        redmule_rmcfg.id    <= '0;
-        snitch_rmcfg_qready <= 1'b0;
-        snitch_rmcfg_p.data <= '0;
-        snitch_rmcfg_pvalid <= 1'b0;
-      end else begin
-        redmule_rmcfg.req   <= snitch_rmcfg_qvalid;
-        redmule_rmcfg.add   <= snitch_rmcfg_q.addr;
-        redmule_rmcfg.wen   <= ~snitch_rmcfg_q.write;
-        redmule_rmcfg.be    <= snitch_rmcfg_q.strb;
-        redmule_rmcfg.data  <= snitch_rmcfg_q.data;
-        redmule_rmcfg.id    <= snitch_rmcfg_q.id;
-        snitch_rmcfg_qready <= redmule_rmcfg.gnt;
-        snitch_rmcfg_p.data <= redmule_rmcfg.r_data;
-        snitch_rmcfg_pvalid <= redmule_rmcfg.r_valid;
-      end
-    end
+    assign redmule_rmcfg.req    = snitch_rmcfg_qvalid;
+    assign redmule_rmcfg.add    = snitch_rmcfg_q.addr;
+    assign redmule_rmcfg.wen    = ~snitch_rmcfg_q.write;
+    assign redmule_rmcfg.be     = snitch_rmcfg_q.strb;
+    assign redmule_rmcfg.data   = snitch_rmcfg_q.data;
+    assign redmule_rmcfg.id     = snitch_rmcfg_q.id;
+    assign snitch_rmcfg_qready  = redmule_rmcfg.gnt;
+
 
     // Bypass the mux for all the other cores
     for (genvar c = 1; c < NumCoresPerTile; c++) begin: gen_bypass_redmule_cfg

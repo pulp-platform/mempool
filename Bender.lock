@@ -29,7 +29,7 @@ packages:
     revision: e3cef11747c17c04e9e71d51ccf254d7adbf611b
     version: null
     source:
-      Git: "https://github.com/pulp-platform/cluster_interconnect.git"
+      Git: https://github.com/pulp-platform/cluster_interconnect.git
     dependencies:
     - common_cells
   common_cells:
@@ -47,7 +47,7 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   cv32e40p:
-    revision: 800a09d97a1e9418e127e8bbf1763c1d1097c92f
+    revision: 1a93f340e9dadb9f7c8c471f27a40932c8b1c62e
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
@@ -56,7 +56,7 @@ packages:
     - fpnew
     - tech_cells_generic
   cv32e40x:
-    revision: 96b933ac2f723351872da55e7d2e9a82abd5df34
+    revision: baba1eeb3b845306c45be714f677ff786753f136
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40x.git
@@ -89,11 +89,12 @@ packages:
     - redundancy_cells
     - register_interface
   hwpe-ctrl:
-    revision: 3690a3c648f120546d8de2bc583d5170c36d2f20
-    version: 2.0.0
+    revision: dfcf1cb746709de206377388bbcb4a3571e24f7b
+    version: 3.1.1
     source:
       Git: https://github.com/pulp-platform/hwpe-ctrl.git
     dependencies:
+    - common_cells
     - tech_cells_generic
   hwpe-stream:
     revision: 05cb8303693065812e9d6bfe10976220fb455666
@@ -125,16 +126,8 @@ packages:
     source:
       Git: https://github.com/pulp-platform/L2_tcdm_hybrid_interco.git
     dependencies: []
-  obi:
-    revision: 8097928cf1b43712f93d5356f336397879b4ad2c
-    version: 0.1.6
-    source:
-      Git: https://github.com/pulp-platform/obi.git
-    dependencies:
-    - common_cells
-    - common_verification
   redmule:
-    revision: 65251763decadfacf8f9e94314cb9cc45cce02b0
+    revision: bb93083c2b31b19e8bb0f56f9fca571e93590248
     version: null
     source:
       Git: https://github.com/pulp-platform/redmule.git
@@ -147,8 +140,6 @@ packages:
     - hwpe-ctrl
     - hwpe-stream
     - ibex
-    - obi
-    - register_interface
     - tech_cells_generic
   redundancy_cells:
     revision: c37bdb47339bf70e8323de8df14ea8bbeafb6583
@@ -194,8 +185,8 @@ packages:
     - axi
     - common_cells
   tech_cells_generic:
-    revision: 7968dd6e6180df2c644636bc6d2908a49f2190cf
-    version: 0.2.13
+    revision: 3a3de73632a06826b1bd9c65a0a2e92b32016845
+    version: 0.2.14
     source:
       Git: https://github.com/pulp-platform/tech_cells_generic.git
     dependencies:
