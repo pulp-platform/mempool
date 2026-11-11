@@ -17,7 +17,7 @@ dependencies:
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                                               rev: "9481d57c1" }
   cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",                                      version: 0.1.1   }
   redmule:              { git: "https://github.com/pulp-platform/redmule.git",              rev: "8a1ad5e8b2cdf9b25efc17c371d753813c6a12e4" }
-  opope:                { git: "https://github.com/pulp-platform/opope.git",                                               rev: "43b80fd"   }
+  opope:                { git: "https://github.com/pulp-platform/opope.git",                                               rev: "4e6532d"   }
   hci:                  { git: "https://github.com/pulp-platform/hci.git",                                                 version: 2.6.1   }
 
 export_include_dirs:
