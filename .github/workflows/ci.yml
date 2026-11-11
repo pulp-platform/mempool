@@ -156,7 +156,7 @@ jobs:
     needs: verilator
     strategy:
       matrix:
-        mempool_config: [minpool, mempool]
+        mempool_config: [minpool, mempool, tensorpool-mini]
     steps:
     - uses: actions/checkout@v4
     - name: Cache Verilator Model
@@ -507,6 +507,49 @@ jobs:
         app=apps/halide/2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
+  run-gemm-tensorpool:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    needs: [tc-gcc, tc-llvm, verilator-model]
+    env:
+      config: tensorpool-mini
+    steps:
+    - uses: actions/checkout@v4
+    - name: Get riscv-gnu-toolchain artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: riscv-gnu-toolchain
+    - name: Untar riscv-gnu-toolchain
+      run: tar --use-compress-program zstd -xf riscv-gnu-toolchain.tzst
+    - name: Get llvm-project artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: llvm-project
+    - name: Untar llvm-project
+      run: tar --use-compress-program zstd -xf llvm-project.tzst
+    - name: Install Python requirements
+      run: pip install -r python-requirements.txt
+    - name: Get bender
+      run: make bender
+    - name: Build gemm_f16
+      run: COMPILER=llvm make -C software/apps/baremetal gemm_f16
+    - name: Get verilator-model artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: verilator-model-tensorpool-mini
+    - name: Untar verilator-model
+      run: tar --use-compress-program zstd -xf verilator-model.tzst
+    - name: Run gemm_f16 on RedMulE
+      run: |
+        cd hardware
+        # Don't regenerate previously build artifacts
+        app=apps/baremetal/gemm_f16 make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+    - name: Check results
+      run: |
+        # The testbench ends on EOC whatever the result: check the result explicitly
+        grep -q 'retval = 0' hardware/build/transcript
+        grep -Eq '(^|[^0-9])0 ERRORS out of [0-9]+ CHECKS' hardware/build/transcript
+
   unit-test:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -562,7 +605,7 @@ jobs:
     if: always()
     needs: [tc-gcc, tc-llvm, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
-      run-apps-llvm, run-apps-halide]
+      run-apps-llvm, run-apps-halide, run-gemm-tensorpool]
     steps:
     - name: Delete artifacts
       uses: geekyeggo/delete-artifact@v5
@@ -572,13 +615,14 @@ jobs:
           llvm-project
           halide
           verilator
+          verilator-model-tensorpool-mini
 
   clean-up-compile-runs:
     runs-on: ubuntu-22.04
     if: always()
     needs: [tc-gcc, tc-llvm, verilator, tc-halide, verilator-model,
       build-apps-llvm, build-apps-gcc, build-apps-halide, unit-test, run-apps-gcc,
-      run-apps-llvm, run-apps-halide]
+      run-apps-llvm, run-apps-halide, run-gemm-tensorpool]
     strategy:
       matrix:
         mempool_config: [minpool, mempool]
