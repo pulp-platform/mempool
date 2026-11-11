@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add fall through register after LSU input
 - Benderize MemPool dependencies
 - Update Verilator to 4.228
+- Add TensorPool configurations and tests
 
 ### Fixed
 - Fix type issue in `snitch_addr_demux`
