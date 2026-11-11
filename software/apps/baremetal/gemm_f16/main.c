@@ -115,7 +115,7 @@ int main() {
   // Transfer
   if (redmule_id == 0) {
     for (uint32_t i = 0; i < num_redmules; i++) {
-      X_shift = (XSHIFT == 1) ? (i * PORT_WIDTH) % matrix_N : 0;
+      X_shift = (XSHIFT == 1) ? (i * PORT_WIDTH) : 0;
       dma_memcpy_blocking(
           l1_X + i * (matrix_M * matrix_N / num_redmules) + X_shift,
           l2_X + i * (matrix_M * matrix_N / num_redmules),
@@ -128,8 +128,8 @@ int main() {
 
   // Compute
   if (redmule_id < num_redmules) {
-    X_shift = (XSHIFT == 1) ? (redmule_id * 2 * PORT_WIDTH) % matrix_N : 0;
-    W_shift = (WSHIFT == 1) ? (redmule_id * 2 * PORT_WIDTH) % matrix_P : 0;
+    X_shift = (XSHIFT == 1) ? (redmule_id * PORT_WIDTH) : 0;
+    W_shift = (WSHIFT == 1) ? (redmule_id * PORT_WIDTH) % matrix_P : 0;
     unsigned int X_ptr =
         (unsigned int)(l1_X +
                        redmule_id * (matrix_M * matrix_N / num_redmules) +
@@ -203,7 +203,7 @@ int main() {
 #ifdef PARALLEL_BATCHED
   mempool_check_f16(l1_Y + Y_OFFSET(0), l2_Z, 10, 0.05f, 0);
 #else
-  mempool_check_f16(l1_Y, l2_Z, 10, 0.05f, 0);
+  mempool_check_f16(l1_Y, l2_Z, matrix_M * matrix_P, 0.05f, 0);
 #endif
   mempool_barrier(num_cores);
   return 0;
