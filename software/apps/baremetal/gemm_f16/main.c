@@ -48,9 +48,9 @@
 #define X_SLOT (ODD_SHIFTS(matrix_M * matrix_N) * SHIFT_ELEMENTS)
 #define W_SLOT (ODD_SHIFTS(matrix_N * matrix_P) * SHIFT_ELEMENTS)
 #define Y_SLOT (ODD_SHIFTS(matrix_M * matrix_P) * SHIFT_ELEMENTS)
-#define X_OFFSET(ii) ((ii)*X_SLOT)
-#define W_OFFSET(ii) ((ii)*W_SLOT + SUB_GROUP_ELEMENTS)
-#define Y_OFFSET(ii) ((ii)*Y_SLOT + 2 * SUB_GROUP_ELEMENTS)
+#define X_OFFSET(ii) ((ii) * X_SLOT)
+#define W_OFFSET(ii) ((ii) * W_SLOT + SUB_GROUP_ELEMENTS)
+#define Y_OFFSET(ii) ((ii) * Y_SLOT + 2 * SUB_GROUP_ELEMENTS)
 
 __fp16 l1_X[Batch * X_SLOT]
     __attribute__((aligned(NUM_BANKS * sizeof(int32_t)), section(".l1_prio")));
