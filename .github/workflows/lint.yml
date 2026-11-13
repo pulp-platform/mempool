@@ -15,7 +15,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Python requirements
-      run: pip install -r python-requirements.txt
+      run: |
+        git submodule update --init -- toolchain/riscv-opcodes
+        pip install -r python-requirements.txt
     - name: Check license
       run: python scripts/license-checker.py --config scripts/license-checker.hjson
 
@@ -28,9 +30,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
-    - uses: DoozyX/clang-format-lint-action@v0.14
-      with:
-        clangFormatVersion: 14
+    # Same major version as the LLVM toolchain (`make format`)
+    - name: Install clang-format
+      run: pip install clang-format==22.1.8
+    - name: Check C/C++ sources
+      run: |
+        python scripts/run_clang_format.py --clang-format-executable clang-format \
+          -r --style file --extensions c,h,C,H,cpp,hpp,cc,hh,c++,h++,cxx,hxx .
 
   ########################
   # Check Python Sources #

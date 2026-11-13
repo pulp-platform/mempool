@@ -10,6 +10,7 @@ SHELL = /usr/bin/env bash
 ROOT_DIR := $(patsubst %/,%, $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 MEMPOOL_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || echo $$MEMPOOL_DIR)
 INSTALL_DIR := $(abspath $(ROOT_DIR)/../install)
+SW_DIR := $(abspath $(ROOT_DIR)/../software/)
 TOOLCHAIN_DIR := $(abspath $(ROOT_DIR)/../toolchain)
 
 # Include configuration
@@ -51,11 +52,6 @@ resultpath      ?= results
 result_dir      := $(if $(strip $(result_dir)),$(result_dir),$(resultpath)/$(shell date +"%Y%m%d_%H%M%S_$(app)_$$(git rev-parse --short HEAD)"))
 # Traces
 snitch_trace    ?= 1
-trace           := $(patsubst $(buildpath)/%.dasm,$(buildpath)/%.trace,$(wildcard $(buildpath)/*.dasm))
-tracepath       ?= $(buildpath)/traces
-traceresult     ?= $(tracepath)/results.csv
-
-
 
 # Path to DRAMsys
 dramsys_resouces_path ?= $(MEMPOOL_DIR)/hardware/deps/dram_rtl_sim/dramsys_lib/DRAMSys/configs
@@ -82,14 +78,13 @@ ifdef app
     endif
   endif
 endif
-
 # QuestaSim args
 library     ?= work
 dpi_library ?= work-dpi
 questa_args += $(if $(preload),+PRELOAD=$(preload),)
 questa_args += -sv_lib $(dpi_library)/mempool_dpi
 questa_args += -work $(library)
-questa_args += -suppress vsim-12070
+questa_args += -suppress vsim-3009 -suppress vsim-12070
 
 # VCS args
 vcs_args    += $(if $(preload),+PRELOAD=$(preload),)
@@ -107,6 +102,9 @@ vlogan_args += -override_timescale=1ns/1ps -kdb
 
 # Configuration name
 vlog_defs   += -D$(config)
+ifneq ($(num_sub_groups_per_group),1)
+	vlog_defs += -DTERAPOOL
+endif
 # Cluster configurations
 vlog_defs   += -DNUM_CORES=$(num_cores)
 vlog_defs   += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
@@ -124,6 +122,20 @@ vlog_defs   += -DZFINX=$(zfinx)
 vlog_defs   += -DZQUARTERINX=$(zquarterinx)
 vlog_defs   += -DXDIVSQRT=$(xDivSqrt)
 vlog_defs   += -DSNITCH_TRACE=$(snitch_trace)
+# RedMulE
+vlog_defs   += -DNUM_REDMULE_TILES=$(num_redmule_tiles)
+vlog_defs   += -DUSE_BURST=$(tcdm_burst)
+ifneq ($(num_redmule_tiles), 0)
+vlog_defs   += -DARRAY_HEIGHT=$(redmule_height)
+vlog_defs   += -DARRAY_WIDTH=$(redmule_width)
+vlog_defs   += -DPIPE_REGS=$(redmule_regs)
+vlog_defs   += -DROB_DEPTH=$(rob_depth)
+endif
+ifneq ($(tcdm_burst), 0)
+vlog_defs   += -DBURSTLEN=$(shell echo $$(( $(redmule_height)*($(redmule_regs)+1) )) | awk '{print int($$1 / 2)}')
+vlog_defs   += -DGROUP_REQ=$(burst_greq)
+vlog_defs   += -DGROUP_RSP=$(burst_grsp)
+endif
 # AXI & DMA
 vlog_defs   += -DAXI_DATA_WIDTH=$(axi_data_width)
 vlog_defs   += -DRO_LINE_WIDTH=$(ro_line_width)
@@ -192,7 +204,7 @@ $(buildpath)/$(library):
 .PHONY: compile
 compile: dpi lib $(buildpath) $(buildpath)/compile.tcl update-opcodes
 $(buildpath)/compile.tcl: $(bender) $(config_mk) Makefile $(MEMPOOL_DIR)/Bender.yml $(shell find {src,tb,deps} -type f)
-	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
+	$(bender) script vsim --vlog-arg="$(vlog_args)" $(vlog_defs) -t redmule_hwpe -t rtl -t mempool_vsim > $(buildpath)/compile.tcl
 	echo "exit" >> $(buildpath)/compile.tcl
 	cd $(buildpath) && $(questa_cmd) vsim -work $(library) -c -do compile.tcl
 
@@ -337,6 +349,12 @@ verilate: $(VERILATOR_EXE) $(buildpath) Makefile
 	# Avoid capturing the return status when running the load-throughput analysis
 	if [ $(tg) -ne 1 ]; then ./scripts/return_status.sh $(buildpath)/transcript; fi
 
+################
+# Tracing      #
+################
+
+include $(ROOT_DIR)/traces.mk
+
 #############
 # Lint      #
 #############
@@ -351,49 +369,20 @@ spyglass/tmp/files: $(bender)
 	mkdir -p spyglass/tmp
 	$(bender) script verilator $(vlog_defs) -t rtl -t mempool_verilator > spyglass/tmp/files
 
-################
-# Tracing      #
-################
-
-# Give configuration in env
-trace_env += NUM_CORES=$(num_cores)
-trace_env += SEQ_MEM_SIZE=$(seq_mem_size)
-
-trace: pre_trace $(trace) post_trace
-
-pre_trace:
-	rm -rf $(tracepath)
-
-post_trace:
-	mkdir -p "$(result_dir)"
-	cp $(buildpath)/transcript "$(result_dir)/" | true
-	cp $(traceresult) "$(result_dir)"
-	cp $(trace) "$(result_dir)"
-	$(python) $(ROOT_DIR)/scripts/gen_avg.py --folder "$(result_dir)" | tee $(result_dir)/avg.txt
-
-$(buildpath)/%.trace: $(buildpath)/%.dasm
-	mkdir -p $(tracepath)
-	$(INSTALL_DIR)/riscv-isa-sim/bin/spike-dasm < $< > $(tracepath)/$*
-	$(trace_env) $(python) $(ROOT_DIR)/scripts/gen_trace.py -p --csv $(traceresult) $(tracepath)/$* > $@
-
-tracevis:
-	$(MEMPOOL_DIR)/scripts/tracevis.py $(preload) $(buildpath)/*.trace -o $(buildpath)/tracevis.json
-
 ############################
 # Unit tests simulation    #
 ############################
 
-TESTS_DIR := $(abspath $(ROOT_DIR)/../software/riscv-tests/isa)
-include $(TESTS_DIR)/snitch_isa.mk
+include $(SW_DIR)/snitch_isa.mk
 
 test_result_dir_vsim := $(resultpath)/test_result_vsim
 test_result_dir_verilate := $(resultpath)/test_result_verilate
 
-tests_vsim := $(addsuffix .out,$(addprefix $(test_result_dir_vsim)/,$(rtl_mempool_tests)))
-tests_verilate := $(addsuffix .out,$(addprefix $(test_result_dir_verilate)/,$(rtl_mempool_tests)))
+tests_vsim := $(addsuffix .out,$(addprefix $(test_result_dir_vsim)/,$(rtl_tests)))
+tests_verilate := $(addsuffix .out,$(addprefix $(test_result_dir_verilate)/,$(rtl_tests)))
 
-simc_test: clean-dasm compile $(buildpath) $(tests_vsim)
-verilate_test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
+simc-test: clean-dasm compile $(buildpath) $(tests_vsim)
+verilate-test: clean-dasm $(VERILATOR_EXE) $(buildpath) $(tests_verilate)
 
 $(tests_vsim): $(test_result_dir_vsim)/%.out : $(app_path)/%
 	mkdir -p $(test_result_dir_vsim)

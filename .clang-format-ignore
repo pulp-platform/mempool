@@ -10,6 +10,8 @@
 */toolchain
 */hardware/deps
 */hardware/tb/dpi/elfloader.cpp
+*/hardware/tb/verilator/lowrisc*
+*.bender*
 
 # Build artifacts
 */install

@@ -15,9 +15,9 @@
 #define FIX_MUL(a, b) ((int32_t)((a * b + HALF) >> FIXED_POINT))
 #define ABS(a) (a > 0 ? a : -a)
 #define SINGLE
-//#define PARALLEL
-//#define SCHEDULING
-//#define LINSOLVER
+// #define PARALLEL
+// #define SCHEDULING
+// #define LINSOLVER
 
 #include "data_cholesky_q32.h"
 

@@ -70,8 +70,8 @@ zfinx ?= 1
 # Enable FPU extensions
 zquarterinx ?= 0
 
-# DivSqrt deactivated by default
-xDivSqrt ?= 0
+# DivSqrt activated by default
+xDivSqrt ?= 1
 
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
@@ -80,3 +80,14 @@ remote_group_latency_cycles ?= 7
 # DRAMsys co-simulation: dram/sram
 l2_sim_type ?= sram
 dram_axi_width_interleaved ?= 16
+
+# Number of RedMulEs
+num_redmule_tiles ?= 0
+
+# RedMulE engine size (unused when num_redmule_tiles is 0, but must stay
+# defined so REDMULE_H/REDMULE_P are never emitted empty to the compiler)
+redmule_height ?= 8
+redmule_regs ?= 3
+
+# Reads in the TCDM interconnect are sent as bursts
+tcdm_burst ?= 0

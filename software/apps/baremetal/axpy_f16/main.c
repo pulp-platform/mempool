@@ -35,7 +35,7 @@ int main() {
     dma_memcpy_blocking(l1_X, l2_X, array_N * sizeof(int16_t));
     dma_memcpy_blocking(l1_Y, l2_Y, array_N * sizeof(int16_t));
   }
-  uint32_t register volatile a = *(uint32_t *)&(l2_A)&0x0000FFFF;
+  uint32_t register volatile a = *(uint32_t *)&(l2_A) & 0x0000FFFF;
   mempool_barrier(num_cores);
 
   // PARALLEL, LOCAL ACCESSES

@@ -23,13 +23,17 @@ int main() {
     printf("Master Thread: Parallel start\n");
     mempool_wait(1000);
 #pragma omp parallel num_threads(8)
-    { printf("%d\n", omp_get_num_threads()); }
+    {
+      printf("%d\n", omp_get_num_threads());
+    }
     printf("Master Thread: Parallel end\n\n\n");
 
     printf("Master Thread: Parallel start\n");
     mempool_wait(1000);
 #pragma omp parallel
-    { printf("%d\n", omp_get_num_threads()); }
+    {
+      printf("%d\n", omp_get_num_threads());
+    }
     printf("Master Thread: Parallel end\n\n\n");
   } else {
     while (1) {

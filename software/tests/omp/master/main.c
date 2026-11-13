@@ -30,7 +30,7 @@ int test_omp_master() {
       nthreads++;
       executing_thread = (int32_t)omp_get_thread_num();
     } /* end of master*/
-  }   /* end of parallel*/
+  } /* end of parallel*/
   return ((nthreads == 1) && (executing_thread == 0) && (tid == 0));
 }
 

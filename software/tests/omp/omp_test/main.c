@@ -93,7 +93,9 @@ int test_omp_many() {
 #pragma omp barrier
 
 #pragma omp single
-    { printf("second sum: %d\n", sum); }
+    {
+      printf("second sum: %d\n", sum);
+    }
   }
   return sum;
 }

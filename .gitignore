@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 install/*
+toolchain/newlib
 .bender
 .ctags
 gmon.out
