@@ -534,7 +534,7 @@ jobs:
     - name: Get bender
       run: make bender
     - name: Build gemm_f16
-      run: COMPILER=llvm make -C software/apps/baremetal gemm_f16
+      run: COMPILER=llvm make -C software/apps blas/gemm_f16
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
@@ -545,7 +545,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=apps/baremetal/gemm_f16 make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=blas/gemm_f16 make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
     - name: Check results
       run: |
         # The testbench ends on EOC whatever the result: check the result explicitly
