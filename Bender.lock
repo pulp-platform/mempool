@@ -127,7 +127,7 @@ packages:
       Git: https://github.com/pulp-platform/L2_tcdm_hybrid_interco.git
     dependencies: []
   redmule:
-    revision: bb93083c2b31b19e8bb0f56f9fca571e93590248
+    revision: 022bba82986aacb82f8ca9f6b889df7775c58f82
     version: null
     source:
       Git: https://github.com/pulp-platform/redmule.git
