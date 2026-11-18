@@ -73,6 +73,12 @@ zquarterinx ?= 0
 # DivSqrt deactivated by default
 xDivSqrt ?= 0
 
+# Enable configurable addressing scheme in the heap
+das ?= 1
+num_das_partitions ?= 4
+# Size of DAS-heap per core
+das_mem_size ?= 2048
+
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1
 remote_group_latency_cycles ?= 7

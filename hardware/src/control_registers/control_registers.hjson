@@ -22,6 +22,11 @@
       type: "int",
       default: "8"
     }
+    { name: "NumDasPartitions",
+      desc: "Supported number of DAS partitions",
+      type: "int",
+      default: "4"
+    }
   ],
   regwidth: 32
   registers: [
@@ -135,6 +140,46 @@
         cname: "ro_cache_end"
         fields: [{ bits: "31:0" }]
       }
+    },
+    { multireg:
+      {
+        name: "tiles_das"
+        desc: "DAS per region folding granularity. Number of Tiles per DAS partition."
+        swaccess: "wo"
+        hwaccess: "hrw"
+        hwqe: "true"
+        // External because we want to define the reset from a parameter
+        hwext: "true"
+        count: "NumDasPartitions"
+        cname: "tiles_das"
+        fields: [{ bits: "31:0" }]
+      },
+    },
+    { multireg:
+      {
+        name: "start_das"
+        desc: "DAS per region allocated start address."
+        swaccess: "wo"
+        hwaccess: "hrw"
+        hwqe: "true"
+        // External because we want to define the reset from a parameter
+        hwext: "true"
+        count: "NumDasPartitions"
+        cname: "start_das"
+        fields: [{ bits: "31:0" }]
+      },
+    },
+    { multireg:
+      {
+        name: "rows_das"
+        desc: "DAS per region allocated size."
+        swaccess: "wo"
+        hwaccess: "hro"
+        hwqe: "false"
+        count: "NumDasPartitions"
+        cname: "rows_das"
+        fields: [{ bits: "31:0" }]
+      },
     }
   ]
 }

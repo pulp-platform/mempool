@@ -73,4 +73,5 @@ void dma_memcpy_blocking(void *dest, const void *src, size_t len) {
   dma_memcpy_nonblocking(dest, src, len);
   dma_wait();
 }
+
 #endif // _DMA_H_

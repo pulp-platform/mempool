@@ -10,7 +10,7 @@
 module control_registers_reg_top #(
   parameter type reg_req_t = logic,
   parameter type reg_rsp_t = logic,
-  parameter int AW = 7
+  parameter int AW = 8
 ) (
   input logic clk_i,
   input logic rst_ni,
@@ -139,6 +139,30 @@ module control_registers_reg_top #(
   logic [31:0] ro_cache_end_3_wd;
   logic ro_cache_end_3_we;
   logic ro_cache_end_3_re;
+  logic [31:0] tiles_das_0_wd;
+  logic tiles_das_0_we;
+  logic [31:0] tiles_das_1_wd;
+  logic tiles_das_1_we;
+  logic [31:0] tiles_das_2_wd;
+  logic tiles_das_2_we;
+  logic [31:0] tiles_das_3_wd;
+  logic tiles_das_3_we;
+  logic [31:0] start_das_0_wd;
+  logic start_das_0_we;
+  logic [31:0] start_das_1_wd;
+  logic start_das_1_we;
+  logic [31:0] start_das_2_wd;
+  logic start_das_2_we;
+  logic [31:0] start_das_3_wd;
+  logic start_das_3_we;
+  logic [31:0] rows_das_0_wd;
+  logic rows_das_0_we;
+  logic [31:0] rows_das_1_wd;
+  logic rows_das_1_we;
+  logic [31:0] rows_das_2_wd;
+  logic rows_das_2_we;
+  logic [31:0] rows_das_3_wd;
+  logic rows_das_3_we;
 
   // Register instances
   // R[eoc]: V(False)
@@ -717,8 +741,246 @@ module control_registers_reg_top #(
 
 
 
+  // Subregister 0 of Multireg tiles_das
+  // R[tiles_das_0]: V(True)
 
-  logic [25:0] addr_hit;
+  prim_subreg_ext #(
+    .DW    (32)
+  ) u_tiles_das_0 (
+    .re     (1'b0),
+    .we     (tiles_das_0_we),
+    .wd     (tiles_das_0_wd),
+    .d      (hw2reg.tiles_das[0].d),
+    .qre    (),
+    .qe     (reg2hw.tiles_das[0].qe),
+    .q      (reg2hw.tiles_das[0].q ),
+    .qs     ()
+  );
+
+  // Subregister 1 of Multireg tiles_das
+  // R[tiles_das_1]: V(True)
+
+  prim_subreg_ext #(
+    .DW    (32)
+  ) u_tiles_das_1 (
+    .re     (1'b0),
+    .we     (tiles_das_1_we),
+    .wd     (tiles_das_1_wd),
+    .d      (hw2reg.tiles_das[1].d),
+    .qre    (),
+    .qe     (reg2hw.tiles_das[1].qe),
+    .q      (reg2hw.tiles_das[1].q ),
+    .qs     ()
+  );
+
+  // Subregister 2 of Multireg tiles_das
+  // R[tiles_das_2]: V(True)
+
+  prim_subreg_ext #(
+    .DW    (32)
+  ) u_tiles_das_2 (
+    .re     (1'b0),
+    .we     (tiles_das_2_we),
+    .wd     (tiles_das_2_wd),
+    .d      (hw2reg.tiles_das[2].d),
+    .qre    (),
+    .qe     (reg2hw.tiles_das[2].qe),
+    .q      (reg2hw.tiles_das[2].q ),
+    .qs     ()
+  );
+
+  // Subregister 3 of Multireg tiles_das
+  // R[tiles_das_3]: V(True)
+
+  prim_subreg_ext #(
+    .DW    (32)
+  ) u_tiles_das_3 (
+    .re     (1'b0),
+    .we     (tiles_das_3_we),
+    .wd     (tiles_das_3_wd),
+    .d      (hw2reg.tiles_das[3].d),
+    .qre    (),
+    .qe     (reg2hw.tiles_das[3].qe),
+    .q      (reg2hw.tiles_das[3].q ),
+    .qs     ()
+  );
+
+
+
+  // Subregister 0 of Multireg start_das
+  // R[start_das_0]: V(True)
+
+  prim_subreg_ext #(
+    .DW    (32)
+  ) u_start_das_0 (
+    .re     (1'b0),
+    .we     (start_das_0_we),
+    .wd     (start_das_0_wd),
+    .d      (hw2reg.start_das[0].d),
+    .qre    (),
+    .qe     (reg2hw.start_das[0].qe),
+    .q      (reg2hw.start_das[0].q ),
+    .qs     ()
+  );
+
+  // Subregister 1 of Multireg start_das
+  // R[start_das_1]: V(True)
+
+  prim_subreg_ext #(
+    .DW    (32)
+  ) u_start_das_1 (
+    .re     (1'b0),
+    .we     (start_das_1_we),
+    .wd     (start_das_1_wd),
+    .d      (hw2reg.start_das[1].d),
+    .qre    (),
+    .qe     (reg2hw.start_das[1].qe),
+    .q      (reg2hw.start_das[1].q ),
+    .qs     ()
+  );
+
+  // Subregister 2 of Multireg start_das
+  // R[start_das_2]: V(True)
+
+  prim_subreg_ext #(
+    .DW    (32)
+  ) u_start_das_2 (
+    .re     (1'b0),
+    .we     (start_das_2_we),
+    .wd     (start_das_2_wd),
+    .d      (hw2reg.start_das[2].d),
+    .qre    (),
+    .qe     (reg2hw.start_das[2].qe),
+    .q      (reg2hw.start_das[2].q ),
+    .qs     ()
+  );
+
+  // Subregister 3 of Multireg start_das
+  // R[start_das_3]: V(True)
+
+  prim_subreg_ext #(
+    .DW    (32)
+  ) u_start_das_3 (
+    .re     (1'b0),
+    .we     (start_das_3_we),
+    .wd     (start_das_3_wd),
+    .d      (hw2reg.start_das[3].d),
+    .qre    (),
+    .qe     (reg2hw.start_das[3].qe),
+    .q      (reg2hw.start_das[3].q ),
+    .qs     ()
+  );
+
+
+
+  // Subregister 0 of Multireg rows_das
+  // R[rows_das_0]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_rows_das_0 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (rows_das_0_we),
+    .wd     (rows_das_0_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg2hw.rows_das[0].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 1 of Multireg rows_das
+  // R[rows_das_1]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_rows_das_1 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (rows_das_1_we),
+    .wd     (rows_das_1_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg2hw.rows_das[1].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 2 of Multireg rows_das
+  // R[rows_das_2]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_rows_das_2 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (rows_das_2_we),
+    .wd     (rows_das_2_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg2hw.rows_das[2].q ),
+
+    .qs     ()
+  );
+
+  // Subregister 3 of Multireg rows_das
+  // R[rows_das_3]: V(False)
+
+  prim_subreg #(
+    .DW      (32),
+    .SWACCESS("WO"),
+    .RESVAL  (32'h0)
+  ) u_rows_das_3 (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (rows_das_3_we),
+    .wd     (rows_das_3_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0  ),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg2hw.rows_das[3].q ),
+
+    .qs     ()
+  );
+
+
+
+
+  logic [37:0] addr_hit;
   always_comb begin
     addr_hit = '0;
     addr_hit[ 0] = (reg_addr == CONTROL_REGISTERS_EOC_OFFSET);
@@ -747,6 +1009,18 @@ module control_registers_reg_top #(
     addr_hit[23] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_1_OFFSET);
     addr_hit[24] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_2_OFFSET);
     addr_hit[25] = (reg_addr == CONTROL_REGISTERS_RO_CACHE_END_3_OFFSET);
+    addr_hit[26] = (reg_addr == CONTROL_REGISTERS_TILES_DAS_0_OFFSET);
+    addr_hit[27] = (reg_addr == CONTROL_REGISTERS_TILES_DAS_1_OFFSET);
+    addr_hit[28] = (reg_addr == CONTROL_REGISTERS_TILES_DAS_2_OFFSET);
+    addr_hit[29] = (reg_addr == CONTROL_REGISTERS_TILES_DAS_3_OFFSET);
+    addr_hit[30] = (reg_addr == CONTROL_REGISTERS_START_DAS_0_OFFSET);
+    addr_hit[31] = (reg_addr == CONTROL_REGISTERS_START_DAS_1_OFFSET);
+    addr_hit[32] = (reg_addr == CONTROL_REGISTERS_START_DAS_2_OFFSET);
+    addr_hit[33] = (reg_addr == CONTROL_REGISTERS_START_DAS_3_OFFSET);
+    addr_hit[34] = (reg_addr == CONTROL_REGISTERS_ROWS_DAS_0_OFFSET);
+    addr_hit[35] = (reg_addr == CONTROL_REGISTERS_ROWS_DAS_1_OFFSET);
+    addr_hit[36] = (reg_addr == CONTROL_REGISTERS_ROWS_DAS_2_OFFSET);
+    addr_hit[37] = (reg_addr == CONTROL_REGISTERS_ROWS_DAS_3_OFFSET);
   end
 
   assign addrmiss = (reg_re || reg_we) ? ~|addr_hit : 1'b0 ;
@@ -779,7 +1053,19 @@ module control_registers_reg_top #(
                (addr_hit[22] & (|(CONTROL_REGISTERS_PERMIT[22] & ~reg_be))) |
                (addr_hit[23] & (|(CONTROL_REGISTERS_PERMIT[23] & ~reg_be))) |
                (addr_hit[24] & (|(CONTROL_REGISTERS_PERMIT[24] & ~reg_be))) |
-               (addr_hit[25] & (|(CONTROL_REGISTERS_PERMIT[25] & ~reg_be)))));
+               (addr_hit[25] & (|(CONTROL_REGISTERS_PERMIT[25] & ~reg_be))) |
+               (addr_hit[26] & (|(CONTROL_REGISTERS_PERMIT[26] & ~reg_be))) |
+               (addr_hit[27] & (|(CONTROL_REGISTERS_PERMIT[27] & ~reg_be))) |
+               (addr_hit[28] & (|(CONTROL_REGISTERS_PERMIT[28] & ~reg_be))) |
+               (addr_hit[29] & (|(CONTROL_REGISTERS_PERMIT[29] & ~reg_be))) |
+               (addr_hit[30] & (|(CONTROL_REGISTERS_PERMIT[30] & ~reg_be))) |
+               (addr_hit[31] & (|(CONTROL_REGISTERS_PERMIT[31] & ~reg_be))) |
+               (addr_hit[32] & (|(CONTROL_REGISTERS_PERMIT[32] & ~reg_be))) |
+               (addr_hit[33] & (|(CONTROL_REGISTERS_PERMIT[33] & ~reg_be))) |
+               (addr_hit[34] & (|(CONTROL_REGISTERS_PERMIT[34] & ~reg_be))) |
+               (addr_hit[35] & (|(CONTROL_REGISTERS_PERMIT[35] & ~reg_be))) |
+               (addr_hit[36] & (|(CONTROL_REGISTERS_PERMIT[36] & ~reg_be))) |
+               (addr_hit[37] & (|(CONTROL_REGISTERS_PERMIT[37] & ~reg_be)))));
   end
 
   assign eoc_we = addr_hit[0] & reg_we & !reg_error;
@@ -864,6 +1150,42 @@ module control_registers_reg_top #(
   assign ro_cache_end_3_we = addr_hit[25] & reg_we & !reg_error;
   assign ro_cache_end_3_wd = reg_wdata[31:0];
   assign ro_cache_end_3_re = addr_hit[25] & reg_re & !reg_error;
+
+  assign tiles_das_0_we = addr_hit[26] & reg_we & !reg_error;
+  assign tiles_das_0_wd = reg_wdata[31:0];
+
+  assign tiles_das_1_we = addr_hit[27] & reg_we & !reg_error;
+  assign tiles_das_1_wd = reg_wdata[31:0];
+
+  assign tiles_das_2_we = addr_hit[28] & reg_we & !reg_error;
+  assign tiles_das_2_wd = reg_wdata[31:0];
+
+  assign tiles_das_3_we = addr_hit[29] & reg_we & !reg_error;
+  assign tiles_das_3_wd = reg_wdata[31:0];
+
+  assign start_das_0_we = addr_hit[30] & reg_we & !reg_error;
+  assign start_das_0_wd = reg_wdata[31:0];
+
+  assign start_das_1_we = addr_hit[31] & reg_we & !reg_error;
+  assign start_das_1_wd = reg_wdata[31:0];
+
+  assign start_das_2_we = addr_hit[32] & reg_we & !reg_error;
+  assign start_das_2_wd = reg_wdata[31:0];
+
+  assign start_das_3_we = addr_hit[33] & reg_we & !reg_error;
+  assign start_das_3_wd = reg_wdata[31:0];
+
+  assign rows_das_0_we = addr_hit[34] & reg_we & !reg_error;
+  assign rows_das_0_wd = reg_wdata[31:0];
+
+  assign rows_das_1_we = addr_hit[35] & reg_we & !reg_error;
+  assign rows_das_1_wd = reg_wdata[31:0];
+
+  assign rows_das_2_we = addr_hit[36] & reg_we & !reg_error;
+  assign rows_das_2_wd = reg_wdata[31:0];
+
+  assign rows_das_3_we = addr_hit[37] & reg_we & !reg_error;
+  assign rows_das_3_wd = reg_wdata[31:0];
 
   // Read data return
   always_comb begin
@@ -973,6 +1295,54 @@ module control_registers_reg_top #(
         reg_rdata_next[31:0] = ro_cache_end_3_qs;
       end
 
+      addr_hit[26]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[27]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[28]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[29]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[30]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[31]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[32]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[33]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[34]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[35]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[36]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
+      addr_hit[37]: begin
+        reg_rdata_next[31:0] = '0;
+      end
+
       default: begin
         reg_rdata_next = '1;
       end
@@ -995,7 +1365,7 @@ endmodule
 
 module control_registers_reg_top_intf
 #(
-  parameter int AW = 7,
+  parameter int AW = 8,
   localparam int DW = 32
 ) (
   input logic clk_i,

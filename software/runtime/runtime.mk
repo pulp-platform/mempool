@@ -89,6 +89,7 @@ RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 # Defines
 DEFINES += -DPRINTF_DISABLE_SUPPORT_FLOAT -DPRINTF_DISABLE_SUPPORT_LONG_LONG -DPRINTF_DISABLE_SUPPORT_PTRDIFF_T
 DEFINES += -DNUM_CORES=$(num_cores)
+DEFINES += -DLOG2_NUM_CORES=$(shell awk 'BEGIN{print log($(num_cores))/log(2)}')
 DEFINES += -DNUM_GROUPS=$(num_groups)
 DEFINES += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 DEFINES += -DBANKING_FACTOR=$(banking_factor)
@@ -109,6 +110,11 @@ ifdef terapool
 	DEFINES += -DNUM_SUB_GROUPS_PER_GROUP=$(num_sub_groups_per_group)
 	DEFINES += -DNUM_CORES_PER_SUB_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_sub_groups_per_group)}')
 	DEFINES += -DNUM_TILES_PER_SUB_GROUP=$(shell awk 'BEGIN{print ($(num_cores)/$(num_groups))/$(num_cores_per_tile)/$(num_sub_groups_per_group)}')
+endif
+ifdef das
+	DEFINES += -DNUM_DAS_PARTITIONS=$(num_das_partitions)
+	DEFINES += -DDAS_MEM_SIZE=$(das_mem_size)
+	DEFINES += -DLOG2_DAS_MEM_SIZE=$(shell awk 'BEGIN{print log($(das_mem_size))/log(2)}')
 endif
 
 # Specify cross compilation target. This can be omitted if LLVM is built with riscv as default target

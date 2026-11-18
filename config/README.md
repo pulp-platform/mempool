@@ -34,3 +34,63 @@ you can use the following command to make git pick up tracking the file again:
 ```bash
 git update-index --no-assume-unchanged config/config.mk
 ```
+
+## Dynamic Address Scrambling (DAS)
+
+Dynamic Address Scrambling (DAS) is a runtime-configurable address mapping
+technique. DAS remaps contiguous address spaces to physically adjacent memory
+banks based on the workload's memory access patterns, placing data physically
+close to PEs.
+
+### Build-time configuration
+
+DAS is controlled by three variables in `config.mk`:
+
+| Variable             | Default | Description                                |
+|----------------------|---------|--------------------------------------------|
+| `das`                | `1`     | Enable (`1`) or disable (`0`) DAS support  |
+| `num_das_partitions` | `4`     | Number of independent DAS regions          |
+| `das_mem_size`       | `2048`  | DAS heap size per core (bytes)             |
+
+### DAS registers
+
+Each DAS partition `i` (0 .. `num_das_partitions - 1`) is programmed through
+three memory-mapped registers:
+
+| Register       | Description                                                |
+|----------------|------------------------------------------------------------|
+| `tiles_das[i]` | Folding granularity: number of tiles in this DAS partition |
+| `start_das[i]` | Allocated start address of this DAS partition              |
+| `rows_das[i]`  | Allocated size of this DAS partition (in rows)             |
+
+The hardware address scrambler uses these registers to remap addresses within
+each partition so that consecutive words land on adjacent banks within
+`tiles_das[i]` tiles, rather than being interleaved across all tiles.
+
+### Software usage
+
+The runtime provides a convenience API to configure DAS partitions. A typical
+flow (see `software/apps/baremetal/das_gemm_f32/main.c` for a full example):
+
+```c
+// 1. Initialize the DAS heap allocator
+mempool_dynamic_heap_alloc_init(core_id);
+alloc_t *das_alloc = get_dynamic_heap_alloc();
+
+// 2. Allocate buffers from the DAS heap
+float *a = (float *)partition_malloc(das_alloc, a_size);
+float *b = (float *)partition_malloc(das_alloc, b_size);
+
+// 3. Configure DAS partitions
+//    das_config(partition_id, tiles_per_partition, start_addr, size_bytes)
+//    - Setting tiles_per_partition = 1 maps the region to a single tile (local).
+//    - Setting tiles_per_partition = NUM_TILES keeps the default full interleaving.
+das_config(0, 1,         (uint32_t)a, a_size);  // a: local to one tile
+das_config(1, NUM_TILES, (uint32_t)b, b_size);  // b: fully interleaved
+
+// 4. Use the buffers normally — the hardware handles address remapping
+
+// 5. Free when done
+partition_free(das_alloc, b);
+partition_free(das_alloc, a);
+```

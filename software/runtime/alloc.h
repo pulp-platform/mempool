@@ -44,11 +44,21 @@ void domain_free(alloc_t *alloc, void *const ptr);
 
 // Print out linked list of free blocks
 void alloc_dump(alloc_t *alloc);
+void canary_dump(void);
 
 // Get allocator for L1 interleaved heap memory
 alloc_t *get_alloc_l1();
 
 // Get allocator for L1 local sequential heap memory
 alloc_t *get_alloc_tile(const uint32_t tile_id);
+
+// ----- Dynamic Heap Allocator ----- //
+alloc_t *get_dynamic_heap_alloc();
+
+// Dynamic heap allocation with Canary Chain
+void *partition_malloc(alloc_t *alloc, const uint32_t size);
+
+// Free dynamic heap allocation with Canary chain
+void partition_free(alloc_t *alloc, void *const ptr);
 
 #endif

@@ -90,6 +90,12 @@ module mempool_system
   logic             [NumCores-1:0]      wake_up;
   logic             [DataWidth-1:0]     eoc;
   ro_cache_ctrl_t                       ro_cache_ctrl;
+`ifdef DAS
+  // For dynamic partitioning
+  logic             [NumDASPartitions-1:0][TileInterleavingWidth-1:0] tiles_das;
+  logic             [NumDASPartitions-1:0][AddrWidth-1:0]             start_das;
+  logic             [NumDASPartitions-1:0][RowsInterleavingWidth-1:0] rows_das;
+`endif
 
   dma_req_t  dma_req;
   logic      dma_req_valid;
@@ -137,20 +143,25 @@ module mempool_system
     .TCDMBaseAddr(TCDMBaseAddr),
     .BootAddr    (BootAddr    )
   ) i_mempool_cluster (
-    .clk_i          (clk_i                          ),
-    .rst_ni         (rst_ni                         ),
-    .wake_up_i      (wake_up                        ),
-    .testmode_i     (1'b0                           ),
-    .scan_enable_i  (1'b0                           ),
-    .scan_data_i    (1'b0                           ),
-    .scan_data_o    (/* Unused */                   ),
-    .ro_cache_ctrl_i(ro_cache_ctrl                  ),
-    .dma_req_i      (dma_req                        ),
-    .dma_req_valid_i(dma_req_valid                  ),
-    .dma_req_ready_o(dma_req_ready                  ),
-    .dma_meta_o     (dma_meta                       ),
-    .axi_mst_req_o  (axi_mst_req[NumAXIMasters-2:0] ),
-    .axi_mst_resp_i (axi_mst_resp[NumAXIMasters-2:0])
+    .clk_i           (clk_i                          ),
+    .rst_ni          (rst_ni                         ),
+    .wake_up_i       (wake_up                        ),
+`ifdef DAS
+    .tiles_das_i (tiles_das                  ),
+    .start_das_i     (start_das                      ),
+    .rows_das_i      (rows_das                       ),
+`endif
+    .testmode_i      (1'b0                           ),
+    .scan_enable_i   (1'b0                           ),
+    .scan_data_i     (1'b0                           ),
+    .scan_data_o     (/* Unused */                   ),
+    .ro_cache_ctrl_i (ro_cache_ctrl                  ),
+    .dma_req_i       (dma_req                        ),
+    .dma_req_valid_i (dma_req_valid                  ),
+    .dma_req_ready_o (dma_req_ready                  ),
+    .dma_meta_o      (dma_meta                       ),
+    .axi_mst_req_o   (axi_mst_req[NumAXIMasters-2:0] ),
+    .axi_mst_resp_i  (axi_mst_resp[NumAXIMasters-2:0])
   );
 
   /**********************
@@ -801,6 +812,11 @@ module mempool_system
     .axi_lite_slave_resp_o(axi_lite_slv_resp[CtrlRegisters]),
     .eoc_o                (/* Unused */                    ),
     .eoc_valid_o          (eoc_valid_o                     ),
+`ifdef DAS
+    .tiles_das_o          (tiles_das                       ),
+    .start_das_o          (start_das                       ),
+    .rows_das_o           (rows_das                        ),
+`endif
     .wake_up_o            (wake_up                         ),
     .ro_cache_ctrl_o      (ro_cache_ctrl                   )
   );

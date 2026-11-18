@@ -7,6 +7,10 @@
 
 module ctrl_registers
   import mempool_pkg::ro_cache_ctrl_t;
+  import mempool_pkg::NumDASPartitions;
+  import mempool_pkg::TileInterleavingWidth;
+  import mempool_pkg::RowsInterleavingWidth;
+  import mempool_pkg::AddrWidth;
 #(
   parameter int DataWidth                      = 32,
   // Parameters
@@ -17,16 +21,19 @@ module ctrl_registers
   parameter type axi_lite_req_t                = logic,
   parameter type axi_lite_resp_t               = logic
 ) (
-  input  logic                           clk_i,
-  input  logic                           rst_ni,
+  input  logic                                    clk_i,
+  input  logic                                    rst_ni,
   // AXI Bus
-  input  axi_lite_req_t                  axi_lite_slave_req_i,
-  output axi_lite_resp_t                 axi_lite_slave_resp_o,
+  input  axi_lite_req_t                           axi_lite_slave_req_i,
+  output axi_lite_resp_t                          axi_lite_slave_resp_o,
   // Control registers
-  output logic      [DataWidth-1:0]      eoc_o,
-  output logic                           eoc_valid_o,
-  output logic      [NumCores-1:0]       wake_up_o,
-  output ro_cache_ctrl_t                 ro_cache_ctrl_o
+  output logic      [NumDASPartitions-1:0][TileInterleavingWidth-1:0] tiles_das_o,
+  output logic      [NumDASPartitions-1:0][AddrWidth-1:0]             start_das_o,
+  output logic      [NumDASPartitions-1:0][RowsInterleavingWidth-1:0] rows_das_o,
+  output logic      [DataWidth-1:0]                                   eoc_o,
+  output logic                                                        eoc_valid_o,
+  output logic      [NumCores-1:0]                                    wake_up_o,
+  output ro_cache_ctrl_t                                              ro_cache_ctrl_o
 );
 
   import mempool_pkg::AddrWidth;
@@ -96,6 +103,14 @@ module ctrl_registers
   for (genvar i = 0; i < ROCacheNumAddrRules; i++) begin : gen_ro_cache_reg
     `FFL(ctrl_hw2reg.ro_cache_start[i].d, ctrl_reg2hw.ro_cache_start[i].q, ctrl_reg2hw.ro_cache_start[i].qe, ro_cache_regions[i].start_addr, clk_i, rst_ni)
     `FFL(ctrl_hw2reg.ro_cache_end[i].d, ctrl_reg2hw.ro_cache_end[i].q, ctrl_reg2hw.ro_cache_end[i].qe, ro_cache_regions[i].end_addr, clk_i, rst_ni)
+  end
+
+  for (genvar i = 0; i < mempool_pkg::NumDASPartitions; i++) begin: gen_das_regs
+    `FFL(ctrl_hw2reg.tiles_das[i].d, ctrl_reg2hw.tiles_das[i].q, ctrl_reg2hw.tiles_das[i].qe, mempool_pkg::NumTiles);
+    `FFL(ctrl_hw2reg.start_das[i].d, ctrl_reg2hw.start_das[i].q, ctrl_reg2hw.start_das[i].qe, mempool_pkg::DASStartAddr);
+     assign tiles_das_o[i] = ctrl_hw2reg.tiles_das[i].d[TileInterleavingWidth-1:0];
+     assign start_das_o[i]     = ctrl_hw2reg.start_das[i].d;
+     assign rows_das_o[i]      = ctrl_reg2hw.rows_das[i].q[RowsInterleavingWidth-1:0];
   end
 
   /************************

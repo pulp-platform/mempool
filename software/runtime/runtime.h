@@ -54,6 +54,49 @@ static uint32_t volatile *wake_up_offset_reg =
     (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
                           CONTROL_REGISTERS_WAKE_UP_OFFST_REG_OFFSET);
 
+#ifdef NUM_DAS_PARTITIONS
+/* DAS-related regs */
+
+static uint32_t volatile *tiles_das_0_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_TILES_DAS_0_REG_OFFSET);
+static uint32_t volatile *tiles_das_1_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_TILES_DAS_1_REG_OFFSET);
+static uint32_t volatile *tiles_das_2_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_TILES_DAS_2_REG_OFFSET);
+static uint32_t volatile *tiles_das_3_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_TILES_DAS_3_REG_OFFSET);
+
+static uint32_t volatile *start_das_0_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_START_DAS_0_REG_OFFSET);
+static uint32_t volatile *start_das_1_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_START_DAS_1_REG_OFFSET);
+static uint32_t volatile *start_das_2_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_START_DAS_2_REG_OFFSET);
+static uint32_t volatile *start_das_3_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_START_DAS_3_REG_OFFSET);
+
+static uint32_t volatile *rows_das_0_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_ROWS_DAS_0_REG_OFFSET);
+static uint32_t volatile *rows_das_1_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_ROWS_DAS_1_REG_OFFSET);
+static uint32_t volatile *rows_das_2_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_ROWS_DAS_2_REG_OFFSET);
+static uint32_t volatile *rows_das_3_reg =
+    (uint32_t volatile *)(CONTROL_REGISTER_OFFSET +
+                          CONTROL_REGISTERS_ROWS_DAS_3_REG_OFFSET);
+#endif /* NUM_DAS_PARTITIONS */
+
 typedef uint32_t mempool_id_t;
 typedef uint32_t mempool_timer_t;
 
@@ -99,8 +142,12 @@ static inline uint32_t mempool_get_core_count_per_group() {
 static inline void mempool_init(const uint32_t core_id) {
   if (core_id == 0) {
     // Initialize L1 Interleaved Heap Allocator
-    extern uint32_t __heap_start, __heap_end;
-    uint32_t heap_size = (uint32_t)&__heap_end - (uint32_t)&__heap_start;
+    extern uint32_t __heap_start;
+    extern uint32_t __heap_seq_start;
+    // Heap Region
+    uint32_t heap_size =
+        (uint32_t)&__heap_seq_start -
+        (uint32_t)&__heap_start; // Downscale interleaved heap size
     alloc_init(get_alloc_l1(), &__heap_start, heap_size);
 
     // Initialize L1 Sequential Heap Allocator per Tile
@@ -120,6 +167,52 @@ static inline void mempool_init(const uint32_t core_id) {
       alloc_init(tile_allocator, (uint32_t *)seq_heap_base, seq_heap_size);
       seq_heap_base += seq_total_size;
     }
+  }
+}
+
+// Reconfigure Interleaved Heap region, with explicit 'Dynamic Heap' start
+// address Programmer API for flexible Dynamic Heap region configuration
+static inline void mempool_reset_heap(const uint32_t core_id,
+                                      uint32_t heap_seq_start) {
+  if (core_id == 0) {
+    // Initialize L1 Interleaved Heap Allocator
+    extern uint32_t __heap_start;
+    uint32_t heap_size =
+        (uint32_t)heap_seq_start -
+        (uint32_t)&__heap_start; // Downscale interleaved heap size
+    alloc_init(get_alloc_l1(), &__heap_start, heap_size);
+  }
+}
+
+#ifdef DAS_MEM_SIZE
+// Initialize Dynamic Heap Allocator, as default specified in the linker script
+static inline void mempool_dynamic_heap_alloc_init(const uint32_t core_id) {
+  if (core_id == 0) {
+    extern uint32_t __heap_seq_start;
+    // Dynamic allocator base and size
+    uint32_t seq_heap_base = (uint32_t)&__heap_seq_start;
+    uint32_t seq_heap_size = NUM_CORES * DAS_MEM_SIZE;
+    // Dynamically allocate the space for allocators
+    alloc_t *dynamic_heap_allocator = get_dynamic_heap_alloc();
+    alloc_init(dynamic_heap_allocator, (uint32_t *)seq_heap_base,
+               seq_heap_size);
+  }
+}
+#endif /* DAS_MEM_SIZE */
+
+// Reset Dynamic Heap region with explicit start address specification
+// A UNIFIED allocator will be used
+static inline void mempool_dynamic_heap_alloc_reset(const uint32_t core_id,
+                                                    uint32_t heap_seq_start) {
+  if (core_id == 0) {
+    extern uint32_t __heap_end;
+    // Dynamic allocator base and size
+    uint32_t seq_heap_base = heap_seq_start;
+    uint32_t seq_heap_size = (uint32_t)&__heap_end - heap_seq_start;
+    // Reset the space for allocators
+    alloc_t *dynamic_heap_allocator = get_dynamic_heap_alloc();
+    alloc_init(dynamic_heap_allocator, (uint32_t *)seq_heap_base,
+               seq_heap_size);
   }
 }
 
@@ -200,6 +293,53 @@ static inline void set_wake_up_stride(uint32_t stride) {
 static inline void set_wake_up_offset(uint32_t offset) {
   *wake_up_offset_reg = offset;
 }
+
+#ifdef NUM_DAS_PARTITIONS
+// Partition Configuration
+static inline void das_config(uint32_t reg_sel, uint32_t tiles_per_partition,
+                              uint32_t addr, uint32_t size) {
+  asm volatile("" ::: "memory");
+  // Compute number of rows
+  uint32_t row_bytes = NUM_BANKS * sizeof(uint32_t);
+  uint32_t rows_das = (size + (row_bytes - 1)) / row_bytes;
+
+  // enforce minimum 2 rows per partition
+  // TODO (bowwang): should add protection to enforce `rows_das` is power of 2
+  if (rows_das < 2)
+    rows_das = 2;
+
+  // Program DAS registers
+  switch (reg_sel) {
+  case 0:
+    *tiles_das_0_reg = tiles_per_partition;
+    *start_das_0_reg = addr;
+    *rows_das_0_reg = rows_das;
+    break;
+  case 1:
+    *tiles_das_1_reg = tiles_per_partition;
+    *start_das_1_reg = addr;
+    *rows_das_1_reg = rows_das;
+    break;
+  case 2:
+    *tiles_das_2_reg = tiles_per_partition;
+    *start_das_2_reg = addr;
+    *rows_das_2_reg = rows_das;
+    break;
+  case 3:
+    *tiles_das_3_reg = tiles_per_partition;
+    *start_das_3_reg = addr;
+    *rows_das_3_reg = rows_das;
+    break;
+  default:
+    *tiles_das_0_reg = tiles_per_partition;
+    *start_das_0_reg = addr;
+    *rows_das_0_reg = rows_das;
+    break;
+  }
+  asm volatile("" ::: "memory");
+}
+#endif /* NUM_DAS_PARTITIONS */
+
 // Dump a value via CSR
 // This is only supported in simulation and an experimental feature. All writes
 // to unimplemented CSR registers will be dumped by Snitch. This can be

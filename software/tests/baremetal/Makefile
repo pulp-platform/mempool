@@ -16,6 +16,9 @@ RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
 include $(RUNTIME_DIR)/runtime.mk
 
 TESTS := $(patsubst $(TESTS_DIR)/%/main.c,%,$(shell find $(TESTS_DIR) -name "main.c"))
+ifndef das
+  TESTS := $(filter-out das_%,$(TESTS))
+endif
 BINARIES := $(addprefix $(BIN_DIR)/,$(TESTS))
 
 # Make all applications
