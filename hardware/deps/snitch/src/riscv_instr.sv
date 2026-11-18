@@ -1200,6 +1200,7 @@ package riscv_instr;
   localparam logic [11:0] CSR_VL = 12'hc20;
   localparam logic [11:0] CSR_VTYPE = 12'hc21;
   localparam logic [11:0] CSR_VLENB = 12'hc22;
+  localparam logic [11:0] CSR_MTYPE = 12'hc23;
   localparam logic [11:0] CSR_CYCLEH = 12'hc80;
   localparam logic [11:0] CSR_TIMEH = 12'hc81;
   localparam logic [11:0] CSR_INSTRETH = 12'hc82;
