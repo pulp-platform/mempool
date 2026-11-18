@@ -10,7 +10,7 @@ SN_CSV_TRACES         ?= $(buildpath)/results.csv
 
 SN_RISCV_MC           ?= $(INSTALL_DIR)/llvm/bin/llvm-mc
 # Same extensions as the LLVM -march of the software (software/runtime/runtime.mk)
-SN_RISCV_MATTR_FLAG    = +m,+a,+zfinx,+zhinx,+xsmallfloatinx,+xsfltinx,+xfcdotphalfinx
+SN_RISCV_MATTR_FLAG    = +m,+a,+zfinx,+zhinx,+xsmallfloatinx,+xfcdotphalfinx
 SN_RISCV_MATTR_FLAG   := $(SN_RISCV_MATTR_FLAG),+xpulpabs,+xpulpbitop,+xpulpbr,+xpulpclip,+xpulpmacsi
 SN_RISCV_MATTR_FLAG   := $(SN_RISCV_MATTR_FLAG),+xpulpminmax,+xpulppostmod,+xpulpslet,+xpulpvect
 SN_RISCV_MATTR_FLAG   := $(SN_RISCV_MATTR_FLAG),+xpulpvectshufflepack

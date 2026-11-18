@@ -54,7 +54,7 @@ else
 	# LLVM compiler -march
 	RISCV_ARCH ?= rv$(RISCV_XLEN)ima
 	ifeq ($(ZFINX), 1)
-		RISCV_ARCH := $(RISCV_ARCH)_zfinx_zhinx_xsmallfloatinx_xsfltinx_xfcdotphalfinx
+		RISCV_ARCH := $(RISCV_ARCH)_zfinx_zhinx_xsmallfloatinx_xfcdotphalfinx
 	endif
 	ifeq ($(XPULPIMG), 1)
 		RISCV_ARCH := $(RISCV_ARCH)_xpulpabs_xpulpbitop_xpulpbr_xpulpclip_xpulpmacsi_xpulpminmax

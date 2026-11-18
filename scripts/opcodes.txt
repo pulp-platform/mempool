@@ -23,7 +23,6 @@ rv_zfh
 rv_system
 unratified/rv_xfcdotphalfinx
 unratified/rv_xsmallfloatinx
-unratified/rv_xsfltinx
 unratified/rv32_xb
 unratified/rv32_xpulppostmod
 unratified/rv32_xpulpabs
