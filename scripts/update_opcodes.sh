@@ -7,6 +7,13 @@
 set -e
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
+# Run riscv_opcodes from the submodule sources: an installed copy (pip install
+# of the submodule) is not updated together with the submodule and would
+# silently generate an outdated instruction set.
+riscv_opcodes() {
+  PYTHONPATH=$ROOT/toolchain/riscv-opcodes/src python3 -m riscv_opcodes "$@"
+}
+
 OPCODES=($(cat "$(dirname "${BASH_SOURCE[0]}")/opcodes.txt"))
 
 # Run riscv_opcodes in a scratch directory, with git pointing at the
