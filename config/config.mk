@@ -71,6 +71,7 @@ zfinx ?= 1
 zquarterinx ?= 0
 
 # DivSqrt activated by default
+# Compiler update to LLVM 22.1.7 does not support -mno-fdiv flag
 xDivSqrt ?= 1
 
 # This parameter is only used for TeraPool configurations
