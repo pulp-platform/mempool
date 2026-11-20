@@ -21,6 +21,12 @@ include $(RUNTIME_DIR)/runtime.mk
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL := $(APPS)
+
+# Apps whose main.c actually #includes a generated data_<app>.h: make that
+# header an explicit prerequisite of the compiled object
+DATA_APPS := $(foreach a,$(APPS),$(if $(shell grep -l 'include "data_$(a)\.h"' $(APPS_DIR)/$(a)/main.c 2>/dev/null),$(a)))
+$(foreach a,$(DATA_APPS),$(eval $(a)/main.c.o: $(DATA_DIR)/data_$(a).h))
+
 # GCC does not support the floating-point applications (Zfinx, __fp16)
 ifeq ($(COMPILER),gcc)
 FP_SUFFIXES := f16 f32 f8
@@ -33,7 +39,7 @@ all: $(ALL)
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
 .PHONY: $(BINARIES)
-$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) data_%.h update-opcodes
+$(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) update-opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude -o $@ $< $(RUNTIME) $(RISCV_LDFLAGS) -T$(RUNTIME_DIR)/link.ld
 	$(RISCV_OBJCOPY) --remove-section=.riscv.attributes $@
