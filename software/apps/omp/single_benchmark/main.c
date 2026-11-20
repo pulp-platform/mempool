@@ -56,7 +56,9 @@ void omp_parallel_single() {
     mempool_start_benchmark();
 
 #pragma omp single
-    { result = 100; }
+    {
+      result = 100;
+    }
 
     mempool_stop_benchmark();
     cycles = mempool_get_timer() - cycles;

@@ -1,0 +1,18 @@
+#=======================================================================
+# Makefrag for rv32uxsmallfloathinx tests
+#-----------------------------------------------------------------------
+
+ifeq ($(COMPILER), llvm)
+rv32uxsmallfloathinx_sc_tests = \
+                      vfadd_h \
+                      vfmac_h \
+                      vfmin_h \
+                      vfsgnj_h \
+                      vfcpka_h \
+                      vfdotpex_h \
+                      fcdotpex_h
+endif
+
+rv32uxsmallfloathinx_p_tests = $(addprefix rv32uxsmallfloathinx-p-, $(rv32uxsmallfloathinx_sc_tests))
+
+# Xsmallfloathinx extensions are not tested on Spike

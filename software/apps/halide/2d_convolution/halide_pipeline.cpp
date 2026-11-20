@@ -68,12 +68,11 @@ int main(int argc, char **argv) {
     }
   }
 
-  Halide::ParamMap params;
-  params.set(in, test_input);
-  params.set(width, (int32_t)32);
-  params.set(height, (int32_t)32);
-  Halide::Buffer<uint32_t> output = convolution.realize(
-      {30, 30}, Halide::get_jit_target_from_environment(), params);
+  in.set(test_input);
+  width.set((int32_t)32);
+  height.set((int32_t)32);
+  Halide::Buffer<uint32_t> output =
+      convolution.realize({30, 30}, Halide::get_jit_target_from_environment());
 
   for (int j = 0; j < test_input.height(); j++) {
     for (int i = 0; i < test_input.width(); i++) {

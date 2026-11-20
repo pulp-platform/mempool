@@ -35,7 +35,9 @@ uint32_t test_omp_parallel_single() {
     }
 
 #pragma omp single
-    { result = 100; }
+    {
+      result = 100;
+    }
 
     work1();
     if (core_id == 0) {
@@ -85,7 +87,9 @@ uint32_t test_omp_single_copyprivate() {
     }
 
 #pragma omp single copyprivate(result)
-    { result = 100; }
+    {
+      result = 100;
+    }
 
     work1();
     if (core_id == 5) {

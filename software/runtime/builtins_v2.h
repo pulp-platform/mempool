@@ -42,6 +42,170 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
   return output;
 }
 
+#ifdef __clang__
+
+/* Clang has no __builtin_pulp_* builtins: the macros supported by the GCC
+ * toolchain for MemPool are implemented with inline assembly. Clang does not
+ * allocate vector types to GPRs, so the operands are bit-cast to int32_t */
+#define __PULP_OP1(insn, x)                                                    \
+  ({                                                                           \
+    int32_t __r;                                                               \
+    __asm__(insn " %0, %1" : "=r"(__r) : "r"((int32_t)(x)));                   \
+    (__typeof_unqual__(x)) __r;                                                \
+  })
+#define __PULP_NEG(insn, x)                                                    \
+  ({                                                                           \
+    int32_t __r;                                                               \
+    __asm__(insn " %0, zero, %1" : "=r"(__r) : "r"((int32_t)(x)));             \
+    (__typeof_unqual__(x)) __r;                                                \
+  })
+#define __PULP_OP2(insn, x, y)                                                 \
+  ({                                                                           \
+    int32_t __r;                                                               \
+    __asm__(insn " %0, %1, %2"                                                 \
+            : "=r"(__r)                                                        \
+            : "r"((int32_t)(x)), "r"((int32_t)(y)));                           \
+    (__typeof_unqual__(x)) __r;                                                \
+  })
+#define __PULP_OP2_RET(type, insn, x, y)                                       \
+  ({                                                                           \
+    type __r;                                                                  \
+    __asm__(insn " %0, %1, %2"                                                 \
+            : "=r"(__r)                                                        \
+            : "r"((int32_t)(x)), "r"((int32_t)(y)));                           \
+    __r;                                                                       \
+  })
+#define __PULP_ACC(type, insn, acc, x, y)                                      \
+  ({                                                                           \
+    type __r = (type)(acc);                                                    \
+    __asm__(insn " %0, %1, %2"                                                 \
+            : "+r"(__r)                                                        \
+            : "r"((int32_t)(x)), "r"((int32_t)(y)));                           \
+    __r;                                                                       \
+  })
+#define __PULP_IMM(insn, x, imm)                                               \
+  ({                                                                           \
+    int32_t __r;                                                               \
+    __asm__(insn " %0, %1, %2" : "=r"(__r) : "r"((int32_t)(x)), "i"(imm));     \
+    __r;                                                                       \
+  })
+
+/* Max */
+#define __MAX(a, b) __PULP_OP2_RET(int32_t, "p.max", (a), (b))
+
+#define __MAX2(x, y) __PULP_OP2("pv.max.h", (x), (y))
+#define __MAX4(x, y) __PULP_OP2("pv.max.b", (x), (y))
+
+#define __MAXU2(x, y) __PULP_OP2("pv.maxu.h", (x), (y))
+#define __MAXU4(x, y) __PULP_OP2("pv.maxu.b", (x), (y))
+
+/* Min */
+#define __MIN2(x, y) __PULP_OP2("pv.min.h", (x), (y))
+#define __MIN4(x, y) __PULP_OP2("pv.min.b", (x), (y))
+
+#define __MINU2(x, y) __PULP_OP2("pv.minu.h", (x), (y))
+#define __MINU4(x, y) __PULP_OP2("pv.minu.b", (x), (y))
+
+/* Clip */
+#define __CLIP(x, precision) __PULP_IMM("p.clip", (x), (precision) + 1)
+#define __CLIP_R(x, bound) __PULP_OP2_RET(int32_t, "p.clipr", (x), (bound))
+
+#define __CLIPU(x, precision) __PULP_IMM("p.clipu", (x), (precision) + 1)
+#define __CLIPU_R(x, bound) __PULP_OP2_RET(int32_t, "p.clipur", (x), (bound))
+
+/* Abs */
+#define __ABS2(x) __PULP_OP1("pv.abs.h", (x))
+#define __ABS4(x) __PULP_OP1("pv.abs.b", (x))
+
+/* Unary minus */
+#define __NEG2(x) __PULP_NEG("pv.sub.h", (x))
+#define __NEG4(x) __PULP_NEG("pv.sub.b", (x))
+
+/* Addition */
+#define __ADD2(x, y) __PULP_OP2("pv.add.h", (x), (y))
+#define __ADD4(x, y) __PULP_OP2("pv.add.b", (x), (y))
+
+/* Substraction */
+#define __SUB2(x, y) __PULP_OP2("pv.sub.h", (x), (y))
+#define __SUB4(x, y) __PULP_OP2("pv.sub.b", (x), (y))
+
+/* Average */
+#define __AVG2(x, y) __PULP_OP2("pv.avg.h", (x), (y))
+#define __AVG4(x, y) __PULP_OP2("pv.avg.b", (x), (y))
+
+/* Average unsigned */
+#define __AVGU2(x, y) __PULP_OP2("pv.avgu.h", (x), (y))
+#define __AVGU4(x, y) __PULP_OP2("pv.avgu.b", (x), (y))
+
+/* Bitwise and */
+#define __AND2(x, y) __PULP_OP2("pv.and.h", (x), (y))
+#define __AND4(x, y) __PULP_OP2("pv.and.b", (x), (y))
+
+/* Bitwise or */
+#define __OR2(x, y) __PULP_OP2("pv.or.h", (x), (y))
+#define __OR4(x, y) __PULP_OP2("pv.or.b", (x), (y))
+
+/* Bitwise exor */
+#define __EXOR2(x, y) __PULP_OP2("pv.xor.h", (x), (y))
+#define __EXOR4(x, y) __PULP_OP2("pv.xor.b", (x), (y))
+
+/* Logical shift right */
+#define __SRL2(x, y) __PULP_OP2("pv.srl.h", (x), (y))
+#define __SRL4(x, y) __PULP_OP2("pv.srl.b", (x), (y))
+
+/* Arithmetic shift right */
+#define __SRA2(x, y) __PULP_OP2("pv.sra.h", (x), (y))
+#define __SRA4(x, y) __PULP_OP2("pv.sra.b", (x), (y))
+
+/* Logical shift left */
+#define __SLL2(x, y) __PULP_OP2("pv.sll.h", (x), (y))
+#define __SLL4(x, y) __PULP_OP2("pv.sll.b", (x), (y))
+
+/* Mac */
+#define __MAC(Acc, x, y) __PULP_ACC(int32_t, "p.mac", (Acc), (x), (y))
+#define __MSU(Acc, x, y) __PULP_ACC(int32_t, "p.msu", (Acc), (x), (y))
+
+/* Vectorial product and sum of products */
+#define __DOTP2(x, y) __PULP_OP2_RET(int32_t, "pv.dotsp.h", (x), (y))
+#define __DOTPU2(x, y) __PULP_OP2_RET(uint32_t, "pv.dotup.h", (x), (y))
+#define __DOTPUS2(x, y) __PULP_OP2_RET(int32_t, "pv.dotusp.h", (x), (y))
+
+#define __DOTPSC2(x, y) __PULP_OP2_RET(int32_t, "pv.dotsp.sc.h", (x), (y))
+#define __DOTPUSC2(x, y) __PULP_OP2_RET(uint32_t, "pv.dotup.sc.h", (x), (y))
+#define __DOTPUSSC2(x, y) __PULP_OP2_RET(int32_t, "pv.dotusp.sc.h", (x), (y))
+
+#define __SUMDOTP2(x, y, z) __PULP_ACC(int32_t, "pv.sdotsp.h", (z), (x), (y))
+#define __SUMDOTPU2(x, y, z) __PULP_ACC(uint32_t, "pv.sdotup.h", (z), (x), (y))
+#define __SUMDOTPUS2(x, y, z) __PULP_ACC(int32_t, "pv.sdotusp.h", (z), (x), (y))
+
+#define __SUMDOTPSC2(x, y, z)                                                  \
+  __PULP_ACC(int32_t, "pv.sdotsp.sc.h", (z), (x), (y))
+#define __SUMDOTPUSC2(x, y, z)                                                 \
+  __PULP_ACC(uint32_t, "pv.sdotup.sc.h", (z), (x), (y))
+#define __SUMDOTPUSSC2(x, y, z)                                                \
+  __PULP_ACC(int32_t, "pv.sdotusp.sc.h", (z), (x), (y))
+
+#define __DOTP4(x, y) __PULP_OP2_RET(int32_t, "pv.dotsp.b", (x), (y))
+#define __DOTPU4(x, y) __PULP_OP2_RET(uint32_t, "pv.dotup.b", (x), (y))
+#define __DOTPUS4(x, y) __PULP_OP2_RET(int32_t, "pv.dotusp.b", (x), (y))
+
+#define __DOTPSC4(x, y) __PULP_OP2_RET(int32_t, "pv.dotsp.sc.b", (x), (y))
+#define __DOTPUSC4(x, y) __PULP_OP2_RET(uint32_t, "pv.dotup.sc.b", (x), (y))
+#define __DOTPUSSC4(x, y) __PULP_OP2_RET(int32_t, "pv.dotusp.sc.b", (x), (y))
+
+#define __SUMDOTP4(x, y, z) __PULP_ACC(int32_t, "pv.sdotsp.b", (z), (x), (y))
+#define __SUMDOTPU4(x, y, z) __PULP_ACC(uint32_t, "pv.sdotup.b", (z), (x), (y))
+#define __SUMDOTPUS4(x, y, z) __PULP_ACC(int32_t, "pv.sdotusp.b", (z), (x), (y))
+
+#define __SUMDOTPSC4(x, y, z)                                                  \
+  __PULP_ACC(int32_t, "pv.sdotsp.sc.b", (z), (x), (y))
+#define __SUMDOTPUSC4(x, y, z)                                                 \
+  __PULP_ACC(uint32_t, "pv.sdotup.sc.b", (z), (x), (y))
+#define __SUMDOTPUSSC4(x, y, z)                                                \
+  __PULP_ACC(int32_t, "pv.sdotusp.sc.b", (z), (x), (y))
+
+#else
+
 #define __PACKU2(x, y)                                                         \
   __builtin_pulp_pack2((unsigned short)(x), (unsigned short)(y))
 
@@ -136,16 +300,16 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
 #define __MACSN(Acc, x, y, n) __builtin_pulp_macsN((x), (y), (Acc), (n))
 #define __MACUN(Acc, x, y, n) __builtin_pulp_macuN((x), (y), (Acc), (n))
 #define __MACSRN(Acc, x, y, n)                                                 \
-  __builtin_pulp_macsRN((x), (y), (Acc), (n), (1 << ((n)-1)))
+  __builtin_pulp_macsRN((x), (y), (Acc), (n), (1 << ((n) - 1)))
 #define __MACURN(Acc, x, y, n)                                                 \
-  __builtin_pulp_macuRN((x), (y), (Acc), (n), (1 << ((n)-1)))
+  __builtin_pulp_macuRN((x), (y), (Acc), (n), (1 << ((n) - 1)))
 
 #define __MACHHSN(Acc, x, y, n) __builtin_pulp_machhsN((x), (y), (Acc), (n))
 #define __MACHHUN(Acc, x, y, n) __builtin_pulp_machhuN((x), (y), (Acc), (n))
 #define __MACHHSRN(Acc, x, y, n)                                               \
-  __builtin_pulp_machhsN((x), (y), (Acc), (n), (1 << ((n)-1)))
+  __builtin_pulp_machhsN((x), (y), (Acc), (n), (1 << ((n) - 1)))
 #define __MACHHURN(Acc, x, y, n)                                               \
-  __builtin_pulp_machhuN((x), (y), (Acc), (n), (1 << ((n)-1)))
+  __builtin_pulp_machhuN((x), (y), (Acc), (n), (1 << ((n) - 1)))
 
 /* Multiplications */
 #define __MULS(x, y) __builtin_pulp_muls((x), (y))
@@ -154,16 +318,16 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
 #define __MULHHU(x, y) __builtin_pulp_mulhhu((x), (y))
 
 #define __MULSN(x, y, n) __builtin_pulp_mulsN((x), (y), (n))
-#define __MULSRN(x, y, n) __builtin_pulp_mulsRN((x), (y), (n), (1 << ((n)-1)))
+#define __MULSRN(x, y, n) __builtin_pulp_mulsRN((x), (y), (n), (1 << ((n) - 1)))
 #define __MULUN(x, y, n) __builtin_pulp_muluN((x), (y), (n))
-#define __MULURN(x, y, n) __builtin_pulp_muluRN((x), (y), (n), (1 << ((n)-1)))
+#define __MULURN(x, y, n) __builtin_pulp_muluRN((x), (y), (n), (1 << ((n) - 1)))
 
 #define __MULHHSN(x, y, n) __builtin_pulp_mulhhsN((x), (y), (n))
 #define __MULHHSRN(x, y, n)                                                    \
-  __builtin_pulp_mulhhsRN((x), (y), (n), (1 << ((n)-1)))
+  __builtin_pulp_mulhhsRN((x), (y), (n), (1 << ((n) - 1)))
 #define __MULHHUN(x, y, n) __builtin_pulp_mulhhuN((x), (y), (n))
 #define __MULHHURN(x, y, n)                                                    \
-  __builtin_pulp_mulhhuRN((x), (y), (n), (1 << ((n)-1)))
+  __builtin_pulp_mulhhuRN((x), (y), (n), (1 << ((n) - 1)))
 
 /* Vectorial product and sum of products */
 #define __DOTP2(x, y) __builtin_pulp_dotsp2((x), (y))
@@ -239,8 +403,9 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
 /* Number of sign bits */
 #define __CLB(x) __builtin_pulp_clb((x))
 
-static inline unsigned int __attribute__((always_inline))
-__ExtInsMaskFast(unsigned int Size, unsigned int Offset) {
+static inline unsigned int
+    __attribute__((always_inline)) __ExtInsMaskFast(unsigned int Size,
+                                                    unsigned int Offset) {
   return ((((Size - 1)) << 5) | (Offset));
 }
 static inline unsigned int __attribute__((always_inline))
@@ -298,11 +463,11 @@ __ExtInsMaskSafe(unsigned int Size, unsigned int Offset) {
 
 /* Add with normalization and rounding */
 #define __ADDROUNDNORMU(x, y, scale)                                           \
-  __builtin_pulp_adduRN((x), (y), (scale), (1 << ((scale)-1)))
+  __builtin_pulp_adduRN((x), (y), (scale), (1 << ((scale) - 1)))
 #define __ADDROUNDNORMU_REG(x, y, scale)                                       \
   __builtin_pulp_adduRN_r((x), (y), (scale))
 #define __ADDROUNDNORM(x, y, scale)                                            \
-  __builtin_pulp_addRN((x), (y), (scale), (1 << ((scale)-1)))
+  __builtin_pulp_addRN((x), (y), (scale), (1 << ((scale) - 1)))
 #define __ADDROUNDNORM_REG(x, y, scale)                                        \
   __builtin_pulp_addRN_r((x), (y), (scale))
 
@@ -314,20 +479,20 @@ __ExtInsMaskSafe(unsigned int Size, unsigned int Offset) {
 
 /* Sub with normalization and rounding */
 #define __SUBROUNDNORMU(x, y, scale)                                           \
-  __builtin_pulp_subuRN((x), (y), (scale), (1 << ((scale)-1)))
+  __builtin_pulp_subuRN((x), (y), (scale), (1 << ((scale) - 1)))
 #define __SUBROUNDNORMU_REG(x, y, scale)                                       \
   __builtin_pulp_subuRN_r((x), (y), (scale))
 #define __SUBROUNDNORM(x, y, scale)                                            \
-  __builtin_pulp_subRN((x), (y), (scale), (1 << ((scale)-1)))
+  __builtin_pulp_subRN((x), (y), (scale), (1 << ((scale) - 1)))
 #define __SUBROUNDNORM_REG(x, y, scale)                                        \
   __builtin_pulp_subRN_r((x), (y), (scale))
 
 /* Normalization and rounding */
 #define __ROUNDNORMU(x, scale)                                                 \
-  __builtin_pulp_adduRN((x), 0, (scale), (1 << ((scale)-1)))
+  __builtin_pulp_adduRN((x), 0, (scale), (1 << ((scale) - 1)))
 #define __ROUNDNORMU_REG(x, scale) __builtin_pulp_adduRN_r((x), 0, (scale))
 #define __ROUNDNORM(x, scale)                                                  \
-  __builtin_pulp_addRN((x), 0, (scale), (1 << ((scale)-1)))
+  __builtin_pulp_addRN((x), 0, (scale), (1 << ((scale) - 1)))
 #define __ROUNDNORM_REG(x, scale) __builtin_pulp_addRN_r((x), 0, (scale))
 
 #define __COREID() __builtin_pulp_CoreId()
@@ -366,6 +531,9 @@ __ExtInsMaskSafe(unsigned int Size, unsigned int Offset) {
   __builtin_pulp_OffsetedWriteHalf((x), (base), (off))
 #define __WRITE_BASE_OFF_BYTE_VOL(x, base, off)                                \
   __builtin_pulp_OffsetedWriteByte((x), (base), (off))
+
+#endif
+
 /* Utilities, Target independant */
 #define FIX2FP(Val, Precision) ((float)(Val) / (float)(1 << (Precision)))
 #define FP2FIXR(Val, Precision) ((int)((Val) * ((1 << (Precision)) - 1) + 0.5))

@@ -1,0 +1,21 @@
+#=======================================================================
+# Makefrag for rv32uxsmallfloatbinx tests
+#-----------------------------------------------------------------------
+
+ifeq ($(COMPILER), llvm)
+rv32uxsmallfloatbinx_sc_tests = \
+                      fadd_b \
+                      fmadd_b \
+                      fmin_b \
+                      fsgnj_b \
+                      vfadd_b \
+                      vfcpka_b \
+                      vfdotpex_b \
+                      vfmac_b \
+                      vfmin_b \
+                      vfsgnj_b
+endif
+
+rv32uxsmallfloatbinx_p_tests = $(addprefix rv32uxsmallfloatbinx-p-, $(rv32uxsmallfloatbinx_sc_tests))
+
+# Xsmallfloatbinx extensions are not tested on Spike

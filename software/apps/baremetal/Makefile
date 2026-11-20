@@ -13,26 +13,22 @@ APPS_DIR := $(ROOT_DIR)
 BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
 DATA_DIR := $(abspath $(SOFTWARE_DIR)/data)
 RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
+
+COMPILER ?= llvm
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
 
 APPS := $(patsubst $(APPS_DIR)/%/main.c,%,$(shell find $(APPS_DIR) -name "main.c"))
 BINARIES := $(addprefix $(BIN_DIR)/,$(APPS))
 ALL := $(APPS)
-
+# GCC does not support the floating-point applications (Zfinx, __fp16)
+ifeq ($(COMPILER),gcc)
 FP_SUFFIXES := f16 f32 f8
-I_SUFFIXES := q16 q32 i16 i32 i8
-I_APPS := $(foreach suf, $(FP_SUFFIXES), $(filter %_$(suf), $(ALL)))
-FP_APPS := $(foreach suf, $(I_SUFFIXES), $(filter %_$(suf), $(ALL)))
-# Filter out applications
-ALL_GCC := $(filter-out $(I_APPS), $(ALL))
-ALL_LLVM := $(filter-out $(FP_APPS), $(ALL))
+ALL := $(filter-out $(foreach suf,$(FP_SUFFIXES),%_$(suf)),$(APPS))
+endif
 
 # Make all applications
-all: $(ALL_GCC)
-
-# Make only applications with full llvm support
-all_llvm: $(ALL_LLVM)
+all: $(ALL)
 
 $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
 
@@ -40,6 +36,7 @@ $(APPS): % : $(BIN_DIR)/% $(APPS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S
 $(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) data_%.h update-opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude -o $@ $< $(RUNTIME) $(RISCV_LDFLAGS) -T$(RUNTIME_DIR)/link.ld
+	$(RISCV_OBJCOPY) --remove-section=.riscv.attributes $@
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 
 # Helper targets

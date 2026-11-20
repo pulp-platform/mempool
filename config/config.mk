@@ -70,8 +70,9 @@ zfinx ?= 1
 # Enable FPU extensions
 zquarterinx ?= 0
 
-# DivSqrt deactivated by default
-xDivSqrt ?= 0
+# DivSqrt activated by default
+# Compiler update to LLVM 22.1.7 does not support -mno-fdiv flag
+xDivSqrt ?= 1
 
 # This parameter is only used for TeraPool configurations
 num_sub_groups_per_group ?= 1

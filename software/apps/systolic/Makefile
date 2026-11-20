@@ -10,6 +10,8 @@ APPS_DIR := $(ROOT_DIR)
 BIN_DIR := $(abspath $(SOFTWARE_DIR)/bin/$(subst $(SOFTWARE_DIR),,$(APPS_DIR)))
 DATA_DIR := $(abspath $(SOFTWARE_DIR)/data)
 RUNTIME_DIR := $(abspath $(SOFTWARE_DIR)/runtime)
+
+COMPILER ?= gcc
 # This will overwrite the ROOT_DIR variable from the included makefile
 include $(RUNTIME_DIR)/runtime.mk
 
@@ -27,6 +29,7 @@ ifeq ($(config),systolic)
 $(BINARIES): $(BIN_DIR)/%: %/main.c.o $(RUNTIME) $(LINKER_SCRIPT) data_%.h update-opcodes
 	mkdir -p $(dir $@)
 	$(RISCV_CC) -Iinclude $(RISCV_LDFLAGS) -o $@ $< $(RUNTIME) -T$(RUNTIME_DIR)/link.ld
+	$(RISCV_OBJCOPY) --remove-section=.riscv.attributes $@
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) -D $@ > $@.dump
 else
 .PHONY: $(BINARIES)

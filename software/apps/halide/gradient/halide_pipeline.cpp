@@ -23,11 +23,10 @@ int main(int argc, char **argv) {
   gradient(x, y) = Halide::cast<uint8_t>(offset);
 
   // Quickly test the pipeline
-  Halide::ParamMap params;
-  params.set(center_x, (uint32_t)7);
-  params.set(center_y, (uint32_t)7);
-  Halide::Buffer<uint8_t> output = gradient.realize(
-      {15, 21}, Halide::get_jit_target_from_environment(), params);
+  center_x.set((uint32_t)7);
+  center_y.set((uint32_t)7);
+  Halide::Buffer<uint8_t> output =
+      gradient.realize({15, 21}, Halide::get_jit_target_from_environment());
 
   for (int j = 0; j < output.height(); j++) {
     for (int i = 0; i < output.width(); i++) {

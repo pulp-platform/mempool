@@ -18,17 +18,23 @@
 #include <stdint.h>
 #include <string.h>
 
+#define WIDTH (15)
+#define HEIGHT (21)
+
+// Output image, in L1 because it does not fit on the core's stack
+uint8_t buffer[WIDTH * HEIGHT] __attribute__((section(".l1")));
+
 int main() {
   if (mempool_get_core_id() == 0) {
     // Specify a two-dimensional buffer
     halide_dimension_t buffer_dim[2];
     // Fill both dimensions' parameters
     buffer_dim[0].min = 0;
-    buffer_dim[0].extent = 15;
+    buffer_dim[0].extent = WIDTH;
     buffer_dim[0].stride = 1;
     buffer_dim[0].flags = 0;
     buffer_dim[1].min = 0;
-    buffer_dim[1].extent = 21;
+    buffer_dim[1].extent = HEIGHT;
     buffer_dim[1].stride = buffer_dim[0].extent;
     buffer_dim[1].flags = 0;
 
@@ -36,10 +42,7 @@ int main() {
     struct halide_type_t buffer_type;
     buffer_type.code = halide_type_uint;
     buffer_type.bits = 8;
-    buffer_type.lanes = 1;
-
-    // Allocate the buffer and the structure to hold the buffer
-    uint8_t buffer[buffer_dim[0].extent * buffer_dim[1].extent];
+    buffer_type.info = 0;
 
     // Assign all parameters to the buffer structure
     halide_buffer_t output;
