@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Unreleased
 
 ### Added
+
+### Changes
+
+### Fixed
+
+## 0.7.0 - 2026-11-20
+
+### Added
 - Add `apb` dependency of version 0.2.4
 - Add support for the `FENCE` instruction
 - Add support for DRAMsys5.0 co-simulation
