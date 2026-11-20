@@ -13,6 +13,7 @@
 #include "printf.h"
 #include "runtime.h"
 #include "synchronization.h"
+#include "xpulp_postmod.h"
 
 #include "baremetal/mempool_redmule_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
@@ -53,42 +54,44 @@ void inline transpose_K(__fp16 *K, uint32_t size_H, uint32_t size_M,
     const uint32_t k_incr = size_M * 2;
     __fp16 K00, K01, K02, K03, K04, K05, K06, K07;
     __fp16 K08, K09, K10, K11, K12, K13, K14, K15;
-    asm volatile("lh %0,  0(%[addr_src]);"
-                 "lh %1,  2(%[addr_src]);"
-                 "lh %2,  4(%[addr_src]);"
-                 "lh %3,  6(%[addr_src]);"
-                 "lh %4,  8(%[addr_src]);"
-                 "lh %5,  10(%[addr_src]);"
-                 "lh %6,  12(%[addr_src]);"
-                 "lh %7,  14(%[addr_src]);"
-                 "lh %8,  16(%[addr_src]);"
-                 "lh %9,  18(%[addr_src]);"
-                 "lh %10, 20(%[addr_src]);"
-                 "lh %11, 22(%[addr_src]);"
-                 "lh %12, 24(%[addr_src]);"
-                 "lh %13, 26(%[addr_src]);"
-                 "lh %14, 28(%[addr_src]);"
-                 "lh %15, 30(%[addr_src]);"
-                 "p.sh %0, %[k_incr](%[addr_dst]);"
-                 "p.sh %1, %[k_incr](%[addr_dst]);"
-                 "p.sh %2, %[k_incr](%[addr_dst]);"
-                 "p.sh %3, %[k_incr](%[addr_dst]);"
-                 "p.sh %4, %[k_incr](%[addr_dst]);"
-                 "p.sh %5, %[k_incr](%[addr_dst]);"
-                 "p.sh %6, %[k_incr](%[addr_dst]);"
-                 "p.sh %7, %[k_incr](%[addr_dst]);"
-                 "p.sh %8, %[k_incr](%[addr_dst]);"
-                 "p.sh %9, %[k_incr](%[addr_dst]);"
-                 "p.sh %10, %[k_incr](%[addr_dst]);"
-                 "p.sh %11, %[k_incr](%[addr_dst]);"
-                 "p.sh %12, %[k_incr](%[addr_dst]);"
-                 "p.sh %13, %[k_incr](%[addr_dst]);"
-                 "p.sh %14, %[k_incr](%[addr_dst]);"
-                 "p.sh %15, %[k_incr](%[addr_dst]);"
-                 : "+&r"(K00), "+&r"(K01), "+&r"(K02), "+&r"(K03), "+&r"(K04),
-                   "+&r"(K05), "+&r"(K06), "+&r"(K07), "+&r"(K08), "+&r"(K09),
-                   "+&r"(K10), "+&r"(K11), "+&r"(K12), "+&r"(K13), "+&r"(K14),
-                   "+&r"(K15), [addr_dst] "+&r"(addr_dst)
+    asm volatile("lh %[K00], 0(%[addr_src]) \n\t"
+                 "lh %[K01], 2(%[addr_src]) \n\t"
+                 "lh %[K02], 4(%[addr_src]) \n\t"
+                 "lh %[K03], 6(%[addr_src]) \n\t"
+                 "lh %[K04], 8(%[addr_src]) \n\t"
+                 "lh %[K05], 10(%[addr_src]) \n\t"
+                 "lh %[K06], 12(%[addr_src]) \n\t"
+                 "lh %[K07], 14(%[addr_src]) \n\t"
+                 "lh %[K08], 16(%[addr_src]) \n\t"
+                 "lh %[K09], 18(%[addr_src]) \n\t"
+                 "lh %[K10], 20(%[addr_src]) \n\t"
+                 "lh %[K11], 22(%[addr_src]) \n\t"
+                 "lh %[K12], 24(%[addr_src]) \n\t"
+                 "lh %[K13], 26(%[addr_src]) \n\t"
+                 "lh %[K14], 28(%[addr_src]) \n\t"
+                 "lh %[K15], 30(%[addr_src]) \n\t"
+                 "p.sh.rrpost %[K00], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K01], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K02], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K03], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K04], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K05], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K06], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K07], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K08], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K09], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K10], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K11], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K12], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K13], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K14], (%[addr_dst]), %[k_incr] \n\t"
+                 "p.sh.rrpost %[K15], (%[addr_dst]), %[k_incr] \n\t"
+                 : [K00] "+&r"(K00), [K01] "+&r"(K01), [K02] "+&r"(K02),
+                   [K03] "+&r"(K03), [K04] "+&r"(K04), [K05] "+&r"(K05),
+                   [K06] "+&r"(K06), [K07] "+&r"(K07), [K08] "+&r"(K08),
+                   [K09] "+&r"(K09), [K10] "+&r"(K10), [K11] "+&r"(K11),
+                   [K12] "+&r"(K12), [K13] "+&r"(K13), [K14] "+&r"(K14),
+                   [K15] "+&r"(K15), [addr_dst] "+r"(addr_dst)
                  : [addr_src] "r"(addr_src), [k_incr] "r"(k_incr)
                  : "memory");
   }
