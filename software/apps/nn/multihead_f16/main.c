@@ -15,6 +15,7 @@
 #include "synchronization.h"
 #include "xpulp_postmod.h"
 
+#include "baremetal/mempool_checks.h"
 #include "baremetal/mempool_redmule_f16.h"
 #include "baremetal/mempool_softmax_f16.h"
 
@@ -23,6 +24,9 @@
 #define PORT_WIDTH (REDMULE_H * (REDMULE_P + 1))
 #define SHIFT (false)
 #define VERBOSE (false)
+#ifndef VERIFY_TOL
+#define VERIFY_TOL (0.01f)
+#endif
 
 __fp16 l1_X[H * M * N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
@@ -34,14 +38,14 @@ __fp16 l1_Wv[N * N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_QKV[3 * H * M * N]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
+__fp16 l1_Kt[H * M * N]
+    __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_A[H * M * M]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
 __fp16 l1_S[H * M * M]
     __attribute__((aligned(sizeof(int32_t)), section(".l1_prio")));
-__fp16 zeros[H * M * M]
-    __attribute__((aligned(sizeof(int32_t)), section(".l2"))) = {0};
 
-void inline transpose_K(__fp16 *K, uint32_t size_H, uint32_t size_M,
+void inline transpose_K(__fp16 *K, __fp16 *Kt, uint32_t size_H, uint32_t size_M,
                         uint32_t size_N, uint32_t core_id, uint32_t num_cores) {
   for (uint32_t idx = core_id * 16; idx < size_H * size_M * size_N;
        idx += num_cores * 16) {
@@ -50,7 +54,7 @@ void inline transpose_K(__fp16 *K, uint32_t size_H, uint32_t size_M,
     uint32_t i_n = (idx % (size_M * size_N)) % size_N;
     uint32_t dst = i_h * size_N * size_M + i_n * size_M + i_m;
     __fp16 *addr_src = K + idx;
-    __fp16 *addr_dst = K + dst;
+    __fp16 *addr_dst = Kt + dst;
     const uint32_t k_incr = size_M * 2;
     __fp16 K00, K01, K02, K03, K04, K05, K06, K07;
     __fp16 K08, K09, K10, K11, K12, K13, K14, K15;
@@ -128,11 +132,6 @@ int main() {
     dma_memcpy_blocking(l1_Wq, l2_Wq, N * N * sizeof(int16_t));
     dma_memcpy_blocking(l1_Wk, l2_Wk, N * N * sizeof(int16_t));
     dma_memcpy_blocking(l1_Wv, l2_Wv, N * N * sizeof(int16_t));
-    dma_memcpy_blocking(Q, l2_Y, (H * M * N) * sizeof(int16_t));
-    dma_memcpy_blocking(K, l2_Y, (H * M * N) * sizeof(int16_t));
-    dma_memcpy_blocking(V, l2_Y, (H * M * N) * sizeof(int16_t));
-    dma_memcpy_blocking(l1_A, zeros, (H * M * M) * sizeof(int16_t));
-    dma_memcpy_blocking(l1_S, zeros, (H * M * M) * sizeof(int16_t));
   }
   mempool_barrier(num_cores);
 
@@ -140,19 +139,21 @@ int main() {
 
   /* Generate K */
   mempool_start_benchmark();
-  redmule_synch_parallel(l1_X, K, l1_Wk, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_synch_parallel(l1_X, l1_Wk, K, H * M, N, N, MATMUL, SHIFT,
+                         PORT_WIDTH);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
   checkpoint_printf("Generate K", VERBOSE);
 
   /* Compute Q */
   mempool_start_benchmark();
-  redmule_asynch_parallel(l1_X, Q, l1_Wq, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, l1_Wq, Q, H * M, N, N, MATMUL, SHIFT,
+                          PORT_WIDTH);
   mempool_stop_benchmark();
 
   /* Transpose */
   mempool_start_benchmark();
-  transpose_K(K, H, M, N, core_id, num_cores);
+  transpose_K(K, l1_Kt, H, M, N, core_id, num_cores);
   mempool_stop_benchmark();
 
   /* Wait for RedMulE */
@@ -163,7 +164,8 @@ int main() {
 
   /* Compute V */
   mempool_start_benchmark();
-  redmule_synch_parallel(l1_X, V, l1_Wv, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_synch_parallel(l1_X, l1_Wv, V, H * M, N, N, MATMUL, SHIFT,
+                         PORT_WIDTH);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
   checkpoint_printf("Linear (I -> QKV) & Transposition", VERBOSE);
@@ -173,13 +175,16 @@ int main() {
   /* QKV generation */
   mempool_start_benchmark();
 
-  redmule_asynch_parallel(l1_X, l1_Wq, Q, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, l1_Wq, Q, H * M, N, N, MATMUL, SHIFT,
+                          PORT_WIDTH);
   wait_redmule();
 
-  redmule_asynch_parallel(l1_X, l1_Wk, K, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, l1_Wk, K, H * M, N, N, MATMUL, SHIFT,
+                          PORT_WIDTH);
   wait_redmule();
 
-  redmule_asynch_parallel(l1_X, l1_Wv, V, H * M, N, N, GEMM, SHIFT, PORT_WIDTH);
+  redmule_asynch_parallel(l1_X, l1_Wv, V, H * M, N, N, MATMUL, SHIFT,
+                          PORT_WIDTH);
   wait_redmule();
 
   mempool_barrier(num_cores);
@@ -187,7 +192,7 @@ int main() {
   checkpoint_printf("Linear (I -> QKV)", VERBOSE);
 
   mempool_start_benchmark();
-  transpose_K(K, H, M, N, core_id, num_cores);
+  transpose_K(K, l1_Kt, H, M, N, core_id, num_cores);
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
   checkpoint_printf("Transpose", VERBOSE);
@@ -204,8 +209,8 @@ int main() {
   if (redmule_id < num_redmules) {
     mempool_start_benchmark();
     for (uint32_t ih = redmule_id; ih < H; ih += num_redmules) {
-      redmule_asynch_single(&Q[ih * (M * N)], &K[ih * (N * M)],
-                            &A[ih * (M * M)], M, N, M, GEMM, redmule_id);
+      redmule_asynch_single(&Q[ih * (M * N)], &l1_Kt[ih * (N * M)],
+                            &A[ih * (M * M)], M, N, M, MATMUL, redmule_id);
     }
   }
   mempool_barrier(num_cores);
@@ -222,7 +227,7 @@ int main() {
     mempool_start_benchmark();
     for (uint32_t ih = redmule_id; ih < H; ih += num_redmules) {
       redmule_asynch_single(&S[ih * (M * M)], &V[ih * (M * N)],
-                            &l1_X[ih * (M * N)], M, M, N, GEMM, redmule_id);
+                            &l1_X[ih * (M * N)], M, M, N, MATMUL, redmule_id);
     }
   }
   mempool_barrier(num_cores);
@@ -237,6 +242,12 @@ int main() {
   mempool_barrier(num_cores);
   mempool_stop_benchmark();
   checkpoint_printf("Transfer-out", VERBOSE);
+
+#ifdef VERIFY
+  /* Compare the output (copied back to l2_Y) with the numpy reference l2_Z */
+  mempool_check_f16(l2_Y, l2_Z, H * M * N, VERIFY_TOL, 0);
+  mempool_barrier(num_cores);
+#endif
 
   return 0;
 }
