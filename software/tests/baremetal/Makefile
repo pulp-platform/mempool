@@ -27,6 +27,10 @@ DATA_TESTS := $(foreach t,$(TESTS),$(if $(shell grep -l 'include "data_$(t)\.h"'
 $(foreach t,$(DATA_TESTS),$(eval $(t)/main.c.o: $(DATA_DIR)/data_$(t).h))
 
 # Make all applications
+# GCC does not support the floating-point applications (Zfinx, __fp16)
+ifeq ($(COMPILER),gcc)
+	TESTS   := $(filter-out tensorpool_intro,$(TESTS))
+endif
 all: $(TESTS)
 
 $(TESTS): % : $(BIN_DIR)/% $(TESTS_DIR)/Makefile $(shell find $(RUNTIME_DIR)/**.{S,c,h,ld} -type f)
