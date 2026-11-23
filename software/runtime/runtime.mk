@@ -22,6 +22,8 @@ OMP_DIR            ?= $(ROOT_DIR)/omp
 HALIDE_DIR         ?= $(ROOT_DIR)/halide
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
+DATA_PARAMS        ?= $(DATA_DIR)/gendata_params_mempool.hjson
+
 # Since redmule is Bender-managed (no stable hardware/deps/redmule path
 # anymore), ask bender for its actual checkout location. Using --checkout
 # makes bender perform the checkout itself if it hasn't happened yet, rather
@@ -167,8 +169,8 @@ HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 %.ld: %.ld.c
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
-data_%.h: $(DATA_DIR)/gendata_params.hjson
-	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_DIR)/gendata_params.hjson
+data_%.h: $(DATA_PARAMS)
+	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_PARAMS)
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)
