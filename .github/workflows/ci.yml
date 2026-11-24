@@ -285,9 +285,11 @@ jobs:
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
+        # gendata_params_minpool.hjson or gendata_params_mempool.hjson
+        DATA_PARAMS: ${{ github.workspace }}/software/data/gendata_params_${{ matrix.mempool_config }}.hjson
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=gcc make -C software/apps baremetal omp
+        COMPILER=gcc make -C software/apps all-gcc all-omp
         COMPILER=gcc make -C software/tests baremetal omp
     - name: Tar apps-gcc Model
       run: tar --posix --use-compress-program zstd -cf apps-gcc.tzst software/bin
@@ -328,9 +330,11 @@ jobs:
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
+        # gendata_params_minpool.hjson or gendata_params_mempool.hjson
+        DATA_PARAMS: ${{ github.workspace }}/software/data/gendata_params_${{ matrix.mempool_config }}.hjson
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps/baremetal all
+        COMPILER=llvm make -C software/apps all-llvm
         COMPILER=llvm make -C software/tests baremetal
     - name: Tar apps-llvm Model
       run: tar --posix --use-compress-program zstd -cf apps-llvm.tzst software/bin
@@ -373,9 +377,11 @@ jobs:
     - name: Build Apps
       env:
         config: ${{ matrix.mempool_config }}
+        # gendata_params_minpool.hjson or gendata_params_mempool.hjson
+        DATA_PARAMS: ${{ github.workspace }}/software/data/gendata_params_${{ matrix.mempool_config }}.hjson
         RISCV_WARNINGS: '-Werror'
       run: |
-        COMPILER=llvm make -C software/apps/halide all
+        COMPILER=llvm make -C software/apps all-halide
     - name: Tar apps-halide Model
       run: tar --posix --use-compress-program zstd -cf apps-halide.tzst software/bin
     - name: Upload apps-halide
@@ -424,7 +430,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=blas/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-llvm:
@@ -464,7 +470,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=apps/baremetal/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=blas/tests make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-apps-halide:
@@ -504,7 +510,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=apps/halide/2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=halide/2d_convolution make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
         make trace
 
   run-gemm-tensorpool:
@@ -534,7 +540,7 @@ jobs:
     - name: Get bender
       run: make bender
     - name: Build gemm_f16
-      run: COMPILER=llvm make -C software/apps/baremetal gemm_f16
+      run: COMPILER=llvm make -C software/apps blas/gemm_f16
     - name: Get verilator-model artifacts
       uses: actions/download-artifact@v4
       with:
@@ -545,7 +551,7 @@ jobs:
       run: |
         cd hardware
         # Don't regenerate previously build artifacts
-        app=apps/baremetal/gemm_f16 make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
+        app=blas/gemm_f16 make -o $GITHUB_WORKSPACE/hardware/verilator_build/Vmempool_tb_verilator verilate
     - name: Check results
       run: |
         # The testbench ends on EOC whatever the result: check the result explicitly

@@ -19,8 +19,11 @@ GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 
 OMP_DIR            ?= $(ROOT_DIR)/omp
+HALIDE_DIR         ?= $(ROOT_DIR)/halide
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
+DATA_PARAMS        ?= $(DATA_DIR)/gendata_params_mempool.hjson
+
 # Since redmule is Bender-managed (no stable hardware/deps/redmule path
 # anymore), ask bender for its actual checkout location. Using --checkout
 # makes bender perform the checkout itself if it hasn't happened yet, rather
@@ -92,7 +95,7 @@ DEFINES += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 DEFINES += -DBANKING_FACTOR=$(banking_factor)
 DEFINES += -DNUM_BANKS=$(shell awk 'BEGIN{print $(banking_factor)*$(num_cores)}')
 DEFINES += -DNUM_CORES_PER_GROUP=$(shell awk 'BEGIN{print int($(num_cores)/$(num_groups))}')
-DEFINES += -DNUM_TILES_PER_GROUP=$(shell awk 'BEGIN{print int($(num_cores)/$(num_cores_per_tile))}')
+DEFINES += -DNUM_TILES_PER_GROUP=$(shell awk 'BEGIN{print int($(num_cores)/$(num_cores_per_tile)/$(num_groups))}')
 DEFINES += -DLOG2_NUM_CORES_PER_TILE=$(shell awk 'BEGIN{print log($(num_cores_per_tile))/log(2)}')
 DEFINES += -DBOOT_ADDR=$(boot_addr)
 DEFINES += -DL1_BANK_SIZE=$(l1_bank_size)
@@ -148,8 +151,9 @@ RUNTIME += $(ROOT_DIR)/string.c.o
 RUNTIME += $(ROOT_DIR)/synchronization.c.o
 
 OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
+HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 
-.INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT)
+.INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(HALIDE_RUNTIME) $(LINKER_SCRIPT)
 # Disable builtin rules
 .SUFFIXES:
 
@@ -165,8 +169,8 @@ OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
 %.ld: %.ld.c
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
-data_%.h:
-	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_DIR)/gendata_params.hjson
+data_%.h: $(DATA_PARAMS)
+	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_PARAMS)
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)
