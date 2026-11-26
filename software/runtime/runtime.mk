@@ -19,8 +19,11 @@ GCC_INSTALL_DIR    ?= $(INSTALL_DIR)/riscv-gcc
 LLVM_INSTALL_DIR   ?= $(INSTALL_DIR)/llvm
 
 OMP_DIR            ?= $(ROOT_DIR)/omp
+HALIDE_DIR         ?= $(ROOT_DIR)/halide
 KERNELS_DIR        ?= $(abspath $(ROOT_DIR)/../kernels)
 DATA_DIR           ?= $(abspath $(ROOT_DIR)/../data)
+DATA_PARAMS        ?= $(DATA_DIR)/gendata_params_mempool.hjson
+
 # Since redmule is Bender-managed (no stable hardware/deps/redmule path
 # anymore), ask bender for its actual checkout location. Using --checkout
 # makes bender perform the checkout itself if it hasn't happened yet, rather
@@ -92,7 +95,7 @@ DEFINES += -DNUM_CORES_PER_TILE=$(num_cores_per_tile)
 DEFINES += -DBANKING_FACTOR=$(banking_factor)
 DEFINES += -DNUM_BANKS=$(shell awk 'BEGIN{print $(banking_factor)*$(num_cores)}')
 DEFINES += -DNUM_CORES_PER_GROUP=$(shell awk 'BEGIN{print int($(num_cores)/$(num_groups))}')
-DEFINES += -DNUM_TILES_PER_GROUP=$(shell awk 'BEGIN{print int($(num_cores)/$(num_cores_per_tile))}')
+DEFINES += -DNUM_TILES_PER_GROUP=$(shell awk 'BEGIN{print int($(num_cores)/$(num_cores_per_tile)/$(num_groups))}')
 DEFINES += -DLOG2_NUM_CORES_PER_TILE=$(shell awk 'BEGIN{print log($(num_cores_per_tile))/log(2)}')
 DEFINES += -DBOOT_ADDR=$(boot_addr)
 DEFINES += -DL1_BANK_SIZE=$(l1_bank_size)
@@ -121,6 +124,35 @@ RISCV_FLAGS_LLVM   ?= -mcmodel=small -mllvm -misched-prera-direction=topdown -me
 # DWARF 5 uses ULEB128 relocations, which are not supported by the GNU linker
 RISCV_FLAGS_LLVM   += -gdwarf-4
 
+# Multi-cluster (mc_pool) runtime integration
+ifeq ($(MULTI_CLUSTER),true)
+	MULTI_CLUSTER_DIR  := $(ROOT_DIR)/multi_cluster
+	DEFINES            += -DMULTI_CLUSTER -DMEMPOOL_CLUSTER_UNIT
+	# Architecture headers (mc_cluster_arch.h/.inc): multi_cluster/arch has the
+	# ones of the default configuration (see the comment on top of them). For
+	# another configuration, generate them with
+	# pulp/chips/mc_pool/common/utils/config.py in GVSoC and pass their
+	# directory with MC_ARCH_DIR.
+	MC_ARCH_DIR        ?= $(MULTI_CLUSTER_DIR)/arch
+	MC_ARCH_HDR        := $(MC_ARCH_DIR)/mc_cluster_arch.h
+	RISCV_FLAGS_COMMON += -I$(MC_ARCH_DIR) -I$(MULTI_CLUSTER_DIR)/include
+	ifeq ($(wildcard $(MC_ARCH_HDR)),)
+    $(error No mc_cluster_arch.h in MC_ARCH_DIR=$(MC_ARCH_DIR))
+	endif
+	# The headers must describe the cores and tensor engines the software is
+	# built for
+	mc_arch_value = $(shell sed -n 's/^\#define ARCH_$(1) //p' $(MC_ARCH_HDR))
+	ifneq ($(call mc_arch_value,NUM_CORE_PER_CLUSTER),$(num_cores))
+    $(error $(MC_ARCH_HDR) is for $(call mc_arch_value,NUM_CORE_PER_CLUSTER) cores, not num_cores=$(num_cores): generate the headers for this configuration and pass MC_ARCH_DIR)
+	endif
+	ifneq ($(call mc_arch_value,NB_REDMULE_TILES),$(num_redmule_tiles))
+    $(error $(MC_ARCH_HDR) is for $(call mc_arch_value,NB_REDMULE_TILES) tensor engines, not num_redmule_tiles=$(num_redmule_tiles): generate the headers for this configuration and pass MC_ARCH_DIR)
+	endif
+	# Recompile when the headers change
+	MC_HDR_DEP   := $(MC_ARCH_HDR) $(MC_ARCH_DIR)/mc_cluster_arch.inc
+	l1_bank_size := $(call mc_arch_value,BANK_SIZE)
+endif
+
 # Define if the division and square root extension is active
 ifneq ($(XDIVSQRT), 0)
 	DEFINES       += -D__XDIVSQRT
@@ -138,35 +170,47 @@ else
 	RISCV_OBJDUMP_FLAGS += $(addprefix --mattr=+,m a $(filter-out rv%,$(subst _, ,$(RISCV_ARCH))))
 endif
 
-LINKER_SCRIPT ?= $(ROOT_DIR)/arch.ld
-
+ifeq ($(MULTI_CLUSTER),true)
+LINKER_SCRIPT     ?= $(MULTI_CLUSTER_DIR)/mc_memory.ld
+LINKER_SCRIPT_DEP ?= $(ROOT_DIR)/arch.ld
+RUNTIME += $(MULTI_CLUSTER_DIR)/mc_start.S.o
+RUNTIME += $(ROOT_DIR)/string.c.o
+RUNTIME += $(ROOT_DIR)/synchronization.c.o
+else
+LINKER_SCRIPT     ?= $(ROOT_DIR)/arch.ld
+LINKER_SCRIPT_DEP ?=
 RUNTIME += $(ROOT_DIR)/alloc.c.o
 RUNTIME += $(ROOT_DIR)/crt0.S.o
 RUNTIME += $(ROOT_DIR)/printf.c.o
 RUNTIME += $(ROOT_DIR)/serial.c.o
 RUNTIME += $(ROOT_DIR)/string.c.o
 RUNTIME += $(ROOT_DIR)/synchronization.c.o
+endif
 
 OMP_RUNTIME := $(addsuffix .o,$(shell find $(OMP_DIR) -name "*.c"))
+HALIDE_RUNTIME := $(addsuffix .o,$(shell find $(HALIDE_DIR) -name "*.c"))
 
-.INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(LINKER_SCRIPT)
+.INTERMEDIATE: $(RUNTIME) $(OMP_RUNTIME) $(HALIDE_RUNTIME) $(LINKER_SCRIPT)
 # Disable builtin rules
 .SUFFIXES:
 
-%.S.o: %.S
+%.S.o: %.S $(MC_HDR_DEP)
 	$(RISCV_CC) $(RISCV_CCFLAGS) -c $< -o $@
 
-%.c.o: %.c
+%.c.o: %.c $(MC_HDR_DEP)
 	$(RISCV_CC) $(RISCV_CCFLAGS) -c $< -o $@
 
-%.cpp.o: %.cpp
+%.cpp.o: %.cpp $(MC_HDR_DEP)
 	$(RISCV_CXX) $(RISCV_CXXFLAGS) -c $< -o $@
 
-%.ld: %.ld.c
+%.ld: %.ld.c FORCE
 	$(RISCV_CC) -P -E $(DEFINES) $< -o $@
 
-data_%.h:
-	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_DIR)/gendata_params.hjson
+data_%.h: $(DATA_PARAMS)
+	$(python) $(DATA_DIR)/gendata_header.py --app_name $(notdir $*) --params $(DATA_PARAMS)
+
+.PHONY: FORCE
+FORCE:
 
 # Bootrom
 %.elf: %.S $(ROOT_DIR)/bootrom.ld $(LINKER_SCRIPT)

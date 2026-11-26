@@ -8,8 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## Unreleased
 
 ### Added
+- Add AI-Native RAN applications.
+- Add L1-Transformer application (neural receiver).
+- Added multi-cluster runtime and applications
 
 ### Changes
+- Divide applications in sub-folders.
 
 ### Fixed
 

@@ -204,6 +204,40 @@
     ]
   },
 
+  "conv1d_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_B", 2)
+      ("matrix_Wi", 8)
+      ("matrix_Ci", 8)
+      ("matrix_Co", 8)
+      ("matrix_Wf", 3)
+    ]
+    "arrays": [
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_F")
+    ]
+  },
+
+  "conv2d_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 16)
+      ("matrix_N", 16)
+      ("matrix_D", 16)
+      ("kernel_K", 3)
+      ("kernel_D", 16)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_Wd")
+      ("__fp16", "l2_Wp")
+      ("__fp16", "l2_Bd")
+      ("__fp16", "l2_Bp")
+    ]
+  },
+
   "dotp_f32": {
     "type": "float32",
     "defines": [
@@ -238,6 +272,57 @@
     "arrays": [
       ("__fp16", "l2_X")
       ("__fp16", "l2_W")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
+  "slp_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 32)
+      ("matrix_N", 32)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_W")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+      ("__fp16", "l2_S")
+    ]
+  },
+
+  "multihead_f16": {
+    "type": "float16",
+    "defines": [
+      ("H", 4)
+      ("M", 16)
+      ("N", 16)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Wq")
+      ("__fp16", "l2_Wk")
+      ("__fp16", "l2_Wv")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
+  "cnn_f16": {
+    "type": "float16",
+    "defines": [
+      ("FM", 16)
+      ("FN", 16)
+      ("DW_D", 16)
+      ("PW_D", 16)
+      ("DW_K", 3)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Wpw")
+      ("__fp16", "l2_Wdw")
       ("__fp16", "l2_Y")
       ("__fp16", "l2_Z")
     ]
@@ -338,6 +423,28 @@
       ("int32_t", "l2_C")
     ]
   }
+
+  "messagep_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 8)
+      ("matrix_N", 4)
+      ("matrix_P", 4)
+      ("matrix_D", 16)
+      ("width_HL", 16)
+      ("FC_LAYER", 1)
+      ("BIAS",     1)
+      ("RELU",     0)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+      ("__fp16", "l2_HL")
+      ("__fp16", "l2_HL_bias")
+      ("__fp16", "l2_W_fc1")
+      ("__fp16", "l2_W_fc2")
+    ]
+  },
 
   "mimo_mmse_f16": {
     "type": "float16",
@@ -445,6 +552,17 @@
     "defines": [
       ("matrix_M", 16)
       ("matrix_N", 16)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+    ]
+  },
+
+  "gelu_f16": {
+    "type": "float16",
+    "defines": [
+      ("array_N", 2048)
     ]
     "arrays": [
       ("__fp16", "l2_A")

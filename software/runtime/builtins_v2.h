@@ -28,18 +28,14 @@ typedef unsigned char v4u __attribute__((vector_size(4)));
 
 /* Packing of scalars into vectors */
 inline v2s __PACK2(const int32_t x, const int32_t y) {
-  v2s output;
-  asm volatile("pv.pack %[z], %[x], %[y];"
-               : [z] "=r"(output)
-               : [x] "r"(x), [y] "r"(y));
-  return output;
+  v2s z;
+  asm volatile("pv.pack %0, %1, %2;" : "=r"(z) : "r"(x), "r"(y));
+  return z;
 }
 inline v2s __PACKH(const int32_t x, const int32_t y) {
-  v2s output;
-  asm volatile("pv.pack.h %[z], %[x], %[y];"
-               : [z] "=r"(output)
-               : [x] "r"(x), [y] "r"(y));
-  return output;
+  v2s z;
+  asm volatile("pv.pack.h %0, %1, %2;" : "=r"(z) : "r"(x), "r"(y));
+  return z;
 }
 
 #ifdef __clang__
@@ -203,6 +199,11 @@ inline v2s __PACKH(const int32_t x, const int32_t y) {
   __PULP_ACC(uint32_t, "pv.sdotup.sc.b", (z), (x), (y))
 #define __SUMDOTPUSSC4(x, y, z)                                                \
   __PULP_ACC(int32_t, "pv.sdotusp.sc.b", (z), (x), (y))
+
+/* Pack two single-precision scalars into two half-precision lanes */
+inline void __VFCPKAHS(v2h *z, const float x, const float y) {
+  asm volatile("vfcpka.h.s %0, %1, %2;" : "=r"(*z) : "r"(x), "r"(y));
+}
 
 #else
 

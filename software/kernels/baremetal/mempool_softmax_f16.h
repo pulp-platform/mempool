@@ -4,6 +4,10 @@
 
 /* This library applies a softmax over an entire matrix.
  * A is the M x N input matrix, B stores the resulting matrix
+ *
+ * VFEXP: compute exp with the vfexp.h instruction (exp of each fp16 lane,
+ * encoded 1000111 00001 rs1 010 rd 0110011) instead of the cubic Taylor
+ * approximation. Needs the patched LLVM and gvsoc ISS.
  */
 
 #pragma once
@@ -16,72 +20,54 @@ void softmax_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
   uint32_t i = 0; // loop counter for M
   uint32_t j = 0; // loop counter for N
 
-  const unsigned ShuffleMask1 = 0x00020002; // [a b] => [a a]
-  const unsigned ShuffleMask0 = 0x00030003; // [a b] => [b b]
-
-  float Sixth = 0.167f;
-  float Half = 0.5f;
-  float One = 1.0f;
-  float init = 0.5f;
-  v2h vSixth, vHalf, vOne, max_init;
-  asm volatile(
-      "vfcpka.h.s %[vSixth], %[Sixth], %[Sixth];"
-      "vfcpka.h.s %[vHalf], %[Half], %[Half];"
-      "vfcpka.h.s %[vOne], %[One], %[One];"
-      "vfcpka.h.s %[max_init], %[init], %[init];"
-      : [vSixth] "+&r"(vSixth), [vHalf] "+&r"(vHalf), [vOne] "+&r"(vOne),
-        [max_init] "+&r"(max_init)
-      : [Sixth] "r"(Sixth), [Half] "r"(Half), [One] "r"(One), [init] "r"(init));
+  const unsigned ShuffleMask = 0x00020003; // [a b] => [b a]
+  v2h vDiv16, vDiv12, vOne;
+  __VFCPKAHS(&vDiv16, 0.167f, 0.167f);
+  __VFCPKAHS(&vDiv12, 0.5f, 0.5f);
+  __VFCPKAHS(&vOne, 1.0f, 1.0f);
 
   for (i = core_id * 2; i < M; i += numThreads * 2) {
 
-    // 1) Find the row-wise maximum value
-    v2h max0 = max_init;
-    v2h max1 = max_init;
+    /* 1) Find the row-wise maximum value */
+
+    v2h max0 = vDiv12;
+    v2h max1 = vDiv12;
+    v2h x0, x1;
 
     for (j = 0; j < N; j += 4) {
-
       v2h aVec00 = *(v2h *)&(A[i * N + j]);           // aVec00 = [a01 a00]
       v2h aVec01 = *(v2h *)&(A[i * N + j + 2]);       // aVec01 = [a03 a02]
       v2h aVec10 = *(v2h *)&(A[(i + 1) * N + j]);     // aVec10 = [a11 a10]
       v2h aVec11 = *(v2h *)&(A[(i + 1) * N + j + 2]); // aVec11 = [a13 a12]
-
-      v2h temp0, temp1;
-
       asm volatile(
           // Find max value (no full reduction)
-          "vfmax.h %[temp0], %[aVec00], %[aVec01];"
-          "vfmax.h %[temp1], %[aVec10], %[aVec11];"
-          "vfmax.h %[max0], %[max0], %[temp0];"
-          "vfmax.h %[max1], %[max1], %[temp1];"
-          : [max0] "+&r"(max0), [max1] "+&r"(max1), [temp0] "+&r"(temp0),
-            [temp1] "+&r"(temp1)
+          "vfmax.h %[tmp0], %[aVec00], %[aVec01];"
+          "vfmax.h %[tmp1], %[aVec10], %[aVec11];"
+          "vfmax.h %[max0], %[max0], %[tmp0];"
+          "vfmax.h %[max1], %[max1], %[tmp1];"
+          : [max0] "+&r"(max0), [max1] "+&r"(max1), [tmp0] "+&r"(x0),
+            [tmp1] "+&r"(x1)
           : [aVec00] "r"(aVec00), [aVec01] "r"(aVec01), [aVec10] "r"(aVec10),
             [aVec11] "r"(aVec11));
     }
 
-    // Potential max elements:
-    v2h x0, x1, x2, x3;
-
     asm volatile(
         // Broadcast each element across vector lanes for full reduction
-        "pv.shuffle2.h %[pmax00], %[max0], %[ShuffleMask0];"
-        "pv.shuffle2.h %[pmax01], %[max0], %[ShuffleMask1];"
-        "pv.shuffle2.h %[pmax10], %[max1], %[ShuffleMask0];"
-        "pv.shuffle2.h %[pmax11], %[max1], %[ShuffleMask1];"
-        "vfmax.h %[max0], %[pmax00], %[pmax01];"
-        "vfmax.h %[max1], %[pmax10], %[pmax11];"
-        : [max0] "+&r"(max0), [max1] "+&r"(max1), [pmax00] "+&r"(x0),
-          [pmax01] "+&r"(x1), [pmax10] "+&r"(x2), [pmax11] "+&r"(x3)
-        : [ShuffleMask0] "r"(ShuffleMask0), [ShuffleMask1] "r"(ShuffleMask1));
+        "pv.shuffle2.h %[tmp0], %[max0], %[ShuffleMask];"
+        "pv.shuffle2.h %[tmp1], %[max1], %[ShuffleMask];"
+        "vfmax.h       %[max0], %[tmp0], %[max0];"
+        "vfmax.h       %[max1], %[tmp1], %[max1];"
+        : [max0] "+&r"(max0), [max1] "+&r"(max1), [tmp0] "+&r"(x0),
+          [tmp1] "+&r"(x1)
+        : [ShuffleMask] "r"(ShuffleMask));
 
-    // 2) Compute exp(x - max)
+    /* 2) Compute exp(x - max) */
+
     // Store sum value in x0, x1
     x0 = (v2h)0.0f;
     x1 = (v2h)0.0f;
 
     for (j = 0; j < N; j += 4) {
-
       v2h aVec00 = *(v2h *)&(A[i * N + j]);
       v2h aVec01 = *(v2h *)&(A[i * N + j + 2]);
       v2h aVec10 = *(v2h *)&(A[(i + 1) * N + j]);
@@ -96,8 +82,20 @@ void softmax_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
                      [aVec10] "+&r"(aVec10), [aVec11] "+&r"(aVec11)
                    : [max0] "r"(max0), [max1] "r"(max1));
 
-      v2h xCu10, xCu11;
       v2h exp00, exp01, exp10, exp11;
+
+#ifdef VFEXP
+      // exp with the vfexp.h instruction
+      asm volatile("vfexp.h %[exp00], %[aVec00];"
+                   "vfexp.h %[exp01], %[aVec01];"
+                   "vfexp.h %[exp10], %[aVec10];"
+                   "vfexp.h %[exp11], %[aVec11];"
+                   : [exp00] "=&r"(exp00), [exp01] "=&r"(exp01),
+                     [exp10] "=&r"(exp10), [exp11] "=&r"(exp11)
+                   : [aVec00] "r"(aVec00), [aVec01] "r"(aVec01),
+                     [aVec10] "r"(aVec10), [aVec11] "r"(aVec11));
+#else
+      v2h xCu00, xCu01, xCu10, xCu11;
 
       // Approximate exp with Taylor Series
       asm volatile(
@@ -109,14 +107,14 @@ void softmax_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
           "vfmul.h %[xCu01], %[xSq01], %[aVec01];"
           "vfmul.h %[xCu10], %[xSq10], %[aVec10];"
           "vfmul.h %[xCu11], %[xSq11], %[aVec11];"
-          "vfmul.h %[xSq00], %[xSq00], %[vHalf];" // 0.5*x^2
-          "vfmul.h %[xSq01], %[xSq01], %[vHalf];"
-          "vfmul.h %[xSq10], %[xSq10], %[vHalf];"
-          "vfmul.h %[xSq11], %[xSq11], %[vHalf];"
-          "vfmul.h %[xCu00], %[xCu00], %[vSixth];" // 0.167*x^3
-          "vfmul.h %[xCu01], %[xCu01], %[vSixth];"
-          "vfmul.h %[xCu10], %[xCu10], %[vSixth];"
-          "vfmul.h %[xCu11], %[xCu11], %[vSixth];"
+          "vfmul.h %[xSq00], %[xSq00], %[vDiv12];" // 0.5*x^2
+          "vfmul.h %[xSq01], %[xSq01], %[vDiv12];"
+          "vfmul.h %[xSq10], %[xSq10], %[vDiv12];"
+          "vfmul.h %[xSq11], %[xSq11], %[vDiv12];"
+          "vfmul.h %[xCu00], %[xCu00], %[vDiv16];" // 0.167*x^3
+          "vfmul.h %[xCu01], %[xCu01], %[vDiv16];"
+          "vfmul.h %[xCu10], %[xCu10], %[vDiv16];"
+          "vfmul.h %[xCu11], %[xCu11], %[vDiv16];"
           "vfmac.h %[xSq00], %[aVec00], %[vOne];" // 1*x + 0.5*x^2
           "vfmac.h %[xSq01], %[aVec01], %[vOne];"
           "vfmac.h %[xSq10], %[aVec10], %[vOne];"
@@ -131,24 +129,23 @@ void softmax_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
           "vfadd.h %[xSq10], %[xSq10], %[xCu10];"
           "vfadd.h %[xSq11], %[xSq11], %[xCu11];"
           : [xSq00] "+&r"(exp00), [xSq01] "+&r"(exp01), [xSq10] "+&r"(exp10),
-            [xSq11] "+&r"(exp11), [vSum0] "+&r"(x0), [vSum1] "+&r"(x1),
-            [xCu00] "+&r"(max0), [xCu01] "+&r"(max1), [xCu10] "+&r"(xCu10),
-            [xCu11] "+&r"(xCu11)
+            [xSq11] "+&r"(exp11), [xCu00] "+&r"(xCu00), [xCu01] "+&r"(xCu01),
+            [xCu10] "+&r"(xCu10), [xCu11] "+&r"(xCu11)
           : [aVec00] "r"(aVec00), [aVec01] "r"(aVec01), [aVec10] "r"(aVec10),
-            [aVec11] "r"(aVec11), [vSixth] "r"(vSixth), [vHalf] "r"(vHalf),
+            [aVec11] "r"(aVec11), [vDiv16] "r"(vDiv16), [vDiv12] "r"(vDiv12),
             [vOne] "r"(vOne));
+#endif
 
       // Compute row-wise sum of all exponents
-      asm volatile(
-          "vfadd.h %[sum0], %[exp00], %[exp01];" // Use aVec00 as temporary sum
-                                                 // variable
-          "vfadd.h %[sum1], %[exp10], %[exp11];"
-          "vfadd.h %[vSum0], %[vSum0], %[sum0];"
-          "vfadd.h %[vSum1], %[vSum1], %[sum1];"
-          : [vSum0] "+&r"(x0), [vSum1] "+&r"(x1), [sum0] "+&r"(aVec00),
-            [sum1] "+&r"(aVec10)
-          : [exp00] "r"(exp00), [exp01] "r"(exp01), [exp10] "r"(exp10),
-            [exp11] "r"(exp11));
+      asm volatile("vfadd.h %[tmp0], %[exp00], %[exp01];" // Use aVec00/10 as
+                                                          // temporary sum
+                   "vfadd.h %[tmp1], %[exp10], %[exp11];"
+                   "vfadd.h %[vSum0], %[vSum0], %[tmp0];"
+                   "vfadd.h %[vSum1], %[vSum1], %[tmp1];"
+                   : [vSum0] "+&r"(x0), [vSum1] "+&r"(x1), [tmp0] "+&r"(aVec00),
+                     [tmp1] "+&r"(aVec10)
+                   : [exp00] "r"(exp00), [exp01] "r"(exp01), [exp10] "r"(exp10),
+                     [exp11] "r"(exp11));
 
       // Store temporary variables
       (*(v2h *)&B[i * N + j]) = exp00;
@@ -157,40 +154,179 @@ void softmax_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
       (*(v2h *)&B[(i + 1) * N + j + 2]) = exp11;
     }
 
-    // Use x2, x3 and vHalf, vOne as temporary sum variables
     asm volatile(
         // Broadcast each element across vector lanes for full reduction
-        "pv.shuffle2.h %[sum00], %[vSum0], %[ShuffleMask0];"
-        "pv.shuffle2.h %[sum01], %[vSum0], %[ShuffleMask1];"
-        "pv.shuffle2.h %[sum10], %[vSum1], %[ShuffleMask0];"
-        "pv.shuffle2.h %[sum11], %[vSum1], %[ShuffleMask1];"
-        "vfadd.h %[vSum0], %[sum00], %[sum01];"
-        "vfadd.h %[vSum1], %[sum10], %[sum11];"
-        : [vSum0] "+&r"(x0), [vSum1] "+&r"(x1), [sum00] "+&r"(x2),
-          [sum01] "+&r"(x3), [sum10] "+&r"(vHalf), [sum11] "+&r"(vOne)
-        : [ShuffleMask0] "r"(ShuffleMask0), [ShuffleMask1] "r"(ShuffleMask1));
+        "pv.shuffle2.h %[tmp0],  %[vSum0], %[ShuffleMask];" // Use max0/1 as
+                                                            // temporary sum
+        "pv.shuffle2.h %[tmp1],  %[vSum1], %[ShuffleMask];"
+        "vfadd.h       %[vSum0], %[vSum0], %[tmp0];"
+        "vfadd.h       %[vSum1], %[vSum1], %[tmp1];"
+        : [vSum0] "+&r"(x0), [vSum1] "+&r"(x1), [tmp0] "+&r"(max0),
+          [tmp1] "+&r"(max1)
+        : [ShuffleMask] "r"(ShuffleMask));
 
-    // 3) Divide by the row-wise sum
+    /* 3) Multiply by the reciprocal of the row-wise sum */
+
+    // One division per row, instead of one per pair of elements
+    v2h inv0, inv1;
+    asm volatile("vfdiv.h %[inv0], %[vOne], %[vSum0];"
+                 "vfdiv.h %[inv1], %[vOne], %[vSum1];"
+                 : [inv0] "=&r"(inv0), [inv1] "=&r"(inv1)
+                 : [vOne] "r"(vOne), [vSum0] "r"(x0), [vSum1] "r"(x1));
+
     for (j = 0; j < N; j += 4) {
       v2h bVec00 = *(v2h *)&(B[i * N + j]);
       v2h bVec01 = *(v2h *)&(B[i * N + j + 2]);
       v2h bVec10 = *(v2h *)&(B[(i + 1) * N + j]);
       v2h bVec11 = *(v2h *)&(B[(i + 1) * N + j + 2]);
 
-      // v2h res00, res01, res10, res11;
-      //  Compute softmax = exp / sum_exp
-      asm volatile("vfdiv.h %[bVec00], %[bVec00], %[vSum0];"
-                   "vfdiv.h %[bVec01], %[bVec01], %[vSum0];"
-                   "vfdiv.h %[bVec10], %[bVec10], %[vSum1];"
-                   "vfdiv.h %[bVec11], %[bVec11], %[vSum1];"
+      //  Compute softmax = exp * (1 / sum_exp)
+      asm volatile("vfmul.h %[bVec00], %[bVec00], %[inv0];"
+                   "vfmul.h %[bVec01], %[bVec01], %[inv0];"
+                   "vfmul.h %[bVec10], %[bVec10], %[inv1];"
+                   "vfmul.h %[bVec11], %[bVec11], %[inv1];"
                    : [bVec00] "+&r"(bVec00), [bVec01] "+&r"(bVec01),
                      [bVec10] "+&r"(bVec10), [bVec11] "+&r"(bVec11)
-                   : [vSum0] "r"(x0), [vSum1] "r"(x1));
+                   : [inv0] "r"(inv0), [inv1] "r"(inv1));
 
       (*(v2h *)&B[i * N + j]) = bVec00;
       (*(v2h *)&B[i * N + j + 2]) = bVec01;
       (*(v2h *)&B[(i + 1) * N + j]) = bVec10;
       (*(v2h *)&B[(i + 1) * N + j + 2]) = bVec11;
+    }
+  }
+}
+
+/* Online (running) softmax, same rows, parallelization and exp approximation
+ * as softmax_parallel_2x4_f16vec. Pass 1 reads each row once and keeps, per
+ * vector lane, the running maximum m and the running sum s of exp(x - m):
+ * when m grows, s is rescaled by exp(m_old - m_new). The two lanes are then
+ * merged into the row maximum and sum. Pass 2 writes exp(x - m) / s. */
+
+#ifdef VFEXP
+static inline v2h sm_vexp(v2h x, v2h one, v2h c2, v2h c3) {
+  (void)one, (void)c2, (void)c3;
+  v2h r;
+  asm("vfexp.h %0, %1" : "=r"(r) : "r"(x));
+  return r;
+}
+#else
+/* exp(x) ~ 1 + x + 0.5 x^2 + 0.167 x^3 */
+static inline v2h sm_vexp(v2h x, v2h one, v2h c2, v2h c3) {
+  v2h x2, x3, r, t;
+  asm("vfmul.h %0, %1, %2" : "=r"(x2) : "r"(x), "r"(x));
+  asm("vfadd.h %0, %1, %2" : "=r"(r) : "r"(one), "r"(x));
+  asm("vfmul.h %0, %1, %2" : "=r"(t) : "r"(x2), "r"(c2));
+  asm("vfadd.h %0, %1, %2" : "=r"(r) : "r"(r), "r"(t));
+  asm("vfmul.h %0, %1, %2" : "=r"(x3) : "r"(x2), "r"(x));
+  asm("vfmul.h %0, %1, %2" : "=r"(t) : "r"(x3), "r"(c3));
+  asm("vfadd.h %0, %1, %2" : "=r"(r) : "r"(r), "r"(t));
+  return r;
+}
+#endif
+
+void softmax_online_parallel_2x4_f16vec(const __fp16 *__restrict__ A,
+                                        __fp16 *__restrict__ B, uint32_t M,
+                                        uint32_t N, uint32_t core_id,
+                                        uint32_t numThreads) {
+  v2h zero, one, c2, c3;
+  __VFCPKAHS(&zero, 0.0f, 0.0f);
+  __VFCPKAHS(&one, 1.0f, 1.0f);
+  __VFCPKAHS(&c2, 0.5f, 0.5f);
+  __VFCPKAHS(&c3, 0.167f, 0.167f);
+
+  for (uint32_t i = core_id * 2; i < M; i += numThreads * 2) {
+    const __fp16 *a0 = &A[i * N];
+    const __fp16 *a1 = &A[(i + 1) * N];
+    __fp16 *b0 = &B[i * N];
+    __fp16 *b1 = &B[(i + 1) * N];
+
+    /* 1) Running maximum and sum of exp(x - max), per lane */
+    v2h m0 = c2, m1 = c2, s0 = zero, s1 = zero;
+    for (uint32_t j = 0; j < N; j += 4) {
+      v2h x00 = *(v2h *)&a0[j];
+      v2h x01 = *(v2h *)&a0[j + 2];
+      v2h x10 = *(v2h *)&a1[j];
+      v2h x11 = *(v2h *)&a1[j + 2];
+
+      v2h n0, n1;
+      asm("vfmax.h %0, %1, %2" : "=r"(n0) : "r"(x00), "r"(x01));
+      asm("vfmax.h %0, %1, %2" : "=r"(n1) : "r"(x10), "r"(x11));
+      asm("vfmax.h %0, %1, %2" : "=r"(n0) : "r"(n0), "r"(m0));
+      asm("vfmax.h %0, %1, %2" : "=r"(n1) : "r"(n1), "r"(m1));
+
+      // s = s * exp(m - n) + (exp(x0 - n) + exp(x1 - n))
+      v2h d1, d2, d3;
+      asm("vfsub.h %0, %1, %2" : "=r"(d1) : "r"(m0), "r"(n0));
+      asm("vfsub.h %0, %1, %2" : "=r"(d2) : "r"(x00), "r"(n0));
+      asm("vfsub.h %0, %1, %2" : "=r"(d3) : "r"(x01), "r"(n0));
+      v2h e1 = sm_vexp(d1, one, c2, c3);
+      v2h e2 = sm_vexp(d2, one, c2, c3);
+      v2h e3 = sm_vexp(d3, one, c2, c3);
+      asm("vfmul.h %0, %1, %2" : "=r"(e1) : "r"(s0), "r"(e1));
+      asm("vfadd.h %0, %1, %2" : "=r"(e2) : "r"(e2), "r"(e3));
+      asm("vfadd.h %0, %1, %2" : "=r"(s0) : "r"(e1), "r"(e2));
+
+      asm("vfsub.h %0, %1, %2" : "=r"(d1) : "r"(m1), "r"(n1));
+      asm("vfsub.h %0, %1, %2" : "=r"(d2) : "r"(x10), "r"(n1));
+      asm("vfsub.h %0, %1, %2" : "=r"(d3) : "r"(x11), "r"(n1));
+      e1 = sm_vexp(d1, one, c2, c3);
+      e2 = sm_vexp(d2, one, c2, c3);
+      e3 = sm_vexp(d3, one, c2, c3);
+      asm("vfmul.h %0, %1, %2" : "=r"(e1) : "r"(s1), "r"(e1));
+      asm("vfadd.h %0, %1, %2" : "=r"(e2) : "r"(e2), "r"(e3));
+      asm("vfadd.h %0, %1, %2" : "=r"(s1) : "r"(e1), "r"(e2));
+
+      m0 = n0;
+      m1 = n1;
+    }
+
+    /* Merge the lanes: row maximum in both lanes, then 1 / row sum */
+    // pv.shuffle.h with this mask swaps the lanes: [a b] -> [b a]
+    uint32_t swap = 0x00000001u;
+    v2h r0, r1, d0, d1;
+    asm("pv.shuffle.h %0, %1, %2" : "=r"(r0) : "r"(m0), "r"(swap));
+    asm("pv.shuffle.h %0, %1, %2" : "=r"(r1) : "r"(m1), "r"(swap));
+    asm("vfmax.h %0, %1, %2" : "=r"(r0) : "r"(r0), "r"(m0)); // row maximum
+    asm("vfmax.h %0, %1, %2" : "=r"(r1) : "r"(r1), "r"(m1));
+    asm("vfsub.h %0, %1, %2" : "=r"(d0) : "r"(m0), "r"(r0)); // lane - row max
+    asm("vfsub.h %0, %1, %2" : "=r"(d1) : "r"(m1), "r"(r1));
+
+    // Row sums: the lane sums rescaled to the row maximum, then added
+    d0 = sm_vexp(d0, one, c2, c3);
+    d1 = sm_vexp(d1, one, c2, c3);
+    asm("vfmul.h %0, %1, %2" : "=r"(s0) : "r"(s0), "r"(d0));
+    asm("vfmul.h %0, %1, %2" : "=r"(s1) : "r"(s1), "r"(d1));
+    asm("pv.shuffle.h %0, %1, %2" : "=r"(d0) : "r"(s0), "r"(swap));
+    asm("pv.shuffle.h %0, %1, %2" : "=r"(d1) : "r"(s1), "r"(swap));
+    asm("vfadd.h %0, %1, %2" : "=r"(s0) : "r"(s0), "r"(d0));
+    asm("vfadd.h %0, %1, %2" : "=r"(s1) : "r"(s1), "r"(d1));
+
+    v2h inv0, inv1;
+    asm volatile("vfdiv.h %[inv0], %[one], %[s0];"
+                 "vfdiv.h %[inv1], %[one], %[s1];"
+                 : [inv0] "=&r"(inv0), [inv1] "=&r"(inv1)
+                 : [one] "r"(one), [s0] "r"(s0), [s1] "r"(s1));
+
+    /* 2) exp(x - max) / sum */
+    for (uint32_t j = 0; j < N; j += 4) {
+      v2h e00, e01, e10, e11;
+      asm("vfsub.h %0, %1, %2" : "=r"(e00) : "r"(*(v2h *)&a0[j]), "r"(r0));
+      asm("vfsub.h %0, %1, %2" : "=r"(e01) : "r"(*(v2h *)&a0[j + 2]), "r"(r0));
+      asm("vfsub.h %0, %1, %2" : "=r"(e10) : "r"(*(v2h *)&a1[j]), "r"(r1));
+      asm("vfsub.h %0, %1, %2" : "=r"(e11) : "r"(*(v2h *)&a1[j + 2]), "r"(r1));
+      e00 = sm_vexp(e00, one, c2, c3);
+      e01 = sm_vexp(e01, one, c2, c3);
+      e10 = sm_vexp(e10, one, c2, c3);
+      e11 = sm_vexp(e11, one, c2, c3);
+      asm("vfmul.h %0, %1, %2" : "=r"(*(v2h *)&b0[j]) : "r"(e00), "r"(inv0));
+      asm("vfmul.h %0, %1, %2"
+          : "=r"(*(v2h *)&b0[j + 2])
+          : "r"(e01), "r"(inv0));
+      asm("vfmul.h %0, %1, %2" : "=r"(*(v2h *)&b1[j]) : "r"(e10), "r"(inv1));
+      asm("vfmul.h %0, %1, %2"
+          : "=r"(*(v2h *)&b1[j + 2])
+          : "r"(e11), "r"(inv1));
     }
   }
 }

@@ -12,9 +12,14 @@ import os
 import hjson
 import ast
 import numpy
+import sys
 
 import gendatalib as datalib
-import pyflexfloat as ff
+import gendatalib_nn as datalib_nn
+try:
+    import pyflexfloat as ff
+except ModuleNotFoundError:
+    ff = None
 
 
 header = """\
@@ -51,6 +56,11 @@ def format_type(typ, value):
     elif typ == '__fp16':
         stringyfied_val = '({}) {:+.4f}'.format(typ, value)
     elif typ == '__fp8':
+        if ff is None:
+            raise Exception(
+                "ERROR: pyflexfloat is required to format __fp8 values. "
+                "Install pyflexfloat or avoid float8 data generation."
+            )
         if not isinstance(value, ff.FlexFloat):
             value = numpy.array([value]).astype(numpy.double)
             value = ff.FlexFloat("e5m2", value[0])
@@ -136,9 +146,14 @@ def get_type(type_string):
     elif type_string == "float16":
         return numpy.float16
     elif type_string == "float8":
+        if ff is None:
+            raise Exception(
+                "ERROR: pyflexfloat is required for float8 data generation. "
+                "Install pyflexfloat or choose a different type."
+            )
         return ff.FlexFloat('e5m2')
     else:
-        raise Exception("Input type is not valid")
+        raise Exception("ERROR: Input type is not valid")
 
 
 if __name__ == '__main__':
@@ -146,7 +161,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Generate data.h header files.')
     parser.add_argument('--app_name', type=str, help='Name of the app')
-    parser.add_argument('--params', type=str, help='Name of the app')
+    parser.add_argument(
+        '--params',
+        type=str,
+        help='.hjson file with parameters')
     parser.add_argument(
         '--type',
         type=str,
@@ -178,9 +196,9 @@ if __name__ == '__main__':
         arrays = [ast.literal_eval(array) for array in data_args.get("arrays")]
     else:
         if args.type is None or args.defines is None or args.arrays is None:
-            raise Exception(
-                "ERROR: Missing required parameters when HJSON "
-                "data is not available.")
+            print("WARNING: Missing parameters when no HJSON is available.\
+                  \nWARNING: Data will not be generated.")
+            sys.exit(0)
 
         # Extract type
         my_type = get_type(args.type)
@@ -212,6 +230,8 @@ if __name__ == '__main__':
         "cholesky_q32": {"func": datalib.generate_qcholesky},
         "cmatmul_f16": {"func": datalib.generate_fcmatmul},
         "cmatmul_q16": {"func": datalib.generate_qcmatmul},
+        "conv1d_f16": {"func": datalib.generate_fconv1d},
+        "conv2d_f16": {"func": datalib.generate_fconv2d_depthwise_pointwise},
         "dotp_f16": {"func": datalib.generate_fdotp},
         "dotp_f32": {"func": datalib.generate_fdotp},
         "dotp_i32": {"func": datalib.generate_idotp},
@@ -223,20 +243,25 @@ if __name__ == '__main__':
         "matmul_i32": {"func": datalib.generate_imatmul},
         "matmul_i16": {"func": datalib.generate_imatmul},
         "matmul_i8": {"func": datalib.generate_imatmul},
+        "messagep_f16": {"func": datalib_nn.generate_fmessagep},
+        "cnn_f16": {"func": datalib_nn.generate_fcnn},
+        "slp_f16": {"func": datalib_nn.generate_fslp},
+        "multihead_f16": {"func": datalib_nn.generate_fmultihead},
         "mimo_mmse_q16": {"func": datalib.generate_qmmse},
         "mimo_mmse_f16": {"func": datalib.generate_fmmse},
         "mimo_mmse_f32": {"func": datalib.generate_fmmse},
         "mimo_mmse_f8": {"func": datalib.generate_fmmse},
-        "batchnorm_f8": {"func": datalib.generate_fbatchnorm},
-        "batchnorm_f16": {"func": datalib.generate_fbatchnorm},
-        "layernorm_f8": {"func": datalib.generate_flayernorm},
-        "layernorm_f16": {"func": datalib.generate_flayernorm},
+        "batchnorm_f8": {"func": datalib_nn.generate_fbatchnorm},
+        "batchnorm_f16": {"func": datalib_nn.generate_fbatchnorm},
+        "layernorm_f8": {"func": datalib_nn.generate_flayernorm},
+        "layernorm_f16": {"func": datalib_nn.generate_flayernorm},
+        "gelu_f16": {"func": datalib_nn.generate_fgelu},
         "ofdm_f16": {"func": datalib.generate_fofdm},
+        "softmax_f8": {"func": datalib_nn.generate_fsoftmax},
+        "softmax_f16": {"func": datalib_nn.generate_fsoftmax},
         "fence": {"func": datalib.generate_iarray},
         "memcpy": {"func": datalib.generate_iarray},
         "barriers_test": {"func": datalib.generate_barriers_test},
-        "softmax_f8": {"func": datalib.generate_fsoftmax},
-        "softmax_f16": {"func": datalib.generate_fsoftmax},
     }
 
     # Check if app_name exists in the function map
@@ -249,9 +274,9 @@ if __name__ == '__main__':
         result, defnes = func(defines=defnes, my_type=my_type)
         # Print result to data header
         if len(arrays) == 1:
-            arrays = [(result, *arrays[0])]
+            arrays = [(result,) + arrays[0]]
         else:
-            arrays = [(result[i], *arrays[i]) for i in range(len(arrays))]
+            arrays = [(result[i],) + arrays[i] for i in range(len(arrays))]
         print_file(header, defnes, arrays, filename)
 
     else:

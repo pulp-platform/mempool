@@ -1,0 +1,645 @@
+// Copyright 2022 ETH Zurich and University of Bologna.
+// Solderpad Hardware License, Version 0.51, see LICENSE for details.
+// SPDX-License-Identifier: SHL-0.51
+
+// This script generates data.h files.
+// Author: Marco Bertuletti <mbertuletti@iis.ee.ethz.ch>
+
+{
+  "axpy_i32": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 1024)
+    ]
+    "arrays": [
+      ("int32_t", "l2_A")
+      ("int32_t", "l2_X")
+      ("int32_t", "l2_Y")
+      ("int32_t", "l2_Z")
+    ]
+  },
+
+  "axpy_f32": {
+    "type": "float32",
+    "defines": [
+      ("array_N", 1024)
+    ]
+    "arrays": [
+      ("float", "l2_A")
+      ("float", "l2_X")
+      ("float", "l2_Y")
+      ("float", "l2_Z")
+    ]
+  },
+
+  "axpy_f16": {
+    "type": "float16",
+    "defines": [
+      ("array_N", 1024)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
+  "axpy_f8": {
+    "type": "float8",
+    "defines": [
+      ("array_N", 4096)
+    ]
+    "arrays": [
+      ("__fp8", "l2_A")
+      ("__fp8", "l2_X")
+      ("__fp8", "l2_Y")
+      ("__fp8", "l2_Z")
+    ]
+  },
+
+  "dotp_f16": {
+    "type": "float16",
+    "defines": [
+      ("array_N", 1024)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
+  "cfft_radix2_q16": {
+    "type": "int16",
+    "defines": [
+      ("N_CSAMPLES", 256)
+    ]
+    "arrays": [
+      ("int16_t", "l2_pSrc")
+      ("int16_t", "l2_pRes")
+      ("int16_t", "l2_twiddleCoef_q16")
+      ("int16_t", "l2_BitRevIndexTable")
+    ]
+  },
+
+  "cfft_radix4_f16": {
+    "type": "float16",
+    "defines": [
+      ("N_CSAMPLES", 64)
+    ]
+    "arrays": [
+      ("__fp16", "l2_pSrc")
+      ("__fp16", "l2_pRes")
+      ("__fp16", "l2_twiddleCoef_f16")
+      ("int16_t", "l2_BitRevIndexTable")
+    ]
+  },
+
+  "cfft_radix4_q16": {
+    "type": "int16",
+    "defines": [
+      ("N_CSAMPLES", 64)
+    ]
+    "arrays": [
+      ("int16_t", "l2_pSrc")
+      ("int16_t", "l2_pRes")
+      ("int16_t", "l2_twiddleCoef_q16")
+      ("int16_t", "l2_BitRevIndexTable")
+    ]
+  },
+
+  "chest_f16": {
+    "type": "float16",
+    "defines": [
+      ("N_TX",        4)
+      ("N_RX",        4)
+      ("N_SAMPLES", 512)
+    ]
+    "arrays": [
+      ("__fp16", "l2_PilotTX")
+      ("__fp16", "l2_PilotRX")
+      ("__fp16", "l2_HEST")
+    ]
+  },
+
+  "chest_q16": {
+    "type": "int32",
+    "defines": [
+      ("N_TX",        4)
+      ("N_RX",        4)
+      ("N_SAMPLES", 512)
+    ]
+    "arrays": [
+      ("int16_t", "l2_PilotTX")
+      ("int16_t", "l2_PilotRX")
+      ("int16_t", "l2_HEST")
+    ]
+  },
+
+  "cholesky_q16": {
+    "type": "int16",
+    "defines": [
+      ("matrix_N",    4)
+      ("FIXED_POINT", 8)
+      ("N_SAMPLES", 32)
+    ]
+    "arrays": [
+      ("int16_t", "l2_GIn")
+      ("int16_t", "l2_LOut")
+    ]
+  },
+
+  "cholesky_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_N",    4)
+      ("N_SAMPLES",  32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_GIn")
+      ("__fp16", "l2_LOut")
+    ]
+  },
+
+  "cholesky_q32": {
+    "type": "int32",
+    "defines": [
+      ("matrix_N",    32)
+      ("FIXED_POINT", 10)
+      ("N_SAMPLES", 1)
+    ]
+    "arrays": [
+      ("int32_t", "l2_A")
+      ("int32_t", "l2_L")
+      ("int32_t", "l2_y")
+    ]
+  },
+
+  "cmatmul_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 32)
+      ("matrix_N", 32)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+      ("__fp16", "l2_C")
+    ]
+  },
+
+  "cmatmul_q16": {
+    "type": "int16",
+    "defines": [
+      ("matrix_M", 32)
+      ("matrix_N", 32)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("int16_t", "l2_A")
+      ("int16_t", "l2_B")
+      ("int16_t", "l2_C")
+    ]
+  },
+
+  "conv1d_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_B", 2)
+      ("matrix_Wi", 8)
+      ("matrix_Ci", 8)
+      ("matrix_Co", 8)
+      ("matrix_Wf", 3)
+    ]
+    "arrays": [
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_F")
+    ]
+  },
+
+  "conv2d_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 16)
+      ("matrix_N", 16)
+      ("matrix_D", 16)
+      ("kernel_K", 3)
+      ("kernel_D", 16)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_Wd")
+      ("__fp16", "l2_Wp")
+      ("__fp16", "l2_Bd")
+      ("__fp16", "l2_Bp")
+    ]
+  },
+
+  "dotp_f32": {
+    "type": "float32",
+    "defines": [
+      ("array_N", 1024)
+    ]
+    "arrays": [
+      ("float", "l2_X")
+      ("float", "l2_Y")
+      ("float", "l2_Z")
+    ]
+  },
+
+  "dotp_i32": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 1024)
+    ]
+    "arrays": [
+      ("int32_t", "l2_X")
+      ("int32_t", "l2_Y")
+      ("int32_t", "l2_Z")
+    ]
+  },
+
+  "gemm_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_W")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
+  "slp_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 32)
+      ("matrix_N", 32)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_W")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+      ("__fp16", "l2_S")
+    ]
+  },
+
+  "multihead_f16": {
+    "type": "float16",
+    "defines": [
+      ("H", 4)
+      ("M", 32)
+      ("N", 32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Wq")
+      ("__fp16", "l2_Wk")
+      ("__fp16", "l2_Wv")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
+  "cnn_f16": {
+    "type": "float16",
+    "defines": [
+      ("FM", 16)
+      ("FN", 16)
+      ("DW_D", 16)
+      ("PW_D", 16)
+      ("DW_K", 3)
+    ]
+    "arrays": [
+      ("__fp16", "l2_X")
+      ("__fp16", "l2_Wpw")
+      ("__fp16", "l2_Wdw")
+      ("__fp16", "l2_Y")
+      ("__fp16", "l2_Z")
+    ]
+  },
+
+  "gaussjordan_q32": {
+    "type": "int32",
+    "defines": [
+      ("matrix_N", 16)
+      ("FIXED_POINT", 10)
+    ]
+    "arrays": [
+      ("int32_t", "l2_Src")
+      ("int32_t", "l2_Dst")
+    ]
+  },
+
+  "matmul_f8": {
+    "type": "float8",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
+    ]
+    "arrays": [
+      ("__fp8", "l2_A")
+      ("__fp8", "l2_B")
+      ("__fp8", "l2_C")
+    ]
+  },
+
+  "matmul_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+      ("__fp16", "l2_C")
+    ]
+  },
+
+  "matmul_f32": {
+    "type": "float32",
+    "defines": [
+      ("matrix_M", 16)
+      ("matrix_N", 16)
+      ("matrix_P", 16)
+    ]
+    "arrays": [
+      ("float", "l2_A")
+      ("float", "l2_B")
+      ("float", "l2_C")
+    ]
+  }
+
+  "matmul_i16": {
+    "type": "int16",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
+    ]
+    "arrays": [
+      ("int16_t", "l2_A")
+      ("int16_t", "l2_B")
+      ("int32_t", "l2_C")
+    ]
+  }
+
+  "matmul_i32": {
+    "type": "int32",
+    "defines": [
+      ("matrix_M", 32)
+      ("matrix_N", 32)
+      ("matrix_P", 32)
+    ]
+    "arrays": [
+      ("int32_t", "l2_A")
+      ("int32_t", "l2_B")
+      ("int32_t", "l2_C")
+    ]
+  }
+
+  "matmul_i8": {
+    "type": "int8",
+    "defines": [
+      ("matrix_M", 64)
+      ("matrix_N", 64)
+      ("matrix_P", 64)
+    ]
+    "arrays": [
+      ("int8_t", "l2_A")
+      ("int8_t", "l2_B")
+      ("int32_t", "l2_C")
+    ]
+  }
+
+  "messagep_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 8)
+      ("matrix_N", 4)
+      ("matrix_P", 4)
+      ("matrix_D", 16)
+      ("width_HL", 16)
+      ("FC_LAYER", 1)
+      ("BIAS",     1)
+      ("RELU",     0)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+      ("__fp16", "l2_HL")
+      ("__fp16", "l2_HL_bias")
+      ("__fp16", "l2_W_fc1")
+      ("__fp16", "l2_W_fc2")
+    ]
+  },
+
+  "mimo_mmse_f16": {
+    "type": "float16",
+    "defines": [
+      ("N_TX", 4)
+      ("N_RX", 4)
+      ("N_ITR", 32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_H")
+      ("__fp16", "l2_G")
+      ("__fp16", "l2_y")
+      ("__fp16", "l2_S")
+      ("__fp16", "l2_x")
+    ]
+  }
+
+  "mimo_mmse_f32": {
+    "type": "float32",
+    "defines": [
+      ("N_TX", 4)
+      ("N_RX", 4)
+      ("N_ITR", 32)
+    ]
+    "arrays": [
+      ("float", "l2_H")
+      ("float", "l2_G")
+      ("float", "l2_y")
+      ("float", "l2_S")
+      ("float", "l2_x")
+    ]
+  }
+
+  "mimo_mmse_f8": {
+    "type": "float16",
+    "defines": [
+      ("N_TX", 4)
+      ("N_RX", 4)
+      ("N_ITR", 32)
+    ]
+    "arrays": [
+      ("__fp8", "l2_H")
+      ("__fp16", "l2_G")
+      ("__fp8", "l2_y")
+      ("__fp8", "l2_S")
+      ("__fp16", "l2_x")
+    ]
+  }
+
+  "mimo_mmse_q16": {
+    "type": "int16",
+    "defines": [
+      ("N_TX", 4)
+      ("N_RX", 4)
+      ("N_ITR", 32)
+      ("FIXED_POINT", 8)
+    ]
+    "arrays": [
+      ("int16_t", "l2_H")
+      ("int16_t", "l2_G")
+      ("int16_t", "l2_y")
+      ("int16_t", "l2_S")
+      ("int16_t", "l2_x")
+    ]
+  }
+
+  "batchnorm_f8": {
+    "type": "float8",
+    "defines": [
+      ("matrix_M", 4)
+      ("matrix_N", 4)
+    ]
+    "arrays": [
+      ("__fp8", "l2_A")
+      ("__fp8", "l2_B")
+    ]
+  },
+
+  "batchnorm_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 16)
+      ("matrix_N", 16)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+    ]
+  },
+
+  "layernorm_f8": {
+    "type": "float8",
+    "defines": [
+      ("matrix_M", 4)
+      ("matrix_N", 4)
+    ]
+    "arrays": [
+      ("__fp8", "l2_A")
+      ("__fp8", "l2_B")
+    ]
+  },
+
+  "layernorm_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 16)
+      ("matrix_N", 16)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+    ]
+  },
+
+  "gelu_f16": {
+    "type": "float16",
+    "defines": [
+      ("array_N", 2048)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+    ]
+  },
+
+  "ofdm_f16": {
+    "type": "float16",
+    "defines": [
+      ("N_SC", 4096)
+      ("N_RX", 64)
+      ("N_BEAMS", 32)
+    ]
+    "arrays": [
+      ("__fp16", "l2_pFFT_Src")
+      ("__fp16", "l2_pBF_Coef")
+      ("__fp16", "l2_pBF_Dst")
+      ("__fp16", "l2_twiddleCoef_f16")
+      ("__fp16", "l2_BitRevIndexTable")
+    ]
+  },
+
+  "fence": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 12288)
+    ]
+    "arrays": [
+      ("int32_t", "l2_data")
+    ]
+  },
+
+  "memcpy": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 2048)
+    ]
+    "arrays": [
+      ("int32_t", "l2_data")
+    ]
+  },
+
+  "barriers_test": {
+    "type": "int32",
+    "defines": [
+      ("array_N", 256)
+      ("MAX_delay", 32)
+    ]
+    "arrays": [
+      ("int32_t", "l2_delays")
+    ]
+  },
+
+  "softmax_f8": {
+    "type": "float8",
+    "defines": [
+      ("matrix_M", 2)
+      ("matrix_N", 8)
+    ]
+    "arrays": [
+      ("__fp8", "l2_A")
+      ("__fp8", "l2_B")
+    ]
+  },
+
+  "softmax_f16": {
+    "type": "float16",
+    "defines": [
+      ("matrix_M", 2)
+      ("matrix_N", 8)
+    ]
+    "arrays": [
+      ("__fp16", "l2_A")
+      ("__fp16", "l2_B")
+    ]
+  },
+
+
+}
